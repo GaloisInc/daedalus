@@ -1,88 +1,92 @@
 DaeDaLus
---------
+========
+
+Daedalus is a flexible data description language for generating parsers
+with data dependencies.
+
+
+Installing Haskell
+------------------
+
+Daedalus is implemented in Haskell, so to build it you'd need to setup
+a Haskell environment.  An easy way to get this setup is to use ghcup_.
+You need a Haskell compiler (recommended `GHC 8.8.3`), and a Haskell package
+installer (recommended `Cabal 3.2`).
+
+.. _ghcup: https://www.haskell.org/ghcup/
+
+
+Building the Daedalus Interpreter
+---------------------------------
+
+The Daedalus interpreter, called ``daedalus`` is a good way to experiment
+with, and learn the Daedlus language.  To build and install the interpreter
+you may use the command:
+
+.. code-block:: bash
+
+    cabal install exe:daedalus --installdir=DIR \
+                               --overwrite-policy=always
+
+This instructs ``cabal`` to build Daedlus and place a link to the binary
+in directory ``DIR``.  The flag ``--overwrite-policy`` is optional and
+instructs ``cabal`` to overwite existing links with the same name.
+
+
+Running the Interpreter
+-----------------------
+
+To run ``daedalus`` you need a Daedalus specification describing the
+parser, and a file that should be parsed.  For example, you could try
+the following, assuming ``daedalus`` is in your path:
+
+.. code-block:: bash
+
+  daedalus tests/midi/midi.ddl -i tests/midi/inputs/moz_k299.midi
+
+The first argument to daedalus is a specification describing the ``midi``
+format and the ``-i`` flag specfies the input that should be parsed.
+If the input is parsed successfully, then ``daedalus`` will display the
+resulting semantic value.  Otherwise, you should see a parse error describing
+what went wrong.
 
 
 Setting up Your Editor
-======================
+----------------------
 
 Directory ``syntax-hilight`` contain Daedalus syntax hilighting files for
 common editors.
 
 
-Syntax
-======
+More about the Daedalus Language
+---------------------------------
 
-Identifiers
-~~~~~~~~~~~
-There are four classes of identifier in DaeDaLus:
- 1. Built-in keywords, such as ``Many``
- 2. Names of character sets, which begin with ``$``
- 3. Names of parsers, which begin with uppercase English letters
- 4. Names of fields and local variables, which begin with lowercase English letters
+The documentation for ``Daedlus`` is not yet complete, but you may read
+more about the language in ``docs/UserGuide.pdf``.  The ``tests`` directory
+contains numerous small examples of ``Daedlus`` specifications, of particular
+interest might be subdirectories ``ppm`` (PPM image format),
+``sexp`` (S-expressions) and ``midi`` (MIDI messages).
 
 
-Types
-=====
+Generating Parsers
+------------------
 
-Daedalus has a largely structural type system that features records,
-variants, and sequences, in addition to base types like fixed-width
-integers. There's presently no concrete syntax for adding type
-ascriptions - types are inferred.
+At present we can translate Daedalus specifications into Haskell, so that
+the resulting parsers may be intergrated with Haskell applications.
+We are working on adding support for generating parsers in other languages
+as well.  The parser generation functionality is very much in development
+at the moment.
 
-Operations
-==========
+The repositry contains two examples of Haskell applications using Daedalus
+parsers.  They are both validators, for the ICC and PDF format respectively.
+You may install them using the commands:
 
-The primary constructs of the language are:
-* Parsers, which can be understood as a monadic language
-* Byte sets, built up from byte literals, byte ranges, and union
-* Pure computations, like arithmetic expressions
+.. code-block:: bash
 
-Depending on context, syntactically identical expressions can be
-interpreted in different ways. For instance, a byte literal is a
-singleton set in a byte set context, a parser that matches only that
-byte in a parser context, and a value in a pure computation context.
+    cabal install exe:icc-parser    --installdir=DIR
+    cabal install exe:pdf-hs-driver --installdir=DIR
 
-``as``
-  In a pure context, this operator coerces a value from one type to
-  another, but is a static error when the type being coerced to cannot
-  necessarily represent the value. In a parser context, the parser
-  fails when the value cannot be coerced.
+The source code for the ICC validator is in ``icc-driver`` and the source
+code for the PDF validator is in ``pdf-driver``.
 
-``^``
-  The unit of the parsing monad, analogous to Haskell's ``pure`` or
-  ``return``.
 
-``@``
-  Before a field name in a parsing record, this operator causes the
-  parsed value to not be included as a field. The name is nonetheless
-  brought into scope, and the value that results from the parser
-  action can be used in subsequent parsers.
-
-``!``
-  Applied to a Boolean, this unary prefix operator means
-  negation. Applied to a byte set, it represents the complement of the
-  byte set.
-
-Primitive Functions
-~~~~~~~~~~~~~~~~~~~
-
-``(#) : uint m -> uint n -> uint (m + n)``
-  Appends two bit vectors. The first one is in the more significant
-  part of the result.
-
-``(<#) : Numeric a => a -> uint n -> a``
-  ``x <# y`` is similar to ``#`` but uses the type of the first
-  argument. Operationally, this shifts ``x`` to the left by ``n`` and
-  ors the result with ``y``. This captures a common use case of
-  appending things in a result. Note that this could lose information.
-
-``(<<), (>>) : Numeric a => a -> int -> a``
-  Shift left or shift right. We should probably generalize over the
-  ``int`` but to avoid ambiguit we keep it like this for the moment. The
-  issue is similar to the bounds argument of ``Many``.
-
-``(.&.), (.|.), (.^.) : uint n -> uint n -> uint n``
-  Bitwise and, or, xor.
-
-``~ : uint n -> uint n``
-  Bitwise complement.
