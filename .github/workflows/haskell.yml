@@ -37,4 +37,4 @@ jobs:
     - name: Build
       run: cabal build --enable-tests exe:daedalus
     - name: Run tests
-      run: cabal test daedalus
+      run: cabal test daedalus-tests
