@@ -11,7 +11,7 @@
 
 ;;; Code:
 
-(defgroup daedalus '() "DaeDaLus"
+(defgroup daedalus '()
   "Settings for DaeDaLus"
   :group 'languages)
 
@@ -19,7 +19,8 @@
   "How to invoke DaeDaLus."
   :group 'daedalus
   :type 'command
-  :options (list "daedalus" "cabal v2-run exe:daedalus --"))
+  :options (list "daedalus"
+                 "cabal v2-run exe:daedalus --"))
 
 (defvar daedalus-mode-map
   (let ((map (make-sparse-keymap)))
@@ -73,9 +74,18 @@ Customize the variable `daedalus-command' to change how it is invoked."
     (compile (concat daedalus-command " " file-name " --interp " file))))
 
 (defconst daedalus-keywords
-  (list "Choose" "Choose1" "Optional" "Optional?" "Many" "Many?" "UInt8" "$uint"
-        "END" "empty" "Insert" "Lookup" "Offset" "for" "true" "false" "in" "int"
-        "uint" "sint" "bool" "if" "then" "else" "import" "as" "as!" "concat")
+  ;; These are based on the contents of
+  ;;    src/Daedalus/Parser/Lexer.x .
+  ;; Please maintain the same ordering and grouping here as there for
+  ;; easy updates.
+  (list "import" "def" "for" "map" "in" "is" "if" "try" "then" "else" "as" "as!"
+        "Choose" "Choose1" "Optional" "Optional?" "Many" "Many?" "UInt8" "$uint" "END" "commit" "Fail"
+        "empty" "Insert" "Lookup"
+        "Offset" "SetStream" "GetStream" "Take" "Drop" "arrayStream"
+        "Index" "concat" "length" "rangeUp" "rangeDown"
+        "true" "false"
+        "just" "nothing"
+        "int" "uint" "sint" "bool" "maybe" "stream")
   "Keywords to highlight in `daedalus-mode'.")
 
 (defconst daedalus-syntax-table
@@ -116,7 +126,7 @@ Customize the variable `daedalus-command' to change how it is invoked."
 (defconst daedalus--kw-regexp (regexp-opt daedalus-keywords 'words)
   "Regexp matching DaeDaLus keywords for use in highlighting.")
 
-(defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";") 'symbols)
+(defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";"))
   "Regexp matching special DaeDaLus magic symbols.")
 
 (defconst daedalus--big-ident-regexp "\\<[A-Z][a-zA-Z0-9]*\\>")
