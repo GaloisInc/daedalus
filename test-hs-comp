@@ -1,0 +1,23 @@
+#!/bin/bash
+
+DIR=rts-hs/exe
+
+echo "== Compiling Daeadalus =="
+if ! cabal build exe:daedalus; then
+  exit 1
+fi
+
+DDL=tests/midi/midi.ddl
+
+echo ""
+echo "== Compiling $DDL =="
+if !  cabal exec daedalus -- --compile-hs --out-dir="$DIR" "$DDL"; then
+  cat $FILE
+  exit 1
+fi
+
+echo ""
+echo "== Compiling Test Harness =="
+cabal build exe:rts-hs-test
+
+

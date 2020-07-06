@@ -1,0 +1,43 @@
+INFO: File size 260879 bytes.
+INFO:260019 Found xref table.
+INFO: 38 xref entries.
+INFO: Root reference is R:8:0
+ERROR: Catalog is malformed.
+INFO: R:1:0 @18 is OK.
+INFO: R:2:0 @101 is OK.
+INFO: R:3:0 @138 is OK.
+INFO: R:4:0 @294 is OK.
+INFO: R:5:0 @451 is OK.
+INFO: R:6:0 @608 is OK.
+INFO: R:7:0 @771 is OK.
+INFO: R:8:0 @928 is OK.
+INFO: R:9:0 @977 is OK.
+INFO: R:10:0 @1091 is OK.
+INFO: R:11:0 @1250 is OK.
+INFO: R:12:0 @1337 is OK.
+INFO: R:13:0 @30095 is OK.
+INFO: R:14:0 @30117 is OK.
+INFO: R:15:0 @30170 is OK.
+INFO: R:16:0 @30276 is OK.
+INFO: R:17:0 @30437 is OK.
+INFO: R:18:0 @30534 is OK.
+INFO: R:19:0 @87205 is OK.
+INFO: R:20:0 @87233 is OK.
+INFO: R:21:0 @87266 is OK.
+INFO: R:22:0 @87369 is OK.
+INFO: R:23:0 @87528 is OK.
+INFO: R:24:0 @87629 is OK.
+INFO: R:25:0 @143118 is OK.
+INFO: R:26:0 @143140 is OK.
+INFO: R:27:0 @143173 is OK.
+INFO: R:28:0 @143276 is OK.
+INFO: R:29:0 @143435 is OK.
+INFO: R:30:0 @143543 is OK.
+INFO: R:31:0 @203474 is OK.
+INFO: R:32:0 @203496 is OK.
+INFO: R:33:0 @203529 is OK.
+INFO: R:34:0 @203632 is OK.
+INFO: R:35:0 @203790 is OK.
+INFO: R:36:0 @259861 is OK.
+INFO: R:37:0 @259883 is OK.
+INFO: R:38:0 @259916 is OK.

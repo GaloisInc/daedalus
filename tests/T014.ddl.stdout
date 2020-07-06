@@ -1,0 +1,37 @@
+module T014
+ 
+--- Imports:
+ 
+--- Type defs:
+type T014.TwoBytes = { x: uint 8
+                     ; y: uint 8
+                     }
+ 
+type T014.Main = { first: T014.TwoBytes
+                 ; second: T014.TwoBytes
+                 ; eq: bool
+                 }
+ 
+--- Rules:
+ 
+T014.TwoBytes : Grammar T014.TwoBytes =
+  do (x : uint 8) <- GetByte
+     (y : uint 8) <- GetByte
+     pure {x = x,
+           y = y}
+ 
+T014.Main : Grammar T014.Main =
+  do (first : T014.TwoBytes) <- T014.TwoBytes
+     (second : T014.TwoBytes) <- T014.TwoBytes
+     (eq : bool) <- pure (first == second)
+     pure {first = first,
+           second = second,
+           eq = eq}
+ 
+T014._TwoBytes : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+T014._Main : Grammar {} =
+  do T014._TwoBytes
+     T014._TwoBytes

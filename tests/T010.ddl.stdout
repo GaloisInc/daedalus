@@ -1,0 +1,48 @@
+module T010
+ 
+--- Imports:
+ 
+--- Type defs:
+type T010.P ?a1 = Choose { A: ?a1
+                         ; B: [uint 8]
+                         ; C: [uint 8]
+                         }
+ 
+--- Rules:
+ 
+T010.Fails ?a0 : Grammar ?a0 =
+  Choose fair
+    { }
+ 
+T010.G ?a0 ?a1 (HasUnion ?a0 l ?a1) (x : ?a0) : Grammar ?a1 =
+  x is l
+ 
+T010.P ?a1 : Grammar (T010.P ?a1) =
+  Choose fair
+    { {- A -} do (_0 : ?a1) <- T010.Fails ?a1
+                 pure {A: _0}
+    | {- B -} do (_1 : [uint 8]) <- MatchBytes "B"
+                 pure {B: _1}
+    | {- C -} do (_2 : [uint 8]) <- MatchBytes "C"
+                 pure {C: _2}
+    }
+ 
+T010._Fails ?a0 : Grammar {} =
+  Choose fair
+    { }
+ 
+T010._G ?a0 ?a1 (HasUnion ?a0 l ?a1) (x : ?a0) : Grammar {} =
+  @(x is l)
+ 
+T010._P ?a1 : Grammar {} =
+  Choose fair
+    { {- A -} T010._Fails ?a1
+    | {- B -} @MatchBytes "B"
+    | {- C -} @MatchBytes "C"
+    }
+ 
+T010.f ?a1 (Numeric ?a1) (x : ?a1) (y : ?a1) : ?a1 =
+  x + y
+ 
+T010.g ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
+  x.l

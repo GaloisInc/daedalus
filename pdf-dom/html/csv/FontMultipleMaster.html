@@ -1,0 +1,124 @@
+<html ><head ><link rel="stylesheet" href="style.css"></head>
+<body ><div class="heading">FontMultipleMaster</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Type</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;Font&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">BaseFont</div>
+::
+Name
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Encoding</div>
+::
+Dictionary
+ 
+<a href="Encoding.html">Encoding</a>
+
+ or 
+(
+Name
+ | 
+= 
+<div class="literal">&quot;MacRomanEncoding&quot;</div>
+
+ or 
+= 
+<div class="literal">&quot;MacExpertEncoding&quot;</div>
+
+ or 
+= 
+<div class="literal">&quot;WinAnsiEncoding&quot;</div>
+
+
+
+)
+
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">FirstChar</div>
+::
+Integer
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">FontDescriptor</div>
+::
+Dictionary
+ 
+<a href="FontDescriptorType1.html">FontDescriptorType1</a>
+
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">LastChar</div>
+::
+Integer
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+--2.0
+</div>
+<div class="key">Name</div>
+::
+Name
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Subtype</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;MMType1&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">ToUnicode</div>
+::
+PDFStream
+ 
+<a href="Stream.html">Stream</a>
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Widths</div>
+::
+Array
+, required
+</div>
+</body>
+</html>

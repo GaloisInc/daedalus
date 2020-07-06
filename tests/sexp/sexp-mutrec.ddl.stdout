@@ -1,0 +1,105 @@
+module sexp-mutrec
+ 
+--- Imports:
+ 
+--- Type defs:
+rec
+  type sexp-mutrec.Sexp = Choose { sexp: [sexp-mutrec.Sexp]
+                                 ; symbol: [uint 8]
+                                 }
+ 
+--- Rules:
+ 
+sexp-mutrec._WS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Choose fair
+                { Choose fair
+                    { @Match {'\NUL'}
+                    | @Match {'\t'}
+                    }
+                | @Match {'\f'}
+                }
+            | @Match {' '}
+            }
+        | @Match {'\n'}
+        }
+    | @Match {'\r'}
+    }
+ 
+sexp-mutrec._Token ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[] sexp-mutrec._WS
+ 
+sexp-mutrec.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  sexp-mutrec._Token ?a0 do P
+                            pure {}
+ 
+sexp-mutrec.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     @Many[] sexp-mutrec._WS
+     pure $$
+ 
+sexp-mutrec._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  sexp-mutrec._Token ?a0 _P
+ 
+rec value
+  sexp-mutrec.Sexp : Grammar sexp-mutrec.Sexp =
+    Choose fair
+      { {- sexp -} do (_0 : [sexp-mutrec.Sexp]) <- do sexp-mutrec._KW [uint 8] (@MatchBytes "(")
+                                                      ($$ : [sexp-mutrec.Sexp]) <- sexp-mutrec.ManySexp
+                                                      sexp-mutrec._KW [uint 8] (@MatchBytes ")")
+                                                      pure $$
+                      pure {sexp: _0}
+      | {- symbol -} do (_1 : [uint 8]) <- sexp-mutrec.Token [uint 8] (Many[ 1 .. ] Match ('a' .. 'z'))
+                        pure {symbol: _1}
+      }
+   
+  sexp-mutrec.ManySexp : Grammar [sexp-mutrec.Sexp] =
+    Many[] sexp-mutrec.Sexp
+ 
+sexp-mutrec.Main : Grammar sexp-mutrec.Sexp =
+  do @Many[] sexp-mutrec._WS
+     ($$ : sexp-mutrec.Sexp) <- sexp-mutrec.Sexp
+     pure $$
+ 
+sexp-mutrec.WS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Choose fair
+                { Choose fair
+                    { @Match {'\NUL'}
+                    | @Match {'\t'}
+                    }
+                | @Match {'\f'}
+                }
+            | @Match {' '}
+            }
+        | @Match {'\n'}
+        }
+    | @Match {'\r'}
+    }
+ 
+sexp-mutrec._Sexp : Grammar {} =
+  Choose fair
+    { {- sexp -} do sexp-mutrec._KW [uint 8] (@MatchBytes "(")
+                    do sexp-mutrec.ManySexp
+                       pure {}
+                    sexp-mutrec._KW [uint 8] (@MatchBytes ")")
+    | {- symbol -} sexp-mutrec._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
+    }
+ 
+sexp-mutrec._Main : Grammar {} =
+  do @Many[] sexp-mutrec._WS
+     sexp-mutrec._Sexp
+ 
+sexp-mutrec._ManySexp : Grammar {} =
+  @Many[] sexp-mutrec._Sexp
+ 
+sexp-mutrec.cr : uint 8 =
+  '\r'
+ 
+sexp-mutrec.lf : uint 8 =
+  '\n'

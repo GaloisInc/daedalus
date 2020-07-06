@@ -1,0 +1,17 @@
+module T035
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T035.Main : Grammar (uint 16) =
+  do (x : uint 8) <- GetByte
+     (y : uint 8) <- GetByte
+     ($$ : uint 16) <- pure (x # y)
+     pure $$
+ 
+T035._Main : Grammar {} =
+  do @GetByte
+     @GetByte

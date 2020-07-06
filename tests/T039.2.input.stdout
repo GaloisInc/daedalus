@@ -1,0 +1,9 @@
+--- Parse error: 
+[offset: 5]
+  • expected "there"
+  • see grammar at: ./T039.ddl:4:3--4:9
+  • context:
+File context:
+Length: 15 (0xf) bytes
+0000:   68 69 20 20  20 [1;91m20[0m 20 20  20 20 20 20  20 20 20   hi   [1;91m [0m         
+

@@ -1,0 +1,3 @@
+Duplicate rules:
+  • Dup declared at ./T018_I2.ddl:2:5--2:7
+                    ./T018_I1.ddl:2:5--2:7

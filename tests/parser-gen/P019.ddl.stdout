@@ -1,0 +1,62 @@
+module P019
+ 
+--- Imports:
+ 
+--- Type defs:
+type P019.Word1 = { y: uint 8
+                  ; x: uint 8
+                  }
+ 
+type P019.Main = { w3: P019.Word1
+                 ; w4: P019.Word1
+                 ; w6: P019.Word1
+                 }
+ 
+type P019.Word = Choose { a: P019.Word1
+                        ; b: P019.Word1
+                        }
+ 
+--- Rules:
+ 
+P019.Word1 : Grammar P019.Word1 =
+  do (y : uint 8) <- Match {'y'}
+     (x : uint 8) <- Match {'x'}
+     pure {y = y,
+           x = x}
+ 
+P019.Word : Grammar P019.Word =
+  Choose fair
+    { {- a -} do (_0 : P019.Word1) <- P019.Word1
+                 pure {a: _0}
+    | {- b -} do (_1 : P019.Word1) <- P019.Word1
+                 pure {b: _1}
+    }
+ 
+P019.Main : Grammar P019.Main =
+  do (w1 : P019.Word) <- P019.Word
+     (w2 : P019.Word) <- P019.Word
+     (w3 : P019.Word1) <- w1 is a
+     (w4 : P019.Word1) <- w2 is b
+     (w5 : Maybe P019.Word1) <- pure (just w3)
+     (w6 : P019.Word1) <- w5 is just
+     pure {w3 = w3,
+           w4 = w4,
+           w6 = w6}
+ 
+P019._Main : Grammar {} =
+  do (w1 : P019.Word) <- P019.Word
+     (w2 : P019.Word) <- P019.Word
+     (w3 : P019.Word1) <- w1 is a
+     @(w2 is b)
+     (w5 : Maybe P019.Word1) <- pure (just w3)
+     @(w5 is just)
+ 
+P019._Word1 : Grammar {} =
+  do @Match {'y'}
+     @Match {'x'}
+ 
+P019._Word : Grammar {} =
+  Choose fair
+    { {- a -} P019._Word1
+    | {- b -} P019._Word1
+    }

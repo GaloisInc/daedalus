@@ -1,0 +1,42 @@
+INFO: File size 253202 bytes.
+INFO:252362 Found xref table.
+INFO: 37 xref entries.
+INFO: Root reference is R:9:0
+ERROR: Catalog is malformed.
+ERROR:98 R:1:0 @15 expected "endobj"
+INFO: R:2:0 @98 is OK.
+INFO: R:3:0 @367 is OK.
+INFO: R:4:0 @479 is OK.
+INFO: R:5:0 @591 is OK.
+INFO: R:6:0 @703 is OK.
+INFO: R:7:0 @816 is OK.
+INFO: R:8:0 @929 is OK.
+INFO: R:9:0 @1042 is OK.
+ERROR:1270 R:10:0 @1149 expected "endobj"
+INFO: R:11:0 @1277 is OK.
+INFO: R:12:0 @1393 is OK.
+INFO: R:13:0 @1512 is OK.
+ERROR:15085 R:14:0 @1654 expected "endobj"
+INFO: R:15:0 @15092 is OK.
+ERROR:15373 R:16:0 @15162 expected "endobj"
+INFO: R:17:0 @15373 is OK.
+ERROR:64051 R:18:0 @61791 expected "endobj"
+INFO: R:19:0 @64058 is OK.
+INFO: R:20:0 @64455 is OK.
+INFO: R:21:0 @64593 is OK.
+INFO: R:22:0 @92680 is OK.
+ERROR:92955 R:23:0 @92750 expected "endobj"
+INFO: R:24:0 @92962 is OK.
+INFO: R:25:0 @241378 is OK.
+INFO: R:26:0 @245933 is OK.
+INFO: R:27:0 @246330 is OK.
+INFO: R:28:0 @247349 is OK.
+ERROR:248436 R:29:0 @247465 expected "endobj"
+INFO: R:30:0 @248443 is OK.
+INFO: R:31:0 @248559 is OK.
+INFO: R:32:0 @249522 is OK.
+INFO: R:33:0 @249638 is OK.
+INFO: R:34:0 @250580 is OK.
+INFO: R:35:0 @250696 is OK.
+INFO: R:36:0 @251745 is OK.
+INFO: R:37:0 @251861 is OK.

@@ -1,0 +1,6 @@
+--- Found 1 results:
+[{leader: 1, follower: 'a'}, {leader: 1, follower: 'b'},
+ {leader: 1, follower: 'c'}, {leader: 2, follower: 'a'},
+ {leader: 2, follower: 'b'}, {leader: 2, follower: 'c'},
+ {leader: 3, follower: 'x'}, {leader: 3, follower: 'y'},
+ {leader: 3, follower: 'z'}]

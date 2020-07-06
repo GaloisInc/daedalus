@@ -1,0 +1,18 @@
+module T028
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T028.Main : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- MatchBytes "Hello"
+     @Many[] @GetByte
+     END
+     pure $$
+ 
+T028._Main : Grammar {} =
+  do @MatchBytes "Hello"
+     @Many[] @GetByte
+     END

@@ -1,0 +1,16 @@
+module P004
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P004.Main : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- Many[ 4 .. 5 ] Match ('0' .. '7')
+     END
+     pure $$
+ 
+P004._Main : Grammar {} =
+  do @Many[ 4 .. 5 ] @Match ('0' .. '7')
+     END

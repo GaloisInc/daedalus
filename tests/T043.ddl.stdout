@@ -1,0 +1,26 @@
+module T043
+ 
+--- Imports:
+ 
+--- Type defs:
+type T043.Main0 = { x: bool
+                  }
+ 
+type T043.Main = { y: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+T043.P ?a0 ?a1 (Q : Grammar ?a0) (R : Grammar ?a1) : Grammar ?a1 =
+  R
+ 
+T043.Main : Grammar T043.Main =
+  T043.P T043.Main0 T043.Main do (x : bool) <- pure true
+                                 pure {x = x} do (y : [uint 8]) <- MatchBytes "A"
+                                                 pure {y = y}
+ 
+T043._P ?a0 ?a1 (_R : Grammar {}) : Grammar {} =
+  _R
+ 
+T043._Main : Grammar {} =
+  T043._P T043.Main0 T043.Main (@MatchBytes "A")

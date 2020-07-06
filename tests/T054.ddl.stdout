@@ -1,0 +1,16 @@
+module T054
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T054.z ?a0 (Literal 1 ?a0) : ?a0 =
+  1
+ 
+T054.Main : Grammar [uint 8] =
+  Many[T054.z int] Match {'a'}
+ 
+T054._Main : Grammar {} =
+  @Many[T054.z int] @Match {'a'}

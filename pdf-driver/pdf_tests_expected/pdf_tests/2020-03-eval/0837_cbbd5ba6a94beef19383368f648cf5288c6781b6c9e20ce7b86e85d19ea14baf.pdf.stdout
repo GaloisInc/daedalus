@@ -1,0 +1,36 @@
+INFO: File size 38576 bytes.
+INFO:37857 Found xref table.
+INFO: 31 xref entries.
+INFO: Root reference is R:4:0
+ERROR: Catalog is malformed.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+WARNING: R:3:0 @587 has URIs.
+INFO: R:4:0 @1874 is OK.
+INFO: R:5:0 @1923 is OK.
+ERROR:3300 R:6:0 @2014 guard failed
+INFO: R:7:0 @3302 is OK.
+INFO: R:8:0 @3452 is OK.
+INFO: R:9:0 @3606 is OK.
+INFO: R:10:0 @4140 is OK.
+INFO: R:11:0 @4210 is OK.
+INFO: R:12:0 @4437 is OK.
+INFO: R:13:0 @13972 is OK.
+INFO: R:14:0 @14316 is OK.
+INFO: R:15:0 @14713 is OK.
+INFO: R:16:0 @14865 is OK.
+INFO: R:17:0 @15368 is OK.
+INFO: R:18:0 @15438 is OK.
+INFO: R:19:0 @15668 is OK.
+INFO: R:20:0 @25561 is OK.
+ERROR:26244 R:21:0 @25849 guard failed
+INFO: R:22:0 @26246 is OK.
+INFO: R:23:0 @26406 is OK.
+INFO: R:24:0 @26928 is OK.
+INFO: R:25:0 @26998 is OK.
+INFO: R:26:0 @27227 is OK.
+INFO: R:27:0 @35409 is OK.
+INFO: R:28:0 @35726 is OK.
+ERROR:36219 R:29:0 @36123 guard failed
+INFO: R:30:0 @36221 is OK.
+INFO: R:31:0 @36321 is OK.

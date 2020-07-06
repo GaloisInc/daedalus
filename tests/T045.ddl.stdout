@@ -1,0 +1,59 @@
+module T045
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T045.A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
+  Insert k v mp
+ 
+T045.B ?a0 ?a2 (k : ?a0) (mp : Map ?a0 ?a2) : Grammar ?a2 =
+  Lookup k mp
+ 
+T045.C ?a0 ?a1 (HasUnion ?a0 L ?a1) (x : ?a0) : Grammar ?a1 =
+  x is L
+ 
+T045.D : Grammar (uint 8) =
+  287 AS uint 8
+ 
+T045.E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : Grammar ?a1 =
+  for ((s : ?a1) = 0; (x : ?a3) in xs)
+    (pure s)
+ 
+T045.F : Grammar Stream =
+  do (xs : Stream) <- CurrentStream
+     ($$ : Stream) <- StreamLen 10 xs
+     pure $$
+ 
+T045.G ?a1 (x : Maybe ?a1) : Grammar ?a1 =
+  x is just
+ 
+T045._A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
+  @Insert k v mp
+ 
+T045._B ?a0 ?a2 (k : ?a0) (mp : Map ?a0 ?a2) : Grammar {} =
+  @Lookup k mp
+ 
+T045._C ?a0 ?a1 (HasUnion ?a0 L ?a1) (x : ?a0) : Grammar {} =
+  @(x is L)
+ 
+T045._D : Grammar {} =
+  @(287 AS uint 8)
+ 
+T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : Grammar {} =
+  for ((s : {}) = {}; (x : ?a3) in xs)
+    (pure {})
+ 
+T045._F : Grammar {} =
+  do (xs : Stream) <- CurrentStream
+     @StreamLen 10 xs
+     pure {}
+ 
+T045._G ?a1 (x : Maybe ?a1) : Grammar {} =
+  @(x is just)
+ 
+T045.f ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : uint 8 =
+  for ((s : uint 8) = 0; (x : ?a3) in xs)
+    (s + 1)

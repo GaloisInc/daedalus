@@ -1,0 +1,61 @@
+module P033
+ 
+--- Imports:
+ 
+--- Type defs:
+type P033.A = { a: [uint 8]
+              }
+ 
+type P033.Main = { x: P033.A
+                 ; y: int
+                 ; t: int
+                 ; v: P033.A
+                 ; w: int
+                 }
+ 
+--- Rules:
+ 
+P033.$digit : ByteClass =
+  '0' .. '9'
+ 
+P033.A : Grammar P033.A =
+  do @Match {'<'}
+     (a : [uint 8]) <- Many[] Match P033.$digit
+     @Match {'>'}
+     pure {a = a}
+ 
+P033.f (x : int) : int =
+  x as int
+ 
+P033.Main : Grammar P033.Main =
+  do (x : P033.A) <- P033.A
+     (y : int) <- for ((r : int) = 0; (t : uint 8) in x.a)
+                    do (c : uint 8) <- GetByte
+                       ($$ : int) <- pure (((c as int) + r) + (t as int))
+                       pure $$
+     (t : int) <- pure (P033.f 1)
+     (v : P033.A) <- P033.A
+     (w : int) <- for ((r : int) = 0; (t : uint 8) in v.a)
+                    do (c : uint 8) <- GetByte
+                       ($$ : int) <- pure (((c as int) + r) + (t as int))
+                       pure $$
+     END
+     pure {x = x,
+           y = y,
+           t = t,
+           v = v,
+           w = w}
+ 
+P033._A : Grammar {} =
+  do @Match {'<'}
+     @Many[] @Match P033.$digit
+     @Match {'>'}
+ 
+P033._Main : Grammar {} =
+  do (x : P033.A) <- P033.A
+     for ((r : {}) = {}; (t : uint 8) in x.a)
+       @GetByte
+     (v : P033.A) <- P033.A
+     for ((r : {}) = {}; (t : uint 8) in v.a)
+       @GetByte
+     END

@@ -1,0 +1,7 @@
+#!/bin/bash
+set -x
+
+FILE=$1
+shift
+cabal run --enable-profiling --enable-executable-profiling TT < $FILE -- $*
+

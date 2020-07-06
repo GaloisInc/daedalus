@@ -1,0 +1,52 @@
+INFO: File size 114553 bytes.
+INFO:107474 Found xref table.
+INFO: 47 xref entries.
+INFO: Root reference is R:313:0
+INFO: Catalog is OK.
+INFO: R:1:0 @22 is OK.
+INFO: R:2:0 @379 is OK.
+INFO: R:3:0 @6270 is OK.
+INFO: R:4:0 @14350 is OK.
+INFO: R:5:0 @14613 is OK.
+INFO: R:6:0 @14980 is OK.
+INFO: R:7:0 @15361 is OK.
+INFO: R:8:0 @17024 is OK.
+INFO: R:9:0 @18580 is OK.
+INFO: R:10:0 @19666 is OK.
+INFO: R:11:0 @19726 is OK.
+INFO: R:12:0 @41724 is OK.
+INFO: R:311:0 @42158 is OK.
+INFO: R:312:0 @42243 is OK.
+INFO: R:313:0 @42444 is OK.
+INFO: R:314:0 @42591 is OK.
+INFO: R:315:0 @43011 is OK.
+INFO: R:316:0 @43125 is OK.
+INFO: R:317:0 @43701 is OK.
+INFO: R:318:0 @43960 is OK.
+INFO: R:319:0 @44427 is OK.
+INFO: R:320:0 @44692 is OK.
+INFO: R:321:0 @45126 is OK.
+INFO: R:322:0 @45663 is OK.
+INFO: R:323:0 @46459 is OK.
+INFO: R:324:0 @46645 is OK.
+INFO: R:325:0 @46757 is OK.
+INFO: R:326:0 @47563 is OK.
+INFO: R:327:0 @48369 is OK.
+INFO: R:328:0 @48502 is OK.
+INFO: R:329:0 @48529 is OK.
+INFO: R:330:0 @49028 is OK.
+INFO: R:331:0 @49769 is OK.
+INFO: R:332:0 @50585 is OK.
+INFO: R:333:0 @51371 is OK.
+INFO: R:334:0 @52200 is OK.
+INFO: R:335:0 @52892 is OK.
+INFO: R:336:0 @61541 is OK.
+INFO: R:337:0 @75397 is OK.
+INFO: R:338:0 @86671 is OK.
+INFO: R:339:0 @86929 is OK.
+INFO: R:340:0 @87012 is OK.
+INFO: R:341:0 @87389 is OK.
+INFO: R:342:0 @106454 is OK.
+INFO: R:343:0 @106738 is OK.
+ERROR:107165 R:344:0 @107034 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:345:0 @107216 is OK.

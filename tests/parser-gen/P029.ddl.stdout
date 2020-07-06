@@ -1,0 +1,61 @@
+module P029
+ 
+--- Imports:
+ 
+--- Type defs:
+type P029.Inner = Choose { x: [uint 8]
+                         ; y: {}
+                         ; z: {}
+                         }
+ 
+type P029.Main = { x: {}
+                 }
+ 
+--- Rules:
+ 
+rec value
+  P029.Inner : Grammar P029.Inner =
+    Choose fair
+      { {- x -} do (_0 : [uint 8]) <- MatchBytes ""
+                   pure {x: _0}
+      | {- y -} do (_1 : {}) <- do @Match {'a'}
+                                   P029._A
+                                   @Match {'b'}
+                   pure {y: _1}
+      | {- z -} do (_2 : {}) <- do @Match {'c'}
+                                   P029._A
+                                   @Match {'d'}
+                   pure {z: _2}
+      }
+   
+  P029._A : Grammar {} =
+    do @Match {'<'}
+       do P029.Inner
+          pure {}
+       @Match {'>'}
+ 
+P029.A : Grammar {} =
+  do @Match {'<'}
+     do P029.Inner
+        pure {}
+     @Match {'>'}
+ 
+P029.Main : Grammar P029.Main =
+  do (x : {}) <- P029.A
+     END
+     pure {x = x}
+ 
+P029._Inner : Grammar {} =
+  Choose fair
+    { {- x -} @MatchBytes ""
+    | {- y -} do @Match {'a'}
+                 P029._A
+                 @Match {'b'}
+    | {- z -} do @Match {'c'}
+                 P029._A
+                 @Match {'d'}
+    }
+ 
+P029._Main : Grammar {} =
+  do P029._A
+     END

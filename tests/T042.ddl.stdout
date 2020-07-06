@@ -1,0 +1,91 @@
+module T042
+ 
+--- Imports:
+ 
+--- Type defs:
+type T042.Ex1 = Choose { A: {}
+                       ; B: {}
+                       }
+ 
+type T042.Ex6 = { x: uint 8
+                ; y: bool
+                }
+ 
+type T042.T ?a0 = Choose { A: ?a0
+                         ; B: {}
+                         }
+ 
+--- Rules:
+ 
+T042.Ex1 : Grammar T042.Ex1 =
+  Choose fair
+    { {- A -} do (_0 : {}) <- pure {}
+                 pure {A: _0}
+    | {- B -} do (_1 : {}) <- pure {}
+                 pure {B: _1}
+    }
+ 
+T042.T ?a0 (x : ?a0) : Grammar (T042.T ?a0) =
+  Choose fair
+    { {- A -} do (_2 : ?a0) <- pure x
+                 pure {A: _2}
+    | {- B -} do (_3 : {}) <- pure {}
+                 pure {B: _3}
+    }
+ 
+T042.Ex2 : Grammar (T042.T (uint 8)) =
+  T042.T (uint 8) 'a'
+ 
+T042.Ex3 : Grammar (uint 8) =
+  do (x : T042.T (uint 8)) <- T042.Ex2
+     ($$ : uint 8) <- x is A
+     pure $$
+ 
+T042.Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar ?a1 =
+  x is A
+ 
+T042.Ex5 : Grammar {} =
+  do (x : T042.Ex1) <- T042.Ex1
+     ($$ : {}) <- x is B
+     pure $$
+ 
+T042.Ex6 : Grammar T042.Ex6 =
+  do (x : uint 8) <- GetByte
+     (y : bool) <- pure true
+     pure {x = x,
+           y = y}
+ 
+T042.Main : Grammar T042.Ex6 =
+  T042.Ex6
+ 
+T042._Ex1 : Grammar {} =
+  Choose fair
+    { {- A -} pure {}
+    | {- B -} pure {}
+    }
+ 
+T042._T ?a0 : Grammar {} =
+  Choose fair
+    { {- A -} pure {}
+    | {- B -} pure {}
+    }
+ 
+T042._Ex2 : Grammar {} =
+  T042._T (uint 8)
+ 
+T042._Ex3 : Grammar {} =
+  do (x : T042.T (uint 8)) <- T042.Ex2
+     @(x is A)
+ 
+T042._Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar {} =
+  @(x is A)
+ 
+T042._Ex5 : Grammar {} =
+  do (x : T042.Ex1) <- T042.Ex1
+     @(x is B)
+ 
+T042._Ex6 : Grammar {} =
+  @GetByte
+ 
+T042._Main : Grammar {} =
+  T042._Ex6

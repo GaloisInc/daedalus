@@ -1,0 +1,8 @@
+--- Found 1 results:
+{ a: T
+, b: F
+, c: Nothing
+, d: Just T
+, e: F
+, f: T
+}

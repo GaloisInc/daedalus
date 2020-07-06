@@ -1,0 +1,16 @@
+module T033
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T033.Main : Grammar (uint 8) =
+  do (ds : [uint 8]) <- Many[ 1 .. ] Match ('0' .. '9')
+     ($$ : uint 8) <- pure (for ((v : uint 8) = 0; (d : uint 8) in ds)
+                              ((v * 10) + (d - '0')))
+     pure $$
+ 
+T033._Main : Grammar {} =
+  @Many[ 1 .. ] @Match ('0' .. '9')

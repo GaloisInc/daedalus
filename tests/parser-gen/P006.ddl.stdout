@@ -1,0 +1,39 @@
+module P006
+ 
+--- Imports:
+ 
+--- Type defs:
+type P006.Main = { x: [{}]
+                 ; y: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P006.NT1 : Grammar {} =
+  @Match ('0' .. '7')
+ 
+P006.NT2 : Grammar (uint 8) =
+  do @Match {'('}
+     @Match {'{'}
+     @Match {'}'}
+     ($$ : uint 8) <- Match {')'}
+     pure $$
+ 
+P006.Main : Grammar P006.Main =
+  do (x : [{}]) <- Many[ 4 .. 5 ] P006.NT1
+     (y : [uint 8]) <- Many[2] P006.NT2
+     pure {x = x,
+           y = y}
+ 
+P006._NT1 : Grammar {} =
+  @Match ('0' .. '7')
+ 
+P006._NT2 : Grammar {} =
+  do @Match {'('}
+     @Match {'{'}
+     @Match {'}'}
+     @Match {')'}
+ 
+P006._Main : Grammar {} =
+  do @Many[ 4 .. 5 ] P006._NT1
+     @Many[2] P006._NT2

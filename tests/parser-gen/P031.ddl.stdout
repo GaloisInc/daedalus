@@ -1,0 +1,49 @@
+module P031
+ 
+--- Imports:
+ 
+--- Type defs:
+type P031.A = { x: [uint 8]
+              ; y: [uint 8]
+              ; z: [uint 8]
+              }
+ 
+type P031.Main = { res: P031.A
+                 }
+ 
+--- Rules:
+ 
+P031.A : Grammar P031.A =
+  do (x : [uint 8]) <- Many[] Match {'a'}
+     (y : [uint 8]) <- map ((z : uint 8) in x)
+                         do @Match {'b'}
+                            ($$ : uint 8) <- pure 'c'
+                            pure $$
+     (z : [uint 8]) <- map ((x : uint 8) in y)
+                         do @Match {'d'}
+                            ($$ : uint 8) <- pure x
+                            pure $$
+     pure {x = x,
+           y = y,
+           z = z}
+ 
+P031.Main : Grammar P031.Main =
+  do (res : P031.A) <- P031.A
+     END
+     pure {res = res}
+ 
+P031._A : Grammar {} =
+  do (x : [uint 8]) <- Many[] Match {'a'}
+     (y : [uint 8]) <- map ((z : uint 8) in x)
+                         do @Match {'b'}
+                            ($$ : uint 8) <- pure 'c'
+                            pure $$
+     map ((x : uint 8) in y)
+       do @Match {'d'}
+          ($$ : uint 8) <- pure x
+          pure $$
+     pure {}
+ 
+P031._Main : Grammar {} =
+  do P031._A
+     END

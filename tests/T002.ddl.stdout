@@ -1,0 +1,23 @@
+module T002
+ 
+--- Imports:
+ 
+--- Type defs:
+rec
+  type T002.F = Choose { A: T002.F
+                       }
+ 
+--- Rules:
+ 
+rec value
+  T002.F : Grammar T002.F =
+    Choose fair
+      { {- A -} do (_0 : T002.F) <- T002.F
+                   pure {A: _0}
+      }
+ 
+T002._F : Grammar {} =
+  Choose fair
+    { {- A -} do T002.F
+                 pure {}
+    }

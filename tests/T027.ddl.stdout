@@ -1,0 +1,14 @@
+module T027
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T027.Main : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- Many?[] Match ('0' .. '9')
+     pure $$
+ 
+T027._Main : Grammar {} =
+  @Many?[] @Match ('0' .. '9')

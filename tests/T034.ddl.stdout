@@ -1,0 +1,17 @@
+module T034
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T034.Main : Grammar [[uint 8]] =
+  do (_0 : [uint 8]) <- MatchBytes "hello"
+     (_1 : [uint 8]) <- MatchBytes "world"
+     pure [_0,
+           _1]
+ 
+T034._Main : Grammar {} =
+  do @MatchBytes "hello"
+     @MatchBytes "world"

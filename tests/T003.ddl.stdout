@@ -1,0 +1,35 @@
+module T003
+ 
+--- Imports:
+ 
+--- Type defs:
+rec
+  type T003.List0 = { head: uint 8
+                    ; tail: T003.List
+                    }
+   
+  type T003.List = Choose { nil: {}
+                          ; node: T003.List0
+                          }
+ 
+--- Rules:
+ 
+rec value
+  T003.List : Grammar T003.List =
+    Choose fair
+      { {- node -} do (_0 : T003.List0) <- do (head : uint 8) <- GetByte
+                                              (tail : T003.List) <- T003.List
+                                              pure {head = head,
+                                                    tail = tail}
+                      pure {node: _0}
+      | {- nil -} do (_1 : {}) <- pure {}
+                     pure {nil: _1}
+      }
+ 
+T003._List : Grammar {} =
+  Choose fair
+    { {- node -} do @GetByte
+                    T003.List
+                    pure {}
+    | {- nil -} pure {}
+    }

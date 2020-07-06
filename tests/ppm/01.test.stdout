@@ -1,0 +1,74 @@
+--- Found 1 results:
+{ width: 4
+, height: 4
+, maxVal: 15
+, data: [ [ { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          ]
+        , [ { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          ]
+        , [ { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          ]
+        , [ { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          , { red: 0
+            , green: 0
+            , blue: 0
+            }
+          ]
+        ]
+}

@@ -1,0 +1,21 @@
+module P009
+ 
+--- Imports:
+ 
+--- Type defs:
+type P009.Main = { x: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P009.$letter : ByteClass =
+  (('A' .. 'K') | ('a' .. 'k')) | ('r' .. 'z')
+ 
+P009.Main : Grammar P009.Main =
+  do (x : [uint 8]) <- Many[] Match P009.$letter
+     END
+     pure {x = x}
+ 
+P009._Main : Grammar {} =
+  do @Many[] @Match P009.$letter
+     END

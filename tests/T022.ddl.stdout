@@ -1,0 +1,34 @@
+module T022
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T022.$x : ByteClass =
+  "abc"
+ 
+T022.$y : ByteClass =
+  {'a'}
+ 
+T022.$z : ByteClass =
+  {'\n'} | {'\f'}
+ 
+T022.X : Grammar (uint 8) =
+  Match (!T022.$x)
+ 
+T022.Y : Grammar (uint 8) =
+  Match (!T022.$y)
+ 
+T022.Z : Grammar (uint 8) =
+  Match (!T022.$z)
+ 
+T022._X : Grammar {} =
+  @Match (!T022.$x)
+ 
+T022._Y : Grammar {} =
+  @Match (!T022.$y)
+ 
+T022._Z : Grammar {} =
+  @Match (!T022.$z)

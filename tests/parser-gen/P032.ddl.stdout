@@ -1,0 +1,118 @@
+module P032
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P032.A : Grammar [uint 8] =
+  do @Match {'a'}
+     ($$ : [uint 8]) <- pure "a"
+     pure $$
+ 
+P032.AB : Grammar [uint 8] =
+  do @Match {'a'}
+     @Match {'b'}
+     ($$ : [uint 8]) <- pure "ab"
+     pure $$
+ 
+P032.B : Grammar [uint 8] =
+  do @Match {'b'}
+     ($$ : [uint 8]) <- pure "b"
+     pure $$
+ 
+P032.C : Grammar [uint 8] =
+  do @Match {'c'}
+     ($$ : [uint 8]) <- pure "c"
+     pure $$
+ 
+P032.D : Grammar [uint 8] =
+  do @Match {'d'}
+     ($$ : [uint 8]) <- pure "d"
+     pure $$
+ 
+P032.Grp1 : Grammar [uint 8] =
+  Choose biased
+    { P032.B
+    | Choose biased
+        { P032.A
+        | P032.AB
+        }
+    }
+ 
+P032._B : Grammar {} =
+  @Match {'b'}
+ 
+P032.Grp2 : Grammar [uint 8] =
+  Choose biased
+    { do P032._B
+         Commit
+           do ($$ : [uint 8]) <- P032.C
+              pure $$
+    | P032.B
+    }
+ 
+P032.Grp3 : Grammar [uint 8] =
+  Choose fair
+    { do P032._B
+         ($$ : [uint 8]) <- P032.C
+         pure $$
+    | do P032._B
+         ($$ : [uint 8]) <- P032.D
+         pure $$
+    }
+ 
+P032._A : Grammar {} =
+  @Match {'a'}
+ 
+P032._AB : Grammar {} =
+  do @Match {'a'}
+     @Match {'b'}
+ 
+P032._Grp1 : Grammar {} =
+  Choose biased
+    { P032._B
+    | Choose biased
+        { P032._A
+        | P032._AB
+        }
+    }
+ 
+P032._C : Grammar {} =
+  @Match {'c'}
+ 
+P032._Grp2 : Grammar {} =
+  Choose biased
+    { do P032._B
+         Commit P032._C
+    | P032._B
+    }
+ 
+P032._D : Grammar {} =
+  @Match {'d'}
+ 
+P032._Grp3 : Grammar {} =
+  Choose fair
+    { do P032._B
+         P032._C
+    | do P032._B
+         P032._D
+    }
+ 
+P032.Main : Grammar {} =
+  do P032._Grp1
+     Choose fair
+       { P032._Grp2
+       | P032._Grp3
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+P032._Main : Grammar {} =
+  do P032._Grp1
+     Choose fair
+       { P032._Grp2
+       | P032._Grp3
+       }
+     END

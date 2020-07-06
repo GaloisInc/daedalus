@@ -1,0 +1,24 @@
+module T025
+ 
+--- Imports:
+ 
+--- Type defs:
+type T025.Main = { r: Map (uint 8) (uint 8)
+                 ; vr: uint 8
+                 }
+ 
+--- Rules:
+ 
+T025.Main : Grammar T025.Main =
+  do (k : uint 8) <- GetByte
+     (v : uint 8) <- GetByte
+     (r : Map (uint 8) (uint 8)) <- Insert k v empty
+     (vr : uint 8) <- Lookup 'x' r
+     pure {r = r,
+           vr = vr}
+ 
+T025._Main : Grammar {} =
+  do (k : uint 8) <- GetByte
+     (v : uint 8) <- GetByte
+     (r : Map (uint 8) (uint 8)) <- Insert k v empty
+     @Lookup 'x' r

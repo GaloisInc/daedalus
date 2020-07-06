@@ -1,0 +1,16 @@
+module P003
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P003.Main : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- Many[ 2 .. ] Match {'0'}
+     END
+     pure $$
+ 
+P003._Main : Grammar {} =
+  do @Many[ 2 .. ] @Match {'0'}
+     END

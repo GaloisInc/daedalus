@@ -1,0 +1,25 @@
+INFO: File size 191644 bytes.
+INFO:191144 Found xref table.
+INFO: 20 xref entries.
+INFO: Root reference is R:4:0
+ERROR:530 expected ">>"
+ERROR:66 R:1:0 @15 expected ">>"
+INFO: R:2:0 @73 is OK.
+INFO: R:3:0 @249 is OK.
+ERROR:530 R:4:0 @489 expected ">>"
+ERROR:588 R:5:0 @537 expected ">>"
+INFO: R:6:0 @595 is OK.
+INFO: R:7:0 @835 is OK.
+INFO: R:8:0 @2296 is OK.
+INFO: R:9:0 @15601 is OK.
+INFO: R:10:0 @141541 is OK.
+ERROR:144752 R:11:0 @144611 expected ">>"
+INFO: R:12:0 @144759 is OK.
+INFO: R:13:0 @145313 is OK.
+INFO: R:14:0 @145520 is OK.
+INFO: R:15:0 @171053 is OK.
+ERROR:171820 R:16:0 @171684 expected ">>"
+INFO: R:17:0 @171827 is OK.
+INFO: R:18:0 @172251 is OK.
+INFO: R:19:0 @172449 is OK.
+INFO: R:20:0 @190691 is OK.

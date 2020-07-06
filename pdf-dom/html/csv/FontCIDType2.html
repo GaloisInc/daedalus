@@ -1,0 +1,134 @@
+<html ><head ><link rel="stylesheet" href="style.css"></head>
+<body ><div class="heading">FontCIDType2</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">Type</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;Font&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">BaseFont</div>
+::
+Name
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">CIDSystemInfo</div>
+::
+Dictionary
+ 
+<a href="CIDSystemInfo.html">CIDSystemInfo</a>
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">CIDtoGIDMap</div>
+::
+Name
+ or 
+PDFStream
+ 
+<a href="Stream.html">Stream</a>
+
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">DW</div>
+::
+Number
+, default = 
+<div class="literal">1000.0</div>
+
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">DW2</div>
+::
+Array
+, default = 
+[
+<div class="literal">888.0</div>
+, 
+<div class="literal">-1000.0</div>
+]
+
+
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">FontDescriptor</div>
+::
+Dictionary
+ 
+<a href="FontDescriptorCIDType2.html">FontDescriptorCIDType2</a>
+
+, required
+, indirect
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">Subtype</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;CIDFontType2&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">ToUnicode</div>
+::
+PDFStream
+ 
+<a href="Stream.html">Stream</a>
+
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">W</div>
+::
+Array
+, default = 
+<div class="literal">&quot;none&quot;</div>
+
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">W2</div>
+::
+Array
+, default = 
+<div class="literal">&quot;none&quot;</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+INFO: File size 47586 bytes.
+INFO:46887 Found xref table.
+INFO: 30 xref entries.
+INFO: Root reference is R:4:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+ERROR:389 R:2:0 @74 guard failed
+INFO: R:3:0 @391 is OK.
+INFO: R:4:0 @799 is OK.
+INFO: R:5:0 @1009 is OK.
+INFO: R:6:0 @1068 is OK.
+INFO: R:7:0 @1476 is OK.
+ERROR:1785 R:8:0 @1680 guard failed
+INFO: R:9:0 @1787 is OK.
+INFO: R:10:0 @1899 is OK.
+INFO: R:11:0 @2015 is OK.
+INFO: R:12:0 @3123 is OK.
+INFO: R:13:0 @3254 is OK.
+INFO: R:14:0 @4290 is OK.
+INFO: R:15:0 @4421 is OK.
+ERROR:24996 R:16:0 @20495 guard failed
+INFO: R:17:0 @24998 is OK.
+INFO: R:18:0 @29076 is OK.
+INFO: R:19:0 @33029 is OK.
+INFO: R:20:0 @37608 is OK.
+WARNING: R:21:0 @39201 has URIs.
+WARNING: R:22:0 @39693 has URIs.
+WARNING: R:23:0 @40149 has URIs.
+WARNING: R:24:0 @40497 has URIs.
+WARNING: R:25:0 @40845 has URIs.
+WARNING: R:26:0 @41193 has URIs.
+WARNING: R:27:0 @41541 has URIs.
+WARNING: R:28:0 @41889 has URIs.
+WARNING: R:29:0 @42176 has URIs.
+INFO: R:30:0 @42502 is OK.

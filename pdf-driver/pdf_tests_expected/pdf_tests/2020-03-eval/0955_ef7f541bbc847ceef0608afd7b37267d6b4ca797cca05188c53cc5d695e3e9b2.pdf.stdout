@@ -1,0 +1,42 @@
+INFO: File size 253214 bytes.
+INFO:252374 Found xref table.
+INFO: 37 xref entries.
+INFO: Root reference is R:9:0
+ERROR:1088 expected ">>"
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @104 is OK.
+ERROR:443 R:3:0 @373 expected ">>"
+INFO: R:4:0 @485 is OK.
+INFO: R:5:0 @597 is OK.
+INFO: R:6:0 @709 is OK.
+ERROR:893 R:7:0 @822 expected ">>"
+INFO: R:8:0 @935 is OK.
+ERROR:1088 R:9:0 @1048 expected ">>"
+INFO: R:10:0 @1155 is OK.
+ERROR:1357 R:11:0 @1283 expected ">>"
+INFO: R:12:0 @1399 is OK.
+INFO: R:13:0 @1518 is OK.
+ERROR:1784 R:14:0 @1660 expected ">>"
+INFO: R:15:0 @15098 is OK.
+ERROR:15279 R:16:0 @15168 expected ">>"
+INFO: R:17:0 @15385 is OK.
+INFO: R:18:0 @61803 is OK.
+INFO: R:19:0 @64070 is OK.
+INFO: R:20:0 @64467 is OK.
+ERROR:64725 R:21:0 @64605 expected ">>"
+INFO: R:22:0 @92692 is OK.
+ERROR:92869 R:23:0 @92762 expected ">>"
+INFO: R:24:0 @92974 is OK.
+INFO: R:25:0 @241390 is OK.
+INFO: R:26:0 @245945 is OK.
+INFO: R:27:0 @246342 is OK.
+INFO: R:28:0 @247361 is OK.
+INFO: R:29:0 @247477 is OK.
+INFO: R:30:0 @248455 is OK.
+INFO: R:31:0 @248571 is OK.
+INFO: R:32:0 @249534 is OK.
+INFO: R:33:0 @249650 is OK.
+INFO: R:34:0 @250592 is OK.
+INFO: R:35:0 @250708 is OK.
+INFO: R:36:0 @251757 is OK.
+INFO: R:37:0 @251873 is OK.

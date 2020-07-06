@@ -1,0 +1,3 @@
+#!/bin/bash
+cabal run pdf-generator
+cabal build --enable-profiling --profiling-detail=all-functions exe:pdf-hs-driver

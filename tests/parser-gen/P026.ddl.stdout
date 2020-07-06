@@ -1,0 +1,226 @@
+module P026
+ 
+--- Imports:
+ 
+--- Type defs:
+type P026.Number = { num: int
+                   ; exp: int
+                   }
+ 
+type P026.Main = { x: [P026.Number]
+                 }
+ 
+type P026.Sign = Choose { neg: {}
+                        ; pos: {}
+                        }
+ 
+--- Rules:
+ 
+P026.$cr : ByteClass =
+  {'\r'}
+ 
+P026.$lf : ByteClass =
+  {'\n'}
+ 
+P026.$simpleWS : ByteClass =
+  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+ 
+P026.SimpleEOL : Grammar (uint 8) =
+  Choose fair
+    { do @Match P026.$cr
+         ($$ : uint 8) <- Match P026.$lf
+         pure $$
+    | Match P026.$lf
+    }
+ 
+P026.EOL : Grammar (uint 8) =
+  Choose biased
+    { P026.SimpleEOL
+    | Match P026.$cr
+    }
+ 
+P026.Comment : Grammar (uint 8) =
+  do @MatchBytes "%"
+     @Many[] @Match (!(P026.$lf | P026.$cr))
+     ($$ : uint 8) <- P026.EOL
+     pure $$
+ 
+P026.AnyWS : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { Match P026.$simpleWS
+        | P026.Comment
+        }
+    | P026.EOL
+    }
+ 
+P026._SimpleEOL : Grammar {} =
+  Choose fair
+    { do @Match P026.$cr
+         @Match P026.$lf
+    | @Match P026.$lf
+    }
+ 
+P026._EOL : Grammar {} =
+  Choose biased
+    { P026._SimpleEOL
+    | @Match P026.$cr
+    }
+ 
+P026._Comment : Grammar {} =
+  do @MatchBytes "%"
+     @Many[] @Match (!(P026.$lf | P026.$cr))
+     P026._EOL
+ 
+P026._AnyWS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { @Match P026.$simpleWS
+        | P026._Comment
+        }
+    | P026._EOL
+    }
+ 
+P026._Token ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[] P026._AnyWS
+ 
+P026._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  P026._Token ?a0 _P
+ 
+P026.Between ?a2 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a2) : Grammar ?a2 =
+  do P026._KW [uint 8] (@MatchBytes open)
+     ($$ : ?a2) <- P
+     P026._KW [uint 8] (@MatchBytes close)
+     pure $$
+ 
+P026.Digit : Grammar int =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : int) <- pure (d - '0' as int)
+     pure $$
+ 
+P026.Frac (n : int) (w : P026.Number) : Grammar P026.Number =
+  do (ds : [int]) <- do @MatchBytes "."
+                        ($$ : [int]) <- Many[ n .. ] P026.Digit
+                        pure $$
+     ($$ : P026.Number) <- pure (for ((val : P026.Number) = w; (d : int) in ds)
+                                   {num = (10 * (val.num)) + d,
+                                    exp = (val.exp) - 1})
+     pure $$
+ 
+P026.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  P026._Token ?a0 do P
+                     pure {}
+ 
+P026.Sign : Grammar P026.Sign =
+  Choose fair
+    { {- pos -} do (_0 : {}) <- Choose fair
+                                  { @MatchBytes "+"
+                                  | @MatchBytes ""
+                                  }
+                   pure {pos: _0}
+    | {- neg -} do (_1 : {}) <- @MatchBytes "-"
+                   pure {neg: _1}
+    }
+ 
+P026.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     @Many[] P026._AnyWS
+     pure $$
+ 
+P026.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
+  for ((val : ?a4) = 0; (d : ?a4) in ds)
+    ((val * base) + d)
+ 
+P026.Natural : Grammar int =
+  do (ds : [int]) <- Many[ 1 .. ] P026.Digit
+     ($$ : int) <- pure (P026.numBase [int] int int 10 ds)
+     pure $$
+ 
+P026.UnsignedNumber : Grammar P026.Number =
+  Choose fair
+    { do (n : int) <- P026.Natural
+         (val : P026.Number) <- pure {num = n,
+                                      exp = 0}
+         ($$ : P026.Number) <- Choose biased
+                                 { P026.Frac 0 val
+                                 | pure val
+                                 }
+         pure $$
+    | P026.Frac 1 {num = 0,
+                   exp = 0}
+    }
+ 
+P026.Number : Grammar P026.Number =
+  P026.Token P026.Number do (sign : P026.Sign) <- P026.Sign
+                            (n : P026.Number) <- P026.UnsignedNumber
+                            ($$ : P026.Number) <- Choose fair
+                                                    { do @(sign is pos)
+                                                         ($$ : P026.Number) <- pure n
+                                                         pure $$
+                                                    | do @(sign is neg)
+                                                         ($$ : P026.Number) <- pure {num = 0 - (n.num),
+                                                                                     exp = n.exp}
+                                                         pure $$
+                                                    }
+                            pure $$
+ 
+P026.Main : Grammar P026.Main =
+  do (x : [P026.Number]) <- Many[] P026.Number
+     END
+     pure {x = x}
+ 
+P026.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     END
+     pure $$
+ 
+P026._Between ?a2 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+  do P026._KW [uint 8] (@MatchBytes open)
+     _P
+     P026._KW [uint 8] (@MatchBytes close)
+ 
+P026._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+P026._Frac (n : int) : Grammar {} =
+  do @MatchBytes "."
+     @Many[ n .. ] P026._Digit
+ 
+P026._Natural : Grammar {} =
+  @Many[ 1 .. ] P026._Digit
+ 
+P026._UnsignedNumber : Grammar {} =
+  Choose fair
+    { do P026._Natural
+         Choose biased
+           { P026._Frac 0
+           | pure {}
+           }
+    | P026._Frac 1
+    }
+ 
+P026._Number : Grammar {} =
+  P026._Token P026.Number do (sign : P026.Sign) <- P026.Sign
+                             P026._UnsignedNumber
+                             Choose fair
+                               { @(sign is pos)
+                               | @(sign is neg)
+                               }
+ 
+P026._Main : Grammar {} =
+  do @Many[] P026._Number
+     END
+ 
+P026._Only ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     END
+ 
+P026._Sign : Grammar {} =
+  Choose fair
+    { {- pos -} Choose fair
+                  { @MatchBytes "+"
+                  | @MatchBytes ""
+                  }
+    | {- neg -} @MatchBytes "-"
+    }

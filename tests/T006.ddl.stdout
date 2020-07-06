@@ -1,0 +1,10 @@
+module T006
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T006.f ?a0 (Coerce safe ?a0 int) (x : ?a0) : int =
+  x as int

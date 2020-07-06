@@ -1,0 +1,37 @@
+module P011
+ 
+--- Imports:
+ 
+--- Type defs:
+type P011.Main = { x: int
+                 ; y: int
+                 ; z: uint 8
+                 }
+ 
+--- Rules:
+ 
+P011.Length : Grammar int =
+  do (a : uint 8) <- GetByte
+     (b : uint 8) <- GetByte
+     (c : uint 8) <- GetByte
+     (d : uint 8) <- GetByte
+     ($$ : int) <- pure (((((a as int) << 24) + ((b as int) << 16)) + ((c as int) << 8)) + ((d as int) << 0))
+     pure $$
+ 
+P011.Main : Grammar P011.Main =
+  do (x : int) <- P011.Length
+     (y : int) <- pure (x >> 24)
+     (z : uint 8) <- GetByte
+     pure {x = x,
+           y = y,
+           z = z}
+ 
+P011._Length : Grammar {} =
+  do @GetByte
+     @GetByte
+     @GetByte
+     @GetByte
+ 
+P011._Main : Grammar {} =
+  do P011._Length
+     @GetByte

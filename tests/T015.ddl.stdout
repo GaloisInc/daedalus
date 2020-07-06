@@ -1,0 +1,15 @@
+module T015
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T015.Main : Grammar [uint 8] =
+  do (x : uint 8) <- GetByte
+     ($$ : [uint 8]) <- pure (if (x == 'y') then "yes" else "no")
+     pure $$
+ 
+T015._Main : Grammar {} =
+  @GetByte

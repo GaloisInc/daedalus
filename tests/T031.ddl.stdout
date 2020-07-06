@@ -1,0 +1,18 @@
+module T031
+ 
+--- Imports:
+ 
+--- Type defs:
+type T031.Main = { gen: uint 8
+                 }
+ 
+--- Rules:
+ 
+T031.Main : Grammar T031.Main =
+  do (gen : uint 8) <- Match {'b'}
+     ($$ : T031.Main) <- do (gen : uint 8) <- pure gen
+                            pure {gen = gen}
+     pure $$
+ 
+T031._Main : Grammar {} =
+  @Match {'b'}

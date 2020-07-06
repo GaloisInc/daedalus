@@ -1,0 +1,31 @@
+module T047
+ 
+--- Imports:
+ 
+--- Type defs:
+type T047.Main = { a1: int
+                 ; a2: int
+                 }
+ 
+--- Rules:
+ 
+T047.A : Grammar int =
+  for ((s : int) = 0; (i : int) in rangeUp 0 5 1)
+    (pure (s + i))
+ 
+T047.a : int =
+  for ((s : int) = 0; (i : int) in rangeUp 0 5 1)
+    (s + i)
+ 
+T047.Main : Grammar T047.Main =
+  do (a1 : int) <- pure T047.a
+     (a2 : int) <- T047.A
+     pure {a1 = a1,
+           a2 = a2}
+ 
+T047._A : Grammar {} =
+  for ((s : {}) = {}; (i : int) in rangeUp 0 5 1)
+    (pure {})
+ 
+T047._Main : Grammar {} =
+  T047._A

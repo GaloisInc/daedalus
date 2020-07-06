@@ -1,0 +1,16 @@
+module P001
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P001.Main : Grammar (uint 8) =
+  do ($$ : uint 8) <- Match {'0'}
+     END
+     pure $$
+ 
+P001._Main : Grammar {} =
+  do @Match {'0'}
+     END

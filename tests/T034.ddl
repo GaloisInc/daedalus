@@ -1,0 +1,5 @@
+
+def Main = [ "hello", "world" ]
+
+
+

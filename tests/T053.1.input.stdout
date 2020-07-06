@@ -1,0 +1,10 @@
+--- Found 1 results:
+{ ex1: Nothing
+, ex2: Just 1
+, ex3: Nothing
+, ex4: Nothing
+, ex5: Just 1
+, ex6: Just 1
+, ex7: Nothing
+, ex8: Just { }
+}

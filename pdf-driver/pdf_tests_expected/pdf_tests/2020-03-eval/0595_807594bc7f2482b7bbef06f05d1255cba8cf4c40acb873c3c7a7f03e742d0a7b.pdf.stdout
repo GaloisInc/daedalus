@@ -1,0 +1,15 @@
+INFO: File size 56793 bytes.
+INFO:56494 Found xref table.
+INFO: 10 xref entries.
+INFO: Root reference is R:4:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+INFO: R:3:0 @501 is OK.
+INFO: R:4:0 @716 is OK.
+INFO: R:5:0 @765 is OK.
+INFO: R:6:0 @844 is OK.
+INFO: R:7:0 @1060 is OK.
+INFO: R:8:0 @1157 is OK.
+ERROR:54175 R:9:0 @11585 expected "endstream"
+ERROR:56490 R:10:0 @54179 expected "endstream"

@@ -1,0 +1,23 @@
+module P008
+ 
+--- Imports:
+ 
+--- Type defs:
+type P008.Main = { x: uint 8
+                 ; y: uint 8
+                 }
+ 
+--- Rules:
+ 
+P008.$letter : ByteClass =
+  ('A' .. 'Z') | ('a' .. 'z')
+ 
+P008.Main : Grammar P008.Main =
+  do (x : uint 8) <- Match P008.$letter
+     (y : uint 8) <- Match P008.$letter
+     pure {x = x,
+           y = y}
+ 
+P008._Main : Grammar {} =
+  do @Match P008.$letter
+     @Match P008.$letter

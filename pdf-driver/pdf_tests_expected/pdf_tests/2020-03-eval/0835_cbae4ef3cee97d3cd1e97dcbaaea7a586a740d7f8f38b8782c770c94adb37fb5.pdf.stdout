@@ -1,0 +1,24 @@
+INFO: File size 139123 bytes.
+INFO:138643 Found xref table.
+INFO: 19 xref entries.
+INFO: Root reference is R:4:0
+ERROR:482 expected "endobj"
+ERROR:67 R:1:0 @15 expected "endobj"
+ERROR:277 R:2:0 @74 expected "endobj"
+INFO: R:3:0 @284 is OK.
+ERROR:482 R:4:0 @390 expected "endobj"
+INFO: R:5:0 @489 is OK.
+INFO: R:6:0 @574 is OK.
+INFO: R:7:0 @681 is OK.
+INFO: R:8:0 @831 is OK.
+INFO: R:9:0 @994 is OK.
+INFO: R:10:0 @1924 is OK.
+INFO: R:11:0 @2134 is OK.
+INFO: R:12:0 @56183 is OK.
+INFO: R:13:0 @56353 is OK.
+INFO: R:14:0 @57285 is OK.
+INFO: R:15:0 @57501 is OK.
+INFO: R:16:0 @114831 is OK.
+INFO: R:17:0 @114929 is OK.
+INFO: R:18:0 @115032 is OK.
+INFO: R:19:0 @137212 is OK.

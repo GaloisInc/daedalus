@@ -1,0 +1,41 @@
+INFO: File size 340650 bytes.
+INFO:339830 Found xref table.
+INFO: 36 xref entries.
+INFO: Root reference is R:8:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @98 is OK.
+INFO: R:3:0 @384 is OK.
+INFO: R:4:0 @496 is OK.
+INFO: R:5:0 @608 is OK.
+INFO: R:6:0 @720 is OK.
+INFO: R:7:0 @833 is OK.
+INFO: R:8:0 @946 is OK.
+INFO: R:9:0 @1052 is OK.
+INFO: R:10:0 @1172 is OK.
+INFO: R:11:0 @1287 is OK.
+INFO: R:12:0 @1428 is OK.
+INFO: R:13:0 @1570 is OK.
+INFO: R:14:0 @15008 is OK.
+INFO: R:15:0 @15078 is OK.
+ERROR:61701 R:16:0 @15295 expected "endstream"
+ERROR:63960 R:17:0 @61705 expected "endstream"
+INFO: R:18:0 @63964 is OK.
+INFO: R:19:0 @64361 is OK.
+INFO: R:20:0 @64499 is OK.
+INFO: R:21:0 @92586 is OK.
+INFO: R:22:0 @92656 is OK.
+INFO: R:23:0 @92868 is OK.
+ERROR:245827 R:24:0 @241284 expected "endstream"
+INFO: R:25:0 @245831 is OK.
+ERROR:293877 R:26:0 @246228 expected "endstream"
+INFO: R:27:0 @293881 is OK.
+ERROR:335642 R:28:0 @334789 expected "endstream"
+INFO: R:29:0 @335646 is OK.
+ERROR:337195 R:30:0 @335761 expected "endstream"
+INFO: R:31:0 @337199 is OK.
+ERROR:338315 R:32:0 @337314 expected "endstream"
+INFO: R:33:0 @338319 is OK.
+INFO: R:34:0 @338434 is OK.
+INFO: R:35:0 @339360 is OK.
+INFO: R:36:0 @339475 is OK.

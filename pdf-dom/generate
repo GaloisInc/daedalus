@@ -1,0 +1,4 @@
+#!/bin/bash
+
+for i in csv/*; do echo $i; cabal exec see $i; done
+

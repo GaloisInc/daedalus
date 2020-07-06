@@ -1,0 +1,43 @@
+INFO: File size 28036 bytes.
+INFO:27177 Found xref table.
+INFO: 38 xref entries.
+INFO: Root reference is R:6:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @86 is OK.
+INFO: R:3:0 @417 is OK.
+INFO: R:4:0 @566 is OK.
+INFO: R:5:0 @713 is OK.
+INFO: R:6:0 @860 is OK.
+INFO: R:7:0 @944 is OK.
+INFO: R:8:0 @4608 is OK.
+INFO: R:9:0 @4681 is OK.
+INFO: R:10:0 @4830 is OK.
+INFO: R:11:0 @6983 is OK.
+ERROR:8402 R:12:0 @7249 guard failed
+INFO: R:13:0 @8404 is OK.
+INFO: R:14:0 @16040 is OK.
+ERROR:16141 R:15:0 @16087 guard failed
+ERROR:18836 R:16:0 @16143 guard failed
+INFO: R:17:0 @18838 is OK.
+INFO: R:18:0 @19657 is OK.
+INFO: R:19:0 @20373 is OK.
+INFO: R:20:0 @20637 is OK.
+INFO: R:21:0 @20806 is OK.
+INFO: R:22:0 @21063 is OK.
+INFO: R:23:0 @21434 is OK.
+INFO: R:24:0 @21689 is OK.
+INFO: R:25:0 @21859 is OK.
+INFO: R:26:0 @22108 is OK.
+INFO: R:27:0 @22803 is OK.
+INFO: R:28:0 @23073 is OK.
+INFO: R:29:0 @23255 is OK.
+INFO: R:30:0 @23532 is OK.
+INFO: R:31:0 @23617 is OK.
+INFO: R:32:0 @23767 is OK.
+INFO: R:33:0 @25548 is OK.
+INFO: R:34:0 @25660 is OK.
+INFO: R:35:0 @25810 is OK.
+INFO: R:36:0 @26983 is OK.
+INFO: R:37:0 @27108 is OK.
+INFO: R:38:0 @27149 is OK.

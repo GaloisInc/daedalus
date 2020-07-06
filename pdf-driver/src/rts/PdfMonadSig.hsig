@@ -1,0 +1,20 @@
+{-# Language ConstraintKinds, KindSignatures, RankNTypes #-}
+signature PdfMonadSig where
+
+import Data.Kind(Constraint,Type)
+import Data.ByteString(ByteString)
+import PdfMonad.Transformer
+
+data DbgMode :: Constraint
+data Parser :: Type -> Type
+
+pdfMain :: (DbgMode => IO ()) -> IO ()
+
+runParser :: DbgMode =>
+             ByteString -> ObjIndex -> Parser a -> Input -> IO (PdfResult a)
+
+instance Functor Parser
+instance Applicative Parser
+instance Monad Parser
+instance BasicParser Parser
+instance PdfParser Parser

@@ -1,0 +1,39 @@
+INFO: File size 222867 bytes.
+INFO:222087 Found xref table.
+INFO: 34 xref entries.
+INFO: Root reference is R:4:0
+INFO: Catalog is OK.
+ERROR:48 R:1:0 @15 expected ">>"
+INFO: R:2:0 @74 is OK.
+ERROR:695 R:3:0 @313 expected ">>"
+INFO: R:4:0 @771 is OK.
+INFO: R:5:0 @904 is OK.
+INFO: R:6:0 @963 is OK.
+INFO: R:7:0 @1422 is OK.
+INFO: R:8:0 @1524 is OK.
+ERROR:1787 R:9:0 @1621 Unknown error
+ERROR:3511 R:10:0 @3358 Unknown error
+INFO: R:11:0 @4059 is OK.
+ERROR:4313 R:12:0 @4265 expected ">>"
+ERROR:4636 R:13:0 @4459 Unknown error
+ERROR:8299 R:14:0 @8145 Unknown error
+INFO: R:15:0 @9495 is OK.
+INFO: R:16:0 @12190 is OK.
+INFO: R:17:0 @39503 is OK.
+ERROR:77114 R:18:0 @76958 Unknown error
+ERROR:208189 R:19:0 @208022 Unknown error
+ERROR:209913 R:20:0 @209760 Unknown error
+ERROR:210638 R:21:0 @210461 Unknown error
+ERROR:214301 R:22:0 @214147 Unknown error
+INFO: R:23:0 @215497 is OK.
+INFO: R:24:0 @218192 is OK.
+WARNING: R:25:0 @220674 has URIs.
+ERROR:221016 R:26:0 @221004 expected ">>"
+ERROR:221166 R:27:0 @221154 expected ">>"
+ERROR:221674 R:28:0 @221629 expected ">>"
+INFO: R:29:0 @221752 is OK.
+INFO: R:30:0 @221788 is OK.
+INFO: R:31:0 @221943 is OK.
+INFO: R:32:0 @221979 is OK.
+ERROR:222024 R:33:0 @222015 expected "<<"
+INFO: R:34:0 @222051 is OK.

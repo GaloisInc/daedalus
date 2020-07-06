@@ -1,0 +1,52 @@
+module T046
+ 
+--- Imports:
+ 
+--- Type defs:
+type T046.Main = { a1: int
+                 ; a2: int
+                 ; m: Map int int
+                 ; a3: int
+                 ; a4: int
+                 }
+ 
+--- Rules:
+ 
+T046.ExampleMap : Grammar (Map int int) =
+  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
+                                                           6,
+                                                           7])
+    (Insert k x s)
+ 
+T046.l1 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (xs : ?a0) : int =
+  for ((s : int) = 0; (x : int) in xs)
+    (s + x)
+ 
+T046.l2 ?a0 (Traversable ?a0) (HasKey ?a0 int) (HasElement ?a0 int) (xs : ?a0) : int =
+  for ((s : int) = 0; (k : int), (x : int) in xs)
+    ((s + x) + k)
+ 
+T046.Main : Grammar T046.Main =
+  do (a1 : int) <- pure (T046.l1 [int] int [1,
+                                            2,
+                                            3])
+     (a2 : int) <- pure (T046.l2 [int] [1,
+                                        2,
+                                        3])
+     (m : Map int int) <- T046.ExampleMap
+     (a3 : int) <- pure (T046.l1 (Map int int) int m)
+     (a4 : int) <- pure (T046.l2 (Map int int) m)
+     pure {a1 = a1,
+           a2 = a2,
+           m = m,
+           a3 = a3,
+           a4 = a4}
+ 
+T046._ExampleMap : Grammar (Map int int) =
+  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
+                                                           6,
+                                                           7])
+    (Insert k x s)
+ 
+T046._Main : Grammar {} =
+  T046._ExampleMap

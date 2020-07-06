@@ -1,0 +1,47 @@
+INFO: File size 150204 bytes.
+INFO:116 Found xref table.
+INFO: 42 xref entries.
+INFO: Root reference is R:9:0
+INFO: Catalog is OK.
+ERROR:145271 R:1:0 @145206 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+INFO: R:2:0 @145718 is OK.
+INFO: R:3:0 @145764 is OK.
+ERROR:145927 R:4:0 @145806 Codec.Compression.Zlib: compressed data stream format error (invalid literal/lengths set)
+INFO: R:5:0 @147129 is OK.
+INFO: R:6:0 @147181 is OK.
+INFO: R:7:0 @149739 is OK.
+INFO: R:8:0 @16 is OK.
+INFO: R:9:0 @1245 is OK.
+INFO: R:10:0 @1368 is OK.
+INFO: R:11:0 @2377 is OK.
+INFO: R:12:0 @2511 is OK.
+INFO: R:13:0 @2870 is OK.
+INFO: R:14:0 @3078 is OK.
+INFO: R:15:0 @3113 is OK.
+INFO: R:16:0 @3866 is OK.
+INFO: R:17:0 @4348 is OK.
+INFO: R:18:0 @6996 is OK.
+INFO: R:19:0 @7107 is OK.
+INFO: R:20:0 @7220 is OK.
+INFO: R:21:0 @7289 is OK.
+INFO: R:22:0 @7378 is OK.
+INFO: R:23:0 @21373 is OK.
+INFO: R:24:0 @21639 is OK.
+INFO: R:25:0 @21846 is OK.
+INFO: R:26:0 @21871 is OK.
+INFO: R:27:0 @22211 is OK.
+INFO: R:28:0 @39254 is OK.
+INFO: R:29:0 @39507 is OK.
+INFO: R:30:0 @39842 is OK.
+INFO: R:31:0 @53494 is OK.
+INFO: R:32:0 @53755 is OK.
+INFO: R:33:0 @54071 is OK.
+INFO: R:34:0 @79161 is OK.
+INFO: R:35:0 @79408 is OK.
+INFO: R:36:0 @79879 is OK.
+INFO: R:37:0 @118711 is OK.
+INFO: R:38:0 @119132 is OK.
+INFO: R:39:0 @119553 is OK.
+INFO: R:40:0 @120367 is OK.
+INFO: R:41:0 @145149 is OK.
+INFO: R:42:0 @996 is OK.

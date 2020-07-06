@@ -1,0 +1,64 @@
+module T050
+ 
+--- Imports:
+ 
+--- Type defs:
+type T050.Main = { x1: int
+                 ; x2: int
+                 }
+ 
+type T050.V = Choose { number: int
+                     ; other: [uint 8]
+                     }
+ 
+--- Rules:
+ 
+T050.Default ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar ?a0 =
+  Choose biased
+    { P
+    | pure x
+    }
+ 
+T050.LookupInt (arr : [T050.V]) (i : int) : Grammar int =
+  T050.Default int 0 do (n : T050.V) <- Index arr i
+                        Commit
+                          do ($$ : int) <- n is number
+                             pure $$
+ 
+T050.arr : [T050.V] =
+  [{number: 1},
+   {other: "Y"}]
+ 
+T050.Main : Grammar T050.Main =
+  do (x1 : int) <- T050.LookupInt T050.arr 0
+     (x2 : int) <- T050.LookupInt T050.arr 2
+     pure {x1 = x1,
+           x2 = x2}
+ 
+T050.V ?a1 (Literal 1 ?a1) : Grammar T050.V =
+  Choose fair
+    { {- number -} do (_0 : int) <- 1 AS int
+                      pure {number: _0}
+    | {- other -} do (_1 : [uint 8]) <- MatchBytes "X"
+                     pure {other: _1}
+    }
+ 
+T050._Default ?a0 (_P : Grammar {}) : Grammar {} =
+  Choose biased
+    { _P
+    | pure {}
+    }
+ 
+T050._LookupInt (arr : [T050.V]) (i : int) : Grammar {} =
+  T050._Default int do (n : T050.V) <- Index arr i
+                       Commit @(n is number)
+ 
+T050._Main : Grammar {} =
+  do T050._LookupInt T050.arr 0
+     T050._LookupInt T050.arr 2
+ 
+T050._V ?a1 (Literal 1 ?a1) : Grammar {} =
+  Choose fair
+    { {- number -} @(1 AS int)
+    | {- other -} @MatchBytes "X"
+    }

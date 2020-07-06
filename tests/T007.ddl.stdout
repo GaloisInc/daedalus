@@ -1,0 +1,27 @@
+module T007
+ 
+--- Imports:
+ 
+--- Type defs:
+type T007.Sign = Choose { neg: {}
+                        ; pos: {}
+                        }
+ 
+--- Rules:
+ 
+T007.Sign : Grammar T007.Sign =
+  Choose fair
+    { {- pos -} do (_0 : {}) <- @Match {'+'}
+                   pure {pos: _0}
+    | {- neg -} do (_1 : {}) <- @Match {'-'}
+                   pure {neg: _1}
+    | {- pos -} do (_2 : {}) <- pure {}
+                   pure {pos: _2}
+    }
+ 
+T007._Sign : Grammar {} =
+  Choose fair
+    { {- pos -} @Match {'+'}
+    | {- neg -} @Match {'-'}
+    | {- pos -} pure {}
+    }

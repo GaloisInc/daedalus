@@ -1,0 +1,356 @@
+<html ><head ><link rel="stylesheet" href="style.css"></head>
+<body ><div class="heading">PageObject</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Type</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;Page&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">1.2
+
+</div>
+<div class="key">AA</div>
+::
+Dictionary
+ 
+<a href="AddActionPageObject.html">AddActionPageObject</a>
+
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">AF</div>
+::
+Array
+ 
+<a href="ArrayOfFileSpecifications.html">ArrayOfFileSpecifications</a>
+
+ or 
+Dictionary
+ 
+<a href="FileSpecification.html">FileSpecification</a>
+
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Annots</div>
+::
+Array
+ 
+<a href="ArrayOfAnnots.html">ArrayOfAnnots</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">ArtBox</div>
+::
+Rectangle
+, default = 
+@&quot;CropBox&quot;
+
+</div>
+<div class="field"><div class="bounds">1.1
+
+</div>
+<div class="key">B</div>
+::
+Array
+ 
+<a href="ArrayOfBeads.html">ArrayOfBeads</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">BleedBox</div>
+::
+Rectangle
+, default = 
+@&quot;CropBox&quot;
+
+</div>
+<div class="field"><div class="bounds">1.4
+
+</div>
+<div class="key">BoxColorInfo</div>
+::
+Dictionary
+ 
+<a href="BoxColorInfo.html">BoxColorInfo</a>
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Contents</div>
+::
+Array
+ or 
+PDFStream
+ 
+<a href="Stream.html">Stream</a>
+
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">CropBox</div>
+::
+Rectangle
+, default = 
+@&quot;MediaBox&quot;
+
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">DPart</div>
+::
+Dictionary
+ 
+<a href="DPart.html">DPart</a>
+
+</div>
+<div class="field"><div class="bounds">1.1
+
+</div>
+<div class="key">Dur</div>
+::
+Number
+</div>
+<div class="field"><div class="bounds">1.4
+
+</div>
+<div class="key">Group</div>
+::
+Dictionary
+ 
+<a href="Group.html">Group</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">ID</div>
+::
+Bytes
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">LastModified</div>
+::
+Date
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">MediaBox</div>
+::
+Rectangle
+, required
+</div>
+<div class="field"><div class="bounds">1.4
+
+</div>
+<div class="key">Metadata</div>
+::
+PDFStream
+ 
+<a href="Metadata.html">Metadata</a>
+
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">OutputIntents</div>
+::
+Array
+ 
+<a href="ArrayOfOutputIntents.html">ArrayOfOutputIntents</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">PZ</div>
+::
+Number
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Parent</div>
+::
+Dictionary
+ 
+<a href="PageTreeNode.html">PageTreeNode</a>
+
+ or 
+Dictionary
+ 
+<a href="PageTreeNodeRoot.html">PageTreeNodeRoot</a>
+
+
+, required
+, indirect
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">PieceInfo</div>
+::
+Dictionary
+ 
+<a href="PagePiece.html">PagePiece</a>
+
+</div>
+<div class="field"><div class="bounds">1.5
+
+</div>
+<div class="key">PresSteps</div>
+::
+Dictionary
+ 
+<a href="NavNode.html">NavNode</a>
+
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Resources</div>
+::
+Dictionary
+ 
+<a href="Resource.html">Resource</a>
+
+, required
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Rotate</div>
+::
+(
+Integer
+ | 
+= 
+<div class="literal">0.0</div>
+
+ or 
+= 
+<div class="literal">90.0</div>
+
+ or 
+= 
+<div class="literal">180.0</div>
+
+ or 
+= 
+<div class="literal">270.0</div>
+
+
+
+
+)
+
+, default = 
+<div class="literal">0.0</div>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">SeparationInfo</div>
+::
+Dictionary
+ 
+<a href="Separation.html">Separation</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">StructParents</div>
+::
+Integer
+</div>
+<div class="field"><div class="bounds">1.5
+
+</div>
+<div class="key">Tabs</div>
+::
+Name
+</div>
+<div class="field"><div class="bounds">1.5
+
+</div>
+<div class="key">TemplateInstantiated</div>
+::
+Name
+</div>
+<div class="field"><div class="bounds">1.0
+
+</div>
+<div class="key">Thumb</div>
+::
+PDFStream
+ 
+<a href="Thumbnail.html">Thumbnail</a>
+
+</div>
+<div class="field"><div class="bounds">1.1
+
+</div>
+<div class="key">Trans</div>
+::
+Dictionary
+ 
+<a href="Transition.html">Transition</a>
+
+</div>
+<div class="field"><div class="bounds">1.3
+
+</div>
+<div class="key">TrimBox</div>
+::
+Rectangle
+, default = 
+@&quot;CropBox&quot;
+
+</div>
+<div class="field"><div class="bounds">1.6
+
+</div>
+<div class="key">UserUnit</div>
+::
+Number
+, default = 
+<div class="literal">1.0</div>
+
+</div>
+<div class="field"><div class="bounds">1.6
+
+</div>
+<div class="key">VP</div>
+::
+Array
+ 
+<a href="ArrayOfViewports.html">ArrayOfViewports</a>
+
+</div>
+</body>
+</html>

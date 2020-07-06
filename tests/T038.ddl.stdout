@@ -1,0 +1,30 @@
+module T038
+ 
+--- Imports:
+ 
+--- Type defs:
+type T038.Main = { a: Maybe int
+                 ; b: Maybe int
+                 }
+ 
+--- Rules:
+ 
+T038.Foo (x : Maybe int) : Grammar (Maybe int) =
+  pure x
+ 
+T038.Main : Grammar T038.Main =
+  do (a : Maybe int) <- Optional do ($$ : int) <- pure 1
+                                    pure $$
+     (b : Maybe int) <- T038.Foo a
+     pure {a = a,
+           b = b}
+ 
+T038._Foo : Grammar {} =
+  pure {}
+ 
+T038._Main : Grammar {} =
+  do Choose biased
+       { pure {}
+       | pure {}
+       }
+     T038._Foo

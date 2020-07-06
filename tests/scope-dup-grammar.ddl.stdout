@@ -1,0 +1,3 @@
+Duplicate rules:
+  • Test declared at ./scope-dup-grammar.ddl:2:5--2:8
+                     ./scope-dup-grammar.ddl:3:5--3:8

@@ -1,0 +1,36 @@
+module P020
+ 
+--- Imports:
+ 
+--- Type defs:
+type P020.Natural = { ds: [int]
+                    }
+ 
+type P020.Main = { x: P020.Natural
+                 }
+ 
+--- Rules:
+ 
+P020.Digit : Grammar int =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : int) <- pure (d - '0' as int)
+     pure $$
+ 
+P020.Natural : Grammar P020.Natural =
+  do (ds : [int]) <- Many[ 1 .. ] P020.Digit
+     pure {ds = ds}
+ 
+P020.Main : Grammar P020.Main =
+  do (x : P020.Natural) <- P020.Natural
+     END
+     pure {x = x}
+ 
+P020._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+P020._Natural : Grammar {} =
+  @Many[ 1 .. ] P020._Digit
+ 
+P020._Main : Grammar {} =
+  do P020._Natural
+     END

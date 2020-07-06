@@ -1,0 +1,27 @@
+INFO: File size 247220 bytes.
+INFO:246680 Found xref table.
+INFO: 22 xref entries.
+INFO: Root reference is R:4:0
+INFO: Catalog is OK.
+ERROR:66 R:1:0 @15 expected ">>"
+INFO: R:2:0 @73 is OK.
+INFO: R:3:0 @364 is OK.
+INFO: R:4:0 @476 is OK.
+INFO: R:5:0 @581 is OK.
+INFO: R:6:0 @672 is OK.
+INFO: R:7:0 @785 is OK.
+INFO: R:8:0 @902 is OK.
+INFO: R:9:0 @1042 is OK.
+INFO: R:10:0 @14479 is OK.
+INFO: R:11:0 @14549 is OK.
+INFO: R:12:0 @14766 is OK.
+INFO: R:13:0 @61184 is OK.
+INFO: R:14:0 @63451 is OK.
+ERROR:63978 R:15:0 @63848 expected ">>"
+INFO: R:16:0 @63985 is OK.
+INFO: R:17:0 @92072 is OK.
+INFO: R:18:0 @92142 is OK.
+INFO: R:19:0 @92354 is OK.
+INFO: R:20:0 @240770 is OK.
+INFO: R:21:0 @245325 is OK.
+ERROR:245769 R:22:0 @245722 expected ">>"

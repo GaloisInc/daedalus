@@ -1,0 +1,39 @@
+module P030
+ 
+--- Imports:
+ 
+--- Type defs:
+type P030.A = { x: [uint 8]
+              ; y: [uint 8]
+              }
+ 
+type P030.Main = { res: P030.A
+                 }
+ 
+--- Rules:
+ 
+P030.A : Grammar P030.A =
+  do (x : [uint 8]) <- Many[] Match {'a'}
+     (y : [uint 8]) <- map ((z : uint 8) in x)
+                         do @Match {'b'}
+                            ($$ : uint 8) <- pure 'c'
+                            pure $$
+     pure {x = x,
+           y = y}
+ 
+P030.Main : Grammar P030.Main =
+  do (res : P030.A) <- P030.A
+     END
+     pure {res = res}
+ 
+P030._A : Grammar {} =
+  do (x : [uint 8]) <- Many[] Match {'a'}
+     map ((z : uint 8) in x)
+       do @Match {'b'}
+          ($$ : uint 8) <- pure 'c'
+          pure $$
+     pure {}
+ 
+P030._Main : Grammar {} =
+  do P030._A
+     END

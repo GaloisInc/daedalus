@@ -1,0 +1,144 @@
+module T053
+ 
+--- Imports:
+ 
+--- Type defs:
+type T053.Main = { ex1: Maybe int
+                 ; ex2: Maybe int
+                 ; ex3: Maybe int
+                 ; ex4: Maybe int
+                 ; ex5: Maybe int
+                 ; ex6: Maybe int
+                 ; ex7: Maybe int
+                 ; ex8: Maybe {}
+                 }
+ 
+--- Rules:
+ 
+T053.Check ?a0 (P : Grammar ?a0) : Grammar (Maybe ?a0) =
+  Optional (Try P)
+ 
+T053.Ok (x : int) : Grammar int =
+  pure x
+ 
+T053.PFail : Grammar int =
+  Choose fair
+    { }
+ 
+T053.Throw : Grammar int =
+  Commit
+    do ($$ : int) <- T053.PFail
+       pure $$
+ 
+T053._Ok : Grammar {} =
+  pure {}
+ 
+T053._PFail : Grammar {} =
+  Choose fair
+    { }
+ 
+T053.Main : Grammar T053.Main =
+  do (ex1 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
+                                                            { T053.Throw
+                                                            | T053.Ok 1
+                                                            }
+                                            pure $$
+     (ex2 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
+                                                            { T053.Ok 1
+                                                            | T053.Throw
+                                                            }
+                                            pure $$
+     (ex3 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
+                                                            { T053.Throw
+                                                            | T053.Ok 1
+                                                            }
+                                            pure $$
+     (ex4 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
+                                                            { T053.Ok 1
+                                                            | T053.Throw
+                                                            }
+                                            pure $$
+     (ex5 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
+                                                            { Try T053.Throw
+                                                            | T053.Ok 1
+                                                            }
+                                            pure $$
+     (ex6 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
+                                                            { Try T053.Throw
+                                                            | T053.Ok 1
+                                                            }
+                                            pure $$
+     (ex7 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
+                                                            { do T053._Ok
+                                                                 Commit
+                                                                   do T053._PFail
+                                                                      ($$ : int) <- T053.Ok 2
+                                                                      pure $$
+                                                            | T053.Ok 3
+                                                            }
+                                            pure $$
+     (ex8 : Maybe {}) <- T053.Check {} do (x : int) <- Choose fair
+                                                         { Commit
+                                                             do ($$ : int) <- T053.Ok 1
+                                                                pure $$
+                                                         | T053.Ok 2
+                                                         }
+                                          ($$ : {}) <- Guard (x == 2)
+                                          pure $$
+     pure {ex1 = ex1,
+           ex2 = ex2,
+           ex3 = ex3,
+           ex4 = ex4,
+           ex5 = ex5,
+           ex6 = ex6,
+           ex7 = ex7,
+           ex8 = ex8}
+ 
+T053._Check ?a0 (_P : Grammar {}) : Grammar {} =
+  Choose biased
+    { Try _P
+    | pure {}
+    }
+ 
+T053._Throw : Grammar {} =
+  Commit T053._PFail
+ 
+T053._Main : Grammar {} =
+  do T053._Check int Choose biased
+                       { T053._Throw
+                       | T053._Ok
+                       }
+     T053._Check int Choose biased
+                       { T053._Ok
+                       | T053._Throw
+                       }
+     T053._Check int Choose fair
+                       { T053._Throw
+                       | T053._Ok
+                       }
+     T053._Check int Choose fair
+                       { T053._Ok
+                       | T053._Throw
+                       }
+     T053._Check int Choose biased
+                       { Try T053._Throw
+                       | T053._Ok
+                       }
+     T053._Check int Choose fair
+                       { Try T053._Throw
+                       | T053._Ok
+                       }
+     T053._Check int Choose biased
+                       { do T053._Ok
+                            Commit
+                              do T053._PFail
+                                 T053._Ok
+                       | T053._Ok
+                       }
+     T053._Check {} do (x : int) <- Choose fair
+                                      { Commit
+                                          do ($$ : int) <- T053.Ok 1
+                                             pure $$
+                                      | T053.Ok 2
+                                      }
+                       Guard (x == 2)

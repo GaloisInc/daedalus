@@ -1,0 +1,160 @@
+module Number
+ 
+--- Imports:
+ 
+--- Type defs:
+type Number.Frac ?a10 = { num: int
+                        ; exp: ?a10
+                        }
+ 
+--- Rules:
+ 
+Number.Digit : Grammar int =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : int) <- pure (d - '0' as int)
+     pure $$
+ 
+Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
+  (10 * val) + d
+ 
+Number.Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
+  do (ds : [int]) <- do @MatchBytes "."
+                        ($$ : [int]) <- Many[ n .. ] Number.Digit
+                        pure $$
+     ($$ : Number.Frac ?a10) <- pure (for ((val : Number.Frac ?a10) = w; (d : int) in ds)
+                                        {num = Number.addDigit int (val.num) d,
+                                         exp = (val.exp) - 1})
+     pure $$
+ 
+Number.HexDigit : Grammar int =
+  Choose fair
+    { Choose fair
+        { Number.Digit
+        | do (d : uint 8) <- Match ('a' .. 'f')
+             ($$ : int) <- pure (10 + (d - 'a' as int))
+             pure $$
+        }
+    | do (d : uint 8) <- Match ('A' .. 'F')
+         ($$ : int) <- pure (10 + (d - 'A' as int))
+         pure $$
+    }
+ 
+Number.Natural : Grammar int =
+  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
+                           (Number.addDigit int val d))
+     pure $$
+ 
+Number._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+Number._Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) : Grammar {} =
+  do @MatchBytes "."
+     @Many[ n .. ] Number._Digit
+ 
+Number._HexDigit : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Number._Digit
+        | @Match ('a' .. 'f')
+        }
+    | @Match ('A' .. 'F')
+    }
+ 
+Number._Natural : Grammar {} =
+  @Many[ 1 .. ] Number._Digit
+module IntList
+ 
+--- Imports:
+import Number
+ 
+--- Type defs:
+rec
+  type IntList.IntList0 = { hd: int
+                          ; tail: IntList.IntList
+                          }
+   
+  type IntList.IntList = Choose { cons: IntList.IntList0
+                                ; nil: {}
+                                }
+ 
+--- Rules:
+ 
+IntList._WS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Choose fair
+                { Choose fair
+                    { @Match {'\NUL'}
+                    | @Match {'\t'}
+                    }
+                | @Match {'\f'}
+                }
+            | @Match {' '}
+            }
+        | @Match {'\n'}
+        }
+    | @Match {'\r'}
+    }
+ 
+IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     @Many[ 1 .. ] IntList._WS
+     pure $$
+ 
+rec value
+  IntList.IntList : Grammar IntList.IntList =
+    Choose fair
+      { {- cons -} do (_0 : IntList.IntList0) <- do (hd : int) <- IntList.Token int Number.Natural
+                                                    (tail : IntList.IntList) <- IntList.IntList
+                                                    pure {hd = hd,
+                                                          tail = tail}
+                      pure {cons: _0}
+      | {- nil -} do (_1 : {}) <- pure {}
+                     pure {nil: _1}
+      }
+ 
+IntList.WS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Choose fair
+                { Choose fair
+                    { @Match {'\NUL'}
+                    | @Match {'\t'}
+                    }
+                | @Match {'\f'}
+                }
+            | @Match {' '}
+            }
+        | @Match {'\n'}
+        }
+    | @Match {'\r'}
+    }
+ 
+IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] IntList._WS
+ 
+IntList._IntList : Grammar {} =
+  Choose fair
+    { {- cons -} do IntList._Token int Number._Natural
+                    IntList.IntList
+                    pure {}
+    | {- nil -} pure {}
+    }
+module T017
+ 
+--- Imports:
+import IntList
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T017.Main : Grammar IntList.IntList =
+  IntList.IntList
+ 
+T017._Main : Grammar {} =
+  IntList._IntList

@@ -1,0 +1,28 @@
+module T057
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T057._I ?a0 (_P : Grammar {}) : Grammar {} =
+  _P
+ 
+T057.F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
+  do T057._I [uint 8] (@MatchBytes x)
+     ($$ : {}) <- T057._I [uint 8] (@MatchBytes y)
+     pure $$
+ 
+T057.I ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  P
+ 
+T057.Main : Grammar {} =
+  T057.F "[" "]"
+ 
+T057._F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
+  do T057._I [uint 8] (@MatchBytes x)
+     T057._I [uint 8] (@MatchBytes y)
+ 
+T057._Main : Grammar {} =
+  T057._F "[" "]"

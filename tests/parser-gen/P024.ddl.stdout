@@ -1,0 +1,84 @@
+module P024
+ 
+--- Imports:
+ 
+--- Type defs:
+type P024.B0 = Choose { c: [uint 8]
+                      ; d: [uint 8]
+                      }
+ 
+type P024.A = Choose { a: [uint 8]
+                     ; b: [uint 8]
+                     }
+ 
+type P024.B = { x: P024.A
+              ; y: P024.B0
+              }
+ 
+type P024.C = Choose { t: [uint 8]
+                     ; z: P024.B
+                     }
+ 
+type P024.Main = { p: P024.C
+                 ; q: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P024.A : Grammar P024.A =
+  Choose biased
+    { {- a -} do (_0 : [uint 8]) <- MatchBytes "a"
+                 pure {a: _0}
+    | {- b -} do (_1 : [uint 8]) <- MatchBytes "a"
+                 pure {b: _1}
+    }
+ 
+P024.B : Grammar P024.B =
+  do (x : P024.A) <- P024.A
+     (y : P024.B0) <- Choose biased
+                        { {- c -} do (_2 : [uint 8]) <- MatchBytes "a"
+                                     pure {c: _2}
+                        | {- d -} do (_3 : [uint 8]) <- MatchBytes "a"
+                                     pure {d: _3}
+                        }
+     pure {x = x,
+           y = y}
+ 
+P024.C : Grammar P024.C =
+  Choose biased
+    { {- z -} do (_4 : P024.B) <- P024.B
+                 pure {z: _4}
+    | {- t -} do (_5 : [uint 8]) <- MatchBytes "a"
+                 pure {t: _5}
+    }
+ 
+P024.Main : Grammar P024.Main =
+  do (p : P024.C) <- P024.C
+     (q : [uint 8]) <- MatchBytes "b"
+     END
+     pure {p = p,
+           q = q}
+ 
+P024._A : Grammar {} =
+  Choose biased
+    { {- a -} @MatchBytes "a"
+    | {- b -} @MatchBytes "a"
+    }
+ 
+P024._B : Grammar {} =
+  do P024._A
+     Choose biased
+       { {- c -} @MatchBytes "a"
+       | {- d -} @MatchBytes "a"
+       }
+ 
+P024._C : Grammar {} =
+  Choose biased
+    { {- z -} P024._B
+    | {- t -} @MatchBytes "a"
+    }
+ 
+P024._Main : Grammar {} =
+  do P024._C
+     @MatchBytes "b"
+     END

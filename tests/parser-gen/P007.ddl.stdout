@@ -1,0 +1,32 @@
+module P007
+ 
+--- Imports:
+ 
+--- Type defs:
+type P007.Main = { x: {}
+                 ; y: uint 8
+                 }
+ 
+--- Rules:
+ 
+P007.NT1 : Grammar {} =
+  @Match ('0' .. '7')
+ 
+P007.NT2 : Grammar (uint 8) =
+  Match ('8' .. '9')
+ 
+P007.Main : Grammar P007.Main =
+  do (x : {}) <- P007.NT1
+     (y : uint 8) <- P007.NT2
+     pure {x = x,
+           y = y}
+ 
+P007._NT1 : Grammar {} =
+  @Match ('0' .. '7')
+ 
+P007._NT2 : Grammar {} =
+  @Match ('8' .. '9')
+ 
+P007._Main : Grammar {} =
+  do P007._NT1
+     P007._NT2

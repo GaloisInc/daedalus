@@ -1,0 +1,20 @@
+INFO: File size 9876 bytes.
+INFO:9478 Found xref table.
+INFO: 15 xref entries.
+INFO: Root reference is R:4:0
+ERROR:759 expected ">>"
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+ERROR:515 R:3:0 @478 expected ">>"
+ERROR:759 R:4:0 @590 expected ">>"
+ERROR:1013 R:5:0 @989 expected ">>"
+INFO: R:6:0 @1048 is OK.
+INFO: R:7:0 @1161 is OK.
+INFO: R:8:0 @1369 is OK.
+INFO: R:9:0 @1476 is OK.
+INFO: R:10:0 @1588 is OK.
+INFO: R:11:0 @6569 is OK.
+INFO: R:12:0 @7523 is OK.
+INFO: R:13:0 @8488 is OK.
+INFO: R:14:0 @8605 is OK.
+INFO: R:15:0 @8721 is OK.

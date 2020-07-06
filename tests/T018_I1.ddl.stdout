@@ -1,0 +1,13 @@
+module T018_I1
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T018_I1.Dup : Grammar [uint 8] =
+  MatchBytes "Dup"
+ 
+T018_I1._Dup : Grammar {} =
+  @MatchBytes "Dup"

@@ -1,0 +1,36 @@
+cabal-version:       >=1.10
+
+name:                icc-driver
+version:             0.1.0.0
+-- synopsis:
+-- description:
+-- bug-reports:
+-- license:
+license-file:        LICENSE
+author:              Iavor Diatchki
+maintainer:          iavor.diatchki@gmail.com
+-- copyright:
+-- category:
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+executable icc-parser
+  main-is: Main.hs
+  other-modules: ICC
+  hs-source-dirs: src
+  build-depends:
+    base >=4.13 && <4.14,
+    bytestring,
+    pretty-show,
+    ansi-terminal,
+    pretty-hex >= 1.1,
+    rts-hs
+  ghc-options: -Wall
+
+executable icc-generator
+  main-is: Generator.hs
+  build-depends:       base >=4.13 && <4.14, containers, daedalus
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options: -Wall
+

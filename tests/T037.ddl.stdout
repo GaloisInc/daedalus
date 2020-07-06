@@ -1,0 +1,26 @@
+module T037
+ 
+--- Imports:
+ 
+--- Type defs:
+type T037.Main = { t_and: uint 8
+                 ; t_or: uint 8
+                 ; t_xor: uint 8
+                 ; t_comp: uint 8
+                 }
+ 
+--- Rules:
+ 
+T037.Main : Grammar T037.Main =
+  do (one : uint 8) <- pure 1
+     (t_and : uint 8) <- pure (one .&. 2)
+     (t_or : uint 8) <- pure (one .|. 2)
+     (t_xor : uint 8) <- pure (one .^. 0)
+     (t_comp : uint 8) <- pure (~ t_or)
+     pure {t_and = t_and,
+           t_or = t_or,
+           t_xor = t_xor,
+           t_comp = t_comp}
+ 
+T037._Main : Grammar {} =
+  pure {}

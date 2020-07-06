@@ -1,0 +1,58 @@
+module P023
+ 
+--- Imports:
+ 
+--- Type defs:
+type P023.A = Choose { x: [uint 8]
+                     ; y: [uint 8]
+                     }
+ 
+type P023.B = Choose { t: [uint 8]
+                     ; z: P023.A
+                     }
+ 
+type P023.Main = { p: P023.B
+                 ; q: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P023.A : Grammar P023.A =
+  Choose fair
+    { {- x -} do (_0 : [uint 8]) <- MatchBytes "ab"
+                 pure {x: _0}
+    | {- y -} do (_1 : [uint 8]) <- MatchBytes "a"
+                 pure {y: _1}
+    }
+ 
+P023.B : Grammar P023.B =
+  Choose biased
+    { {- z -} do (_2 : P023.A) <- P023.A
+                 pure {z: _2}
+    | {- t -} do (_3 : [uint 8]) <- MatchBytes "a"
+                 pure {t: _3}
+    }
+ 
+P023.Main : Grammar P023.Main =
+  do (p : P023.B) <- P023.B
+     (q : [uint 8]) <- MatchBytes "bb"
+     END
+     pure {p = p,
+           q = q}
+ 
+P023._A : Grammar {} =
+  Choose fair
+    { {- x -} @MatchBytes "ab"
+    | {- y -} @MatchBytes "a"
+    }
+ 
+P023._B : Grammar {} =
+  Choose biased
+    { {- z -} P023._A
+    | {- t -} @MatchBytes "a"
+    }
+ 
+P023._Main : Grammar {} =
+  do P023._B
+     @MatchBytes "bb"
+     END

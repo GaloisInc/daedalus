@@ -1,0 +1,4 @@
+./T023.ddl:2:1: Unterminated comment.
+ 2 | {-
+     ^
+

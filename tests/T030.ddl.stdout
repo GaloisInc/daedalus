@@ -1,0 +1,14 @@
+module T030
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T030.Main : Grammar [int] =
+  pure (concat [[1],
+                [2]])
+ 
+T030._Main : Grammar {} =
+  pure {}

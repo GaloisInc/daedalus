@@ -1,0 +1,23 @@
+module array-length
+ 
+--- Imports:
+ 
+--- Type defs:
+type array-length.Main = { arr: [int]
+                         ; len: int
+                         }
+ 
+--- Rules:
+ 
+array-length.Main : Grammar array-length.Main =
+  do (arr : [int]) <- pure [1,
+                            2,
+                            4,
+                            5,
+                            6]
+     (len : int) <- pure (Length arr)
+     pure {arr = arr,
+           len = len}
+ 
+array-length._Main : Grammar {} =
+  pure {}

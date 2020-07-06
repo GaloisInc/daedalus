@@ -1,0 +1,59 @@
+module P018
+ 
+--- Imports:
+ 
+--- Type defs:
+type P018.Main = { w1: [uint 8]
+                 ; w2: [uint 8]
+                 ; w3: [uint 8]
+                 ; w4: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P018.Assert (p : bool) : Grammar {} =
+  Guard p
+ 
+P018.Word : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- Many[] Match ('a' .. 'z')
+     @Match {' '}
+     pure $$
+ 
+P018._Assert (p : bool) : Grammar {} =
+  Guard p
+ 
+P018._NotAssert (p : bool) : Grammar {} =
+  Guard (! p)
+ 
+P018.length1 (w : [uint 8]) : int =
+  for ((r : int) = 0; (s : uint 8) in w)
+    (r + 1)
+ 
+P018.Main : Grammar P018.Main =
+  do (w1 : [uint 8]) <- P018.Word
+     (w2 : [uint 8]) <- P018.Word
+     @MatchBytes "||| "
+     P018._Assert ((P018.length1 w1) == (P018.length1 w2))
+     (w3 : [uint 8]) <- P018.Word
+     (w4 : [uint 8]) <- P018.Word
+     P018._NotAssert ((P018.length1 w3) == (P018.length1 w4))
+     pure {w1 = w1,
+           w2 = w2,
+           w3 = w3,
+           w4 = w4}
+ 
+P018.NotAssert (p : bool) : Grammar {} =
+  Guard (! p)
+ 
+P018._Main : Grammar {} =
+  do (w1 : [uint 8]) <- P018.Word
+     (w2 : [uint 8]) <- P018.Word
+     @MatchBytes "||| "
+     P018._Assert ((P018.length1 w1) == (P018.length1 w2))
+     (w3 : [uint 8]) <- P018.Word
+     (w4 : [uint 8]) <- P018.Word
+     P018._NotAssert ((P018.length1 w3) == (P018.length1 w4))
+ 
+P018._Word : Grammar {} =
+  do @Many[] @Match ('a' .. 'z')
+     @Match {' '}

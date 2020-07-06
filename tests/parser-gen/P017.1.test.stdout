@@ -1,0 +1,18 @@
+--- Found 1 results:
+{ x: { lst: [ "xef"
+            , "dfg"
+            , "wer"
+            , "asd"
+            , "abc"
+            , "sdf"
+            ]
+     }
+, y: {| "abc" -> "abc"
+     ,  "asd" -> "asd"
+     ,  "dfg" -> "dfg"
+     ,  "sdf" -> "sdf"
+     ,  "wer" -> "wer"
+     ,  "xef" -> "xef"
+     |}
+, z: "abc"
+}

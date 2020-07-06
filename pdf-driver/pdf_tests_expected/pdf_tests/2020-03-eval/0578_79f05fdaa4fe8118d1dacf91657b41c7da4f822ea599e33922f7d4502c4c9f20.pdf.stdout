@@ -1,0 +1,30 @@
+INFO: File size 239686 bytes.
+INFO:239086 Found xref table.
+INFO: 25 xref entries.
+INFO: Root reference is R:4:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+WARNING: R:3:0 @221 has URIs.
+INFO: R:4:0 @495 is OK.
+INFO: R:5:0 @600 is OK.
+WARNING: R:6:0 @691 has URIs.
+INFO: R:7:0 @966 is OK.
+INFO: R:8:0 @1138 is OK.
+INFO: R:9:0 @1307 is OK.
+INFO: R:10:0 @2231 is OK.
+INFO: R:11:0 @2446 is OK.
+INFO: R:12:0 @45982 is OK.
+INFO: R:13:0 @46147 is OK.
+INFO: R:14:0 @47079 is OK.
+INFO: R:15:0 @47289 is OK.
+INFO: R:16:0 @143314 is OK.
+INFO: R:17:0 @143484 is OK.
+INFO: R:18:0 @144419 is OK.
+INFO: R:19:0 @144635 is OK.
+INFO: R:20:0 @224823 is OK.
+INFO: R:21:0 @224923 is OK.
+INFO: R:22:0 @225029 is OK.
+INFO: R:23:0 @236466 is OK.
+INFO: R:24:0 @236742 is OK.
+INFO: R:25:0 @237515 is OK.

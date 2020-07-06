@@ -1,0 +1,59 @@
+module T041
+--- Imports:
+--- Type defs:
+--- Rules:
+T041.Digit : Grammar int =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : int) <- pure (d - '0' as int)
+     pure $$
+T041.Natural : Grammar int =
+  do (d0 : int) <- T041.Digit
+     ($$ : int) <- loop ((v : int) = d0)
+                     do (d : int) <- T041.Digit
+                        ($$ : int) <- pure ((10 * v) + d)
+                        pure $$
+     pure $$
+T041.Gen : Grammar {leader: int, follower: uint 8} =
+  do (xs : {out: {leader: int, follower: uint 8},
+            dflt: Maybe int}) <- generate ((dflt : Maybe int) = nothing)
+                                   do (l : int) <- Choose biased
+                                                     { T041.Natural
+                                                     | dflt is just
+                                                     }
+                                      (out : {leader: int,
+                                              follower: uint 8}) <- do (leader : int) <- pure l
+                                                                       (follower : uint 8) <- Match ('a' .. 'z')
+                                                                       pure {leader = leader,
+                                                                             follower = follower}
+                                      (dflt : Maybe int) <- pure (just l)
+                                      pure {out = out,
+                                            dflt = dflt}
+     ($$ : {leader: int, follower: uint 8}) <- pure (xs.out)
+     pure $$
+T041.Main : Grammar {leader: int, follower: uint 8} =
+  T041.Gen
+T041._Digit : Grammar {} =
+  @Match ('0' .. '9')
+T041._Gen : Grammar {} =
+  do loop ((dflt : Maybe int) = nothing)
+       do (dflt : Maybe int) <- do (l : int) <- Choose biased
+                                                  { T041.Natural
+                                                  | dflt is just
+                                                  }
+                                   (out : {leader: int,
+                                           follower: uint 8}) <- do (leader : int) <- pure l
+                                                                    (follower : uint 8) <- Match ('a' .. 'z')
+                                                                    pure {leader = leader,
+                                                                          follower = follower}
+                                   (dflt : Maybe int) <- pure (just l)
+                                   pure {out = out,
+                                         dflt = dflt}
+          pure (dflt.dflt)
+     pure {}
+T041._Main : Grammar {} =
+  T041._Gen
+T041._Natural : Grammar {} =
+  do (d0 : int) <- T041.Digit
+     @Many[] T041._Digit
+
+

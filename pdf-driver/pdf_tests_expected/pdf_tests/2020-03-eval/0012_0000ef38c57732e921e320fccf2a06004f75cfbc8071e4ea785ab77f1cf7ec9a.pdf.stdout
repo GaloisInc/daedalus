@@ -1,0 +1,20 @@
+INFO: File size 15559 bytes.
+INFO:15094 Found xref table.
+INFO: 14 xref entries.
+WARNING: Encrypted document; spurious errors may follow.
+INFO: Root reference is R:3:0
+INFO: Catalog is OK.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @14106 is OK.
+INFO: R:3:0 @65 is OK.
+INFO: R:4:0 @109 is OK.
+ERROR:13877 R:5:0 @13718 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:6139 R:6:0 @5978 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:7:0 @14811 is OK.
+INFO: R:8:0 @14711 is OK.
+ERROR:278 R:9:0 @213 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:10:0 @14215 is OK.
+WARNING: R:11:0 @14246 has URIs.
+WARNING: R:12:0 @14479 has URIs.
+INFO: R:13:0 @14906 is OK.
+INFO: R:14:0 @15043 is OK.

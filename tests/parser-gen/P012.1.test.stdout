@@ -1,0 +1,12 @@
+--- Found 1 results:
+{ x: { a: 'a'
+     , b: 'b'
+     , c: 'c'
+     , d: 'd'
+     , e: 'e'
+     , f: 'f'
+     }
+, vor: 'c'
+, vand: '`'
+, vxor: 3[8]
+}

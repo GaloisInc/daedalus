@@ -1,0 +1,55 @@
+module T009
+ 
+--- Imports:
+ 
+--- Type defs:
+type T009.P = { x: uint 8
+              ; y: uint 8
+              }
+ 
+type T009.R = Choose { a: uint 8
+                     ; b: {}
+                     }
+ 
+--- Rules:
+ 
+T009.P : Grammar T009.P =
+  do (x : uint 8) <- GetByte
+     (y : uint 8) <- GetByte
+     pure {x = x,
+           y = y}
+ 
+T009.Q : Grammar (uint 8) =
+  do (s : T009.P) <- T009.P
+     ($$ : uint 8) <- pure (s.x)
+     pure $$
+ 
+T009.R : Grammar T009.R =
+  Choose fair
+    { {- a -} do (_0 : uint 8) <- GetByte
+                 pure {a: _0}
+    | {- b -} do (_1 : {}) <- pure {}
+                 pure {b: _1}
+    }
+ 
+T009.S : Grammar (uint 8) =
+  do (u : T009.R) <- T009.R
+     ($$ : uint 8) <- u is a
+     pure $$
+ 
+T009._P : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+T009._Q : Grammar {} =
+  T009._P
+ 
+T009._R : Grammar {} =
+  Choose fair
+    { {- a -} @GetByte
+    | {- b -} pure {}
+    }
+ 
+T009._S : Grammar {} =
+  do (u : T009.R) <- T009.R
+     @(u is a)

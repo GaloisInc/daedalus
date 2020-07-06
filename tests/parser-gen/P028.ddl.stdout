@@ -1,0 +1,40 @@
+module P028
+ 
+--- Imports:
+ 
+--- Type defs:
+type P028.A = Choose { a: [uint 8]
+                     ; b: [uint 8]
+                     }
+ 
+type P028.Main = { x: P028.A
+                 }
+ 
+--- Rules:
+ 
+P028.A : Grammar P028.A =
+  Choose biased
+    { {- a -} do (_0 : [uint 8]) <- Many[] Match {'a'}
+                 pure {a: _0}
+    | {- b -} do (_1 : [uint 8]) <- Many[] Match {'a'}
+                 pure {b: _1}
+    }
+ 
+P028.B : Grammar [uint 8] =
+  Many[] Match {'a'}
+ 
+P028.Main : Grammar P028.Main =
+  do (x : P028.A) <- P028.A
+     pure {x = x}
+ 
+P028._A : Grammar {} =
+  Choose biased
+    { {- a -} @Many[] @Match {'a'}
+    | {- b -} @Many[] @Match {'a'}
+    }
+ 
+P028._B : Grammar {} =
+  @Many[] @Match {'a'}
+ 
+P028._Main : Grammar {} =
+  P028._A

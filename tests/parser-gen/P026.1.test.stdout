@@ -1,0 +1,21 @@
+--- Found 1 results:
+{ x: [ { num: 4560
+       , exp: -1
+       }
+     , { num: 4564
+       , exp: -1
+       }
+     , { num: 12
+       , exp: -1
+       }
+     , { num: 3
+       , exp: -1
+       }
+     , { num: 4
+       , exp: -1
+       }
+     , { num: 456456
+       , exp: -6
+       }
+     ]
+}

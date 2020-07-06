@@ -1,0 +1,16 @@
+module T058
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T058.Main : Grammar (uint 8) =
+  do SetStream (arrayStream ['A'])
+     ($$ : uint 8) <- Match {'A'}
+     pure $$
+ 
+T058._Main : Grammar {} =
+  do SetStream (arrayStream ['A'])
+     @Match {'A'}

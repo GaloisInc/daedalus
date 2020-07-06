@@ -1,0 +1,49 @@
+module P017
+ 
+--- Imports:
+ 
+--- Type defs:
+type P017.A = { lst: [[uint 8]]
+              }
+ 
+type P017.Main = { x: P017.A
+                 ; y: Map [uint 8] [uint 8]
+                 ; z: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P017.Word : Grammar [uint 8] =
+  do ($$ : [uint 8]) <- Many[] Match ('a' .. 'z')
+     @Match {' '}
+     pure $$
+ 
+P017.A : Grammar P017.A =
+  do (lst : [[uint 8]]) <- Many[] P017.Word
+     pure {lst = lst}
+ 
+P017.Main : Grammar P017.Main =
+  do (x : P017.A) <- P017.A
+     (y : Map [uint 8] [uint 8]) <- for ((r : Map [uint 8] [uint 8]) = empty; (s : [uint 8]) in x.lst)
+                                      do ($$ : Map [uint 8] [uint 8]) <- Insert s s r
+                                         pure $$
+     (z : [uint 8]) <- Lookup "abc" y
+     END
+     pure {x = x,
+           y = y,
+           z = z}
+ 
+P017._Word : Grammar {} =
+  do @Many[] @Match ('a' .. 'z')
+     @Match {' '}
+ 
+P017._A : Grammar {} =
+  @Many[] P017._Word
+ 
+P017._Main : Grammar {} =
+  do (x : P017.A) <- P017.A
+     (y : Map [uint 8] [uint 8]) <- for ((r : Map [uint 8] [uint 8]) = empty; (s : [uint 8]) in x.lst)
+                                      do ($$ : Map [uint 8] [uint 8]) <- Insert s s r
+                                         pure $$
+     @Lookup "abc" y
+     END

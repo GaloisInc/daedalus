@@ -1,0 +1,14 @@
+module T011
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T011.P ?a0 (Literal 2 ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- pure 2
+     pure $$
+ 
+T011._P ?a0 (Literal 2 ?a0) : Grammar {} =
+  pure {}

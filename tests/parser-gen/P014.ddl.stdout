@@ -1,0 +1,46 @@
+module P014
+ 
+--- Imports:
+ 
+--- Type defs:
+type P014.A = { a: uint 8
+              ; b: uint 8
+              ; c: uint 8
+              ; d: [uint 8]
+              }
+ 
+type P014.Main = { x: P014.A
+                 ; y: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+P014.A : Grammar P014.A =
+  do (a : uint 8) <- GetByte
+     (b : uint 8) <- GetByte
+     (c : uint 8) <- GetByte
+     (d : [uint 8]) <- Many[] GetByte
+     pure {a = a,
+           b = b,
+           c = c,
+           d = d}
+ 
+P014.Main : Grammar P014.Main =
+  do (x : P014.A) <- P014.A
+     (y : [uint 8]) <- pure (concat [x.d,
+                                     [x.a],
+                                     [x.c],
+                                     [x.b]])
+     END
+     pure {x = x,
+           y = y}
+ 
+P014._A : Grammar {} =
+  do @GetByte
+     @GetByte
+     @GetByte
+     @Many[] @GetByte
+ 
+P014._Main : Grammar {} =
+  do P014._A
+     END

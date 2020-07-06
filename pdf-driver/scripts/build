@@ -1,0 +1,4 @@
+#!/bin/bash
+cabal run pdf-generator
+cabal build pdf-hs-driver
+notify-send GHC "Build finished"

@@ -1,0 +1,25 @@
+cabal-version:       >=1.10
+name:                script
+version:             0.1.0.0
+license-file:        LICENSE
+author:              Iavor Diatchki
+maintainer:          iavor.diatchki@gmail.com
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+executable pdf-dom
+  main-is:             Main.hs
+  other-modules:       Types, Parse, HTML, DDL, Utils
+  build-depends:
+    base >=4.13 && <4.14,
+    containers,
+    bytestring,
+    filepath,
+    directory,
+    pretty,
+    daedalus-utils,
+    cassava
+
+  hs-source-dirs: src
+  ghc-options: -Wall
+  default-language:    Haskell2010

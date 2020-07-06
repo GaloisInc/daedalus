@@ -1,0 +1,8 @@
+--- Found 1 results:
+{sexp : [ {sexp : [ {symbol : "foo"}
+                  , {symbol : "bar"}
+                  , {symbol : "baz"}
+                  , {sexp : [ {symbol : "big"}
+                            ]}
+                  ]}
+        ]}

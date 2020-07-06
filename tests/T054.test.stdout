@@ -1,0 +1,13 @@
+module T054
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T054.Main : Grammar [uint 8] =
+  Many[T054.z__0] Match {'a'}
+ 
+T054.z__0 : int =
+  1

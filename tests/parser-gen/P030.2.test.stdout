@@ -1,0 +1,7 @@
+context:
+  "Main"
+  "A"
+input: File context:
+Length: 9 (0x9) bytes
+0000:   61 61 61 61  62 62 62 62  [1;91m62[0m              aaaabbbb[1;91mb[0m
+

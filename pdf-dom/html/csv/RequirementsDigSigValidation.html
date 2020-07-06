@@ -1,0 +1,103 @@
+<html ><head ><link rel="stylesheet" href="style.css"></head>
+<body ><div class="heading">RequirementsDigSigValidation</div>
+<div class="field"><div class="bounds">1.7
+
+</div>
+<div class="key">Type</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;Requirement&quot;</div>
+
+)
+
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">DigSig</div>
+::
+Dictionary
+ 
+<a href="Signature.html">Signature</a>
+
+ or 
+Dictionary
+ 
+<a href="DocTimeStamp.html">DocTimeStamp</a>
+
+
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">Penalty</div>
+::
+(
+Integer
+ | 
+[
+<div class="literal">0.0</div>
+..
+<div class="literal">100.0</div>
+]
+
+)
+
+, default = 
+<div class="literal">100.0</div>
+
+</div>
+<div class="field"><div class="bounds">1.7
+
+</div>
+<div class="key">RH</div>
+::
+Array
+ 
+<a href="ArrayOfRequirementsHandlers.html">ArrayOfRequirementsHandlers</a>
+
+ or 
+Dictionary
+ 
+<a href="RequirementsHandler.html">RequirementsHandler</a>
+
+
+, default = 
+[
+]
+
+
+</div>
+<div class="field"><div class="bounds">1.7
+
+</div>
+<div class="key">S</div>
+::
+(
+Name
+ | 
+= 
+<div class="literal">&quot;DigSigValidation&quot;</div>
+
+)
+
+, required
+</div>
+<div class="field"><div class="bounds">2.0
+
+</div>
+<div class="key">V</div>
+::
+Dictionary
+ 
+<a href="Extensions.html">Extensions</a>
+
+ or 
+Name
+
+</div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+module T021
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T021.Main : Grammar {} =
+  do @Many[] @Match {'0'}
+     ($$ : {}) <- END
+     pure $$
+ 
+T021._Main : Grammar {} =
+  do @Many[] @Match {'0'}
+     END

@@ -1,0 +1,20 @@
+INFO: File size 5396 bytes.
+INFO:4990 Found xref table.
+INFO: 15 xref entries.
+INFO: Root reference is R:15:0
+INFO: Catalog is OK.
+INFO: R:1:0 @4667 is OK.
+INFO: R:2:0 @1778 is OK.
+INFO: R:3:0 @15 is OK.
+INFO: R:4:0 @1755 is OK.
+ERROR:4310 R:5:0 @4195 expected "endobj"
+ERROR:4430 R:6:0 @4310 expected "endobj"
+INFO: R:7:0 @1906 is OK.
+INFO: R:8:0 @3864 is OK.
+INFO: R:9:0 @2106 is OK.
+INFO: R:10:0 @3840 is OK.
+ERROR:4546 R:11:0 @4430 expected "endobj"
+ERROR:4667 R:12:0 @4546 expected "endobj"
+INFO: R:13:0 @3994 is OK.
+INFO: R:14:0 @4739 is OK.
+INFO: R:15:0 @4937 is OK.

@@ -1,0 +1,37 @@
+.heading {
+  font-weight: bold;
+  font-size: larger;
+}
+
+.bounds {
+  display: inline-block;
+  color: #999999;
+  vertical-align: super;
+  font-size: smaller;
+  font-style: italic;
+}
+
+.key {
+  font-weight: bold;
+  display: inline-block;
+}
+
+.val {
+  display: inline-block;
+}
+
+.keyVal {
+  padding: 3px;
+}
+
+.field {
+  margin: 1em;
+}
+
+.literal {
+  padding: 1px;
+  color: #993399;
+  font-family: monospace;
+  font-weight: bold;
+  display: inline-block;
+}

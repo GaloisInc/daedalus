@@ -1,0 +1,15 @@
+module T020
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T020.Main : Grammar [uint 8] =
+  do (_0 : [[uint 8]]) <- pure ["Hello",
+                                "World"]
+     pure (concat _0)
+ 
+T020._Main : Grammar {} =
+  pure {}

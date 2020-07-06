@@ -1,0 +1,38 @@
+module T036
+ 
+--- Imports:
+ 
+--- Type defs:
+type T036.Main = { bit7: uint 7
+                 ; bit14: uint 14
+                 ; bit32: uint 32
+                 ; ans1: uint 32
+                 ; ans2: uint 32
+                 ; ans3: bool
+                 ; ans4: bool
+                 }
+ 
+--- Rules:
+ 
+T036.testBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (a : ?a0) (x : int) : bool =
+  (a >> x as uint 1) == 1
+ 
+T036.Main : Grammar T036.Main =
+  do (b : uint 8) <- pure 255
+     (bit7 : uint 7) <- pure (b as uint 7)
+     (bit14 : uint 14) <- pure (bit7 # bit7)
+     (bit32 : uint 32) <- pure ((bit7 as uint 32) <# bit7)
+     (ans1 : uint 32) <- pure (bit32 >> 7)
+     (ans2 : uint 32) <- pure (bit32 << 7)
+     (ans3 : bool) <- pure (T036.testBit (uint 32) ans2 0)
+     (ans4 : bool) <- pure (T036.testBit (uint 32) ans2 7)
+     pure {bit7 = bit7,
+           bit14 = bit14,
+           bit32 = bit32,
+           ans1 = ans1,
+           ans2 = ans2,
+           ans3 = ans3,
+           ans4 = ans4}
+ 
+T036._Main : Grammar {} =
+  pure {}

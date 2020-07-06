@@ -1,0 +1,28 @@
+INFO: File size 58207 bytes.
+INFO:57648 Found xref table.
+INFO: 23 xref entries.
+INFO: Root reference is R:4:0
+ERROR: Catalog is malformed.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+ERROR:756 R:3:0 @391 expected ">>"
+INFO: R:4:0 @763 is OK.
+ERROR:1024 R:5:0 @973 expected ">>"
+ERROR:1396 R:6:0 @1031 expected ">>"
+INFO: R:7:0 @1403 is OK.
+INFO: R:8:0 @1585 is OK.
+INFO: R:9:0 @1692 is OK.
+ERROR:1912 R:10:0 @1804 expected ">>"
+ERROR:2161 R:11:0 @1919 expected ">>"
+INFO: R:12:0 @3026 is OK.
+INFO: R:13:0 @3157 is OK.
+INFO: R:14:0 @4193 is OK.
+INFO: R:15:0 @4324 is OK.
+INFO: R:16:0 @35438 is OK.
+INFO: R:17:0 @43807 is OK.
+INFO: R:18:0 @49754 is OK.
+WARNING: R:19:0 @51703 has URIs.
+WARNING: R:20:0 @52195 has URIs.
+WARNING: R:21:0 @52651 has URIs.
+ERROR:53256 R:22:0 @52938 expected ">>"
+INFO: R:23:0 @53263 is OK.

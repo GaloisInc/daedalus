@@ -1,0 +1,22 @@
+$lf                   = 10;
+$cr                   = 13;
+$simpleWS             = 0 | 9 | 12 | 32;
+
+SimpleEOL             = { $cr; $lf } | $lf;
+EOL                   = SimpleEOL <| $cr;
+Comment               = { "%"; Many !($lf | $cr); EOL };
+AnyWS                 = $simpleWS | Comment | EOL;
+BreakPoint            = { s = GetStream ;
+                          c = UInt8;
+                          (if c == '<' then true else
+                                    if c == '>' then true else
+                                    if c == '/' then true else
+                                    if c == '[' then true else
+                                    if c == ']' then true else
+                                    false) is true;
+                          SetStream s
+                        };
+
+Token P               = { $$ = P; Many AnyWS; BreakPoint };
+
+Main = { x = Token (Many ('a'..'z')); };

@@ -1,0 +1,24 @@
+INFO: File size 18068 bytes.
+INFO:17589 Found xref table.
+INFO: 19 xref entries.
+INFO: Root reference is R:4:0
+ERROR: Catalog is malformed.
+INFO: R:1:0 @15 is OK.
+INFO: R:2:0 @74 is OK.
+INFO: R:3:0 @389 is OK.
+INFO: R:4:0 @558 is OK.
+INFO: R:5:0 @607 is OK.
+ERROR:844 R:6:0 @676 guard failed
+INFO: R:7:0 @846 is OK.
+INFO: R:8:0 @877 is OK.
+INFO: R:9:0 @922 is OK.
+INFO: R:10:0 @966 is OK.
+INFO: R:11:0 @1707 is OK.
+INFO: R:12:0 @2361 is OK.
+INFO: R:13:0 @6846 is OK.
+INFO: R:14:0 @6867 is OK.
+INFO: R:15:0 @7599 is OK.
+INFO: R:16:0 @8237 is OK.
+INFO: R:17:0 @12479 is OK.
+INFO: R:18:0 @12500 is OK.
+INFO: R:19:0 @17568 is OK.

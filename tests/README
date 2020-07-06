@@ -1,0 +1,68 @@
+The DaeDaLus Test Suite
+=======================
+
+This directory contains the tests for DaeDaLus.
+The suite supports two types of tests, differentiated by extension:
+  * .ddl files contain a DaeDaLus specification
+  * .test files contain command line flags specifying how to invoke deadulus.
+
+The expected output for a test is in a file that has the same name as
+the test, except that it has `.stdout` appended at the end.
+Thus, the expected output for `T.test` should be in `T.test.stdout` and
+the expected output of `S.ddl` would be in `S.ddl.stdout`.
+
+The output of a `.ddl` test is the intermediate representation for
+the given specification.
+
+The output of a `.test` file is the result of running `daedalus` with
+the given command-line options.  The format of a `.test` file is simple:
+each line in the file is a single command line parameter for `daedalus`.
+
+For example, if a test file contains the following two lines
+(without white space at the start)
+
+    midi.ddl
+    --interp=inputs/confuta.midi
+
+The test will invoke `daedalus midi.ddl --interp=input/confuta.midi`
+
+WARNING: white space in a line is considered to be part of the given argument.
+Thus, the following would be INCORRECT:
+
+    midi.ddl
+    -i inputs/confuta.midi
+
+The correct way would be to write:
+
+    midi.ddl
+    -i
+    input/confuta.midi
+
+
+Invoking Tests
+==============
+
+To invoke the test suite, run:
+
+  cabal test
+
+Alternatively, you may use the convenience script `run-test`
+
+  run-test                            # run all tests
+  run-test tests/midi                 # run all tests in this directory
+  run-test tests/midi/midl.ddl        # run only this test
+
+
+
+Adding Tests
+============
+
+The easiest way to add a new test is to place the `.ddl` and, optionally
+some `.test` files in this `tests/` directory, and then run the test suite.
+The intermediate output file (the `.stdout` file) will be in the
+`test-output/tests/` directory in the repository root. After verifying
+that this file contains the expected output, copy it to the `tests/`
+directory.
+
+
+

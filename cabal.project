@@ -1,0 +1,8 @@
+packages:
+  ./
+  daedalus-utils/
+  daedalus-core/
+  daedalus-vm/
+  rts-hs/
+  pdf-driver/
+  icc-driver/

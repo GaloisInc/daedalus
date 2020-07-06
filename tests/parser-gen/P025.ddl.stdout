@@ -1,0 +1,110 @@
+module P025
+ 
+--- Imports:
+ 
+--- Type defs:
+type P025.Main = { x: [[uint 8]]
+                 }
+ 
+--- Rules:
+ 
+P025.$cr : ByteClass =
+  {'\r'}
+ 
+P025.$lf : ByteClass =
+  {'\n'}
+ 
+P025.$simpleWS : ByteClass =
+  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+ 
+P025.SimpleEOL : Grammar (uint 8) =
+  Choose fair
+    { do @Match P025.$cr
+         ($$ : uint 8) <- Match P025.$lf
+         pure $$
+    | Match P025.$lf
+    }
+ 
+P025.EOL : Grammar (uint 8) =
+  Choose biased
+    { P025.SimpleEOL
+    | Match P025.$cr
+    }
+ 
+P025.Comment : Grammar (uint 8) =
+  do @MatchBytes "%"
+     @Many[] @Match (!(P025.$lf | P025.$cr))
+     ($$ : uint 8) <- P025.EOL
+     pure $$
+ 
+P025.AnyWS : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { Match P025.$simpleWS
+        | P025.Comment
+        }
+    | P025.EOL
+    }
+ 
+P025._SimpleEOL : Grammar {} =
+  Choose fair
+    { do @Match P025.$cr
+         @Match P025.$lf
+    | @Match P025.$lf
+    }
+ 
+P025._EOL : Grammar {} =
+  Choose biased
+    { P025._SimpleEOL
+    | @Match P025.$cr
+    }
+ 
+P025._Comment : Grammar {} =
+  do @MatchBytes "%"
+     @Many[] @Match (!(P025.$lf | P025.$cr))
+     P025._EOL
+ 
+P025._AnyWS : Grammar {} =
+  Choose fair
+    { Choose fair
+        { @Match P025.$simpleWS
+        | P025._Comment
+        }
+    | P025._EOL
+    }
+ 
+P025._Token ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] P025._AnyWS
+ 
+P025._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  P025._Token ?a0 _P
+ 
+P025.Between ?a2 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a2) : Grammar ?a2 =
+  do P025._KW [uint 8] (@MatchBytes open)
+     ($$ : ?a2) <- P
+     P025._KW [uint 8] (@MatchBytes close)
+     pure $$
+ 
+P025.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  P025._Token ?a0 do P
+                     pure {}
+ 
+P025.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     @Many[ 1 .. ] P025._AnyWS
+     pure $$
+ 
+P025.Main : Grammar P025.Main =
+  do (x : [[uint 8]]) <- Many[] P025.Token [uint 8] (Many[] Match ('a' .. 'z'))
+     END
+     pure {x = x}
+ 
+P025._Between ?a2 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+  do P025._KW [uint 8] (@MatchBytes open)
+     _P
+     P025._KW [uint 8] (@MatchBytes close)
+ 
+P025._Main : Grammar {} =
+  do @Many[] P025._Token [uint 8] (@Many[] @Match ('a' .. 'z'))
+     END

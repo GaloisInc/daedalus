@@ -1,0 +1,45 @@
+module T040
+ 
+--- Imports:
+ 
+--- Type defs:
+type T040.Main = { a: bool
+                 ; b: bool
+                 ; c: Maybe bool
+                 ; d: Maybe bool
+                 ; e: bool
+                 ; f: bool
+                 }
+ 
+--- Rules:
+ 
+T040.Main : Grammar T040.Main =
+  do (a : bool) <- pure true
+     (b : bool) <- pure false
+     (c : Maybe bool) <- pure nothing
+     (d : Maybe bool) <- pure (just true)
+     (e : bool) <- Choose biased
+                     { Guard (d == nothing)
+                     | pure false
+                     }
+     (f : bool) <- Choose biased
+                     { d is just
+                     | pure true
+                     }
+     pure {a = a,
+           b = b,
+           c = c,
+           d = d,
+           e = e,
+           f = f}
+ 
+T040._Main : Grammar {} =
+  do (d : Maybe bool) <- pure (just true)
+     Choose biased
+       { Guard (d == nothing)
+       | pure {}
+       }
+     Choose biased
+       { @(d is just)
+       | pure {}
+       }

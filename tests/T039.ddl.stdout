@@ -1,0 +1,33 @@
+module T039
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T039.Block ?a1 (n : int) (P : Grammar ?a1) : Grammar ?a1 =
+  do (s : Stream) <- CurrentStream
+     (s2 : Stream) <- StreamLen n s
+     SetStream s2
+     ($$ : ?a1) <- P
+     (s3 : Stream) <- StreamOff n s
+     SetStream s3
+     pure $$
+ 
+T039._Block ?a1 (n : int) (_P : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     (s2 : Stream) <- StreamLen n s
+     SetStream s2
+     _P
+     (s3 : Stream) <- StreamOff n s
+     SetStream s3
+ 
+T039.Main : Grammar [uint 8] =
+  do T039._Block [uint 8] 5 (@MatchBytes "hi")
+     ($$ : [uint 8]) <- MatchBytes "there"
+     pure $$
+ 
+T039._Main : Grammar {} =
+  do T039._Block [uint 8] 5 (@MatchBytes "hi")
+     @MatchBytes "there"

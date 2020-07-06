@@ -1,0 +1,132 @@
+module PNG
+ 
+--- Imports:
+ 
+--- Type defs:
+type PNG.Type = { first: uint 8
+                ; second: uint 8
+                ; third: uint 8
+                ; fourth: uint 8
+                }
+ 
+type PNG.Chunk = { type: PNG.Type
+                 ; contents: [uint 8]
+                 ; crcField: uint 32
+                 ; crcCheck: uint 32
+                 }
+ 
+--- Rules:
+ 
+PNG.$letter : ByteClass =
+  ('A' .. 'Z') | ('a' .. 'z')
+ 
+PNG.CRC : Grammar (uint 32) =
+  do (a : uint 8) <- GetByte
+     (b : uint 8) <- GetByte
+     (c : uint 8) <- GetByte
+     (d : uint 8) <- GetByte
+     ($$ : uint 32) <- pure (((((a as uint 32) << 24) + ((b as uint 32) << 16)) + ((c as uint 32) << 8)) + ((d as uint 32) << 0))
+     pure $$
+ 
+PNG.Length : Grammar int =
+  do (a : uint 8) <- GetByte
+     (b : uint 8) <- GetByte
+     (c : uint 8) <- GetByte
+     (d : uint 8) <- GetByte
+     ($$ : int) <- pure (((((a as int) << 24) + ((b as int) << 16)) + ((c as int) << 8)) + ((d as int) << 0))
+     pure $$
+ 
+PNG.Type : Grammar PNG.Type =
+  do (first : uint 8) <- Match PNG.$letter
+     (second : uint 8) <- Match PNG.$letter
+     (third : uint 8) <- Match PNG.$letter
+     (fourth : uint 8) <- Match PNG.$letter
+     pure {first = first,
+           second = second,
+           third = third,
+           fourth = fourth}
+ 
+rec value
+  PNG.step (c : uint 32) (k : uint 8) : uint 32 =
+    if (k < 8) then PNG.step ((if (c == ((c >> 1) << 1)) then 3988292384 else 0) .^. (c >> 1)) (k + 1) else c
+ 
+PNG.crcTable (n : uint 8) : uint 32 =
+  PNG.step (n as uint 32) 0
+ 
+PNG.updatecrc (crc : uint 32) (bytes : [uint 8]) : uint 32 =
+  for ((out : uint 32) = crc; (b : uint 8) in bytes)
+    ((PNG.crcTable ((crc .^. (b as uint 32)) .&. 255 as uint 8)) .^. (crc >> 8))
+ 
+PNG.crc (input : [uint 8]) : uint 32 =
+  (PNG.updatecrc 4294967295 input) .^. 4294967295
+ 
+PNG.Chunk : Grammar PNG.Chunk =
+  do (len : int) <- PNG.Length
+     (type : PNG.Type) <- PNG.Type
+     (contents : [uint 8]) <- Many[len] GetByte
+     (crcField : uint 32) <- PNG.CRC
+     (crcCheck : uint 32) <- pure (PNG.crc (concat [[type.first],
+                                                    [type.second],
+                                                    [type.third],
+                                                    [type.fourth],
+                                                    contents]))
+     pure {type = type,
+           contents = contents,
+           crcField = crcField,
+           crcCheck = crcCheck}
+ 
+PNG.Header : Grammar (uint 8) =
+  do @Match {'\137'}
+     @Match {'P'}
+     @Match {'N'}
+     @Match {'G'}
+     @Match {'\r'}
+     @Match {'\n'}
+     @Match {'\SUB'}
+     ($$ : uint 8) <- Match {'\n'}
+     pure $$
+ 
+PNG._Header : Grammar {} =
+  do @Match {'\137'}
+     @Match {'P'}
+     @Match {'N'}
+     @Match {'G'}
+     @Match {'\r'}
+     @Match {'\n'}
+     @Match {'\SUB'}
+     @Match {'\n'}
+ 
+PNG.Main : Grammar [PNG.Chunk] =
+  do PNG._Header
+     ($$ : [PNG.Chunk]) <- Many[] PNG.Chunk
+     END
+     pure $$
+ 
+PNG._CRC : Grammar {} =
+  do @GetByte
+     @GetByte
+     @GetByte
+     @GetByte
+ 
+PNG._Type : Grammar {} =
+  do @Match PNG.$letter
+     @Match PNG.$letter
+     @Match PNG.$letter
+     @Match PNG.$letter
+ 
+PNG._Chunk : Grammar {} =
+  do (len : int) <- PNG.Length
+     PNG._Type
+     @Many[len] @GetByte
+     PNG._CRC
+ 
+PNG._Length : Grammar {} =
+  do @GetByte
+     @GetByte
+     @GetByte
+     @GetByte
+ 
+PNG._Main : Grammar {} =
+  do PNG._Header
+     @Many[] PNG._Chunk
+     END

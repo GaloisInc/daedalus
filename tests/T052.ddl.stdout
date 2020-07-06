@@ -1,0 +1,49 @@
+module T052
+ 
+--- Imports:
+ 
+--- Type defs:
+type T052.Main = { a: [int]
+                 ; b: [int]
+                 ; c: [int]
+                 ; d: [int]
+                 ; e: [int]
+                 ; f: [int]
+                 ; g: [uint 2]
+                 ; h: [uint 1]
+                 ; i: [int]
+                 ; j: [int]
+                 ; k: [uint 8]
+                 ; l: [uint 8]
+                 }
+ 
+--- Rules:
+ 
+T052.Main : Grammar T052.Main =
+  do (a : [int]) <- pure (rangeUp 0 10 1)
+     (b : [int]) <- pure (rangeDown 10 0 1)
+     (c : [int]) <- pure (rangeUp 10 20 1)
+     (d : [int]) <- pure (rangeDown 20 10 1)
+     (e : [int]) <- pure (rangeUp 10 20 2)
+     (f : [int]) <- pure (rangeDown 20 10 2)
+     (g : [uint 2]) <- pure (rangeUp 0 3 1)
+     (h : [uint 1]) <- pure (rangeUp 0 0 1)
+     (i : [int]) <- pure (rangeUp 20 10 1)
+     (j : [int]) <- pure (rangeDown 10 20 1)
+     (k : [uint 8]) <- pure (rangeUp 250 255 50)
+     (l : [uint 8]) <- pure (rangeUp 0 0 1)
+     pure {a = a,
+           b = b,
+           c = c,
+           d = d,
+           e = e,
+           f = f,
+           g = g,
+           h = h,
+           i = i,
+           j = j,
+           k = k,
+           l = l}
+ 
+T052._Main : Grammar {} =
+  pure {}

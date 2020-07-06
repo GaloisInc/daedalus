@@ -1,0 +1,16 @@
+module T012
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T012.x : uint 8 =
+  'a'
+ 
+T012.Main : Grammar (uint 8) =
+  Match (!{T012.x})
+ 
+T012._Main : Grammar {} =
+  @Match (!{T012.x})
