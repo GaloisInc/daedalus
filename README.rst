@@ -54,8 +54,8 @@ what went wrong.
 Setting up Your Editor
 ----------------------
 
-Directory ``syntax-hilight`` contain Daedalus syntax hilighting files for
-common editors.
+The directory ``syntax-highlight`` contain Daedalus syntax hilighting
+files for common editors.
 
 
 More about the Daedalus Language
