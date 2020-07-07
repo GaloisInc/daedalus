@@ -522,7 +522,15 @@ using ``<``, ``<=``, ``>``, and ``>=``.
 
 Unsigned integers may also be treated as bit-vectors, and support various
 bitwise operations: complement: ``~``; exclusive-or ``^``; and bitwise-and ``&``.
-Unsigned numbers can also be appended to other numbers via the ``<#`` operator.
+
+Unsigned numbers can also be appended to other numbers via the
+``#`` and ``<#`` operator.  To see the difference between the two,
+consider two bitvectors ``(x : uint A)`` and ``(y : uint B)``.
+The result of ``x # y`` is a bitvector of type ``A + B`` with
+``x`` in the more significatn bits, and ``y`` in the less significant bits.
+The result of ``x <# y`` is a bitvector of type ``A`` that contains
+``x # y`` but truncated to the ``A`` less significatn bits.
+
 
 
 Stream manipulation
