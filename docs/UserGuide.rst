@@ -160,7 +160,7 @@ byte followed by the sequence ``"HELLO"``. The result of this parser is
 a *structure type*, also named ``S``, which has two fields, ``x`` and ``y``:
 ``x`` is a byte, while ``y`` is an array of bytes.
 
-Note that structure fields also introduce a local variable with the same,
+Note that structure fields also introduce a local variable with the same name,
 so later parsers in the sequence may depend on the semantic values in
 earlier parsers in the sequence.  For example:
 
@@ -268,9 +268,10 @@ Control Structures
 Guards 
 ------
 
-Any boolean predicate can be used as a guard to control whether parsing
-continues. For example, the following parser uses the guard ``(i - '0') > 5`` to
-distinguish whether an parsed digit is greater than 5. 
+Simple boolean predicates, such as ``<`` or ``==`` may be used as a guard
+to control whether parsing continues. For example, the following parser
+uses the guard ``(i - '0') > 5`` to distinguish whether an parsed
+digit is greater than 5. 
 
 .. code-block:: Daedalus 
 
@@ -281,6 +282,16 @@ distinguish whether an parsed digit is greater than 5.
         { ^ "input leq 5";}
     }
   }
+
+Guards may also be made out of any boolean semantic value by using
+the ``is`` construct.  So, if ``p`` is a boolean value, then
+``p is true`` is a parser that succeeds without consuming input
+if ``p`` holds, and fails otherwise.   Similarly, ``p is false`` is
+a parser that would succeed only if ``p`` is ``false``.
+
+Note that guard ``x == y`` is simply syntactic sugar for ``(x == y) is true``.
+
+
 
 For loops
 ---------
