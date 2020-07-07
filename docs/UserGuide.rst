@@ -1,8 +1,8 @@
 *******************
-Deadalus User Guide
+DaeDaLus User Guide
 *******************
 
-Daedalus is a language for specifying parsers with data dependencies,
+DaeDaLus is a language for specifying parsers with data dependencies,
 which allows a parser's behavior to be affected by the semantic values
 parsed from other parts of the inputs.  This allows a clear, yet precise,
 specification of many binary formats.
@@ -11,12 +11,13 @@ specification of many binary formats.
 Declarations
 ============
 
-A Daedalus specification consists of a sequence of *declarations*, separated
-by a semicolon.  Each declaration can specify either a *parser*,
-a *semantic value*, or a *character class*.  Parsers may examine and consume
-input, and have the ability to fail.  If successful, they produce a semantic
-value.  Character classes describe sets of bytes, which may be used to define
-parsers, and will be discussed in more detail `later <character_classes_>`_.
+A Daedalus specification consists of a sequence of *declarations*.
+Each declaration can specify either a *parser*, a *semantic value*, or
+a *character class*.  Parsers may examine and consume input, and have
+the ability to fail.  If successful, they produce a semantic value.
+Character classes describe sets of bytes, which may be used to define
+parsers, and will be discussed in more detail `later
+<character_classes_>`_.
 
 The general form of a declarations is as follows:
 
@@ -64,7 +65,7 @@ which has type ``[uint 8]``.
 
 **End of Input.** The parser ``END`` succeeds only if there is no more input
 to be parsed.  If successful, the result is the trivial semantic value ``{}``.
-Normally Daedalus parser succeed as long as they match a *prefix* of the
+Normally Daedalus parsers succeed as long as they match a *prefix* of the
 entire input.  By sequencing (section `Sequencing Parsers`_) a parser with
 ``END`` we specify that the entire input must be matched.
 
@@ -73,18 +74,22 @@ not consume any input and always succeeds with the given result.  To do
 so prefix the semantic value with the operator ``^``.  Thus, ``^ 'A'`` is
 a parser that always succeeds and produces byte ``'A'`` as a result.
 
+**Explicit Failure** The ``Fail`` construct will always fail.  This
+parser is parameterized by an optional location, along with an error
+message.
+
 **Examples:**
 
 .. code-block:: Daedalus
 
   {- Declaration                   Matches        Result          -}
   def GetByte     = UInt8       -- Any byte X     X
-  def TheLatterA  = 'A'         -- Byte 65        65
+  def TheLetterA  = 'A'         -- Byte 65        65
   def TheNumber3  = 3           -- Byte 3         3
   def TheNumber16 = 0x10        -- Byte 16        16
   def Magic       = "HELLO"     -- "HELLO"        [72,69,76,76,79]
   def AlwaysA     = ^ 'A'       -- ""             65
-
+  def GiveUp      = Fail "I give up" -- Nothing    Failure with message "I give up"
 
 Sequencing Parsers
 ------------------
@@ -109,7 +114,7 @@ Examples:
 
   {- Declaration                       Matches        Result      -}
   def ABC1 = { 'A'; 'B'; 'C' }      -- "ABC"          67
-  def ABC2 = [ 'A'; 'B'; C' ]       -- "ABC"          [65,66,67]
+  def ABC2 = [ 'A'; 'B'; 'C' ]      -- "ABC"          [65,66,67]
   def ABC3 = { "Hello"; "ABC" }     -- "HelloABC"     [65,66,67]
   def ABC4 = { "Hello"; 'C' }       -- "HelloC"       67
 
@@ -243,16 +248,219 @@ alternative of ``U1``).  No inputs are ambiguous in this case.
 
 
 
+**Alternative Syntax.** Given multiple parsers ``A``, ``B``, ... we can use 
+the ``Choose`` keyword for unbiased choice and ``Choose1`` for biased choice. 
+
++---------------------------+-------------------+ 
+| Expression:               | Equivalent to:    | 
++===========================+===================+ 
+| ``Choose { A ; B; ...}``  | ``A | B | ...``   | 
++---------------------------+-------------------+ 
+| ``Choose1 { A ; B; ... }``| ``A <| B <| ...`` |
++---------------------------+-------------------+
+
+Choose can also be used to construct tagged unions: see below. 
 
 
+Control Structures 
+==================
+
+Guards 
+------
+
+Any boolean predicate can be used as a guard to control whether parsing
+continues. For example, the following parser uses the guard ``(i - '0') > 5`` to
+distinguish whether an parsed digit is greater than 5. 
+
+.. code-block:: Daedalus 
+
+  {
+    @i = '0'..'9';
+    Choose1 { 
+        { (i - '0') > 5; ^ "input gt 5";} ; 
+        { ^ "input leq 5";}
+    }
+  }
+
+For loops
+---------
+
+The ``for`` construct can be used to iterate over collections (arrays
+and dictionaries).  A for-loop declares a local variable representing
+the accumulated result of the computation, and a variable that is
+bound to the elements of the collection.  The body may be a parser, or
+a semantic value.  For example, the following expression sums the
+values in an array of integers:
+
+.. code-block:: Daedalus 
+
+  for (val = 0 : int; v in [1,2,3]) 
+    val + v
+    
+Here, ``val`` is initially bound to ``0``. Each iteration of the loop binds
+``v`` to the current element of the sequence, then computes the value of the
+body, ``val + v``. This returned value is the updated value of ``val``.
+
+Another way to understand how this works is to see the following expression,
+which is the result of one step of evaluation: 
+
+.. code-block:: Daedalus 
+
+  for (val = 1; v in [2, 3]) 
+    val + v
+
+``for`` supports an alternative form which binds both the index and
+value of a collection. For example, the following loop multiplies 
+each element in the sequence by its index: 
+
+.. code-block:: Daedalus 
+
+  for (val = 0; i,v in [1,2,3]) 
+    val + (i * v)  
+
+This construct is also useful when iterating over the contents of
+dictionaries, where the index is bound to the key.  The following
+loop is a parser which fails when the value is less than the key:
+
+.. code-block:: Daedalus 
+
+  for (val = 0; k,v in d) 
+    k <= v
+
+    
+Map
+---
+
+Daedalus supports another iteration construct, ``map``. This performs an operation on each 
+element of a sequence, resulting in a sequence of results. For example, the following code 
+doubles each element in an array: 
+
+.. code-block:: Daedalus
+
+  map (x in [1:int, 2, 3]) 
+    2 * x
+
+The ``map`` construct can be used to parse a sequence of blocks, based on a
+sequence of values. For example the following code parses blocks of the form ``0AAA...``, 
+with the number of ``'A'`` characters dicated by the input sequence. 
+
+.. code-block:: Daedalus 
+
+  map (x in [1, 2, 3]) {
+    '0'; 
+    Many x 'A';
+  }
+
+Just as with ``for``, the map construct has an alternative form that includes both 
+sequence indexes and values: 
+
+.. code-block:: Daedalus 
+
+  map (i,x in [5, 2, 1]) {
+    '0'; 
+    len       = ^ { index = i, elem = x };
+    something = Many x 'A';
+  }
 
 
+Unions and Case Distinction
+---------------------------
 
+Daedalus supports tagged unions and case distinction on unions. The way to
+construct a union is to use `Choose`. For example, the following parser
+constructs a union with possible tags `good` and `bad`, depending on whether the
+input character is `'G'` or `'B'`. 
 
+.. code-block:: Daedalus 
 
+  Choose { 
+    good = 'G';
+    bad = 'B'; 
+  }
 
+It is also possible to construct a union literal using `{| good = 'G' |}`. Note 
+however that the compiler will need extra type annotations if the intention is 
+for the union to have other possible tags, e.g. `bad`.  
 
+Given a union `u` and tag name `t`, the guard `u is t` succeeds if the union has 
+the correct tag. This can be used to control parser control flow, as in the 
+following example: 
 
+.. code-block:: Daedalus 
+
+  { 
+    @res = Choose { 
+      good = 'G';
+      bad = 'B'; 
+    }; 
+    Choose { 
+      {res is good; ^ "Success!"}; 
+      {res is bad; ^ "Failure!"}; 
+    } 
+  }
+
+The result of a succesful ``is`` guard is the value of the union
+element.  For example
+
+.. code-block:: Daedalus 
+
+  { 
+    @res = Choose { 
+      good = { 'G'; Many 'a' .. 'z' };
+      bad =   'B' ;
+    }; 
+    Choose { 
+      { @msg = res is good; ^ (concat [ "Success!", msg])}; 
+      { res is bad; ^ "Failure!" }; 
+    }
+  }
+
+  
+Commit
+------
+
+Normally, at the point a parser fails, Daedalus will backtrack to a choice point 
+and try an alternative parser. The `commit` guard acts as a cut-point and prevents
+backtracking. For example, the following code cannot parse the string `"AC"` 
+because parsing `'A'` and the subsequent `commit` will prevent backtracking 
+reaching the alternative branch. 
+
+.. code-block:: Daedalus 
+
+  Choose1 { 
+    {'A'; commit; 'B' }; 
+    {'A'; 'C' }  -- Can't happen 
+  }
+
+The ``try`` construct converts commit failure into parser failure.  A
+commit failure will propagate until it hits an enclosing ``try``
+construct, or until it escapes the top-level definition.
+  
+Option type 
+-----------
+
+Daedalus supports the special polymorphic type `maybe A`, which has possible 
+values `nothing` and `just i`, for some value of type `A`. The `is` guard can 
+be used to identify which case holds.
+
+.. code-block:: Daedalus 
+
+  { 
+    @res = 
+      {@l = 'A'..'Z'; ^ just l}
+        <|
+      {^ nothing};
+    r = res is just
+  }
+
+The above example could also be written using the builtin ``Optional`` parser.
+
+.. code-block:: Daedalus 
+
+  { 
+    @res = Optional 'A'..'Z';
+    r = res is just
+  }
 
 Semantic Values
 ===============
@@ -289,32 +497,83 @@ Literals of the numeric types may written either using decimal or hexadecimal
 notation (e.g., ``10`` or ``0xA``).  The type of a literal can be inferred
 from the context (e.g., ``10`` can be used as both ``int`` a ``uint 8``).
 
-Numeric types support basic arithmetic: addition, subtraction, and
-multiplication, using the usual operators ``+``, ``-``, and ``*``.
+Numeric types support basic arithmetic: addition, subtraction, 
+multiplication, division, and modulus using the usual operators
+``+``,``-``,``*``,``/``, and ``%``.  DaeDaLus also supports shift
+operations ``<<`` and ``>>``.
 These operations are overloaded and can be used on all numeric types,
 with the restriction that the inputs and the outputs must be of the
-same type.
+same type.  
 
 Numeric types can also be compared for equality, using ``==`` and ordering
 using ``<``, ``<=``, ``>``, and ``>=``.
 
 Unsigned integers may also be treated as bit-vectors, and support various
-bitwise operations:
-
-  * Bitwise complement: ``~``
-
+bitwise operations: complement: ``~``; exclusive-or ``^``; and bitwise-and ``&``.
+Unsigned numbers can also be appended to other numbers via the ``<#`` operator.
 
 
+Stream manipulation
+===================
 
+Daedalus parsers operate on an *input stream*, which by default is the input
+data to the parser. However, the input stream can be manipulated directly. For example, 
+we can write a parser function which runs two different parsers on the same stream. 
 
+.. code-block:: Daedalus 
 
+  def ParseTwice P1 P2 = {
+    @cur = GetStream; 
+    p1result = P1; 
+    SetStream cur; 
+    p2result = P2; 
+  }
 
+By manipulating the stream, we can also run a parser on a fixed-size sub-stream.
+The following parser parses a size-n chunk which begins with a sequence of
+letters, and then is filled with spaces: 
 
+.. code-block:: Daedalus 
 
+  def LetterFill n = { 
+    @cur = GetStream; 
+    @this = Take n cur; 
+    @next = Drop n cur; 
+    SetStream this; 
+    $$ = { $$ = Many {'A'..'Z'}; 
+            Many ' '; 
+            END; }; 
+    SetStream next; 
+  }
 
+It is also possible to directly access the current position in the stream using
+``Offset``. This can be used to calculate how many characters were read by a
+particular parser: 
 
+.. code-block:: Daedalus 
 
+  def OffsetTest = { 
+      a = Offset; 
+      "AA";
+      b = Offset; 
+      "AAA"; 
+      c = Offset; 
+  }
+  -- Result: { a:0, b:2, c:5 } 
 
+The ``arrayStream`` operator converts an array into a stream:
+
+.. code-block:: Daedalus 
+
+  def CatStream a b = { 
+      SetStream (arrayStream (concat [a, b]));
+      "AA";
+      "BBB";
+      ^ {}
+  }
+
+This example will succeed if the concatenation of the arrays ``a`` and
+``b`` starts with the string ``"AABBB"``.
 
 
 Types
