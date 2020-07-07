@@ -378,9 +378,9 @@ Unions and Case Distinction
 ---------------------------
 
 Daedalus supports tagged unions and case distinction on unions. The way to
-construct a union is to use `Choose`. For example, the following parser
-constructs a union with possible tags `good` and `bad`, depending on whether the
-input character is `'G'` or `'B'`. 
+construct a union is to use ``Choose``. For example, the following parser
+constructs a union with possible tags ``good`` and ``bad``,
+depending on whether the input character is ``'G'`` or ``'B'``. 
 
 .. code-block:: Daedalus 
 
@@ -389,13 +389,14 @@ input character is `'G'` or `'B'`.
     bad = 'B'; 
   }
 
-It is also possible to construct a union literal using `{| good = 'G' |}`. Note 
-however that the compiler will need extra type annotations if the intention is 
-for the union to have other possible tags, e.g. `bad`.  
+It is also possible to construct a union literal using ``{| good = 'G' |}``.
+Note however that the compiler will reject programs where it cannot infer
+the resulting type of the union.  In such cases, you'd need to provide
+an explicit type signature.
 
-Given a union `u` and tag name `t`, the guard `u is t` succeeds if the union has 
-the correct tag. This can be used to control parser control flow, as in the 
-following example: 
+Given a union ``u`` and tag name ``t``, the guard ``u is t`` succeeds
+if the union has the correct tag. This can be used to control parser
+control flow, as in the following example: 
 
 .. code-block:: Daedalus 
 
@@ -431,9 +432,9 @@ Commit
 ------
 
 Normally, at the point a parser fails, Daedalus will backtrack to a choice point 
-and try an alternative parser. The `commit` guard acts as a cut-point and prevents
-backtracking. For example, the following code cannot parse the string `"AC"` 
-because parsing `'A'` and the subsequent `commit` will prevent backtracking 
+and try an alternative parser. The ``commit`` guard acts as a cut-point and prevents
+backtracking. For example, the following code cannot parse the string ``"AC"`` 
+because parsing ``'A'`` and the subsequent ``commit`` will prevent backtracking 
 reaching the alternative branch. 
 
 .. code-block:: Daedalus 
@@ -450,9 +451,9 @@ construct, or until it escapes the top-level definition.
 Option type 
 -----------
 
-Daedalus supports the special polymorphic type `maybe A`, which has possible 
-values `nothing` and `just i`, for some value of type `A`. The `is` guard can 
-be used to identify which case holds.
+Daedalus supports the special polymorphic type ``maybe A``, which has possible 
+values ``nothing`` and ``just i``, for some value of type ``A``.
+The ``is`` guard can be used to identify which case holds.
 
 .. code-block:: Daedalus 
 
