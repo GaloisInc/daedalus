@@ -8,7 +8,7 @@ import System.FilePath(replaceExtension,(</>),takeDirectory,takeBaseName)
 import System.Directory(createDirectoryIfMissing)
 
 import HTML(specToHTML)
-import DDL(parseTypes,saveMod)
+import DDL(parseTypes,saveMod,makeCabal)
 import Parse(parseFile)
 
 main :: IO ()
@@ -36,4 +36,5 @@ ddlFromDir :: FilePath -> FilePath -> IO ()
 ddlFromDir inDir outDir =
   do fs <- parseTypes inDir ["Catalog"]
      mapM_ (saveMod outDir) fs
+     makeCabal outDir (length fs)
 

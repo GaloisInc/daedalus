@@ -61,6 +61,41 @@ specsToMods rs = map toMod modNames
 
 --------------------------------------------------------------------------------
 
+makeCabal :: FilePath -> Int -> IO ()
+makeCabal dir n = writeFile (addExtension (dir </> name) "cabal") content
+  where
+  name = "pdf-dom-validator"
+  content =
+    unlines $
+      [ "cabal-version:       3.0"
+      , "name:                " ++ name
+      , "version:             0.1.0.0"
+      , "license:             ISC"
+      , "license-file:        LICENSE"
+      , "author:              Iavor Diatchki"
+      , "maintainer:          iavor.diatchki@gmail.com"
+      , "copyright:           2019, Galois Inc"
+      , "build-type:          Simple"
+      , ""
+      , "library"
+      , "  default-language:     Haskell2010"
+
+      , "  signatures:"
+      , "    PdfValidator"
+      , ""
+      , "  exposed-modules:"
+      ] ++
+      [ "    " ++ modName i ++ suff
+        | i <- take n [ 0 .. ]
+        , let suff = if i == n - 1 then "" else ","
+      ] ++
+      [ "  build-depends:"
+      , "    base,"
+      , "    rts-hs"
+      ]
+
+--------------------------------------------------------------------------------
+
 modName :: Int -> String
 modName x = "PdfDom" ++ pad 3 (show x)
   where
