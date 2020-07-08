@@ -766,6 +766,8 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
         _      -> panic "expecting a VVal" []
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
+    
+    allRules = concatMap (map recToList . tcModuleDecls) prog
 
 interpCompiled :: ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled bytes env startName args = 
