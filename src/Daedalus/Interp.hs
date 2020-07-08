@@ -13,8 +13,13 @@ module Daedalus.Interp
   , ParseError(..)
   , Result(..)
   , Input(..)
+  -- For synthesis
+  , compilePureExpr
+  , compilePredicateExpr
+  , addValMaybe
+  , addVal
+  , vUnit
   ) where
-
 
 import Control.Monad (replicateM,foldM,replicateM_,void)
 
@@ -762,23 +767,22 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
 
-    allRules = concatMap (map recToList . tcModuleDecls) prog
-
-interpCompiled :: ByteString -> Env -> ScopedIdent -> Result Value
-interpCompiled bytes env startName = 
+interpCompiled :: ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
+interpCompiled bytes env startName args = 
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScope x == startName] of
     (rl : _)        -> runIdentity $
-                       P.runParserT (rl [] []) Input { inputBytes = bytes
-                                                     , inputOffset = 0
-                                                     }
+                       P.runParserT (rl [] (map VVal args))
+                                    Input { inputBytes = bytes
+                                          , inputOffset = 0
+                                          }
     []              -> error ("Unknown start rule: " ++ show startName)
 
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ]
        -> ByteString -> [TCModule a] -> ScopedIdent -> Result Value
 interp builtins bytes prog startName =
-  interpCompiled bytes env startName
+  interpCompiled bytes env startName []
   where
     env = compile builtins prog
 
