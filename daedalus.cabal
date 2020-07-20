@@ -58,6 +58,7 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
+                       Daedalus.ParserGen.Det,
                        Daedalus.ParserGen.RunnerBias
 
   build-depends:       base,

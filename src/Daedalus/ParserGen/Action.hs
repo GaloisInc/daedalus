@@ -135,6 +135,32 @@ instance Show(Action) where
   show (SAct a)         = show a
   show (BAct a)         = show a
 
+isClassAct :: Action -> Bool
+isClassAct act =
+  case act of
+    IAct _ iact ->
+      case iact of
+        ClssAct _ -> True
+        _ -> False
+    _ -> False
+
+isNonClassInputAct :: Action -> Bool
+isNonClassInputAct act =
+  case act of
+    IAct _ iact ->
+      case iact of
+        ClssAct _ -> False
+        _ -> True
+    _ -> False
+
+getClassAct :: Action -> PAST.NCExpr
+getClassAct act =
+  case act of
+    IAct _ iact ->
+      case iact of
+        ClssAct ca -> ca
+        _ -> error "function should be applied on act"
+    _ -> error "function should be applied on act"
 
 
 type Val = Interp.Value
