@@ -130,8 +130,10 @@ interpInterp inp prog (m,i) =
 interpPGen :: FilePath -> [NDecl] -> IO ()
 interpPGen inp norms =
   do let (gbl, aut) = PGen.buildAut norms
+     --let dfa = PGen.createDFA aut
+     --putStrLn (show dfa)
      bytes <- BS.readFile inp
-     -- PGen.autToGraphviz aut
+     --PGen.autToGraphviz aut
      let results = PGen.runnerBias gbl bytes aut
      let resultValues = PGen.extractValues results
      if null resultValues
@@ -183,5 +185,3 @@ dumpResult bs r =
    RTS.Results as ->
      do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
         print $ vcat' $ map pp $ toList as
-
-
