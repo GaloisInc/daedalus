@@ -90,3 +90,11 @@ The source code for the ICC validator is in ``icc-driver`` and the source
 code for the PDF validator is in ``pdf-driver``.
 
 
+Acknowledgements
+----------------
+
+This material is based upon work supported by the Defense Advanced Research 
+Projects Agency (DARPA) under Contract No. HR0011-19-C-0073. Any opinions, 
+findings and conclusions or recommendations expressed in this material are 
+those of the author(s) and do not necessarily reflect the views of the Defense 
+Advanced Research Projects Agency (DARPA).
