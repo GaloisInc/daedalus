@@ -42,6 +42,7 @@ import Daedalus.Panic
 import qualified Daedalus.AST as K
 import Daedalus.Type.AST hiding (Value)
 import Daedalus.Interp.Value
+import Daedalus.Rec (forgetRecs)
 
 
 import RTS.ParserAPI
@@ -383,7 +384,7 @@ compilePureExpr env = go
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
-                            Nothing -> error ("BUG: unknown value variable " ++ show x)
+                            Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
 
         TCUniOp op e1      -> evalUniOp op (go e1)
@@ -404,7 +405,7 @@ compilePureExpr env = go
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts es
-            Nothing -> error $ "BUG: unknown grammar function " ++ show x
+            Nothing -> error $ "BUG: unknown value function " ++ show (pp x)
 
         TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
 
@@ -654,7 +655,7 @@ compileExpr env = go
 
         TCCall x ts es  ->
           case Map.lookup (tcName x) (ruleEnv env) of
-            Nothing -> error $ "BUG: unknown grammar function " ++ show x
+            Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x) ++ ": " ++ show (pp <$> Map.keys (ruleEnv env))
             Just r  -> let lab = text erng <.> colon <+> pp x
                        in pEnter (show lab) (invoke r env ts es)
 
@@ -674,7 +675,7 @@ compileExpr env = go
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v
-            Nothing -> error $ "BUG: unknown grammar variable " ++ show x
+            Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
         TCCoerceCheck  s _ t e ->
           case doCoerceTo (evalType env t) (compilePureExpr env e) of
@@ -767,7 +768,7 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
     
-    allRules = concatMap (map recToList . tcModuleDecls) prog
+    allRules = map (forgetRecs . tcModuleDecls) prog
 
 interpCompiled :: ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled bytes env startName args = 
