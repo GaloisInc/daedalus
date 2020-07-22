@@ -46,9 +46,11 @@ data ControlAction =
   | Push PAST.NName [PAST.NVExpr] State
   | Pop State
   | ForInit PAST.NName PAST.NVExpr PAST.NName PAST.NVExpr
+  | ForHasMore
   | ForNext
   | ForEnd
   | MapInit PAST.NName PAST.NVExpr
+  | MapHasMore
   | MapNext
   | MapEnd
 
@@ -102,9 +104,11 @@ instance Show(ControlAction) where
   show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ show n) ++ "_" ++ show dest
   show (Pop dest)          = "Pop" ++ "_" ++ show dest
   show (ForInit _ _ _ _)   = "ForInit"
+  show (ForHasMore)        = "ForHasMore"
   show (ForNext)           = "ForNext"
   show (ForEnd)            = "ForEnd"
   show (MapInit _ _)       = "MapInit"
+  show (MapHasMore)        = "MapHasMore"
   show (MapNext)           = "MapNext"
   show (MapEnd)            = "MapEnd"
 
@@ -118,7 +122,7 @@ instance Show(SemanticAction) where
   show (MapLookup   _ _ _)  = "MapLookup"
   show (MapInsert   _ _ _ _) = "MapInsert"
   show (CoerceCheck _ _ _ _) = "CoerceCheck"
-  show (SelUnion    _ _ _)  = "SelUnion"
+  show (SelUnion    x y lbl)  = "SelUnion" ++ " " ++ show x ++ " " ++ show y ++ " " ++ show lbl
   show (SelJust     _ _)    = "SelJust"
   show (Guard       _)      = "Guard"
 
@@ -175,18 +179,47 @@ data ActivationFrame =
   | ActivatedFrame (Map.Map PAST.NName Val)
   deriving (Show)
 
+
+
+data ForFrm = ForFrm
+  { forResultName :: PAST.NName
+  , forResultValue :: Val
+  , forArrElmName :: PAST.NName
+  , forArrValue :: Val
+  , forSavedOut :: SemanticData
+  }
+
+data MapFrm = MapFrm
+  { mapResultValue :: Val
+  , mapArrElmName :: PAST.NName
+  , mapArrValue :: Val
+  , mapSavedOut :: SemanticData
+  }
+
 data ControlElm =
     SBetween (BeetweenItv) Int -- the integer is the current counter
-  | ForFrame PAST.NName Val PAST.NName Val SemanticData
-  | MapFrame Val PAST.NName Val SemanticData
+  | ForFrame ForFrm
+  | MapFrame MapFrm
   | CallFrame PAST.NName State (ActivationFrame) SemanticData
   --deriving (Eq)
 
 instance Show (ControlElm) where
   show (SBetween (CExactly i) k) = "[" ++ show i ++ "] curr:"++ show k
   show (SBetween (CBetween i j) k) = "[" ++ show i ++ "," ++ show j ++ "] curr:"++ show k
-  show (ForFrame n1 v1 n2 v2 _) = "(ForFrame " ++ show n1 ++ ", " ++ show v1 ++ ", " ++ show n2 ++ ", " ++ show v2 ++ ")"
-  show (MapFrame v1 n2 v2 _) = "(MapFrame " ++ show v1 ++ ", " ++ show n2 ++ ", " ++ show v2 ++ ")"
+  show (ForFrame (ForFrm
+                 { forResultName = n1
+                 , forResultValue = v1
+                 , forArrElmName = n2
+                 , forArrValue = v2
+                 , forSavedOut = _
+                 }))
+    = "(ForFrame " ++ show n1 ++ ", " ++ show v1 ++ ", " ++ show n2 ++ ", " ++ show v2 ++ ")"
+  show (MapFrame (MapFrm
+                 { mapResultValue = v1
+                 , mapArrElmName = n2
+                 , mapArrValue = v2
+                 , mapSavedOut = _}))
+    = "(MapFrame " ++ show v1 ++ ", " ++ show n2 ++ ", " ++ show v2 ++ ")"
   show (CallFrame name q (ListArgs _) _) = "(CallFrame " ++ show name ++ " " ++ show q ++ " L _)"
   show (CallFrame name q (ActivatedFrame _) _) = "(CallFrame " ++ show name ++ " " ++ show q ++ " A _)"
 
@@ -247,7 +280,13 @@ lookupEnvName nname ctrl out =
         [] -> lookupCtrl nextctrl
 
     lookupCtrl [] = error ("unexpected, missing var:" ++ show nname ++ " from out")
-    lookupCtrl (ForFrame n1 v1 n2 v2 out1 : rest) =
+    lookupCtrl (ForFrame (ForFrm
+                          { forResultName = n1
+                          , forResultValue = v1
+                          , forArrElmName = n2
+                          , forArrValue = v2
+                          , forSavedOut = out1
+                          }) : rest) =
       if n1 == nname
       then Just v1
       else if n2 == nname
@@ -255,10 +294,17 @@ lookupEnvName nname ctrl out =
                   Interp.VArray arr -> Just (Vector.head arr)
                   _ -> error "The for iterator should be an array"
            else lookupSem out1 rest
-    lookupCtrl (MapFrame _ n2 v2 out1 : rest) =
+    lookupCtrl (MapFrame (MapFrm
+                          { mapResultValue = _
+                          , mapArrElmName = n2
+                          , mapArrValue = v2
+                          , mapSavedOut = out1
+                          }) : rest)
+      =
       if n2 == nname
       then case v2 of
-             Interp.VArray arr -> Just (Vector.head arr)
+             Interp.VArray arr ->
+               Just (Vector.head arr)
              _ -> error "The for iterator should be an array"
       else lookupSem out1 rest
 
@@ -732,11 +778,36 @@ applyControlAction gbl (ctrl, out) act =
     ForInit n1 e1 n2 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
-      in Just (ForFrame n1 ev1 n2 ev2 out : ctrl, initSemanticData)
+          forfrm = ForFrm
+            { forResultName = n1
+            , forResultValue = ev1
+            , forArrElmName = n2
+            , forArrValue = ev2
+            , forSavedOut = out
+            }
+      in Just (ForFrame forfrm : ctrl, initSemanticData)
+    ForHasMore ->
+      case ctrl of
+        [] -> error "Unexpected empty ctrl stack"
+        ForFrame forfrm : _ ->
+          case forArrValue forfrm of
+            Interp.VArray arr ->
+              if Vector.null arr
+              then Nothing
+              else Just (ctrl, out)
+            _ -> error "Unexpected value"
+        _ -> error "Unexpected non ForFrame"
     ForNext ->
       case ctrl of
         [] -> error "Unexpected empty ctrl stack"
-        ForFrame n1 _ev1 n2 ev2 savedOut : rest ->
+        ForFrame (
+          ForFrm
+          { forResultName = n1
+          , forResultValue = _ev1
+          , forArrElmName = n2
+          , forArrValue = ev2
+          , forSavedOut = savedOut
+          }) : rest ->
           --if length out /= (1::Int)
           --then error "sdfsdf"
           --else
@@ -746,14 +817,29 @@ applyControlAction gbl (ctrl, out) act =
               then Nothing
               else case head out of
                      SEVal b ->
-                       Just (ForFrame n1 b n2 (Interp.VArray (Vector.tail arr)) savedOut : rest, initSemanticData)
+                       let forfrm = ForFrm
+                             { forResultName = n1
+                             , forResultValue = b
+                             , forArrElmName = n2
+                             , forArrValue = Interp.VArray (Vector.tail arr)
+                             , forSavedOut = savedOut
+                             }
+                       in
+                       Just (ForFrame forfrm : rest, initSemanticData)
                      _ -> error "the semantic value should be a Val"
             _ -> error "Unexpected For not an array"
         _ -> error "Unexpected ctrl stack"
     ForEnd ->
       case ctrl of
         [] -> error "Unexpected empty ctrl stack"
-        ForFrame _n1 ev1 _n2 ev2 savedOut: rest ->
+        ForFrame (
+          ForFrm
+          { forResultName = _n1
+          , forResultValue = ev1
+          , forArrElmName = _n2
+          , forArrValue = ev2
+          , forSavedOut = savedOut
+          }) : rest ->
           case ev2 of
             Interp.VArray arr ->
               if Vector.null arr
@@ -764,16 +850,39 @@ applyControlAction gbl (ctrl, out) act =
 
     MapInit n1 e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
-      in Just (MapFrame (Interp.VArray Vector.empty) n1 ev1 out : ctrl, initSemanticData)
+          mapfrm = MapFrm
+            { mapResultValue = (Interp.VArray Vector.empty)
+            , mapArrElmName = n1
+            , mapArrValue = ev1
+            , mapSavedOut = out
+            }
+      in Just (MapFrame mapfrm : ctrl, initSemanticData)
+    MapHasMore ->
+      case ctrl of
+        [] -> error "Unexpected empty ctrl stack"
+        MapFrame mapfrm : _ ->
+          case mapArrValue mapfrm of
+            Interp.VArray arr ->
+              if Vector.null arr
+              then Nothing
+              else Just (ctrl, out)
+            _ -> error "Unexpected value"
+        _ -> error "Unexpected non MapFrame"
     MapNext ->
       case ctrl of
         [] -> error "Unexpected empty ctrl stack"
-        MapFrame ev1 n2 ev2 savedOut : rest ->
+        MapFrame (MapFrm
+            { mapResultValue = ev1
+            , mapArrElmName = n2
+            , mapArrValue = ev2
+            , mapSavedOut = savedOut
+            }) : rest ->
           --if length out /= (1::Int)
           --then error "sdfsdf"
           --else
           case ev2 of
             Interp.VArray arr ->
+              -- trace ("SIZE of arr: " ++ show (length arr)) $
               if Vector.null arr
               then Nothing
               else case head out of
@@ -782,7 +891,13 @@ applyControlAction gbl (ctrl, out) act =
                          Interp.VArray v ->
                            let newAccArr = Interp.VArray (Vector.snoc v b)
                                restArr = Interp.VArray (Vector.tail arr)
-                           in Just (MapFrame newAccArr n2 restArr savedOut : rest, initSemanticData)
+                               mapfrm = MapFrm
+                                 { mapResultValue = newAccArr
+                                 , mapArrElmName = n2
+                                 , mapArrValue = restArr
+                                 , mapSavedOut = savedOut
+                                 }
+                           in Just (MapFrame mapfrm : rest, initSemanticData)
                          _ -> error "the array accumulator should be an array"
                      _ -> error "the semantic value should be a Val"
             _ -> error "Unexpected For not an array"
@@ -790,7 +905,12 @@ applyControlAction gbl (ctrl, out) act =
     MapEnd ->
       case ctrl of
         [] -> error "Unexpected empty ctrl stack"
-        MapFrame ev1 _n2 ev2 savedOut: rest ->
+        MapFrame (MapFrm
+            { mapResultValue = ev1
+            , mapArrElmName = _n2
+            , mapArrValue = ev2
+            , mapSavedOut = savedOut
+            }) : rest ->
           case ev2 of
             Interp.VArray arr ->
               if Vector.null arr

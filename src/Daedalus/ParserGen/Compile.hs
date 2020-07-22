@@ -376,9 +376,8 @@ genGExpr gbl (e, st) =
           (i1, t1, f1) = dsAut $ genGram gbl gram
           trans = mkTr
             [ (n1, UniChoice (CAct (ForInit nname1 e1 nname2 e2), n2))
-            , (n2, UniChoice (EpsA, i1))
+            , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n3) ] n3)
             , (f1, UniChoice (CAct (ForNext), n2))
-            , (n2, UniChoice (CAct (ForEnd), n3))
             ]
       in mkAut n1 (unionTr trans t1) n3
     PAST.NGMap nname1 e1 gram ->
@@ -388,9 +387,8 @@ genGExpr gbl (e, st) =
           (i1, t1, f1) = dsAut $ genGram gbl gram
           trans = mkTr
             [ (n1, UniChoice (CAct (MapInit nname1 e1), n2))
-            , (n2, UniChoice (EpsA, i1))
+            , (n2, SeqChoice [ (CAct MapHasMore, i1), (CAct (MapEnd), n3) ] n3)
             , (f1, UniChoice (CAct (MapNext), n2))
-            , (n2, UniChoice (CAct (MapEnd), n3))
             ]
       in mkAut n1 (unionTr trans t1) n3
     PAST.NGCall nname le ->
