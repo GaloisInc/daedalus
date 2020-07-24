@@ -93,6 +93,7 @@ data NGExprCstr =
   | NGMap NName NVExpr NGrammar
   | NGCall NName [NVExpr]
   | NGErrorMode Commit NGrammar
+  | NGFail (Maybe NVExpr) (Maybe NVExpr) NType
   deriving (Show)
 
 type NGrammar = (NGrammarCstr, Annot)

@@ -75,6 +75,7 @@ data BranchAction =
     CutBiasAlt State
   | CutLocal
   | CutGlobal
+  | FailAction (Maybe PAST.NVExpr) (Maybe PAST.NVExpr)
 
 
 data Action =
@@ -133,6 +134,7 @@ instance Show(BranchAction) where
   show (CutBiasAlt _) = "CutBiasAlt"
   show (CutLocal)     = "CutLocal"
   show (CutGlobal)    = "CutGlobal"
+  show (FailAction _ _) = "FailAction"
 
 instance Show(Action) where
   show EpsA             = "eps"
