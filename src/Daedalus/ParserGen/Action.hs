@@ -63,6 +63,7 @@ data SemanticAction =
   | EnvStore    (Maybe PAST.NName)
   | EvalPure    PAST.NVExpr
   | ReturnBind  PAST.NVExpr
+  | DropOneOut
   | MapLookup   WithSem PAST.NVExpr PAST.NVExpr
   | MapInsert   WithSem PAST.NVExpr PAST.NVExpr PAST.NVExpr
   | CoerceCheck WithSem NType NType PAST.NVExpr
@@ -87,7 +88,7 @@ data Action =
 
 
 instance Show(InputAction) where
-  show (ClssAct _)  = "Match"
+  show (ClssAct x)  = "Match" ++ show x
   show (IEnd)       = "END"
   show (IOffset)    = "IOffset"
   show (IGetByte)   = "GetByte"
@@ -120,8 +121,9 @@ instance Show(SemanticAction) where
   show (ManyFreshList _)    = "ManyFreshList"
   show (ManyAppend  _)      = "ManyAppend"
   show (EnvStore    _)      = "EnvStore"
-  show (EvalPure    _)      = "EvalPure"
-  show (ReturnBind  _)      = "ReturnBind"
+  show (EvalPure    e)      = "EvalPure" ++ (show e)
+  show (ReturnBind  e)      = "ReturnBind" ++ (show e)
+  show (DropOneOut)         = "DropOneOut"
   show (MapLookup   _ _ _)  = "MapLookup"
   show (MapInsert   _ _ _ _) = "MapInsert"
   show (CoerceCheck _ _ _ _) = "CoerceCheck"
@@ -1021,6 +1023,10 @@ applySemanticAction gbl (ctrl, out) act =
       )
     EvalPure e -> Just (SEVal (evalVExpr gbl e ctrl out) : out)
     ReturnBind e -> Just (SEVal (evalVExpr gbl e ctrl out) : tail out)
+    DropOneOut ->
+      case out of
+        [] -> error "Should not Happen: drop on empty sem stack"
+        _ : os -> Just os
     MapLookup _ e1 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out

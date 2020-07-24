@@ -103,7 +103,10 @@ allocGExpr n gexpr =
       in allocate (PAST.NMatch ws acexpr) n 2
     NMatchBytes ws vexpr ->
       let ae = idVExpr vexpr
-      in allocate (PAST.NMatchBytes ws ae) n 2
+      in
+        case getByteArray ae of
+          Nothing -> allocate (PAST.NMatchBytes ws ae) n 2
+          Just str -> allocate (PAST.NMatchBytes ws ae) n (2 * (length str) + 2)
     NChoice c lst t ->
       let step g (ags, n') = let (ag, n1) = allocGram n' g
                              in (ag:ags, n1)
@@ -282,9 +285,33 @@ genGExpr gbl (e, st) =
           n2 = st !! 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct s (ClssAct e1), n2)) ]) n2
     PAST.NMatchBytes s e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
-      in mkAut n1 (mkTr [(n1, UniChoice (IAct s (IMatchBytes e1), n2))]) n2
+      case getByteArray e1 of
+        Nothing ->
+          let n1 = st !! 0
+              n2 = st !! 1
+          in mkAut n1 (mkTr [(n1, UniChoice (IAct s (IMatchBytes e1), n2))]) n2
+        Just w ->
+          mkAut (st !! 0) (mkTr (createTrans 0)) stSemEnd
+          where
+            strLen = length w
+            stSemStart = st !! (2*strLen)
+            stSemEnd =   st !! (2*strLen + 1)
+            createTrans index =
+              if index >= strLen
+              then
+                case s of
+                  YesSem -> [(stSemStart, UniChoice (SAct (EvalPure e1), stSemEnd))]
+                  NoSem  -> [(stSemStart, UniChoice (SAct (EvalPure PAST.NUnit), stSemEnd))]
+              else
+                let iact = ClssAct (PAST.NSetSingle (PAST.NByte (w !! index)))
+                    n0 = st !! (2 * index)
+                    n1 = st !! (2 * index + 1)
+                    n2 = st !! (2 * (index + 1))
+                    tr = [ (n0, UniChoice (IAct NoSem iact, n1))
+                         , (n1, UniChoice (SAct DropOneOut, n2))
+                         ]
+                in tr ++ createTrans (index+1)
+
     PAST.NChoice c lst _ty ->
       let lstITF = map (\ expr -> dsAut $ genGram gbl expr) lst
           n1 = st !! 0
