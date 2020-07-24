@@ -1006,7 +1006,7 @@ applySemanticAction gbl (ctrl, out) act =
         _ -> error "unexpected out, cannot proceed"
     ManyAppend NoSem ->
       case out of
-        _ : e@((SEVal (defaultValue)) : _)  -> Just e
+        _ : e@((SEVal (Interp.VStruct [])) : _)  -> Just e
         _ -> error "unexpected out, cannot proceed"
     EnvStore mname -> (
       case out of

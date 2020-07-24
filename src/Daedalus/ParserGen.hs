@@ -32,7 +32,7 @@ extractParseError orig res =
 dumpErrorInput :: BS.ByteString -> Input -> String
 dumpErrorInput orig inp =
   let ctxtAmt = 32
-      errLoc  = (inputOffset inp) - 1
+      errLoc  = (inputOffset inp)
       start = max 0 (errLoc - ctxtAmt)
       end   = errLoc + 10
       len   = end - start

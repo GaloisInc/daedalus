@@ -2,5 +2,5 @@ context:
   "Main"
 input: File context:
 Length: 7 (0x7) bytes
-0000:   61 62 63 64  72 [1;91m73[0m 5a                     abcdr[1;91ms[0mZ
+0000:   61 62 63 64  72 73 [1;91m5a[0m                     abcdrs[1;91mZ[0m
 
