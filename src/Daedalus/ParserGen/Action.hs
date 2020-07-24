@@ -2,6 +2,8 @@
 
 module Daedalus.ParserGen.Action where
 
+-- import Debug.Trace
+
 import Control.Monad(guard)
 import qualified Data.Map as Map
 import Data.Word
@@ -464,6 +466,33 @@ coerceVal ty1 ty2 v =
         _ -> error $ "TODO type: " ++ show (ty1,ty2,v)
     _ -> error $ "TODO vallue: " ++ show (ty1,ty2,v)
 
+
+isSimpleVExpr :: PAST.NVExpr -> Bool
+isSimpleVExpr e =
+  case e of
+    PAST.NCoerce _ _ _ -> False
+    PAST.NNumber _ _ -> True
+    PAST.NBool _ -> False
+    PAST.NNothing _ty -> False
+    PAST.NByte _ -> True
+    PAST.NStruct _lst _ -> False
+    PAST.NByteArray _ -> False
+    PAST.NMapEmpty _ty -> False
+    PAST.NIn _lbl _e1 _ty -> False
+    PAST.NBinOp _binop _e1 _e2 -> False
+    PAST.NUniOp _uniop _e1 -> False
+    PAST.NSelStruct _e1 _n _ty -> False
+    PAST.NIf _e1 _e2 _e3 -> False
+    PAST.NVCall _fname _lst -> False
+    PAST.NVFor _n1 _e1 _n2 _e2 _e3 -> False
+    PAST.NVar _nname -> False
+    PAST.NArray _lste _ty -> False
+    PAST.NUnit -> False
+    x -> error ("TODO: "++ show x)
+
+defaultValue :: Val
+defaultValue = Interp.VStruct []
+
 evalVExpr :: PAST.GblFuns -> PAST.NVExpr -> ControlData -> SemanticData -> Val
 evalVExpr gbl expr ctrl out =
   let eval env e =
@@ -549,7 +578,7 @@ evalVExpr gbl expr ctrl out =
           PAST.NArray lste _ty ->
             let lev = map (\ ex -> eval env ex) lste
             in Interp.VArray (Vector.fromList lev)
-          PAST.NUnit -> Interp.VStruct []
+          PAST.NUnit -> defaultValue
           x -> error ("TODO: "++ show x)
 
   in eval Nothing expr
@@ -687,7 +716,7 @@ applyInputAction gbl (inp, ctrl, out) s act =
     SetStream e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
-           Interp.VStream i1 -> Just (i1, SEVal (Interp.VStruct []) {- technically just for an invariant at the EnvStore handling -} : out)
+           Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen e1 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
@@ -715,7 +744,7 @@ applyInputAction gbl (inp, ctrl, out) s act =
         _ -> error "Not an integer for Taking"
   where
     resultWithSem YesSem i o = Just (i, o : out)
-    resultWithSem NoSem  i _ = Just (i, SEVal (Interp.VStruct []) : out)
+    resultWithSem NoSem  i _ = Just (i, SEVal (defaultValue) : out)
 
 
 
@@ -946,7 +975,7 @@ applySemanticAction gbl (ctrl, out) act =
     ManyFreshList s ->
       case s of
         YesSem -> Just (SEVal (Interp.VArray Vector.empty) : out)
-        NoSem  -> Just (SEVal (Interp.VStruct []) : out)
+        NoSem  -> Just (SEVal (defaultValue) : out)
     ManyAppend YesSem ->
       case out of
         x : (SEVal (Interp.VArray y)) : z  -> (
@@ -957,7 +986,7 @@ applySemanticAction gbl (ctrl, out) act =
         _ -> error "unexpected out, cannot proceed"
     ManyAppend NoSem ->
       case out of
-        _ : e@((SEVal (Interp.VStruct [])) : _)  -> Just e
+        _ : e@((SEVal (defaultValue)) : _)  -> Just e
         _ -> error "unexpected out, cannot proceed"
     EnvStore mname -> (
       case out of
@@ -1011,7 +1040,7 @@ applySemanticAction gbl (ctrl, out) act =
     Guard e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
-           Interp.VBool b -> if b then Just (SEVal (Interp.VBool b) : out) else Nothing
+           Interp.VBool b -> if b then Just (SEVal (defaultValue) : out) else Nothing
            _ -> error "Guard must evaluate to a boolean"
 
 
