@@ -5,6 +5,7 @@ module Daedalus.ParserGen
   , extractParseError
   , autToGraphviz
   , createDFA
+  , statsDFA
   )
 where
 
@@ -20,7 +21,7 @@ import Daedalus.ParserGen.Compile (buildAut)
 import Daedalus.ParserGen.Cfg as PGenCfg
 import Daedalus.ParserGen.RunnerBias (runnerBias, Result(..), extractValues)
 import Daedalus.ParserGen.Utils (autToGraphviz)
-import Daedalus.ParserGen.Det (createDFA)
+import Daedalus.ParserGen.Det (createDFA, statsDFA)
 
 extractParseError :: BS.ByteString -> Result -> String
 extractParseError orig res =

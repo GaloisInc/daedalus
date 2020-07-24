@@ -143,12 +143,13 @@ instance Show(Action) where
   show (SAct a)         = show a
   show (BAct a)         = show a
 
-isClassAct :: Action -> Bool
-isClassAct act =
+isClassActOrEnd :: Action -> Bool
+isClassActOrEnd act =
   case act of
     IAct _ iact ->
       case iact of
         ClssAct _ -> True
+        IEnd -> True
         _ -> False
     _ -> False
 
@@ -161,15 +162,30 @@ isNonClassInputAct act =
         _ -> True
     _ -> False
 
-getClassAct :: Action -> PAST.NCExpr
-getClassAct act =
+getClassActOrEnd :: Action -> Either PAST.NCExpr InputAction
+getClassActOrEnd act =
   case act of
     IAct _ iact ->
       case iact of
-        ClssAct ca -> ca
+        ClssAct ca -> Left ca
+        IEnd -> Right iact
         _ -> error "function should be applied on act"
     _ -> error "function should be applied on act"
 
+getMatchBytes :: Action -> Maybe  PAST.NVExpr
+getMatchBytes act =
+  case act of
+    IAct _ iact ->
+      case iact of
+        IMatchBytes e -> Just e
+        _ -> Nothing
+    _ -> Nothing
+
+getByteArray :: PAST.NVExpr -> Maybe [Word8]
+getByteArray e =
+  case e of
+    PAST.NByteArray w -> Just (BS.unpack w)
+    _ -> Nothing
 
 type Val = Interp.Value
 
