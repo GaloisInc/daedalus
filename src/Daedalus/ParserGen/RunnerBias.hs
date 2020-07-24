@@ -1,5 +1,7 @@
 module Daedalus.ParserGen.RunnerBias where
 
+-- import Debug.Trace
+
 import qualified Data.ByteString as BS
 
 import qualified Daedalus.Interp as Interp
@@ -113,6 +115,7 @@ runnerBias gbl s aut =
       step :: Action -> State -> CommitHist -> TailPath -> Result -> Result
       step act n2 idx resumption result =
         -- trace (show (getTailInfo resumption)) $
+        -- trace  (show act) $
         case resumption of
           EmptyPath -> error "Impossible"
           Level n _choice _choices (Cfg inp ctrl out n1, _res) ->
@@ -135,6 +138,11 @@ runnerBias gbl s aut =
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in -- trace ("IDX = " ++ show idx) $
                    go (newCfg, newCommitInfo, EmptyPath) updResult
+              BAct (FailAction Nothing Nothing) ->
+                let updResult = updateError n (Cfg inp ctrl out n1) result in
+                backtrack idx resumption updResult
+              BAct (FailAction _ _) ->
+                error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
@@ -150,6 +158,7 @@ runnerBias gbl s aut =
 
       backtrack :: CommitHist -> TailPath -> Result -> Result
       backtrack idx resumption result =
+        -- trace "BACKTRACK" $
         case resumption of
           EmptyPath -> result
 

@@ -6,12 +6,13 @@ import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.List (isInfixOf)
 
+
 import Daedalus.AST (Name(..))
 import Daedalus.Normalise.AST
 import Daedalus.Type.AST (WithSem(..))
 import Daedalus.AST (ManyBounds(..), Commit(..))
 
---import Debug.Trace
+-- import Debug.Trace
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
@@ -149,6 +150,10 @@ allocGExpr n gexpr =
     NGErrorMode c e1 ->
       let (ae1, n1) = allocGram n e1
       in allocate (PAST.NGErrorMode c ae1) n1 2
+    NGFail e1 e2 t ->
+      let ae1 = maybe Nothing (\ e -> Just $ idVExpr e) e1
+          ae2 = maybe Nothing (\ e -> Just $ idVExpr e) e2
+      in allocate (PAST.NGFail ae1 ae2 t) n 2
     x -> error ("TODO:"++ show x)
 
 allocGram :: Int -> NGrammar -> (PAST.NGrammar, Int)
@@ -419,6 +424,10 @@ genGExpr gbl (e, st) =
                 ]
               Backtrack -> error "not handled in ErrorMode"
       in mkAut n1 (unionTr (mkTr trans) t1) n2
+    PAST.NGFail e1 e2 _ ->
+      let n1 = st !! 0
+          n2 = st !! 1
+      in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1 e2), n2))]) n2
 
 
 genGram :: GblGrammar -> PAST.NGrammar -> Aut
