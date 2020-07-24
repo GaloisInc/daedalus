@@ -20,7 +20,7 @@ def CLEVEL ={
 def STYPE = "BF01" 
 
 def OSTAID = Choose1 { 
-  {"0000000000"; Fail};  -- ill-formed 
+  {"0000000000"; MyFail};  -- ill-formed
   Many 10 BCSA; 
 }
 

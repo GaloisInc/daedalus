@@ -20,7 +20,7 @@ def strlen s = for (len = (0 : int); c in s) (len + 1)
 -- parsers:
 
 -- Force the parser to backtrack 
-def Fail = { commit; Choose {}; }
+def MyFail = { commit; Choose {}; }
 
 def Etx = 4
 
