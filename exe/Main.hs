@@ -132,6 +132,7 @@ interpPGen inp norms =
   do let (gbl, aut) = PGen.buildAut norms
      --let dfa = PGen.createDFA aut
      --putStrLn (show dfa)
+     --putStrLn (PGen.statsDFA dfa)
      bytes <- BS.readFile inp
      --PGen.autToGraphviz aut
      let results = PGen.runnerBias gbl bytes aut
