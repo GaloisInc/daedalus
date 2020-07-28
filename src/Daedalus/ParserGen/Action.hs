@@ -219,15 +219,15 @@ data MapFrm = MapFrm
   }
 
 data ControlElm =
-    SBetween (BeetweenItv) Int -- the integer is the current counter
+    ManyFrame (BeetweenItv) Int -- the integer is the current counter
   | ForFrame ForFrm
   | MapFrame MapFrm
   | CallFrame PAST.NName State (ActivationFrame) SemanticData
   --deriving (Eq)
 
 instance Show (ControlElm) where
-  show (SBetween (CExactly i) k) = "[" ++ show i ++ "] curr:"++ show k
-  show (SBetween (CBetween i j) k) = "[" ++ show i ++ "," ++ show j ++ "] curr:"++ show k
+  show (ManyFrame (CExactly i) k) = "[" ++ show i ++ "] curr:"++ show k
+  show (ManyFrame (CBetween i j) k) = "[" ++ show i ++ "," ++ show j ++ "] curr:"++ show k
   show (ForFrame (ForFrm
                  { forResultName = n1
                  , forResultValue = v1
@@ -334,7 +334,7 @@ lookupEnvName nname ctrl out =
       case Map.lookup nname m of
         Nothing -> Nothing -- The lookup stops at a grammar call
         Just v -> Just v
-    lookupCtrl (SBetween _ _ : rest) = lookupCtrl rest
+    lookupCtrl (ManyFrame _ _ : rest) = lookupCtrl rest
     lookupCtrl _ = error "Case not handled"
 
 
@@ -779,21 +779,21 @@ applyControlAction gbl (ctrl, out) act =
         Exactly v ->
           let ev = evalVExpr gbl v ctrl out
               i = valToInt ev
-          in Just (SBetween (CExactly i) 0 : ctrl, out)
+          in Just (ManyFrame (CExactly i) 0 : ctrl, out)
         Between v1 v2 ->
           let ev1 = fmap (\v -> valToInt (evalVExpr gbl v ctrl out)) v1
               ev2 = fmap (\v -> valToInt (evalVExpr gbl v ctrl out)) v2
-          in  Just (SBetween (CBetween ev1 ev2) 0 : ctrl, out)
+          in  Just (ManyFrame (CBetween ev1 ev2) 0 : ctrl, out)
     BoundCheckSuccess ->
       case ctrl of
         [] -> error "Unexpected ctrl stack"
-        SBetween (CExactly i) cnt : rest ->
+        ManyFrame (CExactly i) cnt : rest ->
           if i == cnt
           then Just (rest, out)
           else if i < 0
                then Just (rest, out) -- case aligned with DaeDaLus interp. `Nothing` could be another option
                else Nothing
-        SBetween (CBetween i j) cnt : rest ->
+        ManyFrame (CBetween i j) cnt : rest ->
           case (i, j) of
             (Nothing, Nothing) -> Just (rest, out)
             (Nothing, Just jj) -> if jj >= cnt then Just (rest, out) else Nothing
@@ -804,9 +804,9 @@ applyControlAction gbl (ctrl, out) act =
     BoundIsMore ->
       case ctrl of
         [] -> error "Unexpected ctrl stack"
-        SBetween (CExactly i) cnt : _ ->
+        ManyFrame (CExactly i) cnt : _ ->
           if i > cnt then Just (ctrl, out) else Nothing
-        SBetween (CBetween _ j) cnt : _ ->
+        ManyFrame (CBetween _ j) cnt : _ ->
           case j of
             Nothing -> Just (ctrl, out)
             Just jj -> if jj > cnt then Just (ctrl, out) else Nothing
@@ -814,7 +814,7 @@ applyControlAction gbl (ctrl, out) act =
     BoundIncr ->
       case ctrl of
         [] -> error "Unexpected ctrl stack"
-        SBetween bound cnt : rest -> Just (SBetween bound (cnt+1) : rest, out)
+        ManyFrame bound cnt : rest -> Just (ManyFrame bound (cnt+1) : rest, out)
         _ -> error "Unexpected ctrl stack top element"
     Push name le q ->
       let evle = map (\ e -> evalVExpr gbl e ctrl out) le
