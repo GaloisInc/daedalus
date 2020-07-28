@@ -88,7 +88,7 @@ data Action =
 
 
 instance Show(InputAction) where
-  show (ClssAct x)  = "Match" ++ show x
+  show (ClssAct _)  = "Match"
   show (IEnd)       = "END"
   show (IOffset)    = "IOffset"
   show (IGetByte)   = "GetByte"
@@ -121,13 +121,13 @@ instance Show(SemanticAction) where
   show (ManyFreshList _)    = "ManyFreshList"
   show (ManyAppend  _)      = "ManyAppend"
   show (EnvStore    _)      = "EnvStore"
-  show (EvalPure    e)      = "EvalPure" ++ (show e)
-  show (ReturnBind  e)      = "ReturnBind" ++ (show e)
+  show (EvalPure    _)      = "EvalPure" -- ++ (show e)
+  show (ReturnBind  _)      = "ReturnBind" -- ++ (show e)
   show (DropOneOut)         = "DropOneOut"
   show (MapLookup   _ _ _)  = "MapLookup"
   show (MapInsert   _ _ _ _) = "MapInsert"
   show (CoerceCheck _ _ _ _) = "CoerceCheck"
-  show (SelUnion    x y lbl)  = "SelUnion" ++ " " ++ show x ++ " " ++ show y ++ " " ++ show lbl
+  show (SelUnion    _x _y _lbl)  = "SelUnion" -- ++ " " ++ show x ++ " " ++ show y ++ " " ++ show lbl
   show (SelJust     _ _)    = "SelJust"
   show (Guard       _)      = "Guard"
 

@@ -1,5 +1,7 @@
 module Daedalus.ParserGen.Utils where
 
+import System.IO
+
 import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
 
@@ -7,9 +9,12 @@ import Daedalus.ParserGen.Aut
 -- a graphical diagraph of an automaton
 autToGraphviz:: Aut -> IO ()
 autToGraphviz aut =
-  do putStrLn prelude
-     mapM_ putStrLn trans
-     putStrLn postlude
+  do
+    autFile <- openFile "aut.dot" WriteMode
+    hPutStrLn autFile prelude
+    mapM_ (hPutStrLn autFile) trans
+    hPutStrLn autFile postlude
+    hClose autFile
   where
     (_i, tr, _) = toListAut aut
     f a b =
@@ -26,8 +31,8 @@ autToGraphviz aut =
       in thestr : b
     trans = foldr f [] tr
     prelude =
-      "%%% copy this to aut.dot and dot -Tpdf aut.dot > aut.pdf %%%\n"
+      "// copy this to aut.dot and dot -Tpdf aut.dot > aut.pdf \n"
       ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
     makeEdge start arriv label =
       start ++ " -> " ++ arriv ++ " [ label=" ++ label ++ " ];"
-    postlude = "}" ++ "\n%%% dot -Tpdf aut.dot > aut.pdf " -- "f.view()\n"
+    postlude = "}" ++ "\n// dot -Tpdf aut.dot > aut.pdf " -- "f.view()\n"
