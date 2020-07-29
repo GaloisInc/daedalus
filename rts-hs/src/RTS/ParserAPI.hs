@@ -1,8 +1,8 @@
 {-# Language RecordWildCards, DataKinds, RankNTypes, OverloadedStrings #-}
-module RTS.ParserAPI where
+module RTS.ParserAPI (module RTS.ParserAPI, Input) where
 
 import Control.Exception
-import Control.Monad(when, unless, guard, replicateM_)
+import Control.Monad(when, unless, replicateM_)
 import Data.Word
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.Maybe(isJust)
@@ -12,6 +12,7 @@ import Text.PrettyPrint hiding ((<>))
 
 import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
+import RTS.Input
 import qualified RTS.Vector as Vector
 
 data Result a = NoResults ParseError
@@ -31,60 +32,6 @@ type SourceRange = String
 
 data ErrorMode = Abort | Fail
   deriving Show
-
---------------------------------------------------------------------------------
--- | This is the representation of a stream.
--- XXX: Add more info about where the stram came from.
-data Input = Input
-  { inputBytes  :: {-# UNPACK #-} !ByteString
-  , inputOffset :: !Int
-    -- ^ Index of next character
-  }
-
-instance Eq Input where
-  x == y = view x == view y
-    where view i = (inputOffset i, BS.length (inputBytes i))
-
-instance Ord Input where
-  compare x y = compare (view x) (view y)
-    where view i = (inputOffset i, BS.length (inputBytes i))
-
-instance Show Input where
-  show Input { .. } =
-    "Stream { off = " ++ show inputOffset ++
-           ", len = " ++ show (BS.length inputBytes) ++
-           "}"
-
--- | Limit the input to the given number of bytes.
--- Fails if there aren't enough bytes.
-limitLen :: Integer -> Input -> Maybe Input
-limitLen n' i =
-  do n <- toInt n'
-     let bs = inputBytes i
-     guard (0 <= n && n <= BS.length bs)
-     pure i { inputBytes = BS.take n bs }
-{-# INLINE limitLen #-}
-
-
--- | Advance the input by the ginve number of bytes.
--- Fails if we don't have enough bytes, although it is ok to
--- get to the very end of the input.
-advanceBy :: Integer -> Input -> Maybe Input
-advanceBy n' i =
-  do n <- toInt n'
-     let bs = inputBytes i
-     guard (0 <= n && n <= BS.length bs)
-     pure Input { inputBytes  = BS.drop n bs
-                , inputOffset = inputOffset i + n
-                }
-{-# INLINE advanceBy #-}
-
-
-arrayStream :: Vector (UInt 8) -> Input
-arrayStream v = Input { inputOffset = 0, inputBytes = Vector.vecToRep v }
-{-# INLINE arrayStream #-}
-
---------------------------------------------------------------------------------
 
 
 
@@ -128,13 +75,16 @@ bcRange x' y' = ClassVal (\c -> x <= c && c <= y)
 
 
 --------------------------------------------------------------------------------
-data ParseError = PE { peOffset  :: !Int
+data ParseError = PE { peInput   :: !Input
                      , peStack   :: ![String]
                      , peGrammar :: ![SourceRange]
                      , peMsg     :: !String
                      , peSource  :: !ParseErrorSource
                      , peMore    :: !(Maybe ParseError)
                      } deriving Show
+
+peOffset :: ParseError -> Int
+peOffset = inputOffset . peInput
 
 data ParseErrorSource = FromUser | FromSystem
   deriving Show
@@ -156,8 +106,8 @@ joinErr :: ParseError -> ParseError -> ParseError
 joinErr = (<>)
 
 ppParseError :: ParseError -> Doc
-ppParseError PE { .. } =
-  brackets ("offset:" <+> int peOffset) $$
+ppParseError pe@PE { .. } =
+  brackets ("offset:" <+> int (peOffset pe)) $$
   nest 2 (bullets
            [ text peMsg, gram
            , "context:" $$ nest 2 (bullets (reverse (map text peStack)))
@@ -201,11 +151,13 @@ class Monad p => BasicParser p where
 
 pMatch :: BasicParser p => SourceRange -> Vector (UInt 8) -> p (Vector (UInt 8))
 pMatch = \r bs ->
-  do Input { .. } <- pPeek
-     let check i b =
+  do inp <- pPeek
+     let check _i b =
            do b1 <- pByte r
-              unless (b == uint8 b1) (pErrorAt FromSystem [r] (inputOffset + i)
-                                                    ("expected " ++ show bs) )
+              unless (b == uint8 b1)
+                     (pErrorAt FromSystem [r] inp ("expected " ++ show bs) )
+     -- XXX: instad of matching one at a time we should check for prefix
+     -- and advance the stream?
      Vector.imapM_ check bs
      pure bs
 {-# INLINE pMatch #-}
@@ -214,9 +166,9 @@ pMatch = \r bs ->
 
 pError' :: BasicParser p => ParseErrorSource -> [SourceRange] -> String -> p a
 pError' src rs m =
-  do off <- pOffset
-     s   <- pStack
-     pFail PE { peOffset  = off - 1
+  do i <- pPeek
+     s <- pStack
+     pFail PE { peInput   = i
               , peStack   = s
               , peGrammar = rs
               , peMsg     = m
@@ -231,10 +183,10 @@ pError src r m = pError' src [r] m
 
 
 pErrorAt ::
-  BasicParser p => ParseErrorSource -> [SourceRange] -> Int -> String -> p a
-pErrorAt src r off m =
+  BasicParser p => ParseErrorSource -> [SourceRange] -> Input -> String -> p a
+pErrorAt src r inp m =
   do s <- pStack
-     pFail PE { peOffset  = off
+     pFail PE { peInput   = inp
               , peStack   = s
               , peGrammar = r
               , peMsg     = m
@@ -246,10 +198,12 @@ pErrorAt src r off m =
 -- | Check that the vector has at least that many elements.
 pMinLength :: (VecElem a, BasicParser p) =>
               SourceRange -> Integer -> p (Vector a) -> p (Vector a)
-pMinLength rng n p =
+pMinLength rng need p =
   do as <- p
-     unless (toInteger (Vector.length as) >= n) $
-       pError FromSystem rng "Not enough entries"
+     let have = toInteger (Vector.length as)
+     unless (have >= need) $
+       pError FromSystem rng
+         $ "Not enough entries, found " ++ show have ++ ", but need at least " ++ show need
      pure as
 
 type Commit p = forall a. p a -> p a -> p a

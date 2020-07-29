@@ -5,7 +5,6 @@ module XRef where
 
 import Data.Char(isSpace,isNumber)
 import qualified Data.Map as Map
-import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Control.Monad(unless,foldM)
 import Control.Applicative((<|>))
@@ -13,6 +12,7 @@ import GHC.Records(HasField, getField)
 
 import RTS.Vector(Vector,toList,VecElem)
 import RTS.Numeric
+import RTS.Input(advanceBy)
 
 import PdfMonad
 import PdfParser
@@ -20,13 +20,8 @@ import PdfParser
 
 -- | Construct the xref table.
 parseXRefs ::
-  DbgMode => ByteString -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs bs off0 = runParser
-                        bs
-                        Map.empty
-                        (go Nothing (Just off0))
-                        Input { inputBytes = bs, inputOffset = 0 }
-
+  DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
+parseXRefs inp off0 = runParser Map.empty (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
@@ -36,11 +31,15 @@ parseXRefs bs off0 = runParser
          Nothing -> pError FromUser "parseXRefs.go" "Missing document root."
 
   go mbRoot (Just offset) =
-    do pSetInput Input { inputBytes = BS.drop offset bs, inputOffset = offset }
-       refSec <- pCrossRef
-       case refSec of
-         CrossRef_oldXref x -> goWith mbRoot x
-         CrossRef_newXref x -> goWith mbRoot x
+    case advanceBy (toInteger offset) inp of
+      Just i ->
+        do pSetInput i
+           refSec <- pCrossRef
+           case refSec of
+             CrossRef_oldXref x -> goWith mbRoot x
+             CrossRef_newXref x -> goWith mbRoot x
+      Nothing -> pError FromUser "parseXRefs.go"
+                  ("Offset out of bounds: " ++ show offset)
 
   goWith :: ( VecElem s
             , HasField "trailer" x TrailerDict

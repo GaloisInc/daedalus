@@ -26,10 +26,7 @@ evalG gram env =
       do pSetInput $! fromVInput $ eval e env
          pure VUnit
 
-    Fail src _ mbLoc mbMsg ->
-      case mbLoc of
-        Nothing -> pError' dsrc [] msg
-        Just l  -> pErrorAt dsrc [] (fromInteger (fromVInt (eval l env))) msg
+    Fail src _ mbMsg -> pError' dsrc [] msg
       where
       dsrc = case src of
                ErrorFromUser   -> FromUser

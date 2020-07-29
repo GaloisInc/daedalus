@@ -394,6 +394,8 @@ hsValue env tc =
         BitwiseAnd  -> bin "RTS.bitAnd"
         BitwiseOr   -> bin "RTS.bitOr"
         BitwiseXor  -> bin "RTS.bitXor"
+
+        ArrayStream -> bin "RTS.arrayStream"
       where
       bin x = x `Ap` hsValue env v1 `Ap` hsValue env v2
       binI x = ApI x (hsValue env v1) (hsValue env v2)
@@ -404,7 +406,6 @@ hsValue env tc =
         Neg               -> "RTS.neg" `Ap` hsValue env v
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
-        ArrayStream       -> "RTS.arrayStream" `Ap` hsValue env v
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as
@@ -486,21 +487,14 @@ hsGrammar env tc =
   let erng = hsRange (range tc)
   in
   case texprValue tc of
-     TCFail mbL mbE _ ->
-        case (mbL,mbE) of
-          (Nothing,Nothing) ->
+     TCFail mbE _ ->
+        case mbE of
+          Nothing ->
             "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
                          `Ap` hsText "Parse error"
-          (Nothing,Just e) ->
+          Just e ->
             "RTS.pError" `Ap` "RTS.FromUser" `Ap` erng
                          `Ap` ("Vector.vecToString" `Ap` hsValue env e)
-          (Just l,Nothing) ->
-             "RTS.pErrorAt" `Ap` "RTS.FromUser" `Ap` List [erng]
-                            `Ap` hsValue env l `Ap` hsText "Parse error"
-          (Just l,Just e) ->
-            "RTS.pErrorAt" `Ap` "RTS.FromUser" `Ap` List [erng]
-                           `Ap` hsValue env l
-                           `Ap` ("Vector.vecToString" `Ap` hsValue env e)
 
      TCPure e -> "HS.pure" `Ap` hsValue env e
      TCDo mb m1 m2
@@ -745,8 +739,9 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , Import "GHC.Records"   (QualifyAs "HS")
                  , Import "Control.Monad" (QualifyAs "HS")
                  , Import "RTS"           (QualifyAs "RTS")
-                 , Import "RTS.Vector"    (QualifyAs "Vector")
+                 , Import "RTS.Input"     (QualifyAs "RTS")
                  , Import "RTS.Map"       (QualifyAs "Map")
+                 , Import "RTS.Vector"    (QualifyAs "Vector")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)

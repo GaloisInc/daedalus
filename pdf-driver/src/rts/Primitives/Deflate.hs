@@ -2,6 +2,7 @@
 module Primitives.Deflate (flateDecode) where
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Lazy as LBS
 import Data.List(uncons)
 
@@ -9,6 +10,8 @@ import System.IO.Unsafe(unsafePerformIO)
 import Control.Exception(evaluate,try)
 import Codec.Compression.Zlib(decompress)
 import Codec.Compression.Zlib.Internal(DecompressError(..))
+
+import RTS.Input
 
 import PdfMonad.Transformer
 
@@ -18,9 +21,10 @@ flateDecode :: PdfParser m =>
 flateDecode predi colors bpc cols inp =
   case strictDecompress (inputBytes inp) of
     Right a -> do bs <- unPredict predi colors bpc cols a
-                  pure Input { inputBytes = bs, inputOffset = 0 }
+                  pure (newInput name bs)
                   -- XXX: better indicattion of where these bytes came from.
     Left err -> pError FromUser "Deflate.flateDecode" (show err)
+  where name = C.pack ("FlateDecode" ++ show (inputOffset inp))
 
 strictDecompress :: B.ByteString -> Either DecompressError B.ByteString
 strictDecompress =

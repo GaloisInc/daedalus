@@ -10,8 +10,7 @@ data Parser :: Type -> Type
 
 pdfMain :: (DbgMode => IO ()) -> IO ()
 
-runParser :: DbgMode =>
-             ByteString -> ObjIndex -> Parser a -> Input -> IO (PdfResult a)
+runParser :: DbgMode => ObjIndex -> Parser a -> Input -> IO (PdfResult a)
 
 instance Functor Parser
 instance Applicative Parser

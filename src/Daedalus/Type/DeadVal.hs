@@ -235,7 +235,7 @@ declareMatchFun mfs dcl =
 mbSem :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 mbSem tc =
   case texprValue tc of
-    TCFail e1 e2 _ -> pure (tc, tcFree e1 <> tcFree e2)
+    TCFail e _ -> pure (tc, tcFree e)
 
     TCPure e -> pure (tc, tcFree e)
 
@@ -319,8 +319,7 @@ noSem' :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 noSem' tc =
   case texprValue tc of
 
-     TCFail e1 e2 _ -> pure (exprAt tc (TCFail e1 e2 tUnit),
-                                                    tcFree e1 <> tcFree e2)
+     TCFail e _ -> pure (exprAt tc (TCFail e tUnit), tcFree e)
 
      TCPure _ -> pure (noSemPure tc, mempty)
 

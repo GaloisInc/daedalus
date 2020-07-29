@@ -16,7 +16,7 @@ INFO: R:10:0 @3032 is OK.
 INFO: R:11:0 @3232 is OK.
 INFO: R:12:0 @3269 is OK.
 INFO: R:13:0 @5945 is OK.
-ERROR:6703 R:14:0 @6419 guard failed
+ERROR:6704 R:14:0 @6419 guard failed
 INFO: R:15:0 @6705 is OK.
 INFO: R:16:0 @7245 is OK.
 INFO: R:17:0 @7506 is OK.
@@ -29,7 +29,7 @@ INFO: R:23:0 @15644 is OK.
 INFO: R:24:0 @15887 is OK.
 INFO: R:25:0 @17284 is OK.
 INFO: R:26:0 @17369 is OK.
-ERROR:22106 R:27:0 @17513 guard failed
+ERROR:22107 R:27:0 @17513 guard failed
 INFO: R:28:0 @22108 is OK.
 INFO: R:29:0 @22219 is OK.
 INFO: R:30:0 @22378 is OK.

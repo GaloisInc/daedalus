@@ -150,8 +150,7 @@ normaliseG' tc =
 
     TCPure v           -> NGPure (normaliseV v)
     TCDo   {}   -> panic "impossible" []
-    TCFail mbL mbM t -> NGFail (normaliseV <$> mbL) (normaliseV <$> mbM)
-                                                    (ntype t)
+    TCFail mbM t -> NGFail (normaliseV <$> mbM) (ntype t)
 
 -- FIXME: we can strip units here as well
 

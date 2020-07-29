@@ -7,7 +7,7 @@ INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @86 is OK.
 INFO: R:3:0 @713 is OK.
 WARNING: R:4:0 @825 has URIs.
-ERROR:1176 R:5:0 @1066 guard failed
+ERROR:1177 R:5:0 @1066 guard failed
 INFO: R:6:0 @1178 is OK.
 INFO: R:7:0 @1283 is OK.
 INFO: R:8:0 @1388 is OK.
@@ -15,11 +15,11 @@ INFO: R:9:0 @1501 is OK.
 INFO: R:10:0 @1630 is OK.
 INFO: R:11:0 @1772 is OK.
 INFO: R:12:0 @15210 is OK.
-ERROR:15495 R:13:0 @15280 guard failed
-ERROR:61913 R:14:0 @15497 guard failed
+ERROR:15496 R:13:0 @15280 guard failed
+ERROR:61914 R:14:0 @15497 guard failed
 INFO: R:15:0 @61915 is OK.
 INFO: R:16:0 @64182 is OK.
-ERROR:64715 R:17:0 @64579 guard failed
+ERROR:64716 R:17:0 @64579 guard failed
 INFO: R:18:0 @64717 is OK.
 INFO: R:19:0 @92804 is OK.
 INFO: R:20:0 @92874 is OK.

@@ -18,7 +18,8 @@ import Data.Parameterized.NatRepr
 
 import Daedalus.Panic(panic)
 
-import RTS.ParserAPI(Input(..))
+import RTS.Input as RTS
+import RTS.Vector(vecFromRep)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -96,21 +97,17 @@ evalOp1 op e env =
           _         -> VNothing t
 
       IsEmptyStream ->
-        VBool $ BS.null $ inputBytes $ fromVInput v
+        VBool $ inputEmpty $ fromVInput v
 
       Head ->
-        vByte $ BS.head $ inputBytes $ fromVInput v
+        case inputByte (fromVInput v) of
+          Just (w,_) -> vByte w
 
       StreamOffset ->
         VInt $ toInteger $ inputOffset $ fromVInput v
 
       StreamLen ->
-        VInt $ toInteger $ BS.length $ inputBytes $ fromVInput v
-
-      ArrayStream ->
-        VInput Input { inputBytes = fromVByteArray v
-                     , inputOffset = 0
-                     }
+        VInt $ toInteger $ inputLength $ fromVInput v
 
       OneOf bs ->
         VBool $ isJust $ BS.elemIndex (fromVByte v) bs
@@ -282,21 +279,17 @@ evalOp2 op e1 e2 env =
 
        Drop ->
         let n   = fromVInt v1
-            n'  = fromInteger n
             i   = fromVInput v2
-        in if n <= toInteger (BS.length (inputBytes i))
-             then VInput Input { inputBytes = BS.drop n' (inputBytes i)
-                               , inputOffset = inputOffset i + n'
-                               }
-             else panic "evalOp2.Drop" [ "Not enough bytes." ]
+        in case advanceBy n i of
+             Just i' -> VInput i'
+             Nothing -> panic "evalOp2.Drop" [ "Not enough bytes." ]
 
        Take ->
         let n   = fromVInt v1
             i   = fromVInput v2
-        in if n <= toInteger (BS.length (inputBytes i))
-             then VInput i { inputBytes = BS.take (fromInteger n)
-                                                  (inputBytes i) }
-             else panic "evalOp2.Take" [ "Not enough bytes." ]
+        in case limitLen n i of
+             Just i' -> VInput i'
+             _       -> panic "evalOp2.Take" [ "Not enough bytes." ]
 
        Eq       -> VBool (v1 == v2)
        NotEq    -> VBool (v1 /= v2)
@@ -385,6 +378,11 @@ evalOp2 op e1 e2 env =
        -- map is 1st
        MapMember -> VBool $ Map.member v2 $ fromVMap v1
 
+
+       ArrayStream ->
+         let name  = fromVByteArray v1
+             bytes = fromVByteArray v2
+         in VInput (newInput name bytes)
 
 
 bitOp2 :: (forall w. BV w -> BV w -> BV w) -> Value -> Value -> Value

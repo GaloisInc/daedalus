@@ -87,7 +87,7 @@ data NGExpr =
   | NGMap              (Maybe NName) NName NVExpr NGrammar
   | NGCall NName [NVExpr]
   | NGErrorMode Commit NGrammar
-  | NGFail (Maybe NVExpr) (Maybe NVExpr) NType
+  | NGFail (Maybe NVExpr) NType
   deriving (Show)
 
 data NGrammar =
@@ -279,11 +279,10 @@ instance PP NGExpr where
                      Commit    -> "Commit"
                      Backtrack -> "Try"
 
-      NGFail mbLoc mbMsg _ ->
-        case (mbLoc, mbMsg) of
-          (Nothing,Nothing) -> "Fail"
-          _ -> wrapIf (n > 0) ("Fail" <+> ppMb mbLoc <+> ppMb mbMsg)
-        where ppMb = maybe empty (ppPrec 1)
+      NGFail mbMsg _ ->
+        case mbMsg of
+          Nothing -> "Fail"
+          Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
 
 instance PP NGrammar where

@@ -22,6 +22,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
+import Data.Text.Encoding(encodeUtf8)
 import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 
 import Data.Map(Map)
@@ -40,6 +41,7 @@ import Daedalus.Interp.Value
 
 
 import RTS.ParserAPI
+import RTS.Input
 import RTS.ParserT as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
@@ -120,8 +122,6 @@ evalUniOp op v =
         VUInt n x -> VUInt n (2 ^ n - x - 1)
         r         -> panic "expecting a uint" [show (pp r)]
 
-    ArrayStream -> VStream Input { inputBytes = bs, inputOffset = 0 }
-      where bs = valueToByteString v
 
 
 evalBinOp :: BinOp -> Value -> Value -> Value
@@ -163,6 +163,10 @@ evalBinOp op v1 v2 =
     BitwiseAnd -> bitwiseOp (.&.)
     BitwiseOr  -> bitwiseOp (.|.)
     BitwiseXor -> bitwiseOp xor
+
+    ArrayStream -> VStream (newInput nm bs)
+      where nm = valueToByteString v1
+            bs = valueToByteString v2
 
   where
   bitwiseOp f =
@@ -499,14 +503,11 @@ compileExpr env = go
                     Backtrack -> (|||)
       in
       case texprValue expr of
-        TCFail mbL mbM _ ->
-          case (mbLoc,mbMsg) of
-            (Nothing,Nothing)  -> pError FromSystem erng "Parse error"
-            (Nothing,Just msg) -> pError FromUser erng msg
-            (Just l, Nothing)  -> pErrorAt FromUser [erng] l "Parse error"
-            (Just l, Just msg) -> pErrorAt FromUser [erng] l msg
+        TCFail mbM _ ->
+          case mbMsg of
+            Nothing  -> pError FromSystem erng "Parse error"
+            Just msg -> pError FromUser erng msg
           where
-          mbLoc = fromInteger . valueToInteger . compilePureExpr env <$> mbL
           mbMsg = BS8.unpack . valueToByteString . compilePureExpr env <$> mbM
 
         TCPure e -> pure $! compilePureExpr env e
@@ -537,27 +538,22 @@ compileExpr env = go
                             pure (VStruct [])
 
         TCStreamLen sem n s ->
-          let vn = fromIntegral (valueToInteger (compilePureExpr env n)) -- XXX
-              vs = valueToStream  (compilePureExpr env s)
-              bs = inputBytes vs
-          in if vn <= BS.length bs
-                then pure $ mbSkip sem
-                          $ VStream vs { inputBytes = BS.take vn bs }
-                else pError FromSystem erng
-                        ("Not enough bytes: need " ++ show vn
-                                      ++ ", have " ++ show (BS.length bs))
+          let vn = valueToInteger (compilePureExpr env n)
+              vs = valueToStream (compilePureExpr env s)
+          in case limitLen vn vs of
+               Just i  -> pure $ mbSkip sem $ VStream i
+               Nothing -> pError FromSystem erng
+                             ("Not enough bytes: need " ++ show vn
+                                         ++ ", have " ++ show (inputLength vs))
 
         TCStreamOff sem n s ->
-          let vn = fromIntegral (valueToInteger (compilePureExpr env n)) -- XXX
+          let vn = valueToInteger (compilePureExpr env n)
               vs = valueToStream  (compilePureExpr env s)
-              bs = inputBytes vs
-          in if vn <= BS.length bs
-                then pure $ mbSkip sem
-                          $ VStream vs { inputBytes = BS.drop vn bs
-                                       , inputOffset = inputOffset vs + vn }
-                else pError FromSystem erng
-                         ("Offset out of bounds: offset" ++ show vn
-                                      ++ ", have " ++ show (BS.length bs))
+          in case advanceBy vn vs of
+               Just i  -> pure $ mbSkip sem $ VStream i
+               Nothing -> pError FromSystem erng
+                             ("Offset out of bounds: offset " ++ show vn
+                                      ++ ", have " ++ show (inputLength vs))
 
 
 
@@ -764,21 +760,21 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
 
     allRules = concatMap (map recToList . tcModuleDecls) prog
 
-interpCompiled :: ByteString -> Env -> ScopedIdent -> Result Value
-interpCompiled bytes env startName = 
+interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> Result Value
+interpCompiled name bytes env startName =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScope x == startName] of
     (rl : _)        -> runIdentity $
-                       P.runParserT (rl [] []) Input { inputBytes = bytes
-                                                     , inputOffset = 0
-                                                     }
+                       P.runParserT (rl [] [])
+                       (newInput name bytes)
     []              -> error ("Unknown start rule: " ++ show startName)
 
 
-interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ]
-       -> ByteString -> [TCModule a] -> ScopedIdent -> Result Value
-interp builtins bytes prog startName =
-  interpCompiled bytes env startName
+interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
+          ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
+          Result Value
+interp builtins nm bytes prog startName =
+  interpCompiled nm bytes env startName
   where
     env = compile builtins prog
 
@@ -787,7 +783,8 @@ interpFile :: HasRange a => FilePath -> [TCModule a] -> ScopedIdent ->
 interpFile input prog startName = do
   bytes <- if input == "-" then BS.getContents
                            else BS.readFile input
-  return (bytes, interp builtins bytes prog startName)
+  let nm = encodeUtf8 (Text.pack input)
+  return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]
 

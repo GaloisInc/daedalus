@@ -3,14 +3,14 @@ INFO:610262 Found xref table.
 INFO: 103 xref entries.
 INFO: Root reference is R:11:0
 ERROR: Catalog is malformed.
-ERROR:115 R:1:0 @15 guard failed
+ERROR:116 R:1:0 @15 guard failed
 INFO: R:2:0 @117 is OK.
 INFO: R:3:0 @396 is OK.
 INFO: R:4:0 @598 is OK.
 INFO: R:5:0 @745 is OK.
 INFO: R:6:0 @892 is OK.
 INFO: R:7:0 @1040 is OK.
-ERROR:1336 R:8:0 @1189 guard failed
+ERROR:1337 R:8:0 @1189 guard failed
 INFO: R:9:0 @1338 is OK.
 INFO: R:10:0 @1487 is OK.
 INFO: R:11:0 @1637 is OK.
@@ -23,7 +23,7 @@ INFO: R:17:0 @9219 is OK.
 INFO: R:18:0 @10871 is OK.
 INFO: R:19:0 @12377 is OK.
 INFO: R:20:0 @14048 is OK.
-ERROR:17474 R:21:0 @15785 guard failed
+ERROR:17475 R:21:0 @15785 guard failed
 INFO: R:22:0 @17476 is OK.
 INFO: R:23:0 @19319 is OK.
 INFO: R:24:0 @19555 is OK.
@@ -41,16 +41,16 @@ INFO: R:35:0 @36811 is OK.
 INFO: R:36:0 @44824 is OK.
 INFO: R:37:0 @45333 is OK.
 INFO: R:38:0 @45530 is OK.
-ERROR:47401 R:39:0 @45787 guard failed
-ERROR:48172 R:40:0 @47403 guard failed
-ERROR:48457 R:41:0 @48174 guard failed
+ERROR:47402 R:39:0 @45787 guard failed
+ERROR:48173 R:40:0 @47403 guard failed
+ERROR:48458 R:41:0 @48174 guard failed
 INFO: R:42:0 @48459 is OK.
 INFO: R:43:0 @87980 is OK.
 INFO: R:44:0 @88125 is OK.
 INFO: R:45:0 @88909 is OK.
 INFO: R:46:0 @89164 is OK.
 INFO: R:47:0 @104614 is OK.
-ERROR:105867 R:48:0 @105295 guard failed
+ERROR:105868 R:48:0 @105295 guard failed
 INFO: R:49:0 @105869 is OK.
 INFO: R:50:0 @106125 is OK.
 INFO: R:51:0 @109381 is OK.
@@ -62,7 +62,7 @@ INFO: R:56:0 @123992 is OK.
 INFO: R:57:0 @141583 is OK.
 INFO: R:58:0 @141754 is OK.
 INFO: R:59:0 @142006 is OK.
-ERROR:143532 R:60:0 @143362 guard failed
+ERROR:143533 R:60:0 @143362 guard failed
 INFO: R:61:0 @143534 is OK.
 INFO: R:62:0 @143787 is OK.
 INFO: R:63:0 @152599 is OK.
@@ -81,7 +81,7 @@ INFO: R:75:0 @416758 is OK.
 INFO: R:76:0 @421970 is OK.
 INFO: R:77:0 @422227 is OK.
 INFO: R:78:0 @434173 is OK.
-ERROR:577193 R:79:0 @577044 guard failed
+ERROR:577194 R:79:0 @577044 guard failed
 INFO: R:80:0 @577195 is OK.
 INFO: R:81:0 @586337 is OK.
 INFO: R:82:0 @586560 is OK.

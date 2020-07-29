@@ -193,8 +193,8 @@ data TCF :: HS -> Ctx -> HS where
 
 
    TCErrorMode :: Commit -> TC a Grammar -> TCF a Grammar
-   TCFail :: Maybe (TC a Value) -> Maybe (TC a Value) -> Type -> TCF a Grammar
-      -- Custom error message: location (integer), message (byte array)
+   TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
+      -- Custom error message: message (byte array)
 
 deriving instance Show a => Show (TCF a k)
 
@@ -418,6 +418,9 @@ instance PP (TCF a k) where
       TCTriOp op e1 e2 e3 _ ->
         wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3)
 
+      TCBinOp op@ArrayStream e1 e2 _ ->
+          wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2)
+
       TCBinOp op e1 e2 _ ->
           wrapIf (n > 0) (ppPrec 1 e1 <+> pp op <+> ppPrec 1 e2)
 
@@ -462,11 +465,10 @@ instance PP (TCF a k) where
                      Commit    -> "Commit"
                      Backtrack -> "Try"
 
-      TCFail mbLoc mbMsg _ ->
-        case (mbLoc, mbMsg) of
-          (Nothing,Nothing) -> "Fail"
-          _ -> wrapIf (n > 0) ("Fail" <+> ppMb mbLoc <+> ppMb mbMsg)
-        where ppMb = maybe empty (ppPrec 1)
+      TCFail mbMsg _ ->
+        case mbMsg of
+          Nothing  -> "Fail"
+          Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
 instance PP a => PP (Poly a) where
   ppPrec n (Poly xs cs a) =
@@ -809,7 +811,6 @@ instance TypeOf (TCF a k) where
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e
-          ArrayStream -> tStream
 
 
       TCSelStruct _ _ t  -> t
@@ -833,7 +834,7 @@ instance TypeOf (TCF a k) where
       TCStreamOff _ _ _   -> tGrammar tStream
 
       TCErrorMode _ p     -> typeOf p
-      TCFail _ _ t        -> tGrammar t
+      TCFail _ t          -> tGrammar t
 
 declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =

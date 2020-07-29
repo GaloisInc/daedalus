@@ -7,6 +7,8 @@ import System.Exit(exitFailure)
 import System.Console.ANSI
 import Hexdump
 import Text.Show.Pretty(pPrint)
+import qualified Data.Text as Text
+import Data.Text.Encoding(encodeUtf8)
 
 import Midi(pMain)
 import RTS.Parser(runParser)
@@ -20,6 +22,7 @@ main =
        [f] -> do bs <- BS.readFile f
                  let inp = Input { inputBytes  = bs
                                  , inputOffset = 0
+                                 , inputName   = encodeUtf8 (Text.pack f)
                                  }
                  case runParser pMain inp of
                    r@(NoResults err) -> do pPrint err

@@ -20,7 +20,8 @@ import Daedalus.Normalise.AST
 import Daedalus.Type.AST (WithSem(..))
 import qualified Daedalus.Interp as Interp
 import Daedalus.AST (ManyBounds(..), TypeF(..))
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..))
+import qualified RTS.Input as Input
 
 import qualified Daedalus.ParserGen.AST as PAST
 
@@ -76,7 +77,7 @@ data BranchAction =
     CutBiasAlt State
   | CutLocal
   | CutGlobal
-  | FailAction (Maybe PAST.NVExpr) (Maybe PAST.NVExpr)
+  | FailAction (Maybe PAST.NVExpr)
 
 
 data Action =
@@ -136,7 +137,7 @@ instance Show(BranchAction) where
   show (CutBiasAlt _) = "CutBiasAlt"
   show (CutLocal)     = "CutLocal"
   show (CutGlobal)    = "CutGlobal"
-  show (FailAction _ _) = "FailAction"
+  show (FailAction _) = "FailAction"
 
 instance Show(Action) where
   show EpsA             = "eps"
@@ -278,10 +279,7 @@ showCallStack ctrl =
 
 
 getByte :: Input -> Maybe (Word8,Input)
-getByte Input { .. } =
-  do (w,bs) <- BS.uncons inputBytes
-     let i1 = Input { inputBytes = bs, inputOffset = inputOffset + 1 }
-     i1 `seq` pure (w, i1)
+getByte = Input.inputByte
 
 -- Lookup in the semantic data first, and then the control
 lookupEnvName :: PAST.NName -> ControlData -> SemanticData -> Val
@@ -676,25 +674,13 @@ evalCExpr gbl expr x ctrl out =
 -- | Limit the input to the given number of bytes.
 -- Fails if there aren't enough bytes.
 limitLen :: Integer -> Input -> Maybe Input
-limitLen n' i =
-  do n <- Just (fromIntegral n')
-     let bs = inputBytes i
-     guard (0 <= n && n <= BS.length bs)
-     pure i { inputBytes = BS.take n bs }
-
+limitLen = Input.limitLen
 
 -- copy from rts-hs/src/RTS/ParserAPI.hs
 -- Fails if we don't have enough bytes, although it is ok to
 -- get to the very end of the input.
 advanceBy :: Integer -> Input -> Maybe Input
-advanceBy n' i =
-  do n <- Just (fromIntegral n')
-     let bs = inputBytes i
-     guard (0 <= n && n <= BS.length bs)
-     pure Input { inputBytes  = BS.drop n bs
-                , inputOffset = inputOffset i + n
-                }
-
+advanceBy = Input.advanceBy
 
 applyInputAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> WithSem -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) s act =
@@ -725,7 +711,7 @@ applyInputAction gbl (inp, ctrl, out) s act =
              case limitLen len inp of
                Nothing -> Nothing
                Just inp1 ->
-                 if BS.unpack (inputBytes inp1) == map (\v -> toEnum (valToInt v)) (Vector.toList vec)
+                 if BS.unpack (Input.inputBytes inp1) == map (\v -> toEnum (valToInt v)) (Vector.toList vec)
                  then let i = fromJust $ advanceBy len inp
                           o = SEVal (Interp.VArray vec)
                       in resultWithSem s i o

@@ -14,7 +14,7 @@ import qualified Data.ByteString as BS
 import System.Console.ANSI
 import Hexdump
 
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..))
 
 import Daedalus.ParserGen.Action (showCallStack)
 import Daedalus.ParserGen.Compile (buildAut)

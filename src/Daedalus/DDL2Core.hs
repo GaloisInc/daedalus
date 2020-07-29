@@ -73,7 +73,7 @@ addDeclName TC.TCDecl { .. } =
 
 
 sysErr :: Type -> String -> Grammar
-sysErr t msg = Fail ErrorFromSystem t Nothing (Just (byteArrayL (BS8.pack msg)))
+sysErr t msg = Fail ErrorFromSystem t (Just (byteArrayL (BS8.pack msg)))
 
 fromDecl :: TC.TCDecl a -> M (Either (Fun Expr) (Fun Grammar))
 fromDecl TC.TCDecl { .. }
@@ -125,10 +125,8 @@ fromGrammar :: TC.TC a TC.Grammar -> M Grammar
 fromGrammar gram =
   case TC.texprValue gram of
 
-    TC.TCFail mbL mbE t ->
-      Fail ErrorFromUser <$> fromTypeM t
-                         <*> traverse fromExpr mbL
-                         <*> traverse fromExpr mbE
+    TC.TCFail mbE t ->
+      Fail ErrorFromUser <$> fromTypeM t <*> traverse fromExpr mbE
 
     TC.TCPure e ->
       Pure <$> fromExpr e
@@ -685,7 +683,6 @@ fromExpr expr =
                 TC.Neg -> neg e
                 TC.Concat -> eConcat e
                 TC.BitwiseComplement -> bitNot e
-                TC.ArrayStream -> arrayStream e
 
     TC.TCBinOp op v1 v2 _ ->
       do e1 <- fromExpr v1
@@ -709,6 +706,8 @@ fromExpr expr =
                 TC.BitwiseAnd   -> bitAnd e1 e2
                 TC.BitwiseOr    -> bitOr e1 e2
                 TC.BitwiseXor   -> bitXor e1 e2
+
+                TC.ArrayStream  -> arrayStream e1 e2
 
 
     TC.TCTriOp op v1 v2 v3 _ ->

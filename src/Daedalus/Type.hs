@@ -15,7 +15,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable(for)
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -421,12 +420,6 @@ inferExpr expr =
     EUniOp op e ->
       case op of
 
-        ArrayStream ->
-          valueOnly expr
-          do (e1,t) <- inferExpr e
-             unify (tArray tByte) (e,t)
-             pure (exprAt expr (TCUniOp ArrayStream e1), tStream)
-
         Not ->
           do ctxt <- getContext
              case ctxt of
@@ -490,6 +483,16 @@ inferExpr expr =
 
     EBinOp op e1 e2 ->
       case op of
+        ArrayStream ->
+          valueOnly expr
+          do (e1',t1) <- inferExpr e1
+             (e2',t2) <- inferExpr e2
+             unify (tArray tByte) (e1',t1)
+             unify (tArray tByte) (e2',t2)
+             pure (exprAt expr (TCBinOp op e1' e2' tStream), tStream)
+
+
+
         LCat ->
           valueOnly expr
           do (e1',t1) <- inferExpr e1
@@ -959,17 +962,13 @@ inferExpr expr =
       do (e1,t) <- inContext AValue (inferExpr e)
          pure (exprAt expr (TCPure e1), tGrammar t)
 
-    EFail mbL msg ->
+    EFail msg ->
       grammarOnly expr $
       inContext AValue
-      do mbL' <- for mbL \e ->
-                    do (e',t) <- inferExpr e
-                       unify tInteger (e',t)
-                       pure e'
-         (msgE,msgT) <- inferExpr msg
+      do (msgE,msgT) <- inferExpr msg
          unify (tArray tByte) (msgE,msgT)
          a <- newTVar expr KValue
-         pure (exprAt expr (TCFail mbL' (Just msgE) a), tGrammar a)
+         pure (exprAt expr (TCFail (Just msgE) a), tGrammar a)
 
     EInRange e1 e2 ->
       do ctxt <- getContext

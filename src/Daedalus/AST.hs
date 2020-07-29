@@ -157,8 +157,8 @@ data ExprF e =
   | EArrayLength !e
   | EArrayIndex  !e !e  -- x[y], partial so a grammar
 
-  | EPure       !e
-  | EFail !(Maybe e) !e
+  | EPure !e
+  | EFail !e
 
   | EFor !(FLoopFlav e) !(Maybe Name) !Name !e !e
 
@@ -196,10 +196,10 @@ data TriOp = RangeUp | RangeDown
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
            | LShift | RShift | BitwiseAnd | BitwiseOr | BitwiseXor
+           | ArrayStream
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
-          | ArrayStream
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -330,6 +330,7 @@ instance PP BinOp where
       BitwiseAnd -> ".&."
       BitwiseOr  -> ".|."
       BitwiseXor -> ".^."
+      ArrayStream -> "arrayStream"
 
 instance PP UniOp where
   pp op =
@@ -338,7 +339,6 @@ instance PP UniOp where
       Neg    -> "-"
       Concat -> "concat"
       BitwiseComplement -> "~"
-      ArrayStream -> "arrayStream"
 
 instance PP Selector where
   pp sel = case sel of

@@ -21,6 +21,7 @@ import Data.Map(Map)
 import RTS.Base
 import RTS.Numeric
 import RTS.Vector
+import RTS.Input
 import RTS.ParserAPI
 
 class Convert a b where

@@ -5,12 +5,12 @@ INFO: Root reference is R:9:0
 INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @104 is OK.
-ERROR:1055 R:3:0 @815 guard failed
+ERROR:1056 R:3:0 @815 guard failed
 INFO: R:4:0 @1057 is OK.
 INFO: R:5:0 @1263 is OK.
 INFO: R:6:0 @1476 is OK.
 INFO: R:7:0 @1678 is OK.
-ERROR:2073 R:8:0 @1880 guard failed
+ERROR:2074 R:8:0 @1880 guard failed
 INFO: R:9:0 @2075 is OK.
 INFO: R:10:0 @2279 is OK.
 INFO: R:11:0 @2375 is OK.
@@ -27,15 +27,15 @@ INFO: R:21:0 @54626 is OK.
 INFO: R:22:0 @98214 is OK.
 INFO: R:23:0 @98367 is OK.
 INFO: R:24:0 @99413 is OK.
-ERROR:134515 R:25:0 @99618 guard failed
+ERROR:134516 R:25:0 @99618 guard failed
 INFO: R:26:0 @134517 is OK.
-ERROR:136713 R:27:0 @136681 guard failed
+ERROR:136714 R:27:0 @136681 guard failed
 INFO: R:28:0 @136715 is OK.
-ERROR:136905 R:29:0 @136810 guard failed
+ERROR:136906 R:29:0 @136810 guard failed
 INFO: R:30:0 @136907 is OK.
 WARNING: R:31:0 @137006 has URIs.
 INFO: R:32:0 @137092 is OK.
-ERROR:137614 R:33:0 @137300 guard failed
+ERROR:137615 R:33:0 @137300 guard failed
 INFO: R:34:0 @137616 is OK.
 INFO: R:35:0 @137774 is OK.
 INFO: R:36:0 @138819 is OK.
@@ -58,7 +58,7 @@ INFO: R:52:0 @269065 is OK.
 INFO: R:53:0 @269269 is OK.
 INFO: R:54:0 @270445 is OK.
 INFO: R:55:0 @270642 is OK.
-ERROR:270955 R:56:0 @270930 guard failed
+ERROR:270956 R:56:0 @270930 guard failed
 INFO: R:57:0 @270957 is OK.
 WARNING: R:58:0 @271053 has URIs.
 INFO: R:59:0 @271132 is OK.

@@ -14,6 +14,7 @@ import Data.IORef(IORef, newIORef, readIORef, modifyIORef',writeIORef)
 import PdfMonad.Transformer as T
 import qualified RTS.ParserT as RTS
 import qualified RTS.WithTreeT as RTS
+import RTS.Input
 
 type DbgMode =
   ( ?breakOnByte :: IORef (Set Int)
@@ -69,13 +70,12 @@ instance Monad DbgM where
 
 
 
-runParser :: DbgMode =>
-             ByteString -> ObjIndex -> Parser a -> Input -> IO (PdfResult a)
-runParser allBs objMap pars i =
+runParser :: DbgMode => ObjIndex -> Parser a -> Input -> IO (PdfResult a)
+runParser objMap pars i =
   do let P m = pars -- shell "Start parser" >> pars
      tree <- readIORef ?treeRef
      res <- runDbgM (RTS.runParserT
-                      (RTS.runWithTreeT tree (runPdfT allBs objMap m)) i)
+                      (RTS.runWithTreeT tree (runPdfT i objMap m)) i)
      case res of
        NoResults err -> pure (ParseErr err)
        Results ans ->

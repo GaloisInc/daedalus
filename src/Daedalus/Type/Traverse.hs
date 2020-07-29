@@ -143,9 +143,7 @@ instance TraverseTypes (TCF a k) where
       TCStreamOff se n s   -> TCStreamOff se <$> traverseTypes f n
                                              <*> traverseTypes f s
       TCErrorMode m p      -> TCErrorMode m <$> traverseTypes f p
-      TCFail mbL mbM t     -> TCFail <$> traverseTypes f mbL
-                                     <*> traverseTypes f mbM
-                                     <*> f t
+      TCFail mbM t         -> TCFail <$> traverseTypes f mbM <*> f t
 
 instance TraverseTypes (Arg a) where
   traverseTypes f arg =
@@ -325,8 +323,7 @@ traverseTCF f = go
 
         TCErrorMode m p     -> TCErrorMode m <$> f p
 
-        TCFail mbL mbM t ->
-          TCFail <$> traverse f mbL <*> traverse f mbM <*> pure t
+        TCFail mbM t -> TCFail <$> traverse f mbM <*> pure t
 
 traverseArg :: Applicative f => (forall s. TC a s -> f (TC b s)) ->
                                 Arg a -> f (Arg b)

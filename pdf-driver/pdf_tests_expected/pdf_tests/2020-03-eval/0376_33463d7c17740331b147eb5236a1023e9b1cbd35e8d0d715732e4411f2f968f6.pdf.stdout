@@ -12,11 +12,11 @@ INFO: R:6:0 @696 is OK.
 INFO: R:7:0 @809 is OK.
 INFO: R:8:0 @926 is OK.
 INFO: R:9:0 @1066 is OK.
-ERROR:14571 R:10:0 @14503 guard failed
+ERROR:14572 R:10:0 @14503 guard failed
 INFO: R:11:0 @14573 is OK.
 INFO: R:12:0 @14790 is OK.
 INFO: R:13:0 @61208 is OK.
-ERROR:63870 R:14:0 @63475 guard failed
+ERROR:63871 R:14:0 @63475 guard failed
 INFO: R:15:0 @63872 is OK.
 INFO: R:16:0 @64010 is OK.
 INFO: R:17:0 @92097 is OK.

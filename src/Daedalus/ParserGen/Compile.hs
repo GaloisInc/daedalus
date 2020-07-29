@@ -153,10 +153,9 @@ allocGExpr n gexpr =
     NGErrorMode c e1 ->
       let (ae1, n1) = allocGram n e1
       in allocate (PAST.NGErrorMode c ae1) n1 2
-    NGFail e1 e2 t ->
+    NGFail e1 t ->
       let ae1 = maybe Nothing (\ e -> Just $ idVExpr e) e1
-          ae2 = maybe Nothing (\ e -> Just $ idVExpr e) e2
-      in allocate (PAST.NGFail ae1 ae2 t) n 2
+      in allocate (PAST.NGFail ae1 t) n 2
     x -> error ("TODO:"++ show x)
 
 allocGram :: Int -> NGrammar -> (PAST.NGrammar, Int)
@@ -451,10 +450,10 @@ genGExpr gbl (e, st) =
                 ]
               Backtrack -> error "not handled in ErrorMode"
       in mkAut n1 (unionTr (mkTr trans) t1) n2
-    PAST.NGFail e1 e2 _ ->
+    PAST.NGFail e1 _ ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1 e2), n2))]) n2
+      in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
 
 
 genGram :: GblGrammar -> PAST.NGrammar -> Aut

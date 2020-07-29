@@ -5,14 +5,14 @@ INFO: Root reference is R:4:0
 INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @74 is OK.
-ERROR:476 R:3:0 @372 guard failed
+ERROR:477 R:3:0 @372 guard failed
 INFO: R:4:0 @478 is OK.
 INFO: R:5:0 @527 is OK.
 INFO: R:6:0 @612 is OK.
-ERROR:851 R:7:0 @719 guard failed
+ERROR:852 R:7:0 @719 guard failed
 INFO: R:8:0 @853 is OK.
 INFO: R:9:0 @888 is OK.
-ERROR:3619 R:10:0 @3600 guard failed
+ERROR:3620 R:10:0 @3600 guard failed
 INFO: R:11:0 @3621 is OK.
 INFO: R:12:0 @4285 is OK.
 INFO: R:13:0 @4546 is OK.
@@ -22,7 +22,7 @@ INFO: R:16:0 @38374 is OK.
 INFO: R:17:0 @38640 is OK.
 INFO: R:18:0 @61208 is OK.
 INFO: R:19:0 @61230 is OK.
-ERROR:61906 R:20:0 @61639 guard failed
+ERROR:61907 R:20:0 @61639 guard failed
 INFO: R:21:0 @61908 is OK.
 INFO: R:22:0 @74154 is OK.
 INFO: R:23:0 @74176 is OK.

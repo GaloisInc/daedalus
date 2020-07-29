@@ -2,7 +2,7 @@ module Daedalus.ParserGen.Cfg where
 
 import qualified Data.ByteString as BS
 
-import RTS.ParserAPI(Input(..))
+import RTS.Input(newInput)
 
 import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData)
 import Daedalus.ParserGen.Aut (Aut, initials, isAccepting, isAcceptingEps)
@@ -23,8 +23,7 @@ initCfg s aut =
   where
     initOut = []
     initCtrl = []
-    initInput = Input { inputBytes = s, inputOffset = 0}
-
+    initInput = newInput BS.empty s
 
 -- Decides if a configuration is accepting. input, stack and state
 -- accepting.

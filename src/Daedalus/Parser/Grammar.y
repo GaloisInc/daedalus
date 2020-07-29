@@ -305,8 +305,7 @@ call_expr                                :: { Expr }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 
-  | 'Fail' aexpr                            { at ($1,$2) (EFail Nothing $2) }
-  | 'Fail' aexpr aexpr                      { at ($1,$3) (EFail (Just $2) $3) }
+  | 'Fail' aexpr                            { at ($1,$2) (EFail $2) }
 
   | '!' aexpr                               { at ($1,$2) (EUniOp Not $2) }
   | '~' aexpr                               { at ($1,$2)
@@ -328,7 +327,10 @@ call_expr                                :: { Expr }
   | 'rangeDown' aexpr aexpr aexpr           { mkRngDown3 $1 $2 $3 $4 }
 
   | 'try' aexpr                             { at ($1,$2) (ETry $2) }
-  | 'arrayStream' aexpr                     { at ($1,$2)(EUniOp ArrayStream $2)}
+  | 'arrayStream' aexpr         { at ($1,$2)(EBinOp ArrayStream
+                                              (at ($1,$2) (EBytes "array"))
+                                              $2) }
+  | 'arrayStream' aexpr aexpr   { at ($1,$3)(EBinOp ArrayStream $2 $3)}
 
 
 

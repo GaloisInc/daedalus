@@ -6,14 +6,17 @@ import qualified Data.ByteString.Char8 as C
 import Data.Word 
 import Data.Char (ord) 
 
+import RTS.Input
+
 import PdfMonad.Transformer
 
 
 asciiHexDecode :: PdfParser m => Input -> m Input 
 asciiHexDecode inp =
   case hexDecode (inputBytes inp) of 
-    Just bs -> pure Input { inputBytes = bs, inputOffset = 0 }
+    Just bs -> pure (newInput name bs)
     Nothing -> pError FromUser "ASCIIHex.asciiHexDecode" "Unknown error" 
+  where name = C.pack ("ASCII" ++ show (inputOffset inp))
 
 -- XXX: thread errors through here properly 
 hexDecode :: B.ByteString -> Maybe B.ByteString 

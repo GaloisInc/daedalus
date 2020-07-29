@@ -25,6 +25,7 @@ library
                        RTS.WithTreeT,
                        RTS.Vector,
                        RTS.Map,
+                       RTS.Input,
                        RTS.Base,
                        RTS.ByteRanges
   build-depends:       base >=4.13 && <4.14,

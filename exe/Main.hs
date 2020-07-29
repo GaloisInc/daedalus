@@ -8,7 +8,6 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         )
 import Control.Monad(when)
 import System.FilePath hiding (normalise)
-import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
@@ -24,6 +23,7 @@ import Daedalus.SourceRange
 import Daedalus.Driver
 
 import qualified RTS.ParserAPI as RTS
+import qualified RTS.Input as RTS
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Interp
@@ -120,8 +120,8 @@ handleOptions opts
 interpInterp ::
   FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) -> IO ()
 interpInterp inp prog (m,i) =
-  do (bs,res) <- interpFile inp prog (ModScope m i)
-     dumpResult bs res
+  do (_,res) <- interpFile inp prog (ModScope m i)
+     dumpResult res
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
@@ -158,14 +158,15 @@ inputHack opts =
 
 
 
-dumpResult :: PP a => ByteString -> RTS.Result a -> IO ()
-dumpResult bs r =
+dumpResult :: PP a => RTS.Result a -> IO ()
+dumpResult r =
   case r of
 
    RTS.NoResults err ->
      do putStrLn "--- Parse error: "
         print (RTS.ppParseError err)
         let ctxtAmt = 32
+            bs      = RTS.inputTopBytes (RTS.peInput err)
             errLoc  = RTS.peOffset err
             start = max 0 (errLoc - ctxtAmt)
             end   = errLoc + 10

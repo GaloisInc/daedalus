@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import Control.Monad(liftM,ap)
 
 import RTS.ParserAPI
+import RTS.Input
 
 
 data R = R { refObj :: {-# UNPACK #-} !Int
@@ -31,7 +32,7 @@ data ObjLoc = InFileAt !Int   -- ^ At this index
 newtype PdfT m a = P (RO -> RW -> m (a,RW))
 
 data RO = RO
-  { roAllBytes  :: ByteString
+  { roTopInput  :: Input
   , roObjMap    :: ObjIndex
   , roResolving :: Set R        -- ^ we are currently resolving these
   }
@@ -45,10 +46,10 @@ data PdfResult a = ParseOk a
                  | ParseAmbig [a]
                  | ParseErr ParseError
 
-runPdfT :: Functor m => ByteString -> ObjIndex -> PdfT m a -> m a
-runPdfT allBs objMap (P m) = fst <$> m ro rw
+runPdfT :: Functor m => Input -> ObjIndex -> PdfT m a -> m a
+runPdfT inp objMap (P m) = fst <$> m ro rw
   where
-  ro = RO { roAllBytes = allBs, roObjMap = objMap, roResolving = Set.empty }
+  ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty }
   rw = RW { rwValidated = Map.empty }
 {-# INLINE runPdfT #-}
 
@@ -61,7 +62,7 @@ class BasicParser m => PdfParser m where
   resolving       :: R -> m a -> m a
   extendObjIndex  :: ObjIndex -> m a -> m a
   getObjIndex     :: m ObjIndex
-  getTopBytes     :: m ByteString
+  getTopInput     :: m Input
   isValidated     :: R -> ByteString -> m Bool
   startvalidating :: R -> ByteString -> m ()
 
@@ -77,7 +78,7 @@ instance BasicParser m => PdfParser (PdfT m) where
 
   getObjIndex = P \RO { .. } s -> pure (roObjMap,s)
 
-  getTopBytes = P \RO { .. } s -> pure (roAllBytes,s)
+  getTopInput = P \RO { .. } s -> pure (roTopInput,s)
 
   isValidated r b = P \_ s ->
     case Map.lookup r (rwValidated s) of
@@ -95,7 +96,7 @@ instance BasicParser m => PdfParser (PdfT m) where
   {-# INLINE resolving  #-}
   {-# INLINE getObjIndex #-}
   {-# INLINE extendObjIndex #-}
-  {-# INLINE getTopBytes #-}
+  {-# INLINE getTopInput #-}
 
 
 instance Monad m => Functor (PdfT m) where

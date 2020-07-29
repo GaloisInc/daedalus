@@ -160,7 +160,7 @@ instance TypeOf Grammar where
       Pure e          -> typeOf e
       GetStream       -> TStream
       SetStream _     -> TUnit
-      Fail _ t _ _    -> t
+      Fail _ t _      -> t
       Do_ _ g         -> typeOf g
       Do  _ _ g       -> typeOf g
       Let _ _ g       -> typeOf g

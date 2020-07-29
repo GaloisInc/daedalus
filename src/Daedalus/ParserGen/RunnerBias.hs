@@ -138,10 +138,10 @@ runnerBias gbl s aut =
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in -- trace ("IDX = " ++ show idx) $
                    go (newCfg, newCommitInfo, EmptyPath) updResult
-              BAct (FailAction Nothing Nothing) ->
+              BAct (FailAction Nothing) ->
                 let updResult = updateError n (Cfg inp ctrl out n1) result in
                 backtrack idx resumption updResult
-              BAct (FailAction _ _) ->
+              BAct (FailAction _) ->
                 error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) act of

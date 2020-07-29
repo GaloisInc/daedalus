@@ -4,6 +4,8 @@ module PdfDriver(main) where
 import CommandLine
 
 import Data.Text () -- IsString
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Map(Map)
@@ -16,6 +18,7 @@ import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate)
 import RTS.Vector(vecFromRep,vecToString)
+import RTS.Input
 
 import Common
 import PdfMonad
@@ -99,6 +102,7 @@ fawFormat = Format
 fmtDriver :: DbgMode => Format -> FilePath -> IO ()
 fmtDriver fmt file =
   do bs <- BS.readFile file
+     let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      onStart fmt file bs
      idx <- case findStartXRef bs of
               Left err -> xrefMissing fmt err >> exitFailure
@@ -106,7 +110,7 @@ fmtDriver fmt file =
 
      xrefFound fmt idx
      (refs, trail) <-
-       parseXRefs bs idx >>= \res ->
+       parseXRefs topInput idx >>= \res ->
          case res of
            ParseOk a    -> pure a
            ParseAmbig _ -> error "BUG: Ambiguous XRef table."
@@ -121,14 +125,13 @@ fmtDriver fmt file =
                Just r -> pure r
      rootFound fmt root
 
-     let input = Input { inputBytes  = bs, inputOffset = 0 }
-     res <- runParser bs refs (pCatalogIsOK root) input
+     res <- runParser refs (pCatalogIsOK root) topInput
      case res of
        ParseOk ok    -> catalogOK fmt ok
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     mapM_ (checkDecl fmt bs refs) (Map.toList refs)
+     mapM_ (checkDecl fmt topInput refs) (Map.toList refs)
 
 
 
@@ -143,28 +146,31 @@ data DeclResult' a = DeclResult
                       , declResult     :: a
                       }
 
-parseDecl :: DbgMode => ByteString -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
-parseDecl bs refMap (ref,loc) =
+parseDecl :: DbgMode => Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
+parseDecl topInput refMap (ref,loc) =
   do start  <- getCPUTime
-     result <- evaluate =<< runParser bs refMap parser input
+     result <- evaluate =<< runParser refMap parser topInput
      end    <- getCPUTime
      pure DeclResult { declTime = fromIntegral ((end-start) `div` (10^(6::Int)))
                      , declCompressed = compressed
                      , declResult = result
                     }
   where
-  (input,parser,compressed) =
+  (parser,compressed) =
     case loc of
 
       InFileAt off ->
-        ( Input { inputBytes  = BS.drop off bs, inputOffset = off }
-        , pTopDeclCheck (toInteger (refObj ref)) (toInteger (refGen ref))
+        ( case advanceBy (toInteger off) topInput of
+            Just i -> do pSetInput i
+                         pTopDeclCheck (toInteger (refObj ref))
+                                       (toInteger (refGen ref))
+            Nothing -> pError' FromUser []
+                       ("XRef entry outside file: " ++ show off)
         , False
         )
 
       InObj o idx ->
-        ( Input { inputBytes  = bs, inputOffset = 0 }
-        , pResolveObjectStreamEntryCheck (toInteger (refObj ref))
+        ( pResolveObjectStreamEntryCheck (toInteger (refObj ref))
                                          (toInteger (refGen ref))
                                          (toInteger (refObj o))
                                          (toInteger (refGen o))
@@ -176,10 +182,9 @@ parseDecl bs refMap (ref,loc) =
 
 
 
-checkDecl ::
-  DbgMode => Format -> ByteString -> ObjIndex -> (R, ObjLoc) -> IO ()
-checkDecl fmt bs refMap d@(ref,loc) =
-  do res <- parseDecl bs refMap d
+checkDecl :: DbgMode => Format -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
+checkDecl fmt topInput refMap d@(ref,loc) =
+  do res <- parseDecl topInput refMap d
      case declResult res of
        ParseAmbig {} -> error "BUG: Ambiguous parse?"
        ParseErr e    -> declErr fmt ref loc res { declResult = e }
@@ -190,13 +195,15 @@ driver :: DbgMode => Options -> IO ()
 driver opts = runReport opts $ 
   do let file = optPDFInput opts
      bs   <- liftIO (BS.readFile file)
+     let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
+
      idx  <- case findStartXRef bs of
                Left err  -> reportCritical file 0
                                             ("unable to find %%EOF" <+> parens (text err))
                Right idx -> return idx
 
      (refs, root) <-
-            liftIO (parseXRefs bs idx) >>= \res ->
+            liftIO (parseXRefs topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
@@ -208,23 +215,20 @@ driver opts = runReport opts $
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     let input = Input { inputBytes  = bs
-                       , inputOffset = 0
-                       }
-     res <- liftIO (runParser bs refs (pCatalogIsOK root) input)
+     res <- liftIO (runParser refs (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseOk False -> report RUnsafe file 0 "Catalog (page tree) contains cycles"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     parseObjs file bs refs
+     parseObjs file topInput refs
 
-parseObjs :: DbgMode => FilePath -> BS.ByteString -> ObjIndex -> ReportM ()
-parseObjs fileN bs refMap = mapM_ doOne (Map.toList refMap)
+parseObjs :: DbgMode => FilePath -> Input -> ObjIndex -> ReportM ()
+parseObjs fileN topInput refMap = mapM_ doOne (Map.toList refMap)
   where
   doOne d@(ref,_) =
-    do res <- liftIO (parseDecl bs refMap d)
+    do res <- liftIO (parseDecl topInput refMap d)
        let sayTimed cl msg =
              do let timeMsg = parens (hcat [int (declTime res), "us"])
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)

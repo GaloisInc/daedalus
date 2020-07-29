@@ -6,6 +6,8 @@ import qualified Data.ByteString.Char8 as C
 import Data.Word 
 import Data.Char (ord) 
 
+import RTS.Input
+
 import PdfMonad.Transformer
 
 -- List of whitespace characters
@@ -14,8 +16,10 @@ isWS = [' ']
 ascii85Decode :: PdfParser m => Input -> m Input 
 ascii85Decode inp = 
   case a85Decode (inputBytes inp) of 
-    Just bs -> do pure Input { inputBytes = bs, inputOffset = 0 } 
+    Just bs -> pure (newInput name bs)
     Nothing -> pError FromUser "ASCII85.ascii85Decode" "Unknown error"  
+  where
+  name = C.pack ("ASCII85" ++ show (inputOffset inp))
 
 a85Decode :: B.ByteString -> Maybe B.ByteString 
 a85Decode bs =

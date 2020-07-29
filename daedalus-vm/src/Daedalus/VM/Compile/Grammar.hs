@@ -29,7 +29,7 @@ compile expr next0 =
       compileE e $ Just $ nextYes next
 
     -- XXX: Don't ignore the errors
-    Src.Fail _ _ _ _ ->
+    Src.Fail _ _ _ ->
       pure
         do stmt_$ NoteFail
            nextNo next

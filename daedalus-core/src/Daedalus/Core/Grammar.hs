@@ -9,7 +9,7 @@ data Grammar =
     Pure Expr
   | GetStream
   | SetStream Expr
-  | Fail ErrorSource Type (Maybe Expr) (Maybe Expr)
+  | Fail ErrorSource Type (Maybe Expr)
   | Do_ Grammar Grammar
   | Do  Name Grammar Grammar
   | Let Name Expr Grammar
@@ -31,7 +31,7 @@ instance PP Grammar where
       Pure e         -> "pure" <+> ppPrec 1 e
       GetStream      -> "getStream"
       SetStream e    -> "setStream" <+> ppPrec 1 e
-      Fail src t e1 e2 -> ppTApp 0 ("fail" <.> suff) [t] <+> ppMb e1 <+> ppMb e2
+      Fail src t e   -> ppTApp 0 ("fail" <.> suff) [t] <+> ppMb e
         where suff = case src of
                        ErrorFromUser    -> "_user"
                        ErrorFromSystem  -> "_sys"

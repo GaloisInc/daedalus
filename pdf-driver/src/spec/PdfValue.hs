@@ -19,8 +19,9 @@ import qualified GHC.TypeLits as HS
 import qualified GHC.Records as HS
 import qualified Control.Monad as HS
 import qualified RTS as RTS
-import qualified RTS.Vector as Vector
+import qualified RTS.Input as RTS
 import qualified RTS.Map as Map
+import qualified RTS.Vector as Vector
  
  
 data ContentStreamOp

@@ -6,12 +6,12 @@ ERROR: Catalog is malformed.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @92 is OK.
 INFO: R:3:0 @198 is OK.
-ERROR:438 R:4:0 @320 guard failed
+ERROR:439 R:4:0 @320 guard failed
 INFO: R:5:0 @440 is OK.
 INFO: R:6:0 @560 is OK.
 INFO: R:7:0 @682 is OK.
 INFO: R:8:0 @910 is OK.
-ERROR:1110 R:9:0 @990 guard failed
+ERROR:1111 R:9:0 @990 guard failed
 INFO: R:10:0 @1112 is OK.
 INFO: R:11:0 @1238 is OK.
 INFO: R:12:0 @2334 is OK.

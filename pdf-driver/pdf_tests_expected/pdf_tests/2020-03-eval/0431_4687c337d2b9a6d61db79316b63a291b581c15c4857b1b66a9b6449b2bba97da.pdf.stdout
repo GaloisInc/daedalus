@@ -26,7 +26,7 @@ INFO: R:20:0 @14674 is OK.
 INFO: R:21:0 @14882 is OK.
 INFO: R:22:0 @46352 is OK.
 INFO: R:23:0 @46374 is OK.
-ERROR:46978 R:24:0 @46396 expected "endstream"
+ERROR:46975 R:24:0 @46396 expected "endstream"
 INFO: R:25:0 @46982 is OK.
 INFO: R:26:0 @47002 is OK.
 INFO: R:27:0 @47161 is OK.
@@ -50,7 +50,7 @@ INFO: R:44:0 @81607 is OK.
 INFO: R:45:0 @81837 is OK.
 INFO: R:46:0 @90701 is OK.
 INFO: R:47:0 @90723 is OK.
-ERROR:91102 R:48:0 @90744 expected "endstream"
+ERROR:91099 R:48:0 @90744 expected "endstream"
 INFO: R:49:0 @91106 is OK.
 INFO: R:50:0 @91126 is OK.
 INFO: R:51:0 @91379 is OK.

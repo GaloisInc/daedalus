@@ -258,7 +258,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
 
       EQuiet e        -> EQuiet    <$> resolve e
       EPure e         -> EPure     <$> resolve e
-      EFail mbL msg   -> EFail     <$> traverse resolve mbL <*> resolve msg
+      EFail msg       -> EFail     <$> resolve msg
 
       EBytes _        -> pure expr
       EByte _         -> pure expr

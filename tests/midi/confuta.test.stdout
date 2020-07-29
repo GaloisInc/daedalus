@@ -195,11 +195,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 516 len: 1]
+                                          , data: Stream { off  = 516, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 521 len: 5]}}
+              , event: {meta : {name : Stream { off  = 521, len  = 5, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 0[4]
@@ -771,11 +771,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 909 len: 1]
+                                          , data: Stream { off  = 909, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 914 len: 11]}}
+              , event: {meta : {name : Stream { off  = 914, len  = 11, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 1[4]
@@ -8157,11 +8157,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 5365 len: 1]
+                                          , data: Stream { off  = 5365, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 5370 len: 13]}}
+              , event: {meta : {name : Stream { off  = 5370, len  = 13, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 2[4]
@@ -9922,11 +9922,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 6451 len: 1]
+                                          , data: Stream { off  = 6451, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 6456 len: 18]}}
+              , event: {meta : {name : Stream { off  = 6456, len  = 18, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 3[4]
@@ -14808,11 +14808,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 9480 len: 1]
+                                          , data: Stream { off  = 9480, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 9485 len: 7]}}
+              , event: {meta : {name : Stream { off  = 9485, len  = 7, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 4[4]
@@ -16514,11 +16514,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 10586 len: 1]
+                                          , data: Stream { off  = 10586, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 10591 len: 7]}}
+              , event: {meta : {name : Stream { off  = 10591, len  = 7, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 5[4]
@@ -16910,11 +16910,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 10878 len: 1]
+                                          , data: Stream { off  = 10878, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 10883 len: 6]}}
+              , event: {meta : {name : Stream { off  = 10883, len  = 6, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 6[4]
@@ -18920,11 +18920,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 12186 len: 1]
+                                          , data: Stream { off  = 12186, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 12191 len: 6]}}
+              , event: {meta : {name : Stream { off  = 12191, len  = 6, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 7[4]
@@ -20240,11 +20240,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 13057 len: 1]
+                                          , data: Stream { off  = 13057, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 13062 len: 9]}}
+              , event: {meta : {name : Stream { off  = 13062, len  = 9, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 8[4]
@@ -21936,11 +21936,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14146 len: 1]
+                                          , data: Stream { off  = 14146, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14151 len: 7]}}
+              , event: {meta : {name : Stream { off  = 14151, len  = 7, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {voiceMessage : { channel: 10[4]
@@ -22152,11 +22152,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14310 len: 1]
+                                          , data: Stream { off  = 14310, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14315 len: 30]}}
+              , event: {meta : {name : Stream { off  = 14315, len  = 30, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22164,11 +22164,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14361 len: 1]
+                                          , data: Stream { off  = 14361, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14366 len: 16]}}
+              , event: {meta : {name : Stream { off  = 14366, len  = 16, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22176,11 +22176,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14398 len: 1]
+                                          , data: Stream { off  = 14398, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14403 len: 24]}}
+              , event: {meta : {name : Stream { off  = 14403, len  = 24, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22188,11 +22188,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14443 len: 1]
+                                          , data: Stream { off  = 14443, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14448 len: 23]}}
+              , event: {meta : {name : Stream { off  = 14448, len  = 23, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22200,11 +22200,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14487 len: 1]
+                                          , data: Stream { off  = 14487, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14492 len: 12]}}
+              , event: {meta : {name : Stream { off  = 14492, len  = 12, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22212,11 +22212,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14520 len: 1]
+                                          , data: Stream { off  = 14520, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14525 len: 20]}}
+              , event: {meta : {name : Stream { off  = 14525, len  = 20, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}
@@ -22224,11 +22224,11 @@
             ]
           , [ { after: 0
               , event: {meta : {unknown : { type: '!'
-                                          , data: [stream| off: 14561 len: 1]
+                                          , data: Stream { off  = 14561, len  = 1, name = "inputs/confuta.midi"}
                                           }}}
               }
             , { after: 0
-              , event: {meta : {name : [stream| off: 14566 len: 16]}}
+              , event: {meta : {name : Stream { off  = 14566, len  = 16, name = "inputs/confuta.midi"}}}
               }
             , { after: 0
               , event: {meta : {end_track : { }}}

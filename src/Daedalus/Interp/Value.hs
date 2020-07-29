@@ -13,7 +13,7 @@ import Data.Bits(shiftL, (.&.))
 
 import Daedalus.PP hiding (empty)
 import Daedalus.Type.AST hiding (Value)
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..))
 
 data Value =
     VUInt !Int {- nbits -} !Integer
@@ -216,8 +216,7 @@ instance PP Value where
       VMap m -> block "{|" ", " "|}"
                 [ ppPrec 1 k <+> "->" <+> ppPrec 1 v | (k,v) <- Map.toList m ]
 
-      VStream i -> brackets $
-                  "stream|" <+>
-                  "off:" <+> pp (inputOffset i) <+>
-                  "len:" <+> pp (BS.length (inputBytes i))
+      VStream i -> text (show i)
+
+
 

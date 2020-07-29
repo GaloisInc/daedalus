@@ -2,13 +2,13 @@ INFO: File size 97737 bytes.
 INFO:96417 Found xref table.
 INFO: 61 xref entries.
 INFO: Root reference is R:16:0
-ERROR:-1 guard failed
+ERROR:0 guard failed
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @153 is OK.
-ERROR:560 R:3:0 @335 guard failed
+ERROR:561 R:3:0 @335 guard failed
 INFO: R:4:0 @562 is OK.
 INFO: R:5:0 @739 is OK.
-ERROR:1093 R:6:0 @917 guard failed
+ERROR:1094 R:6:0 @917 guard failed
 INFO: R:7:0 @1095 is OK.
 INFO: R:8:0 @1273 is OK.
 INFO: R:9:0 @1451 is OK.
@@ -18,13 +18,13 @@ INFO: R:12:0 @1987 is OK.
 INFO: R:13:0 @2166 is OK.
 INFO: R:14:0 @2345 is OK.
 INFO: R:15:0 @2524 is OK.
-ERROR:2752 R:16:0 @2703 guard failed
+ERROR:2753 R:16:0 @2703 guard failed
 INFO: R:17:0 @2754 is OK.
 INFO: R:18:0 @2823 is OK.
-ERROR:3191 R:19:0 @2963 guard failed
+ERROR:3192 R:19:0 @2963 guard failed
 INFO: R:20:0 @3193 is OK.
 INFO: R:21:0 @4458 is OK.
-ERROR:13284 R:22:0 @13132 guard failed
+ERROR:13285 R:22:0 @13132 guard failed
 INFO: R:23:0 @13286 is OK.
 INFO: R:24:0 @13813 is OK.
 INFO: R:25:0 @14021 is OK.
@@ -33,7 +33,7 @@ INFO: R:27:0 @48499 is OK.
 INFO: R:28:0 @48664 is OK.
 INFO: R:29:0 @49149 is OK.
 INFO: R:30:0 @49377 is OK.
-ERROR:67365 R:31:0 @66862 guard failed
+ERROR:67366 R:31:0 @66862 guard failed
 INFO: R:32:0 @67367 is OK.
 INFO: R:33:0 @67526 is OK.
 INFO: R:34:0 @67867 is OK.
@@ -44,7 +44,7 @@ INFO: R:38:0 @81234 is OK.
 INFO: R:39:0 @82379 is OK.
 INFO: R:40:0 @82559 is OK.
 INFO: R:41:0 @83754 is OK.
-ERROR:85043 R:42:0 @83934 guard failed
+ERROR:85044 R:42:0 @83934 guard failed
 INFO: R:43:0 @85045 is OK.
 INFO: R:44:0 @85225 is OK.
 INFO: R:45:0 @86387 is OK.
@@ -54,7 +54,7 @@ INFO: R:48:0 @87860 is OK.
 INFO: R:49:0 @89022 is OK.
 INFO: R:50:0 @89202 is OK.
 INFO: R:51:0 @90315 is OK.
-ERROR:91605 R:52:0 @90495 guard failed
+ERROR:91606 R:52:0 @90495 guard failed
 INFO: R:53:0 @91607 is OK.
 INFO: R:54:0 @91787 is OK.
 INFO: R:55:0 @92938 is OK.

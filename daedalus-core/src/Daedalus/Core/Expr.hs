@@ -57,7 +57,6 @@ data Op1 =
   | InUnion UserType Label
   | HasTag Label
   | FromUnion Type Label
-  | ArrayStream
 
 data Op2 =
     IsPrefix
@@ -89,6 +88,8 @@ data Op2 =
   | ConsBuilder
   | MapLookup
   | MapMember
+
+  | ArrayStream
 
 data Op3 =
     PureIf
@@ -142,7 +143,7 @@ eDrop         = Ap2 Drop
 eTake         = Ap2 Take
 streamOffset  = Ap1 StreamOffset
 streamLen     = Ap1 StreamLen
-arrayStream   = Ap1 ArrayStream
+arrayStream   = Ap2 ArrayStream
 
 --------------------------------------------------------------------------------
 -- Relations
@@ -319,7 +320,6 @@ instance PP Op1 where
       HasTag l        -> "hasTag" <+> pp l
       FromUnion _ l   -> "fromTag" <+> pp l
 
-      ArrayStream     -> "arrayStream"
 
 
 data PPHow = PPPref | PPInf | PPCustom
@@ -368,6 +368,8 @@ ppOp2 op =
       ConsBuilder -> pref "cons"
       MapLookup   -> pref "mGet"
       MapMember   -> pref "mMember"
+
+      ArrayStream -> pref "arrayStream"
 
 
 instance PP Op2 where

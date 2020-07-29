@@ -6,7 +6,7 @@ INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @92 is OK.
 INFO: R:3:0 @236 is OK.
-ERROR:578 R:4:0 @408 guard failed
+ERROR:579 R:4:0 @408 guard failed
 INFO: R:5:0 @580 is OK.
 INFO: R:6:0 @752 is OK.
 INFO: R:7:0 @925 is OK.
@@ -15,7 +15,7 @@ INFO: R:9:0 @1161 is OK.
 INFO: R:10:0 @1219 is OK.
 INFO: R:11:0 @1274 is OK.
 INFO: R:12:0 @1577 is OK.
-ERROR:18813 R:13:0 @1780 guard failed
+ERROR:18814 R:13:0 @1780 guard failed
 INFO: R:14:0 @18815 is OK.
 INFO: R:15:0 @18837 is OK.
 INFO: R:16:0 @19281 is OK.
@@ -24,10 +24,10 @@ INFO: R:18:0 @19902 is OK.
 INFO: R:19:0 @50442 is OK.
 INFO: R:20:0 @50464 is OK.
 INFO: R:21:0 @51044 is OK.
-ERROR:51405 R:22:0 @51210 guard failed
+ERROR:51406 R:22:0 @51210 guard failed
 INFO: R:23:0 @51407 is OK.
 INFO: R:24:0 @56205 is OK.
-ERROR:56519 R:25:0 @56226 guard failed
+ERROR:56520 R:25:0 @56226 guard failed
 INFO: R:26:0 @56521 is OK.
 INFO: R:27:0 @56694 is OK.
 INFO: R:28:0 @59927 is OK.

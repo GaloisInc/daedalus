@@ -5,8 +5,8 @@ INFO: Root reference is R:7:0
 INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @92 is OK.
-ERROR:553 R:3:0 @412 guard failed
-ERROR:694 R:4:0 @555 guard failed
+ERROR:554 R:3:0 @412 guard failed
+ERROR:695 R:4:0 @555 guard failed
 INFO: R:5:0 @696 is OK.
 INFO: R:6:0 @837 is OK.
 INFO: R:7:0 @979 is OK.
@@ -18,7 +18,7 @@ INFO: R:12:0 @7859 is OK.
 INFO: R:13:0 @8109 is OK.
 INFO: R:14:0 @13726 is OK.
 INFO: R:15:0 @13763 is OK.
-ERROR:25545 R:16:0 @16439 guard failed
+ERROR:25546 R:16:0 @16439 guard failed
 INFO: R:17:0 @25547 is OK.
 INFO: R:18:0 @25691 is OK.
 INFO: R:19:0 @25897 is OK.
@@ -26,14 +26,14 @@ INFO: R:20:0 @26169 is OK.
 INFO: R:21:0 @41014 is OK.
 INFO: R:22:0 @41302 is OK.
 INFO: R:23:0 @41772 is OK.
-ERROR:42575 R:24:0 @42036 guard failed
+ERROR:42576 R:24:0 @42036 guard failed
 INFO: R:25:0 @42577 is OK.
 INFO: R:26:0 @42820 is OK.
 INFO: R:27:0 @43243 is OK.
 INFO: R:28:0 @43492 is OK.
 INFO: R:29:0 @43718 is OK.
 INFO: R:30:0 @43988 is OK.
-ERROR:44619 R:31:0 @44361 guard failed
+ERROR:44620 R:31:0 @44361 guard failed
 INFO: R:32:0 @44621 is OK.
 INFO: R:33:0 @44766 is OK.
 INFO: R:34:0 @44975 is OK.
@@ -44,8 +44,8 @@ INFO: R:38:0 @52683 is OK.
 INFO: R:39:0 @52827 is OK.
 INFO: R:40:0 @55783 is OK.
 INFO: R:41:0 @55986 is OK.
-ERROR:56344 R:42:0 @56135 guard failed
-ERROR:56619 R:43:0 @56346 guard failed
+ERROR:56345 R:42:0 @56135 guard failed
+ERROR:56620 R:43:0 @56346 guard failed
 INFO: R:44:0 @56621 is OK.
 INFO: R:45:0 @67465 is OK.
 INFO: R:46:0 @67755 is OK.

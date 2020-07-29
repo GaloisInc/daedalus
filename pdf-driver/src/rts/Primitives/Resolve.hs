@@ -5,6 +5,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 
 import RTS.Numeric(toInt)
+import RTS.Input
 import PdfMonad.Transformer
 
 resolveImpl :: PdfParser parser => parser a
@@ -21,11 +22,16 @@ resolveImpl pTop pCompressed obj gen =
             Just l  ->
               case l of
                 InFileAt o ->
-                  do bs  <- getTopBytes
+                  do inp <- getTopInput
                      cur <- pPeek
-                     pSetInput Input { inputBytes = BS.drop o bs
-                                     , inputOffset = o
-                                     }
+                     case advanceBy (toInteger o) inp of
+                       Just inp1 -> pSetInput inp1
+                       Nothing   -> pError FromUser "resolveImpl"
+                         $ unlines [ "Object offset out of file"
+                                   , unwords ["Object:", show oi, show gi, "R" ]
+                                   , "Offset: " ++ show o
+                                   ]
+
                      v <- pTop
                      pSetInput cur
                      pure (Just v)
