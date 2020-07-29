@@ -287,13 +287,30 @@ inferRuleRec sr =
     MutRec rs ->
       do rts <- mapM guessRuleType rs
          res <- extEnvManyRules rts (zipWithM checkRule rs (map snd rts))
-         pure (MutRec res)
+         res1 <- traverseTypes zonkT res
+         let decls = MutRec res1
+
+         -- Default type variables based on kind
+         forM_ (Set.toList (freeTVS decls)) $ \v ->
+           case tvarKind v of
+
+             KGrammar ->
+               do a <- newTVar v KValue
+                  unify (tGrammar a) (v,TVar v)
+
+             KClass ->
+               unify tByteClass (v,TVar v)
+
+             KValue -> pure ()
+             KNumber -> pure ()
+
+         pure decls
 
       where
       guessType :: Name -> STypeM Type
       guessType nm@Name { nameContext } =
         case nameContext of
-          AGrammar -> tGrammar <$> newTVar nm KValue
+          AGrammar -> newTVar nm KGrammar
           AClass   -> newTVar nm KClass
           AValue   -> newTVar nm KValue
 
@@ -368,7 +385,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                              ty1 <- typeOf <$>
                                             checkSig (ruleName r) (ruleResTy r)
                              unify ty1 (e1,t)
-                             pure (Defined e1)
+                             Defined <$> traverseTypes zonkT e1
                let tps = reverse done
                    d   = TCDecl { tcDeclName     = ruleName r
                                 , tcDeclTyParams = []
