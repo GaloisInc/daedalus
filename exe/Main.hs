@@ -134,7 +134,7 @@ interpPGen inp norms =
      --putStrLn (show dfa)
      --putStrLn (PGen.statsDFA dfa)
      bytes <- BS.readFile inp
-     --PGen.autToGraphviz aut
+     PGen.autToGraphviz aut
      let results = PGen.runnerBias gbl bytes aut
      let resultValues = PGen.extractValues results
      if null resultValues
