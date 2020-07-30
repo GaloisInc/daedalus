@@ -427,6 +427,7 @@ evalType env ty =
     Type t0 ->
       case t0 of
         TGrammar _ -> TVOther
+        TFun _ _   -> TVOther
         TStream    -> TVOther
         TByteClass -> TVOther
         TNum n     -> TVNum (fromIntegral n) -- wrong for very large sizes.

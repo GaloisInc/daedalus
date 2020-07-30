@@ -160,6 +160,10 @@ instance TCFree (TC a k) where
           TCVar x             -> addVar x
           TCDo (Just x) e1 e2 -> TCDo (Just x) <$> go e1 <*> withVar x (go e2)
 
+          TCCall f ts as -> TCCall f ts <$>
+                            (mbAdd *> traverse (traverseArg go) as)
+            where mbAdd = when (isLocalName (tcName f)) (addVar f)
+
           TCFor lp -> mk <$> loopF
                          <*> go (loopCol lp)
                          <*> flip (foldr withSomeVar) vs     (
@@ -189,6 +193,7 @@ instance TCFree (Arg a) where
   tcFree (ValArg     a) = tcFree a
   tcFree (ClassArg   a) = tcFree a
 
+-- Get the *top level* calls
 tcCalls :: TCDeclDef a k -> Set Name
 tcCalls def =
   case def of
@@ -202,7 +207,7 @@ tcCalls def =
     go' texpr =
       case texpr of
         TCCall f ts as ->
-          do modify (Set.insert (tcName f))
+          do unless (isLocalName (tcName f)) (modify (Set.insert (tcName f)))
              TCCall f ts <$> traverse (traverseArg go) as
 
         x -> traverseTCF go x

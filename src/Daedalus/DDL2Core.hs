@@ -857,6 +857,7 @@ fromType ty =
     TC.Type ty1 ->
       case ty1 of
         TC.TGrammar {} -> panic "fromType'" [ "Unexpected TGrammar" ]
+        TC.TFun {}     -> panic "fromType;" [ "Unexpected function" ]
         TC.TStream     -> TStream
         TC.TByteClass  -> panic "fromtType" [ "Unexpected ByteClass" ]
         TC.TNum {}     -> panic "fromType'" [ "Unexpected TNum" ]

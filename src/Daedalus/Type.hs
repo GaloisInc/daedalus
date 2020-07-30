@@ -15,6 +15,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Parameterized.Some(Some(..))
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -27,6 +28,7 @@ import Daedalus.Type.Constraints
 import Daedalus.Type.Kind
 import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
+import Daedalus.Type.InferContext
 
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
@@ -283,7 +285,11 @@ fixUpRecCallSites ch expr =
 inferRuleRec :: Rec Rule -> STypeM (Rec (TCDecl SourceRange))
 inferRuleRec sr =
   case sr of
-    NonRec r -> (NonRec . fst) <$> inferRule r
+    NonRec r ->
+      do d <- fst <$> inferRule r
+         d1 <- traverseTypes zonkT d
+         mapM_ defaultByKind (Set.toList (freeTVS d1))
+         pure (NonRec d1)
     MutRec rs ->
       do rts <- mapM guessRuleType rs
          res <- extEnvManyRules rts (zipWithM checkRule rs (map snd rts))
@@ -291,45 +297,51 @@ inferRuleRec sr =
          let decls = MutRec res1
 
          -- Default type variables based on kind
-         forM_ (Set.toList (freeTVS decls)) $ \v ->
-           case tvarKind v of
-
-             KGrammar ->
-               do a <- newTVar v KValue
-                  unify (tGrammar a) (v,TVar v)
-
-             KClass ->
-               unify tByteClass (v,TVar v)
-
-             KValue -> pure ()
-             KNumber -> pure ()
-
+         mapM_ defaultByKind (Set.toList (freeTVS decls))
          pure decls
 
-      where
-      guessType :: Name -> STypeM Type
-      guessType nm@Name { nameContext } =
-        case nameContext of
-          AGrammar -> newTVar nm KGrammar
-          AClass   -> newTVar nm KClass
-          AValue   -> newTVar nm KValue
+  where
+  -- we only allow for polymorphism at kinds Type, and Num
+  defaultByKind v =
+    case tvarKind v of
 
-      guessParamType :: RuleParam -> STypeM Type
-      guessParamType p = guessType (paramName p)
+      KGrammar ->
+        do a <- newTVar v KValue
+           unify (tGrammar a) (v,TVar v)
 
-      guessRuleType r =
-        do ts <- mapM guessParamType (ruleParams r)
-           t  <- guessType (ruleName r)
-           let rt = ts :-> t
-           pure (ruleName r, Poly [] [] rt)
+      KClass ->
+        unify tByteClass (v,TVar v)
 
-      checkRule r (Poly _ _ (gAs :-> gR)) =
-        do (res, actualAs :-> actualR) <- inferRule r
-           forM_ (zip3 (ruleParams r) gAs actualAs) \(l,g,a) ->
-              unify g (l,a)
+      KValue -> pure ()
 
-           unify gR (ruleName r, actualR)
-           pure res
+      KNumber -> pure ()
+
+
+
+
+  guessType :: Name -> STypeM Type
+  guessType nm@Name { nameContext } =
+    case nameContext of
+      AGrammar -> newTVar nm KGrammar
+      AClass   -> newTVar nm KClass
+      AValue   -> newTVar nm KValue
+
+  guessParamType :: RuleParam -> STypeM Type
+  guessParamType p = guessType (paramName p)
+
+  guessRuleType r =
+    do ts <- mapM guessParamType (ruleParams r)
+       t  <- guessType (ruleName r)
+       let rt = ts :-> t
+       pure (ruleName r, Poly [] [] rt)
+
+  checkRule r (Poly _ _ (gAs :-> gR)) =
+    do (res, actualAs :-> actualR) <- inferRule r
+       forM_ (zip3 (ruleParams r) gAs actualAs) \(l,g,a) ->
+          unify g (l,a)
+
+       unify gR (ruleName r, actualR)
+       pure res
 
 
 -- | Infer a mono type for a collection of rules.
@@ -343,10 +355,11 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                       , tcNameCtx = nameContext }
     in
     case nameContext of
-      AGrammar -> GrammarParam . nm . tGrammar <$>
+      AGrammar -> GrammarParam . nm <$>
                   case mb of
-                    Nothing   -> newTVar n KValue
-                    Just srct -> checkType KValue srct
+                    Nothing   -> newTVar n KGrammar
+                    Just srct -> tGrammar <$> checkType KValue srct
+                    -- for now sigs are not functions, XXX
 
       AClass   -> ClassParam . nm <$>
                   case mb of
@@ -382,6 +395,11 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                                ExternDecl <$> checkRet (ruleName r) srct
                         Just def ->
                           do (e1,t) <- inferExpr def
+                             case kindOf t of
+                               KGrammar ->
+                                 do a <- newTVar e1 KValue
+                                    unify (tGrammar a) (e1,t)
+                               _ -> pure ()
                              ty1 <- typeOf <$>
                                             checkSig (ruleName r) (ruleResTy r)
                              unify ty1 (e1,t)
@@ -900,43 +918,58 @@ inferExpr expr =
                      )
 
     EApp f@Name { nameContext } es ->
-      do (tys, ins :-> out) <- lookupRuleTypeOf f
-         es1 <- checkArgs ins es
-         let nm = TCName { tcName = f, tcType = out, tcNameCtx = nameContext }
-         checkPromoteToGrammar nm (exprAt expr (TCCall nm tys es1)) out
+      do ruleInfo <- lookupRuleTypeOf f
+         case ruleInfo of
+           TopRule tys (ins :-> out) ->
+             do (out1,es1) <- checkArgs ins out es
+                let nm = TCName { tcName = f
+                                , tcType = out1
+                                , tcNameCtx = nameContext }
+                checkPromoteToGrammar nm (exprAt expr (TCCall nm tys es1)) out
+           LocalRule ty -> inferLocalApp (range expr) f es ty
       where
-      checkArgs ts as =
+      checkArgs ts out as =
         case (ts,as) of
-          ([],[]) -> pure []
+
+          ([],[]) -> pure (out,[])
+
           (t : moreT, a : moreA) ->
              case kindOf t of
                KGrammar ->
-                 do (e1,t1) <- inContext AGrammar (inferExpr a)
+                 do (e1,t1) <- allowPartialApps
+                             $ inContext AGrammar (inferExpr a)
                     unify t (e1,t1)
-                    moreEs <- checkArgs moreT moreA
-                    pure (GrammarArg e1 : moreEs)
+                    (out1,moreEs) <- checkArgs moreT out moreA
+                    pure (out1, GrammarArg e1 : moreEs)
 
                KValue ->
                  do (e1,t1) <- inContext AValue (inferExpr a)
                     unify t (e1,t1)
-                    moreEs <- checkArgs moreT moreA
-                    pure (ValArg e1 : moreEs)
+                    (out1,moreEs) <- checkArgs moreT out moreA
+                    pure (out1,ValArg e1 : moreEs)
 
-
-
+               -- XXX: are classes OK?
                k -> error ("bug: unexpected parameter kind, " ++ show k)
-          ([], a : _) ->
-            reportError a ("Too many arguments in call to" <+> backticks (pp f))
-          (_, []) -> reportDetailedError f
-                     ("Not enough arguments in call to" <+> backticks (pp f))
-                     [ "Need" <+> int (length ts) <+> "more." ]
+
+          ([], _) -> reportDetailedError f
+                     ("Too many arguments in call to" <+> backticks (pp f))
+                     [ int (length as) <+> "additional arguments." ]
+
+          (_, []) ->
+            do ok <- arePartialAppsOK
+               unless ok $
+                 reportDetailedError f
+                   ("Not enough arguments in call to" <+> backticks (pp f))
+                   [ "Need" <+> int (length ts) <+> "more." ]
+               pure (tFunMany ts out, [])
 
 
     EVar x@Name { nameContext } ->
       do mb <- Map.lookup x <$> getEnv
          case mb of
            Just t ->
-             do let nm = TCName { tcName = x, tcType = t, tcNameCtx = nameContext }
+             do let nm = TCName { tcName = x, tcType = t
+                                            , tcNameCtx = nameContext }
                 checkPromoteToGrammar nm (exprAt expr (TCVar nm)) t
            Nothing -> inferExpr (Expr Located { thingRange = range expr
                                               , thingValue = EApp x [] })
@@ -1154,6 +1187,33 @@ inferExpr expr =
       do (e1,t) <- inferExpr e
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
+
+inferLocalApp ::
+  SourceRange ->
+  Name -> [Expr] -> Type -> TypeM ctx (TC SourceRange ctx, Type)
+inferLocalApp erng f@Name { nameContext } es ty =
+  grammarOnly erng
+  case nameContext of
+    AGrammar ->
+      do (args,ts) <- unzip <$> mapM checkArg es
+         out       <- newTVar erng KGrammar
+         let actual = tFunMany ts out
+         unify actual (erng,ty)
+         let nm = TCName { tcName = f, tcType = out, tcNameCtx = nameContext }
+         pure (exprAt erng (TCCall nm [] args), out)
+
+    _ -> reportError erng ("Cannot call a non-grammar parameter" <+>
+                           backticks (pp f))
+
+checkArg :: Expr -> TypeM ctx (Arg SourceRange, Type)
+checkArg e =
+  case inferContext e of
+    Some ctx ->
+      do (e1,t)    <- allowPartialApps $ inContext ctx (inferExpr e)
+         case ctx of
+           AGrammar -> pure (GrammarArg e1, t)
+           AValue   -> pure (ValArg e1, t)
+           AClass   -> pure (ClassArg e1, t)
 
 
 promoteValueToSet :: (TC SourceRange Value,Type) ->

@@ -37,6 +37,7 @@ library
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
                        Daedalus.Type,
+                       Daedalus.Type.InferContext,
                        Daedalus.Type.AST,
                        Daedalus.Type.Monad,
                        Daedalus.Type.Constraints,

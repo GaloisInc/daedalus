@@ -47,6 +47,7 @@ isSameCtr cNew cOld =
       | c == c' -> unify (cNew,k1) (cOld,k2) *> pure True
 
     (Traversable t1, Traversable t2) -> pure (t1 == t2)
+
     (Mappable t1 s1, Mappable t2 s2) -> pure (t1 == t2 && s1 == s2)
 
     -- XXX: CAdd
@@ -501,7 +502,10 @@ unify2 r s t1' t2' =
        (TCon c xs, TCon d ys) | c == d -> unifyMany r s xs ys
        (Type tf1, Type tf2) ->
           case (tf1,tf2) of
-            (TGrammar a, TGrammar b)   -> unify2 r s a b
+            (TGrammar x, TGrammar y) -> unify2 r s x y
+            (TFun x1 x2, TFun y1 y2) ->
+               do unify2 r s x1 y1
+                  unify2 r s x2 y2
             (TStream,    TStream)      -> pure ()
             (TByteClass, TByteClass)   -> pure ()
             (TNum x, TNum y) | x == y  -> pure ()

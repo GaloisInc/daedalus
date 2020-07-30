@@ -32,6 +32,12 @@ type Label = Text
 data ScopedIdent = Unknown Ident | Local Ident | ModScope ModuleName Ident
   deriving (Ord, Eq, Show, Lift)
 
+isLocalName :: Name -> Bool
+isLocalName n =
+  case nameScope n of
+    Local {} -> True
+    _        -> False
+
 primName :: Text -> Text -> Context c -> Name
 primName m x c = Name (ModScope m x) c synthetic
 
@@ -238,6 +244,7 @@ data Located a = Located { thingRange :: SourceRange
 
 data TypeF t =
     TGrammar !t
+  | TFun t t
   | TStream
   | TByteClass
   | TNum !Integer
@@ -352,18 +359,19 @@ instance PP Selector where
 instance PP t => PP (TypeF t) where
   ppPrec n ty =
     case ty of
-      TGrammar t -> wrapIf (n > 0) ("Grammar" <+> ppPrec 1 t)
+      TGrammar t -> wrapIf (n > 1) ("Grammar" <+> ppPrec 2 t)
+      TFun t1 t2 -> wrapIf (n > 0) (fsep [ ppPrec 1 t1, "->", ppPrec 0 t2 ])
       TByteClass -> "ByteClass"
       TStream    -> "Stream"
       TNum t     -> pp t
-      TUInt t    -> wrapIf (n > 0) ("uint" <+> ppPrec 1 t)
-      TSInt t    -> wrapIf (n > 0) ("sint" <+> ppPrec 1 t)
+      TUInt t    -> wrapIf (n > 1) ("uint" <+> ppPrec 2 t)
+      TSInt t    -> wrapIf (n > 1) ("sint" <+> ppPrec 2 t)
       TInteger   -> "int"
       TBool      -> "bool"
       TUnit      -> "{}"
       TArray t   -> brackets (pp t)
-      TMaybe t   -> wrapIf (n > 0) ("Maybe" <+> ppPrec 1 t)
-      TMap kt vt -> wrapIf (n > 0) ("Map" <+> ppPrec 1 kt <+> ppPrec 1 vt)
+      TMaybe t   -> wrapIf (n > 1) ("Maybe" <+> ppPrec 2 t)
+      TMap kt vt -> wrapIf (n > 1) ("Map" <+> ppPrec 2 kt <+> ppPrec 2 vt)
 
 
 

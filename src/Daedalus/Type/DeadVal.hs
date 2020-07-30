@@ -17,6 +17,13 @@ import Daedalus.Panic(panic)
 import Daedalus.Type.AST
 import Daedalus.Type.Free
 
+{-
+XXX: It might make more sense to that after specialization,
+  1. we would handle function parameters better,
+  2. the whole thing would be simpler
+  3. we'd generate less code, as we'd only have the functions
+     that are actually used.
+-}
 
 deadValModules :: [TCModule SourceRange] -> [TCModule SourceRange]
 deadValModules = go [] Map.empty
@@ -151,6 +158,9 @@ declareMatchFun mfs dcl =
 
       in
       case tcDeclDef of
+
+        -- XXX: It seems that we could just leave this as is
+        -- and just ignore the argments at the call site...
         ExternDecl _ -> Just (newDecl, newInfo)
            where
            newDecl = TCDecl
@@ -297,9 +307,6 @@ mbSem tc =
                 Set.difference i bnd
               )
 
-
-
-    -- TCFor s0 s mbK x xs m ->
     TCCall f ts as ->
       do (as',is) <- unzip <$> forM as \a ->
                        case a of
@@ -430,7 +437,9 @@ noSem' tc =
           case mbArgInfo of
             Nothing ->
               pure ( mkDo tc Nothing tc (noSemPure tc)
-                   , tcFree as
+                   , if isLocalName (tcName f)
+                         then Set.singleton (Some f) <> tcFree as
+                         else tcFree as
                    )
 
             Just argInfo ->

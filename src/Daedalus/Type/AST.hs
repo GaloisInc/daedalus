@@ -29,6 +29,7 @@ import Daedalus.AST as LocalAST
         , Commit(..)
         , UniOp(..), Label, Ctx(..)
         , ModuleName
+        , isLocalName
         , nameScopeAsLocal, Context(..), TypeF(..)
         , Located(..), ScopedIdent(..), Value, Grammar, Class)
 
@@ -187,9 +188,9 @@ data TCF :: HS -> Ctx -> HS where
    -- Local variable/parameter
 
    TCCall :: TCName k -> [Type] -> [Arg a] -> TCF a k
-   -- Use top-level name.
-   -- The type in the name of the function is the
-   -- type of its result.
+   {- The name may be either top-level or local.  The type stored in
+      the name is the type of the result, *not* the whole function.
+   -}
 
 
    TCErrorMode :: Commit -> TC a Grammar -> TCF a Grammar
@@ -197,6 +198,8 @@ data TCF :: HS -> Ctx -> HS where
       -- Custom error message: message (byte array)
 
 deriving instance Show a => Show (TCF a k)
+
+
 
 
 data LoopFlav a = Fold (TCName Value) (TC a Value)
@@ -296,7 +299,7 @@ instance PP Type where
       TCon c ts ->
         case ts of
           [] -> pp c
-          _  -> wrapIf (n > 0) (pp c <+> hsep (map (ppPrec 1) ts))
+          _  -> wrapIf (n > 1) (pp c <+> hsep (map (ppPrec 2) ts))
 
 instance PP (TCName k) where
   ppPrec n = ppPrec n . tcName
@@ -311,7 +314,7 @@ instance PP TVar where
 instance PP (TCDecl a) where
   pp d@TCDecl { tcDeclName, tcDeclDef } = pp tcDeclName <+>
          hsep (map pp (tcDeclTyParams d)) <+>
-         hsep (map (ppPrec 1) (tcDeclCtrs d)) <+>
+         hsep (map (ppPrec 2) (tcDeclCtrs d)) <+>
          hsep (map pp (tcDeclParams d)) <+>
          ":" <+> pp (typeOf tcDeclDef) <+> this $$ nest 2 next
 
@@ -412,7 +415,7 @@ instance PP (TCF a k) where
 
       TCCall f [] []  -> pp f
       TCCall f ts xs -> wrapIf (n > 0) (pp f <+>
-                                        hsep (map (ppPrec 1) ts) <+>
+                                        hsep (map (ppPrec 2) ts) <+>
                                         hsep (map (ppPrec 1) xs))
 
       TCTriOp op e1 e2 e3 _ ->
@@ -574,33 +577,33 @@ instance PP TyDef where
 instance PP Constraint where
   ppPrec n c =
     case c of
-      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 1 x)
+      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
       TyDef ty _ t fs -> wrapIf (n > 0)
-          (pp ty <+> ppPrec 1 t <+> block "{" ";" "}" (map ppF fs))
+          (pp ty <+> ppPrec 2 t <+> block "{" ";" "}" (map ppF fs))
         where ppF (f,ft) = pp f <.> ":" <+> pp ft
       HasUnion  x l t -> wrapIf (n > 0) ("HasUnion" <+> pp x <+> pp l <+> pp t)
       Coerce s t1 t2 ->
-          wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 1 t1 <+> ppPrec 1 t2)
+          wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 2 t1 <+> ppPrec 2 t2)
       Literal i t ->
-        wrapIf (n > 0) ("Literal" <+> pp i <+> ppPrec 1 t)
+        wrapIf (n > 0) ("Literal" <+> pp i <+> ppPrec 2 t)
       CAdd t1 t2 t3 ->
         wrapIf (n > 0)
-               (ppPrec 1 t1 <+> "+" <+> ppPrec 1 t2 <+> "=" <+> ppPrec 1 t3)
+               (ppPrec 2 t1 <+> "+" <+> ppPrec 2 t2 <+> "=" <+> ppPrec 2 t3)
 
       Traversable t -> wrapIf (n > 0)
-                       ("Traversable" <+> ppPrec 1 t)
+                       ("Traversable" <+> ppPrec 2 t)
 
       Mappable t s -> wrapIf (n > 0)
-                        ("Mappable" <+> ppPrec 1 t <+> ppPrec 1 s)
+                        ("Mappable" <+> ppPrec 2 t <+> ppPrec 2 s)
 
       ColElType s t -> wrapIf (n > 0)
-                        ("HasElement" <+> ppPrec 1 s <+> ppPrec 1 t)
+                        ("HasElement" <+> ppPrec 2 s <+> ppPrec 2 t)
 
       ColKeyType s t -> wrapIf (n > 0)
-                        ("HasKey" <+> ppPrec 1 s <+> ppPrec 1 t)
+                        ("HasKey" <+> ppPrec 2 s <+> ppPrec 2 t)
 
-      IsNamed t ->  wrapIf (n > 0) ("Named" <+> ppPrec 1 t)
+      IsNamed t ->  wrapIf (n > 0) ("Named" <+> ppPrec 2 t)
 
 instance PP Lossy where
   pp l = case l of
@@ -638,6 +641,12 @@ tByte = tUInt (tNum 8)
 
 tGrammar :: Type -> Type
 tGrammar t = Type (TGrammar t)
+
+tFun :: Type -> Type -> Type
+tFun s t = Type (TFun s t)
+
+tFunMany :: [Type] -> Type -> Type
+tFunMany args res = foldr tFun res args
 
 tMaybe :: Type -> Type
 tMaybe t = Type (TMaybe t)
@@ -697,6 +706,7 @@ kindOf ty =
     Type t ->
       case t of
         TGrammar {} -> KGrammar
+        TFun _ k    -> kindOf k
         TStream     -> KValue
         TByteClass  -> KClass
         TNum {}     -> KNumber
@@ -753,7 +763,7 @@ instance TypeOf (Loop a k) where
 instance TypeOf (TCF a k) where
   typeOf expr =
     case expr of
-      TCPure e        -> Type (TGrammar (typeOf e))
+      TCPure e        -> tGrammar (typeOf e)
       TCDo _ _ e      -> typeOf e
 
       TCLabel _ e     -> typeOf e

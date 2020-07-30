@@ -6,16 +6,16 @@ module T039
  
 --- Rules:
  
-T039.Block ?a1 (n : int) (P : Grammar ?a1) : Grammar ?a1 =
+T039.Block ?a4 (n : int) (P : Grammar ?a4) : Grammar ?a4 =
   do (s : Stream) <- CurrentStream
      (s2 : Stream) <- StreamLen n s
      SetStream s2
-     ($$ : ?a1) <- P
+     ($$ : ?a4) <- P
      (s3 : Stream) <- StreamOff n s
      SetStream s3
      pure $$
  
-T039._Block ?a1 (n : int) (_P : Grammar {}) : Grammar {} =
+T039._Block ?a4 (n : int) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      (s2 : Stream) <- StreamLen n s
      SetStream s2

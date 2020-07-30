@@ -139,6 +139,7 @@ hsType env ty =
     Type tf ->
       case tf of
         TGrammar t  -> envTParser env `Ap` hsType env t
+        TFun s t    -> ApI "->" (hsType env s) (hsType env t)
         TStream     -> "RTS.Input"
         TByteClass  -> "RTS.ClassVal"
         TNum n      -> Var (show n)

@@ -28,6 +28,7 @@ module Daedalus.Type.Monad
   , getRuleEnv
   , extEnvManyRules
   , lookupRuleTypeOf
+  , RuleInfo(..)
 
     -- * Local type variables
   , lookupLocalTyVar
@@ -48,6 +49,8 @@ module Daedalus.Type.Monad
   -- * Contexts
   , inContext
   , getContext
+  , allowPartialApps
+  , arePartialAppsOK
 
     -- * Unification variables
   , newTVar
@@ -308,20 +311,20 @@ newTVar :: (STCMonad m, HasRange r) => r -> Kind -> m Type
 newTVar r k = TVar <$> newTVar' r k
 
 
+data RuleInfo = TopRule [Type] RuleType
+              | LocalRule Type
 
-lookupRuleTypeOf :: Name -> TypeM ctx ([Type], RuleType)
+
+lookupRuleTypeOf :: Name -> TypeM ctx RuleInfo
 lookupRuleTypeOf x =
   do mb <- Map.lookup x <$> getEnv
      case mb of
-       Just _ -> reportError x
-                  ("Cannot call local variable" <+> backticks (pp x))
+       Just t -> pure (LocalRule t)
        Nothing ->
          do mbr <- Map.lookup x <$> getRuleEnv
             case mbr of
               Nothing -> reportError x ("Undeclared name:" <+> pp x)
-              Just rt -> instantiate x rt
-
-
+              Just rt -> uncurry TopRule <$> instantiate x rt
 
 instantiate :: HasRange r => r -> Poly RuleType -> TypeM ctx ([Type], RuleType)
 instantiate r (Poly as cs t) =
@@ -344,9 +347,10 @@ newtype TypeM ctx a = TypeM ( WithBase STypeM '[ ReaderT (RO ctx)
 
 
 data RO ctx = RO
-  { roEnv       :: !Env            -- ^ Types for locals
-  , roName      :: !Name           -- ^ Root name for generating type decls
-  , roContext   :: !(Context ctx)  -- ^ Current context (lazy)
+  { roEnv         :: !Env            -- ^ Types for locals
+  , roName        :: !Name           -- ^ Root name for generating type decls
+  , allowPartial  :: !Bool           -- ^ Are partial apps OK?
+  , roContext     :: !(Context ctx)  -- ^ Current context (lazy)
   }
 
 data RW = RW
@@ -358,9 +362,10 @@ data RW = RW
 runTypeM :: Name -> TypeM Grammar a -> STypeM a
 runTypeM n (TypeM m) = fst <$> runStateT rw (runReaderT ro m)
   where
-  ro = RO { roEnv     = Map.empty
-          , roName    = n
-          , roContext = AGrammar
+  ro = RO { roEnv        = Map.empty
+          , roName       = n
+          , allowPartial = False
+          , roContext    = AGrammar
           }
   rw = RW { sLocalTyVars = Map.empty, sNextType = 0 }
 
@@ -392,6 +397,15 @@ instance STCMonad (TypeM ctx) where
   addTVarDef x t          = sType (addTVarDef x t)
   needsDef r d            = sType (needsDef r d)
   getNeedsDef             = sType getNeedsDef
+
+
+allowPartialApps :: TypeM ctx a -> TypeM ctx a
+allowPartialApps (TypeM m) = TypeM (mapReader upd m)
+  where upd ro = ro { allowPartial = True }
+
+arePartialAppsOK :: TypeM ctx Bool
+arePartialAppsOK = TypeM (allowPartial <$> ask)
+
 
 lookupLocalTyVar :: Name -> TypeM ctx (Maybe Type)
 lookupLocalTyVar x = TypeM (Map.lookup x . sLocalTyVars <$> get)

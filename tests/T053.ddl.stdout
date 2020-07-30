@@ -15,7 +15,7 @@ type T053.Main = { ex1: Maybe int
  
 --- Rules:
  
-T053.Check ?a0 (P : Grammar ?a0) : Grammar (Maybe ?a0) =
+T053.Check ?a1 (P : Grammar ?a1) : Grammar (Maybe ?a1) =
   Optional (Try P)
  
 T053.Ok (x : int) : Grammar int =
@@ -94,7 +94,7 @@ T053.Main : Grammar T053.Main =
            ex7 = ex7,
            ex8 = ex8}
  
-T053._Check ?a0 (_P : Grammar {}) : Grammar {} =
+T053._Check ?a1 (_P : Grammar {}) : Grammar {} =
   Choose biased
     { Try _P
     | pure {}

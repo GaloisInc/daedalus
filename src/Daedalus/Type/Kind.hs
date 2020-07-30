@@ -39,9 +39,9 @@ checkType expK srcty =
 
     SrcType ty ->
       case thingValue ty of
-        TGrammar t ->
-          do expect KGrammar
-             tGrammar <$> checkType KValue t
+        TGrammar {} -> panic "checkType" [ "TGrammar", show (pp ty) ]
+        TFun {}     -> panic "checkType" [ "Funcion", show (pp ty) ]
+        -- XXX: we need to change this if we allow users to write function types
 
         TNum n      -> expect KNumber >> pure (tNum n)
 

@@ -281,6 +281,7 @@ instance ResolveNames t => ResolveNames (TypeF t) where
   resolve tf =
     case tf of
       TGrammar t -> TGrammar <$> resolve t
+      TFun t1 t2 -> TFun <$> resolve t1 <*> resolve t2
       TStream    -> pure tf
       TByteClass -> pure tf
       TNum {}    -> pure tf

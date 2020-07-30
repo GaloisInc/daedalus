@@ -4,21 +4,21 @@ module T004
  
 --- Type defs:
 rec
-  type T004.Repeat0 ?a2 = { head: ?a2
-                          ; tail: T004.Repeat ?a2
+  type T004.Repeat0 ?a4 = { head: ?a4
+                          ; tail: T004.Repeat ?a4
                           }
    
-  type T004.Repeat ?a2 = Choose { cons: T004.Repeat0 ?a2
+  type T004.Repeat ?a4 = Choose { cons: T004.Repeat0 ?a4
                                 ; nil: {}
                                 }
  
 --- Rules:
  
 rec value
-  T004.Repeat ?a2 (P : Grammar ?a2) : Grammar (T004.Repeat ?a2) =
+  T004.Repeat ?a4 (P : Grammar ?a4) : Grammar (T004.Repeat ?a4) =
     Choose fair
-      { {- cons -} do (_0 : T004.Repeat0 ?a2) <- do (head : ?a2) <- P
-                                                    (tail : T004.Repeat ?a2) <- T004.Repeat ?a2 P
+      { {- cons -} do (_0 : T004.Repeat0 ?a4) <- do (head : ?a4) <- P
+                                                    (tail : T004.Repeat ?a4) <- T004.Repeat ?a4 P
                                                     pure {head = head,
                                                           tail = tail}
                       pure {cons: _0}
@@ -26,10 +26,10 @@ rec value
                      pure {nil: _1}
       }
  
-T004._Repeat ?a2 (P : Grammar ?a2) (_P : Grammar {}) : Grammar {} =
+T004._Repeat ?a4 (P : Grammar ?a4) (_P : Grammar {}) : Grammar {} =
   Choose fair
     { {- cons -} do _P
-                    T004.Repeat ?a2 P
+                    T004.Repeat ?a4 P
                     pure {}
     | {- nil -} pure {}
     }

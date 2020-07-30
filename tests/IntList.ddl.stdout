@@ -98,8 +98,8 @@ IntList._WS : Grammar {} =
     | @Match {'\r'}
     }
  
-IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
+IntList.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
      @Many[ 1 .. ] IntList._WS
      pure $$
  
@@ -133,7 +133,7 @@ IntList.WS : Grammar {} =
     | @Match {'\r'}
     }
  
-IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
+IntList._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] IntList._WS
  

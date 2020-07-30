@@ -48,8 +48,8 @@ plain-ppm._WS : Grammar {} =
     | @Match {'\r'}
     }
  
-plain-ppm.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
+plain-ppm.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
      @Many[ 1 .. ] plain-ppm._WS
      pure $$
  
@@ -103,7 +103,7 @@ plain-ppm._Digit : Grammar {} =
 plain-ppm._Natural : Grammar {} =
   @Many[ 1 .. ] plain-ppm._Digit
  
-plain-ppm._Token ?a0 (_P : Grammar {}) : Grammar {} =
+plain-ppm._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] plain-ppm._WS
  
