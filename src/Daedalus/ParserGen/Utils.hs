@@ -20,19 +20,31 @@ autToGraphviz aut =
     f a b =
       let (n1, act, n2) = a
           thestr =
-            makeEdge startNode arrivNode (show act)
+            makeEdge startNode arrivNode strAct isDotted
             where
               arrivNode = case act of
                             CAct (Push _ _ n) -> "S" ++ show n
-                            CAct (Pop n) -> "Pop" ++ show n
+                            CAct (Pop n) -> "Pop_to_S" ++ show n
                             _     -> "S" ++ show n2
               startNode = "S" ++ show n1
+              strAct = case act of
+                         CAct (Push name _ _) -> "Push_" ++ tail (removeLast (show name)) ++ "_S" ++ show n2
+                         CAct (Pop n) -> "Pop" ++ show n
+                         _     -> show act
+              isDotted = case act of
+                         CAct (Push _ _ _) -> True
+                         CAct (Pop _) -> True
+                         _ -> False
+              removeLast [] = []
+              removeLast [ _ ] = []
+              removeLast (x : xs) = x : removeLast xs
+
 
       in thestr : b
     trans = foldr f [] tr
     prelude =
       "// copy this to aut.dot and dot -Tpdf aut.dot > aut.pdf \n"
       ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
-    makeEdge start arriv label =
-      start ++ " -> " ++ arriv ++ " [ label=" ++ label ++ " ];"
+    makeEdge start arriv label b =
+      start ++ " -> " ++ arriv ++ " [ label=" ++ label ++ (if b then " style=dashed color=blue" else "") ++ " ];"
     postlude = "}" ++ "\n// dot -Tpdf aut.dot > aut.pdf " -- "f.view()\n"
