@@ -60,7 +60,7 @@ vUnit = VStruct []
 --
 -- F X y = many[y] X
 
-data SomeVal      = VVal Value | VClass ClassVal | VGrm (Parser Value)
+data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
 data SomeFun      = FVal (Fun Value)
                   | FClass (Fun ClassVal)
                   | FGrm (Fun (Parser Value))
@@ -68,6 +68,8 @@ newtype Fun a     = Fun ([TVal] -> [SomeVal] -> a)
 
 instance Show (Fun a) where
   show _ = "FunDecl"
+
+type PParser a = [SomeVal] -> Parser a
 
 -- -----------------------------------------------------------------------------
 -- Interpreting as a Haskell function
@@ -79,7 +81,7 @@ data Env = Env
 
   , valEnv  :: Map Name Value
   , clsEnv  :: Map Name ClassVal
-  , gmrEnv  :: Map Name (Parser Value)
+  , gmrEnv  :: Map Name (PParser Value)
 
   , tyEnv   :: Map TVar TVal
     -- ^ Bindings for polymorphic type argumens
@@ -402,7 +404,7 @@ compilePureExpr env = go
 
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
-            Just r  -> invoke r env ts es
+            Just r  -> invoke r env ts [] es
             Nothing -> error $ "BUG: unknown grammar function " ++ show x
 
         TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
@@ -410,14 +412,14 @@ compilePureExpr env = go
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
 
-invoke :: HasRange ann => Fun a -> Env -> [Type] -> [Arg ann] -> a
-invoke (Fun f) env ts as = f ts1 (map valArg as)
+invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
+invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
   where
   ts1 = map (evalType env) ts
   valArg a = case a of
                ValArg e -> VVal (compilePureExpr env e)
                ClassArg e -> VClass (compilePredicateExpr env e)
-               GrammarArg e -> VGrm (compileExpr env e)
+               GrammarArg e -> VGrm (compilePExpr env e)
 
 evalType :: Env -> Type -> TVal
 evalType env ty =
@@ -470,7 +472,7 @@ compilePredicateExpr env = go
         TCFor {} -> panic "compilePredicateExpr" [ "TCFor" ]
         TCCall f ts as ->
           case Map.lookup (tcName f) (clsFun env) of
-            Just p -> invoke p env ts as
+            Just p -> invoke p env ts [] as
             Nothing -> error ("BUG: undefined clas function " ++ show f)
         TCSetAny -> cv \_ -> True
         TCSetSingle e ->
@@ -494,7 +496,10 @@ mbSkip s v = case s of
                YesSem -> v
 
 compileExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> Parser Value
-compileExpr env = go
+compileExpr env expr = compilePExpr env expr []
+
+compilePExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> PParser Value
+compilePExpr env expr0 args = go expr0
   where
     go :: TC a K.Grammar -> Parser Value
     go expr =
@@ -644,11 +649,23 @@ compileExpr env = go
                               RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
-        TCCall x ts es  ->
-          case Map.lookup (tcName x) (ruleEnv env) of
-            Nothing -> error $ "BUG: unknown grammar function " ++ show x
-            Just r  -> let lab = text erng <.> colon <+> pp x
-                       in pEnter (show lab) (invoke r env ts es)
+        TCCall x ts es -> pEnter (show lab) (invoke rule env ts args es)
+          where
+          f   = tcName x
+          lab = text erng <.> colon <+> pp x
+
+          rule
+            | isLocalName f =
+                case Map.lookup f (gmrEnv env) of
+                  Just r  -> Fun (\_ -> r)
+                  Nothing -> bad "local"
+            | otherwise =
+                case Map.lookup f (ruleEnv env) of
+                  Just r  -> r
+                  Nothing -> bad "top-level"
+
+          bad z = panic "compileExpr"
+                  [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x)) ]
 
         TCSelUnion s e sel _ ->
           case valueToUnion (compilePureExpr env e) of
@@ -665,7 +682,7 @@ compileExpr env = go
 
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
-            Just v  -> v
+            Just v  -> v args
             Nothing -> error $ "BUG: unknown grammar variable " ++ show x
 
         TCCoerceCheck  s _ t e ->
@@ -695,15 +712,15 @@ compileDecl prims env TCDecl { .. } =
                                                     show (pp tcDeclName) ]
       Defined d ->
         case tcDeclCtxt of
-              AGrammar ->
-                FGrm $ Fun \targs args -> compileExpr (newEnv targs args) d
+          AGrammar ->
+            FGrm $ Fun \targs args -> compileExpr (newEnv targs args) d
 
-              AValue ->
-                FVal $ Fun \targs args -> compilePureExpr (newEnv targs args) d
+          AValue ->
+            FVal $ Fun \targs args -> compilePureExpr (newEnv targs args) d
 
-              AClass ->
-                FClass $ Fun \targs args ->
-                              compilePredicateExpr (newEnv targs args) d
+          AClass ->
+            FClass $ Fun \targs args ->
+                          compilePredicateExpr (newEnv targs args) d
   )
 
   where
@@ -715,7 +732,7 @@ compileDecl prims env TCDecl { .. } =
       (GrammarParam x, VGrm pa) ->
         Env { gmrEnv = Map.insert (tcName x) pa gmrEnv, .. }
 
-      (ClassParam x, VClass v) -> 
+      (ClassParam x, VClass v) ->
         Env { clsEnv = Map.insert (tcName x) v clsEnv, .. }
 
       _ -> error "BUG: type error in function call"
