@@ -267,7 +267,7 @@ pValueIsSafe :: PdfValue.Value -> D.Parser TsafetyInfo
 pValueIsSafe (v :: PdfValue.Value) =
   (RTS.|||)
     (RTS.pEnter "PdfValue.When"
-       (PdfValue.pWhen @() @TsafetyInfo
+       (PdfValue.pWhen @TsafetyInfo @()
           ((RTS.|||)
              ((RTS.|||)
                 ((RTS.|||)
@@ -294,13 +294,13 @@ pValueIsSafe (v :: PdfValue.Value) =
            (__ :: TsafetyInfo) <-
              (RTS.<||)
                (RTS.pEnter "PdfValue.When"
-                  (PdfValue.pWhen @() @TsafetyInfo
+                  (PdfValue.pWhen @TsafetyInfo @()
                      (RTS.pEnter "PdfDemo.DictIsAction"
                         (pDictIsAction (Vector.vecFromRep "JavaScript") dict))
                      (safetyInfo HS.True HS.False)))
                ((RTS.<||)
                   (RTS.pEnter "PdfValue.When"
-                     (PdfValue.pWhen @() @TsafetyInfo
+                     (PdfValue.pWhen @TsafetyInfo @()
                         (RTS.pEnter "PdfDemo.DictIsAction"
                            (pDictIsAction (Vector.vecFromRep "URI") dict))
                         (safetyInfo HS.False HS.True)))
@@ -441,7 +441,7 @@ _ValueIsSafe :: PdfValue.Value -> D.Parser ()
 _ValueIsSafe (v :: PdfValue.Value) =
   (RTS.|||)
     (RTS.pEnter "PdfValue._When"
-       (PdfValue._When @() @TsafetyInfo
+       (PdfValue._When @TsafetyInfo @()
           ((RTS.|||)
              ((RTS.|||)
                 ((RTS.|||)
@@ -466,12 +466,12 @@ _ValueIsSafe (v :: PdfValue.Value) =
                (HS.getField @"dict" v)
            (RTS.<||)
              (RTS.pEnter "PdfValue._When"
-                (PdfValue._When @() @TsafetyInfo
+                (PdfValue._When @TsafetyInfo @()
                    (RTS.pEnter "PdfDemo._DictIsAction"
                       (_DictIsAction (Vector.vecFromRep "JavaScript") dict))))
              ((RTS.<||)
                 (RTS.pEnter "PdfValue._When"
-                   (PdfValue._When @() @TsafetyInfo
+                   (PdfValue._When @TsafetyInfo @()
                       (RTS.pEnter "PdfDemo._DictIsAction"
                          (_DictIsAction (Vector.vecFromRep "URI") dict))))
                 (RTS.loopFoldM

@@ -1,25 +1,23 @@
+import PdfDecl
+import PdfValue
 
 -- These are to deal with recursion in the object graph.
 def IsValidated     (obj : int) (gen : int) (ty : [uint 8]) : bool
 def StartValidating (obj : int) (gen : int) (ty : [uint 8]) : {}
 
-{- This is the pattern for validating values, once we have
-   parameterized grammar parmaeters.
-
-checkValue P (v : Value)
-     { @r = v is ref; commit; checkRef P r }
+def CheckValue ty P (v : Value) =
+     { @r = v is ref; commit; CheckRef ty P r }
   <| P v
 
-checkRef P (r : Ref) =
-  Default {} {
-    IsValidated r.gen r.obj is false;
-    commit;
-    StartValidating r.gen r.obj;
-    @v = ResolveValRef r;
-    P v;
-  }
+def CheckRef ty P (r : Ref) = Default {} {
+  @done = IsValidated r.gen r.obj ty;
+  done is false;
+  commit;
+  StartValidating r.gen r.obj ty;
+  @v = ResolveValRef r;
+  P v;
+}
 
--}
 
 
 

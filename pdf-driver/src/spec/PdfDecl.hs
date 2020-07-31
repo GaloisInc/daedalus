@@ -678,9 +678,9 @@ pCheckType (x :: Vector.Vector (RTS.UInt 8))
      HS.pure __
  
 pChunk ::
-  forall b. RTS.DDL b => HS.Integer -> (D.Parser b -> D.Parser b)
+  forall f. RTS.DDL f => HS.Integer -> (D.Parser f -> D.Parser f)
  
-pChunk (n :: HS.Integer) (pP :: D.Parser b) =
+pChunk (n :: HS.Integer) (pP :: D.Parser f) =
   do (cur :: RTS.Input) <- RTS.pPeek
      (this :: RTS.Input) <-
        RTS.pIsJust "292:11--292:16" "Not enough bytes"
@@ -689,7 +689,7 @@ pChunk (n :: HS.Integer) (pP :: D.Parser b) =
        RTS.pIsJust "293:11--293:16" "Not enough bytes"
          (RTS.advanceBy n cur)
      RTS.pSetInput this
-     (__ :: b) <- pP
+     (__ :: f) <- pP
      RTS.pSetInput next
      HS.pure __
  
@@ -786,7 +786,7 @@ pObjectStreamEntry (oid :: a) =
      HS.pure (ObjectStreamEntry oid val)
  
 _Chunk ::
-  forall b. RTS.DDL b => HS.Integer -> (D.Parser () -> D.Parser ())
+  forall f. RTS.DDL f => HS.Integer -> (D.Parser () -> D.Parser ())
  
 _Chunk (n :: HS.Integer) (_P :: D.Parser ()) =
   do (cur :: RTS.Input) <- RTS.pPeek
@@ -869,12 +869,12 @@ pResolveStream (v :: PdfValue.Value) =
      HS.pure __
  
 pWithStream ::
-  forall b. RTS.DDL b => RTS.Input -> (D.Parser b -> D.Parser b)
+  forall d. RTS.DDL d => RTS.Input -> (D.Parser d -> D.Parser d)
  
-pWithStream (s :: RTS.Input) (pP :: D.Parser b) =
+pWithStream (s :: RTS.Input) (pP :: D.Parser d) =
   do (cur :: RTS.Input) <- RTS.pPeek
      RTS.pSetInput s
-     (__ :: b) <- pP
+     (__ :: d) <- pP
      RTS.pSetInput cur
      HS.pure __
  
@@ -1499,7 +1499,7 @@ _ObjectStreamNth (n :: HS.Integer) (first :: HS.Integer)
        (_ObjectStreamEntry @HS.Integer)
  
 _WithStream ::
-  forall b. RTS.DDL b => RTS.Input -> (D.Parser () -> D.Parser ())
+  forall d. RTS.DDL d => RTS.Input -> (D.Parser () -> D.Parser ())
  
 _WithStream (s :: RTS.Input) (_P :: D.Parser ()) =
   do (cur :: RTS.Input) <- RTS.pPeek

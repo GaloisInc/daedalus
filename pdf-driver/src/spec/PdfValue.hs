@@ -965,48 +965,48 @@ _AnyWS =
        (RTS.pEnter "PdfValue._Comment" _Comment))
     (RTS.pEnter "PdfValue._EOL" _EOL)
  
-_Token :: forall a. RTS.DDL a => D.Parser () -> D.Parser ()
+_Token :: forall b. RTS.DDL b => D.Parser () -> D.Parser ()
  
 _Token (_P :: D.Parser ()) =
   do _P
      RTS.pSkipMany (RTS.<||) (RTS.pEnter "PdfValue._AnyWS" _AnyWS)
  
-_KW :: forall a. RTS.DDL a => D.Parser () -> D.Parser ()
+_KW :: forall b. RTS.DDL b => D.Parser () -> D.Parser ()
  
 _KW (_P :: D.Parser ()) =
-  RTS.pEnter "PdfValue._Token" (_Token @a _P)
+  RTS.pEnter "PdfValue._Token" (_Token @b _P)
  
 pBetween ::
-  forall c.
-    RTS.DDL c =>
+  forall e.
+    RTS.DDL e =>
       Vector.Vector (RTS.UInt 8)
-        -> (Vector.Vector (RTS.UInt 8) -> (D.Parser c -> D.Parser c))
+        -> (Vector.Vector (RTS.UInt 8) -> (D.Parser e -> D.Parser e))
  
 pBetween (open :: Vector.Vector (RTS.UInt 8))
   (close :: Vector.Vector (RTS.UInt 8))
-  (pP :: D.Parser c) =
+  (pP :: D.Parser e) =
   do RTS.pEnter "PdfValue._KW"
        (_KW @(Vector.Vector (RTS.UInt 8))
           (HS.const () HS.<$> RTS.pMatch "26:34--26:37" open))
-     (__ :: c) <- pP
+     (__ :: e) <- pP
      RTS.pEnter "PdfValue._KW"
        (_KW @(Vector.Vector (RTS.UInt 8))
           (HS.const () HS.<$> RTS.pMatch "26:51--26:55" close))
      HS.pure __
  
-pKW :: forall a. RTS.DDL a => D.Parser a -> D.Parser ()
+pKW :: forall b. RTS.DDL b => D.Parser b -> D.Parser ()
  
-pKW (pP :: D.Parser a) =
+pKW (pP :: D.Parser b) =
   RTS.pEnter "PdfValue._Token"
-    (_Token @a
+    (_Token @b
        (do HS.void pP
            HS.pure ()))
  
 pWhen ::
-  forall a b.
-    (RTS.DDL a, RTS.DDL b) => D.Parser a -> (b -> D.Parser b)
+  forall b f.
+    (RTS.DDL b, RTS.DDL f) => D.Parser f -> (b -> D.Parser b)
  
-pWhen (pP :: D.Parser a) (x :: b) =
+pWhen (pP :: D.Parser f) (x :: b) =
   do do HS.void pP
         HS.pure ()
      (__ :: b) <- HS.pure x
@@ -1017,13 +1017,13 @@ pBool :: D.Parser HS.Bool
 pBool =
   (RTS.|||)
     (RTS.pEnter "PdfValue.When"
-       (pWhen @() @HS.Bool
+       (pWhen @HS.Bool @()
           (RTS.pEnter "PdfValue.KW"
              (pKW @(Vector.Vector (RTS.UInt 8))
                 (RTS.pMatch "37:14--37:19" (Vector.vecFromRep "true"))))
           HS.True))
     (RTS.pEnter "PdfValue.When"
-       (pWhen @() @HS.Bool
+       (pWhen @HS.Bool @()
           (RTS.pEnter "PdfValue.KW"
              (pKW @(Vector.Vector (RTS.UInt 8))
                 (RTS.pMatch "38:14--38:20" (Vector.vecFromRep "false"))))
@@ -1103,10 +1103,10 @@ pNameChar =
                 (RTS.bcComplement (RTS.bcByteString "\NUL\t\n\f\r ()<>[]{}/%#")))
     (RTS.pEnter "PdfValue.NameEsc" pNameEsc)
  
-pToken :: forall a. RTS.DDL a => D.Parser a -> D.Parser a
+pToken :: forall b. RTS.DDL b => D.Parser b -> D.Parser b
  
-pToken (pP :: D.Parser a) =
-  do (__ :: a) <- pP
+pToken (pP :: D.Parser b) =
+  do (__ :: b) <- pP
      RTS.pSkipMany (RTS.<||) (RTS.pEnter "PdfValue._AnyWS" _AnyWS)
      HS.pure __
  
@@ -1262,12 +1262,12 @@ pNumber =
            (__ :: Number) <-
              (RTS.|||)
                (RTS.pEnter "PdfValue.When"
-                  (pWhen @() @Number
+                  (pWhen @Number @()
                      (RTS.pIsJust "47:11--47:21" "Expected `pos`"
                         (HS.getField @"pos" sign))
                      n))
                (RTS.pEnter "PdfValue.When"
-                  (pWhen @() @Number
+                  (pWhen @Number @()
                      (RTS.pIsJust "48:11--48:21" "Expected `neg`"
                         (HS.getField @"neg" sign))
                      (Number (RTS.sub (RTS.lit 0 :: HS.Integer) (HS.getField @"num" n))
@@ -1365,7 +1365,7 @@ pStringEsc =
                                     (Vector.vecFromRep "\\")))
                               ((RTS.|||)
                                  (RTS.pEnter "PdfValue.When"
-                                    (pWhen @(RTS.UInt 8) @(Vector.Vector (RTS.UInt 8))
+                                    (pWhen @(Vector.Vector (RTS.UInt 8)) @(RTS.UInt 8)
                                        (RTS.pEnter "PdfValue.EOL" pEOL)
                                        (Vector.vecFromRep "")))
                                  (RTS.pEnter "PdfValue.StringNumEsc" pStringNumEsc)))))))))
@@ -2435,8 +2435,8 @@ _OpName =
           (RTS.pEnter "PdfValue._NameChar" _NameChar)))
  
 _Between ::
-  forall c.
-    RTS.DDL c =>
+  forall e.
+    RTS.DDL e =>
       Vector.Vector (RTS.UInt 8)
         -> (Vector.Vector (RTS.UInt 8) -> (D.Parser () -> D.Parser ()))
  
@@ -2462,7 +2462,7 @@ _Array =
               HS.pure ())))
  
 _When ::
-  forall a b. (RTS.DDL a, RTS.DDL b) => D.Parser () -> D.Parser ()
+  forall b f. (RTS.DDL b, RTS.DDL f) => D.Parser () -> D.Parser ()
  
 _When (_P :: D.Parser ()) = _P
  
@@ -2471,13 +2471,13 @@ _Bool :: D.Parser ()
 _Bool =
   (RTS.|||)
     (RTS.pEnter "PdfValue._When"
-       (_When @() @HS.Bool
+       (_When @HS.Bool @()
           (RTS.pEnter "PdfValue._KW"
              (_KW @(Vector.Vector (RTS.UInt 8))
                 (HS.const ()
                    HS.<$> RTS.pMatch "37:14--37:19" (Vector.vecFromRep "true"))))))
     (RTS.pEnter "PdfValue._When"
-       (_When @() @HS.Bool
+       (_When @HS.Bool @()
           (RTS.pEnter "PdfValue._KW"
              (_KW @(Vector.Vector (RTS.UInt 8))
                 (HS.const ()
@@ -2577,11 +2577,11 @@ _Number =
               HS.pure ()
            (RTS.|||)
              (RTS.pEnter "PdfValue._When"
-                (_When @() @Number
+                (_When @Number @()
                    (RTS.pIsJust_ "47:11--47:21" "Expected `pos`"
                       (HS.getField @"pos" sign))))
              (RTS.pEnter "PdfValue._When"
-                (_When @() @Number
+                (_When @Number @()
                    (RTS.pIsJust_ "48:11--48:21" "Expected `neg`"
                       (HS.getField @"neg" sign))))))
  
@@ -2778,10 +2778,10 @@ pNatValue (v :: Value) =
        RTS.pEnter "PdfValue.NumberAsNat" (pNumberAsNat n)
      HS.pure __
  
-pOnly :: forall a. RTS.DDL a => D.Parser a -> D.Parser a
+pOnly :: forall b. RTS.DDL b => D.Parser b -> D.Parser b
  
-pOnly (pP :: D.Parser a) =
-  do (__ :: a) <- pP
+pOnly (pP :: D.Parser b) =
+  do (__ :: b) <- pP
      RTS.pEnd "28:39--28:41"
      HS.pure __
  
@@ -3613,7 +3613,7 @@ _OctDigit =
     HS.<$> RTS.pMatch1 "80:24--80:33"
              (RTS.bcRange (RTS.uint8 48) (RTS.uint8 55))
  
-_Only :: forall a. RTS.DDL a => D.Parser () -> D.Parser ()
+_Only :: forall b. RTS.DDL b => D.Parser () -> D.Parser ()
  
 _Only (_P :: D.Parser ()) =
   do _P
@@ -3688,7 +3688,7 @@ _StringEsc =
                                      HS.<$> RTS.pMatch "113:11--113:14" (Vector.vecFromRep "\\"))))
                             ((RTS.|||)
                                (RTS.pEnter "PdfValue._When"
-                                  (_When @(RTS.UInt 8) @(Vector.Vector (RTS.UInt 8))
+                                  (_When @(Vector.Vector (RTS.UInt 8)) @(RTS.UInt 8)
                                      (RTS.pEnter "PdfValue._EOL" _EOL)))
                                (RTS.pEnter "PdfValue._StringNumEsc" _StringNumEsc)))))))))
  
