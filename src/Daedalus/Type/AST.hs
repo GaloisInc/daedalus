@@ -279,7 +279,7 @@ instance PP RuleType where
   ppPrec n (as :-> b) = wrapIf (n > 0)
                       $ hsep
                       $ intersperse "->"
-                      $ map pp
+                      $ map (ppPrec 1)
                       $ as ++ [b]
 
 
