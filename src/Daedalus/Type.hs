@@ -30,7 +30,6 @@ import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
 
-
 inferRules :: Module -> MTypeM (TCModule SourceRange)
 inferRules m = go [] (moduleRules m)
   where
@@ -925,7 +924,7 @@ inferExpr expr =
                 let nm = TCName { tcName = f
                                 , tcType = out1
                                 , tcNameCtx = nameContext }
-                checkPromoteToGrammar nm (exprAt expr (TCCall nm tys es1)) out
+                checkPromoteToGrammar nm (exprAt expr (TCCall nm tys es1)) out1
            LocalRule ty -> inferLocalApp (range expr) f es ty
       where
       checkArgs ts out as =
