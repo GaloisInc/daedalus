@@ -31,7 +31,7 @@ pCheckASCII ::
  
 pCheckASCII (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "38:5--38:15" "Expected `string`"
+       RTS.pIsJust "67:5--67:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -40,7 +40,7 @@ pCheckDate ::
  
 pCheckDate (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "30:5--30:15" "Expected `string`"
+       RTS.pIsJust "59:5--59:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -48,9 +48,9 @@ pCheckInteger :: PdfValue.Value -> D.Parser HS.Integer
  
 pCheckInteger (v :: PdfValue.Value) =
   do (n :: PdfValue.Number) <-
-       RTS.pIsJust "25:10--25:20" "Expected `number`"
+       RTS.pIsJust "53:8--53:18" "Expected `number`"
          (HS.getField @"number" v)
-     RTS.pGuard "25:23--25:32" "guard failed"
+     RTS.pGuard "54:3--54:12" "guard failed"
        (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))
      (__ :: HS.Integer) <- HS.pure (HS.getField @"num" n)
      HS.pure __
@@ -92,26 +92,27 @@ pCheckRef ::
 pCheckRef (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (r :: PdfValue.Ref) =
-  RTS.pEnter "PdfDecl.Default"
-    (PdfDecl.pDefault @() ()
-       (do (done :: HS.Bool) <-
-             RTS.pEnter "PdfValidate.IsValidated"
-               (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
-           RTS.pGuard "14:3--14:15" "guard failed" (HS.not done)
-           RTS.pErrorMode RTS.Abort
-             (do RTS.pEnter "PdfValidate._StartValidating"
-                   (_StartValidating (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
-                 (v :: PdfValue.Value) <-
-                   RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
-                 (__ :: ()) <- RTS.pEnter "P" (pP v)
-                 HS.pure __)))
+  RTS.pErrorMode RTS.Fail
+    (RTS.pEnter "PdfDecl.Default"
+       (PdfDecl.pDefault @() ()
+          (do (done :: HS.Bool) <-
+                RTS.pEnter "PdfValidate.IsValidated"
+                  (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
+              RTS.pGuard "40:5--40:17" "guard failed" (HS.not done)
+              RTS.pErrorMode RTS.Abort
+                (do RTS.pEnter "PdfValidate._StartValidating"
+                      (_StartValidating (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
+                    (v :: PdfValue.Value) <-
+                      RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
+                    (__ :: ()) <- RTS.pEnter "P" (pP v)
+                    HS.pure __))))
  
 pCheckText ::
       PdfValue.Value -> D.Parser (Vector.Vector (RTS.UInt 8))
  
 pCheckText (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "34:5--34:15" "Expected `string`"
+       RTS.pIsJust "63:5--63:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -123,44 +124,45 @@ pCheckValue ::
 pCheckValue (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (v :: PdfValue.Value) =
-  (RTS.<||)
-    (do (r :: PdfValue.Ref) <-
-          RTS.pIsJust "9:13--9:20" "Expected `ref`" (HS.getField @"ref" v)
-        RTS.pErrorMode RTS.Abort
-          (do (__ :: ()) <-
-                RTS.pEnter "PdfValidate.CheckRef" (pCheckRef ty pP r)
-              HS.pure __))
-    (RTS.pEnter "P" (pP v))
+  RTS.pErrorMode RTS.Fail
+    ((RTS.<||)
+       (do (r :: PdfValue.Ref) <-
+             RTS.pIsJust "31:13--31:20" "Expected `ref`" (HS.getField @"ref" v)
+           RTS.pErrorMode RTS.Abort
+             (do (__ :: ()) <-
+                   RTS.pEnter "PdfValidate.CheckRef" (pCheckRef ty pP r)
+                 HS.pure __))
+       (RTS.pEnter "P" (pP v)))
  
 pEqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
  
 pEqNumber (x :: PdfValue.Number) (y :: PdfValue.Number) =
-  do RTS.pGuard "46:5--46:18" "guard failed"
+  do RTS.pGuard "75:5--75:18" "guard failed"
        (HS.getField @"num" x HS.== HS.getField @"num" y)
      (__ :: ()) <-
-       RTS.pGuard "46:21--46:34" "guard failed"
+       RTS.pGuard "75:21--75:34" "guard failed"
          (HS.getField @"exp" x HS.== HS.getField @"exp" y)
      HS.pure __
  
 _CheckASCII :: PdfValue.Value -> D.Parser ()
  
 _CheckASCII (v :: PdfValue.Value) =
-  RTS.pIsJust_ "38:5--38:15" "Expected `string`"
+  RTS.pIsJust_ "67:5--67:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckDate :: PdfValue.Value -> D.Parser ()
  
 _CheckDate (v :: PdfValue.Value) =
-  RTS.pIsJust_ "30:5--30:15" "Expected `string`"
+  RTS.pIsJust_ "59:5--59:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckInteger :: PdfValue.Value -> D.Parser ()
  
 _CheckInteger (v :: PdfValue.Value) =
   do (n :: PdfValue.Number) <-
-       RTS.pIsJust "25:10--25:20" "Expected `number`"
+       RTS.pIsJust "53:8--53:18" "Expected `number`"
          (HS.getField @"number" v)
-     RTS.pGuard "25:23--25:32" "guard failed"
+     RTS.pGuard "54:3--54:12" "guard failed"
        (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))
  
 _CheckRectangle :: D.Parser ()
@@ -175,23 +177,24 @@ _CheckRef ::
 _CheckRef (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (r :: PdfValue.Ref) =
-  RTS.pEnter "PdfDecl._Default"
-    (PdfDecl._Default @()
-       (do (done :: HS.Bool) <-
-             RTS.pEnter "PdfValidate.IsValidated"
-               (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
-           RTS.pGuard "14:3--14:15" "guard failed" (HS.not done)
-           RTS.pErrorMode RTS.Abort
-             (do RTS.pEnter "PdfValidate._StartValidating"
-                   (_StartValidating (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
-                 (v :: PdfValue.Value) <-
-                   RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
-                 RTS.pEnter "P" (pP v))))
+  RTS.pErrorMode RTS.Fail
+    (RTS.pEnter "PdfDecl._Default"
+       (PdfDecl._Default @()
+          (do (done :: HS.Bool) <-
+                RTS.pEnter "PdfValidate.IsValidated"
+                  (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
+              RTS.pGuard "40:5--40:17" "guard failed" (HS.not done)
+              RTS.pErrorMode RTS.Abort
+                (do RTS.pEnter "PdfValidate._StartValidating"
+                      (_StartValidating (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
+                    (v :: PdfValue.Value) <-
+                      RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
+                    RTS.pEnter "P" (pP v)))))
  
 _CheckText :: PdfValue.Value -> D.Parser ()
  
 _CheckText (v :: PdfValue.Value) =
-  RTS.pIsJust_ "34:5--34:15" "Expected `string`"
+  RTS.pIsJust_ "63:5--63:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckValue ::
@@ -202,19 +205,20 @@ _CheckValue ::
 _CheckValue (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (v :: PdfValue.Value) =
-  (RTS.<||)
-    (do (r :: PdfValue.Ref) <-
-          RTS.pIsJust "9:13--9:20" "Expected `ref`" (HS.getField @"ref" v)
-        RTS.pErrorMode RTS.Abort
-          (RTS.pEnter "PdfValidate._CheckRef" (_CheckRef ty pP r)))
-    (RTS.pEnter "P" (pP v))
+  RTS.pErrorMode RTS.Fail
+    ((RTS.<||)
+       (do (r :: PdfValue.Ref) <-
+             RTS.pIsJust "31:13--31:20" "Expected `ref`" (HS.getField @"ref" v)
+           RTS.pErrorMode RTS.Abort
+             (RTS.pEnter "PdfValidate._CheckRef" (_CheckRef ty pP r)))
+       (RTS.pEnter "P" (pP v)))
  
 _EqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
  
 _EqNumber (x :: PdfValue.Number) (y :: PdfValue.Number) =
-  do RTS.pGuard "46:5--46:18" "guard failed"
+  do RTS.pGuard "75:5--75:18" "guard failed"
        (HS.getField @"num" x HS.== HS.getField @"num" y)
-     RTS.pGuard "46:21--46:34" "guard failed"
+     RTS.pGuard "75:21--75:34" "guard failed"
        (HS.getField @"exp" x HS.== HS.getField @"exp" y)
  
 _IsValidated ::

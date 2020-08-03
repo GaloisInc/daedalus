@@ -21,33 +21,38 @@ def IsValidated (obj : int) (gen : int) (ty : [uint 8]) : bool
 def StartValidating (obj : int) (gen : int) (ty : [uint 8]) : {}
 
 
+--- 
 
 --------------------------------------------------------------------------------
 
 -- Check that a value matches the property named `ty` and described by `P`.
 -- References are transparently dereferenced.
-def CheckValue ty P (v : Value) =
-  try (
-       { @r = v is ref; commit; CheckRef ty P r }
-    <| P v
-  )
+def CheckValue ty P (v : Value) = try (
+     { @r = v is ref; commit; CheckRef ty P r }
+  <| P v
+)
 
 -- Check that the this reference points to a value, which satisfy property
 -- named `ty`, described by `P.
-def CheckRef ty P (r : Ref) =
-  try (Default {} {
+def CheckRef ty P (r : Ref) = try (
+  Default {} {
     @done = IsValidated r.gen r.obj ty;
     done is false;
     commit;
     StartValidating r.gen r.obj ty;
     @v = ResolveValRef r;
     P v;
-  })
+  }
+)
 
 
-def CheckInteger (v : Value) : int =
-  try { @n = v is number; commit; n.exp == 0; ^ n.num }
-  -- XXX: +ve exponents are OK, as are -ve if number is big enough
+-- When we parse number we only decrement the exponent for nubmers after 0.
+-- Note that, 1.00 will be represented as { num = 100, exp = -2 } so it
+-- is not considered to be an integer.
+def CheckInteger (v : Value) : int = {
+  @n = v is number;
+  n.exp == 0; ^ n.num
+}
 
 -- XXX: more checking
 def CheckDate (v : Value) : [uint 8] =

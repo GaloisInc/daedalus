@@ -73,22 +73,36 @@ library pdf-spec
   ghc-options:          -Wall
 
   exposed-modules:
-    PdfParser
-  other-modules:
+    PdfParser,
     PdfParserNotSpecialized,
     -- PdfParserSpecialized,
     PdfValue,
     PdfDecl,
     PdfXRef,
     PdfDemo,
-    PdfValidate,
     ISOCodes,
-    PdfDOM
 
   build-depends:
     base >=4.13 && <4.14,
     pdf-rts,
     rts-hs
+
+library pdf-dom-spec
+  default-language:     Haskell2010
+  hs-source-dirs:       src/spec
+  ghc-options:          -Wall
+
+  other-modules:
+    PdfValidate,
+    PdfDOM
+
+  build-depends:
+    base >=4.13 && <4.14,
+    pdf-rts,
+    pdf-spec,
+    rts-hs
+
+
 
 -- This is the main part of the executable.
 -- It is in a library so that we can easily instantiated with the
@@ -117,7 +131,8 @@ library
     mtl,
     rts-hs,
     pdf-rts,
-    pdf-spec
+    pdf-spec,
+    pdf-dom-spec
 
 
 -- Non debug mode executable
