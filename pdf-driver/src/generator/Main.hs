@@ -10,6 +10,8 @@ import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
 
 
+{- We split up basic PDF validation from DOM related stuff into separate
+packages.  This allows us to avoid recompiling things that have not changed. -}
 main :: IO ()
 main =
   daedalus
@@ -22,9 +24,7 @@ main =
                       "PdfDecl"     -> cfgPdfDecl
                       "PdfValidate" -> cfgPdfValidate
                       _             -> cfg
-     mapM_ (\m -> do ph <- ddlGetPhase m
-                     ddlPrint (phasePass ph)
-                     saveHS (Just "src/spec") (cfgFor m) m) todo
+     mapM_ (\m -> saveHS (Just (locFor m)) (cfgFor m) m) todo
 
   where
   specialize = False
@@ -34,8 +34,14 @@ main =
           , ("PdfDemo", "TopDeclCheck")
           , ("PdfDemo", "ResolveObjectStreamEntryCheck")
           , ("PdfXRef", "CrossRef")
-          , ("PdfDom", "CheckCatalog")
+          , ("PdfDOM",  "DOMTrailer")
           ]
+
+  locFor m
+    | m `elem` dom = "src/dom-spec"
+    | otherwise    = "src/spec"
+    where
+    dom = [ "PdfDOM", "PdfValidate", "PdfText", "ISOCodes" ]
 
 
 

@@ -10,6 +10,8 @@ import RTS.Input(newInput)
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 
+import PdfDOM
+
 
 main :: IO ()
 main =
@@ -27,27 +29,11 @@ main =
            ParseAmbig _ -> error "BUG: Ambiguous XRef table."
            ParseErr e   -> quit (show e)
 
-     return ()
-
-{-
-     let trailmap = getField @"all" trail
-     xrefOK fmt refs (Map.mapKeys vecToString trailmap)
-     when (Map.member (vecFromRep "Encrypt") trailmap) (warnEncrypt fmt)
-
-     root <- case getField @"root" trail of
-               Nothing -> rootMissing fmt >> exitFailure
-               Just r -> pure r
-     rootFound fmt root
-
-     res <- runParser refs (pCatalogIsOK root) topInput
+     res <- runParser refs (pDOMTrailer trail) topInput
      case res of
-       ParseOk ok    -> catalogOK fmt ok
+       ParseOk _     -> putStrLn "OK"
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
-       ParseErr e    -> catalogParseError fmt e
-
-     mapM_ (checkDecl fmt topInput refs) (Map.toList refs)
--}
-
+       ParseErr e    -> quit (show e)
 
 quit :: String -> IO a
 quit msg =

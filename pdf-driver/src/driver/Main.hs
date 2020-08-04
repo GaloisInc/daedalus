@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments, ScopedTypeVariables #-}
-module PdfDriver(main) where
+module Main(main) where
 
 import CommandLine
 

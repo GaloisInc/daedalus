@@ -73,10 +73,10 @@ library pdf-spec
 
 library pdf-dom-spec
   default-language:     Haskell2010
-  hs-source-dirs:       src/spec
+  hs-source-dirs:       src/dom-spec
   ghc-options:          -Wall
 
-  other-modules:
+  exposed-modules:
     -- PdfText,
     -- ISOCodes,
     PdfValidate,
@@ -114,7 +114,6 @@ executable pdf-hs-driver
     rts-hs,
     pdf-rts,
     pdf-spec
-
 
 executable pdf-dom-test
   default-language: Haskell2010
