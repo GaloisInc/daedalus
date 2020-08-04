@@ -14,7 +14,7 @@ main :: IO ()
 main =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM" ]
+     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfText" ]
      mapM_ ddlLoadModule mods
      when specialize (passSpecialize roots)
      todo <- ddlBasisMany mods

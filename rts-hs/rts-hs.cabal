@@ -20,7 +20,6 @@ library
                        RTS.Numeric,
                        RTS.ParserAPI,
                        RTS.Parser,
-                       RTS.ParserT,
                        RTS.StateT,
                        RTS.WithTreeT,
                        RTS.Vector,

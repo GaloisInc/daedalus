@@ -2,7 +2,6 @@
 {-# Language RankNTypes #-}
 module PdfMonad.Release (Parser, runParser, DbgMode, pdfMain) where
 
-import Data.ByteString(ByteString)
 import Data.Foldable(toList)
 import Data.Kind(Constraint)
 

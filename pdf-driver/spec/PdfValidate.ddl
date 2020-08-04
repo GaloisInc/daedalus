@@ -21,20 +21,18 @@ def IsValidated (obj : int) (gen : int) (ty : [uint 8]) : bool
 def StartValidating (obj : int) (gen : int) (ty : [uint 8]) : {}
 
 
---- 
-
 --------------------------------------------------------------------------------
 
 -- Check that a value matches the property named `ty` and described by `P`.
 -- References are transparently dereferenced.
-def CheckValue ty P (v : Value) = try (
+def CheckValue ty P (v : Value) = try {
      { @r = v is ref; commit; CheckRef ty P r }
   <| P v
-)
+}
 
 -- Check that the this reference points to a value, which satisfy property
 -- named `ty`, described by `P.
-def CheckRef ty P (r : Ref) = try (
+def CheckRef ty P (r : Ref) = try {
   Default {} {
     @done = IsValidated r.gen r.obj ty;
     done is false;
@@ -43,15 +41,22 @@ def CheckRef ty P (r : Ref) = try (
     @v = ResolveValRef r;
     P v;
   }
-)
+}
 
 
--- When we parse number we only decrement the exponent for nubmers after 0.
--- Note that, 1.00 will be represented as { num = 100, exp = -2 } so it
--- is not considered to be an integer.
-def CheckInteger (v : Value) : int = {
+def Any v = {}
+
+
+{- Match integer values that satisfy the given predicate.
+You may use `Integer Any` if any integer would do.
+
+Note that this only matches values that were written without a decimal
+point in the PDF.  The reason for that is we represent
+`1.00` as `{ num = 100, exp = -2 }` see `PDFValue` for details. -}
+def Integer P (v : Value) : int = {
   @n = v is number;
-  n.exp == 0; ^ n.num
+  n.exp == 0;
+  P n.num
 }
 
 -- XXX: more checking
@@ -66,9 +71,6 @@ def CheckText (v : Value) : [uint 8] =
 def CheckASCII (v : Value) : [uint 8] =
   { v is string }
 
--- XXX
-def CheckRectangle (v : Value) : {} =
-  {}
 
 -- XXX 
 def EqNumber (x : Number) (y : Number) : {} =

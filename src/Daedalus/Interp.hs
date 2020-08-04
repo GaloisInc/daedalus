@@ -27,8 +27,6 @@ import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.Functor.Identity(Identity,runIdentity)
-
 import qualified Data.Vector as Vector
 
 import Daedalus.SourceRange
@@ -42,12 +40,10 @@ import Daedalus.Interp.Value
 
 import RTS.ParserAPI
 import RTS.Input
-import RTS.ParserT as P
+import RTS.Parser as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
 import qualified RTS.Vector as RTS
-
-type Parser = P.ParserT Identity
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
 byteStringToValue :: ByteString -> Value
@@ -782,8 +778,7 @@ interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> Result Value
 interpCompiled name bytes env startName =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScope x == startName] of
-    (rl : _)        -> runIdentity $
-                       P.runParserT (rl [] [])
+    (rl : _)        -> P.runParser (rl [] [])
                        (newInput name bytes)
     []              -> error ("Unknown start rule: " ++ show startName)
 
