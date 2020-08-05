@@ -13,6 +13,7 @@
 module PdfDOM where
  
 import qualified PdfMonad as D
+import qualified PdfValidate
 import qualified PdfXRef
 import qualified Prelude as HS
 import qualified GHC.TypeLits as HS

@@ -4,5 +4,6 @@ packages:
   daedalus-core/
   daedalus-vm/
   rts-hs/
+  pdf-cos/
   pdf-driver/
   icc-driver/

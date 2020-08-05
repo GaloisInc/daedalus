@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import Control.Monad(liftM,ap)
 
 import RTS.ParserAPI
-import RTS.Input
 
 
 data R = R { refObj :: {-# UNPACK #-} !Int

@@ -16,33 +16,23 @@ main :: IO ()
 main =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfText" ]
+     let mods = [ "PdfXRef" ]
      mapM_ ddlLoadModule mods
      when specialize (passSpecialize roots)
      todo <- ddlBasisMany mods
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
-                      "PdfValidate" -> cfgPdfValidate
                       _             -> cfg
-     mapM_ (\m -> saveHS (Just (locFor m)) (cfgFor m) m) todo
+     mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
 
   where
   specialize = False
 
+  -- XXX: This is not the full interface, but it (probably?) uses
+  -- everything we need.
   roots :: [(ModuleName,Ident)]
-  roots = [ ("PdfDemo", "CatalogIsOK")
-          , ("PdfDemo", "TopDeclCheck")
-          , ("PdfDemo", "ResolveObjectStreamEntryCheck")
-          , ("PdfXRef", "CrossRef")
-          , ("PdfDOM",  "DOMTrailer")
+  roots = [ ("PdfXRef", "CrossRef")
           ]
-
-  locFor m
-    | m `elem` dom = "src/dom-spec"
-    | otherwise    = "src/spec"
-    where
-    dom = [ "PdfDOM", "PdfValidate", "PdfText", "ISOCodes" ]
-
 
 
 
@@ -53,25 +43,6 @@ cfg = CompilerCfg
   , cImports    = [ Import "PdfMonad" (QualifyAs "D") ]
   , cQualNames = UseQualNames
   }
-
-
-cfgPdfValidate :: CompilerCfg
-cfgPdfValidate = CompilerCfg
-  { cPrims = Map.fromList
-      [ primName "PdfValidate" "IsValidated" AGrammar |->
-        aps "D.primIsValidated" [ "obj", "gen", "ty" ]
-
-      , primName "PdfValidate" "StartValidating" AGrammar |->
-        aps "D.primStartValidating" [ "obj", "gen", "ty" ]
-      ]
-  , cParserType = "D.Parser"
-  , cImports    = [ Import "Primitives.Validate" (QualifyAs "D"),
-                    Import "PdfMonad" (QualifyAs "D")
-                  ]
-  , cQualNames = UseQualNames
-  }
-  where
-  x |-> y = (x,y)
 
 
 cfgPdfDecl :: CompilerCfg

@@ -24,6 +24,7 @@ import Common
 import PdfMonad
 import XRef
 import PdfParser
+import PdfDemo
 
 main :: IO ()
 main =
