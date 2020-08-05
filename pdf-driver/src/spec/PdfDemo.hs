@@ -376,7 +376,7 @@ pResolveObjectStreamEntryCheck (expectId :: HS.Integer)
        RTS.pEnter "PdfDemo.CheckDecl"
          (pCheckDecl @HS.Integer @HS.Integer @PdfDecl.TopDecl
             @PdfDecl.TopDeclDef
-            @PdfDecl.TopDeclDef_0
+            @PdfDecl.Stream
             expectId
             expectGen
             decl)
@@ -393,7 +393,7 @@ pTopDeclCheck (expectId :: HS.Integer) (expectGen :: HS.Integer) =
        RTS.pEnter "PdfDemo.CheckDecl"
          (pCheckDecl @HS.Integer @HS.Integer @PdfDecl.TopDecl
             @PdfDecl.TopDeclDef
-            @PdfDecl.TopDeclDef_0
+            @PdfDecl.Stream
             expectId
             expectGen
             decl)
@@ -557,7 +557,7 @@ _ResolveObjectStreamEntryCheck (expectId :: HS.Integer)
      RTS.pEnter "PdfDemo._CheckDecl"
        (_CheckDecl @HS.Integer @HS.Integer @PdfDecl.TopDecl
           @PdfDecl.TopDeclDef
-          @PdfDecl.TopDeclDef_0
+          @PdfDecl.Stream
           expectId
           expectGen
           decl)
@@ -570,7 +570,7 @@ _TopDeclCheck (expectId :: HS.Integer) (expectGen :: HS.Integer) =
      RTS.pEnter "PdfDemo._CheckDecl"
        (_CheckDecl @HS.Integer @HS.Integer @PdfDecl.TopDecl
           @PdfDecl.TopDeclDef
-          @PdfDecl.TopDeclDef_0
+          @PdfDecl.Stream
           expectId
           expectGen
           decl)
