@@ -10,15 +10,17 @@ def TopDecl = {
 }
 
 def TopDeclDef (val : Value) = Choose1 {
-  stream = {
-    header = val is dict;
-    "stream";
-    commit;
-    SimpleEOL;
-    body = StreamBody header;
-    KW "endstream"
-  };
-  value = ^ val
+  stream = Stream val;
+  value  = ^ val
+}
+
+def Stream (val : Value) = {
+  header = val is dict;
+  "stream";
+  commit;
+  SimpleEOL;
+  body = StreamBody header;
+  KW "endstream"
 }
 
 --------------------------------------------------------------------------------

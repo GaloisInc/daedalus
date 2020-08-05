@@ -714,7 +714,7 @@ pXRefObj :: D.Parser XRefObjTable
 pXRefObj =
   do (top :: PdfDecl.TopDecl) <-
        RTS.pEnter "PdfDecl.TopDecl" PdfDecl.pTopDecl
-     (str :: PdfDecl.TopDeclDef_0) <-
+     (str :: PdfDecl.Stream) <-
        RTS.pIsJust "59:11--59:27" "Expected `stream`"
          (HS.getField @"stream" (HS.getField @"obj" top))
      (meta :: XRefMeta) <-
@@ -854,7 +854,7 @@ _XRefObj :: D.Parser ()
 _XRefObj =
   do (top :: PdfDecl.TopDecl) <-
        RTS.pEnter "PdfDecl.TopDecl" PdfDecl.pTopDecl
-     (str :: PdfDecl.TopDeclDef_0) <-
+     (str :: PdfDecl.Stream) <-
        RTS.pIsJust "59:11--59:27" "Expected `stream`"
          (HS.getField @"stream" (HS.getField @"obj" top))
      (meta :: XRefMeta) <-
