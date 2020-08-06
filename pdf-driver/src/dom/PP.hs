@@ -10,6 +10,7 @@ import           Data.ByteString.Short(ShortByteString)
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Base64 as Base64
 import Text.PrettyPrint
 import Data.Char
 
@@ -60,7 +61,7 @@ ppDict mp = ppBlock "{" "}" (map entry (Map.toList mp))
 ppName :: Bool -> Vector (UInt 8) -> Doc
 ppName skipQuotes xs
   | skipQuotes && BS8.all normal rep = text ('$' : BS8.unpack rep)
-  | otherwise                        = quotes (text ('$' : BS8.unpack rep))
+  | otherwise                = doubleQuotes (text ('$' : BS8.unpack rep))
   where
   rep      = Vector.vecToRep xs
   normal c = isAscii c && (isAlphaNum c || c == '_')
@@ -121,12 +122,7 @@ instance PP Stream where
              ApplyFilter_unsupported {} -> "null"
 
 instance PP Input where
-  pp inp =
-    ppBlock "{" "}"
-      [ "name:"   <+> pp (inputName inp)
-      , "offset:" <+> pp (inputOffset inp)
-      , "length:" <+> pp (inputLength inp)
-      ]
+  pp inp = pp (Base64.encode (inputBytes inp))
 
 instance PP Int where
   pp = int

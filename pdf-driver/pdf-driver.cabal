@@ -76,6 +76,7 @@ executable pdf-dom
   build-depends:
     base,
     bytestring,
+    base64-bytestring,
     text,
     containers,
     pretty,
