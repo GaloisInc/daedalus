@@ -1,6 +1,6 @@
-{-# Language BlockArguments #-}
+{-# Language OverloadedStrings, BlockArguments #-}
 import qualified Data.ByteString          as BS
-import           Data.Text                as Text
+import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
 import System.IO(hPutStrLn,stderr)
@@ -48,7 +48,7 @@ main =
                 ParseErr e    -> quit (show e)
 
      case command opts of
-       ListXRefs -> mapM_ (print . ppXRef) (Map.toList refs)
+       ListXRefs -> print $ ppBlock "[" "]" (map ppXRef (Map.toList refs))
 
        PrettyPrint
          | object opts < 0 -> print (pp trail)
