@@ -6,6 +6,8 @@ module PP where
 import GHC.Records(getField)
 import           Data.Map(Map)
 import qualified Data.Map as Map
+import           Data.ByteString.Short(ShortByteString)
+import           Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Text.PrettyPrint
@@ -14,7 +16,11 @@ import Data.Char
 import RTS.Vector(Vector)
 import qualified RTS.Vector as Vector
 import RTS.Numeric(UInt)
+import RTS.Input
+import PdfMonad
+import PdfDecl
 import PdfValue(Value(..), Ref(..), Number(..))
+import PdfXRef(TrailerDict)
 
 class PP t where
   pp :: t -> Doc
@@ -29,29 +35,27 @@ instance PP Value where
       Value_array vs  -> ppArray vs
       Value_dict ds   -> ppDict ds
       Value_name xs   -> ppName False xs
-      Value_string xs -> text (show (Vector.vecToRep xs))
+      Value_string xs -> pp (Vector.vecToRep xs)
 
-ppArray :: Vector Value -> Doc
-ppArray vs =
-  case map pp (Vector.toList vs) of
-    []      -> "[]"
-    x : xs -> vcat ( ("[" <+> x)
+ppBlock :: Doc -> Doc -> [Doc] -> Doc
+ppBlock open close ds =
+  case ds of
+    []     -> hcat [ open, close ]
+    x : xs -> vcat ( (open <+> x)
                    : ["," <+> y | y <- xs ]
-                  ++ ["]"]
+                  ++ [close]
                    )
 
+ppHDict :: [Doc] -> Doc
+ppHDict ds = braces $ hsep $ punctuate comma ds
+
+ppArray :: Vector Value -> Doc
+ppArray vs = ppBlock "[" "]" (map pp (Vector.toList vs))
+
 ppDict :: Map (Vector (UInt 8)) Value -> Doc
-ppDict mp =
-  case map entry (Map.toList mp) of
-    []      -> "{}"
-    x : xs  -> vcat ( ("{" <+> x)
-                    : ["," <+> y | y <- xs ]
-                   ++ ["}"]
-                    )
+ppDict mp = ppBlock "{" "}" (map entry (Map.toList mp))
   where
   entry (x,y) = hang (hcat [ ppName True x, colon ]) 2 (pp y)
-
-
 
 ppName :: Bool -> Vector (UInt 8) -> Doc
 ppName skipQuotes xs
@@ -61,19 +65,28 @@ ppName skipQuotes xs
   rep      = Vector.vecToRep xs
   normal c = isAscii c && (isAlphaNum c || c == '_')
 
+ppRef :: (PP a, PP b) => a -> b -> Doc
+ppRef o g = ppHDict [ "obj:" <+> pp o, "gen:" <+> pp g ]
 
+ppXRef :: (R,ObjLoc) -> Doc
+ppXRef (r,ol) =
+  ppHDict $ [ "obj:" <+> pp (refObj r)
+            , "gen:" <+> pp (refGen r)
+            ] ++ loc
+  where
+  loc = case ol of
+          InFileAt x -> [ "offset:" <+> pp x ]
+          InObj r i  -> [ "ref:" <+> pp r <+> "ix:" <+> pp i ]
+
+instance PP R where
+  pp r = ppRef (refObj r) (refGen r)
 
 instance PP Ref where
-  pp ref = braces
-         $ hsep
-         $ punctuate comma
-           [ "obj:" <+> integer (getField @"obj" ref)
-           , "gen:" <+> integer (getField @"gen" ref)
-           ]
+  pp ref = ppRef (getField @"obj" ref) (getField @"gen" ref)
 
 instance PP Number where
   pp num
-    | e >= 0    = integer (n * 10 ^ e)
+    | e >= 0    = pp (n * 10 ^ e)
     | n == 0    = "0"
     | otherwise =
       let str = show n
@@ -84,5 +97,49 @@ instance PP Number where
     n = getField @"num" num
 
 
--- instance PP TopDeclDef where
+
+
+instance PP TopDecl where
+  pp td = ppBlock "{" "}"
+            [ "obj:" <+> pp (getField @"id" td)
+            , "gen:" <+> pp (getField @"gen" td)
+            , payload ]
+      where
+      payload = case getField @"obj" td of
+                  TopDeclDef_value v -> hang "value:" 2 (pp v)
+                  TopDeclDef_stream s ->
+                    hang "stream:" 2 (pp s)
+
+instance PP Stream where
+  pp str = ppBlock "{" "}"
+              [ hang "header:" 2 (ppDict (getField @"header" str))
+              , hang "body:" 2 body
+              ]
+    where
+    body = case getField @"body" str of
+             ApplyFilter_ok i           -> pp i
+             ApplyFilter_unsupported {} -> "null"
+
+instance PP Input where
+  pp inp =
+    ppBlock "{" "}"
+      [ "name:"   <+> pp (inputName inp)
+      , "offset:" <+> pp (inputOffset inp)
+      , "length:" <+> pp (inputLength inp)
+      ]
+
+instance PP Int where
+  pp = int
+
+instance PP Integer where
+  pp = integer
+
+instance PP ShortByteString where
+  pp xs = text (show xs)
+
+instance PP ByteString where
+  pp xs = text (show xs)
+
+instance PP TrailerDict where
+  pp td = ppDict (getField @"all" td)
 

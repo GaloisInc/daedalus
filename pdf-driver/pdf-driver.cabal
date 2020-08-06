@@ -71,6 +71,7 @@ executable pdf-dom-test
   hs-source-dirs:   src/dom
   main-is:          Main.hs
   other-modules:
+    CommandLine,
     PP
   build-depends:
     base,
