@@ -1,5 +1,5 @@
 #!/bin/bash
 cabal run pdf-generator
 cabal build pdf-hs-driver
-cabal build pdf-dom-test
+cabal build pdf-dom
 notify-send GHC "Build finished"
