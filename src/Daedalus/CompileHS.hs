@@ -576,8 +576,12 @@ hsGrammar env tc =
 
      TCOffset -> ApI "HS.<$>" "HS.toInteger" "RTS.pOffset"
 
-     TCCall f ts as -> "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
-                                    `Ap` hsApp env f ts as
+     TCCall f ts as ->
+        case typeOf f of
+          Type (TGrammar {}) ->
+            "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
+                         `Ap` hsApp env f ts as
+          _ -> hsApp env f ts as
 
      TCSelJust sem val _t -> hsMaybe sem erng (hsText "Expected `Just`")
                                               (hsValue env val)
