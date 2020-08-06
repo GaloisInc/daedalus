@@ -30,12 +30,17 @@ pAny :: forall a. RTS.DDL a => a -> D.Parser ()
  
 pAny (v :: a) = HS.pure ()
  
+pAtLeast :: forall b. RTS.DDL b => b -> (b -> D.Parser ())
+ 
+pAtLeast (x :: b) (y :: b) =
+  RTS.pGuard "49:22--49:27" "guard failed" (x HS.<= y)
+ 
 pCheckASCII ::
       PdfValue.Value -> D.Parser (Vector.Vector (RTS.UInt 8))
  
 pCheckASCII (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "72:5--72:15" "Expected `string`"
+       RTS.pIsJust "91:5--91:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -44,7 +49,7 @@ pCheckDate ::
  
 pCheckDate (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "64:5--64:15" "Expected `string`"
+       RTS.pIsJust "83:5--83:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -103,7 +108,7 @@ pCheckText ::
  
 pCheckText (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "68:5--68:15" "Expected `string`"
+       RTS.pIsJust "87:5--87:15" "Expected `string`"
          (HS.getField @"string" v)
      HS.pure __
  
@@ -130,41 +135,93 @@ pCheckValue (ty :: Vector.Vector (RTS.UInt 8))
 pEqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
  
 pEqNumber (x :: PdfValue.Number) (y :: PdfValue.Number) =
-  do RTS.pGuard "77:5--77:18" "guard failed"
+  do RTS.pGuard "96:5--96:18" "guard failed"
        (HS.getField @"num" x HS.== HS.getField @"num" y)
      (__ :: ()) <-
-       RTS.pGuard "77:21--77:34" "guard failed"
+       RTS.pGuard "96:21--96:34" "guard failed"
          (HS.getField @"exp" x HS.== HS.getField @"exp" y)
      HS.pure __
  
-pInteger ::
-      (HS.Integer -> D.Parser HS.Integer)
-        -> (PdfValue.Value -> D.Parser HS.Integer)
+pIs :: forall b. RTS.DDL b => b -> (b -> D.Parser ())
  
-pInteger (pP :: (HS.Integer -> D.Parser HS.Integer))
+pIs (x :: b) (y :: b) =
+  do (__ :: ()) <-
+       RTS.pGuard "48:16--48:21" "guard failed" (x HS.== y)
+     HS.pure __
+ 
+pPdfIndirect ::
+      Vector.Vector (RTS.UInt 8)
+        -> ((PdfValue.Value -> D.Parser ())
+              -> (PdfValue.Value -> D.Parser ()))
+ 
+pPdfIndirect (ty :: Vector.Vector (RTS.UInt 8))
+  (pP :: (PdfValue.Value -> D.Parser ()))
   (v :: PdfValue.Value) =
+  do (r :: PdfValue.Ref) <-
+       RTS.pIsJust "63:8--63:15" "Expected `ref`" (HS.getField @"ref" v)
+     (__ :: ()) <- RTS.pEnter "PdfValidate.CheckRef" (pCheckRef ty pP r)
+     HS.pure __
+ 
+pPdfInteger :: PdfValue.Value -> D.Parser HS.Integer
+ 
+pPdfInteger (v :: PdfValue.Value) =
   do (n :: PdfValue.Number) <-
-       RTS.pIsJust "57:8--57:18" "Expected `number`"
+       RTS.pIsJust "76:8--76:18" "Expected `number`"
          (HS.getField @"number" v)
-     RTS.pGuard "58:3--58:12" "guard failed"
+     RTS.pGuard "77:3--77:12" "guard failed"
        (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))
-     (__ :: HS.Integer) <- RTS.pEnter "P" (pP (HS.getField @"num" n))
+     (__ :: HS.Integer) <- HS.pure (HS.getField @"num" n)
+     HS.pure __
+ 
+pPdfName ::
+  forall e.
+    RTS.DDL e =>
+      (Vector.Vector (RTS.UInt 8) -> D.Parser e)
+        -> (PdfValue.Value -> D.Parser e)
+ 
+pPdfName (pP :: (Vector.Vector (RTS.UInt 8) -> D.Parser e))
+  (v :: PdfValue.Value) =
+  do (x :: Vector.Vector (RTS.UInt 8)) <-
+       RTS.pIsJust "53:8--53:16" "Expected `name`" (HS.getField @"name" v)
+     (__ :: e) <- RTS.pEnter "P" (pP x)
+     HS.pure __
+ 
+pPdfType ::
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
+        -> (Vector.Vector (RTS.UInt 8) -> D.Parser ())
+ 
+pPdfType (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
+  (expect :: Vector.Vector (RTS.UInt 8)) =
+  do (actual :: PdfValue.Value) <-
+       RTS.pIsJust "58:14--58:28"
+         ("Missing key: "
+            HS.++ HS.show
+                    (Vector.vecFromRep "Type" :: Vector.Vector (RTS.UInt 8)))
+         (Map.lookup (Vector.vecFromRep "Type") d)
+     (__ :: ()) <-
+       RTS.pEnter "PdfValidate.PdfName"
+         (pPdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) actual)
      HS.pure __
  
 _Any :: forall a. RTS.DDL a => D.Parser ()
  
 _Any = HS.pure ()
  
+_AtLeast :: forall b. RTS.DDL b => b -> (b -> D.Parser ())
+ 
+_AtLeast (x :: b) (y :: b) =
+  RTS.pGuard "49:22--49:27" "guard failed" (x HS.<= y)
+ 
 _CheckASCII :: PdfValue.Value -> D.Parser ()
  
 _CheckASCII (v :: PdfValue.Value) =
-  RTS.pIsJust_ "72:5--72:15" "Expected `string`"
+  RTS.pIsJust_ "91:5--91:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckDate :: PdfValue.Value -> D.Parser ()
  
 _CheckDate (v :: PdfValue.Value) =
-  RTS.pIsJust_ "64:5--64:15" "Expected `string`"
+  RTS.pIsJust_ "83:5--83:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckRef ::
@@ -192,7 +249,7 @@ _CheckRef (ty :: Vector.Vector (RTS.UInt 8))
 _CheckText :: PdfValue.Value -> D.Parser ()
  
 _CheckText (v :: PdfValue.Value) =
-  RTS.pIsJust_ "68:5--68:15" "Expected `string`"
+  RTS.pIsJust_ "87:5--87:15" "Expected `string`"
     (HS.getField @"string" v)
  
 _CheckValue ::
@@ -214,24 +271,15 @@ _CheckValue (ty :: Vector.Vector (RTS.UInt 8))
 _EqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
  
 _EqNumber (x :: PdfValue.Number) (y :: PdfValue.Number) =
-  do RTS.pGuard "77:5--77:18" "guard failed"
+  do RTS.pGuard "96:5--96:18" "guard failed"
        (HS.getField @"num" x HS.== HS.getField @"num" y)
-     RTS.pGuard "77:21--77:34" "guard failed"
+     RTS.pGuard "96:21--96:34" "guard failed"
        (HS.getField @"exp" x HS.== HS.getField @"exp" y)
  
-_Integer ::
-      (HS.Integer -> D.Parser HS.Integer)
-        -> (PdfValue.Value -> D.Parser ())
+_Is :: forall b. RTS.DDL b => b -> (b -> D.Parser ())
  
-_Integer (pP :: (HS.Integer -> D.Parser HS.Integer))
-  (v :: PdfValue.Value) =
-  do (n :: PdfValue.Number) <-
-       RTS.pIsJust "57:8--57:18" "Expected `number`"
-         (HS.getField @"number" v)
-     RTS.pGuard "58:3--58:12" "guard failed"
-       (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))
-     HS.void (RTS.pEnter "P" (pP (HS.getField @"num" n)))
-     HS.pure ()
+_Is (x :: b) (y :: b) =
+  RTS.pGuard "48:16--48:21" "guard failed" (x HS.== y)
  
 _IsValidated ::
       HS.Integer
@@ -242,3 +290,52 @@ _IsValidated (obj :: HS.Integer) (gen :: HS.Integer)
   do HS.void
        (RTS.pEnter "PdfValidate.IsValidated" (pIsValidated obj gen ty))
      HS.pure ()
+ 
+_PdfIndirect ::
+      Vector.Vector (RTS.UInt 8)
+        -> ((PdfValue.Value -> D.Parser ())
+              -> (PdfValue.Value -> D.Parser ()))
+ 
+_PdfIndirect (ty :: Vector.Vector (RTS.UInt 8))
+  (pP :: (PdfValue.Value -> D.Parser ()))
+  (v :: PdfValue.Value) =
+  do (r :: PdfValue.Ref) <-
+       RTS.pIsJust "63:8--63:15" "Expected `ref`" (HS.getField @"ref" v)
+     RTS.pEnter "PdfValidate._CheckRef" (_CheckRef ty pP r)
+ 
+_PdfInteger :: PdfValue.Value -> D.Parser ()
+ 
+_PdfInteger (v :: PdfValue.Value) =
+  do (n :: PdfValue.Number) <-
+       RTS.pIsJust "76:8--76:18" "Expected `number`"
+         (HS.getField @"number" v)
+     RTS.pGuard "77:3--77:12" "guard failed"
+       (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))
+ 
+_PdfName ::
+  forall e.
+    RTS.DDL e =>
+      (Vector.Vector (RTS.UInt 8) -> D.Parser e)
+        -> (PdfValue.Value -> D.Parser ())
+ 
+_PdfName (pP :: (Vector.Vector (RTS.UInt 8) -> D.Parser e))
+  (v :: PdfValue.Value) =
+  do (x :: Vector.Vector (RTS.UInt 8)) <-
+       RTS.pIsJust "53:8--53:16" "Expected `name`" (HS.getField @"name" v)
+     HS.void (RTS.pEnter "P" (pP x))
+     HS.pure ()
+ 
+_PdfType ::
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
+        -> (Vector.Vector (RTS.UInt 8) -> D.Parser ())
+ 
+_PdfType (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
+  (expect :: Vector.Vector (RTS.UInt 8)) =
+  do (actual :: PdfValue.Value) <-
+       RTS.pIsJust "58:14--58:28"
+         ("Missing key: "
+            HS.++ HS.show
+                    (Vector.vecFromRep "Type" :: Vector.Vector (RTS.UInt 8)))
+         (Map.lookup (Vector.vecFromRep "Type") d)
+     RTS.pEnter "PdfValidate._PdfName"
+       (_PdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) actual)

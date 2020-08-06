@@ -44,7 +44,26 @@ def CheckRef ty P (r : Ref) = try {
 }
 
 
-def Any v = {}
+def Any v  = {}
+def Is x y = { x == y }
+def AtLeast x y = @{ x <= y }
+
+
+def PdfName P (v : Value) = {
+  @x = v is name;
+  P x;
+}
+
+def PdfType d expect = {
+  @actual  = Lookup "Type" d;
+  PdfName (Is expect) actual;
+}
+
+def PdfIndirect ty P (v : Value) = {
+  @r = v is ref;
+  CheckRef ty P r;
+}
+
 
 
 {- Match integer values that satisfy the given predicate.
@@ -53,10 +72,10 @@ You may use `Integer Any` if any integer would do.
 Note that this only matches values that were written without a decimal
 point in the PDF.  The reason for that is we represent
 `1.00` as `{ num = 100, exp = -2 }` see `PDFValue` for details. -}
-def Integer P (v : Value) : int = {
+def PdfInteger (v : Value) : int = {
   @n = v is number;
   n.exp == 0;
-  P n.num
+  ^ n.num;
 }
 
 -- XXX: more checking
