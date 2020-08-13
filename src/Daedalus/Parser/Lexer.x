@@ -111,6 +111,7 @@ $ws+        ;
 "Many?"     { lexeme KWManyQuestion }
 "UInt8"     { lexeme KWUInt8 }
 "$uint"     { lexeme KWDollarUInt }
+"Match"     { lexeme KWMatch }
 "END"       { lexeme KWEND }
 "commit"    { lexeme KWCOMMIT }
 "Fail"      { lexeme KWFail }

@@ -89,6 +89,7 @@ import Daedalus.Parser.Monad
   'Many?'     { Lexeme { lexemeRange = $$, lexemeToken = KWManyQuestion } }
   'Fail'      { Lexeme { lexemeRange = $$, lexemeToken = KWFail } }
   'UInt8'     { Lexeme { lexemeRange = $$, lexemeToken = KWUInt8 } }
+  'Match'     { Lexeme { lexemeRange = $$, lexemeToken = KWMatch } }
   'try'       { Lexeme { lexemeRange = $$, lexemeToken = KWTry } }
   'if'        { Lexeme { lexemeRange = $$, lexemeToken = KWIf } }
   'then'      { Lexeme { lexemeRange = $$, lexemeToken = KWThen } }
@@ -200,6 +201,7 @@ label                                    :: { Located Label }
   | 'Choose1'                               { mkLabel ($1, "Choose1") }
   | 'Optional'                              { mkLabel ($1, "Optional") }
   | 'Many'                                  { mkLabel ($1, "Many") }
+  | 'Match'                                 { mkLabel ($1, "Match") }
   | 'UInt8'                                 { mkLabel ($1, "UInt8") }
   | 'if'                                    { mkLabel ($1, "if") }
   | 'then'                                  { mkLabel ($1, "then") }
@@ -302,6 +304,7 @@ call_expr                                :: { Expr }
   | 'Optional' aexpr                        { at ($1,$2) (EOptional Commit $2) }
   | 'Optional?' aexpr                       { at ($1,$2)
                                                  (EOptional Backtrack $2) }
+  | 'Match' aexpr                           { at ($1,$2) (EMatch $2) }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 

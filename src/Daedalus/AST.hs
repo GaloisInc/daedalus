@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings, DeriveTraversable, RecordWildCards #-}
 {-# Language DataKinds, GADTs, KindSignatures, ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell, DeriveLift #-} -- For deriving ord and eqs
+{-# LANGUAGE TypeOperators #-}
 
 module Daedalus.AST where
 
@@ -121,6 +122,15 @@ data Context :: Ctx -> HS.Type where
   AValue   :: Context Value
   AClass   :: Context Class
 
+-- XXX: use parametrized-utils classes?
+sameContext :: Context a -> Context b -> Maybe (a :~: b)
+sameContext x y =
+  case (x,y) of
+    (AGrammar,AGrammar) -> Just Refl
+    (AValue,AValue)     -> Just Refl
+    (AClass,AClass)     -> Just Refl
+    _                   -> Nothing
+
 instance Show (Context ctx) where
   show ctx =
     case ctx of
@@ -143,6 +153,7 @@ data ExprF e =
   | EVar        !Name
   | ETry        !e
 
+  | EMatch !e
   | EAnyByte
   | EOptional !Commit  !e
   | EMany !Commit !(ManyBounds e) !e

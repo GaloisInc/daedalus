@@ -16,17 +16,22 @@ inferContext expr =
     ENumber {}  -> Some AValue
     EBool {}    -> Some AValue
     ENothing {} -> Some AValue
-    EJust {}    -> Some AValue
+    EJust e     -> inferContext e
+    EMatch {}   -> Some AGrammar
     EStruct fs
       | any (isGrammar . inferStructField) fs -> Some AGrammar
       | otherwise                             -> Some AValue
+
     EArray es
       | any (isGrammar . inferContext) es     -> Some AGrammar
       | otherwise                             -> Some AValue
 
     EChoiceU {}           -> Some AGrammar
     EChoiceT {}           -> Some AGrammar
-    EApp Name { .. } _    -> Some nameContext
+    EApp Name { .. } []   -> Some nameContext
+    EApp Name { .. } es
+      | any isGrammar (Some nameContext : map inferContext es) -> Some AGrammar
+      | otherwise          -> Some nameContext
 
     EVar Name { .. }      -> Some nameContext
 
@@ -41,8 +46,8 @@ inferContext expr =
     EHasType sig e _ ->
       case sig of
         MatchType   -> inferContext e
-        CoerceCheck -> Some AValue
-        CoerceForce -> Some AValue
+        CoerceCheck -> inferContext e
+        CoerceForce -> inferContext e
 
     EQuiet {} -> Some AGrammar
 
@@ -50,7 +55,7 @@ inferContext expr =
     EMapInsert {} -> Some AGrammar
     EMapLookup {} -> Some AGrammar
 
-    EArrayLength {} -> Some AValue
+    EArrayLength e  -> inferContext e
     EArrayIndex {}  -> Some AGrammar
 
     EPure {}        -> Some AGrammar
@@ -64,13 +69,13 @@ inferContext expr =
     EByte {}        -> Some AValue
     EInRange {}     -> Some AGrammar
 
-    ETriOp {}       -> Some AValue
-    EBinOp {}       -> Some AValue
-    EUniOp {}       -> Some AValue
+    ETriOp _ e _ _  -> inferContext e
+    EBinOp _ e _    -> inferContext e
+    EUniOp _ e      -> inferContext e
 
-    ESel _ sel ->
+    ESel e sel ->
       case sel of
-        SelStruct {}   -> Some AValue
+        SelStruct {}   -> inferContext e
         SelUnion {}    -> Some AGrammar
         SelTrue {}     -> Some AGrammar
         SelFalse {}    -> Some AGrammar
@@ -82,11 +87,13 @@ inferContext expr =
     EStreamLen {}     -> Some AGrammar
     EStreamOff {}     -> Some AGrammar
 
+
 isGrammar :: Some Context -> Bool
 isGrammar ctx =
   case ctx of
     Some AGrammar -> True
     _ -> False
+
 
 inferStructField :: StructField Expr -> Some Context
 inferStructField fi =

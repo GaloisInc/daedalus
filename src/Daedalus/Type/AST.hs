@@ -624,6 +624,15 @@ instance HasRange TVar where
 
 instance HasRange (TCName k) where
   range = range . tcName
+
+instance HasRange a => HasRange (Arg a) where
+  range arg =
+    case arg of
+      ValArg e -> range e
+      ClassArg e -> range e
+      GrammarArg e -> range e
+
+
 --------------------------------------------------------------------------------
 
 

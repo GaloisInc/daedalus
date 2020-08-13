@@ -21,7 +21,7 @@ syn keyword ddlKeyword commit
 syn keyword ddlKeywordFun   Optional Optional?
 syn keyword ddlKeywordFun   Many Many?
 syn keyword ddlKeywordFun   Fail
-syn keyword ddlKeywordFun   UInt8 $uint END
+syn keyword ddlKeywordFun   UInt8 $uint Match END
 syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
 
 syn keyword ddlKeywordConst true false

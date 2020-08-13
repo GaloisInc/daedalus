@@ -1,3 +1,4 @@
 
 def x = 'a'
-def Main = !x
+def $x = !x
+def Main = $x

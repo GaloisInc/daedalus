@@ -58,6 +58,7 @@ data Token =
   | KWChoose
   | KWChoose1
   | KWTry
+  | KWMatch
   | KWMany
   | KWManyQuestion
   | KWOptional

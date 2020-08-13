@@ -399,9 +399,9 @@ instance STCMonad (TypeM ctx) where
   getNeedsDef             = sType getNeedsDef
 
 
-allowPartialApps :: TypeM ctx a -> TypeM ctx a
-allowPartialApps (TypeM m) = TypeM (mapReader upd m)
-  where upd ro = ro { allowPartial = True }
+allowPartialApps :: Bool -> TypeM ctx a -> TypeM ctx a
+allowPartialApps yes (TypeM m) = TypeM (mapReader upd m)
+  where upd ro = ro { allowPartial = yes }
 
 arePartialAppsOK :: TypeM ctx Bool
 arePartialAppsOK = TypeM (allowPartial <$> ask)
