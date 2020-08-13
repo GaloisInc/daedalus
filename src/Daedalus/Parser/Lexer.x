@@ -112,6 +112,7 @@ $ws+        ;
 "UInt8"     { lexeme KWUInt8 }
 "$uint"     { lexeme KWDollarUInt }
 "Match"     { lexeme KWMatch }
+"Match1"    { lexeme KWMatch1 }
 "END"       { lexeme KWEND }
 "commit"    { lexeme KWCOMMIT }
 "Fail"      { lexeme KWFail }

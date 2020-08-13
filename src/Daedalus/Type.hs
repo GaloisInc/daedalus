@@ -435,10 +435,9 @@ addBinds xs e = foldr addBind e xs
 -- | Lift a value argument of a function, when the function is called
 -- in a monadic context.
 liftValArg ::
-  Bool ->
   Expr ->
   TypeM ctx ((Arg SourceRange,Type), Maybe BindStmt)
-liftValArg forceGrammar e =
+liftValArg e =
 
   case ctx of
 
@@ -456,7 +455,7 @@ liftValArg forceGrammar e =
     Some AClass ->
       reportError e "Expected a value, but the argument is a character class."
 
-  where ctx = if forceGrammar then Some AGrammar else inferContext e
+  where ctx = inferContext e
 
 
 
@@ -465,12 +464,11 @@ liftValArg forceGrammar e =
 -- will ensure that the result is of type `Grammar t`.
 -- For example @F P a Q@ becomes @do x <- P; y <- q; F x a y@
 liftApp ::
-  Bool ->
   [Expr] ->
   ([(Arg SourceRange, Type)] -> TypeM ctx (TC SourceRange Grammar, Type)) ->
   TypeM ctx (TC SourceRange Grammar, Type)
-liftApp forceGrammar es f =
-  do (args,mbs) <- unzip <$> mapM (liftValArg forceGrammar) es
+liftApp es f =
+  do (args,mbs) <- unzip <$> mapM liftValArg es
      (rE,rT) <- f args
      let expr = addBinds (catMaybes mbs) rE
      pure (expr, rT)
@@ -491,7 +489,7 @@ liftValApp ::
 liftValApp r es f =
   do ctx <- getContext
      case ctx of
-       AGrammar -> liftApp False es \args -> f =<< mapM validateArg args
+       AGrammar -> liftApp es \args -> f =<< mapM validateArg args
        AClass {} ->
          reportError r "Expected a character-class but found a grammar."
        AValue {} ->
@@ -518,7 +516,7 @@ liftValAppPure ::
 liftValAppPure r es f =
   do ctx <- getContext
      case ctx of
-       AGrammar -> liftApp False es \args ->
+       AGrammar -> liftApp es \args ->
                       do vs <- mapM validateArg args
                          (res,t) <- f vs
                          pure (exprAt r (TCPure res), tGrammar t)
@@ -583,12 +581,17 @@ inferExpr expr =
            _ -> liftValAppPure expr [] \_ ->
                 pure (exprAt expr (TCByteArray bs), tArray tByte)
 
-    EMatch e ->
+    EMatch1 e ->
       grammarOnly expr $
       inContext AClass
       do (e1,_) <- inferExpr e
          pure (exprAt expr (TCMatch YesSem e1), tGrammar tByte)
 
+    EMatch e ->
+      liftValApp expr [e] \ ~[(e1,t)] ->
+      do let ty = tArray tByte
+         unify ty (e1,t)
+         pure (exprAt expr (TCMatchBytes YesSem e1), tGrammar ty)
 
     EUniOp op e ->
       case op of
@@ -1216,7 +1219,7 @@ inferLocalCall erng f@Name { nameContext } es ty =
   grammarOnly erng
   case nameContext of
     AGrammar ->
-      do (args,ts,_stmts) <- unzip3 <$> mapM (checkArg False Nothing) es
+      do (args,ts,_stmts) <- unzip3 <$> mapM (checkArg Nothing) es
          -- for now _stmts should always be []
          out <- newTVar erng KGrammar
          let actual = tFunMany ts out
@@ -1241,12 +1244,8 @@ checkTopRuleCall ::
 checkTopRuleCall r f@Name { nameContext = fctx } tys (inTs :-> outT) es =
   do ctx <- getContext
      let ppf = backticks (pp f)
-         forceG = case (ctx,fctx) of
-                    (AGrammar,AValue) -> True   -- liftPure
-                    _                 -> False
-
      (args,_,mbStmts) <-
-                      unzip3 <$> zipWithM (checkArg forceG) (map Just inTs) es
+                      unzip3 <$> zipWithM checkArg (map Just inTs) es
      let have  = length args
          need  = length inTs
          stmts = catMaybes mbStmts
@@ -1278,13 +1277,12 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys (inTs :-> outT) es =
 
 
 checkArg ::
-  Bool ->
   Maybe Type -> Expr -> TypeM ctx (Arg SourceRange, Type, Maybe BindStmt)
-checkArg forceGrammar mbT e =
+checkArg mbT e =
   do ctx <- getContext
      case (ctx,argCtx) of
        (AGrammar, Some AValue) -> -- calling grammar, expecting a value
-         do ((e1,t),mbS) <- liftValArg forceGrammar e    -- optional lifting
+         do ((e1,t),mbS) <- liftValArg e    -- optional lifting
             checkTy (e1,t)
             pure (e1,t,mbS)
 

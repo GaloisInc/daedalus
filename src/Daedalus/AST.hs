@@ -154,6 +154,7 @@ data ExprF e =
   | ETry        !e
 
   | EMatch !e
+  | EMatch1 !e
   | EAnyByte
   | EOptional !Commit  !e
   | EMany !Commit !(ManyBounds e) !e

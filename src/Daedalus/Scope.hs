@@ -208,6 +208,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       ENothing {}     -> pure expr
       EJust e         -> EJust <$> resolve e
       EMatch e        -> EMatch <$> resolve e
+      EMatch1 e       -> EMatch1 <$> resolve e
       EStruct fs      -> EStruct <$> resolveStructFields fs
       EChoiceU c e1 e2-> EChoiceU c <$> resolve e1 <*> resolve e2
       EChoiceT c fs   -> EChoiceT c <$> resolve fs
