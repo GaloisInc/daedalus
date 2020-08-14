@@ -692,7 +692,7 @@ inferExpr expr =
         BitwiseXor -> bitwiseOp
 
         Add   -> num2
-        Sub   -> num2   --- XXX: character classes?
+        Sub   -> num2
         Mul   -> num2
         Div   -> num2
         Mod   -> num2
@@ -1034,12 +1034,10 @@ inferExpr expr =
       do (e1,t) <- inContext AValue (inferExpr e)
          pure (exprAt expr (TCPure e1), tGrammar t)
 
-    -- XXX: Do we want lifting on the message?
     EFail msg ->
       grammarOnly expr $
-      inContext AValue
-      do (msgE,msgT) <- inferExpr msg
-         unify (tArray tByte) (msgE,msgT)
+      liftApp expr [msg] \ ~[(msgE,msgT)] ->
+      do unify (tArray tByte) (msgE,msgT)
          a <- newTVar expr KValue
          pure (exprAt expr (TCFail (Just msgE) a), tGrammar a)
 
@@ -1269,10 +1267,10 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys (inTs :-> outT) es =
                      , tcNameCtx = fctx
                      }
          call = exprAt r (TCCall nm tys args)
-     case (ctx,fctx,stmts) of
-       (AGrammar,AValue,_:_) ->
-          do let pcall = exprAt r (TCPure call)
-             pure (foldr addBind pcall stmts, out1)
+     case ctx of
+       AGrammar ->
+          do (e1,t1) <- checkPromote nm call out1
+             pure (foldr addBind e1 stmts, t1)
        _ -> checkPromote nm call out1
 
 
