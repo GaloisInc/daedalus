@@ -110,6 +110,20 @@ executable daedalus
   default-language:    Haskell2010
 
 
+executable daedalus-run-test
+  hs-source-dirs:     tests
+  main-is:            RunUnitTests.hs
+  default-language:    Haskell2010
+  build-depends:      base,
+                      filepath,
+                      bytestring,
+                      directory,
+                      process,
+                      process-extras,
+                      simple-get-opt >= 0.4
+
+
+
 test-suite daedalus-tests
   type:               exitcode-stdio-1.0
   hs-source-dirs:     tests
