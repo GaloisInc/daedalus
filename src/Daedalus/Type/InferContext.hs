@@ -18,6 +18,7 @@ inferContext expr =
     ENothing {} -> Some AValue
     EJust e     -> inferContext e
     EMatch {}   -> Some AGrammar
+    EMatch1 {}  -> Some AGrammar
     EStruct fs
       | any (isGrammar . inferStructField) fs -> Some AGrammar
       | otherwise                             -> Some AValue
