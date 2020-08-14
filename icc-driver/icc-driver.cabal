@@ -21,6 +21,7 @@ executable icc-parser
   build-depends:
     base >=4.13 && <4.14,
     bytestring,
+    text,
     pretty-show,
     ansi-terminal,
     pretty-hex >= 1.1,
