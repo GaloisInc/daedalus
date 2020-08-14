@@ -74,7 +74,11 @@ $ws+        ;
 "."         { lexeme Dot }
 ","         { lexeme Comma }
 "|"         { lexeme Bar }
-"&"         { lexeme Amp }
+".|."       { lexeme DotBarDot }
+".&."       { lexeme DotAmpDot }
+".^."       { lexeme DotHatDot }
+"||"        { lexeme BarBar }
+"&&"        { lexeme AmpAmp }
 "<|"        { lexeme LtBar }
 "$$"        { lexeme DollarDollar }
 "+"         { lexeme Plus }

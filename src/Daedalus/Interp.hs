@@ -166,7 +166,16 @@ evalBinOp op v1 v2 =
       where nm = valueToByteString v1
             bs = valueToByteString v2
 
+    LogicAnd -> logicOp (&&)
+    LogicOr  -> logicOp (||)
+
   where
+  logicOp f =
+    case (v1,v2) of
+      (VBool x, VBool y) -> VBool (f x y)
+      _ -> panic "argument to logic binop must be a bool"
+                  [show (pp v1), show (pp v2)]
+
   bitwiseOp f =
     case (v1, v2) of
       (VUInt n x, VUInt _ y)  -> VUInt n (f x y)

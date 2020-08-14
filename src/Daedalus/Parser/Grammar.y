@@ -60,7 +60,11 @@ import Daedalus.Parser.Monad
   '<#'        { Lexeme { lexemeRange = $$, lexemeToken = LeftHash } }
   '<<'        { Lexeme { lexemeRange = $$, lexemeToken = ShiftL } }
   '>>'        { Lexeme { lexemeRange = $$, lexemeToken = ShiftR } }
-  '&'         { Lexeme { lexemeRange = $$, lexemeToken = Amp } }
+  '.&.'       { Lexeme { lexemeRange = $$, lexemeToken = DotAmpDot } }
+  '.|.'       { Lexeme { lexemeRange = $$, lexemeToken = DotBarDot } }
+  '.^.'       { Lexeme { lexemeRange = $$, lexemeToken = DotHatDot } }
+  '&&'        { Lexeme { lexemeRange = $$, lexemeToken = AmpAmp } }
+  '||'        { Lexeme { lexemeRange = $$, lexemeToken = BarBar } }
   '~'         { Lexeme { lexemeRange = $$, lexemeToken = BitwiseComplementT } }
   '->'        { Lexeme { lexemeRange = $$, lexemeToken = RightArrow } }
 
@@ -124,11 +128,14 @@ import Daedalus.Parser.Monad
 
 %nonassoc 'else'
 %left '|' '<|'
+%left '^' '@'
 %left 'is'
 %nonassoc '..'
-%left '^' '@'
-%left '&'
 %left ':' 'as' 'as!'
+%left '||'
+%left '&&'
+%left '.|.' '.^.'
+%left '.&.'
 %nonassoc '==' '!='
 %nonassoc '<' '>' '<=' '>='
 %left '+' '-'
@@ -239,10 +246,20 @@ expr                                     :: { Expr }
   | expr '<#' expr                          { at ($1,$3) (EBinOp LCat $1 $3) }
   | expr '<<' expr                          { at ($1,$3) (EBinOp LShift $1 $3) }
   | expr '>>' expr                          { at ($1,$3) (EBinOp RShift $1 $3) }
-  | expr '&' expr                           { at ($1,$3)
+
+
+  | expr '.|.' expr                         { at ($1,$3)
+                                                 (EBinOp BitwiseOr $1 $3) }
+  | expr '.&.' expr                         { at ($1,$3)
                                                  (EBinOp BitwiseAnd $1 $3) }
-  | expr '^' expr                           { at ($1,$3)
+  | expr '.^.' expr                         { at ($1,$3)
                                                  (EBinOp BitwiseXor $1 $3) }
+
+  | expr '&&' expr                          { at ($1,$3)
+                                                 (EBinOp LogicAnd $1 $3) }
+
+  | expr '||' expr                          { at ($1,$3)
+                                                 (EBinOp LogicOr $1 $3) }
 
 
   | expr '<' expr                           { at ($1,$3) (EBinOp Lt  $1 $3) }
@@ -359,8 +376,7 @@ aexpr                                    :: { Expr }
 
   | '(' expr ')'                            { $2 }
   | '{' separated(struct_field) '}'         { at ($1,$3) (EStruct $2) }
-  | '{|' separated(union_field) '|}'        {% at ($1,$3) `fmap`
-                                               mkUnion Commit $2 }
+  | '{|' label '=' expr '|}'                { at ($1,$3) (EIn ($2 :> $4)) }
   | '[' separated(expr) ']'                 { at ($1,$3) (EArray $2) }
   | chooseKW '{' separated(union_field) '}' {% at ($1,$4) `fmap`
                                                 mkUnion (thingValue $1) $3 }

@@ -691,6 +691,9 @@ inferExpr expr =
         BitwiseOr  -> bitwiseOp
         BitwiseXor -> bitwiseOp
 
+        LogicOr  -> logicOp
+        LogicAnd -> logicOp
+
         Add   -> num2
         Sub   -> num2
         Mul   -> num2
@@ -702,6 +705,15 @@ inferExpr expr =
         NotEq -> relEq
 
       where
+      -- NOTE: In this version, if there is liftin we are strict in the
+      -- sense that we'd run both arguments, even the value of the first
+      -- one could determine the overall result.
+      logicOp =
+        liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
+            do unify tBool (e1',t1)
+               unify tBool (e2',t2)
+               pure (exprAt expr (TCBinOp op e1' e2' tBool), tBool)
+
       bitwiseOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
         do addConstraint expr (Numeric t1)
@@ -888,6 +900,13 @@ inferExpr expr =
 
            AGrammar -> inferStructGrammar expr fs
 
+    EIn (lf :> e) ->
+      liftValAppPure expr [e] \ ~[(e1,t)] ->
+      do ty     <- newTVar expr KValue
+         let l = thingValue lf
+         addConstraint lf (HasUnion ty l t)
+         addConstraint expr (IsNamed ty)
+         pure (exprAt expr (TCIn l e1 ty), ty)
 
     EChoiceU cmt e1 e2 ->
       do ctxt <- getContext
@@ -897,19 +916,8 @@ inferExpr expr =
                         pure ( exprAt expr (TCSetUnion [e1',e2'])
                              , tByteClass
                              )
-
-
-           -- XXX: reusing | for both or and choice is highly questionable
-           -- Because of the reuse, lifint doesn't work
-           AValue -> do (e1',t1) <- inferExpr e1
-                        (e2',t2) <- inferExpr e2
-                        unify (e1',t1) (e2',t2)
-                        addConstraint expr (Numeric t1)
-                        pure ( exprAt expr (TCBinOp BitwiseOr e1' e2' t1)
-                             , t1
-                             )
-
-           AGrammar ->
+           _ ->
+             grammarOnly expr
              do (eL,tL) <- inferExpr e1
                 (eR,tR) <- inferExpr e2
                 unify (eL,tL) (eR,tR)
@@ -922,61 +930,40 @@ inferExpr expr =
          pure (exprAt expr (TCChoice c [] a), tGrammar a)
 
     EChoiceT c fs ->
-      do ctxt <- getContext
-         case ctxt of
+      grammarOnly expr
+      do ty   <- newTVar expr KValue
 
-           AClass ->
-             reportError expr "Invalid character class"
+         fsT <- forM fs \(f :> e) ->
+                do (e1,t0) <- inferExpr e
+                   t       <- grammarResult expr t0
+                   x       <- newName f t
+                   let rng  = f <-> e
+                       lab  = thingValue f
+                       stmt = exprAt rng $ TCLabel lab
+                            $ exprAt rng $ TCDo (Just x) e1
+                            $ exprAt rng $ TCPure
+                            $ exprAt rng $ TCIn lab (exprAt x (TCVar x)) ty
+                   pure (f,stmt,t)
 
-           -- XXX: use different notation to support lifting
-           AValue ->
-             case fs of
-               [ lf :> e ] ->
-                do (e1,t) <- inferExpr e
-                   ty     <- newTVar expr KValue
-                   let l = thingValue lf
-                   addConstraint lf (HasUnion ty l t)
-                   addConstraint expr (IsNamed ty)
-                   pure (exprAt expr (TCIn l e1 ty), ty)
+         let (xs,stmts,ts) = unzip3 fsT
 
-               _ -> reportError expr
-                            "Tagged values should have only a single field"
+         -- If the same constructor appears multiple times,
+         -- make sure that its fields always have the same type
+         let labs        = map thingValue xs
+             withLoc x t = [Located { thingRange = range x, thingValue = t }]
+             tagMap      = Map.fromListWith (++)
+                                            (zip labs (zipWith withLoc xs ts))
+         tagTy <- forM (Map.toList tagMap) \(x,lt:more) ->
+                    do forM_  more \t1 -> unify (lt, thingValue lt)
+                                                (t1, thingValue t1)
+                       pure (x, lt)
 
+         tcon <- newTyDefName
+         addConstraint expr (TyDef UnionDef (Just tcon) ty tagTy)
 
-           AGrammar ->
-             do ty   <- newTVar expr KValue
-
-                fsT <- forM fs \(f :> e) ->
-                       do (e1,t0) <- inferExpr e
-                          t       <- grammarResult expr t0
-                          x       <- newName f t
-                          let rng  = f <-> e
-                              lab  = thingValue f
-                              stmt = exprAt rng $ TCLabel lab
-                                   $ exprAt rng $ TCDo (Just x) e1
-                                   $ exprAt rng $ TCPure
-                                   $ exprAt rng $ TCIn lab (exprAt x (TCVar x)) ty
-                          pure (f,stmt,t)
-
-                let (xs,stmts,ts) = unzip3 fsT
-
-                -- If the same constructor appears multiple times,
-                -- make sure that its fields always have the same type
-                let labs        = map thingValue xs
-                    withLoc x t = [Located { thingRange = range x, thingValue = t }]
-                    tagMap      = Map.fromListWith (++)
-                                                   (zip labs (zipWith withLoc xs ts))
-                tagTy <- forM (Map.toList tagMap) \(x,lt:more) ->
-                           do forM_  more \t1 -> unify (lt, thingValue lt)
-                                                       (t1, thingValue t1)
-                              pure (x, lt)
-
-                tcon <- newTyDefName
-                addConstraint expr (TyDef UnionDef (Just tcon) ty tagTy)
-
-                pure ( exprAt expr (TCChoice c stmts ty)
-                     , tGrammar ty
-                     )
+         pure ( exprAt expr (TCChoice c stmts ty)
+              , tGrammar ty
+              )
 
     EApp f es ->
       do ruleInfo <- lookupRuleTypeOf f
@@ -1036,7 +1023,7 @@ inferExpr expr =
 
     EFail msg ->
       grammarOnly expr $
-      liftApp expr [msg] \ ~[(msgE,msgT)] ->
+      liftValApp expr [msg] \ ~[(msgE,msgT)] ->
       do unify (tArray tByte) (msgE,msgT)
          a <- newTVar expr KValue
          pure (exprAt expr (TCFail (Just msgE) a), tGrammar a)

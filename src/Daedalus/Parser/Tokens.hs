@@ -34,7 +34,11 @@ data Token =
   | Bang
   | Hat
   | Bar
-  | Amp
+  | DotBarDot
+  | DotAmpDot
+  | DotHatDot
+  | BarBar
+  | AmpAmp
   | LtBar
   | DollarDollar
   | Plus

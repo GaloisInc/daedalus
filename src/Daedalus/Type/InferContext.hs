@@ -10,14 +10,15 @@ import Daedalus.AST
 inferContext :: Expr -> Some Context
 inferContext expr =
   case exprValue expr of
-    ENumber {}  -> Some AValue
-    EBool {}    -> Some AValue
-    ENothing {} -> Some AValue
-    EJust e     -> inferContext e
-    EMatch {}   -> Some AGrammar
-    EMatch1 {}  -> Some AGrammar
-    EStruct fs  -> AValue `grammarIf` map inferStructField fs
-    EArray es   -> AValue `grammarIf` map inferContext es
+    ENumber {}   -> Some AValue
+    EBool {}     -> Some AValue
+    ENothing {}  -> Some AValue
+    EJust e      -> inferContext e
+    EIn (_ :> e) -> inferContext e
+    EMatch {}    -> Some AGrammar
+    EMatch1 {}   -> Some AGrammar
+    EStruct fs   -> AValue `grammarIf` map inferStructField fs
+    EArray es    -> AValue `grammarIf` map inferContext es
 
     EChoiceU {}           -> Some AGrammar    -- XXX: This is wrong due to "or" to be fixed soon
     EChoiceT {}           -> Some AGrammar

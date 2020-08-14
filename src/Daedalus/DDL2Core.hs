@@ -709,6 +709,7 @@ fromExpr expr =
 
                 TC.ArrayStream  -> arrayStream e1 e2
 
+                -- XXX: Logic And and OR
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1

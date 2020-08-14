@@ -212,6 +212,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EStruct fs      -> EStruct <$> resolveStructFields fs
       EChoiceU c e1 e2-> EChoiceU c <$> resolve e1 <*> resolve e2
       EChoiceT c fs   -> EChoiceT c <$> resolve fs
+      EIn (l :> e)    -> (\x -> EIn (l :> x)) <$> resolve e
       EArray es       -> EArray    <$> resolve es
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x

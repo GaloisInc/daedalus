@@ -397,6 +397,9 @@ hsValue env tc =
         BitwiseXor  -> bin "RTS.bitXor"
 
         ArrayStream -> bin "RTS.arrayStream"
+
+        LogicAnd    -> binI "HS.&&"
+        LogicOr     -> binI "HS.||"
       where
       bin x = x `Ap` hsValue env v1 `Ap` hsValue env v2
       binI x = ApI x (hsValue env v1) (hsValue env v2)

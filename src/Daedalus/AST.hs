@@ -149,6 +149,7 @@ data ExprF e =
   | EArray      ![e]
   | EChoiceU    !Commit !e !e
   | EChoiceT    !Commit [UnionField e]
+  | EIn         !(UnionField e)    -- make a value of a union type
   | EApp        !Name [e]
   | EVar        !Name
   | ETry        !e
@@ -214,6 +215,7 @@ data TriOp = RangeUp | RangeDown
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
            | LShift | RShift | BitwiseAnd | BitwiseOr | BitwiseXor
+           | LogicAnd | LogicOr
            | ArrayStream
   deriving (Show, Eq)
 
@@ -349,6 +351,8 @@ instance PP BinOp where
       BitwiseAnd -> ".&."
       BitwiseOr  -> ".|."
       BitwiseXor -> ".^."
+      LogicAnd -> "&&"
+      LogicOr  -> "||"
       ArrayStream -> "arrayStream"
 
 instance PP UniOp where
