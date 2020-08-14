@@ -19,7 +19,7 @@ def CrossRefAndTrailer = {
 }
 
 def CrossRefSection = {
-  Token "xref";
+  KW "xref";
   Many (1..) CrossRefSubSection;
 }
 
@@ -40,11 +40,11 @@ def CrossRefEntry = {
 }
 
 def UsedEntry (num : int) (gen : int) = {
-  'n'; offset = ^num; gen = ^gen;
+  Match1 'n'; offset = ^num; gen = ^gen;
 }
 
 def FreeEntry (num : int) (gen : int) = {
-  'f'; obj = ^num; gen = ^gen;
+  Match1 'f'; obj = ^num; gen = ^gen;
 }
 
 
@@ -55,11 +55,8 @@ def FreeEntry (num : int) (gen : int) = {
 -- "New style" xref object
 
 def XRefObj = {
-  @top  = TopDecl;
-  @str  = top.obj is stream;
-  @meta = XRefMeta str.header;
-  @bytes = str.body is ok;
-  WithStream bytes (XRefObjTable meta);
+  @str  = TopDecl.obj is stream;
+  WithStream (str.body is ok) (XRefObjTable (XRefMeta str.header));
 }
 
 def XRefMeta header = {
@@ -90,7 +87,7 @@ def LookupInt arr i = Default 0 {
 
 def XRefIndex header = {
   @size = LookupNat  "Size" header;
-  @arr  = LookupNats "Index" header <| ^ [0,size];
+  @arr  = Default [0,size] (LookupNats "Index" header);
   map (i in rangeUp 0 (length arr) 2) {
     firstId = Index arr i;
     num     = Index arr (i+1);
@@ -114,15 +111,15 @@ def XRefObjTable (meta : XRefMeta) = {
 def XRefObjEntry (w : XRefFormat) = Chunk w.witdth {
   @ftype = XRefFieldWithDefault 1 w.b1;
   Choose {
-    free       = { ftype == 0; XRefFree w };
-    inUse      = { ftype == 1; XRefOffset w };
-    compressed = { ftype == 2; XRefCompressed w };
-    null       = { ftype > 2; }
+    free       = { Guard (ftype == 0); XRefFree w };
+    inUse      = { Guard (ftype == 1); XRefOffset w };
+    compressed = { Guard (ftype == 2); XRefCompressed w };
+    null       = { Guard (ftype > 2); }
   }
 }
 
-def XRefFieldWithDefault x n = { n == 0; ^ x } <| BEBytes n
-def XRefFieldRequired n      = { n != 0; BEBytes n }
+def XRefFieldWithDefault x n = { Guard (n == 0); ^ x } <| BEBytes n
+def XRefFieldRequired n      = { Guard (n != 0); BEBytes n }
 
 def XRefFree (w : XRefFormat) = {
   obj = XRefFieldRequired w.b2;
@@ -152,8 +149,7 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) = {
   root    = Default nothing { -- allowed to be nothing for linearlized PDF
                 @x = Lookup "Root" dict;
                 commit;
-                @y = x is ref;
-                ^ just y;
+                just (x is ref);
               };
   prev    = Optional (LookupNat "Prev" dict);
   all     = ^ dict;

@@ -4,7 +4,7 @@ import PdfValue
 import PdfValidate
 
 
-def DOMTrailer (t : TrailerDict) = {
+def PdfTrailer (t : TrailerDict) = {
   @ref = t.root is just;    -- XXX: optional for linearized PDF?
   CheckRef "Catalog" PdfCatalog ref;
 }

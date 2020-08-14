@@ -59,7 +59,7 @@ main =
                 Just d -> print (pp d)
 
        Validate ->
-          do run (pDOMTrailer trail)
+          do run (pPdfTrailer trail)
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options

@@ -11,7 +11,7 @@ def $simpleWS             = 0 | 9 | 12 | 32
 
 def SimpleEOL             = { $cr; $lf } | $lf
 def EOL                   = SimpleEOL <| $cr
-def Comment               = { "%"; Many (! ($lf | $cr)); EOL }
+def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
 def AnyWS                 = $simpleWS | Comment | EOL
 --------------------------------------------------------------------------------
 
@@ -20,11 +20,12 @@ def AnyWS                 = $simpleWS | Comment | EOL
 -- Helpers
 
 def Token P               = { $$ = P; Many AnyWS }
-def KW P                  = @ (Token P)
+def KW x                  = @ (Token (Match x))
 def Between open close P  = { KW open; $$ = P; KW close }
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
+def Guard p               = p is true
 --------------------------------------------------------------------------------
 
 
@@ -47,8 +48,8 @@ def Number = Token {
 }
 
 def Sign = Choose {
-  pos = @("+" | "");
-  neg = @"-"
+  pos = @Optional (Match "+");
+  neg = @Match "-"
 }
 
 def UnsignedNumber =
@@ -63,24 +64,22 @@ def UnsignedLeadDigits = {
   -- otherwise 1.2 can be processed as "1.2" or "1" followed by ".2"
 }
 
-def Natural = {
-  @ds = Many (1..) Digit;
-  ^ numBase 10 ds
-}
+def Natural = numBase 10 (Many (1..) Digit)
 
 def Frac n (w : Number) : Number = {
-  @ds = { "."; Many (n ..) Digit };
+  Match ".";
+  @ds = Many (n ..) Digit;
   ^ for ( val = w; d in ds)
           { num = 10 * val.num + d; exp = val.exp - 1 }
 }
 
-def Digit     = { @d = '0' .. '9'; ^ d - '0' as int }
-def OctDigit  = { @d = '0' .. '7'; ^ d - '0' as int }
+def OctDigit  = Match1 ('0' .. '7') - '0' as int
+def Digit     = Match1 ('0' .. '9') - '0' as int
 def HexDigit  = Digit
-              | { @d = 'a' .. 'f'; ^ 10 + (d - 'a' as int) }
-              | { @d = 'A' .. 'F'; ^ 10 + (d - 'A' as int) }
+              | 10 + Match1 ('a' .. 'f') - 'a' as int
+              | 10 + Match1 ('A' .. 'F') - 'A' as int
 
-def NumberAsNat (x : Number) = { x.num >= 0; x.exp == 0; ^ x.num }
+def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
 
 
@@ -94,30 +93,27 @@ def StringChars = concat (Many StringChunk)
 def StringChunk =
     StringInParens
   | StringEsc
-  | Many (1..) (! "\\()")
+  | Many (1..) (Match1 (! "\\()"))
 
-def StringInParens = concat [ "(", StringChars, ")"]
+def StringInParens = concat [ Match "(", StringChars, Match ")"]
 
 def StringEsc = {
-   "\\";
+   Match "\\";
    Choose {
-     When "n"   "\n";
-     When "r"   "\r";
-     When "t"   "\t";
-     When "b"   "\8";
-     When "f"   "\12";
-     When "("   "(";
-     When ")"   ")";
-     When "\\"  "\\";
-     When EOL   "";
+     When (Match "n")   "\n";
+     When (Match "r")   "\r";
+     When (Match "t")   "\t";
+     When (Match "b")   "\8";
+     When (Match "f")   "\12";
+     When (Match "(")   "(";
+     When (Match ")")   ")";
+     When (Match "\\")  "\\";
+     When EOL           "";
      StringNumEsc
   }
 }
 
-def StringNumEsc = {
-  @ds = Many (1..3) OctDigit;
-  ^ [ numBase 8 ds as! uint 8 ]
-}
+def StringNumEsc = [ numBase 8 (Many (1..3) OctDigit) as! uint 8 ]
 
 
 
@@ -126,34 +122,25 @@ def StringNumEsc = {
 
 def HexString = Between "<" ">" {
   @front = Many HexStringNum2;
-    concat [ ^ front, [HexStringNum1] ]
-  | ^ front
+  concat [ front, [HexStringNum1] ] | front
 }
 
-def HexStringNum2 = {
-  @ds = Many 2 (Token HexDigit);
-  ^ numBase 16 ds as! uint 8
-}
-
-def HexStringNum1 = {
-  @d = Token HexDigit;
-  ^ 16 * d as! uint 8;
-}
+def HexStringNum2 = numBase 16 (Many 2 (Token HexDigit)) as! uint 8
+def HexStringNum1 = 16 * Token HexDigit as! uint 8
 
 
 --------------------------------------------------------------------------------
 -- Name Objectcs (Sections 7.3.5)
 
-def Name     = Token { "/"; Many NameChar }
+def Name     = Token { Match "/"; Many NameChar }
 
-def NameChar = !"\0\9\10\12\13\32()<>[]{}/%#"
+def NameChar = Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
              | NameEsc
 
 def NameEsc  = {
-  "#";
-  @ds = Many 2 HexDigit;
-  $$  = ^ numBase 16 ds as! uint 8;
-  $$ > 0
+  Match "#";
+  $$ = numBase 16 (Many 2 HexDigit) as! uint 8;
+  Guard ($$ > 0)
 }
 
 

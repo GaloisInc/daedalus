@@ -6,7 +6,7 @@ def TopDecl = {
   KW "obj";
   @val = Value;
   obj  = TopDeclDef val;
-  "endobj";
+  Match "endobj";
 }
 
 def TopDeclDef (val : Value) = Choose1 {
@@ -16,7 +16,7 @@ def TopDeclDef (val : Value) = Choose1 {
 
 def Stream (val : Value) = {
   header = val is dict;
-  "stream";
+  Match "stream";
   commit;
   SimpleEOL;
   body = StreamBody header;
@@ -38,15 +38,14 @@ def ObjectStreamEntry (oid : Nat) = {
 
 def ObjStreamMeta first = {
   oid     = Token Natural;
-  @reloff = Token Natural;
-  off     = ^ reloff + first;
+  off     = Token Natural + first;
 }
 
 def ObjectStream (n : Nat) (first : Nat) = {
   @meta = Many n (ObjStreamMeta first);
   map (entry in meta) {
     @here = Offset;
-    here <= entry.off;
+    Guard (here <= entry.off);
     SkipBytes (entry.off - here);
     ObjectStreamEntry entry.oid;
   };
@@ -57,7 +56,7 @@ def ObjectStreamNth (n : Nat) (first : Nat) (idx : Nat) = {
   @meta  = Many n (ObjStreamMeta first);
   @entry = Index meta idx;
   @here  = Offset;
-  here <= entry.off;
+  Guard (here <= entry.off);
   SkipBytes (entry.off - here);
   ObjectStreamEntry entry.oid;
 }
@@ -72,26 +71,19 @@ def SkipBytes n = Chunk n {}
 def ResolveRef (r : Ref) : maybe TopDecl
 
 def CheckExpected (r : ref) (d : TopDecl) = {
-  d.id  == r.obj;
-  d.gen == r.gen;
+  Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;
 }
 
 def ResolveStream (v : Value) = {
   @r  = v is ref;
-  @mb = ResolveRef r;
-  @d  = mb is just;
-  @x  = CheckExpected r d;
-  x is stream;
+  CheckExpected r (ResolveRef r is just) is stream;
 }
 
 def ResolveValRef (r : Ref) : Value = {
   @mb = ResolveRef r;
     { mb is nothing; ^ nullValue }
-  | { @d = mb is just;
-      @x = CheckExpected r d;
-      x is value;
-    }
+  | CheckExpected r (mb is just) is value;
 }
 
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
@@ -99,8 +91,7 @@ def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
   CheckType "ObjStm" stm.header;
   @n       = LookupNat "N" stm.header;
   @first   = LookupNat "First" stm.header;
-  @s       = stm.body is ok;
-  WithStream s (ObjectStream n first);
+  WithStream (stm.body is ok) (ObjectStream n first);
 }
 
 def ResolveObjectStreamEntry (oid : Nat) (gen : Nat) (idx : Nat) : TopDecl = {
@@ -166,16 +157,15 @@ def FilterParam param =
 
 
 
-
 def ApplyFilter (f : Filter) (body : stream) = Choose1 {
 
   ok = {
-    f.name == "FlateDecode";
+    Guard (f.name == "FlateDecode");
     @params = FlateDecodeParams f.param;
     -- For now, we only have these settings implemented.
-    params.predictor == 1 <| params.predictor == 12;
-    params.colors == 1;
-    params.bpc == 8;
+    Guard (params.predictor == 1 || params.predictor == 12);
+    Guard (params.colors == 1);
+    Guard (params.bpc == 8);
     commit;
     FlateDecode params.predictor
                 params.colors
@@ -185,11 +175,11 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
   };
 
   ok = {
-    f.name == "LZWDecode"; 
+    Guard (f.name == "LZWDecode"); 
     @params = LZWDecodeParams f.param;
-    params.predictor == 1 <| params.predictor == 12;
-    params.colors == 1;
-    params.bpc == 8;
+    Guard (params.predictor == 1 || params.predictor == 12);
+    Guard (params.colors == 1);
+    Guard (params.bpc == 8);
     commit;
     LZWDecode params.predictor
               params.colors
@@ -200,13 +190,13 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
   }; 
 
   ok = {
-    f.name == "ASCIIHexDecode"; 
+    Guard (f.name == "ASCIIHexDecode");
     commit;
     ASCIIHexDecode body;
   }; 
 
   ok = {
-    f.name == "ASCII85Decode"; 
+    Guard (f.name == "ASCII85Decode");
     commit;
     ASCII85Decode body;
   }; 
@@ -303,11 +293,7 @@ def Chunk n P = {
 -- Helpers
 
 
-def CheckType x h =
-  { @t = LookupResolve "Type" h;
-    @n = t is name;
-    x == n;
-  }
+def CheckType x h = Guard ((LookupResolve "Type" h is name) == x)
 
 
 def BEBytes n =
