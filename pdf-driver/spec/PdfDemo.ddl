@@ -34,12 +34,12 @@ def IsPages (p : maybe Ref) (r : Ref) =
 def CheckParent (p : maybe Ref) (dict : [[uint 8] -> Value]) =
     { p is nothing;
       @v = Optional (LookupRef "Parent" dict);
-      @(v is nothing);
+      v is nothing;
     }
     <|
     { @pref = p is just;
       @dpref = LookupRef "Parent" dict;
-      dpref == pref;
+      Guard (dpref == pref);
     }
 
 --------------------------------------------------------------------------------
@@ -60,8 +60,8 @@ def CatalogIsOK r = {
 -- Checked
 
 def CheckDecl expectId expectGen (decl : TopDec) = {
-  decl.id == expectId;
-  decl.gen == expectGen;
+  Guard (decl.id == expectId);
+  Guard (decl.gen == expectGen);
   obj    = ^ decl.obj;
   isSafe = { @v = decl.obj is value;  ValueIsSafe v }
          | {      decl.obj is stream; ^ safeSafetyInfo };
@@ -118,7 +118,7 @@ def ValueIsSafe (v : Value) =
 def DictIsAction a d = {
   -- Type is optional, so we ignore it and just look for the field "S"
   @n = LookupName "S" d; 
-  a == n;
+  Guard (a == n);
 }
 
 

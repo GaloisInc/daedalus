@@ -44,9 +44,9 @@ def CheckRef ty P (r : Ref) = try {
 }
 
 
-def Any v  = {}
-def Is x y = { x == y }
-def AtLeast x y = @{ x <= y }
+def Any v       = {}
+def Is x y      = Guard (x == y)
+def AtLeast x y = Guard (x <= y)
 
 
 def PdfName P (v : Value) = {
@@ -54,10 +54,7 @@ def PdfName P (v : Value) = {
   P x;
 }
 
-def PdfType d expect = {
-  @actual  = Lookup "Type" d;
-  PdfName (Is expect) actual;
-}
+def PdfType d expect = PdfName (Is expect) (Lookup "Type" d)
 
 def PdfIndirect ty P (v : Value) = {
   @r = v is ref;
@@ -74,9 +71,9 @@ point in the PDF.  The reason for that is we represent
 `1.00` as `{ num = 100, exp = -2 }` see `PDFValue` for details. -}
 def PdfInteger (v : Value) : int = {
   @n = v is number;
-  n.exp == 0;
+  Guard (n.exp == 0);
   ^ n.num;
-}
+} <| Fail "Value not an integer."
 
 -- XXX: more checking
 def CheckDate (v : Value) : [uint 8] =
@@ -93,7 +90,7 @@ def CheckASCII (v : Value) : [uint 8] =
 
 -- XXX 
 def EqNumber (x : Number) (y : Number) : {} =
-  { x.num == y.num; x.exp == y.exp }
+  Guard (x.num == y.num && x.exp == y.exp)
 
 
 

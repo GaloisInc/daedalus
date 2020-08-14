@@ -44,22 +44,22 @@ instance HS.HasField "hasJS" TsafetyInfo HS.Bool where
 instance HS.HasField "hasURI" TsafetyInfo HS.Bool where
   getField (TsafetyInfo _ x) = x
  
-data CheckDecl h
-  = CheckDecl h TsafetyInfo
+data CheckDecl f
+  = CheckDecl f TsafetyInfo
   
  
-deriving instance HS.Eq h => HS.Eq (CheckDecl h)
+deriving instance HS.Eq f => HS.Eq (CheckDecl f)
  
-deriving instance HS.Ord h => HS.Ord (CheckDecl h)
+deriving instance HS.Ord f => HS.Ord (CheckDecl f)
  
-deriving instance HS.Show h => HS.Show (CheckDecl h)
+deriving instance HS.Show f => HS.Show (CheckDecl f)
  
-instance RTS.DDL h => RTS.DDL (CheckDecl h) where
+instance RTS.DDL f => RTS.DDL (CheckDecl f) where
  
-instance HS.HasField "obj" (CheckDecl h) h where
+instance HS.HasField "obj" (CheckDecl f) f where
   getField (CheckDecl x _) = x
  
-instance HS.HasField "isSafe" (CheckDecl h) TsafetyInfo where
+instance HS.HasField "isSafe" (CheckDecl f) TsafetyInfo where
   getField (CheckDecl _ x) = x
  
 pCheckParent ::
@@ -79,7 +79,7 @@ pCheckParent (p :: HS.Maybe PdfValue.Ref)
                   (Vector.vecFromRep "Parent")
                   dict))
         (__ :: ()) <-
-          RTS.pGuard "37:9--37:20" "guard failed"
+          RTS.pGuard "37:7--37:18" "guard failed"
             (v HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
         HS.pure __)
     (do (pref :: PdfValue.Ref) <-
@@ -90,7 +90,7 @@ pCheckParent (p :: HS.Maybe PdfValue.Ref)
                (Vector.vecFromRep "Parent")
                dict)
         (__ :: ()) <-
-          RTS.pGuard "42:7--42:19" "guard failed" (dpref HS.== pref)
+          RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard (dpref HS.== pref))
         HS.pure __)
  
 pIsPage :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
@@ -123,7 +123,7 @@ _CheckParent (p :: HS.Maybe PdfValue.Ref)
                (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
                   (Vector.vecFromRep "Parent")
                   dict))
-        RTS.pGuard "37:9--37:20" "guard failed"
+        RTS.pGuard "37:7--37:18" "guard failed"
           (v HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref)))
     (do (pref :: PdfValue.Ref) <-
           RTS.pIsJust "40:15--40:23" "Expected `Just`" p
@@ -132,7 +132,7 @@ _CheckParent (p :: HS.Maybe PdfValue.Ref)
             (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
                (Vector.vecFromRep "Parent")
                dict)
-        RTS.pGuard "42:7--42:19" "guard failed" (dpref HS.== pref))
+        RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (dpref HS.== pref)))
  
 pIsPages :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
  
@@ -232,7 +232,8 @@ pDictIsAction (a :: Vector.Vector (RTS.UInt 8))
   do (n :: Vector.Vector (RTS.UInt 8)) <-
        RTS.pEnter "PdfDecl.LookupName"
          (PdfDecl.pLookupName (Vector.vecFromRep "S") d)
-     (__ :: ()) <- RTS.pGuard "121:3--121:8" "guard failed" (a HS.== n)
+     (__ :: ()) <-
+       RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard (a HS.== n))
      HS.pure __
  
 bor :: HS.Bool -> (HS.Bool -> HS.Bool)
@@ -330,19 +331,19 @@ pValueIsSafe (v :: PdfValue.Value) =
            HS.pure __))
  
 pCheckDecl ::
-  forall a b c h n.
-    (RTS.DDL a, RTS.DDL b, RTS.DDL c, RTS.DDL h, RTS.DDL n,
+  forall a b c f l.
+    (RTS.DDL a, RTS.DDL b, RTS.DDL c, RTS.DDL f, RTS.DDL l,
      RTS.HasStruct c "id" a, RTS.HasStruct c "gen" b,
-     RTS.HasStruct c "obj" h, RTS.HasUnion h "value" PdfValue.Value,
-     RTS.HasUnion h "stream" n) =>
-      a -> (b -> (c -> D.Parser (CheckDecl h)))
+     RTS.HasStruct c "obj" f, RTS.HasUnion f "value" PdfValue.Value,
+     RTS.HasUnion f "stream" l) =>
+      a -> (b -> (c -> D.Parser (CheckDecl f)))
  
 pCheckDecl (expectId :: a) (expectGen :: b) (decl :: c) =
-  do RTS.pGuard "63:3--63:21" "guard failed"
-       (HS.getField @"id" decl HS.== expectId)
-     RTS.pGuard "64:3--64:23" "guard failed"
-       (HS.getField @"gen" decl HS.== expectGen)
-     (obj :: h) <- HS.pure (HS.getField @"obj" decl)
+  do RTS.pEnter "PdfValue._Guard"
+       (PdfValue._Guard (HS.getField @"id" decl HS.== expectId))
+     RTS.pEnter "PdfValue._Guard"
+       (PdfValue._Guard (HS.getField @"gen" decl HS.== expectGen))
+     (obj :: f) <- HS.pure (HS.getField @"obj" decl)
      (isSafe :: TsafetyInfo) <-
        (RTS.|||)
          (do (v :: PdfValue.Value) <-
@@ -434,7 +435,7 @@ _DictIsAction (a :: Vector.Vector (RTS.UInt 8))
   do (n :: Vector.Vector (RTS.UInt 8)) <-
        RTS.pEnter "PdfDecl.LookupName"
          (PdfDecl.pLookupName (Vector.vecFromRep "S") d)
-     RTS.pGuard "121:3--121:8" "guard failed" (a HS.== n)
+     RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (a HS.== n))
  
 _ValueIsSafe :: PdfValue.Value -> D.Parser ()
  
@@ -491,18 +492,18 @@ _ValueIsSafe (v :: PdfValue.Value) =
              arr))
  
 _CheckDecl ::
-  forall a b c h n.
-    (RTS.DDL a, RTS.DDL b, RTS.DDL c, RTS.DDL h, RTS.DDL n,
+  forall a b c f l.
+    (RTS.DDL a, RTS.DDL b, RTS.DDL c, RTS.DDL f, RTS.DDL l,
      RTS.HasStruct c "id" a, RTS.HasStruct c "gen" b,
-     RTS.HasStruct c "obj" h, RTS.HasUnion h "value" PdfValue.Value,
-     RTS.HasUnion h "stream" n) =>
+     RTS.HasStruct c "obj" f, RTS.HasUnion f "value" PdfValue.Value,
+     RTS.HasUnion f "stream" l) =>
       a -> (b -> (c -> D.Parser ()))
  
 _CheckDecl (expectId :: a) (expectGen :: b) (decl :: c) =
-  do RTS.pGuard "63:3--63:21" "guard failed"
-       (HS.getField @"id" decl HS.== expectId)
-     RTS.pGuard "64:3--64:23" "guard failed"
-       (HS.getField @"gen" decl HS.== expectGen)
+  do RTS.pEnter "PdfValue._Guard"
+       (PdfValue._Guard (HS.getField @"id" decl HS.== expectId))
+     RTS.pEnter "PdfValue._Guard"
+       (PdfValue._Guard (HS.getField @"gen" decl HS.== expectGen))
      (RTS.|||)
        (do (v :: PdfValue.Value) <-
              RTS.pIsJust "66:19--66:35" "Expected `value`"

@@ -4,11 +4,10 @@ import PdfValue
 import PdfValidate
 
 
-def PdfTrailer (t : TrailerDict) = {
-  @ref = t.root is just;    -- XXX: optional for linearized PDF?
-  CheckRef "Catalog" PdfCatalog ref;
-}
-
+def PdfTrailer (t : TrailerDict) =
+  CheckRef "Catalog" PdfCatalog (t.root is just)
+  -- XXX: apparently in linearized pdf this could `nothing` so we
+  -- should specify how that works.
 
 
 def PdfCatalog (v : Value) = {
@@ -16,10 +15,9 @@ def PdfCatalog (v : Value) = {
   PdfType d "Catalog";
 
   -- Field Pages
-  { @pages = Lookup "Pages" d;
-    @ref   = pages is ref;
+  { @ref = Lookup "Pages" d is ref;
     CheckRef "PageTreeNodeRoot" (PdfPageTreeNode ref nothing) ref;
-  }
+  };
 }
 
 
@@ -28,23 +26,20 @@ def PdfPageTreeNode (self : Ref) (parent : maybe Ref) (v : Value) = {
   PdfType d "Pages";
 
   -- Field Count
-  { @countV = Lookup "Count" d;
-    @count  = PdfInteger countV;
-    count >= 0;
+  { @i = PdfInteger (Lookup "Count" d);
+    Guard (i >= 0)
   };
 
   -- Field Parent, required for non-root nodes.
   Default {} {
     @p = parent is just;
     commit;
-    @val = Lookup "Parent" d;
-    @ref = val is ref;
-    p == ref;
+    @ref = Lookup "Parent" d is ref;
+    Guard (ref == p)
   };
 
   -- Field Kids
-  { @kidsV = Lookup "Kids" d;
-    @kids  = kidsV is array;
+  { @kids  = Lookup "Kids" d is array;
     for (s = {}; v in kids) {
       @kid = v is ref;
       Choose1 {
@@ -62,9 +57,8 @@ def PdfPageObject (parent : Ref) (v : Value) = {
   PdfType d "Page";
 
   -- Field Parent
-  { @val = Lookup "Parent" d;
-    @ref = val is ref;
-    parent == ref;
+  { @ref = Lookup "Parent" d is ref;
+    Guard (parent == ref);
   };
 }
 
