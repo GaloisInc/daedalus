@@ -6,10 +6,7 @@ import Data.Parameterized.Some
 import Daedalus.AST
 
 
--- | This picks a context for an expression that may be interpreted differently
--- in different contexts, when the context is not known.
--- Generally, we interpret things as values, unless we are sure that it
--- must be a grammar.
+-- | Compute the "natural" kind of an expression.
 inferContext :: Expr -> Some Context
 inferContext expr =
   case exprValue expr of
@@ -19,21 +16,13 @@ inferContext expr =
     EJust e     -> inferContext e
     EMatch {}   -> Some AGrammar
     EMatch1 {}  -> Some AGrammar
-    EStruct fs
-      | any (isGrammar . inferStructField) fs -> Some AGrammar
-      | otherwise                             -> Some AValue
+    EStruct fs  -> AValue `grammarIf` map inferStructField fs
+    EArray es   -> AValue `grammarIf` map inferContext es
 
-    EArray es
-      | any (isGrammar . inferContext) es     -> Some AGrammar
-      | otherwise                             -> Some AValue
-
-    EChoiceU {}           -> Some AGrammar
+    EChoiceU {}           -> Some AGrammar    -- XXX: This is wrong due to "or" to be fixed soon
     EChoiceT {}           -> Some AGrammar
     EApp Name { .. } []   -> Some nameContext
-    EApp Name { .. } es
-      | any isGrammar (Some nameContext : map inferContext es) -> Some AGrammar
-      | otherwise          -> Some nameContext
-
+    EApp Name { .. } es   -> nameContext `grammarIf` map inferContext es
     EVar Name { .. }      -> Some nameContext
 
     ETry {}               -> Some AGrammar
@@ -52,9 +41,9 @@ inferContext expr =
 
     EQuiet {} -> Some AGrammar
 
-    EMapEmpty     -> Some AValue
-    EMapInsert {} -> Some AGrammar
-    EMapLookup {} -> Some AGrammar
+    EMapEmpty       -> Some AValue
+    EMapInsert {}   -> Some AGrammar
+    EMapLookup {}   -> Some AGrammar
 
     EArrayLength e  -> inferContext e
     EArrayIndex {}  -> Some AGrammar
@@ -68,11 +57,11 @@ inferContext expr =
 
     EBytes {}       -> Some AValue
     EByte {}        -> Some AValue
-    EInRange {}     -> Some AGrammar
+    EInRange {}     -> Some AClass
 
-    ETriOp _ e _ _  -> inferContext e
-    EBinOp _ e _    -> inferContext e
-    EUniOp _ e      -> inferContext e
+    ETriOp _ e1 e2 e3 -> AValue `grammarIf` map inferContext [e1,e2,e3]
+    EBinOp _ e1 e2    -> AValue `grammarIf` map inferContext [e1,e2]
+    EUniOp _ e        -> inferContext e
 
     ESel e sel ->
       case sel of
@@ -88,6 +77,9 @@ inferContext expr =
     EStreamLen {}     -> Some AGrammar
     EStreamOff {}     -> Some AGrammar
 
+
+grammarIf :: Context c -> [Some Context] -> Some Context
+grammarIf d xs = if any isGrammar xs then Some AGrammar else Some d
 
 isGrammar :: Some Context -> Bool
 isGrammar ctx =
