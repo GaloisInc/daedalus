@@ -1,25 +1,25 @@
 -- map with union selection
 
 def A = {
-    a = "a";
-    b = "b";
+    a = Match "a";
+    b = Match "b";
 }
 
 def RepA = { $$ = Many A }
 
 def F x a b =
-  { x
-  ; @v = b
-  ; @w = a
+  { Match x
+  ; @v = Match b
+  ; @w = Match a
   ; ^ "BA"
   }
 
 def Main = {
     @t = RepA;
-    "S";
+    Match "S";
     m = for (r = ""; x in t) (F " F" x.a x.b);
     n = map (x in t) (F " M" x.a x.b);
-    " S";
-    "ba";
+    Match " S";
+    Match "ba";
     END
 }

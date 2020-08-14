@@ -1,11 +1,11 @@
 
 def Frac =
-       { @dot = "."
+       { @dot = Match "."
        ; @t = { @ds = Many Digit; ^ numBase 10 ds }
        ; ^ t
        }
 
-def NoFrac = { @ds = "" ; ^ -42 }
+def NoFrac = { @ds = Match "" ; ^ -42 }
 
 def Continue = ( Frac <| NoFrac )
 
@@ -14,9 +14,9 @@ def UnsignedNumber = Choose{
                    ; y = Continue
                    }
                  ;
-                   { @n = ""
+                   { @n = Match ""
                    ; n = ^ 0
-                   ; @x = '.'
+                   ; @x = Match1 '.'
                    ; y = Natural
                    }
                  }
@@ -25,6 +25,6 @@ def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 
 def Natural = { @ds = Many (1..) Digit; ^ numBase 10 ds }
 
-def Digit     = { @d = '0' .. '9'; ^ d - '0' as int }
+def Digit     = { @d = Match1 ('0' .. '9'); ^ d - '0' as int }
 
-def Main = { x = Many { UnsignedNumber; " "} ;  }
+def Main = { x = Many { UnsignedNumber; Match " "} ;  }

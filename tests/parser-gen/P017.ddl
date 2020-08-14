@@ -2,7 +2,7 @@
    MapInsert, MapLookup
 -}
 
-def Word = { $$ = Many ('a'..'z') ; @b = ' ' ; }
+def Word = { $$ = Many (Match1 ('a'..'z')) ; @b = Match1 ' ' ; }
 
 def A = { lst = Many Word; }
 

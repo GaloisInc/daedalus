@@ -8,7 +8,7 @@ def Main =
 
 
 def VarQ : int =
-  { @lead = Many { @b = UInt8; Guard (getBit 7 b == 1); ^ b as! uint 7 };
+  { @lead = Many { @b = UInt8; Guard (getBit 7 b == 1); b as! uint 7 };
     @last = UInt7;
     ^ (for (v = 0; l in lead) v <# l) <# last
   }
@@ -16,8 +16,7 @@ def VarQ : int =
 
 def Chunk Ty P =
   { Block 4 (Only Ty);
-    @len = BE32;
-    Block (len as int) (Only P)
+    Block (BE32 as int) (Only P)
   }
 
 
@@ -31,7 +30,7 @@ def Header =
     track_num = BE16;
     time_unit =
       { @w   = BE16;
-        @tag = ^ getBit 15 w;
+        @tag = getBit 15 w;
         Choose { quarter_len = { Guard (tag == 0); ^ w as! uint 15 };
                  smtpe       = { Guard (tag == 1); ^ w as! sint 15 };
                }
@@ -148,22 +147,20 @@ def Meta =
 
 
 --------------------------------------------------------------------------------
-def BE16        = { @b1 = UInt8; @b2 = UInt8; ^ b1 # b2 }
-def BE24        = { @w1 = BE16;  @b2 = UInt8; ^ w1 # b2 }
-def BE32        = { @w1 = BE16;  @w2 = BE16;  ^ w1 # w2 }
-def TAG16 n     = { @b  = BE16; Guard (b == n) }
+def BE16        = UInt8 # UInt8
+def BE24        = BE16  # UInt8
+def BE32        = BE16  # BE16
+def TAG16 n     = Guard (BE16 == n)
 def getBit n b  = b >> n as! uint 1
 
 
-def UInt7       = { @b = UInt8; b as uint 7 }
+def UInt7       = UInt8 as uint 7
 
 def Block n P =
   { @cur = GetStream;
-    @this = Take n cur;
-    SetStream this;
+    SetStream (Take n cur);
     $$ = P;
-    @next = Drop n cur;
-    SetStream next;
+    SetStream (Drop n cur);
   }
 
 def Only P = { $$ = P; END }

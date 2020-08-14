@@ -2,11 +2,11 @@
 
 def Inner =
   Choose
-  { x = ""
-  ; y = { @u = 'a'; @v = A; @w = 'b'}
-  ; z = { @u = 'c'; @v = A; @w = 'd'}
+  { x = Match ""
+  ; y = { @u = Match1 'a'; @v = A; @w = Match1 'b'}
+  ; z = { @u = Match1 'c'; @v = A; @w = Match1 'd'}
   }
 
-def A = {@op = '<'; @m = Inner; @cl = '>'}
+def A = {@op = Match1 '<'; @m = Inner; @cl = Match1 '>'}
 
 def Main = {x = A; END}

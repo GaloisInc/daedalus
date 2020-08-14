@@ -7,13 +7,13 @@ def $simpleWS         = 0 | 9 | 12 | 32
 
 def SimpleEOL         = { $cr; $lf } | $lf
 def EOL               = SimpleEOL <| $cr
-def Comment           = { "%"; Many (!($lf | $cr)); EOL }
-def AnyWS             = $simpleWS | Comment | EOL
+def Comment           = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
 
+def AnyWS             = $simpleWS | Comment | EOL
 --------------------------------------------------------------------------------
 def Token P               = { $$ = P; Many AnyWS }
 def KW P                  = @(Token P)
-def Between open close P  = { KW open; $$ = P; KW close }
+def Between open close P  = { KW (Match open); $$ = P; KW (Match close) }
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def Only P                = { $$ = P; END }
 
@@ -26,7 +26,7 @@ def Number = Token { @sign = Sign;
                }
 
 
-def Sign = Choose { pos = @("+" | ""); neg = @"-" }
+def Sign = Choose { pos = @(Match "+" | Match ""); neg = @Match "-" }
 
 
 def UnsignedNumber =
@@ -42,11 +42,12 @@ def UnsignedNumber =
 def Natural = { @ds = Many (1..) Digit; ^ numBase 10 ds }
 
 def Frac n (w : Number) : Number =
-  { @ds = { "."; Many (n ..) Digit };
+  { @ds = { Match "."; Many (n ..) Digit };
     ^ for ( val = w; d in ds)
           { num = 10 * val.num + d; exp = val.exp - 1 }
   }
 
-def Digit     = { @d = '0' .. '9'; ^ d - '0' as int }
+def Digit     = { @d = Match1 ('0' .. '9'); ^ d - '0' as int }
 
 def Main = { x = Many Number; END}
+
