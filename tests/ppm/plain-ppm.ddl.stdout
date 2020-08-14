@@ -31,22 +31,8 @@ plain-ppm.Natural : Grammar int =
      pure $$
  
 plain-ppm._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 plain-ppm.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
   do ($$ : ?a1) <- P
@@ -80,22 +66,8 @@ plain-ppm.Main : Grammar plain-ppm.PPM =
      pure $$
  
 plain-ppm.WS : Grammar (uint 8) =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { Match {'\NUL'}
-                    | Match {'\t'}
-                    }
-                | Match {'\f'}
-                }
-            | Match {' '}
-            }
-        | Match {'\n'}
-        }
-    | Match {'\r'}
-    }
+  Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+         {'\r'})
  
 plain-ppm._Digit : Grammar {} =
   @Match ('0' .. '9')

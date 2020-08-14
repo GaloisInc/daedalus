@@ -1,5 +1,5 @@
 
-def Main = P { x = ^ true } { y = "A" }
+def Main = P { x = ^ true } { y = Match "A" }
 def P Q R = R
 
 

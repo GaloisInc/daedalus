@@ -10,9 +10,9 @@ def Token P = {
 
 
 def PPM = {
-  "P";
+  Match "P";
   @version = Token Natural;
-  version == 3;
+  version == 3 is true;
   width  = Token Natural;
   height = Token Natural;
   maxVal = Token Natural;
@@ -27,7 +27,7 @@ def RGB = {
 
 
 
-def WS = 0 | 9 | 12 | 32 | '\n' | '\r'
+def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
 
 
 def Natural = {
@@ -36,7 +36,7 @@ def Natural = {
 }
 
 def Digit = {
-  @d = '0' .. '9';
+  @d = Match1 ('0' .. '9');
   ^ d - '0';
 }
 

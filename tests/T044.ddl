@@ -7,12 +7,12 @@ def e = { x = { x = true } : local; y = { x = true } : local }
 def f (i : a) = i.x
 
 
-def A = Choose { x = 1; y = 2 }
-def B = Choose { x = 3; y = 4 } : A
-def C = Choose { x = 1; y = 2 }
-def D = Choose { x = 1; y = 2 } : D
-def E = { x = Choose { x = 1; y = 2 } : local;
-          y = Choose { x = 1; y = 3 } : local
+def A = Choose { x = Match1 1; y = Match1 2 }
+def B = Choose { x = Match1 3; y = Match1 4 } : A
+def C = Choose { x = Match1 1; y = Match1 2 }
+def D = Choose { x = Match1 1; y = Match1 2 } : D
+def E = { x = Choose { x = Match1 1; y = Match1 2 } : local;
+          y = Choose { x = Match1 1; y = Match1 3 } : local
         }
 
 def F (i : A) = i is x

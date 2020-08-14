@@ -1,7 +1,7 @@
 
 
 def Sign = Choose
-             { pos = @'+'
-             ; neg = @'-'
+             { pos = @Match1 '+'
+             ; neg = @Match1 '-'
              ; pos = {}
              }

@@ -1,7 +1,7 @@
 
 import Number
 
-def WS = @(0 | 9 | 12 | 32 | '\n' | '\r' )
+def WS = @Match1 (0 | 9 | 12 | 32 | '\n' | '\r' )
 
 def Token P              = { $$ = P; @Many (1..) WS }
 

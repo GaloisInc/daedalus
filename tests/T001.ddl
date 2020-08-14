@@ -1,8 +1,8 @@
 
 def P A = A
 
-def F = P 'a'
-def G = P "B"
+def F = P (Match1 'a')
+def G = P (Match "B")
 
 def f a = f a
 

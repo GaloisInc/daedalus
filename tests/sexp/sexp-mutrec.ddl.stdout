@@ -11,22 +11,8 @@ rec
 --- Rules:
  
 sexp-mutrec._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 sexp-mutrec._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
@@ -65,22 +51,8 @@ sexp-mutrec.Main : Grammar sexp-mutrec.Sexp =
      pure $$
  
 sexp-mutrec.WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 sexp-mutrec._Sexp : Grammar {} =
   Choose fair

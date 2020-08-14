@@ -1,7 +1,7 @@
 --- Parse error: 
 [offset: 5]
   • expected "there"
-  • see grammar at: ./T039.ddl:4:3--4:9
+  • see grammar at: ./T039.ddl:4:3--4:15
   • context:
 File context:
 Length: 15 (0xf) bytes

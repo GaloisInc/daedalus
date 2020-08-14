@@ -1,5 +1,5 @@
 
 def Main = {
   SetStream (arrayStream ['A']);
-  'A'
+  Match1 'A'
 }

@@ -7,7 +7,7 @@ type T040.Main = { a: bool
                  ; b: bool
                  ; c: Maybe bool
                  ; d: Maybe bool
-                 ; e: bool
+                 ; e: {}
                  ; f: bool
                  }
  
@@ -18,10 +18,10 @@ T040.Main : Grammar T040.Main =
      (b : bool) <- pure false
      (c : Maybe bool) <- pure nothing
      (d : Maybe bool) <- pure (just true)
-     (e : bool) <- Choose biased
-                     { Guard (d == nothing)
-                     | pure false
-                     }
+     (e : {}) <- Choose biased
+                   { Guard (d == nothing)
+                   | pure {}
+                   }
      (f : bool) <- Choose biased
                      { d is just
                      | pure true

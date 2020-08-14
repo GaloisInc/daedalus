@@ -1,5 +1,5 @@
 
-def Main = [ "hello", "world" ]
+def Main = [ Match "hello", Match "world" ]
 
 
 

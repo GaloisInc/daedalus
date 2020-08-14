@@ -18,7 +18,7 @@ def Main = {
   -- `commit` only affects errors, so this is still OK
   ex8 = Check {
           @x = { commit; Ok 1 } | Ok 2;
-          x == 2;
+          x == 2 is true;
         };
 
 }

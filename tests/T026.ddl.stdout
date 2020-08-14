@@ -7,22 +7,8 @@ module T026
 --- Rules:
  
 T026._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 T026._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
@@ -64,22 +50,8 @@ T026.Main : Grammar (Map [uint 8] [uint 8]) =
   T026.Between (Map [uint 8] [uint 8]) "<<" ">>" (T026.MkDict empty)
  
 T026.WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 T026._Between ?a4 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do T026._KW [uint 8] (@MatchBytes open)

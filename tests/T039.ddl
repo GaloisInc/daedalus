@@ -1,7 +1,7 @@
 
 def Main = {
-  Block 5 "hi";
-  "there"
+  Block 5 (Match "hi");
+  Match "there"
 }
 
 def Block n P = {
