@@ -54,14 +54,14 @@ Primitive Parsers
 It fails if there are no bytes left in the input.  If successful, it constructs
 a value of type ``uint 8``.
 
-**Specific Byte.** Any numeric literal or character may be used as a parser.
-The resulting parser consumes a single byte from the input and succeeds if
-the byte matches the literal.  Character literals match the bytes corresponding
-to their ASCII value.
+**Specific Byte.** The parser ``Match1 $set`` matches a single byte that
+belongs to the set of bytes described by ``$set``.
 
-**Specific Byte Sequence.** A string literal may be used to match a specific
-sequence of bytes.  The resulting semantic value is an array of bytes,
-which has type ``[uint 8]``.
+**Specific Byte Sequence.** The parser ``Match bytes`` matches the byte
+sequence ``bytes`` in the current input. The resulting semantic value is an
+array of bytes, ``[uint 8]``, correspnding to the matched bytes.
+For example ``Match "keyword"`` will match ``"keyword"``, while
+``Match [0x00,0x01]`` will match two bytes, 0 followed by 1.
 
 **End of Input.** The parser ``END`` succeeds only if there is no more input
 to be parsed.  If successful, the result is the trivial semantic value ``{}``.
@@ -82,14 +82,14 @@ message.
 
 .. code-block:: Daedalus
 
-  {- Declaration                   Matches        Result          -}
-  def GetByte     = UInt8       -- Any byte X     X
-  def TheLetterA  = 'A'         -- Byte 65        65
-  def TheNumber3  = 3           -- Byte 3         3
-  def TheNumber16 = 0x10        -- Byte 16        16
-  def Magic       = "HELLO"     -- "HELLO"        [72,69,76,76,79]
-  def AlwaysA     = ^ 'A'       -- ""             65
-  def GiveUp      = Fail "I give up" -- Nothing    Failure with message "I give up"
+  {- Declaration                    Matches       Result          -}
+  def GetByte     = UInt8           -- Any byte X X
+  def TheLetterA  = Match1 'A'      -- Byte 65    65
+  def TheNumber3  = Match1 (0 .. 5) -- A byte between 0 to 5
+  def TheNumber16 = Match1 0x10     -- Byte 16    16
+  def Magic       = Match "HELLO"   -- "HELLO"    [72,69,76,76,79]
+  def AlwaysA     = ^ 'A'           -- ""         65
+  def GiveUp      = Fail "I give up" -- (none)    Failure with message "I give up"
 
 Sequencing Parsers
 ------------------
@@ -134,7 +134,7 @@ which is in scope in the following parsers.  Here is an example:
 
   def Add = {
     @x = UInt8;
-    '+';
+    Match1 '+';
     @y = UInt8;
     ^ x + y
   }
@@ -153,7 +153,7 @@ named parsers.  Consider, for example, the following declaration:
 
 .. code-block:: Daedalus
 
-  def S = { x = UInt8; y = "HELLO" }
+  def S = { x = UInt8; y = Match "HELLO" }
 
 This declaration defines a parser named ``S``, which will extract a
 byte followed by the sequence ``"HELLO"``. The result of this parser is
@@ -213,11 +213,12 @@ Here are some examples:
 .. code-block:: Daedalus
 
   {- Declaration            Matches        Result   -}
-  def B1 = 'A' <| 'B'    -- "A"            'A', or
-                         -- "B"            'B'
+  def B1 = Match1 'A'   -- "A"            'A', or
+        <| Match1 'B'   -- "B"            'B'
 
-  def B2 = 'A' <| ^ 'B'  -- "A"            'A', or
-                         -- ""             'B'
+  def B2 = Match1 'A'
+        <| ^ 'B'        -- "A"            'A', or
+                        -- ""             'B'
 
 These two are quite different:  ``B1`` will fail unless the
 next byte in the input is ``'A'`` or ``'B'``, while ``B2`` never fails.
@@ -234,7 +235,7 @@ Here are some examples:
 
 .. code-block:: Daedalus
 
-  def U1 = 'A' | ^ 0
+  def U1 = Match1 'A' | ^ 0
   def U2 = { U1; 'B' }
 
 Parser ``U1`` on its own is ambiguous on inputs starting with ``"A"`` because
@@ -265,36 +266,33 @@ Choose can also be used to construct tagged unions: see below.
 Control Structures 
 ==================
 
-Guards 
+Guards
 ------
 
-Simple boolean predicates, such as ``<`` or ``==`` may be used as a guard
-to control whether parsing continues. For example, the following parser
-uses the guard ``(i - '0') > 5`` to distinguish whether an parsed
-digit is greater than 5. 
+Boolean semantic values may be used as a guard to control whether parsing
+continues. For example, the following parser uses the guard
+``(i - '0') > 5 is true`` to distinguish whether an parsed digit is
+greater than 5.
 
 .. code-block:: Daedalus 
 
   {
     @i = '0'..'9';
     Choose1 { 
-        { (i - '0') > 5; ^ "input gt 5";} ; 
+        { (i - '0') > 5 is true; ^ "input gt 5";} ; 
         { ^ "input leq 5";}
     }
   }
 
-Guards may also be made out of any boolean semantic value by using
-the ``is`` construct.  So, if ``p`` is a boolean value, then
-``p is true`` is a parser that succeeds without consuming input
-if ``p`` holds, and fails otherwise.   Similarly, ``p is false`` is
-a parser that would succeed only if ``p`` is ``false``.
-
-Note that guard ``x == y`` is simply syntactic sugar for ``(x == y) is true``.
+So, if ``p`` is a boolean value, then ``p is true`` is a parser that
+succeeds without consuming input if ``p`` holds, and fails otherwise.
+Similarly, ``p is false`` is a parser that would succeed only
+if ``p`` is ``false``.
 
 
 
-For loops
----------
+``for`` loops
+-------------
 
 The ``for`` construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
@@ -336,7 +334,7 @@ loop is a parser which fails when the value is less than the key:
 .. code-block:: Daedalus 
 
   for (val = 0; k,v in d) 
-    k <= v
+    k <= v is true
 
     
 Map
@@ -358,8 +356,8 @@ with the number of ``'A'`` characters dicated by the input sequence.
 .. code-block:: Daedalus 
 
   map (x in [1, 2, 3]) {
-    '0'; 
-    Many x 'A';
+    Match1 '0'; 
+    Many x (Match1 'A');
   }
 
 Just as with ``for``, the map construct has an alternative form that includes both 
@@ -368,9 +366,9 @@ sequence indexes and values:
 .. code-block:: Daedalus 
 
   map (i,x in [5, 2, 1]) {
-    '0'; 
+    Match1 '0'; 
     len       = ^ { index = i, elem = x };
-    something = Many x 'A';
+    something = Many x (Match1 'A');
   }
 
 
@@ -418,7 +416,7 @@ element.  For example
 
   { 
     @res = Choose { 
-      good = { 'G'; Many 'a' .. 'z' };
+      good = { 'G'; Many (Match1 'a' .. 'z') };
       bad =   'B' ;
     }; 
     Choose { 
@@ -440,8 +438,8 @@ reaching the alternative branch.
 .. code-block:: Daedalus 
 
   Choose1 { 
-    {'A'; commit; 'B' }; 
-    {'A'; 'C' }  -- Can't happen 
+    { Match1 'A'; commit; Match1 'B' }; 
+    { Match1 'A'; Match1 'C' }  -- Can't happen 
   }
 
 The ``try`` construct converts commit failure into parser failure.  A
@@ -459,7 +457,7 @@ The ``is`` guard can be used to identify which case holds.
 
   { 
     @res = 
-      {@l = 'A'..'Z'; ^ just l}
+      {@l = Match1 ('A'..'Z'); ^ just l}
         <|
       {^ nothing};
     r = res is just
@@ -470,7 +468,7 @@ The above example could also be written using the builtin ``Optional`` parser.
 .. code-block:: Daedalus 
 
   { 
-    @res = Optional 'A'..'Z';
+    @res = Optional (Match1 'A'..'Z');
     r = res is just
   }
 
@@ -560,8 +558,8 @@ letters, and then is filled with spaces:
     @this = Take n cur; 
     @next = Drop n cur; 
     SetStream this; 
-    $$ = { $$ = Many {'A'..'Z'}; 
-            Many ' '; 
+    $$ = { $$ = Many (Match1 ('A'..'Z'))
+            Many (Match1 ' '); 
             END; }; 
     SetStream next; 
   }
@@ -574,9 +572,9 @@ particular parser:
 
   def OffsetTest = { 
       a = Offset; 
-      "AA";
+      Match "AA";
       b = Offset; 
-      "AAA"; 
+      Match "AAA"; 
       c = Offset; 
   }
   -- Result: { a:0, b:2, c:5 } 
@@ -587,8 +585,8 @@ The ``arrayStream`` operator converts an array into a stream:
 
   def CatStream a b = { 
       SetStream (arrayStream (concat [a, b]));
-      "AA";
-      "BBB";
+      Match "AA";
+      Match "BBB";
       ^ {}
   }
 
