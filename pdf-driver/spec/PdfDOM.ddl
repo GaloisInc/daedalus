@@ -1,5 +1,3 @@
-import PdfXRef
-import PdfDecl
 import PdfValue
 import PdfValidate
 
