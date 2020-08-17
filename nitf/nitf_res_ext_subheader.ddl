@@ -1,7 +1,7 @@
 import nitf_lib
 
 def ResExtHeader = {
-  "RE" ;
+  Match "RE" ;
   resid = Many 25 BCSA ;
   resver = PosNumber 2 ;
 

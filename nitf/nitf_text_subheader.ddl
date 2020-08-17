@@ -1,16 +1,16 @@
 import nitf_lib
 
-def TE = "TE"
+def TE = Match "TE"
 
-def TextId = Many 7 (AlphaNum | ' ')
+def TextId = Many 7 (AlphaNum | Match1 ' ')
 
 def TxTitl = Many 80 ECSA
 
 def TxtFmt = Choose {
-  usmtf = @"MTF" ;
-  bcs = @"STA" ;
-  ecs = @"UT1" ;
-  u8s = @"U8S" ;
+  usmtf = @Match "MTF" ;
+  bcs = @Match "STA" ;
+  ecs = @Match "UT1" ;
+  u8s = @Match "U8S" ;
 }
 
 def TxShDL =
@@ -36,7 +36,7 @@ def TextHeader = {
     txsofl = {
       UnsignedNum 3 ;
     } ;
-    omitted = txshdl == 0;
+    omitted = Guard (txshdl == 0);
   } ;
 
   txshd = Many (txshdl - 3) BCSA ;

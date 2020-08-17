@@ -1,6 +1,6 @@
 import nitf_lib
 
-def DE = "DE"
+def DE = Match "DE"
 
 def DataExtHeader = {
   DE ;
@@ -11,12 +11,12 @@ def DataExtHeader = {
 
   desoflw = Choose {
     present = Choose {
-      oflwUDHD = @(PadWSpaces 6 "UDHD") ;
-      oflwUDID = @(PadWSpaces 6 "UDID") ;
-      oflwXHD = @(PadWSpaces 6 "XHD") ;
-      oflwIXSHD = @(PadWSpaces 6 "IXSHD") ;
-      oflwSXSHD = @(PadWSpaces 6 "SXSHD") ;
-      oflwTXSHD = @(PadWSpaces 6 "TXSHD") ;
+      oflwUDHD = @(PadWSpaces 6 (Match "UDHD")) ;
+      oflwUDID = @(PadWSpaces 6 (Match "UDID")) ;
+      oflwXHD = @(PadWSpaces 6 (Match "XHD")) ;
+      oflwIXSHD = @(PadWSpaces 6 (Match "IXSHD")) ;
+      oflwSXSHD = @(PadWSpaces 6 (Match "SXSHD")) ;
+      oflwTXSHD = @(PadWSpaces 6 (Match "TXSHD")) ;
     } ;
     nooflw = ^{} ;
   } ;

@@ -9,6 +9,9 @@ def Chunk n P =  {
   SetStream next;
 }
 
+-- A parser that succeeds only if the predicate is true.
+def Guard p = p is true
+
 -- library of parsers that are generally useful for NITF
 
 def numBase (base : int) (ds : [ int ]) =
@@ -22,35 +25,35 @@ def strlen s = for (len = (0 : int); c in s) (len + 1)
 -- Force the parser to backtrack 
 def MyFail = { commit; Choose {}; }
 
-def Etx = 4
+def Etx = Match1 4
 
 {-- Character sets --} 
 
 -- BCS character set 
-def BCS = 0x20 .. 0x7E | 0x0C | 0x0D 
-def BCSA = 0x20 .. 0x7E 
-def BCSN = 0x30 .. 0x39 | 0x2B | 0x2D 
+def BCS = Match1 (0x20 .. 0x7E | 0x0C | 0x0D)
+def BCSA = Match1 (0x20 .. 0x7E )
+def BCSN = Match1 (0x30 .. 0x39 | 0x2B | 0x2D )
 
 -- ECS character set 
 -- TODO: work out error handling if deprecated ECS codes are used 
 def ECS = BCS 
 def ECSA = BCSA 
 
-def LowerCase = 'a' .. 'z'
+def LowerCase = Match1 ('a' .. 'z')
 
-def UpperCase = 'A' .. 'Z'
+def UpperCase = Match1 ('A' .. 'Z')
 
 def Alpha = UpperCase | LowerCase
 
-def Numeral = '0' .. '9'
+def Numeral = Match1 ('0' .. '9')
 
-def Sign = '+' | '-'
+def Sign = Match1 ('+' | '-')
 
 def Digit = { @d = Numeral ; ^ d - '0' as int }
 
 def FixedPoint = {
   digs = Many Digit ;
-  '.' ;
+  Match1 '.' ;
   radix = Many Digit
 }
 
@@ -60,7 +63,7 @@ def UnsignedNum digs = {
 }
 
 def NegNum digs = {
-  '-' ;
+  Match1 '-' ;
   @n = UnsignedNum digs ;
   ^ 0 - n
 }
@@ -72,13 +75,13 @@ def SignedNum digs = Choose {
 
 def BoundedNum digs lb ub = {
   $$ = UnsignedNum digs ;
-  lb <= $$ ;
-  $$ <= ub
+  Guard (lb <= $$) ;
+  Guard ($$ <= ub)
 }
 
 def PosNumber digs = {
   $$ = UnsignedNum digs ;
-  1 <= $$ 
+  Guard (1 <= $$)
 }
 
 def IsNum digs v = BoundedNum digs v v
@@ -97,43 +100,43 @@ def PosQuad = BoundedNum 4 1 9999
 
 def LowerBoundedOrZero digs lb = {
   $$ = UnsignedNum digs ;
-  $$ == 0 | lb <= $$
+  Guard ($$ == 0) | Guard (lb <= $$)
 }
 
-def Pos = '1' .. '9'
+def Pos = Match1 ('1' .. '9')
 
 def AlphaNum = Alpha | Numeral
 
 -- TODO: replace with specific BCS classes
-def Byte = 0 .. 255
+def Byte = Match1 (0 .. 255)
 
-def Spaces n = Many n ' '
+def Spaces n = Many n (Match1 ' ')
 
 def PadWSpaces n P = 
-  Chunk n {$$ = P; Many ' '; END}
+  Chunk n {$$ = P; Many (Match1 ' '); END}
 
 def DefaultByte D P = Choose {
   actual = P ;
   default = @D ;
 }
 
-def DefaultSpace P = DefaultByte ' ' P
+def DefaultSpace P = DefaultByte (Match1 ' ') P
 
 -- TODO: rename
 def OrBytes n b P = Choose {
   actual = P ;
-  default = @(Many n b)
+  default = @(Many n (Match b))
 }
 
 def DefaultSpaces n P = OrBytes n " " P
 
 def OrHyphens n P = OrBytes n "-" P
 
-def Eq x y = x == y
+def Eq x y = Guard (x == y)
 
-def Lt x y = x < y
+def Lt x y = Guard (x < y)
 
-def Leq x y = (Eq x y) | (Lt x y)
+def Leq x y = (Eq x y) | (Lt x y)   -- XXX: Why not use <= ?
 
 def PartialEq x y =
   x is default
@@ -257,11 +260,11 @@ def OrdDate (d0 : Date) (d1 : Date) = {
 
 -- security classifications:
 def SecClas = Choose {
-  topsecret = @'T' ;
-  secret = @'S' ; 
-  confidential = @'C' ;
-  restricted = @'R' ; 
-  unclassified = @'U' ; 
+  topsecret = @Match1 'T' ;
+  secret = @Match1 'S' ;
+  confidential = @Match1 'C' ;
+  restricted = @Match1 'R' ; 
+  unclassified = @Match1 'U' ; 
 }
 
 def CountryCode = Many 2 AlphaNum
@@ -269,7 +272,7 @@ def CountryCode = Many 2 AlphaNum
 -- ClSy: classification system
 def ClSy = DefaultSpaces 2 (
   Choose {
-    nato = @"XN" ;
+    nato = @Match "XN" ;
     country = CountryCode ;
   })
 
@@ -277,7 +280,7 @@ def ClSy = DefaultSpaces 2 (
 def CodeWords = DefaultSpaces 11 {
   first = SecCtrlMarking ;
   rest = Many (..3) {
-    ' ' ;
+    Match1 ' ' ;
     SecCtrlMarking
   } ;
   Spaces (11 - (2 + 3 * (strlen rest)))
@@ -285,51 +288,51 @@ def CodeWords = DefaultSpaces 11 {
 
 -- Security control markings: translated from Table A-4:
 def SecCtrlMarking = Choose {
-  atomal = @"AT" ;
-  cndwdi = @"CN" ;
-  copyright = @"PX" ;
-  cosmic = @"CS" ;
-  crypto = @"CR" ;
-  efto = @"TX" ;
-  formrestData = @"RF" ;
-  fouo = @"FO" ;
-  generalService = @"GS" ;
-  limOffUse = @"LU" ;
-  limdis = @"DS" ;
-  nato = @"NS" ;
-  noContract = @"NC" ;
-  noncompartment = @"NT" ;
-  orcon = @"OR" ;
-  personalData = "IN" ;
-  propin = "PI" ;
-  restrictedData = @"RD" ;
-  sao = @"SA" ;
-  sao1 = @"SL" ;
-  sao2 = @"HA" ;
-  sao3 = @"HB" ;
-  saoSi2 = @"SK" ;
-  saoSi3 = @"HC" ;
-  saoSi4 = @"HD" ;
-  siop = @"SH" ;
-  siopEsi = @"SE" ;
-  specialControl = @"SC" ;
-  specialIntel = @"SI" ;
-  usOnly = @"UO" ;
-  warningNotice = @"WN" ;
-  wnintel = "WI" ;
+  atomal = @Match "AT" ;
+  cndwdi = @Match "CN" ;
+  copyright = @Match "PX" ;
+  cosmic = @Match "CS" ;
+  crypto = @Match "CR" ;
+  efto = @Match "TX" ;
+  formrestData = @Match "RF" ;
+  fouo = @Match "FO" ;
+  generalService = @Match "GS" ;
+  limOffUse = @Match "LU" ;
+  limdis = @Match "DS" ;
+  nato = @Match "NS" ;
+  noContract = @Match "NC" ;
+  noncompartment = @Match "NT" ;
+  orcon = @Match "OR" ;
+  personalData = @Match "IN" ;
+  propin = @Match "PI" ;
+  restrictedData = @Match "RD" ;
+  sao = @Match "SA" ;
+  sao1 = @Match "SL" ;
+  sao2 = @Match "HA" ;
+  sao3 = @Match "HB" ;
+  saoSi2 = @Match "SK" ;
+  saoSi3 = @Match "HC" ;
+  saoSi4 = @Match "HD" ;
+  siop = @Match "SH" ;
+  siopEsi = @Match "SE" ;
+  specialControl = @Match "SC" ;
+  specialIntel = @Match "SI" ;
+  usOnly = @Match "UO" ;
+  warningNotice = @Match "WN" ;
+  wnintel = @Match "WI" ;
 }
 
 def CtlHandling = DefaultSpaces 2 SecCtrlMarking
 
-def Release = Many 20 (UpperCase | ' ')
+def Release = Many 20 (UpperCase | Match1 ' ')
 
 def DeclassificationType = Choose {
-  date = @"DD" ;
-  event = @"DE" ;
-  datelv = @"GD" ;
-  eventlv = @"GE" ;
-  oadr = @(PadWSpaces 1 "O") ;
-  exempt = @(PadWSpaces 1 "X") ;
+  date = @Match "DD" ;
+  event = @Match "DE" ;
+  datelv = @Match "GD" ;
+  eventlv = @Match "GE" ;
+  oadr = @(PadWSpaces 1 (Match "O")) ;
+  exempt = @(PadWSpaces 1 (Match "X")) ;
   none = @(Spaces 2)
 }
 
@@ -353,11 +356,11 @@ def Declassification = {
   dxcm = Choose {
     reason = {
       dctp is exempt ;
-      'X' ;
+      Match1 'X' ;
       $$ = (PadWSpaces 3 (Many (..3) Digit)) ;
       @v = ^ (numBase 10 $$) ;
-        { 1   <= v ; v <= 8   }
-      | { 251 <= v ; v <= 259 }
+        { Guard (1   <= v); Guard (v <= 8)   }
+      | { Guard (251 <= v); Guard (v <= 259) }
     } ;
     notexempt = @{
         dctp is date
@@ -375,9 +378,9 @@ def Declassification = {
       | dctp is eventlv ;
       DefaultSpace (
         Choose {
-          secret = @'S' ;
-          confidential = @'C' ;
-          restricted = @'R' ;
+          secret = @Match1 'S' ;
+          confidential = @Match1 'C' ;
+          restricted = @Match1 'R' ;
         })
     } ;
     none = @{
@@ -418,20 +421,20 @@ def Declassification = {
 def ClassificationAuthority = {
   authtp = DefaultSpace (
     Choose {
-      original = @'O' ;
-      derivative = @'D' ;
-      multiple = @'M' ;
+      original = @Match1 'O' ;
+      derivative = @Match1 'D' ;
+      multiple = @Match1 'M' ;
     }) ;
   auth = Many 40 ECSA ;
   crsn = DefaultSpace (
     Choose {
-      clsrsnA = @'A' ;
-      clsrsnB = @'B' ;
-      clsrsnC = @'C' ;
-      clsrsnD = @'D' ;
-      clsrsnE = @'E' ;
-      clsrsnF = @'F' ;
-      clsrsnG = @'G' ;
+      clsrsnA = @Match1 'A' ;
+      clsrsnB = @Match1 'B' ;
+      clsrsnC = @Match1 'C' ;
+      clsrsnD = @Match1 'D' ;
+      clsrsnE = @Match1 'E' ;
+      clsrsnF = @Match1 'F' ;
+      clsrsnG = @Match1 'G' ;
     })
 }
 
@@ -451,7 +454,7 @@ def CommonSubheader = {
   sec = Security 
 }
 
-def Encryp = '0'
+def Encryp = Match1 '0'
 
 def AttachmentLvl = UpperBounded 3 998
 

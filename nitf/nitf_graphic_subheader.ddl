@@ -1,12 +1,12 @@
 import nitf_lib
 
-def SY = "SY"
+def SY = Match "SY"
 
-def SFmt = 'C'
+def SFmt = Match1 'C'
 
 def GraphicColor = Choose {
-  color = 'C' ;
-  mono = 'M'
+  color = Match1 'C' ;
+  mono = Match1 'M'
 }
 
 def GraphicHeader = {
