@@ -31,21 +31,21 @@ pPdfPageObject :: PdfValue.Ref -> (PdfValue.Value -> D.Parser ())
  
 pPdfPageObject (parent :: PdfValue.Ref) (v :: PdfValue.Value) =
   do (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "56:8--56:16" "Expected `dict`" (HS.getField @"dict" v)
+       RTS.pIsJust "55:8--55:16" "Expected `dict`" (HS.getField @"dict" v)
      RTS.pEnter "PdfValidate._PdfType"
        (PdfValidate._PdfType d (Vector.vecFromRep "Page"))
      (__ :: ()) <-
-       do (ref :: PdfValue.Ref) <-
-            do (_0 :: PdfValue.Value) <-
-                 RTS.pIsJust "60:12--60:28"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "Parent") d)
-               RTS.pIsJust "60:12--60:35" "Expected `ref`" (HS.getField @"ref" _0)
-          (__ :: ()) <-
-            RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard (parent HS.== ref))
-          HS.pure __
+       do (_2 :: HS.Bool) <-
+            do (_1 :: PdfValue.Ref) <-
+                 do (_0 :: PdfValue.Value) <-
+                      RTS.pIsJust "59:10--59:26"
+                        ("Missing key: "
+                           HS.++ HS.show
+                                   (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
+                        (Map.lookup (Vector.vecFromRep "Parent") d)
+                    RTS.pIsJust "59:10--59:33" "Expected `ref`" (HS.getField @"ref" _0)
+               HS.pure (_1 HS.== parent)
+          RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard _2)
      HS.pure __
  
 pPdfPageTreeNode ::
@@ -56,48 +56,52 @@ pPdfPageTreeNode (self :: PdfValue.Ref)
   (parent :: HS.Maybe PdfValue.Ref)
   (v :: PdfValue.Value) =
   do (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "25:8--25:16" "Expected `dict`" (HS.getField @"dict" v)
+       RTS.pIsJust "27:8--27:16" "Expected `dict`" (HS.getField @"dict" v)
      RTS.pEnter "PdfValidate._PdfType"
        (PdfValidate._PdfType d (Vector.vecFromRep "Pages"))
-     do (i :: HS.Integer) <-
-          do (_1 :: PdfValue.Value) <-
-               RTS.pIsJust "29:22--29:37"
-                 ("Missing key: "
-                    HS.++ HS.show
-                            (Vector.vecFromRep "Count" :: Vector.Vector (RTS.UInt 8)))
-                 (Map.lookup (Vector.vecFromRep "Count") d)
-             RTS.pEnter "PdfValidate.PdfInteger" (PdfValidate.pPdfInteger _1)
-        RTS.pEnter "PdfValue._Guard"
-          (PdfValue._Guard ((RTS.lit 0 :: HS.Integer) HS.<= i))
-     RTS.pEnter "PdfDecl._Default"
-       (PdfDecl._Default @()
-          (do (p :: PdfValue.Ref) <-
-                RTS.pIsJust "35:10--35:23" "Expected `Just`" parent
-              RTS.pErrorMode RTS.Abort
-                (do (ref :: PdfValue.Ref) <-
-                      do (_2 :: PdfValue.Value) <-
-                           RTS.pIsJust "37:12--37:28"
-                             ("Missing key: "
-                                HS.++ HS.show
-                                        (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
-                             (Map.lookup (Vector.vecFromRep "Parent") d)
-                         RTS.pIsJust "37:12--37:35" "Expected `ref`" (HS.getField @"ref" _2)
-                    RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (ref HS.== p)))))
+     do (_5 :: HS.Bool) <-
+          do (_4 :: HS.Integer) <-
+               do (_3 :: PdfValue.Value) <-
+                    RTS.pIsJust "31:22--31:37"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "Count" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "Count") d)
+                  RTS.pEnter "PdfValidate.PdfInteger" (PdfValidate.pPdfInteger _3)
+             HS.pure ((RTS.lit 0 :: HS.Integer) HS.<= _4)
+        RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _5)
+     (RTS.<||)
+       (do (p :: PdfValue.Ref) <-
+             RTS.pIsJust "35:10--35:23" "Expected `Just`" parent
+           RTS.pErrorMode RTS.Abort
+             (do (_8 :: HS.Bool) <-
+                   do (_7 :: PdfValue.Ref) <-
+                        do (_6 :: PdfValue.Value) <-
+                             RTS.pIsJust "37:12--37:28"
+                               ("Missing key: "
+                                  HS.++ HS.show
+                                          (Vector.vecFromRep "Parent"
+                                             :: Vector.Vector (RTS.UInt 8)))
+                               (Map.lookup (Vector.vecFromRep "Parent") d)
+                           RTS.pIsJust "37:12--37:35" "Expected `ref`" (HS.getField @"ref" _6)
+                      HS.pure (_7 HS.== p)
+                 RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _8)))
+       (HS.pure ())
      (__ :: ()) <-
        do (kids :: Vector.Vector PdfValue.Value) <-
-            do (_3 :: PdfValue.Value) <-
-                 RTS.pIsJust "42:14--42:28"
+            do (_9 :: PdfValue.Value) <-
+                 RTS.pIsJust "41:14--41:28"
                    ("Missing key: "
                       HS.++ HS.show
                               (Vector.vecFromRep "Kids" :: Vector.Vector (RTS.UInt 8)))
                    (Map.lookup (Vector.vecFromRep "Kids") d)
-               RTS.pIsJust "42:14--42:37" "Expected `array`"
-                 (HS.getField @"array" _3)
+               RTS.pIsJust "41:14--41:37" "Expected `array`"
+                 (HS.getField @"array" _9)
           (__ :: ()) <-
             RTS.loopFoldM
               (\(s :: ()) (v :: PdfValue.Value) ->
                  do (kid :: PdfValue.Ref) <-
-                      RTS.pIsJust "44:14--44:21" "Expected `ref`" (HS.getField @"ref" v)
+                      RTS.pIsJust "43:14--43:21" "Expected `ref`" (HS.getField @"ref" v)
                     (__ :: ()) <-
                       (RTS.<||)
                         (do (__ :: ()) <-
@@ -127,13 +131,14 @@ pPdfCatalog (v :: PdfValue.Value) =
        (PdfValidate._PdfType d (Vector.vecFromRep "Catalog"))
      (__ :: ()) <-
        do (ref :: PdfValue.Ref) <-
-            do (_4 :: PdfValue.Value) <-
+            do (_10 :: PdfValue.Value) <-
                  RTS.pIsJust "18:12--18:27"
                    ("Missing key: "
                       HS.++ HS.show
                               (Vector.vecFromRep "Pages" :: Vector.Vector (RTS.UInt 8)))
                    (Map.lookup (Vector.vecFromRep "Pages") d)
-               RTS.pIsJust "18:12--18:34" "Expected `ref`" (HS.getField @"ref" _4)
+               RTS.pIsJust "18:12--18:34" "Expected `ref`"
+                 (HS.getField @"ref" _10)
           (__ :: ()) <-
             RTS.pEnter "PdfValidate.CheckRef"
               (PdfValidate.pCheckRef (Vector.vecFromRep "PageTreeNodeRoot")
@@ -145,11 +150,11 @@ pPdfCatalog (v :: PdfValue.Value) =
 pPdfTrailer :: PdfXRef.TrailerDict -> D.Parser ()
  
 pPdfTrailer (t :: PdfXRef.TrailerDict) =
-  do (_5 :: PdfValue.Ref) <-
+  do (_11 :: PdfValue.Ref) <-
        RTS.pIsJust "8:34--8:47" "Expected `Just`" (HS.getField @"root" t)
      RTS.pEnter "PdfValidate.CheckRef"
        (PdfValidate.pCheckRef (Vector.vecFromRep "Catalog") pPdfCatalog
-          _5)
+          _11)
  
 _PdfCatalog :: PdfValue.Value -> D.Parser ()
  
@@ -159,13 +164,14 @@ _PdfCatalog (v :: PdfValue.Value) =
      RTS.pEnter "PdfValidate._PdfType"
        (PdfValidate._PdfType d (Vector.vecFromRep "Catalog"))
      (ref :: PdfValue.Ref) <-
-       do (_4 :: PdfValue.Value) <-
+       do (_10 :: PdfValue.Value) <-
             RTS.pIsJust "18:12--18:27"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "Pages" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "Pages") d)
-          RTS.pIsJust "18:12--18:34" "Expected `ref`" (HS.getField @"ref" _4)
+          RTS.pIsJust "18:12--18:34" "Expected `ref`"
+            (HS.getField @"ref" _10)
      RTS.pEnter "PdfValidate._CheckRef"
        (PdfValidate._CheckRef (Vector.vecFromRep "PageTreeNodeRoot")
           (pPdfPageTreeNode ref (HS.Nothing :: HS.Maybe PdfValue.Ref))
@@ -175,18 +181,20 @@ _PdfPageObject :: PdfValue.Ref -> (PdfValue.Value -> D.Parser ())
  
 _PdfPageObject (parent :: PdfValue.Ref) (v :: PdfValue.Value) =
   do (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "56:8--56:16" "Expected `dict`" (HS.getField @"dict" v)
+       RTS.pIsJust "55:8--55:16" "Expected `dict`" (HS.getField @"dict" v)
      RTS.pEnter "PdfValidate._PdfType"
        (PdfValidate._PdfType d (Vector.vecFromRep "Page"))
-     (ref :: PdfValue.Ref) <-
-       do (_0 :: PdfValue.Value) <-
-            RTS.pIsJust "60:12--60:28"
-              ("Missing key: "
-                 HS.++ HS.show
-                         (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
-              (Map.lookup (Vector.vecFromRep "Parent") d)
-          RTS.pIsJust "60:12--60:35" "Expected `ref`" (HS.getField @"ref" _0)
-     RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (parent HS.== ref))
+     (_2 :: HS.Bool) <-
+       do (_1 :: PdfValue.Ref) <-
+            do (_0 :: PdfValue.Value) <-
+                 RTS.pIsJust "59:10--59:26"
+                   ("Missing key: "
+                      HS.++ HS.show
+                              (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
+                   (Map.lookup (Vector.vecFromRep "Parent") d)
+               RTS.pIsJust "59:10--59:33" "Expected `ref`" (HS.getField @"ref" _0)
+          HS.pure (_1 HS.== parent)
+     RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _2)
  
 _PdfPageTreeNode ::
       PdfValue.Ref
@@ -196,46 +204,50 @@ _PdfPageTreeNode (self :: PdfValue.Ref)
   (parent :: HS.Maybe PdfValue.Ref)
   (v :: PdfValue.Value) =
   do (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "25:8--25:16" "Expected `dict`" (HS.getField @"dict" v)
+       RTS.pIsJust "27:8--27:16" "Expected `dict`" (HS.getField @"dict" v)
      RTS.pEnter "PdfValidate._PdfType"
        (PdfValidate._PdfType d (Vector.vecFromRep "Pages"))
-     do (i :: HS.Integer) <-
-          do (_1 :: PdfValue.Value) <-
-               RTS.pIsJust "29:22--29:37"
-                 ("Missing key: "
-                    HS.++ HS.show
-                            (Vector.vecFromRep "Count" :: Vector.Vector (RTS.UInt 8)))
-                 (Map.lookup (Vector.vecFromRep "Count") d)
-             RTS.pEnter "PdfValidate.PdfInteger" (PdfValidate.pPdfInteger _1)
-        RTS.pEnter "PdfValue._Guard"
-          (PdfValue._Guard ((RTS.lit 0 :: HS.Integer) HS.<= i))
-     RTS.pEnter "PdfDecl._Default"
-       (PdfDecl._Default @()
-          (do (p :: PdfValue.Ref) <-
-                RTS.pIsJust "35:10--35:23" "Expected `Just`" parent
-              RTS.pErrorMode RTS.Abort
-                (do (ref :: PdfValue.Ref) <-
-                      do (_2 :: PdfValue.Value) <-
-                           RTS.pIsJust "37:12--37:28"
-                             ("Missing key: "
-                                HS.++ HS.show
-                                        (Vector.vecFromRep "Parent" :: Vector.Vector (RTS.UInt 8)))
-                             (Map.lookup (Vector.vecFromRep "Parent") d)
-                         RTS.pIsJust "37:12--37:35" "Expected `ref`" (HS.getField @"ref" _2)
-                    RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (ref HS.== p)))))
+     do (_5 :: HS.Bool) <-
+          do (_4 :: HS.Integer) <-
+               do (_3 :: PdfValue.Value) <-
+                    RTS.pIsJust "31:22--31:37"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "Count" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "Count") d)
+                  RTS.pEnter "PdfValidate.PdfInteger" (PdfValidate.pPdfInteger _3)
+             HS.pure ((RTS.lit 0 :: HS.Integer) HS.<= _4)
+        RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _5)
+     (RTS.<||)
+       (do (p :: PdfValue.Ref) <-
+             RTS.pIsJust "35:10--35:23" "Expected `Just`" parent
+           RTS.pErrorMode RTS.Abort
+             (do (_8 :: HS.Bool) <-
+                   do (_7 :: PdfValue.Ref) <-
+                        do (_6 :: PdfValue.Value) <-
+                             RTS.pIsJust "37:12--37:28"
+                               ("Missing key: "
+                                  HS.++ HS.show
+                                          (Vector.vecFromRep "Parent"
+                                             :: Vector.Vector (RTS.UInt 8)))
+                               (Map.lookup (Vector.vecFromRep "Parent") d)
+                           RTS.pIsJust "37:12--37:35" "Expected `ref`" (HS.getField @"ref" _6)
+                      HS.pure (_7 HS.== p)
+                 RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _8)))
+       (HS.pure ())
      (kids :: Vector.Vector PdfValue.Value) <-
-       do (_3 :: PdfValue.Value) <-
-            RTS.pIsJust "42:14--42:28"
+       do (_9 :: PdfValue.Value) <-
+            RTS.pIsJust "41:14--41:28"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "Kids" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "Kids") d)
-          RTS.pIsJust "42:14--42:37" "Expected `array`"
-            (HS.getField @"array" _3)
+          RTS.pIsJust "41:14--41:37" "Expected `array`"
+            (HS.getField @"array" _9)
      RTS.loopFoldM
        (\(s :: ()) (v :: PdfValue.Value) ->
           do (kid :: PdfValue.Ref) <-
-               RTS.pIsJust "44:14--44:21" "Expected `ref`" (HS.getField @"ref" v)
+               RTS.pIsJust "43:14--43:21" "Expected `ref`" (HS.getField @"ref" v)
              (RTS.<||)
                (RTS.pEnter "PdfValidate._CheckRef"
                   (PdfValidate._CheckRef (Vector.vecFromRep "PageTreeNode")
@@ -251,8 +263,8 @@ _PdfPageTreeNode (self :: PdfValue.Ref)
 _PdfTrailer :: PdfXRef.TrailerDict -> D.Parser ()
  
 _PdfTrailer (t :: PdfXRef.TrailerDict) =
-  do (_5 :: PdfValue.Ref) <-
+  do (_11 :: PdfValue.Ref) <-
        RTS.pIsJust "8:34--8:47" "Expected `Just`" (HS.getField @"root" t)
      RTS.pEnter "PdfValidate._CheckRef"
        (PdfValidate._CheckRef (Vector.vecFromRep "Catalog") pPdfCatalog
-          _5)
+          _11)

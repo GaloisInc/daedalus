@@ -14,31 +14,30 @@ def PdfCatalog (v : Value) = {
   @d = v is dict;
   PdfType d "Catalog";
 
-  -- Field Pages
+  -- Field "Pages"
   { @ref = Lookup "Pages" d is ref;
     CheckRef "PageTreeNodeRoot" (PdfPageTreeNode ref nothing) ref;
   };
 }
 
 
+-- This is used for both the root node and intermediate nodes in the
+-- tree.   In the case of the root, the `parent` is `nothing`.
 def PdfPageTreeNode (self : Ref) (parent : maybe Ref) (v : Value) = {
   @d = v is dict;
   PdfType d "Pages";
 
-  -- Field Count
-  { @i = PdfInteger (Lookup "Count" d);
-    Guard (i >= 0)
-  };
+  -- Field "Count"
+  Guard (PdfInteger (Lookup "Count" d) >= 0);
 
-  -- Field Parent, required for non-root nodes.
-  Default {} {
+  -- Field "Parent", required for non-root nodes.
+  Optional {
     @p = parent is just;
     commit;
-    @ref = Lookup "Parent" d is ref;
-    Guard (ref == p)
+    Guard (Lookup "Parent" d is ref == p);
   };
 
-  -- Field Kids
+  -- Field "Kids"
   { @kids  = Lookup "Kids" d is array;
     for (s = {}; v in kids) {
       @kid = v is ref;
@@ -56,9 +55,7 @@ def PdfPageObject (parent : Ref) (v : Value) = {
   @d = v is dict;
   PdfType d "Page";
 
-  -- Field Parent
-  { @ref = Lookup "Parent" d is ref;
-    Guard (parent == ref);
-  };
+  -- Field "Parent"
+  Guard (Lookup "Parent" d is ref == parent);
 }
 
