@@ -43,10 +43,16 @@ data TreeChoice =
   | Par [ TreeChoice ]
 
 
-type DelayedAction = [Action]
+type DelayedAction = [(Action, State)]
 
-addDelayedAction :: Action -> DelayedAction -> DelayedAction
-addDelayedAction a da = a : da
+addDelayedAction :: Action -> State -> DelayedAction -> DelayedAction
+addDelayedAction a q da = (a,q) : da
+
+stateInDelayedAction :: State -> DelayedAction -> Bool
+stateInDelayedAction q da =
+  case da of
+    [] -> False
+    (_, q1) : das -> if q == q1 then True else stateInDelayedAction q das
 
 lengthDelayedAction :: DelayedAction -> Int
 lengthDelayedAction da = length da
@@ -57,6 +63,7 @@ data DetResult a =
   | AbortAcceptingPath
   | AbortNonClassInputAction Action
   | AbortOverflowMaxDepth
+  | AbortLoopWithNonClass
   | AbortNonEmptyIntersection
   | AbortClassIsDynamic
   | AbortClassNotHandled String
@@ -67,7 +74,7 @@ data DetResult a =
 
 
 maxDepthRec :: Int
-maxDepthRec = 1000
+maxDepthRec = 200
 
 closureLLOne :: Aut -> State -> DelayedAction -> DetResult TreeChoice
 closureLLOne aut q da =
@@ -87,6 +94,7 @@ closureLLOne aut q da =
          in
            case resIterate of
              AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+             AbortLoopWithNonClass -> AbortLoopWithNonClass
              AbortNonClassInputAction x -> AbortNonClassInputAction x
              AbortAcceptingPath -> AbortAcceptingPath
              DetResult res ->
@@ -110,7 +118,10 @@ closureLLOne aut q da =
           if lengthDelayedAction da > maxDepthRec
           then AbortOverflowMaxDepth
           else
-            let bClos = closureLLOne aut q1 (addDelayedAction act da) in
+            if stateInDelayedAction q1 da
+            then trace (show $ lengthDelayedAction da) $ AbortLoopWithNonClass
+            else
+              let bClos = closureLLOne aut q1 (addDelayedAction act q1 da) in
               bClos
 
 
@@ -122,23 +133,28 @@ closureLLOne aut q da =
           let cs = closureStep (act, q1) in
           case cs of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+            AbortLoopWithNonClass -> AbortLoopWithNonClass
             AbortNonClassInputAction x -> AbortNonClassInputAction x
             AbortAcceptingPath -> AbortAcceptingPath
             DetResult elm -> iterateThrough rest (elm:res)
             _ -> error "abort not handled here"
 
 
-backwardTreeChoice :: TreeChoice -> [ ([Int], DelayedAction, Action) ]
-backwardTreeChoice tc =
+type ChoicePath = [Int]
+
+type FlattenTreeChoice = [ (ChoicePath, DelayedAction, Action) ]
+
+flattenTreeChoice :: TreeChoice -> FlattenTreeChoice
+flattenTreeChoice tc =
   case tc of
     Move (da,act,_) -> [([],da,act)]
-    Par lst -> backwardList lst
-    Seq lst -> backwardList lst
+    Par lst -> flattenListTreeChoice lst
+    Seq lst -> flattenListTreeChoice lst
 
   where
-    backwardList :: [ TreeChoice ] -> [ ([Int], DelayedAction, Action) ]
-    backwardList lst =
-      let lst1 = map backwardTreeChoice lst
+    flattenListTreeChoice :: [ TreeChoice ] -> FlattenTreeChoice
+    flattenListTreeChoice lst =
+      let lst1 = map flattenTreeChoice lst
           lst2 = zipWithInt lst1 0
           lst3 = map (\ (n, backlist) -> map (\ (lsti, da, a) -> (n:lsti, da, a)) backlist) lst2
       in foldr (\ a b -> a ++ b) [] lst3
@@ -149,13 +165,14 @@ backwardTreeChoice tc =
         [] -> []
         x : xs -> (i, x) : zipWithInt xs (i + 1)
 
-data ClassValue =
+
+data IntervalEndpoint =
     PlusInfinity
   | MinusInfinity
   | CValue Integer
   deriving(Eq)
 
-instance Ord(ClassValue) where
+instance Ord(IntervalEndpoint) where
   (<=) MinusInfinity _ = True
   (<=) (CValue _) MinusInfinity = False
   (<=) (CValue x) (CValue y) = x <= y
@@ -165,7 +182,8 @@ instance Ord(ClassValue) where
 
 
 data ClassInterval =
-    ClassBtw ClassValue ClassValue
+    ClassBtw IntervalEndpoint IntervalEndpoint
+
 
 classToInterval :: PAST.NCExpr -> DetResult ClassInterval
 classToInterval e =
@@ -201,14 +219,28 @@ isNonEmptyClassIntervalIntersection ci1 ci2 =
            then Just True
            else Just False
 
+-- combineInterval :: (ClassInterval, a) -> (ClassInterval, a) -> (a -> a -> a) -> [(ClassInterval, a)]
+-- combineInterval (itv1, a1) (itv2, a2) fnct =
+--   case (itv1, itv2) of
+--     (ClassBtw i1 j1, ClassBtw i2 j2) ->
+--       if i1 <= i2 && i2 <= j1 -- || i1 <= j2 && j2 <= j1
+--       then
+--         if j2 <= j1
+--         then (ClassBtw i1 j1, fnct a1 a2)
+--         else [ (ClassBtw i1 i2)]
+--       else if i2 <= i1 && i1 <= j2 || i2 <= j1 && j1 <= j2
+--            then Just True
+--            else Just False
+
+
 data InputHeadCondition =
     HeadInput ClassInterval
   | EndInput
 
 
-analyzeTreeChoice :: TreeChoice -> DetResult [([Int], DelayedAction, Action)]
+analyzeTreeChoice :: TreeChoice -> DetResult FlattenTreeChoice
 analyzeTreeChoice tc =
-  let tc1 = backwardTreeChoice tc in
+  let tc1 = flattenTreeChoice tc in
   case isDeterministic tc1 of
     AbortClassIsDynamic -> AbortClassIsDynamic
     AbortClassNotHandled msg -> AbortClassNotHandled msg
@@ -232,7 +264,7 @@ analyzeTreeChoice tc =
             Right IEnd -> convertToInputHeadCondition es (EndInput : acc)
             _ -> error "Impossible abort"
 
-    isDeterministic :: [([Int], DelayedAction, Action)] -> DetResult ()
+    isDeterministic :: FlattenTreeChoice -> DetResult ()
     isDeterministic lst =
       let lstAct = map (\ (_,_,act) -> getClassActOrEnd act) lst
           maybeLstItv = convertToInputHeadCondition lstAct []
@@ -271,16 +303,17 @@ analyzeTreeChoice tc =
                              Just True -> False
                              Just False -> forallTest ys
 
-deterministicStateTrans :: Aut -> State -> DetResult [([Int], DelayedAction, Action)]
+deterministicStateTrans :: Aut -> State -> DetResult FlattenTreeChoice
 deterministicStateTrans aut q =
   case closureLLOne aut q [] of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+    AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
     AbortNonClassInputAction x -> AbortNonClassInputAction x
     DetResult r -> analyzeTreeChoice r
     _ -> error "impossible"
 
-createDFA :: Aut -> Map.Map State (DetResult [([Int], DelayedAction, Action)])
+createDFA :: Aut -> Map.Map State (DetResult FlattenTreeChoice)
 createDFA aut =
   let transitions = toListTr (transition aut)
       collectedStates = collectStatesArrivedByMove transitions
@@ -300,7 +333,7 @@ createDFA aut =
     collectMove (act, q) =
       if isClassActOrEnd act then Set.singleton q else Set.empty
 
-statsDFA :: Map.Map State (DetResult [([Int], DelayedAction, Action)]) -> String
+statsDFA :: Map.Map State (DetResult FlattenTreeChoice) -> String
 statsDFA dfa =
   let t = Map.toList dfa
   in do getReport t initReport (0 :: Int)
@@ -315,6 +348,7 @@ statsDFA dfa =
     abortAcceptingPath = "AbortAcceptingPath"
     abortNonClassInputAction = "AbortNonClassInputAction"
     abortOverflowMaxDepth = "AbortOverflowMaxDepth"
+    abortLoopWithNonClass = "AbortLoopWithNonClass"
     abortNonEmptyIntersection = "AbortNonEmptyIntersection"
     abortClassIsDynamic = "AbortClassIsDynamic"
     abortClassNotHandled = "AbortClassNotHandled"
@@ -325,20 +359,20 @@ statsDFA dfa =
 
 
     initReport :: Map.Map String Int
-    initReport =
-      Map.fromAscList
-      [ (abortNotStatic, 0)
-      , (abortAcceptingPath, 0)
-      , (abortNonClassInputAction, 0)
-      , (abortOverflowMaxDepth, 0)
-      , (abortNonEmptyIntersection, 0)
-      , (abortClassIsDynamic, 0)
-      , (abortClassNotHandled, 0)
-      , (abortAmbiguous, 0)
-      , (abortTodo, 0)
-      , (detResult, 0)
-      , (detResultMultiple, 0)
-      ]
+    initReport = Map.fromAscList []
+      -- Map.fromAscList
+      -- [ (abortNotStatic, 0)
+      -- , (abortAcceptingPath, 0)
+      -- , (abortNonClassInputAction, 0)
+      -- , (abortOverflowMaxDepth, 0)
+      -- , (abortNonEmptyIntersection, 0)
+      -- , (abortClassIsDynamic, 0)
+      -- , (abortClassNotHandled, 0)
+      -- , (abortAmbiguous, 0)
+      -- , (abortTodo, 0)
+      -- , (detResult, 0)
+      -- , (detResultMultiple, 0)
+      -- ]
 
     mapResultToKey r =
       case r of
@@ -346,9 +380,10 @@ statsDFA dfa =
         AbortAcceptingPath -> abortAcceptingPath
         AbortNonClassInputAction _ -> abortNonClassInputAction
         AbortOverflowMaxDepth -> abortOverflowMaxDepth
+        AbortLoopWithNonClass -> abortLoopWithNonClass
         AbortNonEmptyIntersection -> abortNonEmptyIntersection
         AbortClassIsDynamic -> abortClassIsDynamic
-        AbortClassNotHandled _ -> abortClassNotHandled
+        AbortClassNotHandled _msg -> abortClassNotHandled
         AbortAmbiguous -> abortAmbiguous
         AbortTodo -> abortTodo
         DetResult lst ->
@@ -357,7 +392,7 @@ statsDFA dfa =
                detResultMultiple
           else detResult
 
-    incrReport :: Map.Map String Int -> DetResult [([Int], DelayedAction, Action)] -> Map.Map String Int
+    incrReport :: Map.Map String Int -> DetResult FlattenTreeChoice -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in
