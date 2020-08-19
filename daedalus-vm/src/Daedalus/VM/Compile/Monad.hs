@@ -132,9 +132,11 @@ label1 def =
 
 
 -- | For closures
-label1' :: (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
-label1' def =
-  do t <- getCurTy
+label1' :: Maybe VMT -> (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
+label1' mb def =
+  do t <- case mb of
+            Nothing -> getCurTy
+            Just ty -> pure ty
      (l,vs) <- newBlock [t] \ ~[x] -> def x
      pure do es <- mapM getLocal vs
              pure (JumpPoint l es)

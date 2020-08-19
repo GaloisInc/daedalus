@@ -126,7 +126,7 @@ compile expr next0 =
                  }
 
          -- used to process the RHS
-         doRHS <- label1' \didFail ->
+         doRHS <- label1' (Just (TSem Src.TBool)) \didFail ->
                   do setLocal leftFailed didFail
                      qCode
 
@@ -156,7 +156,7 @@ compile expr next0 =
 
                do noL <- label0 $ nextNo next
 
-                  yesL <- label1' \v -> nextYes next v
+                  yesL <- label1' Nothing \v -> nextYes next v
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
