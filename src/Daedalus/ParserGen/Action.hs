@@ -4,7 +4,6 @@ module Daedalus.ParserGen.Action where
 
 -- import Debug.Trace
 
-import Control.Monad(guard)
 import qualified Data.Map as Map
 import Data.Word
 import qualified Data.Vector as Vector
