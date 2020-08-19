@@ -48,7 +48,7 @@ data Instr =
     SetInput E
   | Say String
   | Output E
-  | Notify E
+  | Notify E          -- Let this thread know other alternative failed
   | CallPrim PrimName [E] BV
   | GetInput BV
   | Spawn JumpPoint BV
@@ -63,7 +63,7 @@ data CInstr =
   | ReturnNo
   | ReturnYes E
   | Call Src.FName JumpPoint JumpPoint [E]
-  | TailCall Src.FName [E]  -- ^ Used for both gramnars and exprs
+  | TailCall Src.FName [E]  -- ^ Used for both grammars and exprs
   | ReturnPure E            -- ^ Return from a pure function (no fail cont.)
 
 
@@ -238,7 +238,7 @@ instance PP PrimName where
       Op3 op -> pp op
       OpN op -> pp op
 
-   
+
 
 
 
