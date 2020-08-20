@@ -155,6 +155,12 @@ isClassActOrEnd act =
         _ -> False
     _ -> False
 
+isInputAction :: Action -> Bool
+isInputAction act =
+  case act of
+    IAct _ _ -> True
+    _ -> False
+
 isNonClassInputAct :: Action -> Bool
 isNonClassInputAct act =
   case act of

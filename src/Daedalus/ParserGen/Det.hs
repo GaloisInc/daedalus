@@ -1,13 +1,13 @@
 module Daedalus.ParserGen.Det where
 
--- import Debug.Trace
+import Debug.Trace
 
 import qualified Data.Set as Set
 -- import Data.Maybe (isNothing, fromJust)
 import qualified Data.Map.Strict as Map
 
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action, InputAction(..), isClassActOrEnd, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (State, Action, InputAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import qualified Daedalus.Interp as Interp
@@ -119,7 +119,8 @@ closureLLOne aut q da =
           then AbortOverflowMaxDepth
           else
             if stateInDelayedAction q1 da
-            then trace (show $ lengthDelayedAction da) $ AbortLoopWithNonClass
+            then -- trace (show $ lengthDelayedAction da) $
+                 AbortLoopWithNonClass
             else
               let bClos = closureLLOne aut q1 (addDelayedAction act q1 da) in
               bClos
@@ -180,6 +181,20 @@ instance Ord(IntervalEndpoint) where
   (<=) PlusInfinity PlusInfinity = True
   (<=) PlusInfinity _ = False
 
+incrItv :: IntervalEndpoint -> IntervalEndpoint
+incrItv i =
+  case i of
+    PlusInfinity -> error "cannot increment plus infinity"
+    MinusInfinity -> error "cannot increment minis infinity"
+    CValue n -> CValue (n+1)
+
+decrItv :: IntervalEndpoint -> IntervalEndpoint
+decrItv i =
+  case i of
+    PlusInfinity -> error "cannot decrement plus infinity"
+    MinusInfinity -> error "cannot decrement minis infinity"
+    CValue n -> CValue (n-1)
+
 
 data ClassInterval =
     ClassBtw IntervalEndpoint IntervalEndpoint
@@ -209,28 +224,73 @@ classToInterval e =
       else AbortClassIsDynamic
     _ -> AbortClassNotHandled "other class case"
 
-isNonEmptyClassIntervalIntersection :: ClassInterval -> ClassInterval -> Maybe Bool
-isNonEmptyClassIntervalIntersection ci1 ci2 =
-  case (ci1, ci2) of
-    (ClassBtw i1 j1, ClassBtw i2 j2) ->
-      if i1 <= i2 && i2 <= j1 || i1 <= j2 && j2 <= j1
-      then Just True
-      else if i2 <= i1 && i1 <= j2 || i2 <= j1 && j1 <= j2
-           then Just True
-           else Just False
-
--- combineInterval :: (ClassInterval, a) -> (ClassInterval, a) -> (a -> a -> a) -> [(ClassInterval, a)]
--- combineInterval (itv1, a1) (itv2, a2) fnct =
---   case (itv1, itv2) of
+-- isNonEmptyClassIntervalIntersection :: ClassInterval -> ClassInterval -> Maybe Bool
+-- isNonEmptyClassIntervalIntersection ci1 ci2 =
+--   case (ci1, ci2) of
 --     (ClassBtw i1 j1, ClassBtw i2 j2) ->
---       if i1 <= i2 && i2 <= j1 -- || i1 <= j2 && j2 <= j1
---       then
---         if j2 <= j1
---         then (ClassBtw i1 j1, fnct a1 a2)
---         else [ (ClassBtw i1 i2)]
+--       if i1 <= i2 && i2 <= j1 || i1 <= j2 && j2 <= j1
+--       then Just True
 --       else if i2 <= i1 && i1 <= j2 || i2 <= j1 && j1 <= j2
 --            then Just True
 --            else Just False
+
+combineInterval :: (ClassInterval, a) -> (ClassInterval, a) -> (a -> a -> a) -> [(ClassInterval, a)]
+combineInterval (itv1, a1) (itv2, a2) add =
+  case (itv1, itv2) of
+    (ClassBtw i1 j1, ClassBtw i2 j2) ->
+      case (compare i2 i1, compare i2 j1) of
+        (LT, LT) -> -- i2 < i1 <= j1
+          case (compare j2 i1, compare j2 j1) of
+            (LT, LT) -> [(itv2, a2), (itv1, a1)]
+            (LT, _ ) -> error "impossible"
+            (EQ, LT) -> [ (ClassBtw i2 (decrItv j2), a2),(ClassBtw j2 j2, add a1 a2),(ClassBtw (incrItv j2) j1, a1) ]
+            (EQ, EQ) -> [ (ClassBtw i2 (decrItv j2), a2),(ClassBtw j2 j2, add a1 a2)]
+            (EQ, GT) -> error "impossible"
+            (GT, LT) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1) ]
+            (GT, EQ) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j2, add a1 a2)]
+            (GT, GT) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2) ]
+        (LT, EQ) -> error "impossible"
+        (LT, GT) -> error "impossible"
+        (EQ, EQ) -> -- i1 == j1 == i2
+          case (compare j2 i1, compare j2 j1) of
+            (LT, _) -> error "impossible"
+            (EQ, EQ) -> -- i2 == j2 == *
+              [(ClassBtw i1 i1, add a1 a2)]
+            (EQ, _ ) -> error "impossible"
+            (GT, LT) -> error "impossible"
+            (GT, EQ) -> error "impossible"
+            (GT, GT) -> [(ClassBtw i1 i1, add a1 a2), (ClassBtw (incrItv i1) j2, a2)]
+        (EQ, LT) -> -- i1 == i2 and i1 < j1
+          case (compare j2 i1, compare j2 j1) of
+            (LT, _) -> error "impossible"
+            (EQ, LT) -> [(ClassBtw i1 i1, add a1 a2), (ClassBtw (incrItv i1) j1, a1)]
+            (EQ, _) -> error "impossible"
+            (GT, LT) -> [(ClassBtw i1 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1)]
+            (GT, EQ) -> [(ClassBtw i1 j1, add a1 a2)]
+            (GT, GT) -> [(ClassBtw i1 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2)]
+        (EQ, GT) -> error "impossible"
+        (GT, LT) -> -- i1 < i2 < j1
+          case (compare j2 i1, compare j2 j1) of
+            (LT, _ ) -> error "impossible"
+            (EQ, _ ) -> error "impossible"
+            (GT, LT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1)]
+            (GT, EQ) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j2, add a1 a2)]
+            (GT, GT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2)]
+        (GT, EQ) -> -- i1 < i2 == j1
+          case (compare j2 i1, compare j2 j1) of
+            (LT, _ ) -> error "impossible"
+            (EQ, _ ) -> error "impossible"
+            (GT, LT) -> error "impossible"
+            (GT, EQ) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 i2, add a1 a2)]
+            (GT, GT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 i2, add a1 a2), (ClassBtw (incrItv i2) j2, a2)]
+        (GT, GT) -> -- i1 <= j1 < i2
+          case (compare j2 i1, compare j2 j1) of
+            (LT, _ ) -> error "impossible"
+            (EQ, _ ) -> error "impossible"
+            (GT, LT) -> error "impossible"
+            (GT, EQ) -> error "impossible"
+            (GT, GT) -> [(itv1, a1), (itv2, a2)]
+
 
 
 data InputHeadCondition =
@@ -298,10 +358,15 @@ analyzeTreeChoice tc =
                          (EndInput, _) -> True
                          (_, EndInput) -> True
                          (HeadInput xc, HeadInput yc) ->
-                           case isNonEmptyClassIntervalIntersection xc yc of
-                             Nothing -> False
-                             Just True -> False
-                             Just False -> forallTest ys
+                           -- case isNonEmptyClassIntervalIntersection xc yc of
+                           --   Nothing -> False
+                           --   Just True -> False
+                           --   Just False -> forallTest ys
+                           let comb =  combineInterval (xc,(1 :: Int)) (yc,1) (+)
+                               check = foldr (\ (_,n) b -> if n == 1 then b else False) True comb
+                           in case check of
+                             True -> forallTest ys
+                             False -> False
 
 deterministicStateTrans :: Aut a => a -> State -> DetResult FlattenTreeChoice
 deterministicStateTrans aut q =
@@ -322,7 +387,7 @@ createDFA aut =
     Map.fromAscList statesDet
   where
     collectStatesArrivedByMove t =
-      foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) Set.empty t
+      foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initials aut)) t
 
     choiceToArrivedByMove ch =
       case ch of
@@ -331,7 +396,7 @@ createDFA aut =
         SeqChoice lst _ -> foldr (\ a b -> let sa = collectMove a in Set.union b sa) Set.empty lst
 
     collectMove (act, q) =
-      if isClassActOrEnd act then Set.singleton q else Set.empty
+      if isInputAction act then Set.singleton q else Set.empty
 
 statsDFA :: Map.Map State (DetResult FlattenTreeChoice) -> String
 statsDFA dfa =
