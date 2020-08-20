@@ -23,12 +23,14 @@ library
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
     Daedalus.VM.Compile.Decl
+    Daedalus.VM.Backend.C
 
   build-depends:
     base >=4.13 && <4.14,
     containers,
     text,
     bytestring,
+    pretty,
     daedalus-utils,
     daedalus-core
 
