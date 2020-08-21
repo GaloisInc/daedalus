@@ -9,7 +9,7 @@ import Daedalus.PP
 
 
 -- | Module names
-newtype MName = MName Text
+newtype MName = MName { mNameText :: Text }
   deriving (Eq,Ord)
 
 -- | Type declaration names

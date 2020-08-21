@@ -18,12 +18,13 @@ import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.Expr
 import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
+import Daedalus.VM.CaptureAnalysis
 
 
 
 compileProgram :: Src.FName -> [Src.Module] -> Program
 compileProgram entry ms = Program
-  { pModules = map compileModule ms
+  { pModules = captureAnalysis (map compileModule ms)
   , pEntry   = l
   , pBoot    = b
   }
@@ -79,6 +80,7 @@ compileSomeFun doBody fun =
 
   in inlineBlocks
       VMFun { vmfName   = Src.fName fun
+            , vmfCaptures = Capture -- Conservative
             , vmfEntry  = l
             , vmfBlocks = Map.adjust addArgs l ls
             }

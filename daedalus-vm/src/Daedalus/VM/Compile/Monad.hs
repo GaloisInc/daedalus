@@ -21,9 +21,9 @@ newtype C a = C (StaticR -> StaticS -> (a,StaticS))
 
 
 data StaticR = StaticR
-  { curFun  :: Text              -- ^ for generating more readable label/names
+  { curFun  :: Text               -- ^ for generating more readable label/names
   , vEnv    :: Map Src.Name FV    -- ^ Compiled expressions
-  , curTy   :: VMT                    -- ^ Type of the result we are producing
+  , curTy   :: VMT                -- ^ Type of the result we are producing
   }
 
 data StaticS = StaticS

@@ -15,6 +15,8 @@ import qualified Daedalus.Core as Src
 -- | A program
 data Program = Program
   { pModules  :: [Module]
+
+    -- XXX: we probably want to support more than one entry point.
   , pBoot     :: Map Label Block
   , pEntry    :: Label
   }
@@ -29,9 +31,10 @@ data Module = Module
 
 -- | A function
 data VMFun = VMFun
-  { vmfName   :: Src.FName
-  , vmfEntry  :: Label
-  , vmfBlocks :: Map Label Block
+  { vmfName     :: Src.FName
+  , vmfCaptures :: Captures
+  , vmfEntry    :: Label
+  , vmfBlocks   :: Map Label Block
   }
 
 -- | A basic block
@@ -66,6 +69,11 @@ data CInstr =
   | TailCall Src.FName [E]  -- ^ Used for both grammars and exprs
   | ReturnPure E            -- ^ Return from a pure function (no fail cont.)
 
+-- | A flag to indicate if a function may capture the continuation.
+-- If yes, then the function could return multiple times, and we need to
+-- explicitly store the continuation closures.
+-- It is always safe, but less efficient, to use 'Capture'
+data Captures = Capture | NoCapture
 
 
 -- | Target of a jump
@@ -179,9 +187,14 @@ instance PP Module where
 instance PP VMFun where
   pp f =
     ".function" <+> pp (vmfName f) $$
-    nest 2 (".entry" <+> pp (vmfEntry f) $$ blocks)
+    nest 2 (pp (vmfCaptures f) $$ ".entry" <+> pp (vmfEntry f) $$ blocks)
     where
     blocks = vcat' $ map pp $ Map.elems $ vmfBlocks f
+
+instance PP Captures where
+  pp c = case c of
+          Capture   -> ".spawns"
+          NoCapture -> empty
 
 instance PP VMT where
   pp ty =

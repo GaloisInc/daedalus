@@ -35,6 +35,7 @@ module Daedalus.Driver
   , passSpecialize
   , passCore
   , passVM
+  , passCaptureAnalysis
 
     -- * State
   , State(..)
@@ -96,6 +97,7 @@ import qualified Daedalus.Core as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
+import qualified Daedalus.VM.CaptureAnalysis as VM
 import Daedalus.PrettyError(prettyError)
 
 
@@ -665,6 +667,18 @@ passVM m =
          | otherwise -> panic "passVM" [ "Unexpected module phase"
                                        , show (phasePass ph) ]
 
+{- | (8) Do capture analysis on all modules 
+The purpose of this pass is to identify which functions do not
+spawn (i.e, do not capture the stack).  We can call such functions in the
+traditional way. OTOH, calling functions that may capture the stack is more
+expensive because we have to store locals on an explicit stack that can
+be captured -}
+passCaptureAnalysis :: Daedalus ()
+passCaptureAnalysis =
+  do ms <- ddlGet loadedModules
+     let ms1 = VM.captureAnalysis [ m | VMModule m <- Map.elems ms ]
+         upd m = Map.insert (Core.mNameText (VM.mName m)) (VMModule m)
+     ddlUpdate_ \s -> s { loadedModules = foldr upd (loadedModules s) ms1 }
 
 --------------------------------------------------------------------------------
 

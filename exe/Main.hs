@@ -90,6 +90,7 @@ handleOptions opts
          DumpVM ->
            do passSpecialize [mainRule]
               passVM mm
+              passCaptureAnalysis
               ddlPrint . pp =<< ddlGetAST mm astVM
 
          Interp inp ->
