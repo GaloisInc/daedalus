@@ -7,16 +7,16 @@ import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action, InputAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
 
 import qualified Daedalus.Interp as Interp
 
--- data StackDet =
---     SLLWildcard
---   | SEmpty
---   | SCons State StackDet
---   deriving (Eq, Ord)
+data SymbolicStack =
+    SWildcard
+  | SEmpty
+  | SCons State SymbolicStack
+  deriving (Eq, Ord)
 
 -- data CfgDet = CfgDet
 --   { state  :: State
@@ -39,6 +39,7 @@ import qualified Daedalus.Interp as Interp
 
 data TreeChoice =
     Move (DelayedAction, Action, State)
+  | NoMove
   | Seq [ TreeChoice ]
   | Par [ TreeChoice ]
 
@@ -57,6 +58,35 @@ stateInDelayedAction q da =
 lengthDelayedAction :: DelayedAction -> Int
 lengthDelayedAction da = length da
 
+destrDelayedAction :: DelayedAction -> Maybe ((Action, State), DelayedAction)
+destrDelayedAction da =
+  let rda = reverse da in
+    case rda of
+      [] -> Nothing
+      x : rest -> Just (x, rest)
+
+execDelayedActionOnStack :: SymbolicStack -> DelayedAction -> Maybe SymbolicStack
+execDelayedActionOnStack stk da =
+  case destrDelayedAction da of
+    Nothing -> Just stk
+    Just ((act, _q), rest) ->
+      case execAction stk act of
+        Nothing -> Nothing
+        Just stk1 -> execDelayedActionOnStack stk1 rest
+  where
+    execAction :: SymbolicStack -> Action -> Maybe SymbolicStack
+    execAction st act =
+      case act of
+        CAct c ->
+          case c of
+            Push _ _ q -> Just $ SCons q stk
+            Pop q ->
+              case st of
+                SWildcard -> Just SWildcard
+                SEmpty -> Nothing
+                SCons q1 rest -> if q == q1 then Just rest else Nothing
+            _ -> Just stk
+        _ -> Just stk
 
 data DetResult a =
     AbortNotStatic
@@ -78,8 +108,12 @@ maxDepthRec = 200
 
 closureLLOne :: Aut -> State -> DelayedAction -> DetResult TreeChoice
 closureLLOne aut q da =
-  let ch = lookupAut q aut
-  in case ch of
+  let ch = lookupAut q aut in
+    -- TODO: good place to do the symbolic execution of stack. Check in original paper.
+  case execDelayedActionOnStack SWildcard da of
+    Nothing -> DetResult NoMove
+    Just _  ->
+      case ch of
        Nothing ->
          if q == acceptings aut
          then AbortAcceptingPath
@@ -149,6 +183,7 @@ flattenTreeChoice :: TreeChoice -> FlattenTreeChoice
 flattenTreeChoice tc =
   case tc of
     Move (da,act,_) -> [([],da,act)]
+    NoMove  -> []
     Par lst -> flattenListTreeChoice lst
     Seq lst -> flattenListTreeChoice lst
 
