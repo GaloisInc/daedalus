@@ -132,5 +132,5 @@ compileOpN op ty es k =
       Src.CallF f ->
         case k of
           Just k' -> k' =<< stmt ty (CallPrim (OpN op) vs)
-          Nothing -> term (TailCall f vs)
+          Nothing -> term (TailCall f NoCapture vs)
 

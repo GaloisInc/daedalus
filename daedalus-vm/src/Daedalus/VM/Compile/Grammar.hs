@@ -150,7 +150,7 @@ compile expr next0 =
 
          doCall <-
            case (onNo next, onYes next) of
-             (Nothing,Nothing) -> pure \vs -> term $ TailCall f vs
+             (Nothing,Nothing) -> pure \vs -> term $ TailCall f Capture vs
 
              _ ->
 
@@ -160,7 +160,7 @@ compile expr next0 =
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 term $ Call f cloNo cloYes vs
+                                 term $ Call f Capture cloNo cloYes vs
 
          compileEs es \vs -> doCall vs
 

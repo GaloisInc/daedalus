@@ -65,8 +65,8 @@ data CInstr =
   | Yield
   | ReturnNo
   | ReturnYes E
-  | Call Src.FName JumpPoint JumpPoint [E]
-  | TailCall Src.FName [E]  -- ^ Used for both grammars and exprs
+  | Call Src.FName Captures JumpPoint JumpPoint [E]
+  | TailCall Src.FName Captures [E]  -- ^ Used for both grammars and exprs
   | ReturnPure E            -- ^ Return from a pure function (no fail cont.)
 
 -- | A flag to indicate if a function may capture the continuation.
@@ -165,8 +165,14 @@ instance PP CInstr where
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
       ReturnPure e  -> ppFun "return" [pp e]
-      Call f x y zs -> ppFun "call" (pp f : pp x : pp y : map pp zs)
-      TailCall f xs -> ppFun "tail_call" (pp f : map pp xs)
+      Call f c x y zs -> ppFun kw (pp f : pp x : pp y : map pp zs)
+        where kw = case c of
+                     Capture -> "call[save]"
+                     NoCapture -> "call"
+      TailCall f c xs -> ppFun kw (pp f : map pp xs)
+        where kw = case c of
+                     Capture -> "tail_call[save]"
+                     NoCapture -> "tail_call"
 
 instance PP Program where
   pp p =

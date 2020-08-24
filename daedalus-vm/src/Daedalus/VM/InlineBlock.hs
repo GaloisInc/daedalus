@@ -94,7 +94,7 @@ updS b =
     ReturnNo        -> id
     ReturnYes _     -> id
     ReturnPure _    -> id
-    Call _ x y _    -> addStays x . addStays y
+    Call _ _ x y _  -> addStays x . addStays y
     _               -> id
 
 
@@ -139,8 +139,8 @@ mergeBlocks front back =
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (renE e)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f j1 j2 es -> Call f (renJ j1) (renJ j2) (map renE es)
-      TailCall f es   -> TailCall f (map renE es)
+      Call f c j1 j2 es -> Call f c (renJ j1) (renJ j2) (map renE es)
+      TailCall f c es   -> TailCall f c (map renE es)
 
 
   renJ (JumpPoint l es) = JumpPoint l (map renE es)

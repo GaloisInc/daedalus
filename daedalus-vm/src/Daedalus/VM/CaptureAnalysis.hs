@@ -22,12 +22,17 @@ captureAnalysis ms = map annotateModule ms
        $ Map.fromList
          [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
-  getCaptures f = case Map.lookup f info of
-                    Just (CapturesIf xs) | Set.null xs -> NoCapture
-                    _ -> Capture  -- conservative
-
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
-  annotateFun f = f { vmfCaptures = getCaptures (vmfName f) }
+  annotateFun f = f { vmfCaptures = getCaptures info (vmfName f) }
+
+
+getCaptures :: Map FName CaptureInfo -> FName -> Captures
+getCaptures mp f =
+  case Map.lookup f mp of
+    Just (CapturesIf xs) | Set.null xs -> NoCapture
+    _ -> Capture  -- conservative
+
+
 
 -- | Compute a fix-point of the input map.
 fixCaptureInfo :: Map FName CaptureInfo -> Map FName CaptureInfo
@@ -88,26 +93,41 @@ instance Monoid CaptureInfo where
 
 
 class GetCaptureInfo t where
-  captureInfo :: t -> CaptureInfo
+  captureInfo   :: t -> CaptureInfo
+  annotate      :: Map FName CaptureInfo -> t -> t
 
 instance GetCaptureInfo Instr where
   captureInfo i =
     case i of
       Spawn {} -> CapturesYes
       _        -> capturesNo
+  annotate _ i = i
 
 instance GetCaptureInfo CInstr where
   captureInfo i =
     case i of
-      Call f _ _ _ -> CapturesIf (Set.singleton f)
-      TailCall f _ -> CapturesIf (Set.singleton f)
-      _            -> capturesNo
+      Call f c _ _  _  -> CapturesIf (call f c)
+      TailCall f c _   -> CapturesIf (call f c)
+      _                -> capturesNo
+    where call f c = case c of
+                       NoCapture -> Set.empty
+                       Capture   -> Set.singleton f
+
+  annotate mp i =
+    case i of
+      Call f _ y n es -> Call f (getCaptures mp f) y n es
+      TailCall f _ es -> TailCall f (getCaptures mp f) es
+      _               -> i
 
 instance GetCaptureInfo Block where
   captureInfo b = captureInfo (blockTerm b) <>
                   foldMap captureInfo (blockInstrs b)
+  annotate mp b = b { blockTerm = annotate mp (blockTerm b) }
 
 instance GetCaptureInfo VMFun where
   captureInfo b = foldMap captureInfo (vmfBlocks b)
+  annotate mp fu = fu { vmfBlocks = annotate mp <$> vmfBlocks fu
+                      , vmfCaptures = getCaptures mp (vmfName fu)
+                      }
 
 
