@@ -6,87 +6,16 @@ import qualified Data.Set as Set
 -- import Data.Maybe (isNothing, fromJust)
 import qualified Data.Map.Strict as Map
 
-import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
-import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
-
 import qualified Daedalus.Interp as Interp
 
-data SymbolicStack =
-    SWildcard
-  | SEmpty
-  | SCons State SymbolicStack
-  deriving (Eq, Ord)
+import Daedalus.ParserGen.AST as PAST
+import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
--- data CfgDet = CfgDet
---   { state  :: State
---   , ruleNb :: Int
---   , stack  :: StackDet
---   }
---   deriving (Eq, Ord)
+import Daedalus.ParserGen.DetUtils (TreeChoice(..), SymbolicStack(..), DelayedAction, addDelayedAction, stateInDelayedAction, lengthDelayedAction, execDelayedActionOnStack, FlattenTreeChoice, flattenTreeChoice)
 
--- closure :: Aut -> DFAState -> CfgDet -> DFAState
--- closure _aut busy cfg =
---   if Set.member cfg busy
---   then Set.empty
---   else
---     let _newBusy = Set.insert cfg busy in
---     let _ret = Set.singleton cfg in
---     case stack cfg of
---       _ -> error "WIP"
+import Daedalus.ParserGen.ClassInterval (IntervalEndpoint(..), ClassInterval(..), combineInterval)
 
--- type DFAState = Set.Set CfgDet
-
-data TreeChoice =
-    Move (DelayedAction, Action, State)
-  | NoMove
-  | Seq [ TreeChoice ]
-  | Par [ TreeChoice ]
-
-
-type DelayedAction = [(Action, State)]
-
-addDelayedAction :: Action -> State -> DelayedAction -> DelayedAction
-addDelayedAction a q da = (a,q) : da
-
-stateInDelayedAction :: State -> DelayedAction -> Bool
-stateInDelayedAction q da =
-  case da of
-    [] -> False
-    (_, q1) : das -> if q == q1 then True else stateInDelayedAction q das
-
-lengthDelayedAction :: DelayedAction -> Int
-lengthDelayedAction da = length da
-
-destrDelayedAction :: DelayedAction -> Maybe ((Action, State), DelayedAction)
-destrDelayedAction da =
-  let rda = reverse da in
-    case rda of
-      [] -> Nothing
-      x : rest -> Just (x, rest)
-
-execDelayedActionOnStack :: SymbolicStack -> DelayedAction -> Maybe SymbolicStack
-execDelayedActionOnStack stk da =
-  case destrDelayedAction da of
-    Nothing -> Just stk
-    Just ((act, _q), rest) ->
-      case execAction stk act of
-        Nothing -> Nothing
-        Just stk1 -> execDelayedActionOnStack stk1 rest
-  where
-    execAction :: SymbolicStack -> Action -> Maybe SymbolicStack
-    execAction st act =
-      case act of
-        CAct c ->
-          case c of
-            Push _ _ q -> Just $ SCons q stk
-            Pop q ->
-              case st of
-                SWildcard -> Just SWildcard
-                SEmpty -> Nothing
-                SCons q1 rest -> if q == q1 then Just rest else Nothing
-            _ -> Just stk
-        _ -> Just stk
 
 data DetResult a =
     AbortNotStatic
@@ -175,65 +104,6 @@ closureLLOne aut q da =
             _ -> error "abort not handled here"
 
 
-type ChoicePath = [Int]
-
-type FlattenTreeChoice = [ (ChoicePath, DelayedAction, Action) ]
-
-flattenTreeChoice :: TreeChoice -> FlattenTreeChoice
-flattenTreeChoice tc =
-  case tc of
-    Move (da,act,_) -> [([],da,act)]
-    NoMove  -> []
-    Par lst -> flattenListTreeChoice lst
-    Seq lst -> flattenListTreeChoice lst
-
-  where
-    flattenListTreeChoice :: [ TreeChoice ] -> FlattenTreeChoice
-    flattenListTreeChoice lst =
-      let lst1 = map flattenTreeChoice lst
-          lst2 = zipWithInt lst1 0
-          lst3 = map (\ (n, backlist) -> map (\ (lsti, da, a) -> (n:lsti, da, a)) backlist) lst2
-      in foldr (\ a b -> a ++ b) [] lst3
-
-    zipWithInt :: [a] -> Int -> [(Int,a)]
-    zipWithInt l i =
-      case l of
-        [] -> []
-        x : xs -> (i, x) : zipWithInt xs (i + 1)
-
-
-data IntervalEndpoint =
-    PlusInfinity
-  | MinusInfinity
-  | CValue Integer
-  deriving(Eq)
-
-instance Ord(IntervalEndpoint) where
-  (<=) MinusInfinity _ = True
-  (<=) (CValue _) MinusInfinity = False
-  (<=) (CValue x) (CValue y) = x <= y
-  (<=) (CValue _) PlusInfinity = True
-  (<=) PlusInfinity PlusInfinity = True
-  (<=) PlusInfinity _ = False
-
-incrItv :: IntervalEndpoint -> IntervalEndpoint
-incrItv i =
-  case i of
-    PlusInfinity -> error "cannot increment plus infinity"
-    MinusInfinity -> error "cannot increment minis infinity"
-    CValue n -> CValue (n+1)
-
-decrItv :: IntervalEndpoint -> IntervalEndpoint
-decrItv i =
-  case i of
-    PlusInfinity -> error "cannot decrement plus infinity"
-    MinusInfinity -> error "cannot decrement minis infinity"
-    CValue n -> CValue (n-1)
-
-
-data ClassInterval =
-    ClassBtw IntervalEndpoint IntervalEndpoint
-
 
 classToInterval :: PAST.NCExpr -> DetResult ClassInterval
 classToInterval e =
@@ -258,73 +128,6 @@ classToInterval e =
              _ -> AbortClassNotHandled "SetRange"
       else AbortClassIsDynamic
     _ -> AbortClassNotHandled "other class case"
-
--- isNonEmptyClassIntervalIntersection :: ClassInterval -> ClassInterval -> Maybe Bool
--- isNonEmptyClassIntervalIntersection ci1 ci2 =
---   case (ci1, ci2) of
---     (ClassBtw i1 j1, ClassBtw i2 j2) ->
---       if i1 <= i2 && i2 <= j1 || i1 <= j2 && j2 <= j1
---       then Just True
---       else if i2 <= i1 && i1 <= j2 || i2 <= j1 && j1 <= j2
---            then Just True
---            else Just False
-
-combineInterval :: (ClassInterval, a) -> (ClassInterval, a) -> (a -> a -> a) -> [(ClassInterval, a)]
-combineInterval (itv1, a1) (itv2, a2) add =
-  case (itv1, itv2) of
-    (ClassBtw i1 j1, ClassBtw i2 j2) ->
-      case (compare i2 i1, compare i2 j1) of
-        (LT, LT) -> -- i2 < i1 <= j1
-          case (compare j2 i1, compare j2 j1) of
-            (LT, LT) -> [(itv2, a2), (itv1, a1)]
-            (LT, _ ) -> error "impossible"
-            (EQ, LT) -> [ (ClassBtw i2 (decrItv j2), a2),(ClassBtw j2 j2, add a1 a2),(ClassBtw (incrItv j2) j1, a1) ]
-            (EQ, EQ) -> [ (ClassBtw i2 (decrItv j2), a2),(ClassBtw j2 j2, add a1 a2)]
-            (EQ, GT) -> error "impossible"
-            (GT, LT) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1) ]
-            (GT, EQ) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j2, add a1 a2)]
-            (GT, GT) -> [ (ClassBtw i2 (decrItv i1), a2), (ClassBtw i1 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2) ]
-        (LT, EQ) -> error "impossible"
-        (LT, GT) -> error "impossible"
-        (EQ, EQ) -> -- i1 == j1 == i2
-          case (compare j2 i1, compare j2 j1) of
-            (LT, _) -> error "impossible"
-            (EQ, EQ) -> -- i2 == j2 == *
-              [(ClassBtw i1 i1, add a1 a2)]
-            (EQ, _ ) -> error "impossible"
-            (GT, LT) -> error "impossible"
-            (GT, EQ) -> error "impossible"
-            (GT, GT) -> [(ClassBtw i1 i1, add a1 a2), (ClassBtw (incrItv i1) j2, a2)]
-        (EQ, LT) -> -- i1 == i2 and i1 < j1
-          case (compare j2 i1, compare j2 j1) of
-            (LT, _) -> error "impossible"
-            (EQ, LT) -> [(ClassBtw i1 i1, add a1 a2), (ClassBtw (incrItv i1) j1, a1)]
-            (EQ, _) -> error "impossible"
-            (GT, LT) -> [(ClassBtw i1 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1)]
-            (GT, EQ) -> [(ClassBtw i1 j1, add a1 a2)]
-            (GT, GT) -> [(ClassBtw i1 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2)]
-        (EQ, GT) -> error "impossible"
-        (GT, LT) -> -- i1 < i2 < j1
-          case (compare j2 i1, compare j2 j1) of
-            (LT, _ ) -> error "impossible"
-            (EQ, _ ) -> error "impossible"
-            (GT, LT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j2, add a1 a2), (ClassBtw (incrItv j2) j1, a1)]
-            (GT, EQ) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j2, add a1 a2)]
-            (GT, GT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 j1, add a1 a2), (ClassBtw (incrItv j1) j2, a2)]
-        (GT, EQ) -> -- i1 < i2 == j1
-          case (compare j2 i1, compare j2 j1) of
-            (LT, _ ) -> error "impossible"
-            (EQ, _ ) -> error "impossible"
-            (GT, LT) -> error "impossible"
-            (GT, EQ) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 i2, add a1 a2)]
-            (GT, GT) -> [(ClassBtw i1 (decrItv i2), a1), (ClassBtw i2 i2, add a1 a2), (ClassBtw (incrItv i2) j2, a2)]
-        (GT, GT) -> -- i1 <= j1 < i2
-          case (compare j2 i1, compare j2 j1) of
-            (LT, _ ) -> error "impossible"
-            (EQ, _ ) -> error "impossible"
-            (GT, LT) -> error "impossible"
-            (GT, EQ) -> error "impossible"
-            (GT, GT) -> [(itv1, a1), (itv2, a2)]
 
 
 

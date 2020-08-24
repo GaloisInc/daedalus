@@ -59,6 +59,8 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
+                       Daedalus.ParserGen.DetUtils,
+                       Daedalus.ParserGen.ClassInterval,
                        Daedalus.ParserGen.Det,
                        Daedalus.ParserGen.RunnerBias
 
