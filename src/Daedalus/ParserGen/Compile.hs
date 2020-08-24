@@ -246,7 +246,7 @@ systemToGrammars m =
 
 --- 2. Build the Automaton
 
-genGExpr :: GblGrammar -> PAST.NGExpr -> Aut
+genGExpr :: GblGrammar -> PAST.NGExpr -> MapAut
 genGExpr gbl (e, st) =
   case e of
     PAST.NGPure e1 ->
@@ -456,10 +456,10 @@ genGExpr gbl (e, st) =
       in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
 
 
-genGram :: GblGrammar -> PAST.NGrammar -> Aut
+genGram :: GblGrammar -> PAST.NGrammar -> MapAut
 genGram gbl (e, st) =
   let
-    genForBindList :: PAST.NGrammar -> Aut
+    genForBindList :: PAST.NGrammar -> MapAut
     genForBindList (expr, sts) =
         case expr of
           PAST.NBind mname e1 e2 ->
@@ -485,7 +485,7 @@ genGram gbl (e, st) =
     in mkAut n1 (unionTr trans t1) n2
 
 
-genDeclBody :: GblGrammar -> PAST.NDeclBody -> Aut
+genDeclBody :: GblGrammar -> PAST.NDeclBody -> MapAut
 genDeclBody gbl (e, st) =
   case e of
     PAST.NCDecl _e1 ->
@@ -507,7 +507,7 @@ genDeclBody gbl (e, st) =
           n2 = st !! 1
       in mkAut n1 (mkTr [(n1, UniChoice (EpsA, n2))]) n2
 
-genDecl :: GblGrammar -> PAST.NDecl -> Aut
+genDecl :: GblGrammar -> PAST.NDecl -> MapAut
 genDecl gbl (e, st) =
   let (i1,t1,f1) = dsAut $ genDeclBody gbl (PAST.nDeclDef e)
       n1 = st !! 0
@@ -518,8 +518,8 @@ genDecl gbl (e, st) =
         ]
   in mkAut n1 (unionTr trans t1) n2
 
-buildAut :: [NDecl] -> (PAST.GblFuns, Aut)
-buildAut decls =
+buildMapAut :: [NDecl] -> (PAST.GblFuns, MapAut)
+buildMapAut decls =
   (systemToFunctions allocDecls,
    mkAut globalStartState (unionTr trans table) globalFinalState
   )
@@ -546,3 +546,10 @@ buildAut decls =
       [ (globalStartState, UniChoice (CAct (Push mainName [] globalFinalState), startState))
       , (finalState,       UniChoice (CAct (Pop globalFinalState), globalFinalState))
       ]
+
+buildArrayAut :: [NDecl] -> (PAST.GblFuns, ArrayAut)
+buildArrayAut decls = 
+  let
+    (fns, aut) = buildMapAut decls
+  in
+    (fns, convertToArrayAut aut)

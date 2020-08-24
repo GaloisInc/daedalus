@@ -5,7 +5,7 @@ import qualified Data.ByteString as BS
 import RTS.Input(newInput)
 
 import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData)
-import Daedalus.ParserGen.Aut (Aut, initials, isAccepting, isAcceptingEps)
+import Daedalus.ParserGen.Aut (Aut, initialState, isAcceptingState)
 
 data Cfg = Cfg InputData ControlData SemanticData State
   --deriving (Eq)
@@ -17,9 +17,9 @@ instance (Show Cfg) where
     "ctl:" ++ (show ctrl) ++ "\n" ++
     "st :" ++ (show st) ++ "\n"
 
-initCfg :: BS.ByteString -> Aut -> Cfg
+initCfg :: Aut a => BS.ByteString -> a -> Cfg
 initCfg s aut =
-  Cfg initInput initCtrl initOut (initials aut)
+  Cfg initInput initCtrl initOut (initialState aut)
   where
     initOut = []
     initCtrl = []
@@ -27,16 +27,16 @@ initCfg s aut =
 
 -- Decides if a configuration is accepting. input, stack and state
 -- accepting.
-isAcceptingCfg :: Cfg -> Aut -> Bool
+isAcceptingCfg :: Aut a => Cfg -> a -> Bool
 isAcceptingCfg (Cfg _input _stack _output state) aut =
   -- input == [] && stack == [] && length output <= 1 && isAccepting state aut
   isEmptyControlData _stack && -- this is just a sanity check
-  isAccepting state aut
+  isAcceptingState aut state
 
 
 -- Decides if a configuration is accepting. input, stack and state
 -- accepting.
-isAcceptingCfgEps :: Cfg -> Aut -> Bool
-isAcceptingCfgEps (Cfg _input _stack _output state) aut =
-  --input == [] && stack == [] && length output <= 1 &&
-  isAcceptingEps state aut
+-- isAcceptingCfgEps :: Cfg -> Aut -> Bool
+-- isAcceptingCfgEps (Cfg _input _stack _output state) aut =
+--   --input == [] && stack == [] && length output <= 1 &&
+--   isAcceptingEps state aut

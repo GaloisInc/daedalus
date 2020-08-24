@@ -7,7 +7,7 @@ import Daedalus.ParserGen.Aut
 
 -- Generate a graphviz code that could be run with python3 and produce
 -- a graphical diagraph of an automaton
-autToGraphviz:: Aut -> IO ()
+autToGraphviz:: Aut a => a -> IO ()
 autToGraphviz aut =
   do
     autFile <- openFile "aut.dot" WriteMode
@@ -16,7 +16,7 @@ autToGraphviz aut =
     hPutStrLn autFile postlude
     hClose autFile
   where
-    (_i, tr, _) = toListAut aut
+    (_i, tr, _) = destructureAut aut
     f a b =
       let (n1, act, n2) = a
           thestr =
