@@ -130,7 +130,7 @@ interpInterp inp prog (m,i) =
 
 interpPGen :: FilePath -> [NDecl] -> IO ()
 interpPGen inp norms =
-  do let (gbl, aut) = PGen.buildAut norms
+  do let (gbl, aut) = PGen.buildArrayAut norms
      --let dfa = PGen.createDFA aut
      --putStrLn (show dfa)
      --putStrLn (PGen.statsDFA dfa)

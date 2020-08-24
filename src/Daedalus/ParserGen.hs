@@ -1,5 +1,6 @@
 module Daedalus.ParserGen
-  ( buildAut
+  ( buildMapAut
+  , buildArrayAut
   , runnerBias
   , extractValues
   , extractParseError
@@ -17,7 +18,7 @@ import Hexdump
 import RTS.Input(Input(..))
 
 import Daedalus.ParserGen.Action (showCallStack)
-import Daedalus.ParserGen.Compile (buildAut)
+import Daedalus.ParserGen.Compile (buildMapAut, buildArrayAut)
 import Daedalus.ParserGen.Cfg as PGenCfg
 import Daedalus.ParserGen.RunnerBias (runnerBias, Result(..), extractValues)
 import Daedalus.ParserGen.Utils (autToGraphviz)

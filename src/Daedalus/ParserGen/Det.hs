@@ -8,7 +8,7 @@ import qualified Data.Map.Strict as Map
 
 import Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action (State, Action, InputAction(..), isClassActOrEnd, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
-import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings)
+import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import qualified Daedalus.Interp as Interp
 
@@ -69,12 +69,12 @@ data DetResult a =
 maxDepthRec :: Int
 maxDepthRec = 1000
 
-closureLLOne :: Aut -> State -> DelayedAction -> DetResult TreeChoice
+closureLLOne :: Aut a => a -> State -> DelayedAction -> DetResult TreeChoice
 closureLLOne aut q da =
-  let ch = lookupAut q aut
+  let ch = nextStep aut q
   in case ch of
        Nothing ->
-         if q == acceptings aut
+         if isAcceptingState aut q
          then AbortAcceptingPath
          else error "should not happen"
        Just ch1 ->
@@ -271,7 +271,7 @@ analyzeTreeChoice tc =
                              Just True -> False
                              Just False -> forallTest ys
 
-deterministicStateTrans :: Aut -> State -> DetResult [([Int], DelayedAction, Action)]
+deterministicStateTrans :: Aut a => a -> State -> DetResult [([Int], DelayedAction, Action)]
 deterministicStateTrans aut q =
   case closureLLOne aut q [] of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
@@ -280,9 +280,9 @@ deterministicStateTrans aut q =
     DetResult r -> analyzeTreeChoice r
     _ -> error "impossible"
 
-createDFA :: Aut -> Map.Map State (DetResult [([Int], DelayedAction, Action)])
+createDFA :: Aut a => a -> Map.Map State (DetResult [([Int], DelayedAction, Action)])
 createDFA aut =
-  let transitions = toListTr (transition aut)
+  let transitions = steps aut
       collectedStates = collectStatesArrivedByMove transitions
       statesDet = map (\ q -> (q, deterministicStateTrans aut q)) (Set.toList collectedStates)
   in

@@ -8,7 +8,7 @@ import qualified Daedalus.Interp as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action (State, Action(..), BranchAction(..), SemanticElm(..), applyAction)
-import Daedalus.ParserGen.Aut (Aut, Choice(..), lookupAut)
+import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 import Daedalus.ParserGen.Cfg (initCfg, Cfg(..), isAcceptingCfg)
 
 
@@ -87,14 +87,14 @@ updateError i cfg res =
 
 -- The function that runs an automaton from a string and returns
 -- accepting configurations.
-runnerBias :: PAST.GblFuns -> BS.ByteString -> Aut -> Result
+runnerBias :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> Result
 runnerBias gbl s aut =
   let go :: (Cfg, CommitHist, TailPath) -> Result -> Result
       go (cfg, idx, resumption) result =
         case cfg of
           Cfg _inp _ctrl _out q ->
             -- trace (show cfg) $
-            let localTransitions = maybe [] (\ x -> [x]) (lookupAut q aut)
+            let localTransitions = maybe [] (\ x -> [x]) (nextStep aut q)
             in setStep idx localTransitions (cfg, resumption) result
 
       setStep :: CommitHist -> [Choice] -> Path -> Result -> Result
