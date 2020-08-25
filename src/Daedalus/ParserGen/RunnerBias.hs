@@ -94,7 +94,7 @@ runnerBias gbl s aut =
         case cfg of
           Cfg _inp _ctrl _out q ->
             -- trace (show cfg) $
-            let localTransitions = maybe [] (\ x -> [x]) (nextStep aut q)
+            let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
             in setStep idx localTransitions (cfg, resumption) result
 
       setStep :: CommitHist -> [Choice] -> Path -> Result -> Result

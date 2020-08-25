@@ -2,6 +2,7 @@ module Daedalus.ParserGen.Aut where
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
+import Control.Monad (join)
 import qualified Data.Set as Set
 import qualified Data.Vector as Vec
 import qualified Data.List as List
@@ -16,8 +17,8 @@ data Choice =
 
 class Aut a where
   initialState :: a -> State
-  nextStep :: a -> State -> Maybe Choice
-  steps :: a -> [(State, Choice)]
+  nextTransition :: a -> State -> Maybe Choice
+  allTransitions :: a -> [(State, Choice)]
   isAcceptingState :: a -> State -> Bool
   destructureAut :: a -> (State, [(State, Action, State)], State)
 
@@ -37,8 +38,8 @@ data MapAut = MapAut
 
 instance Aut MapAut where
   initialState dta = initials dta
-  nextStep dta s = lookupAut s dta
-  steps dta = Map.toList $ transition dta
+  nextTransition dta s = lookupAut s dta
+  allTransitions dta = Map.toList $ transition dta
   isAcceptingState dta s = isAccepting s dta
   destructureAut dta = toListAut dta
 
@@ -219,12 +220,14 @@ mkArrayAut s t a =
 convertToArrayAut :: MapAut -> ArrayAut
 convertToArrayAut aut = 
   let 
-    maxIndex = maxState $ steps aut
-    array = Vec.generate maxIndex (\st -> Map.lookup st $ transition aut)
+    array = Vec.generate (maxState + 1) (\st -> Map.lookup st $ transition aut)
   in
     ArrayAut { transitionArray = array, mapAut = aut }
   where
-    maxState transitionList = List.maximum $ concatMap states transitionList
+    maxState =
+      let transitionStates = concatMap states $ allTransitions aut in
+      let allStates = initialState aut : transitionStates in
+      List.maximum allStates
     states (state, choice) = state : choiceStates choice
     choiceStates (UniChoice (_, endState)) = [endState]
     choiceStates (SeqChoice lst lastState) = lastState : map snd lst
@@ -232,7 +235,7 @@ convertToArrayAut aut =
 
 instance Aut ArrayAut where
   initialState dta = initials $ mapAut dta
-  nextStep dta s = (Vec.!) (transitionArray dta) s
-  steps dta = Map.toList $ transition $ mapAut dta
+  nextTransition dta s = join $ (Vec.!?) (transitionArray dta) s
+  allTransitions dta = Map.toList $ transition $ mapAut dta
   isAcceptingState dta s = isAccepting s $ mapAut dta
   destructureAut dta = toListAut $ mapAut dta

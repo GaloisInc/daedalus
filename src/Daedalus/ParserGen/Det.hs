@@ -71,7 +71,7 @@ maxDepthRec = 1000
 
 closureLLOne :: Aut a => a -> State -> DelayedAction -> DetResult TreeChoice
 closureLLOne aut q da =
-  let ch = nextStep aut q
+  let ch = nextTransition aut q
   in case ch of
        Nothing ->
          if isAcceptingState aut q
@@ -282,7 +282,7 @@ deterministicStateTrans aut q =
 
 createDFA :: Aut a => a -> Map.Map State (DetResult [([Int], DelayedAction, Action)])
 createDFA aut =
-  let transitions = steps aut
+  let transitions = allTransitions aut
       collectedStates = collectStatesArrivedByMove transitions
       statesDet = map (\ q -> (q, deterministicStateTrans aut q)) (Set.toList collectedStates)
   in
