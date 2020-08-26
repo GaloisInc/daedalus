@@ -38,8 +38,7 @@ importModules ms entry = fst
 fromModule :: TC.TCModule a -> M Module
 fromModule mo =
   withModuleName (TC.tcModuleName mo) $
-  do mapM_ (newTName . TC.tctyName)
-         $ concatMap recToList $ TC.tcModuleTypes mo
+  do mapM_ newTNameRec (TC.tcModuleTypes mo)
      tds <- mapM fromTCTyDeclRec (TC.tcModuleTypes mo)
 
      let ds = concatMap recToList (TC.tcModuleDecls mo)
@@ -1138,8 +1137,15 @@ getCurModule = M \r s -> (curMod r, s)
 --------------------------------------------------------------------------------
 -- Type Names
 
-newTName :: TC.TCTyName -> M ()
-newTName nm = M \r s ->
+-- | Generate new names for these type declarations.
+newTNameRec :: Rec TC.TCTyDecl -> M ()
+newTNameRec rec =
+  case rec of
+    NonRec d  -> newTName False (TC.tctyName d)
+    MutRec ds -> mapM_ (newTName True . TC.tctyName) ds
+
+newTName :: Bool -> TC.TCTyName -> M ()
+newTName isRec nm = M \r s ->
   let n = tname s
       (l,anon) = case nm of
                    TC.TCTy a -> (a, Nothing)
@@ -1150,6 +1156,7 @@ newTName nm = M \r s ->
                                 _ -> panic "newTName" [ "Not a ModScope" ]
                 , tnameAnon = anon
                 , tnameMod = curMod r
+                , tnameRec = isRec
                 }
   in ((), s { tname = tname s + 1
             , topTNames = Map.insert nm x (topTNames s)

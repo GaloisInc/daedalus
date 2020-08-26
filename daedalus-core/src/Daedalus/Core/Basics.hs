@@ -18,6 +18,7 @@ data TName = TName
   , tnameText :: Text
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
+  , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
   }
 
 -- | Names of top-level functions
