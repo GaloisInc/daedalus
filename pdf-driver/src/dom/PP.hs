@@ -35,7 +35,7 @@ instance PP Value where
       Value_ref r     -> pp r
       Value_array vs  -> ppArray vs
       Value_dict ds   -> ppDict ds
-      Value_name xs   -> ppName False xs
+      Value_name xs   -> ppName True xs
       Value_string xs -> pp (Vector.vecToRep xs)
 
 ppBlock :: Doc -> Doc -> [Doc] -> Doc
@@ -47,27 +47,35 @@ ppBlock open close ds =
                   ++ [close]
                    )
 
+ppTagged :: Bool -> Doc -> Doc -> Doc
+ppTagged small t v =
+  if small then hsep [ "{",  tag, v, "}" ]
+           else vcat [ "{" <+> tag, nest 2 v, "}" ]
+  where
+  tag = hcat [t,colon]
+
 ppHDict :: [Doc] -> Doc
-ppHDict ds = braces $ hsep $ punctuate comma ds
+ppHDict ds = "{" <+> hsep (punctuate comma ds) <+> "}"
 
 ppArray :: Vector Value -> Doc
 ppArray vs = ppBlock "[" "]" (map pp (Vector.toList vs))
 
 ppDict :: Map (Vector (UInt 8)) Value -> Doc
-ppDict mp = ppBlock "{" "}" (map entry (Map.toList mp))
+ppDict mp = ppTagged False "dict" (ppBlock "{" "}" (map entry (Map.toList mp)))
   where
-  entry (x,y) = hang (hcat [ ppName True x, colon ]) 2 (pp y)
+  entry (x,y) = hang (hcat [ ppName False x, colon ]) 2 (pp y)
 
 ppName :: Bool -> Vector (UInt 8) -> Doc
-ppName skipQuotes xs
-  | skipQuotes && BS8.all normal rep = text ('$' : BS8.unpack rep)
-  | otherwise                = doubleQuotes (text ('$' : BS8.unpack rep))
+ppName tagged xs = if tagged then ppTagged True "name" val else val
   where
   rep      = Vector.vecToRep xs
   normal c = isAscii c && (isAlphaNum c || c == '_')
+  quote    = if BS8.all normal rep then id else doubleQuotes
+  val      = quote (text (BS8.unpack rep))
+
 
 ppRef :: (PP a, PP b) => a -> b -> Doc
-ppRef o g = ppHDict [ "obj:" <+> pp o, "gen:" <+> pp g ]
+ppRef o g = ppTagged True "ref" (ppHDict [ "obj:" <+> pp o, "gen:" <+> pp g ])
 
 ppXRef :: (R,ObjLoc) -> Doc
 ppXRef (r,ol) =
@@ -77,7 +85,7 @@ ppXRef (r,ol) =
   where
   loc = case ol of
           InFileAt x -> [ "offset:" <+> pp x ]
-          InObj r i  -> [ "ref:" <+> pp r <+> "ix:" <+> pp i ]
+          InObj r i  -> [ "container:" <+> pp r <+> "ix:" <+> pp i ]
 
 instance PP R where
   pp r = ppRef (refObj r) (refGen r)
