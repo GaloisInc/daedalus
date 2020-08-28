@@ -1141,11 +1141,17 @@ getCurModule = M \r s -> (curMod r, s)
 newTNameRec :: Rec TC.TCTyDecl -> M ()
 newTNameRec rec =
   case rec of
-    NonRec d  -> newTName False (TC.tctyName d)
-    MutRec ds -> mapM_ (newTName True . TC.tctyName) ds
+    NonRec d  -> doOne False d
+    MutRec ds -> mapM_ (doOne True) ds
+  where
+  doOne r d =
+    let isSum = case TC.tctyDef d of
+                  TC.TCTyStruct {} -> False
+                  TC.TCTyUnion  {} -> True
+    in newTName r isSum (TC.tctyName d)
 
-newTName :: Bool -> TC.TCTyName -> M ()
-newTName isRec nm = M \r s ->
+newTName :: Bool -> Bool -> TC.TCTyName -> M ()
+newTName isRec isSum nm = M \r s ->
   let n = tname s
       (l,anon) = case nm of
                    TC.TCTy a -> (a, Nothing)
@@ -1157,6 +1163,7 @@ newTName isRec nm = M \r s ->
                 , tnameAnon = anon
                 , tnameMod = curMod r
                 , tnameRec = isRec
+                , tnameSum = isSum
                 }
   in ((), s { tname = tname s + 1
             , topTNames = Map.insert nm x (topTNames s)

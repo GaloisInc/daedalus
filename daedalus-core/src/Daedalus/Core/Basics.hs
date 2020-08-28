@@ -19,6 +19,7 @@ data TName = TName
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
+  , tnameSum  :: !Bool        -- ^ Is this type part of a sum type
   }
 
 -- | Names of top-level functions
