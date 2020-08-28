@@ -6,6 +6,7 @@ import SimpleGetOpt
 
 data Command =
     PrettyPrint
+  | PrettyPrintAll
   | Validate
   | ListXRefs
   | ShowHelp
@@ -35,6 +36,10 @@ options = OptSpec
       , Option [] ["pp"]
         "Pretty print trailier or the reference --obj --gen"
         $ NoArg \s -> Right s { command = PrettyPrint }
+
+      , Option [] ["list"]
+        "Pretty print all objects in the PDF."
+        $ NoArg \s -> Right s { command = PrettyPrintAll }
 
       , Option [] ["obj"]
         "Focus on this object."

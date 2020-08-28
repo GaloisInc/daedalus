@@ -147,3 +147,16 @@ instance PP ByteString where
 instance PP TrailerDict where
   pp td = ppDict (getField @"all" td)
 
+instance PP ParseError where
+  pp err = ppTagged False "error"
+        $ ppBlock "{" "}"
+          [ "input:" <+> pp (inputName inp)
+          , "offset:" <+> pp (inputOffset inp)
+          , "message:" <+> ppStr (peMsg err)
+          , "grammar:" <+> "[" <+>
+                  hsep (punctuate comma (map ppStr (peGrammar err))) <+> "]"
+          , "context:" $$ nest 2 (ppBlock "[" "]" (map ppStr (peStack err)))
+          ]
+    where
+    inp = peInput err
+    ppStr = text . show
