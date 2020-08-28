@@ -19,8 +19,13 @@ data TName = TName
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
-  , tnameSum  :: !Bool        -- ^ Is this type part of a sum type
+  , tnameFlav :: TFlav        -- ^ Some information about the type
   }
+
+-- | What "flavor of type" we have
+data TFlav = TFlavStruct
+           | TFlavEnum        -- ^ A sum type with no data
+           | TFlavUnion       -- ^ A sum type with data
 
 -- | Names of top-level functions
 data FName = FName

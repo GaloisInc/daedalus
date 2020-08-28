@@ -1145,13 +1145,15 @@ newTNameRec rec =
     MutRec ds -> mapM_ (doOne True) ds
   where
   doOne r d =
-    let isSum = case TC.tctyDef d of
-                  TC.TCTyStruct {} -> False
-                  TC.TCTyUnion  {} -> True
-    in newTName r isSum (TC.tctyName d)
+    let flavor = case TC.tctyDef d of
+                   TC.TCTyStruct {} -> TFlavStruct
+                   TC.TCTyUnion cs
+                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum
+                     | otherwise                    -> TFlavUnion
+    in newTName r flavor (TC.tctyName d)
 
-newTName :: Bool -> Bool -> TC.TCTyName -> M ()
-newTName isRec isSum nm = M \r s ->
+newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
+newTName isRec flavor nm = M \r s ->
   let n = tname s
       (l,anon) = case nm of
                    TC.TCTy a -> (a, Nothing)
@@ -1163,7 +1165,7 @@ newTName isRec isSum nm = M \r s ->
                 , tnameAnon = anon
                 , tnameMod = curMod r
                 , tnameRec = isRec
-                , tnameSum = isSum
+                , tnameFlav = flavor
                 }
   in ((), s { tname = tname s + 1
             , topTNames = Map.insert nm x (topTNames s)
