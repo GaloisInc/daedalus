@@ -93,14 +93,15 @@ cSemType :: Src.Type -> Doc
 cSemType sty =
   case sty of
     Src.TStream                -> "Input"
-    Src.TUInt n                -> "UInt<" <.> cSizeType n <.> ">"
-    Src.TSInt n                -> "SInt<" <.> cSizeType n <.> ">"
+    Src.TUInt n                -> inst "UInt" [ cSizeType n ]
+    Src.TSInt n                -> inst "SInt" [ cSizeType n ]
     Src.TInteger               -> "Integer"
     Src.TBool                  -> "bool"
     Src.TUnit                  -> "Unit"
-    Src.TArray t               -> "std::vector<" <+> cSemType t <+> ">"
-    Src.TMaybe t               -> "std::optional<" <+> cSemType t <+> ">"
-    Src.TMap {}                -> todo
+    Src.TArray t               -> inst "std::vector" [ cSemType t ]
+    Src.TMaybe t               -> inst "std::optional" [ cSemType t ]
+    Src.TMap k v               -> inst "std::unordered_map"
+                                                  [ cSemType k, cSemType v ]
     Src.TBuilder t             -> todo
     Src.TIterator t            -> todo
     Src.TUser ut               -> cTUser ut
@@ -146,14 +147,17 @@ cTParam (Src.TP n) = "t" <.> int n
 
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
 cTypeDecl' :: Src.TDecl -> CDecl
-cTypeDecl' ty = vcat [ template, kw <+> cTName (Src.tName ty) ]
+cTypeDecl' ty = vcat [ template, "struct" <+> cTName (Src.tName ty) ]
   where
-  kw = "struct"
   template =
-    case map intP (Src.tTParamKNumber ty) ++ map tyP (Src.tTParamKValue ty) of
+    case cTypeParams ty of
       [] -> empty
-      ps -> "template <" <.> fsep (punctuate comma ps) <.> ">"
+      ps -> inst "template" ps
 
+cTypeParams :: Src.TDecl -> [Doc]
+cTypeParams ty =
+  map intP (Src.tTParamKNumber ty) ++ map tyP (Src.tTParamKValue ty)
+  where
   intP x = "int" <+> cTParam x
   tyP x  = "typename" <+> cTParam x
 
@@ -167,10 +171,13 @@ cTypeGroup rec =
     MutRec ds -> vcat' (map cTypeDecl ds ++ map cTypeDef ds)
 
 cTypeDef :: Src.TDecl -> CDecl
-cTypeDef ty = vcat
-  [ cTypeDecl' ty <+> "{"
-  , nest 2 inner
-  , "};"
+cTypeDef ty = vcat'
+  [ vcat
+      [ cTypeDecl' ty <+> "{"
+      , nest 2 inner
+      , "};"
+      ]
+  , generateHash ty
   ]
   where
   nm = Src.tName ty
@@ -183,22 +190,30 @@ cStructDef :: [(Src.Label, Src.Type)] -> CDecl
 cStructDef fs =
   vcat [ cType (TSem t) <+> cLabel l <.> semi | (l,t) <- fs ]
 
+
+declToType :: Src.TDecl -> Src.UserType
+declToType decl =
+  Src.UserType
+    { Src.utName = Src.tName decl
+    , Src.utNumArgs = map Src.TSizeParam (Src.tTParamKNumber decl)
+    , Src.utTyArgs = map Src.TParam (Src.tTParamKValue decl)
+    }
+
+
+
 cSumDef :: Src.TDecl -> [(Src.Label, Src.Type)] -> CDecl
 cSumDef decl fs =
   vcat $
-    [ hang "using Data = std::variant<" 2
-        (fsep (punctuate comma (map (cType . TSem . snd) fs)) <.> ">;")
+    [ "using Data = std::variant<"
+    , nest 2 (vcat (punctuate comma (map (cType . TSem . snd) fs)))
+    , ">;"
     , repTy <+> "data;"
     ] ++ zipWith mkCon [ 0.. ] fs
   where
   nm    = Src.tName decl
   isRec = Src.tnameRec nm
-  repTy = if isRec then "std::shared_ptr<Data>" else "Data"
-  tu    = Src.UserType
-            { Src.utName = nm
-            , Src.utNumArgs = map Src.TSizeParam (Src.tTParamKNumber decl)
-            , Src.utTyArgs = map Src.TParam (Src.tTParamKValue decl)
-            }
+  repTy = if isRec then inst "std::shared_ptr" ["Data"] else "Data"
+  tu    = declToType decl
 
   mkCon i (l,t) = vcat
     [ cTUser tu <+> cLabel l <.> parens (cType (TSem t) <+> "x") <+> "{"
@@ -207,15 +222,53 @@ cSumDef decl fs =
     , "}"
     ]
     where
-    tag = "std::in_place_index<" <.> int i <.> ">"
-    mk  | isRec     = "std::make_shared<Data>"
+    tag = inst "std::in_place_index" [ int i ]
+    mk  | isRec     = inst "std::make_shared" [ "Data" ]
         | otherwise = "Data"
+
+
+generateHash :: Src.TDecl -> CDecl
+generateHash ty =
+  vcat
+    [ "namespace std {"
+    , nest 2 $ vcat
+        [ inst "template" (cTypeParams ty)
+        , "struct" <+> inst "std::hash" [ thisTy ] <+> "{"
+        , nest 2 $ vcat
+            [ "std::size_t operator()(" <.> thisTy <+>
+                                                "const& x) const noexcept {"
+            , nest 2 hashCode
+            , "}"
+            ]
+        , "};"
+        ]
+    , "}"
+    ]
+  where
+  thisTy = cTUser (declToType ty)
+  hashCode = case Src.tDef ty of
+               Src.TUnion {}
+                 | Src.tnameRec (Src.tName ty) ->
+                                "return" <+> hash "Data" "*x.data" <.> ";"
+                 | otherwise -> "return" <+> hash "Data" "x.data" <.> ";"
+               Src.TStruct fs ->
+                 vcat $
+                    "std::size_t h = 17;"
+                  : map hashField fs ++
+                    [ "return h;" ]
+  hash t a = call (inst "std::hash" [t] <.> "{}") [a]
+  hashField (l,t) = "h = 23 * h +" <+> hash (cSemType t)
+                                            (cSelect "x" (cLabel l)) <.> semi
 
 --------------------------------------------------------------------------------
 type CExpr = Doc
 type CStmt = Doc
 type CType = Doc
 type CDecl = Doc
+
+
+inst :: CExpr -> [CExpr] -> CExpr
+inst f es = f P.<> "<" <.> (fsep (punctuate comma es)) <.> ">"
 
 call :: CExpr -> [CExpr] -> CExpr
 call f es = f P.<> parens (fsep (punctuate comma es))
@@ -232,3 +285,5 @@ cBytes bs = parens ("std::vector<uint8_t>" <+>
             then text (show c)
             else "0x" P.<> text (showHex (fromEnum c) "")
 
+cSelect :: CExpr -> CExpr -> CExpr
+cSelect x l = x <.> "." <.> l
