@@ -25,6 +25,8 @@ library
     Daedalus.VM.Compile.Decl
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.Backend.C
+    Daedalus.VM.Backend.C.Lang
+    Daedalus.VM.Backend.C.Types
 
   build-depends:
     base >=4.13 && <4.14,
