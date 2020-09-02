@@ -32,6 +32,7 @@ import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Normalise.AST(NDecl)
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
+import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
 
@@ -114,6 +115,13 @@ handleOptions opts
                     , cImports    = [Import "RTS.Parser" Unqualified]
                     , cQualNames  = UseQualNames
                     }
+
+         CompileCPP ->
+           do passSpecialize [mainRule]
+              passVM mm
+              passCaptureAnalysis
+              m <- ddlGetAST mm astVM
+              ddlPrint (C.cModule m)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 

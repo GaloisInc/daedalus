@@ -19,6 +19,7 @@ data Command =
   | DumpCore
   | DumpVM
   | CompileHS
+  | CompileCPP
   | Interp FilePath
   | ShowHelp
 
@@ -79,6 +80,10 @@ options = OptSpec
       , Option [] ["compile-hs"]
         "Generate Haskell code."
         $ NoArg \o -> Right o { optCommand = CompileHS }
+
+      , Option [] ["compile-c++"]
+        "Generate C++ code."
+        $ NoArg \o -> Right o { optCommand = CompileCPP }
 
       , Option [] ["rule-ranges"]
         "Output the file ranges of all rules in the input"
