@@ -19,8 +19,22 @@ import Daedalus.VM.Backend.C.Types
 
 
 cModule :: Module -> Doc
-cModule m = vcat' (map cTypeGroup (mTypes m))
+cModule m =
+  vcat' (map cTypeGroup (mTypes m))
+  $$
+  "// -----------------------------------------"
+  $$
+  vcat' (map cFun (mFuns m))
 
+
+cFun :: VMFun -> CDecl
+cFun fun = ty <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
+  $$ body $$ "}"
+
+  where
+  nm = vmfName fun
+  ty = cSemType (Src.fnameType nm)
+  body = "/* todo */"
 
 --------------------------------------------------------------------------------
 
@@ -72,6 +86,10 @@ cExpr expr =
 
   where
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
+
+
+cFNameDecl :: Src.FName -> Doc
+cFNameDecl f = pp f
 
 cClo1 :: JumpPoint -> CExpr
 cClo1 (JumpPoint l es) = "/* XXX: closure */"
