@@ -170,6 +170,12 @@ isNonClassInputAct act =
         _ -> True
     _ -> False
 
+isBranchAction :: Action -> Bool
+isBranchAction act =
+  case act of
+    BAct _ -> True
+    _ -> False
+
 getClassActOrEnd :: Action -> Either PAST.NCExpr InputAction
 getClassActOrEnd act =
   case act of
