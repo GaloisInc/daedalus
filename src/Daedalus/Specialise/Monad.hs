@@ -55,8 +55,8 @@ newtype PApplyM a =
   deriving (Functor, Applicative, Monad, MonadError String)
 
 runPApplyM :: [Name] -> PApplyM a -> Either String a
-runPApplyM roots m = runExcept (evalStateT (getPApplyM m)
-                                 (emptyPApplyState { otherSeenRules = Set.fromList roots}))
+runPApplyM roots m = runExcept (evalStateT (getPApplyM m) s0)
+  where s0 = emptyPApplyState { otherSeenRules = Set.fromList roots }
 
 -- clearSpecRequests :: Name -> PApplyM ()
 -- clearSpecRequests nm =
@@ -73,9 +73,10 @@ getPendingSpecs ns = PApplyM $ state go
 -- | Add a new instance of declaration to the work queue.
 -- We know that we haven't seen the spec request before,
 -- so add it and mark as pending
-addSpecRequest :: Name -> [Type] -> [TCName Value] -> [Maybe (Arg SourceRange)]
-               -> PApplyM Name
-addSpecRequest nm ts newPs args = PApplyM $ state go
+addSpecRequest ::
+  ModuleName -> Name -> [Type] -> [TCName Value] -> [Maybe (Arg SourceRange)]
+                                                -> PApplyM Name
+addSpecRequest modName nm ts newPs args = PApplyM $ state go
   where
     go s = let nm'  = freshDeclName (nextNameIdx s)
                inst = Instantiation nm' ts newPs args
@@ -86,7 +87,7 @@ addSpecRequest nm ts newPs args = PApplyM $ state go
 
     freshDeclName nxt =
       nm { nameScope = case nameScope nm of
-             ModScope m n -> ModScope m (n <> "__" <> T.pack (show nxt))
+             ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show nxt))
              _            -> panic "Expected ModScope" []
          }
 

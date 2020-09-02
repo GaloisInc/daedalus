@@ -1,0 +1,39 @@
+module T059_A
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+module T059
+ 
+--- Imports:
+import T059_A
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T059.Main : Grammar (uint 8) =
+  do T059._P1
+     ($$ : uint 8) <- T059.P2
+     pure $$
+ 
+T059._P1 : Grammar {} =
+  T059._F__0
+ 
+T059._F__0 : Grammar {} =
+  @GetByte
+ 
+T059.P2 : Grammar (uint 8) =
+  T059.F__1
+ 
+T059.F__1 : Grammar (uint 8) =
+  T059.P1
+ 
+T059.P1 : Grammar (uint 8) =
+  T059.F__2
+ 
+T059.F__2 : Grammar (uint 8) =
+  GetByte
