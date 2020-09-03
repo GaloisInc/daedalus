@@ -1,5 +1,8 @@
 module Daedalus.ParserGen.DetUtils
-  ( TreeChoice(..),
+  ( ChoiceTag(..),
+    ChoicePos,
+    initChoicePos,
+    nextChoicePos,
     ClosurePath,
     initClosurePath,
     addClosurePath,
@@ -7,8 +10,10 @@ module Daedalus.ParserGen.DetUtils
     lengthClosurePath,
     getLastState,
     hasBranchAction,
-    FlattenTreeChoice,
-    flattenTreeChoice,
+    ClosureMove(..),
+    ClosureMoveSet,
+    ClosureMoveSetPoly,
+    filterNoMove,
     InputHeadCondition(..),
     DetChoice,
     emptyDetChoice,
@@ -31,9 +36,23 @@ data SymbolicStack =
   | SCons State SymbolicStack
   deriving (Eq, Ord)
 
+
+
+data ChoiceTag = CUni | CPar | CSeq
+  deriving(Eq, Show, Ord)
+
+type ChoicePos = (ChoiceTag, Int)
+
+initChoicePos :: ChoiceTag -> ChoicePos
+initChoicePos tag = (tag, 0)
+
+nextChoicePos :: ChoicePos -> ChoicePos
+nextChoicePos pos = (fst pos, snd pos +1)
+
+
 data CfgDet = CfgDet
   { cfgState  :: State
-  , cfgRuleNb :: Maybe Int
+  , cfgRuleNb :: Maybe ChoicePos
   , cfgStack  :: SymbolicStack
   }
   -- deriving (Eq, Ord)
@@ -86,13 +105,13 @@ getLastState p =
     CP_Empty x -> cfgState x
     CP_Cons _ _ x -> cfgState x
 
-addClosurePath :: Action -> State -> ClosurePath -> Maybe ClosurePath
-addClosurePath a q p =
+addClosurePath :: ChoicePos -> Action -> State -> ClosurePath -> Maybe ClosurePath
+addClosurePath pos a q p =
   let symbData = getLastSymbData p in
   case symbExecAction symbData a of
     Nothing -> Nothing
     Just sd ->
-      let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = sd }
+      let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Just pos, cfgStack = sd }
       in Just $ CP_Cons p a cfgDet
 
 stateInClosurePath :: State -> ClosurePath -> Bool
@@ -120,61 +139,56 @@ hasBranchAction p =
       else hasBranchAction up
 
 
+-- The conjonction of a closure path and a move (pair action, destination state)
 
-data TreeChoice =
-    Move (ClosurePath, (Action, State))
+type ClosureMovePoly a = (ClosurePath, (a, State))
+
+data ClosureMove a =
+    Move (ClosureMovePoly a)
   | NoMove
-  | Seq [ TreeChoice ]
-  | Par [ TreeChoice ]
 
 
-type ChoicePath = [Int]
+type ClosureMoveSet = [ClosureMove Action]
+type ClosureMoveSetPoly a = [ClosureMovePoly a]
 
-type FlattenTreeChoice a = [ (ChoicePath, ClosurePath, (a, State)) ]
 
-flattenTreeChoice :: TreeChoice -> FlattenTreeChoice Action
-flattenTreeChoice tc =
-  case tc of
-    Move (da,(act,q)) -> [([],da,(act,q))]
-    NoMove  -> []
-    Par lst -> flattenListTreeChoice lst
-    Seq lst -> flattenListTreeChoice lst
-
-  where
-    flattenListTreeChoice :: [ TreeChoice ] -> FlattenTreeChoice Action
-    flattenListTreeChoice lst =
-      let lst1 = map flattenTreeChoice lst
-          lst2 = zipWithInt lst1 0
-          lst3 = map (\ (n, backlist) -> map (\ (lsti, da, (a,q)) -> (n:lsti, da, (a,q))) backlist) lst2
-      in foldr (\ a b -> a ++ b) [] lst3
-
-    zipWithInt :: [a] -> Int -> [(Int,a)]
-    zipWithInt l i =
-      case l of
-        [] -> []
-        x : xs -> (i, x) : zipWithInt xs (i + 1)
+filterNoMove :: ClosureMoveSet -> ClosureMoveSetPoly Action
+filterNoMove tc =
+  foldr (\ c r ->
+         case c of
+           Move (da,(act,q)) -> (da,(act,q)) : r
+           NoMove  -> r
+      ) [] tc
 
 
 data InputHeadCondition =
     HeadInput ClassInterval
   | EndInput
 
-type FullTrace = (ChoicePath, ClosurePath, SymbolicStack, State)
+type TraceSet = [ (ClosurePath, State) ]
+
+unionTraceSet :: TraceSet -> TraceSet -> TraceSet
+unionTraceSet s1 s2 = s1 ++ s2
+
+singletonTraceSet :: (ClosurePath, State) -> TraceSet
+singletonTraceSet x = [x]
+
 
 -- fst element is a list of class action transition, the snd possible element is for EndInput test
-type DetChoice = ([ (ClassInterval, [FullTrace]) ], Maybe [FullTrace])
+type DetChoice = ([ (ClassInterval, TraceSet) ], Maybe TraceSet)
 
 emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
 
-insertDetChoice :: (ChoicePath, ClosurePath, (InputHeadCondition, State)) -> DetChoice -> DetChoice
-insertDetChoice (cp, da, (ih,q)) d =
-  let (classChoice, endChoice) = d in
+insertDetChoice :: (ClosurePath, (InputHeadCondition, State)) -> DetChoice -> DetChoice
+insertDetChoice (da, (ih,q)) d =
+  let (classChoice, endChoice) = d
+      tr = singletonTraceSet (da, q)
+  in
   case ih of
     EndInput ->
       case endChoice of
-        Nothing -> (classChoice, Just [(cp, da, SWildcard, q)])
-        Just setTrace -> (classChoice, Just ((cp, da, SWildcard, q) : setTrace))
+        Nothing -> (classChoice, Just tr)
+        Just tr1 -> (classChoice, Just (unionTraceSet tr tr1))
     HeadInput x ->
-      let tr = [(cp, da, SWildcard, q)] in
-      (insertItvInOrderedList (x, tr) classChoice (++), endChoice)
+      (insertItvInOrderedList (x, tr) classChoice unionTraceSet, endChoice)
