@@ -69,6 +69,7 @@ handleOptions opts
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
+           specMod  = "DaedalusMain"
 
        case optCommand opts of
 
@@ -76,27 +77,25 @@ handleOptions opts
            for_ allMods \m -> ddlPrint . pp =<< ddlGetAST m astTC
 
          DumpSpec ->
-           do passSpecialize [mainRule]
-              (ts,ds) <- ddlGetSpecialized
-              ddlPrint $ vcat' $ map pp ts ++ map pp ds
+           do passSpecialize specMod [mainRule]
+              mo <- ddlGetAST specMod astTC
+              ddlPrint (pp mo)
 
          DumpNorm ->
-           do passSpecialize [mainRule]
+           do passSpecialize specMod [mainRule]
               mapM_ (ddlPrint . pp) =<< normalizedDecls
 
          DumpCore ->
-           do passSpecialize [mainRule]
-              let tgt = "Core"
-              passCore tgt
-              ddlPrint . pp =<< ddlGetAST tgt astCore
+           do passSpecialize specMod [mainRule]
+              passCore specMod
+              ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM ->
-           do passSpecialize [mainRule]
-              let tgt = "Core"
-              passCore tgt
-              passVM tgt
+           do passSpecialize specMod [mainRule]
+              passCore specMod
+              passVM specMod
               passCaptureAnalysis
-              ddlPrint . pp =<< ddlGetAST tgt astVM
+              ddlPrint . pp =<< ddlGetAST specMod astVM
 
          Interp inp ->
            case optBackend opts of
@@ -104,7 +103,7 @@ handleOptions opts
                do prog <- for allMods \m -> ddlGetAST m astTC
                   ddlIO (interpInterp inp prog mainRule)
              UsePGen ->
-               do passSpecialize [mainRule]
+               do passSpecialize specMod [mainRule]
                   prog <- normalizedDecls
                   ddlIO (interpPGen inp prog)
 
@@ -121,12 +120,11 @@ handleOptions opts
                     }
 
          CompileCPP ->
-           do passSpecialize [mainRule]
-              let tgt = "Core"
-              passCore tgt
-              passVM tgt
+           do passSpecialize specMod [mainRule]
+              passCore specMod
+              passVM specMod
               passCaptureAnalysis
-              m <- ddlGetAST tgt astVM
+              m <- ddlGetAST specMod astVM
               ddlPrint (C.cModule m)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
