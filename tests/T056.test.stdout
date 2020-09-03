@@ -1,16 +1,8 @@
-module T056
- 
---- Imports:
- 
---- Type defs:
- 
---- Rules:
- 
-T056.Main : Grammar [uint 8] =
-  T056.F "A"
+T056.I__0 (open : [uint 8]) : Grammar [uint 8] =
+  MatchBytes open
  
 T056.F (open1 : [uint 8]) : Grammar [uint 8] =
   T056.I__0 open1
  
-T056.I__0 (open : [uint 8]) : Grammar [uint 8] =
-  MatchBytes open
+T056.Main : Grammar [uint 8] =
+  T056.F "A"

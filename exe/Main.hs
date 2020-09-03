@@ -77,7 +77,8 @@ handleOptions opts
 
          DumpSpec ->
            do passSpecialize [mainRule]
-              for_ allMods \m -> ddlPrint . pp =<< ddlGetAST m astTC
+              (ts,ds) <- ddlGetSpecialized
+              ddlPrint $ vcat' $ map pp ts ++ map pp ds
 
          DumpNorm ->
            do passSpecialize [mainRule]
@@ -85,14 +86,17 @@ handleOptions opts
 
          DumpCore ->
            do passSpecialize [mainRule]
-              passCore mm
-              for_ allMods \m -> ddlPrint . pp =<< ddlGetAST m astCore
+              let tgt = "Core"
+              passCore tgt
+              ddlPrint . pp =<< ddlGetAST tgt astCore
 
          DumpVM ->
            do passSpecialize [mainRule]
-              passVM mm
+              let tgt = "Core"
+              passCore tgt
+              passVM tgt
               passCaptureAnalysis
-              ddlPrint . pp =<< ddlGetAST mm astVM
+              ddlPrint . pp =<< ddlGetAST tgt astVM
 
          Interp inp ->
            case optBackend opts of
@@ -118,9 +122,11 @@ handleOptions opts
 
          CompileCPP ->
            do passSpecialize [mainRule]
-              passVM mm
+              let tgt = "Core"
+              passCore tgt
+              passVM tgt
               passCaptureAnalysis
-              m <- ddlGetAST mm astVM
+              m <- ddlGetAST tgt astVM
               ddlPrint (C.cModule m)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen

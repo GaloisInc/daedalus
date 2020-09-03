@@ -7,6 +7,7 @@ module Daedalus.Driver
   , ddlGetPhaseMaybe
   , ddlGetPhase
   , ddlGetAST
+  , ddlGetSpecialized
   , ddlBasis
   , ddlBasisMany
 
@@ -86,7 +87,8 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
-import Daedalus.Specialise(specialise,regroup)
+import Daedalus.Type.Free(topoOrder)
+import Daedalus.Specialise(specialise)
 import Daedalus.Rename(rename)
 import Daedalus.Normalise(normalise)
 import Daedalus.Normalise.AST(NDecl)
@@ -150,6 +152,12 @@ ddlGetAST m ast =
        Nothing  ->
         panic "ddlTCModule" [ "Unexpected phase for", show (pp m) ]
 
+
+ddlGetSpecialized :: Daedalus ([Rec TCTyDecl], [Rec (TCDecl SourceRange)])
+ddlGetSpecialized =
+  do tdecls <- ddlGet specializedTDecls
+     decls  <- ddlGet specializedDecls
+     pure (tdecls,decls)
 
 {- | The result is all modules (transitively) this module depends on,
 including itself.
@@ -248,9 +256,15 @@ data State = State
   , declaredTypes :: Map TCTyName TCTyDecl
     -- ^ Types declared in all typechecked modules
 
-  , matchingFunctions :: Map Name ArgInfo -- XXX: ArgInfo is not a good dname
+  , matchingFunctions :: Map Name ArgInfo -- XXX: ArgInfo is not a good name
     -- ^ Information about a variant of a rule that does not
     -- construct a semantic value, and how to call it.
+
+  , specializedTDecls :: [ Rec TCTyDecl ]
+    -- ^ Type declarations for modules involved in specialization.
+
+  , specializedDecls :: [ Rec (TCDecl SourceRange) ]
+    -- ^ Specialized declarations, from the last call to specialize.
 
   , coreTopNames      :: Map Name Core.FName
     -- ^ Maps top-level value names to core names.
@@ -271,6 +285,8 @@ defaultState = State
   , ruleTypes           = Map.empty
   , declaredTypes       = Map.empty
   , matchingFunctions   = Map.empty
+  , specializedTDecls   = []
+  , specializedDecls    = []
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   }
@@ -515,20 +531,6 @@ analyzeDeadVal m =
           , matchingFunctions = mfs1
           }
 
-convertToCore :: TCModule SourceRange -> Daedalus ()
-convertToCore m =
-  do mapM_ (passCore . thingValue) (tcModuleImports m)
-     cnms <- ddlGet coreTopNames
-     tnms <- ddlGet coreTypeNames
-     let (cm,(tnms',cnms')) = Core.runM tnms cnms (Core.fromModule m)
-     ddlUpdate_ \s ->
-        s { loadedModules = Map.insert (fromMName (Core.mName cm))
-                                       (CoreModue cm)
-                                       (loadedModules s)
-          , coreTopNames = cnms'
-          , coreTypeNames = tnms'
-          }
-
 convertToVM :: Core.Module -> Daedalus ()
 convertToVM m =
   do let vm = VM.compileModule m
@@ -617,50 +619,55 @@ passDeadVal m =
             analyzeDeadVal ast
        _ -> pure ()
 
-{- | (5) Specialize for the given set of roots.
-Note that this looses information, so modules that have been specialized
-cannot be specialized again in a different way.
-We should be keeping other information about them,
-so other front end operations ought to still work. -}
+{- | (5) Specialize for the given set of roots. -}
 passSpecialize :: [(ModuleName,Ident)] -> Daedalus ()
 passSpecialize roots =
   do mapM_ ddlLoadModule (map fst roots)
      allMods <- ddlBasisMany (map fst roots)
-     decls <- concat <$> forM allMods \m -> tcModuleDecls <$> ddlGetAST m astTC
+     allDecls <- forM allMods \m ->
+                    do mo <- ddlGetAST m astTC
+                       pure (tcModuleTypes mo, tcModuleDecls mo)
+
+     let (tdss,dss) = unzip allDecls
+         tdecls = concat tdss
+         decls = concat dss
      let rootIds = [ ModScope m i | (m,i) <- roots ]
      case specialise rootIds decls of
-       Left err  -> ddlThrow $ ASpecializeError err
+       Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->
-         do let newDefs = regroup (rename sds)
-            mapM_ (markSpec newDefs) allMods
-
-  where
-  markSpec defs m =
-    do ~(DeadValModule ast) <- doGetLoaded m
-       let ast1 = ast { tcModuleDecls = Map.findWithDefault [] m defs }
-       ddlUpdate_ \s -> s { loadedModules = Map.insert m
-                                              (SpecializedModule ast1)
-                                              (loadedModules s) }
+         let ds = topoOrder (rename sds)
+         in ddlUpdate_ \s -> s { specializedTDecls = tdecls
+                               , specializedDecls = ds
+                               }
 
 
--- | (6) Convert to Core DDL.  The given module should be at least specialized.
--- Also converts dependencies.
+-- | (6) Convert the current set of specialized declarations to a module
+-- with the given name (which should not clash with exisitng modules).
+-- WARNING: This would use information from previous calls to `passCore`,
+-- although it is not clear if this is a bug or a feature, as we are still
+-- working on the interface to how this should be used.
 passCore :: ModuleName -> Daedalus ()
 passCore m =
-  do ph <- doGetLoaded m
-     case ph of
-       SpecializedModule ast -> convertToCore ast
-       _ | phasePass ph > PassSpec -> pure ()
-         | otherwise -> panic "passCore" [ "Module not specialized"
-                                         , show (pp m) ]
+  do cnms <- ddlGet coreTopNames
+     tnms <- ddlGet coreTypeNames
+     tdcls <- ddlGet specializedTDecls
+     dcls <- ddlGet specializedDecls
+     let (cm,(tnms',cnms')) = Core.runM tnms cnms (Core.fromDecls m tdcls dcls)
+     ddlUpdate_ \s ->
+        s { loadedModules = Map.insert (fromMName (Core.mName cm))
+                                       (CoreModue cm)
+                                       (loadedModules s)
+          , coreTopNames = cnms'
+          , coreTypeNames = tnms'
+          }
 
 
--- | (7) Convert to VM. The given module should be at least specialized.
--- Does NOT do dependencies.  XXX: Maybe it should?
+
+
+-- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
 passVM m =
-  do passCore m
-     ph <- doGetLoaded m
+  do ph <- doGetLoaded m
      case ph of
        CoreModue ast -> convertToVM ast
        _ | phasePass ph > PassCore -> pure ()
@@ -686,13 +693,8 @@ passCaptureAnalysis =
 -- Does not affect the state.
 normalizedDecls :: Daedalus [NDecl]
 normalizedDecls =
-  do ms <- ddlGet loadedModules
-     pure (concatMap norm ms)
-  where
-  norm m = case m of
-             SpecializedModule ast ->
-                map normalise (forgetRecs (tcModuleDecls ast))
-             _ -> []
+  do ds <- ddlGet specializedDecls
+     pure (map normalise (forgetRecs ds))
 
 
 -- | Save Haskell for the given module.

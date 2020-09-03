@@ -37,23 +37,33 @@ importModules ms entry = fst
 
 fromModule :: TC.TCModule a -> M Module
 fromModule mo =
-  withModuleName (TC.tcModuleName mo) $
-  do mapM_ newTNameRec (TC.tcModuleTypes mo)
-     tds <- mapM fromTCTyDeclRec (TC.tcModuleTypes mo)
+  fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
 
-     let ds = concatMap recToList (TC.tcModuleDecls mo)
+fromDecls ::
+  TC.ModuleName ->
+  [ Rec TC.TCTyDecl ] ->
+  [ Rec (TC.TCDecl a) ] ->
+  M Module
+fromDecls mo tdecls decls =
+  withModuleName mo $
+  do mapM_ newTNameRec tdecls
+     tds <- mapM fromTCTyDeclRec tdecls
+
+     let ds = concatMap recToList decls
      mapM_ addDeclName ds
      (dffs,dgfs) <- partitionEithers <$> mapM fromDecl ds
      (effs,egfs) <- removeNewFuns
 
      m <- getCurModule
      pure
-       Module { mName  = m
-              , mImports = map (MName . TC.thingValue) (TC.tcModuleImports mo)
+       Module { mName   = m
+              , mImports = []
               , mTypes  = tds
               , mFFuns  = effs ++ dffs
               , mGFuns  = egfs ++ dgfs
               }
+
+
 
 addDeclName :: TC.TCDecl a -> M ()
 addDeclName TC.TCDecl { .. } =
