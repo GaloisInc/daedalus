@@ -55,8 +55,9 @@ compileModule m =
          }
 
 
-compileSomeFun :: (Maybe a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
-compileSomeFun doBody fun =
+compileSomeFun ::
+  Bool -> (Maybe a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
+compileSomeFun isPure doBody fun =
   let xs         = Src.fParams fun
       name       = Src.fName fun
 
@@ -81,17 +82,18 @@ compileSomeFun doBody fun =
   in inlineBlocks
       VMFun { vmfName   = Src.fName fun
             , vmfCaptures = Capture -- Conservative
+            , vmfPure   = isPure
             , vmfEntry  = l
             , vmfBlocks = Map.adjust addArgs l ls
             }
 
 compileFFun :: Src.Fun Src.Expr -> VMFun
-compileFFun = compileSomeFun \mb ->
+compileFFun = compileSomeFun True \mb ->
   case mb of
     Just e -> compileE e Nothing
 
 compileGFun :: Src.Fun Src.Grammar -> VMFun
-compileGFun = compileSomeFun \mb ->
+compileGFun = compileSomeFun False \mb ->
   case mb of
     Just e -> compile e ret
 

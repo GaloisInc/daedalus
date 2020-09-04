@@ -33,6 +33,7 @@ data Module = Module
 data VMFun = VMFun
   { vmfName     :: Src.FName
   , vmfCaptures :: Captures
+  , vmfPure     :: Bool     -- ^ True if this is not a parser
   , vmfEntry    :: Label
   , vmfBlocks   :: Map Label Block
   }
