@@ -8,6 +8,7 @@ module Daedalus.ParserGen.DetUtils
     ClosurePath,
     initClosurePath,
     addClosurePath,
+    addClassIntervalClosurePath,
     stateInClosurePath,
     lengthClosurePath,
     getLastState,
@@ -30,7 +31,8 @@ module Daedalus.ParserGen.DetUtils
 
 --import qualified Data.Set as Set
 
-import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isBranchAction)
+import Daedalus.Type.AST (WithSem(..))
+import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isBranchAction)
 -- import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
 
 import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList)
@@ -124,6 +126,13 @@ addClosurePath pos a q p =
       let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Just pos, cfgStack = sd }
       in Just $ CP_Cons p a cfgDet
 
+addClassIntervalClosurePath :: ClosurePath -> ClassInterval -> State -> ClosurePath
+addClassIntervalClosurePath p itv q =
+  let newStack = cfgStack (getLastCfgDet p) in -- TODO : there should be some symbolic execution here
+  let cfg = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = newStack } in
+  CP_Cons p (IAct NoSem (ClssItv itv)) cfg
+
+
 stateInClosurePath :: State -> ClosurePath -> Bool
 stateInClosurePath q p =
   case p of
@@ -203,6 +212,9 @@ insertDetChoice (da, (ih,q)) d =
         Just tr1 -> (classChoice, Just (unionTraceSet tr tr1))
     HeadInput x ->
       (insertItvInOrderedList (x, tr) classChoice unionTraceSet, endChoice)
+
+
+
 
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
 unionDetChoice (cl1, e1) (cl2, e2) =

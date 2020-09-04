@@ -5,10 +5,12 @@ module Daedalus.ParserGen.ClassInterval where
 --import Data.Char
 --import GHC.Enum
 
+import Data.Word
+
 data IntervalEndpoint =
     PlusInfinity
   | MinusInfinity
-  | CValue Integer
+  | CValue Word8
   deriving(Eq)
 
 instance Ord(IntervalEndpoint) where

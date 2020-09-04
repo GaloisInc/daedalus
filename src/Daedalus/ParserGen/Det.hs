@@ -35,6 +35,22 @@ data Result a =
   deriving(Show)
 
 
+abortToString :: Result a -> String
+abortToString r =
+  case r of
+    AbortNotStatic -> "AbortNotStatic"
+    AbortAcceptingPath -> "AbortAcceptingPath"
+    AbortNonClassInputAction _ -> "AbortNonClassInputAction"
+    AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
+    AbortLoopWithNonClass -> "AbortLoopWithNonClass"
+    AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
+    AbortClassIsDynamic -> "AbortClassIsDynamic"
+    AbortClassNotHandledYet _ -> "AbortClassNotHandledYet"
+    AbortAmbiguous -> "AbortAmbiguous"
+    AbortTodo -> "AbortTodo"
+    AbortOverflowK -> "AbortOverflowK"
+    _ -> error "No Abort result"
+
 maxDepthRec :: Int
 maxDepthRec = 200
 
@@ -66,7 +82,7 @@ closureLLOne aut da =
       then Result $ [Move (da, (act, q1))]
       else
         if isNonClassInputAct act
-        then trace ("NonClassInput ACT: " ++ show act) $
+        then -- trace ("NonClassInput ACT: " ++ show act) $
              -- trace (maybe "" (\ e -> if isSimpleVExpr e then "Static" else show e) (getMatchBytes act)) $
              AbortNonClassInputAction act
         else
@@ -74,7 +90,7 @@ closureLLOne aut da =
           then AbortOverflowMaxDepth
           else
             if stateInClosurePath q1 da
-            then trace ("LoopWithNonClass ACT: " ++ show da) $
+            then -- trace ("LoopWithNonClass ACT: " ++ show da) $
                  AbortLoopWithNonClass
             else
               case addClosurePath pos act q1 da of
@@ -115,7 +131,7 @@ classToInterval e =
       else
         let v = evalNoFunCall e1 [] [] in
         case v of
-          Interp.VUInt 8 x -> Result $ ClassBtw (CValue x) (CValue x)
+          Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
           _                -> AbortClassNotHandledYet "SetSingle"
     PAST.NSetRange e1 e2 ->
       if isSimpleVExpr e1 && isSimpleVExpr e2
@@ -124,7 +140,7 @@ classToInterval e =
             v2 = evalNoFunCall e2 [] []
         in case (v1, v2) of
              (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
-               Result $ ClassBtw (CValue x) (CValue y)
+               Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral y))
              _ -> AbortClassNotHandledYet "SetRange"
       else AbortClassIsDynamic
     _ -> AbortClassNotHandledYet "other class case"
@@ -173,9 +189,9 @@ determinizeClosureMoveSet tc =
       foldl (\ a b -> insertDetChoice b a) emptyDetChoice lstItv
 
 
-deterministicStep :: Aut a => a -> CfgDet -> Result (DetChoice)
-deterministicStep aut cfg =
-  case closureLLOne aut (initClosurePath cfg) of
+deterministicStep :: Aut a => a -> ClosurePath -> Result (DetChoice)
+deterministicStep aut p =
+  case closureLLOne aut p of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
     AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
@@ -197,13 +213,14 @@ instance Show(DFATransition) where
      showD d (LResolve r) = space d 0 ++ "Resolve (" ++ show r ++ ")\n"
      showD d (LChoice lst) = space d 0 ++ "LChoice\n" ++ (concat (map (showT (d+2)) lst))
 
-     showT d (i, tr, r) = space d 0 ++ show i ++ "\n" ++ space d 0 ++ show (length tr) ++ "\n" ++ under
+     showT d (i, tr, r) = space d 0 ++ show i ++ "\n" ++ space d 0 ++ showTr tr ++ "\n" ++ under
        where
          under =
            case r of
              Result a -> showD d a
-             _ -> space d 0 ++ "Abort\n"
+             _ -> space d 0 ++ abortToString r ++ "\n"
 
+     showTr tr = "[" ++ foldr (\ (_,q) b -> show q ++ "," ++ b) "" tr  ++ "]"
 
      space d cnt = if cnt < d then " " ++ space d (cnt+1) else ""
 
@@ -211,14 +228,14 @@ depthDFATransition :: DFATransition -> Int
 depthDFATransition t =
   case t of
     LResolve _ -> 1
-    LChoice lst -> foldr (\ (_,_,r) b -> case r of
-                                       Result r1 -> 1 + max (depthDFATransition r1) b
-                                       _ -> b) 0 lst
+    LChoice lst -> 1 + foldr (\ (_,_,r) b -> case r of
+                                               Result r1 -> max (depthDFATransition r1) b
+                                               _ -> b) 0 lst
 
 
 
 maxDepthDet :: Int
-maxDepthDet = 4
+maxDepthDet = 10
 
 detChoiceToList :: DetChoice -> [(InputHeadCondition, TraceSet)]
 detChoiceToList (c,e) =
@@ -227,9 +244,9 @@ detChoiceToList (c,e) =
     Nothing -> tr
     Just t -> tr ++ [(EndInput, t)]
 
-deterministicK :: Aut a => a -> Int -> CfgDet -> Result DFATransition
-deterministicK aut depth cfg =
-  let det1 = deterministicStep aut cfg
+deterministicK :: Aut a => a -> Int -> ClosurePath -> Result DFATransition
+deterministicK aut depth p =
+  let det1 = deterministicStep aut p
   in case det1 of
        AbortOverflowMaxDepth -> AbortOverflowMaxDepth
        AbortLoopWithNonClass -> AbortLoopWithNonClass
@@ -250,29 +267,29 @@ deterministicK aut depth cfg =
         (i, s) : rest ->
           case i of
             EndInput ->
+              -- TODO: work out if EndInput really make sense
               if length s > 1
               then (i, s, Result $ LResolve AbortAmbiguous) : iterateDeterminize d rest
               else (i, s, Result $ LResolve (Result())) : iterateDeterminize d rest
-            HeadInput _itv ->
-              let t = detSubset d s
+            HeadInput itv ->
+              let t = detSubset d itv s
               in (i, s, t) : iterateDeterminize d rest
 
-    detSubset :: Int -> TraceSet -> Result DFATransition
-    detSubset d s =
+    detSubset :: Int -> ClassInterval -> TraceSet -> Result DFATransition
+    detSubset d itv s =
       case length s of
         0 -> error "empty set"
         1 -> Result (LResolve (Result ()))
         _ -> if d > maxDepthDet
              then AbortOverflowK
-             else detSubsetHelper d s emptyDetChoice
+             else detSubsetHelper d itv s emptyDetChoice
 
-    detSubsetHelper :: Int -> TraceSet -> DetChoice -> Result DFATransition
-    detSubsetHelper d s acc =
+    detSubsetHelper :: Int -> ClassInterval -> TraceSet -> DetChoice -> Result DFATransition
+    detSubsetHelper d itv s acc =
       case s of
         [] -> Result (LChoice (iterateDeterminize (d+1) (detChoiceToList acc)))
-        (p, _s) : rest ->
-          let p_cfg = getLastCfgDet p in
-          let r = deterministicStep aut p_cfg in
+        (p1, q) : rest ->
+          let r = deterministicStep aut (addClassIntervalClosurePath p1 itv q) in
           case r of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
             AbortLoopWithNonClass -> AbortLoopWithNonClass
@@ -280,7 +297,7 @@ deterministicK aut depth cfg =
             AbortNonClassInputAction x -> AbortNonClassInputAction x
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
-              in detSubsetHelper d rest newAcc
+              in detSubsetHelper d itv rest newAcc
             _ -> error "cannot be this abort"
 
 
@@ -289,7 +306,7 @@ createDFA aut =
   let transitions = allTransitions aut
       collectedStates = collectStatesArrivedByMove transitions
       -- statesDet = map (\ q -> (q, deterministicStep aut (initCfgDet q))) (Set.toList collectedStates)
-      statesDet = map (\ q -> (q, deterministicK aut 0 (initCfgDet q))) (Set.toList collectedStates)
+      statesDet = map (\ q -> (q, deterministicK aut 0 (initClosurePath (initCfgDet q)))) (Set.toList collectedStates)
   in
     Map.fromAscList statesDet
   where
@@ -362,7 +379,7 @@ statsDFA dfa =
         --       detResult "-Branch"
         --     else detResult ""
         Result t ->
-          if depthDFATransition t > 4
+          if depthDFATransition t > 2
           then trace (show t) $
                detResult ""
           else detResult ""
