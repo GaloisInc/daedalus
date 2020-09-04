@@ -28,6 +28,9 @@ data Result a =
   | AbortClassNotHandledYet String
   | AbortAmbiguous
   | AbortTodo
+
+  | AbortOverflowK
+
   | Result a
   deriving(Show)
 
@@ -127,7 +130,6 @@ classToInterval e =
     _ -> AbortClassNotHandledYet "other class case"
 
 
-
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
 determinizeClosureMoveSet :: ClosureMoveSet -> Result DetChoice
@@ -149,9 +151,9 @@ determinizeClosureMoveSet tc =
               case classToInterval c of
                 AbortClassIsDynamic -> AbortClassIsDynamic
                 AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
-                Result r -> convertToInputHeadCondition es ((da, ((HeadInput r),q)) : acc)
+                Result r -> convertToInputHeadCondition es ((da, (HeadInput r, q)) : acc)
                 _ -> error "Impossible abort"
-            Right IEnd -> convertToInputHeadCondition es ((da, (EndInput,q)) : acc)
+            Right IEnd -> convertToInputHeadCondition es ((da, (EndInput, q)) : acc)
             _ -> error "Impossible abort"
 
     determinizeTree :: ClosureMoveSetPoly Action -> Result (DetChoice)
@@ -163,24 +165,17 @@ determinizeClosureMoveSet tc =
           AbortClassIsDynamic -> AbortClassIsDynamic
           AbortClassNotHandledYet a -> AbortClassNotHandledYet a
           Result lstItv ->
-            Result (determinizeHelper lstItv emptyDetChoice)
+            Result (determinizeTransList lstItv)
           _ -> error "impossible abort"
 
-    determinizeHelper ::
-      ClosureMoveSetPoly InputHeadCondition ->
-      DetChoice ->
-      DetChoice
-    determinizeHelper lstItv res = -- undefined
-      case lstItv of
-        [] -> res
-        (da, (x,q)) : xs ->
-          let newRes = insertDetChoice (da, (x,q)) res
-          in determinizeHelper xs newRes
+    determinizeTransList :: ClosureMoveSetPoly InputHeadCondition -> DetChoice
+    determinizeTransList lstItv =
+      foldl (\ a b -> insertDetChoice b a) emptyDetChoice lstItv
 
 
-deterministicStateTrans :: Aut a => a -> State -> Result (DetChoice)
-deterministicStateTrans aut q =
-  case closureLLOne aut (initClosurePath q) of
+deterministicStep :: Aut a => a -> CfgDet -> Result (DetChoice)
+deterministicStep aut cfg =
+  case closureLLOne aut (initClosurePath cfg) of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
     AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
@@ -188,11 +183,113 @@ deterministicStateTrans aut q =
     Result r -> determinizeClosureMoveSet r
     _ -> error "impossible"
 
-createDFA :: Aut a => a -> Map.Map State (Result DetChoice)
+
+
+
+data DFATransition =
+    LResolve (Result ())
+  | LChoice [ (InputHeadCondition, TraceSet, Result DFATransition) ]
+
+instance Show(DFATransition) where
+ show t =
+   showD (0::Int) t
+   where
+     showD d (LResolve r) = space d 0 ++ "Resolve (" ++ show r ++ ")\n"
+     showD d (LChoice lst) = space d 0 ++ "LChoice\n" ++ (concat (map (showT (d+2)) lst))
+
+     showT d (i, tr, r) = space d 0 ++ show i ++ "\n" ++ space d 0 ++ show (length tr) ++ "\n" ++ under
+       where
+         under =
+           case r of
+             Result a -> showD d a
+             _ -> space d 0 ++ "Abort\n"
+
+
+     space d cnt = if cnt < d then " " ++ space d (cnt+1) else ""
+
+depthDFATransition :: DFATransition -> Int
+depthDFATransition t =
+  case t of
+    LResolve _ -> 1
+    LChoice lst -> foldr (\ (_,_,r) b -> case r of
+                                       Result r1 -> 1 + max (depthDFATransition r1) b
+                                       _ -> b) 0 lst
+
+
+
+maxDepthDet :: Int
+maxDepthDet = 4
+
+detChoiceToList :: DetChoice -> [(InputHeadCondition, TraceSet)]
+detChoiceToList (c,e) =
+  let tr = map (\ (i,t) -> (HeadInput i,t)) c in
+  case e of
+    Nothing -> tr
+    Just t -> tr ++ [(EndInput, t)]
+
+deterministicK :: Aut a => a -> Int -> CfgDet -> Result DFATransition
+deterministicK aut depth cfg =
+  let det1 = deterministicStep aut cfg
+  in case det1 of
+       AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+       AbortLoopWithNonClass -> AbortLoopWithNonClass
+       AbortAcceptingPath -> AbortAcceptingPath
+       AbortNonClassInputAction x -> AbortNonClassInputAction x
+       AbortClassIsDynamic -> AbortClassIsDynamic
+       AbortClassNotHandledYet a -> AbortClassNotHandledYet a
+       Result r ->
+         let tr = detChoiceToList r
+         in Result $ LChoice (iterateDeterminize depth tr)
+       _ -> error "cannot be this Abort"
+
+  where
+    iterateDeterminize :: Int -> [(InputHeadCondition, TraceSet)] -> [(InputHeadCondition, TraceSet, Result DFATransition)]
+    iterateDeterminize d lst =
+      case lst of
+        [] -> []
+        (i, s) : rest ->
+          case i of
+            EndInput ->
+              if length s > 1
+              then (i, s, Result $ LResolve AbortAmbiguous) : iterateDeterminize d rest
+              else (i, s, Result $ LResolve (Result())) : iterateDeterminize d rest
+            HeadInput _itv ->
+              let t = detSubset d s
+              in (i, s, t) : iterateDeterminize d rest
+
+    detSubset :: Int -> TraceSet -> Result DFATransition
+    detSubset d s =
+      case length s of
+        0 -> error "empty set"
+        1 -> Result (LResolve (Result ()))
+        _ -> if d > maxDepthDet
+             then AbortOverflowK
+             else detSubsetHelper d s emptyDetChoice
+
+    detSubsetHelper :: Int -> TraceSet -> DetChoice -> Result DFATransition
+    detSubsetHelper d s acc =
+      case s of
+        [] -> Result (LChoice (iterateDeterminize (d+1) (detChoiceToList acc)))
+        (p, _s) : rest ->
+          let p_cfg = getLastCfgDet p in
+          let r = deterministicStep aut p_cfg in
+          case r of
+            AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+            AbortLoopWithNonClass -> AbortLoopWithNonClass
+            AbortAcceptingPath -> AbortAcceptingPath
+            AbortNonClassInputAction x -> AbortNonClassInputAction x
+            Result r1 ->
+              let newAcc = unionDetChoice r1 acc
+              in detSubsetHelper d rest newAcc
+            _ -> error "cannot be this abort"
+
+
+createDFA :: Aut a => a -> Map.Map State (Result DFATransition)
 createDFA aut =
   let transitions = allTransitions aut
       collectedStates = collectStatesArrivedByMove transitions
-      statesDet = map (\ q -> (q, deterministicStateTrans aut q)) (Set.toList collectedStates)
+      -- statesDet = map (\ q -> (q, deterministicStep aut (initCfgDet q))) (Set.toList collectedStates)
+      statesDet = map (\ q -> (q, deterministicK aut 0 (initCfgDet q))) (Set.toList collectedStates)
   in
     Map.fromAscList statesDet
   where
@@ -208,7 +305,8 @@ createDFA aut =
     collectMove (act, q) =
       if isInputAction act then Set.singleton q else Set.empty
 
-statsDFA :: Map.Map State (Result DetChoice) -> String
+
+statsDFA :: Map.Map State (Result DFATransition) -> String
 statsDFA dfa =
   let t = Map.toList dfa
   in do getReport t initReport (0 :: Int)
@@ -229,12 +327,13 @@ statsDFA dfa =
     abortClassNotHandledYet = "AbortClassNotHandledYet"
     abortAmbiguous = "AbortAmbiguous"
     abortTodo = "AbortTodo"
+    abortOverflowK = "AbortOverflowK"
     detResult str = "Result" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
 
-    mapResultToKey :: Result DetChoice -> String
+    mapResultToKey :: Result DFATransition -> String
     mapResultToKey r =
       case r of
         AbortNotStatic -> abortNotStatic
@@ -247,20 +346,28 @@ statsDFA dfa =
         AbortClassNotHandledYet _msg -> abortClassNotHandledYet
         AbortAmbiguous -> abortAmbiguous
         AbortTodo -> abortTodo
-        Result (clssLstTr, endTr) ->
-          if ((maybe False (\ tr -> length tr > 1) endTr) ||
-              foldr (\ (_,tr) b -> if length tr > 1 then True else b) False clssLstTr)
-          then
-            trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
-            detResult "-Ambiguous"
-          else
-            if foldr (\ (_,tr) b ->  if (foldr (\ (da,_) b1 -> if hasBranchAction da then True else b1) False tr) then True else b) False clssLstTr
-            then
-              trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
-              detResult "-Branch"
-            else detResult ""
 
-    incrReport :: Map.Map String Int -> Result (DetChoice) -> Map.Map String Int
+        AbortOverflowK -> abortOverflowK
+
+        -- Result (clssLstTr, endTr) ->
+        --   if ((maybe False (\ tr -> length tr > 1) endTr) ||
+        --       foldr (\ (_,tr) b -> if length tr > 1 then True else b) False clssLstTr)
+        --   then
+        --     trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
+        --     detResult "-Ambiguous"
+        --   else
+        --     if foldr (\ (_,tr) b ->  if (foldr (\ (da,_) b1 -> if hasBranchAction da then True else b1) False tr) then True else b) False clssLstTr
+        --     then
+        --       trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
+        --       detResult "-Branch"
+        --     else detResult ""
+        Result t ->
+          if depthDFATransition t > 4
+          then trace (show t) $
+               detResult ""
+          else detResult ""
+
+    incrReport :: Map.Map String Int -> Result (DFATransition) -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in
