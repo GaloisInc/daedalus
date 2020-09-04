@@ -3,21 +3,26 @@ module Daedalus.ParserGen.DetUtils
     ChoicePos,
     initChoicePos,
     nextChoicePos,
+    CfgDet,
+    initCfgDet,
     ClosurePath,
     initClosurePath,
     addClosurePath,
     stateInClosurePath,
     lengthClosurePath,
     getLastState,
+    getLastCfgDet,
     hasBranchAction,
     ClosureMove(..),
     ClosureMoveSet,
     ClosureMoveSetPoly,
     filterNoMove,
     InputHeadCondition(..),
+    TraceSet,
     DetChoice,
     emptyDetChoice,
-    insertDetChoice
+    insertDetChoice,
+    unionDetChoice
   ) where
 
 
@@ -57,6 +62,9 @@ data CfgDet = CfgDet
   }
   -- deriving (Eq, Ord)
 
+initCfgDet :: State -> CfgDet
+initCfgDet q =
+  CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard }
 
 type SymbolicData = SymbolicStack
 
@@ -74,9 +82,9 @@ instance Show(ClosurePath) where
           CP_Empty _ -> acc
           CP_Cons up act _ -> collectActions up (act:acc)
 
-initClosurePath :: State -> ClosurePath
-initClosurePath q =
-  CP_Empty (CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard})
+initClosurePath :: CfgDet -> ClosurePath
+initClosurePath cfg =
+  CP_Empty cfg
 
 
 symbExecAction :: SymbolicStack -> Action -> Maybe SymbolicStack
@@ -93,17 +101,19 @@ symbExecAction stk act =
         _ -> Just stk
     _ -> Just stk
 
-getLastSymbData :: ClosurePath -> SymbolicData
-getLastSymbData p =
+
+getLastCfgDet :: ClosurePath -> CfgDet
+getLastCfgDet p =
   case p of
-    CP_Empty x -> cfgStack x
-    CP_Cons _ _ x -> cfgStack x
+    CP_Empty x -> x
+    CP_Cons _ _ x -> x
+
+getLastSymbData :: ClosurePath -> SymbolicData
+getLastSymbData p = cfgStack (getLastCfgDet p)
 
 getLastState :: ClosurePath -> State
-getLastState p =
-  case p of
-    CP_Empty x -> cfgState x
-    CP_Cons _ _ x -> cfgState x
+getLastState p = cfgState (getLastCfgDet p)
+
 
 addClosurePath :: ChoicePos -> Action -> State -> ClosurePath -> Maybe ClosurePath
 addClosurePath pos a q p =
@@ -164,6 +174,7 @@ filterNoMove tc =
 data InputHeadCondition =
     HeadInput ClassInterval
   | EndInput
+  deriving (Show)
 
 type TraceSet = [ (ClosurePath, State) ]
 
@@ -192,3 +203,16 @@ insertDetChoice (da, (ih,q)) d =
         Just tr1 -> (classChoice, Just (unionTraceSet tr tr1))
     HeadInput x ->
       (insertItvInOrderedList (x, tr) classChoice unionTraceSet, endChoice)
+
+unionDetChoice :: DetChoice -> DetChoice -> DetChoice
+unionDetChoice (cl1, e1) (cl2, e2) =
+  let e3 =
+        case (e1,e2) of
+          (Nothing, Nothing) -> Nothing
+          (Nothing, Just _tr2) -> e2
+          (Just _tr1, Nothing) -> e1
+          (Just tr1, Just tr2) -> Just (unionTraceSet tr1 tr2)
+  in
+  let cl3 =
+        foldr ((\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionTraceSet) ) cl2 cl1
+  in (cl3, e3)
