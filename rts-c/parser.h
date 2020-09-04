@@ -41,10 +41,19 @@ public:
 
   // Add to wainting threads
   // We become the owner of the closure.
-  ThreadId spawn(Closure1<bool> *clo) {
+  ThreadId spawn(std::unique_ptr<Closure1<bool>> clo) {
     ThreadId id = suspended.size();
     suspended.push_back(Thread(clo));
     return id;
+  }
+
+  // Assumes that there is a suspended thread.
+  void yield() {
+    auto t = suspended.back();
+    auto b = t.getNotified();
+    auto c = t.getClosure();
+    suspended.pop_back();
+    (*c)(b);
   }
 
   // Set the "sibling failied" flag in the given thread.

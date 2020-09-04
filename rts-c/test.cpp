@@ -15,3 +15,7 @@ uint8_t test(Parser<uint8_t> &p) {
   p.setInput(y);
   return p.getInput().iHead();
 }
+
+int main() {
+  return 0;
+}

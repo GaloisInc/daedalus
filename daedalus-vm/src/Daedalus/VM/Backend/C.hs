@@ -1,9 +1,10 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.Backend.C where
 
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
+import qualified Data.Map as Map
 import Data.Char
 import Numeric
 import Text.PrettyPrint as P
@@ -28,13 +29,26 @@ cModule m =
 
 
 cFun :: VMFun -> CDecl
-cFun fun = ty <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
-  $$ body $$ "}"
+cFun fun = retTy <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
+  $$ nest 2 body $$ "}"
 
   where
   nm = vmfName fun
   ty = cSemType (Src.fnameType nm)
-  body = "/* todo */"
+  retTy = ty -- XXXcase Src.fnameType nm of
+  body = vcat' (params : map cBlock (Map.elems (vmfBlocks fun)))
+  params = "/* params */" 
+
+cBlock :: Block -> CStmt
+cBlock b = cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
+  where
+  body = vcat (map cStmt (blockInstrs b)) $$ cTermStmt (blockTerm b)
+
+
+cBlockLabel :: Label -> Doc
+cBlockLabel (Label _ x) = "L" <.> int x
+
+
 
 --------------------------------------------------------------------------------
 
@@ -48,7 +62,49 @@ cStmt instr =
     NoteFail        -> call "p.noteFail" []
     GetInput x      -> cVarDecl x (call "p.getInput" [])
     Spawn l x       -> cVarDecl x (call "p.spawn" [ cClo1 l ])
-    CallPrim p es x -> "/* XXX cStmt: call primt */"
+    CallPrim p es x -> cVarDecl x
+      case p of
+        StructCon ut -> todo
+        NewBuilder t -> todo
+        Op1 op1 -> cOp1 op1 es
+        Op2 op2 -> todo
+        Op3 op3 -> todo
+        OpN opN -> todo
+  where
+  todo = "/* todo */"
+
+cOp1 :: Src.Op1 -> [E] -> CExpr
+cOp1 op1 es =
+  case op1 of
+    Src.CoerceTo t -> todo
+    Src.CoerceMaybeTo t -> todo
+    Src.IsEmptyStream -> todo
+    Src.Head -> todo
+    Src.StreamOffset -> todo
+    Src.StreamLen -> todo
+    Src.OneOf bs -> todo
+    Src.Neg -> todo
+    Src.BitNot -> todo
+    Src.Not -> todo
+    Src.ArrayLen -> todo
+    Src.Concat -> todo
+    Src.FinishBuilder -> todo
+    Src.NewIterator -> todo
+    Src.IteratorDone -> todo
+    Src.IteratorKey -> todo
+    Src.IteratorVal -> todo
+    Src.IteratorNext -> todo
+    Src.EJust -> todo
+    Src.IsJust -> todo
+    Src.FromJust -> todo
+    Src.SelStruct t l -> todo
+    Src.InUnion ut l -> todo
+    Src.HasTag l -> todo
+    Src.FromUnion t l -> todo
+  where
+  todo = "/* todo" <+> pp op1 <+> "*/"
+  args = map cExpr es
+
 
 
 cExpr :: E -> CExpr
@@ -86,6 +142,22 @@ cExpr expr =
 
   where
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
+
+
+cTermStmt :: CInstr -> CStmt
+cTermStmt cinstr =
+  case cinstr of
+    Jump (JumpPoint l es) -> todo
+    JumpIf e (JumpPoint l1 es1) (JumpPoint l2 es2) -> todo
+    Yield -> todo
+    ReturnNo -> todo
+    ReturnYes e -> todo
+    Call f c (JumpPoint l1 es1) (JumpPoint l2 es2) args -> todo
+    TailCall f c es -> todo
+    ReturnPure e -> todo
+
+  where
+  todo = "/* TODO:" <+> pp cinstr <+> "*/"
 
 
 cFNameDecl :: Src.FName -> Doc

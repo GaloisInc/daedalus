@@ -4,7 +4,8 @@
 // Suspended computation with no arguments
 class Closure0 {
 public:
-  virtual void enter() = 0;
+  virtual void operator() () = 0;
+  virtual ~Closure0() {}
 };
 
 
@@ -12,7 +13,8 @@ public:
 template <class T>  // Type of argument
 class Closure1 {
 public:
-  virtual void enter(T x) = 0;
+  virtual void operator() (T x) = 0;
+  virtual ~Closure1() {}
 };
 
 #endif

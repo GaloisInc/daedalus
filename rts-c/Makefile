@@ -1,4 +1,4 @@
 .PHONY: all
 
 all:
-	gcc -O2 -Wall -S -c test.cpp
+	g++ -O2 -Wall test.cpp

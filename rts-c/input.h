@@ -15,6 +15,12 @@ class Input {
   // INV: last_offset <= bytes_len
 
 public:
+  Input ( const char *name, const char *bytes )
+    : name(name), bytes(bytes), offset(0) {
+    bytes_len = strlen(bytes);
+    last_offset = bytes_len;
+  }
+
   Input( const char *name     // 0 terminated
        , const char *bytes
        , size_t len
