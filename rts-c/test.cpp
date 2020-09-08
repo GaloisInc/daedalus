@@ -4,18 +4,11 @@
 
 void f (Unit x) {}
 
-uint8_t test(Parser<uint8_t> &p) {
-  f(Unit());
-
-  // const char *const bytes = "Hello";
-  // Input x("Test", bytes, strlen(bytes));
-  // Parser p(x);
-  Input y(p.getInput());
-  y.iDrop(1);
-  p.setInput(y);
-  return p.getInput().iHead();
+uint8_t test(Parser<uint8_t> p) {
+  return p.getInput().iDrop(2).iHead();
 }
 
 int main() {
-  return 0;
+  std::cout << test(Parser<uint8_t> { Input { "Hello", "World" } });
+  std::cout << std::endl;
 }

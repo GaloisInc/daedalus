@@ -48,12 +48,21 @@ public:
   // Advance current location
   // Mutates
   // Assumes: n <= length()
-  void    iDrop(size_t n) { offset += n; }
+  void    iDropMut(size_t n) { offset += n; }
 
   // Restrict amount of input
   // Mutates
   // Assumes: n <= length()
-  void    iTake(size_t n) { last_offset = offset + n; }
+  void    iTakeMut(size_t n) { last_offset = offset + n; }
+
+
+  // Advance current location
+  // Assumes: n <= length()
+  Input iDrop(size_t n) { Input x(*this); x.iDropMut(n); return x; }
+
+  // Restrict amount of input
+  // Assumes: n <= length()
+  Input iTake(size_t n) { Input x(*this); x.iTakeMut(n); return x; }
 
   // Check if the given array of bytes is prefix of the current input.
   bool hasPrefix(std::vector<uint8_t> pref) {

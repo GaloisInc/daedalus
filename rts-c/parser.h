@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "input.h"
-#include "closure.h"
-#include "ddl_thread.h"
+// #include "closure.h"
+// #include "ddl_thread.h"
 
 typedef size_t ThreadId;
 
@@ -18,7 +18,7 @@ class Parser {
 
   Input                 input;
   std::vector<T>        results;
-  std::vector<Thread>   suspended;
+  // std::vector<Thread>   suspended;
   size_t                fail_offset;
 
 public:
@@ -41,24 +41,24 @@ public:
 
   // Add to wainting threads
   // We become the owner of the closure.
-  ThreadId spawn(std::unique_ptr<Closure1<bool>> clo) {
-    ThreadId id = suspended.size();
-    suspended.push_back(Thread(clo));
-    return id;
-  }
+  // ThreadId spawn(std::unique_ptr<Closure1<bool>> clo) {
+  //   ThreadId id = suspended.size();
+  //   suspended.push_back(Thread(clo));
+  //   return id;
+  // }
 
   // Assumes that there is a suspended thread.
   void yield() {
-    auto t = suspended.back();
-    auto b = t.getNotified();
-    auto c = t.getClosure();
-    suspended.pop_back();
-    (*c)(b);
+    // auto t = suspended.back();
+    // auto b = t.getNotified();
+    // auto c = t.getClosure();
+    // suspended.pop_back();
+    // (*c)(b);
   }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
-  void notify(ThreadId id) { suspended[id].notify(); }
+  // void notify(ThreadId id) { suspended[id].notify(); }
 
   // Set the "furtherest fail" location.
   // XXX: This is not quite right because, in principle, the failurs

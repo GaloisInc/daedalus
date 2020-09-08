@@ -83,14 +83,14 @@ cStmt instr =
     NoteFail        -> call "p.noteFail" []
     GetInput x      -> cVarDecl x (call "p.getInput" [])
     Spawn l x       -> cVarDecl x (call "p.spawn" [ cClo1 l ])
-    CallPrim p es x -> cVarDecl x
+    CallPrim p es x ->
       case p of
-        StructCon ut -> todo
-        NewBuilder t -> todo
-        Op1 op1 -> cOp1 op1 es
-        Op2 op2 -> cOp2 op2 es
-        Op3 op3 -> todo
-        OpN opN -> todo
+        StructCon ut -> cVarDecl x todo
+        NewBuilder t -> cVarDecl x todo
+        Op1 op1 -> cVarDecl x (cOp1 op1 es)
+        Op2 op2 -> cOp2 x op2 es
+        Op3 op3 -> cVarDecl x todo
+        OpN opN -> cVarDecl x todo
   where
   todo = "/* todo (stmt)" <+> pp instr <+> "*/"
 
@@ -127,12 +127,12 @@ cOp1 op1 es =
   args = map cExpr es
 
 
-cOp2 :: CurBlock => Src.Op2 -> [E] -> CExpr
-cOp2 op2 es =
+cOp2 :: CurBlock => BV -> Src.Op2 -> [E] -> CDecl
+cOp2 x op2 ~[e1,e2] =
   case op2 of
-    Src.IsPrefix -> todo
-    Src.Drop -> todo
-    Src.Take -> todo
+    Src.IsPrefix -> cVarDecl x (call (cExpr e2 <.> ".hasPrefix") [ cExpr e1 ])
+    Src.Drop -> cVarDecl x (call ((cExpr e2) <.> ".iDrop") [ cExpr e1 ])
+    Src.Take -> cVarDecl x (call ((cExpr e2) <.> ".iTake") [ cExpr e1 ])
 
     Src.Eq -> todo
     Src.NotEq -> todo
@@ -164,7 +164,6 @@ cOp2 op2 es =
 
   where
   todo = "/* todo (2)" <+> pp op2 <+> "*/"
-  args = map cExpr es
 
 
 
