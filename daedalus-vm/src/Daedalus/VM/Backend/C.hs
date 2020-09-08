@@ -1,4 +1,5 @@
 {-# Language OverloadedStrings, BlockArguments #-}
+{-# Language ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.C where
 
 import Data.ByteString(ByteString)
@@ -19,6 +20,14 @@ import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Types
 
 
+-- XXX: Avoid using the same name for types and values.
+
+{- assumptions on all DDL types:
+  * default constructors: for uninitialized block parameters
+  * assignment: for passing block parameters
+-}
+
+
 cModule :: Module -> Doc
 cModule m =
   vcat' (map cTypeGroup (mTypes m))
@@ -27,22 +36,34 @@ cModule m =
   $$
   vcat' (map cFun (mFuns m))
 
+type CurFun   = (?curFun   :: VMFun)
+type CurBlock = (?curBlock :: Block)
 
 cFun :: VMFun -> CDecl
-cFun fun = retTy <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
+cFun fun =
+    retTy <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
   $$ nest 2 body $$ "}"
 
   where
   nm = vmfName fun
   ty = cSemType (Src.fnameType nm)
-  retTy = ty -- XXXcase Src.fnameType nm of
-  body = vcat' (params : map cBlock (Map.elems (vmfBlocks fun)))
-  params = "/* params */" 
+  retTy = if vmfPure fun then ty else inst "std::optional" [ty]
+  body = let ?curFun = fun
+         in vcat' (params : map cBlock (Map.elems (vmfBlocks fun)))
+  params = vcat (map cDeclareBlockParams (Map.elems (vmfBlocks fun)))
 
-cBlock :: Block -> CStmt
+cDeclareBlockParams :: Block -> CStmt
+cDeclareBlockParams b =
+  let ?curBlock = b
+  in vcat
+      [ cArgDecl ba <.> semi | ba <- blockArgs b ]
+  -- assumes default constructor
+
+cBlock :: CurFun => Block -> CStmt
 cBlock b = cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
-  body = vcat (map cStmt (blockInstrs b)) $$ cTermStmt (blockTerm b)
+  body = let ?curBlock = b
+         in vcat (map cStmt (blockInstrs b)) $$ cTermStmt (blockTerm b)
 
 
 cBlockLabel :: Label -> Doc
@@ -52,7 +73,7 @@ cBlockLabel (Label _ x) = "L" <.> int x
 
 --------------------------------------------------------------------------------
 
-cStmt :: Instr -> CStmt
+cStmt :: CurBlock => Instr -> CStmt
 cStmt instr =
   case instr of
     SetInput e      -> call "p.setInput" [ cExpr e]
@@ -67,13 +88,13 @@ cStmt instr =
         StructCon ut -> todo
         NewBuilder t -> todo
         Op1 op1 -> cOp1 op1 es
-        Op2 op2 -> todo
+        Op2 op2 -> cOp2 op2 es
         Op3 op3 -> todo
         OpN opN -> todo
   where
-  todo = "/* todo */"
+  todo = "/* todo (stmt)" <+> pp instr <+> "*/"
 
-cOp1 :: Src.Op1 -> [E] -> CExpr
+cOp1 :: CurBlock => Src.Op1 -> [E] -> CExpr
 cOp1 op1 es =
   case op1 of
     Src.CoerceTo t -> todo
@@ -102,12 +123,55 @@ cOp1 op1 es =
     Src.HasTag l -> todo
     Src.FromUnion t l -> todo
   where
-  todo = "/* todo" <+> pp op1 <+> "*/"
+  todo = "/* todo (1)" <+> pp op1 <+> "*/"
+  args = map cExpr es
+
+
+cOp2 :: CurBlock => Src.Op2 -> [E] -> CExpr
+cOp2 op2 es =
+  case op2 of
+    Src.IsPrefix -> todo
+    Src.Drop -> todo
+    Src.Take -> todo
+
+    Src.Eq -> todo
+    Src.NotEq -> todo
+    Src.Leq -> todo
+    Src.Lt -> todo
+
+    Src.Add -> todo
+    Src.Sub -> todo
+    Src.Mul -> todo
+    Src.Div -> todo
+    Src.Mod -> todo
+
+    Src.BitAnd -> todo
+    Src.BitOr -> todo
+    Src.BitXor -> todo
+    Src.Cat -> todo
+    Src.LCat -> todo
+    Src.LShift -> todo
+    Src.RShift -> todo
+
+    Src.Or -> todo
+    Src.And -> todo
+    Src.ArrayIndex -> todo
+    Src.ConsBuilder -> todo
+    Src.MapLookup -> todo
+    Src.MapMember -> todo
+
+    Src.ArrayStream -> todo
+
+  where
+  todo = "/* todo (2)" <+> pp op2 <+> "*/"
   args = map cExpr es
 
 
 
-cExpr :: E -> CExpr
+
+
+
+cExpr :: CurBlock => E -> CExpr
 cExpr expr =
   case expr of
     EBlockArg x   -> cArgUse x
@@ -144,20 +208,32 @@ cExpr expr =
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
 
 
-cTermStmt :: CInstr -> CStmt
+cTermStmt :: (CurFun, CurBlock) => CInstr -> CStmt
 cTermStmt cinstr =
   case cinstr of
-    Jump (JumpPoint l es) -> todo
-    JumpIf e (JumpPoint l1 es1) (JumpPoint l2 es2) -> todo
+    Jump jp -> cJump jp
+    JumpIf e th el -> "if" <+> parens (cExpr e) <+> "{"
+                      $$ nest 2 (cJump th)
+                      $$ "} else {"
+                      $$ nest 2 (cJump el)
+                      $$ "}"
     Yield -> todo
-    ReturnNo -> todo
-    ReturnYes e -> todo
+    ReturnNo -> "return" <+> call "optional" [] <.> semi
+    ReturnYes e -> "return" <+> call "optional" [cExpr e] <.> semi
     Call f c (JumpPoint l1 es1) (JumpPoint l2 es2) args -> todo
     TailCall f c es -> todo
-    ReturnPure e -> todo
+    ReturnPure e -> "return" <+> cExpr e <.> semi
 
   where
   todo = "/* TODO:" <+> pp cinstr <+> "*/"
+
+cJump :: (CurFun, CurBlock) => JumpPoint -> CStmt
+cJump (JumpPoint l es) =
+  case Map.lookup l (vmfBlocks ?curFun) of
+    Just b  -> vcat (zipWith assignP (blockArgs b) es)
+                 $$ "goto" <+> cBlockLabel l <.> semi
+      where assignP ba e = cArgUse ba <+> "=" <+> cExpr e <.> semi
+    Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
 
 cFNameDecl :: Src.FName -> Doc
@@ -172,12 +248,14 @@ cVarUse (BV x _) = "x" P.<> int x
 cVarDecl :: BV -> CExpr -> CStmt
 cVarDecl v@(BV x t) e = cType t <+> cVarUse v <+> "=" <+> e P.<> semi
 
-cArgUse :: BA -> CExpr
-cArgUse (BA x _) = "a" P.<> int x
+cArgDecl :: CurBlock => BA -> CExpr
+cArgDecl ba@(BA x vmt) = cType vmt <+> cArgUse ba
+
+cArgUse :: CurBlock => BA -> CExpr
+cArgUse (BA x _) = cBlockLabel (blockName ?curBlock) <.> "a" <.> int x
 
 cBytes :: ByteString -> CExpr
-cBytes bs = parens ("std::vector<uint8_t>" <+>
-                       braces (fsep (punctuate comma cs)))
+cBytes bs = "std::vector<uint8_t>" <+> braces (fsep (punctuate comma cs))
   where
   cs = map sh (BS8.unpack bs)
   sh c = if isAscii c && isPrint c && (c /= '\'')
