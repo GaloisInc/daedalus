@@ -23,7 +23,14 @@ captureAnalysis ms = map annotateModule ms
          [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
-  annotateFun f = f { vmfCaptures = getCaptures info (vmfName f) }
+  annotateFun f = f { vmfCaptures = getCaptures info (vmfName f)
+                    , vmfBlocks = annotateBlock <$> vmfBlocks f }
+  annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }
+  annotateTerm i =
+    case i of
+      Call f _ j1 j2 es -> Call f (getCaptures info f) j1 j2 es
+      TailCall f _ es -> TailCall f (getCaptures info f) es
+      _ -> i
 
 
 getCaptures :: Map FName CaptureInfo -> FName -> Captures
