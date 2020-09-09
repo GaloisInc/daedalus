@@ -18,6 +18,7 @@ data Command =
   | DumpRuleRanges
   | DumpCore
   | DumpVM
+  | DumpGen
   | CompileHS
   | CompileCPP
   | Interp FilePath
@@ -60,6 +61,10 @@ options = OptSpec
       , Option [] ["dump-vm"]
         "Dump VM AST"
        $ simpleCommand DumpVM
+
+      , Option [] ["dump-gen"]
+        "Dump parser-generator automaton-based parser"
+       $ simpleCommand DumpGen
 
       , Option ['n'] ["norm"]
         "Dump normalised type-checke AST"
@@ -123,5 +128,3 @@ getOptionsFromFile file =
      case getOptsFrom options (lines inp) of
        Left err   -> throwIO err
        Right opts -> pure opts
-
-

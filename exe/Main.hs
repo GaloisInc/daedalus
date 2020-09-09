@@ -97,6 +97,16 @@ handleOptions opts
               passCaptureAnalysis
               ddlPrint . pp =<< ddlGetAST specMod astVM
 
+         DumpGen ->
+           do passSpecialize [mainRule]
+              prog <- normalizedDecls
+              ddlIO (
+                do let (_gbl, aut) = PGen.buildArrayAut prog
+                   let dfa = PGen.createDFA aut
+                   putStrLn (PGen.statsDFA dfa)
+                   PGen.autToGraphviz aut
+                )
+
          Interp inp ->
            case optBackend opts of
              UseInterp ->
@@ -143,9 +153,9 @@ interpInterp inp prog (m,i) =
 interpPGen :: FilePath -> [NDecl] -> IO ()
 interpPGen inp norms =
   do let (gbl, aut) = PGen.buildArrayAut norms
-     --let dfa = PGen.createDFA aut
-     --putStrLn (show dfa)
-     --putStrLn (PGen.statsDFA dfa)
+     -- let dfa = PGen.createDFA aut
+     -- putStrLn (show dfa)
+     -- putStrLn (PGen.statsDFA dfa)
      bytes <- BS.readFile inp
      PGen.autToGraphviz aut
      let results = PGen.runnerBias gbl bytes aut
