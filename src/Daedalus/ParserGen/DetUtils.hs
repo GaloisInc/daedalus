@@ -31,7 +31,6 @@ module Daedalus.ParserGen.DetUtils
 
 --import qualified Data.Set as Set
 
-import Daedalus.Type.AST (WithSem(..))
 import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isBranchAction)
 -- import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
 
@@ -130,7 +129,7 @@ addClassIntervalClosurePath :: ClosurePath -> ClassInterval -> State -> ClosureP
 addClassIntervalClosurePath p itv q =
   let newStack = cfgStack (getLastCfgDet p) in -- TODO : there should be some symbolic execution here
   let cfg = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = newStack } in
-  CP_Cons p (IAct NoSem (ClssItv itv)) cfg
+  CP_Cons p (IAct (ClssItv itv)) cfg
 
 
 stateInClosurePath :: State -> ClosurePath -> Bool

@@ -262,33 +262,33 @@ genGExpr gbl (e, st) =
     PAST.NCurrnetStream ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct YesSem (CurrentStream), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (CurrentStream), n2)) ]) n2
     PAST.NSetStream e1 ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct YesSem (SetStream e1), n2)) ]) n2
-    PAST.NStreamLen ws e1 e2 ->
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (SetStream e1), n2)) ]) n2
+    PAST.NStreamLen s e1 e2 ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct ws (StreamLen e1 e2), n2)) ]) n2
-    PAST.NStreamOff ws e1 e2 ->
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamLen s e1 e2), n2)) ]) n2
+    PAST.NStreamOff s e1 e2 ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct ws (StreamOff e1 e2), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamOff s e1 e2), n2)) ]) n2
     PAST.NGetByte s ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct s (IGetByte), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (IGetByte s), n2)) ]) n2
     PAST.NMatch s e1 ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct s (ClssAct e1), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (ClssAct s e1), n2)) ]) n2
     PAST.NMatchBytes s e1 ->
       case getByteArray e1 of
         Nothing ->
           let n1 = st !! 0
               n2 = st !! 1
-          in mkAut n1 (mkTr [(n1, UniChoice (IAct s (IMatchBytes e1), n2))]) n2
+          in mkAut n1 (mkTr [(n1, UniChoice (IAct (IMatchBytes s e1), n2))]) n2
         Just w ->
           mkAut (st !! 0) (mkTr (createTrans 0)) stSemEnd
           where
@@ -302,11 +302,11 @@ genGExpr gbl (e, st) =
                   YesSem -> [(stSemStart, UniChoice (SAct (EvalPure e1), stSemEnd))]
                   NoSem  -> [(stSemStart, UniChoice (SAct (EvalPure PAST.NUnit), stSemEnd))]
               else
-                let iact = ClssAct (PAST.NSetSingle (PAST.NByte (w !! index)))
+                let iact = ClssAct NoSem (PAST.NSetSingle (PAST.NByte (w !! index)))
                     n0 = st !! (2 * index)
                     n1 = st !! (2 * index + 1)
                     n2 = st !! (2 * (index + 1))
-                    tr = [ (n0, UniChoice (IAct NoSem iact, n1))
+                    tr = [ (n0, UniChoice (IAct iact, n1))
                          , (n1, UniChoice (SAct DropOneOut, n2))
                          ]
                 in tr ++ createTrans (index+1)
@@ -375,11 +375,11 @@ genGExpr gbl (e, st) =
     PAST.NEnd ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct NoSem IEnd, n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct IEnd, n2)) ]) n2
     PAST.NOffset ->
       let n1 = st !! 0
           n2 = st !! 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct YesSem IOffset, n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct IOffset, n2)) ]) n2
     PAST.NMapLookup ws e1 e2 ->
       let n1 = st !! 0
           n2 = st !! 1
@@ -548,7 +548,7 @@ buildMapAut decls =
       ]
 
 buildArrayAut :: [NDecl] -> (PAST.GblFuns, ArrayAut)
-buildArrayAut decls = 
+buildArrayAut decls =
   let
     (fns, aut) = buildMapAut decls
   in

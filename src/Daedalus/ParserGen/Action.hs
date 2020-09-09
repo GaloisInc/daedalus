@@ -29,15 +29,15 @@ type State = Int
 
 data InputAction =
     ClssItv ClassInterval -- this case comes from the determinization from LL(*)
-  | ClssAct PAST.NCExpr
+  | ClssAct WithSem PAST.NCExpr
   | IEnd
   | IOffset
-  | IGetByte
-  | IMatchBytes PAST.NVExpr
+  | IGetByte WithSem
+  | IMatchBytes WithSem PAST.NVExpr
   | CurrentStream
   | SetStream PAST.NVExpr
-  | StreamLen PAST.NVExpr PAST.NVExpr
-  | StreamOff PAST.NVExpr PAST.NVExpr
+  | StreamLen WithSem PAST.NVExpr PAST.NVExpr
+  | StreamOff WithSem PAST.NVExpr PAST.NVExpr
 
 data ControlAction =
     BoundSetup (ManyBounds PAST.NVExpr)
@@ -82,23 +82,26 @@ data BranchAction =
 
 data Action =
     EpsA
-  | IAct WithSem InputAction
+  | IAct InputAction
   | CAct ControlAction
   | SAct SemanticAction
   | BAct BranchAction
 
+semToString :: WithSem -> String
+semToString YesSem = "@"
+semToString NoSem = ""
 
 instance Show(InputAction) where
-  show (ClssItv _)  = "ClssItv"
-  show (ClssAct _)  = "Match"
-  show (IEnd)       = "END"
-  show (IOffset)    = "IOffset"
-  show (IGetByte)   = "GetByte"
-  show (IMatchBytes _) = "MatchBytes"
+  show (ClssItv _)    = "ClssItv"
+  show (ClssAct s _)  = semToString s ++ "Match"
+  show (IEnd)         = "END"
+  show (IOffset)      = "IOffset"
+  show (IGetByte s)   = semToString s ++ "GetByte"
+  show (IMatchBytes s _) = semToString s ++ "MatchBytes"
   show (CurrentStream) = "StreamCurr"
   show (SetStream _)   = "StreamSet"
-  show (StreamLen _ _) = "StreamLen"
-  show (StreamOff _ _) = "StreamOff"
+  show (StreamLen s _ _) = semToString s ++ "StreamLen"
+  show (StreamOff s _ _) = semToString s ++ "StreamOff"
 
 instance Show(ControlAction) where
   show (BoundSetup _)      = "BoundSetup"
@@ -142,7 +145,7 @@ instance Show(BranchAction) where
 
 instance Show(Action) where
   show EpsA             = "eps"
-  show (IAct s a)       = show a ++ (if s == YesSem then "_YS" else "_NS")
+  show (IAct a)         = show a
   show (CAct a)         = show a
   show (SAct a)         = show a
   show (BAct a)         = show a
@@ -150,9 +153,9 @@ instance Show(Action) where
 isClassActOrEnd :: Action -> Bool
 isClassActOrEnd act =
   case act of
-    IAct _ iact ->
+    IAct iact ->
       case iact of
-        ClssAct _ -> True
+        ClssAct _ _ -> True
         IEnd -> True
         _ -> False
     _ -> False
@@ -160,15 +163,15 @@ isClassActOrEnd act =
 isInputAction :: Action -> Bool
 isInputAction act =
   case act of
-    IAct _ _ -> True
+    IAct _ -> True
     _ -> False
 
 isNonClassInputAct :: Action -> Bool
 isNonClassInputAct act =
   case act of
-    IAct _ iact ->
+    IAct iact ->
       case iact of
-        ClssAct _ -> False
+        ClssAct _ _ -> False
         _ -> True
     _ -> False
 
@@ -181,9 +184,9 @@ isBranchAction act =
 getClassActOrEnd :: Action -> Either PAST.NCExpr InputAction
 getClassActOrEnd act =
   case act of
-    IAct _ iact ->
+    IAct iact ->
       case iact of
-        ClssAct ca -> Left ca
+        ClssAct _ ca -> Left ca
         IEnd -> Right iact
         _ -> error "function should be applied on act"
     _ -> error "function should be applied on act"
@@ -191,9 +194,9 @@ getClassActOrEnd act =
 getMatchBytes :: Action -> Maybe  PAST.NVExpr
 getMatchBytes act =
   case act of
-    IAct _ iact ->
+    IAct iact ->
       case iact of
-        IMatchBytes e -> Just e
+        IMatchBytes _ e -> Just e
         _ -> Nothing
     _ -> Nothing
 
@@ -695,8 +698,8 @@ limitLen = Input.limitLen
 advanceBy :: Integer -> Input -> Maybe Input
 advanceBy = Input.advanceBy
 
-applyInputAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> WithSem -> InputAction -> Maybe (InputData, SemanticData)
-applyInputAction gbl (inp, ctrl, out) s act =
+applyInputAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
+applyInputAction gbl (inp, ctrl, out) act =
   case act of
     ClssItv (ClassBtw i j) ->
       case getByte inp of
@@ -705,11 +708,11 @@ applyInputAction gbl (inp, ctrl, out) s act =
           case (i,j) of
             (CValue a, CValue b) ->
               if (a <= x) && (x <= b)
-              then resultWithSem s xs (SEVal (Interp.VUInt 8 (fromIntegral x)))
+              then Just (xs, SEVal (Interp.VUInt 8 (fromIntegral x)) : out)
               else Nothing
             (_, _) -> error "Class Interval not handled"
 
-    ClssAct e ->
+    ClssAct s e ->
       case getByte inp of
         Nothing -> Nothing
         Just (x, xs) ->
@@ -719,14 +722,14 @@ applyInputAction gbl (inp, ctrl, out) s act =
                Just o -> resultWithSem s xs o
     IEnd ->
       case getByte inp of
-        Nothing -> resultWithSem s inp SEnd
+        Nothing -> Just (inp, SEVal defaultValue : out)
         _ -> Nothing
     IOffset -> Just (inp, SEVal (Interp.VInteger (fromIntegral (inputOffset inp)))  : out)
-    IGetByte ->
+    IGetByte s ->
       case getByte inp of
         Nothing -> Nothing
         Just (x, xs) -> resultWithSem s xs (SEVal (Interp.VUInt 8 (fromIntegral x)))
-    IMatchBytes e1     ->
+    IMatchBytes s e1     ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
            Interp.VArray vec ->
@@ -748,7 +751,7 @@ applyInputAction gbl (inp, ctrl, out) s act =
       in case ev1 of
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
-    StreamLen e1 e2 ->
+    StreamLen s e1 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev1 of
@@ -757,10 +760,10 @@ applyInputAction gbl (inp, ctrl, out) s act =
                Interp.VStream i1 ->
                  case limitLen n i1 of
                    Nothing -> error "stream value too short for len"
-                   Just i2 -> Just (inp, SEVal (Interp.VStream i2) : out)
+                   Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
                _ -> error "Not an input stream"
            _ -> error "Not an integer for Taking"
-    StreamOff e1 e2 ->
+    StreamOff s e1 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev1 of
@@ -769,7 +772,7 @@ applyInputAction gbl (inp, ctrl, out) s act =
             Interp.VStream i1 ->
               case advanceBy n i1 of
                 Nothing -> error "stream too short for advance"
-                Just i2 -> Just (inp, SEVal (Interp.VStream i2) : out)
+                Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
             _ -> error "Not an input stream"
         _ -> error "Not an integer for Taking"
   where
@@ -1037,38 +1040,41 @@ applySemanticAction gbl (ctrl, out) act =
       case out of
         [] -> error "Should not Happen: drop on empty sem stack"
         _ : os -> Just os
-    MapLookup _ e1 e2 ->
+    MapLookup s e1 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VMap m -> case Map.lookup ev1 m of
                              Nothing -> Nothing
-                             Just v -> Just (SEVal v : out)
+                             Just v -> resultWithSem s v
            _ -> error "Lookup is not applied to value of type map"
-    MapInsert _ e1 e2 e3 ->
+    MapInsert s e1 e2 e3 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
           ev3 = evalVExpr gbl e3 ctrl out
       in case ev3 of
-           Interp.VMap m -> Just (SEVal (Interp.VMap (Map.insert ev1 ev2 m)) : out)
+           Interp.VMap m ->
+             if Map.member ev1 m
+             then Nothing
+             else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
     CoerceCheck _ _t1 _t2 _e1 ->
       -- TODO: incomplete
       Just out
-    SelUnion _ e1 lbl ->
+    SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
            Interp.VUnionElem lbl1 e2 ->
              if lbl1 == lbl
-             then Just (SEVal e2 : out)
+             then resultWithSem s e2
              else Nothing
            _ -> error "Selection not a union"
 
-    SelJust _ e1 ->
+    SelJust s e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
            Interp.VMaybe Nothing -> Nothing
-           Interp.VMaybe (Just v1) -> Just ((SEVal v1) : out)
+           Interp.VMaybe (Just v1) -> resultWithSem s v1
            _ -> error "Semantic output not a map"
 
     Guard e1 ->
@@ -1077,13 +1083,17 @@ applySemanticAction gbl (ctrl, out) act =
            Interp.VBool b -> if b then Just (SEVal (defaultValue) : out) else Nothing
            _ -> error "Guard must evaluate to a boolean"
 
+  where
+    resultWithSem YesSem o = Just (SEVal o : out)
+    resultWithSem NoSem  _ = Just (SEVal (defaultValue) : out)
+
 
 applyAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> Action ->
   Maybe (InputData, ControlData, SemanticData)
 applyAction gbl (inp, ctrl, out) act =
   case act of
     EpsA       -> Just (inp, ctrl, out)
-    IAct s a   -> case applyInputAction gbl (inp, ctrl, out) s a of
+    IAct a   -> case applyInputAction gbl (inp, ctrl, out) a of
                     Nothing -> Nothing
                     Just (inp1, out1) -> Just (inp1, ctrl, out1)
     CAct a     -> case applyControlAction gbl (ctrl, out) a of
