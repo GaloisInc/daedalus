@@ -1,6 +1,7 @@
 #include <string.h>
 #include "parser.h"
 #include "unit.h"
+#include "number.h"
 
 void f (Unit x) {}
 
@@ -9,6 +10,6 @@ uint8_t test(Parser<uint8_t> p) {
 }
 
 int main() {
-  std::cout << test(Parser<uint8_t> { Input { "Hello", "World" } });
-  std::cout << std::endl;
+  SInt<7> x(127);
+  std::cout << sizeof(size_t) << std::endl;
 }

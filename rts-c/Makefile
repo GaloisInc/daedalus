@@ -1,4 +1,4 @@
 .PHONY: all
 
 all:
-	g++ -O2 -Wall test.cpp
+	g++ -std=c++17 -O2 -Wall test.cpp

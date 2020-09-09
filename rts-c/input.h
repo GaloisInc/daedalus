@@ -75,4 +75,6 @@ public:
   }
 };
 
+// XXX: hash instance
+
 #endif
