@@ -413,6 +413,20 @@ applyBinop op e1 e2 =
                              Interp.VBool b -> if not b then False
                                                else iterateTest t1 t2
                              _ -> error "Eq test cannot return something else than a boolean"
+        (Interp.VStruct a1, Interp.VStruct a2) ->
+          Interp.VBool $ iterateTest a1 a2
+          where iterateTest arr1 arr2 =
+                  case (arr1, arr2) of
+                    ([], []) -> True
+                    ( _ : _, []) -> False
+                    ([], _ : _) -> False
+                    ((lbl1, v1): r1, (lbl2, v2) : r2) ->
+                      if lbl1 == lbl2
+                      then case applyBinop Eq v1 v2 of
+                             Interp.VBool b -> if not b then False
+                                               else iterateTest r1 r2
+                             _ -> error "Eq test cannot return something else than a boolean"
+                      else False
         _ -> error $ "Impossible values: " ++ show (e1, e2)
     NotEq ->
       case applyBinop Eq e1 e2 of
