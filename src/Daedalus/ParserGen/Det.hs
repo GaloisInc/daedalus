@@ -1,9 +1,8 @@
 module Daedalus.ParserGen.Det where
 
-import Debug.Trace
+-- import Debug.Trace
 
 import qualified Data.Set as Set
--- import Data.Maybe (isNothing, fromJust)
 import qualified Data.Map.Strict as Map
 
 import qualified Daedalus.Interp as Interp
@@ -210,19 +209,31 @@ instance Show(DFATransition) where
  show t =
    showD (0::Int) t
    where
-     showD d (LResolve r) = space d 0 ++ "Resolve (" ++ show r ++ ")\n"
-     showD d (LChoice lst) = space d 0 ++ "LChoice\n" ++ (concat (map (showT (d+2)) lst))
+     showD _d (LResolve r) = "Resolution (" ++ show r ++ ")"
+     showD d (LChoice lst) =
+       "DTrans [\n" ++
+       (concat (map (showT (d+2)) lst)) ++
+       space d ++ "]"
 
-     showT d (i, tr, r) = space d 0 ++ show i ++ "\n" ++ space d 0 ++ showTr tr ++ "\n" ++ under
+     showT d (i, tr, r) =
+       space d ++ "( " ++ show i ++ "\n" ++
+       space d ++ ", " ++ showTr tr ++ "\n" ++
+       space d ++ ", " ++ showDown ++ "\n" ++
+       space d ++ "),\n"
        where
-         under =
+         showDown =
            case r of
-             Result a -> showD d a
-             _ -> space d 0 ++ abortToString r ++ "\n"
+             Result a -> showD (d+2) a
+             _ -> space d ++ abortToString r ++ "\n"
 
-     showTr tr = "[" ++ foldr (\ (_,q) b -> show q ++ "," ++ b) "" tr  ++ "]"
+     showTr tr = "[" ++ foldr (\ (acts,_q) b ->
+                                 "(" ++ show (lengthClosurePath acts) ++
+                                 -- ",q" ++ show q ++
+                                 ")," ++ b) "" tr  ++ "]"
 
-     space d cnt = if cnt < d then " " ++ space d (cnt+1) else ""
+     space d = spaceHelper 0
+       where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
+
 
 depthDFATransition :: DFATransition -> Int
 depthDFATransition t =
@@ -301,11 +312,28 @@ deterministicK aut depth p =
             _ -> error "cannot be this abort"
 
 
+hasFullResolution :: Result DFATransition -> Bool
+hasFullResolution r =
+  case r of
+    Result r1 ->
+      case r1 of
+         LResolve r2 ->
+           case r2 of
+             Result () -> True
+             _ -> False
+         LChoice lst -> helper lst
+    _ -> False
+  where
+    helper lst =
+      case lst of
+        [] -> True
+        (_,_,pr) : rest ->
+          if hasFullResolution pr then helper rest else False
+
 createDFA :: Aut a => a -> Map.Map State (Result DFATransition)
 createDFA aut =
   let transitions = allTransitions aut
       collectedStates = collectStatesArrivedByMove transitions
-      -- statesDet = map (\ q -> (q, deterministicStep aut (initCfgDet q))) (Set.toList collectedStates)
       statesDet = map (\ q -> (q, deterministicK aut 0 (initClosurePath (initCfgDet q)))) (Set.toList collectedStates)
   in
     Map.fromAscList statesDet
@@ -322,15 +350,23 @@ createDFA aut =
     collectMove (act, q) =
       if isInputAction act then Set.singleton q else Set.empty
 
+printDFA :: Map.Map State (Result DFATransition) -> IO ()
+printDFA dfa =
+  let t = Map.toList dfa
+  in mapM_ (\ (_k, tr) ->
+              do putStrLn $ show tr
+           ) t
 
-statsDFA :: Map.Map State (Result DFATransition) -> String
+statsDFA :: Map.Map State (Result DFATransition) -> IO ()
 statsDFA dfa =
   let t = Map.toList dfa
-  in do getReport t initReport (0 :: Int)
+  in do printDFA dfa
+        putStrLn "\nReport:"
+        putStrLn $ getReport t initReport (0 :: Int)
   where
     getReport lst report total =
       case lst of
-        [] -> (foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)) ++ "\nTotal: " ++ show total
+        [] -> (foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)) ++ "\nTotal nb states: " ++ show total
         (_, x) : xs ->
           getReport xs (incrReport report x) (total+1)
 
@@ -345,7 +381,7 @@ statsDFA dfa =
     abortAmbiguous = "AbortAmbiguous"
     abortTodo = "AbortTodo"
     abortOverflowK = "AbortOverflowK"
-    detResult str = "Result" ++ str
+    result str = "Result" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
@@ -366,23 +402,12 @@ statsDFA dfa =
 
         AbortOverflowK -> abortOverflowK
 
-        -- Result (clssLstTr, endTr) ->
-        --   if ((maybe False (\ tr -> length tr > 1) endTr) ||
-        --       foldr (\ (_,tr) b -> if length tr > 1 then True else b) False clssLstTr)
-        --   then
-        --     trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
-        --     detResult "-Ambiguous"
-        --   else
-        --     if foldr (\ (_,tr) b ->  if (foldr (\ (da,_) b1 -> if hasBranchAction da then True else b1) False tr) then True else b) False clssLstTr
-        --     then
-        --       trace (show ((map (\ (clssAct, ft) -> (clssAct, map (\ (da,_) -> lengthClosurePath da) ft)) clssLstTr), maybe 0 (\ x -> length x) endTr)) $
-        --       detResult "-Branch"
-        --     else detResult ""
         Result t ->
-          if depthDFATransition t > 2
-          then trace (show t) $
-               detResult ""
-          else detResult ""
+          let res = if hasFullResolution r then result "" else result "-ambiguous" in
+          if depthDFATransition t >= 2
+          then -- (show t) ++
+               res
+          else res
 
     incrReport :: Map.Map String Int -> Result (DFATransition) -> Map.Map String Int
     incrReport report r =
