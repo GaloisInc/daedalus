@@ -1,0 +1,37 @@
+module D002
+ 
+--- Imports:
+ 
+--- Type defs:
+type D002.Main0 = Choose { x: [uint 8]
+                         ; y: [uint 8]
+                         }
+ 
+type D002.Main1 = Choose { x: [uint 8]
+                         ; y: [uint 8]
+                         }
+ 
+--- Rules:
+ 
+D002.Main : Grammar {} =
+  do Choose fair
+       { {- x -} @MatchBytes "ab"
+       | {- y -} @MatchBytes "ac"
+       }
+     Choose fair
+       { {- x -} @MatchBytes "ab"
+       | {- y -} @MatchBytes "ab"
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D002._Main : Grammar {} =
+  do Choose fair
+       { {- x -} @MatchBytes "ab"
+       | {- y -} @MatchBytes "ac"
+       }
+     Choose fair
+       { {- x -} @MatchBytes "ab"
+       | {- y -} @MatchBytes "ab"
+       }
+     END

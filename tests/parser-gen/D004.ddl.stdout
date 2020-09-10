@@ -1,0 +1,33 @@
+module D004
+ 
+--- Imports:
+ 
+--- Type defs:
+type D004.Main = Choose { x: uint 8
+                        ; y: uint 8
+                        }
+ 
+--- Rules:
+ 
+D004.Main : Grammar D004.Main =
+  do ($$ : D004.Main) <- Choose fair
+                           { {- x -} do (_0 : uint 8) <- do @Match ('0' .. '7')
+                                                            ($$ : uint 8) <- Match ('a' .. 'y')
+                                                            pure $$
+                                        pure {x: _0}
+                           | {- y -} do (_1 : uint 8) <- do @Match ('3' .. '9')
+                                                            ($$ : uint 8) <- Match ('x' .. 'z')
+                                                            pure $$
+                                        pure {y: _1}
+                           }
+     END
+     pure $$
+ 
+D004._Main : Grammar {} =
+  do Choose fair
+       { {- x -} do @Match ('0' .. '7')
+                    @Match ('a' .. 'y')
+       | {- y -} do @Match ('3' .. '9')
+                    @Match ('x' .. 'z')
+       }
+     END

@@ -1,0 +1,29 @@
+Result DTrans [
+  ( HeadInput ['a']
+  , [(10),]
+  , Resolution (Result ())
+  ),
+  ( HeadInput ['b']
+  , [(10),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(15),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(15),]
+  , Resolution (Result ())
+  ),
+]
+AbortAcceptingPath
+
+Report:
+("AbortAcceptingPath",1)
+("Result",3)
+
+Total nb states: 4
