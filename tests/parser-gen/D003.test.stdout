@@ -1,0 +1,54 @@
+Result DTrans [
+  ( HeadInput ['0','2']
+  , [(10),]
+  , Resolution (Result ())
+  ),
+  ( HeadInput ['3','7']
+  , [(10),(10),]
+  , DTrans [
+      ( HeadInput ['a']
+      , [(13),]
+      , Resolution (Result ())
+      ),
+      ( HeadInput ['b']
+      , [(13),]
+      , Resolution (Result ())
+      ),
+    ]
+  ),
+  ( HeadInput ['8','9']
+  , [(10),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( HeadInput ['b']
+  , [(2),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(20),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( HeadInput ['a']
+  , [(2),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(20),]
+  , Resolution (Result ())
+  ),
+]
+AbortAcceptingPath
+
+Report:
+("AbortAcceptingPath",1)
+("Result",5)
+
+Total nb states: 6

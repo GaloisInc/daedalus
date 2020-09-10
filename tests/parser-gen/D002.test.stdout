@@ -1,0 +1,91 @@
+Result DTrans [
+  ( HeadInput ['a']
+  , [(10),(10),]
+  , DTrans [
+      ( HeadInput ['b']
+      , [(12),]
+      , Resolution (Result ())
+      ),
+      ( HeadInput ['c']
+      , [(12),]
+      , Resolution (Result ())
+      ),
+    ]
+  ),
+]
+Result DTrans [
+  ( HeadInput ['c']
+  , [(1),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( HeadInput ['a']
+  , [(18),(18),]
+  , DTrans [
+      ( HeadInput ['b']
+      , [(20),(20),]
+      , DTrans [
+          ( EndInput
+          , [(34),(34),]
+          , Resolution (AbortAmbiguous)
+          ),
+        ]
+      ),
+    ]
+  ),
+]
+Result DTrans [
+  ( HeadInput ['b']
+  , [(1),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( HeadInput ['a']
+  , [(18),(18),]
+  , DTrans [
+      ( HeadInput ['b']
+      , [(20),(20),]
+      , DTrans [
+          ( EndInput
+          , [(34),(34),]
+          , Resolution (AbortAmbiguous)
+          ),
+        ]
+      ),
+    ]
+  ),
+]
+Result DTrans [
+  ( HeadInput ['b']
+  , [(1),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(13),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( HeadInput ['b']
+  , [(1),]
+  , Resolution (Result ())
+  ),
+]
+Result DTrans [
+  ( EndInput
+  , [(13),]
+  , Resolution (Result ())
+  ),
+]
+AbortAcceptingPath
+
+Report:
+("AbortAcceptingPath",1)
+("Result",7)
+("Result-ambiguous",2)
+
+Total nb states: 10
