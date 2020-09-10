@@ -56,18 +56,18 @@ nextChoicePos :: ChoicePos -> ChoicePos
 nextChoicePos pos = (fst pos, snd pos +1)
 
 
+type SymbolicData = SymbolicStack
+
 data CfgDet = CfgDet
   { cfgState  :: State
   , cfgRuleNb :: Maybe ChoicePos
   , cfgStack  :: SymbolicStack
   }
-  -- deriving (Eq, Ord)
 
 initCfgDet :: State -> CfgDet
 initCfgDet q =
   CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard }
 
-type SymbolicData = SymbolicStack
 
 data ClosurePath =
     CP_Empty CfgDet
@@ -82,6 +82,7 @@ instance Show(ClosurePath) where
         case pth of
           CP_Empty _ -> acc
           CP_Cons up act _ -> collectActions up (act:acc)
+
 
 initClosurePath :: CfgDet -> ClosurePath
 initClosurePath cfg =
