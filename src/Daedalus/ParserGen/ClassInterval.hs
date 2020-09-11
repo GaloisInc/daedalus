@@ -13,7 +13,7 @@ data IntervalEndpoint =
   | CValue Word8
   deriving(Eq)
 
-instance Ord(IntervalEndpoint) where
+instance Ord IntervalEndpoint where
   (<=) MinusInfinity _ = True
   (<=) (CValue _) MinusInfinity = False
   (<=) (CValue x) (CValue y) = x <= y
@@ -21,9 +21,9 @@ instance Ord(IntervalEndpoint) where
   (<=) PlusInfinity PlusInfinity = True
   (<=) PlusInfinity _ = False
 
-instance Show(IntervalEndpoint) where
-  show (PlusInfinity) = "+inf"
-  show (MinusInfinity) = "-inf"
+instance Show IntervalEndpoint where
+  show PlusInfinity = "+inf"
+  show MinusInfinity = "-inf"
   show (CValue i) = show (toEnum (fromIntegral i) :: Char)
 
 incrItv :: IntervalEndpoint -> IntervalEndpoint
@@ -44,7 +44,7 @@ decrItv i =
 data ClassInterval =
     ClassBtw IntervalEndpoint IntervalEndpoint
 
-instance Show(ClassInterval) where
+instance Show ClassInterval where
   show (ClassBtw i j) = if i == j then "[" ++ show i ++ "]" else "[" ++ show i ++ "," ++ show j ++ "]"
 
 
