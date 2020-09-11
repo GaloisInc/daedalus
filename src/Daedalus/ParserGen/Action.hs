@@ -39,6 +39,7 @@ data InputAction =
   | StreamLen WithSem PAST.NVExpr PAST.NVExpr
   | StreamOff WithSem PAST.NVExpr PAST.NVExpr
 
+
 data ControlAction =
     BoundSetup (ManyBounds PAST.NVExpr)
   | BoundCheckSuccess
@@ -56,6 +57,7 @@ data ControlAction =
   | MapHasMore
   | MapNext
   | MapEnd
+
 
 data SemanticAction =
     EnvFresh
@@ -86,6 +88,7 @@ data Action =
   | CAct ControlAction
   | SAct SemanticAction
   | BAct BranchAction
+
 
 semToString :: WithSem -> String
 semToString YesSem = "@"

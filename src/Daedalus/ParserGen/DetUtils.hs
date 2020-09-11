@@ -8,7 +8,7 @@ module Daedalus.ParserGen.DetUtils
     ClosurePath,
     initClosurePath,
     addClosurePath,
-    addClassIntervalClosurePath,
+    addInputHeadConditionClosurePath,
     stateInClosurePath,
     lengthClosurePath,
     getLastState,
@@ -64,6 +64,7 @@ data CfgDet = CfgDet
   , cfgStack  :: SymbolicStack
   }
 
+
 initCfgDet :: State -> CfgDet
 initCfgDet q =
   CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard }
@@ -74,7 +75,7 @@ data ClosurePath =
   | CP_Cons ClosurePath Action CfgDet
 
 
-instance Show(ClosurePath) where
+instance Show ClosurePath where
   show p =
     show (collectActions p [])
     where
@@ -126,17 +127,20 @@ addClosurePath pos a q p =
       let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Just pos, cfgStack = sd }
       in Just $ CP_Cons p a cfgDet
 
-addClassIntervalClosurePath :: ClosurePath -> ClassInterval -> State -> ClosurePath
-addClassIntervalClosurePath p itv q =
+addInputHeadConditionClosurePath :: ClosurePath -> InputHeadCondition -> State -> ClosurePath
+addInputHeadConditionClosurePath p i q =
   let newStack = cfgStack (getLastCfgDet p) in -- TODO : there should be some symbolic execution here
   let cfg = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = newStack } in
-  CP_Cons p (IAct (ClssItv itv)) cfg
+    case i of
+      HeadInput itv -> CP_Cons p (IAct (ClssItv itv)) cfg
+      EndInput      -> CP_Cons p (IAct IEnd) cfg
+
 
 
 stateInClosurePath :: State -> ClosurePath -> Bool
 stateInClosurePath q p =
   case p of
-    CP_Empty cfg -> if q == cfgState cfg then True else False
+    CP_Empty cfg -> q == cfgState cfg
     CP_Cons up _ cfg -> if q == cfgState cfg then True else stateInClosurePath q up
 
 lengthClosurePath :: ClosurePath -> Int
@@ -214,8 +218,6 @@ insertDetChoice (da, (ih,q)) d =
       (insertItvInOrderedList (x, tr) classChoice unionTraceSet, endChoice)
 
 
-
-
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
 unionDetChoice (cl1, e1) (cl2, e2) =
   let e3 =
@@ -226,5 +228,5 @@ unionDetChoice (cl1, e1) (cl2, e2) =
           (Just tr1, Just tr2) -> Just (unionTraceSet tr1 tr2)
   in
   let cl3 =
-        foldr ((\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionTraceSet) ) cl2 cl1
+        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionTraceSet) cl2 cl1
   in (cl3, e3)

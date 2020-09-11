@@ -98,7 +98,7 @@ handleOptions opts
               ddlPrint . pp =<< ddlGetAST specMod astVM
 
          DumpGen ->
-           do passSpecialize [mainRule]
+           do passSpecialize specMod [mainRule]
               prog <- normalizedDecls
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut prog
