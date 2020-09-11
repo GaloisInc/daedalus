@@ -208,12 +208,12 @@ instance Show DFATransition where
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
 
-depthDFATransition :: DFATransition -> Int
-depthDFATransition t =
+lookaheadDepth :: DFATransition -> Int
+lookaheadDepth t =
   case t of
-    LResolve _ -> 1
+    LResolve _ -> 0
     LChoice lst -> 1 + foldr (\ (_,_,r) b -> case r of
-                                               Result r1 -> max (depthDFATransition r1) b
+                                               Result r1 -> max (lookaheadDepth r1) b
                                                _ -> b) 0 lst
 
 
@@ -365,16 +365,6 @@ statsDFA dfa =
         (_, x) : xs ->
           getReport xs (incrReport report x) (total+1)
 
-    abortNotStatic = "AbortNotStatic"
-    abortAcceptingPath = "AbortAcceptingPath"
-    abortNonClassInputAction = "AbortNonClassInputAction"
-    abortOverflowMaxDepth = "AbortOverflowMaxDepth"
-    abortLoopWithNonClass = "AbortLoopWithNonClass"
-    abortNonEmptyIntersection = "AbortNonEmptyIntersection"
-    abortClassIsDynamic = "AbortClassIsDynamic"
-    abortClassNotHandledYet = "AbortClassNotHandledYet"
-    abortAmbiguous = "AbortAmbiguous"
-    abortOverflowK = "AbortOverflowK"
     result str = "Result" ++ str
 
     initReport :: Map.Map String Int
@@ -383,23 +373,17 @@ statsDFA dfa =
     mapResultToKey :: Result DFATransition -> String
     mapResultToKey r =
       case r of
-        AbortNotStatic -> abortNotStatic
-        AbortAcceptingPath -> abortAcceptingPath
-        AbortNonClassInputAction _ -> abortNonClassInputAction
-        AbortOverflowMaxDepth -> abortOverflowMaxDepth
-        AbortLoopWithNonClass -> abortLoopWithNonClass
-        AbortNonEmptyIntersection -> abortNonEmptyIntersection
-        AbortClassIsDynamic -> abortClassIsDynamic
-        AbortClassNotHandledYet _msg -> abortClassNotHandledYet
-
-        AbortOverflowK -> abortOverflowK
-
-        Result _t ->
-          let res = if hasFullResolution r then result "" else result "-ambiguous" in
-          -- if depthDFATransition t >= 2
-          -- then -- (show t) ++
+        AbortAmbiguous -> result "-ambiguous-0"
+        AbortOverflowK -> abortToString r
+        Result t ->
+          let k = lookaheadDepth t in
+          let res = if hasFullResolution r then result ("-" ++ show k) else result ("-ambiguous-" ++ show k) in
+          if k == 3
+          then trace (show t) $
                res
-          -- else res
+          else res
+        _ -> abortToString r
+
 
     incrReport :: Map.Map String Int -> Result DFATransition -> Map.Map String Int
     incrReport report r =
