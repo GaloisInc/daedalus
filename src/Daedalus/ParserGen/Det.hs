@@ -25,9 +25,8 @@ data Result a =
   | AbortNonEmptyIntersection
   | AbortClassIsDynamic
   | AbortClassNotHandledYet String
-  | AbortAmbiguous
-  | AbortTodo
 
+  | AbortAmbiguous
   | AbortOverflowK
 
   | Result a
@@ -46,7 +45,6 @@ abortToString r =
     AbortClassIsDynamic -> "AbortClassIsDynamic"
     AbortClassNotHandledYet _ -> "AbortClassNotHandledYet"
     AbortAmbiguous -> "AbortAmbiguous"
-    AbortTodo -> "AbortTodo"
     AbortOverflowK -> "AbortOverflowK"
     _ -> error "No Abort result"
 
@@ -376,7 +374,6 @@ statsDFA dfa =
     abortClassIsDynamic = "AbortClassIsDynamic"
     abortClassNotHandledYet = "AbortClassNotHandledYet"
     abortAmbiguous = "AbortAmbiguous"
-    abortTodo = "AbortTodo"
     abortOverflowK = "AbortOverflowK"
     result str = "Result" ++ str
 
@@ -394,8 +391,6 @@ statsDFA dfa =
         AbortNonEmptyIntersection -> abortNonEmptyIntersection
         AbortClassIsDynamic -> abortClassIsDynamic
         AbortClassNotHandledYet _msg -> abortClassNotHandledYet
-        AbortAmbiguous -> abortAmbiguous
-        AbortTodo -> abortTodo
 
         AbortOverflowK -> abortOverflowK
 
