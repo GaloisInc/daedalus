@@ -49,6 +49,8 @@ AbortAcceptingPath
 
 Report:
 ("AbortAcceptingPath",1)
-("Result",5)
+("Result-1",4)
+("Result-2",1)
+
 
 Total nb states: 6
