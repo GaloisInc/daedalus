@@ -1,9 +1,16 @@
-module Daedalus.ParserGen.Det where
+module Daedalus.ParserGen.Det
+  ( createDFA
+  , statsDFA
+  , AutDet
+  , lookupAutDet
+  )
+where
 
--- import Debug.Trace
+import Debug.Trace
 
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IntMap
 
 import qualified Daedalus.Interp as Interp
 
@@ -208,13 +215,15 @@ instance Show DFATransition where
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
 
-lookaheadDepth :: DFATransition -> Int
-lookaheadDepth t =
-  case t of
-    LResolve _ -> 0
-    LChoice lst -> 1 + foldr (\ (_,_,r) b -> case r of
-                                               Result r1 -> max (lookaheadDepth r1) b
-                                               _ -> b) 0 lst
+lookaheadDepth :: Result DFATransition -> Int
+lookaheadDepth rt =
+  case rt of
+    Result t ->
+      case t of
+        LResolve _ -> 0
+        LChoice lst -> 1 + foldr (\ (_,_,r) b -> max (lookaheadDepth r) b) 0 lst
+    _ -> 0
+
 
 
 
@@ -323,13 +332,23 @@ hasFullResolution r =
         (_,_,pr) : rest ->
           if hasFullResolution pr then helper rest else False
 
-createDFA :: Aut a => a -> Map.Map State (Result DFATransition)
+type AutDet = IntMap.IntMap (Result DFATransition, Bool)
+
+lookupAutDet :: State -> AutDet -> Maybe (Result DFATransition, Bool)
+lookupAutDet q aut = IntMap.lookup q aut
+
+createDFA :: Aut a => a -> AutDet
 createDFA aut =
   let transitions = allTransitions aut
       collectedStates = collectStatesArrivedByMove transitions
-      statesDet = map (\ q -> (q, deterministicK aut 0 (initClosurePath (initCfgDet q)))) (Set.toList collectedStates)
+      statesDet =
+        map
+        (\ q ->
+           let t = deterministicK aut 0 (initClosurePath (initCfgDet q)) in
+             (q, (t, hasFullResolution t)))
+        (Set.toList collectedStates)
   in
-    Map.fromAscList statesDet
+    IntMap.fromAscList statesDet
   where
     collectStatesArrivedByMove t =
       foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initialState aut)) t
@@ -343,27 +362,26 @@ createDFA aut =
     collectMove (act, q) =
       if isInputAction act then Set.singleton q else Set.empty
 
-printDFA :: Map.Map State (Result DFATransition) -> IO ()
+printDFA :: AutDet -> IO ()
 printDFA dfa =
-  let t = Map.toList dfa
-  in mapM_ (\ (_k, tr) ->
-              do putStrLn $ show tr
-           ) t
+  let t = IntMap.toList dfa
+  in if length t > 100
+     then do return ()
+     else mapM_ (\ (_k, (tr,_)) -> do putStrLn $ show tr) t
 
-statsDFA :: Map.Map State (Result DFATransition) -> IO ()
+statsDFA :: AutDet -> IO ()
 statsDFA dfa =
-  let t = Map.toList dfa
+  let t = IntMap.toList dfa
   in do printDFA dfa
         putStrLn "\nReport:"
-        putStrLn $ getReport t initReport (0 :: Int)
+        putStrLn $ getReport t initReport
+        putStrLn $ "\nTotal nb states: " ++ show (length t)
   where
-    getReport lst report total =
+    getReport lst report =
       case lst of
-        [] ->
-          foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report) ++
-          "\nTotal nb states: " ++ show total
-        (_, x) : xs ->
-          getReport xs (incrReport report x) (total+1)
+        [] -> foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)
+        (_, (x,_)) : xs ->
+          getReport xs (incrReport report x)
 
     result str = "Result" ++ str
 
@@ -376,7 +394,7 @@ statsDFA dfa =
         AbortAmbiguous -> result "-ambiguous-0"
         AbortOverflowK -> abortToString r
         Result t ->
-          let k = lookaheadDepth t in
+          let k = lookaheadDepth r in
           let res = if hasFullResolution r then result ("-" ++ show k) else result ("-ambiguous-" ++ show k) in
           if k == 3
           then trace (show t) $
