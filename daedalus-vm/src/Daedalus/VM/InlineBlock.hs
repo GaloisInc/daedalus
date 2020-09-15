@@ -12,7 +12,7 @@ import Daedalus.VM
 inlineBlocks :: VMFun -> VMFun
 inlineBlocks fun = fun { vmfBlocks = doInline is0 }
   where
-  s0  = S { stays = Set.singleton (vmfEntry fun)
+  s0  = S { stays = Set.fromList (vmfEntry fun)
           , inline = Set.empty
           }
   usage = foldr updS s0 $ vmfBlocks fun
