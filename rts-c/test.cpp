@@ -1,15 +1,22 @@
 #include <string.h>
+#include <memory>
 #include "parser.h"
 #include "unit.h"
 #include "number.h"
+#include "closure.h"
 
-void f (Unit x) {}
 
-uint8_t test(Parser<uint8_t> p) {
-  return p.getInput().iDrop(2).iHead();
-}
+class ThisThunk : public Closure {
+  int x;
+public:
+  ThisThunk(int x) : x(x) { std::cout << "create ThisThunk" << std::endl; }
+  ~ThisThunk() { std::cout << "destroy ThisThunk" << std::endl; }
+  void enter() { std::cout << "enter ThisThunk: " << x << std::endl; }
+};
+
+DataStack stack;
 
 int main() {
-  SInt<7> x(127);
-  std::cout << sizeof(size_t) << std::endl;
+  stackPush<ThisThunk>(stack,1);
+  return 0;
 }
