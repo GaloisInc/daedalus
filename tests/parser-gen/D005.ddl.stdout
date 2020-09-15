@@ -1,0 +1,49 @@
+module D005
+ 
+--- Imports:
+ 
+--- Type defs:
+type D005.Main0 = Choose { x: uint 8
+                         ; y: uint 8
+                         }
+ 
+--- Rules:
+ 
+D005.A : Grammar (uint 8) =
+  do @Match {'a'}
+     ($$ : uint 8) <- Match {'b'}
+     pure $$
+ 
+D005.B : Grammar (uint 8) =
+  do @Match {'b'}
+     ($$ : uint 8) <- Match {'c'}
+     pure $$
+ 
+D005._A : Grammar {} =
+  do @Match {'a'}
+     @Match {'b'}
+ 
+D005._B : Grammar {} =
+  do @Match {'b'}
+     @Match {'c'}
+ 
+D005.Main : Grammar {} =
+  do Choose fair
+       { {- x -} do D005._A
+                    @Match {'c'}
+       | {- y -} do @Match {'a'}
+                    D005._B
+                    @Match {'d'}
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D005._Main : Grammar {} =
+  do Choose fair
+       { {- x -} do D005._A
+                    @Match {'c'}
+       | {- y -} do @Match {'a'}
+                    D005._B
+                    @Match {'d'}
+       }
+     END
