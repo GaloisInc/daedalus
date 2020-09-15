@@ -161,7 +161,7 @@ generateHash ty =
     [ "namespace std {"
     , nest 2 $ vcat
         [ inst "template" (cTypeParams ty)
-        , "struct" <+> inst "std::hash" [ thisTy ] <+> "{"
+        , "struct" <+> inst "hash" [ thisTy ] <+> "{"
         , nest 2 $ vcat
             [ "std::size_t operator()(" <.> thisTy <+>
                                                 "const& x) const noexcept {"

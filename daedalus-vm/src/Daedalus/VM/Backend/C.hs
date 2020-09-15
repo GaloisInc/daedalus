@@ -181,20 +181,8 @@ cExpr expr =
     ENum n ty     -> call f [ integer n ]
       where
       f = case ty of
-            Src.TUInt (Src.TSize n)
-              | n <= 8  -> "UINT8_C"
-              | n <= 16 -> "UINT16_C"
-              | n <= 32 -> "UINT32_C"
-              | n <= 64 -> "UINT64_C"
-              | otherwise -> todo
-
-            Src.TSInt (Src.TSize n)
-              | n <= 8  -> "INT8_C"
-              | n <= 16 -> "INT16_C"
-              | n <= 32 -> "INT32_C"
-              | n <= 64 -> "INT64_C"
-              | otherwise -> todo
-
+            Src.TUInt sz -> call (inst "UInt" [ cSizeType sz ]) [ integer n ]
+            Src.TSInt sz -> call (inst "SInt" [ cSizeType sz ]) [ integer n ]
             Src.TInteger -> todo
 
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
