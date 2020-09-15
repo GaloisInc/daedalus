@@ -34,7 +34,7 @@ data VMFun = VMFun
   { vmfName     :: Src.FName
   , vmfCaptures :: Captures
   , vmfPure     :: Bool     -- ^ True if this is not a parser
-  , vmfEntry    :: [Label]
+  , vmfEntry    :: Label
   , vmfBlocks   :: Map Label Block
   }
 
@@ -193,9 +193,9 @@ instance PP Module where
 
 instance PP VMFun where
   pp f =
-    ".function" <+> pp (vmfName f) $$
+    (".function" <+> pp (vmfName f)) $$
     nest 2 (pp (vmfCaptures f)
-        $$ vcat [ ".entry" <+> pp e | e <- vmfEntry f ]
+        $$ (".entry" <+> pp (vmfEntry f))
         $$ blocks)
     where
     blocks = vcat' $ map pp $ Map.elems $ vmfBlocks f

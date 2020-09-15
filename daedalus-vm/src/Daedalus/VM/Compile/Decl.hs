@@ -83,7 +83,7 @@ compileSomeFun isPure doBody fun =
       VMFun { vmfName   = Src.fName fun
             , vmfCaptures = Capture -- Conservative
             , vmfPure   = isPure
-            , vmfEntry  = [l]
+            , vmfEntry  = l
             , vmfBlocks = Map.adjust addArgs l ls
             }
 
