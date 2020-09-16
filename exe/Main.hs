@@ -160,11 +160,9 @@ interpInterp inp prog (m,i) =
 interpPGen :: FilePath -> [NDecl] -> IO ()
 interpPGen inp norms =
   do let (gbl, aut) = PGen.buildArrayAut norms
-     -- let dfa = PGen.createDFA aut
-     -- putStrLn (show dfa)
-     -- putStrLn (PGen.statsDFA dfa)
      bytes <- BS.readFile inp
-     PGen.autToGraphviz aut
+     -- let dfa = PGen.createDFA aut                   -- LL
+     -- let results = PGen.runnerLL gbl bytes aut dfa  -- LL
      let results = PGen.runnerBias gbl bytes aut
      let resultValues = PGen.extractValues results
      if null resultValues
