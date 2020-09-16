@@ -3,6 +3,7 @@ module Daedalus.ParserGen.Det
   , statsDFA
   , AutDet
   , lookupAutDet
+  , predictLL
   )
 where
 
@@ -12,6 +13,7 @@ import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 
+import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
 
 import Daedalus.ParserGen.AST as PAST
@@ -159,11 +161,11 @@ determinizeClosureMoveSet tc =
                 AbortClassIsDynamic -> AbortClassIsDynamic
                 AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
                 Result r ->
-                  let newAcc = insertDetChoice (da, (HeadInput r, q)) acc
+                  let newAcc = insertDetChoice (da, (HeadInput r, e, q)) acc
                   in determinizeTree ms newAcc
                 _ -> error "Impossible abort"
             Right IEnd ->
-              let newAcc = insertDetChoice (da, (EndInput, q)) acc
+              let newAcc = insertDetChoice (da, (EndInput, e, q)) acc
               in determinizeTree ms newAcc
             _ -> error "Impossible abort"
 
@@ -183,7 +185,7 @@ deterministicStep aut p =
 
 data DFATransition =
     LResolve (Result ())
-  | LChoice [ (InputHeadCondition, TraceSet, Result DFATransition) ]
+  | LChoice [ (InputHeadCondition, PathSet, Result DFATransition) ]
 
 instance Show DFATransition where
  show t =
@@ -206,8 +208,8 @@ instance Show DFATransition where
              Result a -> showD (d+2) a
              _ -> space d ++ abortToString r ++ "\n"
 
-     showTr tr = "[" ++ foldr (\ (acts,_q) b ->
-                                 "(" ++ show (lengthClosurePath acts) ++
+     showTr tr = "[" ++ foldr (\ (p, _act, _q) b ->
+                                 "(" ++ show (lengthClosurePath p) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" tr  ++ "]"
 
@@ -230,7 +232,7 @@ lookaheadDepth rt =
 maxDepthDet :: Int
 maxDepthDet = 10
 
-detChoiceToList :: DetChoice -> [(InputHeadCondition, TraceSet)]
+detChoiceToList :: DetChoice -> [(InputHeadCondition, PathSet)]
 detChoiceToList (c,e) =
   let tr = map (\ (i,t) -> (HeadInput i,t)) c in
   case e of
@@ -244,20 +246,20 @@ data AmbiguityDetection =
 
 
 -- TODO: relate this to the ResolveAmbiguoity function in LL(*) paper
-ambiguousTraceSet :: TraceSet -> AmbiguityDetection
-ambiguousTraceSet ts =
+ambiguousPathSet :: PathSet -> AmbiguityDetection
+ambiguousPathSet ts =
   case ts of
-    [] -> error "empty TraceSet"
-    [ _ ] -> NotAmbiguous
-    (p, q) : rest -> checkAll p q rest
+    [] -> error "empty PathSet"
+    [ (_p, _act, _q) ] -> NotAmbiguous
+    (p, _act, q) : rest -> checkAll p q rest
   where checkAll p q rest =
-          -- TODO: use the path to refine the decision
+          -- TODO: also use the path to refine the decision
           case rest of
-            [ (_p1, q1) ] ->
+            [ (_p1, _act, q1) ] ->
               if q1 == q
               then RiskAmbiguous
               else DunnoAmbiguous
-            (_p1, q1) : tss ->
+            (_p1, _act, q1) : tss ->
               if q1 == q
               then checkAll p q tss
               else DunnoAmbiguous
@@ -279,7 +281,7 @@ deterministicK aut depth p =
        _ -> error "cannot be this Abort"
 
   where
-    iterateDeterminize :: Int -> [(InputHeadCondition, TraceSet)] -> [(InputHeadCondition, TraceSet, Result DFATransition)]
+    iterateDeterminize :: Int -> [(InputHeadCondition, PathSet)] -> [(InputHeadCondition, PathSet, Result DFATransition)]
     iterateDeterminize k lst =
       case lst of
         [] -> []
@@ -287,9 +289,9 @@ deterministicK aut depth p =
           let t = detSubset k i s
           in (i, s, t) : iterateDeterminize k rest
 
-    detSubset :: Int -> InputHeadCondition -> TraceSet -> Result DFATransition
+    detSubset :: Int -> InputHeadCondition -> PathSet -> Result DFATransition
     detSubset k itv s =
-      case ambiguousTraceSet s of
+      case ambiguousPathSet s of
         RiskAmbiguous -> Result (LResolve AbortAmbiguous)
         NotAmbiguous -> Result (LResolve (Result ()))
         DunnoAmbiguous ->
@@ -297,12 +299,12 @@ deterministicK aut depth p =
           then AbortOverflowK
           else detSubsetHelper k itv s emptyDetChoice
 
-    detSubsetHelper :: Int -> InputHeadCondition -> TraceSet -> DetChoice -> Result DFATransition
+    detSubsetHelper :: Int -> InputHeadCondition -> PathSet -> DetChoice -> Result DFATransition
     detSubsetHelper k i s acc =
       case s of
         [] -> Result (LChoice (iterateDeterminize (k + 1) (detChoiceToList acc)))
-        (p1, q) : rest ->
-          let r = deterministicStep aut (addInputHeadConditionClosurePath p1 i q) in
+        (p1, act, q) : rest ->
+          let r = deterministicStep aut (addInputHeadConditionClosurePath i act q p1) in
           case r of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
             AbortLoopWithNonClass -> AbortLoopWithNonClass
@@ -321,7 +323,7 @@ hasFullResolution r =
       case r1 of
          LResolve r2 ->
            case r2 of
-             Result () -> True
+             Result _ -> True
              _ -> False
          LChoice lst -> helper lst
     _ -> False
@@ -336,6 +338,29 @@ type AutDet = IntMap.IntMap (Result DFATransition, Bool)
 
 lookupAutDet :: State -> AutDet -> Maybe (Result DFATransition, Bool)
 lookupAutDet q aut = IntMap.lookup q aut
+
+predictLL :: Result DFATransition -> Input.Input -> Maybe [(Action,State)]
+predictLL r inp =
+  case r of
+    Result (LChoice lst) ->
+      iterLeftToRight lst
+    _ -> error "should not reach this line"
+  where
+    iterLeftToRight lst =
+      case lst of
+        [] -> Nothing
+        (c,cp,r1) : rest ->
+          case matchInputHeadCondition c inp of
+            Nothing -> iterLeftToRight rest
+            Just inp1 ->
+              case r1 of
+                Result (LResolve (Result ())) -> Just $ getActionsPathK c (head cp)
+                _ ->
+                  let e = predictLL r1 inp1 in
+                  case e of
+                    Nothing -> iterLeftToRight rest
+                    Just _ -> e
+
 
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
