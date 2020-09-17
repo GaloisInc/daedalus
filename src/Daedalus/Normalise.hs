@@ -45,14 +45,16 @@ normaliseV tc =
   case texprValue tc of
     TCMapEmpty t -> NMapEmpty (ntype t)
     TCCoerce t t' v -> NCoerce (ntype t) (ntype t') (normaliseV v)
-    TCNumber n t    -> NNumber n (ntype t)
-    TCBool b        -> NBool b
+    
+    TCLiteral (LNumber n) t -> NNumber n (ntype t)
+    TCLiteral (LBool b)   _ -> NBool b
+    TCLiteral (LByte b)   _ -> NByte b
+    TCLiteral (LBytes bs) _ -> NByteArray bs
+    
     TCNothing t     -> NNothing (ntype t)
     TCJust e        -> NJust (normaliseV e)
-    TCByte b        -> NByte b
     TCUnit          -> NUnit
     TCStruct fs t   -> NStruct [(l, normaliseV v) | (l, v) <- fs] (ntype t)
-    TCByteArray bs  -> NByteArray bs
     TCArray vs t    -> NArray (map normaliseV vs) (ntype t)
     TCArrayLength v -> NArrayLength (normaliseV v)
     TCIn l v t      -> NIn l (normaliseV v) (ntype t)

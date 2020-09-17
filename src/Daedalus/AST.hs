@@ -7,6 +7,7 @@ module Daedalus.AST where
 
 import Data.Word
 import Data.ByteString(ByteString)
+import qualified Data.ByteString.Char8 as BS8
 import Data.Text(Text)
 import qualified Data.Kind as HS
 
@@ -141,8 +142,7 @@ instance Show (Context ctx) where
 
 
 data ExprF e =
-    ENumber     !Integer
-  | EBool       !Bool
+    ELiteral    !Literal
   | ENothing
   | EJust       !e
   | EStruct     ![StructField e]
@@ -183,8 +183,6 @@ data ExprF e =
 
   | EIf         !e !e !e
 
-  | EBytes      !ByteString
-  | EByte       !Word8
   | EInRange    !(Maybe e) !(Maybe e)
   | ETriOp      !TriOp !e !e !e
   | EBinOp      !BinOp !e !e
@@ -243,6 +241,12 @@ data StructField e =
   | COMMIT SourceRange
     deriving (Show, Functor, Foldable, Traversable)
 
+data Literal = 
+    LNumber     !Integer
+  | LBool       !Bool
+  | LBytes      !ByteString
+  | LByte       !Word8
+    deriving (Show, Eq, Ord)
 
 newtype Expr = Expr (Located (ExprF Expr))
                deriving Show
@@ -390,7 +394,14 @@ instance PP t => PP (TypeF t) where
       TMap kt vt -> wrapIf (n > 1) ("Map" <+> ppPrec 2 kt <+> ppPrec 2 vt)
 
 
-
+instance PP Literal where
+  pp lit =
+    case lit of
+      LByte b   -> text (show (toEnum (fromEnum b) :: Char))
+      LNumber i -> integer i      
+      LBool i   -> if i then "true" else "false"
+      LBytes b  -> text (show (BS8.unpack b))
+      
 
 $(return [])
 

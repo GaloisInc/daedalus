@@ -203,8 +203,7 @@ instance ResolveNames RuleParam where
 instance ResolveNames e => ResolveNames (ExprF e) where
   resolve expr =
     case expr of
-      ENumber {}      -> pure expr
-      EBool {}        -> pure expr
+      ELiteral {}     -> pure expr
       ENothing {}     -> pure expr
       EJust e         -> EJust <$> resolve e
       EMatch e        -> EMatch <$> resolve e
@@ -263,8 +262,6 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EPure e         -> EPure     <$> resolve e
       EFail msg       -> EFail     <$> resolve msg
 
-      EBytes _        -> pure expr
-      EByte _         -> pure expr
       EInRange e1 e2  -> EInRange  <$> resolve e1 <*> resolve e2
       ETriOp op e1 e2 e3 -> ETriOp op <$> resolve e1
                                       <*> resolve e2

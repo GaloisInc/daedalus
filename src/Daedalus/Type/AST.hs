@@ -12,7 +12,6 @@ module Daedalus.Type.AST
   , SourceRange
   ) where
 
-import Data.Word(Word8)
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse)
@@ -31,7 +30,7 @@ import Daedalus.AST as LocalAST
         , ModuleName
         , isLocalName
         , nameScopeAsLocal, Context(..), TypeF(..)
-        , Located(..), ScopedIdent(..), Value, Grammar, Class)
+        , Located(..), ScopedIdent(..), Value, Grammar, Class, Literal(..))
 
 import Daedalus.PP
 
@@ -139,18 +138,18 @@ data TCF :: HS -> Ctx -> HS where
    TCCoerce       :: Type -> Type -> TC a Value -> TCF a Value
 
    -- Value constructors
-   TCNumber     :: Integer -> Type -> TCF a Value
-   TCBool       :: Bool    -> TCF a Value
+
+   -- We only really need the Type for LNumber
+   TCLiteral    :: Literal -> Type -> TCF a Value
+   
    TCNothing    :: Type -> TCF a Value
    TCJust       :: TC a Value -> TCF a Value
-   TCByte       :: Word8   -> TCF a Value
 
    TCUnit       :: TCF a Value
    TCStruct     :: [ (Label,TC a Value) ] -> Type -> TCF a Value
    -- The type is the type of the result,
    -- which should be a named struct type, possibly with some parameters.
 
-   TCByteArray  :: ByteString -> TCF a Value
    TCArray      :: [TC a Value] -> Type -> TCF a Value
     -- Type of elements (for empty arr.)
 
@@ -402,16 +401,14 @@ instance PP (TCF a k) where
 
       -- Values
       TCIn l e _    -> braces (pp l <.> colon <+> ppPrec 1 e)
-      TCByte b      -> text (show (toEnum (fromEnum b) :: Char))
-      TCNumber i _  -> integer i
-      TCBool i      -> if i then "true" else "false"
+      
+      TCLiteral l _ -> pp l
       TCNothing _   -> "nothing"
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
       TCUnit        -> "{}"
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
-      TCByteArray b -> text (show (BS8.unpack b))
 
       TCCall f [] []  -> pp f
       TCCall f ts xs -> wrapIf (n > 0) (pp f <+>
@@ -806,14 +803,11 @@ instance TypeOf (TCF a k) where
 
       TCIf _ e _      -> typeOf e
 
-      TCNumber _ t    -> t
-      TCBool _        -> tBool
+      TCLiteral _ t   -> t
       TCUnit          -> tUnit
       TCNothing t     -> t
       TCJust e        -> tMaybe (typeOf e)
-      TCByte _        -> tByte
       TCStruct _ t    -> t
-      TCByteArray _   -> tArray tByte
       TCArray _ t     -> tArray t
       TCIn _ _ t      -> t
       TCVar x         -> tcType x

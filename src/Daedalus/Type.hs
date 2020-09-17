@@ -533,12 +533,9 @@ liftValAppPure r es f =
         panic "liftValApp" ["Unexpected grammar argument in lift."]
 
 
-
 inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
 inferExpr expr =
   case exprValue expr of
-
-    EBool b -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCBool b), tBool)
 
     ENothing -> liftValAppPure expr [] \_ ->
                 do a <- newTVar expr KValue
@@ -548,13 +545,16 @@ inferExpr expr =
       liftValAppPure expr [e] \ ~[(e',t)] ->
         pure (exprAt expr (TCJust e'), tMaybe t)
 
-    ENumber n ->
+    -- FIXME: maybe unify literal code?
+    ELiteral l@(LBool _) -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
+
+    ELiteral l@(LNumber n) -> 
       do ctxt <- getContext
          case ctxt of
            AClass
              | 0 <= n && n < 256 ->
                 pure ( exprAt expr $ TCSetSingle
-                     $ exprAt expr $ TCByte $ fromInteger n
+                     $ exprAt expr $ TCLiteral (LByte $ fromInteger n) tByteClass
                     , tByteClass
                     )
              | otherwise ->
@@ -563,23 +563,23 @@ inferExpr expr =
            _ -> liftValAppPure expr [] \_ ->
                 do a <- newTVar expr KValue
                    addConstraint expr (Literal n a)
-                   pure (exprAt expr (TCNumber n a), a)
+                   pure (exprAt expr (TCLiteral l a), a)
 
-    EByte w ->
+    ELiteral l@(LByte _) -> 
       do ctxt <- getContext
          case ctxt of
            AClass   -> promoteValueToSet =<< inContext AValue (inferExpr expr)
 
            _ -> liftValAppPure expr [] \_ ->
-                 pure (exprAt expr (TCByte w), tByte)
+                 pure (exprAt expr (TCLiteral l tByte), tByte)
 
-    EBytes bs ->
+    ELiteral l@(LBytes bs) -> 
       do ctxt <- getContext
          case ctxt of
            AClass   -> pure (exprAt expr (TCSetOneOf bs), tByteClass)
 
            _ -> liftValAppPure expr [] \_ ->
-                pure (exprAt expr (TCByteArray bs), tArray tByte)
+                pure (exprAt expr (TCLiteral l (tArray tByte)), tArray tByte)
 
     EMatch1 e ->
       grammarOnly expr $
@@ -1036,7 +1036,7 @@ inferExpr expr =
            AClass ->
              do let checkBound d b =
                       case b of
-                        Nothing -> pure (exprAt expr (TCNumber d tByte))
+                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d) tByte))
                         Just e ->
                           do (e1',t) <- inContext AValue (inferExpr e)
                              unify tByte (e1',t)

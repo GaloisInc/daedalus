@@ -363,7 +363,7 @@ compilePureExpr env = go
     go expr =
       case texprValue expr of
 
-        TCNumber n t   ->
+        TCLiteral (LNumber n) t   ->
           let bad = panic "compilePureExpr"
                             [ "unexpected numeric literal"
                             , "Type: " ++ show (pp t)
@@ -378,14 +378,15 @@ compilePureExpr env = go
             TVMap     -> bad
             TVOther   -> bad
 
-        TCBool   b     -> VBool b
+        TCLiteral (LBool b)   _ -> VBool b
+        TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
+        TCLiteral (LBytes bs) _ -> byteStringToValue bs 
+        
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCByte   w     -> mkUInt 8 (fromIntegral w)
         TCUnit         -> VStruct [] -- XXX
         TCStruct fs _  -> VStruct $ map (\(n, e) -> (n, go e)) fs
-        TCByteArray bs -> byteStringToValue bs 
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of

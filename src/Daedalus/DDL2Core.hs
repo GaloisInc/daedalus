@@ -630,10 +630,10 @@ fromExpr expr =
     TC.TCCoerce _t1 t2 v ->
       coerceTo <$> fromTypeM t2 <*> fromExpr v
 
-    TC.TCNumber n t ->
+    TC.TCLiteral (TC.LNumber n) t ->
       intL n <$> fromTypeM t
 
-    TC.TCBool b ->
+    TC.TCLiteral (TC.LBool b) _ ->
       pure (boolL b)
 
     TC.TCNothing t ->
@@ -642,7 +642,7 @@ fromExpr expr =
     TC.TCJust e ->
       just <$> fromExpr e
 
-    TC.TCByte x ->
+    TC.TCLiteral (TC.LByte x) _ ->
       pure (intL (toInteger x) tByte)
 
     TC.TCUnit ->
@@ -654,7 +654,7 @@ fromExpr expr =
         where field (l,v) = do e <- fromExpr v
                                pure (l,e)
 
-    TC.TCByteArray bs ->
+    TC.TCLiteral (TC.LBytes bs) _ ->
       pure (byteArrayL bs)
 
     TC.TCArray vs t ->

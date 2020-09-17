@@ -351,7 +351,7 @@ call_expr                                :: { Expr }
 
   | 'try' aexpr                             { at ($1,$2) (ETry $2) }
   | 'arrayStream' aexpr         { at ($1,$2)(EBinOp ArrayStream
-                                              (at ($1,$2) (EBytes "array"))
+                                              (at ($1,$2) (ELiteral (LBytes "array")))
                                               $2) }
   | 'arrayStream' aexpr aexpr   { at ($1,$3)(EBinOp ArrayStream $2 $3)}
 
@@ -360,16 +360,12 @@ call_expr                                :: { Expr }
   | aexpr                                   { $1 }
 
 aexpr                                    :: { Expr }
-  : BYTES                                   { at (fst $1) (EBytes (snd $1)) }
+  : literal                                 { $1 }
   | 'UInt8'                                 { at $1      EAnyByte }
   | '$uint' NUMBER                          {% mkUInt $1 $2 }
-  | NUMBER                                  { at (fst $1) (ENumber (snd $1)) }
-  | BYTE                                    { at (fst $1) (EByte (snd $1)) }
   | name                                    { at $1 (EVar $1) }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
-  | 'true'                                  { at $1 (EBool True) }
-  | 'false'                                 { at $1 (EBool False) }
   | 'nothing'                               { at $1 ENothing }
   | 'Offset'                                { at $1 EOffset }
   | 'GetStream'                             { at $1 ECurrentStream }
@@ -402,7 +398,12 @@ union_field                              :: { Either Expr (UnionField Expr) }
   : expr                                    { Left $1 }
   | label '=' expr                          { Right ($1 :> $3) }
 
-
+literal                                  :: { Expr }
+  : NUMBER                                  { at (fst $1) (ELiteral (LNumber (snd $1))) }
+  | 'true'                                  { at $1       (ELiteral (LBool True)) }
+  | 'false'                                 { at $1       (ELiteral (LBool False)) }
+  | BYTES                                   { at (fst $1) (ELiteral (LBytes (snd $1))) }
+  | BYTE                                    { at (fst $1) (ELiteral (LByte  (snd $1))) }
 
 
 separated(p)                             :: { [p] }
@@ -561,12 +562,15 @@ mkFor s s0 ((k,v),xs) e = EFor (FFold s s0) k v xs e
 mkForMap :: ((Maybe Name,Name), Expr) -> Expr -> ExprF Expr
 mkForMap ((k,v),xs) e = EFor FMap k v xs e
 
+mkNumber :: Integer -> ExprF Expr
+mkNumber = ELiteral . LNumber
+
 mkRngUp1 :: HasRange r => r -> Expr -> Expr
-mkRngUp1 kw end = expr (ETriOp RangeUp (expr (ENumber 0)) end (expr (ENumber 1)))
+mkRngUp1 kw end = expr (ETriOp RangeUp (expr (mkNumber 0)) end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngUp2 :: HasRange r => r -> Expr -> Expr -> Expr
-mkRngUp2 kw start end = expr (ETriOp RangeUp start end (expr (ENumber 1)))
+mkRngUp2 kw start end = expr (ETriOp RangeUp start end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngUp3 :: HasRange r => r -> Expr -> Expr -> Expr -> Expr
@@ -575,12 +579,12 @@ mkRngUp3 kw start end step = expr (ETriOp RangeUp start end step)
 
 mkRngDown1 :: HasRange r => r -> Expr -> Expr
 mkRngDown1 kw start = expr (ETriOp RangeDown start
-                                             (expr (ENumber 0))
-                                             (expr (ENumber 1)))
+                                             (expr (mkNumber 0))
+                                             (expr (mkNumber 1)))
   where expr = at (kw,start)
 
 mkRngDown2 :: HasRange r => r -> Expr -> Expr -> Expr
-mkRngDown2 kw start end = expr (ETriOp RangeDown start end (expr (ENumber 1)))
+mkRngDown2 kw start end = expr (ETriOp RangeDown start end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngDown3 :: HasRange r => r -> Expr -> Expr -> Expr -> Expr
