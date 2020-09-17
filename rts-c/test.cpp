@@ -1,9 +1,11 @@
 #include <string.h>
 #include <memory>
+#include <gmpxx.h>
 #include "parser.h"
 #include "unit.h"
 #include "number.h"
 #include "closure.h"
+#include "iterator.h"
 
 
 class ThisThunk : public Closure {
@@ -17,6 +19,9 @@ public:
 DataStack stack;
 
 int main() {
-  stackPush<ThisThunk>(stack,1);
+  mpz_class a = 2;
+  mpz_class b = 3;
+  std::cout << a + b << std::endl;
+
   return 0;
 }
