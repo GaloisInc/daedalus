@@ -99,6 +99,7 @@ import Daedalus.Parser.Monad
   'if'        { Lexeme { lexemeRange = $$, lexemeToken = KWIf } }
   'then'      { Lexeme { lexemeRange = $$, lexemeToken = KWThen } }
   'else'      { Lexeme { lexemeRange = $$, lexemeToken = KWElse } }
+  'case'      { Lexeme { lexemeRange = $$, lexemeToken = KWCase } }
   'import'    { Lexeme { lexemeRange = $$, lexemeToken = KWImport } }
   'as'        { Lexeme { lexemeRange = $$, lexemeToken = KWAs } }
   'as!'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsBang } }
@@ -215,6 +216,7 @@ label                                    :: { Located Label }
   | 'if'                                    { mkLabel ($1, "if") }
   | 'then'                                  { mkLabel ($1, "then") }
   | 'else'                                  { mkLabel ($1, "else") }
+  | 'case'                                  { mkLabel ($1, "case") }
   | 'import'                                { mkLabel ($1, "import") }
   | 'as'                                    { mkLabel ($1, "as") }
   | '$$'                                    { mkLabel ($1,"$$") }
@@ -360,7 +362,7 @@ call_expr                                :: { Expr }
   | aexpr                                   { $1 }
 
 aexpr                                    :: { Expr }
-  : literal                                 { $1 }
+  : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'UInt8'                                 { at $1      EAnyByte }
   | '$uint' NUMBER                          {% mkUInt $1 $2 }
   | name                                    { at $1 (EVar $1) }
@@ -371,14 +373,22 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
-  | '{' separated(struct_field) '}'         { at ($1,$3) (EStruct $2) }
+  | '{' separated(struct_field, commaOrSemi) '}' 
+                                            { at ($1,$3) (EStruct $2) }
   | '{|' label '=' expr '|}'                { at ($1,$3) (EIn ($2 :> $4)) }
-  | '[' separated(expr) ']'                 { at ($1,$3) (EArray $2) }
-  | chooseKW '{' separated(union_field) '}' {% at ($1,$4) `fmap`
-                                                mkUnion (thingValue $1) $3 }
+  | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
+  | chooseKW '{' separated(union_field, commaOrSemi) '}' 
+                                            {% at ($1,$4) `fmap`
+                                               mkUnion (thingValue $1) $3 }
+  | 'case' expr 'is' '{' separated(case_patterns, ';') '}'
+                                            { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)
                                                  (ESel $1 (SelStruct $3))}
+
+commaOrSemi                              :: { () }
+  : ','                                     { () }
+  | ';'                                     { () }
 
 chooseKW                                 :: { Located Commit }
   : 'Choose'                                { loc $1 Backtrack }
@@ -398,20 +408,24 @@ union_field                              :: { Either Expr (UnionField Expr) }
   : expr                                    { Left $1 }
   | label '=' expr                          { Right ($1 :> $3) }
 
-literal                                  :: { Expr }
-  : NUMBER                                  { at (fst $1) (ELiteral (LNumber (snd $1))) }
-  | 'true'                                  { at $1       (ELiteral (LBool True)) }
-  | 'false'                                 { at $1       (ELiteral (LBool False)) }
-  | BYTES                                   { at (fst $1) (ELiteral (LBytes (snd $1))) }
-  | BYTE                                    { at (fst $1) (ELiteral (LByte  (snd $1))) }
+literal                                  :: { (SourceRange, Literal) }
+  : NUMBER                                  { LNumber `fmap` $1 }
+  | 'true'                                  { ($1, LBool True) }
+  | 'false'                                 { ($1, LBool False) }
+  | BYTES                                   { LBytes `fmap` $1 }
+  | BYTE                                    { LByte  `fmap` $1 }
 
+case_patterns                            :: { PatternCase Expr }
+  : separated(case_pattern, ',') '->' expr  { PatternCase $1 $3 }
 
-separated(p)                             :: { [p] }
+case_pattern                             :: { Pattern }
+  : literal                                 { LitPattern (snd $1) }
+  | label name                              { SelPattern $1 $2 }
+
+separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }
   | p                                       { [$1] }
-  | p ';' separated(p)                      { $1 : $3 }
-  | p ',' separated(p)                      { $1 : $3 }
-
+  | p s separated(p,s)                      { $1 : $3 }
 
 type                                     :: { SrcType }
   : 'bool'                                  { atT $1 TBool }

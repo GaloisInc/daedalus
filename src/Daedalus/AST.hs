@@ -153,6 +153,7 @@ data ExprF e =
   | EApp        !Name [e]
   | EVar        !Name
   | ETry        !e
+  | ECase       !Expr [PatternCase e]
 
   | EMatch !e
   | EMatch1 !e
@@ -247,6 +248,18 @@ data Literal =
   | LBytes      !ByteString
   | LByte       !Word8
     deriving (Show, Eq, Ord)
+
+-- Non empty
+data PatternCase e = PatternCase
+  { patPatterns :: ![Pattern]
+  , patBody     :: !e
+  }
+  deriving Show
+
+data Pattern =
+    LitPattern Literal
+  | SelPattern (Located Label) Name
+  deriving Show
 
 newtype Expr = Expr (Located (ExprF Expr))
                deriving Show

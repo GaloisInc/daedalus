@@ -108,6 +108,7 @@ data Token =
   | KWDef
   | KWArrayStream
   | KWFail
+  | KWCase
 
   | TokError !String
   | TokEOF
