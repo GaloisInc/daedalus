@@ -15,7 +15,6 @@ module Daedalus.ParserGen.DetUtils
     lengthClosurePath,
     getLastState,
     getLastCfgDet,
-    hasBranchAction,
     ClosureMove(..),
     ClosureMoveSet,
     ClosureMoveSetPoly,
@@ -23,7 +22,6 @@ module Daedalus.ParserGen.DetUtils
     InputHeadCondition(..),
     matchInputHeadCondition,
     PathSet,
-    getActionsPathK,
     DetChoice,
     emptyDetChoice,
     insertDetChoice,
@@ -37,7 +35,7 @@ import Data.Sequence as Seq
 --import qualified Data.Set as Set
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isBranchAction)
+import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..))
 -- import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
 
 import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList, matchClassInterval)
@@ -144,15 +142,6 @@ extractChoicePos p =
   let e = getLastCfgDet p in
     simplifyChoicePos (cfgRuleNb e)
 
-getActions :: ClosurePath -> [ (Action, State) ]
-getActions p =
-  helper p []
-  where
-    helper p1 acc =
-      case p1 of
-        CP_Empty _ -> acc
-        CP_Cons up act cfg -> helper up ((act, cfgState cfg) : acc)
-
 addClosurePath :: ChoicePos -> Action -> State -> ClosurePath -> Maybe ClosurePath
 addClosurePath pos act q p =
   let symbData = getLastSymbData p in
@@ -184,15 +173,6 @@ lengthClosurePath p =
         CP_Empty _ -> acc
         CP_Cons up _ _ -> helper up (acc+1)
 
-hasBranchAction :: ClosurePath -> Bool
-hasBranchAction p =
-  case p of
-    CP_Empty _ -> False
-    CP_Cons up act _cfg ->
-      if isBranchAction act
-      then True
-      else hasBranchAction up
-
 
 -- The conjonction of a closure path and a move (pair action, destination state)
 
@@ -216,12 +196,10 @@ filterNoMove tc =
       ) [] tc
 
 
-
 data InputHeadCondition =
     HeadInput ClassInterval
   | EndInput
   deriving (Show)
-
 
 matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
 matchInputHeadCondition c i =
@@ -243,11 +221,6 @@ unionPathSet s1 s2 = s1 ++ s2
 singletonPathSet :: PathK -> PathSet
 singletonPathSet x = [x]
 
-
-getActionsPathK :: InputHeadCondition -> PathK -> [(Action, State)]
-getActionsPathK _c (p,(_pos,act,q)) =
-  let beg = getActions p
-  in beg ++ [(act,q)]
 
 -- fst element is a list of class action transition, the snd possible element is for EndInput test
 type DetChoice = ([ (ClassInterval, PathSet) ], Maybe PathSet)
