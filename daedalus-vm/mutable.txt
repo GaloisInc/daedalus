@@ -1,0 +1,33 @@
+type MutableMap a b
+
+statment:
+  insertMutMap k v map
+  x := lookupMutMap k mp
+  x := containsMutMap k mp
+  c := cloneMutMap mp
+
+Sumulating pure interface with a mutable map.
+
+  x := pureInsert k v mp
+  -->
+  x := cloneMutMap mp
+  insertMutMap k v x
+
+  -- clone before calling a functino
+
+  -- read operations are similar but follow different laws
+  -- for example:
+
+  -- x := lookupMap k mp
+  -- y := lookupMap k mp
+  -- =>
+  -- x == y
+
+  -- This does not hold for mutable maps. 
+
+Optimization:
+  x := cloneMutMap mp
+
+can be ommited if `mp` is not used after
+
+
