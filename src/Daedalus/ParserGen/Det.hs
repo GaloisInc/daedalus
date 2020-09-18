@@ -87,13 +87,13 @@ closureLL aut busy da =
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q1)
-      | isClassActOrEnd act                = Result [Move (da, (pos, act, q1))]
+      | isClassActOrEnd act                = Result [(da, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
       | lengthClosurePath da > maxDepthRec = AbortOverflowMaxDepth
       | Set.member q1 newBusy              = AbortLoopWithNonClass
       | otherwise =
           case addClosurePath pos act q1 da of
-            Nothing -> Result [NoMove]
+            Nothing -> Result []
             Just p -> closureLL aut newBusy p
 
     iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
@@ -149,11 +149,10 @@ classToInterval e =
 -- convert it to a Input factored deterministic transition.
 determinizeClosureMoveSet :: ClosureMoveSet -> Result DetChoice
 determinizeClosureMoveSet tc =
-  let tc1 = filterNoMove tc in
-  determinizeTree tc1 emptyDetChoice
+  determinizeTree tc emptyDetChoice
 
   where
-    determinizeTree :: ClosureMoveSetPoly Action -> DetChoice -> Result DetChoice
+    determinizeTree :: ClosureMoveSet -> DetChoice -> Result DetChoice
     determinizeTree lst acc =
       case lst of
         [] -> Result acc
