@@ -15,10 +15,8 @@ module Daedalus.ParserGen.DetUtils
     lengthClosurePath,
     getLastState,
     getLastCfgDet,
-    ClosureMove(..),
+    ClosureMove,
     ClosureMoveSet,
-    ClosureMoveSetPoly,
-    filterNoMove,
     InputHeadCondition(..),
     matchInputHeadCondition,
     PathSet,
@@ -176,24 +174,9 @@ lengthClosurePath p =
 
 -- The conjonction of a closure path and a move (pair action, destination state)
 
-type ClosureMovePoly a = (ClosurePath, (ChoicePos, a, State))
+type ClosureMove = (ClosurePath, (ChoicePos, Action, State))
 
-data ClosureMove a =
-    Move (ClosureMovePoly a)
-  | NoMove
-
-
-type ClosureMoveSet = [ClosureMove Action]
-type ClosureMoveSetPoly a = [ClosureMovePoly a]
-
-
-filterNoMove :: ClosureMoveSet -> ClosureMoveSetPoly Action
-filterNoMove tc =
-  foldr (\ c r ->
-         case c of
-           Move (da,(ch,act,q)) -> (da,(ch,act,q)) : r
-           NoMove  -> r
-      ) [] tc
+type ClosureMoveSet = [ClosureMove]
 
 
 data InputHeadCondition =
