@@ -8,10 +8,10 @@ module Daedalus.ParserGen.RunnerBias
 
 where
 
--- import Debug.Trace
+import Debug.Trace
 
 import qualified Data.ByteString as BS
-
+import Data.Maybe (fromJust)
 import qualified Daedalus.Interp as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
@@ -20,6 +20,7 @@ import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 import Daedalus.ParserGen.Cfg (initCfg, Cfg(..), isAcceptingCfg)
 
 import Daedalus.ParserGen.Det as Det
+import Daedalus.ParserGen.DetUtils as DetU
 
 data CommitType =
     CTrue
@@ -209,7 +210,12 @@ runnerLL gbl s aut autDet =
               Just (tr, True) ->
                 let a = Det.predictLL tr inp in
                 case a of
-                  Nothing -> callNFA () -- backtrack idx resumption result
+                  Nothing -> callNFA ()
+                    -- NOTE: here we call `callNFA()` instead of
+                    -- `backtrack idx resumption result` in order to
+                    -- maintain the behavior of reaching the
+                    -- parseError the furthest. If we called backtrack
+                    -- we would not update the parseError information
                   Just actLst ->
                     -- trace (show tr) $
                     -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
@@ -219,35 +225,41 @@ runnerLL gbl s aut autDet =
                     let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
                     in setStep idx localTransitions (cfg, resumption) result
 
-      applyAllActions :: [(Action,State)] -> Cfg -> CommitHist -> TailPath -> Result -> Result
-      applyAllActions acts cfg@(Cfg inp ctrl out _n1) idx resumption result =
-        case acts of
+      applyAllActions :: Det.Prediction -> Cfg -> CommitHist -> TailPath -> Result -> Result
+      applyAllActions prdx cfg@(Cfg inp ctrl out n) idx resumption result =
+        case prdx of
           [] -> go (cfg, idx, resumption) result
-          p@((BAct bact), n2) : actss ->
-            let newRes = addLevel (UniChoice p) [] (cfg, resumption) in
-            case bact of
-              (CutBiasAlt _st) ->
-                let newCommitInfo = updateCommitList idx
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                in applyAllActions actss newCfg newCommitInfo newRes updResult
-              _ -> undefined
-          p@(act, n2) : actss ->
-            let newRes = addLevel (UniChoice p) [] (cfg, resumption) in
-            case applyAction gbl (inp, ctrl, out) act of
-              Nothing -> {-# SCC backtrackFailApplyAction #-}
-                let updResult = updateError (getTailInfo resumption) cfg result
-                in backtrack idx newRes updResult
-              Just (inp2, ctr2, out2) ->
-                let newCfg = Cfg inp2 ctr2 out2 n2
-                    updResult =
-                      if isAcceptingCfg newCfg aut
-                      then -- trace ("RES:\n" ++ show (lengthPath resumption)) $
-                        addResult newCfg result
-                      else result
-                in applyAllActions actss newCfg idx newRes updResult
-
-
+          alt : alts ->
+            let tr = fromJust $ nextTransition aut n
+                (act, n2) = case (tr, alt) of
+                              (UniChoice (a, n1), (CUni, _)) -> (a, n1)
+                              (SeqChoice lst _, (CSeq, i)) -> lst !! i
+                              (ParChoice lst, (CPar, i)) -> lst !! i
+                              _ -> error "unpossible combination"
+            in case act of
+                 BAct bact ->
+                   let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
+                   case bact of
+                     (CutBiasAlt _st) ->
+                       let newCommitInfo = updateCommitList idx
+                           newCfg = Cfg inp ctrl out n2
+                           updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                       in applyAllActions alts newCfg newCommitInfo newRes updResult
+                     _ -> undefined
+                 _ ->
+                   let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
+                     case applyAction gbl (inp, ctrl, out) act of
+                       Nothing -> {-# SCC backtrackFailApplyAction #-}
+                         let updResult = updateError (getTailInfo resumption) cfg result
+                         in backtrack idx newRes updResult
+                       Just (inp2, ctr2, out2) ->
+                         let newCfg = Cfg inp2 ctr2 out2 n2
+                             updResult =
+                               if isAcceptingCfg newCfg aut
+                               then -- trace ("RES:\n" ++ show (lengthPath resumption)) $
+                                 addResult newCfg result
+                               else result
+                         in applyAllActions alts newCfg idx newRes updResult
 
 
       setStep :: CommitHist -> [Choice] -> Path -> Result -> Result

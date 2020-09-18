@@ -3,6 +3,7 @@ module Daedalus.ParserGen.Det
   , statsDFA
   , AutDet
   , lookupAutDet
+  , Prediction
   , predictLL
   )
 where
@@ -84,7 +85,7 @@ closureLLOne aut da =
   where
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q1)
-      | isClassActOrEnd act                = Result [Move (da, (act, q1))]
+      | isClassActOrEnd act                = Result [Move (da, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
       | lengthClosurePath da > maxDepthRec = AbortOverflowMaxDepth
       | stateInClosurePath q1 da           = AbortLoopWithNonClass
@@ -154,18 +155,18 @@ determinizeClosureMoveSet tc =
     determinizeTree lst acc =
       case lst of
         [] -> Result acc
-        (da, (e, q)) : ms ->
-          case getClassActOrEnd e of
+        t@(_da, (_pos, act, _q)) : ms ->
+          case getClassActOrEnd act of
             Left c ->
               case classToInterval c of
                 AbortClassIsDynamic -> AbortClassIsDynamic
                 AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
                 Result r ->
-                  let newAcc = insertDetChoice (da, (HeadInput r, e, q)) acc
+                  let newAcc = insertDetChoice (HeadInput r) t acc
                   in determinizeTree ms newAcc
                 _ -> error "Impossible abort"
             Right IEnd ->
-              let newAcc = insertDetChoice (da, (EndInput, e, q)) acc
+              let newAcc = insertDetChoice EndInput t acc
               in determinizeTree ms newAcc
             _ -> error "Impossible abort"
 
@@ -182,16 +183,17 @@ deterministicStep aut p =
 
 
 
+type Prediction = [ChoicePos]
 
 data DFATransition =
-    LResolve (Result ())
+    LResolve (Result Prediction)
   | LChoice [ (InputHeadCondition, PathSet, Result DFATransition) ]
 
 instance Show DFATransition where
  show t =
    showD (0::Int) t
    where
-     showD _d (LResolve r) = "Resolution (" ++ show r ++ ")"
+     showD _d (LResolve r) = "Resolution (" ++ showRes r ++ ")"
      showD d (LChoice lst) =
        "DTrans [\n" ++
        concatMap (showT (d+2)) lst ++
@@ -208,10 +210,14 @@ instance Show DFATransition where
              Result a -> showD (d+2) a
              _ -> space d ++ abortToString r ++ "\n"
 
-     showTr tr = "[" ++ foldr (\ (p, _act, _q) b ->
+     showTr tr = "[" ++ foldr (\ (p, (_pos, _act, _q)) b ->
                                  "(" ++ show (lengthClosurePath p) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" tr  ++ "]"
+     showRes r =
+       case r of
+         Result _ -> "Result ()"
+         _ -> show r
 
      space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
@@ -241,25 +247,29 @@ detChoiceToList (c,e) =
 
 data AmbiguityDetection =
     RiskAmbiguous
-  | NotAmbiguous
+  | NotAmbiguous [ChoicePos]
   | DunnoAmbiguous
 
 
--- TODO: relate this to the ResolveAmbiguoity function in LL(*) paper
+-- TODO: relate this to the ResolveAmbiguity function in ALL(*) paper
+-- In the current implementation it returns
+-- *  NotAmbiguous when there is only one alternative
+-- *  RiskAmbiguous when all the alternatives reach the same target state
+-- *  DunnoAmbiguous otherwise
 ambiguousPathSet :: PathSet -> AmbiguityDetection
 ambiguousPathSet ts =
   case ts of
     [] -> error "empty PathSet"
-    [ (_p, _act, _q) ] -> NotAmbiguous
-    (p, _act, q) : rest -> checkAll p q rest
+    [ (p, (_pos, _act, _q)) ] -> NotAmbiguous (extractChoicePos p)
+    (p, (_pos, _act, q)) : rest -> checkAll p q rest
   where checkAll p q rest =
           -- TODO: also use the path to refine the decision
           case rest of
-            [ (_p1, _act, q1) ] ->
+            [ (_p1, (_pos, _act, q1)) ] ->
               if q1 == q
               then RiskAmbiguous
               else DunnoAmbiguous
-            (_p1, _act, q1) : tss ->
+            (_p1, (_pos, _act, q1)) : tss ->
               if q1 == q
               then checkAll p q tss
               else DunnoAmbiguous
@@ -293,7 +303,7 @@ deterministicK aut depth p =
     detSubset k itv s =
       case ambiguousPathSet s of
         RiskAmbiguous -> Result (LResolve AbortAmbiguous)
-        NotAmbiguous -> Result (LResolve (Result ()))
+        NotAmbiguous r -> Result (LResolve (Result r))
         DunnoAmbiguous ->
           if k > maxDepthDet
           then AbortOverflowK
@@ -303,8 +313,8 @@ deterministicK aut depth p =
     detSubsetHelper k i s acc =
       case s of
         [] -> Result (LChoice (iterateDeterminize (k + 1) (detChoiceToList acc)))
-        (p1, act, q) : rest ->
-          let r = deterministicStep aut (addInputHeadConditionClosurePath i act q p1) in
+        (p1, (pos, act, q)) : rest ->
+          let r = deterministicStep aut (addInputHeadConditionClosurePath i pos act q p1) in
           case r of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
             AbortLoopWithNonClass -> AbortLoopWithNonClass
@@ -335,11 +345,12 @@ hasFullResolution r =
           if hasFullResolution pr then helper rest else False
 
 type AutDet = IntMap.IntMap (Result DFATransition, Bool)
+type AutDet2 = IntMap.IntMap (Map.Map SymbolicStack (Result DFATransition, Bool))
 
 lookupAutDet :: State -> AutDet -> Maybe (Result DFATransition, Bool)
 lookupAutDet q aut = IntMap.lookup q aut
 
-predictLL :: Result DFATransition -> Input.Input -> Maybe [(Action,State)]
+predictLL :: Result DFATransition -> Input.Input -> Maybe Prediction
 predictLL r inp =
   case r of
     Result (LChoice lst) ->
@@ -349,12 +360,12 @@ predictLL r inp =
     iterLeftToRight lst =
       case lst of
         [] -> Nothing
-        (c,cp,r1) : rest ->
+        (c,_cp,r1) : rest ->
           case matchInputHeadCondition c inp of
             Nothing -> iterLeftToRight rest
             Just inp1 ->
               case r1 of
-                Result (LResolve (Result ())) -> Just $ getActionsPathK c (head cp)
+                Result (LResolve (Result prdx)) -> Just $ prdx
                 _ ->
                   let e = predictLL r1 inp1 in
                   case e of

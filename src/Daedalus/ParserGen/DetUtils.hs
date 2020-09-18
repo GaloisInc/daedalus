@@ -1,6 +1,8 @@
 module Daedalus.ParserGen.DetUtils
-  ( ChoiceTag(..),
+  ( SymbolicStack,
+    ChoiceTag(..),
     ChoicePos,
+    extractChoicePos,
     initChoicePos,
     nextChoicePos,
     CfgDet,
@@ -30,6 +32,7 @@ module Daedalus.ParserGen.DetUtils
 
 
 -- import Debug.Trace
+import Data.Sequence as Seq
 
 --import qualified Data.Set as Set
 import qualified RTS.Input as Input
@@ -63,14 +66,27 @@ type SymbolicData = SymbolicStack
 
 data CfgDet = CfgDet
   { cfgState  :: State
-  , cfgRuleNb :: Maybe ChoicePos
+  , cfgRuleNb :: Seq.Seq ChoicePos
   , cfgStack  :: SymbolicStack
   }
+  deriving (Eq)
 
+simplifyChoicePos :: Seq.Seq ChoicePos -> [ChoicePos]
+simplifyChoicePos s =
+  case s of
+    Empty -> []
+    x :<| xs -> case fst x of
+                 CUni -> (CUni, snd x) : simplifyChoicePos xs
+                 CPar -> (CPar, snd x) : simplifyChoicePos xs
+                 CSeq -> (CSeq, snd x) : simplifyChoicePos xs
 
 initCfgDet :: State -> CfgDet
 initCfgDet q =
-  CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard }
+  CfgDet
+  { cfgState = q
+  , cfgRuleNb = Seq.empty
+  , cfgStack = SWildcard
+  }
 
 
 data ClosurePath =
@@ -120,6 +136,14 @@ getLastSymbData p = cfgStack (getLastCfgDet p)
 getLastState :: ClosurePath -> State
 getLastState p = cfgState (getLastCfgDet p)
 
+getRuleNb :: ClosurePath -> Seq.Seq ChoicePos
+getRuleNb p = cfgRuleNb (getLastCfgDet p)
+
+extractChoicePos :: ClosurePath -> [ChoicePos]
+extractChoicePos p =
+  let e = getLastCfgDet p in
+    simplifyChoicePos (cfgRuleNb e)
+
 getActions :: ClosurePath -> [ (Action, State) ]
 getActions p =
   helper p []
@@ -135,13 +159,13 @@ addClosurePath pos act q p =
   case symbExecAction symbData act of
     Nothing -> Nothing
     Just sd ->
-      let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Just pos, cfgStack = sd }
+      let cfgDet = CfgDet { cfgState = q, cfgRuleNb = getRuleNb p |> pos, cfgStack = sd }
       in Just $ CP_Cons p act cfgDet
 
-addInputHeadConditionClosurePath :: InputHeadCondition -> Action -> State -> ClosurePath -> ClosurePath
-addInputHeadConditionClosurePath _ih act q p =
+addInputHeadConditionClosurePath :: InputHeadCondition -> ChoicePos -> Action -> State -> ClosurePath -> ClosurePath
+addInputHeadConditionClosurePath _ih pos act q p =
   let newStack = cfgStack (getLastCfgDet p) in -- TODO : there should be some symbolic execution here
-  let cfg = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = newStack } in
+  let cfg = CfgDet { cfgState = q, cfgRuleNb = getRuleNb p |> pos, cfgStack = newStack } in
     CP_Cons p act cfg
 
 
@@ -172,7 +196,7 @@ hasBranchAction p =
 
 -- The conjonction of a closure path and a move (pair action, destination state)
 
-type ClosureMovePoly a = (ClosurePath, (a, State))
+type ClosureMovePoly a = (ClosurePath, (ChoicePos, a, State))
 
 data ClosureMove a =
     Move (ClosureMovePoly a)
@@ -187,7 +211,7 @@ filterNoMove :: ClosureMoveSet -> ClosureMoveSetPoly Action
 filterNoMove tc =
   foldr (\ c r ->
          case c of
-           Move (da,(act,q)) -> (da,(act,q)) : r
+           Move (da,(ch,act,q)) -> (da,(ch,act,q)) : r
            NoMove  -> r
       ) [] tc
 
@@ -210,7 +234,7 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-type PathK = (ClosurePath, Action, State)
+type PathK = (ClosurePath, (ChoicePos, Action, State))
 type PathSet = [ PathK ]
 
 unionPathSet :: PathSet -> PathSet -> PathSet
@@ -221,7 +245,7 @@ singletonPathSet x = [x]
 
 
 getActionsPathK :: InputHeadCondition -> PathK -> [(Action, State)]
-getActionsPathK _c (p,act,q) =
+getActionsPathK _c (p,(_pos,act,q)) =
   let beg = getActions p
   in beg ++ [(act,q)]
 
@@ -231,10 +255,10 @@ type DetChoice = ([ (ClassInterval, PathSet) ], Maybe PathSet)
 emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
 
-insertDetChoice :: (ClosurePath, (InputHeadCondition, Action, State)) -> DetChoice -> DetChoice
-insertDetChoice (da, (ih, act, q)) d =
+insertDetChoice :: InputHeadCondition -> (ClosurePath, (ChoicePos, Action, State)) -> DetChoice -> DetChoice
+insertDetChoice ih (da, (pos, act, q)) d =
   let (classChoice, endChoice) = d
-      tr = singletonPathSet (da, act, q)
+      tr = singletonPathSet (da, (pos, act, q))
   in
   case ih of
     EndInput ->
