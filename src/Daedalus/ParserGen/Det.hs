@@ -63,8 +63,8 @@ maxDepthRec = 200
 
 
 
-closureLLOne :: Aut a => a -> ClosurePath -> Result ClosureMoveSet
-closureLLOne aut da =
+closureLL :: Aut a => a -> Set.Set State -> ClosurePath -> Result ClosureMoveSet
+closureLL aut busy da =
   let
     q = getLastState da
     ch = nextTransition aut q
@@ -83,16 +83,18 @@ closureLLOne aut da =
       in iterateThrough (initChoicePos tag) lst
 
   where
+    newBusy = Set.insert (getLastState da) busy
+
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q1)
       | isClassActOrEnd act                = Result [Move (da, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
       | lengthClosurePath da > maxDepthRec = AbortOverflowMaxDepth
-      | stateInClosurePath q1 da           = AbortLoopWithNonClass
+      | Set.member q1 newBusy              = AbortLoopWithNonClass
       | otherwise =
           case addClosurePath pos act q1 da of
             Nothing -> Result [NoMove]
-            Just p -> closureLLOne aut p
+            Just p -> closureLL aut newBusy p
 
     iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
     iterateThrough pos ch =
@@ -173,7 +175,7 @@ determinizeClosureMoveSet tc =
 
 deterministicStep :: Aut a => a -> ClosurePath -> Result DetChoice
 deterministicStep aut p =
-  case closureLLOne aut p of
+  case closureLL aut Set.empty p of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
     AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
