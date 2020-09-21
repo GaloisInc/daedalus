@@ -17,7 +17,9 @@ data Program = Program
   { pModules  :: [Module]
 
     -- XXX: we probably want to support more than one entry point.
+    -- XXX: we also want entry points with parameters.
   , pBoot     :: Map Label Block
+  , pType     :: Src.Type     -- ^ type of value produced by parser
   , pEntry    :: Label
   }
 

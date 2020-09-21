@@ -1,0 +1,11 @@
+#!/bin/bash
+
+DIR=test-bed
+
+if [ $# -ne 1 ]; then
+  echo "USAGE: $0 FILE"
+  exit 1
+fi
+
+cabal exec daedalus -- $1 --compile-c++ > "$DIR/main.cpp" && make -C test-bed
+

@@ -19,24 +19,24 @@ import Daedalus.VM.Backend.C.Lang
 cType :: VMT -> CType
 cType ty =
   case ty of
-    TThreadId -> "ThreadId"
+    TThreadId -> "DDL::ThreadId"
     TSem sty  -> cSemType sty
 
 cSemType :: Src.Type -> Doc
 cSemType sty =
   case sty of
-    Src.TStream                -> "Input"
-    Src.TUInt n                -> inst "UInt" [ cSizeType n ]
-    Src.TSInt n                -> inst "SInt" [ cSizeType n ]
-    Src.TInteger               -> "Integer"
+    Src.TStream                -> "DDL::Input"
+    Src.TUInt n                -> inst "DDL::UInt" [ cSizeType n ]
+    Src.TSInt n                -> inst "DDL::SInt" [ cSizeType n ]
+    Src.TInteger               -> "DDL::Integer"
     Src.TBool                  -> "bool"
-    Src.TUnit                  -> "Unit"
+    Src.TUnit                  -> "DDL::Unit"
     Src.TArray t               -> inst "std::vector" [ cSemType t ]
     Src.TMaybe t               -> inst "std::optional" [ cSemType t ]
     Src.TMap k v               -> inst "std::unordered_map"
                                                   [ cSemType k, cSemType v ]
     Src.TBuilder t             -> todo
-    Src.TIterator t            -> todo
+    Src.TIterator t            -> cSemType t <.> "::const_iterator"
     Src.TUser ut               -> cTUser ut
     Src.TParam a               -> cTParam a -- can happen in types
   where
@@ -177,14 +177,16 @@ generateHash ty =
   hashCode = case Src.tDef ty of
                Src.TUnion {}
                  | Src.tnameRec (Src.tName ty) ->
-                                "return" <+> hash "Data" "*x.data" <.> ";"
-                 | otherwise -> "return" <+> hash "Data" "x.data" <.> ";"
+                    "return" <+> hash (thisTy <.> "::Data") "*x.data" <.> ";"
+                 | otherwise ->
+                    "return" <+> hash (thisTy <.> "::Data") "x.data" <.> ";"
                Src.TStruct fs ->
                  vcat $
                     "std::size_t h = 17;"
                   : map hashField fs ++
                     [ "return h;" ]
   hash t a = call (inst "std::hash" [t] <.> "{}") [a]
-  hashField (l,t) = "h = 23 * h +" <+> hash (cSemType t) (cLabel l)
+  hashField (l,t) = "h = 23 * h +" <+> hash (cSemType t)
+                                      (cSelect "x" (cLabel l)) <.> ";"
 
 

@@ -9,6 +9,8 @@
 
 namespace DDL {
 
+using Integer = int; // XXX: temporary
+
 template <int w>
 struct UInt {
   static_assert(w <= 64);   // XXX: use gmp?

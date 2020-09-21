@@ -32,6 +32,7 @@ import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Normalise.AST(NDecl)
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
+import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
@@ -135,7 +136,13 @@ handleOptions opts
               passVM specMod
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
-              ddlPrint (C.cModule m)
+              let nm = Name { nameScope = ModScope (fst mainRule) (snd mainRule)
+                            , nameContext = AGrammar
+                            , nameRange = synthetic
+                            }
+              entry <- ddlGetFName nm
+              let prog = VM.moduleToProgram entry [m]
+              ddlPrint (C.cProgram prog)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 

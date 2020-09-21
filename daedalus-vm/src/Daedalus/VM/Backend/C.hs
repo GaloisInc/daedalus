@@ -5,14 +5,16 @@ module Daedalus.VM.Backend.C where
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
+import           Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Char
 import Numeric
 import Text.PrettyPrint as P
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
-import Daedalus.Rec(Rec(..))
+import Daedalus.Rec(Rec(..),topoOrder,forgetRecs)
 import Daedalus.VM
 import qualified Daedalus.Core as Src
 
@@ -27,30 +29,77 @@ import Daedalus.VM.Backend.C.Types
   * assignment: for passing block parameters
 -}
 
+type AllFuns  = (?allFuns :: Map Src.FName VMFun)
+
+cProgram :: Program -> Doc
+cProgram prog =
+  vcat
+    [ includes
+    , " "
+    , "// --- Types --- //"
+    , "  "
+    ,  vcat' (map cTypeGroup allTypes)
+    ,  "// --- End of Types //"
+    , " "
+    , "// --- Parser --- //"
+    , " "
+    , "void parser(std::vector<" <.> parserTy <.> ">& output) {"
+    , nest 2 parserDef
+    , "}"
+    ]
+
+  where
+  orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
+  modDeps m      = (mName m, Set.fromList (mImports m))
+
+  allTypes       = concatMap mTypes orderedModules
+  allFuns        = concatMap mFuns orderedModules
+
+  parserTy       = cSemType (pType prog)
+  parserDef      = empty
+
+  includes =
+    vcat [ "#include <vector>"
+         , "#include <unordered_map>"
+         , "#include <memory>"
+         , "#include <variant>"
+         , ""
+         , "#include <parser.h>"
+         , "#include <unit.h>"
+         , "#include <number.h>"
+         , "#include <input.h>"
+         ]
+
 
 cModule :: Module -> Doc
 cModule m =
-  vcat' (map cTypeGroup (mTypes m))
-  $$
-  "// -----------------------------------------"
-  $$
-  vcat' (map cFun (mFuns m))
+  let ?allFuns = Map.fromList [ (vmfName f, f) | f <- mFuns m ]
+  in
+  vcat [ vcat' (map cTypeGroup (mTypes m))
+       , "// -----------------------------------------"
+       , nest 2 params
+       , nest 2 (vcat' (map cFun (mFuns m)))
+       ]
+  -- XXX: declare function
+  where
+  params = vcat [ cDeclareBlockParams b | f <- mFuns m
+                                        , b <- Map.elems (vmfBlocks f)
+                                        ]
 
 type CurFun   = (?curFun   :: VMFun)
 type CurBlock = (?curBlock :: Block)
 
-cFun :: VMFun -> CDecl
+cFun :: AllFuns => VMFun -> CDecl
 cFun fun =
-    retTy <+> cFNameDecl nm <.> "() {" -- XXX: arguments for non-capture
-  $$ nest 2 body $$ "}"
+  vcat [ "//---" <+> pp (vmfName fun) <+> "---"
+       , let ?curFun = fun
+         in vcat' (map cBlock (Map.elems (vmfBlocks fun)))
+       ]
 
   where
   nm = vmfName fun
   ty = cSemType (Src.fnameType nm)
   retTy = if vmfPure fun then ty else inst "std::optional" [ty]
-  body = let ?curFun = fun
-         in vcat' (params : map cBlock (Map.elems (vmfBlocks fun)))
-  params = vcat (map cDeclareBlockParams (Map.elems (vmfBlocks fun)))
 
 cDeclareBlockParams :: Block -> CStmt
 cDeclareBlockParams b =
@@ -67,7 +116,7 @@ cBlock b = cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
 
 
 cBlockLabel :: Label -> Doc
-cBlockLabel (Label _ x) = "L" <.> int x
+cBlockLabel (Label f x) = pp f <.> "_" <.> int x
 
 
 
@@ -134,16 +183,16 @@ cOp2 x op2 ~[e1,e2] =
     Src.Drop -> cVarDecl x (call ((cExpr e2) <.> ".iDrop") [ cExpr e1 ])
     Src.Take -> cVarDecl x (call ((cExpr e2) <.> ".iTake") [ cExpr e1 ])
 
-    Src.Eq -> todo
-    Src.NotEq -> todo
-    Src.Leq -> todo
-    Src.Lt -> todo
+    Src.Eq    -> cVarDecl x (cExpr e1 <+> "==" <+> cExpr e2)
+    Src.NotEq -> cVarDecl x (cExpr e1 <+> "!=" <+> cExpr e2)
+    Src.Leq   -> cVarDecl x (cExpr e1 <+> "<=" <+> cExpr e2)
+    Src.Lt    -> cVarDecl x (cExpr e1 <+> "<"  <+> cExpr e2)
 
-    Src.Add -> todo
-    Src.Sub -> todo
-    Src.Mul -> todo
-    Src.Div -> todo
-    Src.Mod -> todo
+    Src.Add   -> cVarDecl x (cExpr e1 <+> "+" <+> cExpr e2)
+    Src.Sub   -> cVarDecl x (cExpr e1 <+> "-" <+> cExpr e2)
+    Src.Mul   -> cVarDecl x (cExpr e1 <+> "*" <+> cExpr e2)
+    Src.Div   -> cVarDecl x (cExpr e1 <+> "/" <+> cExpr e2)
+    Src.Mod   -> cVarDecl x (cExpr e1 <+> "%" <+> cExpr e2)
 
     Src.BitAnd -> todo
     Src.BitOr -> todo
@@ -181,8 +230,8 @@ cExpr expr =
     ENum n ty     -> call f [ integer n ]
       where
       f = case ty of
-            Src.TUInt sz -> call (inst "UInt" [ cSizeType sz ]) [ integer n ]
-            Src.TSInt sz -> call (inst "SInt" [ cSizeType sz ]) [ integer n ]
+            Src.TUInt sz -> inst "UInt" [ cSizeType sz ]
+            Src.TSInt sz -> inst "SInt" [ cSizeType sz ]
             Src.TInteger -> todo
 
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
@@ -204,23 +253,39 @@ cTermStmt cinstr =
                       $$ "} else {"
                       $$ nest 2 (cJump el)
                       $$ "}"
+    TailCall f c es -> todo
+
     Yield -> todo
     ReturnNo -> "return" <+> call "optional" [] <.> semi
     ReturnYes e -> "return" <+> call "optional" [cExpr e] <.> semi
     Call f c (JumpPoint l1 es1) (JumpPoint l2 es2) args -> todo
-    TailCall f c es -> todo
     ReturnPure e -> "return" <+> cExpr e <.> semi
 
   where
   todo = "/* TODO:" <+> pp cinstr <+> "*/"
 
+
+cDoJump :: CurBlock => Block -> [E] -> CStmt
+cDoJump b es =
+  vcat [ vcat (zipWith assignP (blockArgs b) es)
+       , if l /= blockName ?curBlock
+           then vcat (map cDestroy (blockArgs ?curBlock))
+           else empty
+       , "goto" <+> cBlockLabel l <.> semi
+       ]
+  where
+  l = blockName b
+  assignP ba e = (let ?curBlock = b in cArgUse ba)
+                <+> "=" <+> cExpr e <.> semi
+
 cJump :: (CurFun, CurBlock) => JumpPoint -> CStmt
 cJump (JumpPoint l es) =
   case Map.lookup l (vmfBlocks ?curFun) of
-    Just b  -> vcat (zipWith assignP (blockArgs b) es)
-                 $$ "goto" <+> cBlockLabel l <.> semi
-      where assignP ba e = cArgUse ba <+> "=" <+> cExpr e <.> semi
+    Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
+
+cDestroy :: CurBlock => BA -> CStmt
+cDestroy x = cArgUse x <+> "= {};"
 
 
 cFNameDecl :: Src.FName -> Doc
@@ -239,7 +304,7 @@ cArgDecl :: CurBlock => BA -> CExpr
 cArgDecl ba@(BA x vmt) = cType vmt <+> cArgUse ba
 
 cArgUse :: CurBlock => BA -> CExpr
-cArgUse (BA x _) = cBlockLabel (blockName ?curBlock) <.> "a" <.> int x
+cArgUse (BA x _) = cBlockLabel (blockName ?curBlock) <.> "_a" <.> int x
 
 cBytes :: ByteString -> CExpr
 cBytes bs = "std::vector<uint8_t>" <+> braces (fsep (punctuate comma cs))
@@ -248,3 +313,9 @@ cBytes bs = "std::vector<uint8_t>" <+> braces (fsep (punctuate comma cs))
   sh c = if isAscii c && isPrint c && (c /= '\'')
             then text (show c)
             else "0x" P.<> text (showHex (fromEnum c) "")
+
+
+--------------------------------------------------------------------------------
+
+
+

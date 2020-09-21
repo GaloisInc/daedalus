@@ -1,4 +1,5 @@
 {-# Language BlockArguments #-}
+{-# Language FlexibleInstances #-}
 module Daedalus.Driver
   ( Daedalus
   , daedalus
@@ -9,6 +10,8 @@ module Daedalus.Driver
   , ddlGetAST
   , ddlBasis
   , ddlBasisMany
+  , ddlGetFNameMaybe
+  , ddlGetFName
 
   , normalizedDecls
 
@@ -442,6 +445,20 @@ optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 optOutHandle :: DDLOpt Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
+
+
+--------------------------------------------------------------------------------
+-- Names
+
+ddlGetFNameMaybe :: Name -> Daedalus (Maybe Core.FName)
+ddlGetFNameMaybe nm = ddlGet (Map.lookup nm . coreTopNames)
+
+ddlGetFName :: Name -> Daedalus Core.FName
+ddlGetFName nm =
+    do mb <- ddlGetFNameMaybe nm
+       case mb of
+         Just a  -> pure a
+         Nothing -> panic "ddlGetFName" [ "Unknown name", show (pp nm) ]
 
 
 --------------------------------------------------------------------------------
