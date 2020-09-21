@@ -9,6 +9,8 @@
 // #include "closure.h"
 // #include "ddl_thread.h"
 
+namespace DDL {
+
 typedef size_t ThreadId;
 
 // `T` is the type of the result for the entry-point parser.
@@ -16,8 +18,8 @@ typedef size_t ThreadId;
 template <class T>
 class Parser {
 
-  Input                 input;
-  std::vector<T>        results;
+  Input            input;
+  std::vector<T>   results;
   // std::vector<Thread>   suspended;
   size_t                fail_offset;
 
@@ -71,5 +73,6 @@ public:
 
 };
 
+}
 
 #endif

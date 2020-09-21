@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 
+namespace DDL {
+
 class Input {
   const char *name;           // Name identifying the input (e.g , file name)
   const char *bytes;          // Bytes for the whole input
@@ -76,5 +78,8 @@ public:
 };
 
 // XXX: hash instance
+
+
+}
 
 #endif

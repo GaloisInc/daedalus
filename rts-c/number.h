@@ -7,6 +7,8 @@
 #include <ios>
 #include <cmath>
 
+namespace DDL {
+
 template <int w>
 struct UInt {
   static_assert(w <= 64);   // XXX: use gmp?
@@ -42,9 +44,12 @@ public:
   }
 };
 
+}
+
 // XXX: Maybe we should consult the base flag, rather than always using hex?
 template <int w>
-std::ostream& operator<<(std::ostream& os, UInt<w> x) {
+static inline
+std::ostream& operator<<(std::ostream& os, DDL::UInt<w> x) {
   std::ios_base::fmtflags saved(os.flags());
 
   os << "0x" << std::hex;
@@ -57,12 +62,14 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 
 namespace std {
   template<int w>
-  struct hash<UInt<w>> {
-    std::size_t operator()(UInt<w> x) const noexcept {
+  struct hash<DDL::UInt<w>> {
+    std::size_t operator()(DDL::UInt<w> x) const noexcept {
       return size_t(x.data);
     }
   };
 }
+
+namespace DDL {
 
 
 // XXX: Show should arithmetic work on these?
@@ -97,21 +104,25 @@ public:
   Rep rep() { return data; }
 };
 
+}
+
 // XXX: Maybe we should consult the base flag, rather than always using hex?
 template <int w>
-std::ostream& operator<<(std::ostream& os, SInt<w> x) {
+static inline
+std::ostream& operator<<(std::ostream& os, DDL::SInt<w> x) {
   os << (int64_t) x.rep();
   return os;
 }
 
 namespace std {
   template<int w>
-  struct hash<SInt<w>> {
-    std::size_t operator()(SInt<w> x) const noexcept {
+  struct hash<DDL::SInt<w>> {
+    std::size_t operator()(DDL::SInt<w> x) const noexcept {
       return size_t(x.data);
     }
   };
 }
+
 
 #endif
 
