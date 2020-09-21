@@ -34,7 +34,6 @@ import Data.Sequence as Seq
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..))
--- import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
 
 import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList, matchClassInterval)
 

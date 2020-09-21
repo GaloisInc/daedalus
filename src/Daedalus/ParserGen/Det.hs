@@ -59,7 +59,7 @@ abortToString r =
     _ -> error "No Abort result"
 
 maxDepthRec :: Int
-maxDepthRec = 200
+maxDepthRec = 800
 
 
 
@@ -187,14 +187,14 @@ deterministicStep aut p =
 type Prediction = [ChoicePos]
 
 data DFATransition =
-    LResolve (Result Prediction)
+    LResolve AmbiguityDetection
   | LChoice [ (InputHeadCondition, PathSet, Result DFATransition) ]
 
 instance Show DFATransition where
  show t =
    showD (0::Int) t
    where
-     showD _d (LResolve r) = "Resolution (" ++ showRes r ++ ")"
+     showD _d (LResolve r) = "Resolution (" ++ show r ++ ")"
      showD d (LChoice lst) =
        "DTrans [\n" ++
        concatMap (showT (d+2)) lst ++
@@ -215,10 +215,6 @@ instance Show DFATransition where
                                  "(" ++ show (lengthClosurePath p) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" tr  ++ "]"
-     showRes r =
-       case r of
-         Result _ -> "Result ()"
-         _ -> show r
 
      space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
@@ -248,9 +244,13 @@ detChoiceToList (c,e) =
 
 data AmbiguityDetection =
     RiskAmbiguous
-  | NotAmbiguous [ChoicePos]
+  | NotAmbiguous Prediction
   | DunnoAmbiguous
 
+instance Show AmbiguityDetection where
+  show RiskAmbiguous = "RiskAmbiguous"
+  show (NotAmbiguous _) = "()"
+  show DunnoAmbiguous = "DunnoAmbiguous"
 
 -- TODO: relate this to the ResolveAmbiguity function in ALL(*) paper
 -- In the current implementation it returns
@@ -302,9 +302,10 @@ deterministicK aut depth p =
 
     detSubset :: Int -> InputHeadCondition -> PathSet -> Result DFATransition
     detSubset k itv s =
-      case ambiguousPathSet s of
-        RiskAmbiguous -> Result (LResolve AbortAmbiguous)
-        NotAmbiguous r -> Result (LResolve (Result r))
+      let am = ambiguousPathSet s in
+      case am of
+        RiskAmbiguous -> Result (LResolve am)
+        NotAmbiguous _ -> Result (LResolve am)
         DunnoAmbiguous ->
           if k > maxDepthDet
           then AbortOverflowK
@@ -334,8 +335,9 @@ hasFullResolution r =
       case r1 of
          LResolve r2 ->
            case r2 of
-             Result _ -> True
-             _ -> False
+             NotAmbiguous _ -> True
+             RiskAmbiguous -> False
+             _ -> error "broken invariant"
          LChoice lst -> helper lst
     _ -> False
   where
@@ -344,6 +346,28 @@ hasFullResolution r =
         [] -> True
         (_,_,pr) : rest ->
           if hasFullResolution pr then helper rest else False
+
+hasNoAbort :: Result DFATransition -> Bool
+hasNoAbort r =
+  case r of
+    Result r1 ->
+      case r1 of
+         LResolve r2 ->
+           case r2 of
+             NotAmbiguous _ -> True
+             RiskAmbiguous -> True
+             _ -> error "broken invariant"
+         LChoice lst -> helper lst
+    _ -> False
+  where
+    helper lst =
+      case lst of
+        [] -> True
+        (_,_,pr) : rest ->
+          if hasNoAbort pr then helper rest else False
+
+
+
 
 type AutDet = IntMap.IntMap (Result DFATransition, Bool)
 type AutDet2 = IntMap.IntMap (Map.Map SymbolicStack (Result DFATransition, Bool))
@@ -366,7 +390,7 @@ predictLL r inp =
             Nothing -> iterLeftToRight rest
             Just inp1 ->
               case r1 of
-                Result (LResolve (Result prdx)) -> Just $ prdx
+                Result (LResolve (NotAmbiguous prdx)) -> Just $ prdx
                 _ ->
                   let e = predictLL r1 inp1 in
                   case e of
@@ -432,7 +456,13 @@ statsDFA dfa =
         AbortOverflowK -> abortToString r
         Result t ->
           let k = lookaheadDepth r in
-          let res = if hasFullResolution r then result ("-" ++ show k) else result ("-ambiguous-" ++ show k) in
+          let res =
+                if hasFullResolution r
+                then result ("-" ++ show k)
+                else if hasNoAbort r
+                     then result ("-ambiguous-" ++ show k)
+                     else "abort-" ++ show k
+          in
           if k == 3
           then trace (show t) $
                res
