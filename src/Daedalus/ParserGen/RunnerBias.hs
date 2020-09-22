@@ -216,17 +216,17 @@ runnerLL gbl s aut autDet =
                     -- maintain the behavior of reaching the
                     -- parseError the furthest. If we called backtrack
                     -- we would not update the parseError information
-                  Just actLst ->
+                  Just pdxs ->
                     -- trace (show tr) $
                     -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
-                    applyAllActions actLst cfg idx resumption result
+                    applyPredictions pdxs cfg idx resumption result
 
             where callNFA () =
                     let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
                     in setStep idx localTransitions (cfg, resumption) result
 
-      applyAllActions :: Det.Prediction -> Cfg -> CommitHist -> TailPath -> Result -> Result
-      applyAllActions prdx cfg@(Cfg inp ctrl out n) idx resumption result =
+      applyPredictions :: Det.Prediction -> Cfg -> CommitHist -> TailPath -> Result -> Result
+      applyPredictions prdx cfg@(Cfg inp ctrl out n) idx resumption result =
         case prdx of
           [] -> go (cfg, idx, resumption) result
           alt : alts ->
@@ -244,7 +244,7 @@ runnerLL gbl s aut autDet =
                        let newCommitInfo = updateCommitList idx
                            newCfg = Cfg inp ctrl out n2
                            updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                       in applyAllActions alts newCfg newCommitInfo newRes updResult
+                       in applyPredictions alts newCfg newCommitInfo newRes updResult
                      _ -> undefined
                  _ ->
                    let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
@@ -259,7 +259,7 @@ runnerLL gbl s aut autDet =
                                then -- trace ("RES:\n" ++ show (lengthPath resumption)) $
                                  addResult newCfg result
                                else result
-                         in applyAllActions alts newCfg idx newRes updResult
+                         in applyPredictions alts newCfg idx newRes updResult
 
 
       setStep :: CommitHist -> [Choice] -> Path -> Result -> Result

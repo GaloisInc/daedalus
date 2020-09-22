@@ -11,7 +11,6 @@ module Daedalus.ParserGen.DetUtils
     initClosurePath,
     addClosurePath,
     addInputHeadConditionClosurePath,
-    stateInClosurePath,
     lengthClosurePath,
     getLastState,
     getLastCfgDet,
@@ -155,11 +154,6 @@ addInputHeadConditionClosurePath _ih pos act q p =
     CP_Cons p act cfg
 
 
-stateInClosurePath :: State -> ClosurePath -> Bool
-stateInClosurePath q p =
-  case p of
-    CP_Empty cfg -> q == cfgState cfg
-    CP_Cons up _ cfg -> if q == cfgState cfg then True else stateInClosurePath q up
 
 lengthClosurePath :: ClosurePath -> Int
 lengthClosurePath p =
