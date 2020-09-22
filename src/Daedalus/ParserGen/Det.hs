@@ -398,6 +398,13 @@ predictLL r inp =
                     Just _ -> e
 
 
+insertAutDet2 :: State -> SymbolicStack -> (Result DFATransition, Bool) -> AutDet2 -> AutDet2
+insertAutDet2 q s r aut =
+  case IntMap.lookup q aut of
+    Nothing -> IntMap.insert q (Map.singleton s r) aut
+    Just m -> IntMap.insert q (Map.insert s r m) aut
+
+
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
   let transitions = allTransitions aut
@@ -409,8 +416,30 @@ createDFA aut =
              (q, (t, hasFullResolution t)))
         (Set.toList collectedStates)
   in
+    -- discover [initialState aut] IntMap.empty
     IntMap.fromAscList statesDet
   where
+    discover toVisit curr =
+      case toVisit of
+        [] -> curr
+        q: qs ->
+          if IntMap.member q curr
+          then discover qs curr
+          else
+            let t = deterministicK aut 0 (initClosurePath (initCfgDet q)) in
+            let newCurr = IntMap.insert q (t, hasFullResolution t) curr in
+            discover (qs ++ collectStates t) newCurr
+
+    collectStates t =
+      case t of
+        Result r1 ->
+          case r1 of
+            LResolve (NotAmbiguous _) -> []
+            LResolve (RiskAmbiguous) -> []
+            LChoice lst -> concatMap (\(_,ps, r2) -> map (\ (_,(_,_,q)) -> q) ps ++ collectStates r2) lst
+            _ -> []
+        _ -> []
+
     collectStatesArrivedByMove t =
       foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initialState aut)) t
 
