@@ -52,6 +52,10 @@ tcBounds it = case it of
                 Defined d     -> flip execState Set.empty (go d)
                 ExternDecl _  -> Set.empty
   where
+    addMB :: forall k. Maybe (TCName k) -> State (Set (Some TCName)) (Maybe (TCName k))
+    addMB Nothing  = pure Nothing
+    addMB r@(Just n) = r <$ modify (Set.insert (Some n))
+    
     go :: forall a k'. TC a k' -> State (Set (Some TCName)) (TC a k')
     go (TC v) = TC <$> traverse go' v
 
@@ -79,6 +83,12 @@ tcBounds it = case it of
                    Nothing -> id
                    Just k  -> Set.insert (Some k)
 
+        TCSelCase ctxt e pats mdef t ->
+          TCSelCase ctxt <$> go e
+                          <*> traverse (\(mbv, e') -> (,) <$> addMB mbv <*> go e') pats
+                          <*> traverse go mdef
+                          <*> pure t
+  
         x -> traverseTCF go x
 
  -- TCName because we need the context
@@ -137,6 +147,9 @@ withSomeVar x (NameM m) = NameM \bound -> m (Set.insert x bound)
 withVar :: TCName k -> NameM a -> NameM a
 withVar x = withSomeVar (Some x)
 
+withVarMaybe :: Maybe (TCName k) -> NameM a -> NameM a
+withVarMaybe = maybe id (withSomeVar . Some)
+
 addVar :: TCName k -> NameM a
 addVar x = NameM \bound -> if x' `Set.member` bound then Set.empty
                                                     else Set.singleton x'
@@ -183,6 +196,12 @@ instance TCFree (TC a k) where
             withK = case loopKName lp of
                       Nothing -> id
                       Just k  -> withVar k
+
+          TCSelCase ctxt e pats mdef t ->
+            TCSelCase ctxt <$> go e
+                           <*> traverse (\(mbv, e') -> (,) mbv <$> withVarMaybe mbv (go e')) pats
+                           <*> traverse go mdef
+                           <*> pure t
 
           e  -> traverseTCF go e
 

@@ -67,6 +67,7 @@ import Daedalus.Parser.Monad
   '||'        { Lexeme { lexemeRange = $$, lexemeToken = BarBar } }
   '~'         { Lexeme { lexemeRange = $$, lexemeToken = BitwiseComplementT } }
   '->'        { Lexeme { lexemeRange = $$, lexemeToken = RightArrow } }
+  '_'         { Lexeme { lexemeRange = $$, lexemeToken = Underscore } }
 
 {- NOTE: If you add a new keyword, please update the production
    for 'label` also, as it is likely to be a valid union label. -}
@@ -416,11 +417,17 @@ literal                                  :: { (SourceRange, Literal) }
   | BYTE                                    { LByte  `fmap` $1 }
 
 case_patterns                            :: { PatternCase Expr }
-  : separated(case_pattern, ',') '->' expr  { PatternCase $1 $3 }
+  :  '_' '->' expr                          { PatternDefault $3 }
+  | separated(case_pattern, ',') '->' expr  { PatternCase $1 $3 }
 
+-- FIXME: move '_' into case_patterns?
 case_pattern                             :: { Pattern }
   : literal                                 { LitPattern (snd $1) }
-  | label name                              { SelPattern $1 $2 }
+  | label optional_name                     { SelPattern $1 $2 }
+
+optional_name                            :: { Maybe Name }
+  : '_'                                     { Nothing }
+  | name                                    { Just $1 }
 
 separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }

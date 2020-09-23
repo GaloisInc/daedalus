@@ -92,7 +92,7 @@ $ws+        ;
 ">>"        { lexeme ShiftR }
 "~"         { lexeme BitwiseComplementT }
 "->"        { lexeme RightArrow }
-
+"_"         { lexeme Underscore }
 
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }

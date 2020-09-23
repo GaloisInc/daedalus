@@ -17,6 +17,8 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse)
 import qualified Data.Kind as HS
 import Data.Text(Text)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Data.Parameterized.Classes -- OrdF
 
@@ -196,9 +198,24 @@ data TCF :: HS -> Ctx -> HS where
    TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
       -- Custom error message: message (byte array)
 
+   -- destructors for union types
+
+   -- FIXME: we currently expand out union patterns, but we could
+   -- retain to keep the information.  We could also expand out the default.
+
+   --  FIXME: we only need the context if we want to examine an
+   --  expression.  Note that in the case that the alternatives are
+   --  empty and there is no default we cannot infer the context by
+   --  looking at the acrguments to the constructor
+
+   TCSelCase :: Context k -> TC a Value -> Map Label (Maybe (TCName Value), TC a k)
+             -> Maybe (TC a k) -> Type ->  TCF a k
+
+   -- Currently unsupported ...
+   -- TCLiteralCase :: Context k -> Type -> TC a Value -> [PatternCase (TC a k)]
+   --               -> Maybe (TC a k) -> TCF a k
+
 deriving instance Show a => Show (TCF a k)
-
-
 
 
 data LoopFlav a = Fold (TCName Value) (TC a Value)
@@ -470,6 +487,13 @@ instance PP (TCF a k) where
           Nothing  -> "Fail"
           Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
+      TCSelCase _ e pats mdef _ -> "case" <+> pp e <+> "is" $$
+                               nest 2 (block "{" ";" "}" (ppPats ++ ppDef))
+        where
+          ppPats = map ppOne (Map.toList pats)
+          ppOne (l, (mv, e')) = pp l <+> maybe "_" pp mv <+> "->" <+> pp e'
+          ppDef = maybe [] (\be -> ["_ ->" <+> pp be]) mdef
+          
 instance PP a => PP (Poly a) where
   ppPrec n (Poly xs cs a) =
     case (xs,cs) of
@@ -848,6 +872,8 @@ instance TypeOf (TCF a k) where
 
       TCErrorMode _ p     -> typeOf p
       TCFail _ t          -> tGrammar t
+      TCSelCase _ _ _ _ t -> t
+
 
 declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =

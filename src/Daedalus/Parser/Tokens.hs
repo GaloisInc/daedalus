@@ -53,6 +53,7 @@ data Token =
   | ShiftL
   | ShiftR
   | RightArrow
+  | Underscore
 
   | BitwiseAndT
   | BitwiseOrT

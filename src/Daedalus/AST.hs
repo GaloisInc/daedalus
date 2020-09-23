@@ -250,15 +250,14 @@ data Literal =
     deriving (Show, Eq, Ord)
 
 -- Non empty
-data PatternCase e = PatternCase
-  { patPatterns :: ![Pattern]
-  , patBody     :: !e
-  }
-  deriving Show
+data PatternCase e =
+    PatternDefault e
+  | PatternCase ![Pattern] !e
+  deriving (Show, Functor)
 
 data Pattern =
     LitPattern Literal
-  | SelPattern (Located Label) Name
+  | SelPattern (Located Label) (Maybe Name)
   deriving Show
 
 newtype Expr = Expr (Located (ExprF Expr))

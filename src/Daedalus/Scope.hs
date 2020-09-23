@@ -6,6 +6,7 @@ module Daedalus.Scope (
 
 import Data.Functor ( ($>) )
 import Data.Set(Set)
+import Data.Maybe (mapMaybe)
 import qualified Data.Set as Set
 
 import Data.Graph.SCC(stronglyConnComp)
@@ -45,10 +46,13 @@ data Scope = Scope { moduleVars    :: ModuleScope
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
+                | DifferentCaseVars ModuleName [Name]
                   deriving Show
 
 instance PP ScopeError where
   pp (ScopeViolation _mn n) = "Undeclared variable" <+> backticks (pp n)
+  pp (DifferentCaseVars _mn vs) = "Multiple names for pattern match variables:"
+                                  <+> sep (punctuate ", " $ map pp vs)
   pp (DuplicateNames _mn m) = "Duplicate rules:"
                                $$ nest 2 (bullets (map mkOne (Map.toList m)))
     where
@@ -216,6 +220,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x
       ETry e          -> ETry      <$> resolve e
+      ECase e ps      -> ECase     <$> resolve e <*> mapM resolveCasePatterns ps
 
       EAnyByte        -> pure expr
       EOptional c e   -> EOptional c <$> resolve e
@@ -326,3 +331,17 @@ resolveStructFields (f : fs) =
       do f'  <- ctor (makeNameLocal x) <$> resolve e
          fs' <- extendLocalScopeIn [x] (resolveStructFields fs)
          pure (f' : fs')
+
+resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
+resolveCasePatterns (PatternDefault e)  = PatternDefault <$> resolve e
+resolveCasePatterns (PatternCase ps e)
+  | _x : _y : _ <- names = do
+      scope <- getScope
+      ScopeM $ throwError (DifferentCaseVars (currentModule scope) names)
+  | otherwise = PatternCase ps <$> extendLocalScopeIn names (resolve e)
+  where
+    names = mapMaybe binder ps
+    
+    binder :: Pattern -> Maybe Name
+    binder (SelPattern _ nm) = nm
+    binder _                 = Nothing
