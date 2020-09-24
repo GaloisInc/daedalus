@@ -1201,8 +1201,11 @@ inferCase :: Expr -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx
 inferCase expr e ps
   | _ : _ : _ <- defaultCases = reportError expr "Multiple default cases"
     -- Unions bind same variable (FIXME: weaken, produce better errors)
-  | not (all (sameBinds . fst) nonDefaultCases) = 
-    reportError expr "Different pattern variables in union patterns"
+
+  -- FIXME: this is taken care of in scope
+  -- | not (all (sameBinds . fst) nonDefaultCases) = 
+  --   reportError expr "Different pattern variables in union patterns"
+  
     -- No pattern overlap (FIXME: pp dups)
   | not (Map.null dups) = reportError expr "Repeated cases"
     -- Only Sel patterns for now.
@@ -1227,10 +1230,6 @@ inferCase expr e ps
     -- FIXME: maybe don't strip location here?
     nonDefaultCases = [ ([(thingValue l, mv) | SelPattern l mv <- pats], bodye)
                       | PatternCase pats bodye <- ps ]
-
-    sameBinds :: [(Label, Maybe Name)] -> Bool
-    sameBinds [] = True
-    sameBinds ((_, mv) : rest) = all ((== mv) . snd) rest
 
     -- for overlap check
     allLabelMap = Map.fromListWith (++) [ (l, [l]) | (ls, _) <- nonDefaultCases, (l, _) <- ls ]

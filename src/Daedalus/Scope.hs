@@ -6,7 +6,7 @@ module Daedalus.Scope (
 
 import Data.Functor ( ($>) )
 import Data.Set(Set)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
 import Data.Graph.SCC(stronglyConnComp)
@@ -335,13 +335,19 @@ resolveStructFields (f : fs) =
 resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
 resolveCasePatterns (PatternDefault e)  = PatternDefault <$> resolve e
 resolveCasePatterns (PatternCase ps e)
-  | _x : _y : _ <- names = do
+  | not (sameBinds selVars) = do
       scope <- getScope
       ScopeM $ throwError (DifferentCaseVars (currentModule scope) names)
-  | otherwise = PatternCase ps <$> extendLocalScopeIn names (resolve e)
+  | otherwise = PatternCase (map localise ps) <$> extendLocalScopeIn names (resolve e)
   where
-    names = mapMaybe binder ps
+    names = catMaybes selVars
     
-    binder :: Pattern -> Maybe Name
-    binder (SelPattern _ nm) = nm
-    binder _                 = Nothing
+    selVars = [ mv | SelPattern _ mv <- ps ]
+
+    sameBinds :: [Maybe Name] -> Bool
+    sameBinds [] = True
+    sameBinds (mv : rest) = all (== mv) rest
+
+    localise :: Pattern -> Pattern
+    localise (SelPattern l mbv) = SelPattern l (makeNameLocal <$> mbv)
+    localise p = p

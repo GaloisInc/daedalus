@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, OverloadedStrings, TupleSections #-}
 {-# LANGUAGE GADTs, RecordWildCards, BlockArguments #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -418,6 +419,13 @@ compilePureExpr env = go
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
 
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compilePureExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
+
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
 invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
   where
@@ -494,6 +502,13 @@ compilePredicateExpr env = go
           let l = compilePureExpr env e
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
+          
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compilePredicateExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
 
 
 mbSkip :: WithSem -> Value -> Value
@@ -704,6 +719,14 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compileExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> 
+                       pError FromSystem erng
+                          ("missing case for `" ++ Text.unpack lbl ++ "`")
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
