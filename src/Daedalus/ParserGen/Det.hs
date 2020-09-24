@@ -431,7 +431,7 @@ predictLL res i =
     extractSinglePrediction :: DFAState -> (SourceCfg, Prediction)
     extractSinglePrediction s =
       case s of
-        [ (c1, c2, (pos, _, _) ) ] -> (c1, cfgRuleNb c2 Seq.|> pos )
+        [ (c1, c2, (pos, _, _)) ] -> (c1, cfgRuleNb c2 Seq.|> pos )
           -- NOTE: pos is appended because this is the last transition
         _ -> error "ambiguous prediction"
 
@@ -483,7 +483,9 @@ createDFA aut =
           case r1 of
             LResolve NotAmbiguous -> []
             LResolve Ambiguous -> []
-            LChoice lst -> concatMap (\(_, ps, r2) -> map (\ (_, _,(_,_,q)) -> q) ps ++ collectStates r2) lst
+            LChoice lst -> concatMap (
+              \(_, ps, r2) -> map (\ (_, _,(_,_,q)) -> q) ps ++ collectStates r2
+              ) lst
             _ -> []
         _ -> []
 
@@ -491,10 +493,11 @@ createDFA aut =
       foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initialState aut)) t
 
     choiceToArrivedByMove ch =
+      let helper lst = foldr (\ a b -> let sa = collectMove a in Set.union b sa) Set.empty lst in
       case ch of
         UniChoice (act, q) -> collectMove (act, q)
-        ParChoice lst -> foldr (\ a b -> let sa = collectMove a in Set.union b sa) Set.empty lst
-        SeqChoice lst _ -> foldr (\ a b -> let sa = collectMove a in Set.union b sa) Set.empty lst
+        ParChoice lst -> helper lst
+        SeqChoice lst _ -> helper lst
 
     collectMove (act, q) =
       if isInputAction act then Set.singleton q else Set.empty
