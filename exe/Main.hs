@@ -14,6 +14,7 @@ import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
 import System.Console.ANSI
 import Data.Traversable(for)
 import Data.Foldable(for_,toList)
+import Text.Show.Pretty (ppDoc)
 
 import Hexdump
 
@@ -64,6 +65,11 @@ handleOptions opts
        mods <- mapM (`ddlGetAST` astParse) =<< ddlBasis mm
        ddlPutStrLn (Export.jsModules mods)
        ddlIO exitSuccess
+
+  | DumpRaw <- optCommand opts =
+    do mm   <- ddlPassFromFile passParse (optParserDDL opts)
+       mo <- ddlGetAST mm astParse
+       ddlPrint (ppDoc mo)
 
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
@@ -118,6 +124,7 @@ handleOptions opts
                   ddlIO (interpPGen inp prog)
 
          DumpRuleRanges -> error "Bug: DumpRuleRanges"
+         DumpRaw -> error "Bug: DumpRaw"
 
          CompileHS ->
             mapM_ (saveHS (optOutDir opts) cfg) allMods

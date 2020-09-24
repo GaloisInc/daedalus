@@ -104,7 +104,8 @@ executable daedalus
                        simple-get-opt >= 0.4,
                        bytestring,
                        containers,
-                       filepath
+                       filepath,
+                       pretty-show
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2

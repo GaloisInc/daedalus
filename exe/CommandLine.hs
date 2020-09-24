@@ -12,10 +12,11 @@ import System.Exit(exitSuccess)
 import SimpleGetOpt
 
 data Command =
-    DumpTC
+    DumpRaw
+  | DumpTC
   | DumpSpec
   | DumpNorm
-  | DumpRuleRanges
+  | DumpRuleRanges  
   | DumpCore
   | DumpVM
   | DumpGen
@@ -53,6 +54,10 @@ options = OptSpec
       , Option ['t'] ["dump-tc"]
         "Dump type-checked AST"
         $ simpleCommand DumpTC
+      
+      , Option ['r'] ["dump-raw"]
+        "Dump parsed AST"
+        $ simpleCommand DumpRaw
 
       , Option [] ["dump-core"]
         "Dump core AST"
