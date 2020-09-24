@@ -4,15 +4,18 @@ module Daedalus.ParserGen.Det
   , AutDet
   , lookupAutDet
   , Prediction
+  , destrPrediction
   , predictLL
   )
 where
 
-import Debug.Trace
+-- import Debug.Trace
 
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
+import qualified Data.Sequence as Seq
+
 
 import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
@@ -63,10 +66,10 @@ maxDepthRec = 800
 
 
 
-closureLL :: Aut a => a -> Set.Set State -> ClosurePath -> Result ClosureMoveSet
-closureLL aut busy da =
+closureLL :: Aut a => a -> Set.Set State -> CfgDet -> Result ClosureMoveSet
+closureLL aut busy cfg =
   let
-    q = getLastState da
+    q = cfgState cfg
     ch = nextTransition aut q
   in
   case ch of
@@ -83,16 +86,16 @@ closureLL aut busy da =
       in iterateThrough (initChoicePos tag) lst
 
   where
-    newBusy = Set.insert (getLastState da) busy
+    newBusy = Set.insert (cfgState cfg) busy
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q1)
-      | isClassActOrEnd act                = Result [(da, (pos, act, q1))]
+      | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
-      | lengthClosurePath da > maxDepthRec = AbortOverflowMaxDepth
+      | length (cfgRuleNb cfg) > maxDepthRec = AbortOverflowMaxDepth
       | Set.member q1 newBusy              = AbortLoopWithNonClass
       | otherwise =
-          case addClosurePath pos act q1 da of
+          case simulateActionCfgDet pos act q1 cfg of
             Nothing -> Result []
             Just p -> closureLL aut newBusy p
 
@@ -147,48 +150,46 @@ classToInterval e =
 
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
-determinizeClosureMoveSet :: ClosureMoveSet -> Result DetChoice
-determinizeClosureMoveSet tc =
-  determinizeTree tc emptyDetChoice
+determinizeClosureMoveSet :: SourceCfg -> ClosureMoveSet -> Result DetChoice
+determinizeClosureMoveSet src tc =
+  determinizeWithAccu tc emptyDetChoice
 
   where
-    determinizeTree :: ClosureMoveSet -> DetChoice -> Result DetChoice
-    determinizeTree lst acc =
+    determinizeWithAccu :: ClosureMoveSet -> DetChoice -> Result DetChoice
+    determinizeWithAccu lst acc =
       case lst of
         [] -> Result acc
-        t@(_da, (_pos, act, _q)) : ms ->
+        t@(_cfg, (_pos, act, _q)) : ms ->
           case getClassActOrEnd act of
             Left c ->
               case classToInterval c of
                 AbortClassIsDynamic -> AbortClassIsDynamic
                 AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
                 Result r ->
-                  let newAcc = insertDetChoice (HeadInput r) t acc
-                  in determinizeTree ms newAcc
+                  let newAcc = insertDetChoice src (HeadInput r) t acc
+                  in determinizeWithAccu ms newAcc
                 _ -> error "Impossible abort"
             Right IEnd ->
-              let newAcc = insertDetChoice EndInput t acc
-              in determinizeTree ms newAcc
+              let newAcc = insertDetChoice src EndInput t acc
+              in determinizeWithAccu ms newAcc
             _ -> error "Impossible abort"
 
 
-deterministicStep :: Aut a => a -> ClosurePath -> Result DetChoice
-deterministicStep aut p =
-  case closureLL aut Set.empty p of
+deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
+deterministicStep aut cfg =
+  case closureLL aut Set.empty cfg of
     AbortOverflowMaxDepth -> AbortOverflowMaxDepth
     AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
     AbortNonClassInputAction x -> AbortNonClassInputAction x
-    Result r -> determinizeClosureMoveSet r
+    Result r -> determinizeClosureMoveSet cfg r
     _ -> error "impossible"
 
 
 
-type Prediction = [ChoicePos]
-
 data DFATransition =
     LResolve AmbiguityDetection
-  | LChoice [ (InputHeadCondition, PathSet, Result DFATransition) ]
+  | LChoice [ (InputHeadCondition, DFAState, Result DFATransition) ]
 
 instance Show DFATransition where
  show t =
@@ -200,9 +201,9 @@ instance Show DFATransition where
        concatMap (showT (d+2)) lst ++
        space d ++ "]"
 
-     showT d (i, tr, r) =
-       space d ++ "( " ++ show i ++ "\n" ++
-       space d ++ ", " ++ showTr tr ++ "\n" ++
+     showT d (i, s, r) =
+       space d ++ "( " ++ showSet s ++ "\n" ++
+       space d ++ ", " ++ show i ++ "\n" ++
        space d ++ ", " ++ showDown ++ "\n" ++
        space d ++ "),\n"
        where
@@ -211,10 +212,10 @@ instance Show DFATransition where
              Result a -> showD (d+2) a
              _ -> space d ++ abortToString r ++ "\n"
 
-     showTr tr = "[" ++ foldr (\ (p, (_pos, _act, _q)) b ->
-                                 "(" ++ show (lengthClosurePath p) ++
+     showSet s = "[" ++ foldr (\ (_src, cfg, (_pos, _act, _q)) b ->
+                                 "(" ++ show (length (cfgRuleNb cfg)) ++
                                  -- ",q" ++ show q ++
-                                 ")," ++ b) "" tr  ++ "]"
+                                 ")," ++ b) "" s  ++ "]"
 
      space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
@@ -235,48 +236,49 @@ lookaheadDepth rt =
 maxDepthDet :: Int
 maxDepthDet = 10
 
-detChoiceToList :: DetChoice -> [(InputHeadCondition, PathSet)]
+detChoiceToList :: DetChoice -> [(InputHeadCondition, DFAState)]
 detChoiceToList (c,e) =
   let tr = map (\ (i,t) -> (HeadInput i,t)) c in
   case e of
     Nothing -> tr
     Just t -> tr ++ [(EndInput, t)]
 
+
 data AmbiguityDetection =
-    RiskAmbiguous
-  | NotAmbiguous Prediction
+    Ambiguous
+  | NotAmbiguous
   | DunnoAmbiguous
 
 instance Show AmbiguityDetection where
-  show RiskAmbiguous = "RiskAmbiguous"
-  show (NotAmbiguous _) = "()"
+  show Ambiguous      = "Ambiguous"
+  show NotAmbiguous   = "NotAmbiguous"
   show DunnoAmbiguous = "DunnoAmbiguous"
 
 -- TODO: relate this to the ResolveAmbiguity function in ALL(*) paper
 -- In the current implementation it returns
 -- *  NotAmbiguous when there is only one alternative
--- *  RiskAmbiguous when all the alternatives reach the same target state
+-- *  Ambiguous when all the alternatives reach the same target state
 -- *  DunnoAmbiguous otherwise
-ambiguousPathSet :: PathSet -> AmbiguityDetection
-ambiguousPathSet ts =
+analyzeConflicts :: DFAState -> AmbiguityDetection
+analyzeConflicts ts =
   case ts of
-    [] -> error "empty PathSet"
-    [ (p, (_pos, _act, _q)) ] -> NotAmbiguous (extractChoicePos p)
-    (p, (_pos, _act, q)) : rest -> checkAll p q rest
+    [] -> error "empty DFAState"
+    [ (_, _p, (_pos, _act, _q)) ] -> NotAmbiguous
+    (_, p, (_pos, _act, q)) : rest -> checkAll p q rest
   where checkAll p q rest =
           -- TODO: also use the path to refine the decision
           case rest of
-            [ (_p1, (_pos, _act, q1)) ] ->
+            [ (_, _p1, (_pos, _act, q1)) ] ->
               if q1 == q
-              then RiskAmbiguous
+              then Ambiguous
               else DunnoAmbiguous
-            (_p1, (_pos, _act, q1)) : tss ->
+            (_, _p1, (_pos, _act, q1)) : tss ->
               if q1 == q
               then checkAll p q tss
               else DunnoAmbiguous
             _ -> error "impossible"
 
-deterministicK :: Aut a => a -> Int -> ClosurePath -> Result DFATransition
+deterministicK :: Aut a => a -> Int -> CfgDet -> Result DFATransition
 deterministicK aut depth p =
   let det1 = deterministicStep aut p
   in case det1 of
@@ -288,35 +290,36 @@ deterministicK aut depth p =
        AbortClassNotHandledYet a -> AbortClassNotHandledYet a
        Result r ->
          let tr = detChoiceToList r
-         in Result $ LChoice (iterateDeterminize depth tr)
+         in Result $ LChoice (mapDeterminize depth tr)
        _ -> error "cannot be this Abort"
 
   where
-    iterateDeterminize :: Int -> [(InputHeadCondition, PathSet)] -> [(InputHeadCondition, PathSet, Result DFATransition)]
-    iterateDeterminize k lst =
+    mapDeterminize :: Int -> [(InputHeadCondition, DFAState)] -> [(InputHeadCondition, DFAState, Result DFATransition)]
+    mapDeterminize k lst =
       case lst of
         [] -> []
         (i, s) : rest ->
           let t = detSubset k i s
-          in (i, s, t) : iterateDeterminize k rest
+          in (i, s, t) : mapDeterminize k rest
 
-    detSubset :: Int -> InputHeadCondition -> PathSet -> Result DFATransition
+    detSubset :: Int -> InputHeadCondition -> DFAState -> Result DFATransition
     detSubset k itv s =
-      let am = ambiguousPathSet s in
+      let am = analyzeConflicts s in
       case am of
-        RiskAmbiguous -> Result (LResolve am)
-        NotAmbiguous _ -> Result (LResolve am)
+        Ambiguous -> Result (LResolve am)
+        NotAmbiguous  -> Result (LResolve am)
         DunnoAmbiguous ->
           if k > maxDepthDet
           then AbortOverflowK
-          else detSubsetHelper k itv s emptyDetChoice
+          else detSubsetAccu k itv s emptyDetChoice
 
-    detSubsetHelper :: Int -> InputHeadCondition -> PathSet -> DetChoice -> Result DFATransition
-    detSubsetHelper k i s acc =
+    detSubsetAccu :: Int -> InputHeadCondition -> DFAState -> DetChoice -> Result DFATransition
+    detSubsetAccu k i s acc =
       case s of
-        [] -> Result (LChoice (iterateDeterminize (k + 1) (detChoiceToList acc)))
-        (p1, (pos, act, q)) : rest ->
-          let r = deterministicStep aut (addInputHeadConditionClosurePath i pos act q p1) in
+        [] -> Result (LChoice (mapDeterminize (k + 1) (detChoiceToList acc)))
+        (_, p1, (_pos, _act, q)) : rest ->
+          let newSrcCfg = setupCfgDetFromPrev q p1
+              r = deterministicStep aut newSrcCfg in
           case r of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
             AbortLoopWithNonClass -> AbortLoopWithNonClass
@@ -324,7 +327,7 @@ deterministicK aut depth p =
             AbortNonClassInputAction x -> AbortNonClassInputAction x
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
-              in detSubsetHelper k i rest newAcc
+              in detSubsetAccu k i rest newAcc
             _ -> error "cannot be this abort"
 
 
@@ -335,8 +338,8 @@ hasFullResolution r =
       case r1 of
          LResolve r2 ->
            case r2 of
-             NotAmbiguous _ -> True
-             RiskAmbiguous -> False
+             NotAmbiguous -> True
+             Ambiguous -> False
              _ -> error "broken invariant"
          LChoice lst -> helper lst
     _ -> False
@@ -347,6 +350,7 @@ hasFullResolution r =
         (_,_,pr) : rest ->
           if hasFullResolution pr then helper rest else False
 
+
 hasNoAbort :: Result DFATransition -> Bool
 hasNoAbort r =
   case r of
@@ -354,8 +358,8 @@ hasNoAbort r =
       case r1 of
          LResolve r2 ->
            case r2 of
-             NotAmbiguous _ -> True
-             RiskAmbiguous -> True
+             NotAmbiguous -> True
+             Ambiguous -> True
              _ -> error "broken invariant"
          LChoice lst -> helper lst
     _ -> False
@@ -375,27 +379,70 @@ type AutDet2 = IntMap.IntMap (Map.Map SymbolicStack (Result DFATransition, Bool)
 lookupAutDet :: State -> AutDet -> Maybe (Result DFATransition, Bool)
 lookupAutDet q aut = IntMap.lookup q aut
 
+
+type Prediction = Seq.Seq ChoicePos
+
+destrPrediction :: Prediction -> Maybe (ChoicePos, Prediction)
+destrPrediction pdx =
+  case pdx of
+    Seq.Empty -> Nothing
+    c Seq.:<| cs -> Just (c, cs)
+
 predictLL :: Result DFATransition -> Input.Input -> Maybe Prediction
-predictLL r inp =
-  case r of
-    Result (LChoice lst) ->
-      iterLeftToRight lst
-    _ -> error "should not reach this line"
+predictLL res i =
+  findPrediction res i []
   where
-    iterLeftToRight lst =
+    findPrediction :: Result DFATransition -> Input.Input -> [DFAState] -> Maybe Prediction
+    findPrediction r inp acc =
+      case r of
+        Result (LChoice lst) -> iterLeftToRight lst inp acc
+        _ -> error "should not reach this line"
+
+    iterLeftToRight lst inp acc =
       case lst of
         [] -> Nothing
-        (c,_cp,r1) : rest ->
+        (c, s, r1) : rest ->
           case matchInputHeadCondition c inp of
-            Nothing -> iterLeftToRight rest
+            Nothing -> iterLeftToRight rest inp acc
             Just inp1 ->
+              let newAcc = s:acc in
               case r1 of
-                Result (LResolve (NotAmbiguous prdx)) -> Just $ prdx
-                _ ->
-                  let e = predictLL r1 inp1 in
-                  case e of
-                    Nothing -> iterLeftToRight rest
-                    Just _ -> e
+                Result (LResolve NotAmbiguous) -> Just $ extractPrediction newAcc
+                _ -> findPrediction r1 inp1 newAcc
+
+    extractPrediction :: [DFAState] -> Prediction
+    extractPrediction lst =
+      -- trace (concatMap (\ e -> show e ++"\n") lst) $
+      case lst of
+        [] -> undefined
+        s : rest ->
+          let (backCfg, pdx) = extractSinglePrediction s
+          in
+          walkBackward backCfg rest pdx
+
+    walkBackward :: SourceCfg -> [DFAState] -> Prediction -> Prediction
+    walkBackward src lst acc =
+      case lst of
+        [] -> acc
+        s : rest ->
+          let (backCfg, pdx) = extractPredictionFromDFAState src s
+          in walkBackward backCfg rest ((Seq.><) pdx acc)
+
+    extractSinglePrediction :: DFAState -> (SourceCfg, Prediction)
+    extractSinglePrediction s =
+      case s of
+        [ (c1, c2, (pos, _, _) ) ] -> (c1, cfgRuleNb c2 Seq.|> pos )
+          -- NOTE: pos is appended because this is the last transition
+        _ -> error "ambiguous prediction"
+
+    extractPredictionFromDFAState :: SourceCfg -> DFAState -> (SourceCfg, Prediction)
+    extractPredictionFromDFAState src s =
+      case s of
+        [] -> error "could not find src from previous cfg"
+        (c1, c2, (pos,_,q2)) : others ->
+          if q2 == cfgState src
+          then (c1, cfgRuleNb c2 Seq.|> pos)
+          else extractPredictionFromDFAState src others
 
 
 insertAutDet2 :: State -> SymbolicStack -> (Result DFATransition, Bool) -> AutDet2 -> AutDet2
@@ -412,7 +459,7 @@ createDFA aut =
       statesDet =
         map
         (\ q ->
-           let t = deterministicK aut 0 (initClosurePath (initCfgDet q)) in
+           let t = deterministicK aut 0 (initCfgDet q) in
              (q, (t, hasFullResolution t)))
         (Set.toList collectedStates)
   in
@@ -426,7 +473,7 @@ createDFA aut =
           if IntMap.member q curr
           then discover qs curr
           else
-            let t = deterministicK aut 0 (initClosurePath (initCfgDet q)) in
+            let t = deterministicK aut 0 (initCfgDet q) in
             let newCurr = IntMap.insert q (t, hasFullResolution t) curr in
             discover (qs ++ collectStates t) newCurr
 
@@ -434,9 +481,9 @@ createDFA aut =
       case t of
         Result r1 ->
           case r1 of
-            LResolve (NotAmbiguous _) -> []
-            LResolve (RiskAmbiguous) -> []
-            LChoice lst -> concatMap (\(_,ps, r2) -> map (\ (_,(_,_,q)) -> q) ps ++ collectStates r2) lst
+            LResolve NotAmbiguous -> []
+            LResolve Ambiguous -> []
+            LChoice lst -> concatMap (\(_, ps, r2) -> map (\ (_, _,(_,_,q)) -> q) ps ++ collectStates r2) lst
             _ -> []
         _ -> []
 
@@ -457,7 +504,8 @@ printDFA dfa =
   let t = IntMap.toList dfa
   in if length t > 100
      then do return ()
-     else mapM_ (\ (_k, (tr,_)) -> do putStrLn $ show tr) t
+     else mapM_ (\ (_k, (tr,_)) -> do
+                    putStrLn $ show tr) t
 
 statsDFA :: AutDet -> IO ()
 statsDFA dfa =
@@ -483,7 +531,7 @@ statsDFA dfa =
       case r of
         AbortAmbiguous -> result "-ambiguous-0"
         AbortOverflowK -> abortToString r
-        Result t ->
+        Result _t ->
           let k = lookaheadDepth r in
           let res =
                 if hasFullResolution r
@@ -492,10 +540,10 @@ statsDFA dfa =
                      then result ("-ambiguous-" ++ show k)
                      else "abort-" ++ show k
           in
-          if k == 3
-          then trace (show t) $
+          -- if k == 3
+          -- then trace (show _t) $
                res
-          else res
+          -- else res
         _ -> abortToString r
 
 

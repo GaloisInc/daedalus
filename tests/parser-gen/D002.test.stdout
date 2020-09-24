@@ -1,34 +1,34 @@
 Result DTrans [
-  ( HeadInput ['a']
-  , [(10),(10),]
+  ( [(10),(10),]
+  , HeadInput ['a']
   , DTrans [
-      ( HeadInput ['b']
-      , [(12),]
-      , Resolution (Result ())
+      ( [(1),]
+      , HeadInput ['b']
+      , Resolution (NotAmbiguous)
       ),
-      ( HeadInput ['c']
-      , [(12),]
-      , Resolution (Result ())
+      ( [(1),]
+      , HeadInput ['c']
+      , Resolution (NotAmbiguous)
       ),
     ]
   ),
 ]
 Result DTrans [
-  ( HeadInput ['c']
-  , [(1),]
-  , Resolution (Result ())
+  ( [(1),]
+  , HeadInput ['c']
+  , Resolution (NotAmbiguous)
   ),
 ]
 Result DTrans [
-  ( HeadInput ['a']
-  , [(18),(18),]
+  ( [(18),(18),]
+  , HeadInput ['a']
   , DTrans [
-      ( HeadInput ['b']
-      , [(20),(20),]
+      ( [(1),(1),]
+      , HeadInput ['b']
       , DTrans [
-          ( EndInput
-          , [(34),(34),]
-          , Resolution (AbortAmbiguous)
+          ( [(13),(13),]
+          , EndInput
+          , Resolution (Ambiguous)
           ),
         ]
       ),
@@ -36,21 +36,21 @@ Result DTrans [
   ),
 ]
 Result DTrans [
-  ( HeadInput ['b']
-  , [(1),]
-  , Resolution (Result ())
+  ( [(1),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
   ),
 ]
 Result DTrans [
-  ( HeadInput ['a']
-  , [(18),(18),]
+  ( [(18),(18),]
+  , HeadInput ['a']
   , DTrans [
-      ( HeadInput ['b']
-      , [(20),(20),]
+      ( [(1),(1),]
+      , HeadInput ['b']
       , DTrans [
-          ( EndInput
-          , [(34),(34),]
-          , Resolution (AbortAmbiguous)
+          ( [(13),(13),]
+          , EndInput
+          , Resolution (Ambiguous)
           ),
         ]
       ),
@@ -58,27 +58,27 @@ Result DTrans [
   ),
 ]
 Result DTrans [
-  ( HeadInput ['b']
-  , [(1),]
-  , Resolution (Result ())
+  ( [(1),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
   ),
 ]
 Result DTrans [
-  ( EndInput
-  , [(13),]
-  , Resolution (Result ())
+  ( [(13),]
+  , EndInput
+  , Resolution (NotAmbiguous)
   ),
 ]
 Result DTrans [
-  ( HeadInput ['b']
-  , [(1),]
-  , Resolution (Result ())
+  ( [(1),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
   ),
 ]
 Result DTrans [
-  ( EndInput
-  , [(13),]
-  , Resolution (Result ())
+  ( [(13),]
+  , EndInput
+  , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
