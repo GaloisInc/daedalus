@@ -8,7 +8,7 @@ module Daedalus.ParserGen.RunnerBias
 
 where
 
-import Debug.Trace
+--import Debug.Trace
 
 import qualified Data.ByteString as BS
 import Data.Maybe (fromJust)
@@ -193,8 +193,6 @@ runnerBias gbl s aut =
 
   in go (initCfg s aut, emptyCommit, EmptyPath) emptyResult
 
-
-
 -- This runner is using both the NFA and the DFA to parse.
 runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> AutDet -> Result
 runnerLL gbl s aut autDet =
@@ -203,14 +201,17 @@ runnerLL gbl s aut autDet =
         case cfg of
           Cfg inp _ctrl _out q ->
             -- trace (show cfg) $
+            -- trace ("lookupDet STATE: " ++ show q) $
             let detTrans = Det.lookupAutDet q autDet in
             case detTrans of
               Nothing -> callNFA ()
               Just (_tr, False) -> callNFA ()
               Just (tr, True) ->
+                -- trace "YES LL lookup" $
                 let a = Det.predictLL tr inp in
                 case a of
-                  Nothing -> callNFA ()
+                  Nothing ->
+                    callNFA ()
                     -- NOTE: here we call `callNFA()` instead of
                     -- `backtrack idx resumption result` in order to
                     -- maintain the behavior of reaching the
@@ -218,6 +219,7 @@ runnerLL gbl s aut autDet =
                     -- we would not update the parseError information
                   Just pdxs ->
                     -- trace (show tr) $
+                    -- trace (show pdxs) $
                     -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
                     applyPredictions pdxs cfg idx resumption result
 
@@ -227,16 +229,17 @@ runnerLL gbl s aut autDet =
 
       applyPredictions :: Det.Prediction -> Cfg -> CommitHist -> TailPath -> Result -> Result
       applyPredictions prdx cfg@(Cfg inp ctrl out n) idx resumption result =
-        case prdx of
-          [] -> go (cfg, idx, resumption) result
-          alt : alts ->
+        case Det.destrPrediction prdx of
+          Nothing -> go (cfg, idx, resumption) result
+          Just (alt, alts) ->
             let tr = fromJust $ nextTransition aut n
                 (act, n2) = case (tr, alt) of
                               (UniChoice (a, n1), (CUni, _)) -> (a, n1)
                               (SeqChoice lst _, (CSeq, i)) -> lst !! i
                               (ParChoice lst, (CPar, i)) -> lst !! i
-                              _ -> error "unpossible combination"
-            in case act of
+                              _ -> error "impossible combination"
+            in
+               case act of
                  BAct bact ->
                    let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
                    case bact of
