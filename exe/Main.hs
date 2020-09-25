@@ -164,7 +164,7 @@ interpPGen inp norms =
      -- let dfa = PGen.createDFA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ _ ->
-                 do --let results = PGen.runnerLL gbl bytes aut dfa  -- LL
+                 do -- let results = PGen.runnerLL gbl bytes aut dfa  -- LL
                     let results = PGen.runnerBias gbl bytes aut
                     let resultValues = PGen.extractValues results
                     if null resultValues
