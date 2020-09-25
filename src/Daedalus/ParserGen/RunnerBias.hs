@@ -23,8 +23,8 @@ import Daedalus.ParserGen.Det as Det
 import Daedalus.ParserGen.DetUtils as DetU
 
 data CommitType =
-    CTrue
-  | CFalse
+    CFalse
+  | CTrue
   | CEarly
   deriving(Eq,Show)
 
@@ -58,20 +58,18 @@ type TailInfo = Int
 
 data TailPath =
     EmptyPath
-  | Level TailInfo Choice [Choice] Path
-    -- the first `Choice` is the current,
-    -- the other `[Choice]` is alternatives
+  | Level TailInfo Choice Path
   deriving(Show)
 
 type Path = (Cfg, TailPath)
 
 getTailInfo :: TailPath -> TailInfo
 getTailInfo EmptyPath       = 0
-getTailInfo (Level n _ _ _) = n
+getTailInfo (Level n _ _) = n
 
-addLevel :: Choice -> [Choice] -> Path -> TailPath
-addLevel ch moreCh path =
-  Level (getTailInfo (snd path) + 1) ch moreCh path
+addLevel :: Choice -> Path -> TailPath
+addLevel ch path =
+  Level (getTailInfo (snd path) + 1) ch path
 
 
 data Result = Result
@@ -105,23 +103,23 @@ runnerBias gbl s aut =
         case cfg of
           Cfg _inp _ctrl _out q ->
             -- trace (show cfg) $
-            let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
+            let localTransitions = nextTransition aut q
             in setStep idx localTransitions (cfg, resumption) result
 
-      setStep :: CommitHist -> [Choice] -> Path -> Result -> Result
+      setStep :: CommitHist -> Maybe Choice -> Path -> Result -> Result
       setStep idx choices (cfg, resumption) result =
         case choices of
-          [] -> {-# SCC backtrackSetStep #-} backtrack idx resumption result
-          ch : moreCh ->
+          Nothing -> {-# SCC backtrackSetStep #-} backtrack idx resumption result
+          Just ch ->
             case ch of
               UniChoice (act, n2) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
-              SeqChoice [] _ -> setStep idx moreCh (cfg, resumption) result
+                step act n2 idx (addLevel ch (cfg, resumption)) result
+              SeqChoice [] _ -> backtrack idx resumption result
               SeqChoice ((act, n2): _) _ -> -- trace "RESET" $
-                step act n2 (addCommit idx) (addLevel ch moreCh (cfg, resumption)) result
-              ParChoice [] -> setStep idx moreCh (cfg, resumption) result
+                step act n2 (addCommit idx) (addLevel ch (cfg, resumption)) result
+              ParChoice [] -> backtrack idx resumption result
               ParChoice ((act, n2): _) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
+                step act n2 idx (addLevel ch (cfg, resumption)) result
 
       step :: Action -> State -> CommitHist -> TailPath -> Result -> Result
       step act n2 idx resumption result =
@@ -129,7 +127,7 @@ runnerBias gbl s aut =
         -- trace  (show act) $
         case resumption of
           EmptyPath -> error "Impossible"
-          Level n _choice _choices (cfg@(Cfg inp ctrl out _n1), _res) ->
+          Level n _choice (cfg@(Cfg inp ctrl out _n1), _res) ->
             case act of
               BAct (CutBiasAlt _st) ->
                 let newCommitInfo = updateCommitList idx
@@ -173,23 +171,23 @@ runnerBias gbl s aut =
         case resumption of
           EmptyPath -> result
 
-          Level _ (UniChoice _) choices path ->
-            setStep idx choices path result
+          Level _ (UniChoice _) path ->
+            backtrack idx (snd path) result
 
-          Level _ (SeqChoice [] _) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (SeqChoice [ _ ] _) choices path ->
-            setStep (popCommit idx) choices path result
-          Level _ (SeqChoice ((_act, _n2): actions) st) choices path ->
+          Level _ (SeqChoice [] _) _ -> error "Broken invariant, the current choice cannot be empty"
+          Level _ (SeqChoice [ _ ] _) path ->
+            backtrack (popCommit idx) (snd path) result
+          Level _ (SeqChoice ((_act, _n2): actions) st) path ->
             -- trace "BACKT" $
             if hasCommitted idx -- A commit happened
-            then setStep (popCommit idx) choices path result
-            else setStep (popCommit idx) ((SeqChoice actions st) : choices) path result
+            then backtrack (popCommit idx) (snd path) result
+            else setStep (popCommit idx) (Just (SeqChoice actions st)) path result
 
-          Level _ (ParChoice []) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (ParChoice [ _ ]) choices path ->
-            setStep idx choices path result
-          Level _ (ParChoice ((_act, _n2): actions)) choices path ->
-            setStep idx ((ParChoice actions) : choices) path result
+          Level _ (ParChoice []) _ -> error "Broken invariant, the current choice cannot be empty"
+          Level _ (ParChoice [ _ ]) path ->
+            backtrack idx (snd path) result
+          Level _ (ParChoice ((_act, _n2): actions)) path ->
+            setStep idx (Just (ParChoice actions)) path result
 
   in go (initCfg s aut, emptyCommit, EmptyPath) emptyResult
 
@@ -224,7 +222,7 @@ runnerLL gbl s aut autDet =
                     applyPredictions pdxs cfg idx resumption result
 
             where callNFA () =
-                    let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
+                    let localTransitions = nextTransition aut q
                     in setStep idx localTransitions (cfg, resumption) result
 
       applyPredictions :: Det.Prediction -> Cfg -> CommitHist -> TailPath -> Result -> Result
@@ -241,7 +239,7 @@ runnerLL gbl s aut autDet =
             in
                case act of
                  BAct bact ->
-                   let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
+                   let newRes = addLevel (UniChoice (act, n2)) (cfg, resumption) in
                    case bact of
                      (CutBiasAlt _st) ->
                        let newCommitInfo = updateCommitList idx
@@ -250,7 +248,7 @@ runnerLL gbl s aut autDet =
                        in applyPredictions alts newCfg newCommitInfo newRes updResult
                      _ -> undefined
                  _ ->
-                   let newRes = addLevel (UniChoice (act, n2)) [] (cfg, resumption) in
+                   let newRes = addLevel (UniChoice (act, n2)) (cfg, resumption) in
                      case applyAction gbl (inp, ctrl, out) act of
                        Nothing -> {-# SCC backtrackFailApplyAction #-}
                          let updResult = updateError (getTailInfo resumption) cfg result
@@ -264,21 +262,20 @@ runnerLL gbl s aut autDet =
                                else result
                          in applyPredictions alts newCfg idx newRes updResult
 
-
-      setStep :: CommitHist -> [Choice] -> Path -> Result -> Result
+      setStep :: CommitHist -> Maybe Choice -> Path -> Result -> Result
       setStep idx choices (cfg, resumption) result =
         case choices of
-          [] -> {-# SCC backtrackSetStep #-} backtrack idx resumption result
-          ch : moreCh ->
+          Nothing -> {-# SCC backtrackSetStep #-} backtrack idx resumption result
+          Just ch ->
             case ch of
               UniChoice (act, n2) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
-              SeqChoice [] _ -> setStep idx moreCh (cfg, resumption) result
+                step act n2 idx (addLevel ch (cfg, resumption)) result
+              SeqChoice [] _ -> backtrack idx resumption result
               SeqChoice ((act, n2): _) _ -> -- trace "RESET" $
-                step act n2 (addCommit idx) (addLevel ch moreCh (cfg, resumption)) result
-              ParChoice [] -> setStep idx moreCh (cfg, resumption) result
+                step act n2 (addCommit idx) (addLevel ch (cfg, resumption)) result
+              ParChoice [] -> backtrack idx resumption result
               ParChoice ((act, n2): _) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
+                step act n2 idx (addLevel ch (cfg, resumption)) result
 
       step :: Action -> State -> CommitHist -> TailPath -> Result -> Result
       step act n2 idx resumption result =
@@ -286,7 +283,7 @@ runnerLL gbl s aut autDet =
         -- trace  (show act) $
         case resumption of
           EmptyPath -> error "Impossible"
-          Level n _choice _choices (Cfg inp ctrl out n1, _res) ->
+          Level n _choice (cfg@(Cfg inp ctrl out _n1), _res) ->
             case act of
               BAct (CutBiasAlt _st) ->
                 let newCommitInfo = updateCommitList idx
@@ -307,14 +304,14 @@ runnerLL gbl s aut autDet =
                 in -- trace ("IDX = " ++ show idx) $
                    go (newCfg, newCommitInfo, EmptyPath) updResult
               BAct (FailAction Nothing) ->
-                let updResult = updateError n (Cfg inp ctrl out n1) result in
+                let updResult = updateError n cfg result in
                 backtrack idx resumption updResult
               BAct (FailAction _) ->
                 error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
-                    let updResult = updateError n (Cfg inp ctrl out n1) result in
+                    let updResult = updateError n cfg result in
                     backtrack idx resumption updResult
                   Just (inp2, ctr2, out2) ->
                     let newCfg = Cfg inp2 ctr2 out2 n2
@@ -330,23 +327,23 @@ runnerLL gbl s aut autDet =
         case resumption of
           EmptyPath -> result
 
-          Level _ (UniChoice _) choices path ->
-            setStep idx choices path result
+          Level _ (UniChoice _) path ->
+            backtrack idx (snd path) result
 
-          Level _ (SeqChoice [] _) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (SeqChoice [ _ ] _) choices path ->
-            setStep (popCommit idx) choices path result
-          Level _ (SeqChoice ((_act, _n2): actions) st) choices path ->
+          Level _ (SeqChoice [] _) _ -> error "Broken invariant, the current choice cannot be empty"
+          Level _ (SeqChoice [ _ ] _) path ->
+            backtrack (popCommit idx) (snd path) result
+          Level _ (SeqChoice ((_act, _n2): actions) st) path ->
             -- trace "BACKT" $
             if hasCommitted idx -- A commit happened
-            then setStep (popCommit idx) choices path result
-            else setStep (popCommit idx) ((SeqChoice actions st) : choices) path result
+            then backtrack (popCommit idx) (snd path) result
+            else setStep (popCommit idx) (Just (SeqChoice actions st)) path result
 
-          Level _ (ParChoice []) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (ParChoice [ _ ]) choices path ->
-            setStep idx choices path result
-          Level _ (ParChoice ((_act, _n2): actions)) choices path ->
-            setStep idx ((ParChoice actions) : choices) path result
+          Level _ (ParChoice []) _ -> error "Broken invariant, the current choice cannot be empty"
+          Level _ (ParChoice [ _ ]) path ->
+            backtrack idx (snd path) result
+          Level _ (ParChoice ((_act, _n2): actions)) path ->
+            setStep idx (Just (ParChoice actions)) path result
 
   in go (initCfg s aut, emptyCommit, EmptyPath) emptyResult
 
