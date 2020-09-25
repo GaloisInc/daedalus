@@ -41,15 +41,18 @@ emptyCommitStack :: CommitStack
 emptyCommitStack = []
 
 addCommitStack :: CommitStack -> CommitStack
+{-# INLINE addCommitStack #-}
 addCommitStack hst = CFalse : hst
 
 popCommitStack :: CommitStack -> CommitStack
 popCommitStack hst = tail hst
 
 hasCommitted :: CommitStack -> Bool
+{-# INLINE hasCommitted #-}
 hasCommitted hst = let c = (head hst) in c == CTrue || c == CEarly
 
 updateCommitStack :: CommitStack -> CommitStack
+{-# INLINE updateCommitStack #-}
 updateCommitStack [] = error "broken invariant"
 updateCommitStack (CFalse : r) = CTrue : r
 updateCommitStack (CTrue  : r) = CTrue : updateCommitStack r
@@ -76,10 +79,12 @@ data BacktrackStack =
 
 
 getBacktrackStackInfo :: BacktrackStack -> BacktrackStackInfo
+{-# INLINE getBacktrackStackInfo #-}
 getBacktrackStackInfo BEmpty           = 0
 getBacktrackStackInfo (BLevel n _ _ _) = n
 
 addLevel :: BacktrackStack -> Cfg -> Choice -> BacktrackStack
+{-# INLINE addLevel #-}
 addLevel tpath cfg ch =
   BLevel (getBacktrackStackInfo tpath + 1) tpath cfg ch
 
@@ -93,6 +98,7 @@ emptyResumption :: Resumption
 emptyResumption = ([], BEmpty)
 
 addResumption :: Resumption -> Cfg -> Choice -> Resumption
+{-# INLINE addResumption #-}
 addResumption resumption cfg ch =
   let (comm, st) = resumption in
   case ch of
@@ -101,6 +107,7 @@ addResumption resumption cfg ch =
     ParChoice _ ->   (comm, addLevel st cfg ch)
 
 getActionCfgAtLevel :: Resumption -> Maybe (Cfg, (Action, State))
+{-# INLINE getActionCfgAtLevel #-}
 getActionCfgAtLevel resumption =
   case resumption of
     (_, BLevel _ _ cfg ch) ->
@@ -112,6 +119,7 @@ getActionCfgAtLevel resumption =
     (_, BEmpty) -> Nothing
 
 updateCommitResumption :: Resumption -> Resumption
+{-# INLINE updateCommitResumption #-}
 updateCommitResumption resumption =
   let (comm, st) = resumption in
     (updateCommitStack comm, st)
@@ -127,6 +135,7 @@ cutResumption _resumption =
 
 
 nextResumption :: Resumption -> Maybe Resumption
+{-# INLINE nextResumption #-}
 nextResumption (commitStk, tpath) =
   case tpath of
     BLevel _ path _ (UniChoice _) -> nextResumption (commitStk, path)
