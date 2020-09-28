@@ -18,6 +18,7 @@ module Daedalus.Interp
   , compilePredicateExpr
   , addValMaybe
   , addVal
+  , setVals
   , vUnit
   ) where
 
@@ -95,6 +96,9 @@ emptyEnv :: Env
 emptyEnv = Env Map.empty Map.empty Map.empty
                Map.empty Map.empty Map.empty
                Map.empty
+
+setVals :: Map Name Value -> Env -> Env
+setVals vs env = env { valEnv = vs }
 
 addVal :: TCName K.Value -> Value -> Env -> Env
 addVal x v env = env { valEnv = Map.insert (tcName x) v (valEnv env) }
