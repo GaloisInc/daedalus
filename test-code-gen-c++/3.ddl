@@ -1,5 +1,2 @@
-import PdfValue
 
-def Main = Value
-
-
+def Main = Match "a"

@@ -43,7 +43,7 @@ cProgram prog =
     , " "
     , "// --- Parser --- //"
     , " "
-    , "void parser(std::vector<" <.> parserTy <.> ">& output) {"
+    , "void parser(" <.> inst "DDL::Parser" [ parserTy ] <+> "&p) {"
     , nest 2 parserDef
     , "}"
     ]
@@ -54,9 +54,18 @@ cProgram prog =
 
   allTypes       = concatMap mTypes orderedModules
   allFuns        = concatMap mFuns orderedModules
+  allBlocks      = Map.unions (pBoot prog : map vmfBlocks allFuns)
+  doBlock b      = let ?allBlocks = allBlocks in cBlock b
 
   parserTy       = cSemType (pType prog)
-  parserDef      = empty
+  parserDef      = vcat [ params
+                        , " "
+                        , "// --- States ---"
+                        , " "
+                        , vcat' (map doBlock (Map.elems allBlocks))
+                        ]
+
+  params         = vcat (map cDeclareBlockParams (Map.elems allBlocks))
 
   includes =
     vcat [ "#include <vector>"
@@ -71,44 +80,19 @@ cProgram prog =
          ]
 
 
-cModule :: Module -> Doc
-cModule m =
-  let ?allFuns = Map.fromList [ (vmfName f, f) | f <- mFuns m ]
-  in
-  vcat [ vcat' (map cTypeGroup (mTypes m))
-       , "// -----------------------------------------"
-       , nest 2 params
-       , nest 2 (vcat' (map cFun (mFuns m)))
-       ]
-  -- XXX: declare function
-  where
-  params = vcat [ cDeclareBlockParams b | f <- mFuns m
-                                        , b <- Map.elems (vmfBlocks f)
-                                        ]
-
-type CurFun   = (?curFun   :: VMFun)
-type CurBlock = (?curBlock :: Block)
-
-cFun :: AllFuns => VMFun -> CDecl
-cFun fun =
-  vcat [ "//---" <+> pp (vmfName fun) <+> "---"
-       , let ?curFun = fun
-         in vcat' (map cBlock (Map.elems (vmfBlocks fun)))
-       ]
-
-  where
-  nm = vmfName fun
-  ty = cSemType (Src.fnameType nm)
-  retTy = if vmfPure fun then ty else inst "std::optional" [ty]
+type AllBlocks  = (?allBlocks :: Map Label Block)
+type CurBlock   = (?curBlock  :: Block)
 
 cDeclareBlockParams :: Block -> CStmt
-cDeclareBlockParams b =
-  let ?curBlock = b
-  in vcat
-      [ cArgDecl ba <.> semi | ba <- blockArgs b ]
-  -- assumes default constructor
+cDeclareBlockParams b
+  | null ps     = empty
+  | otherwise   = vcat (header : ps)
+  where
+  header = "// Parameters for" <+> pp (blockName b)
+  ps     = let ?curBlock = b
+           in [ cArgDecl ba <.> semi | ba <- blockArgs b ]
 
-cBlock :: CurFun => Block -> CStmt
+cBlock :: AllBlocks => Block -> CStmt
 cBlock b = cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
   body = let ?curBlock = b
@@ -125,11 +109,11 @@ cBlockLabel (Label f x) = pp f <.> "_" <.> int x
 cStmt :: CurBlock => Instr -> CStmt
 cStmt instr =
   case instr of
-    SetInput e      -> call "p.setInput" [ cExpr e]
-    Say x           -> call "p.say"      [ cString x ]
-    Output e        -> call "p.output"   [ cExpr e ]
-    Notify e        -> call "p.notify"   [ cExpr e ]
-    NoteFail        -> call "p.noteFail" []
+    SetInput e      -> call "p.setInput" [ cExpr e] <.> semi
+    Say x           -> call "p.say"      [ cString x ] <.> semi
+    Output e        -> call "p.output"   [ cExpr e ] <.> semi
+    Notify e        -> call "p.notify"   [ cExpr e ] <.> semi
+    NoteFail        -> call "p.noteFail" [] <.> semi
     GetInput x      -> cVarDecl x (call "p.getInput" [])
     Spawn l x       -> cVarDecl x (call "p.spawn" [ cClo1 l ])
     CallPrim p es x ->
@@ -229,6 +213,8 @@ cExpr expr =
     EByteArray bs -> cBytes bs
     ENum n ty     -> call f [ integer n ]
       where
+      -- XXX: large constants should be turned into more complex expressions
+      -- e.g., using add/multiply.
       f = case ty of
             Src.TUInt sz -> inst "UInt" [ cSizeType sz ]
             Src.TSInt sz -> inst "SInt" [ cSizeType sz ]
@@ -244,7 +230,7 @@ cExpr expr =
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
 
 
-cTermStmt :: (CurFun, CurBlock) => CInstr -> CStmt
+cTermStmt :: (AllBlocks, CurBlock) => CInstr -> CStmt
 cTermStmt cinstr =
   case cinstr of
     Jump jp -> cJump jp
@@ -256,8 +242,8 @@ cTermStmt cinstr =
     TailCall f c es -> todo
 
     Yield -> todo
-    ReturnNo -> "return" <+> call "optional" [] <.> semi
-    ReturnYes e -> "return" <+> call "optional" [cExpr e] <.> semi
+    ReturnNo -> todo
+    ReturnYes e -> todo
     Call f c (JumpPoint l1 es1) (JumpPoint l2 es2) args -> todo
     ReturnPure e -> "return" <+> cExpr e <.> semi
 
@@ -278,9 +264,9 @@ cDoJump b es =
   assignP ba e = (let ?curBlock = b in cArgUse ba)
                 <+> "=" <+> cExpr e <.> semi
 
-cJump :: (CurFun, CurBlock) => JumpPoint -> CStmt
+cJump :: (AllBlocks, CurBlock) => JumpPoint -> CStmt
 cJump (JumpPoint l es) =
-  case Map.lookup l (vmfBlocks ?curFun) of
+  case Map.lookup l ?allBlocks of
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 

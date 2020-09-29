@@ -18,10 +18,9 @@ typedef size_t ThreadId;
 template <class T>
 class Parser {
 
-  Input            input;
-  std::vector<T>   results;
-  // std::vector<Thread>   suspended;
-  size_t                fail_offset;
+  Input           input;
+  std::vector<T>  results;
+  size_t          fail_offset;
 
 public:
 
@@ -48,6 +47,9 @@ public:
   //   suspended.push_back(Thread(clo));
   //   return id;
   // }
+
+  // XXX:
+  bool hasSuspended() { return false; }
 
   // Assumes that there is a suspended thread.
   void yield() {

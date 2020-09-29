@@ -9,7 +9,6 @@
 
 namespace DDL {
 
-using Integer = int; // XXX: temporary
 
 template <int w>
 struct UInt {
