@@ -66,11 +66,11 @@ ppDict mp = ppTagged False "dict" (ppBlock "{" "}" (map entry (Map.toList mp)))
   entry (x,y) = hang (hcat [ ppName False x, colon ]) 2 (pp y)
 
 ppName :: Bool -> Vector (UInt 8) -> Doc
-ppName tagged xs = if tagged then ppTagged True "name" val else val
+ppName asVal xs = if asVal then ppTagged True "name" val else val
   where
   rep      = Vector.vecToRep xs
   normal c = isAscii c && (isAlphaNum c || c == '_')
-  quote    = if BS8.all normal rep then id else doubleQuotes
+  quote    = if not asVal && BS8.all normal rep then id else doubleQuotes
   val      = quote (text (BS8.unpack rep))
 
 
