@@ -52,7 +52,7 @@ ppTagged small t v =
   if small then hsep [ "{",  tag, v, "}" ]
            else vcat [ "{" <+> tag, nest 2 v, "}" ]
   where
-  tag = hcat [t,colon]
+  tag = hcat [ "$",t,colon]
 
 ppHDict :: [Doc] -> Doc
 ppHDict ds = "{" <+> hsep (punctuate comma ds) <+> "}"
@@ -79,8 +79,7 @@ ppRef o g = ppTagged True "ref" (ppHDict [ "obj:" <+> pp o, "gen:" <+> pp g ])
 
 ppXRef :: (R,ObjLoc) -> Doc
 ppXRef (r,ol) =
-  ppHDict $ [ "obj:" <+> pp (refObj r)
-            , "gen:" <+> pp (refGen r)
+  ppHDict $ [ "id:" <+> pp r
             ] ++ loc
   where
   loc = case ol of
