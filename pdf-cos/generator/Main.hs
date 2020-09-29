@@ -3,7 +3,6 @@
 module Main where
 
 import qualified Data.Map as Map
-import Control.Monad(when)
 
 import Daedalus.Driver
 import Daedalus.Type.AST
@@ -18,7 +17,6 @@ main =
   do ddlSetOpt optSearchPath ["spec"]
      let mods = [ "PdfXRef" ]
      mapM_ ddlLoadModule mods
-     when specialize (passSpecialize roots)
      todo <- ddlBasisMany mods
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
@@ -26,13 +24,11 @@ main =
      mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
 
   where
-  specialize = False
-
-  -- XXX: This is not the full interface, but it (probably?) uses
-  -- everything we need.
-  roots :: [(ModuleName,Ident)]
-  roots = [ ("PdfXRef", "CrossRef")
-          ]
+  -- XXX: This shoudl list all parsers we need, and it'd be used if
+  -- we specialized things
+  _roots :: [(ModuleName,Ident)]
+  _roots = [ ("PdfXRef", "CrossRef")
+           ]
 
 
 

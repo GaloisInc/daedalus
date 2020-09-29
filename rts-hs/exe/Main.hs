@@ -12,7 +12,8 @@ import Data.Text.Encoding(encodeUtf8)
 
 import Midi(pMain)
 import RTS.Parser(runParser)
-import RTS.ParserAPI(Input(..), Result(..), ParseError(..))
+import RTS.Input
+import RTS.ParserAPI
 
 
 main :: IO ()
@@ -20,13 +21,10 @@ main =
   do args <- getArgs
      case args of
        [f] -> do bs <- BS.readFile f
-                 let inp = Input { inputBytes  = bs
-                                 , inputOffset = 0
-                                 , inputName   = encodeUtf8 (Text.pack f)
-                                 }
+                 let inp = newInput (encodeUtf8 (Text.pack f)) bs
                  case runParser pMain inp of
                    r@(NoResults err) -> do pPrint err
-                                           ppErr bs err
+                                           humanError bs err
                    Results as ->
                      do putStrLn $ "--- Found " ++
                                           show (length as) ++ " results:"
@@ -36,10 +34,12 @@ main =
                  exitFailure
 
 
-ppErr :: ByteString -> ParseError -> IO ()
-ppErr bs e =
-  do let ctxtAmt = 32
-         errLoc  = peOffset e
+humanError :: ByteString -> ParseError -> IO ()
+humanError bs err =
+  do putStrLn "--- Parse error: "
+     print (ppParseError err)
+     let ctxtAmt = 32
+         errLoc  = peOffset err
          start = max 0 (errLoc - ctxtAmt)
          end   = errLoc + 10
          len   = end - start
@@ -55,6 +55,6 @@ ppErr bs e =
                              errLoc errLoc }
      putStrLn "File context:"
      putStrLn $ prettyHexCfg cfg ctx
-     exitFailure
+
 
 
