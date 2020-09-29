@@ -182,28 +182,26 @@ updateError resumption cfg res =
       else res
 
 
--- The function that runs an automaton from a string and returns
--- accepting configurations.
+-- This function runs an automaton from a string and returns accepting
+-- configurations using a backtracking algorithm.  Its design is
+-- similar to the reactive engine by G. Huet, or its extension to
+-- Eilenberg's X-machines
 runnerBias :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> Result
 runnerBias gbl s aut =
-  let go :: Cfg -> Resumption -> Result -> Result
-      go cfg resumption result =
+  let react :: Cfg -> Resumption -> Result -> Result
+      react cfg resumption result =
         case cfg of
           Cfg _inp _ctrl _out q ->
             -- trace (show cfg) $
             let localTransitions = nextTransition aut q
-            in setStep cfg localTransitions resumption result
+            in case localTransitions of
+                 Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                 Just ch ->
+                   let newResumption = addResumption resumption cfg ch in
+                     choose newResumption result
 
-      setStep :: Cfg -> Maybe Choice -> Resumption -> Result -> Result
-      setStep cfg choices resumption result =
-        case choices of
-          Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
-          Just ch ->
-            let newResumption = addResumption resumption cfg ch in
-              step newResumption result
-
-      step :: Resumption -> Result -> Result
-      step resumption result =
+      choose :: Resumption -> Result -> Result
+      choose resumption result =
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
           Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
@@ -213,19 +211,19 @@ runnerBias gbl s aut =
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg updResumption updResult
+                   react newCfg updResumption updResult
               BAct (CutLocal) ->
                 let updResumption = earlyUpdateCommitResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg updResumption updResult
+                   react newCfg updResumption updResult
               BAct (CutGlobal) ->
                 let updResumption = cutResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg updResumption updResult
+                   react newCfg updResumption updResult
               BAct (FailAction Nothing) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
@@ -241,22 +239,22 @@ runnerBias gbl s aut =
                         updResult = if isAcceptingCfg newCfg aut
                                     then addResult newCfg result
                                     else result
-                    in go newCfg resumption updResult
+                    in react newCfg resumption updResult
 
       backtrack :: Resumption -> Result -> Result
       backtrack resumption result =
         -- trace "BACKTRACK" $
         case nextResumption resumption of
           Nothing -> result
-          Just nextRes -> step nextRes result
+          Just nextRes -> choose nextRes result
 
-  in go (initCfg s aut) emptyResumption emptyResult
+  in react (initCfg s aut) emptyResumption emptyResult
 
 -- This runner is using both the NFA and the DFA to parse.
 runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> AutDet -> Result
 runnerLL gbl s aut autDet =
-  let go :: Cfg -> Resumption -> Result -> Result
-      go cfg resumption result =
+  let react :: Cfg -> Resumption -> Result -> Result
+      react cfg resumption result =
         case cfg of
           Cfg inp _ctrl _out q ->
             -- trace (show cfg) $
@@ -266,7 +264,7 @@ runnerLL gbl s aut autDet =
               Just (_tr, False) -> callNFA ()
               Just (tr, True) ->
                 -- trace "YES LL lookup" $
-                let a = Det.predictLL tr inp in
+                let a = Det.predictLL (q,tr) inp in
                 case a of
                   Nothing ->
                     callNFA ()
@@ -284,12 +282,16 @@ runnerLL gbl s aut autDet =
             where
               callNFA () =
                 let localTransitions = nextTransition aut q
-                in setStep cfg localTransitions resumption result
+                in case localTransitions of
+                     Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                     Just ch ->
+                       let newResumption = addResumption resumption cfg ch in
+                         choose newResumption result
 
       applyPredictions :: Det.Prediction -> Cfg -> Resumption -> Result -> Result
       applyPredictions prdx cfg@(Cfg inp ctrl out n) resumption result =
         case Det.destrPrediction prdx of
-          Nothing -> go cfg resumption result
+          Nothing -> react cfg resumption result
           Just (alt, alts) ->
             let tr = fromJust $ nextTransition aut n
                 (act, n2) = case (tr, alt) of
@@ -321,16 +323,8 @@ runnerLL gbl s aut autDet =
                                else result
                          in applyPredictions alts newCfg newResumption updResult
 
-      setStep :: Cfg -> Maybe Choice -> Resumption -> Result -> Result
-      setStep cfg choices resumption result =
-        case choices of
-          Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
-          Just ch ->
-            let newResumption = addResumption resumption cfg ch in
-              step newResumption result
-
-      step :: Resumption -> Result -> Result
-      step resumption result =
+      choose :: Resumption -> Result -> Result
+      choose resumption result =
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
           Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
@@ -340,19 +334,19 @@ runnerLL gbl s aut autDet =
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg newResumption updResult
+                   react newCfg newResumption updResult
               BAct (CutLocal) ->
                 let newResumption = earlyUpdateCommitResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg newResumption updResult
+                   react newCfg newResumption updResult
               BAct (CutGlobal) ->
                 let newResumption = cutResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
                 in
-                   go newCfg newResumption updResult
+                   react newCfg newResumption updResult
               BAct (FailAction Nothing) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
@@ -368,16 +362,16 @@ runnerLL gbl s aut autDet =
                         updResult = if isAcceptingCfg newCfg aut
                                     then addResult newCfg result
                                     else result
-                    in go newCfg resumption updResult
+                    in react newCfg resumption updResult
 
       backtrack :: Resumption -> Result -> Result
       backtrack resumption result =
         -- trace "BACKTRACK" $
         case nextResumption resumption of
           Nothing -> result
-          Just nextRes -> step nextRes result
+          Just nextRes -> choose nextRes result
 
-  in go (initCfg s aut) emptyResumption emptyResult
+  in react (initCfg s aut) emptyResumption emptyResult
 
 
 extractValues :: Result -> [ Interp.Value ]
