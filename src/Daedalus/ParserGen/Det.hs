@@ -92,7 +92,7 @@ closureLL aut busy cfg =
     closureStep pos (act, q1)
       | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
-      | length (cfgRuleNb cfg) > maxDepthRec = AbortOverflowMaxDepth
+      | length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
       | Set.member q1 newBusy              = AbortLoopWithNonClass
       | otherwise =
           case simulateActionCfgDet pos act q1 cfg of
@@ -212,8 +212,8 @@ instance Show DFATransition where
              Result a -> showD (d+2) a
              _ -> space d ++ abortToString r ++ "\n"
 
-     showSet s = "[" ++ foldr (\ (_src, cfg, (_pos, _act, _q)) b ->
-                                 "(" ++ show (length (cfgRuleNb cfg)) ++
+     showSet s = "[" ++ foldr (\ (DFAStateEntry _src cfg (_pos, _act, _q)) b ->
+                                 "(" ++ show (length (cfgAlts cfg)) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" s  ++ "]"
 
@@ -254,29 +254,50 @@ instance Show AmbiguityDetection where
   show NotAmbiguous   = "NotAmbiguous"
   show DunnoAmbiguous = "DunnoAmbiguous"
 
--- TODO: relate this to the ResolveAmbiguity function in ALL(*) paper
--- In the current implementation it returns
--- *  NotAmbiguous when there is only one alternative
--- *  Ambiguous when all the alternatives reach the same target state
--- *  DunnoAmbiguous otherwise
+
+getConflictSetsPerLoc :: DFAState -> [ [DFAStateEntry] ]
+getConflictSetsPerLoc s =
+  case iterDFAState s of
+    Nothing -> error "broken invariant: empty DFAState"
+    Just (e, es) ->
+      case findAllEntryInDFAState es (sameEntryPerLoc e) of
+        (lst, rs) ->
+          if Set.null rs
+          then [ e:lst ]
+          else let lstLst = getConflictSetsPerLoc rs
+               in  (e : lst) : lstLst
+
+  where
+    sameEntryPerLoc (DFAStateEntry _src1 dst1 (_,_,q1)) (DFAStateEntry _src2 dst2 (_,_,q2)) =
+      q1 == q2 && cfgStack dst1 == cfgStack dst2
+
+-- Inspired by the condition in `predictLL()` of ALL(*) paper
+-- * `NotAmbiguous` when there is only one conflict set with only one possibility
+-- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
+-- * `DunnoAmbiguous` if all the conflict sets have 1 posibility
 analyzeConflicts :: DFAState -> AmbiguityDetection
 analyzeConflicts ts =
-  case ts of
-    [] -> error "empty DFAState"
-    [ (_, _p, (_pos, _act, _q)) ] -> NotAmbiguous
-    (_, p, (_pos, _act, q)) : rest -> checkAll p q rest
-  where checkAll p q rest =
-          -- TODO: also use the path to refine the decision
-          case rest of
-            [ (_, _p1, (_pos, _act, q1)) ] ->
-              if q1 == q
-              then Ambiguous
-              else DunnoAmbiguous
-            (_, _p1, (_pos, _act, q1)) : tss ->
-              if q1 == q
-              then checkAll p q tss
-              else DunnoAmbiguous
-            _ -> error "impossible"
+  let conflictSets = getConflictSetsPerLoc ts
+  in case conflictSets of
+       [] -> error "empty DFAState"
+       [ [] ] -> error "empty list"
+       [ lst ] ->
+         if length lst == 1
+         then NotAmbiguous
+         else Ambiguous
+       lstLst -> isAnyAmbiguous lstLst
+  where
+    isAnyAmbiguous cs =
+      case cs of
+        [] -> DunnoAmbiguous
+        [] : _rest -> error "empty list"
+        lst : rest ->
+          if length lst > 1
+          then Ambiguous
+          else isAnyAmbiguous rest
+
+
+
 
 deterministicK :: Aut a => a -> Int -> CfgDet -> Result DFATransition
 deterministicK aut depth p =
@@ -315,9 +336,9 @@ deterministicK aut depth p =
 
     detSubsetAccu :: Int -> InputHeadCondition -> DFAState -> DetChoice -> Result DFATransition
     detSubsetAccu k i s acc =
-      case s of
-        [] -> Result (LChoice (mapDeterminize (k + 1) (detChoiceToList acc)))
-        (_, p1, (_pos, _act, q)) : rest ->
+      case iterDFAState s of
+        Nothing -> Result (LChoice (mapDeterminize (k + 1) (detChoiceToList acc)))
+        Just (DFAStateEntry _ p1 (_pos, _act, q), rest) ->
           let newSrcCfg = setupCfgDetFromPrev q p1
               r = deterministicStep aut newSrcCfg in
           case r of
@@ -430,18 +451,21 @@ predictLL res i =
 
     extractSinglePrediction :: DFAState -> (SourceCfg, Prediction)
     extractSinglePrediction s =
-      case s of
-        [ (c1, c2, (pos, _, _)) ] -> (c1, cfgRuleNb c2 Seq.|> pos )
+      case iterDFAState s of
+        Just (DFAStateEntry c1 c2 (pos, _, _), rest) ->
+          if not (null rest)
+          then error "ambiguous prediction"
+          else (c1, cfgAlts c2 Seq.|> pos )
           -- NOTE: pos is appended because this is the last transition
         _ -> error "ambiguous prediction"
 
     extractPredictionFromDFAState :: SourceCfg -> DFAState -> (SourceCfg, Prediction)
     extractPredictionFromDFAState src s =
-      case s of
-        [] -> error "could not find src from previous cfg"
-        (c1, c2, (pos,_,q2)) : others ->
+      case iterDFAState s of
+        Nothing -> error "could not find src from previous cfg"
+        Just (DFAStateEntry c1 c2 (pos, _, q2), others) ->
           if q2 == cfgState src
-          then (c1, cfgRuleNb c2 Seq.|> pos)
+          then (c1, cfgAlts c2 Seq.|> pos)
           else extractPredictionFromDFAState src others
 
 
@@ -484,7 +508,7 @@ createDFA aut =
             LResolve NotAmbiguous -> []
             LResolve Ambiguous -> []
             LChoice lst -> concatMap (
-              \(_, ps, r2) -> map (\ (_, _,(_,_,q)) -> q) ps ++ collectStates r2
+              \(_, ps, r2) -> map (\ (DFAStateEntry _ _ (_, _, q)) -> q) (Set.toAscList ps) ++ collectStates r2
               ) lst
             _ -> []
         _ -> []

@@ -2,10 +2,10 @@ Result DTrans [
   ( [(10),(15),]
   , HeadInput ['a']
   , DTrans [
-      ( [(2),(7),]
+      ( [(7),(2),]
       , HeadInput ['b']
       , DTrans [
-          ( [(2),(10),]
+          ( [(10),(2),]
           , HeadInput ['c']
           , DTrans [
               ( [(10),]

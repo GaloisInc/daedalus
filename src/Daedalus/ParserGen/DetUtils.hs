@@ -13,8 +13,10 @@ module Daedalus.ParserGen.DetUtils
     InputHeadCondition(..),
     matchInputHeadCondition,
     SourceCfg,
-    PathK,
+    DFAStateEntry(..),
     DFAState,
+    iterDFAState,
+    findAllEntryInDFAState,
     DetChoice,
     emptyDetChoice,
     insertDetChoice,
@@ -24,6 +26,7 @@ module Daedalus.ParserGen.DetUtils
 
 -- import Debug.Trace
 import Data.Sequence as Seq
+import qualified Data.Set as Set
 
 --import qualified Data.Set as Set
 import qualified RTS.Input as Input
@@ -54,17 +57,29 @@ nextChoicePos pos = (fst pos, snd pos +1)
 
 data CfgDet = CfgDet
   { cfgState  :: State
-  , cfgRuleNb :: Seq.Seq ChoicePos
+  , cfgAlts :: Seq.Seq ChoicePos
   , cfgStack  :: SymbolicStack
   }
   deriving (Eq, Show)
+
+
+compareCfgDet :: CfgDet -> CfgDet -> Ordering
+compareCfgDet cfg1 cfg2 =
+  case compare (cfgState cfg1) (cfgState cfg2) of
+    LT -> LT
+    GT -> GT
+    EQ ->
+      case compare (cfgAlts cfg1) (cfgAlts cfg2) of
+        LT -> LT
+        GT -> GT
+        EQ -> compare (cfgStack cfg1) (cfgStack cfg2)
 
 
 initCfgDet :: State -> CfgDet
 initCfgDet q =
   CfgDet
   { cfgState = q
-  , cfgRuleNb = Seq.empty
+  , cfgAlts = Seq.empty
   , cfgStack = SWildcard
   }
 
@@ -93,7 +108,7 @@ simulateActionCfgDet pos act q cfg =
       Just $
         CfgDet
           { cfgState = q
-          , cfgRuleNb = cfgRuleNb cfg |> pos
+          , cfgAlts = cfgAlts cfg |> pos
           , cfgStack = sd
           }
 
@@ -102,7 +117,7 @@ setupCfgDetFromPrev :: State -> CfgDet -> CfgDet
 setupCfgDetFromPrev q cfg =
   CfgDet
     { cfgState = q
-    , cfgRuleNb = Empty
+    , cfgAlts = Empty
     , cfgStack = cfgStack cfg
     }
 
@@ -133,14 +148,71 @@ matchInputHeadCondition c i =
 
 type SourceCfg = CfgDet
 
-type PathK = (SourceCfg, CfgDet, (ChoicePos, Action, State))
-type DFAState = [ PathK ]
+data DFAStateEntry = DFAStateEntry
+  { srcDFAState :: SourceCfg
+  , dstDFAState :: CfgDet
+  , moveDFAState :: (ChoicePos, Action, State)
+  }
+  deriving Show
+
+
+compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareSrc p1 p2 =
+  compareCfgDet (srcDFAState p1) (srcDFAState p2)
+
+compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDst p1 p2 =
+  compareCfgDet (dstDFAState p1) (dstDFAState p2)
+
+compareDFAStateEntry :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDFAStateEntry p1 p2 =
+  case compareDst p1 p2 of
+    LT -> LT
+    GT -> GT
+    EQ -> compareSrc p1 p2
+
+
+instance Eq DFAStateEntry where
+  (==) e1 e2 = if compareDFAStateEntry e1 e2 == EQ then True else False
+
+
+instance Ord DFAStateEntry where
+  compare p1 p2 = compareDFAStateEntry p1 p2
+
+
+type DFAState = Set.Set DFAStateEntry
+
+iterDFAState :: DFAState -> Maybe (DFAStateEntry, DFAState)
+iterDFAState s =
+  let lst = Set.toAscList s in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, Set.fromAscList xs)
+
+findEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> Maybe (DFAStateEntry, DFAState)
+findEntryInDFAState s test =
+  case iterDFAState s of
+    Nothing -> Nothing
+    Just (x, xs) ->
+      if test x then Just (x,xs)
+      else case findEntryInDFAState xs test of
+             Nothing -> Nothing
+             Just (r, rs) -> Just (r, Set.insert x rs)
+
+findAllEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> ([DFAStateEntry], DFAState)
+findAllEntryInDFAState s test =
+  case findEntryInDFAState s test of
+    Nothing -> ([], s)
+    Just (x, xs) ->
+      let (lst, rest) = findAllEntryInDFAState xs test
+      in (x:lst, rest)
+
 
 unionDFAState :: DFAState -> DFAState -> DFAState
-unionDFAState s1 s2 = s1 ++ s2
+unionDFAState s1 s2 = Set.union s1 s2
 
-singletonDFAState :: PathK -> DFAState
-singletonDFAState x = [x]
+singletonDFAState :: DFAStateEntry -> DFAState
+singletonDFAState x = Set.singleton x
 
 
 -- fst element is a list of class action transition, the snd possible element is for EndInput test
@@ -152,7 +224,7 @@ emptyDetChoice = ([], Nothing)
 insertDetChoice :: SourceCfg -> InputHeadCondition -> (CfgDet, (ChoicePos, Action, State)) -> DetChoice -> DetChoice
 insertDetChoice src ih (cfg, (pos, act, q)) d =
   let (classChoice, endChoice) = d
-      tr = singletonDFAState (src, cfg, (pos, act, q))
+      tr = singletonDFAState (DFAStateEntry src cfg (pos, act, q))
   in
   case ih of
     EndInput ->
