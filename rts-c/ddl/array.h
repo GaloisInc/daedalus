@@ -2,6 +2,7 @@
 #define DDL_ARRAY
 
 #include <memory>
+#include <ddl/number.h>
 
 namespace DDL {
 
@@ -42,11 +43,20 @@ struct ArrayCons
 template <typename T>
 void buildArray(ArrayBuilder<T> input, Array<T> &out);
 
+
 template <typename T>
 class Array {
   size_t             array_size;
   std::shared_ptr<T> data;
 public:
+
+  Array(size_t n, const char *bs) {
+    allocate(n);
+    DDL::UInt<8> *p = data.get();
+      for (size_t i = 0; i < n; ++i) {
+        p[i] = DDL::UInt<8>(bs[i]);
+      }
+  }
 
   T operator[](size_t i) { return data.get()[i]; }
 
@@ -61,6 +71,25 @@ public:
   template <typename S>
   friend void DDL::buildArray(ArrayBuilder<S> input, Array<S> &out);
 };
+
+
+template <typename T>
+static inline
+std::ostream& operator<<(std::ostream& os, DDL::Array<T> x) {
+  bool first = true;
+  os << "[";
+  size_t n = x.size();
+  for (size_t i = 0; i < n; ++i) {
+    if (!first) os << ",";
+    os << x[i];
+    first = false;
+  }
+  os << "]";
+  return os;
+}
+
+
+
 
 template <typename T>
 static inline

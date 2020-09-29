@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 
+
+namespace DDL {
+
 struct Closure {
   virtual void enter() = 0;
 };
@@ -16,6 +19,8 @@ void stackPush( DataStack& stack, Args&&... args ) {
   stack.push_back( std::static_pointer_cast<Closure>(
                    std::make_shared<T>(args...)
                  ));
+}
+
 }
 
 #endif

@@ -7,8 +7,8 @@
 #include <ios>
 #include <cmath>
 
-namespace DDL {
 
+namespace DDL {
 
 template <int w>
 struct UInt {
@@ -33,8 +33,10 @@ public:
   UInt<w> operator / (UInt<w> x) { return { .data = Rep(rep() / x.rep()) }; }
   UInt<w> operator - ()          { return { .data = Rep(-data) }; }
 
-  bool operator == (UInt<w> x) { return rep() == x.rep(); }
-  bool operator != (UInt<w> x) { return rep() != x.rep(); }
+  bool operator == (UInt<w> x)   { return rep() == x.rep(); }
+  bool operator != (UInt<w> x)   { return rep() != x.rep(); }
+  bool operator <  (UInt<w> x)   { return rep() <  x.rep(); }
+  bool operator <=  (UInt<w> x)  { return rep() <= x.rep(); }
 
   Rep rep() {
     if constexpr (w == 8 || w == 16 || w == 32 || w == 64) return data;
@@ -47,11 +49,13 @@ public:
 
 }
 
+namespace std {
+
 // XXX: Maybe we should consult the base flag, rather than always using hex?
 template <int w>
 static inline
-std::ostream& operator<<(std::ostream& os, DDL::UInt<w> x) {
-  std::ios_base::fmtflags saved(os.flags());
+ostream& operator<<(ostream& os, DDL::UInt<w> x) {
+  ios_base::fmtflags saved(os.flags());
 
   os << "0x" << std::hex;
   os.fill('0');
@@ -61,19 +65,19 @@ std::ostream& operator<<(std::ostream& os, DDL::UInt<w> x) {
   return os;
 }
 
-namespace std {
-  template<int w>
-  struct hash<DDL::UInt<w>> {
-    std::size_t operator()(DDL::UInt<w> x) const noexcept {
-      return size_t(x.data);
-    }
-  };
+template<int w>
+struct hash<DDL::UInt<w>> {
+  size_t operator()(DDL::UInt<w> x) const noexcept {
+    return size_t(x.data);
+  }
+};
+
 }
 
 namespace DDL {
 
 
-// XXX: Show should arithmetic work on these?
+// XXX: How should arithmetic work on these?
 // For the moment we assume no under/overflow, same as C does
 // but it is not clear if that's what we want from daedluas.
 template <int w>
@@ -118,7 +122,7 @@ std::ostream& operator<<(std::ostream& os, DDL::SInt<w> x) {
 namespace std {
   template<int w>
   struct hash<DDL::SInt<w>> {
-    std::size_t operator()(DDL::SInt<w> x) const noexcept {
+    size_t operator()(DDL::SInt<w> x) const noexcept {
       return size_t(x.data);
     }
   };

@@ -31,12 +31,20 @@ cSemType sty =
     Src.TInteger               -> "DDL::Integer"
     Src.TBool                  -> "bool"
     Src.TUnit                  -> "DDL::Unit"
-    Src.TArray t               -> inst "std::vector" [ cSemType t ]
-    Src.TMaybe t               -> inst "std::optional" [ cSemType t ]
-    Src.TMap k v               -> inst "std::unordered_map"
-                                                  [ cSemType k, cSemType v ]
-    Src.TBuilder t             -> todo
-    Src.TIterator t            -> cSemType t <.> "::const_iterator"
+    Src.TArray t               -> inst "DDL::Array" [ cSemType t ]
+    Src.TMaybe t               -> inst "DDL::Optional" [ cSemType t ]
+    Src.TMap k v               -> inst "DDL::Map" [ cSemType k, cSemType v ]
+    Src.TBuilder t ->
+      case t of
+        Src.TArray a  -> inst "DDL::ArrayBuilder" [ cSemType a ]
+        Src.TMap k v  -> inst "DDL::MapBuilder" [ cSemType k, cSemType v]
+        _ -> panic "cSemType" [ "Unexpected iterator type", show (pp t) ]
+
+    Src.TIterator t ->
+      case t of
+        Src.TArray a  -> inst "DDL::ArrayIterator" [ cSemType a ]
+        Src.TMap k v  -> inst "DDL::MapIterator" [ cSemType k, cSemType v]
+        _ -> panic "cSemType" [ "Unexpected iterator type", show (pp t) ]
     Src.TUser ut               -> cTUser ut
     Src.TParam a               -> cTParam a -- can happen in types
   where

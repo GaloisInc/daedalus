@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <cstring>
 
+#include <ddl/array.h>
+#include <ddl/number.h>
+
 namespace DDL {
 
 class Input {
@@ -70,17 +73,19 @@ public:
   Input iTake(size_t n) { Input x(*this); x.iTakeMut(n); return x; }
 
   // Check if the given array of bytes is prefix of the current input.
-  bool hasPrefix(std::vector<uint8_t> pref) {
+  bool hasPrefix(DDL::Array<UInt<8>> pref) {
     size_t n = pref.size();
     if (length() < n) return false;
     for (size_t i = 0; i < n; ++i) {
-      if (bytes[offset + i] != pref[i]) return false;
+      if (bytes[offset + i] != pref[i].rep()) return false;
     }
     return true;
   }
 };
 
 // XXX: hash instance
+// XXX: comparisions
+// XXX: show function
 
 
 }

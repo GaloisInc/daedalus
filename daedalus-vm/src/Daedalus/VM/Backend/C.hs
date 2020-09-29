@@ -73,10 +73,13 @@ cProgram prog =
          , "#include <memory>"
          , "#include <variant>"
          , ""
-         , "#include <parser.h>"
-         , "#include <unit.h>"
-         , "#include <number.h>"
-         , "#include <input.h>"
+         , "#include <ddl/parser.h>"
+         , "#include <ddl/unit.h>"
+         , "#include <ddl/number.h>"
+         , "#include <ddl/integer.h>"
+         , "#include <ddl/input.h>"
+         , "#include <ddl/array.h>"
+         , "#include <ddl/map.h>"
          ]
 
 
@@ -218,7 +221,7 @@ cExpr expr =
       f = case ty of
             Src.TUInt sz -> inst "UInt" [ cSizeType sz ]
             Src.TSInt sz -> inst "SInt" [ cSizeType sz ]
-            Src.TInteger -> todo
+            Src.TInteger -> call "DDL::Integer" [ text (show n) ]
 
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                                , show (pp ty) ]
@@ -293,12 +296,8 @@ cArgUse :: CurBlock => BA -> CExpr
 cArgUse (BA x _) = cBlockLabel (blockName ?curBlock) <.> "_a" <.> int x
 
 cBytes :: ByteString -> CExpr
-cBytes bs = "std::vector<uint8_t>" <+> braces (fsep (punctuate comma cs))
-  where
-  cs = map sh (BS8.unpack bs)
-  sh c = if isAscii c && isPrint c && (c /= '\'')
-            then text (show c)
-            else "0x" P.<> text (showHex (fromEnum c) "")
+cBytes bs = call "DDL::Array<DDL::UInt<8>>"
+                        [ int (BS8.length bs), text (show bs) ]
 
 
 --------------------------------------------------------------------------------

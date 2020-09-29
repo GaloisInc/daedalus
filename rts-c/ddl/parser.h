@@ -5,9 +5,7 @@
 #include <iostream>
 #include <vector>
 
-#include "input.h"
-// #include "closure.h"
-// #include "ddl_thread.h"
+#include "ddl/input.h"
 
 namespace DDL {
 

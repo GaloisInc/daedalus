@@ -1,9 +1,9 @@
-#ifndef DDL_DDL_THREAD
-#define DDL_DDL_THREAD
+#ifndef DDL_THREAD
+#define DDL_THREAD
 
 #include <vector>
 
-#include "closure.h"
+#include "ddl/closure.h"
 
 class Thread {
   std::function< void(bool) >             resume;
