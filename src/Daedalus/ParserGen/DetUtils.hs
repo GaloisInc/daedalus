@@ -20,7 +20,11 @@ module Daedalus.ParserGen.DetUtils
     DetChoice,
     emptyDetChoice,
     insertDetChoice,
-    unionDetChoice
+    unionDetChoice,
+    DFAStateQuotient,
+    mkDFAStateQuotient,
+    convertDFAStateToQuotient,
+    iterDFAStateQuotient
   ) where
 
 
@@ -74,6 +78,16 @@ compareCfgDet cfg1 cfg2 =
         GT -> GT
         EQ -> compare (cfgStack cfg1) (cfgStack cfg2)
 
+compareCfgDetAsSrc :: CfgDet -> CfgDet -> Ordering
+compareCfgDetAsSrc cfg1 cfg2 =
+  case compare (cfgState cfg1) (cfgState cfg2) of
+    LT -> LT
+    GT -> GT
+    EQ -> compare (cfgStack cfg1) (cfgStack cfg2)
+
+instance Ord CfgDet where
+  compare c1 c2 = compareCfgDetAsSrc c1 c2
+
 
 initCfgDet :: State -> CfgDet
 initCfgDet q =
@@ -121,7 +135,13 @@ setupCfgDetFromPrev q cfg =
     , cfgStack = cfgStack cfg
     }
 
-
+resetCfgDet :: CfgDet -> CfgDet
+resetCfgDet cfg =
+  CfgDet
+    { cfgState = cfgState cfg
+    , cfgAlts = Empty
+    , cfgStack = cfgStack cfg
+    }
 
 -- The conjonction of a closure path and a move (pair action, destination state)
 
@@ -158,6 +178,8 @@ data DFAStateEntry = DFAStateEntry
 
 compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
 compareSrc p1 p2 =
+  -- TODO: test replacing with
+  -- compareCfgDetAsSrc (srcDFAState p1) (srcDFAState p2)
   compareCfgDet (srcDFAState p1) (srcDFAState p2)
 
 compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
@@ -173,7 +195,7 @@ compareDFAStateEntry p1 p2 =
 
 
 instance Eq DFAStateEntry where
-  (==) e1 e2 = if compareDFAStateEntry e1 e2 == EQ then True else False
+  (==) e1 e2 = compareDFAStateEntry e1 e2 == EQ
 
 
 instance Ord DFAStateEntry where
@@ -247,3 +269,39 @@ unionDetChoice (cl1, e1) (cl2, e2) =
   let cl3 =
         foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFAState) cl2 cl1
   in (cl3, e3)
+
+
+newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
+  deriving Show
+
+mkDFAStateQuotient :: State -> DFAStateQuotient
+mkDFAStateQuotient q =
+    DFAQuo (Set.singleton (CfgDet q Empty SWildcard))
+
+equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
+equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
+
+instance Eq DFAStateQuotient where
+  (==) q1 q2 = equivDFAStateQuotient q1 q2
+
+instance Ord DFAStateQuotient where
+  compare q1 q2 =
+    compare (dfaQuo q1) (dfaQuo q2)
+
+convertDFAStateToQuotient :: DFAState -> DFAStateQuotient
+convertDFAStateToQuotient s =
+  DFAQuo (helper s)
+  where
+    helper set =
+      case iterDFAState set of
+        Nothing -> Set.empty
+        Just (DFAStateEntry _ cfg (_,_,q) , es) ->
+          Set.insert (resetCfgDet (setupCfgDetFromPrev q cfg)) (helper es)
+
+
+iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
+iterDFAStateQuotient s =
+  let lst = Set.toAscList (dfaQuo s) in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))

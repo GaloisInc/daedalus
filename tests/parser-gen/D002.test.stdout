@@ -1,4 +1,4 @@
-Result DTrans [
+DTrans [
   ( [(10),(10),]
   , HeadInput ['a']
   , DTrans [
@@ -13,13 +13,13 @@ Result DTrans [
     ]
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(1),]
   , HeadInput ['c']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(18),(18),]
   , HeadInput ['a']
   , DTrans [
@@ -35,13 +35,13 @@ Result DTrans [
     ]
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(1),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(18),(18),]
   , HeadInput ['a']
   , DTrans [
@@ -57,31 +57,32 @@ Result DTrans [
     ]
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(1),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(13),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(1),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(13),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
+
 
 Report:
 ("AbortAcceptingPath",1)

@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
-
+import Data.Maybe (fromJust)
 
 import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
@@ -190,51 +190,79 @@ deterministicStep aut cfg =
     _ -> error "impossible"
 
 
-
 data DFATransition =
-    LResolve AmbiguityDetection
-  | LChoice [ (InputHeadCondition, DFAState, Result DFATransition) ]
+  DChoice [ (InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient) ]
 
-instance Show DFATransition where
- show t =
-   showD (0::Int) t
-   where
-     showD _d (LResolve r) = "Resolution (" ++ show r ++ ")"
-     showD d (LChoice lst) =
-       "DTrans [\n" ++
-       concatMap (showT (d+2)) lst ++
-       space d ++ "]"
+type ExplicitDFA = Map.Map DFAStateQuotient (Result DFATransition)
 
-     showT d (i, s, r) =
-       space d ++ "( " ++ showSet s ++ "\n" ++
-       space d ++ ", " ++ show i ++ "\n" ++
-       space d ++ ", " ++ showDown ++ "\n" ++
-       space d ++ "),\n"
-       where
-         showDown =
-           case r of
-             Result a -> showD (d+2) a
-             _ -> space d ++ abortToString r ++ "\n"
+lookupExplicitDFA :: DFAStateQuotient -> ExplicitDFA -> Maybe (Result DFATransition)
+lookupExplicitDFA q dfa =
+  Map.lookup q dfa
 
-     showSet s = "[" ++ foldr (\ (DFAStateEntry _src cfg (_pos, _act, _q)) b ->
+insertExplicitDFA :: DFAStateQuotient -> Result DFATransition -> ExplicitDFA -> ExplicitDFA
+insertExplicitDFA q tr dfa =
+  Map.insert q tr dfa
+
+showDFATransition :: (State, ExplicitDFA) -> String
+showDFATransition (q, dfa) =
+  showTrans [] 0 (mkDFAStateQuotient q)
+  where
+    showTrans :: [DFAStateQuotient] -> Int -> DFAStateQuotient -> String
+    showTrans vis d qq =
+      if elem qq vis
+      then "*****"
+      else
+      case lookupExplicitDFA qq dfa of
+        Nothing -> error "sdfsdf"
+        Just r ->
+          case r of
+            Result (DChoice lst) ->
+              "DTrans [\n" ++
+              concatMap (showT (qq : vis) (d+2)) lst ++
+              space d ++ "]"
+            _ -> abortToString r ++ "\n"
+
+    showT vis d (i, s, am, qq) =
+      space d ++ "( " ++ showSet s ++ "\n" ++
+      space d ++ ", " ++ show i ++ "\n" ++
+      space d ++ ", " ++ showDown am ++ "\n" ++
+      space d ++ "),\n"
+      where
+         showDown amb =
+           case amb of
+             NotAmbiguous -> "Resolution (" ++ show amb ++ ")"
+             Ambiguous -> "Resolution (" ++ show amb ++ ")"
+             DunnoAmbiguous -> showTrans vis (d+2) qq
+
+    showSet s = "[" ++ foldr (\ (DFAStateEntry _src cfg (_pos, _act, _q)) b ->
                                  "(" ++ show (length (cfgAlts cfg)) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" s  ++ "]"
-
-     space d = spaceHelper 0
+    space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
+lookaheadDepth :: (State, ExplicitDFA) -> Int
+lookaheadDepth (q, dfa) =
+  helper [] (mkDFAStateQuotient q)
+  where
+    helper :: [DFAStateQuotient] -> DFAStateQuotient -> Int
+    helper vis qq =
+      if elem qq vis
+      then 0
+      else
+        case lookupExplicitDFA qq dfa of
+          Nothing -> 0
+          Just rt ->
+            case rt of
+              Result (DChoice lst) -> foldOverList vis qq lst 0
+              _ -> 0
 
-lookaheadDepth :: Result DFATransition -> Int
-lookaheadDepth rt =
-  case rt of
-    Result t ->
-      case t of
-        LResolve _ -> 0
-        LChoice lst -> 1 + foldr (\ (_,_,r) b -> max (lookaheadDepth r) b) 0 lst
-    _ -> 0
-
-
+    foldOverList vis src lst acc =
+      case lst of
+        [] -> acc
+        (_, _, _am, qq) : rest ->
+          let i = helper (src:vis) qq
+          in foldOverList vis src rest (max acc (i + 1))
 
 
 maxDepthDet :: Int
@@ -242,7 +270,7 @@ maxDepthDet = 10
 
 detChoiceToList :: DetChoice -> [(InputHeadCondition, DFAState)]
 detChoiceToList (c,e) =
-  let tr = map (\ (i,t) -> (HeadInput i,t)) c in
+  let tr = map (\ (i,t) -> (HeadInput i, t)) c in
   case e of
     Nothing -> tr
     Just t -> tr ++ [(EndInput, t)]
@@ -301,108 +329,119 @@ analyzeConflicts ts =
           else isAnyAmbiguous rest
 
 
-
-
-deterministicK :: Aut a => a -> Int -> CfgDet -> Result DFATransition
-deterministicK aut depth p =
-  let det1 = deterministicStep aut p
-  in case det1 of
-       AbortOverflowMaxDepth -> AbortOverflowMaxDepth
-       AbortLoopWithNonClass -> AbortLoopWithNonClass
-       AbortAcceptingPath -> AbortAcceptingPath
-       AbortNonClassInputAction x -> AbortNonClassInputAction x
-       AbortClassIsDynamic -> AbortClassIsDynamic
-       AbortClassNotHandledYet a -> AbortClassNotHandledYet a
-       Result r ->
-         let tr = detChoiceToList r
-         in Result $ LChoice (mapDeterminize depth tr)
-       _ -> error "cannot be this Abort"
-
+createDFAtable :: Aut a => a -> Int -> DFAStateQuotient -> ExplicitDFA -> ExplicitDFA
+createDFAtable aut depth q dfa =
+  case lookupExplicitDFA q dfa of
+    Nothing ->
+      if depth > maxDepthDet
+      then insertExplicitDFA q AbortOverflowK dfa
+      else
+        let choices = detSubsetAccu q emptyDetChoice
+            newDfa = insertExplicitDFA q choices dfa
+        in
+          case choices of
+            Result (DChoice r1) -> iterateCreateDFA (depth+1) r1 newDfa
+            _ -> newDfa
+    Just _ -> dfa
   where
-    mapDeterminize :: Int -> [(InputHeadCondition, DFAState)] -> [(InputHeadCondition, DFAState, Result DFATransition)]
-    mapDeterminize k lst =
+    iterateCreateDFA :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ExplicitDFA -> ExplicitDFA
+    iterateCreateDFA k lst m =
       case lst of
-        [] -> []
-        (i, s) : rest ->
-          let t = detSubset k i s
-          in (i, s, t) : mapDeterminize k rest
+        [] -> m
+        (_i, _q, am, qq) : rest ->
+          case am of
+            Ambiguous -> iterateCreateDFA k rest m
+            NotAmbiguous -> iterateCreateDFA k rest m
+            DunnoAmbiguous ->
+              let newDFA = createDFAtable aut k qq m
+              in iterateCreateDFA k rest newDFA
 
-    detSubset :: Int -> InputHeadCondition -> DFAState -> Result DFATransition
-    detSubset k itv s =
-      let am = analyzeConflicts s in
-      case am of
-        Ambiguous -> Result (LResolve am)
-        NotAmbiguous  -> Result (LResolve am)
-        DunnoAmbiguous ->
-          if k > maxDepthDet
-          then AbortOverflowK
-          else detSubsetAccu k itv s emptyDetChoice
-
-    detSubsetAccu :: Int -> InputHeadCondition -> DFAState -> DetChoice -> Result DFATransition
-    detSubsetAccu k i s acc =
-      case iterDFAState s of
-        Nothing -> Result (LChoice (mapDeterminize (k + 1) (detChoiceToList acc)))
-        Just (DFAStateEntry _ p1 (_pos, _act, q), rest) ->
-          let newSrcCfg = setupCfgDetFromPrev q p1
-              r = deterministicStep aut newSrcCfg in
+    detSubsetAccu :: DFAStateQuotient -> DetChoice -> Result DFATransition
+    detSubsetAccu s acc =
+      case iterDFAStateQuotient s of
+        Nothing -> Result (DChoice (mapAnalyzeConflicts (detChoiceToList acc)))
+        Just (cfg, rest) ->
+          let r = deterministicStep aut cfg in
           case r of
             AbortOverflowMaxDepth -> AbortOverflowMaxDepth
             AbortLoopWithNonClass -> AbortLoopWithNonClass
             AbortAcceptingPath -> AbortAcceptingPath
             AbortNonClassInputAction x -> AbortNonClassInputAction x
+            AbortClassIsDynamic -> AbortClassIsDynamic
+            AbortClassNotHandledYet a -> AbortClassNotHandledYet a
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
-              in detSubsetAccu k i rest newAcc
+              in detSubsetAccu rest newAcc
             _ -> error "cannot be this abort"
 
+    mapAnalyzeConflicts :: [(InputHeadCondition, DFAState)] ->
+                           [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)]
+    mapAnalyzeConflicts lst =
+      case lst of
+        [] -> []
+        (ihc, s) : rest ->
+          let am = analyzeConflicts s in
+            (ihc, s, am, convertDFAStateToQuotient s) : mapAnalyzeConflicts rest
 
-hasFullResolution :: Result DFATransition -> Bool
-hasFullResolution r =
-  case r of
-    Result r1 ->
-      case r1 of
-         LResolve r2 ->
-           case r2 of
-             NotAmbiguous -> True
-             Ambiguous -> False
-             _ -> error "broken invariant"
-         LChoice lst -> helper lst
-    _ -> False
+
+
+hasFullResolution :: (State, ExplicitDFA) -> Bool
+hasFullResolution (start, dfa) =
+  traverseWithVisited [] (mkDFAStateQuotient start)
   where
-    helper lst =
+    traverseWithVisited visited q =
+      if elem q visited
+      then True
+      else
+        case lookupExplicitDFA q dfa of
+          Nothing -> error "broken invariant"
+          Just r ->
+            case r of
+              Result (DChoice lst) -> helper (q : visited) lst
+              _ -> False
+
+    helper visited lst =
       case lst of
         [] -> True
-        (_,_,pr) : rest ->
-          if hasFullResolution pr then helper rest else False
+        (_, _, am, qq) : rest ->
+          case am of
+            NotAmbiguous -> helper visited rest
+            Ambiguous -> False
+            DunnoAmbiguous -> traverseWithVisited visited qq
 
+hasNoAbort :: (State, ExplicitDFA) -> Bool
+hasNoAbort (start, dfa)  =
+  traverseWithVisited [] (mkDFAStateQuotient start)
 
-hasNoAbort :: Result DFATransition -> Bool
-hasNoAbort r =
-  case r of
-    Result r1 ->
-      case r1 of
-         LResolve r2 ->
-           case r2 of
-             NotAmbiguous -> True
-             Ambiguous -> True
-             _ -> error "broken invariant"
-         LChoice lst -> helper lst
-    _ -> False
   where
-    helper lst =
+    traverseWithVisited visited q =
+      if elem q visited
+      then True
+      else
+        case lookupExplicitDFA q dfa of
+          Nothing -> error "broken invariant"
+          Just r ->
+            case r of
+              Result (DChoice lst) -> helper (q : visited) lst
+              _ -> False
+
+    helper visited lst =
       case lst of
         [] -> True
-        (_,_,pr) : rest ->
-          if hasNoAbort pr then helper rest else False
+        (_, _, am, qq) : rest ->
+          case am of
+            NotAmbiguous -> helper visited rest
+            Ambiguous -> helper visited rest
+            DunnoAmbiguous -> traverseWithVisited visited qq
 
 
 
 
-type AutDet = IntMap.IntMap (Result DFATransition, Bool)
-type AutDet2 = IntMap.IntMap (Map.Map SymbolicStack (Result DFATransition, Bool))
+type AutDet = IntMap.IntMap (ExplicitDFA, Bool)
 
-lookupAutDet :: State -> AutDet -> Maybe (Result DFATransition, Bool)
+lookupAutDet :: State -> AutDet -> Maybe (ExplicitDFA, Bool)
 lookupAutDet q aut = IntMap.lookup q aut
+
 
 
 type Prediction = Seq.Seq ChoicePos
@@ -413,31 +452,35 @@ destrPrediction pdx =
     Seq.Empty -> Nothing
     c Seq.:<| cs -> Just (c, cs)
 
-predictLL :: Result DFATransition -> Input.Input -> Maybe Prediction
-predictLL res i =
-  findPrediction res i []
+predictLL :: (State, ExplicitDFA) -> Input.Input -> Maybe Prediction
+predictLL (start,dfa) i =
+  findPrediction (mkDFAStateQuotient start) i []
   where
-    findPrediction :: Result DFATransition -> Input.Input -> [DFAState] -> Maybe Prediction
-    findPrediction r inp acc =
-      case r of
-        Result (LChoice lst) -> iterLeftToRight lst inp acc
-        _ -> error "should not reach this line"
+    findPrediction :: DFAStateQuotient -> Input.Input -> [DFAState] -> Maybe Prediction
+    findPrediction q inp acc =
+      let elm = lookupExplicitDFA q dfa
+      in case elm of
+       Nothing -> error "broken invariant"
+       Just r ->
+         case r of
+           Result (DChoice lst) -> iterLeftToRight lst inp acc
+           _ -> error "should not reach this line"
 
     iterLeftToRight lst inp acc =
       case lst of
         [] -> Nothing
-        (c, s, r1) : rest ->
+        (c, s, am, r1) : rest ->
           case matchInputHeadCondition c inp of
             Nothing -> iterLeftToRight rest inp acc
             Just inp1 ->
-              let newAcc = s:acc in
-              case r1 of
-                Result (LResolve NotAmbiguous) -> Just $ extractPrediction newAcc
-                _ -> findPrediction r1 inp1 newAcc
+              let newAcc = s : acc in
+              case am of
+                NotAmbiguous -> Just $ extractPrediction newAcc
+                Ambiguous -> error "broken invariant, only applied on fully resolved"
+                DunnoAmbiguous -> findPrediction r1 inp1 newAcc
 
     extractPrediction :: [DFAState] -> Prediction
     extractPrediction lst =
-      -- trace (concatMap (\ e -> show e ++"\n") lst) $
       case lst of
         [] -> undefined
         s : rest ->
@@ -468,16 +511,9 @@ predictLL res i =
       case iterDFAState s of
         Nothing -> error "could not find src from previous cfg"
         Just (DFAStateEntry c1 c2 (pos, _, q2), others) ->
-          if q2 == cfgState src
+          if q2 == cfgState src && cfgStack c2 == cfgStack src
           then (c1, cfgAlts c2 Seq.|> pos)
           else extractPredictionFromDFAState src others
-
-
-insertAutDet2 :: State -> SymbolicStack -> (Result DFATransition, Bool) -> AutDet2 -> AutDet2
-insertAutDet2 q s r aut =
-  case IntMap.lookup q aut of
-    Nothing -> IntMap.insert q (Map.singleton s r) aut
-    Just m -> IntMap.insert q (Map.insert s r m) aut
 
 
 createDFA :: Aut a => a -> AutDet
@@ -487,36 +523,14 @@ createDFA aut =
       statesDet =
         map
         (\ q ->
-           let t = deterministicK aut 0 (initCfgDet q) in
-             (q, (t, hasFullResolution t)))
+           let
+             initState = mkDFAStateQuotient q
+             t = createDFAtable aut 0 initState Map.empty in
+             (q, (t, hasFullResolution (q,t) )))
         (Set.toList collectedStates)
   in
-    -- discover [initialState aut] IntMap.empty
     IntMap.fromAscList statesDet
   where
-    discover toVisit curr =
-      case toVisit of
-        [] -> curr
-        q: qs ->
-          if IntMap.member q curr
-          then discover qs curr
-          else
-            let t = deterministicK aut 0 (initCfgDet q) in
-            let newCurr = IntMap.insert q (t, hasFullResolution t) curr in
-            discover (qs ++ collectStates t) newCurr
-
-    collectStates t =
-      case t of
-        Result r1 ->
-          case r1 of
-            LResolve NotAmbiguous -> []
-            LResolve Ambiguous -> []
-            LChoice lst -> concatMap (
-              \(_, ps, r2) -> map (\ (DFAStateEntry _ _ (_, _, q)) -> q) (Set.toAscList ps) ++ collectStates r2
-              ) lst
-            _ -> []
-        _ -> []
-
     collectStatesArrivedByMove t =
       foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initialState aut)) t
 
@@ -531,17 +545,17 @@ createDFA aut =
       if isInputAction act then Set.singleton q else Set.empty
 
 printDFA :: AutDet -> IO ()
-printDFA dfa =
-  let t = IntMap.toList dfa
+printDFA dfas =
+  let t = IntMap.toList dfas
   in if length t > 100
      then do return ()
-     else mapM_ (\ (_k, (tr,_)) -> do
-                    putStrLn $ show tr) t
+     else mapM_ (\ (k, (dfa,_)) -> do
+                    putStrLn $ showDFATransition (k, dfa)) t
 
 statsDFA :: AutDet -> IO ()
-statsDFA dfa =
-  let t = IntMap.toList dfa
-  in do printDFA dfa
+statsDFA dfas =
+  let t = IntMap.toList dfas
+  in do printDFA dfas
         putStrLn "\nReport:"
         putStrLn $ getReport t initReport
         putStrLn $ "\nTotal nb states: " ++ show (length t)
@@ -549,36 +563,36 @@ statsDFA dfa =
     getReport lst report =
       case lst of
         [] -> foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)
-        (_, (x,_)) : xs ->
-          getReport xs (incrReport report x)
+        (q, (x,_)) : xs ->
+          getReport xs (incrReport report (q,x))
 
     result str = "Result" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
 
-    mapResultToKey :: Result DFATransition -> String
-    mapResultToKey r =
+    mapResultToKey :: (State, ExplicitDFA) -> String
+    mapResultToKey (q, dfa) =
+      let r = fromJust (lookupExplicitDFA (mkDFAStateQuotient q) dfa)
+      in
       case r of
         AbortAmbiguous -> result "-ambiguous-0"
         AbortOverflowK -> abortToString r
         Result _t ->
-          let k = lookaheadDepth r in
-          let res =
-                if hasFullResolution r
-                then result ("-" ++ show k)
-                else if hasNoAbort r
-                     then result ("-ambiguous-" ++ show k)
-                     else "abort-" ++ show k
+          let k = lookaheadDepth (q, dfa)
+              res
+                | hasFullResolution (q, dfa) = result ("-" ++ show k)
+                | hasNoAbort (q, dfa) = result ("-ambiguous-" ++ show k)
+                | otherwise = "abort-" ++ show k
           in
-          -- if k == 3
-          -- then trace (show _t) $
+          --if k == 1
+          --then trace (show _t) $
                res
-          -- else res
+          --else res
         _ -> abortToString r
 
 
-    incrReport :: Map.Map String Int -> Result DFATransition -> Map.Map String Int
+    incrReport :: Map.Map String Int -> (State, ExplicitDFA) -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in

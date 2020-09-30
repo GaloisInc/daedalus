@@ -8,7 +8,7 @@ module Daedalus.ParserGen.RunnerBias
 
 where
 
---import Debug.Trace
+-- import Debug.Trace
 
 import qualified Data.ByteString as BS
 import Data.Maybe (fromJust)

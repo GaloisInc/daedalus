@@ -1,4 +1,4 @@
-Result DTrans [
+DTrans [
   ( [(10),]
   , HeadInput ['a']
   , Resolution (NotAmbiguous)
@@ -8,19 +8,20 @@ Result DTrans [
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(15),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(15),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
+
 
 Report:
 ("AbortAcceptingPath",1)
