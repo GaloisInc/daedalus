@@ -34,6 +34,7 @@ import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Backend.C.BorrowAnalysis as C
 
 import CommandLine
 
@@ -142,6 +143,7 @@ handleOptions opts
                             }
               entry <- ddlGetFName nm
               let prog = VM.moduleToProgram entry [m]
+              ddlPrint (C.ppBorrowAnalys (C.borrowAnalysis prog))
               ddlPrint (C.cProgram prog)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen

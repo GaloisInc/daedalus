@@ -129,7 +129,7 @@ data PrimName =
   | Op1 Src.Op1
   | Op2 Src.Op2   -- Without `And` and `Or`
   | Op3 Src.Op3   -- Without `PureIf`
-  | OpN Src.OpN
+  | OpN Src.OpN   -- `CallF` could appear for character classes
 
 
 --------------------------------------------------------------------------------

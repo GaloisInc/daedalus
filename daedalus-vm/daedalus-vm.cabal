@@ -27,6 +27,7 @@ library
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
     Daedalus.VM.Backend.C.Types
+    Daedalus.VM.Backend.C.BorrowAnalysis
 
   build-depends:
     base >=4.13 && <4.14,
