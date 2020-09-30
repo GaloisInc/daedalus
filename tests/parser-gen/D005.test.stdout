@@ -1,4 +1,4 @@
-Result DTrans [
+DTrans [
   ( [(10),(15),]
   , HeadInput ['a']
   , DTrans [
@@ -23,44 +23,45 @@ Result DTrans [
     ]
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(7),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(13),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(12),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
-Result DTrans [
+
+DTrans [
   ( [(2),]
   , HeadInput ['c']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(10),]
   , HeadInput ['d']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(2),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
+DTrans [
   ( [(10),]
   , HeadInput ['c']
   , Resolution (NotAmbiguous)
