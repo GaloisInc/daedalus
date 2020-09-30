@@ -1,0 +1,36 @@
+module D006
+ 
+--- Imports:
+ 
+--- Type defs:
+type D006.Main0 = Choose { x: [uint 8]
+                         ; y: [uint 8]
+                         }
+ 
+--- Rules:
+ 
+D006.A : Grammar [[uint 8]] =
+  do ($$ : [[uint 8]]) <- Many[] MatchBytes "a"
+     pure $$
+ 
+D006._A : Grammar {} =
+  @Many[] @MatchBytes "a"
+ 
+D006.Main : Grammar {} =
+  do Choose fair
+       { {- x -} do D006._A
+                    @MatchBytes "c"
+       | {- y -} do D006._A
+                    @MatchBytes "d"
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D006._Main : Grammar {} =
+  do Choose fair
+       { {- x -} do D006._A
+                    @MatchBytes "c"
+       | {- y -} do D006._A
+                    @MatchBytes "d"
+       }
+     END
