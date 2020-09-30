@@ -9,8 +9,7 @@ module Daedalus.ParserGen.ClassInterval
 
 where
 
---import Data.Char
---import GHC.Enum
+-- import Debug.Trace
 
 import Data.Word
 
