@@ -215,11 +215,11 @@ data ArrayAut = ArrayAut {
 
 mkArrayAut :: State -> Transition -> Acceptings -> ArrayAut
 mkArrayAut s t a =
-  convertToArrayAut $ mkAut s t a 
+  convertToArrayAut $ mkAut s t a
 
 convertToArrayAut :: MapAut -> ArrayAut
-convertToArrayAut aut = 
-  let 
+convertToArrayAut aut =
+  let
     array = Vec.generate (maxState + 1) (\st -> Map.lookup st $ transition aut)
   in
     ArrayAut { transitionArray = array, mapAut = aut }
@@ -231,7 +231,7 @@ convertToArrayAut aut =
     states (state, choice) = state : choiceStates choice
     choiceStates (UniChoice (_, endState)) = [endState]
     choiceStates (SeqChoice lst lastState) = lastState : map snd lst
-    choiceStates (ParChoice lst) = map snd lst  
+    choiceStates (ParChoice lst) = map snd lst
 
 instance Aut ArrayAut where
   initialState dta = initials $ mapAut dta
