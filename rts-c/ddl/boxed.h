@@ -8,6 +8,7 @@ namespace DDL {
 // using the `copy` and `free` methods and NOT by
 // copying constructors/assignment/destructors.
 // This gives us more precise control over the life times of things.
+// Note that there is no way to check if a reference is "dangling".
 template <typename T>
 class Boxed {
 
@@ -27,8 +28,8 @@ public:
   void free() {
     size_t n = ptr->ref_count;
     --n;
-    if (n == 0) delete ptr; else ptr->ref_count = n;
-    ptr = NULL;  // just for sanity
+    if (n == 0) delete ptr;
+    else ptr->ref_count = n;
   }
 
   // Make a new "owned" copy of the referece (i.e., increase ref count).
@@ -39,7 +40,7 @@ public:
 
   // Get access to the contents of the box.
   // The resulting reference shouldn't be used after the box is gone.
-  T& operator * () { return ptr->value; }
+  T& getValue() { return ptr->value; }
 };
 
 
