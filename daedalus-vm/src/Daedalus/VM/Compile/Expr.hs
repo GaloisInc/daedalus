@@ -11,8 +11,6 @@ import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
 
-import Daedalus.PP
-import Debug.Trace
 
 compileEs :: [Src.Expr] -> ([E] -> BlockBuilder Void) -> C (BlockBuilder Void)
 compileEs es0 k = go [] es0

@@ -5,6 +5,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe(mapMaybe)
 
 import Daedalus.Panic
 import Daedalus.VM
@@ -105,7 +106,7 @@ updS b =
 mergeBlocks :: Block -> Block -> Block
 mergeBlocks front back =
   front { blockLocalNum = blockLocalNum front + blockLocalNum back
-        , blockInstrs = blockInstrs front ++ map renI (blockInstrs back)
+        , blockInstrs = blockInstrs front ++ mapMaybe renI (blockInstrs back)
         , blockTerm = renC (blockTerm back)
         }
 
@@ -118,15 +119,16 @@ mergeBlocks front back =
 
   renI i =
     case i of
-      CallPrim f e x -> CallPrim f (map renE e) (renBV x)
-      GetInput x     -> GetInput (renBV x)
-      Spawn j x      -> Spawn (renJ j) (renBV x)
+      CallPrim f e x -> Just $ CallPrim f (map renE e) (renBV x)
+      GetInput x     -> Just $ GetInput (renBV x)
+      Spawn j x      -> Just $ Spawn (renJ j) (renBV x)
 
-      SetInput e     -> SetInput (renE e)
-      Say s          -> Say s
-      Output e       -> Output (renE e)
-      Notify e       -> Notify (renE e)
-      NoteFail       -> NoteFail
+      SetInput e     -> Just $ SetInput (renE e)
+      Say s          -> Just $ Say s
+      Output e       -> Just $ Output (renE e)
+      Notify e       -> Just $ Notify (renE e)
+      NoteFail       -> Just $ NoteFail
+      Free x         -> Free <$> renV x
 
 
 
@@ -139,13 +141,22 @@ mergeBlocks front back =
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (renE e)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f c j1 j2 es -> Call f c (renJ j1) (renJ j2) (map renE es)
-      TailCall f c es   -> TailCall f c (map renE es)
+      Call f ca j1 j2 es -> Call f ca (renJ j1) (renJ j2) (map renE es)
+      TailCall f ca es   -> TailCall f ca (map renE es)
 
 
   renJ (JumpPoint l es) = JumpPoint l (map renE es)
 
   renBV (BV x t) = BV (x + blockLocalNum front) t
+
+  renV v =
+    case v of
+      LocalVar bv -> Just $ LocalVar (renBV bv)
+      ArgVar ba ->
+        case su Map.! ba of
+          EBlockArg x -> Just $ ArgVar x
+          EVar x      -> Just $ LocalVar x
+          _           -> Nothing -- don't need to free constants
 
   renE e =
     case e of

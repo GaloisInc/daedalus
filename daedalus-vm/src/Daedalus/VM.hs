@@ -59,6 +59,7 @@ data Instr =
   | GetInput BV
   | Spawn JumpPoint BV
   | NoteFail
+  | Free VMVar -- ^ variable cannot be used for the rest of the block
 
 
 -- | Instructions that jump
@@ -94,6 +95,9 @@ data E =
 
   | EBlockArg BA
   | EVar      BV
+
+data VMVar = ArgVar BA | LocalVar BV
+  deriving (Eq,Ord)
 
 
 -- | Types of values in the VM
@@ -153,9 +157,7 @@ instance PP Instr where
       Output v         -> ppFun "output" [ pp v ]
       Notify v         -> ppFun "notify" [ pp v ]
       NoteFail         -> ppFun "noteFail" []
-
-
-
+      Free x           -> "free" <+> pp x
 
 instance PP CInstr where
   pp cintsr =
@@ -226,6 +228,11 @@ instance PP E where
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
 
+instance PP VMVar where
+  pp v =
+    case v of
+      LocalVar x -> pp x
+      ArgVar x   -> pp x
 
 instance PP BV where
   pp (BV x _) = "r" <.> int x
