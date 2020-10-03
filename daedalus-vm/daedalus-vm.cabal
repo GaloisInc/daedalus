@@ -22,6 +22,7 @@ library
     Daedalus.VM.FreeVars
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.LivenessAnalysis
+    Daedalus.VM.BorrowAnalysis
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
@@ -29,7 +30,6 @@ library
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
     Daedalus.VM.Backend.C.Types
-    Daedalus.VM.Backend.C.BorrowAnalysis
 
   build-depends:
     base >=4.13 && <4.14,

@@ -290,10 +290,10 @@ cVarDecl :: BV -> CExpr -> CStmt
 cVarDecl v@(BV x t) e = cType t <+> cVarUse v <+> "=" <+> e P.<> semi
 
 cArgDecl :: CurBlock => BA -> CExpr
-cArgDecl ba@(BA x vmt) = cType vmt <+> cArgUse ba
+cArgDecl ba@(BA x vmt _) = cType vmt <+> cArgUse ba
 
 cArgUse :: CurBlock => BA -> CExpr
-cArgUse (BA x _) = cBlockLabel (blockName ?curBlock) <.> "_a" <.> int x
+cArgUse (BA x _ _) = cBlockLabel (blockName ?curBlock) <.> "_a" <.> int x
 
 cBytes :: ByteString -> CExpr
 cBytes bs = call "DDL::Array<DDL::UInt<8>>"

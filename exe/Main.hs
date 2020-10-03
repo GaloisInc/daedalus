@@ -33,8 +33,8 @@ import Daedalus.Normalise.AST(NDecl)
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
+import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.Backend.C as C
-import qualified Daedalus.VM.Backend.C.BorrowAnalysis as C
 
 import CommandLine
 
@@ -72,6 +72,10 @@ handleOptions opts
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
            specMod  = "DaedalusMain"
+           mainNm = Name { nameScope = ModScope (fst mainRule) (snd mainRule)
+                         , nameContext = AGrammar
+                         , nameRange = synthetic
+                         }
 
        case optCommand opts of
 
@@ -97,7 +101,10 @@ handleOptions opts
               passCore specMod
               passVM specMod
               passCaptureAnalysis
-              ddlPrint . pp =<< ddlGetAST specMod astVM
+              m <- ddlGetAST specMod astVM
+              entry <- ddlGetFName mainNm
+              let prog = VM.doBorrowAnalysis $ VM.moduleToProgram entry [m]
+              ddlPrint (pp prog)
 
          DumpGen ->
            do passSpecialize specMod [mainRule]
@@ -137,13 +144,8 @@ handleOptions opts
               passVM specMod
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
-              let nm = Name { nameScope = ModScope (fst mainRule) (snd mainRule)
-                            , nameContext = AGrammar
-                            , nameRange = synthetic
-                            }
-              entry <- ddlGetFName nm
+              entry <- ddlGetFName mainNm
               let prog = VM.moduleToProgram entry [m]
-              ddlPrint (C.ppBorrowAnalys (C.borrowAnalysis prog))
               ddlPrint (C.cProgram prog)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen

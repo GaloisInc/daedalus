@@ -109,7 +109,7 @@ newBlock tys def = C \r s ->
       _ -> Nothing
 
   isArg e = case e of
-              EBlockArg (BA n _) -> Just n
+              EBlockArg (BA n _ _) -> Just n
               _ -> Nothing
 
 newLocal :: VMT -> C FV

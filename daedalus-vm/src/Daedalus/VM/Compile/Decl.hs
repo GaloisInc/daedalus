@@ -69,7 +69,7 @@ compileSomeFun isPure doBody fun =
       name       = Src.fName fun
 
       args       = zipWith argN xs [ 0 .. ]
-      argN x n   = BA n (TSem (Src.typeOf x))
+      argN x n   = BA n (TSem (Src.typeOf x)) Borrowed{-placeholder-}
       getArgC (x,a) k =
         do v <- newLocal (getType a)
            code <- gdef x v k

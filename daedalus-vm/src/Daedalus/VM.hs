@@ -117,14 +117,16 @@ data Effect     = MayFail | DoesNotFail
 
 data Label      = Label Text Int deriving (Eq,Ord)
 
-data BV        = BV Int VMT           deriving (Eq,Ord)
-data BA        = BA Int VMT           deriving (Eq,Ord)
+data BV         = BV Int VMT            deriving (Eq,Ord)
+data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
+
+data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
 
 class HasType t where
   getType :: t -> VMT
 
 instance HasType BV where getType (BV _ t) = t
-instance HasType BA where getType (BA _ t) = t
+instance HasType BA where getType (BA _ t _) = t
 
 
 data PrimName =
@@ -142,6 +144,11 @@ data PrimName =
 ppFun :: Doc -> [Doc] -> Doc
 ppFun f ds = f <.> parens (hsep (punctuate comma ds))
 
+
+instance PP Ownership where
+  pp m = case m of
+           Owned    -> "Owned"
+           Borrowed -> "Borrowed"
 
 instance PP Label where
   pp (Label f i) = "L_" <.> int i <.> "_" <.> pp f
@@ -238,7 +245,7 @@ instance PP BV where
   pp (BV x _) = "r" <.> int x
 
 instance PP BA where
-  pp (BA x _) = "ra" <.> int x
+  pp (BA x _ _) = "ra" <.> int x
 
 instance PP Block where
   pp b = l <.> colon $$ nest 2
@@ -246,7 +253,13 @@ instance PP Block where
     where
     l = case blockArgs b of
           [] -> pp (blockName b)
-          xs -> ppFun (pp (blockName b)) (map ppBinder xs)
+          xs -> ppFun (pp (blockName b)) (map ppArg xs)
+
+    ppArg a@(BA _ _ own) =
+      let tsep = case own of
+                   Owned    -> ":!"
+                   Borrowed -> ":"
+      in pp a <+> tsep <+> pp (getType a)
 
 instance PP JumpPoint where
   pp (JumpPoint l es) =

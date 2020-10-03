@@ -47,7 +47,7 @@ getLocal x = BlockBuilder \k info ->
                   Just e  -> k e info
                   Nothing ->
                     let a = nextArg info
-                        arg = BA a (getType x)
+                        arg = BA a (getType x) Borrowed {- placeholder -}
                         e = EBlockArg arg
                         i1 = info { nextArg = a + 1
                                   , localDefs = Map.insert x e (localDefs info)
@@ -83,7 +83,7 @@ buildBlock ::
   ([E] -> BlockBuilder Void) ->
   (Block, [FV])
 buildBlock nm tys f =
-  let args = [ BA n t | (n,t) <- [0..] `zip` tys ]
+  let args = [ BA n t Borrowed{-placeholder-} | (n,t) <- [0..] `zip` tys ]
       BlockBuilder m = f (map EBlockArg args)
       info = BuildInfo { nextLocal = 0
                        , nextArg = length args
