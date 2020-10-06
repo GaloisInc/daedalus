@@ -240,7 +240,7 @@ cTermStmt cinstr =
     Yield -> todo
     ReturnNo -> todo
     ReturnYes e -> todo
-    Call f c (JumpPoint l1 es1) (JumpPoint l2 es2) args -> todo
+    Call f c l1 l2 args -> todo
     ReturnPure e -> "return" <+> cExpr e <.> semi
 
   where

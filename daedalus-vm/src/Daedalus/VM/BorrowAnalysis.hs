@@ -179,8 +179,9 @@ cinstr ci =
     Yield -> id
     ReturnNo -> id
     ReturnYes e -> expr e Owned
+    -- XXX: update
     Call f _ l1 l2 es ->
-      \i -> jumpPoint l1
+      \i -> maybe id jumpPoint l1
           $ jumpPoint l2
           $ foldr ($) i
           $ zipWith expr es

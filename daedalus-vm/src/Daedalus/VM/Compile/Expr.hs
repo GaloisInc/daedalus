@@ -127,11 +127,27 @@ compileOp3 op ty e1 e2 e3 k =
 
 compileOpN :: Src.OpN -> VMT -> [Src.Expr] -> CE
 compileOpN op ty es k =
-  compileEs es \vs ->
-    case op of
-      Src.ArrayL _ -> continue k =<< stmt ty (\x -> CallPrim x (OpN op) vs)
-      Src.CallF f ->
-        case k of
-          Just k' -> k' =<< stmt ty (\x -> CallPrim x (OpN op) vs)
-          Nothing -> term (TailCall f NoCapture vs)
+  case op of
+    Src.ArrayL _ ->
+      compileEs es \vs ->
+        do res <- stmt ty (\x -> CallPrim x (OpN op) vs)
+           continue k res
+
+    Src.CallF f ->
+      do doCall <-
+           case k of
+             Nothing -> pure \vs -> term (TailCall f NoCapture vs)
+             Just k' ->
+               do mkL <- label1' Nothing k'
+                  pure \vs ->
+                    do l <- mkL
+                       term (Call f NoCapture Nothing l vs)
+
+         compileEs es doCall
+
+
+
+
+
+
 

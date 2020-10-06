@@ -73,9 +73,12 @@ data CInstr =
   | Yield
   | ReturnNo
   | ReturnYes E
-  | Call Src.FName Captures JumpPoint JumpPoint [E]
+  | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
+  | Call Src.FName Captures (Maybe JumpPoint) JumpPoint [E]
+    -- ^ In grammars we have 2 continuation (no,yes)
+    -- In expressions we only have the yes
+
   | TailCall Src.FName Captures [E]  -- ^ Used for both grammars and exprs
-  | ReturnPure E            -- ^ Return from a pure function (no fail cont.)
 
 -- | A flag to indicate if a function may capture the continuation.
 -- If yes, then the function could return multiple times, and we need to
@@ -141,7 +144,7 @@ data PrimName =
   | Op1 Src.Op1
   | Op2 Src.Op2   -- Without `And` and `Or`
   | Op3 Src.Op3   -- Without `PureIf`
-  | OpN Src.OpN   -- `CallF` could appear for pure/char classes
+  | OpN Src.OpN   -- Without `CallF`
 
 
 --------------------------------------------------------------------------------
@@ -184,10 +187,11 @@ instance PP CInstr where
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
       ReturnPure e  -> ppFun "return" [pp e]
-      Call f c x y zs -> ppFun kw (pp f : pp x : pp y : map pp zs)
+      Call f c x y zs -> ppFun kw (pp f : ppMb x : pp y : map pp zs)
         where kw = case c of
                      Capture -> "call[save]"
                      NoCapture -> "call"
+              ppMb = maybe empty pp
       TailCall f c xs -> ppFun kw (pp f : map pp xs)
         where kw = case c of
                      Capture -> "tail_call[save]"

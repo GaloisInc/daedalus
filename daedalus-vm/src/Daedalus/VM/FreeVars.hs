@@ -41,6 +41,9 @@ instance FreeVars t => FreeVars [t] where
 instance (FreeVars a, FreeVars b) => FreeVars (a,b) where
   freeVars' (a,b) = freeVars' a . freeVars' b
 
+instance FreeVars a => FreeVars (Maybe a) where
+  freeVars' = maybe id freeVars'
+
 instance FreeVars E where
   freeVars' expr =
     case expr of
