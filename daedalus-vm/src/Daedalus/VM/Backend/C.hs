@@ -4,17 +4,14 @@ module Daedalus.VM.Backend.C where
 
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Text as Text
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Char
-import Numeric
 import Text.PrettyPrint as P
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
-import Daedalus.Rec(Rec(..),topoOrder,forgetRecs)
+import Daedalus.Rec(topoOrder,forgetRecs)
 import Daedalus.VM
 import qualified Daedalus.Core as Src
 
@@ -118,8 +115,8 @@ cStmt instr =
     Notify e        -> call "p.notify"   [ cExpr e ] <.> semi
     NoteFail        -> call "p.noteFail" [] <.> semi
     GetInput x      -> cVarDecl x (call "p.getInput" [])
-    Spawn l x       -> cVarDecl x (call "p.spawn" [ cClo1 l ])
-    CallPrim p es x ->
+    Spawn x l       -> cVarDecl x (call "p.spawn" [ cClo1 l ])
+    CallPrim x p es ->
       case p of
         StructCon ut -> cVarDecl x todo
         NewBuilder t -> cVarDecl x todo
@@ -213,15 +210,11 @@ cExpr expr =
     EVar x        -> cVarUse x
     EUnit         -> call "Unit" []
     EBool b       -> if b then "true" else "false"
-    EByteArray bs -> cBytes bs
     ENum n ty     -> call f [ integer n ]
       where
-      -- XXX: large constants should be turned into more complex expressions
-      -- e.g., using add/multiply.
       f = case ty of
             Src.TUInt sz -> inst "UInt" [ cSizeType sz ]
             Src.TSInt sz -> inst "SInt" [ cSizeType sz ]
-            Src.TInteger -> call "DDL::Integer" [ text (show n) ]
 
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                                , show (pp ty) ]

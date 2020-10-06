@@ -119,18 +119,19 @@ mergeBlocks front back =
 
   renI i =
     case i of
-      CallPrim f e x -> Just $ CallPrim f (map renE e) (renBV x)
+      CallPrim x f e -> Just $ CallPrim (renBV x) f (map renE e)
       GetInput x     -> Just $ GetInput (renBV x)
-      Spawn j x      -> Just $ Spawn (renJ j) (renBV x)
+      Spawn x j      -> Just $ Spawn (renBV x) (renJ j)
 
       SetInput e     -> Just $ SetInput (renE e)
       Say s          -> Just $ Say s
       Output e       -> Just $ Output (renE e)
       Notify e       -> Just $ Notify (renE e)
       NoteFail       -> Just $ NoteFail
-      Free x         -> Free <$> renV x
-
-
+      Free xs        -> case mapMaybe renV (Set.toList xs) of
+                          [] -> Nothing
+                          ys -> Just (Free (Set.fromList ys))
+      Let x e        -> Just $ Let (renBV x) (renE e)
 
 
   renC c =
@@ -165,7 +166,6 @@ mergeBlocks front back =
       EBool {}      -> e
       ENothing {}   -> e
       EMapEmpty {}  -> e
-      EByteArray {} -> e
 
       EBlockArg ba -> su Map.! ba
       EVar bv      -> EVar (renBV bv)

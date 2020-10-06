@@ -140,7 +140,7 @@ compile expr next0 =
 
          pure
            do clo <- doRHS
-              tid <- stmt TThreadId $ Spawn clo
+              tid <- stmt TThreadId $ \x -> Spawn x clo
               setLocal rightId tid
               pCode
 

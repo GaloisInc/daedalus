@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis) where
+module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modePrimName) where
 
 import           Data.Maybe(catMaybes)
 import           Data.Map(Map)
@@ -11,6 +11,55 @@ import Daedalus.Panic(panic)
 import Daedalus.PP hiding (block)
 import Daedalus.Core(FName,Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
+
+{-
+* Notes on reference variables:
+
+  1. Each variable in a function/primitive can be:
+    - "owned" which means the function should deallocate it when finished
+    - "borrowed" which means the the variable:
+      - is guaranteed to be alive for the duration of the call (but not longer!)
+      - should not be deallocated by the function.
+
+  2. A local variable is "owned"
+
+  3. We can get an "owned" version of any variable ("borrowed" or "owned")
+     by copying it.
+
+  4. Primtives can be passed arguments in either mode, and will adjust
+     as neccessary (i.e, each primitive is a family of functions
+     indexed by the ownership of its arguments).
+
+  5. Basic blocks have a fixed modality on their argument and
+     must be passed arguments in the expected way.
+
+  6. We can only pass a "borrowed" variable as "borrowed"
+
+  7. We can pass a variable we "own" as a "borrowed" argument, as long as
+     we plan to come back from the call (i.e., NOT in a tail-call), so that
+     we can deallocate the variable.
+
+  8. We can pass a variable we "own" as an "owned" argument to another function
+     but then we give up ownership and should not use this variable anymore.
+
+  9. Variables that are alive after a non-tail call (i.e., they are in
+     the stack allocated closure) can always be passed as "borrowed" to the
+     function
+
+* The purpose of this module is to compute the ownerships for the arguments
+of basic blocks (point 5)
+
+* (7) provides a HARD requirement we must satisfy:
+  - we CANNOT jump to a BB expecting a "borrowed" argument using an
+    "owned" variable.
+  - we CAN jump to a BB expecting an "owned" argument using a "borrowed"
+    variable by copying the variable first.
+
+* We'd like to minimize copying, to do so we prefer to:
+  - pass a "borrowed" argument as "borrowed"
+  - pass an "owned" argument that we still need after the call as "borrowed"
+  - pass an "owned" argument that we don't use after the call as "owned"
+-}
 
 
 
@@ -115,11 +164,12 @@ instr i =
     Say {}                   -> id
     Output e                 -> expr e Owned
     Notify e                 -> id -- thread id is not a reference
-    CallPrim pn es x         -> foldr (.) id (zipWith expr es (modePrimName pn))
+    CallPrim x pn es         -> foldr (.) id (zipWith expr es (modePrimName pn))
     GetInput x               -> id
-    Spawn (JumpPoint _ es) x -> foldr (.) id (zipWith expr es (repeat Owned))
+    Spawn x (JumpPoint _ es) -> foldr (.) id (zipWith expr es (repeat Owned))
     NoteFail                 -> id
     Free {}                  -> id    -- do not consider?
+    Let _ e                  -> expr e Owned
 
 cinstr :: CInstr -> Info -> Info
 cinstr ci =
@@ -157,7 +207,6 @@ expr ex mo =
     EUnit         -> id
     ENum {}       -> id
     EBool {}      -> id
-    EByteArray {} -> id
     EMapEmpty {}  -> id
     ENothing {}   -> id
     EVar {}       -> id
@@ -171,6 +220,8 @@ modePrimName prim =
   case prim of
     StructCon {}  -> repeat Owned
     NewBuilder {} -> []
+    Integer {}    -> []
+    ByteArray {}  -> []
     Op1 op        -> modeOp1 op
     Op2 op        -> modeOp2 op
     Op3 op        -> modeOp3 op

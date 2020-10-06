@@ -1,6 +1,8 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.VM where
 
+import Data.Set(Set)
+import qualified Data.Set as Set
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Text(Text)
@@ -55,11 +57,13 @@ data Instr =
   | Say String
   | Output E
   | Notify E          -- Let this thread know other alternative failed
-  | CallPrim PrimName [E] BV
+  | CallPrim BV PrimName [E]
   | GetInput BV
-  | Spawn JumpPoint BV
+  | Spawn BV JumpPoint
   | NoteFail
-  | Free VMVar -- ^ variable cannot be used for the rest of the block
+
+  | Let BV E
+  | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
 
 
 -- | Instructions that jump
@@ -87,9 +91,9 @@ data JumpPoint = JumpPoint Label [E]
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
     EUnit
-  | ENum Integer Src.Type
+  | ENum Integer Src.Type     -- ^ Onlu unboxed
   | EBool Bool
-  | EByteArray ByteString
+
   | EMapEmpty Src.Type Src.Type
   | ENothing Src.Type
 
@@ -132,10 +136,12 @@ instance HasType BA where getType (BA _ t _) = t
 data PrimName =
     StructCon Src.UserType
   | NewBuilder Src.Type
+  | Integer Integer
+  | ByteArray ByteString
   | Op1 Src.Op1
   | Op2 Src.Op2   -- Without `And` and `Or`
   | Op3 Src.Op3   -- Without `PureIf`
-  | OpN Src.OpN   -- `CallF` could appear for character classes
+  | OpN Src.OpN   -- `CallF` could appear for pure/char classes
 
 
 --------------------------------------------------------------------------------
@@ -156,15 +162,16 @@ instance PP Label where
 instance PP Instr where
   pp instr =
     case instr of
-      CallPrim f vs x  -> pp x <+> "=" <+> ppFun (pp f) (map pp vs)
+      CallPrim x f vs  -> pp x <+> "=" <+> ppFun (pp f) (map pp vs)
       GetInput x       -> pp x <+> "=" <+> "input"
-      Spawn c x        -> pp x <+> "=" <+> ppFun "spawn" [pp c]
+      Spawn x c        -> pp x <+> "=" <+> ppFun "spawn" [pp c]
       SetInput e       -> "input" <+> "=" <+> pp e
       Say x            -> ppFun "say" [text (show x)]
       Output v         -> ppFun "output" [ pp v ]
       Notify v         -> ppFun "notify" [ pp v ]
       NoteFail         -> ppFun "noteFail" []
-      Free x           -> "free" <+> pp x
+      Free x           -> "free" <+> commaSep (map pp (Set.toList x))
+      Let x v          -> ppBinder x <+> "=" <+> pp v
 
 instance PP CInstr where
   pp cintsr =
@@ -231,7 +238,6 @@ instance PP E where
       EUnit         -> "unit"
       ENum i t      -> integer i <+> "@" <.> ppPrec 1 t
       EBool b       -> text (show b)
-      EByteArray bs -> text (show bs)
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
 
@@ -277,6 +283,8 @@ instance PP PrimName where
     case pn of
       StructCon t -> "newStruct" <+> "@" <.> ppPrec 1 t
       NewBuilder t -> "newBuilder" <+> "@" <.> ppPrec 1 t
+      ByteArray bs -> text (show bs)
+      Integer n    -> ppFun "Integer" [ pp n ]
       Op1 op -> pp op
       Op2 op -> pp op
       Op3 op -> pp op
