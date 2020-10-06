@@ -17,7 +17,9 @@ using namespace std;
 int main() {
 
   DDL::Integer x("123");
-  DDL::Integer y(mpz_class(123));
-  cout << (x == y) << endl;
+  DDL::Integer y(x.copy());
+  cout << DDL::add<1>(x,y) << endl;
+  cout << x << endl;
+  cout << y << endl;
   return 0;
 }
