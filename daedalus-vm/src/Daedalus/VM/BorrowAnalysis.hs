@@ -26,7 +26,7 @@ import Daedalus.VM
   3. We can get an "owned" version of any variable ("borrowed" or "owned")
      by copying it.
 
-  4. Primtives can be passed arguments in either mode, and will adjust
+  4. Many primtives can be passed arguments in either mode, and will adjust
      as neccessary (i.e, each primitive is a family of functions
      indexed by the ownership of its arguments).
 
@@ -244,7 +244,7 @@ modeOp1 op =
     Not                   -> [Owned]
     ArrayLen              -> [Borrowed]
     Concat                -> [Owned]
-    FinishBuilder         -> [Borrowed]
+    FinishBuilder         -> [Owned]
     NewIterator           -> [Owned]
     IteratorDone          -> [Borrowed]
     IteratorKey           -> [Borrowed]
@@ -291,7 +291,7 @@ modeOp2 op =
     MapLookup            -> [Borrowed,Borrowed]
     MapMember            -> [Borrowed,Borrowed]
 
-    ArrayStream          -> [Borrowed,Borrowed]
+    ArrayStream          -> [Owned,Owned]
 
 modeOp3 :: Op3 -> [Ownership]
 modeOp3 op =
@@ -305,6 +305,5 @@ modeOpN :: OpN -> [Ownership]
 modeOpN op =
   case op of
     ArrayL {} -> repeat Owned
-    CallF {}  -> repeat Borrowed  -- character classes have no refs?
-
+    CallF {}  -> panic "modeOpN" [ "CallF" ]
 

@@ -129,11 +129,26 @@ data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
 
 data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
 
+getOwnership :: BA -> Ownership
+getOwnership (BA _ _ o) = o
+
 class HasType t where
   getType :: t -> VMT
 
 instance HasType BV where getType (BV _ t) = t
 instance HasType BA where getType (BA _ t _) = t
+
+instance HasType E where
+  getType e =
+    case e of
+      EUnit           -> TSem Src.TUnit
+      ENum _ t        -> TSem t
+      EBool {}        -> TSem Src.TBool
+      EMapEmpty t1 t2 -> TSem (Src.TMap t1 t2)
+      ENothing t      -> TSem (Src.TMaybe t)
+
+      EBlockArg x     -> getType x
+      EVar a          -> getType a
 
 
 data PrimName =
