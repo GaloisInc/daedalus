@@ -100,7 +100,15 @@ renameTCF texpr =
           Nothing -> k Nothing
           Just v  -> renameVarIn v $ \v' -> k (Just v')
 
-
+    TCSelCase ctx e pats mdef t ->
+      TCSelCase ctx
+        <$> renameTC e
+        <*> traverse renameMaplet pats
+        <*> traverse renameTC mdef
+        <*> pure t
+      where
+        renameMaplet (Nothing, e') = (,) Nothing <$> renameTC e'
+        renameMaplet (Just v, e')  = renameVarIn v (\v' -> (,) (Just v') <$> renameTC e')
 
     e  -> traverseTCF renameTC e
 
