@@ -270,7 +270,10 @@ instance PP BV where
   pp (BV x _) = "r" <.> int x
 
 instance PP BA where
-  pp (BA x _ _) = "ra" <.> int x
+  pp (BA x _ o) = "ra" <.> int x <.> own
+    where own = case o of
+                  Owned    -> "o"
+                  Borrowed -> "b"
 
 instance PP Block where
   pp b = l <.> colon $$ nest 2
@@ -280,11 +283,7 @@ instance PP Block where
           [] -> pp (blockName b)
           xs -> ppFun (pp (blockName b)) (map ppArg xs)
 
-    ppArg a@(BA _ _ own) =
-      let tsep = case own of
-                   Owned    -> ":!"
-                   Borrowed -> ":"
-      in pp a <+> tsep <+> pp (getType a)
+    ppArg a = pp a <+> ":" <+> pp (getType a)
 
 instance PP JumpPoint where
   pp (JumpPoint l es) =

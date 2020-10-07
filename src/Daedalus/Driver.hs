@@ -102,7 +102,6 @@ import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.CaptureAnalysis as VM
-import qualified Daedalus.VM.LivenessAnalysis as VM
 import Daedalus.PrettyError(prettyError)
 
 
@@ -705,8 +704,7 @@ be captured -}
 passCaptureAnalysis :: Daedalus ()
 passCaptureAnalysis =
   do ms <- ddlGet loadedModules
-     let ms1 = map VM.insertFree
-             $ VM.captureAnalysis [ m | VMModule m <- Map.elems ms ]
+     let ms1 = VM.captureAnalysis [ m | VMModule m <- Map.elems ms ]
          upd m = Map.insert (Core.mNameText (VM.mName m)) (VMModule m)
      ddlUpdate_ \s -> s { loadedModules = foldr upd (loadedModules s) ms1 }
 

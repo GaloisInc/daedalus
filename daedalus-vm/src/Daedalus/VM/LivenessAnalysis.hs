@@ -7,7 +7,6 @@ import Data.List(mapAccumL)
 import Daedalus.VM
 import Daedalus.VM.FreeVars
 
-
 -- Insert `Free` instructions after the last use of a varilbe
 class InsertFree a where
   insertFree :: a -> a

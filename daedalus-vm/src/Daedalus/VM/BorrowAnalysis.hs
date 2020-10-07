@@ -64,19 +64,68 @@ of basic blocks (point 5)
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = prog { pModules = annModule <$> pModules prog }
+doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
+                             , pModules = annModule <$> pModules prog
+                             }
   where
   info        = borrowAnalysis prog
   annModule m = m { mFuns     = annFun   <$> mFuns m }
   annFun f    = f { vmfBlocks = annBlock <$> vmfBlocks f }
   annBlock b =
     case Map.lookup (blockName b) info of
-      Just sig -> b { blockArgs = zipWith annArg (blockArgs b) sig }
+      Just sig ->
+        let as = zipWith annArg (blockArgs b) sig
+            mp = Map.fromList [ (x,a) | a@(BA x _ _) <- as ]
+        in b { blockArgs = as
+             , blockInstrs = map (annI mp) (blockInstrs b)
+             , blockTerm   = annTerm mp (blockTerm b)
+             }
+
       Nothing  -> panic "doBorrowAnalysis"
                     [ "Missing ownership information for"
                     , show (pp (blockName b))
                     ]
+
   annArg (BA x t _) own = BA x t own
+
+  annI mp i =
+    case i of
+      SetInput e      -> SetInput (annE mp e)
+      Say {}          -> i
+      Output e        -> Output (annE mp e)
+      Notify e        -> Notify (annE mp e)
+      CallPrim x p es -> CallPrim x p (map (annE mp) es)
+      GetInput {}     -> i
+      Spawn x l       -> Spawn x (annJ mp l)
+      NoteFail        -> i
+      Let x e         -> Let x (annE mp e)
+      Free xs         -> Free (Set.map (annV mp) xs)
+
+  annTerm mp t =
+    case t of
+      Jump l          -> Jump (annJ mp l)
+      JumpIf e l1 l2  -> JumpIf (annE mp e) (annJ mp l1) (annJ mp l2)
+      Yield           -> Yield
+      ReturnNo        -> ReturnNo
+      ReturnYes e     -> ReturnYes (annE mp e)
+      ReturnPure e    -> ReturnPure (annE mp e)
+      Call f c l1 l2 es
+                      -> Call f c (annJ mp <$> l1) (annJ mp l2) (annE mp <$> es)
+      TailCall f c es -> TailCall f c (annE mp <$> es)
+
+  annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
+
+  annV mp v =
+    case v of
+      ArgVar a -> ArgVar (annVA mp a)
+      LocalVar {} -> v
+
+  annJ mp (JumpPoint l es) = JumpPoint l (map (annE mp) es)
+
+  annE mp e =
+    case e of
+      EBlockArg ba -> EBlockArg (annVA mp ba)
+      _            -> e
 
 
 
@@ -122,11 +171,15 @@ borrowAnalysis p = loop i0
             }
 
   loop i = let i1 = vmProgram p i
-           in if iChanges i1 then loop i1 { iChanges = False } else iBlockInfo i
+           in if iChanges i1
+                then loop i1 { iChanges = False }
+                else iBlockInfo i
 
 
 vmProgram :: Program -> Info -> Info
-vmProgram = foldr (.) id . map vmModule . pModules
+vmProgram p i = foldr vmModule bs (pModules p)
+  where
+  bs = foldr block i (Map.elems (pBoot p))
 
 vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
@@ -163,10 +216,10 @@ instr i =
     SetInput e               -> expr e Owned
     Say {}                   -> id
     Output e                 -> expr e Owned
-    Notify e                 -> id -- thread id is not a reference
-    CallPrim x pn es         -> foldr (.) id (zipWith expr es (modePrimName pn))
-    GetInput x               -> id
-    Spawn x (JumpPoint _ es) -> foldr (.) id (zipWith expr es (repeat Owned))
+    Notify _                 -> id -- thread id is not a reference
+    CallPrim _ pn es         -> foldr (.) id (zipWith expr es (modePrimName pn))
+    GetInput _               -> id
+    Spawn _ (JumpPoint _ es) -> foldr (.) id (zipWith expr es (repeat Owned))
     NoteFail                 -> id
     Free {}                  -> id    -- do not consider?
     Let _ e                  -> expr e Owned

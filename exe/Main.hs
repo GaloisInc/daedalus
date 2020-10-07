@@ -34,6 +34,7 @@ import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
+import qualified Daedalus.VM.LivenessAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.Backend.C as C
 
@@ -104,7 +105,8 @@ handleOptions opts
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
               entry <- ddlGetFName mainNm
-              let prog = VM.addCopyIs
+              let prog = VM.insertFree
+                       $ VM.addCopyIs
                        $ VM.doBorrowAnalysis
                        $ VM.moduleToProgram entry [m]
               ddlPrint (pp prog)
