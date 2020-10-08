@@ -65,7 +65,6 @@ data Instr =
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
 
-
 -- | Instructions that jump
 data CInstr =
     Jump JumpPoint
@@ -88,7 +87,7 @@ data Captures = Capture | NoCapture
 
 
 -- | Target of a jump
-data JumpPoint = JumpPoint Label [E]
+data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
 
 
 -- | Constants, and acces to the VM state that does not change in a block.
@@ -115,6 +114,22 @@ data VMT =
 
 
 
+--------------------------------------------------------------------------------
+iArgs :: Instr -> [E]
+iArgs i =
+  case i of
+    SetInput e        -> [e]
+    Say {}            -> []
+    Output e          -> [e]
+    Notify e          -> [e]
+    CallPrim _ _ es   -> es
+    GetInput {}       -> []
+    Spawn _ j         -> jArgs j
+    NoteFail          -> []
+
+    Let _ e           -> [e]
+    Free _            -> []       -- XXX: these could be just owned args
+
 
 --------------------------------------------------------------------------------
 -- Names
@@ -137,6 +152,11 @@ class HasType t where
 
 instance HasType BV where getType (BV _ t) = t
 instance HasType BA where getType (BA _ t _) = t
+instance HasType VMVar where
+  getType x =
+    case x of
+      LocalVar y -> getType y
+      ArgVar y   -> getType y
 
 instance HasType E where
   getType e =
@@ -189,7 +209,7 @@ instance PP Instr where
       Notify v         -> ppFun "notify" [ pp v ]
       NoteFail         -> ppFun "noteFail" []
       Free x           -> "free" <+> commaSep (map pp (Set.toList x))
-      Let x v          -> ppBinder x <+> "=" <+> pp v
+      Let x v          -> ppBinder x <+> "=" <+> "copy" <+> pp v
 
 instance PP CInstr where
   pp cintsr =

@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modePrimName) where
+module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modeI,modePrimName) where
 
 import           Data.Maybe(catMaybes)
 import           Data.Map(Map)
@@ -211,18 +211,8 @@ block b i =
 
 
 instr :: Instr -> Info -> Info
-instr i =
-  case i of
-    SetInput e               -> expr e Owned
-    Say {}                   -> id
-    Output e                 -> expr e Owned
-    Notify _                 -> id -- thread id is not a reference
-    CallPrim _ pn es         -> foldr (.) id (zipWith expr es (modePrimName pn))
-    GetInput _               -> id
-    Spawn _ (JumpPoint _ es) -> foldr (.) id (zipWith expr es (repeat Owned))
-    NoteFail                 -> id
-    Free {}                  -> id    -- do not consider?
-    Let _ e                  -> expr e Owned
+instr i = foldr (.) id (zipWith expr (iArgs i) (modeI i))
+
 
 cinstr :: CInstr -> Info -> Info
 cinstr ci =
@@ -267,6 +257,19 @@ expr ex mo =
 
 
 
+modeI :: Instr -> [Ownership]
+modeI i =
+  case i of
+    SetInput {}              -> [Owned] -- not ref
+    Say {}                   -> []
+    Output _                 -> [Owned]
+    Notify _                 -> [Owned] -- not ref
+    CallPrim _ pn _          -> modePrimName pn
+    GetInput _               -> []
+    Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
+    NoteFail                 -> []
+    Free {}                  -> []  -- XXX: `Free` owns its asrguments
+    Let _ _                  -> [Owned]
 
 
 modePrimName :: PrimName -> [Ownership]

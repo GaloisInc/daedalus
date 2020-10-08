@@ -18,6 +18,7 @@ import Daedalus.VM.Backend.C.Lang
 
 data Rep = Boxed      -- ^ We copy this around non memory managemetn
          | Unboxed    -- ^ We pass by reference, uses memory management
+           deriving Eq
 
 class TypeRep t where
   typeRep :: t -> Rep

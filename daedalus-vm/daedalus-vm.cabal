@@ -24,6 +24,7 @@ library
     Daedalus.VM.LivenessAnalysis
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.InsertCopy
+    Daedalus.VM.RedundantCopy
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
