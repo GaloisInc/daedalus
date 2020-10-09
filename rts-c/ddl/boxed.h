@@ -3,12 +3,20 @@
 
 namespace DDL {
 
-
-// Boxed types should derive from this class, so that we can tell when
-// to deallocated.
-class IsBoxed {};
+// Classes that own refernce should derive from this class so that
+// we can let go of the references when are done with the object.
+// Note that this might happen without actually dallocating the object.
+// An object that has been "freed" can't be used, but it space *may* be
+// reusable to store other objects.
+class HasRefs {};
 // Classes should define:
 // void free()
+
+// Boxed types should derive from this class, so that we know to call
+// "copy" when we get an owned copy of the reference.
+class IsBoxed : public HasRefs {};
+// Classes should define:
+// void free()  (from HasRefs)
 // void copy()
 // size_t refCount()
 

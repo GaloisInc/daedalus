@@ -67,7 +67,7 @@ public:
 
     if (refCount() == 1) {
       Node &cell = ptr.getValue();
-      if constexpr (std::is_base_of<IsBoxed,T>::value) cell.head.free();
+      if constexpr (std::is_base_of<HasRefs,T>::value) cell.head.free();
       cell.tail.free(); // note that we use stack here.
     }
     ptr.free();

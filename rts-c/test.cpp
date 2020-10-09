@@ -16,29 +16,21 @@
 
 using namespace std;
 
-using IntList = DDL::List<DDL::Integer>;
+
+struct C : public DDL::HasRefs {
+  DDL::Array<int> xs;
+  DDL::Array<DDL::Integer> ys;
+
+  void free() { xs.free(); ys.free(); }
+};
 
 int main() {
   DDL::Integer x("123");
-  x.copy();
-  IntList xs(x,IntList());
-  IntList ys(x,xs); //gives up x
+  C xs = { .xs = DDL::Array<int>(2,7,8)
+         , .ys = DDL::Array<DDL::Integer>(1,x)
+         };
 
-  DDL::Array<DDL::Integer> arr(ys); // give up ys
-  arr.copy();
-
-  cout << x.refCount() << endl;
-
-  DDL::Array<DDL::Array<DDL::Integer>> arr2(2,arr,arr); // give up arr
-  cout << x.refCount() << endl;
-
-  DDL::Array<DDL::Integer> arr3(arr2);
-  arr2.free();
-
-  cout << x.refCount() << endl;
-
-  cout << arr3.refCount() << endl;
-  arr3.free();
+  xs.free();
 
   return 0;
 }

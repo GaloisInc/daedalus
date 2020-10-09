@@ -78,31 +78,8 @@ public:
     }
   }
 
-
-
-// -- Boxed --------------------------------------------------------------------
-  size_t refCount() { return ptr->ref_count; }
-  void copy()       { ++(ptr->ref_count); }
-  void free() {
-    size_t n = refCount();
-    if (n == 1) {
-      if constexpr (std::is_base_of<IsBoxed,T>::value) {
-        size_t todo = ptr->size;
-        T* arr = ptr->data;
-        for(size_t i = 0; i < todo; ++i) arr[i].free();
-      }
-      std::cout << "Freeing " << ptr << std::endl;
-      delete ptr;
-    } else {
-      ptr->ref_count = n - 1;
-    }
-  }
-// -- Boxed --------------------------------------------------------------------
-
-
   // Borrows this
   size_t size() { return ptr->size; }
-
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
@@ -118,6 +95,60 @@ public:
     }
     return ptr->data[i];
   }
+
+  // Borrow this, borrow xs
+  bool operator == (Array xs) {
+    size_t n = size();
+    if (n != xs.size()) return false;
+    for (size_t i = 0; i < n; ++i) {
+      if (borrowElement(i) != xs.borrowElement(i)) return false;
+    }
+    return true;
+  }
+
+  // Borrow this, borrow xs
+  bool operator != (Array xs) { return ! operator ==(xs); }
+
+  // XXX: <, <=?
+
+// -- Boxed --------------------------------------------------------------------
+  size_t refCount() { return ptr->ref_count; }
+  void copy()       { ++(ptr->ref_count); }
+  void free() {
+    size_t n = refCount();
+    if (n == 1) {
+      if constexpr (std::is_base_of<HasRefs,T>::value) {
+        size_t todo = ptr->size;
+        T* arr = ptr->data;
+        for(size_t i = 0; i < todo; ++i) arr[i].free();
+      }
+      std::cout << "Freeing " << ptr << std::endl;
+      delete ptr;
+    } else {
+      ptr->ref_count = n - 1;
+    }
+  }
+// -- Boxed --------------------------------------------------------------------
+
+  class Iterator {
+    size_t index;
+    Array xs;
+  public:
+    Iterator() : index(0), xs() {}    // uninitialied
+
+    // Owned xs
+    Iterator(Array xs)  : index(0), xs(xs) {}
+
+    bool   done() { return index >= xs.size; }
+    size_t key() { return index; }
+
+    // Returns owned value
+    T value()       { return xs[index]; }
+    // Returns borrowed value
+    T borrowValue() { return xs.borrowElement(xs); }
+
+  };
+
 
 };
 
