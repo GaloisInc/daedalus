@@ -26,11 +26,15 @@ struct C : public DDL::HasRefs {
 
 int main() {
   DDL::Integer x("123");
-  C xs = { .xs = DDL::Array<int>(2,7,8)
-         , .ys = DDL::Array<DDL::Integer>(1,x)
-         };
+  x.copy();
+  DDL::Array<DDL::Integer> xs(2,x,x);     // give up x
+  DDL::Array<DDL::Integer>::Iterator it(xs);  // give up xs
 
-  xs.free();
+  while (! it.done()) {
+    cout << it.borrowValue() << endl;
+    it = it.next();   // give up it, and get new it
+  }
+  it.free();      // give up it
 
   return 0;
 }

@@ -88,7 +88,7 @@ public:
   // Borrows this
   // Returns an owned copy of the element.
   T operator[] (size_t i) {
-    if constexpr (std::is_base_of<IsBoxed,T>::value) {
+    if constexpr (std::is_base_of<HasRefs,T>::value) {
       T& x = ptr->data[i];
       x.copy();
       return x;
@@ -133,19 +133,29 @@ public:
   class Iterator {
     size_t index;
     Array xs;
+    Iterator(size_t i,Array ys) : index(i), xs(ys) {}
   public:
     Iterator() : index(0), xs() {}    // uninitialied
 
     // Owned xs
     Iterator(Array xs)  : index(0), xs(xs) {}
 
-    bool   done() { return index >= xs.size; }
+    bool   done() { return index >= xs.size(); }
     size_t key() { return index; }
 
     // Returns owned value
     T value()       { return xs[index]; }
     // Returns borrowed value
-    T borrowValue() { return xs.borrowElement(xs); }
+    T borrowValue() { return xs.borrowElement(index); }
+
+    // Owned this. We don't increment `xs` because this copy of the iterator
+    // is being freed.
+    Iterator next() {
+      return Iterator(index + 1, xs);
+    }
+
+    void free() { xs.free(); }
+    void copy() { xs.copy(); }
 
   };
 
