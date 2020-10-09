@@ -42,9 +42,17 @@ public:
     Node &n = ptr.getValue();
     h = n.head;
     t = n.tail;
-    if (refCount() > 1) ptr.free(); else ptr.del();
+
+
     // We can't just do `free` because we don't want to
     // decrement `h` and `t`'s reference counts as they are preserved.
+    if (refCount() > 1) {
+      if constexpr (std::is_base_of<IsBoxed,T>::value) h.copy();
+      t.copy();
+      ptr.free();
+    } else {
+      ptr.del();
+    }
   }
 
   // Reference counintg --------------------------------------------------
