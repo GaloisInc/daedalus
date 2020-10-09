@@ -23,6 +23,7 @@ library
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.LivenessAnalysis
     Daedalus.VM.BorrowAnalysis
+    Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy
     Daedalus.VM.RedundantCopy
     Daedalus.VM.Compile.Monad

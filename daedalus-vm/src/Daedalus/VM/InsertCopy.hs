@@ -13,7 +13,7 @@ import Daedalus.Panic(panic)
 import Daedalus.Core(FName)
 import Daedalus.VM
 import Daedalus.VM.BorrowAnalysis
-import Daedalus.VM.Backend.C.Types(Rep(..),typeRep)
+import Daedalus.VM.TypeRep
 
 
 addCopyIs :: Program -> Program
@@ -110,8 +110,8 @@ doJump (JumpPoint l es) =
 copy :: E -> M E
 copy e =
   case typeRep ty of
-    Unboxed -> pure e
-    Boxed   ->
+    NoRefs  -> pure e
+    HasRefs ->
       do x <- newBV ty
          emit (Let x e)
          pure (EVar x)

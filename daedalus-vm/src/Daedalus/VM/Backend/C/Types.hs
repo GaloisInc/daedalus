@@ -16,46 +16,6 @@ import qualified Daedalus.Core as Src
 
 import Daedalus.VM.Backend.C.Lang
 
-data Rep = Boxed      -- ^ We copy this around non memory managemetn
-         | Unboxed    -- ^ We pass by reference, uses memory management
-           deriving Eq
-
-class TypeRep t where
-  typeRep :: t -> Rep
-
-instance TypeRep VMT where
-  typeRep ty =
-    case ty of
-      TThreadId {} -> Unboxed
-      TSem sty     -> typeRep sty
-
-instance TypeRep Src.Type where
-  typeRep ty =
-    case ty of
-      Src.TStream     -> Unboxed
-      Src.TUInt n     -> numRep n
-      Src.TSInt n     -> numRep n
-      Src.TInteger    -> Boxed
-      Src.TBool       -> Unboxed
-      Src.TUnit       -> Unboxed
-      Src.TArray t    -> Boxed
-      Src.TMaybe t    -> Unboxed
-      Src.TMap k v    -> Boxed
-      Src.TBuilder t  -> Unboxed
-      Src.TIterator t -> Unboxed
-      Src.TUser ut    -> if Src.tnameRec (Src.utName ut) then Boxed else Unboxed
-      Src.TParam {}   -> panic "typeRep" ["Unexpepected type paramer"]
-    where
-    numRep n =
-      case n of
-        Src.TSize x
-          | x <= 64   -> Unboxed
-          | otherwise -> panic "typeRep" [ "Bitvectors > 64 not implemented." ]
-        Src.TSizeParam {} ->
-          panic "typeRep" [ "Unexpceted size type parameter" ]
-
-
---------------------------------------------------------------------------------
 
 cType :: VMT -> CType
 cType ty =

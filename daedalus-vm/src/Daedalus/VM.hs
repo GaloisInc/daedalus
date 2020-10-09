@@ -144,8 +144,21 @@ data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
 
 data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
 
-getOwnership :: BA -> Ownership
-getOwnership (BA _ _ o) = o
+class GetOwnership t where
+  getOwnership :: t -> Ownership
+
+instance GetOwnership BA where
+  getOwnership (BA _ _ o) = o
+
+instance GetOwnership BV where
+  getOwnership (BV {}) = Owned    -- XXX: in the future maybe we can consider
+                                  -- borrowed locals too?
+
+instance GetOwnership VMVar where
+  getOwnership v =
+    case v of
+      LocalVar x -> getOwnership x
+      ArgVar x   -> getOwnership x
 
 class HasType t where
   getType :: t -> VMT

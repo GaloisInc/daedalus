@@ -4,7 +4,7 @@
 namespace DDL {
 
 // Classes that own refernces should derive from this class so that
-// we can call `copy/free` on the member references when we
+// we know to call `copy/free` on the member references.
 // Note that this might happen without actually dallocating the object.
 // An object that has been "freed" can't be used, but it space *may* be
 // reusable to store other objects.
@@ -14,7 +14,8 @@ class HasRefs {};
 // void copy()
 
 
-// Classes passed by reference. Just for documentation.
+// Classes passed by reference.
+// Just for documentation.
 class IsBoxed : public HasRefs {};
 // size_t refCount()
 
@@ -44,7 +45,7 @@ public:
 
   size_t refCount() { return ptr->ref_count; }
 
-  // Release the memory without doing anything else
+  // Release the memory for an object that has already been unitialized.
   void del() {
     std::cout << "Freeing " << ptr << std::endl;
     delete ptr;
@@ -54,7 +55,7 @@ public:
   void free() {
     size_t n = ptr->ref_count;
     if (n == 1) {
-      if constexpr (std::is_base_of<IsBoxed,T>::value) ptr->value.free();
+      if constexpr (std::is_base_of<HasRefs,T>::value) ptr->value.free();
       del();
     }
     else ptr->ref_count = n - 1;

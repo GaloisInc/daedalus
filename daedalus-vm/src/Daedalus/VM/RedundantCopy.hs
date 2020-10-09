@@ -6,7 +6,7 @@ import qualified Data.Set as Set
 
 import Daedalus.VM
 import Daedalus.VM.BorrowAnalysis(modeI)
-import Daedalus.VM.Backend.C.Types(typeRep,Rep(..))
+import Daedalus.VM.TypeRep
 
 removeRedundantCopy :: Program -> Program
 removeRedundantCopy prog = prog { pBoot    = simpBlock <$> pBoot prog
@@ -33,7 +33,9 @@ check prevFree is term =
 
     -- Remove `free` of unboxed and merge sequential `free`
     Free xs : more -> check (Set.union xs' prevFree) more term
-      where xs' = Set.filter ((== Boxed) . typeRep . getType) xs
+      where
+      xs'    = Set.filter keep xs
+      keep x = getOwnership x == Owned && typeRep (getType x) == HasRefs
 
     i : more
       | Set.null prevFree -> (                i : js, t)
