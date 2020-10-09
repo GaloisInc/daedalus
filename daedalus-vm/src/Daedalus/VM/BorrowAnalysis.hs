@@ -299,7 +299,7 @@ modeOp1 op =
     BitNot                -> [Owned]
     Not                   -> [Owned]
     ArrayLen              -> [Borrowed]
-    Concat                -> [Owned]
+    Concat                -> [Borrowed]
     FinishBuilder         -> [Owned]
     NewIterator           -> [Owned]
     IteratorDone          -> [Borrowed]

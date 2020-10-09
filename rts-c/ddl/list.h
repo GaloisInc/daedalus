@@ -38,6 +38,7 @@ public:
 
   // Own "this"
   // Returns "Owned" `h` and `t`
+  // `t` should not be this.
   void uncons(T &h, List& t) {
     Node &n = ptr.getValue();
     h = n.head;

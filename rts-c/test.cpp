@@ -19,19 +19,26 @@ using namespace std;
 using IntList = DDL::List<DDL::Integer>;
 
 int main() {
-
   DDL::Integer x("123");
   x.copy();
   IntList xs(x,IntList());
-  IntList ys(x,xs);
+  IntList ys(x,xs); //gives up x
 
-  DDL::Array<DDL::Integer> arr(ys);
+  DDL::Array<DDL::Integer> arr(ys); // give up ys
+  arr.copy();
 
-  DDL::Integer i = arr[0];
-  cout << arr.size() << endl;
-  cout << i << endl;
-  arr.free();
+  cout << x.refCount() << endl;
 
+  DDL::Array<DDL::Array<DDL::Integer>> arr2(2,arr,arr); // give up arr
+  cout << x.refCount() << endl;
+
+  DDL::Array<DDL::Integer> arr3(arr2);
+  arr2.free();
+
+  cout << x.refCount() << endl;
+
+  cout << arr3.refCount() << endl;
+  arr3.free();
 
   return 0;
 }
