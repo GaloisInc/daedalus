@@ -22,6 +22,15 @@ simpBlock b = b { blockInstrs = is, blockTerm = t }
   where
   (is,t) = check Set.empty (blockInstrs b) (blockTerm b)
 
+-- Refactor, to combine InsertCopy and Insert Free as these are all
+-- than on a single block.
+-- 1. Insert explicity copies when passing owned arguments
+-- 2. Compute lifetimes (inser *all* free)
+-- 3. Remove `free` on borrowd variables (and maybe on noref types although
+--    that's not as importnat)
+-- 4. Remove redundant `copy`: `copy` followed by `free` removes the copy/free.
+-- XXX: Currently this is not quite righ as step (3) must happen before
+-- (4) because copying borrowed variables is not redundant.
 check :: Set VMVar -> [Instr] -> CInstr -> ([Instr],CInstr)
 check prevFree is term =
   case is of
