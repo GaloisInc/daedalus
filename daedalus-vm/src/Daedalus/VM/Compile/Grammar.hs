@@ -140,7 +140,7 @@ compile expr next0 =
 
          pure
            do clo <- doRHS
-              tid <- stmt TThreadId $ Spawn clo
+              tid <- stmt TThreadId $ \x -> Spawn x clo
               setLocal rightId tid
               pCode
 
@@ -160,7 +160,7 @@ compile expr next0 =
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 term $ Call f Capture cloNo cloYes vs
+                                 term $ Call f Capture (Just cloNo) cloYes vs
 
          compileEs es \vs -> doCall vs
 

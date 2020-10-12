@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis) where
+module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modeI,modePrimName) where
 
 import           Data.Maybe(catMaybes)
 import           Data.Map(Map)
@@ -12,22 +12,120 @@ import Daedalus.PP hiding (block)
 import Daedalus.Core(FName,Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
 
+{-
+* Notes on reference variables:
+
+  1. Each variable in a function/primitive can be:
+    - "owned" which means the function should deallocate it when finished
+    - "borrowed" which means the the variable:
+      - is guaranteed to be alive for the duration of the call (but not longer!)
+      - should not be deallocated by the function.
+
+  2. A local variable is "owned"
+
+  3. We can get an "owned" version of any variable ("borrowed" or "owned")
+     by copying it.
+
+  4. Many primtives can be passed arguments in either mode, and will adjust
+     as neccessary (i.e, each primitive is a family of functions
+     indexed by the ownership of its arguments).
+
+  5. Basic blocks have a fixed modality on their argument and
+     must be passed arguments in the expected way.
+
+  6. We can only pass a "borrowed" variable as "borrowed"
+
+  7. We can pass a variable we "own" as a "borrowed" argument, as long as
+     we plan to come back from the call (i.e., NOT in a tail-call), so that
+     we can deallocate the variable.
+
+  8. We can pass a variable we "own" as an "owned" argument to another function
+     but then we give up ownership and should not use this variable anymore.
+
+  9. Variables that are alive after a non-tail call (i.e., they are in
+     the stack allocated closure) can always be passed as "borrowed" to the
+     function
+
+* The purpose of this module is to compute the ownerships for the arguments
+of basic blocks (point 5)
+
+* (7) provides a HARD requirement we must satisfy:
+  - we CANNOT jump to a BB expecting a "borrowed" argument using an
+    "owned" variable.
+  - we CAN jump to a BB expecting an "owned" argument using a "borrowed"
+    variable by copying the variable first.
+
+* We'd like to minimize copying, to do so we prefer to:
+  - pass a "borrowed" argument as "borrowed"
+  - pass an "owned" argument that we still need after the call as "borrowed"
+  - pass an "owned" argument that we don't use after the call as "owned"
+-}
+
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = prog { pModules = annModule <$> pModules prog }
+doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
+                             , pModules = annModule <$> pModules prog
+                             }
   where
   info        = borrowAnalysis prog
   annModule m = m { mFuns     = annFun   <$> mFuns m }
   annFun f    = f { vmfBlocks = annBlock <$> vmfBlocks f }
   annBlock b =
     case Map.lookup (blockName b) info of
-      Just sig -> b { blockArgs = zipWith annArg (blockArgs b) sig }
+      Just sig ->
+        let as = zipWith annArg (blockArgs b) sig
+            mp = Map.fromList [ (x,a) | a@(BA x _ _) <- as ]
+        in b { blockArgs = as
+             , blockInstrs = map (annI mp) (blockInstrs b)
+             , blockTerm   = annTerm mp (blockTerm b)
+             }
+
       Nothing  -> panic "doBorrowAnalysis"
                     [ "Missing ownership information for"
                     , show (pp (blockName b))
                     ]
+
   annArg (BA x t _) own = BA x t own
+
+  annI mp i =
+    case i of
+      SetInput e      -> SetInput (annE mp e)
+      Say {}          -> i
+      Output e        -> Output (annE mp e)
+      Notify e        -> Notify (annE mp e)
+      CallPrim x p es -> CallPrim x p (map (annE mp) es)
+      GetInput {}     -> i
+      Spawn x l       -> Spawn x (annJ mp l)
+      NoteFail        -> i
+      Let x e         -> Let x (annE mp e)
+      Free xs         -> Free (Set.map (annV mp) xs)
+
+  annTerm mp t =
+    case t of
+      Jump l          -> Jump (annJ mp l)
+      JumpIf e l1 l2  -> JumpIf (annE mp e) (annJ mp l1) (annJ mp l2)
+      Yield           -> Yield
+      ReturnNo        -> ReturnNo
+      ReturnYes e     -> ReturnYes (annE mp e)
+      ReturnPure e    -> ReturnPure (annE mp e)
+      Call f c l1 l2 es
+                      -> Call f c (annJ mp <$> l1) (annJ mp l2) (annE mp <$> es)
+      TailCall f c es -> TailCall f c (annE mp <$> es)
+
+  annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
+
+  annV mp v =
+    case v of
+      ArgVar a -> ArgVar (annVA mp a)
+      LocalVar {} -> v
+
+  annJ mp (JumpPoint l es) = JumpPoint l (map (annE mp) es)
+
+  annE mp e =
+    case e of
+      EBlockArg ba -> EBlockArg (annVA mp ba)
+      _            -> e
 
 
 
@@ -73,11 +171,15 @@ borrowAnalysis p = loop i0
             }
 
   loop i = let i1 = vmProgram p i
-           in if iChanges i1 then loop i1 { iChanges = False } else iBlockInfo i
+           in if iChanges i1
+                then loop i1 { iChanges = False }
+                else iBlockInfo i
 
 
 vmProgram :: Program -> Info -> Info
-vmProgram = foldr (.) id . map vmModule . pModules
+vmProgram p i = foldr vmModule bs (pModules p)
+  where
+  bs = foldr block i (Map.elems (pBoot p))
 
 vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
@@ -109,17 +211,8 @@ block b i =
 
 
 instr :: Instr -> Info -> Info
-instr i =
-  case i of
-    SetInput e               -> expr e Owned
-    Say {}                   -> id
-    Output e                 -> expr e Owned
-    Notify e                 -> id -- thread id is not a reference
-    CallPrim pn es x         -> foldr (.) id (zipWith expr es (modePrimName pn))
-    GetInput x               -> id
-    Spawn (JumpPoint _ es) x -> foldr (.) id (zipWith expr es (repeat Owned))
-    NoteFail                 -> id
-    Free {}                  -> id    -- do not consider?
+instr i = foldr (.) id (zipWith expr (iArgs i) (modeI i))
+
 
 cinstr :: CInstr -> Info -> Info
 cinstr ci =
@@ -129,8 +222,9 @@ cinstr ci =
     Yield -> id
     ReturnNo -> id
     ReturnYes e -> expr e Owned
+    -- XXX: update
     Call f _ l1 l2 es ->
-      \i -> jumpPoint l1
+      \i -> maybe id jumpPoint l1
           $ jumpPoint l2
           $ foldr ($) i
           $ zipWith expr es
@@ -157,13 +251,25 @@ expr ex mo =
     EUnit         -> id
     ENum {}       -> id
     EBool {}      -> id
-    EByteArray {} -> id
     EMapEmpty {}  -> id
     ENothing {}   -> id
     EVar {}       -> id
 
 
 
+modeI :: Instr -> [Ownership]
+modeI i =
+  case i of
+    SetInput {}              -> [Owned] -- not ref
+    Say {}                   -> []
+    Output _                 -> [Owned]
+    Notify _                 -> [Owned] -- not ref
+    CallPrim _ pn _          -> modePrimName pn
+    GetInput _               -> []
+    Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
+    NoteFail                 -> []
+    Free {}                  -> []  -- XXX: `Free` owns its asrguments
+    Let _ _                  -> [Owned]
 
 
 modePrimName :: PrimName -> [Ownership]
@@ -171,6 +277,8 @@ modePrimName prim =
   case prim of
     StructCon {}  -> repeat Owned
     NewBuilder {} -> []
+    Integer {}    -> []
+    ByteArray {}  -> []
     Op1 op        -> modeOp1 op
     Op2 op        -> modeOp2 op
     Op3 op        -> modeOp3 op
@@ -191,8 +299,8 @@ modeOp1 op =
     BitNot                -> [Owned]
     Not                   -> [Owned]
     ArrayLen              -> [Borrowed]
-    Concat                -> [Owned]
-    FinishBuilder         -> [Borrowed]
+    Concat                -> [Borrowed]
+    FinishBuilder         -> [Owned]
     NewIterator           -> [Owned]
     IteratorDone          -> [Borrowed]
     IteratorKey           -> [Borrowed]
@@ -239,7 +347,7 @@ modeOp2 op =
     MapLookup            -> [Borrowed,Borrowed]
     MapMember            -> [Borrowed,Borrowed]
 
-    ArrayStream          -> [Borrowed,Borrowed]
+    ArrayStream          -> [Owned,Owned]
 
 modeOp3 :: Op3 -> [Ownership]
 modeOp3 op =
@@ -253,6 +361,5 @@ modeOpN :: OpN -> [Ownership]
 modeOpN op =
   case op of
     ArrayL {} -> repeat Owned
-    CallF {}  -> repeat Borrowed  -- character classes have no refs?
-
+    CallF {}  -> panic "modeOpN" [ "CallF" ]
 

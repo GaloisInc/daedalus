@@ -7,7 +7,6 @@ import Data.List(mapAccumL)
 import Daedalus.VM
 import Daedalus.VM.FreeVars
 
-
 -- Insert `Free` instructions after the last use of a varilbe
 class InsertFree a where
   insertFree :: a -> a
@@ -15,19 +14,21 @@ class InsertFree a where
 instance InsertFree Block where
   insertFree b = b { blockInstrs = newIs }
     where
-    (live,iss) = mapAccumL updI (freeVars (blockTerm b))
+    (live,iss) = mapAccumL updI (freeVarSet (blockTerm b))
                                 (reverse (blockInstrs b))
-    freeIs     = [ Free v | v' <- blockArgs b
-                          , let v = ArgVar v'
-                          , not (v `Set.member` live) ]
+    baSet      = Set.fromList [ ArgVar v | v <- blockArgs b ]
+    freeIs     = [ Free vs | let vs = Set.difference baSet live
+                           , not (Set.null vs) ]
     newIs      = freeIs ++ concat (reverse iss)
 
 updI :: Set VMVar -> Instr -> (Set VMVar, [Instr])
 updI live i = (newLive, i : freeIs)
   where
-  used     = freeVars i
-  newLive  = Set.union used live `Set.difference` (LocalVar `Set.map` defines i)
-  freeIs   = [ Free v | v <- Set.toList used, not (v `Set.member` live) ]
+  used     = freeVarSet i
+  newLive  = Set.union used live `Set.difference`
+                                              (LocalVar `Set.map` defineSet i)
+  freeIs   = [ Free vs | let vs = Set.difference used live
+                       , not (Set.null vs) ]
 
 instance InsertFree VMFun where
   insertFree fun = fun { vmfBlocks = insertFree <$> vmfBlocks fun }

@@ -95,7 +95,7 @@ updS b =
     ReturnNo        -> id
     ReturnYes _     -> id
     ReturnPure _    -> id
-    Call _ _ x y _  -> addStays x . addStays y
+    Call _ _ x y _  -> maybe id addStays x . addStays y
     _               -> id
 
 
@@ -119,18 +119,19 @@ mergeBlocks front back =
 
   renI i =
     case i of
-      CallPrim f e x -> Just $ CallPrim f (map renE e) (renBV x)
+      CallPrim x f e -> Just $ CallPrim (renBV x) f (map renE e)
       GetInput x     -> Just $ GetInput (renBV x)
-      Spawn j x      -> Just $ Spawn (renJ j) (renBV x)
+      Spawn x j      -> Just $ Spawn (renBV x) (renJ j)
 
       SetInput e     -> Just $ SetInput (renE e)
       Say s          -> Just $ Say s
       Output e       -> Just $ Output (renE e)
       Notify e       -> Just $ Notify (renE e)
       NoteFail       -> Just $ NoteFail
-      Free x         -> Free <$> renV x
-
-
+      Free xs        -> case mapMaybe renV (Set.toList xs) of
+                          [] -> Nothing
+                          ys -> Just (Free (Set.fromList ys))
+      Let x e        -> Just $ Let (renBV x) (renE e)
 
 
   renC c =
@@ -141,7 +142,7 @@ mergeBlocks front back =
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (renE e)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f ca j1 j2 es -> Call f ca (renJ j1) (renJ j2) (map renE es)
+      Call f ca j1 j2 es -> Call f ca (renJ <$> j1) (renJ j2) (map renE es)
       TailCall f ca es   -> TailCall f ca (map renE es)
 
 
@@ -165,7 +166,6 @@ mergeBlocks front back =
       EBool {}      -> e
       ENothing {}   -> e
       EMapEmpty {}  -> e
-      EByteArray {} -> e
 
       EBlockArg ba -> su Map.! ba
       EVar bv      -> EVar (renBV bv)
