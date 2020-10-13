@@ -93,7 +93,7 @@ data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
     EUnit
-  | ENum Integer Src.Type     -- ^ Onlu unboxed
+  | ENum Integer Src.Type     -- ^ Only unboxed
   | EBool Bool
 
   | EMapEmpty Src.Type Src.Type
@@ -115,6 +115,13 @@ data VMT =
 
 
 --------------------------------------------------------------------------------
+eIsVar :: E -> Maybe VMVar
+eIsVar e =
+  case e of
+    EVar x -> Just (LocalVar x)
+    EBlockArg x -> Just (ArgVar x)
+    _ -> Nothing
+
 iArgs :: Instr -> [E]
 iArgs i =
   case i of
