@@ -269,7 +269,7 @@ modeI i =
     Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
     NoteFail                 -> []
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
-    Let _ _                  -> [Owned]
+    Let _ _                  -> [Borrowed]
 
 
 modePrimName :: PrimName -> [Ownership]

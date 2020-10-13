@@ -21,11 +21,9 @@ library
     Daedalus.VM.InlineBlock
     Daedalus.VM.FreeVars
     Daedalus.VM.CaptureAnalysis
-    Daedalus.VM.LivenessAnalysis
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy
-    Daedalus.VM.RedundantCopy
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr

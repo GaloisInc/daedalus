@@ -1,11 +1,14 @@
 -- Assumes borrow analysis has been done
 -- Insert a copy when we need to pass a value as an owned argument.
-{-# Language BlockArguments #-}
+{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.InsertCopy (addCopyIs) where
 
 import Control.Monad(zipWithM,ap,liftM)
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
+import Data.List(mapAccumL)
 
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
@@ -14,17 +17,24 @@ import Daedalus.Core(FName)
 import Daedalus.VM
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.TypeRep
+import Daedalus.VM.FreeVars
 
 
 addCopyIs :: Program -> Program
-addCopyIs p = p { pModules = map annModule (pModules p) }
+addCopyIs p = p { pBoot    = annotateBlock ro <$> pBoot p
+                , pModules = map annModule (pModules p)
+                }
   where
   annModule m = m { mFuns = map annFun (mFuns m) }
-  annFun f    = f { vmfBlocks = doBlock ro <$> vmfBlocks f }
+  annFun f    = f { vmfBlocks = annotateBlock ro <$> vmfBlocks f }
+  ro          = buildRO p
 
-  ro = foldr addFun emptyRO [ f | m <- pModules p, f <- mFuns m ]
-
-  emptyRO = RO { funMap = Map.empty, labOwn = Map.empty }
+buildRO :: Program -> RO
+buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
+  where
+  initRO = RO { funMap = Map.empty
+              , labOwn = blockSig <$> pBoot p
+              }
 
   addFun f i =
     let ls = blockSig <$> vmfBlocks f
@@ -36,18 +46,149 @@ addCopyIs p = p { pModules = map annModule (pModules p) }
   blockSig b = map getOwnership (blockArgs b)
 
 
-doBlock :: RO -> Block -> Block
-doBlock ro b = b { blockLocalNum = newLocalNum
-                 , blockInstrs = is
-                 , blockTerm = cinstr
-                 }
+annotateBlock :: RO -> Block -> Block
+annotateBlock ro = rmRedundantCopy . insertFree . insertCopy ro
+
+
+--------------------------------------------------------------------------------
+
+rmRedundantCopy :: Block -> Block
+rmRedundantCopy b = b { blockInstrs = is, blockTerm = c }
+  where
+  (is,c) = doRmRedundat Set.empty (blockInstrs b) (blockTerm b)
+
+doRmRedundat :: Set VMVar -> [Instr] -> CInstr -> ([Instr],CInstr)
+doRmRedundat prevFree is term =
+  case is of
+    -- Make a copy, and immediately dallocate source
+    Let x e : Free xs : more
+      | Just y <- eIsVar e, y `Set.member` xs
+      , let xs' = Set.delete y xs ->
+        doRmRedundat prevFree (doSubst x y (Free xs' : more)) (doSubst x y term)
+
+    Free xs : more -> doRmRedundat (xs `Set.union` prevFree) more term
+
+    i : more
+      | Set.null prevFree -> (                i : js, t)
+      | otherwise         -> (Free prevFree : i : js, t)
+      where
+      more'  = map (noFree (consumes i)) more
+      (js,t) = doRmRedundat Set.empty more' term
+
+    [] -> ([],term)
+
+  where
+  -- Variables "consumed" by an instruction
+  consumes (Let _ _) = Set.empty
+  consumes i = Set.fromList [ x | (e,Owned) <- iArgs i `zip` modeI i
+                                , Just x <- [eIsVar e] ]
+
+  -- Don't "free" these because we gave them away to another function.
+  noFree xs i =
+    case i of
+      Free ys -> Free (Set.difference ys xs)
+      _       -> i
+
+
+
+-- | Replace a local variable with another variable.
+class DoSubst t where
+  doSubst :: BV -> VMVar -> t -> t
+
+instance DoSubst t => DoSubst [t] where
+  doSubst x e = fmap (doSubst x e)
+
+instance DoSubst t => DoSubst (Maybe t) where
+  doSubst x e = fmap (doSubst x e)
+
+instance DoSubst Instr where
+  doSubst x v i =
+    case i of
+      SetInput e      -> SetInput (doSubst x v e)
+      Say {}          -> i
+      Output e        -> Output (doSubst  x v e)
+      Notify e        -> Notify (doSubst  x v e)
+      CallPrim y p es -> CallPrim y p (doSubst x v es)
+      GetInput {}     -> i
+      Spawn y l       -> Spawn y (doSubst x v l)
+      NoteFail        -> i
+      Let y e         -> Let y (doSubst x v e)
+      Free xs
+        | x' `Set.member` xs -> Free (Set.insert v (Set.delete x' xs))
+        | otherwise          -> i
+        where x' = LocalVar x
+
+instance DoSubst CInstr where
+  doSubst x v ci =
+    case ci of
+      Jump l          -> Jump (doSubst x v l)
+      JumpIf e l1 l2  -> JumpIf (doSubst x v e)
+                                (doSubst x v l1) (doSubst x v l2)
+      Yield           -> Yield
+      ReturnNo        -> ReturnNo
+      ReturnYes e     -> ReturnYes  (doSubst x v e)
+      ReturnPure e    -> ReturnPure (doSubst x v e)
+      Call f c l1 l2 es -> Call f c (doSubst x v l1) (doSubst x v l2)
+                                                     (doSubst x v es)
+      TailCall f c es -> TailCall f c (doSubst x v es)
+
+instance DoSubst JumpPoint where
+  doSubst x v (JumpPoint l es) = JumpPoint l (doSubst x v es)
+
+instance DoSubst E where
+  doSubst x v e =
+    case e of
+      EVar y | x == y -> case v of
+                           LocalVar z -> EVar z
+                           ArgVar z   -> EBlockArg z
+      _               -> e
+
+
+
+--------------------------------------------------------------------------------
+
+-- | Insert `free` after the last use of owned variables that have references.
+insertFree :: Block -> Block
+insertFree b = b { blockInstrs = newIs }
+  where
+  (finLive,iss) = mapAccumL updI (freeVarSet (blockTerm b))
+                                 (reverse (blockInstrs b))
+  baSet      = Set.fromList [ ArgVar v | v <- blockArgs b ]
+  topFreeIs  = mkFree (Set.difference baSet finLive)
+  newIs      = topFreeIs ++ concat (reverse iss)
+
+  updI :: Set VMVar -> Instr -> (Set VMVar, [Instr])
+  updI live i = (newLive, i : freeIs)
+    where
+    used     = freeVarSet i
+    newLive  = Set.union used live `Set.difference`
+                                                (LocalVar `Set.map` defineSet i)
+    freeIs   = mkFree (Set.difference used live)
+
+
+  mkFree vs = [ Free vs' | let keep v = getOwnership v == Owned &&
+                                        typeRep (getType v) == HasRefs
+                               vs'    = Set.filter keep vs
+                         , not (Set.null vs')
+              ]
+
+
+
+--------------------------------------------------------------------------------
+
+insertCopy :: RO -> Block -> Block
+insertCopy ro b = b { blockLocalNum = newLocalNum
+                    , blockInstrs = is
+                    , blockTerm = cinstr
+                    }
   where
   (cinstr,newLocalNum,is) =
      runM ro (blockLocalNum b)
      do mapM_ doInstr (blockInstrs b)
         doCInstr (blockTerm b)
 
--- Insert a copy instruction whenever something requires an owned argument.
+-- Insert a copy instructions whenever something exepcts and owned argument,
+-- and the type contains refs.
 doInstr :: Instr -> M ()
 doInstr instr =
   case instr of
@@ -64,8 +205,7 @@ doInstr instr =
       do es1 <- mapM copy es
          emit (Spawn x (JumpPoint l es1))
     NoteFail        -> emit instr
-    Let x e         -> do e1 <- copy e
-                          emit (Let x e1)
+    Let {}          -> emit instr
     Free {}         -> emit instr
 
   where
@@ -87,7 +227,14 @@ doCInstr :: CInstr -> M CInstr
 doCInstr cinstr =
   case cinstr of
     Jump l                -> Jump <$> doJump l
+
+    -- XXX: This is not quite right because exactly one of `l1` or `l2`
+    -- (i.e., in LL terms we have (l1 + l2) situation).
+    -- While we are treating this as if both will happen.
+
     JumpIf e l1 l2        -> JumpIf e <$> doJump l1 <*> doJump l2
+
+
     Yield                 -> pure cinstr
     ReturnNo              -> pure cinstr
     ReturnYes e           -> ReturnYes <$> copy e
