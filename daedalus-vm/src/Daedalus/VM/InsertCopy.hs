@@ -1,5 +1,5 @@
 -- | Assumes borrow analysis has been done
-{-# Language BlockArguments, OverloadedStrings #-}
+{-# Language BlockArguments, OverloadedStrings, RecordWildCards #-}
 module Daedalus.VM.InsertCopy (addCopyIs) where
 
 import Control.Monad(zipWithM,ap,liftM,guard)
@@ -267,13 +267,10 @@ instance DoSubst E where
 {- | Insert @free@ after the last use of owned variables that have references.
 We do not insert @free@ instructions for copies inserted in the previous
 pass as those are going to be freed by their new owners. -}
-
--- XXX: we also have to insert `free` on terminal instruction involving
--- `JumpChoice`
 insertFree :: (Set BV, Block) -> Block
-insertFree (copies,b) = b { blockInstrs = newIs }
+insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
   where
-  (finLive,iss) = mapAccumL updI (freeVarSet (blockTerm b))
+  (finLive,iss) = mapAccumL updI (freeVarSet inTerm)
                                  (reverse (blockInstrs b))
   baSet      = Set.fromList [ ArgVar v | v <- blockArgs b ]
   topFreeIs  = mkFree (Set.difference baSet finLive)
@@ -288,15 +285,31 @@ insertFree (copies,b) = b { blockInstrs = newIs }
     freeIs   = mkFree (Set.difference used live)
 
 
-  mkFree vs = [ Free vs' | let keep v = getOwnership v == Owned &&
-                                        typeRep (getType v) == HasRefs &&
-                                        case v of
-                                          LocalVar y ->
-                                              not (y `Set.member` copies)
-                                          ArgVar {} -> True
-                               vs'    = Set.filter keep vs
-                         , not (Set.null vs')
-              ]
+  mkFree vs = [ Free vs' | let vs'= filterFree vs, not (Set.null vs') ]
+
+  filterFree = Set.filter \v -> getOwnership v == Owned &&
+                                typeRep (getType v) == HasRefs &&
+                                case v of
+                                  LocalVar y -> not (y `Set.member` copies)
+                                  ArgVar {}  -> True
+
+
+  inTerm = case blockTerm b of
+             JumpIf e ls    -> JumpIf e (freeChoice ls)
+             Call f c ls es -> Call f c (freeChoice ls) es
+             t              -> t
+
+  freeChoice JumpChoice { .. } =
+    JumpChoice { jumpYes = changeFree (inNo `Set.difference` inYes) jumpYes
+               , jumpNo  = changeFree (inYes `Set.difference` inNo) jumpNo
+               }
+
+    where
+    changeFree vs x = x { freeFirst = filterFree vs }
+
+    getFree = freeVarSet . jumpTarget
+    inYes   = getFree jumpYes
+    inNo    = getFree jumpNo
 
 
 

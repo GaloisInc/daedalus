@@ -259,9 +259,10 @@ instance PP CInstr where
   pp cintsr =
     case cintsr of
       Jump v        -> "jump" <+> pp v
-      JumpIf b ls   -> "if" <+> pp b <+>
-                          "then" <+> pp (jumpYes ls) <+>
+      JumpIf b ls   -> "if" <+> pp b $$ nest 2 (
+                          "then" <+> pp (jumpYes ls) $$
                           "else" <+> pp (jumpNo  ls)
+                        )
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
