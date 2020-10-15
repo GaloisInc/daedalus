@@ -115,7 +115,8 @@ jumpIf ::
 jumpIf e l1 l2 =
   do jp1 <- l1
      jp2 <- l2
-     term $ JumpIf e jp1 jp2
+     term $ JumpIf e $ JumpChoice { jumpYes = jumpNoFree jp1
+                                  , jumpNo  = jumpNoFree jp2 }
 
 
 

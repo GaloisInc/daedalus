@@ -104,13 +104,13 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
   annTerm mp t =
     case t of
       Jump l          -> Jump (annJ mp l)
-      JumpIf e l1 l2  -> JumpIf (annE mp e) (annJ mp l1) (annJ mp l2)
+      JumpIf e ls     -> JumpIf (annE mp e) (annJ2 mp ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (annE mp e)
       ReturnPure e    -> ReturnPure (annE mp e)
-      Call f c l1 l2 es
-                      -> Call f c (annJ mp <$> l1) (annJ mp l2) (annE mp <$> es)
+      CallPure f l es -> CallPure f (annJ mp l) (annE mp <$> es)
+      Call f c ls es  -> Call f c (annJ2 mp ls) es
       TailCall f c es -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
@@ -121,6 +121,12 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
       LocalVar {} -> v
 
   annJ mp (JumpPoint l es) = JumpPoint l (map (annE mp) es)
+  annJF mp jf = JumpWithFree { freeFirst = Set.map (annV mp) (freeFirst jf)
+                             , jumpTarget = annJ mp (jumpTarget jf)
+                             }
+  annJ2 mp ls = JumpChoice { jumpYes = annJF mp (jumpYes ls)
+                           , jumpNo  = annJF mp (jumpNo  ls)
+                           }
 
   annE mp e =
     case e of
@@ -218,14 +224,20 @@ cinstr :: CInstr -> Info -> Info
 cinstr ci =
   case ci of
     Jump l -> jumpPoint l
-    JumpIf _ l1 l2 -> jumpPoint l1 . jumpPoint l2
-    Yield -> id
-    ReturnNo -> id
-    ReturnYes e -> expr e Owned
-    -- XXX: update
-    Call f _ l1 l2 es ->
-      \i -> maybe id jumpPoint l1
-          $ jumpPoint l2
+    JumpIf _ ls  -> jumpChoice ls
+    Yield        -> id
+    ReturnNo     -> id
+    ReturnYes e  -> expr e Owned
+    ReturnPure e -> expr e Owned
+
+    CallPure f l es ->
+      \i -> jumpPoint l
+          $ foldr ($) i
+          $ zipWith expr es
+          $ getFunOwnership f i
+
+    Call f _ ls es ->
+      \i -> jumpChoice ls
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
@@ -234,9 +246,12 @@ cinstr ci =
       \i -> foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
-    ReturnPure e -> expr e Owned
 
+jumpChoice :: JumpChoice -> Info -> Info
+jumpChoice jc = jumpWithFree (jumpYes jc) . jumpWithFree (jumpNo jc)
 
+jumpWithFree :: JumpWithFree -> Info -> Info
+jumpWithFree = jumpPoint . jumpTarget
 
 jumpPoint :: JumpPoint -> Info -> Info
 jumpPoint (JumpPoint l es) i =

@@ -90,14 +90,17 @@ updS :: Block -> S -> S
 updS b =
   case blockTerm b of
     Jump j          -> addInline j
-    JumpIf _ j1 j2  -> addStays j1 . addStays j2
+    JumpIf _ ls     -> stays2 ls
     Yield           -> id
     ReturnNo        -> id
     ReturnYes _     -> id
     ReturnPure _    -> id
-    Call _ _ x y _  -> maybe id addStays x . addStays y
+    CallPure _ l _  -> addStays l
+    Call _ _ ls _   -> stays2 ls
     _               -> id
-
+  where
+  stays2 j2 = staysJF (jumpYes j2) . staysJF (jumpNo j2)
+  staysJF   = addStays . jumpTarget
 
 
 
@@ -137,16 +140,29 @@ mergeBlocks front back =
   renC c =
     case c of
       Jump j          -> Jump (renJ j)
-      JumpIf e j1 j2  -> JumpIf (renE e) (renJ j1) (renJ j2)
+      JumpIf e ls     -> JumpIf (renE e) (renJ2 ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (renE e)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f ca j1 j2 es -> Call f ca (renJ <$> j1) (renJ j2) (map renE es)
-      TailCall f ca es   -> TailCall f ca (map renE es)
+      Call f ca ls es -> Call f ca (renJ2 ls) (map renE es)
+      CallPure f l es -> CallPure f (renJ l) (map renE es)
+      TailCall f ca es-> TailCall f ca (map renE es)
 
 
   renJ (JumpPoint l es) = JumpPoint l (map renE es)
+  renJ2 j2 = JumpChoice
+               { jumpYes = renJF (jumpYes j2)
+               , jumpNo  = renJF (jumpNo j2)
+               }
+
+  renJF jf =
+    JumpWithFree
+      { freeFirst =  Set.fromList [ x | v <- Set.toList (freeFirst jf)
+                                      , Just x <- [renV v]
+                                      ]
+      , jumpTarget = renJ (jumpTarget jf)
+      }
 
   renBV (BV x t) = BV (x + blockLocalNum front) t
 

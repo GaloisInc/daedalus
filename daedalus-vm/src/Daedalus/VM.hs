@@ -68,16 +68,23 @@ data Instr =
 -- | Instructions that jump
 data CInstr =
     Jump JumpPoint
-  | JumpIf E JumpPoint JumpPoint
+  | JumpIf E JumpChoice
   | Yield
   | ReturnNo
   | ReturnYes E
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
-  | Call Src.FName Captures (Maybe JumpPoint) JumpPoint [E]
-    -- ^ In grammars we have 2 continuation (no,yes)
-    -- In expressions we only have the yes
+  | CallPure Src.FName JumpPoint [E]
+    -- ^ The jump point contains information on where to continue after
+    -- return and what we need to preserve acrross the call
 
-  | TailCall Src.FName Captures [E]  -- ^ Used for both grammars and exprs
+  | Call Src.FName Captures JumpChoice [E]
+    -- The JumpChoice says where to continuo on successs/failure
+    -- and what to preserve
+
+  | TailCall Src.FName Captures [E]
+    -- ^ Used for both grammars and exprs.
+    -- This is basically the same as `Jump` just with the extra
+    -- info that we are calling a function (e.g., for stack trace)
 
 -- | A flag to indicate if a function may capture the continuation.
 -- If yes, then the function could return multiple times, and we need to
@@ -89,6 +96,23 @@ data Captures = Capture | NoCapture
 -- | Target of a jump
 data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
 
+-- | Before jumping to these targets we should deallocate the given
+-- variables.  We could achieve the same with just normal jumps and
+-- additional basic blocks, but this seems more straight forward
+data JumpWithFree = JumpWithFree
+  { freeFirst  :: Set VMVar   -- ^ Free these before jumping
+  , jumpTarget :: JumpPoint
+  }
+
+jumpNoFree :: JumpPoint -> JumpWithFree
+jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
+
+-- | Two joint points, but we'll use exactly one of the two.
+-- This matters for memory management.
+data JumpChoice =
+  JumpChoice { jumpYes :: JumpWithFree
+             , jumpNo  :: JumpWithFree
+             }
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
@@ -235,22 +259,28 @@ instance PP CInstr where
   pp cintsr =
     case cintsr of
       Jump v        -> "jump" <+> pp v
-      JumpIf b t e  -> "if" <+> pp b <+>
-                          "then" <+> "jump" <+> pp t <+>
-                          "else" <+> "jump" <+> pp e
+      JumpIf b ls   -> "if" <+> pp b <+>
+                          "then" <+> pp (jumpYes ls) <+>
+                          "else" <+> pp (jumpNo  ls)
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
       ReturnPure e  -> ppFun "return" [pp e]
-      Call f c x y zs -> ppFun kw (pp f : ppMb x : pp y : map pp zs)
-        where kw = case c of
-                     Capture -> "call[save]"
-                     NoCapture -> "call"
-              ppMb = maybe empty pp
-      TailCall f c xs -> ppFun kw (pp f : map pp xs)
-        where kw = case c of
-                     Capture -> "tail_call[save]"
-                     NoCapture -> "tail_call"
+      CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
+      Call f c ls es ->
+        vcat [ ppFun (pp f) (map pp es)
+             , nest 2 $ vcat [ pp c
+                             , "ok:"   <+> pp (jumpYes ls)
+                             , "fail:" <+> pp (jumpNo ls)
+                             ]
+             ]
+      TailCall f c xs -> ppFun (pp f) (map pp xs) <+> pp c
+
+instance PP JumpWithFree where
+  pp jf = ppF <+> pp (Jump (jumpTarget jf))
+    where ppF = if Set.null (freeFirst jf)
+                  then empty
+                  else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
   pp p =

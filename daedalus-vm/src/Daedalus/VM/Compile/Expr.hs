@@ -141,7 +141,7 @@ compileOpN op ty es k =
                do mkL <- label1' Nothing k'
                   pure \vs ->
                     do l <- mkL
-                       term (Call f NoCapture Nothing l vs)
+                       term (CallPure f l vs)
 
          compileEs es doCall
 

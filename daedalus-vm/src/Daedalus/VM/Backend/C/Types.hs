@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Types where
 
+{-
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
@@ -198,4 +199,4 @@ generateHash ty =
   hashField (l,t) = "h = 23 * h +" <+> hash (cSemType t)
                                       (cSelect "x" (cLabel l)) <.> ";"
 
-
+-}

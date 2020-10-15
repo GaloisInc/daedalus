@@ -146,9 +146,7 @@ compile expr next0 =
 
 
     Src.Call f es ->
-      do let fun = show (pp f)
-
-         doCall <-
+      do doCall <-
            case (onNo next, onYes next) of
              (Nothing,Nothing) -> pure \vs -> term $ TailCall f Capture vs
 
@@ -160,7 +158,11 @@ compile expr next0 =
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 term $ Call f Capture (Just cloNo) cloYes vs
+                                 let ls = JumpChoice
+                                            { jumpYes = jumpNoFree cloYes
+                                            , jumpNo  = jumpNoFree cloNo
+                                            }
+                                 term $ Call f Capture ls vs
 
          compileEs es \vs -> doCall vs
 

@@ -2,22 +2,26 @@
 {-# Language ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.C where
 
+{-
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Text.PrettyPrint as P
-
+-}
 import Daedalus.PP
+{-
 import Daedalus.Panic(panic)
 import Daedalus.Rec(topoOrder,forgetRecs)
+-}
 import Daedalus.VM
+{-
 import qualified Daedalus.Core as Src
 
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Types
-
+-}
 
 -- XXX: Avoid using the same name for types and values.
 
@@ -26,10 +30,11 @@ import Daedalus.VM.Backend.C.Types
   * assignment: for passing block parameters
 -}
 
-type AllFuns  = (?allFuns :: Map Src.FName VMFun)
+-- type AllFuns  = (?allFuns :: Map Src.FName VMFun)
 
 cProgram :: Program -> Doc
-cProgram prog =
+cProgram prog = undefined
+{-
   vcat
     [ includes
     , " "
@@ -292,7 +297,7 @@ cBytes :: ByteString -> CExpr
 cBytes bs = call "DDL::Array<DDL::UInt<8>>"
                         [ int (BS8.length bs), text (show bs) ]
 
-
+-}
 --------------------------------------------------------------------------------
 
 

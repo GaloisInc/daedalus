@@ -27,7 +27,7 @@ captureAnalysis ms = map annotateModule ms
   annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }
   annotateTerm i =
     case i of
-      Call f _ j1 j2 es -> Call f (getCaptures info f) j1 j2 es
+      Call f _ k es   -> Call f (getCaptures info f) k es
       TailCall f _ es -> TailCall f (getCaptures info f) es
       _ -> i
 
@@ -112,7 +112,7 @@ instance GetCaptureInfo Instr where
 instance GetCaptureInfo CInstr where
   captureInfo i =
     case i of
-      Call f c _ _  _  -> CapturesIf (call f c)
+      Call f c _ _     -> CapturesIf (call f c)
       TailCall f c _   -> CapturesIf (call f c)
       _                -> capturesNo
     where call f c = case c of
@@ -121,7 +121,7 @@ instance GetCaptureInfo CInstr where
 
   annotate mp i =
     case i of
-      Call f _ y n es -> Call f (getCaptures mp f) y n es
+      Call f _ ls es  -> Call f (getCaptures mp f) ls es
       TailCall f _ es -> TailCall f (getCaptures mp f) es
       _               -> i
 
