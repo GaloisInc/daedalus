@@ -45,7 +45,8 @@ partialApply tnm' targs newPs args
   TCDecl { tcDeclTyParams = ttys,
            tcDeclParams   = tparams,
            tcDeclDef      = tdef,
-           tcDeclCtxt     =  tctxt
+           tcDeclCtxt     =  tctxt,
+           tcDeclAnnot    = tannot
          }
   =
   TCDecl {
@@ -54,7 +55,8 @@ partialApply tnm' targs newPs args
     tcDeclCtrs     = [],
     tcDeclParams   = tparams' ++ newPs',
     tcDeclDef      = tdef',
-    tcDeclCtxt     = tctxt
+    tcDeclCtxt     = tctxt,
+    tcDeclAnnot    = tannot
   }
 
   where

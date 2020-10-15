@@ -150,7 +150,7 @@ declareMatchFun ::
   Map Name ArgInfo -> TCDecl SourceRange -> Maybe (TCDecl SourceRange, ArgInfo)
 declareMatchFun mfs dcl =
   case dcl of
-    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef } ->
+    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef, tcDeclAnnot } ->
       let newName = TCName { tcNameCtx = AGrammar
                            , tcType    = tGrammar tUnit
                            , tcName    = modifyName (tcDeclName dcl)
@@ -170,6 +170,7 @@ declareMatchFun mfs dcl =
                       , tcDeclParams   = tcDeclParams dcl
                       , tcDeclDef      = Defined newDef
                       , tcDeclCtxt     = AGrammar
+                      , tcDeclAnnot    = tcDeclAnnot
                       }
            newInfo = ArgInfo { matchFun = newName
                              , passArg  = map (const True) (tcDeclParams dcl)
@@ -211,6 +212,7 @@ declareMatchFun mfs dcl =
                           , tcDeclParams   = newParams
                           , tcDeclDef      = Defined def
                           , tcDeclCtxt     = AGrammar
+                          , tcDeclAnnot    = tcDeclAnnot
                           }
 
               newParams = [ p | p <- tcDeclParams dcl, pused p ] ++
@@ -278,7 +280,7 @@ mbSem tc =
     TCMapLookup {}    -> pure (tc, tcFree tc)
     TCMapInsert {}    -> pure (tc, tcFree tc)
     TCArrayIndex  {}  -> pure (tc, tcFree tc)
-    
+
     TCCoerceCheck {}  -> pure (tc, tcFree tc)
     TCSelUnion {}     -> pure (tc, tcFree tc)
     TCSelJust {}      -> pure (tc, tcFree tc)
@@ -380,7 +382,7 @@ noSem' tc =
       pure ( exprAt tc (TCMapInsert NoSem k v mp)
            , tcFree k <> tcFree v <> tcFree mp )
 
-     TCArrayIndex _ e ix -> 
+     TCArrayIndex _ e ix ->
       pure (exprAt tc (TCArrayIndex NoSem e ix), tcFree e <> tcFree ix)
 
      TCCoerceCheck _ t1 t2 v ->
@@ -497,6 +499,3 @@ mkDo r x m1 m2
     = m2
 
   | otherwise = exprAt r (TCDo x m1 m2)
-
-
- 
