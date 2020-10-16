@@ -18,6 +18,9 @@ module Daedalus.Interp
   , compilePredicateExpr
   , addValMaybe
   , addVal
+  , evalUniOp
+  , evalBinOp
+  , evalTriOp
   , setVals
   , vUnit
   ) where
