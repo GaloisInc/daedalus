@@ -9,6 +9,8 @@ namespace DDL {
 template <typename T>
 class Array : IsBoxed {
 
+
+
   class Content {
     friend Array;
     size_t ref_count;
@@ -40,6 +42,10 @@ class Array : IsBoxed {
   }
 
 public:
+
+  using Builder = List<T>;
+
+
   Array() : ptr(NULL) {}
 
   // Array literal. Owns xs
@@ -47,7 +53,7 @@ public:
   Array(size_t n, Elems ... xs) : ptr(Content::allocate(n)) { fill(0,xs...); }
 
   // Array from builder. Owns xs
-  Array(List<T> xs) {
+  Array(Builder xs) {
     size_t n = xs.size();
     ptr = Content::allocate(n);
     for (T *arr = ptr->data; n > 0; --n) {
@@ -130,6 +136,9 @@ public:
   }
 // -- Boxed --------------------------------------------------------------------
 
+
+
+
   class Iterator {
     size_t index;
     Array xs;
@@ -156,8 +165,8 @@ public:
 
     void free() { xs.free(); }
     void copy() { xs.copy(); }
-
   };
+
 
 
 };

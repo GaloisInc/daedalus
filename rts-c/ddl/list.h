@@ -15,7 +15,6 @@ class List : IsBoxed {
     List tail;
   public:
     friend List;
-    Node(T &&h, List t) : size(1+t.size()), head(h), tail(t) {}
     Node(T   h, List t) : size(1+t.size()), head(h), tail(t) {}
   };
 
@@ -30,8 +29,7 @@ public:
   List() : ptr() {}
 
   // Cons cell; both arguments are owned
-  List (T &&h, List t) : ptr(Node(std::move(h),t)) {}
-  List (T   h, List t) : ptr(Node(h,t)) {}
+  List (T h, List t) : ptr(Node(std::move(h),t)) {}
 
   // Borrow "this"
   size_t size() { return ptr.isNull()? 0 : ptr.getValue().size; }

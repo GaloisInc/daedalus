@@ -1,6 +1,9 @@
 #ifndef DDL_BOXED
 #define DDL_BOXED
 
+#include <utility>
+#include <iostream>
+
 namespace DDL {
 
 // Classes that own refernces should derive from this class so that
@@ -32,6 +35,7 @@ class Boxed : IsBoxed {
   struct BoxedValue {
     size_t ref_count;
     T      value;
+    BoxedValue()      : ref_count(1) {}
     BoxedValue(T &&x) : ref_count(1), value(x) {}
   } *ptr;
 
@@ -44,6 +48,12 @@ public:
   bool isNull() { return ptr == NULL; }
 
   size_t refCount() { return ptr->ref_count; }
+
+  // Allocate without initializing the data, but ref count is 1
+  void allocate() {
+    ptr = new BoxedValue();
+    std::cout << "Allocated " << ptr << std::endl;
+  }
 
   // Release the memory for an object that has already been unitialized.
   void del() {
@@ -68,8 +78,6 @@ public:
   // The resulting reference shouldn't be used after the box is gone.
   T& getValue() { return ptr->value; }
 };
-
-
 
 }
 
