@@ -29,7 +29,6 @@ import Daedalus.AST hiding (Value)
 import Daedalus.Interp
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Normalise.AST(NDecl)
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -111,9 +110,10 @@ handleOptions opts
 
          DumpGen ->
            do passSpecialize specMod [mainRule]
-              prog <- normalizedDecls
+              prog <- ddlGetAST specMod astTC
+              -- prog <- normalizedDecls
               ddlIO (
-                do let (_gbl, aut) = PGen.buildArrayAut prog
+                do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    let dfa = PGen.createDFA aut
                    PGen.statsDFA dfa
                    PGen.autToGraphviz aut
@@ -126,8 +126,11 @@ handleOptions opts
                   ddlIO (interpInterp inp prog mainRule)
              UsePGen ->
                do passSpecialize specMod [mainRule]
-                  prog <- normalizedDecls
-                  ddlIO (interpPGen inp prog)
+                  prog <- ddlGetAST specMod astTC
+                  ddlIO (interpPGen inp [prog])
+               --do passSpecialize specMod [mainRule]
+               --   prog <- normalizedDecls
+               --   ddlIO (interpPGen inp prog)
 
          DumpRuleRanges -> error "Bug: DumpRuleRanges"
 
@@ -164,10 +167,10 @@ interpInterp inp prog (m,i) =
        NoResults {} -> exitFailure
 
 
-interpPGen :: FilePath -> [NDecl] -> IO ()
-interpPGen inp norms =
-  do let (gbl, aut) = PGen.buildArrayAut norms
-     --let dfa = PGen.createDFA aut                   -- LL
+interpPGen :: FilePath -> [TCModule SourceRange] -> IO ()
+interpPGen inp moduls =
+  do let (gbl, aut) = PGen.buildArrayAut moduls
+     -- let dfa = PGen.createDFA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ _ ->
                  do bytes <- BS.readFile inp

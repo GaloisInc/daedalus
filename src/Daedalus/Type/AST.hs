@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
 module Daedalus.Type.AST
-  ( module Daedalus.Type.AST 
+  ( module Daedalus.Type.AST
   , module LocalAST
   , Rec(..), recToList
   , SourceRange
