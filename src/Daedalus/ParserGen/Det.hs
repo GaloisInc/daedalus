@@ -1,3 +1,5 @@
+{-# Language GADTs #-}
+
 module Daedalus.ParserGen.Det
   ( createDFA
   , statsDFA
@@ -20,6 +22,7 @@ import Data.Maybe (fromJust)
 import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
 
+import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
@@ -125,9 +128,9 @@ closureLL aut busy cfg =
 
 classToInterval :: PAST.NCExpr -> Result ClassInterval
 classToInterval e =
-  case e of
-    PAST.NSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
-    PAST.NSetSingle e1 ->
+  case texprValue e of
+    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
+    TCSetSingle e1 ->
       if not (isSimpleVExpr e1)
       then AbortClassIsDynamic
       else
@@ -135,7 +138,7 @@ classToInterval e =
         case v of
           Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
           _                -> AbortClassNotHandledYet "SetSingle"
-    PAST.NSetRange e1 e2 ->
+    TCSetRange e1 e2 ->
       if isSimpleVExpr e1 && isSimpleVExpr e2
       then
         let v1 = evalNoFunCall e1 [] []

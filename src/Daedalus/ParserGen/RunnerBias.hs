@@ -142,7 +142,6 @@ nextResumption (commitStk, tpath) =
 
     BLevel _ path _ (SeqChoice [ _ ] _) -> nextResumption (popCommitStack commitStk, path)
     BLevel _ path cfg (SeqChoice ((_act, _n2): actions) st) ->
-            -- trace "BACKT" $
       if hasCommitted commitStk -- A commit happened
       then nextResumption (popCommitStack commitStk, path)
       else Just (addResumption (popCommitStack commitStk, path) cfg (SeqChoice actions st))
@@ -176,7 +175,6 @@ updateError resumption cfg res =
   case parseError res of
     Nothing -> res { parseError = Just (i, cfg) }
     Just (j, _c) ->
-      -- trace "CHANGE" $
       if i >= j
       then res { parseError = Just (i, cfg) }
       else res
