@@ -1,211 +1,211 @@
 DTrans [
-  ( [(20),]
+  ( [(17),]
   , HeadInput ['a','b']
   , Resolution (NotAmbiguous)
   ),
-  ( [(28),(20),]
+  ( [(17),(23),]
   , HeadInput ['c']
   , DTrans [
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(18),(10),]
+      ( [(6),(12),]
       , HeadInput ['c']
       , *****
       ),
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['d','m']
       , Resolution (NotAmbiguous)
       ),
-      ( [(14),]
+      ( [(11),]
       , EndInput
       , Resolution (NotAmbiguous)
       ),
     ]
   ),
-  ( [(28),(20),]
+  ( [(17),(23),]
   , HeadInput ['d']
   , DTrans [
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(18),(10),]
+      ( [(6),(12),]
       , HeadInput ['c']
       , DTrans [
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(18),(10),]
+          ( [(6),(12),]
           , HeadInput ['c']
           , *****
           ),
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['d','m']
           , Resolution (NotAmbiguous)
           ),
-          ( [(14),]
+          ( [(11),]
           , EndInput
           , Resolution (NotAmbiguous)
           ),
         ]
       ),
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['d','m']
       , Resolution (NotAmbiguous)
       ),
-      ( [(14),]
+      ( [(11),]
       , EndInput
       , Resolution (NotAmbiguous)
       ),
     ]
   ),
-  ( [(20),]
+  ( [(17),]
   , HeadInput ['e']
   , Resolution (NotAmbiguous)
   ),
-  ( [(20),(20),]
+  ( [(17),(17),]
   , HeadInput ['f','m']
   , DTrans [
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(18),(10),]
+      ( [(6),(12),]
       , HeadInput ['c']
       , DTrans [
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(18),(10),]
+          ( [(6),(12),]
           , HeadInput ['c']
           , *****
           ),
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['d','m']
           , Resolution (NotAmbiguous)
           ),
-          ( [(14),]
+          ( [(11),]
           , EndInput
           , Resolution (NotAmbiguous)
           ),
         ]
       ),
-      ( [(18),(10),]
+      ( [(6),(12),]
       , HeadInput ['d']
       , DTrans [
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(18),(10),]
+          ( [(6),(12),]
           , HeadInput ['c']
           , DTrans [
-              ( [(10),]
+              ( [(6),]
               , HeadInput ['a','b']
               , Resolution (NotAmbiguous)
               ),
-              ( [(18),(10),]
+              ( [(6),(12),]
               , HeadInput ['c']
               , *****
               ),
-              ( [(10),]
+              ( [(6),]
               , HeadInput ['d','m']
               , Resolution (NotAmbiguous)
               ),
-              ( [(14),]
+              ( [(11),]
               , EndInput
               , Resolution (NotAmbiguous)
               ),
             ]
           ),
-          ( [(10),]
+          ( [(6),]
           , HeadInput ['d','m']
           , Resolution (NotAmbiguous)
           ),
-          ( [(14),]
+          ( [(11),]
           , EndInput
           , Resolution (NotAmbiguous)
           ),
         ]
       ),
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['e']
       , Resolution (NotAmbiguous)
       ),
-      ( [(10),(10),]
+      ( [(6),(6),]
       , HeadInput ['f','m']
       , *****
       ),
-      ( [(10),]
+      ( [(6),]
       , HeadInput ['n','t']
       , Resolution (NotAmbiguous)
       ),
     ]
   ),
-  ( [(20),]
+  ( [(17),]
   , HeadInput ['n','t']
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(14),]
+  ( [(6),]
+  , HeadInput ['a','b']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(6),(12),]
+  , HeadInput ['c']
+  , DTrans [
+      ( [(6),]
+      , HeadInput ['a','b']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(6),(12),]
+      , HeadInput ['c']
+      , *****
+      ),
+      ( [(6),]
+      , HeadInput ['d','m']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(11),]
+      , EndInput
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+  ( [(6),]
+  , HeadInput ['d','m']
+  , Resolution (NotAmbiguous)
+  ),
+]
+DTrans [
+  ( [(12),]
+  , HeadInput ['d']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(6),]
+  , HeadInput ['f','t']
+  , Resolution (NotAmbiguous)
+  ),
+]
+DTrans [
+  ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(14),]
+  ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
 
-DTrans [
-  ( [(18),]
-  , HeadInput ['d']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(10),]
-  , HeadInput ['f','t']
-  , Resolution (NotAmbiguous)
-  ),
-]
-DTrans [
-  ( [(10),]
-  , HeadInput ['a','b']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(18),(10),]
-  , HeadInput ['c']
-  , DTrans [
-      ( [(10),]
-      , HeadInput ['a','b']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(18),(10),]
-      , HeadInput ['c']
-      , *****
-      ),
-      ( [(10),]
-      , HeadInput ['d','m']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(14),]
-      , EndInput
-      , Resolution (NotAmbiguous)
-      ),
-    ]
-  ),
-  ( [(10),]
-  , HeadInput ['d','m']
-  , Resolution (NotAmbiguous)
-  ),
-]
 
 Report:
 ("AbortAcceptingPath",1)
