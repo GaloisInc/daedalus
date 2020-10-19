@@ -9,13 +9,13 @@ DTrans [
   ),
 ]
 DTrans [
-  ( [(15),]
+  ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(15),]
+  ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),

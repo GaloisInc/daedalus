@@ -1,55 +1,55 @@
 DTrans [
-  ( [(10),]
+  ( [(12),]
   , HeadInput ['0','2']
   , Resolution (NotAmbiguous)
   ),
-  ( [(10),(10),]
+  ( [(12),(12),]
   , HeadInput ['3','7']
   , DTrans [
-      ( [(2),]
+      ( [(4),]
       , HeadInput ['a','w']
       , Resolution (NotAmbiguous)
       ),
-      ( [(2),(2),]
+      ( [(4),(4),]
       , HeadInput ['x','y']
       , DTrans [
-          ( [(20),(20),]
+          ( [(16),(16),]
           , EndInput
           , Resolution (Ambiguous)
           ),
         ]
       ),
-      ( [(2),]
+      ( [(4),]
       , HeadInput ['z']
       , Resolution (NotAmbiguous)
       ),
     ]
   ),
-  ( [(10),]
+  ( [(12),]
   , HeadInput ['8','9']
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(2),]
+  ( [(4),]
   , HeadInput ['x','z']
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(20),]
+  ( [(16),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(2),]
+  ( [(4),]
   , HeadInput ['a','y']
   , Resolution (NotAmbiguous)
   ),
 ]
 DTrans [
-  ( [(20),]
+  ( [(16),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
