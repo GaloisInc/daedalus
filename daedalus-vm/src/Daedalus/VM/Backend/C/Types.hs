@@ -56,14 +56,13 @@ cSizeType ty =
     Src.TSizeParam x -> cTParam x -- in types
 
 cTUser :: Src.UserType -> CType
-cTUser t = cTName nm <.> args
-  where
-  nm   = Src.utName t
-  args = case map cSizeType (Src.utNumArgs t) ++
-              map cSemType (Src.utTyArgs t) of
+cTUser t = cTypeUse (cTName (Src.utName t))
+                    (map cSizeType (Src.utNumArgs t))
+                    (map cSemType (Src.utTyArgs t))
 
-           [] -> empty
-           xs -> "<" <.> hsep (punctuate comma xs) <.> ">"
-
-
+cTypeUse :: Doc -> [Doc] -> [Doc] -> CType
+cTypeUse nm nparams vparams =
+  case nparams ++ vparams of
+    [] -> nm
+    xs -> nm <.> "<" <.> hsep (punctuate comma xs) <.> ">"
 
