@@ -34,6 +34,7 @@ library
     Primitives.LZW,
     Primitives.ASCIIHex,
     Primitives.ASCII85,
+    Primitives.Decrypt, 
     PdfParser,
     PdfValue,
     PdfDecl,
@@ -47,7 +48,10 @@ library
     bytestring,
     containers,
     zlib,
-    rts-hs
+    rts-hs, 
+    cryptonite,
+    cereal, 
+    memory 
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 executable pdf-cos-generator

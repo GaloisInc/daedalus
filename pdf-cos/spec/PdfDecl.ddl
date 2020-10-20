@@ -136,9 +136,10 @@ def StreamLen header = {
 
 -- Section 7.3.8.2
 def ApplyFilters header initialBody = {
+  @decrypt = Decrypt initialBody; -- A no-op if crypto is disabled
   @filter_names  = LookOptArray "Filter" header;
   @filter_params = LookOptArray "DecodeParms" header;
-  for (bytes = {| ok = initialBody |}; ix, name in filter_names) {
+  for (bytes = {| ok = decrypt |}; ix, name in filter_names) {
     @param  = Default nullValue (Index filter_params ix);
     @filter = Filter name param;
     Default bytes { @bs = bytes is ok; commit; ApplyFilter filter bs; };
@@ -155,7 +156,9 @@ def FilterParam param =
     { param      is null; ^ nothing }
   | { @x = param is dict; ^ just x }
 
-
+-- Stub for the Decrypt primitive 
+def Decrypt (body : stream) 
+            : stream 
 
 def ApplyFilter (f : Filter) (body : stream) = Choose1 {
 
