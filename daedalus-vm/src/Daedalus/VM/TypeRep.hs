@@ -34,9 +34,7 @@ instance GetTypeRep Src.Type where
       Src.TBuilder {}   -> HasRefs
       Src.TIterator {}  -> HasRefs
       Src.TUser {}      -> HasRefs
-      -- XXX: Only if any of the fields have refs, but we can generate
-      -- a dummy `copy/free` anyway.
-      Src.TParam {}   -> panic "typeRep" ["Unexpepected type paramer"]
+      Src.TParam {}     -> panic "typeRep" ["Unexpepected type paramer"]
     where
     numRep n =
       case n of

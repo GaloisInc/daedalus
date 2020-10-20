@@ -76,7 +76,10 @@ public:
 
   // Get access to the contents of the box.
   // The resulting reference shouldn't be used after the box is gone.
+  // Borrows the value
   T& getValue() { return ptr->value; }
+
+  bool operator == (Boxed x) { return getValue() == x.getValue(); }
 };
 
 }
