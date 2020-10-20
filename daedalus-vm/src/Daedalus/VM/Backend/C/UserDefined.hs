@@ -23,18 +23,19 @@ cTypeGroup rec =
     case rec of
       NonRec d ->
         case tDef d of
-          TStruct {} -> vcat' [ cUnboxedProd d, generateUnboxedMethods d ]
+          TStruct {} -> vcat' [ cUnboxedProd GenPublic d
+                              , generateUnboxedMethods GenPublic d
+                              ]
           TUnion {}  -> vcat' [ cSumTags [d]
-                              , cUnboxedSum d
-                              , generateUnboxedMethods d
+                              , cUnboxedSum GenPublic d
+                              , generateUnboxedMethods GenPublic d
                               ]
 
       MutRec ds ->
         vcat' $
           -- 1. Declare names of types
-          [ vcat' $ map cTypeDecl $ sums ++ prods
-          , sumWrapper $ vcat' $ map cTypeDecl sums
-          ] ++
+          map (cTypeDecl GenPublic) (sums ++ prods) ++
+          map (cTypeDecl GenPrivate) sums ++
 
           -- 2. Declare tags
           [ cSumTags sums ] ++
@@ -43,22 +44,18 @@ cTypeGroup rec =
           map cBoxedSum sums ++
 
           -- 4. Declare products
-          map cUnboxedProd prods ++
+          map (cUnboxedProd GenPublic) prods ++
 
           -- 5. Declare unboxed sums
-          [ sumWrapper $ vcat' $ map cUnboxedSum sums ] ++
+          map (cUnboxedSum GenPrivate) sums ++
 
           -- 6. Generate methods
-          [ sumWrapper (vcat $ map generateUnboxedMethods sums) ] ++
-          map generateUnboxedMethods prods ++
+          map (generateUnboxedMethods GenPrivate) sums ++
+          map (generateUnboxedMethods GenPublic) prods ++
           map generateBoxedMethods sums
 
         where
         (sums,prods) = orderRecGroup ds
-        sumWrapper d
-          | null sums = d
-          | otherwise = "namespace DDL { namespace User {" $$ nest 2 d $$ "}}"
-
 
 
 
@@ -98,21 +95,19 @@ orderRecGroup tds = (sums, forgetRecs (topoOrder deps prods))
 
 
 
-cTypeDecl :: TDecl -> CDecl
-cTypeDecl ty = cTypeDecl' ty <.> semi
+cTypeDecl :: GenVis -> TDecl -> CDecl
+cTypeDecl vis ty = cTypeDecl' vis ty <.> semi
 
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
-cTypeDecl' :: TDecl -> CDecl
-cTypeDecl' ty =
-  vcat [ cTemplateDecl ty, "class" <+> cTName (tName ty) ]
+cTypeDecl' :: GenVis -> TDecl -> CDecl
+cTypeDecl' vis ty =
+  vcat [ cTemplateDecl ty, "class" <+> cTName' vis (tName ty) ]
 
 cTemplateDecl :: TDecl -> Doc
 cTemplateDecl ty =
   case cTypeParams ty of
     [] -> empty
     ps -> cInst "template" ps
-
-
 
 cTypeParams :: TDecl -> [Doc]
 cTypeParams ty =
@@ -123,40 +118,47 @@ cTypeParams ty =
 
 
 -- | Signature for the @copy@ method
-copyMethod :: Doc
-copyMethod = "void" <+> cCall "copy" []
+copyMethodSig :: Doc
+copyMethodSig = cStmt ("void" <+> cCall "copy" [])
 
 -- | Signature for the @free@ method
-freeMethod :: Doc
-freeMethod = "void" <+> cCall "free" []
+freeMethodSig :: Doc
+freeMethodSig = cStmt ("void" <+> cCall "free" [])
+
+eqMethodSig :: GenVis -> Doc -> TDecl -> CDecl
+eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
+  where
+  name = cTName' vis (tName t)
 
 -- | Interface definition for struct types
-cUnboxedProd :: TDecl -> CDecl
-cUnboxedProd ty =
+cUnboxedProd :: GenVis -> TDecl -> CDecl
+cUnboxedProd vis ty =
   vcat
-    [ cTypeDecl' ty <+> ": public DDL::HasRefs {"
-    , nest 2 $ vcat $ map cStmt attribs
+    [ cTypeDecl' vis ty <+> ": public DDL::HasRefs {"
+    , nest 2 $ vcat attribs
     , "public:"
-    , nest 2 $ vcat $ map cStmt methods
+    , nest 2 $ vcat methods
     , "};"
     ]
   where
   TStruct fields = tDef ty
   labs    = map (cLabel   . fst) fields
   tys     = map (cSemType . snd) fields
-  attribs = [ cSemType t <+> cField n | ((_,t),n) <- zip fields [ 0 .. ]
-                                      , t /= TUnit  ]
+  attribs = [ cStmt (cSemType t <+> cField n)
+            | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit
+            ]
   methods =
        [ "// Construcotr" ]
-    ++ [ "void" <+> cCall "init" tys ]
+    ++ [ cStmt ("void" <+> cCall "init"
+                              [ cSemType t | (_,t) <- fields, t /= TUnit ]) ]
     ++ [ "// Selectors" ]
-    ++ [ t <+> cCall nm [] | (f,t) <- zip labs tys
-                           , pref  <- [ "get", "borrow" ]
-                           , let nm = pref <.> "_" <.> f
+    ++ [ cStmt (t <+> cCall nm []) | (f,t) <- zip labs tys
+                                   , pref  <- [ "get", "borrow" ]
+                                   , let nm = pref <.> "_" <.> f
        ]
     ++ [ "// Memory Management" ]
-    ++ [ copyMethod, freeMethod ]
-  -- XXX: Equality
+    ++ [ copyMethodSig, freeMethodSig ]
+    ++ [ eqMethodSig vis "==" ty, eqMethodSig vis "!=" ty ]
 
 
 
@@ -191,14 +193,14 @@ cSumTagV l = "Tag::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
-cSumGetTag td = cSumTagT td <+> cCall "getTag" []
+cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 --------------------------------------------------------------------------------
 
 
 -- | Signatures for getters of a sum
 cSumGetters :: TDecl -> [ Doc ]
 cSumGetters tdecl =
-  [ cSemType t <+> cCall (pref <.> "_" <.> cLabel l) []
+  [ cStmt (cSemType t <+> cCall (pref <.> "_" <.> cLabel l) [])
   | (l,t) <- getFields tdecl
   , pref <- ["get","borrow"]
   ]
@@ -206,19 +208,19 @@ cSumGetters tdecl =
 -- | Signatures for constructors of a sum
 cSumCtrs :: TDecl -> [Doc]
 cSumCtrs tdecl =
-  [ "void" <+> cCall ("init_" <.> cLabel l)
-                     [ cSemType ty | ty <- [t], t /= TUnit ]
+  [ cStmt ("void" <+> cCall ("init_" <.> cLabel l)
+                     [ cSemType ty | ty <- [t], t /= TUnit ])
   | (l,t) <- getFields tdecl
   ]
 
 -- | Class signature for an unboxed sum
-cUnboxedSum :: TDecl -> CDecl
-cUnboxedSum tdecl =
+cUnboxedSum :: GenVis -> TDecl -> CDecl
+cUnboxedSum vis tdecl =
   vcat
-    [ cTypeDecl' tdecl <+> ": DDL::HasRefs {"
+    [ cTypeDecl' vis tdecl <+> ": DDL::HasRefs {"
     , nest 2 $ vcat attribs
     , "public:"
-    , nest 2 $ vcat $ map cStmt methods
+    , nest 2 $ vcat methods
     , "};"
     ]
   where
@@ -237,23 +239,24 @@ cUnboxedSum tdecl =
     ]
 
   methods =
-      [ "// Construcotrs" ]
+      [ "// Constructors" ]
    ++ cSumCtrs tdecl
    ++ [ "// Selectors" ]
    ++ [ cSumGetTag tdecl ]
    ++ cSumGetters tdecl
    ++ [ "// Memory Management" ]
-   ++ [ copyMethod, freeMethod ]
-  -- XXX: Equality
+   ++ [ copyMethodSig, freeMethodSig ]
+   ++ [ eqMethodSig vis "==" tdecl, eqMethodSig vis "!=" tdecl ]
 
 
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
 cBoxedSum tdecl =
   vcat
-    [ cTypeDecl' tdecl <+> ": public" <+> cInst "DDL::Boxed" [tuse] <+> "{"
+    [ cTypeDecl' GenPublic tdecl <+> ": public" <+>
+                                cInst "DDL::Boxed" [tuse] <+> "{"
     , "public:"
-    , nest 2 $ vcat $ map cStmt methods
+    , nest 2 $ vcat methods
     , "};"
     ]
   where
@@ -264,7 +267,9 @@ cBoxedSum tdecl =
     ++ [ cSumGetTag tdecl ]
     ++ cSumGetters tdecl
 
-  tuse = "DDL::User::" <.> cSemType (TUser ut)
+  -- XXX: a bit of a hack here, assumes that "private" names are
+  -- obtained by pre appending "_"
+  tuse = "_" <.> cSemType (TUser ut)
   ut = UserType
          { utName    = tName tdecl
          , utNumArgs = map TSizeParam (tTParamKNumber tdecl)
@@ -282,22 +287,22 @@ generateBoxedMethods :: TDecl -> Doc
 generateBoxedMethods ty =
   vcat' $
     [ "// --- Methods for" <+> pp (tName ty) <+> "------------------" ] ++
-    defCons      GenBoxed ty ++
-    defSelectors GenBoxed ty
+    defCons      GenPublic GenBoxed ty ++
+    defSelectors GenPublic GenBoxed ty
 
-generateUnboxedMethods :: TDecl -> Doc
-generateUnboxedMethods ty =
+generateUnboxedMethods :: GenVis -> TDecl -> Doc
+generateUnboxedMethods vis ty =
   vcat' $
     [ "// --- Methods for" <+> pp (tName ty) <+> "------------------"
-    , defCopyFree "copy" ty
-    , defCopyFree "free" ty
+    , defCopyFree vis "copy" ty
+    , defCopyFree vis "free" ty
     ] ++
-    defCons      GenUnboxed ty ++
-    defSelectors GenUnboxed ty ++
-    [defEq ty]
+    defCons      vis GenUnboxed ty ++
+    defSelectors vis GenUnboxed ty ++
+    [defEq vis ty, defNeq vis ty]
 
-defMethod :: TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
-defMethod tdecl retT fun params def =
+defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
+defMethod vis tdecl retT fun params def =
   vcat [ cTemplateDecl tdecl
        , "inline"
        , retT <+> cCall name params <+> "{"
@@ -305,15 +310,23 @@ defMethod tdecl retT fun params def =
        , "}"
        ]
   where
-  name = cTName (tName tdecl) <.> "::" <.> fun
+  name = pref <.> cTName (tName tdecl) <.> "::" <.> fun
+  pref = case vis of
+           GenPublic  -> ""
+           GenPrivate -> "_"
 
 --------------------------------------------------------------------------------
 -- Equality
 
+defNeq :: GenVis -> TDecl -> CDecl
+defNeq vis tdecl =
+  defMethod vis tdecl "bool" "operator !=" [ cTName' vis (tName tdecl) <+> "x" ]
+    [ cStmt $ "return !operator ==(x)"
+    ]
 
-defEq :: TDecl -> CDecl
-defEq tdecl =
-  defMethod tdecl "bool" "operator ==" [ cTName (tName tdecl) <+> "x" ]
+defEq :: GenVis -> TDecl -> CDecl
+defEq vis tdecl =
+  defMethod vis tdecl "bool" "operator ==" [ cTName' vis (tName tdecl) <+> "x" ]
   case tDef tdecl of
     TStruct fs ->
       [ "if" <+> parens (f <+> "!=" <+> "x." <.> f) <+> cStmt "return false"
@@ -325,28 +338,36 @@ defEq tdecl =
     TUnion fs ->
       [ "if (tag != x.tag) return false;"
       , "switch (tag) {"
-      , "// TODO"
+      , nest 2 $ vcat
+                   [ "case" <+> cSumTagV l <.> colon <+>
+                      cStmt ("return" <+> f <+> "==" <+> "x." <.> f)
+                   | ((l,t),n) <- fs `zip` [0..], t /= TUnit
+                   , let f = "data." <.> cField n
+                   ]
+             $$ "default: return true;"
+
       , "}"
-      , "return false; // unreachable"
       ]
 
 --------------------------------------------------------------------------------
 -- Construcotrs
 
-defCons :: GenBoxed -> TDecl -> [CDecl]
-defCons boxed tdecl =
+defCons :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defCons vis boxed tdecl =
   case tDef tdecl of
-    TStruct {} -> [ defStructCon boxed tdecl ]
-    TUnion  {} -> defUnionCons boxed tdecl
+    TStruct {} -> [ defStructCon vis boxed tdecl ]
+    TUnion  {} -> defUnionCons vis boxed tdecl
 
 
-defStructCon :: GenBoxed -> TDecl -> CDecl
-defStructCon boxed tdecl = defMethod tdecl "void" "init" params def
+defStructCon :: GenVis -> GenBoxed -> TDecl -> CDecl
+defStructCon vis boxed tdecl = defMethod vis tdecl "void" "init" params def
   where
   params = [ t <+> x | (t,x,_) <- fs ]
   def =
     case boxed of
-      GenBoxed   -> [ cStmt $ cCall "getValue().init" [ x | (_,x,_) <- fs ] ]
+      GenBoxed   -> [ cStmt $ cCall "allocate" []
+                    , cStmt $ cCall "getValue().init" [ x | (_,x,_) <- fs ]
+                    ]
       GenUnboxed -> [ cStmt (f <+> "=" <+> x) | (_,x,f) <- fs ]
 
   fs = [ (cSemType t, cLabel l, cField n)
@@ -354,15 +375,17 @@ defStructCon boxed tdecl = defMethod tdecl "void" "init" params def
        , t /= TUnit
        ]
 
-defUnionCons :: GenBoxed -> TDecl -> [CDecl]
-defUnionCons boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
+defUnionCons :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
   where
   defCon (l,t) n =
     let name = "init_" <.> cLabel l
         fs   = [ (cSemType t, cLabel l) | t /= TUnit ]
-    in defMethod tdecl "void" name [ ty <+> x | (ty,x) <- fs ]
+    in defMethod vis tdecl "void" name [ ty <+> x | (ty,x) <- fs ]
        case boxed of
-         GenBoxed -> [ cStmt (cCall ("getValue()." <.> name) (map snd fs)) ]
+         GenBoxed -> [ cStmt (cCall "allocate" [])
+                     , cStmt (cCall ("getValue()." <.> name) (map snd fs))
+                     ]
          GenUnboxed ->
             cStmt ("tag =" <+> cSumTagV l)
           : [ cStmt ("data." <.> cField n <+> "=" <+> cLabel l) | t /= TUnit ]
@@ -372,13 +395,13 @@ defUnionCons boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
 -- Selectors
 
 
-defSelectors :: GenBoxed -> TDecl -> [CDecl]
-defSelectors boxed tdecl =
-  concatMap (defSelectorsOwn boxed tdecl) [GenBorrow,GenOwn]
+defSelectors :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defSelectors vis boxed tdecl =
+  concatMap (defSelectorsOwn vis boxed tdecl) [GenBorrow,GenOwn]
 
 -- XXX: Maybe some selectors should return a reference?
-defSelectorsOwn :: GenBoxed -> TDecl -> GenOwn -> [CDecl]
-defSelectorsOwn boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
+defSelectorsOwn :: GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
+defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   where
   pref = case borrow of
            GenBorrow -> "borrow"
@@ -388,9 +411,9 @@ defSelectorsOwn boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
            TUnion  _ -> True
   sel (l,t) n =
     let name = pref <.> "_" <.> cLabel l
-    in defMethod tdecl (cSemType t) name []
+    in defMethod vis tdecl (cSemType t) name []
        case boxed of
-         GenBoxed -> [ cStmt (cCall ("getValue()." <.> name) []) ]
+         GenBoxed -> [ cStmt ("return" <+> cCall ("getValue()." <.> name) []) ]
          GenUnboxed ->
            [ s | GenOwn <- [borrow], Just s <- [ maybeCopyFree "copy" t f ] ] ++
            [ cStmt $ "return" <+>
@@ -407,8 +430,8 @@ defSelectorsOwn boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
 -- Copy & Free
 
 -- | Define a copy/free method for the given type
-defCopyFree :: Doc -> TDecl -> CDecl
-defCopyFree fun tdecl = defMethod tdecl "void" fun [] def
+defCopyFree :: GenVis -> Doc -> TDecl -> CDecl
+defCopyFree vis fun tdecl = defMethod vis tdecl "void" fun [] def
   where
   def =
     case tDef tdecl of
@@ -419,7 +442,8 @@ defCopyFree fun tdecl = defMethod tdecl "void" fun [] def
           xs -> [ vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
                        , nest 2 $ vcat' [ "case" <+> cSumTagV l <.> colon $$
                                            nest 2 (s $$ "break;")
-                                        | (l,s) <- xs ]
+                                        | (l,s) <- xs ] 
+                                $$ "default: break;"
                        , "}"
                        ]
                 ]

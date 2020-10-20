@@ -80,6 +80,7 @@ public:
   T& getValue() { return ptr->value; }
 
   bool operator == (Boxed x) { return getValue() == x.getValue(); }
+  bool operator != (Boxed x) { return getValue() != x.getValue(); }
 };
 
 }
