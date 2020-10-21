@@ -77,9 +77,8 @@ data CInstr =
     -- ^ The jump point contains information on where to continue after
     -- return and what we need to preserve acrross the call
 
-  | Call Src.FName Captures JumpChoice [E]
-    -- The JumpChoice says where to continuo on successs/failure
-    -- and what to preserve
+  | Call Src.FName Captures JumpPoint JumpPoint [E]
+    -- The JumpPoints contain information about the return addresses.
 
   | TailCall Src.FName Captures [E]
     -- ^ Used for both grammars and exprs.
@@ -268,11 +267,11 @@ instance PP CInstr where
       ReturnYes e   -> ppFun "return" [pp e]
       ReturnPure e  -> ppFun "return" [pp e]
       CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
-      Call f c ls es ->
+      Call f c no yes es ->
         vcat [ ppFun (pp f) (map pp es)
              , nest 2 $ vcat [ pp c
-                             , "ok:"   <+> pp (jumpYes ls)
-                             , "fail:" <+> pp (jumpNo ls)
+                             , "ok:"   <+> pp yes
+                             , "fail:" <+> pp no
                              ]
              ]
       TailCall f c xs -> ppFun (pp f) (map pp xs) <+> pp c

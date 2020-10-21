@@ -5,8 +5,6 @@ module Daedalus.VM.Compile.Grammar where
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
 
-import Daedalus.PP(pp)
-
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
@@ -158,11 +156,7 @@ compile expr next0 =
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 let ls = JumpChoice
-                                            { jumpYes = jumpNoFree cloYes
-                                            , jumpNo  = jumpNoFree cloNo
-                                            }
-                                 term $ Call f Capture ls vs
+                                 term $ Call f Capture cloNo cloYes vs
 
          compileEs es \vs -> doCall vs
 

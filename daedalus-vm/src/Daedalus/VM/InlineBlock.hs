@@ -89,15 +89,15 @@ addInline j@(JumpPoint l _) s
 updS :: Block -> S -> S
 updS b =
   case blockTerm b of
-    Jump j          -> addInline j
-    JumpIf _ ls     -> stays2 ls
-    Yield           -> id
-    ReturnNo        -> id
-    ReturnYes _     -> id
-    ReturnPure _    -> id
-    CallPure _ l _  -> addStays l
-    Call _ _ ls _   -> stays2 ls
-    _               -> id
+    Jump j            -> addInline j
+    JumpIf _ ls       -> stays2 ls
+    Yield             -> id
+    ReturnNo          -> id
+    ReturnYes _       -> id
+    ReturnPure _      -> id
+    CallPure _ l _    -> addStays l
+    Call _ _ no yes _ -> addStays no . addStays yes
+    _                 -> id
   where
   stays2 j2 = staysJF (jumpYes j2) . staysJF (jumpNo j2)
   staysJF   = addStays . jumpTarget
@@ -145,7 +145,7 @@ mergeBlocks front back =
       ReturnNo        -> ReturnNo
       ReturnYes e     -> ReturnYes (renE e)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f ca ls es -> Call f ca (renJ2 ls) (map renE es)
+      Call f ca no yes es -> Call f ca (renJ no) (renJ yes) (map renE es)
       CallPure f l es -> CallPure f (renJ l) (map renE es)
       TailCall f ca es-> TailCall f ca (map renE es)
 

@@ -103,15 +103,15 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
 
   annTerm mp t =
     case t of
-      Jump l          -> Jump (annJ mp l)
-      JumpIf e ls     -> JumpIf (annE mp e) (annJ2 mp ls)
-      Yield           -> Yield
-      ReturnNo        -> ReturnNo
-      ReturnYes e     -> ReturnYes (annE mp e)
-      ReturnPure e    -> ReturnPure (annE mp e)
-      CallPure f l es -> CallPure f (annJ mp l) (annE mp <$> es)
-      Call f c ls es  -> Call f c (annJ2 mp ls) es
-      TailCall f c es -> TailCall f c (annE mp <$> es)
+      Jump l             -> Jump (annJ mp l)
+      JumpIf e ls        -> JumpIf (annE mp e) (annJ2 mp ls)
+      Yield              -> Yield
+      ReturnNo           -> ReturnNo
+      ReturnYes e        -> ReturnYes (annE mp e)
+      ReturnPure e       -> ReturnPure (annE mp e)
+      CallPure f l es    -> CallPure f (annJ mp l) (annE mp <$> es)
+      Call f c no yes es -> Call f c (annJ mp no) (annJ mp yes) es
+      TailCall f c es    -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
 
@@ -236,8 +236,9 @@ cinstr ci =
           $ zipWith expr es
           $ getFunOwnership f i
 
-    Call f _ ls es ->
-      \i -> jumpChoice ls
+    Call f _ no yes es ->
+      \i -> jumpPoint no
+          $ jumpPoint yes
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
