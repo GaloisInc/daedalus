@@ -1,14 +1,17 @@
-{-# Language OverloadedStrings, BlockArguments #-}
+{-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments #-}
 import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
+import GHC.Records(getField) 
 import System.IO(hPutStrLn,stderr)
 import System.Exit(exitFailure)
 import Text.PrettyPrint
 import SimpleGetOpt
 
 import RTS.Input(newInput)
+import RTS.Vector(vecFromRep) 
+
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
@@ -81,6 +84,18 @@ main =
 
        ShowHelp -> dumpUsage options
 
+       ShowEncrypt -> 
+         let trailmap = getField @"all" trail 
+         in case Map.lookup (vecFromRep "Encrypt") trailmap of 
+           Nothing -> putStrLn "No encryption"
+           Just (Value_ref a) -> 
+             do res <- runParser refs (pResolveRef a) topInput 
+                case res of 
+                  ParseOk a -> 
+                    case a of 
+                      Just d -> print (pp d)   
+                -- XXX : add missing cases here 
+           _ -> quit "BUG: ill-formed trailer" 
 
 quit :: String -> IO a
 quit msg =
