@@ -15,7 +15,9 @@ import RTS.Vector(vecFromRep)
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
+import PdfXRef(pEncryptionDict) 
 import PdfValue(Value(..),Ref(..))
+import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
 import CommandLine
@@ -45,14 +47,14 @@ main =
            ParseErr e   -> quit (show (pp e))
 
      let run p =
-           do res <- runParser refs p topInput
+           do res <- runParser refs Nothing p topInput
               case res of
                 ParseOk a     -> pure a
                 ParseAmbig {} -> quit "BUG: Ambiguous result"
                 ParseErr e    -> quit (show (pp e))
 
          ppRef pref r =
-           do res <- runParser refs (pResolveRef r) topInput
+           do res <- runParser refs Nothing (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -85,17 +87,14 @@ main =
        ShowHelp -> dumpUsage options
 
        ShowEncrypt -> 
-         let trailmap = getField @"all" trail 
-         in case Map.lookup (vecFromRep "Encrypt") trailmap of 
+         case getField @"encrypt" trail of 
            Nothing -> putStrLn "No encryption"
-           Just (Value_ref a) -> 
-             do res <- runParser refs (pResolveRef a) topInput 
-                case res of 
-                  ParseOk a -> 
-                    case a of 
-                      Just d -> print (pp d)   
-                -- XXX : add missing cases here 
-           _ -> quit "BUG: ill-formed trailer" 
+           Just d  -> do 
+             enc <- run (pEncryptionDict d) 
+             print (getField @"encLength" enc)
+             print (getField @"encO" enc) 
+             print (getField @"encP" enc) 
+             print (getField @"id" trail)
 
 quit :: String -> IO a
 quit msg =

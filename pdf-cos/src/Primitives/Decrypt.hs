@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds #-}
-module Primitives.Decrypt (decrypt) where 
+module Primitives.Decrypt (decrypt,makeFileKey) where 
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C

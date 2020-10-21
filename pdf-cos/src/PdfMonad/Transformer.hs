@@ -54,10 +54,10 @@ data PdfResult a = ParseOk a
                  | ParseAmbig [a]
                  | ParseErr ParseError
 
-runPdfT :: Functor m => Input -> ObjIndex -> PdfT m a -> m a
-runPdfT inp objMap (P m) = fst <$> m ro rw
+runPdfT :: Functor m => Input -> ObjIndex -> Maybe EncContext -> PdfT m a -> m a
+runPdfT inp objMap ec (P m) = fst <$> m ro rw
   where
-  ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty, encContext = Nothing }
+  ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty, encContext = ec }
   rw = RW { rwValidated = Map.empty }
 {-# INLINE runPdfT #-}
 

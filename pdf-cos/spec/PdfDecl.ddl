@@ -311,7 +311,7 @@ def LookupNat k m =
   { @vV = LookupResolve k m : Value;
     -- XXX: we should have a "strong" commit here.
     @v  = vV is number;
-    NumberAsNat v
+    NumberAsNat v; 
   }
 
 def LookupNats k m = {

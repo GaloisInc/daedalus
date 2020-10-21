@@ -21,7 +21,7 @@ import PdfParser
 -- | Construct the xref table.
 parseXRefs ::
   DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs inp off0 = runParser Map.empty (go Nothing (Just off0)) inp
+parseXRefs inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
