@@ -14,20 +14,12 @@
 #include "ddl/boxed.h"
 
 #include "user_data.h"
+#include "fun_call.h"
 
 using namespace std;
 
 
 int main() {
-  List nil;
-  nil.init_Nil();
-
-  Node n;
-  n.init(17,nil);
-
-  List one;
-  one.init_Cons(n);
-
-  cout << (one == one) << endl;
+  example();
   return 0;
 }
