@@ -9,16 +9,11 @@ struct StackFrame {
 };
 
 
-// A particular stack frame.
-struct FCall : public StackFrame {
-  int other_arg;
-
-  void copy() {}    // would not be empty if we saved some references
-  void free() {}
-};
-
-
 void example() {
+
+
+
+
   void *stack = NULL; // Used for function calls
 
   int f_arg;         // Pass arguments to `f` here
@@ -42,25 +37,35 @@ start:
   std::cout << "start: stack = " << stack << std::endl;
 
   // A function call
-  { DDL::BoxedValue<FCall> *frame = new DDL::BoxedValue<FCall>();
-    std::cout << "allocated frame " << frame << std::endl;
-    frame->value.code = &&F_ret;
-    frame->value.next = stack;
-    frame->value.other_arg = other_arg;
-    stack = frame;
-  }
-  f_arg = 5;
-  goto F;
+  {
+    // Things we need to save
+    struct Call : public StackFrame, public DDL::HasRefs {
+      int other_arg;
 
-// Return landing site specific to the call
-F_ret:
-  std::cout << "Returned from F\n";
-  { DDL::BoxedValue<FCall> *frame = (DDL::BoxedValue<FCall>*)stack;
-    other_arg = frame->value.other_arg;   // restore arguments
-    stack = frame->value.next;            // pop stack
-    free_boxed(frame);
+      void copy() {}    // would not be empty if we saved some references
+      void free() {}
+    };
+
+    // Save stuff
+    { DDL::BoxedValue<Call> *frame = new DDL::BoxedValue<Call>();
+      std::cout << "allocated frame " << frame << std::endl;
+      frame->value.code = &&F_ret;
+      frame->value.next = stack;
+      frame->value.other_arg = other_arg;
+      stack = frame;
+    }
+
+    f_arg = 5;
+    goto F;
+
+    F_ret: // This label needs a new name as it is not scoped.
+      std::cout << "Returned from F\n";
+      DDL::BoxedValue<Call> *frame = (DDL::BoxedValue<Call>*)stack;
+      other_arg = frame->value.other_arg;   // restore arguments
+      stack = frame->value.next;            // pop stack
+      free_boxed(frame);
+    goto end;    // or whatever would happen after the call
   }
-  goto end;    // or whatever would happen after the call
 
 
 end:

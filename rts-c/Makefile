@@ -3,6 +3,7 @@
 CPPFLAGS=-I.
 CXXFLAGS=-std=c++17 -O2 -Wall
 LIBS=-lgmpxx -lgmp
+CC=clang++
 
 all:
-	g++ $(CPPFLAGS) $(CXXFLAGS) test.cpp $(LIBS)
+	$(CC) $(CPPFLAGS) $(CXXFLAGS) test.cpp $(LIBS)

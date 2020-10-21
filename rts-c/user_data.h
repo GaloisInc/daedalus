@@ -2,11 +2,11 @@
 #include <ddl/boxed.h>
 #include <ddl/unit.h>
 
-struct Node;
-struct List;
+class Node;
+class List;
 
 namespace DDL { namespace Private {
-struct List;
+class List;
 }}
 
 namespace Tag {
@@ -14,8 +14,8 @@ namespace Tag {
 }
 
 // A boxed sum type
-struct List : public DDL::Boxed<DDL::Private::List> {
-
+class List : public DDL::Boxed<DDL::Private::List> {
+public:
   void init_Nil ();
   void init_Cons(Node n);
 
