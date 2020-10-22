@@ -46,11 +46,11 @@ library
                        Daedalus.Type.Traverse,
                        Daedalus.Type.Free,
                        Daedalus.Type.DeadVal,
+                       Daedalus.Type.RefreshGUID
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
                        Daedalus.DDL2Core,
-                       Daedalus.Rename,
                        Daedalus.PrettyError,
                        Daedalus.ParserGen,
                        Daedalus.ParserGen.AST,

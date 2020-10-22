@@ -19,10 +19,10 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
 
+import Daedalus.GUID
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.Rec
-import Daedalus.Panic
 
 import Daedalus.AST
 import Daedalus.PrettyError
@@ -34,14 +34,21 @@ import Daedalus.PrettyError
 -- which variables are used by each rule.  The latter information is
 -- used to determine the SCCs.
 
--- Note localVars shadows moduleVars.  We could unify these, and have
--- moduelVars map to Locals, but it is convenient to separate them as
--- we can then note used module refs.
-type ModuleScope = Map Ident ScopedIdent
-data Scope = Scope { moduleVars    :: ModuleScope
-                   , localVars     :: Set Ident
-                   , currentModule :: ModuleName
-                   }
+type VarScope = Map Ident Name
+
+data Scope = Scope { varScope      :: VarScope }
+
+data ScopeState =
+  ScopeState { seenToplevelNames :: Set Name
+             , nextFreeGUID    :: GUID
+             }
+
+emptyScopeState :: GUID -> ScopeState
+emptyScopeState nextFree = ScopeState { seenToplevelNames = Set.empty
+                                      , nextFreeGUID = nextFree }
+
+--------------------------------------------------------------------------------
+-- Errors
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
@@ -61,97 +68,127 @@ prettyScopeError :: ScopeError -> IO String
 prettyScopeError e@(ScopeViolation _m n) = prettyError (sourceFrom (nameRange n)) (show (pp e))
 prettyScopeError e = pure (show (pp e))
 
-newtype ScopeM a = ScopeM { getScopeM :: ReaderT Scope
-                                         (StateT (Set ScopedIdent)
-                                          (Except ScopeError)) a
-                          }
+--------------------------------------------------------------------------------
+-- Monad
+
+newtype ScopeM a = ScopeM { getScopeM :: ReaderT Scope (StateT ScopeState (Except ScopeError)) a }
   deriving (Functor, Applicative, Monad)
 
-runScopeM :: Scope -> ScopeM a -> Either ScopeError (a, Set ScopedIdent)
-runScopeM scope (ScopeM m) = runExcept (runStateT (runReaderT m scope) Set.empty)
+runScopeM :: Scope -> GUID -> ScopeM a -> Either ScopeError (a, ScopeState)
+runScopeM scope nextFree (ScopeM m) = runExcept (runStateT (runReaderT m scope) (emptyScopeState nextFree))
 
-recordIdentRef :: ScopedIdent -> ScopeM ()
-recordIdentRef r = ScopeM $ modify (Set.insert r)
+nextGUID :: ScopeM GUID
+nextGUID = ScopeM (state go)
+  where
+    go s = (nextFreeGUID s, s { nextFreeGUID = succGUID (nextFreeGUID s) })
+
+recordNameRef :: Name -> ScopeM ()
+recordNameRef r
+  | ModScope _ _ <- nameScopedIdent r = 
+      ScopeM $ modify (\s -> s { seenToplevelNames = Set.insert r (seenToplevelNames s) } )
+  | otherwise = pure ()
 
 extendLocalScopeIn :: [Name] -> ScopeM a -> ScopeM a
 extendLocalScopeIn ids = ScopeM . local extendScope . getScopeM
   where
-    extendScope s = s { localVars = foldl extendOneScope (localVars s) ids }
-    extendOneScope scope = flip Set.insert scope . nameScopeAsUnknown
+    extendScope s = s { varScope = foldl extendOneScope (varScope s) ids }
+    extendOneScope vs n = Map.insert (nameScopeAsLocal n) n vs
 
-makeNameLocal :: Name -> Name
-makeNameLocal n = n { nameScope = Local (nameScopeAsUnknown n) }
-
-makeNameModScope :: ModuleName -> Name -> Name
-makeNameModScope m n = n { nameScope = ModScope m (nameScopeAsUnknown n) }
+makeNameLocal :: Name -> ScopeM Name
+makeNameLocal n = do
+  gid <- nextGUID
+  pure $ n { nameScopedIdent = Local (nameScopeAsUnknown n), nameID = gid }
 
 getScope :: ScopeM Scope
 getScope = ScopeM ask
 
-resolveModules :: [Module] -> Either ScopeError [Module]
-resolveModules = go Map.empty []
+--------------------------------------------------------------------------------
+-- Entry points
+
+type GlobalScope = Map ModuleName (Map Ident Name) {- ^ Maps module name to what's in scope -}
+
+data ResolveState =
+  ResolveState { rsNextGUID :: GUID
+               , rsSeen :: GlobalScope
+               }
+
+newtype ResolveM a = ResolveM { getResolveM :: StateT ResolveState (Except ScopeError) a }
+  deriving (Functor, Applicative, Monad, MonadState ResolveState)
+
+makeNameModScope :: ModuleName -> Name -> ResolveM Name
+makeNameModScope m n = do
+  gid <- gets rsNextGUID
+  modify (\s -> s { rsNextGUID = succGUID gid })
+  pure $ n { nameScopedIdent = ModScope m (nameScopeAsUnknown n), nameID = gid }
+
+resolveModules :: [Module] -> Either ScopeError ([Module], GUID)
+resolveModules ms = runExcept (evalStateT (getResolveM go) s0)
   where
-    go _    acc []       = pure (reverse acc)
-    go seen acc (m : ms) =
-      do (m1, seen1) <- resolveModule seen m
-         go seen1 (m1 : acc) ms
+    go = (,) <$> mapM resolveModule ms <*> gets rsNextGUID
+    s0 = ResolveState firstValidGUID Map.empty
 
 
-resolveModule ::
-  Map ModuleName (Map Ident Name) {- ^ Info about other modules -} ->
-  Module ->
-  Either ScopeError (Module, Map ModuleName (Map Ident Name))
-resolveModule ms m =
-  do (s, newDefs) <- moduleScope ms m
-     let scope = Scope s Set.empty (moduleName m)
-     rs'<- mkRec <$> mapM (runResolve scope) (forgetRecs (moduleRules m))
-     let m' = m { moduleRules = rs' }
-     pure (m', Map.insert (moduleName m') newDefs ms)
+resolveModule :: Module -> ResolveM Module
+resolveModule m =
+  do ns' <- mapM (makeNameModScope (moduleName m) . ruleName) rs
+     let namedRs = (zip ns' rs)
+     ms <- gets rsSeen     
+     scope <- Scope <$> moduleScope m ms namedRs
+     rs' <- mkRec <$> mapM (runResolve scope) namedRs
+     pure $ m { moduleRules = rs' }
   where
-  mkRec = map sccToRec . stronglyConnComp
+    rs  = forgetRecs (moduleRules m)
+    mkRec = map sccToRec . stronglyConnComp
 
-  runResolve scope r =
-    do (r', refs) <- runScopeM scope (resolve r)
-       return (r', nameScope (ruleName r'), Set.toList refs)
-
-
-
+    -- FIXME: make nicer (can plumb through nextguid better)
+    runResolve :: Scope -> (Name, Rule) -> ResolveM (Rule, Name, [Name])
+    runResolve scope (n, r) = do
+      nguid <- gets rsNextGUID 
+      (r', st) <- ResolveM $ liftEither $ runScopeM scope nguid (resolveRule r n)
+      modify (\s -> s { rsNextGUID = nextFreeGUID st } )
+      return (r', n, Set.toList (seenToplevelNames st))
 
 -- | Figure out the map from idents to resolved names for a given
 -- module.  This is slightly more complex than it has to be, as we try
 -- to detect all dups, not just the first.
-moduleScope ::
-  Map ModuleName (Map Ident Name) {- ^ Maps module name to what's in scope -} ->
-  Module                          {- ^ Module to process -} ->
-  Either ScopeError (ModuleScope, Map Ident Name)
+moduleScope :: Module -> GlobalScope -> [(Name, Rule)] -> ResolveM VarScope
   {- ^ All things in scope of this module, new things defined -}
-moduleScope ms m =
+moduleScope m ms rs =
   case runState merged Map.empty of
-    (s, dups) | Map.null dups -> Right s
-    (_, dups)                 -> Left  (DuplicateNames mname dups)
+    ((allDs, defs'), dups) | Map.null dups -> allDs <$ modify (addRuleNames defs')
+    (_, dups)                 -> ResolveM $ throwError (DuplicateNames (moduleName m) dups)
   where
-    mname = moduleName m
-    rs    = forgetRecs (moduleRules m)
-
-    merged  :: State (Map Ident [Name]) (ModuleScope, Map Ident Name)
+    addRuleNames defs' s = s { rsSeen = Map.insert (moduleName m) defs' (rsSeen s) } 
+    
+    merged  :: State (Map Ident [Name]) (VarScope, Map Ident Name)
     merged  = do defs' <- foldM doMerge Map.empty defs
                  allDs <- foldM doMerge defs' imported
-                 return (nameScope <$> allDs, defs')
+                 return (allDs, defs')
 
     doMerge = mergeA preserveMissing preserveMissing (zipWithAMatched matched)
+    
     matched :: Ident -> Name -> Name -> State (Map Ident [Name]) Name
     matched k x y = modify (Map.insertWith (++) k [x, y]) $> x
 
     imported = [ ms Map.! thingValue i | i <- moduleImports m ]
 
     -- Makes it easier to detect duplicates
-    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r))
-                            (makeNameModScope mname (ruleName r))
-            | r <- rs
-            ]
+    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) n | (n, r) <- rs ]
 
 -- -----------------------------------------------------------------------------
 -- A type class for resolving names
+
+resolveRule :: Rule -> Name -> ScopeM Rule
+resolveRule r n' = do
+  ps1 <- mapM resolve (ruleParams r)  
+  e' <- extendLocalScopeIn (map paramName ps1) (resolve (ruleDef r))
+  resT1 <- resolve (ruleResTy r)
+  return (Rule { ruleName   = n'
+               , ruleParams = ps1
+               , ruleResTy  = resT1
+               , ruleDef    = e'
+               , ruleRange  = ruleRange r
+               })
 
 class ResolveNames t where
   resolve :: t -> ScopeM t
@@ -162,43 +199,21 @@ instance ResolveNames a => ResolveNames [a] where
 instance ResolveNames a => ResolveNames (Maybe a) where
   resolve = traverse resolve
 
--- This is the base case
+-- This is the base case, x should be Unknown
 instance ResolveNames Name where
-  resolve n = do
-    scope <- getScope
-    ident' <-
-      case nameScope n of
-        Unknown ident
-          | ident `Set.member` localVars scope -> pure (Local ident)
-          | Just v <- Map.lookup ident (moduleVars scope) ->
-              recordIdentRef v *> pure v
-          | otherwise -> ScopeM $ throwError
-                                $ ScopeViolation (currentModule scope) n
-        _ -> panicRange n "Expecting an Unknown scope." []
-    return (n { nameScope = ident' })
-
-
-instance ResolveNames Rule where
-  resolve r = do scope <- getScope
-                 let n' = makeNameModScope (currentModule scope) (ruleName r)
-                 e' <- extendLocalScopeIn (map paramName (ruleParams r))
-                                  (resolve (ruleDef r))
-                 ps1 <- mapM resolve (ruleParams r)
-                 resT1 <- resolve (ruleResTy r)
-                 return (Rule { ruleName   = n'
-                              , ruleParams = ps1
-                              , ruleResTy  = resT1
-                              , ruleDef    = e'
-                              , ruleRange  = ruleRange r
-                              })
+  resolve x = do
+    do scope <- getScope
+       case Map.lookup (nameScopeAsUnknown x) (varScope scope) of
+         Just n -> x { nameScopedIdent = nameScopedIdent n
+                     , nameID = nameID n } <$ recordNameRef n
+         Nothing -> makeNameLocal x
 
 instance ResolveNames Expr where
   resolve (Expr r) = Expr <$> traverse resolve r
 
 instance ResolveNames RuleParam where
-  resolve p = do t1 <- resolve (paramType p)
-                 pure RuleParam { paramName = makeNameLocal (paramName p)
-                                , paramType = t1 }
+  resolve p = RuleParam <$> makeNameLocal (paramName p)
+                        <*> resolve (paramType p)
 
 instance ResolveNames e => ResolveNames (ExprF e) where
   resolve expr =
@@ -235,22 +250,25 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EArrayLength ve  -> EArrayLength <$> resolve ve       
       EArrayIndex  ve ixe -> EArrayIndex <$> resolve ve <*> resolve ixe
 
-      EFor fl mbI y b c -> EFor  <$> resolveFL
-                                 <*> pure (makeNameLocal <$> mbI)
-                                 <*> pure (makeNameLocal y)
-                                 <*> resolve b
-                                 <*> extendLocalScopeIn names (resolve c)
-        where
-        (fnames,resolveFL) =
+      EFor fl mbI y b c -> do
+        mbI' <- traverse makeNameLocal mbI
+        y'   <- makeNameLocal y
+        (fnames, fl') <-
           case fl of
-            FFold x e -> ([x], FFold (makeNameLocal x) <$> resolve e)
-            FMap      -> ([],  pure FMap)
+            FFold x e -> do x' <- makeNameLocal x
+                            e' <- resolve e
+                            pure ([x'], FFold x' e')
+            FMap      -> pure ([], FMap)
 
-        inames = case mbI of
+        let names = fnames ++ inames mbI ++ [y]
+    
+        EFor fl' mbI' y'
+          <$> resolve b 
+          <*> extendLocalScopeIn names (resolve c)
+        where
+        inames x = case x of
                    Nothing -> []
                    Just i  -> [i]
-
-        names = fnames ++ inames ++ [y]
 
       EIf be te fe    -> EIf       <$> resolve be <*> resolve te <*> resolve fe
 
@@ -303,15 +321,8 @@ instance ResolveNames t => ResolveNames (Located t) where
 instance ResolveNames SrcType where
   resolve ty =
     case ty of
-      SrcVar x ->
-        do scope <- getScope
-           newS <- case nameScope x of
-                     Unknown i ->
-                       case Map.lookup i (moduleVars scope) of
-                         Just j -> recordIdentRef j >> pure j
-                         Nothing -> pure (Local i)
-                     _ -> panic "ResolveNames@SrcType" ["Resolved name"]
-           pure (SrcVar x { nameScope = newS })
+      -- FIXME: should we treat tvs differently?
+      SrcVar x -> SrcVar <$> resolve x
 
       SrcType tf -> SrcType <$> resolve tf
 
@@ -326,6 +337,7 @@ resolveStructFields (f : fs) =
     x :@= e  -> go (:@=) x e
   where
     go ctor x e =
-      do f'  <- ctor (makeNameLocal x) <$> resolve e
-         fs' <- extendLocalScopeIn [x] (resolveStructFields fs)
+      do x'  <- makeNameLocal x
+         f'  <- ctor x' <$> resolve e
+         fs' <- extendLocalScopeIn [x'] (resolveStructFields fs)
          pure (f' : fs')

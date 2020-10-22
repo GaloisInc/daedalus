@@ -87,7 +87,7 @@ hsIdentMod i = case Text.unpack i of
 nameUse :: Env -> NameStyle -> Name -> (Ident -> String) -> Term
 nameUse env use nm baseName =
   Var $
-  case nameScope nm of
+  case nameScopedIdent nm of
     ModScope m i
       | NameUse <- use,
         UseQualNames <- envQualNames env,

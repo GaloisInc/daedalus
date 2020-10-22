@@ -14,7 +14,7 @@ checkType :: Kind -> SrcType -> TypeM ctx Type
 checkType expK srcty =
   case srcty of
     SrcVar x ->
-      case nameScope x of
+      case nameScopedIdent x of
         ModScope {} ->
           do let nm = TCTy x
              mb <- lookupTypeDef nm

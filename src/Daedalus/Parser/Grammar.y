@@ -532,9 +532,10 @@ mkUnion cmt fs
                 in at (e,res) (EChoiceU cmt e res)
 
 mkName :: Context ctx -> (SourceRange, Text) -> Name
-mkName ctx x = Name { nameScope = Unknown (snd x)
+mkName ctx x = Name { nameScope   = Unknown (snd x)
                     , nameContext = ctx
-                    , nameRange = fst x }
+                    , nameRange   = fst x 
+                    , nameId      = invalidGUID }
 
 mkLabel :: (SourceRange, Text) -> Located Label
 mkLabel (r,t) = Located { thingRange = r, thingValue = t }

@@ -20,7 +20,7 @@ jsRule q r = (jsName q (ruleName r), jsRange (ruleRange r))
 
 jsName :: String -> Name -> JS
 jsName q nm =
-  case nameScope nm of
+  case nameScopedIdent nm of
     Unknown i    -> jsIdent q i
     Local i      -> jsIdent q i  -- shouldn't happen
     ModScope m i -> jsIdent (Text.unpack m) i

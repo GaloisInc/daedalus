@@ -485,7 +485,7 @@ applyBinop op e1 e2 =
 
 name2Text :: Name -> Text
 name2Text n =
-  let x = nameScope n
+  let x = nameScopedIdent n
   in case x of
     Unknown ident -> ident
     Local   ident -> ident
@@ -493,7 +493,7 @@ name2Text n =
 
 name2Text2 :: PAST.NName -> Text
 name2Text2 n =
-  let x = nameScope (PAST.nName n)
+  let x = nameScopedIdent (PAST.nName n)
   in case x of
     Unknown ident -> ident
     Local   ident -> ident

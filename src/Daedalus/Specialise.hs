@@ -33,17 +33,19 @@ are unified.  See 'Specialise.Unfiy' for details.
 
 module Daedalus.Specialise (specialise, regroup) where
 
-import Control.Monad.Except
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Semigroup (First(..))
+import MonadLib
 
 import Data.Parameterized.Some
 
 import Daedalus.Panic
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID
 
 
 
@@ -62,7 +64,7 @@ import Daedalus.Specialise.Unify
 regroup :: [TCDecl SourceRange] -> Map ModuleName [Rec (TCDecl SourceRange)]
 regroup = fmap reverse . foldr addR Map.empty . topoOrder
   where
-  owner d = case nameScope (tcDeclName d) of
+  owner d = case nameScopedIdent (tcDeclName d) of
               ModScope m _ -> m
               _ -> panic "regroup" [ "Declaration is not ModScope" ]
 
@@ -76,15 +78,11 @@ regroup = fmap reverse . foldr addR Map.empty . topoOrder
 
 
 -- | This assumes that the declratations are in dependency order.
-specialise :: [ScopedIdent] -> [Rec (TCDecl SourceRange)] ->
-                                    Either String [TCDecl SourceRange]
-specialise ruleRoots decls =
-  runPApplyM ruleRoots' (concat . reverse <$> mapM go (reverse decls))
+specialise :: [Name] -> GUID -> [Rec (TCDecl SourceRange)]
+              -> Either String [TCDecl SourceRange]
+specialise ruleRoots guid decls =
+  fst <$> runPApplyM ruleRoots guid (concat . reverse <$> mapM go (reverse decls))
   where
-    -- FIXME (ISD) this is a guess, but I think this refers to the use of
-    -- `synthehtic`?
-    ruleRoots' = map (\ident -> Name ident AGrammar synthetic) ruleRoots
-
     -- First we find if we need to generate partial applications.  If we
     -- do so, we can discard the input tdecl (FIXME: I think?), the
     -- reasoning being that specialised decls are problematic otherwise.
@@ -120,7 +118,7 @@ specialise ruleRoots decls =
       rs <- goOne ds todo
       insts <- getPendingSpecs (map tcDeclName ds)
       if not (Map.null insts)
-        then throwError ("Incompatible recursion detected for " ++ show (ppError insts))
+        then raise ("Incompatible recursion detected for " ++ show (ppError insts))
         else return rs
 
     ppError insts =
@@ -149,7 +147,7 @@ specialise ruleRoots decls =
                (d'' :) <$> goOne newds (Map.unionWith (++) todoRest newTodo)
 
         Just ((n, _ : _ : _), _) ->
-          throwError ("Multiple instantiations requested for " ++ show (pp n))
+          raise ("Multiple instantiations requested for " ++ show (pp n))
         Just ((_, []), _) -> panic "Empty instantiation list" []
         _ -> panic "Impossible" []
 

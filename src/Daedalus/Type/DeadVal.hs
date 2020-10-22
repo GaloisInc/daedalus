@@ -114,11 +114,11 @@ newMParam r x = NFM \ro s ->
     else ( mkDo r Nothing (exprAt r (TCVar x)) (noSemPure r)
          , s)
 
-
+-- FIXME: refresh
 modifyName :: Name -> Name
-modifyName nm = case nameScope nm of
-                  Local i -> nm { nameScope = Local (newI i) }
-                  ModScope m i -> nm { nameScope = ModScope m (newI i) }
+modifyName nm = case nameScopedIdent nm of
+                  Local i -> nm { nameScopedIdent = Local (newI i) }
+                  ModScope m i -> nm { nameScopedIdent = ModScope m (newI i) }
                   _ -> panic "newMParam" ["Not a local name"]
   where
   newI i = "_" <> i

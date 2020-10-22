@@ -1422,10 +1422,11 @@ inferStructGrammar r = go [] []
     in
     case fs of
       [Anon e] | null mbRes && null done ->
-                  do let x = Name { nameScope = Local "$$"
-                                  , nameRange = range e
-                                  , nameContext = AValue
-                                  }
+                  do -- This is ugly, but the tUnit is just do we can
+                     -- call newName, we discard it when projecing out
+                     -- the new Name
+                     nm <- tcName <$> newName e tUnit 
+                     let x = nm { nameScopedIdent = Local "$$" }
                      go mbRes done [x := e]
 
       [COMMIT rn] -> reportError rn "COMMIT at the end of a struct"

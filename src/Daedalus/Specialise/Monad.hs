@@ -1,10 +1,9 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-} -- for dealing with TCDecl and existential k
 
 module Daedalus.Specialise.Monad where
 
-import Control.Monad.Except
-import Control.Monad.State
+import MonadLib
 import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -13,6 +12,7 @@ import qualified Data.Set as Set
 
 import Daedalus.PP
 import Daedalus.Panic
+import Daedalus.GUID
 
 import Daedalus.Specialise.PartialApply
 import Daedalus.Type.AST
@@ -44,19 +44,23 @@ data PApplyState =
               -- Subset of the above
               , pendingSpecs   :: Map Name [ Instantiation ]
               , otherSeenRules :: Set Name
-              , nextNameIdx    :: Int
+              , nextNameGUID   :: !GUID
               }
 
-emptyPApplyState :: PApplyState
-emptyPApplyState = PApplyState Map.empty Map.empty Set.empty 0
+emptyPApplyState :: GUID -> PApplyState
+emptyPApplyState = PApplyState Map.empty Map.empty Set.empty 
 
 newtype PApplyM a =
-  PApplyM { getPApplyM :: StateT PApplyState (Except String) a }
-  deriving (Functor, Applicative, Monad, MonadError String)
+  PApplyM { getPApplyM :: StateT PApplyState (ExceptionT String Id) a }
+  deriving (Functor, Applicative, Monad)
 
-runPApplyM :: [Name] -> PApplyM a -> Either String a
-runPApplyM roots m = runExcept (evalStateT (getPApplyM m) s0)
-  where s0 = emptyPApplyState { otherSeenRules = Set.fromList roots }
+
+instance ExceptionM PApplyM [Char] where
+  raise = PApplyM . raise
+
+runPApplyM :: [Name] -> GUID ->  PApplyM a -> Either String (a, GUID)
+runPApplyM roots guid m = fst <$> runM ((,) <$> getPApplyM m <*> (nextNameGUID <$> get)) s0
+  where s0 = (emptyPApplyState guid) { otherSeenRules = Set.fromList roots }
 
 -- clearSpecRequests :: Name -> PApplyM ()
 -- clearSpecRequests nm =
@@ -65,7 +69,7 @@ runPApplyM roots m = runExcept (evalStateT (getPApplyM m) s0)
 
 
 getPendingSpecs :: [Name] -> PApplyM (Map Name [Instantiation])
-getPendingSpecs ns = PApplyM $ state go
+getPendingSpecs ns = PApplyM $ sets go
   where
     go s = let (ret, keep) = Map.partitionWithKey (\k _ -> k `elem` ns) (pendingSpecs s)
            in (ret, s { pendingSpecs = keep })
@@ -73,31 +77,35 @@ getPendingSpecs ns = PApplyM $ state go
 -- | Add a new instance of declaration to the work queue.
 -- We know that we haven't seen the spec request before,
 -- so add it and mark as pending
-addSpecRequest ::
-  ModuleName -> Name -> [Type] -> [TCName Value] -> [Maybe (Arg SourceRange)]
-                                                -> PApplyM Name
-addSpecRequest modName nm ts newPs args = PApplyM $ state go
+addSpecRequest :: ModuleName
+               -> Name
+               -> [Type]
+               -> [TCName Value]
+               -> [Maybe (Arg SourceRange)]
+               -> PApplyM Name
+addSpecRequest modName nm ts newPs args = PApplyM $ sets go
   where
-    go s = let nm'  = freshDeclName (nextNameIdx s)
+    go s = let nm'  = freshDeclName (nextNameGUID s)
                inst = Instantiation nm' ts newPs args
            in (nm',  s { requestedSpecs = Map.insertWith (++) nm [inst] (requestedSpecs s)
                        , pendingSpecs   = Map.insertWith (++) nm [inst] (pendingSpecs s)
-                       , nextNameIdx    = nextNameIdx s + 1
+                       , nextNameGUID   = succGUID (nextNameGUID s)
                        } )
 
-    freshDeclName nxt =
-      nm { nameScope = case nameScope nm of
-             ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show nxt))
+    freshDeclName guid  =
+      nm { nameScopedIdent = case nameScopedIdent nm of
+             ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show (pp guid)))
              _            -> panic "Expected ModScope" []
+         , nameID = guid
          }
 
 lookupRequestedSpecs :: Name -> PApplyM (Maybe [Instantiation])
-lookupRequestedSpecs nm = PApplyM $ gets (Map.lookup nm . requestedSpecs)
+lookupRequestedSpecs nm = PApplyM $ (Map.lookup nm . requestedSpecs) <$> get
 
 addSeenRule :: Name -> PApplyM ()
-addSeenRule n = PApplyM $ modify go
+addSeenRule n = PApplyM $ sets_ go
   where
     go s = s { otherSeenRules = Set.insert n (otherSeenRules s) }
 
 seenRule :: Name -> PApplyM Bool
-seenRule n = PApplyM $ gets (Set.member n . otherSeenRules)
+seenRule n = PApplyM $ (Set.member n . otherSeenRules) <$> get

@@ -10,7 +10,6 @@ import Control.Monad.State
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import Data.Graph.SCC(stronglyConnComp)
 import Data.Foldable(traverse_)
 
@@ -21,30 +20,30 @@ import Daedalus.Rec(sccToRec)
 import Daedalus.Type.AST
 import Daedalus.Type.Traverse
 
--- | Oorder a bunch of declarations topologically
+-- -- | Oorder a bunch of declarations topologically
 topoOrder :: [TCDecl a] -> [Rec (TCDecl a)]
 topoOrder = map sccToRec . stronglyConnComp . map node
   where
   node d  = (d, tcDeclName d, getFree d)
 
   getFree TCDecl { tcDeclDef } =
-    [ n | n@Name { nameScope = ModScope {} } <- Set.toList (tcCalls tcDeclDef) ]
+    [ n | n@Name { nameScopedIdent = ModScope {} } <- Set.toList (tcCalls tcDeclDef) ]
 
 
 
 -- Generates new names for locals
-makeFreshFor :: Set (Some TCName) -> TCName k -> TCName k
-makeFreshFor bounds tnm = mkN nm'
-  where
-    mkN nm =  tnm { tcName = nm }
+-- makeFreshFor :: Set (Some TCName) -> TCName k -> TCName k
+-- makeFreshFor bounds tnm = mkN nm'
+--   where
+--     mkN nm =  tnm { tcName = nm }
     
-    nm' = head  . dropWhile (flip Set.member bounds . Some . mkN)
-          . freshCandidates $ tcName tnm
+--     nm' = head  . dropWhile (flip Set.member bounds . Some . mkN)
+--           . freshCandidates $ tcName tnm
     
-    freshCandidates :: Name -> [Name]
-    freshCandidates x =
-      x : [ x { nameScope = Local $ nameScopeAsLocal x <> T.pack (show n) }
-          | n <- [(1::Int)..] ]
+--     freshCandidates :: Name -> [Name]
+--     freshCandidates x =
+--       x : [ x { nameScope = Local $ nameScopeAsLocal x <> T.pack (show n) }
+--           | n <- [(1::Int)..] ]
 
 -- Collect all variables bound.  Mainly used to avoid capture.
 tcBounds :: TCDeclDef a k -> Set (Some TCName)

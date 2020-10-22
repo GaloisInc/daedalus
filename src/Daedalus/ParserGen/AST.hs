@@ -23,7 +23,7 @@ data NName = NName { nName :: Name } --, nType :: NType }
 
 instance (Show NName) where
   show x =
-    case (nameScope (nName x)) of
+    case (nameScopedIdent (nName x)) of
       Local str -> show str
       Unknown str -> show str
       ModScope _ i -> show i

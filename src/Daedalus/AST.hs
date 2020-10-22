@@ -18,12 +18,14 @@ import Language.Haskell.TH.Syntax(Lift(..))
 import Daedalus.PP
 import Daedalus.SourceRange
 import Daedalus.Rec
+import Daedalus.GUID
 import Daedalus.Panic
 
 data Name = forall ctx.
-  Name { nameScope    :: ScopedIdent
-       , nameContext  :: Context ctx
-       , nameRange    :: SourceRange
+  Name { nameScopedIdent :: ScopedIdent
+       , nameContext     :: Context ctx
+       , nameRange       :: SourceRange
+       , nameID          :: !GUID
        }
 
 type ModuleName = Text
@@ -35,14 +37,12 @@ data ScopedIdent = Unknown Ident | Local Ident | ModScope ModuleName Ident
 
 isLocalName :: Name -> Bool
 isLocalName n =
-  case nameScope n of
+  case nameScopedIdent n of
     Local {} -> True
     _        -> False
 
 primName :: Text -> Text -> Context c -> Name
-primName m x c = Name (ModScope m x) c synthetic
-
-
+primName m x c = Name (ModScope m x) c synthetic invalidGUID
 
 instance PP ScopedIdent where
   pp x = case x of
@@ -50,41 +50,45 @@ instance PP ScopedIdent where
            Local    n -> pp n
            ModScope m n -> pp m <> "." <> pp n
 
-
 instance Show Name where
   show Name { .. } =
-    "Name { nameScope = " ++ show nameScope ++ ", " ++
+    "Name { nameScopedIdent = " ++ show nameScopedIdent ++ ", " ++
            "nameContext = " ++ show nameContext ++ ", " ++
-           "nameRange = " ++ show nameRange ++ " }"
+           "nameRange = " ++ show nameRange ++ ", " ++ 
+           "nameID = " ++ show nameID ++ " }"
 
 nameScopeAsUnknown :: Name -> Ident
 nameScopeAsUnknown n =
-  case nameScope n of
+  case nameScopedIdent n of
     Unknown t -> t
     _         -> panicRange n "Expecting an Unknown name scope." [] 
 
 nameScopeAsLocal :: Name -> Ident
 nameScopeAsLocal n =
-  case nameScope n of
+  case nameScopedIdent n of
     Local  t -> t
     _         -> panicRange n "Expecting a Local name scope." [] 
 
 
 nameScopeAsModScope :: Name -> (ModuleName, Ident)
 nameScopeAsModScope n =
-  case nameScope n of
+  case nameScopedIdent n of
     ModScope m t -> (m, t)
     _            -> panicRange n "Expecting an ModScope name scope." [] 
 
 
 instance Eq Name where
-  x == y = nameScope x == nameScope y
-
+  x == y
+    | nameID x == invalidGUID && nameID y == invalidGUID = nameScopedIdent x == nameScopedIdent y
+    | otherwise = nameID x == nameID y
+      
 instance Ord Name where
-  compare x y = compare (nameScope x) (nameScope y)
+  compare x y 
+    | nameID x == invalidGUID && nameID y == invalidGUID = compare (nameScopedIdent x) (nameScopedIdent y)
+    | otherwise = compare (nameID x) (nameID y)
 
 instance PP Name where
-  pp = pp . nameScope
+  pp = pp . nameScopedIdent
 
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]

@@ -19,7 +19,8 @@ library
     Daedalus.PP,
     Daedalus.SourceRange,
     Daedalus.Rec,
-    Daedalus.Panic
+    Daedalus.Panic,
+    Daedalus.GUID
 
   build-depends:
     base >=4.13 && <4.14,
@@ -29,7 +30,8 @@ library
     containers,
     GraphSCC,
     alex-tools,
-    panic
+    panic,
+    monadLib
 
   hs-source-dirs:      src
   default-language:    Haskell2010

@@ -80,6 +80,7 @@ import Daedalus.SourceRange
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
+import Daedalus.GUID
 
 import Daedalus.AST
 import Daedalus.Type.AST
@@ -91,7 +92,7 @@ import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
-import Daedalus.Rename(rename)
+-- import Daedalus.Rename(rename)
 import Daedalus.Normalise(normalise)
 import Daedalus.Normalise.AST(NDecl)
 import qualified Daedalus.CompileHS      as HS
@@ -264,6 +265,7 @@ data State = State
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
 
+  , nextFreeGUID :: !GUID
   }
 
 
@@ -630,15 +632,22 @@ passSpecialize :: ModuleName -> [(ModuleName,Ident)] -> Daedalus ()
 passSpecialize tgt roots =
   do mapM_ ddlLoadModule (map fst roots)
      allMods <- ddlBasisMany (map fst roots)
+
+     -- Find the actual Names, not just the ScopedIdents.  Pretty ugly
+     let rootIds = [ ModScope m i | (m,i) <- roots ]
+         -- FIXME: this ignores GUIDs
+         findRootNames m = [ tcDeclName d | d <- forgetRecs (tcModuleDecls m)
+                                          , nameScopedIdent (tcDeclName d) `elem` rootIds ]
+                                  
      allDecls <- forM allMods \m ->
                     do mo <- ddlGetAST m astTC
-                       pure (tcModuleTypes mo, tcModuleDecls mo)
+                       pure (tcModuleTypes mo, tcModuleDecls mo, findRootNames mo)
 
-     let (tdss,dss) = unzip allDecls
+     let (tdss,dss,rootss) = unzip3 allDecls
          tdecls = concat tdss
          decls = concat dss
-     let rootIds = [ ModScope m i | (m,i) <- roots ]
-
+         rootNames = concat rootss
+         
      mb <- getLoaded tgt
      case mb of
        Just _ ->
@@ -646,10 +655,10 @@ passSpecialize tgt roots =
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
 
-     case specialise rootIds decls of
+     case specialise rootNames decls of
        Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->
-         let ds = topoOrder (rename sds)
+         let ds = topoOrder sds -- (rename sds)
              mo = TCModule
                     { tcModuleName = tgt
                     , tcModuleImports = []
