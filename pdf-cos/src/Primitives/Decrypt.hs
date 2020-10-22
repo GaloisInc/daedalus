@@ -19,6 +19,8 @@ import RTS.Input
 
 import PdfMonad.Transformer
 
+import Debug.Trace 
+
 decrypt :: PdfParser m => Input -> m Input 
 decrypt inp = do 
   ctx <- getEncContext 
@@ -35,8 +37,11 @@ decrypt inp = do
             Nothing -> 
               pError FromUser "Decrypt.decrypt" "Could not construct AES IV" 
             Just iv -> 
-              let res = Y.cbcDecrypt ciph iv dat 
-              in pure (newInput name res) 
+              if B.length dat `mod` 16 == 0 then 
+                let res = Y.cbcDecrypt ciph iv dat  
+                in pure (newInput name res) 
+              else 
+                pError FromUser "Decrypt.decrypt" "Encrypted data length is not a multiple of 16."
   where 
     (head, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
