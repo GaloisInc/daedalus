@@ -79,10 +79,11 @@ term c = BlockBuilder \_ i -> ([], (c, nextLocal i, reverse (externArgs i)))
 
 buildBlock ::
   Label ->
+  BlockType ->
   [VMT] ->
   ([E] -> BlockBuilder Void) ->
   (Block, [FV])
-buildBlock nm tys f =
+buildBlock nm bty tys f =
   let args = [ BA n t Borrowed{-placeholder-} | (n,t) <- [0..] `zip` tys ]
       BlockBuilder m = f (map EBlockArg args)
       info = BuildInfo { nextLocal = 0
@@ -93,6 +94,7 @@ buildBlock nm tys f =
       (is,(c,ln,ls)) = m (\v _ -> case v of {}) info
       (extra,free) = unzip ls
   in ( Block { blockName = nm
+             , blockType = bty
              , blockArgs = args ++ extra
              , blockLocalNum = ln
              , blockInstrs = is

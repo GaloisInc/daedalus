@@ -45,11 +45,24 @@ data VMFun = VMFun
 -- | A basic block
 data Block = Block
   { blockName     :: Label
+  , blockType     :: BlockType
   , blockArgs     :: [BA]
   , blockLocalNum :: Int      -- ^ How many locals we define
   , blockInstrs   :: [Instr]
   , blockTerm     :: CInstr
   }
+
+data BlockType =
+    NormalBlock
+  | ReturnBlock
+    {- ^ The landing target for returning from functions.
+    These blocks will only ever be used by the various "return"
+    instructions and so they can use a different "calling" convention
+    for passing arguments. -}
+
+  | ThreadBlock
+    {- ^ This block is an entry point to a thread. -}
+    deriving (Eq,Show)
 
 -- | Instructions
 data Instr =
@@ -167,7 +180,7 @@ iArgs i =
 data Effect     = MayFail | DoesNotFail
   deriving (Eq,Ord,Show)
 
-data Label      = Label Text Int deriving (Eq,Ord)
+data Label      = Label Text Int deriving (Eq,Ord,Show)
 
 data BV         = BV Int VMT            deriving (Eq,Ord)
 data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
@@ -346,9 +359,14 @@ instance PP BA where
                   Borrowed -> "b"
 
 instance PP Block where
-  pp b = l <.> colon $$ nest 2
+  pp b = l <.> colon <+> ty $$ nest 2
                           (vcat (map pp (blockInstrs b)) $$ pp (blockTerm b))
     where
+    ty = case blockType b of
+           NormalBlock -> empty
+           ReturnBlock -> "// return"
+           ThreadBlock -> "// thread"
+
     l = case blockArgs b of
           [] -> pp (blockName b)
           xs -> ppFun (pp (blockName b)) (map ppArg xs)
