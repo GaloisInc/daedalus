@@ -26,7 +26,7 @@ void example() {
 F:
   std::cout << "Function F(" << f_arg << ")\n";
   other_arg = 77;
-  std::cout << "F: ther_arg = " << other_arg << std::endl;
+  std::cout << "F: other_arg = " << other_arg << std::endl;
   std::cout << "F: stack = " << stack << std::endl;
   goto * ((DDL::BoxedValue<StackFrame>*)stack)->value.code;   // return
 
