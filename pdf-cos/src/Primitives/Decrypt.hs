@@ -47,8 +47,8 @@ makeObjKey :: EncContext
 makeObjKey ctx = 
     B.take ((keylen ctx) + 5) (BA.convert digest)
   where 
-    ob = B.take 3 $ B.reverse $ S.encode (refObj (obj ctx))
-    gb = B.take 2 $ B.reverse $ S.encode (refGen (obj ctx))
+    ob = B.take 3 $ B.reverse $ S.encode (robj ctx)
+    gb = B.take 2 $ B.reverse $ S.encode (rgen ctx)
     salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [(key ctx), ob, gb, salt]
      

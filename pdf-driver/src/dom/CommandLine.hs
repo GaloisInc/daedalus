@@ -10,7 +10,7 @@ data Command =
   | Validate
   | ListXRefs
   | ShowHelp
-  | ShowEncrypt  
+  -- | ShowEncrypt  
 
 data Settings = Settings
   { command     :: Command
@@ -38,9 +38,9 @@ options = OptSpec
         "Pretty print trailier or the reference --obj --gen"
         $ NoArg \s -> Right s { command = PrettyPrint }
 
-      , Option [] ["enc"]
-        "Print the Encryption table."
-        $ NoArg \s -> Right s { command = ShowEncrypt }
+      -- , Option [] ["enc"]
+      --   "Print the Encryption table."
+      --   $ NoArg \s -> Right s { command = ShowEncrypt }
 
       , Option [] ["list"]
         "Pretty print all objects in the PDF."

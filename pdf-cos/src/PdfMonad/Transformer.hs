@@ -33,8 +33,9 @@ newtype PdfT m a = P (RO -> RW -> m (a,RW))
 
 data EncContext = EncContext 
   { key    :: ByteString
-  , obj    :: R 
   , keylen :: Int 
+  , robj   :: Int
+  , rgen   :: Int  
   -- XXX: record the cypher here - we just default to AES128 
   }
 

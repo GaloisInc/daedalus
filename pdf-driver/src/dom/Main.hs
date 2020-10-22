@@ -10,12 +10,12 @@ import Text.PrettyPrint
 import SimpleGetOpt
 
 import RTS.Input(newInput)
-import RTS.Vector(vecFromRep) 
+import RTS.Vector(vecFromRep,vecToRep,toList) 
 
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
-import PdfXRef(pEncryptionDict) 
+import PdfXRef(pEncryptionDict,TrailerDict) 
 import PdfValue(Value(..),Ref(..))
 import Primitives.Decrypt(makeFileKey)
 
@@ -23,6 +23,7 @@ import PdfDOM
 import CommandLine
 import PP
 
+import Debug.Trace
 
 main :: IO ()
 main =
@@ -46,15 +47,34 @@ main =
            ParseAmbig _ -> error "BUG: Ambiguous XRef table."
            ParseErr e   -> quit (show (pp e))
 
-     let run p =
-           do res <- runParser refs Nothing p topInput
+     let run p enc =
+           do res <- runParser refs enc p topInput
               case res of
                 ParseOk a     -> pure a
                 ParseAmbig {} -> quit "BUG: Ambiguous result"
                 ParseErr e    -> quit (show (pp e))
 
+         makeEncContext (Ref ro rg) =  
+          case (getField @"encrypt" trail, getField @"id" trail) of 
+            (Nothing, _) -> pure Nothing
+            (Just d, Just id) -> do 
+              enc <- run (pEncryptionDict d) Nothing 
+              let len = fromIntegral $ getField @"encLength" enc 
+                  encO = vecToRep $ getField @"encO" enc 
+                  encP = fromIntegral $ getField @"encP" enc
+                  firstid = vecToRep $ getField @"firstid" id 
+                  -- XXX: note the hardcoded password here
+                  filekey = makeFileKey len BS.empty encO encP firstid  
+              pure $ Just EncContext { key = filekey
+                                     , keylen = len
+                                     , robj = fromIntegral ro
+                                     , rgen = fromIntegral rg
+                                     } 
+            (_, Nothing) -> quit "BUG: Missing ID field"
+
          ppRef pref r =
-           do res <- runParser refs Nothing (pResolveRef r) topInput
+           do ec <- makeEncContext r 
+              res <- runParser refs ec (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -81,20 +101,20 @@ main =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do run (pPdfTrailer trail)
+          do run (pPdfTrailer trail) Nothing 
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
 
-       ShowEncrypt -> 
-         case getField @"encrypt" trail of 
-           Nothing -> putStrLn "No encryption"
-           Just d  -> do 
-             enc <- run (pEncryptionDict d) 
-             print (getField @"encLength" enc)
-             print (getField @"encO" enc) 
-             print (getField @"encP" enc) 
-             print (getField @"id" trail)
+      --  ShowEncrypt -> 
+      --    case getField @"encrypt" trail of 
+      --      Nothing -> putStrLn "No encryption"
+      --      Just d  -> do 
+      --        enc <- run (pEncryptionDict d) Nothing  
+      --        print (getField @"encLength" enc)
+      --        print (getField @"encO" enc) 
+      --        print (getField @"encP" enc) 
+      --        print (getField @"id" trail)
 
 quit :: String -> IO a
 quit msg =
