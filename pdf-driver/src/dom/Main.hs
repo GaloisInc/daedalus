@@ -64,7 +64,7 @@ main =
                   encP = fromIntegral $ getField @"encP" enc
                   firstid = vecToRep $ getField @"firstid" id 
                   -- XXX: note the hardcoded password here
-                  filekey = makeFileKey len BS.empty encO encP firstid  
+                  filekey = makeFileKey len (password opts) encO encP firstid  
               pure $ Just EncContext { key = filekey
                                      , keylen = len
                                      , robj = fromIntegral ro

@@ -4,6 +4,8 @@ module CommandLine where
 import Text.Read(readMaybe)
 import SimpleGetOpt
 
+import qualified Data.ByteString.Char8 as C 
+
 data Command =
     PrettyPrint
   | PrettyPrintAll
@@ -16,6 +18,7 @@ data Settings = Settings
   { command     :: Command
   , object      :: Integer
   , generation  :: Integer
+  , password    :: C.ByteString 
   , files       :: [FilePath]
   }
 
@@ -26,6 +29,7 @@ options = OptSpec
         { command     = Validate
         , object      = -1    -- means show trailer
         , generation  = 0
+        , password    = C.empty 
         , files       = []
         }
 
@@ -53,6 +57,10 @@ options = OptSpec
       , Option [] ["gen"]
         "Set the generation of the focused object."
       $ ReqArg "NUM" $ integerArg "gen" \g s -> Right s { generation = g }
+
+      , Option [] ["pwd"]
+        "Set the encryption password for the document."
+      $ ReqArg "STRING" $ (\v opts -> Right opts { password = C.pack v} ) 
 
       , Option [] ["help"]
         "Show this help."

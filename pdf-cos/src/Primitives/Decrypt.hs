@@ -38,7 +38,7 @@ decrypt inp = do
               let res = Y.cbcDecrypt ciph iv dat 
               in pure (newInput name res) 
   where 
-    (head, dat) = B.splitAt 2 $ inputBytes inp
+    (head, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
 
 
