@@ -1,7 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, OverloadedStrings #-}
+{-# LANGUAGE RankNTypes, StandaloneDeriving, DeriveFunctor #-}
 
 module Daedalus.Scope (
-  resolveModules, resolveModule, ScopeError(..), prettyScopeError
+  -- resolveModules,
+  resolveModule, ScopeError(..), prettyScopeError
   ) where
 
 import Data.Functor ( ($>) )
@@ -15,9 +17,7 @@ import qualified Data.Map as Map
 import Data.Map.Merge.Lazy (preserveMissing, zipWithAMatched, mergeA)
 import Control.Exception(Exception(..))
 
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Except
+import MonadLib
 
 import Daedalus.GUID
 import Daedalus.SourceRange
@@ -38,14 +38,10 @@ type VarScope = Map Ident Name
 
 data Scope = Scope { varScope      :: VarScope }
 
-data ScopeState =
-  ScopeState { seenToplevelNames :: Set Name
-             , nextFreeGUID    :: GUID
-             }
+data ScopeState = ScopeState { seenToplevelNames :: Set Name }
 
-emptyScopeState :: GUID -> ScopeState
-emptyScopeState nextFree = ScopeState { seenToplevelNames = Set.empty
-                                      , nextFreeGUID = nextFree }
+emptyScopeState :: ScopeState
+emptyScopeState = ScopeState { seenToplevelNames = Set.empty }
 
 --------------------------------------------------------------------------------
 -- Errors
@@ -71,32 +67,39 @@ prettyScopeError e = pure (show (pp e))
 --------------------------------------------------------------------------------
 -- Monad
 
-newtype ScopeM a = ScopeM { getScopeM :: ReaderT Scope (StateT ScopeState (Except ScopeError)) a }
-  deriving (Functor, Applicative, Monad)
+newtype ScopeM a = ScopeM { getScopeM :: forall m. HasGUID m =>
+                                         ReaderT Scope (StateT ScopeState (ExceptionT ScopeError m)) a }
 
-runScopeM :: Scope -> GUID -> ScopeM a -> Either ScopeError (a, ScopeState)
-runScopeM scope nextFree (ScopeM m) = runExcept (runStateT (runReaderT m scope) (emptyScopeState nextFree))
+deriving instance Functor ScopeM
 
-nextGUID :: ScopeM GUID
-nextGUID = ScopeM (state go)
-  where
-    go s = (nextFreeGUID s, s { nextFreeGUID = succGUID (nextFreeGUID s) })
+instance Applicative ScopeM where
+  ScopeM m <*> ScopeM m' = ScopeM (m <*> m')
+  pure v = ScopeM $ pure v
+  
+instance Monad ScopeM where
+  ScopeM m >>= f = ScopeM (m >>= getScopeM . f)
+
+instance HasGUID ScopeM where
+  getNextGUID = ScopeM $ lift (lift (lift getNextGUID))
+
+runScopeM :: HasGUID m => Scope -> ScopeM a -> m (Either ScopeError (a, ScopeState))
+runScopeM scope (ScopeM m) = runExceptionT (runStateT emptyScopeState (runReaderT scope m))
 
 recordNameRef :: Name -> ScopeM ()
 recordNameRef r
   | ModScope _ _ <- nameScopedIdent r = 
-      ScopeM $ modify (\s -> s { seenToplevelNames = Set.insert r (seenToplevelNames s) } )
+      ScopeM $ sets_ (\s -> s { seenToplevelNames = Set.insert r (seenToplevelNames s) } )
   | otherwise = pure ()
 
 extendLocalScopeIn :: [Name] -> ScopeM a -> ScopeM a
-extendLocalScopeIn ids = ScopeM . local extendScope . getScopeM
+extendLocalScopeIn ids (ScopeM m) = ScopeM (mapReader extendScope m)
   where
     extendScope s = s { varScope = foldl extendOneScope (varScope s) ids }
     extendOneScope vs n = Map.insert (nameScopeAsLocal n) n vs
 
 makeNameLocal :: Name -> ScopeM Name
 makeNameLocal n = do
-  gid <- nextGUID
+  gid <- getNextGUID
   pure $ n { nameScopedIdent = Local (nameScopeAsUnknown n), nameID = gid }
 
 getScope :: ScopeM Scope
@@ -107,32 +110,42 @@ getScope = ScopeM ask
 
 type GlobalScope = Map ModuleName (Map Ident Name) {- ^ Maps module name to what's in scope -}
 
-data ResolveState =
-  ResolveState { rsNextGUID :: GUID
-               , rsSeen :: GlobalScope
-               }
+newtype ResolveM a =
+  ResolveM { getResolveM :: forall m. HasGUID m => StateT GlobalScope (ExceptionT ScopeError m) a }
 
-newtype ResolveM a = ResolveM { getResolveM :: StateT ResolveState (Except ScopeError) a }
-  deriving (Functor, Applicative, Monad, MonadState ResolveState)
+deriving instance Functor ResolveM
+
+instance Applicative ResolveM where
+  ResolveM m <*> ResolveM m' = ResolveM (m <*> m')
+  pure v = ResolveM $ pure v
+  
+instance Monad ResolveM where
+  ResolveM m >>= f = ResolveM (m >>= getResolveM . f)
+
+instance HasGUID ResolveM where
+  getNextGUID = ResolveM $ lift (lift getNextGUID)
 
 makeNameModScope :: ModuleName -> Name -> ResolveM Name
 makeNameModScope m n = do
-  gid <- gets rsNextGUID
-  modify (\s -> s { rsNextGUID = succGUID gid })
+  gid <- getNextGUID
   pure $ n { nameScopedIdent = ModScope m (nameScopeAsUnknown n), nameID = gid }
 
-resolveModules :: [Module] -> Either ScopeError ([Module], GUID)
-resolveModules ms = runExcept (evalStateT (getResolveM go) s0)
+-- resolveModules :: HasGUID m => [Module] -> m (Either ScopeError [Module])
+-- resolveModules ms = runExceptionT (fst <$> runStateT s0 (getResolveM go))
+--   where
+--     go = mapM resolveModule' ms
+--     s0 = ResolveState Map.empty
+
+resolveModule :: HasGUID m => GlobalScope -> Module -> m (Either ScopeError (Module, GlobalScope))
+resolveModule scope m = runExceptionT (runStateT scope (getResolveM go))
   where
-    go = (,) <$> mapM resolveModule ms <*> gets rsNextGUID
-    s0 = ResolveState firstValidGUID Map.empty
+    go = resolveModule' m
 
-
-resolveModule :: Module -> ResolveM Module
-resolveModule m =
+resolveModule' :: Module -> ResolveM Module
+resolveModule' m =
   do ns' <- mapM (makeNameModScope (moduleName m) . ruleName) rs
      let namedRs = (zip ns' rs)
-     ms <- gets rsSeen     
+     ms <- ResolveM get
      scope <- Scope <$> moduleScope m ms namedRs
      rs' <- mkRec <$> mapM (runResolve scope) namedRs
      pure $ m { moduleRules = rs' }
@@ -143,9 +156,7 @@ resolveModule m =
     -- FIXME: make nicer (can plumb through nextguid better)
     runResolve :: Scope -> (Name, Rule) -> ResolveM (Rule, Name, [Name])
     runResolve scope (n, r) = do
-      nguid <- gets rsNextGUID 
-      (r', st) <- ResolveM $ liftEither $ runScopeM scope nguid (resolveRule r n)
-      modify (\s -> s { rsNextGUID = nextFreeGUID st } )
+      (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveRule r n))) >>= raises)
       return (r', n, Set.toList (seenToplevelNames st))
 
 -- | Figure out the map from idents to resolved names for a given
@@ -154,21 +165,21 @@ resolveModule m =
 moduleScope :: Module -> GlobalScope -> [(Name, Rule)] -> ResolveM VarScope
   {- ^ All things in scope of this module, new things defined -}
 moduleScope m ms rs =
-  case runState merged Map.empty of
-    ((allDs, defs'), dups) | Map.null dups -> allDs <$ modify (addRuleNames defs')
-    (_, dups)                 -> ResolveM $ throwError (DuplicateNames (moduleName m) dups)
+  case runM merged Map.empty of
+    ((allDs, defs'), dups) | Map.null dups -> allDs <$ (ResolveM $ sets_ (addRuleNames defs'))
+    (_, dups)                 -> ResolveM $ raise (DuplicateNames (moduleName m) dups)
   where
-    addRuleNames defs' s = s { rsSeen = Map.insert (moduleName m) defs' (rsSeen s) } 
+    addRuleNames defs' = Map.insert (moduleName m) defs'
     
-    merged  :: State (Map Ident [Name]) (VarScope, Map Ident Name)
+    merged  :: StateT (Map Ident [Name]) Id (VarScope, Map Ident Name)
     merged  = do defs' <- foldM doMerge Map.empty defs
                  allDs <- foldM doMerge defs' imported
                  return (allDs, defs')
 
     doMerge = mergeA preserveMissing preserveMissing (zipWithAMatched matched)
     
-    matched :: Ident -> Name -> Name -> State (Map Ident [Name]) Name
-    matched k x y = modify (Map.insertWith (++) k [x, y]) $> x
+    matched :: Ident -> Name -> Name -> StateT (Map Ident [Name]) Id Name
+    matched k x y = sets_ (Map.insertWith (++) k [x, y]) $> x
 
     imported = [ ms Map.! thingValue i | i <- moduleImports m ]
 

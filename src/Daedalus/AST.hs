@@ -77,14 +77,18 @@ nameScopeAsModScope n =
     _            -> panicRange n "Expecting an ModScope name scope." [] 
 
 
+-- These instances are a bit odd as if either are invalid, then we
+-- fall back to the idents.  This is a bit fragile, so we are assuming
+-- that we only compare a name with an invalid GUID to noe with a
+-- valid GUID for things like hand-rolled names (e.g. Main).
 instance Eq Name where
   x == y
-    | nameID x == invalidGUID && nameID y == invalidGUID = nameScopedIdent x == nameScopedIdent y
+    | nameID x == invalidGUID || nameID y == invalidGUID = nameScopedIdent x == nameScopedIdent y
     | otherwise = nameID x == nameID y
       
 instance Ord Name where
   compare x y 
-    | nameID x == invalidGUID && nameID y == invalidGUID = compare (nameScopedIdent x) (nameScopedIdent y)
+    | nameID x == invalidGUID || nameID y == invalidGUID = compare (nameScopedIdent x) (nameScopedIdent y)
     | otherwise = compare (nameID x) (nameID y)
 
 instance PP Name where

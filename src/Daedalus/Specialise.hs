@@ -78,10 +78,10 @@ regroup = fmap reverse . foldr addR Map.empty . topoOrder
 
 
 -- | This assumes that the declratations are in dependency order.
-specialise :: [Name] -> GUID -> [Rec (TCDecl SourceRange)]
-              -> Either String [TCDecl SourceRange]
-specialise ruleRoots guid decls =
-  fst <$> runPApplyM ruleRoots guid (concat . reverse <$> mapM go (reverse decls))
+specialise :: HasGUID m => [Name] -> [Rec (TCDecl SourceRange)]
+              -> m (Either String [TCDecl SourceRange])
+specialise ruleRoots decls =
+  runPApplyM ruleRoots (concat . reverse <$> mapM go (reverse decls))
   where
     -- First we find if we need to generate partial applications.  If we
     -- do so, we can discard the input tdecl (FIXME: I think?), the

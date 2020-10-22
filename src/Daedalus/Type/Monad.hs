@@ -1,6 +1,6 @@
 {-# Language BlockArguments, OverloadedStrings, DataKinds #-}
 {-# Language NamedFieldPuns #-}
-{-# Language TypeFamilies, GeneralizedNewtypeDeriving #-}
+{-# Language TypeFamilies, GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor #-}
 {-# Language MultiParamTypeClasses #-}
 {-# Language RankNTypes #-}
 module Daedalus.Type.Monad
@@ -114,12 +114,21 @@ reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM ( WithBase Id
+newtype MTypeM a = MTypeM { getMTypeM :: forall m. HasGUID m =>
+                            WithBase m
                               '[ ReaderT MRO
-                               , StateT  MRW
                                , ExceptionT TypeError
                                ] a
-                          ) deriving (Functor,Applicative,Monad)
+                          }
+                   
+deriving instance Functor MTypeM
+
+instance Applicative MTypeM where
+  MTypeM m <*> MTypeM m' = MTypeM (m <*> m')
+  pure v = MTypeM $ pure v
+  
+instance Monad MTypeM where
+  MTypeM m >>= f = MTypeM (m >>= getMTypeM . f)
 
 type RuleEnv  = Map Name (Poly RuleType)
 
@@ -128,30 +137,17 @@ data MRO = MRO
   , roTypeDefs      :: !(Map TCTyName TCTyDecl)
   }
 
-data MRW = MRW
-  { sNextGUID    :: !GUID -- ^ Generate names.
-  }
-
-
-
 -- XXX: maybe preserve something about the state?
-runMTypeM :: Map TCTyName TCTyDecl ->
+runMTypeM :: HasGUID m => Map TCTyName TCTyDecl ->
              RuleEnv ->
-             GUID ->
-             MTypeM a -> Either TypeError a
-runMTypeM tenv renv guid (MTypeM m) =
-  case runId $ runExceptionT $ runStateT s0 $ runReaderT r0 m of
-    Left err    -> Left err
-    Right (a,_) -> Right a
-
+             MTypeM a -> m (Either TypeError a)
+runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
                    }
-        s0   = MRW { sNextGUID   = guid 
-                   }
 
 instance HasGUID MTypeM where
-  getNextGUID = MTypeM $ mkGetNextGUID sNextGUID (\guid s -> s { sNextGUID = guid })
+  getNextGUID = MTypeM $ lift (lift getNextGUID)
 
 instance MTCMonad MTypeM where
   reportError r s =

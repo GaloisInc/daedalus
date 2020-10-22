@@ -266,6 +266,7 @@ data State = State
     -- ^ Map type names to core names.
 
   , nextFreeGUID :: !GUID
+    -- ^ Plumb through fresh names
   }
 
 
@@ -281,6 +282,7 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
+  , nextFreeGUID        = firstValidGUID
   }
 
 
@@ -378,6 +380,9 @@ instance Monad Daedalus where
                            let Daedalus m1 = f a
                            m1 s1
 
+instance HasGUID Daedalus where
+  getNextGUID = Daedalus \s ->
+    pure $ mkGetNextGUID' nextFreeGUID (\g t -> t { nextFreeGUID = g }) s
 
 -- | Execute a Daedalus computation starting with the "defaultState".
 daedalus :: Daedalus a -> IO a
@@ -494,7 +499,8 @@ parseModule n =
 resolveModule :: Module -> Daedalus ()
 resolveModule m =
   do defs <- ddlGet moduleDefines
-     case Scope.resolveModule defs m of
+     r <- Scope.resolveModule defs m
+     case r of
        Right (m1,newDefs) ->
          ddlUpdate_ \s -> s { loadedModules = Map.insert (moduleName m1)
                                                          (ResolvedModule m1)
@@ -509,7 +515,8 @@ tcModule :: Module -> Daedalus ()
 tcModule m =
   do tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
-     case runMTypeM tdefs rtys (inferRules m) of
+     r <-  runMTypeM tdefs rtys (inferRules m)
+     case r of
        Left err -> ddlThrow $ ATypeError err
        Right m1 ->
         ddlUpdate_ \s -> s
@@ -654,8 +661,8 @@ passSpecialize tgt roots =
           ddlThrow (ADriverError
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
-
-     case specialise rootNames decls of
+     r <- specialise rootNames decls
+     case r of
        Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->
          let ds = topoOrder sds -- (rename sds)

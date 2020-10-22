@@ -1,5 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
-{-# LANGUAGE RecordWildCards #-} -- for dealing with TCDecl and existential k
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor #-} 
+{-# LANGUAGE TypeApplications, ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Daedalus.Specialise.Monad where
 
@@ -44,23 +47,32 @@ data PApplyState =
               -- Subset of the above
               , pendingSpecs   :: Map Name [ Instantiation ]
               , otherSeenRules :: Set Name
-              , nextNameGUID   :: !GUID
               }
 
-emptyPApplyState :: GUID -> PApplyState
+emptyPApplyState :: PApplyState
 emptyPApplyState = PApplyState Map.empty Map.empty Set.empty 
 
 newtype PApplyM a =
-  PApplyM { getPApplyM :: StateT PApplyState (ExceptionT String Id) a }
-  deriving (Functor, Applicative, Monad)
+  PApplyM { getPApplyM :: forall m. HasGUID m => ExceptionT String (StateT PApplyState m) a }
 
+deriving instance Functor PApplyM
+
+instance Applicative PApplyM where
+  PApplyM m <*> PApplyM m' = PApplyM (m <*> m')
+  pure v = PApplyM $ pure v
+  
+instance Monad PApplyM where
+  PApplyM m >>= f = PApplyM (m >>= getPApplyM . f)
 
 instance ExceptionM PApplyM [Char] where
-  raise = PApplyM . raise
+  raise s = PApplyM (raise s)
 
-runPApplyM :: [Name] -> GUID ->  PApplyM a -> Either String (a, GUID)
-runPApplyM roots guid m = fst <$> runM ((,) <$> getPApplyM m <*> (nextNameGUID <$> get)) s0
-  where s0 = (emptyPApplyState guid) { otherSeenRules = Set.fromList roots }
+instance HasGUID PApplyM where
+  getNextGUID = PApplyM $ lift (lift getNextGUID)
+
+runPApplyM :: forall f a. HasGUID f => [Name] -> PApplyM a -> f (Either String a)
+runPApplyM roots m = fst <$> runStateT s0 (runExceptionT (getPApplyM m @f))
+  where s0 = emptyPApplyState  { otherSeenRules = Set.fromList roots }
 
 -- clearSpecRequests :: Name -> PApplyM ()
 -- clearSpecRequests nm =
@@ -83,15 +95,15 @@ addSpecRequest :: ModuleName
                -> [TCName Value]
                -> [Maybe (Arg SourceRange)]
                -> PApplyM Name
-addSpecRequest modName nm ts newPs args = PApplyM $ sets go
+addSpecRequest modName nm ts newPs args = do
+  nguid <- getNextGUID
+  let nm'  = freshDeclName nguid
+      inst = Instantiation nm' ts newPs args
+  PApplyM $ sets_ $ \s -> s { requestedSpecs = Map.insertWith (++) nm [inst] (requestedSpecs s)
+                            , pendingSpecs   = Map.insertWith (++) nm [inst] (pendingSpecs s)
+                            }
+  pure nm'
   where
-    go s = let nm'  = freshDeclName (nextNameGUID s)
-               inst = Instantiation nm' ts newPs args
-           in (nm',  s { requestedSpecs = Map.insertWith (++) nm [inst] (requestedSpecs s)
-                       , pendingSpecs   = Map.insertWith (++) nm [inst] (pendingSpecs s)
-                       , nextNameGUID   = succGUID (nextNameGUID s)
-                       } )
-
     freshDeclName guid  =
       nm { nameScopedIdent = case nameScopedIdent nm of
              ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show (pp guid)))
