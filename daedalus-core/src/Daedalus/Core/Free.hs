@@ -8,9 +8,47 @@ import Daedalus.Core.Expr
 import Daedalus.Core.Grammar
 import Daedalus.Core.Decl
 
+-- | Compute value-level dependencies
 class FreeVars t where
   freeVars :: t -> Set Name
   freeFVars :: t -> Set FName
+
+-- | Compute user-defined type dependencies
+class FreeTCons t where
+  freeTCons :: t -> Set TName
+
+instance FreeTCons a => FreeTCons [a] where
+  freeTCons = Set.unions . map freeTCons
+
+instance FreeTCons TDecl where
+  freeTCons = freeTCons . tDef
+
+instance FreeTCons TDef where
+  freeTCons td =
+    case td of
+      TStruct xs -> freeTCons (map snd xs)
+      TUnion xs  -> freeTCons (map snd xs)
+
+instance FreeTCons Type where
+  freeTCons ty =
+    case ty of
+      TStream         -> Set.empty
+      TUInt {}        -> Set.empty
+      TSInt {}        -> Set.empty
+      TInteger        -> Set.empty
+      TBool           -> Set.empty
+      TUnit           -> Set.empty
+      TArray t        -> freeTCons t
+      TMaybe t        -> freeTCons t
+      TMap k v        -> freeTCons [k,v]
+      TBuilder t      -> freeTCons t
+      TIterator t     -> freeTCons t
+      TUser ut        -> freeTCons ut
+      TParam p        -> Set.empty
+
+instance FreeTCons UserType where
+  freeTCons = Set.singleton . utName
+
 
 instance FreeVars a => FreeVars [a] where
   freeVars = Set.unions . map freeVars

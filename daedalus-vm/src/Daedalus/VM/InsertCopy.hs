@@ -2,7 +2,7 @@
 {-# Language BlockArguments, OverloadedStrings, RecordWildCards #-}
 module Daedalus.VM.InsertCopy (addCopyIs) where
 
-import Control.Monad(zipWithM,ap,liftM,guard)
+import Control.Monad(zipWithM,ap,liftM)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
@@ -17,8 +17,6 @@ import Daedalus.VM
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.TypeRep
 import Daedalus.VM.FreeVars
-
-import Debug.Trace
 
 
 addCopyIs :: Program -> Program
@@ -149,14 +147,6 @@ checkTermCopies is0 term0 = (reverse is1, term1)
         case checkIs okChoice is0 ls0 of
           (is,ls) -> (is, JumpIf e ls)
 
-      Call f c ls0 es ->
-        case checkIs upd is0 ls0 of
-          (is,ls) -> (is, Call f c ls es)
-        where
-        okVar      = not . (`Set.member` freeVarSet es)
-        upd x v ls = do guard (okVar (LocalVar x) && okVar v)
-                        okChoice x v ls
-
       _ -> (is0,term0)
 
   checkIs upd is jc =
@@ -234,7 +224,8 @@ instance DoSubst CInstr where
       ReturnYes e     -> ReturnYes  (doSubst x v e)
       ReturnPure e    -> ReturnPure (doSubst x v e)
       CallPure f l es -> CallPure f (doSubst x v l) (doSubst x v es)
-      Call f c ls es  -> Call f c (doSubst x v ls) (doSubst x v es)
+      Call f c no yes es -> Call f c (doSubst x v no) (doSubst x v yes)
+                                                      (doSubst x v es)
       TailCall f c es -> TailCall f c (doSubst x v es)
 
 instance DoSubst JumpPoint where
@@ -296,7 +287,6 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
 
   inTerm = case blockTerm b of
              JumpIf e ls    -> JumpIf e (freeChoice ls)
-             Call f c ls es -> Call f c (freeChoice ls) es
              t              -> t
 
   freeChoice JumpChoice { .. } =
@@ -384,11 +374,12 @@ doCInstr cinstr =
          l1  <- doJump l
          pure (CallPure f l1 es1)
 
-    Call f c ls es  ->
+    Call f c no yes es  ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
-         ls1 <- doJumpChoice ls
-         pure (Call f c ls1 es1)
+         no1 <- doJump no
+         yes1 <- doJump yes
+         pure (Call f c no1 yes1 es1)
 
     TailCall f c es ->
       do sig <- lookupFunMode f

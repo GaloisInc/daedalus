@@ -30,7 +30,9 @@ library
     Daedalus.VM.Compile.Decl
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
+    Daedalus.VM.Backend.C.Names
     Daedalus.VM.Backend.C.Types
+    Daedalus.VM.Backend.C.UserDefined
 
   build-depends:
     base >=4.13 && <4.14,

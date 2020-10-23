@@ -5,8 +5,6 @@ module Daedalus.VM.Compile.Grammar where
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
 
-import Daedalus.PP(pp)
-
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
@@ -53,8 +51,8 @@ compile expr next0 =
     Src.If e p q ->
       do next' <- sharedYes =<< sharedNo next
 
-         pCode <- label0 =<< compile p next'
-         qCode <- label0 =<< compile q next'
+         pCode <- label0 NormalBlock =<< compile p next'
+         qCode <- label0 NormalBlock =<< compile q next'
 
          compileE e $ Just \v ->
            jumpIf v pCode qCode
@@ -115,10 +113,10 @@ compile expr next0 =
 
          qCode <-
             do finished <-
-                 label0 $ term $ Yield
+                 label0 NormalBlock $ term $ Yield
 
                bothFailed <-
-                 label0 $ nextNo next'
+                 label0 NormalBlock $ nextNo next'
 
                compile q next'
                  { onNo  = Just do v <- getLocal leftFailed
@@ -126,7 +124,7 @@ compile expr next0 =
                  }
 
          -- used to process the RHS
-         doRHS <- label1' (Just (TSem Src.TBool)) \didFail ->
+         doRHS <- label1' ThreadBlock (Just (TSem Src.TBool)) \didFail ->
                   do setLocal leftFailed didFail
                      qCode
 
@@ -152,17 +150,13 @@ compile expr next0 =
 
              _ ->
 
-               do noL <- label0 $ nextNo next
+               do noL <- label0 ReturnBlock $ nextNo next
 
-                  yesL <- label1' Nothing \v -> nextYes next v
+                  yesL <- label1' ReturnBlock Nothing \v -> nextYes next v
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 let ls = JumpChoice
-                                            { jumpYes = jumpNoFree cloYes
-                                            , jumpNo  = jumpNoFree cloNo
-                                            }
-                                 term $ Call f Capture ls vs
+                                 term $ Call f Capture cloNo cloYes vs
 
          compileEs es \vs -> doCall vs
 
@@ -186,14 +180,14 @@ sharedNo :: WhatNext -> C WhatNext
 sharedNo next =
   case onNo next of
     Nothing -> pure next
-    Just c  -> do l <- label0 c
+    Just c  -> do l <- label0 NormalBlock c
                   pure next { onNo = Just (jump l) }
 
 sharedYes :: WhatNext -> C WhatNext
 sharedYes next =
   case onYes next of
     Nothing -> pure next
-    Just c  -> do l <- label1 c
+    Just c  -> do l <- label1 NormalBlock c
                   pure next { onYes = Just \v -> jump (l v) }
 
 

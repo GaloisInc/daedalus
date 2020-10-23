@@ -59,7 +59,7 @@ runC f ty (C m) =
                              , cLabels = Map.empty
                              }
       l = Label f (cLabel info)
-      (bl,extraArgs) = buildBlock l [] \ ~[] -> b
+      (bl,extraArgs) = buildBlock l NormalBlock [] \ ~[] -> b
   in case extraArgs of
        [] -> (l, Map.insert l bl (cLabels info))
        _  -> panic "runC" ["Undefined locals?"]
@@ -87,11 +87,11 @@ gdef :: Src.Name -> FV -> C a -> C a
 gdef x v (C m) = C \r -> m r { vEnv = Map.insert x v (vEnv r) }
 
 
-newBlock :: [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, [FV])
-newBlock tys def = C \r s ->
+newBlock :: BlockType -> [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, [FV])
+newBlock bty tys def = C \r s ->
   let l               = cLabel s
       lab             = Label (curFun r) l
-      (b,extraArgs)   = buildBlock lab tys def
+      (b,extraArgs)   = buildBlock lab bty tys def
   
   in case isJumpJump b of
       Just otherL -> ( (otherL, extraArgs), s)
@@ -104,7 +104,8 @@ newBlock tys def = C \r s ->
   isJumpJump b =
     case (blockInstrs b, blockTerm b) of
       ([], Jump (JumpPoint l es))
-        | Just as <- mapM isArg es
+        | NormalBlock <- bty
+        , Just as <- mapM isArg es
         , and (zipWith (==) as [ 0 .. ]) -> Just l
       _ -> Nothing
 
@@ -118,26 +119,34 @@ newLocal t = C \_ s -> let x = cLocal s
                        in ( v
                           , s { cLocal = x + 1 })
 
-label0 :: BlockBuilder Void -> C (BlockBuilder JumpPoint)
-label0 b = do (l,vs) <- newBlock []  \ ~[] -> b
-              pure do es <- mapM getLocal vs
-                      pure (JumpPoint l es)
+label0 :: BlockType -> BlockBuilder Void -> C (BlockBuilder JumpPoint)
+label0 bty b =
+  do (l,vs) <- newBlock bty []  \ ~[] -> b
+     pure do es <- mapM getLocal vs
+             pure (JumpPoint l es)
 
-label1 :: (E -> BlockBuilder Void) -> C (E -> BlockBuilder JumpPoint)
-label1 def =
+label1 ::
+  BlockType ->
+  (E -> BlockBuilder Void) ->
+  C (E -> BlockBuilder JumpPoint)
+label1 bty def =
   do t <- getCurTy
-     (l,vs) <- newBlock [t] \ ~[x] -> def x
+     (l,vs) <- newBlock bty [t] \ ~[x] -> def x
      pure \e -> do es <- mapM getLocal vs
                    pure (JumpPoint l (e:es))
 
 
 -- | For closures
-label1' :: Maybe VMT -> (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
-label1' mb def =
+label1' ::
+  BlockType ->
+  Maybe VMT ->
+  (E -> BlockBuilder Void) ->
+  C (BlockBuilder JumpPoint)
+label1' bty mb def =
   do t <- case mb of
             Nothing -> getCurTy
             Just ty -> pure ty
-     (l,vs) <- newBlock [t] \ ~[x] -> def x
+     (l,vs) <- newBlock bty [t] \ ~[x] -> def x
      pure do es <- mapM getLocal vs
              pure (JumpPoint l es)
 

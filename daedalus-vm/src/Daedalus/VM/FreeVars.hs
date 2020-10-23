@@ -79,7 +79,7 @@ instance FreeVars CInstr where
       Yield             -> id
       ReturnNo          -> id
       ReturnYes e       -> freeVars' e
-      Call _ _ ls es    -> freeVars' (es,ls)
+      Call _ _ no yes es -> freeVars' (es,(no,yes))
       CallPure _ l es   -> freeVars' (l,es)
       TailCall _ _ es   -> freeVars' es
       ReturnPure e      -> freeVars' e

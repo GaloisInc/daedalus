@@ -108,13 +108,13 @@ compileOp3 op ty e1 e2 e3 k =
                        Nothing -> pure Nothing
                        Just kont ->
                          do l <- newLocal (TSem (Src.typeOf e2))
-                            nextL <- label0 (kont =<< getLocal l)
+                            nextL <- label0 NormalBlock (kont =<< getLocal l)
                             pure $ Just \v ->
                                       do setLocal l v
                                          jump nextL
 
          let branch e = do code <- compileE e whatNext
-                           label0 code
+                           label0 NormalBlock code
 
          thenL <- branch e2
          elseL <- branch e3
@@ -138,7 +138,7 @@ compileOpN op ty es k =
            case k of
              Nothing -> pure \vs -> term (TailCall f NoCapture vs)
              Just k' ->
-               do mkL <- label1' Nothing k'
+               do mkL <- label1' ReturnBlock Nothing k'
                   pure \vs ->
                     do l <- mkL
                        term (CallPure f l vs)

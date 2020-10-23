@@ -23,6 +23,33 @@ class IsBoxed : public HasRefs {};
 // size_t refCount()
 
 
+template <typename T>
+struct BoxedValue {
+  size_t ref_count;
+  T      value;
+  BoxedValue()    : ref_count(1) {}
+  BoxedValue(T x) : ref_count(1), value(x) {}
+};
+
+// Relese this reference to the box.
+template <typename T>
+void free_boxed(BoxedValue<T> *ptr) {
+  size_t n = ptr->ref_count;
+  if (n == 1) {
+    if constexpr (std::is_base_of<HasRefs,T>::value) ptr->value.free();
+    std::cout << "Freeing " << ptr << std::endl;
+    delete ptr;
+  }
+  else ptr->ref_count = n - 1;
+}
+
+// Relese this reference to the box.
+template <typename T>
+inline
+void copy_boxed(BoxedValue<T> *ptr) { ++(ptr->ref_count); }
+
+
+
 
 // A reference counted pointer.   Note that reference counting is done manually
 // using the `copy` and `free` methods and NOT by
@@ -32,16 +59,11 @@ class IsBoxed : public HasRefs {};
 template <typename T>
 class Boxed : IsBoxed {
 
-  struct BoxedValue {
-    size_t ref_count;
-    T      value;
-    BoxedValue()      : ref_count(1) {}
-    BoxedValue(T &&x) : ref_count(1), value(x) {}
-  } *ptr;
+  BoxedValue<T> *ptr;
 
 public:
-  Boxed()      : ptr(NULL)                          {}
-  Boxed(T&& x) : ptr (new BoxedValue(std::move(x))) {
+  Boxed()    : ptr(NULL) {}
+  Boxed(T x) : ptr (new BoxedValue<T>(x)) {
     std::cout << "Allocated " << ptr << std::endl;
   }
 
@@ -51,7 +73,7 @@ public:
 
   // Allocate without initializing the data, but ref count is 1
   void allocate() {
-    ptr = new BoxedValue();
+    ptr = new BoxedValue<T>();
     std::cout << "Allocated " << ptr << std::endl;
   }
 
@@ -62,21 +84,18 @@ public:
    }
 
   // Relese this reference to the box.
-  void free() {
-    size_t n = ptr->ref_count;
-    if (n == 1) {
-      if constexpr (std::is_base_of<HasRefs,T>::value) ptr->value.free();
-      del();
-    }
-    else ptr->ref_count = n - 1;
-  }
+  void free() { free_boxed(ptr); }
 
   // Make a new "owned" copy of the referece (i.e., increase ref count).
-  void copy() { ++(ptr->ref_count); }
+  void copy() { copy_boxed(ptr); }
 
   // Get access to the contents of the box.
   // The resulting reference shouldn't be used after the box is gone.
+  // Borrows the value
   T& getValue() { return ptr->value; }
+
+  bool operator == (Boxed x) { return getValue() == x.getValue(); }
+  bool operator != (Boxed x) { return getValue() != x.getValue(); }
 };
 
 }

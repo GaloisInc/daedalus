@@ -7,21 +7,22 @@ import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import           Data.Map (Map)
 import qualified Data.Map as Map
+-}
 import qualified Data.Set as Set
 import Text.PrettyPrint as P
--}
+
 import Daedalus.PP
-{-
 import Daedalus.Panic(panic)
 import Daedalus.Rec(topoOrder,forgetRecs)
--}
+
 import Daedalus.VM
 {-
 import qualified Daedalus.Core as Src
 
 import Daedalus.VM.Backend.C.Lang
-import Daedalus.VM.Backend.C.Types
 -}
+import Daedalus.VM.Backend.C.Types
+import Daedalus.VM.Backend.C.UserDefined
 
 -- XXX: Avoid using the same name for types and values.
 
@@ -33,14 +34,14 @@ import Daedalus.VM.Backend.C.Types
 -- type AllFuns  = (?allFuns :: Map Src.FName VMFun)
 
 cProgram :: Program -> Doc
-cProgram prog = undefined
-{-
+cProgram prog =
   vcat
     [ includes
     , " "
     , "// --- Types --- //"
     , "  "
     ,  vcat' (map cTypeGroup allTypes)
+{-
     ,  "// --- End of Types //"
     , " "
     , "// --- Parser --- //"
@@ -48,6 +49,7 @@ cProgram prog = undefined
     , "void parser(" <.> inst "DDL::Parser" [ parserTy ] <+> "&p) {"
     , nest 2 parserDef
     , "}"
+-}
     ]
 
   where
@@ -55,6 +57,7 @@ cProgram prog = undefined
   modDeps m      = (mName m, Set.fromList (mImports m))
 
   allTypes       = concatMap mTypes orderedModules
+{-
   allFuns        = concatMap mFuns orderedModules
   allBlocks      = Map.unions (pBoot prog : map vmfBlocks allFuns)
   doBlock b      = let ?allBlocks = allBlocks in cBlock b
@@ -68,6 +71,7 @@ cProgram prog = undefined
                         ]
 
   params         = vcat (map cDeclareBlockParams (Map.elems allBlocks))
+-}
 
   includes =
     vcat [ "#include <vector>"
@@ -85,6 +89,7 @@ cProgram prog = undefined
          ]
 
 
+{-
 type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 
