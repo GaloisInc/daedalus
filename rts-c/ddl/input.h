@@ -83,7 +83,6 @@ public:
   }
 };
 
-// XXX: hash instance
 // XXX: comparisions
 // XXX: show function
 

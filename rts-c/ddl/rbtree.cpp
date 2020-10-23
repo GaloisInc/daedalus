@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <optional>
+#include <cassert>
 
 #include "rbtree.hpp"
 
@@ -11,45 +12,6 @@ using namespace std;
 using std::optional;
 
 
-template<typename Key, typename Value>
-RBT<Key,Value>::Node::Node(Key key, Value value) {
-  this->key = key;
-  this->left = nullptr;
-  this->right = nullptr;
-  this->value = value;
-  this->color = Node::red;
-}
-
-template<typename Key, typename Value>
-RBT<Key,Value>::Node::Node(Node * n) {
-  this->key = n->key;
-  this->left = n->left;
-  this->right = n->right;
-  this->value = n->value;
-  this->color = n->color;
-}
-
-template<typename Key, typename Value>
-RBT<Key,Value>::Node::Node(bool color, Node * left, Key key, Value value, Node * right) {
-  this->key = key;
-  this->value = value;
-  this->left = left;
-  this->right = right;
-  this->color = color;
-}
-
-template<typename Key, typename Value>
-bool RBT<Key, Value>::Node::is_red(Node * n) {
-  if (n == nullptr)
-    return false;
-  else
-    return n->color == red;
-}
-
-template<typename Key, typename Value>
-bool RBT<Key, Value>::Node::is_black(Node * n) {
-  return !is_red(n);
-}
 
 
 template<typename Key, typename Value>
@@ -239,32 +201,6 @@ std::optional<Value> RBT<Key,Value>::Node::search(Key k, Node * n){
   return {};
 }
 
-template<typename Key, typename Value>
-RBT<Key,Value>::RBT() {
-  size = 0;
-  tree = nullptr;
-}
-
-template<typename Key, typename Value>
-RBT<Key, Value> * RBT<Key, Value>::insert(Key k, Value v, RBT<Key, Value> * rbt) {
-  RBT<Key, Value> * res = new RBT<Key, Value>();
-
-  res->size = rbt->size + 1;
-  res->tree = RBT<Key, Value>::Node::insert(k, v, rbt->tree);
-
-  return res;
-}
-
-template<typename Key, typename Value>
-std::optional<Value> RBT<Key, Value>::search(Key k, RBT<Key, Value> * rbt) {
-  return RBT<Key, Value>::Node::search(k,rbt->tree);
-}
-
-
-template<typename Key, typename Value>
-void RBT<Key, Value>::print_info() {
-  cout << "Size: " << this->size << endl;
-}
 
 
 int main(){

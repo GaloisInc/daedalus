@@ -4,10 +4,8 @@
 #ifndef RBTREE_H
 #define RBTREE_H
 
-#include <string>
 #include <optional>
 
-using std::string;
 using std::optional;
 
 
@@ -15,6 +13,8 @@ template <typename Key, typename Value>
 class RBT{
 
 public:
+
+  // Empty reprsented as a null pointer
   class Node {
     Key key;
     Value value;
@@ -22,21 +22,36 @@ public:
     Node * left;
     Node * right;
 
-  public:
-    Node(Key,Value);
-    Node(Node *);
-    Node(bool color, Node * left, Key key, Value value, Node * right);
-
-    static bool is_red(Node *);
-    static bool is_black(Node *);
-    static Node * insert(Key k, Value v, Node *);
-
-    static std::optional<Value> search(Key k, Node *);
-    static void print_keys(Node *);
     static const bool red = true;
     static const bool black = false;
 
   public:
+    // own k and v
+    Node(Key k,Value v)
+      : key(k), value(v), color(red), left(nullptr), right(nullptr) {}
+
+
+    Node(Node *n)
+      : key(n->key), value(n->value), color(n->color)
+      , left(n->left), right(n->right) {}
+
+    Node(bool color, Node * left, Key key, Value value, Node * right)
+      : key(key), value(value), color(color), left(left), right(right) {}
+
+    static Node * insert(Key k, Value v, Node *);
+    static std::optional<Value> search(Key k, Node *);
+    static void print_keys(Node *);
+
+private:
+
+    // borrow n
+    static bool is_black(Node *n) { return n == nullptr || n->color == black; }
+
+    // borrow n
+    static bool is_red(Node *n)   { return !is_black(n); }
+
+
+
     static Node * allocate_rebalance(Node * a,
                                    Key   x_key,
                                    Value x_value,
@@ -56,11 +71,25 @@ public:
 
 
 public:
-  RBT();
+  RBT() : size(0), tree(nullptr) {}
 
-  static RBT * insert(Key k, Value v, RBT *);
-  static std::optional<Value> search(Key k, RBT *);
-  void print_info();
+
+  static RBT * insert(Key k, Value v, RBT *rbt) {
+    RBT<Key, Value> * res = new RBT<Key, Value>();
+    res->size = rbt->size + 1;    // XXX: only if not already present
+    res->tree = RBT<Key, Value>::Node::insert(k, v, rbt->tree);
+    return res;
+  }
+
+  static std::optional<Value> search(Key k, RBT *rbt) {
+    return Node::search(k,rbt->tree);
+  }
+
+  void print_info() {
+    std::cout << "Size: " << this->size << std::endl;
+  }
+
+
 };
 
 
