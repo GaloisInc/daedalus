@@ -4,8 +4,10 @@ module Daedalus.VM.Backend.C.Call where
 import Daedalus.PP
 
 import Daedalus.VM
+import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
+import Daedalus.VM.Backend.C.Types
 
 
 
@@ -35,7 +37,7 @@ cReturnClass j = cStmt $ vcat
   allocFrame =
     let boxTy  = cInst "DDL::Boxed" [ thisTy ]
         params = [ "void *code", "void *stack"] ++
-                                          [ t <+> param n | (t,n) <- fields ]
+                                      [ cType t <+> param n | (t,n) <- fields ]
     in
     "static" $$
     cDefineFun "void*" "allocate" params (

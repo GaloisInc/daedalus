@@ -7,7 +7,6 @@
 // #include "ddl/parser.h"
 #include "ddl/unit.h"
 #include "ddl/number.h"
-#include "ddl/closure.h"
 #include "ddl/list.h"
 #include "ddl/array.h"
 #include "ddl/integer.h"
