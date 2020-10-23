@@ -8,8 +8,14 @@ import qualified Data.Set as Set
 
 import Daedalus.PP
 
+import Daedalus.VM
 import qualified Daedalus.Core as Src
 import Daedalus.VM.Backend.C.Lang
+
+
+
+cReturnClassName :: JumpPoint -> Doc
+cReturnClassName j = "Return_" <.> pp (jLabel j)
 
 -- | Name of a type.
 -- XXX: module names, namespaces?

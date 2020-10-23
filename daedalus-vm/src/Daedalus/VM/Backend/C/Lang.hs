@@ -27,3 +27,11 @@ cStmt c = c <.> semi
 
 cRefT :: CType -> CType
 cRefT t = t <.> "&"
+
+cDefineFun :: Doc -> Doc -> [Doc] -> [Doc] -> Doc
+cDefineFun ty name params stmts =
+  vcat [ ty <+> cCall name params <+> "{"
+       , nest 2 (vcat stmts)
+       , "}"
+       ]
+

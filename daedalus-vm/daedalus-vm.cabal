@@ -33,6 +33,7 @@ library
     Daedalus.VM.Backend.C.Names
     Daedalus.VM.Backend.C.Types
     Daedalus.VM.Backend.C.UserDefined
+    Daedalus.VM.Backend.C.Call
 
   build-depends:
     base >=4.13 && <4.14,

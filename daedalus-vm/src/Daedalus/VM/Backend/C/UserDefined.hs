@@ -139,6 +139,37 @@ eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
   where
   name = cTName' vis (tName t)
 
+-- | Constructor for a product
+cProdCtr :: TDecl -> CStmt
+cProdCtr tdecl = cStmt ("void" <+> cCall "init" params)
+  where params = [ cSemType t | (_,t) <- getFields tdecl, t /= TUnit ]
+
+cProdSels :: TDecl -> [ CStmt ]
+cProdSels tdecl =
+  [ cStmt (cSemType t <+> cCall nm []) | (f,t) <- getFields tdecl
+                                       , pref  <- [ "get", "borrow" ]
+                                       , let nm = pref <.> "_" <.> cLabel f
+                                       ]
+
+
+-- | Signatures for getters of a sum
+cSumGetters :: TDecl -> [CStmt]
+cSumGetters tdecl =
+  [ cStmt (cSemType t <+> cCall (pref <.> "_" <.> cLabel l) [])
+  | (l,t) <- getFields tdecl
+  , pref <- ["get","borrow"]
+  ]
+
+-- | Signatures for constructors of a sum
+cSumCtrs :: TDecl -> [CStmt]
+cSumCtrs tdecl =
+  [ cStmt ("void" <+> cCall ("init_" <.> cLabel l)
+                     [ cSemType ty | ty <- [t], t /= TUnit ])
+  | (l,t) <- getFields tdecl
+  ]
+
+
+
 
 
 --------------------------------------------------------------------------------
@@ -156,20 +187,14 @@ cUnboxedProd vis ty =
     ]
   where
   TStruct fields = tDef ty
-  labs    = map (cLabel   . fst) fields
-  tys     = map (cSemType . snd) fields
   attribs = [ cStmt (cSemType t <+> cField n)
             | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit
             ]
   methods =
        [ "// Construcotr" ]
-    ++ [ cStmt ("void" <+> cCall "init"
-                              [ cSemType t | (_,t) <- fields, t /= TUnit ]) ]
+    ++ [ cProdCtr ty ]
     ++ [ "// Selectors" ]
-    ++ [ cStmt (t <+> cCall nm []) | (f,t) <- zip labs tys
-                                   , pref  <- [ "get", "borrow" ]
-                                   , let nm = pref <.> "_" <.> f
-       ]
+    ++ cProdSels ty
     ++ [ "// Memory Management" ]
     ++ [ copyMethodSig, freeMethodSig ]
     ++ [ eqMethodSig vis "==" ty, eqMethodSig vis "!=" ty ]
@@ -210,22 +235,6 @@ cSumGetTag :: TDecl -> Doc
 cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 --------------------------------------------------------------------------------
 
-
--- | Signatures for getters of a sum
-cSumGetters :: TDecl -> [ Doc ]
-cSumGetters tdecl =
-  [ cStmt (cSemType t <+> cCall (pref <.> "_" <.> cLabel l) [])
-  | (l,t) <- getFields tdecl
-  , pref <- ["get","borrow"]
-  ]
-
--- | Signatures for constructors of a sum
-cSumCtrs :: TDecl -> [Doc]
-cSumCtrs tdecl =
-  [ cStmt ("void" <+> cCall ("init_" <.> cLabel l)
-                     [ cSemType ty | ty <- [t], t /= TUnit ])
-  | (l,t) <- getFields tdecl
-  ]
 
 -- | Class signature for an unboxed sum
 cUnboxedSum :: GenVis -> TDecl -> CDecl
@@ -292,6 +301,7 @@ cBoxedSum tdecl =
 
 --------------------------------------------------------------------------------
 -- Method definitions
+--------------------------------------------------------------------------------
 
 data GenBoxed = GenBoxed  | GenUnboxed
 data GenOwn   = GenBorrow | GenOwn
@@ -433,8 +443,10 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
            ]
            where f = if uni then "data." <.> cField n else cField n
 
-
 --------------------------------------------------------------------------------
+
+
+
 
 --------------------------------------------------------------------------------
 -- Copy & Free
