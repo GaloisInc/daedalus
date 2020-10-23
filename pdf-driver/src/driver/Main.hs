@@ -17,7 +17,7 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate)
-import RTS.Vector(vecFromRep,vecToString)
+import RTS.Vector(vecFromRep,vecToString,vecToRep)
 import RTS.Input
 
 import Common
@@ -25,6 +25,11 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
+import Primitives.Decrypt(makeFileKey)
+
+import Debug.Trace
+
+defaultPW = BS.pack "password"
 
 main :: IO ()
 main =
@@ -126,14 +131,30 @@ fmtDriver fmt file =
                Just r -> pure r
      rootFound fmt root
 
-     res <- runParser refs (pCatalogIsOK root) topInput
+     res <- runParser refs Nothing (pCatalogIsOK root) topInput
      case res of
        ParseOk ok    -> catalogOK fmt ok
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     mapM_ (checkDecl fmt topInput refs) (Map.toList refs)
+     -- XXX: ugly hack to make it work quickly
+     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
+                (Nothing, _) -> pure Nothing
+                (Just d, Just id) -> do 
+                  enc <- 
+                    do res <- runParser refs Nothing (pEncryptionDict d) topInput
+                       case res of 
+                          ParseOk ok -> pure ok 
+                          _          -> error "BUG: bad encryption dictionary"
+                  let len = fromIntegral $ getField @"encLength" enc 
+                      encO = vecToRep $ getField @"encO" enc 
+                      encP = fromIntegral $ getField @"encP" enc
+                      firstid = vecToRep $ getField @"firstid" id 
+                      filekey = makeFileKey len defaultPW encO encP firstid  
+                  pure $ Just EncContext { key = filekey, keylen = len } 
+                (_, Nothing) -> error "BUG: Missing ID field"
 
+     mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
 
 
@@ -147,17 +168,17 @@ data DeclResult' a = DeclResult
                       , declResult     :: a
                       }
 
-parseDecl :: DbgMode => Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
-parseDecl topInput refMap (ref,loc) =
+parseDecl :: DbgMode => Maybe EncContext -> Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
+parseDecl fileEC topInput refMap (ref,loc) =
   do start  <- getCPUTime
-     result <- evaluate =<< runParser refMap parser topInput
+     result <- evaluate =<< runParser refMap objEC parser topInput
      end    <- getCPUTime
      pure DeclResult { declTime = fromIntegral ((end-start) `div` (10^(6::Int)))
                      , declCompressed = compressed
                      , declResult = result
                     }
   where
-  (parser,compressed) =
+  (parser,compressed,objEC) =
     case loc of
 
       InFileAt off ->
@@ -168,6 +189,10 @@ parseDecl topInput refMap (ref,loc) =
             Nothing -> pError' FromUser []
                        ("XRef entry outside file: " ++ show off)
         , False
+        , case fileEC of 
+            Nothing -> Nothing 
+            Just ec -> Just (ec { robj = (fromIntegral (refObj ref)), 
+                                  rgen = (fromIntegral (refGen ref)) } ) 
         )
 
       InObj o idx ->
@@ -177,15 +202,17 @@ parseDecl topInput refMap (ref,loc) =
                                          (toInteger (refGen o))
                                          (toInteger idx)
         , True
+        , Nothing 
         )
+    
 --------------------------------------------------------------------------------
 
 
 
 
-checkDecl :: DbgMode => Format -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
-checkDecl fmt topInput refMap d@(ref,loc) =
-  do res <- parseDecl topInput refMap d
+checkDecl :: DbgMode => Format -> Maybe EncContext -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
+checkDecl fmt ec topInput refMap d@(ref,loc) =
+  do res <- parseDecl ec topInput refMap d
      case declResult res of
        ParseAmbig {} -> error "BUG: Ambiguous parse?"
        ParseErr e    -> declErr fmt ref loc res { declResult = e }
@@ -203,33 +230,50 @@ driver opts = runReport opts $
                                             ("unable to find %%EOF" <+> parens (text err))
                Right idx -> return idx
 
-     (refs, root) <-
+     (refs, root, trail) <-
             liftIO (parseXRefs topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
                                     reportCritical file 0 "Missing document root"
 
-                                  Just ro -> pure (r,ro)
+                                  Just ro -> pure (r,ro,t)
                ParseAmbig _ ->
                  reportCritical file 0 "Ambiguous results?"
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     res <- liftIO (runParser refs (pCatalogIsOK root) topInput)
+     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseOk False -> report RUnsafe file 0 "Catalog (page tree) contains cycles"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     parseObjs file topInput refs
+     -- XXX: ugly hack to make it work quickly
+     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
+                (Nothing, _) -> pure Nothing
+                (Just d, Just id) -> do 
+                  enc <- 
+                    do res <- liftIO (runParser refs Nothing (pEncryptionDict d) topInput)
+                       case res of 
+                          ParseOk ok -> pure ok 
+                          _          -> error "BUG: bad encryption dictionary"
+                  let len = fromIntegral $ getField @"encLength" enc 
+                      encO = vecToRep $ getField @"encO" enc 
+                      encP = fromIntegral $ getField @"encP" enc
+                      firstid = vecToRep $ getField @"firstid" id 
+                      filekey = makeFileKey len defaultPW encO encP firstid  
+                  pure $ Just EncContext { key = filekey, keylen = len } 
+                (_, Nothing) -> error "BUG: Missing ID field"
 
-parseObjs :: DbgMode => FilePath -> Input -> ObjIndex -> ReportM ()
-parseObjs fileN topInput refMap = mapM_ doOne (Map.toList refMap)
+     parseObjs file fileEC topInput refs
+
+parseObjs :: DbgMode => FilePath -> Maybe EncContext -> Input -> ObjIndex -> ReportM ()
+parseObjs fileN ec topInput refMap = mapM_ doOne (Map.toList refMap)
   where
   doOne d@(ref,_) =
-    do res <- liftIO (parseDecl topInput refMap d)
+    do res <- liftIO (parseDecl ec topInput refMap d)
        let sayTimed cl msg =
              do let timeMsg = parens (hcat [int (declTime res), "us"])
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)

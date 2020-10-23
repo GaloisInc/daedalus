@@ -53,28 +53,26 @@ main =
                 ParseOk a     -> pure a
                 ParseAmbig {} -> quit "BUG: Ambiguous result"
                 ParseErr e    -> quit (show (pp e))
-
-         makeEncContext (Ref ro rg) =  
-          case (getField @"encrypt" trail, getField @"id" trail) of 
-            (Nothing, _) -> pure Nothing
-            (Just d, Just id) -> do 
-              enc <- run (pEncryptionDict d) Nothing 
-              let len = fromIntegral $ getField @"encLength" enc 
-                  encO = vecToRep $ getField @"encO" enc 
-                  encP = fromIntegral $ getField @"encP" enc
-                  firstid = vecToRep $ getField @"firstid" id 
-                  -- XXX: note the hardcoded password here
-                  filekey = makeFileKey len (password opts) encO encP firstid  
-              pure $ Just EncContext { key = filekey
-                                     , keylen = len
-                                     , robj = fromIntegral ro
-                                     , rgen = fromIntegral rg
-                                     } 
-            (_, Nothing) -> quit "BUG: Missing ID field"
+      
+     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
+                (Nothing, _) -> pure Nothing
+                (Just d, Just id) -> do 
+                  enc <- run (pEncryptionDict d) Nothing 
+                  let len = fromIntegral $ getField @"encLength" enc 
+                      encO = vecToRep $ getField @"encO" enc 
+                      encP = fromIntegral $ getField @"encP" enc
+                      firstid = vecToRep $ getField @"firstid" id 
+                      filekey = makeFileKey len (password opts) encO encP firstid  
+                  pure $ Just EncContext { key = filekey, keylen = len } 
+                (_, Nothing) -> quit "BUG: Missing ID field"
+         
+     let makeEncContext (Ref ro rg) = 
+           case fileEC of 
+             Nothing -> Nothing 
+             Just ec  -> Just (ec { robj = fromIntegral ro, rgen = fromIntegral rg } ) 
 
          ppRef pref r =
-           do ec <- makeEncContext r 
-              res <- runParser refs ec (pResolveRef r) topInput
+           do res <- runParser refs (makeEncContext r) (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
