@@ -40,7 +40,7 @@ jobs:
     - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
     - name: Build ICC Parser
-      run: cabal build exe:icc-driver
+      run: cabal build exe:icc-parser
     - name: Build PDF driver
       run: cabal build exe:pdf-hs-driver
     - name: Build PDF dom
