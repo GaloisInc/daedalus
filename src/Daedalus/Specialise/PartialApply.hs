@@ -7,10 +7,12 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 
 import Daedalus.Panic
+import Daedalus.GUID
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
 import Daedalus.Type.Traverse
+import Daedalus.Type.RefreshGUID
 
 {- | Generate a sepcialized version of a declaration.
 PRE: newPs and tcFrees (args) are disjoint from bound vars in the decl.
@@ -30,13 +32,13 @@ the original.  Consider, for example:
 -- FIXME: we don't rename here as the GUID guarantees that we have
 -- unique names (ignoring the scopedIdent).  We _will_ need to refresh
 -- the decl.
-partialApply ::
+partialApply :: HasGUID m => 
   Name            {- ^ New name for instantiate declaration -}   ->
   [Type]          {- ^ Concrete types to use for the instance. -} ->
   [TCName Value]  {- ^ Additional paramteres for the instances. See NOTE -} ->
   [Maybe (Arg a)] {- ^ Concrete values to use for instances. -} ->
   TCDecl a        {- ^ Uninstantiated declaration -} ->
-  TCDecl a
+  m (TCDecl a)
 partialApply tnm' targs newPs args
   TCDecl { tcDeclTyParams = ttys,
            tcDeclParams   = tparams,
@@ -44,7 +46,7 @@ partialApply tnm' targs newPs args
            tcDeclCtxt     = tctxt
          }
   =
-  TCDecl {
+  refreshDecl $ TCDecl {
     tcDeclName     = tnm',
     tcDeclTyParams = [],
     tcDeclCtrs     = [],

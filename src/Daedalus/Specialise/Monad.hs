@@ -29,7 +29,7 @@ data Instantiation =
                 , instArgs      :: [Maybe (Arg SourceRange)]
                 }
 
-apInst :: Instantiation -> TCDecl SourceRange -> TCDecl SourceRange
+apInst :: HasGUID m => Instantiation -> TCDecl SourceRange -> m (TCDecl SourceRange)
 apInst Instantiation {..} =
   partialApply instNewName instTys instNewParams instArgs
 

@@ -89,10 +89,10 @@ specialise ruleRoots decls =
     go (NonRec d) = do
       insts <- getPendingSpecs [tcDeclName d]
       seen  <- seenRule (tcDeclName d)
-      let ds = case Map.lookup (tcDeclName d) insts of
-                 Just is -> map (flip apInst d) is -- forget d
-                 Nothing | seen -> [d]
-                 Nothing        -> []
+      ds    <- case Map.lookup (tcDeclName d) insts of
+                 Just is        -> mapM (flip apInst d) is -- forget d
+                 Nothing | seen -> pure [d]
+                 Nothing        -> pure []
       mapM specialiseOne ds
 
     -- We treat each inst. req. independently; the unify stuff will
@@ -142,7 +142,7 @@ specialise ruleRoots decls =
           | (ds', d' : ds'') <- break (\di -> tcDeclName di == n) ds ->
             do let newds = ds' ++ ds''
                -- let d' = apInst inst d
-               d'' <- specialiseOne (apInst inst d')
+               d'' <- specialiseOne =<< apInst inst d'
                newTodo <- getPendingSpecs (map tcDeclName newds)
                (d'' :) <$> goOne newds (Map.unionWith (++) todoRest newTodo)
 
