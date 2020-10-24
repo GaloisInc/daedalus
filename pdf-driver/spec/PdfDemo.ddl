@@ -3,6 +3,8 @@ import PdfValue
 import PdfDecl
 import PdfXRef
 
+import PdfContentStream
+
 def IsRootPages r = Default false { IsPageOrPages nothing r; ^ true }
 
 def IsPageOrPages p c = IsPage p c | IsPages p c
@@ -14,6 +16,7 @@ def IsPage (p : maybe Ref) (r : Ref) =
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
+    CheckContents dict;
 }
 
 def IsPages (p : maybe Ref) (r : Ref) =
@@ -41,6 +44,20 @@ def CheckParent (p : maybe Ref) (dict : [[uint 8] -> Value]) =
       @dpref = LookupRef "Parent" dict;
       Guard (dpref == pref);
     }
+
+-- Check that the (optional) contents point to a valid Content Stream
+def CheckContents d = @Optional {
+  @s = Lookup "Contents" d ; -- try to find content stream
+  Choose1 {
+   isarr = s is array ;
+   isref = {
+     @strm = ResolveStream s ;
+     commit ;
+     @strmBody = strm.body is ok ;
+     WithStream strmBody (ContentStream) ; -- TODO: toggle Only
+   }
+  }
+}
 
 --------------------------------------------------------------------------------
 -- Catalogue objects

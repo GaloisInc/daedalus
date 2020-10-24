@@ -2,7 +2,6 @@ import PdfValue
 import PdfValidate
 
 import PdfDecl
-import PdfContentStream
 
 def PdfTrailer (t : TrailerDict) =
   CheckRef "Catalog" PdfCatalog (t.root is just)
@@ -58,15 +57,4 @@ def PdfPageObject (parent : Ref) (v : Value) = {
   -- Field "Parent"
   Guard (Lookup "Parent" d is ref == parent);
 
-  -- Field "Contents"
-  {-
-  @Optional {
-    @strmRef = Lookup "Contents" d ; -- try to find contents
-    strm = ResolveStream strmRef ; -- resolve the stream
-    commit ;
-    strmBody = strm.body is ok ;
-    WithStream strmBody ContentStream ;
-  } ;
-  -}
 }
-

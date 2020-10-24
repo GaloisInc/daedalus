@@ -13,6 +13,7 @@
 module PdfDemo where
  
 import qualified PdfMonad as D
+import qualified PdfContentStream
 import qualified PdfXRef
 import qualified PdfDecl
 import qualified PdfValue
@@ -25,6 +26,33 @@ import qualified RTS.Input as RTS
 import qualified RTS.Map as Map
 import qualified RTS.Vector as Vector
  
+ 
+data CheckContents_0
+  = CheckContents_0_isarr (Vector.Vector PdfValue.Value)
+  | CheckContents_0_isref
+      (Vector.Vector PdfContentStream.ContentStreamBody_0)
+  
+ 
+deriving instance HS.Eq CheckContents_0
+ 
+deriving instance HS.Ord CheckContents_0
+ 
+deriving instance HS.Show CheckContents_0
+ 
+instance RTS.DDL CheckContents_0 where
+ 
+instance HS.HasField "isarr" CheckContents_0
+           (HS.Maybe (Vector.Vector PdfValue.Value)) where
+  getField (CheckContents_0_isarr x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "isref" CheckContents_0
+           (HS.Maybe
+              (Vector.Vector PdfContentStream.ContentStreamBody_0)) where
+  getField (CheckContents_0_isref x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
 data TsafetyInfo
   = TsafetyInfo HS.Bool HS.Bool
@@ -62,50 +90,36 @@ instance HS.HasField "obj" (CheckDecl f) f where
 instance HS.HasField "isSafe" (CheckDecl f) TsafetyInfo where
   getField (CheckDecl _ x) = x
  
-pCheckParent ::
-      HS.Maybe PdfValue.Ref
-        -> (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
-              -> D.Parser ())
+pCheckContents ::
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value -> D.Parser ()
  
-pCheckParent (p :: HS.Maybe PdfValue.Ref)
-  (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
+pCheckContents
+  (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
   (RTS.<||)
-    (do RTS.pGuard "35:7--35:18" "guard failed"
-          (p HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
-        (v :: HS.Maybe PdfValue.Ref) <-
-          RTS.pOptional (RTS.<||) HS.Just
-            (RTS.pEnter "PdfDecl.LookupRef"
-               (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
-                  (Vector.vecFromRep "Parent")
-                  dict))
-        (__ :: ()) <-
-          RTS.pGuard "37:7--37:18" "guard failed"
-            (v HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
-        HS.pure __)
-    (do (pref :: PdfValue.Ref) <-
-          RTS.pIsJust "40:15--40:23" "Expected `Just`" p
-        (dpref :: PdfValue.Ref) <-
-          RTS.pEnter "PdfDecl.LookupRef"
-            (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
-               (Vector.vecFromRep "Parent")
-               dict)
-        (__ :: ()) <-
-          RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard (dpref HS.== pref))
-        HS.pure __)
- 
-pIsPage :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
- 
-pIsPage (p :: HS.Maybe PdfValue.Ref) (r :: PdfValue.Ref) =
-  do (v :: PdfValue.Value) <-
-       RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
-     (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "14:13--14:21" "Expected `dict`"
-         (HS.getField @"dict" v)
-     RTS.pEnter "PdfDecl._CheckType"
-       (PdfDecl._CheckType (Vector.vecFromRep "Page") dict)
-     (__ :: ()) <-
-       RTS.pEnter "PdfDemo.CheckParent" (pCheckParent p dict)
-     HS.pure __
+    (do (s :: PdfValue.Value) <-
+          RTS.pIsJust "50:8--50:26"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "Contents" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "Contents") d)
+        (RTS.<||)
+          (RTS.pEnter "isarr"
+             (RTS.pIsJust_ "52:12--52:21" "Expected `array`"
+                (HS.getField @"array" s)))
+          (RTS.pEnter "isref"
+             (do (strm :: PdfDecl.Stream) <-
+                   RTS.pEnter "PdfDecl.ResolveStream" (PdfDecl.pResolveStream s)
+                 RTS.pErrorMode RTS.Abort
+                   (do (strmBody :: RTS.Input) <-
+                         RTS.pIsJust "56:18--56:32" "Expected `ok`"
+                           (HS.getField @"ok" (HS.getField @"body" strm))
+                       RTS.pEnter "PdfDecl._WithStream"
+                         (PdfDecl._WithStream
+                            @(Vector.Vector PdfContentStream.ContentStreamBody_0)
+                            strmBody
+                            (RTS.pEnter "PdfContentStream._ContentStream"
+                               PdfContentStream._ContentStream))))))
+    (HS.pure ())
  
 _CheckParent ::
       HS.Maybe PdfValue.Ref
@@ -115,7 +129,7 @@ _CheckParent ::
 _CheckParent (p :: HS.Maybe PdfValue.Ref)
   (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
   (RTS.<||)
-    (do RTS.pGuard "35:7--35:18" "guard failed"
+    (do RTS.pGuard "38:7--38:18" "guard failed"
           (p HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
         (v :: HS.Maybe PdfValue.Ref) <-
           RTS.pOptional (RTS.<||) HS.Just
@@ -123,10 +137,10 @@ _CheckParent (p :: HS.Maybe PdfValue.Ref)
                (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
                   (Vector.vecFromRep "Parent")
                   dict))
-        RTS.pGuard "37:7--37:18" "guard failed"
+        RTS.pGuard "40:7--40:18" "guard failed"
           (v HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref)))
     (do (pref :: PdfValue.Ref) <-
-          RTS.pIsJust "40:15--40:23" "Expected `Just`" p
+          RTS.pIsJust "43:15--43:23" "Expected `Just`" p
         (dpref :: PdfValue.Ref) <-
           RTS.pEnter "PdfDecl.LookupRef"
             (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
@@ -134,31 +148,46 @@ _CheckParent (p :: HS.Maybe PdfValue.Ref)
                dict)
         RTS.pEnter "PdfValue._Guard" (PdfValue._Guard (dpref HS.== pref)))
  
+pIsPage :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
+ 
+pIsPage (p :: HS.Maybe PdfValue.Ref) (r :: PdfValue.Ref) =
+  do (v :: PdfValue.Value) <-
+       RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
+     (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       RTS.pIsJust "16:13--16:21" "Expected `dict`"
+         (HS.getField @"dict" v)
+     RTS.pEnter "PdfDecl._CheckType"
+       (PdfDecl._CheckType (Vector.vecFromRep "Page") dict)
+     RTS.pEnter "PdfDemo._CheckParent" (_CheckParent p dict)
+     (__ :: ()) <-
+       RTS.pEnter "PdfDemo.CheckContents" (pCheckContents dict)
+     HS.pure __
+ 
 pIsPages :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
  
 pIsPages (p :: HS.Maybe PdfValue.Ref) (r :: PdfValue.Ref) =
   do (v :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
      (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "22:13--22:21" "Expected `dict`"
+       RTS.pIsJust "25:13--25:21" "Expected `dict`"
          (HS.getField @"dict" v)
      RTS.pEnter "PdfDecl._CheckType"
        (PdfDecl._CheckType (Vector.vecFromRep "Pages") dict)
      RTS.pEnter "PdfDemo._CheckParent" (_CheckParent p dict)
      (kidsv :: PdfValue.Value) <-
-       RTS.pIsJust "26:14--26:31"
+       RTS.pIsJust "29:14--29:31"
          ("Missing key: "
             HS.++ HS.show
                     (Vector.vecFromRep "Kids" :: Vector.Vector (RTS.UInt 8)))
          (Map.lookup (Vector.vecFromRep "Kids") dict)
      (kids :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "27:14--27:27" "Expected `array`"
+       RTS.pIsJust "30:14--30:27" "Expected `array`"
          (HS.getField @"array" kidsv)
      (__ :: ()) <-
        RTS.loopFoldM
          (\(acc :: ()) (refv :: PdfValue.Value) ->
             do (ref :: PdfValue.Ref) <-
-                 RTS.pIsJust "29:16--29:26" "Expected `ref`"
+                 RTS.pIsJust "32:16--32:26" "Expected `ref`"
                    (HS.getField @"ref" refv)
                (__ :: ()) <-
                  RTS.pEnter "PdfDemo.IsPageOrPages" (pIsPageOrPages (HS.Just r) ref)
@@ -174,17 +203,49 @@ pIsPageOrPages (p :: HS.Maybe PdfValue.Ref) (c :: PdfValue.Ref) =
   (RTS.|||) (RTS.pEnter "PdfDemo.IsPage" (pIsPage p c))
     (RTS.pEnter "PdfDemo.IsPages" (pIsPages p c))
  
+_CheckContents ::
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value -> D.Parser ()
+ 
+_CheckContents
+  (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
+  (RTS.<||)
+    (do (s :: PdfValue.Value) <-
+          RTS.pIsJust "50:8--50:26"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "Contents" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "Contents") d)
+        (RTS.<||)
+          (RTS.pEnter "isarr"
+             (RTS.pIsJust_ "52:12--52:21" "Expected `array`"
+                (HS.getField @"array" s)))
+          (RTS.pEnter "isref"
+             (do (strm :: PdfDecl.Stream) <-
+                   RTS.pEnter "PdfDecl.ResolveStream" (PdfDecl.pResolveStream s)
+                 RTS.pErrorMode RTS.Abort
+                   (do (strmBody :: RTS.Input) <-
+                         RTS.pIsJust "56:18--56:32" "Expected `ok`"
+                           (HS.getField @"ok" (HS.getField @"body" strm))
+                       RTS.pEnter "PdfDecl._WithStream"
+                         (PdfDecl._WithStream
+                            @(Vector.Vector PdfContentStream.ContentStreamBody_0)
+                            strmBody
+                            (RTS.pEnter "PdfContentStream._ContentStream"
+                               PdfContentStream._ContentStream))))))
+    (HS.pure ())
+ 
 _IsPage :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
  
 _IsPage (p :: HS.Maybe PdfValue.Ref) (r :: PdfValue.Ref) =
   do (v :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
      (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "14:13--14:21" "Expected `dict`"
+       RTS.pIsJust "16:13--16:21" "Expected `dict`"
          (HS.getField @"dict" v)
      RTS.pEnter "PdfDecl._CheckType"
        (PdfDecl._CheckType (Vector.vecFromRep "Page") dict)
      RTS.pEnter "PdfDemo._CheckParent" (_CheckParent p dict)
+     RTS.pEnter "PdfDemo._CheckContents" (_CheckContents dict)
  
 _IsPageOrPages ::
       HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
@@ -209,7 +270,7 @@ pCatalogIsOK (r :: PdfValue.Ref) =
   do (catv :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
      (cat :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "53:12--53:23" "Expected `dict`"
+       RTS.pIsJust "70:12--70:23" "Expected `dict`"
          (HS.getField @"dict" catv)
      RTS.pEnter "PdfDecl._CheckType"
        (PdfDecl._CheckType (Vector.vecFromRep "Catalog") cat)
@@ -274,23 +335,23 @@ pValueIsSafe (v :: PdfValue.Value) =
                 ((RTS.|||)
                    ((RTS.|||)
                       ((RTS.|||)
-                         (RTS.pIsJust_ "96:17--96:25" "Expected `null`"
+                         (RTS.pIsJust_ "113:17--113:25" "Expected `null`"
                             (HS.getField @"null" v))
-                         (RTS.pIsJust_ "96:32--96:40" "Expected `bool`"
+                         (RTS.pIsJust_ "113:32--113:40" "Expected `bool`"
                             (HS.getField @"bool" v)))
-                      (RTS.pIsJust_ "96:47--96:54" "Expected `ref`"
+                      (RTS.pIsJust_ "113:47--113:54" "Expected `ref`"
                          (HS.getField @"ref" v)))
-                   (RTS.pIsJust_ "96:61--96:69" "Expected `name`"
+                   (RTS.pIsJust_ "113:61--113:69" "Expected `name`"
                       (HS.getField @"name" v)))
-                (RTS.pIsJust_ "97:19--97:29" "Expected `string`"
+                (RTS.pIsJust_ "114:19--114:29" "Expected `string`"
                    (HS.getField @"string" v)))
-             (RTS.pIsJust_ "97:36--97:46" "Expected `number`"
+             (RTS.pIsJust_ "114:36--114:46" "Expected `number`"
                 (HS.getField @"number" v)))
           safeSafetyInfo))
     ((RTS.|||)
        (do (dict
               :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-             RTS.pIsJust "98:19--98:27" "Expected `dict`"
+             RTS.pIsJust "115:19--115:27" "Expected `dict`"
                (HS.getField @"dict" v)
            (__ :: TsafetyInfo) <-
              (RTS.<||)
@@ -316,7 +377,7 @@ pValueIsSafe (v :: PdfValue.Value) =
                      dict))
            HS.pure __)
        (do (arr :: Vector.Vector PdfValue.Value) <-
-             RTS.pIsJust "110:18--110:27" "Expected `array`"
+             RTS.pIsJust "127:18--127:27" "Expected `array`"
                (HS.getField @"array" v)
            (__ :: TsafetyInfo) <-
              RTS.loopFoldM
@@ -347,16 +408,47 @@ pCheckDecl (expectId :: a) (expectGen :: b) (decl :: c) =
      (isSafe :: TsafetyInfo) <-
        (RTS.|||)
          (do (v :: PdfValue.Value) <-
-               RTS.pIsJust "66:19--66:35" "Expected `value`"
+               RTS.pIsJust "83:19--83:35" "Expected `value`"
                  (HS.getField @"value" (HS.getField @"obj" decl))
              (__ :: TsafetyInfo) <-
                RTS.pEnter "PdfDemo.ValueIsSafe" (pValueIsSafe v)
              HS.pure __)
-         (do RTS.pIsJust_ "67:19--67:36" "Expected `stream`"
+         (do RTS.pIsJust_ "84:19--84:36" "Expected `stream`"
                (HS.getField @"stream" (HS.getField @"obj" decl))
              (__ :: TsafetyInfo) <- HS.pure safeSafetyInfo
              HS.pure __)
      HS.pure (CheckDecl obj isSafe)
+ 
+pCheckParent ::
+      HS.Maybe PdfValue.Ref
+        -> (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
+              -> D.Parser ())
+ 
+pCheckParent (p :: HS.Maybe PdfValue.Ref)
+  (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
+  (RTS.<||)
+    (do RTS.pGuard "38:7--38:18" "guard failed"
+          (p HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
+        (v :: HS.Maybe PdfValue.Ref) <-
+          RTS.pOptional (RTS.<||) HS.Just
+            (RTS.pEnter "PdfDecl.LookupRef"
+               (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
+                  (Vector.vecFromRep "Parent")
+                  dict))
+        (__ :: ()) <-
+          RTS.pGuard "40:7--40:18" "guard failed"
+            (v HS.== (HS.Nothing :: HS.Maybe PdfValue.Ref))
+        HS.pure __)
+    (do (pref :: PdfValue.Ref) <-
+          RTS.pIsJust "43:15--43:23" "Expected `Just`" p
+        (dpref :: PdfValue.Ref) <-
+          RTS.pEnter "PdfDecl.LookupRef"
+            (PdfDecl.pLookupRef @(Vector.Vector (RTS.UInt 8))
+               (Vector.vecFromRep "Parent")
+               dict)
+        (__ :: ()) <-
+          RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard (dpref HS.== pref))
+        HS.pure __)
  
 pResolveObjectStreamEntryCheck ::
       HS.Integer
@@ -414,7 +506,7 @@ _CatalogIsOK (r :: PdfValue.Ref) =
   do (catv :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
      (cat :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "53:12--53:23" "Expected `dict`"
+       RTS.pIsJust "70:12--70:23" "Expected `dict`"
          (HS.getField @"dict" catv)
      RTS.pEnter "PdfDecl._CheckType"
        (PdfDecl._CheckType (Vector.vecFromRep "Catalog") cat)
@@ -448,22 +540,22 @@ _ValueIsSafe (v :: PdfValue.Value) =
                 ((RTS.|||)
                    ((RTS.|||)
                       ((RTS.|||)
-                         (RTS.pIsJust_ "96:17--96:25" "Expected `null`"
+                         (RTS.pIsJust_ "113:17--113:25" "Expected `null`"
                             (HS.getField @"null" v))
-                         (RTS.pIsJust_ "96:32--96:40" "Expected `bool`"
+                         (RTS.pIsJust_ "113:32--113:40" "Expected `bool`"
                             (HS.getField @"bool" v)))
-                      (RTS.pIsJust_ "96:47--96:54" "Expected `ref`"
+                      (RTS.pIsJust_ "113:47--113:54" "Expected `ref`"
                          (HS.getField @"ref" v)))
-                   (RTS.pIsJust_ "96:61--96:69" "Expected `name`"
+                   (RTS.pIsJust_ "113:61--113:69" "Expected `name`"
                       (HS.getField @"name" v)))
-                (RTS.pIsJust_ "97:19--97:29" "Expected `string`"
+                (RTS.pIsJust_ "114:19--114:29" "Expected `string`"
                    (HS.getField @"string" v)))
-             (RTS.pIsJust_ "97:36--97:46" "Expected `number`"
+             (RTS.pIsJust_ "114:36--114:46" "Expected `number`"
                 (HS.getField @"number" v)))))
     ((RTS.|||)
        (do (dict
               :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-             RTS.pIsJust "98:19--98:27" "Expected `dict`"
+             RTS.pIsJust "115:19--115:27" "Expected `dict`"
                (HS.getField @"dict" v)
            (RTS.<||)
              (RTS.pEnter "PdfValue._When"
@@ -482,7 +574,7 @@ _ValueIsSafe (v :: PdfValue.Value) =
                    ()
                    dict)))
        (do (arr :: Vector.Vector PdfValue.Value) <-
-             RTS.pIsJust "110:18--110:27" "Expected `array`"
+             RTS.pIsJust "127:18--127:27" "Expected `array`"
                (HS.getField @"array" v)
            RTS.loopFoldM
              (\(acc :: ()) (v :: PdfValue.Value) ->
@@ -506,10 +598,10 @@ _CheckDecl (expectId :: a) (expectGen :: b) (decl :: c) =
        (PdfValue._Guard (HS.getField @"gen" decl HS.== expectGen))
      (RTS.|||)
        (do (v :: PdfValue.Value) <-
-             RTS.pIsJust "66:19--66:35" "Expected `value`"
+             RTS.pIsJust "83:19--83:35" "Expected `value`"
                (HS.getField @"value" (HS.getField @"obj" decl))
            RTS.pEnter "PdfDemo._ValueIsSafe" (_ValueIsSafe v))
-       (RTS.pIsJust_ "67:19--67:36" "Expected `stream`"
+       (RTS.pIsJust_ "84:19--84:36" "Expected `stream`"
           (HS.getField @"stream" (HS.getField @"obj" decl)))
  
 _IsPages :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())
@@ -518,24 +610,24 @@ _IsPages (p :: HS.Maybe PdfValue.Ref) (r :: PdfValue.Ref) =
   do (v :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef r)
      (dict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       RTS.pIsJust "22:13--22:21" "Expected `dict`"
+       RTS.pIsJust "25:13--25:21" "Expected `dict`"
          (HS.getField @"dict" v)
      RTS.pEnter "PdfDecl._CheckType"
        (PdfDecl._CheckType (Vector.vecFromRep "Pages") dict)
      RTS.pEnter "PdfDemo._CheckParent" (_CheckParent p dict)
      (kidsv :: PdfValue.Value) <-
-       RTS.pIsJust "26:14--26:31"
+       RTS.pIsJust "29:14--29:31"
          ("Missing key: "
             HS.++ HS.show
                     (Vector.vecFromRep "Kids" :: Vector.Vector (RTS.UInt 8)))
          (Map.lookup (Vector.vecFromRep "Kids") dict)
      (kids :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "27:14--27:27" "Expected `array`"
+       RTS.pIsJust "30:14--30:27" "Expected `array`"
          (HS.getField @"array" kidsv)
      RTS.loopFoldM
        (\(acc :: ()) (refv :: PdfValue.Value) ->
           do (ref :: PdfValue.Ref) <-
-               RTS.pIsJust "29:16--29:26" "Expected `ref`"
+               RTS.pIsJust "32:16--32:26" "Expected `ref`"
                  (HS.getField @"ref" refv)
              RTS.pEnter "PdfDemo._IsPageOrPages"
                (_IsPageOrPages (HS.Just r) ref))
