@@ -19,6 +19,8 @@ using namespace std;
 
 
 int main() {
+
+
   example();
   return 0;
 }

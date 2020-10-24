@@ -1,5 +1,6 @@
 #include<ddl/boxed.h>
 #include<ddl/stack.h>
+#include<ddl/parser.h>
 
 // This shows how generate code for functions calls
 
@@ -7,65 +8,77 @@
 
 void example() {
 
-
-
-  void *stack = NULL; // Used for function calls
+  DDL::Parser<int> p{DDL::Input()};
 
   int f_arg;         // Pass arguments to `f` here
   int other_arg = 5;     // This shoudl be prserved across a call to `f`
 
-  // Things we need to save
-  struct Return_F : public DDL::StackFrame {
+
+
+  // A stack frame preserving values across a call
+  struct Return_F : public DDL::Closure {
     int _0;
 
-    static void* allocate(void *code, void *stack, int x0) {
-      DDL::BoxedValue<Return_F> *frame = new DDL::BoxedValue<Return_F>();
-      frame->value.code = code;
-      frame->value.next = stack;
-      frame->value._0   = x0;
-      return frame;
-    }
-    void copy() {}    // would not be empty if we saved some references
-    void free() {}
+    Return_F(void *code, int x0) : DDL::Closure(code), _0(x0) {}
+
+    void freeMembers() {}
   };
 
+  struct SampleThread : public DDL::ThreadClosure {
+    int _0;
+    SampleThread(void *code, int x0) : DDL::ThreadClosure(code), _0(x0) {}
+    void freeMembers() {}
+  };
 
 
   goto start;
 
+T:
+  std::cout << "now in T\n";
+  { SampleThread *frame = (SampleThread*) p.pop();
+    other_arg = frame->_0;
+    std::cout << "notified = " << frame->notified << std::endl;;
+    frame->free();
+  }
+  goto *p.returnPure();
 
 
 F:
   std::cout << "Function F(" << f_arg << ")\n";
   other_arg = 77;
+  p.spawn(new SampleThread(&&T,other_arg));
   std::cout << "F: other_arg = " << other_arg << std::endl;
-  std::cout << "F: stack = " << stack << std::endl;
-  goto * DDL::ReturnPure(stack);
-
+  // std::cout << "F: stack = " << stack << std::endl;
+  goto *p.returnPure();
 
 
 start:
   std::cout << "start: other_arg = " << other_arg << std::endl;
-  std::cout << "start: stack = " << stack << std::endl;
 
   // A function call
-  stack = Return_F::allocate(&&F_ret,stack,other_arg);
+  p.push(new Return_F(&&F_ret,other_arg));
   f_arg = 5;
   goto F;
 
 F_ret: // This label needs a new name as it is not scoped.
   std::cout << "Returned from F\n";
-  { DDL::BoxedValue<Return_F> *frame = (DDL::BoxedValue<Return_F>*)stack;
-    other_arg = frame->value._0;   // restore arguments
-    stack     = frame->value.next; // pop stack
-    free_boxed(frame);
+  { Return_F *frame = (Return_F*) p.pop();
+    other_arg = frame->_0;   // restore arguments
+    frame->free();
   }
-  goto end;    // or whatever would happen after the call
+
+  if (p.hasSuspended()) {
+    std::cout << "Now we'll try to resume\n";
+    goto *p.yield();
+  } else {
+    std::cout << "The end.\n";
+    goto end;
+  }
 
 
 end:
   std::cout << "end: other_arg = " << other_arg << std::endl;
-  std::cout << "end: stack = " << stack << std::endl;
+  // std::cout << "end: stack = " << stack << std::endl;
   return;
 }
 

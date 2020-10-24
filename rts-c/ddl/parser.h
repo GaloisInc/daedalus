@@ -5,7 +5,8 @@
 #include <iostream>
 #include <vector>
 
-#include "ddl/input.h"
+#include <ddl/input.h>
+#include <ddl/stack.h>
 
 namespace DDL {
 
@@ -16,9 +17,12 @@ typedef size_t ThreadId;
 template <class T>
 class Parser {
 
-  Input           input;
-  std::vector<T>  results;
-  size_t          fail_offset;
+  Input                 input;
+  std::vector<T>        results;
+  size_t                fail_offset;
+  Stack                 stack;
+  std::vector<Thread>   suspended;
+
 
 public:
 
@@ -38,37 +42,47 @@ public:
   // Called when we find a successful parse
   void output(T v) { results.push_back(v); }
 
-  // Add to wainting threads
-  // We become the owner of the closure.
-  // ThreadId spawn(std::unique_ptr<Closure1<bool>> clo) {
-  //   ThreadId id = suspended.size();
-  //   suspended.push_back(Thread(clo));
-  //   return id;
-  // }
-
-  // XXX:
-  bool hasSuspended() { return false; }
-
-  // Assumes that there is a suspended thread.
-  void yield() {
-    // auto t = suspended.back();
-    // auto b = t.getNotified();
-    // auto c = t.getClosure();
-    // suspended.pop_back();
-    // (*c)(b);
-  }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
-  // void notify(ThreadId id) { suspended[id].notify(); }
+  void notify(ThreadId id) { suspended[id].notify(); }
 
   // Set the "furtherest fail" location.
-  // XXX: This is not quite right because, in principle, the failurs
+  // XXX: This is not quite right because, in principle, the failures
   // may be in different inputs.  For the moment, we ignore this, which
   // could result in confusing error locations.
   void noteFail() {
     size_t offset = input.getOffset();
     if (offset > fail_offset) fail_offset = offset;
+  }
+
+  // Function calls
+  void push(Closure *c) { stack.push(c); }
+  Closure* pop()        { return stack.pop(); }
+  void* returnPure()    { return stack.retAddr(); }
+  void* returnYes()     { stack.squish(); return stack.retAddr(); }
+  void* returnNo()      { stack.pop()->free(); return stack.retAddr(); }
+
+
+  // -- Threads ---------------------------------------------------------------
+
+  // Add to waiting threads
+  ThreadId spawn(ThreadClosure *c) {
+    suspended.push_back(Thread(c,stack));
+    return suspended.size();
+  }
+
+  // True if there are there are threads to resume
+  bool hasSuspended() { return !suspended.empty(); }
+
+  // Assumes that there is a suspended thread.
+  void *yield() {
+    Thread& t = suspended.back();
+    stack.overwriteBy(t.stack);
+    ThreadClosure *c = t.closure;
+    stack.push(c);
+    suspended.pop_back();
+    return stack.retAddr();
   }
 
 };
