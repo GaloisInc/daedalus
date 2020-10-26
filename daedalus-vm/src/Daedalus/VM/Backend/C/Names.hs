@@ -54,6 +54,18 @@ cField :: Int -> Doc
 cField n = "_" <.> int n
 
 
+cBlockLabel :: Label -> Doc
+cBlockLabel (Label f x) = pp f <.> "_" <.> int x
+
+cVarUse :: BV -> CExpr
+cVarUse = pp
+
+cArgUse :: Block -> BA -> CExpr
+cArgUse b a = cBlockLabel (blockName b) <.> "_" <.> pp a
+
+
+
+--------------------------------------------------------------------------------
 isReserved :: Text -> Bool
 isReserved x = x `Set.member` reservedSet
 

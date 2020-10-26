@@ -19,7 +19,7 @@ class Parser {
 
   Input                 input;
   std::vector<T>        results;
-  size_t                fail_offset;
+  size_t                fail_offset;    // largest, only if `results` empty
   Stack                 stack;
   std::vector<Thread>   suspended;
 
@@ -59,6 +59,10 @@ public:
   // Function calls
   void push(Closure *c) { stack.push(c); }
   Closure* pop()        { return stack.pop(); }
+
+  // Returns the address of the code for the continuation, the closure is on
+  // top of the stack. If there were alternative continuations
+  // (for the yes/no cases) the other alternative is removed from the stack.
   void* returnPure()    { return stack.retAddr(); }
   void* returnYes()     { stack.squish(); return stack.retAddr(); }
   void* returnNo()      { stack.pop()->free(); return stack.retAddr(); }
@@ -76,6 +80,10 @@ public:
   bool hasSuspended() { return !suspended.empty(); }
 
   // Assumes that there is a suspended thread.
+  // Returns the address of the code for the continuation.
+  // The top suspended thread is removed:
+  //    * its stack replaces the current stack
+  //    * its closure is pushed on the *new* current stack.
   void *yield() {
     Thread& t = suspended.back();
     stack.overwriteBy(t.stack);

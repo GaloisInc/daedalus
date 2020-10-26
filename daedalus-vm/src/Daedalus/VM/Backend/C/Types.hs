@@ -1,16 +1,13 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Types where
 
-import qualified Data.Text as Text
 import Text.PrettyPrint as P
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
-import Daedalus.Rec(Rec(..))
 import Daedalus.VM
 import qualified Daedalus.Core as Src
 
-import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 
@@ -38,7 +35,7 @@ cSemType sty =
         Src.TArray a  -> cInst "DDL::Array" [ cSemType a ] <.> "::Builder"
         Src.TMap k v  -> cInst "DDL::Map" [ cSemType k, cSemType v]
                                                             <.> "::Builder"
-        _ -> panic "cSemType" [ "Unexpected iterator type", show (pp t) ]
+        _ -> panic "cSemType" [ "Unexpected builder type", show (pp t) ]
 
     Src.TIterator t ->
       case t of
