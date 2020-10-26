@@ -151,7 +151,9 @@ handleOptions opts
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
               entry <- ddlGetFName mainNm
-              let prog = VM.moduleToProgram entry [m]
+              let prog = VM.addCopyIs
+                       $ VM.doBorrowAnalysis
+                       $ VM.moduleToProgram entry [m]
               ddlPrint (C.cProgram prog)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
