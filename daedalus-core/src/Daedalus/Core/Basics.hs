@@ -60,7 +60,7 @@ data Type =
   | TArray Type
   | TMaybe Type
   | TMap Type Type
-  | TBuilder Type
+  | TBuilder Type         -- ^ Builder for arrays
   | TIterator Type
   | TUser UserType
   | TParam TParam         -- ^ Only in type declaraionts

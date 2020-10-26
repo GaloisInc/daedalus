@@ -21,21 +21,16 @@ cType ty =
 cSemType :: Src.Type -> Doc
 cSemType sty =
   case sty of
-    Src.TStream                -> "DDL::Input"
-    Src.TUInt n                -> cInst "DDL::UInt" [ cSizeType n ]
-    Src.TSInt n                -> cInst "DDL::SInt" [ cSizeType n ]
-    Src.TInteger               -> "DDL::Integer"
-    Src.TBool                  -> "bool"
-    Src.TUnit                  -> "DDL::Unit"
-    Src.TArray t               -> cInst "DDL::Array" [ cSemType t ]
-    Src.TMaybe t               -> cInst "DDL::Optional" [ cSemType t ]
-    Src.TMap k v               -> cInst "DDL::Map" [ cSemType k, cSemType v ]
-    Src.TBuilder t ->
-      case t of
-        Src.TArray a  -> cInst "DDL::Array" [ cSemType a ] <.> "::Builder"
-        Src.TMap k v  -> cInst "DDL::Map" [ cSemType k, cSemType v]
-                                                            <.> "::Builder"
-        _ -> panic "cSemType" [ "Unexpected builder type", show (pp t) ]
+    Src.TStream     -> "DDL::Input"
+    Src.TUInt n     -> cInst "DDL::UInt" [ cSizeType n ]
+    Src.TSInt n     -> cInst "DDL::SInt" [ cSizeType n ]
+    Src.TInteger    -> "DDL::Integer"
+    Src.TBool       -> "bool"
+    Src.TUnit       -> "DDL::Unit"
+    Src.TArray t    -> cInst "DDL::Array" [ cSemType t ]
+    Src.TMaybe t    -> cInst "DDL::Optional" [ cSemType t ]
+    Src.TMap k v    -> cInst "DDL::Map" [ cSemType k, cSemType v ]
+    Src.TBuilder t  -> cInst "DDL::Array" [ cSemType t ] <.> "::Builder"
 
     Src.TIterator t ->
       case t of
