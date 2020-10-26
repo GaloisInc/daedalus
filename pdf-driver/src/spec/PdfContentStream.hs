@@ -520,6 +520,31 @@ instance HS.HasField "stroke" ContentStreamOp (HS.Maybe ()) where
    
   getField _ = HS.Nothing
  
+data ContentOp
+  = ContentOp_futureOp (Vector.Vector (RTS.UInt 8))
+  | ContentOp_knownOp ContentStreamOp
+  
+ 
+deriving instance HS.Eq ContentOp
+ 
+deriving instance HS.Ord ContentOp
+ 
+deriving instance HS.Show ContentOp
+ 
+instance RTS.DDL ContentOp where
+ 
+instance HS.HasField "futureOp" ContentOp
+           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+  getField (ContentOp_futureOp x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "knownOp" ContentOp
+           (HS.Maybe ContentStreamOp) where
+  getField (ContentOp_knownOp x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
 data DirectObj
   = DirectObj_array (Vector.Vector PdfValue.Value)
   | DirectObj_bool HS.Bool
@@ -581,9 +606,9 @@ instance HS.HasField "string" DirectObj
   getField _ = HS.Nothing
  
 data ContentStreamBody_0
-  = ContentStreamBody_0_compatSect (Vector.Vector (RTS.UInt 8))
+  = ContentStreamBody_0_compatSect ()
   | ContentStreamBody_0_operand DirectObj
-  | ContentStreamBody_0_operation ContentStreamOp
+  | ContentStreamBody_0_operation ContentOp
   
  
 deriving instance HS.Eq ContentStreamBody_0
@@ -595,7 +620,7 @@ deriving instance HS.Show ContentStreamBody_0
 instance RTS.DDL ContentStreamBody_0 where
  
 instance HS.HasField "compatSect" ContentStreamBody_0
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+           (HS.Maybe ()) where
   getField (ContentStreamBody_0_compatSect x) = HS.Just x
    
   getField _ = HS.Nothing
@@ -607,616 +632,780 @@ instance HS.HasField "operand" ContentStreamBody_0
   getField _ = HS.Nothing
  
 instance HS.HasField "operation" ContentStreamBody_0
-           (HS.Maybe ContentStreamOp) where
+           (HS.Maybe ContentOp) where
   getField (ContentStreamBody_0_operation x) = HS.Just x
    
   getField _ = HS.Nothing
  
-data ContentOp
-  = ContentOp_futureOp (Vector.Vector (RTS.UInt 8))
-  | ContentOp_knownOp ContentStreamOp
-  
- 
-deriving instance HS.Eq ContentOp
- 
-deriving instance HS.Ord ContentOp
- 
-deriving instance HS.Show ContentOp
- 
-instance RTS.DDL ContentOp where
- 
-instance HS.HasField "futureOp" ContentOp
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
-  getField (ContentOp_futureOp x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "knownOp" ContentOp
-           (HS.Maybe ContentStreamOp) where
-  getField (ContentOp_knownOp x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-pBeginCompat :: D.Parser (Vector.Vector (RTS.UInt 8))
+pBeginCompat :: D.Parser ()
  
 pBeginCompat =
-  RTS.pEnter "PdfValue.Token"
-    (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
-       (HS.pure (Vector.vecFromRep "BX")))
+  RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "BX"))
  
 pContentStreamOp :: D.Parser ContentStreamOp
  
 pContentStreamOp =
-  (RTS.|||)
-    (RTS.pEnter "closeFillStrokeNzWinding"
-       (do (_0 :: ()) <- HS.pure ()
-           HS.pure (ContentStreamOp_closeFillStrokeNzWinding _0)))
-    ((RTS.|||)
-       (RTS.pEnter "fillStroke"
-          (do (_1 :: ()) <- HS.pure ()
-              HS.pure (ContentStreamOp_fillStroke _1)))
-       ((RTS.|||)
-          (RTS.pEnter "closeFillStrokeEvenOdd"
-             (do (_2 :: ()) <- HS.pure ()
-                 HS.pure (ContentStreamOp_closeFillStrokeEvenOdd _2)))
-          ((RTS.|||)
-             (RTS.pEnter "fillStrokeEvenOdd"
-                (do (_3 :: ()) <- HS.pure ()
-                    HS.pure (ContentStreamOp_fillStrokeEvenOdd _3)))
-             ((RTS.|||)
-                (RTS.pEnter "beginMarkedContent"
-                   (do (_4 :: ()) <- HS.pure ()
-                       HS.pure (ContentStreamOp_beginMarkedContent _4)))
-                ((RTS.|||)
-                   (RTS.pEnter "beginInline"
-                      (do (_5 :: ()) <- HS.pure ()
-                          HS.pure (ContentStreamOp_beginInline _5)))
-                   ((RTS.|||)
-                      (RTS.pEnter "beginMarkedContent"
-                         (do (_6 :: ()) <- HS.pure ()
-                             HS.pure (ContentStreamOp_beginMarkedContent _6)))
-                      ((RTS.|||)
-                         (RTS.pEnter "beginText"
-                            (do (_7 :: ()) <- HS.pure ()
-                                HS.pure (ContentStreamOp_beginText _7)))
-                         ((RTS.|||)
-                            (RTS.pEnter "appendCurvedThreePoints"
-                               (do (_8 :: ()) <- HS.pure ()
-                                   HS.pure (ContentStreamOp_appendCurvedThreePoints _8)))
-                            ((RTS.|||)
-                               (RTS.pEnter "concatMatrix"
-                                  (do (_9 :: ()) <- HS.pure ()
-                                      HS.pure (ContentStreamOp_concatMatrix _9)))
-                               ((RTS.|||)
-                                  (RTS.pEnter "setColorSpaceStroking"
-                                     (do (_10 :: ()) <- HS.pure ()
-                                         HS.pure (ContentStreamOp_setColorSpaceStroking _10)))
-                                  ((RTS.|||)
-                                     (RTS.pEnter "setColorSpaceNonStroking"
-                                        (do (_11 :: ()) <- HS.pure ()
-                                            HS.pure (ContentStreamOp_setColorSpaceNonStroking _11)))
-                                     ((RTS.|||)
-                                        (RTS.pEnter "setLineDash"
-                                           (do (_12 :: ()) <- HS.pure ()
-                                               HS.pure (ContentStreamOp_setLineDash _12)))
-                                        ((RTS.|||)
-                                           (RTS.pEnter "setGlyphWidth"
-                                              (do (_13 :: ()) <- HS.pure ()
-                                                  HS.pure (ContentStreamOp_setGlyphWidth _13)))
-                                           ((RTS.|||)
-                                              (RTS.pEnter "setGlpyhWidthBoundingBox"
-                                                 (do (_14 :: ()) <- HS.pure ()
-                                                     HS.pure
-                                                       (ContentStreamOp_setGlpyhWidthBoundingBox
-                                                          _14)))
-                                              ((RTS.|||)
+  (RTS.<||)
+    (RTS.pEnter "closeFillStrokeEvenOdd"
+       (do (_0 :: ()) <-
+             RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "b*"))
+           HS.pure (ContentStreamOp_closeFillStrokeEvenOdd _0)))
+    ((RTS.<||)
+       (RTS.pEnter "closeFillStrokeNzWinding"
+          (do (_1 :: ()) <-
+                RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "b"))
+              HS.pure (ContentStreamOp_closeFillStrokeNzWinding _1)))
+       ((RTS.<||)
+          (RTS.pEnter "fillStrokeEvenOdd"
+             (do (_2 :: ()) <-
+                   RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "B*"))
+                 HS.pure (ContentStreamOp_fillStrokeEvenOdd _2)))
+          ((RTS.<||)
+             (RTS.pEnter "beginMarkedContent"
+                (do (_3 :: ()) <-
+                      RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "BDC"))
+                    HS.pure (ContentStreamOp_beginMarkedContent _3)))
+             ((RTS.<||)
+                (RTS.pEnter "beginInline"
+                   (do (_4 :: ()) <-
+                         RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "Bl"))
+                       HS.pure (ContentStreamOp_beginInline _4)))
+                ((RTS.<||)
+                   (RTS.pEnter "beginMarkedContent"
+                      (do (_5 :: ()) <-
+                            RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "BMC"))
+                          HS.pure (ContentStreamOp_beginMarkedContent _5)))
+                   ((RTS.<||)
+                      (RTS.pEnter "beginText"
+                         (do (_6 :: ()) <-
+                               RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "BT"))
+                             HS.pure (ContentStreamOp_beginText _6)))
+                      ((RTS.<||)
+                         (RTS.pEnter "fillStroke"
+                            (do (_7 :: ()) <-
+                                  RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "B"))
+                                HS.pure (ContentStreamOp_fillStroke _7)))
+                         ((RTS.<||)
+                            (RTS.pEnter "concatMatrix"
+                               (do (_8 :: ()) <-
+                                     RTS.pEnter "PdfValue.KW"
+                                       (PdfValue.pKW (Vector.vecFromRep "cm"))
+                                   HS.pure (ContentStreamOp_concatMatrix _8)))
+                            ((RTS.<||)
+                               (RTS.pEnter "setColorSpaceStroking"
+                                  (do (_9 :: ()) <-
+                                        RTS.pEnter "PdfValue.KW"
+                                          (PdfValue.pKW (Vector.vecFromRep "CS"))
+                                      HS.pure (ContentStreamOp_setColorSpaceStroking _9)))
+                               ((RTS.<||)
+                                  (RTS.pEnter "setColorSpaceNonStroking"
+                                     (do (_10 :: ()) <-
+                                           RTS.pEnter "PdfValue.KW"
+                                             (PdfValue.pKW (Vector.vecFromRep "cs"))
+                                         HS.pure (ContentStreamOp_setColorSpaceNonStroking _10)))
+                                  ((RTS.<||)
+                                     (RTS.pEnter "appendCurvedThreePoints"
+                                        (do (_11 :: ()) <-
+                                              RTS.pEnter "PdfValue.KW"
+                                                (PdfValue.pKW (Vector.vecFromRep "c"))
+                                            HS.pure (ContentStreamOp_appendCurvedThreePoints _11)))
+                                     ((RTS.<||)
+                                        (RTS.pEnter "setGlyphWidth"
+                                           (do (_12 :: ()) <-
+                                                 RTS.pEnter "PdfValue.KW"
+                                                   (PdfValue.pKW (Vector.vecFromRep "d0"))
+                                               HS.pure (ContentStreamOp_setGlyphWidth _12)))
+                                        ((RTS.<||)
+                                           (RTS.pEnter "setGlpyhWidthBoundingBox"
+                                              (do (_13 :: ()) <-
+                                                    RTS.pEnter "PdfValue.KW"
+                                                      (PdfValue.pKW (Vector.vecFromRep "d1"))
+                                                  HS.pure
+                                                    (ContentStreamOp_setGlpyhWidthBoundingBox _13)))
+                                           ((RTS.<||)
+                                              (RTS.pEnter "setLineDash"
+                                                 (do (_14 :: ()) <-
+                                                       RTS.pEnter "PdfValue.KW"
+                                                         (PdfValue.pKW (Vector.vecFromRep "d"))
+                                                     HS.pure (ContentStreamOp_setLineDash _14)))
+                                              ((RTS.<||)
                                                  (RTS.pEnter "invokeXObj"
-                                                    (do (_15 :: ()) <- HS.pure ()
+                                                    (do (_15 :: ()) <-
+                                                          RTS.pEnter "PdfValue.KW"
+                                                            (PdfValue.pKW (Vector.vecFromRep "Do"))
                                                         HS.pure (ContentStreamOp_invokeXObj _15)))
-                                                 ((RTS.|||)
+                                                 ((RTS.<||)
                                                     (RTS.pEnter "defMarkedContentPoint"
-                                                       (do (_16 :: ()) <- HS.pure ()
+                                                       (do (_16 :: ()) <-
+                                                             RTS.pEnter "PdfValue.KW"
+                                                               (PdfValue.pKW
+                                                                  (Vector.vecFromRep "DP"))
                                                            HS.pure
                                                              (ContentStreamOp_defMarkedContentPoint
                                                                 _16)))
-                                                    ((RTS.|||)
+                                                    ((RTS.<||)
                                                        (RTS.pEnter "endInline"
-                                                          (do (_17 :: ()) <- HS.pure ()
+                                                          (do (_17 :: ()) <-
+                                                                RTS.pEnter "PdfValue.KW"
+                                                                  (PdfValue.pKW
+                                                                     (Vector.vecFromRep "El"))
                                                               HS.pure
                                                                 (ContentStreamOp_endInline _17)))
-                                                       ((RTS.|||)
+                                                       ((RTS.<||)
                                                           (RTS.pEnter "endMarkedContent"
-                                                             (do (_18 :: ()) <- HS.pure ()
+                                                             (do (_18 :: ()) <-
+                                                                   RTS.pEnter "PdfValue.KW"
+                                                                     (PdfValue.pKW
+                                                                        (Vector.vecFromRep "EMC"))
                                                                  HS.pure
                                                                    (ContentStreamOp_endMarkedContent
                                                                       _18)))
-                                                          ((RTS.|||)
+                                                          ((RTS.<||)
                                                              (RTS.pEnter "endTextObj"
-                                                                (do (_19 :: ()) <- HS.pure ()
+                                                                (do (_19 :: ()) <-
+                                                                      RTS.pEnter "PdfValue.KW"
+                                                                        (PdfValue.pKW
+                                                                           (Vector.vecFromRep "ET"))
                                                                     HS.pure
                                                                       (ContentStreamOp_endTextObj
                                                                          _19)))
-                                                             ((RTS.|||)
-                                                                (RTS.pEnter "fillPathNzWinding"
-                                                                   (do (_20 :: ()) <- HS.pure ()
+                                                             ((RTS.<||)
+                                                                (RTS.pEnter "fillPathEvenOdd"
+                                                                   (do (_20 :: ()) <-
+                                                                         RTS.pEnter "PdfValue.KW"
+                                                                           (PdfValue.pKW
+                                                                              (Vector.vecFromRep
+                                                                                 "f*"))
                                                                        HS.pure
-                                                                         (ContentStreamOp_fillPathNzWinding
+                                                                         (ContentStreamOp_fillPathEvenOdd
                                                                             _20)))
-                                                                ((RTS.|||)
-                                                                   (RTS.pEnter
-                                                                      "fillPathNzWindingOld"
-                                                                      (do (_21 :: ()) <- HS.pure ()
+                                                                ((RTS.<||)
+                                                                   (RTS.pEnter "fillPathNzWinding"
+                                                                      (do (_21 :: ()) <-
+                                                                            RTS.pEnter "PdfValue.KW"
+                                                                              (PdfValue.pKW
+                                                                                 (Vector.vecFromRep
+                                                                                    "f"))
                                                                           HS.pure
-                                                                            (ContentStreamOp_fillPathNzWindingOld
+                                                                            (ContentStreamOp_fillPathNzWinding
                                                                                _21)))
-                                                                   ((RTS.|||)
-                                                                      (RTS.pEnter "fillPathEvenOdd"
+                                                                   ((RTS.<||)
+                                                                      (RTS.pEnter
+                                                                         "fillPathNzWindingOld"
                                                                          (do (_22 :: ()) <-
-                                                                               HS.pure ()
+                                                                               RTS.pEnter
+                                                                                 "PdfValue.KW"
+                                                                                 (PdfValue.pKW
+                                                                                    (Vector.vecFromRep
+                                                                                       "F"))
                                                                              HS.pure
-                                                                               (ContentStreamOp_fillPathEvenOdd
+                                                                               (ContentStreamOp_fillPathNzWindingOld
                                                                                   _22)))
-                                                                      ((RTS.|||)
+                                                                      ((RTS.<||)
                                                                          (RTS.pEnter
                                                                             "setGrayStroking"
                                                                             (do (_23 :: ()) <-
-                                                                                  HS.pure ()
+                                                                                  RTS.pEnter
+                                                                                    "PdfValue.KW"
+                                                                                    (PdfValue.pKW
+                                                                                       (Vector.vecFromRep
+                                                                                          "G"))
                                                                                 HS.pure
                                                                                   (ContentStreamOp_setGrayStroking
                                                                                      _23)))
-                                                                         ((RTS.|||)
+                                                                         ((RTS.<||)
                                                                             (RTS.pEnter
-                                                                               "setGrayNonStroking"
+                                                                               "setGraphicsStateParams"
                                                                                (do (_24 :: ()) <-
-                                                                                     HS.pure ()
+                                                                                     RTS.pEnter
+                                                                                       "PdfValue.KW"
+                                                                                       (PdfValue.pKW
+                                                                                          (Vector.vecFromRep
+                                                                                             "gs"))
                                                                                    HS.pure
-                                                                                     (ContentStreamOp_setGrayNonStroking
+                                                                                     (ContentStreamOp_setGraphicsStateParams
                                                                                         _24)))
-                                                                            ((RTS.|||)
+                                                                            ((RTS.<||)
                                                                                (RTS.pEnter
-                                                                                  "setGraphicsStateParams"
+                                                                                  "setGrayNonStroking"
                                                                                   (do (_25 :: ()) <-
-                                                                                        HS.pure ()
+                                                                                        RTS.pEnter
+                                                                                          "PdfValue.KW"
+                                                                                          (PdfValue.pKW
+                                                                                             (Vector.vecFromRep
+                                                                                                "g"))
                                                                                       HS.pure
-                                                                                        (ContentStreamOp_setGraphicsStateParams
+                                                                                        (ContentStreamOp_setGrayNonStroking
                                                                                            _25)))
-                                                                               ((RTS.|||)
+                                                                               ((RTS.<||)
                                                                                   (RTS.pEnter
                                                                                      "closeSubpath"
                                                                                      (do (_26
                                                                                             :: ()) <-
-                                                                                           HS.pure
-                                                                                             ()
+                                                                                           RTS.pEnter
+                                                                                             "PdfValue.KW"
+                                                                                             (PdfValue.pKW
+                                                                                                (Vector.vecFromRep
+                                                                                                   "h"))
                                                                                          HS.pure
                                                                                            (ContentStreamOp_closeSubpath
                                                                                               _26)))
-                                                                                  ((RTS.|||)
+                                                                                  ((RTS.<||)
                                                                                      (RTS.pEnter
                                                                                         "setFlat"
                                                                                         (do (_27
                                                                                                :: ()) <-
-                                                                                              HS.pure
-                                                                                                ()
+                                                                                              RTS.pEnter
+                                                                                                "PdfValue.KW"
+                                                                                                (PdfValue.pKW
+                                                                                                   (Vector.vecFromRep
+                                                                                                      "i"))
                                                                                             HS.pure
                                                                                               (ContentStreamOp_setFlat
                                                                                                  _27)))
-                                                                                     ((RTS.|||)
+                                                                                     ((RTS.<||)
                                                                                         (RTS.pEnter
                                                                                            "beginInlineImageData"
                                                                                            (do (_28
                                                                                                   :: ()) <-
-                                                                                                 HS.pure
-                                                                                                   ()
+                                                                                                 RTS.pEnter
+                                                                                                   "PdfValue.KW"
+                                                                                                   (PdfValue.pKW
+                                                                                                      (Vector.vecFromRep
+                                                                                                         "ID"))
                                                                                                HS.pure
                                                                                                  (ContentStreamOp_beginInlineImageData
                                                                                                     _28)))
-                                                                                        ((RTS.|||)
+                                                                                        ((RTS.<||)
                                                                                            (RTS.pEnter
                                                                                               "setLineJoinStyle"
                                                                                               (do (_29
                                                                                                      :: ()) <-
-                                                                                                    HS.pure
-                                                                                                      ()
+                                                                                                    RTS.pEnter
+                                                                                                      "PdfValue.KW"
+                                                                                                      (PdfValue.pKW
+                                                                                                         (Vector.vecFromRep
+                                                                                                            "j"))
                                                                                                   HS.pure
                                                                                                     (ContentStreamOp_setLineJoinStyle
                                                                                                        _29)))
-                                                                                           ((RTS.|||)
+                                                                                           ((RTS.<||)
                                                                                               (RTS.pEnter
                                                                                                  "setLineCapStyle"
                                                                                                  (do (_30
                                                                                                         :: ()) <-
-                                                                                                       HS.pure
-                                                                                                         ()
+                                                                                                       RTS.pEnter
+                                                                                                         "PdfValue.KW"
+                                                                                                         (PdfValue.pKW
+                                                                                                            (Vector.vecFromRep
+                                                                                                               "J"))
                                                                                                      HS.pure
                                                                                                        (ContentStreamOp_setLineCapStyle
                                                                                                           _30)))
-                                                                                              ((RTS.|||)
+                                                                                              ((RTS.<||)
                                                                                                  (RTS.pEnter
                                                                                                     "setCMYKStroking"
                                                                                                     (do (_31
                                                                                                            :: ()) <-
-                                                                                                          HS.pure
-                                                                                                            ()
+                                                                                                          RTS.pEnter
+                                                                                                            "PdfValue.KW"
+                                                                                                            (PdfValue.pKW
+                                                                                                               (Vector.vecFromRep
+                                                                                                                  "K"))
                                                                                                         HS.pure
                                                                                                           (ContentStreamOp_setCMYKStroking
                                                                                                              _31)))
-                                                                                                 ((RTS.|||)
+                                                                                                 ((RTS.<||)
                                                                                                     (RTS.pEnter
                                                                                                        "setCMYKNonStroking"
                                                                                                        (do (_32
                                                                                                               :: ()) <-
-                                                                                                             HS.pure
-                                                                                                               ()
+                                                                                                             RTS.pEnter
+                                                                                                               "PdfValue.KW"
+                                                                                                               (PdfValue.pKW
+                                                                                                                  (Vector.vecFromRep
+                                                                                                                     "k"))
                                                                                                            HS.pure
                                                                                                              (ContentStreamOp_setCMYKNonStroking
                                                                                                                 _32)))
-                                                                                                    ((RTS.|||)
+                                                                                                    ((RTS.<||)
                                                                                                        (RTS.pEnter
                                                                                                           "appendLine"
                                                                                                           (do (_33
                                                                                                                  :: ()) <-
-                                                                                                                HS.pure
-                                                                                                                  ()
+                                                                                                                RTS.pEnter
+                                                                                                                  "PdfValue.KW"
+                                                                                                                  (PdfValue.pKW
+                                                                                                                     (Vector.vecFromRep
+                                                                                                                        "l"))
                                                                                                               HS.pure
                                                                                                                 (ContentStreamOp_appendLine
                                                                                                                    _33)))
-                                                                                                       ((RTS.|||)
+                                                                                                       ((RTS.<||)
                                                                                                           (RTS.pEnter
                                                                                                              "beginNewSuppath"
                                                                                                              (do (_34
                                                                                                                     :: ()) <-
-                                                                                                                   HS.pure
-                                                                                                                     ()
+                                                                                                                   RTS.pEnter
+                                                                                                                     "PdfValue.KW"
+                                                                                                                     (PdfValue.pKW
+                                                                                                                        (Vector.vecFromRep
+                                                                                                                           "m"))
                                                                                                                  HS.pure
                                                                                                                    (ContentStreamOp_beginNewSuppath
                                                                                                                       _34)))
-                                                                                                          ((RTS.|||)
+                                                                                                          ((RTS.<||)
                                                                                                              (RTS.pEnter
-                                                                                                                "setMiterLimit"
+                                                                                                                "defineMarkedContent"
                                                                                                                 (do (_35
                                                                                                                        :: ()) <-
-                                                                                                                      HS.pure
-                                                                                                                        ()
+                                                                                                                      RTS.pEnter
+                                                                                                                        "PdfValue.KW"
+                                                                                                                        (PdfValue.pKW
+                                                                                                                           (Vector.vecFromRep
+                                                                                                                              "MP"))
                                                                                                                     HS.pure
-                                                                                                                      (ContentStreamOp_setMiterLimit
+                                                                                                                      (ContentStreamOp_defineMarkedContent
                                                                                                                          _35)))
-                                                                                                             ((RTS.|||)
+                                                                                                             ((RTS.<||)
                                                                                                                 (RTS.pEnter
-                                                                                                                   "defineMarkedContent"
+                                                                                                                   "setMiterLimit"
                                                                                                                    (do (_36
                                                                                                                           :: ()) <-
-                                                                                                                         HS.pure
-                                                                                                                           ()
+                                                                                                                         RTS.pEnter
+                                                                                                                           "PdfValue.KW"
+                                                                                                                           (PdfValue.pKW
+                                                                                                                              (Vector.vecFromRep
+                                                                                                                                 "M"))
                                                                                                                        HS.pure
-                                                                                                                         (ContentStreamOp_defineMarkedContent
+                                                                                                                         (ContentStreamOp_setMiterLimit
                                                                                                                             _36)))
-                                                                                                                ((RTS.|||)
+                                                                                                                ((RTS.<||)
                                                                                                                    (RTS.pEnter
                                                                                                                       "endPath"
                                                                                                                       (do (_37
                                                                                                                              :: ()) <-
-                                                                                                                            HS.pure
-                                                                                                                              ()
+                                                                                                                            RTS.pEnter
+                                                                                                                              "PdfValue.KW"
+                                                                                                                              (PdfValue.pKW
+                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                    "n"))
                                                                                                                           HS.pure
                                                                                                                             (ContentStreamOp_endPath
                                                                                                                                _37)))
-                                                                                                                   ((RTS.|||)
+                                                                                                                   ((RTS.<||)
                                                                                                                       (RTS.pEnter
                                                                                                                          "saveGraphicsState"
                                                                                                                          (do (_38
                                                                                                                                 :: ()) <-
-                                                                                                                               HS.pure
-                                                                                                                                 ()
+                                                                                                                               RTS.pEnter
+                                                                                                                                 "PdfValue.KW"
+                                                                                                                                 (PdfValue.pKW
+                                                                                                                                    (Vector.vecFromRep
+                                                                                                                                       "q"))
                                                                                                                              HS.pure
                                                                                                                                (ContentStreamOp_saveGraphicsState
                                                                                                                                   _38)))
-                                                                                                                      ((RTS.|||)
+                                                                                                                      ((RTS.<||)
                                                                                                                          (RTS.pEnter
                                                                                                                             "restoreGraphicsState"
                                                                                                                             (do (_39
                                                                                                                                    :: ()) <-
-                                                                                                                                  HS.pure
-                                                                                                                                    ()
+                                                                                                                                  RTS.pEnter
+                                                                                                                                    "PdfValue.KW"
+                                                                                                                                    (PdfValue.pKW
+                                                                                                                                       (Vector.vecFromRep
+                                                                                                                                          "Q"))
                                                                                                                                 HS.pure
                                                                                                                                   (ContentStreamOp_restoreGraphicsState
                                                                                                                                      _39)))
-                                                                                                                         ((RTS.|||)
+                                                                                                                         ((RTS.<||)
                                                                                                                             (RTS.pEnter
-                                                                                                                               "appendRect"
+                                                                                                                               "setRGBStroking"
                                                                                                                                (do (_40
                                                                                                                                       :: ()) <-
-                                                                                                                                     HS.pure
-                                                                                                                                       ()
+                                                                                                                                     RTS.pEnter
+                                                                                                                                       "PdfValue.KW"
+                                                                                                                                       (PdfValue.pKW
+                                                                                                                                          (Vector.vecFromRep
+                                                                                                                                             "RG"))
                                                                                                                                    HS.pure
-                                                                                                                                     (ContentStreamOp_appendRect
+                                                                                                                                     (ContentStreamOp_setRGBStroking
                                                                                                                                         _40)))
-                                                                                                                            ((RTS.|||)
+                                                                                                                            ((RTS.<||)
                                                                                                                                (RTS.pEnter
-                                                                                                                                  "setRGBStroking"
+                                                                                                                                  "appendRect"
                                                                                                                                   (do (_41
                                                                                                                                          :: ()) <-
-                                                                                                                                        HS.pure
-                                                                                                                                          ()
+                                                                                                                                        RTS.pEnter
+                                                                                                                                          "PdfValue.KW"
+                                                                                                                                          (PdfValue.pKW
+                                                                                                                                             (Vector.vecFromRep
+                                                                                                                                                "re"))
                                                                                                                                       HS.pure
-                                                                                                                                        (ContentStreamOp_setRGBStroking
+                                                                                                                                        (ContentStreamOp_appendRect
                                                                                                                                            _41)))
-                                                                                                                               ((RTS.|||)
+                                                                                                                               ((RTS.<||)
                                                                                                                                   (RTS.pEnter
                                                                                                                                      "setRGBNonStroking"
                                                                                                                                      (do (_42
                                                                                                                                             :: ()) <-
-                                                                                                                                           HS.pure
-                                                                                                                                             ()
+                                                                                                                                           RTS.pEnter
+                                                                                                                                             "PdfValue.KW"
+                                                                                                                                             (PdfValue.pKW
+                                                                                                                                                (Vector.vecFromRep
+                                                                                                                                                   "rg"))
                                                                                                                                          HS.pure
                                                                                                                                            (ContentStreamOp_setRGBNonStroking
                                                                                                                                               _42)))
-                                                                                                                                  ((RTS.|||)
+                                                                                                                                  ((RTS.<||)
                                                                                                                                      (RTS.pEnter
                                                                                                                                         "setColorRenderingIntent"
                                                                                                                                         (do (_43
                                                                                                                                                :: ()) <-
-                                                                                                                                              HS.pure
-                                                                                                                                                ()
+                                                                                                                                              RTS.pEnter
+                                                                                                                                                "PdfValue.KW"
+                                                                                                                                                (PdfValue.pKW
+                                                                                                                                                   (Vector.vecFromRep
+                                                                                                                                                      "ri"))
                                                                                                                                             HS.pure
                                                                                                                                               (ContentStreamOp_setColorRenderingIntent
                                                                                                                                                  _43)))
-                                                                                                                                     ((RTS.|||)
+                                                                                                                                     ((RTS.<||)
                                                                                                                                         (RTS.pEnter
-                                                                                                                                           "closeStrokePath"
+                                                                                                                                           "setColorNonStrokingICC"
                                                                                                                                            (do (_44
                                                                                                                                                   :: ()) <-
-                                                                                                                                                 HS.pure
-                                                                                                                                                   ()
+                                                                                                                                                 RTS.pEnter
+                                                                                                                                                   "PdfValue.KW"
+                                                                                                                                                   (PdfValue.pKW
+                                                                                                                                                      (Vector.vecFromRep
+                                                                                                                                                         "scn"))
                                                                                                                                                HS.pure
-                                                                                                                                                 (ContentStreamOp_closeStrokePath
+                                                                                                                                                 (ContentStreamOp_setColorNonStrokingICC
                                                                                                                                                     _44)))
-                                                                                                                                        ((RTS.|||)
+                                                                                                                                        ((RTS.<||)
                                                                                                                                            (RTS.pEnter
-                                                                                                                                              "stroke"
+                                                                                                                                              "setColorNonStroking"
                                                                                                                                               (do (_45
                                                                                                                                                      :: ()) <-
-                                                                                                                                                    HS.pure
-                                                                                                                                                      ()
+                                                                                                                                                    RTS.pEnter
+                                                                                                                                                      "PdfValue.KW"
+                                                                                                                                                      (PdfValue.pKW
+                                                                                                                                                         (Vector.vecFromRep
+                                                                                                                                                            "sc"))
                                                                                                                                                   HS.pure
-                                                                                                                                                    (ContentStreamOp_stroke
+                                                                                                                                                    (ContentStreamOp_setColorNonStroking
                                                                                                                                                        _45)))
-                                                                                                                                           ((RTS.|||)
+                                                                                                                                           ((RTS.<||)
                                                                                                                                               (RTS.pEnter
-                                                                                                                                                 "setColorStroking"
+                                                                                                                                                 "closeStrokePath"
                                                                                                                                                  (do (_46
                                                                                                                                                         :: ()) <-
-                                                                                                                                                       HS.pure
-                                                                                                                                                         ()
+                                                                                                                                                       RTS.pEnter
+                                                                                                                                                         "PdfValue.KW"
+                                                                                                                                                         (PdfValue.pKW
+                                                                                                                                                            (Vector.vecFromRep
+                                                                                                                                                               "s"))
                                                                                                                                                      HS.pure
-                                                                                                                                                       (ContentStreamOp_setColorStroking
+                                                                                                                                                       (ContentStreamOp_closeStrokePath
                                                                                                                                                           _46)))
-                                                                                                                                              ((RTS.|||)
+                                                                                                                                              ((RTS.<||)
                                                                                                                                                  (RTS.pEnter
-                                                                                                                                                    "setColorNonStroking"
+                                                                                                                                                    "setColorStrokingICC"
                                                                                                                                                     (do (_47
                                                                                                                                                            :: ()) <-
-                                                                                                                                                          HS.pure
-                                                                                                                                                            ()
+                                                                                                                                                          RTS.pEnter
+                                                                                                                                                            "PdfValue.KW"
+                                                                                                                                                            (PdfValue.pKW
+                                                                                                                                                               (Vector.vecFromRep
+                                                                                                                                                                  "SCN"))
                                                                                                                                                         HS.pure
-                                                                                                                                                          (ContentStreamOp_setColorNonStroking
+                                                                                                                                                          (ContentStreamOp_setColorStrokingICC
                                                                                                                                                              _47)))
-                                                                                                                                                 ((RTS.|||)
+                                                                                                                                                 ((RTS.<||)
                                                                                                                                                     (RTS.pEnter
-                                                                                                                                                       "setColorStrokingICC"
+                                                                                                                                                       "setColorStroking"
                                                                                                                                                        (do (_48
                                                                                                                                                               :: ()) <-
-                                                                                                                                                             HS.pure
-                                                                                                                                                               ()
+                                                                                                                                                             RTS.pEnter
+                                                                                                                                                               "PdfValue.KW"
+                                                                                                                                                               (PdfValue.pKW
+                                                                                                                                                                  (Vector.vecFromRep
+                                                                                                                                                                     "SC"))
                                                                                                                                                            HS.pure
-                                                                                                                                                             (ContentStreamOp_setColorStrokingICC
+                                                                                                                                                             (ContentStreamOp_setColorStroking
                                                                                                                                                                 _48)))
-                                                                                                                                                    ((RTS.|||)
+                                                                                                                                                    ((RTS.<||)
                                                                                                                                                        (RTS.pEnter
-                                                                                                                                                          "setColorNonStrokingICC"
+                                                                                                                                                          "stroke"
                                                                                                                                                           (do (_49
                                                                                                                                                                  :: ()) <-
-                                                                                                                                                                HS.pure
-                                                                                                                                                                  ()
+                                                                                                                                                                RTS.pEnter
+                                                                                                                                                                  "PdfValue.KW"
+                                                                                                                                                                  (PdfValue.pKW
+                                                                                                                                                                     (Vector.vecFromRep
+                                                                                                                                                                        "S"))
                                                                                                                                                               HS.pure
-                                                                                                                                                                (ContentStreamOp_setColorNonStrokingICC
+                                                                                                                                                                (ContentStreamOp_stroke
                                                                                                                                                                    _49)))
-                                                                                                                                                       ((RTS.|||)
+                                                                                                                                                       ((RTS.<||)
                                                                                                                                                           (RTS.pEnter
                                                                                                                                                              "paintShadingPattern"
                                                                                                                                                              (do (_50
                                                                                                                                                                     :: ()) <-
-                                                                                                                                                                   HS.pure
-                                                                                                                                                                     ()
+                                                                                                                                                                   RTS.pEnter
+                                                                                                                                                                     "PdfValue.KW"
+                                                                                                                                                                     (PdfValue.pKW
+                                                                                                                                                                        (Vector.vecFromRep
+                                                                                                                                                                           "sh"))
                                                                                                                                                                  HS.pure
                                                                                                                                                                    (ContentStreamOp_paintShadingPattern
                                                                                                                                                                       _50)))
-                                                                                                                                                          ((RTS.|||)
+                                                                                                                                                          ((RTS.<||)
                                                                                                                                                              (RTS.pEnter
                                                                                                                                                                 "moveStartText"
                                                                                                                                                                 (do (_51
                                                                                                                                                                        :: ()) <-
-                                                                                                                                                                      HS.pure
-                                                                                                                                                                        ()
+                                                                                                                                                                      RTS.pEnter
+                                                                                                                                                                        "PdfValue.KW"
+                                                                                                                                                                        (PdfValue.pKW
+                                                                                                                                                                           (Vector.vecFromRep
+                                                                                                                                                                              "T*"))
                                                                                                                                                                     HS.pure
                                                                                                                                                                       (ContentStreamOp_moveStartText
                                                                                                                                                                          _51)))
-                                                                                                                                                             ((RTS.|||)
+                                                                                                                                                             ((RTS.<||)
                                                                                                                                                                 (RTS.pEnter
                                                                                                                                                                    "setCharSpacing"
                                                                                                                                                                    (do (_52
                                                                                                                                                                           :: ()) <-
-                                                                                                                                                                         HS.pure
-                                                                                                                                                                           ()
+                                                                                                                                                                         RTS.pEnter
+                                                                                                                                                                           "PdfValue.KW"
+                                                                                                                                                                           (PdfValue.pKW
+                                                                                                                                                                              (Vector.vecFromRep
+                                                                                                                                                                                 "Tc"))
                                                                                                                                                                        HS.pure
                                                                                                                                                                          (ContentStreamOp_setCharSpacing
                                                                                                                                                                             _52)))
-                                                                                                                                                                ((RTS.|||)
+                                                                                                                                                                ((RTS.<||)
                                                                                                                                                                    (RTS.pEnter
                                                                                                                                                                       "moveTextPos"
                                                                                                                                                                       (do (_53
                                                                                                                                                                              :: ()) <-
-                                                                                                                                                                            HS.pure
-                                                                                                                                                                              ()
+                                                                                                                                                                            RTS.pEnter
+                                                                                                                                                                              "PdfValue.KW"
+                                                                                                                                                                              (PdfValue.pKW
+                                                                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                                                                    "Td"))
                                                                                                                                                                           HS.pure
                                                                                                                                                                             (ContentStreamOp_moveTextPos
                                                                                                                                                                                _53)))
-                                                                                                                                                                   ((RTS.|||)
+                                                                                                                                                                   ((RTS.<||)
                                                                                                                                                                       (RTS.pEnter
                                                                                                                                                                          "moveTextPosSetLeading"
                                                                                                                                                                          (do (_54
                                                                                                                                                                                 :: ()) <-
-                                                                                                                                                                               HS.pure
-                                                                                                                                                                                 ()
+                                                                                                                                                                               RTS.pEnter
+                                                                                                                                                                                 "PdfValue.KW"
+                                                                                                                                                                                 (PdfValue.pKW
+                                                                                                                                                                                    (Vector.vecFromRep
+                                                                                                                                                                                       "TD"))
                                                                                                                                                                              HS.pure
                                                                                                                                                                                (ContentStreamOp_moveTextPosSetLeading
                                                                                                                                                                                   _54)))
-                                                                                                                                                                      ((RTS.|||)
+                                                                                                                                                                      ((RTS.<||)
                                                                                                                                                                          (RTS.pEnter
                                                                                                                                                                             "setTextFont"
                                                                                                                                                                             (do (_55
                                                                                                                                                                                    :: ()) <-
-                                                                                                                                                                                  HS.pure
-                                                                                                                                                                                    ()
+                                                                                                                                                                                  RTS.pEnter
+                                                                                                                                                                                    "PdfValue.KW"
+                                                                                                                                                                                    (PdfValue.pKW
+                                                                                                                                                                                       (Vector.vecFromRep
+                                                                                                                                                                                          "Tf"))
                                                                                                                                                                                 HS.pure
                                                                                                                                                                                   (ContentStreamOp_setTextFont
                                                                                                                                                                                      _55)))
-                                                                                                                                                                         ((RTS.|||)
+                                                                                                                                                                         ((RTS.<||)
                                                                                                                                                                             (RTS.pEnter
                                                                                                                                                                                "showText"
                                                                                                                                                                                (do (_56
                                                                                                                                                                                       :: ()) <-
-                                                                                                                                                                                     HS.pure
-                                                                                                                                                                                       ()
+                                                                                                                                                                                     RTS.pEnter
+                                                                                                                                                                                       "PdfValue.KW"
+                                                                                                                                                                                       (PdfValue.pKW
+                                                                                                                                                                                          (Vector.vecFromRep
+                                                                                                                                                                                             "Tj"))
                                                                                                                                                                                    HS.pure
                                                                                                                                                                                      (ContentStreamOp_showText
                                                                                                                                                                                         _56)))
-                                                                                                                                                                            ((RTS.|||)
+                                                                                                                                                                            ((RTS.<||)
                                                                                                                                                                                (RTS.pEnter
                                                                                                                                                                                   "showTextIndGlyph"
                                                                                                                                                                                   (do (_57
                                                                                                                                                                                          :: ()) <-
-                                                                                                                                                                                        HS.pure
-                                                                                                                                                                                          ()
+                                                                                                                                                                                        RTS.pEnter
+                                                                                                                                                                                          "PdfValue.KW"
+                                                                                                                                                                                          (PdfValue.pKW
+                                                                                                                                                                                             (Vector.vecFromRep
+                                                                                                                                                                                                "TJ"))
                                                                                                                                                                                       HS.pure
                                                                                                                                                                                         (ContentStreamOp_showTextIndGlyph
                                                                                                                                                                                            _57)))
-                                                                                                                                                                               ((RTS.|||)
+                                                                                                                                                                               ((RTS.<||)
                                                                                                                                                                                   (RTS.pEnter
                                                                                                                                                                                      "setTextLeading"
                                                                                                                                                                                      (do (_58
                                                                                                                                                                                             :: ()) <-
-                                                                                                                                                                                           HS.pure
-                                                                                                                                                                                             ()
+                                                                                                                                                                                           RTS.pEnter
+                                                                                                                                                                                             "PdfValue.KW"
+                                                                                                                                                                                             (PdfValue.pKW
+                                                                                                                                                                                                (Vector.vecFromRep
+                                                                                                                                                                                                   "TL"))
                                                                                                                                                                                          HS.pure
                                                                                                                                                                                            (ContentStreamOp_setTextLeading
                                                                                                                                                                                               _58)))
-                                                                                                                                                                                  ((RTS.|||)
+                                                                                                                                                                                  ((RTS.<||)
                                                                                                                                                                                      (RTS.pEnter
                                                                                                                                                                                         "setTextMatrix"
                                                                                                                                                                                         (do (_59
                                                                                                                                                                                                :: ()) <-
-                                                                                                                                                                                              HS.pure
-                                                                                                                                                                                                ()
+                                                                                                                                                                                              RTS.pEnter
+                                                                                                                                                                                                "PdfValue.KW"
+                                                                                                                                                                                                (PdfValue.pKW
+                                                                                                                                                                                                   (Vector.vecFromRep
+                                                                                                                                                                                                      "Tm"))
                                                                                                                                                                                             HS.pure
                                                                                                                                                                                               (ContentStreamOp_setTextMatrix
                                                                                                                                                                                                  _59)))
-                                                                                                                                                                                     ((RTS.|||)
+                                                                                                                                                                                     ((RTS.<||)
                                                                                                                                                                                         (RTS.pEnter
                                                                                                                                                                                            "setTextRendering"
                                                                                                                                                                                            (do (_60
                                                                                                                                                                                                   :: ()) <-
-                                                                                                                                                                                                 HS.pure
-                                                                                                                                                                                                   ()
+                                                                                                                                                                                                 RTS.pEnter
+                                                                                                                                                                                                   "PdfValue.KW"
+                                                                                                                                                                                                   (PdfValue.pKW
+                                                                                                                                                                                                      (Vector.vecFromRep
+                                                                                                                                                                                                         "Tr"))
                                                                                                                                                                                                HS.pure
                                                                                                                                                                                                  (ContentStreamOp_setTextRendering
                                                                                                                                                                                                     _60)))
-                                                                                                                                                                                        ((RTS.|||)
+                                                                                                                                                                                        ((RTS.<||)
                                                                                                                                                                                            (RTS.pEnter
                                                                                                                                                                                               "setTextRise"
                                                                                                                                                                                               (do (_61
                                                                                                                                                                                                      :: ()) <-
-                                                                                                                                                                                                    HS.pure
-                                                                                                                                                                                                      ()
+                                                                                                                                                                                                    RTS.pEnter
+                                                                                                                                                                                                      "PdfValue.KW"
+                                                                                                                                                                                                      (PdfValue.pKW
+                                                                                                                                                                                                         (Vector.vecFromRep
+                                                                                                                                                                                                            "Ts"))
                                                                                                                                                                                                   HS.pure
                                                                                                                                                                                                     (ContentStreamOp_setTextRise
                                                                                                                                                                                                        _61)))
-                                                                                                                                                                                           ((RTS.|||)
+                                                                                                                                                                                           ((RTS.<||)
                                                                                                                                                                                               (RTS.pEnter
                                                                                                                                                                                                  "setWordSpacing"
                                                                                                                                                                                                  (do (_62
                                                                                                                                                                                                         :: ()) <-
-                                                                                                                                                                                                       HS.pure
-                                                                                                                                                                                                         ()
+                                                                                                                                                                                                       RTS.pEnter
+                                                                                                                                                                                                         "PdfValue.KW"
+                                                                                                                                                                                                         (PdfValue.pKW
+                                                                                                                                                                                                            (Vector.vecFromRep
+                                                                                                                                                                                                               "Tw"))
                                                                                                                                                                                                      HS.pure
                                                                                                                                                                                                        (ContentStreamOp_setWordSpacing
                                                                                                                                                                                                           _62)))
-                                                                                                                                                                                              ((RTS.|||)
+                                                                                                                                                                                              ((RTS.<||)
                                                                                                                                                                                                  (RTS.pEnter
                                                                                                                                                                                                     "setHorizontalTextScaling"
                                                                                                                                                                                                     (do (_63
                                                                                                                                                                                                            :: ()) <-
-                                                                                                                                                                                                          HS.pure
-                                                                                                                                                                                                            ()
+                                                                                                                                                                                                          RTS.pEnter
+                                                                                                                                                                                                            "PdfValue.KW"
+                                                                                                                                                                                                            (PdfValue.pKW
+                                                                                                                                                                                                               (Vector.vecFromRep
+                                                                                                                                                                                                                  "Tz"))
                                                                                                                                                                                                         HS.pure
                                                                                                                                                                                                           (ContentStreamOp_setHorizontalTextScaling
                                                                                                                                                                                                              _63)))
-                                                                                                                                                                                                 ((RTS.|||)
+                                                                                                                                                                                                 ((RTS.<||)
                                                                                                                                                                                                     (RTS.pEnter
                                                                                                                                                                                                        "appendCurvedInitPtRepl"
                                                                                                                                                                                                        (do (_64
                                                                                                                                                                                                               :: ()) <-
-                                                                                                                                                                                                             HS.pure
-                                                                                                                                                                                                               ()
+                                                                                                                                                                                                             RTS.pEnter
+                                                                                                                                                                                                               "PdfValue.KW"
+                                                                                                                                                                                                               (PdfValue.pKW
+                                                                                                                                                                                                                  (Vector.vecFromRep
+                                                                                                                                                                                                                     "v"))
                                                                                                                                                                                                            HS.pure
                                                                                                                                                                                                              (ContentStreamOp_appendCurvedInitPtRepl
                                                                                                                                                                                                                 _64)))
-                                                                                                                                                                                                    ((RTS.|||)
+                                                                                                                                                                                                    ((RTS.<||)
                                                                                                                                                                                                        (RTS.pEnter
                                                                                                                                                                                                           "setLineWidth"
                                                                                                                                                                                                           (do (_65
                                                                                                                                                                                                                  :: ()) <-
-                                                                                                                                                                                                                HS.pure
-                                                                                                                                                                                                                  ()
+                                                                                                                                                                                                                RTS.pEnter
+                                                                                                                                                                                                                  "PdfValue.KW"
+                                                                                                                                                                                                                  (PdfValue.pKW
+                                                                                                                                                                                                                     (Vector.vecFromRep
+                                                                                                                                                                                                                        "w"))
                                                                                                                                                                                                               HS.pure
                                                                                                                                                                                                                 (ContentStreamOp_setLineWidth
                                                                                                                                                                                                                    _65)))
-                                                                                                                                                                                                       ((RTS.|||)
+                                                                                                                                                                                                       ((RTS.<||)
                                                                                                                                                                                                           (RTS.pEnter
-                                                                                                                                                                                                             "setClippingNzWinding"
+                                                                                                                                                                                                             "setClippingEvenOdd"
                                                                                                                                                                                                              (do (_66
                                                                                                                                                                                                                     :: ()) <-
-                                                                                                                                                                                                                   HS.pure
-                                                                                                                                                                                                                     ()
+                                                                                                                                                                                                                   RTS.pEnter
+                                                                                                                                                                                                                     "PdfValue.KW"
+                                                                                                                                                                                                                     (PdfValue.pKW
+                                                                                                                                                                                                                        (Vector.vecFromRep
+                                                                                                                                                                                                                           "W*"))
                                                                                                                                                                                                                  HS.pure
-                                                                                                                                                                                                                   (ContentStreamOp_setClippingNzWinding
+                                                                                                                                                                                                                   (ContentStreamOp_setClippingEvenOdd
                                                                                                                                                                                                                       _66)))
-                                                                                                                                                                                                          ((RTS.|||)
+                                                                                                                                                                                                          ((RTS.<||)
                                                                                                                                                                                                              (RTS.pEnter
-                                                                                                                                                                                                                "setClippingEvenOdd"
+                                                                                                                                                                                                                "setClippingNzWinding"
                                                                                                                                                                                                                 (do (_67
                                                                                                                                                                                                                        :: ()) <-
-                                                                                                                                                                                                                      HS.pure
-                                                                                                                                                                                                                        ()
+                                                                                                                                                                                                                      RTS.pEnter
+                                                                                                                                                                                                                        "PdfValue.KW"
+                                                                                                                                                                                                                        (PdfValue.pKW
+                                                                                                                                                                                                                           (Vector.vecFromRep
+                                                                                                                                                                                                                              "W"))
                                                                                                                                                                                                                     HS.pure
-                                                                                                                                                                                                                      (ContentStreamOp_setClippingEvenOdd
+                                                                                                                                                                                                                      (ContentStreamOp_setClippingNzWinding
                                                                                                                                                                                                                          _67)))
-                                                                                                                                                                                                             ((RTS.|||)
+                                                                                                                                                                                                             ((RTS.<||)
                                                                                                                                                                                                                 (RTS.pEnter
                                                                                                                                                                                                                    "appendCurvedFinalPt"
                                                                                                                                                                                                                    (do (_68
                                                                                                                                                                                                                           :: ()) <-
-                                                                                                                                                                                                                         HS.pure
-                                                                                                                                                                                                                           ()
+                                                                                                                                                                                                                         RTS.pEnter
+                                                                                                                                                                                                                           "PdfValue.KW"
+                                                                                                                                                                                                                           (PdfValue.pKW
+                                                                                                                                                                                                                              (Vector.vecFromRep
+                                                                                                                                                                                                                                 "y"))
                                                                                                                                                                                                                        HS.pure
                                                                                                                                                                                                                          (ContentStreamOp_appendCurvedFinalPt
                                                                                                                                                                                                                             _68)))
-                                                                                                                                                                                                                ((RTS.|||)
+                                                                                                                                                                                                                ((RTS.<||)
                                                                                                                                                                                                                    (RTS.pEnter
                                                                                                                                                                                                                       "moveShow"
                                                                                                                                                                                                                       (do (_69
                                                                                                                                                                                                                              :: ()) <-
-                                                                                                                                                                                                                            HS.pure
-                                                                                                                                                                                                                              ()
+                                                                                                                                                                                                                            RTS.pEnter
+                                                                                                                                                                                                                              "PdfValue.KW"
+                                                                                                                                                                                                                              (PdfValue.pKW
+                                                                                                                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                                                                                                                    "'"))
                                                                                                                                                                                                                           HS.pure
                                                                                                                                                                                                                             (ContentStreamOp_moveShow
                                                                                                                                                                                                                                _69)))
@@ -1224,8 +1413,11 @@ pContentStreamOp =
                                                                                                                                                                                                                       "setSpacing"
                                                                                                                                                                                                                       (do (_70
                                                                                                                                                                                                                              :: ()) <-
-                                                                                                                                                                                                                            HS.pure
-                                                                                                                                                                                                                              ()
+                                                                                                                                                                                                                            RTS.pEnter
+                                                                                                                                                                                                                              "PdfValue.KW"
+                                                                                                                                                                                                                              (PdfValue.pKW
+                                                                                                                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                                                                                                                    "\""))
                                                                                                                                                                                                                           HS.pure
                                                                                                                                                                                                                             (ContentStreamOp_setSpacing
                                                                                                                                                                                                                                _70))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
@@ -1242,7 +1434,8 @@ pOpName :: D.Parser (Vector.Vector (RTS.UInt 8))
 pOpName =
   RTS.pEnter "PdfValue.Token"
     (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
-       (do (__ :: Vector.Vector (RTS.UInt 8)) <-
+       (do RTS.pEnter "PdfValue._NameChar" PdfValue._NameChar
+           (__ :: Vector.Vector (RTS.UInt 8)) <-
              RTS.pMany (RTS.<||)
                (RTS.pEnter "PdfValue.NameChar" PdfValue.pNameChar)
            HS.pure __))
@@ -1250,7 +1443,7 @@ pOpName =
 pContentOp :: D.Parser ContentOp
  
 pContentOp =
-  (RTS.|||)
+  (RTS.<||)
     (RTS.pEnter "knownOp"
        (do (_71 :: ContentStreamOp) <-
              RTS.pEnter "PdfContentStream.ContentStreamOpObj"
@@ -1309,293 +1502,501 @@ pContentStreamOperandObj =
     (PdfValue.pToken @DirectObj
        (RTS.pEnter "PdfContentStream.DirectObj" pDirectObj))
  
-pEndCompat :: D.Parser (Vector.Vector (RTS.UInt 8))
+pEndCompat :: D.Parser ()
  
 pEndCompat =
-  RTS.pEnter "PdfValue.Token"
-    (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
-       (HS.pure (Vector.vecFromRep "EX")))
+  RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "EX"))
  
 _BeginCompat :: D.Parser ()
  
 _BeginCompat =
-  RTS.pEnter "PdfValue._Token"
-    (PdfValue._Token @(Vector.Vector (RTS.UInt 8)) (HS.pure ()))
+  RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "BX"))
  
 _ContentStreamOp :: D.Parser ()
  
 _ContentStreamOp =
-  (RTS.|||) (RTS.pEnter "closeFillStrokeNzWinding" (HS.pure ()))
-    ((RTS.|||) (RTS.pEnter "fillStroke" (HS.pure ()))
-       ((RTS.|||) (RTS.pEnter "closeFillStrokeEvenOdd" (HS.pure ()))
-          ((RTS.|||) (RTS.pEnter "fillStrokeEvenOdd" (HS.pure ()))
-             ((RTS.|||) (RTS.pEnter "beginMarkedContent" (HS.pure ()))
-                ((RTS.|||) (RTS.pEnter "beginInline" (HS.pure ()))
-                   ((RTS.|||) (RTS.pEnter "beginMarkedContent" (HS.pure ()))
-                      ((RTS.|||) (RTS.pEnter "beginText" (HS.pure ()))
-                         ((RTS.|||) (RTS.pEnter "appendCurvedThreePoints" (HS.pure ()))
-                            ((RTS.|||) (RTS.pEnter "concatMatrix" (HS.pure ()))
-                               ((RTS.|||) (RTS.pEnter "setColorSpaceStroking" (HS.pure ()))
-                                  ((RTS.|||) (RTS.pEnter "setColorSpaceNonStroking" (HS.pure ()))
-                                     ((RTS.|||) (RTS.pEnter "setLineDash" (HS.pure ()))
-                                        ((RTS.|||) (RTS.pEnter "setGlyphWidth" (HS.pure ()))
-                                           ((RTS.|||)
-                                              (RTS.pEnter "setGlpyhWidthBoundingBox" (HS.pure ()))
-                                              ((RTS.|||) (RTS.pEnter "invokeXObj" (HS.pure ()))
-                                                 ((RTS.|||)
+  (RTS.<||)
+    (RTS.pEnter "closeFillStrokeEvenOdd"
+       (RTS.pEnter "PdfValue._KW"
+          (PdfValue._KW (Vector.vecFromRep "b*"))))
+    ((RTS.<||)
+       (RTS.pEnter "closeFillStrokeNzWinding"
+          (RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "b"))))
+       ((RTS.<||)
+          (RTS.pEnter "fillStrokeEvenOdd"
+             (RTS.pEnter "PdfValue._KW"
+                (PdfValue._KW (Vector.vecFromRep "B*"))))
+          ((RTS.<||)
+             (RTS.pEnter "beginMarkedContent"
+                (RTS.pEnter "PdfValue._KW"
+                   (PdfValue._KW (Vector.vecFromRep "BDC"))))
+             ((RTS.<||)
+                (RTS.pEnter "beginInline"
+                   (RTS.pEnter "PdfValue._KW"
+                      (PdfValue._KW (Vector.vecFromRep "Bl"))))
+                ((RTS.<||)
+                   (RTS.pEnter "beginMarkedContent"
+                      (RTS.pEnter "PdfValue._KW"
+                         (PdfValue._KW (Vector.vecFromRep "BMC"))))
+                   ((RTS.<||)
+                      (RTS.pEnter "beginText"
+                         (RTS.pEnter "PdfValue._KW"
+                            (PdfValue._KW (Vector.vecFromRep "BT"))))
+                      ((RTS.<||)
+                         (RTS.pEnter "fillStroke"
+                            (RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "B"))))
+                         ((RTS.<||)
+                            (RTS.pEnter "concatMatrix"
+                               (RTS.pEnter "PdfValue._KW"
+                                  (PdfValue._KW (Vector.vecFromRep "cm"))))
+                            ((RTS.<||)
+                               (RTS.pEnter "setColorSpaceStroking"
+                                  (RTS.pEnter "PdfValue._KW"
+                                     (PdfValue._KW (Vector.vecFromRep "CS"))))
+                               ((RTS.<||)
+                                  (RTS.pEnter "setColorSpaceNonStroking"
+                                     (RTS.pEnter "PdfValue._KW"
+                                        (PdfValue._KW (Vector.vecFromRep "cs"))))
+                                  ((RTS.<||)
+                                     (RTS.pEnter "appendCurvedThreePoints"
+                                        (RTS.pEnter "PdfValue._KW"
+                                           (PdfValue._KW (Vector.vecFromRep "c"))))
+                                     ((RTS.<||)
+                                        (RTS.pEnter "setGlyphWidth"
+                                           (RTS.pEnter "PdfValue._KW"
+                                              (PdfValue._KW (Vector.vecFromRep "d0"))))
+                                        ((RTS.<||)
+                                           (RTS.pEnter "setGlpyhWidthBoundingBox"
+                                              (RTS.pEnter "PdfValue._KW"
+                                                 (PdfValue._KW (Vector.vecFromRep "d1"))))
+                                           ((RTS.<||)
+                                              (RTS.pEnter "setLineDash"
+                                                 (RTS.pEnter "PdfValue._KW"
+                                                    (PdfValue._KW (Vector.vecFromRep "d"))))
+                                              ((RTS.<||)
+                                                 (RTS.pEnter "invokeXObj"
+                                                    (RTS.pEnter "PdfValue._KW"
+                                                       (PdfValue._KW (Vector.vecFromRep "Do"))))
+                                                 ((RTS.<||)
                                                     (RTS.pEnter "defMarkedContentPoint"
-                                                       (HS.pure ()))
-                                                    ((RTS.|||) (RTS.pEnter "endInline" (HS.pure ()))
-                                                       ((RTS.|||)
+                                                       (RTS.pEnter "PdfValue._KW"
+                                                          (PdfValue._KW (Vector.vecFromRep "DP"))))
+                                                    ((RTS.<||)
+                                                       (RTS.pEnter "endInline"
+                                                          (RTS.pEnter "PdfValue._KW"
+                                                             (PdfValue._KW
+                                                                (Vector.vecFromRep "El"))))
+                                                       ((RTS.<||)
                                                           (RTS.pEnter "endMarkedContent"
-                                                             (HS.pure ()))
-                                                          ((RTS.|||)
-                                                             (RTS.pEnter "endTextObj" (HS.pure ()))
-                                                             ((RTS.|||)
-                                                                (RTS.pEnter "fillPathNzWinding"
-                                                                   (HS.pure ()))
-                                                                ((RTS.|||)
-                                                                   (RTS.pEnter
-                                                                      "fillPathNzWindingOld"
-                                                                      (HS.pure ()))
-                                                                   ((RTS.|||)
-                                                                      (RTS.pEnter "fillPathEvenOdd"
-                                                                         (HS.pure ()))
-                                                                      ((RTS.|||)
+                                                             (RTS.pEnter "PdfValue._KW"
+                                                                (PdfValue._KW
+                                                                   (Vector.vecFromRep "EMC"))))
+                                                          ((RTS.<||)
+                                                             (RTS.pEnter "endTextObj"
+                                                                (RTS.pEnter "PdfValue._KW"
+                                                                   (PdfValue._KW
+                                                                      (Vector.vecFromRep "ET"))))
+                                                             ((RTS.<||)
+                                                                (RTS.pEnter "fillPathEvenOdd"
+                                                                   (RTS.pEnter "PdfValue._KW"
+                                                                      (PdfValue._KW
+                                                                         (Vector.vecFromRep "f*"))))
+                                                                ((RTS.<||)
+                                                                   (RTS.pEnter "fillPathNzWinding"
+                                                                      (RTS.pEnter "PdfValue._KW"
+                                                                         (PdfValue._KW
+                                                                            (Vector.vecFromRep
+                                                                               "f"))))
+                                                                   ((RTS.<||)
+                                                                      (RTS.pEnter
+                                                                         "fillPathNzWindingOld"
+                                                                         (RTS.pEnter "PdfValue._KW"
+                                                                            (PdfValue._KW
+                                                                               (Vector.vecFromRep
+                                                                                  "F"))))
+                                                                      ((RTS.<||)
                                                                          (RTS.pEnter
                                                                             "setGrayStroking"
-                                                                            (HS.pure ()))
-                                                                         ((RTS.|||)
                                                                             (RTS.pEnter
-                                                                               "setGrayNonStroking"
-                                                                               (HS.pure ()))
-                                                                            ((RTS.|||)
+                                                                               "PdfValue._KW"
+                                                                               (PdfValue._KW
+                                                                                  (Vector.vecFromRep
+                                                                                     "G"))))
+                                                                         ((RTS.<||)
+                                                                            (RTS.pEnter
+                                                                               "setGraphicsStateParams"
                                                                                (RTS.pEnter
-                                                                                  "setGraphicsStateParams"
-                                                                                  (HS.pure ()))
-                                                                               ((RTS.|||)
+                                                                                  "PdfValue._KW"
+                                                                                  (PdfValue._KW
+                                                                                     (Vector.vecFromRep
+                                                                                        "gs"))))
+                                                                            ((RTS.<||)
+                                                                               (RTS.pEnter
+                                                                                  "setGrayNonStroking"
+                                                                                  (RTS.pEnter
+                                                                                     "PdfValue._KW"
+                                                                                     (PdfValue._KW
+                                                                                        (Vector.vecFromRep
+                                                                                           "g"))))
+                                                                               ((RTS.<||)
                                                                                   (RTS.pEnter
                                                                                      "closeSubpath"
-                                                                                     (HS.pure ()))
-                                                                                  ((RTS.|||)
+                                                                                     (RTS.pEnter
+                                                                                        "PdfValue._KW"
+                                                                                        (PdfValue._KW
+                                                                                           (Vector.vecFromRep
+                                                                                              "h"))))
+                                                                                  ((RTS.<||)
                                                                                      (RTS.pEnter
                                                                                         "setFlat"
-                                                                                        (HS.pure
-                                                                                           ()))
-                                                                                     ((RTS.|||)
+                                                                                        (RTS.pEnter
+                                                                                           "PdfValue._KW"
+                                                                                           (PdfValue._KW
+                                                                                              (Vector.vecFromRep
+                                                                                                 "i"))))
+                                                                                     ((RTS.<||)
                                                                                         (RTS.pEnter
                                                                                            "beginInlineImageData"
-                                                                                           (HS.pure
-                                                                                              ()))
-                                                                                        ((RTS.|||)
+                                                                                           (RTS.pEnter
+                                                                                              "PdfValue._KW"
+                                                                                              (PdfValue._KW
+                                                                                                 (Vector.vecFromRep
+                                                                                                    "ID"))))
+                                                                                        ((RTS.<||)
                                                                                            (RTS.pEnter
                                                                                               "setLineJoinStyle"
-                                                                                              (HS.pure
-                                                                                                 ()))
-                                                                                           ((RTS.|||)
+                                                                                              (RTS.pEnter
+                                                                                                 "PdfValue._KW"
+                                                                                                 (PdfValue._KW
+                                                                                                    (Vector.vecFromRep
+                                                                                                       "j"))))
+                                                                                           ((RTS.<||)
                                                                                               (RTS.pEnter
                                                                                                  "setLineCapStyle"
-                                                                                                 (HS.pure
-                                                                                                    ()))
-                                                                                              ((RTS.|||)
+                                                                                                 (RTS.pEnter
+                                                                                                    "PdfValue._KW"
+                                                                                                    (PdfValue._KW
+                                                                                                       (Vector.vecFromRep
+                                                                                                          "J"))))
+                                                                                              ((RTS.<||)
                                                                                                  (RTS.pEnter
                                                                                                     "setCMYKStroking"
-                                                                                                    (HS.pure
-                                                                                                       ()))
-                                                                                                 ((RTS.|||)
+                                                                                                    (RTS.pEnter
+                                                                                                       "PdfValue._KW"
+                                                                                                       (PdfValue._KW
+                                                                                                          (Vector.vecFromRep
+                                                                                                             "K"))))
+                                                                                                 ((RTS.<||)
                                                                                                     (RTS.pEnter
                                                                                                        "setCMYKNonStroking"
-                                                                                                       (HS.pure
-                                                                                                          ()))
-                                                                                                    ((RTS.|||)
+                                                                                                       (RTS.pEnter
+                                                                                                          "PdfValue._KW"
+                                                                                                          (PdfValue._KW
+                                                                                                             (Vector.vecFromRep
+                                                                                                                "k"))))
+                                                                                                    ((RTS.<||)
                                                                                                        (RTS.pEnter
                                                                                                           "appendLine"
-                                                                                                          (HS.pure
-                                                                                                             ()))
-                                                                                                       ((RTS.|||)
+                                                                                                          (RTS.pEnter
+                                                                                                             "PdfValue._KW"
+                                                                                                             (PdfValue._KW
+                                                                                                                (Vector.vecFromRep
+                                                                                                                   "l"))))
+                                                                                                       ((RTS.<||)
                                                                                                           (RTS.pEnter
                                                                                                              "beginNewSuppath"
-                                                                                                             (HS.pure
-                                                                                                                ()))
-                                                                                                          ((RTS.|||)
                                                                                                              (RTS.pEnter
-                                                                                                                "setMiterLimit"
-                                                                                                                (HS.pure
-                                                                                                                   ()))
-                                                                                                             ((RTS.|||)
+                                                                                                                "PdfValue._KW"
+                                                                                                                (PdfValue._KW
+                                                                                                                   (Vector.vecFromRep
+                                                                                                                      "m"))))
+                                                                                                          ((RTS.<||)
+                                                                                                             (RTS.pEnter
+                                                                                                                "defineMarkedContent"
                                                                                                                 (RTS.pEnter
-                                                                                                                   "defineMarkedContent"
-                                                                                                                   (HS.pure
-                                                                                                                      ()))
-                                                                                                                ((RTS.|||)
+                                                                                                                   "PdfValue._KW"
+                                                                                                                   (PdfValue._KW
+                                                                                                                      (Vector.vecFromRep
+                                                                                                                         "MP"))))
+                                                                                                             ((RTS.<||)
+                                                                                                                (RTS.pEnter
+                                                                                                                   "setMiterLimit"
+                                                                                                                   (RTS.pEnter
+                                                                                                                      "PdfValue._KW"
+                                                                                                                      (PdfValue._KW
+                                                                                                                         (Vector.vecFromRep
+                                                                                                                            "M"))))
+                                                                                                                ((RTS.<||)
                                                                                                                    (RTS.pEnter
                                                                                                                       "endPath"
-                                                                                                                      (HS.pure
-                                                                                                                         ()))
-                                                                                                                   ((RTS.|||)
+                                                                                                                      (RTS.pEnter
+                                                                                                                         "PdfValue._KW"
+                                                                                                                         (PdfValue._KW
+                                                                                                                            (Vector.vecFromRep
+                                                                                                                               "n"))))
+                                                                                                                   ((RTS.<||)
                                                                                                                       (RTS.pEnter
                                                                                                                          "saveGraphicsState"
-                                                                                                                         (HS.pure
-                                                                                                                            ()))
-                                                                                                                      ((RTS.|||)
+                                                                                                                         (RTS.pEnter
+                                                                                                                            "PdfValue._KW"
+                                                                                                                            (PdfValue._KW
+                                                                                                                               (Vector.vecFromRep
+                                                                                                                                  "q"))))
+                                                                                                                      ((RTS.<||)
                                                                                                                          (RTS.pEnter
                                                                                                                             "restoreGraphicsState"
-                                                                                                                            (HS.pure
-                                                                                                                               ()))
-                                                                                                                         ((RTS.|||)
                                                                                                                             (RTS.pEnter
-                                                                                                                               "appendRect"
-                                                                                                                               (HS.pure
-                                                                                                                                  ()))
-                                                                                                                            ((RTS.|||)
+                                                                                                                               "PdfValue._KW"
+                                                                                                                               (PdfValue._KW
+                                                                                                                                  (Vector.vecFromRep
+                                                                                                                                     "Q"))))
+                                                                                                                         ((RTS.<||)
+                                                                                                                            (RTS.pEnter
+                                                                                                                               "setRGBStroking"
                                                                                                                                (RTS.pEnter
-                                                                                                                                  "setRGBStroking"
-                                                                                                                                  (HS.pure
-                                                                                                                                     ()))
-                                                                                                                               ((RTS.|||)
+                                                                                                                                  "PdfValue._KW"
+                                                                                                                                  (PdfValue._KW
+                                                                                                                                     (Vector.vecFromRep
+                                                                                                                                        "RG"))))
+                                                                                                                            ((RTS.<||)
+                                                                                                                               (RTS.pEnter
+                                                                                                                                  "appendRect"
+                                                                                                                                  (RTS.pEnter
+                                                                                                                                     "PdfValue._KW"
+                                                                                                                                     (PdfValue._KW
+                                                                                                                                        (Vector.vecFromRep
+                                                                                                                                           "re"))))
+                                                                                                                               ((RTS.<||)
                                                                                                                                   (RTS.pEnter
                                                                                                                                      "setRGBNonStroking"
-                                                                                                                                     (HS.pure
-                                                                                                                                        ()))
-                                                                                                                                  ((RTS.|||)
+                                                                                                                                     (RTS.pEnter
+                                                                                                                                        "PdfValue._KW"
+                                                                                                                                        (PdfValue._KW
+                                                                                                                                           (Vector.vecFromRep
+                                                                                                                                              "rg"))))
+                                                                                                                                  ((RTS.<||)
                                                                                                                                      (RTS.pEnter
                                                                                                                                         "setColorRenderingIntent"
-                                                                                                                                        (HS.pure
-                                                                                                                                           ()))
-                                                                                                                                     ((RTS.|||)
                                                                                                                                         (RTS.pEnter
-                                                                                                                                           "closeStrokePath"
-                                                                                                                                           (HS.pure
-                                                                                                                                              ()))
-                                                                                                                                        ((RTS.|||)
+                                                                                                                                           "PdfValue._KW"
+                                                                                                                                           (PdfValue._KW
+                                                                                                                                              (Vector.vecFromRep
+                                                                                                                                                 "ri"))))
+                                                                                                                                     ((RTS.<||)
+                                                                                                                                        (RTS.pEnter
+                                                                                                                                           "setColorNonStrokingICC"
                                                                                                                                            (RTS.pEnter
-                                                                                                                                              "stroke"
-                                                                                                                                              (HS.pure
-                                                                                                                                                 ()))
-                                                                                                                                           ((RTS.|||)
+                                                                                                                                              "PdfValue._KW"
+                                                                                                                                              (PdfValue._KW
+                                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                                    "scn"))))
+                                                                                                                                        ((RTS.<||)
+                                                                                                                                           (RTS.pEnter
+                                                                                                                                              "setColorNonStroking"
                                                                                                                                               (RTS.pEnter
-                                                                                                                                                 "setColorStroking"
-                                                                                                                                                 (HS.pure
-                                                                                                                                                    ()))
-                                                                                                                                              ((RTS.|||)
+                                                                                                                                                 "PdfValue._KW"
+                                                                                                                                                 (PdfValue._KW
+                                                                                                                                                    (Vector.vecFromRep
+                                                                                                                                                       "sc"))))
+                                                                                                                                           ((RTS.<||)
+                                                                                                                                              (RTS.pEnter
+                                                                                                                                                 "closeStrokePath"
                                                                                                                                                  (RTS.pEnter
-                                                                                                                                                    "setColorNonStroking"
-                                                                                                                                                    (HS.pure
-                                                                                                                                                       ()))
-                                                                                                                                                 ((RTS.|||)
+                                                                                                                                                    "PdfValue._KW"
+                                                                                                                                                    (PdfValue._KW
+                                                                                                                                                       (Vector.vecFromRep
+                                                                                                                                                          "s"))))
+                                                                                                                                              ((RTS.<||)
+                                                                                                                                                 (RTS.pEnter
+                                                                                                                                                    "setColorStrokingICC"
                                                                                                                                                     (RTS.pEnter
-                                                                                                                                                       "setColorStrokingICC"
-                                                                                                                                                       (HS.pure
-                                                                                                                                                          ()))
-                                                                                                                                                    ((RTS.|||)
+                                                                                                                                                       "PdfValue._KW"
+                                                                                                                                                       (PdfValue._KW
+                                                                                                                                                          (Vector.vecFromRep
+                                                                                                                                                             "SCN"))))
+                                                                                                                                                 ((RTS.<||)
+                                                                                                                                                    (RTS.pEnter
+                                                                                                                                                       "setColorStroking"
                                                                                                                                                        (RTS.pEnter
-                                                                                                                                                          "setColorNonStrokingICC"
-                                                                                                                                                          (HS.pure
-                                                                                                                                                             ()))
-                                                                                                                                                       ((RTS.|||)
+                                                                                                                                                          "PdfValue._KW"
+                                                                                                                                                          (PdfValue._KW
+                                                                                                                                                             (Vector.vecFromRep
+                                                                                                                                                                "SC"))))
+                                                                                                                                                    ((RTS.<||)
+                                                                                                                                                       (RTS.pEnter
+                                                                                                                                                          "stroke"
+                                                                                                                                                          (RTS.pEnter
+                                                                                                                                                             "PdfValue._KW"
+                                                                                                                                                             (PdfValue._KW
+                                                                                                                                                                (Vector.vecFromRep
+                                                                                                                                                                   "S"))))
+                                                                                                                                                       ((RTS.<||)
                                                                                                                                                           (RTS.pEnter
                                                                                                                                                              "paintShadingPattern"
-                                                                                                                                                             (HS.pure
-                                                                                                                                                                ()))
-                                                                                                                                                          ((RTS.|||)
+                                                                                                                                                             (RTS.pEnter
+                                                                                                                                                                "PdfValue._KW"
+                                                                                                                                                                (PdfValue._KW
+                                                                                                                                                                   (Vector.vecFromRep
+                                                                                                                                                                      "sh"))))
+                                                                                                                                                          ((RTS.<||)
                                                                                                                                                              (RTS.pEnter
                                                                                                                                                                 "moveStartText"
-                                                                                                                                                                (HS.pure
-                                                                                                                                                                   ()))
-                                                                                                                                                             ((RTS.|||)
+                                                                                                                                                                (RTS.pEnter
+                                                                                                                                                                   "PdfValue._KW"
+                                                                                                                                                                   (PdfValue._KW
+                                                                                                                                                                      (Vector.vecFromRep
+                                                                                                                                                                         "T*"))))
+                                                                                                                                                             ((RTS.<||)
                                                                                                                                                                 (RTS.pEnter
                                                                                                                                                                    "setCharSpacing"
-                                                                                                                                                                   (HS.pure
-                                                                                                                                                                      ()))
-                                                                                                                                                                ((RTS.|||)
+                                                                                                                                                                   (RTS.pEnter
+                                                                                                                                                                      "PdfValue._KW"
+                                                                                                                                                                      (PdfValue._KW
+                                                                                                                                                                         (Vector.vecFromRep
+                                                                                                                                                                            "Tc"))))
+                                                                                                                                                                ((RTS.<||)
                                                                                                                                                                    (RTS.pEnter
                                                                                                                                                                       "moveTextPos"
-                                                                                                                                                                      (HS.pure
-                                                                                                                                                                         ()))
-                                                                                                                                                                   ((RTS.|||)
+                                                                                                                                                                      (RTS.pEnter
+                                                                                                                                                                         "PdfValue._KW"
+                                                                                                                                                                         (PdfValue._KW
+                                                                                                                                                                            (Vector.vecFromRep
+                                                                                                                                                                               "Td"))))
+                                                                                                                                                                   ((RTS.<||)
                                                                                                                                                                       (RTS.pEnter
                                                                                                                                                                          "moveTextPosSetLeading"
-                                                                                                                                                                         (HS.pure
-                                                                                                                                                                            ()))
-                                                                                                                                                                      ((RTS.|||)
+                                                                                                                                                                         (RTS.pEnter
+                                                                                                                                                                            "PdfValue._KW"
+                                                                                                                                                                            (PdfValue._KW
+                                                                                                                                                                               (Vector.vecFromRep
+                                                                                                                                                                                  "TD"))))
+                                                                                                                                                                      ((RTS.<||)
                                                                                                                                                                          (RTS.pEnter
                                                                                                                                                                             "setTextFont"
-                                                                                                                                                                            (HS.pure
-                                                                                                                                                                               ()))
-                                                                                                                                                                         ((RTS.|||)
+                                                                                                                                                                            (RTS.pEnter
+                                                                                                                                                                               "PdfValue._KW"
+                                                                                                                                                                               (PdfValue._KW
+                                                                                                                                                                                  (Vector.vecFromRep
+                                                                                                                                                                                     "Tf"))))
+                                                                                                                                                                         ((RTS.<||)
                                                                                                                                                                             (RTS.pEnter
                                                                                                                                                                                "showText"
-                                                                                                                                                                               (HS.pure
-                                                                                                                                                                                  ()))
-                                                                                                                                                                            ((RTS.|||)
+                                                                                                                                                                               (RTS.pEnter
+                                                                                                                                                                                  "PdfValue._KW"
+                                                                                                                                                                                  (PdfValue._KW
+                                                                                                                                                                                     (Vector.vecFromRep
+                                                                                                                                                                                        "Tj"))))
+                                                                                                                                                                            ((RTS.<||)
                                                                                                                                                                                (RTS.pEnter
                                                                                                                                                                                   "showTextIndGlyph"
-                                                                                                                                                                                  (HS.pure
-                                                                                                                                                                                     ()))
-                                                                                                                                                                               ((RTS.|||)
+                                                                                                                                                                                  (RTS.pEnter
+                                                                                                                                                                                     "PdfValue._KW"
+                                                                                                                                                                                     (PdfValue._KW
+                                                                                                                                                                                        (Vector.vecFromRep
+                                                                                                                                                                                           "TJ"))))
+                                                                                                                                                                               ((RTS.<||)
                                                                                                                                                                                   (RTS.pEnter
                                                                                                                                                                                      "setTextLeading"
-                                                                                                                                                                                     (HS.pure
-                                                                                                                                                                                        ()))
-                                                                                                                                                                                  ((RTS.|||)
+                                                                                                                                                                                     (RTS.pEnter
+                                                                                                                                                                                        "PdfValue._KW"
+                                                                                                                                                                                        (PdfValue._KW
+                                                                                                                                                                                           (Vector.vecFromRep
+                                                                                                                                                                                              "TL"))))
+                                                                                                                                                                                  ((RTS.<||)
                                                                                                                                                                                      (RTS.pEnter
                                                                                                                                                                                         "setTextMatrix"
-                                                                                                                                                                                        (HS.pure
-                                                                                                                                                                                           ()))
-                                                                                                                                                                                     ((RTS.|||)
+                                                                                                                                                                                        (RTS.pEnter
+                                                                                                                                                                                           "PdfValue._KW"
+                                                                                                                                                                                           (PdfValue._KW
+                                                                                                                                                                                              (Vector.vecFromRep
+                                                                                                                                                                                                 "Tm"))))
+                                                                                                                                                                                     ((RTS.<||)
                                                                                                                                                                                         (RTS.pEnter
                                                                                                                                                                                            "setTextRendering"
-                                                                                                                                                                                           (HS.pure
-                                                                                                                                                                                              ()))
-                                                                                                                                                                                        ((RTS.|||)
+                                                                                                                                                                                           (RTS.pEnter
+                                                                                                                                                                                              "PdfValue._KW"
+                                                                                                                                                                                              (PdfValue._KW
+                                                                                                                                                                                                 (Vector.vecFromRep
+                                                                                                                                                                                                    "Tr"))))
+                                                                                                                                                                                        ((RTS.<||)
                                                                                                                                                                                            (RTS.pEnter
                                                                                                                                                                                               "setTextRise"
-                                                                                                                                                                                              (HS.pure
-                                                                                                                                                                                                 ()))
-                                                                                                                                                                                           ((RTS.|||)
+                                                                                                                                                                                              (RTS.pEnter
+                                                                                                                                                                                                 "PdfValue._KW"
+                                                                                                                                                                                                 (PdfValue._KW
+                                                                                                                                                                                                    (Vector.vecFromRep
+                                                                                                                                                                                                       "Ts"))))
+                                                                                                                                                                                           ((RTS.<||)
                                                                                                                                                                                               (RTS.pEnter
                                                                                                                                                                                                  "setWordSpacing"
-                                                                                                                                                                                                 (HS.pure
-                                                                                                                                                                                                    ()))
-                                                                                                                                                                                              ((RTS.|||)
+                                                                                                                                                                                                 (RTS.pEnter
+                                                                                                                                                                                                    "PdfValue._KW"
+                                                                                                                                                                                                    (PdfValue._KW
+                                                                                                                                                                                                       (Vector.vecFromRep
+                                                                                                                                                                                                          "Tw"))))
+                                                                                                                                                                                              ((RTS.<||)
                                                                                                                                                                                                  (RTS.pEnter
                                                                                                                                                                                                     "setHorizontalTextScaling"
-                                                                                                                                                                                                    (HS.pure
-                                                                                                                                                                                                       ()))
-                                                                                                                                                                                                 ((RTS.|||)
+                                                                                                                                                                                                    (RTS.pEnter
+                                                                                                                                                                                                       "PdfValue._KW"
+                                                                                                                                                                                                       (PdfValue._KW
+                                                                                                                                                                                                          (Vector.vecFromRep
+                                                                                                                                                                                                             "Tz"))))
+                                                                                                                                                                                                 ((RTS.<||)
                                                                                                                                                                                                     (RTS.pEnter
                                                                                                                                                                                                        "appendCurvedInitPtRepl"
-                                                                                                                                                                                                       (HS.pure
-                                                                                                                                                                                                          ()))
-                                                                                                                                                                                                    ((RTS.|||)
+                                                                                                                                                                                                       (RTS.pEnter
+                                                                                                                                                                                                          "PdfValue._KW"
+                                                                                                                                                                                                          (PdfValue._KW
+                                                                                                                                                                                                             (Vector.vecFromRep
+                                                                                                                                                                                                                "v"))))
+                                                                                                                                                                                                    ((RTS.<||)
                                                                                                                                                                                                        (RTS.pEnter
                                                                                                                                                                                                           "setLineWidth"
-                                                                                                                                                                                                          (HS.pure
-                                                                                                                                                                                                             ()))
-                                                                                                                                                                                                       ((RTS.|||)
                                                                                                                                                                                                           (RTS.pEnter
-                                                                                                                                                                                                             "setClippingNzWinding"
-                                                                                                                                                                                                             (HS.pure
-                                                                                                                                                                                                                ()))
-                                                                                                                                                                                                          ((RTS.|||)
+                                                                                                                                                                                                             "PdfValue._KW"
+                                                                                                                                                                                                             (PdfValue._KW
+                                                                                                                                                                                                                (Vector.vecFromRep
+                                                                                                                                                                                                                   "w"))))
+                                                                                                                                                                                                       ((RTS.<||)
+                                                                                                                                                                                                          (RTS.pEnter
+                                                                                                                                                                                                             "setClippingEvenOdd"
                                                                                                                                                                                                              (RTS.pEnter
-                                                                                                                                                                                                                "setClippingEvenOdd"
-                                                                                                                                                                                                                (HS.pure
-                                                                                                                                                                                                                   ()))
-                                                                                                                                                                                                             ((RTS.|||)
+                                                                                                                                                                                                                "PdfValue._KW"
+                                                                                                                                                                                                                (PdfValue._KW
+                                                                                                                                                                                                                   (Vector.vecFromRep
+                                                                                                                                                                                                                      "W*"))))
+                                                                                                                                                                                                          ((RTS.<||)
+                                                                                                                                                                                                             (RTS.pEnter
+                                                                                                                                                                                                                "setClippingNzWinding"
+                                                                                                                                                                                                                (RTS.pEnter
+                                                                                                                                                                                                                   "PdfValue._KW"
+                                                                                                                                                                                                                   (PdfValue._KW
+                                                                                                                                                                                                                      (Vector.vecFromRep
+                                                                                                                                                                                                                         "W"))))
+                                                                                                                                                                                                             ((RTS.<||)
                                                                                                                                                                                                                 (RTS.pEnter
                                                                                                                                                                                                                    "appendCurvedFinalPt"
-                                                                                                                                                                                                                   (HS.pure
-                                                                                                                                                                                                                      ()))
-                                                                                                                                                                                                                ((RTS.|||)
+                                                                                                                                                                                                                   (RTS.pEnter
+                                                                                                                                                                                                                      "PdfValue._KW"
+                                                                                                                                                                                                                      (PdfValue._KW
+                                                                                                                                                                                                                         (Vector.vecFromRep
+                                                                                                                                                                                                                            "y"))))
+                                                                                                                                                                                                                ((RTS.<||)
                                                                                                                                                                                                                    (RTS.pEnter
                                                                                                                                                                                                                       "moveShow"
-                                                                                                                                                                                                                      (HS.pure
-                                                                                                                                                                                                                         ()))
+                                                                                                                                                                                                                      (RTS.pEnter
+                                                                                                                                                                                                                         "PdfValue._KW"
+                                                                                                                                                                                                                         (PdfValue._KW
+                                                                                                                                                                                                                            (Vector.vecFromRep
+                                                                                                                                                                                                                               "'"))))
                                                                                                                                                                                                                    (RTS.pEnter
                                                                                                                                                                                                                       "setSpacing"
-                                                                                                                                                                                                                      (HS.pure
-                                                                                                                                                                                                                         ())))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                                                                                                                                                                                                      (RTS.pEnter
+                                                                                                                                                                                                                         "PdfValue._KW"
+                                                                                                                                                                                                                         (PdfValue._KW
+                                                                                                                                                                                                                            (Vector.vecFromRep
+                                                                                                                                                                                                                               "\"")))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
  
 _ContentStreamOpObj :: D.Parser ()
  
@@ -1603,6 +2004,25 @@ _ContentStreamOpObj =
   RTS.pEnter "PdfValue._Token"
     (PdfValue._Token @ContentStreamOp
        (RTS.pEnter "PdfContentStream._ContentStreamOp" _ContentStreamOp))
+ 
+_OpName :: D.Parser ()
+ 
+_OpName =
+  RTS.pEnter "PdfValue._Token"
+    (PdfValue._Token @(Vector.Vector (RTS.UInt 8))
+       (do RTS.pEnter "PdfValue._NameChar" PdfValue._NameChar
+           RTS.pSkipMany (RTS.<||)
+             (RTS.pEnter "PdfValue._NameChar" PdfValue._NameChar)))
+ 
+_ContentOp :: D.Parser ()
+ 
+_ContentOp =
+  (RTS.<||)
+    (RTS.pEnter "knownOp"
+       (RTS.pEnter "PdfContentStream._ContentStreamOpObj"
+          _ContentStreamOpObj))
+    (RTS.pEnter "futureOp"
+       (RTS.pEnter "PdfContentStream._OpName" _OpName))
  
 _DirectObj :: D.Parser ()
  
@@ -1637,57 +2057,61 @@ _ContentStreamOperandObj =
 _EndCompat :: D.Parser ()
  
 _EndCompat =
-  RTS.pEnter "PdfValue._Token"
-    (PdfValue._Token @(Vector.Vector (RTS.UInt 8)) (HS.pure ()))
+  RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "EX"))
  
 pContentStreamBody ::
       D.Parser ContentOp -> D.Parser (Vector.Vector ContentStreamBody_0)
  
 pContentStreamBody (pOp :: D.Parser ContentOp) =
-  RTS.pMany (RTS.<||)
-    (do (__ :: ContentStreamBody_0) <-
-          (RTS.|||)
-            (RTS.pEnter "operand"
-               (do (_81 :: DirectObj) <-
-                     RTS.pEnter "PdfContentStream.ContentStreamOperandObj"
-                       pContentStreamOperandObj
-                   HS.pure (ContentStreamBody_0_operand _81)))
-            ((RTS.|||)
-               (RTS.pEnter "operation"
-                  (do (_82 :: ContentStreamOp) <-
-                        RTS.pEnter "PdfContentStream.ContentStreamOpObj"
-                          pContentStreamOpObj
-                      HS.pure (ContentStreamBody_0_operation _82)))
-               (RTS.pEnter "compatSect"
-                  (do (_83 :: Vector.Vector (RTS.UInt 8)) <-
-                        do RTS.pEnter "PdfContentStream._BeginCompat" _BeginCompat
-                           RTS.pEnter "PdfContentStream._ContentStreamBody" _ContentStreamBody
-                           (__ :: Vector.Vector (RTS.UInt 8)) <-
-                             RTS.pEnter "PdfContentStream.EndCompat" pEndCompat
-                           HS.pure __
-                      HS.pure (ContentStreamBody_0_compatSect _83))))
-        HS.pure __)
+  do RTS.pSkipMany (RTS.<||)
+       (RTS.pEnter "PdfValue._AnyWS" PdfValue._AnyWS)
+     (__ :: Vector.Vector ContentStreamBody_0) <-
+       RTS.pMany (RTS.<||)
+         (do (__ :: ContentStreamBody_0) <-
+               (RTS.<||)
+                 (RTS.pEnter "compatSect"
+                    (do (_81 :: ()) <-
+                          do RTS.pEnter "PdfContentStream._BeginCompat" _BeginCompat
+                             RTS.pErrorMode RTS.Abort
+                               (do RTS.pEnter "PdfContentStream._ContentStreamBody"
+                                     (_ContentStreamBody
+                                        (RTS.pEnter "PdfContentStream._ContentOp" _ContentOp))
+                                   (__ :: ()) <- RTS.pEnter "PdfContentStream.EndCompat" pEndCompat
+                                   HS.pure __)
+                        HS.pure (ContentStreamBody_0_compatSect _81)))
+                 ((RTS.<||)
+                    (RTS.pEnter "operand"
+                       (do (_82 :: DirectObj) <-
+                             RTS.pEnter "PdfContentStream.ContentStreamOperandObj"
+                               pContentStreamOperandObj
+                           HS.pure (ContentStreamBody_0_operand _82)))
+                    (RTS.pEnter "operation"
+                       (do (_83 :: ContentOp) <- pOp
+                           HS.pure (ContentStreamBody_0_operation _83))))
+             HS.pure __)
+     HS.pure __
  
-_ContentStreamBody :: D.Parser ()
+_ContentStreamBody :: D.Parser () -> D.Parser ()
  
-_ContentStreamBody =
-  RTS.pSkipMany (RTS.<||)
-    ((RTS.|||)
-       (RTS.pEnter "operand"
-          (RTS.pEnter "PdfContentStream._ContentStreamOperandObj"
-             _ContentStreamOperandObj))
-       ((RTS.|||)
-          (RTS.pEnter "operation"
-             (RTS.pEnter "PdfContentStream._ContentStreamOpObj"
-                _ContentStreamOpObj))
+_ContentStreamBody (_Op :: D.Parser ()) =
+  do RTS.pSkipMany (RTS.<||)
+       (RTS.pEnter "PdfValue._AnyWS" PdfValue._AnyWS)
+     RTS.pSkipMany (RTS.<||)
+       ((RTS.<||)
           (RTS.pEnter "compatSect"
              (do RTS.pEnter "PdfContentStream._BeginCompat" _BeginCompat
-                 do HS.void
-                      (RTS.pEnter "PdfContentStream.ContentStreamBody"
-                         (pContentStreamBody
-                            (RTS.pEnter "PdfContentStream.ContentOp" pContentOp)))
-                    HS.pure ()
-                 RTS.pEnter "PdfContentStream._EndCompat" _EndCompat))))
+                 RTS.pErrorMode RTS.Abort
+                   (do do HS.void
+                            (RTS.pEnter "PdfContentStream.ContentStreamBody"
+                               (pContentStreamBody
+                                  (RTS.pEnter "PdfContentStream.ContentOp" pContentOp)))
+                          HS.pure ()
+                       RTS.pEnter "PdfContentStream._EndCompat" _EndCompat)))
+          ((RTS.<||)
+             (RTS.pEnter "operand"
+                (RTS.pEnter "PdfContentStream._ContentStreamOperandObj"
+                   _ContentStreamOperandObj))
+             (RTS.pEnter "operation" _Op)))
  
 pContentStream :: D.Parser (Vector.Vector ContentStreamBody_0)
  
@@ -1699,25 +2123,10 @@ pContentStream =
                pContentStreamOpObj
            HS.pure (ContentOp_knownOp _84)))
  
-_OpName :: D.Parser ()
- 
-_OpName =
-  RTS.pEnter "PdfValue._Token"
-    (PdfValue._Token @(Vector.Vector (RTS.UInt 8))
-       (RTS.pSkipMany (RTS.<||)
-          (RTS.pEnter "PdfValue._NameChar" PdfValue._NameChar)))
- 
-_ContentOp :: D.Parser ()
- 
-_ContentOp =
-  (RTS.|||)
-    (RTS.pEnter "knownOp"
-       (RTS.pEnter "PdfContentStream._ContentStreamOpObj"
-          _ContentStreamOpObj))
-    (RTS.pEnter "futureOp"
-       (RTS.pEnter "PdfContentStream._OpName" _OpName))
- 
 _ContentStream :: D.Parser ()
  
 _ContentStream =
-  RTS.pEnter "PdfContentStream._ContentStreamBody" _ContentStreamBody
+  RTS.pEnter "PdfContentStream._ContentStreamBody"
+    (_ContentStreamBody
+       (RTS.pEnter "PdfContentStream._ContentStreamOpObj"
+          _ContentStreamOpObj))
