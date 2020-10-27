@@ -495,6 +495,24 @@ applyBinop op e1 e2 =
           then Interp.VUInt p1 ((.|.) v1 v2)
           else error "Incompatible precision"
         _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    Cat ->
+      case (e1, e2) of
+        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
+          Interp.VUInt (p1 + p2) ((v1 `shiftL` fromIntegral p2) .|. v2)
+        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    LCat ->
+      -- copied from Interp.hs
+      case e2 of
+        Interp.VUInt w y ->
+          let mk f i = f ((i `shiftL` fromIntegral w) .|. y)
+              --- XXX: fromIntegral is a bit wrong
+          in
+          case e1 of
+            Interp.VInteger x -> mk Interp.VInteger  x
+            Interp.VUInt n x  -> mk (Interp.VUInt n) x
+            Interp.VSInt n x  -> mk (Interp.VSInt n) x
+            _          -> error "BUG: 1st argument to (<#) must be numeric"
+        _ -> error "BUG: 2nd argument of (<#) should be UInt"
 
 
     _ -> error ("TODO: " ++ show op)
@@ -1126,9 +1144,10 @@ applySemanticAction gbl (ctrl, out) act =
              then Nothing
              else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
-    CoerceCheck _ _t1 _t2 _e1 ->
-      -- TODO: incomplete
-      Just out
+    CoerceCheck _ t1 t2 e1 ->
+      -- TODO : maybe still incomplete
+      let ev1 = evalVExpr gbl e1 ctrl out
+      in Just $ (SEVal $ coerceVal t1 t2 ev1) : out
     SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
