@@ -62,7 +62,8 @@ library
                        Daedalus.ParserGen.DetUtils,
                        Daedalus.ParserGen.ClassInterval,
                        Daedalus.ParserGen.Det,
-                       Daedalus.ParserGen.RunnerBias
+                       Daedalus.ParserGen.RunnerBias,
+                       Daedalus.ParserGen.Generate
 
   build-depends:       base,
                        array,
@@ -83,6 +84,7 @@ library
                        ansi-terminal,
                        directory,
                        ghc-prim,
+                       language-c,
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
