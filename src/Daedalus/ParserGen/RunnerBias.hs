@@ -203,6 +203,7 @@ runnerBias gbl s aut =
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
           Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
+            -- trace (show act) $
             case act of
               BAct (CutBiasAlt _st) ->
                 let updResumption = updateCommitResumption resumption

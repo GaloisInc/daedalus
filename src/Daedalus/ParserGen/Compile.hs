@@ -159,7 +159,7 @@ allocGExpr n gexpr =
           in allocate (TCOptional c ae1) n1 2
         TCMany ws c bounds e1 ->
           let (ae1, n1) = allocGram n e1
-          in allocate (TCMany ws c (convertManyBounds bounds) ae1) n1 7
+          in allocate (TCMany ws c (convertManyBounds bounds) ae1) n1 8
         TCEnd -> allocate (TCEnd) n 2
         TCOffset -> allocate (TCOffset) n 2
         TCMapLookup ws e1 e2 ->
@@ -549,27 +549,30 @@ genGExpr gbl e =
           n5 = st !! 4
           n6 = st !! 5
           n7 = st !! 6
+          n8 = st !! 7
           loopTrans =
             case c of
               Backtrack -> -- Not sure this case is possible or tested at the moment
                 [ (n1, UniChoice (CAct (BoundSetup bounds), n2)),
                   (n2, UniChoice (SAct (ManyFreshList s), n3)),
-                  (n3, UniChoice (CAct (BoundIsMore), i1)),
-                  (n3, UniChoice (CAct (BoundCheckSuccess), n7)),
+                  (n3, ParChoice [(CAct (BoundIsMore), i1),
+                                  (CAct (BoundCheckSuccess), n7)]),
                   (f1, UniChoice (SAct (ManyAppend s), n4)),
-                  (n4, UniChoice (CAct (BoundIncr), n3))
+                  (n4, UniChoice (CAct (BoundIncr), n3)),
+                  (n7, UniChoice (SAct (ManyReturn), n8))
                 ]
               Commit ->
                 [ (n1, UniChoice (CAct (BoundSetup bounds), n2)),
                   (n2, UniChoice (SAct (ManyFreshList s), n3)),
                   (n3, SeqChoice [(CAct (BoundIsMore), i1),
-                                  (CAct (BoundCheckSuccess), n6)] n7),
+                                  (CAct (BoundCheckSuccess), n6)] n8),
                   (f1, UniChoice (SAct (ManyAppend s), n4)),
                   (n4, UniChoice (CAct (BoundIncr), n5)),
-                  (n5, UniChoice (BAct (CutBiasAlt n7), n3)),
-                  (n6, UniChoice (BAct (CutBiasAlt n7), n7))
+                  (n5, UniChoice (BAct (CutBiasAlt n8), n3)),
+                  (n6, UniChoice (BAct (CutBiasAlt n8), n7)),
+                  (n7, UniChoice (SAct (ManyReturn), n8))
                 ]
-      in mkAut n1 (unionTr (mkTr loopTrans) t1) n7
+      in mkAut n1 (unionTr (mkTr loopTrans) t1) n8
     TCEnd ->
       let n1 = st !! 0
           n2 = st !! 1
