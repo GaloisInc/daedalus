@@ -320,7 +320,7 @@ getByte = Input.inputByte
 -- Lookup in the semantic data first, and then the control
 lookupEnvName :: Name -> ControlData -> SemanticData -> Val
 lookupEnvName nname ctrl out =
-  {-# SCC lookupEnv #-}
+  {-# SCC breakpointlookupEnvName #-}
   case lookupSem out ctrl of
     Nothing -> error ("unexpected, missing var from ctrl and out:" ++ show nname)
     Just v  -> v
@@ -700,6 +700,7 @@ evalVExpr gbl expr ctrl out =
             (Nothing, Just _) -> env2
             (Nothing, Nothing) -> Nothing
         lookupLocalEnv n1 env =
+          {-# SCC breakpointLookupLocalEnv #-}
           foldl (\b (n2, v) -> case b of
                                  Nothing -> if n1 == n2 then Just v else Nothing
                                  Just v1 -> Just v1
@@ -912,6 +913,7 @@ applyControlAction gbl (ctrl, out) act =
       let evle = map (\ e -> evalVExpr gbl e ctrl out) le
       in Just (CallFrame name q (ListArgs evle) out : ctrl, [])
     Pop q ->
+      {-# SCC breakpointPop #-}
       case ctrl of
         [] -> error "Unexpected empty ctrl stack"
         CallFrame _ q' _ savedOut : rest -> if q == q' then Just (rest, head out : savedOut) else Nothing
@@ -958,6 +960,7 @@ applyControlAction gbl (ctrl, out) act =
               then Nothing
               else case head out of
                      SEVal b ->
+                       {-# SCC breakpointForNext #-}
                        let forfrm = ForFrm
                              { forResultName = n1
                              , forResultValue = b
@@ -1061,6 +1064,7 @@ applyControlAction gbl (ctrl, out) act =
         _ ->  error "Unexpected ctrl stack"
 
     ActivateFrame ln ->
+      {-#  SCC breakpointActivateFrame #-}
       case ctrl of
         CallFrame rname q (ListArgs lvs) savedFrame : ctrls ->
           let zipped =
@@ -1165,6 +1169,7 @@ applySemanticAction gbl (ctrl, out) act =
            _ -> error "Semantic output not a map"
 
     Guard e1 ->
+      {-# SCC breakpointGuard #-}
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
            Interp.VBool b -> if b then Just (SEVal (defaultValue) : out) else Nothing
