@@ -84,6 +84,12 @@ escString = text . concatMap esc
 
 
 
+unionCon :: Src.Label -> CIdent
+unionCon l = "init_" <.> cLabel l
+
+structCon :: CIdent
+structCon = "init"
+
 
 --------------------------------------------------------------------------------
 isReserved :: Text -> Bool

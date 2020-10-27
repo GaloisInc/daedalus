@@ -16,6 +16,8 @@ cInst f es = f P.<> "<" <.> (fsep (punctuate comma es)) <.> ">"
 cCall :: CExpr -> [CExpr] -> CExpr
 cCall f es = f P.<> parens (fsep (punctuate comma es))
 
+cCallMethod :: CExpr -> CIdent -> [CExpr] -> CExpr
+cCallMethod x f es = cCall (x <.> "." <.> f) es
 
 cString :: String -> CExpr
 cString = text . show

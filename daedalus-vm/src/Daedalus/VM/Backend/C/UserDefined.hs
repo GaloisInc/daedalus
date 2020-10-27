@@ -141,7 +141,7 @@ eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
 
 -- | Constructor for a product
 cProdCtr :: TDecl -> CStmt
-cProdCtr tdecl = cStmt ("void" <+> cCall "init" params)
+cProdCtr tdecl = cStmt ("void" <+> cCall structCon params)
   where params = [ cSemType t | (_,t) <- getFields tdecl, t /= TUnit ]
 
 cProdSels :: TDecl -> [ CStmt ]
@@ -163,8 +163,8 @@ cSumGetters tdecl =
 -- | Signatures for constructors of a sum
 cSumCtrs :: TDecl -> [CStmt]
 cSumCtrs tdecl =
-  [ cStmt ("void" <+> cCall ("init_" <.> cLabel l)
-                     [ cSemType ty | ty <- [t], t /= TUnit ])
+  [ cStmt ("void" <+> cCall (unionCon l)
+                                    [ cSemType ty | ty <- [t], t /= TUnit ])
   | (l,t) <- getFields tdecl
   ]
 
@@ -379,13 +379,14 @@ defCons vis boxed tdecl =
 
 
 defStructCon :: GenVis -> GenBoxed -> TDecl -> CDecl
-defStructCon vis boxed tdecl = defMethod vis tdecl "void" "init" params def
+defStructCon vis boxed tdecl = defMethod vis tdecl "void" structCon params def
   where
   params = [ t <+> x | (t,x,_) <- fs ]
   def =
     case boxed of
       GenBoxed   -> [ cStmt $ cCall "ptr.allocate" []
-                    , cStmt $ cCall "ptr.getValue().init" [ x | (_,x,_) <- fs ]
+                    , cStmt $ cCall ("ptr.getValue()." <.> structCon)
+                                                      [ x | (_,x,_) <- fs ]
                     ]
       GenUnboxed -> [ cStmt (f <+> "=" <+> x) | (_,x,f) <- fs ]
 
@@ -398,7 +399,7 @@ defUnionCons :: GenVis -> GenBoxed -> TDecl -> [CDecl]
 defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
   where
   defCon (l,t) n =
-    let name = "init_" <.> cLabel l
+    let name = unionCon l
         fs   = [ (cSemType t, cLabel l) | t /= TUnit ]
     in defMethod vis tdecl "void" name [ ty <+> x | (ty,x) <- fs ]
        case boxed of

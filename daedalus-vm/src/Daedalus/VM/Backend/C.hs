@@ -219,12 +219,12 @@ cBlockStmt cInstr =
         StructCon ut ->
           let v = cVarUse x
           in vcat [ cDeclareVar (cType (getType x)) v
-                  , cStmt (cCall (v <.> ".init")
+                  , cStmt (cCallMethod v structCon
                           [ cExpr e | e <- es, getType e /= TSem Src.TUnit ])
                   ]
 
-        NewBuilder t -> cVarDecl x todo
-        Integer n    -> cStmt (cCall "DDL::Integer" [ cString (show n) ])
+        NewBuilder _ -> cDeclareVar (cType (getType x)) (cVarUse x)
+        Integer n    -> cVarDecl x (cCall "DDL::Integer" [ cString (show n) ])
         ByteArray bs -> cVarDecl x
                               (cCall "DDL::Array<DDL::UInt<8>>"
                                 ( int (BS.length bs)
@@ -232,7 +232,7 @@ cBlockStmt cInstr =
                                   | w <- BS.unpack bs
                                   ]
                                 ))
-        Op1 op1      -> cVarDecl x (cOp1 op1 es)
+        Op1 op1      -> cOp1 x op1 es
         Op2 op2      -> cOp2 x op2 es
         Op3 op3      -> cVarDecl x todo
         OpN opN      -> cVarDecl x todo
@@ -254,22 +254,37 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 
 
 
-cOp1 :: (Copies, CurBlock) => Src.Op1 -> [E] -> CExpr
-cOp1 op1 es =
+cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CExpr
+cOp1 x op1 ~[e'] =
   case op1 of
-    Src.CoerceTo t -> todo
+    Src.CoerceTo t      -> todo
     Src.CoerceMaybeTo t -> todo
-    Src.IsEmptyStream -> todo
-    Src.Head -> todo
-    Src.StreamOffset -> todo
-    Src.StreamLen -> todo
+
+    Src.IsEmptyStream ->
+      cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
+
+    Src.Head ->
+      cVarDecl x $ cCall "DDL::UInt<8>" [ cCallMethod e "iHead" [] ]
+
+    Src.StreamOffset ->
+      cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "getOffset" [] ]
+
+    Src.StreamLen ->
+      cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "length" [] ]
+
     Src.OneOf bs -> todo
     Src.Neg -> todo
     Src.BitNot -> todo
     Src.Not -> todo
-    Src.ArrayLen -> cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
+
+    Src.ArrayLen ->
+      cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
+
     Src.Concat -> todo
-    Src.FinishBuilder -> todo
+
+    Src.FinishBuilder ->
+      cVarDecl x $ cCall (cType (getType x)) [ e ]
+
     Src.NewIterator -> todo
     Src.IteratorDone -> todo
     Src.IteratorKey -> todo
@@ -279,12 +294,18 @@ cOp1 op1 es =
     Src.IsJust -> todo
     Src.FromJust -> todo
     Src.SelStruct t l -> todo
-    Src.InUnion ut l -> todo
+
+    Src.InUnion ut l ->
+      vcat [ cDeclareVar (cType (getType x)) (cVarUse x)
+           , cStmt $ cCallMethod (cVarUse x) (unionCon l)
+                                      [ e | getType e' /= TSem Src.TUnit ]
+           ]
+
     Src.HasTag l -> todo
     Src.FromUnion t l -> todo
   where
   todo = "/* todo (1)" <+> pp op1 <+> "*/"
-  [e] = map cExpr es
+  e = cExpr e'
 
 
 cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
@@ -316,7 +337,9 @@ cOp2 x op2 ~[e1,e2] =
     Src.Or -> todo
     Src.And -> todo
     Src.ArrayIndex -> todo
-    Src.ConsBuilder -> todo
+    Src.ConsBuilder ->
+      cVarDecl x $ cCall (cType (getType x)) [ cExpr e1, cExpr e2 ]
+
     Src.MapLookup -> todo
     Src.MapMember -> todo
 
@@ -398,7 +421,6 @@ cTermStmt ccInstr =
     TailCall f _ es -> cJump (JumpPoint (lkpFun f) es)
 
   where
-  todo = "/* TODO:" <+> pp ccInstr <+> "*/"
   lkpFun f = case Map.lookup f ?allFuns of
                Just fun -> vmfEntry fun
                Nothing  -> panic "cTermStmt" [ "Unknown function", show (pp f) ]

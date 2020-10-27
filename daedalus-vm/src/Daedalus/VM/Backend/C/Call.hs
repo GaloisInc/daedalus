@@ -32,7 +32,7 @@ cReturnClass super l tys = cStmt $ vcat
         ( (super,"code") : [ (cField n, param n) | (_,n) <- fields ] )
 
     , cDefineFun "void" "freeMembers" []
-         [ cStmt (cField n <.> cCall (cField n <.> ".free") [])
+         [ cStmt (cCallMethod (cField n) "free" [])
          | (t,n) <- fields, HasRefs <- [typeRep t]
          ]
     ]
