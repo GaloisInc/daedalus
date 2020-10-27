@@ -63,6 +63,7 @@ data SemanticAction =
     EnvFresh
   | ManyFreshList WithSem
   | ManyAppend    WithSem
+  | ManyReturn
   | EnvStore    (Maybe Name)
   | EvalPure    NVExpr
   | ReturnBind  NVExpr
@@ -139,6 +140,7 @@ instance Show(SemanticAction) where
   show (EnvFresh)           = "EnvFresh"
   show (ManyFreshList _)    = "ManyFreshList"
   show (ManyAppend  _)      = "ManyAppend"
+  show (ManyReturn)         = "ManyReturn"
   show (EnvStore    _)      = "EnvStore"
   show (EvalPure    _)      = "EvalPure" -- ++ (show e)
   show (ReturnBind  _)      = "ReturnBind" -- ++ (show e)
@@ -281,6 +283,7 @@ instance Show (ControlElm) where
 data SemanticElm =
     SEnvMap (Map.Map Name Val)
   | SEVal Val
+  | SManyVal [Val]
   | SEnd
 
 instance Show (SemanticElm) where
@@ -288,6 +291,7 @@ instance Show (SemanticElm) where
     Map.foldrWithKey (\ k a b -> show k ++ ": " ++ show (pp a) ++ "\n" ++ b ) "}\n" m
     )
   show (SEVal v) = show v ++ "\n"
+  show (SManyVal lst) = show lst ++ "\n"
   show (SEnd) = "SEnd\n"
 
 type InputData    = Input
@@ -328,6 +332,7 @@ lookupEnvName nname ctrl out =
             Nothing -> lookupSem rest nextctrl
             Just v -> Just v
         SEVal _ : rest -> lookupSem rest nextctrl
+        SManyVal _ : rest -> lookupSem rest nextctrl
         SEnd : rest    -> lookupSem rest nextctrl
         [] -> lookupCtrl nextctrl
 
@@ -684,6 +689,8 @@ evalVExpr gbl expr ctrl out =
 
 evalNoFunCall:: NVExpr -> ControlData -> SemanticData -> Val
 evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
+
+
 
 valToInt :: Val -> Int
 valToInt v =
@@ -1061,19 +1068,24 @@ applySemanticAction gbl (ctrl, out) act =
     EnvFresh -> Just (SEnvMap Map.empty : out)
     ManyFreshList s ->
       case s of
-        YesSem -> Just (SEVal (Interp.VArray Vector.empty) : out)
-        NoSem  -> Just (SEVal (defaultValue) : out)
+        YesSem -> Just (SManyVal [] : out)
+        NoSem  -> Just (SManyVal [] : out)
     ManyAppend YesSem ->
+      {-# SCC breakpointManyAppend #-}
       case out of
-        x : (SEVal (Interp.VArray y)) : z  -> (
+        x : (SManyVal y) : z  -> (
           case x of
-            SEVal v -> Just (SEVal (Interp.VArray (Vector.snoc y v)) : z)
+            SEVal v -> Just ((SManyVal (v : y)) : z)
             _ -> error "unexpected out, cannot proceed"
           )
         _ -> error ("unexpected out, cannot proceed: " ++ show out)
     ManyAppend NoSem ->
       case out of
-        _ : e@((SEVal (Interp.VStruct [])) : _)  -> Just e
+        _ : e@((SManyVal []) : _)  -> Just e
+        _ -> error "unexpected out, cannot proceed"
+    ManyReturn ->
+      case out of
+        SManyVal lst : y -> Just $ SEVal (Interp.VArray (Vector.fromList (reverse lst))) : y
         _ -> error "unexpected out, cannot proceed"
     EnvStore mname -> (
       case out of
@@ -1084,6 +1096,7 @@ applySemanticAction gbl (ctrl, out) act =
               case mname of
                 Nothing -> Just rest
                 Just name -> Just (SEnvMap (Map.insert name v y) : z)
+            SManyVal _ -> error "unexpected out, cannot proceed"
             SEnd -> Just rest
           )
         _ -> error ("unexpected out, cannot proceed: " ++ show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
