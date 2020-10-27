@@ -150,9 +150,9 @@ compile expr next0 =
 
              _ ->
 
-               do noL <- label0 ReturnBlock $ nextNo next
+               do noL <- label0 (ReturnBlock 0) $ nextNo next
 
-                  yesL <- label1' ReturnBlock Nothing \v -> nextYes next v
+                  yesL <- label1' (ReturnBlock 1) Nothing \v -> nextYes next v
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL

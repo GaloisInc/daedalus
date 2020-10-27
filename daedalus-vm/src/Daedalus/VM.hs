@@ -54,11 +54,15 @@ data Block = Block
 
 data BlockType =
     NormalBlock
-  | ReturnBlock
+  | ReturnBlock Int
     {- ^ The landing target for returning from functions.
     These blocks will only ever be used by the various "return"
     instructions and so they can use a different "calling" convention
-    for passing arguments. -}
+    for passing arguments.  The 'Int' indicates how many arguments are being
+    returns.  Those are the first arguments to the block.  The remaining
+    arguments are varaibles that needed to be preserved by the call and
+    should be restored from the closure.
+    -}
 
   | ThreadBlock
     {- ^ This block is an entry point to a thread. -}
@@ -363,9 +367,9 @@ instance PP Block where
                           (vcat (map pp (blockInstrs b)) $$ pp (blockTerm b))
     where
     ty = case blockType b of
-           NormalBlock -> empty
-           ReturnBlock -> "// return"
-           ThreadBlock -> "// thread"
+           NormalBlock   -> empty
+           ReturnBlock n -> "// return" <+> int n
+           ThreadBlock   -> "// thread"
 
     l = case blockArgs b of
           [] -> pp (blockName b)

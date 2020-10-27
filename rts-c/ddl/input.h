@@ -6,6 +6,7 @@
 
 #include <ddl/array.h>
 #include <ddl/number.h>
+#include <ddl/integer.h>
 
 namespace DDL {
 
@@ -62,6 +63,9 @@ public:
   // Mutates
   // Assumes: n <= length()
   void    iTakeMut(size_t n) { last_offset = offset + n; }
+
+  Input iDropI(DDL::Integer n) { return iDrop(n.asSize()); }
+  Input iTakeI(DDL::Integer n) { return iTake(n.asSize()); }
 
 
   // Advance current location

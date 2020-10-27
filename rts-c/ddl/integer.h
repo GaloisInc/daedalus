@@ -10,9 +10,12 @@ class Integer : public Boxed<mpz_class> {
 
 public:
   Integer(const char* str)    : Boxed<mpz_class>(mpz_class(str)) {}
+  Integer(size_t n)           : Boxed<mpz_class>(mpz_class(n))   {}
   Integer()                   : Boxed<mpz_class>()               {}
   Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
+
+  size_t asSize() { return getValue().get_ui(); }
 };
 
 // borrow

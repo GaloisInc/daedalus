@@ -1,10 +1,13 @@
 {-# Language OverloadedStrings #-}
+-- XXX: escapes
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Data.Char(isAlphaNum,isAscii)
+import Numeric(showHex)
 
 import Daedalus.PP
 
@@ -14,8 +17,8 @@ import Daedalus.VM.Backend.C.Lang
 
 
 
-cReturnClassName :: JumpPoint -> Doc
-cReturnClassName j = "Return_" <.> pp (jLabel j)
+cReturnClassName :: Label -> Doc
+cReturnClassName l = "Return_" <.> escDoc (pp l)
 
 -- | Name of a type.
 -- XXX: module names, namespaces?
@@ -40,12 +43,12 @@ data GenVis = GenPublic | GenPrivate
 
 
 -- | Name of a type parameter.
-cTParam :: Src.TParam -> CType
+cTParam :: Src.TParam -> CIdent
 cTParam (Src.TP n) = "T" <.> int n
 
 -- | A C identifier corresponding to a source lable.
-cLabel :: Src.Label -> Doc
-cLabel x = text (pref ++ Text.unpack x)
+cLabel :: Src.Label -> CIdent
+cLabel x = pref <.> escText x
   where
   pref = if isReserved x then "_" else ""
 
@@ -53,15 +56,32 @@ cLabel x = text (pref ++ Text.unpack x)
 cField :: Int -> Doc
 cField n = "_" <.> int n
 
+cBlockLabel :: Label -> CIdent
+cBlockLabel (Label f x) = escDoc (pp f) <.> "_" <.> int x
 
-cBlockLabel :: Label -> Doc
-cBlockLabel (Label f x) = pp f <.> "_" <.> int x
-
-cVarUse :: BV -> CExpr
+cVarUse :: BV -> CIdent
 cVarUse = pp
 
-cArgUse :: Block -> BA -> CExpr
+cArgUse :: Block -> BA -> CIdent
 cArgUse b a = cBlockLabel (blockName b) <.> "_" <.> pp a
+
+cRetVar :: VMT -> CIdent
+cRetVar ty = "ret_" <.> escDoc (pp ty)
+
+escDoc :: Doc -> Doc
+escDoc = escString . show
+
+escText :: Text -> Doc
+escText = escString . Text.unpack
+
+escString :: String -> Doc
+escString = text . concatMap esc
+  where
+  esc c
+    | c == 'z'                              = "zz"
+    | c == '_' || isAlphaNum c && isAscii c = [c]
+    | otherwise                             = "z" ++ showHex (fromEnum c) "z"
+
 
 
 
