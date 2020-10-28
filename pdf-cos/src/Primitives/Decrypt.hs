@@ -20,12 +20,12 @@ import PdfMonad.Transformer
 decrypt :: PdfParser m => Input -> m Input 
 decrypt inp = do 
   ctxMaybe <- getEncContext 
-  if B.length dat `mod` 16 /= 0 then 
-    pError FromUser "Decrypt.decrypt" "Encrypted data size is not a multiple of 16"
-  else 
-    case ctxMaybe of 
-      Nothing -> pure inp 
-      Just ctx -> do 
+  case ctxMaybe of 
+    Nothing -> pure inp 
+    Just ctx ->  
+      if B.length dat `mod` 16 /= 0 then 
+        pError FromUser "Decrypt.decrypt" "Encrypted data size is not a multiple of 16"
+      else do 
         let aeskey = makeObjKey ctx  
         decrypt  <- case keylen ctx of 
                       128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
