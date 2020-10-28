@@ -21,7 +21,7 @@ decrypt :: PdfParser m => Input -> m Input
 decrypt inp = do 
   ctxMaybe <- getEncContext 
   if B.length dat `mod` 16 /= 0 then 
-    pError FromUser "Decrypt.decrypt" "Encrypted data length is not a multiple of 16"
+    pError FromUser "Decrypt.decrypt" "Encrypted data size is not a multiple of 16"
   else 
     case ctxMaybe of 
       Nothing -> pure inp 
@@ -51,7 +51,7 @@ applyCipher ciph hd dat =
     Y.CryptoPassed ci -> 
       case Y.makeIV hd of 
         Nothing -> 
-          pError FromUser "Decrypt.decrypt" "Could not construct AES IV" 
+          pError FromUser "Decrypt.decrypt" "Could not construct AES initial vector" 
         Just iv -> pure $ Y.cbcDecrypt ci iv dat  
 
 
@@ -76,7 +76,7 @@ makeFileKey len pwd opwd perm fileid =
     iterate doHash firsthash !! 50
   where 
     pwdPadding :: B.ByteString  
-    pwdPadding = B.pack 
+    pwdPadding = B.pack -- magic string 
         [ 0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41
         , 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08
         , 0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80
@@ -96,10 +96,10 @@ makeFileKey len pwd opwd perm fileid =
 stripPadding :: PdfParser m => B.ByteString -> m B.ByteString 
 stripPadding input =  
     if padsize > 16 || not padWF then 
-      pError FromUser "Decrypt.decrypt" "Bad AES padding. This is usually caused by an incorrect document password." 
+      pError FromUser "Decrypt.decrypt" "Bad padding in decrypted data. This is usually caused by an incorrect document password" 
     else pure res 
   where 
-    padsize = fromIntegral @Word8 (B.last input) 
+    padsize = fromIntegral (B.last input) 
     (res, pad) = B.splitAt (B.length input - padsize) input 
 
     padWF = and [ i == B.last input | i <- B.unpack pad ] 
