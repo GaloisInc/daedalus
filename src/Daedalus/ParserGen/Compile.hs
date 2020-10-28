@@ -2,8 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# language FlexibleContexts #-}
 
-
 module Daedalus.ParserGen.Compile where
+
+--import Debug.Trace
 
 import Data.Word
 import qualified Data.ByteString as BS
@@ -12,8 +13,6 @@ import Data.Maybe (fromJust)
 import Data.List (isInfixOf)
 
 import Daedalus.Type.AST
-
--- import Debug.Trace
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
@@ -513,20 +512,19 @@ genGExpr gbl e =
       let lstITF = map (\ expr -> dsAut $ genGram gbl expr) lst
           n1 = st !! 0
           n2 = st !! 1
+          transIn  = foldr (\ (i1,_t1,_f1,_) accTr -> (EpsA, i1) : accTr) [] lstITF
+          transBdy = foldr (\ (_i1,t1,_f1,_) accTr -> unionTr t1 accTr) emptyTr lstITF
+          pops     = foldr (\ (_,_,_, p1) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
       in
         case c of
           Commit ->
-            let transIn  = foldr (\ (i1,_t1,_f1) accTr -> (EpsA, i1) : accTr) [] lstITF
-                transOut = foldr (\ (_i1,_t1,f1) accTr -> (f1, UniChoice (BAct (CutBiasAlt n2), n2)) : accTr) [] lstITF
-                transBdy = foldr (\ (_i1,t1,_f1) accTr -> unionTr t1 accTr) emptyTr lstITF
-            in mkAut n1 (unionTr (mkTr1 (n1, SeqChoice transIn n2)) (unionTr (mkTr transOut) transBdy)) n2
+            let transOut = foldr (\ (_i1,_t1,f1,_) accTr -> (f1, UniChoice (BAct (CutBiasAlt n2), n2)) : accTr) [] lstITF
+            in mkAutWithPop n1 (unionTr (mkTr1 (n1, SeqChoice transIn n2)) (unionTr (mkTr transOut) transBdy)) n2 pops
           Backtrack ->
-            let transIn  = foldr (\ (i1,_t1,_f1) accTr -> (EpsA, i1) : accTr) [] lstITF
-                transOut = foldr (\ (_i1,_t1,f1) accTr -> (f1, UniChoice (EpsA, n2)) : accTr) [] lstITF
-                transBdy = foldr (\ (_i1,t1,_f1) accTr -> unionTr t1 accTr) emptyTr lstITF
-            in mkAut n1 (unionTr (mkTr1 (n1, ParChoice transIn)) (unionTr (mkTr transOut) transBdy)) n2
+            let transOut = foldr (\ (_i1,_t1,f1,_) accTr -> (f1, UniChoice (EpsA, n2)) : accTr) [] lstITF
+            in mkAutWithPop n1 (unionTr (mkTr1 (n1, ParChoice transIn)) (unionTr (mkTr transOut) transBdy)) n2 pops
     TCOptional c e1 ->
-      let (i1, t1, f1) = dsAut $ genGram gbl e1
+      let (i1, t1, f1, pops) = dsAut $ genGram gbl e1
           n1 = st !! 0
           n2 = st !! 1
           trans =
@@ -539,9 +537,9 @@ genGExpr gbl e =
                 [ (n1, ParChoice [(EpsA, i1), (EpsA, n2)]),
                   (f1, UniChoice (EpsA, n2))
                 ]
-      in mkAut n1 (unionTr (mkTr trans) t1) n2
+      in mkAutWithPop n1 (unionTr (mkTr trans) t1) n2 pops
     TCMany s c bounds e1 ->
-      let (i1, t1, f1) = dsAut $ genGram gbl e1
+      let (i1, t1, f1, pops) = dsAut $ genGram gbl e1
           n1 = st !! 0
           n2 = st !! 1
           n3 = st !! 2
@@ -572,7 +570,7 @@ genGExpr gbl e =
                   (n6, UniChoice (BAct (CutBiasAlt n8), n7)),
                   (n7, UniChoice (SAct (ManyReturn), n8))
                 ]
-      in mkAut n1 (unionTr (mkTr loopTrans) t1) n8
+      in mkAutWithPop n1 (unionTr (mkTr loopTrans) t1) n8 pops
     TCEnd ->
       let n1 = st !! 0
           n2 = st !! 1
@@ -611,13 +609,13 @@ genGExpr gbl e =
               n1 = st !! 0
               n2 = st !! 1
               n3 = st !! 2
-              (i1, t1, f1) = dsAut $ genGram gbl gram
+              (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (ForInit nname1 e1 nname2 e2), n2))
                 , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n3) ] n3)
                 , (f1, UniChoice (CAct (ForNext), n2))
                 ]
-          in mkAut n1 (unionTr trans t1) n3
+          in mkAutWithPop n1 (unionTr trans t1) n3 pops
         LoopMap ->
           let nname1 = tcName (loopElName lp)
               e1 = loopCol lp
@@ -625,13 +623,13 @@ genGExpr gbl e =
               n1 = st !! 0
               n2 = st !! 1
               n3 = st !! 2
-              (i1, t1, f1) = dsAut $ genGram gbl gram
+              (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (MapInit nname1 e1), n2))
                 , (n2, SeqChoice [ (CAct MapHasMore, i1), (CAct (MapEnd), n3) ] n3)
                 , (f1, UniChoice (CAct (MapNext), n2))
                 ]
-          in mkAut n1 (unionTr trans t1) n3
+          in mkAutWithPop n1 (unionTr trans t1) n3 pops
     TCCall name _ le ->
       let nname = tcName name
           (_, annot) =
@@ -645,13 +643,13 @@ genGExpr gbl e =
           ret  = annot !! 1
           trans = mkTr
             [ (n1, UniChoice (CAct (Push nname (map argToValue le) n2), call))
-            , (ret, UniChoice (CAct (Pop n2), n2))
+            -- , (ret, UniChoice (CAct (Pop n2), n2))
             ]
-      in mkAut n1 trans n2
+      in mkAutWithPop n1 trans n2 (addPopTrans ret n2 emptyPopTrans)
     TCErrorMode c e1 ->
       let n1 = st !! 0
           n2 = st !! 1
-          (i1, t1, f1) = dsAut $ genGram gbl e1
+          (i1, t1, f1, pops) = dsAut $ genGram gbl e1
           trans =
             case c of
               Commit ->
@@ -659,7 +657,7 @@ genGExpr gbl e =
                   (f1, UniChoice (EpsA, n2))
                 ]
               Backtrack -> error "not handled in ErrorMode"
-      in mkAut n1 (unionTr (mkTr trans) t1) n2
+      in mkAutWithPop n1 (unionTr (mkTr trans) t1) n2 pops
     TCFail e1 _ ->
       let n1 = st !! 0
           n2 = st !! 1
@@ -693,8 +691,8 @@ genGram gbl e =
       case texprValue expr of
         TCDo mname e1 e2 ->
           let name = maybe Nothing (\x -> Just $ tcName x) mname
-              (i1,t1,f1) = dsAut $ genGram gbl e1
-              (i2,t2,f2) = dsAut $ genForDo e2
+              (i1,t1,f1,pops1) = dsAut $ genGram gbl e1
+              (i2,t2,f2,pops2) = dsAut $ genForDo e2
               n1 = sts !! 0
               n2 = sts !! 1
               trans = mkTr
@@ -702,25 +700,25 @@ genGram gbl e =
                 , (f1, UniChoice (SAct (EnvStore name), i2))
                 , (f2, UniChoice (EpsA, n2))
                 ]
-          in mkAut n1 (unionTr trans (unionTr t1 t2)) n2
+          in mkAutWithPop n1 (unionTr trans (unionTr t1 t2)) n2 (unionPopTrans pops1 pops2)
         TCPure e1 ->
           let n1 = sts !! 0
               n2 = sts !! 1
           in mkAut n1 (mkTr [(n1, UniChoice (SAct (ReturnBind e1), n2))]) n2
         _x ->
           let
-              (i1,t1,f1) = dsAut $ genGExpr gbl expr
+              (i1,t1,f1, pops) = dsAut $ genGExpr gbl expr
               n1 = sts !! (length sts - 2)
               n2 = sts !! (length sts - 1)
               trans = mkTr
                 [ (n1, UniChoice (EpsA, i1))
                 , (f1, UniChoice (SAct ReturnLast, n2))
                 ]
-          in mkAut n1 (unionTr trans t1) n2
+          in mkAutWithPop n1 (unionTr trans t1) n2 pops
 
   in
     let (aut, wg) = genForBindList e
-        (i1,t1,f1) = dsAut $ aut
+        (i1,t1,f1,pops) = dsAut $ aut
         st = snd $ texprAnnot e
         n1 = st !! (length st - 2)
         n2 = st !! (length st - 1)
@@ -728,19 +726,19 @@ genGram gbl e =
           case wg of
             DoSeq -> mkTr [ (n1, UniChoice (SAct EnvFresh, i1)), (f1, UniChoice (EpsA, n2))]
             NonDoSeq -> mkTr [ (n1, UniChoice (EpsA, i1)), (f1, UniChoice (EpsA, n2))]
-    in mkAut n1 (unionTr trans t1) n2
+    in mkAutWithPop n1 (unionTr trans t1) n2 pops
 
 
 genDecl :: PAST.GblGrammar -> TCDecl (SourceRange, PAST.Annot) -> MapAut
 genDecl gbl (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined e, tcDeclAnnot = (_,st), tcDeclParams = ps}) =
-  let (i1,t1,f1) = dsAut $ genGram gbl e
+  let (i1,t1,f1,pops) = dsAut $ genGram gbl e
       n1 = st !! 0
       n2 = st !! 1
       trans = mkTr
         [ (n1, UniChoice (CAct (ActivateFrame (map paramToName ps)), i1))
         , (f1, UniChoice (CAct (DeactivateReady), n2))
         ]
-  in mkAut n1 (unionTr trans t1) n2
+  in mkAutWithPop n1 (unionTr trans t1) n2 pops
 genDecl _gbl _ = error "broken invariant"
 
 
@@ -760,7 +758,7 @@ getTCModuleDecl _ = error "broken invariant"
 buildMapAut :: [TCModule SourceRange] -> (PAST.GblFuns, MapAut)
 buildMapAut decls =
   (systemToFunctions allocDecls,
-   mkAut globalStartState (unionTr trans table) globalFinalState
+   mkAutWithPop globalStartState (unionTr mainTrans table) globalFinalState (unionPopTrans mainPop pops)
   )
   where
     allocDecls = allocStates decls
@@ -778,23 +776,26 @@ buildMapAut decls =
     startState = mainAnnots !! 0
     finalState = mainAnnots !! 1
     mainName = mainFullName
-    f a tr =
-      let (_i, t, _f) = dsAut $ genDecl allocGrammar a in unionTr t tr
-    table = foldr f emptyTr (Map.foldr (\ decl acc -> decl : acc) [] allocGrammar)
-    trans = mkTr
+    f a (trAccu,popsAccu) =
+      let (_i, t, _f, p1) = dsAut $ genDecl allocGrammar a in (unionTr t trAccu, unionPopTrans p1 popsAccu)
+    (table, pops) = foldr f (emptyTr, emptyPopTrans) (Map.foldr (\ decl acc -> decl : acc) [] allocGrammar)
+    mainTrans = mkTr
       [ (globalStartState, UniChoice (CAct (Push mainName [] globalFinalState), startState))
-      , (finalState,       UniChoice (CAct (Pop globalFinalState), globalFinalState))
       ]
+    mainPop = addPopTrans finalState globalFinalState emptyPopTrans
 
 buildArrayAut :: [TCModule SourceRange] -> (PAST.GblFuns, ArrayAut)
 buildArrayAut decls =
   let
     (fns, aut) = buildMapAut decls
   in
-    -- -- This trace is to show the amount of non-determinism generated by Pop instructions
+    -- This trace is to show the amount of non-determinism generated by Pop instructions
     -- trace (show (foldr (\ a b -> case a of
     --                  UniChoice _ -> max b 1
     --                  SeqChoice lst _ -> let n = length lst in (trace $ show n) $ if n >= b then trace (show n) $ n else b
     --                  ParChoice lst -> let n = length lst in (trace $ show n) $ if n >= b then trace (show n) $ n else b
     --              ) 0 (transition aut))) $
+
+    -- trace (Map.foldrWithKey (\ k a b -> show k ++ "," ++ show a ++ "\n" ++ b) "" (popTrans aut)) $
+
     (fns, convertToArrayAut aut)

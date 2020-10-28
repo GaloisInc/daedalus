@@ -24,7 +24,7 @@ import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import Daedalus.ParserGen.DetUtils
@@ -75,18 +75,19 @@ closureLL aut busy cfg =
     q = cfgState cfg
     ch = nextTransition aut q
   in
-  case ch of
-    Nothing ->
-      if isAcceptingState aut q
-      then AbortAcceptingPath
-      else error "should not happen"
-    Just ch1 ->
-      let (tag, lst) =
-            case ch1 of
-              UniChoice (act, q1) -> (CUni, [(act,q1)])
-              SeqChoice l _       -> (CSeq, l)
-              ParChoice l         -> (CPar, l)
-      in iterateThrough (initChoicePos tag) lst
+    case ch of
+      Nothing ->
+        if isAcceptingState aut q
+        then AbortAcceptingPath
+        else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
+      --error "should not happen"
+      Just ch1 ->
+        let (tag, lstCh) =
+              case ch1 of
+                UniChoice (act, q1) -> (CUni, [(act,q1)])
+                SeqChoice lst _     -> (CSeq, lst)
+                ParChoice lst       -> (CPar, lst)
+        in iterateThrough (initChoicePos tag) lstCh
 
   where
     newBusy = Set.insert (cfgState cfg) busy
@@ -96,30 +97,36 @@ closureLL aut busy cfg =
       | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
       | isNonClassInputAct act             = AbortNonClassInputAction act
       | length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
-      | Set.member q1 newBusy              = AbortLoopWithNonClass
+      | Set.member q1 busy                 = -- trace (show q1 ++ " " ++ show cfg) $
+                                             AbortLoopWithNonClass
       | otherwise =
-          case simulateActionCfgDet pos act q1 cfg of
+          case simulateActionCfgDet aut pos act q1 cfg of
             Nothing -> Result []
-            Just p -> closureLL aut newBusy p
+            Just lstCfg -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
+
 
     iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
     iterateThrough pos ch =
-      case ch of
+      let (_ , lstRes) = foldl (\ (pos1, acc) (act, q1) -> (nextChoicePos pos1, closureStep pos1 (act, q1) : acc)) (pos,[]) ch
+      in
+      combineResults (reverse lstRes)
+
+    combineResults lst =
+      case lst of
         [] -> Result []
-        (act, q1) : rest ->
-          let cs = closureStep pos (act, q1) in
-          case cs of
-            AbortOverflowMaxDepth -> cs
-            AbortLoopWithNonClass -> cs
-            AbortNonClassInputAction _ -> cs
-            AbortAcceptingPath -> cs
+        r1 : rest ->
+          case r1 of
+            AbortOverflowMaxDepth -> r1
+            AbortLoopWithNonClass -> r1
+            AbortNonClassInputAction _ -> r1
+            AbortAcceptingPath -> r1
             Result res1 ->
-              let ri = iterateThrough (nextChoicePos pos) rest in
-              case ri of
-                AbortOverflowMaxDepth -> ri
-                AbortLoopWithNonClass -> ri
-                AbortNonClassInputAction _ -> ri
-                AbortAcceptingPath -> ri
+              let r2 = combineResults rest in
+              case r2 of
+                AbortOverflowMaxDepth -> r2
+                AbortLoopWithNonClass -> r2
+                AbortNonClassInputAction _ -> r2
+                AbortAcceptingPath -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"
             _ -> error "abort not handled here"

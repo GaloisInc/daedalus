@@ -2,7 +2,6 @@ module Daedalus.ParserGen.Aut where
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
-import Control.Monad (join)
 import qualified Data.Set as Set
 import qualified Data.Vector as Vec
 import qualified Data.List as List
@@ -21,10 +20,13 @@ class Aut a where
   allTransitions :: a -> [(State, Choice)]
   isAcceptingState :: a -> State -> Bool
   destructureAut :: a -> (State, [(State, Action, State)], State)
+  popTransAut :: a -> PopTrans
 
 type Transition = Map.Map State Choice
 
 type Acceptings = State
+
+type PopTrans = Map.Map State [State]
 
 data MapAut = MapAut
   { initials    :: State
@@ -33,6 +35,7 @@ data MapAut = MapAut
   , acceptingsEps :: Maybe (Map.Map State Bool)
   , transitionEps :: Maybe (Map.Map State [ State ])
   , transitionWithoutEps :: Maybe Transition
+  , popTrans :: PopTrans
   }
   deriving Show
 
@@ -42,6 +45,7 @@ instance Aut MapAut where
   allTransitions dta = Map.toList $ transition dta
   isAcceptingState dta s = isAccepting s dta
   destructureAut dta = toListAut dta
+  popTransAut dta = popTrans dta
 
 mkAut :: State -> Transition -> Acceptings -> MapAut
 mkAut initial trans accepts =
@@ -51,14 +55,27 @@ mkAut initial trans accepts =
          , acceptingsEps = Nothing
          , transitionEps = Nothing
          , transitionWithoutEps = Nothing
+         , popTrans = emptyPopTrans
          }
 
-dsAut :: MapAut -> (State, Transition, Acceptings)
-dsAut aut = (initials aut, transition aut, acceptings aut)
+mkAutWithPop :: State -> Transition -> Acceptings -> PopTrans -> MapAut
+mkAutWithPop initial trans accepts pops =
+  MapAut { initials = initial
+         , transition = trans
+         , acceptings = accepts
+         , acceptingsEps = Nothing
+         , transitionEps = Nothing
+         , transitionWithoutEps = Nothing
+         , popTrans = pops
+         }
+
+dsAut :: MapAut -> (State, Transition, Acceptings, PopTrans)
+dsAut aut = (initials aut, transition aut, acceptings aut, popTrans aut)
 
 
 emptyTr :: Transition
 emptyTr = Map.empty
+
 
 combineCh :: Choice -> Choice -> Choice
 combineCh c1 c2 =
@@ -84,6 +101,18 @@ unionTr :: Transition -> Transition -> Transition
 unionTr t1 t2 =
   Map.unionWith combineCh t1 t2
 
+emptyPopTrans :: PopTrans
+emptyPopTrans = Map.empty
+
+addPopTrans :: State -> State -> PopTrans -> PopTrans
+addPopTrans f ret p = Map.insertWith (++) f [ret] p
+
+unionPopTrans :: PopTrans -> PopTrans -> PopTrans
+unionPopTrans p1 p2 = Map.unionWith (++) p1 p2
+
+lookupPopTrans :: State -> PopTrans -> Maybe [State]
+lookupPopTrans q p = Map.lookup q p
+
 lookupAut :: State -> MapAut -> Maybe Choice
 lookupAut q aut = Map.lookup q (transition aut)
 
@@ -101,7 +130,7 @@ toListTr2 tr =
 
 toListAut :: MapAut -> (State, [(State,Action,State)], State)
 toListAut aut =
-  let (i,t,f) = dsAut aut
+  let (i,t,f,_) = dsAut aut
   in (i, toListTr2 t, f)
 
 
@@ -185,6 +214,7 @@ precomputeEps aut =
            , acceptingsEps = Just acceptEps
            , transitionEps = Just transEpsFiltered
            , transitionWithoutEps = Just transWithoutEps
+           , popTrans = popTrans aut
            }
 
 getEpsTransStates :: State -> MapAut -> [ State ]
@@ -209,8 +239,8 @@ isAcceptingEps q aut =
 -- For the time being we will reuse the existing implementation somewhat
 -- This shouldn't affect runtime performance
 data ArrayAut = ArrayAut {
-  transitionArray :: Vec.Vector (Maybe Choice),
-  mapAut :: MapAut
+  transitionArray :: {-# UNPACK #-} !(Vec.Vector (Maybe Choice)),
+  mapAut :: {-# UNPACK #-} !MapAut
 }
 
 mkArrayAut :: State -> Transition -> Acceptings -> ArrayAut
@@ -235,7 +265,11 @@ convertToArrayAut aut =
 
 instance Aut ArrayAut where
   initialState dta = initials $ mapAut dta
-  nextTransition dta s = join $ (Vec.!?) (transitionArray dta) s
+  nextTransition dta s = Vec.unsafeIndex (transitionArray dta) s
   allTransitions dta = Map.toList $ transition $ mapAut dta
   isAcceptingState dta s = isAccepting s $ mapAut dta
   destructureAut dta = toListAut $ mapAut dta
+  popTransAut dta = popTrans $ mapAut dta
+  {-# INLINE nextTransition #-}
+  {-# INLINE isAcceptingState #-}
+  {-# INLINE popTransAut #-}

@@ -48,7 +48,7 @@ data ControlAction =
   | ActivateFrame [Name]
   | DeactivateReady
   | Push Name [NVExpr] State
-  | Pop State
+  | Pop
   | ForInit Name NVExpr Name NVExpr
   | ForHasMore
   | ForNext
@@ -126,7 +126,7 @@ instance Show(ControlAction) where
   show (ActivateFrame _) = "ActivateFrame"
   show (DeactivateReady) = "DeactivateReady"
   show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ showName n) ++ "_" ++ show dest
-  show (Pop dest)          = "Pop" ++ "_" ++ show dest
+  show (Pop)               = "Pop"
   show (ForInit _ _ _ _)   = "ForInit"
   show (ForHasMore)        = "ForHasMore"
   show (ForNext)           = "ForNext"
@@ -320,7 +320,6 @@ getByte = Input.inputByte
 -- Lookup in the semantic data first, and then the control
 lookupEnvName :: Name -> ControlData -> SemanticData -> Val
 lookupEnvName nname ctrl out =
-  {-# SCC breakpointlookupEnvName #-}
   case lookupSem out ctrl of
     Nothing -> error ("unexpected, missing var from ctrl and out:" ++ show nname)
     Just v  -> v
@@ -700,7 +699,6 @@ evalVExpr gbl expr ctrl out =
             (Nothing, Just _) -> env2
             (Nothing, Nothing) -> Nothing
         lookupLocalEnv n1 env =
-          {-# SCC breakpointLookupLocalEnv #-}
           foldl (\b (n2, v) -> case b of
                                  Nothing -> if n1 == n2 then Just v else Nothing
                                  Just v1 -> Just v1
@@ -912,12 +910,7 @@ applyControlAction gbl (ctrl, out) act =
     Push name le q ->
       let evle = map (\ e -> evalVExpr gbl e ctrl out) le
       in Just (CallFrame name q (ListArgs evle) out : ctrl, [])
-    Pop q ->
-      {-# SCC breakpointPop #-}
-      case ctrl of
-        [] -> error "Unexpected empty ctrl stack"
-        CallFrame _ q' _ savedOut : rest -> if q == q' then Just (rest, head out : savedOut) else Nothing
-        _ -> error "Unexpected ctrl stack elm"
+    Pop -> error "Should not be handled here"
     ForInit n1 e1 n2 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
@@ -960,7 +953,6 @@ applyControlAction gbl (ctrl, out) act =
               then Nothing
               else case head out of
                      SEVal b ->
-                       {-# SCC breakpointForNext #-}
                        let forfrm = ForFrm
                              { forResultName = n1
                              , forResultValue = b
@@ -1064,7 +1056,6 @@ applyControlAction gbl (ctrl, out) act =
         _ ->  error "Unexpected ctrl stack"
 
     ActivateFrame ln ->
-      {-#  SCC breakpointActivateFrame #-}
       case ctrl of
         CallFrame rname q (ListArgs lvs) savedFrame : ctrls ->
           let zipped =
@@ -1093,7 +1084,6 @@ applySemanticAction gbl (ctrl, out) act =
         YesSem -> Just (SManyVal [] : out)
         NoSem  -> Just (SManyVal [] : out)
     ManyAppend YesSem ->
-      {-# SCC breakpointManyAppend #-}
       case out of
         x : (SManyVal y) : z  -> (
           case x of
@@ -1169,7 +1159,6 @@ applySemanticAction gbl (ctrl, out) act =
            _ -> error "Semantic output not a map"
 
     Guard e1 ->
-      {-# SCC breakpointGuard #-}
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
            Interp.VBool b -> if b then Just (SEVal (defaultValue) : out) else Nothing
@@ -1180,18 +1169,24 @@ applySemanticAction gbl (ctrl, out) act =
     resultWithSem NoSem  _ = Just (SEVal (defaultValue) : out)
 
 
-applyAction :: GblFuns -> (InputData, ControlData, SemanticData) -> Action ->
-  Maybe (InputData, ControlData, SemanticData)
-applyAction gbl (inp, ctrl, out) act =
+applyAction :: GblFuns -> (InputData, ControlData, SemanticData) -> State -> Action ->
+  Maybe (InputData, ControlData, SemanticData, State)
+applyAction gbl (inp, ctrl, out) q2 act =
   case act of
-    EpsA       -> Just (inp, ctrl, out)
+    EpsA       -> Just (inp, ctrl, out, q2)
     IAct a   -> case applyInputAction gbl (inp, ctrl, out) a of
                     Nothing -> Nothing
-                    Just (inp1, out1) -> Just (inp1, ctrl, out1)
-    CAct a     -> case applyControlAction gbl (ctrl, out) a of
-                    Nothing -> Nothing
-                    Just (ctrl1, out1) -> Just (inp, ctrl1, out1)
+                    Just (inp1, out1) -> Just (inp1, ctrl, out1, q2)
+    CAct a     -> case a of
+                    Pop ->
+                      case ctrl of
+                        CallFrame _ q' _ savedOut : rest -> Just (inp, rest, head out : savedOut, q')
+                        _ -> error "broken invariant of Pop"
+                    _ ->
+                      case applyControlAction gbl (ctrl, out) a of
+                        Nothing -> Nothing
+                        Just (ctrl1, out1) -> Just (inp, ctrl1, out1, q2)
     SAct a     -> case applySemanticAction gbl (ctrl, out) a of
                     Nothing -> Nothing
-                    Just out1 -> Just (inp, ctrl, out1)
+                    Just out1 -> Just (inp, ctrl, out1, q2)
     BAct _     -> error "This case should not be handled in applyAction"
