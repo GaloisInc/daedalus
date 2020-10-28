@@ -11,11 +11,10 @@ where
 -- import Debug.Trace
 
 import qualified Data.ByteString as BS
-import Data.Maybe (fromJust)
 import qualified Daedalus.Interp as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action(..), BranchAction(..), SemanticElm(..), applyAction)
+import Daedalus.ParserGen.Action (State, Action(..), BranchAction(..), SemanticElm(..), ControlAction(..), applyAction)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 import Daedalus.ParserGen.Cfg (initCfg, Cfg(..), isAcceptingCfg)
 
@@ -192,7 +191,14 @@ runnerBias gbl s aut =
             -- trace (show cfg) $
             let localTransitions = nextTransition aut q
             in case localTransitions of
-                 Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                 Nothing ->
+                   if isAcceptingCfg cfg aut
+                   then
+                     let newResult = addResult cfg result
+                     in backtrack resumption newResult
+                   else
+                     let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q)) in
+                       choose newResumption result
                  Just ch ->
                    let newResumption = addResumption resumption cfg ch in
                      choose newResumption result
@@ -201,43 +207,37 @@ runnerBias gbl s aut =
       choose resumption result =
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
-          Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
+          Just (cfg@(Cfg inp ctrl out _q1), (act, q2)) ->
             -- trace (show act) $
             case act of
               BAct (CutBiasAlt _st) ->
                 let updResumption = updateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg updResumption updResult
+                   react newCfg updResumption result
               BAct (CutLocal) ->
                 let updResumption = earlyUpdateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg updResumption updResult
+                   react newCfg updResumption result
               BAct (CutGlobal) ->
                 let updResumption = cutResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg updResumption updResult
+                   react newCfg updResumption result
               BAct (FailAction Nothing) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
               BAct (FailAction _) ->
                 error "FailAction not handled"
               _ ->
-                case applyAction gbl (inp, ctrl, out) act of
+                case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
                     let updResult = updateError resumption cfg result in
                     backtrack resumption updResult
-                  Just (inp2, ctr2, out2) ->
-                    let newCfg = Cfg inp2 ctr2 out2 n2
-                        updResult = if isAcceptingCfg newCfg aut
-                                    then addResult newCfg result
-                                    else result
-                    in react newCfg resumption updResult
+                  Just (inp2, ctr2, out2, q2') ->
+                    let newCfg = Cfg inp2 ctr2 out2 q2'
+                    in react newCfg resumption result
 
       backtrack :: Resumption -> Result -> Result
       backtrack resumption result =
@@ -272,7 +272,6 @@ runnerLL gbl s aut autDet =
                     -- parseError the furthest. If we called backtrack
                     -- we would not update the parseError information
                   Just pdxs ->
-                    -- trace (show tr) $
                     -- trace (show pdxs) $
                     -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
                     applyPredictions pdxs cfg resumption result
@@ -281,86 +280,86 @@ runnerLL gbl s aut autDet =
               callNFA () =
                 let localTransitions = nextTransition aut q
                 in case localTransitions of
-                     Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                     Nothing -> {-# SCC backtrackSetStep #-}
+                       if isAcceptingCfg cfg aut
+                       then
+                         let newResult = addResult cfg result
+                         in backtrack resumption newResult
+                       else
+                         let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q)) in
+                           choose newResumption result
+                         --backtrack resumption result
                      Just ch ->
                        let newResumption = addResumption resumption cfg ch in
                          choose newResumption result
 
       applyPredictions :: Det.Prediction -> Cfg -> Resumption -> Result -> Result
-      applyPredictions prdx cfg@(Cfg inp ctrl out n) resumption result =
+      applyPredictions prdx cfg@(Cfg inp ctrl out q) resumption result =
         case Det.destrPrediction prdx of
           Nothing -> react cfg resumption result
           Just (alt, alts) ->
-            let tr = fromJust $ nextTransition aut n
-                (act, n2) = case (tr, alt) of
-                              (UniChoice (a, n1), (CUni, _)) -> (a, n1)
-                              (SeqChoice lst _, (CSeq, i)) -> lst !! i
-                              (ParChoice lst, (CPar, i)) -> lst !! i
+            let tr = nextTransition aut q
+                (act, q2) = case (tr, alt) of
+                              (Nothing, (CPop, _)) -> (CAct Pop, q)
+                              (Just (UniChoice (a, q1)), (CUni, _)) -> (a, q1)
+                              (Just (SeqChoice lst _), (CSeq, i)) -> lst !! i
+                              (Just (ParChoice lst), (CPar, i)) -> lst !! i
                               _ -> error "impossible combination"
-                newResumption = addResumption resumption cfg (UniChoice (act, n2))
+                newResumption = addResumption resumption cfg (UniChoice (act, q2))
             in
+               -- trace (show act) $
                case act of
                  BAct bact ->
                    case bact of
                      (CutBiasAlt _st) ->
                        let updResumption = updateCommitResumption newResumption
-                           newCfg = Cfg inp ctrl out n2
-                           updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                       in applyPredictions alts newCfg updResumption updResult
+                           newCfg = Cfg inp ctrl out q2
+                       in applyPredictions alts newCfg updResumption result
                      _ -> undefined
                  _ ->
-                     case applyAction gbl (inp, ctrl, out) act of
+                     case applyAction gbl (inp, ctrl, out) q2 act of
                        Nothing -> {-# SCC backtrackFailApplyAction #-}
                          let updResult = updateError resumption cfg result
                          in backtrack newResumption updResult
-                       Just (inp2, ctr2, out2) ->
-                         let newCfg = Cfg inp2 ctr2 out2 n2
-                             updResult =
-                               if isAcceptingCfg newCfg aut
-                               then addResult newCfg result
-                               else result
-                         in applyPredictions alts newCfg newResumption updResult
+                       Just (inp2, ctr2, out2, q2') ->
+                         let newCfg = Cfg inp2 ctr2 out2 q2'
+                         in applyPredictions alts newCfg newResumption result
 
       choose :: Resumption -> Result -> Result
       choose resumption result =
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
-          Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
+          Just (cfg@(Cfg inp ctrl out _n1), (act, q2)) ->
+            -- trace (show act) $
             case act of
               BAct (CutBiasAlt _st) ->
                 let newResumption = updateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption updResult
+                   react newCfg newResumption result
               BAct (CutLocal) ->
                 let newResumption = earlyUpdateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption updResult
+                   react newCfg newResumption result
               BAct (CutGlobal) ->
                 let newResumption = cutResumption resumption
-                    newCfg = Cfg inp ctrl out n2
-                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                    newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption updResult
+                   react newCfg newResumption result
               BAct (FailAction Nothing) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
               BAct (FailAction _) ->
                 error "FailAction not handled"
               _ ->
-                case applyAction gbl (inp, ctrl, out) act of
+                case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
                     let updResult = updateError resumption cfg result in
                     backtrack resumption updResult
-                  Just (inp2, ctr2, out2) ->
-                    let newCfg = Cfg inp2 ctr2 out2 n2
-                        updResult = if isAcceptingCfg newCfg aut
-                                    then addResult newCfg result
-                                    else result
-                    in react newCfg resumption updResult
+                  Just (inp2, ctr2, out2, q2') ->
+                    let newCfg = Cfg inp2 ctr2 out2 q2'
+                    in react newCfg resumption result
 
       backtrack :: Resumption -> Result -> Result
       backtrack resumption result =

@@ -24,16 +24,13 @@ autToGraphviz aut =
             where
               arrivNode = case act of
                             CAct (Push _ _ n) -> "S" ++ show n
-                            CAct (Pop n) -> "Pop_to_S" ++ show n
-                            _     -> "S" ++ show n2
+                            _ -> "S" ++ show n2
               startNode = "S" ++ show n1
               strAct = case act of
                          CAct (Push name _ _) -> "Push_" ++ tail (removeLast (showName name)) ++ "_S" ++ show n2
-                         CAct (Pop n) -> "Pop" ++ show n
-                         _     -> show act
+                         _ -> show act
               isDotted = case act of
                          CAct (Push _ _ _) -> True
-                         CAct (Pop _) -> True
                          _ -> False
               removeLast [] = []
               removeLast [ _ ] = []
