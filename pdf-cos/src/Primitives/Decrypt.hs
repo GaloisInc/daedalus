@@ -3,8 +3,6 @@ module Primitives.Decrypt (decrypt,makeFileKey) where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
-import qualified Data.ByteString.Lazy as LBS
-import Data.List(uncons)
 import Data.ByteArray as BA 
 import Data.Word 
 
@@ -19,32 +17,43 @@ import RTS.Input
 
 import PdfMonad.Transformer
 
-import Debug.Trace 
+-- XXX: Need to strip padding from the decrypted data 
 
 decrypt :: PdfParser m => Input -> m Input 
 decrypt inp = do 
-  ctx <- getEncContext 
-  case ctx of 
-    Nothing -> pure inp 
-    Just p  -> 
-      let aeskey = makeObjKey p 
-      -- XXX: Baked in AES128 
-      in case Y.cipherInit @Y.AES128 aeskey of 
-        Y.CryptoFailed error -> 
-          pError FromUser "Decrypt.decrypt" (show error) 
-        Y.CryptoPassed ciph -> 
-          case Y.makeIV head of 
-            Nothing -> 
-              pError FromUser "Decrypt.decrypt" "Could not construct AES IV" 
-            Just iv -> 
-              if B.length dat `mod` 16 == 0 then 
-                let res = Y.cbcDecrypt ciph iv dat  
-                in pure (newInput name res) 
-              else 
-                pError FromUser "Decrypt.decrypt" "Encrypted data length is not a multiple of 16."
+  ctxMaybe <- getEncContext 
+  if B.length dat `mod` 16 /= 0 then 
+    pError FromUser "Decrypt.decrypt" "Encrypted data length is not a multiple of 16"
+  else 
+    case ctxMaybe of 
+      Nothing -> pure inp 
+      Just ctx -> do 
+        let aeskey = makeObjKey ctx  
+        res <- case (keylen ctx) of 
+                  128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
+                  192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
+                  256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
+                  _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
+        pure (newInput name res) 
   where 
-    (head, dat) = B.splitAt 16 $ inputBytes inp
+    (hd, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
+
+
+applyCipher :: (PdfParser m, BlockCipher a) => 
+                   CryptoFailable a  
+                -> B.ByteString 
+                -> B.ByteString 
+                -> m B.ByteString
+applyCipher ciph hd dat = 
+  case ciph of 
+    Y.CryptoFailed err -> 
+      pError FromUser "Decrypt.decrypt" (show err) 
+    Y.CryptoPassed ci -> 
+      case Y.makeIV hd of 
+        Nothing -> 
+          pError FromUser "Decrypt.decrypt" "Could not construct AES IV" 
+        Just iv -> pure $ Y.cbcDecrypt ci iv dat  
 
 
 makeObjKey :: EncContext 
@@ -56,7 +65,7 @@ makeObjKey ctx =
     gb = B.take 2 $ B.reverse $ S.encode (rgen ctx)
     salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [(key ctx), ob, gb, salt]
-     
+
 
 makeFileKey :: Int 
             -> B.ByteString 
@@ -64,7 +73,7 @@ makeFileKey :: Int
             -> Int
             -> B.ByteString 
             -> B.ByteString
-makeFileKey len pwd opwd perm id = 
+makeFileKey len pwd opwd perm fileid = 
     iterate doHash firsthash !! 50
   where 
     pwdPadding :: B.ByteString  
@@ -82,4 +91,4 @@ makeFileKey len pwd opwd perm id =
                   hashFinalize $ 
                     hashUpdate (Y.hashInit @Y.MD5) bs 
 
-    firsthash = doHash $ B.concat [padded, opwd, pbytes, id]
+    firsthash = doHash $ B.concat [padded, opwd, pbytes, fileid]
