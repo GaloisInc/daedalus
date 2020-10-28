@@ -9,6 +9,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
 import Control.Monad(when)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
+import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
 import System.Console.ANSI
@@ -145,6 +146,9 @@ handleOptions opts
                     }
 
          CompileCPP ->
+           -- XXX: package into Driver, but probably need to add proper
+           -- support for multiple entry points, and entry points with
+           -- parameters.
            do passSpecialize specMod [mainRule]
               passCore specMod
               passVM specMod
@@ -154,7 +158,14 @@ handleOptions opts
               let prog = VM.addCopyIs
                        $ VM.doBorrowAnalysis
                        $ VM.moduleToProgram entry [m]
-              ddlPrint (C.cProgram prog)
+                  outFileRoot = "main_parser"
+                  (hpp,cpp) = C.cProgram outFileRoot prog
+              root <- case optOutDir opts of
+                        Nothing -> pure outFileRoot
+                        Just d  -> do ddlIO $ createDirectoryIfMissing True d
+                                      pure (d </> outFileRoot)
+              ddlIO do writeFile (addExtension root "h") (show hpp)
+                       writeFile (addExtension root "cpp") (show cpp)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 

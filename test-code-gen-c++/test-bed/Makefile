@@ -1,4 +1,5 @@
 CPPFLAGS=-I include
 CXXFLAGS=--std=c++17 -Wall -O3
-a.out: include/ddl/*.h main.cpp
-	g++ $(CPPFLAGS) $(CXXFLAGS) -S -c main.cpp
+LIBS=-lgmpxx -lgmp
+a.out: include/ddl/*.h main_parser.h main_parser.cpp main.cpp
+	g++ $(CPPFLAGS) $(CXXFLAGS) main_parser.cpp main.cpp $(LIBS)

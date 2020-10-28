@@ -31,6 +31,12 @@ public:
     , fail_offset(0)
   {}
 
+  std::vector<T>& getResults()    { return results; }
+  size_t          getFailOffset() { return fail_offset; }
+
+
+  // ------------------------------------------------------------------------
+
   void setInput(Input i) { input = i; }
 
   // Returns a copy of the current input

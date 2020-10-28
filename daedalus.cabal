@@ -104,6 +104,7 @@ executable daedalus
                        simple-get-opt >= 0.4,
                        bytestring,
                        containers,
+                       directory,
                        filepath
 
   hs-source-dirs:      exe

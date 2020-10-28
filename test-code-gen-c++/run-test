@@ -7,5 +7,6 @@ if [ $# -ne 1 ]; then
   exit 1
 fi
 
-cabal exec daedalus -- $1 --compile-c++ > "$DIR/main.cpp" && make -C test-bed
+cabal exec daedalus -- --out-dir=test-bed --compile-c++ $1 && \
+  make -C test-bed
 

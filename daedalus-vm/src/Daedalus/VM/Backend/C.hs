@@ -31,24 +31,38 @@ import Daedalus.VM.Backend.C.Call
 -}
 
 
-cProgram :: Program -> Doc
-cProgram prog =
-  vcat
-    [ includes
-    , " "
-    , "// --- Types --- //"
-    , "  "
-    , vcat' (map cTypeGroup allTypes)
-    ,  "// --- End of Types //"
-    , " "
-    , "// --- Parser --- //"
-    , " "
-    , "void parser(" <.> cInst "DDL::Parser" [ parserTy ] <+> "&p) {"
-    , nest 2 parserDef
-    , "}"
-    ]
-
+-- | Currently returns the content for @(.h,.cpp)@ files.
+cProgram :: String -> Program -> (Doc,Doc)
+cProgram fileNameRoot prog = (hpp,cpp)
   where
+  module_marker = text fileNameRoot <.> "_H"
+
+  hpp = vcat [ "#ifndef" <+> module_marker
+             , "#define" <+> module_marker
+             , " "
+             , includes
+             , " "
+             , vcat' (map cTypeGroup allTypes)
+             , " "
+             , cStmt ("using ParserResult =" <+> parserTy)
+               -- this is just to make it easier to write a polymorphic
+               -- test driver
+
+             , cStmt parserSig
+             , " "
+             , "#endif"
+             ]
+
+
+  cpp = vcat [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
+             , " "
+             , parserSig <+> "{"
+             , nest 2 parserDef
+             , "}"
+             ]
+
+  parserSig = "void parser(" <.> cInst "DDL::Parser" [ parserTy ] <+> "&p)"
+
   orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
   modDeps m      = (mName m, Set.fromList (mImports m))
 
