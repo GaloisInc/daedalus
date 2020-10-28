@@ -17,8 +17,6 @@ import RTS.Input
 
 import PdfMonad.Transformer
 
--- XXX: Need to strip padding from the decrypted data 
-
 decrypt :: PdfParser m => Input -> m Input 
 decrypt inp = do 
   ctxMaybe <- getEncContext 
@@ -29,12 +27,13 @@ decrypt inp = do
       Nothing -> pure inp 
       Just ctx -> do 
         let aeskey = makeObjKey ctx  
-        res <- case (keylen ctx) of 
-                  128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
-                  192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
-                  256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
-                  _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
-        pure (newInput name res) 
+        decrypt  <- case keylen ctx of 
+                      128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
+                      192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
+                      256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
+                      _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
+        res <- stripPadding decrypt 
+        pure $ newInput name res
   where 
     (hd, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
@@ -59,12 +58,12 @@ applyCipher ciph hd dat =
 makeObjKey :: EncContext 
            -> B.ByteString 
 makeObjKey ctx = 
-    B.take ((keylen ctx) + 5) (BA.convert digest)
+    B.take (keylen ctx + 5) (BA.convert digest)
   where 
     ob = B.take 3 $ B.reverse $ S.encode (robj ctx)
     gb = B.take 2 $ B.reverse $ S.encode (rgen ctx)
     salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
-    digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [(key ctx), ob, gb, salt]
+    digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
 
 makeFileKey :: Int 
@@ -92,3 +91,15 @@ makeFileKey len pwd opwd perm fileid =
                     hashUpdate (Y.hashInit @Y.MD5) bs 
 
     firsthash = doHash $ B.concat [padded, opwd, pbytes, fileid]
+
+
+stripPadding :: PdfParser m => B.ByteString -> m B.ByteString 
+stripPadding input =  
+    if padsize > 16 || not padWF then 
+      pError FromUser "Decrypt.decrypt" "Bad AES padding. This is usually caused by an incorrect document password." 
+    else pure res 
+  where 
+    padsize = fromIntegral @Word8 (B.last input) 
+    (res, pad) = B.splitAt (B.length input - padsize) input 
+
+    padWF = and [ i == B.last input | i <- B.unpack pad ] 
