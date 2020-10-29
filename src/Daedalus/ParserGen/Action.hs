@@ -112,7 +112,7 @@ instance Show(InputAction) where
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
-  show (IMatchBytes s _) = semToString s ++ "MatchBytes"
+  show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
   show (CurrentStream) = "StreamCurr"
   show (SetStream _)   = "StreamSet"
   show (StreamLen s _ _) = semToString s ++ "StreamLen"
@@ -226,13 +226,13 @@ getByteArray e =
 type Val = Interp.Value
 
 data BeetweenItv =
-    CExactly Int
-  | CBetween (Maybe Int) (Maybe Int)
+    CExactly {-# UNPACK #-} !Int
+  | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
 
 data ActivationFrame =
-    ListArgs  [Val]
-  | ActivatedFrame (Map.Map Name Val)
+    ListArgs ![Val]
+  | ActivatedFrame !(Map.Map Name Val)
   deriving (Show)
 
 
@@ -253,10 +253,10 @@ data MapFrm = MapFrm
   }
 
 data ControlElm =
-    ManyFrame (BeetweenItv) Int -- the integer is the current counter
-  | ForFrame ForFrm
-  | MapFrame MapFrm
-  | CallFrame Name State (ActivationFrame) SemanticData
+    ManyFrame !(BeetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
+  | ForFrame  !ForFrm
+  | MapFrame  !MapFrm
+  | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
   --deriving (Eq)
 
 instance Show (ControlElm) where
@@ -281,9 +281,9 @@ instance Show (ControlElm) where
 
 
 data SemanticElm =
-    SEnvMap (Map.Map Name Val)
-  | SEVal Val
-  | SManyVal [Val]
+    SEnvMap !(Map.Map Name Val)
+  | SEVal   !Val
+  | SManyVal ![Val]
   | SEnd
 
 instance Show (SemanticElm) where

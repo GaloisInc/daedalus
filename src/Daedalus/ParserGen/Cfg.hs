@@ -7,7 +7,7 @@ import RTS.Input(newInput)
 import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData)
 import Daedalus.ParserGen.Aut (Aut, initialState, isAcceptingState)
 
-data Cfg = Cfg InputData ControlData SemanticData State
+data Cfg = Cfg !InputData !ControlData !SemanticData {-# UNPACK #-} !State
   --deriving (Eq)
 
 instance (Show Cfg) where
