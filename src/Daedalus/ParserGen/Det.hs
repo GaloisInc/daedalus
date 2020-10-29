@@ -221,7 +221,7 @@ showDFATransition (q, dfa) =
     showTrans :: [DFAStateQuotient] -> Int -> DFAStateQuotient -> String
     showTrans vis d qq =
       if elem qq vis
-      then "*****"
+      then "**** loop ****"
       else
       case lookupExplicitDFA qq dfa of
         Nothing -> error "sdfsdf"

@@ -12,7 +12,7 @@ DTrans [
       ),
       ( [(6),(13),]
       , HeadInput ['c']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['d','m']
@@ -40,7 +40,7 @@ DTrans [
           ),
           ( [(6),(13),]
           , HeadInput ['c']
-          , *****
+          , **** loop ****
           ),
           ( [(6),]
           , HeadInput ['d','m']
@@ -82,7 +82,7 @@ DTrans [
           ),
           ( [(6),(13),]
           , HeadInput ['c']
-          , *****
+          , **** loop ****
           ),
           ( [(6),]
           , HeadInput ['d','m']
@@ -110,7 +110,7 @@ DTrans [
               ),
               ( [(6),(13),]
               , HeadInput ['c']
-              , *****
+              , **** loop ****
               ),
               ( [(6),]
               , HeadInput ['d','m']
@@ -138,7 +138,7 @@ DTrans [
       ),
       ( [(6),(6),]
       , HeadInput ['f','m']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['n','t']
@@ -165,7 +165,7 @@ DTrans [
       ),
       ( [(6),(13),]
       , HeadInput ['c']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['d','m']
