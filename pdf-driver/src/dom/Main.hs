@@ -43,7 +43,7 @@ main =
      (refs, trail) <- 
         handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     fileEC <- makeEncContextB trail (password opts) refs topInput 
+     fileEC <- makeEncContextP trail (password opts) refs topInput 
 
      let ppRef pref r =
            do res <- runParser refs (fileEC r) (pResolveRef r) topInput
@@ -87,12 +87,12 @@ handlePdfResult x msg =
         ParseAmbig {} -> quit msg 
         ParseErr e    -> quit (show (pp e))
 
-makeEncContextB :: TrailerDict 
+makeEncContextP :: TrailerDict 
                 -> BS.ByteString 
                 -> ObjIndex 
                 -> Input  
                 -> IO (Ref -> Maybe EncContext)  
-makeEncContextB trail pwd refs topInput = 
+makeEncContextP trail pwd refs topInput = 
   case (getField @"encrypt" trail, getField @"id" trail) of 
     (Nothing, _) -> pure $ const Nothing -- No encryption 
     (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Encryption disabled."

@@ -27,17 +27,13 @@ import PdfParser
 import PdfDemo
 import Primitives.Decrypt(makeFileKey)
 
-import Debug.Trace
-
-defaultPW = BS.pack "password"
-
 main :: IO ()
 main =
   pdfMain
   do opts <- getOptions
      case optMode opts of
        Demo  -> driver opts
-       FAW   -> fmtDriver fawFormat (optPDFInput opts)
+       FAW   -> fmtDriver fawFormat (optPDFInput opts) (optPassword opts) 
 
 
 data Format = Format
@@ -105,8 +101,8 @@ fawFormat = Format
 
 
 
-fmtDriver :: DbgMode => Format -> FilePath -> IO ()
-fmtDriver fmt file =
+fmtDriver :: DbgMode => Format -> FilePath -> String -> IO ()
+fmtDriver fmt file pwd =
   do bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      onStart fmt file bs
@@ -137,25 +133,9 @@ fmtDriver fmt file =
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     -- XXX: ugly hack to make it work quickly
-     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
-                (Nothing, _) -> pure Nothing
-                (Just d, Just id) -> do 
-                  enc <- 
-                    do res <- runParser refs Nothing (pEncryptionDict d) topInput
-                       case res of 
-                          ParseOk ok -> pure ok 
-                          _          -> error "BUG: bad encryption dictionary"
-                  let len = fromIntegral $ getField @"encLength" enc 
-                      encO = vecToRep $ getField @"encO" enc 
-                      encP = fromIntegral $ getField @"encP" enc
-                      firstid = vecToRep $ getField @"firstid" id 
-                      filekey = makeFileKey len defaultPW encO encP firstid  
-                  pure $ Just EncContext { key = filekey, keylen = len } 
-                (_, Nothing) -> error "BUG: Missing ID field"
+     fileEC <- makeEncContextD trail refs topInput pwd 
 
      mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
-
 
 
 
@@ -250,22 +230,7 @@ driver opts = runReport opts $
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     -- XXX: ugly hack to make it work quickly
-     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
-                (Nothing, _) -> pure Nothing
-                (Just d, Just id) -> do 
-                  enc <- 
-                    do res <- liftIO (runParser refs Nothing (pEncryptionDict d) topInput)
-                       case res of 
-                          ParseOk ok -> pure ok 
-                          _          -> error "BUG: bad encryption dictionary"
-                  let len = fromIntegral $ getField @"encLength" enc 
-                      encO = vecToRep $ getField @"encO" enc 
-                      encP = fromIntegral $ getField @"encP" enc
-                      firstid = vecToRep $ getField @"firstid" id 
-                      filekey = makeFileKey len defaultPW encO encP firstid  
-                  pure $ Just EncContext { key = filekey, keylen = len } 
-                (_, Nothing) -> error "BUG: Missing ID field"
+     fileEC <- liftIO $ makeEncContextD trail refs topInput (optPassword opts)
 
      parseObjs file fileEC topInput refs
 
@@ -278,8 +243,6 @@ parseObjs fileN ec topInput refMap = mapM_ doOne (Map.toList refMap)
              do let timeMsg = parens (hcat [int (declTime res), "us"])
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)
                 report cl fileN 0 (timeMsg <+> oidMsg <+> msg)
-
-
        
        let saySafety (x :: CheckDecl TopDeclDef) (si :: TsafetyInfo) =
              case (getField @"hasJS" si, getField @"hasURI" si) of
@@ -310,3 +273,21 @@ sayVal v = case v of
              Value_number {} -> "number"
              Value_array {}  -> "array"
              Value_dict {}   -> "dict"
+
+makeEncContextD :: TrailerDict -> ObjIndex -> Input -> String -> IO (Maybe EncContext)
+makeEncContextD trail refs topInput pwd = 
+  case (getField @"encrypt" trail, getField @"id" trail) of 
+    (Nothing, _) -> pure Nothing
+    (_, Nothing) -> error "BUG: Missing ID field"
+    (Just d, Just fileID) -> do 
+      enc <-  
+        do res <- runParser refs Nothing (pEncryptionDict d) topInput
+           case res of 
+              ParseOk ok -> pure ok 
+              _          -> error "BUG: bad encryption dictionary"
+      let len = fromIntegral $ getField @"encLength" enc 
+          encO = vecToRep $ getField @"encO" enc 
+          encP = fromIntegral $ getField @"encP" enc
+          firstid = vecToRep $ getField @"firstid" fileID 
+          filekey = makeFileKey len (BS.pack pwd) encO encP firstid  
+      pure $ Just EncContext { key = filekey, keylen = len } 
