@@ -4,7 +4,7 @@ DTrans [
   , DTrans [
       ( [(8),(8),]
       , HeadInput ['a']
-      , *****
+      , **** loop ****
       ),
       ( [(15),]
       , HeadInput ['c']
