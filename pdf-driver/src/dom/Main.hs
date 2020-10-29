@@ -43,7 +43,7 @@ main =
      (refs, trail) <- 
         handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     fileEC <- makeEncContextP trail (password opts) refs topInput 
+     fileEC <- makeEncContextDom trail refs topInput (password opts) 
 
      let ppRef pref r =
            do res <- runParser refs (fileEC r) (pResolveRef r) topInput
@@ -87,23 +87,24 @@ handlePdfResult x msg =
         ParseAmbig {} -> quit msg 
         ParseErr e    -> quit (show (pp e))
 
-makeEncContextP :: TrailerDict 
-                -> BS.ByteString 
-                -> ObjIndex 
-                -> Input  
-                -> IO (Ref -> Maybe EncContext)  
-makeEncContextP trail pwd refs topInput = 
+-- XXX: Very similar code in pdf-driver/src/driver/Main.hs. Should de-duplicate
+makeEncContextDom :: TrailerDict 
+                  -> ObjIndex 
+                  -> Input  
+                  -> BS.ByteString 
+                  -> IO (Ref -> Maybe EncContext)  
+makeEncContextDom trail refs topInput pwd = 
   case (getField @"encrypt" trail, getField @"id" trail) of 
     (Nothing, _) -> pure $ const Nothing -- No encryption 
     (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Encryption disabled."
                        pure $ const Nothing 
-    (Just d, Just id) -> do 
+    (Just d, Just fileID) -> do 
       enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict d) topInput) 
                               "Ambiguous encryption dictionary"
       let len = fromIntegral $ getField @"encLength" enc 
           encO = vecToRep $ getField @"encO" enc 
           encP = fromIntegral $ getField @"encP" enc
-          firstid = vecToRep $ getField @"firstid" id 
+          firstid = vecToRep $ getField @"firstid" fileID 
           filekey = makeFileKey len pwd encO encP firstid  
       pure $ \(Ref ro rg) -> 
         Just EncContext { key = filekey, 
