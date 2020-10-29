@@ -40,39 +40,13 @@ main =
               Left err  -> quit err
               Right idx -> pure idx
 
-     (refs, trail) <-
-       parseXRefs topInput idx >>= \res ->
-         case res of
-           ParseOk a    -> pure a
-           ParseAmbig _ -> error "BUG: Ambiguous XRef table."
-           ParseErr e   -> quit (show (pp e))
+     (refs, trail) <- 
+        handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     let run p enc =
-           do res <- runParser refs enc p topInput
-              case res of
-                ParseOk a     -> pure a
-                ParseAmbig {} -> quit "BUG: Ambiguous result"
-                ParseErr e    -> quit (show (pp e))
-      
-     fileEC <- case (getField @"encrypt" trail, getField @"id" trail) of 
-                (Nothing, _) -> pure Nothing
-                (Just d, Just id) -> do 
-                  enc <- run (pEncryptionDict d) Nothing 
-                  let len = fromIntegral $ getField @"encLength" enc 
-                      encO = vecToRep $ getField @"encO" enc 
-                      encP = fromIntegral $ getField @"encP" enc
-                      firstid = vecToRep $ getField @"firstid" id 
-                      filekey = makeFileKey len (password opts) encO encP firstid  
-                  pure $ Just EncContext { key = filekey, keylen = len } 
-                (_, Nothing) -> quit "BUG: Missing ID field"
-         
-     let makeEncContext (Ref ro rg) = 
-           case fileEC of 
-             Nothing -> Nothing 
-             Just ec  -> Just (ec { robj = fromIntegral ro, rgen = fromIntegral rg } ) 
+     fileEC <- makeEncContextB trail (password opts) refs topInput 
 
-         ppRef pref r =
-           do res <- runParser refs (makeEncContext r) (pResolveRef r) topInput
+     let ppRef pref r =
+           do res <- runParser refs (fileEC r) (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -99,20 +73,43 @@ main =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do run (pPdfTrailer trail) Nothing 
+          do handlePdfResult (runParser refs Nothing (pPdfTrailer trail) topInput) 
+                              "BUG: Ambiguous result" 
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
 
-      --  ShowEncrypt -> 
-      --    case getField @"encrypt" trail of 
-      --      Nothing -> putStrLn "No encryption"
-      --      Just d  -> do 
-      --        enc <- run (pEncryptionDict d) Nothing  
-      --        print (getField @"encLength" enc)
-      --        print (getField @"encO" enc) 
-      --        print (getField @"encP" enc) 
-      --        print (getField @"id" trail)
+handlePdfResult :: IO (PdfResult a) -> String -> IO a 
+handlePdfResult x msg = 
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg 
+        ParseErr e    -> quit (show (pp e))
+
+makeEncContextB :: TrailerDict 
+                -> BS.ByteString 
+                -> ObjIndex 
+                -> Input  
+                -> IO (Ref -> Maybe EncContext)  
+makeEncContextB trail pwd refs topInput = 
+  case (getField @"encrypt" trail, getField @"id" trail) of 
+    (Nothing, _) -> pure $ const Nothing -- No encryption 
+    (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Encryption disabled."
+                       pure $ const Nothing 
+    (Just d, Just id) -> do 
+      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict d) topInput) 
+                              "Ambiguous encryption dictionary"
+      let len = fromIntegral $ getField @"encLength" enc 
+          encO = vecToRep $ getField @"encO" enc 
+          encP = fromIntegral $ getField @"encP" enc
+          firstid = vecToRep $ getField @"firstid" id 
+          filekey = makeFileKey len pwd encO encP firstid  
+      pure $ \(Ref ro rg) -> 
+        Just EncContext { key = filekey, 
+                          keylen = len, 
+                          robj = fromIntegral ro, 
+                          rgen = fromIntegral rg } 
 
 quit :: String -> IO a
 quit msg =
