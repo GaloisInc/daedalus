@@ -288,13 +288,17 @@ makeEncContextDriver trail refs topInput pwd =
                   ParseOk a     -> pure a
                   ParseAmbig {} -> error "ERROR: Ambiguous encryption dictionary"
                   ParseErr e    -> error (show e) 
-      let len = fromIntegral $ getField @"encLength" enc 
-          encO = vecToRep $ getField @"encO" enc 
-          encP = fromIntegral $ getField @"encP" enc
-          firstid = vecToRep $ getField @"firstid" fileID 
-          filekey = makeFileKey len (BS.pack pwd) encO encP firstid  
-      pure $ \(ro, rg) -> 
-        Just EncContext { key = filekey, 
-                          keylen = len, 
-                          robj = fromIntegral ro, 
-                          rgen = fromIntegral rg } 
+      if not $ elem (getField @"V" enc) [2,4] then 
+        do putStrLn "WARNING: Unsupported cipher mode. Decryption disabled" 
+           pure $ const Nothing
+      else do 
+        let len = fromIntegral $ getField @"encLength" enc 
+            encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            firstid = vecToRep $ getField @"firstid" fileID 
+            filekey = makeFileKey len (BS.pack pwd) encO encP firstid  
+        pure $ \(ro, rg) -> 
+          Just EncContext { key = filekey, 
+                            keylen = len, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg } 

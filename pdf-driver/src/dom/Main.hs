@@ -96,21 +96,25 @@ makeEncContextDom :: TrailerDict
 makeEncContextDom trail refs topInput pwd = 
   case (getField @"encrypt" trail, getField @"id" trail) of 
     (Nothing, _) -> pure $ const Nothing -- No encryption 
-    (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Encryption disabled."
+    (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Decryption disabled."
                        pure $ const Nothing 
     (Just d, Just fileID) -> do 
       enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict d) topInput) 
                               "Ambiguous encryption dictionary"
-      let len = fromIntegral $ getField @"encLength" enc 
-          encO = vecToRep $ getField @"encO" enc 
-          encP = fromIntegral $ getField @"encP" enc
-          firstid = vecToRep $ getField @"firstid" fileID 
-          filekey = makeFileKey len pwd encO encP firstid  
-      pure $ \(Ref ro rg) -> 
-        Just EncContext { key = filekey, 
-                          keylen = len, 
-                          robj = fromIntegral ro, 
-                          rgen = fromIntegral rg } 
+      if not $ elem (getField @"V" enc) [2,4] then 
+        do hPutStrLn stderr "WARNING: Unsupported cipher mode. Decryption disabled" 
+           pure $ const Nothing
+      else do 
+        let len = fromIntegral $ getField @"encLength" enc 
+            encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            firstid = vecToRep $ getField @"firstid" fileID 
+            filekey = makeFileKey len pwd encO encP firstid  
+        pure $ \(Ref ro rg) -> 
+          Just EncContext { key = filekey, 
+                            keylen = len, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg } 
 
 quit :: String -> IO a
 quit msg =
