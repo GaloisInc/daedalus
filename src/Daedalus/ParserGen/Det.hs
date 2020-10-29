@@ -95,7 +95,8 @@ closureLL aut busy cfg =
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q1)
       | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
-      | isNonClassInputAct act             = AbortNonClassInputAction act
+      | isNonClassInputAct act             = -- trace (show act) $
+                                             AbortNonClassInputAction act
       | length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
       | Set.member q1 busy                 = -- trace (show q1 ++ " " ++ show cfg) $
                                              AbortLoopWithNonClass
