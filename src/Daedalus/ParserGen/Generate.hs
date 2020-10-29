@@ -13,7 +13,7 @@ import qualified Daedalus.Type.AST as DAST
 import Daedalus.Interp
 
 import Data.Text ()
-import Data.Maybe (fromJust)
+import Text.PrettyPrint
 
 -- State for the generator
 data CAutGenData = CAutGenData {
@@ -125,6 +125,12 @@ generateIO :: ArrayAut -> IO CTranslUnit
 generateIO aut = do
   let (v, _) = runState (generateNFA aut) emptyAutGenData
   return v
+
+generateTextIO :: ArrayAut -> IO String
+generateTextIO aut = do
+  tunit <- generateIO aut
+  let t = render $ pretty tunit
+  return t
 
 -- The top-level function to generate a C language version of the parser-gen created automata.
 -- NOTE: For simplicity and code reuse reasons, this takes an ArrayAut as input instead of
