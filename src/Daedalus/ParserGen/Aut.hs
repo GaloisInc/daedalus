@@ -3,8 +3,8 @@ module Daedalus.ParserGen.Aut where
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Set as Set
-import qualified Data.Vector as Vec
 import qualified Data.List as List
+import Data.Array.IArray
 
 import Daedalus.ParserGen.Action
 
@@ -236,12 +236,25 @@ isAcceptingEps q aut =
   maybe (error "should precompute") (\ m -> fromJust (Map.lookup q m)) (acceptingsEps aut)
 
 
+
+type ArrayA = Array Int (Maybe Choice)
+
 -- For the time being we will reuse the existing implementation somewhat
 -- This shouldn't affect runtime performance
 data ArrayAut = ArrayAut {
-  transitionArray :: {-# UNPACK #-} !(Vec.Vector (Maybe Choice)),
+  transitionArray :: {-# UNPACK #-} !(ArrayA),
   mapAut :: {-# UNPACK #-} !MapAut
 }
+
+generate :: Int -> Transition -> ArrayA
+generate size tr =
+  array (0, size) lst2
+  where
+    lst2 = [ case Map.lookup i tr of
+               Nothing -> (i, Nothing)
+               Just e -> (i, Just e)
+           | i <- [0..size] ]
+
 
 mkArrayAut :: State -> Transition -> Acceptings -> ArrayAut
 mkArrayAut s t a =
@@ -250,9 +263,9 @@ mkArrayAut s t a =
 convertToArrayAut :: MapAut -> ArrayAut
 convertToArrayAut aut =
   let
-    array = Vec.generate (maxState + 1) (\st -> Map.lookup st $ transition aut)
+    arr = generate (maxState + 1) (transition aut)
   in
-    ArrayAut { transitionArray = array, mapAut = aut }
+    ArrayAut { transitionArray = arr, mapAut = aut }
   where
     maxState =
       let transitionStates = concatMap states $ allTransitions aut in
@@ -265,11 +278,11 @@ convertToArrayAut aut =
 
 instance Aut ArrayAut where
   initialState dta = initials $ mapAut dta
-  nextTransition dta s = Vec.unsafeIndex (transitionArray dta) s
+  nextTransition dta s = (transitionArray dta) ! s
   allTransitions dta = Map.toList $ transition $ mapAut dta
   isAcceptingState dta s = isAccepting s $ mapAut dta
   destructureAut dta = toListAut $ mapAut dta
   popTransAut dta = popTrans $ mapAut dta
-  {-# INLINE nextTransition #-}
+  {-# SPECIALIZE INLINE nextTransition :: ArrayAut -> State -> Maybe Choice  #-}
   {-# INLINE isAcceptingState #-}
   {-# INLINE popTransAut #-}
