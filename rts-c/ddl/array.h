@@ -102,6 +102,8 @@ public:
     return ptr->data[i];
   }
 
+
+
   // Borrow this, borrow xs
   bool operator == (Array xs) {
     size_t n = size();
@@ -170,6 +172,23 @@ public:
 
 
 };
+
+// borrow
+template <typename T>
+inline
+std::ostream& operator<<(std::ostream& os, Array<T> x) {
+  size_t n = x.size();
+
+  bool first = true;
+  for (size_t i = 0; i < n; ++i) {
+    os << (first ? "[" : ", ") << x.borrowElement(i);
+    first = false;
+  }
+  os << "]";
+  return os;
+}
+
+
 
 } // namespace DDL
 #endif

@@ -19,7 +19,7 @@ int main() {
   }
 
   for (size_t i = 0; i < resultNum; ++i) {
-    // cout << v[i] << endl;
+    cout << v[i] << endl;
   }
 
   return 0;

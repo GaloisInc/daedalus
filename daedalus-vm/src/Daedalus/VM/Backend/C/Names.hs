@@ -40,6 +40,7 @@ cTName' vis x =
 
 
 data GenVis = GenPublic | GenPrivate
+data GenOwn = GenBorrow | GenOwn
 
 
 -- | Name of a type parameter.
@@ -89,6 +90,12 @@ unionCon l = "init_" <.> cLabel l
 
 structCon :: CIdent
 structCon = "init"
+
+selName :: GenOwn -> Src.Label -> CIdent
+selName own l = pref <.> "_" <.> cLabel l
+  where pref = case own of
+                 GenBorrow -> "borrow"
+                 GenOwn    -> "get"
 
 
 --------------------------------------------------------------------------------

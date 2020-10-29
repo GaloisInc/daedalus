@@ -3,6 +3,12 @@
 
 namespace DDL {
 class Unit {};
+
+inline
+std::ostream& operator<<(std::ostream& os, Unit x) {
+  return os << "{}";
+}
+
 }
 
 #endif

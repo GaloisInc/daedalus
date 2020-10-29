@@ -147,17 +147,17 @@ cProdCtr tdecl = cStmt ("void" <+> cCall structCon params)
 cProdSels :: TDecl -> [ CStmt ]
 cProdSels tdecl =
   [ cStmt (cSemType t <+> cCall nm []) | (f,t) <- getFields tdecl
-                                       , pref  <- [ "get", "borrow" ]
-                                       , let nm = pref <.> "_" <.> cLabel f
+                                       , pref  <- [ GenBorrow, GenOwn ]
+                                       , let nm = selName pref f
                                        ]
 
 
 -- | Signatures for getters of a sum
 cSumGetters :: TDecl -> [CStmt]
 cSumGetters tdecl =
-  [ cStmt (cSemType t <+> cCall (pref <.> "_" <.> cLabel l) [])
+  [ cStmt (cSemType t <+> cCall (selName pref l) [])
   | (l,t) <- getFields tdecl
-  , pref <- ["get","borrow"]
+  , pref <- [GenBorrow,GenOwn]
   ]
 
 -- | Signatures for constructors of a sum
@@ -304,7 +304,6 @@ cBoxedSum tdecl =
 --------------------------------------------------------------------------------
 
 data GenBoxed = GenBoxed  | GenUnboxed
-data GenOwn   = GenBorrow | GenOwn
 
 generateMethods :: GenVis -> GenBoxed -> TDecl -> Doc
 generateMethods vis boxed ty =
@@ -315,7 +314,8 @@ generateMethods vis boxed ty =
     ] ++
     defCons      vis boxed ty ++
     defSelectors vis boxed ty ++
-    [defEq vis boxed ty, defNeq vis boxed ty]
+    [defEq vis boxed ty, defNeq vis boxed ty] ++
+    [defShow vis boxed ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
@@ -327,6 +327,42 @@ defMethod vis tdecl retT fun params def =
        ]
   where
   name = cTypeNameUse vis tdecl <.> "::" <.> fun
+
+--------------------------------------------------------------------------------
+-- Output
+
+-- XXX: for boxed things we could delegate, but that would require
+-- friendship to access `ptr`
+defShow :: GenVis -> GenBoxed -> TDecl -> CDecl
+defShow vis _ tdecl =
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDefineFun "std::ostream&" "operator <<" [ "std::ostream& os", ty <+> "x" ]
+    case tDef tdecl of
+
+      TStruct fs ->
+        [ cStmt ("os <<" <+> fld <+> "<<" <+> thing)
+        | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
+        , let thing = cCallMethod "x" (selName GenBorrow l) []
+              fld   = cString (show (sepa <+> pp l <+> "= "))
+        ] ++
+        [ cStmt ("return os <<" <+> cString " }") ]
+
+      TUnion fs ->
+        [ cStmt ("os <<" <+> cString "{|")
+        , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
+               , nest 2 $ vcat
+                    [ cStmt $ "case" <+> cSumTagV l <.> colon <+>
+                      "os <<" <+> cString (show (pp l <+> "= ")) <+>
+                      "<<" <+> cCallMethod "x" (selName GenBorrow l) []
+                    | (l,_) <- fs ]
+               ]
+        , cStmt ("return os <<" <+> cString "|}")
+        ]
+  where
+  ty = cTypeNameUse vis tdecl
+
+
 
 --------------------------------------------------------------------------------
 -- Equality
@@ -423,14 +459,11 @@ defSelectors vis boxed tdecl =
 defSelectorsOwn :: GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
 defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   where
-  pref = case borrow of
-           GenBorrow -> "borrow"
-           GenOwn    -> "get"
   uni  = case tDef tdecl of
            TStruct _ -> False
            TUnion  _ -> True
   sel (l,t) n =
-    let name = pref <.> "_" <.> cLabel l
+    let name = selName borrow l
     in defMethod vis tdecl (cSemType t) name []
        case boxed of
          GenBoxed ->
