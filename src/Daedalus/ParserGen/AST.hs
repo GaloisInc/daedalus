@@ -5,7 +5,6 @@ module Daedalus.ParserGen.AST where
 
 -- import Data.ByteString(ByteString)
 -- import Data.Word
-
 import qualified Data.Map as Map
 
 import Daedalus.Type.AST hiding (ppBinder)
@@ -13,7 +12,23 @@ import Daedalus.Type.AST hiding (ppBinder)
 
 -- import Daedalus.Normalise.AST (NType)
 
-type Annot = [Int]
+data Annot = Annot
+  { annotStates :: [Int]
+  , annotDeclName :: Maybe Name
+  }
+  deriving (Show)
+
+emptyAnnot :: Annot
+emptyAnnot = Annot { annotStates = [], annotDeclName = Nothing}
+
+getState :: Annot -> Int -> Int
+getState ann i = (annotStates ann) !! i
+
+statesToAnnot :: [Int] -> Annot
+statesToAnnot lst = Annot { annotStates = lst, annotDeclName = Nothing}
+
+getStatesLength :: Annot -> Int
+getStatesLength ann = length $ annotStates ann
 
 -- No type variables.
 --data NType = NType (TypeF NType)

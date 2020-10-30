@@ -593,7 +593,8 @@ statsDFA dfas =
           let k = lookaheadDepth (q, dfa)
               res
                 | hasFullResolution (q, dfa) = result ("-" ++ show k)
-                | hasNoAbort (q, dfa) = result ("-ambiguous-" ++ show k)
+                | hasNoAbort (q, dfa) = -- trace (show q) $
+                                        result ("-ambiguous-" ++ show k)
                 | otherwise = "abort-" ++ show k
           in
           --if k == 1
