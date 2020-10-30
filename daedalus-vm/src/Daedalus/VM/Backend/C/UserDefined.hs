@@ -313,6 +313,7 @@ generateMethods vis boxed ty =
     , defCopyFree vis boxed "free" ty
     ] ++
     defCons      vis boxed ty ++
+    defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
     [defEq vis boxed ty, defNeq vis boxed ty] ++
     [defShow vis boxed ty]
@@ -356,6 +357,7 @@ defShow vis _ tdecl =
                       "os <<" <+> cString (show (pp l <+> "= ")) <+>
                       "<<" <+> cCallMethod "x" (selName GenBorrow l) []
                     | (l,_) <- fs ]
+               , "}"
                ]
         , cStmt ("return os <<" <+> cString "|}")
         ]
@@ -455,13 +457,28 @@ defSelectors :: GenVis -> GenBoxed -> TDecl -> [CDecl]
 defSelectors vis boxed tdecl =
   concatMap (defSelectorsOwn vis boxed tdecl) [GenBorrow,GenOwn]
 
+
+defGetTag :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defGetTag vis boxed tdecl =
+  case tDef tdecl of
+    TStruct {} -> []
+    TUnion {} ->
+      [ defMethod vis tdecl (cSumTagT tdecl) "getTag" []
+          [ case boxed of
+              GenBoxed   -> cStmt "return ptr.getValue().getTag()"
+              GenUnboxed -> cStmt "return tag"
+          ]
+      ]
+
 -- XXX: Maybe some selectors should return a reference?
 defSelectorsOwn :: GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
 defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   where
+
   uni  = case tDef tdecl of
            TStruct _ -> False
            TUnion  _ -> True
+
   sel (l,t) n =
     let name = selName borrow l
     in defMethod vis tdecl (cSemType t) name []
