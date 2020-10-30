@@ -1,54 +1,57 @@
-Result DTrans [
-  ( HeadInput ['0','2']
-  , [(10),]
-  , Resolution (Result ())
+DTrans [
+  ( [(12),]
+  , HeadInput ['0','2']
+  , Resolution (NotAmbiguous)
   ),
-  ( HeadInput ['3','7']
-  , [(10),(10),]
+  ( [(12),(12),]
+  , HeadInput ['3','7']
   , DTrans [
-      ( HeadInput ['a']
-      , [(13),]
-      , Resolution (Result ())
+      ( [(4),]
+      , HeadInput ['a']
+      , Resolution (NotAmbiguous)
       ),
-      ( HeadInput ['b']
-      , [(13),]
-      , Resolution (Result ())
+      ( [(4),]
+      , HeadInput ['b']
+      , Resolution (NotAmbiguous)
       ),
     ]
   ),
-  ( HeadInput ['8','9']
-  , [(10),]
-  , Resolution (Result ())
+  ( [(12),]
+  , HeadInput ['8','9']
+  , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
-  ( HeadInput ['b']
-  , [(2),]
-  , Resolution (Result ())
+DTrans [
+  ( [(4),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
-  ( EndInput
-  , [(20),]
-  , Resolution (Result ())
+DTrans [
+  ( [(16),]
+  , EndInput
+  , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
-  ( HeadInput ['a']
-  , [(2),]
-  , Resolution (Result ())
+DTrans [
+  ( [(4),]
+  , HeadInput ['a']
+  , Resolution (NotAmbiguous)
   ),
 ]
-Result DTrans [
-  ( EndInput
-  , [(20),]
-  , Resolution (Result ())
+DTrans [
+  ( [(16),]
+  , EndInput
+  , Resolution (NotAmbiguous)
   ),
 ]
 AbortAcceptingPath
 
+
 Report:
 ("AbortAcceptingPath",1)
-("Result",5)
+("Result-1",4)
+("Result-2",1)
+
 
 Total nb states: 6

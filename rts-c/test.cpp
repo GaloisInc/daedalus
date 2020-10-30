@@ -1,15 +1,26 @@
 #include <string.h>
-#include "parser.h"
-#include "unit.h"
-#include "number.h"
+#include <memory>
+#include <gmpxx.h>
+#include <unordered_map>
+#include <type_traits>
 
-void f (Unit x) {}
+// #include "ddl/parser.h"
+#include "ddl/unit.h"
+#include "ddl/number.h"
+#include "ddl/list.h"
+#include "ddl/array.h"
+#include "ddl/integer.h"
+#include "ddl/boxed.h"
 
-uint8_t test(Parser<uint8_t> p) {
-  return p.getInput().iDrop(2).iHead();
-}
+#include "user_data.h"
+#include "fun_call.h"
+
+using namespace std;
+
 
 int main() {
-  SInt<7> x(127);
-  std::cout << sizeof(size_t) << std::endl;
+
+
+  example();
+  return 0;
 }

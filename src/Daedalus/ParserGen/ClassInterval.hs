@@ -1,9 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 
-module Daedalus.ParserGen.ClassInterval where
+module Daedalus.ParserGen.ClassInterval
+  ( IntervalEndpoint(..)
+  , ClassInterval(..)
+  , insertItvInOrderedList
+  , matchClassInterval
+  )
 
---import Data.Char
---import GHC.Enum
+where
+
+-- import Debug.Trace
 
 import Data.Word
 
@@ -142,3 +148,10 @@ insertItvInOrderedList (itv, a) lstItv merge =
         A1 -> (i, a1)
         A2 -> (i, a2)
         A12 -> (i, merge a1 a2)
+
+
+matchClassInterval :: ClassInterval -> Word8 -> Bool
+matchClassInterval itv c =
+  case itv of
+    ClassBtw (CValue a) (CValue b) -> a <= c && c <= b
+    ClassBtw {} -> undefined

@@ -23,13 +23,20 @@ import Daedalus.VM.CaptureAnalysis
 
 
 compileProgram :: Src.FName -> [Src.Module] -> Program
-compileProgram entry ms = Program
-  { pModules = captureAnalysis (map compileModule ms)
-  , pEntry   = l
-  , pBoot    = b
-  }
+compileProgram entry ms =
+  moduleToProgram entry (captureAnalysis (map compileModule ms))
+
+moduleToProgram :: Src.FName -> [Module] -> Program
+moduleToProgram entry ms =
+  Program
+    { pModules = ms
+    , pType    = Src.fnameType entry
+    , pEntry   = l
+    , pBoot    = b
+    }
   where
   (l,b) = compileEntry (Src.Call entry [])
+
 
 compileEntry :: Src.Grammar -> (Label, Map Label Block)
 compileEntry pe =
@@ -62,7 +69,7 @@ compileSomeFun isPure doBody fun =
       name       = Src.fName fun
 
       args       = zipWith argN xs [ 0 .. ]
-      argN x n   = BA n (TSem (Src.typeOf x))
+      argN x n   = BA n (TSem (Src.typeOf x)) Borrowed{-placeholder-}
       getArgC (x,a) k =
         do v <- newLocal (getType a)
            code <- gdef x v k

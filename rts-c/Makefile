@@ -1,4 +1,9 @@
 .PHONY: all
 
+CPPFLAGS=-I.
+CXXFLAGS=-std=c++17 -O2 -Wall
+LIBS=-lgmpxx -lgmp
+CC=clang++
+
 all:
-	g++ -std=c++17 -O2 -Wall test.cpp
+	$(CC) $(CPPFLAGS) $(CXXFLAGS) test.cpp $(LIBS)

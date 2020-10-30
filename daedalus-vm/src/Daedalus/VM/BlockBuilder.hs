@@ -47,7 +47,7 @@ getLocal x = BlockBuilder \k info ->
                   Just e  -> k e info
                   Nothing ->
                     let a = nextArg info
-                        arg = BA a (getType x)
+                        arg = BA a (getType x) Borrowed {- placeholder -}
                         e = EBlockArg arg
                         i1 = info { nextArg = a + 1
                                   , localDefs = Map.insert x e (localDefs info)
@@ -79,11 +79,12 @@ term c = BlockBuilder \_ i -> ([], (c, nextLocal i, reverse (externArgs i)))
 
 buildBlock ::
   Label ->
+  BlockType ->
   [VMT] ->
   ([E] -> BlockBuilder Void) ->
   (Block, [FV])
-buildBlock nm tys f =
-  let args = [ BA n t | (n,t) <- [0..] `zip` tys ]
+buildBlock nm bty tys f =
+  let args = [ BA n t Borrowed{-placeholder-} | (n,t) <- [0..] `zip` tys ]
       BlockBuilder m = f (map EBlockArg args)
       info = BuildInfo { nextLocal = 0
                        , nextArg = length args
@@ -93,6 +94,7 @@ buildBlock nm tys f =
       (is,(c,ln,ls)) = m (\v _ -> case v of {}) info
       (extra,free) = unzip ls
   in ( Block { blockName = nm
+             , blockType = bty
              , blockArgs = args ++ extra
              , blockLocalNum = ln
              , blockInstrs = is
@@ -115,7 +117,8 @@ jumpIf ::
 jumpIf e l1 l2 =
   do jp1 <- l1
      jp2 <- l2
-     term $ JumpIf e jp1 jp2
+     term $ JumpIf e $ JumpChoice { jumpYes = jumpNoFree jp1
+                                  , jumpNo  = jumpNoFree jp2 }
 
 
 

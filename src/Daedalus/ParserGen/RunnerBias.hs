@@ -1,9 +1,17 @@
-module Daedalus.ParserGen.RunnerBias where
+module Daedalus.ParserGen.RunnerBias
+  ( Result(..)
+  , runnerBias
+  , runnerLL
+  , extractValues
+  )
+
+
+where
 
 -- import Debug.Trace
 
 import qualified Data.ByteString as BS
-
+import Data.Maybe (fromJust)
 import qualified Daedalus.Interp as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
@@ -11,57 +19,143 @@ import Daedalus.ParserGen.Action (State, Action(..), BranchAction(..), SemanticE
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 import Daedalus.ParserGen.Cfg (initCfg, Cfg(..), isAcceptingCfg)
 
+import Daedalus.ParserGen.Det as Det
+import Daedalus.ParserGen.DetUtils as DetU
 
-data CommitType =
-    CTrue
-  | CFalse
+
+
+-- CommitStack is a stack dedicated to handle the commit operations in
+-- bias choice and early commit instructions.
+-- This stack somewhat mirrors the `Resumption` stack but only have stack
+-- elements in the case of `SeqChoice`.
+
+data CommitFlag =
+    CFalse
+  | CTrue
   | CEarly
   deriving(Eq,Show)
 
-type CommitHist = [CommitType]
+type CommitStack = [CommitFlag]
 
-emptyCommit :: CommitHist
-emptyCommit = []
+emptyCommitStack :: CommitStack
+emptyCommitStack = []
 
-addCommit :: CommitHist -> CommitHist
-addCommit hst = CFalse : hst
+addCommitStack :: CommitStack -> CommitStack
+{-# INLINE addCommitStack #-}
+addCommitStack hst = CFalse : hst
 
-popCommit :: CommitHist -> CommitHist
-popCommit hst = tail hst
+popCommitStack :: CommitStack -> CommitStack
+popCommitStack hst = tail hst
 
-hasCommitted :: CommitHist -> Bool
+hasCommitted :: CommitStack -> Bool
+{-# INLINE hasCommitted #-}
 hasCommitted hst = let c = (head hst) in c == CTrue || c == CEarly
 
-updateCommitList :: CommitHist -> CommitHist
-updateCommitList [] = error "broken invariant"
-updateCommitList (CFalse : r) = CTrue : r
-updateCommitList (CTrue  : r) = CTrue : updateCommitList r
-updateCommitList (CEarly : r) = CTrue : r
+updateCommitStack :: CommitStack -> CommitStack
+{-# INLINE updateCommitStack #-}
+updateCommitStack [] = error "broken invariant"
+updateCommitStack (CFalse : r) = CTrue : r
+updateCommitStack (CTrue  : r) = CTrue : updateCommitStack r
+updateCommitStack (CEarly : r) = CTrue : r
 
-earlyUpdateCommitList :: CommitHist -> CommitHist
-earlyUpdateCommitList [] = error "broken invariant"
-earlyUpdateCommitList (CFalse : r) = CEarly : r
-earlyUpdateCommitList (CTrue  : r) = CTrue  : earlyUpdateCommitList r
-earlyUpdateCommitList (CEarly : r) = CEarly : earlyUpdateCommitList r
+earlyUpdateCommitStack :: CommitStack -> CommitStack
+earlyUpdateCommitStack [] = error "broken invariant"
+earlyUpdateCommitStack (CFalse : r) = CEarly : r
+earlyUpdateCommitStack (CTrue  : r) = CTrue  : earlyUpdateCommitStack r
+earlyUpdateCommitStack (CEarly : r) = CEarly : earlyUpdateCommitStack r
 
-type TailInfo = Int
 
-data TailPath =
-    EmptyPath
-  | Level TailInfo Choice [Choice] Path
-    -- the first `Choice` is the current,
-    -- the other `[Choice]` is alternatives
+
+-- The `BacktrackStack` data-structure is the stack acculumating the
+-- different Transitions and Choices encountered by the backtracking
+-- DFSsearch for parse solutions
+
+type BacktrackStackInfo = Int
+
+data BacktrackStack =
+    BEmpty
+  | BLevel !BacktrackStackInfo !BacktrackStack !Cfg !Choice
   deriving(Show)
 
-type Path = (Cfg, TailPath)
 
-getTailInfo :: Path -> TailInfo
-getTailInfo (_, EmptyPath)     = 0
-getTailInfo (_, Level n _ _ _) = n
+getBacktrackStackInfo :: BacktrackStack -> BacktrackStackInfo
+{-# INLINE getBacktrackStackInfo #-}
+getBacktrackStackInfo BEmpty           = 0
+getBacktrackStackInfo (BLevel n _ _ _) = n
 
-addLevel :: Choice -> [Choice] -> Path -> TailPath
-addLevel ch moreCh path =
-  Level (getTailInfo path + 1) ch moreCh path
+addLevel :: BacktrackStack -> Cfg -> Choice -> BacktrackStack
+{-# INLINE addLevel #-}
+addLevel tpath cfg ch =
+  BLevel (getBacktrackStackInfo tpath + 1) tpath cfg ch
+
+
+-- The Resumption data-type is the combination of the BacktrackStack
+-- and CommitStack that are somewhat synchronized.
+type Resumption = (CommitStack, BacktrackStack)
+
+
+emptyResumption :: Resumption
+emptyResumption = ([], BEmpty)
+
+addResumption :: Resumption -> Cfg -> Choice -> Resumption
+{-# INLINE addResumption #-}
+addResumption resumption cfg ch =
+  let (comm, st) = resumption in
+  case ch of
+    UniChoice _ ->   (comm, addLevel st cfg ch)
+    SeqChoice _ _ -> (addCommitStack comm, addLevel st cfg ch)
+    ParChoice _ ->   (comm, addLevel st cfg ch)
+
+getActionCfgAtLevel :: Resumption -> Maybe (Cfg, (Action, State))
+{-# INLINE getActionCfgAtLevel #-}
+getActionCfgAtLevel resumption =
+  case resumption of
+    (_, BLevel _ _ cfg ch) ->
+      case ch of
+        UniChoice p -> Just (cfg, p)
+        ParChoice (p : _) -> Just (cfg, p)
+        SeqChoice (p : _) _ -> Just (cfg, p)
+        _ -> error "No next action"
+    (_, BEmpty) -> Nothing
+
+updateCommitResumption :: Resumption -> Resumption
+{-# INLINE updateCommitResumption #-}
+updateCommitResumption resumption =
+  let (comm, st) = resumption in
+    (updateCommitStack comm, st)
+
+earlyUpdateCommitResumption :: Resumption -> Resumption
+earlyUpdateCommitResumption resumption =
+  let (comm, st) = resumption in
+    (earlyUpdateCommitStack comm, st)
+
+cutResumption :: Resumption -> Resumption
+cutResumption _resumption =
+  (emptyCommitStack, BEmpty)
+
+
+nextResumption :: Resumption -> Maybe Resumption
+{-# INLINE nextResumption #-}
+nextResumption (commitStk, tpath) =
+  case tpath of
+    BLevel _ path _ (UniChoice _) -> nextResumption (commitStk, path)
+
+    BLevel _ path _ (SeqChoice [ _ ] _) -> nextResumption (popCommitStack commitStk, path)
+    BLevel _ path cfg (SeqChoice ((_act, _n2): actions) st) ->
+      if hasCommitted commitStk -- A commit happened
+      then nextResumption (popCommitStack commitStk, path)
+      else Just (addResumption (popCommitStack commitStk, path) cfg (SeqChoice actions st))
+
+    BLevel _ path _ (ParChoice [ _ ]) ->
+      nextResumption (commitStk, path)
+    BLevel _ path cfg (ParChoice ((_act, _n2): actions)) ->
+      Just (addResumption (commitStk, path) cfg (ParChoice actions))
+
+    BEmpty -> Nothing
+
+    BLevel _ _ _ (SeqChoice [] _) -> error "Broken invariant, the current choice cannot be empty"
+    BLevel _ _ _ (ParChoice []) -> error "Broken invariant, the current choice cannot be empty"
+
 
 
 data Result = Result
@@ -75,8 +169,9 @@ emptyResult = Result { results = [], parseError = Nothing }
 addResult :: Cfg -> Result -> Result
 addResult cfg res = res { results = cfg : (results res) }
 
-updateError :: Int -> Cfg -> Result -> Result
-updateError i cfg res =
+updateError :: Resumption -> Cfg -> Result -> Result
+updateError resumption cfg res =
+  let i = getBacktrackStackInfo (snd resumption) in
   case parseError res of
     Nothing -> res { parseError = Just (i, cfg) }
     Just (j, _c) ->
@@ -85,102 +180,196 @@ updateError i cfg res =
       else res
 
 
--- The function that runs an automaton from a string and returns
--- accepting configurations.
+-- This function runs an automaton from a string and returns accepting
+-- configurations using a backtracking algorithm.  Its design is
+-- similar to the reactive engine by G. Huet, or its extension to
+-- Eilenberg's X-machines
 runnerBias :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> Result
 runnerBias gbl s aut =
-  let go :: (Cfg, CommitHist, TailPath) -> Result -> Result
-      go (cfg, idx, resumption) result =
+  let react :: Cfg -> Resumption -> Result -> Result
+      react cfg resumption result =
         case cfg of
           Cfg _inp _ctrl _out q ->
             -- trace (show cfg) $
-            let localTransitions = maybe [] (\ x -> [x]) (nextTransition aut q)
-            in setStep idx localTransitions (cfg, resumption) result
+            let localTransitions = nextTransition aut q
+            in case localTransitions of
+                 Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                 Just ch ->
+                   let newResumption = addResumption resumption cfg ch in
+                     choose newResumption result
 
-      setStep :: CommitHist -> [Choice] -> Path -> Result -> Result
-      setStep idx choices (cfg, resumption) result =
-        case choices of
-          [] -> {-# SCC backtrackSetStep #-} backtrack idx resumption result
-          ch : moreCh ->
-            case ch of
-              UniChoice (act, n2) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
-              SeqChoice [] _ -> setStep idx moreCh (cfg, resumption) result
-              SeqChoice ((act, n2): _) _ -> -- trace "RESET" $
-                step act n2 (addCommit idx) (addLevel ch moreCh (cfg, resumption)) result
-              ParChoice [] -> setStep idx moreCh (cfg, resumption) result
-              ParChoice ((act, n2): _) ->
-                step act n2 idx (addLevel ch moreCh (cfg, resumption)) result
-
-      step :: Action -> State -> CommitHist -> TailPath -> Result -> Result
-      step act n2 idx resumption result =
-        -- trace (show (getTailInfo resumption)) $
-        -- trace  (show act) $
-        case resumption of
-          EmptyPath -> error "Impossible"
-          Level n _choice _choices (Cfg inp ctrl out n1, _res) ->
+      choose :: Resumption -> Result -> Result
+      choose resumption result =
+        case getActionCfgAtLevel resumption of
+          Nothing -> backtrack resumption result
+          Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
             case act of
               BAct (CutBiasAlt _st) ->
-                let newCommitInfo = updateCommitList idx
+                let updResumption = updateCommitResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                in -- trace ("IDX = " ++ show idx) $
-                   go (newCfg, newCommitInfo, resumption) updResult
+                in
+                   react newCfg updResumption updResult
               BAct (CutLocal) ->
-                let newCommitInfo = earlyUpdateCommitList idx
+                let updResumption = earlyUpdateCommitResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                in -- trace ("IDX = " ++ show idx) $
-                   go (newCfg, newCommitInfo, resumption) updResult
+                in
+                   react newCfg updResumption updResult
               BAct (CutGlobal) ->
-                let newCommitInfo = emptyCommit
+                let updResumption = cutResumption resumption
                     newCfg = Cfg inp ctrl out n2
                     updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
-                in -- trace ("IDX = " ++ show idx) $
-                   go (newCfg, newCommitInfo, EmptyPath) updResult
+                in
+                   react newCfg updResumption updResult
               BAct (FailAction Nothing) ->
-                let updResult = updateError n (Cfg inp ctrl out n1) result in
-                backtrack idx resumption updResult
+                let updResult = updateError resumption cfg result in
+                backtrack resumption updResult
               BAct (FailAction _) ->
                 error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
-                    let updResult = updateError n (Cfg inp ctrl out n1) result in
-                    backtrack idx resumption updResult
+                    let updResult = updateError resumption cfg result in
+                    backtrack resumption updResult
                   Just (inp2, ctr2, out2) ->
                     let newCfg = Cfg inp2 ctr2 out2 n2
                         updResult = if isAcceptingCfg newCfg aut
-                                     then -- trace ("RES:\n" ++ show (lengthPath resumption)) $
-                                          addResult newCfg result
-                                     else result
-                    in go (newCfg, idx, resumption) updResult
+                                    then addResult newCfg result
+                                    else result
+                    in react newCfg resumption updResult
 
-      backtrack :: CommitHist -> TailPath -> Result -> Result
-      backtrack idx resumption result =
+      backtrack :: Resumption -> Result -> Result
+      backtrack resumption result =
         -- trace "BACKTRACK" $
-        case resumption of
-          EmptyPath -> result
+        case nextResumption resumption of
+          Nothing -> result
+          Just nextRes -> choose nextRes result
 
-          Level _ (UniChoice _) choices path ->
-            setStep idx choices path result
+  in react (initCfg s aut) emptyResumption emptyResult
 
-          Level _ (SeqChoice [] _) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (SeqChoice [ _ ] _) choices path ->
-            setStep (popCommit idx) choices path result
-          Level _ (SeqChoice ((_act, _n2): actions) st) choices path ->
-            -- trace "BACKT" $
-            if hasCommitted idx -- A commit happened
-            then setStep (popCommit idx) choices path result
-            else setStep (popCommit idx) ((SeqChoice actions st) : choices) path result
+-- This runner is using both the NFA and the DFA to parse.
+runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> AutDet -> Result
+runnerLL gbl s aut autDet =
+  let react :: Cfg -> Resumption -> Result -> Result
+      react cfg resumption result =
+        case cfg of
+          Cfg inp _ctrl _out q ->
+            -- trace (show cfg) $
+            let detTrans = Det.lookupAutDet q autDet in
+            case detTrans of
+              Nothing -> callNFA ()
+              Just (_tr, False) -> callNFA ()
+              Just (tr, True) ->
+                -- trace "YES LL lookup" $
+                let a = Det.predictLL (q,tr) inp in
+                case a of
+                  Nothing ->
+                    callNFA ()
+                    -- NOTE: here we call `callNFA()` instead of
+                    -- `backtrack idx resumption result` in order to
+                    -- maintain the behavior of reaching the
+                    -- parseError the furthest. If we called backtrack
+                    -- we would not update the parseError information
+                  Just pdxs ->
+                    -- trace (show tr) $
+                    -- trace (show pdxs) $
+                    -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
+                    applyPredictions pdxs cfg resumption result
 
-          Level _ (ParChoice []) _ _ -> error "Broken invariant, the current choice cannot be empty"
-          Level _ (ParChoice [ _ ]) choices path ->
-            setStep idx choices path result
-          Level _ (ParChoice ((_act, _n2): actions)) choices path ->
-            setStep idx ((ParChoice actions) : choices) path result
+            where
+              callNFA () =
+                let localTransitions = nextTransition aut q
+                in case localTransitions of
+                     Nothing -> {-# SCC backtrackSetStep #-} backtrack resumption result
+                     Just ch ->
+                       let newResumption = addResumption resumption cfg ch in
+                         choose newResumption result
 
-  in go (initCfg s aut, emptyCommit, EmptyPath) emptyResult
+      applyPredictions :: Det.Prediction -> Cfg -> Resumption -> Result -> Result
+      applyPredictions prdx cfg@(Cfg inp ctrl out n) resumption result =
+        case Det.destrPrediction prdx of
+          Nothing -> react cfg resumption result
+          Just (alt, alts) ->
+            let tr = fromJust $ nextTransition aut n
+                (act, n2) = case (tr, alt) of
+                              (UniChoice (a, n1), (CUni, _)) -> (a, n1)
+                              (SeqChoice lst _, (CSeq, i)) -> lst !! i
+                              (ParChoice lst, (CPar, i)) -> lst !! i
+                              _ -> error "impossible combination"
+                newResumption = addResumption resumption cfg (UniChoice (act, n2))
+            in
+               case act of
+                 BAct bact ->
+                   case bact of
+                     (CutBiasAlt _st) ->
+                       let updResumption = updateCommitResumption newResumption
+                           newCfg = Cfg inp ctrl out n2
+                           updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                       in applyPredictions alts newCfg updResumption updResult
+                     _ -> undefined
+                 _ ->
+                     case applyAction gbl (inp, ctrl, out) act of
+                       Nothing -> {-# SCC backtrackFailApplyAction #-}
+                         let updResult = updateError resumption cfg result
+                         in backtrack newResumption updResult
+                       Just (inp2, ctr2, out2) ->
+                         let newCfg = Cfg inp2 ctr2 out2 n2
+                             updResult =
+                               if isAcceptingCfg newCfg aut
+                               then addResult newCfg result
+                               else result
+                         in applyPredictions alts newCfg newResumption updResult
+
+      choose :: Resumption -> Result -> Result
+      choose resumption result =
+        case getActionCfgAtLevel resumption of
+          Nothing -> backtrack resumption result
+          Just (cfg@(Cfg inp ctrl out _n1), (act, n2)) ->
+            case act of
+              BAct (CutBiasAlt _st) ->
+                let newResumption = updateCommitResumption resumption
+                    newCfg = Cfg inp ctrl out n2
+                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                in
+                   react newCfg newResumption updResult
+              BAct (CutLocal) ->
+                let newResumption = earlyUpdateCommitResumption resumption
+                    newCfg = Cfg inp ctrl out n2
+                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                in
+                   react newCfg newResumption updResult
+              BAct (CutGlobal) ->
+                let newResumption = cutResumption resumption
+                    newCfg = Cfg inp ctrl out n2
+                    updResult = if isAcceptingCfg newCfg aut then addResult newCfg result else result
+                in
+                   react newCfg newResumption updResult
+              BAct (FailAction Nothing) ->
+                let updResult = updateError resumption cfg result in
+                backtrack resumption updResult
+              BAct (FailAction _) ->
+                error "FailAction not handled"
+              _ ->
+                case applyAction gbl (inp, ctrl, out) act of
+                  Nothing -> {-# SCC backtrackFailApplyAction #-}
+                    let updResult = updateError resumption cfg result in
+                    backtrack resumption updResult
+                  Just (inp2, ctr2, out2) ->
+                    let newCfg = Cfg inp2 ctr2 out2 n2
+                        updResult = if isAcceptingCfg newCfg aut
+                                    then addResult newCfg result
+                                    else result
+                    in react newCfg resumption updResult
+
+      backtrack :: Resumption -> Result -> Result
+      backtrack resumption result =
+        -- trace "BACKTRACK" $
+        case nextResumption resumption of
+          Nothing -> result
+          Just nextRes -> choose nextRes result
+
+  in react (initCfg s aut) emptyResumption emptyResult
 
 
 extractValues :: Result -> [ Interp.Value ]

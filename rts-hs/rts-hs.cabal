@@ -44,6 +44,7 @@ executable rts-hs-test
                        pretty-show,
                        ansi-terminal,
                        bytestring,
+                       text,
                        pretty-hex
 
   default-language:    Haskell2010

@@ -35,7 +35,16 @@ data TDef =
     TStruct [(Label,Type)]
   | TUnion  [(Label,Type)]
 
+class GetFields t where
+  getFields :: t -> [(Label,Type)]
 
+instance GetFields TDecl where
+  getFields = getFields . tDef
+
+instance GetFields TDef where
+  getFields td = case td of
+                   TStruct fs -> fs
+                   TUnion  fs -> fs
 
 
 --------------------------------------------------------------------------------

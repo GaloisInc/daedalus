@@ -19,14 +19,21 @@ library
     Daedalus.VM
     Daedalus.VM.BlockBuilder
     Daedalus.VM.InlineBlock
+    Daedalus.VM.FreeVars
+    Daedalus.VM.CaptureAnalysis
+    Daedalus.VM.BorrowAnalysis
+    Daedalus.VM.TypeRep
+    Daedalus.VM.InsertCopy
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
     Daedalus.VM.Compile.Decl
-    Daedalus.VM.CaptureAnalysis
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
+    Daedalus.VM.Backend.C.Names
     Daedalus.VM.Backend.C.Types
+    Daedalus.VM.Backend.C.UserDefined
+    Daedalus.VM.Backend.C.Call
 
   build-depends:
     base >=4.13 && <4.14,
@@ -36,6 +43,8 @@ library
     pretty,
     daedalus-utils,
     daedalus-core
+
+  ghc-options: -Wall
 
   hs-source-dirs:      src
   default-language:    Haskell2010

@@ -25,6 +25,25 @@ import qualified RTS.Map as Map
 import qualified RTS.Vector as Vector
  
  
+data TrailerDict_0
+  = TrailerDict_0 (Vector.Vector (RTS.UInt 8)) PdfValue.Value
+  
+ 
+deriving instance HS.Eq TrailerDict_0
+ 
+deriving instance HS.Ord TrailerDict_0
+ 
+deriving instance HS.Show TrailerDict_0
+ 
+instance RTS.DDL TrailerDict_0 where
+ 
+instance HS.HasField "firstid" TrailerDict_0
+           (Vector.Vector (RTS.UInt 8)) where
+  getField (TrailerDict_0 x _) = x
+ 
+instance HS.HasField "allid" TrailerDict_0 PdfValue.Value where
+  getField (TrailerDict_0 _ x) = x
+ 
 data XRefIndex_0
   = XRefIndex_0 HS.Integer HS.Integer
   
@@ -237,6 +256,8 @@ instance HS.HasField "entries" CrossRefSubSection
 data TrailerDict
   = TrailerDict HS.Integer (HS.Maybe PdfValue.Ref)
       (HS.Maybe HS.Integer)
+      (HS.Maybe PdfValue.Ref)
+      (HS.Maybe TrailerDict_0)
       (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
   
  
@@ -249,18 +270,26 @@ deriving instance HS.Show TrailerDict
 instance RTS.DDL TrailerDict where
  
 instance HS.HasField "size" TrailerDict HS.Integer where
-  getField (TrailerDict x _ _ _) = x
+  getField (TrailerDict x _ _ _ _ _) = x
  
 instance HS.HasField "root" TrailerDict
            (HS.Maybe PdfValue.Ref) where
-  getField (TrailerDict _ x _ _) = x
+  getField (TrailerDict _ x _ _ _ _) = x
  
 instance HS.HasField "prev" TrailerDict (HS.Maybe HS.Integer) where
-  getField (TrailerDict _ _ x _) = x
+  getField (TrailerDict _ _ x _ _ _) = x
+ 
+instance HS.HasField "encrypt" TrailerDict
+           (HS.Maybe PdfValue.Ref) where
+  getField (TrailerDict _ _ _ x _ _) = x
+ 
+instance HS.HasField "id" TrailerDict
+           (HS.Maybe TrailerDict_0) where
+  getField (TrailerDict _ _ _ _ x _) = x
  
 instance HS.HasField "all" TrailerDict
            (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) where
-  getField (TrailerDict _ _ _ x) = x
+  getField (TrailerDict _ _ _ _ _ x) = x
  
 data CrossRefAndTrailer
   = CrossRefAndTrailer (Vector.Vector CrossRefSubSection) TrailerDict
@@ -325,6 +354,38 @@ instance HS.HasField "oldXref" CrossRef
    
   getField _ = HS.Nothing
  
+data EncryptionDict
+  = EncryptionDict (Vector.Vector (RTS.UInt 8)) HS.Integer
+      (Vector.Vector (RTS.UInt 8))
+      HS.Integer
+      HS.Integer
+  
+ 
+deriving instance HS.Eq EncryptionDict
+ 
+deriving instance HS.Ord EncryptionDict
+ 
+deriving instance HS.Show EncryptionDict
+ 
+instance RTS.DDL EncryptionDict where
+ 
+instance HS.HasField "encFilter" EncryptionDict
+           (Vector.Vector (RTS.UInt 8)) where
+  getField (EncryptionDict x _ _ _ _) = x
+ 
+instance HS.HasField "encLength" EncryptionDict HS.Integer where
+  getField (EncryptionDict _ x _ _ _) = x
+ 
+instance HS.HasField "encO" EncryptionDict
+           (Vector.Vector (RTS.UInt 8)) where
+  getField (EncryptionDict _ _ x _ _) = x
+ 
+instance HS.HasField "encP" EncryptionDict HS.Integer where
+  getField (EncryptionDict _ _ _ x _) = x
+ 
+instance HS.HasField "V" EncryptionDict HS.Integer where
+  getField (EncryptionDict _ _ _ _ x) = x
+ 
 data XRefFormat
   = XRefFormat HS.Integer HS.Integer HS.Integer HS.Integer
   
@@ -377,7 +438,7 @@ pFreeEntry :: HS.Integer -> (HS.Integer -> D.Parser FreeEntry)
  
 pFreeEntry (num :: HS.Integer) (gen :: HS.Integer) =
   do HS.const ()
-       HS.<$> RTS.pMatch1 "47:3--47:12" (RTS.bcSingle (RTS.uint8 102))
+       HS.<$> RTS.pMatch1 "46:3--46:12" (RTS.bcSingle (RTS.uint8 102))
      (obj :: HS.Integer) <- HS.pure num
      (gen :: HS.Integer) <- HS.pure gen
      HS.pure (FreeEntry obj gen)
@@ -386,7 +447,7 @@ pUsedEntry :: HS.Integer -> (HS.Integer -> D.Parser UsedEntry)
  
 pUsedEntry (num :: HS.Integer) (gen :: HS.Integer) =
   do HS.const ()
-       HS.<$> RTS.pMatch1 "43:3--43:12" (RTS.bcSingle (RTS.uint8 110))
+       HS.<$> RTS.pMatch1 "42:3--42:12" (RTS.bcSingle (RTS.uint8 110))
      (offset :: HS.Integer) <- HS.pure num
      (gen :: HS.Integer) <- HS.pure gen
      HS.pure (UsedEntry offset gen)
@@ -397,10 +458,10 @@ pCrossRefEntry =
   do (num :: HS.Integer) <-
        RTS.pEnter "PdfDecl.NatN"
          (PdfDecl.pNatN (RTS.lit 10 :: HS.Integer))
-     HS.const () HS.<$> RTS.pMatch1 "33:19--33:27" PdfValue.cs_simpleWS
+     HS.const () HS.<$> RTS.pMatch1 "32:19--32:27" PdfValue.cs_simpleWS
      (gen :: HS.Integer) <-
        RTS.pEnter "PdfDecl.NatN" (PdfDecl.pNatN (RTS.lit 5 :: HS.Integer))
-     HS.const () HS.<$> RTS.pMatch1 "34:19--34:27" PdfValue.cs_simpleWS
+     HS.const () HS.<$> RTS.pMatch1 "33:19--33:27" PdfValue.cs_simpleWS
      (__ :: CrossRefEntry) <-
        (RTS.|||)
          (RTS.pEnter "inUse"
@@ -413,12 +474,12 @@ pCrossRefEntry =
                 HS.pure (CrossRefEntry_free _1)))
      (RTS.|||)
        (do HS.const ()
-             HS.<$> RTS.pMatch1 "39:5--39:13" PdfValue.cs_simpleWS
+             HS.<$> RTS.pMatch1 "38:5--38:13" PdfValue.cs_simpleWS
            (RTS.|||)
-             (HS.const () HS.<$> RTS.pMatch1 "39:16--39:18" PdfValue.cs_cr)
-             (HS.const () HS.<$> RTS.pMatch1 "39:22--39:24" PdfValue.cs_lf))
-       (do HS.const () HS.<$> RTS.pMatch1 "39:32--39:34" PdfValue.cs_cr
-           HS.const () HS.<$> RTS.pMatch1 "39:37--39:39" PdfValue.cs_lf)
+             (HS.const () HS.<$> RTS.pMatch1 "38:16--38:18" PdfValue.cs_cr)
+             (HS.const () HS.<$> RTS.pMatch1 "38:22--38:24" PdfValue.cs_lf))
+       (do HS.const () HS.<$> RTS.pMatch1 "38:32--38:34" PdfValue.cs_cr
+           HS.const () HS.<$> RTS.pMatch1 "38:37--38:39" PdfValue.cs_lf)
      HS.pure __
  
 pCrossRefSubSection :: D.Parser CrossRefSubSection
@@ -443,7 +504,7 @@ pCrossRefSection =
   do RTS.pEnter "PdfValue._KW"
        (PdfValue._KW (Vector.vecFromRep "xref"))
      (__ :: Vector.Vector CrossRefSubSection) <-
-       RTS.pMinLength "23:3--23:31" (RTS.lit 1 :: HS.Integer)
+       RTS.pMinLength "22:3--22:31" (RTS.lit 1 :: HS.Integer)
          (RTS.pMany (RTS.<||)
             (RTS.pEnter "PdfXRef.CrossRefSubSection" pCrossRefSubSection))
      HS.pure __
@@ -462,7 +523,7 @@ pTrailerDict
          (PdfDecl.pDefault @(HS.Maybe PdfValue.Ref)
             (HS.Nothing :: HS.Maybe PdfValue.Ref)
             (do (x :: PdfValue.Value) <-
-                  RTS.pIsJust "150:22--150:39"
+                  RTS.pIsJust "149:22--149:39"
                     ("Missing key: "
                        HS.++ HS.show
                                (Vector.vecFromRep "Root" :: Vector.Vector (RTS.UInt 8)))
@@ -470,7 +531,7 @@ pTrailerDict
                 RTS.pErrorMode RTS.Abort
                   (do (__ :: HS.Maybe PdfValue.Ref) <-
                         do (_2 :: PdfValue.Ref) <-
-                             RTS.pIsJust "152:23--152:30" "Expected `ref`"
+                             RTS.pIsJust "151:23--151:30" "Expected `ref`"
                                (HS.getField @"ref" x)
                            HS.pure (HS.Just _2)
                       HS.pure __)))
@@ -478,9 +539,41 @@ pTrailerDict
        RTS.pOptional (RTS.<||) HS.Just
          (RTS.pEnter "PdfDecl.LookupNat"
             (PdfDecl.pLookupNat (Vector.vecFromRep "Prev") dict))
+     (encrypt :: HS.Maybe PdfValue.Ref) <-
+       RTS.pOptional (RTS.<||) HS.Just
+         (do (d :: PdfValue.Value) <-
+               RTS.pIsJust "155:10--155:30"
+                 ("Missing key: "
+                    HS.++ HS.show
+                            (Vector.vecFromRep "Encrypt" :: Vector.Vector (RTS.UInt 8)))
+                 (Map.lookup (Vector.vecFromRep "Encrypt") dict)
+             RTS.pErrorMode RTS.Abort
+               (do (__ :: PdfValue.Ref) <-
+                     RTS.pIsJust "157:5--157:12" "Expected `ref`" (HS.getField @"ref" d)
+                   HS.pure __))
+     (id :: HS.Maybe TrailerDict_0) <-
+       RTS.pOptional (RTS.<||) HS.Just
+         (do (i :: PdfValue.Value) <-
+               RTS.pIsJust "161:10--161:25"
+                 ("Missing key: "
+                    HS.++ HS.show
+                            (Vector.vecFromRep "ID" :: Vector.Vector (RTS.UInt 8)))
+                 (Map.lookup (Vector.vecFromRep "ID") dict)
+             RTS.pErrorMode RTS.Abort
+               (do (firstid :: Vector.Vector (RTS.UInt 8)) <-
+                     do (_4 :: PdfValue.Value) <-
+                          do (_3 :: Vector.Vector PdfValue.Value) <-
+                               RTS.pIsJust "163:22--163:31" "Expected `array`"
+                                 (HS.getField @"array" i)
+                             RTS.pIsJust "163:15--163:31" "Index out of bounds"
+                               ((Vector.!?) _3 (RTS.lit 0 :: HS.Integer))
+                        RTS.pIsJust "163:15--163:44" "Expected `string`"
+                          (HS.getField @"string" _4)
+                   (allid :: PdfValue.Value) <- HS.pure i
+                   HS.pure (TrailerDict_0 firstid allid)))
      (all :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
        HS.pure dict
-     HS.pure (TrailerDict size root prev all)
+     HS.pure (TrailerDict size root prev encrypt id all)
  
 pCrossRefAndTrailer :: D.Parser CrossRefAndTrailer
  
@@ -503,7 +596,7 @@ pLookupInt (arr :: Vector.Vector PdfValue.Value)
   RTS.pEnter "PdfDecl.Default"
     (PdfDecl.pDefault @HS.Integer (RTS.lit 0 :: HS.Integer)
        (do (n :: PdfValue.Value) <-
-             RTS.pIsJust "82:8--82:16" "Index out of bounds" ((Vector.!?) arr i)
+             RTS.pIsJust "81:8--81:16" "Index out of bounds" ((Vector.!?) arr i)
            RTS.pErrorMode RTS.Abort
              (do (__ :: HS.Integer) <-
                    RTS.pEnter "PdfValue.NatValue" (PdfValue.pNatValue n)
@@ -519,7 +612,7 @@ pXRefFormat
        RTS.pEnter "PdfDecl.LookupResolve"
          (PdfDecl.pLookupResolve (Vector.vecFromRep "W") header)
      (vs :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "71:12--71:22" "Expected `array`"
+       RTS.pIsJust "70:12--70:22" "Expected `array`"
          (HS.getField @"array" kv)
      (b1 :: HS.Integer) <-
        RTS.pEnter "PdfXRef.LookupInt"
@@ -560,10 +653,10 @@ pXRefIndex
        RTS.loopMapM
          (\(i :: HS.Integer) ->
             do (firstId :: HS.Integer) <-
-                 RTS.pIsJust "92:15--92:23" "Index out of bounds"
+                 RTS.pIsJust "91:15--91:23" "Index out of bounds"
                    ((Vector.!?) arr i)
                (num :: HS.Integer) <-
-                 RTS.pIsJust "93:15--93:23" "Index out of bounds"
+                 RTS.pIsJust "92:15--92:23" "Index out of bounds"
                    ((Vector.!?) arr (RTS.add i (RTS.lit 1 :: HS.Integer)))
                HS.pure (XRefIndex_0 firstId num))
          (Vector.rangeUp (RTS.lit 0 :: HS.Integer)
@@ -655,37 +748,37 @@ pXRefObjEntry (w :: XRefFormat) =
            (__ :: XRefObjEntry) <-
              (RTS.|||)
                (RTS.pEnter "free"
-                  (do (_3 :: XRefFree) <-
+                  (do (_5 :: XRefFree) <-
                         do RTS.pEnter "PdfValue._Guard"
                              (PdfValue._Guard (ftype HS.== (RTS.lit 0 :: HS.Integer)))
                            (__ :: XRefFree) <- RTS.pEnter "PdfXRef.XRefFree" (pXRefFree w)
                            HS.pure __
-                      HS.pure (XRefObjEntry_free _3)))
+                      HS.pure (XRefObjEntry_free _5)))
                ((RTS.|||)
                   (RTS.pEnter "inUse"
-                     (do (_4 :: XRefOffset) <-
+                     (do (_6 :: XRefOffset) <-
                            do RTS.pEnter "PdfValue._Guard"
                                 (PdfValue._Guard (ftype HS.== (RTS.lit 1 :: HS.Integer)))
                               (__ :: XRefOffset) <-
                                 RTS.pEnter "PdfXRef.XRefOffset" (pXRefOffset w)
                               HS.pure __
-                         HS.pure (XRefObjEntry_inUse _4)))
+                         HS.pure (XRefObjEntry_inUse _6)))
                   ((RTS.|||)
                      (RTS.pEnter "compressed"
-                        (do (_5 :: XRefCompressed) <-
+                        (do (_7 :: XRefCompressed) <-
                               do RTS.pEnter "PdfValue._Guard"
                                    (PdfValue._Guard (ftype HS.== (RTS.lit 2 :: HS.Integer)))
                                  (__ :: XRefCompressed) <-
                                    RTS.pEnter "PdfXRef.XRefCompressed" (pXRefCompressed w)
                                  HS.pure __
-                            HS.pure (XRefObjEntry_compressed _5)))
+                            HS.pure (XRefObjEntry_compressed _7)))
                      (RTS.pEnter "null"
-                        (do (_6 :: ()) <-
+                        (do (_8 :: ()) <-
                               do (__ :: ()) <-
                                    RTS.pEnter "PdfValue.Guard"
                                      (PdfValue.pGuard ((RTS.lit 2 :: HS.Integer) HS.< ftype))
                                  HS.pure __
-                            HS.pure (XRefObjEntry_null _6)))))
+                            HS.pure (XRefObjEntry_null _8)))))
            HS.pure __))
  
 pXRefObjTable :: XRefMeta -> D.Parser XRefObjTable
@@ -711,22 +804,22 @@ pXRefObj :: D.Parser XRefObjTable
  
 pXRefObj =
   do (str :: PdfDecl.Stream) <-
-       do (_8 :: PdfDecl.TopDeclDef) <-
-            do (_7 :: PdfDecl.TopDecl) <-
+       do (_10 :: PdfDecl.TopDeclDef) <-
+            do (_9 :: PdfDecl.TopDecl) <-
                  RTS.pEnter "PdfDecl.TopDecl" PdfDecl.pTopDecl
-               HS.pure (HS.getField @"obj" _7)
-          RTS.pIsJust "58:11--58:31" "Expected `stream`"
-            (HS.getField @"stream" _8)
+               HS.pure (HS.getField @"obj" _9)
+          RTS.pIsJust "57:11--57:31" "Expected `stream`"
+            (HS.getField @"stream" _10)
      (__ :: XRefObjTable) <-
-       do (_9 :: RTS.Input) <-
-            RTS.pIsJust "59:15--59:28" "Expected `ok`"
+       do (_11 :: RTS.Input) <-
+            RTS.pIsJust "58:15--58:28" "Expected `ok`"
               (HS.getField @"ok" (HS.getField @"body" str))
           RTS.pEnter "PdfDecl.WithStream"
-            (PdfDecl.pWithStream @XRefObjTable _9
-               (do (_10 :: XRefMeta) <-
+            (PdfDecl.pWithStream @XRefObjTable _11
+               (do (_12 :: XRefMeta) <-
                      RTS.pEnter "PdfXRef.XRefMeta"
                        (pXRefMeta (HS.getField @"header" str))
-                   RTS.pEnter "PdfXRef.XRefObjTable" (pXRefObjTable _10)))
+                   RTS.pEnter "PdfXRef.XRefObjTable" (pXRefObjTable _12)))
      HS.pure __
  
 pCrossRef :: D.Parser CrossRef
@@ -734,45 +827,94 @@ pCrossRef :: D.Parser CrossRef
 pCrossRef =
   (RTS.|||)
     (RTS.pEnter "oldXref"
-       (do (_11 :: CrossRefAndTrailer) <-
+       (do (_13 :: CrossRefAndTrailer) <-
              RTS.pEnter "PdfXRef.CrossRefAndTrailer" pCrossRefAndTrailer
-           HS.pure (CrossRef_oldXref _11)))
+           HS.pure (CrossRef_oldXref _13)))
     (RTS.pEnter "newXref"
-       (do (_12 :: XRefObjTable) <- RTS.pEnter "PdfXRef.XRefObj" pXRefObj
-           HS.pure (CrossRef_newXref _12)))
+       (do (_14 :: XRefObjTable) <- RTS.pEnter "PdfXRef.XRefObj" pXRefObj
+           HS.pure (CrossRef_newXref _14)))
+ 
+pEncryptionDict :: PdfValue.Ref -> D.Parser EncryptionDict
+ 
+pEncryptionDict (eref :: PdfValue.Ref) =
+  do (encdict
+        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_15 :: PdfValue.Value) <-
+            RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef eref)
+          RTS.pIsJust "170:15--170:41" "Expected `dict`"
+            (HS.getField @"dict" _15)
+     (encFilter :: Vector.Vector (RTS.UInt 8)) <-
+       do (_16 :: PdfValue.Value) <-
+            RTS.pIsJust "171:16--171:38"
+              ("Missing key: "
+                 HS.++ HS.show
+                         (Vector.vecFromRep "Filter" :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup (Vector.vecFromRep "Filter") encdict)
+          RTS.pIsJust "171:16--171:47" "Expected `name`"
+            (HS.getField @"name" _16)
+     (encLength :: HS.Integer) <-
+       (RTS.<||)
+         (RTS.pEnter "PdfDecl.LookupNat"
+            (PdfDecl.pLookupNat (Vector.vecFromRep "Length") encdict))
+         (HS.pure (RTS.lit 40 :: HS.Integer))
+     (encO :: Vector.Vector (RTS.UInt 8)) <-
+       do (_17 :: PdfValue.Value) <-
+            RTS.pIsJust "173:11--173:28"
+              ("Missing key: "
+                 HS.++ HS.show
+                         (Vector.vecFromRep "O" :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup (Vector.vecFromRep "O") encdict)
+          RTS.pIsJust "173:11--173:39" "Expected `string`"
+            (HS.getField @"string" _17)
+     (encP :: HS.Integer) <-
+       do (v :: PdfValue.Number) <-
+            do (_18 :: PdfValue.Value) <-
+                 RTS.pIsJust "175:11--175:28"
+                   ("Missing key: "
+                      HS.++ HS.show
+                              (Vector.vecFromRep "P" :: Vector.Vector (RTS.UInt 8)))
+                   (Map.lookup (Vector.vecFromRep "P") encdict)
+               RTS.pIsJust "175:11--175:39" "Expected `number`"
+                 (HS.getField @"number" _18)
+          (__ :: HS.Integer) <- HS.pure (HS.getField @"num" v)
+          HS.pure __
+     (pV :: HS.Integer) <-
+       RTS.pEnter "PdfDecl.LookupNat"
+         (PdfDecl.pLookupNat (Vector.vecFromRep "V") encdict)
+     HS.pure (EncryptionDict encFilter encLength encO encP pV)
  
 _FreeEntry :: D.Parser ()
  
 _FreeEntry =
   HS.const ()
-    HS.<$> RTS.pMatch1 "47:3--47:12" (RTS.bcSingle (RTS.uint8 102))
+    HS.<$> RTS.pMatch1 "46:3--46:12" (RTS.bcSingle (RTS.uint8 102))
  
 _UsedEntry :: D.Parser ()
  
 _UsedEntry =
   HS.const ()
-    HS.<$> RTS.pMatch1 "43:3--43:12" (RTS.bcSingle (RTS.uint8 110))
+    HS.<$> RTS.pMatch1 "42:3--42:12" (RTS.bcSingle (RTS.uint8 110))
  
 _CrossRefEntry :: D.Parser ()
  
 _CrossRefEntry =
   do RTS.pEnter "PdfDecl._NatN"
        (PdfDecl._NatN (RTS.lit 10 :: HS.Integer))
-     HS.const () HS.<$> RTS.pMatch1 "33:19--33:27" PdfValue.cs_simpleWS
+     HS.const () HS.<$> RTS.pMatch1 "32:19--32:27" PdfValue.cs_simpleWS
      RTS.pEnter "PdfDecl._NatN"
        (PdfDecl._NatN (RTS.lit 5 :: HS.Integer))
-     HS.const () HS.<$> RTS.pMatch1 "34:19--34:27" PdfValue.cs_simpleWS
+     HS.const () HS.<$> RTS.pMatch1 "33:19--33:27" PdfValue.cs_simpleWS
      (RTS.|||)
        (RTS.pEnter "inUse" (RTS.pEnter "PdfXRef._UsedEntry" _UsedEntry))
        (RTS.pEnter "free" (RTS.pEnter "PdfXRef._FreeEntry" _FreeEntry))
      (RTS.|||)
        (do HS.const ()
-             HS.<$> RTS.pMatch1 "39:5--39:13" PdfValue.cs_simpleWS
+             HS.<$> RTS.pMatch1 "38:5--38:13" PdfValue.cs_simpleWS
            (RTS.|||)
-             (HS.const () HS.<$> RTS.pMatch1 "39:16--39:18" PdfValue.cs_cr)
-             (HS.const () HS.<$> RTS.pMatch1 "39:22--39:24" PdfValue.cs_lf))
-       (do HS.const () HS.<$> RTS.pMatch1 "39:32--39:34" PdfValue.cs_cr
-           HS.const () HS.<$> RTS.pMatch1 "39:37--39:39" PdfValue.cs_lf)
+             (HS.const () HS.<$> RTS.pMatch1 "38:16--38:18" PdfValue.cs_cr)
+             (HS.const () HS.<$> RTS.pMatch1 "38:22--38:24" PdfValue.cs_lf))
+       (do HS.const () HS.<$> RTS.pMatch1 "38:32--38:34" PdfValue.cs_cr
+           HS.const () HS.<$> RTS.pMatch1 "38:37--38:39" PdfValue.cs_lf)
  
 _CrossRefSubSection :: D.Parser ()
  
@@ -805,17 +947,45 @@ _TrailerDict
      RTS.pEnter "PdfDecl._Default"
        (PdfDecl._Default @(HS.Maybe PdfValue.Ref)
           (do (x :: PdfValue.Value) <-
-                RTS.pIsJust "150:22--150:39"
+                RTS.pIsJust "149:22--149:39"
                   ("Missing key: "
                      HS.++ HS.show
                              (Vector.vecFromRep "Root" :: Vector.Vector (RTS.UInt 8)))
                   (Map.lookup (Vector.vecFromRep "Root") dict)
               RTS.pErrorMode RTS.Abort
-                (RTS.pIsJust_ "152:23--152:30" "Expected `ref`"
+                (RTS.pIsJust_ "151:23--151:30" "Expected `ref`"
                    (HS.getField @"ref" x))))
      (RTS.<||)
        (RTS.pEnter "PdfDecl._LookupNat"
           (PdfDecl._LookupNat (Vector.vecFromRep "Prev") dict))
+       (HS.pure ())
+     (RTS.<||)
+       (do (d :: PdfValue.Value) <-
+             RTS.pIsJust "155:10--155:30"
+               ("Missing key: "
+                  HS.++ HS.show
+                          (Vector.vecFromRep "Encrypt" :: Vector.Vector (RTS.UInt 8)))
+               (Map.lookup (Vector.vecFromRep "Encrypt") dict)
+           RTS.pErrorMode RTS.Abort
+             (RTS.pIsJust_ "157:5--157:12" "Expected `ref`"
+                (HS.getField @"ref" d)))
+       (HS.pure ())
+     (RTS.<||)
+       (do (i :: PdfValue.Value) <-
+             RTS.pIsJust "161:10--161:25"
+               ("Missing key: "
+                  HS.++ HS.show
+                          (Vector.vecFromRep "ID" :: Vector.Vector (RTS.UInt 8)))
+               (Map.lookup (Vector.vecFromRep "ID") dict)
+           RTS.pErrorMode RTS.Abort
+             (do (_4 :: PdfValue.Value) <-
+                   do (_3 :: Vector.Vector PdfValue.Value) <-
+                        RTS.pIsJust "163:22--163:31" "Expected `array`"
+                          (HS.getField @"array" i)
+                      RTS.pIsJust "163:15--163:31" "Index out of bounds"
+                        ((Vector.!?) _3 (RTS.lit 0 :: HS.Integer))
+                 RTS.pIsJust_ "163:15--163:44" "Expected `string`"
+                   (HS.getField @"string" _4)))
        (HS.pure ())
  
 _CrossRefAndTrailer :: D.Parser ()
@@ -849,21 +1019,21 @@ _XRefObj :: D.Parser ()
  
 _XRefObj =
   do (str :: PdfDecl.Stream) <-
-       do (_8 :: PdfDecl.TopDeclDef) <-
-            do (_7 :: PdfDecl.TopDecl) <-
+       do (_10 :: PdfDecl.TopDeclDef) <-
+            do (_9 :: PdfDecl.TopDecl) <-
                  RTS.pEnter "PdfDecl.TopDecl" PdfDecl.pTopDecl
-               HS.pure (HS.getField @"obj" _7)
-          RTS.pIsJust "58:11--58:31" "Expected `stream`"
-            (HS.getField @"stream" _8)
-     (_9 :: RTS.Input) <-
-       RTS.pIsJust "59:15--59:28" "Expected `ok`"
+               HS.pure (HS.getField @"obj" _9)
+          RTS.pIsJust "57:11--57:31" "Expected `stream`"
+            (HS.getField @"stream" _10)
+     (_11 :: RTS.Input) <-
+       RTS.pIsJust "58:15--58:28" "Expected `ok`"
          (HS.getField @"ok" (HS.getField @"body" str))
      RTS.pEnter "PdfDecl._WithStream"
-       (PdfDecl._WithStream @XRefObjTable _9
-          (do (_10 :: XRefMeta) <-
+       (PdfDecl._WithStream @XRefObjTable _11
+          (do (_12 :: XRefMeta) <-
                 RTS.pEnter "PdfXRef.XRefMeta"
                   (pXRefMeta (HS.getField @"header" str))
-              RTS.pEnter "PdfXRef._XRefObjTable" (_XRefObjTable _10)))
+              RTS.pEnter "PdfXRef._XRefObjTable" (_XRefObjTable _12)))
  
 _CrossRef :: D.Parser ()
  
@@ -873,6 +1043,46 @@ _CrossRef =
        (RTS.pEnter "PdfXRef._CrossRefAndTrailer" _CrossRefAndTrailer))
     (RTS.pEnter "newXref" (RTS.pEnter "PdfXRef._XRefObj" _XRefObj))
  
+_EncryptionDict :: PdfValue.Ref -> D.Parser ()
+ 
+_EncryptionDict (eref :: PdfValue.Ref) =
+  do (encdict
+        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_15 :: PdfValue.Value) <-
+            RTS.pEnter "PdfDecl.ResolveValRef" (PdfDecl.pResolveValRef eref)
+          RTS.pIsJust "170:15--170:41" "Expected `dict`"
+            (HS.getField @"dict" _15)
+     do (_16 :: PdfValue.Value) <-
+          RTS.pIsJust "171:16--171:38"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "Filter" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "Filter") encdict)
+        RTS.pIsJust_ "171:16--171:47" "Expected `name`"
+          (HS.getField @"name" _16)
+     (RTS.<||)
+       (RTS.pEnter "PdfDecl._LookupNat"
+          (PdfDecl._LookupNat (Vector.vecFromRep "Length") encdict))
+       (HS.pure ())
+     do (_17 :: PdfValue.Value) <-
+          RTS.pIsJust "173:11--173:28"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "O" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "O") encdict)
+        RTS.pIsJust_ "173:11--173:39" "Expected `string`"
+          (HS.getField @"string" _17)
+     do (_18 :: PdfValue.Value) <-
+          RTS.pIsJust "175:11--175:28"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "P" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "P") encdict)
+        RTS.pIsJust_ "175:11--175:39" "Expected `number`"
+          (HS.getField @"number" _18)
+     RTS.pEnter "PdfDecl._LookupNat"
+       (PdfDecl._LookupNat (Vector.vecFromRep "V") encdict)
+ 
 _LookupInt ::
       Vector.Vector PdfValue.Value -> (HS.Integer -> D.Parser ())
  
@@ -881,7 +1091,7 @@ _LookupInt (arr :: Vector.Vector PdfValue.Value)
   RTS.pEnter "PdfDecl._Default"
     (PdfDecl._Default @HS.Integer
        (do (n :: PdfValue.Value) <-
-             RTS.pIsJust "82:8--82:16" "Index out of bounds" ((Vector.!?) arr i)
+             RTS.pIsJust "81:8--81:16" "Index out of bounds" ((Vector.!?) arr i)
            RTS.pErrorMode RTS.Abort
              (RTS.pEnter "PdfValue._NatValue" (PdfValue._NatValue n))))
  
@@ -917,7 +1127,7 @@ _XRefFormat
        RTS.pEnter "PdfDecl.LookupResolve"
          (PdfDecl.pLookupResolve (Vector.vecFromRep "W") header)
      (vs :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "71:12--71:22" "Expected `array`"
+       RTS.pIsJust "70:12--70:22" "Expected `array`"
          (HS.getField @"array" kv)
      RTS.pEnter "PdfXRef._LookupInt"
        (_LookupInt vs (RTS.lit 0 :: HS.Integer))
@@ -957,10 +1167,10 @@ _XRefIndex
        (RTS.loopMapM
           (\(i :: HS.Integer) ->
              do (firstId :: HS.Integer) <-
-                  RTS.pIsJust "92:15--92:23" "Index out of bounds"
+                  RTS.pIsJust "91:15--91:23" "Index out of bounds"
                     ((Vector.!?) arr i)
                 (num :: HS.Integer) <-
-                  RTS.pIsJust "93:15--93:23" "Index out of bounds"
+                  RTS.pIsJust "92:15--92:23" "Index out of bounds"
                     ((Vector.!?) arr (RTS.add i (RTS.lit 1 :: HS.Integer)))
                 HS.pure (XRefIndex_0 firstId num))
           (Vector.rangeUp (RTS.lit 0 :: HS.Integer)

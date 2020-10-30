@@ -9,6 +9,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
 import Control.Monad(when)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
+import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
 import System.Console.ANSI
@@ -30,9 +31,11 @@ import Daedalus.AST hiding (Value)
 import Daedalus.Interp
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Normalise.AST(NDecl)
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
+import qualified Daedalus.VM.Compile.Decl as VM
+import qualified Daedalus.VM.BorrowAnalysis as VM
+import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
@@ -76,6 +79,10 @@ handleOptions opts
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
            specMod  = "DaedalusMain"
+           mainNm = Name { nameScope = ModScope (fst mainRule) (snd mainRule)
+                         , nameContext = AGrammar
+                         , nameRange = synthetic
+                         }
 
        case optCommand opts of
 
@@ -101,13 +108,19 @@ handleOptions opts
               passCore specMod
               passVM specMod
               passCaptureAnalysis
-              ddlPrint . pp =<< ddlGetAST specMod astVM
+              m <- ddlGetAST specMod astVM
+              entry <- ddlGetFName mainNm
+              let prog = VM.addCopyIs
+                       $ VM.doBorrowAnalysis
+                       $ VM.moduleToProgram entry [m]
+              ddlPrint (pp prog)
 
          DumpGen ->
            do passSpecialize specMod [mainRule]
-              prog <- normalizedDecls
+              prog <- ddlGetAST specMod astTC
+              -- prog <- normalizedDecls
               ddlIO (
-                do let (_gbl, aut) = PGen.buildArrayAut prog
+                do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    let dfa = PGen.createDFA aut
                    PGen.statsDFA dfa
                    PGen.autToGraphviz aut
@@ -120,8 +133,11 @@ handleOptions opts
                   ddlIO (interpInterp inp prog mainRule)
              UsePGen ->
                do passSpecialize specMod [mainRule]
-                  prog <- normalizedDecls
-                  ddlIO (interpPGen inp prog)
+                  prog <- ddlGetAST specMod astTC
+                  ddlIO (interpPGen inp [prog])
+               --do passSpecialize specMod [mainRule]
+               --   prog <- normalizedDecls
+               --   ddlIO (interpPGen inp prog)
 
          DumpRuleRanges -> error "Bug: DumpRuleRanges"
          DumpRaw -> error "Bug: DumpRaw"
@@ -137,12 +153,26 @@ handleOptions opts
                     }
 
          CompileCPP ->
+           -- XXX: package into Driver, but probably need to add proper
+           -- support for multiple entry points, and entry points with
+           -- parameters.
            do passSpecialize specMod [mainRule]
               passCore specMod
               passVM specMod
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
-              ddlPrint (C.cModule m)
+              entry <- ddlGetFName mainNm
+              let prog = VM.addCopyIs
+                       $ VM.doBorrowAnalysis
+                       $ VM.moduleToProgram entry [m]
+                  outFileRoot = "main_parser"
+                  (hpp,cpp) = C.cProgram outFileRoot prog
+              root <- case optOutDir opts of
+                        Nothing -> pure outFileRoot
+                        Just d  -> do ddlIO $ createDirectoryIfMissing True d
+                                      pure (d </> outFileRoot)
+              ddlIO do writeFile (addExtension root "h") (show hpp)
+                       writeFile (addExtension root "cpp") (show cpp)
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 
@@ -157,22 +187,23 @@ interpInterp inp prog (m,i) =
        NoResults {} -> exitFailure
 
 
-interpPGen :: FilePath -> [NDecl] -> IO ()
-interpPGen inp norms =
-  do let (gbl, aut) = PGen.buildArrayAut norms
-     -- let dfa = PGen.createDFA aut
-     -- putStrLn (show dfa)
-     -- putStrLn (PGen.statsDFA dfa)
-     bytes <- BS.readFile inp
-     PGen.autToGraphviz aut
-     let results = PGen.runnerBias gbl bytes aut
-     let resultValues = PGen.extractValues results
-     if null resultValues
-       then do putStrLn $ PGen.extractParseError bytes results
-               exitFailure
-       else do putStrLn $ "--- Found " ++ show (length resultValues) ++ " results:"
-               print $ vcat' $ map pp $ resultValues
-               exitSuccess
+interpPGen :: FilePath -> [TCModule SourceRange] -> IO ()
+interpPGen inp moduls =
+  do let (gbl, aut) = PGen.buildArrayAut moduls
+     -- let dfa = PGen.createDFA aut                   -- LL
+     let repeatNb = 1 -- 200
+     do mapM_ (\ _ ->
+                 do bytes <- BS.readFile inp
+                    -- let results = PGen.runnerLL gbl bytes aut dfa  -- LL
+                    let results = PGen.runnerBias gbl bytes aut
+                    let resultValues = PGen.extractValues results
+                    if null resultValues
+                      then do putStrLn $ PGen.extractParseError bytes results
+                              exitFailure
+                      else do putStrLn $ "--- Found " ++ show (length resultValues) ++ " results:"
+                              print $ vcat' $ map pp $ resultValues
+                              exitSuccess
+              ) [(1::Int)..repeatNb]
 
 
 inputHack :: Options -> Options

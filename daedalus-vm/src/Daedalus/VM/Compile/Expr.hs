@@ -11,8 +11,6 @@ import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
 
-import Daedalus.PP
-import Debug.Trace
 
 compileEs :: [Src.Expr] -> ([E] -> BlockBuilder Void) -> C (BlockBuilder Void)
 compileEs es0 k = go [] es0
@@ -56,7 +54,7 @@ compileE expr k =
 
     Src.Struct t fs ->
       compileEs (map snd fs) \vs ->
-         do s <- stmt ty (CallPrim (StructCon t) vs)
+         do s <- stmt ty (\x -> CallPrim x (StructCon t) vs)
             continue k s
 
     Src.Ap0 op          -> compileOp0 op ty k
@@ -72,11 +70,12 @@ compileOp0 op ty k' =
   pure
   case op of
     Src.Unit              -> k EUnit
-    Src.IntL i t          -> k (ENum i t)
+    Src.IntL i t
+      | Src.TInteger <- t -> k =<< stmt ty (\x -> CallPrim x (Integer i) [])
+      | otherwise         -> k (ENum i t)
     Src.BoolL b           -> k (EBool b)
-    Src.ByteArrayL bs     -> k (EByteArray bs)
-    Src.NewBuilder t      -> do v <- stmt ty (CallPrim (NewBuilder t) [])
-                                k v
+    Src.ByteArrayL bs     -> k =<< stmt ty (\x -> CallPrim x (ByteArray bs) [])
+    Src.NewBuilder t      -> k =<< stmt ty (\x -> CallPrim x (NewBuilder t) [])
     Src.MapEmpty t1 t2    -> k (EMapEmpty t1 t2)
     Src.ENothing t        -> k (ENothing t)
   where
@@ -84,7 +83,7 @@ compileOp0 op ty k' =
 
 compileOp1 :: Src.Op1 -> VMT -> Src.Expr -> CE
 compileOp1 op ty e k =
-  compileE e $ Just \v -> continue k =<< stmt ty (CallPrim (Op1 op) [v])
+  compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
 
 compileOp2 :: Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
 compileOp2 op ty e1 e2 k =
@@ -96,7 +95,8 @@ compileOp2 op ty e1 e2 k =
     Src.Or ->
       compileOp3 Src.PureIf ty e1 (Src.boolL True) e2 k
 
-    _ -> compileEs [e1,e2] \ vs -> continue k =<< stmt ty (CallPrim (Op2 op) vs)
+    _ -> compileEs [e1,e2] \ vs -> continue k =<<
+                                   stmt ty (\x -> CallPrim x (Op2 op) vs)
 
 
 compileOp3 :: Src.Op3 -> VMT -> Src.Expr -> Src.Expr -> Src.Expr -> CE
@@ -108,29 +108,46 @@ compileOp3 op ty e1 e2 e3 k =
                        Nothing -> pure Nothing
                        Just kont ->
                          do l <- newLocal (TSem (Src.typeOf e2))
-                            nextL <- label0 (kont =<< getLocal l)
+                            nextL <- label0 NormalBlock (kont =<< getLocal l)
                             pure $ Just \v ->
                                       do setLocal l v
                                          jump nextL
 
          let branch e = do code <- compileE e whatNext
-                           label0 code
+                           label0 NormalBlock code
 
          thenL <- branch e2
          elseL <- branch e3
 
          compileE e1 $ Just \v -> jumpIf v thenL elseL
 
-    _ -> compileEs [e1,e2,e3] \vs -> continue k =<< stmt ty (CallPrim (Op3 op) vs)
+    _ -> compileEs [e1,e2,e3] \vs -> continue k =<<
+                                      stmt ty (\x -> CallPrim x (Op3 op) vs)
 
 
 compileOpN :: Src.OpN -> VMT -> [Src.Expr] -> CE
 compileOpN op ty es k =
-  compileEs es \vs ->
-    case op of
-      Src.ArrayL _ -> continue k =<< stmt ty (CallPrim (OpN op) vs)
-      Src.CallF f ->
-        case k of
-          Just k' -> k' =<< stmt ty (CallPrim (OpN op) vs)
-          Nothing -> term (TailCall f NoCapture vs)
+  case op of
+    Src.ArrayL _ ->
+      compileEs es \vs ->
+        do res <- stmt ty (\x -> CallPrim x (OpN op) vs)
+           continue k res
+
+    Src.CallF f ->
+      do doCall <-
+           case k of
+             Nothing -> pure \vs -> term (TailCall f NoCapture vs)
+             Just k' ->
+               do mkL <- label1' (ReturnBlock 1) Nothing k'
+                  pure \vs ->
+                    do l <- mkL
+                       term (CallPure f l vs)
+
+         compileEs es doCall
+
+
+
+
+
+
 

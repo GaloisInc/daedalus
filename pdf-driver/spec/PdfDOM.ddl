@@ -1,6 +1,7 @@
 import PdfValue
 import PdfValidate
 
+import PdfDecl
 
 def PdfTrailer (t : TrailerDict) =
   CheckRef "Catalog" PdfCatalog (t.root is just)
@@ -55,5 +56,5 @@ def PdfPageObject (parent : Ref) (v : Value) = {
 
   -- Field "Parent"
   Guard (Lookup "Parent" d is ref == parent);
-}
 
+}

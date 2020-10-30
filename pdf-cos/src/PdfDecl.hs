@@ -17,6 +17,7 @@ import qualified Primitives.Deflate as D
 import qualified Primitives.LZW as D
 import qualified Primitives.ASCIIHex as D
 import qualified Primitives.ASCII85 as D
+import qualified Primitives.Decrypt as D
 import qualified PdfMonad as D
 import qualified PdfValue
 import qualified Prelude as HS
@@ -330,7 +331,7 @@ pLookupNat (k :: Vector.Vector (RTS.UInt 8))
   do (vV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
      (v :: PdfValue.Number) <-
-       RTS.pIsJust "310:11--310:22" "Expected `number`"
+       RTS.pIsJust "313:11--313:22" "Expected `number`"
          (HS.getField @"number" vV)
      (__ :: HS.Integer) <-
        RTS.pEnter "PdfValue.NumberAsNat" (PdfValue.pNumberAsNat v)
@@ -352,14 +353,14 @@ pFlateDecodeParams
      :: HS.Maybe
           (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =
   (RTS.<||)
-    (do RTS.pGuard "211:5--211:21" "guard failed"
+    (do RTS.pGuard "214:5--214:21" "guard failed"
           (params
              HS.== (HS.Nothing
                       :: HS.Maybe (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)))
         (__ :: TfdDefaults) <- HS.pure fdDefaults
         HS.pure __)
     (do (ps :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-          RTS.pIsJust "215:17--215:30" "Expected `Just`" params
+          RTS.pIsJust "218:17--218:30" "Expected `Just`" params
         (predictor :: HS.Integer) <-
           RTS.pEnter "PdfDecl.Default"
             (pDefault @HS.Integer (HS.getField @"predictor" fdDefaults)
@@ -414,14 +415,14 @@ pLZWDecodeParams
      :: HS.Maybe
           (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =
   (RTS.<||)
-    (do RTS.pGuard "238:5--238:21" "guard failed"
+    (do RTS.pGuard "241:5--241:21" "guard failed"
           (params
              HS.== (HS.Nothing
                       :: HS.Maybe (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)))
         (__ :: TlzwDefaults) <- HS.pure lzwDefaults
         HS.pure __)
     (do (ps :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-          RTS.pIsJust "242:19--242:32" "Expected `Just`" params
+          RTS.pIsJust "245:19--245:32" "Expected `Just`" params
         (predictor :: HS.Integer) <-
           RTS.pEnter "PdfDecl.Default"
             (pDefault @HS.Integer (HS.getField @"predictor" lzwDefaults)
@@ -538,7 +539,7 @@ pApplyFilter (f :: Filter) (body :: RTS.Input) =
              (RTS.pEnter "unsupported"
                 (do (_4 :: Vector.Vector (RTS.UInt 8)) <-
                       (RTS.<||)
-                        (do RTS.pGuard "205:19--205:36" "guard failed"
+                        (do RTS.pGuard "208:19--208:36" "guard failed"
                               (HS.getField @"param" f
                                  HS.== (HS.Nothing
                                           :: HS.Maybe
@@ -553,6 +554,10 @@ pApplyFilter (f :: Filter) (body :: RTS.Input) =
                                  [HS.getField @"name" f, Vector.vecFromRep " (with params)"])))
                     HS.pure (ApplyFilter_unsupported _4))))))
  
+pDecrypt :: RTS.Input -> D.Parser RTS.Input
+ 
+pDecrypt (body :: RTS.Input) = D.decrypt body :: D.Parser RTS.Input
+ 
 pFilterParam ::
   forall a b e.
     (RTS.DDL a, RTS.DDL b, RTS.DDL e, RTS.HasUnion a "null" b,
@@ -561,12 +566,12 @@ pFilterParam ::
  
 pFilterParam (param :: a) =
   (RTS.|||)
-    (do RTS.pIsJust_ "155:7--155:24" "Expected `null`"
+    (do RTS.pIsJust_ "156:7--156:24" "Expected `null`"
           (HS.getField @"null" param)
         (__ :: HS.Maybe e) <- HS.pure (HS.Nothing :: HS.Maybe e)
         HS.pure __)
     (do (x :: e) <-
-          RTS.pIsJust "156:12--156:24" "Expected `dict`"
+          RTS.pIsJust "157:12--157:24" "Expected `dict`"
             (HS.getField @"dict" param)
         (__ :: HS.Maybe e) <- HS.pure (HS.Just x)
         HS.pure __)
@@ -575,7 +580,7 @@ pFilter :: PdfValue.Value -> (PdfValue.Value -> D.Parser Filter)
  
 pFilter (name :: PdfValue.Value) (param :: PdfValue.Value) =
   do (name :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "150:11--150:22" "Expected `name`"
+       RTS.pIsJust "151:11--151:22" "Expected `name`"
          (HS.getField @"name" name)
      (param
         :: HS.Maybe
@@ -592,7 +597,7 @@ pOneOrArray ::
 pOneOrArray (v :: PdfValue.Value) =
   RTS.pEnter "PdfDecl.Default"
     (pDefault @(Vector.Vector PdfValue.Value) (Vector.fromList [v])
-       (RTS.pIsJust "278:43--278:52" "Expected `array`"
+       (RTS.pIsJust "281:43--281:52" "Expected `array`"
           (HS.getField @"array" v)))
  
 pLookOptArray ::
@@ -618,7 +623,9 @@ pApplyFilters ::
 pApplyFilters
   (header :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
   (initialBody :: RTS.Input) =
-  do (filter_names :: Vector.Vector PdfValue.Value) <-
+  do (decrypt :: RTS.Input) <-
+       RTS.pEnter "PdfDecl.Decrypt" (pDecrypt initialBody)
+     (filter_names :: Vector.Vector PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookOptArray"
          (pLookOptArray (Vector.vecFromRep "Filter") header)
      (filter_params :: Vector.Vector PdfValue.Value) <-
@@ -631,7 +638,7 @@ pApplyFilters
             do (param :: PdfValue.Value) <-
                  RTS.pEnter "PdfDecl.Default"
                    (pDefault @PdfValue.Value PdfValue.nullValue
-                      (RTS.pIsJust "142:34--142:52" "Index out of bounds"
+                      (RTS.pIsJust "143:34--143:52" "Index out of bounds"
                          ((Vector.!?) filter_params ix)))
                (filter :: Filter) <-
                  RTS.pEnter "PdfDecl.Filter" (pFilter name param)
@@ -639,14 +646,14 @@ pApplyFilters
                  RTS.pEnter "PdfDecl.Default"
                    (pDefault @ApplyFilter bytes
                       (do (bs :: RTS.Input) <-
-                            RTS.pIsJust "144:27--144:37" "Expected `ok`"
+                            RTS.pIsJust "145:27--145:37" "Expected `ok`"
                               (HS.getField @"ok" bytes)
                           RTS.pErrorMode RTS.Abort
                             (do (__ :: ApplyFilter) <-
                                   RTS.pEnter "PdfDecl.ApplyFilter" (pApplyFilter filter bs)
                                 HS.pure __)))
                HS.pure __)
-         (ApplyFilter_ok initialBody)
+         (ApplyFilter_ok decrypt)
          filter_names
      HS.pure __
  
@@ -654,7 +661,7 @@ pBEBytes :: HS.Integer -> D.Parser HS.Integer
  
 pBEBytes (n :: HS.Integer) =
   do (bs :: Vector.Vector (RTS.UInt 8)) <-
-       Vector.replicateM n (RTS.uint8 HS.<$> RTS.pByte "300:28--300:32")
+       Vector.replicateM n (RTS.uint8 HS.<$> RTS.pByte "303:28--303:32")
      (__ :: HS.Integer) <-
        HS.pure
          (RTS.loopFold
@@ -677,7 +684,7 @@ pCheckType (x :: Vector.Vector (RTS.UInt 8))
             do (_9 :: PdfValue.Value) <-
                  RTS.pEnter "PdfDecl.LookupResolve"
                    (pLookupResolve (Vector.vecFromRep "Type") h)
-               RTS.pIsJust "296:29--296:58" "Expected `name`"
+               RTS.pIsJust "299:29--299:58" "Expected `name`"
                  (HS.getField @"name" _9)
           HS.pure (_10 HS.== x)
      RTS.pEnter "PdfValue.Guard" (PdfValue.pGuard _11)
@@ -688,10 +695,10 @@ pChunk ::
 pChunk (n :: HS.Integer) (pP :: D.Parser f) =
   do (cur :: RTS.Input) <- RTS.pPeek
      (this :: RTS.Input) <-
-       RTS.pIsJust "284:11--284:16" "Not enough bytes"
+       RTS.pIsJust "287:11--287:16" "Not enough bytes"
          (RTS.limitLen n cur)
      (next :: RTS.Input) <-
-       RTS.pIsJust "285:11--285:16" "Not enough bytes"
+       RTS.pIsJust "288:11--288:16" "Not enough bytes"
          (RTS.advanceBy n cur)
      RTS.pSetInput this
      (__ :: f) <- pP
@@ -708,7 +715,7 @@ pLookupName (k :: Vector.Vector (RTS.UInt 8))
   do (vV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
      (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "331:3--331:12" "Expected `name`"
+       RTS.pIsJust "334:3--334:12" "Expected `name`"
          (HS.getField @"name" vV)
      HS.pure __
  
@@ -722,7 +729,7 @@ pLookupNats (k :: Vector.Vector (RTS.UInt 8))
   do (kV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
      (vs :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "316:9--316:19" "Expected `array`"
+       RTS.pIsJust "319:9--319:19" "Expected `array`"
          (HS.getField @"array" kV)
      (__ :: Vector.Vector HS.Integer) <-
        RTS.loopMapM
@@ -730,7 +737,7 @@ pLookupNats (k :: Vector.Vector (RTS.UInt 8))
             do (v1 :: PdfValue.Value) <-
                  RTS.pEnter "PdfDecl.ResolveVal" (pResolveVal v)
                (rV :: PdfValue.Number) <-
-                 RTS.pIsJust "319:11--319:22" "Expected `number`"
+                 RTS.pIsJust "322:11--322:22" "Expected `number`"
                    (HS.getField @"number" v1)
                (__ :: HS.Integer) <-
                  RTS.pEnter "PdfValue.NumberAsNat" (PdfValue.pNumberAsNat rV)
@@ -746,11 +753,11 @@ pLookupRef ::
  
 pLookupRef (k :: a) (m :: Map.Map a PdfValue.Value) =
   do (vV :: PdfValue.Value) <-
-       RTS.pIsJust "325:11--325:20"
+       RTS.pIsJust "328:11--328:20"
          ("Missing key: " HS.++ HS.show (k :: a))
          (Map.lookup k m)
      (__ :: PdfValue.Ref) <-
-       RTS.pIsJust "326:5--326:13" "Expected `ref`"
+       RTS.pIsJust "329:5--329:13" "Expected `ref`"
          (HS.getField @"ref" vV)
      HS.pure __
  
@@ -797,10 +804,10 @@ _Chunk ::
 _Chunk (n :: HS.Integer) (_P :: D.Parser ()) =
   do (cur :: RTS.Input) <- RTS.pPeek
      (this :: RTS.Input) <-
-       RTS.pIsJust "284:11--284:16" "Not enough bytes"
+       RTS.pIsJust "287:11--287:16" "Not enough bytes"
          (RTS.limitLen n cur)
      (next :: RTS.Input) <-
-       RTS.pIsJust "285:11--285:16" "Not enough bytes"
+       RTS.pIsJust "288:11--288:16" "Not enough bytes"
          (RTS.advanceBy n cur)
      RTS.pSetInput this
      _P
@@ -897,7 +904,7 @@ _CheckType (x :: Vector.Vector (RTS.UInt 8))
             do (_9 :: PdfValue.Value) <-
                  RTS.pEnter "PdfDecl.LookupResolve"
                    (pLookupResolve (Vector.vecFromRep "Type") h)
-               RTS.pIsJust "296:29--296:58" "Expected `name`"
+               RTS.pIsJust "299:29--299:58" "Expected `name`"
                  (HS.getField @"name" _9)
           HS.pure (_10 HS.== x)
      RTS.pEnter "PdfValue._Guard" (PdfValue._Guard _11)
@@ -1164,7 +1171,7 @@ _ApplyFilter (f :: Filter) (body :: RTS.Input) =
                       (RTS.pEnter "PdfDecl._ASCII85Decode" (_ASCII85Decode body))))
              (RTS.pEnter "unsupported"
                 ((RTS.<||)
-                   (RTS.pGuard "205:19--205:36" "guard failed"
+                   (RTS.pGuard "208:19--208:36" "guard failed"
                       (HS.getField @"param" f
                          HS.== (HS.Nothing
                                   :: HS.Maybe
@@ -1178,7 +1185,9 @@ _ApplyFilters ::
 _ApplyFilters
   (header :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
   (initialBody :: RTS.Input) =
-  do (filter_names :: Vector.Vector PdfValue.Value) <-
+  do (decrypt :: RTS.Input) <-
+       RTS.pEnter "PdfDecl.Decrypt" (pDecrypt initialBody)
+     (filter_names :: Vector.Vector PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookOptArray"
          (pLookOptArray (Vector.vecFromRep "Filter") header)
      (filter_params :: Vector.Vector PdfValue.Value) <-
@@ -1191,7 +1200,7 @@ _ApplyFilters
              do (param :: PdfValue.Value) <-
                   RTS.pEnter "PdfDecl.Default"
                     (pDefault @PdfValue.Value PdfValue.nullValue
-                       (RTS.pIsJust "142:34--142:52" "Index out of bounds"
+                       (RTS.pIsJust "143:34--143:52" "Index out of bounds"
                           ((Vector.!?) filter_params ix)))
                 (filter :: Filter) <-
                   RTS.pEnter "PdfDecl.Filter" (pFilter name param)
@@ -1199,21 +1208,21 @@ _ApplyFilters
                   RTS.pEnter "PdfDecl.Default"
                     (pDefault @ApplyFilter bytes
                        (do (bs :: RTS.Input) <-
-                             RTS.pIsJust "144:27--144:37" "Expected `ok`"
+                             RTS.pIsJust "145:27--145:37" "Expected `ok`"
                                (HS.getField @"ok" bytes)
                            RTS.pErrorMode RTS.Abort
                              (do (__ :: ApplyFilter) <-
                                    RTS.pEnter "PdfDecl.ApplyFilter" (pApplyFilter filter bs)
                                  HS.pure __)))
                 HS.pure __)
-          (ApplyFilter_ok initialBody)
+          (ApplyFilter_ok decrypt)
           filter_names)
      HS.pure ()
  
 _BEBytes :: HS.Integer -> D.Parser ()
  
 _BEBytes (n :: HS.Integer) =
-  RTS.pSkipExact n (HS.const () HS.<$> RTS.pByte "300:28--300:32")
+  RTS.pSkipExact n (HS.const () HS.<$> RTS.pByte "303:28--303:32")
  
 _CheckExpected :: PdfValue.Ref -> (TopDecl -> D.Parser ())
  
@@ -1222,6 +1231,12 @@ _CheckExpected (r :: PdfValue.Ref) (d :: TopDecl) =
     (PdfValue._Guard
        ((HS.getField @"id" d HS.== HS.getField @"obj" r)
           HS.&& (HS.getField @"gen" d HS.== HS.getField @"gen" r)))
+ 
+_Decrypt :: RTS.Input -> D.Parser ()
+ 
+_Decrypt (body :: RTS.Input) =
+  do HS.void (RTS.pEnter "PdfDecl.Decrypt" (pDecrypt body))
+     HS.pure ()
  
 _Default :: forall a. RTS.DDL a => D.Parser () -> D.Parser ()
  
@@ -1235,15 +1250,15 @@ _FilterParam ::
  
 _FilterParam (param :: a) =
   (RTS.|||)
-    (RTS.pIsJust_ "155:7--155:24" "Expected `null`"
+    (RTS.pIsJust_ "156:7--156:24" "Expected `null`"
        (HS.getField @"null" param))
-    (RTS.pIsJust_ "156:12--156:24" "Expected `dict`"
+    (RTS.pIsJust_ "157:12--157:24" "Expected `dict`"
        (HS.getField @"dict" param))
  
 _Filter :: PdfValue.Value -> (PdfValue.Value -> D.Parser ())
  
 _Filter (name :: PdfValue.Value) (param :: PdfValue.Value) =
-  do RTS.pIsJust_ "150:11--150:22" "Expected `name`"
+  do RTS.pIsJust_ "151:11--151:22" "Expected `name`"
        (HS.getField @"name" name)
      RTS.pEnter "PdfDecl._FilterParam"
        (_FilterParam @PdfValue.Value @()
@@ -1260,7 +1275,7 @@ _LookupNat (k :: Vector.Vector (RTS.UInt 8))
   do (vV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
      (v :: PdfValue.Number) <-
-       RTS.pIsJust "310:11--310:22" "Expected `number`"
+       RTS.pIsJust "313:11--313:22" "Expected `number`"
          (HS.getField @"number" vV)
      RTS.pEnter "PdfValue._NumberAsNat" (PdfValue._NumberAsNat v)
  
@@ -1273,13 +1288,13 @@ _FlateDecodeParams
      :: HS.Maybe
           (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =
   (RTS.<||)
-    (RTS.pGuard "211:5--211:21" "guard failed"
+    (RTS.pGuard "214:5--214:21" "guard failed"
        (params
           HS.== (HS.Nothing
                    :: HS.Maybe
                         (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value))))
     (do (ps :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-          RTS.pIsJust "215:17--215:30" "Expected `Just`" params
+          RTS.pIsJust "218:17--218:30" "Expected `Just`" params
         RTS.pEnter "PdfDecl._Default"
           (_Default @HS.Integer
              (RTS.pEnter "PdfDecl._LookupNat"
@@ -1306,13 +1321,13 @@ _LZWDecodeParams
      :: HS.Maybe
           (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =
   (RTS.<||)
-    (RTS.pGuard "238:5--238:21" "guard failed"
+    (RTS.pGuard "241:5--241:21" "guard failed"
        (params
           HS.== (HS.Nothing
                    :: HS.Maybe
                         (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value))))
     (do (ps :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-          RTS.pIsJust "242:19--242:32" "Expected `Just`" params
+          RTS.pIsJust "245:19--245:32" "Expected `Just`" params
         RTS.pEnter "PdfDecl._Default"
           (_Default @HS.Integer
              (do HS.void
@@ -1349,7 +1364,7 @@ _OneOrArray :: PdfValue.Value -> D.Parser ()
 _OneOrArray (v :: PdfValue.Value) =
   RTS.pEnter "PdfDecl._Default"
     (_Default @(Vector.Vector PdfValue.Value)
-       (RTS.pIsJust_ "278:43--278:52" "Expected `array`"
+       (RTS.pIsJust_ "281:43--281:52" "Expected `array`"
           (HS.getField @"array" v)))
  
 _LookOptArray ::
@@ -1374,7 +1389,7 @@ _LookupName (k :: Vector.Vector (RTS.UInt 8))
   (m :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
   do (vV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
-     RTS.pIsJust_ "331:3--331:12" "Expected `name`"
+     RTS.pIsJust_ "334:3--334:12" "Expected `name`"
        (HS.getField @"name" vV)
  
 _LookupNats ::
@@ -1387,7 +1402,7 @@ _LookupNats (k :: Vector.Vector (RTS.UInt 8))
   do (kV :: PdfValue.Value) <-
        RTS.pEnter "PdfDecl.LookupResolve" (pLookupResolve k m)
      (vs :: Vector.Vector PdfValue.Value) <-
-       RTS.pIsJust "316:9--316:19" "Expected `array`"
+       RTS.pIsJust "319:9--319:19" "Expected `array`"
          (HS.getField @"array" kV)
      HS.void
        (RTS.loopMapM
@@ -1395,7 +1410,7 @@ _LookupNats (k :: Vector.Vector (RTS.UInt 8))
              do (v1 :: PdfValue.Value) <-
                   RTS.pEnter "PdfDecl.ResolveVal" (pResolveVal v)
                 (rV :: PdfValue.Number) <-
-                  RTS.pIsJust "319:11--319:22" "Expected `number`"
+                  RTS.pIsJust "322:11--322:22" "Expected `number`"
                     (HS.getField @"number" v1)
                 (__ :: HS.Integer) <-
                   RTS.pEnter "PdfValue.NumberAsNat" (PdfValue.pNumberAsNat rV)
@@ -1410,10 +1425,10 @@ _LookupRef ::
  
 _LookupRef (k :: a) (m :: Map.Map a PdfValue.Value) =
   do (vV :: PdfValue.Value) <-
-       RTS.pIsJust "325:11--325:20"
+       RTS.pIsJust "328:11--328:20"
          ("Missing key: " HS.++ HS.show (k :: a))
          (Map.lookup k m)
-     RTS.pIsJust_ "326:5--326:13" "Expected `ref`"
+     RTS.pIsJust_ "329:5--329:13" "Expected `ref`"
        (HS.getField @"ref" vV)
  
 _ResolveValRef :: PdfValue.Ref -> D.Parser ()

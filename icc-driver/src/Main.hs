@@ -123,6 +123,7 @@ fmtHuman bytes = Format
         putStrLn ("[WARNING] Document version " ++ showVersion v ++
                                           " does not match the spec")
   , profileOK = \p -> do putStrLn "[OK] Header"
+
                          pPrint p
   , tagError = \ent e -> putStrLn ("[ERROR] " ++ show ent) >> humanError bytes e
   , tagOK = \ent _ -> putStrLn ("[OK] " ++ show ent)

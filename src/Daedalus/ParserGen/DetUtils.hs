@@ -1,46 +1,49 @@
 module Daedalus.ParserGen.DetUtils
-  ( ChoiceTag(..),
+  ( SymbolicStack,
+    ChoiceTag(..),
     ChoicePos,
     initChoicePos,
     nextChoicePos,
-    CfgDet,
+    CfgDet(..),
     initCfgDet,
-    ClosurePath,
-    initClosurePath,
-    addClosurePath,
-    addInputHeadConditionClosurePath,
-    stateInClosurePath,
-    lengthClosurePath,
-    getLastState,
-    getLastCfgDet,
-    hasBranchAction,
-    ClosureMove(..),
+    simulateActionCfgDet,
+    setupCfgDetFromPrev,
+    ClosureMove,
     ClosureMoveSet,
-    ClosureMoveSetPoly,
-    filterNoMove,
     InputHeadCondition(..),
-    TraceSet,
+    matchInputHeadCondition,
+    SourceCfg,
+    DFAStateEntry(..),
+    DFAState,
+    iterDFAState,
+    findAllEntryInDFAState,
     DetChoice,
     emptyDetChoice,
     insertDetChoice,
-    unionDetChoice
+    unionDetChoice,
+    DFAStateQuotient,
+    mkDFAStateQuotient,
+    convertDFAStateToQuotient,
+    iterDFAStateQuotient
   ) where
 
 
 -- import Debug.Trace
+import Data.Sequence as Seq
+import qualified Data.Set as Set
 
 --import qualified Data.Set as Set
+import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isBranchAction)
--- import Daedalus.ParserGen.Aut (Aut, lookupAut, Choice(..), toListTr, transition, acceptings, initials)
+import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..))
 
-import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList)
+import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList, matchClassInterval)
 
 data SymbolicStack =
     SWildcard
   | SEmpty
   | SCons State SymbolicStack
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 
 
@@ -56,38 +59,43 @@ nextChoicePos :: ChoicePos -> ChoicePos
 nextChoicePos pos = (fst pos, snd pos +1)
 
 
-type SymbolicData = SymbolicStack
-
 data CfgDet = CfgDet
   { cfgState  :: State
-  , cfgRuleNb :: Maybe ChoicePos
+  , cfgAlts :: Seq.Seq ChoicePos
   , cfgStack  :: SymbolicStack
   }
+  deriving (Eq, Show)
+
+
+compareCfgDet :: CfgDet -> CfgDet -> Ordering
+compareCfgDet cfg1 cfg2 =
+  case compare (cfgState cfg1) (cfgState cfg2) of
+    LT -> LT
+    GT -> GT
+    EQ ->
+      case compare (cfgAlts cfg1) (cfgAlts cfg2) of
+        LT -> LT
+        GT -> GT
+        EQ -> compare (cfgStack cfg1) (cfgStack cfg2)
+
+compareCfgDetAsSrc :: CfgDet -> CfgDet -> Ordering
+compareCfgDetAsSrc cfg1 cfg2 =
+  case compare (cfgState cfg1) (cfgState cfg2) of
+    LT -> LT
+    GT -> GT
+    EQ -> compare (cfgStack cfg1) (cfgStack cfg2)
+
+instance Ord CfgDet where
+  compare c1 c2 = compareCfgDetAsSrc c1 c2
 
 
 initCfgDet :: State -> CfgDet
 initCfgDet q =
-  CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = SWildcard }
-
-
-data ClosurePath =
-    CP_Empty CfgDet
-  | CP_Cons ClosurePath Action CfgDet
-
-
-instance Show ClosurePath where
-  show p =
-    show (collectActions p [])
-    where
-      collectActions pth acc =
-        case pth of
-          CP_Empty _ -> acc
-          CP_Cons up act _ -> collectActions up (act:acc)
-
-
-initClosurePath :: CfgDet -> ClosurePath
-initClosurePath cfg =
-  CP_Empty cfg
+  CfgDet
+  { cfgState = q
+  , cfgAlts = Seq.empty
+  , cfgStack = SWildcard
+  }
 
 
 symbExecAction :: SymbolicStack -> Action -> Maybe SymbolicStack
@@ -105,83 +113,41 @@ symbExecAction stk act =
     _ -> Just stk
 
 
-getLastCfgDet :: ClosurePath -> CfgDet
-getLastCfgDet p =
-  case p of
-    CP_Empty x -> x
-    CP_Cons _ _ x -> x
-
-getLastSymbData :: ClosurePath -> SymbolicData
-getLastSymbData p = cfgStack (getLastCfgDet p)
-
-getLastState :: ClosurePath -> State
-getLastState p = cfgState (getLastCfgDet p)
-
-
-addClosurePath :: ChoicePos -> Action -> State -> ClosurePath -> Maybe ClosurePath
-addClosurePath pos a q p =
-  let symbData = getLastSymbData p in
-  case symbExecAction symbData a of
+simulateActionCfgDet :: ChoicePos -> Action -> State -> CfgDet -> Maybe CfgDet
+simulateActionCfgDet pos act q cfg =
+  let st = cfgStack cfg in
+  case symbExecAction st act of
     Nothing -> Nothing
     Just sd ->
-      let cfgDet = CfgDet { cfgState = q, cfgRuleNb = Just pos, cfgStack = sd }
-      in Just $ CP_Cons p a cfgDet
-
-addInputHeadConditionClosurePath :: ClosurePath -> InputHeadCondition -> State -> ClosurePath
-addInputHeadConditionClosurePath p i q =
-  let newStack = cfgStack (getLastCfgDet p) in -- TODO : there should be some symbolic execution here
-  let cfg = CfgDet { cfgState = q, cfgRuleNb = Nothing, cfgStack = newStack } in
-    case i of
-      HeadInput itv -> CP_Cons p (IAct (ClssItv itv)) cfg
-      EndInput      -> CP_Cons p (IAct IEnd) cfg
+      Just $
+        CfgDet
+          { cfgState = q
+          , cfgAlts = cfgAlts cfg |> pos
+          , cfgStack = sd
+          }
 
 
+setupCfgDetFromPrev :: State -> CfgDet -> CfgDet
+setupCfgDetFromPrev q cfg =
+  CfgDet
+    { cfgState = q
+    , cfgAlts = Empty
+    , cfgStack = cfgStack cfg
+    }
 
-stateInClosurePath :: State -> ClosurePath -> Bool
-stateInClosurePath q p =
-  case p of
-    CP_Empty cfg -> q == cfgState cfg
-    CP_Cons up _ cfg -> if q == cfgState cfg then True else stateInClosurePath q up
-
-lengthClosurePath :: ClosurePath -> Int
-lengthClosurePath p =
-  helper p 0
-  where
-    helper pth acc =
-      case pth of
-        CP_Empty _ -> acc
-        CP_Cons up _ _ -> helper up (acc+1)
-
-hasBranchAction :: ClosurePath -> Bool
-hasBranchAction p =
-  case p of
-    CP_Empty _ -> False
-    CP_Cons up act _cfg ->
-      if isBranchAction act
-      then True
-      else hasBranchAction up
-
+resetCfgDet :: CfgDet -> CfgDet
+resetCfgDet cfg =
+  CfgDet
+    { cfgState = cfgState cfg
+    , cfgAlts = Empty
+    , cfgStack = cfgStack cfg
+    }
 
 -- The conjonction of a closure path and a move (pair action, destination state)
 
-type ClosureMovePoly a = (ClosurePath, (a, State))
+type ClosureMove = (CfgDet, (ChoicePos, Action, State))
 
-data ClosureMove a =
-    Move (ClosureMovePoly a)
-  | NoMove
-
-
-type ClosureMoveSet = [ClosureMove Action]
-type ClosureMoveSetPoly a = [ClosureMovePoly a]
-
-
-filterNoMove :: ClosureMoveSet -> ClosureMoveSetPoly Action
-filterNoMove tc =
-  foldr (\ c r ->
-         case c of
-           Move (da,(act,q)) -> (da,(act,q)) : r
-           NoMove  -> r
-      ) [] tc
+type ClosureMoveSet = [ClosureMove]
 
 
 data InputHeadCondition =
@@ -189,33 +155,106 @@ data InputHeadCondition =
   | EndInput
   deriving (Show)
 
-type TraceSet = [ (ClosurePath, State) ]
+matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
+matchInputHeadCondition c i =
+  case c of
+    HeadInput a ->
+      case Input.inputByte i of
+        Nothing -> Nothing
+        Just (x, xs) -> if matchClassInterval a x then Just xs else Nothing
+    EndInput ->
+      if Input.inputEmpty i then Just i else Nothing
 
-unionTraceSet :: TraceSet -> TraceSet -> TraceSet
-unionTraceSet s1 s2 = s1 ++ s2
 
-singletonTraceSet :: (ClosurePath, State) -> TraceSet
-singletonTraceSet x = [x]
+type SourceCfg = CfgDet
+
+data DFAStateEntry = DFAStateEntry
+  { srcDFAState :: SourceCfg
+  , dstDFAState :: CfgDet
+  , moveDFAState :: (ChoicePos, Action, State)
+  }
+  deriving Show
+
+
+compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareSrc p1 p2 =
+  -- TODO: test replacing with
+  -- compareCfgDetAsSrc (srcDFAState p1) (srcDFAState p2)
+  compareCfgDet (srcDFAState p1) (srcDFAState p2)
+
+compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDst p1 p2 =
+  compareCfgDet (dstDFAState p1) (dstDFAState p2)
+
+compareDFAStateEntry :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDFAStateEntry p1 p2 =
+  case compareDst p1 p2 of
+    LT -> LT
+    GT -> GT
+    EQ -> compareSrc p1 p2
+
+
+instance Eq DFAStateEntry where
+  (==) e1 e2 = compareDFAStateEntry e1 e2 == EQ
+
+
+instance Ord DFAStateEntry where
+  compare p1 p2 = compareDFAStateEntry p1 p2
+
+
+type DFAState = Set.Set DFAStateEntry
+
+iterDFAState :: DFAState -> Maybe (DFAStateEntry, DFAState)
+iterDFAState s =
+  let lst = Set.toAscList s in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, Set.fromAscList xs)
+
+findEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> Maybe (DFAStateEntry, DFAState)
+findEntryInDFAState s test =
+  case iterDFAState s of
+    Nothing -> Nothing
+    Just (x, xs) ->
+      if test x then Just (x,xs)
+      else case findEntryInDFAState xs test of
+             Nothing -> Nothing
+             Just (r, rs) -> Just (r, Set.insert x rs)
+
+findAllEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> ([DFAStateEntry], DFAState)
+findAllEntryInDFAState s test =
+  case findEntryInDFAState s test of
+    Nothing -> ([], s)
+    Just (x, xs) ->
+      let (lst, rest) = findAllEntryInDFAState xs test
+      in (x:lst, rest)
+
+
+unionDFAState :: DFAState -> DFAState -> DFAState
+unionDFAState s1 s2 = Set.union s1 s2
+
+singletonDFAState :: DFAStateEntry -> DFAState
+singletonDFAState x = Set.singleton x
 
 
 -- fst element is a list of class action transition, the snd possible element is for EndInput test
-type DetChoice = ([ (ClassInterval, TraceSet) ], Maybe TraceSet)
+type DetChoice = ([ (ClassInterval, DFAState) ], Maybe DFAState)
 
 emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
 
-insertDetChoice :: (ClosurePath, (InputHeadCondition, State)) -> DetChoice -> DetChoice
-insertDetChoice (da, (ih,q)) d =
+insertDetChoice :: SourceCfg -> InputHeadCondition -> (CfgDet, (ChoicePos, Action, State)) -> DetChoice -> DetChoice
+insertDetChoice src ih (cfg, (pos, act, q)) d =
   let (classChoice, endChoice) = d
-      tr = singletonTraceSet (da, q)
+      tr = singletonDFAState (DFAStateEntry src cfg (pos, act, q))
   in
   case ih of
     EndInput ->
       case endChoice of
         Nothing -> (classChoice, Just tr)
-        Just tr1 -> (classChoice, Just (unionTraceSet tr tr1))
+        Just tr1 -> (classChoice, Just (unionDFAState tr tr1))
     HeadInput x ->
-      (insertItvInOrderedList (x, tr) classChoice unionTraceSet, endChoice)
+      (insertItvInOrderedList (x, tr) classChoice unionDFAState, endChoice)
 
 
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
@@ -225,8 +264,44 @@ unionDetChoice (cl1, e1) (cl2, e2) =
           (Nothing, Nothing) -> Nothing
           (Nothing, Just _tr2) -> e2
           (Just _tr1, Nothing) -> e1
-          (Just tr1, Just tr2) -> Just (unionTraceSet tr1 tr2)
+          (Just tr1, Just tr2) -> Just (unionDFAState tr1 tr2)
   in
   let cl3 =
-        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionTraceSet) cl2 cl1
+        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFAState) cl2 cl1
   in (cl3, e3)
+
+
+newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
+  deriving Show
+
+mkDFAStateQuotient :: State -> DFAStateQuotient
+mkDFAStateQuotient q =
+    DFAQuo (Set.singleton (CfgDet q Empty SWildcard))
+
+equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
+equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
+
+instance Eq DFAStateQuotient where
+  (==) q1 q2 = equivDFAStateQuotient q1 q2
+
+instance Ord DFAStateQuotient where
+  compare q1 q2 =
+    compare (dfaQuo q1) (dfaQuo q2)
+
+convertDFAStateToQuotient :: DFAState -> DFAStateQuotient
+convertDFAStateToQuotient s =
+  DFAQuo (helper s)
+  where
+    helper set =
+      case iterDFAState set of
+        Nothing -> Set.empty
+        Just (DFAStateEntry _ cfg (_,_,q) , es) ->
+          Set.insert (resetCfgDet (setupCfgDetFromPrev q cfg)) (helper es)
+
+
+iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
+iterDFAStateQuotient s =
+  let lst = Set.toAscList (dfaQuo s) in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))

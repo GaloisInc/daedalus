@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
 module Daedalus.Type.AST
-  ( module Daedalus.Type.AST 
+  ( module Daedalus.Type.AST
   , module LocalAST
   , Rec(..), recToList
   , SourceRange
@@ -265,6 +265,7 @@ data TCDecl a   = forall k.
                          , tcDeclParams   :: ![Param]
                          , tcDeclDef      :: !(TCDeclDef a k)
                          , tcDeclCtxt     :: !(Context k)
+                         , tcDeclAnnot    :: !(a)
                          }
 
 deriving instance Show a => Show (TCDecl a)
@@ -394,10 +395,10 @@ instance PP (TCF a k) where
       TCMapLookup s k m ->
           wrapIf (n > 0) (annotKW' s "Lookup" <+> ppPrec 1 k <+> ppPrec 1 m)
 
-      TCArrayLength e -> 
+      TCArrayLength e ->
           wrapIf (n > 0) ("Length" <+> ppPrec 1 e)
 
-      TCArrayIndex s v ix -> 
+      TCArrayIndex s v ix ->
           wrapIf (n > 0) (annotKW' s "Index" <+> ppPrec 1 v <+> ppPrec 1 ix)
 
       TCChoice c es _ -> "Choose" <+> pp c $$
@@ -559,7 +560,7 @@ ppTyDef sc =
 
 -- This is a hack, it assumes that Commit doesn't add anything
 annotKW' :: WithSem -> Doc -> Doc
-annotKW' s = annotKW s Commit 
+annotKW' s = annotKW s Commit
 
 annotKW :: WithSem -> Commit -> Doc -> Doc
 annotKW s cmt kw = pref <.> kw <.> suff
@@ -895,7 +896,7 @@ instance Eq (TCName k) where
 
 instance EqF TCName where
   eqF k k' = k == k'
-  
+
 -- NOTE: these ignore types, so names with different types will cause issues.
 instance OrdF TCName where
   compareF tn1 tn2 =

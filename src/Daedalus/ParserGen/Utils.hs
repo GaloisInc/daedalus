@@ -28,7 +28,7 @@ autToGraphviz aut =
                             _     -> "S" ++ show n2
               startNode = "S" ++ show n1
               strAct = case act of
-                         CAct (Push name _ _) -> "Push_" ++ tail (removeLast (show name)) ++ "_S" ++ show n2
+                         CAct (Push name _ _) -> "Push_" ++ tail (removeLast (showName name)) ++ "_S" ++ show n2
                          CAct (Pop n) -> "Pop" ++ show n
                          _     -> show act
               isDotted = case act of

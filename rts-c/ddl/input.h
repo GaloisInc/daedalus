@@ -4,6 +4,12 @@
 #include <cstdint>
 #include <cstring>
 
+#include <ddl/array.h>
+#include <ddl/number.h>
+#include <ddl/integer.h>
+
+namespace DDL {
+
 class Input {
   const char *name;           // Name identifying the input (e.g , file name)
   const char *bytes;          // Bytes for the whole input
@@ -15,6 +21,9 @@ class Input {
   // INV: last_offset <= bytes_len
 
 public:
+  Input ()
+    : name(NULL), bytes(NULL), bytes_len(0), offset(0), last_offset(0) {}
+
   Input ( const char *name, const char *bytes )
     : name(name), bytes(bytes), offset(0) {
     bytes_len = strlen(bytes);
@@ -55,6 +64,9 @@ public:
   // Assumes: n <= length()
   void    iTakeMut(size_t n) { last_offset = offset + n; }
 
+  Input iDropI(DDL::Integer n) { return iDrop(n.asSize()); }
+  Input iTakeI(DDL::Integer n) { return iTake(n.asSize()); }
+
 
   // Advance current location
   // Assumes: n <= length()
@@ -65,16 +77,20 @@ public:
   Input iTake(size_t n) { Input x(*this); x.iTakeMut(n); return x; }
 
   // Check if the given array of bytes is prefix of the current input.
-  bool hasPrefix(std::vector<uint8_t> pref) {
+  bool hasPrefix(DDL::Array<UInt<8>> pref) {
     size_t n = pref.size();
     if (length() < n) return false;
     for (size_t i = 0; i < n; ++i) {
-      if (bytes[offset + i] != pref[i]) return false;
+      if (bytes[offset + i] != pref[i].rep()) return false;
     }
     return true;
   }
 };
 
-// XXX: hash instance
+// XXX: comparisions
+// XXX: show function
+
+
+}
 
 #endif

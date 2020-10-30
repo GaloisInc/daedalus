@@ -254,6 +254,7 @@ doGeneralize as cs tparams decls
                         Defined d | r -> Defined (fixUpRecCallSites dMap d)
                         res ->  res
                   , tcDeclCtxt     = tcDeclCtxt
+                  , tcDeclAnnot    = tcDeclAnnot
                   }
 
   addTPsTy d = fixUpTCons tconMap d { tctyParams = tparams Map.! tctyName d }
@@ -411,6 +412,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                                 , tcDeclParams   = tps
                                 , tcDeclDef      = def
                                 , tcDeclCtxt     = nameContext
+                                , tcDeclAnnot    = ruleRange r
                                 }
                pure (d, map typeOf tps :-> typeOf def)
 
@@ -1562,9 +1564,3 @@ pureStruct r ls ts es
                pure (exprAt r (TCStruct (zip ls es) ty), ty)
   where
   repeated = [ l | (l : _ : _) <- group (sort ls) ]
-
-
-
-
-
-
