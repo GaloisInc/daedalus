@@ -64,6 +64,9 @@ cfgPdfDecl = CompilerCfg
 
       , primName "PdfDecl" "ASCII85Decode" AGrammar |->
         aps "D.ascii85Decode" [ "body" ]
+
+      , primName "PdfDecl" "Decrypt" AGrammar |-> 
+        aps "D.decrypt" [ "body" ]
       ]
   , cParserType = "D.Parser"
   , cImports    = [ Import "Primitives.Resolve" (QualifyAs "D"),
@@ -71,6 +74,7 @@ cfgPdfDecl = CompilerCfg
                     Import "Primitives.LZW" (QualifyAs "D"),
                     Import "Primitives.ASCIIHex" (QualifyAs "D"),
                     Import "Primitives.ASCII85" (QualifyAs "D"),
+                    Import "Primitives.Decrypt" (QualifyAs "D"),
                     Import "PdfMonad" (QualifyAs "D")
                   ]
   , cQualNames = UseQualNames

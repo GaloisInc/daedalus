@@ -1,23 +1,29 @@
-{-# Language OverloadedStrings, BlockArguments #-}
+{-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments #-}
 import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
+import GHC.Records(getField) 
 import System.IO(hPutStrLn,stderr)
 import System.Exit(exitFailure)
 import Text.PrettyPrint
 import SimpleGetOpt
 
 import RTS.Input(newInput)
+import RTS.Vector(vecFromRep,vecToRep,toList) 
+
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
+import PdfXRef(pEncryptionDict,TrailerDict) 
 import PdfValue(Value(..),Ref(..))
+import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
 import CommandLine
 import PP
 
+import Debug.Trace
 
 main :: IO ()
 main =
@@ -34,22 +40,13 @@ main =
               Left err  -> quit err
               Right idx -> pure idx
 
-     (refs, trail) <-
-       parseXRefs topInput idx >>= \res ->
-         case res of
-           ParseOk a    -> pure a
-           ParseAmbig _ -> error "BUG: Ambiguous XRef table."
-           ParseErr e   -> quit (show (pp e))
+     (refs, trail) <- 
+        handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     let run p =
-           do res <- runParser refs p topInput
-              case res of
-                ParseOk a     -> pure a
-                ParseAmbig {} -> quit "BUG: Ambiguous result"
-                ParseErr e    -> quit (show (pp e))
+     fileEC <- makeEncContextDom trail refs topInput (password opts) 
 
-         ppRef pref r =
-           do res <- runParser refs (pResolveRef r) topInput
+     let ppRef pref r =
+           do res <- runParser refs (fileEC r) (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -76,11 +73,48 @@ main =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do run (pPdfTrailer trail)
+          do handlePdfResult (runParser refs Nothing (pPdfTrailer trail) topInput) 
+                              "BUG: Ambiguous result" 
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
 
+handlePdfResult :: IO (PdfResult a) -> String -> IO a 
+handlePdfResult x msg = 
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg 
+        ParseErr e    -> quit (show (pp e))
+
+-- XXX: Very similar code in pdf-driver/src/driver/Main.hs. Should de-duplicate
+makeEncContextDom :: TrailerDict 
+                  -> ObjIndex 
+                  -> Input  
+                  -> BS.ByteString 
+                  -> IO (Ref -> Maybe EncContext)  
+makeEncContextDom trail refs topInput pwd = 
+  case (getField @"encrypt" trail, getField @"id" trail) of 
+    (Nothing, _) -> pure $ const Nothing -- No encryption 
+    (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Decryption disabled."
+                       pure $ const Nothing 
+    (Just d, Just fileID) -> do 
+      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict d) topInput) 
+                              "Ambiguous encryption dictionary"
+      if not $ elem (getField @"V" enc) [2,4] then 
+        do hPutStrLn stderr "WARNING: Unsupported cipher mode. Decryption disabled" 
+           pure $ const Nothing
+      else do 
+        let len = fromIntegral $ getField @"encLength" enc 
+            encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            firstid = vecToRep $ getField @"firstid" fileID 
+            filekey = makeFileKey len pwd encO encP firstid  
+        pure $ \(Ref ro rg) -> 
+          Just EncContext { key = filekey, 
+                            keylen = len, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg } 
 
 quit :: String -> IO a
 quit msg =

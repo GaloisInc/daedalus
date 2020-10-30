@@ -4,17 +4,21 @@ module CommandLine where
 import Text.Read(readMaybe)
 import SimpleGetOpt
 
+import qualified Data.ByteString.Char8 as C 
+
 data Command =
     PrettyPrint
   | PrettyPrintAll
   | Validate
   | ListXRefs
   | ShowHelp
+  -- | ShowEncrypt  
 
 data Settings = Settings
   { command     :: Command
   , object      :: Integer
   , generation  :: Integer
+  , password    :: C.ByteString 
   , files       :: [FilePath]
   }
 
@@ -25,6 +29,7 @@ options = OptSpec
         { command     = Validate
         , object      = -1    -- means show trailer
         , generation  = 0
+        , password    = C.empty 
         , files       = []
         }
 
@@ -37,6 +42,10 @@ options = OptSpec
         "Pretty print trailier or the reference --obj --gen"
         $ NoArg \s -> Right s { command = PrettyPrint }
 
+      -- , Option [] ["enc"]
+      --   "Print the Encryption table."
+      --   $ NoArg \s -> Right s { command = ShowEncrypt }
+
       , Option [] ["list"]
         "Pretty print all objects in the PDF."
         $ NoArg \s -> Right s { command = PrettyPrintAll }
@@ -48,6 +57,10 @@ options = OptSpec
       , Option [] ["gen"]
         "Set the generation of the focused object."
       $ ReqArg "NUM" $ integerArg "gen" \g s -> Right s { generation = g }
+
+      , Option [] ["pwd"]
+        "Set the encryption password for the document."
+      $ ReqArg "STRING" $ (\v opts -> Right opts { password = C.pack v} ) 
 
       , Option [] ["help"]
         "Show this help."

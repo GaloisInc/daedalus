@@ -7,7 +7,6 @@ def CrossRef = Choose {
   newXref = XRefObj;
 }
 
-
 --------------------------------------------------------------------------------
 -- "Old style" xref section and trailer
 
@@ -152,10 +151,31 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) = {
                 just (x is ref);
               };
   prev    = Optional (LookupNat "Prev" dict);
-  all     = ^ dict;
+  encrypt = Optional { 
+    @d = Lookup "Encrypt" dict; 
+    commit;
+    d is ref; 
+  }; 
+  -- XXX: should be mandatory if encryption is enabled 
+  id = Optional { 
+    @i = Lookup "ID" dict; 
+    commit; 
+    firstid = Index (i is array) 0 is string; 
+    allid = ^i 
+  }; 
+  all = ^ dict;
 }
 
-
-
+def EncryptionDict (eref : Ref) = { 
+  @encdict = (ResolveValRef eref) is dict; 
+  encFilter = (Lookup "Filter" encdict) is name; 
+  encLength = LookupNat "Length" encdict <| ^ 40; 
+  encO = (Lookup "O" encdict) is string; 
+  encP = { 
+    @v = (Lookup "P" encdict) is number; 
+    ^ v.num;
+  }; 
+  V = LookupNat "V" encdict; 
+} 
 
 
