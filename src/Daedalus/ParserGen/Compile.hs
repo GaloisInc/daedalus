@@ -4,7 +4,7 @@
 
 module Daedalus.ParserGen.Compile where
 
---import Debug.Trace
+-- import Debug.Trace
 
 import Data.Word
 import qualified Data.ByteString as BS
@@ -21,7 +21,7 @@ import Daedalus.ParserGen.Aut
 
 ------- 1 Allocate States
 
-allocate :: a -> Int -> Int -> ((a, PAST.Annot), Int)
+allocate :: a -> Int -> Int -> ((a, [Int]), Int)
 allocate p start num =
   let newlast = start + num
   in ((p, [(start+1) .. newlast]), newlast)
@@ -29,7 +29,7 @@ allocate p start num =
 
 idCExpr :: Show a => TC a Class -> TC (a, PAST.Annot) Class
 idCExpr cexpr =
-  annotExpr ((texprAnnot cexpr), []) subexpr
+  annotExpr ((texprAnnot cexpr), PAST.emptyAnnot) subexpr
   where
     subexpr =
       case texprValue cexpr of
@@ -50,7 +50,7 @@ idCExpr cexpr =
 
 idVExpr :: Show a => TC a Value -> TC (a, PAST.Annot) Value
 idVExpr vexpr =
-  annotExpr ((texprAnnot vexpr), []) subexpr
+  annotExpr ((texprAnnot vexpr), PAST.emptyAnnot) subexpr
   where
     subexpr =
       case texprValue vexpr of
@@ -111,7 +111,7 @@ getByteArray2 e =
 
 allocGExpr :: Show a => Int -> TC a Grammar -> (TC (a, PAST.Annot) Grammar, Int)
 allocGExpr n gexpr =
-  (annotExpr ((texprAnnot gexpr), states) subexpr, subexpr_n)
+  (annotExpr ((texprAnnot gexpr), PAST.Annot { annotStates = states, annotDeclName = Nothing }) subexpr, subexpr_n)
   where
     ((subexpr, states), subexpr_n) =
       case texprValue gexpr of
@@ -141,13 +141,18 @@ allocGExpr n gexpr =
           allocate (TCGetByte ws) n 2
         TCMatch ws cexpr ->
           let acexpr = idCExpr cexpr
-          in allocate (TCMatch ws acexpr) n 2
+          in
+            let r = allocate (TCMatch ws acexpr) n 2
+            in -- trace (show ((snd (fst r)) !! 1) ++ " " ++ show (texprAnnot gexpr)) $
+               r
+
         TCMatchBytes ws vexpr ->
           let ae = idVExpr vexpr
           in
             case getByteArray2 ae of
               Nothing -> allocate (TCMatchBytes ws ae) n 2
               Just str -> allocate (TCMatchBytes ws ae) n (2 * (length str) + 2)
+
         TCChoice c lst t ->
           let step g (ags, n') = let (ag, n1) = allocGram n' g
                                  in (ag:ags, n1)
@@ -240,26 +245,24 @@ allocGram n gram =
         TCDo _ _ _ -> allocDo n1 gr
         TCPure _ -> allocDo n1 gr
         _ -> allocGExpr n1 gr
-      --trace ("ALLOC GRAM:" ++ show gr) $
-      -- (annotExpr ((texprAnnot gr), states) subexpr, subexpr_n)
-      -- where
-      --   ((subexpr, states), subexpr_n) =
+
+    allocDo :: Int -> TC a Grammar -> (TC (a, PAST.Annot) Grammar, Int)
     allocDo n1 gr =
       case texprValue gr of
         TCDo name gexpr gram1 ->
           let (agexpr, n2) = allocGram n1 gexpr
               (agram1, n3) = allocDo n2 gram1
               ((subexpr, states), subexpr_n) = allocate (TCDo name agexpr agram1) n3 2
-          in (annotExpr ((texprAnnot gr), states) subexpr, subexpr_n)
+          in (annotExpr ((texprAnnot gr), PAST.statesToAnnot states) subexpr, subexpr_n)
         TCPure vexpr ->
           let avexpr = idVExpr vexpr
               ((subexpr, states), subexpr_n) = allocate (TCPure avexpr) n1 2
-          in (annotExpr ((texprAnnot gr), states) subexpr, subexpr_n)
+          in (annotExpr ((texprAnnot gr), PAST.statesToAnnot states) subexpr, subexpr_n)
              -- x -> error ("broken invariant: only TCDo  or TCPure: " ++ show x)
         _ ->
           let (ag,n2) = allocGExpr (n1+2) gr
               subannot = texprAnnot ag
-          in (annotExpr (fst subannot, (snd subannot)++[n1+1, n1+2]) (texprValue ag), n2)
+          in (annotExpr (fst subannot, PAST.statesToAnnot ((PAST.annotStates $ snd subannot)++[n1+1, n1+2])) (texprValue ag), n2)
 
   in
     -- Two states are reserved for the top-level of binds and they are
@@ -267,7 +270,7 @@ allocGram n gram =
     let (ag, n1) = allocBindList (n+2) gram
         subannot = texprAnnot ag
     in
-    (annotExpr (fst subannot, (snd subannot)++[n+1, n+2]) (texprValue ag), n1)
+    (annotExpr (fst subannot, PAST.statesToAnnot ((PAST.annotStates $ snd subannot)++[n+1, n+2])) (texprValue ag), n1)
 
 
 allocDeclBody :: Show a => Int -> TCDecl a -> (TCDecl (a, PAST.Annot), Int)
@@ -277,15 +280,15 @@ allocDeclBody n _decl@(TCDecl {..}) =
     mkBody AClass (Defined tc) =
       let ae = idCExpr tc
           ((aae, lst), lastSt) = allocate ae n 2
-      in (Defined aae, lst, lastSt)
+      in (Defined aae, PAST.statesToAnnot lst, lastSt)
     mkBody AValue (Defined tc) =
       let ae = idVExpr tc
           ((aae, lst), lastSt) = allocate ae n 2
-      in (Defined aae, lst, lastSt)
+      in (Defined aae, PAST.statesToAnnot lst, lastSt)
     mkBody AGrammar (Defined tc) =
       let (ae, n1) = allocGram n tc
           ((aae, lst), lastSt) = allocate ae n1 2
-      in (Defined aae, lst, lastSt)
+      in (Defined aae, PAST.statesToAnnot lst, lastSt)
     mkBody _ (ExternDecl _) =
       error "TCExtern not handled"
 
@@ -439,54 +442,55 @@ systemToGrammars m =
 
 genGExpr :: PAST.GblGrammar -> TC (SourceRange, PAST.Annot) Grammar -> MapAut
 genGExpr gbl e =
-  let st = snd (texprAnnot e) in
+  let ann = snd (texprAnnot e)
+      getS i = PAST.getState ann i in
   case texprValue e of
     TCPure e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (SAct (EvalPure e1), n2))]) n2
     TCLabel _ g -> -- TODO: ignore the Label case
       genGram gbl g
     TCGuard e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (Guard e1), n2)) ]) n2
     TCCurrentStream ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (CurrentStream), n2)) ]) n2
     TCSetStream e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (SetStream e1), n2)) ]) n2
     TCStreamLen s e1 e2 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamLen s e1 e2), n2)) ]) n2
     TCStreamOff s e1 e2 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamOff s e1 e2), n2)) ]) n2
     TCGetByte s ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (IGetByte s), n2)) ]) n2
     TCMatch s e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (ClssAct s e1), n2)) ]) n2
     TCMatchBytes s e1 ->
       case getByteArray e1 of
         Nothing ->
-          let n1 = st !! 0
-              n2 = st !! 1
+          let n1 = getS 0
+              n2 = getS 1
           in mkAut n1 (mkTr [(n1, UniChoice (IAct (IMatchBytes s e1), n2))]) n2
         Just w ->
-          mkAut (st !! 0) (mkTr (createTrans 0)) stSemEnd
+          mkAut (getS 0) (mkTr (createTrans 0)) stSemEnd
           where
             strLen = length w
-            stSemStart = st !! (2*strLen)
-            stSemEnd =   st !! (2*strLen + 1)
+            stSemStart = getS (2*strLen)
+            stSemEnd =   getS (2*strLen + 1)
             createTrans index =
               if index >= strLen
               then
@@ -500,9 +504,9 @@ genGExpr gbl e =
                                         , tcAnnotExpr = TCLiteral (LByte (w !! index)) tByte })
                     eSetSingle = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCSetSingle ebyte})
                     iact = ClssAct NoSem eSetSingle
-                    n0 = st !! (2 * index)
-                    n1 = st !! (2 * index + 1)
-                    n2 = st !! (2 * (index + 1))
+                    n0 = getS (2 * index)
+                    n1 = getS (2 * index + 1)
+                    n2 = getS (2 * (index + 1))
                     tr = [ (n0, UniChoice (IAct iact, n1))
                          , (n1, UniChoice (SAct DropOneOut, n2))
                          ]
@@ -510,8 +514,8 @@ genGExpr gbl e =
 
     TCChoice c lst _ty ->
       let lstITF = map (\ expr -> dsAut $ genGram gbl expr) lst
-          n1 = st !! 0
-          n2 = st !! 1
+          n1 = getS 0
+          n2 = getS 1
           transIn  = foldr (\ (i1,_t1,_f1,_) accTr -> (EpsA, i1) : accTr) [] lstITF
           transBdy = foldr (\ (_i1,t1,_f1,_) accTr -> unionTr t1 accTr) emptyTr lstITF
           pops     = foldr (\ (_,_,_, p1) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
@@ -525,8 +529,8 @@ genGExpr gbl e =
             in mkAutWithPop n1 (unionTr (mkTr1 (n1, ParChoice transIn)) (unionTr (mkTr transOut) transBdy)) n2 pops
     TCOptional c e1 ->
       let (i1, t1, f1, pops) = dsAut $ genGram gbl e1
-          n1 = st !! 0
-          n2 = st !! 1
+          n1 = getS 0
+          n2 = getS 1
           trans =
             case c of
               Commit ->
@@ -540,14 +544,14 @@ genGExpr gbl e =
       in mkAutWithPop n1 (unionTr (mkTr trans) t1) n2 pops
     TCMany s c bounds e1 ->
       let (i1, t1, f1, pops) = dsAut $ genGram gbl e1
-          n1 = st !! 0
-          n2 = st !! 1
-          n3 = st !! 2
-          n4 = st !! 3
-          n5 = st !! 4
-          n6 = st !! 5
-          n7 = st !! 6
-          n8 = st !! 7
+          n1 = getS 0
+          n2 = getS 1
+          n3 = getS 2
+          n4 = getS 3
+          n5 = getS 4
+          n6 = getS 5
+          n7 = getS 6
+          n8 = getS 7
           loopTrans =
             case c of
               Backtrack -> -- Not sure this case is possible or tested at the moment
@@ -572,32 +576,32 @@ genGExpr gbl e =
                 ]
       in mkAutWithPop n1 (unionTr (mkTr loopTrans) t1) n8 pops
     TCEnd ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct IEnd, n2)) ]) n2
     TCOffset ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct IOffset, n2)) ]) n2
     TCMapLookup ws e1 e2 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (MapLookup ws e1 e2), n2)) ]) n2
     TCMapInsert ws e1 e2 e3 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (MapInsert ws e1 e2 e3), n2)) ]) n2
     TCCoerceCheck ws t1 t2 e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (CoerceCheck ws t1 t2 e1), n2)) ]) n2
     TCSelUnion ws e1 lbl _ty ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (SAct (SelUnion ws e1 lbl), n2))]) n2
     TCSelJust ws e1 _ty ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (SAct (SelJust ws e1), n2))]) n2
     TCFor lp ->
       case loopFlav lp of
@@ -606,9 +610,9 @@ genGExpr gbl e =
               nname2 = tcName (loopElName lp)
               e2 = loopCol lp
               gram = loopBody lp
-              n1 = st !! 0
-              n2 = st !! 1
-              n3 = st !! 2
+              n1 = getS 0
+              n2 = getS 1
+              n3 = getS 2
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (ForInit nname1 e1 nname2 e2), n2))
@@ -620,9 +624,9 @@ genGExpr gbl e =
           let nname1 = tcName (loopElName lp)
               e1 = loopCol lp
               gram = loopBody lp
-              n1 = st !! 0
-              n2 = st !! 1
-              n3 = st !! 2
+              n1 = getS 0
+              n2 = getS 1
+              n3 = getS 2
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (MapInit nname1 e1), n2))
@@ -637,18 +641,18 @@ genGExpr gbl e =
               case x of
                 Nothing -> error ("Name not found in gbl grammar: " ++ show nname)
                 Just r -> tcDeclAnnot r
-          n1 = st !! 0
-          n2 = st !! 1
-          call = annot !! 0
-          ret  = annot !! 1
+          n1 = getS 0
+          n2 = getS 1
+          call = PAST.getState annot 0
+          ret  = PAST.getState annot 1
           trans = mkTr
             [ (n1, UniChoice (CAct (Push nname (map argToValue le) n2), call))
             -- , (ret, UniChoice (CAct (Pop n2), n2))
             ]
       in mkAutWithPop n1 trans n2 (addPopTrans ret n2 emptyPopTrans)
     TCErrorMode c e1 ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
           (i1, t1, f1, pops) = dsAut $ genGram gbl e1
           trans =
             case c of
@@ -659,8 +663,8 @@ genGExpr gbl e =
               Backtrack -> error "not handled in ErrorMode"
       in mkAutWithPop n1 (unionTr (mkTr trans) t1) n2 pops
     TCFail e1 _ ->
-      let n1 = st !! 0
-          n2 = st !! 1
+      let n1 = getS 0
+          n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
 
     x -> error ("Case not handled: " ++ show x)
@@ -686,15 +690,16 @@ genGram gbl e =
         TCPure _   -> (genForDo expr, DoSeq)
         _ -> (genGExpr gbl expr, NonDoSeq)
 
+    genForDo :: TC (SourceRange, PAST.Annot) Grammar -> MapAut
     genForDo expr =
-      let sts = snd $ texprAnnot expr in
+      let ann = snd $ texprAnnot expr in
       case texprValue expr of
         TCDo mname e1 e2 ->
           let name = maybe Nothing (\x -> Just $ tcName x) mname
               (i1,t1,f1,pops1) = dsAut $ genGram gbl e1
               (i2,t2,f2,pops2) = dsAut $ genForDo e2
-              n1 = sts !! 0
-              n2 = sts !! 1
+              n1 = PAST.getState ann 0
+              n2 = PAST.getState ann 1
               trans = mkTr
                 [ (n1, UniChoice (EpsA, i1))
                 , (f1, UniChoice (SAct (EnvStore name), i2))
@@ -702,14 +707,14 @@ genGram gbl e =
                 ]
           in mkAutWithPop n1 (unionTr trans (unionTr t1 t2)) n2 (unionPopTrans pops1 pops2)
         TCPure e1 ->
-          let n1 = sts !! 0
-              n2 = sts !! 1
+          let n1 = PAST.getState ann 0
+              n2 = PAST.getState ann 1
           in mkAut n1 (mkTr [(n1, UniChoice (SAct (ReturnBind e1), n2))]) n2
         _x ->
           let
               (i1,t1,f1, pops) = dsAut $ genGExpr gbl expr
-              n1 = sts !! (length sts - 2)
-              n2 = sts !! (length sts - 1)
+              n1 = PAST.getState ann (PAST.getStatesLength ann - 2)
+              n2 = PAST.getState ann (PAST.getStatesLength ann - 1)
               trans = mkTr
                 [ (n1, UniChoice (EpsA, i1))
                 , (f1, UniChoice (SAct ReturnLast, n2))
@@ -719,9 +724,10 @@ genGram gbl e =
   in
     let (aut, wg) = genForBindList e
         (i1,t1,f1,pops) = dsAut $ aut
-        st = snd $ texprAnnot e
-        n1 = st !! (length st - 2)
-        n2 = st !! (length st - 1)
+        ann = snd $ texprAnnot e
+        getS i = PAST.getState ann i
+        n1 = getS (PAST.getStatesLength ann - 2)
+        n2 = getS (PAST.getStatesLength ann - 1)
         trans =
           case wg of
             DoSeq -> mkTr [ (n1, UniChoice (SAct EnvFresh, i1)), (f1, UniChoice (EpsA, n2))]
@@ -730,10 +736,10 @@ genGram gbl e =
 
 
 genDecl :: PAST.GblGrammar -> TCDecl (SourceRange, PAST.Annot) -> MapAut
-genDecl gbl (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined e, tcDeclAnnot = (_,st), tcDeclParams = ps}) =
+genDecl gbl (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined e, tcDeclAnnot = (_,ann), tcDeclParams = ps}) =
   let (i1,t1,f1,pops) = dsAut $ genGram gbl e
-      n1 = st !! 0
-      n2 = st !! 1
+      n1 = PAST.getState ann 0
+      n2 = PAST.getState ann 1
       trans = mkTr
         [ (n1, UniChoice (CAct (ActivateFrame (map paramToName ps)), i1))
         , (f1, UniChoice (CAct (DeactivateReady), n2))
@@ -773,8 +779,8 @@ buildMapAut decls =
                if isInfixOf "Main" (show ident) then Just (k, a) else Nothing
       ) Nothing allocDecls
     mainAnnots = getTCModuleAnnot mainInfo
-    startState = mainAnnots !! 0
-    finalState = mainAnnots !! 1
+    startState = PAST.getState mainAnnots 0
+    finalState = PAST.getState mainAnnots 1
     mainName = mainFullName
     f a (trAccu,popsAccu) =
       let (_i, t, _f, p1) = dsAut $ genDecl allocGrammar a in (unionTr t trAccu, unionPopTrans p1 popsAccu)
