@@ -12,12 +12,13 @@ module Daedalus.Type.AST
   , SourceRange
   ) where
 
-import Data.Word(Word8)
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse)
 import qualified Data.Kind as HS
 import Data.Text(Text)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Data.Parameterized.Classes -- OrdF
 
@@ -31,7 +32,7 @@ import Daedalus.AST as LocalAST
         , ModuleName
         , isLocalName
         , nameScopeAsLocal, Context(..), TypeF(..)
-        , Located(..), ScopedIdent(..), Value, Grammar, Class)
+        , Located(..), ScopedIdent(..), Value, Grammar, Class, Literal(..))
 
 import Daedalus.PP
 
@@ -139,18 +140,18 @@ data TCF :: HS -> Ctx -> HS where
    TCCoerce       :: Type -> Type -> TC a Value -> TCF a Value
 
    -- Value constructors
-   TCNumber     :: Integer -> Type -> TCF a Value
-   TCBool       :: Bool    -> TCF a Value
+
+   -- We only really need the Type for LNumber
+   TCLiteral    :: Literal -> Type -> TCF a Value
+   
    TCNothing    :: Type -> TCF a Value
    TCJust       :: TC a Value -> TCF a Value
-   TCByte       :: Word8   -> TCF a Value
 
    TCUnit       :: TCF a Value
    TCStruct     :: [ (Label,TC a Value) ] -> Type -> TCF a Value
    -- The type is the type of the result,
    -- which should be a named struct type, possibly with some parameters.
 
-   TCByteArray  :: ByteString -> TCF a Value
    TCArray      :: [TC a Value] -> Type -> TCF a Value
     -- Type of elements (for empty arr.)
 
@@ -197,9 +198,24 @@ data TCF :: HS -> Ctx -> HS where
    TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
       -- Custom error message: message (byte array)
 
+   -- destructors for union types
+
+   -- FIXME: we currently expand out union patterns, but we could
+   -- retain to keep the information.  We could also expand out the default.
+
+   --  FIXME: we only need the context if we want to examine an
+   --  expression.  Note that in the case that the alternatives are
+   --  empty and there is no default we cannot infer the context by
+   --  looking at the acrguments to the constructor
+
+   TCSelCase :: Context k -> TC a Value -> Map Label (Maybe (TCName Value), TC a k)
+             -> Maybe (TC a k) -> Type ->  TCF a k
+
+   -- Currently unsupported ...
+   -- TCLiteralCase :: Context k -> Type -> TC a Value -> [PatternCase (TC a k)]
+   --               -> Maybe (TC a k) -> TCF a k
+
 deriving instance Show a => Show (TCF a k)
-
-
 
 
 data LoopFlav a = Fold (TCName Value) (TC a Value)
@@ -403,16 +419,14 @@ instance PP (TCF a k) where
 
       -- Values
       TCIn l e _    -> braces (pp l <.> colon <+> ppPrec 1 e)
-      TCByte b      -> text (show (toEnum (fromEnum b) :: Char))
-      TCNumber i _  -> integer i
-      TCBool i      -> if i then "true" else "false"
+      
+      TCLiteral l _ -> pp l
       TCNothing _   -> "nothing"
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
       TCUnit        -> "{}"
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
-      TCByteArray b -> text (show (BS8.unpack b))
 
       TCCall f [] []  -> pp f
       TCCall f ts xs -> wrapIf (n > 0) (pp f <+>
@@ -474,6 +488,13 @@ instance PP (TCF a k) where
           Nothing  -> "Fail"
           Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
+      TCSelCase _ e pats mdef _ -> "case" <+> pp e <+> "is" $$
+                               nest 2 (block "{" ";" "}" (ppPats ++ ppDef))
+        where
+          ppPats = map ppOne (Map.toList pats)
+          ppOne (l, (mv, e')) = pp l <+> maybe "_" pp mv <+> "->" <+> pp e'
+          ppDef = maybe [] (\be -> ["_ ->" <+> pp be]) mdef
+          
 instance PP a => PP (Poly a) where
   ppPrec n (Poly xs cs a) =
     case (xs,cs) of
@@ -807,14 +828,11 @@ instance TypeOf (TCF a k) where
 
       TCIf _ e _      -> typeOf e
 
-      TCNumber _ t    -> t
-      TCBool _        -> tBool
+      TCLiteral _ t   -> t
       TCUnit          -> tUnit
       TCNothing t     -> t
       TCJust e        -> tMaybe (typeOf e)
-      TCByte _        -> tByte
       TCStruct _ t    -> t
-      TCByteArray _   -> tArray tByte
       TCArray _ t     -> tArray t
       TCIn _ _ t      -> t
       TCVar x         -> tcType x
@@ -855,6 +873,8 @@ instance TypeOf (TCF a k) where
 
       TCErrorMode _ p     -> typeOf p
       TCFail _ t          -> tGrammar t
+      TCSelCase _ _ _ _ t -> t
+
 
 declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =

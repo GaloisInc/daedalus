@@ -6,6 +6,7 @@ module Daedalus.Scope (
 
 import Data.Functor ( ($>) )
 import Data.Set(Set)
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
 import Data.Graph.SCC(stronglyConnComp)
@@ -45,10 +46,13 @@ data Scope = Scope { moduleVars    :: ModuleScope
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
+                | DifferentCaseVars ModuleName [Name]
                   deriving Show
 
 instance PP ScopeError where
   pp (ScopeViolation _mn n) = "Undeclared variable" <+> backticks (pp n)
+  pp (DifferentCaseVars _mn vs) = "Multiple names for pattern match variables:"
+                                  <+> sep (punctuate ", " $ map pp vs)
   pp (DuplicateNames _mn m) = "Duplicate rules:"
                                $$ nest 2 (bullets (map mkOne (Map.toList m)))
     where
@@ -203,8 +207,7 @@ instance ResolveNames RuleParam where
 instance ResolveNames e => ResolveNames (ExprF e) where
   resolve expr =
     case expr of
-      ENumber {}      -> pure expr
-      EBool {}        -> pure expr
+      ELiteral {}     -> pure expr
       ENothing {}     -> pure expr
       EJust e         -> EJust <$> resolve e
       EMatch e        -> EMatch <$> resolve e
@@ -217,6 +220,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x
       ETry e          -> ETry      <$> resolve e
+      ECase e ps      -> ECase     <$> resolve e <*> mapM resolveCasePatterns ps
 
       EAnyByte        -> pure expr
       EOptional c e   -> EOptional c <$> resolve e
@@ -263,8 +267,6 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EPure e         -> EPure     <$> resolve e
       EFail msg       -> EFail     <$> resolve msg
 
-      EBytes _        -> pure expr
-      EByte _         -> pure expr
       EInRange e1 e2  -> EInRange  <$> resolve e1 <*> resolve e2
       ETriOp op e1 e2 e3 -> ETriOp op <$> resolve e1
                                       <*> resolve e2
@@ -329,3 +331,23 @@ resolveStructFields (f : fs) =
       do f'  <- ctor (makeNameLocal x) <$> resolve e
          fs' <- extendLocalScopeIn [x] (resolveStructFields fs)
          pure (f' : fs')
+
+resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
+resolveCasePatterns (PatternDefault e)  = PatternDefault <$> resolve e
+resolveCasePatterns (PatternCase ps e)
+  | not (sameBinds selVars) = do
+      scope <- getScope
+      ScopeM $ throwError (DifferentCaseVars (currentModule scope) names)
+  | otherwise = PatternCase (map localise ps) <$> extendLocalScopeIn names (resolve e)
+  where
+    names = catMaybes selVars
+    
+    selVars = [ mv | SelPattern _ mv <- ps ]
+
+    sameBinds :: [Maybe Name] -> Bool
+    sameBinds [] = True
+    sameBinds (mv : rest) = all (== mv) rest
+
+    localise :: Pattern -> Pattern
+    localise (SelPattern l mbv) = SelPattern l (makeNameLocal <$> mbv)
+    localise p = p

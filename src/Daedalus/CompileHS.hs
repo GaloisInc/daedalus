@@ -343,11 +343,12 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
-    TCNumber n t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
-    TCBool b     -> hsBool b
+    TCLiteral (LNumber n) t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+    TCLiteral (LBool b)   _ -> hsBool b
+    TCLiteral (LByte b)   _ -> "RTS.uint8" `Ap` hsWord8 b
+    
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
-    TCByte b    -> "RTS.uint8" `Ap` hsWord8 b
     TCUnit      -> Tuple []
     TCStruct fs t ->
       case t of
@@ -356,7 +357,7 @@ hsValue env tc =
         _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
 
 
-    TCByteArray b -> "Vector.vecFromRep" `Ap` hsByteString b
+    TCLiteral (LBytes b) _ -> "Vector.vecFromRep" `Ap` hsByteString b
 
     TCArray vs t  ->
       case vs of
