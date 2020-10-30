@@ -218,7 +218,7 @@ getMatchBytes act =
 getByteArray :: NVExpr -> Maybe [Word8]
 getByteArray e =
   case texprValue e of
-    TCByteArray w -> Just (BS.unpack w)
+    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
     _ -> Nothing
 
 type Val = Interp.Value
@@ -534,12 +534,11 @@ isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
   case texprValue e of
     TCCoerce _ _ _ -> False
-    TCNumber _ _ -> True
-    TCBool _ -> False
+    TCLiteral (LNumber {}) _ -> True
+    TCLiteral (LByte   {}) _ -> True
+    TCLiteral _            _ -> False    
     TCNothing _ty -> False
-    TCByte _ -> True
     TCStruct _lst _ -> False
-    TCByteArray _ -> False
     TCMapEmpty _ty -> False
     TCIn _lbl _e1 _ty -> False
     TCBinOp _binop _e1 _e2 _t -> False
@@ -556,6 +555,21 @@ isSimpleVExpr e =
 defaultValue :: Val
 defaultValue = Interp.VStruct []
 
+evalLiteral :: Literal -> Type -> Val
+evalLiteral lit t =
+  case lit of
+    LNumber n ->
+      case t of
+        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
+        Type (TInteger)              -> Interp.VInteger n
+        _ -> error "TODO: more type for integer"
+    LBool b   -> Interp.VBool b
+    LBytes bs ->
+      Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
+    LByte w -> Interp.VUInt 8 (fromIntegral w)
+    
+    
+
 
 evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
 evalVExpr gbl expr ctrl out =
@@ -564,22 +578,14 @@ evalVExpr gbl expr ctrl out =
     eval env e =
       case texprValue e of
         TCCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
-        TCNumber n t ->
-          case t of
-            Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
-            Type (TInteger) -> Interp.VInteger n
-            _ -> error "TODO: more type for integer"
-        TCBool b -> Interp.VBool b
+        TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
         TCJust e1 ->
           let ve1 = eval env e1
           in Interp.VMaybe (Just ve1)
-        TCByte w -> Interp.VUInt 8 (fromIntegral w)
         TCStruct lst _ ->
           Interp.VStruct (map (\ (lbl, v) -> (lbl, eval env v)) lst)
-        TCByteArray bs ->
-          Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
         TCMapEmpty _ty -> Interp.VMap (Map.empty)
         TCIn lbl e1 _ty ->
           let ve1 = eval env e1 in

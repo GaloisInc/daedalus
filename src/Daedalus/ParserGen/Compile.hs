@@ -56,14 +56,11 @@ idVExpr vexpr =
     subexpr =
       case texprValue vexpr of
         TCCoerce ty1 ty2 e1 -> TCCoerce ty1 ty2 (idVExpr e1)
-        TCNumber i t -> TCNumber i t
-        TCBool b -> TCBool b
+        TCLiteral lit t -> TCLiteral lit t
         TCNothing t -> TCNothing t
         TCJust e -> TCJust (idVExpr e)
-        TCByte w -> TCByte w
         TCStruct s t -> TCStruct (map (\ (s',e) -> (s', idVExpr e)) s) t
         TCUnit -> TCUnit
-        TCByteArray ba -> TCByteArray ba
         TCArray lst t -> TCArray (map idVExpr lst) t
         TCMapEmpty t -> TCMapEmpty t
         TCIn lbl e lst -> TCIn lbl (idVExpr e) lst
@@ -109,7 +106,7 @@ convertManyBounds b = fmap idVExpr b
 getByteArray2 :: TC a Value -> Maybe [Word8]
 getByteArray2 e =
   case texprValue e of
-    TCByteArray w -> Just (BS.unpack w)
+    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
     _ -> Nothing
 
 
@@ -500,7 +497,8 @@ genGExpr gbl e =
                     let eunit = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCUnit}) in
                     [(stSemStart, UniChoice (SAct (EvalPure eunit), stSemEnd))]
               else
-                let ebyte = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCByte (w !! index)})
+                let ebyte = TC (TCAnnot { tcAnnot = texprAnnot e
+                                        , tcAnnotExpr = TCLiteral (LByte (w !! index)) tByte })
                     eSetSingle = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCSetSingle ebyte})
                     iact = ClssAct NoSem eSetSingle
                     n0 = st !! (2 * index)
