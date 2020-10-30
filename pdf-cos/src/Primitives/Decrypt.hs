@@ -27,12 +27,12 @@ decrypt inp = do
         pError FromUser "Decrypt.decrypt" "Encrypted data size is not a multiple of 16"
       else do 
         let aeskey = makeObjKey ctx  
-        decrypt  <- case keylen ctx of 
-                      128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
-                      192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
-                      256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
-                      _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
-        res <- stripPadding decrypt 
+        dec <- case keylen ctx of 
+                128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
+                192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
+                256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
+                _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
+        res <- stripPadding dec 
         pure $ newInput name res
   where 
     (hd, dat) = B.splitAt 16 $ inputBytes inp
@@ -95,6 +95,9 @@ makeFileKey len pwd opwd perm fileid =
 
 stripPadding :: PdfParser m => B.ByteString -> m B.ByteString 
 stripPadding input =  
+    if B.length input < 32 then 
+        pError FromUser "Decrypt.decrypt" "Bad encrypted data length"
+    else   
     if padsize > 16 || not padWF then 
       pError FromUser "Decrypt.decrypt" "Bad padding in decrypted data. This is usually caused by an incorrect document password" 
     else pure res 
