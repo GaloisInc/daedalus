@@ -157,25 +157,25 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) = {
     d is ref; 
   }; 
   -- XXX: should be mandatory if encryption is enabled 
-  -- XXX: it's convenient 
   id = Optional { 
     @i = Lookup "ID" dict; 
     commit; 
     firstid = Index (i is array) 0 is string; 
     allid = ^i 
   }; 
-  all     = ^ dict;
+  all = ^ dict;
 }
 
 def EncryptionDict (eref : Ref) = { 
   @encdict = (ResolveValRef eref) is dict; 
   encFilter = (Lookup "Filter" encdict) is name; 
-  encLength = LookupNat "Length" encdict; 
+  encLength = LookupNat "Length" encdict <| ^ 40; 
   encO = (Lookup "O" encdict) is string; 
   encP = { 
     @v = (Lookup "P" encdict) is number; 
     ^ v.num;
-  } 
+  }; 
+  V = LookupNat "V" encdict; 
 } 
 
 
