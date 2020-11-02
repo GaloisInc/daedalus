@@ -88,7 +88,14 @@ public:
 };
 
 // XXX: comparisions
-// XXX: show function
+
+inline
+std::ostream& operator<<(std::ostream& os, Input x) {
+  os << "Input"; // XXX
+  return os;
+}
+
+
 
 
 }

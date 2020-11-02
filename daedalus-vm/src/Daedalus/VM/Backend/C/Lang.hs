@@ -60,9 +60,9 @@ cGoto e = cStmt ("goto" <+> e)
 cBlock :: [CStmt] -> CStmt
 cBlock xs = ("{" <+> vcat xs) $$ "}"
 
-cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> CStmt
-cDefineCon name params is =
-  hang (cCall name params) 2 (fsep [ initializers, "{}" ])
+cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> [CStmt] -> CStmt
+cDefineCon name params is stmts =
+  hang (cCall name params) 2 initializers <+> "{" $$ nest 2 (vcat stmts) $$ "}"
   where
   initializers = case is of
                    [] -> empty

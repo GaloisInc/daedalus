@@ -25,7 +25,6 @@ class Array : IsBoxed {
       Content *p   = (Content*) ::operator new(bytes);
       p->ref_count = 1;
       p->size      = n;
-      std::cout << "Allocated " << p << std::endl;
       return p;
     }
 
@@ -121,7 +120,9 @@ public:
 
 // -- Boxed --------------------------------------------------------------------
   size_t refCount() { return ptr->ref_count; }
-  void copy()       { ++(ptr->ref_count); }
+
+  void copy() { ++(ptr->ref_count); }
+
   void free() {
     size_t n = refCount();
     if (n == 1) {
@@ -130,7 +131,6 @@ public:
         T* arr = ptr->data;
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
-      std::cout << "Freeing " << ptr << std::endl;
       delete ptr;
     } else {
       ptr->ref_count = n - 1;
@@ -179,10 +179,12 @@ inline
 std::ostream& operator<<(std::ostream& os, Array<T> x) {
   size_t n = x.size();
 
-  bool first = true;
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
   for (size_t i = 0; i < n; ++i) {
-    os << (first ? "[" : ", ") << x.borrowElement(i);
-    first = false;
+    os << sep << x.borrowElement(i);
+    sep[0] = ',';
   }
   os << "]";
   return os;

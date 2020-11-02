@@ -168,6 +168,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
 
   getArgs = case blockType b of
               NormalBlock -> empty
+
               ReturnBlock n ->
                 let (ras,cas) = splitAt n (blockArgs b)
                     ty = cPtrT (cReturnClassName (blockName b))
@@ -180,7 +181,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   | (v,n) <- cas `zip` [ 0 .. ]
                   , let e = "clo->" <.> cField n
                   ] ++
-                  [ "clo->free();" ]
+                  [ cStmt "delete clo" ]
+
               ThreadBlock ->
                 let x : xs = blockArgs b
                     ty = cPtrT (cReturnClassName (blockName b))
@@ -192,7 +194,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                     | (v,n) <- xs `zip` [ 0 .. ]
                     , let e = "clo->" <.> cField n
                     ]
-                 ++ [ "clo->free();" ]
+                 ++ [ cStmt "delete clo" ]
 
               ThreadBlock -> "/* todo */"
 
@@ -268,7 +270,7 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 
 
 
-cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CExpr
+cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CStmt
 cOp1 x op1 ~[e'] =
   case op1 of
     Src.CoerceTo t      -> todo
@@ -297,7 +299,7 @@ cOp1 x op1 ~[e'] =
     Src.Concat -> todo
 
     Src.FinishBuilder ->
-      cVarDecl x $ cCall (cType (getType x)) [ e ]
+      cVarDecl x (cCall (cType (getType x)) [ e ])
 
     Src.NewIterator -> todo
     Src.IteratorDone -> todo
@@ -412,7 +414,9 @@ cTermStmt ccInstr =
           [ "return;" ]
       ]
 
-    ReturnNo -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
+    ReturnNo ->
+      [ cGoto ("*" <.> cCall "p.returnNo" [])
+      ]
 
     ReturnYes e ->
       [ cAssign (cRetVar (getType e)) (cExpr e)
@@ -424,7 +428,6 @@ cTermStmt ccInstr =
       , cGoto ("*" <.> cCall "p.returnPure" [])
       ]
 
-    -- "no
     Call f _ no yes es ->
         doPush no
       : doPush yes
@@ -432,7 +435,8 @@ cTermStmt ccInstr =
 
     CallPure f l es -> doPush l : cJump (JumpPoint (lkpFun f) es)
 
-    TailCall f _ es -> cJump (JumpPoint (lkpFun f) es)
+    TailCall f _ es ->
+        cJump (JumpPoint (lkpFun f) es)
 
   where
   lkpFun f = case Map.lookup f ?allFuns of

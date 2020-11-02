@@ -12,14 +12,13 @@ struct Closure {
   size_t ref_count;
   void   *code;
 
-  Closure(void *c) : ref_count(1), code(c) {}
+  Closure(void *c) : ref_count(1), code(c) { }
   virtual ~Closure() {}
   virtual void freeMembers() = 0;
 
   void free() {
     if (ref_count == 1) {
       freeMembers();
-      std::cout << "Deallocating " << this << std::endl;
       delete this;
     } else {
       --ref_count;

@@ -30,6 +30,7 @@ cReturnClass super l tys = cStmt $ vcat
         thisTy
         ("void* code" : [ cType t <+> param n | (t,n) <- fields ])
         ( (super,"code") : [ (cField n, param n) | (_,n) <- fields ] )
+        []
 
     , cDefineFun "void" "freeMembers" []
          [ cStmt (cCallMethod (cField n) "free" [])

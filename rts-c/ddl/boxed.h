@@ -31,23 +31,25 @@ struct BoxedValue {
   BoxedValue(T x) : ref_count(1), value(x) {}
 };
 
+
+
 // Relese this reference to the box.
 template <typename T>
 void free_boxed(BoxedValue<T> *ptr) {
   size_t n = ptr->ref_count;
   if (n == 1) {
     if constexpr (std::is_base_of<HasRefs,T>::value) ptr->value.free();
-    std::cout << "Freeing " << ptr << std::endl;
     delete ptr;
   }
-  else ptr->ref_count = n - 1;
+  else {
+    ptr->ref_count = n - 1;
+  }
 }
 
 // Relese this reference to the box.
 template <typename T>
 inline
 void copy_boxed(BoxedValue<T> *ptr) { ++(ptr->ref_count); }
-
 
 
 
@@ -63,25 +65,17 @@ class Boxed : IsBoxed {
 
 public:
   Boxed()    : ptr(NULL) {}
-  Boxed(T x) : ptr (new BoxedValue<T>(x)) {
-    std::cout << "Allocated " << ptr << std::endl;
-  }
+  Boxed(T x) : ptr (new BoxedValue<T>(x)) { }
 
   bool isNull() { return ptr == NULL; }
 
   size_t refCount() { return ptr->ref_count; }
 
   // Allocate without initializing the data, but ref count is 1
-  void allocate() {
-    ptr = new BoxedValue<T>();
-    std::cout << "Allocated " << ptr << std::endl;
-  }
+  void allocate() { ptr = new BoxedValue<T>(); }
 
   // Release the memory for an object that has already been unitialized.
-  void del() {
-    std::cout << "Freeing " << ptr << std::endl;
-    delete ptr;
-   }
+  void del() { delete ptr; }
 
   // Relese this reference to the box.
   void free() { free_boxed(ptr); }
@@ -96,6 +90,9 @@ public:
 
   bool operator == (Boxed x) { return getValue() == x.getValue(); }
   bool operator != (Boxed x) { return getValue() != x.getValue(); }
+
+  // For debugging
+  BoxedValue<T> *rawPtr() { return ptr; }
 };
 
 }
