@@ -297,19 +297,27 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
 
     Src.Concat ->
-      cVarDecl x $ cCall con [ e ]
-        where con = case getType e' of
-                      TSem (Src.TArray t) -> cSemType t
-                      _ -> panic "concat" [ "Not an array" ]
+      cVarDecl x $ cCall (cType (getType x)) [ e ]
 
     Src.FinishBuilder ->
       cVarDecl x (cCall (cType (getType x)) [ e ])
 
-    Src.NewIterator -> todo
-    Src.IteratorDone -> todo
-    Src.IteratorKey -> todo
-    Src.IteratorVal -> todo
-    Src.IteratorNext -> todo
+    Src.NewIterator  ->
+      cVarDecl x $ cCall (cType (getType x)) [ e ]
+
+    Src.IteratorDone ->
+      cVarDecl x $ cCallMethod e "done" []
+
+    Src.IteratorKey  ->
+      cVarDecl x $ cCallMethod e "key" []
+
+    Src.IteratorVal ->
+      cVarDecl x $ cCallMethod e "value" []
+
+    Src.IteratorNext ->
+      cVarDecl x $ cCallMethod e "next" []
+
+
     Src.EJust -> todo
     Src.IsJust -> todo
     Src.FromJust -> todo

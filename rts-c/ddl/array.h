@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <ddl/list.h>
+#include <ddl/integer.h>
 
 namespace DDL {
 
@@ -151,8 +152,8 @@ public:
     // Owned xs
     Iterator(Array xs)  : index(0), xs(xs) {}
 
-    bool   done() { return index >= xs.size(); }
-    size_t key() { return index; }
+    bool   done()       { return index >= xs.size(); }
+    DDL::Integer key()  { return DDL::Integer(index); }
 
     // Returns owned value
     T value()       { return xs[index]; }
