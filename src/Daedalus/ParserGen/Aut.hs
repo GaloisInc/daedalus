@@ -6,6 +6,9 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Array.IArray
 
+import Daedalus.Type.AST
+
+import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
 
 data Choice =
@@ -21,6 +24,7 @@ class Aut a where
   isAcceptingState :: a -> State -> Bool
   destructureAut :: a -> (State, [(State, Action, State)], State)
   popTransAut :: a -> PopTrans
+  stateMappingAut :: a -> State -> Maybe (SourceRange, PAST.Contx)
 
 type Transition = Map.Map State Choice
 
@@ -36,6 +40,7 @@ data MapAut = MapAut
   , transitionEps :: Maybe (Map.Map State [ State ])
   , transitionWithoutEps :: Maybe Transition
   , popTrans :: PopTrans
+  , stateMapping :: Map.Map State (SourceRange, PAST.Contx)
   }
   deriving Show
 
@@ -46,6 +51,7 @@ instance Aut MapAut where
   isAcceptingState dta s = isAccepting s dta
   destructureAut dta = toListAut dta
   popTransAut dta = popTrans dta
+  stateMappingAut dta q = Map.lookup q (stateMapping dta)
 
 mkAut :: State -> Transition -> Acceptings -> MapAut
 mkAut initial trans accepts =
@@ -56,6 +62,7 @@ mkAut initial trans accepts =
          , transitionEps = Nothing
          , transitionWithoutEps = Nothing
          , popTrans = emptyPopTrans
+         , stateMapping = Map.empty
          }
 
 mkAutWithPop :: State -> Transition -> Acceptings -> PopTrans -> MapAut
@@ -67,6 +74,7 @@ mkAutWithPop initial trans accepts pops =
          , transitionEps = Nothing
          , transitionWithoutEps = Nothing
          , popTrans = pops
+         , stateMapping = Map.empty
          }
 
 dsAut :: MapAut -> (State, Transition, Acceptings, PopTrans)
@@ -215,6 +223,7 @@ precomputeEps aut =
            , transitionEps = Just transEpsFiltered
            , transitionWithoutEps = Just transWithoutEps
            , popTrans = popTrans aut
+           , stateMapping = Map.empty
            }
 
 getEpsTransStates :: State -> MapAut -> [ State ]
@@ -283,6 +292,7 @@ instance Aut ArrayAut where
   isAcceptingState dta s = isAccepting s $ mapAut dta
   destructureAut dta = toListAut $ mapAut dta
   popTransAut dta = popTrans $ mapAut dta
+  stateMappingAut dta q = stateMappingAut (mapAut dta) q
   {-# SPECIALIZE INLINE nextTransition :: ArrayAut -> State -> Maybe Choice  #-}
   {-# INLINE isAcceptingState #-}
   {-# INLINE popTransAut #-}

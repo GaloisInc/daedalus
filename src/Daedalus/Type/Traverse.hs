@@ -373,5 +373,3 @@ mapTCF f = runIdentity . traverseTCF (pure . f)
 
 mapArg :: (a -> b) -> (forall s. TC a s -> TC b s) -> Arg a -> Arg b
 mapArg ann f = runIdentity . traverseArg (pure . mapTC ann f)
-
-
