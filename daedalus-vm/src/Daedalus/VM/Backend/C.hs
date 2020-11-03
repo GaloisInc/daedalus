@@ -169,8 +169,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   getArgs = case blockType b of
               NormalBlock -> empty
 
-              ReturnBlock n ->
-                let (ras,cas) = splitAt n (blockArgs b)
+              ReturnBlock rn ->
+                let (ras,cas) = splitAt rn (blockArgs b)
                     ty = cPtrT (cReturnClassName (blockName b))
                 in
                 cBlock $
@@ -234,7 +234,7 @@ cBlockStmt cInstr =
 
     CallPrim x p es ->
       case p of
-        StructCon ut ->
+        StructCon _ut ->
           let v = cVarUse x
           in vcat [ cDeclareVar (cType (getType x)) v
                   , cStmt (cCallMethod v structCon
@@ -273,8 +273,8 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CStmt
 cOp1 x op1 ~[e'] =
   case op1 of
-    Src.CoerceTo t      -> todo
-    Src.CoerceMaybeTo t -> todo
+    Src.CoerceTo _t      -> todo
+    Src.CoerceMaybeTo _t -> todo
 
     Src.IsEmptyStream ->
       cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
@@ -288,7 +288,7 @@ cOp1 x op1 ~[e'] =
     Src.StreamLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "length" [] ]
 
-    Src.OneOf bs -> todo
+    Src.OneOf _bs -> todo
     Src.Neg -> todo
     Src.BitNot -> todo
     Src.Not -> todo
@@ -313,16 +313,16 @@ cOp1 x op1 ~[e'] =
     Src.EJust -> todo
     Src.IsJust -> todo
     Src.FromJust -> todo
-    Src.SelStruct t l -> todo
+    Src.SelStruct _t _l -> todo
 
-    Src.InUnion ut l ->
+    Src.InUnion _ut l ->
       vcat [ cDeclareVar (cType (getType x)) (cVarUse x)
            , cStmt $ cCallMethod (cVarUse x) (unionCon l)
                                       [ e | getType e' /= TSem Src.TUnit ]
            ]
 
-    Src.HasTag l -> todo
-    Src.FromUnion t l -> todo
+    Src.HasTag _l -> todo
+    Src.FromUnion _t _l -> todo
   where
   todo = "/* todo (1)" <+> pp op1 <+> "*/"
   e = cExpr e'
