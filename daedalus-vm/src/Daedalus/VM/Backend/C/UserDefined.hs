@@ -276,7 +276,7 @@ cUnboxedSum vis tdecl =
 cBoxedSum :: TDecl -> CDecl
 cBoxedSum tdecl =
   vcat
-    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::HasRefs {"
+    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
     , nest 2 $ vcat attrs
     , "public:"
     , nest 2 $ vcat methods

@@ -89,16 +89,13 @@ cProgram fileNameRoot prog = (hpp,cpp)
 
 
   includes =
-    vcat [ "#include <vector>"
-         , "#include <unordered_map>"
-         , "#include <memory>"
-         , "#include <variant>"
-         , ""
-         , "#include <ddl/parser.h>"
+    vcat [ "#include <ddl/parser.h>"
+         , "#include <ddl/input.h>"
          , "#include <ddl/unit.h>"
+         , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
          , "#include <ddl/integer.h>"
-         , "#include <ddl/input.h>"
+         , "#include <ddl/maybe.h>"
          , "#include <ddl/array.h>"
          , "#include <ddl/map.h>"
          ]
@@ -189,7 +186,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                 in
                 cBlock
                   $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
-                  : cAssign (cArgUse b x) "clo->notified"
+                  : cAssign (cArgUse b x) (cCall "DDL::Bool" ["clo->notified"])
                   : [ cAssign (cArgUse b v) e
                     | (v,n) <- xs `zip` [ 0 .. ]
                     , let e = "clo->" <.> cField n
@@ -318,9 +315,15 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ cCallMethod e "next" []
 
 
-    Src.EJust -> todo
-    Src.IsJust -> todo
-    Src.FromJust -> todo
+    Src.EJust ->
+      cVarDecl x $ cCall (cType (getType x)) [e]
+
+    Src.IsJust ->
+      cVarDecl x $ cCallMethod e "isJust" []
+
+    Src.FromJust ->
+      cVarDecl x $ cCallMethod e "getValue" []
+
     Src.SelStruct _t _l -> todo
 
     Src.InUnion _ut l ->
@@ -411,7 +414,7 @@ cExpr expr =
                        Just e  -> cExpr e
                        Nothing -> cVarUse x
     EUnit         -> cCall "DDL::Unit" []
-    EBool b       -> if b then "true" else "false"
+    EBool b       -> cCall "DDL::Bool" [if b then "true" else "false"]
     ENum n ty     -> cCall f [ integer n ]
       where
       f = case ty of
@@ -436,7 +439,8 @@ cTermStmt ccInstr =
     Jump jp -> cJump jp
 
     JumpIf e choice ->
-      [ cIf (cExpr e) (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
+      [ cIf (cCallMethod (cExpr e) "getValue" [])
+            (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
       where
       doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
 

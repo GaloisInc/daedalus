@@ -31,6 +31,9 @@ struct BoxedValue {
   BoxedValue(T x) : ref_count(1), value(x) {}
 };
 
+template <typename T>
+constexpr
+bool hasRefs() { return std::is_base_of<HasRefs,T>::value; }
 
 
 // Relese this reference to the box.
@@ -38,7 +41,7 @@ template <typename T>
 void free_boxed(BoxedValue<T> *ptr) {
   size_t n = ptr->ref_count;
   if (n == 1) {
-    if constexpr (std::is_base_of<HasRefs,T>::value) ptr->value.free();
+    if constexpr (hasRefs<T>()) ptr->value.free();
     delete ptr;
   }
   else {
