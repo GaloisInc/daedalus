@@ -350,16 +350,20 @@ defShow vis _ tdecl =
         [ cStmt ("return os <<" <+> cString " }") ]
 
       TUnion fs ->
-        [ cStmt ("os <<" <+> cString "{|")
+        [ cStmt ("os <<" <+> cString "{| ")
         , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ cStmt $ "case" <+> cSumTagV l <.> colon <+>
-                      "os <<" <+> cString (show (pp l <+> "= ")) <+>
-                      "<<" <+> cCallMethod "x" (selName GenBorrow l) []
-                    | (l,_) <- fs ]
+                    [ "case" <+> cSumTagV l <.> colon <+>
+                      vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
+                           , cStmt "break"
+                           ]
+                    | (l,_) <- fs
+                    , let lab = cString (show (pp l <+> "= "))
+                          val = cCallMethod "x" (selName GenBorrow l) []
+                    ]
                , "}"
                ]
-        , cStmt ("return os <<" <+> cString "|}")
+        , cStmt ("return os <<" <+> cString " |}")
         ]
   where
   ty = cTypeNameUse vis tdecl
