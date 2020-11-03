@@ -296,7 +296,11 @@ cOp1 x op1 ~[e'] =
     Src.ArrayLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
 
-    Src.Concat -> todo
+    Src.Concat ->
+      cVarDecl x $ cCall con [ e ]
+        where con = case getType e' of
+                      TSem (Src.TArray t) -> cSemType t
+                      _ -> panic "concat" [ "Not an array" ]
 
     Src.FinishBuilder ->
       cVarDecl x (cCall (cType (getType x)) [ e ])
@@ -366,7 +370,7 @@ cOp2 x op2 ~[e1,e2] =
 
 
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
-cOp3 x op ~[e1,e2,e3] =
+cOp3 _x op ~[_,_,_] =
   case op of
     Src.PureIf      -> panic "cOp3" [ "PureIf" ]
     Src.RangeUp     -> todo
