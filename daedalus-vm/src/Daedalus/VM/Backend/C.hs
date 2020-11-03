@@ -252,10 +252,8 @@ cBlockStmt cInstr =
                                 ))
         Op1 op1      -> cOp1 x op1 es
         Op2 op2      -> cOp2 x op2 es
-        Op3 op3      -> cVarDecl x todo
-        OpN opN      -> cVarDecl x todo
-  where
-  todo = "/* todo (stmt)" <+> pp cInstr <+> "*/"
+        Op3 op3      -> cOp3 x op3 es
+        OpN opN      -> cOpN x opN es
 
 
 cFree :: (CurBlock, Copies) => Set VMVar -> [CStmt]
@@ -367,6 +365,28 @@ cOp2 x op2 ~[e1,e2] =
   todo = "/* todo (2)" <+> pp op2 <+> "*/"
 
 
+cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
+cOp3 x op ~[e1,e2,e3] =
+  case op of
+    Src.PureIf      -> panic "cOp3" [ "PureIf" ]
+    Src.RangeUp     -> todo
+    Src.RangeDown   -> todo
+    Src.MapInsert   -> todo
+  where
+  todo = "/* todo: op 3 " <+> pp op <+> "*/"
+
+
+
+cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
+cOpN x op es =
+  case op of
+    Src.ArrayL t -> cVarDecl x (cCall con (int (length es) : map cExpr es))
+      where con = cSemType (Src.TArray t)
+
+    Src.CallF _  -> panic "cOpN" ["CallF"]
+
+
+
 
 --------------------------------------------------------------------------------
 
@@ -394,8 +414,6 @@ cExpr expr =
 
   where
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
-
-
 
 
 --------------------------------------------------------------------------------
