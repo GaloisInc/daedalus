@@ -1,34 +1,43 @@
 module Daedalus.ParserGen.AST where
 
 -- import Data.Text(Text)
-
+-- import Debug.Trace
 
 -- import Data.ByteString(ByteString)
 -- import Data.Word
 import qualified Data.Map as Map
 
 import Daedalus.Type.AST hiding (ppBinder)
-
+import Daedalus.SourceRange
 
 -- import Daedalus.Normalise.AST (NType)
 
+type Contx = Name
+
 data Annot = Annot
   { annotStates :: [Int]
-  , annotDeclName :: Maybe Name
+  , annotContx :: Maybe Contx
   }
   deriving (Show)
 
 emptyAnnot :: Annot
-emptyAnnot = Annot { annotStates = [], annotDeclName = Nothing}
+emptyAnnot = Annot { annotStates = [], annotContx = Nothing}
+
+mkAnnot :: [Int] -> Contx -> Annot
+mkAnnot lst ctx =
+  Annot {annotStates = lst, annotContx = Just ctx}
 
 getState :: Annot -> Int -> Int
 getState ann i = (annotStates ann) !! i
 
 statesToAnnot :: [Int] -> Annot
-statesToAnnot lst = Annot { annotStates = lst, annotDeclName = Nothing}
+statesToAnnot lst = Annot { annotStates = lst, annotContx = Nothing}
 
 getStatesLength :: Annot -> Int
 getStatesLength ann = length $ annotStates ann
+
+nameToContx :: Name -> Contx
+nameToContx n = n
 
 -- No type variables.
 --data NType = NType (TypeF NType)
@@ -159,3 +168,12 @@ data CorV =
 type GblFuns = Map.Map Name ([Name], CorV)
 
 type GblGrammar = Map.Map Name (TCDecl (SourceRange, Annot))
+
+
+showSourceRange :: SourceRange -> String
+showSourceRange sr =
+  "(" ++ show (sourceLine $ sourceFrom sr) ++
+  "," ++ show (sourceColumn $ sourceFrom sr) ++
+  ")-(" ++ show (sourceLine $ sourceTo sr) ++
+  "," ++ show (sourceColumn $ sourceTo sr) ++
+  ")"

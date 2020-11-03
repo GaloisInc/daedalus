@@ -122,7 +122,7 @@ handleOptions opts
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    let dfa = PGen.createDFA aut
-                   PGen.statsDFA dfa
+                   PGen.statsDFA aut dfa
                    PGen.autToGraphviz aut
                 )
 

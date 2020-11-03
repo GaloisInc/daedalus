@@ -18,13 +18,15 @@ import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
+import qualified Data.Text as T
+
 
 import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (name2Text, State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import Daedalus.ParserGen.DetUtils
@@ -555,18 +557,22 @@ createDFA aut =
     collectMove (act, q) =
       if isInputAction act then Set.singleton q else Set.empty
 
-printDFA :: AutDet -> IO ()
-printDFA dfas =
+printDFA :: Aut a => a -> AutDet -> IO ()
+printDFA aut dfas =
   let t = IntMap.toList dfas
-  in if length t > 100
+  in if length t > 10000
      then do return ()
      else mapM_ (\ (k, (dfa,_)) -> do
-                    putStrLn $ showDFATransition (k, dfa)) t
+                    putStrLn $ maybe "" (\ (srcRg, x) -> T.unpack (name2Text x) ++ " " ++ showSourceRange srcRg) (stateMappingAut aut k)
+                    putStrLn $ showDFATransition (k, dfa)
+                    putStrLn ""
+                ) t
 
-statsDFA :: AutDet -> IO ()
-statsDFA dfas =
+
+statsDFA :: Aut a => a -> AutDet -> IO ()
+statsDFA aut dfas =
   let t = IntMap.toList dfas
-  in do printDFA dfas
+  in do printDFA aut dfas
         putStrLn "\nReport:"
         putStrLn $ getReport t initReport
         putStrLn $ "\nTotal nb states: " ++ show (length t)
