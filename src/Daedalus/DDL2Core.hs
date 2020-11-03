@@ -484,7 +484,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
          $ If (iteratorDone (Var i))
               (Pure (Var sVar))
          $    Let elVar (iteratorVal (Var i))
-         $    maybeAddKey (iteratorNext (Var i))
+         $    maybeAddKey (iteratorKey (Var i))
          $    Do nextS (g (Var i))
          $       Call f (Var nextS : iteratorNext (Var i) : es)
      pure $ Call f (initS : newIterator colE : es)
@@ -813,7 +813,7 @@ foldLoop colT ty vs0 sVar initS keyVar elVar colE g =
              (iteratorDone (Var i))
              (Var sVar)
          $   PureLet elVar (iteratorVal (Var i))
-         $   maybeAddKey   (iteratorNext (Var i))
+         $   maybeAddKey   (iteratorKey (Var i))
          $   callF f (g (Var i) : iteratorNext (Var i) : es)
 
      pure $ callF f (initS : newIterator colE : es)
