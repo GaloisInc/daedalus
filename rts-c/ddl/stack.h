@@ -16,9 +16,9 @@ struct Closure {
   virtual ~Closure() {}
   virtual void freeMembers() = 0;
 
-  void free() {
+  void free(bool shallow) {
     if (ref_count == 1) {
-      freeMembers();
+      if (!shallow) freeMembers();
       delete this;
     } else {
       --ref_count;
@@ -48,7 +48,7 @@ public:
   // Move the other stack into this one.
   void overwriteBy(Stack& other) {
     for (size_t i = 0; i < stack.size(); ++i) {
-      stack[i]->free();
+      stack[i]->free(false);
     }
     stack.resize(other.stack.size());
     for (size_t i = 0; i < other.stack.size(); ++i) {
@@ -76,7 +76,7 @@ public:
   void squish() {
     Closure *p = pop();
     Closure * &q = stack.back();
-    q->free();
+    q->free(false);
     q = p;
   }
 

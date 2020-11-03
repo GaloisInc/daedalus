@@ -181,7 +181,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   | (v,n) <- cas `zip` [ 0 .. ]
                   , let e = "clo->" <.> cField n
                   ] ++
-                  [ cStmt "delete clo" ]
+                  [ cStmt (cCall "clo->free" ["true"]) ]
 
               ThreadBlock ->
                 let x : xs = blockArgs b
@@ -194,9 +194,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                     | (v,n) <- xs `zip` [ 0 .. ]
                     , let e = "clo->" <.> cField n
                     ]
-                 ++ [ cStmt "delete clo" ]
+                 ++ [ cStmt (cCall "clo->free" ["true"]) ]
 
-              ThreadBlock -> "/* todo */"
 
 
 
@@ -223,7 +222,10 @@ cBlockStmt cInstr =
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail        -> cStmt (cCall "p.noteFail" [])
     GetInput x      -> cVarDecl x (cCall "p.getInput" [])
-    Spawn x l       -> todo
+    Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
+      where clo = "new" <+> cCall (cReturnClassName (jLabel l))
+                    ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
+
     Free xs         -> vcat (cFree xs)
 
     Let _ e

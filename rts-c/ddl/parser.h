@@ -71,7 +71,7 @@ public:
   // (for the yes/no cases) the other alternative is removed from the stack.
   void* returnPure()    { return stack.retAddr(); }
   void* returnYes()     { stack.squish(); return stack.retAddr(); }
-  void* returnNo()      { stack.pop()->free(); return stack.retAddr(); }
+  void* returnNo()      { stack.pop()->free(false); return stack.retAddr(); }
 
 
   // -- Threads ---------------------------------------------------------------
