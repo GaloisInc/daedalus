@@ -26,7 +26,7 @@ import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (name2Text, State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (name2Text, State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isActivateFrameAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import Daedalus.ParserGen.DetUtils
@@ -532,41 +532,49 @@ predictLL (start,dfa) i =
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
   let transitions = allTransitions aut
-      collectedStates = collectStatesArrivedByMove transitions
+      collectedStates = collectStatesOnTransitions transitions
       statesDet =
         map
         (\ q ->
            let
-             initState = mkDFAStateQuotient q
-             t = createDFAtable aut 0 initState Map.empty in
+             initStateQuotient = mkDFAStateQuotient q
+             t = createDFAtable aut 0 initStateQuotient Map.empty in
              (q, (t, hasFullResolution (q,t) )))
         (Set.toList collectedStates)
   in
     IntMap.fromAscList statesDet
   where
-    collectStatesArrivedByMove t =
-      foldr (\ (_,ch) b -> Set.union b (choiceToArrivedByMove ch)) (Set.singleton (initialState aut)) t
+    collectStatesOnTransitions t =
+      foldr (\ (q1, ch) b -> Set.union b (collectStatesOnFanout q1 ch)) (Set.empty) t
 
-    choiceToArrivedByMove ch =
-      let helper lst = foldr (\ a b -> let sa = collectMove a in Set.union b sa) Set.empty lst in
+    collectStatesOnFanout q1 ch =
+      let helper lst = foldr (\ a b -> let sa = collectOnSingleTransition q1 a in Set.union b sa) Set.empty lst in
       case ch of
-        UniChoice (act, q) -> collectMove (act, q)
+        UniChoice (act, q2) -> collectOnSingleTransition q1 (act, q2)
         ParChoice lst -> helper lst
         SeqChoice lst _ -> helper lst
 
-    collectMove (act, q) =
-      if isInputAction act then Set.singleton q else Set.empty
+    collectOnSingleTransition q1 (act, q2) =
+      if isInputAction act
+      then Set.singleton q2
+      else if isActivateFrameAction act
+           then Set.singleton q1
+           else Set.empty
 
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
   let t = IntMap.toList dfas
+      annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ showSourceRange srcRg
+      tAnnotated = map (\ (k,(dfa, _)) -> ((maybe "" (\ p -> annToString p) (stateMappingAut aut k), k), (k, dfa))) t
+      tMapped = Map.fromList tAnnotated
+      tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ (k, (dfa,_)) -> do
-                    putStrLn $ maybe "" (\ (srcRg, x) -> T.unpack (name2Text x) ++ " " ++ showSourceRange srcRg) (stateMappingAut aut k)
+     else mapM_ (\ ((ann, _), (k, (dfa))) -> do
+                    putStrLn $ ann
                     putStrLn $ showDFATransition (k, dfa)
                     putStrLn ""
-                ) t
+                ) tOrdered
 
 
 statsDFA :: Aut a => a -> AutDet -> IO ()
