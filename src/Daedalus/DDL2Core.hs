@@ -367,7 +367,7 @@ fromGrammar gram =
                               (Pure unit)
                               (sysErr TUnit "unexpected semantic value shape")
            YesSem ->
-             do x <- newLocal ty
+             do x <- newLocal (typeOf e)
                 let xe = Var x
                 pure $ Let x e
                      $ If (hasTag l xe)
