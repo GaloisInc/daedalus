@@ -1,7 +1,7 @@
 #ifndef DDL_ARRAY
 #define DDL_ARRAY
 
-#include <type_traits>
+#include <string.h>
 #include <ddl/list.h>
 #include <ddl/integer.h>
 
@@ -9,8 +9,6 @@ namespace DDL {
 
 template <typename T>
 class Array : IsBoxed {
-
-
 
   class Content {
     friend Array;
@@ -82,6 +80,11 @@ public:
         ++data;
       }
     }
+  }
+
+  // Borrow arguments
+  Array(T *data, size_t n) : ptr(Content::allocate(n)) {
+    memcpy(ptr->data, data, n * sizeof(T));
   }
 
   // Borrows this

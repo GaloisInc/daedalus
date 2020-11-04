@@ -25,6 +25,9 @@ cString = text . show
 cSelect :: CExpr -> CExpr -> CExpr
 cSelect x l = x <.> "." <.> l
 
+cArraySelect :: CExpr -> CExpr -> CExpr
+cArraySelect x i = x <.> brackets i
+
 cStmt :: Doc -> CStmt
 cStmt c = c <.> semi
 

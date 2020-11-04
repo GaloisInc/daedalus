@@ -127,6 +127,7 @@ instance TypeOf Expr where
               _        -> bad "ArrayIndex"
 
           ConsBuilder -> typeOf e2
+          ArrayStream -> TStream
 
           MapLookup ->
             case typeOf e1 of

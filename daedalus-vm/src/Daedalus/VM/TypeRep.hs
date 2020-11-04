@@ -22,7 +22,7 @@ instance GetTypeRep VMT where
 instance GetTypeRep Src.Type where
   typeRep ty =
     case ty of
-      Src.TStream       -> NoRefs
+      Src.TStream       -> HasRefs    -- array of bytes
       Src.TUInt n       -> numRep n
       Src.TSInt n       -> numRep n
       Src.TInteger      -> HasRefs

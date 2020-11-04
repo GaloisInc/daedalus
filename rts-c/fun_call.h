@@ -38,7 +38,7 @@ T:
   { SampleThread *frame = (SampleThread*) p.pop();
     other_arg = frame->_0;
     std::cout << "notified = " << frame->notified << std::endl;;
-    frame->free();
+    frame->free(true);
   }
   goto *p.returnPure();
 
@@ -64,7 +64,7 @@ F_ret: // This label needs a new name as it is not scoped.
   std::cout << "Returned from F\n";
   { Return_F *frame = (Return_F*) p.pop();
     other_arg = frame->_0;   // restore arguments
-    frame->free();
+    frame->free(true);
   }
 
   if (p.hasSuspended()) {

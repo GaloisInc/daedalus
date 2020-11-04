@@ -360,22 +360,22 @@ cOp1 x op1 ~[e'] =
 
 
 cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
-cOp2 x op2 ~[e1,e2] =
+cOp2 x op2 ~[e1',e2'] =
   case op2 of
-    Src.IsPrefix -> cVarDecl x (cCall (cExpr e2 <.> ".hasPrefix") [ cExpr e1 ])
-    Src.Drop -> cVarDecl x (cCall ((cExpr e2) <.> ".iDropI") [ cExpr e1 ])
-    Src.Take -> cVarDecl x (cCall ((cExpr e2) <.> ".iTakeI") [ cExpr e1 ])
+    Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
+    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
+    Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
 
-    Src.Eq    -> cVarDecl x (cExpr e1 <+> "==" <+> cExpr e2)
-    Src.NotEq -> cVarDecl x (cExpr e1 <+> "!=" <+> cExpr e2)
-    Src.Leq   -> cVarDecl x (cExpr e1 <+> "<=" <+> cExpr e2)
-    Src.Lt    -> cVarDecl x (cExpr e1 <+> "<"  <+> cExpr e2)
+    Src.Eq    -> cVarDecl x (e1 <+> "==" <+> e2)
+    Src.NotEq -> cVarDecl x (e1 <+> "!=" <+> e2)
+    Src.Leq   -> cVarDecl x (e1 <+> "<=" <+> e2)
+    Src.Lt    -> cVarDecl x (e1 <+> "<"  <+> e2)
 
-    Src.Add   -> cVarDecl x (cExpr e1 <+> "+" <+> cExpr e2)
-    Src.Sub   -> cVarDecl x (cExpr e1 <+> "-" <+> cExpr e2)
-    Src.Mul   -> cVarDecl x (cExpr e1 <+> "*" <+> cExpr e2)
-    Src.Div   -> cVarDecl x (cExpr e1 <+> "/" <+> cExpr e2)
-    Src.Mod   -> cVarDecl x (cExpr e1 <+> "%" <+> cExpr e2)
+    Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
+    Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
+    Src.Mul   -> cVarDecl x (e1 <+> "*" <+> e2)
+    Src.Div   -> cVarDecl x (e1 <+> "/" <+> e2)
+    Src.Mod   -> cVarDecl x (e1 <+> "%" <+> e2)
 
     Src.BitAnd -> todo
     Src.BitOr -> todo
@@ -385,19 +385,21 @@ cOp2 x op2 ~[e1,e2] =
     Src.LShift -> todo
     Src.RShift -> todo
 
-    Src.Or -> todo
-    Src.And -> todo
-    Src.ArrayIndex -> todo
-    Src.ConsBuilder ->
-      cVarDecl x $ cCall (cType (getType x)) [ cExpr e1, cExpr e2 ]
+    Src.Or  -> panic "cOp2" [ "Or" ]
+    Src.And -> panic "cOp2" [ "And" ]
+
+    Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 e2)
+    Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
     Src.MapLookup -> todo
     Src.MapMember -> todo
 
-    Src.ArrayStream -> todo
 
   where
   todo = "/* todo (2)" <+> pp op2 <+> "*/"
+  e1   = cExpr e1'
+  e2   = cExpr e2'
 
 
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl

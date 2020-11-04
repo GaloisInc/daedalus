@@ -276,7 +276,7 @@ expr ex mo =
 modeI :: Instr -> [Ownership]
 modeI i =
   case i of
-    SetInput {}              -> [Owned] -- not ref
+    SetInput {}              -> [Owned]
     Say {}                   -> []
     Output _                 -> [Owned]
     Notify _                 -> [Owned] -- not ref
@@ -285,7 +285,7 @@ modeI i =
     Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
     NoteFail                 -> []
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
-    Let _ _                  -> [Borrowed]
+    Let _ _                  -> [Borrowed] -- borrow to make a copy
 
 
 modePrimName :: PrimName -> [Ownership]
