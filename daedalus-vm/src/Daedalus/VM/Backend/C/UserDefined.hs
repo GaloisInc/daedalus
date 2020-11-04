@@ -59,7 +59,7 @@ cTypeGroup rec =
 
 
 
-{- Note: Product types shouldh't be directly recursive as that would
+{- Note: Product types shouldn't be directly recursive as that would
 require infinite values, which we do not support.   There may be recursive
 groups only containing products though: for example, if the recursion happens
 through an array: a = [a]
