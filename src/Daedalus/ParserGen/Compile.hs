@@ -9,7 +9,7 @@ module Daedalus.ParserGen.Compile where
 import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
-import Data.Maybe (fromJust, isJust)
+import Data.Maybe (fromJust)
 import Data.List (isInfixOf)
 
 import qualified Control.Monad.State as ST
