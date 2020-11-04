@@ -93,7 +93,7 @@ data Action =
 
 
 semToString :: WithSem -> String
-semToString YesSem = "@"
+semToString YesSem = "S"
 semToString NoSem = ""
 
 
@@ -181,6 +181,12 @@ isInputAction :: Action -> Bool
 isInputAction act =
   case act of
     IAct _ -> True
+    _ -> False
+
+isActivateFrameAction :: Action -> Bool
+isActivateFrameAction act =
+  case act of
+    CAct (ActivateFrame {}) -> True
     _ -> False
 
 isNonClassInputAct :: Action -> Bool
@@ -558,7 +564,7 @@ isSimpleVExpr e =
     TCCoerce _ _ _ -> False
     TCLiteral (LNumber {}) _ -> True
     TCLiteral (LByte   {}) _ -> True
-    TCLiteral _            _ -> False    
+    TCLiteral _            _ -> False
     TCNothing _ty -> False
     TCStruct _lst _ -> False
     TCMapEmpty _ty -> False
@@ -589,8 +595,8 @@ evalLiteral lit t =
     LBytes bs ->
       Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
     LByte w -> Interp.VUInt 8 (fromIntegral w)
-    
-    
+
+
 
 
 evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
