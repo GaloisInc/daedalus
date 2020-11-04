@@ -1,10 +1,10 @@
 Main (3,1)-(9,3)
 DTrans [
-  ( [(12),]
+  ( [(11),]
   , HeadInput ['0','2']
   , Resolution (NotAmbiguous)
   ),
-  ( [(12),(12),]
+  ( [(11),(11),]
   , HeadInput ['3','7']
   , DTrans [
       ( [(4),]
@@ -26,24 +26,8 @@ DTrans [
       ),
     ]
   ),
-  ( [(12),]
+  ( [(11),]
   , HeadInput ['8','9']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (6,13)-(6,28)
-DTrans [
-  ( [(4),]
-  , HeadInput ['x','z']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (6,33)-(6,48)
-DTrans [
-  ( [(16),]
-  , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
@@ -57,6 +41,22 @@ DTrans [
 ]
 
 Main (5,33)-(5,48)
+DTrans [
+  ( [(16),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (6,13)-(6,28)
+DTrans [
+  ( [(4),]
+  , HeadInput ['x','z']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (6,33)-(6,48)
 DTrans [
   ( [(16),]
   , EndInput
