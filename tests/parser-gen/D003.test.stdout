@@ -1,3 +1,4 @@
+Main (3,1)-(9,3)
 DTrans [
   ( [(12),]
   , HeadInput ['0','2']
@@ -21,31 +22,42 @@ DTrans [
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (6,13)-(6,28)
 DTrans [
   ( [(4),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (6,33)-(6,43)
 DTrans [
   ( [(16),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (5,13)-(5,28)
 DTrans [
   ( [(4),]
   , HeadInput ['a']
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (5,33)-(5,43)
 DTrans [
   ( [(16),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (8,5)-(8,7)
 AbortAcceptingPath
+
 
 
 Report:
