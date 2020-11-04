@@ -7,6 +7,9 @@
 #include <ios>
 #include <cmath>
 
+#include <ddl/bool.h>
+#include <ddl/integer.h>
+
 
 namespace DDL {
 
@@ -27,17 +30,6 @@ struct UInt {
 public:
   UInt() : data(0) {}
   UInt(Rep d) : data(d) {}
-  UInt<w> operator + (UInt<w> x) { return { .data = Rep(data + x.data) }; }
-  UInt<w> operator - (UInt<w> x) { return { .data = Rep(data - x.data) }; }
-  UInt<w> operator * (UInt<w> x) { return { .data = Rep(data * x.data) }; }
-  UInt<w> operator / (UInt<w> x) { return { .data = Rep(rep() / x.rep()) }; }
-  UInt<w> operator - ()          { return { .data = Rep(-data) }; }
-  UInt<w> operator ~ ()          { return { .data = Rep(~data) }; }
-
-  bool operator == (UInt<w> x)   { return rep() == x.rep(); }
-  bool operator != (UInt<w> x)   { return rep() != x.rep(); }
-  bool operator <  (UInt<w> x)   { return rep() <  x.rep(); }
-  bool operator <=  (UInt<w> x)  { return rep() <= x.rep(); }
 
   Rep rep() {
     if constexpr (w == 8 || w == 16 || w == 32 || w == 64) return data;
@@ -46,17 +38,49 @@ public:
     if constexpr (w < 32)  return data & (UINT32_MAX >> (32-w));
     return data;
   }
+
+
+  template <int a, int b>
+  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
+
+  UInt operator + (UInt x) { return UInt(data + x.data); }
+  UInt operator - (UInt x) { return UInt(data - x.data); }
+  UInt operator * (UInt x) { return UInt(data * x.data); }
+  UInt operator / (UInt x) { return UInt(rep() / x.rep()); }
+  UInt operator - ()       { return UInt(-data); }
+  UInt operator ~ ()       { return UInt(~data); }
+
+  UInt operator | (UInt x) { return UInt(data | x.data); }
+  UInt operator & (UInt x) { return UInt(data & x.data); }
+  UInt operator ^ (UInt x) { return UInt(data ^ x.data); }
+
+  // yikes, we really should use something other than integer here
+  // we are borrowing the integer
+  UInt operator << (DDL::Integer x) {
+    size_t n = x.asSize();
+    return n >= w? UInt(0) : UInt(data << n);
+  }
+
+  // same as for >>
+  UInt operator >> (DDL::Integer x) {
+    size_t n = x.asSize();
+    return n >= w? UInt(0) : UInt(data >> n);
+  }
+
+  bool operator == (UInt x)   { return rep() == x.rep(); }
+  bool operator != (UInt x)   { return rep() != x.rep(); }
+  bool operator <  (UInt x)   { return rep() <  x.rep(); }
+  bool operator <=  (UInt x)  { return rep() <= x.rep(); }
+
+
 };
 
-}
-
-namespace std {
 
 // XXX: Maybe we should consult the base flag, rather than always using hex?
 template <int w>
 static inline
-ostream& operator<<(ostream& os, DDL::UInt<w> x) {
-  ios_base::fmtflags saved(os.flags());
+std::ostream& operator<<(std::ostream& os, UInt<w> x) {
+  std::ios_base::fmtflags saved(os.flags());
 
   os << "0x" << std::hex;
   os.fill('0');
@@ -66,16 +90,7 @@ ostream& operator<<(ostream& os, DDL::UInt<w> x) {
   return os;
 }
 
-template<int w>
-struct hash<DDL::UInt<w>> {
-  size_t operator()(DDL::UInt<w> x) const noexcept {
-    return size_t(x.data);
-  }
-};
 
-}
-
-namespace DDL {
 
 
 // XXX: How should arithmetic work on these?
@@ -98,37 +113,30 @@ struct SInt {
 public:
   SInt() : data(0) {}
   SInt(Rep d) : data(d) {}
-  SInt<w> operator + (SInt<w> x) { return { .data = Rep(data + x.data) }; }
-  SInt<w> operator - (SInt<w> x) { return { .data = Rep(data - x.data) }; }
-  SInt<w> operator * (SInt<w> x) { return { .data = Rep(data * x.data) }; }
-  SInt<w> operator / (SInt<w> x) { return { .data = Rep(data / x.data) }; }
-  SInt<w> operator - ()          { return { .data = Rep(-data) }; }
-
-  bool operator == (SInt<w> x) { return rep() == x.rep(); }
-  bool operator != (SInt<w> x) { return rep() != x.rep(); }
-
   Rep rep() { return data; }
+
+  SInt operator + (SInt x) { return Rep(data + x.data); }
+  SInt operator - (SInt x) { return Rep(data - x.data); }
+  SInt operator * (SInt x) { return Rep(data * x.data); }
+  SInt operator / (SInt x) { return Rep(data / x.data); }
+  SInt operator - ()       { return Rep(-data); }
+
+  bool operator == (SInt<w> x)   { return rep() == x.rep(); }
+  bool operator != (SInt<w> x)   { return rep() != x.rep(); }
+  bool operator < (SInt<w> x)    { return rep() <  x.rep(); }
+  bool operator <= (SInt<w> x)   { return rep() <=  x.rep(); }
+
 };
 
-}
 
-// XXX: Maybe we should consult the base flag, rather than always using hex?
 template <int w>
 static inline
-std::ostream& operator<<(std::ostream& os, DDL::SInt<w> x) {
+std::ostream& operator<<(std::ostream& os, SInt<w> x) {
   os << (int64_t) x.rep();
   return os;
 }
 
-namespace std {
-  template<int w>
-  struct hash<DDL::SInt<w>> {
-    size_t operator()(DDL::SInt<w> x) const noexcept {
-      return size_t(x.data);
-    }
-  };
 }
-
 
 #endif
 

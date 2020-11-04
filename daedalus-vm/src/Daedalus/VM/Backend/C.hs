@@ -366,10 +366,10 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
 
-    Src.Eq    -> cVarDecl x (e1 <+> "==" <+> e2)
-    Src.NotEq -> cVarDecl x (e1 <+> "!=" <+> e2)
-    Src.Leq   -> cVarDecl x (e1 <+> "<=" <+> e2)
-    Src.Lt    -> cVarDecl x (e1 <+> "<"  <+> e2)
+    Src.Eq    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "==" <+> e2]
+    Src.NotEq -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "!=" <+> e2]
+    Src.Leq   -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<=" <+> e2]
+    Src.Lt    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<"  <+> e2]
 
     Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
     Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
@@ -377,13 +377,13 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Div   -> cVarDecl x (e1 <+> "/" <+> e2)
     Src.Mod   -> cVarDecl x (e1 <+> "%" <+> e2)
 
-    Src.BitAnd -> todo
-    Src.BitOr -> todo
-    Src.BitXor -> todo
-    Src.Cat -> todo
-    Src.LCat -> todo
-    Src.LShift -> todo
-    Src.RShift -> todo
+    Src.BitAnd  -> cVarDecl x (e1 <+> "&" <+> e2)
+    Src.BitOr   -> cVarDecl x (e1 <+> "|" <+> e2)
+    Src.BitXor  -> cVarDecl x (e1 <+> "^" <+> e2)
+    Src.Cat     -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.LCat    -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
+    Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
     Src.Or  -> panic "cOp2" [ "Or" ]
     Src.And -> panic "cOp2" [ "And" ]
