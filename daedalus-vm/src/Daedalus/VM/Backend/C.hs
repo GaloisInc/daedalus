@@ -285,10 +285,26 @@ cOp1 x op1 ~[e'] =
     Src.StreamLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "length" [] ]
 
-    Src.OneOf _bs -> todo
-    Src.Neg -> todo
-    Src.BitNot -> todo
-    Src.Not -> todo
+    Src.OneOf bs ->
+      let v     = cVarUse x
+          true  = cAssign v (cCall "DDL::Bool" [ "true" ]) $$ cBreak
+          false = cAssign v (cCall "DDL::Bool" [ "false" ])
+      in
+      vcat
+        [ cDeclareVar (cType (getType x)) v
+        , cSwitch (cCallMethod e "rep" [])
+            $ [ cCase (int (fromEnum b)) <+> true | b <- BS.unpack bs ]
+           ++ [ cDefault <+> false ]
+        ]
+
+    Src.Neg ->
+      cVarDecl x $ "-" <> e
+
+    Src.BitNot ->
+      cVarDecl x $ "~" <> e
+
+    Src.Not ->
+      cVarDecl x $ "!" <> e
 
     Src.ArrayLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
@@ -314,7 +330,6 @@ cOp1 x op1 ~[e'] =
     Src.IteratorNext ->
       cVarDecl x $ cCallMethod e "next" []
 
-
     Src.EJust ->
       cVarDecl x $ cCall (cType (getType x)) [e]
 
@@ -324,7 +339,8 @@ cOp1 x op1 ~[e'] =
     Src.FromJust ->
       cVarDecl x $ cCallMethod e "getValue" []
 
-    Src.SelStruct _t _l -> todo
+    Src.SelStruct _t l ->
+      cVarDecl x $ cCallMethod e (selName GenOwn l) []
 
     Src.InUnion _ut l ->
       vcat [ cDeclareVar (cType (getType x)) (cVarUse x)
@@ -332,8 +348,12 @@ cOp1 x op1 ~[e'] =
                                       [ e | getType e' /= TSem Src.TUnit ]
            ]
 
-    Src.HasTag _l -> todo
-    Src.FromUnion _t _l -> todo
+    Src.HasTag l ->
+      cVarDecl x $ cCallMethod e "getTag" [] <+> "==" <+> cSumTagV l
+
+    Src.FromUnion _t l ->
+      cVarDecl x $ cCallMethod e (selName GenOwn l) []
+
   where
   todo = "/* todo (1)" <+> pp op1 <+> "*/"
   e = cExpr e'

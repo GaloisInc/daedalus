@@ -32,6 +32,7 @@ public:
   UInt<w> operator * (UInt<w> x) { return { .data = Rep(data * x.data) }; }
   UInt<w> operator / (UInt<w> x) { return { .data = Rep(rep() / x.rep()) }; }
   UInt<w> operator - ()          { return { .data = Rep(-data) }; }
+  UInt<w> operator ~ ()          { return { .data = Rep(~data) }; }
 
   bool operator == (UInt<w> x)   { return rep() == x.rep(); }
   bool operator != (UInt<w> x)   { return rep() != x.rep(); }

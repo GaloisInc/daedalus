@@ -7,8 +7,9 @@ namespace DDL {
 class Bool {
   bool b;
 public:
-  Bool() {}
+  Bool()              {}
   Bool(bool x) : b(x) {}
+
   bool getValue() { return b; }
 
   bool operator == (Bool x) { return getValue() == x.getValue(); }
@@ -16,7 +17,10 @@ public:
   bool operator <  (Bool x) { return getValue() <  x.getValue(); }
   bool operator <= (Bool x) { return getValue() <= x.getValue(); }
 
+  Bool operator ! ()        { return Bool(!getValue()); }
 };
+
+
 
 inline
 std::ostream& operator<<(std::ostream& os, Bool x) {

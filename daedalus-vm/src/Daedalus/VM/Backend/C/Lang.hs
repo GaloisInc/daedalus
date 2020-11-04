@@ -54,8 +54,27 @@ cIf e ifThen ifElse =
        , "}"
        ]
 
+cSwitch :: CExpr -> [CStmt] -> CStmt
+cSwitch e cs =
+  vcat [ "switch" <+> parens e <+> "{"
+       , nest 2 (vcat cs)
+       , "}"
+       ]
+
+cCase :: CExpr -> Doc
+cCase e = "case" <+> e <.> colon
+
+cDefault :: Doc
+cDefault = "default:"
+
+cBreak :: CStmt
+cBreak = cStmt "break"
+
 cGoto :: CExpr -> CStmt
 cGoto e = cStmt ("goto" <+> e)
+
+cRetrun :: CExpr -> CStmt
+cRetrun e = cStmt ("return" <+> e)
 
 cBlock :: [CStmt] -> CStmt
 cBlock xs = ("{" <+> vcat xs) $$ "}"
