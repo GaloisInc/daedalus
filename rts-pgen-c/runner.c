@@ -54,8 +54,9 @@ Input * initInput(FILE * f){
 int endOfInput(Input* input) {
     fsetpos(input->file, &input->posInput);
 
+
     int c = fgetc(input->file);
-    if (c == EOF) {
+    if (feof(input->file)) {
         return 1;
     } else {
         ungetc(c, input->file);
@@ -93,6 +94,10 @@ StackCtrl * popStackCtrl(StackCtrl *stack) {
     return up;
 }
 
+int headStackCtrl(StackCtrl *stack){
+   return stack->state;
+}
+
 typedef struct _Cfg {
     int state;
     Input * inp;
@@ -123,6 +128,7 @@ int readInput(Input* input, fpos_t* newPos) {
     fsetpos(input->file, &input->posInput);
     int c = fgetc(input->file);
     fgetpos(input->file, newPos);
+    printf("READINPUT %d\n", (int) c);
     return c;
 }
 
@@ -140,8 +146,8 @@ Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
     switch (act->tag) {
         case ACT_END: {
             fpos_t newPos;
-            int c = readInput(cfg->inp, &newPos);
-            if (EOF == c) {
+
+            if (endOfInput(cfg->inp)) { //if (EOF == c) {
                Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, updateStackSem(empty_dict(), cfg->sem));
                return newCfg;
             }
@@ -171,12 +177,13 @@ Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
             if (isEmptyStackCtrl(cfg->ctrl))
                 return NULL;
 
+            int newState = headStackCtrl(cfg->ctrl);
             StackCtrl* newCtrlStack = popStackCtrl(cfg->ctrl);
-            if (act->state != cfg->ctrl->state) {
+            if (newState < 0) {
                 return NULL;
             }
 
-            return mkCfg(arrivState, cfg->inp, newCtrlStack, cfg->sem);
+            return mkCfg(newState, cfg->inp, newCtrlStack, cfg->sem);
         }
         case ACT_EnvFresh: {
             return
@@ -199,7 +206,7 @@ Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
                     cfg->ctrl,
                     cfg->sem->up
                 );
-            
+
             return
                 mkCfg(
                     arrivState,
@@ -313,7 +320,7 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
 
     Result * new_res = r;
 
-    if (cfg->ctrl == NULL && cfg->state == aut.accepting) {
+    if (isEmptyStackCtrl(cfg->ctrl) && cfg->state == aut.accepting) {
         new_res = addResult(cfg->sem->value, r);
         printf("Solution found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     }
@@ -345,7 +352,11 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
         }
         case EMPTYCHOICE: {
             printf("EMPTYCHOICE\n");
-            return backtrack(aut, st, new_res);
+            Action pop = MAKE_ACT_POP();
+            int arrivalState = -42;
+
+            newStack = pushStack(cfg->state, 1, cfg, st);
+            return step(aut, &pop, arrivalState, newStack, new_res);
             break;
         }
         default: {
