@@ -39,12 +39,12 @@ public:
     return data;
   }
 
-  constexpr static UInt maxVal() {
-    if constexpr (w ==  8) return UInt(UINT8_MAX);  else
-    if constexpr (w == 16) return UInt(UINT16_MAX); else
-    if constexpr (w == 32) return UInt(UINT32_MAX); else
-    if constexpr (w == 64) return UInt(UINT64_MAX); else
-    return UInt ((1 << w) - 1);
+  constexpr static Rep maxValRep() {
+    if constexpr (w ==  8) return UINT8_MAX;  else
+    if constexpr (w == 16) return UINT16_MAX; else
+    if constexpr (w == 32) return UINT32_MAX; else
+    if constexpr (w == 64) return UINT64_MAX; else
+    return (1 << w) - 1;
   }
 
 
@@ -106,6 +106,7 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 // but it is not clear if that's what we want from daedluas.
 template <int w>
 struct SInt {
+  static_assert(w >= 1, "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
 
   using Rep =
@@ -134,22 +135,17 @@ public:
   bool operator < (SInt<w> x)    { return rep() <  x.rep(); }
   bool operator <= (SInt<w> x)   { return rep() <=  x.rep(); }
 
-  constexpr static SInt maxVal() {
-    if constexpr (w ==  0) return SInt(0);         else   // hm
-    if constexpr (w ==  8) return SInt(INT8_MAX);  else
-    if constexpr (w == 16) return SInt(INT16_MAX); else
-    if constexpr (w == 32) return SInt(INT32_MAX); else
-    if constexpr (w == 64) return SInt(INT64_MAX); else
-    return SInt ((1 << (w-1)) - 1);
+  constexpr static Rep maxValRep() {
+    if constexpr (w ==  8) return INT8_MAX;  else
+    if constexpr (w == 16) return INT16_MAX; else
+    if constexpr (w == 32) return INT32_MAX; else
+    if constexpr (w == 64) return INT64_MAX; else
+    return (1 << (w-1)) - 1;
   }
 
-  constexpr static SInt minVal() {
-    if constexpr (w ==  0) return SInt(0);         else   // hm
-    if constexpr (w ==  8) return SInt(INT8_MIN);  else
-    if constexpr (w == 16) return SInt(INT16_MIN); else
-    if constexpr (w == 32) return SInt(INT32_MIN); else
-    if constexpr (w == 64) return SInt(INT64_MIN); else
-    return SInt (1 << (w-1));
+  constexpr static Rep minValRep() {
+    return -maxValRep()-1;
+
   }
 
 
