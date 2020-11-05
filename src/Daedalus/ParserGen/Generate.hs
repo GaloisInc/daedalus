@@ -12,22 +12,27 @@ import qualified Daedalus.Type.AST as DAST
 
 import Daedalus.Interp
 
-import Data.Text ()
+import Data.Text (unpack)
+import qualified Data.Vector as Vec
 import Text.PrettyPrint
+
+import Debug.Trace
 
 -- State for the generator
 data CAutGenData = CAutGenData {
   names :: [Name],
   actionId :: Integer,
   transitionId :: Integer,
+  expressionId :: Integer,
   declarations :: [CExtDecl]
 }
 
 emptyAutGenData :: CAutGenData
 emptyAutGenData = CAutGenData {
   names = [],
-  actionId = 1,
-  transitionId = 1,
+  actionId = 0,
+  transitionId = 0,
+  expressionId = 0,
   declarations = []
 }
 
@@ -54,6 +59,13 @@ nextTransitionId = do
   st <- get  
   let v = transitionId st
   put $ st { transitionId = v + 1 }
+  return v
+
+nextExpressionId :: CAutGenM Integer
+nextExpressionId = do
+  st <- get  
+  let v = expressionId st
+  put $ st { expressionId = v + 1 }
   return v
 
 addDeclaration :: CExtDecl -> CAutGenM ()
@@ -100,11 +112,21 @@ makeIntConstExpr v = CConst $ CIntConst (cInteger $ toInteger v) undefNode
 makeNameConstExpr :: Maybe DAST.Name -> CExpr
 makeNameConstExpr ms = 
   case ms of
-    Just s  -> CConst $ CStrConst (cString $ show $ name2Text s) undefNode
+    Just s  -> CConst $ CStrConst (cString $ name2String s) undefNode
     Nothing -> makeIntConstExpr 0
+  where
+    name2String n = do
+      let x = DAST.nameScope n
+      case x of
+        DAST.Unknown ident -> unpack ident
+        DAST.Local   ident -> unpack ident
+        DAST.ModScope _ ident -> unpack ident
 
-makeAddrOfExpr :: Ident -> CExpr
-makeAddrOfExpr ident = CUnary CAdrOp (CVar ident undefNode) undefNode
+makeAddrOfExpr :: CExpr -> CExpr
+makeAddrOfExpr e = CUnary CAdrOp e undefNode
+
+makeAddrOfIdent :: Ident -> CExpr
+makeAddrOfIdent ident = CUnary CAdrOp (CVar ident undefNode) undefNode
 
 makeStructInitializer :: [(String, CExpr)] -> CAutGenM CInit
 makeStructInitializer nameExprList = do
@@ -152,10 +174,10 @@ generateNFAAutDeclaration aut = do
   autType <- CTypeSpec <$> makeTypeDefType "Aut"
   (_, autVarDeclr)  <- makeVarDeclr "aut"
   tableIdent <- generateNFAAutTable aut
-  let tableExpr = makeAddrOfExpr tableIdent
+  let tableExpr = CVar tableIdent undefNode
   fieldsInit <- 
     makeStructInitializer 
-      [("initial", initStateExpr)
+      [ ("initial", initStateExpr)
       , ("table", tableExpr)
       , ("accepting", finalStateExpr)
       ]
@@ -168,25 +190,31 @@ generateNFAAutDeclaration aut = do
 
 generateNFAAutTable :: ArrayAut -> CAutGenM Ident
 generateNFAAutTable aut = do
-  let stateChoiceList = allTransitions aut
-  initializers <- mapM (generateInitializer . snd) stateChoiceList
+  initializers <- mapM generateInitializer fullIndexedTransitions
   initializer <- makeArrayInitializer initializers
-  (ident, declr) <- makeArrayVarDeclr "trs" (length stateChoiceList)
+  (ident, declr) <- makeArrayVarDeclr "trs" (length fullIndexedTransitions)
   declType <- CTypeSpec <$> makeTypeDefType "Choice"
   let decl = CDeclExt $ CDecl [declType] [(Just declr, Just initializer, Nothing)] undefNode
   addDeclaration decl
   return ident
   where
-    generateInitializer choice = do
-      (tag, cnt, ident) <- generateActionStatePairs choice
+    fullIndexedTransitions = do
+      let transitionList = Vec.toList $ transitionArray aut
+      zip [0..] transitionList
+    generateInitializer (_, Nothing) = do
+      tagExpr <- makeEnumConstantExpr "EMPTYCHOICE"
+      makeStructInitializer [("tag", tagExpr)]
+    generateInitializer (st, Just choice) = do
+      -- Use state as the tag for the identifier
+      (tag, cnt, ident) <- generateActionStatePairs st choice
       tagExpr <- makeEnumConstantExpr tag
       let lenExpr = makeIntConstExpr cnt
-      let addrExpr = makeAddrOfExpr ident
+      let addrExpr = CVar ident undefNode
       makeStructInitializer [("tag", tagExpr), ("len", lenExpr), ("transitions", addrExpr)]
 
-generateActionStatePairs :: Choice -> CAutGenM (String, Int, Ident)
-generateActionStatePairs choice = do
-  varName <- transitionName
+generateActionStatePairs :: Integer -> Choice -> CAutGenM (String, Int, Ident)
+generateActionStatePairs identTag choice = do
+  let varName = transitionName
   initializers <- case choice of
     UniChoice (action, st) -> sequence [generateActionStatePair action st]
     SeqChoice actionStateList _ -> mapM (uncurry generateActionStatePair) actionStateList
@@ -202,7 +230,7 @@ generateActionStatePairs choice = do
       let decl = CDecl [declType] [(Just declr, Just initList, Nothing)] undefNode
       addDeclaration $ CDeclExt decl
       return (length initializers, ident)
-    transitionName = nextTransitionId >>= (\i -> return $ "tr" ++ show i)
+    transitionName = "tr" ++ show identTag
     choiceExpr (UniChoice _) = "UNICHOICE"
     choiceExpr (SeqChoice _ _) = "SEQCHOICE"
     choiceExpr (ParChoice _) = "PARCHOICE"
@@ -210,7 +238,7 @@ generateActionStatePairs choice = do
 generateActionStatePair :: Action -> Action.State -> CAutGenM CInit
 generateActionStatePair action st = do
   ident <- generateAction action
-  let actionExpr = makeAddrOfExpr ident
+  let actionExpr = makeAddrOfIdent ident
   let stateExpr = makeIntConstExpr st
   makeStructInitializer [("pAction", actionExpr), ("state", stateExpr)]
 
@@ -269,7 +297,7 @@ generateSemanticActionData (EnvStore nm) = do
 generateSemanticActionData (ReturnBind e) = do
   tagExpr <- makeEnumConstantExpr "ACT_ReturnBind"
   expr <- generateVExpr e
-  return [("tag", tagExpr), ("expr", expr)]
+  return [("tag", tagExpr), ("expr", makeAddrOfExpr expr)]
 generateSemanticActionData x = return $ error $ "Unimplemented action: " ++ show x
 
 generateControlAction :: ControlAction -> CAutGenM [(String, CExpr)]
@@ -294,8 +322,41 @@ generateControlAction x = return $ error $ "Unimplemented action: " ++ show x
 
 generateVExpr :: NVExpr -> CAutGenM CExpr
 generateVExpr e = do
-  ident <- makeIdent "UNKNOWN"
-  return $ CVar ident undefNode
+  (exprVarIdent, exprVarDeclr)  <- makeExprVar
+  exprType <- CTypeSpec <$> makeTypeDefType "Expr"
+  exprInit <- exprInitializer
+  let decl = CDeclExt $ CDecl [exprType] [(Just exprVarDeclr, Just exprInit, Nothing)] undefNode 
+  addDeclaration decl
+  return $ CVar exprVarIdent undefNode
+  where
+    makeExprVar = do
+      n <- nextExpressionId
+      let name = "e" ++ (show n)
+      makeVarDeclr name
+    exprInitializer = do
+      designatorInitList <- generateVExprData e
+      makeStructInitializer designatorInitList
+
+generateVExprData :: NVExpr -> CAutGenM [(String, CExpr)]
+generateVExprData e = do
+  traceShow e $ case DAST.texprValue e of
+    DAST.TCVar v -> do
+      tagExpr <- makeEnumConstantExpr "E_VAR";
+      return $ [("tag", tagExpr), ("name", nameExpr v)]
+    DAST.TCIn _ e _ ->
+      case DAST.texprValue e of 
+        DAST.TCVar v -> do
+          tagExpr <- makeEnumConstantExpr "E_VAR";
+          return $ [("tag", tagExpr), ("name", nameExpr v)]
+        _ -> do
+          tagExpr <- makeEnumConstantExpr "E_INT";
+          return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
+    _ -> do
+      tagExpr <- makeEnumConstantExpr "E_INT";
+      return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
+  where
+    nameExpr nm = makeNameConstExpr $ Just $ DAST.tcName nm
+   
 
 generateEpsAction :: CAutGenM [(String, CExpr)]
 generateEpsAction = do
