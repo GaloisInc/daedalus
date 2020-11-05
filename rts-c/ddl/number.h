@@ -15,7 +15,7 @@ namespace DDL {
 
 template <int w>
 struct UInt {
-  static_assert(w <= 64);   // XXX: use gmp?
+  static_assert(w <= 64, "UInt larger than 64 not supported.");
 
   using Rep =
     typename std::conditional < (w <= 8),   uint8_t,
@@ -39,6 +39,14 @@ public:
     return data;
   }
 
+  constexpr static UInt maxVal() {
+    if constexpr (w ==  8) return UInt(UINT8_MAX);  else
+    if constexpr (w == 16) return UInt(UINT16_MAX); else
+    if constexpr (w == 32) return UInt(UINT32_MAX); else
+    if constexpr (w == 64) return UInt(UINT64_MAX); else
+    return UInt ((1 << w) - 1);
+  }
+
 
   template <int a, int b>
   UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
@@ -57,13 +65,13 @@ public:
   // yikes, we really should use something other than integer here
   // we are borrowing the integer
   UInt operator << (DDL::Integer x) {
-    size_t n = x.asSize();
+    unsigned long n = x.asULong();
     return n >= w? UInt(0) : UInt(data << n);
   }
 
   // same as for >>
   UInt operator >> (DDL::Integer x) {
-    size_t n = x.asSize();
+    unsigned long n = x.asULong();
     return n >= w? UInt(0) : UInt(data >> n);
   }
 
@@ -98,7 +106,7 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 // but it is not clear if that's what we want from daedluas.
 template <int w>
 struct SInt {
-  static_assert(w <= 64);   // XXX: use gmp?
+  static_assert(w <= 64, "SInt larger than 64 not supported.");
 
   using Rep =
     typename std::conditional < (w <= 8),   int8_t,
@@ -113,7 +121,7 @@ struct SInt {
 public:
   SInt() : data(0) {}
   SInt(Rep d) : data(d) {}
-  Rep rep() { return data; }
+  Rep rep() { return data; } // XXX: overflow?
 
   SInt operator + (SInt x) { return Rep(data + x.data); }
   SInt operator - (SInt x) { return Rep(data - x.data); }
@@ -125,6 +133,27 @@ public:
   bool operator != (SInt<w> x)   { return rep() != x.rep(); }
   bool operator < (SInt<w> x)    { return rep() <  x.rep(); }
   bool operator <= (SInt<w> x)   { return rep() <=  x.rep(); }
+
+  constexpr static SInt maxVal() {
+    if constexpr (w ==  0) return SInt(0);         else   // hm
+    if constexpr (w ==  8) return SInt(INT8_MAX);  else
+    if constexpr (w == 16) return SInt(INT16_MAX); else
+    if constexpr (w == 32) return SInt(INT32_MAX); else
+    if constexpr (w == 64) return SInt(INT64_MAX); else
+    return SInt ((1 << (w-1)) - 1);
+  }
+
+  constexpr static SInt minVal() {
+    if constexpr (w ==  0) return SInt(0);         else   // hm
+    if constexpr (w ==  8) return SInt(INT8_MIN);  else
+    if constexpr (w == 16) return SInt(INT16_MIN); else
+    if constexpr (w == 32) return SInt(INT32_MIN); else
+    if constexpr (w == 64) return SInt(INT64_MIN); else
+    return SInt (1 << (w-1));
+  }
+
+
+
 
 };
 
