@@ -24,22 +24,29 @@ char *getBytes(const char *file) {
 }
 
 
+
+
 int main(int argc, char* argv[]) {
 
-  if (argc != 2) {
-    cout << "Usage: " << argv[0] << " FILE" << endl;
+  if (argc > 2) {
+    cout << "Usage: " << argv[0] << " [FILE]" << endl;
     return 1;
   }
 
-  char *file = argv[1];
-  char *bytes = getBytes(file);
-  if (bytes == nullptr) {
-    // Does not escape quotes...
-    cout << "Failed to open file \"" << file << '"' << endl;
-    return 1;
+  DDL::Input i;
+  if (argc == 1) {
+    i = DDL::Input("(none)","");
+  } else {
+    char *file = argv[1];
+    char *bytes = getBytes(file);
+    if (bytes == nullptr) {
+      // Does not escape quotes...
+      cout << "Failed to open file \"" << file << '"' << endl;
+      return 1;
+    }
+    i = DDL::Input(file,bytes);
   }
 
-  DDL::Input i(file,bytes);
   DDL::Parser<ParserResult> p(i);
   parser(p);
 
