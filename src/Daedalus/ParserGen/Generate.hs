@@ -13,7 +13,7 @@ import qualified Daedalus.Type.AST as DAST
 import Daedalus.Interp
 
 import Data.Text (unpack)
-import qualified Data.Vector as Vec
+import Data.Array as Arr
 import Text.PrettyPrint
 
 import Debug.Trace
@@ -199,8 +199,10 @@ generateNFAAutTable aut = do
   return ident
   where
     fullIndexedTransitions = do
-      let transitionList = Vec.toList $ transitionArray aut
-      zip [0..] transitionList
+      -- NOTE: We are making use of the fact that the ArrayAut's transitionArray
+      -- has an entry for every index
+      -- TODO: Fix this to not rely on the internals of this implementation
+      Arr.assocs $ transitionArray aut
     generateInitializer (_, Nothing) = do
       tagExpr <- makeEnumConstantExpr "EMPTYCHOICE"
       makeStructInitializer [("tag", tagExpr)]
@@ -212,7 +214,7 @@ generateNFAAutTable aut = do
       let addrExpr = CVar ident undefNode
       makeStructInitializer [("tag", tagExpr), ("len", lenExpr), ("transitions", addrExpr)]
 
-generateActionStatePairs :: Integer -> Choice -> CAutGenM (String, Int, Ident)
+generateActionStatePairs :: Int -> Choice -> CAutGenM (String, Int, Ident)
 generateActionStatePairs identTag choice = do
   let varName = transitionName
   initializers <- case choice of
@@ -306,10 +308,9 @@ generateControlAction (Push name le q) = do
   -- TODO: Fix this
   let valExpr = makeIntConstExpr q
   return [("tag", tagExpr), ("name", valExpr)]
-generateControlAction (Pop q) = do
+generateControlAction Pop = do
   tagExpr <- makeEnumConstantExpr "ACT_Pop"
-  let valExpr = makeIntConstExpr q
-  return [("tag", tagExpr), ("name", valExpr)]
+  return [("tag", tagExpr)]
 generateControlAction (ActivateFrame ln) = do
   tagExpr <- makeEnumConstantExpr "ACT_ActivateFrame"
   -- TODO: Fix this
