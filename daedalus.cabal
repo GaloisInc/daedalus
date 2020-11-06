@@ -59,9 +59,13 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
-                       Daedalus.ParserGen.DetUtils,
                        Daedalus.ParserGen.ClassInterval,
-                       Daedalus.ParserGen.Det,
+                       Daedalus.ParserGen.LL,
+                       Daedalus.ParserGen.LL.Result,
+                       Daedalus.ParserGen.LL.CfgDet,
+                       Daedalus.ParserGen.LL.Closure,
+                       Daedalus.ParserGen.LL.DeterminizeOneStep,
+                       Daedalus.ParserGen.LL.DFA,
                        Daedalus.ParserGen.RunnerBias,
                        Daedalus.ParserGen.Generate
 

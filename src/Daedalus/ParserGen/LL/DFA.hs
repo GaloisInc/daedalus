@@ -1,6 +1,6 @@
 {-# Language GADTs #-}
 
-module Daedalus.ParserGen.Det
+module Daedalus.ParserGen.LL.DFA
   ( createDFA
   , statsDFA
   , AutDet
@@ -22,185 +22,55 @@ import qualified Data.Text as T
 
 
 import qualified RTS.Input as Input
-import qualified Daedalus.Interp as Interp
 
-import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (name2Text, State, Action(..), InputAction(..), ControlAction(..), isClassActOrEnd, isInputAction, isActivateFrameAction, isNonClassInputAct, getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (name2Text, State, isInputAction, isActivateFrameAction)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
-import Daedalus.ParserGen.DetUtils
 
-import Daedalus.ParserGen.ClassInterval (IntervalEndpoint(..), ClassInterval(..))
-
-
-data Result a =
-    AbortNotStatic
-  | AbortAcceptingPath
-  | AbortNonClassInputAction Action
-  | AbortOverflowMaxDepth
-  | AbortLoopWithNonClass
-  | AbortNonEmptyIntersection
-  | AbortClassIsDynamic
-  | AbortClassNotHandledYet String
-
-  | AbortAmbiguous
-  | AbortOverflowK
-
-  | Result a
-  deriving(Show)
-
-
-abortToString :: Result a -> String
-abortToString r =
-  case r of
-    AbortNotStatic -> "AbortNotStatic"
-    AbortAcceptingPath -> "AbortAcceptingPath"
-    AbortNonClassInputAction _ -> "AbortNonClassInputAction"
-    AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
-    AbortLoopWithNonClass -> "AbortLoopWithNonClass"
-    AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
-    AbortClassIsDynamic -> "AbortClassIsDynamic"
-    AbortClassNotHandledYet _ -> "AbortClassNotHandledYet"
-    AbortAmbiguous -> "AbortAmbiguous"
-    AbortOverflowK -> "AbortOverflowK"
-    _ -> error "No Abort result"
-
-maxDepthRec :: Int
-maxDepthRec = 800
+import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.DeterminizeOneStep
 
 
 
-closureLL :: Aut a => a -> Set.Set State -> CfgDet -> Result ClosureMoveSet
-closureLL aut busy cfg =
-  let
-    q = cfgState cfg
-    ch = nextTransition aut q
-  in
-    case ch of
-      Nothing ->
-        if isAcceptingState aut q
-        then AbortAcceptingPath
-        else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
-      --error "should not happen"
-      Just ch1 ->
-        let (tag, lstCh) =
-              case ch1 of
-                UniChoice (act, q1) -> (CUni, [(act,q1)])
-                SeqChoice lst _     -> (CSeq, lst)
-                ParChoice lst       -> (CPar, lst)
-        in iterateThrough (initChoicePos tag) lstCh
 
+newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
+  deriving Show
+
+mkDFAStateQuotient :: State -> DFAStateQuotient
+mkDFAStateQuotient q =
+    DFAQuo (Set.singleton (CfgDet q Seq.Empty SWildcard))
+
+equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
+equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
+
+instance Eq DFAStateQuotient where
+  (==) q1 q2 = equivDFAStateQuotient q1 q2
+
+instance Ord DFAStateQuotient where
+  compare q1 q2 =
+    compare (dfaQuo q1) (dfaQuo q2)
+
+convertDFAStateToQuotient :: DFAState -> DFAStateQuotient
+convertDFAStateToQuotient s =
+  DFAQuo (helper s)
   where
-    newBusy = Set.insert (cfgState cfg) busy
-
-    closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
-    closureStep pos (act, q1)
-      | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
-      | isNonClassInputAct act             = -- trace (show act) $
-                                             AbortNonClassInputAction act
-      | length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
-      | Set.member q1 busy                 = -- trace (show q1 ++ " " ++ show cfg) $
-                                             AbortLoopWithNonClass
-      | otherwise =
-          case simulateActionCfgDet aut pos act q1 cfg of
-            Nothing -> Result []
-            Just lstCfg -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
+    helper set =
+      case iterDFAState set of
+        Nothing -> Set.empty
+        Just (DFAStateEntry _ cfg (_,_,q) , es) ->
+          Set.insert (resetCfgDet (setupCfgDetFromPrev q cfg)) (helper es)
 
 
-    iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
-    iterateThrough pos ch =
-      let (_ , lstRes) = foldl (\ (pos1, acc) (act, q1) -> (nextChoicePos pos1, closureStep pos1 (act, q1) : acc)) (pos,[]) ch
-      in
-      combineResults (reverse lstRes)
-
-    combineResults lst =
-      case lst of
-        [] -> Result []
-        r1 : rest ->
-          case r1 of
-            AbortOverflowMaxDepth -> r1
-            AbortLoopWithNonClass -> r1
-            AbortNonClassInputAction _ -> r1
-            AbortAcceptingPath -> r1
-            Result res1 ->
-              let r2 = combineResults rest in
-              case r2 of
-                AbortOverflowMaxDepth -> r2
-                AbortLoopWithNonClass -> r2
-                AbortNonClassInputAction _ -> r2
-                AbortAcceptingPath -> r2
-                Result resForRest -> Result (res1 ++ resForRest)
-                _ -> error "abort not handled here"
-            _ -> error "abort not handled here"
+iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
+iterDFAStateQuotient s =
+  let lst = Set.toAscList (dfaQuo s) in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
 
 
-
-classToInterval :: PAST.NCExpr -> Result ClassInterval
-classToInterval e =
-  case texprValue e of
-    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
-    TCSetSingle e1 ->
-      if not (isSimpleVExpr e1)
-      then AbortClassIsDynamic
-      else
-        let v = evalNoFunCall e1 [] [] in
-        case v of
-          Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
-          _                -> AbortClassNotHandledYet "SetSingle"
-    TCSetRange e1 e2 ->
-      if isSimpleVExpr e1 && isSimpleVExpr e2
-      then
-        let v1 = evalNoFunCall e1 [] []
-            v2 = evalNoFunCall e2 [] []
-        in case (v1, v2) of
-             (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
-               let x1 = fromIntegral x
-                   y1 = fromIntegral y
-               in if x1 <= y1
-                  then Result $ ClassBtw (CValue x1) (CValue y1)
-                  else error ("SetRange values not ordered:" ++ show (toEnum (fromIntegral x1) :: Char) ++ " " ++ show (toEnum (fromIntegral y1) :: Char))
-             _ -> AbortClassNotHandledYet "SetRange"
-      else AbortClassIsDynamic
-    _ -> AbortClassNotHandledYet "other class case"
-
-
--- this function takes a tree representing a set of choices and
--- convert it to a Input factored deterministic transition.
-determinizeClosureMoveSet :: SourceCfg -> ClosureMoveSet -> Result DetChoice
-determinizeClosureMoveSet src tc =
-  determinizeWithAccu tc emptyDetChoice
-
-  where
-    determinizeWithAccu :: ClosureMoveSet -> DetChoice -> Result DetChoice
-    determinizeWithAccu lst acc =
-      case lst of
-        [] -> Result acc
-        t@(_cfg, (_pos, act, _q)) : ms ->
-          case getClassActOrEnd act of
-            Left c ->
-              case classToInterval c of
-                AbortClassIsDynamic -> AbortClassIsDynamic
-                AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
-                Result r ->
-                  let newAcc = insertDetChoice src (HeadInput r) t acc
-                  in determinizeWithAccu ms newAcc
-                _ -> error "Impossible abort"
-            Right IEnd ->
-              let newAcc = insertDetChoice src EndInput t acc
-              in determinizeWithAccu ms newAcc
-            _ -> error "Impossible abort"
-
-
-deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
-deterministicStep aut cfg =
-  case closureLL aut Set.empty cfg of
-    AbortOverflowMaxDepth -> AbortOverflowMaxDepth
-    AbortLoopWithNonClass -> AbortLoopWithNonClass
-    AbortAcceptingPath -> AbortAcceptingPath
-    AbortNonClassInputAction x -> AbortNonClassInputAction x
-    Result r -> determinizeClosureMoveSet cfg r
-    _ -> error "impossible"
 
 
 data DFATransition =
