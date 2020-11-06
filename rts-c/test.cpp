@@ -25,8 +25,8 @@ using namespace std;
 int main() {
 
   // example();
-  cast_tests();
-
+  // cast_tests();
+  rb_tests();
 
   return 0;
 }
