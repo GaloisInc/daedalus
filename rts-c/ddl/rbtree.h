@@ -36,10 +36,8 @@ public:
     Node(bool color, Node * left, Key key, Value value, Node * right)
       : key(key), value(value), color(color), left(left), right(right) {}
 
-    // assume key not already present
     static Node *insert(Key k, Value v, Node *n) {
-      Node * curr;
-      curr = ins(k, v, n);
+      Node *curr  = ins(k, v, n);
       curr->color = black;
       return curr;
     }
@@ -82,30 +80,19 @@ private:
       return nullptr;
     }
 
-
     static Node* ins(Key k, Value v, Node * n) {
-      Node * sub;
-
       if (n == nullptr) return new Node(k, v);
 
-      if (k < n->key) {
-        sub = ins(k, v, n->left);
-        return balance(n->color, sub, n->key, n->value, n->right);
-      } else if (n->key < k) {
-        sub = ins(k, v, n->right);
-        return balance(n->color, n->left, n->key, n->value, sub);
-      } else { // it is equal
-        sub = new Node(n);
-        // assert (Node::is_red(sub));
-        return sub;
-      }
+      if (k < n->key) return balance(n, ins(k,v,n->left), n->right); else
+      if (n->key < k) return balance(n, n->left,          ins(k,v,n->right));
+      else return new Node(n);
     }
 
-
-
-
     static
-    Node* balance(bool color, Node *left, Key k, Value v, Node *right) {
+    Node* balance(Node *me, Node *left, Node *right) {
+      bool  color = me->color;
+      Key   k     = me->key;
+      Value v     = me->value;
 
       if (color == red) goto DONE;
 
@@ -115,20 +102,21 @@ private:
         Node *sub2 = left->left;
         if (is_red(sub2)) {
 
-          return allocate_rebalance( sub2->left,  sub2->key, sub2->value
-                                   , sub2->right, left->key, left->value
-                                   , left->right, k,         v
-                                   , right
-                                   );
+          return allocate_rebalance
+            ( sub2->left, sub2->key, sub2->value, sub2->right
+            , left->key, left->value
+            , left->right, k, v, right
+            );
         }
 
         // left-right
         sub2 = left->right;
         if (is_red(sub2)) {
-            return allocate_rebalance( left->left,  left->key, left->value
-                                     , sub2->left,  sub2->key, sub2->value
-                                     , sub2->right, k,         v
-                                     , right );
+            return allocate_rebalance
+              ( left->left,  left->key, left->value, sub2->left
+              , sub2->key, sub2->value
+              , sub2->right, k, v , right
+              );
         }
       }
 
@@ -137,20 +125,21 @@ private:
         // right-left
         Node *sub2 = right->left;
         if (is_red(sub2)) {
-          return allocate_rebalance( left,        k,          v
-                                   , sub2->left,  sub2->key,  sub2->value
-                                   , sub2->right, right->key, right->value
-                                   , right->right
-                                   );
+          return allocate_rebalance
+            ( left, k, v , sub2->left
+            , sub2->key,  sub2->value
+            , sub2->right, right->key, right->value , right->right
+            );
         }
 
         // right-right
         sub2 = right->right;
         if (is_red(sub2)) {
-          return allocate_rebalance( left,        k,          v
-                                   , right->left, right->key, right->value
-                                   , sub2->left,  sub2->key,  sub2->value
-                                   , sub2->right );
+          return allocate_rebalance
+            ( left, k, v , right->left
+            , right->key, right->value
+            , sub2->left,  sub2->key,  sub2->value, sub2->right
+            );
         }
      }
 
@@ -164,16 +153,11 @@ private:
 
 
 
-    static Node* allocate_rebalance(Node * a,
-                                       Key   x_key,
-                                       Value x_value,
-                                       Node * b,
-                                       Key   y_key,
-                                       Value y_value,
-                                       Node * c,
-                                       Key   z_key,
-                                       Value z_value,
-                                       Node * d) {
+    static Node* allocate_rebalance
+              ( Node *a, Key x_key, Value x_value, Node *b
+              , Key y_key, Value y_value
+              , Node *c, Key z_key, Value z_value, Node *d
+              ) {
         return new Node(red,
                   new Node(black, a, x_key, x_value, b),
                   y_key,
