@@ -1,0 +1,222 @@
+{-# Language GADTs #-}
+
+module Daedalus.ParserGen.LL.DeterminizeOneStep
+  ( InputHeadCondition(..),
+    matchInputHeadCondition,
+    SourceCfg,
+    DFAStateEntry(..),
+    DFAState,
+    iterDFAState,
+    findAllEntryInDFAState,
+    DetChoice,
+    emptyDetChoice,
+    insertDetChoice,
+    unionDetChoice,
+    deterministicStep,
+  ) where
+
+
+-- import Debug.Trace
+
+import qualified Data.Set as Set
+
+import qualified RTS.Input as Input
+import qualified Daedalus.Interp as Interp
+
+import Daedalus.Type.AST
+import Daedalus.ParserGen.AST as PAST
+import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Aut (Aut(..))
+import Daedalus.ParserGen.ClassInterval
+import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.Closure
+
+
+data InputHeadCondition =
+    HeadInput ClassInterval
+  | EndInput
+  deriving (Show)
+
+matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
+matchInputHeadCondition c i =
+  case c of
+    HeadInput a ->
+      case Input.inputByte i of
+        Nothing -> Nothing
+        Just (x, xs) -> if matchClassInterval a x then Just xs else Nothing
+    EndInput ->
+      if Input.inputEmpty i then Just i else Nothing
+
+
+type SourceCfg = CfgDet
+
+data DFAStateEntry = DFAStateEntry
+  { srcDFAState :: SourceCfg
+  , dstDFAState :: CfgDet
+  , moveDFAState :: (ChoicePos, Action, State)
+  }
+  deriving Show
+
+
+compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareSrc p1 p2 =
+  -- TODO: test replacing with
+  -- compareCfgDetAsSrc (srcDFAState p1) (srcDFAState p2)
+  compareCfgDet (srcDFAState p1) (srcDFAState p2)
+
+compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDst p1 p2 =
+  compareCfgDet (dstDFAState p1) (dstDFAState p2)
+
+compareDFAStateEntry :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDFAStateEntry p1 p2 =
+  case compareDst p1 p2 of
+    LT -> LT
+    GT -> GT
+    EQ -> compareSrc p1 p2
+
+
+instance Eq DFAStateEntry where
+  (==) e1 e2 = compareDFAStateEntry e1 e2 == EQ
+
+
+instance Ord DFAStateEntry where
+  compare p1 p2 = compareDFAStateEntry p1 p2
+
+
+type DFAState = Set.Set DFAStateEntry
+
+iterDFAState :: DFAState -> Maybe (DFAStateEntry, DFAState)
+iterDFAState s =
+  let lst = Set.toAscList s in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, Set.fromAscList xs)
+
+findEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> Maybe (DFAStateEntry, DFAState)
+findEntryInDFAState s test =
+  case iterDFAState s of
+    Nothing -> Nothing
+    Just (x, xs) ->
+      if test x then Just (x,xs)
+      else case findEntryInDFAState xs test of
+             Nothing -> Nothing
+             Just (r, rs) -> Just (r, Set.insert x rs)
+
+findAllEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> ([DFAStateEntry], DFAState)
+findAllEntryInDFAState s test =
+  case findEntryInDFAState s test of
+    Nothing -> ([], s)
+    Just (x, xs) ->
+      let (lst, rest) = findAllEntryInDFAState xs test
+      in (x:lst, rest)
+
+
+unionDFAState :: DFAState -> DFAState -> DFAState
+unionDFAState s1 s2 = Set.union s1 s2
+
+singletonDFAState :: DFAStateEntry -> DFAState
+singletonDFAState x = Set.singleton x
+
+
+-- fst element is a list of class action transition, the snd possible element is for EndInput test
+type DetChoice = ([ (ClassInterval, DFAState) ], Maybe DFAState)
+
+emptyDetChoice :: DetChoice
+emptyDetChoice = ([], Nothing)
+
+insertDetChoice :: SourceCfg -> InputHeadCondition -> (CfgDet, (ChoicePos, Action, State)) -> DetChoice -> DetChoice
+insertDetChoice src ih (cfg, (pos, act, q)) d =
+  let (classChoice, endChoice) = d
+      tr = singletonDFAState (DFAStateEntry src cfg (pos, act, q))
+  in
+  case ih of
+    EndInput ->
+      case endChoice of
+        Nothing -> (classChoice, Just tr)
+        Just tr1 -> (classChoice, Just (unionDFAState tr tr1))
+    HeadInput x ->
+      (insertItvInOrderedList (x, tr) classChoice unionDFAState, endChoice)
+
+
+unionDetChoice :: DetChoice -> DetChoice -> DetChoice
+unionDetChoice (cl1, e1) (cl2, e2) =
+  let e3 =
+        case (e1,e2) of
+          (Nothing, Nothing) -> Nothing
+          (Nothing, Just _tr2) -> e2
+          (Just _tr1, Nothing) -> e1
+          (Just tr1, Just tr2) -> Just (unionDFAState tr1 tr2)
+  in
+  let cl3 =
+        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFAState) cl2 cl1
+  in (cl3, e3)
+
+
+
+classToInterval :: PAST.NCExpr -> Result ClassInterval
+classToInterval e =
+  case texprValue e of
+    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
+    TCSetSingle e1 ->
+      if not (isSimpleVExpr e1)
+      then AbortClassIsDynamic
+      else
+        let v = evalNoFunCall e1 [] [] in
+        case v of
+          Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
+          _                -> AbortClassNotHandledYet "SetSingle"
+    TCSetRange e1 e2 ->
+      if isSimpleVExpr e1 && isSimpleVExpr e2
+      then
+        let v1 = evalNoFunCall e1 [] []
+            v2 = evalNoFunCall e2 [] []
+        in case (v1, v2) of
+             (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
+               let x1 = fromIntegral x
+                   y1 = fromIntegral y
+               in if x1 <= y1
+                  then Result $ ClassBtw (CValue x1) (CValue y1)
+                  else error ("SetRange values not ordered:" ++ show (toEnum (fromIntegral x1) :: Char) ++ " " ++ show (toEnum (fromIntegral y1) :: Char))
+             _ -> AbortClassNotHandledYet "SetRange"
+      else AbortClassIsDynamic
+    _ -> AbortClassNotHandledYet "other class case"
+
+
+-- this function takes a tree representing a set of choices and
+-- convert it to a Input factored deterministic transition.
+determinizeClosureMoveSet :: SourceCfg -> ClosureMoveSet -> Result DetChoice
+determinizeClosureMoveSet src tc =
+  determinizeWithAccu tc emptyDetChoice
+
+  where
+    determinizeWithAccu :: ClosureMoveSet -> DetChoice -> Result DetChoice
+    determinizeWithAccu lst acc =
+      case lst of
+        [] -> Result acc
+        t@(_cfg, (_pos, act, _q)) : ms ->
+          case getClassActOrEnd act of
+            Left c ->
+              case classToInterval c of
+                AbortClassIsDynamic -> AbortClassIsDynamic
+                AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
+                Result r ->
+                  let newAcc = insertDetChoice src (HeadInput r) t acc
+                  in determinizeWithAccu ms newAcc
+                _ -> error "Impossible abort"
+            Right IEnd ->
+              let newAcc = insertDetChoice src EndInput t acc
+              in determinizeWithAccu ms newAcc
+            _ -> error "Impossible abort"
+
+
+deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
+deterministicStep aut cfg =
+  case closureLL aut Set.empty cfg of
+    AbortOverflowMaxDepth -> AbortOverflowMaxDepth
+    AbortLoopWithNonClass -> AbortLoopWithNonClass
+    AbortAcceptingPath -> AbortAcceptingPath
+    AbortNonClassInputAction x -> AbortNonClassInputAction x
+    Result r -> determinizeClosureMoveSet cfg r
+    _ -> error "impossible"
