@@ -1,5 +1,5 @@
-#ifndef DDL_STACK
-#define DDL_STACK
+#ifndef DDL_STACK_H
+#define DDL_STACK_H
 
 #include <utility>
 #include <vector>

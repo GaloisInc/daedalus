@@ -1,5 +1,5 @@
-#ifndef DDL_ARRAY
-#define DDL_ARRAY
+#ifndef DDL_ARRAY_H
+#define DDL_ARRAY_H
 
 #include <string.h>
 #include <ddl/list.h>

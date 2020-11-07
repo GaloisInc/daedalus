@@ -1,5 +1,5 @@
-#ifndef DDL_INTEGER
-#define DDL_INTEGER
+#ifndef DDL_INTEGER_H
+#define DDL_INTEGER_H
 
 #include <gmpxx.h>
 #include <ddl/boxed.h>

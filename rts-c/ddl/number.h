@@ -1,5 +1,5 @@
-#ifndef DDL_NUMBER
-#define DDL_NUMBER
+#ifndef DDL_NUMBER_H
+#define DDL_NUMBER_H
 
 #include <cstdint>
 #include <type_traits>

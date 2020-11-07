@@ -1,5 +1,5 @@
-#ifndef DDL_CAST
-#define DDL_CAST
+#ifndef DDL_CAST_H
+#define DDL_CAST_H
 
 #include <ddl/number.h>
 #include <ddl/integer.h>

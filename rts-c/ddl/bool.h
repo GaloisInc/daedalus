@@ -1,5 +1,5 @@
-#ifndef DDL_BOOL
-#define DDL_BOOL
+#ifndef DDL_BOOL_H
+#define DDL_BOOL_H
 
 #include <iostream>
 

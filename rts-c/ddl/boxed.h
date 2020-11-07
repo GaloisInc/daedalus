@@ -1,5 +1,5 @@
-#ifndef DDL_BOXED
-#define DDL_BOXED
+#ifndef DDL_BOXED_H
+#define DDL_BOXED_H
 
 #include <utility>
 #include <iostream>
