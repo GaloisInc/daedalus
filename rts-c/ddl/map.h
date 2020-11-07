@@ -101,7 +101,7 @@ class Map : HasRefs {
       if (n == nullptr) return;
       dump(tab + 2, n->left);
       for (int i = 0; i < tab; ++i) std::cout << ' ';
-      std::cout << n << " ";
+      std::cout << (void*)n << " ";
       std::cout << (n->color == red ? "R" : "B");
       std::cout << "(" << n->ref_count << ") ";
       std::cout << "Key:" << n->key << std::endl;
@@ -127,7 +127,6 @@ class Map : HasRefs {
       size_t ref = p->ref_count;
       if (ref == 1) return p;
 
-      // std::cout << "copying\n";
       Node *res = new Node(p);
       free(p);
       return res;
@@ -222,9 +221,25 @@ class Map : HasRefs {
       return res;
     }
 
+
+    friend
+    std::ostream& operator << (std::ostream &os, Node *n) {
+      if (n == nullptr) return os;
+      os << n->left;
+      if (n->left != nullptr) os << ", ";
+      os << n->key << " -> " << n->value;
+      if (n->right != nullptr) os << ", ";
+      os << n->right;
+      return os;
+    }
+
+
+
   } *tree;
 
   Map(Node* p) : tree(p) {}
+
+  // XXX: Iterator
 
 public:
 
@@ -245,13 +260,19 @@ public:
     return Maybe<Value>(x->value);
   }
 
-
-
-  void dump() { Node::dump(0,tree); }
-
-
+  // reference counting
   void copy() { Node::copy(tree); }
   void free() { Node::free(tree); }
+
+  // for debugging
+  void dump() { Node::dump(0,tree); }
+
+  friend
+  std::ostream& operator << (std::ostream &os, Map m) {
+    os << "[| " << m.tree << " |]";
+    return os;
+  }
+
 };
 
 
