@@ -1,5 +1,5 @@
-#ifndef DDL_INTEGER
-#define DDL_INTEGER
+#ifndef DDL_INTEGER_H
+#define DDL_INTEGER_H
 
 #include <gmpxx.h>
 #include <ddl/boxed.h>
@@ -9,13 +9,21 @@ namespace DDL {
 class Integer : public Boxed<mpz_class> {
 
 public:
-  Integer(const char* str)    : Boxed<mpz_class>(mpz_class(str)) {}
-  Integer(size_t n)           : Boxed<mpz_class>(mpz_class(n))   {}
   Integer()                   : Boxed<mpz_class>()               {}
+  Integer(const char* str)    : Boxed<mpz_class>(mpz_class(str)) {}
+  Integer(unsigned long x)    : Boxed<mpz_class>(x)              {}
+  Integer(long x)             : Boxed<mpz_class>(x)              {}
   Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
 
-  size_t asSize() { return getValue().get_ui(); }
+  bool isNatural() { return sgn(getValue()) >= 0; }
+
+  // assumes we know things will fit
+  unsigned long asULong()    { return getValue().get_ui(); }
+  long          asSLong()    { return getValue().get_si(); }
+
+  bool          fitsULong()  { return getValue().fits_ulong_p(); }
+  bool          fitsSLong()  { return getValue().fits_slong_p(); }
 };
 
 // borrow

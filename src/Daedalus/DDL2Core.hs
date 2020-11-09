@@ -205,7 +205,7 @@ fromGrammar gram =
 
 
     TC.TCOptional cmt g ->
-      do ty <- fromTypeM (TC.typeOf g)
+      do ty <- fromGTypeM (TC.typeOf g)
          x <- newLocal ty
          ge <- fromGrammar g
          let lhs = Do x ge

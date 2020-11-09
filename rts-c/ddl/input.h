@@ -75,8 +75,8 @@ public:
   // Assumes: n <= length()
   void    iTakeMut(size_t n) { last_offset = offset + n; }
 
-  Input iDropI(DDL::Integer n) { return iDrop(n.asSize()); }
-  Input iTakeI(DDL::Integer n) { return iTake(n.asSize()); }
+  Input iDropI(DDL::Integer n) { return iDrop(n.asULong()); }
+  Input iTakeI(DDL::Integer n) { return iTake(n.asULong()); }
 
 
   // Advance current location

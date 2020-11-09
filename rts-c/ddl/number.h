@@ -1,5 +1,5 @@
-#ifndef DDL_NUMBER
-#define DDL_NUMBER
+#ifndef DDL_NUMBER_H
+#define DDL_NUMBER_H
 
 #include <cstdint>
 #include <type_traits>
@@ -15,7 +15,7 @@ namespace DDL {
 
 template <int w>
 struct UInt {
-  static_assert(w <= 64);   // XXX: use gmp?
+  static_assert(w <= 64, "UInt larger than 64 not supported.");
 
   using Rep =
     typename std::conditional < (w <= 8),   uint8_t,
@@ -39,6 +39,14 @@ public:
     return data;
   }
 
+  constexpr static Rep maxValRep() {
+    if constexpr (w ==  8) return UINT8_MAX;  else
+    if constexpr (w == 16) return UINT16_MAX; else
+    if constexpr (w == 32) return UINT32_MAX; else
+    if constexpr (w == 64) return UINT64_MAX; else
+    return (1 << w) - 1;
+  }
+
 
   template <int a, int b>
   UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
@@ -57,13 +65,13 @@ public:
   // yikes, we really should use something other than integer here
   // we are borrowing the integer
   UInt operator << (DDL::Integer x) {
-    size_t n = x.asSize();
+    unsigned long n = x.asULong();
     return n >= w? UInt(0) : UInt(data << n);
   }
 
   // same as for >>
   UInt operator >> (DDL::Integer x) {
-    size_t n = x.asSize();
+    unsigned long n = x.asULong();
     return n >= w? UInt(0) : UInt(data >> n);
   }
 
@@ -98,7 +106,8 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 // but it is not clear if that's what we want from daedluas.
 template <int w>
 struct SInt {
-  static_assert(w <= 64);   // XXX: use gmp?
+  static_assert(w >= 1, "SInt needs at least 1 bit");
+  static_assert(w <= 64, "SInt larger than 64 not supported.");
 
   using Rep =
     typename std::conditional < (w <= 8),   int8_t,
@@ -113,7 +122,7 @@ struct SInt {
 public:
   SInt() : data(0) {}
   SInt(Rep d) : data(d) {}
-  Rep rep() { return data; }
+  Rep rep() { return data; } // XXX: overflow?
 
   SInt operator + (SInt x) { return Rep(data + x.data); }
   SInt operator - (SInt x) { return Rep(data - x.data); }
@@ -125,6 +134,22 @@ public:
   bool operator != (SInt<w> x)   { return rep() != x.rep(); }
   bool operator < (SInt<w> x)    { return rep() <  x.rep(); }
   bool operator <= (SInt<w> x)   { return rep() <=  x.rep(); }
+
+  constexpr static Rep maxValRep() {
+    if constexpr (w ==  8) return INT8_MAX;  else
+    if constexpr (w == 16) return INT16_MAX; else
+    if constexpr (w == 32) return INT32_MAX; else
+    if constexpr (w == 64) return INT64_MAX; else
+    return (1 << (w-1)) - 1;
+  }
+
+  constexpr static Rep minValRep() {
+    return -maxValRep()-1;
+
+  }
+
+
+
 
 };
 

@@ -1,5 +1,5 @@
-#ifndef DDL_MAYBE
-#define DDD_MAYBE
+#ifndef DDL_MAYBE_H
+#define DDL_MAYBE_H
 
 #include <iostream>
 #include <ddl/boxed.h>

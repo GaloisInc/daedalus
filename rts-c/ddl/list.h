@@ -1,5 +1,5 @@
-#ifndef DDL_LIST
-#define DDL_LIST
+#ifndef DDL_LIST_H
+#define DDL_LIST_H
 
 #include <type_traits>
 #include <ddl/boxed.h>

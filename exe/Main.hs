@@ -7,6 +7,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when)
+import Data.Maybe(fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import System.Directory(createDirectoryIfMissing)
@@ -156,23 +157,30 @@ handleOptions opts
            -- XXX: package into Driver, but probably need to add proper
            -- support for multiple entry points, and entry points with
            -- parameters.
-           do passSpecialize specMod [mainRule]
-              passCore specMod
-              passVM specMod
-              passCaptureAnalysis
-              m <- ddlGetAST specMod astVM
-              entry <- ddlGetFName mainNm
-              let prog = VM.addCopyIs
-                       $ VM.doBorrowAnalysis
-                       $ VM.moduleToProgram entry [m]
-                  outFileRoot = "main_parser"
-                  (hpp,cpp) = C.cProgram outFileRoot prog
-              root <- case optOutDir opts of
-                        Nothing -> pure outFileRoot
-                        Just d  -> do ddlIO $ createDirectoryIfMissing True d
-                                      pure (d </> outFileRoot)
-              ddlIO do writeFile (addExtension root "h") (show hpp)
-                       writeFile (addExtension root "cpp") (show cpp)
+           case optBackend opts of
+             UseInterp ->
+               do passSpecialize specMod [mainRule]
+                  passCore specMod
+                  passVM specMod
+                  passCaptureAnalysis
+                  m <- ddlGetAST specMod astVM
+                  entry <- ddlGetFName mainNm
+                  let prog = VM.addCopyIs
+                           $ VM.doBorrowAnalysis
+                           $ VM.moduleToProgram entry [m]
+                      outFileRoot = "main_parser"
+                      (hpp,cpp) = C.cProgram outFileRoot prog
+                  root <- case optOutDir opts of
+                            Nothing -> pure outFileRoot
+                            Just d  -> do ddlIO $ createDirectoryIfMissing True d
+                                          pure (d </> outFileRoot)
+                  ddlIO do writeFile (addExtension root "h") (show hpp)
+                           writeFile (addExtension root "cpp") (show cpp)
+             UsePGen ->
+               do passSpecialize specMod [mainRule]
+                  prog <- ddlGetAST specMod astTC
+                  let outDir = fromMaybe "." $ optOutDir opts
+                  compilePGen [prog] outDir
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 
@@ -204,6 +212,22 @@ interpPGen inp moduls =
                               print $ vcat' $ map pp $ resultValues
                               exitSuccess
               ) [(1::Int)..repeatNb]
+
+compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
+compilePGen moduls outDir = 
+  do let (_, aut) = PGen.buildArrayAut moduls
+     t <- ddlIO $ PGen.generateTextIO aut
+     -- TODO: This needs more thought
+     finalText <- completeContent t
+     let outFile = outDir </> "grammar.c"
+     ddlIO $ writeFile outFile finalText
+     where
+       completeContent t = do
+         let templateFile = "." </> "rts-pgen-c" </> "template.c"
+         template <- ddlIO $ readFile templateFile
+         return $ template ++ t
+
+
 
 
 inputHack :: Options -> Options
