@@ -9,6 +9,7 @@ data Result a =
     AbortNotStatic
   | AbortAcceptingPath
   | AbortNonClassInputAction Action
+  | AbortUnhandledAction
   | AbortOverflowMaxDepth
   | AbortLoopWithNonClass
   | AbortNonEmptyIntersection
@@ -28,6 +29,7 @@ abortToString r =
     AbortNotStatic -> "AbortNotStatic"
     AbortAcceptingPath -> "AbortAcceptingPath"
     AbortNonClassInputAction _ -> "AbortNonClassInputAction"
+    AbortUnhandledAction -> "AbortUnhandledAction"
     AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
     AbortLoopWithNonClass -> "AbortLoopWithNonClass"
     AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"

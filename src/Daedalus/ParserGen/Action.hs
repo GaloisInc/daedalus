@@ -19,13 +19,11 @@ import qualified Daedalus.Interp as Interp
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST (Annot, CorV(..), GblFuns)
+import Daedalus.ParserGen.AST (Annot, CorV(..), GblFuns, NVExpr, NCExpr)
 import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
 
-type NCExpr = TC (SourceRange, Annot) Class
-type NVExpr = TC (SourceRange, Annot) Value
 
 data InputAction =
     ClssItv ClassInterval -- this case comes from the determinization from LL(*)
@@ -196,6 +194,30 @@ isNonClassInputAct act =
       case iact of
         ClssAct _ _ -> False
         _ -> True
+    _ -> False
+
+isUnhandledAction :: Action -> Bool
+isUnhandledAction act =
+  case act of
+    CAct cact ->
+      case cact of
+        ForInit {} -> True
+        ForHasMore -> True
+        ForNext -> True
+        ForEnd -> True
+        MapInit {} -> True
+        MapHasMore -> True
+        MapNext -> True
+        MapEnd -> True
+        _ -> False
+    SAct sact ->
+      case sact of
+        MapInsert {} -> True
+        SelUnion {} -> True
+        Guard _ -> True
+        CoerceCheck {} -> True
+        SelJust {} -> True
+        _ -> False
     _ -> False
 
 isBranchAction :: Action -> Bool

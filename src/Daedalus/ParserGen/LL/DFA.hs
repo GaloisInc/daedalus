@@ -18,14 +18,12 @@ import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
 
 
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (name2Text, State, isInputAction, isActivateFrameAction)
-import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
+import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction)
+import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString)
 
 
 import Daedalus.ParserGen.LL.Result
@@ -40,7 +38,7 @@ newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
 
 mkDFAStateQuotient :: State -> DFAStateQuotient
 mkDFAStateQuotient q =
-    DFAQuo (Set.singleton (CfgDet q Seq.Empty SWildcard))
+    DFAQuo (Set.singleton (initCfgDet q))
 
 equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
 equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
@@ -52,15 +50,15 @@ instance Ord DFAStateQuotient where
   compare q1 q2 =
     compare (dfaQuo q1) (dfaQuo q2)
 
-convertDFAStateToQuotient :: DFAState -> DFAStateQuotient
-convertDFAStateToQuotient s =
+convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
+convertDFAStateToQuotient ih s =
   DFAQuo (helper s)
   where
     helper set =
       case iterDFAState set of
         Nothing -> Set.empty
-        Just (DFAStateEntry _ cfg (_,_,q) , es) ->
-          Set.insert (resetCfgDet (setupCfgDetFromPrev q cfg)) (helper es)
+        Just (DFAStateEntry _srcCfg dstCfg (_,act,q) , es) ->
+          Set.insert (resetCfgDet (setupCfgDetFromPrev ih act q dstCfg)) (helper es)
 
 
 iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
@@ -211,7 +209,7 @@ analyzeConflicts ts =
           then Ambiguous
           else isAnyAmbiguous rest
 
-
+-- TODO: explore changing the logic of this module to a simple loop with a stack of visited and toVisit
 createDFAtable :: Aut a => a -> Int -> DFAStateQuotient -> ExplicitDFA -> ExplicitDFA
 createDFAtable aut depth q dfa =
   case lookupExplicitDFA q dfa of
@@ -236,7 +234,7 @@ createDFAtable aut depth q dfa =
             Ambiguous -> iterateCreateDFA k rest m
             NotAmbiguous -> iterateCreateDFA k rest m
             DunnoAmbiguous ->
-              let newDFA = createDFAtable aut k qq m
+              let newDFA = createDFAtable aut (k+1) qq m
               in iterateCreateDFA k rest newDFA
 
     detSubsetAccu :: DFAStateQuotient -> DetChoice -> Result DFATransition
@@ -250,6 +248,7 @@ createDFAtable aut depth q dfa =
             AbortLoopWithNonClass -> AbortLoopWithNonClass
             AbortAcceptingPath -> AbortAcceptingPath
             AbortNonClassInputAction x -> AbortNonClassInputAction x
+            AbortUnhandledAction -> AbortUnhandledAction
             AbortClassIsDynamic -> AbortClassIsDynamic
             AbortClassNotHandledYet a -> AbortClassNotHandledYet a
             Result r1 ->
@@ -264,7 +263,7 @@ createDFAtable aut depth q dfa =
         [] -> []
         (ihc, s) : rest ->
           let am = analyzeConflicts s in
-            (ihc, s, am, convertDFAStateToQuotient s) : mapAnalyzeConflicts rest
+            (ihc, s, am, convertDFAStateToQuotient ihc s) : mapAnalyzeConflicts rest
 
 
 
@@ -434,8 +433,7 @@ createDFA aut =
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
   let t = IntMap.toList dfas
-      annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ showSourceRange srcRg
-      tAnnotated = map (\ (k,(dfa, _)) -> ((maybe "" (\ p -> annToString p) (stateMappingAut aut k), k), (k, dfa))) t
+      tAnnotated = map (\ (k,(dfa, _)) -> ((stateToString k aut, k), (k, dfa))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000

@@ -11,7 +11,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 
 
-import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isNonClassInputAct)
+import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isNonClassInputAct, isUnhandledAction)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 
 import Daedalus.ParserGen.LL.Result
@@ -43,7 +43,7 @@ closureLL aut busy cfg =
       Just ch1 ->
         let (tag, lstCh) =
               case ch1 of
-                UniChoice (act, q1) -> (CUni, [(act,q1)])
+                UniChoice (act, q2) -> (CUni, [(act, q2)])
                 SeqChoice lst _     -> (CSeq, lst)
                 ParChoice lst       -> (CPar, lst)
         in iterateThrough (initChoicePos tag) lstCh
@@ -52,22 +52,24 @@ closureLL aut busy cfg =
     newBusy = Set.insert (cfgState cfg) busy
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
-    closureStep pos (act, q1)
-      | isClassActOrEnd act                = Result [(cfg, (pos, act, q1))]
+    closureStep pos (act, q2)
+      | isClassActOrEnd act                = Result [(cfg, (pos, act, q2))]
       | isNonClassInputAct act             = -- trace (show act) $
                                              AbortNonClassInputAction act
+      | isUnhandledAction act              = AbortUnhandledAction
       | Seq.length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
-      | Set.member q1 busy                 = -- trace (show q1 ++ " " ++ show cfg) $
+      | Set.member q2 busy                 = -- trace (show q2 ++ " " ++ show cfg) $
                                              AbortLoopWithNonClass
       | otherwise =
-          case simulateActionCfgDet aut pos act q1 cfg of
+          -- trace ("q2: " ++ show (cfgState cfg)) $
+          case simulateActionCfgDet aut pos act q2 cfg of
             Nothing -> Result []
             Just lstCfg -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
 
 
     iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
     iterateThrough pos ch =
-      let (_ , lstRes) = foldl (\ (pos1, acc) (act, q1) -> (nextChoicePos pos1, closureStep pos1 (act, q1) : acc)) (pos,[]) ch
+      let (_ , lstRes) = foldl (\ (pos1, acc) (act, q2) -> (nextChoicePos pos1, closureStep pos1 (act, q2) : acc)) (pos,[]) ch
       in
       combineResults (reverse lstRes)
 
@@ -79,6 +81,7 @@ closureLL aut busy cfg =
             AbortOverflowMaxDepth -> r1
             AbortLoopWithNonClass -> r1
             AbortNonClassInputAction _ -> r1
+            AbortUnhandledAction -> r1
             AbortAcceptingPath -> r1
             Result res1 ->
               let r2 = combineResults rest in
@@ -86,6 +89,7 @@ closureLL aut busy cfg =
                 AbortOverflowMaxDepth -> r2
                 AbortLoopWithNonClass -> r2
                 AbortNonClassInputAction _ -> r2
+                AbortUnhandledAction -> r2
                 AbortAcceptingPath -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"

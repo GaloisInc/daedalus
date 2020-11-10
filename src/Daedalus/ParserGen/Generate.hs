@@ -5,6 +5,7 @@ module Daedalus.ParserGen.Generate where
 import Language.C
 import Control.Monad.State as SM
 
+import Daedalus.ParserGen.AST
 import Daedalus.ParserGen.Aut as Aut
 import Daedalus.ParserGen.Action as Action
 
