@@ -1,9 +1,7 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL.DeterminizeOneStep
-  ( InputHeadCondition(..),
-    matchInputHeadCondition,
-    SourceCfg,
+  ( SourceCfg,
     DFAStateEntry(..),
     DFAState,
     iterDFAState,
@@ -20,7 +18,6 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
 
 import qualified Data.Set as Set
 
-import qualified RTS.Input as Input
 import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
@@ -32,21 +29,6 @@ import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.CfgDet
 import Daedalus.ParserGen.LL.Closure
 
-
-data InputHeadCondition =
-    HeadInput ClassInterval
-  | EndInput
-  deriving (Show)
-
-matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
-matchInputHeadCondition c i =
-  case c of
-    HeadInput a ->
-      case Input.inputByte i of
-        Nothing -> Nothing
-        Just (x, xs) -> if matchClassInterval a x then Just xs else Nothing
-    EndInput ->
-      if Input.inputEmpty i then Just i else Nothing
 
 
 type SourceCfg = CfgDet
@@ -218,5 +200,6 @@ deterministicStep aut cfg =
     AbortLoopWithNonClass -> AbortLoopWithNonClass
     AbortAcceptingPath -> AbortAcceptingPath
     AbortNonClassInputAction x -> AbortNonClassInputAction x
+    AbortUnhandledAction -> AbortUnhandledAction
     Result r -> determinizeClosureMoveSet cfg r
     _ -> error "impossible"

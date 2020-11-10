@@ -5,6 +5,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Array.IArray
+import qualified Data.Text as T
 
 import Daedalus.Type.AST
 
@@ -141,6 +142,11 @@ toListAut aut =
   let (i,t,f,_) = dsAut aut
   in (i, toListTr2 t, f)
 
+stateToString :: Aut a => State -> a -> String
+stateToString q aut =
+  let annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ PAST.showSourceRange srcRg
+  in
+    maybe "" (\ p -> annToString p) $ stateMappingAut aut q
 
 -- Is the action effectful on the devices of a machine.
 isEffectful :: Action -> Bool

@@ -122,9 +122,9 @@ handleOptions opts
               -- prog <- normalizedDecls
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
+                   PGen.autToGraphviz aut
                    let dfa = PGen.createDFA aut
                    PGen.statsDFA aut dfa
-                   PGen.autToGraphviz aut
                 )
 
          Interp inp ->
@@ -214,7 +214,7 @@ interpPGen inp moduls =
               ) [(1::Int)..repeatNb]
 
 compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
-compilePGen moduls outDir = 
+compilePGen moduls outDir =
   do let (_, aut) = PGen.buildArrayAut moduls
      t <- ddlIO $ PGen.generateTextIO aut
      -- TODO: This needs more thought
