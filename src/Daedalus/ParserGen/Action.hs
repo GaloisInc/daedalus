@@ -19,7 +19,7 @@ import qualified Daedalus.Interp as Interp
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST (Annot, CorV(..), GblFuns, NVExpr, NCExpr)
+import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
 import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
