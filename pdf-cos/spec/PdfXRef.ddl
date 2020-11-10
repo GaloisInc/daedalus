@@ -152,30 +152,83 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) = {
               };
   prev    = Optional (LookupNat "Prev" dict);
   encrypt = Optional { 
-    @d = Lookup "Encrypt" dict; 
-    commit;
-    d is ref; 
-  }; 
-  -- XXX: should be mandatory if encryption is enabled 
-  id = Optional { 
-    @i = Lookup "ID" dict; 
+    d = Lookup "Encrypt" dict; 
     commit; 
-    firstid = Index (i is array) 0 is string; 
-    allid = ^i 
+    eref = d is ref; 
+    @i = Lookup "ID" dict; 
+    length (i is array) == 2;  
+    id0 = Index (i is array) 0 is string; 
+    id1 = Index (i is array) 1 is string; 
   }; 
   all = ^ dict;
 }
 
+-- Encryption dictionary (Table 20 in S7.6.1) 
 def EncryptionDict (eref : Ref) = { 
-  @encdict = (ResolveValRef eref) is dict; 
-  encFilter = (Lookup "Filter" encdict) is name; 
-  encLength = LookupNat "Length" encdict <| ^ 40; 
-  encO = (Lookup "O" encdict) is string; 
+  @edict = (ResolveValRef eref) is dict; 
+
+  encFilter = (Lookup "Filter" edict) is name; 
+  encFilter == "Standard"; -- Other modes unsupported 
+
+  encSubFilter = Optional ((Lookup "SubFilter" edict) is name); 
+
+  encV = LookupNat "V" edict; 
+
+  -- Fields for the Standard security handler (Table 21, S7.6.3.2)
+  encR = LookupNat "R" edict; 
+  encR == 3 || (encV == 4 && encR == 4); -- Other modes unsupported 
+
+  encO = (Lookup "O" edict) is string; 
+  encU = (Lookup "U" edict) is string; 
+
   encP = { 
-    @v = (Lookup "P" encdict) is number; 
+    @v = (Lookup "P" edict) is number; 
     ^ v.num;
   }; 
-  V = LookupNat "V" encdict; 
+
+  -- Extract key length 
+  -- XXX: Builds in checking that this is an AES 
+  stmFLength = Choose1 { 
+    { -- Version 2 encryption 
+      encV == 2; 
+      @len = LookupNat "Length" edict <| ^ 40; 
+      len >= 40 && len <= 128;
+      ^ len; 
+    }; 
+    { -- Version 4 encryption 
+      encV == 4;
+
+      @stmF = (Lookup "StmF" edict) is name; 
+      @strF = (Lookup "StrF" edict) is name;       
+      @cf = (Lookup "CF" edict) is dict; 
+      
+      -- Lookup stream filter 
+      @stmFdict = (Lookup stmF cf) is dict; 
+      @stmFname = (Lookup "CFM" stmFdict) is name; 
+      @stmFLength = LookupNat "Length" stmFdict; 
+
+      -- Lookup string filter 
+      @strFdict = (Lookup strF cf) is dict; 
+      @strFname = (Lookup "CFM" strFdict) is name; 
+      @strFLength = LookupNat "Length" strFdict; 
+
+      -- Only support AES: 
+      stmFname == "AESV2"; 
+      strFname == "AESV2"; 
+
+      -- XXX: Only return stream key length for now
+      ^ stmFLength; 
+    }; 
+  }; 
+
+  -- Supported modes: 
+  stmFLength == 128 || stmFLength == 256; 
 } 
 
-
+-- Crypt filter dictionary (Table 25 in 7.6.5) 
+-- def CfDictLength cref n  = { 
+--  @cdict = (Lookup n cref) is dict; 
+--  @cfm = (Lookup "CFM" cdict); 
+--  cfm == "AESV2"; 
+--  ^ 128;   -- XXX: hack to make this keep working 
+-- }

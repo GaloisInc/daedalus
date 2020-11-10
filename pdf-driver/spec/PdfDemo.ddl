@@ -9,14 +9,13 @@ def IsRootPages r = Default false { IsPageOrPages nothing r; ^ true }
 
 def IsPageOrPages p c = IsPage p c | IsPages p c
 
--- Don't look at the contents now.
 def IsPage (p : maybe Ref) (r : Ref) =
 {
     @v = ResolveValRef r;
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
-    CheckContents dict;
+    CheckContents dict;  -- XXX: need to thread crypto through here... 
 }
 
 def IsPages (p : maybe Ref) (r : Ref) =

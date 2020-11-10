@@ -23,8 +23,6 @@ import PdfDOM
 import CommandLine
 import PP
 
-import Debug.Trace
-
 main :: IO ()
 main =
   do opts <- getOpts options
@@ -43,10 +41,10 @@ main =
      (refs, trail) <- 
         handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     fileEC <- makeEncContextDom trail refs topInput (password opts) 
+     fileEC <- makeEncContext trail refs topInput (password opts) 
 
-     let ppRef pref r =
-           do res <- runParser refs (fileEC r) (pResolveRef r) topInput
+     let ppRef pref r@(Ref ro rg) =
+           do res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -79,6 +77,11 @@ main =
 
        ShowHelp -> dumpUsage options
 
+quit :: String -> IO a
+quit msg =
+  do hPutStrLn stderr msg
+     exitFailure
+
 handlePdfResult :: IO (PdfResult a) -> String -> IO a 
 handlePdfResult x msg = 
   do  res <- x
@@ -87,37 +90,26 @@ handlePdfResult x msg =
         ParseAmbig {} -> quit msg 
         ParseErr e    -> quit (show (pp e))
 
--- XXX: Very similar code in pdf-driver/src/driver/Main.hs. Should de-duplicate
-makeEncContextDom :: TrailerDict 
+-- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
+makeEncContext :: Integral a => 
+                      TrailerDict  
                   -> ObjIndex 
-                  -> Input  
+                  -> Input 
                   -> BS.ByteString 
-                  -> IO (Ref -> Maybe EncContext)  
-makeEncContextDom trail refs topInput pwd = 
-  case (getField @"encrypt" trail, getField @"id" trail) of 
-    (Nothing, _) -> pure $ const Nothing -- No encryption 
-    (_, Nothing) -> do hPutStrLn stderr "WARNING: Encryption error - missing document ID field. Decryption disabled."
-                       pure $ const Nothing 
-    (Just d, Just fileID) -> do 
-      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict d) topInput) 
+                  -> IO ((a, a) -> Maybe EncContext)
+makeEncContext trail refs topInput pwd = 
+  case getField @"encrypt" trail of 
+    Nothing -> pure $ const Nothing -- No encryption 
+    Just e -> do 
+      let eref = getField @"eref" e 
+      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict eref) topInput) 
                               "Ambiguous encryption dictionary"
-      if not $ elem (getField @"V" enc) [2,4] then 
-        do hPutStrLn stderr "WARNING: Unsupported cipher mode. Decryption disabled" 
-           pure $ const Nothing
-      else do 
-        let len = fromIntegral $ getField @"encLength" enc 
-            encO = vecToRep $ getField @"encO" enc 
-            encP = fromIntegral $ getField @"encP" enc
-            firstid = vecToRep $ getField @"firstid" fileID 
-            filekey = makeFileKey len pwd encO encP firstid  
-        pure $ \(Ref ro rg) -> 
-          Just EncContext { key = filekey, 
-                            keylen = len, 
-                            robj = fromIntegral ro, 
-                            rgen = fromIntegral rg } 
-
-quit :: String -> IO a
-quit msg =
-  do hPutStrLn stderr msg
-     exitFailure
-
+      let len = fromIntegral $ getField @"stmFLength" enc 
+          encO = vecToRep $ getField @"encO" enc 
+          encP = fromIntegral $ getField @"encP" enc
+          id0 = vecToRep $ getField @"id0" e 
+      pure $ \(ro, rg) -> 
+         Just EncContext { key = makeFileKey len pwd encO encP id0, 
+                          keylen = len, 
+                          robj = fromIntegral ro, 
+                          rgen = fromIntegral rg } 

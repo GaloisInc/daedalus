@@ -33,7 +33,7 @@ main =
   do opts <- getOptions
      case optMode opts of
        Demo  -> driver opts
-       FAW   -> fmtDriver fawFormat (optPDFInput opts) (optPassword opts) 
+       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts) 
 
 
 data Format = Format
@@ -64,8 +64,8 @@ fawFormat = Format
   , xrefOK =
       \o _t -> putStrLn ("INFO: " ++ show (Map.size o) ++ " xref entries.")
   , warnEncrypt =
-      putStrLn ("WARNING: Encrypted document; spurious errors may follow.")
-  , rootMissing = putStrLn ("ERROR: Trailer is missing `root` entry.")
+      putStrLn "WARNING: Encrypted document; spurious errors may follow."
+  , rootMissing = putStrLn "ERROR: Trailer is missing `root` entry."
   , rootFound =
       \r -> putStrLn ("INFO: Root reference is " ++
                         showR (getField @"obj" r) (getField @"gen" r))
@@ -101,7 +101,7 @@ fawFormat = Format
 
 
 
-fmtDriver :: DbgMode => Format -> FilePath -> String -> IO ()
+fmtDriver :: DbgMode => Format -> FilePath -> BS.ByteString -> IO ()
 fmtDriver fmt file pwd =
   do bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
@@ -133,7 +133,7 @@ fmtDriver fmt file pwd =
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     fileEC <- makeEncContextDriver trail refs topInput pwd 
+     fileEC <- makeEncContext trail refs topInput pwd 
 
      mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
@@ -227,7 +227,7 @@ driver opts = runReport opts $
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     fileEC <- liftIO $ makeEncContextDriver trail refs topInput (optPassword opts)
+     fileEC <- liftIO $ makeEncContext trail refs topInput (BS.pack $ optPassword opts)
 
      parseObjs file fileEC topInput refs
 
@@ -271,34 +271,38 @@ sayVal v = case v of
              Value_array {}  -> "array"
              Value_dict {}   -> "dict"
 
--- XXX: Very similar code in pdf-driver/src/dom/Main.hs. Should de-duplicate
-makeEncContextDriver :: TrailerDict 
-                      -> ObjIndex 
-                      -> Input 
-                      -> String 
-                      -> IO ((Int, Int) -> Maybe EncContext)
-makeEncContextDriver trail refs topInput pwd = 
-  case (getField @"encrypt" trail, getField @"id" trail) of 
-    (Nothing, _) -> pure $ const Nothing
-    (_, Nothing) -> do putStrLn "WARNING: Encryption error - missing document ID field. Encryption disabled."
-                       pure $ const Nothing 
-    (Just d, Just fileID) -> do 
-      enc <- do res <- runParser refs Nothing (pEncryptionDict d) topInput
-                case res of
-                  ParseOk a     -> pure a
-                  ParseAmbig {} -> error "ERROR: Ambiguous encryption dictionary"
-                  ParseErr e    -> error (show e) 
-      if not $ elem (getField @"V" enc) [2,4] then 
-        do putStrLn "WARNING: Unsupported cipher mode. Decryption disabled" 
-           pure $ const Nothing
-      else do 
-        let len = fromIntegral $ getField @"encLength" enc 
-            encO = vecToRep $ getField @"encO" enc 
-            encP = fromIntegral $ getField @"encP" enc
-            firstid = vecToRep $ getField @"firstid" fileID 
-            filekey = makeFileKey len (BS.pack pwd) encO encP firstid  
-        pure $ \(ro, rg) -> 
-          Just EncContext { key = filekey, 
-                            keylen = len, 
-                            robj = fromIntegral ro, 
-                            rgen = fromIntegral rg } 
+quit :: String -> IO a
+quit msg =
+  do error msg 
+
+handlePdfResult :: IO (PdfResult a) -> String -> IO a 
+handlePdfResult x msg = 
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg 
+        ParseErr e    -> quit (show e) 
+
+-- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
+makeEncContext :: Integral a => 
+                      TrailerDict  
+                  -> ObjIndex 
+                  -> Input 
+                  -> BS.ByteString 
+                  -> IO ((a, a) -> Maybe EncContext)
+makeEncContext trail refs topInput pwd = 
+  case getField @"encrypt" trail of 
+    Nothing -> pure $ const Nothing -- No encryption 
+    Just e -> do 
+      let eref = getField @"eref" e 
+      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict eref) topInput) 
+                              "Ambiguous encryption dictionary"
+      let len = fromIntegral $ getField @"stmFLength" enc 
+          encO = vecToRep $ getField @"encO" enc 
+          encP = fromIntegral $ getField @"encP" enc
+          id0 = vecToRep $ getField @"id0" e 
+      pure $ \(ro, rg) -> 
+         Just EncContext { key = makeFileKey len pwd encO encP id0, 
+                          keylen = len, 
+                          robj = fromIntegral ro, 
+                          rgen = fromIntegral rg } 

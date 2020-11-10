@@ -29,7 +29,7 @@ modeOpt = flag Demo FAW
  <> help "Enable debug (non-demo)  mode" )
 
 passwordOpt = strOption 
-   ( long "password" 
+   ( long "pwd" 
   <> short 'p' 
   <> value "" 
   <> metavar "PASSWORD")
