@@ -59,7 +59,7 @@ cTypeGroup rec =
 
 
 
-{- Note: Product types shouldh't be directly recursive as that would
+{- Note: Product types shouldn't be directly recursive as that would
 require infinite values, which we do not support.   There may be recursive
 groups only containing products though: for example, if the recursion happens
 through an array: a = [a]
@@ -276,7 +276,7 @@ cUnboxedSum vis tdecl =
 cBoxedSum :: TDecl -> CDecl
 cBoxedSum tdecl =
   vcat
-    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::HasRefs {"
+    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
     , nest 2 $ vcat attrs
     , "public:"
     , nest 2 $ vcat methods
@@ -313,6 +313,7 @@ generateMethods vis boxed ty =
     , defCopyFree vis boxed "free" ty
     ] ++
     defCons      vis boxed ty ++
+    defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
     [defEq vis boxed ty, defNeq vis boxed ty] ++
     [defShow vis boxed ty]
@@ -349,15 +350,20 @@ defShow vis _ tdecl =
         [ cStmt ("return os <<" <+> cString " }") ]
 
       TUnion fs ->
-        [ cStmt ("os <<" <+> cString "{|")
+        [ cStmt ("os <<" <+> cString "{| ")
         , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ cStmt $ "case" <+> cSumTagV l <.> colon <+>
-                      "os <<" <+> cString (show (pp l <+> "= ")) <+>
-                      "<<" <+> cCallMethod "x" (selName GenBorrow l) []
-                    | (l,_) <- fs ]
+                    [ "case" <+> cSumTagV l <.> colon <+>
+                      vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
+                           , cStmt "break"
+                           ]
+                    | (l,_) <- fs
+                    , let lab = cString (show (pp l <+> "= "))
+                          val = cCallMethod "x" (selName GenBorrow l) []
+                    ]
+               , "}"
                ]
-        , cStmt ("return os <<" <+> cString "|}")
+        , cStmt ("return os <<" <+> cString " |}")
         ]
   where
   ty = cTypeNameUse vis tdecl
@@ -455,13 +461,28 @@ defSelectors :: GenVis -> GenBoxed -> TDecl -> [CDecl]
 defSelectors vis boxed tdecl =
   concatMap (defSelectorsOwn vis boxed tdecl) [GenBorrow,GenOwn]
 
+
+defGetTag :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defGetTag vis boxed tdecl =
+  case tDef tdecl of
+    TStruct {} -> []
+    TUnion {} ->
+      [ defMethod vis tdecl (cSumTagT tdecl) "getTag" []
+          [ case boxed of
+              GenBoxed   -> cStmt "return ptr.getValue().getTag()"
+              GenUnboxed -> cStmt "return tag"
+          ]
+      ]
+
 -- XXX: Maybe some selectors should return a reference?
 defSelectorsOwn :: GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
 defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   where
+
   uni  = case tDef tdecl of
            TStruct _ -> False
            TUnion  _ -> True
+
   sel (l,t) n =
     let name = selName borrow l
     in defMethod vis tdecl (cSemType t) name []

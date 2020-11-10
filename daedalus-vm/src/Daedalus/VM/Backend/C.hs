@@ -89,16 +89,14 @@ cProgram fileNameRoot prog = (hpp,cpp)
 
 
   includes =
-    vcat [ "#include <vector>"
-         , "#include <unordered_map>"
-         , "#include <memory>"
-         , "#include <variant>"
-         , ""
-         , "#include <ddl/parser.h>"
+    vcat [ "#include <ddl/parser.h>"
+         , "#include <ddl/input.h>"
          , "#include <ddl/unit.h>"
+         , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
          , "#include <ddl/integer.h>"
-         , "#include <ddl/input.h>"
+         , "#include <ddl/cast.h>"
+         , "#include <ddl/maybe.h>"
          , "#include <ddl/array.h>"
          , "#include <ddl/map.h>"
          ]
@@ -168,8 +166,9 @@ cBasicBlock b = "//" <+> text (show (blockType b))
 
   getArgs = case blockType b of
               NormalBlock -> empty
-              ReturnBlock n ->
-                let (ras,cas) = splitAt n (blockArgs b)
+
+              ReturnBlock rn ->
+                let (ras,cas) = splitAt rn (blockArgs b)
                     ty = cPtrT (cReturnClassName (blockName b))
                 in
                 cBlock $
@@ -180,21 +179,21 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   | (v,n) <- cas `zip` [ 0 .. ]
                   , let e = "clo->" <.> cField n
                   ] ++
-                  [ "clo->free();" ]
+                  [ cStmt (cCall "clo->free" ["true"]) ]
+
               ThreadBlock ->
                 let x : xs = blockArgs b
                     ty = cPtrT (cReturnClassName (blockName b))
                 in
                 cBlock
                   $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
-                  : cAssign (cArgUse b x) "clo->notified"
+                  : cAssign (cArgUse b x) (cCall "DDL::Bool" ["clo->notified"])
                   : [ cAssign (cArgUse b v) e
                     | (v,n) <- xs `zip` [ 0 .. ]
                     , let e = "clo->" <.> cField n
                     ]
-                 ++ [ "clo->free();" ]
+                 ++ [ cStmt (cCall "clo->free" ["true"]) ]
 
-              ThreadBlock -> "/* todo */"
 
 
 
@@ -221,7 +220,10 @@ cBlockStmt cInstr =
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail        -> cStmt (cCall "p.noteFail" [])
     GetInput x      -> cVarDecl x (cCall "p.getInput" [])
-    Spawn x l       -> todo
+    Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
+      where clo = "new" <+> cCall (cReturnClassName (jLabel l))
+                    ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
+
     Free xs         -> vcat (cFree xs)
 
     Let _ e
@@ -230,7 +232,7 @@ cBlockStmt cInstr =
 
     CallPrim x p es ->
       case p of
-        StructCon ut ->
+        StructCon _ut ->
           let v = cVarUse x
           in vcat [ cDeclareVar (cType (getType x)) v
                   , cStmt (cCallMethod v structCon
@@ -248,10 +250,8 @@ cBlockStmt cInstr =
                                 ))
         Op1 op1      -> cOp1 x op1 es
         Op2 op2      -> cOp2 x op2 es
-        Op3 op3      -> cVarDecl x todo
-        OpN opN      -> cVarDecl x todo
-  where
-  todo = "/* todo (stmt)" <+> pp cInstr <+> "*/"
+        Op3 op3      -> cOp3 x op3 es
+        OpN opN      -> cOpN x opN es
 
 
 cFree :: (CurBlock, Copies) => Set VMVar -> [CStmt]
@@ -268,11 +268,99 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 
 
 
-cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CExpr
+cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CStmt
 cOp1 x op1 ~[e'] =
   case op1 of
-    Src.CoerceTo t      -> todo
-    Src.CoerceMaybeTo t -> todo
+    Src.CoerceTo tgtT -> cVarDecl x (cCall fun [e])
+      where
+      srcT = case getType e' of
+               TSem t -> t
+               _ -> bad "Expected a semantic type"
+
+      bad :: String -> a
+      bad msg = panic "cOp1" [ "Bad coercions"
+                             , "from " ++ show (pp srcT)
+                             , "to " ++ show (pp tgtT)
+                             , msg
+                             ]
+
+      sz t = case t of
+              Src.TSize i -> integer i
+              _           -> bad "Size not an integer"
+
+      fun =
+        case srcT of
+
+          Src.TUInt from ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::uint_to_integer" [sz from]
+              Src.TUInt to  -> cInst "DDL::uint_to_uint" [sz from, sz to]
+              Src.TSInt to  -> cInst "DDL::uint_to_sint" [sz from, sz to]
+              _             -> bad "Unexpected target type"
+
+          Src.TSInt from ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::sint_to_integer" [sz from]
+              Src.TUInt to  -> cInst "DDL::sint_to_uint" [sz from, sz to]
+              Src.TSInt to  -> cInst "DDL::sint_to_sint" [sz from, sz to]
+              _             -> bad "Unexpected target type"
+
+          Src.TInteger ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::refl_cast" [cSemType tgtT]
+              Src.TUInt to  -> cInst "DDL::integer_to_uint" [sz to]
+              Src.TSInt to  -> cInst "DDL::integer_to_sint" [sz to]
+              _             -> bad "Unexpected target type"
+
+          _ | srcT == tgtT -> cInst "DDL::refl_cast" [cSemType tgtT]
+            | otherwise    -> bad "Unexpected source type"
+
+
+
+    Src.CoerceMaybeTo tgtT -> cVarDecl x (cCall fun [e])
+      where
+      srcT = case getType e' of
+               TSem t -> t
+               _ -> bad "Expected a semantic type"
+
+      bad :: String -> a
+      bad msg = panic "cOp1" [ "Bad coercions"
+                             , "from " ++ show (pp srcT)
+                             , "to " ++ show (pp tgtT)
+                             , msg
+                             ]
+
+      sz t = case t of
+              Src.TSize i -> integer i
+              _           -> bad "Size not an integer"
+
+      fun =
+        case srcT of
+
+          Src.TUInt from ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::uint_to_integer_maybe" [sz from]
+              Src.TUInt to  -> cInst "DDL::uint_to_uint_maybe" [sz from, sz to]
+              Src.TSInt to  -> cInst "DDL::uint_to_sint_maybe" [sz from, sz to]
+              _             -> bad "Unexpected target type"
+
+          Src.TSInt from ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::sint_to_integer_maybe" [sz from]
+              Src.TUInt to  -> cInst "DDL::sint_to_uint_maybe" [sz from, sz to]
+              Src.TSInt to  -> cInst "DDL::sint_to_sint_maybe" [sz from, sz to]
+              _             -> bad "Unexpected target type"
+
+          Src.TInteger ->
+            case tgtT of
+              Src.TInteger  -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
+              Src.TUInt to  -> cInst "DDL::integer_to_uint_maybe" [sz to]
+              Src.TSInt to  -> cInst "DDL::integer_to_sint_maybe" [sz to]
+              _             -> bad "Unexped target type"
+
+          _ | srcT == tgtT -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
+            | otherwise    -> bad "Unexpected source type"
+
 
     Src.IsEmptyStream ->
       cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
@@ -286,81 +374,142 @@ cOp1 x op1 ~[e'] =
     Src.StreamLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "length" [] ]
 
-    Src.OneOf bs -> todo
-    Src.Neg -> todo
-    Src.BitNot -> todo
-    Src.Not -> todo
+    Src.OneOf bs ->
+      let v     = cVarUse x
+          true  = cAssign v (cCall "DDL::Bool" [ "true" ]) $$ cBreak
+          false = cAssign v (cCall "DDL::Bool" [ "false" ])
+      in
+      vcat
+        [ cDeclareVar (cType (getType x)) v
+        , cSwitch (cCallMethod e "rep" [])
+            $ [ cCase (int (fromEnum b)) <+> true | b <- BS.unpack bs ]
+           ++ [ cDefault <+> false ]
+        ]
+
+    Src.Neg ->
+      cVarDecl x $ "-" <> e
+
+    Src.BitNot ->
+      cVarDecl x $ "~" <> e
+
+    Src.Not ->
+      cVarDecl x $ "!" <> e
 
     Src.ArrayLen ->
       cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
 
-    Src.Concat -> todo
-
-    Src.FinishBuilder ->
+    Src.Concat ->
       cVarDecl x $ cCall (cType (getType x)) [ e ]
 
-    Src.NewIterator -> todo
-    Src.IteratorDone -> todo
-    Src.IteratorKey -> todo
-    Src.IteratorVal -> todo
-    Src.IteratorNext -> todo
-    Src.EJust -> todo
-    Src.IsJust -> todo
-    Src.FromJust -> todo
-    Src.SelStruct t l -> todo
+    Src.FinishBuilder ->
+      cVarDecl x (cCall (cType (getType x)) [ e ])
 
-    Src.InUnion ut l ->
+    Src.NewIterator  ->
+      cVarDecl x $ cCall (cType (getType x)) [ e ]
+
+    Src.IteratorDone ->
+      cVarDecl x $ cCallMethod e "done" []
+
+    Src.IteratorKey  ->
+      cVarDecl x $ cCallMethod e "key" []
+
+    Src.IteratorVal ->
+      cVarDecl x $ cCallMethod e "value" []
+
+    Src.IteratorNext ->
+      cVarDecl x $ cCallMethod e "next" []
+
+    Src.EJust ->
+      cVarDecl x $ cCall (cType (getType x)) [e]
+
+    Src.IsJust ->
+      cVarDecl x $ cCallMethod e "isJust" []
+
+    Src.FromJust ->
+      cVarDecl x $ cCallMethod e "getValue" []
+
+    Src.SelStruct _t l ->
+      cVarDecl x $ cCallMethod e (selName GenOwn l) []
+
+    Src.InUnion _ut l ->
       vcat [ cDeclareVar (cType (getType x)) (cVarUse x)
            , cStmt $ cCallMethod (cVarUse x) (unionCon l)
                                       [ e | getType e' /= TSem Src.TUnit ]
            ]
 
-    Src.HasTag l -> todo
-    Src.FromUnion t l -> todo
+    Src.HasTag l ->
+      cVarDecl x $ cCallMethod e "getTag" [] <+> "==" <+> cSumTagV l
+
+    Src.FromUnion _t l ->
+      cVarDecl x $ cCallMethod e (selName GenOwn l) []
+
   where
-  todo = "/* todo (1)" <+> pp op1 <+> "*/"
   e = cExpr e'
 
 
 cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
-cOp2 x op2 ~[e1,e2] =
+cOp2 x op2 ~[e1',e2'] =
   case op2 of
-    Src.IsPrefix -> cVarDecl x (cCall (cExpr e2 <.> ".hasPrefix") [ cExpr e1 ])
-    Src.Drop -> cVarDecl x (cCall ((cExpr e2) <.> ".iDropI") [ cExpr e1 ])
-    Src.Take -> cVarDecl x (cCall ((cExpr e2) <.> ".iTakeI") [ cExpr e1 ])
+    Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
+    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
+    Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
 
-    Src.Eq    -> cVarDecl x (cExpr e1 <+> "==" <+> cExpr e2)
-    Src.NotEq -> cVarDecl x (cExpr e1 <+> "!=" <+> cExpr e2)
-    Src.Leq   -> cVarDecl x (cExpr e1 <+> "<=" <+> cExpr e2)
-    Src.Lt    -> cVarDecl x (cExpr e1 <+> "<"  <+> cExpr e2)
+    Src.Eq    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "==" <+> e2]
+    Src.NotEq -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "!=" <+> e2]
+    Src.Leq   -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<=" <+> e2]
+    Src.Lt    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<"  <+> e2]
 
-    Src.Add   -> cVarDecl x (cExpr e1 <+> "+" <+> cExpr e2)
-    Src.Sub   -> cVarDecl x (cExpr e1 <+> "-" <+> cExpr e2)
-    Src.Mul   -> cVarDecl x (cExpr e1 <+> "*" <+> cExpr e2)
-    Src.Div   -> cVarDecl x (cExpr e1 <+> "/" <+> cExpr e2)
-    Src.Mod   -> cVarDecl x (cExpr e1 <+> "%" <+> cExpr e2)
+    Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
+    Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
+    Src.Mul   -> cVarDecl x (e1 <+> "*" <+> e2)
+    Src.Div   -> cVarDecl x (e1 <+> "/" <+> e2)
+    Src.Mod   -> cVarDecl x (e1 <+> "%" <+> e2)
 
-    Src.BitAnd -> todo
-    Src.BitOr -> todo
-    Src.BitXor -> todo
-    Src.Cat -> todo
-    Src.LCat -> todo
-    Src.LShift -> todo
-    Src.RShift -> todo
+    Src.BitAnd  -> cVarDecl x (e1 <+> "&" <+> e2)
+    Src.BitOr   -> cVarDecl x (e1 <+> "|" <+> e2)
+    Src.BitXor  -> cVarDecl x (e1 <+> "^" <+> e2)
+    Src.Cat     -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.LCat    -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
+    Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
-    Src.Or -> todo
-    Src.And -> todo
-    Src.ArrayIndex -> todo
-    Src.ConsBuilder ->
-      cVarDecl x $ cCall (cType (getType x)) [ cExpr e1, cExpr e2 ]
+    Src.Or  -> panic "cOp2" [ "Or" ]
+    Src.And -> panic "cOp2" [ "And" ]
+
+    Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 e2)
+    Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
     Src.MapLookup -> todo
     Src.MapMember -> todo
 
-    Src.ArrayStream -> todo
 
   where
   todo = "/* todo (2)" <+> pp op2 <+> "*/"
+  e1   = cExpr e1'
+  e2   = cExpr e2'
+
+
+cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
+cOp3 _x op ~[_,_,_] =
+  case op of
+    Src.PureIf      -> panic "cOp3" [ "PureIf" ]
+    Src.RangeUp     -> todo
+    Src.RangeDown   -> todo
+    Src.MapInsert   -> todo
+  where
+  todo = "/* todo: op 3 " <+> pp op <+> "*/"
+
+
+
+cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
+cOpN x op es =
+  case op of
+    Src.ArrayL t -> cVarDecl x (cCall con (int (length es) : map cExpr es))
+      where con = cSemType (Src.TArray t)
+
+    Src.CallF _  -> panic "cOpN" ["CallF"]
+
 
 
 
@@ -375,7 +524,7 @@ cExpr expr =
                        Just e  -> cExpr e
                        Nothing -> cVarUse x
     EUnit         -> cCall "DDL::Unit" []
-    EBool b       -> if b then "true" else "false"
+    EBool b       -> cCall "DDL::Bool" [if b then "true" else "false"]
     ENum n ty     -> cCall f [ integer n ]
       where
       f = case ty of
@@ -386,12 +535,10 @@ cExpr expr =
                                , show (pp ty) ]
 
     EMapEmpty {} -> todo
-    ENothing {}  -> todo
+    ENothing t  -> parens (cCall (cInst "DDL::Maybe" [cSemType t]) [])
 
   where
   todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
-
-
 
 
 --------------------------------------------------------------------------------
@@ -402,7 +549,8 @@ cTermStmt ccInstr =
     Jump jp -> cJump jp
 
     JumpIf e choice ->
-      [ cIf (cExpr e) (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
+      [ cIf (cCallMethod (cExpr e) "getValue" [])
+            (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
       where
       doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
 
@@ -412,7 +560,9 @@ cTermStmt ccInstr =
           [ "return;" ]
       ]
 
-    ReturnNo -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
+    ReturnNo ->
+      [ cGoto ("*" <.> cCall "p.returnNo" [])
+      ]
 
     ReturnYes e ->
       [ cAssign (cRetVar (getType e)) (cExpr e)
@@ -424,7 +574,6 @@ cTermStmt ccInstr =
       , cGoto ("*" <.> cCall "p.returnPure" [])
       ]
 
-    -- "no
     Call f _ no yes es ->
         doPush no
       : doPush yes
@@ -432,7 +581,8 @@ cTermStmt ccInstr =
 
     CallPure f l es -> doPush l : cJump (JumpPoint (lkpFun f) es)
 
-    TailCall f _ es -> cJump (JumpPoint (lkpFun f) es)
+    TailCall f _ es ->
+        cJump (JumpPoint (lkpFun f) es)
 
   where
   lkpFun f = case Map.lookup f ?allFuns of

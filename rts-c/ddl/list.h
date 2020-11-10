@@ -1,5 +1,5 @@
-#ifndef DDL_LIST
-#define DDL_LIST
+#ifndef DDL_LIST_H
+#define DDL_LIST_H
 
 #include <type_traits>
 #include <ddl/boxed.h>
@@ -9,13 +9,18 @@ namespace DDL {
 template <typename T>
 class List : IsBoxed {
 
-  class Node {
+  class Node : HasRefs {
     size_t size;    // lenght of the list
     T    head;
     List tail;
   public:
     friend List;
     Node(T   h, List t) : size(1+t.size()), head(h), tail(t) {}
+
+    void free() {
+      if constexpr (std::is_base_of<HasRefs,T>::value) head.free();
+      tail.free();
+    }
   };
 
   Boxed<Node> ptr;
@@ -41,39 +46,36 @@ public:
     Node &n = ptr.getValue();
     h = n.head;
     t = n.tail;
-
-
-    // We can't just do `free` because we don't want to
-    // decrement `h` and `t`'s reference counts as they are preserved.
-    if (refCount() > 1) {
+    if (refCount() == 1) {
+      ptr.del();
+    } else {
       if constexpr (std::is_base_of<HasRefs,T>::value) h.copy();
       t.copy();
-      ptr.free();
-    } else {
-      ptr.del();
+      ptr.free();   // just decrement
     }
+
   }
+
+  friend
+  std::ostream& operator<<(std::ostream& os, List x) {
+    os << "List " << x.ptr.rawPtr();
+    return os;
+  }
+
+
+
 
   // Reference counintg --------------------------------------------------
 
   // Empty list is always shared, so we return 2 if the pointer is NULL
   inline
   size_t refCount() { return ptr.isNull()? 2 : ptr.refCount(); }
-
-  void free() {
-    if (ptr.isNull()) return;
-
-    if (refCount() == 1) {
-      Node &cell = ptr.getValue();
-      if constexpr (std::is_base_of<HasRefs,T>::value) cell.head.free();
-      cell.tail.free(); // note that we use stack here.
-    }
-    ptr.free();
-  }
-
-  void copy() { if (!ptr.isNull()) ptr.copy(); }
-
+  void   free()     { if (!ptr.isNull()) ptr.free(); }
+  void   copy()     { if (!ptr.isNull()) ptr.copy(); }
 };
+
+
+
 
 } // namespace DDL
 

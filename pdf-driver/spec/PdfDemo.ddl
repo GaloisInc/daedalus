@@ -15,7 +15,7 @@ def IsPage (p : maybe Ref) (r : Ref) =
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
-    CheckContents dict;  -- XXX: need to thread crypto through here... 
+    -- CheckContents dict;
 }
 
 def IsPages (p : maybe Ref) (r : Ref) =
@@ -48,12 +48,12 @@ def CheckParent (p : maybe Ref) (dict : [[uint 8] -> Value]) =
 def CheckContents d = @Optional {
   @s = Lookup "Contents" d ; -- try to find content stream
   Choose1 {
-   isarr = s is array ;
+   isarr = s is array ; -- TODO: concatenate streams and check content
    isref = {
      @strm = ResolveStream s ;
      commit ;
      @strmBody = strm.body is ok ;
-     WithStream strmBody (ContentStream) ; -- TODO: toggle Only
+     WithStream strmBody (Only ContentStream) ;
    }
   }
 }

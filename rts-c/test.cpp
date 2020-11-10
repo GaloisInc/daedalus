@@ -11,16 +11,22 @@
 #include "ddl/array.h"
 #include "ddl/integer.h"
 #include "ddl/boxed.h"
+#include "ddl/cast.h"
 
 #include "user_data.h"
 #include "fun_call.h"
+#include "test.h"
 
 using namespace std;
 
 
+
+
 int main() {
 
+  // example();
+  // cast_tests();
+  rb_tests();
 
-  example();
   return 0;
 }

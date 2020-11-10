@@ -29,6 +29,7 @@ module Daedalus.ParserGen.DetUtils
 
 
 -- import Debug.Trace
+
 import Data.Sequence as Seq
 import qualified Data.Set as Set
 
@@ -36,7 +37,7 @@ import qualified Data.Set as Set
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..))
-
+import Daedalus.ParserGen.Aut (Aut(..), lookupPopTrans)
 import Daedalus.ParserGen.ClassInterval (ClassInterval, insertItvInOrderedList, matchClassInterval)
 
 data SymbolicStack =
@@ -47,7 +48,7 @@ data SymbolicStack =
 
 
 
-data ChoiceTag = CUni | CPar | CSeq
+data ChoiceTag = CUni | CPar | CSeq | CPop
   deriving(Eq, Show, Ord)
 
 type ChoicePos = (ChoiceTag, Int)
@@ -98,33 +99,41 @@ initCfgDet q =
   }
 
 
-symbExecAction :: SymbolicStack -> Action -> Maybe SymbolicStack
-symbExecAction stk act =
+symbExecAction :: Aut a => a -> SymbolicStack -> Action -> State -> Maybe [(SymbolicStack, State)]
+symbExecAction aut stk act n2 =
   case act of
     CAct c ->
       case c of
-        Push _ _ q -> Just $ SCons q stk
-        Pop q ->
+        Push _ _ q -> Just $ [(SCons q stk, n2)]
+        Pop ->
           case stk of
-            SWildcard -> Just SWildcard
+            SWildcard ->
+              case (lookupPopTrans n2 $ popTransAut aut) of
+                Nothing -> Nothing
+                Just targets -> -- trace (show targets) $
+                  Just $ map (\ q -> (SWildcard, q)) targets
             SEmpty -> Nothing
-            SCons q1 rest -> if q == q1 then Just rest else Nothing
-        _ -> Just stk
-    _ -> Just stk
+            SCons q1 rest -> Just [(rest, q1)]
+        _ -> Just [(stk, n2)]
+    _ -> Just [(stk, n2)]
 
 
-simulateActionCfgDet :: ChoicePos -> Action -> State -> CfgDet -> Maybe CfgDet
-simulateActionCfgDet pos act q cfg =
-  let st = cfgStack cfg in
-  case symbExecAction st act of
+simulateActionCfgDet :: Aut a => a -> ChoicePos -> Action -> State -> CfgDet -> Maybe [CfgDet]
+simulateActionCfgDet aut pos act q cfg =
+  let stk = cfgStack cfg in
+  case symbExecAction aut stk act q of
     Nothing -> Nothing
-    Just sd ->
+    Just lst ->
       Just $
+      map
+      ( \ (sd, q2) ->
         CfgDet
-          { cfgState = q
+          { cfgState = q2
           , cfgAlts = cfgAlts cfg |> pos
           , cfgStack = sd
           }
+      )
+      lst
 
 
 setupCfgDetFromPrev :: State -> CfgDet -> CfgDet

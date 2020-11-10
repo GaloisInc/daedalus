@@ -26,10 +26,8 @@ class Parser {
 
 public:
 
-  Parser(Input i)
-    : input(i)
-    , fail_offset(0)
-  {}
+  // Argument is owned
+  Parser(Input i) : input(i) , fail_offset(0) {}
 
   std::vector<T>& getResults()    { return results; }
   size_t          getFailOffset() { return fail_offset; }
@@ -37,10 +35,11 @@ public:
 
   // ------------------------------------------------------------------------
 
-  void setInput(Input i) { input = i; }
+  // Argument is owned
+  void setInput(Input i) { input.free(); input = i; }
 
-  // Returns a copy of the current input
-  Input getInput() { return input; }
+  // Returns a copy of the current input (result is owned)
+  Input getInput() { input.copy(); return input; }
 
   // For debug
   void say(const char *msg) { std::cout << msg << std::endl; }
@@ -71,7 +70,7 @@ public:
   // (for the yes/no cases) the other alternative is removed from the stack.
   void* returnPure()    { return stack.retAddr(); }
   void* returnYes()     { stack.squish(); return stack.retAddr(); }
-  void* returnNo()      { stack.pop()->free(); return stack.retAddr(); }
+  void* returnNo()      { stack.pop()->free(false); return stack.retAddr(); }
 
 
   // -- Threads ---------------------------------------------------------------

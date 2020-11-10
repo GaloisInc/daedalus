@@ -48,7 +48,7 @@ data ControlAction =
   | ActivateFrame [Name]
   | DeactivateReady
   | Push Name [NVExpr] State
-  | Pop State
+  | Pop
   | ForInit Name NVExpr Name NVExpr
   | ForHasMore
   | ForNext
@@ -63,6 +63,7 @@ data SemanticAction =
     EnvFresh
   | ManyFreshList WithSem
   | ManyAppend    WithSem
+  | ManyReturn
   | EnvStore    (Maybe Name)
   | EvalPure    NVExpr
   | ReturnBind  NVExpr
@@ -111,7 +112,7 @@ instance Show(InputAction) where
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
-  show (IMatchBytes s _) = semToString s ++ "MatchBytes"
+  show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
   show (CurrentStream) = "StreamCurr"
   show (SetStream _)   = "StreamSet"
   show (StreamLen s _ _) = semToString s ++ "StreamLen"
@@ -125,7 +126,7 @@ instance Show(ControlAction) where
   show (ActivateFrame _) = "ActivateFrame"
   show (DeactivateReady) = "DeactivateReady"
   show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ showName n) ++ "_" ++ show dest
-  show (Pop dest)          = "Pop" ++ "_" ++ show dest
+  show (Pop)               = "Pop"
   show (ForInit _ _ _ _)   = "ForInit"
   show (ForHasMore)        = "ForHasMore"
   show (ForNext)           = "ForNext"
@@ -139,6 +140,7 @@ instance Show(SemanticAction) where
   show (EnvFresh)           = "EnvFresh"
   show (ManyFreshList _)    = "ManyFreshList"
   show (ManyAppend  _)      = "ManyAppend"
+  show (ManyReturn)         = "ManyReturn"
   show (EnvStore    _)      = "EnvStore"
   show (EvalPure    _)      = "EvalPure" -- ++ (show e)
   show (ReturnBind  _)      = "ReturnBind" -- ++ (show e)
@@ -218,19 +220,19 @@ getMatchBytes act =
 getByteArray :: NVExpr -> Maybe [Word8]
 getByteArray e =
   case texprValue e of
-    TCByteArray w -> Just (BS.unpack w)
+    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
     _ -> Nothing
 
 type Val = Interp.Value
 
 data BeetweenItv =
-    CExactly Int
-  | CBetween (Maybe Int) (Maybe Int)
+    CExactly {-# UNPACK #-} !Int
+  | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
 
 data ActivationFrame =
-    ListArgs  [Val]
-  | ActivatedFrame (Map.Map Name Val)
+    ListArgs ![Val]
+  | ActivatedFrame !(Map.Map Name Val)
   deriving (Show)
 
 
@@ -251,10 +253,10 @@ data MapFrm = MapFrm
   }
 
 data ControlElm =
-    ManyFrame (BeetweenItv) Int -- the integer is the current counter
-  | ForFrame ForFrm
-  | MapFrame MapFrm
-  | CallFrame Name State (ActivationFrame) SemanticData
+    ManyFrame !(BeetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
+  | ForFrame  !ForFrm
+  | MapFrame  !MapFrm
+  | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
   --deriving (Eq)
 
 instance Show (ControlElm) where
@@ -279,8 +281,9 @@ instance Show (ControlElm) where
 
 
 data SemanticElm =
-    SEnvMap (Map.Map Name Val)
-  | SEVal Val
+    SEnvMap !(Map.Map Name Val)
+  | SEVal   !Val
+  | SManyVal ![Val]
   | SEnd
 
 instance Show (SemanticElm) where
@@ -288,6 +291,7 @@ instance Show (SemanticElm) where
     Map.foldrWithKey (\ k a b -> show k ++ ": " ++ show (pp a) ++ "\n" ++ b ) "}\n" m
     )
   show (SEVal v) = show v ++ "\n"
+  show (SManyVal lst) = show lst ++ "\n"
   show (SEnd) = "SEnd\n"
 
 type InputData    = Input
@@ -316,7 +320,6 @@ getByte = Input.inputByte
 -- Lookup in the semantic data first, and then the control
 lookupEnvName :: Name -> ControlData -> SemanticData -> Val
 lookupEnvName nname ctrl out =
-  {-# SCC lookupEnv #-}
   case lookupSem out ctrl of
     Nothing -> error ("unexpected, missing var from ctrl and out:" ++ show nname)
     Just v  -> v
@@ -328,6 +331,7 @@ lookupEnvName nname ctrl out =
             Nothing -> lookupSem rest nextctrl
             Just v -> Just v
         SEVal _ : rest -> lookupSem rest nextctrl
+        SManyVal _ : rest -> lookupSem rest nextctrl
         SEnd : rest    -> lookupSem rest nextctrl
         [] -> lookupCtrl nextctrl
 
@@ -490,6 +494,24 @@ applyBinop op e1 e2 =
           then Interp.VUInt p1 ((.|.) v1 v2)
           else error "Incompatible precision"
         _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    Cat ->
+      case (e1, e2) of
+        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
+          Interp.VUInt (p1 + p2) ((v1 `shiftL` fromIntegral p2) .|. v2)
+        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    LCat ->
+      -- copied from Interp.hs
+      case e2 of
+        Interp.VUInt w y ->
+          let mk f i = f ((i `shiftL` fromIntegral w) .|. y)
+              --- XXX: fromIntegral is a bit wrong
+          in
+          case e1 of
+            Interp.VInteger x -> mk Interp.VInteger  x
+            Interp.VUInt n x  -> mk (Interp.VUInt n) x
+            Interp.VSInt n x  -> mk (Interp.VSInt n) x
+            _          -> error "BUG: 1st argument to (<#) must be numeric"
+        _ -> error "BUG: 2nd argument of (<#) should be UInt"
 
 
     _ -> error ("TODO: " ++ show op)
@@ -534,12 +556,11 @@ isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
   case texprValue e of
     TCCoerce _ _ _ -> False
-    TCNumber _ _ -> True
-    TCBool _ -> False
+    TCLiteral (LNumber {}) _ -> True
+    TCLiteral (LByte   {}) _ -> True
+    TCLiteral _            _ -> False    
     TCNothing _ty -> False
-    TCByte _ -> True
     TCStruct _lst _ -> False
-    TCByteArray _ -> False
     TCMapEmpty _ty -> False
     TCIn _lbl _e1 _ty -> False
     TCBinOp _binop _e1 _e2 _t -> False
@@ -556,6 +577,21 @@ isSimpleVExpr e =
 defaultValue :: Val
 defaultValue = Interp.VStruct []
 
+evalLiteral :: Literal -> Type -> Val
+evalLiteral lit t =
+  case lit of
+    LNumber n ->
+      case t of
+        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
+        Type (TInteger)              -> Interp.VInteger n
+        _ -> error "TODO: more type for integer"
+    LBool b   -> Interp.VBool b
+    LBytes bs ->
+      Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
+    LByte w -> Interp.VUInt 8 (fromIntegral w)
+    
+    
+
 
 evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
 evalVExpr gbl expr ctrl out =
@@ -564,22 +600,14 @@ evalVExpr gbl expr ctrl out =
     eval env e =
       case texprValue e of
         TCCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
-        TCNumber n t ->
-          case t of
-            Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
-            Type (TInteger) -> Interp.VInteger n
-            _ -> error "TODO: more type for integer"
-        TCBool b -> Interp.VBool b
+        TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
         TCJust e1 ->
           let ve1 = eval env e1
           in Interp.VMaybe (Just ve1)
-        TCByte w -> Interp.VUInt 8 (fromIntegral w)
         TCStruct lst _ ->
           Interp.VStruct (map (\ (lbl, v) -> (lbl, eval env v)) lst)
-        TCByteArray bs ->
-          Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
         TCMapEmpty _ty -> Interp.VMap (Map.empty)
         TCIn lbl e1 _ty ->
           let ve1 = eval env e1 in
@@ -678,6 +706,8 @@ evalVExpr gbl expr ctrl out =
 
 evalNoFunCall:: NVExpr -> ControlData -> SemanticData -> Val
 evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
+
+
 
 valToInt :: Val -> Int
 valToInt v =
@@ -880,11 +910,7 @@ applyControlAction gbl (ctrl, out) act =
     Push name le q ->
       let evle = map (\ e -> evalVExpr gbl e ctrl out) le
       in Just (CallFrame name q (ListArgs evle) out : ctrl, [])
-    Pop q ->
-      case ctrl of
-        [] -> error "Unexpected empty ctrl stack"
-        CallFrame _ q' _ savedOut : rest -> if q == q' then Just (rest, head out : savedOut) else Nothing
-        _ -> error "Unexpected ctrl stack elm"
+    Pop -> error "Should not be handled here"
     ForInit n1 e1 n2 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
@@ -1055,19 +1081,23 @@ applySemanticAction gbl (ctrl, out) act =
     EnvFresh -> Just (SEnvMap Map.empty : out)
     ManyFreshList s ->
       case s of
-        YesSem -> Just (SEVal (Interp.VArray Vector.empty) : out)
-        NoSem  -> Just (SEVal (defaultValue) : out)
+        YesSem -> Just (SManyVal [] : out)
+        NoSem  -> Just (SManyVal [] : out)
     ManyAppend YesSem ->
       case out of
-        x : (SEVal (Interp.VArray y)) : z  -> (
+        x : (SManyVal y) : z  -> (
           case x of
-            SEVal v -> Just (SEVal (Interp.VArray (Vector.snoc y v)) : z)
+            SEVal v -> Just ((SManyVal (v : y)) : z)
             _ -> error "unexpected out, cannot proceed"
           )
         _ -> error ("unexpected out, cannot proceed: " ++ show out)
     ManyAppend NoSem ->
       case out of
-        _ : e@((SEVal (Interp.VStruct [])) : _)  -> Just e
+        _ : e@((SManyVal []) : _)  -> Just e
+        _ -> error "unexpected out, cannot proceed"
+    ManyReturn ->
+      case out of
+        SManyVal lst : y -> Just $ SEVal (Interp.VArray (Vector.fromList (reverse lst))) : y
         _ -> error "unexpected out, cannot proceed"
     EnvStore mname -> (
       case out of
@@ -1078,6 +1108,7 @@ applySemanticAction gbl (ctrl, out) act =
               case mname of
                 Nothing -> Just rest
                 Just name -> Just (SEnvMap (Map.insert name v y) : z)
+            SManyVal _ -> error "unexpected out, cannot proceed"
             SEnd -> Just rest
           )
         _ -> error ("unexpected out, cannot proceed: " ++ show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
@@ -1107,9 +1138,10 @@ applySemanticAction gbl (ctrl, out) act =
              then Nothing
              else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
-    CoerceCheck _ _t1 _t2 _e1 ->
-      -- TODO: incomplete
-      Just out
+    CoerceCheck _ t1 t2 e1 ->
+      -- TODO : maybe still incomplete
+      let ev1 = evalVExpr gbl e1 ctrl out
+      in Just $ (SEVal $ coerceVal t1 t2 ev1) : out
     SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
@@ -1137,18 +1169,24 @@ applySemanticAction gbl (ctrl, out) act =
     resultWithSem NoSem  _ = Just (SEVal (defaultValue) : out)
 
 
-applyAction :: GblFuns -> (InputData, ControlData, SemanticData) -> Action ->
-  Maybe (InputData, ControlData, SemanticData)
-applyAction gbl (inp, ctrl, out) act =
+applyAction :: GblFuns -> (InputData, ControlData, SemanticData) -> State -> Action ->
+  Maybe (InputData, ControlData, SemanticData, State)
+applyAction gbl (inp, ctrl, out) q2 act =
   case act of
-    EpsA       -> Just (inp, ctrl, out)
+    EpsA       -> Just (inp, ctrl, out, q2)
     IAct a   -> case applyInputAction gbl (inp, ctrl, out) a of
                     Nothing -> Nothing
-                    Just (inp1, out1) -> Just (inp1, ctrl, out1)
-    CAct a     -> case applyControlAction gbl (ctrl, out) a of
-                    Nothing -> Nothing
-                    Just (ctrl1, out1) -> Just (inp, ctrl1, out1)
+                    Just (inp1, out1) -> Just (inp1, ctrl, out1, q2)
+    CAct a     -> case a of
+                    Pop ->
+                      case ctrl of
+                        CallFrame _ q' _ savedOut : rest -> Just (inp, rest, head out : savedOut, q')
+                        _ -> error "broken invariant of Pop"
+                    _ ->
+                      case applyControlAction gbl (ctrl, out) a of
+                        Nothing -> Nothing
+                        Just (ctrl1, out1) -> Just (inp, ctrl1, out1, q2)
     SAct a     -> case applySemanticAction gbl (ctrl, out) a of
                     Nothing -> Nothing
-                    Just out1 -> Just (inp, ctrl, out1)
+                    Just out1 -> Just (inp, ctrl, out1, q2)
     BAct _     -> error "This case should not be handled in applyAction"

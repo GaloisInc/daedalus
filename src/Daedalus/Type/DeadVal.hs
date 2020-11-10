@@ -323,6 +323,11 @@ mbSem tc =
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
+    TCSelCase ctxt e pats mdef t -> do
+      pats' <- traverse (\(mbv, pe) -> ((,) mbv . fst) <$> mbSem pe) pats
+      mdef' <- traverse (fmap fst . mbSem) mdef
+      pure (exprAt tc (TCSelCase ctxt e pats' mdef' t), tcFree tc) -- FIXME: we ignore second ret here
+
 -- | Rewrite productions to avoid constructing a semantic value.
 noSem' :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 noSem' tc =
@@ -468,8 +473,10 @@ noSem' tc =
                       , mconcat (is1 ++ is2)
                       )
 
-
-
+     TCSelCase ctxt e pats mdef t -> do
+       pats' <- traverse (\(mbv, pe) -> ((,) mbv . fst) <$> noSem' pe) pats
+       mdef' <- traverse (fmap fst . noSem') mdef
+       pure (exprAt tc (TCSelCase ctxt e pats' mdef' t), tcFree tc) -- FIXME: we ignore second ret here
 
 noSemUni ::
   HasRange r =>

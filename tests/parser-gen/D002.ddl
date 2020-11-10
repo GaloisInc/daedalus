@@ -2,12 +2,12 @@
 
 def Main =
   { @a = Choose
-    { x = Match "ab"
-    ; y = Match "ac"
-    }
+           { x = Match "ab"
+           , y = Match "ac"
+           }
   ; @b = Choose
-    { x = Match "ab"
-    ; y = Match "ab"
-    }
+           { x = Match "ab"
+           ; y = Match "ab"
+           }
   ; END
   }

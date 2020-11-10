@@ -1,18 +1,19 @@
+Main (9,1)-(15,3)
 DTrans [
   ( [(17),]
   , HeadInput ['a','b']
   , Resolution (NotAmbiguous)
   ),
-  ( [(17),(23),]
+  ( [(17),(24),]
   , HeadInput ['c']
   , DTrans [
       ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(6),(12),]
+      ( [(6),(13),]
       , HeadInput ['c']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['d','m']
@@ -24,23 +25,23 @@ DTrans [
       ),
     ]
   ),
-  ( [(17),(23),]
+  ( [(17),(24),]
   , HeadInput ['d']
   , DTrans [
       ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(6),(12),]
+      ( [(6),(13),]
       , HeadInput ['c']
       , DTrans [
           ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(6),(12),]
+          ( [(6),(13),]
           , HeadInput ['c']
-          , *****
+          , **** loop ****
           ),
           ( [(6),]
           , HeadInput ['d','m']
@@ -73,16 +74,16 @@ DTrans [
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(6),(12),]
+      ( [(6),(13),]
       , HeadInput ['c']
       , DTrans [
           ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(6),(12),]
+          ( [(6),(13),]
           , HeadInput ['c']
-          , *****
+          , **** loop ****
           ),
           ( [(6),]
           , HeadInput ['d','m']
@@ -94,23 +95,23 @@ DTrans [
           ),
         ]
       ),
-      ( [(6),(12),]
+      ( [(6),(13),]
       , HeadInput ['d']
       , DTrans [
           ( [(6),]
           , HeadInput ['a','b']
           , Resolution (NotAmbiguous)
           ),
-          ( [(6),(12),]
+          ( [(6),(13),]
           , HeadInput ['c']
           , DTrans [
               ( [(6),]
               , HeadInput ['a','b']
               , Resolution (NotAmbiguous)
               ),
-              ( [(6),(12),]
+              ( [(6),(13),]
               , HeadInput ['c']
-              , *****
+              , **** loop ****
               ),
               ( [(6),]
               , HeadInput ['d','m']
@@ -138,7 +139,7 @@ DTrans [
       ),
       ( [(6),(6),]
       , HeadInput ['f','m']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['n','t']
@@ -151,21 +152,23 @@ DTrans [
   , Resolution (NotAmbiguous)
   ),
 ]
+
+_A (4,11)-(4,28)
 DTrans [
   ( [(6),]
   , HeadInput ['a','b']
   , Resolution (NotAmbiguous)
   ),
-  ( [(6),(12),]
+  ( [(6),(13),]
   , HeadInput ['c']
   , DTrans [
       ( [(6),]
       , HeadInput ['a','b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(6),(12),]
+      ( [(6),(13),]
       , HeadInput ['c']
-      , *****
+      , **** loop ****
       ),
       ( [(6),]
       , HeadInput ['d','m']
@@ -182,8 +185,10 @@ DTrans [
   , Resolution (NotAmbiguous)
   ),
 ]
+
+_B (7,17)-(7,34)
 DTrans [
-  ( [(12),]
+  ( [(13),]
   , HeadInput ['d']
   , Resolution (NotAmbiguous)
   ),
@@ -192,19 +197,26 @@ DTrans [
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (12,17)-(12,25)
 DTrans [
   ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (11,17)-(11,25)
 DTrans [
   ( [(11),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
+
+Main (14,5)-(14,7)
 AbortAcceptingPath
+
 
 
 Report:

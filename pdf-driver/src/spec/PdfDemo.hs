@@ -30,7 +30,7 @@ import qualified RTS.Vector as Vector
 data CheckContents_0
   = CheckContents_0_isarr (Vector.Vector PdfValue.Value)
   | CheckContents_0_isref
-      (Vector.Vector PdfContentStream.ContentStreamBody_0)
+      (Vector.Vector PdfContentStream.PageDescription_0)
   
  
 deriving instance HS.Eq CheckContents_0
@@ -48,8 +48,7 @@ instance HS.HasField "isarr" CheckContents_0
   getField _ = HS.Nothing
  
 instance HS.HasField "isref" CheckContents_0
-           (HS.Maybe
-              (Vector.Vector PdfContentStream.ContentStreamBody_0)) where
+           (HS.Maybe (Vector.Vector PdfContentStream.PageDescription_0)) where
   getField (CheckContents_0_isref x) = HS.Just x
    
   getField _ = HS.Nothing
@@ -115,10 +114,12 @@ pCheckContents
                            (HS.getField @"ok" (HS.getField @"body" strm))
                        RTS.pEnter "PdfDecl._WithStream"
                          (PdfDecl._WithStream
-                            @(Vector.Vector PdfContentStream.ContentStreamBody_0)
+                            @(Vector.Vector PdfContentStream.PageDescription_0)
                             strmBody
-                            (RTS.pEnter "PdfContentStream._ContentStream"
-                               PdfContentStream._ContentStream))))))
+                            (RTS.pEnter "PdfValue._Only"
+                               (PdfValue._Only @(Vector.Vector PdfContentStream.PageDescription_0)
+                                  (RTS.pEnter "PdfContentStream._ContentStream"
+                                     PdfContentStream._ContentStream))))))))
     (HS.pure ())
  
 _CheckParent ::
@@ -228,10 +229,12 @@ _CheckContents
                            (HS.getField @"ok" (HS.getField @"body" strm))
                        RTS.pEnter "PdfDecl._WithStream"
                          (PdfDecl._WithStream
-                            @(Vector.Vector PdfContentStream.ContentStreamBody_0)
+                            @(Vector.Vector PdfContentStream.PageDescription_0)
                             strmBody
-                            (RTS.pEnter "PdfContentStream._ContentStream"
-                               PdfContentStream._ContentStream))))))
+                            (RTS.pEnter "PdfValue._Only"
+                               (PdfValue._Only @(Vector.Vector PdfContentStream.PageDescription_0)
+                                  (RTS.pEnter "PdfContentStream._ContentStream"
+                                     PdfContentStream._ContentStream))))))))
     (HS.pure ())
  
 _IsPage :: HS.Maybe PdfValue.Ref -> (PdfValue.Ref -> D.Parser ())

@@ -25,6 +25,9 @@ cString = text . show
 cSelect :: CExpr -> CExpr -> CExpr
 cSelect x l = x <.> "." <.> l
 
+cArraySelect :: CExpr -> CExpr -> CExpr
+cArraySelect x i = x <.> brackets i
+
 cStmt :: Doc -> CStmt
 cStmt c = c <.> semi
 
@@ -54,15 +57,34 @@ cIf e ifThen ifElse =
        , "}"
        ]
 
+cSwitch :: CExpr -> [CStmt] -> CStmt
+cSwitch e cs =
+  vcat [ "switch" <+> parens e <+> "{"
+       , nest 2 (vcat cs)
+       , "}"
+       ]
+
+cCase :: CExpr -> Doc
+cCase e = "case" <+> e <.> colon
+
+cDefault :: Doc
+cDefault = "default:"
+
+cBreak :: CStmt
+cBreak = cStmt "break"
+
 cGoto :: CExpr -> CStmt
 cGoto e = cStmt ("goto" <+> e)
+
+cRetrun :: CExpr -> CStmt
+cRetrun e = cStmt ("return" <+> e)
 
 cBlock :: [CStmt] -> CStmt
 cBlock xs = ("{" <+> vcat xs) $$ "}"
 
-cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> CStmt
-cDefineCon name params is =
-  hang (cCall name params) 2 (fsep [ initializers, "{}" ])
+cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> [CStmt] -> CStmt
+cDefineCon name params is stmts =
+  hang (cCall name params) 2 initializers <+> "{" $$ nest 2 (vcat stmts) $$ "}"
   where
   initializers = case is of
                    [] -> empty

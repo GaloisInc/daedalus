@@ -1,0 +1,45 @@
+module case-union2
+ 
+--- Imports:
+ 
+--- Type defs:
+type case-union2.P = Choose { c1: [uint 8]
+                            ; c2: [uint 8]
+                            }
+ 
+type case-union2.Main = { p: case-union2.P
+                        ; tag: [uint 8]
+                        }
+ 
+--- Rules:
+ 
+case-union2.P : Grammar case-union2.P =
+  Choose fair
+    { {- c1 -} do (_0 : [uint 8]) <- MatchBytes "a"
+                  pure {c1: _0}
+    | {- c2 -} do (_1 : [uint 8]) <- MatchBytes "b"
+                  pure {c2: _1}
+    }
+ 
+case-union2.Main : Grammar case-union2.Main =
+  do (p : case-union2.P) <- case-union2.P
+     (tag : [uint 8]) <- case p is
+                           { c1 x -> pure x
+                           ; c2 x -> pure x
+                           }
+     pure {p = p,
+           tag = tag}
+ 
+case-union2._Main : Grammar {} =
+  do (p : case-union2.P) <- case-union2.P
+     case p is
+       { c1 x -> pure {}
+       ; c2 x -> pure {}
+       }
+     pure {}
+ 
+case-union2._P : Grammar {} =
+  Choose fair
+    { {- c1 -} @MatchBytes "a"
+    | {- c2 -} @MatchBytes "b"
+    }

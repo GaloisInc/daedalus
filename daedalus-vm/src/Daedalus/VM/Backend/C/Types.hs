@@ -25,10 +25,10 @@ cSemType sty =
     Src.TUInt n     -> cInst "DDL::UInt" [ cSizeType n ]
     Src.TSInt n     -> cInst "DDL::SInt" [ cSizeType n ]
     Src.TInteger    -> "DDL::Integer"
-    Src.TBool       -> "bool"
+    Src.TBool       -> "DDL::Bool"
     Src.TUnit       -> "DDL::Unit"
     Src.TArray t    -> cInst "DDL::Array" [ cSemType t ]
-    Src.TMaybe t    -> cInst "DDL::Optional" [ cSemType t ]
+    Src.TMaybe t    -> cInst "DDL::Maybe" [ cSemType t ]
     Src.TMap k v    -> cInst "DDL::Map" [ cSemType k, cSemType v ]
     Src.TBuilder t  -> cInst "DDL::Array" [ cSemType t ] <.> "::Builder"
 

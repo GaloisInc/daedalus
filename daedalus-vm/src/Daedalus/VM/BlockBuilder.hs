@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import Data.Void(Void)
 import Control.Monad(liftM,ap)
 
+import Daedalus.PP
 import Daedalus.VM
 
 
@@ -24,6 +25,9 @@ data BuildInfo = BuildInfo
 
 data FV = FV Int VMT
   deriving (Eq,Ord)
+
+instance PP FV where
+  pp (FV x t) = parens (text "fv" <.> int x <+> pp t)
 
 
 instance HasType FV where getType (FV _ t) = t

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, OverloadedStrings, TupleSections #-}
 {-# LANGUAGE GADTs, RecordWildCards, BlockArguments #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -363,7 +364,7 @@ compilePureExpr env = go
     go expr =
       case texprValue expr of
 
-        TCNumber n t   ->
+        TCLiteral (LNumber n) t   ->
           let bad = panic "compilePureExpr"
                             [ "unexpected numeric literal"
                             , "Type: " ++ show (pp t)
@@ -378,14 +379,15 @@ compilePureExpr env = go
             TVMap     -> bad
             TVOther   -> bad
 
-        TCBool   b     -> VBool b
+        TCLiteral (LBool b)   _ -> VBool b
+        TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
+        TCLiteral (LBytes bs) _ -> byteStringToValue bs 
+        
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCByte   w     -> mkUInt 8 (fromIntegral w)
         TCUnit         -> VStruct [] -- XXX
         TCStruct fs _  -> VStruct $ map (\(n, e) -> (n, go e)) fs
-        TCByteArray bs -> byteStringToValue bs 
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
@@ -416,6 +418,13 @@ compilePureExpr env = go
 
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
+
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compilePureExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
 
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
 invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
@@ -493,6 +502,13 @@ compilePredicateExpr env = go
           let l = compilePureExpr env e
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
+          
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compilePredicateExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
 
 
 mbSkip :: WithSem -> Value -> Value
@@ -703,6 +719,14 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
+        TCSelCase _ e pats mdef _ -> 
+          case valueToUnion (compilePureExpr env e) of
+            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
+                       compileExpr (addValMaybe m_var va env) e'
+                     | Just e' <- mdef -> go e'
+                     | otherwise -> 
+                       pError FromSystem erng
+                          ("missing case for `" ++ Text.unpack lbl ++ "`")
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)

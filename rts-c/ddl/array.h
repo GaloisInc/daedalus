@@ -1,15 +1,14 @@
-#ifndef DDL_ARRAY
-#define DDL_ARRAY
+#ifndef DDL_ARRAY_H
+#define DDL_ARRAY_H
 
-#include <type_traits>
+#include <string.h>
 #include <ddl/list.h>
+#include <ddl/integer.h>
 
 namespace DDL {
 
 template <typename T>
 class Array : IsBoxed {
-
-
 
   class Content {
     friend Array;
@@ -25,7 +24,6 @@ class Array : IsBoxed {
       Content *p   = (Content*) ::operator new(bytes);
       p->ref_count = 1;
       p->size      = n;
-      std::cout << "Allocated " << p << std::endl;
       return p;
     }
 
@@ -84,6 +82,11 @@ public:
     }
   }
 
+  // Borrow arguments
+  Array(T *data, size_t n) : ptr(Content::allocate(n)) {
+    memcpy(ptr->data, data, n * sizeof(T));
+  }
+
   // Borrows this
   size_t size() { return ptr->size; }
 
@@ -121,7 +124,9 @@ public:
 
 // -- Boxed --------------------------------------------------------------------
   size_t refCount() { return ptr->ref_count; }
-  void copy()       { ++(ptr->ref_count); }
+
+  void copy() { ++(ptr->ref_count); }
+
   void free() {
     size_t n = refCount();
     if (n == 1) {
@@ -130,7 +135,6 @@ public:
         T* arr = ptr->data;
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
-      std::cout << "Freeing " << ptr << std::endl;
       delete ptr;
     } else {
       ptr->ref_count = n - 1;
@@ -151,8 +155,8 @@ public:
     // Owned xs
     Iterator(Array xs)  : index(0), xs(xs) {}
 
-    bool   done() { return index >= xs.size(); }
-    size_t key() { return index; }
+    bool   done()       { return index >= xs.size(); }
+    DDL::Integer key()  { return DDL::Integer(index); }
 
     // Returns owned value
     T value()       { return xs[index]; }
@@ -179,10 +183,12 @@ inline
 std::ostream& operator<<(std::ostream& os, Array<T> x) {
   size_t n = x.size();
 
-  bool first = true;
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
   for (size_t i = 0; i < n; ++i) {
-    os << (first ? "[" : ", ") << x.borrowElement(i);
-    first = false;
+    os << sep << x.borrowElement(i);
+    sep[0] = ',';
   }
   os << "]";
   return os;

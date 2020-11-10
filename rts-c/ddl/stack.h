@@ -1,5 +1,5 @@
-#ifndef DDL_STACK
-#define DDL_STACK
+#ifndef DDL_STACK_H
+#define DDL_STACK_H
 
 #include <utility>
 #include <vector>
@@ -12,14 +12,13 @@ struct Closure {
   size_t ref_count;
   void   *code;
 
-  Closure(void *c) : ref_count(1), code(c) {}
+  Closure(void *c) : ref_count(1), code(c) { }
   virtual ~Closure() {}
   virtual void freeMembers() = 0;
 
-  void free() {
+  void free(bool shallow) {
     if (ref_count == 1) {
-      freeMembers();
-      std::cout << "Deallocating " << this << std::endl;
+      if (!shallow) freeMembers();
       delete this;
     } else {
       --ref_count;
@@ -49,7 +48,7 @@ public:
   // Move the other stack into this one.
   void overwriteBy(Stack& other) {
     for (size_t i = 0; i < stack.size(); ++i) {
-      stack[i]->free();
+      stack[i]->free(false);
     }
     stack.resize(other.stack.size());
     for (size_t i = 0; i < other.stack.size(); ++i) {
@@ -77,7 +76,7 @@ public:
   void squish() {
     Closure *p = pop();
     Closure * &q = stack.back();
-    q->free();
+    q->free(false);
     q = p;
   }
 

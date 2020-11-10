@@ -7,6 +7,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when)
+import Data.Maybe(fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import System.Directory(createDirectoryIfMissing)
@@ -15,6 +16,7 @@ import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
 import System.Console.ANSI
 import Data.Traversable(for)
 import Data.Foldable(for_,toList)
+import Text.Show.Pretty (ppDoc)
 
 import Hexdump
 
@@ -68,6 +70,11 @@ handleOptions opts
        ddlPutStrLn (Export.jsModules mods)
        ddlIO exitSuccess
 
+  | DumpRaw <- optCommand opts =
+    do mm   <- ddlPassFromFile passParse (optParserDDL opts)
+       mo <- ddlGetAST mm astParse
+       ddlPrint (ppDoc mo)
+
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
@@ -116,7 +123,7 @@ handleOptions opts
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    let dfa = PGen.createDFA aut
-                   PGen.statsDFA dfa
+                   PGen.statsDFA aut dfa
                    PGen.autToGraphviz aut
                 )
 
@@ -134,6 +141,7 @@ handleOptions opts
                --   ddlIO (interpPGen inp prog)
 
          DumpRuleRanges -> error "Bug: DumpRuleRanges"
+         DumpRaw -> error "Bug: DumpRaw"
 
          CompileHS ->
             mapM_ (saveHS (optOutDir opts) cfg) allMods
@@ -149,23 +157,30 @@ handleOptions opts
            -- XXX: package into Driver, but probably need to add proper
            -- support for multiple entry points, and entry points with
            -- parameters.
-           do passSpecialize specMod [mainRule]
-              passCore specMod
-              passVM specMod
-              passCaptureAnalysis
-              m <- ddlGetAST specMod astVM
-              entry <- ddlGetFName mainNm
-              let prog = VM.addCopyIs
-                       $ VM.doBorrowAnalysis
-                       $ VM.moduleToProgram entry [m]
-                  outFileRoot = "main_parser"
-                  (hpp,cpp) = C.cProgram outFileRoot prog
-              root <- case optOutDir opts of
-                        Nothing -> pure outFileRoot
-                        Just d  -> do ddlIO $ createDirectoryIfMissing True d
-                                      pure (d </> outFileRoot)
-              ddlIO do writeFile (addExtension root "h") (show hpp)
-                       writeFile (addExtension root "cpp") (show cpp)
+           case optBackend opts of
+             UseInterp ->
+               do passSpecialize specMod [mainRule]
+                  passCore specMod
+                  passVM specMod
+                  passCaptureAnalysis
+                  m <- ddlGetAST specMod astVM
+                  entry <- ddlGetFName mainNm
+                  let prog = VM.addCopyIs
+                           $ VM.doBorrowAnalysis
+                           $ VM.moduleToProgram entry [m]
+                      outFileRoot = "main_parser"
+                      (hpp,cpp) = C.cProgram outFileRoot prog
+                  root <- case optOutDir opts of
+                            Nothing -> pure outFileRoot
+                            Just d  -> do ddlIO $ createDirectoryIfMissing True d
+                                          pure (d </> outFileRoot)
+                  ddlIO do writeFile (addExtension root "h") (show hpp)
+                           writeFile (addExtension root "cpp") (show cpp)
+             UsePGen ->
+               do passSpecialize specMod [mainRule]
+                  prog <- ddlGetAST specMod astTC
+                  let outDir = fromMaybe "." $ optOutDir opts
+                  compilePGen [prog] outDir
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 
@@ -183,12 +198,12 @@ interpInterp inp prog (m,i) =
 interpPGen :: FilePath -> [TCModule SourceRange] -> IO ()
 interpPGen inp moduls =
   do let (gbl, aut) = PGen.buildArrayAut moduls
-     -- let dfa = PGen.createDFA aut                   -- LL
+     let dfa = PGen.createDFA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ _ ->
                  do bytes <- BS.readFile inp
-                    -- let results = PGen.runnerLL gbl bytes aut dfa  -- LL
-                    let results = PGen.runnerBias gbl bytes aut
+                    let results = PGen.runnerLL gbl bytes aut dfa  -- LL
+                    -- let results = PGen.runnerBias gbl bytes aut
                     let resultValues = PGen.extractValues results
                     if null resultValues
                       then do putStrLn $ PGen.extractParseError bytes results
@@ -197,6 +212,22 @@ interpPGen inp moduls =
                               print $ vcat' $ map pp $ resultValues
                               exitSuccess
               ) [(1::Int)..repeatNb]
+
+compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
+compilePGen moduls outDir = 
+  do let (_, aut) = PGen.buildArrayAut moduls
+     t <- ddlIO $ PGen.generateTextIO aut
+     -- TODO: This needs more thought
+     finalText <- completeContent t
+     let outFile = outDir </> "grammar.c"
+     ddlIO $ writeFile outFile finalText
+     where
+       completeContent t = do
+         let templateFile = "." </> "rts-pgen-c" </> "template.c"
+         template <- ddlIO $ readFile templateFile
+         return $ template ++ t
+
+
 
 
 inputHack :: Options -> Options

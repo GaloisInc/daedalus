@@ -53,6 +53,7 @@ data Token =
   | ShiftL
   | ShiftR
   | RightArrow
+  | Underscore
 
   | BitwiseAndT
   | BitwiseOrT
@@ -108,6 +109,7 @@ data Token =
   | KWDef
   | KWArrayStream
   | KWFail
+  | KWCase
 
   | TokError !String
   | TokEOF
