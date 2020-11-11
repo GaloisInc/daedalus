@@ -49,6 +49,16 @@ void free_boxed(BoxedValue<T> *ptr) {
   }
 }
 
+// Relese this reference to the box, and we've already extracted its
+// content so we don't free it.
+template <typename T>
+void shallow_free_boxed(BoxedValue<T> *ptr) {
+  size_t n = ptr->ref_count;
+  if (n == 1) delete ptr;
+  else ptr->ref_count = n - 1;
+}
+
+
 // Relese this reference to the box.
 template <typename T>
 inline
@@ -83,6 +93,9 @@ public:
   // Relese this reference to the box.
   void free() { free_boxed(ptr); }
 
+  // Relese this reference to the box, without freeing the content.
+  void shallowFree() { shallow_free_boxed(ptr); }
+
   // Make a new "owned" copy of the referece (i.e., increase ref count).
   void copy() { copy_boxed(ptr); }
 
@@ -96,6 +109,9 @@ public:
 
   // For debugging
   BoxedValue<T> *rawPtr() { return ptr; }
+  void dump() {
+    std::cout << (void*)ptr << " (" << (ptr? refCount() : 0) << ")" << std::endl;
+  }
 };
 
 }

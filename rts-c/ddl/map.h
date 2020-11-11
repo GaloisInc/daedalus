@@ -6,6 +6,7 @@
 #define DDL_MAP_H
 
 #include <iostream>
+#include <vector>
 #include <assert.h>
 
 #include <ddl/boxed.h>
@@ -55,12 +56,14 @@ class Map : HasRefs {
 
       size_t r = n->ref_count;
       if (r == 1) {
+        // std::cout << "freeing last ref\n";
         if constexpr (hasRefs<Key>())   n->key.free();
         if constexpr (hasRefs<Value>()) n->value.free();
         free(n->left);
         free(n->right);
         delete n;
       } else {
+        // std::cout << "freeing decrement\n";
         n->ref_count = r - 1;
       }
 
@@ -239,9 +242,85 @@ class Map : HasRefs {
 
   Map(Node* p) : tree(p) {}
 
-  // XXX: Iterator
 
 public:
+
+  class Iterator : HasRefs {
+    Boxed<Iterator> above;
+    Node           *cur;
+
+
+  // Owns up, p
+  // Assumes `p` is not nullptr
+  // Build an iterator chain going all the way left.
+  static
+  Iterator goLeft(Boxed<Iterator> next, Node *p) {
+    Iterator here(next, p);
+
+    Node *l = p->left;
+    while (l) {
+      Boxed<Iterator> up(here);
+      Node::copy(l);
+      here.above = up;
+      here.cur = l;
+      l = l->left;
+    }
+    return here;
+  }
+
+  // Owns above and me
+  Iterator (Node *me) : above(Boxed<Iterator>()), cur(me) {}
+  Iterator (Boxed<Iterator> up, Node *me) : above(up), cur(me) {}
+
+  public:
+    Iterator() : above(), cur(nullptr) {}
+    Iterator (Map m) {
+      if (m.tree != nullptr) *this = goLeft(Boxed<Iterator>(), m.tree);
+    }
+
+    // borrow this
+    bool  done()        { return cur == nullptr; }
+
+    // borrow this
+    Key   borrowKey()   { return cur->key; }
+
+    // borrow this
+    Value borrowValue() { return cur->value; }
+
+    // owns this
+    Iterator next() {
+      if (cur->right != nullptr) {
+        Node::copy(cur->right);
+        Iterator r = goLeft(above,cur->right);
+        Node::free(cur);
+        return r;
+      }
+      Node::free(cur);
+      if (above.isNull()) return Iterator();
+      Iterator r = above.getValue();
+      if (above.refCount() != 1) r.copy();
+      above.shallowFree();
+      return r;
+    }
+
+    void copy() {
+      if (!above.isNull()) above.copy();
+      if (cur != nullptr) Node::copy(cur);
+    }
+
+    void free() {
+      if (!above.isNull()) above.free();
+      if (cur != nullptr) Node::free(cur);
+    }
+
+    void dump() {
+      std::cout << "IT:" << (void*) cur << "|";  above.dump();
+      if (!above.isNull()) above.getValue().dump();
+      std::cout << "---\n";
+    }
+
+  };
+
 
   // Make an empty map
   Map() : tree(nullptr) {}
@@ -265,7 +344,7 @@ public:
   void free() { Node::free(tree); }
 
   // for debugging
-  void dump() { Node::dump(0,tree); }
+  void dump() { Node::dump(0,tree); std::cout << "\n"; }
 
   friend
   std::ostream& operator << (std::ostream &os, Map m) {
