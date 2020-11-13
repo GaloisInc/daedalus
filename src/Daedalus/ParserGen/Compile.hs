@@ -515,7 +515,7 @@ genGExpr gbl e =
     TCCurrentStream ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (CurrentStream), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (GetStream), n2)) ]) n2
     TCSetStream e1 ->
       let n1 = getS 0
           n2 = getS 1

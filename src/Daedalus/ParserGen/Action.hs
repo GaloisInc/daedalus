@@ -32,7 +32,7 @@ data InputAction =
   | IOffset
   | IGetByte WithSem
   | IMatchBytes WithSem NVExpr
-  | CurrentStream
+  | GetStream
   | SetStream NVExpr
   | StreamLen WithSem NVExpr NVExpr
   | StreamOff WithSem NVExpr NVExpr
@@ -111,8 +111,8 @@ instance Show(InputAction) where
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
   show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
-  show (CurrentStream) = "StreamCurr"
-  show (SetStream _)   = "StreamSet"
+  show (GetStream)       = "GetStream"
+  show (SetStream _)     = "SetStream"
   show (StreamLen s _ _) = semToString s ++ "StreamLen"
   show (StreamOff s _ _) = semToString s ++ "StreamOff"
 
@@ -178,7 +178,11 @@ isClassActOrEnd act =
 isInputAction :: Action -> Bool
 isInputAction act =
   case act of
-    IAct _ -> True
+    IAct iact ->
+      case iact of
+        ClssAct {} -> True
+        IEnd -> True
+        _ -> False
     _ -> False
 
 isActivateFrameAction :: Action -> Bool
@@ -193,6 +197,10 @@ isNonClassInputAct act =
     IAct iact ->
       case iact of
         ClssAct _ _ -> False
+        GetStream -> False
+        SetStream _ -> False
+        StreamLen {} -> False
+        StreamOff {} -> False
         _ -> True
     _ -> False
 
@@ -851,7 +859,7 @@ applyInputAction gbl (inp, ctrl, out) act =
                       in resultWithSem s i o
                  else Nothing
            _ -> error ("unexpected match bytes: "++ show e1)
-    CurrentStream ->
+    GetStream ->
       Just (inp, SEVal (Interp.VStream inp) : out)
     SetStream e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out

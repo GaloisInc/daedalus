@@ -15,6 +15,7 @@ data Result a =
   | AbortNonEmptyIntersection
   | AbortClassIsDynamic
   | AbortClassNotHandledYet String
+  | AbortSymbolicExec
 
   | AbortAmbiguous
   | AbortOverflowK
@@ -34,7 +35,8 @@ abortToString r =
     AbortLoopWithNonClass -> "AbortLoopWithNonClass"
     AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
     AbortClassIsDynamic -> "AbortClassIsDynamic"
-    AbortClassNotHandledYet _ -> "AbortClassNotHandledYet"
+    AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
+    AbortSymbolicExec -> "AbortSymbolicExec"
     AbortAmbiguous -> "AbortAmbiguous"
     AbortOverflowK -> "AbortOverflowK"
     _ -> error "No Abort result"

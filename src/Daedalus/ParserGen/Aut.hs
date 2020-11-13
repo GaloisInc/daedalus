@@ -1,4 +1,24 @@
-module Daedalus.ParserGen.Aut where
+module Daedalus.ParserGen.Aut
+  ( Aut(..)
+  , Choice(..)
+  , stateToString
+  , lookupPopTrans
+  , MapAut(..)
+  , ArrayAut(..)
+  , mkAut
+  , mkAutWithPop
+  , mkTr
+  , mkTr1
+  , dsAut
+  , unionTr
+  , emptyTr
+  , unionPopTrans
+  , emptyPopTrans
+  , addPopTrans
+  , convertToArrayAut
+  )
+
+where
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
@@ -101,10 +121,6 @@ mkTr1 tr = Map.fromList [tr]
 mkTr :: [ (State, Choice) ] -> Transition
 mkTr lst =
   foldr (\ (s, ch) acc -> Map.insertWith combineCh s ch acc) emptyTr lst
-
-mkTr3 :: [ (State, Action, State) ] -> Transition
-mkTr3 tr =
-  foldr (\ (n1,act,n2) acc -> unionTr (mkTr1 (n1, UniChoice (act, n2))) acc) emptyTr tr
 
 unionTr :: Transition -> Transition -> Transition
 unionTr t1 t2 =
