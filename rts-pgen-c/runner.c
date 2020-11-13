@@ -1,6 +1,8 @@
 #include "runner.h"
 #include "value.h"
 
+#include "debug.h"
+
 //-----------------------------------------------------------------------//
 // Runtime Library: Configurations
 //-----------------------------------------------------------------------//
@@ -32,8 +34,6 @@ StackSem * updateStackSem(Value * v, StackSem *stack) {
 }
 
 void printStackSem(StackSem * stack) {
-    //Value * value;
-    //struct _StackSem* up;
     printf("STACK_SEM: ");
     while (stack != NULL && stack->value != NULL){
         printf("Elm: ");
@@ -46,7 +46,7 @@ void printStackSem(StackSem * stack) {
 Input * initInput(FILE * f){
     Input * inp = malloc(sizeof(Input));
     inp->file = f;
-    inp->posInput = 0;
+    fgetpos(f, &inp->posInput);
 
     return inp;
 }
@@ -128,7 +128,7 @@ int readInput(Input* input, fpos_t* newPos) {
     fsetpos(input->file, &input->posInput);
     int c = fgetc(input->file);
     fgetpos(input->file, newPos);
-    printf("READINPUT %d\n", (int) c);
+    LOGD("READINPUT %d", (int) c);
     return c;
 }
 
@@ -141,8 +141,9 @@ Input* makeNewInput(FILE* file, fpos_t pos) {
 }
 
 Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
-    printf("execAction\n");
-    printStackSem(cfg->sem);
+    //printf("execAction\n");
+    LOGD("In execAction");
+    //printStackSem(cfg->sem);
     switch (act->tag) {
         case ACT_END: {
             fpos_t newPos;
@@ -164,7 +165,7 @@ Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
                return newCfg;
             }
             else {
-                printf("Rejecting in state: %d\n", cfg->state);
+                LOGD("Rejecting in state: %d", cfg->state);
                 return NULL;
             }
             break;
@@ -315,21 +316,21 @@ Result * backtrack(Aut aut, Stack * st, Result * r);
 Result * step(Aut aut, Action * act, int arrivState, Stack * st, Result * r);
 
 Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
-    printf("STATE: %d\n", cfg->state);
+    LOGD("STATE: %d", cfg->state);
     //printf("Stack at: %p\n", cfg->ctrl);
 
     Result * new_res = r;
 
     if (isEmptyStackCtrl(cfg->ctrl) && cfg->state == aut.accepting) {
         new_res = addResult(cfg->sem->value, r);
-        printf("Solution found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        LOGI("Solution found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     }
 
     Choice ch = aut.table[cfg->state];
     ActionStatePair* tr = ch.transitions;
 
     Stack * newStack;
-    printf("Tag: %d\n", ch.tag);
+    LOGD("Tag: %d", ch.tag);
     switch (ch.tag) {
         case UNICHOICE: {
             Action* act = tr[0].pAction;
@@ -351,7 +352,7 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
             //TODO:
         }
         case EMPTYCHOICE: {
-            printf("EMPTYCHOICE\n");
+            LOGD("EMPTYCHOICE");
             Action pop = MAKE_ACT_POP();
             int arrivalState = -42;
 
@@ -367,7 +368,7 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
 }
 
 Result * step(Aut aut, Action *act, int arrivState, Stack *st, Result * r) {
-    printf("STEP: action:%s arrivState:%d\n", action_to_string(act), arrivState);
+    LOGD("STEP: action:%s arrivState:%d", action_to_string(act), arrivState);
 
     Cfg* cfg = st->cfg;
     Cfg* newCfg = NULL;
@@ -381,7 +382,7 @@ Result * step(Aut aut, Action *act, int arrivState, Stack *st, Result * r) {
 }
 
 Result * backtrack(Aut aut, Stack *st, Result * res){
-    printf("BACKTRACK\n");
+    LOGD("BACKTRACK");
     if (st == NULL) {
         return res;
     } else {
