@@ -43,8 +43,6 @@ data DFAStateEntry = DFAStateEntry
 
 compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
 compareSrc p1 p2 =
-  -- TODO: test replacing with
-  -- compareCfgDetAsSrc (srcDFAState p1) (srcDFAState p2)
   compareCfgDet (srcDFAState p1) (srcDFAState p2)
 
 compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
@@ -201,5 +199,6 @@ deterministicStep aut cfg =
     AbortAcceptingPath -> AbortAcceptingPath
     AbortNonClassInputAction x -> AbortNonClassInputAction x
     AbortUnhandledAction -> AbortUnhandledAction
+    AbortSymbolicExec -> AbortSymbolicExec
     Result r -> determinizeClosureMoveSet cfg r
     _ -> error "impossible"

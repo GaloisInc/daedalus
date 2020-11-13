@@ -182,7 +182,7 @@ getConflictSetsPerLoc s =
 
   where
     sameEntryPerLoc (DFAStateEntry _src1 dst1 (_,_,q1)) (DFAStateEntry _src2 dst2 (_,_,q2)) =
-      q1 == q2 && cfgStack dst1 == cfgStack dst2
+      q1 == q2 && cfgCtrl dst1 == cfgCtrl dst2
 
 -- Inspired by the condition in `predictLL()` of ALL(*) paper
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility
@@ -223,7 +223,8 @@ createDFAtable aut depth q dfa =
           case choices of
             Result (DChoice r1) -> iterateCreateDFA (depth+1) r1 newDfa
             _ -> newDfa
-    Just _ -> dfa
+    Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
+              dfa
   where
     iterateCreateDFA :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ExplicitDFA -> ExplicitDFA
     iterateCreateDFA k lst m =
@@ -234,7 +235,7 @@ createDFAtable aut depth q dfa =
             Ambiguous -> iterateCreateDFA k rest m
             NotAmbiguous -> iterateCreateDFA k rest m
             DunnoAmbiguous ->
-              let newDFA = createDFAtable aut (k+1) qq m
+              let newDFA = createDFAtable aut k qq m
               in iterateCreateDFA k rest newDFA
 
     detSubsetAccu :: DFAStateQuotient -> DetChoice -> Result DFATransition
@@ -251,6 +252,7 @@ createDFAtable aut depth q dfa =
             AbortUnhandledAction -> AbortUnhandledAction
             AbortClassIsDynamic -> AbortClassIsDynamic
             AbortClassNotHandledYet a -> AbortClassNotHandledYet a
+            AbortSymbolicExec -> AbortSymbolicExec
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
               in detSubsetAccu rest newAcc
@@ -289,7 +291,7 @@ hasFullResolution (start, dfa) =
           case am of
             NotAmbiguous -> helper visited rest
             Ambiguous -> False
-            DunnoAmbiguous -> traverseWithVisited visited qq
+            DunnoAmbiguous -> traverseWithVisited visited qq && helper visited rest
 
 hasNoAbort :: (State, ExplicitDFA) -> Bool
 hasNoAbort (start, dfa)  =
@@ -393,7 +395,7 @@ predictLL (start,dfa) i =
       case iterDFAState s of
         Nothing -> error "could not find src from previous cfg"
         Just (DFAStateEntry c1 c2 (pos, _, q2), others) ->
-          if q2 == cfgState src && cfgStack c2 == cfgStack src
+          if q2 == cfgState src && cfgCtrl c2 == cfgCtrl src
           then (c1, cfgAlts c2 Seq.|> pos)
           else extractPredictionFromDFAState src others
 
@@ -426,9 +428,10 @@ createDFA aut =
     collectOnSingleTransition q1 (act, q2) =
       if isInputAction act
       then Set.singleton q2
-      else if isActivateFrameAction act
-           then Set.singleton q1
-           else Set.empty
+      else
+        if isActivateFrameAction act
+        then Set.singleton q1
+        else Set.empty
 
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =

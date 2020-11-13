@@ -63,8 +63,10 @@ closureLL aut busy cfg =
       | otherwise =
           -- trace ("q2: " ++ show (cfgState cfg)) $
           case simulateActionCfgDet aut pos act q2 cfg of
-            Nothing -> Result []
-            Just lstCfg -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
+            AbortSymbolicExec -> AbortSymbolicExec
+            Result Nothing -> Result []
+            Result (Just lstCfg) -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
+            _ -> error "impossible"
 
 
     iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
@@ -83,6 +85,7 @@ closureLL aut busy cfg =
             AbortNonClassInputAction _ -> r1
             AbortUnhandledAction -> r1
             AbortAcceptingPath -> r1
+            AbortSymbolicExec -> r1
             Result res1 ->
               let r2 = combineResults rest in
               case r2 of
@@ -91,6 +94,7 @@ closureLL aut busy cfg =
                 AbortNonClassInputAction _ -> r2
                 AbortUnhandledAction -> r2
                 AbortAcceptingPath -> r2
+                AbortSymbolicExec -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"
             _ -> error "abort not handled here"
