@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "value.h"
 
 
@@ -73,12 +74,12 @@ Value * create_value(int i){
 Value * get_dict(char * key, Value * v) {
     if (v->tag != VDICT)
         exit(1);
-    
+
     DictValue * dict = v->dict;
     while (dict != NULL) {
         if (strcmp(dict->key, key) == 0)
             return dict->value;
-        dict = dict->next;       
+        dict = dict->next;
     }
 
     return NULL;
