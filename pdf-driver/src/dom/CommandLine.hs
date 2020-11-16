@@ -11,7 +11,9 @@ data Command =
   | PrettyPrintAll
   | Validate
   | ListXRefs
+  | ParseValue
   | ShowHelp
+
   -- | ShowEncrypt  
 
 data Settings = Settings
@@ -61,6 +63,10 @@ options = OptSpec
       , Option [] ["pwd"]
         "Set the encryption password for the document."
       $ ReqArg "STRING" $ (\v opts -> Right opts { password = C.pack v} ) 
+
+      , Option [] ["parse-value"]
+        "File contains a value instead of a PDF document."
+      $ NoArg $ \opts -> Right opts { command = ParseValue }
 
       , Option [] ["help"]
         "Show this help."
