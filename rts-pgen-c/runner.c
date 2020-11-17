@@ -306,7 +306,8 @@ void print_Result(Result * r){
         printf("#%d ", i);
         print_Value(r->value);
         r = r->next;
-        printf("\n");
+        if (r != NULL)
+            printf("\n");
     }
     return;
 }
