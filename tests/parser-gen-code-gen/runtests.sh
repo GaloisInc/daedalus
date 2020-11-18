@@ -22,6 +22,12 @@ GITROOT=$(git rev-parse --show-toplevel)
 #And the location of the runtime files
 RTSDIR="${GITROOT}/rts-pgen-c"
 
+#LOGLEVEL for running the tests. If there is an environment variable, we use that
+#otherwise define our default
+if [[ -z ${LOGLEVEL+x} ]]; then
+    LOGLEVEL=NONE
+fi
+
 #--------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------
@@ -39,6 +45,7 @@ function clean_test()
 {
     local abs_out_dir="$1"
     rm -rf "$abs_out_dir"
+    mkdir -p "$abs_out_dir"
 }
 
 function copy_logs()
@@ -82,7 +89,6 @@ function run_test()
     mkdir -p "$results_dir"
 
     local abs_out_dir="/tmp/pgen-c-test"
-    mkdir -p "$abs_out_dir"
 
     local golden_result_file="$test_file.stdout"
 
@@ -98,7 +104,7 @@ function run_test()
     fi
 
     #Clean the out dir
-    clean_test
+    clean_test "$abs_out_dir"
 
     #Execute the generate command
     cd "$GITROOT"
@@ -118,7 +124,7 @@ function run_test()
     cp "$SCRIPTROOT/Makefile" "$abs_out_dir/Makefile"
     cd "$abs_out_dir"
     make clean > "$make_log_file" 2>&1
-    make RTS=$RTSDIR >> "$make_log_file" 2>&1
+    make RTS=$RTSDIR LOGLEVEL=$LOGLEVEL >> "$make_log_file" 2>&1
 
     if [[ $? -ne 0 ]]; then
         echo "Compiling $test_file to C failed"
