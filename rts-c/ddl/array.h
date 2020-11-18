@@ -145,7 +145,7 @@ public:
 
 
 
-  class Iterator {
+  class Iterator : HasRefs {
     size_t index;
     Array xs;
     Iterator(size_t i,Array ys) : index(i), xs(ys) {}

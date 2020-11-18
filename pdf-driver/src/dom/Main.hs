@@ -1,4 +1,5 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments #-}
+import           Data.ByteString(ByteString)
 import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
@@ -16,7 +17,7 @@ import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
 import PdfXRef(pEncryptionDict,TrailerDict) 
-import PdfValue(Value(..),Ref(..))
+import PdfValue(Value(..),Ref(..),pValue)
 import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
@@ -34,7 +35,20 @@ main =
 
      bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
-     idx <- case findStartXRef bs of
+     case command opts of
+       ParseValue ->
+          do res <- runParser Map.empty Nothing pValue topInput
+             case res of
+                ParseOk a     -> print (pp a)
+                ParseErr e    -> print (pp e)
+                ParseAmbig {} -> quit "BUG: Ambiguous result"
+
+       _ -> parsePdf opts file bs topInput
+
+
+parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
+parsePdf opts file bs topInput =
+  do idx <- case findStartXRef bs of
               Left err  -> quit err
               Right idx -> pure idx
 
