@@ -24,20 +24,20 @@ decrypt inp = do
     Nothing -> pure inp 
     Just ctx ->  
       if B.length dat `mod` 16 /= 0 then 
-        pError FromUser "Decrypt.decrypt" "Encrypted data size is not a multiple of 16"
+        pError FromUser "Decrypt.decrypt" 
+            ("Encrypted data length must be a multiple of block size (16). Actual length: " ++ (show $ B.length dat)) 
       else do 
         let aeskey = makeObjKey ctx  
         dec <- case keylen ctx of 
-                128 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
-                192 -> applyCipher (Y.cipherInit @Y.AES192 aeskey) hd dat 
-                256 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
+                16 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
+                -- XXX: need to work out how to construct key properly 
+                -- 32 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
                 _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
         res <- stripPadding dec 
         pure $ newInput name res
   where 
     (hd, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
-
 
 applyCipher :: (PdfParser m, BlockCipher a) => 
                    CryptoFailable a  
@@ -65,7 +65,9 @@ makeObjKey ctx =
     salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
-
+-- XXX at the moment, the len field doesn't do anything 
+-- The reason is that MD5 always produces 16 bytes. 
+-- Need to work out how 32-byte key construction works. 
 makeFileKey :: Int 
             -> B.ByteString 
             -> B.ByteString 

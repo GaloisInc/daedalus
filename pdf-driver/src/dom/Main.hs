@@ -108,8 +108,11 @@ makeEncContext trail refs topInput pwd =
           encO = vecToRep $ getField @"encO" enc 
           encP = fromIntegral $ getField @"encP" enc
           id0 = vecToRep $ getField @"id0" e 
+          filekey = makeFileKey len pwd encO encP id0
+      -- hPutStrLn stderr ("Requested key length (bytes): " ++ show len) 
+      -- hPutStrLn stderr ("Actual key length (bytes): " ++ (show $ BS.length filekey))
       pure $ \(ro, rg) -> 
-         Just EncContext { key = makeFileKey len pwd encO encP id0, 
+        Just EncContext { key = filekey, 
                           keylen = len, 
                           robj = fromIntegral ro, 
                           rgen = fromIntegral rg } 

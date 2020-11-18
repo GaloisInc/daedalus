@@ -168,7 +168,7 @@ def EncryptionDict (eref : Ref) = {
   @edict = (ResolveValRef eref) is dict; 
 
   encFilter = (Lookup "Filter" edict) is name; 
-  encFilter == "Standard"; -- Other modes unsupported 
+  encFilter == "Standard" is true; -- Other modes unsupported 
 
   encSubFilter = Optional ((Lookup "SubFilter" edict) is name); 
 
@@ -176,7 +176,7 @@ def EncryptionDict (eref : Ref) = {
 
   -- Fields for the Standard security handler (Table 21, S7.6.3.2)
   encR = LookupNat "R" edict; 
-  encR == 3 || (encV == 4 && encR == 4); -- Other modes unsupported 
+  encR == 3 || (encV == 4 && encR == 4) is true; -- Other modes unsupported 
 
   encO = (Lookup "O" edict) is string; 
   encU = (Lookup "U" edict) is string; 
@@ -190,13 +190,15 @@ def EncryptionDict (eref : Ref) = {
   -- XXX: Builds in checking that this is an AES 
   stmFLength = Choose1 { 
     { -- Version 2 encryption 
-      encV == 2; 
+      encV == 2 is true; 
+      commit; 
+
       @len = LookupNat "Length" edict <| ^ 40; 
-      len >= 40 && len <= 128;
-      ^ len; 
+      len == 128 is true;
+      ^ 16; 
     }; 
-    { -- Version 4 encryption 
-      encV == 4;
+    { -- Version 4 
+      encV == 4 is true;
 
       @stmF = (Lookup "StmF" edict) is name; 
       @strF = (Lookup "StrF" edict) is name;       
@@ -205,30 +207,23 @@ def EncryptionDict (eref : Ref) = {
       -- Lookup stream filter 
       @stmFdict = (Lookup stmF cf) is dict; 
       @stmFname = (Lookup "CFM" stmFdict) is name; 
-      @stmFLength = LookupNat "Length" stmFdict; 
+      @stmFLen = LookupNat "Length" stmFdict; 
 
       -- Lookup string filter 
       @strFdict = (Lookup strF cf) is dict; 
       @strFname = (Lookup "CFM" strFdict) is name; 
-      @strFLength = LookupNat "Length" strFdict; 
+      @strFLen = LookupNat "Length" strFdict; 
 
       -- Only support AES: 
-      stmFname == "AESV2"; 
-      strFname == "AESV2"; 
+      stmFname == "AESV2" is true; 
+      strFname == "AESV2" is true; 
 
       -- XXX: Only return stream key length for now
-      ^ stmFLength; 
+      ^ stmFLen; 
     }; 
+    -- XXX: Support encryption Version 5 
   }; 
 
   -- Supported modes: 
-  stmFLength == 128 || stmFLength == 256; 
+  stmFLength == 16 || stmFLength == 32 is true; 
 } 
-
--- Crypt filter dictionary (Table 25 in 7.6.5) 
--- def CfDictLength cref n  = { 
---  @cdict = (Lookup n cref) is dict; 
---  @cfm = (Lookup "CFM" cdict); 
---  cfm == "AESV2"; 
---  ^ 128;   -- XXX: hack to make this keep working 
--- }
