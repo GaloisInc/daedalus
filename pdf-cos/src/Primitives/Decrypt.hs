@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds #-}
-module Primitives.Decrypt (decrypt,makeFileKey) where 
+module Primitives.Decrypt (decrypt,makeFileKeyV4) where 
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
@@ -65,16 +65,13 @@ makeObjKey ctx =
     salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
--- XXX at the moment, the len field doesn't do anything 
--- The reason is that MD5 always produces 16 bytes. 
--- Need to work out how 32-byte key construction works. 
-makeFileKey :: Int 
-            -> B.ByteString 
+makeFileKeyV4 ::
+               B.ByteString 
             -> B.ByteString 
             -> Int
             -> B.ByteString 
             -> B.ByteString
-makeFileKey len pwd opwd perm fileid = 
+makeFileKeyV4 pwd opwd perm fileid = 
     iterate doHash firsthash !! 50
   where 
     pwdPadding :: B.ByteString  
@@ -88,7 +85,7 @@ makeFileKey len pwd opwd perm fileid =
     pbytes = B.reverse $ S.encode (fromIntegral perm :: Word32) 
 
     doHash :: B.ByteString -> B.ByteString 
-    doHash bs = B.take len $ BA.convert $ 
+    doHash bs = BA.convert $ 
                   hashFinalize $ 
                     hashUpdate (Y.hashInit @Y.MD5) bs 
 

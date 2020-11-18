@@ -25,7 +25,7 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
-import Primitives.Decrypt(makeFileKey)
+import Primitives.Decrypt(makeFileKeyV4)
 
 main :: IO ()
 main =
@@ -302,7 +302,7 @@ makeEncContext trail refs topInput pwd =
           encP = fromIntegral $ getField @"encP" enc
           id0 = vecToRep $ getField @"id0" e 
       pure $ \(ro, rg) -> 
-         Just EncContext { key = makeFileKey len pwd encO encP id0, 
+         Just EncContext { key = makeFileKeyV4 pwd encO encP id0, 
                           keylen = len, 
                           robj = fromIntegral ro, 
                           rgen = fromIntegral rg } 
