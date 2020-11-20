@@ -37,7 +37,11 @@ applyCipherAES :: PdfParser m =>
                -> Input 
                -> m B.ByteString
 applyCipherAES ctx inp = 
-  case ciph of 
+  if B.length (inputBytes inp) `mod` 16 /= 0 -- XXX: maybe try to recover by padding out with zeroes? 
+  then pError FromUser "Decrypt.decrypt" $ 
+        ("Length of encrypted data must be a multiple of block size (16). Actual length: "
+          ++ (show $ B.length (inputBytes inp))) 
+  else case ciph of 
     Y.CryptoFailed err -> 
       pError FromUser "Decrypt.decrypt" (show err) 
     Y.CryptoPassed ci -> 
