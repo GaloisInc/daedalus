@@ -4,6 +4,7 @@ module PdfMonad.Transformer
   , runPdfT, PdfResult(..)
   , PdfParser(..)
   , ObjIndex, R(..), ObjLoc(..)
+  , Cipher(..)
   , EncContext(..) 
   , doM
   , module RTS.ParserAPI
@@ -31,12 +32,14 @@ data ObjLoc = InFileAt !Int   -- ^ At this index
 
 newtype PdfT m a = P (RO -> RW -> m (a,RW))
 
+data Cipher = V2 | V4AES | V4RC4 
+
 data EncContext = EncContext 
   { key    :: ByteString
-  , keylen :: Int 
   , robj   :: Int
-  , rgen   :: Int  
+  , rgen   :: Int 
   , ver    :: Int 
+  , ciph   :: Cipher 
   -- XXX: record the cypher here - we just default to AES128 
   }
 

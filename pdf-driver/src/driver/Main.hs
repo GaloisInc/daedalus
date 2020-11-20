@@ -302,8 +302,17 @@ makeEncContext trail refs topInput pwd =
           id0 = vecToRep $ getField @"id0" e 
           filekey = makeFileKey pwd encO encP id0
       pure $ \(ro, rg) -> 
-        Just EncContext { key = filekey, 
-                          keylen = fromIntegral $ getField @"stmFLength" enc, 
+        Just EncContext { key  = filekey, 
                           robj = fromIntegral ro, 
                           rgen = fromIntegral rg, 
-                          ver = fromIntegral $ getField @"encV" enc } 
+                          ver  = fromIntegral $ getField @"encV" enc, 
+                          ciph = chooseCipher $ getField @"ciph" enc  } 
+
+chooseCipher :: ChooseCiph -> Cipher 
+chooseCipher enc = 
+  case enc of 
+    ChooseCiph_v2 _ -> V2 
+    ChooseCiph_v4 i -> 
+      case i of 
+        ChooseCiphV4_v4AES () -> V4AES 
+        ChooseCiphV4_v4RC4 () -> V4RC4

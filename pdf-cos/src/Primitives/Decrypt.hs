@@ -24,10 +24,10 @@ decrypt inp = do
   case ctxMaybe of 
     Nothing -> pure inp 
     Just ctx -> do 
-      dec <- case (ver ctx) of 
-              4 -> applyCipherAES ctx inp 
-              2 -> applyCipherRC4 ctx inp 
-              _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
+      dec <- case (ciph ctx) of 
+              V4AES -> applyCipherAES ctx inp 
+              V4RC4 -> applyCipherRC4 ctx inp 
+              V2    -> applyCipherRC4 ctx inp 
       pure $ newInput name dec 
   where 
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
@@ -50,7 +50,7 @@ applyCipherAES ctx inp =
           pError FromUser "Decrypt.decrypt" "Could not construct AES initial vector" 
         Just iv -> stripPadding $ Y.cbcDecrypt ci iv dat 
   where 
-    objKey = makeObjKey ctx True 
+    objKey = makeObjKey128 ctx True 
     ciph = Y.cipherInit @Y.AES128 objKey
     (hd, dat) = B.splitAt 16 $ inputBytes inp
 
@@ -59,16 +59,14 @@ applyCipherRC4 :: PdfParser m =>
                -> Input 
                -> m B.ByteString
 applyCipherRC4 ctx inp = 
-    let i = Y.initialize objKey 
+    let i = Y.initialize $ makeObjKey128 ctx False 
     in pure $ snd $ Y.combine i $ inputBytes inp 
-  where 
-    objKey = makeObjKey ctx False
 
-makeObjKey :: EncContext
+makeObjKey128 :: EncContext
            -> Bool 
            -> B.ByteString 
-makeObjKey ctx isAES = 
-    B.take (keylen ctx + 5) (BA.convert digest)
+makeObjKey128 ctx isAES = 
+    B.take (128 + 5) (BA.convert digest)
   where 
     ob = B.take 3 $ B.reverse $ S.encode (robj ctx)
     gb = B.take 2 $ B.reverse $ S.encode (rgen ctx)
