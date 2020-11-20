@@ -188,30 +188,36 @@ def EncryptionDict (eref : Ref) = {
 
   -- Extract key length 
   -- XXX: Builds in checking that this is an AES 
-  stmFLength = {
-    encV == 4 is true;
+  stmFLength = Choose1 { 
+    { encV == 4 is true;
 
-    @stmF = (Lookup "StmF" edict) is name; 
-    @strF = (Lookup "StrF" edict) is name;       
-    @cf = (Lookup "CF" edict) is dict; 
-    
-    -- Lookup stream filter 
-    @stmFdict = (Lookup stmF cf) is dict; 
-    @stmFname = (Lookup "CFM" stmFdict) is name; 
-    @stmFLen = LookupNat "Length" stmFdict; 
+      @stmF = (Lookup "StmF" edict) is name; 
+      @strF = (Lookup "StrF" edict) is name;       
+      @cf = (Lookup "CF" edict) is dict; 
+      
+      -- Lookup stream filter 
+      @stmFdict = (Lookup stmF cf) is dict; 
+      @stmFname = (Lookup "CFM" stmFdict) is name; 
+      @stmFLen = LookupNat "Length" stmFdict; 
 
-    -- Lookup string filter 
-    @strFdict = (Lookup strF cf) is dict; 
-    @strFname = (Lookup "CFM" strFdict) is name; 
-    @strFLen = LookupNat "Length" strFdict; 
+      -- Lookup string filter 
+      @strFdict = (Lookup strF cf) is dict; 
+      @strFname = (Lookup "CFM" strFdict) is name; 
+      @strFLen = LookupNat "Length" strFdict; 
 
-    -- Only support AES: 
-    stmFname == "AESV2" is true; 
-    strFname == "AESV2" is true; 
+      -- Only support AES: 
+      stmFname == "AESV2" is true; 
+      strFname == "AESV2" is true; 
 
-    -- XXX: Only return stream key length for now
-    ^ stmFLen; 
-    -- XXX: Support encryption Version 5 
+      -- XXX: Only return stream key length for now
+      ^ stmFLen; 
+    }; 
+    { 
+      encV == 2 is true; 
+      @len = LookupNat "Length" edict; 
+      len == 128 is true; 
+      ^ 16; 
+    }
   }; 
 
   -- Supported modes: 

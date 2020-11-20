@@ -931,83 +931,93 @@ pEncryptionDict (eref :: PdfValue.Ref) =
           (__ :: HS.Integer) <- HS.pure (HS.getField @"num" v)
           HS.pure __
      (stmFLength :: HS.Integer) <-
-       do RTS.pGuard "192:5--192:21" "guard failed"
-            (encV HS.== (RTS.lit 4 :: HS.Integer))
-          (stmF :: Vector.Vector (RTS.UInt 8)) <-
-            do (_25 :: PdfValue.Value) <-
-                 RTS.pIsJust "194:14--194:32"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "StmF") edict)
-               RTS.pIsJust "194:14--194:41" "Expected `name`"
-                 (HS.getField @"name" _25)
-          (strF :: Vector.Vector (RTS.UInt 8)) <-
-            do (_26 :: PdfValue.Value) <-
-                 RTS.pIsJust "195:14--195:32"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "StrF") edict)
-               RTS.pIsJust "195:14--195:41" "Expected `name`"
-                 (HS.getField @"name" _26)
-          (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_27 :: PdfValue.Value) <-
-                 RTS.pIsJust "196:12--196:28"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CF") edict)
-               RTS.pIsJust "196:12--196:37" "Expected `dict`"
-                 (HS.getField @"dict" _27)
-          (stmFdict
-             :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_28 :: PdfValue.Value) <-
-                 RTS.pIsJust "199:18--199:31"
-                   ("Missing key: "
-                      HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup stmF cf)
-               RTS.pIsJust "199:18--199:40" "Expected `dict`"
-                 (HS.getField @"dict" _28)
-          (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-            do (_29 :: PdfValue.Value) <-
-                 RTS.pIsJust "200:18--200:38"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
-               RTS.pIsJust "200:18--200:47" "Expected `name`"
-                 (HS.getField @"name" _29)
-          (stmFLen :: HS.Integer) <-
-            RTS.pEnter "PdfDecl.LookupNat"
-              (PdfDecl.pLookupNat (Vector.vecFromRep "Length") stmFdict)
-          (strFdict
-             :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_30 :: PdfValue.Value) <-
-                 RTS.pIsJust "204:18--204:31"
-                   ("Missing key: "
-                      HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup strF cf)
-               RTS.pIsJust "204:18--204:40" "Expected `dict`"
-                 (HS.getField @"dict" _30)
-          (strFname :: Vector.Vector (RTS.UInt 8)) <-
-            do (_31 :: PdfValue.Value) <-
-                 RTS.pIsJust "205:18--205:38"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CFM") strFdict)
-               RTS.pIsJust "205:18--205:47" "Expected `name`"
-                 (HS.getField @"name" _31)
-          RTS.pEnter "PdfDecl._LookupNat"
-            (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
-          RTS.pGuard "209:5--209:31" "guard failed"
-            (stmFname HS.== Vector.vecFromRep "AESV2")
-          RTS.pGuard "210:5--210:31" "guard failed"
-            (strFname HS.== Vector.vecFromRep "AESV2")
-          (__ :: HS.Integer) <- HS.pure stmFLen
-          HS.pure __
-     RTS.pGuard "218:3--218:46" "guard failed"
+       (RTS.<||)
+         (do RTS.pGuard "192:7--192:23" "guard failed"
+               (encV HS.== (RTS.lit 4 :: HS.Integer))
+             (stmF :: Vector.Vector (RTS.UInt 8)) <-
+               do (_25 :: PdfValue.Value) <-
+                    RTS.pIsJust "194:16--194:34"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "StmF") edict)
+                  RTS.pIsJust "194:16--194:43" "Expected `name`"
+                    (HS.getField @"name" _25)
+             (strF :: Vector.Vector (RTS.UInt 8)) <-
+               do (_26 :: PdfValue.Value) <-
+                    RTS.pIsJust "195:16--195:34"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "StrF") edict)
+                  RTS.pIsJust "195:16--195:43" "Expected `name`"
+                    (HS.getField @"name" _26)
+             (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_27 :: PdfValue.Value) <-
+                    RTS.pIsJust "196:14--196:30"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CF") edict)
+                  RTS.pIsJust "196:14--196:39" "Expected `dict`"
+                    (HS.getField @"dict" _27)
+             (stmFdict
+                :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_28 :: PdfValue.Value) <-
+                    RTS.pIsJust "199:20--199:33"
+                      ("Missing key: "
+                         HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup stmF cf)
+                  RTS.pIsJust "199:20--199:42" "Expected `dict`"
+                    (HS.getField @"dict" _28)
+             (stmFname :: Vector.Vector (RTS.UInt 8)) <-
+               do (_29 :: PdfValue.Value) <-
+                    RTS.pIsJust "200:20--200:40"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
+                  RTS.pIsJust "200:20--200:49" "Expected `name`"
+                    (HS.getField @"name" _29)
+             (stmFLen :: HS.Integer) <-
+               RTS.pEnter "PdfDecl.LookupNat"
+                 (PdfDecl.pLookupNat (Vector.vecFromRep "Length") stmFdict)
+             (strFdict
+                :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_30 :: PdfValue.Value) <-
+                    RTS.pIsJust "204:20--204:33"
+                      ("Missing key: "
+                         HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup strF cf)
+                  RTS.pIsJust "204:20--204:42" "Expected `dict`"
+                    (HS.getField @"dict" _30)
+             (strFname :: Vector.Vector (RTS.UInt 8)) <-
+               do (_31 :: PdfValue.Value) <-
+                    RTS.pIsJust "205:20--205:40"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CFM") strFdict)
+                  RTS.pIsJust "205:20--205:49" "Expected `name`"
+                    (HS.getField @"name" _31)
+             RTS.pEnter "PdfDecl._LookupNat"
+               (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
+             RTS.pGuard "209:7--209:33" "guard failed"
+               (stmFname HS.== Vector.vecFromRep "AESV2")
+             RTS.pGuard "210:7--210:33" "guard failed"
+               (strFname HS.== Vector.vecFromRep "AESV2")
+             (__ :: HS.Integer) <- HS.pure stmFLen
+             HS.pure __)
+         (do RTS.pGuard "216:7--216:23" "guard failed"
+               (encV HS.== (RTS.lit 2 :: HS.Integer))
+             (len :: HS.Integer) <-
+               RTS.pEnter "PdfDecl.LookupNat"
+                 (PdfDecl.pLookupNat (Vector.vecFromRep "Length") edict)
+             RTS.pGuard "218:7--218:24" "guard failed"
+               (len HS.== (RTS.lit 128 :: HS.Integer))
+             (__ :: HS.Integer) <- HS.pure (RTS.lit 16 :: HS.Integer)
+             HS.pure __)
+     RTS.pGuard "224:3--224:46" "guard failed"
        ((stmFLength HS.== (RTS.lit 16 :: HS.Integer))
           HS.|| (stmFLength HS.== (RTS.lit 32 :: HS.Integer)))
      HS.pure
@@ -1246,83 +1256,93 @@ _EncryptionDict (eref :: PdfValue.Ref) =
         RTS.pIsJust_ "185:11--185:37" "Expected `number`"
           (HS.getField @"number" _24)
      (stmFLength :: HS.Integer) <-
-       do RTS.pGuard "192:5--192:21" "guard failed"
-            (encV HS.== (RTS.lit 4 :: HS.Integer))
-          (stmF :: Vector.Vector (RTS.UInt 8)) <-
-            do (_25 :: PdfValue.Value) <-
-                 RTS.pIsJust "194:14--194:32"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "StmF") edict)
-               RTS.pIsJust "194:14--194:41" "Expected `name`"
-                 (HS.getField @"name" _25)
-          (strF :: Vector.Vector (RTS.UInt 8)) <-
-            do (_26 :: PdfValue.Value) <-
-                 RTS.pIsJust "195:14--195:32"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "StrF") edict)
-               RTS.pIsJust "195:14--195:41" "Expected `name`"
-                 (HS.getField @"name" _26)
-          (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_27 :: PdfValue.Value) <-
-                 RTS.pIsJust "196:12--196:28"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CF") edict)
-               RTS.pIsJust "196:12--196:37" "Expected `dict`"
-                 (HS.getField @"dict" _27)
-          (stmFdict
-             :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_28 :: PdfValue.Value) <-
-                 RTS.pIsJust "199:18--199:31"
-                   ("Missing key: "
-                      HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup stmF cf)
-               RTS.pIsJust "199:18--199:40" "Expected `dict`"
-                 (HS.getField @"dict" _28)
-          (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-            do (_29 :: PdfValue.Value) <-
-                 RTS.pIsJust "200:18--200:38"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
-               RTS.pIsJust "200:18--200:47" "Expected `name`"
-                 (HS.getField @"name" _29)
-          (stmFLen :: HS.Integer) <-
-            RTS.pEnter "PdfDecl.LookupNat"
-              (PdfDecl.pLookupNat (Vector.vecFromRep "Length") stmFdict)
-          (strFdict
-             :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-            do (_30 :: PdfValue.Value) <-
-                 RTS.pIsJust "204:18--204:31"
-                   ("Missing key: "
-                      HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup strF cf)
-               RTS.pIsJust "204:18--204:40" "Expected `dict`"
-                 (HS.getField @"dict" _30)
-          (strFname :: Vector.Vector (RTS.UInt 8)) <-
-            do (_31 :: PdfValue.Value) <-
-                 RTS.pIsJust "205:18--205:38"
-                   ("Missing key: "
-                      HS.++ HS.show
-                              (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-                   (Map.lookup (Vector.vecFromRep "CFM") strFdict)
-               RTS.pIsJust "205:18--205:47" "Expected `name`"
-                 (HS.getField @"name" _31)
-          RTS.pEnter "PdfDecl._LookupNat"
-            (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
-          RTS.pGuard "209:5--209:31" "guard failed"
-            (stmFname HS.== Vector.vecFromRep "AESV2")
-          RTS.pGuard "210:5--210:31" "guard failed"
-            (strFname HS.== Vector.vecFromRep "AESV2")
-          (__ :: HS.Integer) <- HS.pure stmFLen
-          HS.pure __
-     RTS.pGuard "218:3--218:46" "guard failed"
+       (RTS.<||)
+         (do RTS.pGuard "192:7--192:23" "guard failed"
+               (encV HS.== (RTS.lit 4 :: HS.Integer))
+             (stmF :: Vector.Vector (RTS.UInt 8)) <-
+               do (_25 :: PdfValue.Value) <-
+                    RTS.pIsJust "194:16--194:34"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "StmF") edict)
+                  RTS.pIsJust "194:16--194:43" "Expected `name`"
+                    (HS.getField @"name" _25)
+             (strF :: Vector.Vector (RTS.UInt 8)) <-
+               do (_26 :: PdfValue.Value) <-
+                    RTS.pIsJust "195:16--195:34"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "StrF") edict)
+                  RTS.pIsJust "195:16--195:43" "Expected `name`"
+                    (HS.getField @"name" _26)
+             (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_27 :: PdfValue.Value) <-
+                    RTS.pIsJust "196:14--196:30"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CF") edict)
+                  RTS.pIsJust "196:14--196:39" "Expected `dict`"
+                    (HS.getField @"dict" _27)
+             (stmFdict
+                :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_28 :: PdfValue.Value) <-
+                    RTS.pIsJust "199:20--199:33"
+                      ("Missing key: "
+                         HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup stmF cf)
+                  RTS.pIsJust "199:20--199:42" "Expected `dict`"
+                    (HS.getField @"dict" _28)
+             (stmFname :: Vector.Vector (RTS.UInt 8)) <-
+               do (_29 :: PdfValue.Value) <-
+                    RTS.pIsJust "200:20--200:40"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
+                  RTS.pIsJust "200:20--200:49" "Expected `name`"
+                    (HS.getField @"name" _29)
+             (stmFLen :: HS.Integer) <-
+               RTS.pEnter "PdfDecl.LookupNat"
+                 (PdfDecl.pLookupNat (Vector.vecFromRep "Length") stmFdict)
+             (strFdict
+                :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+               do (_30 :: PdfValue.Value) <-
+                    RTS.pIsJust "204:20--204:33"
+                      ("Missing key: "
+                         HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup strF cf)
+                  RTS.pIsJust "204:20--204:42" "Expected `dict`"
+                    (HS.getField @"dict" _30)
+             (strFname :: Vector.Vector (RTS.UInt 8)) <-
+               do (_31 :: PdfValue.Value) <-
+                    RTS.pIsJust "205:20--205:40"
+                      ("Missing key: "
+                         HS.++ HS.show
+                                 (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+                      (Map.lookup (Vector.vecFromRep "CFM") strFdict)
+                  RTS.pIsJust "205:20--205:49" "Expected `name`"
+                    (HS.getField @"name" _31)
+             RTS.pEnter "PdfDecl._LookupNat"
+               (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
+             RTS.pGuard "209:7--209:33" "guard failed"
+               (stmFname HS.== Vector.vecFromRep "AESV2")
+             RTS.pGuard "210:7--210:33" "guard failed"
+               (strFname HS.== Vector.vecFromRep "AESV2")
+             (__ :: HS.Integer) <- HS.pure stmFLen
+             HS.pure __)
+         (do RTS.pGuard "216:7--216:23" "guard failed"
+               (encV HS.== (RTS.lit 2 :: HS.Integer))
+             (len :: HS.Integer) <-
+               RTS.pEnter "PdfDecl.LookupNat"
+                 (PdfDecl.pLookupNat (Vector.vecFromRep "Length") edict)
+             RTS.pGuard "218:7--218:24" "guard failed"
+               (len HS.== (RTS.lit 128 :: HS.Integer))
+             (__ :: HS.Integer) <- HS.pure (RTS.lit 16 :: HS.Integer)
+             HS.pure __)
+     RTS.pGuard "224:3--224:46" "guard failed"
        ((stmFLength HS.== (RTS.lit 16 :: HS.Integer))
           HS.|| (stmFLength HS.== (RTS.lit 32 :: HS.Integer)))
  

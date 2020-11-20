@@ -18,7 +18,7 @@ import PdfMonad
 import PdfDecl(pResolveRef)
 import PdfXRef(pEncryptionDict,TrailerDict) 
 import PdfValue(Value(..),Ref(..),pValue)
-import Primitives.Decrypt(makeFileKeyV4)
+import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
 import CommandLine
@@ -118,13 +118,13 @@ makeEncContext trail refs topInput pwd =
       let eref = getField @"eref" e 
       enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict eref) topInput) 
                               "Ambiguous encryption dictionary"
-      let len = fromIntegral $ getField @"stmFLength" enc 
-          encO = vecToRep $ getField @"encO" enc 
+      let encO = vecToRep $ getField @"encO" enc 
           encP = fromIntegral $ getField @"encP" enc
           id0 = vecToRep $ getField @"id0" e 
-          filekey = makeFileKeyV4 pwd encO encP id0
+          filekey = makeFileKey pwd encO encP id0
       pure $ \(ro, rg) -> 
         Just EncContext { key = filekey, 
-                          keylen = len, 
+                          keylen = fromIntegral $ getField @"stmFLength" enc, 
                           robj = fromIntegral ro, 
-                          rgen = fromIntegral rg } 
+                          rgen = fromIntegral rg, 
+                          ver = fromIntegral $ getField @"encV" enc } 

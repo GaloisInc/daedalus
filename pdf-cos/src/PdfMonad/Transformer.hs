@@ -36,6 +36,7 @@ data EncContext = EncContext
   , keylen :: Int 
   , robj   :: Int
   , rgen   :: Int  
+  , ver    :: Int 
   -- XXX: record the cypher here - we just default to AES128 
   }
 
