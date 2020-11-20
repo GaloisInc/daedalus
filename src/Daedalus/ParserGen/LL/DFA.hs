@@ -215,7 +215,7 @@ createDFAtable aut depth q dfa =
   case lookupExplicitDFA q dfa of
     Nothing ->
       if depth > maxDepthDet
-      then insertExplicitDFA q AbortOverflowK dfa
+      then insertExplicitDFA q (Abort AbortOverflowK) dfa
       else
         let choices = detSubsetAccu q emptyDetChoice
             newDfa = insertExplicitDFA q choices dfa
@@ -245,14 +245,14 @@ createDFAtable aut depth q dfa =
         Just (cfg, rest) ->
           let r = deterministicStep aut cfg in
           case r of
-            AbortOverflowMaxDepth -> AbortOverflowMaxDepth
-            AbortLoopWithNonClass -> AbortLoopWithNonClass
-            AbortAcceptingPath -> AbortAcceptingPath
-            AbortNonClassInputAction x -> AbortNonClassInputAction x
-            AbortUnhandledAction -> AbortUnhandledAction
-            AbortClassIsDynamic -> AbortClassIsDynamic
-            AbortClassNotHandledYet a -> AbortClassNotHandledYet a
-            AbortSymbolicExec -> AbortSymbolicExec
+            Abort AbortOverflowMaxDepth -> coerceAbort r
+            Abort AbortLoopWithNonClass -> coerceAbort r
+            Abort AbortAcceptingPath -> coerceAbort r
+            Abort (AbortNonClassInputAction _) -> coerceAbort r
+            Abort AbortUnhandledAction -> coerceAbort r
+            Abort AbortClassIsDynamic -> coerceAbort r
+            Abort (AbortClassNotHandledYet _) -> coerceAbort r
+            Abort AbortSymbolicExec -> coerceAbort r
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
               in detSubsetAccu rest newAcc
@@ -472,8 +472,8 @@ statsDFA aut dfas =
       let r = fromJust (lookupExplicitDFA (mkDFAStateQuotient q) dfa)
       in
       case r of
-        AbortAmbiguous -> result "-ambiguous-0"
-        AbortOverflowK -> abortToString r
+        Abort AbortAmbiguous -> result "-ambiguous-0"
+        Abort AbortOverflowK -> abortToString r
         Result _t ->
           let k = lookaheadDepth (q, dfa)
               res

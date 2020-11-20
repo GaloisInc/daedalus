@@ -37,7 +37,7 @@ closureLL aut busy cfg =
     case ch of
       Nothing ->
         if isAcceptingState aut q
-        then AbortAcceptingPath
+        then Abort AbortAcceptingPath
         else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
       --error "should not happen"
       Just ch1 ->
@@ -55,15 +55,15 @@ closureLL aut busy cfg =
     closureStep pos (act, q2)
       | isClassActOrEnd act                = Result [(cfg, (pos, act, q2))]
       | isNonClassInputAct act             = -- trace (show act) $
-                                             AbortNonClassInputAction act
-      | isUnhandledAction act              = AbortUnhandledAction
-      | Seq.length (cfgAlts cfg) > maxDepthRec = AbortOverflowMaxDepth
+                                             Abort $ AbortNonClassInputAction act
+      | isUnhandledAction act              = Abort AbortUnhandledAction
+      | Seq.length (cfgAlts cfg) > maxDepthRec = Abort AbortOverflowMaxDepth
       | Set.member q2 busy                 = -- trace (show q2 ++ " " ++ show cfg) $
-                                             AbortLoopWithNonClass
+                                             Abort AbortLoopWithNonClass
       | otherwise =
           -- trace ("q2: " ++ show (cfgState cfg)) $
           case simulateActionCfgDet aut pos act q2 cfg of
-            AbortSymbolicExec -> AbortSymbolicExec
+            Abort AbortSymbolicExec -> Abort AbortSymbolicExec
             Result Nothing -> Result []
             Result (Just lstCfg) -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
             _ -> error "impossible"
@@ -80,21 +80,21 @@ closureLL aut busy cfg =
         [] -> Result []
         r1 : rest ->
           case r1 of
-            AbortOverflowMaxDepth -> r1
-            AbortLoopWithNonClass -> r1
-            AbortNonClassInputAction _ -> r1
-            AbortUnhandledAction -> r1
-            AbortAcceptingPath -> r1
-            AbortSymbolicExec -> r1
+            Abort AbortOverflowMaxDepth -> r1
+            Abort AbortLoopWithNonClass -> r1
+            Abort (AbortNonClassInputAction _) -> r1
+            Abort AbortUnhandledAction -> r1
+            Abort AbortAcceptingPath -> r1
+            Abort AbortSymbolicExec -> r1
             Result res1 ->
               let r2 = combineResults rest in
               case r2 of
-                AbortOverflowMaxDepth -> r2
-                AbortLoopWithNonClass -> r2
-                AbortNonClassInputAction _ -> r2
-                AbortUnhandledAction -> r2
-                AbortAcceptingPath -> r2
-                AbortSymbolicExec -> r2
+                Abort AbortOverflowMaxDepth -> r2
+                Abort AbortLoopWithNonClass -> r2
+                Abort (AbortNonClassInputAction _) -> r2
+                Abort AbortUnhandledAction -> r2
+                Abort AbortAcceptingPath -> r2
+                Abort AbortSymbolicExec -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"
             _ -> error "abort not handled here"

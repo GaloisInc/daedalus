@@ -95,18 +95,6 @@ data SlkSemElm =
 
 type SlkSemanticData = SymbolicStack SlkSemElm
 
-  --   SemWildcard
-  -- | SemEmpty
-  -- | SemCons SlkSemElm SlkSemanticData
-  -- deriving (Show)
-
--- instance Eq SlkSemanticData where
---   (==) SemWildcard SemWildcard = True
---   -- (==) SemEmpty SemEmpty = True
---   -- (==) SemWildcard SemWildcard = True
---   -- (==) (SemCons _ _) (SemCons _ _) = False
---   (==) _ _ = True
-
 
 data SlkInput =
     InpBegin
@@ -357,7 +345,7 @@ symbExecInp act ctrl sem inp =
       let ev = symbolicEval name ctrl sem in
       case ev of
         SConcrete (Right x) -> R.Result $ Just (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) sem)
-        Wildcard -> R.AbortSymbolicExec
+        Wildcard -> R.Abort R.AbortSymbolicExec
         _ -> -- trace (show ev) $
              error "TODO"
     StreamLen _s e1 e2 ->
@@ -368,10 +356,10 @@ symbExecInp act ctrl sem inp =
           SConcrete (Left (Interp.VInteger n)) ->
             case ev2 of
               SConcrete (Right x) -> R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) sem)
-              Wildcard -> R.AbortSymbolicExec
+              Wildcard -> R.Abort R.AbortSymbolicExec
               _ -> error "TODO"
           _ -> -- trace "nont integer const" $
-            R.AbortSymbolicExec
+            R.Abort R.AbortSymbolicExec
     StreamOff _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl sem
           ev2 = symbolicEval e2 ctrl sem
@@ -381,9 +369,9 @@ symbExecInp act ctrl sem inp =
             case ev2 of
               SConcrete (Right x) ->
                 R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) sem)
-              Wildcard -> R.AbortSymbolicExec
+              Wildcard -> R.Abort R.AbortSymbolicExec
               _ -> error "TODO"
-          _ -> R.AbortSymbolicExec
+          _ -> R.Abort R.AbortSymbolicExec
 
     _ -> error "TODO"
 
@@ -448,7 +436,7 @@ simulateActionCfgDet aut pos act q2 cfg =
             , cfgInput = newInp
             }
           ]
-        R.AbortSymbolicExec -> R.AbortSymbolicExec
+        R.Abort R.AbortSymbolicExec -> R.Abort R.AbortSymbolicExec
         _ -> error "impossible"
     _ ->
       R.Result $ Just
