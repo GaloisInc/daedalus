@@ -1,11 +1,14 @@
 module Daedalus.ParserGen.LL.Result
-  ( Result(..),
-    abortToString
+  ( AbortOption(..)
+  , Result(..)
+  , abortToString
+  , coerceAbort
   ) where
 
 import Daedalus.ParserGen.Action (Action(..))
 
-data Result a =
+
+data AbortOption =
     AbortNotStatic
   | AbortAcceptingPath
   | AbortNonClassInputAction Action
@@ -20,6 +23,24 @@ data Result a =
   | AbortAmbiguous
   | AbortOverflowK
 
+instance Show(AbortOption) where
+  show a =
+    case a of
+      AbortNotStatic -> "AbortNotStatic"
+      AbortAcceptingPath -> "AbortAcceptingPath"
+      AbortNonClassInputAction _ -> "AbortNonClassInputAction"
+      AbortUnhandledAction -> "AbortUnhandledAction"
+      AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
+      AbortLoopWithNonClass -> "AbortLoopWithNonClass"
+      AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
+      AbortClassIsDynamic -> "AbortClassIsDynamic"
+      AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
+      AbortSymbolicExec -> "AbortSymbolicExec"
+      AbortAmbiguous -> "AbortAmbiguous"
+      AbortOverflowK -> "AbortOverflowK"
+
+data Result a =
+    Abort AbortOption
   | Result a
   deriving(Show)
 
@@ -27,16 +48,9 @@ data Result a =
 abortToString :: Result a -> String
 abortToString r =
   case r of
-    AbortNotStatic -> "AbortNotStatic"
-    AbortAcceptingPath -> "AbortAcceptingPath"
-    AbortNonClassInputAction _ -> "AbortNonClassInputAction"
-    AbortUnhandledAction -> "AbortUnhandledAction"
-    AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
-    AbortLoopWithNonClass -> "AbortLoopWithNonClass"
-    AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
-    AbortClassIsDynamic -> "AbortClassIsDynamic"
-    AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
-    AbortSymbolicExec -> "AbortSymbolicExec"
-    AbortAmbiguous -> "AbortAmbiguous"
-    AbortOverflowK -> "AbortOverflowK"
+    Abort ab -> show ab
     _ -> error "No Abort result"
+
+coerceAbort :: Result a -> Result b
+coerceAbort (Abort a) = Abort a
+coerceAbort (Result _) = error "Abort result expected"

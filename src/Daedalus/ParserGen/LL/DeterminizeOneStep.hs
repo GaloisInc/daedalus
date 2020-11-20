@@ -141,12 +141,12 @@ classToInterval e =
     TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
     TCSetSingle e1 ->
       if not (isSimpleVExpr e1)
-      then AbortClassIsDynamic
+      then Abort AbortClassIsDynamic
       else
         let v = evalNoFunCall e1 [] [] in
         case v of
           Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
-          _                -> AbortClassNotHandledYet "SetSingle"
+          _                -> Abort (AbortClassNotHandledYet "SetSingle")
     TCSetRange e1 e2 ->
       if isSimpleVExpr e1 && isSimpleVExpr e2
       then
@@ -159,9 +159,9 @@ classToInterval e =
                in if x1 <= y1
                   then Result $ ClassBtw (CValue x1) (CValue y1)
                   else error ("SetRange values not ordered:" ++ show (toEnum (fromIntegral x1) :: Char) ++ " " ++ show (toEnum (fromIntegral y1) :: Char))
-             _ -> AbortClassNotHandledYet "SetRange"
-      else AbortClassIsDynamic
-    _ -> AbortClassNotHandledYet "other class case"
+             _ -> Abort (AbortClassNotHandledYet "SetRange")
+      else Abort AbortClassIsDynamic
+    _ -> Abort (AbortClassNotHandledYet "other class case")
 
 
 -- this function takes a tree representing a set of choices and
@@ -178,9 +178,10 @@ determinizeClosureMoveSet src tc =
         t@(_cfg, (_pos, act, _q)) : ms ->
           case getClassActOrEnd act of
             Left c ->
-              case classToInterval c of
-                AbortClassIsDynamic -> AbortClassIsDynamic
-                AbortClassNotHandledYet msg -> AbortClassNotHandledYet msg
+              let res = classToInterval c in
+              case res of
+                Abort AbortClassIsDynamic -> coerceAbort res
+                Abort (AbortClassNotHandledYet _) -> coerceAbort res
                 Result r ->
                   let newAcc = insertDetChoice src (HeadInput r) t acc
                   in determinizeWithAccu ms newAcc
@@ -193,12 +194,13 @@ determinizeClosureMoveSet src tc =
 
 deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
 deterministicStep aut cfg =
-  case closureLL aut Set.empty cfg of
-    AbortOverflowMaxDepth -> AbortOverflowMaxDepth
-    AbortLoopWithNonClass -> AbortLoopWithNonClass
-    AbortAcceptingPath -> AbortAcceptingPath
-    AbortNonClassInputAction x -> AbortNonClassInputAction x
-    AbortUnhandledAction -> AbortUnhandledAction
-    AbortSymbolicExec -> AbortSymbolicExec
+  let res = closureLL aut Set.empty cfg in
+  case res of
+    Abort AbortOverflowMaxDepth -> coerceAbort res
+    Abort AbortLoopWithNonClass -> coerceAbort res
+    Abort AbortAcceptingPath -> coerceAbort res
+    Abort (AbortNonClassInputAction _) -> coerceAbort res
+    Abort AbortUnhandledAction -> coerceAbort res
+    Abort AbortSymbolicExec -> coerceAbort res
     Result r -> determinizeClosureMoveSet cfg r
     _ -> error "impossible"
