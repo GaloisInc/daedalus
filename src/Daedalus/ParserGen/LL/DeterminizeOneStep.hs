@@ -145,7 +145,9 @@ classToInterval e =
       else
         let v = evalNoFunCall e1 [] [] in
         case v of
-          Interp.VUInt 8 x -> Result $ ClassBtw (CValue (fromIntegral x)) (CValue (fromIntegral x))
+          Interp.VUInt 8 x ->
+            let vx = fromIntegral x
+            in Result $ ClassBtw (CValue vx) (CValue vx)
           _                -> Abort (AbortClassNotHandledYet "SetSingle")
     TCSetRange e1 e2 ->
       if isSimpleVExpr e1 && isSimpleVExpr e2
@@ -158,7 +160,9 @@ classToInterval e =
                    y1 = fromIntegral y
                in if x1 <= y1
                   then Result $ ClassBtw (CValue x1) (CValue y1)
-                  else error ("SetRange values not ordered:" ++ show (toEnum (fromIntegral x1) :: Char) ++ " " ++ show (toEnum (fromIntegral y1) :: Char))
+                  else error ("SetRange values not ordered:" ++
+                              show (toEnum (fromIntegral x1) :: Char) ++ " " ++
+                              show (toEnum (fromIntegral y1) :: Char))
              _ -> Abort (AbortClassNotHandledYet "SetRange")
       else Abort AbortClassIsDynamic
     _ -> Abort (AbortClassNotHandledYet "other class case")
