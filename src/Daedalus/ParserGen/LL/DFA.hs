@@ -251,6 +251,7 @@ createDFAtable aut depth q dfa =
             Abort (AbortNonClassInputAction _) -> coerceAbort r
             Abort AbortUnhandledAction -> coerceAbort r
             Abort AbortClassIsDynamic -> coerceAbort r
+            Abort AbortIncompatibleInput -> coerceAbort r
             Abort (AbortClassNotHandledYet _) -> coerceAbort r
             Abort AbortSymbolicExec -> coerceAbort r
             Result r1 ->
@@ -402,8 +403,7 @@ predictLL (start,dfa) i =
 
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
-  let transitions = allTransitions aut
-      collectedStates = collectStatesOnTransitions transitions
+  let collectedStates = identifyStartStates ()
       statesDet =
         map
         (\ q ->
@@ -415,8 +415,9 @@ createDFA aut =
   in
     IntMap.fromAscList statesDet
   where
-    collectStatesOnTransitions t =
-      foldr (\ (q1, ch) b -> Set.union b (collectStatesOnFanout q1 ch)) (Set.empty) t
+    identifyStartStates () =
+      let transitions = allTransitions aut in
+      foldr (\ (q1, ch) b -> Set.union b (collectStatesOnFanout q1 ch)) (Set.empty) transitions
 
     collectStatesOnFanout q1 ch =
       let helper lst = foldr (\ a b -> let sa = collectOnSingleTransition q1 a in Set.union b sa) Set.empty lst in

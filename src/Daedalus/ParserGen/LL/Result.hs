@@ -19,6 +19,7 @@ data AbortOption =
   | AbortClassIsDynamic
   | AbortClassNotHandledYet String
   | AbortSymbolicExec
+  | AbortIncompatibleInput
 
   | AbortAmbiguous
   | AbortOverflowK
@@ -36,6 +37,7 @@ instance Show(AbortOption) where
       AbortClassIsDynamic -> "AbortClassIsDynamic"
       AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
       AbortSymbolicExec -> "AbortSymbolicExec"
+      AbortIncompatibleInput -> "AbortIncompatibleInput"
       AbortAmbiguous -> "AbortAmbiguous"
       AbortOverflowK -> "AbortOverflowK"
 
