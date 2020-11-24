@@ -170,30 +170,48 @@ classToInterval e =
 
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
-determinizeClosureMoveSet :: SourceCfg -> ClosureMoveSet -> Result DetChoice
-determinizeClosureMoveSet src tc =
-  determinizeWithAccu tc emptyDetChoice
+determinizeMove :: SourceCfg -> ClosureMoveSet -> Result DetChoice
+determinizeMove src tc =
+  determinizeWithAccu tc Nothing emptyDetChoice
 
   where
-    determinizeWithAccu :: ClosureMoveSet -> DetChoice -> Result DetChoice
-    determinizeWithAccu lst acc =
+    determinizeWithAccu :: ClosureMoveSet -> Maybe SlkInput -> DetChoice -> Result DetChoice
+    determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
-        t@(_cfg, (_pos, act, _q)) : ms ->
-          case getClassActOrEnd act of
-            Left c ->
-              let res = classToInterval c in
-              case res of
-                Abort AbortClassIsDynamic -> coerceAbort res
-                Abort (AbortClassNotHandledYet _) -> coerceAbort res
-                Result r ->
-                  let newAcc = insertDetChoice src (HeadInput r) t acc
-                  in determinizeWithAccu ms newAcc
-                _ -> error "Impossible abort"
-            Right IEnd ->
-              let newAcc = insertDetChoice src EndInput t acc
-              in determinizeWithAccu ms newAcc
-            _ -> error "Impossible abort"
+        t@(cfg, (_pos, act, _q)) : ms ->
+          let resAcc =
+                case getClassActOrEnd act of
+                  Left c ->
+                    let res = classToInterval c in
+                      case res of
+                        Abort AbortClassIsDynamic -> coerceAbort res
+                        Abort (AbortClassNotHandledYet _) -> coerceAbort res
+                        Result r ->
+                          Result $ insertDetChoice src (HeadInput r) t acc
+
+                        _ -> error "Impossible abort"
+                  Right IEnd -> Result $ insertDetChoice src EndInput t acc
+                  _ -> error "Impossible abort"
+          in
+            if compatibleInput (cfgInput cfg) minp
+            then
+              case resAcc of
+                Abort AbortClassIsDynamic -> coerceAbort resAcc
+                Abort (AbortClassNotHandledYet _) -> coerceAbort resAcc
+                Result newAcc -> determinizeWithAccu ms (Just $ cfgInput cfg) newAcc
+                _ -> error "impossible abort"
+            else
+              Abort AbortIncompatibleInput
+
+    compatibleInput :: SlkInput -> Maybe SlkInput -> Bool
+    compatibleInput inp minp =
+      case minp of
+        Nothing -> True
+        Just inp2 -> if compare inp inp2 == EQ
+                     then True
+                     else False
+
 
 
 deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
@@ -206,5 +224,5 @@ deterministicStep aut cfg =
     Abort (AbortNonClassInputAction _) -> coerceAbort res
     Abort AbortUnhandledAction -> coerceAbort res
     Abort AbortSymbolicExec -> coerceAbort res
-    Result r -> determinizeClosureMoveSet cfg r
-    _ -> error "impossible"
+    Result r -> determinizeMove cfg r
+    _ -> error "Impossible abort"

@@ -2,6 +2,7 @@
 
 module Daedalus.ParserGen.LL.CfgDet
   ( SymbolicStack(..),
+    SlkInput,
     ChoiceTag(..),
     ChoicePos,
     initChoicePos,
@@ -100,9 +101,18 @@ data SlkInput =
     InpBegin
   | InpTake Int SlkInput
   | InpDrop Int SlkInput
-  | InpNext SlkInput
+  | InpNext Int SlkInput
   | InpEnd
   deriving (Show, Ord)
+
+nextSlkInput :: SlkInput -> SlkInput
+nextSlkInput inp =
+  case inp of
+    InpBegin -> InpBegin
+    InpTake _ _ -> InpNext 1 inp
+    InpDrop _ _ -> inp
+    InpNext n inp1 -> InpNext (n+1) inp1
+    InpEnd -> error "not possible"
 
 newtype InputWindow = InputWindow { win :: (Int, Maybe Int) }
   deriving(Eq)
@@ -134,15 +144,15 @@ positionFromBeginning inp =
                  if j - i < n
                  then Nothing
                  else Just (i + n, Just j)
-        InpNext inp' ->
+        InpNext n inp' ->
           let p = go inp'
           in case p of
                Nothing -> Nothing
-               Just (i, Nothing) -> Just (i + 1, Nothing)
+               Just (i, Nothing) -> Just (i + n, Nothing)
                Just (i, Just j) ->
-                 if i + 1 > j
+                 if i + n > j
                  then Nothing
-                 else Just (i + 1, Just j)
+                 else Just (i + n, Just j)
         InpEnd -> Nothing
 
 
@@ -337,7 +347,8 @@ symbExecSem ctrl sem act =
     Guard _ -> Just (SCons (SlkSEVal Wildcard) sem)
     _ -> Just sem
 
-symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput -> R.Result (Maybe (SlkInput, SlkSemanticData))
+symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
+  R.Result (Maybe (SlkInput, SlkSemanticData))
 symbExecInp act ctrl sem inp =
   case act of
     GetStream -> R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right inp))) sem)
@@ -425,7 +436,7 @@ simulateActionCfgDet aut pos act q2 cfg =
           sem = cfgSem cfg
       in
       case symbExecInp iact ctrl sem inp of
-        R.Result Nothing -> R.Result $ Nothing
+        R.Result Nothing -> R.Result Nothing
         R.Result (Just (newInp, newSem)) ->
           R.Result $ Just
           [ CfgDet
@@ -476,7 +487,7 @@ setupCfgDetFromPrev ih act q cfg =
           , cfgAlts = Empty
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-          , cfgInput = (cfgInput cfg)
+          , cfgInput = nextSlkInput (cfgInput cfg)
           }
         NoSem ->
           CfgDet
@@ -484,7 +495,7 @@ setupCfgDetFromPrev ih act q cfg =
           , cfgAlts = Empty
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-          , cfgInput = (cfgInput cfg)
+          , cfgInput = nextSlkInput (cfgInput cfg)
           }
     (EndInput, IAct (IEnd)) ->
       CfgDet
@@ -492,7 +503,7 @@ setupCfgDetFromPrev ih act q cfg =
       , cfgAlts = Empty
       , cfgCtrl = cfgCtrl cfg
       , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-      , cfgInput = cfgInput cfg
+      , cfgInput = nextSlkInput (cfgInput cfg)
       }
     _ -> error "impossible"
 
