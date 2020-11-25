@@ -3,10 +3,6 @@
 module Daedalus.ParserGen.LL.CfgDet
   ( SymbolicStack(..),
     SlkInput,
-    ChoiceTag(..),
-    ChoicePos,
-    initChoicePos,
-    nextChoicePos,
     CfgDet(..),
     compareCfgDet,
     initCfgDet,
@@ -19,7 +15,6 @@ module Daedalus.ParserGen.LL.CfgDet
 
 -- import Debug.Trace
 
-import Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
 
 import Daedalus.Type.AST
@@ -83,17 +78,6 @@ data SlkControlElm =
 type SlkControlData = SymbolicStack SlkControlElm
 
 
-
-data ChoiceTag = CUni | CPar | CSeq | CPop
-  deriving(Eq, Show, Ord)
-
-type ChoicePos = (ChoiceTag, Int)
-
-initChoicePos :: ChoiceTag -> ChoicePos
-initChoicePos tag = (tag, 0)
-
-nextChoicePos :: ChoicePos -> ChoicePos
-nextChoicePos pos = (fst pos, snd pos +1)
 
 
 -- NOTE: this type is more convoluted than expected because of how
@@ -172,7 +156,6 @@ instance Eq (SlkInput) where
 
 data CfgDet = CfgDet
   { cfgState :: State
-  , cfgAlts  :: Seq.Seq ChoicePos
   , cfgCtrl :: SlkControlData
   , cfgSem   :: SlkSemanticData
   , cfgInput :: SlkInput
@@ -194,11 +177,7 @@ compareCfgDet cfg1 cfg2 =
             LT -> LT
             GT -> GT
             EQ ->
-              case compare (cfgAlts cfg1) (cfgAlts cfg2) of
-                LT -> LT
-                GT -> GT
-                EQ ->
-                  compare (cfgInput cfg1) (cfgInput cfg2)
+              compare (cfgInput cfg1) (cfgInput cfg2)
 
 
 instance Eq CfgDet where
@@ -215,7 +194,6 @@ initCfgDet :: State -> CfgDet
 initCfgDet q =
   CfgDet
   { cfgState = q
-  , cfgAlts = Seq.empty
   , cfgCtrl = SWildcard
   , cfgSem = SWildcard
   , cfgInput = InpBegin
@@ -495,8 +473,8 @@ symbExecInp act ctrl out inp =
     _ -> error "TODO"
 
 
-simulateActionCfgDet :: Aut.Aut a => a -> ChoicePos -> Action -> State -> CfgDet -> R.Result (Maybe [CfgDet])
-simulateActionCfgDet aut pos act q2 cfg =
+simulateActionCfgDet :: Aut.Aut a => a -> Action -> State -> CfgDet -> R.Result (Maybe [CfgDet])
+simulateActionCfgDet aut act q2 cfg =
   -- trace "\n" $
   -- trace (show act) $
   -- trace ("CTRL: " ++ show (cfgCtrl cfg)) $
@@ -516,7 +494,6 @@ simulateActionCfgDet aut pos act q2 cfg =
           ( \ (newCtrl, newSem, q2') ->
               CfgDet
               { cfgState = q2'
-              , cfgAlts = cfgAlts cfg |> pos
               , cfgCtrl = newCtrl
               , cfgSem = newSem
               , cfgInput = cfgInput cfg
@@ -532,7 +509,6 @@ simulateActionCfgDet aut pos act q2 cfg =
           R.Result $ Just
           [ CfgDet
             { cfgState = q2
-            , cfgAlts = cfgAlts cfg |> pos
             , cfgCtrl = cfgCtrl cfg
             , cfgSem = newSem
             , cfgInput = cfgInput cfg
@@ -549,7 +525,6 @@ simulateActionCfgDet aut pos act q2 cfg =
           R.Result $ Just
           [ CfgDet
             { cfgState = q2
-            , cfgAlts = cfgAlts cfg |> pos
             , cfgCtrl = cfgCtrl cfg
             , cfgSem = newSem
             , cfgInput = newInp
@@ -561,7 +536,6 @@ simulateActionCfgDet aut pos act q2 cfg =
       R.Result $ Just
       [ CfgDet
         { cfgState = q2
-        , cfgAlts = cfgAlts cfg |> pos
         , cfgCtrl = cfgCtrl cfg
         , cfgSem = cfgSem cfg
         , cfgInput = cfgInput cfg
@@ -592,7 +566,6 @@ setupCfgDetFromPrev ih act q cfg =
         YesSem ->
           CfgDet
           { cfgState = q
-          , cfgAlts = Empty
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
           , cfgInput = nextSlkInput (cfgInput cfg)
@@ -600,7 +573,6 @@ setupCfgDetFromPrev ih act q cfg =
         NoSem ->
           CfgDet
           { cfgState = q
-          , cfgAlts = Empty
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
           , cfgInput = nextSlkInput (cfgInput cfg)
@@ -608,7 +580,6 @@ setupCfgDetFromPrev ih act q cfg =
     (EndInput, IAct (IEnd)) ->
       CfgDet
       { cfgState = q
-      , cfgAlts = Empty
       , cfgCtrl = cfgCtrl cfg
       , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
       , cfgInput = nextSlkInput (cfgInput cfg)
@@ -619,7 +590,6 @@ resetCfgDet :: CfgDet -> CfgDet
 resetCfgDet cfg =
   CfgDet
     { cfgState = cfgState cfg
-    , cfgAlts = Empty
     , cfgCtrl = cfgCtrl cfg
     , cfgSem = cfgSem cfg
     , cfgInput = cfgInput cfg

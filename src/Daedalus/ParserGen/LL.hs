@@ -12,5 +12,5 @@ module Daedalus.ParserGen.LL
   )
 where
 
-import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.Closure
 import Daedalus.ParserGen.LL.DFA
