@@ -3,7 +3,7 @@ module Daedalus.ParserGen.LL.Closure
   , ChoicePos
   , ChoiceSeq
   , addChoiceSeq
-  , ClosureMove
+  , ClosureMove(..)
   , ClosureMoveSet
   , closureLL
   ) where
@@ -45,7 +45,36 @@ addChoiceSeq pos seqpos = seqpos Seq.|> pos
 
 
 
-type ClosureMove = ((ChoiceSeq, CfgDet), (ChoicePos, Action, State))
+data ClosureMove = ClosureMove
+  { altSeq :: ChoiceSeq
+  , closureCfg :: CfgDet
+  , moveCfg :: (ChoicePos, Action, State)
+  }
+  deriving Show
+
+instance Ord (ClosureMove) where
+  compare c1 c2 =
+    case compare (closureCfg c1) (closureCfg c2) of
+      LT -> LT
+      GT -> GT
+      EQ ->
+        case compare (altSeq c1) (altSeq c2) of
+          LT -> LT
+          GT -> GT
+          EQ ->
+            let
+              (ch1, _, q1) = moveCfg c1
+              (ch2, _, q2) = moveCfg c2
+            in
+              case compare ch1 ch2 of
+                LT -> LT
+                GT -> GT
+                EQ ->
+                  compare q1 q2
+
+instance Eq (ClosureMove) where
+  (==) c1 c2 = compare c1 c2 == EQ
+
 
 type ClosureMoveSet = [ClosureMove]
 
@@ -80,7 +109,7 @@ closureLoop aut busy (alts, cfg) =
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q2)
-      | isClassActOrEnd act                = Result [((alts, cfg), (pos, act, q2))]
+      | isClassActOrEnd act                = Result [ ClosureMove alts cfg (pos, act, q2) ]
       | isNonClassInputAct act             = -- trace (show act) $
                                              Abort $ AbortNonClassInputAction act
       | isUnhandledAction act              = Abort AbortUnhandledAction

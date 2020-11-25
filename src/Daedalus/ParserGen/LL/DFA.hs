@@ -58,8 +58,11 @@ convertDFAStateToQuotient ih s =
     helper set =
       case iterDFAState set of
         Nothing -> Set.empty
-        Just (DFAStateEntry _srcCfg _alts dstCfg (_,act,q) , es) ->
-          Set.insert (resetCfgDet (setupCfgDetFromPrev ih act q dstCfg)) (helper es)
+        Just (entry, es) ->
+          let closCfg = closureCfg $ dstDFAState entry
+              (_,act,q) = moveCfg $ dstDFAState entry
+          in
+          Set.insert (resetCfgDet (moveCfgDetFromPrev ih act q closCfg)) (helper es)
 
 
 iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
@@ -116,7 +119,8 @@ showDFATransition (q, dfa) =
              Ambiguous -> "Resolution (" ++ show amb ++ ")"
              DunnoAmbiguous -> showTrans vis (d+2) qq
 
-    showSet s = "[" ++ foldr (\ (DFAStateEntry _src alts _cfg (_pos, _act, _q)) b ->
+    showSet s = "[" ++ foldr (\ entry b ->
+                                let alts = altSeq $ dstDFAState entry in
                                  "(" ++ show (length alts) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" s  ++ "]"
@@ -182,7 +186,7 @@ getConflictSetsPerLoc s =
                in  (e : lst) : lstLst
 
   where
-    sameEntryPerLoc (DFAStateEntry _src1 _alts1 dst1 (_,_,q1)) (DFAStateEntry _src2 _alts2 dst2 (_,_,q2)) =
+    sameEntryPerLoc (DFAStateEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1))) (DFAStateEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
       q1 == q2 && cfgCtrl dst1 == cfgCtrl dst2
 
 -- Inspired by the condition in `predictLL()` of ALL(*) paper
@@ -386,7 +390,7 @@ predictLL (start, dfa) i =
     extractSinglePrediction :: DFAState -> (SourceCfg, Prediction)
     extractSinglePrediction s =
       case iterDFAState s of
-        Just (DFAStateEntry c1 alts _c2 (pos, _, _), rest) ->
+        Just (DFAStateEntry c1 (ClosureMove alts _c2 (pos, _, _)), rest) ->
           if not (null rest)
           then error "ambiguous prediction"
           else (c1, addChoiceSeq pos alts )
@@ -397,7 +401,7 @@ predictLL (start, dfa) i =
     extractPredictionFromDFAState src s =
       case iterDFAState s of
         Nothing -> error "could not find src from previous cfg"
-        Just (DFAStateEntry c1 alts c2 (pos, _, q2), others) ->
+        Just (DFAStateEntry c1 (ClosureMove alts c2 (pos, _, q2)), others) ->
           if q2 == cfgState src && cfgCtrl c2 == cfgCtrl src
           then (c1, addChoiceSeq pos alts)
           else extractPredictionFromDFAState src others

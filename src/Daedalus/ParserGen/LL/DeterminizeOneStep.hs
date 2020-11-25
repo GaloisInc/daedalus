@@ -22,7 +22,7 @@ import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, Action(..), InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..))
 import Daedalus.ParserGen.ClassInterval
 import Daedalus.ParserGen.LL.Result
@@ -35,9 +35,7 @@ type SourceCfg = CfgDet
 
 data DFAStateEntry = DFAStateEntry
   { srcDFAState :: SourceCfg
-  , altsDFAState :: ChoiceSeq
-  , dstDFAState :: CfgDet
-  , moveDFAState :: (ChoicePos, Action, State)
+  , dstDFAState :: ClosureMove
   }
   deriving Show
 
@@ -48,14 +46,15 @@ compareSrc p1 p2 =
 
 compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
 compareDst p1 p2 =
-  compareCfgDet (dstDFAState p1) (dstDFAState p2)
+  compare (dstDFAState p1) (dstDFAState p2)
 
 compareDFAStateEntry :: DFAStateEntry -> DFAStateEntry -> Ordering
 compareDFAStateEntry p1 p2 =
   case compareDst p1 p2 of
     LT -> LT
     GT -> GT
-    EQ -> compareSrc p1 p2
+    EQ ->
+      compareSrc p1 p2
 
 
 instance Eq DFAStateEntry where
@@ -108,9 +107,9 @@ emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
 
 insertDetChoice :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
-insertDetChoice src ih ((alts, cfg), (pos, act, q)) d =
+insertDetChoice src ih cm d =
   let (classChoice, endChoice) = d
-      tr = singletonDFAState (DFAStateEntry src alts cfg (pos, act, q))
+      tr = singletonDFAState (DFAStateEntry src cm)
   in
   case ih of
     EndInput ->
@@ -180,20 +179,23 @@ determinizeMove src tc =
     determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
-        t@((_alts, cfg), (_pos, act, _q)) : ms ->
-          let resAcc =
-                case getClassActOrEnd act of
-                  Left c ->
-                    let res = classToInterval c in
-                      case res of
-                        Abort AbortClassIsDynamic -> coerceAbort res
-                        Abort (AbortClassNotHandledYet _) -> coerceAbort res
-                        Result r ->
-                          Result $ insertDetChoice src (HeadInput r) t acc
+        t : ms ->
+          let
+            cfg = closureCfg t
+            (_pos, act, _q) = moveCfg t
+            resAcc =
+              case getClassActOrEnd act of
+                Left c ->
+                  let res = classToInterval c in
+                    case res of
+                      Abort AbortClassIsDynamic -> coerceAbort res
+                      Abort (AbortClassNotHandledYet _) -> coerceAbort res
+                      Result r ->
+                        Result $ insertDetChoice src (HeadInput r) t acc
 
-                        _ -> error "Impossible abort"
-                  Right IEnd -> Result $ insertDetChoice src EndInput t acc
-                  _ -> error "Impossible abort"
+                      _ -> error "Impossible abort"
+                Right IEnd -> Result $ insertDetChoice src EndInput t acc
+                _ -> error "Impossible abort"
           in
             if compatibleInput (cfgInput cfg) minp
             then

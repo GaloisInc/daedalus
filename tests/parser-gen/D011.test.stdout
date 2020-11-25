@@ -92,7 +92,7 @@ DTrans [
                                               ( [(30),(6),]
                                               , HeadInput ['9']
                                               , DTrans [
-                                                  ( [(67),(38),]
+                                                  ( [(38),(67),]
                                                   , HeadInput ['0','9']
                                                   , Resolution (Ambiguous)
                                                   ),
@@ -321,7 +321,7 @@ DTrans [
                                               ( [(30),(6),]
                                               , HeadInput ['9']
                                               , DTrans [
-                                                  ( [(67),(38),]
+                                                  ( [(38),(67),]
                                                   , HeadInput ['0','9']
                                                   , Resolution (Ambiguous)
                                                   ),
