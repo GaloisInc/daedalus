@@ -262,8 +262,8 @@ getByteArray e =
 
 type Val = Interp.Value
 
--- TODO: rename Beetween -> Between
-data BeetweenItv =
+
+data BetweenItv =
     CExactly {-# UNPACK #-} !Int
   | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
@@ -291,7 +291,7 @@ data MapFrm = MapFrm
   }
 
 data ControlElm =
-    ManyFrame !(BeetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
+    ManyFrame !(BetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
   | ForFrame  !ForFrm
   | MapFrame  !MapFrm
   | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
