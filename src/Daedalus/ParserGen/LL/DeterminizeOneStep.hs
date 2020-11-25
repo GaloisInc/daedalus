@@ -35,6 +35,7 @@ type SourceCfg = CfgDet
 
 data DFAStateEntry = DFAStateEntry
   { srcDFAState :: SourceCfg
+  , altsDFAState :: ChoiceSeq
   , dstDFAState :: CfgDet
   , moveDFAState :: (ChoicePos, Action, State)
   }
@@ -106,10 +107,10 @@ type DetChoice = ([ (ClassInterval, DFAState) ], Maybe DFAState)
 emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
 
-insertDetChoice :: SourceCfg -> InputHeadCondition -> (CfgDet, (ChoicePos, Action, State)) -> DetChoice -> DetChoice
-insertDetChoice src ih (cfg, (pos, act, q)) d =
+insertDetChoice :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
+insertDetChoice src ih ((alts, cfg), (pos, act, q)) d =
   let (classChoice, endChoice) = d
-      tr = singletonDFAState (DFAStateEntry src cfg (pos, act, q))
+      tr = singletonDFAState (DFAStateEntry src alts cfg (pos, act, q))
   in
   case ih of
     EndInput ->
@@ -179,7 +180,7 @@ determinizeMove src tc =
     determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
-        t@(cfg, (_pos, act, _q)) : ms ->
+        t@((_alts, cfg), (_pos, act, _q)) : ms ->
           let resAcc =
                 case getClassActOrEnd act of
                   Left c ->
@@ -216,7 +217,7 @@ determinizeMove src tc =
 
 deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
 deterministicStep aut cfg =
-  let res = closureLL aut Set.empty cfg in
+  let res = closureLL aut cfg in
   case res of
     Abort AbortOverflowMaxDepth -> coerceAbort res
     Abort AbortLoopWithNonClass -> coerceAbort res

@@ -1,7 +1,11 @@
 module Daedalus.ParserGen.LL.Closure
-  ( ClosureMove,
-    ClosureMoveSet,
-    closureLL
+  ( ChoiceTag(..)
+  , ChoicePos
+  , ChoiceSeq
+  , addChoiceSeq
+  , ClosureMove
+  , ClosureMoveSet
+  , closureLL
   ) where
 
 
@@ -18,8 +22,30 @@ import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.CfgDet
 
 
+data ChoiceTag = CUni | CPar | CSeq | CPop
+  deriving(Eq, Show, Ord)
 
-type ClosureMove = (CfgDet, (ChoicePos, Action, State))
+type ChoicePos = (ChoiceTag, Int)
+
+initChoicePos :: ChoiceTag -> ChoicePos
+initChoicePos tag = (tag, 0)
+
+nextChoicePos :: ChoicePos -> ChoicePos
+nextChoicePos pos = (fst pos, snd pos +1)
+
+
+
+type ChoiceSeq = Seq.Seq ChoicePos
+
+emptyChoiceSeq :: ChoiceSeq
+emptyChoiceSeq = Seq.Empty
+
+addChoiceSeq :: ChoicePos -> ChoiceSeq -> ChoiceSeq
+addChoiceSeq pos seqpos = seqpos Seq.|> pos
+
+
+
+type ClosureMove = ((ChoiceSeq, CfgDet), (ChoicePos, Action, State))
 
 type ClosureMoveSet = [ClosureMove]
 
@@ -28,8 +54,8 @@ maxDepthRec :: Int
 maxDepthRec = 800
 
 
-closureLL :: Aut.Aut a => a -> Set.Set CfgDet -> CfgDet -> Result ClosureMoveSet
-closureLL aut busy cfg =
+closureLoop :: Aut.Aut a => a -> Set.Set CfgDet -> (ChoiceSeq, CfgDet) -> Result ClosureMoveSet
+closureLoop aut busy (alts, cfg) =
   let
     q = cfgState cfg
     ch = Aut.nextTransition aut q
@@ -54,16 +80,16 @@ closureLL aut busy cfg =
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q2)
-      | isClassActOrEnd act                = Result [(cfg, (pos, act, q2))]
+      | isClassActOrEnd act                = Result [((alts, cfg), (pos, act, q2))]
       | isNonClassInputAct act             = -- trace (show act) $
                                              Abort $ AbortNonClassInputAction act
       | isUnhandledAction act              = Abort AbortUnhandledAction
-      | Seq.length (cfgAlts cfg) > maxDepthRec = Abort AbortOverflowMaxDepth
+      | Seq.length alts > maxDepthRec = Abort AbortOverflowMaxDepth
       | otherwise =
-          case simulateActionCfgDet aut pos act q2 cfg of
+          case simulateActionCfgDet aut act q2 cfg of
             Abort AbortSymbolicExec -> Abort AbortSymbolicExec
             Result Nothing -> Result []
-            Result (Just lstCfg) -> combineResults (map (\p -> closureLL aut newBusy p) lstCfg)
+            Result (Just lstCfg) -> combineResults (map (\p -> closureLoop aut newBusy (addChoiceSeq pos alts, p)) lstCfg)
             _ -> error "impossible"
 
 
@@ -96,3 +122,8 @@ closureLL aut busy cfg =
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"
             _ -> error "abort not handled here"
+
+
+
+closureLL :: Aut.Aut a => a -> CfgDet -> Result ClosureMoveSet
+closureLL aut cfg = closureLoop aut Set.empty (emptyChoiceSeq, cfg)
