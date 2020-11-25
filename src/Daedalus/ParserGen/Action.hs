@@ -201,7 +201,8 @@ isNonClassInputAct act =
         SetStream _ -> False
         StreamLen {} -> False
         StreamOff {} -> False
-        _ -> True
+        _ -> -- trace (show iact) $
+             True
     _ -> False
 
 isUnhandledAction :: Action -> Bool
@@ -261,6 +262,7 @@ getByteArray e =
 
 type Val = Interp.Value
 
+-- TODO: rename Beetween -> Between
 data BeetweenItv =
     CExactly {-# UNPACK #-} !Int
   | CBetween !(Maybe Int) !(Maybe Int)
