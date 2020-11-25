@@ -147,7 +147,7 @@ lookaheadDepth (q, dfa) =
 
 
 maxDepthDet :: Int
-maxDepthDet = 10
+maxDepthDet = 20
 
 detChoiceToList :: DetChoice -> [(InputHeadCondition, DFAState)]
 detChoiceToList (c,e) =
@@ -317,7 +317,7 @@ hasNoAbort (start, dfa)  =
           case am of
             NotAmbiguous -> helper visited rest
             Ambiguous -> helper visited rest
-            DunnoAmbiguous -> traverseWithVisited visited qq
+            DunnoAmbiguous -> traverseWithVisited visited qq && helper visited rest
 
 
 
@@ -437,15 +437,20 @@ createDFA aut =
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
   let t = IntMap.toList dfas
-      tAnnotated = map (\ (k,(dfa, _)) -> ((stateToString k aut, k), (k, dfa))) t
+      tAnnotated = map (\ (q, (dfa, _)) -> ((stateToString q aut, q), (q, dfa))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ ((ann, _), (k, (dfa))) -> do
-                    putStrLn $ ann
-                    putStrLn $ showDFATransition (k, dfa)
-                    putStrLn ""
+     else mapM_ (\ ((ann, _), (q, (dfa))) ->
+                    -- if (lookaheadDepth (q, dfa) < 10)
+                    -- then
+                    --   return ()
+                    -- else
+                      do
+                        putStrLn $ ann
+                        putStrLn $ showDFATransition (q, dfa)
+                        putStrLn ""
                 ) tOrdered
 
 

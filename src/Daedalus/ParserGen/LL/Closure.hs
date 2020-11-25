@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 
 
 import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isNonClassInputAct, isUnhandledAction)
-import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
+import qualified Daedalus.ParserGen.Aut as Aut
 
 import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.CfgDet
@@ -28,28 +28,29 @@ maxDepthRec :: Int
 maxDepthRec = 800
 
 
-closureLL :: Aut a => a -> Set.Set State -> CfgDet -> Result ClosureMoveSet
+closureLL :: Aut.Aut a => a -> Set.Set CfgDet -> CfgDet -> Result ClosureMoveSet
 closureLL aut busy cfg =
   let
     q = cfgState cfg
-    ch = nextTransition aut q
+    ch = Aut.nextTransition aut q
   in
     case ch of
       Nothing ->
-        if isAcceptingState aut q
+        if Aut.isAcceptingState aut q
         then Abort AbortAcceptingPath
-        else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
-      --error "should not happen"
+        else if Set.member cfg busy
+             then Abort AbortLoopWithNonClass
+             else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
       Just ch1 ->
         let (tag, lstCh) =
               case ch1 of
-                UniChoice (act, q2) -> (CUni, [(act, q2)])
-                SeqChoice lst _     -> (CSeq, lst)
-                ParChoice lst       -> (CPar, lst)
+                Aut.UniChoice (act, q2) -> (CUni, [(act, q2)])
+                Aut.SeqChoice lst _     -> (CSeq, lst)
+                Aut.ParChoice lst       -> (CPar, lst)
         in iterateThrough (initChoicePos tag) lstCh
 
   where
-    newBusy = Set.insert (cfgState cfg) busy
+    newBusy = Set.insert cfg busy
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q2)
@@ -58,10 +59,7 @@ closureLL aut busy cfg =
                                              Abort $ AbortNonClassInputAction act
       | isUnhandledAction act              = Abort AbortUnhandledAction
       | Seq.length (cfgAlts cfg) > maxDepthRec = Abort AbortOverflowMaxDepth
-      | Set.member q2 busy                 = -- trace (show q2 ++ " " ++ show cfg) $
-                                             Abort AbortLoopWithNonClass
       | otherwise =
-          -- trace ("q2: " ++ show (cfgState cfg)) $
           case simulateActionCfgDet aut pos act q2 cfg of
             Abort AbortSymbolicExec -> Abort AbortSymbolicExec
             Result Nothing -> Result []

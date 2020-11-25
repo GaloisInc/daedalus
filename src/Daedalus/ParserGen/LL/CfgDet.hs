@@ -33,6 +33,7 @@ import Daedalus.ParserGen.Action
   , ControlAction(..)
   , SemanticAction(..)
   , InputAction(..)
+  , valToInt
   , defaultValue
   , evalLiteral
   )
@@ -47,12 +48,15 @@ data Slk a =
   | SConcrete a
   deriving (Show, Eq, Ord)
 
+instance Functor Slk where
+  fmap _ Wildcard = Wildcard
+  fmap f (SConcrete a) = SConcrete (f a)
+
 
 data SymbolicStack a =
     SWildcard
   | SEmpty
   | SCons a (SymbolicStack a)
-  --deriving Show
   deriving (Eq, Ord, Show)
 
 
@@ -61,13 +65,19 @@ data SymbolicStack a =
 --   show SEmpty = "[]"
 --   show (SCons x rest) = show x ++ " " ++ show rest
 
+data SlkBetweenItv =
+    SlkCExactly (Slk Int)
+  | SlkCBetween (Maybe (Slk Int)) (Maybe (Slk Int))
+  deriving (Show, Eq, Ord)
+
 data SlkActivationFrame =
     SlkListArgs [SlkValue]
   | SlkActivatedFrame (Map.Map Name SlkValue)
   deriving (Show, Eq, Ord)
 
 data SlkControlElm =
-  SlkCallFrame Name State SlkActivationFrame SlkSemanticData
+    SlkManyFrame !(SlkBetweenItv) !Int
+  | SlkCallFrame Name State SlkActivationFrame SlkSemanticData
   deriving (Show, Eq, Ord)
 
 type SlkControlData = SymbolicStack SlkControlElm
@@ -86,7 +96,8 @@ nextChoicePos :: ChoicePos -> ChoicePos
 nextChoicePos pos = (fst pos, snd pos +1)
 
 
-
+-- NOTE: this type is more convoluted than expected because of how
+-- symbolic vlues for streams/input are represented
 type SlkValue = Slk (Either Interp.Value SlkInput)
 
 data SlkSemElm =
@@ -114,7 +125,7 @@ nextSlkInput inp =
     InpNext n inp1 -> InpNext (n+1) inp1
     InpEnd -> error "not possible"
 
-newtype InputWindow = InputWindow { win :: (Int, Maybe Int) }
+newtype InputWindow = InputWindow { _win :: (Int, Maybe Int) }
   deriving(Eq)
 
 positionFromBeginning :: SlkInput -> Maybe InputWindow
@@ -256,12 +267,99 @@ symbolicEval e ctrl sem =
         _ -> Wildcard
     _ -> Wildcard
 
+slkValToInt :: SlkValue -> Slk Int
+slkValToInt s =
+  fmap (\v -> case v of
+                Left e -> valToInt e
+                Right _ -> error "cannot be applied to a stream"
+       ) s
+
+unlimitedBound :: SlkBetweenItv -> Bool
+unlimitedBound b =
+  case b of
+    SlkCExactly _ -> False
+    SlkCBetween _ Nothing -> True
+    _ -> False
+
 -- This functions returns possibly many new symbolic stack because of
 -- the Pop transitions that are not deterministic when the Stack is
 -- Wildcard
 symbExecCtrl :: Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction -> State -> Maybe [(SlkControlData, SlkSemanticData, State)]
 symbExecCtrl aut ctrl sem act n2 =
   case act of
+    BoundSetup bound ->
+      case bound of
+        Exactly v ->
+          let ev = symbolicEval v ctrl sem
+              i = slkValToInt ev
+          in Just [(SCons (SlkManyFrame (SlkCExactly i) 0) ctrl, sem, n2)]
+        Between v1 v2 ->
+          let ev1 = fmap (\v -> slkValToInt (symbolicEval v ctrl sem)) v1
+              ev2 = fmap (\v -> slkValToInt (symbolicEval v ctrl sem)) v2
+          in Just [(SCons (SlkManyFrame (SlkCBetween ev1 ev2) 0) ctrl, sem, n2)]
+    BoundCheckSuccess ->
+      case ctrl of
+        SEmpty -> error "Unexpected ctrl stack"
+        SCons (SlkManyFrame (SlkCExactly si) cnt) rest ->
+          case si of
+            SConcrete i ->
+              if i == cnt
+              then Just [(rest, sem, n2)]
+              else if i < 0
+                   then Just [(rest, sem, n2)] -- case aligned with DaeDaLus interp. `Nothing` could be another option
+                   else Nothing
+            Wildcard ->
+              Just [(rest, sem, n2)]
+        SCons (SlkManyFrame (SlkCBetween i j) cnt) rest ->
+          case (i, j) of
+            (Nothing, Nothing) -> Just [(rest, sem, n2)]
+            (Nothing, Just sjj) ->
+              case sjj of
+                SConcrete jj ->
+                  if jj >= cnt then Just [(rest, sem, n2)] else Nothing
+                Wildcard -> Just [(rest, sem, n2)]
+            (Just sii, Nothing) ->
+              case sii of
+                SConcrete ii -> if ii <= cnt then Just [(rest, sem, n2)] else Nothing
+                Wildcard -> Just [(rest, sem, n2)]
+            (Just sii, Just sjj) ->
+              case (sii, sjj) of
+                (SConcrete ii, SConcrete jj) ->
+                  if ii <= cnt && jj >= cnt then Just [(rest, sem, n2)] else Nothing
+                (SConcrete ii, Wildcard) ->
+                  if ii <= cnt then Just [(rest, sem, n2)] else Nothing
+                (Wildcard, SConcrete jj) ->
+                  if jj >= cnt then Just [(rest, sem, n2)] else Nothing
+                (Wildcard, Wildcard) -> Just [(rest, sem, n2)]
+        SWildcard -> Just [(ctrl, sem, n2)]
+        _ -> error "Unexpected ctrl stack top element"
+    BoundIsMore ->
+      case ctrl of
+        SEmpty -> error "Unexpected ctrl stack"
+        SCons (SlkManyFrame (SlkCExactly si) cnt) _ ->
+          case si of
+            SConcrete i ->
+              if i > cnt then Just [(ctrl, sem, n2)] else Nothing
+            Wildcard -> Just [(ctrl, sem, n2)]
+        SCons (SlkManyFrame (SlkCBetween _ sj) cnt) _ ->
+          case sj of
+            Nothing -> Just [(ctrl, sem, n2)]
+            Just sjj ->
+              case sjj of
+                SConcrete jj ->
+                  if jj > cnt then Just [(ctrl, sem, n2)] else Nothing
+                Wildcard -> Just [(ctrl, sem, n2)]
+        SWildcard -> Just [(ctrl, sem, n2)]
+        _ -> error "Unexpected ctrl stack top element"
+    BoundIncr ->
+      case ctrl of
+        SEmpty -> error "Unexpected ctrl stack"
+        SCons (SlkManyFrame bound cnt) rest ->
+          if unlimitedBound bound
+          then Just [(SCons (SlkManyFrame bound cnt) rest, sem, n2)] -- only increment the cnt when the bound is limited
+          else Just [(SCons (SlkManyFrame bound (cnt+1)) rest, sem, n2)]
+        SWildcard -> Just [(ctrl, sem, n2)]
+        _ -> error ("Unexpected ctrl stack top element:" ++ show ctrl)
     Push rname le q ->
       let evle = map (\ e -> symbolicEval e ctrl sem) le
       in
@@ -275,6 +373,7 @@ symbExecCtrl aut ctrl sem act n2 =
               Just $ map (\ q -> (SWildcard, SCons (headSem sem) SWildcard, q)) targets
         SEmpty -> Nothing
         SCons (SlkCallFrame _ q1 _ savedOut) rest -> Just [(rest, SCons (headSem sem) savedOut, q1)]
+        _ -> error "broken invariant of symbolic Pop"
     ActivateFrame ln ->
       case ctrl of
         SCons (SlkCallFrame rname q (SlkListArgs lvs) savedFrame) ctrls ->
