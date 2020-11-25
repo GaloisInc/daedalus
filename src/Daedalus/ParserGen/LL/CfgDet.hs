@@ -10,7 +10,7 @@ module Daedalus.ParserGen.LL.CfgDet
     simulateActionCfgDet,
     InputHeadCondition(..),
     matchInputHeadCondition,
-    setupCfgDetFromPrev
+    moveCfgDetFromPrev
   ) where
 
 -- import Debug.Trace
@@ -558,8 +558,8 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-setupCfgDetFromPrev :: InputHeadCondition -> Action -> State -> CfgDet -> CfgDet
-setupCfgDetFromPrev ih act q cfg =
+moveCfgDetFromPrev :: InputHeadCondition -> Action -> State -> CfgDet -> CfgDet
+moveCfgDetFromPrev ih act q cfg =
   case (ih, act) of
     (HeadInput _itv, IAct (ClssAct w _)) ->
       case w of
