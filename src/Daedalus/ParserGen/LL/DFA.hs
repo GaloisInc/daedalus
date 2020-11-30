@@ -33,48 +33,6 @@ import Daedalus.ParserGen.LL.DeterminizeOneStep
 
 
 
-
-newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
-  deriving Show
-
-mkDFAStateQuotient :: State -> DFAStateQuotient
-mkDFAStateQuotient q =
-    DFAQuo (Set.singleton (initCfgDet q))
-
-equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
-equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
-
-instance Eq DFAStateQuotient where
-  (==) q1 q2 = equivDFAStateQuotient q1 q2
-
-instance Ord DFAStateQuotient where
-  compare q1 q2 =
-    compare (dfaQuo q1) (dfaQuo q2)
-
-convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
-convertDFAStateToQuotient ih s =
-  DFAQuo (helper s)
-  where
-    helper set =
-      case iterDFAState set of
-        Nothing -> Set.empty
-        Just (entry, es) ->
-          let closCfg = closureCfg $ dstDFAState entry
-              (_,act,q) = moveCfg $ dstDFAState entry
-          in
-          Set.insert (resetCfgDet (moveCfgDetFromPrev ih act q closCfg)) (helper es)
-
-
-iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
-iterDFAStateQuotient s =
-  let lst = Set.toAscList (dfaQuo s) in
-    case lst of
-      [] -> Nothing
-      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
-
-
-
-
 data DFATransition =
   DChoice [ (InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient) ]
 
@@ -222,7 +180,7 @@ createDFAtable aut depth q dfa =
       if depth > maxDepthDet
       then insertExplicitDFA q (Abort AbortOverflowK) dfa
       else
-        let choices = detSubsetAccu q emptyDetChoice
+        let choices = detSubset q
             newDfa = insertExplicitDFA q choices dfa
         in
           case choices of
@@ -243,35 +201,32 @@ createDFAtable aut depth q dfa =
               let newDFA = createDFAtable aut k qq m
               in iterateCreateDFA k rest newDFA
 
-    detSubsetAccu :: DFAStateQuotient -> DetChoice -> Result DFATransition
-    detSubsetAccu s acc =
-      case iterDFAStateQuotient s of
-        Nothing -> Result (DChoice (mapAnalyzeConflicts (detChoiceToList acc)))
-        Just (cfg, rest) ->
-          let r = deterministicStep aut cfg in
-          case r of
-            Abort AbortOverflowMaxDepth -> coerceAbort r
-            Abort AbortLoopWithNonClass -> coerceAbort r
-            Abort AbortAcceptingPath -> coerceAbort r
-            Abort (AbortNonClassInputAction _) -> coerceAbort r
-            Abort AbortUnhandledAction -> coerceAbort r
-            Abort AbortClassIsDynamic -> coerceAbort r
-            Abort AbortIncompatibleInput -> coerceAbort r
-            Abort (AbortClassNotHandledYet _) -> coerceAbort r
-            Abort AbortSymbolicExec -> coerceAbort r
-            Result r1 ->
-              let newAcc = unionDetChoice r1 acc
-              in detSubsetAccu rest newAcc
-            _ -> error "cannot be this abort"
+    detSubset :: DFAStateQuotient -> Result DFATransition
+    detSubset s =
+      let r = determinizeDFAStateQuotient aut s in
+      case r of
+        Abort AbortOverflowMaxDepth -> coerceAbort r
+        Abort AbortLoopWithNonClass -> coerceAbort r
+        Abort AbortAcceptingPath -> coerceAbort r
+        Abort (AbortNonClassInputAction _) -> coerceAbort r
+        Abort AbortUnhandledAction -> coerceAbort r
+        Abort AbortClassIsDynamic -> coerceAbort r
+        Abort AbortIncompatibleInput -> coerceAbort r
+        Abort (AbortClassNotHandledYet _) -> coerceAbort r
+        Abort AbortSymbolicExec -> coerceAbort r
+        Result r1 ->
+          Result (DChoice (mapAnalyzeConflicts r1))
+        _ -> error "cannot be this abort"
 
-    mapAnalyzeConflicts :: [(InputHeadCondition, DFAState)] ->
+    mapAnalyzeConflicts :: DetChoice ->
                            [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)]
-    mapAnalyzeConflicts lst =
-      case lst of
-        [] -> []
-        (ihc, s) : rest ->
+    mapAnalyzeConflicts dc =
+      let lst = detChoiceToList dc in
+      map fconvert lst
+      where
+        fconvert (ihc, s) =
           let am = analyzeConflicts s in
-            (ihc, s, am, convertDFAStateToQuotient ihc s) : mapAnalyzeConflicts rest
+            (ihc, s, am, convertDFAStateToQuotient ihc s)
 
 
 

@@ -7,10 +7,10 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
     iterDFAState,
     findAllEntryInDFAState,
     DetChoice,
-    emptyDetChoice,
-    insertDetChoice,
-    unionDetChoice,
-    deterministicStep,
+    DFAStateQuotient,
+    mkDFAStateQuotient,
+    convertDFAStateToQuotient,
+    determinizeDFAStateQuotient,
   ) where
 
 
@@ -22,7 +22,7 @@ import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
 import Daedalus.ParserGen.Aut (Aut(..))
 import Daedalus.ParserGen.ClassInterval
 import Daedalus.ParserGen.LL.Result
@@ -217,8 +217,8 @@ determinizeMove src tc =
 
 
 
-deterministicStep :: Aut a => a -> CfgDet -> Result DetChoice
-deterministicStep aut cfg =
+deterministicCfgDet :: Aut a => a -> CfgDet -> Result DetChoice
+deterministicCfgDet aut cfg =
   let res = closureLL aut cfg in
   case res of
     Abort AbortOverflowMaxDepth -> coerceAbort res
@@ -229,3 +229,67 @@ deterministicStep aut cfg =
     Abort AbortSymbolicExec -> coerceAbort res
     Result r -> determinizeMove cfg r
     _ -> error "Impossible abort"
+
+
+newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
+  deriving Show
+
+mkDFAStateQuotient :: State -> DFAStateQuotient
+mkDFAStateQuotient q =
+    DFAQuo (Set.singleton (initCfgDet q))
+
+equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
+equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
+
+instance Eq DFAStateQuotient where
+  (==) q1 q2 = equivDFAStateQuotient q1 q2
+
+instance Ord DFAStateQuotient where
+  compare q1 q2 =
+    compare (dfaQuo q1) (dfaQuo q2)
+
+convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
+convertDFAStateToQuotient ih s =
+  DFAQuo (helper s)
+  where
+    helper set =
+      case iterDFAState set of
+        Nothing -> Set.empty
+        Just (entry, es) ->
+          let closCfg = closureCfg $ dstDFAState entry
+              (_,act,q) = moveCfg $ dstDFAState entry
+          in
+          Set.insert (resetCfgDet (moveCfgDetFromPrev ih act q closCfg)) (helper es)
+
+
+iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
+iterDFAStateQuotient s =
+  let lst = Set.toAscList (dfaQuo s) in
+    case lst of
+      [] -> Nothing
+      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
+
+determinizeDFAStateQuotient :: Aut a => a -> DFAStateQuotient -> Result DetChoice
+determinizeDFAStateQuotient aut s =
+  determinizeAcc s emptyDetChoice
+  where
+    determinizeAcc :: DFAStateQuotient -> DetChoice -> Result DetChoice
+    determinizeAcc states acc =
+      case iterDFAStateQuotient states of
+        Nothing -> Result acc
+        Just (cfg, rest) ->
+          let r = deterministicCfgDet aut cfg in
+          case r of
+            Abort AbortOverflowMaxDepth -> coerceAbort r
+            Abort AbortLoopWithNonClass -> coerceAbort r
+            Abort AbortAcceptingPath -> coerceAbort r
+            Abort (AbortNonClassInputAction _) -> coerceAbort r
+            Abort AbortUnhandledAction -> coerceAbort r
+            Abort AbortClassIsDynamic -> coerceAbort r
+            Abort AbortIncompatibleInput -> coerceAbort r
+            Abort (AbortClassNotHandledYet _) -> coerceAbort r
+            Abort AbortSymbolicExec -> coerceAbort r
+            Result r1 ->
+              let newAcc = unionDetChoice r1 acc
+              in determinizeAcc rest newAcc
+            _ -> error "cannot be this abort"
