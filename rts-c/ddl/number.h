@@ -48,6 +48,7 @@ public:
   }
 
 
+  // This is for `a # b`
   template <int a, int b>
   UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
 
@@ -69,7 +70,7 @@ public:
     return n >= w? UInt(0) : UInt(data << n);
   }
 
-  // same as for >>
+  // same as for <<
   UInt operator >> (DDL::Integer x) {
     unsigned long n = x.asULong();
     return n >= w? UInt(0) : UInt(data >> n);
@@ -82,6 +83,30 @@ public:
 
 
 };
+
+
+template <int a, int b>
+UInt<a> lcat(UInt<a> x, UInt<b> y) {
+  if constexpr (b >= a) return UInt<a>(y.data);
+  return UInt<a>((x.data << b) | y.rep());
+}
+
+template <int b>
+Integer lcat(Integer x, UInt<b> y) {
+  if (x.refCount() == 1) {
+    x.mutShiftL(b);
+    static_assert(b <= sizeof(unsigned long) * 8);
+    x.mutOr(y.rep());
+    return x;
+  } else {
+    mpz_class i = x.getValue() << b;
+    Integer r{i};
+    r.mutOr(y.rep());
+    return r;
+  }
+}
+
+
 
 
 // XXX: Maybe we should consult the base flag, rather than always using hex?
@@ -145,13 +170,26 @@ public:
 
   constexpr static Rep minValRep() {
     return -maxValRep()-1;
-
   }
 
+  // yikes, we really should use something other than integer here
+  // we are borrowing the integer
+  SInt operator << (DDL::Integer x) {
+    unsigned long n = x.asULong();
+    return n >= w? SInt(0) : SInt(data << n);
+  }
 
-
-
+  // same as for <<
+  SInt operator >> (DDL::Integer x) {
+    unsigned long n = x.asULong();
+    return n >= w? SInt(0) : SInt(data >> n);
+  }
 };
+
+template <int a, int b>
+SInt<a> lcat(SInt<a> x, SInt<b> y) {
+  return (x << b) | y.rep();
+}
 
 
 template <int w>

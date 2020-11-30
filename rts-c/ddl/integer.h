@@ -24,6 +24,28 @@ public:
 
   bool          fitsULong()  { return getValue().fits_ulong_p(); }
   bool          fitsSLong()  { return getValue().fits_slong_p(); }
+
+  // Mutable shift in place.
+  // To be only used when we are the unique owners of this
+  void mutShiftL(unsigned long amt) {
+    mpz_class &r = getValue();
+    r = r << amt;
+  }
+
+  // Mutable shift in place.
+  // To be only used when we are the unique owners of this
+  void mutShiftR(unsigned long amt) {
+    mpz_class &r = getValue();
+    r = r >> amt;
+  }
+
+  // this |= x
+  // To be only used when we are the unique owners of this
+  void mutOr(unsigned long val) {
+    mpz_class &r = getValue();
+    r = r | val;
+  }
+
 };
 
 // borrow
@@ -152,6 +174,35 @@ Integer operator - (Integer x) {
   x.free();
   return y;
 }
+
+
+// owned, borrowed
+// XXX: iamt should eventually be replaced with a smaller type
+static inline
+Integer operator << (Integer x, Integer iamt) {
+  unsigned long amt = iamt.asULong();
+  mpz_class &v = x.getValue();
+  if (x.refCount() == 1) { x.mutShiftL(amt); return x; }
+  Integer y(v << amt);
+  x.free();
+  return y;
+}
+
+// owned, borrowed
+// XXX: iamt should eventually be replaced with a smaller type
+static inline
+Integer operator >> (Integer x, Integer iamt) {
+  unsigned long amt = iamt.asULong();
+  mpz_class &v = x.getValue();
+  if (x.refCount() == 1) { x.mutShiftR(amt); return x; }
+  Integer y(v >> amt);
+  x.free();
+  return y;
+}
+
+// NOTE: lcat is in `number.h` to avoid dependency convlicts
+
+
 
 
 }

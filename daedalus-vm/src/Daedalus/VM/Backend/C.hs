@@ -469,7 +469,7 @@ cOp2 x op2 ~[e1',e2'] =
     Src.BitOr   -> cVarDecl x (e1 <+> "|" <+> e2)
     Src.BitXor  -> cVarDecl x (e1 <+> "^" <+> e2)
     Src.Cat     -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
-    Src.LCat    -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.LCat    -> cVarDecl x (cCall "DDL::lcat" [ e1, e2 ])
     Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 

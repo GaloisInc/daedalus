@@ -48,16 +48,6 @@ public:
   void free() { name.free(); bytes.free(); }
 
 
-  bool operator == (Input &i) {
-    return
-      offset == i.offset &&
-      last_offset == i.last_offset &&
-      name == i.name;
-      // XXX: we could add a hash of the bytes, also for now we
-      // use the name as a proxy.
-  }
-
-
   size_t  getOffset() { return offset; }
   size_t  length()    { return last_offset - offset; }
   bool    isEmpty()   { return last_offset == offset; }
@@ -104,6 +94,16 @@ public:
     }
     return true;
   }
+
+  bool operator == (Input x) {
+    return offset == x.offset &&
+           last_offset == x.last_offset &&
+           name == x.name;
+           // if we want to compare bytes, we should hash them
+  }
+
+  bool operator != (Input x) { return !(*this == x); }
+
 };
 
 // XXX: comparisions
