@@ -76,6 +76,7 @@ makeObjKey128 ctx isAES =
         False -> B.empty 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
+-- XXX: maybe should live somewhere else? 
 makeFileKey ::
                B.ByteString 
             -> B.ByteString 

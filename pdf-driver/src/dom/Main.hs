@@ -16,7 +16,8 @@ import RTS.Vector(vecFromRep,vecToRep,toList)
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
-import PdfXRef(pEncryptionDict,TrailerDict,ChooseCiph(..),ChooseCiphV4(..)) 
+import PdfXRef(TrailerDict) 
+import PdfCrypto(pEncryptionDict,ChooseCiph(..))
 import PdfValue(Value(..),Ref(..),pValue)
 import Primitives.Decrypt(makeFileKey)
 
@@ -132,8 +133,6 @@ makeEncContext trail refs topInput pwd =
 chooseCipher :: ChooseCiph -> Cipher 
 chooseCipher enc = 
   case enc of 
-    ChooseCiph_v2 _ -> V2 
-    ChooseCiph_v4 i -> 
-      case i of 
-        ChooseCiphV4_v4AES () -> V4AES 
-        ChooseCiphV4_v4RC4 () -> V4RC4
+    ChooseCiph_v2RC4 _ -> V2 
+    ChooseCiph_v4RC4 i -> V4RC4
+    ChooseCiph_v4AES i -> V4AES
