@@ -12,6 +12,8 @@ fi
 SPEC=$1
 shift
 
+cabal exec daedalus -- --dump-core "$SPEC" > ./ddl.core
+cabal exec daedalus -- --dump-vm   "$SPEC" > ./ddl.vm
 cabal exec daedalus -- --out-dir="$DIR" --compile-c++ "$SPEC"
 make -C "$DIR"
 "$DIR/a.out" $*
