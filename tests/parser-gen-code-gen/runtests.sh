@@ -154,7 +154,7 @@ function run_test()
 
 function run_all_tests()
 {
-    local test_files=$SCRIPTROOT/*.test
+    local test_files=$SCRIPTROOT/*.pgentest
     for f in $test_files
     do
         run_test $f
