@@ -138,7 +138,7 @@ compileOpN op ty es k =
            case k of
              Nothing -> pure \vs -> term (TailCall f NoCapture vs)
              Just k' ->
-               do mkL <- label1' (ReturnBlock 1) Nothing k'
+               do mkL <- label1' (ReturnBlock 1) (Just (TSem (Src.typeOf f))) k'
                   pure \vs ->
                     do l <- mkL
                        term (CallPure f l vs)
