@@ -77,8 +77,9 @@ public:
 
   // Add to waiting threads
   ThreadId spawn(ThreadClosure *c) {
+    ThreadId id = suspended.size();
     suspended.push_back(Thread(c,stack));
-    return suspended.size();
+    return id;
   }
 
   // True if there are there are threads to resume
