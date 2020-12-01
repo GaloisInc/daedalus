@@ -172,34 +172,49 @@ analyzeConflicts ts =
           then Ambiguous
           else isAnyAmbiguous rest
 
--- TODO: explore changing the logic of this module to a simple loop with a stack of visited and toVisit
-createDFAtable :: Aut a => a -> Int -> DFAStateQuotient -> ExplicitDFA -> ExplicitDFA
-createDFAtable aut depth q dfa =
-  case lookupExplicitDFA q dfa of
-    Nothing ->
-      if depth > maxDepthDet
-      then insertExplicitDFA q (Abort AbortOverflowK) dfa
-      else
-        let choices = detSubset q
-            newDfa = insertExplicitDFA q choices dfa
-        in
-          case choices of
-            Result (DChoice r1) -> iterateCreateDFA r1 newDfa
-            _ -> newDfa
-    Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
-              dfa
+
+createDFAtable :: Aut a => a -> DFAStateQuotient -> ExplicitDFA
+createDFAtable aut qInit =
+  go [(qInit,0)] [] Map.empty
   where
-    iterateCreateDFA :: [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ExplicitDFA -> ExplicitDFA
-    iterateCreateDFA lst m =
-      case lst of
-        [] -> m
-        (_i, _q, am, qq) : rest ->
-          case am of
-            Ambiguous -> iterateCreateDFA rest m
-            NotAmbiguous -> iterateCreateDFA rest m
-            DunnoAmbiguous ->
-              let newDFA = createDFAtable aut (depth+1) qq m
-              in iterateCreateDFA rest newDFA
+    go :: [ (DFAStateQuotient, Int) ] -> [ (DFAStateQuotient, Int) ] -> ExplicitDFA -> ExplicitDFA
+    go toVisit accToVisit dfa =
+      case toVisit of
+        [] -> case accToVisit of
+                [] -> dfa
+                _ -> go (reverse accToVisit) [] dfa
+        (q, depth) : rest ->
+          case lookupExplicitDFA q dfa of
+            Nothing ->
+              if depth > maxDepthDet
+              then
+                let newDfa = insertExplicitDFA q (Abort AbortOverflowK) dfa
+                in go rest accToVisit newDfa
+              else
+                let choices = detSubset q
+                    newDfa = insertExplicitDFA q choices dfa
+                in
+                  case choices of
+                    Result (DChoice r1) ->
+                      let
+                        newToVisit = collectToVisit (depth+1) r1
+                        newAccToVisit = revAppend newToVisit accToVisit
+                      in go rest newAccToVisit newDfa
+                    _ -> go rest accToVisit newDfa
+            Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
+              go rest accToVisit dfa
+
+    collectToVisit :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> [(DFAStateQuotient, Int)]
+    collectToVisit depth lst =
+      foldr (\ (_, _, am, qq) b ->
+               case am of
+                 Ambiguous -> b
+                 NotAmbiguous -> b
+                 DunnoAmbiguous -> (qq, depth) : b) [] lst
+
+    revAppend :: [a] -> [a] -> [a]
+    revAppend [] ys = ys
+    revAppend (x:xs) ys = revAppend xs (x:ys)
 
     detSubset :: DFAStateQuotient -> Result DFATransition
     detSubset s =
@@ -371,7 +386,7 @@ createDFA aut =
         (\ q ->
            let
              initStateQuotient = mkDFAStateQuotient q
-             t = createDFAtable aut 0 initStateQuotient Map.empty in
+             t = createDFAtable aut initStateQuotient in
              (q, (t, hasFullResolution (q,t) )))
         (Set.toList collectedStates)
   in
