@@ -104,15 +104,16 @@ public:
 
   bool operator != (Input x) { return !(*this == x); }
 
+  friend
+  std::ostream& operator<<(std::ostream& os, Input x) {
+    os << "Input(" << x.offset << ", " << x.last_offset << ")";
+    return os;
+  }
+
+
 };
 
 // XXX: comparisions
-
-inline
-std::ostream& operator<<(std::ostream& os, Input x) {
-  os << "Input"; // XXX
-  return os;
-}
 
 
 

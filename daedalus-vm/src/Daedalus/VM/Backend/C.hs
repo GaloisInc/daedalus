@@ -1,5 +1,6 @@
 {-# Language OverloadedStrings, BlockArguments #-}
 {-# Language ImplicitParams, ConstraintKinds #-}
+{-# Language ParallelListComp #-}
 module Daedalus.VM.Backend.C where
 
 {-
@@ -11,6 +12,7 @@ import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Maybe(maybeToList,mapMaybe)
+import           Data.List(intersperse)
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
@@ -161,8 +163,19 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
          in getArgs
+         $$ dbg
          $$ vcat (map cBlockStmt (blockInstrs b))
          $$ vcat (cTermStmt (blockTerm b))
+
+  dbg :: (CurBlock,Copies) => CStmt
+  dbg =   cStmt
+        $ fsep
+        $ intersperse "<<"
+        $ [ "std::cout", cString ("enter " ++ show (pp (blockName b))) ] ++
+          concat [ [cString s, cExpr (EBlockArg a)]
+                 | a <- blockArgs b
+                 | s <- ": " : repeat ", " ] ++
+          [ "std::endl" ]
 
   getArgs = case blockType b of
               NormalBlock -> empty
@@ -597,10 +610,18 @@ cTermStmt ccInstr =
 
 cDoJump :: (Copies,CurBlock) => Block -> [E] -> [CStmt]
 cDoJump b es =
-  zipWith assignP (blockArgs b) es ++ [ cGoto (cBlockLabel l) ]
+  zipWith assignP (blockArgs b) es ++ [ dbg, cGoto (cBlockLabel l) ]
   where
   l            = blockName b
   assignP ba e = cAssign (cArgUse b ba) (cExpr e)
+  dbg    = empty
+  {-cStmt $ hsep $ intersperse "<<"
+         $ "std::cout"
+         : text (show ("call " ++ show (pp l)))
+         : concat (zipWith dbgE (": " : repeat ", ") es)
+        ++ [ "std::endl" ]
+
+  dbgE sep e = [ text (show sep), parens (cExpr e) ] -}
 
 cJump :: (AllBlocks, CurBlock, Copies) => JumpPoint -> [CStmt]
 cJump (JumpPoint l es) =

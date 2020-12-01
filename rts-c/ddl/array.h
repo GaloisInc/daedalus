@@ -171,6 +171,14 @@ public:
 
     void free() { xs.free(); }
     void copy() { xs.copy(); }
+
+    // borrow
+    friend
+    std::ostream& operator<<(std::ostream& os, Array<T>::Iterator x) {
+      os << "Iterator[" << x.index << "]";
+      return os;
+    }
+
   };
 
 
@@ -193,6 +201,10 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
   os << "]";
   return os;
 }
+
+
+
+
 
 
 
