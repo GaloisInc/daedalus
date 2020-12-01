@@ -85,24 +85,25 @@ maxDepthRec = 800
 
 closureLoop :: Aut.Aut a => a -> Set.Set CfgDet -> (ChoiceSeq, CfgDet) -> Result ClosureMoveSet
 closureLoop aut busy (alts, cfg) =
-  let
-    q = cfgState cfg
-    ch = Aut.nextTransition aut q
-  in
-    case ch of
-      Nothing ->
-        if Aut.isAcceptingState aut q
-        then Abort AbortAcceptingPath
-        else if Set.member cfg busy
-             then Abort AbortLoopWithNonClass
-             else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
-      Just ch1 ->
-        let (tag, lstCh) =
-              case ch1 of
-                Aut.UniChoice (act, q2) -> (CUni, [(act, q2)])
-                Aut.SeqChoice lst _     -> (CSeq, lst)
-                Aut.ParChoice lst       -> (CPar, lst)
-        in iterateThrough (initChoicePos tag) lstCh
+  if Set.member cfg busy
+  then Abort AbortLoopWithNonClass
+  else
+    let
+      q = cfgState cfg
+      ch = Aut.nextTransition aut q
+    in
+      case ch of
+        Nothing ->
+          if Aut.isAcceptingState aut q
+          then Abort AbortAcceptingPath
+          else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
+        Just ch1 ->
+          let (tag, lstCh) =
+                case ch1 of
+                  Aut.UniChoice (act, q2) -> (CUni, [(act, q2)])
+                  Aut.SeqChoice lst _     -> (CSeq, lst)
+                  Aut.ParChoice lst       -> (CPar, lst)
+          in iterateThrough (initChoicePos tag) lstCh
 
   where
     newBusy = Set.insert cfg busy

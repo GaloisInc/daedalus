@@ -184,22 +184,22 @@ createDFAtable aut depth q dfa =
             newDfa = insertExplicitDFA q choices dfa
         in
           case choices of
-            Result (DChoice r1) -> iterateCreateDFA (depth+1) r1 newDfa
+            Result (DChoice r1) -> iterateCreateDFA r1 newDfa
             _ -> newDfa
     Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
               dfa
   where
-    iterateCreateDFA :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ExplicitDFA -> ExplicitDFA
-    iterateCreateDFA k lst m =
+    iterateCreateDFA :: [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ExplicitDFA -> ExplicitDFA
+    iterateCreateDFA lst m =
       case lst of
         [] -> m
         (_i, _q, am, qq) : rest ->
           case am of
-            Ambiguous -> iterateCreateDFA k rest m
-            NotAmbiguous -> iterateCreateDFA k rest m
+            Ambiguous -> iterateCreateDFA rest m
+            NotAmbiguous -> iterateCreateDFA rest m
             DunnoAmbiguous ->
-              let newDFA = createDFAtable aut k qq m
-              in iterateCreateDFA k rest newDFA
+              let newDFA = createDFAtable aut (depth+1) qq m
+              in iterateCreateDFA rest newDFA
 
     detSubset :: DFAStateQuotient -> Result DFATransition
     detSubset s =
