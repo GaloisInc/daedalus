@@ -345,8 +345,8 @@ generateVExprData e = do
     DAST.TCVar v -> do
       tagExpr <- makeEnumConstantExpr "E_VAR";
       return $ [("tag", tagExpr), ("name", nameExpr v)]
-    DAST.TCIn _ _e _ ->
-      case DAST.texprValue e of
+    DAST.TCIn _ e1 _ ->
+      case DAST.texprValue e1 of
         DAST.TCVar v -> do
           tagExpr <- makeEnumConstantExpr "E_VAR";
           return $ [("tag", tagExpr), ("name", nameExpr v)]
