@@ -268,6 +268,7 @@ data BetweenItv =
   | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
 
+-- TODO: rename ListArgs to PreActivated
 data ActivationFrame =
     ListArgs ![Val]
   | ActivatedFrame !(Map.Map Name Val)
@@ -1093,6 +1094,7 @@ applyControlAction gbl (ctrl, out) act =
             _ -> error "Unexpected For not an array"
         _ ->  error "Unexpected ctrl stack"
 
+    -- TODO: reorder `zip lvs ln` to `zip ln lvs`
     ActivateFrame ln ->
       case ctrl of
         CallFrame rname q (ListArgs lvs) savedFrame : ctrls ->
