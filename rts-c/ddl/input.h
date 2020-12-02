@@ -106,7 +106,9 @@ public:
 
   friend
   std::ostream& operator<<(std::ostream& os, Input x) {
-    os << "Input(" << x.offset << ", " << x.last_offset << ")";
+    os << "Input(" << (char*)x.name.borrowData()
+                   << ":0x" << std::hex << x.offset << "--0x"
+                            << std::hex << x.last_offset << ")";
     return os;
   }
 
