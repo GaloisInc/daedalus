@@ -105,6 +105,10 @@ public:
     return ptr->data[i];
   }
 
+  T* borrowData() {
+    return (T*)&ptr->data;
+  }
+
 
 
   // Borrow this, borrow xs
