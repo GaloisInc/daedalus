@@ -558,8 +558,8 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-moveCfgDetFromPrev :: InputHeadCondition -> Action -> State -> CfgDet -> CfgDet
-moveCfgDetFromPrev ih act q cfg =
+moveCfgDetFromPrev :: InputHeadCondition -> CfgDet -> Action -> State -> CfgDet
+moveCfgDetFromPrev ih cfg act q =
   case (ih, act) of
     (HeadInput _itv, IAct (ClssAct w _)) ->
       case w of
@@ -587,10 +587,4 @@ moveCfgDetFromPrev ih act q cfg =
     _ -> error "impossible"
 
 resetCfgDet :: CfgDet -> CfgDet
-resetCfgDet cfg =
-  CfgDet
-    { cfgState = cfgState cfg
-    , cfgCtrl = cfgCtrl cfg
-    , cfgSem = cfgSem cfg
-    , cfgInput = cfgInput cfg
-    }
+resetCfgDet cfg = cfg

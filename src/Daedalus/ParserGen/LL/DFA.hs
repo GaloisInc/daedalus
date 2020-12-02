@@ -134,18 +134,18 @@ instance Show AmbiguityDetection where
 getConflictSetsPerLoc :: DFAState -> [ [DFAStateEntry] ]
 getConflictSetsPerLoc s =
   case iterDFAState s of
-    Nothing -> error "broken invariant: empty DFAState"
+    Nothing -> []
     Just (e, es) ->
       case findAllEntryInDFAState es (sameEntryPerLoc e) of
         (lst, rs) ->
-          if Set.null rs
-          then [ e:lst ]
-          else let lstLst = getConflictSetsPerLoc rs
-               in  (e : lst) : lstLst
+          let lstLst = getConflictSetsPerLoc rs
+          in  (e : lst) : lstLst
 
   where
-    sameEntryPerLoc (DFAStateEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1))) (DFAStateEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
-      q1 == q2 && cfgCtrl dst1 == cfgCtrl dst2
+    sameEntryPerLoc
+      (DFAStateEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1)))
+      (DFAStateEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
+      dst1 == dst2 && q1 == q2
 
 -- Inspired by the condition in `predictLL()` of ALL(*) paper
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility
@@ -240,8 +240,9 @@ createDFAtable aut qInit =
       map fconvert lst
       where
         fconvert (ihc, s) =
-          let am = analyzeConflicts s in
-            (ihc, s, am, convertDFAStateToQuotient ihc s)
+          let newCfg = convertDFAStateToQuotient ihc s
+              am = analyzeConflicts s
+          in (ihc, s, am, newCfg)
 
 
 
@@ -312,6 +313,8 @@ destrPrediction pdx =
     Seq.Empty -> Nothing
     c Seq.:<| cs -> Just (c, cs)
 
+
+-- TODO: Explain this in some document. This is basically the key of the new faithful determinization.
 predictLL :: (State, ExplicitDFA) -> Input.Input -> Maybe Prediction
 predictLL (start, dfa) i =
   findPrediction (mkDFAStateQuotient start) i []

@@ -248,18 +248,25 @@ instance Ord DFAStateQuotient where
   compare q1 q2 =
     compare (dfaQuo q1) (dfaQuo q2)
 
+emptyDFAStateQuotient :: DFAStateQuotient
+emptyDFAStateQuotient = DFAQuo Set.empty
+
+addDFAStateQuotient :: CfgDet -> DFAStateQuotient -> DFAStateQuotient
+addDFAStateQuotient cfg q =
+  DFAQuo $ Set.insert cfg (dfaQuo q)
+
 convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
 convertDFAStateToQuotient ih s =
-  DFAQuo (helper s)
+  helper s
   where
     helper set =
       case iterDFAState set of
-        Nothing -> Set.empty
+        Nothing -> emptyDFAStateQuotient
         Just (entry, es) ->
           let closCfg = closureCfg $ dstDFAState entry
               (_,act,q) = moveCfg $ dstDFAState entry
           in
-          Set.insert (resetCfgDet (moveCfgDetFromPrev ih act q closCfg)) (helper es)
+          addDFAStateQuotient (resetCfgDet (moveCfgDetFromPrev ih closCfg act q)) (helper es)
 
 
 iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
@@ -268,6 +275,7 @@ iterDFAStateQuotient s =
     case lst of
       [] -> Nothing
       x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
+
 
 determinizeDFAStateQuotient :: Aut a => a -> DFAStateQuotient -> Result DetChoice
 determinizeDFAStateQuotient aut s =
