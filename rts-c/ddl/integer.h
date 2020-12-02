@@ -73,9 +73,16 @@ bool operator <= (Integer x, Integer y) { return x.getValue() <= y.getValue(); }
 // borrow
 static inline
 std::ostream& operator<<(std::ostream& os, Integer x) {
-  os << x.getValue();
-  return os;
+  return os << x.getValue();
 }
+
+// borrow
+static inline
+std::ostream& toJS(std::ostream& os, Integer x) {
+  return os << std::dec << x.getValue();
+}
+
+
 
 
 template <int owned>  // bitmask for ownership of argument

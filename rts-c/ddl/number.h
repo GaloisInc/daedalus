@@ -120,15 +120,20 @@ Integer lcat(Integer x, UInt<b> y) {
 template <int w>
 static inline
 std::ostream& operator<<(std::ostream& os, UInt<w> x) {
-  std::ios_base::fmtflags saved(os.flags());
-
   os << "0x" << std::hex;
   os.fill('0');
   if constexpr (w > 0) os.width((w+3)/4);
   os << (uint64_t)x.rep();
-  os.flags(saved);
   return os;
 }
+
+
+template <int w>
+static inline
+std::ostream& toJS(std::ostream& os, UInt<w> x) {
+  return os << std::dec << (unsigned long) x.rep();
+}
+
 
 
 
@@ -202,9 +207,17 @@ SInt<a> lcat(SInt<a> x, SInt<b> y) {
 template <int w>
 static inline
 std::ostream& operator<<(std::ostream& os, SInt<w> x) {
-  os << (int64_t) x.rep();
-  return os;
+  return os << (int64_t) x.rep();
 }
+
+template <int w>
+static inline
+std::ostream& toJS(std::ostream& os, SInt<w> x) {
+  return os << (long)x.rep();
+}
+
+
+
 
 }
 

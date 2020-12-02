@@ -207,6 +207,25 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
 }
 
 
+// borrow
+template <typename T>
+inline
+std::ostream& toJS(std::ostream& os, Array<T> x) {
+  size_t n = x.size();
+
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
+  for (size_t i = 0; i < n; ++i) {
+    toJS(os << sep, x.borrowElement(i));
+    sep[0] = ',';
+  }
+  os << "]";
+  return os;
+}
+
+
+
 
 
 

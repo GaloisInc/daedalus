@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
   }
 
   for (size_t i = 0; i < resultNum; ++i) {
-    cout << v[i] << endl;
+    DDL::toJS(cout,(ParserResult)v[i]);
   }
 
   return 0;
