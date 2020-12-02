@@ -10,6 +10,8 @@
 module Daedalus.Interp
   ( interp, interpFile
   , compile, Env, interpCompiled
+  , evalType
+  , emptyEnv
   , Value(..)
   , ParseError(..)
   , Result(..)
@@ -48,7 +50,7 @@ import qualified RTS.Vector as RTS
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
 byteStringToValue :: ByteString -> Value
-byteStringToValue = VArray . Vector.fromList . map (VUInt 8 . fromIntegral) . BS.unpack 
+byteStringToValue = VArray . Vector.fromList . map (VUInt 8 . fromIntegral) . BS.unpack
 
 vUnit :: Value
 vUnit = VStruct []
@@ -382,8 +384,8 @@ compilePureExpr env = go
 
         TCLiteral (LBool b)   _ -> VBool b
         TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
-        TCLiteral (LBytes bs) _ -> byteStringToValue bs 
-        
+        TCLiteral (LBytes bs) _ -> byteStringToValue bs
+
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
@@ -898,7 +900,3 @@ interpFile input prog startName = do
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]
-
-
-
-
