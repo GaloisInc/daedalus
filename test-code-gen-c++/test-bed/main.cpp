@@ -9,7 +9,7 @@ using namespace std;
 
 
 // Just a quick hack, doesn't close file descriptor
-char *getBytes(const char *file) {
+char *getBytes(const char *file, size_t &size) {
 
   int fd = open(file,O_RDONLY);
   if (fd == -1) return nullptr;
@@ -17,7 +17,8 @@ char *getBytes(const char *file) {
   struct stat info;
   if (fstat(fd, &info) != 0) return nullptr;
 
-  char* bytes = (char*)mmap(NULL, info.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  size = info.st_size;
+  char* bytes = (char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (bytes == MAP_FAILED) return nullptr;
 
   return bytes;
@@ -38,13 +39,14 @@ int main(int argc, char* argv[]) {
     i = DDL::Input("(none)","");
   } else {
     char *file = argv[1];
-    char *bytes = getBytes(file);
+    size_t size = 0;
+    char *bytes = getBytes(file,size);
     if (bytes == nullptr) {
       // Does not escape quotes...
       cout << "Failed to open file \"" << file << '"' << endl;
       return 1;
     }
-    i = DDL::Input(file,bytes);
+    i = DDL::Input(file,bytes,size);
   }
 
   DDL::Parser<ParserResult> p(i);
