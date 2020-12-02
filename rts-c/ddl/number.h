@@ -91,6 +91,12 @@ UInt<a> lcat(UInt<a> x, UInt<b> y) {
   return UInt<a>((x.data << b) | y.rep());
 }
 
+#ifdef QUICK_INTEGER
+template <int b>
+Integer lcat(Integer x, UInt<b> y) {
+  return Integer((x.asSLong() << b) | y.rep());
+}
+#else
 template <int b>
 Integer lcat(Integer x, UInt<b> y) {
   if (x.refCount() == 1) {
@@ -105,6 +111,7 @@ Integer lcat(Integer x, UInt<b> y) {
     return r;
   }
 }
+#endif
 
 
 

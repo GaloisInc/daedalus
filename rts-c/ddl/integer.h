@@ -3,8 +3,14 @@
 
 #include <gmpxx.h>
 #include <ddl/boxed.h>
+// #define QUICK_INTEGER 1
+
 
 namespace DDL {
+
+#ifdef QUICK_INTEGER
+#include <ddl/int.h>
+#else
 
 class Integer : public Boxed<mpz_class> {
 
@@ -202,7 +208,7 @@ Integer operator >> (Integer x, Integer iamt) {
 
 // NOTE: lcat is in `number.h` to avoid dependency convlicts
 
-
+#endif
 
 
 }
