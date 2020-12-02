@@ -16,7 +16,8 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import RTS.Input(Input(..))
+import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
+import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
@@ -577,20 +578,6 @@ tODOCONST :: Integer
 tODOCONST = 2
 
 
-coerceVal :: Type -> Type -> Val -> Val
-coerceVal ty1 ty2 v =
-  case v of
-    Interp.VUInt _n x ->
-      case ty2 of
-        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) x
-        Type (TInteger) -> Interp.VInteger x
-        _ -> error $ "TODO type:" ++ show (ty1,ty2,v)
-    Interp.VInteger _ ->
-      case (ty1, ty2) of
-        (Type (TInteger), Type (TInteger)) -> v
-        _ -> error $ "TODO type: " ++ show (ty1,ty2,v)
-    _ -> error $ "TODO vallue: " ++ show (ty1,ty2,v)
-
 isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
   case texprValue e of
@@ -638,7 +625,9 @@ evalVExpr gbl expr ctrl out =
     eval :: Show a => Maybe [(Name, Interp.Value)] -> TC a Value -> Interp.Value
     eval env e =
       case texprValue e of
-        TCCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
+        TCCoerce _ty1 ty2 e1 ->
+          let ev = eval env e1 in
+          fst $ doCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
         TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
@@ -1178,10 +1167,11 @@ applySemanticAction gbl (ctrl, out) act =
              then Nothing
              else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
-    CoerceCheck _ t1 t2 e1 ->
-      -- TODO : maybe still incomplete
-      let ev1 = evalVExpr gbl e1 ctrl out
-      in Just $ (SEVal $ coerceVal t1 t2 ev1) : out
+    CoerceCheck s _t1 t2 e1 ->
+      let ev1 = evalVExpr gbl e1 ctrl out in
+        case doCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
+          (v, NotLossy) -> resultWithSem s v
+          (_, Lossy) -> Nothing -- error "Lossy coercion"
     SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
