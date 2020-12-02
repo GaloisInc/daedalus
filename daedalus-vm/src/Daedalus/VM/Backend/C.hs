@@ -163,7 +163,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
          in getArgs
-         $$ dbg
+         -- $$ dbg
          $$ vcat (map cBlockStmt (blockInstrs b))
          $$ vcat (cTermStmt (blockTerm b))
 
