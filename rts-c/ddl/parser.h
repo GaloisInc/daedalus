@@ -22,6 +22,7 @@ class Parser {
   size_t                fail_offset;    // largest, only if `results` empty
   Stack                 stack;
   std::vector<Thread>   suspended;
+  // size_t                time = 0;
 
 
 public:
@@ -36,7 +37,11 @@ public:
   // ------------------------------------------------------------------------
 
   // Argument is owned
-  void setInput(Input i) { input.free(); input = i; }
+  void setInput(Input i) {
+    input.free(); input = i;
+    // std::cout << time << ", " << i.getOffset() << std::endl;
+    // ++time;
+  }
 
   // Returns a copy of the current input (result is owned)
   Input getInput() { input.copy(); return input; }
