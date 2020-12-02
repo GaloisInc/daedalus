@@ -553,7 +553,10 @@ applyBinop op e1 e2 =
             _          -> error "BUG: 1st argument to (<#) must be numeric"
         _ -> error "BUG: 2nd argument of (<#) should be UInt"
 
-
+    ArrayStream ->
+      Interp.VStream (newInput nm bs)
+      where nm = valueToByteString e1
+            bs = valueToByteString e2
     _ -> error ("TODO: " ++ show op)
 
 

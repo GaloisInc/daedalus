@@ -1,0 +1,16 @@
+module P037
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P037.Main : Grammar (uint 8) =
+  do SetStream (arrayStream "hello" [3])
+     ($$ : uint 8) <- Match {'\ETX'}
+     pure $$
+ 
+P037._Main : Grammar {} =
+  do SetStream (arrayStream "hello" [3])
+     @Match {'\ETX'}
