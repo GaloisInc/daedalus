@@ -262,6 +262,19 @@ addDFAStateQuotient :: CfgDet -> DFAStateQuotient -> DFAStateQuotient
 addDFAStateQuotient cfg q =
   DFAQuo $ Set.insert cfg (dfaQuo q)
 
+measureDFAStateQuotient :: DFAStateQuotient -> Int
+measureDFAStateQuotient s =
+  helper s 0
+  where
+    helper qq r =
+      case iterDFAStateQuotient qq of
+        Nothing -> r
+        Just (cfg, qs) ->
+          let iCtrl = lengthSymbolicStack (cfgCtrl cfg)
+              iSem = lengthSymbolicStack (cfgSem cfg)
+              newR = max iSem (max iCtrl r)
+          in helper qs newR
+
 convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
 convertDFAStateToQuotient ih s =
   helper s

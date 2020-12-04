@@ -2,6 +2,7 @@
 
 module Daedalus.ParserGen.LL.CfgDet
   ( SymbolicStack(..),
+    lengthSymbolicStack,
     SlkInput,
     CfgDet(..),
     compareCfgDet,
@@ -53,6 +54,11 @@ data SymbolicStack a =
   | SCons a (SymbolicStack a)
   deriving (Eq, Ord, Show)
 
+lengthSymbolicStack :: SymbolicStack a -> Int
+lengthSymbolicStack s =
+  case s of
+    SCons _ rs -> 1 + lengthSymbolicStack rs
+    _ -> 0
 
 -- instance Show a => Show (SymbolicStack a) where
 --   show SWildcard = "*"
