@@ -7,9 +7,12 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
     iterDFAState,
     findAllEntryInDFAState,
     DetChoice,
-    DFAStateQuotient,
+    DFAStateQuotient(..),
     mkDFAStateQuotient,
+    nullDFAStateQuotient,
     convertDFAStateToQuotient,
+    iterDFAStateQuotient,
+    measureDFAStateQuotient,
     determinizeDFAStateQuotient,
   ) where
 
@@ -250,6 +253,10 @@ instance Ord DFAStateQuotient where
 
 emptyDFAStateQuotient :: DFAStateQuotient
 emptyDFAStateQuotient = DFAQuo Set.empty
+
+nullDFAStateQuotient :: DFAStateQuotient -> Bool
+nullDFAStateQuotient q =
+  Set.null (dfaQuo q)
 
 addDFAStateQuotient :: CfgDet -> DFAStateQuotient -> DFAStateQuotient
 addDFAStateQuotient cfg q =
