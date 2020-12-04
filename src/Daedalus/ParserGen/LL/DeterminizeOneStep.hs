@@ -266,7 +266,10 @@ convertDFAStateToQuotient ih s =
           let closCfg = closureCfg $ dstDFAState entry
               (_,act,q) = moveCfg $ dstDFAState entry
           in
-          addDFAStateQuotient (resetCfgDet (moveCfgDetFromPrev ih closCfg act q)) (helper es)
+          let mCfg = moveCfgDetFromPrev ih closCfg act q in
+            case mCfg of
+              Nothing -> helper es
+              Just newCfg -> addDFAStateQuotient newCfg (helper es)
 
 
 iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
