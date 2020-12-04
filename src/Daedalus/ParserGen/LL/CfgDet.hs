@@ -71,7 +71,7 @@ data SlkActivationFrame =
   deriving (Show, Eq, Ord)
 
 data SlkControlElm =
-    SlkManyFrame !(SlkBetweenItv) !Int
+    SlkManyFrame !(SlkBetweenItv) (Slk Int)
   | SlkCallFrame Name State SlkActivationFrame SlkSemanticData
   deriving (Show, Eq, Ord)
 
@@ -252,36 +252,59 @@ slkValToInt s =
                 Right _ -> error "cannot be applied to a stream"
        ) s
 
-unlimitedBound :: SlkBetweenItv -> Bool
-unlimitedBound b =
-  case b of
-    SlkCExactly _ -> False
-    SlkCBetween _ Nothing -> True
-    _ -> False
 
--- This functions returns possibly many new symbolic stack because of
--- the Pop transitions that are not deterministic when the Stack is
--- Wildcard
+-- The `Many` operator is symbolically executed in the following manner.
+-- If the bound is `Exactly` and determined then the count is concretely used.
+-- If the bound is `Exactly` and abstract then the count abstract.
+-- If the bound is `Between` and the upper bound is unlimited or limited but abstract then the count is abstract
+-- If the bound is `Between` and the upper bound is limited and known then the count is concretely used
+-- NOTE: We could do something when the bound is between and the lower bound is limited.
+setupCountFromBound :: SlkBetweenItv -> Slk Int
+setupCountFromBound sbet =
+  case sbet of
+    SlkCExactly Wildcard -> Wildcard
+    SlkCExactly (SConcrete _) -> SConcrete 0
+    SlkCBetween _ Nothing -> Wildcard
+    SlkCBetween _ (Just Wildcard) -> Wildcard
+    SlkCBetween _ (Just (SConcrete _)) -> SConcrete 0
+
+incrBound :: SlkBetweenItv -> Slk Int -> Slk Int
+incrBound sbet scnt =
+  case (sbet, scnt) of
+    (SlkCExactly (Wildcard), Wildcard) -> Wildcard
+    (SlkCExactly (SConcrete _), SConcrete cnt) -> SConcrete (cnt+1)
+    (SlkCBetween _ Nothing, Wildcard) -> Wildcard
+    (SlkCBetween _ (Just Wildcard), Wildcard) -> Wildcard
+    (SlkCBetween _ (Just (SConcrete _)), SConcrete cnt) -> SConcrete (cnt+1)
+    _ -> error "case not handled"
+
+getCount :: Slk Int -> Int
+getCount (SConcrete cnt) = cnt
+getCount _ = error "broken invariant"
+
+
 symbExecCtrlNonPop :: Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction -> Maybe (SlkControlData, SlkSemanticData)
 symbExecCtrlNonPop _aut ctrl out act =
   case act of
     BoundSetup bound ->
-      case bound of
-        Exactly v ->
-          let ev = symbolicEval v ctrl out
-              i = slkValToInt ev
-          in Just (SCons (SlkManyFrame (SlkCExactly i) 0) ctrl, out)
-        Between v1 v2 ->
-          let ev1 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v1
-              ev2 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v2
-          in Just (SCons (SlkManyFrame (SlkCBetween ev1 ev2) 0) ctrl, out)
+      let sbound =
+            case bound of
+              Exactly v ->
+                let ev = symbolicEval v ctrl out
+                    i = slkValToInt ev
+                in SlkCExactly i
+              Between v1 v2 ->
+                let ev1 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v1
+                    ev2 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v2
+                in SlkCBetween ev1 ev2
+      in Just (SCons (SlkManyFrame sbound (setupCountFromBound sbound)) ctrl, out)
     BoundCheckSuccess ->
       case ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame (SlkCExactly si) cnt) rest ->
           case si of
             SConcrete i ->
-              if i == cnt
+              if i == getCount cnt
               then Just (rest, out)
               else if i < 0
                    then Just (rest, out) -- case aligned with DaeDaLus interp. `Nothing` could be another option
@@ -294,20 +317,18 @@ symbExecCtrlNonPop _aut ctrl out act =
             (Nothing, Just sjj) ->
               case sjj of
                 SConcrete jj ->
-                  if jj >= cnt then Just (rest, out) else Nothing
+                  if jj >= getCount cnt then Just (rest, out) else Nothing
                 Wildcard -> Just (rest, out)
-            (Just sii, Nothing) ->
-              case sii of
-                SConcrete ii -> if ii <= cnt then Just (rest, out) else Nothing
-                Wildcard -> Just (rest, out)
+            (Just _sii, Nothing) ->
+              Just (rest, out)
             (Just sii, Just sjj) ->
               case (sii, sjj) of
                 (SConcrete ii, SConcrete jj) ->
-                  if ii <= cnt && jj >= cnt then Just (rest, out) else Nothing
-                (SConcrete ii, Wildcard) ->
-                  if ii <= cnt then Just (rest, out) else Nothing
+                  if ii <= getCount cnt && jj >= getCount cnt then Just (rest, out) else Nothing
+                (SConcrete _ii, Wildcard) ->
+                  Just (rest, out)
                 (Wildcard, SConcrete jj) ->
-                  if jj >= cnt then Just (rest, out) else Nothing
+                  if jj >= getCount cnt then Just (rest, out) else Nothing
                 (Wildcard, Wildcard) -> Just (rest, out)
         SWildcard -> Just (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
@@ -317,7 +338,7 @@ symbExecCtrlNonPop _aut ctrl out act =
         SCons (SlkManyFrame (SlkCExactly si) cnt) _ ->
           case si of
             SConcrete i ->
-              if i > cnt then Just (ctrl, out) else Nothing
+              if i > getCount cnt then Just (ctrl, out) else Nothing
             Wildcard -> Just (ctrl, out)
         SCons (SlkManyFrame (SlkCBetween _ sj) cnt) _ ->
           case sj of
@@ -325,7 +346,7 @@ symbExecCtrlNonPop _aut ctrl out act =
             Just sjj ->
               case sjj of
                 SConcrete jj ->
-                  if jj > cnt then Just (ctrl, out) else Nothing
+                  if jj > getCount cnt then Just (ctrl, out) else Nothing
                 Wildcard -> Just (ctrl, out)
         SWildcard -> Just (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
@@ -333,9 +354,7 @@ symbExecCtrlNonPop _aut ctrl out act =
       case ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame bound cnt) rest ->
-          if unlimitedBound bound
-          then Just (SCons (SlkManyFrame bound cnt) rest, out) -- only increment the cnt when the bound is limited
-          else Just (SCons (SlkManyFrame bound (cnt+1)) rest, out)
+          Just (SCons (SlkManyFrame bound (incrBound bound cnt)) rest, out)
         SWildcard -> Just (ctrl, out)
         _ -> error ("Unexpected ctrl stack top element:" ++ show ctrl)
     Push rname le q ->
@@ -365,6 +384,9 @@ symbExecCtrlNonPop _aut ctrl out act =
       )
     _ -> Just (ctrl, out)
 
+-- This functions returns possibly many new symbolic stack because of
+-- the Pop transitions that are not deterministic when the Stack is
+-- Wildcard
 symbExecCtrl :: Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction -> State -> Maybe [(SlkControlData, SlkSemanticData, State)]
 symbExecCtrl aut ctrl out act q2 =
   case act of
