@@ -20,6 +20,7 @@ data AbortOption =
   | AbortClassNotHandledYet String
   | AbortSymbolicExec
   | AbortIncompatibleInput
+  | AbortOverflowCfg
 
   | AbortAmbiguous
   | AbortOverflowK
@@ -38,6 +39,7 @@ instance Show(AbortOption) where
       AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
       AbortSymbolicExec -> "AbortSymbolicExec"
       AbortIncompatibleInput -> "AbortIncompatibleInput"
+      AbortOverflowCfg -> "AbortOverflowCfg"
       AbortAmbiguous -> "AbortAmbiguous"
       AbortOverflowK -> "AbortOverflowK"
 
