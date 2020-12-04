@@ -6,7 +6,6 @@ module Daedalus.ParserGen.LL.CfgDet
     CfgDet(..),
     compareCfgDet,
     initCfgDet,
-    resetCfgDet,
     simulateActionCfgDet,
     InputHeadCondition(..),
     matchInputHeadCondition,
@@ -100,14 +99,20 @@ data SlkInput =
   | InpEnd
   deriving (Show, Ord)
 
-nextSlkInput :: SlkInput -> SlkInput
+nextSlkInput :: SlkInput -> Maybe SlkInput
 nextSlkInput inp =
   case inp of
-    InpBegin -> InpBegin
-    InpTake _ _ -> InpNext 1 inp
-    InpDrop _ _ -> inp
-    InpNext n inp1 -> InpNext (n+1) inp1
-    InpEnd -> error "not possible"
+    InpBegin ->
+      -- when the input is unconstrained the advancement of the input is not tracked
+      Just InpBegin
+    InpTake n _ -> if 1 <= n then Just $ InpNext 1 inp else Nothing
+    InpDrop _ _ -> Just inp
+    InpNext i inp1@(InpTake n _) ->
+      if (i+1 <= n)
+      then Just $ InpNext (i+1) inp1
+      else Nothing
+    InpEnd -> error "not possible InpEnd"
+    _ -> error ("not possible: " ++ show inp)
 
 newtype InputWindow = InputWindow { _win :: (Int, Maybe Int) }
   deriving(Eq)
@@ -580,33 +585,35 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-moveCfgDetFromPrev :: InputHeadCondition -> CfgDet -> Action -> State -> CfgDet
+moveCfgDetFromPrev :: InputHeadCondition -> CfgDet -> Action -> State -> Maybe CfgDet
 moveCfgDetFromPrev ih cfg act q =
-  case (ih, act) of
-    (HeadInput _itv, IAct (ClssAct w _)) ->
-      case w of
-        YesSem ->
-          CfgDet
-          { cfgState = q
-          , cfgCtrl = cfgCtrl cfg
-          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-          , cfgInput = nextSlkInput (cfgInput cfg)
-          }
-        NoSem ->
-          CfgDet
-          { cfgState = q
-          , cfgCtrl = cfgCtrl cfg
-          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-          , cfgInput = nextSlkInput (cfgInput cfg)
-          }
-    (EndInput, IAct (IEnd)) ->
-      CfgDet
-      { cfgState = q
-      , cfgCtrl = cfgCtrl cfg
-      , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-      , cfgInput = nextSlkInput (cfgInput cfg)
-      }
-    _ -> error "impossible"
-
-resetCfgDet :: CfgDet -> CfgDet
-resetCfgDet cfg = cfg
+  let mNewInput = nextSlkInput (cfgInput cfg)
+  in
+    case mNewInput of
+      Nothing -> Nothing
+      Just newInput ->
+        case (ih, act) of
+          (HeadInput _itv, IAct (ClssAct w _)) ->
+            case w of
+              YesSem ->
+                Just $ CfgDet
+                { cfgState = q
+                , cfgCtrl = cfgCtrl cfg
+                , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+                , cfgInput = newInput
+                }
+              NoSem ->
+                Just $ CfgDet
+                { cfgState = q
+                , cfgCtrl = cfgCtrl cfg
+                , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+                , cfgInput = newInput
+                }
+          (EndInput, IAct (IEnd)) ->
+            Just $ CfgDet
+            { cfgState = q
+            , cfgCtrl = cfgCtrl cfg
+            , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+            , cfgInput = newInput
+            }
+          _ -> error "impossible"
