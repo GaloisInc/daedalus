@@ -15,7 +15,6 @@ where
 
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
 
@@ -46,9 +45,12 @@ insertExplicitDFA :: DFAStateQuotient -> Result DFATransition -> ExplicitDFA -> 
 insertExplicitDFA q tr dfa =
   Map.insert q tr dfa
 
-showDFATransition :: (State, ExplicitDFA) -> String
+emptyExplicitDFA :: ExplicitDFA
+emptyExplicitDFA = Map.empty
+
+showDFATransition :: (DFAStateQuotient, ExplicitDFA) -> String
 showDFATransition (q, dfa) =
-  showTrans [] 0 (mkDFAStateQuotient q)
+  showTrans [] 0 q
   where
     showTrans :: [DFAStateQuotient] -> Int -> DFAStateQuotient -> String
     showTrans vis d qq =
@@ -85,9 +87,9 @@ showDFATransition (q, dfa) =
     space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
-lookaheadDepth :: (State, ExplicitDFA) -> Int
+lookaheadDepth :: (DFAStateQuotient, ExplicitDFA) -> Int
 lookaheadDepth (q, dfa) =
-  helper [] (mkDFAStateQuotient q)
+  helper [] q
   where
     helper :: [DFAStateQuotient] -> DFAStateQuotient -> Int
     helper vis qq =
@@ -172,24 +174,46 @@ analyzeConflicts ts =
           then Ambiguous
           else isAnyAmbiguous rest
 
+revAppend :: [a] -> [a] -> [a]
+revAppend [] ys = ys
+revAppend (x:xs) ys = revAppend xs (x:ys)
 
-createDFAtable :: Aut a => a -> DFAStateQuotient -> ExplicitDFA
+type DiscoveredDFAStates = [DFAStateQuotient]
+
+emptyDiscoveredDFAStates :: DiscoveredDFAStates
+emptyDiscoveredDFAStates = []
+
+addDiscoveredDFAStates :: DFAStateQuotient -> DiscoveredDFAStates -> DiscoveredDFAStates
+addDiscoveredDFAStates q cont = q : cont
+
+mergeDiscoveredDFAStates :: DiscoveredDFAStates -> DiscoveredDFAStates -> DiscoveredDFAStates
+mergeDiscoveredDFAStates cont1 cont2 = cont1 ++ cont2
+
+
+oVERFLOW_CFG :: Int
+oVERFLOW_CFG = 10
+
+createDFAtable :: Aut a => a -> DFAStateQuotient -> (ExplicitDFA, DiscoveredDFAStates)
 createDFAtable aut qInit =
-  go [(qInit,0)] [] Map.empty
+  if measureDFAStateQuotient qInit > oVERFLOW_CFG
+  then (insertExplicitDFA qInit (Abort AbortOverflowCfg) emptyExplicitDFA, [])
+  else
+    let (resDfa, cont) = go [(qInit,0)] [] (emptyExplicitDFA, [])
+    in (resDfa, reverse cont)
   where
-    go :: [ (DFAStateQuotient, Int) ] -> [ (DFAStateQuotient, Int) ] -> ExplicitDFA -> ExplicitDFA
-    go toVisit accToVisit dfa =
+    go :: [ (DFAStateQuotient, Int) ] -> [ (DFAStateQuotient, Int) ] -> (ExplicitDFA, DiscoveredDFAStates) -> (ExplicitDFA, DiscoveredDFAStates)
+    go toVisit accToVisit acc@(dfa, cont) =
       case toVisit of
         [] -> case accToVisit of
-                [] -> dfa
-                _ -> go (reverse accToVisit) [] dfa
+                [] -> acc
+                _ -> go (reverse accToVisit) [] acc
         (q, depth) : rest ->
           case lookupExplicitDFA q dfa of
             Nothing ->
               if depth > maxDepthDet
               then
                 let newDfa = insertExplicitDFA q (Abort AbortOverflowK) dfa
-                in go rest accToVisit newDfa
+                in go rest accToVisit (newDfa, cont)
               else
                 let choices = detSubset q
                     newDfa = insertExplicitDFA q choices dfa
@@ -197,24 +221,21 @@ createDFAtable aut qInit =
                   case choices of
                     Result (DChoice r1) ->
                       let
-                        newToVisit = collectToVisit (depth+1) r1
+                        (newToVisit, newToCont) = collectVisitAndCont (depth+1) r1
                         newAccToVisit = revAppend newToVisit accToVisit
-                      in go rest newAccToVisit newDfa
-                    _ -> go rest accToVisit newDfa
+                        newCont = mergeDiscoveredDFAStates newToCont cont
+                      in go rest newAccToVisit (newDfa, newCont)
+                    _ -> go rest accToVisit (newDfa, cont)
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
-              go rest accToVisit dfa
+              go rest accToVisit acc
 
-    collectToVisit :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> [(DFAStateQuotient, Int)]
-    collectToVisit depth lst =
-      foldr (\ (_, _, am, qq) b ->
+    collectVisitAndCont :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ([(DFAStateQuotient, Int)], DiscoveredDFAStates)
+    collectVisitAndCont depth lst =
+      foldr (\ (_, _, am, qq) (vis, cont) ->
                case am of
-                 Ambiguous -> b
-                 NotAmbiguous -> b
-                 DunnoAmbiguous -> (qq, depth) : b) [] lst
-
-    revAppend :: [a] -> [a] -> [a]
-    revAppend [] ys = ys
-    revAppend (x:xs) ys = revAppend xs (x:ys)
+                 Ambiguous -> (vis, cont)
+                 NotAmbiguous -> (vis, addDiscoveredDFAStates qq cont)
+                 DunnoAmbiguous -> ((qq, depth) : vis, cont)) ([], emptyDiscoveredDFAStates) lst
 
     detSubset :: DFAStateQuotient -> Result DFATransition
     detSubset s =
@@ -246,9 +267,9 @@ createDFAtable aut qInit =
 
 
 
-hasFullResolution :: (State, ExplicitDFA) -> Bool
+hasFullResolution :: (DFAStateQuotient, ExplicitDFA) -> Bool
 hasFullResolution (start, dfa) =
-  traverseWithVisited [] (mkDFAStateQuotient start)
+  traverseWithVisited [] start
   where
     traverseWithVisited visited q =
       if elem q visited
@@ -270,9 +291,9 @@ hasFullResolution (start, dfa) =
             Ambiguous -> False
             DunnoAmbiguous -> traverseWithVisited visited qq && helper visited rest
 
-hasNoAbort :: (State, ExplicitDFA) -> Bool
+hasNoAbort :: (DFAStateQuotient, ExplicitDFA) -> Bool
 hasNoAbort (start, dfa)  =
-  traverseWithVisited [] (mkDFAStateQuotient start)
+  traverseWithVisited [] start
 
   where
     traverseWithVisited visited q =
@@ -298,12 +319,16 @@ hasNoAbort (start, dfa)  =
 
 
 
-type AutDet = IntMap.IntMap (ExplicitDFA, Bool)
+type AutDet = Map.Map DFAStateQuotient (ExplicitDFA, Bool)
 
 lookupAutDet :: State -> AutDet -> Maybe (ExplicitDFA, Bool)
-lookupAutDet q aut = IntMap.lookup q aut
+lookupAutDet q aut = Map.lookup (mkDFAStateQuotient q) aut
 
+insertAutDet :: DFAStateQuotient -> (ExplicitDFA, Bool) -> AutDet -> AutDet
+insertAutDet q v aut = Map.insert q v aut
 
+emptyAutDet :: AutDet
+emptyAutDet = Map.empty
 
 type Prediction = ChoiceSeq
 
@@ -384,16 +409,8 @@ predictLL (start, dfa) i =
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
   let collectedStates = identifyStartStates ()
-      statesDet =
-        map
-        (\ q ->
-           let
-             initStateQuotient = mkDFAStateQuotient q
-             t = createDFAtable aut initStateQuotient in
-             (q, (t, hasFullResolution (q,t) )))
-        (Set.toList collectedStates)
   in
-    IntMap.fromAscList statesDet
+    go (Set.toList (Set.map mkDFAStateQuotient collectedStates)) [] emptyAutDet
   where
     identifyStartStates () =
       let transitions = allTransitions aut in
@@ -414,15 +431,43 @@ createDFA aut =
         then Set.singleton q1
         else Set.empty
 
+    go :: [DFAStateQuotient] -> [DFAStateQuotient] -> AutDet -> AutDet
+    go toVisit nextRound res =
+      if Map.size res > 1000000 then error "Stop" else
+      -- trace (show (Map.size res)) $
+      case toVisit of
+        [] -> case nextRound of
+                [] -> res
+                _ -> go (reverse nextRound) [] res
+        q : qs ->
+          -- trace (show q) $
+          if Map.member q res
+          then go qs nextRound res
+          else
+            let (t, discovered) = createDFAtable aut q
+                newRes = insertAutDet q (t, hasFullResolution (q,t)) res
+                newNextRound = revAppend discovered nextRound
+            in go qs newNextRound newRes
+
+
+showStartDFA :: Aut a => a -> DFAStateQuotient -> String
+showStartDFA aut q =
+  case iterDFAStateQuotient q of
+    Nothing -> "SINK STATE"
+    Just (cfg, qs) ->
+      if nullDFAStateQuotient qs
+      then stateToString (cfgState cfg) aut
+      else error "broken invariant"
+
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
-  let t = IntMap.toList dfas
-      tAnnotated = map (\ (q, (dfa, _)) -> ((stateToString q aut, q), (q, dfa))) t
+  let t = Map.toAscList dfas
+      tAnnotated = map (\ (q, (dfa, _)) -> ((showStartDFA aut q, q), (q, dfa))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
-  in if length t > 10000
+  in if length t > 1000
      then do return ()
-     else mapM_ (\ ((ann, _), (q, (dfa))) ->
+     else mapM_ (\ ((ann, _), (q, dfa)) ->
                     -- if (lookaheadDepth (q, dfa) < 10)
                     -- then
                     --   return ()
@@ -436,7 +481,7 @@ printDFA aut dfas =
 
 statsDFA :: Aut a => a -> AutDet -> IO ()
 statsDFA aut dfas =
-  let t = IntMap.toList dfas
+  let t = Map.toAscList dfas
   in do printDFA aut dfas
         putStrLn "\nReport:"
         putStrLn $ getReport t initReport
@@ -453,9 +498,9 @@ statsDFA aut dfas =
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
 
-    mapResultToKey :: (State, ExplicitDFA) -> String
+    mapResultToKey :: (DFAStateQuotient, ExplicitDFA) -> String
     mapResultToKey (q, dfa) =
-      let r = fromJust (lookupExplicitDFA (mkDFAStateQuotient q) dfa)
+      let r = fromJust (lookupExplicitDFA q dfa)
       in
       case r of
         Abort AbortAmbiguous -> result "-ambiguous-0"
@@ -475,7 +520,7 @@ statsDFA aut dfas =
         _ -> abortToString r
 
 
-    incrReport :: Map.Map String Int -> (State, ExplicitDFA) -> Map.Map String Int
+    incrReport :: Map.Map String Int -> (DFAStateQuotient, ExplicitDFA) -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in
