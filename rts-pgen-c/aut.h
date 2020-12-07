@@ -35,13 +35,6 @@ typedef struct _Aut {
 #define SEQCHOICE 2
 #define PARCHOICE 3
 
-
-#define MAKE_ACT_READCHAR(c) {.tag = ACT_ReadChar, .chr = c}
-#define MAKE_ACT_STORE_SEM(v) {.tag = ACT_STORE_SEM, .kv = v}
-#define MAKE_ACT_PUSH(v) {.tag = ACT_PUSH, .state = v}
-#define MAKE_ACT_POP() {.tag = ACT_Pop}
-#define MAKE_ACT_END {.tag = ACT_END}
-
-extern char * action_to_string(Action * act);
+extern char * actionToString(Action * act);
 
 #endif /* AUT_H */

@@ -5,19 +5,9 @@
 
 #include "cfg.h"
 
-typedef enum _ActionType {
-    ACT_EpsA,
-    ACT_ReadChar,
-    ACT_Match,
-    ACT_Push,
-    ACT_Pop,
-    ACT_ReturnBind,
-    ACT_EnvFresh,
-    ACT_EnvStore,
-    ACT_ActivateFrame,
-    ACT_DeactivateReady,
-    ACT_END
-} ActionType ;
+//--------------------------------------------------------------------------//
+// Expression Type
+//--------------------------------------------------------------------------//
 
 typedef enum _ExprType {
     E_INT,
@@ -43,19 +33,147 @@ typedef struct KeyValuePair {
     Value * value;
 } KeyValue;
 
-typedef struct _Action {
+
+/*
+
+Action
+   ACT_EpsA
+   ACT_InputAction
+   ACT_ControlAction
+   ACT_SemanticAction
+
+
+
+InputAction
+    ACT_IEnd                ---> []
+    ACT_IMatchBytes         ---> WithSem VExpr
+    ACT_ReadChar            ---> char
+
+ControlAction
+    ACT_Push                ---> Name, [VExpr], State
+    ACT_Pop                 ---> []
+    ACT_ActivateFrame       ---> NameList
+    ACT_DeactivateReady     ---> []
+
+SemanticAction
+    ACT_EnvFresh,           ---> []
+    ACT_EnvStore,           ---> Name
+    ACT_ReturnBind,         ---> Var / should be VExpr
+
+*/
+
+//--------------------------------------------------------------------------//
+// Input Action Definitions
+//--------------------------------------------------------------------------//
+
+typedef enum {
+    ACT_IEnd,
+    ACT_IMatchBytes,
+    ACT_Temp_ReadChar
+} InputActionType;
+
+typedef struct {
+    int withsem;
+    Expr* expr;  //TODO: We must use the equivalent of NVExpr here, not generic Expr
+} IMatchBytesData ;
+
+typedef struct {
+    char chr;
+} ReadCharData;
+
+typedef struct {
+    InputActionType tag;
+    union {
+        IMatchBytesData iMatchBytesData;
+        ReadCharData readCharData;
+    };
+} InputAction ;
+
+//--------------------------------------------------------------------------//
+// Control Action Definitions
+//--------------------------------------------------------------------------//
+
+typedef enum {
+    ACT_Push,
+    ACT_Pop,
+    ACT_ActivateFrame,
+    ACT_DeactivateReady
+} ControlActionType;
+
+typedef struct {
+    char* name;
+    //TODO: Expr List?
+    int state;
+} PushData;
+
+typedef struct {
+    //TODO: Do we need a list of names?
+    char* name;
+} ActivateFrameData;
+
+typedef struct {
+    ControlActionType tag;
+    union {
+        PushData pushData;
+        ActivateFrameData activateFrameData;
+    };
+} ControlAction ;
+
+//--------------------------------------------------------------------------//
+// Semantic Action Definitions
+//--------------------------------------------------------------------------//
+
+typedef enum {
+    ACT_EnvFresh,
+    ACT_EnvStore,
+    ACT_ReturnBind
+} SemanticActionType;
+
+typedef struct {
+    char* name;
+} EnvStoreData;
+
+typedef struct {
+    Expr* expr; //TODO: Should be a VExpr
+} ReturnBindData;
+
+typedef struct {
+    ControlActionType tag;
+    union {
+        EnvStoreData envStoreData;
+        ReturnBindData returnBindData;
+    };
+} SemanticAction ;
+
+//--------------------------------------------------------------------------//
+// Action Definitions
+//--------------------------------------------------------------------------//
+
+typedef enum {
+    ACT_EpsA,
+    ACT_InputAction,
+    ACT_ControlAction,
+    ACT_SemanticAction
+} ActionType;
+
+typedef struct {
     ActionType tag;
     union {
-        char chr;
-        int state;
-        KeyValue *kv;
-        Expr* expr;
-        char* name;
-        NameList* namelist;
+        InputAction inputAction;
+        ControlAction controlAction;
+        SemanticAction semanticAction;
     };
 } Action;
 
+
+//--------------------------------------------------------------------------//
+// Functions
+//--------------------------------------------------------------------------//
+
 /** Execute an action */
-Cfg * execAction(Action * act, Cfg* cfg, int arrivState);
+Cfg * applyAction(Action * act, Cfg* cfg, int arrivState);
+
+/** Get a string representation of the action */
+char * actionToString(Action * act);
 
 #endif
