@@ -1,0 +1,76 @@
+module D010
+ 
+--- Imports:
+ 
+--- Type defs:
+type D010.CanDisambiguate = Choose { x: [uint 8]
+                                   ; y: [uint 8]
+                                   }
+ 
+type D010.ShouldAbortWithIncompatibleInput = Choose { x: [uint 8]
+                                                    ; y: [uint 8]
+                                                    }
+ 
+--- Rules:
+ 
+D010.Chunk ?a5 (n : int) (P : Grammar ?a5) : Grammar ?a5 =
+  do (cur : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen n cur
+     (next : Stream) <- StreamOff n cur
+     SetStream this
+     ($$ : ?a5) <- P
+     SetStream next
+     pure $$
+ 
+D010.CanDisambiguate : Grammar D010.CanDisambiguate =
+  Choose fair
+    { {- x -} do (_0 : [uint 8]) <- D010.Chunk [uint 8] 2 do ($$ : [uint 8]) <- MatchBytes "ab"
+                                                             pure $$
+                 pure {x: _0}
+    | {- y -} do (_1 : [uint 8]) <- D010.Chunk [uint 8] 2 do ($$ : [uint 8]) <- MatchBytes "ac"
+                                                             pure $$
+                 pure {y: _1}
+    }
+ 
+D010._Chunk ?a5 (n : int) (_P : Grammar {}) : Grammar {} =
+  do (cur : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen n cur
+     (next : Stream) <- StreamOff n cur
+     SetStream this
+     _P
+     SetStream next
+ 
+D010._CanDisambiguate : Grammar {} =
+  Choose fair
+    { {- x -} D010._Chunk [uint 8] 2 (@MatchBytes "ab")
+    | {- y -} D010._Chunk [uint 8] 2 (@MatchBytes "ac")
+    }
+ 
+D010._ShouldAbortWithIncompatibleInput : Grammar {} =
+  Choose fair
+    { {- x -} do D010._Chunk [uint 8] 1 (@MatchBytes "a")
+                 @MatchBytes "b"
+    | {- y -} D010._Chunk [uint 8] 2 (@MatchBytes "ac")
+    }
+ 
+D010.Main : Grammar {} =
+  do D010._CanDisambiguate
+     D010._ShouldAbortWithIncompatibleInput
+     ($$ : {}) <- END
+     pure $$
+ 
+D010.ShouldAbortWithIncompatibleInput : Grammar D010.ShouldAbortWithIncompatibleInput =
+  Choose fair
+    { {- x -} do (_2 : [uint 8]) <- do D010._Chunk [uint 8] 1 (@MatchBytes "a")
+                                       ($$ : [uint 8]) <- MatchBytes "b"
+                                       pure $$
+                 pure {x: _2}
+    | {- y -} do (_3 : [uint 8]) <- D010.Chunk [uint 8] 2 do ($$ : [uint 8]) <- MatchBytes "ac"
+                                                             pure $$
+                 pure {y: _3}
+    }
+ 
+D010._Main : Grammar {} =
+  do D010._CanDisambiguate
+     D010._ShouldAbortWithIncompatibleInput
+     END

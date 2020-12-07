@@ -22,6 +22,7 @@ class Parser {
   size_t                fail_offset;    // largest, only if `results` empty
   Stack                 stack;
   std::vector<Thread>   suspended;
+  // size_t                time = 0;
 
 
 public:
@@ -36,7 +37,11 @@ public:
   // ------------------------------------------------------------------------
 
   // Argument is owned
-  void setInput(Input i) { input.free(); input = i; }
+  void setInput(Input i) {
+    input.free(); input = i;
+    // std::cout << time << ", " << i.getOffset() << std::endl;
+    // ++time;
+  }
 
   // Returns a copy of the current input (result is owned)
   Input getInput() { input.copy(); return input; }
@@ -77,8 +82,10 @@ public:
 
   // Add to waiting threads
   ThreadId spawn(ThreadClosure *c) {
+    ThreadId id = suspended.size();
+    // std::cout << "spawning thread " << id << std::endl;
     suspended.push_back(Thread(c,stack));
-    return suspended.size();
+    return id;
   }
 
   // True if there are there are threads to resume
@@ -90,6 +97,7 @@ public:
   //    * its stack replaces the current stack
   //    * its closure is pushed on the *new* current stack.
   void *yield() {
+    // std::cout << "yielding\n";
     Thread& t = suspended.back();
     stack.overwriteBy(t.stack);
     ThreadClosure *c = t.closure;

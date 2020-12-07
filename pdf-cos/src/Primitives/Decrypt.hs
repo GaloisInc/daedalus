@@ -7,6 +7,7 @@ import Data.ByteArray as BA
 import Data.Word 
 
 import Crypto.Cipher.AES as Y 
+import Crypto.Cipher.RC4 as Y 
 import Crypto.Cipher.Types as Y 
 import Crypto.Hash as Y 
 import Crypto.Error as Y
@@ -22,59 +23,66 @@ decrypt inp = do
   ctxMaybe <- getEncContext 
   case ctxMaybe of 
     Nothing -> pure inp 
-    Just ctx ->  
-      if B.length dat `mod` 16 /= 0 then 
-        pError FromUser "Decrypt.decrypt" 
-            ("Encrypted data length must be a multiple of block size (16). Actual length: " ++ (show $ B.length dat)) 
-      else do 
-        let aeskey = makeObjKey ctx  
-        dec <- case keylen ctx of 
-                16 -> applyCipher (Y.cipherInit @Y.AES128 aeskey) hd dat 
-                -- XXX: need to work out how to construct key properly 
-                -- 32 -> applyCipher (Y.cipherInit @Y.AES256 aeskey) hd dat 
-                _   -> pError FromUser "Decrypt.decrypt" "Unsupported AES key length" 
-        res <- stripPadding dec 
-        pure $ newInput name res
+    Just ctx -> do 
+      dec <- case (ciph ctx) of 
+              V4AES -> applyCipherAES ctx inp 
+              V4RC4 -> applyCipherRC4 ctx inp 
+              V2    -> applyCipherRC4 ctx inp 
+      pure $ newInput name dec 
   where 
-    (hd, dat) = B.splitAt 16 $ inputBytes inp
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
 
-applyCipher :: (PdfParser m, BlockCipher a) => 
-                   CryptoFailable a  
-                -> B.ByteString 
-                -> B.ByteString 
-                -> m B.ByteString
-applyCipher ciph hd dat = 
-  case ciph of 
+applyCipherAES :: PdfParser m => 
+                  EncContext 
+               -> Input 
+               -> m B.ByteString
+applyCipherAES ctx inp = 
+  if B.length (inputBytes inp) `mod` 16 /= 0 -- XXX: maybe try to recover by padding out with zeroes? 
+  then pError FromUser "Decrypt.decrypt" $ 
+        ("Length of encrypted data must be a multiple of block size (16). Actual length: "
+          ++ (show $ B.length (inputBytes inp))) 
+  else case ciph of 
     Y.CryptoFailed err -> 
       pError FromUser "Decrypt.decrypt" (show err) 
     Y.CryptoPassed ci -> 
       case Y.makeIV hd of 
         Nothing -> 
           pError FromUser "Decrypt.decrypt" "Could not construct AES initial vector" 
-        Just iv -> pure $ Y.cbcDecrypt ci iv dat  
+        Just iv -> stripPadding $ Y.cbcDecrypt ci iv dat 
+  where 
+    objKey = makeObjKey128 ctx True 
+    ciph = Y.cipherInit @Y.AES128 objKey
+    (hd, dat) = B.splitAt 16 $ inputBytes inp
 
+applyCipherRC4 :: PdfParser m => 
+                  EncContext 
+               -> Input 
+               -> m B.ByteString
+applyCipherRC4 ctx inp = 
+    let i = Y.initialize $ makeObjKey128 ctx False 
+    in pure $ snd $ Y.combine i $ inputBytes inp 
 
-makeObjKey :: EncContext 
+makeObjKey128 :: EncContext
+           -> Bool 
            -> B.ByteString 
-makeObjKey ctx = 
-    B.take (keylen ctx + 5) (BA.convert digest)
+makeObjKey128 ctx isAES = 
+    B.take (128 + 5) (BA.convert digest)
   where 
     ob = B.take 3 $ B.reverse $ S.encode (robj ctx)
     gb = B.take 2 $ B.reverse $ S.encode (rgen ctx)
-    salt = B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
+    salt = 
+      case isAES of 
+        True  -> B.pack [0x73, 0x41, 0x6C, 0x54] -- magic string 
+        False -> B.empty 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
--- XXX at the moment, the len field doesn't do anything 
--- The reason is that MD5 always produces 16 bytes. 
--- Need to work out how 32-byte key construction works. 
-makeFileKey :: Int 
-            -> B.ByteString 
+makeFileKey ::
+               B.ByteString 
             -> B.ByteString 
             -> Int
             -> B.ByteString 
             -> B.ByteString
-makeFileKey len pwd opwd perm fileid = 
+makeFileKey pwd opwd perm fileid = 
     iterate doHash firsthash !! 50
   where 
     pwdPadding :: B.ByteString  
@@ -88,7 +96,7 @@ makeFileKey len pwd opwd perm fileid =
     pbytes = B.reverse $ S.encode (fromIntegral perm :: Word32) 
 
     doHash :: B.ByteString -> B.ByteString 
-    doHash bs = B.take len $ BA.convert $ 
+    doHash bs = BA.convert $ 
                   hashFinalize $ 
                     hashUpdate (Y.hashInit @Y.MD5) bs 
 

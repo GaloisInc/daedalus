@@ -1,262 +1,13 @@
 #include "runner.h"
 #include "value.h"
+#include "action.h"
+#include "cfg.h"
 
-//-----------------------------------------------------------------------//
-// Runtime Library: Configurations
-//-----------------------------------------------------------------------//
-
-typedef struct _StackSem {
-    Value * value;
-    struct _StackSem* up;
-} StackSem;
-
-StackSem * initStackSem() {
-    StackSem * st = NULL;
-    return st;
-}
-
-StackSem * pushStackSem(Value * v, StackSem *stack) {
-    StackSem * st = malloc(sizeof(StackSem));
-    st->value = v;
-    st->up = stack;
-
-    return st;
-}
-
-StackSem * updateStackSem(Value * v, StackSem *stack) {
-    StackSem * st = malloc(sizeof(StackSem));
-    st->value = v;
-    st->up = stack;
-
-    return st;
-}
-
-void printStackSem(StackSem * stack) {
-    //Value * value;
-    //struct _StackSem* up;
-    printf("STACK_SEM: ");
-    while (stack != NULL && stack->value != NULL){
-        printf("Elm: ");
-        print_Value(stack->value);
-        stack = stack->up;
-    }
-    printf("\n");
-}
-
-Input * initInput(FILE * f){
-    Input * inp = malloc(sizeof(Input));
-    inp->file = f;
-    inp->posInput = 0;
-
-    return inp;
-}
-
-int endOfInput(Input* input) {
-    fsetpos(input->file, &input->posInput);
-
-
-    int c = fgetc(input->file);
-    if (feof(input->file)) {
-        return 1;
-    } else {
-        ungetc(c, input->file);
-        return 0;
-    }
-}
-
-typedef struct _StackCtrl {
-    int state;
-    struct _StackCtrl * up;
-} StackCtrl;
-
-StackCtrl *  initStackCtrl() {
-    return NULL;
-}
-
-int isEmptyStackCtrl(StackCtrl * ctrl) {
-    return ctrl == NULL;
-}
-
-StackCtrl * pushStackCtrl(int state, StackCtrl *stack) {
-    StackCtrl* st = malloc(sizeof(StackCtrl));
-    st->state = state;
-    st->up = stack;
-
-    return st;
-}
-
-StackCtrl * popStackCtrl(StackCtrl *stack) {
-    //printf("%p\n", stack);
-
-    StackCtrl* up = stack->up;
-    //free(stack); - We may not be able to do this because the stack can be shared in case of multiple simultaneous Cfgs
-
-    return up;
-}
-
-int headStackCtrl(StackCtrl *stack){
-   return stack->state;
-}
-
-typedef struct _Cfg {
-    int state;
-    Input * inp;
-    StackCtrl * ctrl;
-    StackSem * sem;
-    struct _Cfg* next;
-} Cfg;
-
-Cfg * mkCfg(int state, Input * inp, StackCtrl * ctrl, StackSem * sem){
-    Cfg* cfg = malloc(sizeof(Cfg));
-    cfg->state = state;
-    cfg->inp = inp;
-    cfg->ctrl = ctrl;
-    cfg->sem = sem;
-    cfg->next = NULL;
-
-    return cfg;
-}
-
-
-//-----------------------------------------------------------------------//
-// Runtime Library: Action execution
-//-----------------------------------------------------------------------//
-
-
-//Reads a character. Also return the next pos
-int readInput(Input* input, fpos_t* newPos) {
-    fsetpos(input->file, &input->posInput);
-    int c = fgetc(input->file);
-    fgetpos(input->file, newPos);
-    printf("READINPUT %d\n", (int) c);
-    return c;
-}
-
-Input* makeNewInput(FILE* file, fpos_t pos) {
-    Input* newInput = malloc(sizeof(Input));
-    newInput->file = file;
-    newInput->posInput = pos;
-
-    return newInput;
-}
-
-Cfg * execAction(Action * act, Cfg* cfg, int arrivState){
-    printf("execAction\n");
-    printStackSem(cfg->sem);
-    switch (act->tag) {
-        case ACT_END: {
-            fpos_t newPos;
-
-            if (endOfInput(cfg->inp)) { //if (EOF == c) {
-               Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, updateStackSem(empty_dict(), cfg->sem));
-               return newCfg;
-            }
-            else {
-                return NULL;
-            }
-            break;
-        }
-        case ACT_ReadChar: {
-            fpos_t newPos;
-            int c = readInput(cfg->inp, &newPos);
-            if (c == act->chr) {
-               Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, updateStackSem(create_value(c), cfg->sem));
-               return newCfg;
-            }
-            else {
-                printf("Rejecting in state: %d\n", cfg->state);
-                return NULL;
-            }
-            break;
-        }
-        case ACT_Push: {
-            StackCtrl* newCtrlStack = pushStackCtrl(act->state, cfg->ctrl);
-            return mkCfg(arrivState, cfg->inp, newCtrlStack, cfg->sem);
-        }
-        case ACT_Pop: {
-            if (isEmptyStackCtrl(cfg->ctrl))
-                return NULL;
-
-            int newState = headStackCtrl(cfg->ctrl);
-            StackCtrl* newCtrlStack = popStackCtrl(cfg->ctrl);
-            if (newState < 0) {
-                return NULL;
-            }
-
-            return mkCfg(newState, cfg->inp, newCtrlStack, cfg->sem);
-        }
-        case ACT_EnvFresh: {
-            return
-                mkCfg(
-                    arrivState,
-                    cfg->inp,
-                    cfg->ctrl,
-                    updateStackSem(
-                        empty_dict(),
-                        cfg->sem
-                    )
-                );
-        }
-        case ACT_EnvStore: {
-
-            if (act->name == NULL)
-                return mkCfg(
-                    arrivState,
-                    cfg->inp,
-                    cfg->ctrl,
-                    cfg->sem->up
-                );
-
-            return
-                mkCfg(
-                    arrivState,
-                    cfg->inp,
-                    cfg->ctrl,
-                    updateStackSem(
-                        add_entry_dict(
-                            act->name,
-                            cfg->sem->value,
-                            cfg->sem->up->value
-                        ),
-                        cfg->sem->up->up
-                    )
-                );
-        }
-        case ACT_EpsA: {
-            Cfg * newCfg = mkCfg(arrivState, cfg->inp, cfg->ctrl, cfg->sem);
-            return newCfg;
-        }
-        case ACT_ReturnBind: {
-            if (act->expr->tag != E_VAR) {
-                printf("SHOULD NOT HAPPEN\n");
-                exit(1);
-            }
-            return
-                mkCfg(
-                    arrivState,
-                    cfg->inp,
-                    cfg->ctrl,
-                    updateStackSem(
-                        get_dict(act->expr->name, cfg->sem->value),
-                        cfg->sem->up
-                    )
-                );
-        }
-        default: {
-          // printf("Abort: ACTION NOT HANDLED");
-          // exit(1);
-          //Treat as Epsion for now
-          Cfg * newCfg = mkCfg(arrivState, cfg->inp, cfg->ctrl, cfg->sem);
-          return newCfg;
-        }
-    }
-}
-
+#include "debug.h"
 
 //-----------------------------------------------------------------------//
 // Runtime Library: Naive Backtracking Runner
 //-----------------------------------------------------------------------//
-
 
 typedef struct _Stack {
     int state;
@@ -305,7 +56,8 @@ void print_Result(Result * r){
         printf("#%d ", i);
         print_Value(r->value);
         r = r->next;
-        printf("\n");
+        if (r != NULL)
+            printf("\n");
     }
     return;
 }
@@ -315,21 +67,21 @@ Result * backtrack(Aut aut, Stack * st, Result * r);
 Result * step(Aut aut, Action * act, int arrivState, Stack * st, Result * r);
 
 Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
-    printf("STATE: %d\n", cfg->state);
+    LOGD("STATE: %d", cfg->state);
     //printf("Stack at: %p\n", cfg->ctrl);
 
     Result * new_res = r;
 
     if (isEmptyStackCtrl(cfg->ctrl) && cfg->state == aut.accepting) {
         new_res = addResult(cfg->sem->value, r);
-        printf("Solution found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        LOGI("Solution found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     }
 
     Choice ch = aut.table[cfg->state];
     ActionStatePair* tr = ch.transitions;
 
     Stack * newStack;
-    printf("Tag: %d\n", ch.tag);
+    LOGD("Tag: %d", ch.tag);
     switch (ch.tag) {
         case UNICHOICE: {
             Action* act = tr[0].pAction;
@@ -351,7 +103,7 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
             //TODO:
         }
         case EMPTYCHOICE: {
-            printf("EMPTYCHOICE\n");
+            LOGD("EMPTYCHOICE");
             Action pop = MAKE_ACT_POP();
             int arrivalState = -42;
 
@@ -367,7 +119,7 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
 }
 
 Result * step(Aut aut, Action *act, int arrivState, Stack *st, Result * r) {
-    printf("STEP: action:%s arrivState:%d\n", action_to_string(act), arrivState);
+    LOGD("STEP: action:%s arrivState:%d", action_to_string(act), arrivState);
 
     Cfg* cfg = st->cfg;
     Cfg* newCfg = NULL;
@@ -381,7 +133,7 @@ Result * step(Aut aut, Action *act, int arrivState, Stack *st, Result * r) {
 }
 
 Result * backtrack(Aut aut, Stack *st, Result * res){
-    printf("BACKTRACK\n");
+    LOGD("BACKTRACK");
     if (st == NULL) {
         return res;
     } else {

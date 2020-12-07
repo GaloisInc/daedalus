@@ -18,9 +18,7 @@ import Daedalus.ParserGen.Action (State, Action(..), BranchAction(..), SemanticE
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..))
 import Daedalus.ParserGen.Cfg (initCfg, Cfg(..), isAcceptingCfg)
 
-import Daedalus.ParserGen.Det as Det
-import Daedalus.ParserGen.DetUtils as DetU
-
+import Daedalus.ParserGen.LL as LL
 
 
 -- CommitStack is a stack dedicated to handle the commit operations in
@@ -256,13 +254,13 @@ runnerLL gbl s aut autDet =
         case cfg of
           Cfg inp _ctrl _out q ->
             -- trace (show cfg) $
-            let detTrans = Det.lookupAutDet q autDet in
+            let detTrans = LL.lookupAutDet q autDet in
             case detTrans of
               Nothing -> callNFA ()
               Just (_tr, False) -> callNFA ()
               Just (tr, True) ->
                 -- trace "YES LL lookup" $
-                let a = Det.predictLL (q,tr) inp in
+                let a = LL.predictLL (q,tr) inp in
                 case a of
                   Nothing ->
                     callNFA ()
@@ -293,9 +291,9 @@ runnerLL gbl s aut autDet =
                        let newResumption = addResumption resumption cfg ch in
                          choose newResumption result
 
-      applyPredictions :: Det.Prediction -> Cfg -> Resumption -> Result -> Result
+      applyPredictions :: LL.Prediction -> Cfg -> Resumption -> Result -> Result
       applyPredictions prdx cfg@(Cfg inp ctrl out q) resumption result =
-        case Det.destrPrediction prdx of
+        case LL.destrPrediction prdx of
           Nothing -> react cfg resumption result
           Just (alt, alts) ->
             let tr = nextTransition aut q

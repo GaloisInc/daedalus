@@ -5,69 +5,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "action.h"
+#include "value.h"
+
 //-----------------------------------------------------------------------//
 // Runtime Library: Types and Structures
 //-----------------------------------------------------------------------//
-
-#include "value.h"
-
-// #define ACT_READCHAR 0
-// #define ACT_STORE_SEM 1
-// #define ACT_PUSH 2
-// #define ACT_POP 3
-// #define ACT_END 1000
-
-
-typedef enum _ActionType {
-    ACT_EpsA,
-    ACT_ReadChar,
-    ACT_Match,
-    ACT_Push,
-    ACT_Pop,
-    ACT_ReturnBind,
-    ACT_EnvFresh,
-    ACT_EnvStore,
-    ACT_ActivateFrame,
-    ACT_DeactivateReady,
-    ACT_END
-} ActionType ;
-
-
-typedef enum _ExprType {
-    E_INT,
-    E_STR,
-    E_VAR
-} ExprType ;
-
-typedef struct _Expr {
-    ExprType tag;
-    union {
-        int vInt;
-        char* vBytes;
-        char* name;
-    };
-} Expr ;
-
-typedef struct _NameList {
-
-} NameList ;
-
-typedef struct KeyValuePair {
-    char * key;
-    Value * value;
-} KeyValue;
-
-typedef struct _Action {
-    ActionType tag;
-    union {
-        char chr;
-        int state;
-        KeyValue *kv;
-        Expr* expr;
-        char* name;
-        NameList* namelist;
-    };
-} Action;
 
 typedef struct _ActionStatePair {
     Action* pAction;

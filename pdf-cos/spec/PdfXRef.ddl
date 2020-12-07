@@ -186,44 +186,41 @@ def EncryptionDict (eref : Ref) = {
     ^ v.num;
   }; 
 
-  -- Extract key length 
-  -- XXX: Builds in checking that this is an AES 
-  stmFLength = Choose1 { 
-    { -- Version 2 encryption 
-      encV == 2 is true; 
-      commit; 
-
-      @len = LookupNat "Length" edict <| ^ 40; 
-      len == 128 is true;
-      ^ 16; 
-    }; 
-    { -- Version 4 
-      encV == 4 is true;
-
-      @stmF = (Lookup "StmF" edict) is name; 
-      @strF = (Lookup "StrF" edict) is name;       
-      @cf = (Lookup "CF" edict) is dict; 
-      
-      -- Lookup stream filter 
-      @stmFdict = (Lookup stmF cf) is dict; 
-      @stmFname = (Lookup "CFM" stmFdict) is name; 
-      @stmFLen = LookupNat "Length" stmFdict; 
-
-      -- Lookup string filter 
-      @strFdict = (Lookup strF cf) is dict; 
-      @strFname = (Lookup "CFM" strFdict) is name; 
-      @strFLen = LookupNat "Length" strFdict; 
-
-      -- Only support AES: 
-      stmFname == "AESV2" is true; 
-      strFname == "AESV2" is true; 
-
-      -- XXX: Only return stream key length for now
-      ^ stmFLen; 
-    }; 
-    -- XXX: Support encryption Version 5 
-  }; 
-
-  -- Supported modes: 
-  stmFLength == 16 || stmFLength == 32 is true; 
+  ciph = ChooseCiph edict encV; 
 } 
+
+def ChooseCiph edict v = Choose1 { 
+  v2 = { 
+    v == 2 is true; 
+    @len = LookupNat "Length" edict; 
+    len == 128 is true; 
+  }; 
+  v4 = { 
+    v == 4 is true;
+
+    @stmF = (Lookup "StmF" edict) is name; 
+    @strF = (Lookup "StrF" edict) is name;       
+    @cf = (Lookup "CF" edict) is dict; 
+    
+    -- Lookup stream filter 
+    @stmFdict = (Lookup stmF cf) is dict; 
+    @stmFname = (Lookup "CFM" stmFdict) is name; 
+    @stmFLen = LookupNat "Length" stmFdict; 
+
+    -- Lookup string filter 
+    @strFdict = (Lookup strF cf) is dict; 
+    @strFname = (Lookup "CFM" strFdict) is name; 
+    @strFLen = LookupNat "Length" strFdict; 
+
+    ChooseCiphV4 stmFname; 
+  }; 
+}
+
+def ChooseCiphV4 name = Choose1 { 
+  v4RC4 = { 
+    name == "V2" is true; 
+  }; 
+  v4AES = { 
+    name == "AESV2" is true; 
+  }; 
+}

@@ -5,6 +5,7 @@ module Daedalus.ParserGen.Generate where
 import Language.C
 import Control.Monad.State as SM
 
+import Daedalus.ParserGen.AST
 import Daedalus.ParserGen.Aut as Aut
 import Daedalus.ParserGen.Action as Action
 
@@ -49,21 +50,21 @@ nextName = do
 
 nextActionId :: CAutGenM Integer
 nextActionId = do
-  st <- get  
+  st <- get
   let v = actionId st
   put $ st { actionId = v + 1 }
   return v
 
 nextTransitionId :: CAutGenM Integer
 nextTransitionId = do
-  st <- get  
+  st <- get
   let v = transitionId st
   put $ st { transitionId = v + 1 }
   return v
 
 nextExpressionId :: CAutGenM Integer
 nextExpressionId = do
-  st <- get  
+  st <- get
   let v = expressionId st
   put $ st { expressionId = v + 1 }
   return v
@@ -110,7 +111,7 @@ makeIntConstExpr v = CConst $ CIntConst (cInteger $ toInteger v) undefNode
 
 -- Make an expression out of a constant integer
 makeNameConstExpr :: Maybe DAST.Name -> CExpr
-makeNameConstExpr ms = 
+makeNameConstExpr ms =
   case ms of
     Just s  -> CConst $ CStrConst (cString $ name2String s) undefNode
     Nothing -> makeIntConstExpr 0
@@ -156,7 +157,7 @@ generateTextIO aut = do
 
 -- The top-level function to generate a C language version of the parser-gen created automata.
 -- NOTE: For simplicity and code reuse reasons, this takes an ArrayAut as input instead of
--- the typeclass Aut. 
+-- the typeclass Aut.
 -- TODO: Reconsider this
 generateNFA :: ArrayAut -> CAutGenM CTranslUnit
 generateNFA aut = do
@@ -175,18 +176,18 @@ generateNFAAutDeclaration aut = do
   (_, autVarDeclr)  <- makeVarDeclr "aut"
   tableIdent <- generateNFAAutTable aut
   let tableExpr = CVar tableIdent undefNode
-  fieldsInit <- 
-    makeStructInitializer 
+  fieldsInit <-
+    makeStructInitializer
       [ ("initial", initStateExpr)
       , ("table", tableExpr)
       , ("accepting", finalStateExpr)
       ]
-  let decl = CDeclExt $ CDecl [autType] [(Just autVarDeclr, Just fieldsInit, Nothing)] undefNode 
+  let decl = CDeclExt $ CDecl [autType] [(Just autVarDeclr, Just fieldsInit, Nothing)] undefNode
   addDeclaration decl
   where
     initStateExpr = makeIntConstExpr $ initialState aut
     finalStateExpr = makeIntConstExpr $ acceptings $ mapAut aut
-    
+
 
 generateNFAAutTable :: ArrayAut -> CAutGenM Ident
 generateNFAAutTable aut = do
@@ -249,7 +250,7 @@ generateAction act = do
   (actVarIdent, actVarDeclr)  <- makeActionVar
   actType <- CTypeSpec <$> makeTypeDefType "Action"
   actInit <- actionInitializer
-  let decl = CDeclExt $ CDecl [actType] [(Just actVarDeclr, Just actInit, Nothing)] undefNode 
+  let decl = CDeclExt $ CDecl [actType] [(Just actVarDeclr, Just actInit, Nothing)] undefNode
   addDeclaration decl
   return actVarIdent
   where
@@ -265,24 +266,24 @@ generateActionData :: Action -> CAutGenM [(String, CExpr)]
 generateActionData (IAct ip) = generateInputActionData ip
 generateActionData (CAct cp) = generateControlAction cp
 generateActionData (SAct sp) = generateSemanticActionData sp
-generateActionData (BAct bp) = return []
+generateActionData (BAct _bp) = return []
 generateActionData EpsA      = generateEpsAction
 
 generateInputActionData :: InputAction -> CAutGenM [(String, CExpr)]
 generateInputActionData IEnd = do
   tagExpr <- makeEnumConstantExpr "ACT_END"
   return [("tag", tagExpr)]
-generateInputActionData (IMatchBytes withsem e) = do
+generateInputActionData (IMatchBytes _withsem e) = do
   matchExpr <- generateVExpr e
   tagExpr <- makeEnumConstantExpr "ACT_MatchBytes"
   return [("tag", tagExpr), ("expr", matchExpr)]
-generateInputActionData (ClssAct withsem e) = do
+generateInputActionData (ClssAct _withsem e) = do
   -- TODO: Generalize this
-  let v = case DAST.texprValue e of 
+  let v = case DAST.texprValue e of
             DAST.TCSetSingle e' -> evalNoFunCall e' [] []
             _ -> error $ "Unimplemented expression in ClssAct evaluation : " ++ show e
   case v of
-    VUInt b iv -> do
+    VUInt _b iv -> do
       tagExpr <- makeEnumConstantExpr "ACT_ReadChar"
       let valExpr = makeIntConstExpr $ fromIntegral iv
       return [("tag", tagExpr), ("chr", valExpr)]
@@ -303,7 +304,7 @@ generateSemanticActionData (ReturnBind e) = do
 generateSemanticActionData x = return $ error $ "Unimplemented action: " ++ show x
 
 generateControlAction :: ControlAction -> CAutGenM [(String, CExpr)]
-generateControlAction (Push name le q) = do
+generateControlAction (Push _name _le q) = do
   tagExpr <- makeEnumConstantExpr "ACT_Push"
   -- TODO: Fix this
   let valExpr = makeIntConstExpr q
@@ -311,7 +312,7 @@ generateControlAction (Push name le q) = do
 generateControlAction Pop = do
   tagExpr <- makeEnumConstantExpr "ACT_Pop"
   return [("tag", tagExpr)]
-generateControlAction (ActivateFrame ln) = do
+generateControlAction (ActivateFrame _ln) = do
   tagExpr <- makeEnumConstantExpr "ACT_ActivateFrame"
   -- TODO: Fix this
   let valExpr = makeIntConstExpr 0
@@ -326,7 +327,7 @@ generateVExpr e = do
   (exprVarIdent, exprVarDeclr)  <- makeExprVar
   exprType <- CTypeSpec <$> makeTypeDefType "Expr"
   exprInit <- exprInitializer
-  let decl = CDeclExt $ CDecl [exprType] [(Just exprVarDeclr, Just exprInit, Nothing)] undefNode 
+  let decl = CDeclExt $ CDecl [exprType] [(Just exprVarDeclr, Just exprInit, Nothing)] undefNode
   addDeclaration decl
   return $ CVar exprVarIdent undefNode
   where
@@ -344,8 +345,8 @@ generateVExprData e = do
     DAST.TCVar v -> do
       tagExpr <- makeEnumConstantExpr "E_VAR";
       return $ [("tag", tagExpr), ("name", nameExpr v)]
-    DAST.TCIn _ e _ ->
-      case DAST.texprValue e of 
+    DAST.TCIn _ e1 _ ->
+      case DAST.texprValue e1 of
         DAST.TCVar v -> do
           tagExpr <- makeEnumConstantExpr "E_VAR";
           return $ [("tag", tagExpr), ("name", nameExpr v)]
@@ -357,7 +358,7 @@ generateVExprData e = do
       return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
   where
     nameExpr nm = makeNameConstExpr $ Just $ DAST.tcName nm
-   
+
 
 generateEpsAction :: CAutGenM [(String, CExpr)]
 generateEpsAction = do
@@ -365,10 +366,10 @@ generateEpsAction = do
   return [("tag", tagExpr)]
 
 
---   let varDecl = CDeclr (Just autVar) [] Nothing [] undefNode 
-  
+--   let varDecl = CDeclr (Just autVar) [] Nothing [] undefNode
+
 --   ff <- newIdent "ff"
 --   let ffinit = CInitExpr (CConst $ CStrConst (cString "Hello") undefNode) undefNode
 --   let vinit = CInitList [([CMemberDesig ff undefNode], ffinit)] undefNode
---   return $ CDeclExt $ CDecl [t] [(Just v, Just vinit, Nothing)] undefNode 
+--   return $ CDeclExt $ CDecl [t] [(Just v, Just vinit, Nothing)] undefNode
 --   where

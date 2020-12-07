@@ -1,10 +1,31 @@
-module Daedalus.ParserGen.Aut where
+module Daedalus.ParserGen.Aut
+  ( Aut(..)
+  , Choice(..)
+  , noChoice
+  , stateToString
+  , lookupPopTrans
+  , MapAut(..)
+  , ArrayAut(..)
+  , mkAut
+  , mkAutWithPop
+  , mkTr
+  , mkTr1
+  , dsAut
+  , unionTr
+  , emptyTr
+  , unionPopTrans
+  , emptyPopTrans
+  , addPopTrans
+  , mkArrayAut
+  , convertToArrayAut
+  )
+
+where
 
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
-import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Array.IArray
+import qualified Data.Text as T
 
 import Daedalus.Type.AST
 
@@ -36,9 +57,6 @@ data MapAut = MapAut
   { initials    :: State
   , transition  :: Transition
   , acceptings  :: Acceptings
-  , acceptingsEps :: Maybe (Map.Map State Bool)
-  , transitionEps :: Maybe (Map.Map State [ State ])
-  , transitionWithoutEps :: Maybe Transition
   , popTrans :: PopTrans
   , stateMapping :: Map.Map State (SourceRange, PAST.Contx)
   }
@@ -58,9 +76,6 @@ mkAut initial trans accepts =
   MapAut { initials = initial
          , transition = trans
          , acceptings = accepts
-         , acceptingsEps = Nothing
-         , transitionEps = Nothing
-         , transitionWithoutEps = Nothing
          , popTrans = emptyPopTrans
          , stateMapping = Map.empty
          }
@@ -70,9 +85,6 @@ mkAutWithPop initial trans accepts pops =
   MapAut { initials = initial
          , transition = trans
          , acceptings = accepts
-         , acceptingsEps = Nothing
-         , transitionEps = Nothing
-         , transitionWithoutEps = Nothing
          , popTrans = pops
          , stateMapping = Map.empty
          }
@@ -100,10 +112,6 @@ mkTr1 tr = Map.fromList [tr]
 mkTr :: [ (State, Choice) ] -> Transition
 mkTr lst =
   foldr (\ (s, ch) acc -> Map.insertWith combineCh s ch acc) emptyTr lst
-
-mkTr3 :: [ (State, Action, State) ] -> Transition
-mkTr3 tr =
-  foldr (\ (n1,act,n2) acc -> unionTr (mkTr1 (n1, UniChoice (act, n2))) acc) emptyTr tr
 
 unionTr :: Transition -> Transition -> Transition
 unionTr t1 t2 =
@@ -141,108 +149,20 @@ toListAut aut =
   let (i,t,f,_) = dsAut aut
   in (i, toListTr2 t, f)
 
-
--- Is the action effectful on the devices of a machine.
-isEffectful :: Action -> Bool
-isEffectful act =
-  case act of
-    EpsA -> False
-    _    -> True
-
--- The transitive closure of path having no effect on the devices of a
--- machine.
-noEffect_trans_clos :: State -> MapAut -> [State]
-noEffect_trans_clos q aut =
-  {-# SCC "TRANS_CLOS" #-}
-  let (_i,t,_f) = toListAut aut
-      noEffectfulTrans = filter (\ (_, act, _) -> not (isEffectful act)) t
-      oneStep set =
-        let
-          set1 = Set.foldr (\ path b -> Set.union b (oneStepOnPath path)) Set.empty set
-          set2 = Set.filter hasNoRepeat set1
-        in set2
-      oneStepOnPath qs =
-        case qs of
-          [] -> error "impossible"
-          qf : _r ->
-            foldr (\ (n1, _act, n2) b ->
-                     if n1 == qf
-                     then Set.insert (n2 : qs) b
-                     else b)
-            Set.empty noEffectfulTrans
-      hasNoRepeat qs = not (hasDuplicate qs)
-      hasDuplicate lst = case lst of
-                           [] -> False
-                           x : xs -> if elem x xs then True else hasDuplicate xs
-      fxtpt set =
-        let newpaths = oneStep set
-            set1 = Set.union set newpaths
-        in if set == set1
-           then set
-           else fxtpt set1
-      -- end of computing the fixpoint, now need to compute the path with transitions
+stateToString :: Aut a => State -> a -> String
+stateToString q aut =
+  let annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ PAST.showSourceRange srcRg
   in
-    map head (Set.toList (fxtpt (Set.fromList [ [q] ])))
+    maybe "" (\ p -> annToString p) $ stateMappingAut aut q
 
-filterEpsTr :: Choice -> Choice
-filterEpsTr ch =
-  case ch of
-    UniChoice (EpsA, _) -> ParChoice []
-    UniChoice _ -> ch
-    ParChoice chs -> ParChoice $ filter (\ (act, _) -> isEffectful act) chs
-    SeqChoice _ _ -> error "Dont apply in SeqChoice"
-
-hasOnlyEpsTr :: Choice -> Bool
-hasOnlyEpsTr ch =
-  case ch of
-    UniChoice (EpsA, _) -> True
-    UniChoice _ -> False
-    ParChoice chs -> foldr (\ (act, _n2) b -> if isEffectful act then False else b) True chs
-    SeqChoice _ _ -> error "Dont apply in SeqChoice"
 
 noChoice :: Choice
 noChoice = ParChoice []
-
--- Compute the epsilon reflexive transitive closure and stores it in the Aut
-precomputeEps :: MapAut -> MapAut
-precomputeEps aut =
-  let
-    tr = transition aut
-    f = acceptings aut
-    completeTr = if Map.member f tr then tr else Map.insert f noChoice tr
-    transEps = Map.mapWithKey (\ k _ -> noEffect_trans_clos k aut) completeTr
-    acceptEps = Map.mapWithKey (\ k _ -> elem f (fromJust $ Map.lookup k transEps)) completeTr
-    transEpsFiltered = Map.map (\ qs -> filter (\ q -> not $ hasOnlyEpsTr (fromJust (Map.lookup q completeTr))) qs) transEps
-    transWithoutEps = Map.map (\ b -> filterEpsTr b) completeTr
-
-  in
-    MapAut { initials = initials aut
-           , transition = completeTr
-           , acceptings = f
-           , acceptingsEps = Just acceptEps
-           , transitionEps = Just transEpsFiltered
-           , transitionWithoutEps = Just transWithoutEps
-           , popTrans = popTrans aut
-           , stateMapping = Map.empty
-           }
-
-getEpsTransStates :: State -> MapAut -> [ State ]
-getEpsTransStates q aut =
-  maybe (error "should precompute") (\ m -> fromJust (Map.lookup q m)) (transitionEps aut)
-
-lookupTransitionWithoutEps :: State -> MapAut -> Maybe Choice
-lookupTransitionWithoutEps q aut =
-  Map.lookup q (fromJust $ transitionWithoutEps aut)
 
 
 isAccepting :: State -> MapAut -> Bool
 isAccepting q aut =
   q == acceptings aut
-
-
-isAcceptingEps :: State -> MapAut -> Bool
-isAcceptingEps q aut =
-  maybe (error "should precompute") (\ m -> fromJust (Map.lookup q m)) (acceptingsEps aut)
 
 
 

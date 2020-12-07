@@ -1,0 +1,53 @@
+module D009
+ 
+--- Imports:
+ 
+--- Type defs:
+type D009.Main0 = Choose { x: [uint 8]
+                         ; y: [uint 8]
+                         }
+ 
+--- Rules:
+ 
+D009.Chunk ?a5 (n : int) (P : Grammar ?a5) : Grammar ?a5 =
+  do (cur : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen n cur
+     (next : Stream) <- StreamOff n cur
+     SetStream this
+     ($$ : ?a5) <- P
+     SetStream next
+     pure $$
+ 
+D009._Chunk ?a5 (n : int) (_P : Grammar {}) : Grammar {} =
+  do (cur : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen n cur
+     (next : Stream) <- StreamOff n cur
+     SetStream this
+     _P
+     SetStream next
+ 
+D009._PadWSpaces ?a3 (n : int) (_P : Grammar {}) : Grammar {} =
+  D009._Chunk ?a3 n do _P
+                       @Many[] @Match {' '}
+                       END
+ 
+D009.Main : Grammar {} =
+  do Choose fair
+       { {- x -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ab")
+       | {- y -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ac")
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D009.PadWSpaces ?a3 (n : int) (P : Grammar ?a3) : Grammar ?a3 =
+  D009.Chunk ?a3 n do ($$ : ?a3) <- P
+                      @Many[] @Match {' '}
+                      END
+                      pure $$
+ 
+D009._Main : Grammar {} =
+  do Choose fair
+       { {- x -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ab")
+       | {- y -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ac")
+       }
+     END

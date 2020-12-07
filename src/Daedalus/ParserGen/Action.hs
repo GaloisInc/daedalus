@@ -19,13 +19,11 @@ import qualified Daedalus.Interp as Interp
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST (Annot, CorV(..), GblFuns)
+import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
 import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
 
-type NCExpr = TC (SourceRange, Annot) Class
-type NVExpr = TC (SourceRange, Annot) Value
 
 data InputAction =
     ClssItv ClassInterval -- this case comes from the determinization from LL(*)
@@ -34,7 +32,7 @@ data InputAction =
   | IOffset
   | IGetByte WithSem
   | IMatchBytes WithSem NVExpr
-  | CurrentStream
+  | GetStream
   | SetStream NVExpr
   | StreamLen WithSem NVExpr NVExpr
   | StreamOff WithSem NVExpr NVExpr
@@ -93,7 +91,7 @@ data Action =
 
 
 semToString :: WithSem -> String
-semToString YesSem = "@"
+semToString YesSem = "S"
 semToString NoSem = ""
 
 
@@ -113,8 +111,8 @@ instance Show(InputAction) where
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
   show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
-  show (CurrentStream) = "StreamCurr"
-  show (SetStream _)   = "StreamSet"
+  show (GetStream)       = "GetStream"
+  show (SetStream _)     = "SetStream"
   show (StreamLen s _ _) = semToString s ++ "StreamLen"
   show (StreamOff s _ _) = semToString s ++ "StreamOff"
 
@@ -180,7 +178,17 @@ isClassActOrEnd act =
 isInputAction :: Action -> Bool
 isInputAction act =
   case act of
-    IAct _ -> True
+    IAct iact ->
+      case iact of
+        ClssAct {} -> True
+        IEnd -> True
+        _ -> False
+    _ -> False
+
+isActivateFrameAction :: Action -> Bool
+isActivateFrameAction act =
+  case act of
+    CAct (ActivateFrame {}) -> True
     _ -> False
 
 isNonClassInputAct :: Action -> Bool
@@ -189,7 +197,36 @@ isNonClassInputAct act =
     IAct iact ->
       case iact of
         ClssAct _ _ -> False
-        _ -> True
+        GetStream -> False
+        SetStream _ -> False
+        StreamLen {} -> False
+        StreamOff {} -> False
+        _ -> -- trace (show iact) $
+             True
+    _ -> False
+
+isUnhandledAction :: Action -> Bool
+isUnhandledAction act =
+  case act of
+    CAct cact ->
+      case cact of
+        ForInit {} -> True
+        ForHasMore -> True
+        ForNext -> True
+        ForEnd -> True
+        MapInit {} -> True
+        MapHasMore -> True
+        MapNext -> True
+        MapEnd -> True
+        _ -> False
+    SAct sact ->
+      case sact of
+        MapInsert {} -> True
+        SelUnion {} -> True
+        Guard _ -> True
+        CoerceCheck {} -> True
+        SelJust {} -> True
+        _ -> False
     _ -> False
 
 isBranchAction :: Action -> Bool
@@ -225,11 +262,13 @@ getByteArray e =
 
 type Val = Interp.Value
 
-data BeetweenItv =
+
+data BetweenItv =
     CExactly {-# UNPACK #-} !Int
   | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
 
+-- TODO: rename ListArgs to PreActivated
 data ActivationFrame =
     ListArgs ![Val]
   | ActivatedFrame !(Map.Map Name Val)
@@ -253,7 +292,7 @@ data MapFrm = MapFrm
   }
 
 data ControlElm =
-    ManyFrame !(BeetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
+    ManyFrame !(BetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
   | ForFrame  !ForFrm
   | MapFrame  !MapFrm
   | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
@@ -558,7 +597,7 @@ isSimpleVExpr e =
     TCCoerce _ _ _ -> False
     TCLiteral (LNumber {}) _ -> True
     TCLiteral (LByte   {}) _ -> True
-    TCLiteral _            _ -> False    
+    TCLiteral _            _ -> False
     TCNothing _ty -> False
     TCStruct _lst _ -> False
     TCMapEmpty _ty -> False
@@ -589,8 +628,8 @@ evalLiteral lit t =
     LBytes bs ->
       Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
     LByte w -> Interp.VUInt 8 (fromIntegral w)
-    
-    
+
+
 
 
 evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
@@ -823,7 +862,7 @@ applyInputAction gbl (inp, ctrl, out) act =
                       in resultWithSem s i o
                  else Nothing
            _ -> error ("unexpected match bytes: "++ show e1)
-    CurrentStream ->
+    GetStream ->
       Just (inp, SEVal (Interp.VStream inp) : out)
     SetStream e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
@@ -1055,6 +1094,7 @@ applyControlAction gbl (ctrl, out) act =
             _ -> error "Unexpected For not an array"
         _ ->  error "Unexpected ctrl stack"
 
+    -- TODO: reorder `zip lvs ln` to `zip ln lvs`
     ActivateFrame ln ->
       case ctrl of
         CallFrame rname q (ListArgs lvs) savedFrame : ctrls ->
