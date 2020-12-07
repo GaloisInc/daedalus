@@ -109,8 +109,23 @@ def MarkedContentSeq FutureOp = {
   KW "EMC" ; -- end the marked content
 }
 
+def PathBeginOp = Choose1 {
+  -- begin the path object:
+  beginNewSuppath = {
+    pt = Token ContentPoint ;
+    KW "m" ;
+  } ;
+  appendRect = {
+    pt = Token ContentPoint ;
+    width = Token Number ;
+    height = Token Number ;
+    KW "re" ;
+  } ;
+}
+
 -- Path Construction Operators (Table 59)
 def PathConsOp = Choose1 {
+  beginSubpath = PathBeginOp ;
   appendLine = {
     pt = Token ContentPoint ;
     KW "l" ;
@@ -395,8 +410,8 @@ def TextObj FutureOp = {
     graphicsStateOp = GenGraphicsStateOp ;
     color = ColourOp ;
     textState = TextStateOp ;
-    textShow = TextShowOp ;
     textPos = TextPosOp ;
+    textShow = TextShowOp ;
     marked = MarkedContentSeq FutureOp ;
   }) ;
 
@@ -430,18 +445,7 @@ def InlineImageObj = {
 -- PathObj: a path object:
 def PathObj = {
   -- begin the path object:
-  begin = Choose1 {
-    beginNewSuppath = {
-      pt = Token ContentPoint ;
-      KW "m" ;
-    } ;
-    appendRect = {
-      pt = Token ContentPoint ;
-      width = Token Number ;
-      height = Token Number ;
-      KW "re" ;
-    } ;
-  } ;
+  begin = PathBeginOp ;
 
   -- path construction operators:
   pathOps = Many PathConsOp ;
