@@ -104,11 +104,13 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
         }
         case EMPTYCHOICE: {
             LOGD("EMPTYCHOICE");
-            Action pop = MAKE_ACT_POP();
+            //Action pop = MAKE_ACT_POP();
             int arrivalState = -42;
+            Action act = { .tag = ACT_ControlAction, .controlAction = { .tag = ACT_Pop} };
 
-            newStack = pushStack(cfg->state, 1, cfg, st);
-            return step(aut, &pop, arrivalState, newStack, new_res);
+            //newStack = pushStack(cfg->state, 1, cfg, st);
+            newStack = pushStack(arrivalState, 1, cfg, st);
+            return step(aut, &act, arrivalState, newStack, new_res);
             break;
         }
         default: {
@@ -119,11 +121,11 @@ Result * runner(Aut aut, Cfg * cfg , Stack * st, Result * r) {
 }
 
 Result * step(Aut aut, Action *act, int arrivState, Stack *st, Result * r) {
-    LOGD("STEP: action:%s arrivState:%d", action_to_string(act), arrivState);
+    LOGD("STEP: action:%s arrivState:%d", actionToString(act), arrivState);
 
     Cfg* cfg = st->cfg;
     Cfg* newCfg = NULL;
-    newCfg = execAction(act, cfg, arrivState);
+    newCfg = applyAction(act, cfg, arrivState);
 
     if (newCfg == NULL) {
         return backtrack(aut, st, r);
