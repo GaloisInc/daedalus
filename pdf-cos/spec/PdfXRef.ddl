@@ -151,15 +151,16 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) = {
                 just (x is ref);
               };
   prev    = Optional (LookupNat "Prev" dict);
-  encrypt = Optional { 
-    d = Lookup "Encrypt" dict; 
-    commit; 
-    eref = d is ref; 
-    @i = Lookup "ID" dict; 
-    length (i is array) == 2;  
-    id0 = Index (i is array) 0 is string; 
-    id1 = Index (i is array) 1 is string; 
-  }; 
+  encrypt = Optional (TrailerDictEncrypt dict); 
   all = ^ dict;
 }
 
+def TrailerDictEncrypt (dict : [ [uint 8] -> Value]) = { 
+  d = Lookup "Encrypt" dict; 
+  commit; 
+  eref = d is ref; 
+  @i = Lookup "ID" dict; 
+  length (i is array) == 2;  
+  id0 = Index (i is array) 0 is string; 
+  id1 = Index (i is array) 1 is string; 
+}

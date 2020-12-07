@@ -1,9 +1,12 @@
 import PdfDecl 
 import PdfValue 
+import PdfXRef 
 
 -- Encryption dictionary (Table 20 in S7.6.1) 
-def EncryptionDict (eref : Ref) = { 
-  @edict = (ResolveValRef eref) is dict; 
+def EncryptionDict (enc : TrailerDictEncrypt) = { 
+  @edict = (ResolveValRef enc.eref) is dict; 
+
+  id0 = enc.id0; 
 
   encFilter = (Lookup "Filter" edict) is name; 
   encFilter == "Standard" is true; -- Other modes unsupported 
@@ -63,60 +66,11 @@ def V4stmFname edict = {
   ^ stmFname; 
 } 
 
-{- 
-def ChooseCiphV4 name = Choose1 { 
-  v4RC4 = { 
-    name == "V2" is true; 
-  }; 
-  v4AES = { 
-    name == "AESV2" is true; 
-  }; 
-}
--} 
-
-{- 
 def MakeContext (t : TrailerDict) = Choose1 { 
   encryption = { 
-    @enc = (Lookup "encrypt" t) is just;
+    @enc = t.encrypt is just;
     commit; 
-    @r = EncryptionDict enc.eref; 
-
-  }
+    EncryptionDict enc; 
+  }; 
   noencryption = {}; 
-}
--} 
-
-{-
-makeEncContext :: Integral a => 
-                      TrailerDict  
-                  -> ObjIndex 
-                  -> Input 
-                  -> BS.ByteString 
-                  -> IO ((a, a) -> Maybe EncContext)
-makeEncContext trail refs topInput pwd = 
-  case getField @"encrypt" trail of 
-    Nothing -> pure $ const Nothing -- No encryption 
-    Just e -> do 
-      let eref = getField @"eref" e 
-      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict eref) topInput) 
-                              "Ambiguous encryption dictionary"
-      let encO = vecToRep $ getField @"encO" enc 
-          encP = fromIntegral $ getField @"encP" enc
-          id0 = vecToRep $ getField @"id0" e 
-          filekey = makeFileKey pwd encO encP id0
-      pure $ \(ro, rg) -> 
-        Just EncContext { key  = filekey, 
-                          robj = fromIntegral ro, 
-                          rgen = fromIntegral rg, 
-                          ver  = fromIntegral $ getField @"encV" enc, 
-                          ciph = chooseCipher $ getField @"ciph" enc  } 
-
-chooseCipher :: ChooseCiph -> Cipher 
-chooseCipher enc = 
-  case enc of 
-    ChooseCiph_v2 _ -> V2 
-    ChooseCiph_v4 i -> 
-      case i of 
-        ChooseCiphV4_v4AES () -> V4AES 
-        ChooseCiphV4_v4RC4 () -> V4RC4
--}
+} 
