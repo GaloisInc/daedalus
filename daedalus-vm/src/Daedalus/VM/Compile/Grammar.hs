@@ -9,6 +9,7 @@ import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
 
+import Daedalus.PP
 import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
@@ -108,8 +109,8 @@ compile expr next0 =
     Src.OrUnbiased p q ->
       do next' <- sharedYes next
 
-
          leftFailed <- newLocal (TSem Src.TBool)
+         l          <- newLocal (TSem Src.TStream)
 
          qCode <-
             do finished <-
@@ -126,6 +127,8 @@ compile expr next0 =
          -- used to process the RHS
          doRHS <- label1' ThreadBlock (Just (TSem Src.TBool)) \didFail ->
                   do setLocal leftFailed didFail
+                     i <- getLocal l
+                     stmt_ $ SetInput i
                      qCode
 
          rightId <- newLocal TThreadId
@@ -137,7 +140,9 @@ compile expr next0 =
                         }
 
          pure
-           do clo <- doRHS
+           do i <- stmt (TSem Src.TStream) $ GetInput
+              setLocal l i
+              clo <- doRHS
               tid <- stmt TThreadId $ \x -> Spawn x clo
               setLocal rightId tid
               pCode
@@ -146,16 +151,23 @@ compile expr next0 =
     Src.Call f es ->
       do doCall <-
            case (onNo next, onYes next) of
-             (Nothing,Nothing) -> pure \vs -> term $ TailCall f Capture vs
+             (Nothing,Nothing) -> pure \vs ->
+                do -- stmt_ $ Say ("Tail calling " ++ show (pp f))
+                   term $ TailCall f Capture vs
 
              _ ->
 
-               do noL <- label0 (ReturnBlock 0) $ nextNo next
+               do noL <- label0 (ReturnBlock 0) $
+                    do -- stmt_ $ Say ("Returning failure from " ++ show (pp f))
+                       nextNo next
 
-                  yesL <- label1' (ReturnBlock 1) Nothing \v -> nextYes next v
+                  yesL <- label1' (ReturnBlock 1) Nothing \v ->
+                    do -- stmt_ $ Say ("Returning success from " ++ show (pp f))
+                       nextYes next v
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
+                                 -- stmt_ $ Say ("Calling " ++ show (pp f))
                                  term $ Call f Capture cloNo cloYes vs
 
          compileEs es \vs -> doCall vs

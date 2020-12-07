@@ -110,7 +110,7 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
       ReturnYes e        -> ReturnYes (annE mp e)
       ReturnPure e       -> ReturnPure (annE mp e)
       CallPure f l es    -> CallPure f (annJ mp l) (annE mp <$> es)
-      Call f c no yes es -> Call f c (annJ mp no) (annJ mp yes) es
+      Call f c no yes es -> Call f c (annJ mp no) (annJ mp yes) (annE mp <$> es)
       TailCall f c es    -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp

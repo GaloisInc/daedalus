@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "value.h"
 
 
@@ -10,25 +11,28 @@ void print_DictValue(DictValue * kv){
         printf("k:%s ", kv->key);
         printf("v:");
         print_Value(kv->value);
-        print_DictValue(kv->next);
+        if (kv->next != NULL) {
+            printf(" ");
+            print_DictValue(kv->next);
+        }
     }
 }
 
 void print_Value(Value * v){
 
     if (v == NULL) {
-        printf("VNULL\n");
+        printf("VNULL");
         return;
     }
     switch (v->tag) {
     case VINT: {
-        printf("%d ", v->intv);
+        printf("%d", v->intv);
         break;
     }
     case VDICT: {
         printf("{ ");
         print_DictValue(v->dict);
-        printf(" } ");
+        printf(" }");
         break;
     }
     default: {
@@ -73,12 +77,12 @@ Value * create_value(int i){
 Value * get_dict(char * key, Value * v) {
     if (v->tag != VDICT)
         exit(1);
-    
+
     DictValue * dict = v->dict;
     while (dict != NULL) {
         if (strcmp(dict->key, key) == 0)
             return dict->value;
-        dict = dict->next;       
+        dict = dict->next;
     }
 
     return NULL;

@@ -105,6 +105,10 @@ public:
     return ptr->data[i];
   }
 
+  T* borrowData() {
+    return (T*)&ptr->data;
+  }
+
 
 
   // Borrow this, borrow xs
@@ -171,6 +175,14 @@ public:
 
     void free() { xs.free(); }
     void copy() { xs.copy(); }
+
+    // borrow
+    friend
+    std::ostream& operator<<(std::ostream& os, Array<T>::Iterator x) {
+      os << "Iterator[" << x.index << "]";
+      return os;
+    }
+
   };
 
 
@@ -193,6 +205,29 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
   os << "]";
   return os;
 }
+
+
+// borrow
+template <typename T>
+inline
+std::ostream& toJS(std::ostream& os, Array<T> x) {
+  size_t n = x.size();
+
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
+  for (size_t i = 0; i < n; ++i) {
+    toJS(os << sep, x.borrowElement(i));
+    sep[0] = ',';
+  }
+  os << "]";
+  return os;
+}
+
+
+
+
+
 
 
 

@@ -275,8 +275,8 @@ allocGram n ctx gram =
       (annotExpr (fst subannot, PAST.mkAnnot ((PAST.annotStates $ snd subannot)++[n+1, n+2]) ctx) (texprValue ag), n1)
 
 
-allocDeclBody :: Show a => Int -> TCDecl a -> (TCDecl (a, PAST.Annot), Int)
-allocDeclBody n _decl@(TCDecl {..}) =
+allocDecl :: Show a => Int -> TCDecl a -> (TCDecl (a, PAST.Annot), Int)
+allocDecl n _decl@(TCDecl {..}) =
   let
     mkBody :: forall a k. Show a => Context k -> TCDeclDef a k -> (TCDeclDef (a, PAST.Annot) k, PAST.Annot, Int)
     mkBody AClass (Defined tc) =
@@ -332,14 +332,14 @@ allocTCModule n _tc@(TCModule{..}) =
     fRec (currN, acc) decl =
       case decl of
         NonRec d ->
-          let (adecl, n1) =  allocDeclBody currN d
+          let (adecl, n1) =  allocDecl currN d
           in (n1, NonRec adecl : acc)
 
         MutRec ds -> -- erasing the dependency analysis
           let (n1, ads) = foldl f (currN, []) ds
           in (n1, (MutRec $ reverse ads) : acc)
     f (currN, acc) d =
-      let (adecl, n1) = allocDeclBody currN d
+      let (adecl, n1) = allocDecl currN d
       in (n1, adecl : acc)
 
 
@@ -410,6 +410,28 @@ collectTC tce =
          return anns
    in
        traverseTC onAnnots (collectTC) tce
+
+collectDecls :: PAST.GblAlloc -> Map.Map State (SourceRange, PAST.Contx)
+collectDecls gbl =
+  -- snd (ST.runState (collectTC tce) Map.empty)
+  let
+    collectDecl :: TCModule (SourceRange, PAST.Annot) -> Map.Map State (SourceRange, PAST.Contx)
+    collectDecl (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (Defined d), tcDeclAnnot = (srcRng,a)}) ] }) =
+      let sub = snd (ST.runState (collectTC d) Map.empty)
+          top = foldr (\q m -> Map.insert q (srcRng, fromJust $ PAST.annotContx a) m) Map.empty (PAST.annotStates a)
+      in Map.union top sub
+    collectDecl (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (ExternDecl _)}) ] }) =
+      Map.empty
+    collectDecl _ = error "broken invariant on the list of decls"
+  in
+    Map.foldr (\ modl m -> Map.union (collectDecl modl) m) Map.empty gbl
+  -- Map.foldr (\ (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (Defined d), tcDeclAnnot = a}) ] }) acc ->
+  --              let sub = snd (ST.runState (collectTC d) acc)
+  --              in
+  --                foldr (\q m -> Map.insert q (fst tcDeclAnnot, fromJust $ PAST.annotContx a )) sub (PAST.annotStates tcDeclAnnot)
+
+  --                ) Map.empty gbl
+
 
 
 -- collectTC2 :: forall k. TC (SourceRange, PAST.Annot) k -> Map.Map State PAST.Contx
@@ -493,7 +515,7 @@ genGExpr gbl e =
     TCCurrentStream ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (CurrentStream), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (GetStream), n2)) ]) n2
     TCSetStream e1 ->
       let n1 = getS 0
           n2 = getS 1
@@ -823,13 +845,7 @@ buildMapAut decls =
       let (_i, t, _f, p1) = dsAut $ genDecl allocGrammar a in (unionTr t trAccu, unionPopTrans p1 popsAccu)
     (table, pops) = foldr f (emptyTr, emptyPopTrans) lstDecls
 
-    extract :: TCDecl (SourceRange, PAST.Annot) -> Map.Map State (SourceRange, PAST.Contx)
-    extract (TCDecl {tcDeclDef = Defined tce}) =
-      snd (ST.runState (collectTC tce) Map.empty)
-      -- collectTC2 tce
-    extract (TCDecl {tcDeclDef = (ExternDecl _)}) = Map.empty
-
-    stateInfo = foldr (\ a m -> Map.union (extract a) m) Map.empty lstDecls
+    stateInfo = collectDecls allocDecls
     mainTrans = mkTr
       [ (globalStartState, UniChoice (CAct (Push mainName [] globalFinalState), startState))
       ]

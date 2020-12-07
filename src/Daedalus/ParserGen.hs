@@ -30,7 +30,7 @@ import Daedalus.ParserGen.RunnerBias (
   extractValues
   )
 import Daedalus.ParserGen.Utils (autToGraphviz)
-import Daedalus.ParserGen.Det (createDFA, statsDFA)
+import Daedalus.ParserGen.LL (createDFA, statsDFA)
 import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
 
 extractParseError :: BS.ByteString -> Result -> String

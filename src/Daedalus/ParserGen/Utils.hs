@@ -40,7 +40,8 @@ autToGraphviz aut =
       in thestr : b
     trans = foldr f [] tr
     prelude =
-      "// copy this to aut.dot and dot -Tpdf aut.dot > aut.pdf \n"
+      "// copy this to aut.dot and run\n"
+      ++ "// dot -Tpdf aut.dot > aut.pdf \n"
       ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
     makeEdge start arriv label b =
       start ++ " -> " ++ arriv ++ " [ label=" ++ label ++ (if b then " style=dashed color=blue" else "") ++ " ];"

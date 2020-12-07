@@ -316,7 +316,7 @@ generateMethods vis boxed ty =
     defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
     [defEq vis boxed ty, defNeq vis boxed ty] ++
-    [defShow vis boxed ty]
+    [defShow vis boxed ty, defShowJS vis boxed ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
@@ -365,6 +365,47 @@ defShow vis _ tdecl =
                ]
         , cStmt ("return os <<" <+> cString " |}")
         ]
+  where
+  ty = cTypeNameUse vis tdecl
+
+
+-- | Show in ppshow friendly format
+defShowJS :: GenVis -> GenBoxed -> TDecl -> CDecl
+defShowJS vis _ tdecl =
+  "namespace DDL {" $$
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDefineFun "std::ostream&" "toJS" [ "std::ostream& os", ty <+> "x" ]
+    case tDef tdecl of
+
+      -- assumes at least one field
+      TStruct fs ->
+        [ cStmt (cCall "toJS" ["os <<" <+> fld, thing])
+        | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
+        , let thing = cCallMethod "x" (selName GenBorrow l) []
+              fld   = cString (show (sepa <+> cString (show (pp l)) <.> ": "))
+        ] ++
+        [ cStmt ("return os <<" <+> cString " }") ]
+
+      TUnion fs ->
+        [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
+               , nest 2 $ vcat
+                    [ "case" <+> cSumTagV l <.> colon $$ nest 2 (
+                      vcat [ cStmt ("os <<" <+>
+                                      cString ("{ " ++ show lab ++ ": "))
+                           , cStmt (cCall "toJS" [ "os", val ])
+                           , cStmt "os << \"}\""
+                           , cStmt "break"
+                           ])
+                    | (l,_) <- fs
+                    , let lab = '$' : show (pp l)
+                          val = cCallMethod "x" (selName GenBorrow l) []
+                    ]
+               , "}"
+               ]
+        , cStmt "return os"
+        ]
+    $$ "}"
   where
   ty = cTypeNameUse vis tdecl
 
