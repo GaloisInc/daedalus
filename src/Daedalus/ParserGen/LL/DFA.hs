@@ -339,33 +339,38 @@ destrPrediction pdx =
     c Seq.:<| cs -> Just (c, cs)
 
 
--- TODO: Explain this in some document. This is basically the key of the new faithful determinization.
+-- TODO: Explain this in some document. This is basically the key of
+-- the new faithful determinization.
 predictLL :: (State, ExplicitDFA) -> Input.Input -> Maybe Prediction
 predictLL (start, dfa) i =
-  findPrediction (mkDFAStateQuotient start) i []
+  let mpath = findMatchingPath (mkDFAStateQuotient start) i []
+  in
+    case mpath of
+      Nothing -> Nothing
+      Just path -> Just $ extractPrediction path
   where
-    findPrediction :: DFAStateQuotient -> Input.Input -> [DFAState] -> Maybe Prediction
-    findPrediction q inp acc =
+    findMatchingPath :: DFAStateQuotient -> Input.Input -> [DFAState] -> Maybe [DFAState]
+    findMatchingPath q inp acc =
       let elm = lookupExplicitDFA q dfa
       in case elm of
        Nothing -> error "broken invariant"
        Just r ->
          case r of
-           Result (DChoice lst) -> iterLeftToRight lst inp acc
+           Result (DChoice lst) -> findMatchLeftToRight lst inp acc
            _ -> error "should not reach this line"
 
-    iterLeftToRight lst inp acc =
+    findMatchLeftToRight lst inp acc =
       case lst of
         [] -> Nothing
         (c, s, am, r1) : rest ->
           case matchInputHeadCondition c inp of
-            Nothing -> iterLeftToRight rest inp acc
+            Nothing -> findMatchLeftToRight rest inp acc
             Just inp1 ->
               let newAcc = s : acc in
               case am of
-                NotAmbiguous -> Just $ extractPrediction newAcc
+                NotAmbiguous -> Just newAcc
                 Ambiguous -> error "broken invariant, only applied on fully resolved"
-                DunnoAmbiguous -> findPrediction r1 inp1 newAcc
+                DunnoAmbiguous -> findMatchingPath r1 inp1 newAcc
 
 
     extractPrediction :: [DFAState] -> Prediction
