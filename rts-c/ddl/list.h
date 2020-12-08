@@ -56,6 +56,8 @@ public:
 
   }
 
+  T& borrowHead() { return ptr.getValue().head; }
+
   friend
   std::ostream& operator<<(std::ostream& os, List x) {
     os << "List " << x.ptr.rawPtr();
