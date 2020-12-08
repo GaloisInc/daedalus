@@ -223,8 +223,8 @@ _IsPageOrPages (p :: HS.Maybe PdfValue.Ref) (c :: PdfValue.Ref) =
 pIsRootPages :: PdfValue.Ref -> D.Parser HS.Bool
  
 pIsRootPages (r :: PdfValue.Ref) =
-  RTS.pEnter "PdfDecl.Default"
-    (PdfDecl.pDefault @HS.Bool HS.False
+  RTS.pEnter "PdfValue.Default"
+    (PdfValue.pDefault @HS.Bool HS.False
        (do RTS.pEnter "PdfDemo._IsPageOrPages"
              (_IsPageOrPages (HS.Nothing :: HS.Maybe PdfValue.Ref) r)
            (__ :: HS.Bool) <- HS.pure HS.True
@@ -463,8 +463,8 @@ pTopDeclCheck (expectId :: HS.Integer) (expectGen :: HS.Integer) =
 _IsRootPages :: PdfValue.Ref -> D.Parser ()
  
 _IsRootPages (r :: PdfValue.Ref) =
-  RTS.pEnter "PdfDecl._Default"
-    (PdfDecl._Default @HS.Bool
+  RTS.pEnter "PdfValue._Default"
+    (PdfValue._Default @HS.Bool
        (RTS.pEnter "PdfDemo._IsPageOrPages"
           (_IsPageOrPages (HS.Nothing :: HS.Maybe PdfValue.Ref) r)))
  

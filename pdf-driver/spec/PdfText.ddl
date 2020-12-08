@@ -8,9 +8,6 @@ import PdfValue
 --------------------------------------------------------------------------------
 -- Section 7.9.3: text sterams
 
--- Parsers for validating text objects:
-def Byte = 0 .. 255
-
 -- U+001B: the Unicode escape character
 def U001B = { 0 ; 27 }
 

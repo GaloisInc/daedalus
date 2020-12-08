@@ -1,12 +1,25 @@
 import PdfValue
 
--- general purpose helpers:
+-- general purpose helpers (TODO: some are clones):
+
+-- Byte: any byte
+def Byte = 0 .. 255
+
+def Default2 x P = P <| ^ x
 
 -- Bot P: always fails to parse a P
 def Bot P = { Guard false ; P }
 
 -- GenArray P: general array of P's
 def GenArray P = Between "[" "]" (Many P)
+
+def KeyObjsToMap ents = 
+  for (d = empty; e in ents) (Insert e.key e.obj d)
+
+def GenDict Obj = {
+  @ents = Between "<<" ">>" (Many { key = Name; obj = Obj });
+  KeyObjsToMap ents
+}
 
 -- Cmp a b: parser that evaluates a <= b and succeeds iff true
 def Cmp a b = 
@@ -28,17 +41,26 @@ def BoundedNonNeg ub = {
   Cmp $$ ub
 }
 
--- DirectObj: direct objects: all objects except for refs.
-def DirectObj = Choose1 {
+-- GenDirectObj Obj: a direct object over objects Obj
+def GenDirectObj Obj = Choose1 {
   null    = Null;
   bool    = Bool;
   name    = Name;
   string  = String;
   string  = HexString;
   number  = Number;
-  array   = Array;
-  dict    = Dict;
+  array   = GenArray Obj;
+  dict    = GenDict Obj;
 }
+
+-- DirectObj: object made up purely of direct objects:
+def DirectObj = {
+  box = GenDirectObj DirectObj
+} 
+
+def DirectArray = GenArray DirectObj
+
+def DirectDict = GenDict DirectObj
 
 --------------------------------------------------------------------------------
 
@@ -430,15 +452,114 @@ def XObj = {
   KW "Do" ;
 }
 
+-- LookupDirectNat: lookup a nat, given as a direct object
+def LookupDirectNat k m =
+  { @vV = Lookup k m : DirectObj;
+    @v  = vV.box is number;
+    NumberAsNat v; 
+  }
+
+-- LastElt fs: the last element in fs
+def LastElt fs = for (last = nothing; f in fs) (just f)
+
 -- Inline Image Operators (Table 92)
 def InlineImageObj = {
   KW "BI" ; -- begin image
 
   -- a sequence of key-value pairs
-  dict = Many { k = Token Name ; v = Token DirectObj } ;
+  hdrEnts = Many {
+    key = Token Name ;
+    Choose1 { -- Entries in Table 91:
+      bpc = { -- Bits Per Component:
+        Guard (key == "BitsPerComponent" || key == "BPC") ;
+        Natural ;
+      } ;
+      colorSpace = {
+        Guard (key == "ColorSpace" || key == "CS") ;
+        Choose1 { -- Color Space:
+          nm = Name ;
+          arr = DirectArray ;
+        } ;
+      } ;
+      decode = {
+        Guard (key == "Decode" || key == "D") ;
+        GenArray Number ;
+        -- TODO: check value of ImageMask (see Table 87)
+      } ;
+      decodeParams = {
+        Guard (key == "DecodeParms" || key == "DP") ;
+        Choose1 {
+          d = DirectDict ;
+          arr = GenArray DirectDict;
+        }
+        -- TODO: check value associated with Filter (see Table 5)
+      } ;
+      filter = {
+        Guard (key == "Filter" || key == "F") ;
+        Choose1 {
+          name = Name ;
+          names = GenArray Name ;
+        }
+      } ;
+      height = {
+        Guard (key == "Height" || key == "H") ;
+        Natural 
+      } ;
+      imageMask = {
+        Guard (key == "ImageMask" || key == "IM") ;
+        Bool
+      } ;
+      intent = {
+        Guard (key == "Intent") ;
+        Choose1 { -- Table 69:
+          absColorimetric = "AbsoluteColorimetric" ;
+          relColorimetric = "RelativeColorimetric" ;
+          sat = "Saturation" ;
+          perceptual = "Perceptual" ;
+        }
+      } ;
+      interpolate = {
+        Guard (key == "Interpolate" || key == "I") ;
+        Bool
+      } ;
+      len = {
+        Guard (key == "Length" || key == "L") ;
+        Natural 
+      } ;
+      width = {
+        Guard (key == "Width" || key == "W") ;
+        Natural
+      }
+    } ;
+    value = Token DirectObj
+  } ;
+  hdr = for (d = empty; e in hdrEnts) (Insert e.key e.value d) ;
 
-  KW "ID" ; SimpleEOL; -- begin image data
-  imageData = Many (Match1 (! ($lf | $cr))) ; SimpleEOL;
+  -- TODO: validate all keys in the dictionary
+
+  -- TODO: this validates exactly PDF 2.0. Relax to compute from
+  -- fields used in previous versions?
+
+  -- TODO: update to be record of options, then coerce
+  len = (LookupDirectNat "Length" hdr) | (LookupDirectNat "L" hdr) ;
+  Guard (len <= 4096) ;
+
+  KW "ID" ; $simpleWS; -- begin image data
+  Default2 [ ] {
+    @filtersObj = (Lookup "Filter" hdr) | (Lookup "F" hdr) ;
+    @filters = filtersObj.box is array ;
+    -- TODO: coerce filters to list of names
+    @filterNames = map (fobj in filters) {
+      fobj.box is name 
+    } ;
+    @lastFilter = LastElt filterNames ;
+    @lastF = lastFilter is just ;
+    Guard (lastF == "ASCIIHexDecode" || lastF == "ASCII85Decode") ;
+    Many AnyWS
+  } ;
+
+  imageData = Many len Byte ;
+  Many AnyWS;
   KW "EI" ; -- end image
 } 
 

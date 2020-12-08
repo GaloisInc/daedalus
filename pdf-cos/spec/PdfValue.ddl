@@ -26,6 +26,9 @@ def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
 def Guard p               = p is true
+
+def Default x P = P <| ^ x
+
 --------------------------------------------------------------------------------
 
 
@@ -154,9 +157,12 @@ def Array = Between "[" "]" (Many Value)
 --------------------------------------------------------------------------------
 -- Dictionary Objects (Section 7.3.7)
 
+def KeyValuesToMap ents = 
+  for (d = empty; e in ents) (Insert e.key e.value d)
+
 def Dict = {
   @ents = Between "<<" ">>" (Many { key = Name; value = Value });
-  for (d = empty; e in ents) (Insert e.key e.value d)
+  KeyValuesToMap ents
 }
 
 

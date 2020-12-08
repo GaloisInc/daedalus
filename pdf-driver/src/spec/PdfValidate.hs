@@ -88,8 +88,8 @@ pCheckRef (ty :: Vector.Vector (RTS.UInt 8))
   (r :: PdfValue.Ref) =
   RTS.pErrorMode RTS.Fail
     (do (__ :: ()) <-
-          RTS.pEnter "PdfDecl.Default"
-            (PdfDecl.pDefault @() ()
+          RTS.pEnter "PdfValue.Default"
+            (PdfValue.pDefault @() ()
                (do (done :: HS.Bool) <-
                      RTS.pEnter "PdfValidate.IsValidated"
                        (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
@@ -231,8 +231,8 @@ _CheckRef (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (r :: PdfValue.Ref) =
   RTS.pErrorMode RTS.Fail
-    (RTS.pEnter "PdfDecl._Default"
-       (PdfDecl._Default @()
+    (RTS.pEnter "PdfValue._Default"
+       (PdfValue._Default @()
           (do (done :: HS.Bool) <-
                 RTS.pEnter "PdfValidate.IsValidated"
                   (pIsValidated (HS.getField @"gen" r) (HS.getField @"obj" r) ty)
