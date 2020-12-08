@@ -112,15 +112,18 @@ emptyDetChoice = ([], Nothing)
 insertDetChoice :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
 insertDetChoice src ih cm d =
   let (classChoice, endChoice) = d
-      tr = singletonDFAState (DFAStateEntry src cm)
+      q = singletonDFAState (DFAStateEntry src cm)
   in
   case ih of
     EndInput ->
-      case endChoice of
-        Nothing -> (classChoice, Just tr)
-        Just tr1 -> (classChoice, Just (unionDFAState tr tr1))
+      let endChoice' =
+            case endChoice of
+              Nothing -> Just q
+              Just qs -> Just (unionDFAState q qs)
+      in (classChoice, endChoice')
     HeadInput x ->
-      (insertItvInOrderedList (x, tr) classChoice unionDFAState, endChoice)
+      let classChoice' = insertItvInOrderedList (x, q) classChoice unionDFAState
+      in (classChoice', endChoice)
 
 
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
