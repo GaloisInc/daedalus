@@ -25,7 +25,7 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
-import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
+import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import Primitives.Decrypt(makeFileKey)
 
 main :: IO ()
