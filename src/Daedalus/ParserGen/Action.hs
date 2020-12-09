@@ -21,14 +21,12 @@ import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
-import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
 
 
 data InputAction =
-    ClssItv ClassInterval -- this case comes from the determinization from LL(*)
-  | ClssAct WithSem NCExpr
+    ClssAct WithSem NCExpr
   | IEnd
   | IOffset
   | IGetByte WithSem
@@ -106,7 +104,6 @@ showName n =
 
 
 instance Show(InputAction) where
-  show (ClssItv _)    = "ClssItv"
   show (ClssAct s _)  = semToString s ++ "Match"
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
@@ -808,17 +805,6 @@ advanceBy = Input.advanceBy
 applyInputAction :: GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) act =
   case act of
-    ClssItv (ClassBtw i j) ->
-      case getByte inp of
-        Nothing -> Nothing
-        Just (x, xs) ->
-          case (i,j) of
-            (CValue a, CValue b) ->
-              if (a <= x) && (x <= b)
-              then Just (xs, SEVal (Interp.VUInt 8 (fromIntegral x)) : out)
-              else Nothing
-            (_, _) -> error "Class Interval not handled"
-
     ClssAct s e ->
       case getByte inp of
         Nothing -> Nothing

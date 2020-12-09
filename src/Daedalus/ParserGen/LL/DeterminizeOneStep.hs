@@ -21,13 +21,9 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
 
 import qualified Data.Set as Set
 
-import qualified Daedalus.Interp as Interp
-
-import Daedalus.Type.AST
-import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd, evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd)
 import Daedalus.ParserGen.Aut (Aut(..))
-import Daedalus.ParserGen.ClassInterval
+import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.CfgDet
 import Daedalus.ParserGen.LL.Closure
@@ -139,39 +135,6 @@ unionDetChoice (cl1, e1) (cl2, e2) =
         foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFAState) cl2 cl1
   in (cl3, e3)
 
-
-
-classToInterval :: PAST.NCExpr -> Result ClassInterval
-classToInterval e =
-  case texprValue e of
-    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
-    TCSetSingle e1 ->
-      if not (isSimpleVExpr e1)
-      then Abort AbortClassIsDynamic
-      else
-        let v = evalNoFunCall e1 [] [] in
-        case v of
-          Interp.VUInt 8 x ->
-            let vx = fromIntegral x
-            in Result $ ClassBtw (CValue vx) (CValue vx)
-          _                -> Abort (AbortClassNotHandledYet "SetSingle")
-    TCSetRange e1 e2 ->
-      if isSimpleVExpr e1 && isSimpleVExpr e2
-      then
-        let v1 = evalNoFunCall e1 [] []
-            v2 = evalNoFunCall e2 [] []
-        in case (v1, v2) of
-             (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
-               let x1 = fromIntegral x
-                   y1 = fromIntegral y
-               in if x1 <= y1
-                  then Result $ ClassBtw (CValue x1) (CValue y1)
-                  else error ("SetRange values not ordered:" ++
-                              show (toEnum (fromIntegral x1) :: Char) ++ " " ++
-                              show (toEnum (fromIntegral y1) :: Char))
-             _ -> Abort (AbortClassNotHandledYet "SetRange")
-      else Abort AbortClassIsDynamic
-    _ -> Abort (AbortClassNotHandledYet "other class case")
 
 
 -- this function takes a tree representing a set of choices and
