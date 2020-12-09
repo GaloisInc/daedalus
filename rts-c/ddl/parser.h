@@ -20,7 +20,7 @@ class Parser {
   Input                 input;
   std::vector<T>        results;
   size_t                fail_offset;    // largest, only if `results` empty
-  Stack                 stack;
+  ListStack             stack;
   std::vector<Thread>   suspended;
   // size_t                time = 0;
 
@@ -67,15 +67,15 @@ public:
   }
 
   // Function calls
-  void push(Closure *c) { stack.push(c); }
-  Closure* pop()        { return stack.pop(); }
+  void push(Closure *c) { stack = ListStack(c,stack); }
+  Closure* pop()        { Closure *x = stack.pop(stack); return x; }
 
   // Returns the address of the code for the continuation, the closure is on
   // top of the stack. If there were alternative continuations
   // (for the yes/no cases) the other alternative is removed from the stack.
-  void* returnPure()    { return stack.retAddr(); }
-  void* returnYes()     { stack.squish(); return stack.retAddr(); }
-  void* returnNo()      { stack.pop()->free(false); return stack.retAddr(); }
+  void* returnPure()  { return stack.retAddr(); }
+  void* returnYes()   { stack = stack.squish(); return stack.retAddr(); }
+  void* returnNo()    { stack.pop(stack)->free(false); return stack.retAddr(); }
 
 
   // -- Threads ---------------------------------------------------------------
@@ -84,6 +84,7 @@ public:
   ThreadId spawn(ThreadClosure *c) {
     ThreadId id = suspended.size();
     // std::cout << "spawning thread " << id << std::endl;
+    stack.copy();
     suspended.push_back(Thread(c,stack));
     return id;
   }
@@ -99,9 +100,9 @@ public:
   void *yield() {
     // std::cout << "yielding\n";
     Thread& t = suspended.back();
-    stack.overwriteBy(t.stack);
+    stack.free();
     ThreadClosure *c = t.closure;
-    stack.push(c);
+    stack = ListStack(c,t.stack);
     suspended.pop_back();
     return stack.retAddr();
   }

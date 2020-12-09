@@ -9,7 +9,6 @@ import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
 
-import Daedalus.PP
 import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad

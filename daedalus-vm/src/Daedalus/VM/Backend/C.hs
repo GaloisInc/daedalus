@@ -561,11 +561,7 @@ cTermStmt ccInstr =
   case ccInstr of
     Jump jp -> cJump jp
 
-    JumpIf e choice ->
-      [ cIf (cCallMethod (cExpr e) "getValue" [])
-            (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
-      where
-      doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+    JumpIf e (JumpCase opts) -> cDoCase e opts
 
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
@@ -628,6 +624,36 @@ cJump (JumpPoint l es) =
   case Map.lookup l ?allBlocks of
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
+
+cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies) =>
+           E -> Map P JumpWithFree -> [CStmt]
+cDoCase e opts =
+  case getType e of
+    TSem Src.TBool
+      | Just ifTrue  <- Map.lookup (PBool True) opts
+      , Just ifFalse <- Map.lookup (PBool False) opts ->
+        [ cIf (cCallMethod (cExpr e) "getValue" [])
+              (doChoice ifTrue) (doChoice ifFalse) ]
+      | otherwise -> panic "JumpIf" [ "Boolean case needs both alternatives." ]
+      where
+      doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+
+    TSem (Src.TMaybe _) ->
+      panic "JumpIf" [ "XXX: Maybe" ]
+
+    TSem (Src.TUInt _) ->
+      panic "JumpIf" [ "XXX: UInt" ]
+
+    TSem (Src.TSInt _) ->
+      panic "JumpIf" [ "XXX: SInt" ]
+
+    TSem (Src.TInteger) ->
+      panic "JumpIf" [ "XXX: Integer" ]
+
+    TSem (Src.TUser {}) ->
+      panic "JumpIf" [ "XXX: User-defined" ]
+
+    ty -> panic "JumpIf" [ "`case` on unexpected type", show (pp ty) ]
 
 
 
