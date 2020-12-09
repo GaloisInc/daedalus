@@ -191,7 +191,7 @@ determinizeMove src tc =
             (_pos, act, _q) = moveCfg t
             resAcc =
               case getClassActOrEnd act of
-                Left c ->
+                Left (Left c) ->
                   let res = classToInterval c in
                     case res of
                       Abort AbortClassIsDynamic -> coerceAbort res
@@ -200,6 +200,8 @@ determinizeMove src tc =
                         Result $ insertDetChoice src (HeadInput r) t acc
 
                       _ -> error "Impossible abort"
+                Left (Right (IGetByte _)) ->
+                  Result $ insertDetChoice src (HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
                 Right IEnd -> Result $ insertDetChoice src EndInput t acc
                 _ -> error "Impossible abort"
           in

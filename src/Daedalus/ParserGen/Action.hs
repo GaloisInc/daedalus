@@ -172,6 +172,7 @@ isClassActOrEnd act =
     IAct iact ->
       case iact of
         ClssAct _ _ -> True
+        IGetByte _ -> True
         IEnd -> True
         _ -> False
     _ -> False
@@ -236,12 +237,13 @@ isBranchAction act =
     BAct _ -> True
     _ -> False
 
-getClassActOrEnd :: Action -> Either NCExpr InputAction
+getClassActOrEnd :: Action -> Either (Either NCExpr InputAction) InputAction
 getClassActOrEnd act =
   case act of
     IAct iact ->
       case iact of
-        ClssAct _ ca -> Left ca
+        ClssAct _ ca -> Left $ Left ca
+        IGetByte _s -> Left $ Right iact
         IEnd -> Right iact
         _ -> error "function should be applied on act"
     _ -> error "function should be applied on act"
