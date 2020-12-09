@@ -105,10 +105,23 @@ idVExpr vexpr =
 convertManyBounds :: Show a => ManyBounds (TC a Value) -> ManyBounds (TC (a, PAST.Annot) Value)
 convertManyBounds b = fmap idVExpr b
 
-getByteArray2 :: TC a Value -> Maybe [Word8]
-getByteArray2 e =
+
+getByteArray :: Show a => TC a Value -> Maybe [Word8]
+getByteArray e =
   case texprValue e of
     TCLiteral (LBytes w) _ -> Just (BS.unpack w)
+    TCArray arr _ ->
+      foldr ( \ a b ->
+                case b of
+                  Nothing -> Nothing
+                  Just acc ->
+                    case texprValue a of
+                      TCLiteral (LNumber n) _ ->
+                        if (0 <= n && n <= 255)
+                        then Just $ ((toEnum . fromEnum) n) : acc
+                        else Nothing
+                      _ -> Nothing
+            ) (Just []) arr
     _ -> Nothing
 
 
@@ -151,7 +164,7 @@ allocGExpr n ctx gexpr =
         TCMatchBytes ws vexpr ->
           let ae = idVExpr vexpr
           in
-            case getByteArray2 ae of
+            case getByteArray ae of
               Nothing -> allocate (TCMatchBytes ws ae) n 2
               Just str -> allocate (TCMatchBytes ws ae) n (2 * (length str) + 2)
 

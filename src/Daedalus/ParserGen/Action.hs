@@ -257,11 +257,6 @@ getMatchBytes act =
         _ -> Nothing
     _ -> Nothing
 
-getByteArray :: NVExpr -> Maybe [Word8]
-getByteArray e =
-  case texprValue e of
-    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
-    _ -> Nothing
 
 type Val = Interp.Value
 
