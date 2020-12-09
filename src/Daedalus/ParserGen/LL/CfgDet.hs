@@ -35,7 +35,7 @@ import Daedalus.ParserGen.Action
   )
 import qualified Daedalus.ParserGen.Aut as Aut
 
-import Daedalus.ParserGen.ClassInterval
+import Daedalus.ParserGen.LL.ClassInterval
 import qualified Daedalus.ParserGen.LL.Result as R
 
 

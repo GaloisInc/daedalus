@@ -1,10 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# Language GADTs #-}
 
-module Daedalus.ParserGen.ClassInterval
+module Daedalus.ParserGen.LL.ClassInterval
   ( IntervalEndpoint(..)
   , ClassInterval(..)
   , insertItvInOrderedList
   , matchClassInterval
+  , classToInterval
   )
 
 where
@@ -12,6 +14,14 @@ where
 -- import Debug.Trace
 
 import Data.Word
+
+import qualified Daedalus.Interp as Interp
+import Daedalus.Type.AST
+
+import Daedalus.ParserGen.AST as PAST
+import Daedalus.ParserGen.Action (evalNoFunCall, isSimpleVExpr)
+
+import Daedalus.ParserGen.LL.Result as R
 
 data IntervalEndpoint =
     PlusInfinity
@@ -155,3 +165,36 @@ matchClassInterval itv c =
   case itv of
     ClassBtw (CValue a) (CValue b) -> a <= c && c <= b
     ClassBtw {} -> undefined
+
+
+classToInterval :: PAST.NCExpr -> Result ClassInterval
+classToInterval e =
+  case texprValue e of
+    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
+    TCSetSingle e1 ->
+      if not (isSimpleVExpr e1)
+      then Abort AbortClassIsDynamic
+      else
+        let v = evalNoFunCall e1 [] [] in
+        case v of
+          Interp.VUInt 8 x ->
+            let vx = fromIntegral x
+            in Result $ ClassBtw (CValue vx) (CValue vx)
+          _                -> Abort (AbortClassNotHandledYet "SetSingle")
+    TCSetRange e1 e2 ->
+      if isSimpleVExpr e1 && isSimpleVExpr e2
+      then
+        let v1 = evalNoFunCall e1 [] []
+            v2 = evalNoFunCall e2 [] []
+        in case (v1, v2) of
+             (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
+               let x1 = fromIntegral x
+                   y1 = fromIntegral y
+               in if x1 <= y1
+                  then Result $ ClassBtw (CValue x1) (CValue y1)
+                  else error ("SetRange values not ordered:" ++
+                              show (toEnum (fromIntegral x1) :: Char) ++ " " ++
+                              show (toEnum (fromIntegral y1) :: Char))
+             _ -> Abort (AbortClassNotHandledYet "SetRange")
+      else Abort AbortClassIsDynamic
+    _ -> Abort (AbortClassNotHandledYet "other class case")
