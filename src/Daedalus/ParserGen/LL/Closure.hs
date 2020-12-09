@@ -110,10 +110,14 @@ closureLoop aut busy (alts, cfg) =
 
     closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
     closureStep pos (act, q2)
-      | isClassActOrEnd act                = Result [ ClosureMove alts cfg (pos, act, q2) ]
-      | isNonClassInputAct act             = -- trace (show act) $
-                                             Abort $ AbortNonClassInputAction act
-      | isUnhandledAction act              = Abort AbortUnhandledAction
+      | isClassActOrEnd act =
+          Result [ ClosureMove alts cfg (pos, act, q2) ]
+      | isNonClassInputAct act =
+          -- trace (show act) $
+          Abort $ AbortNonClassInputAction act
+      | isUnhandledAction act =
+          -- trace (show act) $
+          Abort AbortUnhandledAction
       | Seq.length alts > maxDepthRec = Abort AbortOverflowMaxDepth
       | otherwise =
           case simulateActionCfgDet aut act q2 cfg of

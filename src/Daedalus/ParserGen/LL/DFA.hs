@@ -71,6 +71,7 @@ showDFATransition (q, dfa) =
       space d ++ "( " ++ showSet s ++ "\n" ++
       space d ++ ", " ++ show i ++ "\n" ++
       space d ++ ", " ++ showDown am ++ "\n" ++
+      -- space d ++ ", " ++ showCfgDet qq ++ "\n" ++
       space d ++ "),\n"
       where
          showDown amb =
@@ -413,10 +414,13 @@ predictLL (start, dfa) i =
 
 createDFA :: Aut a => a -> AutDet
 createDFA aut =
-  let collectedStates = identifyStartStates ()
+  let collectedStates =
+        identifyStartStates ()
+        -- Set.singleton $ initialState aut
   in
     go (Set.toList (Set.map mkDFAStateQuotient collectedStates)) [] emptyAutDet
   where
+    identifyStartStates :: () -> Set.Set State
     identifyStartStates () =
       let transitions = allTransitions aut in
       foldr (\ (q1, ch) b -> Set.union b (collectStatesOnFanout q1 ch)) (Set.empty) transitions
@@ -461,7 +465,8 @@ showStartDFA aut q =
     Nothing -> "SINK STATE"
     Just (cfg, qs) ->
       if nullDFAStateQuotient qs
-      then stateToString (cfgState cfg) aut
+      then stateToString (cfgState cfg) aut ++
+           " " ++ showCfgDet cfg
       else error "broken invariant"
 
 printDFA :: Aut a => a -> AutDet -> IO ()

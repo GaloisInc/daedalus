@@ -7,6 +7,7 @@ module Daedalus.ParserGen.LL.CfgDet
     CfgDet(..),
     compareCfgDet,
     initCfgDet,
+    showCfgDet,
     simulateActionCfgDet,
     InputHeadCondition(..),
     matchInputHeadCondition,
@@ -54,16 +55,23 @@ data SymbolicStack a =
   | SCons a (SymbolicStack a)
   deriving (Eq, Ord, Show)
 
+showSymbolicStack :: SymbolicStack a -> String
+showSymbolicStack s =
+  "[" ++ helper s ++ "]"
+  where
+    helper st =
+      case st of
+        SWildcard -> "*"
+        SEmpty -> ""
+        SCons _a s1 -> "?, " ++ helper s1
+
+
 lengthSymbolicStack :: SymbolicStack a -> Int
 lengthSymbolicStack s =
   case s of
     SCons _ rs -> 1 + lengthSymbolicStack rs
     _ -> 0
 
--- instance Show a => Show (SymbolicStack a) where
---   show SWildcard = "*"
---   show SEmpty = "[]"
---   show (SCons x rest) = show x ++ " " ++ show rest
 
 data SlkBetweenItv =
     SlkCExactly (Slk Int)
@@ -104,6 +112,17 @@ data SlkInput =
   | InpNext Int SlkInput
   | InpEnd
   deriving (Show, Ord)
+
+showSlkInput :: SlkInput -> String
+showSlkInput inp =
+  case inp of
+    InpBegin -> "---"
+    InpTake n _ -> "---[.." ++ show n ++ "]"
+    InpNext i (InpTake n _) ->
+      "---[" ++ show i ++ ".." ++ show n ++ "]"
+    InpDrop i _ -> "---[" ++ show i ++ "..]"
+    InpEnd -> "---"
+    _ ->  error "case not handled"
 
 nextSlkInput :: SlkInput -> Maybe SlkInput
 nextSlkInput inp =
@@ -179,11 +198,27 @@ instance Eq (SlkInput) where
 
 data CfgDet = CfgDet
   { cfgState :: State
-  , cfgCtrl :: SlkControlData
+  , cfgCtrl  :: SlkControlData
   , cfgSem   :: SlkSemanticData
   , cfgInput :: SlkInput
   }
   deriving (Show)
+
+
+showCfgDet :: CfgDet -> String
+showCfgDet
+  (CfgDet
+  { cfgState = q
+  , cfgCtrl = ctrl
+  , cfgSem = sem
+  , cfgInput = inp
+  }) =
+  "CfgDet{ " ++
+  "q:" ++ show q ++ "; " ++
+  "ctrl:" ++ showSymbolicStack ctrl ++ "; " ++
+  "sem:" ++ showSymbolicStack sem ++ "; " ++
+  "inp:" ++ showSlkInput inp ++
+  "}"
 
 
 compareCfgDet :: CfgDet -> CfgDet -> Ordering
