@@ -120,6 +120,18 @@ nextSlkInput inp =
     InpEnd -> error "not possible InpEnd"
     _ -> error ("not possible: " ++ show inp)
 
+endSlkInput :: SlkInput -> Maybe SlkInput
+endSlkInput inp =
+  case inp of
+    InpBegin -> Just InpEnd
+    InpEnd -> Just InpEnd
+    InpTake n _ -> if (n == 0) then Just InpEnd else Nothing
+    InpDrop _ _ -> Just InpEnd
+    InpNext i (InpTake n _) ->
+      if (i == n) then Just InpEnd else Nothing
+    _ -> error "impossible IEND"
+
+
 newtype InputWindow = InputWindow { _win :: (Int, Maybe Int) }
   deriving(Eq)
 
@@ -593,33 +605,47 @@ matchInputHeadCondition c i =
 
 moveCfgDetFromPrev :: InputHeadCondition -> CfgDet -> Action -> State -> Maybe CfgDet
 moveCfgDetFromPrev ih cfg act q =
-  let mNewInput = nextSlkInput (cfgInput cfg)
-  in
-    case mNewInput of
-      Nothing -> Nothing
-      Just newInput ->
-        case (ih, act) of
-          (HeadInput _itv, IAct (ClssAct w _)) ->
-            case w of
-              YesSem ->
-                Just $ CfgDet
-                { cfgState = q
-                , cfgCtrl = cfgCtrl cfg
-                , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-                , cfgInput = newInput
-                }
-              NoSem ->
-                Just $ CfgDet
-                { cfgState = q
-                , cfgCtrl = cfgCtrl cfg
-                , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-                , cfgInput = newInput
-                }
-          (EndInput, IAct (IEnd)) ->
-            Just $ CfgDet
-            { cfgState = q
-            , cfgCtrl = cfgCtrl cfg
-            , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
-            , cfgInput = newInput
-            }
-          _ -> error "impossible"
+  case (ih, act) of
+    (HeadInput _itv, IAct (ClssAct w _)) ->
+      let mNewInput = nextSlkInput (cfgInput cfg) in
+      case mNewInput of
+        Nothing -> Nothing
+        Just newInput ->
+          case w of
+            YesSem ->
+              Just $ CfgDet
+              { cfgState = q
+              , cfgCtrl = cfgCtrl cfg
+              , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+              , cfgInput = newInput
+              }
+            NoSem ->
+              Just $ CfgDet
+              { cfgState = q
+              , cfgCtrl = cfgCtrl cfg
+              , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+              , cfgInput = newInput
+              }
+    (HeadInput _itv, IAct (IGetByte _)) ->
+      let mNewInput = nextSlkInput (cfgInput cfg) in
+      case mNewInput of
+        Nothing -> Nothing
+        Just newInput ->
+          Just $ CfgDet
+          { cfgState = q
+          , cfgCtrl = cfgCtrl cfg
+          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+          , cfgInput = newInput
+          }
+    (EndInput, IAct (IEnd)) ->
+      let mNewInput = endSlkInput (cfgInput cfg) in
+      case mNewInput of
+        Nothing -> Nothing
+        Just newInput ->
+          Just $ CfgDet
+          { cfgState = q
+          , cfgCtrl = cfgCtrl cfg
+          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+          , cfgInput = newInput
+          }
+    _ -> error "impossible"
