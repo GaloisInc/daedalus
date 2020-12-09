@@ -124,9 +124,7 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
   annJF mp jf = JumpWithFree { freeFirst = Set.map (annV mp) (freeFirst jf)
                              , jumpTarget = annJ mp (jumpTarget jf)
                              }
-  annJ2 mp ls = JumpChoice { jumpYes = annJF mp (jumpYes ls)
-                           , jumpNo  = annJF mp (jumpNo  ls)
-                           }
+  annJ2 mp (JumpCase opts) = JumpCase (annJF mp <$> opts)
 
   annE mp e =
     case e of
@@ -249,7 +247,7 @@ cinstr ci =
           $ getFunOwnership f i
 
 jumpChoice :: JumpChoice -> Info -> Info
-jumpChoice jc = jumpWithFree (jumpYes jc) . jumpWithFree (jumpNo jc)
+jumpChoice (JumpCase opts) = \i -> foldr jumpWithFree i opts
 
 jumpWithFree :: JumpWithFree -> Info -> Info
 jumpWithFree = jumpPoint . jumpTarget

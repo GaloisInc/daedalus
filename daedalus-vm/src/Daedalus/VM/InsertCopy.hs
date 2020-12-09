@@ -161,17 +161,16 @@ checkTermCopies is0 term0 = (reverse is1, term1)
       _ -> (is, jc)
 
   okChoice :: BV -> VMVar -> JumpChoice -> Maybe JumpChoice
-  okChoice x' v jc
-    | ok yesVs && ok noVs = Just JumpChoice { jumpYes = elimJF (jumpYes jc)
-                                            , jumpNo  = elimJF (jumpNo jc)
-                                            }
-    | otherwise = Nothing
+  okChoice x' v (JumpCase opts)
+    | all ok optsVs = Just (JumpCase (elimJF <$> opts))
+    | otherwise     = Nothing
+
     where
     x         = LocalVar x'
-    getVs f   = freeVarSet (jumpTarget (f jc))
-    yesVs     = getVs jumpYes
-    noVs      = getVs jumpNo
+
     ok vs     = not (x `Set.member` vs && v `Set.member` vs)
+
+    optsVs = (freeVarSet . jumpTarget) <$> opts
 
     elimJF jf = JumpWithFree
                   { jumpTarget = doSubst x' v (jumpTarget jf)
@@ -232,9 +231,7 @@ instance DoSubst JumpPoint where
   doSubst x v (JumpPoint l es) = JumpPoint l (doSubst x v es)
 
 instance DoSubst JumpChoice where
-  doSubst x v jc = JumpChoice { jumpYes = doSubst x v (jumpYes jc)
-                              , jumpNo  = doSubst x v (jumpNo jc)
-                              }
+  doSubst x v (JumpCase opts) = JumpCase (doSubst x v <$> opts)
 
 instance DoSubst JumpWithFree where
   doSubst x v jf = JumpWithFree
@@ -289,19 +286,22 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
              JumpIf e ls    -> JumpIf e (freeChoice ls)
              t              -> t
 
-  freeChoice JumpChoice { .. } =
-    JumpChoice { jumpYes = changeFree (inNo `Set.difference` inYes) jumpYes
-               , jumpNo  = changeFree (inYes `Set.difference` inNo) jumpNo
-               }
-
+  freeChoice (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
     where
+    allFree = getFree <$> opts
+    doCase l it =
+      let (this, rest) = doLookupRm l allFree
+          others       = Set.unions (Map.elems rest)
+      in changeFree (others `Set.difference` this) it
+
     changeFree vs x = x { freeFirst = filterFree vs }
+    getFree         = freeVarSet . jumpTarget
 
-    getFree = freeVarSet . jumpTarget
-    inYes   = getFree jumpYes
-    inNo    = getFree jumpNo
-
-
+doLookupRm :: Ord k => k -> Map k v -> (v,Map k v)
+doLookupRm k mp = (v,mp1)
+  where
+  (Just v,mp1)  = Map.updateLookupWithKey del k mp
+  del _ _       = Nothing
 
 --------------------------------------------------------------------------------
 
@@ -396,18 +396,16 @@ doJump (JumpPoint l es) =
 -- So when we add a `copy` for the one side we add a `free` to the other.
 -- A later pass removes redundant copies
 doJumpChoice :: JumpChoice -> M JumpChoice
-doJumpChoice jc =
-  do (no,noVs)   <- doSide (jumpNo jc)
-     (yes,yesVs) <- doSide (jumpYes jc)
-     pure JumpChoice { jumpNo = addVs yesVs no
-                     , jumpYes = addVs noVs yes
-                     }
+doJumpChoice (JumpCase opts) =
+  do opts' <- mapM doSide opts
+     let doOne l (it,_) =
+          addVs (Set.unions $ map snd $ Map.elems $ Map.delete l opts') it
+     pure (JumpCase (Map.mapWithKey doOne opts'))
   where
-  addVs xs jf = jf { freeFirst = foldr (Set.insert . LocalVar)
-                                       (freeFirst jf) xs }
+  addVs xs jf = jf { freeFirst = Set.union xs (freeFirst jf) }
   doSide jf =
     do (t,vs) <- observeCopies (doJump (jumpTarget jf))
-       pure (jf { jumpTarget = t }, vs)
+       pure (jf { jumpTarget = t }, Set.fromList (map LocalVar vs))
 
 
 

@@ -125,10 +125,16 @@ jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 
 -- | Two joint points, but we'll use exactly one of the two.
 -- This matters for memory management.
-data JumpChoice =
-  JumpChoice { jumpYes :: JumpWithFree
-             , jumpNo  :: JumpWithFree
-             }
+data JumpChoice = JumpCase (Map P JumpWithFree)
+
+data P =
+    PBool Bool
+  | PNothing
+  | PJust
+  | PNum Integer
+  | PCon Label
+  | PAny          -- ^ Matches anything
+    deriving (Eq,Ord)
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
@@ -275,10 +281,9 @@ instance PP CInstr where
   pp cintsr =
     case cintsr of
       Jump v        -> "jump" <+> pp v
-      JumpIf b ls   -> "if" <+> pp b $$ nest 2 (
-                          "then" <+> pp (jumpYes ls) $$
-                          "else" <+> pp (jumpNo  ls)
-                        )
+      JumpIf b (JumpCase ps) -> "case" <+> pp b <+> "of"
+                                $$ nest 2 (vcat (map ppAlt (Map.toList ps)))
+            where ppAlt (p,g) = pp p <+> "->" <+> pp g
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
@@ -346,6 +351,17 @@ instance PP E where
       EBool b       -> text (show b)
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
+
+instance PP P where
+  pp pat =
+    case pat of
+      PBool b  -> pp b
+      PNothing -> "nothing"
+      PJust    -> "just"
+      PNum n   -> pp n
+      PCon l   -> pp l
+
+
 
 instance PP VMVar where
   pp v =

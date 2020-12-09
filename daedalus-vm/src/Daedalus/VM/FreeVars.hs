@@ -2,6 +2,7 @@ module Daedalus.VM.FreeVars where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 import Daedalus.VM
 
@@ -66,7 +67,7 @@ instance FreeVars JumpWithFree where
   freeVars' jf = freeVars' (freeFirst jf, jumpTarget jf)
 
 instance FreeVars JumpChoice where
-  freeVars' j = freeVars' (jumpYes j, jumpNo j)
+  freeVars' (JumpCase opts) = freeVars' (Map.elems opts)
 
 instance FreeVars VMVar where
   freeVars' = (:)
