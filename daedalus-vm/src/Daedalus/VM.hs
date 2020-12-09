@@ -132,7 +132,7 @@ data P =
   | PNothing
   | PJust
   | PNum Integer
-  | PCon Label
+  | PCon Src.Label
   | PAny          -- ^ Matches anything
     deriving (Eq,Ord)
 
@@ -360,6 +360,7 @@ instance PP P where
       PJust    -> "just"
       PNum n   -> pp n
       PCon l   -> pp l
+      PAny     -> "_"
 
 
 
