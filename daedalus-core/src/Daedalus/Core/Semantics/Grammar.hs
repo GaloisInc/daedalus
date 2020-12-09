@@ -3,9 +3,11 @@ module Daedalus.Core.Semantics.Grammar where
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS8
 
+import qualified Data.BitVector.Sized as BV
+
 import RTS.Parser
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
-                    , pError', pErrorAt, ParseErrorSource(..)
+                    , pError', ParseErrorSource(..)
                     )
 
 import Daedalus.Core
@@ -56,5 +58,37 @@ evalG gram env =
 
     If e g1 g2 ->
       if fromVBool (eval e env) then evalG g1 env else evalG g2 env
+
+    Case e alts ->
+      let v = eval e env
+      in case [ k | (p,k) <- alts, matches p v ] of
+           g : _ -> evalG g env
+           []    -> pError' FromSystem [] "Pattern match failure"
+
+matches :: Pattern -> Value -> Bool
+matches pat v =
+  case pat of
+    PBool b  -> VBool b == v
+    PNothing -> case v of
+                  VNothing {} -> True
+                  _           -> False
+    PJust    -> case v of
+                  VJust {} -> True
+                  _        -> False
+    PNum n ->
+      case v of
+        VInt i    -> i == n
+        VUInt _ u -> BV.asUnsigned u == n
+        VSInt w s -> BV.asSigned w s == n
+        _         -> False
+
+    PCon l ->
+      case v of
+        VUnion _ l1 _ -> l == l1
+        _              -> False
+
+    PAny -> True
+
+
 
 

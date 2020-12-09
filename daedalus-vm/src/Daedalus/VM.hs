@@ -1,5 +1,8 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM where
+module Daedalus.VM
+  ( module Daedalus.VM
+  , Src.Pattern(..)
+  ) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -125,16 +128,7 @@ jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 
 -- | Two joint points, but we'll use exactly one of the two.
 -- This matters for memory management.
-data JumpChoice = JumpCase (Map P JumpWithFree)
-
-data P =
-    PBool Bool
-  | PNothing
-  | PJust
-  | PNum Integer
-  | PCon Src.Label
-  | PAny          -- ^ Matches anything
-    deriving (Eq,Ord)
+data JumpChoice = JumpCase (Map Src.Pattern JumpWithFree)
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
@@ -351,17 +345,6 @@ instance PP E where
       EBool b       -> text (show b)
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
-
-instance PP P where
-  pp pat =
-    case pat of
-      PBool b  -> pp b
-      PNothing -> "nothing"
-      PJust    -> "just"
-      PNum n   -> pp n
-      PCon l   -> pp l
-      PAny     -> "_"
-
 
 
 instance PP VMVar where

@@ -629,7 +629,7 @@ cJump (JumpPoint l es) =
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
 cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies) =>
-           E -> Map P JumpWithFree -> [CStmt]
+           E -> Map Pattern JumpWithFree -> [CStmt]
 cDoCase e opts =
   case getType e of
     TSem Src.TBool ->
