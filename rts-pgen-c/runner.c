@@ -3,11 +3,35 @@
 #include "action.h"
 #include "cfg.h"
 
+#include "util.h"
 #include "debug.h"
 
 //-----------------------------------------------------------------------//
 // Runtime Library: Naive Backtracking Runner
 //-----------------------------------------------------------------------//
+
+
+typedef enum {
+  CFalse,
+  CTrue,
+  CEarly,
+} CommitFlag;
+
+typedef struct _CommitStack {
+    CommitFlag head;
+    struct _CommitStack * next;
+} CommitStack;
+
+CommitStack * emptyCommitStack = NULL;
+
+CommitStack * addCommitStack(CommitStack * hst) {
+    CommitStack * st = ALLOCMEM(sizeof(CommitStack));
+    st->head = CFalse;
+    st->next = hst;
+    return st;
+}
+
+// WE ARE HEREER!!!!!!!
 
 typedef struct _Stack {
     int state;

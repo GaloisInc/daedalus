@@ -138,12 +138,32 @@ typedef struct {
 } ReturnBindData;
 
 typedef struct {
-    ControlActionType tag;
+    SemanticActionType tag;
     union {
         EnvStoreData envStoreData;
         ReturnBindData returnBindData;
     };
 } SemanticAction ;
+
+//--------------------------------------------------------------------------//
+// Branch Action Definitions
+//--------------------------------------------------------------------------//
+
+typedef enum {
+    ACT_CutBiasAlt
+} BranchActionType;
+
+typedef struct {
+    int state;
+} CutBiasAltData;
+
+typedef struct {
+    BranchActionType tag;
+    union {
+        CutBiasAltData cutBiasAltData;
+    };
+} BranchAction ;
+
 
 //--------------------------------------------------------------------------//
 // Action Definitions
@@ -153,7 +173,8 @@ typedef enum {
     ACT_EpsA,
     ACT_InputAction,
     ACT_ControlAction,
-    ACT_SemanticAction
+    ACT_SemanticAction,
+    ACT_BranchAction,
 } ActionType;
 
 typedef struct {
@@ -162,6 +183,7 @@ typedef struct {
         InputAction inputAction;
         ControlAction controlAction;
         SemanticAction semanticAction;
+        BranchAction branchAction;
     };
 } Action;
 
