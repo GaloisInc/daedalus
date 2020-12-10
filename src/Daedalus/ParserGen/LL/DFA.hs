@@ -4,6 +4,7 @@ module Daedalus.ParserGen.LL.DFA
   ( createDFA
   , statsDFA
   , AutDet
+  , DFA(..)
   , lookupAutDet
   , Prediction
   , destrPrediction
@@ -32,32 +33,58 @@ import Daedalus.ParserGen.LL.DeterminizeOneStep
 
 
 
+data AmbiguityDetection =
+    Ambiguous
+  | NotAmbiguous
+  | DunnoAmbiguous
+
+instance Show AmbiguityDetection where
+  show Ambiguous      = "Ambiguous"
+  show NotAmbiguous   = "NotAmbiguous"
+  show DunnoAmbiguous = "DunnoAmbiguous"
+
+
 data DFATransition =
-  DChoice [ (InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient) ]
+  DChoice [ (InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState) ]
 
-type ExplicitDFA = Map.Map DFAStateQuotient (Result DFATransition)
+data DFA = DFA
+  { startDFA :: DFAState
+  , transitionDFA :: Map.Map DFAState (Result DFATransition)
+  , stateMappingDFA :: Map.Map DFAState Int
+  , flagHasNoAbort :: Maybe Bool
+  , flagHasFullResolution :: Maybe Bool
+  }
 
-lookupExplicitDFA :: DFAStateQuotient -> ExplicitDFA -> Maybe (Result DFATransition)
-lookupExplicitDFA q dfa =
-  Map.lookup q dfa
+initDFA :: DFAState ->  DFA
+initDFA q =
+  DFA
+  { startDFA = q
+  , transitionDFA = Map.empty
+  , stateMappingDFA = Map.empty
+  , flagHasNoAbort = Nothing
+  , flagHasFullResolution = Nothing
+  }
 
-insertExplicitDFA :: DFAStateQuotient -> Result DFATransition -> ExplicitDFA -> ExplicitDFA
-insertExplicitDFA q tr dfa =
-  Map.insert q tr dfa
+lookupDFA :: DFAState -> DFA -> Maybe (Result DFATransition)
+lookupDFA q dfa =
+  Map.lookup q (transitionDFA dfa)
 
-emptyExplicitDFA :: ExplicitDFA
-emptyExplicitDFA = Map.empty
+insertDFA :: DFAState -> Result DFATransition -> DFA -> DFA
+insertDFA q tr dfa =
+  dfa { transitionDFA = Map.insert q tr (transitionDFA dfa) }
 
-showDFATransition :: (DFAStateQuotient, ExplicitDFA) -> String
+
+
+showDFATransition :: (DFAState, DFA) -> String
 showDFATransition (q, dfa) =
   showTrans [] 0 q
   where
-    showTrans :: [DFAStateQuotient] -> Int -> DFAStateQuotient -> String
+    showTrans :: [DFAState] -> Int -> DFAState -> String
     showTrans vis d qq =
       if elem qq vis
       then "**** loop ****"
       else
-      case lookupExplicitDFA qq dfa of
+      case lookupDFA qq dfa of
         Nothing -> error "sdfsdf"
         Just r ->
           case r of
@@ -81,23 +108,24 @@ showDFATransition (q, dfa) =
              DunnoAmbiguous -> showTrans vis (d+2) qq
 
     showSet s = "[" ++ foldr (\ entry b ->
-                                let alts = altSeq $ dstDFAState entry in
+                                let alts = altSeq $ dstEntry entry in
                                  "(" ++ show (length alts) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" s  ++ "]"
     space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
-lookaheadDepth :: (DFAStateQuotient, ExplicitDFA) -> Int
-lookaheadDepth (q, dfa) =
-  helper [] q
+lookaheadDepth :: DFA -> Int
+lookaheadDepth dfa =
+  let start = startDFA dfa in
+  helper [] start
   where
-    helper :: [DFAStateQuotient] -> DFAStateQuotient -> Int
+    helper :: [DFAState] -> DFAState -> Int
     helper vis qq =
       if elem qq vis
       then 0
       else
-        case lookupExplicitDFA qq dfa of
+        case lookupDFA qq dfa of
           Nothing -> 0
           Just rt ->
             case rt of
@@ -115,7 +143,7 @@ lookaheadDepth (q, dfa) =
 maxDepthDet :: Int
 maxDepthDet = 20
 
-detChoiceToList :: DetChoice -> [(InputHeadCondition, DFAState)]
+detChoiceToList :: DetChoice -> [(InputHeadCondition, DFARegistry)]
 detChoiceToList (c,e) =
   let tr = map (\ (i,t) -> (HeadInput i, t)) c in
   case e of
@@ -123,42 +151,31 @@ detChoiceToList (c,e) =
     Just t -> tr ++ [(EndInput, t)]
 
 
-data AmbiguityDetection =
-    Ambiguous
-  | NotAmbiguous
-  | DunnoAmbiguous
-
-instance Show AmbiguityDetection where
-  show Ambiguous      = "Ambiguous"
-  show NotAmbiguous   = "NotAmbiguous"
-  show DunnoAmbiguous = "DunnoAmbiguous"
-
-
-getConflictSetsPerLoc :: DFAState -> [ [DFAStateEntry] ]
+getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
 getConflictSetsPerLoc s =
-  case iterDFAState s of
+  case iterDFARegistry s of
     Nothing -> []
     Just (e, es) ->
-      case findAllEntryInDFAState es (sameEntryPerLoc e) of
+      case findAllEntryInDFARegistry es (sameEntryPerLoc e) of
         (lst, rs) ->
           let lstLst = getConflictSetsPerLoc rs
           in  (e : lst) : lstLst
 
   where
     sameEntryPerLoc
-      (DFAStateEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1)))
-      (DFAStateEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
+      (DFAEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1)))
+      (DFAEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
       dst1 == dst2 && q1 == q2
 
 -- Inspired by the condition in `predictLL()` of ALL(*) paper
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility
 -- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
 -- * `DunnoAmbiguous` if all the conflict sets have 1 posibility
-analyzeConflicts :: DFAState -> AmbiguityDetection
+analyzeConflicts :: DFARegistry -> AmbiguityDetection
 analyzeConflicts ts =
   let conflictSets = getConflictSetsPerLoc ts
   in case conflictSets of
-       [] -> error "empty DFAState"
+       [] -> error "empty DFARegistry"
        [ [] ] -> error "empty list"
        [ lst ] ->
          if length lst == 1
@@ -179,12 +196,12 @@ revAppend :: [a] -> [a] -> [a]
 revAppend [] ys = ys
 revAppend (x:xs) ys = revAppend xs (x:ys)
 
-type DiscoveredDFAStates = [DFAStateQuotient]
+type DiscoveredDFAStates = [DFAState]
 
 emptyDiscoveredDFAStates :: DiscoveredDFAStates
 emptyDiscoveredDFAStates = []
 
-addDiscoveredDFAStates :: DFAStateQuotient -> DiscoveredDFAStates -> DiscoveredDFAStates
+addDiscoveredDFAStates :: DFAState -> DiscoveredDFAStates -> DiscoveredDFAStates
 addDiscoveredDFAStates q cont = q : cont
 
 mergeDiscoveredDFAStates :: DiscoveredDFAStates -> DiscoveredDFAStates -> DiscoveredDFAStates
@@ -194,30 +211,31 @@ mergeDiscoveredDFAStates cont1 cont2 = cont1 ++ cont2
 oVERFLOW_CFG :: Int
 oVERFLOW_CFG = 10
 
-createDFAtable :: Aut a => a -> DFAStateQuotient -> (ExplicitDFA, DiscoveredDFAStates)
+createDFAtable :: Aut a => a -> DFAState -> (DFA, DiscoveredDFAStates)
 createDFAtable aut qInit =
-  if measureDFAStateQuotient qInit > oVERFLOW_CFG
-  then (insertExplicitDFA qInit (Abort AbortOverflowCfg) emptyExplicitDFA, [])
+  let idfa = initDFA qInit in
+  if measureDFAState qInit > oVERFLOW_CFG
+  then (insertDFA qInit (Abort AbortOverflowCfg) idfa, [])
   else
-    let (resDfa, cont) = go [(qInit,0)] [] (emptyExplicitDFA, [])
+    let (resDfa, cont) = go [(qInit,0)] [] (idfa, [])
     in (resDfa, reverse cont)
   where
-    go :: [ (DFAStateQuotient, Int) ] -> [ (DFAStateQuotient, Int) ] -> (ExplicitDFA, DiscoveredDFAStates) -> (ExplicitDFA, DiscoveredDFAStates)
+    go :: [ (DFAState, Int) ] -> [ (DFAState, Int) ] -> (DFA, DiscoveredDFAStates) -> (DFA, DiscoveredDFAStates)
     go toVisit accToVisit acc@(dfa, cont) =
       case toVisit of
         [] -> case accToVisit of
                 [] -> acc
                 _ -> go (reverse accToVisit) [] acc
         (q, depth) : rest ->
-          case lookupExplicitDFA q dfa of
+          case lookupDFA q dfa of
             Nothing ->
               if depth > maxDepthDet
               then
-                let newDfa = insertExplicitDFA q (Abort AbortOverflowK) dfa
+                let newDfa = insertDFA q (Abort AbortOverflowK) dfa
                 in go rest accToVisit (newDfa, cont)
               else
                 let choices = detSubset q
-                    newDfa = insertExplicitDFA q choices dfa
+                    newDfa = insertDFA q choices dfa
                 in
                   case choices of
                     Result (DChoice r1) ->
@@ -230,7 +248,7 @@ createDFAtable aut qInit =
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
               go rest accToVisit acc
 
-    collectVisitAndCont :: Int -> [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)] -> ([(DFAStateQuotient, Int)], DiscoveredDFAStates)
+    collectVisitAndCont :: Int -> [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState)] -> ([(DFAState, Int)], DiscoveredDFAStates)
     collectVisitAndCont depth lst =
       foldr (\ (_, _, am, qq) (vis, cont) ->
                case am of
@@ -238,9 +256,9 @@ createDFAtable aut qInit =
                  NotAmbiguous -> (vis, addDiscoveredDFAStates qq cont)
                  DunnoAmbiguous -> ((qq, depth) : vis, cont)) ([], emptyDiscoveredDFAStates) lst
 
-    detSubset :: DFAStateQuotient -> Result DFATransition
+    detSubset :: DFAState -> Result DFATransition
     detSubset s =
-      let r = determinizeDFAStateQuotient aut s in
+      let r = determinizeDFAState aut s in
       case r of
         Abort AbortOverflowMaxDepth -> coerceAbort r
         Abort AbortLoopWithNonClass -> coerceAbort r
@@ -256,27 +274,28 @@ createDFAtable aut qInit =
         _ -> error "cannot be this abort"
 
     mapAnalyzeConflicts :: DetChoice ->
-                           [(InputHeadCondition, DFAState, AmbiguityDetection, DFAStateQuotient)]
+                           [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState)]
     mapAnalyzeConflicts dc =
       let lst = detChoiceToList dc in
       map fconvert lst
       where
         fconvert (ihc, s) =
-          let newCfg = convertDFAStateToQuotient ihc s
+          let newCfg = convertDFARegistryToDFAState ihc s
               am = analyzeConflicts s
           in (ihc, s, am, newCfg)
 
 
 
-hasFullResolution :: (DFAStateQuotient, ExplicitDFA) -> Bool
-hasFullResolution (start, dfa) =
-  traverseWithVisited [] start
+computeHasFullResolution :: DFA -> DFA
+computeHasFullResolution dfa =
+  let start = startDFA dfa in
+  dfa { flagHasFullResolution = Just $ traverseWithVisited [] start }
   where
     traverseWithVisited visited q =
       if elem q visited
       then True
       else
-        case lookupExplicitDFA q dfa of
+        case lookupDFA q dfa of
           Nothing -> error "broken invariant"
           Just r ->
             case r of
@@ -292,16 +311,16 @@ hasFullResolution (start, dfa) =
             Ambiguous -> False
             DunnoAmbiguous -> traverseWithVisited visited qq && helper visited rest
 
-hasNoAbort :: (DFAStateQuotient, ExplicitDFA) -> Bool
-hasNoAbort (start, dfa)  =
-  traverseWithVisited [] start
-
+computeHasNoAbort :: DFA -> DFA
+computeHasNoAbort dfa =
+  let start = startDFA dfa in
+  dfa { flagHasNoAbort = Just $ traverseWithVisited [] start }
   where
     traverseWithVisited visited q =
       if elem q visited
       then True
       else
-        case lookupExplicitDFA q dfa of
+        case lookupDFA q dfa of
           Nothing -> error "broken invariant"
           Just r ->
             case r of
@@ -320,12 +339,12 @@ hasNoAbort (start, dfa)  =
 
 
 
-type AutDet = Map.Map DFAStateQuotient (ExplicitDFA, Bool)
+type AutDet = Map.Map DFAState DFA
 
-lookupAutDet :: State -> AutDet -> Maybe (ExplicitDFA, Bool)
-lookupAutDet q aut = Map.lookup (mkDFAStateQuotient q) aut
+lookupAutDet :: State -> AutDet -> Maybe DFA
+lookupAutDet q aut = Map.lookup (mkDFAState q) aut
 
-insertAutDet :: DFAStateQuotient -> (ExplicitDFA, Bool) -> AutDet -> AutDet
+insertAutDet :: DFAState -> DFA -> AutDet -> AutDet
 insertAutDet q v aut = Map.insert q v aut
 
 emptyAutDet :: AutDet
@@ -342,17 +361,19 @@ destrPrediction pdx =
 
 -- TODO: Explain this in some document. This is basically the key of
 -- the new faithful determinization.
-predictLL :: (State, ExplicitDFA) -> Input.Input -> Maybe Prediction
-predictLL (start, dfa) i =
-  let mpath = findMatchingPath (mkDFAStateQuotient start) i []
+predictLL :: DFA -> Input.Input -> Maybe Prediction
+predictLL dfa i =
+  let
+    start = startDFA dfa
+    mpath = findMatchingPath start i []
   in
     case mpath of
       Nothing -> Nothing
       Just path -> Just $ extractPrediction path
   where
-    findMatchingPath :: DFAStateQuotient -> Input.Input -> [DFAState] -> Maybe [DFAState]
+    findMatchingPath :: DFAState -> Input.Input -> [DFARegistry] -> Maybe [DFARegistry]
     findMatchingPath q inp acc =
-      let elm = lookupExplicitDFA q dfa
+      let elm = lookupDFA q dfa
       in case elm of
        Nothing -> error "broken invariant"
        Just r ->
@@ -374,41 +395,40 @@ predictLL (start, dfa) i =
                 DunnoAmbiguous -> findMatchingPath r1 inp1 newAcc
 
 
-    extractPrediction :: [DFAState] -> Prediction
+    extractPrediction :: [DFARegistry] -> Prediction
     extractPrediction lst =
       case lst of
         [] -> undefined
         s : rest ->
           let (backCfg, pdx) = extractSinglePrediction s
-          in
-          walkBackward backCfg rest pdx
+          in walkBackward backCfg rest pdx
 
-    walkBackward :: SourceCfg -> [DFAState] -> Prediction -> Prediction
+    walkBackward :: SourceCfg -> [DFARegistry] -> Prediction -> Prediction
     walkBackward src lst acc =
       case lst of
         [] -> acc
         s : rest ->
-          let (backCfg, pdx) = extractPredictionFromDFAState src s
+          let (backCfg, pdx) = extractPredictionFromDFARegistry src s
           in walkBackward backCfg rest ((Seq.><) pdx acc)
 
-    extractSinglePrediction :: DFAState -> (SourceCfg, Prediction)
+    extractSinglePrediction :: DFARegistry -> (SourceCfg, Prediction)
     extractSinglePrediction s =
-      case iterDFAState s of
-        Just (DFAStateEntry c1 (ClosureMove alts _c2 (pos, _, _)), rest) ->
+      case iterDFARegistry s of
+        Just (DFAEntry c1 (ClosureMove alts _c2 (pos, _, _)), rest) ->
           if not (null rest)
           then error "ambiguous prediction"
           else (c1, addChoiceSeq pos alts )
           -- NOTE: pos is appended because this is the last transition
         _ -> error "ambiguous prediction"
 
-    extractPredictionFromDFAState :: SourceCfg -> DFAState -> (SourceCfg, Prediction)
-    extractPredictionFromDFAState src s =
-      case iterDFAState s of
+    extractPredictionFromDFARegistry :: SourceCfg -> DFARegistry -> (SourceCfg, Prediction)
+    extractPredictionFromDFARegistry src s =
+      case iterDFARegistry s of
         Nothing -> error "could not find src from previous cfg"
-        Just (DFAStateEntry c1 (ClosureMove alts c2 (pos, _, q2)), others) ->
+        Just (DFAEntry c1 (ClosureMove alts c2 (pos, _, q2)), others) ->
           if q2 == cfgState src && cfgCtrl c2 == cfgCtrl src
           then (c1, addChoiceSeq pos alts)
-          else extractPredictionFromDFAState src others
+          else extractPredictionFromDFARegistry src others
 
 
 
@@ -418,7 +438,7 @@ createDFA aut =
         identifyStartStates ()
         -- Set.singleton $ initialState aut
   in
-    go (Set.toList (Set.map mkDFAStateQuotient collectedStates)) [] emptyAutDet
+    go (Set.toList (Set.map mkDFAState collectedStates)) [] emptyAutDet
   where
     identifyStartStates :: () -> Set.Set State
     identifyStartStates () =
@@ -440,7 +460,7 @@ createDFA aut =
         then Set.singleton q1
         else Set.empty
 
-    go :: [DFAStateQuotient] -> [DFAStateQuotient] -> AutDet -> AutDet
+    go :: [DFAState] -> [DFAState] -> AutDet -> AutDet
     go toVisit nextRound res =
       if Map.size res > 1000000 then error "Stop" else
       -- trace (show (Map.size res)) $
@@ -453,18 +473,20 @@ createDFA aut =
           if Map.member q res
           then go qs nextRound res
           else
-            let (t, discovered) = createDFAtable aut q
-                newRes = insertAutDet q (t, hasFullResolution (q,t)) res
+            let (dfa, discovered) = createDFAtable aut q
+                dfa1 = computeHasFullResolution dfa
+                dfa2 = computeHasNoAbort dfa1
+                newRes = insertAutDet q dfa2 res
                 newNextRound = revAppend discovered nextRound
             in go qs newNextRound newRes
 
 
-showStartDFA :: Aut a => a -> DFAStateQuotient -> String
+showStartDFA :: Aut a => a -> DFAState -> String
 showStartDFA aut q =
-  case iterDFAStateQuotient q of
+  case iterDFAState q of
     Nothing -> "SINK STATE"
     Just (cfg, qs) ->
-      if nullDFAStateQuotient qs
+      if nullDFAState qs
       then stateToString (cfgState cfg) aut ++
            " " ++ showCfgDet cfg
       else error "broken invariant"
@@ -472,13 +494,13 @@ showStartDFA aut q =
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
   let t = Map.toAscList dfas
-      tAnnotated = map (\ (q, (dfa, _)) -> ((showStartDFA aut q, q), (q, dfa))) t
+      tAnnotated = map (\ (q, dfa) -> ((showStartDFA aut q, q), (q, dfa))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 1000
      then do return ()
      else mapM_ (\ ((ann, _), (q, dfa)) ->
-                    -- if (lookaheadDepth (q, dfa) < 10)
+                    -- if (lookaheadDepth dfa < 10)
                     -- then
                     --   return ()
                     -- else
@@ -500,27 +522,29 @@ statsDFA aut dfas =
     getReport lst report =
       case lst of
         [] -> foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)
-        (q, (x,_)) : xs ->
-          getReport xs (incrReport report (q,x))
+        (q, dfa) : xs ->
+          getReport xs (incrReport report (q, dfa))
 
     result str = "Result" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
 
-    mapResultToKey :: (DFAStateQuotient, ExplicitDFA) -> String
+    mapResultToKey :: (DFAState, DFA) -> String
     mapResultToKey (q, dfa) =
-      let r = fromJust (lookupExplicitDFA q dfa)
+      let r = fromJust (lookupDFA q dfa)
       in
       case r of
         Abort AbortAmbiguous -> result "-ambiguous-0"
         Abort AbortOverflowK -> abortToString r
         Result _t ->
-          let k = lookaheadDepth (q, dfa)
+          let k = lookaheadDepth dfa
               res
-                | hasFullResolution (q, dfa) = result ("-" ++ show k)
-                | hasNoAbort (q, dfa) = -- trace (show q) $
-                                        result ("-ambiguous-" ++ show k)
+                | flagHasFullResolution dfa == Just True =
+                    result ("-" ++ show k)
+                | flagHasNoAbort dfa == Just True =
+                    -- trace (show q) $
+                    result ("-ambiguous-" ++ show k)
                 | otherwise = "abort-" ++ show k
           in
           --if k == 1
@@ -530,7 +554,7 @@ statsDFA aut dfas =
         _ -> abortToString r
 
 
-    incrReport :: Map.Map String Int -> (DFAStateQuotient, ExplicitDFA) -> Map.Map String Int
+    incrReport :: Map.Map String Int -> (DFAState, DFA) -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in
