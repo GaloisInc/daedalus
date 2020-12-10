@@ -61,6 +61,20 @@ std::ostream& operator<<(std::ostream& os, Maybe<T> x) {
 }
 
 
+template <typename T>
+inline
+std::ostream& toJS(std::ostream& os, Maybe<T> x) {
+  if (x.isJust()) {
+    os << " { \"$$just\": " << x.borrowValue() << "}";
+  } else {
+    os << "null";
+  }
+  return os;
+}
+
+
+
+
 
 
 }

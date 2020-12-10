@@ -32,6 +32,7 @@ data Options =
           , optParserDDL :: FilePath
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
+          , optShowJS    :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -44,6 +45,7 @@ options = OptSpec
                            , optParserDDL = ""
                            , optBackend   = UseInterp
                            , optForceUTF8 = True
+                           , optShowJS    = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -78,6 +80,10 @@ options = OptSpec
       , Option ['i'] ["interp"]
         "Parse this file"
         $ ReqArg "FILE" \s o -> Right o { optCommand = Interp s }
+
+      , Option [] ["json"]
+        "Show semantics values as JSON."
+        $ NoArg \o -> Right o { optShowJS = True }
 
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"

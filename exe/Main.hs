@@ -30,6 +30,7 @@ import qualified RTS.Input as RTS
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Interp
+import Daedalus.Interp.Value(valueToJS)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
@@ -131,11 +132,11 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp inp prog mainRule)
+                  ddlIO (interpInterp (optShowJS opts) inp prog mainRule)
              UsePGen ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
-                  ddlIO (interpPGen inp [prog])
+                  ddlIO (interpPGen (optShowJS opts) inp [prog])
                --do passSpecialize specMod [mainRule]
                --   prog <- normalizedDecls
                --   ddlIO (interpPGen inp prog)
@@ -186,17 +187,17 @@ handleOptions opts
 
 
 interpInterp ::
-  FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) -> IO ()
-interpInterp inp prog (m,i) =
+  Bool -> FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) -> IO ()
+interpInterp useJS inp prog (m,i) =
   do (_,res) <- interpFile inp prog (ModScope m i)
-     dumpResult res
+     dumpResult useJS res
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
 
 
-interpPGen :: FilePath -> [TCModule SourceRange] -> IO ()
-interpPGen inp moduls =
+interpPGen :: Bool -> FilePath -> [TCModule SourceRange] -> IO ()
+interpPGen useJS inp moduls =
   do let (gbl, aut) = PGen.buildArrayAut moduls
      let dfa = PGen.createDFA aut                   -- LL
      let repeatNb = 1 -- 200
@@ -208,8 +209,7 @@ interpPGen inp moduls =
                     if null resultValues
                       then do putStrLn $ PGen.extractParseError bytes results
                               exitFailure
-                      else do putStrLn $ "--- Found " ++ show (length resultValues) ++ " results:"
-                              print $ vcat' $ map pp $ resultValues
+                      else do dumpValues useJS resultValues
                               exitSuccess
               ) [(1::Int)..repeatNb]
 
@@ -243,8 +243,8 @@ inputHack opts =
 
 
 
-dumpResult :: PP a => RTS.Result a -> IO ()
-dumpResult r =
+dumpResult :: Bool -> RTS.Result Value -> IO ()
+dumpResult useJS r =
   case r of
 
    RTS.NoResults err ->
@@ -269,6 +269,11 @@ dumpResult r =
         putStrLn "File context:"
         putStrLn $ prettyHexCfg cfg ctx
 
-   RTS.Results as ->
-     do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
-        print $ vcat' $ map pp $ toList as
+   RTS.Results as -> dumpValues useJS (toList as)
+
+dumpValues :: Bool -> [Value] -> IO ()
+dumpValues useJS as =
+  do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
+     print $ vcat' $ map (if useJS then valueToJS else pp) as
+
+
