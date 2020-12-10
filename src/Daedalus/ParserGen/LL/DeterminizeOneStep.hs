@@ -2,18 +2,18 @@
 
 module Daedalus.ParserGen.LL.DeterminizeOneStep
   ( SourceCfg,
-    DFAStateEntry(..),
-    DFAState,
-    iterDFAState,
-    findAllEntryInDFAState,
+    DFAEntry(..),
+    DFARegistry,
+    iterDFARegistry,
+    findAllEntryInDFARegistry,
     DetChoice,
-    DFAStateQuotient(..),
-    mkDFAStateQuotient,
-    nullDFAStateQuotient,
-    convertDFAStateToQuotient,
-    iterDFAStateQuotient,
-    measureDFAStateQuotient,
-    determinizeDFAStateQuotient,
+    DFAState(..),
+    mkDFAState,
+    nullDFAState,
+    convertDFARegistryToDFAState,
+    iterDFAState,
+    measureDFAState,
+    determinizeDFAState,
   ) where
 
 
@@ -32,23 +32,23 @@ import Daedalus.ParserGen.LL.Closure
 
 type SourceCfg = CfgDet
 
-data DFAStateEntry = DFAStateEntry
-  { srcDFAState :: SourceCfg
-  , dstDFAState :: ClosureMove
+data DFAEntry = DFAEntry
+  { srcEntry :: SourceCfg
+  , dstEntry :: ClosureMove
   }
   deriving Show
 
 
-compareSrc :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareSrc :: DFAEntry -> DFAEntry -> Ordering
 compareSrc p1 p2 =
-  compareCfgDet (srcDFAState p1) (srcDFAState p2)
+  compareCfgDet (srcEntry p1) (srcEntry p2)
 
-compareDst :: DFAStateEntry -> DFAStateEntry -> Ordering
+compareDst :: DFAEntry -> DFAEntry -> Ordering
 compareDst p1 p2 =
-  compare (dstDFAState p1) (dstDFAState p2)
+  compare (dstEntry p1) (dstEntry p2)
 
-compareDFAStateEntry :: DFAStateEntry -> DFAStateEntry -> Ordering
-compareDFAStateEntry p1 p2 =
+compareDFAEntry :: DFAEntry -> DFAEntry -> Ordering
+compareDFAEntry p1 p2 =
   case compareDst p1 p2 of
     LT -> LT
     GT -> GT
@@ -56,51 +56,51 @@ compareDFAStateEntry p1 p2 =
       compareSrc p1 p2
 
 
-instance Eq DFAStateEntry where
-  (==) e1 e2 = compareDFAStateEntry e1 e2 == EQ
+instance Eq DFAEntry where
+  (==) e1 e2 = compareDFAEntry e1 e2 == EQ
 
 
-instance Ord DFAStateEntry where
-  compare p1 p2 = compareDFAStateEntry p1 p2
+instance Ord DFAEntry where
+  compare p1 p2 = compareDFAEntry p1 p2
 
 
-type DFAState = Set.Set DFAStateEntry
+type DFARegistry = Set.Set DFAEntry
 
-iterDFAState :: DFAState -> Maybe (DFAStateEntry, DFAState)
-iterDFAState s =
+iterDFARegistry :: DFARegistry -> Maybe (DFAEntry, DFARegistry)
+iterDFARegistry s =
   let lst = Set.toAscList s in
     case lst of
       [] -> Nothing
       x:xs -> Just (x, Set.fromAscList xs)
 
-findEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> Maybe (DFAStateEntry, DFAState)
-findEntryInDFAState s test =
-  case iterDFAState s of
+findEntryInDFARegistry :: DFARegistry -> (DFAEntry -> Bool) -> Maybe (DFAEntry, DFARegistry)
+findEntryInDFARegistry s test =
+  case iterDFARegistry s of
     Nothing -> Nothing
     Just (x, xs) ->
       if test x then Just (x,xs)
-      else case findEntryInDFAState xs test of
+      else case findEntryInDFARegistry xs test of
              Nothing -> Nothing
              Just (r, rs) -> Just (r, Set.insert x rs)
 
-findAllEntryInDFAState :: DFAState -> (DFAStateEntry -> Bool) -> ([DFAStateEntry], DFAState)
-findAllEntryInDFAState s test =
-  case findEntryInDFAState s test of
+findAllEntryInDFARegistry :: DFARegistry -> (DFAEntry -> Bool) -> ([DFAEntry], DFARegistry)
+findAllEntryInDFARegistry s test =
+  case findEntryInDFARegistry s test of
     Nothing -> ([], s)
     Just (x, xs) ->
-      let (lst, rest) = findAllEntryInDFAState xs test
+      let (lst, rest) = findAllEntryInDFARegistry xs test
       in (x:lst, rest)
 
 
-unionDFAState :: DFAState -> DFAState -> DFAState
-unionDFAState s1 s2 = Set.union s1 s2
+unionDFARegistry :: DFARegistry -> DFARegistry -> DFARegistry
+unionDFARegistry s1 s2 = Set.union s1 s2
 
-singletonDFAState :: DFAStateEntry -> DFAState
-singletonDFAState x = Set.singleton x
+singletonDFARegistry :: DFAEntry -> DFARegistry
+singletonDFARegistry x = Set.singleton x
 
 
 -- fst element is a list of class action transition, the snd possible element is for EndInput test
-type DetChoice = ([ (ClassInterval, DFAState) ], Maybe DFAState)
+type DetChoice = ([ (ClassInterval, DFARegistry) ], Maybe DFARegistry)
 
 emptyDetChoice :: DetChoice
 emptyDetChoice = ([], Nothing)
@@ -108,17 +108,17 @@ emptyDetChoice = ([], Nothing)
 insertDetChoice :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
 insertDetChoice src ih cm d =
   let (classChoice, endChoice) = d
-      q = singletonDFAState (DFAStateEntry src cm)
+      q = singletonDFARegistry (DFAEntry src cm)
   in
   case ih of
     EndInput ->
       let endChoice' =
             case endChoice of
               Nothing -> Just q
-              Just qs -> Just (unionDFAState q qs)
+              Just qs -> Just (unionDFARegistry q qs)
       in (classChoice, endChoice')
     HeadInput x ->
-      let classChoice' = insertItvInOrderedList (x, q) classChoice unionDFAState
+      let classChoice' = insertItvInOrderedList (x, q) classChoice unionDFARegistry
       in (classChoice', endChoice)
 
 
@@ -129,10 +129,10 @@ unionDetChoice (cl1, e1) (cl2, e2) =
           (Nothing, Nothing) -> Nothing
           (Nothing, Just _tr2) -> e2
           (Just _tr1, Nothing) -> e1
-          (Just tr1, Just tr2) -> Just (unionDFAState tr1 tr2)
+          (Just tr1, Just tr2) -> Just (unionDFARegistry tr1 tr2)
   in
   let cl3 =
-        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFAState) cl2 cl1
+        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFARegistry) cl2 cl1
   in (cl3, e3)
 
 
@@ -202,40 +202,40 @@ deterministicCfgDet aut cfg =
     _ -> error "Impossible abort"
 
 
-newtype DFAStateQuotient = DFAQuo { dfaQuo :: Set.Set CfgDet }
+newtype DFAState = DFAQuo { dfaQuo :: Set.Set CfgDet }
   deriving Show
 
-mkDFAStateQuotient :: State -> DFAStateQuotient
-mkDFAStateQuotient q =
+mkDFAState :: State -> DFAState
+mkDFAState q =
     DFAQuo (Set.singleton (initCfgDet q))
 
-equivDFAStateQuotient :: DFAStateQuotient -> DFAStateQuotient -> Bool
-equivDFAStateQuotient q1 q2 = dfaQuo q1 == dfaQuo q2
+equivDFAState :: DFAState -> DFAState -> Bool
+equivDFAState q1 q2 = dfaQuo q1 == dfaQuo q2
 
-instance Eq DFAStateQuotient where
-  (==) q1 q2 = equivDFAStateQuotient q1 q2
+instance Eq DFAState where
+  (==) q1 q2 = equivDFAState q1 q2
 
-instance Ord DFAStateQuotient where
+instance Ord DFAState where
   compare q1 q2 =
     compare (dfaQuo q1) (dfaQuo q2)
 
-emptyDFAStateQuotient :: DFAStateQuotient
-emptyDFAStateQuotient = DFAQuo Set.empty
+emptyDFAState :: DFAState
+emptyDFAState = DFAQuo Set.empty
 
-nullDFAStateQuotient :: DFAStateQuotient -> Bool
-nullDFAStateQuotient q =
+nullDFAState :: DFAState -> Bool
+nullDFAState q =
   Set.null (dfaQuo q)
 
-addDFAStateQuotient :: CfgDet -> DFAStateQuotient -> DFAStateQuotient
-addDFAStateQuotient cfg q =
+addDFAState :: CfgDet -> DFAState -> DFAState
+addDFAState cfg q =
   DFAQuo $ Set.insert cfg (dfaQuo q)
 
-measureDFAStateQuotient :: DFAStateQuotient -> Int
-measureDFAStateQuotient s =
+measureDFAState :: DFAState -> Int
+measureDFAState s =
   helper s 0
   where
     helper qq r =
-      case iterDFAStateQuotient qq of
+      case iterDFAState qq of
         Nothing -> r
         Just (cfg, qs) ->
           let iCtrl = lengthSymbolicStack (cfgCtrl cfg)
@@ -243,38 +243,38 @@ measureDFAStateQuotient s =
               newR = max iSem (max iCtrl r)
           in helper qs newR
 
-convertDFAStateToQuotient :: InputHeadCondition -> DFAState -> DFAStateQuotient
-convertDFAStateToQuotient ih s =
+convertDFARegistryToDFAState :: InputHeadCondition -> DFARegistry -> DFAState
+convertDFARegistryToDFAState ih s =
   helper s
   where
     helper set =
-      case iterDFAState set of
-        Nothing -> emptyDFAStateQuotient
+      case iterDFARegistry set of
+        Nothing -> emptyDFAState
         Just (entry, es) ->
-          let closCfg = closureCfg $ dstDFAState entry
-              (_,act,q) = moveCfg $ dstDFAState entry
+          let closCfg = closureCfg $ dstEntry entry
+              (_,act,q) = moveCfg $ dstEntry entry
           in
           let mCfg = moveCfgDetFromPrev ih closCfg act q in
             case mCfg of
               Nothing -> helper es
-              Just newCfg -> addDFAStateQuotient newCfg (helper es)
+              Just newCfg -> addDFAState newCfg (helper es)
 
 
-iterDFAStateQuotient :: DFAStateQuotient -> Maybe (CfgDet, DFAStateQuotient)
-iterDFAStateQuotient s =
+iterDFAState :: DFAState -> Maybe (CfgDet, DFAState)
+iterDFAState s =
   let lst = Set.toAscList (dfaQuo s) in
     case lst of
       [] -> Nothing
       x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
 
 
-determinizeDFAStateQuotient :: Aut a => a -> DFAStateQuotient -> Result DetChoice
-determinizeDFAStateQuotient aut s =
+determinizeDFAState :: Aut a => a -> DFAState -> Result DetChoice
+determinizeDFAState aut s =
   determinizeAcc s emptyDetChoice
   where
-    determinizeAcc :: DFAStateQuotient -> DetChoice -> Result DetChoice
+    determinizeAcc :: DFAState -> DetChoice -> Result DetChoice
     determinizeAcc states acc =
-      case iterDFAStateQuotient states of
+      case iterDFAState states of
         Nothing -> Result acc
         Just (cfg, rest) ->
           let r = deterministicCfgDet aut cfg in

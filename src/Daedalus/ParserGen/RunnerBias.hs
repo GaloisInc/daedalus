@@ -254,25 +254,28 @@ runnerLL gbl s aut autDet =
         case cfg of
           Cfg inp _ctrl _out q ->
             -- trace (show cfg) $
-            let detTrans = LL.lookupAutDet q autDet in
-            case detTrans of
-              Nothing -> callNFA ()
-              Just (_tr, False) -> callNFA ()
-              Just (tr, True) ->
-                -- trace "YES LL lookup" $
-                let a = LL.predictLL (q,tr) inp in
-                case a of
-                  Nothing ->
-                    callNFA ()
-                    -- NOTE: here we call `callNFA()` instead of
-                    -- `backtrack idx resumption result` in order to
-                    -- maintain the behavior of reaching the
-                    -- parseError the furthest. If we called backtrack
-                    -- we would not update the parseError information
-                  Just pdxs ->
-                    -- trace (show pdxs) $
-                    -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
-                    applyPredictions pdxs cfg resumption result
+            let mDfa = LL.lookupAutDet q autDet in
+            case mDfa of
+              Nothing -> callNFA()
+              Just dfa ->
+                case flagHasFullResolution dfa of
+                  Nothing -> error "missing hasFullResolution"
+                  Just False -> callNFA ()
+                  Just True ->
+                    -- trace "YES LL lookup" $
+                    let a = LL.predictLL dfa inp in
+                    case a of
+                      Nothing ->
+                        callNFA ()
+                        -- NOTE: here we call `callNFA()` instead of
+                        -- `backtrack idx resumption result` in order to
+                        -- maintain the behavior of reaching the
+                        -- parseError the furthest. If we called backtrack
+                        -- we would not update the parseError information
+                      Just pdxs ->
+                        -- trace (show pdxs) $
+                        -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
+                        applyPredictions pdxs cfg resumption result
 
             where
               callNFA () =

@@ -4,6 +4,7 @@ module Daedalus.ParserGen.LL
   ( createDFA
   , statsDFA
   , AutDet
+  , DFA(..)
   , lookupAutDet
   , Prediction
   , destrPrediction
