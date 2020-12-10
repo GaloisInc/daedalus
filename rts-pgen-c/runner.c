@@ -31,6 +31,223 @@ CommitStack * addCommitStack(CommitStack * hst) {
     return st;
 }
 
+CommitStack * popCommitStack(CommitStack* hst) {
+    if (hst == NULL) {
+        LOGE("Attempting to pop from an empty commit stack");
+        return hst;
+    }
+
+    //TODO: It seems possible that we can delete the removed node here
+    //(Because I don't think the commit stack nodes are shared)
+    //But need to recheck this
+    return hst->next;
+}
+
+int hasCommitted(CommitStack* hst) {
+    if (hst == NULL)
+        return 0;
+    return hst->head == CTrue || hst->head == CEarly;
+}
+
+CommitStack* updateCommitStack(CommitStack* hst) {
+    if (hst == NULL) {
+        return hst;
+    }
+
+    //TODO: Would an in-place update work? If these nodes can be shared
+    //that wont work. The current approach duplicates all nodes in the chain
+    //of recursion and can be rather expensive!
+    //TODO: We could do this in a while-loop more efficiently; but sticking to
+    //recursion for now to maintain alignment to Haskell
+    CommitStack* newHst = ALLOCMEM(sizeof(CommitStack));
+    if (hst->head == CFalse) {
+        newHst->head = CEarly;
+        newHst->next = hst->next;
+    }
+    else {
+        CommitStack* updatedStack = updateCommitStack(hst->next);
+        newHst->head = hst->head;
+        newHst->next = updatedStack;
+    }
+    return newHst;
+}
+
+typedef int DepthComputation;
+
+typedef DepthComputation BacktrackStackInfo;
+
+
+//NOTE: We are currently representing the emptu BacktrackStack (`BEmpty`)
+//as a NULL pointer. We _could_ go with an exact mapping from Haskell if needed
+//using a union. But it is unclear that is needed at this point.
+typedef struct _BacktrackStack {
+    BacktrackStackInfo backtrackStackInfo;
+    struct _BacktrackStack* next;
+    Cfg* cfg;
+    Choice* choice;
+} BacktrackStack;
+
+BacktrackStack* addLevel(
+    BacktrackStackInfo backtrackStackInfo, BacktrackStack* hst,
+    Cfg* cfg, Choice* choice
+)
+{
+    BacktrackStack* newNode = ALLOCMEM(sizeof(BacktrackStack));
+    newNode->backtrackStackInfo = backtrackStackInfo;
+    newNode->next = hst;
+    newNode->cfg = cfg;
+    newNode->choice = choice;
+
+    return newNode;
+}
+
+typedef struct {
+    Cfg* cfg;
+    Action* action;
+    int state;
+} ResumptionTip;
+
+typedef struct _Resumption {
+    CommitStack* commitStack;
+    BacktrackStack* backtrackStack;
+    DepthComputation depthComputation;
+    ResumptionTip* resumptionTip;
+} Resumption ;
+
+Resumption* emptyResumption = NULL;
+
+Resumption* addResumption(Resumption* resumption, Cfg* cfg, Choice* choice) {
+    //First create a new Resumption instance and copy the current data to it
+    //The following bits will then only modify the parts that they need to
+    Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
+    memcpy(newResumption, resumption, sizeof(Resumption));
+
+    //The new ResumptionTip is based on the current configuration and the Action/State
+    //pair derived from the topmost choice. We pre-compute that here for convenience
+    ResumptionTip* newResumptionTip = NULL;
+    if (choice->len > 0) {
+        newResumptionTip = ALLOCMEM(sizeof(ResumptionTip));
+        newResumptionTip->cfg = cfg;
+        newResumptionTip->action = choice->transitions->pAction;
+        newResumptionTip->state = choice->transitions->state;
+    }
+
+    switch (choice->tag) {
+        case UNICHOICE: {
+            newResumption->resumptionTip = newResumptionTip;
+            newResumption->depthComputation += 1;
+            break;
+        }
+        case SEQCHOICE: {
+            CommitStack* newCommitStack = addCommitStack(resumption->commitStack);
+            BacktrackStack* newBacktrackStack = addLevel(
+                resumption->depthComputation, resumption->backtrackStack, cfg, choice
+            );
+
+            newResumption->commitStack = newCommitStack;
+            newResumption->backtrackStack = newBacktrackStack;
+            newResumption->depthComputation += 1;
+            newResumption->resumptionTip = newResumptionTip;
+            break;
+        }
+        case PARCHOICE: {
+            BacktrackStack* newBacktrackStack = addLevel(
+                resumption->depthComputation, resumption->backtrackStack, cfg, choice
+            );
+
+            newResumption->backtrackStack = newBacktrackStack;
+            newResumption->depthComputation += 1;
+            newResumption->resumptionTip = newResumptionTip;
+            break;
+        }
+    }
+}
+
+ResumptionTip* getActionCfgAtLevel(Resumption* resumption) {
+    return resumption->resumptionTip;
+}
+
+Resumption* earlyUpdateCommitResumption(Resumption* resumption) {
+    Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
+    memcpy(newResumption, resumption, sizeof(Resumption));
+
+    CommitStack* newCommitStack = earlyUpdateCommitResumption(resumption->commitStack);
+    newResumption->commitStack = newCommitStack;
+    return newResumption;
+}
+
+Resumption* cutResumption(Resumption* resumption) {
+    Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
+    memcpy(newResumption, resumption, sizeof(Resumption));
+
+    newResumption->commitStack = emptyCommitStack;
+    newResumption->backtrackStack = NULL; //TODO: Maybe introduce emptyBacktrackStack (eq of BEmpty)?
+    return newResumption;
+}
+
+Resumption* _getNext(CommitStack* commitStack, BacktrackStack* backtrackStack) {
+    if (backtrackStack == NULL) {
+        return NULL;
+    }
+
+    if (backtrackStack->choice->len == 0) {
+        LOGE("Broken invariant, the current choice cannot be empty");
+        return NULL;
+    }
+
+    switch (backtrackStack->choice->tag) {
+        case UNICHOICE: {
+            LOGE("Broken invariant, the level cannot be UniChoice");
+            return NULL;
+        }
+        case SEQCHOICE: {
+            if (backtrackStack->choice->len == 1 || hasCommitted(commitStack)) {
+                CommitStack* newCommitStack = popCommitStack(commitStack);
+                return _getNext(newCommitStack, backtrackStack->next);
+            } else {
+                CommitStack* newCommitStack = popCommitStack(commitStack);
+
+                Resumption resumption = {
+                    .commitStack = newCommitStack,
+                    .backtrackStack = backtrackStack->next,
+                    .depthComputation = backtrackStack->backtrackStackInfo,
+                    .resumptionTip = NULL
+                };
+
+                Choice* newChoice = ALLOCMEM(sizeof(Choice));
+                newChoice->len = backtrackStack->choice->len - 1;
+                newChoice->tag = SEQCHOICE;
+                newChoice->transitions = &backtrackStack->choice->transitions[1];
+
+                return addResumption(&resumption, backtrackStack->cfg, newChoice);
+            }
+        }
+        case PARCHOICE: {
+            if (backtrackStack->choice->len == 1) {
+                return _getNext(commitStack, backtrackStack->next);
+            } else {
+                Resumption resumption = {
+                    .commitStack = commitStack,
+                    .backtrackStack = backtrackStack->next,
+                    .depthComputation = backtrackStack->backtrackStackInfo,
+                    .resumptionTip = NULL
+                };
+
+                Choice* newChoice = ALLOCMEM(sizeof(Choice));
+                newChoice->len = backtrackStack->choice->len - 1;
+                newChoice->tag = PARCHOICE;
+                newChoice->transitions = &backtrackStack->choice->transitions[1];
+
+                return addResumption(&resumption, backtrackStack->cfg, newChoice);
+            }
+        }
+    }
+}
+
+Resumption* nextResumption(Resumption* resumption) {
+    return _getNext(resumption->commitStack, resumption->backtrackStack);
+}
+
 // WE ARE HEREER!!!!!!!
 
 typedef struct _Stack {
@@ -73,7 +290,7 @@ Result * addResult(Value * v, Result * res){
 
 void print_Result(Result * r){
 
-    printf("Results:\n");
+   printf("Results:\n");
     int i = 0;
     while (r != NULL) {
         i++;
