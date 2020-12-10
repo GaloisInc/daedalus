@@ -98,6 +98,7 @@ instance FreeVars Grammar where
       Call _ es         -> freeVars es
       Annot _ g         -> freeVars g
       If e g1 g2        -> freeVars e `Set.union` freeVars [g1,g2]
+      Case e opts       -> freeVars e `Set.union` freeVars (map snd opts)
 
   freeFVars gram =
     case gram of
@@ -113,6 +114,7 @@ instance FreeVars Grammar where
       Call f es         -> Set.insert f (freeFVars es)
       Annot _ g         -> freeFVars g
       If e g1 g2        -> freeFVars e `Set.union` freeFVars [g1,g2]
+      Case e opts       -> freeFVars e `Set.union` freeFVars (map snd opts)
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =

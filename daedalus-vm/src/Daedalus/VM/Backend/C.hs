@@ -10,9 +10,12 @@ import qualified Data.ByteString as BS
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
+import           Data.Word(Word64)
+import           Data.Int(Int64)
 import qualified Data.Set as Set
-import           Data.Maybe(maybeToList,mapMaybe)
+import           Data.Maybe(maybeToList,mapMaybe,fromMaybe)
 import           Data.List(intersperse)
+import           Control.Applicative((<|>))
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
@@ -626,34 +629,76 @@ cJump (JumpPoint l es) =
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
 cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies) =>
-           E -> Map P JumpWithFree -> [CStmt]
+           E -> Map Pattern JumpWithFree -> [CStmt]
 cDoCase e opts =
   case getType e of
-    TSem Src.TBool
-      | Just ifTrue  <- Map.lookup (PBool True) opts
-      , Just ifFalse <- Map.lookup (PBool False) opts ->
-        [ cIf (cCallMethod (cExpr e) "getValue" [])
-              (doChoice ifTrue) (doChoice ifFalse) ]
-      | otherwise -> panic "JumpIf" [ "Boolean case needs both alternatives." ]
-      where
-      doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+    TSem Src.TBool ->
+      check
+      do ifTrue  <- lkpOrDflt (PBool True)
+         ifFalse <- lkpOrDflt (PBool False)
+         pure [ cIf (cCallMethod (cExpr e) "getValue" [])
+                    (doChoice ifTrue) (doChoice ifFalse) ]
 
     TSem (Src.TMaybe _) ->
-      panic "JumpIf" [ "XXX: Maybe" ]
-
-    TSem (Src.TUInt _) ->
-      panic "JumpIf" [ "XXX: UInt" ]
-
-    TSem (Src.TSInt _) ->
-      panic "JumpIf" [ "XXX: SInt" ]
+      check
+      do ifNothing <- lkpOrDflt PNothing
+         ifJust    <- lkpOrDflt PJust
+         pure [ cIf (cCallMethod (cExpr e) "isJust" [])
+                    (doChoice ifJust) (doChoice ifNothing) ]
 
     TSem (Src.TInteger) ->
-      panic "JumpIf" [ "XXX: Integer" ]
+      check
+      do let pats = Map.delete PAny opts
+         (PNum lower,_) <- Map.lookupMin pats
+         (PNum upper,_) <- Map.lookupMax pats
 
-    TSem (Src.TUser {}) ->
-      panic "JumpIf" [ "XXX: User-defined" ]
+         -- WARNING: assuming 64-bit arch.
+         case () of
+           _ | 0 <= lower && upper <= toInteger (maxBound :: Word64) ->
+               pure (mkSwitch "asULong" numPat)
+
+             | toInteger (minBound :: Int64) <= lower
+             , upper <= toInteger (maxBound :: Int64) ->
+               pure (mkSwitch "asSLong" numPat)
+
+              -- Lenar ifs. We could probably do something smarted depending
+              -- on the patterns but not sure that it is worted
+             | otherwise -> mkBigInt
+
+    TSem (Src.TUInt _)  -> mkSwitch "rep" numPat
+    TSem (Src.TSInt _)  -> mkSwitch "rep" numPat
+    TSem (Src.TUser {}) -> mkSwitch "getTag" conPat
 
     ty -> panic "JumpIf" [ "`case` on unexpected type", show (pp ty) ]
+
+
+  where
+  dflt        = Map.lookup PAny opts
+  lkpOrDflt p = Map.lookup p opts <|> dflt
+  doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+
+  check = fromMaybe
+            (panic "JumpIf" ["Invalid case", "Type: " ++ show (pp (getType e))])
+
+  numPat ~(PNum n) = integer n
+  conPat ~(PCon l) = cSumTagV l
+
+  mkSwitch getNum pToCase =
+    let opt p ch = p $$ nest 2 (vcat (doChoice ch))
+        addDflt cs = case dflt of
+                       Nothing -> cs
+                       Just x  -> cs ++ [opt cDefault x]
+    in [ cSwitch (cCallMethod (cExpr e) getNum []) $
+           addDflt
+            [ opt (cCase (pToCase pat)) ch | (pat, ch) <- Map.toList opts ]
+       ]
+
+  mkBigInt =
+    do d <- dflt
+       let ce = cExpr e
+           ifThis ~(PNum n,ch) el = 
+              [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
+       pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
 
 
 

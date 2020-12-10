@@ -31,6 +31,18 @@ canFail gram =
     OrBiased _ g2     -> canFail g2
     OrUnbiased g1 g2  -> canFail g1 && canFail g2
     If _ g1 g2        -> canFail g1 || canFail g2
+    Case _ alts       -> any (canFail . snd) alts || partial (map fst alts)
+      where
+      partial xs =
+        case xs of
+          [] -> True
+
+          PAny     : _                    -> False
+          PNothing : PJust : _            -> False
+          PJust    : PNothing : _         -> False
+          PBool x : PBool y : _ | x /= y  -> False
+
+          _ : ys                          -> partial ys
 
 -- | Cache analysis results in annotation nodes
 annotate :: (FName -> [Expr] -> Grammar) -> Grammar -> Grammar
@@ -54,6 +66,7 @@ annotate annCall = annot
       OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
       OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
       If e g1 g2        -> If e (annot g1) (annot g2)
+      Case e alts       -> Case e [ (p,annot g1) | (p,g1) <- alts ]
 
   annNoFail g = case g of
 

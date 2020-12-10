@@ -18,6 +18,7 @@ public:
   bool operator <= (Bool x) { return getValue() <= x.getValue(); }
 
   Bool operator ! ()        { return Bool(!getValue()); }
+
 };
 
 
@@ -27,6 +28,14 @@ std::ostream& operator<<(std::ostream& os, Bool x) {
   os << (x.getValue() ? "true" : "false");
   return os;
 }
+
+inline
+std::ostream& toJS(std::ostream& os, Bool x) {
+  os << (x.getValue() ? "true" : "false");
+  return os;
+}
+
+
 
 }
 
