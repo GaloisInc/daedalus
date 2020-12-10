@@ -281,7 +281,9 @@ generateActionData (CAct cp) =  do
 generateActionData (SAct sp) =  do
   dataInit <- generateSemanticActionData sp
   makeTaggedUnionInitializer "ACT_SemanticAction" "semanticAction" dataInit
-generateActionData (BAct _bp) = error $ "Unimplemented BranchAction: " ++ show _bp
+generateActionData (BAct sp) =  do
+  dataInit <- generateBranchActionData sp
+  makeTaggedUnionInitializer "ACT_BranchAction" "branchAction" dataInit
 generateActionData EpsA       = generateEpsAction
 
 -- Generate an C initializer for an InputAction
@@ -352,6 +354,16 @@ generateControlActionData DeactivateReady = do
   tagExpr <- makeEnumConstantExpr "ACT_DeactivateReady"
   makeStructInitializer [("tag", tagExpr)]
 generateControlActionData x = return $ error $ "Unimplemented action: " ++ show x
+
+generateBranchActionData :: BranchAction -> CAutGenM CInit
+generateBranchActionData (CutBiasAlt q) = do
+  -- First create the initializer for the PushData datastructure
+  let stateExpr = makeIntConstExpr q
+  dataInitializer <- makeStructInitializer [("state", stateExpr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_CutBiasAlt" "cutBiasAltData" dataInitializer
+generateBranchActionData x = return $ error $ "Unimplemented action: " ++ show x
+
 
 generateVExpr :: NVExpr -> CAutGenM CExpr
 generateVExpr e = do
