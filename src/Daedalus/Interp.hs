@@ -770,7 +770,9 @@ compileDecl prims env TCDecl { .. } =
 
   newEnv targs args
     | length targs /= length tcDeclTyParams =
-      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName))
+      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName)
+              ++ ". This usually indicates some expression in the program became polymorphic, "
+              ++ "which can be fixed by adding more type annotations.")
     | length args /= length tcDeclParams =
       error ("BUG: not enough args for " ++ show tcDeclName)
     | otherwise =
