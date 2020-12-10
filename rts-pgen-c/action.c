@@ -245,6 +245,9 @@ char * actionToString(Action * act) {
             return controlActionToString(&act->controlAction);
         case ACT_SemanticAction:
             return semanticActionToString(&act->semanticAction);
+        case ACT_BranchAction:
+            LOGE("illegal BranchAction execution");
+            exit(1);
         default:
             return NULL;
     }
