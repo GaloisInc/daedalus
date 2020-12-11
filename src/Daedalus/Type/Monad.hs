@@ -157,7 +157,7 @@ instance MTCMonad MTypeM where
     n <- getNextGUID
     pure $ case kindOf ty of
              KValue ->
-               let txt = Text.pack ("_" ++ show n)
+               let txt = Text.pack ("_" ++ show (pp n))
                in TCName { tcName =
                              Name { nameScopedIdent = Local txt
                                   , nameContext     = AValue

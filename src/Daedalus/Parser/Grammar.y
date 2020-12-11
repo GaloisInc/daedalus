@@ -7,6 +7,7 @@ import Data.Text(Text)
 import Data.ByteString(ByteString)
 
 import Daedalus.SourceRange
+import Daedalus.GUID
 
 import Daedalus.AST
 import Daedalus.Parser.Tokens
@@ -532,10 +533,10 @@ mkUnion cmt fs
                 in at (e,res) (EChoiceU cmt e res)
 
 mkName :: Context ctx -> (SourceRange, Text) -> Name
-mkName ctx x = Name { nameScope   = Unknown (snd x)
-                    , nameContext = ctx
-                    , nameRange   = fst x 
-                    , nameId      = invalidGUID }
+mkName ctx x = Name { nameScopedIdent = Unknown (snd x)
+                    , nameContext     = ctx
+                    , nameRange       = fst x 
+                    , nameID          = invalidGUID }
 
 mkLabel :: (SourceRange, Text) -> Located Label
 mkLabel (r,t) = Located { thingRange = r, thingValue = t }
