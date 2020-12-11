@@ -327,9 +327,12 @@ mbSem tc =
       do (pats1,vs1) <- unzip <$> mapM (noSemAltWith mbSem) pats
          mb1 <- traverse mbSem mb
          case mb1 of
-           Nothing -> pure (exprAt tc $ TCCase e pats1 Nothing, Set.unions vs1)
-           Just (d,vs2) -> pure (exprAt tc $ TCCase e pats1 (Just d),
-                                              Set.unions (vs2:vs1))
+           Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                           , Set.unions (tcFree e:vs1)
+                           )
+           Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                , Set.unions (tcFree e:vs2:vs1)
+                                )
 
 
 
@@ -483,9 +486,12 @@ noSem' tc =
        do (pats1,vs1) <- unzip <$> mapM (noSemAltWith noSem') pats
           mb1 <- traverse mbSem mb
           case mb1 of
-            Nothing -> pure (exprAt tc $ TCCase e pats1 Nothing, Set.unions vs1)
-            Just (d,vs2) -> pure (exprAt tc $ TCCase e pats1 (Just d),
-                                               Set.unions (vs2:vs1))
+            Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                            , Set.unions (tcFree e : vs1)
+                            )
+            Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                 , Set.unions (tcFree e:vs2:vs1)
+                                 )
 
 
 
