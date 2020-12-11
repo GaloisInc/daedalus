@@ -187,7 +187,8 @@ handleOptions opts
 
 
 interpInterp ::
-  Bool -> FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) -> IO ()
+  Bool -> Maybe FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) ->
+    IO ()
 interpInterp useJS inp prog (m,i) =
   do (_,res) <- interpFile inp prog (ModScope m i)
      dumpResult useJS res
@@ -196,13 +197,15 @@ interpInterp useJS inp prog (m,i) =
        NoResults {} -> exitFailure
 
 
-interpPGen :: Bool -> FilePath -> [TCModule SourceRange] -> IO ()
+interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> IO ()
 interpPGen useJS inp moduls =
   do let (gbl, aut) = PGen.buildArrayAut moduls
      let dfa = PGen.createDFA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ _ ->
-                 do bytes <- BS.readFile inp
+                 do bytes <- case inp of
+                               Nothing -> pure BS.empty
+                               Just f  -> BS.readFile f
                     let results = PGen.runnerLL gbl bytes aut dfa  -- LL
                     -- let results = PGen.runnerBias gbl bytes aut
                     let resultValues = PGen.extractValues results
@@ -237,7 +240,7 @@ inputHack opts =
              , takeExtension f == ".input"
              , let xs = takeWhile (/= '.') (takeFileName f) ->
                opts { optParserDDL = addExtension (takeDirectory f </> xs) "ddl"
-                    , optCommand = Interp f
+                    , optCommand = Interp (Just f)
                     }
     _ -> opts
 

@@ -870,12 +870,15 @@ interp builtins nm bytes prog startName =
   where
     env = compile builtins prog
 
-interpFile :: HasRange a => FilePath -> [TCModule a] -> ScopedIdent ->
+interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
                                               IO (ByteString, Result Value)
 interpFile input prog startName = do
-  bytes <- if input == "-" then BS.getContents
-                           else BS.readFile input
-  let nm = encodeUtf8 (Text.pack input)
+  (nm,bytes) <- case input of
+                  Nothing  -> pure ("(empty)", BS.empty)
+                  Just "-" -> do bs <- BS.getContents
+                                 pure ("(stdin)", bs)
+                  Just f   -> do bs <- BS.readFile f
+                                 pure (encodeUtf8 (Text.pack f), bs)
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]

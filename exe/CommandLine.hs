@@ -22,7 +22,7 @@ data Command =
   | DumpGen
   | CompileHS
   | CompileCPP
-  | Interp FilePath
+  | Interp (Maybe FilePath)
   | ShowHelp
 
 data Backend = UseInterp | UsePGen
@@ -79,7 +79,7 @@ options = OptSpec
 
       , Option ['i'] ["interp"]
         "Parse this file"
-        $ ReqArg "FILE" \s o -> Right o { optCommand = Interp s }
+        $ OptArg "FILE" \s o -> Right o { optCommand = Interp s }
 
       , Option [] ["json"]
         "Show semantics values as JSON."
