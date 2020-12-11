@@ -1,0 +1,9 @@
+--- Parse error: 
+[offset: 1]
+  • pattern match failure
+  • see grammar at: ./T061.ddl:3:9--6:9
+  • context:
+File context:
+Length: 2 (0x2) bytes
+0000:   03 [1;91m02[0m                                     .[1;91m.[0m
+
