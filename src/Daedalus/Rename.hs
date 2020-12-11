@@ -100,7 +100,8 @@ renameTCF texpr =
           Nothing -> k Nothing
           Just v  -> renameVarIn v $ \v' -> k (Just v')
 
-    TCCase {} -> error "renameTCF: ECase not done. this is going away?"
+    TCCase e as mb ->
+      TCCase <$> renameTC e <*> mapM renameAlt as <*> traverse renameTC mb
 
     e  -> traverseTCF renameTC e
 
@@ -108,3 +109,24 @@ renameParamIn :: Param -> (Param -> RenameM a) -> RenameM a
 renameParamIn (ValParam p)     f = renameVarIn p (\p' -> f (ValParam p'))
 renameParamIn (ClassParam p)   f = renameVarIn p (\p' -> f (ClassParam p'))
 renameParamIn (GrammarParam p) f = renameVarIn p (\p' -> f (GrammarParam p'))
+
+renameAlt :: TCAlt a k -> RenameM (TCAlt a k)
+renameAlt (TCAlt ps e) = go (patBinds (head ps))
+  where
+  go vs =
+    case vs of
+      [] -> TCAlt <$> mapM renamePat ps <*> renameTC e
+      v : more ->
+        renameVarIn v \_ -> go more
+
+renamePat :: TCPat -> RenameM TCPat
+renamePat pat =
+  case pat of
+    TCConPat t l p  -> TCConPat t l <$> renamePat p
+    TCNumPat {}     -> pure pat
+    TCBoolPat {}    -> pure pat
+    TCJustPat p     -> TCJustPat <$> renamePat p
+    TCNothingPat {} -> pure pat
+    TCVarPat x      -> TCVarPat <$> renameName x
+    TCWildPat {}    -> pure pat
+
