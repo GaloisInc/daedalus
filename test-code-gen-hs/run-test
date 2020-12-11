@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+DIR=test-bed
+DDL=$1
+ROOT=$(basename $DDL .ddl)
+
+cabal build daedalus
+cabal exec daedalus -- "$DDL" --compile-hs > "$DIR/$ROOT.hs"
+
+pushd "$DIR"
+cp "./test-bed.cabal.template" "./test-bed.cabal"
+echo "  other-modules: $ROOT" >> "./test-bed.cabal"
+
+echo "import $ROOT" > "./Main.hs"
+cat "./Main.hs.template" >> "./Main.hs"
+
+cabal build exe:test-bed
+cabal exec test-bed $2
+popd
