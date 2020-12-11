@@ -666,7 +666,13 @@ hsPat env pat =
                   TCon c _ -> c
                   _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
                                      , show (pp t) ]
-    TCNumPat _t i   -> Raw i
+    TCNumPat t i ->
+      case t of
+        Type TInteger  -> Raw i
+        Type (TUInt _) -> Tuple [ApI "->" (Var "RTS.fromUInt") (Raw i)]
+        Type (TSInt _) -> Tuple [ApI "->" (Var "RTS.fromSInt") (Raw i)]
+        _ -> panic "hsPat" [ "We don't support polymorphic case." ]
+
     TCBoolPat b     -> Raw b
     TCJustPat p     -> Var "Just" `Ap` hsPat env p
     TCNothingPat _t -> Var "Nothing"
@@ -778,6 +784,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , "OverloadedStrings"
                  , "TypeApplications"
                  , "TypeFamilies"
+                 , "ViewPatterns"
                  ]
   , hsImports  = cImports ++
                  [ Import (hsIdentMod i) Qualified
