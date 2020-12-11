@@ -419,25 +419,30 @@ compilePureExpr env = go
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
 
-        TCCase e alts def -> evalCase compilePureExpr env e alts def
+        TCCase e alts def ->
+          evalCase
+            compilePureExpr
+            (error "Pattern match failure")
+            env e alts def
 
 
 evalCase ::
   HasRange a =>
   (Env -> TC a k -> val) ->
+  val ->
   Env ->
   TC a K.Value ->
   [TCAlt a k] ->
   Maybe (TC a k) ->
   val
-evalCase eval env e alts def =
+evalCase eval ifFail env e alts def =
   let v = compilePureExpr env e
   in case msum (map (tryAlt eval env v) alts) of
        Just res -> res
        Nothing ->
          case def of
            Just d  -> eval env d
-           Nothing -> error "Pattern match failure"
+           Nothing -> ifFail
 
 
 
@@ -547,7 +552,11 @@ compilePredicateExpr env = go
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
 
-        TCCase e alts def -> evalCase compilePredicateExpr env e alts def
+        TCCase e alts def ->
+          evalCase
+            compilePredicateExpr
+            (ClassVal (\_ -> False) "Pattern match failure")
+            env e alts def
 
 mbSkip :: WithSem -> Value -> Value
 mbSkip s v = case s of
@@ -757,7 +766,11 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
-        TCCase e alts def -> evalCase compileExpr env e alts def
+        TCCase e alts def ->
+          evalCase
+            compileExpr
+            (pError FromSystem erng "pattern match failure")
+            env e alts def
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
