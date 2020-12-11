@@ -428,6 +428,8 @@ hsValue env tc =
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
     TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
 
+    TCCase e as d -> hsCase hsValue env e as d
+
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
   case texprValue tc of
@@ -448,6 +450,8 @@ hsByteClass env tc =
      TCVar x        -> hsValName env NameUse (tcName x)
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
+
+     TCCase e as d -> hsCase hsByteClass env e as d
 
 
 --------------------------------------------------------------------------------
@@ -632,6 +636,42 @@ hsGrammar env tc =
        where m' = case m of
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
+
+     TCCase e alts dfl -> hsCase hsGrammar env e alts dfl
+
+hsCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Env ->
+  TC SourceRange Value ->
+  [TCAlt SourceRange k] ->
+  Maybe (TC SourceRange k) ->
+  Term
+hsCase eval env e alts dfl = Case (hsValue env e) branches
+  where
+  branches = case dfl of
+               Nothing -> concatMap alt alts
+               Just d  -> concatMap alt alts ++ [ (Var "_", eval env d) ]
+  -- XXX: currently we duplicate code, we may want to name it in a where...
+  alt (TCAlt ps rhs) =
+    let r = eval env rhs
+    in [ (hsPat env p, r) | p <- ps ]
+
+
+
+hsPat :: Env -> TCPat -> Term
+hsPat env pat =
+  case pat of
+    TCConPat t l p -> hsUniConName env NameUse nm l `Ap` hsPat env p
+      where nm = case t of
+                  TCon c _ -> c
+                  _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
+                                     , show (pp t) ]
+    TCNumPat _t i   -> Raw i
+    TCBoolPat b     -> Raw b
+    TCJustPat p     -> Var "Just" `Ap` hsPat env p
+    TCNothingPat _t -> Var "Nothing"
+    TCVarPat x      -> hsTCName env x
+    TCWildPat _t    -> Var "_"
 
 hsMaybe :: WithSem -> Term -> Term -> Term -> Term
 hsMaybe sem erng msg val = f `aps` [ erng, msg, val ]
