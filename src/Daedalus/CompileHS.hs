@@ -428,7 +428,8 @@ hsValue env tc =
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
     TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
 
-    TCCase e as d -> hsCase hsValue env e as d
+    TCCase e as d -> hsCase hsValue err env e as d
+      where err = "HS.error" `Ap` Raw ("Pattern match failure" :: String)
 
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
@@ -451,7 +452,7 @@ hsByteClass env tc =
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
 
-     TCCase e as d -> hsCase hsByteClass env e as d
+     TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
 
 --------------------------------------------------------------------------------
@@ -637,20 +638,26 @@ hsGrammar env tc =
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
 
-     TCCase e alts dfl -> hsCase hsGrammar env e alts dfl
+     TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
+       where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
+                                `Ap` hsText "Pattern match failure"
 
 hsCase ::
   (Env -> TC SourceRange k -> Term) ->
+  Term ->
   Env ->
   TC SourceRange Value ->
   [TCAlt SourceRange k] ->
   Maybe (TC SourceRange k) ->
   Term
-hsCase eval env e alts dfl = Case (hsValue env e) branches
+hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
   where
-  branches = case dfl of
-               Nothing -> concatMap alt alts
-               Just d  -> concatMap alt alts ++ [ (Var "_", eval env d) ]
+  branches =
+    concatMap alt alts ++ [
+      case dfl of
+        Nothing -> ("_", ifFail)
+        Just d  -> ("_", eval env d)
+    ]
   -- XXX: currently we duplicate code, we may want to name it in a where...
   alt (TCAlt ps rhs) =
     let r = eval env rhs
@@ -669,15 +676,15 @@ hsPat env pat =
     TCNumPat t i ->
       case t of
         Type TInteger  -> Raw i
-        Type (TUInt _) -> Tuple [ApI "->" (Var "RTS.fromUInt") (Raw i)]
-        Type (TSInt _) -> Tuple [ApI "->" (Var "RTS.fromSInt") (Raw i)]
+        Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]
+        Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
         _ -> panic "hsPat" [ "We don't support polymorphic case." ]
 
     TCBoolPat b     -> Raw b
-    TCJustPat p     -> Var "Just" `Ap` hsPat env p
-    TCNothingPat _t -> Var "Nothing"
+    TCJustPat p     -> "Just" `Ap` hsPat env p
+    TCNothingPat _t -> "Nothing"
     TCVarPat x      -> hsTCName env x
-    TCWildPat _t    -> Var "_"
+    TCWildPat _t    -> "_"
 
 hsMaybe :: WithSem -> Term -> Term -> Term -> Term
 hsMaybe sem erng msg val = f `aps` [ erng, msg, val ]
