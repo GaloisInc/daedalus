@@ -133,7 +133,10 @@ insertDFA qState rtr dfa =
                           NotAmbiguous -> Set.insert lastS' m3
               in allocTransition rest ((ih, registry, am, q, lastS') : ch) m1' m2' m3' lastS'
 
-
+getFinalStates :: DFA -> [DFAState]
+getFinalStates dfa =
+  map (\ linDFAState -> fromJust (Map.lookup linDFAState (mappingLinToDFAState dfa) ))
+  (Set.toList (finalLinDFAState dfa))
 
 
 showDFA :: DFA -> String
@@ -257,43 +260,33 @@ revAppend :: [a] -> [a] -> [a]
 revAppend [] ys = ys
 revAppend (x:xs) ys = revAppend xs (x:ys)
 
-type DiscoveredDFAStates = [DFAState]
-
-emptyDiscoveredDFAStates :: DiscoveredDFAStates
-emptyDiscoveredDFAStates = []
-
-addDiscoveredDFAStates :: DFAState -> DiscoveredDFAStates -> DiscoveredDFAStates
-addDiscoveredDFAStates q cont = q : cont
-
-mergeDiscoveredDFAStates :: DiscoveredDFAStates -> DiscoveredDFAStates -> DiscoveredDFAStates
-mergeDiscoveredDFAStates cont1 cont2 = cont1 ++ cont2
 
 
 oVERFLOW_CFG :: Int
 oVERFLOW_CFG = 10
 
-createDFAtable :: Aut a => a -> DFAState -> (DFA, DiscoveredDFAStates)
+createDFAtable :: Aut a => a -> DFAState -> DFA
 createDFAtable aut qInit =
   let idfa = initDFA qInit in
   if measureDFAState qInit > oVERFLOW_CFG
-  then (insertDFA (startLinDFAState idfa) (Abort AbortOverflowCfg) idfa, [])
+  then insertDFA (startLinDFAState idfa) (Abort AbortOverflowCfg) idfa
   else
-    let (resDfa, cont) = go [(startLinDFAState idfa, 0)] [] (idfa, [])
-    in (resDfa, reverse cont)
+    let resDfa = go [(startLinDFAState idfa, 0)] [] idfa
+    in resDfa
   where
-    go :: [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> (DFA, DiscoveredDFAStates) -> (DFA, DiscoveredDFAStates)
-    go toVisit accToVisit acc@(dfa, cont) =
+    go :: [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> DFA -> DFA
+    go toVisit accToVisit dfa =
       case toVisit of
         [] -> case accToVisit of
-                [] -> acc
-                _ -> go (reverse accToVisit) [] acc
+                [] -> dfa
+                _ -> go (reverse accToVisit) [] dfa
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
               if depth > maxDepthDet
               then
                 let newDfa = insertDFA q (Abort AbortOverflowK) dfa
-                in go rest accToVisit (newDfa, cont)
+                in go rest accToVisit newDfa
               else
                 let choices = detSubset (fromJust $ Map.lookup q (mappingLinToDFAState dfa)) in
                 let newDfa = insertDFA q choices dfa in
@@ -302,21 +295,23 @@ createDFAtable aut qInit =
                   case allocatedChoice of
                     Result (DFATransition r1) ->
                       let
-                        (newToVisit, newToCont) = collectVisitAndCont (depth+1) r1
+                        newToVisit = collectVisit (depth+1) r1
                         newAccToVisit = revAppend newToVisit accToVisit
-                        newCont = mergeDiscoveredDFAStates newToCont cont
-                      in go rest newAccToVisit (newDfa, newCont)
-                    _ -> go rest accToVisit (newDfa, cont)
+                      in go rest newAccToVisit newDfa
+                    _ -> go rest accToVisit newDfa
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
-              go rest accToVisit acc
+              go rest accToVisit dfa
 
-    collectVisitAndCont :: Int -> [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState, LinDFAState)] -> ([(LinDFAState, Int)], DiscoveredDFAStates)
-    collectVisitAndCont depth lst =
-      foldr (\ (_, _, am, qq, q) (vis, cont) ->
-               case am of
-                 Ambiguous -> (vis, cont)
-                 NotAmbiguous -> (vis, addDiscoveredDFAStates qq cont)
-                 DunnoAmbiguous -> ((q, depth) : vis, cont)) ([], emptyDiscoveredDFAStates) lst
+    collectVisit :: Int -> [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState, LinDFAState)] -> [(LinDFAState, Int)]
+    collectVisit depth lst =
+      foldr (\ (_, _, am, _qq, q) vis ->
+               if q == dummyLinDFAState
+               then error "should not be dummy state"
+               else
+                 case am of
+                   Ambiguous -> vis
+                   NotAmbiguous -> vis
+                   DunnoAmbiguous -> (q, depth) : vis) [] lst
 
     detSubset :: DFAState -> Result DFATransition
     detSubset s =
@@ -623,11 +618,13 @@ createDFA aut =
           if memberAutDet q res
           then go qs nextRound res
           else
-            let (dfa, discovered) = createDFAtable aut q
+            let dfa = createDFAtable aut q
                 dfa1 = computeHasFullResolution dfa
                 dfa2 = computeHasNoAbort dfa1
                 newRes = insertAutDet q dfa2 res
-                newNextRound = revAppend discovered nextRound
+                newNextRound =
+                  let finalStates = getFinalStates dfa in
+                    revAppend finalStates nextRound
             in go qs newNextRound newRes
 
 
