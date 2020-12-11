@@ -123,3 +123,6 @@ Cfg * mkCfg(int state, Input * inp, StackCtrl * ctrl, StackSem * sem)
     return cfg;
 }
 
+int isAcceptingCfg(Cfg* cfg, int acceptingState) {
+    return (cfg->ctrl == NULL && cfg->state == acceptingState) ;
+}
