@@ -6,7 +6,6 @@ module Daedalus.Scope (
 
 import Data.Functor ( ($>) )
 import Data.Set(Set)
-import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
 import Data.Graph.SCC(stronglyConnComp)
@@ -46,13 +45,15 @@ data Scope = Scope { moduleVars    :: ModuleScope
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
-                | DifferentCaseVars ModuleName [Name]
+                | DifferentCaseVars ModuleName [Set Name]
                   deriving Show
 
 instance PP ScopeError where
   pp (ScopeViolation _mn n) = "Undeclared variable" <+> backticks (pp n)
-  pp (DifferentCaseVars _mn vs) = "Multiple names for pattern match variables:"
-                                  <+> sep (punctuate ", " $ map pp vs)
+  pp (DifferentCaseVars _mn vs) =
+    "Different variables in pattern allternatives:" $$
+      nest 2 (bullets [ sep (punctuate comma (map pp (Set.toList alt)))
+                      | alt <- vs ])
   pp (DuplicateNames _mn m) = "Duplicate rules:"
                                $$ nest 2 (bullets (map mkOne (Map.toList m)))
     where
@@ -333,21 +334,37 @@ resolveStructFields (f : fs) =
          pure (f' : fs')
 
 resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
-resolveCasePatterns (PatternDefault e)  = PatternDefault <$> resolve e
-resolveCasePatterns (PatternCase ps e)
-  | not (sameBinds selVars) = do
-      scope <- getScope
-      ScopeM $ throwError (DifferentCaseVars (currentModule scope) names)
-  | otherwise = PatternCase (map localise ps) <$> extendLocalScopeIn names (resolve e)
-  where
-    names = catMaybes selVars
-    
-    selVars = [ mv | SelPattern _ mv <- ps ]
+resolveCasePatterns patC =
+  case patC of
+    PatternDefault e -> PatternDefault <$> resolve e
+    PatternCase ps e
+      | all (== bound) otherBound ->
+        PatternCase (map localise ps) <$>
+                        extendLocalScopeIn (Set.toList bound) (resolve e)
+      | otherwise ->
+        do scope <- getScope
+           ScopeM $ throwError
+                  $ DifferentCaseVars (currentModule scope)
+                  $ bound : otherBound
 
-    sameBinds :: [Maybe Name] -> Bool
-    sameBinds [] = True
-    sameBinds (mv : rest) = all (== mv) rest
+      where
+      bound : otherBound = map patVars ps
 
-    localise :: Pattern -> Pattern
-    localise (SelPattern l mbv) = SelPattern l (makeNameLocal <$> mbv)
-    localise p = p
+      localise :: Pattern -> Pattern
+      localise pat =
+        case pat of
+          LitPattern {}  -> pat
+          WildPattern _  -> pat
+          ConPattern c p -> ConPattern c (localise p)
+          VarPattern x   -> VarPattern (makeNameLocal x)
+
+      -- Variables bound by a patterns
+      patVars :: Pattern -> Set Name
+      patVars pat =
+        case pat of
+          LitPattern {}  -> Set.empty
+          WildPattern {} -> Set.empty
+          ConPattern _ p -> patVars p
+          VarPattern x   -> Set.singleton x
+
+

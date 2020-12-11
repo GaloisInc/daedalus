@@ -17,7 +17,7 @@ module Daedalus.Interp
   ) where
 
 
-import Control.Monad (replicateM,foldM,replicateM_,void)
+import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum)
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -419,12 +419,56 @@ compilePureExpr env = go
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
 
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compilePureExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
+        TCCase e alts def -> evalCase compilePureExpr env e alts def
+
+
+evalCase ::
+  HasRange a =>
+  (Env -> TC a k -> val) ->
+  Env ->
+  TC a K.Value ->
+  [TCAlt a k] ->
+  Maybe (TC a k) ->
+  val
+evalCase eval env e alts def =
+  let v = compilePureExpr env e
+  in case msum (map (tryAlt eval env v) alts) of
+       Just res -> res
+       Nothing ->
+         case def of
+           Just d  -> eval env d
+           Nothing -> error "Pattern match failure"
+
+
+
+tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
+tryAlt eval env v (TCAlt ps e) =
+  do binds <- matchPatOneOf ps v
+     let newEnv = foldr (uncurry addVal) env binds
+     pure (eval newEnv e)
+
+matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
+matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
+
+matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
+matchPat pat =
+  case pat of
+    TCConPat _ l p    -> \v -> case valueToUnion v of
+                                 (l1,v1) | l == l1 -> matchPat p v1
+                                 _ -> Nothing
+    TCNumPat _ i      -> \v -> do guard (valueToInteger v == i)
+                                  pure []
+    TCBoolPat b       -> \v -> do guard (valueToBool v == b)
+                                  pure []
+    TCJustPat p       -> \v -> case valueToMaybe v of
+                                 Nothing -> Nothing
+                                 Just v1 -> matchPat p v1
+    TCNothingPat {}   -> \v -> case valueToMaybe v of
+                                 Nothing -> Just []
+                                 Just _  -> Nothing
+    TCVarPat x        -> \v -> Just [(x,v)]
+    TCWildPat {}      -> \_ -> Just []
+
 
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
 invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
@@ -502,14 +546,8 @@ compilePredicateExpr env = go
           let l = compilePureExpr env e
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
-          
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compilePredicateExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
 
+        TCCase e alts def -> evalCase compilePredicateExpr env e alts def
 
 mbSkip :: WithSem -> Value -> Value
 mbSkip s v = case s of
@@ -719,14 +757,7 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compileExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> 
-                       pError FromSystem erng
-                          ("missing case for `" ++ Text.unpack lbl ++ "`")
+        TCCase e alts def -> evalCase compileExpr env e alts def
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)

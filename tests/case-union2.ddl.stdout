@@ -24,22 +24,19 @@ case-union2.P : Grammar case-union2.P =
 case-union2.Main : Grammar case-union2.Main =
   do (p : case-union2.P) <- case-union2.P
      (tag : [uint 8]) <- case p is
-                           { c1 x -> pure x
-                           ; c2 x -> pure x
+                           { {| c1 = x |}, {| c2 = x |} -> pure x
                            }
      pure {p = p,
            tag = tag}
- 
-case-union2._Main : Grammar {} =
-  do (p : case-union2.P) <- case-union2.P
-     case p is
-       { c1 x -> pure {}
-       ; c2 x -> pure {}
-       }
-     pure {}
  
 case-union2._P : Grammar {} =
   Choose fair
     { {- c1 -} @MatchBytes "a"
     | {- c2 -} @MatchBytes "b"
     }
+ 
+case-union2._Main : Grammar {} =
+  do case-union2._P
+     case p is
+       { {| c1 = x |}, {| c2 = x |} -> pure {}
+       }

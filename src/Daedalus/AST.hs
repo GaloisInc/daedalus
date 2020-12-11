@@ -249,16 +249,26 @@ data Literal =
   | LByte       !Word8
     deriving (Show, Eq, Ord)
 
+
 -- Non empty
 data PatternCase e =
     PatternDefault e
   | PatternCase ![Pattern] !e
+    -- ^ A union of patterns. The union should not be empty.
   deriving (Show, Functor)
 
 data Pattern =
-    LitPattern Literal
-  | SelPattern (Located Label) (Maybe Name)
+    LitPattern (Located Literal)
+  | ConPattern (Located Con) Pattern
+  | WildPattern SourceRange
+  | VarPattern Name
   deriving Show
+
+data Con =
+    ConUser Label
+  | ConNothing
+  | ConJust
+    deriving Show
 
 newtype Expr = Expr (Located (ExprF Expr))
                deriving Show
@@ -310,6 +320,14 @@ instance HasRange SrcType where
       SrcVar x -> range x
       SrcType x -> range x
 
+instance HasRange Pattern where
+  range pat =
+    case pat of
+      LitPattern l -> range l
+      ConPattern c p -> range c <-> range p
+      WildPattern r -> r
+      VarPattern r -> range r
+ 
 
 --------------------------------------------------------------------------------
 

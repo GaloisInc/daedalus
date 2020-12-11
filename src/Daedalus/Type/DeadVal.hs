@@ -323,12 +323,18 @@ mbSem tc =
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
-    TCSelCase ctxt e pats mdef t -> do
-      pats' <- traverse (\(mbv, pe) -> ((,) mbv . fst) <$> mbSem pe) pats
-      mdef' <- traverse (fmap fst . mbSem) mdef
-      pure (exprAt tc (TCSelCase ctxt e pats' mdef' t), tcFree tc) -- FIXME: we ignore second ret here
+    TCCase e pats mb ->
+      do (pats1,vs1) <- unzip <$> mapM (noSemAltWith mbSem) pats
+         mb1 <- traverse mbSem mb
+         case mb1 of
+           Nothing -> pure (exprAt tc $ TCCase e pats1 Nothing, Set.unions vs1)
+           Just (d,vs2) -> pure (exprAt tc $ TCCase e pats1 (Just d),
+                                              Set.unions (vs2:vs1))
+
+
 
 -- | Rewrite productions to avoid constructing a semantic value.
+-- It also returns the variables actually used by the rewritten expression.
 noSem' :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 noSem' tc =
   case texprValue tc of
@@ -473,10 +479,24 @@ noSem' tc =
                       , mconcat (is1 ++ is2)
                       )
 
-     TCSelCase ctxt e pats mdef t -> do
-       pats' <- traverse (\(mbv, pe) -> ((,) mbv . fst) <$> noSem' pe) pats
-       mdef' <- traverse (fmap fst . noSem') mdef
-       pure (exprAt tc (TCSelCase ctxt e pats' mdef' t), tcFree tc) -- FIXME: we ignore second ret here
+     TCCase e pats mb ->
+       do (pats1,vs1) <- unzip <$> mapM (noSemAltWith noSem') pats
+          mb1 <- traverse mbSem mb
+          case mb1 of
+            Nothing -> pure (exprAt tc $ TCCase e pats1 Nothing, Set.unions vs1)
+            Just (d,vs2) -> pure (exprAt tc $ TCCase e pats1 (Just d),
+                                               Set.unions (vs2:vs1))
+
+
+
+
+noSemAltWith ::
+  (TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)) ->
+  TCAlt SourceRange Grammar -> NoFunM (TCAlt SourceRange Grammar, Info)
+noSemAltWith f (TCAlt ps e) =
+  do (e1,vs) <- f e
+     let bound = Set.map Some (patBindsSet (head ps))
+     pure (TCAlt ps e1, Set.difference vs bound)
 
 noSemUni ::
   HasRange r =>

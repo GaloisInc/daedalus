@@ -9,7 +9,7 @@ import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.Graph(SCC(..))
 import Data.List(foldl',sort,group)
-import Data.Maybe(mapMaybe,catMaybes,listToMaybe)
+import Data.Maybe(mapMaybe,catMaybes)
 import Control.Monad(zipWithM)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -440,6 +440,16 @@ liftValArg ::
   Expr ->
   TypeM ctx ((Arg SourceRange,Type), Maybe BindStmt)
 liftValArg e =
+  do ((e1,t),mb) <- liftValExpr e
+     pure ((ValArg e1,t),mb)
+
+
+-- | Lift a value argument of a function, when the function is called
+-- in a monadic context.
+liftValExpr ::
+  Expr ->
+  TypeM ctx ((TC SourceRange Value,Type), Maybe BindStmt)
+liftValExpr e =
 
   case ctx of
 
@@ -448,16 +458,18 @@ liftValArg e =
          a      <- newTVar e KValue
          unify (tGrammar a) (e1,t)
          n      <- newName e a
-         pure ( (ValArg (exprAt e1 (TCVar n)), a), Just (BindStmt n e1) )
+         pure ( (exprAt e1 (TCVar n), a), Just (BindStmt n e1) )
 
     Some AValue ->
       do (e1,t) <- inContext AValue (inferExpr e)
-         pure ((ValArg e1, t), Nothing)
+         pure ((e1, t), Nothing)
 
     Some AClass ->
       reportError e "Expected a value, but the argument is a character class."
 
   where ctx = inferContext e
+
+
 
 
 
@@ -1195,80 +1207,116 @@ inferExpr expr =
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
     -- e should have the same type as the 
-    ECase e ps -> inferCase expr e ps
+    ECase e ps -> inferCase e ps
 
--- Current semantics is that the cases must be disjoint, we could also
--- make it non-deterministic (ala Choose)
-inferCase :: Expr -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
-inferCase expr e ps
-  | _ : _ : _ <- defaultCases = reportError expr "Multiple default cases"
-    -- Unions bind same variable (FIXME: weaken, produce better errors)
 
-  -- FIXME: this is taken care of in scope
-  -- | not (all (sameBinds . fst) nonDefaultCases) = 
-  --   reportError expr "Different pattern variables in union patterns"
-  
-    -- No pattern overlap (FIXME: pp dups)
-  | not (Map.null dups) = reportError expr "Repeated cases"
-    -- Only Sel patterns for now.
-  | not (null [l | PatternCase pats _ <- ps, LitPattern l <- pats]) =
-      reportError expr "Literal patterns are unsupported"
-  | otherwise = do
-      ctxt <- getContext
-      (e', et) <- inContext AValue (inferExpr e)
-      bodyT    <- newTVar expr (contextKind ctxt)
 
-      -- FIXME: if we aren't in a Grammar context, we need to have all cases matched.
+--------------------------------------------------------------------------------
+-- Patterns & Case
 
-      -- invariant: keys are disjoint
-      lmap <- Map.unions <$> mapM (uncurry (inferPatterns et bodyT)) nonDefaultCases
+checkPattern :: Type -> Pattern -> TypeM ctx TCPat
+checkPattern ty pat =
+  case pat of
 
-      mdef <- traverse (\de -> do { (de', bt) <- inferExpr de; unify bodyT (de, bt); pure de' })
-                       (listToMaybe defaultCases)
-      
-      pure (exprAt expr (TCSelCase ctxt e' lmap mdef bodyT), bodyT)
+    LitPattern l ->
+      case thingValue l of
+        LNumber i ->
+          do addConstraint l (Literal i ty)
+             pure (TCNumPat ty i)
+        LBool b ->
+          do unify ty (pat,tBool)
+             pure (TCBoolPat b)
+        _ -> reportError pat "Unsuported literal pattern"
+
+    WildPattern _ ->
+      pure (TCWildPat ty)
+
+    VarPattern x ->
+      pure (TCVarPat TCName { tcName = x, tcNameCtx = AValue, tcType = ty })
+
+    ConPattern c p ->
+      case thingValue c of
+        ConUser l ->
+          do a  <- newTVar c KValue
+             p' <- checkPattern a p
+             addConstraint c (HasUnion ty l a)
+             pure (TCConPat ty l p')
+
+        ConNothing ->
+          do a <- newTVar c KValue
+             unify ty (c,tMaybe a)
+             pure (TCNothingPat a)
+
+        ConJust ->
+          do a <- newTVar c KValue
+             unify ty (c,tMaybe a)
+             p1 <- checkPattern a p
+             pure (TCJustPat p1)
+
+
+checkPatternCase ::
+  Type -> Type -> [Pattern] -> Expr -> TypeM ctx (TCAlt SourceRange ctx)
+checkPatternCase tIn tOut ps e =
+  do qs <- mapM (checkPattern tIn) ps
+     let vars = sort (patBinds (head qs))
+     forM_ (zip ps qs) \(p,q1) ->
+        do unify tIn (p,typeOf q1)
+           let check v1 v2 = unify (v1,typeOf v1) (v2,typeOf v2)
+           zipWithM check vars (patBinds q1)
+     let addVar x = extEnv (tcName x) (tcType x)
+     r@(e',_) <- foldr addVar (inferExpr e) vars
+     unify tOut r
+     pure (TCAlt qs e')
+
+
+checkPatternCases :: HasRange r =>
+  r ->
+  Type -> Type ->
+  [TCAlt SourceRange ctx] ->
+  [PatternCase Expr] ->
+  TypeM ctx ([TCAlt SourceRange ctx], Maybe (TC SourceRange ctx))
+checkPatternCases rng tIn tOut done cases =
+  case cases of
+
+    PatternCase pats rhs : rest ->
+      do alt <- checkPatternCase tIn tOut pats rhs
+         checkPatternCases rng tIn tOut (alt:done) rest
+
+    [PatternDefault e] ->
+      do r@(e1,_) <- inferExpr e
+         unify tOut r
+         checkNonEmpty (Just e1)
+    PatternDefault e : _ -> reportError e "The catch-all case must come last"
+
+    [] -> checkNonEmpty Nothing
+
   where
-    defaultCases    = [ bodye | PatternDefault bodye <- ps ]
-    -- FIXME: maybe don't strip location here?
-    nonDefaultCases = [ ([(thingValue l, mv) | SelPattern l mv <- pats], bodye)
-                      | PatternCase pats bodye <- ps ]
+  checkNonEmpty mb =
+    case done of
+      [] -> reportError rng "`case` needs at least one non-default pattern."
+      _  -> pure (reverse done, mb)
 
-    -- for overlap check
-    allLabelMap = Map.fromListWith (++) [ (l, [l]) | (ls, _) <- nonDefaultCases, (l, _) <- ls ]
-    dups = Map.filter (\(_ : rest) -> not (null rest)) allLabelMap
 
-    -- FIXME: move
-    contextKind :: Context k -> Kind
-    contextKind ctxt =
-      case ctxt of
-        AGrammar -> KGrammar
-        AValue   -> KValue
-        AClass   -> KClass
+inferCase :: Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
+inferCase e ps =
+  do ((e1,tIn),mbS) <- liftValExpr e
+     tOut <- do ctx <- getContext
+                case ctx of
+                  AGrammar -> tGrammar <$> newTVar e KValue
+                  AValue   -> newTVar e KValue
+                  AClass   -> newTVar e KClass
+     (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
+     let expr1 = exprAt e (TCCase e1 alts mbDefault)
+     expr <- case mbS of
+               Nothing -> pure expr1
+               Just s ->
+                 do ctx <- getContext
+                    case ctx of
+                      AGrammar -> pure (addBind s expr1)
+                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+     pure (expr, tOut)
 
-    inferPatterns :: Type -> Type -> [(Label, Maybe Name)] -> Expr
-                  -> TypeM ctxt (Map Label (Maybe (TCName Value), TC SourceRange ctxt))
-    inferPatterns _  _  []                _ = reportError expr "Empty pattern"  -- FIXME: fail earlier
-    inferPatterns et bt ls@((_, mbv) : _) bodye = do
-      -- invariant: all labels bind the same variable
-      (doAddConstraint, addVar, mbv') <- case mbv of
-        Nothing ->
-          -- type var per sel
-          pure ((\l -> do tv <- newTVar e KValue
-                          addConstraint e (HasUnion et l tv))
-               , id, Nothing)
-          -- same type var across all sels
-        Just kx -> do
-          tv <- newTVar e KValue
-          pure ((\l -> addConstraint e (HasUnion et l tv))
-               , extEnv kx tv
-               , Just (TCName kx tv AValue))
 
-      mapM_ (doAddConstraint . fst) ls
-      
-      (bodye1,bodyT')  <- addVar $ inferExpr bodye
-      unify bt (bodye1,bodyT') -- all bodies have the same type
-
-      pure (Map.fromList [ (l, (mbv', bodye1)) | (l, _) <- ls ])
 
 -- This doesn't do argument lifting because types are inferred.
 -- If we add a way to specify kinds then lifting makes sense.

@@ -420,14 +420,24 @@ case_patterns                            :: { PatternCase Expr }
   :  '_' '->' expr                          { PatternDefault $3 }
   | separated(case_pattern, ',') '->' expr  { PatternCase $1 $3 }
 
--- FIXME: move '_' into case_patterns?
 case_pattern                             :: { Pattern }
-  : literal                                 { LitPattern (snd $1) }
-  | label optional_name                     { SelPattern $1 $2 }
+  : literal                                 { LitPattern (uncurry loc $1) }
+  | con_name                                { ConPattern $1
+                                                (WildPattern (range $1)) }
+  | con_name nested_pattern                 { ConPattern $1 $2 }
 
-optional_name                            :: { Maybe Name }
-  : '_'                                     { Nothing }
-  | name                                    { Just $1 }
+con_name                                 :: { Located Con }
+  : 'nothing'                               { loc (range $1) ConNothing }
+  | 'just'                                  { loc (range $1) ConJust }
+  | label                                   { ConUser `fmap` $1 }
+
+nested_pattern                           :: { Pattern }
+  : name                                    { VarPattern $1 }
+  | '_'                                     { WildPattern $1 }
+  -- XXX: maybe add matching on structs?
+
+
+
 
 separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }
