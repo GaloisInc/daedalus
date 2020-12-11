@@ -1207,7 +1207,7 @@ inferExpr expr =
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
     -- e should have the same type as the 
-    ECase e ps -> inferCase e ps
+    ECase e ps -> inferCase expr e ps
 
 
 
@@ -1297,8 +1297,10 @@ checkPatternCases rng tIn tOut done cases =
       _  -> pure (reverse done, mb)
 
 
-inferCase :: Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
-inferCase e ps =
+inferCase ::
+  HasRange r =>
+  r -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
+inferCase rng e ps =
   do ((e1,tIn),mbS) <- liftValExpr e
      tOut <- do ctx <- getContext
                 case ctx of
@@ -1306,7 +1308,7 @@ inferCase e ps =
                   AValue   -> newTVar e KValue
                   AClass   -> newTVar e KClass
      (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
-     let expr1 = exprAt e (TCCase e1 alts mbDefault)
+     let expr1 = exprAt rng (TCCase e1 alts mbDefault)
      expr <- case mbS of
                Nothing -> pure expr1
                Just s ->
