@@ -39,6 +39,9 @@ typedef struct _Cfg {
 /** Create a configuration instance */
 Cfg * mkCfg(int state, Input * inp, StackCtrl * ctrl, StackSem * sem);
 
+/** Is this configuration at an accepting state and situation */
+int isAcceptingCfg(Cfg* cfg, int acceptingState);
+
 /** Initialize Input from a FILE */
 Input * initInput(FILE * f);
 
