@@ -9,6 +9,7 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
     DetChoice,
     DFAState(..),
     mkDFAState,
+    isDFAStateInit,
     nullDFAState,
     convertDFARegistryToDFAState,
     iterDFAState,
@@ -208,6 +209,20 @@ newtype DFAState = DFAQuo { dfaQuo :: Set.Set CfgDet }
 mkDFAState :: State -> DFAState
 mkDFAState q =
     DFAQuo (Set.singleton (initCfgDet q))
+
+isDFAStateInit :: DFAState -> Maybe State
+isDFAStateInit q =
+  if (Set.size (dfaQuo q) == 1)
+  then
+    let cfg = Set.elemAt 0 (dfaQuo q)
+    in
+    case cfg of
+      CfgDet
+        { cfgState = qNFA } ->
+        if (initCfgDet qNFA == cfg)
+        then Just qNFA
+        else Nothing
+  else Nothing
 
 equivDFAState :: DFAState -> DFAState -> Bool
 equivDFAState q1 q2 = dfaQuo q1 == dfaQuo q2
