@@ -16,6 +16,7 @@ where
 
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
 
@@ -55,22 +56,10 @@ data DFA = DFA
   , transitionDFA :: Map.Map LinDFAState (Result DFATransition)
   , mappingDFAStateToLin :: Map.Map DFAState LinDFAState
   , mappingLinToDFAState :: Map.Map LinDFAState DFAState
+  , finalLinDFAState :: Set.Set LinDFAState
   , lastLin :: LinDFAState
   , flagHasNoAbort :: Maybe Bool
   , flagHasFullResolution :: Maybe Bool
-  }
-
-initDFA :: DFAState ->  DFA
-initDFA q =
-  DFA
-  { startDFA = q
-  , startLinDFAState = initLinDFAState
-  , transitionDFA = Map.empty
-  , mappingDFAStateToLin = Map.insert q initLinDFAState Map.empty
-  , mappingLinToDFAState = Map.insert initLinDFAState q Map.empty
-  , lastLin = initLinDFAState
-  , flagHasNoAbort = Nothing
-  , flagHasFullResolution = Nothing
   }
 
 dummyLinDFAState :: Int
@@ -81,6 +70,20 @@ initLinDFAState = 1
 
 nextLinDFAState :: LinDFAState -> LinDFAState
 nextLinDFAState st = st + 1
+
+initDFA :: DFAState ->  DFA
+initDFA q =
+  DFA
+  { startDFA = q
+  , startLinDFAState = initLinDFAState
+  , transitionDFA = Map.empty
+  , mappingDFAStateToLin = Map.insert q initLinDFAState Map.empty
+  , mappingLinToDFAState = Map.insert initLinDFAState q Map.empty
+  , finalLinDFAState = Set.empty
+  , lastLin = initLinDFAState
+  , flagHasNoAbort = Nothing
+  , flagHasFullResolution = Nothing
+  }
 
 
 lookupDFA :: DFAState -> DFA -> Maybe (Result DFATransition)
@@ -99,31 +102,36 @@ insertDFA qState rtr dfa =
       dfa { transitionDFA = Map.insert qState rtr (transitionDFA dfa) }
     Result (DFATransition tr) ->
       -- Invariant: the state q must have already been added to the state mappings.
-      let (atr, m1, m2, lastS) =
+      let (atr, m1, m2, m3, lastS) =
             allocTransition tr [] (mappingDFAStateToLin dfa) (mappingLinToDFAState dfa)
-            (lastLin dfa)
+            (finalLinDFAState dfa) (lastLin dfa)
       in
         dfa { transitionDFA = Map.insert qState (Result $ DFATransition atr) (transitionDFA dfa)
             , mappingDFAStateToLin = m1
             , mappingLinToDFAState = m2
+            , finalLinDFAState = m3
             , lastLin = lastS
             }
 
   where
-    allocTransition lst ch m1 m2 lastS =
+    allocTransition lst ch m1 m2 m3 lastS =
       case lst of
-        [] -> (ch, m1, m2, lastS)
-        (ih, registry, am, q, n) : rest ->
-          if (n /= dummyLinDFAState)
+        [] -> (ch, m1, m2, m3, lastS)
+        (ih, registry, am, q, dummy) : rest ->
+          if (dummy /= dummyLinDFAState)
           then error "borken invariant"
           else
             if Map.member q m1
-            then allocTransition rest ((ih, registry, am, q, fromJust $ Map.lookup q m1) : ch) m1 m2 lastS
+            then allocTransition rest ((ih, registry, am, q, fromJust $ Map.lookup q m1) : ch) m1 m2 m3 lastS
             else
               let lastS' = nextLinDFAState lastS
                   m1' = Map.insert q lastS' m1
                   m2' = Map.insert lastS' q m2
-              in allocTransition rest ((ih, registry, am, q, lastS') : ch) m1' m2' lastS'
+                  m3' = case am of
+                          Ambiguous -> m3
+                          DunnoAmbiguous -> m3
+                          NotAmbiguous -> Set.insert lastS' m3
+              in allocTransition rest ((ih, registry, am, q, lastS') : ch) m1' m2' m3' lastS'
 
 
 
@@ -138,7 +146,7 @@ showDFA dfa =
       then "**** loop ****"
       else
       case lookupLinDFAState qq dfa of
-        Nothing -> error "sdfsdf"
+        Nothing -> error "missing state"
         Just r ->
           case r of
             Result (DFATransition lst) ->
@@ -394,16 +402,103 @@ computeHasNoAbort dfa =
 
 
 
-type AutDet = Map.Map DFAState DFA
+type SynthNetworkState = Int
+
+data AutDet = AutDet
+  { transitionAutDet :: IntMap.IntMap DFA
+  , mappingFinalToSynth :: IntMap.IntMap (Map.Map LinDFAState SynthNetworkState)
+  -- mapping from the Accepting states of the DFA to the SynthNetworkState
+  , mappingNFAToSynth :: IntMap.IntMap SynthNetworkState
+  -- mapping from the NFA states as init DFAState to SynthNetworkState
+  , mappingDFAStateToSynth :: Map.Map DFAState SynthNetworkState
+  , mappingSynthToDFAState :: IntMap.IntMap DFAState
+  , lastSynth :: SynthNetworkState
+  }
 
 lookupAutDet :: State -> AutDet -> Maybe DFA
-lookupAutDet q aut = Map.lookup (mkDFAState q) aut
+lookupAutDet q aut =
+  let synthNetworkState = IntMap.lookup q (mappingNFAToSynth aut)
+  in case synthNetworkState of
+       Nothing -> Nothing
+       Just sq -> IntMap.lookup sq (transitionAutDet aut)
+
+memberAutDet :: DFAState -> AutDet -> Bool
+memberAutDet q aut =
+  if Map.member q (mappingDFAStateToSynth aut)
+  then
+    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut) in
+     IntMap.member qSynth (transitionAutDet aut)
+  else False
 
 insertAutDet :: DFAState -> DFA -> AutDet -> AutDet
-insertAutDet q v aut = Map.insert q v aut
+insertAutDet q dfa aut =
+  if Map.member q (mappingDFAStateToSynth aut)
+  then
+    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut) in
+    if IntMap.member qSynth (transitionAutDet aut)
+    then error "broken invariant"
+    else allocFinalAndTransition qSynth aut
+  else
+    let aut1 = addToMappings q aut in
+    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut1) in
+    allocFinalAndTransition qSynth aut1
+
+  where
+    allocFinalAndTransition qSynth aut1 =
+      let (finalMapping, aut2) = allocFinal (Set.toList (finalLinDFAState dfa)) (Map.empty, aut1) in
+        aut2
+        { transitionAutDet = IntMap.insert qSynth dfa (transitionAutDet aut1)
+        , mappingFinalToSynth = IntMap.insert qSynth finalMapping (mappingFinalToSynth aut1)
+        }
+
+    addToMappings qDFA aut1 =
+      if Map.member qDFA (mappingDFAStateToSynth aut1)
+      then aut1
+      else
+        let newSynth = lastSynth aut1 + 1 in
+        let newMappingNFAToSynth =
+              case isDFAStateInit qDFA of
+                Nothing -> mappingNFAToSynth aut1
+                Just qNFA -> IntMap.insert qNFA newSynth (mappingNFAToSynth aut1)
+            newMappingDFAStateToSynth =
+                Map.insert qDFA newSynth (mappingDFAStateToSynth aut1)
+            newMappingSynthToDFAState =
+              IntMap.insert newSynth qDFA (mappingSynthToDFAState aut1)
+        in
+          aut1
+          { mappingNFAToSynth = newMappingNFAToSynth
+          , mappingDFAStateToSynth = newMappingDFAStateToSynth
+          , mappingSynthToDFAState = newMappingSynthToDFAState
+          , lastSynth = newSynth
+          }
+
+    allocFinal lst (finalMapping, aut1) =
+      case lst of
+        [] -> (finalMapping, aut1)
+        qLinDFA : qs ->
+          let qDFA = fromJust $ Map.lookup qLinDFA (mappingLinToDFAState dfa) in
+            if Map.member qDFA (mappingDFAStateToSynth aut1)
+            then allocFinal qs (finalMapping, aut1)
+            else
+              let newAut = addToMappings qDFA aut1
+                  -- Invariant: the lastSynth of newAut is the state allocated for qDFA
+                  newFinalMapping = Map.insert qLinDFA (lastSynth newAut) finalMapping
+              in allocFinal qs (newFinalMapping, newAut)
+
+
+initSynthNetworkState :: SynthNetworkState
+initSynthNetworkState = 0
 
 emptyAutDet :: AutDet
-emptyAutDet = Map.empty
+emptyAutDet =
+  AutDet
+  { transitionAutDet = IntMap.empty
+  , mappingFinalToSynth = IntMap.empty
+  , mappingNFAToSynth = IntMap.empty
+  , mappingDFAStateToSynth = Map.empty
+  , mappingSynthToDFAState = IntMap.empty
+  , lastSynth = initSynthNetworkState
+  }
 
 type Prediction = ChoiceSeq
 
@@ -517,7 +612,7 @@ createDFA aut =
 
     go :: [DFAState] -> [DFAState] -> AutDet -> AutDet
     go toVisit nextRound res =
-      if Map.size res > 1000000 then error "Stop" else
+      if lastSynth res > 1000000 then error "Stop" else
       -- trace (show (Map.size res)) $
       case toVisit of
         [] -> case nextRound of
@@ -525,7 +620,7 @@ createDFA aut =
                 _ -> go (reverse nextRound) [] res
         q : qs ->
           -- trace (show q) $
-          if Map.member q res
+          if memberAutDet q res
           then go qs nextRound res
           else
             let (dfa, discovered) = createDFAtable aut q
@@ -548,13 +643,13 @@ showStartDFA aut q =
 
 printDFA :: Aut a => a -> AutDet -> IO ()
 printDFA aut dfas =
-  let t = Map.toAscList dfas
-      tAnnotated = map (\ (q, dfa) -> ((showStartDFA aut q, q), dfa)) t
+  let t = IntMap.toAscList (transitionAutDet dfas)
+      tAnnotated = map (\ (q, dfa) -> ((showStartDFA aut (fromJust $ IntMap.lookup q (mappingSynthToDFAState dfas)), dfa))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 1000
      then do return ()
-     else mapM_ (\ ((ann, _), dfa) ->
+     else mapM_ (\ (ann, dfa) ->
                     -- if (lookaheadDepth dfa < 10)
                     -- then
                     --   return ()
@@ -568,7 +663,7 @@ printDFA aut dfas =
 
 statsDFA :: Aut a => a -> AutDet -> IO ()
 statsDFA aut dfas =
-  let t = Map.toAscList dfas
+  let t = map snd (IntMap.toAscList (transitionAutDet dfas))
   in do printDFA aut dfas
         putStrLn "\nReport:"
         putStrLn $ getReport t initReport
@@ -577,17 +672,17 @@ statsDFA aut dfas =
     getReport lst report =
       case lst of
         [] -> foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)
-        (q, dfa) : xs ->
-          getReport xs (incrReport report (q, dfa))
+        dfa : xs ->
+          getReport xs (incrReport report dfa)
 
     result str = "Result" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []
 
-    mapResultToKey :: (DFAState, DFA) -> String
-    mapResultToKey (q, dfa) =
-      let r = fromJust (lookupDFA q dfa)
+    mapResultToKey :: DFA -> String
+    mapResultToKey dfa =
+      let r = fromJust (lookupDFA (startDFA dfa) dfa)
       in
       case r of
         Abort AbortAmbiguous -> result "-ambiguous-0"
@@ -609,7 +704,7 @@ statsDFA aut dfas =
         _ -> abortToString r
 
 
-    incrReport :: Map.Map String Int -> (DFAState, DFA) -> Map.Map String Int
+    incrReport :: Map.Map String Int -> DFA -> Map.Map String Int
     incrReport report r =
       let key = mapResultToKey r
       in
