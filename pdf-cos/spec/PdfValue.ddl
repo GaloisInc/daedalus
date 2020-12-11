@@ -171,7 +171,7 @@ def Ref = {
 
 -- Objects ---------------------------------------------------------------------
 
-def Value =
+def Value = 
   Choose1 {
     null    = Null;
     bool    = Bool;

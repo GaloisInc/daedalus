@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import Data.Void(Void)
 import Control.Monad(liftM,ap)
 
+import Daedalus.PP
 import Daedalus.VM
 
 
@@ -24,6 +25,9 @@ data BuildInfo = BuildInfo
 
 data FV = FV Int VMT
   deriving (Eq,Ord)
+
+instance PP FV where
+  pp (FV x t) = parens (text "fv" <.> int x <+> pp t)
 
 
 instance HasType FV where getType (FV _ t) = t
@@ -79,10 +83,11 @@ term c = BlockBuilder \_ i -> ([], (c, nextLocal i, reverse (externArgs i)))
 
 buildBlock ::
   Label ->
+  BlockType ->
   [VMT] ->
   ([E] -> BlockBuilder Void) ->
   (Block, [FV])
-buildBlock nm tys f =
+buildBlock nm bty tys f =
   let args = [ BA n t Borrowed{-placeholder-} | (n,t) <- [0..] `zip` tys ]
       BlockBuilder m = f (map EBlockArg args)
       info = BuildInfo { nextLocal = 0
@@ -93,6 +98,7 @@ buildBlock nm tys f =
       (is,(c,ln,ls)) = m (\v _ -> case v of {}) info
       (extra,free) = unzip ls
   in ( Block { blockName = nm
+             , blockType = bty
              , blockArgs = args ++ extra
              , blockLocalNum = ln
              , blockInstrs = is
@@ -115,7 +121,14 @@ jumpIf ::
 jumpIf e l1 l2 =
   do jp1 <- l1
      jp2 <- l2
-     term $ JumpIf e jp1 jp2
+     term $ JumpIf e $ JumpCase
+          $ Map.fromList
+              [ (PBool True, jumpNoFree jp1)
+              , (PBool False, jumpNoFree jp2)
+              ]
 
-
+jumpCase :: E -> Map Pattern (BlockBuilder JumpPoint) -> BlockBuilder Void
+jumpCase e bs =
+  do jps <- sequence bs
+     term $ JumpIf e $ JumpCase $ jumpNoFree <$> jps
 

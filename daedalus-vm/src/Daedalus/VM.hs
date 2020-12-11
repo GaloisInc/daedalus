@@ -1,5 +1,8 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM where
+module Daedalus.VM
+  ( module Daedalus.VM
+  , Src.Pattern(..)
+  ) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -45,11 +48,28 @@ data VMFun = VMFun
 -- | A basic block
 data Block = Block
   { blockName     :: Label
+  , blockType     :: BlockType
   , blockArgs     :: [BA]
   , blockLocalNum :: Int      -- ^ How many locals we define
   , blockInstrs   :: [Instr]
   , blockTerm     :: CInstr
   }
+
+data BlockType =
+    NormalBlock
+  | ReturnBlock Int
+    {- ^ The landing target for returning from functions.
+    These blocks will only ever be used by the various "return"
+    instructions and so they can use a different "calling" convention
+    for passing arguments.  The 'Int' indicates how many arguments are being
+    returns.  Those are the first arguments to the block.  The remaining
+    arguments are varaibles that needed to be preserved by the call and
+    should be restored from the closure.
+    -}
+
+  | ThreadBlock
+    {- ^ This block is an entry point to a thread. -}
+    deriving (Eq,Show)
 
 -- | Instructions
 data Instr =
@@ -68,16 +88,22 @@ data Instr =
 -- | Instructions that jump
 data CInstr =
     Jump JumpPoint
-  | JumpIf E JumpPoint JumpPoint
+  | JumpIf E JumpChoice
   | Yield
   | ReturnNo
   | ReturnYes E
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
-  | Call Src.FName Captures (Maybe JumpPoint) JumpPoint [E]
-    -- ^ In grammars we have 2 continuation (no,yes)
-    -- In expressions we only have the yes
+  | CallPure Src.FName JumpPoint [E]
+    -- ^ The jump point contains information on where to continue after
+    -- return and what we need to preserve acrross the call
 
-  | TailCall Src.FName Captures [E]  -- ^ Used for both grammars and exprs
+  | Call Src.FName Captures JumpPoint JumpPoint [E]
+    -- The JumpPoints contain information about the return addresses.
+
+  | TailCall Src.FName Captures [E]
+    -- ^ Used for both grammars and exprs.
+    -- This is basically the same as `Jump` just with the extra
+    -- info that we are calling a function (e.g., for stack trace)
 
 -- | A flag to indicate if a function may capture the continuation.
 -- If yes, then the function could return multiple times, and we need to
@@ -89,11 +115,25 @@ data Captures = Capture | NoCapture
 -- | Target of a jump
 data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
 
+-- | Before jumping to these targets we should deallocate the given
+-- variables.  We could achieve the same with just normal jumps and
+-- additional basic blocks, but this seems more straight forward
+data JumpWithFree = JumpWithFree
+  { freeFirst  :: Set VMVar   -- ^ Free these before jumping
+  , jumpTarget :: JumpPoint
+  }
+
+jumpNoFree :: JumpPoint -> JumpWithFree
+jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
+
+-- | Two joint points, but we'll use exactly one of the two.
+-- This matters for memory management.
+data JumpChoice = JumpCase (Map Src.Pattern JumpWithFree)
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
     EUnit
-  | ENum Integer Src.Type     -- ^ Onlu unboxed
+  | ENum Integer Src.Type     -- ^ Only unboxed
   | EBool Bool
 
   | EMapEmpty Src.Type Src.Type
@@ -115,6 +155,13 @@ data VMT =
 
 
 --------------------------------------------------------------------------------
+eIsVar :: E -> Maybe VMVar
+eIsVar e =
+  case e of
+    EVar x -> Just (LocalVar x)
+    EBlockArg x -> Just (ArgVar x)
+    _ -> Nothing
+
 iArgs :: Instr -> [E]
 iArgs i =
   case i of
@@ -137,15 +184,28 @@ iArgs i =
 data Effect     = MayFail | DoesNotFail
   deriving (Eq,Ord,Show)
 
-data Label      = Label Text Int deriving (Eq,Ord)
+data Label      = Label Text Int deriving (Eq,Ord,Show)
 
 data BV         = BV Int VMT            deriving (Eq,Ord)
 data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
 
 data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
 
-getOwnership :: BA -> Ownership
-getOwnership (BA _ _ o) = o
+class GetOwnership t where
+  getOwnership :: t -> Ownership
+
+instance GetOwnership BA where
+  getOwnership (BA _ _ o) = o
+
+instance GetOwnership BV where
+  getOwnership (BV {}) = Owned    -- XXX: in the future maybe we can consider
+                                  -- borrowed locals too?
+
+instance GetOwnership VMVar where
+  getOwnership v =
+    case v of
+      LocalVar x -> getOwnership x
+      ArgVar x   -> getOwnership x
 
 class HasType t where
   getType :: t -> VMT
@@ -215,22 +275,28 @@ instance PP CInstr where
   pp cintsr =
     case cintsr of
       Jump v        -> "jump" <+> pp v
-      JumpIf b t e  -> "if" <+> pp b <+>
-                          "then" <+> "jump" <+> pp t <+>
-                          "else" <+> "jump" <+> pp e
+      JumpIf b (JumpCase ps) -> "case" <+> pp b <+> "of"
+                                $$ nest 2 (vcat (map ppAlt (Map.toList ps)))
+            where ppAlt (p,g) = pp p <+> "->" <+> pp g
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
       ReturnPure e  -> ppFun "return" [pp e]
-      Call f c x y zs -> ppFun kw (pp f : ppMb x : pp y : map pp zs)
-        where kw = case c of
-                     Capture -> "call[save]"
-                     NoCapture -> "call"
-              ppMb = maybe empty pp
-      TailCall f c xs -> ppFun kw (pp f : map pp xs)
-        where kw = case c of
-                     Capture -> "tail_call[save]"
-                     NoCapture -> "tail_call"
+      CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
+      Call f c no yes es ->
+        vcat [ ppFun (pp f) (map pp es)
+             , nest 2 $ vcat [ pp c
+                             , "ok:"   <+> pp yes
+                             , "fail:" <+> pp no
+                             ]
+             ]
+      TailCall f c xs -> ppFun (pp f) (map pp xs) <+> pp c
+
+instance PP JumpWithFree where
+  pp jf = ppF <+> pp (Jump (jumpTarget jf))
+    where ppF = if Set.null (freeFirst jf)
+                  then empty
+                  else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
   pp p =
@@ -280,6 +346,7 @@ instance PP E where
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
 
+
 instance PP VMVar where
   pp v =
     case v of
@@ -296,9 +363,14 @@ instance PP BA where
                   Borrowed -> "b"
 
 instance PP Block where
-  pp b = l <.> colon $$ nest 2
+  pp b = l <.> colon <+> ty $$ nest 2
                           (vcat (map pp (blockInstrs b)) $$ pp (blockTerm b))
     where
+    ty = case blockType b of
+           NormalBlock   -> empty
+           ReturnBlock n -> "// return" <+> int n
+           ThreadBlock   -> "// thread"
+
     l = case blockArgs b of
           [] -> pp (blockName b)
           xs -> ppFun (pp (blockName b)) (map ppArg xs)

@@ -19,6 +19,7 @@ data Grammar =
   | Annot Annot Grammar
 
   | If Expr Grammar Grammar
+  | Case Expr [(Pattern,Grammar)]
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
 
@@ -45,6 +46,9 @@ instance PP Grammar where
       Annot l g      -> "--" <+> pp l $$ pp g
       If e g1 g2     -> "if" <+> pp e $$ nest 2
                         ("then" <+> pp g1 $$ "else" <+> pp g2)
+      Case e as      -> "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
+        where
+        alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
 
 ppOrUnbiased :: Grammar -> Doc
 ppOrUnbiased gram =

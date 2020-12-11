@@ -2,6 +2,7 @@ module Daedalus.VM.FreeVars where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 import Daedalus.VM
 
@@ -38,6 +39,9 @@ class FreeVars t where
 instance FreeVars t => FreeVars [t] where
   freeVars' xs = foldr (\x rest -> freeVars' x . rest) id xs
 
+instance FreeVars t => FreeVars (Set t) where
+  freeVars' = freeVars' . Set.toList
+
 instance (FreeVars a, FreeVars b) => FreeVars (a,b) where
   freeVars' (a,b) = freeVars' a . freeVars' b
 
@@ -59,17 +63,28 @@ instance FreeVars E where
 instance FreeVars JumpPoint where
   freeVars' (JumpPoint _ es) = freeVars' es
 
+instance FreeVars JumpWithFree where
+  freeVars' jf = freeVars' (freeFirst jf, jumpTarget jf)
+
+instance FreeVars JumpChoice where
+  freeVars' (JumpCase opts) = freeVars' (Map.elems opts)
+
+instance FreeVars VMVar where
+  freeVars' = (:)
+
 instance FreeVars CInstr where
   freeVars' cinstr =
     case cinstr of
       Jump l            -> freeVars' l
-      JumpIf e l1 l2    -> freeVars' (e, (l1,l2))
+      JumpIf e ls       -> freeVars' (e, ls)
       Yield             -> id
       ReturnNo          -> id
       ReturnYes e       -> freeVars' e
-      Call _ _ l1 l2 es -> freeVars' (es,(l1,l2))
+      Call _ _ no yes es -> freeVars' (es,(no,yes))
+      CallPure _ l es   -> freeVars' (l,es)
       TailCall _ _ es   -> freeVars' es
       ReturnPure e      -> freeVars' e
+
 
 instance FreeVars Instr where
   freeVars' instr =
@@ -82,6 +97,6 @@ instance FreeVars Instr where
       GetInput _      -> id
       Spawn _ l       -> freeVars' l
       NoteFail        -> id
-      Free xs         -> (Set.toList xs ++)
+      Free xs         -> freeVars' xs
       Let _ e         -> freeVars' e
 

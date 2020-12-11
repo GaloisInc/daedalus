@@ -10,8 +10,7 @@ import Daedalus.AST
 inferContext :: Expr -> Some Context
 inferContext expr =
   case exprValue expr of
-    ENumber {}   -> Some AValue
-    EBool {}     -> Some AValue
+    ELiteral {}  -> Some AValue
     ENothing {}  -> Some AValue
     EJust e      -> inferContext e
     EIn (_ :> e) -> inferContext e
@@ -56,8 +55,6 @@ inferContext expr =
 
     EIf {}          -> Some AValue  -- XXX: we should make `if` work for grammar
 
-    EBytes {}       -> Some AValue
-    EByte {}        -> Some AValue
     EInRange {}     -> Some AClass
 
     ETriOp _ e1 e2 e3 -> AValue `grammarIf` map inferContext [e1,e2,e3]
@@ -77,7 +74,7 @@ inferContext expr =
     ESetStream {}     -> Some AGrammar
     EStreamLen {}     -> Some AGrammar
     EStreamOff {}     -> Some AGrammar
-
+    ECase {}          -> error "inferContext: ECase"
 
 grammarIf :: Context c -> [Some Context] -> Some Context
 grammarIf d xs = if any isGrammar xs then Some AGrammar else Some d

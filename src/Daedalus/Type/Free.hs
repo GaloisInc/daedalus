@@ -46,6 +46,7 @@ topoOrder = map sccToRec . stronglyConnComp . map node
 --           | n <- [(1::Int)..] ]
 
 -- Collect all variables bound.  Mainly used to avoid capture.
+-- XXX: This is an odd function... why do we need it?
 tcBounds :: TCDeclDef a k -> Set (Some TCName)
 tcBounds it = case it of
                 Defined d     -> flip execState Set.empty (go d)
@@ -53,6 +54,12 @@ tcBounds it = case it of
   where
     go :: forall a k'. TC a k' -> State (Set (Some TCName)) (TC a k')
     go (TC v) = TC <$> traverse go' v
+
+    doAlt :: forall a k'. TCAlt a k' -> State (Set (Some TCName)) (TCAlt a k')
+    doAlt a@(TCAlt ps e) =
+      do let vs = Set.fromList $ map Some $ altBinds a
+         modify (Set.union vs)
+         TCAlt ps <$> go e
 
     go' :: forall a k'. TCF a k' -> State (Set (Some TCName)) (TCF a k')
     go' texpr =
@@ -78,6 +85,9 @@ tcBounds it = case it of
                    Nothing -> id
                    Just k  -> Set.insert (Some k)
 
+        TCCase e pats mdef ->
+          TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
+  
         x -> traverseTCF go x
 
  -- TCName because we need the context
@@ -136,6 +146,9 @@ withSomeVar x (NameM m) = NameM \bound -> m (Set.insert x bound)
 withVar :: TCName k -> NameM a -> NameM a
 withVar x = withSomeVar (Some x)
 
+withVarMaybe :: Maybe (TCName k) -> NameM a -> NameM a
+withVarMaybe = maybe id (withSomeVar . Some)
+
 addVar :: TCName k -> NameM a
 addVar x = NameM \bound -> if x' `Set.member` bound then Set.empty
                                                     else Set.singleton x'
@@ -147,6 +160,7 @@ instance TCFree (LoopFlav a) where
       Fold _ s -> tcFree s
       LoopMap  -> Set.empty
 
+-- XXX: Why are we doing this complicated traverals thing here??
 instance TCFree (TC a k) where
   tcFree = runNameM . go
     where
@@ -183,7 +197,14 @@ instance TCFree (TC a k) where
                       Nothing -> id
                       Just k  -> withVar k
 
+          TCCase e pats mdef ->
+            TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
+            where
+            doAlt (TCAlt ps rhs) =
+              TCAlt ps <$> foldr withVar (go rhs) (patBinds (head ps))
+
           e  -> traverseTCF go e
+
 
 
 

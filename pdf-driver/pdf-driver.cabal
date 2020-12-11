@@ -17,6 +17,7 @@ extra-source-files:
   spec/ISOCodes.ddl,
   spec/PdfText.ddl,
   spec/PdfValidate.ddl,
+  spec/PdfContentStream.ddl,
   spec/PdfDOM.ddl
 
 
@@ -29,6 +30,7 @@ library pdf-spec
   exposed-modules:
     PdfDemo,
     PdfValidate,
+    PdfContentStream,
     PdfDOM
     -- PdfText,
     -- ISOCodes,

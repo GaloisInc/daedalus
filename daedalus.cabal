@@ -60,10 +60,15 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
-                       Daedalus.ParserGen.DetUtils,
                        Daedalus.ParserGen.ClassInterval,
-                       Daedalus.ParserGen.Det,
-                       Daedalus.ParserGen.RunnerBias
+                       Daedalus.ParserGen.LL,
+                       Daedalus.ParserGen.LL.Result,
+                       Daedalus.ParserGen.LL.CfgDet,
+                       Daedalus.ParserGen.LL.Closure,
+                       Daedalus.ParserGen.LL.DeterminizeOneStep,
+                       Daedalus.ParserGen.LL.DFA,
+                       Daedalus.ParserGen.RunnerBias,
+                       Daedalus.ParserGen.Generate
 
   build-depends:       base,
                        array,
@@ -84,6 +89,7 @@ library
                        ansi-terminal,
                        directory,
                        ghc-prim,
+                       language-c,
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
@@ -105,7 +111,9 @@ executable daedalus
                        simple-get-opt >= 0.4,
                        bytestring,
                        containers,
-                       filepath
+                       filepath,
+                       directory,
+                       pretty-show
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2

@@ -103,15 +103,15 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
 
   annTerm mp t =
     case t of
-      Jump l          -> Jump (annJ mp l)
-      JumpIf e l1 l2  -> JumpIf (annE mp e) (annJ mp l1) (annJ mp l2)
-      Yield           -> Yield
-      ReturnNo        -> ReturnNo
-      ReturnYes e     -> ReturnYes (annE mp e)
-      ReturnPure e    -> ReturnPure (annE mp e)
-      Call f c l1 l2 es
-                      -> Call f c (annJ mp <$> l1) (annJ mp l2) (annE mp <$> es)
-      TailCall f c es -> TailCall f c (annE mp <$> es)
+      Jump l             -> Jump (annJ mp l)
+      JumpIf e ls        -> JumpIf (annE mp e) (annJ2 mp ls)
+      Yield              -> Yield
+      ReturnNo           -> ReturnNo
+      ReturnYes e        -> ReturnYes (annE mp e)
+      ReturnPure e       -> ReturnPure (annE mp e)
+      CallPure f l es    -> CallPure f (annJ mp l) (annE mp <$> es)
+      Call f c no yes es -> Call f c (annJ mp no) (annJ mp yes) (annE mp <$> es)
+      TailCall f c es    -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
 
@@ -121,6 +121,10 @@ doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
       LocalVar {} -> v
 
   annJ mp (JumpPoint l es) = JumpPoint l (map (annE mp) es)
+  annJF mp jf = JumpWithFree { freeFirst = Set.map (annV mp) (freeFirst jf)
+                             , jumpTarget = annJ mp (jumpTarget jf)
+                             }
+  annJ2 mp (JumpCase opts) = JumpCase (annJF mp <$> opts)
 
   annE mp e =
     case e of
@@ -218,14 +222,21 @@ cinstr :: CInstr -> Info -> Info
 cinstr ci =
   case ci of
     Jump l -> jumpPoint l
-    JumpIf _ l1 l2 -> jumpPoint l1 . jumpPoint l2
-    Yield -> id
-    ReturnNo -> id
-    ReturnYes e -> expr e Owned
-    -- XXX: update
-    Call f _ l1 l2 es ->
-      \i -> maybe id jumpPoint l1
-          $ jumpPoint l2
+    JumpIf _ ls  -> jumpChoice ls
+    Yield        -> id
+    ReturnNo     -> id
+    ReturnYes e  -> expr e Owned
+    ReturnPure e -> expr e Owned
+
+    CallPure f l es ->
+      \i -> jumpPoint l
+          $ foldr ($) i
+          $ zipWith expr es
+          $ getFunOwnership f i
+
+    Call f _ no yes es ->
+      \i -> jumpPoint no
+          $ jumpPoint yes
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
@@ -234,9 +245,12 @@ cinstr ci =
       \i -> foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
-    ReturnPure e -> expr e Owned
 
+jumpChoice :: JumpChoice -> Info -> Info
+jumpChoice (JumpCase opts) = \i -> foldr jumpWithFree i opts
 
+jumpWithFree :: JumpWithFree -> Info -> Info
+jumpWithFree = jumpPoint . jumpTarget
 
 jumpPoint :: JumpPoint -> Info -> Info
 jumpPoint (JumpPoint l es) i =
@@ -260,7 +274,7 @@ expr ex mo =
 modeI :: Instr -> [Ownership]
 modeI i =
   case i of
-    SetInput {}              -> [Owned] -- not ref
+    SetInput {}              -> [Owned]
     Say {}                   -> []
     Output _                 -> [Owned]
     Notify _                 -> [Owned] -- not ref
@@ -269,7 +283,7 @@ modeI i =
     Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
     NoteFail                 -> []
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
-    Let _ _                  -> [Owned]
+    Let _ _                  -> [Borrowed] -- borrow to make a copy
 
 
 modePrimName :: PrimName -> [Ownership]
@@ -299,7 +313,7 @@ modeOp1 op =
     BitNot                -> [Owned]
     Not                   -> [Owned]
     ArrayLen              -> [Borrowed]
-    Concat                -> [Owned]
+    Concat                -> [Borrowed]
     FinishBuilder         -> [Owned]
     NewIterator           -> [Owned]
     IteratorDone          -> [Borrowed]

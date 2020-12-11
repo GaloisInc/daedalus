@@ -205,7 +205,7 @@ fromGrammar gram =
 
 
     TC.TCOptional cmt g ->
-      do ty <- fromTypeM (TC.typeOf g)
+      do ty <- fromGTypeM (TC.typeOf g)
          x <- newLocal ty
          ge <- fromGrammar g
          let lhs = Do x ge
@@ -367,7 +367,7 @@ fromGrammar gram =
                               (Pure unit)
                               (sysErr TUnit "unexpected semantic value shape")
            YesSem ->
-             do x <- newLocal ty
+             do x <- newLocal (typeOf e)
                 let xe = Var x
                 pure $ Let x e
                      $ If (hasTag l xe)
@@ -484,7 +484,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
          $ If (iteratorDone (Var i))
               (Pure (Var sVar))
          $    Let elVar (iteratorVal (Var i))
-         $    maybeAddKey (iteratorNext (Var i))
+         $    maybeAddKey (iteratorKey (Var i))
          $    Do nextS (g (Var i))
          $       Call f (Var nextS : iteratorNext (Var i) : es)
      pure $ Call f (initS : newIterator colE : es)
@@ -630,10 +630,10 @@ fromExpr expr =
     TC.TCCoerce _t1 t2 v ->
       coerceTo <$> fromTypeM t2 <*> fromExpr v
 
-    TC.TCNumber n t ->
+    TC.TCLiteral (TC.LNumber n) t ->
       intL n <$> fromTypeM t
 
-    TC.TCBool b ->
+    TC.TCLiteral (TC.LBool b) _ ->
       pure (boolL b)
 
     TC.TCNothing t ->
@@ -642,7 +642,7 @@ fromExpr expr =
     TC.TCJust e ->
       just <$> fromExpr e
 
-    TC.TCByte x ->
+    TC.TCLiteral (TC.LByte x) _ ->
       pure (intL (toInteger x) tByte)
 
     TC.TCUnit ->
@@ -654,7 +654,7 @@ fromExpr expr =
         where field (l,v) = do e <- fromExpr v
                                pure (l,e)
 
-    TC.TCByteArray bs ->
+    TC.TCLiteral (TC.LBytes bs) _ ->
       pure (byteArrayL bs)
 
     TC.TCArray vs t ->
@@ -813,7 +813,7 @@ foldLoop colT ty vs0 sVar initS keyVar elVar colE g =
              (iteratorDone (Var i))
              (Var sVar)
          $   PureLet elVar (iteratorVal (Var i))
-         $   maybeAddKey   (iteratorNext (Var i))
+         $   maybeAddKey   (iteratorKey (Var i))
          $   callF f (g (Var i) : iteratorNext (Var i) : es)
 
      pure $ callF f (initS : newIterator colE : es)

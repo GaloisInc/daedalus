@@ -343,11 +343,12 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
-    TCNumber n t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
-    TCBool b     -> hsBool b
+    TCLiteral (LNumber n) t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+    TCLiteral (LBool b)   _ -> hsBool b
+    TCLiteral (LByte b)   _ -> "RTS.uint8" `Ap` hsWord8 b
+    
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
-    TCByte b    -> "RTS.uint8" `Ap` hsWord8 b
     TCUnit      -> Tuple []
     TCStruct fs t ->
       case t of
@@ -356,7 +357,7 @@ hsValue env tc =
         _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
 
 
-    TCByteArray b -> "Vector.vecFromRep" `Ap` hsByteString b
+    TCLiteral (LBytes b) _ -> "Vector.vecFromRep" `Ap` hsByteString b
 
     TCArray vs t  ->
       case vs of
@@ -427,6 +428,8 @@ hsValue env tc =
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
     TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
 
+    TCCase e as d -> hsCase hsValue env e as d
+
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
   case texprValue tc of
@@ -447,6 +450,8 @@ hsByteClass env tc =
      TCVar x        -> hsValName env NameUse (tcName x)
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
+
+     TCCase e as d -> hsCase hsByteClass env e as d
 
 
 --------------------------------------------------------------------------------
@@ -631,6 +636,42 @@ hsGrammar env tc =
        where m' = case m of
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
+
+     TCCase e alts dfl -> hsCase hsGrammar env e alts dfl
+
+hsCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Env ->
+  TC SourceRange Value ->
+  [TCAlt SourceRange k] ->
+  Maybe (TC SourceRange k) ->
+  Term
+hsCase eval env e alts dfl = Case (hsValue env e) branches
+  where
+  branches = case dfl of
+               Nothing -> concatMap alt alts
+               Just d  -> concatMap alt alts ++ [ (Var "_", eval env d) ]
+  -- XXX: currently we duplicate code, we may want to name it in a where...
+  alt (TCAlt ps rhs) =
+    let r = eval env rhs
+    in [ (hsPat env p, r) | p <- ps ]
+
+
+
+hsPat :: Env -> TCPat -> Term
+hsPat env pat =
+  case pat of
+    TCConPat t l p -> hsUniConName env NameUse nm l `Ap` hsPat env p
+      where nm = case t of
+                  TCon c _ -> c
+                  _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
+                                     , show (pp t) ]
+    TCNumPat _t i   -> Raw i
+    TCBoolPat b     -> Raw b
+    TCJustPat p     -> Var "Just" `Ap` hsPat env p
+    TCNothingPat _t -> Var "Nothing"
+    TCVarPat x      -> hsTCName env x
+    TCWildPat _t    -> Var "_"
 
 hsMaybe :: WithSem -> Term -> Term -> Term -> Term
 hsMaybe sem erng msg val = f `aps` [ erng, msg, val ]

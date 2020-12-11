@@ -150,7 +150,7 @@ declareMatchFun ::
   Map Name ArgInfo -> TCDecl SourceRange -> Maybe (TCDecl SourceRange, ArgInfo)
 declareMatchFun mfs dcl =
   case dcl of
-    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef } ->
+    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef, tcDeclAnnot } ->
       let newName = TCName { tcNameCtx = AGrammar
                            , tcType    = tGrammar tUnit
                            , tcName    = modifyName (tcDeclName dcl)
@@ -170,6 +170,7 @@ declareMatchFun mfs dcl =
                       , tcDeclParams   = tcDeclParams dcl
                       , tcDeclDef      = Defined newDef
                       , tcDeclCtxt     = AGrammar
+                      , tcDeclAnnot    = tcDeclAnnot
                       }
            newInfo = ArgInfo { matchFun = newName
                              , passArg  = map (const True) (tcDeclParams dcl)
@@ -211,6 +212,7 @@ declareMatchFun mfs dcl =
                           , tcDeclParams   = newParams
                           , tcDeclDef      = Defined def
                           , tcDeclCtxt     = AGrammar
+                          , tcDeclAnnot    = tcDeclAnnot
                           }
 
               newParams = [ p | p <- tcDeclParams dcl, pused p ] ++
@@ -278,7 +280,7 @@ mbSem tc =
     TCMapLookup {}    -> pure (tc, tcFree tc)
     TCMapInsert {}    -> pure (tc, tcFree tc)
     TCArrayIndex  {}  -> pure (tc, tcFree tc)
-    
+
     TCCoerceCheck {}  -> pure (tc, tcFree tc)
     TCSelUnion {}     -> pure (tc, tcFree tc)
     TCSelJust {}      -> pure (tc, tcFree tc)
@@ -321,7 +323,21 @@ mbSem tc =
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
+    TCCase e pats mb ->
+      do (pats1,vs1) <- unzip <$> mapM (noSemAltWith mbSem) pats
+         mb1 <- traverse mbSem mb
+         case mb1 of
+           Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                           , Set.unions (tcFree e:vs1)
+                           )
+           Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                , Set.unions (tcFree e:vs2:vs1)
+                                )
+
+
+
 -- | Rewrite productions to avoid constructing a semantic value.
+-- It also returns the variables actually used by the rewritten expression.
 noSem' :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 noSem' tc =
   case texprValue tc of
@@ -380,7 +396,7 @@ noSem' tc =
       pure ( exprAt tc (TCMapInsert NoSem k v mp)
            , tcFree k <> tcFree v <> tcFree mp )
 
-     TCArrayIndex _ e ix -> 
+     TCArrayIndex _ e ix ->
       pure (exprAt tc (TCArrayIndex NoSem e ix), tcFree e <> tcFree ix)
 
      TCCoerceCheck _ t1 t2 v ->
@@ -466,8 +482,27 @@ noSem' tc =
                       , mconcat (is1 ++ is2)
                       )
 
+     TCCase e pats mb ->
+       do (pats1,vs1) <- unzip <$> mapM (noSemAltWith noSem') pats
+          mb1 <- traverse mbSem mb
+          case mb1 of
+            Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                            , Set.unions (tcFree e : vs1)
+                            )
+            Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                 , Set.unions (tcFree e:vs2:vs1)
+                                 )
 
 
+
+
+noSemAltWith ::
+  (TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)) ->
+  TCAlt SourceRange Grammar -> NoFunM (TCAlt SourceRange Grammar, Info)
+noSemAltWith f (TCAlt ps e) =
+  do (e1,vs) <- f e
+     let bound = Set.map Some (patBindsSet (head ps))
+     pure (TCAlt ps e1, Set.difference vs bound)
 
 noSemUni ::
   HasRange r =>
@@ -497,6 +532,3 @@ mkDo r x m1 m2
     = m2
 
   | otherwise = exprAt r (TCDo x m1 m2)
-
-
- 

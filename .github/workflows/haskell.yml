@@ -36,8 +36,14 @@ jobs:
     - name: Install dependencies
       run: |
         cabal update
-        cabal build --only-dependencies --enable-tests 
-    - name: Build
+        cabal build --only-dependencies --enable-tests
+    - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
+    - name: Build ICC Parser
+      run: cabal build exe:icc-parser
+    - name: Build PDF driver
+      run: cabal build exe:pdf-hs-driver
+    - name: Build PDF dom
+      run: cabal build exe:pdf-dom
     - name: Run tests
       run: cabal test daedalus-tests

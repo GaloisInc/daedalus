@@ -2,10 +2,19 @@
 
 DIR=test-bed
 
-if [ $# -ne 1 ]; then
-  echo "USAGE: $0 FILE"
+set -e
+
+if [ $# -gt 2 ] || [ $# -lt 1 ]; then
+  echo "USAGE: $0 DDL_SPEC [FILE_TO_PARSE]"
   exit 1
 fi
 
-cabal exec daedalus -- $1 --compile-c++ > "$DIR/main.cpp" && make -C test-bed
+SPEC=$1
+shift
+
+cabal exec daedalus -- --dump-core "$SPEC" > ./ddl.core
+cabal exec daedalus -- --dump-vm   "$SPEC" > ./ddl.vm
+cabal exec daedalus -- --out-dir="$DIR" --compile-c++ "$SPEC"
+make -C "$DIR"
+"$DIR/a.out" $*
 

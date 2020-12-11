@@ -14,46 +14,44 @@ import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 
 import Daedalus.PP hiding (empty)
 
-import Daedalus.AST (Name(..), ScopedIdent(..), BinOp(..), UniOp(..), Label)
-import Daedalus.Normalise.AST
-import Daedalus.Type.AST (WithSem(..))
+import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import Daedalus.AST (ManyBounds(..), TypeF(..))
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
-import qualified Daedalus.ParserGen.AST as PAST
+import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
 import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
 
+
 data InputAction =
     ClssItv ClassInterval -- this case comes from the determinization from LL(*)
-  | ClssAct WithSem PAST.NCExpr
+  | ClssAct WithSem NCExpr
   | IEnd
   | IOffset
   | IGetByte WithSem
-  | IMatchBytes WithSem PAST.NVExpr
-  | CurrentStream
-  | SetStream PAST.NVExpr
-  | StreamLen WithSem PAST.NVExpr PAST.NVExpr
-  | StreamOff WithSem PAST.NVExpr PAST.NVExpr
+  | IMatchBytes WithSem NVExpr
+  | GetStream
+  | SetStream NVExpr
+  | StreamLen WithSem NVExpr NVExpr
+  | StreamOff WithSem NVExpr NVExpr
 
 
 data ControlAction =
-    BoundSetup (ManyBounds PAST.NVExpr)
+    BoundSetup (ManyBounds NVExpr)
   | BoundCheckSuccess
   | BoundIncr
   | BoundIsMore
-  | ActivateFrame [PAST.NName]
+  | ActivateFrame [Name]
   | DeactivateReady
-  | Push PAST.NName [PAST.NVExpr] State
-  | Pop State
-  | ForInit PAST.NName PAST.NVExpr PAST.NName PAST.NVExpr
+  | Push Name [NVExpr] State
+  | Pop
+  | ForInit Name NVExpr Name NVExpr
   | ForHasMore
   | ForNext
   | ForEnd
-  | MapInit PAST.NName PAST.NVExpr
+  | MapInit Name NVExpr
   | MapHasMore
   | MapNext
   | MapEnd
@@ -63,23 +61,25 @@ data SemanticAction =
     EnvFresh
   | ManyFreshList WithSem
   | ManyAppend    WithSem
-  | EnvStore    (Maybe PAST.NName)
-  | EvalPure    PAST.NVExpr
-  | ReturnBind  PAST.NVExpr
+  | ManyReturn
+  | EnvStore    (Maybe Name)
+  | EvalPure    NVExpr
+  | ReturnBind  NVExpr
+  | ReturnLast
   | DropOneOut
-  | MapLookup   WithSem PAST.NVExpr PAST.NVExpr
-  | MapInsert   WithSem PAST.NVExpr PAST.NVExpr PAST.NVExpr
-  | CoerceCheck WithSem NType NType PAST.NVExpr
-  | SelUnion    WithSem PAST.NVExpr Label
-  | SelJust     WithSem PAST.NVExpr
-  | Guard       PAST.NVExpr
+  | MapLookup   WithSem NVExpr NVExpr
+  | MapInsert   WithSem NVExpr NVExpr NVExpr
+  | CoerceCheck WithSem Type Type NVExpr
+  | SelUnion    WithSem NVExpr Label
+  | SelJust     WithSem NVExpr
+  | Guard       NVExpr
 
 
 data BranchAction =
     CutBiasAlt State
   | CutLocal
   | CutGlobal
-  | FailAction (Maybe PAST.NVExpr)
+  | FailAction (Maybe NVExpr)
 
 
 data Action =
@@ -91,8 +91,18 @@ data Action =
 
 
 semToString :: WithSem -> String
-semToString YesSem = "@"
+semToString YesSem = "S"
 semToString NoSem = ""
+
+
+showName :: Name -> String
+showName n =
+  showName1 (nameScope n)
+  where
+    showName1 ((ModScope _ x)) = show x
+    showName1 ((Unknown x)) = show x
+    showName1 ((Local x)) = show x
+
 
 instance Show(InputAction) where
   show (ClssItv _)    = "ClssItv"
@@ -100,9 +110,9 @@ instance Show(InputAction) where
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
-  show (IMatchBytes s _) = semToString s ++ "MatchBytes"
-  show (CurrentStream) = "StreamCurr"
-  show (SetStream _)   = "StreamSet"
+  show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
+  show (GetStream)       = "GetStream"
+  show (SetStream _)     = "SetStream"
   show (StreamLen s _ _) = semToString s ++ "StreamLen"
   show (StreamOff s _ _) = semToString s ++ "StreamOff"
 
@@ -113,8 +123,8 @@ instance Show(ControlAction) where
   show (BoundIsMore)       = "BoundIsMore"
   show (ActivateFrame _) = "ActivateFrame"
   show (DeactivateReady) = "DeactivateReady"
-  show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ show n) ++ "_" ++ show dest
-  show (Pop dest)          = "Pop" ++ "_" ++ show dest
+  show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ showName n) ++ "_" ++ show dest
+  show (Pop)               = "Pop"
   show (ForInit _ _ _ _)   = "ForInit"
   show (ForHasMore)        = "ForHasMore"
   show (ForNext)           = "ForNext"
@@ -128,9 +138,11 @@ instance Show(SemanticAction) where
   show (EnvFresh)           = "EnvFresh"
   show (ManyFreshList _)    = "ManyFreshList"
   show (ManyAppend  _)      = "ManyAppend"
+  show (ManyReturn)         = "ManyReturn"
   show (EnvStore    _)      = "EnvStore"
   show (EvalPure    _)      = "EvalPure" -- ++ (show e)
   show (ReturnBind  _)      = "ReturnBind" -- ++ (show e)
+  show (ReturnLast)         = "ReturnLast"
   show (DropOneOut)         = "DropOneOut"
   show (MapLookup   _ _ _)  = "MapLookup"
   show (MapInsert   _ _ _ _) = "MapInsert"
@@ -166,7 +178,17 @@ isClassActOrEnd act =
 isInputAction :: Action -> Bool
 isInputAction act =
   case act of
-    IAct _ -> True
+    IAct iact ->
+      case iact of
+        ClssAct {} -> True
+        IEnd -> True
+        _ -> False
+    _ -> False
+
+isActivateFrameAction :: Action -> Bool
+isActivateFrameAction act =
+  case act of
+    CAct (ActivateFrame {}) -> True
     _ -> False
 
 isNonClassInputAct :: Action -> Bool
@@ -175,7 +197,36 @@ isNonClassInputAct act =
     IAct iact ->
       case iact of
         ClssAct _ _ -> False
-        _ -> True
+        GetStream -> False
+        SetStream _ -> False
+        StreamLen {} -> False
+        StreamOff {} -> False
+        _ -> -- trace (show iact) $
+             True
+    _ -> False
+
+isUnhandledAction :: Action -> Bool
+isUnhandledAction act =
+  case act of
+    CAct cact ->
+      case cact of
+        ForInit {} -> True
+        ForHasMore -> True
+        ForNext -> True
+        ForEnd -> True
+        MapInit {} -> True
+        MapHasMore -> True
+        MapNext -> True
+        MapEnd -> True
+        _ -> False
+    SAct sact ->
+      case sact of
+        MapInsert {} -> True
+        SelUnion {} -> True
+        Guard _ -> True
+        CoerceCheck {} -> True
+        SelJust {} -> True
+        _ -> False
     _ -> False
 
 isBranchAction :: Action -> Bool
@@ -184,7 +235,7 @@ isBranchAction act =
     BAct _ -> True
     _ -> False
 
-getClassActOrEnd :: Action -> Either PAST.NCExpr InputAction
+getClassActOrEnd :: Action -> Either NCExpr InputAction
 getClassActOrEnd act =
   case act of
     IAct iact ->
@@ -194,7 +245,7 @@ getClassActOrEnd act =
         _ -> error "function should be applied on act"
     _ -> error "function should be applied on act"
 
-getMatchBytes :: Action -> Maybe  PAST.NVExpr
+getMatchBytes :: Action -> Maybe NVExpr
 getMatchBytes act =
   case act of
     IAct iact ->
@@ -203,46 +254,48 @@ getMatchBytes act =
         _ -> Nothing
     _ -> Nothing
 
-getByteArray :: PAST.NVExpr -> Maybe [Word8]
+getByteArray :: NVExpr -> Maybe [Word8]
 getByteArray e =
-  case e of
-    PAST.NByteArray w -> Just (BS.unpack w)
+  case texprValue e of
+    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
     _ -> Nothing
 
 type Val = Interp.Value
 
-data BeetweenItv =
-    CExactly Int
-  | CBetween (Maybe Int) (Maybe Int)
+
+data BetweenItv =
+    CExactly {-# UNPACK #-} !Int
+  | CBetween !(Maybe Int) !(Maybe Int)
   deriving (Show)
 
+-- TODO: rename ListArgs to PreActivated
 data ActivationFrame =
-    ListArgs  [Val]
-  | ActivatedFrame (Map.Map PAST.NName Val)
+    ListArgs ![Val]
+  | ActivatedFrame !(Map.Map Name Val)
   deriving (Show)
 
 
 
 data ForFrm = ForFrm
-  { forResultName :: PAST.NName
+  { forResultName :: Name
   , forResultValue :: Val
-  , forArrElmName :: PAST.NName
+  , forArrElmName :: Name
   , forArrValue :: Val
   , forSavedOut :: SemanticData
   }
 
 data MapFrm = MapFrm
   { mapResultValue :: Val
-  , mapArrElmName :: PAST.NName
+  , mapArrElmName :: Name
   , mapArrValue :: Val
   , mapSavedOut :: SemanticData
   }
 
 data ControlElm =
-    ManyFrame (BeetweenItv) Int -- the integer is the current counter
-  | ForFrame ForFrm
-  | MapFrame MapFrm
-  | CallFrame PAST.NName State (ActivationFrame) SemanticData
+    ManyFrame !(BetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
+  | ForFrame  !ForFrm
+  | MapFrame  !MapFrm
+  | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
   --deriving (Eq)
 
 instance Show (ControlElm) where
@@ -267,8 +320,9 @@ instance Show (ControlElm) where
 
 
 data SemanticElm =
-    SEnvMap (Map.Map PAST.NName Val)
-  | SEVal Val
+    SEnvMap !(Map.Map Name Val)
+  | SEVal   !Val
+  | SManyVal ![Val]
   | SEnd
 
 instance Show (SemanticElm) where
@@ -276,6 +330,7 @@ instance Show (SemanticElm) where
     Map.foldrWithKey (\ k a b -> show k ++ ": " ++ show (pp a) ++ "\n" ++ b ) "}\n" m
     )
   show (SEVal v) = show v ++ "\n"
+  show (SManyVal lst) = show lst ++ "\n"
   show (SEnd) = "SEnd\n"
 
 type InputData    = Input
@@ -286,13 +341,14 @@ isEmptyControlData :: ControlData -> Bool
 isEmptyControlData [] = True
 isEmptyControlData _  = False
 
+
 showCallStack :: ControlData -> String
 showCallStack ctrl =
   case ctrl of
     [] -> "context:"
     x : xs ->
       case x of
-        CallFrame name _ _ _ -> showCallStack xs ++ "\n" ++ spacing ++ show name
+        CallFrame name _ _ _ -> showCallStack xs ++ "\n" ++ spacing ++ showName name
         _ -> showCallStack xs
   where spacing = "  "
 
@@ -301,9 +357,8 @@ getByte :: Input -> Maybe (Word8,Input)
 getByte = Input.inputByte
 
 -- Lookup in the semantic data first, and then the control
-lookupEnvName :: PAST.NName -> ControlData -> SemanticData -> Val
+lookupEnvName :: Name -> ControlData -> SemanticData -> Val
 lookupEnvName nname ctrl out =
-  {-# SCC lookupEnv #-}
   case lookupSem out ctrl of
     Nothing -> error ("unexpected, missing var from ctrl and out:" ++ show nname)
     Just v  -> v
@@ -315,6 +370,7 @@ lookupEnvName nname ctrl out =
             Nothing -> lookupSem rest nextctrl
             Just v -> Just v
         SEVal _ : rest -> lookupSem rest nextctrl
+        SManyVal _ : rest -> lookupSem rest nextctrl
         SEnd : rest    -> lookupSem rest nextctrl
         [] -> lookupCtrl nextctrl
 
@@ -353,7 +409,6 @@ lookupEnvName nname ctrl out =
         Just v -> Just v
     lookupCtrl (ManyFrame _ _ : rest) = lookupCtrl rest
     lookupCtrl _ = error "Case not handled"
-
 
 applyBinop :: BinOp -> Val -> Val -> Val
 applyBinop op e1 e2 =
@@ -478,6 +533,24 @@ applyBinop op e1 e2 =
           then Interp.VUInt p1 ((.|.) v1 v2)
           else error "Incompatible precision"
         _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    Cat ->
+      case (e1, e2) of
+        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
+          Interp.VUInt (p1 + p2) ((v1 `shiftL` fromIntegral p2) .|. v2)
+        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
+    LCat ->
+      -- copied from Interp.hs
+      case e2 of
+        Interp.VUInt w y ->
+          let mk f i = f ((i `shiftL` fromIntegral w) .|. y)
+              --- XXX: fromIntegral is a bit wrong
+          in
+          case e1 of
+            Interp.VInteger x -> mk Interp.VInteger  x
+            Interp.VUInt n x  -> mk (Interp.VUInt n) x
+            Interp.VSInt n x  -> mk (Interp.VSInt n) x
+            _          -> error "BUG: 1st argument to (<#) must be numeric"
+        _ -> error "BUG: 2nd argument of (<#) should be UInt"
 
 
     _ -> error ("TODO: " ++ show op)
@@ -491,146 +564,171 @@ name2Text n =
     Local   ident -> ident
     ModScope _ ident -> ident
 
-name2Text2 :: PAST.NName -> Text
-name2Text2 n =
-  let x = nameScopedIdent (PAST.nName n)
-  in case x of
-    Unknown ident -> ident
-    Local   ident -> ident
-    ModScope _ ident -> ident
+-- name2Text2 :: PAST.NName -> Text
+-- name2Text2 n =
+--   let x = nameScope (PAST.nName n)
+--   in case x of
+--     Unknown ident -> ident
+--     Local   ident -> ident
+--     ModScope _ ident -> ident
+
 
 tODOCONST :: Integer
 tODOCONST = 2
 
 
-coerceVal :: NType -> NType -> Val -> Val
+coerceVal :: Type -> Type -> Val -> Val
 coerceVal ty1 ty2 v =
   case v of
     Interp.VUInt _n x ->
       case ty2 of
-        NType (TUInt (NType (TNum m))) -> Interp.VUInt (fromIntegral m) x
-        NType (TInteger) -> Interp.VInteger x
+        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) x
+        Type (TInteger) -> Interp.VInteger x
         _ -> error $ "TODO type:" ++ show (ty1,ty2,v)
     Interp.VInteger _ ->
       case (ty1, ty2) of
-        (NType (TInteger), NType (TInteger)) -> v
+        (Type (TInteger), Type (TInteger)) -> v
         _ -> error $ "TODO type: " ++ show (ty1,ty2,v)
     _ -> error $ "TODO vallue: " ++ show (ty1,ty2,v)
 
-
-isSimpleVExpr :: PAST.NVExpr -> Bool
+isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
-  case e of
-    PAST.NCoerce _ _ _ -> False
-    PAST.NNumber _ _ -> True
-    PAST.NBool _ -> False
-    PAST.NNothing _ty -> False
-    PAST.NByte _ -> True
-    PAST.NStruct _lst _ -> False
-    PAST.NByteArray _ -> False
-    PAST.NMapEmpty _ty -> False
-    PAST.NIn _lbl _e1 _ty -> False
-    PAST.NBinOp _binop _e1 _e2 -> False
-    PAST.NUniOp _uniop _e1 -> False
-    PAST.NSelStruct _e1 _n _ty -> False
-    PAST.NIf _e1 _e2 _e3 -> False
-    PAST.NVCall _fname _lst -> False
-    PAST.NVFor _n1 _e1 _n2 _e2 _e3 -> False
-    PAST.NVar _nname -> False
-    PAST.NArray _lste _ty -> False
-    PAST.NUnit -> False
+  case texprValue e of
+    TCCoerce _ _ _ -> False
+    TCLiteral (LNumber {}) _ -> True
+    TCLiteral (LByte   {}) _ -> True
+    TCLiteral _            _ -> False
+    TCNothing _ty -> False
+    TCStruct _lst _ -> False
+    TCMapEmpty _ty -> False
+    TCIn _lbl _e1 _ty -> False
+    TCBinOp _binop _e1 _e2 _t -> False
+    TCUniOp _uniop _e1 -> False
+    TCSelStruct _e1 _n _ty -> False
+    TCIf _e1 _e2 _e3 -> False
+    TCCall _fname _t _lst -> False
+    TCFor _ -> False
+    TCVar _nname -> False
+    TCArray _lste _ty -> False
+    TCUnit -> False
     x -> error ("TODO: "++ show x)
 
 defaultValue :: Val
 defaultValue = Interp.VStruct []
 
-evalVExpr :: PAST.GblFuns -> PAST.NVExpr -> ControlData -> SemanticData -> Val
+evalLiteral :: Literal -> Type -> Val
+evalLiteral lit t =
+  case lit of
+    LNumber n ->
+      case t of
+        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
+        Type (TInteger)              -> Interp.VInteger n
+        _ -> error "TODO: more type for integer"
+    LBool b   -> Interp.VBool b
+    LBytes bs ->
+      Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
+    LByte w -> Interp.VUInt 8 (fromIntegral w)
+
+
+
+
+evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
 evalVExpr gbl expr ctrl out =
-  let eval env e =
-        case e of
-          PAST.NCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
-          PAST.NNumber n t ->
-            case t of
-              NType (TUInt (NType (TNum m))) -> Interp.VUInt (fromIntegral m) n
-              NType (TInteger) -> Interp.VInteger n
-              _ -> error "TODO: more type for integer"
-          PAST.NBool b -> Interp.VBool b
-          PAST.NNothing _ty ->
-            Interp.VMaybe (Nothing)
-          PAST.NJust e1 ->
-            let ve1 = eval env e1
-            in Interp.VMaybe (Just ve1)
-          PAST.NByte w -> Interp.VUInt 8 (fromIntegral w)
-          PAST.NStruct lst _ ->
-            Interp.VStruct (map (\ (lbl, v) -> (lbl, eval env v)) lst)
-          PAST.NByteArray bs ->
-            Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
-          PAST.NMapEmpty _ty -> Interp.VMap (Map.empty)
-          PAST.NIn lbl e1 _ty ->
-            let ve1 = eval env e1 in
-            Interp.VUnionElem lbl ve1
-          PAST.NBinOp binop e1 e2 ->
-            let ve1 = eval env e1
-                ve2 = eval env e2
-            in
-              applyBinop binop ve1 ve2
-          PAST.NUniOp uniop e1 ->
-            let ve1 = eval env e1
-            in case (ve1, uniop) of
-              (Interp.VBool b, Not) -> Interp.VBool (not b)
-              (Interp.VInteger i, Neg) -> Interp.VInteger (negate i)
-              (Interp.VArray v, Concat) ->
-                Interp.VArray
-                (Vector.fromList (Vector.foldr (\ a b ->
-                          case a of
-                            Interp.VArray av -> Vector.toList av ++ b
-                            _ -> error "element in Array concatenation is not an Array")
+  let
+    eval :: Show a => Maybe [(Name, Interp.Value)] -> TC a Value -> Interp.Value
+    eval env e =
+      case texprValue e of
+        TCCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
+        TCLiteral lit ty -> evalLiteral lit ty
+        TCNothing _ty ->
+          Interp.VMaybe (Nothing)
+        TCJust e1 ->
+          let ve1 = eval env e1
+          in Interp.VMaybe (Just ve1)
+        TCStruct lst _ ->
+          Interp.VStruct (map (\ (lbl, v) -> (lbl, eval env v)) lst)
+        TCMapEmpty _ty -> Interp.VMap (Map.empty)
+        TCIn lbl e1 _ty ->
+          let ve1 = eval env e1 in
+          Interp.VUnionElem lbl ve1
+        TCBinOp binop e1 e2 _ ->
+          let ve1 = eval env e1
+              ve2 = eval env e2
+          in
+            applyBinop binop ve1 ve2
+        TCUniOp uniop e1 ->
+          let ve1 = eval env e1
+          in case (ve1, uniop) of
+            (Interp.VBool b, Not) -> Interp.VBool (not b)
+            (Interp.VInteger i, Neg) -> Interp.VInteger (negate i)
+            (Interp.VArray v, Concat) ->
+              Interp.VArray
+              (Vector.fromList
+                (Vector.foldr (
+                    \ a b ->
+                      case a of
+                        Interp.VArray av -> Vector.toList av ++ b
+                        _ -> error "element in Array concatenation is not an Array")
                   [] v
-                ))
-              x -> error ("not Integer type" ++ show x ++ show uniop)
-          PAST.NSelStruct e1 n _ty ->
-            let ve1 = eval env e1
-            in case ve1 of
-              Interp.VStruct lst -> snd $ head $ filter (\ (a,_) -> a == n) lst
-              _ -> error "SEl must be on Struct"
-          PAST.NIf e1 e2 e3 ->
-            case eval env e1 of
-              Interp.VBool True -> eval env e2
-              Interp.VBool False -> eval env e3
-              _ -> error "cond must be bool"
-          PAST.NVCall fname lst ->
-            let elst = map (\ expre -> eval env expre) lst
-                fname1 = PAST.nName fname
-                argsAndBody = Map.lookup fname1 gbl
-                (env1, body) = case argsAndBody of
-                  Nothing -> error ("Fun '" ++ show (name2Text (PAST.nName fname)) ++ "' not found!")
+                )
+              )
+            x -> error ("not Integer type" ++ show x ++ show uniop)
+        TCSelStruct e1 n _ty ->
+          let ve1 = eval env e1
+          in case ve1 of
+               Interp.VStruct lst -> snd $ head $ filter (\ (a,_) -> a == n) lst
+               _ -> error "SEl must be on Struct"
+        TCIf e1 e2 e3 ->
+          case eval env e1 of
+            Interp.VBool True -> eval env e2
+            Interp.VBool False -> eval env e3
+            _ -> error "cond must be bool"
+        TCCall fname _ lst ->
+          let elst = map (\ expre ->
+                            case expre of
+                              ValArg va -> eval env va
+                              _ -> error "unexpected non value argument"
+                         ) lst
+              fname1 = tcName fname
+              argsAndBody = Map.lookup fname1 gbl
+              (env1, body) =
+                case argsAndBody of
+                  Nothing -> error ("Fun '" ++ show fname ++ "' not found!")
                   Just (args, bdy) ->
-                    let lstArgsValues = zip (map (name2Text . PAST.nName) args) elst in
+                    let lstArgsValues = zip args elst in
                     (lstArgsValues, bdy)
-            in case body of
-                 PAST.ValueExpression bdy -> eval (Just env1) bdy
-                 _ -> error "Unexpected body type, not a ValueExpression"
-          PAST.NVFor n1 e1 n2 e2 e3 ->
-            case eval env e2 of
-              Interp.VArray vect ->
-                Vector.foldl f (eval env e1) vect
-                where f b a =
-                        let localenv = concatLocalEnv (Just ([(name2Text (PAST.nName n1), b), (name2Text (PAST.nName n2), a)])) env
-                        in eval localenv e3
-              _ -> error "Unexpected type in For"
-          PAST.NVar nname ->
-            case env of
-              Just env1 -> -- inside a function call
-                case lookupLocalEnv (name2Text (PAST.nName nname)) env1 of
-                  Nothing -> error ("variable not bound by function: " ++ (show nname))
-                  Just v -> v
-              Nothing -> -- not inside a function call
-                lookupEnvName nname ctrl out
-          PAST.NArray lste _ty ->
-            let lev = map (\ ex -> eval env ex) lste
-            in Interp.VArray (Vector.fromList lev)
-          PAST.NUnit -> defaultValue
-          x -> error ("TODO: "++ show x)
+          in case body of
+               ValueExpr bdy -> eval (Just env1) bdy
+               _ -> error "Unexpected body type, not a ValueExpression"
+        TCFor lp ->
+          case loopFlav lp of
+            Fold n1 e1 ->
+              let n2 = loopElName lp
+                  e2 = loopCol lp
+                  e3 = loopBody lp
+              in
+                -- NVFor n1 e1 n2 e2 e3 ->
+                case eval env e2 of
+                  Interp.VArray vect ->
+                    Vector.foldl f (eval env e1) vect
+                    where f b a =
+                            let localenv = concatLocalEnv (Just ([(tcName n1, b), (tcName n2, a)])) env
+                            in eval localenv e3
+                  _ -> error "Unexpected type in For"
+            LoopMap -> error "Unhandled LoopMap"
+        TCVar nname ->
+          case env of
+            Just env1 -> -- inside a function call
+              case lookupLocalEnv (tcName nname) env1 of
+                Nothing -> error ("variable not bound by function: " ++ (show nname))
+                Just v -> v
+            Nothing -> -- not inside a function call
+              lookupEnvName (tcName nname) ctrl out
+        TCArray lste _ty ->
+          let lev = map (\ ex -> eval env ex) lste
+          in Interp.VArray (Vector.fromList lev)
+        TCUnit -> defaultValue
+        x -> error ("TODO: "++ show x)
 
   in eval Nothing expr
   where concatLocalEnv env1 env2 =
@@ -645,8 +743,10 @@ evalVExpr gbl expr ctrl out =
                                  Just v1 -> Just v1
                 ) Nothing env
 
-evalNoFunCall:: PAST.NVExpr -> ControlData -> SemanticData -> Val
+evalNoFunCall:: NVExpr -> ControlData -> SemanticData -> Val
 evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
+
+
 
 valToInt :: Val -> Int
 valToInt v =
@@ -655,21 +755,21 @@ valToInt v =
     Interp.VInteger i -> fromIntegral i :: Int
     _ -> error "valToInt pb"
 
-evalCExpr :: PAST.GblFuns -> PAST.NCExpr -> Word8 -> ControlData -> SemanticData -> Maybe SemanticElm
+evalCExpr :: GblFuns -> NCExpr -> Word8 -> ControlData -> SemanticData -> Maybe SemanticElm
 evalCExpr gbl expr x ctrl out =
-  case expr of
-    PAST.NSetSingle e     ->
+  case texprValue expr of
+    TCSetSingle e     ->
       let v = evalNoFunCall e ctrl out in
       let j =  valToInt v in
         if  x == toEnum j
         then let o = SEVal v
              in Just o
         else Nothing
-    PAST.NSetComplement e     ->
+    TCSetComplement e     ->
       case evalCExpr gbl e x ctrl out of
         Nothing -> Just (SEVal (Interp.VUInt 8 (fromIntegral x)))
         Just _ -> Nothing
-    PAST.NSetUnion lst     ->
+    TCSetUnion lst     ->
       let go l =
             case l of
               []   -> Nothing
@@ -679,11 +779,11 @@ evalCExpr gbl expr x ctrl out =
                     Nothing -> go es
                     Just o -> Just o
       in go lst
-    PAST.NSetOneOf bs     ->
+    TCSetOneOf bs     ->
       if elem x (BS.unpack bs)
       then Just (SEVal (Interp.VUInt 8 (fromIntegral x)))
       else Nothing
-    PAST.NSetRange e1 e2  ->
+    TCSetRange e1 e2  ->
       let v1 = evalNoFunCall e1 ctrl out
           v2 = evalNoFunCall e2 ctrl out
       in let j1 = valToInt v1
@@ -692,16 +792,17 @@ evalCExpr gbl expr x ctrl out =
             then let o = SEVal (Interp.VUInt 8 (fromIntegral x))
                  in Just o
             else Nothing
-    PAST.NCCall cname _lst -> -- this code is a simplification of PAST.NVCall
-      let cname1 = PAST.nName cname
+    TCCall cname _ _lst -> -- this code is a simplification of TCVCall
+      let cname1 = tcName cname
           argsAndBody = Map.lookup cname1 gbl
           body = case argsAndBody of
-                   Nothing -> error ("Class Fun '" ++ show (name2Text (PAST.nName cname)) ++ "' not found!")
+                   Nothing -> error ("Class Fun '" ++ show cname1 ++ "' not found!")
                    Just (_args, bdy) -> bdy
       in case body of
-           PAST.ClassExpression bdy -> evalCExpr gbl bdy x ctrl out
+           ClassExpr bdy -> evalCExpr gbl bdy x ctrl out
            _ -> error "Unexpected body type not a ClassExpression"
     _ -> error ("TODO: " ++ (show expr))
+
 
 -- copy from rts-hs/src/RTS/ParserAPI.hs
 -- | Limit the input to the given number of bytes.
@@ -715,7 +816,7 @@ limitLen = Input.limitLen
 advanceBy :: Integer -> Input -> Maybe Input
 advanceBy = Input.advanceBy
 
-applyInputAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
+applyInputAction :: GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) act =
   case act of
     ClssItv (ClassBtw i j) ->
@@ -761,7 +862,7 @@ applyInputAction gbl (inp, ctrl, out) act =
                       in resultWithSem s i o
                  else Nothing
            _ -> error ("unexpected match bytes: "++ show e1)
-    CurrentStream ->
+    GetStream ->
       Just (inp, SEVal (Interp.VStream inp) : out)
     SetStream e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
@@ -797,11 +898,10 @@ applyInputAction gbl (inp, ctrl, out) act =
     resultWithSem NoSem  i _ = Just (i, SEVal (defaultValue) : out)
 
 
-
 initSemanticData :: SemanticData
 initSemanticData = []
 
-applyControlAction :: PAST.GblFuns -> (ControlData, SemanticData) -> ControlAction -> Maybe (ControlData, SemanticData)
+applyControlAction :: GblFuns -> (ControlData, SemanticData) -> ControlAction -> Maybe (ControlData, SemanticData)
 applyControlAction gbl (ctrl, out) act =
   case act of
     BoundSetup bound ->
@@ -849,11 +949,7 @@ applyControlAction gbl (ctrl, out) act =
     Push name le q ->
       let evle = map (\ e -> evalVExpr gbl e ctrl out) le
       in Just (CallFrame name q (ListArgs evle) out : ctrl, [])
-    Pop q ->
-      case ctrl of
-        [] -> error "Unexpected empty ctrl stack"
-        CallFrame _ q' _ savedOut : rest -> if q == q' then Just (rest, head out : savedOut) else Nothing
-        _ -> error "Unexpected ctrl stack elm"
+    Pop -> error "Should not be handled here"
     ForInit n1 e1 n2 e2 ->
       let ev1 = evalVExpr gbl e1 ctrl out
           ev2 = evalVExpr gbl e2 ctrl out
@@ -998,6 +1094,7 @@ applyControlAction gbl (ctrl, out) act =
             _ -> error "Unexpected For not an array"
         _ ->  error "Unexpected ctrl stack"
 
+    -- TODO: reorder `zip lvs ln` to `zip ln lvs`
     ActivateFrame ln ->
       case ctrl of
         CallFrame rname q (ListArgs lvs) savedFrame : ctrls ->
@@ -1018,25 +1115,29 @@ applyControlAction gbl (ctrl, out) act =
       )
 
 
-applySemanticAction :: PAST.GblFuns -> (ControlData, SemanticData) -> SemanticAction -> Maybe SemanticData
+applySemanticAction :: GblFuns -> (ControlData, SemanticData) -> SemanticAction -> Maybe SemanticData
 applySemanticAction gbl (ctrl, out) act =
   case act of
     EnvFresh -> Just (SEnvMap Map.empty : out)
     ManyFreshList s ->
       case s of
-        YesSem -> Just (SEVal (Interp.VArray Vector.empty) : out)
-        NoSem  -> Just (SEVal (defaultValue) : out)
+        YesSem -> Just (SManyVal [] : out)
+        NoSem  -> Just (SManyVal [] : out)
     ManyAppend YesSem ->
       case out of
-        x : (SEVal (Interp.VArray y)) : z  -> (
+        x : (SManyVal y) : z  -> (
           case x of
-            SEVal v -> Just (SEVal (Interp.VArray (Vector.snoc y v)) : z)
+            SEVal v -> Just ((SManyVal (v : y)) : z)
             _ -> error "unexpected out, cannot proceed"
           )
-        _ -> error "unexpected out, cannot proceed"
+        _ -> error ("unexpected out, cannot proceed: " ++ show out)
     ManyAppend NoSem ->
       case out of
-        _ : e@((SEVal (Interp.VStruct [])) : _)  -> Just e
+        _ : e@((SManyVal []) : _)  -> Just e
+        _ -> error "unexpected out, cannot proceed"
+    ManyReturn ->
+      case out of
+        SManyVal lst : y -> Just $ SEVal (Interp.VArray (Vector.fromList (reverse lst))) : y
         _ -> error "unexpected out, cannot proceed"
     EnvStore mname -> (
       case out of
@@ -1047,12 +1148,14 @@ applySemanticAction gbl (ctrl, out) act =
               case mname of
                 Nothing -> Just rest
                 Just name -> Just (SEnvMap (Map.insert name v y) : z)
+            SManyVal _ -> error "unexpected out, cannot proceed"
             SEnd -> Just rest
           )
         _ -> error ("unexpected out, cannot proceed: " ++ show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
       )
     EvalPure e -> Just (SEVal (evalVExpr gbl e ctrl out) : out)
     ReturnBind e -> Just (SEVal (evalVExpr gbl e ctrl out) : tail out)
+    ReturnLast -> Just (head out : tail (tail out))
     DropOneOut ->
       case out of
         [] -> error "Should not Happen: drop on empty sem stack"
@@ -1075,9 +1178,10 @@ applySemanticAction gbl (ctrl, out) act =
              then Nothing
              else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
-    CoerceCheck _ _t1 _t2 _e1 ->
-      -- TODO: incomplete
-      Just out
+    CoerceCheck _ t1 t2 e1 ->
+      -- TODO : maybe still incomplete
+      let ev1 = evalVExpr gbl e1 ctrl out
+      in Just $ (SEVal $ coerceVal t1 t2 ev1) : out
     SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of
@@ -1105,18 +1209,24 @@ applySemanticAction gbl (ctrl, out) act =
     resultWithSem NoSem  _ = Just (SEVal (defaultValue) : out)
 
 
-applyAction :: PAST.GblFuns -> (InputData, ControlData, SemanticData) -> Action ->
-  Maybe (InputData, ControlData, SemanticData)
-applyAction gbl (inp, ctrl, out) act =
+applyAction :: GblFuns -> (InputData, ControlData, SemanticData) -> State -> Action ->
+  Maybe (InputData, ControlData, SemanticData, State)
+applyAction gbl (inp, ctrl, out) q2 act =
   case act of
-    EpsA       -> Just (inp, ctrl, out)
+    EpsA       -> Just (inp, ctrl, out, q2)
     IAct a   -> case applyInputAction gbl (inp, ctrl, out) a of
                     Nothing -> Nothing
-                    Just (inp1, out1) -> Just (inp1, ctrl, out1)
-    CAct a     -> case applyControlAction gbl (ctrl, out) a of
-                    Nothing -> Nothing
-                    Just (ctrl1, out1) -> Just (inp, ctrl1, out1)
+                    Just (inp1, out1) -> Just (inp1, ctrl, out1, q2)
+    CAct a     -> case a of
+                    Pop ->
+                      case ctrl of
+                        CallFrame _ q' _ savedOut : rest -> Just (inp, rest, head out : savedOut, q')
+                        _ -> error "broken invariant of Pop"
+                    _ ->
+                      case applyControlAction gbl (ctrl, out) a of
+                        Nothing -> Nothing
+                        Just (ctrl1, out1) -> Just (inp, ctrl1, out1, q2)
     SAct a     -> case applySemanticAction gbl (ctrl, out) a of
                     Nothing -> Nothing
-                    Just out1 -> Just (inp, ctrl, out1)
+                    Just out1 -> Just (inp, ctrl, out1, q2)
     BAct _     -> error "This case should not be handled in applyAction"

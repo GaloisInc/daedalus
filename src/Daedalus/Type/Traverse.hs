@@ -89,15 +89,12 @@ instance TraverseTypes (TCF a k) where
       TCIf be te fe   -> TCIf <$> traverseTypes f be <*> traverseTypes f te
                               <*> traverseTypes f fe
 
-      TCNumber i t    -> TCNumber i <$> f t
-      TCBool {}       -> pure expr
+      TCLiteral l t   -> TCLiteral l <$> f t
       TCNothing t     -> TCNothing <$> f t
       TCJust e        -> TCJust <$> traverseTypes f e
-      TCByte {}       -> pure expr
       TCUnit          -> pure expr
       TCStruct fs t   -> TCStruct <$> traverse doField fs <*> f t
         where doField (x,e) = (x,) <$> traverseTypes f e
-      TCByteArray {}  -> pure expr
       TCArray e t     -> TCArray  <$> traverseTypes f e <*> f t
       TCIn l e t      -> TCIn l   <$> traverseTypes f e <*> f t
 
@@ -144,6 +141,10 @@ instance TraverseTypes (TCF a k) where
                                              <*> traverseTypes f s
       TCErrorMode m p      -> TCErrorMode m <$> traverseTypes f p
       TCFail mbM t         -> TCFail <$> traverseTypes f mbM <*> f t
+      TCCase e pats mdef ->
+        TCCase <$> traverseTypes f e
+               <*> traverseTypes f pats
+               <*> traverseTypes f mdef
 
 instance TraverseTypes (Arg a) where
   traverseTypes f arg =
@@ -219,6 +220,22 @@ instance TraverseTypes a => TraverseTypes (Rec a) where
       NonRec d  -> NonRec <$> traverseTypes f d
       MutRec ds -> MutRec <$> traverseTypes f ds
 
+instance TraverseTypes (TCAlt a k) where
+  traverseTypes f (TCAlt ps e) =
+    TCAlt <$> traverseTypes f ps <*> traverseTypes f e
+
+instance TraverseTypes TCPat where
+  traverseTypes f pat =
+    case pat of
+      TCConPat t l p ->
+        (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
+      TCNumPat t i   -> (`TCNumPat` i) <$> f t
+      TCBoolPat b    -> pure (TCBoolPat b)
+      TCJustPat p    -> TCJustPat <$> traverseTypes f p
+      TCNothingPat t -> TCNothingPat <$> f t
+      TCVarPat x     -> TCVarPat <$> traverseTypes f x
+      TCWildPat t    -> TCWildPat <$> f t
+
 collectTypes :: (Monoid m, TraverseTypes t) => (Type -> m) -> t -> m
 collectTypes f xs = res
   where Const res = traverseTypes (\t -> Const (f t)) xs
@@ -270,14 +287,11 @@ traverseTCF f = go
         TCCoerce      t t' e -> TCCoerce t t' <$> f e
 
         -- Values
-        TCNumber x y  -> pure (TCNumber x y)
-        TCBool x      -> pure (TCBool x)
+        TCLiteral l t -> pure (TCLiteral l t)
         TCNothing x   -> pure (TCNothing x)
         TCJust e      -> TCJust <$> f e
-        TCByte x      -> pure (TCByte x)
         TCStruct xs t -> TCStruct <$> traverse (traverse f) xs <*> pure t
         TCUnit        -> pure TCUnit
-        TCByteArray x -> pure (TCByteArray x)
         TCArray xs t  -> TCArray <$> traverse f xs <*> pure t
         TCIn l e t    -> TCIn l <$> f e <*> pure t
 
@@ -323,7 +337,15 @@ traverseTCF f = go
 
         TCErrorMode m p     -> TCErrorMode m <$> f p
 
-        TCFail mbM t -> TCFail <$> traverse f mbM <*> pure t
+        TCFail mbM t        -> TCFail <$> traverse f mbM <*> pure t
+        TCCase e pats mdef ->
+          TCCase <$> f e
+                 <*> traverse (traverseAlt f) pats
+                 <*> traverse f mdef
+
+traverseAlt :: Applicative f => (TC a k -> f (TC b k)) ->
+                                TCAlt a k -> f (TCAlt b k)
+traverseAlt f (TCAlt pats e) = TCAlt pats <$> f e
 
 traverseArg :: Applicative f => (forall s. TC a s -> f (TC b s)) ->
                                 Arg a -> f (Arg b)
@@ -334,7 +356,7 @@ traverseArg f arg =
     ClassArg e   -> ClassArg <$> f e
 
 -- -----------------------------------------------------------------------------
--- Tie the know
+-- Tie the knot
 
 
 traverseTC :: forall a b f k.
@@ -346,6 +368,14 @@ traverseTC ann f (TC m) =
   mk <$> ann (tcAnnot m) <*> traverseTCF f (tcAnnotExpr m)
   where mk a e = TC TCAnnot { tcAnnot = a, tcAnnotExpr = e }
 
+foldMapTCF :: forall a m k. Monoid m
+            =>  (forall k'. TC a k' -> m) -> TCF a k -> m
+foldMapTCF f = getConst . traverseTCF (Const . f)
+
+
+foldMapTC :: forall a m k. Monoid m
+            =>  (forall k'. TC a k' -> m) -> TC a k -> m
+foldMapTC f = getConst . traverseTC (const mempty) (Const . f)
 
 mapTC :: (a -> b) -> (forall s. TC a s -> TC b s) -> TC a k -> TC b k
 mapTC ann f (TC m) = TC TCAnnot { tcAnnot = ann (tcAnnot m)
@@ -360,5 +390,3 @@ mapTCF f = runIdentity . traverseTCF (pure . f)
 
 mapArg :: (a -> b) -> (forall s. TC a s -> TC b s) -> Arg a -> Arg b
 mapArg ann f = runIdentity . traverseArg (pure . mapTC ann f)
-
-

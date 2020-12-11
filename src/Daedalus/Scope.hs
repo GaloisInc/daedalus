@@ -49,10 +49,15 @@ emptyScopeState = ScopeState { seenToplevelNames = Set.empty }
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
+                | DifferentCaseVars ModuleName [Set Name]
                   deriving Show
 
 instance PP ScopeError where
   pp (ScopeViolation _mn n) = "Undeclared variable" <+> backticks (pp n)
+  pp (DifferentCaseVars _mn vs) =
+    "Different variables in pattern allternatives:" $$
+      nest 2 (bullets [ sep (punctuate comma (map pp (Set.toList alt)))
+                      | alt <- vs ])
   pp (DuplicateNames _mn m) = "Duplicate rules:"
                                $$ nest 2 (bullets (map mkOne (Map.toList m)))
     where
@@ -221,8 +226,7 @@ instance ResolveNames RuleParam where
 instance ResolveNames e => ResolveNames (ExprF e) where
   resolve expr =
     case expr of
-      ENumber {}      -> pure expr
-      EBool {}        -> pure expr
+      ELiteral {}     -> pure expr
       ENothing {}     -> pure expr
       EJust e         -> EJust <$> resolve e
       EMatch e        -> EMatch <$> resolve e
@@ -235,6 +239,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x
       ETry e          -> ETry      <$> resolve e
+      ECase e ps      -> ECase     <$> resolve e <*> mapM resolveCasePatterns ps
 
       EAnyByte        -> pure expr
       EOptional c e   -> EOptional c <$> resolve e
@@ -284,8 +289,6 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EPure e         -> EPure     <$> resolve e
       EFail msg       -> EFail     <$> resolve msg
 
-      EBytes _        -> pure expr
-      EByte _         -> pure expr
       EInRange e1 e2  -> EInRange  <$> resolve e1 <*> resolve e2
       ETriOp op e1 e2 e3 -> ETriOp op <$> resolve e1
                                       <*> resolve e2
@@ -344,3 +347,39 @@ resolveStructFields (f : fs) =
          f'  <- ctor x' <$> resolve e
          fs' <- extendLocalScopeIn [x'] (resolveStructFields fs)
          pure (f' : fs')
+
+resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
+resolveCasePatterns patC =
+  case patC of
+    PatternDefault e -> PatternDefault <$> resolve e
+    PatternCase ps e
+      | all (== bound) otherBound ->
+        PatternCase (map localise ps) <$>
+                        extendLocalScopeIn (Set.toList bound) (resolve e)
+      | otherwise ->
+        do scope <- getScope
+           ScopeM $ throwError
+                  $ DifferentCaseVars (currentModule scope)
+                  $ bound : otherBound
+
+      where
+      bound : otherBound = map patVars ps
+
+      localise :: Pattern -> Pattern
+      localise pat =
+        case pat of
+          LitPattern {}  -> pat
+          WildPattern _  -> pat
+          ConPattern c p -> ConPattern c (localise p)
+          VarPattern x   -> VarPattern (makeNameLocal x)
+
+      -- Variables bound by a patterns
+      patVars :: Pattern -> Set Name
+      patVars pat =
+        case pat of
+          LitPattern {}  -> Set.empty
+          WildPattern {} -> Set.empty
+          ConPattern _ p -> patVars p
+          VarPattern x   -> Set.singleton x
+
+

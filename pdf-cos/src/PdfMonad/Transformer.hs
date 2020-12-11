@@ -4,6 +4,8 @@ module PdfMonad.Transformer
   , runPdfT, PdfResult(..)
   , PdfParser(..)
   , ObjIndex, R(..), ObjLoc(..)
+  , Cipher(..)
+  , EncContext(..) 
   , doM
   , module RTS.ParserAPI
   ) where
@@ -30,10 +32,20 @@ data ObjLoc = InFileAt !Int   -- ^ At this index
 
 newtype PdfT m a = P (RO -> RW -> m (a,RW))
 
+data Cipher = V2RC4 | V4AES | V4RC4 
+
+data EncContext = EncContext 
+  { key    :: ByteString
+  , robj   :: Int
+  , rgen   :: Int 
+  , ciph   :: Cipher 
+  }
+
 data RO = RO
   { roTopInput  :: Input
   , roObjMap    :: ObjIndex
   , roResolving :: Set R        -- ^ we are currently resolving these
+  , encContext  :: Maybe EncContext
   }
 
 data RW = RW
@@ -45,10 +57,10 @@ data PdfResult a = ParseOk a
                  | ParseAmbig [a]
                  | ParseErr ParseError
 
-runPdfT :: Functor m => Input -> ObjIndex -> PdfT m a -> m a
-runPdfT inp objMap (P m) = fst <$> m ro rw
+runPdfT :: Functor m => Input -> ObjIndex -> Maybe EncContext -> PdfT m a -> m a
+runPdfT inp objMap ec (P m) = fst <$> m ro rw
   where
-  ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty }
+  ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty, encContext = ec }
   rw = RW { rwValidated = Map.empty }
 {-# INLINE runPdfT #-}
 
@@ -64,6 +76,7 @@ class BasicParser m => PdfParser m where
   getTopInput     :: m Input
   isValidated     :: R -> ByteString -> m Bool
   startvalidating :: R -> ByteString -> m ()
+  getEncContext   :: m (Maybe EncContext)
 
 
 instance BasicParser m => PdfParser (PdfT m) where
@@ -91,6 +104,8 @@ instance BasicParser m => PdfParser (PdfT m) where
 
   startvalidating r b = P \_ RW{..} ->
     pure ((), RW { rwValidated = Map.insert r b rwValidated, .. })
+
+  getEncContext = P \ro rw -> pure (encContext ro, rw)
 
   {-# INLINE resolving  #-}
   {-# INLINE getObjIndex #-}

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, OverloadedStrings, TupleSections #-}
 {-# LANGUAGE GADTs, RecordWildCards, BlockArguments #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,7 +17,7 @@ module Daedalus.Interp
   ) where
 
 
-import Control.Monad (replicateM,foldM,replicateM_,void)
+import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum)
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -363,7 +364,7 @@ compilePureExpr env = go
     go expr =
       case texprValue expr of
 
-        TCNumber n t   ->
+        TCLiteral (LNumber n) t   ->
           let bad = panic "compilePureExpr"
                             [ "unexpected numeric literal"
                             , "Type: " ++ show (pp t)
@@ -378,14 +379,15 @@ compilePureExpr env = go
             TVMap     -> bad
             TVOther   -> bad
 
-        TCBool   b     -> VBool b
+        TCLiteral (LBool b)   _ -> VBool b
+        TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
+        TCLiteral (LBytes bs) _ -> byteStringToValue bs 
+        
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCByte   w     -> mkUInt 8 (fromIntegral w)
         TCUnit         -> VStruct [] -- XXX
         TCStruct fs _  -> VStruct $ map (\(n, e) -> (n, go e)) fs
-        TCByteArray bs -> byteStringToValue bs 
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
@@ -416,6 +418,62 @@ compilePureExpr env = go
 
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
+
+        TCCase e alts def ->
+          evalCase
+            compilePureExpr
+            (error "Pattern match failure")
+            env e alts def
+
+
+evalCase ::
+  HasRange a =>
+  (Env -> TC a k -> val) ->
+  val ->
+  Env ->
+  TC a K.Value ->
+  [TCAlt a k] ->
+  Maybe (TC a k) ->
+  val
+evalCase eval ifFail env e alts def =
+  let v = compilePureExpr env e
+  in case msum (map (tryAlt eval env v) alts) of
+       Just res -> res
+       Nothing ->
+         case def of
+           Just d  -> eval env d
+           Nothing -> ifFail
+
+
+
+tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
+tryAlt eval env v (TCAlt ps e) =
+  do binds <- matchPatOneOf ps v
+     let newEnv = foldr (uncurry addVal) env binds
+     pure (eval newEnv e)
+
+matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
+matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
+
+matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
+matchPat pat =
+  case pat of
+    TCConPat _ l p    -> \v -> case valueToUnion v of
+                                 (l1,v1) | l == l1 -> matchPat p v1
+                                 _ -> Nothing
+    TCNumPat _ i      -> \v -> do guard (valueToInteger v == i)
+                                  pure []
+    TCBoolPat b       -> \v -> do guard (valueToBool v == b)
+                                  pure []
+    TCJustPat p       -> \v -> case valueToMaybe v of
+                                 Nothing -> Nothing
+                                 Just v1 -> matchPat p v1
+    TCNothingPat {}   -> \v -> case valueToMaybe v of
+                                 Nothing -> Just []
+                                 Just _  -> Nothing
+    TCVarPat x        -> \v -> Just [(x,v)]
+    TCWildPat {}      -> \_ -> Just []
+
 
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
 invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
@@ -494,6 +552,11 @@ compilePredicateExpr env = go
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
 
+        TCCase e alts def ->
+          evalCase
+            compilePredicateExpr
+            (ClassVal (\_ -> False) "Pattern match failure")
+            env e alts def
 
 mbSkip :: WithSem -> Value -> Value
 mbSkip s v = case s of
@@ -703,6 +766,11 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
+        TCCase e alts def ->
+          evalCase
+            compileExpr
+            (pError FromSystem erng "pattern match failure")
+            env e alts def
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
@@ -746,7 +814,9 @@ compileDecl prims env TCDecl { .. } =
 
   newEnv targs args
     | length targs /= length tcDeclTyParams =
-      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName))
+      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName)
+              ++ ". This usually indicates some expression in the program became polymorphic, "
+              ++ "which can be fixed by adding more type annotations.")
     | length args /= length tcDeclParams =
       error ("BUG: not enough args for " ++ show tcDeclName)
     | otherwise =
@@ -800,12 +870,15 @@ interp builtins nm bytes prog startName =
   where
     env = compile builtins prog
 
-interpFile :: HasRange a => FilePath -> [TCModule a] -> ScopedIdent ->
+interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
                                               IO (ByteString, Result Value)
 interpFile input prog startName = do
-  bytes <- if input == "-" then BS.getContents
-                           else BS.readFile input
-  let nm = encodeUtf8 (Text.pack input)
+  (nm,bytes) <- case input of
+                  Nothing  -> pure ("(empty)", BS.empty)
+                  Just "-" -> do bs <- BS.getContents
+                                 pure ("(stdin)", bs)
+                  Just f   -> do bs <- BS.readFile f
+                                 pure (encodeUtf8 (Text.pack f), bs)
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]

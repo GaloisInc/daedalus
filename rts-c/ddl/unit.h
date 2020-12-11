@@ -1,14 +1,21 @@
 #ifndef DDL_UNIT_H
 #define DDL_UNIT_H
 
+#include <iostream>
+
 namespace DDL {
 class Unit {};
+
+inline
+std::ostream& operator<<(std::ostream& os, Unit x) {
+  return os << "{}";
 }
 
-namespace std {
-  template<>
-  struct hash<DDL::Unit> {
-    size_t operator()(DDL::Unit x) const noexcept { return 17; }
-  };
+inline
+std::ostream& toJS(std::ostream& os, Unit x) {
+  return os << "{}";
 }
+
+}
+
 #endif

@@ -1,23 +1,29 @@
-{-# Language OverloadedStrings, BlockArguments #-}
+{-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments #-}
+import           Data.ByteString(ByteString)
 import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
+import GHC.Records(getField) 
 import System.IO(hPutStrLn,stderr)
 import System.Exit(exitFailure)
 import Text.PrettyPrint
 import SimpleGetOpt
 
 import RTS.Input(newInput)
+import RTS.Vector(vecFromRep,vecToRep,toList) 
+
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
-import PdfValue(Value(..),Ref(..))
+import PdfXRef(TrailerDict) 
+import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
+import PdfValue(Value(..),Ref(..),pValue)
+import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
 import CommandLine
 import PP
-
 
 main :: IO ()
 main =
@@ -30,26 +36,30 @@ main =
 
      bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
-     idx <- case findStartXRef bs of
+     case command opts of
+       ParseValue ->
+          do res <- runParser Map.empty Nothing pValue topInput
+             case res of
+                ParseOk a     -> print (pp a)
+                ParseErr e    -> print (pp e)
+                ParseAmbig {} -> quit "BUG: Ambiguous result"
+
+       _ -> parsePdf opts file bs topInput
+
+
+parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
+parsePdf opts file bs topInput =
+  do idx <- case findStartXRef bs of
               Left err  -> quit err
               Right idx -> pure idx
 
-     (refs, trail) <-
-       parseXRefs topInput idx >>= \res ->
-         case res of
-           ParseOk a    -> pure a
-           ParseAmbig _ -> error "BUG: Ambiguous XRef table."
-           ParseErr e   -> quit (show (pp e))
+     (refs, trail) <- 
+        handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
 
-     let run p =
-           do res <- runParser refs p topInput
-              case res of
-                ParseOk a     -> pure a
-                ParseAmbig {} -> quit "BUG: Ambiguous result"
-                ParseErr e    -> quit (show (pp e))
+     fileEC <- makeEncContext trail refs topInput (password opts) 
 
-         ppRef pref r =
-           do res <- runParser refs (pResolveRef r) topInput
+     let ppRef pref r@(Ref ro rg) =
+           do res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
               case res of
                 ParseOk a ->
                   case a of
@@ -76,14 +86,51 @@ main =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do run (pPdfTrailer trail)
+          do handlePdfResult (runParser refs Nothing (pPdfTrailer trail) topInput) 
+                              "BUG: Ambiguous result" 
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
-
 
 quit :: String -> IO a
 quit msg =
   do hPutStrLn stderr msg
      exitFailure
 
+handlePdfResult :: IO (PdfResult a) -> String -> IO a 
+handlePdfResult x msg = 
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg 
+        ParseErr e    -> quit (show (pp e))
+
+-- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
+makeEncContext :: Integral a => 
+                      TrailerDict  
+                  -> ObjIndex 
+                  -> Input 
+                  -> BS.ByteString 
+                  -> IO ((a, a) -> Maybe EncContext)
+makeEncContext trail refs topInput pwd = 
+  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
+                              "Ambiguous encryption dictionary"
+     case edict of 
+       MakeContext_noencryption _ -> pure $ const Nothing 
+       MakeContext_encryption enc -> do 
+        let encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            id0 = vecToRep $ getField @"id0" enc 
+            filekey = makeFileKey pwd encO encP id0
+        pure $ \(ro, rg) -> 
+          Just EncContext { key  = filekey, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg, 
+                            ciph = chooseCipher $ getField @"ciph" enc  } 
+
+chooseCipher :: ChooseCiph -> Cipher 
+chooseCipher enc = 
+  case enc of 
+    ChooseCiph_v2RC4 _ -> V2RC4
+    ChooseCiph_v4RC4 _ -> V4RC4
+    ChooseCiph_v4AES _ -> V4AES

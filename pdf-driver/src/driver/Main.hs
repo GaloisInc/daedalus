@@ -17,7 +17,7 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate)
-import RTS.Vector(vecFromRep,vecToString)
+import RTS.Vector(vecFromRep,vecToString,vecToRep)
 import RTS.Input
 
 import Common
@@ -25,6 +25,8 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
+import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
+import Primitives.Decrypt(makeFileKey)
 
 main :: IO ()
 main =
@@ -32,7 +34,7 @@ main =
   do opts <- getOptions
      case optMode opts of
        Demo  -> driver opts
-       FAW   -> fmtDriver fawFormat (optPDFInput opts)
+       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts) 
 
 
 data Format = Format
@@ -63,8 +65,8 @@ fawFormat = Format
   , xrefOK =
       \o _t -> putStrLn ("INFO: " ++ show (Map.size o) ++ " xref entries.")
   , warnEncrypt =
-      putStrLn ("WARNING: Encrypted document; spurious errors may follow.")
-  , rootMissing = putStrLn ("ERROR: Trailer is missing `root` entry.")
+      putStrLn "WARNING: Encrypted document; spurious errors may follow."
+  , rootMissing = putStrLn "ERROR: Trailer is missing `root` entry."
   , rootFound =
       \r -> putStrLn ("INFO: Root reference is " ++
                         showR (getField @"obj" r) (getField @"gen" r))
@@ -100,8 +102,8 @@ fawFormat = Format
 
 
 
-fmtDriver :: DbgMode => Format -> FilePath -> IO ()
-fmtDriver fmt file =
+fmtDriver :: DbgMode => Format -> FilePath -> BS.ByteString -> IO ()
+fmtDriver fmt file pwd =
   do bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      onStart fmt file bs
@@ -126,15 +128,15 @@ fmtDriver fmt file =
                Just r -> pure r
      rootFound fmt root
 
-     res <- runParser refs (pCatalogIsOK root) topInput
+     res <- runParser refs Nothing (pCatalogIsOK root) topInput
      case res of
        ParseOk ok    -> catalogOK fmt ok
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     mapM_ (checkDecl fmt topInput refs) (Map.toList refs)
+     fileEC <- makeEncContext trail refs topInput pwd 
 
-
+     mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
 
 
@@ -147,17 +149,17 @@ data DeclResult' a = DeclResult
                       , declResult     :: a
                       }
 
-parseDecl :: DbgMode => Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
-parseDecl topInput refMap (ref,loc) =
+parseDecl :: DbgMode => ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
+parseDecl fileEC topInput refMap (ref,loc) =
   do start  <- getCPUTime
-     result <- evaluate =<< runParser refMap parser topInput
+     result <- evaluate =<< runParser refMap objEC parser topInput
      end    <- getCPUTime
      pure DeclResult { declTime = fromIntegral ((end-start) `div` (10^(6::Int)))
                      , declCompressed = compressed
                      , declResult = result
                     }
   where
-  (parser,compressed) =
+  (parser,compressed,objEC) =
     case loc of
 
       InFileAt off ->
@@ -167,7 +169,8 @@ parseDecl topInput refMap (ref,loc) =
                                        (toInteger (refGen ref))
             Nothing -> pError' FromUser []
                        ("XRef entry outside file: " ++ show off)
-        , False
+        , False  
+        , fileEC (refObj ref, refGen ref)
         )
 
       InObj o idx ->
@@ -177,15 +180,17 @@ parseDecl topInput refMap (ref,loc) =
                                          (toInteger (refGen o))
                                          (toInteger idx)
         , True
+        , Nothing 
         )
+    
 --------------------------------------------------------------------------------
 
 
 
 
-checkDecl :: DbgMode => Format -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
-checkDecl fmt topInput refMap d@(ref,loc) =
-  do res <- parseDecl topInput refMap d
+checkDecl :: DbgMode => Format -> ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
+checkDecl fmt fileEC topInput refMap d@(ref,loc) =
+  do res <- parseDecl fileEC topInput refMap d
      case declResult res of
        ParseAmbig {} -> error "BUG: Ambiguous parse?"
        ParseErr e    -> declErr fmt ref loc res { declResult = e }
@@ -203,39 +208,39 @@ driver opts = runReport opts $
                                             ("unable to find %%EOF" <+> parens (text err))
                Right idx -> return idx
 
-     (refs, root) <-
+     (refs, root, trail) <-
             liftIO (parseXRefs topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
                                     reportCritical file 0 "Missing document root"
 
-                                  Just ro -> pure (r,ro)
+                                  Just ro -> pure (r,ro,t)
                ParseAmbig _ ->
                  reportCritical file 0 "Ambiguous results?"
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     res <- liftIO (runParser refs (pCatalogIsOK root) topInput)
+     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseOk False -> report RUnsafe file 0 "Catalog (page tree) contains cycles"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     parseObjs file topInput refs
+     fileEC <- liftIO $ makeEncContext trail refs topInput (BS.pack $ optPassword opts)
 
-parseObjs :: DbgMode => FilePath -> Input -> ObjIndex -> ReportM ()
-parseObjs fileN topInput refMap = mapM_ doOne (Map.toList refMap)
+     parseObjs file fileEC topInput refs
+
+parseObjs :: DbgMode => FilePath -> ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> ReportM ()
+parseObjs fileN fileEC topInput refMap = mapM_ doOne (Map.toList refMap)
   where
   doOne d@(ref,_) =
-    do res <- liftIO (parseDecl topInput refMap d)
+    do res <- liftIO (parseDecl fileEC topInput refMap d)
        let sayTimed cl msg =
              do let timeMsg = parens (hcat [int (declTime res), "us"])
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)
                 report cl fileN 0 (timeMsg <+> oidMsg <+> msg)
-
-
        
        let saySafety (x :: CheckDecl TopDeclDef) (si :: TsafetyInfo) =
              case (getField @"hasJS" si, getField @"hasURI" si) of
@@ -266,3 +271,45 @@ sayVal v = case v of
              Value_number {} -> "number"
              Value_array {}  -> "array"
              Value_dict {}   -> "dict"
+
+quit :: String -> IO a
+quit msg =
+  do error msg 
+
+handlePdfResult :: IO (PdfResult a) -> String -> IO a 
+handlePdfResult x msg = 
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg 
+        ParseErr e    -> quit (show e) 
+
+-- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
+makeEncContext :: Integral a => 
+                      TrailerDict  
+                  -> ObjIndex 
+                  -> Input 
+                  -> BS.ByteString 
+                  -> IO ((a, a) -> Maybe EncContext)
+makeEncContext trail refs topInput pwd = 
+  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
+                              "Ambiguous encryption dictionary"
+     case edict of 
+       MakeContext_noencryption _ -> pure $ const Nothing 
+       MakeContext_encryption enc -> do 
+        let encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            id0 = vecToRep $ getField @"id0" enc 
+            filekey = makeFileKey pwd encO encP id0
+        pure $ \(ro, rg) -> 
+          Just EncContext { key  = filekey, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg, 
+                            ciph = chooseCipher $ getField @"ciph" enc  } 
+
+chooseCipher :: ChooseCiph -> Cipher 
+chooseCipher enc = 
+  case enc of 
+    ChooseCiph_v2RC4 _ -> V2RC4
+    ChooseCiph_v4RC4 _ -> V4RC4
+    ChooseCiph_v4AES _ -> V4AES

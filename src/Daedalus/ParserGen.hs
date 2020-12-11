@@ -8,6 +8,8 @@ module Daedalus.ParserGen
   , autToGraphviz
   , createDFA
   , statsDFA
+  , generateIO
+  , generateTextIO
   )
 where
 
@@ -21,9 +23,15 @@ import RTS.Input(Input(..))
 import Daedalus.ParserGen.Action (showCallStack)
 import Daedalus.ParserGen.Compile (buildMapAut, buildArrayAut)
 import Daedalus.ParserGen.Cfg as PGenCfg
-import Daedalus.ParserGen.RunnerBias (runnerBias, runnerLL, Result(..), extractValues)
+import Daedalus.ParserGen.RunnerBias (
+  runnerBias,
+  runnerLL,
+  Result(..),
+  extractValues
+  )
 import Daedalus.ParserGen.Utils (autToGraphviz)
-import Daedalus.ParserGen.Det (createDFA, statsDFA)
+import Daedalus.ParserGen.LL (createDFA, statsDFA)
+import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
 
 extractParseError :: BS.ByteString -> Result -> String
 extractParseError orig res =

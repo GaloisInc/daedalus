@@ -68,6 +68,7 @@ data Term = Ap Term Term
           | List [Term]
           | Do (Maybe Term) Term Term
           | If Term Term Term
+          | Case Term [(Term,Term)]
           | Lam [Term] Term
           | TyParam Term
           | forall a. Show a => Raw a
@@ -113,6 +114,10 @@ instance PP Term where
       If x y z  -> wrapIf (n > 0) $
                    hang ("if" <+> pp x) 2
                         (("then" <+> pp y) $$ ("else" <+> pp z))
+      Case x as -> wrapIf (n > 0) $
+                   "case" <+> pp x <+> "of"
+                      $$ nest 2 (vcat (map alt as))
+        where alt (p,e) = pp p <+> "->" <+> pp e
 
       Do {}     -> wrapIf (n > 0) ("do" <+> ppK t)
         where

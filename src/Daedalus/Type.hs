@@ -254,6 +254,7 @@ doGeneralize as cs tparams decls
                         Defined d | r -> Defined (fixUpRecCallSites dMap d)
                         res ->  res
                   , tcDeclCtxt     = tcDeclCtxt
+                  , tcDeclAnnot    = tcDeclAnnot
                   }
 
   addTPsTy d = fixUpTCons tconMap d { tctyParams = tparams Map.! tctyName d }
@@ -411,6 +412,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                                 , tcDeclParams   = tps
                                 , tcDeclDef      = def
                                 , tcDeclCtxt     = nameContext
+                                , tcDeclAnnot    = ruleRange r
                                 }
                pure (d, map typeOf tps :-> typeOf def)
 
@@ -438,6 +440,16 @@ liftValArg ::
   Expr ->
   TypeM ctx ((Arg SourceRange,Type), Maybe BindStmt)
 liftValArg e =
+  do ((e1,t),mb) <- liftValExpr e
+     pure ((ValArg e1,t),mb)
+
+
+-- | Lift a value argument of a function, when the function is called
+-- in a monadic context.
+liftValExpr ::
+  Expr ->
+  TypeM ctx ((TC SourceRange Value,Type), Maybe BindStmt)
+liftValExpr e =
 
   case ctx of
 
@@ -446,16 +458,18 @@ liftValArg e =
          a      <- newTVar e KValue
          unify (tGrammar a) (e1,t)
          n      <- newName e a
-         pure ( (ValArg (exprAt e1 (TCVar n)), a), Just (BindStmt n e1) )
+         pure ( (exprAt e1 (TCVar n), a), Just (BindStmt n e1) )
 
     Some AValue ->
       do (e1,t) <- inContext AValue (inferExpr e)
-         pure ((ValArg e1, t), Nothing)
+         pure ((e1, t), Nothing)
 
     Some AClass ->
       reportError e "Expected a value, but the argument is a character class."
 
   where ctx = inferContext e
+
+
 
 
 
@@ -533,12 +547,9 @@ liftValAppPure r es f =
         panic "liftValApp" ["Unexpected grammar argument in lift."]
 
 
-
 inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
 inferExpr expr =
   case exprValue expr of
-
-    EBool b -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCBool b), tBool)
 
     ENothing -> liftValAppPure expr [] \_ ->
                 do a <- newTVar expr KValue
@@ -548,13 +559,16 @@ inferExpr expr =
       liftValAppPure expr [e] \ ~[(e',t)] ->
         pure (exprAt expr (TCJust e'), tMaybe t)
 
-    ENumber n ->
+    -- FIXME: maybe unify literal code?
+    ELiteral l@(LBool _) -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
+
+    ELiteral l@(LNumber n) -> 
       do ctxt <- getContext
          case ctxt of
            AClass
              | 0 <= n && n < 256 ->
                 pure ( exprAt expr $ TCSetSingle
-                     $ exprAt expr $ TCByte $ fromInteger n
+                     $ exprAt expr $ TCLiteral (LByte $ fromInteger n) tByteClass
                     , tByteClass
                     )
              | otherwise ->
@@ -563,23 +577,23 @@ inferExpr expr =
            _ -> liftValAppPure expr [] \_ ->
                 do a <- newTVar expr KValue
                    addConstraint expr (Literal n a)
-                   pure (exprAt expr (TCNumber n a), a)
+                   pure (exprAt expr (TCLiteral l a), a)
 
-    EByte w ->
+    ELiteral l@(LByte _) -> 
       do ctxt <- getContext
          case ctxt of
            AClass   -> promoteValueToSet =<< inContext AValue (inferExpr expr)
 
            _ -> liftValAppPure expr [] \_ ->
-                 pure (exprAt expr (TCByte w), tByte)
+                 pure (exprAt expr (TCLiteral l tByte), tByte)
 
-    EBytes bs ->
+    ELiteral l@(LBytes bs) -> 
       do ctxt <- getContext
          case ctxt of
            AClass   -> pure (exprAt expr (TCSetOneOf bs), tByteClass)
 
            _ -> liftValAppPure expr [] \_ ->
-                pure (exprAt expr (TCByteArray bs), tArray tByte)
+                pure (exprAt expr (TCLiteral l (tArray tByte)), tArray tByte)
 
     EMatch1 e ->
       grammarOnly expr $
@@ -1036,7 +1050,7 @@ inferExpr expr =
            AClass ->
              do let checkBound d b =
                       case b of
-                        Nothing -> pure (exprAt expr (TCNumber d tByte))
+                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d) tByte))
                         Just e ->
                           do (e1',t) <- inContext AValue (inferExpr e)
                              unify tByte (e1',t)
@@ -1192,6 +1206,117 @@ inferExpr expr =
       do (e1,t) <- inferExpr e
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
+    -- e should have the same type as the 
+    ECase e ps -> inferCase expr e ps
+
+
+
+--------------------------------------------------------------------------------
+-- Patterns & Case
+
+checkPattern :: Type -> Pattern -> TypeM ctx TCPat
+checkPattern ty pat =
+  case pat of
+
+    LitPattern l ->
+      case thingValue l of
+        LNumber i ->
+          do addConstraint l (Literal i ty)
+             pure (TCNumPat ty i)
+        LBool b ->
+          do unify ty (pat,tBool)
+             pure (TCBoolPat b)
+        _ -> reportError pat "Unsuported literal pattern"
+
+    WildPattern _ ->
+      pure (TCWildPat ty)
+
+    VarPattern x ->
+      pure (TCVarPat TCName { tcName = x, tcNameCtx = AValue, tcType = ty })
+
+    ConPattern c p ->
+      case thingValue c of
+        ConUser l ->
+          do a  <- newTVar c KValue
+             p' <- checkPattern a p
+             addConstraint c (HasUnion ty l a)
+             pure (TCConPat ty l p')
+
+        ConNothing ->
+          do a <- newTVar c KValue
+             unify ty (c,tMaybe a)
+             pure (TCNothingPat a)
+
+        ConJust ->
+          do a <- newTVar c KValue
+             unify ty (c,tMaybe a)
+             p1 <- checkPattern a p
+             pure (TCJustPat p1)
+
+
+checkPatternCase ::
+  Type -> Type -> [Pattern] -> Expr -> TypeM ctx (TCAlt SourceRange ctx)
+checkPatternCase tIn tOut ps e =
+  do qs <- mapM (checkPattern tIn) ps
+     let vars = sort (patBinds (head qs))
+     forM_ (zip ps qs) \(p,q1) ->
+        do unify tIn (p,typeOf q1)
+           let check v1 v2 = unify (v1,typeOf v1) (v2,typeOf v2)
+           zipWithM check vars (patBinds q1)
+     let addVar x = extEnv (tcName x) (tcType x)
+     r@(e',_) <- foldr addVar (inferExpr e) vars
+     unify tOut r
+     pure (TCAlt qs e')
+
+
+checkPatternCases :: HasRange r =>
+  r ->
+  Type -> Type ->
+  [TCAlt SourceRange ctx] ->
+  [PatternCase Expr] ->
+  TypeM ctx ([TCAlt SourceRange ctx], Maybe (TC SourceRange ctx))
+checkPatternCases rng tIn tOut done cases =
+  case cases of
+
+    PatternCase pats rhs : rest ->
+      do alt <- checkPatternCase tIn tOut pats rhs
+         checkPatternCases rng tIn tOut (alt:done) rest
+
+    [PatternDefault e] ->
+      do r@(e1,_) <- inferExpr e
+         unify tOut r
+         checkNonEmpty (Just e1)
+    PatternDefault e : _ -> reportError e "The catch-all case must come last"
+
+    [] -> checkNonEmpty Nothing
+
+  where
+  checkNonEmpty mb =
+    case done of
+      [] -> reportError rng "`case` needs at least one non-default pattern."
+      _  -> pure (reverse done, mb)
+
+
+inferCase ::
+  HasRange r =>
+  r -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
+inferCase rng e ps =
+  do ((e1,tIn),mbS) <- liftValExpr e
+     tOut <- do ctx <- getContext
+                case ctx of
+                  AGrammar -> tGrammar <$> newTVar e KValue
+                  AValue   -> newTVar e KValue
+                  AClass   -> newTVar e KClass
+     (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
+     let expr1 = exprAt rng (TCCase e1 alts mbDefault)
+     expr <- case mbS of
+               Nothing -> pure expr1
+               Just s ->
+                 do ctx <- getContext
+                    case ctx of
+                      AGrammar -> pure (addBind s expr1)
+                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+     pure (expr, tOut)
 
 
 
@@ -1490,9 +1615,3 @@ pureStruct r ls ts es
                pure (exprAt r (TCStruct (zip ls es) ty), ty)
   where
   repeated = [ l | (l : _ : _) <- group (sort ls) ]
-
-
-
-
-
-

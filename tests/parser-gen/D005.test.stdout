@@ -1,18 +1,39 @@
+Main (10,13)-(10,22)
 DTrans [
-  ( [(10),(15),]
+  ( [(9),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (10,28)-(10,37)
+DTrans [
+  ( [(10),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (12,5)-(12,7)
+AbortAcceptingPath
+
+
+Main (7,1)-(13,3)
+DTrans [
+  ( [(14),(9),]
   , HeadInput ['a']
   , DTrans [
-      ( [(7),(2),]
+      ( [(3),(9),]
       , HeadInput ['b']
       , DTrans [
-          ( [(10),(2),]
+          ( [(3),(8),]
           , HeadInput ['c']
           , DTrans [
-              ( [(10),]
+              ( [(8),]
               , HeadInput ['d']
               , Resolution (NotAmbiguous)
               ),
-              ( [(12),]
+              ( [(9),]
               , EndInput
               , Resolution (NotAmbiguous)
               ),
@@ -23,55 +44,68 @@ DTrans [
     ]
   ),
 ]
+
+Main (9,17)-(9,26)
 DTrans [
-  ( [(7),]
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_A (3,1)-(3,33)
+DTrans [
+  ( [(4),]
+  , HeadInput ['a']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_A (3,11)-(3,20)
+DTrans [
+  ( [(3),]
   , HeadInput ['b']
   , Resolution (NotAmbiguous)
   ),
 ]
-DTrans [
-  ( [(13),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-DTrans [
-  ( [(12),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-AbortAcceptingPath
 
+_A (3,23)-(3,32)
 DTrans [
-  ( [(2),]
+  ( [(8),]
   , HeadInput ['c']
   , Resolution (NotAmbiguous)
   ),
 ]
+
+_B (5,1)-(5,33)
 DTrans [
-  ( [(10),]
+  ( [(4),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_B (5,11)-(5,20)
+DTrans [
+  ( [(3),]
+  , HeadInput ['c']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_B (5,23)-(5,32)
+DTrans [
+  ( [(8),]
   , HeadInput ['d']
   , Resolution (NotAmbiguous)
   ),
 ]
-DTrans [
-  ( [(2),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-DTrans [
-  ( [(10),]
-  , HeadInput ['c']
-  , Resolution (NotAmbiguous)
-  ),
-]
+
 
 Report:
 ("AbortAcceptingPath",1)
-("Result-1",7)
+("Result-1",9)
 ("Result-4",1)
 
 
-Total nb states: 9
+Total nb states: 11

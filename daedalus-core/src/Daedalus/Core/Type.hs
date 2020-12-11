@@ -127,6 +127,7 @@ instance TypeOf Expr where
               _        -> bad "ArrayIndex"
 
           ConsBuilder -> typeOf e2
+          ArrayStream -> TStream
 
           MapLookup ->
             case typeOf e1 of
@@ -169,5 +170,6 @@ instance TypeOf Grammar where
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
       If _ g _        -> typeOf g
+      Case _ as       -> typeOf (snd (head as))
 
 
