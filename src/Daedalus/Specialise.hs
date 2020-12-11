@@ -45,7 +45,7 @@ import Data.Parameterized.Some
 import Daedalus.Panic
 import Daedalus.SourceRange
 import Daedalus.PP
-import Daedalus.GUID
+import Daedalus.Pass
 
 
 
@@ -78,8 +78,8 @@ regroup = fmap reverse . foldr addR Map.empty . topoOrder
 
 
 -- | This assumes that the declratations are in dependency order.
-specialise :: HasGUID m => [Name] -> [Rec (TCDecl SourceRange)]
-              -> m (Either String [TCDecl SourceRange])
+specialise :: [Name] -> [Rec (TCDecl SourceRange)]
+              -> PassM (Either String [TCDecl SourceRange])
 specialise ruleRoots decls =
   runPApplyM ruleRoots (concat . reverse <$> mapM go (reverse decls))
   where

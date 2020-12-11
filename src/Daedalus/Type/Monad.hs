@@ -76,6 +76,7 @@ import MonadLib
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -114,8 +115,8 @@ reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM { getMTypeM :: forall m. HasGUID m =>
-                            WithBase m
+newtype MTypeM a = MTypeM { getMTypeM :: 
+                            WithBase PassM
                               '[ ReaderT MRO
                                , ExceptionT TypeError
                                ] a
@@ -138,16 +139,16 @@ data MRO = MRO
   }
 
 -- XXX: maybe preserve something about the state?
-runMTypeM :: HasGUID m => Map TCTyName TCTyDecl ->
+runMTypeM :: Map TCTyName TCTyDecl ->
              RuleEnv ->
-             MTypeM a -> m (Either TypeError a)
+             MTypeM a -> PassM (Either TypeError a)
 runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
                    }
 
 instance HasGUID MTypeM where
-  getNextGUID = MTypeM $ lift (lift getNextGUID)
+  getNextGUID = MTypeM $ inBase (getNextGUID :: PassM GUID)
 
 instance MTCMonad MTypeM where
   reportError r s =

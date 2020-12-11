@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 import Daedalus.PP
 import Daedalus.Panic
 import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Specialise.PartialApply
 import Daedalus.Type.AST
@@ -53,25 +54,17 @@ emptyPApplyState :: PApplyState
 emptyPApplyState = PApplyState Map.empty Map.empty Set.empty 
 
 newtype PApplyM a =
-  PApplyM { getPApplyM :: forall m. HasGUID m => ExceptionT String (StateT PApplyState m) a }
-
-deriving instance Functor PApplyM
-
-instance Applicative PApplyM where
-  PApplyM m <*> PApplyM m' = PApplyM (m <*> m')
-  pure v = PApplyM $ pure v
-  
-instance Monad PApplyM where
-  PApplyM m >>= f = PApplyM (m >>= getPApplyM . f)
+  PApplyM { getPApplyM :: ExceptionT String (StateT PApplyState PassM) a }
+  deriving (Functor, Applicative, Monad)
 
 instance ExceptionM PApplyM [Char] where
   raise s = PApplyM (raise s)
 
 instance HasGUID PApplyM where
-  getNextGUID = PApplyM $ lift (lift getNextGUID)
+  getNextGUID = PApplyM $ inBase (getNextGUID :: PassM GUID)
 
-runPApplyM :: forall f a. HasGUID f => [Name] -> PApplyM a -> f (Either String a)
-runPApplyM roots m = fst <$> runStateT s0 (runExceptionT (getPApplyM m @f))
+runPApplyM :: [Name] -> PApplyM a -> PassM (Either String a)
+runPApplyM roots m = fst <$> runStateT s0 (runExceptionT (getPApplyM m))
   where s0 = emptyPApplyState  { otherSeenRules = Set.fromList roots }
 
 -- clearSpecRequests :: Name -> PApplyM ()

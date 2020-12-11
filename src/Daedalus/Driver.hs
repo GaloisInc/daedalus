@@ -1,5 +1,7 @@
 {-# Language BlockArguments #-}
 {-# Language FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Daedalus.Driver
   ( Daedalus
   , daedalus
@@ -70,17 +72,21 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
-import Control.Monad(liftM,ap,msum,foldM,forM)
+import Control.Monad(msum,foldM,forM)
+import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO,try)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing)
+import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
 
 import Daedalus.SourceRange
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 import Daedalus.GUID
+
+import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
@@ -92,7 +98,6 @@ import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
--- import Daedalus.Rename(rename)
 import Daedalus.Normalise(normalise)
 import Daedalus.Normalise.AST(NDecl)
 import qualified Daedalus.CompileHS      as HS
@@ -365,34 +370,34 @@ astImports ph =
 
 
 -- | The Daedalus driver monad
-newtype Daedalus a = Daedalus (State -> IO (a,State))
+newtype Daedalus a = Daedalus (StateT State PassM a)
+  deriving (Functor, Applicative, Monad)
 
-instance Functor Daedalus where
-  fmap = liftM
+-- instance Functor Daedalus where
+--   fmap = liftM
 
-instance Applicative Daedalus where
-  pure a = Daedalus \s -> pure (a,s)
-  (<*>)  = ap
+-- instance Applicative Daedalus where
+--   pure a = Daedalus \s -> pure (a,s)
+--   (<*>)  = ap
 
-instance Monad Daedalus where
-  Daedalus m >>= f =  Daedalus \s ->
-                        do (a,s1) <- m s
-                           let Daedalus m1 = f a
-                           m1 s1
+-- instance Monad Daedalus where
+--   Daedalus m >>= f =  Daedalus \s ->
+--                         do (a,s1) <- m s
+--                            let Daedalus m1 = f a
+--                            m1 s1
 
-instance HasGUID Daedalus where
-  getNextGUID = Daedalus \s ->
-    pure $ mkGetNextGUID' nextFreeGUID (\g t -> t { nextFreeGUID = g }) s
+instance MonadIO Daedalus where
+  liftIO = Daedalus . inBase . liftIO
 
 -- | Execute a Daedalus computation starting with the "defaultState".
 daedalus :: Daedalus a -> IO a
-daedalus (Daedalus m) = fst <$> m defaultState
+daedalus (Daedalus m) = fst <$> runM m defaultState
 
 ddlState :: Daedalus State
-ddlState = Daedalus \s -> pure (s,s)
+ddlState = Daedalus get
 
 ddlSetState :: State -> Daedalus ()
-ddlSetState s = Daedalus \_ -> pure ((),s)
+ddlSetState = Daedalus . set
 
 ddlGet :: (State -> a) -> Daedalus a
 ddlGet f =
@@ -400,15 +405,14 @@ ddlGet f =
      pure $! f s
 
 ddlUpdate_ :: (State -> State) -> Daedalus ()
-ddlUpdate_ f = Daedalus \s -> do let s1 = f s
-                                 s1 `seq` pure ((),s1)
+ddlUpdate_ = Daedalus . sets_
+                               
 
 ddlIO :: IO a -> Daedalus a
-ddlIO m = Daedalus \s -> m >>= \a -> pure (a,s)
+ddlIO = Daedalus . inBase . liftIO
 
 ddlThrow :: DaedalusError -> Daedalus a
-ddlThrow a = Daedalus \_ -> throwIO a
-
+ddlThrow = ddlIO . throwIO
 
 ddlPutStr :: String -> Daedalus ()
 ddlPutStr msg =
@@ -426,6 +430,9 @@ ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
      ddlIO $ hPrint h x
+
+ddlRunPass :: PassM a -> Daedalus a
+ddlRunPass = Daedalus . lift
 
 --------------------------------------------------------------------------------
 data DDLOpt a = DDLOpt (State -> a) (a -> State -> State)
@@ -499,7 +506,7 @@ parseModule n =
 resolveModule :: Module -> Daedalus ()
 resolveModule m =
   do defs <- ddlGet moduleDefines
-     r <- Scope.resolveModule defs m
+     r <- ddlRunPass (Scope.resolveModule defs m)
      case r of
        Right (m1,newDefs) ->
          ddlUpdate_ \s -> s { loadedModules = Map.insert (moduleName m1)
@@ -515,7 +522,7 @@ tcModule :: Module -> Daedalus ()
 tcModule m =
   do tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
-     r <-  runMTypeM tdefs rtys (inferRules m)
+     r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
        Right m1 ->
@@ -661,11 +668,11 @@ passSpecialize tgt roots =
           ddlThrow (ADriverError
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
-     r <- specialise rootNames decls
+     r <- ddlRunPass (specialise rootNames decls)
      case r of
        Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->
-         let ds = topoOrder sds -- (rename sds)
+         let ds = topoOrder sds
              mo = TCModule
                     { tcModuleName = tgt
                     , tcModuleImports = []

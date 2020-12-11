@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, OverloadedStrings #-}
-{-# LANGUAGE RankNTypes, StandaloneDeriving, DeriveFunctor #-}
+{-# LANGUAGE RankNTypes, StandaloneDeriving, DeriveFunctor, DataKinds #-}
 
 module Daedalus.Scope (
   -- resolveModules,
@@ -26,6 +26,7 @@ import Daedalus.Rec
 
 import Daedalus.AST
 import Daedalus.PrettyError
+import Daedalus.Pass
 
 -- -----------------------------------------------------------------------------
 -- Monad and operations 
@@ -67,22 +68,17 @@ prettyScopeError e = pure (show (pp e))
 --------------------------------------------------------------------------------
 -- Monad
 
-newtype ScopeM a = ScopeM { getScopeM :: forall m. HasGUID m =>
-                                         ReaderT Scope (StateT ScopeState (ExceptionT ScopeError m)) a }
-
-deriving instance Functor ScopeM
-
-instance Applicative ScopeM where
-  ScopeM m <*> ScopeM m' = ScopeM (m <*> m')
-  pure v = ScopeM $ pure v
-  
-instance Monad ScopeM where
-  ScopeM m >>= f = ScopeM (m >>= getScopeM . f)
+newtype ScopeM a = ScopeM (WithBase PassM
+                            '[ ReaderT Scope
+                             , StateT ScopeState
+                             , ExceptionT ScopeError
+                             ] a)
+  deriving (Functor, Applicative, Monad)
 
 instance HasGUID ScopeM where
-  getNextGUID = ScopeM $ lift (lift (lift getNextGUID))
+  getNextGUID = ScopeM (inBase getNextGUID)
 
-runScopeM :: HasGUID m => Scope -> ScopeM a -> m (Either ScopeError (a, ScopeState))
+runScopeM :: Scope -> ScopeM a -> PassM (Either ScopeError (a, ScopeState))
 runScopeM scope (ScopeM m) = runExceptionT (runStateT emptyScopeState (runReaderT scope m))
 
 recordNameRef :: Name -> ScopeM ()
@@ -111,19 +107,15 @@ getScope = ScopeM ask
 type GlobalScope = Map ModuleName (Map Ident Name) {- ^ Maps module name to what's in scope -}
 
 newtype ResolveM a =
-  ResolveM { getResolveM :: forall m. HasGUID m => StateT GlobalScope (ExceptionT ScopeError m) a }
-
-deriving instance Functor ResolveM
-
-instance Applicative ResolveM where
-  ResolveM m <*> ResolveM m' = ResolveM (m <*> m')
-  pure v = ResolveM $ pure v
-  
-instance Monad ResolveM where
-  ResolveM m >>= f = ResolveM (m >>= getResolveM . f)
+  ResolveM { getResolveM ::
+               WithBase PassM
+               '[ StateT GlobalScope
+                , ExceptionT ScopeError
+                ] a }
+  deriving (Functor, Applicative, Monad)
 
 instance HasGUID ResolveM where
-  getNextGUID = ResolveM $ lift (lift getNextGUID)
+  getNextGUID = ResolveM $ inBase (getNextGUID :: PassM GUID)
 
 makeNameModScope :: ModuleName -> Name -> ResolveM Name
 makeNameModScope m n = do
@@ -136,7 +128,7 @@ makeNameModScope m n = do
 --     go = mapM resolveModule' ms
 --     s0 = ResolveState Map.empty
 
-resolveModule :: HasGUID m => GlobalScope -> Module -> m (Either ScopeError (Module, GlobalScope))
+resolveModule :: GlobalScope -> Module -> PassM (Either ScopeError (Module, GlobalScope))
 resolveModule scope m = runExceptionT (runStateT scope (getResolveM go))
   where
     go = resolveModule' m

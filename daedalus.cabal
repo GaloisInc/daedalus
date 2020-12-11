@@ -33,6 +33,7 @@ library
                        Daedalus.Compile.LangHS,
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
+                       Daedalus.Pass,
                        Daedalus.Interp.Value,
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
