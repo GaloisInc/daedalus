@@ -292,29 +292,66 @@ typedef struct _Result {
 
 Result emptyResult = { .results = NULL } ;
 
-void addResult(Cfg* cfg, Result* result) {
+Result * addResult(Cfg* cfg, Result* result) {
     CfgList* newResults = addCfg(cfg, result->results);
     result->results = newResults;
+    return result;
 }
 
-void updateError(Resumption* resumption, Cfg* cfg, Result* result) {
+Result * updateError(Resumption* resumption, Cfg* cfg, Result* result) {
     //TODO:
 }
 
-void print_Result(Result * r){
+Result * print_Result(Result * r){
     //TODO:
 }
 
 
-void react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
+Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
+    // TODO: replace this with assert
+    if (cfg == NULL)
+        exit(1);
+
+    int q = cfg->state;
+
+    Choice * localTransitions = &(aut->table[q]);
+
+    switch (localTransitions->tag) {
+        case EMPTYCHOICE : {
+            if (isAcceptingCfg(cfg, aut->accepting)) {
+                addResult(cfg, result);
+                return backtrack(aut, resumption, result);
+            } else {
+                Action* action = ALLOCMEM(sizeof(Action));
+                action->tag = ACT_ControlAction;
+                action->controlAction.tag = ACT_Pop;
+
+                Choice* choice = ALLOCMEM(sizeof(Choice));
+                choice->tag = UNICHOICE;
+                choice->len = 1;
+                choice->transitions = ALLOCMEM(sizeof(ActionStatePair));
+                choice->transitions[0].pAction = action ;
+                choice->transitions[0].state = q ;
+
+                Resumption* newResumption = addResumption(resumption, cfg, choice);
+                return choose(aut, newResumption, result);
+
+            }
+        default : {
+            Resumption* newResumption = addResumption(resumption, cfg, localTransitions);
+            return choose(aut, newResumption, result);
+            break;
+        }
+
+    }
 
 }
 
-void choose(Aut* aut, Resumption* resumption, Result* result) {
+Result * choose(Aut* aut, Resumption* resumption, Result* result) {
 
 }
 
-void backtrack(Aut* aut, Resumption* resumption, Result* result) {
+Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
 
 }
 
