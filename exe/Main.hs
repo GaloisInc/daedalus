@@ -121,8 +121,8 @@ handleOptions opts
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
-                   let dfa = PGen.createDFA aut
-                   PGen.statsDFA aut dfa
+                   let dfa = PGen.createLLA aut
+                   PGen.statsLLA aut dfa
                 )
 
          Interp inp ->
@@ -229,7 +229,7 @@ generateCPP opts mm =
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> IO ()
 interpPGen useJS inp moduls =
   do let (gbl, aut) = PGen.buildArrayAut moduls
-     let dfa = PGen.createDFA aut                   -- LL
+     let dfa = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ _ ->
                  do bytes <- case inp of

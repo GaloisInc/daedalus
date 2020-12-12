@@ -247,57 +247,40 @@ runnerBias gbl s aut =
   in react (initCfg s aut) emptyResumption emptyResult
 
 -- This runner is using both the NFA and the DFA to parse.
-runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> AutDet -> Result
-runnerLL gbl s aut autDet =
-  let react :: Cfg -> Resumption -> Result -> Result
-      react cfg resumption result =
-        case cfg of
-          Cfg inp _ctrl _out q ->
+runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> LLA -> Result
+runnerLL gbl s aut laut =
+  let react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
+      react cfg@(Cfg inp _ctrl _out q) mq resumption result =
+        let pq = case mq of
+                   Nothing -> Left q
+                   Just qSynth -> Right qSynth in
             -- trace (show cfg) $
-            let mDfa = LL.lookupAutDet q autDet in
-            case mDfa of
-              Nothing -> callNFA()
-              Just dfa ->
-                case flagHasFullResolution dfa of
-                  Nothing -> error "missing hasFullResolution"
-                  Just False -> callNFA ()
-                  Just True ->
-                    -- trace "YES LL lookup" $
-                    let a = LL.predictLL dfa inp in
-                    case a of
-                      Nothing ->
-                        callNFA ()
-                        -- NOTE: here we call `callNFA()` instead of
-                        -- `backtrack idx resumption result` in order to
-                        -- maintain the behavior of reaching the
-                        -- parseError the furthest. If we called backtrack
-                        -- we would not update the parseError information
-                      Just pdxs ->
-                        -- trace (show pdxs) $
-                        -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
-                        applyPredictions pdxs cfg resumption result
-
-            where
-              callNFA () =
-                let localTransitions = nextTransition aut q
-                in case localTransitions of
-                     Nothing -> {-# SCC backtrackSetStep #-}
-                       if isAcceptingCfg cfg aut
-                       then
-                         let newResult = addResult cfg result
-                         in backtrack resumption newResult
-                       else
-                         let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q)) in
-                           choose newResumption result
-                         --backtrack resumption result
-                     Just ch ->
-                       let newResumption = addResumption resumption cfg ch in
+        let mpdx = LL.predictLL pq laut inp in
+          case mpdx of
+            Just (pdxs, finalState) ->
+              -- trace (show pdxs) $
+              -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
+              applyPredictions pdxs finalState cfg resumption result
+            Nothing ->
+              let localTransitions = nextTransition aut q
+              in case localTransitions of
+                   Nothing -> {-# SCC backtrackSetStep #-}
+                     if isAcceptingCfg cfg aut
+                     then
+                       let newResult = addResult cfg result
+                       in backtrack resumption newResult
+                     else
+                       let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q)) in
                          choose newResumption result
+                   Just ch ->
+                     let newResumption = addResumption resumption cfg ch in
+                       choose newResumption result
 
-      applyPredictions :: LL.Prediction -> Cfg -> Resumption -> Result -> Result
-      applyPredictions prdx cfg@(Cfg inp ctrl out q) resumption result =
+      applyPredictions :: LL.Prediction -> LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
+      applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption result =
+        -- trace (show q) $
         case LL.destrPrediction prdx of
-          Nothing -> react cfg resumption result
+          Nothing -> react cfg (Just finalState) resumption result
           Just (alt, alts) ->
             let tr = nextTransition aut q
                 (act, q2) = case (tr, alt) of
@@ -315,7 +298,7 @@ runnerLL gbl s aut autDet =
                      (CutBiasAlt _st) ->
                        let updResumption = updateCommitResumption newResumption
                            newCfg = Cfg inp ctrl out q2
-                       in applyPredictions alts newCfg updResumption result
+                       in applyPredictions alts finalState newCfg updResumption result
                      _ -> undefined
                  _ ->
                      case applyAction gbl (inp, ctrl, out) q2 act of
@@ -324,7 +307,7 @@ runnerLL gbl s aut autDet =
                          in backtrack newResumption updResult
                        Just (inp2, ctr2, out2, q2') ->
                          let newCfg = Cfg inp2 ctr2 out2 q2'
-                         in applyPredictions alts newCfg newResumption result
+                         in applyPredictions alts finalState newCfg newResumption result
 
       choose :: Resumption -> Result -> Result
       choose resumption result =
@@ -337,17 +320,17 @@ runnerLL gbl s aut autDet =
                 let newResumption = updateCommitResumption resumption
                     newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption result
+                   react newCfg Nothing newResumption result
               BAct (CutLocal) ->
                 let newResumption = earlyUpdateCommitResumption resumption
                     newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption result
+                   react newCfg Nothing newResumption result
               BAct (CutGlobal) ->
                 let newResumption = cutResumption resumption
                     newCfg = Cfg inp ctrl out q2
                 in
-                   react newCfg newResumption result
+                   react newCfg Nothing newResumption result
               BAct (FailAction Nothing) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
@@ -360,7 +343,7 @@ runnerLL gbl s aut autDet =
                     backtrack resumption updResult
                   Just (inp2, ctr2, out2, q2') ->
                     let newCfg = Cfg inp2 ctr2 out2 q2'
-                    in react newCfg resumption result
+                    in react newCfg Nothing resumption result
 
       backtrack :: Resumption -> Result -> Result
       backtrack resumption result =
@@ -369,7 +352,7 @@ runnerLL gbl s aut autDet =
           Nothing -> result
           Just nextRes -> choose nextRes result
 
-  in react (initCfg s aut) emptyResumption emptyResult
+  in react (initCfg s aut) Nothing emptyResumption emptyResult
 
 
 extractValues :: Result -> [ Interp.Value ]
