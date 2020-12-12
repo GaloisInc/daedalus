@@ -197,10 +197,10 @@ instance Eq (SlkInput) where
   (==) inp1 inp2 = positionFromBeginning inp1 == positionFromBeginning inp2
 
 data CfgDet = CfgDet
-  { cfgState :: State
-  , cfgCtrl  :: SlkControlData
-  , cfgSem   :: SlkSemanticData
-  , cfgInput :: SlkInput
+  { cfgState :: !State
+  , cfgCtrl  :: !SlkControlData
+  , cfgSem   :: !SlkSemanticData
+  , cfgInput :: !SlkInput
   }
   deriving (Show)
 

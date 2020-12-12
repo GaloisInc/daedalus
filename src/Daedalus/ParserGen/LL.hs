@@ -1,12 +1,11 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL
-  ( createDFA
-  , statsDFA
-  , AutDet
-  , DFA(..)
-  , lookupAutDet
+  ( createLLA
+  , statsLLA
+  , LLA(..)
   , Prediction
+  , SynthLLAState
   , destrPrediction
   , predictLL
   , ChoiceTag(..)
