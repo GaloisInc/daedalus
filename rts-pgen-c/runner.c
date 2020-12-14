@@ -1,8 +1,9 @@
+#include "string.h"
+
 #include "runner.h"
 #include "value.h"
 #include "action.h"
 #include "cfg.h"
-
 #include "util.h"
 #include "debug.h"
 
@@ -61,13 +62,49 @@ CommitStack* updateCommitStack(CommitStack* hst) {
     //recursion for now to maintain alignment to Haskell
     CommitStack* newHst = ALLOCMEM(sizeof(CommitStack));
     if (hst->head == CFalse) {
-        newHst->head = CEarly;
+        newHst->head = CTrue;
         newHst->next = hst->next;
-    }
-    else {
+    } else if (hst->head == CTrue) {
         CommitStack* updatedStack = updateCommitStack(hst->next);
         newHst->head = hst->head;
         newHst->next = updatedStack;
+    }
+    else if (hst->head == CEarly) {
+        newHst->head = CTrue;
+        newHst->next = hst->next;
+    } else {
+        LOGE("Broken invariant in updateCommitStack: The head of commit stack is invalid: %d", hst->head);
+        exit(1);
+    }
+    return newHst;
+}
+
+CommitStack* earlyUpdateCommitStack(CommitStack* hst) {
+    if (hst == NULL) {
+        return hst;
+    }
+
+    //TODO: Would an in-place update work? If these nodes can be shared
+    //that wont work. The current approach duplicates all nodes in the chain
+    //of recursion and can be rather expensive!
+    //TODO: We could do this in a while-loop more efficiently; but sticking to
+    //recursion for now to maintain alignment to Haskell
+    CommitStack* newHst = ALLOCMEM(sizeof(CommitStack));
+    if (hst->head == CFalse) {
+        newHst->head = CEarly;
+        newHst->next = hst->next;
+    } else if (hst->head == CTrue) {
+        CommitStack* updatedStack = updateCommitStack(hst->next);
+        newHst->head = hst->head;
+        newHst->next = updatedStack;
+    }
+    else if (hst->head == CEarly) {
+        CommitStack* updatedStack = updateCommitStack(hst->next);
+        newHst->head = hst->head;
+        newHst->next = updatedStack;
+    } else {
+        LOGE("Broken invariant in earlyUpdateCommitStack: The head of commit stack is invalid: %d", hst->head);
+        exit(1);
     }
     return newHst;
 }
@@ -161,6 +198,8 @@ Resumption* addResumption(Resumption* resumption, Cfg* cfg, Choice* choice) {
             break;
         }
     }
+
+    return newResumption;
 }
 
 ResumptionTip* getActionCfgAtLevel(Resumption* resumption) {
@@ -171,7 +210,7 @@ Resumption* earlyUpdateCommitResumption(Resumption* resumption) {
     Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
     memcpy(newResumption, resumption, sizeof(Resumption));
 
-    CommitStack* newCommitStack = earlyUpdateCommitResumption(resumption->commitStack);
+    CommitStack* newCommitStack = earlyUpdateCommitStack(resumption->commitStack);
     newResumption->commitStack = newCommitStack;
     return newResumption;
 }
@@ -241,7 +280,15 @@ Resumption* _getNext(CommitStack* commitStack, BacktrackStack* backtrackStack) {
                 return addResumption(&resumption, backtrackStack->cfg, newChoice);
             }
         }
+        default:
+        {
+            //NOTE: Control shouldn't reach here
+            LOGE("Broken invariant: Unknown Choice tag: %d", backtrackStack->choice->tag);
+            exit(1);
+        }
     }
+
+
 }
 
 Resumption* nextResumption(Resumption* resumption) {
@@ -290,7 +337,9 @@ typedef struct _Result {
     //TODO: Parse Errors
 } Result;
 
-Result emptyResult = { .results = NULL } ;
+//TODO: Do we really want to be global this way given that we are doing
+//an in-place update?
+// Result emptyResult = { .results = NULL } ;
 
 Result * addResult(Cfg* cfg, Result* result) {
     CfgList* newResults = addCfg(cfg, result->results);
@@ -300,12 +349,16 @@ Result * addResult(Cfg* cfg, Result* result) {
 
 Result * updateError(Resumption* resumption, Cfg* cfg, Result* result) {
     //TODO:
+    return result;
 }
 
-Result * print_Result(Result * r){
+void printResult(Result * r){
     //TODO:
 }
 
+Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result);
+Result * choose(Aut* aut, Resumption* resumption, Result* result);
+Result * backtrack(Aut* aut, Resumption* resumption, Result* result);
 
 Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
     // TODO: replace this with assert
@@ -337,6 +390,7 @@ Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
                 return choose(aut, newResumption, result);
 
             }
+        }
         default : {
             Resumption* newResumption = addResumption(resumption, cfg, localTransitions);
             return choose(aut, newResumption, result);
@@ -348,11 +402,20 @@ Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
 }
 
 Result * choose(Aut* aut, Resumption* resumption, Result* result) {
-
+    //TODO:
+    return result;
 }
 
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
+    //TODO:
+    return result;
+}
 
+//TODO: This should also accept global functions in some form
+Result * runnerBias(Aut* aut, FILE* file, Result* result) {
+    Input* input = initInput(file);
+    Cfg* cfg = mkCfg(aut->initial, input, initStackCtrl(), initStackSem());
+    return react(aut, cfg, emptyResumption, result);
 }
 
 
@@ -480,13 +543,9 @@ Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
 // }
 
 void runAut(Aut aut, FILE* input) {
-    Result * res = runner(
-        aut,
-        mkCfg(aut.initial, initInput(input), initStackCtrl(), initStackSem()),
-        initStack(NULL),
-        initResult()
-    );
+    Result result;
+    runnerBias(&aut, input, &result);
 
-    print_Result(res);
+    printResult(&result);
     printf("\n");
 }
