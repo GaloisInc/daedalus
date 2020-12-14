@@ -206,6 +206,15 @@ ResumptionTip* getActionCfgAtLevel(Resumption* resumption) {
     return resumption->resumptionTip;
 }
 
+Resumption* updateCommitResumption(Resumption* resumption) {
+    Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
+    memcpy(newResumption, resumption, sizeof(Resumption));
+
+    CommitStack* newCommitStack = updateCommitStack(resumption->commitStack);
+    newResumption->commitStack = newCommitStack;
+    return newResumption;
+}
+
 Resumption* earlyUpdateCommitResumption(Resumption* resumption) {
     Resumption* newResumption = ALLOCMEM(sizeof(Resumption));
     memcpy(newResumption, resumption, sizeof(Resumption));
@@ -294,8 +303,6 @@ Resumption* _getNext(CommitStack* commitStack, BacktrackStack* backtrackStack) {
 Resumption* nextResumption(Resumption* resumption) {
     return _getNext(resumption->commitStack, resumption->backtrackStack);
 }
-
-// WE ARE HEREER!!!!!!!
 
 // typedef struct _Stack {
 //     int state;
@@ -402,13 +409,47 @@ Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
 }
 
 Result * choose(Aut* aut, Resumption* resumption, Result* result) {
-    //TODO:
-    return result;
+    ResumptionTip* tip = getActionCfgAtLevel(resumption);
+    if (tip == NULL) {
+        return backtrack(aut, resumption, result);
+    }
+
+    switch(tip->action->tag) {
+        //Handle branch actions here since it affects the flow
+        case ACT_BranchAction: {
+            switch (tip->action->branchAction.tag) {
+                case ACT_CutBiasAlt: {
+                    Resumption* newResumption = updateCommitResumption(resumption);
+                    Cfg* newCfg = mkCfg(
+                        tip->state, tip->cfg->inp, tip->cfg->ctrl, tip->cfg->sem
+                    );
+                    return react(aut, newCfg, newResumption, result);
+                }
+                default: {
+                    LOGE("Unhandled Branch Action in Choose: %d", tip->action->branchAction.tag);
+                    exit(1);
+                }
+            }
+        }
+        //Perform the other (non-branch) actions
+        default: {
+            Cfg* newCfg = applyAction(tip->action, tip->cfg, tip->state);
+            if (newCfg == NULL) {
+                updateError(resumption, tip->cfg, result);
+                return backtrack(aut, resumption, result);
+            } else {
+                return react(aut, newCfg, resumption, result);
+            }
+        }
+    }
 }
 
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
-    //TODO:
-    return result;
+    Resumption* newResumption = nextResumption(resumption);
+    if (newResumption == NULL)
+        return result;
+    else
+        return choose(aut, newResumption, result);
 }
 
 //TODO: This should also accept global functions in some form
