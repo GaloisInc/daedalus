@@ -75,6 +75,9 @@ StackCtrl * pushStackCtrl(int state, StackCtrl *stack);
 /** Pop the top from the control stack */
 StackCtrl * popStackCtrl(StackCtrl *stack);
 
+/** Print the control stack */
+void printStackCtrl(StackCtrl * stack);
+
 /** Peek at the top of the control stack */
 int headStackCtrl(StackCtrl *stack);
 
