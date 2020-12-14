@@ -151,7 +151,10 @@ typedef struct _Resumption {
     ResumptionTip* resumptionTip;
 } Resumption ;
 
-Resumption* emptyResumption = NULL;
+Resumption emptyResumption = {
+    .commitStack = NULL, .backtrackStack = NULL, .depthComputation = 0,
+    .resumptionTip = NULL
+};
 
 Resumption* addResumption(Resumption* resumption, Cfg* cfg, Choice* choice) {
     //First create a new Resumption instance and copy the current data to it
@@ -360,7 +363,21 @@ Result * updateError(Resumption* resumption, Cfg* cfg, Result* result) {
 }
 
 void printResult(Result * r){
-    //TODO:
+    CfgList* cfgs = r->results;
+
+    printf("Results:\n");
+    int i = 0;
+    while (cfgs != NULL) {
+        i++;
+        printf("#%d ", i);
+
+
+        print_Value(cfgs->result->sem->value);
+
+        cfgs = cfgs->next;
+        if (cfgs != NULL)
+            printf("\n");
+    }
 }
 
 Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result);
@@ -368,6 +385,9 @@ Result * choose(Aut* aut, Resumption* resumption, Result* result);
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result);
 
 Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
+
+    LOGE("REACT");
+
     // TODO: replace this with assert
     if (cfg == NULL)
         exit(1);
@@ -409,6 +429,8 @@ Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
 }
 
 Result * choose(Aut* aut, Resumption* resumption, Result* result) {
+    LOGE("CHOOSE");
+
     ResumptionTip* tip = getActionCfgAtLevel(resumption);
     if (tip == NULL) {
         return backtrack(aut, resumption, result);
@@ -445,6 +467,7 @@ Result * choose(Aut* aut, Resumption* resumption, Result* result) {
 }
 
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
+    LOGE("BACKTRACK");
     Resumption* newResumption = nextResumption(resumption);
     if (newResumption == NULL)
         return result;
@@ -456,7 +479,7 @@ Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
 Result * runnerBias(Aut* aut, FILE* file, Result* result) {
     Input* input = initInput(file);
     Cfg* cfg = mkCfg(aut->initial, input, initStackCtrl(), initStackSem());
-    return react(aut, cfg, emptyResumption, result);
+    return react(aut, cfg, &emptyResumption, result);
 }
 
 

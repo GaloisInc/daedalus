@@ -107,6 +107,16 @@ int headStackCtrl(StackCtrl *stack){
    return stack->state;
 }
 
+void printStackCtrl(StackCtrl * stack) {
+    fprintf(stderr, "STACK_CTRL: ");
+    while (stack != NULL){
+        fprintf(stderr, "%d", stack->state);
+        stack = stack->up;
+        fprintf(stderr, ", ");
+    }
+    fprintf(stderr,"\n");
+}
+
 //-----------------------------------------------------------------------//
 // Configuration Management
 //-----------------------------------------------------------------------//
@@ -124,5 +134,6 @@ Cfg * mkCfg(int state, Input * inp, StackCtrl * ctrl, StackSem * sem)
 }
 
 int isAcceptingCfg(Cfg* cfg, int acceptingState) {
+    printStackCtrl(cfg->ctrl);
     return (cfg->ctrl == NULL && cfg->state == acceptingState) ;
 }
