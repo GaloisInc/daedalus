@@ -18,7 +18,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
-
+import qualified Data.List as List
+import Data.Array.IArray
 
 import qualified RTS.Input as Input
 
@@ -444,13 +445,19 @@ type MapFinalToSynthLLAState = Map.Map LinDFAState SynthLLAState
 
 data LLA = LLA
   { transitionLLA :: Map.Map SynthLLAState DFA
+
+    -- mapping from the Final states of the DFA to the SynthLLAState
   , mappingFinalToSynth :: Map.Map SynthLLAState MapFinalToSynthLLAState
-  -- mapping from the Accepting states of the DFA to the SynthLLAState
+
+    -- mapping from the NFA states as to SynthLLAState
   , mappingNFAToSynth :: IntMap.IntMap SynthLLAState
-  -- mapping from the NFA states as init DFAState to SynthLLAState
+
   , mappingDFAStateToSynth :: Map.Map DFAState SynthLLAState
   , mappingSynthToDFAState :: Map.Map SynthLLAState DFAState
   , lastSynth :: SynthLLAState
+
+  -- synthesized mapping of mappingNFAToSynth
+  , synthesizedMappingNFAToSynth :: Maybe (Array Int (Maybe SynthLLAState))
   }
 
 emptyLLA :: LLA
@@ -462,14 +469,25 @@ emptyLLA =
   , mappingDFAStateToSynth = Map.empty
   , mappingSynthToDFAState = Map.empty
   , lastSynth = initSynthLLAState
+  , synthesizedMappingNFAToSynth = Nothing
   }
 
 nextSynthLLAState :: SynthLLAState -> SynthLLAState
 nextSynthLLAState (SynthLLAState q) = SynthLLAState (q+1)
 
+
+lookupSynthArray :: State -> LLA -> Maybe SynthLLAState
+lookupSynthArray q aut =
+  {-# SCC breakpointLookupSynthArray #-}
+  -- IntMap.lookup q (mappingNFAToSynth aut)
+  let sm = synthesizedMappingNFAToSynth aut in
+    case sm of
+      Nothing -> error "synthesied mapping not computed"
+      Just m -> m ! q
+
 lookupLLAFromState :: State -> LLA -> Maybe (DFA, MapFinalToSynthLLAState)
 lookupLLAFromState q aut =
-  let mSynth = IntMap.lookup q (mappingNFAToSynth aut)
+  let mSynth = lookupSynthArray q aut
   in case mSynth of
        Nothing -> Nothing
        Just sq ->
@@ -662,13 +680,31 @@ predictLL qq aut inp =
             Just (pdx, fromJust finalSynth)
 
 
+synthesizeLLA :: LLA -> LLA
+synthesizeLLA lla =
+  let m = mappingNFAToSynth lla
+      maxState = List.maximum (map fst (IntMap.toAscList m))
+      arr = generate (maxState + 1) m
+  in lla { synthesizedMappingNFAToSynth = Just arr}
+  where
+    generate :: Int -> IntMap.IntMap SynthLLAState -> Array Int (Maybe SynthLLAState)
+    generate size mapping =
+      array (0, size) lst
+      where
+        lst = [ case IntMap.lookup i mapping of
+                  Nothing -> (i, Nothing)
+                  Just e -> (i, Just e)
+              | i <- [0..size]
+              ]
+
 createLLA :: Aut a => a -> LLA
 createLLA aut =
   let collectedStates =
         identifyStartStates ()
         -- Set.singleton $ initialState aut
   in
-    go (Set.toList (Set.map mkDFAState collectedStates)) [] emptyLLA
+  let lla1 = go (Set.toList (Set.map mkDFAState collectedStates)) [] emptyLLA
+  in synthesizeLLA lla1
   where
     identifyStartStates :: () -> Set.Set State
     identifyStartStates () =
