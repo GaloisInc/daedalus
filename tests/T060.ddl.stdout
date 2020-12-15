@@ -11,8 +11,8 @@ type T060.Main = { ex1: bool
 T060.Main : Grammar T060.Main =
   do SetStream (arrayStream "array" [1,
                                      2])
-     (ex1 : bool) <- do (_0 : uint 8) <- GetByte
-                        case _0 is
+     (ex1 : bool) <- do (_2 : uint 8) <- GetByte
+                        case _2 is
                           { 1 -> pure true
                           ; 2 -> pure false
                           }
@@ -21,8 +21,8 @@ T060.Main : Grammar T060.Main =
 T060._Main : Grammar {} =
   do SetStream (arrayStream "array" [1,
                                      2])
-     (_0 : uint 8) <- GetByte
-     case _0 is
+     (_2 : uint 8) <- GetByte
+     case _2 is
        { 1 -> pure {}
        ; 2 -> pure {}
        }

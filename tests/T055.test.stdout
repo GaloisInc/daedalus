@@ -6,11 +6,11 @@ module DaedalusMain
  
 --- Rules:
  
-T055.Default__0 (a : uint 8) : Grammar (uint 8) =
+T055.Default__8 (a : uint 8) : Grammar (uint 8) =
   Choose biased
     { Match {'b'}
     | pure a
     }
  
 T055.Main : Grammar (uint 8) =
-  T055.Default__0 'a'
+  T055.Default__8 'a'

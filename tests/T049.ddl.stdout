@@ -16,6 +16,14 @@ type T049.TD = { obj: T049.TDDef
  
 --- Rules:
  
+T049.V : Grammar T049.V =
+  Choose fair
+    { {- null -} do (_9 : {}) <- pure {}
+                    pure {null: _9}
+    | {- num -} do (_10 : uint 8) <- GetByte
+                   pure {num: _10}
+    }
+ 
 T049.ResolveDeclRef (x : int) : Grammar T049.TD
  
 T049.ResolveRef (x : int) : Grammar T049.V =
@@ -23,25 +31,27 @@ T049.ResolveRef (x : int) : Grammar T049.V =
      ($$ : T049.V) <- (p.obj) is value
      pure $$
  
-T049.V : Grammar T049.V =
-  Choose fair
-    { {- null -} do (_0 : {}) <- pure {}
-                    pure {null: _0}
-    | {- num -} do (_1 : uint 8) <- GetByte
-                   pure {num: _1}
-    }
- 
 T049.TDDef : Grammar T049.TDDef =
   Choose fair
-    { {- stream -} do (_2 : T049.V) <- T049.ResolveRef 0
-                      pure {stream: _2}
-    | {- value -} do (_3 : T049.V) <- T049.V
-                     pure {value: _3}
+    { {- stream -} do (_12 : T049.V) <- T049.ResolveRef 0
+                      pure {stream: _12}
+    | {- value -} do (_13 : T049.V) <- T049.V
+                     pure {value: _13}
     }
  
 T049.TD : Grammar T049.TD =
   do (obj : T049.TDDef) <- T049.TDDef
      pure {obj = obj}
+ 
+T049._V : Grammar {} =
+  Choose fair
+    { {- null -} pure {}
+    | {- num -} @GetByte
+    }
+ 
+T049._TD : Grammar {} =
+  do T049.TDDef
+     pure {}
  
 T049._ResolveDeclRef (x : int) : Grammar {} =
   do T049.ResolveDeclRef x
@@ -51,17 +61,8 @@ T049._ResolveRef (x : int) : Grammar {} =
   do (p : T049.TD) <- T049.ResolveDeclRef x
      @((p.obj) is value)
  
-T049._V : Grammar {} =
-  Choose fair
-    { {- null -} pure {}
-    | {- num -} @GetByte
-    }
- 
 T049._TDDef : Grammar {} =
   Choose fair
     { {- stream -} T049._ResolveRef 0
     | {- value -} T049._V
     }
- 
-T049._TD : Grammar {} =
-  T049._TDDef

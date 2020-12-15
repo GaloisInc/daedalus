@@ -17,13 +17,13 @@ rec
 rec value
   T004.Repeat ?a4 (P : Grammar ?a4) : Grammar (T004.Repeat ?a4) =
     Choose fair
-      { {- cons -} do (_0 : T004.Repeat0 ?a4) <- do (head : ?a4) <- P
+      { {- cons -} do (_4 : T004.Repeat0 ?a4) <- do (head : ?a4) <- P
                                                     (tail : T004.Repeat ?a4) <- T004.Repeat ?a4 P
                                                     pure {head = head,
                                                           tail = tail}
-                      pure {cons: _0}
-      | {- nil -} do (_1 : {}) <- pure {}
-                     pure {nil: _1}
+                      pure {cons: _4}
+      | {- nil -} do (_5 : {}) <- pure {}
+                     pure {nil: _5}
       }
  
 T004._Repeat ?a4 (P : Grammar ?a4) (_P : Grammar {}) : Grammar {} =

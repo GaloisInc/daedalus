@@ -11,12 +11,6 @@ P032.A : Grammar [uint 8] =
      ($$ : [uint 8]) <- pure "a"
      pure $$
  
-P032.AB : Grammar [uint 8] =
-  do @Match {'a'}
-     @Match {'b'}
-     ($$ : [uint 8]) <- pure "ab"
-     pure $$
- 
 P032.B : Grammar [uint 8] =
   do @Match {'b'}
      ($$ : [uint 8]) <- pure "b"
@@ -30,6 +24,12 @@ P032.C : Grammar [uint 8] =
 P032.D : Grammar [uint 8] =
   do @Match {'d'}
      ($$ : [uint 8]) <- pure "d"
+     pure $$
+ 
+P032.AB : Grammar [uint 8] =
+  do @Match {'a'}
+     @Match {'b'}
+     ($$ : [uint 8]) <- pure "ab"
      pure $$
  
 P032.Grp1 : Grammar [uint 8] =

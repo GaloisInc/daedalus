@@ -3,12 +3,32 @@ module T044
 --- Imports:
  
 --- Type defs:
+type T044.e0 = { x: bool
+               }
+ 
+type T044.e1 = { x: bool
+               }
+ 
+type T044.E0 = Choose { x: uint 8
+                      ; y: uint 8
+                      }
+ 
 type T044.E1 = Choose { x: uint 8
                       ; y: uint 8
                       }
  
-type T044.e1 = { x: bool
-               }
+type T044.a = { x: bool
+              }
+ 
+type T044.c = { x: bool
+              }
+ 
+type T044.d = { x: bool
+              }
+ 
+type T044.e = { x: T044.e0
+              ; y: T044.e1
+              }
  
 type T044.A = Choose { x: uint 8
                      ; y: uint 8
@@ -22,69 +42,75 @@ type T044.D = Choose { x: uint 8
                      ; y: uint 8
                      }
  
-type T044.E = { x: T044.E1
+type T044.E = { x: T044.E0
               ; y: T044.E1
-              }
- 
-type T044.a = { x: bool
-              }
- 
-type T044.c = { x: bool
-              }
- 
-type T044.d = { x: bool
-              }
- 
-type T044.e = { x: T044.e1
-              ; y: T044.e1
               }
  
 --- Rules:
  
+T044.a : T044.a =
+  {x = true}
+ 
+T044.b : T044.a =
+  {x = true}
+ 
+T044.c : T044.c =
+  {x = true}
+ 
+T044.d : T044.d =
+  {x = true}
+ 
+T044.e : T044.e =
+  {x = {x = true},
+   y = {x = true}}
+ 
+T044.f (i : T044.a) : bool =
+  i.x
+ 
 T044.A : Grammar T044.A =
   Choose fair
-    { {- x -} do (_0 : uint 8) <- Match {'\SOH'}
-                 pure {x: _0}
-    | {- y -} do (_1 : uint 8) <- Match {'\STX'}
-                 pure {y: _1}
+    { {- x -} do (_28 : uint 8) <- Match {'\SOH'}
+                 pure {x: _28}
+    | {- y -} do (_29 : uint 8) <- Match {'\STX'}
+                 pure {y: _29}
     }
  
 T044.B : Grammar T044.A =
   Choose fair
-    { {- x -} do (_2 : uint 8) <- Match {'\ETX'}
-                 pure {x: _2}
-    | {- y -} do (_3 : uint 8) <- Match {'\EOT'}
-                 pure {y: _3}
+    { {- x -} do (_30 : uint 8) <- Match {'\ETX'}
+                 pure {x: _30}
+    | {- y -} do (_31 : uint 8) <- Match {'\EOT'}
+                 pure {y: _31}
     }
  
 T044.C : Grammar T044.C =
   Choose fair
-    { {- x -} do (_4 : uint 8) <- Match {'\SOH'}
-                 pure {x: _4}
-    | {- y -} do (_5 : uint 8) <- Match {'\STX'}
-                 pure {y: _5}
+    { {- x -} do (_32 : uint 8) <- Match {'\SOH'}
+                 pure {x: _32}
+    | {- y -} do (_33 : uint 8) <- Match {'\STX'}
+                 pure {y: _33}
     }
  
 T044.D : Grammar T044.D =
   Choose fair
-    { {- x -} do (_6 : uint 8) <- Match {'\SOH'}
-                 pure {x: _6}
-    | {- y -} do (_7 : uint 8) <- Match {'\STX'}
-                 pure {y: _7}
+    { {- x -} do (_34 : uint 8) <- Match {'\SOH'}
+                 pure {x: _34}
+    | {- y -} do (_35 : uint 8) <- Match {'\STX'}
+                 pure {y: _35}
     }
  
 T044.E : Grammar T044.E =
-  do (x : T044.E1) <- Choose fair
-                        { {- x -} do (_8 : uint 8) <- Match {'\SOH'}
-                                     pure {x: _8}
-                        | {- y -} do (_9 : uint 8) <- Match {'\STX'}
-                                     pure {y: _9}
+  do (x : T044.E0) <- Choose fair
+                        { {- x -} do (_36 : uint 8) <- Match {'\SOH'}
+                                     pure {x: _36}
+                        | {- y -} do (_37 : uint 8) <- Match {'\STX'}
+                                     pure {y: _37}
                         }
      (y : T044.E1) <- Choose fair
-                        { {- x -} do (_10 : uint 8) <- Match {'\SOH'}
-                                     pure {x: _10}
-                        | {- y -} do (_11 : uint 8) <- Match {'\ETX'}
-                                     pure {y: _11}
+                        { {- x -} do (_38 : uint 8) <- Match {'\SOH'}
+                                     pure {x: _38}
+                        | {- y -} do (_39 : uint 8) <- Match {'\ETX'}
+                                     pure {y: _39}
                         }
      pure {x = x,
            y = y}
@@ -128,22 +154,3 @@ T044._E : Grammar {} =
  
 T044._F (i : T044.A) : Grammar {} =
   @(i is x)
- 
-T044.a : T044.a =
-  {x = true}
- 
-T044.b : T044.a =
-  {x = true}
- 
-T044.c : T044.c =
-  {x = true}
- 
-T044.d : T044.d =
-  {x = true}
- 
-T044.e : T044.e =
-  {x = {x = true},
-   y = {x = true}}
- 
-T044.f (i : T044.a) : bool =
-  i.x

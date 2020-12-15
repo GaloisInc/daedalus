@@ -8,11 +8,11 @@ type P025.Main = { x: [[uint 8]]
  
 --- Rules:
  
-P025.$cr : ByteClass =
-  {'\r'}
- 
 P025.$lf : ByteClass =
   {'\n'}
+ 
+P025.$cr : ByteClass =
+  {'\r'}
  
 P025.$simpleWS : ByteClass =
   (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
@@ -73,9 +73,18 @@ P025._AnyWS : Grammar {} =
     | P025._EOL
     }
  
+P025.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[ 1 .. ] P025._AnyWS
+     pure $$
+ 
 P025._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] P025._AnyWS
+ 
+P025.KW ?a1 (P : Grammar ?a1) : Grammar {} =
+  P025._Token ?a1 do P
+                     pure {}
  
 P025._KW ?a1 (_P : Grammar {}) : Grammar {} =
   P025._Token ?a1 _P
@@ -84,15 +93,6 @@ P025.Between ?a4 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a4) : Gramma
   do P025._KW [uint 8] (@MatchBytes open)
      ($$ : ?a4) <- P
      P025._KW [uint 8] (@MatchBytes close)
-     pure $$
- 
-P025.KW ?a1 (P : Grammar ?a1) : Grammar {} =
-  P025._Token ?a1 do P
-                     pure {}
- 
-P025.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
-     @Many[ 1 .. ] P025._AnyWS
      pure $$
  
 P025.Main : Grammar P025.Main =

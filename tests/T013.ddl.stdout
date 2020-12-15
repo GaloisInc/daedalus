@@ -10,8 +10,8 @@ T013.x : uint 8 =
   'a'
  
 T013.Y : Grammar [uint 8] =
-  do (_0 : uint 8) <- Match {T013.x}
-     pure [_0]
+  do (_2 : uint 8) <- Match {T013.x}
+     pure [_2]
  
 T013._Y : Grammar {} =
   @Match {T013.x}
