@@ -17,7 +17,7 @@ data Command =
   | DumpTC
   | DumpSpec
   | DumpNorm
-  | DumpRuleRanges  
+  | DumpRuleRanges
   | DumpCore
   | DumpVM
   | DumpGen
@@ -26,7 +26,7 @@ data Command =
   | Interp (Maybe FilePath)
   | ShowHelp
 
-data Backend = UseInterp | UsePGen
+data Backend = UseInterp | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
@@ -59,7 +59,7 @@ options = OptSpec
       , Option ['t'] ["dump-tc"]
         "Dump type-checked AST"
         $ simpleCommand DumpTC
-      
+
       , Option ['r'] ["dump-raw"]
         "Dump parsed AST"
         $ simpleCommand DumpRaw
@@ -90,7 +90,11 @@ options = OptSpec
 
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"
-        $ NoArg \o -> Right o { optBackend = UsePGen }
+        $ NoArg \o -> Right o { optBackend = UsePGen False}
+
+      , Option [] ["gen-metrics"]
+        "Use parser-generator backend when interpreting and print metrics"
+        $ NoArg \o -> Right o { optBackend = UsePGen True}
 
       , Option [] ["no-utf8"]
         "Use the locale settings instead of using UTF8 for output."

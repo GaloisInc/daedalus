@@ -3,6 +3,7 @@ module Daedalus.ParserGen.RunnerBias
   , runnerBias
   , runnerLL
   , extractValues
+  , extractMetrics
   )
 
 
@@ -154,14 +155,32 @@ nextResumption (comm, p, _d, _tip) =
         BLevel _ _ _ (ParChoice []) -> error "Broken invariant, the current choice cannot be empty"
 
 
+data Metrics =
+  Metrics
+  { metricsBacktrack :: !Int
+  , metricsLL :: !Int
+  }
+
+incrMetricsBacktrack :: Metrics -> Metrics
+incrMetricsBacktrack met = met { metricsBacktrack = metricsBacktrack met + 1 }
+
+incrMetricsLL :: Metrics -> Metrics
+incrMetricsLL met = met { metricsLL = metricsLL met + 1 }
+
+
 
 data Result = Result
-  { results :: [Cfg]
-  , parseError :: Maybe (Int, Cfg)
+  { results :: ![Cfg]
+  , parseError :: !(Maybe (Int, Cfg))
+  , metrics :: !Metrics
   }
 
 emptyResult :: Result
-emptyResult = Result { results = [], parseError = Nothing }
+emptyResult = Result
+  { results = []
+  , parseError = Nothing
+  , metrics = Metrics 0 0
+  }
 
 addResult :: Cfg -> Result -> Result
 addResult cfg res = res { results = cfg : (results res) }
@@ -175,6 +194,20 @@ updateError (_, _, d, _) cfg res =
       then res { parseError = Just (d, cfg) }
       else res
 
+tickBacktrack :: Bool
+tickBacktrack = True
+
+tickLL :: Bool
+tickLL = False
+
+incrResultMetrics :: Bool -> Result -> Bool -> Result
+incrResultMetrics b r flagMetrics =
+  if flagMetrics
+  then
+    if (b == tickBacktrack)
+    then r { metrics = incrMetricsBacktrack (metrics r) }
+    else r { metrics = incrMetricsLL (metrics r) }
+  else r
 
 -- This function runs an automaton from a string and returns accepting
 -- configurations using a backtracking algorithm.  Its design is
@@ -247,8 +280,8 @@ runnerBias gbl s aut =
   in react (initCfg s aut) emptyResumption emptyResult
 
 -- This runner is using both the NFA and the DFA to parse.
-runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> LLA -> Result
-runnerLL gbl s aut laut =
+runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> LLA -> Bool -> Result
+runnerLL gbl s aut laut flagMetrics =
   let react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
       react cfg@(Cfg inp _ctrl _out q) mq resumption result =
         let pq = case mq of
@@ -277,7 +310,8 @@ runnerLL gbl s aut laut =
                        choose newResumption result
 
       applyPredictions :: LL.Prediction -> LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
-      applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption result =
+      applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
+        let result = incrResultMetrics tickLL rslt flagMetrics in
         -- trace (show q) $
         case LL.destrPrediction prdx of
           Nothing -> react cfg (Just finalState) resumption result
@@ -310,7 +344,8 @@ runnerLL gbl s aut laut =
                          in applyPredictions alts finalState newCfg newResumption result
 
       choose :: Resumption -> Result -> Result
-      choose resumption result =
+      choose resumption rslt =
+        let result = incrResultMetrics tickBacktrack rslt flagMetrics in
         case getActionCfgAtLevel resumption of
           Nothing -> backtrack resumption result
           Just (cfg@(Cfg inp ctrl out _n1), (act, q2)) ->
@@ -358,3 +393,8 @@ runnerLL gbl s aut laut =
 extractValues :: Result -> [ Interp.Value ]
 extractValues res =
   [ v | Cfg _ _ ((SEVal v) : _) _ <- reverse (results res) ]
+
+extractMetrics :: Result -> (Int, Int)
+extractMetrics res =
+  let met = metrics res
+  in (metricsBacktrack met, metricsLL met)

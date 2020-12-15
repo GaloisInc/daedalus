@@ -130,10 +130,10 @@ handleOptions opts
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
                   ddlIO (interpInterp (optShowJS opts) inp prog mainRule)
-             UsePGen ->
+             UsePGen flagMetrics ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
-                  ddlIO (interpPGen (optShowJS opts) inp [prog])
+                  ddlIO (interpPGen (optShowJS opts) inp [prog] flagMetrics)
                --do passSpecialize specMod [mainRule]
                --   prog <- normalizedDecls
                --   ddlIO (interpPGen inp prog)
@@ -154,7 +154,7 @@ handleOptions opts
          CompileCPP ->
            case optBackend opts of
              UseInterp -> generateCPP opts mm
-             UsePGen ->
+             UsePGen _ ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
                   let outDir = fromMaybe "." $ optOutDir opts
@@ -226,8 +226,8 @@ generateCPP opts mm =
 
 
 
-interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> IO ()
-interpPGen useJS inp moduls =
+interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
+interpPGen useJS inp moduls flagMetrics =
   do let (gbl, aut) = PGen.buildArrayAut moduls
      let dfa = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
@@ -235,13 +235,23 @@ interpPGen useJS inp moduls =
                  do bytes <- case inp of
                                Nothing -> pure BS.empty
                                Just f  -> BS.readFile f
-                    let results = PGen.runnerLL gbl bytes aut dfa  -- LL
+                    let results = PGen.runnerLL gbl bytes aut dfa flagMetrics  -- LL
                     -- let results = PGen.runnerBias gbl bytes aut
                     let resultValues = PGen.extractValues results
                     if null resultValues
                       then do putStrLn $ PGen.extractParseError bytes results
                               exitFailure
                       else do dumpValues useJS resultValues
+                              if flagMetrics
+                                then
+                                  let countBacktrack = fst (extractMetrics results)
+                                      countLL =        snd (extractMetrics results)
+                                  in
+                                    do putStrLn (
+                                          "\nScore (Det/(Backtrack+Det)): " ++
+                                          (show $ ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%"
+                                          )
+                                else return ()
                               exitSuccess
               ) [(1::Int)..repeatNb]
 
@@ -307,5 +317,3 @@ dumpValues :: Bool -> [Value] -> IO ()
 dumpValues useJS as =
   do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
      print $ vcat' $ map (if useJS then valueToJS else pp) as
-
-
