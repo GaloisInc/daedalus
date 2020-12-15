@@ -8,6 +8,7 @@ import Data.Maybe (catMaybes)
 
 import Daedalus.Panic
 import Daedalus.Pass
+import Daedalus.PP
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -74,7 +75,7 @@ partialApply tnm' targs newPs args
             $ zipWith (\x y -> (x, ) <$> y) tparams args
     mkOne (ValParam p,     ValArg e)     = addSubst p (texprValue e)
     mkOne (GrammarParam p, GrammarArg e) = addSubst p (texprValue e)
-    mkOne _ = panic "Mismatched argument kinds" []
+    mkOne (p, a) = panic ("Mismatched argument kinds: " ++ show (pp p) ++ " " ++ show (pp a))  []
 
     -- We need to rename the free variables in the arguments s.t. they
     -- aren't captured by binders in tdef.  This might mean renaming

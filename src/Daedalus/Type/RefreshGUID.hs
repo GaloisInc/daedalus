@@ -36,16 +36,16 @@ runRefreshGUIDM m = runReaderT emptySubst (getRefreshGUIDM m)
 -- We assume the decl's name has been refreshed at construction time, a bit hacky though :(  Order
 -- of params shouldn't be that important as we shouldn't have overlap in param GUIDs
 refreshDecl :: TCDecl a -> PassM (TCDecl a)
-refreshDecl TCDecl {..} = runRefreshGUIDM $ (foldr go mk tcDeclParams) []
+refreshDecl TCDecl {..} = runRefreshGUIDM $ (foldl go mk tcDeclParams) []
   where
     mk params' = do def' <- refreshGUID tcDeclDef
                     pure TCDecl { tcDeclParams = params', tcDeclDef = def', .. } 
 
-    go :: Param
-      -> ([Param] -> RefreshGUIDM ann (TCDecl a))
+    go :: ([Param] -> RefreshGUIDM ann (TCDecl a))
+      -> Param
       -> ([Param] -> RefreshGUIDM ann (TCDecl a))
 
-    go param rest = \params'->
+    go rest param = \params'->
       case param of 
         ValParam n     -> withVar n \n' -> rest (ValParam n'     : params')
         ClassParam n   -> withVar n \n' -> rest (ClassParam n'   : params')
