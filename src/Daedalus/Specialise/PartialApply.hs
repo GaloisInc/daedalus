@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 
 import Daedalus.Panic
-import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -32,13 +32,13 @@ the original.  Consider, for example:
 -- FIXME: we don't rename here as the GUID guarantees that we have
 -- unique names (ignoring the scopedIdent).  We _will_ need to refresh
 -- the decl.
-partialApply :: HasGUID m => 
+partialApply :: 
   Name            {- ^ New name for instantiate declaration -}   ->
   [Type]          {- ^ Concrete types to use for the instance. -} ->
   [TCName Value]  {- ^ Additional paramteres for the instances. See NOTE -} ->
   [Maybe (Arg a)] {- ^ Concrete values to use for instances. -} ->
   TCDecl a        {- ^ Uninstantiated declaration -} ->
-  m (TCDecl a)
+  PassM (TCDecl a)
 partialApply tnm' targs newPs args
   TCDecl { tcDeclTyParams = ttys,
            tcDeclParams   = tparams,

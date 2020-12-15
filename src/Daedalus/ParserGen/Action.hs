@@ -97,7 +97,7 @@ semToString NoSem = ""
 
 showName :: Name -> String
 showName n =
-  showName1 (nameScope n)
+  showName1 (nameScopedIdent n)
   where
     showName1 ((ModScope _ x)) = show x
     showName1 ((Unknown x)) = show x

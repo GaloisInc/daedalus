@@ -544,7 +544,8 @@ tcModule m =
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
 analyzeDeadVal m =
   do mfs <- ddlGet matchingFunctions
-     case deadValModule mfs m of
+     r <- ddlRunPass (deadValModule mfs m)
+     case r of
        (m1,mfs1) -> ddlUpdate_ \s -> s
           { loadedModules = Map.insert (tcModuleName m1) (DeadValModule m1)
                                        (loadedModules s)

@@ -859,7 +859,8 @@ interpCompiled name bytes env startName =
             , nameScopedIdent x == startName] of
     (rl : _)        -> P.runParser (rl [] [])
                        (newInput name bytes)
-    []              -> error ("Unknown start rule: " ++ show startName)
+    []              -> error ("Unknown start rule: " ++ show startName ++ ". Known rules: "
+                               ++ show [ nameScopedIdent x | (x, _) <- Map.toList (ruleEnv env) ] )
 
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->

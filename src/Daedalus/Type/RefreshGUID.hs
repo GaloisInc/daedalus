@@ -6,27 +6,20 @@
 
 {- Makes all variable unique (again).  Useful for e.g. partial application -}
 
-module Daedalus.Type.RefreshGUID (refreshDecl, refreshName) where
+module Daedalus.Type.RefreshGUID (refreshDecl) where
 
 import MonadLib
 
 import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
 import Daedalus.Type.Traverse
 
 newtype RefreshGUIDM ann a =
-  RefreshGUIDM { getRefreshGUIDM :: forall m. HasGUID m => ReaderT (Subst ann) m a }
-
-deriving instance Functor (RefreshGUIDM ann)
-
-instance Applicative (RefreshGUIDM ann) where
-  RefreshGUIDM m <*> RefreshGUIDM m' = RefreshGUIDM (m <*> m')
-  pure v = RefreshGUIDM $ pure v
-  
-instance Monad (RefreshGUIDM ann) where
-  RefreshGUIDM m >>= f = RefreshGUIDM (m >>= getRefreshGUIDM . f)
+  RefreshGUIDM { getRefreshGUIDM :: ReaderT (Subst ann) PassM a }
+  deriving (Functor, Applicative, Monad, HasGUID)
 
 instance ReaderM (RefreshGUIDM ann) (Subst ann) where
   ask = RefreshGUIDM ask
@@ -34,20 +27,15 @@ instance ReaderM (RefreshGUIDM ann) (Subst ann) where
 instance RunReaderM (RefreshGUIDM ann) (Subst ann) where
   local i m = RefreshGUIDM (local i (getRefreshGUIDM m))
 
-instance HasGUID (RefreshGUIDM ann) where
-  getNextGUID = RefreshGUIDM getNextGUID
+-- instance HasGUID (RefreshGUIDM ann) where
+--   getNextGUID = RefreshGUIDM getNextGUID
 
-runRefreshGUIDM :: HasGUID m => RefreshGUIDM ann a -> m a
+runRefreshGUIDM :: RefreshGUIDM ann a -> PassM a
 runRefreshGUIDM m = runReaderT emptySubst (getRefreshGUIDM m)
-
-refreshName :: HasGUID m =>  TCName k -> m (TCName k)
-refreshName x = do
-  nextg <- getNextGUID
-  pure x { tcName = (tcName x) { nameID = nextg }}
 
 -- We assume the decl's name has been refreshed at construction time, a bit hacky though :(  Order
 -- of params shouldn't be that important as we shouldn't have overlap in param GUIDs
-refreshDecl :: HasGUID m => TCDecl a -> m (TCDecl a)
+refreshDecl :: TCDecl a -> PassM (TCDecl a)
 refreshDecl TCDecl {..} = runRefreshGUIDM $ (foldr go mk tcDeclParams) []
   where
     mk params' = do def' <- refreshGUID tcDeclDef
@@ -85,7 +73,7 @@ instance RefreshGUID a => RefreshGUID (ManyBounds a) where
 
 withVar :: TCName k -> (TCName k -> RefreshGUIDM ann a) -> RefreshGUIDM ann a
 withVar x f = do
-  x' <- refreshName x
+  x' <- deriveTCName x
   mapReader (addSubst x (TCVar x')) (f x')
 
 withVarMaybe :: Maybe (TCName k) -> (Maybe (TCName k) -> RefreshGUIDM ann a) -> RefreshGUIDM ann a

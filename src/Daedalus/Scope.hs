@@ -49,12 +49,12 @@ emptyScopeState = ScopeState { seenToplevelNames = Set.empty }
 
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
-                | DifferentCaseVars ModuleName [Set Name]
+                | DifferentCaseVars [Set Name]
                   deriving Show
 
 instance PP ScopeError where
   pp (ScopeViolation _mn n) = "Undeclared variable" <+> backticks (pp n)
-  pp (DifferentCaseVars _mn vs) =
+  pp (DifferentCaseVars vs) =
     "Different variables in pattern allternatives:" $$
       nest 2 (bullets [ sep (punctuate comma (map pp (Set.toList alt)))
                       | alt <- vs ])
@@ -268,7 +268,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
                             pure ([x'], FFold x' e')
             FMap      -> pure ([], FMap)
 
-        let names = fnames ++ inames mbI ++ [y]
+        let names = fnames ++ inames mbI' ++ [y']
     
         EFor fl' mbI' y'
           <$> resolve b 
@@ -353,25 +353,26 @@ resolveCasePatterns patC =
   case patC of
     PatternDefault e -> PatternDefault <$> resolve e
     PatternCase ps e
-      | all (== bound) otherBound ->
-        PatternCase (map localise ps) <$>
-                        extendLocalScopeIn (Set.toList bound) (resolve e)
+      | all (== bound) otherBound -> do
+          (ps', newVss) <- unzip <$> mapM localise ps
+          PatternCase ps' <$> extendLocalScopeIn (head newVss) (resolve e)
       | otherwise ->
-        do scope <- getScope
-           ScopeM $ throwError
-                  $ DifferentCaseVars (currentModule scope)
-                  $ bound : otherBound
+          ScopeM $ raise
+                 $ DifferentCaseVars -- (currentModule scope)
+                 $ bound : otherBound
 
       where
       bound : otherBound = map patVars ps
 
-      localise :: Pattern -> Pattern
+      localise :: Pattern -> ScopeM (Pattern, [Name])
       localise pat =
         case pat of
-          LitPattern {}  -> pat
-          WildPattern _  -> pat
-          ConPattern c p -> ConPattern c (localise p)
-          VarPattern x   -> VarPattern (makeNameLocal x)
+          LitPattern {}  -> pure (pat, [])
+          WildPattern _  -> pure (pat, [])
+          ConPattern c p -> do (p', ns) <- localise p
+                               pure (ConPattern c p', ns)
+          VarPattern x   -> do x' <- makeNameLocal x
+                               pure (VarPattern x', [x'])
 
       -- Variables bound by a patterns
       patVars :: Pattern -> Set Name

@@ -30,9 +30,9 @@ data Instantiation =
                 , instArgs      :: [Maybe (Arg SourceRange)]
                 }
 
-apInst :: HasGUID m => Instantiation -> TCDecl SourceRange -> m (TCDecl SourceRange)
+apInst :: Instantiation -> TCDecl SourceRange -> PApplyM (TCDecl SourceRange)
 apInst Instantiation {..} =
-  partialApply instNewName instTys instNewParams instArgs
+  liftPassM . partialApply instNewName instTys instNewParams instArgs
 
 instance PP Instantiation where
   pp Instantiation {..} =
@@ -66,6 +66,9 @@ instance HasGUID PApplyM where
 runPApplyM :: [Name] -> PApplyM a -> PassM (Either String a)
 runPApplyM roots m = fst <$> runStateT s0 (runExceptionT (getPApplyM m))
   where s0 = emptyPApplyState  { otherSeenRules = Set.fromList roots }
+
+liftPassM :: PassM a -> PApplyM a
+liftPassM = PApplyM . inBase
 
 -- clearSpecRequests :: Name -> PApplyM ()
 -- clearSpecRequests nm =
