@@ -5,6 +5,7 @@ module Daedalus.ParserGen
   , runnerLL
   , extractValues
   , extractParseError
+  , extractMetrics
   , autToGraphviz
   , createLLA
   , statsLLA
@@ -27,7 +28,8 @@ import Daedalus.ParserGen.RunnerBias (
   runnerBias,
   runnerLL,
   Result(..),
-  extractValues
+  extractValues,
+  extractMetrics
   )
 import Daedalus.ParserGen.Utils (autToGraphviz)
 import Daedalus.ParserGen.LL (createLLA, statsLLA)

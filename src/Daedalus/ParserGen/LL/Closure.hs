@@ -31,7 +31,7 @@ initChoicePos :: ChoiceTag -> ChoicePos
 initChoicePos tag = (tag, 0)
 
 nextChoicePos :: ChoicePos -> ChoicePos
-nextChoicePos pos = (fst pos, snd pos +1)
+nextChoicePos pos = (fst pos, snd pos + 1)
 
 
 
