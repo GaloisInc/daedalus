@@ -3,82 +3,82 @@
 #include "value.h"
 
 
-void print_DictValue(DictValue * kv){
+void printDictValue(DictValue * kv){
 
     if (kv == NULL)
         return;
     else {
         printf("k:%s ", kv->key);
         printf("v:");
-        print_Value(kv->value);
+        printValue(kv->value);
         if (kv->next != NULL) {
             printf(" ");
-            print_DictValue(kv->next);
+            printDictValue(kv->next);
         }
     }
 }
 
-void print_Value(Value * v){
+void printValue(Value * v){
 
     if (v == NULL) {
         printf("VNULL");
         return;
     }
     switch (v->tag) {
-    case VINT: {
-        printf("%d", v->intv);
+    case VInt: {
+        printf("%d", v->intValue);
         break;
     }
-    case VDICT: {
+    case VDict: {
         printf("{ ");
-        print_DictValue(v->dict);
+        printDictValue(v->dictValue);
         printf(" }");
         break;
     }
     default: {
-        printf("not handled case print_value\n");
+        printf("not handled case printValue\n");
         exit(1);
     }
     }
 }
 
-Value * empty_dict(){
+Value * createDictValue(){
     Value * newV = (Value *)malloc(sizeof(Value));
 
-    newV->tag = VDICT;
-    newV->dict = NULL;
+    newV->tag = VDict;
+    newV->dictValue = NULL;
 
     return newV;
 }
 
-Value * add_entry_dict(char *key, Value *v, Value * src){
+Value * addDictEntry(char *key, Value *v, Value * src){
     Value * newV = (Value *)malloc(sizeof(Value));
 
     DictValue * dict = malloc(sizeof(DictValue));
 
-    newV->tag = VDICT;
+    newV->tag = VDict;
     dict->key = key;
     dict->value = v;
-    dict->next = src->dict;
-    newV->dict = dict;
+    dict->next = src->dictValue;
+    newV->dictValue = dict;
 
     return newV;
 }
 
-Value * create_value(int i){
+Value * createIntValue(int i){
     Value * newV = (Value *)malloc(sizeof(Value));
 
-    newV->tag = VINT;
-    newV->intv = i;
+    newV->tag = VInt;
+    newV->intValue = i;
 
     return newV;
 }
 
-Value * get_dict(char * key, Value * v) {
-    if (v->tag != VDICT)
+Value * getDict(char * key, Value * v) {
+    if (v->tag != VDict)
         exit(1);
 
-    DictValue * dict = v->dict;
+    DictValue * dict = v->dictValue;
     while (dict != NULL) {
         if (strcmp(dict->key, key) == 0)
             return dict->value;

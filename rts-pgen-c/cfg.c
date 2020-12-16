@@ -68,7 +68,7 @@ void printStackSem(StackSem * stack) {
     printf("STACK_SEM: ");
     while (stack != NULL && stack->value != NULL){
         printf("Elm: ");
-        print_Value(stack->value);
+        printValue(stack->value);
         stack = stack->up;
     }
     printf("\n");
