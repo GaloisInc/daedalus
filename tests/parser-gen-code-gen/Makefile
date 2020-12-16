@@ -2,7 +2,8 @@
 RTS ?= ../../rts-pgen-c
 LOGLEVEL ?= NONE
 ODIR = .
-CFLAGS = -std=c11 -Wall -g -I ${RTS} -D LOGLEVEL=${LOGLEVEL}
+ENABLE_ASSERT ?= 1
+CFLAGS = -std=c11 -Wall -g -I ${RTS} -D LOGLEVEL=${LOGLEVEL} -DENABLE_ASSERT=${ENABLE_ASSERT}
 
 OBJECTS := $(patsubst ${RTS}/%.c,%.o,$(wildcard ${RTS}/*.c)) grammar.o
 vpath %.c ${RTS}
