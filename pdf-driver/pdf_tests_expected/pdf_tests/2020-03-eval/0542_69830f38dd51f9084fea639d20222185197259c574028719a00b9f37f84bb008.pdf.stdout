@@ -15,5 +15,5 @@ INFO: R:9:0 @1819 is OK.
 INFO: R:10:0 @2030 is OK.
 INFO: R:11:0 @2216 is OK.
 INFO: R:12:0 @3218 is OK.
-ERROR:3632 R:13:0 @3435 Not implemented yet
+INFO: R:13:0 @3435 is OK.
 INFO: R:14:0 @100315 is OK.

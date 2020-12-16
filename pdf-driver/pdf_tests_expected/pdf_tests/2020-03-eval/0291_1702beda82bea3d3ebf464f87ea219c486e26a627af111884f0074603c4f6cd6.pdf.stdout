@@ -5,7 +5,7 @@ INFO: Root reference is R:555:0
 INFO: Catalog is OK.
 INFO: R:1:0 @15855 is OK.
 INFO: R:2:0 @10291 is OK.
-ERROR:383 R:3:0 @15 Not implemented yet
+INFO: R:3:0 @15 is OK.
 INFO: R:4:0 @1597 is OK.
 INFO: R:5:0 @1878 is OK.
 INFO: R:6:0 @1124694 is OK.
@@ -62,7 +62,7 @@ INFO: R:57:0 @22524 is OK.
 INFO: R:58:0 @19500 is OK.
 INFO: R:59:0 @77384 is OK.
 INFO: R:60:0 @66993 is OK.
-ERROR:23015 R:61:0 @22645 Not implemented yet
+INFO: R:61:0 @22645 is OK.
 INFO: R:62:0 @59187 is OK.
 INFO: R:63:0 @1091050 is OK.
 INFO: R:65:0 @59433 is OK.
@@ -85,7 +85,7 @@ INFO: R:82:0 @67342 is OK.
 INFO: R:83:0 @64585 is OK.
 INFO: R:84:0 @100610 is OK.
 INFO: R:85:0 @77743 is OK.
-ERROR:67832 R:86:0 @67463 Not implemented yet
+INFO: R:86:0 @67463 is OK.
 INFO: R:87:0 @69510 is OK.
 INFO: R:88:0 @69838 is OK.
 INFO: R:89:0 @69937 is OK.
