@@ -229,7 +229,7 @@ data LoopFlav a = Fold (TCName Value) (TC a Value)
 
 data Loop a k = Loop
   { loopFlav    :: LoopFlav a
-  , loopKName   :: Maybe (TCName Value)
+  , loopKName   :: Maybe (TCName Value) -- Key name, optional
   , loopElName  :: TCName Value
   , loopCol     :: TC a Value
   , loopBody    :: TC a k

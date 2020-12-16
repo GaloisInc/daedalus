@@ -971,7 +971,7 @@ fromTCTyDef tdef =
 -- | Generate a new local binder
 fromName :: TC.TCName TC.Value -> M (TC.TCName TC.Value, Name)
 fromName x =
-  do let lab = case TC.nameScope (TC.tcName x) of
+  do let lab = case TC.nameScopedIdent (TC.tcName x) of
                  TC.Local i -> i
                  _ -> panic "fromName" ["Not a local name"]
      n <- newName (Just lab) =<< fromTypeM (TC.typeOf x)
@@ -993,7 +993,7 @@ fromGName x = topName (TC.tcName x)
 -- | Add translated name
 fromFDefName :: TC.Name -> TC.Type -> M ()
 fromFDefName x t =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) =<< fromTypeM t
@@ -1002,7 +1002,7 @@ fromFDefName x t =
 -- | Add translated name
 fromCDefName :: TC.Name -> M ()
 fromCDefName x =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromCDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) TBool
@@ -1011,7 +1011,7 @@ fromCDefName x =
 -- | Add translated name
 fromGDefName :: TC.Name -> TC.Type -> M ()
 fromGDefName x t =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) =<< fromGTypeM t
@@ -1169,7 +1169,7 @@ newTName isRec flavor nm = M \r s ->
                    TC.TCTy a -> (a, Nothing)
                    TC.TCTyAnon a i -> (a, Just i)
       x = TName { tnameId = n
-                , tnameText = case TC.nameScope l of
+                , tnameText = case TC.nameScopedIdent l of
                                 TC.ModScope _ txt -> txt
                                 _ -> panic "newTName" [ "Not a ModScope" ]
                 , tnameAnon = anon
@@ -1237,7 +1237,7 @@ topName x = M \_ s ->
 
 scopedIdent :: TC.ScopedIdent -> M FName
 scopedIdent n = M \_ s ->
-  case [ r | (x,r) <- Map.toList (topNames s), TC.nameScope x == n ] of
+  case [ r | (x,r) <- Map.toList (topNames s), TC.nameScopedIdent x == n ] of
     [ f ] -> (f,s)
     _ -> error "scopedIdent" ["Missing entry: " ++ show n ]
 

@@ -19,15 +19,15 @@ P035.A : Grammar P035.A =
      pure {a = a,
            b = b}
  
+P035.RepA : Grammar [P035.A] =
+  do ($$ : [P035.A]) <- Many[] P035.A
+     pure $$
+ 
 P035.F (x : [uint 8]) (a : [uint 8]) (b : [uint 8]) : Grammar [uint 8] =
   do @MatchBytes x
      @MatchBytes b
      @MatchBytes a
      ($$ : [uint 8]) <- pure "BA"
-     pure $$
- 
-P035.RepA : Grammar [P035.A] =
-  do ($$ : [P035.A]) <- Many[] P035.A
      pure $$
  
 P035.Main : Grammar P035.Main =
@@ -47,6 +47,9 @@ P035._A : Grammar {} =
   do @MatchBytes "a"
      @MatchBytes "b"
  
+P035._RepA : Grammar {} =
+  @Many[] P035._A
+ 
 P035._F (x : [uint 8]) (a : [uint 8]) (b : [uint 8]) : Grammar {} =
   do @MatchBytes x
      @MatchBytes b
@@ -62,6 +65,3 @@ P035._Main : Grammar {} =
      @MatchBytes " S"
      @MatchBytes "ba"
      END
- 
-P035._RepA : Grammar {} =
-  @Many[] P035._A

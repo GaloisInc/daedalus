@@ -39,7 +39,7 @@ INFO: R:48:0 @62786 is OK.
 INFO: R:49:0 @62863 is OK.
 INFO: R:50:0 @62930 is OK.
 INFO: R:51:0 @63269 is OK.
-ERROR:63399 R:52:0 @63322 Not implemented yet
+INFO: R:52:0 @63322 is OK.
 INFO: R:53:0 @63898 is OK.
 ERROR:64060 R:54:0 @63919 Codec.Compression.Zlib: premature end of compressed data stream
 INFO: R:55:0 @64230 is OK.

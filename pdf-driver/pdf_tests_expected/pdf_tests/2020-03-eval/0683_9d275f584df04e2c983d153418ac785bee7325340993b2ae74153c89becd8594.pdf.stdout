@@ -1,31 +1,3 @@
 INFO: File size 18347 bytes.
 INFO:116 Found xref table.
-INFO: 25 xref entries.
-WARNING: Encrypted document; spurious errors may follow.
-INFO: Root reference is R:51:0
-INFO: Catalog is OK.
-INFO: R:1:0 @5403 is OK.
-ERROR:5693 R:2:0 @5643 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-INFO: R:3:0 @8718 is OK.
-ERROR:9008 R:4:0 @8958 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:11601 R:5:0 @11525 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-INFO: R:6:0 @12372 is OK.
-INFO: R:7:0 @12405 is OK.
-INFO: R:8:0 @12428 is OK.
-INFO: R:9:0 @12491 is OK.
-INFO: R:10:0 @16884 is OK.
-INFO: R:49:0 @16 is OK.
-INFO: R:50:0 @995 is OK.
-INFO: R:51:0 @1132 is OK.
-INFO: R:52:0 @1450 is OK.
-INFO: R:53:0 @1499 is OK.
-INFO: R:54:0 @1656 is OK.
-INFO: R:55:0 @1898 is OK.
-INFO: R:56:0 @2217 is OK.
-INFO: R:57:0 @2692 is OK.
-INFO: R:58:0 @2919 is OK.
-INFO: R:59:0 @3140 is OK.
-INFO: R:60:0 @3182 is OK.
-ERROR:3309 R:61:0 @3258 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-INFO: R:62:0 @828 is OK.
-ERROR:691 R:63:0 @618 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:18324 Missing key: "ID"

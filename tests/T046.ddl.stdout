@@ -12,12 +12,6 @@ type T046.Main = { a1: int
  
 --- Rules:
  
-T046.ExampleMap : Grammar (Map int int) =
-  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
-                                                           6,
-                                                           7])
-    (Insert k x s)
- 
 T046.l1 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (xs : ?a0) : int =
   for ((s : int) = 0; (x : int) in xs)
     (s + x)
@@ -25,6 +19,12 @@ T046.l1 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (xs : ?a
 T046.l2 ?a0 (Traversable ?a0) (HasKey ?a0 int) (HasElement ?a0 int) (xs : ?a0) : int =
   for ((s : int) = 0; (k : int), (x : int) in xs)
     ((s + x) + k)
+ 
+T046.ExampleMap : Grammar (Map int int) =
+  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
+                                                           6,
+                                                           7])
+    (Insert k x s)
  
 T046.Main : Grammar T046.Main =
   do (a1 : int) <- pure (T046.l1 [int] int [1,

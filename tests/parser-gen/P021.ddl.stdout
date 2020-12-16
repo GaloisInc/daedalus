@@ -19,18 +19,18 @@ type P021.Main = { p: P021.B
  
 P021.A : Grammar P021.A =
   Choose biased
-    { {- x -} do (_0 : [uint 8]) <- MatchBytes "a"
-                 pure {x: _0}
-    | {- y -} do (_1 : [uint 8]) <- MatchBytes "a"
-                 pure {y: _1}
+    { {- x -} do (_5 : [uint 8]) <- MatchBytes "a"
+                 pure {x: _5}
+    | {- y -} do (_6 : [uint 8]) <- MatchBytes "a"
+                 pure {y: _6}
     }
  
 P021.B : Grammar P021.B =
   Choose fair
-    { {- z -} do (_2 : [uint 8]) <- MatchBytes "a"
-                 pure {z: _2}
-    | {- t -} do (_3 : [uint 8]) <- MatchBytes "a"
-                 pure {t: _3}
+    { {- z -} do (_7 : [uint 8]) <- MatchBytes "a"
+                 pure {z: _7}
+    | {- t -} do (_8 : [uint 8]) <- MatchBytes "a"
+                 pure {t: _8}
     }
  
 P021.Main : Grammar P021.Main =

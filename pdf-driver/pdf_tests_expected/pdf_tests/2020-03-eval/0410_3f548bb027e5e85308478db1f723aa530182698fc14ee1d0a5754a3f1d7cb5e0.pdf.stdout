@@ -24,7 +24,7 @@ INFO: R:18:0 @1066344 is OK.
 ERROR:1066506 R:19:0 @1066366 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
 INFO: R:20:0 @1067601 is OK.
 INFO: R:21:0 @1067623 is OK.
-ERROR:1067721 R:22:0 @1067644 Not implemented yet
+INFO: R:22:0 @1067644 is OK.
 INFO: R:23:0 @1068220 is OK.
 INFO: R:24:0 @1068273 is OK.
 INFO: R:25:0 @1068304 is OK.

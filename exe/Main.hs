@@ -81,10 +81,7 @@ handleOptions opts
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
            specMod  = "DaedalusMain"
-           mainNm = Name { nameScope = ModScope (fst mainRule) (snd mainRule)
-                         , nameContext = AGrammar
-                         , nameRange = synthetic
-                         }
+           mainNm = primName (fst mainRule) (snd mainRule) AGrammar
 
        case optCommand opts of
 

@@ -3,15 +3,23 @@ module T050
 --- Imports:
  
 --- Type defs:
-type T050.Main = { x1: int
-                 ; x2: int
-                 }
- 
 type T050.V = Choose { number: int
                      ; other: [uint 8]
                      }
  
+type T050.Main = { x1: int
+                 ; x2: int
+                 }
+ 
 --- Rules:
+ 
+T050.V ?a1 (Literal 1 ?a1) : Grammar T050.V =
+  Choose fair
+    { {- number -} do (_12 : int) <- 1 AS int
+                      pure {number: _12}
+    | {- other -} do (_13 : [uint 8]) <- MatchBytes "X"
+                     pure {other: _13}
+    }
  
 T050.Default ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar ?a0 =
   Choose biased
@@ -35,12 +43,10 @@ T050.Main : Grammar T050.Main =
      pure {x1 = x1,
            x2 = x2}
  
-T050.V ?a1 (Literal 1 ?a1) : Grammar T050.V =
+T050._V ?a1 (Literal 1 ?a1) : Grammar {} =
   Choose fair
-    { {- number -} do (_0 : int) <- 1 AS int
-                      pure {number: _0}
-    | {- other -} do (_1 : [uint 8]) <- MatchBytes "X"
-                     pure {other: _1}
+    { {- number -} @(1 AS int)
+    | {- other -} @MatchBytes "X"
     }
  
 T050._Default ?a0 (_P : Grammar {}) : Grammar {} =
@@ -56,9 +62,3 @@ T050._LookupInt (arr : [T050.V]) (i : int) : Grammar {} =
 T050._Main : Grammar {} =
   do T050._LookupInt T050.arr 0
      T050._LookupInt T050.arr 2
- 
-T050._V ?a1 (Literal 1 ?a1) : Grammar {} =
-  Choose fair
-    { {- number -} @(1 AS int)
-    | {- other -} @MatchBytes "X"
-    }

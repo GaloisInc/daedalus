@@ -5,33 +5,33 @@ WARNING: Encrypted document; spurious errors may follow.
 INFO: Root reference is R:51:0
 ERROR:236340 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
 INFO: R:1:0 @79672 is OK.
-ERROR:79850 R:2:0 @79800 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:80215 R:3:0 @80141 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:97021 R:4:0 @96970 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:98417 R:5:0 @98112 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:113263 R:6:0 @113188 Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
+INFO: R:2:0 @79800 is OK.
+INFO: R:3:0 @80141 is OK.
+INFO: R:4:0 @96970 is OK.
+INFO: R:5:0 @98112 is OK.
+INFO: R:6:0 @113188 is OK.
 INFO: R:7:0 @113634 is OK.
-ERROR:113812 R:8:0 @113762 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:114177 R:9:0 @114103 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:126904 R:10:0 @126852 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:8:0 @113762 is OK.
+INFO: R:9:0 @114103 is OK.
+INFO: R:10:0 @126852 is OK.
 INFO: R:11:0 @128155 is OK.
-ERROR:141186 R:12:0 @140867 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:153873 R:13:0 @153797 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:12:0 @140867 is OK.
+INFO: R:13:0 @153797 is OK.
 INFO: R:14:0 @154308 is OK.
-ERROR:154489 R:15:0 @154438 Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
-ERROR:155054 R:16:0 @154780 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:172027 R:17:0 @171953 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:172194 R:18:0 @172142 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:173392 R:19:0 @173317 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:198903 R:20:0 @198851 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:200229 R:21:0 @200154 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:215772 R:22:0 @215720 Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
-ERROR:217098 R:23:0 @217023 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:231929 R:24:0 @231853 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:15:0 @154438 is OK.
+INFO: R:16:0 @154780 is OK.
+INFO: R:17:0 @171953 is OK.
+INFO: R:18:0 @172142 is OK.
+INFO: R:19:0 @173317 is OK.
+INFO: R:20:0 @198851 is OK.
+INFO: R:21:0 @200154 is OK.
+INFO: R:22:0 @215720 is OK.
+INFO: R:23:0 @217023 is OK.
+INFO: R:24:0 @231853 is OK.
 INFO: R:25:0 @232604 is OK.
-ERROR:236340 R:26:0 @236266 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:236514 R:27:0 @236439 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-INFO: R:28:0 @236757 is OK.
+INFO: R:26:0 @236266 is OK.
+INFO: R:27:0 @236439 is OK.
+ERROR:236986 R:28:0 @236757 Length of encrypted data must be a multiple of block size (16). Actual length: 135
 ERROR:113263 R:29:0 @compresed Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
 ERROR:113263 R:30:0 @compresed Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
 ERROR:113263 R:31:0 @compresed Codec.Compression.Zlib: compressed data stream format error (unknown compression method)
@@ -56,19 +56,19 @@ INFO: R:49:0 @16 is OK.
 INFO: R:50:0 @747 is OK.
 INFO: R:51:0 @961 is OK.
 INFO: R:52:0 @1024 is OK.
-ERROR:1233 R:53:0 @1154 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:2983 R:54:0 @2932 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:3389 R:55:0 @3338 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:3755 R:56:0 @3680 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:15858 R:57:0 @15806 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:17184 R:58:0 @17109 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:29047 R:59:0 @28995 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:30373 R:60:0 @30298 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:45132 R:61:0 @45080 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:46458 R:62:0 @46383 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:62753 R:63:0 @62701 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:64197 R:64:0 @63924 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-INFO: R:65:0 @116 is OK.
+INFO: R:53:0 @1154 is OK.
+INFO: R:54:0 @2932 is OK.
+INFO: R:55:0 @3338 is OK.
+INFO: R:56:0 @3680 is OK.
+INFO: R:57:0 @15806 is OK.
+INFO: R:58:0 @17109 is OK.
+INFO: R:59:0 @28995 is OK.
+INFO: R:60:0 @30298 is OK.
+INFO: R:61:0 @45080 is OK.
+INFO: R:62:0 @46383 is OK.
+INFO: R:63:0 @62701 is OK.
+INFO: R:64:0 @63924 is OK.
+ERROR:369 R:65:0 @116 Length of encrypted data must be a multiple of block size (16). Actual length: 77
 ERROR:1233 R:66:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
 ERROR:1233 R:67:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
 ERROR:1233 R:68:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
@@ -90,4 +90,4 @@ ERROR:1233 R:83:0 @compresed Codec.Compression.Zlib: compressed data stream form
 ERROR:1233 R:84:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
 ERROR:1233 R:85:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
 ERROR:1233 R:86:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:552 R:87:0 @489 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: R:87:0 @489 is OK.

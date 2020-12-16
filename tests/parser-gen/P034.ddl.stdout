@@ -26,10 +26,10 @@ P034.CB : Grammar [uint 8] =
 P034.Main : Grammar P034.Main =
   do (a : uint 8) <- Match {'a'}
      (t : P034.Main0) <- Choose fair
-                           { {- x -} do (_0 : [uint 8]) <- P034.CA
-                                        pure {x: _0}
-                           | {- y -} do (_1 : [uint 8]) <- P034.CB
-                                        pure {y: _1}
+                           { {- x -} do (_7 : [uint 8]) <- P034.CA
+                                        pure {x: _7}
+                           | {- y -} do (_8 : [uint 8]) <- P034.CB
+                                        pure {y: _8}
                            }
      END
      pure {a = a,

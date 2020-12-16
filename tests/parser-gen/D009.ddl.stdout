@@ -18,6 +18,12 @@ D009.Chunk ?a5 (n : int) (P : Grammar ?a5) : Grammar ?a5 =
      SetStream next
      pure $$
  
+D009.PadWSpaces ?a3 (n : int) (P : Grammar ?a3) : Grammar ?a3 =
+  D009.Chunk ?a3 n do ($$ : ?a3) <- P
+                      @Many[] @Match {' '}
+                      END
+                      pure $$
+ 
 D009._Chunk ?a5 (n : int) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
@@ -38,12 +44,6 @@ D009.Main : Grammar {} =
        }
      ($$ : {}) <- END
      pure $$
- 
-D009.PadWSpaces ?a3 (n : int) (P : Grammar ?a3) : Grammar ?a3 =
-  D009.Chunk ?a3 n do ($$ : ?a3) <- P
-                      @Many[] @Match {' '}
-                      END
-                      pure $$
  
 D009._Main : Grammar {} =
   do Choose fair

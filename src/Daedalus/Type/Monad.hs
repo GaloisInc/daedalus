@@ -1,6 +1,6 @@
 {-# Language BlockArguments, OverloadedStrings, DataKinds #-}
 {-# Language NamedFieldPuns #-}
-{-# Language TypeFamilies, GeneralizedNewtypeDeriving #-}
+{-# Language TypeFamilies, GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor #-}
 {-# Language MultiParamTypeClasses #-}
 {-# Language RankNTypes #-}
 module Daedalus.Type.Monad
@@ -75,6 +75,8 @@ import MonadLib
 
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -113,12 +115,21 @@ reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM ( WithBase Id
+newtype MTypeM a = MTypeM { getMTypeM :: 
+                            WithBase PassM
                               '[ ReaderT MRO
-                               , StateT  MRW
                                , ExceptionT TypeError
                                ] a
-                          ) deriving (Functor,Applicative,Monad)
+                          }
+                   
+deriving instance Functor MTypeM
+
+instance Applicative MTypeM where
+  MTypeM m <*> MTypeM m' = MTypeM (m <*> m')
+  pure v = MTypeM $ pure v
+  
+instance Monad MTypeM where
+  MTypeM m >>= f = MTypeM (m >>= getMTypeM . f)
 
 type RuleEnv  = Map Name (Poly RuleType)
 
@@ -127,49 +138,37 @@ data MRO = MRO
   , roTypeDefs      :: !(Map TCTyName TCTyDecl)
   }
 
-data MRW = MRW
-  { sNextValName    :: !Int -- ^ Generate names.
-  }
-
-
-
 -- XXX: maybe preserve something about the state?
 runMTypeM :: Map TCTyName TCTyDecl ->
              RuleEnv ->
-             MTypeM a -> Either TypeError a
-runMTypeM tenv renv (MTypeM m) =
-  case runId $ runExceptionT $ runStateT s0 $ runReaderT r0 m of
-    Left err    -> Left err
-    Right (a,_) -> Right a
-
+             MTypeM a -> PassM (Either TypeError a)
+runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
                    }
-        s0   = MRW { sNextValName   = 0 -- XXX: 
-                   }
 
-
+instance HasGUID MTypeM where
+  getNextGUID = MTypeM $ inBase (getNextGUID :: PassM GUID)
 
 instance MTCMonad MTypeM where
   reportError r s =
     MTypeM (raise (TypeError Located { thingRange = range r, thingValue = s }))
 
-  newName r ty = MTypeM $ sets' \s ->
-    let n  = sNextValName s
-        nm = case kindOf ty of
-               KValue ->
-                 let txt = Text.pack ("_" ++ show n)
-                 in TCName { tcName =
-                               Name { nameScope   = Local txt
-                                    , nameContext = AValue
-                                    , nameRange   = range r
-                                    }
-                           , tcType = ty
-                           , tcNameCtx = AValue
-                           }
-               k -> error ("bug: new name of unexpected kind: " ++ show k)
-    in (nm, s { sNextValName = n + 1 })
-
+  newName r ty = do
+    n <- getNextGUID
+    pure $ case kindOf ty of
+             KValue ->
+               let txt = Text.pack ("_" ++ show (pp n))
+               in TCName { tcName =
+                             Name { nameScopedIdent = Local txt
+                                  , nameContext     = AValue
+                                  , nameRange       = range r
+                                  , nameID          = n
+                                  }
+                         , tcType = ty
+                         , tcNameCtx = AValue
+                         }
+             k -> error ("bug: new name of unexpected kind: " ++ show k)
 
   getRuleEnv = MTypeM (roRuleTypes <$> ask)
 

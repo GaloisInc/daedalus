@@ -13,6 +13,10 @@ type D011.Main = { b1: D011.FL
  
 --- Rules:
  
+D011.numBase (base : int) (ds : [int]) : int =
+  for ((val : int) = 0; (d : int) in ds)
+    ((val * base) + d)
+ 
 D011.Numeral : Grammar (uint 8) =
   Match ('0' .. '9')
  
@@ -21,10 +25,6 @@ D011.Digit : Grammar int =
      ($$ : int) <- pure (d - '0' as int)
      pure $$
  
-D011.numBase (base : int) (ds : [int]) : int =
-  for ((val : int) = 0; (d : int) in ds)
-    ((val * base) + d)
- 
 D011.UnsignedNum (digs : int) : Grammar int =
   do (ds : [int]) <- Many[digs] D011.Digit
      ($$ : int) <- pure (D011.numBase 10 ds)
@@ -32,10 +32,10 @@ D011.UnsignedNum (digs : int) : Grammar int =
  
 D011.FL : Grammar D011.FL =
   Choose biased
-    { {- unknown_length -} do (_0 : [uint 8]) <- Many[12] Match {'9'}
-                              pure {unknown_length: _0}
-    | {- file_length -} do (_1 : int) <- D011.UnsignedNum 12
-                           pure {file_length: _1}
+    { {- unknown_length -} do (_17 : [uint 8]) <- Many[12] Match {'9'}
+                              pure {unknown_length: _17}
+    | {- file_length -} do (_18 : int) <- D011.UnsignedNum 12
+                           pure {file_length: _18}
     }
  
 D011.Main : Grammar D011.Main =

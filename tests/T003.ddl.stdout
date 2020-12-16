@@ -17,13 +17,13 @@ rec
 rec value
   T003.List : Grammar T003.List =
     Choose fair
-      { {- node -} do (_0 : T003.List0) <- do (head : uint 8) <- GetByte
+      { {- node -} do (_3 : T003.List0) <- do (head : uint 8) <- GetByte
                                               (tail : T003.List) <- T003.List
                                               pure {head = head,
                                                     tail = tail}
-                      pure {node: _0}
-      | {- nil -} do (_1 : {}) <- pure {}
-                     pure {nil: _1}
+                      pure {node: _3}
+      | {- nil -} do (_4 : {}) <- pure {}
+                     pure {nil: _4}
       }
  
 T003._List : Grammar {} =

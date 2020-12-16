@@ -111,7 +111,7 @@ makeNameConstExpr ms =
     Nothing -> makeIntConstExpr 0
   where
     name2String n = do
-      let x = DAST.nameScope n
+      let x = DAST.nameScopedIdent n
       case x of
         DAST.Unknown ident -> unpack ident
         DAST.Local   ident -> unpack ident

@@ -856,10 +856,11 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
 interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> Result Value
 interpCompiled name bytes env startName =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
-            , nameScope x == startName] of
+            , nameScopedIdent x == startName] of
     (rl : _)        -> P.runParser (rl [] [])
                        (newInput name bytes)
-    []              -> error ("Unknown start rule: " ++ show startName)
+    []              -> error ("Unknown start rule: " ++ show startName ++ ". Known rules: "
+                               ++ show [ nameScopedIdent x | (x, _) <- Map.toList (ruleEnv env) ] )
 
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->

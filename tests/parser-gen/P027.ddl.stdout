@@ -3,23 +3,23 @@ module P027
 --- Imports:
  
 --- Type defs:
-type P027.Main = { x: [[uint 8]]
-                 }
- 
 type P027.UnsignedNumber = { n: int
                            ; y: int
                            }
  
+type P027.Main = { x: [[uint 8]]
+                 }
+ 
 --- Rules:
+ 
+P027.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
+  for ((val : ?a4) = 0; (d : ?a4) in ds)
+    ((val * base) + d)
  
 P027.Digit : Grammar int =
   do (d : uint 8) <- Match ('0' .. '9')
      ($$ : int) <- pure (d - '0' as int)
      pure $$
- 
-P027.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
-    ((val * base) + d)
  
 P027.Frac : Grammar int =
   do @MatchBytes "."
@@ -38,6 +38,25 @@ P027.Continue : Grammar int =
   Choose biased
     { P027.Frac
     | P027.NoFrac int
+    }
+ 
+P027.Natural : Grammar int =
+  do (ds : [int]) <- Many[ 1 .. ] P027.Digit
+     ($$ : int) <- pure (P027.numBase [int] int int 10 ds)
+     pure $$
+ 
+P027.UnsignedNumber : Grammar P027.UnsignedNumber =
+  Choose fair
+    { do (n : int) <- P027.Natural
+         (y : int) <- P027.Continue
+         pure {n = n,
+               y = y}
+    | do @MatchBytes ""
+         (n : int) <- pure 0
+         @Match {'.'}
+         (y : int) <- P027.Natural
+         pure {n = n,
+               y = y}
     }
  
 P027._Digit : Grammar {} =
@@ -73,25 +92,6 @@ P027.Main : Grammar P027.Main =
                                    ($$ : [uint 8]) <- MatchBytes " "
                                    pure $$
      pure {x = x}
- 
-P027.Natural : Grammar int =
-  do (ds : [int]) <- Many[ 1 .. ] P027.Digit
-     ($$ : int) <- pure (P027.numBase [int] int int 10 ds)
-     pure $$
- 
-P027.UnsignedNumber : Grammar P027.UnsignedNumber =
-  Choose fair
-    { do (n : int) <- P027.Natural
-         (y : int) <- P027.Continue
-         pure {n = n,
-               y = y}
-    | do (n : [uint 8]) <- MatchBytes ""
-         (n : int) <- pure 0
-         @Match {'.'}
-         (y : int) <- P027.Natural
-         pure {n = n,
-               y = y}
-    }
  
 P027._Main : Grammar {} =
   @Many[] do P027._UnsignedNumber

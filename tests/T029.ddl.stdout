@@ -11,10 +11,10 @@ type T029.Main = Choose { x: uint 8
  
 T029.Main : Grammar T029.Main =
   Choose biased
-    { {- x -} do (_0 : uint 8) <- Match {'a'}
-                 pure {x: _0}
-    | {- y -} do (_1 : uint 8) <- Match {'a'}
-                 pure {y: _1}
+    { {- x -} do (_1 : uint 8) <- Match {'a'}
+                 pure {x: _1}
+    | {- y -} do (_2 : uint 8) <- Match {'a'}
+                 pure {y: _2}
     }
  
 T029._Main : Grammar {} =
