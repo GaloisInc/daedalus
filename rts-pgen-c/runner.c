@@ -372,7 +372,7 @@ void printResult(Result * r){
         printf("#%d ", i);
 
 
-        print_Value(cfgs->result->sem->value);
+        printValue(cfgs->result->sem->value);
 
         cfgs = cfgs->next;
         if (cfgs != NULL)

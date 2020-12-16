@@ -36,7 +36,7 @@ Cfg * applyInputAction(InputAction * action, Cfg* cfg, int arrivState) {
 
             //Make a new configuration representing the new state of the automata.
             //TODO: Make sure the semantic value we are pushing on to the stack is correct.
-            Cfg * newCfg = mkCfg(arrivState, cfg->inp, cfg->ctrl, pushStackSem(empty_dict(), cfg->sem));
+            Cfg * newCfg = mkCfg(arrivState, cfg->inp, cfg->ctrl, pushStackSem(createDictValue(), cfg->sem));
             return newCfg;
         }
         case ACT_Temp_ReadChar: {
@@ -45,7 +45,7 @@ Cfg * applyInputAction(InputAction * action, Cfg* cfg, int arrivState) {
             fpos_t newPos;
             int c = readInput(cfg->inp, &newPos);
             if (c == action->readCharData.chr) {
-               Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, pushStackSem(create_value(c), cfg->sem));
+               Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, pushStackSem(createIntValue(c), cfg->sem));
                return newCfg;
             }
             else {
@@ -104,7 +104,7 @@ Cfg * applyControlAction(ControlAction * action, Cfg* cfg, int arrivState) {
 Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
     switch(action->tag) {
         case ACT_EnvFresh: {
-            StackSem* newStack = pushStackSem(empty_dict(), cfg->sem);
+            StackSem* newStack = pushStackSem(createDictValue(), cfg->sem);
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, newStack);
         }
         case ACT_EnvStore: {
@@ -125,7 +125,7 @@ Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
             //Otherwise do the environment update as described above
             Value* storedValue = cfg->sem->value;
             Value* dictValue = cfg->sem->up->value;
-            Value* updatedEnv = add_entry_dict(
+            Value* updatedEnv = addDictEntry(
                 action->envStoreData.name, storedValue, dictValue
             );
 
@@ -146,7 +146,7 @@ Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
 
             //Take the variable name from the parameter, bind it to the value popped from
             //the stack, create a new singleton environment with it and  push on to the stack
-            Value* freshEnv = get_dict(action->returnBindData.expr->name, cfg->sem->value);
+            Value* freshEnv = getDict(action->returnBindData.expr->name, cfg->sem->value);
             StackSem* updatedStack = pushStackSem(freshEnv, cfg->sem->up);
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
         }

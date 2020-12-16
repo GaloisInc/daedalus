@@ -3,10 +3,11 @@
 
 #include <stdio.h>
 
-#define VINT 0
-#define VDICT 1
-#define VARRAY 2
-
+typedef enum {
+    VInt,
+    VDict,
+    VArray
+} ValueType;
 
 typedef struct DictValue {
     char * key;
@@ -15,18 +16,22 @@ typedef struct DictValue {
 } DictValue;
 
 typedef struct Value {
-    int tag;
+    ValueType tag;
     union {
-        int intv;
-        DictValue * dict;
+        int intValue;
+        DictValue * dictValue;
     };
 } Value;
 
-void print_DictValue(DictValue *);
-void print_Value(Value *);
-Value * empty_dict();
-Value * add_entry_dict(char *key, Value *v, Value * src);
-Value * create_value(int i);
-Value * get_dict(char * key, Value * v);
+
+Value * createDictValue();
+void printDictValue(DictValue *);
+Value * addDictEntry(char *key, Value *v, Value * src);
+Value * getDict(char * key, Value * v);
+
+Value * createIntValue(int i);
+
+void printValue(Value *);
+
 
 #endif /* VALUE_H */
