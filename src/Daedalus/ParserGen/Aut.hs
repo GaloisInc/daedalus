@@ -17,6 +17,7 @@ module Daedalus.ParserGen.Aut
   , emptyPopTrans
   , addPopTrans
   , mkArrayAut
+  , getMaxState
   , convertToArrayAut
   )
 
@@ -189,12 +190,9 @@ mkArrayAut :: State -> Transition -> Acceptings -> ArrayAut
 mkArrayAut s t a =
   convertToArrayAut $ mkAut s t a
 
-convertToArrayAut :: MapAut -> ArrayAut
-convertToArrayAut aut =
-  let
-    arr = generate (maxState + 1) (transition aut)
-  in
-    ArrayAut { transitionArray = arr, mapAut = aut }
+getMaxState :: Aut a => a -> State
+getMaxState aut =
+  maxState
   where
     maxState =
       let transitionStates = concatMap states $ allTransitions aut in
@@ -204,6 +202,15 @@ convertToArrayAut aut =
     choiceStates (UniChoice (_, endState)) = [endState]
     choiceStates (SeqChoice lst lastState) = lastState : map snd lst
     choiceStates (ParChoice lst) = map snd lst
+
+convertToArrayAut :: MapAut -> ArrayAut
+convertToArrayAut aut =
+  let
+    maxState = getMaxState aut
+    arr = generate (maxState + 1) (transition aut)
+  in
+    ArrayAut { transitionArray = arr, mapAut = aut }
+
 
 instance Aut ArrayAut where
   initialState dta = initials $ mapAut dta
