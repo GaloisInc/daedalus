@@ -309,12 +309,12 @@ runnerLL gbl s aut laut flagMetrics =
                      let newResumption = addResumption resumption cfg ch in
                        choose newResumption result
 
-      applyPredictions :: LL.Prediction -> LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
+      applyPredictions :: LL.Prediction -> Maybe LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
       applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
         let result = incrResultMetrics tickLL rslt flagMetrics in
         -- trace (show q) $
         case LL.destrPrediction prdx of
-          Nothing -> react cfg (Just finalState) resumption result
+          Nothing -> react cfg finalState resumption result
           Just (alt, alts) ->
             let tr = nextTransition aut q
                 (act, q2) = case (tr, alt) of

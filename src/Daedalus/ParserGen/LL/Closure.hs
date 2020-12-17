@@ -45,11 +45,16 @@ addChoiceSeq pos seqpos = seqpos Seq.|> pos
 
 
 
-data ClosureMove = ClosureMove
-  { altSeq :: ChoiceSeq
-  , closureCfg :: CfgDet
-  , moveCfg :: (ChoicePos, Action, State)
-  }
+data ClosureMove =
+    ClosureMove
+    { altSeq :: ChoiceSeq
+    , closureCfg :: CfgDet
+    , moveCfg :: (ChoicePos, Action, State)
+    }
+  | ClosureAccepting
+    { altSeq :: ChoiceSeq
+    , closureCfg :: CfgDet
+    }
   deriving Show
 
 instance Ord (ClosureMove) where
@@ -95,7 +100,7 @@ closureLoop aut busy (alts, cfg) =
       case ch of
         Nothing ->
           if Aut.isAcceptingState aut q
-          then Abort AbortAcceptingPath
+          then Result [ ClosureAccepting alts cfg ]
           else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
         Just ch1 ->
           let (tag, lstCh) =
@@ -123,7 +128,9 @@ closureLoop aut busy (alts, cfg) =
           case simulateActionCfgDet aut act q2 cfg of
             Abort AbortSymbolicExec -> Abort AbortSymbolicExec
             Result Nothing -> Result []
-            Result (Just lstCfg) -> combineResults (map (\p -> closureLoop aut newBusy (addChoiceSeq pos alts, p)) lstCfg)
+            Result (Just lstCfg) ->
+              let newAlts = addChoiceSeq pos alts in
+              combineResults (map (\p -> closureLoop aut newBusy (newAlts, p)) lstCfg)
             _ -> error "impossible"
 
 
@@ -142,7 +149,6 @@ closureLoop aut busy (alts, cfg) =
             Abort AbortLoopWithNonClass -> r1
             Abort (AbortNonClassInputAction _) -> r1
             Abort AbortUnhandledAction -> r1
-            Abort AbortAcceptingPath -> r1
             Abort AbortSymbolicExec -> r1
             Result res1 ->
               let r2 = combineResults rest in
@@ -151,7 +157,6 @@ closureLoop aut busy (alts, cfg) =
                 Abort AbortLoopWithNonClass -> r2
                 Abort (AbortNonClassInputAction _) -> r2
                 Abort AbortUnhandledAction -> r2
-                Abort AbortAcceptingPath -> r2
                 Abort AbortSymbolicExec -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"

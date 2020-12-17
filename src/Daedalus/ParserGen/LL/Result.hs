@@ -10,7 +10,6 @@ import Daedalus.ParserGen.Action (Action(..))
 
 data AbortOption =
     AbortNotStatic
-  | AbortAcceptingPath
   | AbortNonClassInputAction Action
   | AbortUnhandledAction
   | AbortOverflowMaxDepth
@@ -29,7 +28,6 @@ instance Show(AbortOption) where
   show a =
     case a of
       AbortNotStatic -> "AbortNotStatic"
-      AbortAcceptingPath -> "AbortAcceptingPath"
       AbortNonClassInputAction _ -> "AbortNonClassInputAction"
       AbortUnhandledAction -> "AbortUnhandledAction"
       AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"

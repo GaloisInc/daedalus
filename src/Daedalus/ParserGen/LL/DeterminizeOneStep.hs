@@ -6,7 +6,7 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
     DFARegistry,
     iterDFARegistry,
     findAllEntryInDFARegistry,
-    DetChoice,
+    DetChoice(..),
     DFAState(..),
     mkDFAState,
     isDFAStateInit,
@@ -100,32 +100,60 @@ singletonDFARegistry :: DFAEntry -> DFARegistry
 singletonDFARegistry x = Set.singleton x
 
 
--- fst element is a list of class action transition, the snd possible element is for EndInput test
-type DetChoice = ([ (ClassInterval, DFARegistry) ], Maybe DFARegistry)
+
+data DetChoice =
+  DetChoice
+  { acceptingDetChoice :: Maybe DFARegistry
+  , endDetChoice       :: Maybe DFARegistry
+  , classDetChoice     :: [ (ClassInterval, DFARegistry) ]
+  }
 
 emptyDetChoice :: DetChoice
-emptyDetChoice = ([], Nothing)
+emptyDetChoice =
+  DetChoice
+  { acceptingDetChoice = Nothing
+  , endDetChoice = Nothing
+  , classDetChoice = []
+  }
 
-insertDetChoice :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
-insertDetChoice src ih cm d =
-  let (classChoice, endChoice) = d
-      q = singletonDFARegistry (DFAEntry src cm)
-  in
+
+insertDetChoiceAccepting :: SourceCfg -> ClosureMove -> DetChoice -> DetChoice
+insertDetChoiceAccepting src cm detChoice =
+  let q = singletonDFARegistry (DFAEntry src cm) in
+  let acceptingDetChoice' =
+        case acceptingDetChoice detChoice of
+          Nothing -> Just q
+          Just qs -> Just (unionDFARegistry q qs)
+  in detChoice { acceptingDetChoice = acceptingDetChoice' }
+
+
+
+insertDetChoiceInputHeadCondition :: SourceCfg -> InputHeadCondition -> ClosureMove -> DetChoice -> DetChoice
+insertDetChoiceInputHeadCondition src ih cm detChoice =
+  let q = singletonDFARegistry (DFAEntry src cm) in
   case ih of
     EndInput ->
-      let endChoice' =
-            case endChoice of
+      let endDetChoice' =
+            case endDetChoice detChoice of
               Nothing -> Just q
               Just qs -> Just (unionDFARegistry q qs)
-      in (classChoice, endChoice')
+      in detChoice { endDetChoice = endDetChoice' }
     HeadInput x ->
-      let classChoice' = insertItvInOrderedList (x, q) classChoice unionDFARegistry
-      in (classChoice', endChoice)
+      let classDetChoice' =
+            let c = classDetChoice detChoice in
+              insertItvInOrderedList (x, q) c unionDFARegistry
+      in detChoice { classDetChoice = classDetChoice' }
 
 
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
-unionDetChoice (cl1, e1) (cl2, e2) =
-  let e3 =
+unionDetChoice (DetChoice acc1 e1 cl1) (DetChoice acc2 e2 cl2) =
+  let acc3 =
+        case (acc1, acc2) of
+          (Nothing, _) -> acc2
+          (_, Nothing) -> acc1
+          (Just a1, Just a2) -> Just (unionDFARegistry a1 a2)
+
+      e3 =
         case (e1,e2) of
           (Nothing, Nothing) -> Nothing
           (Nothing, Just _tr2) -> e2
@@ -134,7 +162,7 @@ unionDetChoice (cl1, e1) (cl2, e2) =
   in
   let cl3 =
         foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFARegistry) cl2 cl1
-  in (cl3, e3)
+  in DetChoice acc3 e3 cl3
 
 
 
@@ -152,32 +180,39 @@ determinizeMove src tc =
         t : ms ->
           let
             cfg = closureCfg t
-            (_pos, act, _q) = moveCfg t
             resAcc =
-              case getClassActOrEnd act of
-                Left (Left c) ->
-                  let res = classToInterval c in
-                    case res of
-                      Abort AbortClassIsDynamic -> coerceAbort res
-                      Abort (AbortClassNotHandledYet _) -> coerceAbort res
-                      Result r ->
-                        Result $ insertDetChoice src (HeadInput r) t acc
+              case t of
+                ClosureMove {} ->
+                  let
+                    (_pos, act, _q) = moveCfg t
+                  in
+                    case getClassActOrEnd act of
+                      Left (Left c) ->
+                        let res = classToInterval c in
+                        case res of
+                          Abort AbortClassIsDynamic -> coerceAbort res
+                          Abort (AbortClassNotHandledYet _) -> coerceAbort res
+                          Result r ->
+                            Result $ insertDetChoiceInputHeadCondition src (HeadInput r) t acc
 
-                      _ -> error "Impossible abort"
-                Left (Right (IGetByte _)) ->
-                  Result $ insertDetChoice src (HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
-                Right IEnd -> Result $ insertDetChoice src EndInput t acc
-                _ -> error "Impossible abort"
+                          _ -> error "Impossible abort"
+                      Left (Right (IGetByte _)) ->
+                        Result $ insertDetChoiceInputHeadCondition src (HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
+                      Right IEnd ->
+                        Result $ insertDetChoiceInputHeadCondition src EndInput t acc
+                      _ -> error "Impossible case"
+                ClosureAccepting {} ->
+                  Result $ insertDetChoiceAccepting src t acc
           in
-            if compatibleInput (cfgInput cfg) minp
-            then
-              case resAcc of
-                Abort AbortClassIsDynamic -> coerceAbort resAcc
-                Abort (AbortClassNotHandledYet _) -> coerceAbort resAcc
-                Result newAcc -> determinizeWithAccu ms (Just $ cfgInput cfg) newAcc
-                _ -> error "impossible abort"
-            else
-              Abort AbortIncompatibleInput
+          if compatibleInput (cfgInput cfg) minp
+          then
+            case resAcc of
+              Abort AbortClassIsDynamic -> coerceAbort resAcc
+              Abort (AbortClassNotHandledYet _) -> coerceAbort resAcc
+              Result newAcc -> determinizeWithAccu ms (Just $ cfgInput cfg) newAcc
+              _ -> error "impossible abort"
+          else
+            Abort AbortIncompatibleInput
 
     compatibleInput :: SlkInput -> Maybe SlkInput -> Bool
     compatibleInput inp minp =
@@ -195,7 +230,6 @@ deterministicCfgDet aut cfg =
   case res of
     Abort AbortOverflowMaxDepth -> coerceAbort res
     Abort AbortLoopWithNonClass -> coerceAbort res
-    Abort AbortAcceptingPath -> coerceAbort res
     Abort (AbortNonClassInputAction _) -> coerceAbort res
     Abort AbortUnhandledAction -> coerceAbort res
     Abort AbortSymbolicExec -> coerceAbort res
@@ -296,7 +330,6 @@ determinizeDFAState aut s =
           case r of
             Abort AbortOverflowMaxDepth -> coerceAbort r
             Abort AbortLoopWithNonClass -> coerceAbort r
-            Abort AbortAcceptingPath -> coerceAbort r
             Abort (AbortNonClassInputAction _) -> coerceAbort r
             Abort AbortUnhandledAction -> coerceAbort r
             Abort AbortClassIsDynamic -> coerceAbort r

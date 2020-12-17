@@ -231,7 +231,7 @@ interpPGen useJS inp moduls flagMetrics =
   do let (gbl, aut) = PGen.buildArrayAut moduls
      let dfa = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
-     do mapM_ (\ _ ->
+     do mapM_ (\ i ->
                  do bytes <- case inp of
                                Nothing -> pure BS.empty
                                Just f  -> BS.readFile f
@@ -242,17 +242,19 @@ interpPGen useJS inp moduls flagMetrics =
                       then do putStrLn $ PGen.extractParseError bytes results
                               exitFailure
                       else do dumpValues useJS resultValues
+                              if (i == 1)
+                                then print $ vcat' $ map pp $ resultValues
+                                else return ()
                               if flagMetrics
                                 then
-                                  let countBacktrack = fst (extractMetrics results)
-                                      countLL =        snd (extractMetrics results)
-                                  in
-                                    do putStrLn (
-                                          "\nScore (Det/(Backtrack+Det)): " ++
-                                          (show $ ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%"
-                                          )
+                                let countBacktrack = fst (extractMetrics results)
+                                    countLL =        snd (extractMetrics results)
+                                in
+                                  do putStrLn (
+                                       "\nScore (Det/(Backtrack+Det)): " ++
+                                         (show $ ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")
                                 else return ()
-                              exitSuccess
+                              exitSuccess -- comment this with i > 1
               ) [(1::Int)..repeatNb]
 
 compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
