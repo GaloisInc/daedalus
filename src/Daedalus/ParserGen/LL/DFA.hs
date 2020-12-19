@@ -2,6 +2,7 @@
 
 module Daedalus.ParserGen.LL.DFA
   ( createLLA
+  , buildPipelineLLA
   , statsLLA
   , SynthLLAState
   , LLA(..)
@@ -11,7 +12,7 @@ module Daedalus.ParserGen.LL.DFA
   )
 where
 
-import Debug.Trace
+-- import Debug.Trace
 
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
@@ -792,14 +793,34 @@ synthesizeLLA aut lla =
               | i <- [0..size]
               ]
 
-createLLA :: Aut a => a -> LLA
-createLLA aut =
-  let collectedStates =
-        identifyStartStates ()
-        -- Set.singleton $ initialState aut
+isFullyDeterminizedLLA :: LLA -> Bool
+isFullyDeterminizedLLA lla =
+  let m = mappingSynthToDFAState lla in
+  foldr (\ q b ->
+           case Map.lookup q (transitionLLA lla) of
+             Nothing -> error "broken invariant"
+             Just dfa ->
+               if fromJust $ flagHasFullResolution dfa
+               then b
+               else False) True (map fst (Map.toAscList m))
+
+
+buildPipelineLLA :: Aut a => a -> Either LLA (LLA, LLA)
+buildPipelineLLA aut =
+  let initStates = Set.singleton $ initialState aut
   in
-  let lla1 = go (Set.toList (Set.map mkDFAState collectedStates)) [] emptyLLA
-  in synthesizeLLA aut lla1
+  let lla1 = go (Set.toList (Set.map mkDFAState initStates)) [] emptyLLA
+  in
+    if isFullyDeterminizedLLA lla1
+    then
+      let lla = synthesizeLLA aut lla1
+      in Left lla
+    else
+      let collectedStates = identifyStartStates ()
+      in
+        let lla2 = go (Set.toList (Set.map mkDFAState collectedStates)) [] lla1 in
+        let lla3 = synthesizeLLA aut lla2
+        in Right (lla1, lla3)
   where
     identifyStartStates :: () -> Set.Set State
     identifyStartStates () =
@@ -820,6 +841,7 @@ createLLA aut =
         if isActivateFrameAction act
         then Set.singleton q1
         else Set.empty
+
 
     go :: [DFAState] -> [DFAState] -> LLA -> LLA
     go toVisit nextRound res =
@@ -843,6 +865,11 @@ createLLA aut =
                     revAppend finalStates nextRound
             in go qs newNextRound newRes
 
+createLLA :: Aut a => a -> LLA
+createLLA aut =
+  case buildPipelineLLA aut of
+    Left lla -> lla
+    Right (_lla1, lla2) -> lla2
 
 showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
 showStartSynthLLAState aut dfas q =
@@ -855,8 +882,8 @@ showStartSynthLLAState aut dfas q =
            " " ++ showCfgDet cfg
       else error "broken invariant"
 
-printLLA :: Aut a => a -> LLA -> IO ()
-printLLA aut dfas =
+printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
+printLLA aut dfas cond =
   let t = Map.toAscList (transitionLLA dfas)
       tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut dfas q, dfa)) t
       tMapped = Map.fromList tAnnotated
@@ -864,27 +891,53 @@ printLLA aut dfas =
   in if length t > 10000
      then do return ()
      else mapM_ (\ (ann, dfa) ->
-                    -- if ( (lookaheadDepth dfa < 10)
-                    --      ||
-                    --      (fromJust $ flagHasFullResolution dfa)
-                    --    )
-                    -- then
-                    --   return ()
-                    -- else
+                    if ( cond dfa
+                         -- (lookaheadDepth dfa < 10)
+                         -- ||
+                         -- (fromJust $ flagHasFullResolution dfa)
+                       )
+                    then
                       do
                         putStrLn $ ann
                         putStrLn $ showDFA dfa
                         putStrLn ""
+                    else
+                      return ()
+
                 ) tOrdered
 
 
-statsLLA :: Aut a => a -> LLA -> IO ()
-statsLLA aut dfas =
-  let t = map snd (Map.toAscList (transitionLLA dfas))
-  in do printLLA aut dfas
-        putStrLn "\nReport:"
-        putStrLn $ getReport t initReport
-        putStrLn $ "\nTotal nb states: " ++ show (length t)
+statsLLA :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
+statsLLA aut llas =
+  let nofilter = \ _dfa -> True in
+  case llas of
+    Left lla ->
+      let t = map snd (Map.toAscList (transitionLLA lla)) in
+      do printLLA aut lla nofilter
+         putStrLn "**********************"
+         putStrLn "***** Strict LLA *****"
+         putStrLn "**********************"
+         putStrLn $ getReport t initReport
+         putStrLn $ "Total nb states: " ++ show (length t) ++ "\n"
+         putStrLn "SUCCESS: Fully determinized format"
+
+    Right (lla1, lla) ->
+      let t = map snd (Map.toAscList (transitionLLA lla))
+          t1 = map snd (Map.toAscList (transitionLLA lla1)) in
+      do printLLA aut lla nofilter
+         putStrLn "**********************"
+         putStrLn "**** Extended LLA ****"
+         putStrLn "**********************"
+         putStrLn $ getReport t initReport
+         putStrLn $ "Total nb states: " ++ show (length t) ++ "\n"
+         putStrLn "**********************"
+         putStrLn "***** Strict LLA *****"
+         putStrLn "**********************"
+         putStrLn $ getReport t1 initReport
+         putStrLn $ "Total nb states: " ++ show (length t1) ++ "\n"
+         putStrLn "\nWarning: LL(*) failures:\n"
+         printLLA aut lla1 (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
+
   where
     getReport lst report =
       case lst of

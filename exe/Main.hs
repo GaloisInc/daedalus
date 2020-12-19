@@ -121,8 +121,8 @@ handleOptions opts
               ddlIO (
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
-                   let dfa = PGen.createLLA aut
-                   PGen.statsLLA aut dfa
+                   let llas = PGen.buildPipelineLLA aut
+                   PGen.statsLLA aut llas
                 )
 
          Interp inp ->
@@ -229,13 +229,13 @@ generateCPP opts mm =
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
 interpPGen useJS inp moduls flagMetrics =
   do let (gbl, aut) = PGen.buildArrayAut moduls
-     let dfa = PGen.createLLA aut                   -- LL
+     let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
      do mapM_ (\ i ->
                  do bytes <- case inp of
                                Nothing -> pure BS.empty
                                Just f  -> BS.readFile f
-                    let results = PGen.runnerLL gbl bytes aut dfa flagMetrics  -- LL
+                    let results = PGen.runnerLL gbl bytes aut lla flagMetrics  -- LL
                     -- let results = PGen.runnerBias gbl bytes aut
                     let resultValues = PGen.extractValues results
                     if null resultValues
@@ -252,7 +252,10 @@ interpPGen useJS inp moduls flagMetrics =
                                 in
                                   do putStrLn (
                                        "\nScore (Det/(Backtrack+Det)): " ++
-                                         (show $ ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")
+                                       (if (countBacktrack + countLL) == 0
+                                        then "NA"
+                                        else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")
+                                       )
                                 else return ()
                               exitSuccess -- comment this with i > 1
               ) [(1::Int)..repeatNb]
