@@ -8,6 +8,7 @@ module Daedalus.ParserGen
   , extractMetrics
   , autToGraphviz
   , createLLA
+  , buildPipelineLLA
   , statsLLA
   , generateIO
   , generateTextIO
@@ -32,7 +33,7 @@ import Daedalus.ParserGen.RunnerBias (
   extractMetrics
   )
 import Daedalus.ParserGen.Utils (autToGraphviz)
-import Daedalus.ParserGen.LL (createLLA, statsLLA)
+import Daedalus.ParserGen.LL
 import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
 
 extractParseError :: BS.ByteString -> Result -> String

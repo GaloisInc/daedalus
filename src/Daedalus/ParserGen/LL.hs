@@ -2,6 +2,7 @@
 
 module Daedalus.ParserGen.LL
   ( createLLA
+  , buildPipelineLLA
   , statsLLA
   , LLA(..)
   , Prediction
