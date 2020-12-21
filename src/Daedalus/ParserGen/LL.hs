@@ -14,4 +14,4 @@ module Daedalus.ParserGen.LL
 where
 
 import Daedalus.ParserGen.LL.Closure
-import Daedalus.ParserGen.LL.DFA
+import Daedalus.ParserGen.LL.LLA

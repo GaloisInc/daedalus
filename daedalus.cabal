@@ -67,6 +67,7 @@ library
                        Daedalus.ParserGen.LL.Closure,
                        Daedalus.ParserGen.LL.DeterminizeOneStep,
                        Daedalus.ParserGen.LL.DFA,
+                       Daedalus.ParserGen.LL.LLA,
                        Daedalus.ParserGen.RunnerBias,
                        Daedalus.ParserGen.Generate
 
