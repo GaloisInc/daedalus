@@ -1,17 +1,17 @@
 {-# Language GADTs #-}
 
-module Daedalus.ParserGen.LL.CfgDet
+module Daedalus.ParserGen.LL.SlkCfg
   ( SymbolicStack(..),
     lengthSymbolicStack,
     SlkInput,
-    CfgDet(..),
-    compareCfgDet,
-    initCfgDet,
-    showCfgDet,
-    simulateActionCfgDet,
+    SlkCfg(..),
+    compareSlkCfg,
+    initSlkCfg,
+    showSlkCfg,
+    simulateActionSlkCfg,
     InputHeadCondition(..),
     matchInputHeadCondition,
-    moveCfgDetFromPrev
+    moveSlkCfgFromPrev
   ) where
 
 -- import Debug.Trace
@@ -196,7 +196,7 @@ positionFromBeginning inp =
 instance Eq (SlkInput) where
   (==) inp1 inp2 = positionFromBeginning inp1 == positionFromBeginning inp2
 
-data CfgDet = CfgDet
+data SlkCfg = SlkCfg
   { cfgState :: !State
   , cfgCtrl  :: !SlkControlData
   , cfgSem   :: !SlkSemanticData
@@ -205,15 +205,15 @@ data CfgDet = CfgDet
   deriving (Show)
 
 
-showCfgDet :: CfgDet -> String
-showCfgDet
-  (CfgDet
+showSlkCfg :: SlkCfg -> String
+showSlkCfg
+  (SlkCfg
   { cfgState = q
   , cfgCtrl = ctrl
   , cfgSem = sem
   , cfgInput = inp
   }) =
-  "CfgDet{ " ++
+  "SlkCfg{ " ++
   "q:" ++ show q ++ "; " ++
   "ctrl:" ++ showSymbolicStack ctrl ++ "; " ++
   "sem:" ++ showSymbolicStack sem ++ "; " ++
@@ -221,8 +221,8 @@ showCfgDet
   "}"
 
 
-compareCfgDet :: CfgDet -> CfgDet -> Ordering
-compareCfgDet cfg1 cfg2 =
+compareSlkCfg :: SlkCfg -> SlkCfg -> Ordering
+compareSlkCfg cfg1 cfg2 =
   case compare (cfgState cfg1) (cfgState cfg2) of
     LT -> LT
     GT -> GT
@@ -238,19 +238,19 @@ compareCfgDet cfg1 cfg2 =
               compare (cfgInput cfg1) (cfgInput cfg2)
 
 
-instance Eq CfgDet where
+instance Eq SlkCfg where
   (==) c1 c2 =
-    case compareCfgDet c1 c2 of
+    case compareSlkCfg c1 c2 of
       EQ -> True
       _ -> False
 
-instance Ord CfgDet where
-  compare c1 c2 = compareCfgDet c1 c2
+instance Ord SlkCfg where
+  compare c1 c2 = compareSlkCfg c1 c2
 
 
-initCfgDet :: State -> CfgDet
-initCfgDet q =
-  CfgDet
+initSlkCfg :: State -> SlkCfg
+initSlkCfg q =
+  SlkCfg
   { cfgState = q
   , cfgCtrl = SWildcard
   , cfgSem = SWildcard
@@ -553,8 +553,8 @@ symbExecInp act ctrl out inp =
     _ -> error "TODO"
 
 
-simulateActionCfgDet :: Aut.Aut a => a -> Action -> State -> CfgDet -> R.Result (Maybe [CfgDet])
-simulateActionCfgDet aut act q2 cfg =
+simulateActionSlkCfg :: Aut.Aut a => a -> Action -> State -> SlkCfg -> R.Result (Maybe [SlkCfg])
+simulateActionSlkCfg aut act q2 cfg =
   -- trace "\n" $
   -- trace (show act) $
   -- trace ("CTRL: " ++ show (cfgCtrl cfg)) $
@@ -572,7 +572,7 @@ simulateActionCfgDet aut act q2 cfg =
           R.Result $ Just $
           map
           ( \ (newCtrl, newSem, q2') ->
-              CfgDet
+              SlkCfg
               { cfgState = q2'
               , cfgCtrl = newCtrl
               , cfgSem = newSem
@@ -587,7 +587,7 @@ simulateActionCfgDet aut act q2 cfg =
         Nothing -> R.Result Nothing
         Just newSem ->
           R.Result $ Just
-          [ CfgDet
+          [ SlkCfg
             { cfgState = q2
             , cfgCtrl = cfgCtrl cfg
             , cfgSem = newSem
@@ -603,7 +603,7 @@ simulateActionCfgDet aut act q2 cfg =
         R.Result Nothing -> R.Result Nothing
         R.Result (Just (newInp, newSem)) ->
           R.Result $ Just
-          [ CfgDet
+          [ SlkCfg
             { cfgState = q2
             , cfgCtrl = cfgCtrl cfg
             , cfgSem = newSem
@@ -614,7 +614,7 @@ simulateActionCfgDet aut act q2 cfg =
         _ -> error "impossible"
     _ ->
       R.Result $ Just
-      [ CfgDet
+      [ SlkCfg
         { cfgState = q2
         , cfgCtrl = cfgCtrl cfg
         , cfgSem = cfgSem cfg
@@ -638,8 +638,8 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-moveCfgDetFromPrev :: InputHeadCondition -> CfgDet -> Action -> State -> Maybe CfgDet
-moveCfgDetFromPrev ih cfg act q =
+moveSlkCfgFromPrev :: InputHeadCondition -> SlkCfg -> Action -> State -> Maybe SlkCfg
+moveSlkCfgFromPrev ih cfg act q =
   case (ih, act) of
     (HeadInput _itv, IAct (ClssAct w _)) ->
       let mNewInput = nextSlkInput (cfgInput cfg) in
@@ -648,14 +648,14 @@ moveCfgDetFromPrev ih cfg act q =
         Just newInput ->
           case w of
             YesSem ->
-              Just $ CfgDet
+              Just $ SlkCfg
               { cfgState = q
               , cfgCtrl = cfgCtrl cfg
               , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
               , cfgInput = newInput
               }
             NoSem ->
-              Just $ CfgDet
+              Just $ SlkCfg
               { cfgState = q
               , cfgCtrl = cfgCtrl cfg
               , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
@@ -666,7 +666,7 @@ moveCfgDetFromPrev ih cfg act q =
       case mNewInput of
         Nothing -> Nothing
         Just newInput ->
-          Just $ CfgDet
+          Just $ SlkCfg
           { cfgState = q
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
@@ -677,7 +677,7 @@ moveCfgDetFromPrev ih cfg act q =
       case mNewInput of
         Nothing -> Nothing
         Just newInput ->
-          Just $ CfgDet
+          Just $ SlkCfg
           { cfgState = q
           , cfgCtrl = cfgCtrl cfg
           , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)

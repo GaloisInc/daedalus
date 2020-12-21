@@ -26,12 +26,12 @@ import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd)
 import Daedalus.ParserGen.Aut (Aut(..))
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.Result
-import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.SlkCfg
 import Daedalus.ParserGen.LL.Closure
 
 
 
-type SourceCfg = CfgDet
+type SourceCfg = SlkCfg
 
 data DFAEntry = DFAEntry
   { srcEntry :: SourceCfg
@@ -42,7 +42,7 @@ data DFAEntry = DFAEntry
 
 compareSrc :: DFAEntry -> DFAEntry -> Ordering
 compareSrc p1 p2 =
-  compareCfgDet (srcEntry p1) (srcEntry p2)
+  compareSlkCfg (srcEntry p1) (srcEntry p2)
 
 compareDst :: DFAEntry -> DFAEntry -> Ordering
 compareDst p1 p2 =
@@ -224,8 +224,8 @@ determinizeMove src tc =
 
 
 
-deterministicCfgDet :: Aut a => a -> CfgDet -> Result DetChoice
-deterministicCfgDet aut cfg =
+deterministicSlkCfg :: Aut a => a -> SlkCfg -> Result DetChoice
+deterministicSlkCfg aut cfg =
   let res = closureLL aut cfg in
   case res of
     Abort AbortOverflowMaxDepth -> coerceAbort res
@@ -237,12 +237,12 @@ deterministicCfgDet aut cfg =
     _ -> error "Impossible abort"
 
 
-newtype DFAState = DFAQuo { dfaQuo :: Set.Set CfgDet }
+newtype DFAState = DFAQuo { dfaQuo :: Set.Set SlkCfg }
   deriving Show
 
 mkDFAState :: State -> DFAState
 mkDFAState q =
-    DFAQuo (Set.singleton (initCfgDet q))
+    DFAQuo (Set.singleton (initSlkCfg q))
 
 isDFAStateInit :: DFAState -> Maybe State
 isDFAStateInit q =
@@ -251,9 +251,9 @@ isDFAStateInit q =
     let cfg = Set.elemAt 0 (dfaQuo q)
     in
     case cfg of
-      CfgDet
+      SlkCfg
         { cfgState = qNFA } ->
-        if (initCfgDet qNFA == cfg)
+        if (initSlkCfg qNFA == cfg)
         then Just qNFA
         else Nothing
   else Nothing
@@ -275,7 +275,7 @@ nullDFAState :: DFAState -> Bool
 nullDFAState q =
   Set.null (dfaQuo q)
 
-addDFAState :: CfgDet -> DFAState -> DFAState
+addDFAState :: SlkCfg -> DFAState -> DFAState
 addDFAState cfg q =
   DFAQuo $ Set.insert cfg (dfaQuo q)
 
@@ -303,13 +303,13 @@ convertDFARegistryToDFAState ih s =
           let closCfg = closureCfg $ dstEntry entry
               (_,act,q) = moveCfg $ dstEntry entry
           in
-          let mCfg = moveCfgDetFromPrev ih closCfg act q in
+          let mCfg = moveSlkCfgFromPrev ih closCfg act q in
             case mCfg of
               Nothing -> helper es
               Just newCfg -> addDFAState newCfg (helper es)
 
 
-iterDFAState :: DFAState -> Maybe (CfgDet, DFAState)
+iterDFAState :: DFAState -> Maybe (SlkCfg, DFAState)
 iterDFAState s =
   let lst = Set.toAscList (dfaQuo s) in
     case lst of
@@ -326,7 +326,7 @@ determinizeDFAState aut s =
       case iterDFAState states of
         Nothing -> Result acc
         Just (cfg, rest) ->
-          let r = deterministicCfgDet aut cfg in
+          let r = deterministicSlkCfg aut cfg in
           case r of
             Abort AbortOverflowMaxDepth -> coerceAbort r
             Abort AbortLoopWithNonClass -> coerceAbort r
