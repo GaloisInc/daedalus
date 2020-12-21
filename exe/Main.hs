@@ -241,9 +241,8 @@ interpPGen useJS inp moduls flagMetrics =
                     if null resultValues
                       then do putStrLn $ PGen.extractParseError bytes results
                               exitFailure
-                      else do dumpValues useJS resultValues
-                              if (i == 1)
-                                then print $ vcat' $ map pp $ resultValues
+                      else do if (i == 1)
+                                then dumpValues useJS resultValues
                                 else return ()
                               if flagMetrics
                                 then
