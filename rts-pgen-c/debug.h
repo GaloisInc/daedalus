@@ -53,13 +53,20 @@ typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } LogLevel;
 
 #define ASSERTFAILURECODE 100
 
-#define ASSERT(fmt, ...)                                                  \
-    do {                                                                  \
-        if (ASSERTSTATUS) {                                          \
-            fprintf(stderr, " (%s:%s:%d)", __FILE__, __func__, __LINE__); \
-            fprintf(stderr, " " fmt "\n", ##__VA_ARGS__);                 \
-            exit(ASSERTFAILURECODE) ;                                     \
-        }                                                                 \
+#define ASSERT(condition, fmt, ...)                                           \
+    do {                                                                      \
+        if (ASSERTSTATUS) {                                                   \
+            if (!(condition)) {                                               \
+                fprintf(stderr, " (%s:%s:%d)", __FILE__, __func__, __LINE__); \
+                fprintf(stderr, " " fmt "\n", ##__VA_ARGS__);                 \
+                exit(ASSERTFAILURECODE) ;                                     \
+            }                                                                 \
+        }                                                                     \
+    } while (0)
+
+#define ASSERT_FIELD(elem, field, fmt, ...)                                   \
+    do {                                                                      \
+        ASSERT(elem != NULL && elem->field != NULL, fmt, ##__VA_ARGS__);         \
     } while (0)
 
 
