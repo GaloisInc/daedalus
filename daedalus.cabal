@@ -63,7 +63,7 @@ library
                        Daedalus.ParserGen.LL,
                        Daedalus.ParserGen.LL.ClassInterval,
                        Daedalus.ParserGen.LL.Result,
-                       Daedalus.ParserGen.LL.CfgDet,
+                       Daedalus.ParserGen.LL.SlkCfg,
                        Daedalus.ParserGen.LL.Closure,
                        Daedalus.ParserGen.LL.DeterminizeOneStep,
                        Daedalus.ParserGen.LL.DFA,

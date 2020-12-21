@@ -19,7 +19,7 @@ import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassA
 import qualified Daedalus.ParserGen.Aut as Aut
 
 import Daedalus.ParserGen.LL.Result
-import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.SlkCfg
 
 
 data ChoiceTag = CUni | CPar | CSeq | CPop
@@ -48,12 +48,12 @@ addChoiceSeq pos seqpos = seqpos Seq.|> pos
 data ClosureMove =
     ClosureMove
     { altSeq :: ChoiceSeq
-    , closureCfg :: CfgDet
+    , closureCfg :: SlkCfg
     , moveCfg :: (ChoicePos, Action, State)
     }
   | ClosureAccepting
     { altSeq :: ChoiceSeq
-    , closureCfg :: CfgDet
+    , closureCfg :: SlkCfg
     }
   deriving Show
 
@@ -88,7 +88,7 @@ maxDepthRec :: Int
 maxDepthRec = 800
 
 
-closureLoop :: Aut.Aut a => a -> Set.Set CfgDet -> (ChoiceSeq, CfgDet) -> Result ClosureMoveSet
+closureLoop :: Aut.Aut a => a -> Set.Set SlkCfg -> (ChoiceSeq, SlkCfg) -> Result ClosureMoveSet
 closureLoop aut busy (alts, cfg) =
   if Set.member cfg busy
   then Abort AbortLoopWithNonClass
@@ -125,7 +125,7 @@ closureLoop aut busy (alts, cfg) =
           Abort AbortUnhandledAction
       | Seq.length alts > maxDepthRec = Abort AbortOverflowMaxDepth
       | otherwise =
-          case simulateActionCfgDet aut act q2 cfg of
+          case simulateActionSlkCfg aut act q2 cfg of
             Abort AbortSymbolicExec -> Abort AbortSymbolicExec
             Result Nothing -> Result []
             Result (Just lstCfg) ->
@@ -164,5 +164,5 @@ closureLoop aut busy (alts, cfg) =
 
 
 
-closureLL :: Aut.Aut a => a -> CfgDet -> Result ClosureMoveSet
+closureLL :: Aut.Aut a => a -> SlkCfg -> Result ClosureMoveSet
 closureLL aut cfg = closureLoop aut Set.empty (emptyChoiceSeq, cfg)

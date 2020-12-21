@@ -28,7 +28,7 @@ import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)
 
 
 import Daedalus.ParserGen.LL.Result
-import Daedalus.ParserGen.LL.CfgDet
+import Daedalus.ParserGen.LL.SlkCfg
 import Daedalus.ParserGen.LL.Closure
 import Daedalus.ParserGen.LL.DeterminizeOneStep
 
@@ -879,7 +879,7 @@ showStartSynthLLAState aut dfas q =
     Just (cfg, qs) ->
       if nullDFAState qs
       then stateToString (cfgState cfg) aut ++
-           " " ++ showCfgDet cfg
+           " " ++ showSlkCfg cfg
       else error "broken invariant"
 
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
