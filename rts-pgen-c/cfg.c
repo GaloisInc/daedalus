@@ -1,5 +1,6 @@
 #include "cfg.h"
 #include "debug.h"
+#include "util.h"
 
 #include <stdlib.h>
 
@@ -40,7 +41,7 @@ int readInput(Input* input, fpos_t* newPos) {
 
 //Create a new Input instance given a file and a position
 Input* makeNewInput(FILE* file, fpos_t pos) {
-    Input* newInput = malloc(sizeof(Input));
+    Input* newInput = ALLOCMEM(sizeof(Input));
     newInput->file = file;
     newInput->posInput = pos;
 
@@ -51,14 +52,35 @@ Input* makeNewInput(FILE* file, fpos_t pos) {
 // Semantic Stack Management
 //-----------------------------------------------------------------------//
 
+SemanticElm* createEnvSemanticElm(ValueDict* d) {
+    SemanticElm* elm = ALLOCMEM(sizeof(SemanticElm));
+    elm->tag = SEnvMap;
+    elm->dictValue = d;
+    return elm;
+}
+
+SemanticElm* createValueSemanticElm(Value* v) {
+    SemanticElm* elm = ALLOCMEM(sizeof(SemanticElm));
+    elm->tag = SEVal;
+    elm->value = v;
+    return elm;
+}
+
+SemanticElm* createManyValSemanticElm(ValueList* l) {
+    SemanticElm* elm = ALLOCMEM(sizeof(SemanticElm));
+    elm->tag = SManyVal;
+    elm->listValue = l;
+    return elm;
+}
+
 StackSem * initStackSem() {
     StackSem * st = NULL;
     return st;
 }
 
-StackSem * pushStackSem(Value * v, StackSem *stack) {
+StackSem * pushStackSem(SemanticElm * elm, StackSem *stack) {
     StackSem * st = malloc(sizeof(StackSem));
-    st->value = v;
+    st->semanticElm = elm;
     st->up = stack;
 
     return st;
@@ -66,9 +88,24 @@ StackSem * pushStackSem(Value * v, StackSem *stack) {
 
 void printStackSem(StackSem * stack) {
     printf("STACK_SEM: ");
-    while (stack != NULL && stack->value != NULL){
+    while (stack != NULL && stack->semanticElm != NULL){
         printf("Elm: ");
-        printValue(stack->value);
+        switch(stack->semanticElm->tag) {
+            case SEnvMap:
+                printValueDict(stack->semanticElm->dictValue);
+                break;
+            case SEVal:
+                printValue(stack->semanticElm->value);
+                break;
+            case SManyVal:
+                printValueList(stack->semanticElm->listValue);
+                break;
+            case SEnd:
+                printf("END");
+                break;
+            default:
+                break;
+        }
         stack = stack->up;
     }
     printf("\n");

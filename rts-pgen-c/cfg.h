@@ -11,9 +11,19 @@ typedef struct _Input {
     fpos_t posInput;
 } Input ;
 
+/** Semantic stack value type */
+typedef struct _SemanticElm {
+    enum { SEnvMap, SEVal, SManyVal, SEnd } tag;
+    union {
+        ValueDict* dictValue;
+        Value* value;
+        ValueList* listValue;
+    };
+} SemanticElm ;
+
 /** The semantic stack - essentially a stack of the currently available semantic values */
 typedef struct _StackSem {
-    Value * value;
+    SemanticElm * semanticElm;
     struct _StackSem* up;
 } StackSem;
 
@@ -54,13 +64,22 @@ int readInput(Input* input, fpos_t* newPos);
 /** Make a new input instance */
 Input* makeNewInput(FILE* file, fpos_t pos);
 
+/** Create semantic element from a dictionary */
+SemanticElm* createEnvSemanticElm(ValueDict* d);
+
+/** Create semantic element from a regular value */
+SemanticElm* createValueSemanticElm(Value* v);
+
+/** Create semantic element from a list */
+SemanticElm* createManyValSemanticElm(ValueList* l);
+
 /** Initialize a semantic stack */
 StackSem * initStackSem();
 
-/** Push a value on to the semantic stack */
-StackSem * pushStackSem(Value * v, StackSem *stack);
+/** Push a semantic element to the semantic stack */
+StackSem * pushStackSem(SemanticElm* elm, StackSem * stack);
 
-//** Print the semantic stack */
+/** Print the semantic stack */
 void printStackSem(StackSem * stack);
 
 /** Initialize a control stack */

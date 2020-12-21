@@ -372,7 +372,7 @@ void printResult(Result * r){
         printf("#%d ", i);
 
 
-        printValue(cfgs->result->sem->value);
+        printValue(cfgs->result->sem->semanticElm->value);
 
         cfgs = cfgs->next;
         if (cfgs != NULL)
@@ -385,8 +385,7 @@ Result * choose(Aut* aut, Resumption* resumption, Result* result);
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result);
 
 Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
-
-    LOGE("REACT");
+    LOGD("In REACT");
 
     // TODO: replace this with assert
     if (cfg == NULL)
@@ -429,7 +428,7 @@ Result * react(Aut* aut, Cfg* cfg, Resumption* resumption, Result* result) {
 }
 
 Result * choose(Aut* aut, Resumption* resumption, Result* result) {
-    LOGE("CHOOSE");
+    LOGD("In CHOOSE");
 
     ResumptionTip* tip = getActionCfgAtLevel(resumption);
     if (tip == NULL) {
@@ -467,7 +466,7 @@ Result * choose(Aut* aut, Resumption* resumption, Result* result) {
 }
 
 Result * backtrack(Aut* aut, Resumption* resumption, Result* result) {
-    LOGE("BACKTRACK");
+    LOGD("In BACKTRACK");
     Resumption* newResumption = nextResumption(resumption);
     if (newResumption == NULL)
         return result;

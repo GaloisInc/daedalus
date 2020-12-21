@@ -6,31 +6,44 @@
 typedef enum {
     VInt,
     VDict,
+    VList,
     VArray
 } ValueType;
 
-typedef struct DictValue {
+typedef struct ValueDict {
     char * key;
     struct Value * value;
-    struct DictValue * next;
-} DictValue;
+    struct ValueDict * next;
+} ValueDict;
+
+typedef struct ValueList {
+    int len;
+    struct Value * value;
+    struct ValueList * next;
+} ValueList;
 
 typedef struct Value {
     ValueType tag;
     union {
         int intValue;
-        DictValue * dictValue;
+        ValueDict * dictValue;
+        ValueList* listValue;
     };
 } Value;
 
 
-Value * createDictValue();
-void printDictValue(DictValue *);
-Value * addDictEntry(char *key, Value *v, Value * src);
-Value * getDict(char * key, Value * v);
+ValueDict * createValueDict();
+void printValueDict(ValueDict *);
+ValueDict * addDictEntry(char *key, Value *v, ValueDict * src);
+Value * getDict(char * key, ValueDict * v);
+
+ValueList* createValueList();
+void printValueList(ValueList *);
+ValueList* addListEntry(Value* v, ValueList* src);
 
 Value * createIntValue(int i);
-
+Value * createDictValue(ValueDict* d);
+Value * createListValue(ValueList* l);
 void printValue(Value *);
 
 

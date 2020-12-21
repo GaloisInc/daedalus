@@ -22,7 +22,6 @@ static Cfg * applyControlAction(ControlAction * act, Cfg* cfg, int arrivState);
 
 static Cfg * applySemanticAction(SemanticAction * act, Cfg* cfg, int arrivState);
 
-
 //-----------------------------------------------------------------------//
 // Action execution
 //-----------------------------------------------------------------------//
@@ -34,9 +33,14 @@ Cfg * applyInputAction(InputAction * action, Cfg* cfg, int arrivState) {
             if (!endOfInput(cfg->inp))
                 return NULL;
 
-            //Make a new configuration representing the new state of the automata.
+            //Push a default value to the semantic stack and then make a new configuration.
             //TODO: Make sure the semantic value we are pushing on to the stack is correct.
-            Cfg * newCfg = mkCfg(arrivState, cfg->inp, cfg->ctrl, pushStackSem(createDictValue(), cfg->sem));
+            //Note that the current value type doesn't track with Haskell. Maybe fix?
+            Value* defaultValue = createDictValue(createValueDict());
+            Cfg * newCfg = mkCfg(
+                arrivState, cfg->inp, cfg->ctrl,
+                pushStackSem(createValueSemanticElm(defaultValue), cfg->sem)
+            );
             return newCfg;
         }
         case ACT_Temp_ReadChar: {
@@ -45,7 +49,10 @@ Cfg * applyInputAction(InputAction * action, Cfg* cfg, int arrivState) {
             fpos_t newPos;
             int c = readInput(cfg->inp, &newPos);
             if (c == action->readCharData.chr) {
-               Cfg * newCfg = mkCfg(arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl, pushStackSem(createIntValue(c), cfg->sem));
+               Cfg * newCfg = mkCfg(
+                   arrivState, makeNewInput(cfg->inp->file, newPos), cfg->ctrl,
+                   pushStackSem(createValueSemanticElm(createIntValue(c)), cfg->sem)
+                );
                return newCfg;
             }
             else {
@@ -104,7 +111,8 @@ Cfg * applyControlAction(ControlAction * action, Cfg* cfg, int arrivState) {
 Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
     switch(action->tag) {
         case ACT_EnvFresh: {
-            StackSem* newStack = pushStackSem(createDictValue(), cfg->sem);
+            SemanticElm* elm = createEnvSemanticElm(createValueDict());
+            StackSem* newStack = pushStackSem(elm, cfg->sem);
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, newStack);
         }
         case ACT_EnvStore: {
@@ -116,25 +124,46 @@ Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
             //pushes up a new environment that contains the name mapped to the stored
             //value.
 
-            //If we are not given a variable to store the last value, it means that the
-            //value is being ignored. We do that by simply throwing away the top of the
-            //semantic stack.
-            if (action->envStoreData.name == NULL)
-                return mkCfg(arrivState, cfg->inp, cfg->ctrl, cfg->sem->up);
-
-            //Otherwise do the environment update as described above
-            Value* storedValue = cfg->sem->value;
-            Value* dictValue = cfg->sem->up->value;
-            Value* updatedEnv = addDictEntry(
-                action->envStoreData.name, storedValue, dictValue
+            //The top of the stack must be either a regular value or the end. Everything
+            //else is an error
+            ASSERT_FIELD(cfg->sem, semanticElm, "Top element of semantic stack cannot be empty during ACT_EnvStore");
+            ASSERT(
+                cfg->sem->semanticElm->tag == SEVal || cfg->sem->semanticElm->tag == SEnd,
+                "Invalid top element during ACT_EnvStore: %d", cfg->sem->semanticElm->tag
             );
 
-            StackSem* stackRoot = cfg->sem->up->up;
-            StackSem* updatedStack = pushStackSem(updatedEnv, stackRoot);
+            //And the second element must be an environment map
+            ASSERT_FIELD(cfg->sem->up, semanticElm, "The second element on the semantic stack cannot be empty during ACT_EnvStore");
+            ASSERT(
+                cfg->sem->up->semanticElm->tag == SEnvMap,
+                "Invalid second element during ACT_EnvStore: %d", cfg->sem->semanticElm->tag
+            );
 
+            //If the top semantic element is SEnd OR if we are not given a variable to store the last value,
+            //it means that the value is being ignored. iWe do that by simply throwing away the top of the
+            //semantic stack.
+            if (cfg->sem->semanticElm->tag == SEnd || action->envStoreData.name == NULL)
+                return mkCfg(arrivState, cfg->inp, cfg->ctrl, cfg->sem->up);
+
+            //So we have a Value at the top of the stack and an environment after that.
+            //So do the environment update as described above
+            SemanticElm* first = cfg->sem->semanticElm;
+            SemanticElm* second = cfg->sem->up->semanticElm;
+
+            Value* storedValue = first->value;
+            ValueDict* dictValue = second->dictValue;
+            ValueDict* updatedEnv = addDictEntry(action->envStoreData.name, storedValue, dictValue);
+
+            StackSem* stackRoot = cfg->sem->up->up;
+            SemanticElm* newElem = createEnvSemanticElm(updatedEnv);
+            StackSem* updatedStack = pushStackSem(newElem, stackRoot);
+
+            //Return a new configuration with the updated stack
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
         }
         case ACT_ReturnBind: {
+            //TODO: This implementation DOES NOT track with the Haskell version. Redo soon
+
             //TODO: We currently only support variables in ReturnBind
             if (action->returnBindData.expr->tag != E_VAR) {
                 LOGE("Internal Error: ReturnBind specifies a non-variable. This should not happen currently");
@@ -144,10 +173,17 @@ Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
             //The effect of ReturnBind is to bind the current top of the stack to a specified
             //variable (with the binding is then stored as a dictionary on the stack).
 
+            ASSERT_FIELD(cfg->sem, semanticElm, "Top element of semantic stack cannot be empty during ACT_ReturnBind");
+            ASSERT(
+                cfg->sem->semanticElm->tag == SEnvMap,
+                "Invalid top element during ACT_ReturnBind: %d", cfg->sem->semanticElm->tag
+            );
+
             //Take the variable name from the parameter, bind it to the value popped from
             //the stack, create a new singleton environment with it and  push on to the stack
-            Value* freshEnv = getDict(action->returnBindData.expr->name, cfg->sem->value);
-            StackSem* updatedStack = pushStackSem(freshEnv, cfg->sem->up);
+            Value* v = getDict(action->returnBindData.expr->name, cfg->sem->semanticElm->dictValue);
+            SemanticElm* newValue = createValueSemanticElm(v);
+            StackSem* updatedStack = pushStackSem(newValue, cfg->sem->up);
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
         }
         default: {
