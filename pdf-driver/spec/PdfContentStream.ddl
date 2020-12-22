@@ -1,9 +1,7 @@
 import PdfValue
+import PdfColourSpace
 
 -- general purpose helpers (TODO: some are clones):
-
--- Byte: any byte
-def Byte = 0 .. 255
 
 def Default2 x P = P <| ^ x
 
@@ -17,7 +15,7 @@ def KeyObjsToMap ents =
   for (d = empty; e in ents) (Insert e.key e.obj d)
 
 def GenDict Obj = {
-  @ents = Between "<<" ">>" (Many { key = Name; obj = Obj });
+  @ents = Many { key = Name; obj = Obj };
   KeyObjsToMap ents
 }
 
@@ -229,25 +227,7 @@ def SpecialGraphicsStateSeq FutureOps = Choose1 {
   } ;
 }
 
--- Color spaces (Sec. 8.6)
-def ColorSpace = Choose1 {
-  -- CIE-based color spaces:
-  calRGB = "/CalRGB" ;
-  calGray = "CalGray" ;
-  lab = "/Lab" ;
-  iccBased = "/ICCBased" ;
-  
-  -- Device color spaces:
-  deviceRGB = "/DeviceRGB" ;
-  deviceCMYK = "/DeviceCMYK" ;
-  deviceGray = "/DeviceGray" ;
-
-  -- Special color spaces:
-  sep = "/Separation" ;
-  devN = "/DeviceN" ;
-  indexed = "/Indexed" ;
-  pattern = "/Pattern" ;
-}
+-- TODO: define a dependent iterator for dictionaries
 
 -- Colour Operators (Table 74)
 -- TODO: track color spaces that have been set
@@ -462,18 +442,157 @@ def LookupDirectNat k m =
 -- LastElt fs: the last element in fs
 def LastElt fs = for (last = nothing; f in fs) (just f)
 
+def GetOptVal oval default =
+  case oval is {
+    just v -> v ;
+    nothing -> default
+  }
+
+def TryLookup d k = Default nothing {
+  @v = Lookup d k ;
+  ^ v
+} 
+
+-- Merge two option values, choosing any underlying values. If both
+-- are some values, then fail.
+def TryClashingOpts opt0 opt1 =
+  case opt0 is {
+    just v0 -> {
+      opt1 is nothing ;
+      ^ opt0
+    } ;
+    nothing -> ^ opt1
+  }
+
+-- FindOptObjWKeys: find an optional object under particular keys:
+def FindOptObjWKeys d ks = 
+  for (optV = nothing ; k in ks) {
+    @optV0 = TryClashingOpts optV (TryLookup d k) ;
+    ^ optV0
+  }
+
+-- OptMap: implementation for functorial map for options
+def OptMap x f = case x is {
+  nothing -> nothing ;
+  just v -> just (f x)
+}
+
+-- OptVal: TODO: this may need to get concretized per result type
+def OptVal x default = case x is {
+  just v -> v ;
+  nothing -> default ;
+}
+
+-- HasElt xs needle: whether needle is in xs
+def HasElt xs needle = for (hasElt = false ; x in xs) hasElt || x == needle
+
+-- CoerceBpc n: integer value n coerced to a valid BPC value
+def CoerceBpc n =
+  case (n == 1) is {
+    true -> ^ {| depthOne = ^{} |}
+    false -> {
+      case (n == 2) is {
+        true -> ^ {| depthTwo = ^{} |} ;
+        false -> case (n == 4) is {
+          true -> ^ {| depthFour = ^{} |} ;
+          false -> case (n == 8) is {
+            true -> ^ {| depthEight = ^{} |} ;
+            false -> {
+              (n == 16) is true ;
+              ^ {| depthSixteen = ^{} |} 
+            } ;
+          } ;
+        } ;
+      } ;
+    } ;
+  }
+
+def Validate P = When P {}
+
+def CondWhen cond P = case cond is {
+  true -> P
+  false -> ^{}
+}
+
 -- Inline Image Operators (Table 92)
 def InlineImageObj = {
   KW "BI" ; -- begin image
 
-  -- a sequence of key-value pairs
-  hdrEnts = Many {
+  -- hdrEnts: a map from keys to direct objects
+  hdrEnts = GenDict DirectObj ;
+
+  -- build the header dictionary:
+  dict = {
+    -- imageMask: flag denoting if the image is an image mask
+    imageMask = {
+      @optIm0 = FindOptObjWKeys hdrEnts [ "ImageMask", "IM" ] ;
+      ^OptVal false
+    } ;
+
+    -- filters: list of names filters applied to the image
+    filters = {
+      @f0 = FindOptObjWKeys hdrEnts [ "Filter", "F" ]) ;
+      @nmObjs = OptVal f0 [ ] ;
+      ^ (map (nmObj in nmObjs) (nmObj is name)) -- TODO: fix
+    } ;
+
+    -- BitsPercomponent:
+    @usesJpx = HasElt "JPXDecode" filters ;
+    bpc = case usesJpx is {
+      false -> ^ nothing;
+      true -> {
+        -- bpcOpt: the optional BPC value
+        @bpcOpt = TryLookup dict [ "BitsPerComponent" , "BPC" ] ;
+        -- bpcRefinedOpt: BPC coerced into a valid depth
+        @bpcRefinedOpt = OptMap bpcOpt CoerceBpc ;
+        -- validate depths:
+        case imageMask is {
+          true -> { -- if inlined image is an image mask,
+            case bpcRefinedOpt is { -- then BPC is optional,
+              nothing -> ^ {}
+              just bpcRefined -> Validate (bpcRefined is depthOne)
+              -- but if present, has value 1
+            } 
+          } ;
+          false -> { 
+            @bpcRefined = bpcRefinedOpt is just ; -- otherwise, BPC is required
+            -- CCITTFaxDecode or JBIG2Decode filter...
+            @usesCCITTFax = ^ HasElt "CCITTFaxDecode" filters ;
+            @usesJBIG2 = ^ HasElt "JBIG2Decode" filters ;
+            -- shall always deliver one-bit samples.
+            CondWhen (usesCCITTFax || usesJBIG2)
+              (Validate (bpcRefined is depthOne)) ;
+
+            -- RunLengthDecode or DCTDecode filter...
+            @usesRunLength = ^ HasElt "RunLengthDecode" filters ;
+            @usesDCT = ^ HasElt "DCTDecode" filters ;
+            -- ...shall always deliver eight-bit samples.
+            CondWhen (usesRunLength || usesDCT)
+              (Validate (bpcRefined is depthEight))
+          } ;
+        } ;
+      } ;
+    } ;
+  
+    -- ColorSpace: TODO: define
+    colorSpace = {
+      @colorSpace0 = TryLookup dict [ "ColorSpace", "CS" ] ;
+      case colorSpace0 is {
+        just cs -> case cs is {
+          name nm -> ;
+          array arr -> ;
+          _ -> Fail "inlined image: color space was expected as a name or array"
+        } ;
+        nothing ->
+          -- required for images, except those that use JPXDecode filter
+          Guard usesJpx ;
+      } ;
+      -- not permitted for image masks
+      CondWhen imageMask (Validate (colorSpace0 is nothing)) ;
+    } ;
+
     key = Token Name ;
     Choose1 { -- Entries in Table 91:
-      bpc = { -- Bits Per Component:
-        Guard (key == "BitsPerComponent" || key == "BPC") ;
-        Natural ;
-      } ;
       colorSpace = {
         Guard (key == "ColorSpace" || key == "CS") ;
         Choose1 { -- Color Space:
@@ -494,14 +613,8 @@ def InlineImageObj = {
         }
         -- TODO: check value associated with Filter (see Table 5)
       } ;
-      filter = {
-        Guard (key == "Filter" || key == "F") ;
-        Choose1 {
-          name = Name ;
-          names = GenArray Name ;
-        }
-      } ;
       height = {
+        -- required
         Guard (key == "Height" || key == "H") ;
         Natural 
       } ;
@@ -558,7 +671,7 @@ def InlineImageObj = {
     Many AnyWS
   } ;
 
-  imageData = Many len Byte ;
+  imageData = Many len Uint8 ;
   Many AnyWS;
   KW "EI" ; -- end image
 } 
