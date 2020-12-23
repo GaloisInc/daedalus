@@ -39,7 +39,8 @@ Value * getDict(char * key, ValueDict * v);
 
 ValueList* createValueList();
 void printValueList(ValueList *);
-ValueList* addListEntry(Value* v, ValueList* src);
+ValueList* pushListEntry(Value* v, ValueList* src);
+ValueList* reverseList(ValueList* src);
 
 Value * createIntValue(int i);
 Value * createDictValue(ValueDict* d);

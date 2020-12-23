@@ -186,6 +186,81 @@ Cfg * applySemanticAction(SemanticAction * action, Cfg* cfg, int arrivState) {
             StackSem* updatedStack = pushStackSem(newValue, cfg->sem->up);
             return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
         }
+        case ACT_ManyFreshList: {
+            ValueList* l = createValueList();
+            SemanticElm* newElem = createManyValSemanticElm(l);
+            StackSem* updatedStack = pushStackSem(newElem, cfg->sem);
+
+            return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
+        }
+        case ACT_ManyAppend: {
+            //For ManyAppend, we expect that the top of the stack is the new regular
+            //value to store and the second element on the stack is the current "accumulator"
+            //(i.e. the list where we are storing intermediate elements - originally created in
+            //ACT_ManyFreshList)
+
+            //The top of the stack must be a regular value.
+            ASSERT_FIELD(cfg->sem, semanticElm, "Top element of semantic stack cannot be empty during ACT_ManyAppend");
+            ASSERT(
+                cfg->sem->semanticElm->tag == SEVal,
+                "Invalid top element during ACT_ManyAppend: %d", cfg->sem->semanticElm->tag
+            );
+
+            //And the second element must be an environment map
+            ASSERT_FIELD(cfg->sem->up, semanticElm, "The second element on the semantic stack cannot be empty during ACT_ManyAppend");
+            ASSERT(
+                cfg->sem->up->semanticElm->tag == SManyVal,
+                "Invalid second element during ACT_ManyAppend: %d", cfg->sem->semanticElm->tag
+            );
+
+            StackSem* updatedStack = NULL;
+            if (action->manyAppendData.withsem) {
+                //Push the first element to the front of the list (i.e. the second element)
+                SemanticElm* first = cfg->sem->semanticElm;
+                SemanticElm* second = cfg->sem->up->semanticElm;
+
+                Value* storedValue = first->value;
+                ValueList* listValue = second->listValue;
+                ValueList* newListValue = pushListEntry(storedValue, listValue);
+
+                StackSem* stackRoot = cfg->sem->up->up;
+                SemanticElm* newElem = createManyValSemanticElm(newListValue);
+                updatedStack = pushStackSem(newElem, stackRoot);
+            } else {
+                updatedStack = cfg->sem;
+            }
+
+            //Return a new configuration with the updated stack
+            return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
+        }
+        case ACT_ManyReturn: {
+            //The top of the stack must be list.
+            ASSERT_FIELD(cfg->sem, semanticElm, "Top element of semantic stack cannot be empty during ACT_ManyReturn");
+            ASSERT(
+                cfg->sem->semanticElm->tag == SManyVal,
+                "Invalid top element during ACT_ManyReturn: %d", cfg->sem->semanticElm->tag
+            );
+
+            //Extract the list, convert to a *regular* value and push on to stack
+            SemanticElm* first = cfg->sem->semanticElm;
+            ValueList* lst = first->listValue;
+
+            //TODO: Convert to an array instead of keeping as a list to be in line with Haskell
+            StackSem* stackRoot = cfg->sem->up;
+            Value* newValue = createListValue(lst);
+            SemanticElm* newElem = createValueSemanticElm(newValue);
+            StackSem* updatedStack = pushStackSem(newElem, stackRoot);
+
+            //Return a new configuration with the updated stack
+            return mkCfg(arrivState, cfg->inp, cfg->ctrl, updatedStack);
+        }
+        case ACT_DropOneOut: {
+            //The semantic stack cannot be empty
+            ASSERT_FIELD(cfg->sem, semanticElm, "Top element of semantic stack cannot be empty during ACT_DropOneOut");
+
+            //Return a new configuration after dropping the top of the semantic stack
+            return mkCfg(arrivState, cfg->inp, cfg->ctrl, cfg->sem->up);
+        }
         default: {
             LOGD(
                 "SEMANTICACTION (%s) has no explicit implementation. Treating as epsilon temporarily",
@@ -253,6 +328,14 @@ char * controlActionToString(ControlAction* action) {
             return "ActivateFrame";
         case ACT_DeactivateReady:
             return "DeactivateReady";
+        case ACT_BoundSetup:
+            return "BoundSetup";
+        case ACT_BoundCheckSuccess:
+            return "BoundCheckSuccess";
+        case ACT_BoundIsMore:
+            return "BoundIsMore";
+        case ACT_BoundIncr:
+            return "BoundIncr";
         default:
             return "<UnknownControlAction>";
     }
@@ -266,6 +349,14 @@ char * semanticActionToString(SemanticAction* action) {
             return "EnvStore";
         case ACT_ReturnBind:
             return "ReturnBind";
+        case ACT_ManyFreshList:
+            return "ManyFreshList";
+        case ACT_ManyAppend:
+            return "ManyAppend";
+        case ACT_ManyReturn:
+            return "ManyReturn";
+        case ACT_DropOneOut:
+            return "DropOneOut";
         default:
             return "<UnknownSemanticAction>";
     }
