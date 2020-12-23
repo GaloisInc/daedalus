@@ -66,7 +66,7 @@ typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } LogLevel;
 
 #define ASSERT_FIELD(elem, field, fmt, ...)                                   \
     do {                                                                      \
-        ASSERT(elem != NULL && elem->field != NULL, fmt, ##__VA_ARGS__);         \
+        ASSERT(elem != NULL && elem->field != NULL, fmt, ##__VA_ARGS__);      \
     } while (0)
 
 

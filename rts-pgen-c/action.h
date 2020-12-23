@@ -34,34 +34,6 @@ typedef struct KeyValuePair {
 } KeyValue;
 
 
-/*
-
-Action
-   ACT_EpsA
-   ACT_InputAction
-   ACT_ControlAction
-   ACT_SemanticAction
-
-
-
-InputAction
-    ACT_IEnd                ---> []
-    ACT_IMatchBytes         ---> WithSem VExpr
-    ACT_ReadChar            ---> char
-
-ControlAction
-    ACT_Push                ---> Name, [VExpr], State
-    ACT_Pop                 ---> []
-    ACT_ActivateFrame       ---> NameList
-    ACT_DeactivateReady     ---> []
-
-SemanticAction
-    ACT_EnvFresh,           ---> []
-    ACT_EnvStore,           ---> Name
-    ACT_ReturnBind,         ---> Var / should be VExpr
-
-*/
-
 //--------------------------------------------------------------------------//
 // Input Action Definitions
 //--------------------------------------------------------------------------//
@@ -97,7 +69,11 @@ typedef enum {
     ACT_Push,
     ACT_Pop,
     ACT_ActivateFrame,
-    ACT_DeactivateReady
+    ACT_DeactivateReady,
+    ACT_BoundSetup,
+    ACT_BoundCheckSuccess,
+    ACT_BoundIsMore,
+    ACT_BoundIncr
 } ControlActionType;
 
 typedef struct {
@@ -112,10 +88,28 @@ typedef struct {
 } ActivateFrameData;
 
 typedef struct {
+    Expr* expr;
+} ExactlyData;
+
+typedef struct {
+    Expr* left;
+    Expr* right;
+} BetweenData;
+
+typedef struct {
+    enum { ACT_Exactly, ACT_Between } tag;
+    union {
+        ExactlyData exactlyData;
+        BetweenData betweenData;
+    };
+} BoundSetupData;
+
+typedef struct {
     ControlActionType tag;
     union {
         PushData pushData;
         ActivateFrameData activateFrameData;
+        BoundSetupData boundSetupData;
     };
 } ControlAction ;
 
@@ -126,7 +120,11 @@ typedef struct {
 typedef enum {
     ACT_EnvFresh,
     ACT_EnvStore,
-    ACT_ReturnBind
+    ACT_ReturnBind,
+    ACT_ManyFreshList,
+    ACT_ManyAppend,
+    ACT_ManyReturn,
+    ACT_DropOneOut
 } SemanticActionType;
 
 typedef struct {
@@ -138,10 +136,20 @@ typedef struct {
 } ReturnBindData;
 
 typedef struct {
+    int withsem;
+} ManyFreshListData;
+
+typedef struct {
+    int withsem;
+} ManyAppendData;
+
+typedef struct {
     SemanticActionType tag;
     union {
         EnvStoreData envStoreData;
         ReturnBindData returnBindData;
+        ManyFreshListData manyFreshListData;
+        ManyAppendData manyAppendData;
     };
 } SemanticAction ;
 

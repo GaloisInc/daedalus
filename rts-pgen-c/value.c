@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "value.h"
-
+#include "util.h"
 
 void printValueDict(ValueDict * kv){
 
@@ -55,7 +55,7 @@ ValueDict * createValueDict(){
 }
 
 ValueDict * addDictEntry(char *key, Value *v, ValueDict * src){
-    ValueDict * dict = malloc(sizeof(ValueDict));
+    ValueDict * dict = ALLOCMEM(sizeof(ValueDict));
 
     dict->key = key;
     dict->value = v;
@@ -92,7 +92,7 @@ void printValueList(ValueList * list) {
 }
 
 ValueList* pushListEntry(Value* v, ValueList* src) {
-    ValueList * list = malloc(sizeof(ValueList));
+    ValueList * list = ALLOCMEM(sizeof(ValueList));
     list->len = src == NULL ? 1 : src->len + 1;
     list->value = v;
     list->next = src;
@@ -100,9 +100,27 @@ ValueList* pushListEntry(Value* v, ValueList* src) {
     return list;
 }
 
+ValueList* reverseList(ValueList* lst) {
+    if (lst == NULL)
+        return NULL;
+
+    ValueList* last = NULL;
+    int len = 0;
+    do {
+        ValueList* r = ALLOCMEM(sizeof(ValueList));
+        r->len = ++len ;
+        r->value = lst->value;
+        r->next = last;
+        last = r;
+        lst = lst->next;
+    } while(lst != NULL);
+
+    return last;
+}
+
 
 Value * createIntValue(int i){
-    Value * newV = (Value *)malloc(sizeof(Value));
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
 
     newV->tag = VInt;
     newV->intValue = i;
@@ -111,7 +129,7 @@ Value * createIntValue(int i){
 }
 
 Value * createDictValue(ValueDict* d) {
-    Value * newV = (Value *)malloc(sizeof(Value));
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
 
     newV->tag = VDict;
     newV->dictValue = d;
@@ -120,10 +138,10 @@ Value * createDictValue(ValueDict* d) {
 }
 
 Value * createListValue(ValueList* l) {
-    Value * newV = (Value *)malloc(sizeof(Value));
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
 
-    newV->tag = VDict;
-    newV->dictValue = l;
+    newV->tag = VList;
+    newV->listValue = l;
 
     return newV;
 }

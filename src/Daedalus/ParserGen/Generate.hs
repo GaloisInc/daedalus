@@ -330,6 +330,20 @@ generateSemanticActionData (ReturnBind e) = do
   dataInitializer <- makeStructInitializer [("expr", expr)]
   -- Now the initializer for the outer tagged union structure
   makeTaggedUnionInitializer "ACT_ReturnBind" "returnBindData" dataInitializer
+generateSemanticActionData (ManyFreshList s) = do
+  let withSemExpr = makeIntConstExpr (if s == DAST.YesSem then 1 else 0)
+  dataInitializer <- makeStructInitializer [("withsem", withSemExpr)]
+  makeTaggedUnionInitializer "ACT_ManyFreshList" "manyFreshListData" dataInitializer
+generateSemanticActionData (ManyAppend s) = do
+  let withSemExpr = makeIntConstExpr (if s == DAST.YesSem then 1 else 0)
+  dataInitializer <- makeStructInitializer [("withsem", withSemExpr)]
+  makeTaggedUnionInitializer "ACT_ManyAppend" "manyAppendData" dataInitializer
+generateSemanticActionData ManyReturn = do
+  tagExpr <- makeEnumConstantExpr "ACT_ManyReturn"
+  makeStructInitializer [("tag", tagExpr)]
+generateSemanticActionData DropOneOut = do
+  tagExpr <- makeEnumConstantExpr "ACT_DropOneOut"
+  makeStructInitializer [("tag", tagExpr)]
 generateSemanticActionData x = return $ error $ "Unimplemented action: " ++ show x
 
 generateControlActionData :: ControlAction -> CAutGenM CInit
@@ -352,6 +366,30 @@ generateControlActionData (ActivateFrame _ln) = do
   makeTaggedUnionInitializer "ACT_ActivateFrame" "activateFrameData" dataInitializer
 generateControlActionData DeactivateReady = do
   tagExpr <- makeEnumConstantExpr "ACT_DeactivateReady"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData (BoundSetup bound) = do
+  dataInitializer <- generateBoundSetupData bound
+  makeTaggedUnionInitializer "ACT_BoundSetup" "boundSetupData" dataInitializer
+  where
+    generateBoundSetupData (DAST.Exactly e) = do
+      expr <- generateVExpr e
+      dataInitializer <- makeStructInitializer [("expr", expr)]
+      makeTaggedUnionInitializer "ACT_Exactly" "exactlyData" dataInitializer
+    generateBoundSetupData (DAST.Between maybeE1 maybeE2) = do
+      expr1 <- exprOrNull maybeE1
+      expr2 <- exprOrNull maybeE2
+      dataInitializer <- makeStructInitializer [("left", expr1), ("right", expr2)]
+      makeTaggedUnionInitializer "ACT_Between" "betweenData" dataInitializer
+    exprOrNull Nothing = return $ makeIntConstExpr 0
+    exprOrNull (Just e) = generateVExpr e
+generateControlActionData BoundCheckSuccess = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundCheckSuccess"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData BoundIsMore = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundIsMore"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData BoundIncr = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundIncr"
   makeStructInitializer [("tag", tagExpr)]
 generateControlActionData x = return $ error $ "Unimplemented action: " ++ show x
 
