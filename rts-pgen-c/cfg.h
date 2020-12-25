@@ -27,9 +27,63 @@ typedef struct _StackSem {
     struct _StackSem* up;
 } StackSem;
 
+typedef struct {
+    int value;
+} CExactlyData;
+
+/**
+ * This represents the CBetween constructor in the Haskell runtime. Note that
+ * `None` values for left and right are represented with -1 in C since these values
+ * are otherwise positive from what I know.
+ *
+ * If they can indeed be negative, we need to add flags here to represent the validity of
+ * the bounds.
+ */
+typedef struct {
+    int left;
+    int right;
+} CBetweenData;
+
+/** Control Stack element for handling Many */
+typedef struct {
+    enum { CExactly, CBetween } tag;
+    union {
+        CExactlyData* cExactlyData;
+        CBetweenData* cBetweenData;
+    };
+    int current;
+} ManyFrameElm;
+
+/** Control Stack element for handling For */
+typedef struct {
+    //TODO:
+} ForFrameElm;
+
+/** Control Stack element for handling Map */
+typedef struct {
+    //TODO:
+} MapFrameElm;
+
+/** Control Stack element for handling Calls */
+typedef struct {
+    int state;
+    //TODO: Rest of the fields - data Name, ActivationFrame and SemanticData
+} CallFrameElm;
+
+/** The control stack element */
+typedef struct {
+    enum { ManyFrame, ForFrame, MapFrame, CallFrame } tag;
+    union {
+        ManyFrameElm* manyFrameElm;
+        ForFrameElm* forFrameElm;
+        MapFrameElm* mapFrameElm;
+        CallFrameElm* callFrameElm;
+    };
+} ControlElm;
+
 /** The control stack that models a "call-stack" of grammar rules being executed */
 typedef struct _StackCtrl {
-    int state;
+    ControlElm* controlElm;
     struct _StackCtrl * up;
 } StackCtrl;
 
@@ -82,6 +136,18 @@ StackSem * pushStackSem(SemanticElm* elm, StackSem * stack);
 /** Print the semantic stack */
 void printStackSem(StackSem * stack);
 
+/** Create a control element for Many */
+ControlElm* createManyFrameControlElm(ManyFrameElm* mf);
+
+/** Create a control element for the For loop */
+ControlElm* createForFrameControlElm(ForFrameElm* ff);
+
+/** Create a control element for the Map */
+ControlElm* createMapFrameControlElm(MapFrameElm* mf);
+
+/** Create a control element for the Call */
+ControlElm* createCallFrameControlElm(CallFrameElm* mf);
+
 /** Initialize a control stack */
 StackCtrl *  initStackCtrl();
 
@@ -89,7 +155,7 @@ StackCtrl *  initStackCtrl();
 int isEmptyStackCtrl(StackCtrl * ctrl);
 
 /** Push a state on to a control stack */
-StackCtrl * pushStackCtrl(int state, StackCtrl *stack);
+StackCtrl * pushStackCtrl(ControlElm* elm, StackCtrl *stack);
 
 /** Pop the top from the control stack */
 StackCtrl * popStackCtrl(StackCtrl *stack);
@@ -98,7 +164,7 @@ StackCtrl * popStackCtrl(StackCtrl *stack);
 void printStackCtrl(StackCtrl * stack);
 
 /** Peek at the top of the control stack */
-int headStackCtrl(StackCtrl *stack);
+ControlElm* headStackCtrl(StackCtrl *stack);
 
 
 #endif /* CFG_H_ */
