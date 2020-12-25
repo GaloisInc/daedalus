@@ -76,26 +76,40 @@ Cfg * applyInputAction(InputAction * action, Cfg* cfg, int arrivState) {
 Cfg * applyControlAction(ControlAction * action, Cfg* cfg, int arrivState) {
     switch(action->tag){
         case ACT_Push: {
-            //Push the named state on to the control stack and switch to the new state
-            StackCtrl* newCtrlStack = pushStackCtrl(action->pushData.state, cfg->ctrl);
+            //Create a CallFrame instance and push on to the control stack and return a new
+            //configuration with the updated stack
+            CallFrameElm* elm = ALLOCMEM(sizeof(CallFrameElm));
+            elm->state = action->pushData.state;
+
+            ControlElm* newElm = createCallFrameControlElm(elm);
+            StackCtrl* newCtrlStack = pushStackCtrl(newElm, cfg->ctrl);
+
             return mkCfg(arrivState, cfg->inp, newCtrlStack, cfg->sem);
         }
         case ACT_Pop: {
             //We expect to find a state on the control stack for us to pop to
             //TODO: Not finding it seems like a honest-to-goodness internal error and not
-            //just a backtrackable failure? Check this up
+            //just a backtrackable failure? Check this up and switch to an ASSERT if it is
+            //an error
             if (isEmptyStackCtrl(cfg->ctrl))
                 return NULL;
 
             //Fetch the new state from the stack and create a new configuration
             //reflecting that state.
-            int newState = headStackCtrl(cfg->ctrl);
+            ControlElm* topElm = headStackCtrl(cfg->ctrl);
+            ASSERT(
+                topElm && topElm->tag == CallFrame,
+                "Invalid top element during ACT_Pop: %d", topElm->tag
+            );
+
             StackCtrl* newCtrlStack = popStackCtrl(cfg->ctrl);
-            if (newState < 0) {
+            if (topElm->callFrameElm->state < 0) {
                 return NULL;
             }
 
-            return mkCfg(newState, cfg->inp, newCtrlStack, cfg->sem);
+            //Return a new configuration that points to the new state and the updated
+            //control stack
+            return mkCfg(topElm->callFrameElm->state, cfg->inp, newCtrlStack, cfg->sem);
         }
         default: {
             LOGD(

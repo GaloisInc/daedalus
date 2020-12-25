@@ -107,6 +107,8 @@ void printStackSem(StackSem * stack) {
                 break;
         }
         stack = stack->up;
+        if (stack != NULL)
+            printf(" ");
     }
     printf("\n");
 }
@@ -114,6 +116,37 @@ void printStackSem(StackSem * stack) {
 //-----------------------------------------------------------------------//
 // Control Stack Management
 //-----------------------------------------------------------------------//
+
+ControlElm* createManyFrameControlElm(ManyFrameElm* mf) {
+    ControlElm* elm = ALLOCMEM(sizeof(ControlElm));
+    elm->tag = ManyFrame;
+    elm->manyFrameElm = mf;
+    return elm;
+}
+
+/** Create a control element for the For loop */
+ControlElm* createForFrameControlElm(ForFrameElm* ff) {
+    ControlElm* elm = ALLOCMEM(sizeof(ControlElm));
+    elm->tag = ForFrame;
+    elm->forFrameElm = ff;
+    return elm;
+}
+
+/** Create a control element for the Map */
+ControlElm* createMapFrameControlElm(MapFrameElm* mf) {
+    ControlElm* elm = ALLOCMEM(sizeof(ControlElm));
+    elm->tag = MapFrame;
+    elm->mapFrameElm = mf;
+    return elm;
+}
+
+/** Create a control element for the Call */
+ControlElm* createCallFrameControlElm(CallFrameElm* cf) {
+    ControlElm* elm = ALLOCMEM(sizeof(ControlElm));
+    elm->tag = CallFrame;
+    elm->callFrameElm = cf;
+    return elm;
+}
 
 StackCtrl *  initStackCtrl() {
     return NULL;
@@ -123,35 +156,84 @@ int isEmptyStackCtrl(StackCtrl * ctrl) {
     return ctrl == NULL;
 }
 
-StackCtrl * pushStackCtrl(int state, StackCtrl *stack) {
+StackCtrl * pushStackCtrl(ControlElm* elm, StackCtrl *stack) {
     StackCtrl* st = malloc(sizeof(StackCtrl));
-    st->state = state;
+    st->controlElm = elm;
     st->up = stack;
 
     return st;
 }
 
 StackCtrl * popStackCtrl(StackCtrl *stack) {
-    //printf("%p\n", stack);
-
-    StackCtrl* up = stack->up;
-    //free(stack); - We may not be able to do this because the stack can be shared in case of multiple simultaneous Cfgs
-
-    return up;
+    ASSERT(stack != NULL, "Attempt to pop empty control stack");
+    return stack->up;
 }
 
-int headStackCtrl(StackCtrl *stack){
-   return stack->state;
+ControlElm* headStackCtrl(StackCtrl *stack){
+    if (stack == NULL)
+        return NULL;
+    return stack->controlElm;
+}
+
+void printManyFrameElm(ManyFrameElm* elm) {
+    if (elm == NULL)
+        return;
+
+    switch(elm->tag) {
+        case CExactly:
+            printf("{ exactly: %d, current: %d }", elm->cExactlyData->value, elm->current);
+            break;
+        case CBetween:
+            printf(
+                "{ between: %d - %d, current: %d }",
+                elm->cBetweenData->left, elm->cBetweenData->right,
+                elm->current
+            );
+            break;
+        default:
+            break;
+    }
+}
+
+void printForFrameElm(ForFrameElm* elm) {
+    //TODO
+}
+
+void printMMapFrameElm(MapFrameElm* elm) {
+    //TODO:
+}
+
+void printCallFrameElm(CallFrameElm* elm) {
+    if (elm == NULL)
+        return;
+    printf("{ State: %d }", elm->state);
 }
 
 void printStackCtrl(StackCtrl * stack) {
-    fprintf(stderr, "STACK_CTRL: ");
-    while (stack != NULL){
-        fprintf(stderr, "%d", stack->state);
+    printf("STACK_CTRL: ");
+    while (stack != NULL && stack->controlElm != NULL){
+        printf("Elm: ");
+        switch(stack->controlElm->tag) {
+            case ManyFrame:
+                printManyFrameElm(stack->controlElm->manyFrameElm);
+                break;
+            case ForFrame:
+                printManyFrameElm(stack->controlElm->forFrameElm);
+                break;
+            case MapFrame:
+                printManyFrameElm(stack->controlElm->mapFrameElm);
+                break;
+            case CallFrame:
+                printManyFrameElm(stack->controlElm->callFrameElm);
+                break;
+            default:
+                break;
+        }
         stack = stack->up;
-        fprintf(stderr, ", ");
+        if (stack != NULL)
+            printf(" ");
     }
-    fprintf(stderr,"\n");
+    printf("\n");
 }
 
 //-----------------------------------------------------------------------//
@@ -171,6 +253,6 @@ Cfg * mkCfg(int state, Input * inp, StackCtrl * ctrl, StackSem * sem)
 }
 
 int isAcceptingCfg(Cfg* cfg, int acceptingState) {
-    printStackCtrl(cfg->ctrl);
+    //printStackCtrl(cfg->ctrl);
     return (cfg->ctrl == NULL && cfg->state == acceptingState) ;
 }
