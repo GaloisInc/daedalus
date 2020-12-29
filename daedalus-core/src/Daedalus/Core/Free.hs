@@ -44,7 +44,7 @@ instance FreeTCons Type where
       TBuilder t      -> freeTCons t
       TIterator t     -> freeTCons t
       TUser ut        -> freeTCons ut
-      TParam p        -> Set.empty
+      TParam {}       -> Set.empty
 
 instance FreeTCons UserType where
   freeTCons = Set.singleton . utName
