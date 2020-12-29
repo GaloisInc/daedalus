@@ -83,11 +83,11 @@ newtype TParam = TP Int
 
 
 data Pattern =
-    PBool  Bool
+    PBool Bool
   | PNothing
   | PJust
-  | PNum   Integer
-  | PCon   Label
+  | PNum Integer
+  | PCon Label
   | PAny
     deriving (Eq,Ord)
 
