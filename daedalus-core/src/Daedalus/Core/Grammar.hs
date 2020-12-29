@@ -23,6 +23,8 @@ data Grammar =
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
 
+gIf :: Expr -> Grammar -> Grammar -> Grammar
+gIf e g1 g2 = Case e [ (PBool True, g1), (PBool False, g2) ]
 
 --------------------------------------------------------------------------------
 

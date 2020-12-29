@@ -15,6 +15,7 @@ import Data.List((\\))
 import Data.Either(partitionEithers)
 import qualified Data.ByteString.Char8 as BS8
 
+import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
 
 import qualified Daedalus.Type.AST as TC
@@ -390,6 +391,109 @@ fromGrammar gram =
       case cmt of
         Backtrack -> fromGrammar g
         Commit -> panic "fromGrammar" ["Commit is not yet supported"]
+
+
+    TC.TCCase e as dflt -> undefined
+
+
+
+--------------------------------------------------------------------------------
+patGetVars :: TC.TCPat -> Expr -> M [((TC.TCName TC.Value,Name), Expr)]
+patGetVars pat e =
+  case pat of
+    TC.TCConPat _ l p   ->
+      do t <- fromTypeM (TC.typeOf p)
+         patGetVars p (fromUnion t l e)
+    TC.TCNumPat {}      -> pure []
+    TC.TCBoolPat {}     -> pure []
+    TC.TCJustPat p      -> patGetVars p (eFromJust e)
+    TC.TCNothingPat {}  -> pure []
+    TC.TCVarPat x       ->
+      do x' <- fromName x
+         pure [(x',e)]
+    TC.TCWildPat {}     -> pure []
+
+
+data Match k =
+    Success (Maybe Name) k
+  | Failure
+  | Nested Pattern (Match k) (Match k)
+             -- if pattern succeeds, use first match to examine nested value.
+             -- otherwise use the other to match on this value
+
+dumpMatch :: Match Int -> Doc
+dumpMatch m =
+  case m of
+    Success _ k -> "succes" <+> int k
+    Failure     -> "failure"
+    Nested p x y ->
+      "if" <+> pp p $$ nest 2 ("then" <+> dumpMatch x)
+                    $$ nest 2 ("else" <+> dumpMatch y)
+
+example = dumpMatch test
+  where
+  test = pJust (pNum 1 1) `biasedOr` pJust (pNum 2 2) `biasedOr` pAny 3
+
+  pNum x v  = Nested (PNum x) (Success Nothing v) Failure
+  pJust q   = Nested PJust q Failure
+  pAny x    = Success Nothing x
+
+-- union of two patterns
+matchOr :: Match k -> Match k -> Match k
+matchOr m1 m2 =
+  case m1 of
+    Success {} -> m1
+    Failure    -> m2
+    Nested p1 pNest pOr ->
+      case m2 of
+        Success {} -> m2
+        Failure    -> m1
+        Nested q1 qNest qOr ->
+          case compare p1 q1 of
+            EQ -> Nested p1 (matchOr pNest qNest) (matchOr pOr qOr)
+            LT -> Nested p1 pNest (matchOr pOr m2)
+            GT -> Nested q1 qNest (matchOr m1 qOr)
+
+
+-- match left, if that fails, match right
+biasedOr :: Match k -> Match k -> Match k
+biasedOr m1 m2 =
+  case m1 of
+    Success {} -> m1
+    Failure    -> m2
+    Nested p1 pNest pOr ->
+      case m2 of
+        Failure    -> m1
+        -- NOTE: duplicates `m2`
+        Success {} -> Nested p1 (biasedOr pNest m2)
+                                (biasedOr pOr m2)
+        Nested q1 qNest qOr ->
+          case compare p1 q1 of
+            EQ -> Nested p1 (biasedOr pNest qNest) (biasedOr pOr qOr)
+            LT -> Nested p1 pNest (biasedOr pOr m2)
+            GT -> Nested q1 qNest (biasedOr m1 qOr)
+
+patMatch :: TC.TCPat -> TC.TC a TC.Grammar -> M (Match Grammar)
+patMatch pat k =
+  case pat of
+     TC.TCConPat _ l p   -> Nested (PCon l)  <$> patMatch p k <*> pure Failure
+     TC.TCNumPat _ x     -> Nested (PNum x)  <$> success      <*> pure Failure
+     TC.TCBoolPat b      -> Nested (PBool b) <$> success      <*> pure Failure
+     TC.TCJustPat p      -> Nested PJust     <$> patMatch p k <*> pure Failure
+     TC.TCNothingPat {}  -> Nested PNothing  <$> success      <*> pure Failure
+     TC.TCWildPat {}     -> success
+     TC.TCVarPat x ->
+       do x' <- fromName x
+          g  <- withSourceLocal x' (fromGrammar k)
+          pure (Success (Just (snd x')) g)
+  where
+  success =
+    do g <- fromGrammar k
+       pure (Success Nothing g)
+
+-- XXX: for now we duplicate alternatives
+doAlt :: TC.TCAlt a TC.Grammar -> M (Match Grammar)
+doAlt (TC.TCAlt ps k) = foldr matchOr Failure <$> mapM (`patMatch` k) ps
 
 
 --------------------------------------------------------------------------------
