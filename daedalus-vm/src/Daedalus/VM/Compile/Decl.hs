@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Data.Void(Void)
 
+import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 
 import qualified Daedalus.Core as Src
@@ -98,9 +99,11 @@ compileFFun :: Src.Fun Src.Expr -> VMFun
 compileFFun = compileSomeFun True \mb ->
   case mb of
     Just e -> compileE e Nothing
+    Nothing -> panic "compileFFun" ["XXX: External primitives"]
 
 compileGFun :: Src.Fun Src.Grammar -> VMFun
 compileGFun = compileSomeFun False \mb ->
   case mb of
     Just e -> compile e ret
+    Nothing -> panic "compileGFun" ["XXX: External primitives"]
 

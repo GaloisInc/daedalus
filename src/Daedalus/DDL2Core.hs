@@ -158,7 +158,7 @@ fromGrammar gram =
          let xe = Var x
              ty = resTy sem tByte
          pure $ Do x GetStream
-              $ If (isEmptyStream xe) (sysErr ty "unexpected end of input")
+              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
                  $ Do_ (SetStream (eDrop (intL 1 TInteger) xe))
                  $     Pure $ result sem $ eHead xe
 
@@ -172,9 +172,9 @@ fromGrammar gram =
          let ty = resTy sem tByte
 
          pure $ Do x GetStream
-              $ If (isEmptyStream xe) (sysErr ty "unexpected end of input")
+              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
               $ Let y (eHead xe)
-              $ If p ( Do_ (SetStream (eDrop (intL 1 TInteger) xe))
+              $ gIf p ( Do_ (SetStream (eDrop (intL 1 TInteger) xe))
                      $     Pure (result sem ye)
                      )
                      (sysErr ty "unexpected byte")
@@ -182,7 +182,7 @@ fromGrammar gram =
 
     TC.TCGuard e ->
       do v <- fromExpr e
-         pure $ If v (Pure unit) (sysErr TUnit "guard failed")
+         pure $ gIf v (Pure unit) (sysErr TUnit "guard failed")
 
     TC.TCMatchBytes sem e ->
       do x <- newLocal TStream
@@ -194,7 +194,7 @@ fromGrammar gram =
          v <- fromExpr e
          pure $ Do x GetStream
               $    Let y v
-              $    If (isPrefix ye xe)
+              $    gIf (isPrefix ye xe)
                       (Do_ (SetStream (eDrop (arrayLen ye) xe))
                          $ Pure (result sem ye))
                       (sysErr ty "unexpected byte sequence")
@@ -217,7 +217,7 @@ fromGrammar gram =
     TC.TCEnd ->
       do x <- newLocal TStream
          pure $ Do x GetStream
-              $    If (isEmptyStream (Var x))
+              $    gIf (isEmptyStream (Var x))
                       (Pure unit)
                       (sysErr TUnit "unexpected leftover input")
 
@@ -237,7 +237,7 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> pure $ If (lenE `leq` streamLen strE)
+           NoSem -> pure $ gIf (lenE `leq` streamLen strE)
                               (Pure unit)
                               (sysErr TUnit "unexpected end of input")
 
@@ -246,7 +246,7 @@ fromGrammar gram =
                         str <- newLocal TStream
                         pure $ Let len lenE
                              $ Let str strE
-                             $ If (Var len `leq` streamLen (Var str))
+                             $ gIf (Var len `leq` streamLen (Var str))
                                   (Pure $ eTake (Var len) (Var str))
                                   (sysErr TUnit "unexpected end of input")
 
@@ -254,7 +254,7 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> pure $ If (lenE `leq` streamLen strE)
+           NoSem -> pure $ gIf (lenE `leq` streamLen strE)
                               (Pure unit)
                               (sysErr TUnit "unexpected end of input")
            YesSem ->
@@ -262,7 +262,7 @@ fromGrammar gram =
                 str <- newLocal TStream
                 pure $ Let len lenE
                      $ Let str strE
-                     $ If (Var len `leq` streamLen (Var str))
+                     $ gIf (Var len `leq` streamLen (Var str))
                           (Pure $ eDrop (Var len) (Var str))
                           (sysErr TUnit "unexpected end of input")
 
@@ -318,11 +318,11 @@ fromGrammar gram =
          mpE <- fromExpr mp
          ty  <- fromTypeM (TC.typeOf mp)
          pure case sem of
-                NoSem  -> If (mapMember mpE kE)
+                NoSem  -> gIf (mapMember mpE kE)
                              (sysErr TUnit "duplicate key in map")
                              (Pure unit)
                 YesSem ->
-                  If (mapMember mpE kE)
+                  gIf (mapMember mpE kE)
                      (sysErr ty "duplicate key in map")
                      (Pure (mapInsert mpE kE vE))
 
@@ -330,7 +330,7 @@ fromGrammar gram =
       do aE <- fromExpr arr
          iE <- fromExpr ix
          case sem of
-           NoSem -> pure $ If (arrayLen aE `leq` iE)
+           NoSem -> pure $ gIf (arrayLen aE `leq` iE)
                               (sysErr TUnit "array index out of bounds")
                               (Pure unit)
            YesSem ->
@@ -343,7 +343,7 @@ fromGrammar gram =
                 i <- newLocal TInteger
                 pure $ Let a aE
                      $ Let i iE
-                     $ If (arrayLen (Var a) `leq` Var i)
+                     $ gIf (arrayLen (Var a) `leq` Var i)
                           (sysErr ty "array index out of bounds")
                           (Pure (arrayIndex (Var a) (Var i)))
 
@@ -364,17 +364,20 @@ fromGrammar gram =
       do e <- fromExpr v
          ty <- fromTypeM t
          case sem of
-           NoSem -> pure $ If (hasTag l e)
-                              (Pure unit)
-                              (sysErr TUnit "unexpected semantic value shape")
+           NoSem -> pure $
+              Case e
+                [ (PCon l, Pure unit)
+                , (PAny, sysErr TUnit "unexpected semantic value shape")
+                ]
+
            YesSem ->
              do x <- newLocal (typeOf e)
                 let xe = Var x
                 pure $ Let x e
-                     $ If (hasTag l xe)
-                          (Pure (fromUnion ty l xe))
-                          (sysErr ty "unexpected semantic value shape")
-
+                     $ Case e
+                         [ (PCon l, Pure (fromUnion ty l xe))
+                         , (PAny, sysErr ty "unexpected semantic value shape")
+                         ]
 
     TC.TCFor l -> doLoopG l
 
@@ -638,7 +641,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
      defFunG f (sVar : i : vs)
-         $ If (iteratorDone (Var i))
+         $ gIf (iteratorDone (Var i))
               (Pure (Var sVar))
          $    Let elVar (iteratorVal (Var i))
          $    maybeAddKey (iteratorKey (Var i))
@@ -678,7 +681,7 @@ pSkipAtMost vs tgt p =
      x <- newLocal TInteger
      let xe = Var x
      defFunG f (x:vs)
-             $ If (tgt `leq` xe)
+             $ gIf (tgt `leq` xe)
                   (Pure xe)
                   ( Do_ p
                   $     Call f (add xe (intL 1 TInteger) : es)
@@ -697,7 +700,7 @@ pParseAtMost ty vs tgt p =
          be = Var b
          ze = Var z
      defFunG f (x : b : vs)
-              $ If (tgt `leq` xe)
+              $ gIf (tgt `leq` xe)
                    ( Pure $ finishBuilder be )
                    ( Do z p
                    $    Call f ( add xe (intL 1 TInteger)
@@ -715,12 +718,12 @@ checkAtLeast mb tgt g =
   case mb of
     Nothing ->
       do x <- newLocal TInteger
-         pure $ Do x g $ If (Var x `lt` tgt)
+         pure $ Do x g $ gIf (Var x `lt` tgt)
                             (nope TUnit)
                             (Pure unit)
     Just ty ->
       do x <- newLocal (TArray ty)
-         pure $ Do x g $ If (arrayLen (Var x) `lt` tgt) (nope (TArray ty))
+         pure $ Do x g $ gIf (arrayLen (Var x) `lt` tgt) (nope (TArray ty))
                                                         (Pure (Var x))
 
   where
@@ -1223,12 +1226,17 @@ orOp cmt = case cmt of
 fromMb :: WithSem -> Type -> Expr -> M Grammar
 fromMb sem t e =
   case sem of
-    NoSem -> pure $ If (eIsJust e) (Pure unit) (nope TUnit)
+    NoSem -> pure $ Case e [ (PNothing, nope TUnit)
+                           , (PJust, Pure unit)
+                           ]
     YesSem ->
       do x <- newLocal (TMaybe t)
          let xe = Var x
          pure $ Let x e
-              $ If (eIsJust xe) (Pure (eFromJust xe)) (nope t)
+              $ Case xe
+                  [ (PNothing, nope t)
+                  , (PJust, Pure (eFromJust xe))
+                  ]
   where
   nope ty = sysErr ty "unexpected `nothing`"
 
