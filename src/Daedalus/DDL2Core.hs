@@ -395,11 +395,12 @@ fromGrammar gram =
 
     TC.TCCase e as dflt ->
       do ms <- mapM doAltG as
+         t  <- fromGTypeM (TC.typeOf gram)
          mbase <- case dflt of
-                    Nothing -> Failure <$> fromGTypeM (TC.typeOf gram)
+                    Nothing -> pure (Failure t)
                     Just d  -> Success Nothing <$> fromGrammar d
          let match = foldr biasedOr mbase ms
-         matchToGrammar match <$> fromExpr e
+         matchToGrammar t match <$> fromExpr e
 
 
 
@@ -493,15 +494,18 @@ biasedOr m1 m2 =
             GT -> IfPat q1 qt qNest (biasedOr m1 qOr)
 
 
-matchToGrammar :: Match Grammar -> Expr -> Grammar
-matchToGrammar match e =
+matchToGrammar :: Type -> Match Grammar -> Expr -> Grammar
+matchToGrammar t match e =
   case match of
-    Failure t -> sysErr t "Pattern match failure"
+    Failure {} -> pFail
     Success mb g ->
       case mb of
         Nothing -> g
         Just x  -> Let x e g
-    IfPat {} -> Case e (matchToAlts matchToGrammar match e)
+    IfPat {} -> Case e $ completeAlts pFail
+                       $ matchToAlts (matchToGrammar t) match e
+  where
+  pFail = sysErr t "Pattern match failure"
 
 matchToAlts ::
   (Match k -> Expr -> k) ->
@@ -524,6 +528,26 @@ matchToAlts mExpr match e =
                      PNum {}  -> bad
                      PAny     -> bad
       bad = panic "matchToAlts" ["Unexpected nested pattern"]
+
+completeAlts :: k -> [(Pattern,k)] -> [(Pattern,k)]
+completeAlts d ps0 =
+  case ps0 of
+    [] -> [(PAny,d)]
+    this@(p,k) : more ->
+      case p of
+        PAny          -> [(p,k)]
+        PBool b       -> this : go [PBool (not b)] more
+        PNothing      -> this : go [PJust] more
+        PJust         -> this : go [PNothing] more
+        PNum {}       -> ps0 ++ [(PAny,d)]
+        PCon {}       -> ps0 ++ [(PAny,d)] -- XXX: could check that we have all
+  where
+  go need ps =
+    case ps of
+      [] -> [ (p,d) | p <- need ]
+      (p,k) : more
+        | (as,_:bs) <- break (== p) need -> (p,k) : go (as ++ bs) more
+        | otherwise                      ->         go need       more
 
 --------------------------------------------------------------------------------
 -- Loops
@@ -1291,8 +1315,8 @@ newTNameRec rec =
     let flavor = case TC.tctyDef d of
                    TC.TCTyStruct {} -> TFlavStruct
                    TC.TCTyUnion cs
-                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum
-                     | otherwise                    -> TFlavUnion
+                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum (map fst cs)
+                     | otherwise                    -> TFlavUnion (map fst cs)
     in newTName r flavor (TC.tctyName d)
 
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
