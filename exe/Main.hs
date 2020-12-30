@@ -81,7 +81,6 @@ handleOptions opts
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
            specMod  = "DaedalusMain"
-           mainNm = primName (fst mainRule) (snd mainRule) AGrammar
 
        case optCommand opts of
 
@@ -108,7 +107,7 @@ handleOptions opts
               passVM specMod
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
-              entry <- ddlGetFName mainNm
+              entry <- ddlGetFName mm "Main" -- mainNm
               let prog = VM.addCopyIs
                        $ VM.doBorrowAnalysis
                        $ VM.moduleToProgram entry [m]
@@ -162,7 +161,7 @@ handleOptions opts
                   passVM specMod
                   passCaptureAnalysis
                   m <- ddlGetAST specMod astVM
-                  entry <- ddlGetFName mainNm
+                  entry <- ddlGetFName mm "Main" -- mainNm
                   let prog = VM.addCopyIs
                            $ VM.doBorrowAnalysis
                            $ VM.moduleToProgram entry [m]

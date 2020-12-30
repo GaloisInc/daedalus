@@ -72,6 +72,7 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
+import Data.List(find)
 import Control.Monad(msum,foldM,forM)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO,try)
@@ -464,15 +465,23 @@ optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 --------------------------------------------------------------------------------
 -- Names
 
-ddlGetFNameMaybe :: Name -> Daedalus (Maybe Core.FName)
-ddlGetFNameMaybe nm = ddlGet (Map.lookup nm . coreTopNames)
+ddlGetFNameMaybe :: ModuleName -> Ident -> Daedalus (Maybe Core.FName)
+ddlGetFNameMaybe mname fname =
+  do ents <- ddlGet (Map.toList . coreTopNames)
+     let matches m = (mname,fname) == nameScopeAsModScope (fst m)
+     pure (snd <$> find matches ents)
 
-ddlGetFName :: Name -> Daedalus Core.FName
-ddlGetFName nm =
-    do mb <- ddlGetFNameMaybe nm
+ddlGetFName :: ModuleName -> Ident -> Daedalus Core.FName
+ddlGetFName m f =
+    do mb <- ddlGetFNameMaybe m f
        case mb of
          Just a  -> pure a
-         Nothing -> panic "ddlGetFName" [ "Unknown name", show (pp nm) ]
+         Nothing ->
+           do nms <- ddlGet (Map.keys . coreTopNames)
+              panic "ddlGetFName" $ "Unknown name"
+                                  : ("module: " ++ show (pp m))
+                                  : ("fun: " ++ show (pp f))
+                                  : map (show . pp) nms
 
 
 --------------------------------------------------------------------------------
