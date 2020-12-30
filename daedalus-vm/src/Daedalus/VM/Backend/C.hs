@@ -450,9 +450,6 @@ cOp1 x op1 ~[e'] =
                                       [ e | getType e' /= TSem Src.TUnit ]
            ]
 
-    Src.HasTag l ->
-      cVarDecl x $ cCallMethod e "getTag" [] <+> "==" <+> cSumTagV l
-
     Src.FromUnion _t l ->
       cVarDecl x $ cCallMethod e (selName GenOwn l) []
 

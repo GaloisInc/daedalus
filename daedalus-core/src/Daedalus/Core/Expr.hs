@@ -54,7 +54,6 @@ data Op1 =
   | FromJust
   | SelStruct Type Label
   | InUnion UserType Label
-  | HasTag Label
   | FromUnion Type Label
 
 data Op2 =
@@ -119,7 +118,6 @@ nothing t = Ap0 (ENothing t)
 
 selStruct t l     = Ap1 (SelStruct t l)
 inUnion t l       = Ap1 (InUnion t l)
-hasTag l          = Ap1 (HasTag l)
 fromUnion t l     = Ap1 (FromUnion t l)
 
 
@@ -314,7 +312,6 @@ instance PP Op1 where
 
       SelStruct _ l   -> "get" <+> pp l
       InUnion t l     -> ppTApp 0 ("tag" <+> pp l) [TUser t]
-      HasTag l        -> "hasTag" <+> pp l
       FromUnion _ l   -> "fromTag" <+> pp l
 
 

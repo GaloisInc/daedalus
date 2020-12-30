@@ -324,7 +324,6 @@ modeOp1 op =
     FromJust              -> [Borrowed]
     SelStruct {}          -> [Borrowed]
     InUnion {}            -> [Owned]
-    HasTag {}             -> [Borrowed]
     FromUnion {}          -> [Borrowed]
 
 modeOp2 :: Op2 -> [Ownership]

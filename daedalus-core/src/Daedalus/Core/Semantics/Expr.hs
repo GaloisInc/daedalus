@@ -180,11 +180,6 @@ evalOp1 op e env =
       InUnion t l ->
         VUnion t l v
 
-      HasTag l ->
-        case v of
-          VUnion _ l1 _ -> VBool (l == l1)
-          _ -> typeError "union" v
-
       FromUnion _ _ ->
         case v of
           VUnion _ _ a -> a

@@ -86,7 +86,6 @@ instance TypeOf Expr where
                              _ -> bad "FromJust"
           SelStruct t _ -> t
           InUnion ut _  -> TUser ut
-          HasTag _      -> TBool
           FromUnion t _ -> t
 
 
