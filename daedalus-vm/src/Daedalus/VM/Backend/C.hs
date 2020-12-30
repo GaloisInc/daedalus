@@ -483,9 +483,6 @@ cOp2 x op2 ~[e1',e2'] =
     Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
-    Src.Or  -> panic "cOp2" [ "Or" ]
-    Src.And -> panic "cOp2" [ "And" ]
-
     Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 e2)
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
@@ -503,7 +500,6 @@ cOp2 x op2 ~[e1',e2'] =
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
 cOp3 _x op ~[_,_,_] =
   case op of
-    Src.PureIf      -> panic "cOp3" [ "PureIf" ]
     Src.RangeUp     -> todo
     Src.RangeDown   -> todo
     Src.MapInsert   -> todo

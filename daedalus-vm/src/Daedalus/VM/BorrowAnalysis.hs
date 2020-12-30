@@ -352,8 +352,6 @@ modeOp2 op =
     LShift               -> [Owned,Borrowed]
     RShift               -> [Owned,Borrowed]
 
-    Or                   -> panic "modeOp2" ["Or"]
-    And                  -> panic "modeOp2" ["And"]
     ArrayIndex           -> [Borrowed,Borrowed]
     ConsBuilder          -> [Owned,Owned]
     MapLookup            -> [Borrowed,Borrowed]
@@ -364,7 +362,6 @@ modeOp2 op =
 modeOp3 :: Op3 -> [Ownership]
 modeOp3 op =
   case op of
-    PureIf              -> panic "modeOp3" ["PureIf"]
     RangeUp             -> [Borrowed,Borrowed,Borrowed]
     RangeDown           -> [Borrowed,Borrowed,Borrowed]
     MapInsert           -> [Owned,Owned,Owned]

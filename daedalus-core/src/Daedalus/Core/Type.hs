@@ -23,6 +23,7 @@ instance TypeOf Expr where
       Var x -> typeOf x
       PureLet _ _ e -> typeOf e
       Struct ut _ -> TUser ut
+      ECase c -> typeOf c
 
       Ap0 op ->
         case op of
@@ -117,8 +118,6 @@ instance TypeOf Expr where
           LShift -> typeOf e1
           RShift -> typeOf e1
 
-          Or -> TBool
-          And -> TBool
           ArrayIndex ->
             case typeOf e1 of
               TArray t -> t
@@ -135,9 +134,8 @@ instance TypeOf Expr where
           MapMember -> TBool
 
 
-      Ap3 op e1 e2 _ ->
+      Ap3 op e1 _ _ ->
         case op of
-          PureIf    -> typeOf e2
           RangeUp   -> typeOf e1
           RangeDown -> typeOf e1
           MapInsert -> typeOf e1

@@ -40,6 +40,9 @@ eval expr env =
       let flist = [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
       in VStruct (SType t (map fst flist)) (Map.fromList flist)
 
+    ECase c -> evalCase eval err c env
+      where err = panic "eval" [ "Pattern match failure in semantic value" ]
+
     Ap0 op          -> evalOp0 op
     Ap1 op e        -> evalOp1 op e env
     Ap2 op e1 e2    -> evalOp2 op e1 e2 env
@@ -376,9 +379,6 @@ evalOp2 op e1 e2 env =
                 where amt = fromVInt v2
            _ -> typeError "UInt" v1
 
-       Or  -> VBool (fromVBool v1 || fromVBool v2)    -- lazy
-       And -> VBool (fromVBool v1 && fromVBool v2)    -- lazy
-
        -- array is 1st
        ArrayIndex -> fromVArray v1 Vector.! ix
          where ix = let i = fromVInt v2
@@ -455,7 +455,6 @@ evalOp3 op e1 e2 e3 env =
       v2 = eval e2 env
       v3 = eval e3 env
   in case op of
-       PureIf -> if fromVBool v1 then v2 else v2    -- lazy
        RangeUp ->
          case (v1,v2,v3) of
            (VInt start, VInt end, VInt step)

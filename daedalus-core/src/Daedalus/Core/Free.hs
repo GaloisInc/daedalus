@@ -60,6 +60,7 @@ instance FreeVars Expr where
       Var x           -> Set.singleton x
       PureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
       Struct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
+      ECase e         -> freeVars e
       Ap0 _           -> Set.empty
       Ap1 _ e         -> freeVars e
       Ap2 _ e1 e2     -> freeVars [e1,e2]
@@ -71,6 +72,7 @@ instance FreeVars Expr where
       Var _           -> Set.empty
       PureLet _ e1 e2 -> freeFVars [e1,e2]
       Struct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
+      ECase e         -> freeFVars e
       Ap0 _           -> Set.empty
       Ap1 _ e         -> freeFVars e
       Ap2 _ e1 e2     -> freeFVars [e1,e2]

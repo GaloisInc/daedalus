@@ -3,6 +3,8 @@ module Daedalus.VM.Compile.Expr where
 
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
+import qualified Data.Map as Map
+import Control.Monad(forM)
 
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
@@ -57,6 +59,20 @@ compileE expr k =
          do s <- stmt ty (\x -> CallPrim x (StructCon t) vs)
             continue k s
 
+    Src.ECase (Src.Case e as) ->
+      do next' <- case k of
+                    Nothing -> pure Nothing
+                    Just kont ->
+                      do res  <- newLocal (TSem (Src.typeOf expr))
+                         nextL <- label0 NormalBlock (kont =<< getLocal res)
+                         pure $ Just \v -> do setLocal res v
+                                              jump nextL
+
+         codes <- forM as \(p,rhs) ->
+                    do l <- label0 NormalBlock =<< compileE rhs next'
+                       pure (p, l)
+         compileE e $ Just \v -> jumpCase v (Map.fromList codes)
+
     Src.Ap0 op          -> compileOp0 op ty k
     Src.Ap1 op e        -> compileOp1 op ty e k
     Src.Ap2 op e1 e2    -> compileOp2 op ty e1 e2 k
@@ -64,6 +80,8 @@ compileE expr k =
     Src.ApN op es       -> compileOpN op ty es k
 
   where ty = TSem (Src.typeOf expr)
+
+
 
 compileOp0 :: Src.Op0 -> VMT -> CE
 compileOp0 op ty k' =
@@ -87,41 +105,13 @@ compileOp1 op ty e k =
 
 compileOp2 :: Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
 compileOp2 op ty e1 e2 k =
-  case op of
-
-    Src.And ->
-      compileOp3 Src.PureIf ty e1 e2 (Src.boolL False) k
-
-    Src.Or ->
-      compileOp3 Src.PureIf ty e1 (Src.boolL True) e2 k
-
-    _ -> compileEs [e1,e2] \ vs -> continue k =<<
+  compileEs [e1,e2] \ vs -> continue k =<<
                                    stmt ty (\x -> CallPrim x (Op2 op) vs)
 
 
 compileOp3 :: Src.Op3 -> VMT -> Src.Expr -> Src.Expr -> Src.Expr -> CE
 compileOp3 op ty e1 e2 e3 k =
-  case op of
-
-    Src.PureIf ->
-      do whatNext <- case k of
-                       Nothing -> pure Nothing
-                       Just kont ->
-                         do l <- newLocal (TSem (Src.typeOf e2))
-                            nextL <- label0 NormalBlock (kont =<< getLocal l)
-                            pure $ Just \v ->
-                                      do setLocal l v
-                                         jump nextL
-
-         let branch e = do code <- compileE e whatNext
-                           label0 NormalBlock code
-
-         thenL <- branch e2
-         elseL <- branch e3
-
-         compileE e1 $ Just \v -> jumpIf v thenL elseL
-
-    _ -> compileEs [e1,e2,e3] \vs -> continue k =<<
+  compileEs [e1,e2,e3] \vs -> continue k =<<
                                       stmt ty (\x -> CallPrim x (Op3 op) vs)
 
 
