@@ -97,7 +97,7 @@ instance FreeVars Grammar where
       OrUnbiased g1 g2  -> freeVars [g1,g2]
       Call _ es         -> freeVars es
       Annot _ g         -> freeVars g
-      Case e opts       -> freeVars e `Set.union` freeVars (map snd opts)
+      GCase c           -> freeVars c
 
   freeFVars gram =
     case gram of
@@ -112,7 +112,11 @@ instance FreeVars Grammar where
       OrUnbiased g1 g2  -> freeFVars [g1,g2]
       Call f es         -> Set.insert f (freeFVars es)
       Annot _ g         -> freeFVars g
-      Case e opts       -> freeFVars e `Set.union` freeFVars (map snd opts)
+      GCase c           -> freeFVars c
+
+instance FreeVars e => FreeVars (Case e) where
+  freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
+  freeFVars (Case e opts) = freeFVars e `Set.union` freeFVars (map snd opts)
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =

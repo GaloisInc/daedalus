@@ -100,6 +100,9 @@ data OpN =
   | CallF FName
 
 
+data Case k = Case Expr [(Pattern,k)]
+
+
 --------------------------------------------------------------------------------
 unit    = Ap0 Unit
 callF f = ApN (CallF f)
@@ -386,4 +389,9 @@ instance PP OpN where
     case op of
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
+instance PP a => PP (Case a) where
+  pp (Case e as) = "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
+    where
+    alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+
 

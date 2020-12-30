@@ -46,6 +46,42 @@ eval expr env =
     Ap3 op e1 e2 e3 -> evalOp3 op e1 e2 e3 env
     ApN op es       -> evalOpN op es env
 
+
+evalCase :: (a -> Env -> b) -> b -> Case a -> Env -> b
+evalCase cont nope (Case e alts) env =
+  let v = eval e env
+  in case [ k | (p,k) <- alts, matches p v ] of
+       g : _ -> cont g env
+       []    -> nope
+
+matches :: Pattern -> Value -> Bool
+matches pat v =
+  case pat of
+    PBool b  -> VBool b == v
+    PNothing -> case v of
+                  VNothing {} -> True
+                  _           -> False
+    PJust    -> case v of
+                  VJust {} -> True
+                  _        -> False
+    PNum n ->
+      case v of
+        VInt i    -> i == n
+        VUInt _ u -> BV.asUnsigned u == n
+        VSInt w s -> BV.asSigned w s == n
+        _         -> False
+
+    PCon l ->
+      case v of
+        VUnion _ l1 _ -> l == l1
+        _              -> False
+
+    PAny -> True
+
+
+
+
+
 evalArgs :: [Expr] -> Env -> [Value]
 evalArgs xs env =
   case xs of

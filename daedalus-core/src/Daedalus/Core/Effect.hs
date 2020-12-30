@@ -30,7 +30,7 @@ canFail gram =
     Let _ _ g         -> canFail g
     OrBiased _ g2     -> canFail g2
     OrUnbiased g1 g2  -> canFail g1 && canFail g2
-    Case _ alts       -> any (canFail . snd) alts || partial (map fst alts)
+    GCase (Case _ alts) -> any (canFail . snd) alts || partial (map fst alts)
       where
       partial xs =
         case xs of
@@ -64,7 +64,7 @@ annotate annCall = annot
       Let x e g         -> Let x e (annot g)
       OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
       OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
-      Case e alts       -> Case e [ (p,annot g1) | (p,g1) <- alts ]
+      GCase (Case e alts) -> GCase (Case e [ (p,annot g1) | (p,g1) <- alts ])
 
   annNoFail g = case g of
 

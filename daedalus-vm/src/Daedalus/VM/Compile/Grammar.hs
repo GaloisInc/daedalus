@@ -50,7 +50,7 @@ compile expr next0 =
         -- XXX
         Src.SrcAnnot ann -> compile e next    -- XXX:
 
-    Src.Case e as ->
+    Src.GCase (Src.Case e as) ->
       do next' <- sharedYes =<< sharedNo next
          codes <- forM as \(p,g) ->
                     do l <- label0 NormalBlock =<< compile g next'

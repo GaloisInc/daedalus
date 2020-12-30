@@ -365,7 +365,7 @@ fromGrammar gram =
          ty <- fromTypeM t
          case sem of
            NoSem -> pure $
-              Case e
+              gCase e
                 [ (PCon l, Pure unit)
                 , (PAny, sysErr TUnit "unexpected semantic value shape")
                 ]
@@ -374,7 +374,7 @@ fromGrammar gram =
              do x <- newLocal (typeOf e)
                 let xe = Var x
                 pure $ Let x e
-                     $ Case e
+                     $ gCase e
                          [ (PCon l, Pure (fromUnion ty l xe))
                          , (PAny, sysErr ty "unexpected semantic value shape")
                          ]
@@ -505,8 +505,8 @@ matchToGrammar t match e =
       case mb of
         Nothing -> g
         Just x  -> Let x e g
-    IfPat {} -> Case e $ completeAlts pFail
-                       $ matchToAlts (matchToGrammar t) match e
+    IfPat {} -> gCase e $ completeAlts pFail
+                        $ matchToAlts (matchToGrammar t) match e
   where
   pFail = sysErr t "Pattern match failure"
 
@@ -1226,14 +1226,14 @@ orOp cmt = case cmt of
 fromMb :: WithSem -> Type -> Expr -> M Grammar
 fromMb sem t e =
   case sem of
-    NoSem -> pure $ Case e [ (PNothing, nope TUnit)
-                           , (PJust, Pure unit)
-                           ]
+    NoSem -> pure $ gCase e [ (PNothing, nope TUnit)
+                            , (PJust, Pure unit)
+                            ]
     YesSem ->
       do x <- newLocal (TMaybe t)
          let xe = Var x
          pure $ Let x e
-              $ Case xe
+              $ gCase xe
                   [ (PNothing, nope t)
                   , (PJust, Pure (eFromJust xe))
                   ]

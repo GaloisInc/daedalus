@@ -167,6 +167,9 @@ instance TypeOf Grammar where
       OrUnbiased g _  -> typeOf g
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
-      Case _ as       -> typeOf (snd (head as))
+      GCase c         -> typeOf c
+
+instance TypeOf a => TypeOf (Case a) where
+  typeOf (Case _ as) = typeOf (snd (head as))
 
 

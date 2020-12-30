@@ -17,12 +17,15 @@ data Grammar =
   | OrUnbiased Grammar Grammar
   | Call FName [Expr]
   | Annot Annot Grammar
-  | Case Expr [(Pattern,Grammar)]
+  | GCase (Case Grammar)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
 
 gIf :: Expr -> Grammar -> Grammar -> Grammar
-gIf e g1 g2 = Case e [ (PBool True, g1), (PBool False, g2) ]
+gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
+
+gCase :: Expr -> [(Pattern,Grammar)] -> Grammar
+gCase e as = GCase (Case e as)
 
 --------------------------------------------------------------------------------
 
@@ -44,9 +47,7 @@ instance PP Grammar where
       OrUnbiased {}  -> nest 2 (ppOrUnbiased gram)
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
-      Case e as      -> "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
-        where
-        alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+      GCase c        -> pp c
 
 ppOrUnbiased :: Grammar -> Doc
 ppOrUnbiased gram =
