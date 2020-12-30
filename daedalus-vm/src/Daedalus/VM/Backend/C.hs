@@ -680,7 +680,10 @@ cDoCase e opts =
   check = fromMaybe
             (panic "JumpIf" ["Invalid case", "Type: " ++ show (pp (getType e))])
 
-  numPat ~(PNum n) = integer n
+  numPat p = case p of
+               PNum n -> integer n
+               _ -> panic "numPat" [ "Unexpected", show (pp p) ]
+
   conPat ~(PCon l) = cSumTagV l
 
   mkSwitch getNum pToCase =
@@ -690,7 +693,8 @@ cDoCase e opts =
                        Just x  -> cs ++ [opt cDefault x]
     in [ cSwitch (cCallMethod (cExpr e) getNum []) $
            addDflt
-            [ opt (cCase (pToCase pat)) ch | (pat, ch) <- Map.toList opts ]
+            [ opt (cCase (pToCase pat)) ch | (pat, ch) <- Map.toList opts
+                                           , pat /= PAny ]
        ]
 
   mkBigInt =
