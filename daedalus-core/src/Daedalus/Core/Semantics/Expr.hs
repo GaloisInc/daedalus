@@ -19,7 +19,6 @@ import Data.Parameterized.NatRepr
 import Daedalus.Panic(panic)
 
 import RTS.Input as RTS
-import RTS.Vector(vecFromRep)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -102,6 +101,7 @@ evalOp1 op e env =
       Head ->
         case inputByte (fromVInput v) of
           Just (w,_) -> vByte w
+          Nothing    -> panic "evalOp1" ["Head of empty list"]
 
       StreamOffset ->
         VInt $ toInteger $ inputOffset $ fromVInput v
