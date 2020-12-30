@@ -50,15 +50,6 @@ compile expr next0 =
         -- XXX
         Src.SrcAnnot ann -> compile e next    -- XXX:
 
-    Src.If e p q ->
-      do next' <- sharedYes =<< sharedNo next
-
-         pCode <- label0 NormalBlock =<< compile p next'
-         qCode <- label0 NormalBlock =<< compile q next'
-
-         compileE e $ Just \v ->
-           jumpIf v pCode qCode
-
     Src.Case e as ->
       do next' <- sharedYes =<< sharedNo next
          codes <- forM as \(p,g) ->

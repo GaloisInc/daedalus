@@ -321,7 +321,6 @@ modeOp1 op =
     IteratorVal           -> [Borrowed]
     IteratorNext          -> [Owned]
     EJust                 -> [Owned]
-    IsJust                -> [Borrowed]
     FromJust              -> [Borrowed]
     SelStruct {}          -> [Borrowed]
     InUnion {}            -> [Owned]

@@ -438,9 +438,6 @@ cOp1 x op1 ~[e'] =
     Src.EJust ->
       cVarDecl x $ cCall (cType (getType x)) [e]
 
-    Src.IsJust ->
-      cVarDecl x $ cCallMethod e "isJust" []
-
     Src.FromJust ->
       cVarDecl x $ cCallMethod e "getValue" []
 

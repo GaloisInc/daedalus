@@ -167,11 +167,6 @@ evalOp1 op e env =
 
       EJust -> VJust v
 
-      IsJust ->
-        VBool $ case v of
-                  VJust _ -> True
-                  _       -> False
-
       FromJust ->
         case v of
           VJust r -> r

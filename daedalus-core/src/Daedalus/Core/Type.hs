@@ -81,7 +81,6 @@ instance TypeOf Expr where
 
           IteratorNext  -> typeOf e
           EJust         -> TMaybe (typeOf e)
-          IsJust        -> TBool
           FromJust      -> case typeOf e of
                              TMaybe t -> t
                              _ -> bad "FromJust"
@@ -169,7 +168,6 @@ instance TypeOf Grammar where
       OrUnbiased g _  -> typeOf g
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
-      If _ g _        -> typeOf g
       Case _ as       -> typeOf (snd (head as))
 
 

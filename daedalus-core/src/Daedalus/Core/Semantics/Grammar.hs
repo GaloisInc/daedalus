@@ -56,9 +56,6 @@ evalG gram env =
         NoFail -> evalG g env
         SrcAnnot t -> pEnter (Text.unpack t) (evalG g env)
 
-    If e g1 g2 ->
-      if fromVBool (eval e env) then evalG g1 env else evalG g2 env
-
     Case e alts ->
       let v = eval e env
       in case [ k | (p,k) <- alts, matches p v ] of

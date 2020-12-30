@@ -51,7 +51,6 @@ data Op1 =
   | IteratorVal
   | IteratorNext
   | EJust
-  | IsJust
   | FromJust
   | SelStruct Type Label
   | InUnion UserType Label
@@ -111,7 +110,6 @@ callF f = ApN (CallF f)
 -- Maybe
 
 just      = Ap1 EJust
-eIsJust   = Ap1 IsJust
 eFromJust = Ap1 FromJust
 nothing t = Ap0 (ENothing t)
 
@@ -312,7 +310,6 @@ instance PP Op1 where
       IteratorNext    -> "itNext"
 
       EJust           -> "just"
-      IsJust          -> "isJust"
       FromJust        -> "fromJust"
 
       SelStruct _ l   -> "get" <+> pp l
