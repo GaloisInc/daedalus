@@ -176,7 +176,7 @@ hsConstraint env ctr =
     Mappable s t  -> "RTS.IsMapLoop" `Ap` hsType env s `Ap` hsType env t
 
     ColElType s t  -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
-    ColKeyType s t -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
+    ColKeyType s t -> "RTS.ColKeyType" `Ap` hsType env s `Ap` hsType env t
 
     TyDef {}        -> panic "hsConstraint" ["Unexpected TyDef"]
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
