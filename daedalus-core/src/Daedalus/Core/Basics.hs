@@ -24,8 +24,8 @@ data TName = TName
 
 -- | What "flavor of type" we have
 data TFlav = TFlavStruct
-           | TFlavEnum        -- ^ A sum type with no data
-           | TFlavUnion       -- ^ A sum type with data
+           | TFlavEnum  [Label]      -- ^ A sum type with no data
+           | TFlavUnion [Label]      -- ^ A sum type with data
 
 -- | Names of top-level functions
 data FName = FName
@@ -90,6 +90,7 @@ data Pattern =
   | PCon Label
   | PAny
     deriving (Eq,Ord)
+
 
 --------------------------------------------------------------------------------
 instance Eq Name where
