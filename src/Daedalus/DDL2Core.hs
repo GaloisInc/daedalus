@@ -397,8 +397,8 @@ fromGrammar gram =
 
 
     TC.TCCase e as dflt ->
-      do ms <- mapM doAltG as
-         t  <- fromGTypeM (TC.typeOf gram)
+      do t  <- fromGTypeM (TC.typeOf gram)
+         ms <- mapM (doAlt fromGrammar t) as
          mbase <- case dflt of
                     Nothing -> pure (Failure t)
                     Just d  -> Success Nothing <$> fromGrammar d
@@ -454,11 +454,10 @@ patMatch pat leaf k =
 
 
 -- XXX: for now we duplicate alternatives
-doAltG :: TC.TCAlt a TC.Grammar -> M (Match Grammar)
-doAltG (TC.TCAlt ps k) =
-  do t  <- fromGTypeM (TC.typeOf k)
-     ms <- sequence [ patMatch pat fromGrammar (t,k) | pat <- ps ]
-     pure (foldr matchOr (Failure t) ms)
+doAlt :: (TC.TC a k -> M tgt) -> Type -> TC.TCAlt a k -> M (Match tgt)
+doAlt eval t (TC.TCAlt ps k) =
+  do ms <- sequence [ patMatch pat eval (t,k) | pat <- ps ]
+     pure (foldr1 matchOr ms)
 
 
 
@@ -509,6 +508,16 @@ matchToGrammar t match e =
                         $ matchToAlts (matchToGrammar t) match e
   where
   pFail = sysErr t "Pattern match failure"
+
+matchToExpr :: Match Expr -> Expr -> Expr
+matchToExpr match e =
+  case match of
+    Failure {} -> panic "matchToExpr" [ "empty case" ]
+    Success mb k ->
+      case mb of
+       Nothing -> k
+       Just x  -> PureLet x e k
+    IfPat {} -> eCase e (matchToAlts matchToExpr match e)
 
 matchToAlts ::
   (Match k -> Expr -> k) ->
@@ -767,6 +776,16 @@ fromClass cla x =
 
         _ -> panic "fromClass" ["Unexptect type parameters"]
 
+
+    TC.TCCase e as dflt ->
+      do ms <- mapM (doAlt (`fromClass` x) TBool) as
+         match <- case dflt of
+                    Nothing -> pure (foldr1 biasedOr ms)
+                    Just d  ->
+                      do base <- Success Nothing <$> fromClass d x
+                         pure (foldr biasedOr base ms)
+         matchToExpr match <$> fromExpr e
+
     TC.TCFor {} -> panic "fromClass" ["Unexpected loop"]
     TC.TCVar {} -> panic "fromClass" ["Unexpected var"]
 
@@ -889,6 +908,18 @@ fromExpr expr =
                 TC.RangeDown  -> rangeDown e1 e2 e3
 
     TC.TCFor lp -> doLoop lp
+
+    TC.TCCase e as dflt ->
+      do t  <- fromTypeM (TC.typeOf expr)
+         ms <- mapM (doAlt fromExpr t) as
+         match <- case dflt of
+                    Nothing -> pure (foldr1 biasedOr ms)
+                    Just d  ->
+                      do base <- Success Nothing <$> fromExpr d
+                         pure (foldr biasedOr base ms)
+         matchToExpr match <$> fromExpr e
+
+
 
 
 doLoop :: TC.Loop a TC.Value -> M Expr
