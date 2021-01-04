@@ -27,7 +27,7 @@ library
                        RTS.Input,
                        RTS.Base,
                        RTS.ByteRanges
-  build-depends:       base >=4.13 && <4.14,
+  build-depends:       base >=4.13 && <4.15,
                        vector,
                        containers,
                        bytestring,
@@ -39,7 +39,7 @@ executable rts-hs-test
   main-is:             Main.hs
   other-modules:       Midi
   hs-source-dirs:      exe
-  build-depends:       base >=4.13 && <4.14,
+  build-depends:       base >=4.13 && <4.15,
                        rts-hs,
                        pretty-show,
                        ansi-terminal,

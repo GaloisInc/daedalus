@@ -36,7 +36,7 @@ library pdf-spec
     -- ISOCodes,
 
   build-depends:
-    base >=4.13 && <4.14,
+    base >=4.13 && <4.15,
     containers,
     bytestring,
     rts-hs,

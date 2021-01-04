@@ -134,7 +134,6 @@ executable daedalus-run-test
                       simple-get-opt >= 0.4
 
 
-
 test-suite daedalus-tests
   type:               exitcode-stdio-1.0
   hs-source-dirs:     tests
@@ -145,6 +144,5 @@ test-suite daedalus-tests
                       bytestring,
                       directory,
                       process,
-                      process-extras,
                       simple-get-opt >= 0.4
 

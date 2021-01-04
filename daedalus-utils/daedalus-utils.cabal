@@ -23,7 +23,7 @@ library
     Daedalus.GUID
 
   build-depends:
-    base >=4.13 && <4.14,
+    base >=4.13 && <4.15,
     pretty,
     text,
     bytestring,
