@@ -15,14 +15,14 @@ typedef enum _ExprType {
     E_VAR
 } ExprType ;
 
-typedef struct _Expr {
+typedef struct _VExpr {
     ExprType tag;
     union {
         int vInt;
         char* vBytes;
         char* name;
     };
-} Expr ;
+} VExpr ;
 
 typedef struct _NameList {
 
@@ -46,7 +46,7 @@ typedef enum {
 
 typedef struct {
     int withsem;
-    Expr* expr;  //TODO: We must use the equivalent of NVExpr here, not generic Expr
+    VExpr* expr;  //TODO: We must use the equivalent of NVExpr here, not generic Expr
 } IMatchBytesData ;
 
 typedef struct {
@@ -88,12 +88,12 @@ typedef struct {
 } ActivateFrameData;
 
 typedef struct {
-    Expr* expr;
+    VExpr* expr;
 } ExactlyData;
 
 typedef struct {
-    Expr* left;
-    Expr* right;
+    VExpr* left;
+    VExpr* right;
 } BetweenData;
 
 typedef struct {
@@ -132,7 +132,7 @@ typedef struct {
 } EnvStoreData;
 
 typedef struct {
-    Expr* expr; //TODO: Should be a VExpr
+    VExpr* expr; //TODO: Should be a VExpr
 } ReturnBindData;
 
 typedef struct {

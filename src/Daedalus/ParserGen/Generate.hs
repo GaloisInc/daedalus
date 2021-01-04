@@ -406,7 +406,7 @@ generateBranchActionData x = return $ error $ "Unimplemented action: " ++ show x
 generateVExpr :: NVExpr -> CAutGenM CExpr
 generateVExpr e = do
   (exprVarIdent, exprVarDeclr)  <- makeExprVar
-  exprType <- CTypeSpec <$> makeTypeDefType "Expr"
+  exprType <- CTypeSpec <$> makeTypeDefType "VExpr"
   exprInit <- exprInitializer
   let decl = CDeclExt $ CDecl [exprType] [(Just exprVarDeclr, Just exprInit, Nothing)] undefNode
   addDeclaration decl
@@ -427,13 +427,8 @@ generateVExprData e = do
       tagExpr <- makeEnumConstantExpr "E_VAR";
       return $ [("tag", tagExpr), ("name", nameExpr v)]
     DAST.TCIn _ e1 _ ->
-      case DAST.texprValue e1 of
-        DAST.TCVar v -> do
-          tagExpr <- makeEnumConstantExpr "E_VAR";
-          return $ [("tag", tagExpr), ("name", nameExpr v)]
-        _ -> do
-          tagExpr <- makeEnumConstantExpr "E_INT";
-          return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
+      -- Right now we only generate things corresponding to the inner expression
+      generateVExprData e1
     _ -> do
       tagExpr <- makeEnumConstantExpr "E_INT";
       return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
