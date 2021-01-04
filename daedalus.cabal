@@ -144,5 +144,6 @@ test-suite daedalus-tests
                       bytestring,
                       directory,
                       process,
+                      process-extras,
                       simple-get-opt >= 0.4
 
