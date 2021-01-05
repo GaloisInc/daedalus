@@ -222,7 +222,7 @@ isUnhandledAction act =
       case sact of
         MapInsert {} -> True
         SelUnion {} -> True
-        Guard _ -> True
+        -- Guard _ -> True
         CoerceCheck {} -> True
         SelJust {} -> True
         _ -> False
