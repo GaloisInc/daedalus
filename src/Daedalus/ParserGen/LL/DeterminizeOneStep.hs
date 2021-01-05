@@ -237,18 +237,18 @@ deterministicSlkCfg aut cfg =
     _ -> error "Impossible abort"
 
 
-newtype DFAState = DFAQuo { dfaQuo :: Set.Set SlkCfg }
+newtype DFAState = DFAState { dfaState :: Set.Set SlkCfg }
   deriving Show
 
 mkDFAState :: State -> DFAState
 mkDFAState q =
-    DFAQuo (Set.singleton (initSlkCfg q))
+    DFAState (Set.singleton (initSlkCfg q))
 
 isDFAStateInit :: DFAState -> Maybe State
 isDFAStateInit q =
-  if (Set.size (dfaQuo q) == 1)
+  if (Set.size (dfaState q) == 1)
   then
-    let cfg = Set.elemAt 0 (dfaQuo q)
+    let cfg = Set.elemAt 0 (dfaState q)
     in
     case cfg of
       SlkCfg
@@ -259,25 +259,25 @@ isDFAStateInit q =
   else Nothing
 
 equivDFAState :: DFAState -> DFAState -> Bool
-equivDFAState q1 q2 = dfaQuo q1 == dfaQuo q2
+equivDFAState q1 q2 = dfaState q1 == dfaState q2
 
 instance Eq DFAState where
   (==) q1 q2 = equivDFAState q1 q2
 
 instance Ord DFAState where
   compare q1 q2 =
-    compare (dfaQuo q1) (dfaQuo q2)
+    compare (dfaState q1) (dfaState q2)
 
 emptyDFAState :: DFAState
-emptyDFAState = DFAQuo Set.empty
+emptyDFAState = DFAState Set.empty
 
 nullDFAState :: DFAState -> Bool
 nullDFAState q =
-  Set.null (dfaQuo q)
+  Set.null (dfaState q)
 
 addDFAState :: SlkCfg -> DFAState -> DFAState
 addDFAState cfg q =
-  DFAQuo $ Set.insert cfg (dfaQuo q)
+  DFAState $ Set.insert cfg (dfaState q)
 
 measureDFAState :: DFAState -> Int
 measureDFAState s =
@@ -311,10 +311,10 @@ convertDFARegistryToDFAState ih s =
 
 iterDFAState :: DFAState -> Maybe (SlkCfg, DFAState)
 iterDFAState s =
-  let lst = Set.toAscList (dfaQuo s) in
+  let lst = Set.toAscList (dfaState s) in
     case lst of
       [] -> Nothing
-      x:xs -> Just (x, DFAQuo (Set.fromAscList xs))
+      x:xs -> Just (x, DFAState (Set.fromAscList xs))
 
 
 determinizeDFAState :: Aut a => a -> DFAState -> Result DetChoice

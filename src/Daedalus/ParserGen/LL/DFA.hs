@@ -282,10 +282,10 @@ getConflictSetsPerLoc s =
       (DFAEntry _src2 (ClosureAccepting _alts2 _dst2)) = True
     sameEntryPerLoc _ _ = error "broken invariant"
 
--- Inspired by the condition in `predictLL()` of ALL(*) paper
+-- Inspired by the condition in `predictLL()` from ALL(*) paper
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility
 -- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
--- * `DunnoAmbiguous` if all the conflict sets have 1 posibility
+-- * `DunnoAmbiguous` if all the conflict sets have 1 possibility
 analyzeConflicts :: DFARegistry -> AmbiguityDetection
 analyzeConflicts ts =
   let conflictSets = getConflictSetsPerLoc ts

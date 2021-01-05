@@ -402,8 +402,8 @@ createLLA aut =
 
 showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
 showStartSynthLLAState aut dfas q =
-  let dfaState = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
-  case iterDFAState dfaState of
+  let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
+  case iterDFAState dfaSt of
     Nothing -> "SINK STATE"
     Just (cfg, qs) ->
       if nullDFAState qs

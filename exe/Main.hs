@@ -250,7 +250,7 @@ interpPGen useJS inp moduls flagMetrics =
                                     countLL =        snd (extractMetrics results)
                                 in
                                   do putStrLn (
-                                       "\nScore (Det/(Backtrack+Det)): " ++
+                                       "\nScore (LLpredict / (Backtrack + LLpredict)): " ++
                                        (if (countBacktrack + countLL) == 0
                                         then "NA"
                                         else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")
