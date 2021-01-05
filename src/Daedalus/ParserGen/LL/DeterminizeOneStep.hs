@@ -146,8 +146,8 @@ insertDetChoiceInputHeadCondition src ih cm detChoice =
       in detChoice { endDetChoice = endDetChoice' }
     HeadInput x ->
       let classDetChoice' =
-            let c = classDetChoice detChoice in
-              insertItvInOrderedList (x, q) c unionDFARegistry
+            let c = classDetChoice detChoice
+            in insertItvInOrderedList (x, q) c unionDFARegistry
       in detChoice { classDetChoice = classDetChoice' }
 
 

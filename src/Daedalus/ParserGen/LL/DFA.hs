@@ -138,7 +138,7 @@ insertDFA qState rtr =
   where
     allocTransition lst ch dfa1 =
       case lst of
-        [] -> (ch, dfa1)
+        [] -> (reverse ch, dfa1)
         (ih, registry, am, q, dummy) : rest ->
           if (dummy /= dummyLinDFAState)
           then error "borken invariant"
@@ -226,7 +226,8 @@ showDFA dfa =
       space d ++ "),\n"
 
     showSet s = "[" ++ foldr (\ entry b ->
-                                let alts = altSeq $ dstEntry entry in
+                                let alts = getAltSeq $ dstEntry entry
+                                in
                                  "(" ++ show (length alts) ++
                                  -- ",q" ++ show q ++
                                  ")," ++ b) "" s  ++ "]"
@@ -408,6 +409,7 @@ createDFA aut qInit =
         , acceptTrans = acceptingTr
         , nextTrans = nextTr
         }
+
       where
         fconvert (ihc, reg) =
           let newCfg = convertDFARegistryToDFAState reg
