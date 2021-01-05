@@ -4,6 +4,7 @@ module Daedalus.ParserGen.LL.Closure
   , ChoiceSeq
   , addChoiceSeq
   , ClosureMove(..)
+  , getAltSeq
   , ClosureMoveSet
   , closureLL
   ) where
@@ -132,6 +133,14 @@ instance Ord (ClosureMove) where
 instance Eq (ClosureMove) where
   (==) c1 c2 = compare c1 c2 == EQ
 
+
+getAltSeq :: ClosureMove -> ChoiceSeq
+getAltSeq c =
+  case c of
+    ClosureMove {moveCfg = (p,_,_)} -> addChoiceSeq p (altSeq c)
+    ClosurePath {moveCfg = (p,_,_)} -> addChoiceSeq p (altSeq c)
+    ClosureEps {} -> altSeq c
+    ClosureAccepting {} -> altSeq c
 
 type ClosureMoveSet = [ClosureMove]
 
