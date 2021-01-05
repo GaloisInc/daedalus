@@ -63,6 +63,7 @@ data SomeFun      = FVal (Fun Value)
                   | FGrm (Fun (Parser Value))
 newtype Fun a     = Fun ([TVal] -> [SomeVal] -> a)
 
+
 instance Show (Fun a) where
   show _ = "FunDecl"
 
@@ -663,7 +664,7 @@ compilePExpr env expr0 args = go expr0
              pure $! mbSkip s v
 
         TCChoice c es _  -> foldr (alt c)
-                              (pError FromSystem erng "no choice") (map go es)
+                              (pError FromSystem erng "all alternatives of `Choice` failed") (map go es)
 
         TCOptional c e   ->
              alt c (VMaybe . Just <$> go e) (pure (VMaybe Nothing))
