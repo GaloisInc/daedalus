@@ -92,6 +92,12 @@ findAllEntryInDFARegistry s test =
       let (lst, rest) = findAllEntryInDFARegistry xs test
       in (x:lst, rest)
 
+emptyDFARegistry :: DFARegistry
+emptyDFARegistry = Set.empty
+
+addDFARegistry :: DFAEntry -> DFARegistry -> DFARegistry
+addDFARegistry e s =
+  Set.insert e s
 
 unionDFARegistry :: DFARegistry -> DFARegistry -> DFARegistry
 unionDFARegistry s1 s2 = Set.union s1 s2
@@ -165,7 +171,6 @@ unionDetChoice (DetChoice acc1 e1 cl1) (DetChoice acc2 e2 cl2) =
   in DetChoice acc3 e3 cl3
 
 
-
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
 determinizeMove :: SourceCfg -> ClosureMoveSet -> Result DetChoice
@@ -203,6 +208,7 @@ determinizeMove src tc =
                       _ -> error "Impossible case"
                 ClosureAccepting {} ->
                   Result $ insertDetChoiceAccepting src t acc
+                _ -> error "impossible case"
           in
           if compatibleInput (cfgInput cfg) minp
           then
@@ -292,21 +298,47 @@ measureDFAState s =
               newR = max iSem (max iCtrl r)
           in helper qs newR
 
-convertDFARegistryToDFAState :: InputHeadCondition -> DFARegistry -> DFAState
-convertDFARegistryToDFAState ih s =
-  helper s
+convertDFARegistryToDFAState :: DFARegistry -> DFAState
+convertDFARegistryToDFAState r =
+  helper r
   where
-    helper set =
-      case iterDFARegistry set of
+    helper s =
+      case iterDFARegistry s of
         Nothing -> emptyDFAState
         Just (entry, es) ->
-          let closCfg = closureCfg $ dstEntry entry
-              (_,act,q) = moveCfg $ dstEntry entry
+          addDFAState (lastCfg $ dstEntry entry) (helper es)
+
+
+slkExecInputHeadConditionRegistry :: InputHeadCondition -> DFARegistry -> DFARegistry
+slkExecInputHeadConditionRegistry ih r =
+  helper r
+  where
+    helper s =
+      case iterDFARegistry s of
+        Nothing -> emptyDFARegistry
+        Just (entry, es) ->
+          let
+            src = srcEntry entry
+            alt = altSeq $ dstEntry entry
+            closCfg = closureCfg $ dstEntry entry
+            mv@(_,act,q) = moveCfg $ dstEntry entry
           in
           let mCfg = moveSlkCfgFromPrev ih closCfg act q in
             case mCfg of
               Nothing -> helper es
-              Just newCfg -> addDFAState newCfg (helper es)
+              Just newCfg ->
+                let newEntry =
+                      DFAEntry
+                      { srcEntry = src
+                      , dstEntry =
+                        ClosurePath
+                        { altSeq = alt
+                        , closureCfg = closCfg
+                        , moveCfg = mv
+                        , lastCfg = newCfg
+                        }
+                      }
+                in addDFARegistry newEntry (helper es)
 
 
 iterDFAState :: DFAState -> Maybe (SlkCfg, DFAState)
@@ -324,7 +356,7 @@ determinizeDFAState aut s =
     determinizeAcc :: DFAState -> DetChoice -> Result DetChoice
     determinizeAcc states acc =
       case iterDFAState states of
-        Nothing -> Result acc
+        Nothing -> Result $ slkExecClass acc
         Just (cfg, rest) ->
           let r = deterministicSlkCfg aut cfg in
           case r of
@@ -340,3 +372,14 @@ determinizeDFAState aut s =
               let newAcc = unionDetChoice r1 acc
               in determinizeAcc rest newAcc
             _ -> error "cannot be this abort"
+
+
+    slkExecClass :: DetChoice -> DetChoice
+    slkExecClass d =
+      let
+        cdc = classDetChoice d
+        edc = endDetChoice d
+      in
+      d { classDetChoice = map (\ (cl, r) -> (cl, slkExecInputHeadConditionRegistry (HeadInput cl) r)) cdc
+        , endDetChoice = maybe Nothing (\ r -> Just $ slkExecInputHeadConditionRegistry (EndInput) r) edc
+        }

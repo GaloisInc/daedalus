@@ -51,6 +51,16 @@ data ClosureMove =
     , closureCfg :: SlkCfg
     , moveCfg :: (ChoicePos, Action, State)
     }
+  | ClosurePath
+    { altSeq :: ChoiceSeq
+    , closureCfg :: SlkCfg
+    , moveCfg :: (ChoicePos, Action, State)
+    , lastCfg :: SlkCfg
+    }
+  | ClosureEps
+    { altSeq :: ChoiceSeq
+    , closureCfg :: SlkCfg
+    }
   | ClosureAccepting
     { altSeq :: ChoiceSeq
     , closureCfg :: SlkCfg
@@ -58,7 +68,16 @@ data ClosureMove =
   deriving Show
 
 instance Ord (ClosureMove) where
-  compare c1 c2 =
+  compare c1@(ClosureEps {}) c2@(ClosureEps {}) =
+    case compare (closureCfg c1) (closureCfg c2) of
+      LT -> LT
+      GT -> GT
+      EQ ->
+        compare (altSeq c1) (altSeq c2)
+  compare (ClosureEps {}) _ = LT
+  compare _ (ClosureEps {}) = GT
+
+  compare c1@(ClosureMove {}) c2@(ClosureMove {}) =
     case compare (closureCfg c1) (closureCfg c2) of
       LT -> LT
       GT -> GT
@@ -76,6 +95,39 @@ instance Ord (ClosureMove) where
                 GT -> GT
                 EQ ->
                   compare q1 q2
+  compare (ClosureMove {}) _ = LT
+  compare _ (ClosureMove {}) = GT
+
+  compare c1@(ClosureAccepting {}) c2@(ClosureAccepting {}) =
+    case compare (closureCfg c1) (closureCfg c2) of
+      LT -> LT
+      GT -> GT
+      EQ ->
+        compare (altSeq c1) (altSeq c2)
+  compare (ClosureAccepting {}) _ = LT
+  compare _ (ClosureAccepting {}) = GT
+
+  compare c1@(ClosurePath {}) c2@(ClosurePath {}) =
+    case compare (closureCfg c1) (closureCfg c2) of
+      LT -> LT
+      GT -> GT
+      EQ ->
+        case compare (altSeq c1) (altSeq c2) of
+          LT -> LT
+          GT -> GT
+          EQ ->
+            let
+              (ch1, _, q1) = moveCfg c1
+              (ch2, _, q2) = moveCfg c2
+            in
+              case compare ch1 ch2 of
+                LT -> LT
+                GT -> GT
+                EQ ->
+                  case compare q1 q2 of
+                    LT -> LT
+                    GT -> GT
+                    EQ -> compare (lastCfg c1) (lastCfg c2)
 
 instance Eq (ClosureMove) where
   (==) c1 c2 = compare c1 c2 == EQ
@@ -86,6 +138,7 @@ type ClosureMoveSet = [ClosureMove]
 
 maxDepthRec :: Int
 maxDepthRec = 800
+
 
 
 closureLoop :: Aut.Aut a => a -> Set.Set SlkCfg -> (ChoiceSeq, SlkCfg) -> Result ClosureMoveSet

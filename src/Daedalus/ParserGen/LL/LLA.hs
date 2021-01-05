@@ -262,27 +262,35 @@ predictDFA dfa i =
     extractSinglePrediction :: DFARegistry -> (SourceCfg, Prediction)
     extractSinglePrediction s =
       case iterDFARegistry s of
-        Just (DFAEntry c1 (ClosureMove alts _c2 (pos, _, _)), rest) ->
+        Just (DFAEntry c1 (ClosurePath alts _c2 (pos, _, _) _c3), rest) ->
           if not (null rest)
           then error "ambiguous prediction"
-          else (c1, addChoiceSeq pos alts )
+          else (c1, addChoiceSeq pos alts)
           -- NOTE: pos is appended because this is the last transition
         Just (DFAEntry c1 (ClosureAccepting alts _c2), rest) ->
           if not (null rest)
           then error "ambiguous prediction"
           else (c1, alts)
+        Just (DFAEntry _c1 (ClosureMove {}), _) ->
+          error "broken invariant: cannot be ClosureMove here"
+        Just (DFAEntry _c1 (ClosureEps {}), _) ->
+          error "broken invariant: cannot be ClosureEps here"
         _ -> error "ambiguous prediction"
 
     extractPredictionFromDFARegistry :: SourceCfg -> DFARegistry -> (SourceCfg, Prediction)
     extractPredictionFromDFARegistry src s =
       case iterDFARegistry s of
         Nothing -> error "could not find src from previous cfg"
-        Just (DFAEntry c1 (ClosureMove alts c2 (pos, _, q2)), others) ->
-          if q2 == cfgState src && cfgCtrl c2 == cfgCtrl src
+        Just (DFAEntry c1 (ClosurePath alts _c2 (pos, _, _q2) c3), others) ->
+          if cfgState c3 == cfgState src && cfgCtrl c3 == cfgCtrl src
           then (c1, addChoiceSeq pos alts)
           else extractPredictionFromDFARegistry src others
         Just (DFAEntry _c1 (ClosureAccepting _alts _c2), _others) ->
           error "broken invariant: cannot be ClosureAccepting here"
+        Just (DFAEntry _c1 (ClosureMove {}), _others) ->
+           error "broken invariant: cannot be ClosureMove here"
+        Just (DFAEntry _c1 (ClosureEps {}), _others) ->
+           error "broken invariant: cannot be ClosureEps here"
 
 predictLL :: Either State SynthLLAState -> LLA -> Input.Input -> Maybe (Prediction, Maybe SynthLLAState)
 predictLL qq aut inp =

@@ -274,8 +274,8 @@ getConflictSetsPerLoc s =
 
   where
     sameEntryPerLoc
-      (DFAEntry _src1 (ClosureMove _alts1 dst1 (_,_,q1)))
-      (DFAEntry _src2 (ClosureMove _alts2 dst2 (_,_,q2))) =
+      (DFAEntry _src1 (ClosurePath _alts1 dst1 (_,_,q1) _))
+      (DFAEntry _src2 (ClosurePath _alts2 dst2 (_,_,q2) _)) =
       dst1 == dst2 && q1 == q2
     sameEntryPerLoc
       (DFAEntry _src1 (ClosureAccepting _alts1 _dst1))
@@ -410,7 +410,7 @@ createDFA aut qInit =
         }
       where
         fconvert (ihc, reg) =
-          let newCfg = convertDFARegistryToDFAState ihc reg
+          let newCfg = convertDFARegistryToDFAState reg
               am = analyzeConflicts reg
           in (ihc, reg, am, newCfg, dummyLinDFAState)
 
