@@ -101,19 +101,19 @@ closureLoop aut busy (alts, cfg) =
         Nothing ->
           if Aut.isAcceptingState aut q
           then Result [ ClosureAccepting alts cfg ]
-          else iterateThrough (initChoicePos CPop) [(CAct Pop, q)]
+          else iterateChoice (initChoicePos CPop) [(CAct Pop, q)]
         Just ch1 ->
           let (tag, lstCh) =
                 case ch1 of
                   Aut.UniChoice (act, q2) -> (CUni, [(act, q2)])
                   Aut.SeqChoice lst _     -> (CSeq, lst)
                   Aut.ParChoice lst       -> (CPar, lst)
-          in iterateThrough (initChoicePos tag) lstCh
+          in iterateChoice (initChoicePos tag) lstCh
 
   where
     newBusy = Set.insert cfg busy
 
-    closureStep :: ChoicePos -> (Action,State) -> Result ClosureMoveSet
+    closureStep :: ChoicePos -> (Action, State) -> Result ClosureMoveSet
     closureStep pos (act, q2)
       | isClassActOrEnd act =
           Result [ ClosureMove alts cfg (pos, act, q2) ]
@@ -134,8 +134,8 @@ closureLoop aut busy (alts, cfg) =
             _ -> error "impossible"
 
 
-    iterateThrough :: ChoicePos -> [(Action,State)] -> Result ClosureMoveSet
-    iterateThrough pos ch =
+    iterateChoice :: ChoicePos -> [(Action, State)] -> Result ClosureMoveSet
+    iterateChoice pos ch =
       let (_ , lstRes) = foldl (\ (pos1, acc) (act, q2) -> (nextChoicePos pos1, closureStep pos1 (act, q2) : acc)) (pos,[]) ch
       in
       combineResults (reverse lstRes)
