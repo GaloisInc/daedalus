@@ -329,7 +329,11 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
           }
 
   defRHS = case tcDeclDef of
-             ExternDecl t -> hasType (hsType env t)
+             ExternDecl t ->
+                case nameScopedIdent tcDeclName of
+                  ModScope "Debug" "Trace" ->
+                    hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
+                  _ -> hasType (hsType env t)
                               (lkpInEnv "envExtern" (envExtern env) tcDeclName)
 
              Defined e ->

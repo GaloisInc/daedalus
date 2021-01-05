@@ -773,17 +773,31 @@ compilePExpr env expr0 args = go expr0
             (pError FromSystem erng "pattern match failure")
             env e alts def
 
+tracePrim :: [SomeVal] -> Parser Value
+tracePrim vs =
+  case vs of
+    [ VVal v ] ->
+        do pTrace (vecFromRep (valueToByteString v))
+           pure vUnit
+    _ -> panic "tracePrim" [ "Invalid call to the trace primitive" ]
+
+
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
 compileDecl prims env TCDecl { .. } =
   ( tcDeclName
   , case tcDeclDef of
-      ExternDecl _ -> case Map.lookup tcDeclName prims of
-                        Just yes -> yes
-                        Nothing ->
-                         panic "compileDecl"
-                           [ "No implementation for primitive: " ++
-                                                    show (pp tcDeclName) ]
+
+      ExternDecl _ ->
+        case Map.lookup tcDeclName prims of
+          Just yes -> yes
+          Nothing
+            | ("Debug","Trace") <- K.nameScopeAsModScope tcDeclName ->
+              FGrm (Fun \_ -> tracePrim)
+
+            | otherwise -> panic "compileDecl"
+              [ "No implementation for primitive: " ++ show (pp tcDeclName) ]
+
       Defined d ->
         case tcDeclCtxt of
           AGrammar ->
