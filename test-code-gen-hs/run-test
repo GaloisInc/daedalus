@@ -3,19 +3,33 @@
 set -e
 
 DIR=test-bed
+GEN_DIR=test-code
 DDL=$1
 ROOT=$(basename $DDL .ddl)
 
+rm -rf $GEN_DIR
+mkdir $GEN_DIR
+
 cabal build daedalus
-cabal exec daedalus -- "$DDL" --compile-hs > "$DIR/$ROOT.hs"
+cabal exec daedalus -- \
+  "$DDL"  \
+  --out-dir="$GEN_DIR" \
+  --compile-hs
 
-pushd "$DIR"
-cp "./test-bed.cabal.template" "./test-bed.cabal"
-echo "  other-modules: $ROOT" >> "./test-bed.cabal"
+CABAL="$DIR/test-bed.cabal"
+cp "$DIR/test-bed.cabal.template" "$CABAL"
+for i in $GEN_DIR/*.hs
+do
+  NAME=$(basename "$i" .hs)
+  echo "  other-modules: $NAME" >> "$CABAL"
+  cp "$i" "$DIR"
+done
 
-echo "import $ROOT" > "./Main.hs"
-cat "./Main.hs.template" >> "./Main.hs"
+echo "import $ROOT" > "$DIR/Main.hs"
+cat "$DIR/Main.hs.template" >> "$DIR/Main.hs"
 
+pushd $DIR
 cabal build exe:test-bed
 cabal exec test-bed $2
 popd
+rm -rf test-code
