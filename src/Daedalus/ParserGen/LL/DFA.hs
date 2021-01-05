@@ -274,23 +274,23 @@ getConflictSetsPerLoc s =
 
   where
     sameEntryPerLoc
-      (DFAEntry _src1 (ClosurePath _alts1 dst1 (_,_,q1) _))
-      (DFAEntry _src2 (ClosurePath _alts2 dst2 (_,_,q2) _)) =
-      dst1 == dst2 && q1 == q2
+      (DFAEntry _src1 (ClosurePath _alts1 _ (_,_,_) dst1))
+      (DFAEntry _src2 (ClosurePath _alts2 _ (_,_,_) dst2)) =
+      dst1 == dst2
     sameEntryPerLoc
       (DFAEntry _src1 (ClosureAccepting _alts1 _dst1))
       (DFAEntry _src2 (ClosureAccepting _alts2 _dst2)) = True
     sameEntryPerLoc _ _ = error "broken invariant"
 
 -- Inspired by the condition in `predictLL()` from ALL(*) paper
--- * `NotAmbiguous` when there is only one conflict set with only one possibility
+-- * `NotAmbiguous` when there is only one conflict set with only one possibility, or when the conflict set is empty
 -- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
 -- * `DunnoAmbiguous` if all the conflict sets have 1 possibility
 analyzeConflicts :: DFARegistry -> AmbiguityDetection
 analyzeConflicts ts =
   let conflictSets = getConflictSetsPerLoc ts
   in case conflictSets of
-       [] -> error "empty DFARegistry"
+       [] -> NotAmbiguous
        [ [] ] -> error "empty list"
        [ lst ] ->
          if length lst == 1
