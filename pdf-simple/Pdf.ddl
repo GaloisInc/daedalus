@@ -1,5 +1,4 @@
 import PdfValue
-import Debug
 
 def Main = {
   version = SkipTo { Match "%PDF-"; $$ = Number; };
