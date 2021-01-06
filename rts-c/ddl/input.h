@@ -31,7 +31,7 @@ public:
   // Borrows arguments (i.e., we copy them)
   Input (const char *nm, const char *by)
     : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm)))
-    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(nm)))
+    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(by)))
     , offset(0)
     , last_offset(bytes.size())
   {}
