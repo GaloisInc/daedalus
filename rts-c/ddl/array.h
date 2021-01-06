@@ -84,7 +84,7 @@ public:
 
   // Borrow arguments
   Array(T *data, size_t n) : ptr(Content::allocate(n)) {
-    memcpy(ptr->data, data, n * sizeof(T));
+    memcpy(ptr->data, data, sizeof(T[n]));
   }
 
   // Borrows this
