@@ -35,6 +35,7 @@ import Daedalus.VM.Backend.C.Call
   * assignment: for passing block parameters
 -}
 
+-- XXX: separate output and parser state(input/threads)
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
 cProgram :: String -> Program -> (Doc,Doc)
@@ -73,19 +74,19 @@ cProgram fileNameRoot prog = (hpp,cpp)
 
   allTypes       = concatMap mTypes orderedModules
   allFuns        = concatMap mFuns orderedModules
-  allBlocks      = Map.unions (pBoot prog : map vmfBlocks allFuns)
+  allBlocks      = Map.unions (entryBoot (pEntry prog) : map vmfBlocks allFuns)
   doBlock b      = let ?allFuns = Map.fromList [ (vmfName f, f) | f <- allFuns ]
                        ?allBlocks = allBlocks
                    in cBasicBlock b
 
-  parserTy       = cSemType (pType prog)
+  parserTy       = cSemType (entryType (pEntry prog))
   parserDef      = vcat [ params
                         , cDeclareRetVars allFuns
                         , cDeclareCallClosures (Map.elems allBlocks)
                         , " "
                         , "// --- States ---"
                         , " "
-                        , cGoto (cBlockLabel (pEntry prog))
+                        , cGoto (cBlockLabel (entryLabel (pEntry prog)))
                         , " "
                         , vcat' (map doBlock (Map.elems allBlocks))
                         ]

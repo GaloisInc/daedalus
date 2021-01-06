@@ -31,26 +31,27 @@ moduleToProgram :: Src.FName -> [Module] -> Program
 moduleToProgram entry ms =
   Program
     { pModules = ms
-    , pType    = Src.fnameType entry
-    , pEntry   = l
-    , pBoot    = b
+    , pEntry   = compileEntry (Src.fnameType entry) (Src.Call entry [])
     }
+
+compileEntry :: Src.Type -> Src.Grammar -> Entry
+compileEntry ty pe =
+  Entry { entryLabel = l
+        , entryBoot  = b
+        , entryType  = ty
+        }
   where
-  (l,b) = compileEntry (Src.Call entry [])
-
-
-compileEntry :: Src.Grammar -> (Label, Map Label Block)
-compileEntry pe =
-  runC "__" (Src.typeOf pe) $
-  compile pe $
-  Next { onNo  = Just
-                 do stmt_ $ Say "Branch failed, resuming"
-                    term  $ Yield
-       , onYes = Just \v ->
-                 do stmt_ $ Say "Branch succeeded, resuming"
-                    stmt_ $ Output v
-                    term  $ Yield
-       }
+  (l,b) =
+    runC "__" (Src.typeOf pe) $
+    compile pe $
+    Next { onNo  = Just
+                   do stmt_ $ Say "Branch failed, resuming"
+                      term  $ Yield
+         , onYes = Just \v ->
+                   do stmt_ $ Say "Branch succeeded, resuming"
+                      stmt_ $ Output v
+                      term  $ Yield
+         }
 
 
 compileModule :: Src.Module -> Module

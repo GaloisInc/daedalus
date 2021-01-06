@@ -20,12 +20,15 @@ import qualified Daedalus.Core as Src
 -- | A program
 data Program = Program
   { pModules  :: [Module]
+  , pEntry    :: Entry
+  }
 
-    -- XXX: we probably want to support more than one entry point.
-    -- XXX: we also want entry points with parameters.
-  , pBoot     :: Map Label Block
-  , pType     :: Src.Type     -- ^ type of value produced by parser
-  , pEntry    :: Label
+-- XXX: maybe this needs a name also to be used for the external API
+-- | An entry point to the program
+data Entry = Entry
+  { entryType   :: Src.Type          -- ^ type of value produced by parser
+  , entryBoot   :: Map Label Block   -- ^ code specific to the entry point
+  , entryLabel  :: Label             -- ^ start executing here
   }
 
 -- | A module
@@ -299,12 +302,11 @@ instance PP JumpWithFree where
                   else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
-  pp p =
-    ".entry" <+> pp (pEntry p) $$
-    "" $$
-    vcat' (map pp (Map.elems (pBoot p))) $$
-    "" $$
-    vcat' (map pp (pModules p))
+  pp p = vcat' (pp (pEntry p) : map pp (pModules p))
+
+instance PP Entry where
+  pp entry = vcat' $ ".entry" <+> pp (entryLabel entry)
+                   :  map pp (Map.elems (entryBoot entry))
 
 instance PP Module where
   pp m =

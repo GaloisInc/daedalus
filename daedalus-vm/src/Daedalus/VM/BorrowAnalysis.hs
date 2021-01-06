@@ -64,11 +64,13 @@ of basic blocks (point 5)
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = prog { pBoot    = annBlock  <$> pBoot prog
+doBorrowAnalysis prog = prog { pEntry   = annEntry (pEntry prog)
                              , pModules = annModule <$> pModules prog
                              }
   where
   info        = borrowAnalysis prog
+
+  annEntry  e = e { entryBoot = annBlock <$> entryBoot e }
   annModule m = m { mFuns     = annFun   <$> mFuns m }
   annFun f    = f { vmfBlocks = annBlock <$> vmfBlocks f }
   annBlock b =
@@ -183,7 +185,10 @@ borrowAnalysis p = loop i0
 vmProgram :: Program -> Info -> Info
 vmProgram p i = foldr vmModule bs (pModules p)
   where
-  bs = foldr block i (Map.elems (pBoot p))
+  bs = vmEntry (pEntry p) i
+
+vmEntry :: Entry -> Info -> Info
+vmEntry e i = foldr block i (Map.elems (entryBoot e))
 
 vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
