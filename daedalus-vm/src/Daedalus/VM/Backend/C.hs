@@ -15,6 +15,7 @@ import           Data.Int(Int64)
 import qualified Data.Set as Set
 import           Data.Maybe(maybeToList,mapMaybe,fromMaybe)
 import           Data.List(intersperse)
+import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
 import Daedalus.PP
@@ -43,44 +44,47 @@ cProgram fileNameRoot prog = (hpp,cpp)
   where
   module_marker = text fileNameRoot <.> "_H"
 
-  hpp = vcat [ "#ifndef" <+> module_marker
-             , "#define" <+> module_marker
-             , " "
-             , includes
-             , " "
-             , vcat' (map cTypeGroup allTypes)
-             , " "
-             , cStmt ("using ParserResult =" <+> parserTy)
-               -- this is just to make it easier to write a polymorphic
-               -- test driver
+  hpp = vcat $
+          [ "#ifndef" <+> module_marker
+          , "#define" <+> module_marker
+          , " "
+          , includes
+          , " "
+          , vcat' (map cTypeGroup allTypes)
+          , " "
+          , cStmt ("using ParserResult =" <+> cSemType (entryType (head (pEntries prog))))
+            -- this is just to make it easier to write a polymorphic
+            -- test driver
 
-             , cStmt parserSig
-             , " "
-             , "#endif"
-             ]
+          ] ++
+          [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
+          [ " "
+          , "#endif"
+          ]
 
 
-  cpp = vcat [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
-             , " "
-             , parserSig <+> "{"
-             , nest 2 parserDef
-             , "}"
-             ]
+  cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
+               , " "
+               ] ++
+               [ parserSig <+> "{"
+               , nest 2 parserDef
+               , "}"
+               ] ++
+               zipWith cDefineEntry [0..] (pEntries prog)
 
-  parserSig = "void parser(DDL::Input i0," <+>
-                cInst "DDL::ParserResults" [ parserTy ] <+> "&out)"
+  parserSig = "static void parser(DDL::Input i0, int entry, DDL::ParseError &err, void* out)"
 
   orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
   modDeps m      = (mName m, Set.fromList (mImports m))
 
   allTypes       = concatMap mTypes orderedModules
   allFuns        = concatMap mFuns orderedModules
-  allBlocks      = Map.unions (entryBoot (pEntry prog) : map vmfBlocks allFuns)
+  allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
+                                                          map vmfBlocks allFuns)
   doBlock b      = let ?allFuns = Map.fromList [ (vmfName f, f) | f <- allFuns ]
                        ?allBlocks = allBlocks
                    in cBasicBlock b
 
-  parserTy       = cSemType (entryType (pEntry prog))
   parserDef      = vcat [ "DDL::ParserState p{i0};"
                         , params
                         , cDeclareRetVars allFuns
@@ -88,10 +92,14 @@ cProgram fileNameRoot prog = (hpp,cpp)
                         , " "
                         , "// --- States ---"
                         , " "
-                        , cGoto (cBlockLabel (entryLabel (pEntry prog)))
+                        , cSwitch "entry"
+                            [ cCase (int i) <+>
+                                   cGoto (cBlockLabel (entryLabel e))
+                                     | (i,e) <- zip [0..] (pEntries prog) ]
                         , " "
                         , vcat' (map doBlock (Map.elems allBlocks))
                         ]
+
 
   params         = vcat (map cDeclareBlockParams (Map.elems allBlocks))
 
@@ -115,6 +123,24 @@ type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
 type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
+
+cEntrySig :: Entry -> Doc
+cEntrySig ent =
+  "void" <+> nm <.>
+    vcat [ "( DDL::Input input"
+         , ", DDL::ParseError &error"
+         , "," <+> cInst "std::vector" [ ty ] <+> "&results"
+         , ")"
+         ]
+  where
+  nm = text (Text.unpack (entryName ent)) -- Not escaped!
+  ty = cSemType (entryType ent)
+
+cDefineEntry :: Int -> Entry -> Doc
+cDefineEntry n ent = cEntrySig ent <+> "{" $$ nest 2 body $$ "}"
+  where
+  body = cStmt (cCall "parser" [ "input", int n, "error", "&results" ])
+
 
 cDeclareBlockParams :: Block -> CStmt
 cDeclareBlockParams b
@@ -235,7 +261,9 @@ cBlockStmt cInstr =
   case cInstr of
     SetInput e      -> cStmt (cCall "p.setInput" [ cExpr e])
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
-    Output e        -> cStmt (cCall "out.output" [ cExpr e ])
+    Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
+                           o = parens (parens(t) <.> "out")
+                       in cStmt (cCall (o <.> "->push_back") [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail        -> cStmt (cCall "p.noteFail" [])
     GetInput x      -> cVarDecl x (cCall "p.getInput" [])
@@ -562,7 +590,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ "out.setFailure(p.getFailOffset()); return;" ]
+          [ cAssign "err.offset" "p.getFailOffset()", "return;" ]
       ]
 
     ReturnNo ->

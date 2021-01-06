@@ -64,7 +64,7 @@ of basic blocks (point 5)
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = prog { pEntry   = annEntry (pEntry prog)
+doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
                              , pModules = annModule <$> pModules prog
                              }
   where
@@ -185,7 +185,7 @@ borrowAnalysis p = loop i0
 vmProgram :: Program -> Info -> Info
 vmProgram p i = foldr vmModule bs (pModules p)
   where
-  bs = vmEntry (pEntry p) i
+  bs = foldr vmEntry i (pEntries p)
 
 vmEntry :: Entry -> Info -> Info
 vmEntry e i = foldr block i (Map.elems (entryBoot e))

@@ -110,7 +110,7 @@ handleOptions opts
               entry <- ddlGetFName mm "Main" -- mainNm
               let prog = VM.addCopyIs
                        $ VM.doBorrowAnalysis
-                       $ VM.moduleToProgram entry [m]
+                       $ VM.moduleToProgram [entry] [m]
               ddlPrint (pp prog)
 
          DumpGen ->
@@ -164,7 +164,7 @@ handleOptions opts
                   entry <- ddlGetFName mm "Main" -- mainNm
                   let prog = VM.addCopyIs
                            $ VM.doBorrowAnalysis
-                           $ VM.moduleToProgram entry [m]
+                           $ VM.moduleToProgram [entry] [m]
                       outFileRoot = "main_parser"
                       (hpp,cpp) = C.cProgram outFileRoot prog
                   root <- case optOutDir opts of

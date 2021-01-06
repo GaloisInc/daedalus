@@ -20,8 +20,8 @@ import Daedalus.VM.FreeVars
 
 
 addCopyIs :: Program -> Program
-addCopyIs p = p { pEntry   = annEntry (pEntry p)
-                , pModules = map annModule (pModules p)
+addCopyIs p = p { pEntries = annEntry  <$> pEntries p
+                , pModules = annModule <$> pModules p
                 }
   where
   annEntry e  = e { entryBoot = annotateBlock ro <$> entryBoot e }
@@ -33,7 +33,8 @@ buildRO :: Program -> RO
 buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
   where
   initRO = RO { funMap = Map.empty
-              , labOwn = blockSig <$> entryBoot (pEntry p)
+              , labOwn = Map.unions [ blockSig <$> entryBoot entry
+                                                        | entry <- pEntries p ]
               }
 
   addFun f i =

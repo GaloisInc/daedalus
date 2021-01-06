@@ -12,16 +12,10 @@ namespace DDL {
 
 typedef size_t ThreadId;
 
-template <class T>
-struct ParserResults {
-  std::vector<T> results;        // store results here
-  size_t         fail_offset;    // largest, only makes sense if we fail
-
-  // Called when we find a successful parse
-  void output(T v) { results.push_back(v); }
+struct ParseError {
+  // XXX: more info (stream information, some description)
+  size_t offset;
 };
-
-
 
 class ParserState {
 

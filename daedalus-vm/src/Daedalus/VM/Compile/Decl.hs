@@ -2,7 +2,6 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.VM.Compile.Decl where
 
-import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Data.Void(Void)
@@ -23,22 +22,23 @@ import Daedalus.VM.CaptureAnalysis
 
 
 
-compileProgram :: Src.FName -> [Src.Module] -> Program
-compileProgram entry ms =
-  moduleToProgram entry (captureAnalysis (map compileModule ms))
+compileProgram :: [Src.FName] -> [Src.Module] -> Program
+compileProgram entries ms =
+  moduleToProgram entries (captureAnalysis (map compileModule ms))
 
-moduleToProgram :: Src.FName -> [Module] -> Program
-moduleToProgram entry ms =
+moduleToProgram :: [Src.FName] -> [Module] -> Program
+moduleToProgram entries ms =
   Program
     { pModules = ms
-    , pEntry   = compileEntry (Src.fnameType entry) (Src.Call entry [])
+    , pEntries = [ compileEntry entry (Src.Call entry []) | entry <- entries ]
     }
 
-compileEntry :: Src.Type -> Src.Grammar -> Entry
-compileEntry ty pe =
+compileEntry :: Src.FName -> Src.Grammar -> Entry
+compileEntry entry pe =
   Entry { entryLabel = l
         , entryBoot  = b
-        , entryType  = ty
+        , entryType  = Src.fnameType entry
+        , entryName  = Text.pack ("parse" ++ show (pp entry))
         }
   where
   (l,b) =

@@ -19,8 +19,8 @@ import qualified Daedalus.Core as Src
 
 -- | A program
 data Program = Program
-  { pModules  :: [Module]
-  , pEntry    :: Entry
+  { pModules    :: [Module]
+  , pEntries    :: [Entry]
   }
 
 -- XXX: maybe this needs a name also to be used for the external API
@@ -29,6 +29,7 @@ data Entry = Entry
   { entryType   :: Src.Type          -- ^ type of value produced by parser
   , entryBoot   :: Map Label Block   -- ^ code specific to the entry point
   , entryLabel  :: Label             -- ^ start executing here
+  , entryName   :: Text
   }
 
 -- | A module
@@ -302,7 +303,7 @@ instance PP JumpWithFree where
                   else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
-  pp p = vcat' (pp (pEntry p) : map pp (pModules p))
+  pp p = vcat' (map pp (pEntries p) ++ map pp (pModules p))
 
 instance PP Entry where
   pp entry = vcat' $ ".entry" <+> pp (entryLabel entry)

@@ -49,21 +49,21 @@ int main(int argc, char* argv[]) {
     i = DDL::Input(file,bytes,size);
   }
 
-  DDL::ParserResults<ParserResult> out;
-  parser(i,out);
+  DDL::ParseError err;
+  std::vector<ParserResult> out;
+  parseMain(i,err,out);
 
-  auto v = out.results;
-  size_t resultNum = v.size();
+  size_t resultNum = out.size();
 
   cout << resultNum << " results:" << endl;
 
   if (resultNum == 0) {
-    cout << "Parser error at " << out.fail_offset << endl;
+    cout << "Parser error at " << err.offset << endl;
     return 1;
   }
 
   for (size_t i = 0; i < resultNum; ++i) {
-    DDL::toJS(cout,(ParserResult)v[i]);
+    DDL::toJS(cout,(ParserResult)out[i]);
   }
 
   return 0;
