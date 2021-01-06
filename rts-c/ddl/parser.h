@@ -12,26 +12,31 @@ namespace DDL {
 
 typedef size_t ThreadId;
 
-// `T` is the type of the result for the entry-point parser.
-// The methods in this class correspond to the VM instructions, c.f. Daedalus.VM
 template <class T>
-class Parser {
+struct ParserResults {
+  std::vector<T> results;        // store results here
+  size_t         fail_offset;    // largest, only makes sense if we fail
+
+  // Called when we find a successful parse
+  void output(T v) { results.push_back(v); }
+};
+
+
+
+class ParserState {
 
   Input                 input;
-  std::vector<T>        results;
-  size_t                fail_offset;    // largest, only if `results` empty
+  size_t                fail_offset;    // largest, only makes sense if we fail
   ListStack             stack;
   std::vector<Thread>   suspended;
   // size_t                time = 0;
 
-
 public:
 
   // Argument is owned
-  Parser(Input i) : input(i) , fail_offset(0) {}
+  ParserState(Input i) : input(i) , fail_offset(0) {}
 
-  std::vector<T>& getResults()    { return results; }
-  size_t          getFailOffset() { return fail_offset; }
+  size_t getFailOffset() { return fail_offset; }
 
 
   // ------------------------------------------------------------------------
@@ -48,9 +53,6 @@ public:
 
   // For debug
   void say(const char *msg) { std::cout << msg << std::endl; }
-
-  // Called when we find a successful parse
-  void output(T v) { results.push_back(v); }
 
 
   // Set the "sibling failied" flag in the given thread.

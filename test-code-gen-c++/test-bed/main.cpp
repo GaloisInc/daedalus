@@ -49,16 +49,16 @@ int main(int argc, char* argv[]) {
     i = DDL::Input(file,bytes,size);
   }
 
-  DDL::Parser<ParserResult> p(i);
-  parser(p);
+  DDL::ParserResults<ParserResult> out;
+  parser(i,out);
 
-  auto v = p.getResults();
+  auto v = out.results;
   size_t resultNum = v.size();
 
   cout << resultNum << " results:" << endl;
 
   if (resultNum == 0) {
-    cout << "Parser error at " << p.getFailOffset() << endl;
+    cout << "Parser error at " << out.fail_offset << endl;
     return 1;
   }
 

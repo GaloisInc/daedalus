@@ -67,7 +67,8 @@ cProgram fileNameRoot prog = (hpp,cpp)
              , "}"
              ]
 
-  parserSig = "void parser(" <.> cInst "DDL::Parser" [ parserTy ] <+> "&p)"
+  parserSig = "void parser(DDL::Input i0," <+>
+                cInst "DDL::ParserResults" [ parserTy ] <+> "&out)"
 
   orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
   modDeps m      = (mName m, Set.fromList (mImports m))
@@ -80,7 +81,8 @@ cProgram fileNameRoot prog = (hpp,cpp)
                    in cBasicBlock b
 
   parserTy       = cSemType (entryType (pEntry prog))
-  parserDef      = vcat [ params
+  parserDef      = vcat [ "DDL::ParserState p{i0};"
+                        , params
                         , cDeclareRetVars allFuns
                         , cDeclareCallClosures (Map.elems allBlocks)
                         , " "
@@ -233,7 +235,7 @@ cBlockStmt cInstr =
   case cInstr of
     SetInput e      -> cStmt (cCall "p.setInput" [ cExpr e])
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
-    Output e        -> cStmt (cCall "p.output"   [ cExpr e ])
+    Output e        -> cStmt (cCall "out.output" [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail        -> cStmt (cCall "p.noteFail" [])
     GetInput x      -> cVarDecl x (cCall "p.getInput" [])
@@ -560,7 +562,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ "return;" ]
+          [ "out.setFailure(p.getFailOffset()); return;" ]
       ]
 
     ReturnNo ->
