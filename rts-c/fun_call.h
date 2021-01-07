@@ -8,7 +8,7 @@
 
 void example() {
 
-  DDL::Parser<int> p{DDL::Input()};
+  DDL::ParserState<int> p{DDL::Input()};
 
   int f_arg;         // Pass arguments to `f` here
   int other_arg = 5;     // This shoudl be prserved across a call to `f`
