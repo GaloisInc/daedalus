@@ -105,3 +105,6 @@ cUnion n as =
 cNamespace :: CIdent -> CDecl -> CDecl
 cNamespace nm d =
   "namespace" <+> nm <+> "{" $$ nest 2 d $$ "}"
+
+cUnreachable :: CStmt
+cUnreachable = "__builtin_unreachable();"
