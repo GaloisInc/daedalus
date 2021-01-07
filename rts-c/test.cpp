@@ -1,10 +1,3 @@
-#include <string.h>
-#include <memory>
-#include <gmpxx.h>
-#include <unordered_map>
-#include <type_traits>
-
-// #include "ddl/parser.h"
 #include "ddl/unit.h"
 #include "ddl/number.h"
 #include "ddl/list.h"
@@ -15,55 +8,39 @@
 #include "ddl/map.h"
 
 #include "user_data.h"
-#include "fun_call.h"
 #include "test.h"
 
 using namespace std;
 
 
-void iterator_test() {
+void compare_test() {
+  DDL::Array<int> m1{2,3,4};
+  DDL::Array<int> m2{2,3,4};
+  cout << DDL::Bool(m1 <= m2) << endl;
+/*
   DDL::Map<int,int> m;
   m = m.insert(1,1);
   m = m.insert(2,2);
   m = m.insert(3,3);
-  cout << "Initial map\n"; m.dump();
+  cout << "Initial map 1\n"; m.dump();
 
-  m.copy();
-  cout << "Map copied map\n"; m.dump();
+  DDL::Map<int,int> m2;
+  m2 = m2.insert(1,2);
+  m2 = m2.insert(2,2);
+  m2 = m2.insert(3,3);
+  cout << "Initial map 2\n"; m2.dump();
 
-  DDL::Map<int,int>::Iterator it(m);
-  cout << "Created iterator\n"; m.dump();
+  cout << "compare: " << DDL::compare(m2,m) << endl;
 
-  it.copy();
-  cout << "Copied iterator\n"; m.dump();
-  DDL::Map<int,int>::Iterator jt = it;
-
-  cout << "Using 1st iterator\n";
-  while (!it.done()) {
-    cout << it.borrowKey() << " = " << it.borrowValue() << endl;
-    it = it.next();
-    m.dump();
-  }
-
-  cout << "Using 2nd iterator\n";
-  while (!jt.done()) {
-    cout << jt.borrowKey() << " = " << jt.borrowValue() << endl;
-    jt = jt.next();
-    m.dump();
-  }
-
-
+  cout << "AFTER:\n";
+  m.dump();
+  m2.dump();
+*/
 }
 
 
 int main() {
 
-  // example();
-  // cast_tests();
-
-  iterator_test();
-
-  // rb_tests();
-
+  compare_test();
   return 0;
 }
