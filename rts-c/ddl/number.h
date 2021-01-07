@@ -79,13 +79,15 @@ public:
   bool operator == (UInt x)   { return rep() == x.rep(); }
   bool operator != (UInt x)   { return rep() != x.rep(); }
   bool operator <  (UInt x)   { return rep() <  x.rep(); }
-  bool operator <=  (UInt x)  { return rep() <= x.rep(); }
-
+  bool operator <= (UInt x)   { return rep() <= x.rep(); }
+  bool operator >  (UInt<w> x){ return rep() >  x.rep(); }
+  bool operator >= (UInt<w> x){ return rep() >=  x.rep(); }
 
 };
 
 
 template <int a, int b>
+static inline
 UInt<a> lcat(UInt<a> x, UInt<b> y) {
   if constexpr (b >= a) return UInt<a>(y.data);
   return UInt<a>((x.data << b) | y.rep());
@@ -93,6 +95,7 @@ UInt<a> lcat(UInt<a> x, UInt<b> y) {
 
 #ifdef QUICK_INTEGER
 template <int b>
+static inline
 Integer lcat(Integer x, UInt<b> y) {
   return Integer((x.asSLong() << b) | y.rep());
 }
@@ -112,6 +115,28 @@ Integer lcat(Integer x, UInt<b> y) {
   }
 }
 #endif
+
+static inline
+int compare(unsigned char rx, unsigned char ry) {
+  return (rx < ry) ? -1 : (rx != ry);
+}
+
+static inline
+int compare(unsigned int rx, unsigned int ry) {
+  return (rx < ry) ? -1 : (rx != ry);
+}
+
+static inline
+int compare(unsigned long rx, unsigned long ry) {
+  return (rx < ry) ? -1 : (rx != ry);
+}
+
+template <int w>
+static inline
+int compare(UInt<w> x, UInt<w> y) { return compare(x.rep(),y.rep()); }
+
+
+
 
 
 
@@ -169,8 +194,10 @@ public:
 
   bool operator == (SInt<w> x)   { return rep() == x.rep(); }
   bool operator != (SInt<w> x)   { return rep() != x.rep(); }
-  bool operator < (SInt<w> x)    { return rep() <  x.rep(); }
-  bool operator <= (SInt<w> x)   { return rep() <=  x.rep(); }
+  bool operator <  (SInt<w> x)   { return rep() <  x.rep(); }
+  bool operator >  (SInt<w> x)   { return rep() >  x.rep(); }
+  bool operator <= (SInt<w> x)   { return rep() <= x.rep(); }
+  bool operator >= (SInt<w> x)   { return rep() >= x.rep(); }
 
   constexpr static Rep maxValRep() {
     if constexpr (w ==  8) return INT8_MAX;  else
@@ -198,7 +225,22 @@ public:
   }
 };
 
+
+static inline
+int compare(char rx, char ry) { return (rx < ry) ? -1 : (rx != ry); }
+static inline
+int compare(int rx,  int ry)  { return (rx < ry) ? -1 : (rx != ry); }
+static inline
+int compare(long rx, long ry) { return (rx < ry) ? -1 : (rx != ry); }
+
+template <int w>
+static inline
+int compare(SInt<w> x, SInt<w> y) { return compare(x.rep(),y.rep()); }
+
+
+
 template <int a, int b>
+static inline
 SInt<a> lcat(SInt<a> x, SInt<b> y) {
   return (x << b) | y.rep();
 }

@@ -54,6 +54,9 @@ public:
 
 };
 
+static inline
+int compare(Integer x, Integer y) { return cmp(x.getValue(),y.getValue()); }
+
 // borrow
 static inline
 bool operator == (Integer x, Integer y) { return x.getValue() == y.getValue(); }
@@ -69,6 +72,16 @@ bool operator <  (Integer x, Integer y) { return x.getValue() <  y.getValue(); }
 // borrow
 static inline
 bool operator <= (Integer x, Integer y) { return x.getValue() <= y.getValue(); }
+
+// borrow
+static inline
+bool operator >  (Integer x, Integer y) { return x.getValue() >  y.getValue(); }
+
+// borrow
+static inline
+bool operator >= (Integer x, Integer y) { return x.getValue() >= y.getValue(); }
+
+
 
 // borrow
 static inline

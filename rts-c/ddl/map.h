@@ -250,30 +250,32 @@ public:
     Node           *cur;
 
 
-  // Owns up, p
-  // Assumes `p` is not nullptr
-  // Build an iterator chain going all the way left.
-  static
-  Iterator goLeft(Boxed<Iterator> next, Node *p) {
-    Iterator here(next, p);
+    // Owns up, p
+    // Assumes `p` is not nullptr
+    // Build an iterator chain going all the way left.
+    static
+    Iterator goLeft(Boxed<Iterator> next, Node *p) {
+      Iterator here(next, p);
 
-    Node *l = p->left;
-    while (l) {
-      Boxed<Iterator> up(here);
-      Node::copy(l);
-      here.above = up;
-      here.cur = l;
-      l = l->left;
+      Node *l = p->left;
+      while (l) {
+        Boxed<Iterator> up(here);
+        Node::copy(l);
+        here.above = up;
+        here.cur = l;
+        l = l->left;
+      }
+      return here;
     }
-    return here;
-  }
 
-  // Owns above and me
-  Iterator (Node *me) : above(Boxed<Iterator>()), cur(me) {}
-  Iterator (Boxed<Iterator> up, Node *me) : above(up), cur(me) {}
+    // Owns above and me
+    Iterator (Node *me) : above(Boxed<Iterator>()), cur(me) {}
+    Iterator (Boxed<Iterator> up, Node *me) : above(up), cur(me) {}
 
   public:
     Iterator() : above(), cur(nullptr) {}
+
+    // Owns argument
     Iterator (Map m) {
       if (m.tree != nullptr) *this = goLeft(Boxed<Iterator>(), m.tree);
     }
@@ -354,6 +356,68 @@ public:
 
 };
 
+
+
+template <typename Key, typename Value>
+static inline
+int compare(Map<Key,Value> m1, Map<Key,Value> m2) {
+  m1.copy();
+  m2.copy();
+  typename Map<Key,Value>::Iterator it1(m1);
+  typename Map<Key,Value>::Iterator it2{m2};
+  int result;
+  while (! (it1.done() || it2.done())) {
+    Key k1 = it1.borrowKey();
+    Key k2 = it2.borrowKey();
+    result = compare(k1,k2);
+    if (result != 0) goto end;
+
+    Value v1 = it1.borrowValue();
+    Value v2 = it2.borrowValue();
+    result = compare(v1,v2);
+    if (result != 0) goto end;
+
+    it1 = it1.next();
+    it2 = it2.next();
+  }
+  result = it1.done() ? !it2.done() : -1;
+
+end:
+  it1.free();
+  it2.free();
+  return result;
+}
+
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator == (Map<Key,Value> xs, Map<Key,Value> ys) {
+  return compare(xs,ys) == 0;
+}
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator < (Map<Key,Value> xs, Map<Key,Value> ys) {
+  return compare(xs,ys) < 0;
+}
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator > (Map<Key,Value> xs, Map<Key,Value> ys) {
+  return compare(xs,ys) > 0;
+}
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator != (Map<Key,Value> xs, Map<Key,Value> ys) { return !(xs == ys); }
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator <= (Map<Key,Value> xs, Map<Key,Value> ys) { return !(xs > ys); }
+
+// Borrow arguments
+template <typename Key, typename Value> static inline
+bool operator >= (Map<Key,Value> xs, Map<Key,Value> ys) { return !(xs < ys); }
 
 
 

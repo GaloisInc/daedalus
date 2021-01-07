@@ -111,21 +111,6 @@ public:
 
 
 
-  // Borrow this, borrow xs
-  bool operator == (Array xs) {
-    size_t n = size();
-    if (n != xs.size()) return false;
-    for (size_t i = 0; i < n; ++i) {
-      if (borrowElement(i) != xs.borrowElement(i)) return false;
-    }
-    return true;
-  }
-
-  // Borrow this, borrow xs
-  bool operator != (Array xs) { return ! operator ==(xs); }
-
-  // XXX: <, <=?
-
 // -- Boxed --------------------------------------------------------------------
   size_t refCount() { return ptr->ref_count; }
 
@@ -224,9 +209,45 @@ std::ostream& toJS(std::ostream& os, Array<T> x) {
   return os;
 }
 
+// -ve: x < y; 0: x == y; +ve: x > y
+// borrow arguments
+template <typename T>
+static inline
+int compare (Array<T> x, Array<T> y) {
+  size_t size_x = x.size();
+  size_t size_y = y.size();
+  size_t checks = size_x < size_y ? size_x : size_y;
+  for (size_t i = 0; i < checks; ++i) {
+    int result = compare(x.borrowElement(i),y.borrowElement(i));
+    if (result != 0) return result;
+  }
+  return size_y - size_x;
+}
 
 
+// Borrow arguments
+template <typename T> static inline
+bool operator == (Array<T> xs, Array<T> ys) { return compare(xs,ys) == 0; }
 
+// Borrow arguments
+template <typename T> static inline
+bool operator < (Array<T> xs, Array<T> ys) { return compare(xs,ys) < 0; }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator > (Array<T> xs, Array<T> ys) { return compare(xs,ys) > 0; }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator != (Array<T> xs, Array<T> ys) { return !(xs == ys); }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator <= (Array<T> xs, Array<T> ys) { return !(xs > ys); }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator >= (Array<T> xs, Array<T> ys) { return !(xs < ys); }
 
 
 

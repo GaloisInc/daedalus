@@ -95,15 +95,6 @@ public:
     return true;
   }
 
-  bool operator == (Input x) {
-    return offset == x.offset &&
-           last_offset == x.last_offset &&
-           name == x.name;
-           // if we want to compare bytes, we should hash them
-  }
-
-  bool operator != (Input x) { return !(*this == x); }
-
   // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& operator<<(std::ostream& os, Input x) {
@@ -111,7 +102,7 @@ public:
                    << ":0x" << std::hex << x.offset << "--0x"
                             << std::hex << x.last_offset << "\")";
 
-    return os;
+     return os;
   }
 
   // XXX: We need to esacpe quotes in the input name
@@ -129,7 +120,44 @@ public:
 
 };
 
-// XXX: comparisions
+// XXX: comparision operators
+
+
+// we compare by name, not the actual byte content
+static inline
+int compare(Input x, Input y) {
+  if (x.offset < y.offset) return -1;
+  if (x.offset > y.offset) return 1;
+  if (x.last_offset < y.last_offset) return -1;
+  if (x.last_offset > y.last_offset) return 1;
+  return compare(x.name,y.name)
+}
+
+
+// Borrow arguments
+static inline
+bool operator == (Input xs, Input ys) { return compare(xs,ys) == 0; }
+
+// Borrow arguments
+static inline
+bool operator < (Input xs, Input ys) { return compare(xs,ys) < 0; }
+
+// Borrow arguments
+static inline
+bool operator > (Input xs, Input ys) { return compare(xs,ys) > 0; }
+
+// Borrow arguments
+static inline
+bool operator != (Input xs, Input ys) { return !(xs == ys); }
+
+// Borrow arguments
+static inline
+bool operator <= (Input xs, Input ys) { return !(xs > ys); }
+
+// Borrow arguments
+static inline
+bool operator >= (Input xs, Input ys) { return !(xs < ys); }
+
 
 
 
