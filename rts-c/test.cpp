@@ -40,7 +40,9 @@ void compare_test() {
 
 
 int main() {
-  DDL::Array<int> a{size_t{0}};
-  cout << a << endl;
+  DDL::UInt<15> x;
+  DDL::SInt<15> y;
+  cout << (compare(x,x)) << endl;
+  cout << (compare(y,y)) << endl;
   return 0;
 }

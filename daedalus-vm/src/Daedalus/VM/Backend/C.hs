@@ -52,16 +52,17 @@ cProgram fileNameRoot prog = (hpp,cpp)
           , " "
           , vcat' (map cTypeGroup allTypes)
           , " "
-          , cStmt ("using ParserResult =" <+> cSemType (entryType (head (pEntries prog))))
-            -- this is just to make it easier to write a polymorphic
-            -- test driver
-
-          ] ++
+          , "namespace DDL { namespace ResultOf {"
+          ] ++ map declareParserResult (pEntries prog) ++
+          [ "}}" ] ++
           [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
-          [ " "
+          [ ""
           , "#endif"
           ]
 
+  declareParserResult ent =
+    cStmt ("using" <+> nm <+> "=" <+> cSemType (entryType ent))
+    where nm = ptext (Text.unpack (entryName ent)) -- Not escaped!
 
   cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "

@@ -3,28 +3,34 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include "main_parser.h"
 
 using namespace std;
 
 
-// Just a quick hack, doesn't close file descriptor
-char *getBytes(const char *file, size_t &size) {
+DDL::Input inputFromFile(const char *file) {
+
+  DDL::Input result{};
+  char *bytes;
+  size_t size;
 
   int fd = open(file,O_RDONLY);
-  if (fd == -1) return nullptr;
+  if (fd == -1) return result;
 
   struct stat info;
-  if (fstat(fd, &info) != 0) return nullptr;
+  if (fstat(fd, &info) != 0) goto done;
 
   size = info.st_size;
-  char* bytes = (char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (bytes == MAP_FAILED) return nullptr;
+  bytes = (char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (bytes == MAP_FAILED) goto done;
 
-  return bytes;
+  result = DDL::Input{file,bytes,size};
+
+done:
+  close(fd);
+  return result;
 }
-
-
 
 
 int main(int argc, char* argv[]) {
@@ -39,18 +45,16 @@ int main(int argc, char* argv[]) {
     i = DDL::Input("(none)","");
   } else {
     char *file = argv[1];
-    size_t size = 0;
-    char *bytes = getBytes(file,size);
-    if (bytes == nullptr) {
+    i = inputFromFile(file);
+    if (i.length() == 0) {
       // Does not escape quotes...
       cout << "Failed to open file \"" << file << '"' << endl;
       return 1;
     }
-    i = DDL::Input(file,bytes,size);
   }
 
   DDL::ParseError err;
-  std::vector<ParserResult> out;
+  std::vector<DDL::ResultOf::parseMain> out;
   parseMain(i,err,out);
 
   size_t resultNum = out.size();
@@ -63,7 +67,7 @@ int main(int argc, char* argv[]) {
   }
 
   for (size_t i = 0; i < resultNum; ++i) {
-    DDL::toJS(cout,(ParserResult)out[i]);
+    DDL::toJS(cout,(DDL::ResultOf::parseMain)out[i]);
   }
 
   return 0;
