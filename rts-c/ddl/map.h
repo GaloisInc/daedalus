@@ -430,10 +430,13 @@ std::ostream& toJS(std::ostream& os, Map<Key,Value> x) {
   typename Map<Key,Value>::Iterator it(x);
   if (it.done()) { os << "["; goto end; }
   do {
-    os << sep << "[" << toJS(os,it.borrowKey())
-              << "," << toJS(it.borrowValue())
-              << "]";
+    os << sep << "[";
+    toJS(os,it.borrowKey());
+    os << ",";
+    toJS(os,it.borrowValue());
+    os << "]";
     sep = ',';
+    it = it.next();
   } while(!it.done());
 
 end:

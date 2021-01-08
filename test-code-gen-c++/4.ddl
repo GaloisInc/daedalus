@@ -1,5 +1,8 @@
 import PdfValue
 
-def Main = Value
+def Main = {
+  SetStream (arrayStream "<< /Arr [12 13 14] >>");
+  Value
+}
 
 

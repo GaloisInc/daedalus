@@ -40,7 +40,7 @@ void compare_test() {
 
 
 int main() {
-
-  compare_test();
+  DDL::Array<int> a{size_t{0}};
+  cout << a << endl;
   return 0;
 }

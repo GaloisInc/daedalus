@@ -499,7 +499,7 @@ evalOp3 op e1 e2 e3 env =
 
 
 
-
+       -- mp, key, value
        MapInsert ->
          case v1 of
            VMap kT kV mp -> v3 `seq` VMap kT kV (Map.insert v2 v3 mp)

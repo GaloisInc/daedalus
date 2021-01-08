@@ -289,8 +289,8 @@ cBlockStmt cInstr =
         NewBuilder _ -> cDeclareVar (cType (getType x)) (cVarUse x)
         Integer n    -> cVarDecl x (cCall "DDL::Integer" [ cString (show n) ])
         ByteArray bs -> cVarDecl x
-                              (cCall "DDL::Array<DDL::UInt<8>>"
-                                ( int (BS.length bs)
+                              (cCallCon "DDL::Array<DDL::UInt<8>>"
+                                ( cCallCon "size_t" [int (BS.length bs)]
                                 : [ cCall "DDL::UInt<8>" [ text (show w) ]
                                   | w <- BS.unpack bs
                                   ]
@@ -495,10 +495,10 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
 
-    Src.Eq    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "==" <+> e2]
-    Src.NotEq -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "!=" <+> e2]
-    Src.Leq   -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<=" <+> e2]
-    Src.Lt    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<"  <+> e2]
+    Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
+    Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]
+    Src.Leq   -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<=" <+> e2]
+    Src.Lt    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<"  <+> e2]
 
     Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
     Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
@@ -518,32 +518,34 @@ cOp2 x op2 ~[e1',e2'] =
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
-    Src.MapLookup -> todo
-    Src.MapMember -> todo
+    Src.MapLookup -> cVarDecl x (cCallMethod e1 "lookup" [e2])
+    Src.MapMember ->
+      cVarDecl x (cCallCon "DDL::Bool" [ cCallMethod e1 "contains" [e2] ])
 
 
   where
-  todo = "/* todo (2)" <+> pp op2 <+> "*/"
   e1   = cExpr e1'
   e2   = cExpr e2'
 
 
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
-cOp3 _x op ~[_,_,_] =
+cOp3 x op es =
   case op of
     Src.RangeUp     -> todo
     Src.RangeDown   -> todo
-    Src.MapInsert   -> todo
+    Src.MapInsert -> cVarDecl x (cCallMethod e1 "insert" [ e2, e3 ])
   where
   todo = "/* todo: op 3 " <+> pp op <+> "*/"
+  [e1,e2,e3] = map cExpr es
 
 
 
 cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
 cOpN x op es =
   case op of
-    Src.ArrayL t -> cVarDecl x (cCall con (int (length es) : map cExpr es))
+    Src.ArrayL t -> cVarDecl x (cCallCon con (len : map cExpr es))
       where con = cSemType (Src.TArray t)
+            len = cCallCon "size_t" [ int (length es) ]
 
     Src.CallF _  -> panic "cOpN" ["CallF"]
 
@@ -571,11 +573,8 @@ cExpr expr =
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                                , show (pp ty) ]
 
-    EMapEmpty {} -> todo
+    EMapEmpty k v -> cCallCon (cInst "DDL::Map" [ cSemType k, cSemType v ]) []
     ENothing t  -> parens (cCall (cInst "DDL::Maybe" [cSemType t]) [])
-
-  where
-  todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
 
 
 --------------------------------------------------------------------------------
