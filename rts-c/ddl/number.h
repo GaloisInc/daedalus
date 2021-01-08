@@ -133,7 +133,11 @@ int compare(unsigned long rx, unsigned long ry) {
 
 template <int w>
 static inline
-int compare(UInt<w> x, UInt<w> y) { return compare(x.rep(),y.rep()); }
+int compare(UInt<w> x, UInt<w> y) {
+  auto rx = x.rep();
+  auto ry = y.rep();
+  return (rx < ry) ? -1 : (rx != ry);
+}
 
 
 
@@ -235,7 +239,11 @@ int compare(long rx, long ry) { return (rx < ry) ? -1 : (rx != ry); }
 
 template <int w>
 static inline
-int compare(SInt<w> x, SInt<w> y) { return compare(x.rep(),y.rep()); }
+int compare(SInt<w> x, SInt<w> y) {
+  auto rx = x.rep();
+  auto ry = y.rep();
+  return (rx < ry) ? -1 : (rx != ry);
+}
 
 
 
