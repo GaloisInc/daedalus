@@ -115,23 +115,17 @@ public:
     return os;
   }
 
-
-
-
+  // we compare by name, not the actual byte content
+  friend
+  int compare(Input x, Input y) {
+    if (x.offset < y.offset) return -1;
+    if (x.offset > y.offset) return 1;
+    if (x.last_offset < y.last_offset) return -1;
+    if (x.last_offset > y.last_offset) return 1;
+    return compare(x.name,y.name);
+  }
 };
 
-// XXX: comparision operators
-
-
-// we compare by name, not the actual byte content
-static inline
-int compare(Input x, Input y) {
-  if (x.offset < y.offset) return -1;
-  if (x.offset > y.offset) return 1;
-  if (x.last_offset < y.last_offset) return -1;
-  if (x.last_offset > y.last_offset) return 1;
-  return compare(x.name,y.name)
-}
 
 
 // Borrow arguments

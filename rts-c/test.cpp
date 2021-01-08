@@ -14,8 +14,8 @@ using namespace std;
 
 
 void compare_test() {
-  DDL::Array<int> m1{2,3,4};
-  DDL::Array<int> m2{2,3,4};
+  DDL::Maybe<int> m1{3};
+  DDL::Maybe<int> m2{2};
   cout << DDL::Bool(m1 <= m2) << endl;
 /*
   DDL::Map<int,int> m;

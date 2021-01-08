@@ -21,7 +21,7 @@ public:
 
 };
 
-
+inline int compare(Bool x, Bool y) { return x.getValue() - y.getValue(); }
 
 inline
 std::ostream& operator<<(std::ostream& os, Bool x) {

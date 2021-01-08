@@ -27,24 +27,33 @@ public:
   void copy() { if constexpr (hasRefs<T>()) if (isJust()) value.copy(); }
   void free() { if constexpr (hasRefs<T>()) if (isJust()) value.free(); }
 
-  bool operator == (Maybe x) {
-    return isJust() ? (x.isJust() && value == x.value)
-                    : !x.isJust();
-  }
-
-  bool operator != (Maybe x) { return !(*this == x); }
-
-  bool operator < (Maybe x) {
-    return isJust() ? (x.isJust() && value < x.value)
-                    : x.isJust();
-  }
-
-  bool operator <= (Maybe x) {
-    return isJust() ? (x.isJust() && value <= x.value)
-                    : true;
-  }
-
 };
+
+template <typename T>
+inline int compare(Maybe<T> x, Maybe<T> y) {
+  if (x.isNothing()) return y.isNothing();
+  return y.isNothing() ? -1 : compare(x.getValue(),y.getValue());
+}
+
+
+template <typename T>
+inline bool operator == (Maybe<T> x, Maybe<T> y) { return compare(x,y) == 0; }
+
+template <typename T>
+inline bool operator != (Maybe<T> x, Maybe<T> y) { return compare(x,y) != 0; }
+
+template <typename T>
+inline bool operator < (Maybe<T> x, Maybe<T> y) { return compare(x,y) < 0; }
+
+template <typename T>
+inline bool operator > (Maybe<T> x, Maybe<T> y) { return compare(x,y) > 0; }
+
+template <typename T>
+inline bool operator <= (Maybe<T> x, Maybe<T> y) { return compare(x,y) <= 0; }
+
+template <typename T>
+inline bool operator >= (Maybe<T> x, Maybe<T> y) { return compare(x,y) >= 0; }
+
 
 
 

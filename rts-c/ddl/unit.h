@@ -16,6 +16,9 @@ std::ostream& toJS(std::ostream& os, Unit x) {
   return os << "{}";
 }
 
+inline
+int compare(Unit x, Unit y) { return 0; }
+
 }
 
 #endif

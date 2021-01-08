@@ -93,7 +93,7 @@ cProgram fileNameRoot prog = (hpp,cpp)
                         , "// --- States ---"
                         , " "
                         , cSwitch "entry"
-                            [ cCase (int i) <+>
+                            [ cCase (int i) $
                                    cGoto (cBlockLabel (entryLabel e))
                                      | (i,e) <- zip [0..] (pEntries prog) ]
                         , " "
@@ -429,8 +429,8 @@ cOp1 x op1 ~[e'] =
       vcat
         [ cDeclareVar (cType (getType x)) v
         , cSwitch (cCallMethod e "rep" [])
-            $ [ cCase (int (fromEnum b)) <+> true | b <- BS.unpack bs ]
-           ++ [ cDefault <+> false ]
+            $ [ cCase (int (fromEnum b)) true | b <- BS.unpack bs ]
+           ++ [ cDefault false ]
         ]
 
     Src.Neg ->
@@ -708,14 +708,13 @@ cDoCase e opts =
   conPat ~(PCon l) = cSumTagV l
 
   mkSwitch getNum pToCase =
-    let opt p ch = p $$ nest 2 (vcat (doChoice ch))
-        addDflt cs = case dflt of
+    let addDflt cs = case dflt of
                        Nothing -> cs
-                       Just x  -> cs ++ [opt cDefault x]
+                       Just x  -> cs ++ [cDefault $ vcat (doChoice x)]
     in [ cSwitch (cCallMethod (cExpr e) getNum []) $
            addDflt
-            [ opt (cCase (pToCase pat)) ch | (pat, ch) <- Map.toList opts
-                                           , pat /= PAny ]
+            [ cCase (pToCase pat) (vcat (doChoice ch))
+                            | (pat, ch) <- Map.toList opts, pat /= PAny ]
        ]
 
   mkBigInt =

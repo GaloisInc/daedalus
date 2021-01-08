@@ -57,6 +57,15 @@ cIf e ifThen ifElse =
        , "}"
        ]
 
+cIf' :: CExpr -> [CStmt] -> CStmt
+cIf' e ifThen =
+  vcat [ "if" <+> parens e <+> "{"
+       , nest 2 (vcat ifThen)
+       , "}"
+       ]
+
+
+
 cSwitch :: CExpr -> [CStmt] -> CStmt
 cSwitch e cs =
   vcat [ "switch" <+> parens e <+> "{"
@@ -64,11 +73,15 @@ cSwitch e cs =
        , "}"
        ]
 
-cCase :: CExpr -> Doc
-cCase e = "case" <+> e <.> colon
+cCase :: CExpr -> CStmt -> Doc
+cCase e s = "case" <+> e <.> colon $$ nest 2 s
 
-cDefault :: Doc
-cDefault = "default:"
+cCaseBlock :: CExpr -> [CStmt] -> Doc
+cCaseBlock e s = "case" <+> e <.> colon <+> "{" $$ nest 2 (vcat s) $$ "}"
+
+cDefault :: CStmt -> CStmt
+cDefault x = "default:" $$ nest 2 x
+
 
 cBreak :: CStmt
 cBreak = cStmt "break"

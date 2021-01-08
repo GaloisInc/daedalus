@@ -116,6 +116,9 @@ cTypeParams ty =
   intP x = "int"      <+> cTParam x
   tyP x  = "typename" <+> cTParam x
 
+
+
+
 -- Example: Node<T>
 cTypeNameUse :: GenVis -> TDecl -> CType
 cTypeNameUse vis tdecl =
@@ -197,7 +200,6 @@ cUnboxedProd vis ty =
     ++ cProdSels ty
     ++ [ "// Memory Management" ]
     ++ [ copyMethodSig, freeMethodSig ]
-    ++ [ eqMethodSig vis "==" ty, eqMethodSig vis "!=" ty ]
 
 
 
@@ -269,7 +271,6 @@ cUnboxedSum vis tdecl =
    ++ cSumGetters tdecl
    ++ [ "// Memory Management" ]
    ++ [ copyMethodSig, freeMethodSig ]
-   ++ [ eqMethodSig vis "==" tdecl, eqMethodSig vis "!=" tdecl ]
 
 
 -- | Class signature for a boxed sum
@@ -295,8 +296,6 @@ cBoxedSum tdecl =
     ++ cSumGetters tdecl
     ++ [ "// Memory Management" ]
     ++ [ copyMethodSig, freeMethodSig ]
-    ++ [ "// Comparisons" ]
-    ++ [ eqMethodSig GenPublic "==" tdecl, eqMethodSig GenPublic "!=" tdecl ]
 
 
 --------------------------------------------------------------------------------
@@ -315,7 +314,14 @@ generateMethods vis boxed ty =
     defCons      vis boxed ty ++
     defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
-    [defEq vis boxed ty, defNeq vis boxed ty] ++
+    [ defCompare vis ty
+    , defCmpOp "==" vis ty
+    , defCmpOp "!=" vis ty
+    , defCmpOp "<" vis ty
+    , defCmpOp ">" vis ty
+    , defCmpOp "<=" vis ty
+    , defCmpOp ">=" vis ty
+    ] ++
     [defShow vis boxed ty, defShowJS vis boxed ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
@@ -412,44 +418,57 @@ defShowJS vis _ tdecl =
 
 
 --------------------------------------------------------------------------------
--- Equality
+-- Comparisons
 
-defNeq :: GenVis -> GenBoxed -> TDecl -> CDecl
-defNeq vis _ tdecl =
-  defMethod vis tdecl "bool" "operator !=" [ cTName' vis (tName tdecl) <+> "x" ]
-    [ cStmt $ "return !operator ==(x)"
-    ]
-
-defEq :: GenVis -> GenBoxed -> TDecl -> CDecl
-defEq vis boxed tdecl =
-  defMethod vis tdecl "bool" "operator ==" [ cTName' vis (tName tdecl) <+> "x" ]
-    case boxed of
-      GenBoxed ->
-        [ cStmt $ "return ptr.getValue() == x.ptr.getValue()"
+defCompare :: GenVis -> TDecl -> CDecl
+defCompare vis tdecl =
+  cTemplateDecl tdecl $$
+  cDefineFun "static inline int" "compare" [ ty <+> "x", ty <+> "y" ] body
+  where
+  ty = cTypeNameUse vis tdecl
+  body =
+    case tDef tdecl of
+      TStruct fs ->
+        concat
+        [ [cDeclareVar "int" "result"]
+        , [ s
+          | (f,_) <- fs
+          , let m = selName GenBorrow f
+          , s <-
+              [ cAssign "result" (cCall "compare"
+                                    [ cCallMethod "x" m []
+                                    , cCallMethod "y" m []
+                                    ])
+              , cIf' "result != 0" [cRetrun "result"]
+              ]
+          ]
+        , [cRetrun "0"]
         ]
-      GenUnboxed ->
-        case tDef tdecl of
-          TStruct fs ->
-            [ "if" <+> parens (f <+> "!=" <+> "x." <.> f) <+>
-                                                        cStmt "return false"
-            | ((_,t),n) <- fs `zip` [ 0 .. ]
-            , let f = cField n
-            , t /= TUnit
-            ] ++
-            [ cStmt "return true" ]
-          TUnion fs ->
-            [ "if (tag != x.tag) return false;"
-            , "switch (tag) {"
-            , nest 2 $ vcat
-                         [ "case" <+> cSumTagV l <.> colon <+>
-                            cStmt ("return" <+> f <+> "==" <+> "x." <.> f)
-                         | ((l,t),n) <- fs `zip` [0..], t /= TUnit
-                         , let f = "data." <.> cField n
-                         ]
-                   $$ "default: return true;"
+      TUnion fs ->
+        [ cSwitch "x.getTag()"
+            [ cCaseBlock (cSumTagV f)
+              [ cDeclareInitVar "auto" "tag" "y.getTag()"
+              , cIf' (cSumTagV f <+> "< tag") [ cRetrun "-1" ]
+              , cIf' (cSumTagV f <+> "> tag") [ cRetrun "1" ]
+              , let get a = cCallMethod a (selName GenBorrow f) []
+                in cRetrun (cCall "compare" [ get "x", get "y" ])
+              ]
 
-            , "}"
+            | (f,_) <- fs
             ]
+        , cUnreachable
+        ]
+
+
+defCmpOp :: Doc -> GenVis -> TDecl -> CStmt
+defCmpOp op vis tdecl =
+  cTemplateDecl tdecl $$
+  cDefineFun "static inline bool" ("operator" <+> op)
+                      [ ty <+> "x", ty <+> "y" ]
+    [ cRetrun (cCall "compare" ["x","y"] <+> op <+> "0") ]
+  where ty = cTypeNameUse vis tdecl
+
+
 
 --------------------------------------------------------------------------------
 -- Construcotrs
