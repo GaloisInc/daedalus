@@ -420,12 +420,30 @@ template <typename Key, typename Value> static inline
 bool operator >= (Map<Key,Value> xs, Map<Key,Value> ys) { return !(xs < ys); }
 
 
+// borrow
+template <typename Key, typename Value>
+inline
+std::ostream& toJS(std::ostream& os, Map<Key,Value> x) {
+  os << "{ \"$$map\":";
+  char sep = '[';
+  x.copy();
+  typename Map<Key,Value>::Iterator it(x);
+  if (it.done()) { os << "["; goto end; }
+  do {
+    os << sep << "[" << toJS(os,it.borrowKey())
+              << "," << toJS(it.borrowValue())
+              << "]";
+    sep = ',';
+  } while(!it.done());
 
-
+end:
+  it.free();
+  os << "]}";
+  return os;
 }
 
 
-
+}
 
 
 
