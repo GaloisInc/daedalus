@@ -1,7 +1,7 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, BlockArguments #-}
 module Main where
 
-import Data.Text () -- IsString
+import qualified Data.Text as Text
 import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
@@ -41,6 +41,7 @@ import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
+import CPPDriver
 
 main :: IO ()
 main =
@@ -151,28 +152,8 @@ handleOptions opts
                     }
 
          CompileCPP ->
-           -- XXX: package into Driver, but probably need to add proper
-           -- support for multiple entry points, and entry points with
-           -- parameters.
            case optBackend opts of
-             UseInterp ->
-               do passSpecialize specMod [mainRule]
-                  passCore specMod
-                  passVM specMod
-                  passCaptureAnalysis
-                  m <- ddlGetAST specMod astVM
-                  entry <- ddlGetFName mm "Main" -- mainNm
-                  let prog = VM.addCopyIs
-                           $ VM.doBorrowAnalysis
-                           $ VM.moduleToProgram [entry] [m]
-                      outFileRoot = "main_parser"
-                      (hpp,cpp) = C.cProgram outFileRoot prog
-                  root <- case optOutDir opts of
-                            Nothing -> pure outFileRoot
-                            Just d  -> do ddlIO $ createDirectoryIfMissing True d
-                                          pure (d </> outFileRoot)
-                  ddlIO do writeFile (addExtension root "h") (show hpp)
-                           writeFile (addExtension root "cpp") (show cpp)
+             UseInterp -> generateCPP opts mm
              UsePGen ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -191,6 +172,47 @@ interpInterp useJS inp prog (m,i) =
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
+
+
+
+generateCPP :: Options -> ModuleName -> Daedalus ()
+generateCPP opts mm =
+  do let (makeExe,entRules) = case optEntries opts of
+                                [] -> (True,[(mm,"Main")])
+                                es -> (False,map parseEntry es)
+         specMod    = "DaedalusMain"
+     passSpecialize specMod entRules
+     passCore specMod
+     passVM specMod
+     passCaptureAnalysis
+     m <- ddlGetAST specMod astVM
+     entries <- mapM (uncurry ddlGetFName) entRules
+     let prog = VM.addCopyIs
+              $ VM.doBorrowAnalysis
+              $ VM.moduleToProgram entries [m]
+         outFileRoot = "main_parser" -- XXX: parameterize on this
+         (hpp,cpp) = C.cProgram outFileRoot prog
+
+     dir <- case optOutDir opts of
+              Nothing -> pure "."
+              Just d  -> do ddlIO $ createDirectoryIfMissing True d
+                            pure d
+
+     let root = dir </> outFileRoot
+     ddlIO do writeFile (addExtension root "h") (show hpp)
+              writeFile (addExtension root "cpp") (show cpp)
+
+     when makeExe $ ddlIO
+       do -- XXX: This needs access to the file in rts-c
+          BS.writeFile (dir </> "main.cpp") main_driver_content
+          BS.writeFile (dir </> "Makefile") makefile_content
+
+
+  where
+  parseEntry x =
+    case break (== '.') x of
+      (as,_:bs) -> (Text.pack as, Text.pack bs)
+      _         -> (mm, Text.pack x)
 
 
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> IO ()

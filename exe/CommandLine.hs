@@ -30,6 +30,7 @@ data Backend = UseInterp | UsePGen
 data Options =
   Options { optCommand   :: Command
           , optParserDDL :: FilePath
+          , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
@@ -44,6 +45,7 @@ options = OptSpec
   { progDefaults = Options { optCommand   = DumpTC
                            , optParserDDL = ""
                            , optBackend   = UseInterp
+                           , optEntries   = []
                            , optForceUTF8 = True
                            , optShowJS    = False
                            , optOutDir    = Nothing
@@ -98,8 +100,13 @@ options = OptSpec
         $ NoArg \o -> Right o { optCommand = CompileHS }
 
       , Option [] ["compile-c++"]
-        "Generate C++ code."
+        "Generate C++ code"
         $ NoArg \o -> Right o { optCommand = CompileCPP }
+
+      , Option [] ["entry"]
+        "Generate a library containg this parser."
+        $ ReqArg "[MODULE.]NAME"
+          \s o -> Right o { optEntries = s : optEntries o }
 
       , Option [] ["rule-ranges"]
         "Output the file ranges of all rules in the input"
