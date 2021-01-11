@@ -11,7 +11,7 @@ module Daedalus.ParserGen.LL.SlkCfg
     simulateActionSlkCfg,
     InputHeadCondition(..),
     matchInputHeadCondition,
-    moveSlkCfgFromPrev
+    simulateMove
   ) where
 
 -- import Debug.Trace
@@ -638,8 +638,8 @@ matchInputHeadCondition c i =
       if Input.inputEmpty i then Just i else Nothing
 
 
-moveSlkCfgFromPrev :: InputHeadCondition -> SlkCfg -> Action -> State -> Maybe SlkCfg
-moveSlkCfgFromPrev ih cfg act q =
+simulateMove :: InputHeadCondition -> SlkCfg -> Action -> State -> Maybe SlkCfg
+simulateMove ih cfg act q =
   case (ih, act) of
     (HeadInput _itv, IAct (ClssAct w _)) ->
       let mNewInput = nextSlkInput (cfgInput cfg) in
