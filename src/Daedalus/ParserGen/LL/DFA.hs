@@ -27,7 +27,7 @@ import Daedalus.ParserGen.Aut (Aut(..))
 
 import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.SlkCfg
-import Daedalus.ParserGen.LL.Closure
+import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DeterminizeOneStep
 
 
@@ -213,11 +213,11 @@ showDFA dfa =
       space d ++ ", " ++ showDown am ++ "\n" ++
       space d ++ "),\n"
       where
-         showDown amb =
-           case amb of
-             NotAmbiguous -> "Resolution (" ++ show amb ++ ")"
-             Ambiguous -> "Resolution (" ++ show amb ++ ")"
-             DunnoAmbiguous -> showTrans vis (d+2) ql
+        showDown amb =
+          case amb of
+            NotAmbiguous -> "Resolution (" ++ show amb ++ ")"
+            Ambiguous -> "Resolution (" ++ show amb ++ ")"
+            DunnoAmbiguous -> showTrans vis (d+2) ql
 
     showAccept d (reg, am) =
       space d ++ "( " ++ showSet reg ++ "\n" ++
@@ -225,12 +225,15 @@ showDFA dfa =
       space d ++ ", " ++ show am ++ "\n" ++
       space d ++ "),\n"
 
-    showSet s = "[" ++ foldr (\ entry b ->
-                                let alts = getAltSeq $ dstEntry entry
-                                in
-                                 "(" ++ show (length alts) ++
-                                 -- ",q" ++ show q ++
-                                 ")," ++ b) "" s  ++ "]"
+    showSet s =
+      "[" ++
+      foldr (\ entry b ->
+                let alts = Closure.getAltSeq $ dstEntry entry
+                in
+                  "(" ++ show (length alts) ++
+                  -- ",q" ++ show q ++
+                  ")," ++ b) "" s  ++ "]"
+
     space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
@@ -275,12 +278,12 @@ getConflictSetsPerLoc s =
 
   where
     sameEntryPerLoc
-      (DFAEntry _src1 (ClosurePath _alts1 _ (_,_,_) dst1))
-      (DFAEntry _src2 (ClosurePath _alts2 _ (_,_,_) dst2)) =
+      (DFAEntry _src1 (Closure.ClosurePath _alts1 _ (_,_,_) dst1))
+      (DFAEntry _src2 (Closure.ClosurePath _alts2 _ (_,_,_) dst2)) =
       dst1 == dst2
     sameEntryPerLoc
-      (DFAEntry _src1 (ClosureAccepting _alts1 _dst1))
-      (DFAEntry _src2 (ClosureAccepting _alts2 _dst2)) = True
+      (DFAEntry _src1 (Closure.ClosureAccepting _alts1 _dst1))
+      (DFAEntry _src2 (Closure.ClosureAccepting _alts2 _dst2)) = True
     sameEntryPerLoc _ _ = error "broken invariant"
 
 -- Inspired by the condition in `predictLL()` from ALL(*) paper
