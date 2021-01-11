@@ -3,6 +3,7 @@ module CommandLine ( Command(..)
                    , Options(..), Backend(..)
                    , getOptions
                    , options
+                   , throwOptError
                    ) where
 
 import Control.Monad(when)
@@ -146,3 +147,6 @@ getOptionsFromFile file =
      case getOptsFrom options (lines inp) of
        Left err   -> throwIO err
        Right opts -> pure opts
+
+throwOptError :: [String] -> IO a
+throwOptError err = throwIO (GetOptException err)

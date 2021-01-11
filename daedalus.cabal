@@ -115,7 +115,7 @@ executable daedalus
                        filepath,
                        directory,
                        pretty-show,
-                       heredoc >= 0.2
+                       file-embed >= 0.0.13
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2

@@ -181,6 +181,10 @@ generateCPP opts mm =
                                 [] -> (True,[(mm,"Main")])
                                 es -> (False,map parseEntry es)
          specMod    = "DaedalusMain"
+     when (makeExe && optOutDir opts == Nothing)
+       $ ddlIO $ throwOptError
+           [ "Generating a parser executable requires an output director" ]
+
      passSpecialize specMod entRules
      passCore specMod
      passVM specMod
@@ -193,26 +197,33 @@ generateCPP opts mm =
          outFileRoot = "main_parser" -- XXX: parameterize on this
          (hpp,cpp) = C.cProgram outFileRoot prog
 
-     dir <- case optOutDir opts of
-              Nothing -> pure "."
-              Just d  -> do ddlIO $ createDirectoryIfMissing True d
-                            pure d
-
-     let root = dir </> outFileRoot
-     ddlIO do writeFile (addExtension root "h") (show hpp)
-              writeFile (addExtension root "cpp") (show cpp)
-
-     when makeExe $ ddlIO
-       do -- XXX: This needs access to the file in rts-c
-          BS.writeFile (dir </> "main.cpp") main_driver_content
-          BS.writeFile (dir </> "Makefile") makefile_content
-
+     ddlIO (saveFiles makeExe outFileRoot hpp cpp)
 
   where
   parseEntry x =
     case break (== '.') x of
       (as,_:bs) -> (Text.pack as, Text.pack bs)
       _         -> (mm, Text.pack x)
+
+
+  saveFiles makeExe outFileRoot hpp cpp =
+    do dir <- case optOutDir opts of
+                Nothing -> pure "."
+                Just d  -> do createDirectoryIfMissing True d
+                              pure d
+
+       let root = dir </> outFileRoot
+       writeFile (addExtension root "h") (show hpp)
+       writeFile (addExtension root "cpp") (show cpp)
+
+       when makeExe
+         do let save (x,b) =
+                  do putStrLn ("Saving " ++ x)
+                     let d = dir </> takeDirectory x
+                     createDirectoryIfMissing True d
+                     BS.writeFile (dir </> x) b
+            mapM_ save template_files
+
 
 
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> IO ()
