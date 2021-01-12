@@ -154,7 +154,7 @@ stateToString :: Aut a => State -> a -> String
 stateToString q aut =
   let annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ PAST.showSourceRange srcRg
   in
-    maybe "" (\ p -> annToString p) $ stateMappingAut aut q
+    maybe "__ZAuxiliaryState" (\ p -> annToString p) $ stateMappingAut aut q
 
 
 noChoice :: Choice

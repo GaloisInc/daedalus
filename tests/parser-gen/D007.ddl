@@ -4,7 +4,9 @@ def A =
   { Many (Match1 ('a' .. 'm'))
   }
 
-def B = { Many (Match1 ('f' .. 't')) }
+def B =
+  { Many (Match1 ('f' .. 't'))
+  }
 
 def Main =
   { @a = Choose
