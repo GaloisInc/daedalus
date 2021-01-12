@@ -223,7 +223,7 @@ isUnhandledAction act =
         MapInsert {} -> True
         SelUnion {} -> True
         -- Guard _ -> True
-        CoerceCheck {} -> True
+        -- CoerceCheck {} -> True
         SelJust {} -> True
         _ -> False
     _ -> False

@@ -511,6 +511,7 @@ symbExecSem ctrl out act =
     -- TODO: move these to unhandled cases
     SelUnion _ _ _ -> Just (SCons (SlkSEVal Wildcard) out)
     Guard _ -> Just (SCons (SlkSEVal Wildcard) out)
+    CoerceCheck _ _ _ _ -> Just (SCons (SlkSEVal Wildcard) out)
     _ -> Just out
 
 symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
