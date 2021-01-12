@@ -8,7 +8,7 @@ while read -r dir; do
     find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf ' %s ... ' "$file"
-        if cabal run ../:daedalus -- nitf_main.ddl -i "$file" > /dev/null; then
+        if cabal run ../:daedalus -- nitf_main.ddl -i"$file" > /dev/null; then
             printf "pass\n"
         else
             printf "fail\n"
@@ -22,7 +22,7 @@ while read -r dir; do
     find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf ' %s ... ' "$file"
-        if cabal run ../:daedalus -- nitf_main.ddl -i "$file" > /dev/null; then
+        if cabal run ../:daedalus -- nitf_main.ddl -i"$file" > /dev/null; then
             printf "pass\n"
         else
             printf "fail\n"
