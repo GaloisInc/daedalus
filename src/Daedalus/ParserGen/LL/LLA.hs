@@ -69,7 +69,7 @@ data LLA = LLA
   , mappingSynthToDFAState :: Map.Map SynthLLAState DFAState
   , lastSynth :: SynthLLAState
 
-  -- synthesized mapping of mappingNFAToSynth
+    -- synthesized mapping of mappingNFAToSynth
   , synthesizedMappingNFAToSynth :: !(Array.Array Int (Maybe SynthLLAState))
   }
 
@@ -264,10 +264,10 @@ predictDFA dfa i =
     extractSinglePrediction :: DFARegistry -> (SourceCfg, Prediction)
     extractSinglePrediction s =
       case iterDFARegistry s of
-        Just (DFAEntry c1 (ClosurePath alts _c2 (pos, _, _) _c3), rest) ->
+        Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _) _c3), rest) ->
           if not (null rest)
           then error "ambiguous prediction"
-          else (c1, addChoiceSeq pos alts)
+          else (c1, alts)
           -- NOTE: pos is appended because this is the last transition
         Just (DFAEntry c1 (ClosureAccepting alts _c2), rest) ->
           if not (null rest)
@@ -275,24 +275,21 @@ predictDFA dfa i =
           else (c1, alts)
         Just (DFAEntry _c1 (ClosureMove {}), _) ->
           error "broken invariant: cannot be ClosureMove here"
-        Just (DFAEntry _c1 (ClosureEps {}), _) ->
-          error "broken invariant: cannot be ClosureEps here"
         _ -> error "ambiguous prediction"
 
     extractPredictionFromDFARegistry :: SourceCfg -> DFARegistry -> (SourceCfg, Prediction)
     extractPredictionFromDFARegistry src s =
       case iterDFARegistry s of
         Nothing -> error "could not find src from previous cfg"
-        Just (DFAEntry c1 (ClosurePath alts _c2 (pos, _, _q2) c3), others) ->
+        Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _q2) c3), others) ->
           if cfgState c3 == cfgState src && cfgCtrl c3 == cfgCtrl src
-          then (c1, addChoiceSeq pos alts)
+          then (c1, alts)
           else extractPredictionFromDFARegistry src others
         Just (DFAEntry _c1 (ClosureAccepting _alts _c2), _others) ->
           error "broken invariant: cannot be ClosureAccepting here"
         Just (DFAEntry _c1 (ClosureMove {}), _others) ->
            error "broken invariant: cannot be ClosureMove here"
-        Just (DFAEntry _c1 (ClosureEps {}), _others) ->
-           error "broken invariant: cannot be ClosureEps here"
+
 
 predictLL :: Either State SynthLLAState -> LLA -> Input.Input -> Maybe (Prediction, Maybe SynthLLAState)
 predictLL qq aut inp =
@@ -414,11 +411,11 @@ showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
 showStartSynthLLAState aut dfas q =
   let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
   case iterDFAState dfaSt of
-    Nothing -> "SINK STATE"
+    Nothing -> "__ZSINK_STATE"
     Just (cfg, qs) ->
       if nullDFAState qs
-      then stateToString (cfgState cfg) aut ++
-           " " ++ showSlkCfg cfg
+      then stateToString (cfgState cfg) aut ++ "\n" ++
+           showSlkCfg cfg
       else error "broken invariant"
 
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
@@ -463,7 +460,10 @@ statsLLA aut llas =
     Right (lla1, lla) ->
       let t = map snd (Map.toAscList (transitionLLA lla))
           t1 = map snd (Map.toAscList (transitionLLA lla1)) in
-      do printLLA aut lla nofilter
+      do putStrLn "**********************************"
+         putStrLn "***** Strict LLA Transitions *****"
+         putStrLn "**********************************"
+         printLLA aut lla1 nofilter
          putStrLn "**********************"
          putStrLn "**** Extended LLA ****"
          putStrLn "**********************"

@@ -228,6 +228,12 @@ isUnhandledAction act =
         _ -> False
     _ -> False
 
+isPushAction :: Action -> Bool
+isPushAction act =
+  case act of
+    CAct (Push _ _ _) -> True
+    _ -> False
+
 isBranchAction :: Action -> Bool
 isBranchAction act =
   case act of

@@ -214,11 +214,11 @@ showSlkCfg
   , cfgInput = inp
   }) =
   "SlkCfg{ " ++
-  "q:" ++ show q ++ "; " ++
-  "ctrl:" ++ showSymbolicStack ctrl ++ "; " ++
-  "sem:" ++ showSymbolicStack sem ++ "; " ++
+  "q:" ++ show q ++ ", " ++
+  "ctrl:" ++ showSymbolicStack ctrl ++ ", " ++
+  "sem:" ++ showSymbolicStack sem ++ ", " ++
   "inp:" ++ showSlkInput inp ++
-  "}"
+  " }"
 
 
 compareSlkCfg :: SlkCfg -> SlkCfg -> Ordering

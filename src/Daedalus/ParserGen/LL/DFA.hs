@@ -323,6 +323,32 @@ detChoiceToList detChoice =
       Nothing -> tr
       Just t -> tr ++ [(EndInput, t)]
 
+mapAnalyzeConflicts :: DetChoice -> DFATransition
+mapAnalyzeConflicts dc =
+  let amall = ambiguityDetChoice dc in
+  let tr = detChoiceToList dc in
+  let acceptingTr =
+        case acceptingDetChoice dc of
+          Nothing -> Nothing
+          Just reg -> fconvertAccepting reg
+  in
+    let nextTr = map fconvert tr
+    in
+      DFATransition
+      { ambiguityTrans = amall
+      , acceptTrans = acceptingTr
+      , nextTrans = nextTr
+      }
+
+  where
+    fconvert (ihc, reg) =
+      let newCfg = convertDFARegistryToDFAState reg
+          am = analyzeConflicts reg
+      in (ihc, reg, am, newCfg, dummyLinDFAState)
+
+    fconvertAccepting reg =
+      let am = analyzeConflicts reg
+      in Just (reg, am)
 
 
 oVERFLOW_CFG :: Int
@@ -395,37 +421,6 @@ createDFA aut qInit =
           let r2 = mapAnalyzeConflicts r1 in
             Result r2
         _ -> error "cannot be this abort"
-
-    mapAnalyzeConflicts :: DetChoice -> DFATransition
-    mapAnalyzeConflicts dc =
-      let amall = ambiguityDetChoice dc in
-      let tr = detChoiceToList dc in
-      let acceptingTr =
-            case acceptingDetChoice dc of
-              Nothing -> Nothing
-              Just reg -> fconvertAccepting reg
-      in
-      let nextTr = map fconvert tr
-      in
-        DFATransition
-        { ambiguityTrans = amall
-        , acceptTrans = acceptingTr
-        , nextTrans = nextTr
-        }
-
-      where
-        fconvert (ihc, reg) =
-          let newCfg = convertDFARegistryToDFAState reg
-              am = analyzeConflicts reg
-          in (ihc, reg, am, newCfg, dummyLinDFAState)
-
-        fconvertAccepting reg =
-          let am = analyzeConflicts reg
-          in Just (reg, am)
-
-
-
-
 
 
 

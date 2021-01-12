@@ -31,6 +31,11 @@ import qualified Daedalus.ParserGen.LL.Closure as Closure
 
 
 
+{-
+`DFAEntry` is a type capturing a path of execution in the NFA,
+starting from a source to its destination.
+-}
+
 type SourceCfg = SCfg.SlkCfg
 
 data DFAEntry = DFAEntry
@@ -64,6 +69,13 @@ instance Eq DFAEntry where
 instance Ord DFAEntry where
   compare p1 p2 = compareDFAEntry p1 p2
 
+
+
+{-
+DFARegistry is a type encapsulating a set of DFAEntry. In practice it
+is the result of a factorization of a class operation or any operation
+that interrupts a lockstep move.
+-}
 
 type DFARegistry = Set.Set DFAEntry
 
@@ -104,6 +116,8 @@ unionDFARegistry s1 s2 = Set.union s1 s2
 
 singletonDFARegistry :: DFAEntry -> DFARegistry
 singletonDFARegistry x = Set.singleton x
+
+
 
 
 
@@ -320,36 +334,37 @@ convertDFARegistryToDFAState r =
           addDFAState (Closure.lastCfg $ dstEntry entry) (helper es)
 
 
-slkExecInputHeadConditionRegistry :: SCfg.InputHeadCondition -> DFARegistry -> DFARegistry
-slkExecInputHeadConditionRegistry ih r =
+slkExecMoveRegistry :: Aut a => a -> SCfg.InputHeadCondition -> DFARegistry -> Result DFARegistry
+slkExecMoveRegistry aut ih r =
   helper r
   where
     helper s =
       case iterDFARegistry s of
-        Nothing -> emptyDFARegistry
+        Nothing -> Result emptyDFARegistry
         Just (entry, es) ->
           let
             src = srcEntry entry
-            alt = Closure.altSeq $ dstEntry entry
-            closCfg = Closure.closureCfg $ dstEntry entry
-            mv@(_,act,q) = Closure.moveCfg $ dstEntry entry
+            cm = dstEntry entry
           in
-          let mCfg = SCfg.simulateMove ih closCfg act q in
-            case mCfg of
+          let mCm = Closure.simulateMoveClosure ih cm in
+            case mCm of
               Nothing -> helper es
-              Just newCfg ->
-                let newEntry =
-                      DFAEntry
-                      { srcEntry = src
-                      , dstEntry =
-                        Closure.ClosurePath
-                        { Closure.altSeq = alt
-                        , Closure.closureCfg = closCfg
-                        , Closure.moveCfg = mv
-                        , Closure.lastCfg = newCfg
-                        }
-                      }
-                in addDFARegistry newEntry (helper es)
+              Just cmMove ->
+                let mCmEps = Closure.closureEpsUntilPush aut Set.empty cmMove
+                in
+                  case mCmEps of
+                    Result Nothing -> helper es
+                    Result (Just cmEps) ->
+                      let newEntry =
+                            DFAEntry
+                            { srcEntry = src
+                            , dstEntry = cmEps
+                            }
+                      in
+                        case helper es of
+                          Result h -> Result (addDFARegistry newEntry h)
+                          a -> coerceAbort a
+                    Abort _ -> coerceAbort mCmEps
 
 
 determinizeDFAState :: Aut a => a -> DFAState -> Result DetChoice
@@ -359,7 +374,7 @@ determinizeDFAState aut s =
     determinizeAcc :: DFAState -> DetChoice -> Result DetChoice
     determinizeAcc states acc =
       case iterDFAState states of
-        Nothing -> Result $ slkExecClass acc
+        Nothing -> slkExecClassAndEps acc
         Just (cfg, rest) ->
           let r = deterministicSlkCfg aut cfg in
           case r of
@@ -377,12 +392,31 @@ determinizeDFAState aut s =
             _ -> error "cannot be this abort"
 
 
-    slkExecClass :: DetChoice -> DetChoice
-    slkExecClass d =
+
+
+    slkExecClassAndEps :: DetChoice -> Result DetChoice
+    slkExecClassAndEps d =
       let
         cdc = classDetChoice d
         edc = endDetChoice d
       in
-      d { classDetChoice = map (\ (cl, r) -> (cl, slkExecInputHeadConditionRegistry (SCfg.HeadInput cl) r)) cdc
-        , endDetChoice = maybe Nothing (\ r -> Just $ slkExecInputHeadConditionRegistry (SCfg.EndInput) r) edc
-        }
+      let computeOnClass lst acc =
+            case lst of
+              [] -> Result $ reverse acc
+              (cl, r) : rest ->
+                let sr = slkExecMoveRegistry aut (SCfg.HeadInput cl) r in
+                case sr of
+                  Result r1 -> computeOnClass rest ((cl, r1) : acc)
+                  Abort _ -> coerceAbort sr
+      in
+        case computeOnClass cdc [] of
+          Result cd ->
+            case edc of
+              Nothing ->
+                Result $ d { classDetChoice = cd, endDetChoice = Nothing}
+              Just r ->
+                case slkExecMoveRegistry aut (SCfg.EndInput) r of
+                  Result r1 ->
+                    Result $ d { classDetChoice = cd, endDetChoice = Just r1 }
+                  a -> coerceAbort a
+          a -> coerceAbort a
