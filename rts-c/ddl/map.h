@@ -278,6 +278,7 @@ public:
     // Owns argument
     Iterator (Map m) {
       if (m.tree != nullptr) *this = goLeft(Boxed<Iterator>(), m.tree);
+      else cur = nullptr;
     }
 
     // borrow this
