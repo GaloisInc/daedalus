@@ -1,378 +1,278 @@
-Digit (9,1)-(9,47)
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+Main (24,1)-(27,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
-  ( [(7),]
-  , HeadInput ['0','9']
+  ( [(51),]
+  , HeadInput ['0','8']
   , Resolution (NotAmbiguous)
+  ),
+  ( [(51),(22),]
+  , HeadInput ['9']
+  , DTrans [
+      ( [(31),]
+      , HeadInput ['0','8']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(31),(7),]
+      , HeadInput ['9']
+      , DTrans [
+          ( [(31),]
+          , HeadInput ['0','8']
+          , Resolution (NotAmbiguous)
+          ),
+          ( [(31),(7),]
+          , HeadInput ['9']
+          , DTrans [
+              ( [(31),]
+              , HeadInput ['0','8']
+              , Resolution (NotAmbiguous)
+              ),
+              ( [(31),(7),]
+              , HeadInput ['9']
+              , DTrans [
+                  ( [(31),]
+                  , HeadInput ['0','8']
+                  , Resolution (NotAmbiguous)
+                  ),
+                  ( [(31),(7),]
+                  , HeadInput ['9']
+                  , DTrans [
+                      ( [(31),]
+                      , HeadInput ['0','8']
+                      , Resolution (NotAmbiguous)
+                      ),
+                      ( [(31),(7),]
+                      , HeadInput ['9']
+                      , DTrans [
+                          ( [(31),]
+                          , HeadInput ['0','8']
+                          , Resolution (NotAmbiguous)
+                          ),
+                          ( [(31),(7),]
+                          , HeadInput ['9']
+                          , DTrans [
+                              ( [(31),]
+                              , HeadInput ['0','8']
+                              , Resolution (NotAmbiguous)
+                              ),
+                              ( [(31),(7),]
+                              , HeadInput ['9']
+                              , DTrans [
+                                  ( [(31),]
+                                  , HeadInput ['0','8']
+                                  , Resolution (NotAmbiguous)
+                                  ),
+                                  ( [(31),(7),]
+                                  , HeadInput ['9']
+                                  , DTrans [
+                                      ( [(31),]
+                                      , HeadInput ['0','8']
+                                      , Resolution (NotAmbiguous)
+                                      ),
+                                      ( [(31),(7),]
+                                      , HeadInput ['9']
+                                      , DTrans [
+                                          ( [(31),]
+                                          , HeadInput ['0','8']
+                                          , Resolution (NotAmbiguous)
+                                          ),
+                                          ( [(31),(7),]
+                                          , HeadInput ['9']
+                                          , DTrans [
+                                              ( [(31),]
+                                              , HeadInput ['0','8']
+                                              , Resolution (NotAmbiguous)
+                                              ),
+                                              ( [(31),(7),]
+                                              , HeadInput ['9']
+                                              , DTrans [
+                                                  ( [(68),(55),]
+                                                  , HeadInput ['0','9']
+                                                  , Resolution (Ambiguous)
+                                                  ),
+                                                ]
+                                              ),
+                                            ]
+                                          ),
+                                        ]
+                                      ),
+                                    ]
+                                  ),
+                                ]
+                              ),
+                            ]
+                          ),
+                        ]
+                      ),
+                    ]
+                  ),
+                ]
+              ),
+            ]
+          ),
+        ]
+      ),
+    ]
   ),
 ]
 
-FL (17,1)-(21,1)
+UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(24),]
-  , HeadInput ['0','8']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(24),(11),]
-  , HeadInput ['9']
-  , DTrans [
-      ( [(30),]
-      , HeadInput ['0','8']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(30),(6),]
-      , HeadInput ['9']
-      , DTrans [
-          ( [(30),]
-          , HeadInput ['0','8']
-          , Resolution (NotAmbiguous)
-          ),
-          ( [(30),(6),]
-          , HeadInput ['9']
-          , DTrans [
-              ( [(30),]
-              , HeadInput ['0','8']
-              , Resolution (NotAmbiguous)
-              ),
-              ( [(30),(6),]
-              , HeadInput ['9']
-              , DTrans [
-                  ( [(30),]
-                  , HeadInput ['0','8']
-                  , Resolution (NotAmbiguous)
-                  ),
-                  ( [(30),(6),]
-                  , HeadInput ['9']
-                  , DTrans [
-                      ( [(30),]
-                      , HeadInput ['0','8']
-                      , Resolution (NotAmbiguous)
-                      ),
-                      ( [(30),(6),]
-                      , HeadInput ['9']
-                      , DTrans [
-                          ( [(30),]
-                          , HeadInput ['0','8']
-                          , Resolution (NotAmbiguous)
-                          ),
-                          ( [(30),(6),]
-                          , HeadInput ['9']
-                          , DTrans [
-                              ( [(30),]
-                              , HeadInput ['0','8']
-                              , Resolution (NotAmbiguous)
-                              ),
-                              ( [(30),(6),]
-                              , HeadInput ['9']
-                              , DTrans [
-                                  ( [(30),]
-                                  , HeadInput ['0','8']
-                                  , Resolution (NotAmbiguous)
-                                  ),
-                                  ( [(30),(6),]
-                                  , HeadInput ['9']
-                                  , DTrans [
-                                      ( [(30),]
-                                      , HeadInput ['0','8']
-                                      , Resolution (NotAmbiguous)
-                                      ),
-                                      ( [(30),(6),]
-                                      , HeadInput ['9']
-                                      , DTrans [
-                                          ( [(30),]
-                                          , HeadInput ['0','8']
-                                          , Resolution (NotAmbiguous)
-                                          ),
-                                          ( [(30),(6),]
-                                          , HeadInput ['9']
-                                          , DTrans [
-                                              ( [(30),]
-                                              , HeadInput ['0','8']
-                                              , Resolution (NotAmbiguous)
-                                              ),
-                                              ( [(30),(6),]
-                                              , HeadInput ['9']
-                                              , DTrans [
-                                                  ( [(38),(67),]
-                                                  , HeadInput ['0','9']
-                                                  , Resolution (Ambiguous)
-                                                  ),
-                                                ]
-                                              ),
-                                            ]
-                                          ),
-                                        ]
-                                      ),
-                                    ]
-                                  ),
-                                ]
-                              ),
-                            ]
-                          ),
-                        ]
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-            ]
-          ),
-        ]
-      ),
-    ]
+  , AcceptingPath
+  , NotAmbiguous
   ),
 ]
 
-FL (18,29)-(18,38)
+UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
-  ( [(38),]
-  , HeadInput ['0','8']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(38),(6),]
-  , HeadInput ['9']
-  , DTrans [
-      ( [(38),(30),]
-      , HeadInput ['0','8']
-      , DTrans [
-          ( [(30),(30),]
-          , HeadInput ['0','9']
-          , DTrans [
-              ( [(30),(30),]
-              , HeadInput ['0','9']
-              , DTrans [
-                  ( [(30),(30),]
-                  , HeadInput ['0','9']
-                  , DTrans [
-                      ( [(30),(30),]
-                      , HeadInput ['0','9']
-                      , AbortAcceptingPath
-
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-            ]
-          ),
-        ]
-      ),
-      ( [(38),(30),(6),]
-      , HeadInput ['9']
-      , DTrans [
-          ( [(38),(30),(30),]
-          , HeadInput ['0','8']
-          , DTrans [
-              ( [(30),(30),(30),]
-              , HeadInput ['0','9']
-              , DTrans [
-                  ( [(30),(30),(30),]
-                  , HeadInput ['0','9']
-                  , DTrans [
-                      ( [(30),(30),(30),]
-                      , HeadInput ['0','9']
-                      , AbortAcceptingPath
-
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-            ]
-          ),
-          ( [(38),(30),(30),(6),]
-          , HeadInput ['9']
-          , DTrans [
-              ( [(38),(30),(30),(30),]
-              , HeadInput ['0','8']
-              , DTrans [
-                  ( [(30),(30),(30),(30),]
-                  , HeadInput ['0','9']
-                  , DTrans [
-                      ( [(30),(30),(30),(30),]
-                      , HeadInput ['0','9']
-                      , AbortAcceptingPath
-
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-              ( [(38),(30),(30),(30),(6),]
-              , HeadInput ['9']
-              , DTrans [
-                  ( [(38),(30),(30),(30),(30),]
-                  , HeadInput ['0','8']
-                  , DTrans [
-                      ( [(30),(30),(30),(30),(30),]
-                      , HeadInput ['0','9']
-                      , AbortAcceptingPath
-
-                      ),
-                    ]
-                  ),
-                  ( [(38),(30),(30),(30),(30),(6),]
-                  , HeadInput ['9']
-                  , DTrans [
-                      ( [(38),(30),(30),(30),(30),(30),]
-                      , HeadInput ['0','8']
-                      , AbortAcceptingPath
-
-                      ),
-                      ( [(38),(30),(30),(30),(30),(30),(6),]
-                      , HeadInput ['9']
-                      , AbortAcceptingPath
-
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-            ]
-          ),
-        ]
-      ),
-    ]
-  ),
-]
-
-Main (24,1)-(27,3)
-DTrans [
-  ( [(29),]
-  , HeadInput ['0','8']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(29),(16),]
-  , HeadInput ['9']
-  , DTrans [
-      ( [(30),]
-      , HeadInput ['0','8']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(30),(6),]
-      , HeadInput ['9']
-      , DTrans [
-          ( [(30),]
-          , HeadInput ['0','8']
-          , Resolution (NotAmbiguous)
-          ),
-          ( [(30),(6),]
-          , HeadInput ['9']
-          , DTrans [
-              ( [(30),]
-              , HeadInput ['0','8']
-              , Resolution (NotAmbiguous)
-              ),
-              ( [(30),(6),]
-              , HeadInput ['9']
-              , DTrans [
-                  ( [(30),]
-                  , HeadInput ['0','8']
-                  , Resolution (NotAmbiguous)
-                  ),
-                  ( [(30),(6),]
-                  , HeadInput ['9']
-                  , DTrans [
-                      ( [(30),]
-                      , HeadInput ['0','8']
-                      , Resolution (NotAmbiguous)
-                      ),
-                      ( [(30),(6),]
-                      , HeadInput ['9']
-                      , DTrans [
-                          ( [(30),]
-                          , HeadInput ['0','8']
-                          , Resolution (NotAmbiguous)
-                          ),
-                          ( [(30),(6),]
-                          , HeadInput ['9']
-                          , DTrans [
-                              ( [(30),]
-                              , HeadInput ['0','8']
-                              , Resolution (NotAmbiguous)
-                              ),
-                              ( [(30),(6),]
-                              , HeadInput ['9']
-                              , DTrans [
-                                  ( [(30),]
-                                  , HeadInput ['0','8']
-                                  , Resolution (NotAmbiguous)
-                                  ),
-                                  ( [(30),(6),]
-                                  , HeadInput ['9']
-                                  , DTrans [
-                                      ( [(30),]
-                                      , HeadInput ['0','8']
-                                      , Resolution (NotAmbiguous)
-                                      ),
-                                      ( [(30),(6),]
-                                      , HeadInput ['9']
-                                      , DTrans [
-                                          ( [(30),]
-                                          , HeadInput ['0','8']
-                                          , Resolution (NotAmbiguous)
-                                          ),
-                                          ( [(30),(6),]
-                                          , HeadInput ['9']
-                                          , DTrans [
-                                              ( [(30),]
-                                              , HeadInput ['0','8']
-                                              , Resolution (NotAmbiguous)
-                                              ),
-                                              ( [(30),(6),]
-                                              , HeadInput ['9']
-                                              , DTrans [
-                                                  ( [(38),(67),]
-                                                  , HeadInput ['0','9']
-                                                  , Resolution (Ambiguous)
-                                                  ),
-                                                ]
-                                              ),
-                                            ]
-                                          ),
-                                        ]
-                                      ),
-                                    ]
-                                  ),
-                                ]
-                              ),
-                            ]
-                          ),
-                        ]
-                      ),
-                    ]
-                  ),
-                ]
-              ),
-            ]
-          ),
-        ]
-      ),
-    ]
-  ),
-]
-
-Numeral (7,1)-(7,32)
-DTrans [
-  ( [(2),]
+  ( [(68),]
   , HeadInput ['0','9']
   , Resolution (NotAmbiguous)
   ),
 ]
 
-Numeral (7,15)-(7,32)
-AbortAcceptingPath
+**********************
+**** Extended LLA ****
+**********************
+("Result-0",3)
+("Result-1",53)
+("Result-ambiguous-13",3)
+("abort-1",3)
+("abort-7",1)
+
+Total nb states: 63
+
+**********************
+***** Strict LLA *****
+**********************
+("Result-0",1)
+("Result-1",17)
+("Result-ambiguous-13",1)
+
+Total nb states: 19
 
 
-UnsignedNum (11,1)-(14,1)
-AbortAcceptingPath
+Warning: LL(*) failures:
 
+Main (24,1)-(27,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(51),]
+  , HeadInput ['0','8']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(51),(22),]
+  , HeadInput ['9']
+  , DTrans [
+      ( [(31),]
+      , HeadInput ['0','8']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(31),(7),]
+      , HeadInput ['9']
+      , DTrans [
+          ( [(31),]
+          , HeadInput ['0','8']
+          , Resolution (NotAmbiguous)
+          ),
+          ( [(31),(7),]
+          , HeadInput ['9']
+          , DTrans [
+              ( [(31),]
+              , HeadInput ['0','8']
+              , Resolution (NotAmbiguous)
+              ),
+              ( [(31),(7),]
+              , HeadInput ['9']
+              , DTrans [
+                  ( [(31),]
+                  , HeadInput ['0','8']
+                  , Resolution (NotAmbiguous)
+                  ),
+                  ( [(31),(7),]
+                  , HeadInput ['9']
+                  , DTrans [
+                      ( [(31),]
+                      , HeadInput ['0','8']
+                      , Resolution (NotAmbiguous)
+                      ),
+                      ( [(31),(7),]
+                      , HeadInput ['9']
+                      , DTrans [
+                          ( [(31),]
+                          , HeadInput ['0','8']
+                          , Resolution (NotAmbiguous)
+                          ),
+                          ( [(31),(7),]
+                          , HeadInput ['9']
+                          , DTrans [
+                              ( [(31),]
+                              , HeadInput ['0','8']
+                              , Resolution (NotAmbiguous)
+                              ),
+                              ( [(31),(7),]
+                              , HeadInput ['9']
+                              , DTrans [
+                                  ( [(31),]
+                                  , HeadInput ['0','8']
+                                  , Resolution (NotAmbiguous)
+                                  ),
+                                  ( [(31),(7),]
+                                  , HeadInput ['9']
+                                  , DTrans [
+                                      ( [(31),]
+                                      , HeadInput ['0','8']
+                                      , Resolution (NotAmbiguous)
+                                      ),
+                                      ( [(31),(7),]
+                                      , HeadInput ['9']
+                                      , DTrans [
+                                          ( [(31),]
+                                          , HeadInput ['0','8']
+                                          , Resolution (NotAmbiguous)
+                                          ),
+                                          ( [(31),(7),]
+                                          , HeadInput ['9']
+                                          , DTrans [
+                                              ( [(31),]
+                                              , HeadInput ['0','8']
+                                              , Resolution (NotAmbiguous)
+                                              ),
+                                              ( [(31),(7),]
+                                              , HeadInput ['9']
+                                              , DTrans [
+                                                  ( [(68),(55),]
+                                                  , HeadInput ['0','9']
+                                                  , Resolution (Ambiguous)
+                                                  ),
+                                                ]
+                                              ),
+                                            ]
+                                          ),
+                                        ]
+                                      ),
+                                    ]
+                                  ),
+                                ]
+                              ),
+                            ]
+                          ),
+                        ]
+                      ),
+                    ]
+                  ),
+                ]
+              ),
+            ]
+          ),
+        ]
+      ),
+    ]
+  ),
+]
 
-
-Report:
-("AbortAcceptingPath",2)
-("Result-1",2)
-("Result-ambiguous-13",2)
-("abort-6",1)
-
-
-Total nb states: 7

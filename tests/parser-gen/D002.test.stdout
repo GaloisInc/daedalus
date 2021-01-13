@@ -1,33 +1,17 @@
-Main (10,18)-(10,27)
-DTrans [
-  ( [(1),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (10,18)-(10,27)
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (12,5)-(12,7)
-AbortAcceptingPath
-
-
+**********************************
+***** Strict LLA Transitions *****
+**********************************
 Main (3,1)-(13,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
-  ( [(7),(7),]
+  ( [(10),(10),]
   , HeadInput ['a']
   , DTrans [
-      ( [(1),]
+      ( [(10),]
       , HeadInput ['b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(1),]
+      ( [(10),]
       , HeadInput ['c']
       , Resolution (NotAmbiguous)
       ),
@@ -35,80 +19,52 @@ DTrans [
   ),
 ]
 
-Main (5,18)-(5,27)
+Main (8,10)-(11,12)
+SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
 DTrans [
-  ( [(1),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (5,18)-(5,27)
-DTrans [
-  ( [(12),(12),]
+  ( [(5),(5),]
   , HeadInput ['a']
   , DTrans [
-      ( [(1),(1),]
+      ( [(10),(10),]
       , HeadInput ['b']
-      , DTrans [
-          ( [(9),(9),]
-          , EndInput
-          , Resolution (Ambiguous)
-          ),
-        ]
+      , Resolution (Ambiguous)
       ),
     ]
   ),
 ]
 
-Main (6,18)-(6,27)
-DTrans [
-  ( [(1),]
-  , HeadInput ['c']
-  , Resolution (NotAmbiguous)
-  ),
-]
+**********************
+**** Extended LLA ****
+**********************
+("Result-0",2)
+("Result-1",7)
+("Result-2",2)
+("Result-ambiguous-2",5)
 
-Main (6,18)-(6,27)
-DTrans [
-  ( [(12),(12),]
-  , HeadInput ['a']
-  , DTrans [
-      ( [(1),(1),]
-      , HeadInput ['b']
-      , DTrans [
-          ( [(9),(9),]
-          , EndInput
-          , Resolution (Ambiguous)
-          ),
-        ]
-      ),
-    ]
-  ),
-]
+Total nb states: 16
 
-Main (9,18)-(9,27)
-DTrans [
-  ( [(1),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (9,18)-(9,27)
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-
-Report:
-("AbortAcceptingPath",1)
-("Result-1",6)
+**********************
+***** Strict LLA *****
+**********************
 ("Result-2",1)
-("Result-ambiguous-3",2)
+("Result-ambiguous-2",1)
+
+Total nb states: 2
 
 
-Total nb states: 10
+Warning: LL(*) failures:
+
+Main (8,10)-(11,12)
+SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(5),(5),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(10),(10),]
+      , HeadInput ['b']
+      , Resolution (Ambiguous)
+      ),
+    ]
+  ),
+]
+
