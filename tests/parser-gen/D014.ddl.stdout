@@ -1,0 +1,36 @@
+module D014
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+rec value
+  D014.SkipTo ?a3 (P : Grammar ?a3) : Grammar ?a3 =
+    Choose biased
+      { P
+      | do @GetByte
+           ($$ : ?a3) <- D014.SkipTo ?a3 P
+           pure $$
+      }
+ 
+D014.AString : Grammar [uint 8] =
+  MatchBytes "a"
+ 
+D014.Main : Grammar [uint 8] =
+  D014.SkipTo [uint 8] D014.AString
+ 
+D014._SkipTo ?a3 (P : Grammar ?a3) (_P : Grammar {}) : Grammar {} =
+  Choose biased
+    { _P
+    | do @GetByte
+         D014.SkipTo ?a3 P
+         pure {}
+    }
+ 
+D014._AString : Grammar {} =
+  @MatchBytes "a"
+ 
+D014._Main : Grammar {} =
+  D014._SkipTo [uint 8] D014.AString D014._AString
