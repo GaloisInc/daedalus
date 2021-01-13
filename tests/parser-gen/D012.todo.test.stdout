@@ -1,0 +1,29 @@
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+Main (36,1)-(38,1)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+Ambiguous(acceptingPath + next)
+
+**********************
+**** Extended LLA ****
+**********************
+("Result-1",2)
+("abort-1",9)
+
+Total nb states: 11
+
+**********************
+***** Strict LLA *****
+**********************
+("abort-1",1)
+
+Total nb states: 1
+
+
+Warning: LL(*) failures:
+
+Main (36,1)-(38,1)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+Ambiguous(acceptingPath + next)
+
