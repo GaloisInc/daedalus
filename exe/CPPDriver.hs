@@ -2,9 +2,9 @@
 module CPPDriver where
 
 import Data.ByteString(ByteString)
-import qualified Data.ByteString.Char8 as B
 import Data.FileEmbed
 
 template_files :: [(FilePath,ByteString)]
 template_files = $(embedDir "exe/driver-template")
+
 
