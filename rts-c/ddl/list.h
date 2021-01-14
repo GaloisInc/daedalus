@@ -39,6 +39,9 @@ public:
   // Borrow "this"
   size_t size() { return ptr.isNull()? 0 : ptr.getValue().size; }
 
+  // Borrow "this"
+  bool isNull() { return ptr.isNull(); }
+
   // Own "this"
   // Returns "Owned" `h` and `t`
   // `t` should not be this.
@@ -56,7 +59,8 @@ public:
 
   }
 
-  T& borrowHead() { return ptr.getValue().head; }
+  T&    borrowHead() { return ptr.getValue().head; }
+  List& borrowTail() { return ptr.getValue().tail; }
 
   friend
   std::ostream& operator<<(std::ostream& os, List x) {
