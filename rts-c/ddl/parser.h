@@ -63,8 +63,8 @@ public:
   }
 
   // Function calls
-  void push(Closure *c) { stack = ListStack(c,stack); }
-  Closure* pop()        { Closure *x = stack.pop(stack); return x; }
+  void push(Closure *c) { stack = ListStack{ClosureRef{c},stack}; }
+  Closure* pop()        { return stack.pop(stack); }
 
   // Returns the address of the code for the continuation, the closure is on
   // top of the stack. If there were alternative continuations

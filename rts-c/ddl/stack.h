@@ -28,47 +28,86 @@ struct Closure {
   void copy() {
     ++ref_count;
   }
-
 };
 
+static inline
+std::ostream& operator<<(std::ostream& os, Closure& x) {
+  os << "[clo|" << x.ref_count << "|" << (void*)&x << "|" << x.code << "]";
+  return os;
+}
+
+class ClosureRef : HasRefs {
+  Closure *ptr;
+public:
+  ClosureRef() : ptr(nullptr) {}
+  ClosureRef(Closure *p) : ptr(p) {}    // never null
+
+  void copy()         { ptr->copy(); }
+  void free()         { ptr->free(false); }
+  Closure *getValue() { return ptr; }
+};
+
+static inline
+std::ostream& operator<<(std::ostream& os, ClosureRef x) {
+  return os << *x.getValue();
+}
+
+
+
 class ListStack : HasRefs {
-  List<Closure*> data;    // XXX: can combine a node a closure
-  ListStack(List<Closure*> p) : data(p) {}
+  List<ClosureRef> data;    // XXX: can combine a node a closure
+  ListStack(List<ClosureRef> xs) : data(xs) {}
 
 public:
   ListStack() : data() {}
 
   // owns both arguments
-  ListStack(Closure *c, ListStack s) : data(List<Closure*>{c,s.data}) {}
+  ListStack(ClosureRef c, ListStack s)
+    : data(List<ClosureRef>{c,s.data}) {}
 
   // own this
   // \(x:xs) -> xs
-  Closure* pop(ListStack& out) {
-    Closure *x;
-    List<Closure*> xs;
+  Closure *pop(ListStack& out) {
+    ClosureRef x;
+    List<ClosureRef> xs;
     data.uncons(x,xs);
     out = ListStack{xs};
-    return x;
+    return x.getValue();
   }
 
   // owns this
   // \(x : xs@(y : ys) -> x : ys
   ListStack squish() {
-    Closure *x, *y;
-    List<Closure*> xs, ys;
+    ClosureRef x, y;
+    List<ClosureRef> xs, ys;
     data.uncons(x,xs);
     xs.uncons(y,ys);
-    y->free(false);
-    return ListStack(List{x,ys});
+    y.free();
+    return ListStack{x,ys};
   }
 
-  void* retAddr() { return data.borrowHead()->code; }
+  void* retAddr() { return data.borrowHead().getValue()->code; }
 
   void free() { data.free(); }
   void copy() { data.copy(); }
 
+  friend
+  std::ostream& operator<<(std::ostream& os, ListStack & x) {
+    os << "[stack]\n";
+    List<ClosureRef> p = x.data;
+    while (! p.isNull()) {
+      os << "  (" << p.refCount() << ")" << p.borrowHead() << std::endl;
+      p = p.borrowTail();
+    }
+    os << "[/stack]\n";
+    return os;
+  }
+
 };
 
+
+// We only even have a single pointer to a thread closure, from
+// withing the parser's stack object.
 struct ThreadClosure : public Closure {
   bool notified;
   ThreadClosure(void *c) : Closure(c), notified(false) {}
