@@ -30,15 +30,15 @@ public:
 
   // Borrows arguments (i.e., we copy them)
   Input (const char *nm, const char *by)
-    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm)))
-    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(by)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm) + 1))
+    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(by) + 1))
     , offset(0)
     , last_offset(bytes.size())
   {}
 
   // Borrows arguments (i.e., we copy them)
   Input(const char *nm, const char *by, size_t len)
-    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm) + 1))
     , bytes(Array<UInt<8>>((UInt<8>*)by, len))
     , offset(0)
     , last_offset(len)
