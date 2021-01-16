@@ -16,6 +16,16 @@ module Daedalus.Interp
   , ParseError(..)
   , Result(..)
   , Input(..)
+  -- For synthesis
+  , compilePureExpr
+  , compilePredicateExpr
+  , addValMaybe
+  , addVal
+  , evalUniOp
+  , evalBinOp
+  , evalTriOp
+  , setVals
+  , vUnit
   ) where
 
 
@@ -39,6 +49,7 @@ import Daedalus.Panic
 import qualified Daedalus.AST as K
 import Daedalus.Type.AST hiding (Value)
 import Daedalus.Interp.Value
+import Daedalus.Rec (forgetRecs)
 
 
 import RTS.ParserAPI
@@ -93,6 +104,9 @@ emptyEnv :: Env
 emptyEnv = Env Map.empty Map.empty Map.empty
                Map.empty Map.empty Map.empty
                Map.empty
+
+setVals :: Map Name Value -> Env -> Env
+setVals vs env = env { valEnv = vs }
 
 addVal :: TCName K.Value -> Value -> Env -> Env
 addVal x v env = env { valEnv = Map.insert (tcName x) v (valEnv env) }
@@ -394,7 +408,7 @@ compilePureExpr env = go
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
-                            Nothing -> error ("BUG: unknown value variable " ++ show x)
+                            Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
 
         TCUniOp op e1      -> evalUniOp op (go e1)
@@ -415,7 +429,7 @@ compilePureExpr env = go
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts [] es
-            Nothing -> error $ "BUG: unknown grammar function " ++ show x
+            Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
         TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
 
@@ -754,7 +768,7 @@ compilePExpr env expr0 args = go expr0
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v args
-            Nothing -> error $ "BUG: unknown grammar variable " ++ show x
+            Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
         TCCoerceCheck  s _ t e ->
           case doCoerceTo (evalType env t) (compilePureExpr env e) of
@@ -867,24 +881,23 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
         _      -> panic "expecting a VVal" []
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
+    
+    allRules = map (forgetRecs . tcModuleDecls) prog
 
-    allRules = concatMap (map recToList . tcModuleDecls) prog
-
-interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> Result Value
-interpCompiled name bytes env startName =
+interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
+interpCompiled name bytes env startName args = 
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    (rl : _)        -> P.runParser (rl [] [])
+    (rl : _)        -> P.runParser (rl [] (map VVal args))
                        (newInput name bytes)
     []              -> error ("Unknown start rule: " ++ show startName ++ ". Known rules: "
                                ++ show [ nameScopedIdent x | (x, _) <- Map.toList (ruleEnv env) ] )
-
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
           ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
           Result Value
 interp builtins nm bytes prog startName =
-  interpCompiled nm bytes env startName
+  interpCompiled nm bytes env startName []
   where
     env = compile builtins prog
 

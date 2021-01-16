@@ -5,6 +5,8 @@
 {-# Language ViewPatterns #-}
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
+{-# Language RecordWildCards #-}
+
 module Daedalus.Type.AST
   ( module Daedalus.Type.AST
   , module LocalAST
@@ -778,6 +780,12 @@ kindOf ty =
 class TypeOf t where
   typeOf :: t -> Type
 
+instance TypeOf Type where
+  typeOf t = t
+
+instance TypeOf (TCDecl a) where
+  typeOf TCDecl {..} = typeOf tcDeclDef
+   
 instance TypeOf (TCDeclDef a k) where
   typeOf d = case d of
                ExternDecl t -> t
