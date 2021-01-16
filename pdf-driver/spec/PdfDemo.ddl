@@ -3,17 +3,19 @@ import PdfValue
 import PdfDecl
 import PdfXRef
 
+import PdfContentStream
+
 def IsRootPages r = Default false { IsPageOrPages nothing r; ^ true }
 
 def IsPageOrPages p c = IsPage p c | IsPages p c
 
--- Don't look at the contents now.
 def IsPage (p : maybe Ref) (r : Ref) =
 {
     @v = ResolveValRef r;
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
+    -- CheckContents dict;
 }
 
 def IsPages (p : maybe Ref) (r : Ref) =
@@ -34,13 +36,27 @@ def IsPages (p : maybe Ref) (r : Ref) =
 def CheckParent (p : maybe Ref) (dict : [[uint 8] -> Value]) =
     { p is nothing;
       @v = Optional (LookupRef "Parent" dict);
-      @(v is nothing);
+      v is nothing;
     }
     <|
     { @pref = p is just;
       @dpref = LookupRef "Parent" dict;
-      dpref == pref;
+      Guard (dpref == pref);
     }
+
+-- Check that the (optional) contents point to a valid Content Stream
+def CheckContents d = @Optional {
+  @s = Lookup "Contents" d ; -- try to find content stream
+  Choose1 {
+   isarr = s is array ; -- TODO: concatenate streams and check content
+   isref = {
+     @strm = ResolveStream s ;
+     commit ;
+     @strmBody = strm.body is ok ;
+     WithStream strmBody (Only ContentStream) ;
+   }
+  }
+}
 
 --------------------------------------------------------------------------------
 -- Catalogue objects
@@ -60,8 +76,8 @@ def CatalogIsOK r = {
 -- Checked
 
 def CheckDecl expectId expectGen (decl : TopDec) = {
-  decl.id == expectId;
-  decl.gen == expectGen;
+  Guard (decl.id == expectId);
+  Guard (decl.gen == expectGen);
   obj    = ^ decl.obj;
   isSafe = { @v = decl.obj is value;  ValueIsSafe v }
          | {      decl.obj is stream; ^ safeSafetyInfo };
@@ -118,7 +134,7 @@ def ValueIsSafe (v : Value) =
 def DictIsAction a d = {
   -- Type is optional, so we ignore it and just look for the field "S"
   @n = LookupName "S" d; 
-  a == n;
+  Guard (a == n);
 }
 
 

@@ -17,11 +17,12 @@ syn keyword ddlKeyword as as!
 syn match   ddlKeyword "\$\$"
 syn keyword ddlKeyword Choose Choose1
 syn keyword ddlKeyword commit
+syn keyword ddlKeyword case
 
 syn keyword ddlKeywordFun   Optional Optional?
 syn keyword ddlKeywordFun   Many Many?
 syn keyword ddlKeywordFun   Fail
-syn keyword ddlKeywordFun   UInt8 $uint END
+syn keyword ddlKeywordFun   UInt8 $uint Match Match1 END
 syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
 
 syn keyword ddlKeywordConst true false
@@ -40,27 +41,31 @@ syn match ddlIdentDollar "\$\(\a\|\d\|_\)\+"
 
 
 
+syn match ddlOperator "\."
 syn match ddlOperator "!"
 syn match ddlOperator "\~"
 syn match ddlOperator "\^"
-syn match ddlOperator "!="
+syn match ddlOperator "|"
 syn match ddlOperator "<"
 syn match ddlOperator ">"
-syn match ddlOperator "<="
-syn match ddlOperator ">="
-syn match ddlOperator "&"
-syn match ddlOperator "|"
-syn match ddlOperator "<|"
 syn match ddlOperator "+"
 syn match ddlOperator "/"
 syn match ddlOperator "%"
 syn match ddlOperator "-"
 syn match ddlOperator "*"
 syn match ddlOperator "#"
+syn match ddlOperator "!="
+syn match ddlOperator "<="
+syn match ddlOperator ">="
+syn match ddlOperator "&&"
+syn match ddlOperator "||"
+syn match ddlOperator "<|"
 syn match ddlOperator "<#"
 syn match ddlOperator "<<"
 syn match ddlOperator ">>"
-syn match ddlDelimiter "\."
+syn match ddlOperator "\.&\."
+syn match ddlOperator "\.|\."
+syn match ddlOperator "\.\^\."
 
 syn match ddlDelimiter "@"
 syn match ddlDelimiter ";"

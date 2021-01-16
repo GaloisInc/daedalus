@@ -8,18 +8,19 @@
 {-# Language RecordWildCards #-}
 
 module Daedalus.Type.AST
-  ( module Daedalus.Type.AST 
+  ( module Daedalus.Type.AST
   , module LocalAST
   , Rec(..), recToList
   , SourceRange
   ) where
 
-import Data.Word(Word8)
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse)
 import qualified Data.Kind as HS
 import Data.Text(Text)
+import Data.Set(Set)
+import qualified Data.Set as Set
 
 import Data.Parameterized.Classes -- OrdF
 
@@ -31,8 +32,9 @@ import Daedalus.AST as LocalAST
         , Commit(..)
         , UniOp(..), Label, Ctx(..)
         , ModuleName
+        , isLocalName
         , nameScopeAsLocal, Context(..), TypeF(..)
-        , Located(..), ScopedIdent(..), Value, Grammar, Class)
+        , Located(..), ScopedIdent(..), Value, Grammar, Class, Literal(..))
 
 import Daedalus.PP
 
@@ -140,18 +142,18 @@ data TCF :: HS -> Ctx -> HS where
    TCCoerce       :: Type -> Type -> TC a Value -> TCF a Value
 
    -- Value constructors
-   TCNumber     :: Integer -> Type -> TCF a Value
-   TCBool       :: Bool    -> TCF a Value
+
+   -- We only really need the Type for LNumber
+   TCLiteral    :: Literal -> Type -> TCF a Value
+   
    TCNothing    :: Type -> TCF a Value
    TCJust       :: TC a Value -> TCF a Value
-   TCByte       :: Word8   -> TCF a Value
 
    TCUnit       :: TCF a Value
    TCStruct     :: [ (Label,TC a Value) ] -> Type -> TCF a Value
    -- The type is the type of the result,
    -- which should be a named struct type, possibly with some parameters.
 
-   TCByteArray  :: ByteString -> TCF a Value
    TCArray      :: [TC a Value] -> Type -> TCF a Value
     -- Type of elements (for empty arr.)
 
@@ -189,16 +191,38 @@ data TCF :: HS -> Ctx -> HS where
    -- Local variable/parameter
 
    TCCall :: TCName k -> [Type] -> [Arg a] -> TCF a k
-   -- Use top-level name.
-   -- The type in the name of the function is the
-   -- type of its result.
+   {- The name may be either top-level or local.  The type stored in
+      the name is the type of the result, *not* the whole function.
+   -}
 
 
    TCErrorMode :: Commit -> TC a Grammar -> TCF a Grammar
-   TCFail :: Maybe (TC a Value) -> Maybe (TC a Value) -> Type -> TCF a Grammar
-      -- Custom error message: location (integer), message (byte array)
+   TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
+      -- Custom error message: message (byte array)
+
+   TCCase :: TC a Value     {- thing we examine -} ->
+             [TCAlt a k]    {- brances; non-empty -} ->
+             Maybe (TC a k) {- default -} ->
+             TCF a k
+
 
 deriving instance Show a => Show (TCF a k)
+
+-- | A branch in a case.  Succeeds if *any* of the patterns match.
+-- All alternatives must bind the same variables (with the same types)
+data TCAlt a k = TCAlt [TCPat] (TC a k)
+  deriving Show
+
+-- | Deconstruct a value
+data TCPat = TCConPat Type Label TCPat
+           | TCNumPat Type Integer
+           | TCBoolPat Bool
+           | TCJustPat TCPat
+           | TCNothingPat Type
+           | TCVarPat (TCName Value)
+           | TCWildPat Type
+             deriving Show
+
 
 
 data LoopFlav a = Fold (TCName Value) (TC a Value)
@@ -207,7 +231,7 @@ data LoopFlav a = Fold (TCName Value) (TC a Value)
 
 data Loop a k = Loop
   { loopFlav    :: LoopFlav a
-  , loopKName   :: Maybe (TCName Value)
+  , loopKName   :: Maybe (TCName Value) -- Key name, optional
   , loopElName  :: TCName Value
   , loopCol     :: TC a Value
   , loopBody    :: TC a k
@@ -248,6 +272,7 @@ data TCDecl a   = forall k.
                          , tcDeclParams   :: ![Param]
                          , tcDeclDef      :: !(TCDeclDef a k)
                          , tcDeclCtxt     :: !(Context k)
+                         , tcDeclAnnot    :: !(a)
                          }
 
 deriving instance Show a => Show (TCDecl a)
@@ -278,7 +303,7 @@ instance PP RuleType where
   ppPrec n (as :-> b) = wrapIf (n > 0)
                       $ hsep
                       $ intersperse "->"
-                      $ map pp
+                      $ map (ppPrec 1)
                       $ as ++ [b]
 
 
@@ -298,7 +323,7 @@ instance PP Type where
       TCon c ts ->
         case ts of
           [] -> pp c
-          _  -> wrapIf (n > 0) (pp c <+> hsep (map (ppPrec 1) ts))
+          _  -> wrapIf (n > 1) (pp c <+> hsep (map (ppPrec 2) ts))
 
 instance PP (TCName k) where
   ppPrec n = ppPrec n . tcName
@@ -313,7 +338,7 @@ instance PP TVar where
 instance PP (TCDecl a) where
   pp d@TCDecl { tcDeclName, tcDeclDef } = pp tcDeclName <+>
          hsep (map pp (tcDeclTyParams d)) <+>
-         hsep (map (ppPrec 1) (tcDeclCtrs d)) <+>
+         hsep (map (ppPrec 2) (tcDeclCtrs d)) <+>
          hsep (map pp (tcDeclParams d)) <+>
          ":" <+> pp (typeOf tcDeclDef) <+> this $$ nest 2 next
 
@@ -377,10 +402,10 @@ instance PP (TCF a k) where
       TCMapLookup s k m ->
           wrapIf (n > 0) (annotKW' s "Lookup" <+> ppPrec 1 k <+> ppPrec 1 m)
 
-      TCArrayLength e -> 
+      TCArrayLength e ->
           wrapIf (n > 0) ("Length" <+> ppPrec 1 e)
 
-      TCArrayIndex s v ix -> 
+      TCArrayIndex s v ix ->
           wrapIf (n > 0) (annotKW' s "Index" <+> ppPrec 1 v <+> ppPrec 1 ix)
 
       TCChoice c es _ -> "Choose" <+> pp c $$
@@ -401,24 +426,25 @@ instance PP (TCF a k) where
 
       -- Values
       TCIn l e _    -> braces (pp l <.> colon <+> ppPrec 1 e)
-      TCByte b      -> text (show (toEnum (fromEnum b) :: Char))
-      TCNumber i _  -> integer i
-      TCBool i      -> if i then "true" else "false"
+      
+      TCLiteral l _ -> pp l
       TCNothing _   -> "nothing"
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
       TCUnit        -> "{}"
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
-      TCByteArray b -> text (show (BS8.unpack b))
 
       TCCall f [] []  -> pp f
       TCCall f ts xs -> wrapIf (n > 0) (pp f <+>
-                                        hsep (map (ppPrec 1) ts) <+>
+                                        hsep (map (ppPrec 2) ts) <+>
                                         hsep (map (ppPrec 1) xs))
 
       TCTriOp op e1 e2 e3 _ ->
         wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3)
+
+      TCBinOp op@ArrayStream e1 e2 _ ->
+          wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2)
 
       TCBinOp op e1 e2 _ ->
           wrapIf (n > 0) (ppPrec 1 e1 <+> pp op <+> ppPrec 1 e2)
@@ -464,11 +490,21 @@ instance PP (TCF a k) where
                      Commit    -> "Commit"
                      Backtrack -> "Try"
 
-      TCFail mbLoc mbMsg _ ->
-        case (mbLoc, mbMsg) of
-          (Nothing,Nothing) -> "Fail"
-          _ -> wrapIf (n > 0) ("Fail" <+> ppMb mbLoc <+> ppMb mbMsg)
-        where ppMb = maybe empty (ppPrec 1)
+      TCFail mbMsg _ ->
+        case mbMsg of
+          Nothing  -> "Fail"
+          Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
+
+      TCCase e pats mdef ->
+        wrapIf (n > 0)
+        "case" <+> pp e <+> "is" $$
+          nest 2 (block "{" ";" "}" (addDefalult (map pp pats)))
+        where
+        addDefalult xs = case mdef of
+                           Nothing -> xs
+                           Just d  -> xs ++ ["_" <+> "->" <+> pp d]
+
+
 
 instance PP a => PP (Poly a) where
   ppPrec n (Poly xs cs a) =
@@ -512,6 +548,22 @@ instance PP TCTyDef where
     where
     ppF (x,t) = pp x <.> ":" <+> pp t
 
+
+instance PP (TCAlt a k) where
+  ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
+    where lhs = sep $ punctuate comma $ map pp ps
+
+instance PP TCPat where
+  ppPrec n pat =
+    case pat of
+      TCConPat _ l p  -> "{|" <+> pp l <+> "=" <+> pp p <+> "|}"
+      TCNumPat _ i    -> pp i
+      TCBoolPat b     -> if b then "true" else "false"
+      TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
+      TCNothingPat _  -> "nothing"
+      TCVarPat x      -> pp x
+      TCWildPat _     -> "_"
+
 ppTCRuleRes :: Rec (TCDecl a) -> Doc
 ppTCRuleRes sc =
   case sc of
@@ -535,7 +587,7 @@ ppTyDef sc =
 
 -- This is a hack, it assumes that Commit doesn't add anything
 annotKW' :: WithSem -> Doc -> Doc
-annotKW' s = annotKW s Commit 
+annotKW' s = annotKW s Commit
 
 annotKW :: WithSem -> Commit -> Doc -> Doc
 annotKW s cmt kw = pref <.> kw <.> suff
@@ -574,33 +626,33 @@ instance PP TyDef where
 instance PP Constraint where
   ppPrec n c =
     case c of
-      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 1 x)
+      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
       TyDef ty _ t fs -> wrapIf (n > 0)
-          (pp ty <+> ppPrec 1 t <+> block "{" ";" "}" (map ppF fs))
+          (pp ty <+> ppPrec 2 t <+> block "{" ";" "}" (map ppF fs))
         where ppF (f,ft) = pp f <.> ":" <+> pp ft
       HasUnion  x l t -> wrapIf (n > 0) ("HasUnion" <+> pp x <+> pp l <+> pp t)
       Coerce s t1 t2 ->
-          wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 1 t1 <+> ppPrec 1 t2)
+          wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 2 t1 <+> ppPrec 2 t2)
       Literal i t ->
-        wrapIf (n > 0) ("Literal" <+> pp i <+> ppPrec 1 t)
+        wrapIf (n > 0) ("Literal" <+> pp i <+> ppPrec 2 t)
       CAdd t1 t2 t3 ->
         wrapIf (n > 0)
-               (ppPrec 1 t1 <+> "+" <+> ppPrec 1 t2 <+> "=" <+> ppPrec 1 t3)
+               (ppPrec 2 t1 <+> "+" <+> ppPrec 2 t2 <+> "=" <+> ppPrec 2 t3)
 
       Traversable t -> wrapIf (n > 0)
-                       ("Traversable" <+> ppPrec 1 t)
+                       ("Traversable" <+> ppPrec 2 t)
 
       Mappable t s -> wrapIf (n > 0)
-                        ("Mappable" <+> ppPrec 1 t <+> ppPrec 1 s)
+                        ("Mappable" <+> ppPrec 2 t <+> ppPrec 2 s)
 
       ColElType s t -> wrapIf (n > 0)
-                        ("HasElement" <+> ppPrec 1 s <+> ppPrec 1 t)
+                        ("HasElement" <+> ppPrec 2 s <+> ppPrec 2 t)
 
       ColKeyType s t -> wrapIf (n > 0)
-                        ("HasKey" <+> ppPrec 1 s <+> ppPrec 1 t)
+                        ("HasKey" <+> ppPrec 2 s <+> ppPrec 2 t)
 
-      IsNamed t ->  wrapIf (n > 0) ("Named" <+> ppPrec 1 t)
+      IsNamed t ->  wrapIf (n > 0) ("Named" <+> ppPrec 2 t)
 
 instance PP Lossy where
   pp l = case l of
@@ -621,6 +673,15 @@ instance HasRange TVar where
 
 instance HasRange (TCName k) where
   range = range . tcName
+
+instance HasRange a => HasRange (Arg a) where
+  range arg =
+    case arg of
+      ValArg e -> range e
+      ClassArg e -> range e
+      GrammarArg e -> range e
+
+
 --------------------------------------------------------------------------------
 
 
@@ -638,6 +699,12 @@ tByte = tUInt (tNum 8)
 
 tGrammar :: Type -> Type
 tGrammar t = Type (TGrammar t)
+
+tFun :: Type -> Type -> Type
+tFun s t = Type (TFun s t)
+
+tFunMany :: [Type] -> Type -> Type
+tFunMany args res = foldr tFun res args
 
 tMaybe :: Type -> Type
 tMaybe t = Type (TMaybe t)
@@ -697,6 +764,7 @@ kindOf ty =
     Type t ->
       case t of
         TGrammar {} -> KGrammar
+        TFun _ k    -> kindOf k
         TStream     -> KValue
         TByteClass  -> KClass
         TNum {}     -> KNumber
@@ -759,7 +827,7 @@ instance TypeOf (Loop a k) where
 instance TypeOf (TCF a k) where
   typeOf expr =
     case expr of
-      TCPure e        -> Type (TGrammar (typeOf e))
+      TCPure e        -> tGrammar (typeOf e)
       TCDo _ _ e      -> typeOf e
 
       TCLabel _ e     -> typeOf e
@@ -793,14 +861,11 @@ instance TypeOf (TCF a k) where
 
       TCIf _ e _      -> typeOf e
 
-      TCNumber _ t    -> t
-      TCBool _        -> tBool
+      TCLiteral _ t   -> t
       TCUnit          -> tUnit
       TCNothing t     -> t
       TCJust e        -> tMaybe (typeOf e)
-      TCByte _        -> tByte
       TCStruct _ t    -> t
-      TCByteArray _   -> tArray tByte
       TCArray _ t     -> tArray t
       TCIn _ _ t      -> t
       TCVar x         -> tcType x
@@ -817,7 +882,6 @@ instance TypeOf (TCF a k) where
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e
-          ArrayStream -> tStream
 
 
       TCSelStruct _ _ t  -> t
@@ -841,12 +905,49 @@ instance TypeOf (TCF a k) where
       TCStreamOff _ _ _   -> tGrammar tStream
 
       TCErrorMode _ p     -> typeOf p
-      TCFail _ _ t        -> tGrammar t
+      TCFail _ t          -> tGrammar t
+      TCCase _ ps _       -> typeOf (head ps)
+
+instance TypeOf (TCAlt a k) where
+  typeOf (TCAlt _ e) = typeOf e
+
 
 declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =
     Poly (tcDeclTyParams d) (tcDeclCtrs d)
              $ map typeOf (tcDeclParams d) :-> typeOf tcDeclDef
+
+
+-- | The type of thing we match
+instance TypeOf TCPat where
+  typeOf pat =
+    case pat of
+      TCConPat t _ _ -> t
+      TCNumPat t _ -> t
+      TCBoolPat _ -> tBool
+      TCJustPat p -> tMaybe (typeOf p)
+      TCNothingPat t -> tMaybe t
+      TCVarPat x -> typeOf x
+      TCWildPat t -> t
+
+patBinds :: TCPat -> [TCName Value]
+patBinds pat =
+  case pat of
+    TCConPat _ _ p  -> patBinds p
+    TCNumPat {}     -> []
+    TCBoolPat {}    -> []
+    TCJustPat p     -> patBinds p
+    TCNothingPat {} -> []
+    TCVarPat x      -> [x]
+    TCWildPat {}    -> []
+
+patBindsSet :: TCPat -> Set (TCName Value)
+patBindsSet = Set.fromList . patBinds
+
+altBinds :: TCAlt a k -> [TCName Value]
+altBinds (TCAlt ps _) = patBinds (head ps)
+
+
 
 -- $(return [])
 
@@ -863,7 +964,7 @@ instance Eq (TCName k) where
 
 instance EqF TCName where
   eqF k k' = k == k'
-  
+
 -- NOTE: these ignore types, so names with different types will cause issues.
 instance OrdF TCName where
   compareF tn1 tn2 =

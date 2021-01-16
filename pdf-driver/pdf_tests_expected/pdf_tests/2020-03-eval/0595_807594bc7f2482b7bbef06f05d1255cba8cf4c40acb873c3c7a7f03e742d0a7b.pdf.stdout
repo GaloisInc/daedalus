@@ -11,5 +11,5 @@ INFO: R:5:0 @765 is OK.
 INFO: R:6:0 @844 is OK.
 INFO: R:7:0 @1060 is OK.
 INFO: R:8:0 @1157 is OK.
-ERROR:54175 R:9:0 @11585 expected "endstream"
-ERROR:56490 R:10:0 @54179 expected "endstream"
+ERROR:54172 R:9:0 @11585 expected "endstream"
+ERROR:56487 R:10:0 @54179 expected "endstream"

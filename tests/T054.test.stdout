@@ -1,4 +1,4 @@
-module T054
+module DaedalusMain
  
 --- Imports:
  
@@ -6,8 +6,8 @@ module T054
  
 --- Rules:
  
-T054.Main : Grammar [uint 8] =
-  Many[T054.z__0] Match {'a'}
- 
-T054.z__0 : int =
+T054.z__3 : int =
   1
+ 
+T054.Main : Grammar [uint 8] =
+  Many[T054.z__3] Match {'a'}

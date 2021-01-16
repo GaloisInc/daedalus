@@ -30,5 +30,5 @@ INFO: R:24:0 @260426 is OK.
 INFO: R:25:0 @260496 is OK.
 INFO: R:26:0 @260717 is OK.
 INFO: R:27:0 @316478 is OK.
-ERROR:319254 R:28:0 @318869 expected "endstream"
-ERROR:321372 R:29:0 @319258 expected "endstream"
+ERROR:319251 R:28:0 @318869 expected "endstream"
+ERROR:321369 R:29:0 @319258 expected "endstream"

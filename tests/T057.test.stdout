@@ -1,4 +1,4 @@
-module T057
+module DaedalusMain
  
 --- Imports:
  
@@ -6,13 +6,13 @@ module T057
  
 --- Rules:
  
-T057.Main : Grammar {} =
-  T057.F "[" "]"
+T057._I__14 (x : [uint 8]) : Grammar {} =
+  @MatchBytes x
  
-T057.F (x1 : [uint 8]) (y : [uint 8]) : Grammar {} =
-  do T057._I__0 x1
-     ($$ : {}) <- T057._I__0 y
+T057.F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
+  do T057._I__14 x
+     ($$ : {}) <- T057._I__14 y
      pure $$
  
-T057._I__0 (x : [uint 8]) : Grammar {} =
-  @MatchBytes x
+T057.Main : Grammar {} =
+  T057.F "[" "]"

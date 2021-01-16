@@ -1,0 +1,101 @@
+Main (16,1)-(22,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(40),(40),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(9),]
+      , HeadInput ['b']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(9),]
+      , HeadInput ['c']
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+]
+
+Main (21,5)-(21,7)
+SlkCfg{ q:166, ctrl:[?, *], sem:[?, ], inp:---[3..] }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_Chunk__34 (14,20)-(14,35)
+SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
+DTrans [
+  ( [(7),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( []
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_Chunk__34 (14,20)-(14,35)
+SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
+DTrans [
+  ( []
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(33),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_Chunk__35 (14,20)-(14,35)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
+DTrans [
+  ( [(7),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( []
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+_Chunk__35 (14,20)-(14,35)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
+DTrans [
+  ( []
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(33),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
+
+__ZSINK_STATE
+
+
+**********************
+***** Strict LLA *****
+**********************
+("Result-0",2)
+("Result-1",5)
+("Result-2",1)
+
+Total nb states: 8
+
+SUCCESS: Fully determinized format

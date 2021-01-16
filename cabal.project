@@ -4,5 +4,9 @@ packages:
   daedalus-core/
   daedalus-vm/
   rts-hs/
+  pdf-cos/
   pdf-driver/
   icc-driver/
+
+constraints:
+  utf8-string < 1.0.2

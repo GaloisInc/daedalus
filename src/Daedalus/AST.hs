@@ -1,11 +1,13 @@
 {-# Language OverloadedStrings, DeriveTraversable, RecordWildCards #-}
 {-# Language DataKinds, GADTs, KindSignatures, ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell, DeriveLift #-} -- For deriving ord and eqs
+{-# LANGUAGE TypeOperators #-}
 
 module Daedalus.AST where
 
 import Data.Word
 import Data.ByteString(ByteString)
+import qualified Data.ByteString.Char8 as BS8
 import Data.Text(Text)
 import qualified Data.Kind as HS
 
@@ -17,12 +19,14 @@ import Language.Haskell.TH.Syntax(Lift(..))
 import Daedalus.PP
 import Daedalus.SourceRange
 import Daedalus.Rec
+import Daedalus.GUID
 import Daedalus.Panic
 
 data Name = forall ctx.
-  Name { nameScope    :: ScopedIdent
-       , nameContext  :: Context ctx
-       , nameRange    :: SourceRange
+  Name { nameScopedIdent :: ScopedIdent
+       , nameContext     :: Context ctx
+       , nameRange       :: SourceRange
+       , nameID          :: !GUID
        }
 
 type ModuleName = Text
@@ -32,10 +36,14 @@ type Label = Text
 data ScopedIdent = Unknown Ident | Local Ident | ModScope ModuleName Ident
   deriving (Ord, Eq, Show, Lift)
 
+isLocalName :: Name -> Bool
+isLocalName n =
+  case nameScopedIdent n of
+    Local {} -> True
+    _        -> False
+
 primName :: Text -> Text -> Context c -> Name
-primName m x c = Name (ModScope m x) c synthetic
-
-
+primName m x c = Name (ModScope m x) c synthetic invalidGUID
 
 instance PP ScopedIdent where
   pp x = case x of
@@ -43,41 +51,49 @@ instance PP ScopedIdent where
            Local    n -> pp n
            ModScope m n -> pp m <> "." <> pp n
 
-
 instance Show Name where
   show Name { .. } =
-    "Name { nameScope = " ++ show nameScope ++ ", " ++
+    "Name { nameScopedIdent = " ++ show nameScopedIdent ++ ", " ++
            "nameContext = " ++ show nameContext ++ ", " ++
-           "nameRange = " ++ show nameRange ++ " }"
+           "nameRange = " ++ show nameRange ++ ", " ++ 
+           "nameID = " ++ show nameID ++ " }"
 
 nameScopeAsUnknown :: Name -> Ident
 nameScopeAsUnknown n =
-  case nameScope n of
+  case nameScopedIdent n of
     Unknown t -> t
     _         -> panicRange n "Expecting an Unknown name scope." [] 
 
 nameScopeAsLocal :: Name -> Ident
 nameScopeAsLocal n =
-  case nameScope n of
+  case nameScopedIdent n of
     Local  t -> t
     _         -> panicRange n "Expecting a Local name scope." [] 
 
 
 nameScopeAsModScope :: Name -> (ModuleName, Ident)
 nameScopeAsModScope n =
-  case nameScope n of
+  case nameScopedIdent n of
     ModScope m t -> (m, t)
     _            -> panicRange n "Expecting an ModScope name scope." [] 
 
 
+-- These instances are a bit odd as if either are invalid, then we
+-- fall back to the idents.  This is a bit fragile, so we are assuming
+-- that we only compare a name with an invalid GUID to noe with a
+-- valid GUID for things like hand-rolled names (e.g. Main).
 instance Eq Name where
-  x == y = nameScope x == nameScope y
-
+  x == y
+    | nameID x == invalidGUID || nameID y == invalidGUID = nameScopedIdent x == nameScopedIdent y
+    | otherwise = nameID x == nameID y
+      
 instance Ord Name where
-  compare x y = compare (nameScope x) (nameScope y)
+  compare x y 
+    | nameID x == invalidGUID || nameID y == invalidGUID = compare (nameScopedIdent x) (nameScopedIdent y)
+    | otherwise = compare (nameID x) (nameID y)
 
 instance PP Name where
-  pp = pp . nameScope
+  pp = pp . nameScopedIdent
 
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
@@ -115,6 +131,15 @@ data Context :: Ctx -> HS.Type where
   AValue   :: Context Value
   AClass   :: Context Class
 
+-- XXX: use parametrized-utils classes?
+sameContext :: Context a -> Context b -> Maybe (a :~: b)
+sameContext x y =
+  case (x,y) of
+    (AGrammar,AGrammar) -> Just Refl
+    (AValue,AValue)     -> Just Refl
+    (AClass,AClass)     -> Just Refl
+    _                   -> Nothing
+
 instance Show (Context ctx) where
   show ctx =
     case ctx of
@@ -125,18 +150,21 @@ instance Show (Context ctx) where
 
 
 data ExprF e =
-    ENumber     !Integer
-  | EBool       !Bool
+    ELiteral    !Literal
   | ENothing
   | EJust       !e
   | EStruct     ![StructField e]
   | EArray      ![e]
   | EChoiceU    !Commit !e !e
   | EChoiceT    !Commit [UnionField e]
+  | EIn         !(UnionField e)    -- make a value of a union type
   | EApp        !Name [e]
   | EVar        !Name
   | ETry        !e
+  | ECase       !Expr [PatternCase e]
 
+  | EMatch !e
+  | EMatch1 !e
   | EAnyByte
   | EOptional !Commit  !e
   | EMany !Commit !(ManyBounds e) !e
@@ -157,15 +185,13 @@ data ExprF e =
   | EArrayLength !e
   | EArrayIndex  !e !e  -- x[y], partial so a grammar
 
-  | EPure       !e
-  | EFail !(Maybe e) !e
+  | EPure !e
+  | EFail !e
 
   | EFor !(FLoopFlav e) !(Maybe Name) !Name !e !e
 
   | EIf         !e !e !e
 
-  | EBytes      !ByteString
-  | EByte       !Word8
   | EInRange    !(Maybe e) !(Maybe e)
   | ETriOp      !TriOp !e !e !e
   | EBinOp      !BinOp !e !e
@@ -196,10 +222,11 @@ data TriOp = RangeUp | RangeDown
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
            | LShift | RShift | BitwiseAnd | BitwiseOr | BitwiseXor
+           | LogicAnd | LogicOr
+           | ArrayStream
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
-          | ArrayStream
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -223,6 +250,33 @@ data StructField e =
   | COMMIT SourceRange
     deriving (Show, Functor, Foldable, Traversable)
 
+data Literal = 
+    LNumber     !Integer
+  | LBool       !Bool
+  | LBytes      !ByteString
+  | LByte       !Word8
+    deriving (Show, Eq, Ord)
+
+
+-- Non empty
+data PatternCase e =
+    PatternDefault e
+  | PatternCase ![Pattern] !e
+    -- ^ A union of patterns. The union should not be empty.
+  deriving (Show, Functor)
+
+data Pattern =
+    LitPattern (Located Literal)
+  | ConPattern (Located Con) Pattern
+  | WildPattern SourceRange
+  | VarPattern Name
+  deriving Show
+
+data Con =
+    ConUser Label
+  | ConNothing
+  | ConJust
+    deriving Show
 
 newtype Expr = Expr (Located (ExprF Expr))
                deriving Show
@@ -238,6 +292,7 @@ data Located a = Located { thingRange :: SourceRange
 
 data TypeF t =
     TGrammar !t
+  | TFun t t
   | TStream
   | TByteClass
   | TNum !Integer
@@ -273,6 +328,14 @@ instance HasRange SrcType where
       SrcVar x -> range x
       SrcType x -> range x
 
+instance HasRange Pattern where
+  range pat =
+    case pat of
+      LitPattern l -> range l
+      ConPattern c p -> range c <-> range p
+      WildPattern r -> r
+      VarPattern r -> range r
+ 
 
 --------------------------------------------------------------------------------
 
@@ -330,6 +393,9 @@ instance PP BinOp where
       BitwiseAnd -> ".&."
       BitwiseOr  -> ".|."
       BitwiseXor -> ".^."
+      LogicAnd -> "&&"
+      LogicOr  -> "||"
+      ArrayStream -> "arrayStream"
 
 instance PP UniOp where
   pp op =
@@ -338,7 +404,6 @@ instance PP UniOp where
       Neg    -> "-"
       Concat -> "concat"
       BitwiseComplement -> "~"
-      ArrayStream -> "arrayStream"
 
 instance PP Selector where
   pp sel = case sel of
@@ -352,21 +417,29 @@ instance PP Selector where
 instance PP t => PP (TypeF t) where
   ppPrec n ty =
     case ty of
-      TGrammar t -> wrapIf (n > 0) ("Grammar" <+> ppPrec 1 t)
+      TGrammar t -> wrapIf (n > 1) ("Grammar" <+> ppPrec 2 t)
+      TFun t1 t2 -> wrapIf (n > 0) (fsep [ ppPrec 1 t1, "->", ppPrec 0 t2 ])
       TByteClass -> "ByteClass"
       TStream    -> "Stream"
       TNum t     -> pp t
-      TUInt t    -> wrapIf (n > 0) ("uint" <+> ppPrec 1 t)
-      TSInt t    -> wrapIf (n > 0) ("sint" <+> ppPrec 1 t)
+      TUInt t    -> wrapIf (n > 1) ("uint" <+> ppPrec 2 t)
+      TSInt t    -> wrapIf (n > 1) ("sint" <+> ppPrec 2 t)
       TInteger   -> "int"
       TBool      -> "bool"
       TUnit      -> "{}"
       TArray t   -> brackets (pp t)
-      TMaybe t   -> wrapIf (n > 0) ("Maybe" <+> ppPrec 1 t)
-      TMap kt vt -> wrapIf (n > 0) ("Map" <+> ppPrec 1 kt <+> ppPrec 1 vt)
+      TMaybe t   -> wrapIf (n > 1) ("Maybe" <+> ppPrec 2 t)
+      TMap kt vt -> wrapIf (n > 1) ("Map" <+> ppPrec 2 kt <+> ppPrec 2 vt)
 
 
-
+instance PP Literal where
+  pp lit =
+    case lit of
+      LByte b   -> text (show (toEnum (fromEnum b) :: Char))
+      LNumber i -> integer i      
+      LBool i   -> if i then "true" else "false"
+      LBytes b  -> text (show (BS8.unpack b))
+      
 
 $(return [])
 

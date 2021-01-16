@@ -1,2 +1,2 @@
 
-def Dup = "Dup"
+def Dup = Match "Dup"

@@ -87,7 +87,7 @@ hsIdentMod i = case Text.unpack i of
 nameUse :: Env -> NameStyle -> Name -> (Ident -> String) -> Term
 nameUse env use nm baseName =
   Var $
-  case nameScope nm of
+  case nameScopedIdent nm of
     ModScope m i
       | NameUse <- use,
         UseQualNames <- envQualNames env,
@@ -139,6 +139,7 @@ hsType env ty =
     Type tf ->
       case tf of
         TGrammar t  -> envTParser env `Ap` hsType env t
+        TFun s t    -> ApI "->" (hsType env s) (hsType env t)
         TStream     -> "RTS.Input"
         TByteClass  -> "RTS.ClassVal"
         TNum n      -> Var (show n)
@@ -175,7 +176,7 @@ hsConstraint env ctr =
     Mappable s t  -> "RTS.IsMapLoop" `Ap` hsType env s `Ap` hsType env t
 
     ColElType s t  -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
-    ColKeyType s t -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
+    ColKeyType s t -> "RTS.ColKeyType" `Ap` hsType env s `Ap` hsType env t
 
     TyDef {}        -> panic "hsConstraint" ["Unexpected TyDef"]
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
@@ -328,7 +329,11 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
           }
 
   defRHS = case tcDeclDef of
-             ExternDecl t -> hasType (hsType env t)
+             ExternDecl t ->
+                case nameScopedIdent tcDeclName of
+                  ModScope "Debug" "Trace" ->
+                    hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
+                  _ -> hasType (hsType env t)
                               (lkpInEnv "envExtern" (envExtern env) tcDeclName)
 
              Defined e ->
@@ -342,11 +347,12 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
-    TCNumber n t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
-    TCBool b     -> hsBool b
+    TCLiteral (LNumber n) t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+    TCLiteral (LBool b)   _ -> hsBool b
+    TCLiteral (LByte b)   _ -> "RTS.uint8" `Ap` hsWord8 b
+    
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
-    TCByte b    -> "RTS.uint8" `Ap` hsWord8 b
     TCUnit      -> Tuple []
     TCStruct fs t ->
       case t of
@@ -355,7 +361,7 @@ hsValue env tc =
         _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
 
 
-    TCByteArray b -> "Vector.vecFromRep" `Ap` hsByteString b
+    TCLiteral (LBytes b) _ -> "Vector.vecFromRep" `Ap` hsByteString b
 
     TCArray vs t  ->
       case vs of
@@ -394,6 +400,11 @@ hsValue env tc =
         BitwiseAnd  -> bin "RTS.bitAnd"
         BitwiseOr   -> bin "RTS.bitOr"
         BitwiseXor  -> bin "RTS.bitXor"
+
+        ArrayStream -> bin "RTS.arrayStream"
+
+        LogicAnd    -> binI "HS.&&"
+        LogicOr     -> binI "HS.||"
       where
       bin x = x `Ap` hsValue env v1 `Ap` hsValue env v2
       binI x = ApI x (hsValue env v1) (hsValue env v2)
@@ -404,7 +415,6 @@ hsValue env tc =
         Neg               -> "RTS.neg" `Ap` hsValue env v
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
-        ArrayStream       -> "RTS.arrayStream" `Ap` hsValue env v
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as
@@ -421,6 +431,9 @@ hsValue env tc =
 
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
     TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
+
+    TCCase e as d -> hsCase hsValue err env e as d
+      where err = "HS.error" `Ap` Raw ("Pattern match failure" :: String)
 
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
@@ -442,6 +455,8 @@ hsByteClass env tc =
      TCVar x        -> hsValName env NameUse (tcName x)
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
+
+     TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
 
 --------------------------------------------------------------------------------
@@ -486,21 +501,14 @@ hsGrammar env tc =
   let erng = hsRange (range tc)
   in
   case texprValue tc of
-     TCFail mbL mbE _ ->
-        case (mbL,mbE) of
-          (Nothing,Nothing) ->
+     TCFail mbE _ ->
+        case mbE of
+          Nothing ->
             "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
                          `Ap` hsText "Parse error"
-          (Nothing,Just e) ->
+          Just e ->
             "RTS.pError" `Ap` "RTS.FromUser" `Ap` erng
                          `Ap` ("Vector.vecToString" `Ap` hsValue env e)
-          (Just l,Nothing) ->
-             "RTS.pErrorAt" `Ap` "RTS.FromUser" `Ap` List [erng]
-                            `Ap` hsValue env l `Ap` hsText "Parse error"
-          (Just l,Just e) ->
-            "RTS.pErrorAt" `Ap` "RTS.FromUser" `Ap` List [erng]
-                           `Ap` hsValue env l
-                           `Ap` ("Vector.vecToString" `Ap` hsValue env e)
 
      TCPure e -> "HS.pure" `Ap` hsValue env e
      TCDo mb m1 m2
@@ -581,8 +589,12 @@ hsGrammar env tc =
 
      TCOffset -> ApI "HS.<$>" "HS.toInteger" "RTS.pOffset"
 
-     TCCall f ts as -> "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
-                                    `Ap` hsApp env f ts as
+     TCCall f ts as ->
+        case typeOf f of
+          Type (TGrammar {}) ->
+            "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
+                         `Ap` hsApp env f ts as
+          _ -> hsApp env f ts as
 
      TCSelJust sem val _t -> hsMaybe sem erng (hsText "Expected `Just`")
                                               (hsValue env val)
@@ -629,6 +641,54 @@ hsGrammar env tc =
        where m' = case m of
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
+
+     TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
+       where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
+                                `Ap` hsText "Pattern match failure"
+
+hsCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Term ->
+  Env ->
+  TC SourceRange Value ->
+  [TCAlt SourceRange k] ->
+  Maybe (TC SourceRange k) ->
+  Term
+hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
+  where
+  branches =
+    concatMap alt alts ++ [
+      case dfl of
+        Nothing -> ("_", ifFail)
+        Just d  -> ("_", eval env d)
+    ]
+  -- XXX: currently we duplicate code, we may want to name it in a where...
+  alt (TCAlt ps rhs) =
+    let r = eval env rhs
+    in [ (hsPat env p, r) | p <- ps ]
+
+
+
+hsPat :: Env -> TCPat -> Term
+hsPat env pat =
+  case pat of
+    TCConPat t l p -> hsUniConName env NameUse nm l `Ap` hsPat env p
+      where nm = case t of
+                  TCon c _ -> c
+                  _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
+                                     , show (pp t) ]
+    TCNumPat t i ->
+      case t of
+        Type TInteger  -> Raw i
+        Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]
+        Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
+        _ -> panic "hsPat" [ "We don't support polymorphic case." ]
+
+    TCBoolPat b     -> Raw b
+    TCJustPat p     -> "Just" `Ap` hsPat env p
+    TCNothingPat _t -> "Nothing"
+    TCVarPat x      -> hsTCName env x
+    TCWildPat _t    -> "_"
 
 hsMaybe :: WithSem -> Term -> Term -> Term -> Term
 hsMaybe sem erng msg val = f `aps` [ erng, msg, val ]
@@ -735,6 +795,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , "OverloadedStrings"
                  , "TypeApplications"
                  , "TypeFamilies"
+                 , "ViewPatterns"
                  ]
   , hsImports  = cImports ++
                  [ Import (hsIdentMod i) Qualified
@@ -745,8 +806,9 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , Import "GHC.Records"   (QualifyAs "HS")
                  , Import "Control.Monad" (QualifyAs "HS")
                  , Import "RTS"           (QualifyAs "RTS")
-                 , Import "RTS.Vector"    (QualifyAs "Vector")
+                 , Import "RTS.Input"     (QualifyAs "RTS")
                  , Import "RTS.Map"       (QualifyAs "Map")
+                 , Import "RTS.Vector"    (QualifyAs "Vector")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)

@@ -10,7 +10,6 @@ import Control.Monad.State
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import Data.Graph.SCC(stronglyConnComp)
 import Data.Foldable(traverse_)
 
@@ -21,32 +20,33 @@ import Daedalus.Rec(sccToRec)
 import Daedalus.Type.AST
 import Daedalus.Type.Traverse
 
--- | Oorder a bunch of declarations topologically
+-- -- | Oorder a bunch of declarations topologically
 topoOrder :: [TCDecl a] -> [Rec (TCDecl a)]
 topoOrder = map sccToRec . stronglyConnComp . map node
   where
   node d  = (d, tcDeclName d, getFree d)
 
   getFree TCDecl { tcDeclDef } =
-    [ n | n@Name { nameScope = ModScope {} } <- Set.toList (tcCalls tcDeclDef) ]
+    [ n | n@Name { nameScopedIdent = ModScope {} } <- Set.toList (tcCalls tcDeclDef) ]
 
 
 
 -- Generates new names for locals
-makeFreshFor :: Set (Some TCName) -> TCName k -> TCName k
-makeFreshFor bounds tnm = mkN nm'
-  where
-    mkN nm =  tnm { tcName = nm }
+-- makeFreshFor :: Set (Some TCName) -> TCName k -> TCName k
+-- makeFreshFor bounds tnm = mkN nm'
+--   where
+--     mkN nm =  tnm { tcName = nm }
     
-    nm' = head  . dropWhile (flip Set.member bounds . Some . mkN)
-          . freshCandidates $ tcName tnm
+--     nm' = head  . dropWhile (flip Set.member bounds . Some . mkN)
+--           . freshCandidates $ tcName tnm
     
-    freshCandidates :: Name -> [Name]
-    freshCandidates x =
-      x : [ x { nameScope = Local $ nameScopeAsLocal x <> T.pack (show n) }
-          | n <- [(1::Int)..] ]
+--     freshCandidates :: Name -> [Name]
+--     freshCandidates x =
+--       x : [ x { nameScope = Local $ nameScopeAsLocal x <> T.pack (show n) }
+--           | n <- [(1::Int)..] ]
 
 -- Collect all variables bound.  Mainly used to avoid capture.
+-- XXX: This is an odd function... why do we need it?
 tcBounds :: TCDeclDef a k -> Set (Some TCName)
 tcBounds it = case it of
                 Defined d     -> flip execState Set.empty (go d)
@@ -54,6 +54,12 @@ tcBounds it = case it of
   where
     go :: forall a k'. TC a k' -> State (Set (Some TCName)) (TC a k')
     go (TC v) = TC <$> traverse go' v
+
+    doAlt :: forall a k'. TCAlt a k' -> State (Set (Some TCName)) (TCAlt a k')
+    doAlt a@(TCAlt ps e) =
+      do let vs = Set.fromList $ map Some $ altBinds a
+         modify (Set.union vs)
+         TCAlt ps <$> go e
 
     go' :: forall a k'. TCF a k' -> State (Set (Some TCName)) (TCF a k')
     go' texpr =
@@ -79,6 +85,9 @@ tcBounds it = case it of
                    Nothing -> id
                    Just k  -> Set.insert (Some k)
 
+        TCCase e pats mdef ->
+          TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
+  
         x -> traverseTCF go x
 
  -- TCName because we need the context
@@ -137,6 +146,9 @@ withSomeVar x (NameM m) = NameM \bound -> m (Set.insert x bound)
 withVar :: TCName k -> NameM a -> NameM a
 withVar x = withSomeVar (Some x)
 
+withVarMaybe :: Maybe (TCName k) -> NameM a -> NameM a
+withVarMaybe = maybe id (withSomeVar . Some)
+
 addVar :: TCName k -> NameM a
 addVar x = NameM \bound -> if x' `Set.member` bound then Set.empty
                                                     else Set.singleton x'
@@ -148,6 +160,7 @@ instance TCFree (LoopFlav a) where
       Fold _ s -> tcFree s
       LoopMap  -> Set.empty
 
+-- XXX: Why are we doing this complicated traverals thing here??
 instance TCFree (TC a k) where
   tcFree = runNameM . go
     where
@@ -159,6 +172,10 @@ instance TCFree (TC a k) where
         case texpr of
           TCVar x             -> addVar x
           TCDo (Just x) e1 e2 -> TCDo (Just x) <$> go e1 <*> withVar x (go e2)
+
+          TCCall f ts as -> TCCall f ts <$>
+                            (mbAdd *> traverse (traverseArg go) as)
+            where mbAdd = when (isLocalName (tcName f)) (addVar f)
 
           TCFor lp -> mk <$> loopF
                          <*> go (loopCol lp)
@@ -180,7 +197,14 @@ instance TCFree (TC a k) where
                       Nothing -> id
                       Just k  -> withVar k
 
+          TCCase e pats mdef ->
+            TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
+            where
+            doAlt (TCAlt ps rhs) =
+              TCAlt ps <$> foldr withVar (go rhs) (patBinds (head ps))
+
           e  -> traverseTCF go e
+
 
 
 
@@ -189,6 +213,7 @@ instance TCFree (Arg a) where
   tcFree (ValArg     a) = tcFree a
   tcFree (ClassArg   a) = tcFree a
 
+-- Get the *top level* calls
 tcCalls :: TCDeclDef a k -> Set Name
 tcCalls def =
   case def of
@@ -202,7 +227,7 @@ tcCalls def =
     go' texpr =
       case texpr of
         TCCall f ts as ->
-          do modify (Set.insert (tcName f))
+          do unless (isLocalName (tcName f)) (modify (Set.insert (tcName f)))
              TCCall f ts <$> traverse (traverseArg go) as
 
         x -> traverseTCF go x

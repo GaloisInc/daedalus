@@ -3,10 +3,10 @@ INFO:116 Found xref table.
 INFO: 37 xref entries.
 INFO: Root reference is R:9:0
 INFO: Catalog is OK.
-ERROR:96504 R:1:0 @96439 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:96505 R:1:0 @96439 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
 INFO: R:2:0 @96951 is OK.
 INFO: R:3:0 @96997 is OK.
-ERROR:97160 R:4:0 @97039 Codec.Compression.Zlib: compressed data stream format error (invalid literal/lengths set)
+ERROR:97161 R:4:0 @97039 Codec.Compression.Zlib: compressed data stream format error (invalid literal/lengths set)
 INFO: R:5:0 @98376 is OK.
 INFO: R:6:0 @98428 is OK.
 INFO: R:7:0 @100986 is OK.

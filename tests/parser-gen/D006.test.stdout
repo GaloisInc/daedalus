@@ -1,0 +1,58 @@
+Main (10,5)-(10,7)
+SlkCfg{ q:60, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (5,1)-(11,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(24),(24),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(9),(9),]
+      , HeadInput ['a']
+      , **** loop ****
+      ),
+      ( [(21),]
+      , HeadInput ['c']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(21),]
+      , HeadInput ['d']
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+  ( [(36),]
+  , HeadInput ['c']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(36),]
+  , HeadInput ['d']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
+
+**********************
+***** Strict LLA *****
+**********************
+("Result-0",1)
+("Result-1",1)
+("Result-2",1)
+
+Total nb states: 3
+
+SUCCESS: Fully determinized format

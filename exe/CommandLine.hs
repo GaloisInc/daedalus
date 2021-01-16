@@ -3,6 +3,7 @@ module CommandLine ( Command(..)
                    , Options(..), Backend(..)
                    , getOptions
                    , options
+                   , throwOptError
                    ) where
 
 import Control.Monad(when)
@@ -12,23 +13,28 @@ import System.Exit(exitSuccess)
 import SimpleGetOpt
 
 data Command =
-    DumpTC
+    DumpRaw
+  | DumpTC
   | DumpSpec
   | DumpNorm
   | DumpRuleRanges
   | DumpCore
   | DumpVM
+  | DumpGen
   | CompileHS
-  | Interp FilePath
+  | CompileCPP
+  | Interp (Maybe FilePath)
   | ShowHelp
 
-data Backend = UseInterp | UsePGen
+data Backend = UseInterp | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
           , optParserDDL :: FilePath
+          , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
+          , optShowJS    :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -40,7 +46,9 @@ options = OptSpec
   { progDefaults = Options { optCommand   = DumpTC
                            , optParserDDL = ""
                            , optBackend   = UseInterp
+                           , optEntries   = []
                            , optForceUTF8 = True
+                           , optShowJS    = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -52,6 +60,10 @@ options = OptSpec
         "Dump type-checked AST"
         $ simpleCommand DumpTC
 
+      , Option ['r'] ["dump-raw"]
+        "Dump parsed AST"
+        $ simpleCommand DumpRaw
+
       , Option [] ["dump-core"]
         "Dump core AST"
        $ simpleCommand DumpCore
@@ -60,17 +72,29 @@ options = OptSpec
         "Dump VM AST"
        $ simpleCommand DumpVM
 
+      , Option [] ["dump-gen"]
+        "Dump parser-generator automaton-based parser"
+       $ simpleCommand DumpGen
+
       , Option ['n'] ["norm"]
         "Dump normalised type-checke AST"
         $ simpleCommand DumpNorm
 
       , Option ['i'] ["interp"]
         "Parse this file"
-        $ ReqArg "FILE" \s o -> Right o { optCommand = Interp s }
+        $ OptArg "FILE" \s o -> Right o { optCommand = Interp s }
+
+      , Option [] ["json"]
+        "Show semantics values as JSON."
+        $ NoArg \o -> Right o { optShowJS = True }
 
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"
-        $ NoArg \o -> Right o { optBackend = UsePGen }
+        $ NoArg \o -> Right o { optBackend = UsePGen False}
+
+      , Option [] ["gen-metrics"]
+        "Use parser-generator backend when interpreting and print metrics"
+        $ NoArg \o -> Right o { optBackend = UsePGen True}
 
       , Option [] ["no-utf8"]
         "Use the locale settings instead of using UTF8 for output."
@@ -79,6 +103,15 @@ options = OptSpec
       , Option [] ["compile-hs"]
         "Generate Haskell code."
         $ NoArg \o -> Right o { optCommand = CompileHS }
+
+      , Option [] ["compile-c++"]
+        "Generate C++ code"
+        $ NoArg \o -> Right o { optCommand = CompileCPP }
+
+      , Option [] ["entry"]
+        "Generate a library containg this parser."
+        $ ReqArg "[MODULE.]NAME"
+          \s o -> Right o { optEntries = s : optEntries o }
 
       , Option [] ["rule-ranges"]
         "Output the file ranges of all rules in the input"
@@ -119,4 +152,5 @@ getOptionsFromFile file =
        Left err   -> throwIO err
        Right opts -> pure opts
 
-
+throwOptError :: [String] -> IO a
+throwOptError err = throwIO (GetOptException err)

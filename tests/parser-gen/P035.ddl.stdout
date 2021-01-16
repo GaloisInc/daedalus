@@ -1,0 +1,67 @@
+module P035
+ 
+--- Imports:
+ 
+--- Type defs:
+type P035.A = { a: [uint 8]
+              ; b: [uint 8]
+              }
+ 
+type P035.Main = { m: [uint 8]
+                 ; n: [[uint 8]]
+                 }
+ 
+--- Rules:
+ 
+P035.A : Grammar P035.A =
+  do (a : [uint 8]) <- MatchBytes "a"
+     (b : [uint 8]) <- MatchBytes "b"
+     pure {a = a,
+           b = b}
+ 
+P035.RepA : Grammar [P035.A] =
+  do ($$ : [P035.A]) <- Many[] P035.A
+     pure $$
+ 
+P035.F (x : [uint 8]) (a : [uint 8]) (b : [uint 8]) : Grammar [uint 8] =
+  do @MatchBytes x
+     @MatchBytes b
+     @MatchBytes a
+     ($$ : [uint 8]) <- pure "BA"
+     pure $$
+ 
+P035.Main : Grammar P035.Main =
+  do (t : [P035.A]) <- P035.RepA
+     @MatchBytes "S"
+     (m : [uint 8]) <- for ((r : [uint 8]) = ""; (x : P035.A) in t)
+                         (P035.F " F" (x.a) (x.b))
+     (n : [[uint 8]]) <- map ((x : P035.A) in t)
+                           (P035.F " M" (x.a) (x.b))
+     @MatchBytes " S"
+     @MatchBytes "ba"
+     END
+     pure {m = m,
+           n = n}
+ 
+P035._A : Grammar {} =
+  do @MatchBytes "a"
+     @MatchBytes "b"
+ 
+P035._RepA : Grammar {} =
+  @Many[] P035._A
+ 
+P035._F (x : [uint 8]) (a : [uint 8]) (b : [uint 8]) : Grammar {} =
+  do @MatchBytes x
+     @MatchBytes b
+     @MatchBytes a
+ 
+P035._Main : Grammar {} =
+  do (t : [P035.A]) <- P035.RepA
+     @MatchBytes "S"
+     for ((r : {}) = {}; (x : P035.A) in t)
+       (P035._F " F" (x.a) (x.b))
+     map ((x : P035.A) in t)
+       (P035.F " M" (x.a) (x.b))
+     @MatchBytes " S"
+     @MatchBytes "ba"
+     END

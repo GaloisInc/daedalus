@@ -1,7 +1,7 @@
 {-# Language BlockArguments #-}
 module Main where
 
-import Data.List(partition)
+import Data.List(partition,sort)
 import Control.Monad(unless,when)
 import Control.Exception(SomeException(..),catch)
 import System.Directory
@@ -85,7 +85,7 @@ buildExe = callProcess "cabal" [ "build", "exe:" ++ exeName ]
 type TestFile = FilePath
 
 findManyTests :: [FilePath] -> IO [TestFile]
-findManyTests files = concat <$> mapM findTests files
+findManyTests files = sort.concat <$> mapM findTests files
 
 findTests :: FilePath -> IO [TestFile]
 findTests file =
@@ -119,6 +119,7 @@ runTest :: FilePath -> TestFile -> IO TestResult
 runTest odir file =
   done (
   do putStr file
+     hFlush stdout
      let testDir = takeDirectory file
          dir     = odir </> testDir
      createDirectoryIfMissing True dir

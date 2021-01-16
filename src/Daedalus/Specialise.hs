@@ -33,20 +33,23 @@ are unified.  See 'Specialise.Unfiy' for details.
 
 module Daedalus.Specialise (specialise, regroup) where
 
-import Control.Monad.Except
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Semigroup (First(..))
+import MonadLib
 
 import Data.Parameterized.Some
 
 import Daedalus.Panic
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.Pass
 
 
 
+import Daedalus.AST(nameScopeAsModScope)
 import Daedalus.Type.AST
 import Daedalus.Type.Traverse
 
@@ -61,7 +64,7 @@ import Daedalus.Specialise.Unify
 regroup :: [TCDecl SourceRange] -> Map ModuleName [Rec (TCDecl SourceRange)]
 regroup = fmap reverse . foldr addR Map.empty . topoOrder
   where
-  owner d = case nameScope (tcDeclName d) of
+  owner d = case nameScopedIdent (tcDeclName d) of
               ModScope m _ -> m
               _ -> panic "regroup" [ "Declaration is not ModScope" ]
 
@@ -75,24 +78,21 @@ regroup = fmap reverse . foldr addR Map.empty . topoOrder
 
 
 -- | This assumes that the declratations are in dependency order.
-specialise :: [ScopedIdent] -> [Rec (TCDecl SourceRange)] ->
-                                    Either String [TCDecl SourceRange]
+specialise :: [Name] -> [Rec (TCDecl SourceRange)]
+              -> PassM (Either String [TCDecl SourceRange])
 specialise ruleRoots decls =
-  runPApplyM ruleRoots' (concat . reverse <$> mapM go (reverse decls))
+  runPApplyM ruleRoots (concat . reverse <$> mapM go (reverse decls))
   where
-    -- FIXME
-    ruleRoots' = map (\ident -> Name ident AGrammar synthetic) ruleRoots
-
     -- First we find if we need to generate partial applications.  If we
     -- do so, we can discard the input tdecl (FIXME: I think?), the
     -- reasoning being that specialised decls are problematic otherwise.
     go (NonRec d) = do
       insts <- getPendingSpecs [tcDeclName d]
       seen  <- seenRule (tcDeclName d)
-      let ds = case Map.lookup (tcDeclName d) insts of
-                 Just is -> map (flip apInst d) is -- forget d
-                 Nothing | seen -> [d]
-                 Nothing        -> []
+      ds    <- case Map.lookup (tcDeclName d) insts of
+                 Just is        -> mapM (flip apInst d) is -- forget d
+                 Nothing | seen -> pure [d]
+                 Nothing        -> pure []
       mapM specialiseOne ds
 
     -- We treat each inst. req. independently; the unify stuff will
@@ -118,7 +118,7 @@ specialise ruleRoots decls =
       rs <- goOne ds todo
       insts <- getPendingSpecs (map tcDeclName ds)
       if not (Map.null insts)
-        then throwError ("Incompatible recursion detected for " ++ show (ppError insts))
+        then raise ("Incompatible recursion detected for " ++ show (ppError insts))
         else return rs
 
     ppError insts =
@@ -142,12 +142,12 @@ specialise ruleRoots decls =
           | (ds', d' : ds'') <- break (\di -> tcDeclName di == n) ds ->
             do let newds = ds' ++ ds''
                -- let d' = apInst inst d
-               d'' <- specialiseOne (apInst inst d')
+               d'' <- specialiseOne =<< apInst inst d'
                newTodo <- getPendingSpecs (map tcDeclName newds)
                (d'' :) <$> goOne newds (Map.unionWith (++) todoRest newTodo)
 
         Just ((n, _ : _ : _), _) ->
-          throwError ("Multiple instantiations requested for " ++ show (pp n))
+          raise ("Multiple instantiations requested for " ++ show (pp n))
         Just ((_, []), _) -> panic "Empty instantiation list" []
         _ -> panic "Impossible" []
 
@@ -173,7 +173,8 @@ specialiseOne TCDecl {..}
         -- FIXME: maype specialise simple recursive case?
         TCCall n ts as -> do
           as' <- mapM (traverseArg go) as
-          specialiseCall n ts as'
+          let m = fst (nameScopeAsModScope tcDeclName)
+          specialiseCall m n ts as'
         x -> traverseTCF go x
 
 partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a], [a])
@@ -193,13 +194,14 @@ partitionM p xs = do
 -- function call necessitates a specialised version.  Returns a new
 -- call if required.
 specialiseCall ::
+  ModuleName        {- ^ Name of the module containing the call -} ->
   TCName k          {- ^ Call this function -} ->
   [Type]            {- ^ With these types -} ->
   [Arg SourceRange] {- ^ And these concrete arguments -} ->
   PApplyM (TCF SourceRange k)
 
 -- No specialisation required if there are no type args, and no grammar args.
-specialiseCall n [] args | all isValArg args = do
+specialiseCall _ n [] args | all isValArg args = do
   addSeenRule (tcName n)
   pure (TCCall n [] args)
   where
@@ -207,7 +209,7 @@ specialiseCall n [] args | all isValArg args = do
     isValArg _           = False
 
 -- We have some type args and/or some grammar args.
-specialiseCall nm ts args = requestSpec nm ts probArgs args
+specialiseCall m nm ts args = requestSpec m nm ts probArgs args
   where
     probArgs = map probArg args
 
@@ -222,18 +224,19 @@ We want to specialise a call, this checks to see if it unifies with
 an existing spec. request.
 -}
 requestSpec ::
+  ModuleName            {- ^ Name of the module containing the call -} ->
   TCName k              {- ^ Specialize this -} ->
   [Type]                {- ^ Using these type arguments -} ->
   [Maybe (Arg SourceRange)]
                         {- ^ And these arguments: Nothing = leave as arg -}->
   [Arg SourceRange]     {- ^ All original arguments -} ->
   PApplyM (TCF SourceRange k)
-requestSpec tnm ts args origArgs = do
+requestSpec m tnm ts args origArgs = do
   rs <- lookupRequestedSpecs (tcName tnm)
   case rs of
     Just insts | Just (First call) <- foldMap findUnifier insts
                  -> pure call
-    _ -> do nm' <- addSpecRequest (tcName tnm) ts newPs args
+    _ -> do nm' <- addSpecRequest m (tcName tnm) ts newPs args
             pure (mkCall nm' newPs)
   where
     newPs = map getValue (Set.toList (tcFree args))

@@ -9,7 +9,7 @@ import Daedalus.PP
 
 
 -- | Module names
-newtype MName = MName Text
+newtype MName = MName { mNameText :: Text }
   deriving (Eq,Ord)
 
 -- | Type declaration names
@@ -18,7 +18,14 @@ data TName = TName
   , tnameText :: Text
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
+  , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
+  , tnameFlav :: TFlav        -- ^ Some information about the type
   }
+
+-- | What "flavor of type" we have
+data TFlav = TFlavStruct
+           | TFlavEnum  [Label]      -- ^ A sum type with no data
+           | TFlavUnion [Label]      -- ^ A sum type with data
 
 -- | Names of top-level functions
 data FName = FName
@@ -53,7 +60,7 @@ data Type =
   | TArray Type
   | TMaybe Type
   | TMap Type Type
-  | TBuilder Type
+  | TBuilder Type         -- ^ Builder for arrays
   | TIterator Type
   | TUser UserType
   | TParam TParam         -- ^ Only in type declaraionts
@@ -74,6 +81,15 @@ data UserType = UserType
 newtype TParam = TP Int
   deriving (Eq,Ord)
 
+
+data Pattern =
+    PBool Bool
+  | PNothing
+  | PJust
+  | PNum Integer
+  | PCon Label
+  | PAny
+    deriving (Eq,Ord)
 
 
 --------------------------------------------------------------------------------
@@ -160,4 +176,14 @@ instance PP SizeType where
     case t of
       TSize n -> pp n
       TSizeParam x -> pp x
-  
+
+
+instance PP Pattern where
+  pp pat =
+    case pat of
+      PBool  b  -> pp b
+      PNothing  -> "nothing"
+      PJust     -> "just"
+      PNum   n  -> pp n
+      PCon   l  -> pp l
+      PAny      -> "_"

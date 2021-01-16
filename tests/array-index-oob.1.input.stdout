@@ -1,5 +1,5 @@
 --- Parse error: 
-[offset: -1]
+[offset: 0]
   • index out of bounds 6
   • see grammar at: ./array-index-oob.ddl:3:25--3:33
   • context:

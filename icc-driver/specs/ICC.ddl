@@ -19,7 +19,7 @@ def ProfileHeader = {
   color_space         = DataColorSpaces;
   pcs                 = DataColorSpaces; -- check additional constraints?
   creation_date_time  = DateTimeNumber;
-  "acsp";
+  Match "acsp";
   primary_platform    = PrimaryPlatforms;
   profile_flags       = BE32;
   device_manufacturer = BE32;
@@ -29,7 +29,7 @@ def ProfileHeader = {
   illuminant          = XYZNumber;
   creatior            = BE32;
   identifier          = Many 16 UInt8;
-  reserved_data       = Many 28 0;
+  reserved_data       = Many 28 (Match1 0);
 }
 
 def VersionField = {
@@ -37,68 +37,68 @@ def VersionField = {
   @min_bf      = UInt8;
   minor        = ^ min_bf >> 4 as! uint 4;
   bugfix       = ^ min_bf as! uint 4;
-  0x00; 0x00;
+  Match [0x00; 0x00];
 }
 
 def ProfileClasses = {
   Choose1 {
-    input_device_profile   = @"scnr";
-    display_device_profile = @"mntr";
-    output_device_profile  = @"prtr";
-    device_link_profile    = @"link";
-    color_space_profile    = @"spac";
-    abstract_profile       = @"abst";
-    named_color_profile    = @"nmcl";
+    input_device_profile   = @Match "scnr";
+    display_device_profile = @Match "mntr";
+    output_device_profile  = @Match "prtr";
+    device_link_profile    = @Match "link";
+    color_space_profile    = @Match "spac";
+    abstract_profile       = @Match "abst";
+    named_color_profile    = @Match "nmcl";
   }
 }
 
 def DataColorSpaces = {
   Choose1 {
-    nciexyz_or_pcsxyz = @"XYZ ";
-    cielab_or_pcslab  = @"Lab ";
-    cieluv            = @"Luv ";
-    ycbcr             = @"Ycbr";
-    cieyxy            = @"Yxy ";
-    rgb               = @"RGB ";
-    gray              = @"GRAY";
-    hsv               = @"HSV ";
-    hls               = @"HLS ";
-    cmyk              = @"CMYK";
-    cmy               = @"CMY ";
-    two_colour        = @"2CLR";
-    three_colour      = @"3CLR";
-    four_colour       = @"4CLR";
-    five_colour       = @"5CLR";
-    six_colour        = @"6CLR";
-    seven_colour      = @"7CLR";
-    eight_colour      = @"8CLR";
-    nine_colour       = @"9CLR";
-    ten_colour        = @"ACLR";
-    eleven_colour     = @"BCLR";
-    twelve_colour     = @"CCLR";
-    thirteen_colour   = @"DCLR";
-    fourteen_colour   = @"ECLR";
-    fifteen_colour    = @"FCLR";
+    nciexyz_or_pcsxyz = @Match "XYZ ";
+    cielab_or_pcslab  = @Match "Lab ";
+    cieluv            = @Match "Luv ";
+    ycbcr             = @Match "Ycbr";
+    cieyxy            = @Match "Yxy ";
+    rgb               = @Match "RGB ";
+    gray              = @Match "GRAY";
+    hsv               = @Match "HSV ";
+    hls               = @Match "HLS ";
+    cmyk              = @Match "CMYK";
+    cmy               = @Match "CMY ";
+    two_colour        = @Match "2CLR";
+    three_colour      = @Match "3CLR";
+    four_colour       = @Match "4CLR";
+    five_colour       = @Match "5CLR";
+    six_colour        = @Match "6CLR";
+    seven_colour      = @Match "7CLR";
+    eight_colour      = @Match "8CLR";
+    nine_colour       = @Match "9CLR";
+    ten_colour        = @Match "ACLR";
+    eleven_colour     = @Match "BCLR";
+    twelve_colour     = @Match "CCLR";
+    thirteen_colour   = @Match "DCLR";
+    fourteen_colour   = @Match "ECLR";
+    fifteen_colour    = @Match "FCLR";
   }
 }
 
 def PrimaryPlatforms = {
   Choose1 {
-  none                    = [0,0,0,0];
-    apple_computer_inc    = @"APPL";
-    microsoft_corporation = @"MSFT";
-    silicon_graphics_inc  = @"SGI ";
-    sun_microsystems      = @"SUNW";
+  none                    = @Match [0,0,0,0];
+    apple_computer_inc    = @Match "APPL";
+    microsoft_corporation = @Match "MSFT";
+    silicon_graphics_inc  = @Match "SGI ";
+    sun_microsystems      = @Match "SUNW";
   }
 }
 
 
 def RenderingIntent = {
   Choose1 {
-    perceptual                  = [0,0,0,0];
-    media_relative_colorimetric = [0,0,0,1];
-    saturation                  = [0,0,0,2];
-    icc_absolute_colorimetric   = [0,0,0,3];
+    perceptual                  = @Match [0,0,0,0];
+    media_relative_colorimetric = @Match [0,0,0,1];
+    saturation                  = @Match [0,0,0,2];
+    icc_absolute_colorimetric   = @Match [0,0,0,3];
   }
 }
 
@@ -133,13 +133,13 @@ def PositionNumber = {
 
 -- 0 terminated ASCII 7 string (sem value does not include the 0)
 def ASCII7 = {
-  $$ = Many { @x = (1..); x as uint 7 };
-  Many (1 .. ) (0 <| Fail "Non 0 string terminator");
+  $$ = Many (Match1 (1..) as uint 7);
+  Many (1 .. ) (Match1 0) <| Fail "Non 0 string terminator";
 }
 
 def Response16Number = {
   device = BE16;
-  Many 2 0;
+  Match [0,0];
   measurement = BE32;
 }
 
@@ -173,57 +173,58 @@ def ParseTag (t : TagEntry) = {
 -- Tag Definitions (Section 9)
 
 def Tag sig = Choose1 {
-  AToB0               = { sig == "A2B0"; commit; Lut_8_16_AB };
-  AToB1               = { sig == "A2B1"; commit; Lut_8_16_AB };
-  AToB2               = { sig == "A2B2"; commit; Lut_8_16_AB };
-  blueMatrixColumn    = { sig == "bXYZ"; commit; XYZType };
-  blueTRC             = { sig == "bTRC"; commit; SomeCurve };
-  BToA0               = { sig == "B2A0"; commit; Lut_8_16_BA };
-  BToA1               = { sig == "B2A1"; commit; Lut_8_16_BA };
-  BToA2               = { sig == "B2A2"; commit; Lut_8_16_BA };
-  BToD0               = { sig == "B2D0"; commit; MultiProcessElementsType };
-  BToD1               = { sig == "B2D1"; commit; MultiProcessElementsType };
-  BToD2               = { sig == "B2D2"; commit; MultiProcessElementsType };
-  BToD3               = { sig == "B2D3"; commit; MultiProcessElementsType };
-  calibrationDateTime = { sig == "calt"; commit; DateTimeType };
-  charTarget          = { sig == "targ"; commit; TextType };
-  chromaticAdaptation = { sig == "chad"; commit; S15Fixed16ArrayType };
-  colorantOrder       = { sig == "clro"; commit; ColorantOrderType; };
-  colorantTable       = { sig == "clrt"; commit; ColorantTableType; };
-  colorantTableOut    = { sig == "clot"; commit; ColorantTableType; };
+  AToB0               = { Guard (sig == "A2B0"); commit; Lut_8_16_AB };
+  AToB1               = { Guard (sig == "A2B1"); commit; Lut_8_16_AB };
+  AToB2               = { Guard (sig == "A2B2"); commit; Lut_8_16_AB };
+  blueMatrixColumn    = { Guard (sig == "bXYZ"); commit; XYZType };
+  blueTRC             = { Guard (sig == "bTRC"); commit; SomeCurve };
+  BToA0               = { Guard (sig == "B2A0"); commit; Lut_8_16_BA };
+  BToA1               = { Guard (sig == "B2A1"); commit; Lut_8_16_BA };
+  BToA2               = { Guard (sig == "B2A2"); commit; Lut_8_16_BA };
+  BToD0               = { Guard (sig == "B2D0"); commit; MultiProcessElementsType };
+  BToD1               = { Guard (sig == "B2D1"); commit; MultiProcessElementsType };
+  BToD2               = { Guard (sig == "B2D2"); commit; MultiProcessElementsType };
+  BToD3               = { Guard (sig == "B2D3"); commit; MultiProcessElementsType };
+  calibrationDateTime = { Guard (sig == "calt"); commit; DateTimeType };
+  charTarget          = { Guard (sig == "targ"); commit; TextType };
+  chromaticAdaptation = { Guard (sig == "chad"); commit; S15Fixed16ArrayType };
+  colorantOrder       = { Guard (sig == "clro"); commit; ColorantOrderType; };
+  colorantTable       = { Guard (sig == "clrt"); commit; ColorantTableType; };
+  colorantTableOut    = { Guard (sig == "clot"); commit; ColorantTableType; };
   colorimetricIntentImageState =
-                        { sig == "ciis"; commit; SignatureType };
-  copyright           = { sig == "cprt"; commit; MultiLocalizedUnicodeType };
-  deviceMfgDesc       = { sig == "dmnd"; commit; MultiLocalizedUnicodeType };
-  deviceModelDesc     = { sig == "dmdd"; commit; MultiLocalizedUnicodeType };
-  DToB0               = { sig == "D2B0"; commit; MultiProcessElementsType };
-  DToB1               = { sig == "D2B1"; commit; MultiProcessElementsType };
-  DToB2               = { sig == "D2B2"; commit; MultiProcessElementsType };
-  DToB3               = { sig == "D2B3"; commit; MultiProcessElementsType };
-  gamut               = { sig == "gamt"; commit; Lut_8_16_BA };
-  grayTRC             = { sig == "kTRC"; commit; SomeCurve };
-  greenMatrixColumn   = { sig == "gXYZ"; commit; XYZType };
-  greenTRC            = { sig == "gTRC"; commit; SomeCurve };
-  luminance           = { sig == "lumi"; commit; XYZType };
-  measurement         = { sig == "meas"; commit; MeasurementType };
-  mediaWhitePoint     = { sig == "wtpt"; commit; XYZType };
-  namedColor2         = { sig == "ncl2"; commit; NamedColor2Type };
-  outputResponse      = { sig == "resp"; commit; ResponseCurveSet16Type };
+                        { Guard (sig == "ciis"); commit; SignatureType };
+  copyright           = { Guard (sig == "cprt"); commit; MultiLocalizedUnicodeType };
+  deviceMfgDesc       = { Guard (sig == "dmnd"); commit; MultiLocalizedUnicodeType };
+  deviceModelDesc     = { Guard (sig == "dmdd"); commit; MultiLocalizedUnicodeType };
+  DToB0               = { Guard (sig == "D2B0"); commit; MultiProcessElementsType };
+  DToB1               = { Guard (sig == "D2B1"); commit; MultiProcessElementsType };
+  DToB2               = { Guard (sig == "D2B2"); commit; MultiProcessElementsType };
+  DToB3               = { Guard (sig == "D2B3"); commit; MultiProcessElementsType };
+  gamut               = { Guard (sig == "gamt"); commit; Lut_8_16_BA };
+  grayTRC             = { Guard (sig == "kTRC"); commit; SomeCurve };
+  greenMatrixColumn   = { Guard (sig == "gXYZ"); commit; XYZType };
+  greenTRC            = { Guard (sig == "gTRC"); commit; SomeCurve };
+  luminance           = { Guard (sig == "lumi"); commit; XYZType };
+  measurement         = { Guard (sig == "meas"); commit; MeasurementType };
+  mediaWhitePoint     = { Guard (sig == "wtpt"); commit; XYZType };
+  namedColor2         = { Guard (sig == "ncl2"); commit; NamedColor2Type };
+  outputResponse      = { Guard (sig == "resp"); commit; ResponseCurveSet16Type };
   perceptualRenderingIntentGamut =
-                        { sig == "rig0"; commit; SignatureType };
-  preview0            = { sig == "pre0"; commit; Lut_8_16_AB_BA };
-  preview1            = { sig == "pre1"; commit; Lut_8_16_BA };
-  preview2            = { sig == "pre2"; commit; Lut_8_16_BA };
-  profileDescription  = { sig == "desc"; commit; MultiLocalizedUnicodeType };
-  profileSequenceDesc = { sig == "pseq"; commit; ProfileSequenceDescType }; -- XXX
+                        { Guard (sig == "rig0"); commit; SignatureType };
+  preview0            = { Guard (sig == "pre0"); commit; Lut_8_16_AB_BA };
+  preview1            = { Guard (sig == "pre1"); commit; Lut_8_16_BA };
+  preview2            = { Guard (sig == "pre2"); commit; Lut_8_16_BA };
+  profileDescription  = { Guard (sig == "desc"); commit; MultiLocalizedUnicodeType };
+  profileSequenceDesc = { Guard (sig == "pseq"); commit; ProfileSequenceDescType }; -- XXX
   profileSequenceIdentifier =
-                        { sig == "psid"; commit; {} }; -- XXX
-  redMatrixColumn     = { sig == "rXYZ"; commit; XYZType; };
-  redTRC              = { sig == "rTRC"; commit; SomeCurve };
-  saturationRenderingIntentGamut = { sig == "rig2"; commit; SignatureType };
-  technology          = { sig == "tech"; commit; SignatureType };
-  viewCondDesc        = { sig == "vued"; commit; MultiLocalizedUnicodeType };
-  viewConditions      = { sig == "view"; commit; ViewConditionsType };
+                        { Guard (sig == "psid"); commit; {} }; -- XXX
+  redMatrixColumn     = { Guard (sig == "rXYZ"); commit; XYZType; };
+  redTRC              = { Guard (sig == "rTRC"); commit; SomeCurve };
+  saturationRenderingIntentGamut =
+                        { Guard (sig == "rig2"); commit; SignatureType };
+  technology          = { Guard (sig == "tech"); commit; SignatureType };
+  viewCondDesc        = { Guard (sig == "vued"); commit; MultiLocalizedUnicodeType };
+  viewConditions      = { Guard (sig == "view"); commit; ViewConditionsType };
 } <| Fail (concat [ "Unregonized tag: ", sig ])
 
 
@@ -260,32 +261,20 @@ def SomeCurve = Choose1 {
 --------------------------------------------------------------------------------
 -- Tag types (Section 10)
 
+def StartTag x = { Match x; commit; Match [0,0,0,0] }
 
-def DateTimeType = {
-  "dtim";
-  commit; Many 4 0;
-  DateTimeNumber;
-}
+def DateTimeType = { StartTag "dtim"; DateTimeNumber; }
 
-def TextType = {
-  "text";
-  commit; Many 4 0;
-  Only ASCII7;
-}
+def TextType = { StartTag "text"; Only ASCII7; }
 
-def SignatureType = {
-  "sig ";
-  commit; Many 4 0;
-  Many 4 UInt8;
-}
+def SignatureType = { StartTag "sig "; Many 4 UInt8; }
 
 def MultiLocalizedUnicodeType = {
   @s = GetStream;   -- Offsets are relative to here
-  "mluc";
-  commit; Many 4 0;
+  StartTag "mluc";
   @record_number = BE32;
   @record_size   = BE32;
-  record_size == 12;
+  Guard (record_size == 12);
   Many (record_number as int) (UnicodeRecord s);
 }
 
@@ -298,29 +287,25 @@ def UnicodeRecord s = {
 }
 
 def S15Fixed16ArrayType = {
-  "sf32";
-  commit; Many 4 0;
+  StartTag "sf32";
   Many BE32;    -- fixed point rationals
 }
 
 def ChromaticityType = {
-  "chrm";
-  commit; Many 4 0;
+  StartTag "chrm";
   @number_of_device_channels = BE16;
   phosphor_or_colorant       = BE16;
   cie_coords                 = Many (number_of_device_channels as int) XYNumber;
 }
 
 def ColorantOrderType = {
-  "clro";
-  commit; Many 4 0;
+  StartTag "clro";
   @count_of_colorants = BE32;
   Many UInt8;
 }
 
 def ColorantTableType = {
-  "clrt";
-  commit; Many 4 0;
+  StartTag "clrt";
   @count_of_colorant = BE32;
   Many (count_of_colorant as int) Colorant;
 }
@@ -331,25 +316,22 @@ def Colorant = {
 }
 
 def CurveType = {
-  "curv";
-  commit; Many 4 0;
+  StartTag "curv";
   @n = BE32;
   Many (n as int) BE16;
 }
 
 def ParametricCurveType = {
-  "para";
-  commit; Many 4 0;
+  StartTag "para";
   function = BE16;
-  Many 2 0;
+  Match [0,0];
   parameters = Many BE32;
     -- These are to be interpreted as fixed precision rationals
 }
 
 def ResponseCurveSet16Type = {
   @s = GetStream;
-  "rcs2";
-  commit; Many 4 0;
+  StartTag "rcs2";
   @number_of_channels = BE16;
   @count              = BE16;
   Many (count as int) {
@@ -366,15 +348,14 @@ def ResponseCurve n = {
 }
 
 def Lut8Type = {
-  "mft1";
-  commit; Many 4 0;
+  StartTag "mft1";
   number_of_input_channels = UInt8;
   @i = ^ number_of_input_channels as int;
   number_of_output_channels = UInt8;
   @o = ^ number_of_output_channels as int;
   number_of_clut_grid_points = UInt8;
   @g = number_of_clut_grid_points as int;
-  0x00;
+  Match1 0x00;
   encoded_e_parameters = Many 9 { @x = BE32; ^ x as! sint 32 };
   input_tables  = Chunk (256 * i);
   clut_values   = Chunk ((exp g i) * o);
@@ -382,15 +363,14 @@ def Lut8Type = {
 }
 
 def Lut16Type = {
-  "mft2";
-  commit; Many 4 0;
+  StartTag "mft2";
   number_of_input_channels = UInt8;
   @i = ^ number_of_input_channels as int;
   number_of_output_channels = UInt8;
   @o = ^ number_of_output_channels as int;
   number_of_clut_grid_points = UInt8;
   @g = number_of_clut_grid_points as int;
-  0x00;
+  Match1 0x00;
   encoded_e_parameters = Many 9 { @x = BE32; ^ x as! sint 32 };
   number_of_input_table_entries = BE32;
   @n = ^ number_of_input_table_entries as int;
@@ -402,11 +382,10 @@ def Lut16Type = {
 }
 
 def LutAToBType = {
-  "mAB ";
-  commit; Many 4 0;
+  StartTag "mAB ";
   number_of_input_channels  = UInt8;
   number_of_output_channels = UInt8;
-  Many 2 0;
+  Match [0,0];
   offset_first_B_curve      = BE32;
   offset_to_matrix          = BE32;
   offset_to_first_M_curve   = BE32;
@@ -417,11 +396,10 @@ def LutAToBType = {
 
 -- XXX: Why is this the same as the AB case?
 def LutBToAType = {
-  "mBA ";
-  commit; Many 4 0;
+  StartTag "mBA ";
   number_of_input_channels  = UInt8;
   number_of_output_channels = UInt8;
-  Many 2 0;
+  Match [2,0];
   offset_first_B_curve      = BE32;
   offset_to_matrix          = BE32;
   offset_to_first_M_curve   = BE32;
@@ -433,13 +411,12 @@ def LutBToAType = {
 
 def MultiProcessElementsType = {
   @s = GetStream;   -- offsets are relative to here
-  "mpet";
-  commit; Many 4 0;
+  StartTag "mpet";
   number_of_input_channels      = BE16;
   number_of_output_channels     = BE16;
   number_of_processing_elements = BE32;
   n = ^ number_of_processing_elements as int;
-  n > 0;
+  Guard (n > 0);
   @els = Many n PositionNumber;
   elements = map (e in els)
                  (ChunkRelativeTo s (e.offset as int) (e.size as int));
@@ -448,16 +425,14 @@ def MultiProcessElementsType = {
 
 -- XXX: Shall we reqiure that there are no left over bytes after the XYZ number?
 def XYZType = {
-  "XYZ ";
-  commit; Many 4 0;
+  StartTag "XYZ ";
   Many XYZNumber;
 }
 
 
 -- XXX: the values can be parsed a bit more.
 def MeasurementType = {
-  "meas";
-  commit; Many 4 0;
+  StartTag "meas";
   standard_observer = BE32;
   nCIEXYZ           = XYZNumber;
   geometry          = BE32;
@@ -467,8 +442,7 @@ def MeasurementType = {
 
 
 def NamedColor2Type = {
-  "ncl2";
-  commit; Many 4 0;
+  StartTag "ncl2";
   vendor_specific   = BE32;
   @count            = BE32;
   @number_of_coords = BE32;
@@ -487,15 +461,12 @@ def ColorName m = {
 -- This type seems to be broken, so we just don't parse it.
 -- See: http://www.color.org/PSD_TechNote.pdf
 def ProfileSequenceDescType = {
-  "pseq";
-  commit; Many 4 0;
-  {}
+  StartTag "pseq";
 }
 
 
 def ViewConditionsType = {
-  "view";
-  commit; Many 4 0;
+  StartTag "view";
   illuminantXYZ = XYZNumber;
   surroundXYZ   = XYZNumber;
   illuminant    = BE32;
@@ -505,23 +476,9 @@ def ViewConditionsType = {
 --------------------------------------------------------------------------------
 -- Stuff that should be in a library somewhere
 
-def BE16 = {
-  @u = UInt8;
-  @l = UInt8;
-  ^ u # l;
-}
-
-def BE32 = {
-  @u = BE16;
-  @l = BE16;
-  ^ u # l;
-}
-
-def BE64 = {
-  @u = BE32;
-  @l = BE32;
-  ^ u # l;
-}
+def BE16 = UInt8 # UInt8
+def BE32 = BE16 # BE16
+def BE64 = BE32 # BE32
 
 def getBit n b  = b >> n as! uint 1
 
@@ -577,3 +534,4 @@ def ValidateArray arr P = {
 
 def Only P = { $$ = P; END }
 def exp b e = for (x = 1; i in rangeUp(e)) x * b
+def Guard p = p is true

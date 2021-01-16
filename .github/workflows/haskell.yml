@@ -14,16 +14,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
+      id: setup-haskell
       with:
         ghc-version: '8.8.3'
         cabal-version: '3.2'
 
     - name: Cache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       env:
         cache-name: cache-cabal
       with:
-        path: ~/.cabal
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-
@@ -33,8 +36,14 @@ jobs:
     - name: Install dependencies
       run: |
         cabal update
-        cabal build --only-dependencies --enable-tests 
-    - name: Build
+        cabal build --only-dependencies --enable-tests
+    - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
+    - name: Build ICC Parser
+      run: cabal build exe:icc-parser
+    - name: Build PDF driver
+      run: cabal build exe:pdf-hs-driver
+    - name: Build PDF dom
+      run: cabal build exe:pdf-dom
     - name: Run tests
       run: cabal test daedalus-tests

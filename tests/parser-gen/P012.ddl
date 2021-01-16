@@ -12,7 +12,7 @@ def Length =
 
 def Main =
        { x = Length,
-         vor =  (^ ((x.a as uint 8) | (x.b as uint 8))),
-         vand = (^ (x.c as uint 8) & (x.d as uint 8)),
-         vxor = (^ ((x.e as uint 8) ^ (x.f as uint 8))),
+         vor =  ^ (x.a as uint 8) .|. (x.b as uint 8),
+         vand = ^ (x.c as uint 8) .&. (x.d as uint 8),
+         vxor = ^ (x.e as uint 8) .^. (x.f as uint 8),
        }

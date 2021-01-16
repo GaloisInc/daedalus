@@ -14,7 +14,7 @@ checkType :: Kind -> SrcType -> TypeM ctx Type
 checkType expK srcty =
   case srcty of
     SrcVar x ->
-      case nameScope x of
+      case nameScopedIdent x of
         ModScope {} ->
           do let nm = TCTy x
              mb <- lookupTypeDef nm
@@ -39,9 +39,9 @@ checkType expK srcty =
 
     SrcType ty ->
       case thingValue ty of
-        TGrammar t ->
-          do expect KGrammar
-             tGrammar <$> checkType KValue t
+        TGrammar {} -> panic "checkType" [ "TGrammar", show (pp ty) ]
+        TFun {}     -> panic "checkType" [ "Funcion", show (pp ty) ]
+        -- XXX: we need to change this if we allow users to write function types
 
         TNum n      -> expect KNumber >> pure (tNum n)
 

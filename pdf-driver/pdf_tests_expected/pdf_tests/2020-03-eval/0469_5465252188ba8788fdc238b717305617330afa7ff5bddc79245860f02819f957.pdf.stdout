@@ -1,3 +1,3 @@
 INFO: File size 3726097 bytes.
 INFO:3724708 Found xref table.
-ERROR:3724712 Not enough entries
+ERROR:3724713 Not enough entries, found 0, but need at least 1

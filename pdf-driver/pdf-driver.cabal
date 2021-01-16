@@ -13,57 +13,12 @@ copyright:           2019, Galois Inc
 build-type:          Simple
 extra-source-files:
   CHANGELOG.md,
-  spec/PdfDecl.ddl,
-  spec/PdfValue.ddl,
-  spec/PdfXRef.ddl,
   spec/PdfDemo.ddl,
-  spec/ISOCodes.ddl
-
--- Implementations for the various monads to be used by the pdf-rts.
--- Each moand should implement `PdfMonadSig` (see pdf-rts)
-library pdf-monad
-  default-language:     Haskell2010
-  hs-source-dirs:       src/monad
-  ghc-options:          -Wall
-
-  exposed-modules:
-    PdfMonad.Release,
-    PdfMonad.Debug,
-    PdfMonad.Transformer
-
-  build-depends:
-    base,
-    rts-hs,
-    containers,
-    bytestring
-
-
--- Support code for running PDF.  This is parameterized on which
--- of the above modules to use.
-library pdf-rts
-  default-language:     Haskell2010
-  hs-source-dirs:       src/rts
-  ghc-options:          -Wall
-
-  signatures:
-    PdfMonadSig
-
-  exposed-modules:
-    PdfMonad,
-    Primitives.Resolve,
-    Primitives.Validate,
-    Primitives.Deflate, 
-    Primitives.LZW,
-    Primitives.ASCIIHex,
-    Primitives.ASCII85
-
-  build-depends:
-    base,
-    bytestring,
-    containers,
-    zlib,
-    rts-hs,
-    pdf-monad
+  spec/ISOCodes.ddl,
+  spec/PdfText.ddl,
+  spec/PdfValidate.ddl,
+  spec/PdfContentStream.ddl,
+  spec/PdfDOM.ddl
 
 
 -- Compiled versions of the DDL specs.
@@ -73,41 +28,35 @@ library pdf-spec
   ghc-options:          -Wall
 
   exposed-modules:
-    PdfParser
-  other-modules:
-    PdfParserNotSpecialized,
-    -- PdfParserSpecialized,
-    PdfValue,
-    PdfDecl,
-    PdfXRef,
     PdfDemo,
     PdfValidate,
-    ISOCodes,
+    PdfContentStream,
     PdfDOM
+    -- PdfText,
+    -- ISOCodes,
 
   build-depends:
-    base >=4.13 && <4.14,
-    pdf-rts,
-    rts-hs
+    base >=4.13 && <4.15,
+    containers,
+    bytestring,
+    rts-hs,
+    pdf-cos
 
--- This is the main part of the executable.
--- It is in a library so that we can easily instantiated with the
--- different monads.
-library
+
+executable pdf-hs-driver
   default-language:    Haskell2010
   hs-source-dirs:      src/driver
   ghc-options:         -Wall
 
-  exposed-modules:
-    PdfDriver,
+  main-is: Main.hs
+  other-modules:
     CommandLine,
-    Common,
-    XRef
+    Common
 
   build-depends:
     base,
     text >= 1.2.4,
-    split, 
+    split,
     optparse-applicative,
     filepath,
     bytestring,
@@ -116,30 +65,32 @@ library
     pretty-show,
     mtl,
     rts-hs,
-    pdf-rts,
+    pdf-cos,
     pdf-spec
 
-
--- Non debug mode executable
-executable pdf-hs-driver
-  default-language:     Haskell2010
-  hs-source-dirs: src/exe
-  main-is:        Main.hs
-  build-depends:  base, pdf-driver, pdf-monad
-  mixins:         pdf-driver requires (PdfMonadSig as PdfMonad.Release)
-
--- Debug mode executable
-executable pdf-hs-driver-dbg
-  default-language:     Haskell2010
-  hs-source-dirs: src/exe
-  main-is:        Main.hs
-  build-depends:  base, pdf-driver, pdf-monad
-  mixins:         pdf-driver requires (PdfMonadSig as PdfMonad.Release)
+executable pdf-dom
+  default-language: Haskell2010
+  hs-source-dirs:   src/dom
+  main-is:          Main.hs
+  other-modules:
+    CommandLine,
+    PP
+  build-depends:
+    base,
+    bytestring,
+    base64-bytestring,
+    text,
+    containers,
+    pretty,
+    rts-hs,
+    pdf-cos,
+    pdf-spec,
+    simple-get-opt
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 executable pdf-generator
   default-language:     Haskell2010
-  hs-source-dirs: src/generator
+  hs-source-dirs: generator
   main-is:        Main.hs
   build-depends:  base, containers, daedalus, filepath
   ghc-options:    -Wall

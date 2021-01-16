@@ -34,7 +34,11 @@ data Token =
   | Bang
   | Hat
   | Bar
-  | Amp
+  | DotBarDot
+  | DotAmpDot
+  | DotHatDot
+  | BarBar
+  | AmpAmp
   | LtBar
   | DollarDollar
   | Plus
@@ -49,6 +53,7 @@ data Token =
   | ShiftL
   | ShiftR
   | RightArrow
+  | Underscore
 
   | BitwiseAndT
   | BitwiseOrT
@@ -58,6 +63,8 @@ data Token =
   | KWChoose
   | KWChoose1
   | KWTry
+  | KWMatch
+  | KWMatch1
   | KWMany
   | KWManyQuestion
   | KWOptional
@@ -102,6 +109,7 @@ data Token =
   | KWDef
   | KWArrayStream
   | KWFail
+  | KWCase
 
   | TokError !String
   | TokEOF

@@ -1,0 +1,50 @@
+module P034
+ 
+--- Imports:
+ 
+--- Type defs:
+type P034.Main0 = Choose { x: [uint 8]
+                         ; y: [uint 8]
+                         }
+ 
+type P034.Main = { a: uint 8
+                 ; t: P034.Main0
+                 }
+ 
+--- Rules:
+ 
+P034.CA : Grammar [uint 8] =
+  do @Match {'a'}
+     ($$ : [uint 8]) <- pure "a"
+     pure $$
+ 
+P034.CB : Grammar [uint 8] =
+  do @Match {'a'}
+     ($$ : [uint 8]) <- pure "b"
+     pure $$
+ 
+P034.Main : Grammar P034.Main =
+  do (a : uint 8) <- Match {'a'}
+     (t : P034.Main0) <- Choose fair
+                           { {- x -} do (_7 : [uint 8]) <- P034.CA
+                                        pure {x: _7}
+                           | {- y -} do (_8 : [uint 8]) <- P034.CB
+                                        pure {y: _8}
+                           }
+     END
+     pure {a = a,
+           t = t}
+ 
+P034._CA : Grammar {} =
+  @Match {'a'}
+ 
+P034._CB : Grammar {} =
+  @Match {'a'}
+ 
+P034._Main : Grammar {} =
+  do @Match {'a'}
+     Choose fair
+       { {- x -} P034._CA
+       | {- y -} P034._CB
+       }
+     END

@@ -18,8 +18,9 @@ import qualified GHC.TypeLits as HS
 import qualified GHC.Records as HS
 import qualified Control.Monad as HS
 import qualified RTS as RTS
-import qualified RTS.Vector as Vector
+import qualified RTS.Input as RTS
 import qualified RTS.Map as Map
+import qualified RTS.Vector as Vector
  
  
 data XYNumber
@@ -605,7 +606,7 @@ instance HS.HasField "lutBA" Lut_8_16_BA
 data PrimaryPlatforms
   = PrimaryPlatforms_apple_computer_inc ()
   | PrimaryPlatforms_microsoft_corporation ()
-  | PrimaryPlatforms_none (Vector.Vector (RTS.UInt 8))
+  | PrimaryPlatforms_none ()
   | PrimaryPlatforms_silicon_graphics_inc ()
   | PrimaryPlatforms_sun_microsystems ()
   
@@ -630,8 +631,7 @@ instance HS.HasField "microsoft_corporation" PrimaryPlatforms
    
   getField _ = HS.Nothing
  
-instance HS.HasField "none" PrimaryPlatforms
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+instance HS.HasField "none" PrimaryPlatforms (HS.Maybe ()) where
   getField (PrimaryPlatforms_none x) = HS.Just x
    
   getField _ = HS.Nothing
@@ -709,12 +709,10 @@ instance HS.HasField "output_device_profile" ProfileClasses
   getField _ = HS.Nothing
  
 data RenderingIntent
-  = RenderingIntent_icc_absolute_colorimetric
-      (Vector.Vector (RTS.UInt 8))
-  | RenderingIntent_media_relative_colorimetric
-      (Vector.Vector (RTS.UInt 8))
-  | RenderingIntent_perceptual (Vector.Vector (RTS.UInt 8))
-  | RenderingIntent_saturation (Vector.Vector (RTS.UInt 8))
+  = RenderingIntent_icc_absolute_colorimetric ()
+  | RenderingIntent_media_relative_colorimetric ()
+  | RenderingIntent_perceptual ()
+  | RenderingIntent_saturation ()
   
  
 deriving instance HS.Eq RenderingIntent
@@ -726,26 +724,26 @@ deriving instance HS.Show RenderingIntent
 instance RTS.DDL RenderingIntent where
  
 instance HS.HasField "icc_absolute_colorimetric" RenderingIntent
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+           (HS.Maybe ()) where
   getField (RenderingIntent_icc_absolute_colorimetric x) = HS.Just x
    
   getField _ = HS.Nothing
  
 instance HS.HasField "media_relative_colorimetric" RenderingIntent
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+           (HS.Maybe ()) where
   getField (RenderingIntent_media_relative_colorimetric x) =
     HS.Just x
    
   getField _ = HS.Nothing
  
 instance HS.HasField "perceptual" RenderingIntent
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+           (HS.Maybe ()) where
   getField (RenderingIntent_perceptual x) = HS.Just x
    
   getField _ = HS.Nothing
  
 instance HS.HasField "saturation" RenderingIntent
-           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
+           (HS.Maybe ()) where
   getField (RenderingIntent_saturation x) = HS.Just x
    
   getField _ = HS.Nothing
@@ -1214,7 +1212,7 @@ data Tag
   | Tag_preview1 Lut_8_16_BA
   | Tag_preview2 Lut_8_16_BA
   | Tag_profileDescription (Vector.Vector UnicodeRecord)
-  | Tag_profileSequenceDesc ()
+  | Tag_profileSequenceDesc (Vector.Vector (RTS.UInt 8))
   | Tag_profileSequenceIdentifier ()
   | Tag_redMatrixColumn (Vector.Vector XYZNumber)
   | Tag_redTRC SomeCurve
@@ -1459,7 +1457,8 @@ instance HS.HasField "profileDescription" Tag
    
   getField _ = HS.Nothing
  
-instance HS.HasField "profileSequenceDesc" Tag (HS.Maybe ()) where
+instance HS.HasField "profileSequenceDesc" Tag
+           (HS.Maybe (Vector.Vector (RTS.UInt 8))) where
   getField (Tag_profileSequenceDesc x) = HS.Just x
    
   getField _ = HS.Nothing
@@ -1510,46 +1509,41 @@ pASCII7 :: RTS.Parser (Vector.Vector (RTS.UInt 7))
 pASCII7 =
   do (__ :: Vector.Vector (RTS.UInt 7)) <-
        RTS.pMany (RTS.<||)
-         (do (x :: RTS.UInt 8) <-
+         (do (_0 :: RTS.UInt 8) <-
                RTS.uint8
-                 HS.<$> RTS.pMatch1 "136:21--136:23"
+                 HS.<$> RTS.pMatch1 "136:14--136:24"
                           (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
-             (__ :: RTS.UInt 7) <-
-               RTS.pIsJust "136:27--136:37" "Value does not fit in target type"
-                 (RTS.convertMaybe x :: HS.Maybe (RTS.UInt 7))
-             HS.pure __)
-     RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
-       ((RTS.<||)
+             RTS.pIsJust "136:14--136:35" "Value does not fit in target type"
+               (RTS.convertMaybe _0 :: HS.Maybe (RTS.UInt 7)))
+     (RTS.<||)
+       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
           (HS.const ()
-             HS.<$> RTS.pMatch1 "137:17--137:17" (RTS.bcSingle (RTS.uint8 0)))
-          (RTS.pError RTS.FromUser "137:22--137:51"
-             (Vector.vecToString
-                (Vector.vecFromRep "Non 0 string terminator"))))
+             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
+       (RTS.pError RTS.FromUser "137:30--137:59"
+          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
      HS.pure __
  
 pBE16 :: RTS.Parser (RTS.UInt 16)
  
 pBE16 =
-  do (u :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "509:8--509:12"
-     (l :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "510:8--510:12"
-     (__ :: RTS.UInt 16) <- HS.pure (RTS.cat u l)
-     HS.pure __
+  do (_1 :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "479:12--479:16"
+     (_2 :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "479:20--479:24"
+     HS.pure (RTS.cat _1 _2)
  
 pBE32 :: RTS.Parser (RTS.UInt 32)
  
 pBE32 =
-  do (u :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     (l :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     (__ :: RTS.UInt 32) <- HS.pure (RTS.cat u l)
-     HS.pure __
+  do (_3 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (_4 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     HS.pure (RTS.cat _3 _4)
  
 pBE64 :: RTS.Parser (RTS.UInt 64)
  
 pBE64 =
-  do (u :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (l :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (__ :: RTS.UInt 64) <- HS.pure (RTS.cat u l)
-     HS.pure __
+  do (_5 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (_6 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (RTS.cat _5 _6)
  
 pXYNumber :: RTS.Parser XYNumber
  
@@ -1558,30 +1552,37 @@ pXYNumber =
      (y :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
      HS.pure (XYNumber x y)
  
+_StartTag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser ()
+ 
+_StartTag (x :: Vector.Vector (RTS.UInt 8)) =
+  do HS.const () HS.<$> RTS.pMatch "264:20--264:26" x
+     RTS.pErrorMode RTS.Abort
+       (HS.const ()
+          HS.<$> RTS.pMatch "264:37--264:51"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8]))
+ 
 pChromaticityType :: RTS.Parser ChromaticityType
  
 pChromaticityType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "307:3--307:8" (Vector.vecFromRep "chrm")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "308:18--308:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_device_channels :: RTS.UInt 16) <-
-             RTS.pEnter "ICC.BE16" pBE16
-           (phosphor_or_colorant :: RTS.UInt 16) <-
-             RTS.pEnter "ICC.BE16" pBE16
-           (cie_coords :: Vector.Vector XYNumber) <-
-             Vector.replicateM
-               (RTS.convert number_of_device_channels :: HS.Integer)
-               (RTS.pEnter "ICC.XYNumber" pXYNumber)
-           HS.pure (ChromaticityType phosphor_or_colorant cie_coords))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "chrm"))
+     (number_of_device_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (phosphor_or_colorant :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (cie_coords :: Vector.Vector XYNumber) <-
+       Vector.replicateM
+         (RTS.convert number_of_device_channels :: HS.Integer)
+         (RTS.pEnter "ICC.XYNumber" pXYNumber)
+     HS.pure (ChromaticityType phosphor_or_colorant cie_coords)
  
 _GotoRel :: RTS.Input -> (HS.Integer -> RTS.Parser ())
  
 _GotoRel (s :: RTS.Input) (n :: HS.Integer) =
   do (s1 :: RTS.Input) <-
-       RTS.pIsJust "536:9--536:14" "Not enough bytes" (RTS.advanceBy n s)
+       RTS.pIsJust "493:9--493:14" "Not enough bytes" (RTS.advanceBy n s)
      RTS.pSetInput s1
  
 _Goto :: HS.Integer -> RTS.Parser ()
@@ -1595,7 +1596,7 @@ pChunk :: HS.Integer -> RTS.Parser RTS.Input
 pChunk (sz :: HS.Integer) =
   do (s :: RTS.Input) <- RTS.pPeek
      (__ :: RTS.Input) <-
-       RTS.pIsJust "543:8--543:14" "Not enough bytes" (RTS.limitLen sz s)
+       RTS.pIsJust "500:8--500:14" "Not enough bytes" (RTS.limitLen sz s)
      RTS.pEnter "ICC._Goto" (_Goto sz)
      HS.pure __
  
@@ -1609,16 +1610,16 @@ pChunkRelativeTo (s :: RTS.Input) (off :: HS.Integer)
      HS.pure __
  
 pParseChunk ::
-  forall b. RTS.DDL b => HS.Integer -> (RTS.Parser b -> RTS.Parser b)
+  forall e. RTS.DDL e => HS.Integer -> (RTS.Parser e -> RTS.Parser e)
  
-pParseChunk (sz :: HS.Integer) (pP :: RTS.Parser b) =
+pParseChunk (sz :: HS.Integer) (pP :: RTS.Parser e) =
   do (s :: RTS.Input) <- RTS.pPeek
      (s1 :: RTS.Input) <-
-       RTS.pIsJust "563:9--563:15" "Not enough bytes" (RTS.limitLen sz s)
+       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
      RTS.pSetInput s1
-     (__ :: b) <- pP
+     (__ :: e) <- pP
      (s2 :: RTS.Input) <-
-       RTS.pIsJust "566:9--566:15" "Not enough bytes" (RTS.advanceBy sz s)
+       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
      RTS.pSetInput s2
      HS.pure __
  
@@ -1637,11 +1638,11 @@ pColorName (m :: HS.Integer) =
        Vector.replicateM m (RTS.pEnter "ICC.BE16" pBE16)
      HS.pure (ColorName name_root pcs_coords device_coords)
  
-pOnly :: forall a. RTS.DDL a => RTS.Parser a -> RTS.Parser a
+pOnly :: forall b. RTS.DDL b => RTS.Parser b -> RTS.Parser b
  
-pOnly (pP :: RTS.Parser a) =
-  do (__ :: a) <- pP
-     RTS.pEnd "578:24--578:26"
+pOnly (pP :: RTS.Parser b) =
+  do (__ :: b) <- pP
+     RTS.pEnd "535:24--535:26"
      HS.pure __
  
 pColorant :: RTS.Parser Colorant
@@ -1662,8 +1663,8 @@ pColorant =
 _BE16 :: RTS.Parser ()
  
 _BE16 =
-  do HS.const () HS.<$> RTS.pByte "509:8--509:12"
-     HS.const () HS.<$> RTS.pByte "510:8--510:12"
+  do HS.const () HS.<$> RTS.pByte "479:12--479:16"
+     HS.const () HS.<$> RTS.pByte "479:20--479:24"
  
 _BE32 :: RTS.Parser ()
  
@@ -1674,46 +1675,34 @@ _BE32 =
 pColorantOrderType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
  
 pColorantOrderType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "315:3--315:8" (Vector.vecFromRep "clro")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "316:18--316:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           (__ :: Vector.Vector (RTS.UInt 8)) <-
-             RTS.pMany (RTS.<||) (RTS.uint8 HS.<$> RTS.pByte "318:8--318:12")
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clro"))
+     RTS.pEnter "ICC._BE32" _BE32
+     (__ :: Vector.Vector (RTS.UInt 8)) <-
+       RTS.pMany (RTS.<||) (RTS.uint8 HS.<$> RTS.pByte "304:8--304:12")
+     HS.pure __
  
 pColorantTableType :: RTS.Parser (Vector.Vector Colorant)
  
 pColorantTableType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "322:3--322:8" (Vector.vecFromRep "clrt")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "323:18--323:18" (RTS.bcSingle (RTS.uint8 0)))
-           (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (__ :: Vector.Vector Colorant) <-
-             Vector.replicateM (RTS.convert count_of_colorant :: HS.Integer)
-               (RTS.pEnter "ICC.Colorant" pColorant)
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clrt"))
+     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (__ :: Vector.Vector Colorant) <-
+       Vector.replicateM (RTS.convert count_of_colorant :: HS.Integer)
+         (RTS.pEnter "ICC.Colorant" pColorant)
+     HS.pure __
  
 pCurveType :: RTS.Parser (Vector.Vector (RTS.UInt 16))
  
 pCurveType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "334:3--334:8" (Vector.vecFromRep "curv")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "335:18--335:18" (RTS.bcSingle (RTS.uint8 0)))
-           (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (__ :: Vector.Vector (RTS.UInt 16)) <-
-             Vector.replicateM (RTS.convert n :: HS.Integer)
-               (RTS.pEnter "ICC.BE16" pBE16)
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "curv"))
+     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (__ :: Vector.Vector (RTS.UInt 16)) <-
+       Vector.replicateM (RTS.convert n :: HS.Integer)
+         (RTS.pEnter "ICC.BE16" pBE16)
+     HS.pure __
  
 pDataColorSpaces :: RTS.Parser DataColorSpaces
  
@@ -1721,210 +1710,210 @@ pDataColorSpaces =
   do (__ :: DataColorSpaces) <-
        (RTS.<||)
          (RTS.pEnter "nciexyz_or_pcsxyz"
-            (do (_0 :: ()) <-
+            (do (_7 :: ()) <-
                   HS.const ()
-                    HS.<$> RTS.pMatch "57:26--57:31" (Vector.vecFromRep "XYZ ")
-                HS.pure (DataColorSpaces_nciexyz_or_pcsxyz _0)))
+                    HS.<$> RTS.pMatch "57:26--57:37" (Vector.vecFromRep "XYZ ")
+                HS.pure (DataColorSpaces_nciexyz_or_pcsxyz _7)))
          ((RTS.<||)
             (RTS.pEnter "cielab_or_pcslab"
-               (do (_1 :: ()) <-
+               (do (_8 :: ()) <-
                      HS.const ()
-                       HS.<$> RTS.pMatch "58:26--58:31" (Vector.vecFromRep "Lab ")
-                   HS.pure (DataColorSpaces_cielab_or_pcslab _1)))
+                       HS.<$> RTS.pMatch "58:26--58:37" (Vector.vecFromRep "Lab ")
+                   HS.pure (DataColorSpaces_cielab_or_pcslab _8)))
             ((RTS.<||)
                (RTS.pEnter "cieluv"
-                  (do (_2 :: ()) <-
+                  (do (_9 :: ()) <-
                         HS.const ()
-                          HS.<$> RTS.pMatch "59:26--59:31" (Vector.vecFromRep "Luv ")
-                      HS.pure (DataColorSpaces_cieluv _2)))
+                          HS.<$> RTS.pMatch "59:26--59:37" (Vector.vecFromRep "Luv ")
+                      HS.pure (DataColorSpaces_cieluv _9)))
                ((RTS.<||)
                   (RTS.pEnter "ycbcr"
-                     (do (_3 :: ()) <-
+                     (do (_10 :: ()) <-
                            HS.const ()
-                             HS.<$> RTS.pMatch "60:26--60:31" (Vector.vecFromRep "Ycbr")
-                         HS.pure (DataColorSpaces_ycbcr _3)))
+                             HS.<$> RTS.pMatch "60:26--60:37" (Vector.vecFromRep "Ycbr")
+                         HS.pure (DataColorSpaces_ycbcr _10)))
                   ((RTS.<||)
                      (RTS.pEnter "cieyxy"
-                        (do (_4 :: ()) <-
+                        (do (_11 :: ()) <-
                               HS.const ()
-                                HS.<$> RTS.pMatch "61:26--61:31" (Vector.vecFromRep "Yxy ")
-                            HS.pure (DataColorSpaces_cieyxy _4)))
+                                HS.<$> RTS.pMatch "61:26--61:37" (Vector.vecFromRep "Yxy ")
+                            HS.pure (DataColorSpaces_cieyxy _11)))
                      ((RTS.<||)
                         (RTS.pEnter "rgb"
-                           (do (_5 :: ()) <-
+                           (do (_12 :: ()) <-
                                  HS.const ()
-                                   HS.<$> RTS.pMatch "62:26--62:31" (Vector.vecFromRep "RGB ")
-                               HS.pure (DataColorSpaces_rgb _5)))
+                                   HS.<$> RTS.pMatch "62:26--62:37" (Vector.vecFromRep "RGB ")
+                               HS.pure (DataColorSpaces_rgb _12)))
                         ((RTS.<||)
                            (RTS.pEnter "gray"
-                              (do (_6 :: ()) <-
+                              (do (_13 :: ()) <-
                                     HS.const ()
-                                      HS.<$> RTS.pMatch "63:26--63:31" (Vector.vecFromRep "GRAY")
-                                  HS.pure (DataColorSpaces_gray _6)))
+                                      HS.<$> RTS.pMatch "63:26--63:37" (Vector.vecFromRep "GRAY")
+                                  HS.pure (DataColorSpaces_gray _13)))
                            ((RTS.<||)
                               (RTS.pEnter "hsv"
-                                 (do (_7 :: ()) <-
+                                 (do (_14 :: ()) <-
                                        HS.const ()
-                                         HS.<$> RTS.pMatch "64:26--64:31" (Vector.vecFromRep "HSV ")
-                                     HS.pure (DataColorSpaces_hsv _7)))
+                                         HS.<$> RTS.pMatch "64:26--64:37" (Vector.vecFromRep "HSV ")
+                                     HS.pure (DataColorSpaces_hsv _14)))
                               ((RTS.<||)
                                  (RTS.pEnter "hls"
-                                    (do (_8 :: ()) <-
+                                    (do (_15 :: ()) <-
                                           HS.const ()
-                                            HS.<$> RTS.pMatch "65:26--65:31"
+                                            HS.<$> RTS.pMatch "65:26--65:37"
                                                      (Vector.vecFromRep "HLS ")
-                                        HS.pure (DataColorSpaces_hls _8)))
+                                        HS.pure (DataColorSpaces_hls _15)))
                                  ((RTS.<||)
                                     (RTS.pEnter "cmyk"
-                                       (do (_9 :: ()) <-
+                                       (do (_16 :: ()) <-
                                              HS.const ()
-                                               HS.<$> RTS.pMatch "66:26--66:31"
+                                               HS.<$> RTS.pMatch "66:26--66:37"
                                                         (Vector.vecFromRep "CMYK")
-                                           HS.pure (DataColorSpaces_cmyk _9)))
+                                           HS.pure (DataColorSpaces_cmyk _16)))
                                     ((RTS.<||)
                                        (RTS.pEnter "cmy"
-                                          (do (_10 :: ()) <-
+                                          (do (_17 :: ()) <-
                                                 HS.const ()
-                                                  HS.<$> RTS.pMatch "67:26--67:31"
+                                                  HS.<$> RTS.pMatch "67:26--67:37"
                                                            (Vector.vecFromRep "CMY ")
-                                              HS.pure (DataColorSpaces_cmy _10)))
+                                              HS.pure (DataColorSpaces_cmy _17)))
                                        ((RTS.<||)
                                           (RTS.pEnter "two_colour"
-                                             (do (_11 :: ()) <-
+                                             (do (_18 :: ()) <-
                                                    HS.const ()
-                                                     HS.<$> RTS.pMatch "68:26--68:31"
+                                                     HS.<$> RTS.pMatch "68:26--68:37"
                                                               (Vector.vecFromRep "2CLR")
-                                                 HS.pure (DataColorSpaces_two_colour _11)))
+                                                 HS.pure (DataColorSpaces_two_colour _18)))
                                           ((RTS.<||)
                                              (RTS.pEnter "three_colour"
-                                                (do (_12 :: ()) <-
+                                                (do (_19 :: ()) <-
                                                       HS.const ()
-                                                        HS.<$> RTS.pMatch "69:26--69:31"
+                                                        HS.<$> RTS.pMatch "69:26--69:37"
                                                                  (Vector.vecFromRep "3CLR")
-                                                    HS.pure (DataColorSpaces_three_colour _12)))
+                                                    HS.pure (DataColorSpaces_three_colour _19)))
                                              ((RTS.<||)
                                                 (RTS.pEnter "four_colour"
-                                                   (do (_13 :: ()) <-
+                                                   (do (_20 :: ()) <-
                                                          HS.const ()
-                                                           HS.<$> RTS.pMatch "70:26--70:31"
+                                                           HS.<$> RTS.pMatch "70:26--70:37"
                                                                     (Vector.vecFromRep "4CLR")
-                                                       HS.pure (DataColorSpaces_four_colour _13)))
+                                                       HS.pure (DataColorSpaces_four_colour _20)))
                                                 ((RTS.<||)
                                                    (RTS.pEnter "five_colour"
-                                                      (do (_14 :: ()) <-
+                                                      (do (_21 :: ()) <-
                                                             HS.const ()
-                                                              HS.<$> RTS.pMatch "71:26--71:31"
+                                                              HS.<$> RTS.pMatch "71:26--71:37"
                                                                        (Vector.vecFromRep "5CLR")
                                                           HS.pure
-                                                            (DataColorSpaces_five_colour _14)))
+                                                            (DataColorSpaces_five_colour _21)))
                                                    ((RTS.<||)
                                                       (RTS.pEnter "six_colour"
-                                                         (do (_15 :: ()) <-
+                                                         (do (_22 :: ()) <-
                                                                HS.const ()
-                                                                 HS.<$> RTS.pMatch "72:26--72:31"
+                                                                 HS.<$> RTS.pMatch "72:26--72:37"
                                                                           (Vector.vecFromRep "6CLR")
                                                              HS.pure
-                                                               (DataColorSpaces_six_colour _15)))
+                                                               (DataColorSpaces_six_colour _22)))
                                                       ((RTS.<||)
                                                          (RTS.pEnter "seven_colour"
-                                                            (do (_16 :: ()) <-
+                                                            (do (_23 :: ()) <-
                                                                   HS.const ()
-                                                                    HS.<$> RTS.pMatch "73:26--73:31"
+                                                                    HS.<$> RTS.pMatch "73:26--73:37"
                                                                              (Vector.vecFromRep
                                                                                 "7CLR")
                                                                 HS.pure
                                                                   (DataColorSpaces_seven_colour
-                                                                     _16)))
+                                                                     _23)))
                                                          ((RTS.<||)
                                                             (RTS.pEnter "eight_colour"
-                                                               (do (_17 :: ()) <-
+                                                               (do (_24 :: ()) <-
                                                                      HS.const ()
                                                                        HS.<$> RTS.pMatch
-                                                                                "74:26--74:31"
+                                                                                "74:26--74:37"
                                                                                 (Vector.vecFromRep
                                                                                    "8CLR")
                                                                    HS.pure
                                                                      (DataColorSpaces_eight_colour
-                                                                        _17)))
+                                                                        _24)))
                                                             ((RTS.<||)
                                                                (RTS.pEnter "nine_colour"
-                                                                  (do (_18 :: ()) <-
+                                                                  (do (_25 :: ()) <-
                                                                         HS.const ()
                                                                           HS.<$> RTS.pMatch
-                                                                                   "75:26--75:31"
+                                                                                   "75:26--75:37"
                                                                                    (Vector.vecFromRep
                                                                                       "9CLR")
                                                                       HS.pure
                                                                         (DataColorSpaces_nine_colour
-                                                                           _18)))
+                                                                           _25)))
                                                                ((RTS.<||)
                                                                   (RTS.pEnter "ten_colour"
-                                                                     (do (_19 :: ()) <-
+                                                                     (do (_26 :: ()) <-
                                                                            HS.const ()
                                                                              HS.<$> RTS.pMatch
-                                                                                      "76:26--76:31"
+                                                                                      "76:26--76:37"
                                                                                       (Vector.vecFromRep
                                                                                          "ACLR")
                                                                          HS.pure
                                                                            (DataColorSpaces_ten_colour
-                                                                              _19)))
+                                                                              _26)))
                                                                   ((RTS.<||)
                                                                      (RTS.pEnter "eleven_colour"
-                                                                        (do (_20 :: ()) <-
+                                                                        (do (_27 :: ()) <-
                                                                               HS.const ()
                                                                                 HS.<$> RTS.pMatch
-                                                                                         "77:26--77:31"
+                                                                                         "77:26--77:37"
                                                                                          (Vector.vecFromRep
                                                                                             "BCLR")
                                                                             HS.pure
                                                                               (DataColorSpaces_eleven_colour
-                                                                                 _20)))
+                                                                                 _27)))
                                                                      ((RTS.<||)
                                                                         (RTS.pEnter "twelve_colour"
-                                                                           (do (_21 :: ()) <-
+                                                                           (do (_28 :: ()) <-
                                                                                  HS.const ()
                                                                                    HS.<$> RTS.pMatch
-                                                                                            "78:26--78:31"
+                                                                                            "78:26--78:37"
                                                                                             (Vector.vecFromRep
                                                                                                "CCLR")
                                                                                HS.pure
                                                                                  (DataColorSpaces_twelve_colour
-                                                                                    _21)))
+                                                                                    _28)))
                                                                         ((RTS.<||)
                                                                            (RTS.pEnter
                                                                               "thirteen_colour"
-                                                                              (do (_22 :: ()) <-
+                                                                              (do (_29 :: ()) <-
                                                                                     HS.const ()
                                                                                       HS.<$> RTS.pMatch
-                                                                                               "79:26--79:31"
+                                                                                               "79:26--79:37"
                                                                                                (Vector.vecFromRep
                                                                                                   "DCLR")
                                                                                   HS.pure
                                                                                     (DataColorSpaces_thirteen_colour
-                                                                                       _22)))
+                                                                                       _29)))
                                                                            ((RTS.<||)
                                                                               (RTS.pEnter
                                                                                  "fourteen_colour"
-                                                                                 (do (_23 :: ()) <-
+                                                                                 (do (_30 :: ()) <-
                                                                                        HS.const ()
                                                                                          HS.<$> RTS.pMatch
-                                                                                                  "80:26--80:31"
+                                                                                                  "80:26--80:37"
                                                                                                   (Vector.vecFromRep
                                                                                                      "ECLR")
                                                                                      HS.pure
                                                                                        (DataColorSpaces_fourteen_colour
-                                                                                          _23)))
+                                                                                          _30)))
                                                                               (RTS.pEnter
                                                                                  "fifteen_colour"
-                                                                                 (do (_24 :: ()) <-
+                                                                                 (do (_31 :: ()) <-
                                                                                        HS.const ()
                                                                                          HS.<$> RTS.pMatch
-                                                                                                  "81:26--81:31"
+                                                                                                  "81:26--81:37"
                                                                                                   (Vector.vecFromRep
                                                                                                      "FCLR")
                                                                                      HS.pure
                                                                                        (DataColorSpaces_fifteen_colour
-                                                                                          _24))))))))))))))))))))))))))
+                                                                                          _31))))))))))))))))))))))))))
      HS.pure __
  
 pDateTimeNumber :: RTS.Parser DateTimeNumber
@@ -1941,21 +1930,17 @@ pDateTimeNumber =
 pDateTimeType :: RTS.Parser DateTimeNumber
  
 pDateTimeType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "265:3--265:8" (Vector.vecFromRep "dtim")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "266:18--266:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: DateTimeNumber) <-
-             RTS.pEnter "ICC.DateTimeNumber" pDateTimeNumber
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "dtim"))
+     (__ :: DateTimeNumber) <-
+       RTS.pEnter "ICC.DateTimeNumber" pDateTimeNumber
+     HS.pure __
  
 pGotoRel :: RTS.Input -> (HS.Integer -> RTS.Parser ())
  
 pGotoRel (s :: RTS.Input) (n :: HS.Integer) =
   do (s1 :: RTS.Input) <-
-       RTS.pIsJust "536:9--536:14" "Not enough bytes" (RTS.advanceBy n s)
+       RTS.pIsJust "493:9--493:14" "Not enough bytes" (RTS.advanceBy n s)
      (__ :: ()) <- RTS.pSetInput s1
      HS.pure __
  
@@ -1965,6 +1950,11 @@ pGoto (n :: HS.Integer) =
   do (s :: RTS.Input) <- RTS.pPeek
      (__ :: ()) <- RTS.pEnter "ICC.GotoRel" (pGotoRel s n)
      HS.pure __
+ 
+pGuard :: HS.Bool -> RTS.Parser ()
+ 
+pGuard (p :: HS.Bool) =
+  RTS.pGuard "537:15--537:23" "guard failed" p
  
 exp ::
   forall a g.
@@ -1979,231 +1969,217 @@ exp (b :: a) (e :: g) =
 pLut16Type :: RTS.Parser Lut16Type
  
 pLut16Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "385:3--385:8" (Vector.vecFromRep "mft2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "386:18--386:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "387:30--387:34"
-           (i :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "389:31--389:35"
-           (o :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-           (number_of_clut_grid_points :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "391:32--391:36"
-           (g :: HS.Integer) <-
-             RTS.pIsJust "392:8--392:40" "Value does not fit in target type"
-               (RTS.convertMaybe number_of_clut_grid_points
-                  :: HS.Maybe HS.Integer)
-           HS.const ()
-             HS.<$> RTS.pMatch1 "393:3--393:6" (RTS.bcSingle (RTS.uint8 0))
-           (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
-             Vector.replicateM (RTS.lit 9 :: HS.Integer)
-               (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-                   (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
-                   HS.pure __)
-           (number_of_input_table_entries :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (n :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
-           (number_of_output_table_entries :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (m :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
-           (input_tables :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
-           (clut_values :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk
-                  (RTS.mul
-                     (RTS.mul (RTS.lit 2 :: HS.Integer)
-                        (exp @HS.Integer @HS.Integer g i))
-                     o))
-           (output_tables :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o))
-           HS.pure
-             (Lut16Type number_of_input_channels number_of_output_channels
-                number_of_clut_grid_points
-                encoded_e_parameters
-                number_of_input_table_entries
-                number_of_output_table_entries
-                input_tables
-                clut_values
-                output_tables))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft2"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
+     (i :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
+     (o :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
+     (g :: HS.Integer) <-
+       RTS.pIsJust "372:8--372:40" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe HS.Integer)
+     HS.const ()
+       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
+     (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
+       Vector.replicateM (RTS.lit 9 :: HS.Integer)
+         (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+             (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
+             HS.pure __)
+     (number_of_input_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
+     (number_of_output_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (m :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
+     (input_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
+     (clut_values :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk
+            (RTS.mul
+               (RTS.mul (RTS.lit 2 :: HS.Integer)
+                  (exp @HS.Integer @HS.Integer g i))
+               o))
+     (output_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o))
+     HS.pure
+       (Lut16Type number_of_input_channels number_of_output_channels
+          number_of_clut_grid_points
+          encoded_e_parameters
+          number_of_input_table_entries
+          number_of_output_table_entries
+          input_tables
+          clut_values
+          output_tables)
  
 pLut8Type :: RTS.Parser Lut8Type
  
 pLut8Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "369:3--369:8" (Vector.vecFromRep "mft1")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "370:18--370:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "371:30--371:34"
-           (i :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "373:31--373:35"
-           (o :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-           (number_of_clut_grid_points :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "375:32--375:36"
-           (g :: HS.Integer) <-
-             RTS.pIsJust "376:8--376:40" "Value does not fit in target type"
-               (RTS.convertMaybe number_of_clut_grid_points
-                  :: HS.Maybe HS.Integer)
-           HS.const ()
-             HS.<$> RTS.pMatch1 "377:3--377:6" (RTS.bcSingle (RTS.uint8 0))
-           (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
-             Vector.replicateM (RTS.lit 9 :: HS.Integer)
-               (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-                   (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
-                   HS.pure __)
-           (input_tables :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
-           (clut_values :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
-           (output_tables :: RTS.Input) <-
-             RTS.pEnter "ICC.Chunk"
-               (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) o))
-           HS.pure
-             (Lut8Type number_of_input_channels number_of_output_channels
-                number_of_clut_grid_points
-                encoded_e_parameters
-                input_tables
-                clut_values
-                output_tables))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft1"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "352:30--352:34"
+     (i :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "354:31--354:35"
+     (o :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "356:32--356:36"
+     (g :: HS.Integer) <-
+       RTS.pIsJust "357:8--357:40" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe HS.Integer)
+     HS.const ()
+       HS.<$> RTS.pMatch1 "358:3--358:13" (RTS.bcSingle (RTS.uint8 0))
+     (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
+       Vector.replicateM (RTS.lit 9 :: HS.Integer)
+         (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+             (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
+             HS.pure __)
+     (input_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
+     (clut_values :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
+     (output_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) o))
+     HS.pure
+       (Lut8Type number_of_input_channels number_of_output_channels
+          number_of_clut_grid_points
+          encoded_e_parameters
+          input_tables
+          clut_values
+          output_tables)
  
 pLutAToBType :: RTS.Parser LutAToBType
  
 pLutAToBType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "405:3--405:8" (Vector.vecFromRep "mAB ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "406:18--406:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "407:31--407:35"
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "408:31--408:35"
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "409:10--409:10" (RTS.bcSingle (RTS.uint8 0)))
-           (offset_first_B_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_matrix :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_first_M_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_CLUT :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_first_A_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (_data :: RTS.Input) <- RTS.pPeek
-           HS.pure
-             (LutAToBType number_of_input_channels number_of_output_channels
-                offset_first_B_curve
-                offset_to_matrix
-                offset_to_first_M_curve
-                offset_to_CLUT
-                offset_to_first_A_curve
-                _data))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mAB "))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "386:31--386:35"
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "387:31--387:35"
+     HS.const ()
+       HS.<$> RTS.pMatch "388:3--388:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     (offset_first_B_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_matrix :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_first_M_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_CLUT :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_first_A_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (_data :: RTS.Input) <- RTS.pPeek
+     HS.pure
+       (LutAToBType number_of_input_channels number_of_output_channels
+          offset_first_B_curve
+          offset_to_matrix
+          offset_to_first_M_curve
+          offset_to_CLUT
+          offset_to_first_A_curve
+          _data)
  
 pLutBToAType :: RTS.Parser LutBToAType
  
 pLutBToAType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "420:3--420:8" (Vector.vecFromRep "mBA ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "421:18--421:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "422:31--422:35"
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "423:31--423:35"
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "424:10--424:10" (RTS.bcSingle (RTS.uint8 0)))
-           (offset_first_B_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_matrix :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_first_M_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_CLUT :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (offset_to_first_A_curve :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (_data :: RTS.Input) <- RTS.pPeek
-           HS.pure
-             (LutBToAType number_of_input_channels number_of_output_channels
-                offset_first_B_curve
-                offset_to_matrix
-                offset_to_first_M_curve
-                offset_to_CLUT
-                offset_to_first_A_curve
-                _data))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mBA "))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "400:31--400:35"
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "401:31--401:35"
+     HS.const ()
+       HS.<$> RTS.pMatch "402:3--402:13"
+                (Vector.fromList
+                   [RTS.lit 2 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     (offset_first_B_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_matrix :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_first_M_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_CLUT :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (offset_to_first_A_curve :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (_data :: RTS.Input) <- RTS.pPeek
+     HS.pure
+       (LutBToAType number_of_input_channels number_of_output_channels
+          offset_first_B_curve
+          offset_to_matrix
+          offset_to_first_M_curve
+          offset_to_CLUT
+          offset_to_first_A_curve
+          _data)
  
 pLut_8_16_AB :: RTS.Parser Lut_8_16_AB
  
 pLut_8_16_AB =
   (RTS.<||)
     (RTS.pEnter "lut8"
-       (do (_25 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_AB_lut8 _25)))
+       (do (_32 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_AB_lut8 _32)))
     ((RTS.<||)
        (RTS.pEnter "lut16"
-          (do (_26 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_AB_lut16 _26)))
+          (do (_33 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_AB_lut16 _33)))
        (RTS.pEnter "lutAB"
-          (do (_27 :: LutAToBType) <-
+          (do (_34 :: LutAToBType) <-
                 RTS.pEnter "ICC.LutAToBType" pLutAToBType
-              HS.pure (Lut_8_16_AB_lutAB _27))))
+              HS.pure (Lut_8_16_AB_lutAB _34))))
  
 pLut_8_16_AB_BA :: RTS.Parser Lut_8_16_AB_BA
  
 pLut_8_16_AB_BA =
   (RTS.<||)
     (RTS.pEnter "lut8"
-       (do (_28 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_AB_BA_lut8 _28)))
+       (do (_35 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_AB_BA_lut8 _35)))
     ((RTS.<||)
        (RTS.pEnter "lut16"
-          (do (_29 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_AB_BA_lut16 _29)))
+          (do (_36 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_AB_BA_lut16 _36)))
        ((RTS.<||)
           (RTS.pEnter "lutAB"
-             (do (_30 :: LutAToBType) <-
+             (do (_37 :: LutAToBType) <-
                    RTS.pEnter "ICC.LutAToBType" pLutAToBType
-                 HS.pure (Lut_8_16_AB_BA_lutAB _30)))
+                 HS.pure (Lut_8_16_AB_BA_lutAB _37)))
           (RTS.pEnter "lutBA"
-             (do (_31 :: LutBToAType) <-
+             (do (_38 :: LutBToAType) <-
                    RTS.pEnter "ICC.LutBToAType" pLutBToAType
-                 HS.pure (Lut_8_16_AB_BA_lutBA _31)))))
+                 HS.pure (Lut_8_16_AB_BA_lutBA _38)))))
  
 pLut_8_16_BA :: RTS.Parser Lut_8_16_BA
  
 pLut_8_16_BA =
   (RTS.<||)
     (RTS.pEnter "lut8"
-       (do (_32 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_BA_lut8 _32)))
+       (do (_39 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_BA_lut8 _39)))
     ((RTS.<||)
        (RTS.pEnter "lut16"
-          (do (_33 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_BA_lut16 _33)))
+          (do (_40 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_BA_lut16 _40)))
        (RTS.pEnter "lutBA"
-          (do (_34 :: LutBToAType) <-
+          (do (_41 :: LutBToAType) <-
                 RTS.pEnter "ICC.LutBToAType" pLutBToAType
-              HS.pure (Lut_8_16_BA_lutBA _34))))
+              HS.pure (Lut_8_16_BA_lutBA _41))))
  
 pPrimaryPlatforms :: RTS.Parser PrimaryPlatforms
  
@@ -2211,44 +2187,36 @@ pPrimaryPlatforms =
   do (__ :: PrimaryPlatforms) <-
        (RTS.<||)
          (RTS.pEnter "none"
-            (do (_39 :: Vector.Vector (RTS.UInt 8)) <-
-                  do (_35 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "87:30--87:30" (RTS.bcSingle (RTS.uint8 0))
-                     (_36 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "87:32--87:32" (RTS.bcSingle (RTS.uint8 0))
-                     (_37 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "87:34--87:34" (RTS.bcSingle (RTS.uint8 0))
-                     (_38 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "87:36--87:36" (RTS.bcSingle (RTS.uint8 0))
-                     HS.pure (Vector.fromList [_35, _36, _37, _38])
-                HS.pure (PrimaryPlatforms_none _39)))
+            (do (_42 :: ()) <-
+                  HS.const ()
+                    HS.<$> RTS.pMatch "87:30--87:44"
+                             (Vector.fromList
+                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+                HS.pure (PrimaryPlatforms_none _42)))
          ((RTS.<||)
             (RTS.pEnter "apple_computer_inc"
-               (do (_40 :: ()) <-
+               (do (_43 :: ()) <-
                      HS.const ()
-                       HS.<$> RTS.pMatch "88:30--88:35" (Vector.vecFromRep "APPL")
-                   HS.pure (PrimaryPlatforms_apple_computer_inc _40)))
+                       HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")
+                   HS.pure (PrimaryPlatforms_apple_computer_inc _43)))
             ((RTS.<||)
                (RTS.pEnter "microsoft_corporation"
-                  (do (_41 :: ()) <-
+                  (do (_44 :: ()) <-
                         HS.const ()
-                          HS.<$> RTS.pMatch "89:30--89:35" (Vector.vecFromRep "MSFT")
-                      HS.pure (PrimaryPlatforms_microsoft_corporation _41)))
+                          HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")
+                      HS.pure (PrimaryPlatforms_microsoft_corporation _44)))
                ((RTS.<||)
                   (RTS.pEnter "silicon_graphics_inc"
-                     (do (_42 :: ()) <-
+                     (do (_45 :: ()) <-
                            HS.const ()
-                             HS.<$> RTS.pMatch "90:30--90:35" (Vector.vecFromRep "SGI ")
-                         HS.pure (PrimaryPlatforms_silicon_graphics_inc _42)))
+                             HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")
+                         HS.pure (PrimaryPlatforms_silicon_graphics_inc _45)))
                   (RTS.pEnter "sun_microsystems"
-                     (do (_43 :: ()) <-
+                     (do (_46 :: ()) <-
                            HS.const ()
-                             HS.<$> RTS.pMatch "91:30--91:35" (Vector.vecFromRep "SUNW")
-                         HS.pure (PrimaryPlatforms_sun_microsystems _43))))))
+                             HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW")
+                         HS.pure (PrimaryPlatforms_sun_microsystems _46))))))
      HS.pure __
  
 pProfileClasses :: RTS.Parser ProfileClasses
@@ -2257,45 +2225,45 @@ pProfileClasses =
   do (__ :: ProfileClasses) <-
        (RTS.<||)
          (RTS.pEnter "input_device_profile"
-            (do (_44 :: ()) <-
+            (do (_47 :: ()) <-
                   HS.const ()
-                    HS.<$> RTS.pMatch "45:31--45:36" (Vector.vecFromRep "scnr")
-                HS.pure (ProfileClasses_input_device_profile _44)))
+                    HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")
+                HS.pure (ProfileClasses_input_device_profile _47)))
          ((RTS.<||)
             (RTS.pEnter "display_device_profile"
-               (do (_45 :: ()) <-
+               (do (_48 :: ()) <-
                      HS.const ()
-                       HS.<$> RTS.pMatch "46:31--46:36" (Vector.vecFromRep "mntr")
-                   HS.pure (ProfileClasses_display_device_profile _45)))
+                       HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")
+                   HS.pure (ProfileClasses_display_device_profile _48)))
             ((RTS.<||)
                (RTS.pEnter "output_device_profile"
-                  (do (_46 :: ()) <-
+                  (do (_49 :: ()) <-
                         HS.const ()
-                          HS.<$> RTS.pMatch "47:31--47:36" (Vector.vecFromRep "prtr")
-                      HS.pure (ProfileClasses_output_device_profile _46)))
+                          HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")
+                      HS.pure (ProfileClasses_output_device_profile _49)))
                ((RTS.<||)
                   (RTS.pEnter "device_link_profile"
-                     (do (_47 :: ()) <-
+                     (do (_50 :: ()) <-
                            HS.const ()
-                             HS.<$> RTS.pMatch "48:31--48:36" (Vector.vecFromRep "link")
-                         HS.pure (ProfileClasses_device_link_profile _47)))
+                             HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")
+                         HS.pure (ProfileClasses_device_link_profile _50)))
                   ((RTS.<||)
                      (RTS.pEnter "color_space_profile"
-                        (do (_48 :: ()) <-
+                        (do (_51 :: ()) <-
                               HS.const ()
-                                HS.<$> RTS.pMatch "49:31--49:36" (Vector.vecFromRep "spac")
-                            HS.pure (ProfileClasses_color_space_profile _48)))
+                                HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")
+                            HS.pure (ProfileClasses_color_space_profile _51)))
                      ((RTS.<||)
                         (RTS.pEnter "abstract_profile"
-                           (do (_49 :: ()) <-
+                           (do (_52 :: ()) <-
                                  HS.const ()
-                                   HS.<$> RTS.pMatch "50:31--50:36" (Vector.vecFromRep "abst")
-                               HS.pure (ProfileClasses_abstract_profile _49)))
+                                   HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")
+                               HS.pure (ProfileClasses_abstract_profile _52)))
                         (RTS.pEnter "named_color_profile"
-                           (do (_50 :: ()) <-
+                           (do (_53 :: ()) <-
                                  HS.const ()
-                                   HS.<$> RTS.pMatch "51:31--51:36" (Vector.vecFromRep "nmcl")
-                               HS.pure (ProfileClasses_named_color_profile _50))))))))
+                                   HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl")
+                               HS.pure (ProfileClasses_named_color_profile _53))))))))
      HS.pure __
  
 pRenderingIntent :: RTS.Parser RenderingIntent
@@ -2304,71 +2272,39 @@ pRenderingIntent =
   do (__ :: RenderingIntent) <-
        (RTS.<||)
          (RTS.pEnter "perceptual"
-            (do (_55 :: Vector.Vector (RTS.UInt 8)) <-
-                  do (_51 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "98:36--98:36" (RTS.bcSingle (RTS.uint8 0))
-                     (_52 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "98:38--98:38" (RTS.bcSingle (RTS.uint8 0))
-                     (_53 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "98:40--98:40" (RTS.bcSingle (RTS.uint8 0))
-                     (_54 :: RTS.UInt 8) <-
-                       RTS.uint8
-                         HS.<$> RTS.pMatch1 "98:42--98:42" (RTS.bcSingle (RTS.uint8 0))
-                     HS.pure (Vector.fromList [_51, _52, _53, _54])
-                HS.pure (RenderingIntent_perceptual _55)))
+            (do (_54 :: ()) <-
+                  HS.const ()
+                    HS.<$> RTS.pMatch "98:36--98:50"
+                             (Vector.fromList
+                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+                HS.pure (RenderingIntent_perceptual _54)))
          ((RTS.<||)
             (RTS.pEnter "media_relative_colorimetric"
-               (do (_60 :: Vector.Vector (RTS.UInt 8)) <-
-                     do (_56 :: RTS.UInt 8) <-
-                          RTS.uint8
-                            HS.<$> RTS.pMatch1 "99:36--99:36" (RTS.bcSingle (RTS.uint8 0))
-                        (_57 :: RTS.UInt 8) <-
-                          RTS.uint8
-                            HS.<$> RTS.pMatch1 "99:38--99:38" (RTS.bcSingle (RTS.uint8 0))
-                        (_58 :: RTS.UInt 8) <-
-                          RTS.uint8
-                            HS.<$> RTS.pMatch1 "99:40--99:40" (RTS.bcSingle (RTS.uint8 0))
-                        (_59 :: RTS.UInt 8) <-
-                          RTS.uint8
-                            HS.<$> RTS.pMatch1 "99:42--99:42" (RTS.bcSingle (RTS.uint8 1))
-                        HS.pure (Vector.fromList [_56, _57, _58, _59])
-                   HS.pure (RenderingIntent_media_relative_colorimetric _60)))
+               (do (_55 :: ()) <-
+                     HS.const ()
+                       HS.<$> RTS.pMatch "99:36--99:50"
+                                (Vector.fromList
+                                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                    RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])
+                   HS.pure (RenderingIntent_media_relative_colorimetric _55)))
             ((RTS.<||)
                (RTS.pEnter "saturation"
-                  (do (_65 :: Vector.Vector (RTS.UInt 8)) <-
-                        do (_61 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "100:36--100:36" (RTS.bcSingle (RTS.uint8 0))
-                           (_62 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "100:38--100:38" (RTS.bcSingle (RTS.uint8 0))
-                           (_63 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "100:40--100:40" (RTS.bcSingle (RTS.uint8 0))
-                           (_64 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "100:42--100:42" (RTS.bcSingle (RTS.uint8 2))
-                           HS.pure (Vector.fromList [_61, _62, _63, _64])
-                      HS.pure (RenderingIntent_saturation _65)))
+                  (do (_56 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "100:36--100:50"
+                                   (Vector.fromList
+                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])
+                      HS.pure (RenderingIntent_saturation _56)))
                (RTS.pEnter "icc_absolute_colorimetric"
-                  (do (_70 :: Vector.Vector (RTS.UInt 8)) <-
-                        do (_66 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "101:36--101:36" (RTS.bcSingle (RTS.uint8 0))
-                           (_67 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "101:38--101:38" (RTS.bcSingle (RTS.uint8 0))
-                           (_68 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "101:40--101:40" (RTS.bcSingle (RTS.uint8 0))
-                           (_69 :: RTS.UInt 8) <-
-                             RTS.uint8
-                               HS.<$> RTS.pMatch1 "101:42--101:42" (RTS.bcSingle (RTS.uint8 3))
-                           HS.pure (Vector.fromList [_66, _67, _68, _69])
-                      HS.pure (RenderingIntent_icc_absolute_colorimetric _70)))))
+                  (do (_57 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "101:36--101:50"
+                                   (Vector.fromList
+                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])
+                      HS.pure (RenderingIntent_icc_absolute_colorimetric _57)))))
      HS.pure __
  
 pVersionField :: RTS.Parser VersionField
@@ -2384,9 +2320,9 @@ pVersionField =
      (bugfix :: RTS.UInt 4) <-
        HS.pure (RTS.convert min_bf :: RTS.UInt 4)
      HS.const ()
-       HS.<$> RTS.pMatch1 "40:3--40:6" (RTS.bcSingle (RTS.uint8 0))
-     HS.const ()
-       HS.<$> RTS.pMatch1 "40:9--40:12" (RTS.bcSingle (RTS.uint8 0))
+       HS.<$> RTS.pMatch "40:3--40:20"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
      HS.pure (VersionField major minor bugfix)
  
 pXYZNumber :: RTS.Parser XYZNumber
@@ -2413,7 +2349,7 @@ pProfileHeader =
      (creation_date_time :: DateTimeNumber) <-
        RTS.pEnter "ICC.DateTimeNumber" pDateTimeNumber
      HS.const ()
-       HS.<$> RTS.pMatch "22:3--22:8" (Vector.vecFromRep "acsp")
+       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
      (primary_platform :: PrimaryPlatforms) <-
        RTS.pEnter "ICC.PrimaryPlatforms" pPrimaryPlatforms
      (profile_flags :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
@@ -2430,7 +2366,7 @@ pProfileHeader =
      (reserved_data :: Vector.Vector (RTS.UInt 8)) <-
        Vector.replicateM (RTS.lit 28 :: HS.Integer)
          (RTS.uint8
-            HS.<$> RTS.pMatch1 "32:33--32:33" (RTS.bcSingle (RTS.uint8 0)))
+            HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
      HS.pure
        (ProfileHeader size preferred_cmm_type version devce_class
           color_space
@@ -2482,26 +2418,22 @@ pMain =
 pMeasurementType :: RTS.Parser MeasurementType
  
 pMeasurementType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "459:3--459:8" (Vector.vecFromRep "meas")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "460:18--460:18" (RTS.bcSingle (RTS.uint8 0)))
-           (standard_observer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (nCIEXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
-           (geometry :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (flare :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           HS.pure
-             (MeasurementType standard_observer nCIEXYZ geometry flare
-                illuminant))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "meas"))
+     (standard_observer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (nCIEXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
+     (geometry :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (flare :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure
+       (MeasurementType standard_observer nCIEXYZ geometry flare
+          illuminant)
  
-pRemote :: forall a. RTS.DDL a => RTS.Parser a -> RTS.Parser a
+pRemote :: forall c. RTS.DDL c => RTS.Parser c -> RTS.Parser c
  
-pRemote (pP :: RTS.Parser a) =
+pRemote (pP :: RTS.Parser c) =
   do (s :: RTS.Input) <- RTS.pPeek
-     (__ :: a) <- pP
+     (__ :: c) <- pP
      RTS.pSetInput s
      HS.pure __
  
@@ -2520,25 +2452,25 @@ pUnicodeRecord (s :: RTS.Input) =
                   (RTS.convert size :: HS.Integer))))
      HS.pure (UnicodeRecord language country _data)
  
+_Guard :: HS.Bool -> RTS.Parser ()
+ 
+_Guard (p :: HS.Bool) =
+  RTS.pGuard "537:15--537:23" "guard failed" p
+ 
 pMultiLocalizedUnicodeType ::
       RTS.Parser (Vector.Vector UnicodeRecord)
  
 pMultiLocalizedUnicodeType =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "284:3--284:8" (Vector.vecFromRep "mluc")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "285:18--285:18" (RTS.bcSingle (RTS.uint8 0)))
-           (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           RTS.pGuard "288:3--288:19" "guard failed"
-             (record_size HS.== (RTS.lit 12 :: RTS.UInt 32))
-           (__ :: Vector.Vector UnicodeRecord) <-
-             Vector.replicateM (RTS.convert record_number :: HS.Integer)
-               (RTS.pEnter "ICC.UnicodeRecord" (pUnicodeRecord s))
-           HS.pure __)
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mluc"))
+     (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._Guard"
+       (_Guard (record_size HS.== (RTS.lit 12 :: RTS.UInt 32)))
+     (__ :: Vector.Vector UnicodeRecord) <-
+       Vector.replicateM (RTS.convert record_number :: HS.Integer)
+         (RTS.pEnter "ICC.UnicodeRecord" (pUnicodeRecord s))
+     HS.pure __
  
 pPositionNumber :: RTS.Parser PositionNumber
  
@@ -2551,109 +2483,106 @@ pMultiProcessElementsType :: RTS.Parser MultiProcessElementsType
  
 pMultiProcessElementsType =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "436:3--436:8" (Vector.vecFromRep "mpet")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "437:18--437:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 16) <-
-             RTS.pEnter "ICC.BE16" pBE16
-           (number_of_output_channels :: RTS.UInt 16) <-
-             RTS.pEnter "ICC.BE16" pBE16
-           (number_of_processing_elements :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (n :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
-           RTS.pGuard "442:3--442:7" "guard failed"
-             ((RTS.lit 0 :: HS.Integer) HS.< n)
-           (els :: Vector.Vector PositionNumber) <-
-             Vector.replicateM n
-               (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
-           (elements :: Vector.Vector RTS.Input) <-
-             RTS.loopMapM
-               (\(e :: PositionNumber) ->
-                  RTS.pEnter "ICC.ChunkRelativeTo"
-                    (pChunkRelativeTo s
-                       (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
-                       (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
-               els
-               :: RTS.Parser (Vector.Vector RTS.Input)
-           HS.pure
-             (MultiProcessElementsType number_of_input_channels
-                number_of_output_channels
-                number_of_processing_elements
-                n
-                elements))
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mpet"))
+     (number_of_input_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (number_of_output_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (number_of_processing_elements :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
+     RTS.pEnter "ICC._Guard" (_Guard ((RTS.lit 0 :: HS.Integer) HS.< n))
+     (els :: Vector.Vector PositionNumber) <-
+       Vector.replicateM n
+         (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
+     (elements :: Vector.Vector RTS.Input) <-
+       RTS.loopMapM
+         (\(e :: PositionNumber) ->
+            RTS.pEnter "ICC.ChunkRelativeTo"
+              (pChunkRelativeTo s
+                 (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
+                 (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
+         els
+         :: RTS.Parser (Vector.Vector RTS.Input)
+     HS.pure
+       (MultiProcessElementsType number_of_input_channels
+          number_of_output_channels
+          number_of_processing_elements
+          n
+          elements)
  
 pNamedColor2Type :: RTS.Parser NamedColor2Type
  
 pNamedColor2Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "470:3--470:8" (Vector.vecFromRep "ncl2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "471:18--471:18" (RTS.bcSingle (RTS.uint8 0)))
-           (vendor_specific :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (prefix :: Vector.Vector (RTS.UInt 7)) <-
-             RTS.pEnter "ICC.ParseChunk"
-               (pParseChunk @(Vector.Vector (RTS.UInt 7))
-                  (RTS.lit 32 :: HS.Integer)
-                  (RTS.pEnter "ICC.Only"
-                     (pOnly @(Vector.Vector (RTS.UInt 7))
-                        (RTS.pEnter "ICC.ASCII7" pASCII7))))
-           (suffix :: Vector.Vector (RTS.UInt 7)) <-
-             RTS.pEnter "ICC.ParseChunk"
-               (pParseChunk @(Vector.Vector (RTS.UInt 7))
-                  (RTS.lit 32 :: HS.Integer)
-                  (RTS.pEnter "ICC.Only"
-                     (pOnly @(Vector.Vector (RTS.UInt 7))
-                        (RTS.pEnter "ICC.ASCII7" pASCII7))))
-           (names :: Vector.Vector ColorName) <-
-             Vector.replicateM (RTS.convert count :: HS.Integer)
-               (RTS.pEnter "ICC.ColorName"
-                  (pColorName (RTS.convert number_of_coords :: HS.Integer)))
-           HS.pure (NamedColor2Type vendor_specific prefix suffix names))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "ncl2"))
+     (vendor_specific :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (prefix :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.ParseChunk"
+         (pParseChunk @(Vector.Vector (RTS.UInt 7))
+            (RTS.lit 32 :: HS.Integer)
+            (RTS.pEnter "ICC.Only"
+               (pOnly @(Vector.Vector (RTS.UInt 7))
+                  (RTS.pEnter "ICC.ASCII7" pASCII7))))
+     (suffix :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.ParseChunk"
+         (pParseChunk @(Vector.Vector (RTS.UInt 7))
+            (RTS.lit 32 :: HS.Integer)
+            (RTS.pEnter "ICC.Only"
+               (pOnly @(Vector.Vector (RTS.UInt 7))
+                  (RTS.pEnter "ICC.ASCII7" pASCII7))))
+     (names :: Vector.Vector ColorName) <-
+       Vector.replicateM (RTS.convert count :: HS.Integer)
+         (RTS.pEnter "ICC.ColorName"
+            (pColorName (RTS.convert number_of_coords :: HS.Integer)))
+     HS.pure (NamedColor2Type vendor_specific prefix suffix names)
  
 pParametricCurveType :: RTS.Parser ParametricCurveType
  
 pParametricCurveType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "341:3--341:8" (Vector.vecFromRep "para")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "342:18--342:18" (RTS.bcSingle (RTS.uint8 0)))
-           (function :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "344:10--344:10" (RTS.bcSingle (RTS.uint8 0)))
-           (parameters :: Vector.Vector (RTS.UInt 32)) <-
-             RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
-           HS.pure (ParametricCurveType function parameters))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "para"))
+     (function :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     HS.const ()
+       HS.<$> RTS.pMatch "327:3--327:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     (parameters :: Vector.Vector (RTS.UInt 32)) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
+     HS.pure (ParametricCurveType function parameters)
  
-pProfileSequenceDescType :: RTS.Parser ()
+pStartTag ::
+      Vector.Vector (RTS.UInt 8)
+        -> RTS.Parser (Vector.Vector (RTS.UInt 8))
+ 
+pStartTag (x :: Vector.Vector (RTS.UInt 8)) =
+  do HS.const () HS.<$> RTS.pMatch "264:20--264:26" x
+     RTS.pErrorMode RTS.Abort
+       (do (__ :: Vector.Vector (RTS.UInt 8)) <-
+             RTS.pMatch "264:37--264:51"
+               (Vector.fromList
+                  [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                   RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+           HS.pure __)
+ 
+pProfileSequenceDescType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
  
 pProfileSequenceDescType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "490:3--490:8" (Vector.vecFromRep "pseq")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "491:18--491:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: ()) <- HS.pure ()
-           HS.pure __)
+  do (__ :: Vector.Vector (RTS.UInt 8)) <-
+       RTS.pEnter "ICC.StartTag" (pStartTag (Vector.vecFromRep "pseq"))
+     HS.pure __
  
 pResponse16Number :: RTS.Parser Response16Number
  
 pResponse16Number =
   do (device :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-       (HS.const ()
-          HS.<$> RTS.pMatch1 "142:10--142:10" (RTS.bcSingle (RTS.uint8 0)))
+     HS.const ()
+       HS.<$> RTS.pMatch "142:3--142:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
      (measurement :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
      HS.pure (Response16Number device measurement)
  
@@ -2679,111 +2608,86 @@ pResponseCurveSet16Type :: RTS.Parser (Vector.Vector ResponseCurve)
  
 pResponseCurveSet16Type =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "351:3--351:8" (Vector.vecFromRep "rcs2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "352:18--352:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-           (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-           (__ :: Vector.Vector ResponseCurve) <-
-             Vector.replicateM (RTS.convert count :: HS.Integer)
-               (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-                   (__ :: ResponseCurve) <-
-                     RTS.pEnter "ICC.Remote"
-                       (pRemote @ResponseCurve
-                          (do RTS.pEnter "ICC._GotoRel"
-                                (_GotoRel s (RTS.convert off :: HS.Integer))
-                              (__ :: ResponseCurve) <-
-                                RTS.pEnter "ICC.ResponseCurve"
-                                  (pResponseCurve (RTS.convert number_of_channels :: HS.Integer))
-                              HS.pure __))
-                   HS.pure __)
-           HS.pure __)
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "rcs2"))
+     (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (__ :: Vector.Vector ResponseCurve) <-
+       Vector.replicateM (RTS.convert count :: HS.Integer)
+         (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+             (__ :: ResponseCurve) <-
+               RTS.pEnter "ICC.Remote"
+                 (pRemote @ResponseCurve
+                    (do RTS.pEnter "ICC._GotoRel"
+                          (_GotoRel s (RTS.convert off :: HS.Integer))
+                        (__ :: ResponseCurve) <-
+                          RTS.pEnter "ICC.ResponseCurve"
+                            (pResponseCurve (RTS.convert number_of_channels :: HS.Integer))
+                        HS.pure __))
+             HS.pure __)
+     HS.pure __
  
 pS15Fixed16ArrayType :: RTS.Parser (Vector.Vector (RTS.UInt 32))
  
 pS15Fixed16ArrayType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "301:3--301:8" (Vector.vecFromRep "sf32")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "302:18--302:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: Vector.Vector (RTS.UInt 32)) <-
-             RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sf32"))
+     (__ :: Vector.Vector (RTS.UInt 32)) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
+     HS.pure __
  
 pSignatureType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
  
 pSignatureType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "277:3--277:8" (Vector.vecFromRep "sig ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "278:18--278:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: Vector.Vector (RTS.UInt 8)) <-
-             Vector.replicateM (RTS.lit 4 :: HS.Integer)
-               (RTS.uint8 HS.<$> RTS.pByte "279:10--279:14")
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sig "))
+     (__ :: Vector.Vector (RTS.UInt 8)) <-
+       Vector.replicateM (RTS.lit 4 :: HS.Integer)
+         (RTS.uint8 HS.<$> RTS.pByte "270:47--270:51")
+     HS.pure __
  
 pSomeCurve :: RTS.Parser SomeCurve
  
 pSomeCurve =
   (RTS.<||)
     (RTS.pEnter "curve"
-       (do (_71 :: Vector.Vector (RTS.UInt 16)) <-
+       (do (_58 :: Vector.Vector (RTS.UInt 16)) <-
              RTS.pEnter "ICC.CurveType" pCurveType
-           HS.pure (SomeCurve_curve _71)))
+           HS.pure (SomeCurve_curve _58)))
     (RTS.pEnter "parametric_curve"
-       (do (_72 :: ParametricCurveType) <-
+       (do (_59 :: ParametricCurveType) <-
              RTS.pEnter "ICC.ParametricCurveType" pParametricCurveType
-           HS.pure (SomeCurve_parametric_curve _72)))
+           HS.pure (SomeCurve_parametric_curve _59)))
  
 pTextType :: RTS.Parser (Vector.Vector (RTS.UInt 7))
  
 pTextType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "271:3--271:8" (Vector.vecFromRep "text")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "272:18--272:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: Vector.Vector (RTS.UInt 7)) <-
-             RTS.pEnter "ICC.Only"
-               (pOnly @(Vector.Vector (RTS.UInt 7))
-                  (RTS.pEnter "ICC.ASCII7" pASCII7))
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "text"))
+     (__ :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.Only"
+         (pOnly @(Vector.Vector (RTS.UInt 7))
+            (RTS.pEnter "ICC.ASCII7" pASCII7))
+     HS.pure __
  
 pViewConditionsType :: RTS.Parser ViewConditionsType
  
 pViewConditionsType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "497:3--497:8" (Vector.vecFromRep "view")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "498:18--498:18" (RTS.bcSingle (RTS.uint8 0)))
-           (illuminantXYZ :: XYZNumber) <-
-             RTS.pEnter "ICC.XYZNumber" pXYZNumber
-           (surroundXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
-           (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           HS.pure (ViewConditionsType illuminantXYZ surroundXYZ illuminant))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "view"))
+     (illuminantXYZ :: XYZNumber) <-
+       RTS.pEnter "ICC.XYZNumber" pXYZNumber
+     (surroundXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
+     (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (ViewConditionsType illuminantXYZ surroundXYZ illuminant)
  
 pXYZType :: RTS.Parser (Vector.Vector XYZNumber)
  
 pXYZType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "451:3--451:8" (Vector.vecFromRep "XYZ ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "452:18--452:18" (RTS.bcSingle (RTS.uint8 0)))
-           (__ :: Vector.Vector XYZNumber) <-
-             RTS.pMany (RTS.<||) (RTS.pEnter "ICC.XYZNumber" pXYZNumber)
-           HS.pure __)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "XYZ "))
+     (__ :: Vector.Vector XYZNumber) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.XYZNumber" pXYZNumber)
+     HS.pure __
  
 pTag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser Tag
  
@@ -2791,157 +2695,161 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
   (RTS.<||)
     ((RTS.<||)
        (RTS.pEnter "AToB0"
-          (do (_73 :: Lut_8_16_AB) <-
-                do RTS.pGuard "176:27--176:39" "guard failed"
-                     (sig HS.== Vector.vecFromRep "A2B0")
+          (do (_60 :: Lut_8_16_AB) <-
+                do RTS.pEnter "ICC._Guard"
+                     (_Guard (sig HS.== Vector.vecFromRep "A2B0"))
                    RTS.pErrorMode RTS.Abort
                      (do (__ :: Lut_8_16_AB) <-
                            RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                          HS.pure __)
-              HS.pure (Tag_AToB0 _73)))
+              HS.pure (Tag_AToB0 _60)))
        ((RTS.<||)
           (RTS.pEnter "AToB1"
-             (do (_74 :: Lut_8_16_AB) <-
-                   do RTS.pGuard "177:27--177:39" "guard failed"
-                        (sig HS.== Vector.vecFromRep "A2B1")
+             (do (_61 :: Lut_8_16_AB) <-
+                   do RTS.pEnter "ICC._Guard"
+                        (_Guard (sig HS.== Vector.vecFromRep "A2B1"))
                       RTS.pErrorMode RTS.Abort
                         (do (__ :: Lut_8_16_AB) <-
                               RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                             HS.pure __)
-                 HS.pure (Tag_AToB1 _74)))
+                 HS.pure (Tag_AToB1 _61)))
           ((RTS.<||)
              (RTS.pEnter "AToB2"
-                (do (_75 :: Lut_8_16_AB) <-
-                      do RTS.pGuard "178:27--178:39" "guard failed"
-                           (sig HS.== Vector.vecFromRep "A2B2")
+                (do (_62 :: Lut_8_16_AB) <-
+                      do RTS.pEnter "ICC._Guard"
+                           (_Guard (sig HS.== Vector.vecFromRep "A2B2"))
                          RTS.pErrorMode RTS.Abort
                            (do (__ :: Lut_8_16_AB) <-
                                  RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                                HS.pure __)
-                    HS.pure (Tag_AToB2 _75)))
+                    HS.pure (Tag_AToB2 _62)))
              ((RTS.<||)
                 (RTS.pEnter "blueMatrixColumn"
-                   (do (_76 :: Vector.Vector XYZNumber) <-
-                         do RTS.pGuard "179:27--179:39" "guard failed"
-                              (sig HS.== Vector.vecFromRep "bXYZ")
+                   (do (_63 :: Vector.Vector XYZNumber) <-
+                         do RTS.pEnter "ICC._Guard"
+                              (_Guard (sig HS.== Vector.vecFromRep "bXYZ"))
                             RTS.pErrorMode RTS.Abort
                               (do (__ :: Vector.Vector XYZNumber) <-
                                     RTS.pEnter "ICC.XYZType" pXYZType
                                   HS.pure __)
-                       HS.pure (Tag_blueMatrixColumn _76)))
+                       HS.pure (Tag_blueMatrixColumn _63)))
                 ((RTS.<||)
                    (RTS.pEnter "blueTRC"
-                      (do (_77 :: SomeCurve) <-
-                            do RTS.pGuard "180:27--180:39" "guard failed"
-                                 (sig HS.== Vector.vecFromRep "bTRC")
+                      (do (_64 :: SomeCurve) <-
+                            do RTS.pEnter "ICC._Guard"
+                                 (_Guard (sig HS.== Vector.vecFromRep "bTRC"))
                                RTS.pErrorMode RTS.Abort
                                  (do (__ :: SomeCurve) <- RTS.pEnter "ICC.SomeCurve" pSomeCurve
                                      HS.pure __)
-                          HS.pure (Tag_blueTRC _77)))
+                          HS.pure (Tag_blueTRC _64)))
                    ((RTS.<||)
                       (RTS.pEnter "BToA0"
-                         (do (_78 :: Lut_8_16_BA) <-
-                               do RTS.pGuard "181:27--181:39" "guard failed"
-                                    (sig HS.== Vector.vecFromRep "B2A0")
+                         (do (_65 :: Lut_8_16_BA) <-
+                               do RTS.pEnter "ICC._Guard"
+                                    (_Guard (sig HS.== Vector.vecFromRep "B2A0"))
                                   RTS.pErrorMode RTS.Abort
                                     (do (__ :: Lut_8_16_BA) <-
                                           RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                         HS.pure __)
-                             HS.pure (Tag_BToA0 _78)))
+                             HS.pure (Tag_BToA0 _65)))
                       ((RTS.<||)
                          (RTS.pEnter "BToA1"
-                            (do (_79 :: Lut_8_16_BA) <-
-                                  do RTS.pGuard "182:27--182:39" "guard failed"
-                                       (sig HS.== Vector.vecFromRep "B2A1")
+                            (do (_66 :: Lut_8_16_BA) <-
+                                  do RTS.pEnter "ICC._Guard"
+                                       (_Guard (sig HS.== Vector.vecFromRep "B2A1"))
                                      RTS.pErrorMode RTS.Abort
                                        (do (__ :: Lut_8_16_BA) <-
                                              RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                            HS.pure __)
-                                HS.pure (Tag_BToA1 _79)))
+                                HS.pure (Tag_BToA1 _66)))
                          ((RTS.<||)
                             (RTS.pEnter "BToA2"
-                               (do (_80 :: Lut_8_16_BA) <-
-                                     do RTS.pGuard "183:27--183:39" "guard failed"
-                                          (sig HS.== Vector.vecFromRep "B2A2")
+                               (do (_67 :: Lut_8_16_BA) <-
+                                     do RTS.pEnter "ICC._Guard"
+                                          (_Guard (sig HS.== Vector.vecFromRep "B2A2"))
                                         RTS.pErrorMode RTS.Abort
                                           (do (__ :: Lut_8_16_BA) <-
                                                 RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                               HS.pure __)
-                                   HS.pure (Tag_BToA2 _80)))
+                                   HS.pure (Tag_BToA2 _67)))
                             ((RTS.<||)
                                (RTS.pEnter "BToD0"
-                                  (do (_81 :: MultiProcessElementsType) <-
-                                        do RTS.pGuard "184:27--184:39" "guard failed"
-                                             (sig HS.== Vector.vecFromRep "B2D0")
+                                  (do (_68 :: MultiProcessElementsType) <-
+                                        do RTS.pEnter "ICC._Guard"
+                                             (_Guard (sig HS.== Vector.vecFromRep "B2D0"))
                                            RTS.pErrorMode RTS.Abort
                                              (do (__ :: MultiProcessElementsType) <-
                                                    RTS.pEnter "ICC.MultiProcessElementsType"
                                                      pMultiProcessElementsType
                                                  HS.pure __)
-                                      HS.pure (Tag_BToD0 _81)))
+                                      HS.pure (Tag_BToD0 _68)))
                                ((RTS.<||)
                                   (RTS.pEnter "BToD1"
-                                     (do (_82 :: MultiProcessElementsType) <-
-                                           do RTS.pGuard "185:27--185:39" "guard failed"
-                                                (sig HS.== Vector.vecFromRep "B2D1")
+                                     (do (_69 :: MultiProcessElementsType) <-
+                                           do RTS.pEnter "ICC._Guard"
+                                                (_Guard (sig HS.== Vector.vecFromRep "B2D1"))
                                               RTS.pErrorMode RTS.Abort
                                                 (do (__ :: MultiProcessElementsType) <-
                                                       RTS.pEnter "ICC.MultiProcessElementsType"
                                                         pMultiProcessElementsType
                                                     HS.pure __)
-                                         HS.pure (Tag_BToD1 _82)))
+                                         HS.pure (Tag_BToD1 _69)))
                                   ((RTS.<||)
                                      (RTS.pEnter "BToD2"
-                                        (do (_83 :: MultiProcessElementsType) <-
-                                              do RTS.pGuard "186:27--186:39" "guard failed"
-                                                   (sig HS.== Vector.vecFromRep "B2D2")
+                                        (do (_70 :: MultiProcessElementsType) <-
+                                              do RTS.pEnter "ICC._Guard"
+                                                   (_Guard (sig HS.== Vector.vecFromRep "B2D2"))
                                                  RTS.pErrorMode RTS.Abort
                                                    (do (__ :: MultiProcessElementsType) <-
                                                          RTS.pEnter "ICC.MultiProcessElementsType"
                                                            pMultiProcessElementsType
                                                        HS.pure __)
-                                            HS.pure (Tag_BToD2 _83)))
+                                            HS.pure (Tag_BToD2 _70)))
                                      ((RTS.<||)
                                         (RTS.pEnter "BToD3"
-                                           (do (_84 :: MultiProcessElementsType) <-
-                                                 do RTS.pGuard "187:27--187:39" "guard failed"
-                                                      (sig HS.== Vector.vecFromRep "B2D3")
+                                           (do (_71 :: MultiProcessElementsType) <-
+                                                 do RTS.pEnter "ICC._Guard"
+                                                      (_Guard (sig HS.== Vector.vecFromRep "B2D3"))
                                                     RTS.pErrorMode RTS.Abort
                                                       (do (__ :: MultiProcessElementsType) <-
                                                             RTS.pEnter
                                                               "ICC.MultiProcessElementsType"
                                                               pMultiProcessElementsType
                                                           HS.pure __)
-                                               HS.pure (Tag_BToD3 _84)))
+                                               HS.pure (Tag_BToD3 _71)))
                                         ((RTS.<||)
                                            (RTS.pEnter "calibrationDateTime"
-                                              (do (_85 :: DateTimeNumber) <-
-                                                    do RTS.pGuard "188:27--188:39" "guard failed"
-                                                         (sig HS.== Vector.vecFromRep "calt")
+                                              (do (_72 :: DateTimeNumber) <-
+                                                    do RTS.pEnter "ICC._Guard"
+                                                         (_Guard
+                                                            (sig HS.== Vector.vecFromRep "calt"))
                                                        RTS.pErrorMode RTS.Abort
                                                          (do (__ :: DateTimeNumber) <-
                                                                RTS.pEnter "ICC.DateTimeType"
                                                                  pDateTimeType
                                                              HS.pure __)
-                                                  HS.pure (Tag_calibrationDateTime _85)))
+                                                  HS.pure (Tag_calibrationDateTime _72)))
                                            ((RTS.<||)
                                               (RTS.pEnter "charTarget"
-                                                 (do (_86 :: Vector.Vector (RTS.UInt 7)) <-
-                                                       do RTS.pGuard "189:27--189:39" "guard failed"
-                                                            (sig HS.== Vector.vecFromRep "targ")
+                                                 (do (_73 :: Vector.Vector (RTS.UInt 7)) <-
+                                                       do RTS.pEnter "ICC._Guard"
+                                                            (_Guard
+                                                               (sig HS.== Vector.vecFromRep "targ"))
                                                           RTS.pErrorMode RTS.Abort
                                                             (do (__
                                                                    :: Vector.Vector (RTS.UInt 7)) <-
                                                                   RTS.pEnter "ICC.TextType"
                                                                     pTextType
                                                                 HS.pure __)
-                                                     HS.pure (Tag_charTarget _86)))
+                                                     HS.pure (Tag_charTarget _73)))
                                               ((RTS.<||)
                                                  (RTS.pEnter "chromaticAdaptation"
-                                                    (do (_87 :: Vector.Vector (RTS.UInt 32)) <-
-                                                          do RTS.pGuard "190:27--190:39"
-                                                               "guard failed"
-                                                               (sig HS.== Vector.vecFromRep "chad")
+                                                    (do (_74 :: Vector.Vector (RTS.UInt 32)) <-
+                                                          do RTS.pEnter "ICC._Guard"
+                                                               (_Guard
+                                                                  (sig
+                                                                     HS.== Vector.vecFromRep
+                                                                             "chad"))
                                                              RTS.pErrorMode RTS.Abort
                                                                (do (__
                                                                       :: Vector.Vector
@@ -2950,14 +2858,15 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                        "ICC.S15Fixed16ArrayType"
                                                                        pS15Fixed16ArrayType
                                                                    HS.pure __)
-                                                        HS.pure (Tag_chromaticAdaptation _87)))
+                                                        HS.pure (Tag_chromaticAdaptation _74)))
                                                  ((RTS.<||)
                                                     (RTS.pEnter "colorantOrder"
-                                                       (do (_88 :: Vector.Vector (RTS.UInt 8)) <-
-                                                             do RTS.pGuard "191:27--191:39"
-                                                                  "guard failed"
-                                                                  (sig
-                                                                     HS.== Vector.vecFromRep "clro")
+                                                       (do (_75 :: Vector.Vector (RTS.UInt 8)) <-
+                                                             do RTS.pEnter "ICC._Guard"
+                                                                  (_Guard
+                                                                     (sig
+                                                                        HS.== Vector.vecFromRep
+                                                                                "clro"))
                                                                 RTS.pErrorMode RTS.Abort
                                                                   (do (__
                                                                          :: Vector.Vector
@@ -2966,15 +2875,15 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                           "ICC.ColorantOrderType"
                                                                           pColorantOrderType
                                                                       HS.pure __)
-                                                           HS.pure (Tag_colorantOrder _88)))
+                                                           HS.pure (Tag_colorantOrder _75)))
                                                     ((RTS.<||)
                                                        (RTS.pEnter "colorantTable"
-                                                          (do (_89 :: Vector.Vector Colorant) <-
-                                                                do RTS.pGuard "192:27--192:39"
-                                                                     "guard failed"
-                                                                     (sig
-                                                                        HS.== Vector.vecFromRep
-                                                                                "clrt")
+                                                          (do (_76 :: Vector.Vector Colorant) <-
+                                                                do RTS.pEnter "ICC._Guard"
+                                                                     (_Guard
+                                                                        (sig
+                                                                           HS.== Vector.vecFromRep
+                                                                                   "clrt"))
                                                                    RTS.pErrorMode RTS.Abort
                                                                      (do (__
                                                                             :: Vector.Vector
@@ -2983,15 +2892,15 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                              "ICC.ColorantTableType"
                                                                              pColorantTableType
                                                                          HS.pure __)
-                                                              HS.pure (Tag_colorantTable _89)))
+                                                              HS.pure (Tag_colorantTable _76)))
                                                        ((RTS.<||)
                                                           (RTS.pEnter "colorantTableOut"
-                                                             (do (_90 :: Vector.Vector Colorant) <-
-                                                                   do RTS.pGuard "193:27--193:39"
-                                                                        "guard failed"
-                                                                        (sig
-                                                                           HS.== Vector.vecFromRep
-                                                                                   "clot")
+                                                             (do (_77 :: Vector.Vector Colorant) <-
+                                                                   do RTS.pEnter "ICC._Guard"
+                                                                        (_Guard
+                                                                           (sig
+                                                                              HS.== Vector.vecFromRep
+                                                                                      "clot"))
                                                                       RTS.pErrorMode RTS.Abort
                                                                         (do (__
                                                                                :: Vector.Vector
@@ -3001,18 +2910,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                 pColorantTableType
                                                                             HS.pure __)
                                                                  HS.pure
-                                                                   (Tag_colorantTableOut _90)))
+                                                                   (Tag_colorantTableOut _77)))
                                                           ((RTS.<||)
                                                              (RTS.pEnter
                                                                 "colorimetricIntentImageState"
-                                                                (do (_91
+                                                                (do (_78
                                                                        :: Vector.Vector
                                                                             (RTS.UInt 8)) <-
-                                                                      do RTS.pGuard "195:27--195:39"
-                                                                           "guard failed"
-                                                                           (sig
-                                                                              HS.== Vector.vecFromRep
-                                                                                      "ciis")
+                                                                      do RTS.pEnter "ICC._Guard"
+                                                                           (_Guard
+                                                                              (sig
+                                                                                 HS.== Vector.vecFromRep
+                                                                                         "ciis"))
                                                                          RTS.pErrorMode RTS.Abort
                                                                            (do (__
                                                                                   :: Vector.Vector
@@ -3024,18 +2933,17 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                HS.pure __)
                                                                     HS.pure
                                                                       (Tag_colorimetricIntentImageState
-                                                                         _91)))
+                                                                         _78)))
                                                              ((RTS.<||)
                                                                 (RTS.pEnter "copyright"
-                                                                   (do (_92
+                                                                   (do (_79
                                                                           :: Vector.Vector
                                                                                UnicodeRecord) <-
-                                                                         do RTS.pGuard
-                                                                              "196:27--196:39"
-                                                                              "guard failed"
-                                                                              (sig
-                                                                                 HS.== Vector.vecFromRep
-                                                                                         "cprt")
+                                                                         do RTS.pEnter "ICC._Guard"
+                                                                              (_Guard
+                                                                                 (sig
+                                                                                    HS.== Vector.vecFromRep
+                                                                                            "cprt"))
                                                                             RTS.pErrorMode RTS.Abort
                                                                               (do (__
                                                                                      :: Vector.Vector
@@ -3044,18 +2952,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                       "ICC.MultiLocalizedUnicodeType"
                                                                                       pMultiLocalizedUnicodeType
                                                                                   HS.pure __)
-                                                                       HS.pure (Tag_copyright _92)))
+                                                                       HS.pure (Tag_copyright _79)))
                                                                 ((RTS.<||)
                                                                    (RTS.pEnter "deviceMfgDesc"
-                                                                      (do (_93
+                                                                      (do (_80
                                                                              :: Vector.Vector
                                                                                   UnicodeRecord) <-
-                                                                            do RTS.pGuard
-                                                                                 "197:27--197:39"
-                                                                                 "guard failed"
-                                                                                 (sig
-                                                                                    HS.== Vector.vecFromRep
-                                                                                            "dmnd")
+                                                                            do RTS.pEnter
+                                                                                 "ICC._Guard"
+                                                                                 (_Guard
+                                                                                    (sig
+                                                                                       HS.== Vector.vecFromRep
+                                                                                               "dmnd"))
                                                                                RTS.pErrorMode
                                                                                  RTS.Abort
                                                                                  (do (__
@@ -3067,18 +2975,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                      HS.pure __)
                                                                           HS.pure
                                                                             (Tag_deviceMfgDesc
-                                                                               _93)))
+                                                                               _80)))
                                                                    ((RTS.<||)
                                                                       (RTS.pEnter "deviceModelDesc"
-                                                                         (do (_94
+                                                                         (do (_81
                                                                                 :: Vector.Vector
                                                                                      UnicodeRecord) <-
-                                                                               do RTS.pGuard
-                                                                                    "198:27--198:39"
-                                                                                    "guard failed"
-                                                                                    (sig
-                                                                                       HS.== Vector.vecFromRep
-                                                                                               "dmdd")
+                                                                               do RTS.pEnter
+                                                                                    "ICC._Guard"
+                                                                                    (_Guard
+                                                                                       (sig
+                                                                                          HS.== Vector.vecFromRep
+                                                                                                  "dmdd"))
                                                                                   RTS.pErrorMode
                                                                                     RTS.Abort
                                                                                     (do (__
@@ -3090,17 +2998,17 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                         HS.pure __)
                                                                              HS.pure
                                                                                (Tag_deviceModelDesc
-                                                                                  _94)))
+                                                                                  _81)))
                                                                       ((RTS.<||)
                                                                          (RTS.pEnter "DToB0"
-                                                                            (do (_95
+                                                                            (do (_82
                                                                                    :: MultiProcessElementsType) <-
-                                                                                  do RTS.pGuard
-                                                                                       "199:27--199:39"
-                                                                                       "guard failed"
-                                                                                       (sig
-                                                                                          HS.== Vector.vecFromRep
-                                                                                                  "D2B0")
+                                                                                  do RTS.pEnter
+                                                                                       "ICC._Guard"
+                                                                                       (_Guard
+                                                                                          (sig
+                                                                                             HS.== Vector.vecFromRep
+                                                                                                     "D2B0"))
                                                                                      RTS.pErrorMode
                                                                                        RTS.Abort
                                                                                        (do (__
@@ -3111,17 +3019,17 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                            HS.pure
                                                                                              __)
                                                                                 HS.pure
-                                                                                  (Tag_DToB0 _95)))
+                                                                                  (Tag_DToB0 _82)))
                                                                          ((RTS.<||)
                                                                             (RTS.pEnter "DToB1"
-                                                                               (do (_96
+                                                                               (do (_83
                                                                                       :: MultiProcessElementsType) <-
-                                                                                     do RTS.pGuard
-                                                                                          "200:27--200:39"
-                                                                                          "guard failed"
-                                                                                          (sig
-                                                                                             HS.== Vector.vecFromRep
-                                                                                                     "D2B1")
+                                                                                     do RTS.pEnter
+                                                                                          "ICC._Guard"
+                                                                                          (_Guard
+                                                                                             (sig
+                                                                                                HS.== Vector.vecFromRep
+                                                                                                        "D2B1"))
                                                                                         RTS.pErrorMode
                                                                                           RTS.Abort
                                                                                           (do (__
@@ -3133,17 +3041,17 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                 __)
                                                                                    HS.pure
                                                                                      (Tag_DToB1
-                                                                                        _96)))
+                                                                                        _83)))
                                                                             ((RTS.<||)
                                                                                (RTS.pEnter "DToB2"
-                                                                                  (do (_97
+                                                                                  (do (_84
                                                                                          :: MultiProcessElementsType) <-
-                                                                                        do RTS.pGuard
-                                                                                             "201:27--201:39"
-                                                                                             "guard failed"
-                                                                                             (sig
-                                                                                                HS.== Vector.vecFromRep
-                                                                                                        "D2B2")
+                                                                                        do RTS.pEnter
+                                                                                             "ICC._Guard"
+                                                                                             (_Guard
+                                                                                                (sig
+                                                                                                   HS.== Vector.vecFromRep
+                                                                                                           "D2B2"))
                                                                                            RTS.pErrorMode
                                                                                              RTS.Abort
                                                                                              (do (__
@@ -3155,18 +3063,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                    __)
                                                                                       HS.pure
                                                                                         (Tag_DToB2
-                                                                                           _97)))
+                                                                                           _84)))
                                                                                ((RTS.<||)
                                                                                   (RTS.pEnter
                                                                                      "DToB3"
-                                                                                     (do (_98
+                                                                                     (do (_85
                                                                                             :: MultiProcessElementsType) <-
-                                                                                           do RTS.pGuard
-                                                                                                "202:27--202:39"
-                                                                                                "guard failed"
-                                                                                                (sig
-                                                                                                   HS.== Vector.vecFromRep
-                                                                                                           "D2B3")
+                                                                                           do RTS.pEnter
+                                                                                                "ICC._Guard"
+                                                                                                (_Guard
+                                                                                                   (sig
+                                                                                                      HS.== Vector.vecFromRep
+                                                                                                              "D2B3"))
                                                                                               RTS.pErrorMode
                                                                                                 RTS.Abort
                                                                                                 (do (__
@@ -3178,18 +3086,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                       __)
                                                                                          HS.pure
                                                                                            (Tag_DToB3
-                                                                                              _98)))
+                                                                                              _85)))
                                                                                   ((RTS.<||)
                                                                                      (RTS.pEnter
                                                                                         "gamut"
-                                                                                        (do (_99
+                                                                                        (do (_86
                                                                                                :: Lut_8_16_BA) <-
-                                                                                              do RTS.pGuard
-                                                                                                   "203:27--203:39"
-                                                                                                   "guard failed"
-                                                                                                   (sig
-                                                                                                      HS.== Vector.vecFromRep
-                                                                                                              "gamt")
+                                                                                              do RTS.pEnter
+                                                                                                   "ICC._Guard"
+                                                                                                   (_Guard
+                                                                                                      (sig
+                                                                                                         HS.== Vector.vecFromRep
+                                                                                                                 "gamt"))
                                                                                                  RTS.pErrorMode
                                                                                                    RTS.Abort
                                                                                                    (do (__
@@ -3201,18 +3109,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                          __)
                                                                                             HS.pure
                                                                                               (Tag_gamut
-                                                                                                 _99)))
+                                                                                                 _86)))
                                                                                      ((RTS.<||)
                                                                                         (RTS.pEnter
                                                                                            "grayTRC"
-                                                                                           (do (_100
+                                                                                           (do (_87
                                                                                                   :: SomeCurve) <-
-                                                                                                 do RTS.pGuard
-                                                                                                      "204:27--204:39"
-                                                                                                      "guard failed"
-                                                                                                      (sig
-                                                                                                         HS.== Vector.vecFromRep
-                                                                                                                 "kTRC")
+                                                                                                 do RTS.pEnter
+                                                                                                      "ICC._Guard"
+                                                                                                      (_Guard
+                                                                                                         (sig
+                                                                                                            HS.== Vector.vecFromRep
+                                                                                                                    "kTRC"))
                                                                                                     RTS.pErrorMode
                                                                                                       RTS.Abort
                                                                                                       (do (__
@@ -3224,19 +3132,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                             __)
                                                                                                HS.pure
                                                                                                  (Tag_grayTRC
-                                                                                                    _100)))
+                                                                                                    _87)))
                                                                                         ((RTS.<||)
                                                                                            (RTS.pEnter
                                                                                               "greenMatrixColumn"
-                                                                                              (do (_101
+                                                                                              (do (_88
                                                                                                      :: Vector.Vector
                                                                                                           XYZNumber) <-
-                                                                                                    do RTS.pGuard
-                                                                                                         "205:27--205:39"
-                                                                                                         "guard failed"
-                                                                                                         (sig
-                                                                                                            HS.== Vector.vecFromRep
-                                                                                                                    "gXYZ")
+                                                                                                    do RTS.pEnter
+                                                                                                         "ICC._Guard"
+                                                                                                         (_Guard
+                                                                                                            (sig
+                                                                                                               HS.== Vector.vecFromRep
+                                                                                                                       "gXYZ"))
                                                                                                        RTS.pErrorMode
                                                                                                          RTS.Abort
                                                                                                          (do (__
@@ -3249,18 +3157,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                __)
                                                                                                   HS.pure
                                                                                                     (Tag_greenMatrixColumn
-                                                                                                       _101)))
+                                                                                                       _88)))
                                                                                            ((RTS.<||)
                                                                                               (RTS.pEnter
                                                                                                  "greenTRC"
-                                                                                                 (do (_102
+                                                                                                 (do (_89
                                                                                                         :: SomeCurve) <-
-                                                                                                       do RTS.pGuard
-                                                                                                            "206:27--206:39"
-                                                                                                            "guard failed"
-                                                                                                            (sig
-                                                                                                               HS.== Vector.vecFromRep
-                                                                                                                       "gTRC")
+                                                                                                       do RTS.pEnter
+                                                                                                            "ICC._Guard"
+                                                                                                            (_Guard
+                                                                                                               (sig
+                                                                                                                  HS.== Vector.vecFromRep
+                                                                                                                          "gTRC"))
                                                                                                           RTS.pErrorMode
                                                                                                             RTS.Abort
                                                                                                             (do (__
@@ -3272,19 +3180,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                   __)
                                                                                                      HS.pure
                                                                                                        (Tag_greenTRC
-                                                                                                          _102)))
+                                                                                                          _89)))
                                                                                               ((RTS.<||)
                                                                                                  (RTS.pEnter
                                                                                                     "luminance"
-                                                                                                    (do (_103
+                                                                                                    (do (_90
                                                                                                            :: Vector.Vector
                                                                                                                 XYZNumber) <-
-                                                                                                          do RTS.pGuard
-                                                                                                               "207:27--207:39"
-                                                                                                               "guard failed"
-                                                                                                               (sig
-                                                                                                                  HS.== Vector.vecFromRep
-                                                                                                                          "lumi")
+                                                                                                          do RTS.pEnter
+                                                                                                               "ICC._Guard"
+                                                                                                               (_Guard
+                                                                                                                  (sig
+                                                                                                                     HS.== Vector.vecFromRep
+                                                                                                                             "lumi"))
                                                                                                              RTS.pErrorMode
                                                                                                                RTS.Abort
                                                                                                                (do (__
@@ -3297,18 +3205,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                      __)
                                                                                                         HS.pure
                                                                                                           (Tag_luminance
-                                                                                                             _103)))
+                                                                                                             _90)))
                                                                                                  ((RTS.<||)
                                                                                                     (RTS.pEnter
                                                                                                        "measurement"
-                                                                                                       (do (_104
+                                                                                                       (do (_91
                                                                                                               :: MeasurementType) <-
-                                                                                                             do RTS.pGuard
-                                                                                                                  "208:27--208:39"
-                                                                                                                  "guard failed"
-                                                                                                                  (sig
-                                                                                                                     HS.== Vector.vecFromRep
-                                                                                                                             "meas")
+                                                                                                             do RTS.pEnter
+                                                                                                                  "ICC._Guard"
+                                                                                                                  (_Guard
+                                                                                                                     (sig
+                                                                                                                        HS.== Vector.vecFromRep
+                                                                                                                                "meas"))
                                                                                                                 RTS.pErrorMode
                                                                                                                   RTS.Abort
                                                                                                                   (do (__
@@ -3320,19 +3228,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                         __)
                                                                                                            HS.pure
                                                                                                              (Tag_measurement
-                                                                                                                _104)))
+                                                                                                                _91)))
                                                                                                     ((RTS.<||)
                                                                                                        (RTS.pEnter
                                                                                                           "mediaWhitePoint"
-                                                                                                          (do (_105
+                                                                                                          (do (_92
                                                                                                                  :: Vector.Vector
                                                                                                                       XYZNumber) <-
-                                                                                                                do RTS.pGuard
-                                                                                                                     "209:27--209:39"
-                                                                                                                     "guard failed"
-                                                                                                                     (sig
-                                                                                                                        HS.== Vector.vecFromRep
-                                                                                                                                "wtpt")
+                                                                                                                do RTS.pEnter
+                                                                                                                     "ICC._Guard"
+                                                                                                                     (_Guard
+                                                                                                                        (sig
+                                                                                                                           HS.== Vector.vecFromRep
+                                                                                                                                   "wtpt"))
                                                                                                                    RTS.pErrorMode
                                                                                                                      RTS.Abort
                                                                                                                      (do (__
@@ -3345,18 +3253,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                            __)
                                                                                                               HS.pure
                                                                                                                 (Tag_mediaWhitePoint
-                                                                                                                   _105)))
+                                                                                                                   _92)))
                                                                                                        ((RTS.<||)
                                                                                                           (RTS.pEnter
                                                                                                              "namedColor2"
-                                                                                                             (do (_106
+                                                                                                             (do (_93
                                                                                                                     :: NamedColor2Type) <-
-                                                                                                                   do RTS.pGuard
-                                                                                                                        "210:27--210:39"
-                                                                                                                        "guard failed"
-                                                                                                                        (sig
-                                                                                                                           HS.== Vector.vecFromRep
-                                                                                                                                   "ncl2")
+                                                                                                                   do RTS.pEnter
+                                                                                                                        "ICC._Guard"
+                                                                                                                        (_Guard
+                                                                                                                           (sig
+                                                                                                                              HS.== Vector.vecFromRep
+                                                                                                                                      "ncl2"))
                                                                                                                       RTS.pErrorMode
                                                                                                                         RTS.Abort
                                                                                                                         (do (__
@@ -3368,19 +3276,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                               __)
                                                                                                                  HS.pure
                                                                                                                    (Tag_namedColor2
-                                                                                                                      _106)))
+                                                                                                                      _93)))
                                                                                                           ((RTS.<||)
                                                                                                              (RTS.pEnter
                                                                                                                 "outputResponse"
-                                                                                                                (do (_107
+                                                                                                                (do (_94
                                                                                                                        :: Vector.Vector
                                                                                                                             ResponseCurve) <-
-                                                                                                                      do RTS.pGuard
-                                                                                                                           "211:27--211:39"
-                                                                                                                           "guard failed"
-                                                                                                                           (sig
-                                                                                                                              HS.== Vector.vecFromRep
-                                                                                                                                      "resp")
+                                                                                                                      do RTS.pEnter
+                                                                                                                           "ICC._Guard"
+                                                                                                                           (_Guard
+                                                                                                                              (sig
+                                                                                                                                 HS.== Vector.vecFromRep
+                                                                                                                                         "resp"))
                                                                                                                          RTS.pErrorMode
                                                                                                                            RTS.Abort
                                                                                                                            (do (__
@@ -3393,20 +3301,20 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                  __)
                                                                                                                     HS.pure
                                                                                                                       (Tag_outputResponse
-                                                                                                                         _107)))
+                                                                                                                         _94)))
                                                                                                              ((RTS.<||)
                                                                                                                 (RTS.pEnter
                                                                                                                    "perceptualRenderingIntentGamut"
-                                                                                                                   (do (_108
+                                                                                                                   (do (_95
                                                                                                                           :: Vector.Vector
                                                                                                                                (RTS.UInt
                                                                                                                                   8)) <-
-                                                                                                                         do RTS.pGuard
-                                                                                                                              "213:27--213:39"
-                                                                                                                              "guard failed"
-                                                                                                                              (sig
-                                                                                                                                 HS.== Vector.vecFromRep
-                                                                                                                                         "rig0")
+                                                                                                                         do RTS.pEnter
+                                                                                                                              "ICC._Guard"
+                                                                                                                              (_Guard
+                                                                                                                                 (sig
+                                                                                                                                    HS.== Vector.vecFromRep
+                                                                                                                                            "rig0"))
                                                                                                                             RTS.pErrorMode
                                                                                                                               RTS.Abort
                                                                                                                               (do (__
@@ -3420,18 +3328,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                     __)
                                                                                                                        HS.pure
                                                                                                                          (Tag_perceptualRenderingIntentGamut
-                                                                                                                            _108)))
+                                                                                                                            _95)))
                                                                                                                 ((RTS.<||)
                                                                                                                    (RTS.pEnter
                                                                                                                       "preview0"
-                                                                                                                      (do (_109
+                                                                                                                      (do (_96
                                                                                                                              :: Lut_8_16_AB_BA) <-
-                                                                                                                            do RTS.pGuard
-                                                                                                                                 "214:27--214:39"
-                                                                                                                                 "guard failed"
-                                                                                                                                 (sig
-                                                                                                                                    HS.== Vector.vecFromRep
-                                                                                                                                            "pre0")
+                                                                                                                            do RTS.pEnter
+                                                                                                                                 "ICC._Guard"
+                                                                                                                                 (_Guard
+                                                                                                                                    (sig
+                                                                                                                                       HS.== Vector.vecFromRep
+                                                                                                                                               "pre0"))
                                                                                                                                RTS.pErrorMode
                                                                                                                                  RTS.Abort
                                                                                                                                  (do (__
@@ -3443,18 +3351,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                        __)
                                                                                                                           HS.pure
                                                                                                                             (Tag_preview0
-                                                                                                                               _109)))
+                                                                                                                               _96)))
                                                                                                                    ((RTS.<||)
                                                                                                                       (RTS.pEnter
                                                                                                                          "preview1"
-                                                                                                                         (do (_110
+                                                                                                                         (do (_97
                                                                                                                                 :: Lut_8_16_BA) <-
-                                                                                                                               do RTS.pGuard
-                                                                                                                                    "215:27--215:39"
-                                                                                                                                    "guard failed"
-                                                                                                                                    (sig
-                                                                                                                                       HS.== Vector.vecFromRep
-                                                                                                                                               "pre1")
+                                                                                                                               do RTS.pEnter
+                                                                                                                                    "ICC._Guard"
+                                                                                                                                    (_Guard
+                                                                                                                                       (sig
+                                                                                                                                          HS.== Vector.vecFromRep
+                                                                                                                                                  "pre1"))
                                                                                                                                   RTS.pErrorMode
                                                                                                                                     RTS.Abort
                                                                                                                                     (do (__
@@ -3466,18 +3374,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                           __)
                                                                                                                              HS.pure
                                                                                                                                (Tag_preview1
-                                                                                                                                  _110)))
+                                                                                                                                  _97)))
                                                                                                                       ((RTS.<||)
                                                                                                                          (RTS.pEnter
                                                                                                                             "preview2"
-                                                                                                                            (do (_111
+                                                                                                                            (do (_98
                                                                                                                                    :: Lut_8_16_BA) <-
-                                                                                                                                  do RTS.pGuard
-                                                                                                                                       "216:27--216:39"
-                                                                                                                                       "guard failed"
-                                                                                                                                       (sig
-                                                                                                                                          HS.== Vector.vecFromRep
-                                                                                                                                                  "pre2")
+                                                                                                                                  do RTS.pEnter
+                                                                                                                                       "ICC._Guard"
+                                                                                                                                       (_Guard
+                                                                                                                                          (sig
+                                                                                                                                             HS.== Vector.vecFromRep
+                                                                                                                                                     "pre2"))
                                                                                                                                      RTS.pErrorMode
                                                                                                                                        RTS.Abort
                                                                                                                                        (do (__
@@ -3489,19 +3397,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                              __)
                                                                                                                                 HS.pure
                                                                                                                                   (Tag_preview2
-                                                                                                                                     _111)))
+                                                                                                                                     _98)))
                                                                                                                          ((RTS.<||)
                                                                                                                             (RTS.pEnter
                                                                                                                                "profileDescription"
-                                                                                                                               (do (_112
+                                                                                                                               (do (_99
                                                                                                                                       :: Vector.Vector
                                                                                                                                            UnicodeRecord) <-
-                                                                                                                                     do RTS.pGuard
-                                                                                                                                          "217:27--217:39"
-                                                                                                                                          "guard failed"
-                                                                                                                                          (sig
-                                                                                                                                             HS.== Vector.vecFromRep
-                                                                                                                                                     "desc")
+                                                                                                                                     do RTS.pEnter
+                                                                                                                                          "ICC._Guard"
+                                                                                                                                          (_Guard
+                                                                                                                                             (sig
+                                                                                                                                                HS.== Vector.vecFromRep
+                                                                                                                                                        "desc"))
                                                                                                                                         RTS.pErrorMode
                                                                                                                                           RTS.Abort
                                                                                                                                           (do (__
@@ -3514,22 +3422,26 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                 __)
                                                                                                                                    HS.pure
                                                                                                                                      (Tag_profileDescription
-                                                                                                                                        _112)))
+                                                                                                                                        _99)))
                                                                                                                             ((RTS.<||)
                                                                                                                                (RTS.pEnter
                                                                                                                                   "profileSequenceDesc"
-                                                                                                                                  (do (_113
-                                                                                                                                         :: ()) <-
-                                                                                                                                        do RTS.pGuard
-                                                                                                                                             "218:27--218:39"
-                                                                                                                                             "guard failed"
-                                                                                                                                             (sig
-                                                                                                                                                HS.== Vector.vecFromRep
-                                                                                                                                                        "pseq")
+                                                                                                                                  (do (_100
+                                                                                                                                         :: Vector.Vector
+                                                                                                                                              (RTS.UInt
+                                                                                                                                                 8)) <-
+                                                                                                                                        do RTS.pEnter
+                                                                                                                                             "ICC._Guard"
+                                                                                                                                             (_Guard
+                                                                                                                                                (sig
+                                                                                                                                                   HS.== Vector.vecFromRep
+                                                                                                                                                           "pseq"))
                                                                                                                                            RTS.pErrorMode
                                                                                                                                              RTS.Abort
                                                                                                                                              (do (__
-                                                                                                                                                    :: ()) <-
+                                                                                                                                                    :: Vector.Vector
+                                                                                                                                                         (RTS.UInt
+                                                                                                                                                            8)) <-
                                                                                                                                                    RTS.pEnter
                                                                                                                                                      "ICC.ProfileSequenceDescType"
                                                                                                                                                      pProfileSequenceDescType
@@ -3537,18 +3449,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                    __)
                                                                                                                                       HS.pure
                                                                                                                                         (Tag_profileSequenceDesc
-                                                                                                                                           _113)))
+                                                                                                                                           _100)))
                                                                                                                                ((RTS.<||)
                                                                                                                                   (RTS.pEnter
                                                                                                                                      "profileSequenceIdentifier"
-                                                                                                                                     (do (_114
+                                                                                                                                     (do (_101
                                                                                                                                             :: ()) <-
-                                                                                                                                           do RTS.pGuard
-                                                                                                                                                "220:27--220:39"
-                                                                                                                                                "guard failed"
-                                                                                                                                                (sig
-                                                                                                                                                   HS.== Vector.vecFromRep
-                                                                                                                                                           "psid")
+                                                                                                                                           do RTS.pEnter
+                                                                                                                                                "ICC._Guard"
+                                                                                                                                                (_Guard
+                                                                                                                                                   (sig
+                                                                                                                                                      HS.== Vector.vecFromRep
+                                                                                                                                                              "psid"))
                                                                                                                                               RTS.pErrorMode
                                                                                                                                                 RTS.Abort
                                                                                                                                                 (do (__
@@ -3559,19 +3471,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                       __)
                                                                                                                                          HS.pure
                                                                                                                                            (Tag_profileSequenceIdentifier
-                                                                                                                                              _114)))
+                                                                                                                                              _101)))
                                                                                                                                   ((RTS.<||)
                                                                                                                                      (RTS.pEnter
                                                                                                                                         "redMatrixColumn"
-                                                                                                                                        (do (_115
+                                                                                                                                        (do (_102
                                                                                                                                                :: Vector.Vector
                                                                                                                                                     XYZNumber) <-
-                                                                                                                                              do RTS.pGuard
-                                                                                                                                                   "221:27--221:39"
-                                                                                                                                                   "guard failed"
-                                                                                                                                                   (sig
-                                                                                                                                                      HS.== Vector.vecFromRep
-                                                                                                                                                              "rXYZ")
+                                                                                                                                              do RTS.pEnter
+                                                                                                                                                   "ICC._Guard"
+                                                                                                                                                   (_Guard
+                                                                                                                                                      (sig
+                                                                                                                                                         HS.== Vector.vecFromRep
+                                                                                                                                                                 "rXYZ"))
                                                                                                                                                  RTS.pErrorMode
                                                                                                                                                    RTS.Abort
                                                                                                                                                    (do (__
@@ -3584,18 +3496,18 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                          __)
                                                                                                                                             HS.pure
                                                                                                                                               (Tag_redMatrixColumn
-                                                                                                                                                 _115)))
+                                                                                                                                                 _102)))
                                                                                                                                      ((RTS.<||)
                                                                                                                                         (RTS.pEnter
                                                                                                                                            "redTRC"
-                                                                                                                                           (do (_116
+                                                                                                                                           (do (_103
                                                                                                                                                   :: SomeCurve) <-
-                                                                                                                                                 do RTS.pGuard
-                                                                                                                                                      "222:27--222:39"
-                                                                                                                                                      "guard failed"
-                                                                                                                                                      (sig
-                                                                                                                                                         HS.== Vector.vecFromRep
-                                                                                                                                                                 "rTRC")
+                                                                                                                                                 do RTS.pEnter
+                                                                                                                                                      "ICC._Guard"
+                                                                                                                                                      (_Guard
+                                                                                                                                                         (sig
+                                                                                                                                                            HS.== Vector.vecFromRep
+                                                                                                                                                                    "rTRC"))
                                                                                                                                                     RTS.pErrorMode
                                                                                                                                                       RTS.Abort
                                                                                                                                                       (do (__
@@ -3607,20 +3519,20 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                             __)
                                                                                                                                                HS.pure
                                                                                                                                                  (Tag_redTRC
-                                                                                                                                                    _116)))
+                                                                                                                                                    _103)))
                                                                                                                                         ((RTS.<||)
                                                                                                                                            (RTS.pEnter
                                                                                                                                               "saturationRenderingIntentGamut"
-                                                                                                                                              (do (_117
+                                                                                                                                              (do (_104
                                                                                                                                                      :: Vector.Vector
                                                                                                                                                           (RTS.UInt
                                                                                                                                                              8)) <-
-                                                                                                                                                    do RTS.pGuard
-                                                                                                                                                         "223:38--223:50"
-                                                                                                                                                         "guard failed"
-                                                                                                                                                         (sig
-                                                                                                                                                            HS.== Vector.vecFromRep
-                                                                                                                                                                    "rig2")
+                                                                                                                                                    do RTS.pEnter
+                                                                                                                                                         "ICC._Guard"
+                                                                                                                                                         (_Guard
+                                                                                                                                                            (sig
+                                                                                                                                                               HS.== Vector.vecFromRep
+                                                                                                                                                                       "rig2"))
                                                                                                                                                        RTS.pErrorMode
                                                                                                                                                          RTS.Abort
                                                                                                                                                          (do (__
@@ -3634,20 +3546,20 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                __)
                                                                                                                                                   HS.pure
                                                                                                                                                     (Tag_saturationRenderingIntentGamut
-                                                                                                                                                       _117)))
+                                                                                                                                                       _104)))
                                                                                                                                            ((RTS.<||)
                                                                                                                                               (RTS.pEnter
                                                                                                                                                  "technology"
-                                                                                                                                                 (do (_118
+                                                                                                                                                 (do (_105
                                                                                                                                                         :: Vector.Vector
                                                                                                                                                              (RTS.UInt
                                                                                                                                                                 8)) <-
-                                                                                                                                                       do RTS.pGuard
-                                                                                                                                                            "224:27--224:39"
-                                                                                                                                                            "guard failed"
-                                                                                                                                                            (sig
-                                                                                                                                                               HS.== Vector.vecFromRep
-                                                                                                                                                                       "tech")
+                                                                                                                                                       do RTS.pEnter
+                                                                                                                                                            "ICC._Guard"
+                                                                                                                                                            (_Guard
+                                                                                                                                                               (sig
+                                                                                                                                                                  HS.== Vector.vecFromRep
+                                                                                                                                                                          "tech"))
                                                                                                                                                           RTS.pErrorMode
                                                                                                                                                             RTS.Abort
                                                                                                                                                             (do (__
@@ -3661,19 +3573,19 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                   __)
                                                                                                                                                      HS.pure
                                                                                                                                                        (Tag_technology
-                                                                                                                                                          _118)))
+                                                                                                                                                          _105)))
                                                                                                                                               ((RTS.<||)
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewCondDesc"
-                                                                                                                                                    (do (_119
+                                                                                                                                                    (do (_106
                                                                                                                                                            :: Vector.Vector
                                                                                                                                                                 UnicodeRecord) <-
-                                                                                                                                                          do RTS.pGuard
-                                                                                                                                                               "225:27--225:39"
-                                                                                                                                                               "guard failed"
-                                                                                                                                                               (sig
-                                                                                                                                                                  HS.== Vector.vecFromRep
-                                                                                                                                                                          "vued")
+                                                                                                                                                          do RTS.pEnter
+                                                                                                                                                               "ICC._Guard"
+                                                                                                                                                               (_Guard
+                                                                                                                                                                  (sig
+                                                                                                                                                                     HS.== Vector.vecFromRep
+                                                                                                                                                                             "vued"))
                                                                                                                                                              RTS.pErrorMode
                                                                                                                                                                RTS.Abort
                                                                                                                                                                (do (__
@@ -3686,17 +3598,17 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                      __)
                                                                                                                                                         HS.pure
                                                                                                                                                           (Tag_viewCondDesc
-                                                                                                                                                             _119)))
+                                                                                                                                                             _106)))
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewConditions"
-                                                                                                                                                    (do (_120
+                                                                                                                                                    (do (_107
                                                                                                                                                            :: ViewConditionsType) <-
-                                                                                                                                                          do RTS.pGuard
-                                                                                                                                                               "226:27--226:39"
-                                                                                                                                                               "guard failed"
-                                                                                                                                                               (sig
-                                                                                                                                                                  HS.== Vector.vecFromRep
-                                                                                                                                                                          "view")
+                                                                                                                                                          do RTS.pEnter
+                                                                                                                                                               "ICC._Guard"
+                                                                                                                                                               (_Guard
+                                                                                                                                                                  (sig
+                                                                                                                                                                     HS.== Vector.vecFromRep
+                                                                                                                                                                             "view"))
                                                                                                                                                              RTS.pErrorMode
                                                                                                                                                                RTS.Abort
                                                                                                                                                                (do (__
@@ -3708,8 +3620,8 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                      __)
                                                                                                                                                         HS.pure
                                                                                                                                                           (Tag_viewConditions
-                                                                                                                                                             _120))))))))))))))))))))))))))))))))))))))))))))))))))
-    (RTS.pError RTS.FromUser "227:6--227:46"
+                                                                                                                                                             _107))))))))))))))))))))))))))))))))))))))))))))))))))
+    (RTS.pError RTS.FromUser "228:6--228:46"
        (Vector.vecToString
           (Vector.concat
              (Vector.fromList [Vector.vecFromRep "Unregonized tag: ", sig]))))
@@ -3729,17 +3641,17 @@ pParseTag (t :: TagEntry) =
      HS.pure __
  
 pValidateArray ::
-  forall b.
-    RTS.DDL b =>
-      Vector.Vector (RTS.UInt 8) -> (RTS.Parser b -> RTS.Parser ())
+  forall g.
+    RTS.DDL g =>
+      Vector.Vector (RTS.UInt 8) -> (RTS.Parser g -> RTS.Parser ())
  
 pValidateArray (arr :: Vector.Vector (RTS.UInt 8))
-  (pP :: RTS.Parser b) =
+  (pP :: RTS.Parser g) =
   do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pSetInput (RTS.arrayStream arr)
+     RTS.pSetInput (RTS.arrayStream (Vector.vecFromRep "array") arr)
      do HS.void pP
         HS.pure ()
-     RTS.pEnd "574:3--574:5"
+     RTS.pEnd "531:3--531:5"
      (__ :: ()) <- RTS.pSetInput s
      HS.pure __
  
@@ -3747,19 +3659,18 @@ _ASCII7 :: RTS.Parser ()
  
 _ASCII7 =
   do RTS.pSkipMany (RTS.<||)
-       (do (x :: RTS.UInt 8) <-
+       (do (_0 :: RTS.UInt 8) <-
              RTS.uint8
-               HS.<$> RTS.pMatch1 "136:21--136:23"
+               HS.<$> RTS.pMatch1 "136:14--136:24"
                         (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
-           RTS.pIsJust_ "136:27--136:37" "Value does not fit in target type"
-             (RTS.convertMaybe x :: HS.Maybe (RTS.UInt 7)))
-     RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
-       ((RTS.<||)
+           RTS.pIsJust_ "136:14--136:35" "Value does not fit in target type"
+             (RTS.convertMaybe _0 :: HS.Maybe (RTS.UInt 7)))
+     (RTS.<||)
+       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
           (HS.const ()
-             HS.<$> RTS.pMatch1 "137:17--137:17" (RTS.bcSingle (RTS.uint8 0)))
-          (RTS.pError RTS.FromUser "137:22--137:51"
-             (Vector.vecToString
-                (Vector.vecFromRep "Non 0 string terminator"))))
+             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
+       (RTS.pError RTS.FromUser "137:30--137:59"
+          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
  
 _BE64 :: RTS.Parser ()
  
@@ -3776,25 +3687,21 @@ _XYNumber =
 _ChromaticityType :: RTS.Parser ()
  
 _ChromaticityType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "307:3--307:8" (Vector.vecFromRep "chrm")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "308:18--308:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_device_channels :: RTS.UInt 16) <-
-             RTS.pEnter "ICC.BE16" pBE16
-           RTS.pEnter "ICC._BE16" _BE16
-           RTS.pSkipExact
-             (RTS.convert number_of_device_channels :: HS.Integer)
-             (RTS.pEnter "ICC._XYNumber" _XYNumber))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "chrm"))
+     (number_of_device_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     RTS.pEnter "ICC._BE16" _BE16
+     RTS.pSkipExact
+       (RTS.convert number_of_device_channels :: HS.Integer)
+       (RTS.pEnter "ICC._XYNumber" _XYNumber)
  
 _Chunk :: HS.Integer -> RTS.Parser ()
  
 _Chunk (sz :: HS.Integer) =
   do (s :: RTS.Input) <- RTS.pPeek
      HS.void
-       (RTS.pIsJust_ "543:8--543:14" "Not enough bytes"
+       (RTS.pIsJust_ "500:8--500:14" "Not enough bytes"
           (RTS.limitLen sz s))
      RTS.pEnter "ICC._Goto" (_Goto sz)
  
@@ -3807,17 +3714,17 @@ _ChunkRelativeTo (s :: RTS.Input) (off :: HS.Integer)
      RTS.pEnter "ICC._Chunk" (_Chunk sz)
  
 _ParseChunk ::
-  forall b.
-    RTS.DDL b => HS.Integer -> (RTS.Parser () -> RTS.Parser ())
+  forall e.
+    RTS.DDL e => HS.Integer -> (RTS.Parser () -> RTS.Parser ())
  
 _ParseChunk (sz :: HS.Integer) (_P :: RTS.Parser ()) =
   do (s :: RTS.Input) <- RTS.pPeek
      (s1 :: RTS.Input) <-
-       RTS.pIsJust "563:9--563:15" "Not enough bytes" (RTS.limitLen sz s)
+       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
      RTS.pSetInput s1
      _P
      (s2 :: RTS.Input) <-
-       RTS.pIsJust "566:9--566:15" "Not enough bytes" (RTS.advanceBy sz s)
+       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
      RTS.pSetInput s2
  
 _ColorName :: HS.Integer -> RTS.Parser ()
@@ -3831,11 +3738,11 @@ _ColorName (m :: HS.Integer) =
        (RTS.pEnter "ICC._BE16" _BE16)
      RTS.pSkipExact m (RTS.pEnter "ICC._BE16" _BE16)
  
-_Only :: forall a. RTS.DDL a => RTS.Parser () -> RTS.Parser ()
+_Only :: forall b. RTS.DDL b => RTS.Parser () -> RTS.Parser ()
  
 _Only (_P :: RTS.Parser ()) =
   do _P
-     RTS.pEnd "578:24--578:26"
+     RTS.pEnd "535:24--535:26"
  
 _Colorant :: RTS.Parser ()
  
@@ -3852,41 +3759,29 @@ _Colorant =
 _ColorantOrderType :: RTS.Parser ()
  
 _ColorantOrderType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "315:3--315:8" (Vector.vecFromRep "clro")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "316:18--316:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pSkipMany (RTS.<||)
-             (HS.const () HS.<$> RTS.pByte "318:8--318:12"))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clro"))
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pSkipMany (RTS.<||)
+       (HS.const () HS.<$> RTS.pByte "304:8--304:12")
  
 _ColorantTableType :: RTS.Parser ()
  
 _ColorantTableType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "322:3--322:8" (Vector.vecFromRep "clrt")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "323:18--323:18" (RTS.bcSingle (RTS.uint8 0)))
-           (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           RTS.pSkipExact (RTS.convert count_of_colorant :: HS.Integer)
-             (RTS.pEnter "ICC._Colorant" _Colorant))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clrt"))
+     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pSkipExact (RTS.convert count_of_colorant :: HS.Integer)
+       (RTS.pEnter "ICC._Colorant" _Colorant)
  
 _CurveType :: RTS.Parser ()
  
 _CurveType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "334:3--334:8" (Vector.vecFromRep "curv")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "335:18--335:18" (RTS.bcSingle (RTS.uint8 0)))
-           (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           RTS.pSkipExact (RTS.convert n :: HS.Integer)
-             (RTS.pEnter "ICC._BE16" _BE16))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "curv"))
+     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pSkipExact (RTS.convert n :: HS.Integer)
+       (RTS.pEnter "ICC._BE16" _BE16)
  
 _DataColorSpaces :: RTS.Parser ()
  
@@ -3894,114 +3789,114 @@ _DataColorSpaces =
   (RTS.<||)
     (RTS.pEnter "nciexyz_or_pcsxyz"
        (HS.const ()
-          HS.<$> RTS.pMatch "57:26--57:31" (Vector.vecFromRep "XYZ ")))
+          HS.<$> RTS.pMatch "57:26--57:37" (Vector.vecFromRep "XYZ ")))
     ((RTS.<||)
        (RTS.pEnter "cielab_or_pcslab"
           (HS.const ()
-             HS.<$> RTS.pMatch "58:26--58:31" (Vector.vecFromRep "Lab ")))
+             HS.<$> RTS.pMatch "58:26--58:37" (Vector.vecFromRep "Lab ")))
        ((RTS.<||)
           (RTS.pEnter "cieluv"
              (HS.const ()
-                HS.<$> RTS.pMatch "59:26--59:31" (Vector.vecFromRep "Luv ")))
+                HS.<$> RTS.pMatch "59:26--59:37" (Vector.vecFromRep "Luv ")))
           ((RTS.<||)
              (RTS.pEnter "ycbcr"
                 (HS.const ()
-                   HS.<$> RTS.pMatch "60:26--60:31" (Vector.vecFromRep "Ycbr")))
+                   HS.<$> RTS.pMatch "60:26--60:37" (Vector.vecFromRep "Ycbr")))
              ((RTS.<||)
                 (RTS.pEnter "cieyxy"
                    (HS.const ()
-                      HS.<$> RTS.pMatch "61:26--61:31" (Vector.vecFromRep "Yxy ")))
+                      HS.<$> RTS.pMatch "61:26--61:37" (Vector.vecFromRep "Yxy ")))
                 ((RTS.<||)
                    (RTS.pEnter "rgb"
                       (HS.const ()
-                         HS.<$> RTS.pMatch "62:26--62:31" (Vector.vecFromRep "RGB ")))
+                         HS.<$> RTS.pMatch "62:26--62:37" (Vector.vecFromRep "RGB ")))
                    ((RTS.<||)
                       (RTS.pEnter "gray"
                          (HS.const ()
-                            HS.<$> RTS.pMatch "63:26--63:31" (Vector.vecFromRep "GRAY")))
+                            HS.<$> RTS.pMatch "63:26--63:37" (Vector.vecFromRep "GRAY")))
                       ((RTS.<||)
                          (RTS.pEnter "hsv"
                             (HS.const ()
-                               HS.<$> RTS.pMatch "64:26--64:31" (Vector.vecFromRep "HSV ")))
+                               HS.<$> RTS.pMatch "64:26--64:37" (Vector.vecFromRep "HSV ")))
                          ((RTS.<||)
                             (RTS.pEnter "hls"
                                (HS.const ()
-                                  HS.<$> RTS.pMatch "65:26--65:31" (Vector.vecFromRep "HLS ")))
+                                  HS.<$> RTS.pMatch "65:26--65:37" (Vector.vecFromRep "HLS ")))
                             ((RTS.<||)
                                (RTS.pEnter "cmyk"
                                   (HS.const ()
-                                     HS.<$> RTS.pMatch "66:26--66:31" (Vector.vecFromRep "CMYK")))
+                                     HS.<$> RTS.pMatch "66:26--66:37" (Vector.vecFromRep "CMYK")))
                                ((RTS.<||)
                                   (RTS.pEnter "cmy"
                                      (HS.const ()
-                                        HS.<$> RTS.pMatch "67:26--67:31"
+                                        HS.<$> RTS.pMatch "67:26--67:37"
                                                  (Vector.vecFromRep "CMY ")))
                                   ((RTS.<||)
                                      (RTS.pEnter "two_colour"
                                         (HS.const ()
-                                           HS.<$> RTS.pMatch "68:26--68:31"
+                                           HS.<$> RTS.pMatch "68:26--68:37"
                                                     (Vector.vecFromRep "2CLR")))
                                      ((RTS.<||)
                                         (RTS.pEnter "three_colour"
                                            (HS.const ()
-                                              HS.<$> RTS.pMatch "69:26--69:31"
+                                              HS.<$> RTS.pMatch "69:26--69:37"
                                                        (Vector.vecFromRep "3CLR")))
                                         ((RTS.<||)
                                            (RTS.pEnter "four_colour"
                                               (HS.const ()
-                                                 HS.<$> RTS.pMatch "70:26--70:31"
+                                                 HS.<$> RTS.pMatch "70:26--70:37"
                                                           (Vector.vecFromRep "4CLR")))
                                            ((RTS.<||)
                                               (RTS.pEnter "five_colour"
                                                  (HS.const ()
-                                                    HS.<$> RTS.pMatch "71:26--71:31"
+                                                    HS.<$> RTS.pMatch "71:26--71:37"
                                                              (Vector.vecFromRep "5CLR")))
                                               ((RTS.<||)
                                                  (RTS.pEnter "six_colour"
                                                     (HS.const ()
-                                                       HS.<$> RTS.pMatch "72:26--72:31"
+                                                       HS.<$> RTS.pMatch "72:26--72:37"
                                                                 (Vector.vecFromRep "6CLR")))
                                                  ((RTS.<||)
                                                     (RTS.pEnter "seven_colour"
                                                        (HS.const ()
-                                                          HS.<$> RTS.pMatch "73:26--73:31"
+                                                          HS.<$> RTS.pMatch "73:26--73:37"
                                                                    (Vector.vecFromRep "7CLR")))
                                                     ((RTS.<||)
                                                        (RTS.pEnter "eight_colour"
                                                           (HS.const ()
-                                                             HS.<$> RTS.pMatch "74:26--74:31"
+                                                             HS.<$> RTS.pMatch "74:26--74:37"
                                                                       (Vector.vecFromRep "8CLR")))
                                                        ((RTS.<||)
                                                           (RTS.pEnter "nine_colour"
                                                              (HS.const ()
-                                                                HS.<$> RTS.pMatch "75:26--75:31"
+                                                                HS.<$> RTS.pMatch "75:26--75:37"
                                                                          (Vector.vecFromRep
                                                                             "9CLR")))
                                                           ((RTS.<||)
                                                              (RTS.pEnter "ten_colour"
                                                                 (HS.const ()
-                                                                   HS.<$> RTS.pMatch "76:26--76:31"
+                                                                   HS.<$> RTS.pMatch "76:26--76:37"
                                                                             (Vector.vecFromRep
                                                                                "ACLR")))
                                                              ((RTS.<||)
                                                                 (RTS.pEnter "eleven_colour"
                                                                    (HS.const ()
                                                                       HS.<$> RTS.pMatch
-                                                                               "77:26--77:31"
+                                                                               "77:26--77:37"
                                                                                (Vector.vecFromRep
                                                                                   "BCLR")))
                                                                 ((RTS.<||)
                                                                    (RTS.pEnter "twelve_colour"
                                                                       (HS.const ()
                                                                          HS.<$> RTS.pMatch
-                                                                                  "78:26--78:31"
+                                                                                  "78:26--78:37"
                                                                                   (Vector.vecFromRep
                                                                                      "CCLR")))
                                                                    ((RTS.<||)
                                                                       (RTS.pEnter "thirteen_colour"
                                                                          (HS.const ()
                                                                             HS.<$> RTS.pMatch
-                                                                                     "79:26--79:31"
+                                                                                     "79:26--79:37"
                                                                                      (Vector.vecFromRep
                                                                                         "DCLR")))
                                                                       ((RTS.<||)
@@ -4009,14 +3904,14 @@ _DataColorSpaces =
                                                                             "fourteen_colour"
                                                                             (HS.const ()
                                                                                HS.<$> RTS.pMatch
-                                                                                        "80:26--80:31"
+                                                                                        "80:26--80:37"
                                                                                         (Vector.vecFromRep
                                                                                            "ECLR")))
                                                                          (RTS.pEnter
                                                                             "fifteen_colour"
                                                                             (HS.const ()
                                                                                HS.<$> RTS.pMatch
-                                                                                        "81:26--81:31"
+                                                                                        "81:26--81:37"
                                                                                         (Vector.vecFromRep
                                                                                            "FCLR"))))))))))))))))))))))))))
  
@@ -4033,133 +3928,115 @@ _DateTimeNumber =
 _DateTimeType :: RTS.Parser ()
  
 _DateTimeType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "265:3--265:8" (Vector.vecFromRep "dtim")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "266:18--266:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "dtim"))
+     RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber
  
 _Lut16Type :: RTS.Parser ()
  
 _Lut16Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "385:3--385:8" (Vector.vecFromRep "mft2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "386:18--386:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "387:30--387:34"
-           (i :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "389:31--389:35"
-           (o :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-           (number_of_clut_grid_points :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "391:32--391:36"
-           (g :: HS.Integer) <-
-             RTS.pIsJust "392:8--392:40" "Value does not fit in target type"
-               (RTS.convertMaybe number_of_clut_grid_points
-                  :: HS.Maybe HS.Integer)
-           HS.const ()
-             HS.<$> RTS.pMatch1 "393:3--393:6" (RTS.bcSingle (RTS.uint8 0))
-           RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
-             (RTS.pEnter "ICC._BE32" _BE32)
-           (number_of_input_table_entries :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (n :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
-           (number_of_output_table_entries :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (m :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk
-                (RTS.mul
-                   (RTS.mul (RTS.lit 2 :: HS.Integer)
-                      (exp @HS.Integer @HS.Integer g i))
-                   o))
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o)))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft2"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
+     (i :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
+     (o :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
+     (g :: HS.Integer) <-
+       RTS.pIsJust "372:8--372:40" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe HS.Integer)
+     HS.const ()
+       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
+     RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
+       (RTS.pEnter "ICC._BE32" _BE32)
+     (number_of_input_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
+     (number_of_output_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (m :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk
+          (RTS.mul
+             (RTS.mul (RTS.lit 2 :: HS.Integer)
+                (exp @HS.Integer @HS.Integer g i))
+             o))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o))
  
 _Lut8Type :: RTS.Parser ()
  
 _Lut8Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "369:3--369:8" (Vector.vecFromRep "mft1")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "370:18--370:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_input_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "371:30--371:34"
-           (i :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-           (number_of_output_channels :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "373:31--373:35"
-           (o :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-           (number_of_clut_grid_points :: RTS.UInt 8) <-
-             RTS.uint8 HS.<$> RTS.pByte "375:32--375:36"
-           (g :: HS.Integer) <-
-             RTS.pIsJust "376:8--376:40" "Value does not fit in target type"
-               (RTS.convertMaybe number_of_clut_grid_points
-                  :: HS.Maybe HS.Integer)
-           HS.const ()
-             HS.<$> RTS.pMatch1 "377:3--377:6" (RTS.bcSingle (RTS.uint8 0))
-           RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
-             (RTS.pEnter "ICC._BE32" _BE32)
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
-           RTS.pEnter "ICC._Chunk"
-             (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) o)))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft1"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "352:30--352:34"
+     (i :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "354:31--354:35"
+     (o :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "356:32--356:36"
+     (g :: HS.Integer) <-
+       RTS.pIsJust "357:8--357:40" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe HS.Integer)
+     HS.const ()
+       HS.<$> RTS.pMatch1 "358:3--358:13" (RTS.bcSingle (RTS.uint8 0))
+     RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
+       (RTS.pEnter "ICC._BE32" _BE32)
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) o))
  
 _LutAToBType :: RTS.Parser ()
  
 _LutAToBType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "405:3--405:8" (Vector.vecFromRep "mAB ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "406:18--406:18" (RTS.bcSingle (RTS.uint8 0)))
-           HS.const () HS.<$> RTS.pByte "407:31--407:35"
-           HS.const () HS.<$> RTS.pByte "408:31--408:35"
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "409:10--409:10" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mAB "))
+     HS.const () HS.<$> RTS.pByte "386:31--386:35"
+     HS.const () HS.<$> RTS.pByte "387:31--387:35"
+     HS.const ()
+       HS.<$> RTS.pMatch "388:3--388:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
  
 _LutBToAType :: RTS.Parser ()
  
 _LutBToAType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "420:3--420:8" (Vector.vecFromRep "mBA ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "421:18--421:18" (RTS.bcSingle (RTS.uint8 0)))
-           HS.const () HS.<$> RTS.pByte "422:31--422:35"
-           HS.const () HS.<$> RTS.pByte "423:31--423:35"
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "424:10--424:10" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mBA "))
+     HS.const () HS.<$> RTS.pByte "400:31--400:35"
+     HS.const () HS.<$> RTS.pByte "401:31--401:35"
+     HS.const ()
+       HS.<$> RTS.pMatch "402:3--402:13"
+                (Vector.fromList
+                   [RTS.lit 2 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
  
 _Lut_8_16_AB :: RTS.Parser ()
  
@@ -4195,29 +4072,26 @@ _PrimaryPlatforms :: RTS.Parser ()
 _PrimaryPlatforms =
   (RTS.<||)
     (RTS.pEnter "none"
-       (do HS.const ()
-             HS.<$> RTS.pMatch1 "87:30--87:30" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "87:32--87:32" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "87:34--87:34" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "87:36--87:36" (RTS.bcSingle (RTS.uint8 0))))
+       (HS.const ()
+          HS.<$> RTS.pMatch "87:30--87:44"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
     ((RTS.<||)
        (RTS.pEnter "apple_computer_inc"
           (HS.const ()
-             HS.<$> RTS.pMatch "88:30--88:35" (Vector.vecFromRep "APPL")))
+             HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")))
        ((RTS.<||)
           (RTS.pEnter "microsoft_corporation"
              (HS.const ()
-                HS.<$> RTS.pMatch "89:30--89:35" (Vector.vecFromRep "MSFT")))
+                HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")))
           ((RTS.<||)
              (RTS.pEnter "silicon_graphics_inc"
                 (HS.const ()
-                   HS.<$> RTS.pMatch "90:30--90:35" (Vector.vecFromRep "SGI ")))
+                   HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")))
              (RTS.pEnter "sun_microsystems"
                 (HS.const ()
-                   HS.<$> RTS.pMatch "91:30--91:35" (Vector.vecFromRep "SUNW"))))))
+                   HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW"))))))
  
 _ProfileClasses :: RTS.Parser ()
  
@@ -4225,74 +4099,61 @@ _ProfileClasses =
   (RTS.<||)
     (RTS.pEnter "input_device_profile"
        (HS.const ()
-          HS.<$> RTS.pMatch "45:31--45:36" (Vector.vecFromRep "scnr")))
+          HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")))
     ((RTS.<||)
        (RTS.pEnter "display_device_profile"
           (HS.const ()
-             HS.<$> RTS.pMatch "46:31--46:36" (Vector.vecFromRep "mntr")))
+             HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")))
        ((RTS.<||)
           (RTS.pEnter "output_device_profile"
              (HS.const ()
-                HS.<$> RTS.pMatch "47:31--47:36" (Vector.vecFromRep "prtr")))
+                HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")))
           ((RTS.<||)
              (RTS.pEnter "device_link_profile"
                 (HS.const ()
-                   HS.<$> RTS.pMatch "48:31--48:36" (Vector.vecFromRep "link")))
+                   HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")))
              ((RTS.<||)
                 (RTS.pEnter "color_space_profile"
                    (HS.const ()
-                      HS.<$> RTS.pMatch "49:31--49:36" (Vector.vecFromRep "spac")))
+                      HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")))
                 ((RTS.<||)
                    (RTS.pEnter "abstract_profile"
                       (HS.const ()
-                         HS.<$> RTS.pMatch "50:31--50:36" (Vector.vecFromRep "abst")))
+                         HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")))
                    (RTS.pEnter "named_color_profile"
                       (HS.const ()
-                         HS.<$> RTS.pMatch "51:31--51:36" (Vector.vecFromRep "nmcl"))))))))
+                         HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl"))))))))
  
 _RenderingIntent :: RTS.Parser ()
  
 _RenderingIntent =
   (RTS.<||)
     (RTS.pEnter "perceptual"
-       (do HS.const ()
-             HS.<$> RTS.pMatch1 "98:36--98:36" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "98:38--98:38" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "98:40--98:40" (RTS.bcSingle (RTS.uint8 0))
-           HS.const ()
-             HS.<$> RTS.pMatch1 "98:42--98:42" (RTS.bcSingle (RTS.uint8 0))))
+       (HS.const ()
+          HS.<$> RTS.pMatch "98:36--98:50"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
     ((RTS.<||)
        (RTS.pEnter "media_relative_colorimetric"
-          (do HS.const ()
-                HS.<$> RTS.pMatch1 "99:36--99:36" (RTS.bcSingle (RTS.uint8 0))
-              HS.const ()
-                HS.<$> RTS.pMatch1 "99:38--99:38" (RTS.bcSingle (RTS.uint8 0))
-              HS.const ()
-                HS.<$> RTS.pMatch1 "99:40--99:40" (RTS.bcSingle (RTS.uint8 0))
-              HS.const ()
-                HS.<$> RTS.pMatch1 "99:42--99:42" (RTS.bcSingle (RTS.uint8 1))))
+          (HS.const ()
+             HS.<$> RTS.pMatch "99:36--99:50"
+                      (Vector.fromList
+                         [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                          RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])))
        ((RTS.<||)
           (RTS.pEnter "saturation"
-             (do HS.const ()
-                   HS.<$> RTS.pMatch1 "100:36--100:36" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "100:38--100:38" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "100:40--100:40" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "100:42--100:42" (RTS.bcSingle (RTS.uint8 2))))
+             (HS.const ()
+                HS.<$> RTS.pMatch "100:36--100:50"
+                         (Vector.fromList
+                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])))
           (RTS.pEnter "icc_absolute_colorimetric"
-             (do HS.const ()
-                   HS.<$> RTS.pMatch1 "101:36--101:36" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "101:38--101:38" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "101:40--101:40" (RTS.bcSingle (RTS.uint8 0))
-                 HS.const ()
-                   HS.<$> RTS.pMatch1 "101:42--101:42"
-                            (RTS.bcSingle (RTS.uint8 3))))))
+             (HS.const ()
+                HS.<$> RTS.pMatch "101:36--101:50"
+                         (Vector.fromList
+                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])))))
  
 _VersionField :: RTS.Parser ()
  
@@ -4300,9 +4161,9 @@ _VersionField =
   do HS.const () HS.<$> RTS.pByte "36:18--36:22"
      HS.const () HS.<$> RTS.pByte "37:18--37:22"
      HS.const ()
-       HS.<$> RTS.pMatch1 "40:3--40:6" (RTS.bcSingle (RTS.uint8 0))
-     HS.const ()
-       HS.<$> RTS.pMatch1 "40:9--40:12" (RTS.bcSingle (RTS.uint8 0))
+       HS.<$> RTS.pMatch "40:3--40:20"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
  
 _XYZNumber :: RTS.Parser ()
  
@@ -4322,7 +4183,7 @@ _ProfileHeader =
      RTS.pEnter "ICC._DataColorSpaces" _DataColorSpaces
      RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber
      HS.const ()
-       HS.<$> RTS.pMatch "22:3--22:8" (Vector.vecFromRep "acsp")
+       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
      RTS.pEnter "ICC._PrimaryPlatforms" _PrimaryPlatforms
      RTS.pEnter "ICC._BE32" _BE32
      RTS.pEnter "ICC._BE32" _BE32
@@ -4335,7 +4196,7 @@ _ProfileHeader =
        (HS.const () HS.<$> RTS.pByte "31:33--31:37")
      RTS.pSkipExact (RTS.lit 28 :: HS.Integer)
        (HS.const ()
-          HS.<$> RTS.pMatch1 "32:33--32:33" (RTS.bcSingle (RTS.uint8 0)))
+          HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
  
 _TagEntry :: RTS.Parser ()
  
@@ -4361,19 +4222,15 @@ _Main =
 _MeasurementType :: RTS.Parser ()
  
 _MeasurementType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "459:3--459:8" (Vector.vecFromRep "meas")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "460:18--460:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._XYZNumber" _XYZNumber
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32
-           RTS.pEnter "ICC._BE32" _BE32)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "meas"))
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._XYZNumber" _XYZNumber
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
  
-_Remote :: forall a. RTS.DDL a => RTS.Parser () -> RTS.Parser ()
+_Remote :: forall c. RTS.DDL c => RTS.Parser () -> RTS.Parser ()
  
 _Remote (_P :: RTS.Parser ()) =
   do (s :: RTS.Input) <- RTS.pPeek
@@ -4397,103 +4254,80 @@ _MultiLocalizedUnicodeType :: RTS.Parser ()
  
 _MultiLocalizedUnicodeType =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "284:3--284:8" (Vector.vecFromRep "mluc")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "285:18--285:18" (RTS.bcSingle (RTS.uint8 0)))
-           (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           RTS.pGuard "288:3--288:19" "guard failed"
-             (record_size HS.== (RTS.lit 12 :: RTS.UInt 32))
-           RTS.pSkipExact (RTS.convert record_number :: HS.Integer)
-             (RTS.pEnter "ICC._UnicodeRecord" (_UnicodeRecord s)))
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mluc"))
+     (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._Guard"
+       (_Guard (record_size HS.== (RTS.lit 12 :: RTS.UInt 32)))
+     RTS.pSkipExact (RTS.convert record_number :: HS.Integer)
+       (RTS.pEnter "ICC._UnicodeRecord" (_UnicodeRecord s))
  
 _MultiProcessElementsType :: RTS.Parser ()
  
 _MultiProcessElementsType =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "436:3--436:8" (Vector.vecFromRep "mpet")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "437:18--437:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE16" _BE16
-           RTS.pEnter "ICC._BE16" _BE16
-           (number_of_processing_elements :: RTS.UInt 32) <-
-             RTS.pEnter "ICC.BE32" pBE32
-           (n :: HS.Integer) <-
-             HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
-           RTS.pGuard "442:3--442:7" "guard failed"
-             ((RTS.lit 0 :: HS.Integer) HS.< n)
-           (els :: Vector.Vector PositionNumber) <-
-             Vector.replicateM n
-               (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
-           HS.void
-             (RTS.loopMapM
-                (\(e :: PositionNumber) ->
-                   RTS.pEnter "ICC.ChunkRelativeTo"
-                     (pChunkRelativeTo s
-                        (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
-                        (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
-                els
-                :: RTS.Parser (Vector.Vector RTS.Input))
-           HS.pure ())
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mpet"))
+     RTS.pEnter "ICC._BE16" _BE16
+     RTS.pEnter "ICC._BE16" _BE16
+     (number_of_processing_elements :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: HS.Integer) <-
+       HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
+     RTS.pEnter "ICC._Guard" (_Guard ((RTS.lit 0 :: HS.Integer) HS.< n))
+     (els :: Vector.Vector PositionNumber) <-
+       Vector.replicateM n
+         (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
+     HS.void
+       (RTS.loopMapM
+          (\(e :: PositionNumber) ->
+             RTS.pEnter "ICC.ChunkRelativeTo"
+               (pChunkRelativeTo s
+                  (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
+                  (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
+          els
+          :: RTS.Parser (Vector.Vector RTS.Input))
+     HS.pure ()
  
 _NamedColor2Type :: RTS.Parser ()
  
 _NamedColor2Type =
-  do HS.const ()
-       HS.<$> RTS.pMatch "470:3--470:8" (Vector.vecFromRep "ncl2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "471:18--471:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE32" _BE32
-           (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-           RTS.pEnter "ICC._ParseChunk"
-             (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-                (RTS.lit 32 :: HS.Integer)
-                (RTS.pEnter "ICC._Only"
-                   (_Only @(Vector.Vector (RTS.UInt 7))
-                      (RTS.pEnter "ICC._ASCII7" _ASCII7))))
-           RTS.pEnter "ICC._ParseChunk"
-             (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-                (RTS.lit 32 :: HS.Integer)
-                (RTS.pEnter "ICC._Only"
-                   (_Only @(Vector.Vector (RTS.UInt 7))
-                      (RTS.pEnter "ICC._ASCII7" _ASCII7))))
-           RTS.pSkipExact (RTS.convert count :: HS.Integer)
-             (RTS.pEnter "ICC._ColorName"
-                (_ColorName (RTS.convert number_of_coords :: HS.Integer))))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "ncl2"))
+     RTS.pEnter "ICC._BE32" _BE32
+     (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: HS.Integer)
+          (RTS.pEnter "ICC._Only"
+             (_Only @(Vector.Vector (RTS.UInt 7))
+                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
+     RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: HS.Integer)
+          (RTS.pEnter "ICC._Only"
+             (_Only @(Vector.Vector (RTS.UInt 7))
+                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
+     RTS.pSkipExact (RTS.convert count :: HS.Integer)
+       (RTS.pEnter "ICC._ColorName"
+          (_ColorName (RTS.convert number_of_coords :: HS.Integer)))
  
 _ParametricCurveType :: RTS.Parser ()
  
 _ParametricCurveType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "341:3--341:8" (Vector.vecFromRep "para")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "342:18--342:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._BE16" _BE16
-           RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "344:10--344:10" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "para"))
+     RTS.pEnter "ICC._BE16" _BE16
+     HS.const ()
+       HS.<$> RTS.pMatch "327:3--327:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32)
  
 _ProfileSequenceDescType :: RTS.Parser ()
  
 _ProfileSequenceDescType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "490:3--490:8" (Vector.vecFromRep "pseq")
-     RTS.pErrorMode RTS.Abort
-       (RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-          (HS.const ()
-             HS.<$> RTS.pMatch1 "491:18--491:18" (RTS.bcSingle (RTS.uint8 0))))
+  RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "pseq"))
  
 _ResponseCurve :: HS.Integer -> RTS.Parser ()
  
@@ -4515,45 +4349,32 @@ _ResponseCurveSet16Type :: RTS.Parser ()
  
 _ResponseCurveSet16Type =
   do (s :: RTS.Input) <- RTS.pPeek
-     HS.const ()
-       HS.<$> RTS.pMatch "351:3--351:8" (Vector.vecFromRep "rcs2")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "352:18--352:18" (RTS.bcSingle (RTS.uint8 0)))
-           (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-           (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-           RTS.pSkipExact (RTS.convert count :: HS.Integer)
-             (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-                 RTS.pEnter "ICC._Remote"
-                   (_Remote @ResponseCurve
-                      (do RTS.pEnter "ICC._GotoRel"
-                            (_GotoRel s (RTS.convert off :: HS.Integer))
-                          RTS.pEnter "ICC._ResponseCurve"
-                            (_ResponseCurve (RTS.convert number_of_channels :: HS.Integer))))))
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "rcs2"))
+     (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     RTS.pSkipExact (RTS.convert count :: HS.Integer)
+       (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+           RTS.pEnter "ICC._Remote"
+             (_Remote @ResponseCurve
+                (do RTS.pEnter "ICC._GotoRel"
+                      (_GotoRel s (RTS.convert off :: HS.Integer))
+                    RTS.pEnter "ICC._ResponseCurve"
+                      (_ResponseCurve (RTS.convert number_of_channels :: HS.Integer)))))
  
 _S15Fixed16ArrayType :: RTS.Parser ()
  
 _S15Fixed16ArrayType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "301:3--301:8" (Vector.vecFromRep "sf32")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "302:18--302:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sf32"))
+     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32)
  
 _SignatureType :: RTS.Parser ()
  
 _SignatureType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "277:3--277:8" (Vector.vecFromRep "sig ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "278:18--278:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const () HS.<$> RTS.pByte "279:10--279:14"))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sig "))
+     RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
+       (HS.const () HS.<$> RTS.pByte "270:47--270:51")
  
 _SomeCurve :: RTS.Parser ()
  
@@ -4566,39 +4387,27 @@ _SomeCurve =
 _TextType :: RTS.Parser ()
  
 _TextType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "271:3--271:8" (Vector.vecFromRep "text")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "272:18--272:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._Only"
-             (_Only @(Vector.Vector (RTS.UInt 7))
-                (RTS.pEnter "ICC._ASCII7" _ASCII7)))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "text"))
+     RTS.pEnter "ICC._Only"
+       (_Only @(Vector.Vector (RTS.UInt 7))
+          (RTS.pEnter "ICC._ASCII7" _ASCII7))
  
 _ViewConditionsType :: RTS.Parser ()
  
 _ViewConditionsType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "497:3--497:8" (Vector.vecFromRep "view")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "498:18--498:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pEnter "ICC._XYZNumber" _XYZNumber
-           RTS.pEnter "ICC._XYZNumber" _XYZNumber
-           RTS.pEnter "ICC._BE32" _BE32)
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "view"))
+     RTS.pEnter "ICC._XYZNumber" _XYZNumber
+     RTS.pEnter "ICC._XYZNumber" _XYZNumber
+     RTS.pEnter "ICC._BE32" _BE32
  
 _XYZType :: RTS.Parser ()
  
 _XYZType =
-  do HS.const ()
-       HS.<$> RTS.pMatch "451:3--451:8" (Vector.vecFromRep "XYZ ")
-     RTS.pErrorMode RTS.Abort
-       (do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-             (HS.const ()
-                HS.<$> RTS.pMatch1 "452:18--452:18" (RTS.bcSingle (RTS.uint8 0)))
-           RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._XYZNumber" _XYZNumber))
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "XYZ "))
+     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._XYZNumber" _XYZNumber)
  
 _Tag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser ()
  
@@ -4606,120 +4415,124 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
   (RTS.<||)
     ((RTS.<||)
        (RTS.pEnter "AToB0"
-          (do RTS.pGuard "176:27--176:39" "guard failed"
-                (sig HS.== Vector.vecFromRep "A2B0")
+          (do RTS.pEnter "ICC._Guard"
+                (_Guard (sig HS.== Vector.vecFromRep "A2B0"))
               RTS.pErrorMode RTS.Abort
                 (RTS.pEnter "ICC._Lut_8_16_AB" _Lut_8_16_AB)))
        ((RTS.<||)
           (RTS.pEnter "AToB1"
-             (do RTS.pGuard "177:27--177:39" "guard failed"
-                   (sig HS.== Vector.vecFromRep "A2B1")
+             (do RTS.pEnter "ICC._Guard"
+                   (_Guard (sig HS.== Vector.vecFromRep "A2B1"))
                  RTS.pErrorMode RTS.Abort
                    (RTS.pEnter "ICC._Lut_8_16_AB" _Lut_8_16_AB)))
           ((RTS.<||)
              (RTS.pEnter "AToB2"
-                (do RTS.pGuard "178:27--178:39" "guard failed"
-                      (sig HS.== Vector.vecFromRep "A2B2")
+                (do RTS.pEnter "ICC._Guard"
+                      (_Guard (sig HS.== Vector.vecFromRep "A2B2"))
                     RTS.pErrorMode RTS.Abort
                       (RTS.pEnter "ICC._Lut_8_16_AB" _Lut_8_16_AB)))
              ((RTS.<||)
                 (RTS.pEnter "blueMatrixColumn"
-                   (do RTS.pGuard "179:27--179:39" "guard failed"
-                         (sig HS.== Vector.vecFromRep "bXYZ")
+                   (do RTS.pEnter "ICC._Guard"
+                         (_Guard (sig HS.== Vector.vecFromRep "bXYZ"))
                        RTS.pErrorMode RTS.Abort (RTS.pEnter "ICC._XYZType" _XYZType)))
                 ((RTS.<||)
                    (RTS.pEnter "blueTRC"
-                      (do RTS.pGuard "180:27--180:39" "guard failed"
-                            (sig HS.== Vector.vecFromRep "bTRC")
+                      (do RTS.pEnter "ICC._Guard"
+                            (_Guard (sig HS.== Vector.vecFromRep "bTRC"))
                           RTS.pErrorMode RTS.Abort (RTS.pEnter "ICC._SomeCurve" _SomeCurve)))
                    ((RTS.<||)
                       (RTS.pEnter "BToA0"
-                         (do RTS.pGuard "181:27--181:39" "guard failed"
-                               (sig HS.== Vector.vecFromRep "B2A0")
+                         (do RTS.pEnter "ICC._Guard"
+                               (_Guard (sig HS.== Vector.vecFromRep "B2A0"))
                              RTS.pErrorMode RTS.Abort
                                (RTS.pEnter "ICC._Lut_8_16_BA" _Lut_8_16_BA)))
                       ((RTS.<||)
                          (RTS.pEnter "BToA1"
-                            (do RTS.pGuard "182:27--182:39" "guard failed"
-                                  (sig HS.== Vector.vecFromRep "B2A1")
+                            (do RTS.pEnter "ICC._Guard"
+                                  (_Guard (sig HS.== Vector.vecFromRep "B2A1"))
                                 RTS.pErrorMode RTS.Abort
                                   (RTS.pEnter "ICC._Lut_8_16_BA" _Lut_8_16_BA)))
                          ((RTS.<||)
                             (RTS.pEnter "BToA2"
-                               (do RTS.pGuard "183:27--183:39" "guard failed"
-                                     (sig HS.== Vector.vecFromRep "B2A2")
+                               (do RTS.pEnter "ICC._Guard"
+                                     (_Guard (sig HS.== Vector.vecFromRep "B2A2"))
                                    RTS.pErrorMode RTS.Abort
                                      (RTS.pEnter "ICC._Lut_8_16_BA" _Lut_8_16_BA)))
                             ((RTS.<||)
                                (RTS.pEnter "BToD0"
-                                  (do RTS.pGuard "184:27--184:39" "guard failed"
-                                        (sig HS.== Vector.vecFromRep "B2D0")
+                                  (do RTS.pEnter "ICC._Guard"
+                                        (_Guard (sig HS.== Vector.vecFromRep "B2D0"))
                                       RTS.pErrorMode RTS.Abort
                                         (RTS.pEnter "ICC._MultiProcessElementsType"
                                            _MultiProcessElementsType)))
                                ((RTS.<||)
                                   (RTS.pEnter "BToD1"
-                                     (do RTS.pGuard "185:27--185:39" "guard failed"
-                                           (sig HS.== Vector.vecFromRep "B2D1")
+                                     (do RTS.pEnter "ICC._Guard"
+                                           (_Guard (sig HS.== Vector.vecFromRep "B2D1"))
                                          RTS.pErrorMode RTS.Abort
                                            (RTS.pEnter "ICC._MultiProcessElementsType"
                                               _MultiProcessElementsType)))
                                   ((RTS.<||)
                                      (RTS.pEnter "BToD2"
-                                        (do RTS.pGuard "186:27--186:39" "guard failed"
-                                              (sig HS.== Vector.vecFromRep "B2D2")
+                                        (do RTS.pEnter "ICC._Guard"
+                                              (_Guard (sig HS.== Vector.vecFromRep "B2D2"))
                                             RTS.pErrorMode RTS.Abort
                                               (RTS.pEnter "ICC._MultiProcessElementsType"
                                                  _MultiProcessElementsType)))
                                      ((RTS.<||)
                                         (RTS.pEnter "BToD3"
-                                           (do RTS.pGuard "187:27--187:39" "guard failed"
-                                                 (sig HS.== Vector.vecFromRep "B2D3")
+                                           (do RTS.pEnter "ICC._Guard"
+                                                 (_Guard (sig HS.== Vector.vecFromRep "B2D3"))
                                                RTS.pErrorMode RTS.Abort
                                                  (RTS.pEnter "ICC._MultiProcessElementsType"
                                                     _MultiProcessElementsType)))
                                         ((RTS.<||)
                                            (RTS.pEnter "calibrationDateTime"
-                                              (do RTS.pGuard "188:27--188:39" "guard failed"
-                                                    (sig HS.== Vector.vecFromRep "calt")
+                                              (do RTS.pEnter "ICC._Guard"
+                                                    (_Guard (sig HS.== Vector.vecFromRep "calt"))
                                                   RTS.pErrorMode RTS.Abort
                                                     (RTS.pEnter "ICC._DateTimeType" _DateTimeType)))
                                            ((RTS.<||)
                                               (RTS.pEnter "charTarget"
-                                                 (do RTS.pGuard "189:27--189:39" "guard failed"
-                                                       (sig HS.== Vector.vecFromRep "targ")
+                                                 (do RTS.pEnter "ICC._Guard"
+                                                       (_Guard (sig HS.== Vector.vecFromRep "targ"))
                                                      RTS.pErrorMode RTS.Abort
                                                        (RTS.pEnter "ICC._TextType" _TextType)))
                                               ((RTS.<||)
                                                  (RTS.pEnter "chromaticAdaptation"
-                                                    (do RTS.pGuard "190:27--190:39" "guard failed"
-                                                          (sig HS.== Vector.vecFromRep "chad")
+                                                    (do RTS.pEnter "ICC._Guard"
+                                                          (_Guard
+                                                             (sig HS.== Vector.vecFromRep "chad"))
                                                         RTS.pErrorMode RTS.Abort
                                                           (RTS.pEnter "ICC._S15Fixed16ArrayType"
                                                              _S15Fixed16ArrayType)))
                                                  ((RTS.<||)
                                                     (RTS.pEnter "colorantOrder"
-                                                       (do RTS.pGuard "191:27--191:39"
-                                                             "guard failed"
-                                                             (sig HS.== Vector.vecFromRep "clro")
+                                                       (do RTS.pEnter "ICC._Guard"
+                                                             (_Guard
+                                                                (sig
+                                                                   HS.== Vector.vecFromRep "clro"))
                                                            RTS.pErrorMode RTS.Abort
                                                              (RTS.pEnter "ICC._ColorantOrderType"
                                                                 _ColorantOrderType)))
                                                     ((RTS.<||)
                                                        (RTS.pEnter "colorantTable"
-                                                          (do RTS.pGuard "192:27--192:39"
-                                                                "guard failed"
-                                                                (sig HS.== Vector.vecFromRep "clrt")
+                                                          (do RTS.pEnter "ICC._Guard"
+                                                                (_Guard
+                                                                   (sig
+                                                                      HS.== Vector.vecFromRep
+                                                                              "clrt"))
                                                               RTS.pErrorMode RTS.Abort
                                                                 (RTS.pEnter "ICC._ColorantTableType"
                                                                    _ColorantTableType)))
                                                        ((RTS.<||)
                                                           (RTS.pEnter "colorantTableOut"
-                                                             (do RTS.pGuard "193:27--193:39"
-                                                                   "guard failed"
-                                                                   (sig
-                                                                      HS.== Vector.vecFromRep
-                                                                              "clot")
+                                                             (do RTS.pEnter "ICC._Guard"
+                                                                   (_Guard
+                                                                      (sig
+                                                                         HS.== Vector.vecFromRep
+                                                                                 "clot"))
                                                                  RTS.pErrorMode RTS.Abort
                                                                    (RTS.pEnter
                                                                       "ICC._ColorantTableType"
@@ -4727,46 +4540,44 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                           ((RTS.<||)
                                                              (RTS.pEnter
                                                                 "colorimetricIntentImageState"
-                                                                (do RTS.pGuard "195:27--195:39"
-                                                                      "guard failed"
-                                                                      (sig
-                                                                         HS.== Vector.vecFromRep
-                                                                                 "ciis")
+                                                                (do RTS.pEnter "ICC._Guard"
+                                                                      (_Guard
+                                                                         (sig
+                                                                            HS.== Vector.vecFromRep
+                                                                                    "ciis"))
                                                                     RTS.pErrorMode RTS.Abort
                                                                       (RTS.pEnter
                                                                          "ICC._SignatureType"
                                                                          _SignatureType)))
                                                              ((RTS.<||)
                                                                 (RTS.pEnter "copyright"
-                                                                   (do RTS.pGuard "196:27--196:39"
-                                                                         "guard failed"
-                                                                         (sig
-                                                                            HS.== Vector.vecFromRep
-                                                                                    "cprt")
+                                                                   (do RTS.pEnter "ICC._Guard"
+                                                                         (_Guard
+                                                                            (sig
+                                                                               HS.== Vector.vecFromRep
+                                                                                       "cprt"))
                                                                        RTS.pErrorMode RTS.Abort
                                                                          (RTS.pEnter
                                                                             "ICC._MultiLocalizedUnicodeType"
                                                                             _MultiLocalizedUnicodeType)))
                                                                 ((RTS.<||)
                                                                    (RTS.pEnter "deviceMfgDesc"
-                                                                      (do RTS.pGuard
-                                                                            "197:27--197:39"
-                                                                            "guard failed"
-                                                                            (sig
-                                                                               HS.== Vector.vecFromRep
-                                                                                       "dmnd")
+                                                                      (do RTS.pEnter "ICC._Guard"
+                                                                            (_Guard
+                                                                               (sig
+                                                                                  HS.== Vector.vecFromRep
+                                                                                          "dmnd"))
                                                                           RTS.pErrorMode RTS.Abort
                                                                             (RTS.pEnter
                                                                                "ICC._MultiLocalizedUnicodeType"
                                                                                _MultiLocalizedUnicodeType)))
                                                                    ((RTS.<||)
                                                                       (RTS.pEnter "deviceModelDesc"
-                                                                         (do RTS.pGuard
-                                                                               "198:27--198:39"
-                                                                               "guard failed"
-                                                                               (sig
-                                                                                  HS.== Vector.vecFromRep
-                                                                                          "dmdd")
+                                                                         (do RTS.pEnter "ICC._Guard"
+                                                                               (_Guard
+                                                                                  (sig
+                                                                                     HS.== Vector.vecFromRep
+                                                                                             "dmdd"))
                                                                              RTS.pErrorMode
                                                                                RTS.Abort
                                                                                (RTS.pEnter
@@ -4774,12 +4585,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                   _MultiLocalizedUnicodeType)))
                                                                       ((RTS.<||)
                                                                          (RTS.pEnter "DToB0"
-                                                                            (do RTS.pGuard
-                                                                                  "199:27--199:39"
-                                                                                  "guard failed"
-                                                                                  (sig
-                                                                                     HS.== Vector.vecFromRep
-                                                                                             "D2B0")
+                                                                            (do RTS.pEnter
+                                                                                  "ICC._Guard"
+                                                                                  (_Guard
+                                                                                     (sig
+                                                                                        HS.== Vector.vecFromRep
+                                                                                                "D2B0"))
                                                                                 RTS.pErrorMode
                                                                                   RTS.Abort
                                                                                   (RTS.pEnter
@@ -4787,12 +4598,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                      _MultiProcessElementsType)))
                                                                          ((RTS.<||)
                                                                             (RTS.pEnter "DToB1"
-                                                                               (do RTS.pGuard
-                                                                                     "200:27--200:39"
-                                                                                     "guard failed"
-                                                                                     (sig
-                                                                                        HS.== Vector.vecFromRep
-                                                                                                "D2B1")
+                                                                               (do RTS.pEnter
+                                                                                     "ICC._Guard"
+                                                                                     (_Guard
+                                                                                        (sig
+                                                                                           HS.== Vector.vecFromRep
+                                                                                                   "D2B1"))
                                                                                    RTS.pErrorMode
                                                                                      RTS.Abort
                                                                                      (RTS.pEnter
@@ -4800,12 +4611,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                         _MultiProcessElementsType)))
                                                                             ((RTS.<||)
                                                                                (RTS.pEnter "DToB2"
-                                                                                  (do RTS.pGuard
-                                                                                        "201:27--201:39"
-                                                                                        "guard failed"
-                                                                                        (sig
-                                                                                           HS.== Vector.vecFromRep
-                                                                                                   "D2B2")
+                                                                                  (do RTS.pEnter
+                                                                                        "ICC._Guard"
+                                                                                        (_Guard
+                                                                                           (sig
+                                                                                              HS.== Vector.vecFromRep
+                                                                                                      "D2B2"))
                                                                                       RTS.pErrorMode
                                                                                         RTS.Abort
                                                                                         (RTS.pEnter
@@ -4814,12 +4625,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                ((RTS.<||)
                                                                                   (RTS.pEnter
                                                                                      "DToB3"
-                                                                                     (do RTS.pGuard
-                                                                                           "202:27--202:39"
-                                                                                           "guard failed"
-                                                                                           (sig
-                                                                                              HS.== Vector.vecFromRep
-                                                                                                      "D2B3")
+                                                                                     (do RTS.pEnter
+                                                                                           "ICC._Guard"
+                                                                                           (_Guard
+                                                                                              (sig
+                                                                                                 HS.== Vector.vecFromRep
+                                                                                                         "D2B3"))
                                                                                          RTS.pErrorMode
                                                                                            RTS.Abort
                                                                                            (RTS.pEnter
@@ -4828,12 +4639,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                   ((RTS.<||)
                                                                                      (RTS.pEnter
                                                                                         "gamut"
-                                                                                        (do RTS.pGuard
-                                                                                              "203:27--203:39"
-                                                                                              "guard failed"
-                                                                                              (sig
-                                                                                                 HS.== Vector.vecFromRep
-                                                                                                         "gamt")
+                                                                                        (do RTS.pEnter
+                                                                                              "ICC._Guard"
+                                                                                              (_Guard
+                                                                                                 (sig
+                                                                                                    HS.== Vector.vecFromRep
+                                                                                                            "gamt"))
                                                                                             RTS.pErrorMode
                                                                                               RTS.Abort
                                                                                               (RTS.pEnter
@@ -4842,12 +4653,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                      ((RTS.<||)
                                                                                         (RTS.pEnter
                                                                                            "grayTRC"
-                                                                                           (do RTS.pGuard
-                                                                                                 "204:27--204:39"
-                                                                                                 "guard failed"
-                                                                                                 (sig
-                                                                                                    HS.== Vector.vecFromRep
-                                                                                                            "kTRC")
+                                                                                           (do RTS.pEnter
+                                                                                                 "ICC._Guard"
+                                                                                                 (_Guard
+                                                                                                    (sig
+                                                                                                       HS.== Vector.vecFromRep
+                                                                                                               "kTRC"))
                                                                                                RTS.pErrorMode
                                                                                                  RTS.Abort
                                                                                                  (RTS.pEnter
@@ -4856,12 +4667,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                         ((RTS.<||)
                                                                                            (RTS.pEnter
                                                                                               "greenMatrixColumn"
-                                                                                              (do RTS.pGuard
-                                                                                                    "205:27--205:39"
-                                                                                                    "guard failed"
-                                                                                                    (sig
-                                                                                                       HS.== Vector.vecFromRep
-                                                                                                               "gXYZ")
+                                                                                              (do RTS.pEnter
+                                                                                                    "ICC._Guard"
+                                                                                                    (_Guard
+                                                                                                       (sig
+                                                                                                          HS.== Vector.vecFromRep
+                                                                                                                  "gXYZ"))
                                                                                                   RTS.pErrorMode
                                                                                                     RTS.Abort
                                                                                                     (RTS.pEnter
@@ -4870,12 +4681,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                            ((RTS.<||)
                                                                                               (RTS.pEnter
                                                                                                  "greenTRC"
-                                                                                                 (do RTS.pGuard
-                                                                                                       "206:27--206:39"
-                                                                                                       "guard failed"
-                                                                                                       (sig
-                                                                                                          HS.== Vector.vecFromRep
-                                                                                                                  "gTRC")
+                                                                                                 (do RTS.pEnter
+                                                                                                       "ICC._Guard"
+                                                                                                       (_Guard
+                                                                                                          (sig
+                                                                                                             HS.== Vector.vecFromRep
+                                                                                                                     "gTRC"))
                                                                                                      RTS.pErrorMode
                                                                                                        RTS.Abort
                                                                                                        (RTS.pEnter
@@ -4884,12 +4695,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                               ((RTS.<||)
                                                                                                  (RTS.pEnter
                                                                                                     "luminance"
-                                                                                                    (do RTS.pGuard
-                                                                                                          "207:27--207:39"
-                                                                                                          "guard failed"
-                                                                                                          (sig
-                                                                                                             HS.== Vector.vecFromRep
-                                                                                                                     "lumi")
+                                                                                                    (do RTS.pEnter
+                                                                                                          "ICC._Guard"
+                                                                                                          (_Guard
+                                                                                                             (sig
+                                                                                                                HS.== Vector.vecFromRep
+                                                                                                                        "lumi"))
                                                                                                         RTS.pErrorMode
                                                                                                           RTS.Abort
                                                                                                           (RTS.pEnter
@@ -4898,12 +4709,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                  ((RTS.<||)
                                                                                                     (RTS.pEnter
                                                                                                        "measurement"
-                                                                                                       (do RTS.pGuard
-                                                                                                             "208:27--208:39"
-                                                                                                             "guard failed"
-                                                                                                             (sig
-                                                                                                                HS.== Vector.vecFromRep
-                                                                                                                        "meas")
+                                                                                                       (do RTS.pEnter
+                                                                                                             "ICC._Guard"
+                                                                                                             (_Guard
+                                                                                                                (sig
+                                                                                                                   HS.== Vector.vecFromRep
+                                                                                                                           "meas"))
                                                                                                            RTS.pErrorMode
                                                                                                              RTS.Abort
                                                                                                              (RTS.pEnter
@@ -4912,12 +4723,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                     ((RTS.<||)
                                                                                                        (RTS.pEnter
                                                                                                           "mediaWhitePoint"
-                                                                                                          (do RTS.pGuard
-                                                                                                                "209:27--209:39"
-                                                                                                                "guard failed"
-                                                                                                                (sig
-                                                                                                                   HS.== Vector.vecFromRep
-                                                                                                                           "wtpt")
+                                                                                                          (do RTS.pEnter
+                                                                                                                "ICC._Guard"
+                                                                                                                (_Guard
+                                                                                                                   (sig
+                                                                                                                      HS.== Vector.vecFromRep
+                                                                                                                              "wtpt"))
                                                                                                               RTS.pErrorMode
                                                                                                                 RTS.Abort
                                                                                                                 (RTS.pEnter
@@ -4926,12 +4737,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                        ((RTS.<||)
                                                                                                           (RTS.pEnter
                                                                                                              "namedColor2"
-                                                                                                             (do RTS.pGuard
-                                                                                                                   "210:27--210:39"
-                                                                                                                   "guard failed"
-                                                                                                                   (sig
-                                                                                                                      HS.== Vector.vecFromRep
-                                                                                                                              "ncl2")
+                                                                                                             (do RTS.pEnter
+                                                                                                                   "ICC._Guard"
+                                                                                                                   (_Guard
+                                                                                                                      (sig
+                                                                                                                         HS.== Vector.vecFromRep
+                                                                                                                                 "ncl2"))
                                                                                                                  RTS.pErrorMode
                                                                                                                    RTS.Abort
                                                                                                                    (RTS.pEnter
@@ -4940,12 +4751,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                           ((RTS.<||)
                                                                                                              (RTS.pEnter
                                                                                                                 "outputResponse"
-                                                                                                                (do RTS.pGuard
-                                                                                                                      "211:27--211:39"
-                                                                                                                      "guard failed"
-                                                                                                                      (sig
-                                                                                                                         HS.== Vector.vecFromRep
-                                                                                                                                 "resp")
+                                                                                                                (do RTS.pEnter
+                                                                                                                      "ICC._Guard"
+                                                                                                                      (_Guard
+                                                                                                                         (sig
+                                                                                                                            HS.== Vector.vecFromRep
+                                                                                                                                    "resp"))
                                                                                                                     RTS.pErrorMode
                                                                                                                       RTS.Abort
                                                                                                                       (RTS.pEnter
@@ -4954,12 +4765,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                              ((RTS.<||)
                                                                                                                 (RTS.pEnter
                                                                                                                    "perceptualRenderingIntentGamut"
-                                                                                                                   (do RTS.pGuard
-                                                                                                                         "213:27--213:39"
-                                                                                                                         "guard failed"
-                                                                                                                         (sig
-                                                                                                                            HS.== Vector.vecFromRep
-                                                                                                                                    "rig0")
+                                                                                                                   (do RTS.pEnter
+                                                                                                                         "ICC._Guard"
+                                                                                                                         (_Guard
+                                                                                                                            (sig
+                                                                                                                               HS.== Vector.vecFromRep
+                                                                                                                                       "rig0"))
                                                                                                                        RTS.pErrorMode
                                                                                                                          RTS.Abort
                                                                                                                          (RTS.pEnter
@@ -4968,12 +4779,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                 ((RTS.<||)
                                                                                                                    (RTS.pEnter
                                                                                                                       "preview0"
-                                                                                                                      (do RTS.pGuard
-                                                                                                                            "214:27--214:39"
-                                                                                                                            "guard failed"
-                                                                                                                            (sig
-                                                                                                                               HS.== Vector.vecFromRep
-                                                                                                                                       "pre0")
+                                                                                                                      (do RTS.pEnter
+                                                                                                                            "ICC._Guard"
+                                                                                                                            (_Guard
+                                                                                                                               (sig
+                                                                                                                                  HS.== Vector.vecFromRep
+                                                                                                                                          "pre0"))
                                                                                                                           RTS.pErrorMode
                                                                                                                             RTS.Abort
                                                                                                                             (RTS.pEnter
@@ -4982,12 +4793,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                    ((RTS.<||)
                                                                                                                       (RTS.pEnter
                                                                                                                          "preview1"
-                                                                                                                         (do RTS.pGuard
-                                                                                                                               "215:27--215:39"
-                                                                                                                               "guard failed"
-                                                                                                                               (sig
-                                                                                                                                  HS.== Vector.vecFromRep
-                                                                                                                                          "pre1")
+                                                                                                                         (do RTS.pEnter
+                                                                                                                               "ICC._Guard"
+                                                                                                                               (_Guard
+                                                                                                                                  (sig
+                                                                                                                                     HS.== Vector.vecFromRep
+                                                                                                                                             "pre1"))
                                                                                                                              RTS.pErrorMode
                                                                                                                                RTS.Abort
                                                                                                                                (RTS.pEnter
@@ -4996,12 +4807,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                       ((RTS.<||)
                                                                                                                          (RTS.pEnter
                                                                                                                             "preview2"
-                                                                                                                            (do RTS.pGuard
-                                                                                                                                  "216:27--216:39"
-                                                                                                                                  "guard failed"
-                                                                                                                                  (sig
-                                                                                                                                     HS.== Vector.vecFromRep
-                                                                                                                                             "pre2")
+                                                                                                                            (do RTS.pEnter
+                                                                                                                                  "ICC._Guard"
+                                                                                                                                  (_Guard
+                                                                                                                                     (sig
+                                                                                                                                        HS.== Vector.vecFromRep
+                                                                                                                                                "pre2"))
                                                                                                                                 RTS.pErrorMode
                                                                                                                                   RTS.Abort
                                                                                                                                   (RTS.pEnter
@@ -5010,12 +4821,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                          ((RTS.<||)
                                                                                                                             (RTS.pEnter
                                                                                                                                "profileDescription"
-                                                                                                                               (do RTS.pGuard
-                                                                                                                                     "217:27--217:39"
-                                                                                                                                     "guard failed"
-                                                                                                                                     (sig
-                                                                                                                                        HS.== Vector.vecFromRep
-                                                                                                                                                "desc")
+                                                                                                                               (do RTS.pEnter
+                                                                                                                                     "ICC._Guard"
+                                                                                                                                     (_Guard
+                                                                                                                                        (sig
+                                                                                                                                           HS.== Vector.vecFromRep
+                                                                                                                                                   "desc"))
                                                                                                                                    RTS.pErrorMode
                                                                                                                                      RTS.Abort
                                                                                                                                      (RTS.pEnter
@@ -5024,12 +4835,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                             ((RTS.<||)
                                                                                                                                (RTS.pEnter
                                                                                                                                   "profileSequenceDesc"
-                                                                                                                                  (do RTS.pGuard
-                                                                                                                                        "218:27--218:39"
-                                                                                                                                        "guard failed"
-                                                                                                                                        (sig
-                                                                                                                                           HS.== Vector.vecFromRep
-                                                                                                                                                   "pseq")
+                                                                                                                                  (do RTS.pEnter
+                                                                                                                                        "ICC._Guard"
+                                                                                                                                        (_Guard
+                                                                                                                                           (sig
+                                                                                                                                              HS.== Vector.vecFromRep
+                                                                                                                                                      "pseq"))
                                                                                                                                       RTS.pErrorMode
                                                                                                                                         RTS.Abort
                                                                                                                                         (RTS.pEnter
@@ -5038,12 +4849,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                ((RTS.<||)
                                                                                                                                   (RTS.pEnter
                                                                                                                                      "profileSequenceIdentifier"
-                                                                                                                                     (do RTS.pGuard
-                                                                                                                                           "220:27--220:39"
-                                                                                                                                           "guard failed"
-                                                                                                                                           (sig
-                                                                                                                                              HS.== Vector.vecFromRep
-                                                                                                                                                      "psid")
+                                                                                                                                     (do RTS.pEnter
+                                                                                                                                           "ICC._Guard"
+                                                                                                                                           (_Guard
+                                                                                                                                              (sig
+                                                                                                                                                 HS.== Vector.vecFromRep
+                                                                                                                                                         "psid"))
                                                                                                                                          RTS.pErrorMode
                                                                                                                                            RTS.Abort
                                                                                                                                            (HS.pure
@@ -5051,12 +4862,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                   ((RTS.<||)
                                                                                                                                      (RTS.pEnter
                                                                                                                                         "redMatrixColumn"
-                                                                                                                                        (do RTS.pGuard
-                                                                                                                                              "221:27--221:39"
-                                                                                                                                              "guard failed"
-                                                                                                                                              (sig
-                                                                                                                                                 HS.== Vector.vecFromRep
-                                                                                                                                                         "rXYZ")
+                                                                                                                                        (do RTS.pEnter
+                                                                                                                                              "ICC._Guard"
+                                                                                                                                              (_Guard
+                                                                                                                                                 (sig
+                                                                                                                                                    HS.== Vector.vecFromRep
+                                                                                                                                                            "rXYZ"))
                                                                                                                                             RTS.pErrorMode
                                                                                                                                               RTS.Abort
                                                                                                                                               (RTS.pEnter
@@ -5065,12 +4876,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                      ((RTS.<||)
                                                                                                                                         (RTS.pEnter
                                                                                                                                            "redTRC"
-                                                                                                                                           (do RTS.pGuard
-                                                                                                                                                 "222:27--222:39"
-                                                                                                                                                 "guard failed"
-                                                                                                                                                 (sig
-                                                                                                                                                    HS.== Vector.vecFromRep
-                                                                                                                                                            "rTRC")
+                                                                                                                                           (do RTS.pEnter
+                                                                                                                                                 "ICC._Guard"
+                                                                                                                                                 (_Guard
+                                                                                                                                                    (sig
+                                                                                                                                                       HS.== Vector.vecFromRep
+                                                                                                                                                               "rTRC"))
                                                                                                                                                RTS.pErrorMode
                                                                                                                                                  RTS.Abort
                                                                                                                                                  (RTS.pEnter
@@ -5079,12 +4890,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                         ((RTS.<||)
                                                                                                                                            (RTS.pEnter
                                                                                                                                               "saturationRenderingIntentGamut"
-                                                                                                                                              (do RTS.pGuard
-                                                                                                                                                    "223:38--223:50"
-                                                                                                                                                    "guard failed"
-                                                                                                                                                    (sig
-                                                                                                                                                       HS.== Vector.vecFromRep
-                                                                                                                                                               "rig2")
+                                                                                                                                              (do RTS.pEnter
+                                                                                                                                                    "ICC._Guard"
+                                                                                                                                                    (_Guard
+                                                                                                                                                       (sig
+                                                                                                                                                          HS.== Vector.vecFromRep
+                                                                                                                                                                  "rig2"))
                                                                                                                                                   RTS.pErrorMode
                                                                                                                                                     RTS.Abort
                                                                                                                                                     (RTS.pEnter
@@ -5093,12 +4904,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                            ((RTS.<||)
                                                                                                                                               (RTS.pEnter
                                                                                                                                                  "technology"
-                                                                                                                                                 (do RTS.pGuard
-                                                                                                                                                       "224:27--224:39"
-                                                                                                                                                       "guard failed"
-                                                                                                                                                       (sig
-                                                                                                                                                          HS.== Vector.vecFromRep
-                                                                                                                                                                  "tech")
+                                                                                                                                                 (do RTS.pEnter
+                                                                                                                                                       "ICC._Guard"
+                                                                                                                                                       (_Guard
+                                                                                                                                                          (sig
+                                                                                                                                                             HS.== Vector.vecFromRep
+                                                                                                                                                                     "tech"))
                                                                                                                                                      RTS.pErrorMode
                                                                                                                                                        RTS.Abort
                                                                                                                                                        (RTS.pEnter
@@ -5107,12 +4918,12 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                               ((RTS.<||)
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewCondDesc"
-                                                                                                                                                    (do RTS.pGuard
-                                                                                                                                                          "225:27--225:39"
-                                                                                                                                                          "guard failed"
-                                                                                                                                                          (sig
-                                                                                                                                                             HS.== Vector.vecFromRep
-                                                                                                                                                                     "vued")
+                                                                                                                                                    (do RTS.pEnter
+                                                                                                                                                          "ICC._Guard"
+                                                                                                                                                          (_Guard
+                                                                                                                                                             (sig
+                                                                                                                                                                HS.== Vector.vecFromRep
+                                                                                                                                                                        "vued"))
                                                                                                                                                         RTS.pErrorMode
                                                                                                                                                           RTS.Abort
                                                                                                                                                           (RTS.pEnter
@@ -5120,18 +4931,18 @@ _Tag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                              _MultiLocalizedUnicodeType)))
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewConditions"
-                                                                                                                                                    (do RTS.pGuard
-                                                                                                                                                          "226:27--226:39"
-                                                                                                                                                          "guard failed"
-                                                                                                                                                          (sig
-                                                                                                                                                             HS.== Vector.vecFromRep
-                                                                                                                                                                     "view")
+                                                                                                                                                    (do RTS.pEnter
+                                                                                                                                                          "ICC._Guard"
+                                                                                                                                                          (_Guard
+                                                                                                                                                             (sig
+                                                                                                                                                                HS.== Vector.vecFromRep
+                                                                                                                                                                        "view"))
                                                                                                                                                         RTS.pErrorMode
                                                                                                                                                           RTS.Abort
                                                                                                                                                           (RTS.pEnter
                                                                                                                                                              "ICC._ViewConditionsType"
                                                                                                                                                              _ViewConditionsType))))))))))))))))))))))))))))))))))))))))))))))))))
-    (RTS.pError RTS.FromUser "227:6--227:46"
+    (RTS.pError RTS.FromUser "228:6--228:46"
        (Vector.vecToString
           (Vector.concat
              (Vector.fromList [Vector.vecFromRep "Unregonized tag: ", sig]))))
@@ -5158,22 +4969,23 @@ _Response16Number :: RTS.Parser ()
  
 _Response16Number =
   do RTS.pEnter "ICC._BE16" _BE16
-     RTS.pSkipExact (RTS.lit 2 :: HS.Integer)
-       (HS.const ()
-          HS.<$> RTS.pMatch1 "142:10--142:10" (RTS.bcSingle (RTS.uint8 0)))
+     HS.const ()
+       HS.<$> RTS.pMatch "142:3--142:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
      RTS.pEnter "ICC._BE32" _BE32
  
 _ValidateArray ::
-  forall b.
-    RTS.DDL b =>
+  forall g.
+    RTS.DDL g =>
       Vector.Vector (RTS.UInt 8) -> (RTS.Parser () -> RTS.Parser ())
  
 _ValidateArray (arr :: Vector.Vector (RTS.UInt 8))
   (_P :: RTS.Parser ()) =
   do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pSetInput (RTS.arrayStream arr)
+     RTS.pSetInput (RTS.arrayStream (Vector.vecFromRep "array") arr)
      _P
-     RTS.pEnd "574:3--574:5"
+     RTS.pEnd "531:3--531:5"
      RTS.pSetInput s
  
 getBit ::

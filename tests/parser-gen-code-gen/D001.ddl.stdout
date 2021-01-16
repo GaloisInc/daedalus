@@ -1,0 +1,27 @@
+module D001
+ 
+--- Imports:
+ 
+--- Type defs:
+type D001.Main = Choose { x: uint 8
+                        ; y: uint 8
+                        }
+ 
+--- Rules:
+ 
+D001.Main : Grammar D001.Main =
+  do ($$ : D001.Main) <- Choose fair
+                           { {- x -} do (_2 : uint 8) <- Match {'a'}
+                                        pure {x: _2}
+                           | {- y -} do (_3 : uint 8) <- Match {'b'}
+                                        pure {y: _3}
+                           }
+     END
+     pure $$
+ 
+D001._Main : Grammar {} =
+  do Choose fair
+       { {- x -} @Match {'a'}
+       | {- y -} @Match {'b'}
+       }
+     END

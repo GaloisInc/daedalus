@@ -133,15 +133,12 @@ instance Unify (TCF a k) where
       ( TCCoerce      t1 t2 e, TCCoerce      t1' t2' e')
         | t1 == t1' && t2 == t2' -> unify e e'
 
-      -- Values           
-      ( TCNumber n t        , TCNumber n' t'  )
-        | n == n' && t == t' -> pure emptyUnifier
-      ( TCBool b            , TCBool b'      ) | b == b' -> pure emptyUnifier
+      -- Values
+      ( TCLiteral l t        , TCLiteral l' t'  )
+        | l == l' && t == t' -> pure emptyUnifier
 
       ( TCNothing t1, TCNothing t2 ) | t1 == t2 -> pure emptyUnifier
       ( TCJust e1,    TCJust e2) -> unify e1 e2
-
-      ( TCByte b            , TCByte b'      ) | b == b' -> pure emptyUnifier
 
       -- We are claiming here that order of labels matters.
       ( TCStruct xs t       , TCStruct xs' t')
@@ -150,7 +147,6 @@ instance Unify (TCF a k) where
           (ls,  es)  = unzip xs
           (ls', es') = unzip xs'        
 
-      ( TCByteArray bs      , TCByteArray bs') | bs == bs' -> pure emptyUnifier
       ( TCArray xs t        , TCArray xs' t'  ) | t == t' -> unify xs xs'
       ( TCIn l e t          , TCIn l' e' t'    )
         | l == l' && t == t' -> unify e e'

@@ -7,7 +7,7 @@ def G x = x is l
 def Fails = Choose {}
 
 def P = Choose { A = Fails
-               ; B = "B"
-               ; C = "C"
+               ; B = Match "B"
+               ; C = Match "C"
                }
 

@@ -2,7 +2,7 @@
 
 def V = Choose {
   number = 1 as int;
-  other  = "X";
+  other  = Match "X";
 }
 
 

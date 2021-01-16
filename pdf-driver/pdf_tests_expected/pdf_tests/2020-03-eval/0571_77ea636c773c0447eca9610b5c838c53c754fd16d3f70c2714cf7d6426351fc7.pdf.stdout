@@ -8,7 +8,7 @@ INFO: R:2:0 @74 is OK.
 INFO: R:3:0 @389 is OK.
 INFO: R:4:0 @558 is OK.
 INFO: R:5:0 @607 is OK.
-ERROR:844 R:6:0 @676 guard failed
+ERROR:845 R:6:0 @676 guard failed
 INFO: R:7:0 @846 is OK.
 INFO: R:8:0 @877 is OK.
 INFO: R:9:0 @922 is OK.

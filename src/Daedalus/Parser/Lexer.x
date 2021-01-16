@@ -74,7 +74,11 @@ $ws+        ;
 "."         { lexeme Dot }
 ","         { lexeme Comma }
 "|"         { lexeme Bar }
-"&"         { lexeme Amp }
+".|."       { lexeme DotBarDot }
+".&."       { lexeme DotAmpDot }
+".^."       { lexeme DotHatDot }
+"||"        { lexeme BarBar }
+"&&"        { lexeme AmpAmp }
 "<|"        { lexeme LtBar }
 "$$"        { lexeme DollarDollar }
 "+"         { lexeme Plus }
@@ -88,7 +92,7 @@ $ws+        ;
 ">>"        { lexeme ShiftR }
 "~"         { lexeme BitwiseComplementT }
 "->"        { lexeme RightArrow }
-
+"_"         { lexeme Underscore }
 
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }
@@ -102,6 +106,7 @@ $ws+        ;
 "else"      { lexeme KWElse }
 "as"        { lexeme KWAs }
 "as!"       { lexeme KWAsBang }
+"case"      { lexeme KWCase }
 
 "Choose"    { lexeme KWChoose }
 "Choose1"   { lexeme KWChoose1 }
@@ -111,6 +116,8 @@ $ws+        ;
 "Many?"     { lexeme KWManyQuestion }
 "UInt8"     { lexeme KWUInt8 }
 "$uint"     { lexeme KWDollarUInt }
+"Match"     { lexeme KWMatch }
+"Match1"    { lexeme KWMatch1 }
 "END"       { lexeme KWEND }
 "commit"    { lexeme KWCOMMIT }
 "Fail"      { lexeme KWFail }

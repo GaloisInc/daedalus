@@ -12,6 +12,22 @@ type midi.Header1 = Choose { quarter_len: uint 15
                            ; smtpe: sint 15
                            }
  
+type midi.VoiceMessage0 = { key: uint 7
+                          ; velocity: uint 7
+                          }
+ 
+type midi.VoiceMessage1 = { key: uint 7
+                          ; velocity: uint 7
+                          }
+ 
+type midi.VoiceMessage2 = { key: uint 7
+                          ; pressure: uint 7
+                          }
+ 
+type midi.VoiceMessage3 = { controller: uint 7
+                          ; value: uint 7
+                          }
+ 
 type midi.Meta0 = { hh: uint 8
                   ; mm: uint 8
                   ; ss: uint 8
@@ -41,29 +57,48 @@ type midi.Meta5 = { type: uint 8
                   ; data: Stream
                   }
  
-type midi.ModeMessage0 = Choose { off: {}
-                                ; on: {}
+type midi.Header = { format: midi.Header0
+                   ; track_num: uint 16
+                   ; time_unit: midi.Header1
+                   }
+ 
+type midi.Delta ?a2 = { after: int
+                      ; event: ?a2
+                      }
+ 
+type midi.VoiceMessage = Choose { aftertouch: midi.VoiceMessage2
+                                ; channel_pressure: uint 7
+                                ; controller_change: midi.VoiceMessage3
+                                ; note_off: midi.VoiceMessage0
+                                ; note_on: midi.VoiceMessage1
+                                ; pitch_bend: uint 14
+                                ; program_change: uint 7
                                 }
  
-type midi.VoiceMessage0 = { key: uint 7
-                          ; velocity: uint 7
+type midi.VoiceMessages = { channel: uint 4
+                          ; message: midi.VoiceMessage
+                          ; extra: [midi.Delta midi.VoiceMessage]
                           }
  
-type midi.VoiceMessage1 = { key: uint 7
-                          ; velocity: uint 7
-                          }
+type midi.ModeMessage = Choose { all_notes_off: {}
+                               ; all_sound_off: {}
+                               ; local_control_off: {}
+                               ; local_control_on: {}
+                               ; mono_on: uint 8
+                               ; omni_off: {}
+                               ; omni_on: {}
+                               ; poly_on: {}
+                               ; reset_controllers: {}
+                               }
  
-type midi.VoiceMessage2 = { key: uint 7
-                          ; pressure: uint 7
-                          }
+type midi.ModeMessages = { channel: uint 4
+                         ; messages: midi.ModeMessage
+                         ; extra: [midi.Delta midi.ModeMessage]
+                         }
  
-type midi.VoiceMessage3 = { controller: uint 7
-                          ; value: uint 7
-                          }
- 
-type midi.Delta ?a0 = { after: int
-                      ; event: ?a0
-                      }
+type midi.SysEx = Choose { add_f0: Stream
+                         ; as_is: Stream
+                         }
  
 type midi.Meta = Choose { channel: uint 8
                         ; copyright: Stream
@@ -83,49 +118,11 @@ type midi.Meta = Choose { channel: uint 8
                         ; unknown: midi.Meta5
                         }
  
-type midi.ModeMessage = Choose { all_notes_off: uint 8
-                               ; all_sound_off: uint 8
-                               ; local_control: midi.ModeMessage0
-                               ; mono_on: uint 8
-                               ; omni_off: uint 8
-                               ; omni_on: uint 8
-                               ; poly_on: uint 8
-                               ; reset_controllers: uint 8
-                               }
- 
-type midi.ModeMessages = { channel: uint 4
-                         ; messages: midi.ModeMessage
-                         ; extra: [midi.Delta midi.ModeMessage]
-                         }
- 
-type midi.SysEx = Choose { add_f0: Stream
-                         ; as_is: Stream
-                         }
- 
-type midi.VoiceMessage = Choose { aftertouch: midi.VoiceMessage2
-                                ; channel_pressure: uint 7
-                                ; controller_change: midi.VoiceMessage3
-                                ; note_off: midi.VoiceMessage0
-                                ; note_on: midi.VoiceMessage1
-                                ; pitch_bend: uint 14
-                                ; program_change: uint 7
-                                }
- 
-type midi.VoiceMessages = { channel: uint 4
-                          ; message: midi.VoiceMessage
-                          ; extra: [midi.Delta midi.VoiceMessage]
-                          }
- 
 type midi.Event = Choose { meta: midi.Meta
                          ; modeMessage: midi.ModeMessages
                          ; sysEx: midi.SysEx
                          ; voiceMessage: midi.VoiceMessages
                          }
- 
-type midi.Header = { format: midi.Header0
-                   ; track_num: uint 16
-                   ; time_unit: midi.Header1
-                   }
  
 type midi.Main = { header: midi.Header
                  ; tracks: [[midi.Delta midi.Event]]
@@ -134,67 +131,97 @@ type midi.Main = { header: midi.Header
 --- Rules:
  
 midi.BE16 : Grammar (uint 16) =
-  do (b1 : uint 8) <- GetByte
-     (b2 : uint 8) <- GetByte
-     ($$ : uint 16) <- pure (b1 # b2)
-     pure $$
- 
-midi.BE24 : Grammar (uint 24) =
-  do (w1 : uint 16) <- midi.BE16
-     (b2 : uint 8) <- GetByte
-     ($$ : uint 24) <- pure (w1 # b2)
-     pure $$
+  do (_94 : uint 8) <- GetByte
+     (_95 : uint 8) <- GetByte
+     pure (_94 # _95)
  
 midi.BE32 : Grammar (uint 32) =
-  do (w1 : uint 16) <- midi.BE16
-     (w2 : uint 16) <- midi.BE16
-     ($$ : uint 32) <- pure (w1 # w2)
-     pure $$
+  do (_96 : uint 16) <- midi.BE16
+     (_97 : uint 16) <- midi.BE16
+     pure (_96 # _97)
  
-midi.Block ?a1 (n : int) (P : Grammar ?a1) : Grammar ?a1 =
+midi.Block ?a4 (n : int) (P : Grammar ?a4) : Grammar ?a4 =
   do (cur : Stream) <- CurrentStream
-     (this : Stream) <- StreamLen n cur
-     SetStream this
-     ($$ : ?a1) <- P
-     (next : Stream) <- StreamOff n cur
-     SetStream next
+     do (_98 : Stream) <- StreamLen n cur
+        SetStream _98
+     ($$ : ?a4) <- P
+     do (_99 : Stream) <- StreamOff n cur
+        SetStream _99
      pure $$
  
-midi.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
+midi.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
      END
      pure $$
  
-midi._Block ?a1 (n : int) (_P : Grammar {}) : Grammar {} =
+midi._Block ?a4 (n : int) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
-     (this : Stream) <- StreamLen n cur
-     SetStream this
+     do (_98 : Stream) <- StreamLen n cur
+        SetStream _98
      _P
-     (next : Stream) <- StreamOff n cur
-     SetStream next
+     (_99 : Stream) <- StreamOff n cur
+     SetStream _99
  
-midi._Only ?a0 (_P : Grammar {}) : Grammar {} =
+midi._Only ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-midi.Chunk ?a0 ?a1 (Ty : Grammar ?a0) (P : Grammar ?a1) : Grammar ?a1 =
-  do midi._Block ?a0 4 (midi._Only ?a0 do Ty
+midi.Chunk ?a4 ?a8 (Ty : Grammar ?a4) (P : Grammar ?a8) : Grammar ?a8 =
+  do midi._Block ?a4 4 (midi._Only ?a4 do Ty
                                           pure {})
-     (len : uint 32) <- midi.BE32
-     ($$ : ?a1) <- midi.Block ?a1 (len as int) (midi.Only ?a1 P)
+     ($$ : ?a8) <- do (_102 : int) <- do (_101 : uint 32) <- midi.BE32
+                                         _101 AS int
+                      midi.Block ?a8 _102 (midi.Only ?a8 P)
      pure $$
  
-midi.UInt7 : Grammar (uint 7) =
-  do (b : uint 8) <- GetByte
-     ($$ : uint 7) <- b AS uint 7
-     pure $$
+midi.Guard (p : bool) : Grammar {} =
+  Guard p
+ 
+midi.TAG16 (n : uint 16) : Grammar {} =
+  do (_104 : bool) <- do (_103 : uint 16) <- midi.BE16
+                         pure (_103 == n)
+     midi.Guard _104
  
 midi.getBit ?a1 (Numeric ?a1) (Coerce trunc ?a1 (uint 1)) (n : int) (b : ?a1) : uint 1 =
   b >> n as uint 1
  
+midi._Guard (p : bool) : Grammar {} =
+  Guard p
+ 
+midi.Header : Grammar midi.Header =
+  midi.Chunk [uint 8] midi.Header (MatchBytes "MThd") do (format : midi.Header0) <- Choose fair
+                                                                                      { {- single_track -} do (_105 : {}) <- midi.TAG16 0
+                                                                                                              pure {single_track: _105}
+                                                                                      | {- multi_track -} do (_106 : {}) <- midi.TAG16 1
+                                                                                                             pure {multi_track: _106}
+                                                                                      | {- multi_song -} do (_107 : {}) <- midi.TAG16 2
+                                                                                                            pure {multi_song: _107}
+                                                                                      }
+                                                         (track_num : uint 16) <- midi.BE16
+                                                         (time_unit : midi.Header1) <- do (w : uint 16) <- midi.BE16
+                                                                                          (tag : uint 1) <- pure (midi.getBit (uint 16) 15 w)
+                                                                                          ($$ : midi.Header1) <- Choose fair
+                                                                                                                   { {- quarter_len -} do (_110 : uint 15) <- do midi._Guard (tag == 0)
+                                                                                                                                                                 ($$ : uint 15) <- pure (w as uint 15)
+                                                                                                                                                                 pure $$
+                                                                                                                                          pure {quarter_len: _110}
+                                                                                                                   | {- smtpe -} do (_112 : sint 15) <- do midi._Guard (tag == 1)
+                                                                                                                                                           ($$ : sint 15) <- pure (w as sint 15)
+                                                                                                                                                           pure $$
+                                                                                                                                    pure {smtpe: _112}
+                                                                                                                   }
+                                                                                          pure $$
+                                                         pure {format = format,
+                                                               track_num = track_num,
+                                                               time_unit = time_unit}
+ 
+midi.UInt7 : Grammar (uint 7) =
+  do (_113 : uint 8) <- GetByte
+     _113 AS uint 7
+ 
 midi.VarQ : Grammar int =
   do (lead : [uint 7]) <- Many[] do (b : uint 8) <- GetByte
-                                    Guard ((midi.getBit (uint 8) 7 b) == 1)
+                                    midi._Guard ((midi.getBit (uint 8) 7 b) == 1)
                                     ($$ : uint 7) <- pure (b as uint 7)
                                     pure $$
      (last : uint 7) <- midi.UInt7
@@ -202,227 +229,53 @@ midi.VarQ : Grammar int =
                             (v <# l)) <# last)
      pure $$
  
-midi.Delta ?a0 (E : Grammar ?a0) : Grammar (midi.Delta ?a0) =
+midi.Delta ?a2 (E : Grammar ?a2) : Grammar (midi.Delta ?a2) =
   do (after : int) <- midi.VarQ
-     (event : ?a0) <- E
+     (event : ?a2) <- E
      pure {after = after,
            event = event}
  
-midi.Meta : Grammar midi.Meta =
-  do @Match {'\255'}
-     (type : uint 8) <- GetByte
-     Guard (type <= 127)
-     (len : int) <- midi.VarQ
-     ($$ : midi.Meta) <- midi.Block midi.Meta len Choose biased
-                                                    { {- sequence -} do (_0 : uint 16) <- do Guard (type == 0)
-                                                                                             ($$ : uint 16) <- midi.Only (uint 16) midi.BE16
-                                                                                             pure $$
-                                                                        pure {sequence: _0}
-                                                    | {- text -} do (_1 : Stream) <- do Guard (type == 1)
-                                                                                        ($$ : Stream) <- CurrentStream
-                                                                                        pure $$
-                                                                    pure {text: _1}
-                                                    | {- copyright -} do (_2 : Stream) <- do Guard (type == 2)
-                                                                                             ($$ : Stream) <- CurrentStream
-                                                                                             pure $$
-                                                                         pure {copyright: _2}
-                                                    | {- name -} do (_3 : Stream) <- do Guard (type == 3)
-                                                                                        ($$ : Stream) <- CurrentStream
-                                                                                        pure $$
-                                                                    pure {name: _3}
-                                                    | {- instrument -} do (_4 : Stream) <- do Guard (type == 4)
-                                                                                              ($$ : Stream) <- CurrentStream
-                                                                                              pure $$
-                                                                          pure {instrument: _4}
-                                                    | {- lyrics -} do (_5 : Stream) <- do Guard (type == 5)
-                                                                                          ($$ : Stream) <- CurrentStream
-                                                                                          pure $$
-                                                                      pure {lyrics: _5}
-                                                    | {- marker -} do (_6 : Stream) <- do Guard (type == 6)
-                                                                                          ($$ : Stream) <- CurrentStream
-                                                                                          pure $$
-                                                                      pure {marker: _6}
-                                                    | {- cue -} do (_7 : Stream) <- do Guard (type == 7)
-                                                                                       ($$ : Stream) <- CurrentStream
-                                                                                       pure $$
-                                                                   pure {cue: _7}
-                                                    | {- channel -} do (_8 : uint 8) <- do Guard (type == 32)
-                                                                                           ($$ : uint 8) <- midi.Only (uint 8) GetByte
-                                                                                           pure $$
-                                                                       pure {channel: _8}
-                                                    | {- end_track -} do (_9 : {}) <- do Guard (type == 47)
-                                                                                         ($$ : {}) <- END
-                                                                                         pure $$
-                                                                         pure {end_track: _9}
-                                                    | {- tempo -} do (_10 : uint 24) <- do Guard (type == 81)
-                                                                                           ($$ : uint 24) <- midi.Only (uint 24) midi.BE24
-                                                                                           pure $$
-                                                                     pure {tempo: _10}
-                                                    | {- smtpe_offset -} do (_11 : midi.Meta0) <- do Guard (type == 84)
-                                                                                                     (hh : uint 8) <- GetByte
-                                                                                                     (mm : uint 8) <- GetByte
-                                                                                                     (ss : uint 8) <- GetByte
-                                                                                                     (fr : uint 8) <- GetByte
-                                                                                                     (ff : uint 8) <- GetByte
-                                                                                                     END
-                                                                                                     pure {hh = hh,
-                                                                                                           mm = mm,
-                                                                                                           ss = ss,
-                                                                                                           fr = fr,
-                                                                                                           ff = ff}
-                                                                            pure {smtpe_offset: _11}
-                                                    | {- time_sig -} do (_12 : midi.Meta1) <- do Guard (type == 88)
-                                                                                                 (nn : uint 8) <- GetByte
-                                                                                                 (dd : uint 8) <- GetByte
-                                                                                                 (cc : uint 8) <- GetByte
-                                                                                                 (bb : uint 8) <- GetByte
-                                                                                                 END
-                                                                                                 pure {nn = nn,
-                                                                                                       dd = dd,
-                                                                                                       cc = cc,
-                                                                                                       bb = bb}
-                                                                        pure {time_sig: _12}
-                                                    | {- key_sig -} do (_15 : midi.Meta3) <- do Guard (type == 89)
-                                                                                                (key : uint 8) <- GetByte
-                                                                                                (mode : midi.Meta2) <- Choose fair
-                                                                                                                         { {- major -} do (_13 : uint 8) <- Match {'\NUL'}
-                                                                                                                                          pure {major: _13}
-                                                                                                                         | {- minor -} do (_14 : uint 8) <- Match {'\SOH'}
-                                                                                                                                          pure {minor: _14}
-                                                                                                                         }
-                                                                                                END
-                                                                                                pure {key = key,
-                                                                                                      mode = mode}
-                                                                       pure {key_sig: _15}
-                                                    | {- seq_specifiec -} do (_16 : midi.Meta4) <- do Guard (type == 127)
-                                                                                                      (manufacturer : uint 16) <- Choose biased
-                                                                                                                                    { do @Match {'\NUL'}
-                                                                                                                                         ($$ : uint 16) <- midi.BE16
-                                                                                                                                         pure $$
-                                                                                                                                    | do (b : uint 8) <- GetByte
-                                                                                                                                         ($$ : uint 16) <- pure (b as uint 16)
-                                                                                                                                         pure $$
-                                                                                                                                    }
-                                                                                                      (data : Stream) <- CurrentStream
-                                                                                                      pure {manufacturer = manufacturer,
-                                                                                                            data = data}
-                                                                             pure {seq_specifiec: _16}
-                                                    | {- unknown -} do (_17 : midi.Meta5) <- do (type : uint 8) <- pure type
-                                                                                                (data : Stream) <- CurrentStream
-                                                                                                pure {type = type,
-                                                                                                      data = data}
-                                                                       pure {unknown: _17}
-                                                    }
-     pure $$
- 
-midi.ModeMessage : Grammar midi.ModeMessage =
-  Choose fair
-    { {- all_sound_off -} do (_18 : uint 8) <- do @Match {'x'}
-                                                  ($$ : uint 8) <- Match {'\NUL'}
-                                                  pure $$
-                             pure {all_sound_off: _18}
-    | {- reset_controllers -} do (_19 : uint 8) <- do @Match {'y'}
-                                                      ($$ : uint 8) <- Match {'\NUL'}
-                                                      pure $$
-                                 pure {reset_controllers: _19}
-    | {- local_control -} do (_22 : midi.ModeMessage0) <- do @Match {'z'}
-                                                             ($$ : midi.ModeMessage0) <- Choose fair
-                                                                                           { {- off -} do (_20 : {}) <- @Match {'\NUL'}
-                                                                                                          pure {off: _20}
-                                                                                           | {- on -} do (_21 : {}) <- @Match {'\DEL'}
-                                                                                                         pure {on: _21}
-                                                                                           }
-                                                             pure $$
-                             pure {local_control: _22}
-    | {- all_notes_off -} do (_23 : uint 8) <- do @Match {'{'}
-                                                  ($$ : uint 8) <- Match {'\NUL'}
-                                                  pure $$
-                             pure {all_notes_off: _23}
-    | {- omni_off -} do (_24 : uint 8) <- do @Match {'|'}
-                                             ($$ : uint 8) <- Match {'\NUL'}
-                                             pure $$
-                        pure {omni_off: _24}
-    | {- omni_on -} do (_25 : uint 8) <- do @Match {'}'}
-                                            ($$ : uint 8) <- Match {'\NUL'}
-                                            pure $$
-                       pure {omni_on: _25}
-    | {- mono_on -} do (_26 : uint 8) <- do @Match {'~'}
-                                            ($$ : uint 8) <- GetByte
-                                            Guard ($$ <= 16)
-                                            pure $$
-                       pure {mono_on: _26}
-    | {- poly_on -} do (_27 : uint 8) <- do @Match {'\DEL'}
-                                            ($$ : uint 8) <- Match {'\NUL'}
-                                            pure $$
-                       pure {poly_on: _27}
-    }
- 
-midi.ModeMessages : Grammar midi.ModeMessages =
-  do (status : uint 8) <- GetByte
-     (tag : uint 4) <- pure (status >> 4 as uint 4)
-     Guard (tag == 11)
-     (channel : uint 4) <- pure (status as uint 4)
-     (messages : midi.ModeMessage) <- midi.ModeMessage
-     (extra : [midi.Delta midi.ModeMessage]) <- Many[] midi.Delta midi.ModeMessage midi.ModeMessage
-     pure {channel = channel,
-           messages = messages,
-           extra = extra}
- 
-midi.SysEx : Grammar midi.SysEx =
-  Choose fair
-    { {- add_f0 -} do (_28 : Stream) <- do @Match {'\240'}
-                                           (len : int) <- midi.VarQ
-                                           ($$ : Stream) <- midi.Block Stream len CurrentStream
-                                           pure $$
-                      pure {add_f0: _28}
-    | {- as_is -} do (_29 : Stream) <- do @Match {'\247'}
-                                          (len : int) <- midi.VarQ
-                                          ($$ : Stream) <- midi.Block Stream len CurrentStream
-                                          pure $$
-                     pure {as_is: _29}
-    }
- 
 midi.VoiceMessage (tag : uint 4) : Grammar midi.VoiceMessage =
   Choose fair
-    { {- note_off -} do (_30 : midi.VoiceMessage0) <- do Guard (tag == 8)
+    { {- note_off -} do (_116 : midi.VoiceMessage0) <- do midi._Guard (tag == 8)
+                                                          (key : uint 7) <- midi.UInt7
+                                                          (velocity : uint 7) <- midi.UInt7
+                                                          pure {key = key,
+                                                                velocity = velocity}
+                        pure {note_off: _116}
+    | {- note_on -} do (_117 : midi.VoiceMessage1) <- do midi._Guard (tag == 9)
                                                          (key : uint 7) <- midi.UInt7
                                                          (velocity : uint 7) <- midi.UInt7
                                                          pure {key = key,
                                                                velocity = velocity}
-                        pure {note_off: _30}
-    | {- note_on -} do (_31 : midi.VoiceMessage1) <- do Guard (tag == 9)
-                                                        (key : uint 7) <- midi.UInt7
-                                                        (velocity : uint 7) <- midi.UInt7
-                                                        pure {key = key,
-                                                              velocity = velocity}
-                       pure {note_on: _31}
-    | {- aftertouch -} do (_32 : midi.VoiceMessage2) <- do Guard (tag == 10)
-                                                           (key : uint 7) <- midi.UInt7
-                                                           (pressure : uint 7) <- midi.UInt7
-                                                           pure {key = key,
-                                                                 pressure = pressure}
-                          pure {aftertouch: _32}
-    | {- controller_change -} do (_33 : midi.VoiceMessage3) <- do Guard (tag == 11)
-                                                                  (controller : uint 7) <- midi.UInt7
-                                                                  Guard (controller <= 119)
-                                                                  (value : uint 7) <- midi.UInt7
-                                                                  pure {controller = controller,
-                                                                        value = value}
-                                 pure {controller_change: _33}
-    | {- program_change -} do (_34 : uint 7) <- do Guard (tag == 12)
-                                                   ($$ : uint 7) <- midi.UInt7
-                                                   pure $$
-                              pure {program_change: _34}
-    | {- channel_pressure -} do (_35 : uint 7) <- do Guard (tag == 13)
-                                                     ($$ : uint 7) <- midi.UInt7
-                                                     pure $$
-                                pure {channel_pressure: _35}
-    | {- pitch_bend -} do (_36 : uint 14) <- do Guard (tag == 14)
-                                                (lsb : uint 7) <- midi.UInt7
-                                                (msb : uint 7) <- midi.UInt7
-                                                ($$ : uint 14) <- pure (msb # lsb)
-                                                pure $$
-                          pure {pitch_bend: _36}
+                       pure {note_on: _117}
+    | {- aftertouch -} do (_118 : midi.VoiceMessage2) <- do midi._Guard (tag == 10)
+                                                            (key : uint 7) <- midi.UInt7
+                                                            (pressure : uint 7) <- midi.UInt7
+                                                            pure {key = key,
+                                                                  pressure = pressure}
+                          pure {aftertouch: _118}
+    | {- controller_change -} do (_119 : midi.VoiceMessage3) <- do midi._Guard (tag == 11)
+                                                                   (controller : uint 7) <- midi.UInt7
+                                                                   midi._Guard (controller <= 119)
+                                                                   (value : uint 7) <- midi.UInt7
+                                                                   pure {controller = controller,
+                                                                         value = value}
+                                 pure {controller_change: _119}
+    | {- program_change -} do (_120 : uint 7) <- do midi._Guard (tag == 12)
+                                                    ($$ : uint 7) <- midi.UInt7
+                                                    pure $$
+                              pure {program_change: _120}
+    | {- channel_pressure -} do (_121 : uint 7) <- do midi._Guard (tag == 13)
+                                                      ($$ : uint 7) <- midi.UInt7
+                                                      pure $$
+                                pure {channel_pressure: _121}
+    | {- pitch_bend -} do (_123 : uint 14) <- do midi._Guard (tag == 14)
+                                                 (lsb : uint 7) <- midi.UInt7
+                                                 (msb : uint 7) <- midi.UInt7
+                                                 ($$ : uint 14) <- pure (msb # lsb)
+                                                 pure $$
+                          pure {pitch_bend: _123}
     }
  
 midi.VoiceMessages : Grammar midi.VoiceMessages =
@@ -435,49 +288,187 @@ midi.VoiceMessages : Grammar midi.VoiceMessages =
            message = message,
            extra = extra}
  
-midi.Event : Grammar midi.Event =
+midi.ModeMessage : Grammar midi.ModeMessage =
   Choose fair
-    { {- voiceMessage -} do (_37 : midi.VoiceMessages) <- midi.VoiceMessages
-                            pure {voiceMessage: _37}
-    | {- modeMessage -} do (_38 : midi.ModeMessages) <- midi.ModeMessages
-                           pure {modeMessage: _38}
-    | {- sysEx -} do (_39 : midi.SysEx) <- midi.SysEx
-                     pure {sysEx: _39}
-    | {- meta -} do (_40 : midi.Meta) <- midi.Meta
-                    pure {meta: _40}
+    { {- all_sound_off -} do (_124 : {}) <- @MatchBytes [120,
+                                                         0]
+                             pure {all_sound_off: _124}
+    | {- reset_controllers -} do (_125 : {}) <- @MatchBytes [121,
+                                                             0]
+                                 pure {reset_controllers: _125}
+    | {- local_control_off -} do (_126 : {}) <- @MatchBytes [122,
+                                                             0]
+                                 pure {local_control_off: _126}
+    | {- local_control_on -} do (_127 : {}) <- @MatchBytes [122,
+                                                            127]
+                                pure {local_control_on: _127}
+    | {- all_notes_off -} do (_128 : {}) <- @MatchBytes [123,
+                                                         0]
+                             pure {all_notes_off: _128}
+    | {- omni_off -} do (_129 : {}) <- @MatchBytes [124,
+                                                    0]
+                        pure {omni_off: _129}
+    | {- omni_on -} do (_130 : {}) <- @MatchBytes [125,
+                                                   0]
+                       pure {omni_on: _130}
+    | {- mono_on -} do (_131 : uint 8) <- do @Match {'~'}
+                                             ($$ : uint 8) <- GetByte
+                                             midi._Guard ($$ <= 16)
+                                             pure $$
+                       pure {mono_on: _131}
+    | {- poly_on -} do (_132 : {}) <- @MatchBytes [127,
+                                                   0]
+                       pure {poly_on: _132}
     }
  
-midi.TAG16 (n : uint 16) : Grammar {} =
-  do (b : uint 16) <- midi.BE16
-     ($$ : {}) <- Guard (b == n)
+midi.ModeMessages : Grammar midi.ModeMessages =
+  do (status : uint 8) <- GetByte
+     (tag : uint 4) <- pure (status >> 4 as uint 4)
+     midi._Guard (tag == 11)
+     (channel : uint 4) <- pure (status as uint 4)
+     (messages : midi.ModeMessage) <- midi.ModeMessage
+     (extra : [midi.Delta midi.ModeMessage]) <- Many[] midi.Delta midi.ModeMessage midi.ModeMessage
+     pure {channel = channel,
+           messages = messages,
+           extra = extra}
+ 
+midi.SysEx : Grammar midi.SysEx =
+  Choose fair
+    { {- add_f0 -} do (_134 : Stream) <- do @Match {'\240'}
+                                            (len : int) <- midi.VarQ
+                                            ($$ : Stream) <- midi.Block Stream len CurrentStream
+                                            pure $$
+                      pure {add_f0: _134}
+    | {- as_is -} do (_136 : Stream) <- do @Match {'\247'}
+                                           (len : int) <- midi.VarQ
+                                           ($$ : Stream) <- midi.Block Stream len CurrentStream
+                                           pure $$
+                     pure {as_is: _136}
+    }
+ 
+midi.BE24 : Grammar (uint 24) =
+  do (_137 : uint 16) <- midi.BE16
+     (_138 : uint 8) <- GetByte
+     pure (_137 # _138)
+ 
+midi.Meta : Grammar midi.Meta =
+  do @Match {'\255'}
+     (type : uint 8) <- GetByte
+     midi._Guard (type <= 127)
+     (len : int) <- midi.VarQ
+     ($$ : midi.Meta) <- midi.Block midi.Meta len Choose biased
+                                                    { {- sequence -} do (_141 : uint 16) <- do midi._Guard (type == 0)
+                                                                                               ($$ : uint 16) <- midi.Only (uint 16) midi.BE16
+                                                                                               pure $$
+                                                                        pure {sequence: _141}
+                                                    | {- text -} do (_143 : Stream) <- do midi._Guard (type == 1)
+                                                                                          ($$ : Stream) <- CurrentStream
+                                                                                          pure $$
+                                                                    pure {text: _143}
+                                                    | {- copyright -} do (_145 : Stream) <- do midi._Guard (type == 2)
+                                                                                               ($$ : Stream) <- CurrentStream
+                                                                                               pure $$
+                                                                         pure {copyright: _145}
+                                                    | {- name -} do (_147 : Stream) <- do midi._Guard (type == 3)
+                                                                                          ($$ : Stream) <- CurrentStream
+                                                                                          pure $$
+                                                                    pure {name: _147}
+                                                    | {- instrument -} do (_149 : Stream) <- do midi._Guard (type == 4)
+                                                                                                ($$ : Stream) <- CurrentStream
+                                                                                                pure $$
+                                                                          pure {instrument: _149}
+                                                    | {- lyrics -} do (_151 : Stream) <- do midi._Guard (type == 5)
+                                                                                            ($$ : Stream) <- CurrentStream
+                                                                                            pure $$
+                                                                      pure {lyrics: _151}
+                                                    | {- marker -} do (_153 : Stream) <- do midi._Guard (type == 6)
+                                                                                            ($$ : Stream) <- CurrentStream
+                                                                                            pure $$
+                                                                      pure {marker: _153}
+                                                    | {- cue -} do (_155 : Stream) <- do midi._Guard (type == 7)
+                                                                                         ($$ : Stream) <- CurrentStream
+                                                                                         pure $$
+                                                                   pure {cue: _155}
+                                                    | {- channel -} do (_157 : uint 8) <- do midi._Guard (type == 32)
+                                                                                             ($$ : uint 8) <- midi.Only (uint 8) GetByte
+                                                                                             pure $$
+                                                                       pure {channel: _157}
+                                                    | {- end_track -} do (_159 : {}) <- do midi._Guard (type == 47)
+                                                                                           ($$ : {}) <- END
+                                                                                           pure $$
+                                                                         pure {end_track: _159}
+                                                    | {- tempo -} do (_161 : uint 24) <- do midi._Guard (type == 81)
+                                                                                            ($$ : uint 24) <- midi.Only (uint 24) midi.BE24
+                                                                                            pure $$
+                                                                     pure {tempo: _161}
+                                                    | {- smtpe_offset -} do (_162 : midi.Meta0) <- do midi._Guard (type == 84)
+                                                                                                      (hh : uint 8) <- GetByte
+                                                                                                      (mm : uint 8) <- GetByte
+                                                                                                      (ss : uint 8) <- GetByte
+                                                                                                      (fr : uint 8) <- GetByte
+                                                                                                      (ff : uint 8) <- GetByte
+                                                                                                      END
+                                                                                                      pure {hh = hh,
+                                                                                                            mm = mm,
+                                                                                                            ss = ss,
+                                                                                                            fr = fr,
+                                                                                                            ff = ff}
+                                                                            pure {smtpe_offset: _162}
+                                                    | {- time_sig -} do (_163 : midi.Meta1) <- do midi._Guard (type == 88)
+                                                                                                  (nn : uint 8) <- GetByte
+                                                                                                  (dd : uint 8) <- GetByte
+                                                                                                  (cc : uint 8) <- GetByte
+                                                                                                  (bb : uint 8) <- GetByte
+                                                                                                  END
+                                                                                                  pure {nn = nn,
+                                                                                                        dd = dd,
+                                                                                                        cc = cc,
+                                                                                                        bb = bb}
+                                                                        pure {time_sig: _163}
+                                                    | {- key_sig -} do (_166 : midi.Meta3) <- do midi._Guard (type == 89)
+                                                                                                 (key : uint 8) <- GetByte
+                                                                                                 (mode : midi.Meta2) <- Choose fair
+                                                                                                                          { {- major -} do (_164 : uint 8) <- Match {'\NUL'}
+                                                                                                                                           pure {major: _164}
+                                                                                                                          | {- minor -} do (_165 : uint 8) <- Match {'\SOH'}
+                                                                                                                                           pure {minor: _165}
+                                                                                                                          }
+                                                                                                 END
+                                                                                                 pure {key = key,
+                                                                                                       mode = mode}
+                                                                       pure {key_sig: _166}
+                                                    | {- seq_specifiec -} do (_169 : midi.Meta4) <- do midi._Guard (type == 127)
+                                                                                                       (manufacturer : uint 16) <- Choose biased
+                                                                                                                                     { do @Match {'\NUL'}
+                                                                                                                                          ($$ : uint 16) <- midi.BE16
+                                                                                                                                          pure $$
+                                                                                                                                     | do (b : uint 8) <- GetByte
+                                                                                                                                          ($$ : uint 16) <- pure (b as uint 16)
+                                                                                                                                          pure $$
+                                                                                                                                     }
+                                                                                                       (data : Stream) <- CurrentStream
+                                                                                                       pure {manufacturer = manufacturer,
+                                                                                                             data = data}
+                                                                             pure {seq_specifiec: _169}
+                                                    | {- unknown -} do (_170 : midi.Meta5) <- do (type : uint 8) <- pure type
+                                                                                                 (data : Stream) <- CurrentStream
+                                                                                                 pure {type = type,
+                                                                                                       data = data}
+                                                                       pure {unknown: _170}
+                                                    }
      pure $$
  
-midi.Header : Grammar midi.Header =
-  midi.Chunk [uint 8] midi.Header (MatchBytes "MThd") do (format : midi.Header0) <- Choose fair
-                                                                                      { {- single_track -} do (_41 : {}) <- midi.TAG16 0
-                                                                                                              pure {single_track: _41}
-                                                                                      | {- multi_track -} do (_42 : {}) <- midi.TAG16 1
-                                                                                                             pure {multi_track: _42}
-                                                                                      | {- multi_song -} do (_43 : {}) <- midi.TAG16 2
-                                                                                                            pure {multi_song: _43}
-                                                                                      }
-                                                         (track_num : uint 16) <- midi.BE16
-                                                         (time_unit : midi.Header1) <- do (w : uint 16) <- midi.BE16
-                                                                                          (tag : uint 1) <- pure (midi.getBit (uint 16) 15 w)
-                                                                                          ($$ : midi.Header1) <- Choose fair
-                                                                                                                   { {- quarter_len -} do (_44 : uint 15) <- do Guard (tag == 0)
-                                                                                                                                                                ($$ : uint 15) <- pure (w as uint 15)
-                                                                                                                                                                pure $$
-                                                                                                                                          pure {quarter_len: _44}
-                                                                                                                   | {- smtpe -} do (_45 : sint 15) <- do Guard (tag == 1)
-                                                                                                                                                          ($$ : sint 15) <- pure (w as sint 15)
-                                                                                                                                                          pure $$
-                                                                                                                                    pure {smtpe: _45}
-                                                                                                                   }
-                                                                                          pure $$
-                                                         pure {format = format,
-                                                               track_num = track_num,
-                                                               time_unit = time_unit}
+midi.Event : Grammar midi.Event =
+  Choose fair
+    { {- voiceMessage -} do (_171 : midi.VoiceMessages) <- midi.VoiceMessages
+                            pure {voiceMessage: _171}
+    | {- modeMessage -} do (_172 : midi.ModeMessages) <- midi.ModeMessages
+                           pure {modeMessage: _172}
+    | {- sysEx -} do (_173 : midi.SysEx) <- midi.SysEx
+                     pure {sysEx: _173}
+    | {- meta -} do (_174 : midi.Meta) <- midi.Meta
+                    pure {meta: _174}
+    }
  
 midi.Track : Grammar [midi.Delta midi.Event] =
   midi.Chunk [uint 8] [midi.Delta midi.Event] (MatchBytes "MTrk") (Many[] midi.Delta midi.Event midi.Event)
@@ -493,110 +484,105 @@ midi._BE16 : Grammar {} =
   do @GetByte
      @GetByte
  
-midi._BE24 : Grammar {} =
-  do midi._BE16
-     @GetByte
- 
 midi._BE32 : Grammar {} =
   do midi._BE16
      midi._BE16
  
-midi._Chunk ?a0 ?a1 (_P : Grammar {}) (_Ty : Grammar {}) : Grammar {} =
-  do midi._Block ?a0 4 (midi._Only ?a0 _Ty)
-     (len : uint 32) <- midi.BE32
-     midi._Block ?a1 (len as int) (midi._Only ?a1 _P)
+midi._Chunk ?a4 ?a8 (_Ty : Grammar {}) (_P : Grammar {}) : Grammar {} =
+  do midi._Block ?a4 4 (midi._Only ?a4 _Ty)
+     (_102 : int) <- do (_101 : uint 32) <- midi.BE32
+                        _101 AS int
+     midi._Block ?a8 _102 (midi._Only ?a8 _P)
+ 
+midi._TAG16 (n : uint 16) : Grammar {} =
+  do (_104 : bool) <- do (_103 : uint 16) <- midi.BE16
+                         pure (_103 == n)
+     midi._Guard _104
+ 
+midi._Header : Grammar {} =
+  midi._Chunk [uint 8] midi.Header (@MatchBytes "MThd") do Choose fair
+                                                             { {- single_track -} midi._TAG16 0
+                                                             | {- multi_track -} midi._TAG16 1
+                                                             | {- multi_song -} midi._TAG16 2
+                                                             }
+                                                           midi._BE16
+                                                           (w : uint 16) <- midi.BE16
+                                                           (tag : uint 1) <- pure (midi.getBit (uint 16) 15 w)
+                                                           Choose fair
+                                                             { {- quarter_len -} midi._Guard (tag == 0)
+                                                             | {- smtpe -} midi._Guard (tag == 1)
+                                                             }
  
 midi._UInt7 : Grammar {} =
-  do (b : uint 8) <- GetByte
-     @(b AS uint 7)
+  do (_113 : uint 8) <- GetByte
+     @(_113 AS uint 7)
  
 midi._VarQ : Grammar {} =
   do @Many[] do (b : uint 8) <- GetByte
-                Guard ((midi.getBit (uint 8) 7 b) == 1)
+                midi._Guard ((midi.getBit (uint 8) 7 b) == 1)
      midi._UInt7
  
-midi._Delta ?a0 (_E : Grammar {}) : Grammar {} =
+midi._Delta ?a2 (_E : Grammar {}) : Grammar {} =
   do midi._VarQ
      _E
  
-midi._Meta : Grammar {} =
-  do @Match {'\255'}
-     (type : uint 8) <- GetByte
-     Guard (type <= 127)
-     (len : int) <- midi.VarQ
-     midi._Block midi.Meta len Choose biased
-                                 { {- sequence -} do Guard (type == 0)
-                                                     midi._Only (uint 16) midi._BE16
-                                 | {- text -} Guard (type == 1)
-                                 | {- copyright -} Guard (type == 2)
-                                 | {- name -} Guard (type == 3)
-                                 | {- instrument -} Guard (type == 4)
-                                 | {- lyrics -} Guard (type == 5)
-                                 | {- marker -} Guard (type == 6)
-                                 | {- cue -} Guard (type == 7)
-                                 | {- channel -} do Guard (type == 32)
-                                                    midi._Only (uint 8) @GetByte
-                                 | {- end_track -} do Guard (type == 47)
-                                                      END
-                                 | {- tempo -} do Guard (type == 81)
-                                                  midi._Only (uint 24) midi._BE24
-                                 | {- smtpe_offset -} do Guard (type == 84)
-                                                         @GetByte
-                                                         @GetByte
-                                                         @GetByte
-                                                         @GetByte
-                                                         @GetByte
-                                                         END
-                                 | {- time_sig -} do Guard (type == 88)
-                                                     @GetByte
-                                                     @GetByte
-                                                     @GetByte
-                                                     @GetByte
-                                                     END
-                                 | {- key_sig -} do Guard (type == 89)
-                                                    @GetByte
-                                                    Choose fair
-                                                      { {- major -} @Match {'\NUL'}
-                                                      | {- minor -} @Match {'\SOH'}
-                                                      }
-                                                    END
-                                 | {- seq_specifiec -} do Guard (type == 127)
-                                                          Choose biased
-                                                            { do @Match {'\NUL'}
-                                                                 midi._BE16
-                                                            | @GetByte
-                                                            }
-                                 | {- unknown -} pure {}
-                                 }
+midi._VoiceMessage (tag : uint 4) : Grammar {} =
+  Choose fair
+    { {- note_off -} do midi._Guard (tag == 8)
+                        midi._UInt7
+                        midi._UInt7
+    | {- note_on -} do midi._Guard (tag == 9)
+                       midi._UInt7
+                       midi._UInt7
+    | {- aftertouch -} do midi._Guard (tag == 10)
+                          midi._UInt7
+                          midi._UInt7
+    | {- controller_change -} do midi._Guard (tag == 11)
+                                 (controller : uint 7) <- midi.UInt7
+                                 midi._Guard (controller <= 119)
+                                 midi._UInt7
+    | {- program_change -} do midi._Guard (tag == 12)
+                              midi._UInt7
+    | {- channel_pressure -} do midi._Guard (tag == 13)
+                                midi._UInt7
+    | {- pitch_bend -} do midi._Guard (tag == 14)
+                          midi._UInt7
+                          midi._UInt7
+    }
+ 
+midi._VoiceMessages : Grammar {} =
+  do (status : uint 8) <- GetByte
+     (tag : uint 4) <- pure (status >> 4 as uint 4)
+     midi._VoiceMessage tag
+     @Many[] midi._Delta midi.VoiceMessage (midi._VoiceMessage tag)
  
 midi._ModeMessage : Grammar {} =
   Choose fair
-    { {- all_sound_off -} do @Match {'x'}
-                             @Match {'\NUL'}
-    | {- reset_controllers -} do @Match {'y'}
-                                 @Match {'\NUL'}
-    | {- local_control -} do @Match {'z'}
-                             Choose fair
-                               { {- off -} @Match {'\NUL'}
-                               | {- on -} @Match {'\DEL'}
-                               }
-    | {- all_notes_off -} do @Match {'{'}
-                             @Match {'\NUL'}
-    | {- omni_off -} do @Match {'|'}
-                        @Match {'\NUL'}
-    | {- omni_on -} do @Match {'}'}
-                       @Match {'\NUL'}
+    { {- all_sound_off -} @MatchBytes [120,
+                                       0]
+    | {- reset_controllers -} @MatchBytes [121,
+                                           0]
+    | {- local_control_off -} @MatchBytes [122,
+                                           0]
+    | {- local_control_on -} @MatchBytes [122,
+                                          127]
+    | {- all_notes_off -} @MatchBytes [123,
+                                       0]
+    | {- omni_off -} @MatchBytes [124,
+                                  0]
+    | {- omni_on -} @MatchBytes [125,
+                                 0]
     | {- mono_on -} do @Match {'~'}
                        ($$ : uint 8) <- GetByte
-                       Guard ($$ <= 16)
-    | {- poly_on -} do @Match {'\DEL'}
-                       @Match {'\NUL'}
+                       midi._Guard ($$ <= 16)
+    | {- poly_on -} @MatchBytes [127,
+                                 0]
     }
  
 midi._ModeMessages : Grammar {} =
   do (status : uint 8) <- GetByte
      (tag : uint 4) <- pure (status >> 4 as uint 4)
-     Guard (tag == 11)
+     midi._Guard (tag == 11)
      midi._ModeMessage
      @Many[] midi._Delta midi.ModeMessage midi._ModeMessage
  
@@ -610,35 +596,59 @@ midi._SysEx : Grammar {} =
                      midi._Block Stream len (pure {})
     }
  
-midi._VoiceMessage (tag : uint 4) : Grammar {} =
-  Choose fair
-    { {- note_off -} do Guard (tag == 8)
-                        midi._UInt7
-                        midi._UInt7
-    | {- note_on -} do Guard (tag == 9)
-                       midi._UInt7
-                       midi._UInt7
-    | {- aftertouch -} do Guard (tag == 10)
-                          midi._UInt7
-                          midi._UInt7
-    | {- controller_change -} do Guard (tag == 11)
-                                 (controller : uint 7) <- midi.UInt7
-                                 Guard (controller <= 119)
-                                 midi._UInt7
-    | {- program_change -} do Guard (tag == 12)
-                              midi._UInt7
-    | {- channel_pressure -} do Guard (tag == 13)
-                                midi._UInt7
-    | {- pitch_bend -} do Guard (tag == 14)
-                          midi._UInt7
-                          midi._UInt7
-    }
+midi._BE24 : Grammar {} =
+  do midi._BE16
+     @GetByte
  
-midi._VoiceMessages : Grammar {} =
-  do (status : uint 8) <- GetByte
-     (tag : uint 4) <- pure (status >> 4 as uint 4)
-     midi._VoiceMessage tag
-     @Many[] midi._Delta midi.VoiceMessage (midi._VoiceMessage tag)
+midi._Meta : Grammar {} =
+  do @Match {'\255'}
+     (type : uint 8) <- GetByte
+     midi._Guard (type <= 127)
+     (len : int) <- midi.VarQ
+     midi._Block midi.Meta len Choose biased
+                                 { {- sequence -} do midi._Guard (type == 0)
+                                                     midi._Only (uint 16) midi._BE16
+                                 | {- text -} midi._Guard (type == 1)
+                                 | {- copyright -} midi._Guard (type == 2)
+                                 | {- name -} midi._Guard (type == 3)
+                                 | {- instrument -} midi._Guard (type == 4)
+                                 | {- lyrics -} midi._Guard (type == 5)
+                                 | {- marker -} midi._Guard (type == 6)
+                                 | {- cue -} midi._Guard (type == 7)
+                                 | {- channel -} do midi._Guard (type == 32)
+                                                    midi._Only (uint 8) @GetByte
+                                 | {- end_track -} do midi._Guard (type == 47)
+                                                      END
+                                 | {- tempo -} do midi._Guard (type == 81)
+                                                  midi._Only (uint 24) midi._BE24
+                                 | {- smtpe_offset -} do midi._Guard (type == 84)
+                                                         @GetByte
+                                                         @GetByte
+                                                         @GetByte
+                                                         @GetByte
+                                                         @GetByte
+                                                         END
+                                 | {- time_sig -} do midi._Guard (type == 88)
+                                                     @GetByte
+                                                     @GetByte
+                                                     @GetByte
+                                                     @GetByte
+                                                     END
+                                 | {- key_sig -} do midi._Guard (type == 89)
+                                                    @GetByte
+                                                    Choose fair
+                                                      { {- major -} @Match {'\NUL'}
+                                                      | {- minor -} @Match {'\SOH'}
+                                                      }
+                                                    END
+                                 | {- seq_specifiec -} do midi._Guard (type == 127)
+                                                          Choose biased
+                                                            { do @Match {'\NUL'}
+                                                                 midi._BE16
+                                                            | @GetByte
+                                                            }
+                                 | {- unknown -} pure {}
+                                 }
  
 midi._Event : Grammar {} =
   Choose fair
@@ -648,26 +658,8 @@ midi._Event : Grammar {} =
     | {- meta -} midi._Meta
     }
  
-midi._TAG16 (n : uint 16) : Grammar {} =
-  do (b : uint 16) <- midi.BE16
-     Guard (b == n)
- 
-midi._Header : Grammar {} =
-  midi._Chunk [uint 8] midi.Header do Choose fair
-                                        { {- single_track -} midi._TAG16 0
-                                        | {- multi_track -} midi._TAG16 1
-                                        | {- multi_song -} midi._TAG16 2
-                                        }
-                                      midi._BE16
-                                      (w : uint 16) <- midi.BE16
-                                      (tag : uint 1) <- pure (midi.getBit (uint 16) 15 w)
-                                      Choose fair
-                                        { {- quarter_len -} Guard (tag == 0)
-                                        | {- smtpe -} Guard (tag == 1)
-                                        } (@MatchBytes "MThd")
- 
 midi._Track : Grammar {} =
-  midi._Chunk [uint 8] [midi.Delta midi.Event] (@Many[] midi._Delta midi.Event midi._Event) (@MatchBytes "MTrk")
+  midi._Chunk [uint 8] [midi.Delta midi.Event] (@MatchBytes "MTrk") (@Many[] midi._Delta midi.Event midi._Event)
  
 midi._Main : Grammar {} =
   do (header : midi.Header) <- midi.Header

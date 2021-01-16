@@ -1,12 +1,12 @@
 def A = Choose
-    { x = "ab"
-    ; y = "a"
+    { x = Match "ab"
+    ; y = Match "a"
     }
 
 def B = Choose1
     { z = A
-    ; t = "a"
+    ; t = Match "a"
     }
 
 
-def Main = { p = B; q = "bb"; END}
+def Main = { p = B; q = Match "bb"; END}

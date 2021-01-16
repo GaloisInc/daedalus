@@ -6,44 +6,34 @@ module T026
  
 --- Rules:
  
-T026._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+T026.WS : Grammar {} =
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
-T026._Token ?a0 (_P : Grammar {}) : Grammar {} =
+T026._WS : Grammar {} =
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
+ 
+T026.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[ 1 .. ] T026._WS
+     pure $$
+ 
+T026._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] T026._WS
  
-T026._KW ?a0 (_P : Grammar {}) : Grammar {} =
-  T026._Token ?a0 _P
- 
-T026.Between ?a2 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a2) : Grammar ?a2 =
-  do T026._KW [uint 8] (@MatchBytes open)
-     ($$ : ?a2) <- P
-     T026._KW [uint 8] (@MatchBytes close)
-     pure $$
- 
-T026.KW ?a0 (P : Grammar ?a0) : Grammar {} =
-  T026._Token ?a0 do P
+T026.KW ?a1 (P : Grammar ?a1) : Grammar {} =
+  T026._Token ?a1 do P
                      pure {}
  
-T026.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
-     @Many[ 1 .. ] T026._WS
+T026._KW ?a1 (_P : Grammar {}) : Grammar {} =
+  T026._Token ?a1 _P
+ 
+T026.Between ?a4 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a4) : Grammar ?a4 =
+  do T026._KW [uint 8] (@MatchBytes open)
+     ($$ : ?a4) <- P
+     T026._KW [uint 8] (@MatchBytes close)
      pure $$
  
 T026.Symbol : Grammar [uint 8] =
@@ -63,28 +53,13 @@ rec value
 T026.Main : Grammar (Map [uint 8] [uint 8]) =
   T026.Between (Map [uint 8] [uint 8]) "<<" ">>" (T026.MkDict empty)
  
-T026.WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
- 
-T026._Between ?a2 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+T026._Between ?a4 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do T026._KW [uint 8] (@MatchBytes open)
      _P
      T026._KW [uint 8] (@MatchBytes close)
+ 
+T026._Symbol : Grammar {} =
+  T026._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
  
 T026._MkDict (m : Map [uint 8] [uint 8]) : Grammar {} =
   Choose fair
@@ -98,6 +73,3 @@ T026._MkDict (m : Map [uint 8] [uint 8]) : Grammar {} =
  
 T026._Main : Grammar {} =
   T026._Between (Map [uint 8] [uint 8]) "<<" ">>" (T026._MkDict empty)
- 
-T026._Symbol : Grammar {} =
-  T026._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))

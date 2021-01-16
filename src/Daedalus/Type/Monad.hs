@@ -1,6 +1,6 @@
 {-# Language BlockArguments, OverloadedStrings, DataKinds #-}
 {-# Language NamedFieldPuns #-}
-{-# Language TypeFamilies, GeneralizedNewtypeDeriving #-}
+{-# Language TypeFamilies, GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor #-}
 {-# Language MultiParamTypeClasses #-}
 {-# Language RankNTypes #-}
 module Daedalus.Type.Monad
@@ -28,6 +28,7 @@ module Daedalus.Type.Monad
   , getRuleEnv
   , extEnvManyRules
   , lookupRuleTypeOf
+  , RuleInfo(..)
 
     -- * Local type variables
   , lookupLocalTyVar
@@ -48,6 +49,8 @@ module Daedalus.Type.Monad
   -- * Contexts
   , inContext
   , getContext
+  , allowPartialApps
+  , arePartialAppsOK
 
     -- * Unification variables
   , newTVar
@@ -72,6 +75,8 @@ import MonadLib
 
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID
+import Daedalus.Pass
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -86,7 +91,7 @@ newtype TypeError = TypeError (Located Doc)
 
 instance PP TypeError where
   pp (TypeError l) =
-    text (prettySourceRange (thingRange l)) <.> colon <+> thingValue l
+    text (prettySourceRangeLong (thingRange l)) <.> colon <+> thingValue l
 
 instance Exception TypeError where
   displayException = show . pp
@@ -110,12 +115,21 @@ reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM ( WithBase Id
+newtype MTypeM a = MTypeM { getMTypeM :: 
+                            WithBase PassM
                               '[ ReaderT MRO
-                               , StateT  MRW
                                , ExceptionT TypeError
                                ] a
-                          ) deriving (Functor,Applicative,Monad)
+                          }
+                   
+deriving instance Functor MTypeM
+
+instance Applicative MTypeM where
+  MTypeM m <*> MTypeM m' = MTypeM (m <*> m')
+  pure v = MTypeM $ pure v
+  
+instance Monad MTypeM where
+  MTypeM m >>= f = MTypeM (m >>= getMTypeM . f)
 
 type RuleEnv  = Map Name (Poly RuleType)
 
@@ -124,49 +138,37 @@ data MRO = MRO
   , roTypeDefs      :: !(Map TCTyName TCTyDecl)
   }
 
-data MRW = MRW
-  { sNextValName    :: !Int -- ^ Generate names.
-  }
-
-
-
 -- XXX: maybe preserve something about the state?
 runMTypeM :: Map TCTyName TCTyDecl ->
              RuleEnv ->
-             MTypeM a -> Either TypeError a
-runMTypeM tenv renv (MTypeM m) =
-  case runId $ runExceptionT $ runStateT s0 $ runReaderT r0 m of
-    Left err    -> Left err
-    Right (a,_) -> Right a
-
+             MTypeM a -> PassM (Either TypeError a)
+runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
                    }
-        s0   = MRW { sNextValName   = 0 -- XXX: 
-                   }
 
-
+instance HasGUID MTypeM where
+  getNextGUID = MTypeM $ inBase (getNextGUID :: PassM GUID)
 
 instance MTCMonad MTypeM where
   reportError r s =
     MTypeM (raise (TypeError Located { thingRange = range r, thingValue = s }))
 
-  newName r ty = MTypeM $ sets' \s ->
-    let n  = sNextValName s
-        nm = case kindOf ty of
-               KValue ->
-                 let txt = Text.pack ("_" ++ show n)
-                 in TCName { tcName =
-                               Name { nameScope   = Local txt
-                                    , nameContext = AValue
-                                    , nameRange   = range r
-                                    }
-                           , tcType = ty
-                           , tcNameCtx = AValue
-                           }
-               k -> error ("bug: new name of unexpected kind: " ++ show k)
-    in (nm, s { sNextValName = n + 1 })
-
+  newName r ty = do
+    n <- getNextGUID
+    pure $ case kindOf ty of
+             KValue ->
+               let txt = Text.pack ("_" ++ show (pp n))
+               in TCName { tcName =
+                             Name { nameScopedIdent = Local txt
+                                  , nameContext     = AValue
+                                  , nameRange       = range r
+                                  , nameID          = n
+                                  }
+                         , tcType = ty
+                         , tcNameCtx = AValue
+                         }
+             k -> error ("bug: new name of unexpected kind: " ++ show k)
 
   getRuleEnv = MTypeM (roRuleTypes <$> ask)
 
@@ -308,20 +310,20 @@ newTVar :: (STCMonad m, HasRange r) => r -> Kind -> m Type
 newTVar r k = TVar <$> newTVar' r k
 
 
+data RuleInfo = TopRule [Type] RuleType
+              | LocalRule Type
 
-lookupRuleTypeOf :: Name -> TypeM ctx ([Type], RuleType)
+
+lookupRuleTypeOf :: Name -> TypeM ctx RuleInfo
 lookupRuleTypeOf x =
   do mb <- Map.lookup x <$> getEnv
      case mb of
-       Just _ -> reportError x
-                  ("Cannot call local variable" <+> backticks (pp x))
+       Just t -> pure (LocalRule t)
        Nothing ->
          do mbr <- Map.lookup x <$> getRuleEnv
             case mbr of
               Nothing -> reportError x ("Undeclared name:" <+> pp x)
-              Just rt -> instantiate x rt
-
-
+              Just rt -> uncurry TopRule <$> instantiate x rt
 
 instantiate :: HasRange r => r -> Poly RuleType -> TypeM ctx ([Type], RuleType)
 instantiate r (Poly as cs t) =
@@ -344,9 +346,10 @@ newtype TypeM ctx a = TypeM ( WithBase STypeM '[ ReaderT (RO ctx)
 
 
 data RO ctx = RO
-  { roEnv       :: !Env            -- ^ Types for locals
-  , roName      :: !Name           -- ^ Root name for generating type decls
-  , roContext   :: !(Context ctx)  -- ^ Current context (lazy)
+  { roEnv         :: !Env            -- ^ Types for locals
+  , roName        :: !Name           -- ^ Root name for generating type decls
+  , allowPartial  :: !Bool           -- ^ Are partial apps OK?
+  , roContext     :: !(Context ctx)  -- ^ Current context (lazy)
   }
 
 data RW = RW
@@ -358,9 +361,10 @@ data RW = RW
 runTypeM :: Name -> TypeM Grammar a -> STypeM a
 runTypeM n (TypeM m) = fst <$> runStateT rw (runReaderT ro m)
   where
-  ro = RO { roEnv     = Map.empty
-          , roName    = n
-          , roContext = AGrammar
+  ro = RO { roEnv        = Map.empty
+          , roName       = n
+          , allowPartial = False
+          , roContext    = AGrammar
           }
   rw = RW { sLocalTyVars = Map.empty, sNextType = 0 }
 
@@ -392,6 +396,15 @@ instance STCMonad (TypeM ctx) where
   addTVarDef x t          = sType (addTVarDef x t)
   needsDef r d            = sType (needsDef r d)
   getNeedsDef             = sType getNeedsDef
+
+
+allowPartialApps :: Bool -> TypeM ctx a -> TypeM ctx a
+allowPartialApps yes (TypeM m) = TypeM (mapReader upd m)
+  where upd ro = ro { allowPartial = yes }
+
+arePartialAppsOK :: TypeM ctx Bool
+arePartialAppsOK = TypeM (allowPartial <$> ask)
+
 
 lookupLocalTyVar :: Name -> TypeM ctx (Maybe Type)
 lookupLocalTyVar x = TypeM (Map.lookup x . sLocalTyVars <$> get)

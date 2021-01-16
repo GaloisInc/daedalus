@@ -7,19 +7,13 @@ module T032
 --- Rules:
  
 T032.X : Grammar {} =
-  Choose fair
-    { @Match {'\NUL'}
-    | @Match {'\SOH'}
-    }
+  @Match ({'\NUL'} | {'\SOH'})
  
 T032.Y : Grammar [{}] =
   Many[] T032.X
  
 T032._X : Grammar {} =
-  Choose fair
-    { @Match {'\NUL'}
-    | @Match {'\SOH'}
-    }
+  @Match ({'\NUL'} | {'\SOH'})
  
 T032._Y : Grammar {} =
   @Many[] T032._X

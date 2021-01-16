@@ -1,0 +1,70 @@
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+Main (3,1)-(13,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(10),(10),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(10),]
+      , HeadInput ['b']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(10),]
+      , HeadInput ['c']
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+]
+
+Main (8,10)-(11,12)
+SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(5),(5),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(10),(10),]
+      , HeadInput ['b']
+      , Resolution (Ambiguous)
+      ),
+    ]
+  ),
+]
+
+**********************
+**** Extended LLA ****
+**********************
+("Result-0",2)
+("Result-1",7)
+("Result-2",2)
+("Result-ambiguous-2",5)
+
+Total nb states: 16
+
+**********************
+***** Strict LLA *****
+**********************
+("Result-2",1)
+("Result-ambiguous-2",1)
+
+Total nb states: 2
+
+
+Warning: LL(*) failures:
+
+Main (8,10)-(11,12)
+SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(5),(5),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(10),(10),]
+      , HeadInput ['b']
+      , Resolution (Ambiguous)
+      ),
+    ]
+  ),
+]
+

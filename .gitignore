@@ -6,3 +6,4 @@ dist
 /test-parser-gen-output
 .*.swp
 /icc_tests
+.DS_Store

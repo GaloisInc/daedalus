@@ -9,7 +9,8 @@ import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
                  , hPutStr, hPutStrLn, hFlush)
 
-import RTS.ParserAPI(ParseError(..))
+import RTS.ParserAPI(ParseError(..),peOffset)
+import RTS.Input(inputOffset)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
@@ -21,7 +22,7 @@ data ReportCode =
   | RUnsafe
   | RInfo
 
--- XXX
+-- XXX: now we have more info and can print a much nicer error
 ppParserError :: ParseError -> Doc
 ppParserError pe = vcat $
   [ "byte offset:" <+> int (peOffset pe)

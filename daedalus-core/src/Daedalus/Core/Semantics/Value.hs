@@ -17,7 +17,7 @@ import qualified Data.BitVector.Sized as BV
 import Data.Parameterized.NatRepr
 import Data.Parameterized.Some
 
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.Core(Label, Type, UserType)

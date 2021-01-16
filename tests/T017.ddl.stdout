@@ -9,15 +9,21 @@ type Number.Frac ?a10 = { num: int
  
 --- Rules:
  
+Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
+  (10 * val) + d
+ 
 Number.Digit : Grammar int =
   do (d : uint 8) <- Match ('0' .. '9')
      ($$ : int) <- pure (d - '0' as int)
      pure $$
  
-Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
-  (10 * val) + d
+Number.Natural : Grammar int =
+  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
+                           (Number.addDigit int val d))
+     pure $$
  
-Number.Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
+Number.Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
   do (ds : [int]) <- do @MatchBytes "."
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
@@ -39,16 +45,13 @@ Number.HexDigit : Grammar int =
          pure $$
     }
  
-Number.Natural : Grammar int =
-  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
-     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
-                           (Number.addDigit int val d))
-     pure $$
- 
 Number._Digit : Grammar {} =
   @Match ('0' .. '9')
  
-Number._Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) : Grammar {} =
+Number._Natural : Grammar {} =
+  @Many[ 1 .. ] Number._Digit
+ 
+Number._Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] Number._Digit
  
@@ -60,9 +63,6 @@ Number._HexDigit : Grammar {} =
         }
     | @Match ('A' .. 'F')
     }
- 
-Number._Natural : Grammar {} =
-  @Many[ 1 .. ] Number._Digit
 module IntList
  
 --- Imports:
@@ -80,60 +80,32 @@ rec
  
 --- Rules:
  
-IntList._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
+IntList.WS : Grammar {} =
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
-IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
+IntList._WS : Grammar {} =
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
+ 
+IntList.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
      @Many[ 1 .. ] IntList._WS
      pure $$
  
 rec value
   IntList.IntList : Grammar IntList.IntList =
     Choose fair
-      { {- cons -} do (_0 : IntList.IntList0) <- do (hd : int) <- IntList.Token int Number.Natural
-                                                    (tail : IntList.IntList) <- IntList.IntList
-                                                    pure {hd = hd,
-                                                          tail = tail}
-                      pure {cons: _0}
-      | {- nil -} do (_1 : {}) <- pure {}
-                     pure {nil: _1}
+      { {- cons -} do (_34 : IntList.IntList0) <- do (hd : int) <- IntList.Token int Number.Natural
+                                                     (tail : IntList.IntList) <- IntList.IntList
+                                                     pure {hd = hd,
+                                                           tail = tail}
+                      pure {cons: _34}
+      | {- nil -} do (_35 : {}) <- pure {}
+                     pure {nil: _35}
       }
  
-IntList.WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
- 
-IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
+IntList._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] IntList._WS
  

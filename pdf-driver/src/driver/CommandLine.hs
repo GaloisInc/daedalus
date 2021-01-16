@@ -13,6 +13,7 @@ data Options =
   Options { optPDFInput :: FilePath
           , optOutput   :: FilePath
           , optMode     :: RunMode
+          , optPassword :: String 
           }
 
 outputOpt = strOption
@@ -27,10 +28,17 @@ modeOpt = flag Demo FAW
  <> short 'f'
  <> help "Enable debug (non-demo)  mode" )
 
+passwordOpt = strOption 
+   ( long "pwd" 
+  <> short 'p' 
+  <> value "" 
+  <> metavar "PASSWORD")
+
 options :: Parser Options
 options = Options <$> argument str (metavar "FILE")
                   <*> outputOpt
                   <*> modeOpt
+                  <*> passwordOpt 
           
 opts :: ParserInfo Options
 opts = info (options <**> helper)

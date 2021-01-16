@@ -1,9 +1,9 @@
 {- Check the Map grammar operator -}
 
 def A =
-    { x = Many 'a'
+    { x = Many (Match1 'a')
     ; y = map (z in x)
-          { @t = 'b'
+          { @t = Match1 'b'
           ; ^ 'c'
           }
     ; ^ y

@@ -1,10 +1,10 @@
 {-# LANGUAGE BlockArguments, RecordWildCards #-}
 module RTS.Parser (Parser, runParser) where
 
-import qualified Data.ByteString as BS
 import Control.Monad
 import Data.List.NonEmpty(NonEmpty(..))
 
+import RTS.Input
 import RTS.ParserAPI
 
 
@@ -103,13 +103,11 @@ runParser p i = case runP p [] i of
 
 instance BasicParser Parser where
   pByte rng =
-    Parser \cs Input { .. } ->
-      case BS.uncons inputBytes of
-        Just (x,xs) -> Res x Input { inputBytes = xs
-                                   , inputOffset = inputOffset + 1
-                                   }
+    Parser \cs inp ->
+      case inputByte inp of
+        Just (x,xs) -> Res x xs
         Nothing     -> NoResFail
-                             PE { peOffset = inputOffset
+                             PE { peInput = inp
                                 , peGrammar =  [rng]
                                 , peMsg =  msg
                                 , peSource = FromSystem
@@ -146,21 +144,21 @@ instance BasicParser Parser where
   {-# INLINE pFail #-}
 
   pEnd r =
-    do Input { .. } <- pPeek
-       if BS.null inputBytes
-         then pure ()
-         else pErrorAt FromSystem [r] inputOffset "unexpected left over input"
+    do inp <- pPeek
+       case inputByte inp of
+         Nothing -> pure ()
+         Just (_,i1) -> pErrorAt FromSystem [r] i1 "unexpected left over input"
   {-# INLINE pEnd #-}
 
   pOffset = inputOffset <$> pPeek
   {-# INLINE pOffset #-}
 
   pMatch1 erng (ClassVal p str) =
-    do off <- pOffset
+    do inp <- pPeek
        b   <- pByte erng
        let byChar = toEnum (fromEnum b) :: Char
        unless (p b)
-         $ pErrorAt FromSystem [erng] off
+         $ pErrorAt FromSystem [erng] inp
          $ unwords ["byte", show byChar, "does not match", str]
        pure b
   {-# INLINE pMatch1 #-}

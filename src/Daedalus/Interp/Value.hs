@@ -7,13 +7,15 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Short as SBS
 import Data.Word(Word8)
 import Data.Char (isAscii, isPrint, chr)
 import Data.Bits(shiftL, (.&.))
+import Numeric(showHex)
 
 import Daedalus.PP hiding (empty)
 import Daedalus.Type.AST hiding (Value)
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..),inputName,inputOffset,inputLength)
 
 data Value =
     VUInt !Int {- nbits -} !Integer
@@ -216,8 +218,47 @@ instance PP Value where
       VMap m -> block "{|" ", " "|}"
                 [ ppPrec 1 k <+> "->" <+> ppPrec 1 v | (k,v) <- Map.toList m ]
 
-      VStream i -> brackets $
-                  "stream|" <+>
-                  "off:" <+> pp (inputOffset i) <+>
-                  "len:" <+> pp (BS.length (inputBytes i))
+      VStream i -> text (show i)
+
+
+valueToJS :: Value -> Doc
+valueToJS val =
+  case val of
+    VUInt _ n -> integer n
+    VSInt _ n -> integer n
+    VInteger n -> integer n
+    VBool b -> if b then "true" else "false"
+
+    VUnionElem l v -> tagged (pp l) (valueToJS v)
+
+    VStruct vs ->
+      jsBlock "{" "," "}"
+       [ text (show (show (pp l))) <.> colon <+> valueToJS v | (l,v) <- vs ]
+
+    VArray vs -> jsBlock "[" "," "]" (map valueToJS (Vector.toList vs))
+
+    VMap mp -> tagged "$$map" $ jsBlock "[" "," "]" (map rec (Map.toList mp))
+      where rec (a,b) = "[" <+> valueToJS a <.> "," <+> valueToJS b <+> "]"
+
+    VMaybe mb ->
+      case mb of
+        Nothing -> "null"
+        Just v  -> tagged "$just" (valueToJS v)
+
+    VStream inp -> tagged "$input"
+                 $ text $ show
+                 $ toStr (inputName inp) ++ ":" ++ rng
+      where
+      rng = "0x" ++ showHex (inputOffset inp) (
+          "--0x" ++ showHex (inputOffset inp + inputLength inp) "")
+      toStr = map (toEnum . fromEnum) . SBS.unpack
+  where
+  tagged t v = "{ \"$" <.> t <.> "\":" <+> v <+> "}"
+
+  jsBlock open separ close ds =
+    case ds of
+      []  -> open <.> close
+      [d] -> open <+> d <+> close
+      _   -> vcat $ [ s <+> d | (s,d) <- zip (open : repeat separ) ds ] ++
+                    [ close ]
 

@@ -23,6 +23,7 @@ instance TypeOf Expr where
       Var x -> typeOf x
       PureLet _ _ e -> typeOf e
       Struct ut _ -> TUser ut
+      ECase c -> typeOf c
 
       Ap0 op ->
         case op of
@@ -81,13 +82,11 @@ instance TypeOf Expr where
 
           IteratorNext  -> typeOf e
           EJust         -> TMaybe (typeOf e)
-          IsJust        -> TBool
           FromJust      -> case typeOf e of
                              TMaybe t -> t
                              _ -> bad "FromJust"
           SelStruct t _ -> t
           InUnion ut _  -> TUser ut
-          HasTag _      -> TBool
           FromUnion t _ -> t
 
 
@@ -119,14 +118,13 @@ instance TypeOf Expr where
           LShift -> typeOf e1
           RShift -> typeOf e1
 
-          Or -> TBool
-          And -> TBool
           ArrayIndex ->
             case typeOf e1 of
               TArray t -> t
               _        -> bad "ArrayIndex"
 
           ConsBuilder -> typeOf e2
+          ArrayStream -> TStream
 
           MapLookup ->
             case typeOf e1 of
@@ -136,9 +134,8 @@ instance TypeOf Expr where
           MapMember -> TBool
 
 
-      Ap3 op e1 e2 _ ->
+      Ap3 op e1 _ _ ->
         case op of
-          PureIf    -> typeOf e2
           RangeUp   -> typeOf e1
           RangeDown -> typeOf e1
           MapInsert -> typeOf e1
@@ -160,7 +157,7 @@ instance TypeOf Grammar where
       Pure e          -> typeOf e
       GetStream       -> TStream
       SetStream _     -> TUnit
-      Fail _ t _ _    -> t
+      Fail _ t _      -> t
       Do_ _ g         -> typeOf g
       Do  _ _ g       -> typeOf g
       Let _ _ g       -> typeOf g
@@ -168,6 +165,9 @@ instance TypeOf Grammar where
       OrUnbiased g _  -> typeOf g
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
-      If _ g _        -> typeOf g
+      GCase c         -> typeOf c
+
+instance TypeOf a => TypeOf (Case a) where
+  typeOf (Case _ as) = typeOf (snd (head as))
 
 

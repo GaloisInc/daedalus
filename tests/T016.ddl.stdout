@@ -9,15 +9,21 @@ type Number.Frac ?a10 = { num: int
  
 --- Rules:
  
+Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
+  (10 * val) + d
+ 
 Number.Digit : Grammar int =
   do (d : uint 8) <- Match ('0' .. '9')
      ($$ : int) <- pure (d - '0' as int)
      pure $$
  
-Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
-  (10 * val) + d
+Number.Natural : Grammar int =
+  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
+                           (Number.addDigit int val d))
+     pure $$
  
-Number.Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
+Number.Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
   do (ds : [int]) <- do @MatchBytes "."
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
@@ -39,16 +45,13 @@ Number.HexDigit : Grammar int =
          pure $$
     }
  
-Number.Natural : Grammar int =
-  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
-     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
-                           (Number.addDigit int val d))
-     pure $$
- 
 Number._Digit : Grammar {} =
   @Match ('0' .. '9')
  
-Number._Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : int) : Grammar {} =
+Number._Natural : Grammar {} =
+  @Many[ 1 .. ] Number._Digit
+ 
+Number._Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] Number._Digit
  
@@ -60,9 +63,6 @@ Number._HexDigit : Grammar {} =
         }
     | @Match ('A' .. 'F')
     }
- 
-Number._Natural : Grammar {} =
-  @Many[ 1 .. ] Number._Digit
 module T016
  
 --- Imports:

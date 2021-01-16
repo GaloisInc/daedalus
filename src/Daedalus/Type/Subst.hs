@@ -38,6 +38,7 @@ instance ApSubst Type where
       Type tf ->
         case tf of
           TGrammar t -> tGrammar <$> apSubstT' su t
+          TFun t1 t2 -> someJust2 tFun (apSubstT' su) (apSubstT' su) t1 t2
           TStream    -> Nothing
           TByteClass -> Nothing
           TNum {}    -> Nothing
@@ -154,6 +155,7 @@ instance FreeTVS t => FreeTVS (TypeF t) where
   freeTVS ty =
     case ty of
       TGrammar t -> freeTVS t
+      TFun t1 t2 -> freeTVS t1 <> freeTVS t2
       TStream    -> Set.empty
       TByteClass -> Set.empty
       TNum {}    -> Set.empty

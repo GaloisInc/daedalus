@@ -3,5 +3,5 @@ context:
   "NT"
 input: File context:
 Length: 5 (0x5) bytes
-0000:   30 33 [1;91m34[0m 38  30                           03[1;91m4[0m80
+0000:   30 33 34 [1;91m38[0m  30                           034[1;91m8[0m0
 

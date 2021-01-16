@@ -26,10 +26,10 @@ T009.Q : Grammar (uint 8) =
  
 T009.R : Grammar T009.R =
   Choose fair
-    { {- a -} do (_0 : uint 8) <- GetByte
-                 pure {a: _0}
-    | {- b -} do (_1 : {}) <- pure {}
-                 pure {b: _1}
+    { {- a -} do (_10 : uint 8) <- GetByte
+                 pure {a: _10}
+    | {- b -} do (_11 : {}) <- pure {}
+                 pure {b: _11}
     }
  
 T009.S : Grammar (uint 8) =

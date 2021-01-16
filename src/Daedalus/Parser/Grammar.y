@@ -7,6 +7,7 @@ import Data.Text(Text)
 import Data.ByteString(ByteString)
 
 import Daedalus.SourceRange
+import Daedalus.GUID
 
 import Daedalus.AST
 import Daedalus.Parser.Tokens
@@ -60,9 +61,14 @@ import Daedalus.Parser.Monad
   '<#'        { Lexeme { lexemeRange = $$, lexemeToken = LeftHash } }
   '<<'        { Lexeme { lexemeRange = $$, lexemeToken = ShiftL } }
   '>>'        { Lexeme { lexemeRange = $$, lexemeToken = ShiftR } }
-  '&'         { Lexeme { lexemeRange = $$, lexemeToken = Amp } }
+  '.&.'       { Lexeme { lexemeRange = $$, lexemeToken = DotAmpDot } }
+  '.|.'       { Lexeme { lexemeRange = $$, lexemeToken = DotBarDot } }
+  '.^.'       { Lexeme { lexemeRange = $$, lexemeToken = DotHatDot } }
+  '&&'        { Lexeme { lexemeRange = $$, lexemeToken = AmpAmp } }
+  '||'        { Lexeme { lexemeRange = $$, lexemeToken = BarBar } }
   '~'         { Lexeme { lexemeRange = $$, lexemeToken = BitwiseComplementT } }
   '->'        { Lexeme { lexemeRange = $$, lexemeToken = RightArrow } }
+  '_'         { Lexeme { lexemeRange = $$, lexemeToken = Underscore } }
 
 {- NOTE: If you add a new keyword, please update the production
    for 'label` also, as it is likely to be a valid union label. -}
@@ -89,10 +95,13 @@ import Daedalus.Parser.Monad
   'Many?'     { Lexeme { lexemeRange = $$, lexemeToken = KWManyQuestion } }
   'Fail'      { Lexeme { lexemeRange = $$, lexemeToken = KWFail } }
   'UInt8'     { Lexeme { lexemeRange = $$, lexemeToken = KWUInt8 } }
+  'Match'     { Lexeme { lexemeRange = $$, lexemeToken = KWMatch } }
+  'Match1'    { Lexeme { lexemeRange = $$, lexemeToken = KWMatch1 } }
   'try'       { Lexeme { lexemeRange = $$, lexemeToken = KWTry } }
   'if'        { Lexeme { lexemeRange = $$, lexemeToken = KWIf } }
   'then'      { Lexeme { lexemeRange = $$, lexemeToken = KWThen } }
   'else'      { Lexeme { lexemeRange = $$, lexemeToken = KWElse } }
+  'case'      { Lexeme { lexemeRange = $$, lexemeToken = KWCase } }
   'import'    { Lexeme { lexemeRange = $$, lexemeToken = KWImport } }
   'as'        { Lexeme { lexemeRange = $$, lexemeToken = KWAs } }
   'as!'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsBang } }
@@ -122,11 +131,14 @@ import Daedalus.Parser.Monad
 
 %nonassoc 'else'
 %left '|' '<|'
+%left '^' '@'
 %left 'is'
 %nonassoc '..'
-%left '^' '@'
-%left '&'
 %left ':' 'as' 'as!'
+%left '||'
+%left '&&'
+%left '.|.' '.^.'
+%left '.&.'
 %nonassoc '==' '!='
 %nonassoc '<' '>' '<=' '>='
 %left '+' '-'
@@ -200,10 +212,13 @@ label                                    :: { Located Label }
   | 'Choose1'                               { mkLabel ($1, "Choose1") }
   | 'Optional'                              { mkLabel ($1, "Optional") }
   | 'Many'                                  { mkLabel ($1, "Many") }
+  | 'Match'                                 { mkLabel ($1, "Match") }
+  | 'Match1'                                { mkLabel ($1, "Match1") }
   | 'UInt8'                                 { mkLabel ($1, "UInt8") }
   | 'if'                                    { mkLabel ($1, "if") }
   | 'then'                                  { mkLabel ($1, "then") }
   | 'else'                                  { mkLabel ($1, "else") }
+  | 'case'                                  { mkLabel ($1, "case") }
   | 'import'                                { mkLabel ($1, "import") }
   | 'as'                                    { mkLabel ($1, "as") }
   | '$$'                                    { mkLabel ($1,"$$") }
@@ -235,10 +250,20 @@ expr                                     :: { Expr }
   | expr '<#' expr                          { at ($1,$3) (EBinOp LCat $1 $3) }
   | expr '<<' expr                          { at ($1,$3) (EBinOp LShift $1 $3) }
   | expr '>>' expr                          { at ($1,$3) (EBinOp RShift $1 $3) }
-  | expr '&' expr                           { at ($1,$3)
+
+
+  | expr '.|.' expr                         { at ($1,$3)
+                                                 (EBinOp BitwiseOr $1 $3) }
+  | expr '.&.' expr                         { at ($1,$3)
                                                  (EBinOp BitwiseAnd $1 $3) }
-  | expr '^' expr                           { at ($1,$3)
+  | expr '.^.' expr                         { at ($1,$3)
                                                  (EBinOp BitwiseXor $1 $3) }
+
+  | expr '&&' expr                          { at ($1,$3)
+                                                 (EBinOp LogicAnd $1 $3) }
+
+  | expr '||' expr                          { at ($1,$3)
+                                                 (EBinOp LogicOr $1 $3) }
 
 
   | expr '<' expr                           { at ($1,$3) (EBinOp Lt  $1 $3) }
@@ -302,11 +327,12 @@ call_expr                                :: { Expr }
   | 'Optional' aexpr                        { at ($1,$2) (EOptional Commit $2) }
   | 'Optional?' aexpr                       { at ($1,$2)
                                                  (EOptional Backtrack $2) }
+  | 'Match' aexpr                           { at ($1,$2) (EMatch $2) }
+  | 'Match1' aexpr                          { at ($1,$2) (EMatch1 $2) }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 
-  | 'Fail' aexpr                            { at ($1,$2) (EFail Nothing $2) }
-  | 'Fail' aexpr aexpr                      { at ($1,$3) (EFail (Just $2) $3) }
+  | 'Fail' aexpr                            { at ($1,$2) (EFail $2) }
 
   | '!' aexpr                               { at ($1,$2) (EUniOp Not $2) }
   | '~' aexpr                               { at ($1,$2)
@@ -328,37 +354,43 @@ call_expr                                :: { Expr }
   | 'rangeDown' aexpr aexpr aexpr           { mkRngDown3 $1 $2 $3 $4 }
 
   | 'try' aexpr                             { at ($1,$2) (ETry $2) }
-  | 'arrayStream' aexpr                     { at ($1,$2)(EUniOp ArrayStream $2)}
+  | 'arrayStream' aexpr         { at ($1,$2)(EBinOp ArrayStream
+                                              (at ($1,$2) (ELiteral (LBytes "array")))
+                                              $2) }
+  | 'arrayStream' aexpr aexpr   { at ($1,$3)(EBinOp ArrayStream $2 $3)}
 
 
 
   | aexpr                                   { $1 }
 
 aexpr                                    :: { Expr }
-  : BYTES                                   { at (fst $1) (EBytes (snd $1)) }
+  : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'UInt8'                                 { at $1      EAnyByte }
   | '$uint' NUMBER                          {% mkUInt $1 $2 }
-  | NUMBER                                  { at (fst $1) (ENumber (snd $1)) }
-  | BYTE                                    { at (fst $1) (EByte (snd $1)) }
   | name                                    { at $1 (EVar $1) }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
-  | 'true'                                  { at $1 (EBool True) }
-  | 'false'                                 { at $1 (EBool False) }
   | 'nothing'                               { at $1 ENothing }
   | 'Offset'                                { at $1 EOffset }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
-  | '{' separated(struct_field) '}'         { at ($1,$3) (EStruct $2) }
-  | '{|' separated(union_field) '|}'        {% at ($1,$3) `fmap`
-                                               mkUnion Commit $2 }
-  | '[' separated(expr) ']'                 { at ($1,$3) (EArray $2) }
-  | chooseKW '{' separated(union_field) '}' {% at ($1,$4) `fmap`
-                                                mkUnion (thingValue $1) $3 }
+  | '{' separated(struct_field, commaOrSemi) '}' 
+                                            { at ($1,$3) (EStruct $2) }
+  | '{|' label '=' expr '|}'                { at ($1,$3) (EIn ($2 :> $4)) }
+  | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
+  | chooseKW '{' separated(union_field, commaOrSemi) '}' 
+                                            {% at ($1,$4) `fmap`
+                                               mkUnion (thingValue $1) $3 }
+  | 'case' expr 'is' '{' separated(case_patterns, ';') '}'
+                                            { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)
                                                  (ESel $1 (SelStruct $3))}
+
+commaOrSemi                              :: { () }
+  : ','                                     { () }
+  | ';'                                     { () }
 
 chooseKW                                 :: { Located Commit }
   : 'Choose'                                { loc $1 Backtrack }
@@ -378,15 +410,40 @@ union_field                              :: { Either Expr (UnionField Expr) }
   : expr                                    { Left $1 }
   | label '=' expr                          { Right ($1 :> $3) }
 
+literal                                  :: { (SourceRange, Literal) }
+  : NUMBER                                  { LNumber `fmap` $1 }
+  | 'true'                                  { ($1, LBool True) }
+  | 'false'                                 { ($1, LBool False) }
+  | BYTES                                   { LBytes `fmap` $1 }
+  | BYTE                                    { LByte  `fmap` $1 }
+
+case_patterns                            :: { PatternCase Expr }
+  :  '_' '->' expr                          { PatternDefault $3 }
+  | separated(case_pattern, ',') '->' expr  { PatternCase $1 $3 }
+
+case_pattern                             :: { Pattern }
+  : literal                                 { LitPattern (uncurry loc $1) }
+  | con_name                                { ConPattern $1
+                                                (WildPattern (range $1)) }
+  | con_name nested_pattern                 { ConPattern $1 $2 }
+
+con_name                                 :: { Located Con }
+  : 'nothing'                               { loc (range $1) ConNothing }
+  | 'just'                                  { loc (range $1) ConJust }
+  | label                                   { ConUser `fmap` $1 }
+
+nested_pattern                           :: { Pattern }
+  : name                                    { VarPattern $1 }
+  | '_'                                     { WildPattern $1 }
+  -- XXX: maybe add matching on structs?
 
 
 
-separated(p)                             :: { [p] }
+
+separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }
   | p                                       { [$1] }
-  | p ';' separated(p)                      { $1 : $3 }
-  | p ',' separated(p)                      { $1 : $3 }
-
+  | p s separated(p,s)                      { $1 : $3 }
 
 type                                     :: { SrcType }
   : 'bool'                                  { atT $1 TBool }
@@ -508,9 +565,10 @@ mkUnion cmt fs
                 in at (e,res) (EChoiceU cmt e res)
 
 mkName :: Context ctx -> (SourceRange, Text) -> Name
-mkName ctx x = Name { nameScope = Unknown (snd x)
-                    , nameContext = ctx
-                    , nameRange = fst x }
+mkName ctx x = Name { nameScopedIdent = Unknown (snd x)
+                    , nameContext     = ctx
+                    , nameRange       = fst x 
+                    , nameID          = invalidGUID }
 
 mkLabel :: (SourceRange, Text) -> Located Label
 mkLabel (r,t) = Located { thingRange = r, thingValue = t }
@@ -537,12 +595,15 @@ mkFor s s0 ((k,v),xs) e = EFor (FFold s s0) k v xs e
 mkForMap :: ((Maybe Name,Name), Expr) -> Expr -> ExprF Expr
 mkForMap ((k,v),xs) e = EFor FMap k v xs e
 
+mkNumber :: Integer -> ExprF Expr
+mkNumber = ELiteral . LNumber
+
 mkRngUp1 :: HasRange r => r -> Expr -> Expr
-mkRngUp1 kw end = expr (ETriOp RangeUp (expr (ENumber 0)) end (expr (ENumber 1)))
+mkRngUp1 kw end = expr (ETriOp RangeUp (expr (mkNumber 0)) end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngUp2 :: HasRange r => r -> Expr -> Expr -> Expr
-mkRngUp2 kw start end = expr (ETriOp RangeUp start end (expr (ENumber 1)))
+mkRngUp2 kw start end = expr (ETriOp RangeUp start end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngUp3 :: HasRange r => r -> Expr -> Expr -> Expr -> Expr
@@ -551,12 +612,12 @@ mkRngUp3 kw start end step = expr (ETriOp RangeUp start end step)
 
 mkRngDown1 :: HasRange r => r -> Expr -> Expr
 mkRngDown1 kw start = expr (ETriOp RangeDown start
-                                             (expr (ENumber 0))
-                                             (expr (ENumber 1)))
+                                             (expr (mkNumber 0))
+                                             (expr (mkNumber 1)))
   where expr = at (kw,start)
 
 mkRngDown2 :: HasRange r => r -> Expr -> Expr -> Expr
-mkRngDown2 kw start end = expr (ETriOp RangeDown start end (expr (ENumber 1)))
+mkRngDown2 kw start end = expr (ETriOp RangeDown start end (expr (mkNumber 1)))
   where expr = at (kw,end)
 
 mkRngDown3 :: HasRange r => r -> Expr -> Expr -> Expr -> Expr

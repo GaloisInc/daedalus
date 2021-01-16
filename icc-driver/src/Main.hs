@@ -7,6 +7,8 @@ import GHC.Records(getField)
 import Control.Monad(unless)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Data.List.NonEmpty(NonEmpty(..))
 import Text.Show.Pretty(pPrint)
 import System.Environment(getArgs)
@@ -16,6 +18,7 @@ import Hexdump
 
 import RTS.Parser(runParser)
 import RTS.ParserAPI
+import RTS.Input
 import qualified RTS.Vector as Vector
 import RTS.Numeric(asInt)
 import ICC(pMain, pParseTag, ProfileHeader, Tag, TagEntry)
@@ -33,7 +36,7 @@ parseFile :: (ByteString -> Format) -> FilePath -> IO ()
 parseFile fmtF file =
   do bytes <- BS.readFile file
      let fmt = fmtF bytes
-     let input = Input { inputBytes = bytes, inputOffset = 0 }
+     let input = newInput (Text.encodeUtf8 (Text.pack file)) bytes
      case runParser pMain input of
        NoResults e ->
          do profileError fmt e
@@ -120,6 +123,7 @@ fmtHuman bytes = Format
         putStrLn ("[WARNING] Document version " ++ showVersion v ++
                                           " does not match the spec")
   , profileOK = \p -> do putStrLn "[OK] Header"
+
                          pPrint p
   , tagError = \ent e -> putStrLn ("[ERROR] " ++ show ent) >> humanError bytes e
   , tagOK = \ent _ -> putStrLn ("[OK] " ++ show ent)

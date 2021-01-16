@@ -1,3 +1,17 @@
-3:10--3:10: Failed to match types:
-              • [uint 8]
-              • uint 8
+module T013
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T013.x : uint 8 =
+  'a'
+ 
+T013.Y : Grammar [uint 8] =
+  do (_2 : uint 8) <- Match {T013.x}
+     pure [_2]
+ 
+T013._Y : Grammar {} =
+  @Match {T013.x}

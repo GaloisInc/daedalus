@@ -4,7 +4,7 @@ INFO: 37 xref entries.
 INFO: Root reference is R:6:0
 INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
-ERROR:311 R:2:0 @86 guard failed
+ERROR:312 R:2:0 @86 guard failed
 INFO: R:3:0 @313 is OK.
 INFO: R:4:0 @547 is OK.
 INFO: R:5:0 @767 is OK.
@@ -14,8 +14,8 @@ INFO: R:8:0 @1172 is OK.
 INFO: R:9:0 @1306 is OK.
 WARNING: R:10:0 @1541 has URIs.
 WARNING: R:11:0 @1776 has URIs.
-ERROR:2293 R:12:0 @2019 guard failed
-ERROR:3457 R:13:0 @2295 guard failed
+ERROR:2294 R:12:0 @2019 guard failed
+ERROR:3458 R:13:0 @2295 guard failed
 INFO: R:14:0 @3459 is OK.
 INFO: R:15:0 @3533 is OK.
 WARNING: R:16:0 @3755 has URIs.

@@ -10,7 +10,7 @@ data Daedalus = Daedalus
 
 instance PanicComponent Daedalus where
   panicComponentName _     = "Daedalus"
-  panicComponentIssues _   = "https://gitlab-ext.galois.com:safedocs/safedocs"
+  panicComponentIssues _   = "https://github.com/GaloisInc/daedalus/issues"
   panicComponentRevision   = $useGitRevision
 
 panic :: HasCallStack => String -> [String] -> a

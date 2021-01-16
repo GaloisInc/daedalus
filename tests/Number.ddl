@@ -5,7 +5,7 @@ def Natural = {
 }
 
 def Frac n w = {
-  @ds = { "."; Many (n ..) Digit };
+  @ds = { Match "."; Many (n ..) Digit };
   ^ for ( val = w; d in ds)
     { num = addDigit val.num d; exp = val.exp - 1 }
 }
@@ -13,9 +13,9 @@ def Frac n w = {
 
 def addDigit val d  = 10 * val + d
 
-def Digit     = { @d = '0' .. '9'; ^ (d - '0') as int }
+def Digit     = { @d = Match1 ('0' .. '9'); ^ (d - '0') as int }
 def HexDigit  =
     Digit
-  | { @d = 'a' .. 'f'; ^ 10 + ((d - 'a') as int) }
-  | { @d = 'A' .. 'F'; ^ 10 + ((d - 'A') as int) }
+  | { @d = Match1 ('a' .. 'f'); ^ 10 + ((d - 'a') as int) }
+  | { @d = Match1 ('A' .. 'F'); ^ 10 + ((d - 'A') as int) }
 

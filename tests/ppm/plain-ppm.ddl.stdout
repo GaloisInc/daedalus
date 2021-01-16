@@ -16,6 +16,15 @@ type plain-ppm.PPM = { width: int
  
 --- Rules:
  
+plain-ppm._WS : Grammar {} =
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
+ 
+plain-ppm.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[ 1 .. ] plain-ppm._WS
+     pure $$
+ 
 plain-ppm.Digit : Grammar (uint 8) =
   do (d : uint 8) <- Match ('0' .. '9')
      ($$ : uint 8) <- pure (d - '0')
@@ -28,29 +37,6 @@ plain-ppm.Natural : Grammar int =
   do (ds : [uint 8]) <- Many[ 1 .. ] plain-ppm.Digit
      ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
                            (plain-ppm.addDigit (uint 8) val d))
-     pure $$
- 
-plain-ppm._WS : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { @Match {'\NUL'}
-                    | @Match {'\t'}
-                    }
-                | @Match {'\f'}
-                }
-            | @Match {' '}
-            }
-        | @Match {'\n'}
-        }
-    | @Match {'\r'}
-    }
- 
-plain-ppm.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
-     @Many[ 1 .. ] plain-ppm._WS
      pure $$
  
 plain-ppm.RGB : Grammar plain-ppm.RGB =
@@ -80,32 +66,18 @@ plain-ppm.Main : Grammar plain-ppm.PPM =
      pure $$
  
 plain-ppm.WS : Grammar (uint 8) =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { Match {'\NUL'}
-                    | Match {'\t'}
-                    }
-                | Match {'\f'}
-                }
-            | Match {' '}
-            }
-        | Match {'\n'}
-        }
-    | Match {'\r'}
-    }
+  Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+         {'\r'})
+ 
+plain-ppm._Token ?a1 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] plain-ppm._WS
  
 plain-ppm._Digit : Grammar {} =
   @Match ('0' .. '9')
  
 plain-ppm._Natural : Grammar {} =
   @Many[ 1 .. ] plain-ppm._Digit
- 
-plain-ppm._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[ 1 .. ] plain-ppm._WS
  
 plain-ppm._RGB : Grammar {} =
   do plain-ppm._Token int plain-ppm._Natural

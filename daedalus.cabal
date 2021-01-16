@@ -33,10 +33,12 @@ library
                        Daedalus.Compile.LangHS,
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
+                       Daedalus.Pass,
                        Daedalus.Interp.Value,
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
                        Daedalus.Type,
+                       Daedalus.Type.InferContext,
                        Daedalus.Type.AST,
                        Daedalus.Type.Monad,
                        Daedalus.Type.Constraints,
@@ -45,11 +47,11 @@ library
                        Daedalus.Type.Traverse,
                        Daedalus.Type.Free,
                        Daedalus.Type.DeadVal,
+                       Daedalus.Type.RefreshGUID
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
                        Daedalus.DDL2Core,
-                       Daedalus.Rename,
                        Daedalus.PrettyError,
                        Daedalus.ParserGen,
                        Daedalus.ParserGen.AST,
@@ -58,7 +60,16 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
-                       Daedalus.ParserGen.RunnerBias
+                       Daedalus.ParserGen.LL,
+                       Daedalus.ParserGen.LL.ClassInterval,
+                       Daedalus.ParserGen.LL.Result,
+                       Daedalus.ParserGen.LL.SlkCfg,
+                       Daedalus.ParserGen.LL.Closure,
+                       Daedalus.ParserGen.LL.DeterminizeOneStep,
+                       Daedalus.ParserGen.LL.DFA,
+                       Daedalus.ParserGen.LL.LLA,
+                       Daedalus.ParserGen.RunnerBias,
+                       Daedalus.ParserGen.Generate
 
   build-depends:       base,
                        array,
@@ -79,6 +90,7 @@ library
                        ansi-terminal,
                        directory,
                        ghc-prim,
+                       language-c,
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
@@ -87,7 +99,8 @@ library
 
 executable daedalus
   main-is:             Main.hs
-  other-modules:       CommandLine
+  other-modules:       CommandLine,
+                       CPPDriver
 
   build-depends:       daedalus,
                        daedalus-utils,
@@ -100,12 +113,28 @@ executable daedalus
                        simple-get-opt >= 0.4,
                        bytestring,
                        containers,
-                       filepath
+                       filepath,
+                       directory,
+                       pretty-show,
+                       file-embed >= 0.0.13
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
   default-language:    Haskell2010
+
+
+executable daedalus-run-test
+  hs-source-dirs:     tests
+  main-is:            RunUnitTests.hs
+  default-language:    Haskell2010
+  build-depends:      base,
+                      filepath,
+                      bytestring,
+                      directory,
+                      process,
+                      process-extras,
+                      simple-get-opt >= 0.4
 
 
 test-suite daedalus-tests

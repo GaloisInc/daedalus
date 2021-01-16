@@ -4,6 +4,7 @@ module Daedalus.Normalise where
 import Daedalus.Panic
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID
 
 import Daedalus.Type.AST
 import Daedalus.Normalise.AST
@@ -45,14 +46,16 @@ normaliseV tc =
   case texprValue tc of
     TCMapEmpty t -> NMapEmpty (ntype t)
     TCCoerce t t' v -> NCoerce (ntype t) (ntype t') (normaliseV v)
-    TCNumber n t    -> NNumber n (ntype t)
-    TCBool b        -> NBool b
+
+    TCLiteral (LNumber n) t -> NNumber n (ntype t)
+    TCLiteral (LBool b)   _ -> NBool b
+    TCLiteral (LByte b)   _ -> NByte b
+    TCLiteral (LBytes bs) _ -> NByteArray bs
+
     TCNothing t     -> NNothing (ntype t)
     TCJust e        -> NJust (normaliseV e)
-    TCByte b        -> NByte b
     TCUnit          -> NUnit
     TCStruct fs t   -> NStruct [(l, normaliseV v) | (l, v) <- fs] (ntype t)
-    TCByteArray bs  -> NByteArray bs
     TCArray vs t    -> NArray (map normaliseV vs) (ntype t)
     TCArrayLength v -> NArrayLength (normaliseV v)
     TCIn l v t      -> NIn l (normaliseV v) (ntype t)
@@ -82,6 +85,8 @@ normaliseV tc =
     TCVar v           -> NVar (nname v)
     TCCall f [] args   -> NVCall (nname f) (map normaliseArg args)
     TCCall _ _ _       -> panic "Saw a function call with non-empty type args" []
+    _ -> panic "not handled" []
+
 
 normaliseC :: TC a Class -> NCExpr
 normaliseC tc =
@@ -98,7 +103,8 @@ normaliseC tc =
     TCCall f [] args   -> NCCall (nname f) (map normaliseArg args)
     TCCall _ _ _       -> panic "Saw a function call with non-empty type args" []
     TCVar {}           -> panic "Saw a non-Value var reference" []
-    
+    _ -> panic "not handled" []
+
 -- Everything but Do
 normaliseG' :: TC a Grammar -> NGExpr
 normaliseG' tc =
@@ -150,8 +156,8 @@ normaliseG' tc =
 
     TCPure v           -> NGPure (normaliseV v)
     TCDo   {}   -> panic "impossible" []
-    TCFail mbL mbM t -> NGFail (normaliseV <$> mbL) (normaliseV <$> mbM)
-                                                    (ntype t)
+    TCFail mbM t -> NGFail (normaliseV <$> mbM) (ntype t)
+    _ -> panic "not handled" []
 
 -- FIXME: we can strip units here as well
 
@@ -161,11 +167,10 @@ normaliseG tc = flattenDo (Just ret) tc (NPure (NVar ret))
     ret = mkRetN (ntype $ typeOf tc)
 
     mkRetN :: NType -> NName
-    mkRetN = NName (Name (Local "ret") AValue synthetic)
+    mkRetN = NName (Name (Local "ret") AValue synthetic invalidGUID) -- FIXME
 
     flattenDo :: Maybe NName -> TC a Grammar -> NGrammar -> NGrammar
     flattenDo m_x tc1 rest =
       case texprValue tc1 of
         TCDo m_y l r -> flattenDo (nname <$> m_y) l (flattenDo m_x r rest)
         _            -> NBind m_x (normaliseG' tc1) rest
-

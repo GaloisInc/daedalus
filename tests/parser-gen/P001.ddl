@@ -1,1 +1,1 @@
-def Main = { $$ = ('0') ; END }
+def Main = { $$ = Match1 '0' ; END }

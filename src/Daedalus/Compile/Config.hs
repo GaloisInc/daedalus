@@ -2,7 +2,6 @@ module Daedalus.Compile.Config where
 
 import Data.Map(Map)
 
-import RTS.ParserAPI
 import RTS.Parser
 
 import Daedalus.Type.AST(Name)

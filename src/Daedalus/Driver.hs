@@ -1,4 +1,7 @@
 {-# Language BlockArguments #-}
+{-# Language FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Daedalus.Driver
   ( Daedalus
   , daedalus
@@ -9,6 +12,8 @@ module Daedalus.Driver
   , ddlGetAST
   , ddlBasis
   , ddlBasisMany
+  , ddlGetFNameMaybe
+  , ddlGetFName
 
   , normalizedDecls
 
@@ -35,6 +40,7 @@ module Daedalus.Driver
   , passSpecialize
   , passCore
   , passVM
+  , passCaptureAnalysis
 
     -- * State
   , State(..)
@@ -66,16 +72,22 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
-import Control.Monad(liftM,ap,msum,foldM,forM)
+import Data.List(find)
+import Control.Monad(msum,foldM,forM)
+import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO,try)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing)
+import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
 
 import Daedalus.SourceRange
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
+import Daedalus.GUID
+
+import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
@@ -85,8 +97,8 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
-import Daedalus.Specialise(specialise,regroup)
-import Daedalus.Rename(rename)
+import Daedalus.Type.Free(topoOrder)
+import Daedalus.Specialise(specialise)
 import Daedalus.Normalise(normalise)
 import Daedalus.Normalise.AST(NDecl)
 import qualified Daedalus.CompileHS      as HS
@@ -96,6 +108,7 @@ import qualified Daedalus.Core as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
+import qualified Daedalus.VM.CaptureAnalysis as VM
 import Daedalus.PrettyError(prettyError)
 
 
@@ -196,6 +209,7 @@ data DaedalusError =
   | AScopeError  Scope.ScopeError
   | ATypeError   TypeError
   | ASpecializeError String
+  | ADriverError String
     deriving Show
 
 --------------------------------------------------------------------------------
@@ -214,6 +228,7 @@ prettyDaedalusError err =
           prettyError (sourceFrom (range x)) (show (pp e))
         _ -> justShow e
     ASpecializeError e -> pure e
+    ADriverError e -> pure e
 
   where
   justShow it = pure (show (pp it))
@@ -246,16 +261,18 @@ data State = State
   , declaredTypes :: Map TCTyName TCTyDecl
     -- ^ Types declared in all typechecked modules
 
-  , matchingFunctions :: Map Name ArgInfo -- XXX: ArgInfo is not a good dname
+  , matchingFunctions :: Map Name ArgInfo -- XXX: ArgInfo is not a good name
     -- ^ Information about a variant of a rule that does not
     -- construct a semantic value, and how to call it.
 
-  , coreTopNames      :: Map Name Core.FName
+  , coreTopNames :: Map Name Core.FName
     -- ^ Maps top-level value names to core names.
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
 
+  , nextFreeGUID :: !GUID
+    -- ^ Plumb through fresh names
   }
 
 
@@ -271,6 +288,7 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
+  , nextFreeGUID        = firstValidGUID
   }
 
 
@@ -353,31 +371,34 @@ astImports ph =
 
 
 -- | The Daedalus driver monad
-newtype Daedalus a = Daedalus (State -> IO (a,State))
+newtype Daedalus a = Daedalus (StateT State PassM a)
+  deriving (Functor, Applicative, Monad)
 
-instance Functor Daedalus where
-  fmap = liftM
+-- instance Functor Daedalus where
+--   fmap = liftM
 
-instance Applicative Daedalus where
-  pure a = Daedalus \s -> pure (a,s)
-  (<*>)  = ap
+-- instance Applicative Daedalus where
+--   pure a = Daedalus \s -> pure (a,s)
+--   (<*>)  = ap
 
-instance Monad Daedalus where
-  Daedalus m >>= f =  Daedalus \s ->
-                        do (a,s1) <- m s
-                           let Daedalus m1 = f a
-                           m1 s1
+-- instance Monad Daedalus where
+--   Daedalus m >>= f =  Daedalus \s ->
+--                         do (a,s1) <- m s
+--                            let Daedalus m1 = f a
+--                            m1 s1
 
+instance MonadIO Daedalus where
+  liftIO = Daedalus . inBase . liftIO
 
 -- | Execute a Daedalus computation starting with the "defaultState".
 daedalus :: Daedalus a -> IO a
-daedalus (Daedalus m) = fst <$> m defaultState
+daedalus (Daedalus m) = fst <$> runM m defaultState
 
 ddlState :: Daedalus State
-ddlState = Daedalus \s -> pure (s,s)
+ddlState = Daedalus get
 
 ddlSetState :: State -> Daedalus ()
-ddlSetState s = Daedalus \_ -> pure ((),s)
+ddlSetState = Daedalus . set
 
 ddlGet :: (State -> a) -> Daedalus a
 ddlGet f =
@@ -385,15 +406,14 @@ ddlGet f =
      pure $! f s
 
 ddlUpdate_ :: (State -> State) -> Daedalus ()
-ddlUpdate_ f = Daedalus \s -> do let s1 = f s
-                                 s1 `seq` pure ((),s1)
+ddlUpdate_ = Daedalus . sets_
+                               
 
 ddlIO :: IO a -> Daedalus a
-ddlIO m = Daedalus \s -> m >>= \a -> pure (a,s)
+ddlIO = Daedalus . inBase . liftIO
 
 ddlThrow :: DaedalusError -> Daedalus a
-ddlThrow a = Daedalus \_ -> throwIO a
-
+ddlThrow = ddlIO . throwIO
 
 ddlPutStr :: String -> Daedalus ()
 ddlPutStr msg =
@@ -411,6 +431,9 @@ ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
      ddlIO $ hPrint h x
+
+ddlRunPass :: PassM a -> Daedalus a
+ddlRunPass = Daedalus . lift
 
 --------------------------------------------------------------------------------
 data DDLOpt a = DDLOpt (State -> a) (a -> State -> State)
@@ -437,6 +460,28 @@ optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 optOutHandle :: DDLOpt Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
+
+
+--------------------------------------------------------------------------------
+-- Names
+
+ddlGetFNameMaybe :: ModuleName -> Ident -> Daedalus (Maybe Core.FName)
+ddlGetFNameMaybe mname fname =
+  do ents <- ddlGet (Map.toList . coreTopNames)
+     let matches m = (mname,fname) == nameScopeAsModScope (fst m)
+     pure (snd <$> find matches ents)
+
+ddlGetFName :: ModuleName -> Ident -> Daedalus Core.FName
+ddlGetFName m f =
+    do mb <- ddlGetFNameMaybe m f
+       case mb of
+         Just a  -> pure a
+         Nothing ->
+           do nms <- ddlGet (Map.keys . coreTopNames)
+              panic "ddlGetFName" $ "Unknown name"
+                                  : ("module: " ++ show (pp m))
+                                  : ("fun: " ++ show (pp f))
+                                  : map (show . pp) nms
 
 
 --------------------------------------------------------------------------------
@@ -470,7 +515,8 @@ parseModule n =
 resolveModule :: Module -> Daedalus ()
 resolveModule m =
   do defs <- ddlGet moduleDefines
-     case Scope.resolveModule defs m of
+     r <- ddlRunPass (Scope.resolveModule defs m)
+     case r of
        Right (m1,newDefs) ->
          ddlUpdate_ \s -> s { loadedModules = Map.insert (moduleName m1)
                                                          (ResolvedModule m1)
@@ -485,7 +531,8 @@ tcModule :: Module -> Daedalus ()
 tcModule m =
   do tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
-     case runMTypeM tdefs rtys (inferRules m) of
+     r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
+     case r of
        Left err -> ddlThrow $ ATypeError err
        Right m1 ->
         ddlUpdate_ \s -> s
@@ -506,25 +553,12 @@ tcModule m =
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
 analyzeDeadVal m =
   do mfs <- ddlGet matchingFunctions
-     case deadValModule mfs m of
+     r <- ddlRunPass (deadValModule mfs m)
+     case r of
        (m1,mfs1) -> ddlUpdate_ \s -> s
           { loadedModules = Map.insert (tcModuleName m1) (DeadValModule m1)
                                        (loadedModules s)
           , matchingFunctions = mfs1
-          }
-
-convertToCore :: TCModule SourceRange -> Daedalus ()
-convertToCore m =
-  do mapM_ (passCore . thingValue) (tcModuleImports m)
-     cnms <- ddlGet coreTopNames
-     tnms <- ddlGet coreTypeNames
-     let (cm,(tnms',cnms')) = Core.runM tnms cnms (Core.fromModule m)
-     ddlUpdate_ \s ->
-        s { loadedModules = Map.insert (fromMName (Core.mName cm))
-                                       (CoreModue cm)
-                                       (loadedModules s)
-          , coreTopNames = cnms'
-          , coreTypeNames = tnms'
           }
 
 convertToVM :: Core.Module -> Daedalus ()
@@ -616,69 +650,109 @@ passDeadVal m =
        _ -> pure ()
 
 {- | (5) Specialize for the given set of roots.
-Note that this looses information, so modules that have been specialized
-cannot be specialized again in a different way.
-We should be keeping other information about them,
-so other front end operations ought to still work. -}
-passSpecialize :: [(ModuleName,Ident)] -> Daedalus ()
-passSpecialize roots =
+WARNING: The module name should be a new module name where we store the result
+of specialization, which is different from how the other passes work. -}
+passSpecialize :: ModuleName -> [(ModuleName,Ident)] -> Daedalus ()
+passSpecialize tgt roots =
   do mapM_ ddlLoadModule (map fst roots)
      allMods <- ddlBasisMany (map fst roots)
-     decls <- concat <$> forM allMods \m -> tcModuleDecls <$> ddlGetAST m astTC
+
+     -- Find the actual Names, not just the ScopedIdents.  Pretty ugly
      let rootIds = [ ModScope m i | (m,i) <- roots ]
-     case specialise rootIds decls of
-       Left err  -> ddlThrow $ ASpecializeError err
+         -- FIXME: this ignores GUIDs
+         findRootNames m = [ tcDeclName d | d <- forgetRecs (tcModuleDecls m)
+                                          , nameScopedIdent (tcDeclName d) `elem` rootIds ]
+                                  
+     allDecls <- forM allMods \m ->
+                    do mo <- ddlGetAST m astTC
+                       pure (tcModuleTypes mo, tcModuleDecls mo, findRootNames mo)
+
+     let (tdss,dss,rootss) = unzip3 allDecls
+         tdecls = concat tdss
+         decls = concat dss
+         rootNames = concat rootss
+         
+     mb <- getLoaded tgt
+     case mb of
+       Just _ ->
+          ddlThrow (ADriverError
+                      ("Module " ++ show (pp tgt) ++ " is already loaded."))
+       Nothing -> pure ()
+     r <- ddlRunPass (specialise rootNames decls)
+     case r of
+       Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->
-         do let newDefs = regroup (rename sds)
-            mapM_ (markSpec newDefs) allMods
+         let ds = topoOrder sds
+             mo = TCModule
+                    { tcModuleName = tgt
+                    , tcModuleImports = []
+                    , tcModuleTypes = tdecls
+                    , tcModuleDecls = ds
+                    }
+         in ddlUpdate_ \s -> s { loadedModules = Map.insert tgt
+                                                      (SpecializedModule mo)
+                                                      (loadedModules s)
+                               }
 
-  where
-  markSpec defs m =
-    do ~(DeadValModule ast) <- doGetLoaded m
-       let ast1 = ast { tcModuleDecls = Map.findWithDefault [] m defs }
-       ddlUpdate_ \s -> s { loadedModules = Map.insert m
-                                              (SpecializedModule ast1)
-                                              (loadedModules s) }
 
-
--- | (6) Convert to Core DDL.  The given module should be at least specialized.
--- Also converts dependencies.
+-- | (6) Convert the given module to core.  For the moment, the module
+-- should be one generated by the specialize pass, although in principle
+-- we could allow other modules that already follow the invariant
+-- ensured by specialize (i.e., no polymorphism, etc.)
 passCore :: ModuleName -> Daedalus ()
 passCore m =
-  do ph <- doGetLoaded m
-     case ph of
-       SpecializedModule ast -> convertToCore ast
-       _ | phasePass ph > PassSpec -> pure ()
-         | otherwise -> panic "passCore" [ "Module not specialized"
-                                         , show (pp m) ]
+  do mb <- getLoaded m
+     mo <- case mb of
+             Just (SpecializedModule mo) -> pure mo
+             _ -> ddlThrow (ADriverError ("Module " ++ show (pp m) ++
+                                                        " is not specialized."))
+     let (cm,(tnms',cnms')) = Core.runM Map.empty Map.empty (Core.fromModule mo)
+     ddlUpdate_ \s ->
+        s { loadedModules = Map.insert (fromMName (Core.mName cm))
+                                       (CoreModue cm)
+                                       (loadedModules s)
+          , coreTopNames = cnms'
+          , coreTypeNames = tnms'
+          }
 
 
--- | (7) Convert to VM. The given module should be at least specialized.
--- Does NOT do dependencies.  XXX: Maybe it should?
+
+
+-- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
 passVM m =
-  do passCore m
-     ph <- doGetLoaded m
+  do ph <- doGetLoaded m
      case ph of
        CoreModue ast -> convertToVM ast
        _ | phasePass ph > PassCore -> pure ()
          | otherwise -> panic "passVM" [ "Unexpected module phase"
                                        , show (phasePass ph) ]
 
+{- | (8) Do capture analysis on all modules 
+The purpose of this pass is to identify which functions do not
+spawn (i.e, do not capture the stack).  We can call such functions in the
+traditional way. OTOH, calling functions that may capture the stack is more
+expensive because we have to store locals on an explicit stack that can
+be captured -}
+passCaptureAnalysis :: Daedalus ()
+passCaptureAnalysis =
+  do ms <- ddlGet loadedModules
+     let ms1 = VM.captureAnalysis [ m | VMModule m <- Map.elems ms ]
+         upd m = Map.insert (Core.mNameText (VM.mName m)) (VMModule m)
+     ddlUpdate_ \s -> s { loadedModules = foldr upd (loadedModules s) ms1 }
 
 --------------------------------------------------------------------------------
 
--- | Get the normalized declarations from all specialized modules.
--- Does not affect the state.
+-- | Get the normalized declarations from the specialized modules.
+-- It is an error if there are multiple (or none) modules that are specialized.
 normalizedDecls :: Daedalus [NDecl]
 normalizedDecls =
   do ms <- ddlGet loadedModules
-     pure (concatMap norm ms)
-  where
-  norm m = case m of
-             SpecializedModule ast ->
-                map normalise (forgetRecs (tcModuleDecls ast))
-             _ -> []
+     case [ m | SpecializedModule m <- Map.elems ms ] of
+       [ mo ] -> pure (map normalise (forgetRecs (tcModuleDecls mo)))
+       [] -> ddlThrow (ADriverError "There are not specialized modules.")
+       xs -> ddlThrow (ADriverError ("Multiple specialized modules: " ++
+                         unwords (map (show . pp . tcModuleName) xs)))
 
 
 -- | Save Haskell for the given module.

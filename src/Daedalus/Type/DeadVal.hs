@@ -1,6 +1,6 @@
 {-# Language GADTs, BlockArguments, OverloadedStrings, NamedFieldPuns #-}
 {-# Language RecordWildCards #-}
-module Daedalus.Type.DeadVal where
+module Daedalus.Type.DeadVal(ArgInfo, deadValModule) where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -13,62 +13,79 @@ import Data.Parameterized.Some
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.Panic(panic)
+import Daedalus.Pass
+import Daedalus.GUID
 
+import Daedalus.Type.RefreshGUID
 import Daedalus.Type.AST
 import Daedalus.Type.Free
 
 
-deadValModules :: [TCModule SourceRange] -> [TCModule SourceRange]
-deadValModules = go [] Map.empty
-  where
-  go done known ms =
-    case ms of
-      [] -> reverse done
-      m : more ->
-        case deadValModule known m of
-          (m1, newKnown) -> go (m1 : done) newKnown more
+{-
+XXX: It might make more sense to that after specialization,
+  1. we would handle function parameters better,
+  2. the whole thing would be simpler
+  3. we'd generate less code, as we'd only have the functions
+     that are actually used.
+-}
+
+-- deadValModules :: [TCModule SourceRange] -> [TCModule SourceRange]
+-- deadValModules = go [] Map.empty
+--   where
+--   go done known ms =
+--     case ms of
+--       [] -> reverse done
+--       m : more ->
+--         case deadValModule known m of
+--           (m1, newKnown) -> go (m1 : done) newKnown more
 
 deadValModule ::
   Map Name ArgInfo ->
   TCModule SourceRange ->
-  (TCModule SourceRange, Map Name ArgInfo)
-deadValModule k0 mo = (mo { tcModuleDecls = topoOrder matchDecls }, allKnown)
+  PassM (TCModule SourceRange, Map Name ArgInfo)
+deadValModule k0 mo = do
+  (matchDecls,allKnown) <- go [] k0 (concatMap recToList (tcModuleDecls mo))
+  pure (mo { tcModuleDecls = topoOrder matchDecls }, allKnown)
   where
-  (matchDecls,allKnown) = go [] k0 (concatMap recToList (tcModuleDecls mo))
+  
 
   go :: [TCDecl SourceRange] ->
         Map Name ArgInfo ->
         [TCDecl SourceRange] ->
-        ([TCDecl SourceRange], Map Name ArgInfo)
+        PassM ([TCDecl SourceRange], Map Name ArgInfo)
   go done known ds =
     case ds of
-      [] -> (done, known)
-      d : more ->
-        case declareMatchFun known d of
-          Just (d1,info) ->
+      [] -> pure (done, known)
+      d : more -> do
+        m_d' <- declareMatchFun known d
+        case m_d' of
+          Just (d1,info) -> do
             let newKnown = Map.insert (tcDeclName d) info known
-            in go (cleanUpDecl newKnown d : d1 : done) newKnown more
-          Nothing -> go (cleanUpDecl known d : done) known more
-
+            cud <- cleanUpDecl newKnown d
+            go (cud : d1 : done) newKnown more
+          Nothing -> do cud <- cleanUpDecl known d
+                        go (cud : done) known more
 
 data ArgInfo = ArgInfo { matchFun       :: TCName Grammar
                        , passArg        :: [Bool]
                        , extraMatchArgs :: [Int]
                        }
 
-newtype NoFunM a = NFM (RO -> RW -> (a,RW))
+newtype NoFunM a = NFM (RO -> RW -> PassM (a,RW))
 
 instance Functor NoFunM where
   fmap = liftM
 
 instance Applicative NoFunM where
-  pure a = NFM \_ s -> (a,s)
+  pure a = NFM \_ s -> pure (a,s)
   (<*>)  = ap
 
 instance Monad NoFunM where
-  NFM m >>= f = NFM \r s -> case m r s of
-                              (a,s1) -> let NFM m1 = f a
-                                        in m1 r s1
+  NFM m >>= f = NFM \r s -> do
+    v <- m r s
+    case v of
+      (a,s1) -> let NFM m1 = f a
+                in m1 r s1
 
 data RO = RO
   { roMatchFuns    :: Map Name ArgInfo
@@ -79,16 +96,20 @@ newtype RW = RW
   { matchArgs :: Map (TCName Grammar) (TCName Grammar)
   }
 
-runNoFunM :: Bool -> Map Name ArgInfo -> NoFunM a -> (a, RW)
+runNoFunM :: Bool -> Map Name ArgInfo -> NoFunM a -> PassM (a, RW)
 runNoFunM changePs r (NFM m) = m RO { roChangeParams = changePs
                                     , roMatchFuns = r
                                     }
                                  RW { matchArgs = Map.empty }
+                               
+instance HasGUID NoFunM where
+  getNextGUID = NFM \_ rw -> (,) <$> getNextGUID <*> pure rw
 
 attempt :: NoFunM (Maybe a) -> NoFunM a -> NoFunM a
-attempt (NFM m1) (NFM m2) = NFM \r s ->
-  case m1 r s of
-    (Just a, s1) -> (a, s1)
+attempt (NFM m1) (NFM m2) = NFM \r s -> do
+  v <- m1 r s
+  case v of
+    (Just a, s1) -> pure (a, s1)
     (Nothing,_)  -> m2 r s
 
 newMParam ::
@@ -96,62 +117,61 @@ newMParam ::
 newMParam r x = NFM \ro s ->
   if roChangeParams ro
     then case Map.lookup x (matchArgs s) of
-           Just y  -> (exprAt r (TCVar y), s)
-           Nothing -> let y = TCName { tcNameCtx = AGrammar
-                                     , tcType    = tGrammar tUnit
-                                     , tcName    = modifyName (tcName x)
-                                     }
-                     in ( exprAt r (TCVar y)
-                        , s { matchArgs = Map.insert x y (matchArgs s) }
-                        )
-    else ( mkDo r Nothing (exprAt r (TCVar x)) (noSemPure r)
-         , s)
+           Just y  -> pure (exprAt r (TCVar y), s)
+           Nothing -> do
+             y <- erasedGrmName (tcName x)
+             pure  ( exprAt r (TCVar y)
+                   , s { matchArgs = Map.insert x y (matchArgs s) }
+                   )
+    else pure ( mkDo r Nothing (exprAt r (TCVar x)) (noSemPure r)
+              , s)
 
+-- FIXME: refresh
+modifyName :: Ident -> Ident
+modifyName i = "_" <> i
 
-modifyName :: Name -> Name
-modifyName nm = case nameScope nm of
-                  Local i -> nm { nameScope = Local (newI i) }
-                  ModScope m i -> nm { nameScope = ModScope m (newI i) }
-                  _ -> panic "newMParam" ["Not a local name"]
-  where
-  newI i = "_" <> i
+erasedGrmName :: HasGUID m => Name -> m (TCName Grammar)
+erasedGrmName n = do
+  newName <- deriveNameWith modifyName n
+  pure TCName { tcNameCtx = AGrammar
+              , tcType    = tGrammar tUnit
+              , tcName    = newName
+              }
 
 lookupMatchFun :: TCName Grammar -> NoFunM (Maybe ArgInfo)
-lookupMatchFun x = NFM \r s -> (Map.lookup (tcName x) (roMatchFuns r), s)
+lookupMatchFun x = NFM \r s -> pure (Map.lookup (tcName x) (roMatchFuns r), s)
 
 --------------------------------------------------------------------------------
 
-
-
 type Info = Set (Some TCName)
 
-
-cleanUpDecl :: Map Name ArgInfo -> TCDecl SourceRange -> TCDecl SourceRange
+cleanUpDecl :: Map Name ArgInfo -> TCDecl SourceRange -> PassM (TCDecl SourceRange)
 cleanUpDecl mfs dcl =
   case dcl of
     TCDecl { tcDeclCtxt = AGrammar, tcDeclDef, .. } ->
       case tcDeclDef of
-        ExternDecl _ -> dcl
-        Defined d ->
-          case runNoFunM False mfs (mbSem d) of
-            ((def,_),_) -> TCDecl { tcDeclDef = Defined def
-                                  , tcDeclCtxt = AGrammar, .. }
-    _ -> dcl
+        ExternDecl _ -> pure dcl
+        Defined d -> do
+          r <- runNoFunM False mfs (mbSem d)
+          case r of
+            ((def,_),_) -> pure TCDecl { tcDeclDef = Defined def
+                                       , tcDeclCtxt = AGrammar, .. }
+    _ -> pure dcl
 
 
 declareMatchFun ::
-  Map Name ArgInfo -> TCDecl SourceRange -> Maybe (TCDecl SourceRange, ArgInfo)
+  Map Name ArgInfo -> TCDecl SourceRange -> PassM (Maybe (TCDecl SourceRange, ArgInfo))
 declareMatchFun mfs dcl =
   case dcl of
-    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef } ->
-      let newName = TCName { tcNameCtx = AGrammar
-                           , tcType    = tGrammar tUnit
-                           , tcName    = modifyName (tcDeclName dcl)
-                           }
-
-      in
+    TCDecl { tcDeclCtxt = AGrammar, tcDeclDef, tcDeclAnnot } -> do
+      newName <- erasedGrmName (tcDeclName dcl)
       case tcDeclDef of
-        ExternDecl _ -> Just (newDecl, newInfo)
+
+        -- XXX: It seems that we could just leave this as is
+        -- and just ignore the argments at the call site...
+        ExternDecl _ -> do
+          newDecl' <- refreshDecl newDecl
+          pure (Just (newDecl', newInfo))
            where
            newDecl = TCDecl
                       { tcDeclName     = tcName newName
@@ -160,6 +180,7 @@ declareMatchFun mfs dcl =
                       , tcDeclParams   = tcDeclParams dcl
                       , tcDeclDef      = Defined newDef
                       , tcDeclCtxt     = AGrammar
+                      , tcDeclAnnot    = tcDeclAnnot
                       }
            newInfo = ArgInfo { matchFun = newName
                              , passArg  = map (const True) (tcDeclParams dcl)
@@ -181,9 +202,12 @@ declareMatchFun mfs dcl =
                             }
 
 
-        Defined d ->
-          case runNoFunM True mfs (noSem' d) of
-            ((def,vs),rw) -> Just (newDecl, newInfo)
+        Defined d -> do
+          r <- runNoFunM True mfs (noSem' d)
+          case r of
+            ((def,vs),rw) -> do
+              newDecl' <- refreshDecl newDecl
+              pure (Just (newDecl', newInfo))
               where
               pused p = pname p `Set.member` vs
 
@@ -201,6 +225,7 @@ declareMatchFun mfs dcl =
                           , tcDeclParams   = newParams
                           , tcDeclDef      = Defined def
                           , tcDeclCtxt     = AGrammar
+                          , tcDeclAnnot    = tcDeclAnnot
                           }
 
               newParams = [ p | p <- tcDeclParams dcl, pused p ] ++
@@ -226,7 +251,7 @@ declareMatchFun mfs dcl =
                               ]
                           }
 
-    _ -> Nothing
+    _ -> pure Nothing
 
 
 
@@ -235,7 +260,7 @@ declareMatchFun mfs dcl =
 mbSem :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 mbSem tc =
   case texprValue tc of
-    TCFail e1 e2 _ -> pure (tc, tcFree e1 <> tcFree e2)
+    TCFail e _ -> pure (tc, tcFree e)
 
     TCPure e -> pure (tc, tcFree e)
 
@@ -268,7 +293,7 @@ mbSem tc =
     TCMapLookup {}    -> pure (tc, tcFree tc)
     TCMapInsert {}    -> pure (tc, tcFree tc)
     TCArrayIndex  {}  -> pure (tc, tcFree tc)
-    
+
     TCCoerceCheck {}  -> pure (tc, tcFree tc)
     TCSelUnion {}     -> pure (tc, tcFree tc)
     TCSelJust {}      -> pure (tc, tcFree tc)
@@ -297,9 +322,6 @@ mbSem tc =
                 Set.difference i bnd
               )
 
-
-
-    -- TCFor s0 s mbK x xs m ->
     TCCall f ts as ->
       do (as',is) <- unzip <$> forM as \a ->
                        case a of
@@ -314,13 +336,26 @@ mbSem tc =
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
+    TCCase e pats mb ->
+      do (pats1,vs1) <- unzip <$> mapM (noSemAltWith mbSem) pats
+         mb1 <- traverse mbSem mb
+         case mb1 of
+           Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                           , Set.unions (tcFree e:vs1)
+                           )
+           Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                , Set.unions (tcFree e:vs2:vs1)
+                                )
+
+
+
 -- | Rewrite productions to avoid constructing a semantic value.
+-- It also returns the variables actually used by the rewritten expression.
 noSem' :: TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)
 noSem' tc =
   case texprValue tc of
 
-     TCFail e1 e2 _ -> pure (exprAt tc (TCFail e1 e2 tUnit),
-                                                    tcFree e1 <> tcFree e2)
+     TCFail e _ -> pure (exprAt tc (TCFail e tUnit), tcFree e)
 
      TCPure _ -> pure (noSemPure tc, mempty)
 
@@ -374,7 +409,7 @@ noSem' tc =
       pure ( exprAt tc (TCMapInsert NoSem k v mp)
            , tcFree k <> tcFree v <> tcFree mp )
 
-     TCArrayIndex _ e ix -> 
+     TCArrayIndex _ e ix ->
       pure (exprAt tc (TCArrayIndex NoSem e ix), tcFree e <> tcFree ix)
 
      TCCoerceCheck _ t1 t2 v ->
@@ -431,7 +466,9 @@ noSem' tc =
           case mbArgInfo of
             Nothing ->
               pure ( mkDo tc Nothing tc (noSemPure tc)
-                   , tcFree as
+                   , if isLocalName (tcName f)
+                         then Set.singleton (Some f) <> tcFree as
+                         else tcFree as
                    )
 
             Just argInfo ->
@@ -458,8 +495,27 @@ noSem' tc =
                       , mconcat (is1 ++ is2)
                       )
 
+     TCCase e pats mb ->
+       do (pats1,vs1) <- unzip <$> mapM (noSemAltWith noSem') pats
+          mb1 <- traverse mbSem mb
+          case mb1 of
+            Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
+                            , Set.unions (tcFree e : vs1)
+                            )
+            Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
+                                 , Set.unions (tcFree e:vs2:vs1)
+                                 )
 
 
+
+
+noSemAltWith ::
+  (TC SourceRange Grammar -> NoFunM (TC SourceRange Grammar, Info)) ->
+  TCAlt SourceRange Grammar -> NoFunM (TCAlt SourceRange Grammar, Info)
+noSemAltWith f (TCAlt ps e) =
+  do (e1,vs) <- f e
+     let bound = Set.map Some (patBindsSet (head ps))
+     pure (TCAlt ps e1, Set.difference vs bound)
 
 noSemUni ::
   HasRange r =>
@@ -489,6 +545,3 @@ mkDo r x m1 m2
     = m2
 
   | otherwise = exprAt r (TCDo x m1 m2)
-
-
- 

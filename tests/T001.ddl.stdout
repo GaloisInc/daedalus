@@ -6,7 +6,7 @@ module T001
  
 --- Rules:
  
-T001.P ?a0 (A : Grammar ?a0) : Grammar ?a0 =
+T001.P ?a1 (A : Grammar ?a1) : Grammar ?a1 =
   A
  
 T001.F : Grammar (uint 8) =
@@ -15,7 +15,14 @@ T001.F : Grammar (uint 8) =
 T001.G : Grammar [uint 8] =
   T001.P [uint 8] (MatchBytes "B")
  
-T001._P ?a0 (_A : Grammar {}) : Grammar {} =
+rec value
+  T001.f ?a1 ?a2 (a : ?a2) : ?a1 =
+    T001.f ?a1 ?a2 a
+ 
+T001.g ?a0 : ?a0 =
+  T001.f ?a0 (uint 8) 'x'
+ 
+T001._P ?a1 (_A : Grammar {}) : Grammar {} =
   _A
  
 T001._F : Grammar {} =
@@ -23,10 +30,3 @@ T001._F : Grammar {} =
  
 T001._G : Grammar {} =
   T001._P [uint 8] (@MatchBytes "B")
- 
-rec value
-  T001.f ?a1 ?a2 (a : ?a2) : ?a1 =
-    T001.f ?a1 ?a2 a
- 
-T001.g ?a0 : ?a0 =
-  T001.f ?a0 (uint 8) 'x'

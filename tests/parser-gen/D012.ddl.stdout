@@ -1,0 +1,66 @@
+module D012
+ 
+--- Imports:
+ 
+--- Type defs:
+type D012.RGB = { red: int
+                ; green: int
+                ; blue: int
+                }
+ 
+--- Rules:
+ 
+D012._WS : Grammar {} =
+  @Match {'\NUL'}
+ 
+D012.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[ 1 .. ] D012._WS
+     pure $$
+ 
+D012.Digit : Grammar (uint 8) =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : uint 8) <- pure (d - '0')
+     pure $$
+ 
+D012.addDigit ?a1 (Coerce safe ?a1 int) (val : int) (d : ?a1) : int =
+  (10 * val) + (d as int)
+ 
+D012.Natural : Grammar int =
+  do (ds : [uint 8]) <- Many[ 1 .. ] D012.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
+                           (D012.addDigit (uint 8) val d))
+     pure $$
+ 
+D012.RGB : Grammar D012.RGB =
+  do (red : int) <- D012.Token int D012.Natural
+     (green : int) <- D012.Token int D012.Natural
+     (blue : int) <- D012.Token int D012.Natural
+     pure {red = red,
+           green = green,
+           blue = blue}
+ 
+D012.WS : Grammar (uint 8) =
+  Match {'\NUL'}
+ 
+D012.Main : Grammar D012.RGB =
+  do ($$ : D012.RGB) <- D012.RGB
+     pure $$
+ 
+D012._Token ?a1 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] D012._WS
+ 
+D012._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+D012._Natural : Grammar {} =
+  @Many[ 1 .. ] D012._Digit
+ 
+D012._RGB : Grammar {} =
+  do D012._Token int D012._Natural
+     D012._Token int D012._Natural
+     D012._Token int D012._Natural
+ 
+D012._Main : Grammar {} =
+  D012._RGB

@@ -1,5 +1,5 @@
 def Main =
-  { @gen = 'b';
+  { @gen = Match1 'b';
     { gen = ^gen };
   }
 

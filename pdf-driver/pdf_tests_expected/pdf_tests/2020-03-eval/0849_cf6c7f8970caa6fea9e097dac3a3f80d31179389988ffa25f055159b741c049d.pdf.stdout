@@ -10,25 +10,25 @@ INFO: R:4:0 @22 is OK.
 INFO: R:5:0 @26470 is OK.
 INFO: R:6:0 @26597 is OK.
 INFO: R:7:0 @118587 is OK.
-ERROR:-1 R:8:0 @0 Not enough entries
+ERROR:0 R:8:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:9:0 @129962 is OK.
-ERROR:-1 R:10:0 @0 Not enough entries
+ERROR:0 R:10:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:11:0 @126468 is OK.
 INFO: R:12:0 @28520 is OK.
 INFO: R:13:0 @43333 is OK.
 INFO: R:14:0 @43355 is OK.
 INFO: R:15:0 @91309 is OK.
 INFO: R:16:0 @115814 is OK.
-ERROR:-1 R:17:0 @0 Not enough entries
+ERROR:0 R:17:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:18:0 @142900 is OK.
-ERROR:-1 R:19:0 @0 Not enough entries
+ERROR:0 R:19:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:20:0 @137873 is OK.
 INFO: R:21:0 @26872 is OK.
 INFO: R:22:0 @28430 is OK.
 INFO: R:23:0 @28451 is OK.
-ERROR:-1 R:24:0 @0 Not enough entries
+ERROR:0 R:24:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:25:0 @123402 is OK.
-ERROR:-1 R:26:0 @0 Not enough entries
+ERROR:0 R:26:0 @0 Not enough entries, found 0, but need at least 1
 INFO: R:27:0 @118772 is OK.
 INFO: R:28:0 @114561 is OK.
 INFO: R:29:0 @105233 is OK.

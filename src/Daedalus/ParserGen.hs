@@ -1,9 +1,17 @@
 module Daedalus.ParserGen
-  ( buildAut
+  ( buildMapAut
+  , buildArrayAut
   , runnerBias
+  , runnerLL
   , extractValues
   , extractParseError
+  , extractMetrics
   , autToGraphviz
+  , createLLA
+  , buildPipelineLLA
+  , statsLLA
+  , generateIO
+  , generateTextIO
   )
 where
 
@@ -12,13 +20,21 @@ import qualified Data.ByteString as BS
 import System.Console.ANSI
 import Hexdump
 
-import RTS.ParserAPI(Input(..))
+import RTS.Input(Input(..))
 
 import Daedalus.ParserGen.Action (showCallStack)
-import Daedalus.ParserGen.Compile (buildAut)
+import Daedalus.ParserGen.Compile (buildMapAut, buildArrayAut)
 import Daedalus.ParserGen.Cfg as PGenCfg
-import Daedalus.ParserGen.RunnerBias (runnerBias, Result(..), extractValues)
+import Daedalus.ParserGen.RunnerBias (
+  runnerBias,
+  runnerLL,
+  Result(..),
+  extractValues,
+  extractMetrics
+  )
 import Daedalus.ParserGen.Utils (autToGraphviz)
+import Daedalus.ParserGen.LL
+import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
 
 extractParseError :: BS.ByteString -> Result -> String
 extractParseError orig res =
@@ -29,7 +45,7 @@ extractParseError orig res =
 dumpErrorInput :: BS.ByteString -> Input -> String
 dumpErrorInput orig inp =
   let ctxtAmt = 32
-      errLoc  = (inputOffset inp) - 1
+      errLoc  = (inputOffset inp)
       start = max 0 (errLoc - ctxtAmt)
       end   = errLoc + 10
       len   = end - start

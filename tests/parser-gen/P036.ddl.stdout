@@ -1,0 +1,110 @@
+module P036
+ 
+--- Imports:
+ 
+--- Type defs:
+type P036.Main0 = Choose { c1: Map [uint 8] (uint 8)
+                         ; c2: uint 8
+                         ; c3: {}
+                         ; c4: Map [uint 8] (uint 8)
+                         }
+ 
+type P036.A = Choose { x: uint 8
+                     ; y: uint 8
+                     }
+ 
+type P036.Main = { x: uint 8
+                 ; y: P036.Main0
+                 }
+ 
+--- Rules:
+ 
+P036.A : Grammar P036.A =
+  Choose fair
+    { {- x -} do (_15 : uint 8) <- pure 'a'
+                 pure {x: _15}
+    | {- y -} do (_16 : uint 8) <- pure 'b'
+                 pure {y: _16}
+    }
+ 
+P036.Case1 : Grammar (Map [uint 8] (uint 8)) =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     (v : Map [uint 8] (uint 8)) <- Insert "x" 'b' u
+     ($$ : Map [uint 8] (uint 8)) <- pure v
+     pure $$
+ 
+P036.Case2 : Grammar (uint 8) =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     (v : uint 8) <- Lookup "y" u
+     ($$ : uint 8) <- pure v
+     pure $$
+ 
+P036.Case3 : Grammar {} =
+  do (u : {}) <- @Insert "y" 'a' empty
+     ($$ : {}) <- pure u
+     pure $$
+ 
+P036.Case4 : Grammar (Map [uint 8] (uint 8)) =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     (v : {}) <- @Lookup "x" u
+     Guard (v == {})
+     ($$ : Map [uint 8] (uint 8)) <- pure u
+     pure $$
+ 
+P036.Main : Grammar P036.Main =
+  do (x : uint 8) <- Match ('0' .. '9')
+     (y : P036.Main0) <- Choose biased
+                           { {- c1 -} do (_22 : Map [uint 8] (uint 8)) <- do Guard (x == '1')
+                                                                             ($$ : Map [uint 8] (uint 8)) <- P036.Case1
+                                                                             pure $$
+                                         pure {c1: _22}
+                           | {- c2 -} do (_24 : uint 8) <- do Guard (x == '2')
+                                                              ($$ : uint 8) <- P036.Case2
+                                                              pure $$
+                                         pure {c2: _24}
+                           | {- c3 -} do (_26 : {}) <- do Guard (x == '3')
+                                                          ($$ : {}) <- P036.Case3
+                                                          pure $$
+                                         pure {c3: _26}
+                           | {- c4 -} do (_28 : Map [uint 8] (uint 8)) <- do Guard (x == '4')
+                                                                             ($$ : Map [uint 8] (uint 8)) <- P036.Case4
+                                                                             pure $$
+                                         pure {c4: _28}
+                           }
+     pure {x = x,
+           y = y}
+ 
+P036._A : Grammar {} =
+  Choose fair
+    { {- x -} pure {}
+    | {- y -} pure {}
+    }
+ 
+P036._Case1 : Grammar {} =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     @Insert "x" 'b' u
+ 
+P036._Case2 : Grammar {} =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     @Lookup "y" u
+ 
+P036._Case3 : Grammar {} =
+  @Insert "y" 'a' empty
+ 
+P036._Case4 : Grammar {} =
+  do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
+     (v : {}) <- @Lookup "x" u
+     Guard (v == {})
+ 
+P036._Main : Grammar {} =
+  do (x : uint 8) <- Match ('0' .. '9')
+     Choose biased
+       { {- c1 -} do Guard (x == '1')
+                     P036._Case1
+       | {- c2 -} do Guard (x == '2')
+                     P036._Case2
+       | {- c3 -} do Guard (x == '3')
+                     P036._Case3
+       | {- c4 -} do Guard (x == '4')
+                     P036._Case4
+       }

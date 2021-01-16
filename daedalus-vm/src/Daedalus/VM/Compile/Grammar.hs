@@ -4,8 +4,8 @@ module Daedalus.VM.Compile.Grammar where
 
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
-
-import Daedalus.PP(pp)
+import Control.Monad(forM)
+import qualified Data.Map as Map
 
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
@@ -29,7 +29,7 @@ compile expr next0 =
       compileE e $ Just $ nextYes next
 
     -- XXX: Don't ignore the errors
-    Src.Fail _ _ _ _ ->
+    Src.Fail _ _ _ ->
       pure
         do stmt_$ NoteFail
            nextNo next
@@ -50,15 +50,12 @@ compile expr next0 =
         -- XXX
         Src.SrcAnnot ann -> compile e next    -- XXX:
 
-    Src.If e p q ->
+    Src.GCase (Src.Case e as) ->
       do next' <- sharedYes =<< sharedNo next
-
-         pCode <- label0 =<< compile p next'
-         qCode <- label0 =<< compile q next'
-
-         compileE e $ Just \v ->
-           jumpIf v pCode qCode
-
+         codes <- forM as \(p,g) ->
+                    do l <- label0 NormalBlock =<< compile g next'
+                       pure (p, l)
+         compileE e $ Just \v -> jumpCase v (Map.fromList codes)
 
     Src.Do_ p q ->
 
@@ -110,15 +107,15 @@ compile expr next0 =
     Src.OrUnbiased p q ->
       do next' <- sharedYes next
 
-
          leftFailed <- newLocal (TSem Src.TBool)
+         l          <- newLocal (TSem Src.TStream)
 
          qCode <-
             do finished <-
-                 label0 $ term $ Yield
+                 label0 NormalBlock $ term $ Yield
 
                bothFailed <-
-                 label0 $ nextNo next'
+                 label0 NormalBlock $ nextNo next'
 
                compile q next'
                  { onNo  = Just do v <- getLocal leftFailed
@@ -126,8 +123,10 @@ compile expr next0 =
                  }
 
          -- used to process the RHS
-         doRHS <- label1' \didFail ->
+         doRHS <- label1' ThreadBlock (Just (TSem Src.TBool)) \didFail ->
                   do setLocal leftFailed didFail
+                     i <- getLocal l
+                     stmt_ $ SetInput i
                      qCode
 
          rightId <- newLocal TThreadId
@@ -139,28 +138,35 @@ compile expr next0 =
                         }
 
          pure
-           do clo <- doRHS
-              tid <- stmt TThreadId $ Spawn clo
+           do i <- stmt (TSem Src.TStream) $ GetInput
+              setLocal l i
+              clo <- doRHS
+              tid <- stmt TThreadId $ \x -> Spawn x clo
               setLocal rightId tid
               pCode
 
 
     Src.Call f es ->
-      do let fun = show (pp f)
-
-         doCall <-
+      do doCall <-
            case (onNo next, onYes next) of
-             (Nothing,Nothing) -> pure \vs -> term $ TailCall f vs
+             (Nothing,Nothing) -> pure \vs ->
+                do -- stmt_ $ Say ("Tail calling " ++ show (pp f))
+                   term $ TailCall f Capture vs
 
              _ ->
 
-               do noL <- label0 $ nextNo next
+               do noL <- label0 (ReturnBlock 0) $
+                    do -- stmt_ $ Say ("Returning failure from " ++ show (pp f))
+                       nextNo next
 
-                  yesL <- label1' \v -> nextYes next v
+                  yesL <- label1' (ReturnBlock 1) Nothing \v ->
+                    do -- stmt_ $ Say ("Returning success from " ++ show (pp f))
+                       nextYes next v
 
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 term $ Call f cloNo cloYes vs
+                                 -- stmt_ $ Say ("Calling " ++ show (pp f))
+                                 term $ Call f Capture cloNo cloYes vs
 
          compileEs es \vs -> doCall vs
 
@@ -184,14 +190,14 @@ sharedNo :: WhatNext -> C WhatNext
 sharedNo next =
   case onNo next of
     Nothing -> pure next
-    Just c  -> do l <- label0 c
+    Just c  -> do l <- label0 NormalBlock c
                   pure next { onNo = Just (jump l) }
 
 sharedYes :: WhatNext -> C WhatNext
 sharedYes next =
   case onYes next of
     Nothing -> pure next
-    Just c  -> do l <- label1 c
+    Just c  -> do l <- label1 NormalBlock c
                   pure next { onYes = Just \v -> jump (l v) }
 
 

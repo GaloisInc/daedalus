@@ -1,8 +1,8 @@
 context:
   "Main"
   "A"
-  "Inner"
+  "_Inner"
 input: File context:
 Length: 6 (0x6) bytes
-0000:   3c 61 3c [1;91m3e[0m  64 3e                        <a<[1;91m>[0md>
+0000:   3c 61 3c 3e  [1;91m64[0m 3e                        <a<>[1;91md[0m>
 
