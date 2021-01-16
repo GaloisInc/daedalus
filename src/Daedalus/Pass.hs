@@ -10,6 +10,8 @@ module Daedalus.Pass (PassM
                      , deriveTCNameWith
                      , freshName
                      , freshTCName
+                     , freshLocalName
+                     , freshLocalTCName
                      )  where
 
 import Control.Monad.IO.Class
@@ -69,6 +71,14 @@ freshTCName m x ty c  = do
   n <- freshName m x c
   pure (TCName n ty c)
   
+freshLocalName :: HasGUID m => Ident -> Context c -> m Name
+freshLocalName x c = Name (Local x) c synthetic <$> getNextGUID
+
+freshLocalTCName :: HasGUID m => Ident -> Type -> Context c -> m (TCName c)
+freshLocalTCName x ty c  = do
+  n <- freshLocalName x c
+  pure (TCName n ty c)
+
 --------------------------------------------------------------------------------
   
 instance RunM PassM a (IO a) where
