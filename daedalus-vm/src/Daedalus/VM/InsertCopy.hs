@@ -236,10 +236,15 @@ instance DoSubst JumpChoice where
   doSubst x v (JumpCase opts) = JumpCase (doSubst x v <$> opts)
 
 instance DoSubst JumpWithFree where
-  doSubst x v jf = JumpWithFree
-                     { freeFirst = doFree x v (freeFirst jf)
-                     , jumpTarget = doSubst x v (jumpTarget jf)
-                     }
+  doSubst x v jf =
+    JumpWithFree
+      { freeFirst = let fs = freeFirst jf
+                        x' = LocalVar x
+                    in if x' `Set.member` fs
+                          then Set.insert v (Set.delete x' fs)
+                          else fs
+      , jumpTarget = doSubst x v (jumpTarget jf)
+      }
 
 
 instance DoSubst E where
@@ -275,13 +280,14 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
     freeIs   = mkFree (Set.difference used live)
 
 
-  mkFree vs = [ Free vs' | let vs'= filterFree vs, not (Set.null vs') ]
+  mkFree vs = [ Free vs' | let vs'= filterFree True vs, not (Set.null vs') ]
 
-  filterFree = Set.filter \v -> getOwnership v == Owned &&
+  filterFree checkCopy = Set.filter \v -> getOwnership v == Owned &&
                                 typeRep (getType v) == HasRefs &&
-                                case v of
-                                  LocalVar y -> not (y `Set.member` copies)
-                                  ArgVar {}  -> True
+                                (not checkCopy ||
+                                 case v of
+                                   LocalVar y -> not (y `Set.member` copies)
+                                   ArgVar {}  -> True)
 
 
   inTerm = case blockTerm b of
@@ -296,7 +302,7 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
           others       = Set.unions (Map.elems rest)
       in changeFree (others `Set.difference` this) it
 
-    changeFree vs x = x { freeFirst = filterFree vs }
+    changeFree vs x = x { freeFirst = filterFree False vs }
     getFree         = freeVarSet . jumpTarget
 
 doLookupRm :: Ord k => k -> Map k v -> (v,Map k v)
