@@ -6,6 +6,7 @@ module Daedalus.Type.Traverse where
 
 import Control.Applicative
 import Control.Monad.Identity
+import Data.List.NonEmpty (NonEmpty)
 
 import Daedalus.Type.AST
 
@@ -18,6 +19,10 @@ instance TraverseTypes a => TraverseTypes (Maybe a) where
 
 instance TraverseTypes a => TraverseTypes [a] where
   traverseTypes f = traverse (traverseTypes f)
+
+instance TraverseTypes a => TraverseTypes (NonEmpty a) where
+  traverseTypes f = traverse (traverseTypes f)
+
 
 instance TraverseTypes (TCName k) where
   traverseTypes f n = (\t -> n { tcType = t }) <$> f (tcType n)

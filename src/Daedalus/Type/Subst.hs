@@ -15,6 +15,7 @@ import Data.Parameterized.Map (MapF)
 import Data.Parameterized.Some
 import qualified Data.Parameterized.Map as MapF
 
+import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.Type.AST
 import Daedalus.Type.Free(tcBinds)
@@ -275,11 +276,17 @@ apSubst' go = go'
     go' :: forall k'. TCF a k' -> m (TCF a k')
     go' texpr =
       case texpr of
-        TCVar x ->
-          fromMaybe texpr . lookupSubst x <$> ask
+        TCVar x -> doVar x texpr
 
         TCDo x e1 e2 ->
           TCDo x <$> go e1 <*> local (maybe id forgetSubst x) (go e2)
+
+        TCCall f ts as | isLocalName (tcName f) -> do
+          m_f' <- lookupSubst f <$> ask
+          case m_f' of
+            Nothing         -> TCCall f  ts <$> traverse (traverseArg go) as
+            Just (TCVar f') -> TCCall f' ts <$> traverse (traverseArg go) as
+            _               -> panic "Non-variable subst in Call" []
 
         TCFor lp ->
           mk <$> newFl
@@ -295,8 +302,15 @@ apSubst' go = go'
           newS s = foldr forgetSomeSubst s
                  (tcBinds (loopFlav lp, (loopKName lp, loopElName lp)))
 
+        TCCase e pats mdef ->
+          TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
+          where
+            doAlt (TCAlt ps rhs) =
+              TCAlt ps <$> foldr (local . forgetSubst) (go rhs) (patBinds (head ps))
 
         e  -> traverseTCF go e
+      where
+        doVar x def = fromMaybe def . lookupSubst x <$> ask
 
 
 

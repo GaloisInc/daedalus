@@ -37,6 +37,8 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
 import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -449,12 +451,12 @@ evalCase ::
   val ->
   Env ->
   TC a K.Value ->
-  [TCAlt a k] ->
+  NonEmpty (TCAlt a k) ->
   Maybe (TC a k) ->
   val
 evalCase eval ifFail env e alts def =
   let v = compilePureExpr env e
-  in case msum (map (tryAlt eval env v) alts) of
+  in case msum (NE.map (tryAlt eval env v) alts) of
        Just res -> res
        Nothing ->
          case def of

@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 import Data.Maybe(catMaybes)
 import Control.Monad(guard,zipWithM,liftM,ap,forM)
 import Data.Parameterized.Some
+import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -337,14 +338,14 @@ mbSem tc =
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
     TCCase e pats mb ->
-      do (pats1,vs1) <- unzip <$> mapM (noSemAltWith mbSem) pats
+      do (pats1,vs1) <- NE.unzip <$> mapM (noSemAltWith mbSem) pats
          mb1 <- traverse mbSem mb
          case mb1 of
            Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
-                           , Set.unions (tcFree e:vs1)
+                           , Set.unions (tcFree e : NE.toList vs1)
                            )
            Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
-                                , Set.unions (tcFree e:vs2:vs1)
+                                , Set.unions (tcFree e : vs2 : NE.toList vs1)
                                 )
 
 
@@ -496,14 +497,14 @@ noSem' tc =
                       )
 
      TCCase e pats mb ->
-       do (pats1,vs1) <- unzip <$> mapM (noSemAltWith noSem') pats
+       do (pats1,vs1) <- NE.unzip <$> mapM (noSemAltWith noSem') pats
           mb1 <- traverse mbSem mb
           case mb1 of
             Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
-                            , Set.unions (tcFree e : vs1)
+                            , Set.unions (tcFree e : NE.toList vs1)
                             )
             Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
-                                 , Set.unions (tcFree e:vs2:vs1)
+                                 , Set.unions (tcFree e : vs2 : NE.toList vs1)
                                  )
 
 

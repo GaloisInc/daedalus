@@ -9,6 +9,8 @@ import qualified Data.Text as Text
 import Data.Char(isUpper,isLower, toUpper)
 import Data.Word(Word8)
 import Data.ByteString(ByteString)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -651,13 +653,13 @@ hsCase ::
   Term ->
   Env ->
   TC SourceRange Value ->
-  [TCAlt SourceRange k] ->
+  NonEmpty (TCAlt SourceRange k) ->
   Maybe (TC SourceRange k) ->
   Term
 hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
   where
   branches =
-    concatMap alt alts ++ [
+    concatMap alt (NE.toList alts) ++ [
       case dfl of
         Nothing -> ("_", ifFail)
         Just d  -> ("_", eval env d)

@@ -21,6 +21,8 @@ import qualified Data.Kind as HS
 import Data.Text(Text)
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Classes -- OrdF
 
@@ -161,8 +163,6 @@ data TCF :: HS -> Ctx -> HS where
     -- The type is the type of the final result,
     -- which should be a named union type, possibly with some parameters.
 
-
-
    TCTriOp :: TriOp -> TC a Value -> TC a Value -> TC a Value -> Type -> TCF a Value
 
    TCBinOp :: BinOp -> TC a Value -> TC a Value -> Type -> TCF a Value
@@ -195,14 +195,13 @@ data TCF :: HS -> Ctx -> HS where
       the name is the type of the result, *not* the whole function.
    -}
 
-
    TCErrorMode :: Commit -> TC a Grammar -> TCF a Grammar
    TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
       -- Custom error message: message (byte array)
 
-   TCCase :: TC a Value     {- thing we examine -} ->
-             [TCAlt a k]    {- brances; non-empty -} ->
-             Maybe (TC a k) {- default -} ->
+   TCCase :: TC a Value           {- thing we examine -} ->
+             NonEmpty (TCAlt a k) {- brances; non-empty -} ->
+             Maybe (TC a k)       {- default -} ->
              TCF a k
 
 
@@ -498,11 +497,11 @@ instance PP (TCF a k) where
       TCCase e pats mdef ->
         wrapIf (n > 0)
         "case" <+> pp e <+> "is" $$
-          nest 2 (block "{" ";" "}" (addDefalult (map pp pats)))
+          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats))))
         where
-        addDefalult xs = case mdef of
-                           Nothing -> xs
-                           Just d  -> xs ++ ["_" <+> "->" <+> pp d]
+        addDefault xs = case mdef of
+                          Nothing -> xs
+                          Just d  -> xs ++ ["_" <+> "->" <+> pp d]
 
 
 
@@ -906,7 +905,7 @@ instance TypeOf (TCF a k) where
 
       TCErrorMode _ p     -> typeOf p
       TCFail _ t          -> tGrammar t
-      TCCase _ ps _       -> typeOf (head ps)
+      TCCase _ ps _       -> typeOf (NE.head ps)
 
 instance TypeOf (TCAlt a k) where
   typeOf (TCAlt _ e) = typeOf e
@@ -949,7 +948,7 @@ altBinds (TCAlt ps _) = patBinds (head ps)
 
 
 
--- $(return [])
+$(return [])
 
 --------------------------------------------------------------------------------
 -- OrdF, TestEquality, etc.
@@ -973,3 +972,6 @@ instance OrdF TCName where
 
 instance Ord (TCName k) where
   compare x y = toOrdering (compareF x y)
+
+    
+    

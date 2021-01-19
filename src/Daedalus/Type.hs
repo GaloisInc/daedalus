@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Parameterized.Some(Some(..))
+import Data.List.NonEmpty (NonEmpty, NonEmpty((:|)) )
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -1274,7 +1275,7 @@ checkPatternCases :: HasRange r =>
   Type -> Type ->
   [TCAlt SourceRange ctx] ->
   [PatternCase Expr] ->
-  TypeM ctx ([TCAlt SourceRange ctx], Maybe (TC SourceRange ctx))
+  TypeM ctx (NonEmpty (TCAlt SourceRange ctx), Maybe (TC SourceRange ctx))
 checkPatternCases rng tIn tOut done cases =
   case cases of
 
@@ -1292,9 +1293,9 @@ checkPatternCases rng tIn tOut done cases =
 
   where
   checkNonEmpty mb =
-    case done of
-      [] -> reportError rng "`case` needs at least one non-default pattern."
-      _  -> pure (reverse done, mb)
+    case reverse done of
+      []       -> reportError rng "`case` needs at least one non-default pattern."
+      (x : xs) -> pure (x :| xs, mb)
 
 
 inferCase ::
