@@ -24,10 +24,14 @@ addCopyIs p = p { pEntries = annEntry  <$> pEntries p
                 , pModules = annModule <$> pModules p
                 }
   where
-  annEntry e  = e { entryBoot = annotateBlock ro <$> entryBoot e }
+  annEntry e  = e { entryBoot = blockMap (entryBoot e) }
   annModule m = m { mFuns = map annFun (mFuns m) }
-  annFun f    = f { vmfBlocks = annotateBlock ro <$> vmfBlocks f }
+  annFun f    = f { vmfBlocks = blockMap (vmfBlocks f) }
   ro          = buildRO p
+  blockMap    = Map.fromList
+              . map (\b -> (blockName b, b))
+              . concatMap (annotateBlock ro)
+              . Map.elems
 
 buildRO :: Program -> RO
 buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
@@ -44,11 +48,11 @@ buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
           , labOwn = Map.union ls (labOwn i)
           }
 
-  blockSig b = map getOwnership (blockArgs b)
+  blockSig b = (map getOwnership (blockArgs b), blockType b)
 
 
-annotateBlock :: RO -> Block -> Block
-annotateBlock ro = rmRedundantCopy . insertFree . insertCopy ro
+annotateBlock :: RO -> Block -> [Block]
+annotateBlock ro = map rmRedundantCopy . insertFree ro . insertCopy ro
 
 
 --------------------------------------------------------------------------------
@@ -111,6 +115,15 @@ jump choice L(x1,free(x2,x)) R(x2,x, free(x1))
 ~>
 x2 = copy
 jump choice L(x,free(x2)) R(x2,x)
+
+
+XXX: another case:
+  x = copy y
+  f(x)      --- x is borrowed
+    L_free(y,x)
+-->
+  f(y)
+    L(y)
 -}
 
 
@@ -131,6 +144,7 @@ doRmRedundat doneIs is term =
     i : more -> doRmRedundat (i : doneIs) more term
 
     [] -> checkTermCopies doneIs term
+
 
 {- Check for Optimization 2 `x = copy y` can be eliminated if `x` and `y`
 will never exist at the same time.
@@ -262,10 +276,13 @@ instance DoSubst E where
 {- | Insert @free@ after the last use of owned variables that have references.
 We do not insert @free@ instructions for copies inserted in the previous
 pass as those are going to be freed by their new owners. -}
-insertFree :: (Set BV, Block) -> Block
-insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
+insertFree :: RO -> (Set BV, Block) -> [Block]
+insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
+                         : newBlocks
   where
-  (finLive,iss) = mapAccumL updI (freeVarSet inTerm)
+  (newTerm,newBlocks) = inTerm
+
+  (finLive,iss) = mapAccumL updI (freeVarSet newTerm)
                                  (reverse (blockInstrs b))
   baSet      = Set.fromList [ ArgVar v | v <- blockArgs b ]
   topFreeIs  = mkFree (Set.difference baSet finLive)
@@ -291,8 +308,19 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
 
 
   inTerm = case blockTerm b of
-             JumpIf e ls    -> JumpIf e (freeChoice ls)
-             t              -> t
+             JumpIf e ls -> (JumpIf e (freeChoice ls), [])
+
+             CallPure f l es
+                | not (null cs) -> (CallPure f l' es, [newB])
+                where cs = checkFun f es [l]
+                      (l',newB) = makeOwner l cs
+
+             Call f c l1 l2 es
+                | not (null cs) -> (Call f c l' l2 es,[newB])
+                where cs = checkFun f es [l1,l2]
+                      (l',newB) = makeOwner l1 cs  -- arbitrary choice of l1
+
+             t -> (t,[])
 
   freeChoice (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
     where
@@ -304,6 +332,63 @@ insertFree (copies,b) = b { blockInstrs = newIs, blockTerm = inTerm }
 
     changeFree vs x = x { freeFirst = filterFree False vs }
     getFree         = freeVarSet . jumpTarget
+
+  -- if we call f(x) and `x` expects borrowed, but we are passing it owned,
+  -- upon returning we need to free `x`
+  --  * if `x` is in at least one of the continuation's closures we are done
+  --    (the continuation is the owner that will take care of it).
+  --  * if not, then we need to add it by making an extra block:
+  --      B: (thingsToFree,otherArgs)
+  --          free(thingsToFree)
+  --          goto L(otherArgs)   -- where L was the original return address
+  --  * For parsers, where we have 2 return continuations, we only need to
+  --    modify one of the blocks as above, and this block becomes the new
+  --    owner.
+  checkFun f es ls =
+    case Map.lookup f (funMap ro) of
+      Just (sig,_) -> filter (needsOwner ls) (concat (zipWith checkArg sig es))
+      Nothing  -> panic "funOwn" [ "Missing function " ++ show (pp f) ]
+
+  -- an owned argument that is borrowed by the call
+  checkArg funParam e =
+    case eIsVar e of
+      Just v | funParam == Borrowed && getOwnership v == Owned -> [v]
+      _ -> []
+
+  needsOwner ls c = typeRep (getType c) == HasRefs && not (any ownedBy ls)
+    where
+    ownedBy l = any matches (jArgs l)
+      where
+      matches e = Just c == eIsVar e
+
+  makeOwner l cs =
+    let nm = case jLabel l of
+               Label txt n -> Label ("_free_" <> txt) n
+        toArg n e = BA n (getType e) Owned
+        oldArgs = zipWith toArg [ 0 .. ] (jArgs l)
+        newArgs = zipWith toArg [ length oldArgs .. ] cs
+    in ( JumpPoint
+            { jLabel = nm
+            , jArgs  = jArgs l ++ map eVar cs
+            }
+       , Block
+          { blockName     = nm
+          , blockType     = case Map.lookup (jLabel l) (labOwn ro) of
+                              Just (_,ty) -> ty
+                              Nothing -> panic "makeOwner"
+                                          [ "Missing block: " ++ show (pp l) ]
+          , blockArgs     = oldArgs ++ newArgs
+          , blockLocalNum = 0
+          , blockInstrs   = [ Free (Set.fromList (map ArgVar newArgs)) ]
+          , blockTerm     = Jump JumpPoint
+                                   { jLabel = jLabel l
+                                   , jArgs  = map EBlockArg oldArgs
+                                   }
+          }
+       )
+
+
+
 
 doLookupRm :: Ord k => k -> Map k v -> (v,Map k v)
 doLookupRm k mp = (v,mp1)
@@ -441,8 +526,8 @@ runM ro v (M m) = ( a
   where
   (a,s1) = m ro RW { nextName = v, newVars = [[]], revInstr = [] }
 
-data RO = RO { funMap :: Map FName [Ownership]
-             , labOwn :: Map Label [Ownership]
+data RO = RO { funMap :: Map FName ([Ownership], BlockType)
+             , labOwn :: Map Label ([Ownership], BlockType)
              }
 
 data RW = RW { nextName :: Int
@@ -484,11 +569,11 @@ newBV t = M \_ s ->
 lookupFunMode :: FName -> M [Ownership]
 lookupFunMode f = M \r s ->
   case Map.lookup f (funMap r) of
-    Just ms -> (ms,s)
+    Just ms -> (fst ms,s)
     Nothing -> panic "lookupFunMode" ["Missing mode for " ++ show (pp f)]
 
 lookupLabelMode :: Label -> M [Ownership]
 lookupLabelMode l = M \r s ->
   case Map.lookup l (labOwn r) of
-    Just ms -> (ms,s)
+    Just ms -> (fst ms,s)
     Nothing -> panic "lookupLabelMode" ["Missing signature for " ++ show (pp l)]

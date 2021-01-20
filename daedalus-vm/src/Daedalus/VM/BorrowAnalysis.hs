@@ -37,7 +37,9 @@ import Daedalus.VM
 
   7. We can pass a variable we "own" as a "borrowed" argument, as long as
      we plan to come back from the call (i.e., NOT in a tail-call), so that
-     we can deallocate the variable.
+     we can deallocate the variable.  If that variable is not used in the
+     continuation, the continuation needs to be modified to free the variable
+     upone return. See comments in `InsertCopy` for details.
 
   8. We can pass a variable we "own" as an "owned" argument to another function
      but then we give up ownership and should not use this variable anymore.
