@@ -166,6 +166,12 @@ eIsVar e =
     EBlockArg x -> Just (ArgVar x)
     _ -> Nothing
 
+eVar :: VMVar -> E
+eVar var =
+  case var of
+    LocalVar x -> EVar x
+    ArgVar x   -> EBlockArg x
+
 iArgs :: Instr -> [E]
 iArgs i =
   case i of
