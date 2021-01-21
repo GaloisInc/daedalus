@@ -24,6 +24,7 @@ library
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy
+    Daedalus.VM.RefCountSane
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr

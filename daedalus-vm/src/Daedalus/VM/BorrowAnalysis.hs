@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modeI,modePrimName) where
 
 import           Data.Maybe(catMaybes)
@@ -9,8 +9,11 @@ import qualified Data.Set as Set
 
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding (block)
-import Daedalus.Core(FName,Op1(..),Op2(..),Op3(..),OpN(..))
+import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
+import Daedalus.VM.TypeRep
+
+import Debug.Trace
 
 {-
 * Notes on reference variables:
@@ -36,17 +39,17 @@ import Daedalus.VM
   6. We can only pass a "borrowed" variable as "borrowed"
 
   7. We can pass a variable we "own" as a "borrowed" argument, as long as
-     we plan to come back from the call (i.e., NOT in a tail-call), so that
-     we can deallocate the variable.  If that variable is not used in the
-     continuation, the continuation needs to be modified to free the variable
-     upone return. See comments in `InsertCopy` for details.
+     we plan to come back from the call (i.e., NOT in a tail-call or case),
+     so that we can deallocate the variable.  If that variable is not used
+     in the continuation, the continuation needs to be modified to
+     free the variable upone return. See comments in `InsertCopy` for details.
 
   8. We can pass a variable we "own" as an "owned" argument to another function
      but then we give up ownership and should not use this variable anymore.
 
-  9. Variables that are alive after a non-tail call (i.e., they are in
-     the stack allocated closure) can always be passed as "borrowed" to the
-     function
+  9. Variables that are alive after a non-tail call (i.e., they are owned 
+     by the stack allocated closure) do no impose a constraint on the
+     called function
 
 * The purpose of this module is to compute the ownerships for the arguments
 of basic blocks (point 5)
@@ -100,7 +103,7 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
       Notify e        -> Notify (annE mp e)
       CallPrim x p es -> CallPrim x p (map (annE mp) es)
       GetInput {}     -> i
-      Spawn x l       -> Spawn x (annJ mp l)
+      Spawn x l       -> Spawn x (annClo mp l)
       NoteFail        -> i
       Let x e         -> Let x (annE mp e)
       Free xs         -> Free (Set.map (annV mp) xs)
@@ -113,8 +116,9 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
       ReturnNo           -> ReturnNo
       ReturnYes e        -> ReturnYes (annE mp e)
       ReturnPure e       -> ReturnPure (annE mp e)
-      CallPure f l es    -> CallPure f (annJ mp l) (annE mp <$> es)
-      Call f c no yes es -> Call f c (annJ mp no) (annJ mp yes) (annE mp <$> es)
+      CallPure f l es    -> CallPure f (annClo mp l) (annE mp <$> es)
+      Call f c no yes es -> Call f c (annClo mp no)
+                                     (annClo mp yes) (annE mp <$> es)
       TailCall f c es    -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
@@ -124,6 +128,7 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
       ArgVar a -> ArgVar (annVA mp a)
       LocalVar {} -> v
 
+  annClo mp  c = annJ mp c --- XXX
   annJ mp (JumpPoint l es) = JumpPoint l (map (annE mp) es)
   annJF mp jf = JumpWithFree { freeFirst = Set.map (annV mp) (freeFirst jf)
                              , jumpTarget = annJ mp (jumpTarget jf)
@@ -148,17 +153,44 @@ data Info = Info
   , iChanges    :: Bool
   }
 
-addBlockArg :: BA -> Ownership -> Info -> Info
-addBlockArg x m i =
+-- | Add a constraint on a block argument
+addBlockArg :: VMVar -> OwnInfo -> Info -> Info
+addBlockArg y (prov,m) i =
   case m of
-    Owned | not (x `Set.member` iBlockOwned i) ->
+    Owned | ArgVar x <- y
+          , not (x `Set.member` iBlockOwned i) ->
+             -- trace ("Forcing " ++ showPP x ++ " to be owned")
              i { iChanges = True, iBlockOwned = Set.insert x (iBlockOwned i) }
+    Borrowed | alreadyOwned
+             , Just (l,n) <- prov ->
+              -- trace ("Forcing argument " ++ show n ++ " of "
+              --    ++ show (pp l) ++ " to be owned.") $
+              i { iChanges = True
+                , iBlockInfo =
+                  Map.insert l
+                    case splitAt n (map snd (getBlockOwnership l i)) of
+                      (as,_:bs) -> as ++ Owned:bs
+                      _ -> panic "addBlockArg" [ "bad arguments" ]
+                    (iBlockInfo i)
+                }
     _ -> i
 
-getBlockOwnership :: Label -> Info -> [Ownership]
-getBlockOwnership l i = Map.findWithDefault (repeat Borrowed) l (iBlockInfo i)
+  where
+  alreadyOwned =
+    case y of
+      LocalVar {} -> True
+      ArgVar x  -> x `Set.member` iBlockOwned i
 
-getFunOwnership :: FName -> Info -> [Ownership]
+-- Is the constraint from an argument of a block
+type OwnInfo = (Maybe (Label,Int),Ownership)
+
+getBlockOwnership :: Label -> Info -> [OwnInfo]
+getBlockOwnership l i =
+  case Map.lookup l (iBlockInfo i) of
+    Just sig -> [ (Just (l,a),o) | (a,o) <- [ 0 .. ] `zip` sig ]
+    Nothing  -> [ (Just (l,a),Borrowed) | a <- [ 0 .. ] ]
+
+getFunOwnership :: FName -> Info -> [OwnInfo]
 getFunOwnership f i =
   case Map.lookup f (iFunEntry i) of
     Just l  -> getBlockOwnership l i
@@ -209,41 +241,46 @@ block b i =
                      $ zipWith pick ms (blockArgs b)
 
   pick m a = case m of
-               Owned -> Just a
-               Borrowed -> Nothing
+               Owned     -> Just a
+               Borrowed  -> Nothing
+               Unmanaged -> Nothing
 
   i0 = i { iBlockOwned = owned }
 
-  i1 = foldr ($) (cinstr (blockTerm b) i0)
-     $ map instr (blockInstrs b)
+  i1 = foldr ($) (cinstr loc (blockTerm b) i0)
+     $ map (instr loc) (blockInstrs b)
 
-  newOwnershipOf a = if a `Set.member` iBlockOwned i1 then Owned else Borrowed
+  loc = showPP (blockName b)
+
+  newOwnershipOf a = (if a `Set.member` iBlockOwned i1 then Owned else Borrowed)
+                     `ifRefs` a
   newOwnership     = map newOwnershipOf (blockArgs b)
 
 
-instr :: Instr -> Info -> Info
-instr i = foldr (.) id (zipWith expr (iArgs i) (modeI i))
+instr :: String -> Instr -> Info -> Info
+instr _b i = foldr (.) id
+           $ zipWith expr (iArgs i) (zip (repeat Nothing) (modeI i))
 
 
-cinstr :: CInstr -> Info -> Info
-cinstr ci =
+cinstr :: String -> CInstr -> Info -> Info
+cinstr _b ci =
   case ci of
-    Jump l -> jumpPoint l
-    JumpIf _ ls  -> jumpChoice ls
+    Jump l       -> jumpPoint l
+    JumpIf _ ls  -> jumpChoice ls   -- the scrutinized expression is "borrowed"
     Yield        -> id
     ReturnNo     -> id
-    ReturnYes e  -> expr e Owned
-    ReturnPure e -> expr e Owned
+    ReturnYes e  -> expr e (Nothing,Owned `ifRefs` e)
+    ReturnPure e -> expr e (Nothing,Owned `ifRefs` e)
 
     CallPure f l es ->
-      \i -> jumpPoint l
+      \i -> closure l
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
 
     Call f _ no yes es ->
-      \i -> jumpPoint no
-          $ jumpPoint yes
+      \i -> closure no
+          $ closure yes
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
@@ -252,6 +289,11 @@ cinstr ci =
       \i -> foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
+
+closure :: Closure -> Info -> Info
+closure clo i = foldr ($) i
+              $ zipWith expr (jArgs clo)
+                             [ (Nothing, Owned `ifRefs` e) | e <- jArgs clo ]
 
 jumpChoice :: JumpChoice -> Info -> Info
 jumpChoice (JumpCase opts) = \i -> foldr jumpWithFree i opts
@@ -265,16 +307,16 @@ jumpPoint (JumpPoint l es) i =
   $ zipWith expr es
   $ getBlockOwnership l i
 
-expr :: E -> Ownership -> Info -> Info
+expr :: E -> OwnInfo -> Info -> Info
 expr ex mo =
   case ex of
-    EBlockArg x   -> addBlockArg x mo
+    EBlockArg x   -> addBlockArg (ArgVar x) mo
+    EVar x        -> addBlockArg (LocalVar x) mo
     EUnit         -> id
     ENum {}       -> id
     EBool {}      -> id
     EMapEmpty {}  -> id
     ENothing {}   -> id
-    EVar {}       -> id
 
 
 
@@ -283,14 +325,19 @@ modeI i =
   case i of
     SetInput {}              -> [Owned]
     Say {}                   -> []
-    Output _                 -> [Owned]
-    Notify _                 -> [Owned] -- not ref
-    CallPrim _ pn _          -> modePrimName pn
+    Output e                 -> [ Owned `ifRefs` e ]
+    Notify _                 -> [ Unmanaged ]
+    CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
     GetInput _               -> []
-    Spawn _ (JumpPoint _ es) -> zipWith const (repeat Owned) es
+    Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
     NoteFail                 -> []
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
-    Let _ _                  -> [Borrowed] -- borrow to make a copy
+    Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
+
+ifRefs :: HasType t => Ownership -> t -> Ownership
+ifRefs o x = case typeRepOf x of
+               NoRefs  -> Unmanaged
+               HasRefs -> o
 
 
 modePrimName :: PrimName -> [Ownership]

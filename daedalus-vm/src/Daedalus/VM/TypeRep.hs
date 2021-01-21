@@ -10,6 +10,9 @@ data TypeRep =
   | HasRefs -- ^ Types passed by valuekdd references
     deriving Eq
 
+typeRepOf :: HasType t => t -> TypeRep
+typeRepOf = typeRep . getType
+
 class GetTypeRep t where
   typeRep :: t -> TypeRep
 

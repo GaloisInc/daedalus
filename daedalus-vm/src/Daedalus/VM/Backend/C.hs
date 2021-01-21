@@ -24,6 +24,7 @@ import Daedalus.Rec(topoOrder,forgetRecs)
 
 import Daedalus.VM
 import qualified Daedalus.Core as Src
+import Daedalus.VM.RefCountSane
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
@@ -40,7 +41,10 @@ import Daedalus.VM.Backend.C.Call
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
 cProgram :: String -> Program -> (Doc,Doc)
-cProgram fileNameRoot prog = (hpp,cpp)
+cProgram fileNameRoot prog =
+  case checkProgram prog of
+    Nothing -> (hpp,cpp)
+    Just err -> panic "cProgram" err
   where
   module_marker = text fileNameRoot <.> "_H"
 
@@ -195,16 +199,24 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   where
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
-         in getArgs
-         -- $$ dbg
+         in dbg1
+         $$ getArgs
+         $$ dbg
          $$ vcat (map cBlockStmt (blockInstrs b))
          $$ vcat (cTermStmt (blockTerm b))
+
+  dbg1 :: (CurBlock,Copies) => CStmt
+  dbg1 = cStmt
+       $ fsep
+       $ intersperse "<<"
+       $ [ "std::cout", cString ("enter " ++ show (pp (blockName b))) ] ++
+         [ " \"(\"", "&&" <.> cBlockLabel (blockName b), "\") \"", "std::endl" ]
 
   dbg :: (CurBlock,Copies) => CStmt
   dbg =   cStmt
         $ fsep
         $ intersperse "<<"
-        $ [ "std::cout", cString ("enter " ++ show (pp (blockName b))) ] ++
+        $ [ "std::cout", cString "args" ] ++
           concat [ [cString s, cExpr (EBlockArg a)]
                  | a <- blockArgs b
                  | s <- ": " : repeat ", " ] ++

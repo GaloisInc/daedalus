@@ -12,7 +12,6 @@ import Data.List(mapAccumL)
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 
-import Daedalus.Core(FName)
 import Daedalus.VM
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.TypeRep
@@ -128,7 +127,7 @@ XXX: another case:
 
 
 doRmRedundat :: [Instr] -> [Instr] -> CInstr -> ([Instr],CInstr)
-doRmRedundat doneIs is term =
+doRmRedundat doneIs is term = (is,term) {-
   case is of
     -- Optimization 1: Make a copy, and immediately dallocate source
     Let x e : Free xs : more
@@ -143,7 +142,7 @@ doRmRedundat doneIs is term =
 
     i : more -> doRmRedundat (i : doneIs) more term
 
-    [] -> checkTermCopies doneIs term
+    [] -> checkTermCopies doneIs term -}
 
 
 {- Check for Optimization 2 `x = copy y` can be eliminated if `x` and `y`
@@ -309,6 +308,8 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
 
   inTerm = case blockTerm b of
              JumpIf e ls -> (JumpIf e (freeChoice ls), [])
+                -- XXX: we may have to free the `e` if it is owned and
+                -- we don't use it in some of the branches
 
              CallPure f l es
                 | not (null cs) -> (CallPure f l' es, [newB])
@@ -444,8 +445,9 @@ doArgs es ms = zipWithM doArg es ms
 doArg :: E -> Ownership -> M E
 doArg e m =
   case m of
-    Owned    -> copy e
-    Borrowed -> pure e
+    Owned     -> copy e
+    Borrowed  -> pure e
+    Unmanaged -> pure e
 
 
 

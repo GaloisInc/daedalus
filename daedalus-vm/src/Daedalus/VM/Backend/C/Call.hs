@@ -30,9 +30,12 @@ cReturnClass super l tys = cStmt $ vcat
         thisTy
         ("void* code" : [ cType t <+> param n | (t,n) <- fields ])
         ( (super,"code") : [ (cField n, param n) | (_,n) <- fields ] )
-        []
+        [ "std::cout << \"Allocated " <+> pp l <+> " at \" << (void*)this << std::endl;"
+        ]
 
     , cDefineFun "void" "freeMembers" []
+         $ ["std::cout << \"Freeing members of" <+> (pp l) <+> "\" << (void*)this << std::endl;"]
+         ++
          [ cStmt (cCallMethod (cField n) "free" [])
          | (t,n) <- fields, HasRefs <- [typeRep t]
          ]

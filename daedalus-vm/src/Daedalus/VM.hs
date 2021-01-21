@@ -2,6 +2,7 @@
 module Daedalus.VM
   ( module Daedalus.VM
   , Src.Pattern(..)
+  , Src.FName
   ) where
 
 import Data.Set(Set)
@@ -83,7 +84,7 @@ data Instr =
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
   | GetInput BV
-  | Spawn BV JumpPoint
+  | Spawn BV Closure
   | NoteFail
 
   | Let BV E
@@ -97,11 +98,11 @@ data CInstr =
   | ReturnNo
   | ReturnYes E
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
-  | CallPure Src.FName JumpPoint [E]
+  | CallPure Src.FName Closure [E]
     -- ^ The jump point contains information on where to continue after
     -- return and what we need to preserve acrross the call
 
-  | Call Src.FName Captures JumpPoint JumpPoint [E]
+  | Call Src.FName Captures Closure Closure [E]
     -- The JumpPoints contain information about the return addresses.
 
   | TailCall Src.FName Captures [E]
@@ -118,6 +119,8 @@ data Captures = Capture | NoCapture
 
 -- | Target of a jump
 data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
+
+type Closure = JumpPoint
 
 -- | Before jumping to these targets we should deallocate the given
 -- variables.  We could achieve the same with just normal jumps and
@@ -187,6 +190,10 @@ iArgs i =
     Let _ e           -> [e]
     Free _            -> []       -- XXX: these could be just owned args
 
+pAllBlocks :: Program -> [Block]
+pAllBlocks p =
+  [ b | ent <- pEntries p, b <- Map.elems (entryBoot ent) ] ++
+  [ b | m <- pModules p, f <- mFuns m, b <- Map.elems (vmfBlocks f) ]
 
 --------------------------------------------------------------------------------
 -- Names
@@ -199,7 +206,7 @@ data Label      = Label Text Int deriving (Eq,Ord,Show)
 data BV         = BV Int VMT            deriving (Eq,Ord)
 data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
 
-data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
+data Ownership  = Owned | Borrowed | Unmanaged      deriving (Eq,Ord,Show)
 
 class GetOwnership t where
   getOwnership :: t -> Ownership
@@ -263,6 +270,7 @@ instance PP Ownership where
   pp m = case m of
            Owned    -> "Owned"
            Borrowed -> "Borrowed"
+           Unmanaged -> "Unmanaged"
 
 instance PP Label where
   pp (Label f i) = "L_" <.> int i <.> "_" <.> pp f
@@ -370,16 +378,20 @@ instance PP BA where
     where own = case o of
                   Owned    -> "o"
                   Borrowed -> "b"
+                  Unmanaged -> "u"
+
+instance PP BlockType where
+  pp b =
+    case b of
+      NormalBlock   -> "/* normal block */"
+      ReturnBlock n -> "/* return" <+> int n <+> "*/"
+      ThreadBlock   -> "/* thread */"
 
 instance PP Block where
   pp b = l <.> colon <+> ty $$ nest 2
                           (vcat (map pp (blockInstrs b)) $$ pp (blockTerm b))
     where
-    ty = case blockType b of
-           NormalBlock   -> empty
-           ReturnBlock n -> "// return" <+> int n
-           ThreadBlock   -> "// thread"
-
+    ty = pp (blockType b)
     l = case blockArgs b of
           [] -> pp (blockName b)
           xs -> ppFun (pp (blockName b)) (map ppArg xs)

@@ -79,8 +79,9 @@ public:
   // Add to waiting threads
   ThreadId spawn(ThreadClosure *c) {
     ThreadId id = suspended.size();
-    // std::cout << "spawning thread " << id << std::endl;
+    std::cout << "spawning thread " << id << std::endl;
     stack.copy();
+    std::cout << stack;
     suspended.push_back(Thread(c,stack));
     return id;
   }
@@ -94,12 +95,16 @@ public:
   //    * its stack replaces the current stack
   //    * its closure is pushed on the *new* current stack.
   void *yield() {
-    // std::cout << "yielding\n";
+    std::cout << "yielding\n";
     Thread& t = suspended.back();
+    std::cout << "freeing stack\n";
+    std::cout << stack;
     stack.free();
     ThreadClosure *c = t.closure;
     stack = ListStack(c,t.stack);
     suspended.pop_back();
+    std::cout << "new stack\n";
+    std::cout << stack;
     return stack.retAddr();
   }
 

@@ -78,6 +78,7 @@ public:
   size_t refCount() { return ptr.isNull()? 2 : ptr.refCount(); }
   void   free()     { if (!ptr.isNull()) ptr.free(); }
   void   copy()     { if (!ptr.isNull()) ptr.copy(); }
+  void*  rawPtr()   { return ptr.rawPtr(); }
 };
 
 
