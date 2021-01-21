@@ -209,7 +209,9 @@ deriving instance Show a => Show (TCF a k)
 
 -- | A branch in a case.  Succeeds if *any* of the patterns match.
 -- All alternatives must bind the same variables (with the same types)
-data TCAlt a k = TCAlt [TCPat] (TC a k)
+data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
+                       , tcAltBody     :: (TC a k)
+                       }
   deriving Show
 
 -- | Deconstruct a value

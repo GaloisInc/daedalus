@@ -47,7 +47,8 @@ library
                        Daedalus.Type.Traverse,
                        Daedalus.Type.Free,
                        Daedalus.Type.DeadVal,
-                       Daedalus.Type.RefreshGUID
+                       Daedalus.Type.RefreshGUID,
+                       Daedalus.Type.PatComplete,          
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
