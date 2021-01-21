@@ -150,6 +150,7 @@ data Info = Info
   { iBlockOwned :: Set BA
   , iBlockInfo  :: Map Label [Ownership]
   , iFunEntry   :: Map FName Label
+  , iBlockType  :: Map Label BlockType
   , iChanges    :: Bool
   }
 
@@ -181,6 +182,20 @@ addBlockArg y (prov,m) i =
       LocalVar {} -> True
       ArgVar x  -> x `Set.member` iBlockOwned i
 
+
+setOwnership :: OwnInfo -> Info -> Info
+setOwnership (mb,own) i =
+  case mb of
+    Nothing -> i
+    Just (l,n) ->
+      case splitAt (implicitArgs l i + n) (map snd (getBlockOwnership l i)) of
+        (as,b:bs) | b /= own ->
+          -- trace ("Changing " ++ show (pp l) ++ ":" ++ show n ++ " from " ++
+          --           show b ++ " to " ++ show own)
+          i { iChanges = True, iBlockInfo = Map.insert l (as ++ own : bs)
+                                                         (iBlockInfo i) }
+        _ -> i
+
 -- Is the constraint from an argument of a block
 type OwnInfo = (Maybe (Label,Int),Ownership)
 
@@ -196,6 +211,16 @@ getFunOwnership f i =
     Just l  -> getBlockOwnership l i
     Nothing -> panic "getFunOwnership" [ "Missing entry point for " ++ show (pp f) ]
 
+implicitArgs :: Label -> Info -> Int
+implicitArgs l i =
+  case Map.lookup l (iBlockType i) of
+    Just ty ->
+      case ty of
+        NormalBlock   -> 0
+        ReturnBlock n -> n
+        ThreadBlock   -> 1
+    Nothing -> panic "implicitArgs" ["Missing block: " ++ show (pp l) ]
+
 --------------------------------------------------------------------------------
 
 
@@ -208,6 +233,8 @@ borrowAnalysis p = loop i0
             , iFunEntry   = Map.fromList [ (vmfName f, vmfEntry f)
                                          | m <- pModules p, f <- mFuns m
                                          ]
+            , iBlockType  = Map.fromList
+                              [ (blockName b, blockType b) | b <- pAllBlocks p ]
             }
 
   loop i = let i1 = vmProgram p i
@@ -258,8 +285,11 @@ block b i =
 
 
 instr :: String -> Instr -> Info -> Info
-instr _b i = foldr (.) id
-           $ zipWith expr (iArgs i) (zip (repeat Nothing) (modeI i))
+instr _b i =
+  case i of
+    Spawn _ l -> closure l
+    _ -> foldr (.) id
+                   $ zipWith expr (iArgs i) (zip (repeat Nothing) (modeI i))
 
 
 cinstr :: String -> CInstr -> Info -> Info
@@ -291,9 +321,12 @@ cinstr _b ci =
           $ getFunOwnership f i
 
 closure :: Closure -> Info -> Info
-closure clo i = foldr ($) i
-              $ zipWith expr (jArgs clo)
-                             [ (Nothing, Owned `ifRefs` e) | e <- jArgs clo ]
+closure clo i = foldr ($) upd
+              $ zipWith expr (jArgs clo) args
+  where
+  args = [ (Just (jLabel clo,n), Owned `ifRefs` e)
+                                          | (n,e) <- [0..] `zip` jArgs clo ]
+  upd  = foldr ($) i (map setOwnership args)
 
 jumpChoice :: JumpChoice -> Info -> Info
 jumpChoice (JumpCase opts) = \i -> foldr jumpWithFree i opts
@@ -333,11 +366,6 @@ modeI i =
     NoteFail                 -> []
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
     Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
-
-ifRefs :: HasType t => Ownership -> t -> Ownership
-ifRefs o x = case typeRepOf x of
-               NoRefs  -> Unmanaged
-               HasRefs -> o
 
 
 modePrimName :: PrimName -> [Ownership]

@@ -13,6 +13,11 @@ data TypeRep =
 typeRepOf :: HasType t => t -> TypeRep
 typeRepOf = typeRep . getType
 
+ifRefs :: HasType t => Ownership -> t -> Ownership
+ifRefs o x = case typeRepOf x of
+               NoRefs  -> Unmanaged
+               HasRefs -> o
+
 class GetTypeRep t where
   typeRep :: t -> TypeRep
 

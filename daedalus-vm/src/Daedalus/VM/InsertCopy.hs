@@ -74,10 +74,11 @@ Optimizaiton 1:
 Optimizaiton 2:
   x = copy y
   jump choice L R
-     * are not both used in L
-     * are not both used in R
+     * x and y are not both used in L
+     * x and y are not both used in R
   ~>
-  jump choice L[y/x] R[y/x]  and remove "y" from free
+  jump choice L[y/x] R[y/x] and remove "y" from free, unless "x" was
+  in the free.
 
   NOTE:  the order of the copies is arbitrary so the optimization should
   work even there are other copies between it and the jump
@@ -127,7 +128,7 @@ XXX: another case:
 
 
 doRmRedundat :: [Instr] -> [Instr] -> CInstr -> ([Instr],CInstr)
-doRmRedundat doneIs is term = (is,term) {-
+doRmRedundat doneIs is term =
   case is of
     -- Optimization 1: Make a copy, and immediately dallocate source
     Let x e : Free xs : more
@@ -142,7 +143,7 @@ doRmRedundat doneIs is term = (is,term) {-
 
     i : more -> doRmRedundat (i : doneIs) more term
 
-    [] -> checkTermCopies doneIs term -}
+    [] -> checkTermCopies doneIs term
 
 
 {- Check for Optimization 2 `x = copy y` can be eliminated if `x` and `y`
@@ -152,6 +153,9 @@ Assumes all "copy" was inserted by the previous pass.
 In particular, we should never see:
 let x = y
 let z = x
+
+Note, however, that "free copies" may occur in the branches of a case,
+so we have to be careful there.
 -}
 checkTermCopies :: [Instr] -> CInstr -> ([Instr], CInstr)
 checkTermCopies is0 term0 = (reverse is1, term1)
@@ -189,15 +193,20 @@ checkTermCopies is0 term0 = (reverse is1, term1)
 
     elimJF jf = JumpWithFree
                   { jumpTarget = doSubst x' v (jumpTarget jf)
-                  , freeFirst  = Set.delete x
-                               $ Set.delete v
-                               $ freeFirst jf
+                  , freeFirst =
+                     let toFree = freeFirst jf
+                     in Set.delete x
+                      $ if x `Set.member` toFree
+                          then toFree
+                          else Set.delete v toFree
                   }
 
 
 
 
 -- | Replace a local variable with another variable.
+-- The new variable is one that we know should not be freed explicitly,
+-- because it's being transfarred to a new owner.
 class DoSubst t where
   doSubst :: BV -> VMVar -> t -> t
 
@@ -219,14 +228,7 @@ instance DoSubst Instr where
       Spawn y l       -> Spawn y (doSubst x v l)
       NoteFail        -> i
       Let y e         -> Let y (doSubst x v e)
-      Free xs         -> Free (doFree x v xs)
-
--- NOTE:  we are subsitution `v` for a copy `x`.
--- we do not add `free` for copies, so no need to worry about them
--- we do not need to free the `v` because it is being passed on as
--- owned by someone else who will free it.
-doFree :: BV -> VMVar -> Set VMVar -> Set VMVar
-doFree x v xs = Set.delete (LocalVar x) $ Set.delete v xs
+      Free xs         -> Free (Set.delete (LocalVar x) (Set.delete v xs))
 
 instance DoSubst CInstr where
   doSubst x v ci =
@@ -273,8 +275,11 @@ instance DoSubst E where
 --------------------------------------------------------------------------------
 
 {- | Insert @free@ after the last use of owned variables that have references.
-We do not insert @free@ instructions for copies inserted in the previous
-pass as those are going to be freed by their new owners. -}
+  * We do not insert @free@ instructions for copies inserted in the previous
+    pass as those are going to be freed by their new owners.
+  * BUT: we do insert them in the branches of the case as only one
+         of them will be executed, so we need to clean-up before proceeding.
+ -}
 insertFree :: RO -> (Set BV, Block) -> [Block]
 insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
                          : newBlocks
@@ -307,9 +312,7 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
 
 
   inTerm = case blockTerm b of
-             JumpIf e ls -> (JumpIf e (freeChoice ls), [])
-                -- XXX: we may have to free the `e` if it is owned and
-                -- we don't use it in some of the branches
+             JumpIf e ls -> (JumpIf e (freeChoice e ls), [])
 
              CallPure f l es
                 | not (null cs) -> (CallPure f l' es, [newB])
@@ -323,12 +326,17 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
 
              t -> (t,[])
 
-  freeChoice (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
+  freeChoice e (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
     where
     allFree = getFree <$> opts
+
     doCase l it =
       let (this, rest) = doLookupRm l allFree
-          others       = Set.unions (Map.elems rest)
+          others'      = Set.unions (Map.elems rest)
+          others       = case eIsVar e of
+                           Just x | getOwnership x == Owned ->
+                                                      Set.insert x others'
+                           _ -> others'
       in changeFree (others `Set.difference` this) it
 
     changeFree vs x = x { freeFirst = filterFree False vs }
@@ -454,14 +462,13 @@ doArg e m =
 doCInstr :: CInstr -> M CInstr
 doCInstr cinstr =
   case cinstr of
-    Jump l                -> Jump <$> doJump l
-    JumpIf e ls           -> JumpIf e <$> doJumpChoice ls
+    Jump l       -> Jump <$> doJump l
+    JumpIf e ls  -> JumpIf e <$> doJumpChoice ls
 
-
-    Yield                 -> pure cinstr
-    ReturnNo              -> pure cinstr
-    ReturnYes e           -> ReturnYes  <$> copy e
-    ReturnPure e          -> ReturnPure <$> copy e
+    Yield        -> pure cinstr
+    ReturnNo     -> pure cinstr
+    ReturnYes e  -> ReturnYes  <$> copy e
+    ReturnPure e -> ReturnPure <$> copy e
 
     CallPure f l es ->
       do sig <- lookupFunMode f

@@ -6,6 +6,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Control.Monad(when)
 
 import Daedalus.PP(showPP,pp,hsep)
 import Daedalus.VM.BorrowAnalysis(modeI)
@@ -65,14 +66,16 @@ checkBlock ro block =
   checkArgs =
     case blockType block of
       NormalBlock -> pure ()
-      ReturnBlock _ -> mapM_ (ownArg "Malformed return block") (blockArgs block)
-      ThreadBlock -> mapM_ (ownArg "Malformed thread block") (blockArgs block)
+      ReturnBlock n -> mapM_ (ownArg "Malformed return block")
+                          $ drop n (blockArgs block)
+      ThreadBlock -> mapM_ (ownArg "Malformed thread block")
+                          $ drop 1 (blockArgs block)
 
   ownArg loc a
     | typeRepOf a == HasRefs =
-      if getOwnership a == Owned
-        then pure ()
-        else Left [loc, "Expected argument " ++ showPP a ++ " to be owned."]
+      when (getOwnership a == Borrowed)
+        $ Left [name, loc, "Closure argument " ++ showPP a ++
+                                                  " cannot be borrowed"]
     | otherwise = pure ()
 
   checkFin (x,c) =
@@ -150,7 +153,9 @@ checkTerm loc ro ci count =
     ReturnPure e  -> checkE "returnPure" e Owned count
 
     Jump jp       -> checkJP loc ro (== NormalBlock) jp count
-    JumpIf _ ch   -> checkJumpChoice loc ro ch count
+    JumpIf e ch   ->
+      checkJumpChoice loc ro ch =<<
+                        checkE (loc ++ ":case") e (Borrowed `ifRefs` e) count
     CallPure f jp es -> checkRet jp =<< checkArgs f es
     Call f _ jp1 jp2 es ->
       checkRet jp1 =<< checkRet jp2 =<< checkArgs f es
