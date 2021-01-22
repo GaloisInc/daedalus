@@ -15,7 +15,10 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
     isDFAStateInit,
     nullDFAState,
     convertDFARegistryToDFAState,
-    iterDFAState,
+    IteratorDFAState,
+    initIteratorDFAState,
+    nextIteratorDFAState,
+    isEmptyIteratorDFAState,
     measureDFAState,
     determinizeDFAState,
   ) where
@@ -72,6 +75,15 @@ instance Ord DFAEntry where
   compare p1 p2 = compareDFAEntry p1 p2
 
 
+-- A generic iterator datatype.
+-- Note the type of data is the same of the generic type
+
+data Iterator a =
+  Iterator
+  { iii :: a
+  , curr :: Int
+  , size :: Int
+  }
 
 
 -- DFARegistry is a type encapsulating a set of DFAEntry. In practice
@@ -80,32 +92,28 @@ instance Ord DFAEntry where
 
 type DFARegistry = Set.Set DFAEntry
 
-data IteratorDFARegistry =
-  IteratorDFARegistry
-  { reg :: DFARegistry
-  , curr :: Int
-  , size :: Int
-  }
+type IteratorDFARegistry = Iterator DFARegistry
+
 
 initIteratorDFARegistry :: DFARegistry -> IteratorDFARegistry
 initIteratorDFARegistry r =
-  IteratorDFARegistry
-  { reg = r
+  Iterator
+  { iii = r
   , curr = 0
   , size = Set.size r
   }
 
 nextIteratorDFARegistry :: IteratorDFARegistry -> Maybe (DFAEntry, IteratorDFARegistry)
-nextIteratorDFARegistry iter@(IteratorDFARegistry { reg = r, curr = c, size = s}) =
+nextIteratorDFARegistry iter@(Iterator { iii = r, curr = c, size = s}) =
   if c >= s
   then Nothing
   else Just (Set.elemAt c r, iter { curr = c + 1})
 
 isEmptyIteratorDFARegistry :: IteratorDFARegistry -> Bool
-isEmptyIteratorDFARegistry (IteratorDFARegistry { reg = _r, curr = c, size = s}) =
+isEmptyIteratorDFARegistry (Iterator { iii = _r, curr = c, size = s}) =
   if c >= s
-  then False
-  else True
+  then True
+  else False
 
 
 revAppend :: [a] -> [a] -> [a]
@@ -336,19 +344,36 @@ addDFAState :: SCfg.SlkCfg -> DFAState -> DFAState
 addDFAState cfg q =
   DFAState $ Set.insert cfg (dfaState q)
 
-iterDFAState :: DFAState -> Maybe (SCfg.SlkCfg, DFAState)
-iterDFAState s =
-  let lst = Set.toAscList (dfaState s) in
-    case lst of
-      [] -> Nothing
-      x:xs -> Just (x, DFAState (Set.fromAscList xs))
+
+type IteratorDFAState = Iterator DFAState
+
+initIteratorDFAState :: DFAState -> IteratorDFAState
+initIteratorDFAState r@(DFAState s) =
+  Iterator
+  { iii = r
+  , curr = 0
+  , size = Set.size s
+  }
+
+nextIteratorDFAState :: IteratorDFAState -> Maybe (SCfg.SlkCfg, IteratorDFAState)
+nextIteratorDFAState iter@(Iterator { iii = DFAState r, curr = c, size = s}) =
+  if c >= s
+  then Nothing
+  else Just (Set.elemAt c r, iter { curr = c + 1})
+
+
+isEmptyIteratorDFAState :: IteratorDFAState -> Bool
+isEmptyIteratorDFAState (Iterator { iii = _r, curr = c, size = s}) =
+  if c >= s
+  then True
+  else False
 
 measureDFAState :: DFAState -> Int
 measureDFAState s =
-  helper s 0
+  helper (initIteratorDFAState s) 0
   where
     helper qq r =
-      case iterDFAState qq of
+      case nextIteratorDFAState qq of
         Nothing -> r
         Just (cfg, qs) ->
           let iCtrl = SCfg.lengthSymbolicStack (SCfg.cfgCtrl cfg)
@@ -402,11 +427,11 @@ slkExecMoveRegistry aut ih r =
 
 determinizeDFAState :: Aut a => a -> DFAState -> Result DetChoice
 determinizeDFAState aut s =
-  determinizeAcc s emptyDetChoice
+  determinizeAcc (initIteratorDFAState s) emptyDetChoice
   where
-    determinizeAcc :: DFAState -> DetChoice -> Result DetChoice
+    determinizeAcc :: IteratorDFAState -> DetChoice -> Result DetChoice
     determinizeAcc states acc =
-      case iterDFAState states of
+      case nextIteratorDFAState states of
         Nothing -> slkExecClassAndEps acc
         Just (cfg, rest) ->
           let r = deterministicSlkCfg aut cfg in

@@ -265,12 +265,12 @@ predictDFA dfa i =
     extractSinglePrediction s =
       case nextIteratorDFARegistry (initIteratorDFARegistry s) of
         Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _) _c3), rest) ->
-          if isEmptyIteratorDFARegistry rest
+          if not (isEmptyIteratorDFARegistry rest)
           then error "ambiguous prediction"
           else (c1, alts)
           -- NOTE: pos is appended because this is the last transition
         Just (DFAEntry c1 (ClosureAccepting alts _c2), rest) ->
-          if isEmptyIteratorDFARegistry rest
+          if not (isEmptyIteratorDFARegistry rest)
           then error "ambiguous prediction"
           else (c1, alts)
         Just (DFAEntry _c1 (ClosureMove {}), _) ->
@@ -410,10 +410,10 @@ createLLA aut =
 showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
 showStartSynthLLAState aut dfas q =
   let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
-  case iterDFAState dfaSt of
+  case nextIteratorDFAState (initIteratorDFAState dfaSt) of
     Nothing -> "__ZSINK_STATE"
     Just (cfg, qs) ->
-      if nullDFAState qs
+      if isEmptyIteratorDFAState qs
       then stateToString (cfgState cfg) aut ++ "\n" ++
            showSlkCfg cfg
       else error "broken invariant"
