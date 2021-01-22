@@ -368,6 +368,8 @@ isEmptyIteratorDFAState (Iterator { iii = _r, curr = c, size = s}) =
   then True
   else False
 
+-- Approximate measure of the `DFAState`. Remark it does not take into
+-- account the size of the state. Maybe should be fixed
 measureDFAState :: DFAState -> Int
 measureDFAState s =
   helper (initIteratorDFAState s) 0
@@ -376,10 +378,8 @@ measureDFAState s =
       case nextIteratorDFAState qq of
         Nothing -> r
         Just (cfg, qs) ->
-          let iCtrl = SCfg.lengthSymbolicStack (SCfg.cfgCtrl cfg)
-              iSem = SCfg.lengthSymbolicStack (SCfg.cfgSem cfg)
-              newR = max iSem (max iCtrl r)
-          in helper qs newR
+          let measCfg = SCfg.measureSlkCfg cfg
+          in helper qs (max measCfg r)
 
 convertDFARegistryToDFAState :: DFARegistry -> DFAState
 convertDFARegistryToDFAState r =

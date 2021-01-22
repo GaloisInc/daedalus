@@ -1,11 +1,10 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL.SlkCfg
-  ( SymbolicStack(..),
-    lengthSymbolicStack,
-    SlkInput,
+  ( SlkInput,
     SlkCfg(..),
     compareSlkCfg,
+    measureSlkCfg,
     initSlkCfg,
     showSlkCfg,
     simulateActionSlkCfg,
@@ -247,6 +246,15 @@ instance Eq SlkCfg where
 instance Ord SlkCfg where
   compare c1 c2 = compareSlkCfg c1 c2
 
+
+-- An approximate measure of `SlkCfg`
+-- TODO: add the max with the Input
+measureSlkCfg :: SlkCfg -> Int
+measureSlkCfg cfg =
+  let
+    iCtrl = lengthSymbolicStack (cfgCtrl cfg)
+    iSem = lengthSymbolicStack (cfgSem cfg)
+  in max iCtrl iSem
 
 initSlkCfg :: State -> SlkCfg
 initSlkCfg q =
