@@ -3,9 +3,6 @@
 {-# Language ParallelListComp #-}
 module Daedalus.VM.Backend.C where
 
-{-
-import Data.ByteString(ByteString)
--}
 import qualified Data.ByteString as BS
 import           Data.Map (Map)
 import qualified Data.Map as Map
@@ -14,7 +11,6 @@ import           Data.Word(Word64)
 import           Data.Int(Int64)
 import qualified Data.Set as Set
 import           Data.Maybe(maybeToList,mapMaybe,fromMaybe)
-import           Data.List(intersperse)
 import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
@@ -206,21 +202,21 @@ cBasicBlock b = "//" <+> text (show (blockType b))
          $$ vcat (cTermStmt (blockTerm b))
 
   dbg1 :: (CurBlock,Copies) => CStmt
-  dbg1 = cStmt
-       $ fsep
-       $ intersperse "<<"
-       $ [ "std::cout", cString ("enter " ++ show (pp (blockName b))) ] ++
-         [ " \"(\"", "&&" <.> cBlockLabel (blockName b), "\") \"", "std::endl" ]
+  dbg1 = vcat $ map cStmt
+       [ cDebug ("enter " ++ show (pp (blockName b)))
+       , cDebug "("
+       , cDebugVal ("&&" <.> cBlockLabel (blockName b))
+       , cDebugLine ")"
+       ]
 
   dbg :: (CurBlock,Copies) => CStmt
-  dbg =   cStmt
-        $ fsep
-        $ intersperse "<<"
-        $ [ "std::cout", cString "  args" ] ++
-          concat [ [cString s, cExpr (EBlockArg a)]
-                 | a <- blockArgs b
-                 | s <- ": " : repeat ", " ] ++
-          [ "std::endl" ]
+  dbg = vcat $ map cStmt $
+        cDebug "  args"
+      : concat [ [ cDebug s, cDebugVal (cExpr (EBlockArg a)) ]
+               | a <- blockArgs b
+               | s <- ": " : repeat ", "
+               ]
+      ++ [ cDebugNL ]
 
   getArgs = case blockType b of
               NormalBlock -> empty

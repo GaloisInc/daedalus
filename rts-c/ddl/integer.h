@@ -2,6 +2,7 @@
 #define DDL_INTEGER_H
 
 #include <gmpxx.h>
+#include <ddl/debug.h>
 #include <ddl/boxed.h>
 // #define QUICK_INTEGER 1
 // XXX: broken
@@ -104,7 +105,7 @@ Integer add(Integer x, Integer y) {
   mpz_class &xv = x.getValue();
   mpz_class &yv = y.getValue();
   if constexpr (owned & 1) {
-    std::cout << "testing left" << std::endl;
+    debugLine("testing left");
     if (x.refCount() == 1) {
       xv += yv;
       if constexpr (owned & 2) y.free();
@@ -113,7 +114,7 @@ Integer add(Integer x, Integer y) {
   }
 
   if constexpr (owned & 2) {
-    std::cout << "testing right" << std::endl;
+    debugLine("testing right");
     if (y.refCount() == 1) {
       yv += xv;
       if constexpr (owned & 1) x.free();

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 
+#include <ddl/debug.h>
 #include <ddl/input.h>
 #include <ddl/stack.h>
 
@@ -23,7 +24,6 @@ class ParserState {
   size_t                fail_offset;    // largest, only makes sense if we fail
   ListStack             stack;
   std::vector<Thread>   suspended;
-  // size_t                time = 0;
 
 public:
 
@@ -36,17 +36,13 @@ public:
   // ------------------------------------------------------------------------
 
   // Argument is owned
-  void setInput(Input i) {
-    input.free(); input = i;
-    // std::cout << time << ", " << i.getOffset() << std::endl;
-    // ++time;
-  }
+  void setInput(Input i) { input.free(); input = i; }
 
   // Returns a copy of the current input (result is owned)
   Input getInput() { input.copy(); return input; }
 
   // For debug
-  void say(const char *msg) { std::cout << msg << std::endl; }
+  void say(const char *msg) { debugLine(msg); }
 
 
   // Set the "sibling failied" flag in the given thread.
@@ -79,9 +75,9 @@ public:
   // Add to waiting threads
   ThreadId spawn(ThreadClosure *c) {
     ThreadId id = suspended.size();
-    std::cout << "spawning thread " << id << std::endl;
+    debug("spawning thread "); debugValNL(id);
     stack.copy();
-    std::cout << stack;
+    debugVal(stack);
     suspended.push_back(Thread(c,stack));
     return id;
   }
@@ -95,16 +91,20 @@ public:
   //    * its stack replaces the current stack
   //    * its closure is pushed on the *new* current stack.
   void *yield() {
-    std::cout << "yielding\n";
+    debugLine("yielding");
     Thread& t = suspended.back();
-    std::cout << "freeing stack\n";
-    std::cout << stack;
+
+    debugLine("freeing stack");
+    debugVal(stack);
+
     stack.free();
     ThreadClosure *c = t.closure;
     stack = ListStack(c,t.stack);
     suspended.pop_back();
-    std::cout << "new stack\n";
-    std::cout << stack;
+
+    debugLine("new stack");
+    debugVal(stack);
+
     return stack.retAddr();
   }
 

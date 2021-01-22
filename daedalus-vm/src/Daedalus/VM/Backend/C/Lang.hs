@@ -10,6 +10,21 @@ type CType  = Doc
 type CDecl  = Doc
 type CIdent = Doc
 
+cDebug :: String -> CStmt
+cDebug x = cStmt (cCall "DDL::debug" [ cString x ] )
+
+cDebugLine :: String -> CStmt
+cDebugLine x = cStmt (cCall "DDL::debugLine" [ cString x ] )
+
+cDebugNL :: CStmt
+cDebugNL = cStmt (cCall "DDL::debugNL" [])
+
+cDebugVal :: CExpr -> CStmt
+cDebugVal x = cStmt (cCall "DDL::debugVal" [ x ])
+
+cDebugValNL :: CExpr -> CStmt
+cDebugValNL x = cStmt (cCall "DDL::debugValNL" [ x ])
+
 cInst :: CExpr -> [CExpr] -> CExpr
 cInst f es = f P.<> "<" <.> (fsep (punctuate comma es)) <.> ">"
 

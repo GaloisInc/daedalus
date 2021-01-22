@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string.h>
 
+#include <ddl/debug.h>
 #include <ddl/boxed.h>
 #include <ddl/array.h>
 #include <ddl/number.h>
@@ -44,17 +45,22 @@ public:
     , last_offset(len)
     {}
 
-  void dumpInput() { std::cout << "[" << (void*) this << "] ("
-                     << name.refCount() << "," << bytes.refCount() << ")\n"; }
+  void dumpInput() {
+    debug("[");   debugVal((void*) this);
+    debug("] ("); debugVal(name.refCount());
+    debug(",");   debugVal(bytes.refCount());
+    debugLine(")\n");
+  }
 
-  void copy() { std::cout << "  Incrementing input"; dumpInput();
-                name.copy(); bytes.copy(); }
-  void free() { std::cout << "  Decrementing input: "; dumpInput();
-                name.free(); bytes.free();
-                if (name.refCount() == 1) {
-                  std::cout << "ERROR: ref count for name is 1\n";
-                }
-              }
+  void copy() {
+    debug("  Incrementing input"); dumpInput();
+    name.copy(); bytes.copy();
+  }
+
+  void free() {
+    debug("  Decrementing input: "); dumpInput();
+    name.free(); bytes.free();
+  }
 
 
   // borrow this

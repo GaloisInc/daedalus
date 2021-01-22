@@ -5,10 +5,8 @@
 #ifndef DDL_MAP_H
 #define DDL_MAP_H
 
-#include <iostream>
-#include <vector>
 #include <assert.h>
-
+#include <ddl/debug.h>
 #include <ddl/boxed.h>
 #include <ddl/maybe.h>
 
@@ -56,14 +54,14 @@ class Map : HasRefs {
 
       size_t r = n->ref_count;
       if (r == 1) {
-        // std::cout << "freeing last ref\n";
+        debugLine("freeing last ref");
         if constexpr (hasRefs<Key>())   n->key.free();
         if constexpr (hasRefs<Value>()) n->value.free();
         free(n->left);
         free(n->right);
         delete n;
       } else {
-        // std::cout << "freeing decrement\n";
+        debugLine("freeing decrement");
         n->ref_count = r - 1;
       }
 
@@ -103,11 +101,11 @@ class Map : HasRefs {
     static void dump(int tab, Node *n) {
       if (n == nullptr) return;
       dump(tab + 2, n->left);
-      for (int i = 0; i < tab; ++i) std::cout << ' ';
-      std::cout << (void*)n << " ";
-      std::cout << (n->color == red ? "R" : "B");
-      std::cout << "(" << n->ref_count << ") ";
-      std::cout << "Key:" << n->key << std::endl;
+      for (int i = 0; i < tab; ++i) debug(" ");
+      debugVal((void*)n); debug(" ");
+      debug(n->color == red ? "R" : "B");
+      debug("("); debugVal(n->ref_count); debug(") ");
+      debug("Key:"); debugNL(n->key);
       dump(tab + 2, n->right);
     }
 
@@ -317,9 +315,10 @@ public:
     }
 
     void dump() {
-      std::cout << "IT:" << (void*) cur << "|";  above.dump();
+      debug("IT:"); debugVal((void*) cur); debug("|");
+      above.dump();
       if (!above.isNull()) above.getValue().dump();
-      std::cout << "---\n";
+      debugLine("---");
     }
 
   };
@@ -347,7 +346,7 @@ public:
   void free() { Node::free(tree); }
 
   // for debugging
-  void dump() { Node::dump(0,tree); std::cout << "\n"; }
+  void dump() { Node::dump(0,tree); debugNL(); }
 
   friend
   std::ostream& operator << (std::ostream &os, Map m) {

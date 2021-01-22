@@ -30,16 +30,19 @@ cReturnClass super l tys = cStmt $ vcat
         thisTy
         ("void* code" : [ cType t <+> param n | (t,n) <- fields ])
         ( (super,"code") : [ (cField n, param n) | (_,n) <- fields ] )
-        [ "std::cout << \"  Allocated " <+> pp l <+> " at \" << (void*)this << std::endl;"
+        [ cDebug $ show $ "  Allocated " <+> pp l <+> " at "
+        , cDebugValNL "(void*)this"
         ]
 
     , cDefineFun "void" "freeMembers" []
-         $ ["std::cout << \"  Freeing members of" <+> (pp l) <+> "\" << (void*)this << std::endl;"]
+         $ [ cDebug $ show $ "  Freeing members of" <+> pp l
+           , cDebugValNL "(void*)this"
+          ]
          ++
          [ cStmt (cCallMethod (cField n) "free" [])
          | (t,n) <- fields, HasRefs <- [typeRep t]
          ] ++
-          ["std::cout << \" Done freeing" <+> pp l <+> "\" << std::endl;"]
+         [ cDebugLine $ show $ " Done freeing" <+> pp l ]
     ] ++
     [ cDefineFun "void" ("get" <.> cField n) [cRefT (cType ty) <+> "x"] $
       [ cStmt (cCallMethod (cField n) "copy" []) | typeRep ty == HasRefs ] ++

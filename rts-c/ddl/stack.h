@@ -98,7 +98,7 @@ public:
     while (! p.isNull()) {
       os << "  [" << (void*)p.rawPtr() << "](" << p.refCount() << ")" << p.borrowHead() << " -> ";
       p = p.borrowTail();
-      std::cout << "next " << (void*) p.rawPtr() << std::endl;
+      os << "next " << (void*) p.rawPtr() << std::endl;
     }
     os << "[/stack]\n";
     return os;

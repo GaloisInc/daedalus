@@ -513,12 +513,14 @@ doJumpChoice (JumpCase opts) =
 
 copy :: E -> M E
 copy e =
-  case typeRep ty of
-    NoRefs  -> pure e
-    HasRefs ->
-      do x <- newBV ty
-         emit (Let x e)
-         pure (EVar x)
+  case eIsVar e of
+    Nothing -> pure e
+    _ -> case typeRep ty of
+           NoRefs  -> pure e
+           HasRefs ->
+             do x <- newBV ty
+                emit (Let x e)
+                pure (EVar x)
   where
   ty = getType e
 

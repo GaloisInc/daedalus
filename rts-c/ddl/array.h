@@ -2,6 +2,8 @@
 #define DDL_ARRAY_H
 
 #include <string.h>
+
+#include <ddl/debug.h>
 #include <ddl/list.h>
 #include <ddl/integer.h>
 
@@ -124,7 +126,7 @@ public:
         T* arr = ptr->data;
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
-      std::cout << "  Freeing array " << (void*)ptr << std::endl;
+      debug("  Freeing array "); debugValNL((void*)ptr);
       delete ptr;
     } else {
       ptr->ref_count = n - 1;
