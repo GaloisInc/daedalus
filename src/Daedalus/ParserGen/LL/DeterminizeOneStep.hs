@@ -4,8 +4,11 @@ module Daedalus.ParserGen.LL.DeterminizeOneStep
   ( SourceCfg,
     DFAEntry(..),
     DFARegistry,
-    iterDFARegistry,
-    findAllEntryInDFARegistry,
+    IteratorDFARegistry,
+    initIteratorDFARegistry,
+    nextIteratorDFARegistry,
+    isEmptyIteratorDFARegistry,
+    partitionDFARegistry,
     DetChoice(..),
     DFAState(..),
     mkDFAState,
@@ -31,10 +34,9 @@ import qualified Daedalus.ParserGen.LL.Closure as Closure
 
 
 
-{-
-`DFAEntry` is a type capturing a path of execution in the NFA,
-starting from a source to its destination.
--}
+
+-- `DFAEntry` is a type capturing a path of execution in the NFA,
+-- starting from a source to its destination.
 
 type SourceCfg = SCfg.SlkCfg
 
@@ -71,38 +73,69 @@ instance Ord DFAEntry where
 
 
 
-{-
-DFARegistry is a type encapsulating a set of DFAEntry. In practice it
-is the result of a factorization of a class operation or any operation
-that interrupts a lockstep move.
--}
+
+-- DFARegistry is a type encapsulating a set of DFAEntry. In practice
+-- it is the result of a factorization of a class operation or any
+-- operation that interrupts a lockstep move.
 
 type DFARegistry = Set.Set DFAEntry
 
-iterDFARegistry :: DFARegistry -> Maybe (DFAEntry, DFARegistry)
-iterDFARegistry s =
-  let lst = Set.toAscList s in
-    case lst of
-      [] -> Nothing
-      x:xs -> Just (x, Set.fromAscList xs)
+data IteratorDFARegistry =
+  IteratorDFARegistry
+  { reg :: DFARegistry
+  , curr :: Int
+  , size :: Int
+  }
 
-findEntryInDFARegistry :: DFARegistry -> (DFAEntry -> Bool) -> Maybe (DFAEntry, DFARegistry)
-findEntryInDFARegistry s test =
-  case iterDFARegistry s of
-    Nothing -> Nothing
-    Just (x, xs) ->
-      if test x then Just (x,xs)
-      else case findEntryInDFARegistry xs test of
-             Nothing -> Nothing
-             Just (r, rs) -> Just (r, Set.insert x rs)
+initIteratorDFARegistry :: DFARegistry -> IteratorDFARegistry
+initIteratorDFARegistry r =
+  IteratorDFARegistry
+  { reg = r
+  , curr = 0
+  , size = Set.size r
+  }
 
-findAllEntryInDFARegistry :: DFARegistry -> (DFAEntry -> Bool) -> ([DFAEntry], DFARegistry)
-findAllEntryInDFARegistry s test =
-  case findEntryInDFARegistry s test of
-    Nothing -> ([], s)
-    Just (x, xs) ->
-      let (lst, rest) = findAllEntryInDFARegistry xs test
-      in (x:lst, rest)
+nextIteratorDFARegistry :: IteratorDFARegistry -> Maybe (DFAEntry, IteratorDFARegistry)
+nextIteratorDFARegistry iter@(IteratorDFARegistry { reg = r, curr = c, size = s}) =
+  if c >= s
+  then Nothing
+  else Just (Set.elemAt c r, iter { curr = c + 1})
+
+isEmptyIteratorDFARegistry :: IteratorDFARegistry -> Bool
+isEmptyIteratorDFARegistry (IteratorDFARegistry { reg = _r, curr = c, size = s}) =
+  if c >= s
+  then False
+  else True
+
+
+revAppend :: [a] -> [a] -> [a]
+revAppend lst1 lst2 =
+  case lst1 of
+    [] -> lst2
+    x:xs -> revAppend xs (x:lst2)
+
+partitionDFARegistry :: DFARegistry -> (DFAEntry -> DFAEntry -> Bool) -> [ [DFAEntry] ]
+partitionDFARegistry s test =
+  let llst = helper (initIteratorDFARegistry s) [] in
+    map (\ (_, lst) -> lst) llst
+  where
+    helper :: IteratorDFARegistry -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ]
+    helper iter part =
+      case nextIteratorDFARegistry iter of
+        Nothing -> part
+        Just (x, xs) ->
+          helper xs (insertInPartition x part [])
+
+    insertInPartition :: DFAEntry -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ]
+    insertInPartition x part acc =
+      case part of
+        [] -> reverse ((x,[x]) : acc)
+        p@(canonical, lst) : rest ->
+          if test canonical x
+          then revAppend acc ((canonical, x : lst) : rest)
+          else insertInPartition x rest (p:acc)
+
+
 
 emptyDFARegistry :: DFARegistry
 emptyDFARegistry = Set.empty
@@ -325,10 +358,10 @@ measureDFAState s =
 
 convertDFARegistryToDFAState :: DFARegistry -> DFAState
 convertDFARegistryToDFAState r =
-  helper r
+  helper (initIteratorDFARegistry r)
   where
     helper s =
-      case iterDFARegistry s of
+      case nextIteratorDFARegistry s of
         Nothing -> emptyDFAState
         Just (entry, es) ->
           addDFAState (Closure.lastCfg $ dstEntry entry) (helper es)
@@ -336,10 +369,10 @@ convertDFARegistryToDFAState r =
 
 slkExecMoveRegistry :: Aut a => a -> SCfg.InputHeadCondition -> DFARegistry -> Result DFARegistry
 slkExecMoveRegistry aut ih r =
-  helper r
+  helper (initIteratorDFARegistry r)
   where
     helper s =
-      case iterDFARegistry s of
+      case nextIteratorDFARegistry s of
         Nothing -> Result emptyDFARegistry
         Just (entry, es) ->
           let
