@@ -1,6 +1,6 @@
 {-# Language GADTs #-}
 
-module Daedalus.ParserGen.LL.DeterminizeOneStep
+module Daedalus.ParserGen.LL.DFAStep
   ( SourceCfg,
     DFAEntry(..),
     DFARegistry,

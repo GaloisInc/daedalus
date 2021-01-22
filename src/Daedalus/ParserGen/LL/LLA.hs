@@ -29,7 +29,7 @@ import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)
 import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.SlkCfg
 import Daedalus.ParserGen.LL.Closure
-import Daedalus.ParserGen.LL.DeterminizeOneStep
+import Daedalus.ParserGen.LL.DFAStep
 import Daedalus.ParserGen.LL.DFA
 
 
