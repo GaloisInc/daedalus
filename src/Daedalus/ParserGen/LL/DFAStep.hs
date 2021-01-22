@@ -274,7 +274,7 @@ determinizeMove src tc =
               Result newAcc -> determinizeWithAccu ms (Just $ inp) newAcc
               _ -> error "impossible abort"
           else
-            Abort AbortIncompatibleInput
+            Abort AbortDFAIncompatibleInput
 
     compatibleInput :: SCfg.SlkInput -> Maybe SCfg.SlkInput -> Bool
     compatibleInput inp minp =
@@ -290,11 +290,11 @@ deterministicSlkCfg :: Aut a => a -> SCfg.SlkCfg -> Result DetChoice
 deterministicSlkCfg aut cfg =
   let res = Closure.closureLL aut cfg in
   case res of
-    Abort AbortOverflowMaxDepth -> coerceAbort res
-    Abort AbortLoopWithNonClass -> coerceAbort res
-    Abort (AbortNonClassInputAction _) -> coerceAbort res
-    Abort AbortUnhandledAction -> coerceAbort res
-    Abort AbortSymbolicExec -> coerceAbort res
+    Abort AbortSlkCfgExecution -> coerceAbort res
+    Abort AbortClosureOverflowMaxDepth -> coerceAbort res
+    Abort AbortClosureInfiniteloop -> coerceAbort res
+    Abort AbortClosureUnhandledInputAction -> coerceAbort res
+    Abort AbortClosureUnhandledAction -> coerceAbort res
     Result r -> determinizeMove cfg r
     _ -> error "Impossible abort"
 
@@ -436,14 +436,14 @@ determinizeDFAState aut s =
         Just (cfg, rest) ->
           let r = deterministicSlkCfg aut cfg in
           case r of
-            Abort AbortOverflowMaxDepth -> coerceAbort r
-            Abort AbortLoopWithNonClass -> coerceAbort r
-            Abort (AbortNonClassInputAction _) -> coerceAbort r
-            Abort AbortUnhandledAction -> coerceAbort r
+            Abort AbortSlkCfgExecution -> coerceAbort r
+            Abort AbortClosureOverflowMaxDepth -> coerceAbort r
+            Abort AbortClosureInfiniteloop -> coerceAbort r
+            Abort AbortClosureUnhandledInputAction -> coerceAbort r
+            Abort AbortClosureUnhandledAction -> coerceAbort r
             Abort AbortClassIsDynamic -> coerceAbort r
-            Abort AbortIncompatibleInput -> coerceAbort r
+            Abort AbortDFAIncompatibleInput -> coerceAbort r
             Abort (AbortClassNotHandledYet _) -> coerceAbort r
-            Abort AbortSymbolicExec -> coerceAbort r
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
               in determinizeAcc rest newAcc

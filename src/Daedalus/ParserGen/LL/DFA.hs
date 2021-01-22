@@ -262,8 +262,8 @@ lookaheadDepth dfa =
           in foldOverList vis src rest (max acc (i + 1))
 
 
-maxDepthDet :: Int
-maxDepthDet = 20
+maxLookaheadDepth :: Int
+maxLookaheadDepth = 20
 
 
 getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
@@ -352,7 +352,7 @@ createDFA aut qInit =
   let idfa = initDFA qInit in
   let dfa =
         if measureDFAState qInit > oVERFLOW_CFG
-        then insertDFA (startLinDFAState idfa) (Abort AbortOverflowCfg) idfa
+        then insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa
         else go [(startLinDFAState idfa, 0)] [] idfa
   in
   let dfa1 = computeHasFullResolution dfa
@@ -368,9 +368,9 @@ createDFA aut qInit =
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
-              if depth > maxDepthDet
+              if depth > maxLookaheadDepth
               then
-                let newDfa = insertDFA q (Abort AbortOverflowK) dfa
+                let newDfa = insertDFA q (Abort AbortDFAOverflowLookahead) dfa
                 in go rest accToVisit newDfa
               else
                 let choices = detSubset (fromJust $ Map.lookup q (mappingLinToDFAState dfa)) in
@@ -402,14 +402,14 @@ createDFA aut qInit =
     detSubset s =
       let r = determinizeDFAState aut s in
       case r of
-        Abort AbortOverflowMaxDepth -> coerceAbort r
-        Abort AbortLoopWithNonClass -> coerceAbort r
-        Abort (AbortNonClassInputAction _) -> coerceAbort r
-        Abort AbortUnhandledAction -> coerceAbort r
+        Abort AbortSlkCfgExecution -> coerceAbort r
+        Abort AbortClosureOverflowMaxDepth -> coerceAbort r
+        Abort AbortClosureInfiniteloop -> coerceAbort r
+        Abort AbortClosureUnhandledInputAction -> coerceAbort r
+        Abort AbortClosureUnhandledAction -> coerceAbort r
         Abort AbortClassIsDynamic -> coerceAbort r
-        Abort AbortIncompatibleInput -> coerceAbort r
         Abort (AbortClassNotHandledYet _) -> coerceAbort r
-        Abort AbortSymbolicExec -> coerceAbort r
+        Abort AbortDFAIncompatibleInput -> coerceAbort r
         Result r1 ->
           let r2 = mapAnalyzeConflicts r1 in
             Result r2

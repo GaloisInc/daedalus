@@ -21,14 +21,14 @@ DTrans [
 
 Main (28,10)-(28,41)
 SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
-AbortIncompatibleInput
+AbortDFAIncompatibleInput
 
 
 **********************
 **** Extended LLA ****
 **********************
-("AbortIncompatibleInput",4)
-("AbortSymbolicExec",8)
+("AbortDFAIncompatibleInput",4)
+("AbortSlkCfgExecution",8)
 ("Result-0",2)
 ("Result-1",1)
 ("Result-2",3)
@@ -38,7 +38,7 @@ Total nb states: 18
 **********************
 ***** Strict LLA *****
 **********************
-("AbortIncompatibleInput",1)
+("AbortDFAIncompatibleInput",1)
 ("Result-2",1)
 
 Total nb states: 2
@@ -48,6 +48,6 @@ Warning: LL(*) failures:
 
 Main (28,10)-(28,41)
 SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
-AbortIncompatibleInput
+AbortDFAIncompatibleInput
 
 

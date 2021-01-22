@@ -18,7 +18,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 
 
-import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isNonClassInputAct, isUnhandledAction, isPushAction)
+import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isUnhandledInputAction, isUnhandledAction, isPushAction)
 import qualified Daedalus.ParserGen.Aut as Aut
 
 import Daedalus.ParserGen.LL.Result
@@ -162,7 +162,7 @@ maxDepthRec = 800
 closureEpsUntilPush :: Aut.Aut a => a -> Set.Set Slk.SlkCfg -> ClosureMove -> Result (Maybe ClosureMove)
 closureEpsUntilPush aut busy cm =
   if Set.member cfg busy
-  then Abort AbortLoopWithNonClass
+  then Abort AbortClosureInfiniteloop
   else
     let
       q = Slk.cfgState cfg
@@ -188,19 +188,19 @@ closureEpsUntilPush aut busy cm =
     closureStep pos (act, q2)
       | isClassActOrEnd act =
           Result $ Just cm
-      | isNonClassInputAct act =
+      | isUnhandledInputAction act =
           -- trace (show act) $
-          Abort $ AbortNonClassInputAction act
+          Abort AbortClosureUnhandledInputAction
       | isUnhandledAction act =
           -- trace (show act) $
-          Abort AbortUnhandledAction
+          Abort AbortClosureUnhandledAction
       | isPushAction act =
           -- trace (show act) $
           Result $ Just cm
-      | Seq.length alts > maxDepthRec = Abort AbortOverflowMaxDepth
+      | Seq.length alts > maxDepthRec = Abort AbortClosureOverflowMaxDepth
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg of
-            Abort AbortSymbolicExec -> Abort AbortSymbolicExec
+            Abort AbortSlkCfgExecution -> Abort AbortSlkCfgExecution
             Result Nothing -> Result $ Just cm
             Result (Just lstCfg) ->
               case lstCfg of
@@ -222,7 +222,7 @@ closureEpsUntilPush aut busy cm =
 closureLoop :: Aut.Aut a => a -> Set.Set Slk.SlkCfg -> (ChoiceSeq, Slk.SlkCfg) -> Result ClosureMoveSet
 closureLoop aut busy (alts, cfg) =
   if Set.member cfg busy
-  then Abort AbortLoopWithNonClass
+  then Abort AbortClosureInfiniteloop
   else
     let
       q = Slk.cfgState cfg
@@ -248,16 +248,16 @@ closureLoop aut busy (alts, cfg) =
     closureStep pos (act, q2)
       | isClassActOrEnd act =
           Result [ ClosureMove alts cfg (pos, act, q2) ]
-      | isNonClassInputAct act =
+      | isUnhandledInputAction act =
           -- trace (show act) $
-          Abort $ AbortNonClassInputAction act
+          Abort AbortClosureUnhandledInputAction
       | isUnhandledAction act =
           -- trace (show act) $
-          Abort AbortUnhandledAction
-      | Seq.length alts > maxDepthRec = Abort AbortOverflowMaxDepth
+          Abort AbortClosureUnhandledAction
+      | Seq.length alts > maxDepthRec = Abort AbortClosureOverflowMaxDepth
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg of
-            Abort AbortSymbolicExec -> Abort AbortSymbolicExec
+            Abort AbortSlkCfgExecution -> Abort AbortSlkCfgExecution
             Result Nothing -> Result []
             Result (Just lstCfg) ->
               let newAlts = addChoiceSeq pos alts in
@@ -276,19 +276,19 @@ closureLoop aut busy (alts, cfg) =
         [] -> Result []
         r1 : rest ->
           case r1 of
-            Abort AbortOverflowMaxDepth -> r1
-            Abort AbortLoopWithNonClass -> r1
-            Abort (AbortNonClassInputAction _) -> r1
-            Abort AbortUnhandledAction -> r1
-            Abort AbortSymbolicExec -> r1
+            Abort AbortSlkCfgExecution -> r1
+            Abort AbortClosureOverflowMaxDepth -> r1
+            Abort AbortClosureInfiniteloop -> r1
+            Abort AbortClosureUnhandledInputAction -> r1
+            Abort AbortClosureUnhandledAction -> r1
             Result res1 ->
               let r2 = combineResults rest in
               case r2 of
-                Abort AbortOverflowMaxDepth -> r2
-                Abort AbortLoopWithNonClass -> r2
-                Abort (AbortNonClassInputAction _) -> r2
-                Abort AbortUnhandledAction -> r2
-                Abort AbortSymbolicExec -> r2
+                Abort AbortSlkCfgExecution -> r2
+                Abort AbortClosureOverflowMaxDepth -> r2
+                Abort AbortClosureInfiniteloop -> r2
+                Abort AbortClosureUnhandledInputAction -> r2
+                Abort AbortClosureUnhandledAction -> r2
                 Result resForRest -> Result (res1 ++ resForRest)
                 _ -> error "abort not handled here"
             _ -> error "abort not handled here"

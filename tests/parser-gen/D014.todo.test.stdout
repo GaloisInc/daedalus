@@ -173,14 +173,14 @@ DTrans [
 
 SkipTo__11 (7,32)-(7,39)
 SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-AbortOverflowCfg
+AbortDFAOverflowInitCfg
 
 
 **********************
 **** Extended LLA ****
 **********************
-("AbortLoopWithNonClass",2)
-("AbortOverflowCfg",3)
+("AbortClosureInfiniteloop",2)
+("AbortDFAOverflowInitCfg",3)
 ("Result-1",1)
 ("abort-1",12)
 ("abort-2",21)
@@ -190,7 +190,7 @@ Total nb states: 39
 **********************
 ***** Strict LLA *****
 **********************
-("AbortOverflowCfg",1)
+("AbortDFAOverflowInitCfg",1)
 ("abort-2",10)
 
 Total nb states: 11
@@ -370,6 +370,6 @@ DTrans [
 
 SkipTo__11 (7,32)-(7,39)
 SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-AbortOverflowCfg
+AbortDFAOverflowInitCfg
 
 
