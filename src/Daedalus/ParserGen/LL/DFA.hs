@@ -268,14 +268,7 @@ maxDepthDet = 20
 
 getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
 getConflictSetsPerLoc s =
-  case iterDFARegistry s of
-    Nothing -> []
-    Just (e, es) ->
-      case findAllEntryInDFARegistry es (sameEntryPerLoc e) of
-        (lst, rs) ->
-          let lstLst = getConflictSetsPerLoc rs
-          in  (e : lst) : lstLst
-
+  partitionDFARegistry s sameEntryPerLoc
   where
     sameEntryPerLoc
       (DFAEntry _src1 (Closure.ClosurePath _alts1 _ (_,_,_) dst1))

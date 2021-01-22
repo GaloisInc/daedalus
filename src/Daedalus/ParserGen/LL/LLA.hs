@@ -258,28 +258,28 @@ predictDFA dfa i =
       case lst of
         [] -> acc
         s : rest ->
-          let (backCfg, pdx) = extractPredictionFromDFARegistry src s
+          let (backCfg, pdx) = extractPredictionFromDFARegistry src (initIteratorDFARegistry s)
           in walkBackward backCfg rest ((Seq.><) pdx acc)
 
     extractSinglePrediction :: DFARegistry -> (SourceCfg, Prediction)
     extractSinglePrediction s =
-      case iterDFARegistry s of
+      case nextIteratorDFARegistry (initIteratorDFARegistry s) of
         Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _) _c3), rest) ->
-          if not (null rest)
+          if isEmptyIteratorDFARegistry rest
           then error "ambiguous prediction"
           else (c1, alts)
           -- NOTE: pos is appended because this is the last transition
         Just (DFAEntry c1 (ClosureAccepting alts _c2), rest) ->
-          if not (null rest)
+          if isEmptyIteratorDFARegistry rest
           then error "ambiguous prediction"
           else (c1, alts)
         Just (DFAEntry _c1 (ClosureMove {}), _) ->
           error "broken invariant: cannot be ClosureMove here"
         _ -> error "ambiguous prediction"
 
-    extractPredictionFromDFARegistry :: SourceCfg -> DFARegistry -> (SourceCfg, Prediction)
+    extractPredictionFromDFARegistry :: SourceCfg -> IteratorDFARegistry -> (SourceCfg, Prediction)
     extractPredictionFromDFARegistry src s =
-      case iterDFARegistry s of
+      case nextIteratorDFARegistry s of
         Nothing -> error "could not find src from previous cfg"
         Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _q2) c3), others) ->
           if cfgState c3 == cfgState src && cfgCtrl c3 == cfgCtrl src
