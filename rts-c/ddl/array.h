@@ -124,6 +124,7 @@ public:
         T* arr = ptr->data;
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
+      std::cout << "  Freeing array " << (void*)ptr << std::endl;
       delete ptr;
     } else {
       ptr->ref_count = n - 1;

@@ -96,7 +96,7 @@ public:
     os << "[stack]\n";
     List<ClosureRef> p = x.data;
     while (! p.isNull()) {
-      os << "  (" << p.refCount() << ")" << p.borrowHead() << " -> ";
+      os << "  [" << (void*)p.rawPtr() << "](" << p.refCount() << ")" << p.borrowHead() << " -> ";
       p = p.borrowTail();
       std::cout << "next " << (void*) p.rawPtr() << std::endl;
     }

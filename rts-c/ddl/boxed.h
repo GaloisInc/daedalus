@@ -42,7 +42,7 @@ void free_boxed(BoxedValue<T> *ptr) {
   size_t n = ptr->ref_count;
   if (n == 1) {
     if constexpr (hasRefs<T>()) ptr->value.free();
-    std::cout << "freeing boxed " << (void*) ptr << std::endl;
+    std::cout << "  freeing boxed " << (void*) ptr << std::endl;
     delete ptr;
   }
   else {
@@ -79,7 +79,7 @@ class Boxed : IsBoxed {
 
 public:
   Boxed()    : ptr(NULL) {}
-  Boxed(T x) : ptr (new BoxedValue<T>(x)) { std:: cout << "new boxed " << (void*) ptr << std::endl; }
+  Boxed(T x) : ptr (new BoxedValue<T>(x)) { std:: cout << "  new boxed " << (void*) ptr << std::endl; }
 
   bool isNull() { return ptr == NULL; }
 

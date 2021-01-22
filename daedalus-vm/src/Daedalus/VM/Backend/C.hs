@@ -216,7 +216,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   dbg =   cStmt
         $ fsep
         $ intersperse "<<"
-        $ [ "std::cout", cString "args" ] ++
+        $ [ "std::cout", cString "  args" ] ++
           concat [ [cString s, cExpr (EBlockArg a)]
                  | a <- blockArgs b
                  | s <- ": " : repeat ", " ] ++
@@ -233,9 +233,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   [ cAssign (cArgUse b v) (cRetVar (getType v)) | v <- ras ] ++
                   [ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
                   ] ++
-                  [ cAssign (cArgUse b v) e
+                  [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                   | (v,n) <- cas `zip` [ 0 .. ]
-                  , let e = "clo->" <.> cField n
                   ] ++
                   [ cStmt (cCall "clo->free" ["true"]) ]
 
@@ -246,9 +245,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                 cBlock
                   $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
                   : cAssign (cArgUse b x) (cCall "DDL::Bool" ["clo->notified"])
-                  : [ cAssign (cArgUse b v) e
+                  : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                     | (v,n) <- xs `zip` [ 0 .. ]
-                    , let e = "clo->" <.> cField n
                     ]
                  ++ [ cStmt (cCall "clo->free" ["true"]) ]
 
@@ -317,10 +315,10 @@ cBlockStmt cInstr =
 cFree :: (CurBlock, Copies) => Set VMVar -> [CStmt]
 cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
            | x <- Set.toList xs
-           , y <- freeVar x
+           , y <- freeVar' x
            ]
   where
-  freeVar x =
+  freeVar' x =
     case x of
       LocalVar y | Just e <- Map.lookup y ?copies -> maybeToList (eIsVar e)
       _                                           -> [x]

@@ -18,8 +18,11 @@ class List : IsBoxed {
     Node(T   h, List t) : size(1+t.size()), head(h), tail(t) {}
 
     void free() {
+      std::cout << "  1.free node head\n";
       if constexpr (std::is_base_of<HasRefs,T>::value) head.free();
+      std::cout << "  2.free node tail\n";
       tail.free();
+      std::cout << "  3.free node done\n";
     }
   };
 

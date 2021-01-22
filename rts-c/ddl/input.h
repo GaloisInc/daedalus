@@ -44,15 +44,25 @@ public:
     , last_offset(len)
     {}
 
-  void copy() { name.copy(); bytes.copy(); }
-  void free() { name.free(); bytes.free(); }
+  void dumpInput() { std::cout << "[" << (void*) this << "] ("
+                     << name.refCount() << "," << bytes.refCount() << ")\n"; }
+
+  void copy() { std::cout << "  Incrementing input"; dumpInput();
+                name.copy(); bytes.copy(); }
+  void free() { std::cout << "  Decrementing input: "; dumpInput();
+                name.free(); bytes.free();
+                if (name.refCount() == 1) {
+                  std::cout << "ERROR: ref count for name is 1\n";
+                }
+              }
 
 
+  // borrow this
   size_t  getOffset() { return offset; }
   size_t  length()    { return last_offset - offset; }
   bool    isEmpty()   { return last_offset == offset; }
 
-  // Assumes: !isEmpty()
+  // borrow this, Assumes: !isEmpty()
   UInt<8> iHead()   { return bytes[offset]; }
 
   // Advance current location
@@ -65,6 +75,7 @@ public:
   // Assumes: n <= length()
   void    iTakeMut(size_t n) { last_offset = offset + n; }
 
+  // borrow n, own this
   Input iDropI(DDL::Integer n) { return iDrop(n.asULong()); }
   Input iTakeI(DDL::Integer n) { return iTake(n.asULong()); }
 
@@ -98,7 +109,8 @@ public:
   // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& operator<<(std::ostream& os, Input x) {
-    os << "Input(\"" << (char*)x.name.borrowData()
+    os << "Input(\"" << x.name.refCount() << "," << x.bytes.refCount()
+                     << "," << (char*)x.name.borrowData()
                    << ":0x" << std::hex << x.offset << "--0x"
                             << std::hex << x.last_offset << "\")";
 
