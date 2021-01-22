@@ -531,7 +531,7 @@ symbExecInp act ctrl out inp =
       let ev = symbolicEval name ctrl out in
       case ev of
         SConcrete (Right x) -> R.Result $ Just (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
-        Wildcard -> R.Abort R.AbortSymbolicExec
+        Wildcard -> R.Abort R.AbortSlkCfgExecution
         _ -> -- trace (show ev) $
              error "TODO"
     StreamLen _s e1 e2 ->
@@ -542,10 +542,10 @@ symbExecInp act ctrl out inp =
           SConcrete (Left (Interp.VInteger n)) ->
             case ev2 of
               SConcrete (Right x) -> R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSymbolicExec
+              Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
           _ -> -- trace "nont integer const" $
-            R.Abort R.AbortSymbolicExec
+            R.Abort R.AbortSlkCfgExecution
     StreamOff _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
@@ -555,9 +555,9 @@ symbExecInp act ctrl out inp =
             case ev2 of
               SConcrete (Right x) ->
                 R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSymbolicExec
+              Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
-          _ -> R.Abort R.AbortSymbolicExec
+          _ -> R.Abort R.AbortSlkCfgExecution
 
     _ -> error "TODO"
 
@@ -619,7 +619,7 @@ simulateActionSlkCfg aut act q2 cfg =
             , cfgInput = newInp
             }
           ]
-        R.Abort R.AbortSymbolicExec -> R.Abort R.AbortSymbolicExec
+        R.Abort R.AbortSlkCfgExecution -> R.Abort R.AbortSlkCfgExecution
         _ -> error "impossible"
     _ ->
       R.Result $ Just

@@ -494,8 +494,6 @@ statsLLA aut llas =
       let r = fromJust (lookupDFA (startDFA dfa) dfa)
       in
       case r of
-        Abort AbortAmbiguous -> result "-ambiguous-0"
-        Abort AbortOverflowK -> abortToString r
         Result _t ->
           let k = lookaheadDepth dfa
               res

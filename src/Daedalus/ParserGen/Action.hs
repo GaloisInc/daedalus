@@ -190,8 +190,8 @@ isActivateFrameAction act =
     CAct (ActivateFrame {}) -> True
     _ -> False
 
-isNonClassInputAct :: Action -> Bool
-isNonClassInputAct act =
+isUnhandledInputAction :: Action -> Bool
+isUnhandledInputAction act =
   case act of
     IAct iact ->
       case iact of
