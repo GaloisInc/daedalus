@@ -28,7 +28,7 @@ import Daedalus.ParserGen.Aut (Aut(..))
 import Daedalus.ParserGen.LL.Result
 import Daedalus.ParserGen.LL.SlkCfg
 import qualified Daedalus.ParserGen.LL.Closure as Closure
-import Daedalus.ParserGen.LL.DeterminizeOneStep
+import Daedalus.ParserGen.LL.DFAStep
 
 
 
