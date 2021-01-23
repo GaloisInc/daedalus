@@ -5,6 +5,7 @@
 
 module Daedalus.Type.PatComplete ( patComplete
                                  , CaseSummary(..)
+                                 , PatternCompleteness(..)
                                  , summariseCase
                                  ) where
 
