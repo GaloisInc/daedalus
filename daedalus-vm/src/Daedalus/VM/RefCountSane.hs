@@ -80,8 +80,8 @@ checkBlock ro block =
 
   checkFin (x,c) =
     case c of
-      O n | typeRepOf x == HasRefs && n /= 0 ->
-                    Left [name, "Variable " ++ showPP x ++ " was not freed."]
+      O n | n /= 0 -> Left [name, "Variable " ++ showPP x ++ " was not freed."
+                           , "(" ++ show n ++ ")" ]
       _ -> pure ()
 
 

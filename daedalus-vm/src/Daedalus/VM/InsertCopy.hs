@@ -296,9 +296,9 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
   updI live i = (newLive, i : freeIs)
     where
     used     = freeVarSet i
-    newLive  = Set.union used live `Set.difference`
-                                                (LocalVar `Set.map` defineSet i)
-    freeIs   = mkFree (Set.difference used live)
+    newLive  = Set.union used live `Set.difference` defs
+    defs     = LocalVar `Set.map` defineSet i
+    freeIs   = mkFree (Set.difference (Set.union defs used) live)
 
 
   mkFree vs = [ Free vs' | let vs'= filterFree True vs, not (Set.null vs') ]
