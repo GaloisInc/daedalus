@@ -58,7 +58,7 @@ def CrossRefSubSection = {
 def CrossRefEntry = {
   @num = NatN 10; $simpleWS;
   @gen = NatN 5;  $simpleWS;
-  $$   = Choose {
+  $$   = Choose1 {
            inUse = UsedEntry num gen;
            free  = FreeEntry num gen;
         };
