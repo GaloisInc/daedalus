@@ -660,13 +660,21 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
 
 
 
-
 pSkipMany :: Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany cmt vs p =
   do f <- newGName TUnit
      let es = map Var vs
+     r <- newLocal TBool
      defFunG f vs $
-        orOp cmt (Do_ p (Call f es)) (Pure unit)
+        case cmt of
+          -- we can make a tail call in this case
+          Commit ->
+            Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
+             $ GCase $ Case (Var r)
+                         [ (PBool True, Call f es)
+                         , (PBool False, Pure unit)
+                         ]
+          _ -> orOp cmt (Do_ p (Call f es)) (Pure unit)
      pure (Call f es)
 
 pParseMany :: Commit -> Type -> [Name] -> Grammar -> M Grammar
@@ -675,13 +683,28 @@ pParseMany cmt ty vs p =
      let es = map Var vs
      x <- newLocal (TBuilder ty)
      y <- newLocal ty
+     rMb <- newLocal (TMaybe ty)
+     r   <- newLocal ty
      let xe = Var x
      defFunG f (x:vs)
-       $ orOp cmt (Do y p (Call f (consBuilder (Var y) xe : es))) (Pure xe)
+       $ case cmt of
+           Commit ->
+              Do rMb(OrBiased (Do r p (Pure (just (Var r))))
+                              (Pure (nothing ty)))
+               $ GCase
+               $ Case (Var rMb)
+                   [ (PJust,    Call f (consBuilder (eFromJust (Var rMb)) xe
+                                                                      : es)
+                     )
+                   , (PNothing, Pure xe)
+                   ]
+           _ ->
+            orOp cmt (Do y p (Call f (consBuilder (Var y) xe : es))) (Pure xe)
 
      z <- newLocal (TBuilder ty)
      pure $ Do z (Call f (newBuilder ty : es))
                  (Pure $ finishBuilder $ Var z)
+
 
 pSkipAtMost :: [Name] -> Expr -> Grammar -> M Grammar
 pSkipAtMost vs tgt p =
