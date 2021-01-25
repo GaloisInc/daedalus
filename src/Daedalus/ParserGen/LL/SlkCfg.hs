@@ -49,6 +49,13 @@ instance Functor Slk where
 
 
 data SymbolicStack a =
+  SymbolicStack
+  { keySymbolicStack :: Maybe Int
+  , contSymbolicStack :: HSymbolicStack a
+  }
+  deriving (Eq, Ord, Show)
+
+data HSymbolicStack a =
     SWildcard
   | SEmpty
   | SCons a (SymbolicStack a)
@@ -59,7 +66,7 @@ showSymbolicStack s =
   "[" ++ helper s ++ "]"
   where
     helper st =
-      case st of
+      case destrSymbolicStack st of
         SWildcard -> "*"
         SEmpty -> ""
         SCons _a s1 -> "?, " ++ helper s1
@@ -67,9 +74,52 @@ showSymbolicStack s =
 
 lengthSymbolicStack :: SymbolicStack a -> Int
 lengthSymbolicStack s =
-  case s of
+  case destrSymbolicStack s of
     SCons _ rs -> 1 + lengthSymbolicStack rs
     _ -> 0
+
+mkSWildcard :: () -> SymbolicStack a
+mkSWildcard () =
+  SymbolicStack
+  { keySymbolicStack = Nothing
+  , contSymbolicStack = SWildcard
+  }
+
+mkSEmpty :: () ->  SymbolicStack a
+mkSEmpty () =
+  SymbolicStack
+  { keySymbolicStack = Nothing
+  , contSymbolicStack = SEmpty
+  }
+
+mkSCons :: a -> SymbolicStack a -> SymbolicStack a
+mkSCons a st =
+  SymbolicStack
+  { keySymbolicStack = Nothing
+  , contSymbolicStack = SCons a st
+  }
+
+destrSymbolicStack :: SymbolicStack a -> HSymbolicStack a
+destrSymbolicStack s =
+  contSymbolicStack s
+
+destrSymbolicStack2 :: SymbolicStack a -> (HSymbolicStack a, Maybe (HSymbolicStack a), Maybe (HSymbolicStack a))
+destrSymbolicStack2 s =
+  let x1 = destrSymbolicStack s in
+  case x1 of
+    SWildcard -> (x1, Nothing, Nothing)
+    SEmpty -> (x1, Nothing, Nothing)
+    SCons _ rest ->
+      let x2 = destrSymbolicStack rest in
+      case x2 of
+        SWildcard -> (x1, Just x2, Nothing)
+        SEmpty -> (x1, Just x2, Nothing)
+        SCons _ rest1 ->
+          let x3 = destrSymbolicStack rest1 in
+          (x1, Just x2, Just x3)
+
+
+
 
 
 data SlkBetweenItv =
@@ -260,15 +310,15 @@ initSlkCfg :: State -> SlkCfg
 initSlkCfg q =
   SlkCfg
   { cfgState = q
-  , cfgCtrl = SWildcard
-  , cfgSem = SWildcard
+  , cfgCtrl = mkSWildcard ()
+  , cfgSem = mkSWildcard ()
   , cfgInput = InpBegin
   }
 
 
 headSem :: SlkSemanticData -> SlkSemElm
 headSem sem =
-  case sem of
+  case destrSymbolicStack sem of
     SWildcard -> SlkSEVal Wildcard
     SCons v _ -> v
     SEmpty -> error "Should not happen"
@@ -281,7 +331,7 @@ symbolicLookupEnvName nname ctrl out =
     Just v  -> v
   where
     lookupSem semOut nextctrl =
-      case semOut of
+      case destrSymbolicStack semOut of
         SCons (SlkSEnvMap (SConcrete m)) rest ->
           case Map.lookup nname m of
             Nothing -> lookupSem rest nextctrl
@@ -291,13 +341,15 @@ symbolicLookupEnvName nname ctrl out =
         SEmpty -> lookupCtrl nextctrl
         SWildcard -> Just Wildcard
 
-    lookupCtrl SWildcard = Just Wildcard
-    lookupCtrl (SCons (SlkCallFrame _ _ (SlkActivatedFrame m) _) _rest) =
-      case Map.lookup nname m of
-        Nothing -> Nothing
-        Just v -> Just v
-    lookupCtrl SEmpty = error "missing var"
-    lookupCtrl _ = error "TODO"
+    lookupCtrl c =
+      case destrSymbolicStack c of
+        SWildcard -> Just Wildcard
+        SCons (SlkCallFrame _ _ (SlkActivatedFrame m) _) _rest ->
+          case Map.lookup nname m of
+            Nothing -> Nothing
+            Just v -> Just v
+        SEmpty -> error "missing var"
+        _ -> error "TODO"
 
 symbolicEval :: NVExpr -> SlkControlData -> SlkSemanticData -> SlkValue
 symbolicEval e ctrl sem =
@@ -363,9 +415,12 @@ symbExecCtrlNonPop _aut ctrl out act =
                 let ev1 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v1
                     ev2 = fmap (\v -> slkValToInt (symbolicEval v ctrl out)) v2
                 in SlkCBetween ev1 ev2
-      in Just (SCons (SlkManyFrame sbound (setupCountFromBound sbound)) ctrl, out)
+      in
+      let frame = (SlkManyFrame sbound (setupCountFromBound sbound))
+      in
+        Just (mkSCons frame ctrl, out)
     BoundCheckSuccess ->
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame (SlkCExactly si) cnt) rest ->
           case si of
@@ -399,7 +454,7 @@ symbExecCtrlNonPop _aut ctrl out act =
         SWildcard -> Just (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
     BoundIsMore ->
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame (SlkCExactly si) cnt) _ ->
           case si of
@@ -417,19 +472,23 @@ symbExecCtrlNonPop _aut ctrl out act =
         SWildcard -> Just (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
     BoundIncr ->
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame bound cnt) rest ->
-          Just (SCons (SlkManyFrame bound (incrBound bound cnt)) rest, out)
+          let frame = SlkManyFrame bound (incrBound bound cnt)
+          in
+          Just (mkSCons frame rest, out)
         SWildcard -> Just (ctrl, out)
         _ -> error ("Unexpected ctrl stack top element:" ++ show ctrl)
     Push rname le q ->
       let evle = map (\ e -> symbolicEval e ctrl out) le
       in
-      Just $ (SCons (SlkCallFrame rname q (SlkListArgs evle) out) ctrl, SEmpty)
+      let frame = SlkCallFrame rname q (SlkListArgs evle) out
+      in
+      Just $ (mkSCons frame ctrl, mkSEmpty ())
     Pop -> error "should be handled elsewhere"
     ActivateFrame ln ->
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SCons (SlkCallFrame rname q (SlkListArgs lvs) savedFrame) ctrls ->
           let zipped =
                 if Prelude.length ln == Prelude.length lvs
@@ -438,14 +497,16 @@ symbExecCtrlNonPop _aut ctrl out act =
 
               activatedFrame = SlkActivatedFrame (
                 foldr (\ (val, name) set -> (Map.insert name val set)) Map.empty zipped)
-              in
-              Just (SCons (SlkCallFrame rname q activatedFrame savedFrame) ctrls, out)
-        SWildcard -> Just (SWildcard, out)
+          in
+          let frame = SlkCallFrame rname q activatedFrame savedFrame
+          in
+          Just $ (mkSCons frame ctrls, out)
+        SWildcard -> Just (mkSWildcard (), out)
         _ -> error "unexpected ctrl stack, not a CallFrame ListArgs"
     DeactivateReady -> (
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SCons (SlkCallFrame _rname _q (SlkActivatedFrame _) _savedFrame) _ctrls -> Just (ctrl, out)
-        SWildcard -> Just (SWildcard, out)
+        SWildcard -> Just (mkSWildcard (), out)
         _ -> error "unexpected out"
       )
     _ -> Just (ctrl, out)
@@ -457,14 +518,23 @@ symbExecCtrl :: Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAc
 symbExecCtrl aut ctrl out act q2 =
   case act of
     Pop ->
-      case ctrl of
+      case destrSymbolicStack ctrl of
         SWildcard ->
           case (Aut.lookupPopTrans q2 $ Aut.popTransAut aut) of
             Nothing -> Nothing
             Just targets -> -- trace (show targets) $
-              Just $ map (\ q -> (SWildcard, SCons (headSem out) SWildcard, q)) targets
+              Just $
+              map
+              (\ q ->
+                 ( mkSWildcard ()
+                 , mkSCons (headSem out) (mkSWildcard ())
+                 , q
+                 )
+              )
+              targets
         SEmpty -> Nothing
-        SCons (SlkCallFrame _ q1 _ savedOut) rest -> Just [(rest, SCons (headSem out) savedOut, q1)]
+        SCons (SlkCallFrame _ q1 _ savedOut) rest ->
+          Just [(rest, mkSCons (headSem out) savedOut, q1)]
         _ -> error "broken invariant of symbolic Pop"
     _ ->
       let r = symbExecCtrlNonPop aut ctrl out act in
@@ -476,61 +546,64 @@ symbExecSem :: SlkControlData -> SlkSemanticData -> SemanticAction -> Maybe SlkS
 symbExecSem ctrl out act =
   -- trace (show out) $
   case act of
-    EnvFresh -> Just (SCons (SlkSEnvMap (SConcrete Map.empty)) out)
+    EnvFresh -> Just (mkSCons (SlkSEnvMap (SConcrete Map.empty)) out)
     EnvStore mn ->
-      case out of
-        SWildcard -> Just SWildcard
-        SCons (SlkSEVal _) SWildcard ->
-          Just SWildcard
-        SCons (SlkSEVal v) rest@(SCons (SlkSEnvMap (SConcrete y)) z) ->
+      case destrSymbolicStack2 out of
+        (SWildcard, _, _) -> Just (mkSWildcard ())
+        (SCons (SlkSEVal _) _rest, Just SWildcard, _) -> Just (mkSWildcard ())
+        (SCons (SlkSEVal v) rest, Just (SCons (SlkSEnvMap (SConcrete y)) z), _) ->
           case mn of
             Nothing -> Just rest
-            Just name -> Just (SCons (SlkSEnvMap (SConcrete (Map.insert name v y))) z)
+            Just name -> Just (mkSCons (SlkSEnvMap (SConcrete (Map.insert name v y))) z)
         _ -> error "impossible"
-    EvalPure _e -> Just (SCons (SlkSEVal Wildcard) out)
+    EvalPure _e -> Just (mkSCons (SlkSEVal Wildcard) out)
     ReturnBind e ->
-      case out of
-        SWildcard -> Just (SCons (SlkSEVal Wildcard) SWildcard)
+      case destrSymbolicStack out of
+        SWildcard -> Just (mkSCons (SlkSEVal Wildcard) (mkSWildcard ()))
         SCons (SlkSEnvMap _) rest ->
           let se = symbolicEval e ctrl out
-          in Just (SCons (SlkSEVal se) rest)
+          in Just (mkSCons (SlkSEVal se) rest)
         _ -> error "impossible"
     ReturnLast -> -- Just (head out : tail (tail out))
-      case out of
-        SWildcard -> Just SWildcard
-        SCons x (SCons _ SWildcard) -> Just (SCons x SWildcard)
-        SCons x (SCons _ z) -> Just (SCons x z)
-        SCons x SWildcard -> Just (SCons x SWildcard)
+      case destrSymbolicStack2 out of
+        (SWildcard, _, _) ->
+          Just (mkSWildcard ())
+        (SCons x _, Just (SCons _ _), Just SWildcard) ->
+          Just (mkSCons x (mkSWildcard ()))
+        (SCons x _, Just (SCons _ z), Just _z) ->
+          Just (mkSCons x z)
+        (SCons x _, Just SWildcard, Nothing) ->
+         Just (mkSCons x (mkSWildcard ()))
         _ -> error "impossible"
     DropOneOut ->
-      case out of
-        SWildcard -> Just SWildcard
+      case destrSymbolicStack out of
+        SWildcard -> Just (mkSWildcard ())
         SCons _ os -> Just os
         _ -> error "Should not Happen: drop on empty sem stack"
-    ManyFreshList _s -> Just (SCons (SlkSEVal Wildcard) out)
+    ManyFreshList _s -> Just (mkSCons (SlkSEVal Wildcard) out)
     ManyAppend _s ->
       -- trace (show out) $
       -- trace (show ctrl) $
-      case out of
-        SWildcard -> Just SWildcard
+      case destrSymbolicStack out of
+        SWildcard -> Just (mkSWildcard ())
         SCons _ y -> Just y
         _ -> error "impossible"
 
     -- TODO: move these to unhandled cases
-    SelUnion _ _ _ -> Just (SCons (SlkSEVal Wildcard) out)
-    Guard _ -> Just (SCons (SlkSEVal Wildcard) out)
-    CoerceCheck _ _ _ _ -> Just (SCons (SlkSEVal Wildcard) out)
+    SelUnion _ _ _ -> Just (mkSCons (SlkSEVal Wildcard) out)
+    Guard _ -> Just (mkSCons (SlkSEVal Wildcard) out)
+    CoerceCheck _ _ _ _ -> Just (mkSCons (SlkSEVal Wildcard) out)
     _ -> Just out
 
 symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
   R.Result (Maybe (SlkInput, SlkSemanticData))
 symbExecInp act ctrl out inp =
   case act of
-    GetStream -> R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right inp))) out)
+    GetStream -> R.Result $ Just (inp, mkSCons (SlkSEVal (SConcrete (Right inp))) out)
     SetStream name ->
       let ev = symbolicEval name ctrl out in
       case ev of
-        SConcrete (Right x) -> R.Result $ Just (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
+        SConcrete (Right x) -> R.Result $ Just (x, mkSCons (SlkSEVal (SConcrete (Left defaultValue))) out)
         Wildcard -> R.Abort R.AbortSlkCfgExecution
         _ -> -- trace (show ev) $
              error "TODO"
@@ -541,7 +614,7 @@ symbExecInp act ctrl out inp =
         case ev1 of
           SConcrete (Left (Interp.VInteger n)) ->
             case ev2 of
-              SConcrete (Right x) -> R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
+              SConcrete (Right x) -> R.Result $ Just (inp, mkSCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
               Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
           _ -> -- trace "nont integer const" $
@@ -554,7 +627,7 @@ symbExecInp act ctrl out inp =
           SConcrete (Left (Interp.VInteger n)) ->
             case ev2 of
               SConcrete (Right x) ->
-                R.Result $ Just (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
+                R.Result $ Just (inp, mkSCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
               Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
           _ -> R.Abort R.AbortSlkCfgExecution
@@ -660,14 +733,14 @@ simulateMove ih cfg act q =
               Just $ SlkCfg
               { cfgState = q
               , cfgCtrl = cfgCtrl cfg
-              , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+              , cfgSem = mkSCons (SlkSEVal Wildcard) (cfgSem cfg)
               , cfgInput = newInput
               }
             NoSem ->
               Just $ SlkCfg
               { cfgState = q
               , cfgCtrl = cfgCtrl cfg
-              , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+              , cfgSem = mkSCons (SlkSEVal Wildcard) (cfgSem cfg)
               , cfgInput = newInput
               }
     (HeadInput _itv, IAct (IGetByte _)) ->
@@ -678,7 +751,7 @@ simulateMove ih cfg act q =
           Just $ SlkCfg
           { cfgState = q
           , cfgCtrl = cfgCtrl cfg
-          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+          , cfgSem = mkSCons (SlkSEVal Wildcard) (cfgSem cfg)
           , cfgInput = newInput
           }
     (EndInput, IAct (IEnd)) ->
@@ -689,7 +762,7 @@ simulateMove ih cfg act q =
           Just $ SlkCfg
           { cfgState = q
           , cfgCtrl = cfgCtrl cfg
-          , cfgSem = SCons (SlkSEVal Wildcard) (cfgSem cfg)
+          , cfgSem = mkSCons (SlkSEVal Wildcard) (cfgSem cfg)
           , cfgInput = newInput
           }
     _ -> error "impossible"
