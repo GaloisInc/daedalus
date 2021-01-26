@@ -51,15 +51,52 @@ instance Functor Slk where
 data SymbolicStack a =
   SymbolicStack
   { keySymbolicStack :: Maybe Int
-  , contSymbolicStack :: HSymbolicStack a
+  , valueSymbolicStack :: HSymbolicStack a
   }
-  deriving (Eq, Ord, Show)
+  deriving (Show)
 
 data HSymbolicStack a =
     SWildcard
   | SEmpty
   | SCons a (SymbolicStack a)
-  deriving (Eq, Ord, Show)
+  deriving (Show)
+
+
+instance Ord a => Eq (HSymbolicStack a) where
+  (==) s1 s2 = compare s1 s2 == EQ
+
+instance Ord a => Eq (SymbolicStack a) where
+  (==) s1 s2 = compare s1 s2 == EQ
+
+instance Ord a => Ord (HSymbolicStack a) where
+  compare s1 s2 =
+    case (s1, s2) of
+      (SWildcard, SWildcard) -> EQ
+      (SWildcard, _) -> LT
+      (_, SWildcard) -> GT
+
+      (SEmpty, SEmpty) -> EQ
+      (SEmpty, _) -> LT
+      (_, SEmpty) -> GT
+
+      (SCons x xs, SCons y ys) -> compare (x,xs) (y,ys)
+
+instance Ord a => Ord (SymbolicStack a) where
+  compare s1 s2 = compareSymbolicStack s1 s2
+
+
+compareSymbolicStack :: Ord a => SymbolicStack a -> SymbolicStack a -> Ordering
+compareSymbolicStack s1 s2 =
+  case (keySymbolicStack s1, keySymbolicStack s2) of
+    (Just k1, Just k2) -> compare k1 k2
+    _ -> compare (valueSymbolicStack s1) (valueSymbolicStack s2)
+
+
+data HTableSymbolicStack a =
+  HTableSymbolicStack
+  { nextKeySymbolicStack :: Int
+  , knownSymbolicStack :: Map.Map (HSymbolicStack a) Int
+  }
 
 showSymbolicStack :: SymbolicStack a -> String
 showSymbolicStack s =
@@ -82,26 +119,26 @@ mkSWildcard :: () -> SymbolicStack a
 mkSWildcard () =
   SymbolicStack
   { keySymbolicStack = Nothing
-  , contSymbolicStack = SWildcard
+  , valueSymbolicStack = SWildcard
   }
 
 mkSEmpty :: () ->  SymbolicStack a
 mkSEmpty () =
   SymbolicStack
   { keySymbolicStack = Nothing
-  , contSymbolicStack = SEmpty
+  , valueSymbolicStack = SEmpty
   }
 
 mkSCons :: a -> SymbolicStack a -> SymbolicStack a
 mkSCons a st =
   SymbolicStack
   { keySymbolicStack = Nothing
-  , contSymbolicStack = SCons a st
+  , valueSymbolicStack = SCons a st
   }
 
 destrSymbolicStack :: SymbolicStack a -> HSymbolicStack a
 destrSymbolicStack s =
-  contSymbolicStack s
+  valueSymbolicStack s
 
 destrSymbolicStack2 :: SymbolicStack a -> (HSymbolicStack a, Maybe (HSymbolicStack a), Maybe (HSymbolicStack a))
 destrSymbolicStack2 s =
@@ -514,7 +551,10 @@ symbExecCtrlNonPop _aut ctrl out act =
 -- This functions returns possibly many new symbolic stack because of
 -- the Pop transitions that are not deterministic when the Stack is
 -- Wildcard
-symbExecCtrl :: Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction -> State -> Maybe [(SlkControlData, SlkSemanticData, State)]
+symbExecCtrl ::
+  Aut.Aut a =>
+  a -> SlkControlData -> SlkSemanticData -> ControlAction -> State ->
+  Maybe [(SlkControlData, SlkSemanticData, State)]
 symbExecCtrl aut ctrl out act q2 =
   case act of
     Pop ->
@@ -542,7 +582,9 @@ symbExecCtrl aut ctrl out act q2 =
         Nothing -> Nothing
         Just (newCtrl, newOut) -> Just [(newCtrl, newOut, q2)]
 
-symbExecSem :: SlkControlData -> SlkSemanticData -> SemanticAction -> Maybe SlkSemanticData
+symbExecSem ::
+  SlkControlData -> SlkSemanticData -> SemanticAction ->
+  Maybe SlkSemanticData
 symbExecSem ctrl out act =
   -- trace (show out) $
   case act of
