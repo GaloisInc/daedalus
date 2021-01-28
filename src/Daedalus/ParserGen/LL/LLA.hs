@@ -345,9 +345,12 @@ isFullyDeterminizedLLA lla =
 
 buildPipelineLLA :: Aut a => a -> Either LLA (LLA, LLA)
 buildPipelineLLA aut =
-  let initStates = Set.singleton $ initialState aut
+  let
+    initStates = [ initialState aut ]
+    (initDFAStates, tab) = allocate initStates emptyHTable
   in
-  let lla1 = go (Set.toList (Set.map mkDFAState initStates)) [] emptyLLA
+  let
+    (lla1, tab1) = go initDFAStates [] emptyLLA tab
   in
     if isFullyDeterminizedLLA lla1
     then
@@ -356,10 +359,22 @@ buildPipelineLLA aut =
     else
       let collectedStates = identifyStartStates ()
       in
-        let lla2 = go (Set.toList (Set.map mkDFAState collectedStates)) [] lla1 in
+        let
+          (nextInitStates, tab2) = allocate collectedStates tab1
+          (lla2, _tab3) = go nextInitStates [] lla1 tab2 in
         let lla3 = synthesizeLLA aut lla2
         in Right (lla1, lla3)
+
   where
+    allocate lst tab =
+      foldl
+      (\ (acc, accTab) q ->
+         let (qDFA, tab1) = mkDFAState q accTab
+         in (qDFA : acc, tab1)
+      )
+      ([], tab)
+      lst
+
     identifyStartStates :: () -> Set.Set State
     identifyStartStates () =
       let transitions = allTransitions aut in
@@ -381,25 +396,27 @@ buildPipelineLLA aut =
         else Set.empty
 
 
-    go :: [DFAState] -> [DFAState] -> LLA -> LLA
-    go toVisit nextRound res =
-      if synthLLAState (lastSynth res) > 1000000 then error "Stop" else
-      -- trace (show (Map.size res)) $
+    go ::
+      [DFAState] -> [DFAState] -> LLA ->
+      HTable -> (LLA, HTable)
+    go toVisit nextRound lla tab =
+      if synthLLAState (lastSynth lla) > 1000000 then error "Stop" else
+      -- trace (show (Map.size lla)) $
       case toVisit of
         [] -> case nextRound of
-                [] -> res
-                _ -> go (reverse nextRound) [] res
+                [] -> (lla, tab)
+                _ -> go (reverse nextRound) [] lla tab
         q : qs ->
           -- trace (show q) $
-          if memberLLA q res
-          then go qs nextRound res
+          if memberLLA q lla
+          then go qs nextRound lla tab
           else
-            let dfa = createDFA aut q
-                newRes = insertLLA q dfa res
+            let (dfa, tab1) = createDFA aut q tab
+                newlla = insertLLA q dfa lla
                 newNextRound =
                   let finalStates = getFinalStates dfa in
                     revAppend finalStates nextRound
-            in go qs newNextRound newRes
+            in go qs newNextRound newlla tab1
 
 createLLA :: Aut a => a -> LLA
 createLLA aut =

@@ -347,33 +347,40 @@ mapAnalyzeConflicts dc =
 oVERFLOW_CFG :: Int
 oVERFLOW_CFG = 10
 
-createDFA :: Aut a => a -> DFAState -> DFA
-createDFA aut qInit =
+createDFA ::
+  Aut a =>
+  a -> DFAState ->
+  HTable -> (DFA, HTable)
+createDFA aut qInit tab =
   let idfa = initDFA qInit in
-  let dfa =
-        if measureDFAState qInit > oVERFLOW_CFG
-        then insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa
-        else go [(startLinDFAState idfa, 0)] [] idfa
+  let
+    (dfa, tab1) =
+      if measureDFAState qInit > oVERFLOW_CFG
+      then (insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa, tab)
+      else go [(startLinDFAState idfa, 0)] [] idfa tab
   in
   let dfa1 = computeHasFullResolution dfa
       dfa2 = computeHasNoAbort dfa1
-  in dfa2
+  in (dfa2, tab1)
   where
-    go :: [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> DFA -> DFA
-    go toVisit accToVisit dfa =
+    go ::
+      [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> DFA ->
+      HTable -> (DFA, HTable)
+    go toVisit accToVisit dfa localTab =
       case toVisit of
         [] -> case accToVisit of
-                [] -> dfa
-                _ -> go (reverse accToVisit) [] dfa
+                [] -> (dfa, localTab)
+                _ -> go (reverse accToVisit) [] dfa localTab
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
               if depth > maxLookaheadDepth
               then
                 let newDfa = insertDFA q (Abort AbortDFAOverflowLookahead) dfa
-                in go rest accToVisit newDfa
+                in go rest accToVisit newDfa localTab
               else
-                let choices = detSubset (fromJust $ Map.lookup q (mappingLinToDFAState dfa)) in
+                let (choices, tab1) =
+                      detSubset (fromJust $ Map.lookup q (mappingLinToDFAState dfa)) localTab in
                 let newDfa = insertDFA q choices dfa in
                 let allocatedChoice = fromJust $ lookupLinDFAState q newDfa
                 in
@@ -382,38 +389,47 @@ createDFA aut qInit =
                       let
                         newToVisit = if am /= Ambiguous then collectVisit (depth+1) r1 else []
                         newAccToVisit = revAppend newToVisit accToVisit
-                      in go rest newAccToVisit newDfa
-                    _ -> go rest accToVisit newDfa
+                      in go rest newAccToVisit newDfa tab1
+                    _ -> go rest accToVisit newDfa tab1
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
-              go rest accToVisit dfa
+              go rest accToVisit dfa localTab
 
     collectVisit :: Int -> [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState, LinDFAState)] -> [(LinDFAState, Int)]
     collectVisit depth lst =
-      foldr (\ (_, _, am, _qq, q) vis ->
-               if q == dummyLinDFAState
-               then error "should not be dummy state"
-               else
-                 case am of
-                   Ambiguous -> vis
-                   NotAmbiguous -> vis
-                   DunnoAmbiguous -> (q, depth) : vis) [] lst
+      foldr
+      (\ (_, _, am, _qq, q) vis ->
+          if q == dummyLinDFAState
+          then error "should not be dummy state"
+          else
+            case am of
+              Ambiguous -> vis
+              NotAmbiguous -> vis
+              DunnoAmbiguous -> (q, depth) : vis
+      )
+      []
+      lst
 
-    detSubset :: DFAState -> Result DFATransition
-    detSubset s =
-      let r = determinizeDFAState aut s in
-      case r of
-        Abort AbortSlkCfgExecution -> coerceAbort r
-        Abort AbortClosureOverflowMaxDepth -> coerceAbort r
-        Abort AbortClosureInfiniteloop -> coerceAbort r
-        Abort AbortClosureUnhandledInputAction -> coerceAbort r
-        Abort AbortClosureUnhandledAction -> coerceAbort r
-        Abort AbortClassIsDynamic -> coerceAbort r
-        Abort (AbortClassNotHandledYet _) -> coerceAbort r
-        Abort AbortDFAIncompatibleInput -> coerceAbort r
-        Result r1 ->
-          let r2 = mapAnalyzeConflicts r1 in
-            Result r2
-        _ -> error "cannot be this abort"
+    detSubset ::
+      DFAState ->
+      HTable -> (Result DFATransition, HTable)
+    detSubset s localTab =
+      let (r, tab1) = determinizeDFAState aut s localTab in
+      let
+        rFinalized =
+          case r of
+            Abort AbortSlkCfgExecution -> coerceAbort r
+            Abort AbortClosureOverflowMaxDepth -> coerceAbort r
+            Abort AbortClosureInfiniteloop -> coerceAbort r
+            Abort AbortClosureUnhandledInputAction -> coerceAbort r
+            Abort AbortClosureUnhandledAction -> coerceAbort r
+            Abort AbortClassIsDynamic -> coerceAbort r
+            Abort (AbortClassNotHandledYet _) -> coerceAbort r
+            Abort AbortDFAIncompatibleInput -> coerceAbort r
+            Result r1 ->
+              let r2 = mapAnalyzeConflicts r1 in
+                Result r2
+            _ -> error "cannot be this abort"
+      in (rFinalized, tab1)
 
 
 

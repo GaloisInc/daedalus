@@ -32,7 +32,7 @@ import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd)
 import Daedalus.ParserGen.Aut (Aut(..))
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.Result
-import qualified Daedalus.ParserGen.LL.SlkCfg as SCfg
+import qualified Daedalus.ParserGen.LL.SlkCfg as Slk
 import qualified Daedalus.ParserGen.LL.Closure as Closure
 
 
@@ -41,7 +41,7 @@ import qualified Daedalus.ParserGen.LL.Closure as Closure
 -- `DFAEntry` is a type capturing a path of execution in the NFA,
 -- starting from a source to its destination.
 
-type SourceCfg = SCfg.SlkCfg
+type SourceCfg = Slk.SlkCfg
 
 data DFAEntry = DFAEntry
   { srcEntry :: SourceCfg
@@ -52,7 +52,7 @@ data DFAEntry = DFAEntry
 
 compareSrc :: DFAEntry -> DFAEntry -> Ordering
 compareSrc p1 p2 =
-  SCfg.compareSlkCfg (srcEntry p1) (srcEntry p2)
+  Slk.compareSlkCfg (srcEntry p1) (srcEntry p2)
 
 compareDst :: DFAEntry -> DFAEntry -> Ordering
 compareDst p1 p2 =
@@ -189,17 +189,17 @@ insertDetChoiceAccepting src cm detChoice =
 
 
 
-insertDetChoiceInputHeadCondition :: SourceCfg -> SCfg.InputHeadCondition -> Closure.ClosureMove -> DetChoice -> DetChoice
+insertDetChoiceInputHeadCondition :: SourceCfg -> Slk.InputHeadCondition -> Closure.ClosureMove -> DetChoice -> DetChoice
 insertDetChoiceInputHeadCondition src ih cm detChoice =
   let q = singletonDFARegistry (DFAEntry src cm) in
   case ih of
-    SCfg.EndInput ->
+    Slk.EndInput ->
       let endDetChoice' =
             case endDetChoice detChoice of
               Nothing -> Just q
               Just qs -> Just (unionDFARegistry q qs)
       in detChoice { endDetChoice = endDetChoice' }
-    SCfg.HeadInput x ->
+    Slk.HeadInput x ->
       let classDetChoice' =
             let c = classDetChoice detChoice
             in insertItvInOrderedList (x, q) c unionDFARegistry
@@ -233,14 +233,14 @@ determinizeMove src tc =
   determinizeWithAccu tc Nothing emptyDetChoice
 
   where
-    determinizeWithAccu :: Closure.ClosureMoveSet -> Maybe SCfg.SlkInput -> DetChoice -> Result DetChoice
+    determinizeWithAccu :: Closure.ClosureMoveSet -> Maybe Slk.SlkInput -> DetChoice -> Result DetChoice
     determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
         t : ms ->
           let
             cfg = Closure.closureCfg t
-            inp = SCfg.cfgInput cfg
+            inp = Slk.cfgInput cfg
             resAcc =
               case t of
                 Closure.ClosureMove {} ->
@@ -254,13 +254,13 @@ determinizeMove src tc =
                           Abort AbortClassIsDynamic -> coerceAbort res
                           Abort (AbortClassNotHandledYet _) -> coerceAbort res
                           Result r ->
-                            Result $ insertDetChoiceInputHeadCondition src (SCfg.HeadInput r) t acc
+                            Result $ insertDetChoiceInputHeadCondition src (Slk.HeadInput r) t acc
 
                           _ -> error "Impossible abort"
                       Left (Right (IGetByte _)) ->
-                        Result $ insertDetChoiceInputHeadCondition src (SCfg.HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
+                        Result $ insertDetChoiceInputHeadCondition src (Slk.HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
                       Right IEnd ->
-                        Result $ insertDetChoiceInputHeadCondition src SCfg.EndInput t acc
+                        Result $ insertDetChoiceInputHeadCondition src Slk.EndInput t acc
                       _ -> error "Impossible case"
                 Closure.ClosureAccepting {} ->
                   Result $ insertDetChoiceAccepting src t acc
@@ -276,7 +276,7 @@ determinizeMove src tc =
           else
             Abort AbortDFAIncompatibleInput
 
-    compatibleInput :: SCfg.SlkInput -> Maybe SCfg.SlkInput -> Bool
+    compatibleInput :: Slk.SlkInput -> Maybe Slk.SlkInput -> Bool
     compatibleInput inp minp =
       case minp of
         Nothing -> True
@@ -286,28 +286,32 @@ determinizeMove src tc =
 
 
 
-deterministicSlkCfg :: Aut a => a -> SCfg.SlkCfg -> Result DetChoice
-deterministicSlkCfg aut cfg =
-  let res = Closure.closureLL aut cfg in
+deterministicSlkCfg ::
+  Aut a =>
+  a -> Slk.SlkCfg ->
+  Slk.HTable -> (Result DetChoice, Slk.HTable)
+deterministicSlkCfg aut cfg tab =
+  let (res, tab1) = Closure.closureLL aut cfg tab in
   case res of
-    Abort AbortSlkCfgExecution -> coerceAbort res
-    Abort AbortClosureOverflowMaxDepth -> coerceAbort res
-    Abort AbortClosureInfiniteloop -> coerceAbort res
-    Abort AbortClosureUnhandledInputAction -> coerceAbort res
-    Abort AbortClosureUnhandledAction -> coerceAbort res
-    Result r -> determinizeMove cfg r
+    Abort AbortSlkCfgExecution -> (coerceAbort res, tab1)
+    Abort AbortClosureOverflowMaxDepth -> (coerceAbort res, tab1)
+    Abort AbortClosureInfiniteloop -> (coerceAbort res, tab1)
+    Abort AbortClosureUnhandledInputAction -> (coerceAbort res, tab1)
+    Abort AbortClosureUnhandledAction -> (coerceAbort res, tab1)
+    Result r -> (determinizeMove cfg r, tab1)
     _ -> error "Impossible abort"
 
 
 newtype DFAState =
   DFAState
-  { dfaState :: Set.Set SCfg.SlkCfg
+  { dfaState :: Set.Set Slk.SlkCfg
   }
   deriving Show
 
-mkDFAState :: State -> DFAState
-mkDFAState q =
-    DFAState (Set.singleton (SCfg.initSlkCfg q))
+mkDFAState :: State -> Slk.HTable -> (DFAState, Slk.HTable)
+mkDFAState q tab =
+  let (initCfg, tab1) = Slk.initSlkCfg q tab
+  in (DFAState (Set.singleton initCfg), tab1)
 
 isDFAStateInit :: DFAState -> Maybe State
 isDFAStateInit q =
@@ -316,9 +320,8 @@ isDFAStateInit q =
     let cfg = Set.elemAt 0 (dfaState q)
     in
     case cfg of
-      SCfg.SlkCfg
-        { SCfg.cfgState = qNFA } ->
-        if (SCfg.initSlkCfg qNFA == cfg)
+      Slk.SlkCfg{ Slk.cfgState = qNFA } ->
+        if (Slk.isInitSlkCfg cfg)
         then Just qNFA
         else Nothing
   else Nothing
@@ -340,7 +343,7 @@ nullDFAState :: DFAState -> Bool
 nullDFAState q =
   Set.null (dfaState q)
 
-addDFAState :: SCfg.SlkCfg -> DFAState -> DFAState
+addDFAState :: Slk.SlkCfg -> DFAState -> DFAState
 addDFAState cfg q =
   DFAState $ Set.insert cfg (dfaState q)
 
@@ -355,7 +358,7 @@ initIteratorDFAState r@(DFAState s) =
   , size = Set.size s
   }
 
-nextIteratorDFAState :: IteratorDFAState -> Maybe (SCfg.SlkCfg, IteratorDFAState)
+nextIteratorDFAState :: IteratorDFAState -> Maybe (Slk.SlkCfg, IteratorDFAState)
 nextIteratorDFAState iter@(Iterator { iii = DFAState r, curr = c, size = s}) =
   if c >= s
   then Nothing
@@ -378,7 +381,7 @@ measureDFAState s =
       case nextIteratorDFAState qq of
         Nothing -> r
         Just (cfg, qs) ->
-          let measCfg = SCfg.measureSlkCfg cfg
+          let measCfg = Slk.measureSlkCfg cfg
           in helper qs (max measCfg r)
 
 convertDFARegistryToDFAState :: DFARegistry -> DFAState
@@ -392,89 +395,107 @@ convertDFARegistryToDFAState r =
           addDFAState (Closure.lastCfg $ dstEntry entry) (helper es)
 
 
-slkExecMoveRegistry :: Aut a => a -> SCfg.InputHeadCondition -> DFARegistry -> Result DFARegistry
-slkExecMoveRegistry aut ih r =
-  helper (initIteratorDFARegistry r)
+slkExecMoveRegistry ::
+  Aut a =>
+  a -> Slk.InputHeadCondition -> DFARegistry ->
+  Slk.HTable -> (Result DFARegistry, Slk.HTable)
+slkExecMoveRegistry aut ih r tab =
+  helper (initIteratorDFARegistry r) tab
   where
-    helper s =
+    helper s stepTab =
       case nextIteratorDFARegistry s of
-        Nothing -> Result emptyDFARegistry
+        Nothing -> (Result emptyDFARegistry, stepTab)
         Just (entry, es) ->
           let
             src = srcEntry entry
             cm = dstEntry entry
           in
-          let mCm = Closure.simulateMoveClosure ih cm in
+          let mCm = Closure.simulateMoveClosure ih cm stepTab in
             case mCm of
-              Nothing -> helper es
-              Just cmMove ->
-                let mCmEps = Closure.closureEpsUntilPush aut Set.empty cmMove
+              Nothing -> helper es stepTab
+              Just (cmMove, tab1) ->
+                let (mCmEps, tab2) = Closure.closureEpsUntilPush aut Set.empty cmMove tab1
                 in
-                  case mCmEps of
-                    Result Nothing -> helper es
-                    Result (Just cmEps) ->
-                      let newEntry =
-                            DFAEntry
-                            { srcEntry = src
-                            , dstEntry = cmEps
-                            }
-                      in
-                        case helper es of
-                          Result h -> Result (addDFARegistry newEntry h)
-                          a -> coerceAbort a
-                    Abort _ -> coerceAbort mCmEps
+                case mCmEps of
+                  Result Nothing -> helper es tab2
+                  Result (Just cmEps) ->
+                    let
+                      newEntry =
+                        DFAEntry
+                        { srcEntry = src
+                        , dstEntry = cmEps
+                        }
+                      (mr, tab3) = helper es tab2
+                    in
+                    case mr of
+                      Result h -> (Result (addDFARegistry newEntry h), tab3)
+                      a -> (coerceAbort a, tab3)
+                  Abort _ -> (coerceAbort mCmEps, tab2)
 
 
-determinizeDFAState :: Aut a => a -> DFAState -> Result DetChoice
-determinizeDFAState aut s =
-  determinizeAcc (initIteratorDFAState s) emptyDetChoice
+determinizeDFAState ::
+  Aut a =>
+  a -> DFAState ->
+  Slk.HTable -> (Result DetChoice, Slk.HTable)
+determinizeDFAState aut s tab =
+  let (detChoice1, tab1) = determinizeAcc (initIteratorDFAState s) emptyDetChoice tab
+  in
+  case detChoice1 of
+    Result r1 -> slkExecClassAndEps r1 tab1
+    Abort _ -> (coerceAbort detChoice1, tab1)
+
   where
-    determinizeAcc :: IteratorDFAState -> DetChoice -> Result DetChoice
-    determinizeAcc states acc =
+    determinizeAcc ::
+      IteratorDFAState -> DetChoice ->
+      Slk.HTable -> (Result DetChoice, Slk.HTable)
+    determinizeAcc states acc localTab =
       case nextIteratorDFAState states of
-        Nothing -> slkExecClassAndEps acc
+        Nothing -> (Result acc, localTab)
         Just (cfg, rest) ->
-          let r = deterministicSlkCfg aut cfg in
+          let (r, tab1) = deterministicSlkCfg aut cfg localTab in
           case r of
-            Abort AbortSlkCfgExecution -> coerceAbort r
-            Abort AbortClosureOverflowMaxDepth -> coerceAbort r
-            Abort AbortClosureInfiniteloop -> coerceAbort r
-            Abort AbortClosureUnhandledInputAction -> coerceAbort r
-            Abort AbortClosureUnhandledAction -> coerceAbort r
-            Abort AbortClassIsDynamic -> coerceAbort r
-            Abort AbortDFAIncompatibleInput -> coerceAbort r
-            Abort (AbortClassNotHandledYet _) -> coerceAbort r
+            Abort AbortSlkCfgExecution -> (coerceAbort r, tab1)
+            Abort AbortClosureOverflowMaxDepth -> (coerceAbort r, tab1)
+            Abort AbortClosureInfiniteloop -> (coerceAbort r, tab1)
+            Abort AbortClosureUnhandledInputAction -> (coerceAbort r, tab1)
+            Abort AbortClosureUnhandledAction -> (coerceAbort r, tab1)
+            Abort AbortClassIsDynamic -> (coerceAbort r, tab1)
+            Abort (AbortClassNotHandledYet _) -> (coerceAbort r, tab1)
+            Abort AbortDFAIncompatibleInput -> (coerceAbort r, tab1)
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
-              in determinizeAcc rest newAcc
+              in determinizeAcc rest newAcc tab1
             _ -> error "cannot be this abort"
 
 
-
-
-    slkExecClassAndEps :: DetChoice -> Result DetChoice
-    slkExecClassAndEps d =
+    slkExecClassAndEps ::
+      DetChoice ->
+      Slk.HTable -> (Result DetChoice, Slk.HTable)
+    slkExecClassAndEps d localTab =
       let
         cdc = classDetChoice d
         edc = endDetChoice d
       in
-      let computeOnClass lst acc =
-            case lst of
-              [] -> Result $ reverse acc
-              (cl, r) : rest ->
-                let sr = slkExecMoveRegistry aut (SCfg.HeadInput cl) r in
-                case sr of
-                  Result r1 -> computeOnClass rest ((cl, r1) : acc)
-                  Abort _ -> coerceAbort sr
+      let
+        computeOnClass lst acc loclocTab =
+          case lst of
+            [] -> (Result (reverse acc), loclocTab)
+            (cl, r) : rest ->
+              let (sr, tab1) = slkExecMoveRegistry aut (Slk.HeadInput cl) r loclocTab in
+              case sr of
+                Result r1 -> computeOnClass rest ((cl, r1) : acc) tab1
+                Abort _ -> (coerceAbort sr, tab1)
       in
-        case computeOnClass cdc [] of
+      let (mCd, tab1) = computeOnClass cdc [] localTab in
+        case mCd of
           Result cd ->
             case edc of
               Nothing ->
-                Result $ d { classDetChoice = cd, endDetChoice = Nothing}
+                (Result (d { classDetChoice = cd, endDetChoice = Nothing}), tab1)
               Just r ->
-                case slkExecMoveRegistry aut (SCfg.EndInput) r of
+                let (mR1, tab2) = slkExecMoveRegistry aut (Slk.EndInput) r tab1 in
+                case mR1 of
                   Result r1 ->
-                    Result $ d { classDetChoice = cd, endDetChoice = Just r1 }
-                  a -> coerceAbort a
-          a -> coerceAbort a
+                    (Result (d { classDetChoice = cd, endDetChoice = Just r1 }), tab2)
+                  a -> (coerceAbort a, tab2)
+          a -> (coerceAbort a, tab1)
