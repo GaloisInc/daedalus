@@ -132,24 +132,28 @@ getAltSeq c =
 
 
 
-simulateMoveClosure :: Slk.InputHeadCondition -> ClosureMove -> Maybe ClosureMove
-simulateMoveClosure ih m =
+simulateMoveClosure ::
+  Slk.InputHeadCondition -> ClosureMove ->
+  Slk.HTable -> Maybe (ClosureMove, Slk.HTable)
+simulateMoveClosure ih m tab =
   let
     alt = altSeq $ m
     closCfg = closureCfg $ m
     mv@(pos,act,q) = moveCfg $ m
   in
-    let mCfg = Slk.simulateMove ih closCfg act q in
+    let mCfg = Slk.simulateMove ih closCfg act q tab in
       case mCfg of
         Nothing -> Nothing
-        Just newCfg ->
+        Just (newCfg, tab1) ->
           Just $
-          ClosurePath
-          { altSeq = addChoiceSeq pos alt
-          , closureCfg = closCfg
-          , infoMove = mv
-          , lastCfg = newCfg
-          }
+          ( ClosurePath
+            { altSeq = addChoiceSeq pos alt
+            , closureCfg = closCfg
+            , infoMove = mv
+            , lastCfg = newCfg
+            }
+          , tab1
+          )
 
 
 type ClosureMoveSet = [ClosureMove]
@@ -159,10 +163,13 @@ maxDepthRec :: Int
 maxDepthRec = 800
 
 
-closureEpsUntilPush :: Aut.Aut a => a -> Set.Set Slk.SlkCfg -> ClosureMove -> Result (Maybe ClosureMove)
-closureEpsUntilPush aut busy cm =
+closureEpsUntilPush ::
+  Aut.Aut a =>
+  a -> Set.Set Slk.SlkCfg -> ClosureMove ->
+  Slk.HTable -> (Result (Maybe ClosureMove), Slk.HTable)
+closureEpsUntilPush aut busy cm tab =
   if Set.member cfg busy
-  then Abort AbortClosureInfiniteloop
+  then (Abort AbortClosureInfiniteloop, tab)
   else
     let
       q = Slk.cfgState cfg
@@ -171,40 +178,42 @@ closureEpsUntilPush aut busy cm =
     case ch of
       Nothing ->
         if Aut.isAcceptingState aut q
-        then Result $ Just cm
+        then (Result (Just cm), tab)
         else closureStep (initChoicePos CPop) (CAct Pop, q)
       Just ch1 ->
         case ch1 of
           Aut.UniChoice (act, q2) -> closureStep (initChoicePos CUni)  (act, q2)
-          Aut.SeqChoice _ _     -> Result $ Just cm
-          Aut.ParChoice _       -> Result $ Just cm
+          Aut.SeqChoice _ _     -> (Result $ Just cm, tab)
+          Aut.ParChoice _       -> (Result $ Just cm, tab)
 
   where
     cfg = lastCfg cm
     alts = altSeq cm
     newBusy = Set.insert cfg busy
 
-    closureStep :: ChoicePos -> (Action, State) -> Result (Maybe ClosureMove)
+    closureStep ::
+      ChoicePos -> (Action, State) ->
+      (Result (Maybe ClosureMove), Slk.HTable)
     closureStep pos (act, q2)
       | isClassActOrEnd act =
-          Result $ Just cm
+          (Result (Just cm), tab)
       | isUnhandledInputAction act =
           -- trace (show act) $
-          Abort AbortClosureUnhandledInputAction
+          (Abort AbortClosureUnhandledInputAction, tab)
       | isUnhandledAction act =
           -- trace (show act) $
-          Abort AbortClosureUnhandledAction
+          (Abort AbortClosureUnhandledAction, tab)
       | isPushAction act =
           -- trace (show act) $
-          Result $ Just cm
-      | Seq.length alts > maxDepthRec = Abort AbortClosureOverflowMaxDepth
+          (Result (Just cm), tab)
+      | Seq.length alts > maxDepthRec = (Abort AbortClosureOverflowMaxDepth, tab)
       | otherwise =
-          case Slk.simulateActionSlkCfg aut act q2 cfg of
-            Abort AbortSlkCfgExecution -> Abort AbortSlkCfgExecution
-            Result Nothing -> Result $ Just cm
-            Result (Just lstCfg) ->
+          case Slk.simulateActionSlkCfg aut act q2 cfg tab of
+            Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)
+            Result Nothing -> (Result (Just cm), tab)
+            Result (Just (lstCfg, tab1)) ->
               case lstCfg of
-                [] -> Result Nothing
+                [] -> (Result Nothing, tab1)
                 [ newCfg ] ->
                   let cm1 =
                         ClosurePath
@@ -213,16 +222,19 @@ closureEpsUntilPush aut busy cm =
                         , infoMove = infoMove cm
                         , lastCfg = newCfg
                         }
-                  in closureEpsUntilPush aut newBusy cm1
-                _ -> Result $ Just cm
+                  in closureEpsUntilPush aut newBusy cm1 tab1
+                _ -> (Result (Just cm), tab1)
             _ -> error "impossible"
 
 
 
-closureLoop :: Aut.Aut a => a -> Set.Set Slk.SlkCfg -> (ChoiceSeq, Slk.SlkCfg) -> Result ClosureMoveSet
-closureLoop aut busy (alts, cfg) =
+closureLoop ::
+  Aut.Aut a =>
+  a -> Set.Set Slk.SlkCfg -> (ChoiceSeq, Slk.SlkCfg) ->
+  Slk.HTable -> (Result ClosureMoveSet, Slk.HTable)
+closureLoop aut busy (alts, cfg) tab =
   if Set.member cfg busy
-  then Abort AbortClosureInfiniteloop
+  then (Abort AbortClosureInfiniteloop, tab)
   else
     let
       q = Slk.cfgState cfg
@@ -231,45 +243,69 @@ closureLoop aut busy (alts, cfg) =
       case ch of
         Nothing ->
           if Aut.isAcceptingState aut q
-          then Result [ ClosureAccepting alts cfg ]
-          else iterateChoice (initChoicePos CPop) [(CAct Pop, q)]
+          then (Result [ ClosureAccepting alts cfg ], tab)
+          else iterateChoice (initChoicePos CPop) [(CAct Pop, q)] tab
         Just ch1 ->
           let (tag, lstCh) =
                 case ch1 of
                   Aut.UniChoice (act, q2) -> (CUni, [(act, q2)])
                   Aut.SeqChoice lst _     -> (CSeq, lst)
                   Aut.ParChoice lst       -> (CPar, lst)
-          in iterateChoice (initChoicePos tag) lstCh
+          in iterateChoice (initChoicePos tag) lstCh tab
 
   where
     newBusy = Set.insert cfg busy
 
-    closureStep :: ChoicePos -> (Action, State) -> Result ClosureMoveSet
-    closureStep pos (act, q2)
+    closureStep ::
+      ChoicePos -> (Action, State) ->
+      Slk.HTable -> (Result ClosureMoveSet, Slk.HTable)
+    closureStep pos (act, q2) stepTab
       | isClassActOrEnd act =
-          Result [ ClosureMove alts cfg (pos, act, q2) ]
+          (Result [ ClosureMove alts cfg (pos, act, q2) ], stepTab)
       | isUnhandledInputAction act =
           -- trace (show act) $
-          Abort AbortClosureUnhandledInputAction
+          (Abort AbortClosureUnhandledInputAction, stepTab)
       | isUnhandledAction act =
           -- trace (show act) $
-          Abort AbortClosureUnhandledAction
-      | Seq.length alts > maxDepthRec = Abort AbortClosureOverflowMaxDepth
+          (Abort AbortClosureUnhandledAction, stepTab)
+      | Seq.length alts > maxDepthRec =
+          (Abort AbortClosureOverflowMaxDepth, stepTab)
       | otherwise =
-          case Slk.simulateActionSlkCfg aut act q2 cfg of
-            Abort AbortSlkCfgExecution -> Abort AbortSlkCfgExecution
-            Result Nothing -> Result []
-            Result (Just lstCfg) ->
+          case Slk.simulateActionSlkCfg aut act q2 cfg stepTab of
+            Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, stepTab)
+            Result Nothing -> (Result [], stepTab)
+            Result (Just (lstCfg, tab1)) ->
               let newAlts = addChoiceSeq pos alts in
-              combineResults (map (\p -> closureLoop aut newBusy (newAlts, p)) lstCfg)
+              let
+                (r, tabAll) =
+                  foldr
+                  (\ p (acc, locTab) ->
+                      let (r1, newTab) = closureLoop aut newBusy (newAlts, p) locTab
+                      in (r1 : acc, newTab)
+                  )
+                  ([], tab1)
+                  lstCfg
+              in
+              let r2 = combineResults r in
+              (r2, tabAll)
             _ -> error "impossible"
 
 
-    iterateChoice :: ChoicePos -> [(Action, State)] -> Result ClosureMoveSet
-    iterateChoice pos ch =
-      let (_ , lstRes) = foldl (\ (pos1, acc) (act, q2) -> (nextChoicePos pos1, closureStep pos1 (act, q2) : acc)) (pos,[]) ch
+    iterateChoice ::
+      ChoicePos -> [(Action, State)] ->
+      Slk.HTable -> (Result ClosureMoveSet, Slk.HTable)
+    iterateChoice pos ch tabIt =
+      let
+        (_ , lstRes, tabAll) =
+          foldl
+          (\ (pos1, acc, locTab) (act, q2) ->
+             let (r, tab1) = closureStep pos1 (act, q2) locTab in
+             (nextChoicePos pos1, r : acc, tab1)
+          )
+          (pos, [], tabIt)
+          ch
       in
-      combineResults (reverse lstRes)
+      (combineResults (reverse lstRes), tabAll)
 
     combineResults lst =
       case lst of
@@ -295,5 +331,8 @@ closureLoop aut busy (alts, cfg) =
 
 
 
-closureLL :: Aut.Aut a => a -> Slk.SlkCfg -> Result ClosureMoveSet
-closureLL aut cfg = closureLoop aut Set.empty (emptyChoiceSeq, cfg)
+closureLL ::
+  Aut.Aut a =>
+  a -> Slk.SlkCfg ->
+  Slk.HTable -> (Result ClosureMoveSet, Slk.HTable)
+closureLL aut cfg tab = closureLoop aut Set.empty (emptyChoiceSeq, cfg) tab
