@@ -1,16 +1,13 @@
-def Byte = 0 .. 255
-
 def Bool = Choose1 {
-  mavFalse = @0;
-  mavTrue = @1;
+  { @'0' ; ^false };
+  { @'1' ; ^true };
 }
 
-def Uint8 = Byte
-
-def Uint16 = {
-  hi = Byte;
-  lo = Byte;
-  ^(hi * 255 + lo)
+-- TODO: fix
+def UInt16 = {
+  @hi = UInt8;
+  @lo = UInt8;
+  ^((hi as uint 16) * 256 + (lo as uint 16))
 }
 
 -- TODO: waiting on description from LM

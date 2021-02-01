@@ -1,20 +1,15 @@
 import MavNumerics
 import MavEnums
 
+-- MISSION_ITEM_INT (#73)
 def MissionItemInt = {
-  target_system = Uint8;
-  target_component = Uint8;
-  seq = Uint16;
+  target_system = UInt16;
+  target_component = UInt16;
+  seq = UInt16;
   frame = MavFrame;
-  command = MavCmd;
+  @command = MavCmd;
   current = Bool;
-  autocontinue = Uint16;
-  param1 = Float;
-  param2 = Float;
-  param3 = Float;
-  param4 = Float;
-  x = Int32;
-  y = Int32;
-  z = Float;
+  autocontinue = UInt16;
+  cmdParams = MavCmdParams command;
   mission_type = MavMissionType;
 }

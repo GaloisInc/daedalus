@@ -25,6 +25,8 @@ def MavFrame = Choose1 {
   mavFrameLocalFlu = @21;
 }
 
+-- MAVLink Commands (MAV_CMD)
+-- TODO: fix to always parse two bytes
 def MavCmd = Choose1 {
   cmdNavWaypoint = @16;
   cmdNavLoiterUnlim = @17;
@@ -35,10 +37,49 @@ def MavCmd = Choose1 {
   cmdSome = Uint16;
 }
 
+-- CmdParams: parameters of a command, uninterpreted
+def CmdParams = {
+  param1 = Float;
+  param2 = Float;
+  param3 = Float;
+  param4 = Float;
+  x = Int32;
+  y = Int32;
+  z = Float;
+} 
+
+-- MAV_CMD_NAV_WAYPOINT (16)
+def CmdNavWaypoint = Fail "not defined"
+
+-- MAV_CMD_NAV_LOITER_UNLIM (17)
+def CmdNavLoiterUnlim = Fail "not defined"
+
+-- MAV_CMD_NAV_LOITER_TURNS (18)
+def CmdNavLoiterTurns = Fail "not defined"
+
+-- MAV_CMD_NAV_LOITER_TIME (19)
+def CmdNavLoiterTime = Fail "not defined"
+
+-- MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
+def CmdNavReturnToLaunch = Fail "not defined"
+
+-- MavCmdParams cmd: the parameters for the MavCmd cmd
+def MavCmdParams cmd = case cmd is {
+  cmdNavWaypoint -> CmdNavWaypoint ;
+  cmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
+  cmdNavLoiterTurns -> CmdNavLoiterTurns ;
+  cmdNavLoiterTime -> CmdNavLoiterTime ;
+  cmdNavReturnToLaunch -> CmdNavReturnToLaunch ;
+  cmdSome opcode -> {
+    opc = ^opcode;
+    ps = CmdParams;
+  }
+}
+
 def MavMissionType = Choose1 {
-  mission = @0;
-  fence = @1;
-  rally = @2;
-  all = @255;
+  mission = @'0';
+  fence = @'1';
+  rally = @'2';
+  all = @'255';
 }
 
