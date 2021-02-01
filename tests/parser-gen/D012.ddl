@@ -33,6 +33,7 @@ def Digit = {
 def addDigit val d =
   10 * val + (d as int)
 
-def Main = {
-    RGB
-}
+def Main =
+  { RGB
+  ; END
+  }
