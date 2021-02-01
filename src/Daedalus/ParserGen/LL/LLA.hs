@@ -401,13 +401,11 @@ buildPipelineLLA aut =
       HTable -> (LLA, HTable)
     go toVisit nextRound lla tab =
       if synthLLAState (lastSynth lla) > 1000000 then error "Stop" else
-      -- trace (show (Map.size lla)) $
       case toVisit of
         [] -> case nextRound of
                 [] -> (lla, tab)
                 _ -> go (reverse nextRound) [] lla tab
         q : qs ->
-          -- trace (show q) $
           if memberLLA q lla
           then go qs nextRound lla tab
           else

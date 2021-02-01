@@ -231,7 +231,7 @@ showDFA dfa =
                 let alts = Closure.getAltSeq $ dstEntry entry
                 in
                   "(" ++ show (length alts) ++
-                  -- ",q" ++ show q ++
+                  -- ",q" ++ showSlkCfg (Closure.lastCfg (dstEntry entry)) ++
                   ")," ++ b) "" s  ++ "]"
 
     space d = spaceHelper 0

@@ -43,10 +43,6 @@ D012.RGB : Grammar D012.RGB =
 D012.WS : Grammar (uint 8) =
   Match {'\NUL'}
  
-D012.Main : Grammar D012.RGB =
-  do ($$ : D012.RGB) <- D012.RGB
-     pure $$
- 
 D012._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] D012._WS
@@ -62,5 +58,11 @@ D012._RGB : Grammar {} =
      D012._Token int D012._Natural
      D012._Token int D012._Natural
  
+D012.Main : Grammar {} =
+  do D012._RGB
+     ($$ : {}) <- END
+     pure $$
+ 
 D012._Main : Grammar {} =
-  D012._RGB
+  do D012._RGB
+     END
