@@ -157,7 +157,7 @@ instance Show(BranchAction) where
   show (FailAction _) = "FailAction"
 
 instance Show(Action) where
-  show EpsA             = "eps"
+  show EpsA             = "e"
   show (IAct a)         = show a
   show (CAct a)         = show a
   show (SAct a)         = show a
