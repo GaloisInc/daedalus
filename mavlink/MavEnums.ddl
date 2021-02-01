@@ -28,13 +28,13 @@ def MavFrame = Choose1 {
 -- MAVLink Commands (MAV_CMD)
 -- TODO: fix to always parse two bytes
 def MavCmd = Choose1 {
-  cmdNavWaypoint = @16;
-  cmdNavLoiterUnlim = @17;
-  cmdNavLoiterTurns = @18;
-  cmdNavLoiterTime = @19;
-  cmdNavReturnToLaunch = @20;
-  -- cmdSome can be further refined into cases for more precise value checking:
-  cmdSome = UInt16;
+  mavCmdNavWaypoint = @16;
+  mavCmdNavLoiterUnlim = @17;
+  mavCmdNavLoiterTurns = @18;
+  mavCmdNavLoiterTime = @19;
+  mavCmdNavReturnToLaunch = @20;
+  -- mavCmdSome can be further refined into cases for more precise value checking:
+  mavCmdSome = UInt16;
 }
 
 -- CmdParams: parameters of a command, uninterpreted
@@ -77,9 +77,27 @@ def MavCmdParams cmd = case cmd is {
 }
 
 def MavMissionType = Choose1 {
-  mission = @0;
-  fence = @1;
-  rally = @2;
-  all = @255;
+  mavMissionTypeMission = @0;
+  mavMissionTypeFence = @1;
+  mavMissionTypeRally = @2;
+  mavMissionTypeAll = @255;
 }
 
+def MavMissionResult = Choose1 { 
+  mavMissionAccepted = @0; 
+  mavMissionError = @1; 
+  mavMissionUnsupportedFrame = @2; 
+  mavMissionUnsupported = @3;
+  mavMissionNoSpace = @4; 
+  mavMissionInvalid = @5; 
+  mavMissionInvalidParam1 = @6;
+  mavMissionInvalidParam2 = @7;
+  mavMissionInvalidParam3 = @8;
+  mavMissionInvalidParam4 = @9;
+  mavMissionInvalidParam5X = @10;
+  mavMissionInvalidParam6Y = @11;
+  mavMissionInvalidParam7 = @12;
+  mavMissionInvalidSequence = @13; 
+  mavMissionDenied = @14; 
+  mavMissionOperationCancelled = @15;   
+}
