@@ -1,3 +1,5 @@
+import MavNumerics
+
 def MavFrame = Choose1 {
   mavFrameGlobal = @0;
   mavFrameLocalNed = @1;

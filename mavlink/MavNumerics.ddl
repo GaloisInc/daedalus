@@ -14,8 +14,8 @@ def Uint16 = {
 }
 
 -- TODO: waiting on description from LM
-def Int32 = fail "Int32: not defined"
+def Int32 = Fail "Int32: not defined"
 
 -- TODO: waiting on description from LM
-def Float = fail "Float: not defined"
+def Float = Fail "Float: not defined"
 
