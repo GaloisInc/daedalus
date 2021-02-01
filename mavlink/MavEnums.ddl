@@ -65,12 +65,12 @@ def CmdNavReturnToLaunch = Fail "not defined"
 
 -- definition sketch, using case:
 def MavCmdParams cmd = case cmd is {
-  cmdNavWaypoint -> CmdNavWaypoint ;
-  cmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
-  cmdNavLoiterTurns -> CmdNavLoiterTurns ;
-  cmdNavLoiterTime -> CmdNavLoiterTime ;
-  cmdNavReturnToLaunch -> CmdNavReturnToLaunch ;
-  cmdSome opcode -> {
+  mavCmdNavWaypoint -> CmdNavWaypoint ;
+  mavCmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
+  mavCmdNavLoiterTurns -> CmdNavLoiterTurns ;
+  mavCmdNavLoiterTime -> CmdNavLoiterTime ;
+  mavCmdNavReturnToLaunch -> CmdNavReturnToLaunch ;
+  mavCmdSome opcode -> {
     opc = ^opcode;
     ps = CmdParams;
   }
