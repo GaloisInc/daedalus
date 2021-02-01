@@ -1,0 +1,7 @@
+--- Found 1 results:
+{ width: 123
+, height: 3453454
+, maxVal: 4556
+}
+
+Score (LLpredict / (Backtrack + LLpredict)): 100%

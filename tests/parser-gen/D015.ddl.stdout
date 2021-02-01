@@ -1,0 +1,83 @@
+module D015
+ 
+--- Imports:
+ 
+--- Type defs:
+type D015.PPM = { width: int
+                ; height: int
+                ; maxVal: int
+                }
+ 
+--- Rules:
+ 
+D015._WS : Grammar {} =
+  @Match {' '}
+ 
+D015.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[ 1 .. ] D015._WS
+     pure $$
+ 
+D015.Digit : Grammar (uint 8) =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : uint 8) <- pure (d - '0')
+     pure $$
+ 
+D015.addDigit ?a1 (Coerce safe ?a1 int) (val : int) (d : ?a1) : int =
+  (10 * val) + (d as int)
+ 
+D015.Natural : Grammar int =
+  do (ds : [uint 8]) <- Many[ 1 .. ] D015.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
+                           (D015.addDigit (uint 8) val d))
+     pure $$
+ 
+D015.Natural3 : Grammar int =
+  do (ds : [uint 8]) <- Many[ 3 .. ] D015.Digit
+     ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
+                           (D015.addDigit (uint 8) val d))
+     pure $$
+ 
+D015.PPM : Grammar D015.PPM =
+  do @MatchBytes "P"
+     (version : int) <- D015.Token int D015.Natural
+     Guard (version == 3)
+     (width : int) <- D015.Token int D015.Natural
+     (height : int) <- D015.Token int D015.Natural
+     (maxVal : int) <- D015.Token int D015.Natural3
+     pure {width = width,
+           height = height,
+           maxVal = maxVal}
+ 
+D015.Main : Grammar D015.PPM =
+  do ($$ : D015.PPM) <- D015.PPM
+     END
+     pure $$
+ 
+D015.WS : Grammar (uint 8) =
+  Match {' '}
+ 
+D015._Token ?a1 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] D015._WS
+ 
+D015._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+D015._Natural : Grammar {} =
+  @Many[ 1 .. ] D015._Digit
+ 
+D015._Natural3 : Grammar {} =
+  @Many[ 3 .. ] D015._Digit
+ 
+D015._PPM : Grammar {} =
+  do @MatchBytes "P"
+     (version : int) <- D015.Token int D015.Natural
+     Guard (version == 3)
+     D015._Token int D015._Natural
+     D015._Token int D015._Natural
+     D015._Token int D015._Natural3
+ 
+D015._Main : Grammar {} =
+  do D015._PPM
+     END
