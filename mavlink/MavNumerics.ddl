@@ -3,11 +3,11 @@ def Bool = Choose1 {
   { @'1' ; ^true };
 }
 
--- TODO: fix
+-- UInt16: two-byte unsigned integer
 def UInt16 = {
   @hi = UInt8;
   @lo = UInt8;
-  ^((hi as uint 16) * 256 + (lo as uint 16))
+  ^(256 * (hi as uint 16) + (lo as uint 16))
 }
 
 -- TODO: waiting on description from LM

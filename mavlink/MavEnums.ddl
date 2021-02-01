@@ -34,7 +34,7 @@ def MavCmd = Choose1 {
   cmdNavLoiterTime = @19;
   cmdNavReturnToLaunch = @20;
   -- cmdSome can be further refined into cases for more precise value checking:
-  cmdSome = Uint16;
+  cmdSome = UInt16;
 }
 
 -- CmdParams: parameters of a command, uninterpreted
@@ -64,6 +64,9 @@ def CmdNavLoiterTime = Fail "not defined"
 def CmdNavReturnToLaunch = Fail "not defined"
 
 -- MavCmdParams cmd: the parameters for the MavCmd cmd
+def MavCmdParams cmd = Fail "MavCmdParams: not defined"
+
+{- definition sketch, using case:
 def MavCmdParams cmd = case cmd is {
   cmdNavWaypoint -> CmdNavWaypoint ;
   cmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
@@ -75,11 +78,12 @@ def MavCmdParams cmd = case cmd is {
     ps = CmdParams;
   }
 }
+-}
 
 def MavMissionType = Choose1 {
-  mission = @'0';
-  fence = @'1';
-  rally = @'2';
-  all = @'255';
+  mission = @0;
+  fence = @1;
+  rally = @2;
+  all = @255;
 }
 
