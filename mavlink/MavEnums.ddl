@@ -63,10 +63,7 @@ def CmdNavLoiterTime = Fail "not defined"
 -- MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
 def CmdNavReturnToLaunch = Fail "not defined"
 
--- MavCmdParams cmd: the parameters for the MavCmd cmd
-def MavCmdParams cmd = Fail "MavCmdParams: not defined"
-
-{- definition sketch, using case:
+-- definition sketch, using case:
 def MavCmdParams cmd = case cmd is {
   cmdNavWaypoint -> CmdNavWaypoint ;
   cmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
@@ -78,7 +75,6 @@ def MavCmdParams cmd = case cmd is {
     ps = CmdParams;
   }
 }
--}
 
 def MavMissionType = Choose1 {
   mission = @0;
