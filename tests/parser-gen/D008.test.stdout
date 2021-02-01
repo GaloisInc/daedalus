@@ -1,13 +1,14 @@
-Main (17,1)-(23,3)
+Main (16,1)-(22,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
-  ( [(37),(37),]
+  ( [(40),(40),]
   , HeadInput ['a']
   , DTrans [
-      ( [(1),]
+      ( [(9),]
       , HeadInput ['b']
       , Resolution (NotAmbiguous)
       ),
-      ( [(1),]
+      ( [(9),]
       , HeadInput ['c']
       , Resolution (NotAmbiguous)
       ),
@@ -15,120 +16,86 @@ DTrans [
   ),
 ]
 
-Main (22,5)-(22,7)
-AbortAcceptingPath
-
-
-_Chunk__2 (15,15)-(15,15)
+Main (21,5)-(21,7)
+SlkCfg{ q:166, ctrl:[?, *], sem:[?, ], inp:---[3..] }
 DTrans [
-  ( [(1),]
-  , HeadInput ['c']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Chunk__2 (15,15)-(15,15)
-DTrans [
-  ( [(10),]
-  , HeadInput [' ']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(14),]
+  ( [(9),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_Chunk__2 (15,24)-(15,33)
+_Chunk__28 (14,18)-(14,33)
+SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
-  ( [(6),]
+  ( [(7),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
   ),
-  ( [(10),]
+  ( []
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_Chunk__2 (15,37)-(15,39)
-AbortSymbolicExec
-
-
-_Chunk__2 (5,1)-(12,1)
+_Chunk__28 (14,18)-(14,33)
+SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
-  ( [(26),]
-  , HeadInput ['a']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Chunk__3 (15,15)-(15,15)
-DTrans [
-  ( [(1),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Chunk__3 (15,15)-(15,15)
-DTrans [
-  ( [(10),]
+  ( []
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
   ),
-  ( [(14),]
+  ( [(33),]
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_Chunk__3 (15,24)-(15,33)
+_Chunk__29 (14,18)-(14,33)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
-  ( [(6),]
+  ( [(7),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
   ),
-  ( [(10),]
+  ( []
   , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_Chunk__3 (15,37)-(15,39)
-AbortSymbolicExec
-
-
-_Chunk__3 (5,1)-(12,1)
+_Chunk__29 (14,18)-(14,33)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
-  ( [(26),]
-  , HeadInput ['a']
+  ( []
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(33),]
+  , EndInput
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_PadWSpaces__0 (14,1)-(15,40)
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
-  ( [(29),]
-  , HeadInput ['a']
-  , Resolution (NotAmbiguous)
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
   ),
 ]
 
-_PadWSpaces__1 (14,1)-(15,40)
-DTrans [
-  ( [(29),]
-  , HeadInput ['a']
-  , Resolution (NotAmbiguous)
-  ),
-]
+__ZSINK_STATE
 
 
-Report:
-("AbortAcceptingPath",1)
-("AbortSymbolicExec",2)
-("Result-1",10)
+**********************
+***** Strict LLA *****
+**********************
+("Result-0",2)
+("Result-1",5)
 ("Result-2",1)
 
+Total nb states: 8
 
-Total nb states: 14
+SUCCESS: Fully determinized format

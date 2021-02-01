@@ -98,3 +98,7 @@ Projects Agency (DARPA) under Contract No. HR0011-19-C-0073. Any opinions,
 findings and conclusions or recommendations expressed in this material are 
 those of the author(s) and do not necessarily reflect the views of the Defense 
 Advanced Research Projects Agency (DARPA).
+
+The Galois DaeDaLus library includes the following third party components:
+
+* haskell-lzw: copyright 2017 Erik Gunnarsson (https://github.com/egunnarsson/haskell-lzw)

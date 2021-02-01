@@ -23,7 +23,6 @@ import Debug.Trace
 data CAutGenData = CAutGenData {
   names :: [Name],
   actionId :: Integer,
-  transitionId :: Integer,
   expressionId :: Integer,
   declarations :: [CExtDecl]
 }
@@ -32,7 +31,6 @@ emptyAutGenData :: CAutGenData
 emptyAutGenData = CAutGenData {
   names = [],
   actionId = 0,
-  transitionId = 0,
   expressionId = 0,
   declarations = []
 }
@@ -53,13 +51,6 @@ nextActionId = do
   st <- get
   let v = actionId st
   put $ st { actionId = v + 1 }
-  return v
-
-nextTransitionId :: CAutGenM Integer
-nextTransitionId = do
-  st <- get
-  let v = transitionId st
-  put $ st { transitionId = v + 1 }
   return v
 
 nextExpressionId :: CAutGenM Integer
@@ -109,7 +100,10 @@ makeArrayVarDeclr s len = do
 makeIntConstExpr :: Int -> CExpr
 makeIntConstExpr v = CConst $ CIntConst (cInteger $ toInteger v) undefNode
 
--- Make an expression out of a constant integer
+makeStringConstExpr :: String -> CExpr
+makeStringConstExpr s = CConst $ CStrConst (cString s) undefNode
+
+-- Make an expression out of a Name
 makeNameConstExpr :: Maybe DAST.Name -> CExpr
 makeNameConstExpr ms =
   case ms of
@@ -117,7 +111,7 @@ makeNameConstExpr ms =
     Nothing -> makeIntConstExpr 0
   where
     name2String n = do
-      let x = DAST.nameScope n
+      let x = DAST.nameScopedIdent n
       case x of
         DAST.Unknown ident -> unpack ident
         DAST.Local   ident -> unpack ident
@@ -129,19 +123,37 @@ makeAddrOfExpr e = CUnary CAdrOp e undefNode
 makeAddrOfIdent :: Ident -> CExpr
 makeAddrOfIdent ident = CUnary CAdrOp (CVar ident undefNode) undefNode
 
+makeFieldInitializer :: String -> CExpr -> CAutGenM ([CDesignator], CInit)
+makeFieldInitializer name expr = do
+  initIdent <- makeIdent name
+  return ([CMemberDesig initIdent undefNode], CInitExpr expr undefNode)
+
 makeStructInitializer :: [(String, CExpr)] -> CAutGenM CInit
 makeStructInitializer nameExprList = do
-    inits <- mapM (uncurry structFieldInitializer) nameExprList
+    inits <- mapM (uncurry makeFieldInitializer) nameExprList
     return $ CInitList inits undefNode
-    where
-      structFieldInitializer name expr = do
-        initIdent <- makeIdent name
-        return ([CMemberDesig initIdent undefNode], CInitExpr expr undefNode)
+
+makeNestedStructInitializer :: [(String, CInit)] -> CAutGenM CInit
+makeNestedStructInitializer nameInitList = do
+  inits <- mapM mapInitializers nameInitList
+  return $ CInitList inits undefNode
+  where
+    mapInitializers (name, initializer) = do
+      ident <- makeIdent name
+      return ([CMemberDesig ident undefNode], initializer)
 
 makeArrayInitializer :: [CInit] -> CAutGenM CInit
 makeArrayInitializer ilist = do
-  let inits = map (\e -> ([], e)) ilist
+  let inits = map ([], ) ilist
   return $ CInitList inits undefNode
+
+-- Make a tagged union initializer. Essentially something that looks like this
+-- { .tag = <tagEnum>,  <fieldName> = <fieldInit> }
+makeTaggedUnionInitializer :: String -> String -> CInit -> CAutGenM CInit
+makeTaggedUnionInitializer tagEnum fieldName fieldInit = do
+  tagExpr <- makeEnumConstantExpr tagEnum
+  let tagInit = CInitExpr tagExpr undefNode
+  makeNestedStructInitializer [("tag", tagInit), (fieldName, fieldInit)]
 
 
 generateIO :: ArrayAut -> IO CTranslUnit
@@ -162,7 +174,7 @@ generateTextIO aut = do
 generateNFA :: ArrayAut -> CAutGenM CTranslUnit
 generateNFA aut = do
   generateNFADeclarations aut
-  decls <- declarations <$> get
+  decls <- gets declarations
   return $ CTranslUnit decls undefNode
 
 generateNFADeclarations :: ArrayAut -> CAutGenM ()
@@ -249,7 +261,7 @@ generateAction :: Action -> CAutGenM Ident
 generateAction act = do
   (actVarIdent, actVarDeclr)  <- makeActionVar
   actType <- CTypeSpec <$> makeTypeDefType "Action"
-  actInit <- actionInitializer
+  actInit <- generateActionData act
   let decl = CDeclExt $ CDecl [actType] [(Just actVarDeclr, Just actInit, Nothing)] undefNode
   addDeclaration decl
   return actVarIdent
@@ -258,78 +270,147 @@ generateAction act = do
       n <- nextActionId
       let name = "a" ++ (show n)
       makeVarDeclr name
-    actionInitializer = do
-      designatorInitList <- generateActionData act
-      makeStructInitializer designatorInitList
 
-generateActionData :: Action -> CAutGenM [(String, CExpr)]
-generateActionData (IAct ip) = generateInputActionData ip
-generateActionData (CAct cp) = generateControlAction cp
-generateActionData (SAct sp) = generateSemanticActionData sp
-generateActionData (BAct _bp) = return []
-generateActionData EpsA      = generateEpsAction
+generateActionData :: Action -> CAutGenM CInit
+generateActionData (IAct ip) = do
+  dataInit <- generateInputActionData ip
+  makeTaggedUnionInitializer "ACT_InputAction" "inputAction" dataInit
+generateActionData (CAct cp) =  do
+  dataInit <- generateControlActionData cp
+  makeTaggedUnionInitializer "ACT_ControlAction" "controlAction" dataInit
+generateActionData (SAct sp) =  do
+  dataInit <- generateSemanticActionData sp
+  makeTaggedUnionInitializer "ACT_SemanticAction" "semanticAction" dataInit
+generateActionData (BAct sp) =  do
+  dataInit <- generateBranchActionData sp
+  makeTaggedUnionInitializer "ACT_BranchAction" "branchAction" dataInit
+generateActionData EpsA       = generateEpsAction
 
-generateInputActionData :: InputAction -> CAutGenM [(String, CExpr)]
+-- Generate an C initializer for an InputAction
+generateInputActionData :: InputAction -> CAutGenM CInit
 generateInputActionData IEnd = do
-  tagExpr <- makeEnumConstantExpr "ACT_END"
-  return [("tag", tagExpr)]
+  tagExpr <- makeEnumConstantExpr "ACT_IEnd"
+  makeStructInitializer [("tag", tagExpr)]
 generateInputActionData (IMatchBytes _withsem e) = do
+  -- First create the initializer for the IMatchBytesData datastructure
+  let withSemExpr = makeIntConstExpr (if _withsem == DAST.YesSem then 1 else 0)
   matchExpr <- generateVExpr e
-  tagExpr <- makeEnumConstantExpr "ACT_MatchBytes"
-  return [("tag", tagExpr), ("expr", matchExpr)]
+  dataInitializer <- makeStructInitializer [("withsem", withSemExpr), ("expr", matchExpr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_IMatchBytes" "iMatchBytesData" dataInitializer
 generateInputActionData (ClssAct _withsem e) = do
-  -- TODO: Generalize this
+  -- NOTE: We are only handling a single character read at this point and
+  -- are doing some really specific hackery for the purpose
+  -- TODO: Fix this!
   let v = case DAST.texprValue e of
             DAST.TCSetSingle e' -> evalNoFunCall e' [] []
             _ -> error $ "Unimplemented expression in ClssAct evaluation : " ++ show e
   case v of
     VUInt _b iv -> do
-      tagExpr <- makeEnumConstantExpr "ACT_ReadChar"
+      -- First create the initializer for the ReadCharData datastructure
       let valExpr = makeIntConstExpr $ fromIntegral iv
-      return [("tag", tagExpr), ("chr", valExpr)]
+      dataInitializer <- makeStructInitializer [("chr", valExpr)]
+      -- Now the initializer for the outer tagged union structure
+      makeTaggedUnionInitializer "ACT_Temp_ReadChar" "readCharData" dataInitializer
     _ -> return $ error $ "Unimplemented ClssAct matching : " ++ show v
 generateInputActionData x = return $ error $ "Unimplemented action: " ++ show x
 
-generateSemanticActionData :: SemanticAction -> CAutGenM [(String, CExpr)]
+generateSemanticActionData :: SemanticAction -> CAutGenM CInit
 generateSemanticActionData EnvFresh = do
   tagExpr <- makeEnumConstantExpr "ACT_EnvFresh"
-  return [("tag", tagExpr)]
+  makeStructInitializer [("tag", tagExpr)]
 generateSemanticActionData (EnvStore nm) = do
-  tagExpr <- makeEnumConstantExpr "ACT_EnvStore"
-  return [("tag", tagExpr), ("name", makeNameConstExpr nm)]
+  -- First create the initializer for the ReadCharData datastructure
+  dataInitializer <- makeStructInitializer [("name", makeNameConstExpr nm)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_EnvStore" "envStoreData" dataInitializer
 generateSemanticActionData (ReturnBind e) = do
-  tagExpr <- makeEnumConstantExpr "ACT_ReturnBind"
+  -- First create the initializer for the ReturnBindData datastructure
   expr <- generateVExpr e
-  return [("tag", tagExpr), ("expr", makeAddrOfExpr expr)]
+  dataInitializer <- makeStructInitializer [("expr", expr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_ReturnBind" "returnBindData" dataInitializer
+generateSemanticActionData (ManyFreshList s) = do
+  let withSemExpr = makeIntConstExpr (if s == DAST.YesSem then 1 else 0)
+  dataInitializer <- makeStructInitializer [("withsem", withSemExpr)]
+  makeTaggedUnionInitializer "ACT_ManyFreshList" "manyFreshListData" dataInitializer
+generateSemanticActionData (ManyAppend s) = do
+  let withSemExpr = makeIntConstExpr (if s == DAST.YesSem then 1 else 0)
+  dataInitializer <- makeStructInitializer [("withsem", withSemExpr)]
+  makeTaggedUnionInitializer "ACT_ManyAppend" "manyAppendData" dataInitializer
+generateSemanticActionData ManyReturn = do
+  tagExpr <- makeEnumConstantExpr "ACT_ManyReturn"
+  makeStructInitializer [("tag", tagExpr)]
+generateSemanticActionData DropOneOut = do
+  tagExpr <- makeEnumConstantExpr "ACT_DropOneOut"
+  makeStructInitializer [("tag", tagExpr)]
 generateSemanticActionData x = return $ error $ "Unimplemented action: " ++ show x
 
-generateControlAction :: ControlAction -> CAutGenM [(String, CExpr)]
-generateControlAction (Push _name _le q) = do
-  tagExpr <- makeEnumConstantExpr "ACT_Push"
-  -- TODO: Fix this
-  let valExpr = makeIntConstExpr q
-  return [("tag", tagExpr), ("name", valExpr)]
-generateControlAction Pop = do
+generateControlActionData :: ControlAction -> CAutGenM CInit
+generateControlActionData (Push _name _le q) = do
+  -- First create the initializer for the PushData datastructure
+  let stateExpr = makeIntConstExpr q
+  let nameExpr = makeNameConstExpr $ Just _name
+  dataInitializer <- makeStructInitializer [("name", nameExpr), ("state", stateExpr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_Push" "pushData" dataInitializer
+generateControlActionData Pop = do
   tagExpr <- makeEnumConstantExpr "ACT_Pop"
-  return [("tag", tagExpr)]
-generateControlAction (ActivateFrame _ln) = do
-  tagExpr <- makeEnumConstantExpr "ACT_ActivateFrame"
-  -- TODO: Fix this
-  let valExpr = makeIntConstExpr 0
-  return [("tag", tagExpr), ("namelist", valExpr)]
-generateControlAction DeactivateReady = do
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData (ActivateFrame _ln) = do
+  -- First create the initializer for the ActivateFrameData datastructure
+  -- TODO: Fix this - Only NULL for now. How to represent a list of names or is something else appropriate here?
+  let nameListExpr = makeIntConstExpr 0
+  dataInitializer <- makeStructInitializer [("name", nameListExpr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_ActivateFrame" "activateFrameData" dataInitializer
+generateControlActionData DeactivateReady = do
   tagExpr <- makeEnumConstantExpr "ACT_DeactivateReady"
-  return [("tag", tagExpr)]
-generateControlAction x = return $ error $ "Unimplemented action: " ++ show x
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData (BoundSetup bound) = do
+  dataInitializer <- generateBoundSetupData bound
+  makeTaggedUnionInitializer "ACT_BoundSetup" "boundSetupData" dataInitializer
+  where
+    generateBoundSetupData (DAST.Exactly e) = do
+      expr <- generateVExpr e
+      dataInitializer <- makeStructInitializer [("expr", expr)]
+      makeTaggedUnionInitializer "ACT_Exactly" "exactlyData" dataInitializer
+    generateBoundSetupData (DAST.Between maybeE1 maybeE2) = do
+      expr1 <- exprOrNull maybeE1
+      expr2 <- exprOrNull maybeE2
+      dataInitializer <- makeStructInitializer [("left", expr1), ("right", expr2)]
+      makeTaggedUnionInitializer "ACT_Between" "betweenData" dataInitializer
+    exprOrNull Nothing = return $ makeIntConstExpr 0
+    exprOrNull (Just e) = generateVExpr e
+generateControlActionData BoundCheckSuccess = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundCheckSuccess"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData BoundIsMore = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundIsMore"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData BoundIncr = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundIncr"
+  makeStructInitializer [("tag", tagExpr)]
+generateControlActionData x = return $ error $ "Unimplemented action: " ++ show x
+
+generateBranchActionData :: BranchAction -> CAutGenM CInit
+generateBranchActionData (CutBiasAlt q) = do
+  -- First create the initializer for the PushData datastructure
+  let stateExpr = makeIntConstExpr q
+  dataInitializer <- makeStructInitializer [("state", stateExpr)]
+  -- Now the initializer for the outer tagged union structure
+  makeTaggedUnionInitializer "ACT_CutBiasAlt" "cutBiasAltData" dataInitializer
+generateBranchActionData x = return $ error $ "Unimplemented action: " ++ show x
+
 
 generateVExpr :: NVExpr -> CAutGenM CExpr
 generateVExpr e = do
   (exprVarIdent, exprVarDeclr)  <- makeExprVar
-  exprType <- CTypeSpec <$> makeTypeDefType "Expr"
+  exprType <- CTypeSpec <$> makeTypeDefType "VExpr"
   exprInit <- exprInitializer
   let decl = CDeclExt $ CDecl [exprType] [(Just exprVarDeclr, Just exprInit, Nothing)] undefNode
   addDeclaration decl
-  return $ CVar exprVarIdent undefNode
+  return $ makeAddrOfIdent exprVarIdent
   where
     makeExprVar = do
       n <- nextExpressionId
@@ -346,13 +427,8 @@ generateVExprData e = do
       tagExpr <- makeEnumConstantExpr "E_VAR";
       return $ [("tag", tagExpr), ("name", nameExpr v)]
     DAST.TCIn _ e1 _ ->
-      case DAST.texprValue e1 of
-        DAST.TCVar v -> do
-          tagExpr <- makeEnumConstantExpr "E_VAR";
-          return $ [("tag", tagExpr), ("name", nameExpr v)]
-        _ -> do
-          tagExpr <- makeEnumConstantExpr "E_INT";
-          return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
+      -- Right now we only generate things corresponding to the inner expression
+      generateVExprData e1
     _ -> do
       tagExpr <- makeEnumConstantExpr "E_INT";
       return $ [("tag", tagExpr), ("name", makeIntConstExpr 0)]
@@ -360,10 +436,10 @@ generateVExprData e = do
     nameExpr nm = makeNameConstExpr $ Just $ DAST.tcName nm
 
 
-generateEpsAction :: CAutGenM [(String, CExpr)]
+generateEpsAction :: CAutGenM CInit
 generateEpsAction = do
   tagExpr <- makeEnumConstantExpr "ACT_EpsA"
-  return [("tag", tagExpr)]
+  makeStructInitializer [("tag", tagExpr)]
 
 
 --   let varDecl = CDeclr (Just autVar) [] Nothing [] undefNode

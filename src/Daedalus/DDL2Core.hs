@@ -15,6 +15,7 @@ import Data.List((\\))
 import Data.Either(partitionEithers)
 import qualified Data.ByteString.Char8 as BS8
 
+import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
 
 import qualified Daedalus.Type.AST as TC
@@ -157,7 +158,7 @@ fromGrammar gram =
          let xe = Var x
              ty = resTy sem tByte
          pure $ Do x GetStream
-              $ If (isEmptyStream xe) (sysErr ty "unexpected end of input")
+              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
                  $ Do_ (SetStream (eDrop (intL 1 TInteger) xe))
                  $     Pure $ result sem $ eHead xe
 
@@ -171,9 +172,9 @@ fromGrammar gram =
          let ty = resTy sem tByte
 
          pure $ Do x GetStream
-              $ If (isEmptyStream xe) (sysErr ty "unexpected end of input")
+              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
               $ Let y (eHead xe)
-              $ If p ( Do_ (SetStream (eDrop (intL 1 TInteger) xe))
+              $ gIf p ( Do_ (SetStream (eDrop (intL 1 TInteger) xe))
                      $     Pure (result sem ye)
                      )
                      (sysErr ty "unexpected byte")
@@ -181,7 +182,7 @@ fromGrammar gram =
 
     TC.TCGuard e ->
       do v <- fromExpr e
-         pure $ If v (Pure unit) (sysErr TUnit "guard failed")
+         pure $ gIf v (Pure unit) (sysErr TUnit "guard failed")
 
     TC.TCMatchBytes sem e ->
       do x <- newLocal TStream
@@ -193,7 +194,7 @@ fromGrammar gram =
          v <- fromExpr e
          pure $ Do x GetStream
               $    Let y v
-              $    If (isPrefix ye xe)
+              $    gIf (isPrefix ye xe)
                       (Do_ (SetStream (eDrop (arrayLen ye) xe))
                          $ Pure (result sem ye))
                       (sysErr ty "unexpected byte sequence")
@@ -216,7 +217,7 @@ fromGrammar gram =
     TC.TCEnd ->
       do x <- newLocal TStream
          pure $ Do x GetStream
-              $    If (isEmptyStream (Var x))
+              $    gIf (isEmptyStream (Var x))
                       (Pure unit)
                       (sysErr TUnit "unexpected leftover input")
 
@@ -236,7 +237,7 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> pure $ If (lenE `leq` streamLen strE)
+           NoSem -> pure $ gIf (lenE `leq` streamLen strE)
                               (Pure unit)
                               (sysErr TUnit "unexpected end of input")
 
@@ -245,7 +246,7 @@ fromGrammar gram =
                         str <- newLocal TStream
                         pure $ Let len lenE
                              $ Let str strE
-                             $ If (Var len `leq` streamLen (Var str))
+                             $ gIf (Var len `leq` streamLen (Var str))
                                   (Pure $ eTake (Var len) (Var str))
                                   (sysErr TUnit "unexpected end of input")
 
@@ -253,7 +254,7 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> pure $ If (lenE `leq` streamLen strE)
+           NoSem -> pure $ gIf (lenE `leq` streamLen strE)
                               (Pure unit)
                               (sysErr TUnit "unexpected end of input")
            YesSem ->
@@ -261,7 +262,7 @@ fromGrammar gram =
                 str <- newLocal TStream
                 pure $ Let len lenE
                      $ Let str strE
-                     $ If (Var len `leq` streamLen (Var str))
+                     $ gIf (Var len `leq` streamLen (Var str))
                           (Pure $ eDrop (Var len) (Var str))
                           (sysErr TUnit "unexpected end of input")
 
@@ -317,11 +318,11 @@ fromGrammar gram =
          mpE <- fromExpr mp
          ty  <- fromTypeM (TC.typeOf mp)
          pure case sem of
-                NoSem  -> If (mapMember mpE kE)
+                NoSem  -> gIf (mapMember mpE kE)
                              (sysErr TUnit "duplicate key in map")
                              (Pure unit)
                 YesSem ->
-                  If (mapMember mpE kE)
+                  gIf (mapMember mpE kE)
                      (sysErr ty "duplicate key in map")
                      (Pure (mapInsert mpE kE vE))
 
@@ -329,7 +330,7 @@ fromGrammar gram =
       do aE <- fromExpr arr
          iE <- fromExpr ix
          case sem of
-           NoSem -> pure $ If (arrayLen aE `leq` iE)
+           NoSem -> pure $ gIf (arrayLen aE `leq` iE)
                               (sysErr TUnit "array index out of bounds")
                               (Pure unit)
            YesSem ->
@@ -342,7 +343,7 @@ fromGrammar gram =
                 i <- newLocal TInteger
                 pure $ Let a aE
                      $ Let i iE
-                     $ If (arrayLen (Var a) `leq` Var i)
+                     $ gIf (arrayLen (Var a) `leq` Var i)
                           (sysErr ty "array index out of bounds")
                           (Pure (arrayIndex (Var a) (Var i)))
 
@@ -363,17 +364,20 @@ fromGrammar gram =
       do e <- fromExpr v
          ty <- fromTypeM t
          case sem of
-           NoSem -> pure $ If (hasTag l e)
-                              (Pure unit)
-                              (sysErr TUnit "unexpected semantic value shape")
+           NoSem -> pure $
+              gCase e
+                [ (PCon l, Pure unit)
+                , (PAny, sysErr TUnit "unexpected semantic value shape")
+                ]
+
            YesSem ->
              do x <- newLocal (typeOf e)
                 let xe = Var x
                 pure $ Let x e
-                     $ If (hasTag l xe)
-                          (Pure (fromUnion ty l xe))
-                          (sysErr ty "unexpected semantic value shape")
-
+                     $ gCase e
+                         [ (PCon l, Pure (fromUnion ty l xe))
+                         , (PAny, sysErr ty "unexpected semantic value shape")
+                         ]
 
     TC.TCFor l -> doLoopG l
 
@@ -391,6 +395,171 @@ fromGrammar gram =
         Backtrack -> fromGrammar g
         Commit -> panic "fromGrammar" ["Commit is not yet supported"]
 
+
+    TC.TCCase e as dflt ->
+      do t  <- fromGTypeM (TC.typeOf gram)
+         ms <- mapM (doAlt fromGrammar t) as
+         mbase <- case dflt of
+                    Nothing -> pure (Failure t)
+                    Just d  -> Success Nothing <$> fromGrammar d
+         let match = foldr biasedOr mbase ms
+         matchToGrammar t match <$> fromExpr e
+
+
+
+--------------------------------------------------------------------------------
+-- Pattern Matching
+
+data Match k =
+    Success (Maybe Name) k
+  | Failure Type
+  | IfPat Pattern (Maybe Type) (Match k) (Match k)
+    -- ^ If then pattern succeeds, use the first match otherwise try the second.
+    -- The `maybe type` indicates if we have a nested patern (Just) or not.
+    -- If we have a nested pattern, the "then" 'Match' will examine it.
+    -- The type is for the nested value
+
+dumpMatch :: Show a => Match a -> Doc
+dumpMatch match =
+  case match of
+    Success _ k -> text (show k)
+    Failure {} -> "FAIL"
+    IfPat p _ m1 m2 ->
+      "if" <+> pp p $$ nest 2 ("then" <+> dumpMatch m1)
+                    $$ "else" <+> dumpMatch m2
+
+patMatch :: TC.TCPat -> (src -> M tgt) -> (Type, src) -> M (Match tgt)
+patMatch pat leaf k =
+  case pat of
+     TC.TCConPat _ l p   -> nested (PCon l) p
+     TC.TCNumPat _ x     -> terminal (PNum x)
+     TC.TCBoolPat b      -> terminal (PBool b)
+     TC.TCJustPat p      -> nested PJust p
+     TC.TCNothingPat {}  -> terminal PNothing
+     TC.TCWildPat {}     -> success
+     TC.TCVarPat x ->
+       do x' <- fromName x
+          g  <- withSourceLocal x' (leaf (snd k))
+          pure (Success (Just (snd x')) g)
+  where
+  failure     = pure (Failure (fst k))
+  terminal p  = IfPat p Nothing <$> success <*> failure
+  nested p q  = IfPat p <$> (Just <$> fromTypeM (TC.typeOf q))
+                         <*> patMatch q leaf k
+                         <*> failure
+
+  success =
+    do g <- leaf (snd k)
+       pure (Success Nothing g)
+
+
+-- XXX: for now we duplicate alternatives
+doAlt :: (TC.TC a k -> M tgt) -> Type -> TC.TCAlt a k -> M (Match tgt)
+doAlt eval t (TC.TCAlt ps k) =
+  do ms <- sequence [ patMatch pat eval (t,k) | pat <- ps ]
+     pure (foldr1 matchOr ms)
+
+
+
+-- union of two patterns
+matchOr :: Match k -> Match k -> Match k
+matchOr m1 m2 =
+  case m1 of
+    Success {} -> m1
+    Failure {} -> m2
+    IfPat p1 pt pNest pOr ->
+      case m2 of
+        Success {} -> m2
+        Failure {} -> m1
+        IfPat q1 qt qNest qOr ->
+          case compare p1 q1 of
+            EQ -> IfPat p1 pt (matchOr pNest qNest) (matchOr pOr qOr)
+            LT -> IfPat p1 pt pNest (matchOr pOr m2)
+            GT -> IfPat q1 qt qNest (matchOr m1 qOr)
+
+
+-- match left, if that fails, match right
+biasedOr :: Match k -> Match k -> Match k
+biasedOr m1 m2 =
+  case m1 of
+    Success {} -> m1
+    Failure {} -> m2
+    IfPat p1 pt pNest pOr ->
+      case m2 of
+        Failure {} -> m1
+        -- NOTE: duplicates `m2`
+        Success {} -> IfPat p1 pt (biasedOr pNest m2) (biasedOr pOr m2)
+        IfPat q1 qt qNest qOr ->
+          case compare p1 q1 of
+            EQ -> IfPat p1 pt (biasedOr pNest qNest) (biasedOr pOr qOr)
+            LT -> IfPat p1 pt pNest (biasedOr pOr m2)
+            GT -> IfPat q1 qt qNest (biasedOr m1 qOr)
+
+
+matchToGrammar :: Type -> Match Grammar -> Expr -> Grammar
+matchToGrammar t match e =
+  case match of
+    Failure {} -> pFail
+    Success mb g ->
+      case mb of
+        Nothing -> g
+        Just x  -> Let x e g
+    IfPat {} -> gCase e $ completeAlts pFail
+                        $ matchToAlts (matchToGrammar t) match e
+  where
+  pFail = sysErr t "Pattern match failure"
+
+matchToExpr :: Match Expr -> Expr -> Expr
+matchToExpr match e =
+  case match of
+    Failure {} -> panic "matchToExpr" [ "empty case" ]
+    Success mb k ->
+      case mb of
+       Nothing -> k
+       Just x  -> PureLet x e k
+    IfPat {} -> eCase e (matchToAlts matchToExpr match e)
+
+matchToAlts ::
+  (Match k -> Expr -> k) ->
+  Match k ->
+  Expr -> [(Pattern,k)]
+matchToAlts mExpr match e =
+  case match of
+    Failure {} -> []
+    Success {} -> [(PAny, mExpr match e)]
+    IfPat p nestP yes no -> (p, mExpr yes nested) : matchToAlts mExpr no e
+      where
+      nested = case nestP of
+                 Nothing -> e
+                 Just t  ->
+                   case p of
+                     PCon l   -> fromUnion t l e
+                     PJust    -> eFromJust e
+                     PBool {} -> bad
+                     PNothing -> bad
+                     PNum {}  -> bad
+                     PAny     -> bad
+      bad = panic "matchToAlts" ["Unexpected nested pattern"]
+
+completeAlts :: k -> [(Pattern,k)] -> [(Pattern,k)]
+completeAlts d ps0 =
+  case ps0 of
+    [] -> [(PAny,d)]
+    this@(p,k) : more ->
+      case p of
+        PAny          -> [(p,k)]
+        PBool b       -> this : go [PBool (not b)] more
+        PNothing      -> this : go [PJust] more
+        PJust         -> this : go [PNothing] more
+        PNum {}       -> ps0 ++ [(PAny,d)]
+        PCon {}       -> ps0 ++ [(PAny,d)] -- XXX: could check that we have all
+  where
+  go need ps =
+    case ps of
+      [] -> [ (p,d) | p <- need ]
+      (p,k) : more
+        | (as,_:bs) <- break (== p) need -> (p,k) : go (as ++ bs) more
+        | otherwise                      ->         go need       more
 
 --------------------------------------------------------------------------------
 -- Loops
@@ -481,7 +650,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
      defFunG f (sVar : i : vs)
-         $ If (iteratorDone (Var i))
+         $ gIf (iteratorDone (Var i))
               (Pure (Var sVar))
          $    Let elVar (iteratorVal (Var i))
          $    maybeAddKey (iteratorKey (Var i))
@@ -491,13 +660,21 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
 
 
 
-
 pSkipMany :: Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany cmt vs p =
   do f <- newGName TUnit
      let es = map Var vs
+     r <- newLocal TBool
      defFunG f vs $
-        orOp cmt (Do_ p (Call f es)) (Pure unit)
+        case cmt of
+          -- we can make a tail call in this case
+          Commit ->
+            Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
+             $ GCase $ Case (Var r)
+                         [ (PBool True, Call f es)
+                         , (PBool False, Pure unit)
+                         ]
+          _ -> orOp cmt (Do_ p (Call f es)) (Pure unit)
      pure (Call f es)
 
 pParseMany :: Commit -> Type -> [Name] -> Grammar -> M Grammar
@@ -506,13 +683,28 @@ pParseMany cmt ty vs p =
      let es = map Var vs
      x <- newLocal (TBuilder ty)
      y <- newLocal ty
+     rMb <- newLocal (TMaybe ty)
+     r   <- newLocal ty
      let xe = Var x
      defFunG f (x:vs)
-       $ orOp cmt (Do y p (Call f (consBuilder (Var y) xe : es))) (Pure xe)
+       $ case cmt of
+           Commit ->
+              Do rMb(OrBiased (Do r p (Pure (just (Var r))))
+                              (Pure (nothing ty)))
+               $ GCase
+               $ Case (Var rMb)
+                   [ (PJust,    Call f (consBuilder (eFromJust (Var rMb)) xe
+                                                                      : es)
+                     )
+                   , (PNothing, Pure xe)
+                   ]
+           _ ->
+            orOp cmt (Do y p (Call f (consBuilder (Var y) xe : es))) (Pure xe)
 
      z <- newLocal (TBuilder ty)
      pure $ Do z (Call f (newBuilder ty : es))
                  (Pure $ finishBuilder $ Var z)
+
 
 pSkipAtMost :: [Name] -> Expr -> Grammar -> M Grammar
 pSkipAtMost vs tgt p =
@@ -521,7 +713,7 @@ pSkipAtMost vs tgt p =
      x <- newLocal TInteger
      let xe = Var x
      defFunG f (x:vs)
-             $ If (tgt `leq` xe)
+             $ gIf (tgt `leq` xe)
                   (Pure xe)
                   ( Do_ p
                   $     Call f (add xe (intL 1 TInteger) : es)
@@ -540,7 +732,7 @@ pParseAtMost ty vs tgt p =
          be = Var b
          ze = Var z
      defFunG f (x : b : vs)
-              $ If (tgt `leq` xe)
+              $ gIf (tgt `leq` xe)
                    ( Pure $ finishBuilder be )
                    ( Do z p
                    $    Call f ( add xe (intL 1 TInteger)
@@ -558,12 +750,12 @@ checkAtLeast mb tgt g =
   case mb of
     Nothing ->
       do x <- newLocal TInteger
-         pure $ Do x g $ If (Var x `lt` tgt)
+         pure $ Do x g $ gIf (Var x `lt` tgt)
                             (nope TUnit)
                             (Pure unit)
     Just ty ->
       do x <- newLocal (TArray ty)
-         pure $ Do x g $ If (arrayLen (Var x) `lt` tgt) (nope (TArray ty))
+         pure $ Do x g $ gIf (arrayLen (Var x) `lt` tgt) (nope (TArray ty))
                                                         (Pure (Var x))
 
   where
@@ -606,6 +798,16 @@ fromClass cla x =
              pure (callF fc (Var x : es))
 
         _ -> panic "fromClass" ["Unexptect type parameters"]
+
+
+    TC.TCCase e as dflt ->
+      do ms <- mapM (doAlt (`fromClass` x) TBool) as
+         match <- case dflt of
+                    Nothing -> pure (foldr1 biasedOr ms)
+                    Just d  ->
+                      do base <- Success Nothing <$> fromClass d x
+                         pure (foldr biasedOr base ms)
+         matchToExpr match <$> fromExpr e
 
     TC.TCFor {} -> panic "fromClass" ["Unexpected loop"]
     TC.TCVar {} -> panic "fromClass" ["Unexpected var"]
@@ -729,6 +931,18 @@ fromExpr expr =
                 TC.RangeDown  -> rangeDown e1 e2 e3
 
     TC.TCFor lp -> doLoop lp
+
+    TC.TCCase e as dflt ->
+      do t  <- fromTypeM (TC.typeOf expr)
+         ms <- mapM (doAlt fromExpr t) as
+         match <- case dflt of
+                    Nothing -> pure (foldr1 biasedOr ms)
+                    Just d  ->
+                      do base <- Success Nothing <$> fromExpr d
+                         pure (foldr biasedOr base ms)
+         matchToExpr match <$> fromExpr e
+
+
 
 
 doLoop :: TC.Loop a TC.Value -> M Expr
@@ -971,7 +1185,7 @@ fromTCTyDef tdef =
 -- | Generate a new local binder
 fromName :: TC.TCName TC.Value -> M (TC.TCName TC.Value, Name)
 fromName x =
-  do let lab = case TC.nameScope (TC.tcName x) of
+  do let lab = case TC.nameScopedIdent (TC.tcName x) of
                  TC.Local i -> i
                  _ -> panic "fromName" ["Not a local name"]
      n <- newName (Just lab) =<< fromTypeM (TC.typeOf x)
@@ -993,7 +1207,7 @@ fromGName x = topName (TC.tcName x)
 -- | Add translated name
 fromFDefName :: TC.Name -> TC.Type -> M ()
 fromFDefName x t =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) =<< fromTypeM t
@@ -1002,7 +1216,7 @@ fromFDefName x t =
 -- | Add translated name
 fromCDefName :: TC.Name -> M ()
 fromCDefName x =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromCDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) TBool
@@ -1011,7 +1225,7 @@ fromCDefName x =
 -- | Add translated name
 fromGDefName :: TC.Name -> TC.Type -> M ()
 fromGDefName x t =
-  do let lab = case TC.nameScope x of
+  do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) =<< fromGTypeM t
@@ -1066,12 +1280,17 @@ orOp cmt = case cmt of
 fromMb :: WithSem -> Type -> Expr -> M Grammar
 fromMb sem t e =
   case sem of
-    NoSem -> pure $ If (eIsJust e) (Pure unit) (nope TUnit)
+    NoSem -> pure $ gCase e [ (PNothing, nope TUnit)
+                            , (PJust, Pure unit)
+                            ]
     YesSem ->
       do x <- newLocal (TMaybe t)
          let xe = Var x
          pure $ Let x e
-              $ If (eIsJust xe) (Pure (eFromJust xe)) (nope t)
+              $ gCase xe
+                  [ (PNothing, nope t)
+                  , (PJust, Pure (eFromJust xe))
+                  ]
   where
   nope ty = sysErr ty "unexpected `nothing`"
 
@@ -1158,8 +1377,8 @@ newTNameRec rec =
     let flavor = case TC.tctyDef d of
                    TC.TCTyStruct {} -> TFlavStruct
                    TC.TCTyUnion cs
-                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum
-                     | otherwise                    -> TFlavUnion
+                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum (map fst cs)
+                     | otherwise                    -> TFlavUnion (map fst cs)
     in newTName r flavor (TC.tctyName d)
 
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
@@ -1169,7 +1388,7 @@ newTName isRec flavor nm = M \r s ->
                    TC.TCTy a -> (a, Nothing)
                    TC.TCTyAnon a i -> (a, Just i)
       x = TName { tnameId = n
-                , tnameText = case TC.nameScope l of
+                , tnameText = case TC.nameScopedIdent l of
                                 TC.ModScope _ txt -> txt
                                 _ -> panic "newTName" [ "Not a ModScope" ]
                 , tnameAnon = anon
@@ -1237,7 +1456,7 @@ topName x = M \_ s ->
 
 scopedIdent :: TC.ScopedIdent -> M FName
 scopedIdent n = M \_ s ->
-  case [ r | (x,r) <- Map.toList (topNames s), TC.nameScope x == n ] of
+  case [ r | (x,r) <- Map.toList (topNames s), TC.nameScopedIdent x == n ] of
     [ f ] -> (f,s)
     _ -> error "scopedIdent" ["Missing entry: " ++ show n ]
 

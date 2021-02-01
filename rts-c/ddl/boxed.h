@@ -1,8 +1,7 @@
 #ifndef DDL_BOXED_H
 #define DDL_BOXED_H
 
-#include <utility>
-#include <iostream>
+#include <ddl/debug.h>
 
 namespace DDL {
 
@@ -42,6 +41,7 @@ void free_boxed(BoxedValue<T> *ptr) {
   size_t n = ptr->ref_count;
   if (n == 1) {
     if constexpr (hasRefs<T>()) ptr->value.free();
+    debug("  freeing boxed "); debugValNL((void*) ptr);
     delete ptr;
   }
   else {
@@ -78,7 +78,9 @@ class Boxed : IsBoxed {
 
 public:
   Boxed()    : ptr(NULL) {}
-  Boxed(T x) : ptr (new BoxedValue<T>(x)) { }
+  Boxed(T x) : ptr (new BoxedValue<T>(x)) {
+    debug("  new boxed "); debugValNL((void*) ptr);
+  }
 
   bool isNull() { return ptr == NULL; }
 
@@ -110,7 +112,8 @@ public:
   // For debugging
   BoxedValue<T> *rawPtr() { return ptr; }
   void dump() {
-    std::cout << (void*)ptr << " (" << (ptr? refCount() : 0) << ")" << std::endl;
+    debugVal((void*)ptr);
+    debug(" ("); debugVal(ptr? refCount() : 0); debugVal("NL)");
   }
 };
 

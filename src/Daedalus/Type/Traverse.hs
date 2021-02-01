@@ -6,6 +6,7 @@ module Daedalus.Type.Traverse where
 
 import Control.Applicative
 import Control.Monad.Identity
+import Data.List.NonEmpty (NonEmpty)
 
 import Daedalus.Type.AST
 
@@ -18,6 +19,10 @@ instance TraverseTypes a => TraverseTypes (Maybe a) where
 
 instance TraverseTypes a => TraverseTypes [a] where
   traverseTypes f = traverse (traverseTypes f)
+
+instance TraverseTypes a => TraverseTypes (NonEmpty a) where
+  traverseTypes f = traverse (traverseTypes f)
+
 
 instance TraverseTypes (TCName k) where
   traverseTypes f n = (\t -> n { tcType = t }) <$> f (tcType n)
@@ -141,12 +146,10 @@ instance TraverseTypes (TCF a k) where
                                              <*> traverseTypes f s
       TCErrorMode m p      -> TCErrorMode m <$> traverseTypes f p
       TCFail mbM t         -> TCFail <$> traverseTypes f mbM <*> f t
-      TCSelCase ctxt e pats mdef t ->
-        TCSelCase ctxt <$> traverseTypes f e
-                       <*> traverse (\(mv, e') -> (,) mv <$> traverseTypes f e') pats
-                       <*> traverse (traverseTypes f) mdef 
-                       <*> f t
-      
+      TCCase e pats mdef ->
+        TCCase <$> traverseTypes f e
+               <*> traverseTypes f pats
+               <*> traverseTypes f mdef
 
 instance TraverseTypes (Arg a) where
   traverseTypes f arg =
@@ -221,6 +224,22 @@ instance TraverseTypes a => TraverseTypes (Rec a) where
     case r of
       NonRec d  -> NonRec <$> traverseTypes f d
       MutRec ds -> MutRec <$> traverseTypes f ds
+
+instance TraverseTypes (TCAlt a k) where
+  traverseTypes f (TCAlt ps e) =
+    TCAlt <$> traverseTypes f ps <*> traverseTypes f e
+
+instance TraverseTypes TCPat where
+  traverseTypes f pat =
+    case pat of
+      TCConPat t l p ->
+        (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
+      TCNumPat t i   -> (`TCNumPat` i) <$> f t
+      TCBoolPat b    -> pure (TCBoolPat b)
+      TCJustPat p    -> TCJustPat <$> traverseTypes f p
+      TCNothingPat t -> TCNothingPat <$> f t
+      TCVarPat x     -> TCVarPat <$> traverseTypes f x
+      TCWildPat t    -> TCWildPat <$> f t
 
 collectTypes :: (Monoid m, TraverseTypes t) => (Type -> m) -> t -> m
 collectTypes f xs = res
@@ -324,11 +343,14 @@ traverseTCF f = go
         TCErrorMode m p     -> TCErrorMode m <$> f p
 
         TCFail mbM t        -> TCFail <$> traverse f mbM <*> pure t
-        TCSelCase ctxt e pats mdef  t ->
-          TCSelCase ctxt <$> f e
-                         <*> traverse (\(mv, e') -> (,) mv <$> f e') pats
-                         <*> traverse f mdef 
-                         <*> pure t
+        TCCase e pats mdef ->
+          TCCase <$> f e
+                 <*> traverse (traverseAlt f) pats
+                 <*> traverse f mdef
+
+traverseAlt :: Applicative f => (TC a k -> f (TC b k)) ->
+                                TCAlt a k -> f (TCAlt b k)
+traverseAlt f (TCAlt pats e) = TCAlt pats <$> f e
 
 traverseArg :: Applicative f => (forall s. TC a s -> f (TC b s)) ->
                                 Arg a -> f (Arg b)

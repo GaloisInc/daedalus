@@ -13,7 +13,7 @@ import Daedalus.VM.Backend.C.Types
 
 cReturnClass :: CIdent -> Label -> [VMT] -> CStmt
 cReturnClass super l tys = cStmt $ vcat
-  [ "struct" <+> thisTy <+> ": public" <+> super <.> ", public DDL::HasRefs {"
+  [ "class" <+> thisTy <+> ": public" <+> super <+> " {"
   , nest 2 $ vcat attribs
   , "public:"
   , nest 2 $ vcat methods
@@ -30,12 +30,24 @@ cReturnClass super l tys = cStmt $ vcat
         thisTy
         ("void* code" : [ cType t <+> param n | (t,n) <- fields ])
         ( (super,"code") : [ (cField n, param n) | (_,n) <- fields ] )
-        []
+        [ cDebug $ show $ "  Allocated " <+> pp l <+> " at "
+        , cDebugValNL "(void*)this"
+        ]
 
     , cDefineFun "void" "freeMembers" []
+         $ [ cDebug $ show $ "  Freeing members of" <+> pp l
+           , cDebugValNL "(void*)this"
+          ]
+         ++
          [ cStmt (cCallMethod (cField n) "free" [])
          | (t,n) <- fields, HasRefs <- [typeRep t]
-         ]
+         ] ++
+         [ cDebugLine $ show $ " Done freeing" <+> pp l ]
+    ] ++
+    [ cDefineFun "void" ("get" <.> cField n) [cRefT (cType ty) <+> "x"] $
+      [ cStmt (cCallMethod (cField n) "copy" []) | typeRep ty == HasRefs ] ++
+      [ cAssign "x" (cField n) ]
+    | (n,ty) <- zip [0..] tys
     ]
 
   param n = "x" <.> int n

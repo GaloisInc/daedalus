@@ -1,4 +1,5 @@
 -- Testing stream operations with some static data-dependency
+-- should be same output as D008.ddl
 
 def Chunk n P =  {
   @cur  = GetStream;

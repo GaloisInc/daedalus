@@ -6,6 +6,13 @@ module T045
  
 --- Rules:
  
+T045.f ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : uint 8 =
+  for ((s : uint 8) = 0; (x : ?a3) in xs)
+    (s + 1)
+ 
+T045.G ?a1 (x : Maybe ?a1) : Grammar ?a1 =
+  x is just
+ 
 T045.A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
   Insert k v mp
  
@@ -27,8 +34,8 @@ T045.F : Grammar Stream =
      ($$ : Stream) <- StreamLen 10 xs
      pure $$
  
-T045.G ?a1 (x : Maybe ?a1) : Grammar ?a1 =
-  x is just
+T045._G ?a1 (x : Maybe ?a1) : Grammar {} =
+  @(x is just)
  
 T045._A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
   @Insert k v mp
@@ -50,10 +57,3 @@ T045._F : Grammar {} =
   do (xs : Stream) <- CurrentStream
      @StreamLen 10 xs
      pure {}
- 
-T045._G ?a1 (x : Maybe ?a1) : Grammar {} =
-  @(x is just)
- 
-T045.f ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : uint 8 =
-  for ((s : uint 8) = 0; (x : ?a3) in xs)
-    (s + 1)

@@ -2,11 +2,11 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.VM.Compile.Decl where
 
-import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Data.Void(Void)
 
+import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 
 import qualified Daedalus.Core as Src
@@ -22,34 +22,36 @@ import Daedalus.VM.CaptureAnalysis
 
 
 
-compileProgram :: Src.FName -> [Src.Module] -> Program
-compileProgram entry ms =
-  moduleToProgram entry (captureAnalysis (map compileModule ms))
+compileProgram :: [Src.FName] -> [Src.Module] -> Program
+compileProgram entries ms =
+  moduleToProgram entries (captureAnalysis (map compileModule ms))
 
-moduleToProgram :: Src.FName -> [Module] -> Program
-moduleToProgram entry ms =
+moduleToProgram :: [Src.FName] -> [Module] -> Program
+moduleToProgram entries ms =
   Program
     { pModules = ms
-    , pType    = Src.fnameType entry
-    , pEntry   = l
-    , pBoot    = b
+    , pEntries = [ compileEntry entry (Src.Call entry []) | entry <- entries ]
     }
+
+compileEntry :: Src.FName -> Src.Grammar -> Entry
+compileEntry entry pe =
+  Entry { entryLabel = l
+        , entryBoot  = b
+        , entryType  = Src.fnameType entry
+        , entryName  = Text.pack ("parse" ++ show (pp entry))
+        }
   where
-  (l,b) = compileEntry (Src.Call entry [])
-
-
-compileEntry :: Src.Grammar -> (Label, Map Label Block)
-compileEntry pe =
-  runC "__" (Src.typeOf pe) $
-  compile pe $
-  Next { onNo  = Just
-                 do stmt_ $ Say "Branch failed, resuming"
-                    term  $ Yield
-       , onYes = Just \v ->
-                 do stmt_ $ Say "Branch succeeded, resuming"
-                    stmt_ $ Output v
-                    term  $ Yield
-       }
+  (l,b) =
+    runC "__" (Src.typeOf pe) $
+    compile pe $
+    Next { onNo  = Just
+                   do stmt_ $ Say "Branch failed, resuming"
+                      term  $ Yield
+         , onYes = Just \v ->
+                   do stmt_ $ Say "Branch succeeded, resuming"
+                      stmt_ $ Output v
+                      term  $ Yield
+         }
 
 
 compileModule :: Src.Module -> Module
@@ -98,9 +100,11 @@ compileFFun :: Src.Fun Src.Expr -> VMFun
 compileFFun = compileSomeFun True \mb ->
   case mb of
     Just e -> compileE e Nothing
+    Nothing -> panic "compileFFun" ["XXX: External primitives"]
 
 compileGFun :: Src.Fun Src.Grammar -> VMFun
 compileGFun = compileSomeFun False \mb ->
   case mb of
     Just e -> compile e ret
+    Nothing -> panic "compileGFun" ["XXX: External primitives"]
 

@@ -121,8 +121,14 @@ jumpIf ::
 jumpIf e l1 l2 =
   do jp1 <- l1
      jp2 <- l2
-     term $ JumpIf e $ JumpChoice { jumpYes = jumpNoFree jp1
-                                  , jumpNo  = jumpNoFree jp2 }
+     term $ JumpIf e $ JumpCase
+          $ Map.fromList
+              [ (PBool True, jumpNoFree jp1)
+              , (PBool False, jumpNoFree jp2)
+              ]
 
-
+jumpCase :: E -> Map Pattern (BlockBuilder JumpPoint) -> BlockBuilder Void
+jumpCase e bs =
+  do jps <- sequence bs
+     term $ JumpIf e $ JumpCase $ jumpNoFree <$> jps
 

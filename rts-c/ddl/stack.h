@@ -28,66 +28,87 @@ struct Closure {
   void copy() {
     ++ref_count;
   }
-
 };
 
-class Stack {
-  std::vector<Closure*> stack;
+static inline
+std::ostream& operator<<(std::ostream& os, Closure& x) {
+  os << "[clo|" << x.ref_count << "|" << (void*)&x << "|" << x.code << "]";
+  return os;
+}
+
+class ClosureRef : HasRefs {
+  Closure *ptr;
+public:
+  ClosureRef() : ptr(nullptr) {}
+  ClosureRef(Closure *p) : ptr(p) {}    // never null
+
+  void copy()         { ptr->copy(); }
+  void free()         { ptr->free(false); }
+  Closure *getValue() { return ptr; }
+};
+
+static inline
+std::ostream& operator<<(std::ostream& os, ClosureRef x) {
+  return os << *x.getValue();
+}
+
+
+
+class ListStack : HasRefs {
+  List<ClosureRef> data;    // XXX: can combine a node a closure
+  ListStack(List<ClosureRef> xs) : data(xs) {}
 
 public:
-  // Empty stack
-  Stack() {}
+  ListStack() : data() {}
 
-  // Make a copy of a stack for storing in a thread.
-  Stack(const Stack& other) : stack(other.stack) {
-    for (size_t i = 0; i < stack.size(); ++i) {
-      stack[i]->copy();
+  // owns both arguments
+  ListStack(ClosureRef c, ListStack s)
+    : data(List<ClosureRef>{c,s.data}) {}
+
+  // own this
+  // \(x:xs) -> xs
+  Closure *pop(ListStack& out) {
+    ClosureRef x;
+    List<ClosureRef> xs;
+    data.uncons(x,xs);
+    out = ListStack{xs};
+    return x.getValue();
+  }
+
+  // owns this
+  // \(x : xs@(y : ys) -> x : ys
+  ListStack squish() {
+    ClosureRef x, y;
+    List<ClosureRef> xs, ys;
+    data.uncons(x,xs);
+    xs.uncons(y,ys);
+    y.free();
+    return ListStack{x,ys};
+  }
+
+  void* retAddr() { return data.borrowHead().getValue()->code; }
+
+  void free() { data.free(); }
+  void copy() { data.copy(); }
+
+  friend
+  std::ostream& operator<<(std::ostream& os, ListStack & x) {
+    os << "[stack]\n";
+    List<ClosureRef> p = x.data;
+    while (! p.isNull()) {
+      os << "  [" << (void*)p.rawPtr() << "](" << p.refCount() << ")" << p.borrowHead() << " -> ";
+      p = p.borrowTail();
+      os << "next " << (void*) p.rawPtr() << std::endl;
     }
+    os << "[/stack]\n";
+    return os;
   }
-
-  // Move the other stack into this one.
-  void overwriteBy(Stack& other) {
-    for (size_t i = 0; i < stack.size(); ++i) {
-      stack[i]->free(false);
-    }
-    stack.resize(other.stack.size());
-    for (size_t i = 0; i < other.stack.size(); ++i) {
-      stack[i] = other.stack[i];
-    }
-  }
-
-  // Push a new stack on the stack
-  void push(Closure *e) { stack.push_back(e); }
-
-  // Remove the top element from the stack and return it.
-  // Stack should not be empty.
-  Closure *pop() {
-    Closure *p = stack.back();
-    stack.pop_back();
-    return p;
-  }
-
-  // Remove the element *under* the top.
-  // The stack should have at least 2 elements.
-  // This is used when we have a choice of 2 continuations
-  // (the top 2 elements of the stack).
-  //  * To choose the top one we first `sqush` the one under then `pop`
-  //  * To use the one under we just pop twice
-  void squish() {
-    Closure *p = pop();
-    Closure * &q = stack.back();
-    q->free(false);
-    q = p;
-  }
-
-  // Get the return address for the frame on top of the stack.
-  // The frame is not poped.
-  // There must be at least one 1 frame on the stack.
-  void* retAddr() { return stack.back()->code; }
 
 };
 
 
+// We only even have a single pointer to a thread closure, from
+// withing the parser's stack object.
 struct ThreadClosure : public Closure {
   bool notified;
   ThreadClosure(void *c) : Closure(c), notified(false) {}
@@ -97,10 +118,10 @@ struct ThreadClosure : public Closure {
 
 struct Thread {
   ThreadClosure *closure;
-  Stack    stack;
+  ListStack stack;
 
 public:
-  Thread(ThreadClosure *c, const Stack& s) : closure(c), stack(s) {}
+  Thread(ThreadClosure *c, const ListStack s) : closure(c), stack(s) {}
   void notify() { closure->notify(); }
 
 };

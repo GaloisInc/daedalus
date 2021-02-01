@@ -39,6 +39,7 @@ library
     PdfValue,
     PdfDecl,
     PdfXRef,
+    PdfCrypto, 
     PdfMonad.Transformer,
     PdfMonad.Release,
     PdfParserNotSpecialized

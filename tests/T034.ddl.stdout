@@ -7,10 +7,10 @@ module T034
 --- Rules:
  
 T034.Main : Grammar [[uint 8]] =
-  do (_0 : [uint 8]) <- MatchBytes "hello"
-     (_1 : [uint 8]) <- MatchBytes "world"
-     pure [_0,
-           _1]
+  do (_1 : [uint 8]) <- MatchBytes "hello"
+     (_2 : [uint 8]) <- MatchBytes "world"
+     pure [_1,
+           _2]
  
 T034._Main : Grammar {} =
   do @MatchBytes "hello"

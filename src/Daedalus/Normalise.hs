@@ -4,6 +4,7 @@ module Daedalus.Normalise where
 import Daedalus.Panic
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID
 
 import Daedalus.Type.AST
 import Daedalus.Normalise.AST
@@ -166,7 +167,7 @@ normaliseG tc = flattenDo (Just ret) tc (NPure (NVar ret))
     ret = mkRetN (ntype $ typeOf tc)
 
     mkRetN :: NType -> NName
-    mkRetN = NName (Name (Local "ret") AValue synthetic)
+    mkRetN = NName (Name (Local "ret") AValue synthetic invalidGUID) -- FIXME
 
     flattenDo :: Maybe NName -> TC a Grammar -> NGrammar -> NGrammar
     flattenDo m_x tc1 rest =

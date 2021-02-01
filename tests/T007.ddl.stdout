@@ -11,12 +11,12 @@ type T007.Sign = Choose { neg: {}
  
 T007.Sign : Grammar T007.Sign =
   Choose fair
-    { {- pos -} do (_0 : {}) <- @Match {'+'}
-                   pure {pos: _0}
-    | {- neg -} do (_1 : {}) <- @Match {'-'}
-                   pure {neg: _1}
-    | {- pos -} do (_2 : {}) <- pure {}
-                   pure {pos: _2}
+    { {- pos -} do (_1 : {}) <- @Match {'+'}
+                   pure {pos: _1}
+    | {- neg -} do (_2 : {}) <- @Match {'-'}
+                   pure {neg: _2}
+    | {- pos -} do (_3 : {}) <- pure {}
+                   pure {pos: _3}
     }
  
 T007._Sign : Grammar {} =

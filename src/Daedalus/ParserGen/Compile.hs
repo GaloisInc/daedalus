@@ -105,10 +105,23 @@ idVExpr vexpr =
 convertManyBounds :: Show a => ManyBounds (TC a Value) -> ManyBounds (TC (a, PAST.Annot) Value)
 convertManyBounds b = fmap idVExpr b
 
-getByteArray2 :: TC a Value -> Maybe [Word8]
-getByteArray2 e =
+
+getByteArray :: Show a => TC a Value -> Maybe [Word8]
+getByteArray e =
   case texprValue e of
     TCLiteral (LBytes w) _ -> Just (BS.unpack w)
+    TCArray arr _ ->
+      foldr ( \ a b ->
+                case b of
+                  Nothing -> Nothing
+                  Just acc ->
+                    case texprValue a of
+                      TCLiteral (LNumber n) _ ->
+                        if (0 <= n && n <= 255)
+                        then Just $ ((toEnum . fromEnum) n) : acc
+                        else Nothing
+                      _ -> Nothing
+            ) (Just []) arr
     _ -> Nothing
 
 
@@ -151,7 +164,7 @@ allocGExpr n ctx gexpr =
         TCMatchBytes ws vexpr ->
           let ae = idVExpr vexpr
           in
-            case getByteArray2 ae of
+            case getByteArray ae of
               Nothing -> allocate (TCMatchBytes ws ae) n 2
               Just str -> allocate (TCMatchBytes ws ae) n (2 * (length str) + 2)
 
@@ -413,30 +426,19 @@ collectTC tce =
 
 collectDecls :: PAST.GblAlloc -> Map.Map State (SourceRange, PAST.Contx)
 collectDecls gbl =
-  -- snd (ST.runState (collectTC tce) Map.empty)
   let
     collectDecl :: TCModule (SourceRange, PAST.Annot) -> Map.Map State (SourceRange, PAST.Contx)
-    collectDecl (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (Defined d), tcDeclAnnot = (srcRng,a)}) ] }) =
-      let sub = snd (ST.runState (collectTC d) Map.empty)
-          top = foldr (\q m -> Map.insert q (srcRng, fromJust $ PAST.annotContx a) m) Map.empty (PAST.annotStates a)
-      in Map.union top sub
-    collectDecl (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (ExternDecl _)}) ] }) =
-      Map.empty
-    collectDecl _ = error "broken invariant on the list of decls"
+    collectDecl modl =
+      case modl of
+        (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (Defined d), tcDeclAnnot = (srcRng,a)}) ] }) ->
+          let sub = snd (ST.runState (collectTC d) Map.empty)
+              top = foldr (\q m -> Map.insert q (srcRng, fromJust $ PAST.annotContx a) m) Map.empty (PAST.annotStates a)
+          in Map.union top sub
+        (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (ExternDecl _)}) ] }) ->
+          Map.empty
+        _ -> error "broken invariant on the list of decls"
   in
     Map.foldr (\ modl m -> Map.union (collectDecl modl) m) Map.empty gbl
-  -- Map.foldr (\ (TCModule{ tcModuleDecls = [ NonRec (TCDecl {tcDeclDef = (Defined d), tcDeclAnnot = a}) ] }) acc ->
-  --              let sub = snd (ST.runState (collectTC d) acc)
-  --              in
-  --                foldr (\q m -> Map.insert q (fst tcDeclAnnot, fromJust $ PAST.annotContx a )) sub (PAST.annotStates tcDeclAnnot)
-
-  --                ) Map.empty gbl
-
-
-
--- collectTC2 :: forall k. TC (SourceRange, PAST.Annot) k -> Map.Map State PAST.Contx
--- collectTC2 tce =
---   foldMapTC (\tc -> let x = snd (texprAnnot tc) in trace (show (PAST.annotStates x)) $ Map.fromList [ (state, fromJust $ PAST.annotContx x) | state <- PAST.annotStates x ]) tce
 
 
 paramToName :: Param -> Name
@@ -458,40 +460,41 @@ systemToFunctions :: PAST.GblAlloc -> PAST.GblFuns
 systemToFunctions m =
   Map.map buildFunSpec
   (Map.filter onlyValue m)
-
   where
     onlyValue :: TCModule (SourceRange, PAST.Annot) -> Bool
-    onlyValue (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AClass, tcDeclDef = Defined _}) ]}) =
-      True
-    onlyValue (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AValue, tcDeclDef = Defined _}) ]}) =
-      True
-    onlyValue (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) =
-      False
-    onlyValue (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = ExternDecl _}) ]}) =
-      True -- error ("TODO: NExtern not handled yet")
-    onlyValue (TCModule {tcModuleDecls = _}) =
-      error "broken invariant: more than one declaration"
+    onlyValue t =
+      case t of
+        (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AClass, tcDeclDef = Defined _}) ]}) -> True
+        (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AValue, tcDeclDef = Defined _}) ]}) -> True
+        (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) -> False
+        (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = ExternDecl _}) ]}) -> True
+        (TCModule {tcModuleDecls = _}) -> error "broken invariant: more than one declaration"
 
     buildFunSpec :: TCModule (SourceRange, PAST.Annot) -> ([Name], PAST.CorV)
-    buildFunSpec (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AClass, tcDeclDef = Defined v}) ]}) =
-      (map paramToName (tcDeclParams decl), PAST.ClassExpr v)
-    buildFunSpec (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AValue, tcDeclDef = Defined v}) ]}) =
-      (map paramToName (tcDeclParams decl), PAST.ValueExpr v)
-    buildFunSpec (TCModule {tcModuleDecls = _}) =
-      error "broken invariant: more than one declaration"
+    buildFunSpec t =
+      case t of
+        (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AClass, tcDeclDef = Defined v}) ]}) ->
+          (map paramToName (tcDeclParams decl), PAST.ClassExpr v)
+        (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AValue, tcDeclDef = Defined v}) ]}) ->
+          (map paramToName (tcDeclParams decl), PAST.ValueExpr v)
+        (TCModule {tcModuleDecls = _}) ->
+          error "broken invariant: more than one declaration"
 
 
 systemToGrammars :: PAST.GblAlloc -> PAST.GblGrammar
 systemToGrammars m =
   Map.map g (Map.filter f m)
-  where f (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) =
+  where
+    f t =
+      case t of
+        (TCModule {tcModuleDecls = [ NonRec (TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) ->
           True
-        f _ = False
+        _ -> False
 
-        g :: TCModule (SourceRange, PAST.Annot) -> TCDecl (SourceRange, PAST.Annot)
-        g (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) =
-          decl
-        g _ = error "broken invariant"
+    g :: TCModule (SourceRange, PAST.Annot) -> TCDecl (SourceRange, PAST.Annot)
+    g (TCModule {tcModuleDecls = [ NonRec decl@(TCDecl {tcDeclCtxt = AGrammar, tcDeclDef = Defined _}) ]}) =
+      decl
+    g _ = error "broken invariant"
 
 
 

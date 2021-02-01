@@ -27,29 +27,29 @@ type P024.Main = { p: P024.C
  
 P024.A : Grammar P024.A =
   Choose biased
-    { {- a -} do (_0 : [uint 8]) <- MatchBytes "a"
-                 pure {a: _0}
-    | {- b -} do (_1 : [uint 8]) <- MatchBytes "a"
-                 pure {b: _1}
+    { {- a -} do (_8 : [uint 8]) <- MatchBytes "a"
+                 pure {a: _8}
+    | {- b -} do (_9 : [uint 8]) <- MatchBytes "a"
+                 pure {b: _9}
     }
  
 P024.B : Grammar P024.B =
   do (x : P024.A) <- P024.A
      (y : P024.B0) <- Choose biased
-                        { {- c -} do (_2 : [uint 8]) <- MatchBytes "a"
-                                     pure {c: _2}
-                        | {- d -} do (_3 : [uint 8]) <- MatchBytes "a"
-                                     pure {d: _3}
+                        { {- c -} do (_10 : [uint 8]) <- MatchBytes "a"
+                                     pure {c: _10}
+                        | {- d -} do (_11 : [uint 8]) <- MatchBytes "a"
+                                     pure {d: _11}
                         }
      pure {x = x,
            y = y}
  
 P024.C : Grammar P024.C =
   Choose biased
-    { {- z -} do (_4 : P024.B) <- P024.B
-                 pure {z: _4}
-    | {- t -} do (_5 : [uint 8]) <- MatchBytes "a"
-                 pure {t: _5}
+    { {- z -} do (_12 : P024.B) <- P024.B
+                 pure {z: _12}
+    | {- t -} do (_13 : [uint 8]) <- MatchBytes "a"
+                 pure {t: _13}
     }
  
 P024.Main : Grammar P024.Main =

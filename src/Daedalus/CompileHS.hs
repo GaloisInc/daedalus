@@ -9,6 +9,8 @@ import qualified Data.Text as Text
 import Data.Char(isUpper,isLower, toUpper)
 import Data.Word(Word8)
 import Data.ByteString(ByteString)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -87,7 +89,7 @@ hsIdentMod i = case Text.unpack i of
 nameUse :: Env -> NameStyle -> Name -> (Ident -> String) -> Term
 nameUse env use nm baseName =
   Var $
-  case nameScope nm of
+  case nameScopedIdent nm of
     ModScope m i
       | NameUse <- use,
         UseQualNames <- envQualNames env,
@@ -176,7 +178,7 @@ hsConstraint env ctr =
     Mappable s t  -> "RTS.IsMapLoop" `Ap` hsType env s `Ap` hsType env t
 
     ColElType s t  -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
-    ColKeyType s t -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
+    ColKeyType s t -> "RTS.ColKeyType" `Ap` hsType env s `Ap` hsType env t
 
     TyDef {}        -> panic "hsConstraint" ["Unexpected TyDef"]
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
@@ -329,7 +331,11 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
           }
 
   defRHS = case tcDeclDef of
-             ExternDecl t -> hasType (hsType env t)
+             ExternDecl t ->
+                case nameScopedIdent tcDeclName of
+                  ModScope "Debug" "Trace" ->
+                    hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
+                  _ -> hasType (hsType env t)
                               (lkpInEnv "envExtern" (envExtern env) tcDeclName)
 
              Defined e ->
@@ -428,6 +434,9 @@ hsValue env tc =
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
     TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
 
+    TCCase e as d -> hsCase hsValue err env e as d
+      where err = "HS.error" `Ap` Raw ("Pattern match failure" :: String)
+
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
   case texprValue tc of
@@ -448,6 +457,8 @@ hsByteClass env tc =
      TCVar x        -> hsValName env NameUse (tcName x)
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
+
+     TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
 
 --------------------------------------------------------------------------------
@@ -633,6 +644,54 @@ hsGrammar env tc =
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
 
+     TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
+       where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
+                                `Ap` hsText "Pattern match failure"
+
+hsCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Term ->
+  Env ->
+  TC SourceRange Value ->
+  NonEmpty (TCAlt SourceRange k) ->
+  Maybe (TC SourceRange k) ->
+  Term
+hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
+  where
+  branches =
+    concatMap alt (NE.toList alts) ++ [
+      case dfl of
+        Nothing -> ("_", ifFail)
+        Just d  -> ("_", eval env d)
+    ]
+  -- XXX: currently we duplicate code, we may want to name it in a where...
+  alt (TCAlt ps rhs) =
+    let r = eval env rhs
+    in [ (hsPat env p, r) | p <- ps ]
+
+
+
+hsPat :: Env -> TCPat -> Term
+hsPat env pat =
+  case pat of
+    TCConPat t l p -> hsUniConName env NameUse nm l `Ap` hsPat env p
+      where nm = case t of
+                  TCon c _ -> c
+                  _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
+                                     , show (pp t) ]
+    TCNumPat t i ->
+      case t of
+        Type TInteger  -> Raw i
+        Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]
+        Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
+        _ -> panic "hsPat" [ "We don't support polymorphic case." ]
+
+    TCBoolPat b     -> Raw b
+    TCJustPat p     -> "Just" `Ap` hsPat env p
+    TCNothingPat _t -> "Nothing"
+    TCVarPat x      -> hsTCName env x
+    TCWildPat _t    -> "_"
+
 hsMaybe :: WithSem -> Term -> Term -> Term -> Term
 hsMaybe sem erng msg val = f `aps` [ erng, msg, val ]
   where f = case sem of
@@ -738,6 +797,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , "OverloadedStrings"
                  , "TypeApplications"
                  , "TypeFamilies"
+                 , "ViewPatterns"
                  ]
   , hsImports  = cImports ++
                  [ Import (hsIdentMod i) Qualified

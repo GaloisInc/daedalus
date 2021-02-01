@@ -6,19 +6,19 @@ module T005
  
 --- Rules:
  
+T005.P : Grammar int =
+  do (x : uint 8) <- GetByte
+     ($$ : int) <- pure (x as int)
+     pure $$
+ 
 T005.Num : Grammar int =
   do (ds : [uint 8]) <- Many[ 1 .. ] Match ('0' .. '9')
      ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
                            ((val * 10) + (d as int)))
      pure $$
  
-T005.P : Grammar int =
-  do (x : uint 8) <- GetByte
-     ($$ : int) <- pure (x as int)
-     pure $$
+T005._P : Grammar {} =
+  @GetByte
  
 T005._Num : Grammar {} =
   @Many[ 1 .. ] @Match ('0' .. '9')
- 
-T005._P : Grammar {} =
-  @GetByte

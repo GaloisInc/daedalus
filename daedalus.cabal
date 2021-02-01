@@ -33,6 +33,7 @@ library
                        Daedalus.Compile.LangHS,
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
+                       Daedalus.Pass,
                        Daedalus.Interp.Value,
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
@@ -46,11 +47,12 @@ library
                        Daedalus.Type.Traverse,
                        Daedalus.Type.Free,
                        Daedalus.Type.DeadVal,
+                       Daedalus.Type.RefreshGUID,
+                       Daedalus.Type.PatComplete,          
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
                        Daedalus.DDL2Core,
-                       Daedalus.Rename,
                        Daedalus.PrettyError,
                        Daedalus.ParserGen,
                        Daedalus.ParserGen.AST,
@@ -59,13 +61,14 @@ library
                        Daedalus.ParserGen.Utils,
                        Daedalus.ParserGen.Cfg,
                        Daedalus.ParserGen.Compile,
-                       Daedalus.ParserGen.ClassInterval,
                        Daedalus.ParserGen.LL,
+                       Daedalus.ParserGen.LL.ClassInterval,
                        Daedalus.ParserGen.LL.Result,
-                       Daedalus.ParserGen.LL.CfgDet,
+                       Daedalus.ParserGen.LL.SlkCfg,
                        Daedalus.ParserGen.LL.Closure,
-                       Daedalus.ParserGen.LL.DeterminizeOneStep,
+                       Daedalus.ParserGen.LL.DFAStep,
                        Daedalus.ParserGen.LL.DFA,
+                       Daedalus.ParserGen.LL.LLA,
                        Daedalus.ParserGen.RunnerBias,
                        Daedalus.ParserGen.Generate
 
@@ -97,7 +100,8 @@ library
 
 executable daedalus
   main-is:             Main.hs
-  other-modules:       CommandLine
+  other-modules:       CommandLine,
+                       CPPDriver
 
   build-depends:       daedalus,
                        daedalus-utils,
@@ -112,7 +116,8 @@ executable daedalus
                        containers,
                        filepath,
                        directory,
-                       pretty-show
+                       pretty-show,
+                       file-embed >= 0.0.13
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2
@@ -131,7 +136,6 @@ executable daedalus-run-test
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
-
 
 
 test-suite daedalus-tests

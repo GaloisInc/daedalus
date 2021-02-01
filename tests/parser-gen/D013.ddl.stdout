@@ -1,0 +1,50 @@
+module D013
+ 
+--- Imports:
+ 
+--- Type defs:
+type D013.Main0 = Choose { x1: uint 8
+                         ; x2: uint 8
+                         ; x3: [uint 8]
+                         }
+ 
+type D013.Main1 = Choose { y1: uint 8
+                         ; y2: uint 8
+                         }
+ 
+type D013.Main = { a: D013.Main0
+                 ; b: D013.Main1
+                 }
+ 
+--- Rules:
+ 
+D013.Main : Grammar D013.Main =
+  do (a : D013.Main0) <- Choose biased
+                           { {- x1 -} do (_3 : uint 8) <- Match {'a'}
+                                         pure {x1: _3}
+                           | {- x2 -} do (_4 : uint 8) <- Match {'a'}
+                                         pure {x2: _4}
+                           | {- x3 -} do (_5 : [uint 8]) <- Many[] Match {'a'}
+                                         pure {x3: _5}
+                           }
+     (b : D013.Main1) <- Choose biased
+                           { {- y1 -} do (_6 : uint 8) <- Match {'b'}
+                                         pure {y1: _6}
+                           | {- y2 -} do (_7 : uint 8) <- Match {'b'}
+                                         pure {y2: _7}
+                           }
+     END
+     pure {a = a,
+           b = b}
+ 
+D013._Main : Grammar {} =
+  do Choose biased
+       { {- x1 -} @Match {'a'}
+       | {- x2 -} @Match {'a'}
+       | {- x3 -} @Many[] @Match {'a'}
+       }
+     Choose biased
+       { {- y1 -} @Match {'b'}
+       | {- y2 -} @Match {'b'}
+       }
+     END

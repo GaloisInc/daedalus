@@ -3,30 +3,49 @@
 
 #include <stdio.h>
 
-#define VINT 0
-#define VDICT 1
-#define VARRAY 2
+typedef enum {
+    VInt,
+    VDict,
+    VList,
+    VArray
+} ValueType;
 
-
-typedef struct DictValue {
+typedef struct ValueDict {
     char * key;
     struct Value * value;
-    struct DictValue * next;
-} DictValue;
+    struct ValueDict * next;
+} ValueDict;
+
+typedef struct ValueList {
+    int len;
+    struct Value * value;
+    struct ValueList * next;
+} ValueList;
 
 typedef struct Value {
-    int tag;
+    ValueType tag;
     union {
-        int intv;
-        DictValue * dict;
+        int intValue;
+        ValueDict * dictValue;
+        ValueList* listValue;
     };
 } Value;
 
-void print_DictValue(DictValue *);
-void print_Value(Value *);
-Value * empty_dict();
-Value * add_entry_dict(char *key, Value *v, Value * src);
-Value * create_value(int i);
-Value * get_dict(char * key, Value * v);
+
+ValueDict * createValueDict();
+void printValueDict(ValueDict *);
+ValueDict * addDictEntry(char *key, Value *v, ValueDict * src);
+Value * getDict(char * key, ValueDict * v);
+
+ValueList* createValueList();
+void printValueList(ValueList *);
+ValueList* pushListEntry(Value* v, ValueList* src);
+ValueList* reverseList(ValueList* src);
+
+Value * createIntValue(int i);
+Value * createDictValue(ValueDict* d);
+Value * createListValue(ValueList* l);
+void printValue(Value *);
+
 
 #endif /* VALUE_H */

@@ -1,84 +1,71 @@
 #include <stdlib.h>
 #include <string.h>
 #include "value.h"
+#include "util.h"
 
-
-void print_DictValue(DictValue * kv){
+void printValueDict(ValueDict * kv){
 
     if (kv == NULL)
         return;
     else {
         printf("k:%s ", kv->key);
         printf("v:");
-        print_Value(kv->value);
+        printValue(kv->value);
         if (kv->next != NULL) {
             printf(" ");
-            print_DictValue(kv->next);
+            printValueDict(kv->next);
         }
     }
 }
 
-void print_Value(Value * v){
+void printValue(Value * v){
 
     if (v == NULL) {
         printf("VNULL");
         return;
     }
     switch (v->tag) {
-    case VINT: {
-        printf("%d", v->intv);
+    case VInt: {
+        printf("%d", v->intValue);
         break;
     }
-    case VDICT: {
+    case VDict: {
         printf("{ ");
-        print_DictValue(v->dict);
+        if (v->dictValue != NULL)
+            printValueDict(v->dictValue);
         printf(" }");
         break;
     }
+    case VList: {
+        printf("[ ");
+        if (v->listValue != NULL)
+            printValueList(v->listValue);
+        printf(" ]");
+        break;
+    }
     default: {
-        printf("not handled case print_value\n");
+        printf("not handled case printValue\n");
         exit(1);
     }
     }
 }
 
-Value * empty_dict(){
-    Value * newV = (Value *)malloc(sizeof(Value));
-
-    newV->tag = VDICT;
-    newV->dict = NULL;
-
-    return newV;
+ValueDict * createValueDict(){
+    return NULL;
 }
 
-Value * add_entry_dict(char *key, Value *v, Value * src){
-    Value * newV = (Value *)malloc(sizeof(Value));
+ValueDict * addDictEntry(char *key, Value *v, ValueDict * src){
+    ValueDict * dict = ALLOCMEM(sizeof(ValueDict));
 
-    DictValue * dict = malloc(sizeof(DictValue));
-
-    newV->tag = VDICT;
     dict->key = key;
     dict->value = v;
-    dict->next = src->dict;
-    newV->dict = dict;
+    dict->next = src;
 
-    return newV;
+    return dict;
 }
 
-Value * create_value(int i){
-    Value * newV = (Value *)malloc(sizeof(Value));
-
-    newV->tag = VINT;
-    newV->intv = i;
-
-    return newV;
-}
-
-Value * get_dict(char * key, Value * v) {
-    if (v->tag != VDICT)
-        exit(1);
-
-    DictValue * dict = v->dict;
+Value * getDict(char * key, ValueDict * d) {
+    ValueDict * dict = d;
     while (dict != NULL) {
         if (strcmp(dict->key, key) == 0)
             return dict->value;
@@ -86,4 +73,75 @@ Value * get_dict(char * key, Value * v) {
     }
 
     return NULL;
+}
+
+ValueList* createValueList() {
+    return NULL;
+}
+
+void printValueList(ValueList * list) {
+    if (list == NULL || list->value == NULL)
+        return;
+    else {
+        printValue(list->value);
+        if (list->next != NULL) {
+            printf(", ");
+            printValueList(list->next);
+        }
+    }
+}
+
+ValueList* pushListEntry(Value* v, ValueList* src) {
+    ValueList * list = ALLOCMEM(sizeof(ValueList));
+    list->len = src == NULL ? 1 : src->len + 1;
+    list->value = v;
+    list->next = src;
+
+    return list;
+}
+
+ValueList* reverseList(ValueList* lst) {
+    if (lst == NULL)
+        return NULL;
+
+    ValueList* last = NULL;
+    int len = 0;
+    do {
+        ValueList* r = ALLOCMEM(sizeof(ValueList));
+        r->len = ++len ;
+        r->value = lst->value;
+        r->next = last;
+        last = r;
+        lst = lst->next;
+    } while(lst != NULL);
+
+    return last;
+}
+
+
+Value * createIntValue(int i){
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
+
+    newV->tag = VInt;
+    newV->intValue = i;
+
+    return newV;
+}
+
+Value * createDictValue(ValueDict* d) {
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
+
+    newV->tag = VDict;
+    newV->dictValue = d;
+
+    return newV;
+}
+
+Value * createListValue(ValueList* l) {
+    Value * newV = (Value *)ALLOCMEM(sizeof(Value));
+
+    newV->tag = VList;
+    newV->listValue = l;
+
+    return newV;
 }

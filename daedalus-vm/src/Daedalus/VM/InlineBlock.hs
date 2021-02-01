@@ -152,8 +152,8 @@ updS b =
     Call _ _ no yes _ -> addStays no . addStays yes
     TailCall {}       -> id
   where
-  stays2 j2 = staysJF (jumpYes j2) . staysJF (jumpNo j2)
-  staysJF   = addStays . jumpTarget
+  stays2 (JumpCase opts) = \i -> foldr staysJF i opts
+  staysJF                = addStays . jumpTarget
 
 
 
@@ -204,10 +204,7 @@ mergeBlocks front back =
 
 
   renJ (JumpPoint l es) = JumpPoint l (map renE es)
-  renJ2 j2 = JumpChoice
-               { jumpYes = renJF (jumpYes j2)
-               , jumpNo  = renJF (jumpNo j2)
-               }
+  renJ2 (JumpCase opts) = JumpCase (renJF <$> opts)
 
   renJF jf =
     JumpWithFree
@@ -297,9 +294,9 @@ jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
 
   rewL l  = Map.findWithDefault l l (jjReplace subst)
   rewJ j  = j { jLabel = rewL (jLabel j) }
-  rewJC l = JumpChoice { jumpYes = rewJF (jumpYes l)
-                       , jumpNo  = rewJF (jumpNo l)
-                       }
+
+  rewJC (JumpCase opts) = JumpCase (rewJF <$> opts)
+
   rewJF l = l { jumpTarget = rewJ (jumpTarget l) }
 
 
@@ -339,7 +336,7 @@ jjInfo b =
     ReturnPure _      -> id
 
   where
-  fixed2 j2  = fixedJF (jumpYes j2) . fixedJF (jumpNo j2)
+  fixed2 (JumpCase opts) = \i -> foldr fixedJF i opts
   fixedJF    = addFixed . jumpTarget
   addFixed l = \s -> s { jjFixedType = Set.insert (jLabel l) (jjFixedType s) }
 

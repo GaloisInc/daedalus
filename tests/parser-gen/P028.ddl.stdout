@@ -14,10 +14,10 @@ type P028.Main = { x: P028.A
  
 P028.A : Grammar P028.A =
   Choose biased
-    { {- a -} do (_0 : [uint 8]) <- Many[] Match {'a'}
-                 pure {a: _0}
-    | {- b -} do (_1 : [uint 8]) <- Many[] Match {'a'}
-                 pure {b: _1}
+    { {- a -} do (_4 : [uint 8]) <- Many[] Match {'a'}
+                 pure {a: _4}
+    | {- b -} do (_5 : [uint 8]) <- Many[] Match {'a'}
+                 pure {b: _5}
     }
  
 P028.B : Grammar [uint 8] =

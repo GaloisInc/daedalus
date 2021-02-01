@@ -27,7 +27,7 @@ decrypt inp = do
       dec <- case (ciph ctx) of 
               V4AES -> applyCipherAES ctx inp 
               V4RC4 -> applyCipherRC4 ctx inp 
-              V2    -> applyCipherRC4 ctx inp 
+              V2RC4 -> applyCipherRC4 ctx inp 
       pure $ newInput name dec 
   where 
     name = C.pack ("Decrypt" ++ show (inputOffset inp))
@@ -76,6 +76,7 @@ makeObjKey128 ctx isAES =
         False -> B.empty 
     digest = hashFinalize $ hashUpdates (Y.hashInit @Y.MD5) [key ctx, ob, gb, salt]
 
+-- XXX: maybe should live somewhere else? 
 makeFileKey ::
                B.ByteString 
             -> B.ByteString 

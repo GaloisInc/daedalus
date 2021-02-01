@@ -21,10 +21,10 @@ type P036.Main = { x: uint 8
  
 P036.A : Grammar P036.A =
   Choose fair
-    { {- x -} do (_0 : uint 8) <- pure 'a'
-                 pure {x: _0}
-    | {- y -} do (_1 : uint 8) <- pure 'b'
-                 pure {y: _1}
+    { {- x -} do (_15 : uint 8) <- pure 'a'
+                 pure {x: _15}
+    | {- y -} do (_16 : uint 8) <- pure 'b'
+                 pure {y: _16}
     }
  
 P036.Case1 : Grammar (Map [uint 8] (uint 8)) =
@@ -54,22 +54,22 @@ P036.Case4 : Grammar (Map [uint 8] (uint 8)) =
 P036.Main : Grammar P036.Main =
   do (x : uint 8) <- Match ('0' .. '9')
      (y : P036.Main0) <- Choose biased
-                           { {- c1 -} do (_2 : Map [uint 8] (uint 8)) <- do Guard (x == '1')
-                                                                            ($$ : Map [uint 8] (uint 8)) <- P036.Case1
-                                                                            pure $$
-                                         pure {c1: _2}
-                           | {- c2 -} do (_3 : uint 8) <- do Guard (x == '2')
-                                                             ($$ : uint 8) <- P036.Case2
-                                                             pure $$
-                                         pure {c2: _3}
-                           | {- c3 -} do (_4 : {}) <- do Guard (x == '3')
-                                                         ($$ : {}) <- P036.Case3
-                                                         pure $$
-                                         pure {c3: _4}
-                           | {- c4 -} do (_5 : Map [uint 8] (uint 8)) <- do Guard (x == '4')
-                                                                            ($$ : Map [uint 8] (uint 8)) <- P036.Case4
-                                                                            pure $$
-                                         pure {c4: _5}
+                           { {- c1 -} do (_22 : Map [uint 8] (uint 8)) <- do Guard (x == '1')
+                                                                             ($$ : Map [uint 8] (uint 8)) <- P036.Case1
+                                                                             pure $$
+                                         pure {c1: _22}
+                           | {- c2 -} do (_24 : uint 8) <- do Guard (x == '2')
+                                                              ($$ : uint 8) <- P036.Case2
+                                                              pure $$
+                                         pure {c2: _24}
+                           | {- c3 -} do (_26 : {}) <- do Guard (x == '3')
+                                                          ($$ : {}) <- P036.Case3
+                                                          pure $$
+                                         pure {c3: _26}
+                           | {- c4 -} do (_28 : Map [uint 8] (uint 8)) <- do Guard (x == '4')
+                                                                             ($$ : Map [uint 8] (uint 8)) <- P036.Case4
+                                                                             pure $$
+                                         pure {c4: _28}
                            }
      pure {x = x,
            y = y}

@@ -4,12 +4,13 @@ module Daedalus.VM.Compile.Grammar where
 
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
+import Control.Monad(forM)
+import qualified Data.Map as Map
 
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
 
-import Daedalus.PP
 import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
@@ -49,15 +50,12 @@ compile expr next0 =
         -- XXX
         Src.SrcAnnot ann -> compile e next    -- XXX:
 
-    Src.If e p q ->
+    Src.GCase (Src.Case e as) ->
       do next' <- sharedYes =<< sharedNo next
-
-         pCode <- label0 NormalBlock =<< compile p next'
-         qCode <- label0 NormalBlock =<< compile q next'
-
-         compileE e $ Just \v ->
-           jumpIf v pCode qCode
-
+         codes <- forM as \(p,g) ->
+                    do l <- label0 NormalBlock =<< compile g next'
+                       pure (p, l)
+         compileE e $ Just \v -> jumpCase v (Map.fromList codes)
 
     Src.Do_ p q ->
 

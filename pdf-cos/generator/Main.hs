@@ -15,7 +15,7 @@ main :: IO ()
 main =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfXRef" ]
+     let mods = [ "PdfXRef", "PdfCrypto" ]
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      let cfgFor m = case m of

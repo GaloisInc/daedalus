@@ -73,6 +73,10 @@ T051.Main : Grammar T051.Main =
            g = g,
            h = h}
  
+T051._Mp : Grammar (Map int int) =
+  for ((s : Map int int) = empty; (k : int), (x : int) in T051.xs)
+    (Insert x k s)
+ 
 T051._Main : Grammar {} =
   do map ((x : int) in T051.xs)
        (pure (x + 1))
@@ -86,7 +90,3 @@ T051._Main : Grammar {} =
        (pure {k = k,
               x = x + 1})
      pure {}
- 
-T051._Mp : Grammar (Map int int) =
-  for ((s : Map int int) = empty; (k : int), (x : int) in T051.xs)
-    (Insert x k s)

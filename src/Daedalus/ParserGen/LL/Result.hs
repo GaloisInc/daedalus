@@ -5,41 +5,42 @@ module Daedalus.ParserGen.LL.Result
   , coerceAbort
   ) where
 
-import Daedalus.ParserGen.Action (Action(..))
-
 
 data AbortOption =
-    AbortNotStatic
-  | AbortAcceptingPath
-  | AbortNonClassInputAction Action
-  | AbortUnhandledAction
-  | AbortOverflowMaxDepth
-  | AbortLoopWithNonClass
-  | AbortNonEmptyIntersection
+    -- Abort cases for `SlkCfg`
+    AbortSlkCfgExecution
+
+    -- Abort cases for `Closure`
+  | AbortClosureUnhandledInputAction
+  | AbortClosureUnhandledAction
+  | AbortClosureOverflowMaxDepth
+  | AbortClosureInfiniteloop
+
+    -- Abort cases for `ClassInterval`
   | AbortClassIsDynamic
   | AbortClassNotHandledYet String
-  | AbortSymbolicExec
-  | AbortIncompatibleInput
 
-  | AbortAmbiguous
-  | AbortOverflowK
+    -- Abort cases for DFA
+  | AbortDFAIncompatibleInput
+  | AbortDFAOverflowInitCfg
+  | AbortDFAOverflowLookahead
 
 instance Show(AbortOption) where
   show a =
     case a of
-      AbortNotStatic -> "AbortNotStatic"
-      AbortAcceptingPath -> "AbortAcceptingPath"
-      AbortNonClassInputAction _ -> "AbortNonClassInputAction"
-      AbortUnhandledAction -> "AbortUnhandledAction"
-      AbortOverflowMaxDepth -> "AbortOverflowMaxDepth"
-      AbortLoopWithNonClass -> "AbortLoopWithNonClass"
-      AbortNonEmptyIntersection -> "AbortNonEmptyIntersection"
+      AbortSlkCfgExecution -> "AbortSlkCfgExecution"
+
+      AbortClosureUnhandledInputAction -> "AbortClosureUnhandledInputAction"
+      AbortClosureUnhandledAction -> "AbortClosureUnhandledAction"
+      AbortClosureOverflowMaxDepth -> "AbortClosureOverflowMaxDepth"
+      AbortClosureInfiniteloop -> "AbortClosureInfiniteloop"
+
       AbortClassIsDynamic -> "AbortClassIsDynamic"
       AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
-      AbortSymbolicExec -> "AbortSymbolicExec"
-      AbortIncompatibleInput -> "AbortIncompatibleInput"
-      AbortAmbiguous -> "AbortAmbiguous"
-      AbortOverflowK -> "AbortOverflowK"
+
+      AbortDFAIncompatibleInput -> "AbortDFAIncompatibleInput"
+      AbortDFAOverflowInitCfg -> "AbortDFAOverflowInitCfg"
+      AbortDFAOverflowLookahead -> "AbortDFAOverflowLookahead"
 
 data Result a =
     Abort AbortOption

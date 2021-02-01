@@ -32,15 +32,13 @@ data ObjLoc = InFileAt !Int   -- ^ At this index
 
 newtype PdfT m a = P (RO -> RW -> m (a,RW))
 
-data Cipher = V2 | V4AES | V4RC4 
+data Cipher = V2RC4 | V4AES | V4RC4 
 
 data EncContext = EncContext 
   { key    :: ByteString
   , robj   :: Int
   , rgen   :: Int 
-  , ver    :: Int 
   , ciph   :: Cipher 
-  -- XXX: record the cypher here - we just default to AES128 
   }
 
 data RO = RO

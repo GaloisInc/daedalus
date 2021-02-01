@@ -5,6 +5,8 @@
 {-# Language ViewPatterns #-}
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
+{-# Language RecordWildCards #-}
+
 module Daedalus.Type.AST
   ( module Daedalus.Type.AST
   , module LocalAST
@@ -17,8 +19,10 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse)
 import qualified Data.Kind as HS
 import Data.Text(Text)
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Classes -- OrdF
 
@@ -159,8 +163,6 @@ data TCF :: HS -> Ctx -> HS where
     -- The type is the type of the final result,
     -- which should be a named union type, possibly with some parameters.
 
-
-
    TCTriOp :: TriOp -> TC a Value -> TC a Value -> TC a Value -> Type -> TCF a Value
 
    TCBinOp :: BinOp -> TC a Value -> TC a Value -> Type -> TCF a Value
@@ -193,29 +195,35 @@ data TCF :: HS -> Ctx -> HS where
       the name is the type of the result, *not* the whole function.
    -}
 
-
    TCErrorMode :: Commit -> TC a Grammar -> TCF a Grammar
    TCFail :: Maybe (TC a Value) -> Type -> TCF a Grammar
       -- Custom error message: message (byte array)
 
-   -- destructors for union types
+   TCCase :: TC a Value           {- thing we examine -} ->
+             NonEmpty (TCAlt a k) {- brances; non-empty -} ->
+             Maybe (TC a k)       {- default -} ->
+             TCF a k
 
-   -- FIXME: we currently expand out union patterns, but we could
-   -- retain to keep the information.  We could also expand out the default.
-
-   --  FIXME: we only need the context if we want to examine an
-   --  expression.  Note that in the case that the alternatives are
-   --  empty and there is no default we cannot infer the context by
-   --  looking at the acrguments to the constructor
-
-   TCSelCase :: Context k -> TC a Value -> Map Label (Maybe (TCName Value), TC a k)
-             -> Maybe (TC a k) -> Type ->  TCF a k
-
-   -- Currently unsupported ...
-   -- TCLiteralCase :: Context k -> Type -> TC a Value -> [PatternCase (TC a k)]
-   --               -> Maybe (TC a k) -> TCF a k
 
 deriving instance Show a => Show (TCF a k)
+
+-- | A branch in a case.  Succeeds if *any* of the patterns match.
+-- All alternatives must bind the same variables (with the same types)
+data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
+                       , tcAltBody     :: (TC a k)
+                       }
+  deriving Show
+
+-- | Deconstruct a value
+data TCPat = TCConPat Type Label TCPat
+           | TCNumPat Type Integer
+           | TCBoolPat Bool
+           | TCJustPat TCPat
+           | TCNothingPat Type
+           | TCVarPat (TCName Value)
+           | TCWildPat Type
+             deriving Show
+
 
 
 data LoopFlav a = Fold (TCName Value) (TC a Value)
@@ -224,7 +232,7 @@ data LoopFlav a = Fold (TCName Value) (TC a Value)
 
 data Loop a k = Loop
   { loopFlav    :: LoopFlav a
-  , loopKName   :: Maybe (TCName Value)
+  , loopKName   :: Maybe (TCName Value) -- Key name, optional
   , loopElName  :: TCName Value
   , loopCol     :: TC a Value
   , loopBody    :: TC a k
@@ -488,13 +496,17 @@ instance PP (TCF a k) where
           Nothing  -> "Fail"
           Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
-      TCSelCase _ e pats mdef _ -> "case" <+> pp e <+> "is" $$
-                               nest 2 (block "{" ";" "}" (ppPats ++ ppDef))
+      TCCase e pats mdef ->
+        wrapIf (n > 0)
+        "case" <+> pp e <+> "is" $$
+          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats))))
         where
-          ppPats = map ppOne (Map.toList pats)
-          ppOne (l, (mv, e')) = pp l <+> maybe "_" pp mv <+> "->" <+> pp e'
-          ppDef = maybe [] (\be -> ["_ ->" <+> pp be]) mdef
-          
+        addDefault xs = case mdef of
+                          Nothing -> xs
+                          Just d  -> xs ++ ["_" <+> "->" <+> pp d]
+
+
+
 instance PP a => PP (Poly a) where
   ppPrec n (Poly xs cs a) =
     case (xs,cs) of
@@ -536,6 +548,22 @@ instance PP TCTyDef where
 
     where
     ppF (x,t) = pp x <.> ":" <+> pp t
+
+
+instance PP (TCAlt a k) where
+  ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
+    where lhs = sep $ punctuate comma $ map pp ps
+
+instance PP TCPat where
+  ppPrec n pat =
+    case pat of
+      TCConPat _ l p  -> "{|" <+> pp l <+> "=" <+> pp p <+> "|}"
+      TCNumPat _ i    -> pp i
+      TCBoolPat b     -> if b then "true" else "false"
+      TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
+      TCNothingPat _  -> "nothing"
+      TCVarPat x      -> pp x
+      TCWildPat _     -> "_"
 
 ppTCRuleRes :: Rec (TCDecl a) -> Doc
 ppTCRuleRes sc =
@@ -753,6 +781,12 @@ kindOf ty =
 class TypeOf t where
   typeOf :: t -> Type
 
+instance TypeOf Type where
+  typeOf t = t
+
+instance TypeOf (TCDecl a) where
+  typeOf TCDecl {..} = typeOf tcDeclDef
+   
 instance TypeOf (TCDeclDef a k) where
   typeOf d = case d of
                ExternDecl t -> t
@@ -873,7 +907,10 @@ instance TypeOf (TCF a k) where
 
       TCErrorMode _ p     -> typeOf p
       TCFail _ t          -> tGrammar t
-      TCSelCase _ _ _ _ t -> t
+      TCCase _ ps _       -> typeOf (NE.head ps)
+
+instance TypeOf (TCAlt a k) where
+  typeOf (TCAlt _ e) = typeOf e
 
 
 declTypeOf :: TCDecl a -> Poly RuleType
@@ -881,7 +918,39 @@ declTypeOf d@TCDecl { tcDeclDef } =
     Poly (tcDeclTyParams d) (tcDeclCtrs d)
              $ map typeOf (tcDeclParams d) :-> typeOf tcDeclDef
 
--- $(return [])
+
+-- | The type of thing we match
+instance TypeOf TCPat where
+  typeOf pat =
+    case pat of
+      TCConPat t _ _ -> t
+      TCNumPat t _ -> t
+      TCBoolPat _ -> tBool
+      TCJustPat p -> tMaybe (typeOf p)
+      TCNothingPat t -> tMaybe t
+      TCVarPat x -> typeOf x
+      TCWildPat t -> t
+
+patBinds :: TCPat -> [TCName Value]
+patBinds pat =
+  case pat of
+    TCConPat _ _ p  -> patBinds p
+    TCNumPat {}     -> []
+    TCBoolPat {}    -> []
+    TCJustPat p     -> patBinds p
+    TCNothingPat {} -> []
+    TCVarPat x      -> [x]
+    TCWildPat {}    -> []
+
+patBindsSet :: TCPat -> Set (TCName Value)
+patBindsSet = Set.fromList . patBinds
+
+altBinds :: TCAlt a k -> [TCName Value]
+altBinds (TCAlt ps _) = patBinds (head ps)
+
+
+
+$(return [])
 
 --------------------------------------------------------------------------------
 -- OrdF, TestEquality, etc.
@@ -905,3 +974,6 @@ instance OrdF TCName where
 
 instance Ord (TCName k) where
   compare x y = toOrdering (compareF x y)
+
+    
+    

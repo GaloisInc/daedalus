@@ -8,12 +8,15 @@ import Data.List.NonEmpty(NonEmpty(..))
 import Data.Maybe(isJust)
 import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Text.PrettyPrint hiding ((<>))
 
 import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
+
+import Debug.Trace(traceM)
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
@@ -148,6 +151,11 @@ class Monad p => BasicParser p where
   pEnd      :: SourceRange -> p ()     -- are we at the end
   pMatch1   :: SourceRange -> ClassVal -> p Word8
 
+
+pTrace :: BasicParser p => Vector (UInt 8) -> p ()
+pTrace msg =
+  do off <- pOffset
+     traceM (show off ++ ": " ++ BS8.unpack (Vector.vecToRep msg))
 
 pMatch :: BasicParser p => SourceRange -> Vector (UInt 8) -> p (Vector (UInt 8))
 pMatch = \r bs ->

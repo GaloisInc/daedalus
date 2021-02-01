@@ -1,0 +1,25 @@
+module D002
+ 
+--- Imports:
+ 
+--- Type defs:
+type D002.Main0 = Choose { a: uint 8
+                         ; b: uint 8
+                         }
+ 
+--- Rules:
+ 
+D002.Main : Grammar {} =
+  do Choose biased
+       { {- a -} @Match {'b'}
+       | {- b -} @Match {'b'}
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D002._Main : Grammar {} =
+  do Choose biased
+       { {- a -} @Match {'b'}
+       | {- b -} @Match {'b'}
+       }
+     END

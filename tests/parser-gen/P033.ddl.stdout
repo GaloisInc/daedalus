@@ -18,14 +18,14 @@ type P033.Main = { x: P033.A
 P033.$digit : ByteClass =
   '0' .. '9'
  
+P033.f (x : int) : int =
+  x as int
+ 
 P033.A : Grammar P033.A =
   do @Match {'<'}
      (a : [uint 8]) <- Many[] Match P033.$digit
      @Match {'>'}
      pure {a = a}
- 
-P033.f (x : int) : int =
-  x as int
  
 P033.Main : Grammar P033.Main =
   do (x : P033.A) <- P033.A

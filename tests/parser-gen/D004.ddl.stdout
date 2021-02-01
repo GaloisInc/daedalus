@@ -11,14 +11,14 @@ type D004.Main = Choose { x: uint 8
  
 D004.Main : Grammar D004.Main =
   do ($$ : D004.Main) <- Choose fair
-                           { {- x -} do (_0 : uint 8) <- do @Match ('0' .. '7')
+                           { {- x -} do (_3 : uint 8) <- do @Match ('0' .. '7')
                                                             ($$ : uint 8) <- Match ('a' .. 'y')
                                                             pure $$
-                                        pure {x: _0}
-                           | {- y -} do (_1 : uint 8) <- do @Match ('3' .. '9')
+                                        pure {x: _3}
+                           | {- y -} do (_5 : uint 8) <- do @Match ('3' .. '9')
                                                             ($$ : uint 8) <- Match ('x' .. 'z')
                                                             pure $$
-                                        pure {y: _1}
+                                        pure {y: _5}
                            }
      END
      pure $$

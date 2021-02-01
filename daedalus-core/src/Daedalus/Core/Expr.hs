@@ -14,6 +14,7 @@ data Expr =
     Var Name
   | PureLet Name Expr Expr
   | Struct UserType [ (Label, Expr) ]
+  | ECase (Case Expr)
 
   | Ap0 Op0
   | Ap1 Op1 Expr
@@ -51,11 +52,9 @@ data Op1 =
   | IteratorVal
   | IteratorNext
   | EJust
-  | IsJust
   | FromJust
   | SelStruct Type Label
   | InUnion UserType Label
-  | HasTag Label
   | FromUnion Type Label
 
 data Op2 =
@@ -82,8 +81,6 @@ data Op2 =
   | LShift
   | RShift
 
-  | Or
-  | And
   | ArrayIndex
   | ConsBuilder
   | MapLookup
@@ -92,8 +89,7 @@ data Op2 =
   | ArrayStream
 
 data Op3 =
-    PureIf
-  | RangeUp
+    RangeUp
   | RangeDown
   | MapInsert
 
@@ -101,6 +97,11 @@ data OpN =
     ArrayL Type
   | CallF FName
 
+
+data Case k = Case Expr [(Pattern,k)]
+
+eCase :: Expr -> [(Pattern,Expr)] -> Expr
+eCase e ps = ECase (Case e ps)
 
 --------------------------------------------------------------------------------
 unit    = Ap0 Unit
@@ -111,7 +112,6 @@ callF f = ApN (CallF f)
 -- Maybe
 
 just      = Ap1 EJust
-eIsJust   = Ap1 IsJust
 eFromJust = Ap1 FromJust
 nothing t = Ap0 (ENothing t)
 
@@ -121,7 +121,6 @@ nothing t = Ap0 (ENothing t)
 
 selStruct t l     = Ap1 (SelStruct t l)
 inUnion t l       = Ap1 (InUnion t l)
-hasTag l          = Ap1 (HasTag l)
 fromUnion t l     = Ap1 (FromUnion t l)
 
 
@@ -184,9 +183,9 @@ rShift        = Ap2 RShift
 -- Boolean
 boolL b      = Ap0 (BoolL b)
 eNot         = Ap1 Not
-eOr          = Ap2 Or
-eAnd         = Ap2 And
-eIf          = Ap3 PureIf
+eOr x y      = eIf x (boolL True) y
+eAnd x y     = eIf x y (boolL False)
+eIf e e1 e2  = eCase e [ (PBool True, e1), (PBool False, e2) ]
 
 
 --------------------------------------------------------------------------------
@@ -242,6 +241,8 @@ instance PP Expr where
       Struct t fs -> ppPrec 1 t <+> braces (commaSep (map ppF fs))
         where ppF (l,e) = pp l <+> "=" <+> pp e
 
+      ECase c -> pp c
+
       Ap0 op   -> ppPrec n op
 
       Ap1 op e -> wrapIf (n > 0) (pp op <+> ppPrec 1 e)
@@ -257,9 +258,6 @@ instance PP Expr where
       Ap3 op e1 e2 e3 -> wrapIf (n > 0) $
         case ppOp3 op of
           (PPPref,d) -> d <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3
-          (PPCustom,_)
-            | PureIf <- op ->
-              "if" <+> pp e1 $$ nest 2 ("then" <+> pp e2 $$ "else" <+> pp e3)
           (_,d) -> panic "PP Ap3" [show d]
 
       ApN op es ->
@@ -312,12 +310,10 @@ instance PP Op1 where
       IteratorNext    -> "itNext"
 
       EJust           -> "just"
-      IsJust          -> "isJust"
       FromJust        -> "fromJust"
 
       SelStruct _ l   -> "get" <+> pp l
       InUnion t l     -> ppTApp 0 ("tag" <+> pp l) [TUser t]
-      HasTag l        -> "hasTag" <+> pp l
       FromUnion _ l   -> "fromTag" <+> pp l
 
 
@@ -361,9 +357,6 @@ ppOp2 op =
       LShift      -> inf "<<"
       RShift      -> inf ">>"
 
-      Or          -> inf "||"
-      And         -> inf "&&"
-
       ArrayIndex  -> pref "aGet"
       ConsBuilder -> pref "cons"
       MapLookup   -> pref "mGet"
@@ -378,7 +371,6 @@ instance PP Op2 where
 ppOp3 :: Op3 -> (PPHow, Doc)
 ppOp3 op3 =
   case op3 of
-    PureIf    -> (PPCustom, "ite")
     RangeUp   -> (PPPref, "rangeUp")
     RangeDown -> (PPPref, "rangeDown")
     MapInsert -> (PPPref, "mInsert")
@@ -392,4 +384,9 @@ instance PP OpN where
     case op of
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
+instance PP a => PP (Case a) where
+  pp (Case e as) = "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
+    where
+    alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+
 

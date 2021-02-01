@@ -1,6 +1,5 @@
--- simple example testing the * of LL(*)
-
 -- Testing stream operations
+
 
 def Chunk P =  {
   @cur  = GetStream;

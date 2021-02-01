@@ -10,14 +10,26 @@
 module Daedalus.Interp
   ( interp, interpFile
   , compile, Env, interpCompiled
+  , evalType
+  , emptyEnv
   , Value(..)
   , ParseError(..)
   , Result(..)
   , Input(..)
+  -- For synthesis
+  , compilePureExpr
+  , compilePredicateExpr
+  , addValMaybe
+  , addVal
+  , evalUniOp
+  , evalBinOp
+  , evalTriOp
+  , setVals
+  , vUnit
   ) where
 
 
-import Control.Monad (replicateM,foldM,replicateM_,void)
+import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum)
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -25,6 +37,8 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
 import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -37,6 +51,7 @@ import Daedalus.Panic
 import qualified Daedalus.AST as K
 import Daedalus.Type.AST hiding (Value)
 import Daedalus.Interp.Value
+import Daedalus.Rec (forgetRecs)
 
 
 import RTS.ParserAPI
@@ -48,7 +63,7 @@ import qualified RTS.Vector as RTS
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
 byteStringToValue :: ByteString -> Value
-byteStringToValue = VArray . Vector.fromList . map (VUInt 8 . fromIntegral) . BS.unpack 
+byteStringToValue = VArray . Vector.fromList . map (VUInt 8 . fromIntegral) . BS.unpack
 
 vUnit :: Value
 vUnit = VStruct []
@@ -62,6 +77,7 @@ data SomeFun      = FVal (Fun Value)
                   | FClass (Fun ClassVal)
                   | FGrm (Fun (Parser Value))
 newtype Fun a     = Fun ([TVal] -> [SomeVal] -> a)
+
 
 instance Show (Fun a) where
   show _ = "FunDecl"
@@ -90,6 +106,9 @@ emptyEnv :: Env
 emptyEnv = Env Map.empty Map.empty Map.empty
                Map.empty Map.empty Map.empty
                Map.empty
+
+setVals :: Map Name Value -> Env -> Env
+setVals vs env = env { valEnv = vs }
 
 addVal :: TCName K.Value -> Value -> Env -> Env
 addVal x v env = env { valEnv = Map.insert (tcName x) v (valEnv env) }
@@ -381,8 +400,8 @@ compilePureExpr env = go
 
         TCLiteral (LBool b)   _ -> VBool b
         TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
-        TCLiteral (LBytes bs) _ -> byteStringToValue bs 
-        
+        TCLiteral (LBytes bs) _ -> byteStringToValue bs
+
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
@@ -391,7 +410,7 @@ compilePureExpr env = go
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
-                            Nothing -> error ("BUG: unknown value variable " ++ show x)
+                            Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
 
         TCUniOp op e1      -> evalUniOp op (go e1)
@@ -412,19 +431,68 @@ compilePureExpr env = go
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts [] es
-            Nothing -> error $ "BUG: unknown grammar function " ++ show x
+            Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
         TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
 
         TCMapEmpty _ -> VMap Map.empty
         TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
 
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compilePureExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
+        TCCase e alts def ->
+          evalCase
+            compilePureExpr
+            (error "Pattern match failure")
+            env e alts def
+
+
+evalCase ::
+  HasRange a =>
+  (Env -> TC a k -> val) ->
+  val ->
+  Env ->
+  TC a K.Value ->
+  NonEmpty (TCAlt a k) ->
+  Maybe (TC a k) ->
+  val
+evalCase eval ifFail env e alts def =
+  let v = compilePureExpr env e
+  in case msum (NE.map (tryAlt eval env v) alts) of
+       Just res -> res
+       Nothing ->
+         case def of
+           Just d  -> eval env d
+           Nothing -> ifFail
+
+
+
+tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
+tryAlt eval env v (TCAlt ps e) =
+  do binds <- matchPatOneOf ps v
+     let newEnv = foldr (uncurry addVal) env binds
+     pure (eval newEnv e)
+
+matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
+matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
+
+matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
+matchPat pat =
+  case pat of
+    TCConPat _ l p    -> \v -> case valueToUnion v of
+                                 (l1,v1) | l == l1 -> matchPat p v1
+                                 _ -> Nothing
+    TCNumPat _ i      -> \v -> do guard (valueToInteger v == i)
+                                  pure []
+    TCBoolPat b       -> \v -> do guard (valueToBool v == b)
+                                  pure []
+    TCJustPat p       -> \v -> case valueToMaybe v of
+                                 Nothing -> Nothing
+                                 Just v1 -> matchPat p v1
+    TCNothingPat {}   -> \v -> case valueToMaybe v of
+                                 Nothing -> Just []
+                                 Just _  -> Nothing
+    TCVarPat x        -> \v -> Just [(x,v)]
+    TCWildPat {}      -> \_ -> Just []
+
 
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
 invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
@@ -502,14 +570,12 @@ compilePredicateExpr env = go
           let l = compilePureExpr env e
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
-          
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compilePredicateExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> error $ "BUG: missing case for `" ++ Text.unpack lbl ++ "`"
 
+        TCCase e alts def ->
+          evalCase
+            compilePredicateExpr
+            (ClassVal (\_ -> False) "Pattern match failure")
+            env e alts def
 
 mbSkip :: WithSem -> Value -> Value
 mbSkip s v = case s of
@@ -616,7 +682,7 @@ compilePExpr env expr0 args = go expr0
              pure $! mbSkip s v
 
         TCChoice c es _  -> foldr (alt c)
-                              (pError FromSystem erng "no choice") (map go es)
+                              (pError FromSystem erng "all alternatives of `Choice` failed") (map go es)
 
         TCOptional c e   ->
              alt c (VMaybe . Just <$> go e) (pure (VMaybe Nothing))
@@ -704,7 +770,7 @@ compilePExpr env expr0 args = go expr0
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v args
-            Nothing -> error $ "BUG: unknown grammar variable " ++ show x
+            Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
         TCCoerceCheck  s _ t e ->
           case doCoerceTo (evalType env t) (compilePureExpr env e) of
@@ -719,26 +785,37 @@ compilePExpr env expr0 args = go expr0
                        Commit    -> Abort
                        Backtrack -> Fail
 
-        TCSelCase _ e pats mdef _ -> 
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | Just (m_var, e') <- Map.lookup lbl pats ->
-                       compileExpr (addValMaybe m_var va env) e'
-                     | Just e' <- mdef -> go e'
-                     | otherwise -> 
-                       pError FromSystem erng
-                          ("missing case for `" ++ Text.unpack lbl ++ "`")
+        TCCase e alts def ->
+          evalCase
+            compileExpr
+            (pError FromSystem erng "pattern match failure")
+            env e alts def
+
+tracePrim :: [SomeVal] -> Parser Value
+tracePrim vs =
+  case vs of
+    [ VVal v ] ->
+        do pTrace (vecFromRep (valueToByteString v))
+           pure vUnit
+    _ -> panic "tracePrim" [ "Invalid call to the trace primitive" ]
+
 
 -- Decl has already been added to Env if required
 compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
 compileDecl prims env TCDecl { .. } =
   ( tcDeclName
   , case tcDeclDef of
-      ExternDecl _ -> case Map.lookup tcDeclName prims of
-                        Just yes -> yes
-                        Nothing ->
-                         panic "compileDecl"
-                           [ "No implementation for primitive: " ++
-                                                    show (pp tcDeclName) ]
+
+      ExternDecl _ ->
+        case Map.lookup tcDeclName prims of
+          Just yes -> yes
+          Nothing
+            | ("Debug","Trace") <- K.nameScopeAsModScope tcDeclName ->
+              FGrm (Fun \_ -> tracePrim)
+
+            | otherwise -> panic "compileDecl"
+              [ "No implementation for primitive: " ++ show (pp tcDeclName) ]
+
       Defined d ->
         case tcDeclCtxt of
           AGrammar ->
@@ -770,7 +847,9 @@ compileDecl prims env TCDecl { .. } =
 
   newEnv targs args
     | length targs /= length tcDeclTyParams =
-      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName))
+      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName)
+              ++ ". This usually indicates some expression in the program became polymorphic, "
+              ++ "which can be fixed by adding more type annotations.")
     | length args /= length tcDeclParams =
       error ("BUG: not enough args for " ++ show tcDeclName)
     | otherwise =
@@ -804,36 +883,35 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
         _      -> panic "expecting a VVal" []
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
+    
+    allRules = map (forgetRecs . tcModuleDecls) prog
 
-    allRules = concatMap (map recToList . tcModuleDecls) prog
-
-interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> Result Value
-interpCompiled name bytes env startName =
+interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
+interpCompiled name bytes env startName args = 
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
-            , nameScope x == startName] of
-    (rl : _)        -> P.runParser (rl [] [])
+            , nameScopedIdent x == startName] of
+    (rl : _)        -> P.runParser (rl [] (map VVal args))
                        (newInput name bytes)
-    []              -> error ("Unknown start rule: " ++ show startName)
-
+    []              -> error ("Unknown start rule: " ++ show startName ++ ". Known rules: "
+                               ++ show [ nameScopedIdent x | (x, _) <- Map.toList (ruleEnv env) ] )
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
           ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
           Result Value
 interp builtins nm bytes prog startName =
-  interpCompiled nm bytes env startName
+  interpCompiled nm bytes env startName []
   where
     env = compile builtins prog
 
-interpFile :: HasRange a => FilePath -> [TCModule a] -> ScopedIdent ->
+interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
                                               IO (ByteString, Result Value)
 interpFile input prog startName = do
-  bytes <- if input == "-" then BS.getContents
-                           else BS.readFile input
-  let nm = encodeUtf8 (Text.pack input)
+  (nm,bytes) <- case input of
+                  Nothing  -> pure ("(empty)", BS.empty)
+                  Just "-" -> do bs <- BS.getContents
+                                 pure ("(stdin)", bs)
+                  Just f   -> do bs <- BS.readFile f
+                                 pure (encodeUtf8 (Text.pack f), bs)
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]
-
-
-
-

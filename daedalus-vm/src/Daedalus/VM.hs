@@ -1,5 +1,9 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.VM where
+module Daedalus.VM
+  ( module Daedalus.VM
+  , Src.Pattern(..)
+  , Src.FName
+  ) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -16,13 +20,17 @@ import qualified Daedalus.Core as Src
 
 -- | A program
 data Program = Program
-  { pModules  :: [Module]
+  { pModules    :: [Module]
+  , pEntries    :: [Entry]
+  }
 
-    -- XXX: we probably want to support more than one entry point.
-    -- XXX: we also want entry points with parameters.
-  , pBoot     :: Map Label Block
-  , pType     :: Src.Type     -- ^ type of value produced by parser
-  , pEntry    :: Label
+-- XXX: maybe this needs a name also to be used for the external API
+-- | An entry point to the program
+data Entry = Entry
+  { entryType   :: Src.Type          -- ^ type of value produced by parser
+  , entryBoot   :: Map Label Block   -- ^ code specific to the entry point
+  , entryLabel  :: Label             -- ^ start executing here
+  , entryName   :: Text
   }
 
 -- | A module
@@ -76,7 +84,7 @@ data Instr =
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
   | GetInput BV
-  | Spawn BV JumpPoint
+  | Spawn BV Closure
   | NoteFail
 
   | Let BV E
@@ -90,11 +98,11 @@ data CInstr =
   | ReturnNo
   | ReturnYes E
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
-  | CallPure Src.FName JumpPoint [E]
+  | CallPure Src.FName Closure [E]
     -- ^ The jump point contains information on where to continue after
     -- return and what we need to preserve acrross the call
 
-  | Call Src.FName Captures JumpPoint JumpPoint [E]
+  | Call Src.FName Captures Closure Closure [E]
     -- The JumpPoints contain information about the return addresses.
 
   | TailCall Src.FName Captures [E]
@@ -112,6 +120,8 @@ data Captures = Capture | NoCapture
 -- | Target of a jump
 data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
 
+type Closure = JumpPoint
+
 -- | Before jumping to these targets we should deallocate the given
 -- variables.  We could achieve the same with just normal jumps and
 -- additional basic blocks, but this seems more straight forward
@@ -125,10 +135,7 @@ jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 
 -- | Two joint points, but we'll use exactly one of the two.
 -- This matters for memory management.
-data JumpChoice =
-  JumpChoice { jumpYes :: JumpWithFree
-             , jumpNo  :: JumpWithFree
-             }
+data JumpChoice = JumpCase (Map Src.Pattern JumpWithFree)
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
@@ -162,6 +169,12 @@ eIsVar e =
     EBlockArg x -> Just (ArgVar x)
     _ -> Nothing
 
+eVar :: VMVar -> E
+eVar var =
+  case var of
+    LocalVar x -> EVar x
+    ArgVar x   -> EBlockArg x
+
 iArgs :: Instr -> [E]
 iArgs i =
   case i of
@@ -177,6 +190,10 @@ iArgs i =
     Let _ e           -> [e]
     Free _            -> []       -- XXX: these could be just owned args
 
+pAllBlocks :: Program -> [Block]
+pAllBlocks p =
+  [ b | ent <- pEntries p, b <- Map.elems (entryBoot ent) ] ++
+  [ b | m <- pModules p, f <- mFuns m, b <- Map.elems (vmfBlocks f) ]
 
 --------------------------------------------------------------------------------
 -- Names
@@ -189,7 +206,7 @@ data Label      = Label Text Int deriving (Eq,Ord,Show)
 data BV         = BV Int VMT            deriving (Eq,Ord)
 data BA         = BA Int VMT Ownership  deriving (Eq,Ord)
 
-data Ownership  = Owned | Borrowed      deriving (Eq,Ord)
+data Ownership  = Owned | Borrowed | Unmanaged      deriving (Eq,Ord,Show)
 
 class GetOwnership t where
   getOwnership :: t -> Ownership
@@ -253,6 +270,7 @@ instance PP Ownership where
   pp m = case m of
            Owned    -> "Owned"
            Borrowed -> "Borrowed"
+           Unmanaged -> "Unmanaged"
 
 instance PP Label where
   pp (Label f i) = "L_" <.> int i <.> "_" <.> pp f
@@ -275,10 +293,9 @@ instance PP CInstr where
   pp cintsr =
     case cintsr of
       Jump v        -> "jump" <+> pp v
-      JumpIf b ls   -> "if" <+> pp b $$ nest 2 (
-                          "then" <+> pp (jumpYes ls) $$
-                          "else" <+> pp (jumpNo  ls)
-                        )
+      JumpIf b (JumpCase ps) -> "case" <+> pp b <+> "of"
+                                $$ nest 2 (vcat (map ppAlt (Map.toList ps)))
+            where ppAlt (p,g) = pp p <+> "->" <+> pp g
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
       ReturnYes e   -> ppFun "return" [pp e]
@@ -300,12 +317,11 @@ instance PP JumpWithFree where
                   else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
-  pp p =
-    ".entry" <+> pp (pEntry p) $$
-    "" $$
-    vcat' (map pp (Map.elems (pBoot p))) $$
-    "" $$
-    vcat' (map pp (pModules p))
+  pp p = vcat' (map pp (pEntries p) ++ map pp (pModules p))
+
+instance PP Entry where
+  pp entry = vcat' $ ".entry" <+> pp (entryLabel entry)
+                   :  map pp (Map.elems (entryBoot entry))
 
 instance PP Module where
   pp m =
@@ -347,6 +363,7 @@ instance PP E where
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
 
+
 instance PP VMVar where
   pp v =
     case v of
@@ -361,16 +378,20 @@ instance PP BA where
     where own = case o of
                   Owned    -> "o"
                   Borrowed -> "b"
+                  Unmanaged -> "u"
+
+instance PP BlockType where
+  pp b =
+    case b of
+      NormalBlock   -> "/* normal block */"
+      ReturnBlock n -> "/* return" <+> int n <+> "*/"
+      ThreadBlock   -> "/* thread */"
 
 instance PP Block where
   pp b = l <.> colon <+> ty $$ nest 2
                           (vcat (map pp (blockInstrs b)) $$ pp (blockTerm b))
     where
-    ty = case blockType b of
-           NormalBlock   -> empty
-           ReturnBlock n -> "// return" <+> int n
-           ThreadBlock   -> "// thread"
-
+    ty = pp (blockType b)
     l = case blockArgs b of
           [] -> pp (blockName b)
           xs -> ppFun (pp (blockName b)) (map ppArg xs)

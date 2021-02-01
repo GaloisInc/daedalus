@@ -14,21 +14,31 @@ type PNG.Chunk = { type: [uint 8]
 PNG.$letter : ByteClass =
   ('A' .. 'Z') | ('a' .. 'z')
  
+PNG.Header : Grammar {} =
+  @MatchBytes [137,
+               80,
+               78,
+               71,
+               13,
+               10,
+               26,
+               10]
+ 
 PNG.BE : Grammar (uint 32) =
-  do (_4 : uint 24) <- do (_2 : uint 16) <- do (_0 : uint 8) <- GetByte
-                                               (_1 : uint 8) <- GetByte
-                                               pure (_0 # _1)
-                          (_3 : uint 8) <- GetByte
-                          pure (_2 # _3)
-     (_5 : uint 8) <- GetByte
-     pure (_4 # _5)
+  do (_30 : uint 24) <- do (_28 : uint 16) <- do (_26 : uint 8) <- GetByte
+                                                 (_27 : uint 8) <- GetByte
+                                                 pure (_26 # _27)
+                           (_29 : uint 8) <- GetByte
+                           pure (_28 # _29)
+     (_31 : uint 8) <- GetByte
+     pure (_30 # _31)
+ 
+PNG.Length : Grammar int =
+  do (_32 : uint 32) <- PNG.BE
+     _32 AS int
  
 PNG.CRC : Grammar (uint 32) =
   PNG.BE
- 
-PNG.Length : Grammar int =
-  do (_6 : uint 32) <- PNG.BE
-     _6 AS int
  
 PNG.Type : Grammar [uint 8] =
   Many[4] Match PNG.$letter
@@ -59,16 +69,6 @@ PNG.Chunk : Grammar PNG.Chunk =
            crcField = crcField,
            crcCheck = crcCheck}
  
-PNG.Header : Grammar {} =
-  @MatchBytes [137,
-               80,
-               78,
-               71,
-               13,
-               10,
-               26,
-               10]
- 
 PNG._Header : Grammar {} =
   @MatchBytes [137,
                80,
@@ -91,6 +91,10 @@ PNG._BE : Grammar {} =
         @GetByte
      @GetByte
  
+PNG._Length : Grammar {} =
+  do (_32 : uint 32) <- PNG.BE
+     @(_32 AS int)
+ 
 PNG._CRC : Grammar {} =
   PNG._BE
  
@@ -102,10 +106,6 @@ PNG._Chunk : Grammar {} =
      PNG._Type
      @Many[len] @GetByte
      PNG._CRC
- 
-PNG._Length : Grammar {} =
-  do (_6 : uint 32) <- PNG.BE
-     @(_6 AS int)
  
 PNG._Main : Grammar {} =
   do PNG._Header

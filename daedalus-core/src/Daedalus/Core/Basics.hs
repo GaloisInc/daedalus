@@ -24,8 +24,8 @@ data TName = TName
 
 -- | What "flavor of type" we have
 data TFlav = TFlavStruct
-           | TFlavEnum        -- ^ A sum type with no data
-           | TFlavUnion       -- ^ A sum type with data
+           | TFlavEnum  [Label]      -- ^ A sum type with no data
+           | TFlavUnion [Label]      -- ^ A sum type with data
 
 -- | Names of top-level functions
 data FName = FName
@@ -81,6 +81,15 @@ data UserType = UserType
 newtype TParam = TP Int
   deriving (Eq,Ord)
 
+
+data Pattern =
+    PBool Bool
+  | PNothing
+  | PJust
+  | PNum Integer
+  | PCon Label
+  | PAny
+    deriving (Eq,Ord)
 
 
 --------------------------------------------------------------------------------
@@ -167,4 +176,14 @@ instance PP SizeType where
     case t of
       TSize n -> pp n
       TSizeParam x -> pp x
-  
+
+
+instance PP Pattern where
+  pp pat =
+    case pat of
+      PBool  b  -> pp b
+      PNothing  -> "nothing"
+      PJust     -> "just"
+      PNum   n  -> pp n
+      PCon   l  -> pp l
+      PAny      -> "_"

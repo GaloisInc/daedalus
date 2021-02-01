@@ -16,18 +16,17 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import RTS.Input(Input(..))
+import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
+import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
-import Daedalus.ParserGen.ClassInterval (ClassInterval(..), IntervalEndpoint(..))
 
 type State = Int
 
 
 data InputAction =
-    ClssItv ClassInterval -- this case comes from the determinization from LL(*)
-  | ClssAct WithSem NCExpr
+    ClssAct WithSem NCExpr
   | IEnd
   | IOffset
   | IGetByte WithSem
@@ -97,7 +96,7 @@ semToString NoSem = ""
 
 showName :: Name -> String
 showName n =
-  showName1 (nameScope n)
+  showName1 (nameScopedIdent n)
   where
     showName1 ((ModScope _ x)) = show x
     showName1 ((Unknown x)) = show x
@@ -105,7 +104,6 @@ showName n =
 
 
 instance Show(InputAction) where
-  show (ClssItv _)    = "ClssItv"
   show (ClssAct s _)  = semToString s ++ "Match"
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
@@ -171,6 +169,7 @@ isClassActOrEnd act =
     IAct iact ->
       case iact of
         ClssAct _ _ -> True
+        IGetByte _ -> True
         IEnd -> True
         _ -> False
     _ -> False
@@ -191,8 +190,8 @@ isActivateFrameAction act =
     CAct (ActivateFrame {}) -> True
     _ -> False
 
-isNonClassInputAct :: Action -> Bool
-isNonClassInputAct act =
+isUnhandledInputAction :: Action -> Bool
+isUnhandledInputAction act =
   case act of
     IAct iact ->
       case iact of
@@ -223,10 +222,16 @@ isUnhandledAction act =
       case sact of
         MapInsert {} -> True
         SelUnion {} -> True
-        Guard _ -> True
-        CoerceCheck {} -> True
+        -- Guard _ -> True
+        -- CoerceCheck {} -> True
         SelJust {} -> True
         _ -> False
+    _ -> False
+
+isPushAction :: Action -> Bool
+isPushAction act =
+  case act of
+    CAct (Push _ _ _) -> True
     _ -> False
 
 isBranchAction :: Action -> Bool
@@ -235,12 +240,13 @@ isBranchAction act =
     BAct _ -> True
     _ -> False
 
-getClassActOrEnd :: Action -> Either NCExpr InputAction
+getClassActOrEnd :: Action -> Either (Either NCExpr InputAction) InputAction
 getClassActOrEnd act =
   case act of
     IAct iact ->
       case iact of
-        ClssAct _ ca -> Left ca
+        ClssAct _ ca -> Left $ Left ca
+        IGetByte _s -> Left $ Right iact
         IEnd -> Right iact
         _ -> error "function should be applied on act"
     _ -> error "function should be applied on act"
@@ -254,11 +260,6 @@ getMatchBytes act =
         _ -> Nothing
     _ -> Nothing
 
-getByteArray :: NVExpr -> Maybe [Word8]
-getByteArray e =
-  case texprValue e of
-    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
-    _ -> Nothing
 
 type Val = Interp.Value
 
@@ -552,13 +553,16 @@ applyBinop op e1 e2 =
             _          -> error "BUG: 1st argument to (<#) must be numeric"
         _ -> error "BUG: 2nd argument of (<#) should be UInt"
 
-
+    ArrayStream ->
+      Interp.VStream (newInput nm bs)
+      where nm = valueToByteString e1
+            bs = valueToByteString e2
     _ -> error ("TODO: " ++ show op)
 
 
 name2Text :: Name -> Text
 name2Text n =
-  let x = nameScope n
+  let x = nameScopedIdent n
   in case x of
     Unknown ident -> ident
     Local   ident -> ident
@@ -576,20 +580,6 @@ name2Text n =
 tODOCONST :: Integer
 tODOCONST = 2
 
-
-coerceVal :: Type -> Type -> Val -> Val
-coerceVal ty1 ty2 v =
-  case v of
-    Interp.VUInt _n x ->
-      case ty2 of
-        Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) x
-        Type (TInteger) -> Interp.VInteger x
-        _ -> error $ "TODO type:" ++ show (ty1,ty2,v)
-    Interp.VInteger _ ->
-      case (ty1, ty2) of
-        (Type (TInteger), Type (TInteger)) -> v
-        _ -> error $ "TODO type: " ++ show (ty1,ty2,v)
-    _ -> error $ "TODO vallue: " ++ show (ty1,ty2,v)
 
 isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
@@ -638,7 +628,9 @@ evalVExpr gbl expr ctrl out =
     eval :: Show a => Maybe [(Name, Interp.Value)] -> TC a Value -> Interp.Value
     eval env e =
       case texprValue e of
-        TCCoerce ty1 ty2 e1 -> coerceVal ty1 ty2 (eval env e1)
+        TCCoerce _ty1 ty2 e1 ->
+          let ev = eval env e1 in
+          fst $ doCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
         TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
@@ -819,17 +811,6 @@ advanceBy = Input.advanceBy
 applyInputAction :: GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) act =
   case act of
-    ClssItv (ClassBtw i j) ->
-      case getByte inp of
-        Nothing -> Nothing
-        Just (x, xs) ->
-          case (i,j) of
-            (CValue a, CValue b) ->
-              if (a <= x) && (x <= b)
-              then Just (xs, SEVal (Interp.VUInt 8 (fromIntegral x)) : out)
-              else Nothing
-            (_, _) -> error "Class Interval not handled"
-
     ClssAct s e ->
       case getByte inp of
         Nothing -> Nothing
@@ -1178,10 +1159,11 @@ applySemanticAction gbl (ctrl, out) act =
              then Nothing
              else resultWithSem s (Interp.VMap (Map.insert ev1 ev2 m))
            _ -> error "Lookup is not applied to value of type map"
-    CoerceCheck _ t1 t2 e1 ->
-      -- TODO : maybe still incomplete
-      let ev1 = evalVExpr gbl e1 ctrl out
-      in Just $ (SEVal $ coerceVal t1 t2 ev1) : out
+    CoerceCheck s _t1 t2 e1 ->
+      let ev1 = evalVExpr gbl e1 ctrl out in
+        case doCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
+          (v, NotLossy) -> resultWithSem s v
+          (_, Lossy) -> Nothing -- error "Lossy coercion"
     SelUnion s e1 lbl ->
       let ev1 = evalVExpr gbl e1 ctrl out
       in case ev1 of

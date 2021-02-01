@@ -37,4 +37,37 @@ typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } LogLevel;
 #define LOGI(...) LOG(INFO, __VA_ARGS__)
 #define LOGD(...) LOG(DEBUG, __VA_ARGS__)
 
+
+//We enable ASSERT by default. You can control this explicitly by setting
+//either `ENABLE_ASSERT=0` at compile time using some variation of `-D'
+#if !defined(ENABLE_ASSERT)
+    #define ASSERTSTATUS 1
+#else
+    #if ENABLE_ASSERT == 0
+        #define ASSERTSTATUS 0
+    #else
+        #define ASSERTSTATUS 1
+    #endif
+#endif
+
+
+#define ASSERTFAILURECODE 100
+
+#define ASSERT(condition, fmt, ...)                                           \
+    do {                                                                      \
+        if (ASSERTSTATUS) {                                                   \
+            if (!(condition)) {                                               \
+                fprintf(stderr, " (%s:%s:%d)", __FILE__, __func__, __LINE__); \
+                fprintf(stderr, " " fmt "\n", ##__VA_ARGS__);                 \
+                exit(ASSERTFAILURECODE) ;                                     \
+            }                                                                 \
+        }                                                                     \
+    } while (0)
+
+#define ASSERT_FIELD(elem, field, fmt, ...)                                   \
+    do {                                                                      \
+        ASSERT(elem != NULL && elem->field != NULL, fmt, ##__VA_ARGS__);      \
+    } while (0)
+
+
 #endif /* _DEBUG_H_ */

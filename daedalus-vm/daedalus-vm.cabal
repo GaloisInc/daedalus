@@ -24,6 +24,7 @@ library
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy
+    Daedalus.VM.RefCountSane
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
@@ -36,7 +37,7 @@ library
     Daedalus.VM.Backend.C.Call
 
   build-depends:
-    base >=4.13 && <4.14,
+    base >=4.13 && <4.15,
     containers,
     text,
     bytestring,

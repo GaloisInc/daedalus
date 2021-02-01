@@ -25,6 +25,7 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
+import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import Primitives.Decrypt(makeFileKey)
 
 main :: IO ()
@@ -291,28 +292,24 @@ makeEncContext :: Integral a =>
                   -> BS.ByteString 
                   -> IO ((a, a) -> Maybe EncContext)
 makeEncContext trail refs topInput pwd = 
-  case getField @"encrypt" trail of 
-    Nothing -> pure $ const Nothing -- No encryption 
-    Just e -> do 
-      let eref = getField @"eref" e 
-      enc <- handlePdfResult (runParser refs Nothing (pEncryptionDict eref) topInput) 
+  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
                               "Ambiguous encryption dictionary"
-      let encO = vecToRep $ getField @"encO" enc 
-          encP = fromIntegral $ getField @"encP" enc
-          id0 = vecToRep $ getField @"id0" e 
-          filekey = makeFileKey pwd encO encP id0
-      pure $ \(ro, rg) -> 
-        Just EncContext { key  = filekey, 
-                          robj = fromIntegral ro, 
-                          rgen = fromIntegral rg, 
-                          ver  = fromIntegral $ getField @"encV" enc, 
-                          ciph = chooseCipher $ getField @"ciph" enc  } 
+     case edict of 
+       MakeContext_noencryption _ -> pure $ const Nothing 
+       MakeContext_encryption enc -> do 
+        let encO = vecToRep $ getField @"encO" enc 
+            encP = fromIntegral $ getField @"encP" enc
+            id0 = vecToRep $ getField @"id0" enc 
+            filekey = makeFileKey pwd encO encP id0
+        pure $ \(ro, rg) -> 
+          Just EncContext { key  = filekey, 
+                            robj = fromIntegral ro, 
+                            rgen = fromIntegral rg, 
+                            ciph = chooseCipher $ getField @"ciph" enc  } 
 
 chooseCipher :: ChooseCiph -> Cipher 
 chooseCipher enc = 
   case enc of 
-    ChooseCiph_v2 _ -> V2 
-    ChooseCiph_v4 i -> 
-      case i of 
-        ChooseCiphV4_v4AES () -> V4AES 
-        ChooseCiphV4_v4RC4 () -> V4RC4
+    ChooseCiph_v2RC4 _ -> V2RC4
+    ChooseCiph_v4RC4 _ -> V4RC4
+    ChooseCiph_v4AES _ -> V4AES

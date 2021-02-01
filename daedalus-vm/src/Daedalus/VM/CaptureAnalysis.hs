@@ -10,7 +10,6 @@ import Data.List(foldl')
 import Daedalus.Rec(topoOrder,Rec(..))
 import Daedalus.PP
 
-import Daedalus.Core(FName)
 import Daedalus.VM
 
 

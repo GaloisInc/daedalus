@@ -3,16 +3,16 @@
 {-# Language ParallelListComp #-}
 module Daedalus.VM.Backend.C where
 
-{-
-import Data.ByteString(ByteString)
--}
 import qualified Data.ByteString as BS
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
+import           Data.Word(Word64)
+import           Data.Int(Int64)
 import qualified Data.Set as Set
-import           Data.Maybe(maybeToList,mapMaybe)
-import           Data.List(intersperse)
+import           Data.Maybe(maybeToList,mapMaybe,fromMaybe)
+import qualified Data.Text as Text
+import           Control.Applicative((<|>))
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
@@ -20,6 +20,7 @@ import Daedalus.Rec(topoOrder,forgetRecs)
 
 import Daedalus.VM
 import qualified Daedalus.Core as Src
+import Daedalus.VM.RefCountSane
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
@@ -32,60 +33,74 @@ import Daedalus.VM.Backend.C.Call
   * assignment: for passing block parameters
 -}
 
+-- XXX: separate output and parser state(input/threads)
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
 cProgram :: String -> Program -> (Doc,Doc)
-cProgram fileNameRoot prog = (hpp,cpp)
+cProgram fileNameRoot prog =
+  case checkProgram prog of
+    Nothing -> (hpp,cpp)
+    Just err -> panic "cProgram" err
   where
   module_marker = text fileNameRoot <.> "_H"
 
-  hpp = vcat [ "#ifndef" <+> module_marker
-             , "#define" <+> module_marker
-             , " "
-             , includes
-             , " "
-             , vcat' (map cTypeGroup allTypes)
-             , " "
-             , cStmt ("using ParserResult =" <+> parserTy)
-               -- this is just to make it easier to write a polymorphic
-               -- test driver
+  hpp = vcat $
+          [ "#ifndef" <+> module_marker
+          , "#define" <+> module_marker
+          , " "
+          , includes
+          , " "
+          , vcat' (map cTypeGroup allTypes)
+          , " "
+          , "namespace DDL { namespace ResultOf {"
+          ] ++ map declareParserResult (pEntries prog) ++
+          [ "}}" ] ++
+          [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
+          [ ""
+          , "#endif"
+          ]
 
-             , cStmt parserSig
-             , " "
-             , "#endif"
-             ]
+  declareParserResult ent =
+    cStmt ("using" <+> nm <+> "=" <+> cSemType (entryType ent))
+    where nm = ptext (Text.unpack (entryName ent)) -- Not escaped!
 
+  cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
+               , " "
+               ] ++
+               [ parserSig <+> "{"
+               , nest 2 parserDef
+               , "}"
+               ] ++
+               zipWith cDefineEntry [0..] (pEntries prog)
 
-  cpp = vcat [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
-             , " "
-             , parserSig <+> "{"
-             , nest 2 parserDef
-             , "}"
-             ]
-
-  parserSig = "void parser(" <.> cInst "DDL::Parser" [ parserTy ] <+> "&p)"
+  parserSig = "static void parser(DDL::Input i0, int entry, DDL::ParseError &err, void* out)"
 
   orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
   modDeps m      = (mName m, Set.fromList (mImports m))
 
   allTypes       = concatMap mTypes orderedModules
   allFuns        = concatMap mFuns orderedModules
-  allBlocks      = Map.unions (pBoot prog : map vmfBlocks allFuns)
+  allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
+                                                          map vmfBlocks allFuns)
   doBlock b      = let ?allFuns = Map.fromList [ (vmfName f, f) | f <- allFuns ]
                        ?allBlocks = allBlocks
                    in cBasicBlock b
 
-  parserTy       = cSemType (pType prog)
-  parserDef      = vcat [ params
+  parserDef      = vcat [ "DDL::ParserState p{i0};"
+                        , params
                         , cDeclareRetVars allFuns
                         , cDeclareCallClosures (Map.elems allBlocks)
                         , " "
                         , "// --- States ---"
                         , " "
-                        , cGoto (cBlockLabel (pEntry prog))
+                        , cSwitch "entry"
+                            [ cCase (int i) $
+                                   cGoto (cBlockLabel (entryLabel e))
+                                     | (i,e) <- zip [0..] (pEntries prog) ]
                         , " "
                         , vcat' (map doBlock (Map.elems allBlocks))
                         ]
+
 
   params         = vcat (map cDeclareBlockParams (Map.elems allBlocks))
 
@@ -109,6 +124,24 @@ type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
 type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
+
+cEntrySig :: Entry -> Doc
+cEntrySig ent =
+  "void" <+> nm <.>
+    vcat [ "( DDL::Input input"
+         , ", DDL::ParseError &error"
+         , "," <+> cInst "std::vector" [ ty ] <+> "&results"
+         , ")"
+         ]
+  where
+  nm = text (Text.unpack (entryName ent)) -- Not escaped!
+  ty = cSemType (entryType ent)
+
+cDefineEntry :: Int -> Entry -> Doc
+cDefineEntry n ent = cEntrySig ent <+> "{" $$ nest 2 body $$ "}"
+  where
+  body = cStmt (cCall "parser" [ "input", int n, "error", "&results" ])
+
 
 cDeclareBlockParams :: Block -> CStmt
 cDeclareBlockParams b
@@ -162,20 +195,28 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   where
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
-         in getArgs
-         -- $$ dbg
+         in dbg1
+         $$ getArgs
+         $$ dbg
          $$ vcat (map cBlockStmt (blockInstrs b))
          $$ vcat (cTermStmt (blockTerm b))
 
+  dbg1 :: (CurBlock,Copies) => CStmt
+  dbg1 = vcat $ map cStmt
+       [ cDebug ("enter " ++ show (pp (blockName b)))
+       , cDebug "("
+       , cDebugVal ("&&" <.> cBlockLabel (blockName b))
+       , cDebugLine ")"
+       ]
+
   dbg :: (CurBlock,Copies) => CStmt
-  dbg =   cStmt
-        $ fsep
-        $ intersperse "<<"
-        $ [ "std::cout", cString ("enter " ++ show (pp (blockName b))) ] ++
-          concat [ [cString s, cExpr (EBlockArg a)]
-                 | a <- blockArgs b
-                 | s <- ": " : repeat ", " ] ++
-          [ "std::endl" ]
+  dbg = vcat $ map cStmt $
+        cDebug "  args"
+      : concat [ [ cDebug s, cDebugVal (cExpr (EBlockArg a)) ]
+               | a <- blockArgs b
+               | s <- ": " : repeat ", "
+               ]
+      ++ [ cDebugNL ]
 
   getArgs = case blockType b of
               NormalBlock -> empty
@@ -188,9 +229,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   [ cAssign (cArgUse b v) (cRetVar (getType v)) | v <- ras ] ++
                   [ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
                   ] ++
-                  [ cAssign (cArgUse b v) e
+                  [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                   | (v,n) <- cas `zip` [ 0 .. ]
-                  , let e = "clo->" <.> cField n
                   ] ++
                   [ cStmt (cCall "clo->free" ["true"]) ]
 
@@ -201,9 +241,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                 cBlock
                   $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
                   : cAssign (cArgUse b x) (cCall "DDL::Bool" ["clo->notified"])
-                  : [ cAssign (cArgUse b v) e
+                  : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                     | (v,n) <- xs `zip` [ 0 .. ]
-                    , let e = "clo->" <.> cField n
                     ]
                  ++ [ cStmt (cCall "clo->free" ["true"]) ]
 
@@ -229,7 +268,9 @@ cBlockStmt cInstr =
   case cInstr of
     SetInput e      -> cStmt (cCall "p.setInput" [ cExpr e])
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
-    Output e        -> cStmt (cCall "p.output"   [ cExpr e ])
+    Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
+                           o = parens (parens(t) <.> "out")
+                       in cStmt (cCall (o <.> "->push_back") [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail        -> cStmt (cCall "p.noteFail" [])
     GetInput x      -> cVarDecl x (cCall "p.getInput" [])
@@ -255,8 +296,8 @@ cBlockStmt cInstr =
         NewBuilder _ -> cDeclareVar (cType (getType x)) (cVarUse x)
         Integer n    -> cVarDecl x (cCall "DDL::Integer" [ cString (show n) ])
         ByteArray bs -> cVarDecl x
-                              (cCall "DDL::Array<DDL::UInt<8>>"
-                                ( int (BS.length bs)
+                              (cCallCon "DDL::Array<DDL::UInt<8>>"
+                                ( cCallCon "size_t" [int (BS.length bs)]
                                 : [ cCall "DDL::UInt<8>" [ text (show w) ]
                                   | w <- BS.unpack bs
                                   ]
@@ -270,10 +311,10 @@ cBlockStmt cInstr =
 cFree :: (CurBlock, Copies) => Set VMVar -> [CStmt]
 cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
            | x <- Set.toList xs
-           , y <- freeVar x
+           , y <- freeVar' x
            ]
   where
-  freeVar x =
+  freeVar' x =
     case x of
       LocalVar y | Just e <- Map.lookup y ?copies -> maybeToList (eIsVar e)
       _                                           -> [x]
@@ -395,8 +436,8 @@ cOp1 x op1 ~[e'] =
       vcat
         [ cDeclareVar (cType (getType x)) v
         , cSwitch (cCallMethod e "rep" [])
-            $ [ cCase (int (fromEnum b)) <+> true | b <- BS.unpack bs ]
-           ++ [ cDefault <+> false ]
+            $ [ cCase (int (fromEnum b)) true | b <- BS.unpack bs ]
+           ++ [ cDefault false ]
         ]
 
     Src.Neg ->
@@ -435,9 +476,6 @@ cOp1 x op1 ~[e'] =
     Src.EJust ->
       cVarDecl x $ cCall (cType (getType x)) [e]
 
-    Src.IsJust ->
-      cVarDecl x $ cCallMethod e "isJust" []
-
     Src.FromJust ->
       cVarDecl x $ cCallMethod e "getValue" []
 
@@ -449,9 +487,6 @@ cOp1 x op1 ~[e'] =
            , cStmt $ cCallMethod (cVarUse x) (unionCon l)
                                       [ e | getType e' /= TSem Src.TUnit ]
            ]
-
-    Src.HasTag l ->
-      cVarDecl x $ cCallMethod e "getTag" [] <+> "==" <+> cSumTagV l
 
     Src.FromUnion _t l ->
       cVarDecl x $ cCallMethod e (selName GenOwn l) []
@@ -467,10 +502,10 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
 
-    Src.Eq    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "==" <+> e2]
-    Src.NotEq -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "!=" <+> e2]
-    Src.Leq   -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<=" <+> e2]
-    Src.Lt    -> cVarDecl x $ cCall "DDL::Bool" [e1 <+> "<"  <+> e2]
+    Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
+    Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]
+    Src.Leq   -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<=" <+> e2]
+    Src.Lt    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<"  <+> e2]
 
     Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
     Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
@@ -486,40 +521,38 @@ cOp2 x op2 ~[e1',e2'] =
     Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
-    Src.Or  -> panic "cOp2" [ "Or" ]
-    Src.And -> panic "cOp2" [ "And" ]
-
     Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 e2)
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
-    Src.MapLookup -> todo
-    Src.MapMember -> todo
+    Src.MapLookup -> cVarDecl x (cCallMethod e1 "lookup" [e2])
+    Src.MapMember ->
+      cVarDecl x (cCallCon "DDL::Bool" [ cCallMethod e1 "contains" [e2] ])
 
 
   where
-  todo = "/* todo (2)" <+> pp op2 <+> "*/"
   e1   = cExpr e1'
   e2   = cExpr e2'
 
 
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
-cOp3 _x op ~[_,_,_] =
+cOp3 x op es =
   case op of
-    Src.PureIf      -> panic "cOp3" [ "PureIf" ]
     Src.RangeUp     -> todo
     Src.RangeDown   -> todo
-    Src.MapInsert   -> todo
+    Src.MapInsert -> cVarDecl x (cCallMethod e1 "insert" [ e2, e3 ])
   where
   todo = "/* todo: op 3 " <+> pp op <+> "*/"
+  [e1,e2,e3] = map cExpr es
 
 
 
 cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
 cOpN x op es =
   case op of
-    Src.ArrayL t -> cVarDecl x (cCall con (int (length es) : map cExpr es))
+    Src.ArrayL t -> cVarDecl x (cCallCon con (len : map cExpr es))
       where con = cSemType (Src.TArray t)
+            len = cCallCon "size_t" [ int (length es) ]
 
     Src.CallF _  -> panic "cOpN" ["CallF"]
 
@@ -547,11 +580,8 @@ cExpr expr =
             _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                                , show (pp ty) ]
 
-    EMapEmpty {} -> todo
+    EMapEmpty k v -> cCallCon (cInst "DDL::Map" [ cSemType k, cSemType v ]) []
     ENothing t  -> parens (cCall (cInst "DDL::Maybe" [cSemType t]) [])
-
-  where
-  todo = "/* XXX cExpr:" <+> pp expr <+> "*/"
 
 
 --------------------------------------------------------------------------------
@@ -561,16 +591,12 @@ cTermStmt ccInstr =
   case ccInstr of
     Jump jp -> cJump jp
 
-    JumpIf e choice ->
-      [ cIf (cCallMethod (cExpr e) "getValue" [])
-            (doChoice (jumpYes choice)) (doChoice (jumpNo  choice)) ]
-      where
-      doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+    JumpIf e (JumpCase opts) -> cDoCase e opts
 
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ "return;" ]
+          [ cAssign "err.offset" "p.getFailOffset()", "return;" ]
       ]
 
     ReturnNo ->
@@ -628,6 +654,81 @@ cJump (JumpPoint l es) =
   case Map.lookup l ?allBlocks of
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
+
+cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies) =>
+           E -> Map Pattern JumpWithFree -> [CStmt]
+cDoCase e opts =
+  case getType e of
+    TSem Src.TBool ->
+      check
+      do ifTrue  <- lkpOrDflt (PBool True)
+         ifFalse <- lkpOrDflt (PBool False)
+         pure [ cIf (cCallMethod (cExpr e) "getValue" [])
+                    (doChoice ifTrue) (doChoice ifFalse) ]
+
+    TSem (Src.TMaybe _) ->
+      check
+      do ifNothing <- lkpOrDflt PNothing
+         ifJust    <- lkpOrDflt PJust
+         pure [ cIf (cCallMethod (cExpr e) "isJust" [])
+                    (doChoice ifJust) (doChoice ifNothing) ]
+
+    TSem (Src.TInteger) ->
+      check
+      do let pats = Map.delete PAny opts
+         (PNum lower,_) <- Map.lookupMin pats
+         (PNum upper,_) <- Map.lookupMax pats
+
+         -- WARNING: assuming 64-bit arch.
+         case () of
+           _ | 0 <= lower && upper <= toInteger (maxBound :: Word64) ->
+               pure (mkSwitch "asULong" numPat)
+
+             | toInteger (minBound :: Int64) <= lower
+             , upper <= toInteger (maxBound :: Int64) ->
+               pure (mkSwitch "asSLong" numPat)
+
+              -- Lenar ifs. We could probably do something smarted depending
+              -- on the patterns but not sure that it is worted
+             | otherwise -> mkBigInt
+
+    TSem (Src.TUInt _)  -> mkSwitch "rep" numPat
+    TSem (Src.TSInt _)  -> mkSwitch "rep" numPat
+    TSem (Src.TUser {}) -> mkSwitch "getTag" conPat
+
+    ty -> panic "JumpIf" [ "`case` on unexpected type", show (pp ty) ]
+
+
+  where
+  dflt        = Map.lookup PAny opts
+  lkpOrDflt p = Map.lookup p opts <|> dflt
+  doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+
+  check = fromMaybe
+            (panic "JumpIf" ["Invalid case", "Type: " ++ show (pp (getType e))])
+
+  numPat p = case p of
+               PNum n -> integer n
+               _ -> panic "numPat" [ "Unexpected", show (pp p) ]
+
+  conPat ~(PCon l) = cSumTagV l
+
+  mkSwitch getNum pToCase =
+    let addDflt cs = case dflt of
+                       Nothing -> cs
+                       Just x  -> cs ++ [cDefault $ vcat (doChoice x)]
+    in [ cSwitch (cCallMethod (cExpr e) getNum []) $
+           addDflt
+            [ cCase (pToCase pat) (vcat (doChoice ch))
+                            | (pat, ch) <- Map.toList opts, pat /= PAny ]
+       ]
+
+  mkBigInt =
+    do d <- dflt
+       let ce = cExpr e
+           ifThis ~(PNum n,ch) el = 
+              [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
+       pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
 
 
 

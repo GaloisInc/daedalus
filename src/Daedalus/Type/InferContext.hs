@@ -74,7 +74,16 @@ inferContext expr =
     ESetStream {}     -> Some AGrammar
     EStreamLen {}     -> Some AGrammar
     EStreamOff {}     -> Some AGrammar
-    ECase {}          -> error "inferContext: ECase"
+    ECase e alts
+      | any isClass acs -> grammarIf AClass (ec : acs)
+      | otherwise       -> grammarIf AValue (ec : acs)
+      where
+      ec  = inferContext e
+      acs = map inferAlt alts
+      inferAlt p =
+        case p of
+          PatternDefault rhs -> inferContext rhs
+          PatternCase _ rhs  -> inferContext rhs
 
 grammarIf :: Context c -> [Some Context] -> Some Context
 grammarIf d xs = if any isGrammar xs then Some AGrammar else Some d
@@ -83,6 +92,12 @@ isGrammar :: Some Context -> Bool
 isGrammar ctx =
   case ctx of
     Some AGrammar -> True
+    _ -> False
+
+isClass :: Some Context -> Bool
+isClass ctx =
+  case ctx of
+    Some AClass -> True
     _ -> False
 
 

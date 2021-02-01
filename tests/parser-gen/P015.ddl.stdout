@@ -9,16 +9,16 @@ type P015.Main = { x: uint 8
  
 --- Rules:
  
-P015.A : Grammar (uint 8) =
-  do ($$ : uint 8) <- GetByte
-     pure $$
- 
 rec value
   P015.mygauss (m : int) : int =
     if (m == 0) then 0 else m + (P015.mygauss (m - 1))
  
 P015.myfun (m : int) : int =
   (P015.mygauss m) + 42
+ 
+P015.A : Grammar (uint 8) =
+  do ($$ : uint 8) <- GetByte
+     pure $$
  
 P015.Main : Grammar P015.Main =
   do (x : uint 8) <- P015.A

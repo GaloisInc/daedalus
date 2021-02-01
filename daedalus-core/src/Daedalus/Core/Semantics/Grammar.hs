@@ -5,7 +5,7 @@ import qualified Data.ByteString.Char8 as BS8
 
 import RTS.Parser
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
-                    , pError', pErrorAt, ParseErrorSource(..)
+                    , pError', ParseErrorSource(..)
                     )
 
 import Daedalus.Core
@@ -54,7 +54,8 @@ evalG gram env =
         NoFail -> evalG g env
         SrcAnnot t -> pEnter (Text.unpack t) (evalG g env)
 
-    If e g1 g2 ->
-      if fromVBool (eval e env) then evalG g1 env else evalG g2 env
+    GCase c ->
+      evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
+
 
 

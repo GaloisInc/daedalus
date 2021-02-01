@@ -39,6 +39,9 @@ block open sp close xs =
 commaSep :: [Doc] -> Doc
 commaSep ds = hsep (punctuate comma ds)
 
+showPP :: PP a => a -> String
+showPP = show . pp
+
 infixl 6 <.>
 
 (<.>) :: Doc -> Doc -> Doc

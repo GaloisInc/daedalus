@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string.h>
 
+#include <ddl/debug.h>
 #include <ddl/boxed.h>
 #include <ddl/array.h>
 #include <ddl/number.h>
@@ -30,29 +31,44 @@ public:
 
   // Borrows arguments (i.e., we copy them)
   Input (const char *nm, const char *by)
-    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm)))
-    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(nm)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm) + 1))
+    , bytes(Array<UInt<8>>((UInt<8>*)by, strlen(by) + 1))
     , offset(0)
     , last_offset(bytes.size())
   {}
 
   // Borrows arguments (i.e., we copy them)
   Input(const char *nm, const char *by, size_t len)
-    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, strlen(nm) + 1))
     , bytes(Array<UInt<8>>((UInt<8>*)by, len))
     , offset(0)
     , last_offset(len)
     {}
 
-  void copy() { name.copy(); bytes.copy(); }
-  void free() { name.free(); bytes.free(); }
+  void dumpInput() {
+    debug("[");   debugVal((void*) this);
+    debug("] ("); debugVal(name.refCount());
+    debug(",");   debugVal(bytes.refCount());
+    debugLine(")\n");
+  }
+
+  void copy() {
+    debug("  Incrementing input"); dumpInput();
+    name.copy(); bytes.copy();
+  }
+
+  void free() {
+    debug("  Decrementing input: "); dumpInput();
+    name.free(); bytes.free();
+  }
 
 
+  // borrow this
   size_t  getOffset() { return offset; }
   size_t  length()    { return last_offset - offset; }
   bool    isEmpty()   { return last_offset == offset; }
 
-  // Assumes: !isEmpty()
+  // borrow this, Assumes: !isEmpty()
   UInt<8> iHead()   { return bytes[offset]; }
 
   // Advance current location
@@ -65,6 +81,7 @@ public:
   // Assumes: n <= length()
   void    iTakeMut(size_t n) { last_offset = offset + n; }
 
+  // borrow n, own this
   Input iDropI(DDL::Integer n) { return iDrop(n.asULong()); }
   Input iTakeI(DDL::Integer n) { return iTake(n.asULong()); }
 
@@ -95,23 +112,15 @@ public:
     return true;
   }
 
-  bool operator == (Input x) {
-    return offset == x.offset &&
-           last_offset == x.last_offset &&
-           name == x.name;
-           // if we want to compare bytes, we should hash them
-  }
-
-  bool operator != (Input x) { return !(*this == x); }
-
   // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& operator<<(std::ostream& os, Input x) {
-    os << "Input(\"" << (char*)x.name.borrowData()
+    os << "Input(\"" << x.name.refCount() << "," << x.bytes.refCount()
+                     << "," << (char*)x.name.borrowData()
                    << ":0x" << std::hex << x.offset << "--0x"
                             << std::hex << x.last_offset << "\")";
 
-    return os;
+     return os;
   }
 
   // XXX: We need to esacpe quotes in the input name
@@ -124,12 +133,43 @@ public:
     return os;
   }
 
-
-
-
+  // we compare by name, not the actual byte content
+  friend
+  int compare(Input x, Input y) {
+    if (x.offset < y.offset) return -1;
+    if (x.offset > y.offset) return 1;
+    if (x.last_offset < y.last_offset) return -1;
+    if (x.last_offset > y.last_offset) return 1;
+    return compare(x.name,y.name);
+  }
 };
 
-// XXX: comparisions
+
+
+// Borrow arguments
+static inline
+bool operator == (Input xs, Input ys) { return compare(xs,ys) == 0; }
+
+// Borrow arguments
+static inline
+bool operator < (Input xs, Input ys) { return compare(xs,ys) < 0; }
+
+// Borrow arguments
+static inline
+bool operator > (Input xs, Input ys) { return compare(xs,ys) > 0; }
+
+// Borrow arguments
+static inline
+bool operator != (Input xs, Input ys) { return !(xs == ys); }
+
+// Borrow arguments
+static inline
+bool operator <= (Input xs, Input ys) { return !(xs > ys); }
+
+// Borrow arguments
+static inline
+bool operator >= (Input xs, Input ys) { return !(xs < ys); }
+
 
 
 

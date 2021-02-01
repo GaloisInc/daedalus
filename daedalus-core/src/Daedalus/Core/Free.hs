@@ -44,7 +44,7 @@ instance FreeTCons Type where
       TBuilder t      -> freeTCons t
       TIterator t     -> freeTCons t
       TUser ut        -> freeTCons ut
-      TParam p        -> Set.empty
+      TParam {}       -> Set.empty
 
 instance FreeTCons UserType where
   freeTCons = Set.singleton . utName
@@ -60,6 +60,7 @@ instance FreeVars Expr where
       Var x           -> Set.singleton x
       PureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
       Struct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
+      ECase e         -> freeVars e
       Ap0 _           -> Set.empty
       Ap1 _ e         -> freeVars e
       Ap2 _ e1 e2     -> freeVars [e1,e2]
@@ -71,6 +72,7 @@ instance FreeVars Expr where
       Var _           -> Set.empty
       PureLet _ e1 e2 -> freeFVars [e1,e2]
       Struct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
+      ECase e         -> freeFVars e
       Ap0 _           -> Set.empty
       Ap1 _ e         -> freeFVars e
       Ap2 _ e1 e2     -> freeFVars [e1,e2]
@@ -97,7 +99,7 @@ instance FreeVars Grammar where
       OrUnbiased g1 g2  -> freeVars [g1,g2]
       Call _ es         -> freeVars es
       Annot _ g         -> freeVars g
-      If e g1 g2        -> freeVars e `Set.union` freeVars [g1,g2]
+      GCase c           -> freeVars c
 
   freeFVars gram =
     case gram of
@@ -112,7 +114,11 @@ instance FreeVars Grammar where
       OrUnbiased g1 g2  -> freeFVars [g1,g2]
       Call f es         -> Set.insert f (freeFVars es)
       Annot _ g         -> freeFVars g
-      If e g1 g2        -> freeFVars e `Set.union` freeFVars [g1,g2]
+      GCase c           -> freeFVars c
+
+instance FreeVars e => FreeVars (Case e) where
+  freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
+  freeFVars (Case e opts) = freeFVars e `Set.union` freeFVars (map snd opts)
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =
