@@ -193,12 +193,6 @@ allocGExpr n ctx gexpr =
         TCCoerceCheck ws t1 t2 e1 ->
           let ae1 = idVExpr e1
           in allocate (TCCoerceCheck ws t1 t2 ae1) n 2
-        TCSelUnion ws e1 lbl ty ->
-          let ae1 = idVExpr e1
-          in allocate (TCSelUnion ws ae1 lbl ty) n 2
-        TCSelJust ws e1 ty ->
-          let ae1 = idVExpr e1
-          in allocate (TCSelJust ws ae1 ty) n 2
         TCFor lp ->
           case loopFlav lp of
             Fold x e ->
@@ -655,14 +649,6 @@ genGExpr gbl e =
       let n1 = getS 0
           n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (CoerceCheck ws t1 t2 e1), n2)) ]) n2
-    TCSelUnion ws e1 lbl _ty ->
-      let n1 = getS 0
-          n2 = getS 1
-      in mkAut n1 (mkTr [(n1, UniChoice (SAct (SelUnion ws e1 lbl), n2))]) n2
-    TCSelJust ws e1 _ty ->
-      let n1 = getS 0
-          n2 = getS 1
-      in mkAut n1 (mkTr [(n1, UniChoice (SAct (SelJust ws e1), n2))]) n2
     TCFor lp ->
       case loopFlav lp of
         Fold name1 e1 ->

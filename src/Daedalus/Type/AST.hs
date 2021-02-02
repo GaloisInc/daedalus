@@ -183,8 +183,6 @@ data TCF :: HS -> Ctx -> HS where
    TCFor :: Loop a k -> TCF a k
 
    TCSelStruct :: TC a Value -> Label -> Type -> TCF a Value
-   TCSelUnion  :: WithSem -> TC a Value -> Label -> Type -> TCF a Grammar
-   TCSelJust   :: WithSem -> TC a Value -> Type -> TCF a Grammar
    TCIf        :: TC a Value -> TC a Value -> TC a Value -> TCF a Value
 
    TCVar  :: TCName k -> TCF a k
@@ -452,9 +450,6 @@ instance PP (TCF a k) where
 
       TCUniOp op e -> wrapIf (n > 0) (pp op <+> ppPrec 1 e)
       TCSelStruct x l _ -> wrapIf (n > 0) (ppPrec 1 x <.> "." <.> pp l)
-      TCSelUnion s x l _ ->
-                    wrapQuietIf s (n > 0) (ppPrec 1 x <+> "is" <+> pp l)
-      TCSelJust s x _ -> wrapQuietIf s (n > 0) (ppPrec 1 x <+> "is just")
 
       -- Sets
       TCSetAny -> "UInt8"
@@ -886,8 +881,6 @@ instance TypeOf (TCF a k) where
 
 
       TCSelStruct _ _ t  -> t
-      TCSelUnion s _ _ t -> tGrammar (mbTy s t)
-      TCSelJust s _ t    -> tGrammar (mbTy s t)
 
       TCSetAny          -> tByteClass
       TCSetSingle _     -> tByteClass

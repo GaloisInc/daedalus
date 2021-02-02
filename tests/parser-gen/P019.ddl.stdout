@@ -35,10 +35,16 @@ P019.Word : Grammar P019.Word =
 P019.Main : Grammar P019.Main =
   do (w1 : P019.Word) <- P019.Word
      (w2 : P019.Word) <- P019.Word
-     (w3 : P019.Word1) <- w1 is a
-     (w4 : P019.Word1) <- w2 is b
+     (w3 : P019.Word1) <- case w1 is
+                            { {| a = _13 |} -> pure _13
+                            }
+     (w4 : P019.Word1) <- case w2 is
+                            { {| b = _14 |} -> pure _14
+                            }
      (w5 : Maybe P019.Word1) <- pure (just w3)
-     (w6 : P019.Word1) <- w5 is just
+     (w6 : P019.Word1) <- case w5 is
+                            { just _15 -> pure _15
+                            }
      pure {w3 = w3,
            w4 = w4,
            w6 = w6}
@@ -56,7 +62,13 @@ P019._Word : Grammar {} =
 P019._Main : Grammar {} =
   do (w1 : P019.Word) <- P019.Word
      (w2 : P019.Word) <- P019.Word
-     (w3 : P019.Word1) <- w1 is a
-     @(w2 is b)
+     (w3 : P019.Word1) <- case w1 is
+                            { {| a = _13 |} -> pure _13
+                            }
+     case w2 is
+       { {| b = _14 |} -> pure {}
+       }
      (w5 : Maybe P019.Word1) <- pure (just w3)
-     @(w5 is just)
+     case w5 is
+       { just _15 -> pure {}
+       }

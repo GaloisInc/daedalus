@@ -355,30 +355,6 @@ fromGrammar gram =
          tgt <- fromTypeM t2
          fromMb sem tgt (coerceMaybeTo tgt e)
 
-    TC.TCSelJust sem v t ->
-      do e <- fromExpr v
-         ty <- fromTypeM t
-         fromMb sem ty e
-
-    TC.TCSelUnion sem v l t ->
-      do e <- fromExpr v
-         ty <- fromTypeM t
-         case sem of
-           NoSem -> pure $
-              gCase e
-                [ (PCon l, Pure unit)
-                , (PAny, sysErr TUnit "unexpected semantic value shape")
-                ]
-
-           YesSem ->
-             do x <- newLocal (typeOf e)
-                let xe = Var x
-                pure $ Let x e
-                     $ gCase e
-                         [ (PCon l, Pure (fromUnion ty l xe))
-                         , (PAny, sysErr ty "unexpected semantic value shape")
-                         ]
-
     TC.TCFor l -> doLoopG l
 
     TC.TCCall f ts as ->

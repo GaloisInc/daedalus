@@ -145,9 +145,6 @@ normaliseG' tc =
                 (normaliseV (loopCol lp))
                 (normaliseG (loopBody lp))
 
-    TCSelUnion se v s t   -> NSelUnion se (normaliseV v) s (ntype t)
-    TCSelJust se v t      -> NSelJust se (normaliseV v) (ntype t)
-
     TCVar v            -> panic "Saw a grammar variable" ["Variable: " ++ show (pp v)]
     TCCall f [] args   -> NGCall (nname f) (map normaliseArg args)
     TCCall _ _ _       -> panic "Saw a function call with non-empty type args" []

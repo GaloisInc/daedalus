@@ -28,15 +28,17 @@ T049.ResolveDeclRef (x : int) : Grammar T049.TD
  
 T049.ResolveRef (x : int) : Grammar T049.V =
   do (p : T049.TD) <- T049.ResolveDeclRef x
-     ($$ : T049.V) <- (p.obj) is value
+     ($$ : T049.V) <- case p.obj is
+                        { {| value = _12 |} -> pure _12
+                        }
      pure $$
  
 T049.TDDef : Grammar T049.TDDef =
   Choose fair
-    { {- stream -} do (_12 : T049.V) <- T049.ResolveRef 0
-                      pure {stream: _12}
-    | {- value -} do (_13 : T049.V) <- T049.V
-                     pure {value: _13}
+    { {- stream -} do (_13 : T049.V) <- T049.ResolveRef 0
+                      pure {stream: _13}
+    | {- value -} do (_14 : T049.V) <- T049.V
+                     pure {value: _14}
     }
  
 T049.TD : Grammar T049.TD =
@@ -59,7 +61,9 @@ T049._ResolveDeclRef (x : int) : Grammar {} =
  
 T049._ResolveRef (x : int) : Grammar {} =
   do (p : T049.TD) <- T049.ResolveDeclRef x
-     @((p.obj) is value)
+     case p.obj is
+       { {| value = _12 |} -> pure {}
+       }
  
 T049._TDDef : Grammar {} =
   Choose fair
