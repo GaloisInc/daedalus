@@ -1,21 +1,3 @@
---- Found 1 results:
-{ x: [ { num: 4560
-       , exp: -1
-       }
-     , { num: 4564
-       , exp: -1
-       }
-     , { num: 12
-       , exp: -1
-       }
-     , { num: 3
-       , exp: -1
-       }
-     , { num: 4
-       , exp: -1
-       }
-     , { num: 456456
-       , exp: -6
-       }
-     ]
-}
+TODO: TCCase (TC (TCAnnot {tcAnnot = SourceRange {sourceFrom = SourcePos {sourceIndex = 908, sourceLine = 24, sourceColumn = 22, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 911, sourceLine = 24, sourceColumn = 25, sourceFile = "./P026.ddl"}}, tcAnnotExpr = TCVar (TCName {tcName = Name { nameScopedIdent = Local "sign", nameContext = AValue, nameRange = SourceRange {sourceFrom = SourcePos {sourceIndex = 833, sourceLine = 22, sourceColumn = 23, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 836, sourceLine = 22, sourceColumn = 26, sourceFile = "./P026.ddl"}}, nameID = GUID {getGUID = 99} }, tcType = TCon (TCTy Name { nameScopedIdent = ModScope "P026" "Sign", nameContext = AGrammar, nameRange = SourceRange {sourceFrom = SourcePos {sourceIndex = 1021, sourceLine = 29, sourceColumn = 5, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 1024, sourceLine = 29, sourceColumn = 8, sourceFile = "./P026.ddl"}}, nameID = GUID {getGUID = 13} }) [], tcNameCtx = AValue})})) (TCAlt {tcAltPatterns = [TCConPat (TCon (TCTy Name { nameScopedIdent = ModScope "P026" "Sign", nameContext = AGrammar, nameRange = SourceRange {sourceFrom = SourcePos {sourceIndex = 1021, sourceLine = 29, sourceColumn = 5, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 1024, sourceLine = 29, sourceColumn = 8, sourceFile = "./P026.ddl"}}, nameID = GUID {getGUID = 13} }) []) "pos" (TCVarPat (TCName {tcName = Name { nameScopedIdent = Local "_59", nameContext = AValue, nameRange = SourceRange {sourceFrom = SourcePos {sourceIndex = 908, sourceLine = 24, sourceColumn = 22, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 918, sourceLine = 24, sourceColumn = 32, sourceFile = "./P026.ddl"}}, nameID = GUID {getGUID = 59} }, tcType = Type TUnit, tcNameCtx = AValue}))], tcAltBody = TC (TCAnnot {tcAnnot = SourceRange {sourceFrom = SourcePos {sourceIndex = 908, sourceLine = 24, sourceColumn = 22, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 918, sourceLine = 24, sourceColumn = 32, sourceFile = "./P026.ddl"}}, tcAnnotExpr = TCPure (TC (TCAnnot {tcAnnot = SourceRange {sourceFrom = SourcePos {sourceIndex = 908, sourceLine = 24, sourceColumn = 22, sourceFile = "./P026.ddl"}, sourceTo = SourcePos {sourceIndex = 918, sourceLine = 24, sourceColumn = 32, sourceFile = "./P026.ddl"}}, tcAnnotExpr = TCUnit}))})} :| []) Nothing
+CallStack (from HasCallStack):
+  error, called at src/Daedalus/ParserGen/Compile.hs:240:14 in daedalus-0.1.0.0-inplace:Daedalus.ParserGen.Compile

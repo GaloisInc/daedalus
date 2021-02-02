@@ -17,7 +17,9 @@ T010.g ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
   x.l
  
 T010.G ?a0 ?a1 (HasUnion ?a0 l ?a1) (x : ?a0) : Grammar ?a1 =
-  x is l
+  case x is
+    { {| l = _9 |} -> pure _9
+    }
  
 T010.Fails ?a0 : Grammar ?a0 =
   Choose fair
@@ -25,16 +27,18 @@ T010.Fails ?a0 : Grammar ?a0 =
  
 T010.P ?a1 : Grammar (T010.P ?a1) =
   Choose fair
-    { {- A -} do (_9 : ?a1) <- T010.Fails ?a1
-                 pure {A: _9}
-    | {- B -} do (_10 : [uint 8]) <- MatchBytes "B"
-                 pure {B: _10}
-    | {- C -} do (_11 : [uint 8]) <- MatchBytes "C"
-                 pure {C: _11}
+    { {- A -} do (_10 : ?a1) <- T010.Fails ?a1
+                 pure {A: _10}
+    | {- B -} do (_11 : [uint 8]) <- MatchBytes "B"
+                 pure {B: _11}
+    | {- C -} do (_12 : [uint 8]) <- MatchBytes "C"
+                 pure {C: _12}
     }
  
 T010._G ?a0 ?a1 (HasUnion ?a0 l ?a1) (x : ?a0) : Grammar {} =
-  @(x is l)
+  case x is
+    { {| l = _9 |} -> pure {}
+    }
  
 T010._Fails ?a0 : Grammar {} =
   Choose fair

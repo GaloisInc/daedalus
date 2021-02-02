@@ -160,10 +160,14 @@ P026.Number : Grammar P026.Number =
   P026.Token P026.Number do (sign : P026.Sign) <- P026.Sign
                             (n : P026.Number) <- P026.UnsignedNumber
                             ($$ : P026.Number) <- Choose fair
-                                                    { do @(sign is pos)
+                                                    { do case sign is
+                                                           { {| pos = _59 |} -> pure {}
+                                                           }
                                                          ($$ : P026.Number) <- pure n
                                                          pure $$
-                                                    | do @(sign is neg)
+                                                    | do case sign is
+                                                           { {| neg = _61 |} -> pure {}
+                                                           }
                                                          ($$ : P026.Number) <- pure {num = 0 - (n.num),
                                                                                      exp = n.exp}
                                                          pure $$
@@ -204,8 +208,12 @@ P026._Number : Grammar {} =
                              do P026.UnsignedNumber
                                 pure {}
                              Choose fair
-                               { @(sign is pos)
-                               | @(sign is neg)
+                               { case sign is
+                                   { {| pos = _59 |} -> pure {}
+                                   }
+                               | case sign is
+                                   { {| neg = _61 |} -> pure {}
+                                   }
                                }
  
 P026._Frac (n : int) : Grammar {} =

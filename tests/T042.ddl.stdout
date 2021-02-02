@@ -47,15 +47,21 @@ T042.Ex2 : Grammar (T042.T (uint 8)) =
  
 T042.Ex3 : Grammar (uint 8) =
   do (x : T042.T (uint 8)) <- T042.Ex2
-     ($$ : uint 8) <- x is A
+     ($$ : uint 8) <- case x is
+                        { {| A = _19 |} -> pure _19
+                        }
      pure $$
  
 T042.Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar ?a1 =
-  x is A
+  case x is
+    { {| A = _20 |} -> pure _20
+    }
  
 T042.Ex5 : Grammar {} =
   do (x : T042.Ex1) <- T042.Ex1
-     ($$ : {}) <- x is B
+     ($$ : {}) <- case x is
+                    { {| B = _22 |} -> pure _22
+                    }
      pure $$
  
 T042._Ex6 : Grammar {} =
@@ -81,11 +87,17 @@ T042._Ex2 : Grammar {} =
  
 T042._Ex3 : Grammar {} =
   do (x : T042.T (uint 8)) <- T042.Ex2
-     @(x is A)
+     case x is
+       { {| A = _19 |} -> pure {}
+       }
  
 T042._Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar {} =
-  @(x is A)
+  case x is
+    { {| A = _20 |} -> pure {}
+    }
  
 T042._Ex5 : Grammar {} =
   do (x : T042.Ex1) <- T042.Ex1
-     @(x is B)
+     case x is
+       { {| B = _22 |} -> pure {}
+       }
