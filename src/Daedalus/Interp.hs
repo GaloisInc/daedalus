@@ -754,19 +754,6 @@ compilePExpr env expr0 args = go expr0
           bad z = panic "compileExpr"
                   [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x)) ]
 
-        TCSelUnion s e sel _ ->
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | lbl == sel -> pure $! mbSkip s va
-                     | otherwise ->
-                       pError FromSystem erng
-                          ("union is not `" ++ Text.unpack sel ++ "`")
-
-        TCSelJust s e _ ->
-          case valueToMaybe (compilePureExpr env e) of
-            Just v  -> pure $! mbSkip s v
-            Nothing -> pError FromSystem erng "semantic value is not `just`"
-
-
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v args
