@@ -780,7 +780,7 @@ inferExpr expr =
                  liftValApp expr [e] \ ~[(e1,t)] ->
                  do let lab = thingValue f
                     addConstraint f (HasUnion t lab a)
-                    resVar <- newName expr a 
+                    resVar <- newName expr a
                     let pat = TCConPat t lab (TCVarPat resVar)
                         alt = TCAlt [pat] (exprAt expr $ TCPure
                                           $ exprAt expr $ TCVar resVar)
@@ -803,20 +803,20 @@ inferExpr expr =
                  grammarOnly expr $
                  liftValApp expr [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e,t)
-                    pure ( exprAt expr $ TCGuard
-                         $ exprAt expr $ TCBinOp Eq e1
-                                                    (exprAt expr (TCNothing a))
-                                                    tBool
-                         , tGrammar tUnit
-                         )
+                    let pat = TCNothingPat a
+                        alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                    pure (exprAt expr (TCCase e1 (alt :| []) Nothing), tGrammar tUnit)
 
                SelJust ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftValApp expr [e] \ ~[(e1,t)] ->                 
                  do unify (tMaybe a) (e1,t)
-                    pure (exprAt expr (TCSelJust YesSem e1 a), tGrammar a)
-
-
+                    resVar <- newName expr a
+                    let pat = TCJustPat (TCVarPat resVar)
+                        alt = TCAlt [pat] (exprAt expr $ TCPure
+                                          $ exprAt expr $ TCVar resVar)
+                    pure (exprAt expr (TCCase e1 (alt :| []) Nothing), tGrammar a)
+                    
     EEnd ->
       grammarOnly expr
       (pure (exprAt expr TCEnd, tGrammar tUnit))
