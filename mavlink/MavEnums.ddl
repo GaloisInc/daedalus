@@ -76,6 +76,8 @@ def MavCmdParams cmd = case cmd is {
   }
 }
 
+def test = Match1 1
+
 def MavMissionType = Choose1 {
   mission = @0;
   fence = @1;
