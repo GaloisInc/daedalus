@@ -11,7 +11,5 @@ def MissionItemInt = {
   current = Bool;
   autocontinue = UInt16;
   cmdParams = MavCmdParams command;
-{- 
   mission_type = MavMissionType;
--} 
 }
