@@ -1,38 +1,38 @@
 import MavNumerics
 
 def MavFrame = Choose1 {
-  mavFrameGlobal = @0;
-  mavFrameLocalNed = @1;
-  mavFrameMission = @2;
-  mavFrameGlobalRelativeAlt = @3;
-  mavFrameLocalEnu = @4;
-  mavFrameGlobalInt = @5;
-  mavFrameGlobalRelativeAltInt = @6;
-  mavFrameLocalOffsetNed = @7;
-  mavFrameBodyNed = @8;
-  mavFrameBodyOffsetNed = @9;
-  mavFrameGlobalTerrainAlt = @10;
-  mavFrameGlobalTerrainAltInt = @11;
-  mavFrameBodyFrd = @12;
-  mavFrameReserved13 = @13;
-  mavFrameReserved14 = @14;
-  mavFrameReserved14 = @15;
-  mavFrameReserved14 = @16;
-  mavFrameReserved14 = @17;
-  mavFrameReserved14 = @18;
-  mavFrameReserved14 = @19;
-  mavFrameLocalFrd = @20;
-  mavFrameLocalFlu = @21;
+  mavFrameGlobal = @(Match1 0);
+  mavFrameLocalNed = @(Match1 1);
+  mavFrameMission = @(Match1 2);
+  mavFrameGlobalRelativeAlt = @(Match1 3);
+  mavFrameLocalEnu = @(Match1 4);
+  mavFrameGlobalInt = @(Match1 5);
+  mavFrameGlobalRelativeAltInt = @(Match1 6);
+  mavFrameLocalOffsetNed = @(Match1 7);
+  mavFrameBodyNed = @(Match1 8);
+  mavFrameBodyOffsetNed = @(Match1 9);
+  mavFrameGlobalTerrainAlt = @(Match1 10);
+  mavFrameGlobalTerrainAltInt = @(Match1 11);
+  mavFrameBodyFrd = @(Match1 12);
+  mavFrameReserved13 = @(Match1 13);
+  mavFrameReserved14 = @(Match1 14);
+  mavFrameReserved14 = @(Match1 15);
+  mavFrameReserved14 = @(Match1 16);
+  mavFrameReserved14 = @(Match1 17);
+  mavFrameReserved14 = @(Match1 18);
+  mavFrameReserved14 = @(Match1 19);
+  mavFrameLocalFrd = @(Match1 20);
+  mavFrameLocalFlu = @(Match1 21);
 }
 
 -- MAVLink Commands (MAV_CMD)
 -- TODO: fix to always parse two bytes
 def MavCmd = Choose1 {
-  mavCmdNavWaypoint = @16;
-  mavCmdNavLoiterUnlim = @17;
-  mavCmdNavLoiterTurns = @18;
-  mavCmdNavLoiterTime = @19;
-  mavCmdNavReturnToLaunch = @20;
+  mavCmdNavWaypoint = @(Match1 16);
+  mavCmdNavLoiterUnlim = @(Match1 17);
+  mavCmdNavLoiterTurns = @(Match1 18);
+  mavCmdNavLoiterTime = @(Match1 19);
+  mavCmdNavReturnToLaunch = @(Match1 20);
   -- mavCmdSome can be further refined into cases for more precise value checking:
   mavCmdSome = UInt16;
 }
@@ -49,40 +49,54 @@ def CmdParams = {
 } 
 
 -- MAV_CMD_NAV_WAYPOINT (16)
-def CmdNavWaypoint = Fail "not defined"
+-- TODO: refine all of these definitions
+def CmdNavWaypoint = CmdParams
 
 -- MAV_CMD_NAV_LOITER_UNLIM (17)
-def CmdNavLoiterUnlim = Fail "not defined"
+def CmdNavLoiterUnlim = CmdParams
 
 -- MAV_CMD_NAV_LOITER_TURNS (18)
-def CmdNavLoiterTurns = Fail "not defined"
+def CmdNavLoiterTurns = CmdParams
 
 -- MAV_CMD_NAV_LOITER_TIME (19)
-def CmdNavLoiterTime = Fail "not defined"
+def CmdNavLoiterTime = CmdParams
 
 -- MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
-def CmdNavReturnToLaunch = Fail "not defined"
+def CmdNavReturnToLaunch = CmdParams
 
 -- definition sketch, using case:
-def MavCmdParams cmd = case cmd is {
-  mavCmdNavWaypoint -> CmdNavWaypoint ;
-  mavCmdNavLoiterUnlim -> CmdNavLoiterUnlim ;
-  mavCmdNavLoiterTurns -> CmdNavLoiterTurns ;
-  mavCmdNavLoiterTime -> CmdNavLoiterTime ;
-  mavCmdNavReturnToLaunch -> CmdNavReturnToLaunch ;
-  mavCmdSome opcode -> {
-    opc = ^opcode;
+def MavCmdParams cmd = Choose1 {
+  mavCmdNavWaypointParams = {
+    cmd is mavCmdNavWaypoint;
+    CmdNavWaypoint;
+  };
+  mavCmdNavLoiterUnlimParams = {
+    cmd is mavCmdNavLoiterUnlim;
+    CmdNavLoiterUnlim 
+  } ;
+  mavCmdNavLoiterTurnsParams = {
+    cmd is mavCmdNavLoiterTurns;
+    CmdNavLoiterTurns
+  };
+  mavCmdNavLoiterTimeParams = {
+    cmd is mavCmdNavLoiterTime;
+    CmdNavLoiterTime
+  };
+  mavCmdNavReturnToLaunchParams = {
+    cmd is mavCmdNavReturnToLaunch;
+    CmdNavReturnToLaunch 
+  };
+  mavCmdSomeParams = {
+    opc = cmd is mavCmdSome;
     ps = CmdParams;
   }
 }
 
-def test = Match1 1
-
 def MavMissionType = Choose1 {
-  mavMissionTypeMission = @0;
-  mavMissionTypeFence = @1;
-  mavMissionTypeRally = @2;
-  mavMissionTypeAll = @255;
+  mavMissionTypeMission = @(Match1 0);
+  mavMissionTypeFence = @(Match1 1);
+  mavMissionTypeRally = @(Match1 2);
+  mavMissionTypeAll = @(Match1 255);
 }
 
 def MavMissionResult = Choose1 { 
