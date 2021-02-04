@@ -12,7 +12,7 @@ def $simpleWS             = 0 | 9 | 12 | 32
 def SimpleEOL             = { $cr; $lf } | $lf
 def EOL                   = SimpleEOL <| $cr
 def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
-def AnyWS                 = $simpleWS <| Comment <| EOL
+def AnyWS                 = $simpleWS | Comment | EOL
 --------------------------------------------------------------------------------
 
 
@@ -43,19 +43,16 @@ def Bool =
 def Number = Token {
   @sign = Sign;
   @n    = UnsignedNumber;
-  case sign is {
-    pos -> n;
-    neg -> { num = 0 - n.num; exp = n.exp };
-  }
+    When (sign is pos) n
+  | When (sign is neg) { num = 0 - n.num; exp = n.exp };
 }
 
 def Sign = Choose1 {
+  pos = @Optional (Match "+");
   neg = @Match "-";
-  pos = @Match "+";
-  pos = {};
 }
 
-def UnsignedNumber = UnsignedLeadDigits <| Frac 1 { num = 0, exp = 0 }
+def UnsignedNumber = UnsignedLeadDigits | Frac 1 { num = 0, exp = 0 }
 
 def UnsignedLeadDigits = {
   @n   = Natural;
@@ -77,7 +74,7 @@ def Frac n (w : Number) : Number = {
 def OctDigit  = Match1 ('0' .. '7') - '0' as int
 def Digit     = Match1 ('0' .. '9') - '0' as int
 def HexDigit  =
-  Choose1 {
+  Choose {
     Digit;
     10 + Match1 ('a' .. 'f') - 'a' as int;
     10 + Match1 ('A' .. 'F') - 'A' as int;
