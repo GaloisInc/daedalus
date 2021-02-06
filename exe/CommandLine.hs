@@ -35,6 +35,7 @@ data Options =
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
+          , optInline    :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -49,6 +50,7 @@ options = OptSpec
                            , optEntries   = []
                            , optForceUTF8 = True
                            , optShowJS    = False
+                           , optInline    = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -107,6 +109,10 @@ options = OptSpec
       , Option [] ["compile-c++"]
         "Generate C++ code"
         $ NoArg \o -> Right o { optCommand = CompileCPP }
+
+      , Option [] ["inline"]
+        "Do aggressive inlining on Core"
+        $ NoArg \o -> Right o { optInline = True }
 
       , Option [] ["entry"]
         "Generate a library containg this parser."

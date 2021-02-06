@@ -39,6 +39,7 @@ module Daedalus.Driver
   , passDeadVal
   , passSpecialize
   , passCore
+  , passInline
   , passVM
   , passCaptureAnalysis
 
@@ -105,6 +106,7 @@ import qualified Daedalus.CompileHS      as HS
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
 import qualified Daedalus.Core as Core
+import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -716,6 +718,16 @@ passCore m =
           }
 
 
+passInline :: [Core.FName] -> ModuleName -> Daedalus ()
+passInline no m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         ddlUpdate_ \s ->
+           s { loadedModules = Map.insert m
+                                (CoreModue (Core.inlineModule no ast))
+                                (loadedModules s) }
+       _ -> panic "passInline" ["Module is not in Core form"]
 
 
 -- | (7) Convert to VM. The given module should be in Core form.
