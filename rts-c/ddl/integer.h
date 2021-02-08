@@ -1,17 +1,17 @@
 #ifndef DDL_INTEGER_H
 #define DDL_INTEGER_H
 
-#include <gmpxx.h>
-#include <ddl/debug.h>
-#include <ddl/boxed.h>
 // #define QUICK_INTEGER 1
-// XXX: broken
 
 namespace DDL {
 
 #ifdef QUICK_INTEGER
 #include <ddl/int.h>
 #else
+
+#include <gmpxx.h>
+#include <ddl/debug.h>
+#include <ddl/boxed.h>
 
 class Integer : public Boxed<mpz_class> {
 
