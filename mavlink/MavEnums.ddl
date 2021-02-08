@@ -86,7 +86,7 @@ def MavCmdParams cmd = Choose1 {
     cmd is mavCmdNavReturnToLaunch;
     CmdNavReturnToLaunch 
   };
-  mavCmdSomeParams = {
+  mavCmdSomeParams = { -- default case
     opc = cmd is mavCmdSome;
     ps = CmdParams;
   }
