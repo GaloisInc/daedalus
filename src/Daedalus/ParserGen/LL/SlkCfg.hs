@@ -1,19 +1,21 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL.SlkCfg
-  ( SlkInput,
-    SlkCfg(..),
-    compareSlkCfg,
-    measureSlkCfg,
-    initSlkCfg,
-    isInitSlkCfg,
-    showSlkCfg,
-    HTable,
-    emptyHTable,
-    simulateActionSlkCfg,
-    InputHeadCondition(..),
-    matchInputHeadCondition,
-    simulateMove
+  ( SlkInput
+  , SlkCfg(..)
+  , compareSlkCfg
+  , measureSlkCfg
+  , initSlkCfg
+  , isInitSlkCfg
+  , showSlkCfg
+  , showGraphvizSlkCfg
+  , HTable
+  , emptyHTable
+  , simulateActionSlkCfg
+  , InputHeadCondition(..)
+  , showGraphvizInputHeadCondition
+  , matchInputHeadCondition
+  , simulateMove
   ) where
 
 -- import Debug.Trace
@@ -347,6 +349,20 @@ showSlkCfg
   "sem:" ++ showSlkStack sem ++ ", " ++
   "inp:" ++ showSlkInput inp ++
   " }"
+
+showGraphvizSlkCfg :: SlkCfg -> String
+showGraphvizSlkCfg
+  (SlkCfg
+  { cfgState = q
+  , cfgCtrl = ctrl
+  , cfgSem = sem
+  , cfgInput = inp
+  }) =
+  "q" ++ show q ++ " " ++
+  "ctrl" ++ showSlkStack ctrl ++ " " ++
+  "sem" ++ showSlkStack sem ++ " " ++
+  "inp" ++ showSlkInput inp
+
 
 
 compareSlkCfg :: SlkCfg -> SlkCfg -> Ordering
@@ -919,6 +935,13 @@ data InputHeadCondition =
     HeadInput ClassInterval
   | EndInput
   deriving (Show)
+
+
+showGraphvizInputHeadCondition :: InputHeadCondition -> String
+showGraphvizInputHeadCondition c =
+  case c of
+    HeadInput a -> showGraphvizClassInterval a
+    EndInput -> "END"
 
 matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
 matchInputHeadCondition c i =

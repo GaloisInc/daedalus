@@ -140,6 +140,7 @@ handleOptions opts
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
                    let llas = PGen.buildPipelineLLA aut
+                   PGen.llaToGraphviz aut llas
                    PGen.statsLLA aut llas
                 )
 

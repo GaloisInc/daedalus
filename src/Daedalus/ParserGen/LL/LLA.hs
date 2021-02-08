@@ -6,6 +6,7 @@ module Daedalus.ParserGen.LL.LLA
   , statsLLA
   , SynthLLAState
   , LLA(..)
+  , llaToGraphviz
   , Prediction
   , destrPrediction
   , predictLL
@@ -20,6 +21,7 @@ import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
 import qualified Data.Array.IArray as Array
+import System.IO
 
 import qualified RTS.Input as Input
 
@@ -456,6 +458,30 @@ printLLA aut dfas cond =
                       return ()
 
                 ) tOrdered
+
+llaToGraphviz :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
+llaToGraphviz _aut lla =
+  do
+    autFile <- openFile "lla.dot" WriteMode
+    hPutStrLn autFile prelude
+    mapM_ (hPutStrLn autFile) trans
+    hPutStrLn autFile postlude
+    hClose autFile
+  where
+    theLLA =
+      case lla of
+          Left lla1 -> lla1
+          Right (lla1, _lla2) -> lla1
+    m = transitionLLA theLLA
+    f k a b =
+      printDFAtoGraphviz (synthLLAState k) a ++ b
+
+    trans = Map.foldrWithKey f [] m
+    prelude =
+      "// copy this to lla.dot and run\n"
+      ++ "// dot -Tpdf lla.dot > lla.pdf \n"
+      ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
+    postlude = "}" ++ "\n// dot -Tpdf lla.dot > lla.pdf " -- "f.view()\n"
 
 
 statsLLA :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
