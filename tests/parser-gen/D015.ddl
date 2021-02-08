@@ -1,4 +1,4 @@
--- testing `Many (1..)`
+-- testing `Many (1..)` on a fragment of ppm
 
 
 def Main = {

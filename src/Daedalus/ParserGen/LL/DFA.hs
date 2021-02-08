@@ -12,11 +12,13 @@ module Daedalus.ParserGen.LL.DFA
   , lookupDFA
   , lookaheadDepth
   , revAppend
+  , printDFAtoGraphviz
   )
 where
 
 -- import Debug.Trace
 
+import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isNothing)
@@ -196,7 +198,11 @@ showDFA dfa =
         Nothing -> error "missing state"
         Just r ->
           case r of
-            Result (DFATransition { ambiguityTrans = am, nextTrans = lst, acceptTrans = accTr } ) ->
+            Result
+              ( DFATransition
+                { ambiguityTrans = am, nextTrans = lst, acceptTrans = accTr
+                }
+              ) ->
               case am of
                 NotAmbiguous -> ""
                 Ambiguous -> "Ambiguous(acceptingPath + next)"
@@ -236,6 +242,139 @@ showDFA dfa =
 
     space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
+
+
+printDFAtoGraphviz :: Int -> DFA -> [ String ]
+printDFAtoGraphviz llaState dfa =
+  showStates (mappingLinToDFAState dfa) ++
+  showTrans [] (startLinDFAState dfa)
+  where
+    stateToNode linState =
+      "N_" ++ (show llaState) ++ "_" ++ (show $ linDFAState linState)
+
+    showStates m =
+      Map.foldrWithKey
+      (\ linState qDFA acc ->
+         if not (elem linState (finalLinDFAState dfa))
+         then
+           ( stateToNode linState ++
+             " [shape=record, label=\"" ++ showGraphvizDFAState qDFA ++ "\"];"
+           ) : acc
+         else acc
+      ) [] m
+
+    showTrans :: [LinDFAState] -> LinDFAState -> [ String ]
+    showTrans vis qq =
+      if elem qq vis
+      then []
+      else
+      case lookupLinDFAState qq dfa of
+        Nothing -> error "missing state"
+        Just r ->
+          case r of
+            Result
+              ( DFATransition
+                { ambiguityTrans = am
+                , nextTrans = lst
+                , acceptTrans = accTr
+                }
+              ) ->
+              case am of
+                NotAmbiguous ->
+                  let
+                    nodeResolution = stateToNode qq ++ show am
+                  in
+                  [ nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.\"]" ++ ";"
+                  , (stateToNode qq ++ " -> " ++ nodeResolution)
+                  ]
+                Ambiguous ->
+                  let
+                    nodeResolution = stateToNode qq ++ "Ambiguous_acceptingPath_next"
+                  in
+                  [ nodeResolution ++ " [shape=box,style=filled,color=\"1. 0.7 0.7\"]" ++ ";"
+                  , (stateToNode qq ++ " -> " ++ nodeResolution)
+                  ]
+                DunnoAmbiguous ->
+                  concatMap (showAccept qq) accTr ++
+                  concatMap (showT (qq : vis) qq) lst
+            _ ->
+              let
+                nodeResolution = stateToNode qq ++ abortToString r
+              in
+                [ nodeResolution ++ " [shape=box,style=filled,color=\".1 0.2 1.\"]" ++ ";"
+                , (stateToNode qq ++ " -> " ++ nodeResolution)
+                ]
+
+    showT vis qq (i, s, am, _qq, ql) =
+      (nodeqq ++ " -> " ++ nodeql ++
+      "[label=\"" ++ "[" ++ showGraphvizInputHeadCondition i ++ "]" ++ " (" ++ showSet s ++ ")" ++ "\"];") :
+      showDown am
+      where
+        nodeqq = stateToNode qq
+        nodeql = case am of
+                   Ambiguous ->
+                     stateToNode ql ++ "_" ++ showSet s ++ "_" ++ show am
+                   NotAmbiguous ->
+                     stateToNode ql ++ "_" ++ showSet s ++ "_" ++ show am
+                   _ -> stateToNode ql
+        showDown amb =
+          case amb of
+            NotAmbiguous ->
+              let nodeResolution = stateToNode ql ++ show amb in
+              [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
+              , nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.0\"];"
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted]")
+              ]
+            Ambiguous ->
+              let nodeResolution = stateToNode ql ++ show amb in
+              [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
+              , nodeResolution ++ " [shape=box,style=filled,color=\"1. .7 .7\"];"
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted]")
+              ]
+            DunnoAmbiguous -> showTrans vis ql
+
+    showAccept qq (reg, am) =
+      let nodeResolution = stateToNode qq ++ "AcceptingPath" ++ show am
+      in
+      [ nodeResolution ++  " [shape=box,style=filled,color=\".7 .3 1.0\"]" ++ ";"
+      , (stateToNode qq ++ " -> " ++ nodeResolution ++
+         "[" ++
+         " style=dotted" ++
+         " label=\"" ++ "(" ++ showSet reg ++ ")" ++ "\"" ++
+         "]")
+       ]
+
+    showGraphvizDFAState qq =
+      let iterator = initIteratorDFAState qq in
+      foldr (\ a b -> a ++ b) "" (List.intersperse " | " (translateCfgs iterator []))
+      where
+        translateCfgs it acc =
+          case nextIteratorDFAState it of
+            Nothing -> reverse acc
+            Just (cfg, it2) ->
+              translateCfgs it2 (showGraphvizSlkCfg cfg : acc)
+
+    showSet s = "Reg" ++ show (length s)
+
+    showGraphvizRegistry r =
+      let iterator = initIteratorDFARegistry r in
+      foldr (\ a b -> a ++ b) "" (List.intersperse " | " (translateRegistry iterator []))
+      where
+        translateRegistry it acc =
+          case nextIteratorDFARegistry it of
+            Nothing -> reverse acc
+            Just (entry, it2) ->
+              let cfg =
+                    let cm = dstEntry entry in
+                    case cm of
+                      Closure.ClosureMove {} -> Closure.closureCfg cm
+                      Closure.ClosurePath {} -> Closure.lastCfg cm
+                      Closure.ClosureAccepting {} -> Closure.closureCfg cm
+              in
+
+              translateRegistry it2 (showGraphvizSlkCfg cfg : acc)
+
+
 
 lookaheadDepth :: DFA -> Int
 lookaheadDepth dfa =

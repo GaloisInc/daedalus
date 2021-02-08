@@ -9,6 +9,7 @@ module Daedalus.ParserGen
   , autToGraphviz
   , createLLA
   , buildPipelineLLA
+  , llaToGraphviz
   , statsLLA
   , generateIO
   , generateTextIO

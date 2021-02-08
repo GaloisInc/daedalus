@@ -311,6 +311,7 @@ instance Show(DFAState) where
   show q =
     Set.fold (\ cfg s -> s ++ Slk.showSlkCfg cfg) "" (dfaState q)
 
+
 mkDFAState :: State -> Slk.HTable -> (DFAState, Slk.HTable)
 mkDFAState q tab =
   let (initCfg, tab1) = Slk.initSlkCfg q tab
