@@ -12,24 +12,45 @@ def UInt16 = {
   hi # lo
 }
 
+def HighBit = (1 : uint 8) << 7
+
+-- Int8: a signed 8-bit integer, serialized in two's complement
+def Int8 = {
+  @dig = UInt8;
+  (dig .&. ~HighBit as int) - (dig .&. HighBit as int)
+}
+
+-- Int24: a signed 24-bit integer, serialized in two's complement
+def Int24 = {
+  @dig0 = UInt8;
+  @dig1 = UInt8;
+  @dig2 = UInt8;
+  ((dig0 .&. ~HighBit) # dig1 # dig2 as int) -
+  ((dig0 .&. HighBit as uint 24) << 16 as int)
+}
+
 -- Int32: a signed 32-bit integer, serialized in two's complement
 def Int32 = {
   @dig0 = UInt8;
   @dig1 = UInt8;
   @dig2 = UInt8;
   @dig3 = UInt8;
-  (dig0 # dig1 # dig2 # dig3 as int) -
-  ((dig0 .&. 128 as uint 32) << 24 as int) -- TODO: update docs on bitwise ops
+  ((dig0 .&. ~HighBit) # dig1 # dig2 # dig3 as int) -
+  ((dig0 .&. HighBit as uint 32) << 24 as int)
+  -- TODO: update docs on bitwise operand symbols
 }
 
-def Digit = '0' .. '9'
+def Digit = Match1 ('0' .. '9') - '0' as int
 
 def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 def Natural numDigs = numBase 10 (Many numDigs Digit)
 
--- TODO: waiting on description from LM
-def Float = UInt8
+-- Float: single precision (32-bit) float, serialied in IEEE754
+def Float = {
+  significand = Int24;
+  exponent = Int8;
+}
 
 def Sub60 = {
   $$ = Natural 2;
