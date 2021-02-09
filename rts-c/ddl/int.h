@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ddl/boxed.h>
 
+namespace DDL {
 class Integer {
   long data;
 
@@ -115,6 +116,6 @@ std::ostream& toJS(std::ostream& os, Integer x) {
 }
 
 // NOTE: lcat is in `number.h` to avoid dependency convlicts
-
+}
 
 
