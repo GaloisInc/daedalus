@@ -3,7 +3,7 @@
 
 // #define QUICK_INTEGER 1
 
-namespace DDL {
+
 
 #ifdef QUICK_INTEGER
 #include <ddl/int.h>
@@ -13,6 +13,7 @@ namespace DDL {
 #include <ddl/debug.h>
 #include <ddl/boxed.h>
 
+namespace DDL {
 class Integer : public Boxed<mpz_class> {
 
 public:
