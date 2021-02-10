@@ -681,9 +681,14 @@ compilePExpr env expr0 args = go expr0
              _ <- pMatch erng (vecFromRep (valueToByteString v))
              pure $! mbSkip s v
 
-        TCChoice c es _  -> foldr (alt c)
+        TCChoice c es _  ->
+          case es of
+            [] -> pError FromSystem erng "empty choice"
+            _  -> foldr1 (alt c) (map go es)
+{-
+foldr (alt c)
                               (pError FromSystem erng "all alternatives of `Choice` failed") (map go es)
-
+-}
         TCOptional c e   ->
              alt c (VMaybe . Just <$> go e) (pure (VMaybe Nothing))
 
