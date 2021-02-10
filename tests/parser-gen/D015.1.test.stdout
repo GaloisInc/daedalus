@@ -4,4 +4,4 @@
 , maxVal: 4556
 }
 
-Score (LLpredict / (Backtrack + LLpredict)): 100%
+Score (LL / (Backtrack + LL)): 100%

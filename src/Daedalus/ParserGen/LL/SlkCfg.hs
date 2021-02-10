@@ -795,7 +795,6 @@ symbExecSem ctrl out act
         _ -> error "impossible"
 
     -- TODO: move these to unhandled cases
-    SelUnion _ _ _ -> rJust (SCons (SlkSEVal Wildcard) out)
     Guard _ -> rJust (SCons (SlkSEVal Wildcard) out)
     CoerceCheck _ _ _ _ -> rJust (SCons (SlkSEVal Wildcard) out)
 

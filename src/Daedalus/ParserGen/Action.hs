@@ -54,6 +54,9 @@ data ControlAction =
   | MapHasMore
   | MapNext
   | MapEnd
+  | CaseCall NVExpr
+  | CaseTry (Maybe [TCPat])
+  | CaseEnd
 
 
 data SemanticAction =
@@ -69,8 +72,6 @@ data SemanticAction =
   | MapLookup   WithSem NVExpr NVExpr
   | MapInsert   WithSem NVExpr NVExpr NVExpr
   | CoerceCheck WithSem Type Type NVExpr
-  | SelUnion    WithSem NVExpr Label
-  | SelJust     WithSem NVExpr
   | Guard       NVExpr
 
 
@@ -131,6 +132,10 @@ instance Show(ControlAction) where
   show (MapHasMore)        = "MapHasMore"
   show (MapNext)           = "MapNext"
   show (MapEnd)            = "MapEnd"
+  show (CaseCall _)        = "CaseCall"
+  show (CaseTry _)         = "CaseTry"
+  show (CaseEnd)           = "CaseEnd"
+
 
 instance Show(SemanticAction) where
   show (EnvFresh)           = "EnvFresh"
@@ -145,8 +150,6 @@ instance Show(SemanticAction) where
   show (MapLookup   _ _ _)  = "MapLookup"
   show (MapInsert   _ _ _ _) = "MapInsert"
   show (CoerceCheck _ _ _ _) = "CoerceCheck"
-  show (SelUnion    _x _y _lbl)  = "SelUnion" -- ++ " " ++ show x ++ " " ++ show y ++ " " ++ show lbl
-  show (SelJust     _ _)    = "SelJust"
   show (Guard       _)      = "Guard"
 
 
@@ -217,14 +220,15 @@ isUnhandledAction act =
         MapHasMore -> True
         MapNext -> True
         MapEnd -> True
+        CaseCall _ -> True
+        CaseTry _ -> True
+        CaseEnd -> True
         _ -> False
     SAct sact ->
       case sact of
         MapInsert {} -> True
-        SelUnion {} -> True
         -- Guard _ -> True
         -- CoerceCheck {} -> True
-        SelJust {} -> True
         _ -> False
     _ -> False
 
@@ -292,10 +296,22 @@ data MapFrm = MapFrm
   , mapSavedOut :: SemanticData
   }
 
+data CaseFrm =
+    CaseOn
+    { caseOn :: Val
+    , caseSavedOut :: SemanticData
+    }
+  | CaseBound
+    { caseBound :: !(Map.Map Name Val)
+    , caseSavedOut :: SemanticData
+    }
+  deriving (Show)
+
 data ControlElm =
     ManyFrame !(BetweenItv) {-# UNPACK #-} !Int -- the integer is the current counter
   | ForFrame  !ForFrm
   | MapFrame  !MapFrm
+  | CaseFrame !CaseFrm
   | CallFrame !Name {-# UNPACK #-} !State !(ActivationFrame) !SemanticData
   --deriving (Eq)
 
@@ -318,6 +334,8 @@ instance Show (ControlElm) where
     = "(MapFrame " ++ show v1 ++ ", " ++ show n2 ++ ", " ++ show v2 ++ ")"
   show (CallFrame name q (ListArgs _) _) = "(CallFrame " ++ show name ++ " " ++ show q ++ " L _)"
   show (CallFrame name q (ActivatedFrame _) _) = "(CallFrame " ++ show name ++ " " ++ show q ++ " A _)"
+  show (CaseFrame (CaseOn v _)) = "(CaseFrameOn " ++ show v ++ ")"
+  show (CaseFrame (CaseBound m _)) = "(CaseFrameBound " ++ show m ++ ")"
 
 
 data SemanticElm =
@@ -403,6 +421,18 @@ lookupEnvName nname ctrl out =
                Just (Vector.head arr)
              _ -> error "The for iterator should be an array"
       else lookupSem out1 rest
+
+    lookupCtrl (CaseFrame (CaseBound
+                          { caseBound = m
+                          , caseSavedOut = out1
+                          }) : rest)
+      =
+      case Map.lookup nname m of
+        Nothing -> lookupSem out1 rest
+        Just v -> Just v
+
+    lookupCtrl (CaseFrame (CaseOn {}) : _) =
+      error "broken invariant on ctrl, cannot be this case"
 
     lookupCtrl (CallFrame _ _ (ActivatedFrame m) _ : _rest) =
       case Map.lookup nname m of
@@ -746,6 +776,36 @@ valToInt v =
     Interp.VUInt 8 i -> toEnum (fromIntegral i ::Int)
     Interp.VInteger i -> fromIntegral i :: Int
     _ -> error "valToInt pb"
+
+evalCase :: GblFuns -> Val -> Maybe [TCPat] -> Maybe (Map.Map Name Val)
+evalCase _gbl v lpat =
+  case lpat of
+    Nothing -> Just (Map.empty)
+    Just (pat : []) ->
+      case pat of
+        TCConPat _ lbl binding ->
+          case v of
+            Interp.VUnionElem lbl1 e2 ->
+              if lbl1 == lbl
+              then case binding of
+                     TCVarPat n ->
+                       Just (Map.insert (tcName n) e2 Map.empty)
+                     TCWildPat _ -> Just Map.empty
+                     _ -> error "not handled"
+              else Nothing
+            _ -> error "type error: should be a union"
+        TCJustPat (TCVarPat n) ->
+          case v of
+            Interp.VMaybe Nothing -> Nothing
+            Interp.VMaybe (Just v1) -> Just (Map.insert (tcName n) v1 Map.empty)
+            _ -> error "type error: shoudl be a Maybe"
+        TCNothingPat _ ->
+          case v of
+            Interp.VMaybe Nothing -> Just (Map.empty)
+            Interp.VMaybe (Just _) -> Nothing
+            _ -> error "type error: shoudl be a Maybe"
+        _ -> error ("TODO not handled pat" ++ show pat)
+    _ -> error "TODO: not handled list"
 
 evalCExpr :: GblFuns -> NCExpr -> Word8 -> ControlData -> SemanticData -> Maybe SemanticElm
 evalCExpr gbl expr x ctrl out =
@@ -1092,8 +1152,25 @@ applyControlAction gbl (ctrl, out) act =
     DeactivateReady -> (
       case ctrl of
         CallFrame _rname _q (ActivatedFrame _) _savedFrame : _ctrls -> Just (ctrl, out)
-        _ -> error "unexpected out"
+        _ -> error "unexpected ctrl"
       )
+    CaseCall e1 ->
+      let ev1 = evalVExpr gbl e1 ctrl out
+          casefrm = CaseOn ev1 out
+      in Just (CaseFrame casefrm : ctrl, initSemanticData)
+    CaseTry pat ->
+      case (ctrl, out) of
+        (CaseFrame (CaseOn {caseOn = v, caseSavedOut = cout}) : rest, []) ->
+          let mres = evalCase gbl v pat in
+            case mres of
+              Nothing -> Nothing
+              Just m -> Just ((CaseFrame (CaseBound m cout)) : rest, out)
+        _ -> error "unexpected ctrl"
+    CaseEnd ->
+      case (ctrl, out) of
+        (CaseFrame (CaseBound { caseSavedOut = sout}) : rest, [v]) ->
+          Just (rest, v : sout)
+        _ -> error "unexpected ctrl"
 
 
 applySemanticAction :: GblFuns -> (ControlData, SemanticData) -> SemanticAction -> Maybe SemanticData
@@ -1132,7 +1209,8 @@ applySemanticAction gbl (ctrl, out) act =
             SManyVal _ -> error "unexpected out, cannot proceed"
             SEnd -> Just rest
           )
-        _ -> error ("unexpected out, cannot proceed: " ++ show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
+        _ -> error ("unexpected out, cannot proceed: " ++
+                    show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
       )
     EvalPure e -> Just (SEVal (evalVExpr gbl e ctrl out) : out)
     ReturnBind e -> Just (SEVal (evalVExpr gbl e ctrl out) : tail out)
@@ -1164,21 +1242,6 @@ applySemanticAction gbl (ctrl, out) act =
         case doCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
           (v, NotLossy) -> resultWithSem s v
           (_, Lossy) -> Nothing -- error "Lossy coercion"
-    SelUnion s e1 lbl ->
-      let ev1 = evalVExpr gbl e1 ctrl out
-      in case ev1 of
-           Interp.VUnionElem lbl1 e2 ->
-             if lbl1 == lbl
-             then resultWithSem s e2
-             else Nothing
-           _ -> error "Selection not a union"
-
-    SelJust s e1 ->
-      let ev1 = evalVExpr gbl e1 ctrl out
-      in case ev1 of
-           Interp.VMaybe Nothing -> Nothing
-           Interp.VMaybe (Just v1) -> resultWithSem s v1
-           _ -> error "Semantic output not a map"
 
     Guard e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out

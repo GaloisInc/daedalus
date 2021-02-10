@@ -10,7 +10,7 @@ def Chunk n P =  {
   SetStream next;
 }
 
-def PadWSpaces n P = 
+def PadWSpaces n P =
   Chunk n {$$ = P; Many (Match1 ' '); END}
 
 def Main =
