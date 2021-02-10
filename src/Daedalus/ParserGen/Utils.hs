@@ -44,5 +44,5 @@ autToGraphviz aut =
       ++ "// dot -Tpdf aut.dot > aut.pdf \n"
       ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
     makeEdge start arriv label b =
-      start ++ " -> " ++ arriv ++ " [ label=" ++ label ++ (if b then " style=dashed color=blue" else "") ++ " ];"
+      start ++ " -> " ++ arriv ++ " [ label=\"" ++ label ++ (if b then " style=dashed color=blue" else "") ++ "\" ];"
     postlude = "}" ++ "\n// dot -Tpdf aut.dot > aut.pdf " -- "f.view()\n"

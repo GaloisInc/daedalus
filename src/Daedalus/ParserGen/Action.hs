@@ -20,7 +20,7 @@ import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
 import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr)
+import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr)
 
 type State = Int
 
@@ -105,7 +105,7 @@ showName n =
 
 
 instance Show(InputAction) where
-  show (ClssAct s _)  = semToString s ++ "Match"
+  show (ClssAct s c)  = semToString s ++ showNCExpr c
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"

@@ -244,6 +244,9 @@ showDFA dfa =
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
 
+demoMode :: Bool
+demoMode = True
+
 printDFAtoGraphviz :: Int -> DFA -> [ String ]
 printDFAtoGraphviz llaState dfa =
   showStates (mappingLinToDFAState dfa) ++
@@ -307,15 +310,15 @@ printDFAtoGraphviz llaState dfa =
 
     showT vis qq (i, s, am, _qq, ql) =
       (nodeqq ++ " -> " ++ nodeql ++
-      "[label=\"" ++ "[" ++ showGraphvizInputHeadCondition i ++ "]" ++ " (" ++ showSet s ++ ")" ++ "\"];") :
+      "[fontsize = 20, fontname = courrier, label=\"" ++ showGraphvizInputHeadCondition i ++ showSet s ++ "\"];") :
       showDown am
       where
         nodeqq = stateToNode qq
         nodeql = case am of
                    Ambiguous ->
-                     stateToNode ql ++ "_" ++ showSet s ++ "_" ++ show am
+                     stateToNode ql ++ "_" ++ "Reg" ++ showSet s ++ "_" ++ show am
                    NotAmbiguous ->
-                     stateToNode ql ++ "_" ++ showSet s ++ "_" ++ show am
+                     stateToNode ql ++ "_" ++ "Reg" ++ showSet s ++ "_" ++ show am
                    _ -> stateToNode ql
         showDown amb =
           case amb of
@@ -352,9 +355,12 @@ printDFAtoGraphviz llaState dfa =
           case nextIteratorDFAState it of
             Nothing -> reverse acc
             Just (cfg, it2) ->
-              translateCfgs it2 (showGraphvizSlkCfg cfg : acc)
+              translateCfgs it2 (showGraphvizSlkCfg demoMode cfg : acc)
 
-    showSet s = "Reg" ++ show (length s)
+    showSet s =
+      if demoMode
+      then ""
+      else "(Reg" ++ show (length s) ++ ")"
 
     showGraphvizRegistry r =
       let iterator = initIteratorDFARegistry r in
@@ -371,8 +377,7 @@ printDFAtoGraphviz llaState dfa =
                       Closure.ClosurePath {} -> Closure.lastCfg cm
                       Closure.ClosureAccepting {} -> Closure.closureCfg cm
               in
-
-              translateRegistry it2 (showGraphvizSlkCfg cfg : acc)
+              translateRegistry it2 (showGraphvizSlkCfg demoMode cfg : acc)
 
 
 

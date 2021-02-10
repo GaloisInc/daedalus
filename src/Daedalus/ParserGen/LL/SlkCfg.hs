@@ -350,18 +350,23 @@ showSlkCfg
   "inp:" ++ showSlkInput inp ++
   " }"
 
-showGraphvizSlkCfg :: SlkCfg -> String
+showGraphvizSlkCfg :: Bool -> SlkCfg -> String
 showGraphvizSlkCfg
+  demoMode
   (SlkCfg
   { cfgState = q
   , cfgCtrl = ctrl
   , cfgSem = sem
   , cfgInput = inp
   }) =
-  "q" ++ show q ++ " " ++
-  "ctrl" ++ showSlkStack ctrl ++ " " ++
-  "sem" ++ showSlkStack sem ++ " " ++
-  "inp" ++ showSlkInput inp
+  if demoMode
+  then
+    "q" ++ show q
+  else
+    "q" ++ show q ++ " " ++
+    "ctrl" ++ showSlkStack ctrl ++ " " ++
+    "sem" ++ showSlkStack sem ++ " " ++
+    "inp" ++ showSlkInput inp
 
 
 
