@@ -9,6 +9,8 @@ import Control.Monad(liftM,ap)
 
 import Daedalus.PP
 import Daedalus.VM
+import qualified Daedalus.Core.Basics as Src
+
 
 
 newtype BlockBuilder a = BlockBuilder ((a -> R) -> R)
@@ -49,6 +51,8 @@ getLocal :: FV -> BlockBuilder E
 getLocal x = BlockBuilder \k info ->
                 case Map.lookup x (localDefs info) of
                   Just e  -> k e info
+
+                  -- not defined: becaomes a parameter to the block
                   Nothing ->
                     let a = nextArg info
                         arg = BA a (getType x) Borrowed {- placeholder -}
@@ -79,6 +83,12 @@ stmt_ i = BlockBuilder \k info ->
 
 term :: CInstr -> BlockBuilder Void
 term c = BlockBuilder \_ i -> ([], (c, nextLocal i, reverse (externArgs i)))
+
+getInput :: BlockBuilder E
+getInput = stmt (TSem Src.TStream) GetInput
+
+setInput :: E -> BlockBuilder ()
+setInput v = stmt_ (SetInput v)
 
 
 buildBlock ::

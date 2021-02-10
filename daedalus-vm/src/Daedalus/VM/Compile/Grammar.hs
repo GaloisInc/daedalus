@@ -36,12 +36,12 @@ compile expr next0 =
 
     Src.GetStream ->
       pure
-        do v <- stmt (TSem Src.TStream) GetInput
+        do v <- getInput
            nextYes next v
 
     Src.SetStream e ->
       compileE e $ Just \v ->
-        do stmt_ $ SetInput v
+        do setInput v
            nextYes next EUnit
 
     Src.Annot a e ->
@@ -94,12 +94,12 @@ compile expr next0 =
 
          l     <- newLocal (TSem Src.TStream)
          pCode <- compile p next' { onNo = Just do i <- getLocal l
-                                                   stmt_ $ SetInput i
+                                                   setInput i
                                                    qCode
                                   }
 
          pure
-           do i <- stmt (TSem Src.TStream) $ GetInput
+           do i <- getInput
               setLocal l i
               pCode
 
@@ -126,7 +126,7 @@ compile expr next0 =
          doRHS <- label1' ThreadBlock (Just (TSem Src.TBool)) \didFail ->
                   do setLocal leftFailed didFail
                      i <- getLocal l
-                     stmt_ $ SetInput i
+                     setInput i
                      qCode
 
          rightId <- newLocal TThreadId
@@ -138,7 +138,7 @@ compile expr next0 =
                         }
 
          pure
-           do i <- stmt (TSem Src.TStream) $ GetInput
+           do i <- getInput
               setLocal l i
               clo <- doRHS
               tid <- stmt TThreadId $ \x -> Spawn x clo
