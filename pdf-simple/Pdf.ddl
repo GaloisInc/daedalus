@@ -1,8 +1,9 @@
 import PdfValue
 
-def Main = {
+def Main = Only {
   version = SkipTo { Match "%PDF-"; $$ = Number; };
   chunks  = Many PdfChunk;
+  Many AnyWS;
 }
 
 def PdfChunk = {
