@@ -288,14 +288,14 @@ printDFAtoGraphviz llaState dfa =
                     nodeResolution = stateToNode qq ++ show am
                   in
                   [ nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.\"]" ++ ";"
-                  , (stateToNode qq ++ " -> " ++ nodeResolution)
+                  , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
                   ]
                 Ambiguous ->
                   let
                     nodeResolution = stateToNode qq ++ "Ambiguous_acceptingPath_next"
                   in
                   [ nodeResolution ++ " [shape=box,style=filled,color=\"1. 0.7 0.7\"]" ++ ";"
-                  , (stateToNode qq ++ " -> " ++ nodeResolution)
+                  , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
                   ]
                 DunnoAmbiguous ->
                   concatMap (showAccept qq) accTr ++
@@ -305,20 +305,20 @@ printDFAtoGraphviz llaState dfa =
                 nodeResolution = stateToNode qq ++ abortToString r
               in
                 [ nodeResolution ++ " [shape=box,style=filled,color=\".1 0.2 1.\"]" ++ ";"
-                , (stateToNode qq ++ " -> " ++ nodeResolution)
+                , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
                 ]
 
     showT vis qq (i, s, am, _qq, ql) =
       (nodeqq ++ " -> " ++ nodeql ++
-      "[fontsize = 20, fontname = courrier, label=\"" ++ showGraphvizInputHeadCondition i ++ showSet s ++ "\"];") :
+      "[fontsize = 20, fontname = courrier, label=\"" ++ showGraphvizInputHeadCondition i ++ "\"];") :
       showDown am
       where
         nodeqq = stateToNode qq
         nodeql = case am of
                    Ambiguous ->
-                     stateToNode ql ++ "_" ++ "Reg" ++ showSet s ++ "_" ++ show am
+                     stateToNode ql ++ "_" ++ "Reg" ++ show (length s) ++ "_" ++ show am
                    NotAmbiguous ->
-                     stateToNode ql ++ "_" ++ "Reg" ++ showSet s ++ "_" ++ show am
+                     stateToNode ql ++ "_" ++ "Reg" ++ show (length s) ++ "_" ++ show am
                    _ -> stateToNode ql
         showDown amb =
           case amb of
@@ -326,13 +326,13 @@ printDFAtoGraphviz llaState dfa =
               let nodeResolution = stateToNode ql ++ show amb in
               [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
               , nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.0\"];"
-              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted]")
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted,arrowhead=odiamond]")
               ]
             Ambiguous ->
               let nodeResolution = stateToNode ql ++ show amb in
               [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
               , nodeResolution ++ " [shape=box,style=filled,color=\"1. .7 .7\"];"
-              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted]")
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted, arrowhead=odiamond]")
               ]
             DunnoAmbiguous -> showTrans vis ql
 
@@ -342,8 +342,8 @@ printDFAtoGraphviz llaState dfa =
       [ nodeResolution ++  " [shape=box,style=filled,color=\".7 .3 1.0\"]" ++ ";"
       , (stateToNode qq ++ " -> " ++ nodeResolution ++
          "[" ++
-         " style=dotted" ++
-         " label=\"" ++ "(" ++ showSet reg ++ ")" ++ "\"" ++
+         " style=dotted, arrowhead=odiamond, " ++
+         " label=\"" ++ showSet reg ++ "\"" ++
          "]")
        ]
 
@@ -360,7 +360,7 @@ printDFAtoGraphviz llaState dfa =
     showSet s =
       if demoMode
       then ""
-      else "(Reg" ++ show (length s) ++ ")"
+      else "Reg" ++ show (length s)
 
     showGraphvizRegistry r =
       let iterator = initIteratorDFARegistry r in

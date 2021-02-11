@@ -1,6 +1,7 @@
 module Daedalus.ParserGen.Utils where
 
 import System.IO
+import Data.List
 
 import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
@@ -23,12 +24,14 @@ autToGraphviz aut =
             makeEdge startNode arrivNode strAct isDotted
             where
               arrivNode = case act of
-                            CAct (Push _ _ n) -> "S" ++ show n
-                            _ -> "S" ++ show n2
-              startNode = "S" ++ show n1
-              strAct = case act of
-                         CAct (Push name _ _) -> "Push_" ++ tail (removeLast (showName name)) ++ "_S" ++ show n2
-                         _ -> show act
+                            CAct (Push _ _ n) -> "q" ++ show n
+                            _ -> "q" ++ show n2
+              startNode = "q" ++ show n1
+              strAct =
+                case act of
+                  CAct (Push name _ _) ->
+                    "Push_" ++ tail (removeLast (showName name)) ++ "_q" ++ show n2
+                  _ -> show act
               isDotted = case act of
                          CAct (Push _ _ _) -> True
                          _ -> False
@@ -44,5 +47,12 @@ autToGraphviz aut =
       ++ "// dot -Tpdf aut.dot > aut.pdf \n"
       ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
     makeEdge start arriv label b =
-      start ++ " -> " ++ arriv ++ " [ label=\"" ++ label ++ (if b then " style=dashed color=blue" else "") ++ "\" ];"
+      let (fontsize,newlabel) =
+            if isPrefixOf "Match-" label
+            then ("fontsize = 26, fontname = courrier, color = blue, ", drop 6 label)
+            else ("", label)
+
+      in start ++ " -> " ++ arriv ++
+         " [ " ++ fontsize ++ (if b then "style=dashed, color = green " else "") ++
+         "label=\"" ++ newlabel ++ "\" ];"
     postlude = "}" ++ "\n// dot -Tpdf aut.dot > aut.pdf " -- "f.view()\n"
