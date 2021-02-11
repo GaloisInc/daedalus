@@ -38,6 +38,7 @@ library
     text,
     containers,
     vector,
+    GraphSCC,
     parameterized-utils,
     bv-sized >= 1.0.1,
     rts-hs,

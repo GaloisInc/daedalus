@@ -8,10 +8,13 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Foldable
 import MonadLib
+import Data.List(partition)
+import Data.Graph.SCC(stronglyConnComp)
+import Data.Graph(SCC(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
-import Daedalus.Rec(Rec(..),topoOrder)
+import Daedalus.Rec(Rec(..))
 
 import Daedalus.Core.Free(FreeVars(freeFVars))
 import Daedalus.Core.Subst
@@ -131,9 +134,41 @@ instance Expand e => Expand (Fun e) where
 --      to be inlined (in case we want to make them into entry points)
 
 orderFuns :: (FreeVars e) => [Fun e] -> [Rec (Fun e)]
-orderFuns ins = topoOrder deps ins
+orderFuns ins = comps ins
   where
+  callMap   = Map.fromListWith Set.union
+                [ (v,Set.singleton n)
+                | (n,vs) <- map deps ins, v <- Set.toList vs
+                ]
+  callersOf f = Map.findWithDefault Set.empty f callMap
+
   deps f = (fName f, freeFVars (fDef f))
+  comps  = concatMap cvt . stronglyConnComp . map node
+  cvt sc = case sc of
+             AcyclicSCC n -> [NonRec n]
+             CyclicSCC ns -> breakLoop ns
+{-
+               let loc = Set.fromList (map fName ns)
+                   hasExt f = not
+                            $ Set.null
+                            $ Map.findWithDefault Set.empty f callMap
+                                                        `Set.difference` loc
+                in MutRec [ (hasExt (fName n),n) | (n <- ns ]
+-}
+
+  node a = case deps a of
+             (x,xs) -> (a,x,Set.toList xs)
+
+  breakLoop els
+    | null els = []
+    | otherwise =
+    let loc         = Set.fromList (map fName els)
+        hasExt fu   = not (callersOf (fName fu) `Set.isSubsetOf` loc)
+        (rec,rest)  = partition hasExt els
+    in if null rec then [MutRec rest]
+                   else orderFuns rest ++ [MutRec rec]
+
+
 
 inlineAll ::
   (Expand e, FreeVars e) =>
@@ -152,8 +187,7 @@ inlineRec ext rec =
           do yes <- isInlineable (fName f)
              if yes then updateInlineable (ext f) >> pure []
                     else pure (Foldable.toList r1)
-      -- We can inline recursive definitions too, but we need to break
-      -- the cycle
+
        _ -> pure (Foldable.toList r1)
 
 
@@ -164,5 +198,5 @@ expandModule m =
      pure m { mFFuns = efuns, mGFuns = gfuns }
 
 
-
+-- X -> [*A -> B, B -> A]
 
