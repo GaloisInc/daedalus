@@ -36,20 +36,20 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
-("Result-0",2)
-("Result-1",7)
-("Result-2",2)
-("Result-ambiguous-2",5)
+("Lookahead-0",2)
+("Lookahead-1",7)
+("Lookahead-2",2)
+("Lookahead-ambiguous-2",5)
 
 Total nb states: 16
 
 **********************
 ***** Strict LLA *****
 **********************
-("Result-2",1)
-("Result-ambiguous-2",1)
+("Lookahead-2",1)
+("Lookahead-ambiguous-2",1)
 
-Total nb states: 2
+Total nb DFAs: 2
 
 
 Warning: LL(*) failures:

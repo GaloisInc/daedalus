@@ -181,7 +181,7 @@ AbortDFAOverflowInitCfg
 **********************
 ("AbortClosureInfiniteloop",2)
 ("AbortDFAOverflowInitCfg",3)
-("Result-1",1)
+("Lookahead-1",1)
 ("abort-1",12)
 ("abort-2",21)
 
@@ -193,7 +193,7 @@ Total nb states: 39
 ("AbortDFAOverflowInitCfg",1)
 ("abort-2",10)
 
-Total nb states: 11
+Total nb DFAs: 11
 
 
 Warning: LL(*) failures:
