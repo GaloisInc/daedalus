@@ -529,7 +529,7 @@ statsLLA aut llas =
          putStrLn "***** Strict LLA *****"
          putStrLn "**********************"
          putStrLn $ getReport t initReport
-         putStrLn $ "Total nb states: " ++ show (length t) ++ "\n"
+         putStrLn $ "Total nb DFAs: " ++ show (length t) ++ "\n"
          putStrLn "SUCCESS: Fully determinized format"
 
     Right (lla1, lla) ->
@@ -548,7 +548,7 @@ statsLLA aut llas =
          putStrLn "***** Strict LLA *****"
          putStrLn "**********************"
          putStrLn $ getReport t1 initReport
-         putStrLn $ "Total nb states: " ++ show (length t1) ++ "\n"
+         putStrLn $ "Total nb DFAs: " ++ show (length t1) ++ "\n"
          putStrLn "\nWarning: LL(*) failures:\n"
          printLLA aut lla1 (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
          printAmbiguities aut lla1
@@ -560,7 +560,7 @@ statsLLA aut llas =
         dfa : xs ->
           getReport xs (incrReport report dfa)
 
-    result str = "Result" ++ str
+    result str = "Lookahead" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []

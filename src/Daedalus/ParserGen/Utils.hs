@@ -50,7 +50,10 @@ autToGraphviz aut =
       let (fontsize,newlabel) =
             if isPrefixOf "Match-" label
             then ("fontsize = 26, fontname = courrier, color = blue, ", drop 6 label)
-            else ("", label)
+            else
+              if isPrefixOf "END" label
+              then ("fontsize = 26, fontname = courrier, color = blue, ", label)
+              else ("", label)
 
       in start ++ " -> " ++ arriv ++
          " [ " ++ fontsize ++ (if b then "style=dashed, color = green " else "") ++
