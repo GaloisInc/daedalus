@@ -119,7 +119,7 @@ handleOptions opts
                        $ VM.moduleToProgram ents [m]
               ddlPrint (pp prog)
 
-         DumpGraph ->
+         DumpGraph onlyFun ->
            do passSpecialize specMod [mainRule]
               passCore specMod
               entry <- ddlGetFName mm "Main" -- mainNm
@@ -128,7 +128,8 @@ handleOptions opts
               passVM specMod
               m <- ddlGetAST specMod astVM
               let prog = VM.moduleToProgram ents [m]
-              ddlPutStrLn (VM.toGraphViz prog)
+                  sty = if onlyFun then VM.OnlyCalls else VM.Everything
+              ddlPutStrLn (VM.toGraphViz sty prog)
 
 
          DumpGen ->
