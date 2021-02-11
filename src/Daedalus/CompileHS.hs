@@ -679,9 +679,9 @@ hsPat env pat =
         Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
         _ -> panic "hsPat" [ "We don't support polymorphic case." ]
 
-    TCBoolPat b     -> Raw b
-    TCJustPat p     -> "Just" `Ap` hsPat env p
-    TCNothingPat _t -> "Nothing"
+    TCBoolPat b     -> hsBool b
+    TCJustPat p     -> "HS.Just" `Ap` hsPat env p
+    TCNothingPat _t -> "HS.Nothing"
     TCVarPat x      -> hsTCName env x
     TCWildPat _t    -> "_"
 
