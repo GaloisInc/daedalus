@@ -20,6 +20,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
+import qualified Data.List as List
 import qualified Data.Array.IArray as Array
 import System.IO
 
@@ -424,21 +425,22 @@ createLLA aut =
     Left lla -> lla
     Right (_lla1, lla2) -> lla2
 
-showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
+showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> [String]
 showStartSynthLLAState aut dfas q =
   let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
   case nextIteratorDFAState (initIteratorDFAState dfaSt) of
-    Nothing -> "__ZSINK_STATE"
+    Nothing -> [ "__ZSINK_STATE" ]
     Just (cfg, qs) ->
       if isEmptyIteratorDFAState qs
-      then stateToString (cfgState cfg) aut ++ "\n" ++
-           showSlkCfg cfg
+      then [ stateToString (cfgState cfg) aut
+           , showSlkCfg cfg
+           ]
       else error "broken invariant"
 
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
-printLLA aut dfas cond =
-  let t = Map.toAscList (transitionLLA dfas)
-      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut dfas q, dfa)) t
+printLLA aut lla cond =
+  let t = Map.toAscList (transitionLLA lla)
+      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
@@ -451,13 +453,45 @@ printLLA aut dfas cond =
                        )
                     then
                       do
-                        putStrLn $ ann
+                        mapM_ putStrLn ann
                         putStrLn $ showDFA dfa
                         putStrLn ""
                     else
                       return ()
 
                 ) tOrdered
+
+printAmbiguities :: Aut a => a -> LLA -> IO ()
+printAmbiguities aut lla =
+  let t = Map.toAscList (transitionLLA lla)
+      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
+      tMapped = Map.fromList tAnnotated
+      tOrdered = Map.assocs tMapped
+  in if length t > 10000
+     then do return ()
+     else mapM_ (\ (ann, dfa) ->
+                    case extractAmbiguity dfa of
+                      Nothing ->
+                        return ()
+                      Just (l, conflicts) ->
+                        do putStrLn "*******  Found Ambiguity  *******"
+                           putStrLn ("  Start: " ++ (head ann))
+                           putStrLn ("  Paths : ")
+                           printConflicts conflicts
+                           putStrLn "********  input witness  ********"
+                           putStrLn $ printPath l
+                ) tOrdered
+  where
+    printPath l =
+      concat (List.intersperse "" (map showGraphvizInputHeadCondition l))
+
+    printConflicts conflicts =
+      do mapM_ (\ c -> do putStrLn ("  -  ")
+                          mapM_ (\ s -> putStrLn ("     " ++ s)
+                                ) (getInfoEntry aut c)
+               ) conflicts
+
+
 
 llaToGraphviz :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
 llaToGraphviz _aut lla =
@@ -517,6 +551,7 @@ statsLLA aut llas =
          putStrLn $ "Total nb states: " ++ show (length t1) ++ "\n"
          putStrLn "\nWarning: LL(*) failures:\n"
          printLLA aut lla1 (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
+         printAmbiguities aut lla1
 
   where
     getReport lst report =

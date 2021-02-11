@@ -8,6 +8,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , initSlkCfg
   , isInitSlkCfg
   , showSlkCfg
+  , showSlkControlData
   , showGraphvizSlkCfg
   , HTable
   , emptyHTable
@@ -207,6 +208,17 @@ data SlkControlElm =
   deriving (Show, Eq, Ord)
 
 type SlkControlData = SlkStack SlkControlElm
+
+
+showSlkControlData :: Aut.Aut a => a -> SlkControlData -> [String]
+showSlkControlData aut ctrl =
+  case destrSlkStack ctrl of
+    SWildcard -> [ "*" ]
+    SCons (SlkCallFrame _name q _ _) rest ->
+      showSlkControlData aut rest ++ [ Aut.stateToString q aut ]
+    SCons _ rest ->
+      showSlkControlData aut rest
+    SEmpty ->  []
 
 
 

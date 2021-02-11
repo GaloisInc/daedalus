@@ -131,7 +131,6 @@ getAltSeq c =
     ClosureAccepting {} -> altSeq c
 
 
-
 simulateMoveClosure ::
   Slk.InputHeadCondition -> ClosureMove ->
   Slk.HTable -> Maybe (ClosureMove, Slk.HTable)

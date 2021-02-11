@@ -276,3 +276,22 @@ DTrans [
   ),
 ]
 
+*******  Found Ambiguity  *******
+  Start: Main (24,1)-(27,3)
+  Paths : 
+  -  
+     *
+     __ZAuxiliaryState
+     Main (26,10)-(26,22)
+     UnsignedNum (12,19)-(12,23)
+     Digit (9,20)-(9,26)
+     MATCH: Numeral (7,15)-(7,32)
+  -  
+     *
+     __ZAuxiliaryState
+     Main (26,10)-(26,22)
+     UnsignedNum (12,19)-(12,23)
+     Digit (9,20)-(9,26)
+     MATCH: Numeral (7,15)-(7,32)
+********  input witness  ********
+9999999999990-9
