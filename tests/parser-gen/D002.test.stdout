@@ -68,3 +68,16 @@ DTrans [
   ),
 ]
 
+*******  Found Ambiguity  *******
+  Start: Main (8,10)-(11,12)
+  Paths : 
+  -  
+     *
+     __ZAuxiliaryState
+     MATCH: Main (9,18)-(9,27)
+  -  
+     *
+     __ZAuxiliaryState
+     MATCH: Main (10,18)-(10,27)
+********  input witness  ********
+ab

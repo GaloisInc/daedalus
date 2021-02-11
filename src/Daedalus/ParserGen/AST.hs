@@ -1,6 +1,7 @@
 {-# Language GADTs, DataKinds, ExistentialQuantification, RecordWildCards #-}
 module Daedalus.ParserGen.AST where
 
+import Numeric (showHex)
 import qualified Data.Map as Map
 
 import Daedalus.Type.AST hiding (ppBinder)
@@ -48,7 +49,7 @@ showNCExpr c =
           let x = toInteger i in
           if (48 <= x && x <= 57) || (65 <= x && x <= 90) || (97 <= x && x <= 122)
           then (toEnum (fromIntegral i) :: Char) : ""
-          else "0x" ++ show (fromIntegral i :: Integer)
+          else "x" ++ showHex (fromIntegral i :: Integer) ""
         _ -> "MATCH"
     _ -> "MATCH"
 

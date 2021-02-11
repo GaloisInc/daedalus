@@ -13,6 +13,7 @@ module Daedalus.ParserGen.LL.DFA
   , lookaheadDepth
   , revAppend
   , printDFAtoGraphviz
+  , extractAmbiguity
   )
 where
 
@@ -427,25 +428,25 @@ getConflictSetsPerLoc s =
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility, or when the conflict set is empty
 -- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
 -- * `DunnoAmbiguous` if all the conflict sets have 1 possibility
-analyzeConflicts :: DFARegistry -> AmbiguityDetection
+analyzeConflicts :: DFARegistry -> (AmbiguityDetection, Maybe [DFAEntry])
 analyzeConflicts ts =
   let conflictSets = getConflictSetsPerLoc ts
   in case conflictSets of
-       [] -> NotAmbiguous
+       [] -> (NotAmbiguous, Nothing)
        [ [] ] -> error "empty list"
        [ lst ] ->
          if length lst == 1
-         then NotAmbiguous
-         else Ambiguous
+         then (NotAmbiguous, Nothing)
+         else (Ambiguous, Just lst)
        lstLst -> isAnyAmbiguous lstLst
   where
     isAnyAmbiguous cs =
       case cs of
-        [] -> DunnoAmbiguous
+        [] -> (DunnoAmbiguous, Nothing)
         [] : _rest -> error "empty list"
         lst : rest ->
           if length lst > 1
-          then Ambiguous
+          then (Ambiguous, Just lst)
           else isAnyAmbiguous rest
 
 revAppend :: [a] -> [a] -> [a]
@@ -480,11 +481,11 @@ mapAnalyzeConflicts dc =
   where
     fconvert (ihc, reg) =
       let newCfg = convertDFARegistryToDFAState reg
-          am = analyzeConflicts reg
+          (am, _) = analyzeConflicts reg
       in (ihc, reg, am, newCfg, dummyLinDFAState)
 
     fconvertAccepting reg =
-      let am = analyzeConflicts reg
+      let (am, _) = analyzeConflicts reg
       in Just (reg, am)
 
 
@@ -652,3 +653,49 @@ computeHasNoAbort dfa =
             NotAmbiguous -> helper visited rest
             Ambiguous -> helper visited rest
             DunnoAmbiguous -> traverseWithVisited visited q && helper visited rest
+
+
+extractAmbiguity :: DFA -> Maybe ([InputHeadCondition], [DFAEntry])
+extractAmbiguity dfa =
+  let start = startLinDFAState dfa in
+  traverseWithVisited [] start
+  where
+    traverseWithVisited visited q =
+      if elem q visited
+      then Nothing
+      else
+        case lookupLinDFAState q dfa of
+          Nothing -> error "broken invariant"
+          Just r ->
+            case r of
+              Result (DFATransition { ambiguityTrans = NotAmbiguous, nextTrans = lst, acceptTrans = acceptTr}) ->
+                if (not (null lst) || not (isNothing acceptTr))
+                then error "broken invariant"
+                else Nothing
+              Result (DFATransition { ambiguityTrans = DunnoAmbiguous, nextTrans = lst, acceptTrans = Just (_, am)}) ->
+                if not (null lst)
+                then error "broken invariant"
+                else
+                case am of
+                  NotAmbiguous -> Nothing
+                  Ambiguous -> Just ([], [])
+                  DunnoAmbiguous -> error "broken invariant"
+              Result (DFATransition { ambiguityTrans = DunnoAmbiguous, nextTrans = lst, acceptTrans = Nothing}) ->
+                helper (q : visited) lst
+              Result (DFATransition {ambiguityTrans = Ambiguous}) -> Just ([], [])
+              Abort _ -> Nothing
+
+    helper visited lst =
+      case lst of
+        [] -> Nothing
+        (i, reg, am, _, q) : rest ->
+          case am of
+            NotAmbiguous -> helper visited rest
+            Ambiguous ->
+              case analyzeConflicts reg of
+                (Ambiguous, conflicts) -> Just ([i], fromJust conflicts)
+                _ -> error "Weird"
+            DunnoAmbiguous ->
+              case traverseWithVisited visited q of
+                Nothing -> helper visited rest
+                Just (r, conflicts) -> Just ((i : r), conflicts)
