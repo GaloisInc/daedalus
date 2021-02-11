@@ -34,6 +34,15 @@ import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DFAStep
 
 
+cst_MAX_LOOKAHEAD_DEPTH :: Int
+cst_MAX_LOOKAHEAD_DEPTH = 20
+
+cst_OVERFLOW_CFG :: Int
+cst_OVERFLOW_CFG = 10
+
+cst_DEMO_MODE :: Bool
+cst_DEMO_MODE = True
+
 
 data AmbiguityDetection =
     Ambiguous
@@ -245,8 +254,6 @@ showDFA dfa =
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
 
 
-demoMode :: Bool
-demoMode = True
 
 printDFAtoGraphviz :: Int -> DFA -> [ String ]
 printDFAtoGraphviz llaState dfa =
@@ -356,10 +363,10 @@ printDFAtoGraphviz llaState dfa =
           case nextIteratorDFAState it of
             Nothing -> reverse acc
             Just (cfg, it2) ->
-              translateCfgs it2 (showGraphvizSlkCfg demoMode cfg : acc)
+              translateCfgs it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
 
     showSet s =
-      if demoMode
+      if cst_DEMO_MODE
       then ""
       else "Reg" ++ show (length s)
 
@@ -378,7 +385,7 @@ printDFAtoGraphviz llaState dfa =
                       Closure.ClosurePath {} -> Closure.lastCfg cm
                       Closure.ClosureAccepting {} -> Closure.closureCfg cm
               in
-              translateRegistry it2 (showGraphvizSlkCfg demoMode cfg : acc)
+              translateRegistry it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
 
 
 
@@ -405,10 +412,6 @@ lookaheadDepth dfa =
         (_, _, _am, _, qq) : rest ->
           let i = helper (src:vis) qq
           in foldOverList vis src rest (max acc (i + 1))
-
-
-maxLookaheadDepth :: Int
-maxLookaheadDepth = 20
 
 
 getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
@@ -489,9 +492,6 @@ mapAnalyzeConflicts dc =
       in Just (reg, am)
 
 
-oVERFLOW_CFG :: Int
-oVERFLOW_CFG = 10
-
 createDFA ::
   Aut a =>
   a -> DFAState ->
@@ -500,7 +500,7 @@ createDFA aut qInit tab =
   let idfa = initDFA qInit in
   let
     (dfa, tab1) =
-      if measureDFAState qInit > oVERFLOW_CFG
+      if measureDFAState qInit > cst_OVERFLOW_CFG
       then (insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa, tab)
       else go [(startLinDFAState idfa, 0)] [] idfa tab
   in
@@ -519,7 +519,7 @@ createDFA aut qInit tab =
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
-              if depth > maxLookaheadDepth
+              if depth > cst_MAX_LOOKAHEAD_DEPTH
               then
                 let newDfa = insertDFA q (Abort AbortDFAOverflowLookahead) dfa
                 in go rest accToVisit newDfa localTab

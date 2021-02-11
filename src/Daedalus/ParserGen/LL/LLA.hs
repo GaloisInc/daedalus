@@ -65,7 +65,7 @@ data LLA = LLA
     -- mapping from the Final states of the DFA to the SynthLLAState
   , mappingFinalToSynth :: Map.Map SynthLLAState MapFinalToSynthLLAState
 
-    -- mapping from the NFA states as to SynthLLAState
+    -- mapping from the NFA states to SynthLLAState
   , mappingNFAToSynth :: IntMap.IntMap SynthLLAState
 
   , mappingDFAStateToSynth :: Map.Map DFAState SynthLLAState
