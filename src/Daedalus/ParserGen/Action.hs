@@ -105,7 +105,7 @@ showName n =
 
 
 instance Show(InputAction) where
-  show (ClssAct s c)  = semToString s ++ showNCExpr c
+  show (ClssAct s c)  = semToString s ++ "Match-" ++ showNCExpr c
   show (IEnd)         = "END"
   show (IOffset)      = "IOffset"
   show (IGetByte s)   = semToString s ++ "GetByte"
@@ -160,7 +160,7 @@ instance Show(BranchAction) where
   show (FailAction _) = "FailAction"
 
 instance Show(Action) where
-  show EpsA             = "e"
+  show EpsA             = ""
   show (IAct a)         = show a
   show (CAct a)         = show a
   show (SAct a)         = show a
