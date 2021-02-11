@@ -29,6 +29,7 @@ library
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
     Daedalus.VM.Compile.Decl
+    Daedalus.VM.GraphViz
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
     Daedalus.VM.Backend.C.Names

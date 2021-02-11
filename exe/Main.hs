@@ -38,6 +38,7 @@ import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
+import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
@@ -117,6 +118,18 @@ handleOptions opts
                        $ VM.doBorrowAnalysis
                        $ VM.moduleToProgram ents [m]
               ddlPrint (pp prog)
+
+         DumpGraph ->
+           do passSpecialize specMod [mainRule]
+              passCore specMod
+              entry <- ddlGetFName mm "Main" -- mainNm
+              let ents = [entry]
+              when (optInline opts) (passInline ents specMod)
+              passVM specMod
+              m <- ddlGetAST specMod astVM
+              let prog = VM.moduleToProgram ents [m]
+              ddlPutStrLn (VM.toGraphViz prog)
+
 
          DumpGen ->
            do passSpecialize specMod [mainRule]

@@ -20,6 +20,7 @@ data Command =
   | DumpRuleRanges
   | DumpCore
   | DumpVM
+  | DumpGraph
   | DumpGen
   | CompileHS
   | CompileCPP
@@ -73,6 +74,10 @@ options = OptSpec
       , Option [] ["dump-vm"]
         "Dump VM AST"
        $ simpleCommand DumpVM
+
+      , Option [] ["dump-vm-graph"]
+        "Dump VM AST"
+       $ simpleCommand DumpGraph
 
       , Option [] ["dump-gen"]
         "Dump parser-generator automaton-based parser"
