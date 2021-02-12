@@ -1,0 +1,866 @@
+
+
+* Static analysis for input synthesis
+
+sjw: mostly ramblings right now.
+
+This document discusses ideas relating to possible static analysis
+support for synthesising input for DDL programss.  Static analysis can
+be seen as an optimisation, albeit one which makes synthesis feasible,
+noting that random selection and backtracking will (eventually)
+converge.  There is then little point to doing highly expensive static
+analyses when the corresponding naive synthesis would terminate
+faster, although it may be possible to amortise the cose of analysis
+over multiple synthesis runs.
+
+Under the assumption that relying solely backtracking is unlikely to
+produce results in reasonable time, some preprocessing of the input
+program seems warranted. An alternative to static analysis may be to
+do more intelligent backtracking with the addition of some sort of
+learning. 
+
+sjw: I talk about synthesising variables as a proxy for synthesising
+the bytes which are used to compute the value, in the expectation that
+we might choose a more abstract value, then (locally) invert the
+computation which builds the value to get the actual bytes.
+
+** Synthesis problem
+
+When exploring the DDL program at synthesis time, it is unknown
+(without additional analysis) as to what impact the choice of bytes
+will have when synthesising a particular sub-grammar.  As a simple
+example, consider
+
+```
+def Ex1 = {
+  b = UInt8;
+  b <= 10
+}
+```
+In this case, selecting a byte greater than 10 for b will result in
+synthesis failure. Furthermore, variables may depend on the selection of
+other variable, such as 
+
+```
+def Ex2 = {
+  b = UInt8;
+  x = UInt8;
+  x < b 
+}
+```
+
+In general, this extends to path-dependent collections of values, such
+as in
+
+```
+def Ex3 = {
+  b - UInt8;
+  Choose {
+    c1 = UInt8;
+    c2 = { x = UInt8; x < b };
+  }
+}
+```
+where selecting b may impact the available choices for x, _depending
+on the future patch chosen_.  We are defining a _path_ here as the
+sequence of choices made from the root node, here either [c1] or [c2].
+(sjw: this may need to include values which are used by e.g. the
+count for Many).  As usual, recursion makes everything trickier.
+
+The essential problem is then: how can we select values for a
+particular DDL program such that we have control over the impact on
+the remainder of the program.
+
+Note that sometimes it is OK to eliminate future paths (for example,
+where each path is disjoint); the aim is to ensure we do so in a
+principled fashion such as uniform coverage of the input or derivation space.
+
+# Derived values (e.g. numbers from a list of bytes)?
+# transitive deps.?
+
+** Ideal result
+
+In principle, synthesis could proceed by picking a (feasible) path
+from the root to the end of the program, and then picking input bytes
+such that the path is enabled.  In practice this may be infeasible due
+to recursion or data dependence, but it serves as a model for thinking
+about synthesis. (sjw: maybe)
+
+Ideally, static analysis would then tell for a given variable how to
+choose a value (in general, the input bytes but potentially a value if
+the bytes can be inferred from that value) for this variable such the
+desired future path is enabled. In practice, it is likely that
+synthesis and path selection will proceed in lockstep, so analysis
+could say, for each variable, how the value selected will impact
+future paths. In particular, it may be necessary to select the values
+for _multiple_ variables to enable a future path.  Consider
+
+```
+def Ex4 = {
+  b1 = UInt8;
+  b2 = UInt8;
+  x  = UInt8;
+  x < b1; x > b2
+}
+```
+
+noting that the values available for x depends on both b1 and b2, and
+hence a choice for b1 (say 0) may mean that there is no choice for b2,
+even though b2 does not depend (directly) on b1. Even in the case for
+Ex2 above, it may not be easier to perform "find b where there exists
+an x such that x < b" than to select both b and x at simultaneously,
+especially as such an x will have to be chosen eventually. Conversely,
+if multiple results depend on a variable it may be preferable to defer
+synthesis (especially if the exact number is not yet known): the
+assumption is that it is better to solve (especially when using a
+prover) multiple smaller problems than one large one.
+
+A further refinement to the static analysis goal is then: for each
+variable, how are the future paths constrained, and for each path
+constraint, how can related variables be simultaneously selected to
+enable this path.  Note that when performing synthesis there may be
+existing constraints on the future path (as when a future path was
+chosen previously).
+
+Note tha the analysis result will, in general, be context dependent,
+especially where functions are used by multiple functions: consider
+the case of the Number function which converts a sequence of digits
+into a number.  This function may be used to parse an (unconstrained)
+sequence number, or a (constrained) length field.  As usual, simply
+duplicating shared functions may lead to an exponential blowup in
+program size.
+
+The synthesis algorithm is then, when reaching a variable v for a call
+context C and future path FP (may be a set):
+
+  1. Look up the analysis information for v at C to get future
+     path set FPS
+  2. Select a future path FP from the intersection of FPS and FP
+  3. Synthesise for the variables in FP
+  4. Return new future path FP' and variable selection
+
+noting that FP may already include an assignment for v.
+
+# Calling contexts as a proxy for path prefixes?
+# Biased choice makes things trickier?
+
+** Approximations to the ideal
+
+In practice we will not be able to perfectly analyse a program, so the
+analysis may result in an 'Unknown' result, perhaps with an associated
+set of future paths where the value is problematic.  This may still be
+useful when doing a backtracking search, as such variables might be
+backtracking targets, whereas variables which are well-behaved (with
+respect to the analysis) can be skipped by the backtracking.  This
+makes assumptions about how unknown and well-behaved variables interact.
+
+** Approach
+
+The goal is to analyse each function such that when we get to a
+variable during synthesis, we know which choices are available.
+Simplified datatypes over which the analysis and synthesis operate are
+as follows (for the sake of argument, assume that all binds in the
+program are right-associated s.t. the LHS of a bind does not include any
+binds, modulo e.g. Many)
+
+#+begin_src haskell
+
+  -- Used for both future paths and selected paths, noting that a
+  -- selected path may leave some choices unconstrained
+
+  data PathSet n = Unconstrained -- Base case, all paths are allowed
+                 | DontCare Int PathSet -- Ignore this many statements
+                 | PathNode n PathSet -- This statement matters
+
+  -- might also need | Infeasible    -- This path can't be satisfied 
+
+  type FuturePathSet = PathSet AvailableOptions
+
+  -- This is a set because we do not make _all_ choices at once, so some
+  -- choices are delayed: these occur as DontCare in the SelectedPath.
+  type SelectedPath  = PathSet SynthesisChoice
+
+  -- Constraints which occur along the path
+  data Assertion = Guard (TC a Value)
+                 | Projection (TC a Value) Label -- 'e is just' for example
+                 | EmptyChoice -- perhaps?
+
+
+  -- A path node where a choice is to be made
+  data AvailableOptions =
+    -- The variable bound by the do is entangled with this path (the
+    -- paths after this variable depend on its value).
+    EntangledDo { variable :: (TCName Value), lhs :: TC a Value }
+
+    | Choice [ FuturePathSet ] -- In the TC AST choices aren't labelled, so we use an Int index.
+
+    | Constraint Assertion
+
+  -- FIXME: figure out Call, probably takes a list of bools sayin which args we care about.
+
+  data SynthesisChoice =
+    -- The synthesis result for the LHS of a do, bound to the variable.  The name is not really required.
+    DoValue Name Value
+    | WeChose Int SelectedPath -- The Int is an index into the availble choices in the Choose term
+
+#+end_src
+
+The analysis tracks the future paths and entanglement status for each
+variable, although unconstrained variables are not explicitly
+represented.
+
+#+begin_src  haskell
+
+  type EntangledVars = Set Name
+
+  -- forall k1, k2 : keys Domain, k1 \neq k2 --> disjoint k1 k2 
+  type Domain = Map EntangledVars FuturePathSet
+
+#+end_src
+
+For clarity, we will write values of type Domain as a set of maplets
+and pathsets as lists (the empty list being Unconstrained), i.e.
+
+#+begin_src 
+{ {v1, v2, v3} -> [ Choose [ c1 -> [], c2 -> [ Var x; x < b ] ]
+, {a} -> [ a < 10 ]
+}
+#+end_src
+corresponds to the Haskell term
+#+begin_src haskell
+
+  Map.fromList [( Set.fromList [v2, v2, v3]
+                , PathNode (Choice [ Unconstrained
+                                   , PathNode (EntangledDo "x" UInt8)
+                                              (PathNode (Constraint (Guard (x < b))) Unconstrained)
+                                   ]) Unconstrained)
+               , ( Set.fromList [a]
+                 , PathNode (Constraint (Guard (a < 10))) Unconstrained)
+               ]
+#+end_src
+
+As an example, consider Ex3 above
+
+#+begin_src daedalus
+  def Ex3 = {
+    b = UInt8;
+    Choose {
+      c1 = UInt8;
+      c2 = { x = UInt8; x < b };
+    }
+  }
+#+end_src
+
+The algorithm proceeds from backwards from the end of the function,
+with an empty domain (all variables unconstrained).  Upon reaching the
+~Choose~ statement, the algorithm recurses down both cases.  For case
+~c2~ the algorithm discovers the guard ~x < b~ and creates a new path
+ending at this node, and notes that variables ~x~ and ~b~ are
+entangled on this pathset, i.e. the state looks something like ~{{x,
+b} -> [ x < b ]}~.
+
+When reaching the assignment to ~x~ the algorithm annotates that
+variable, and updates the state to ~{{b} -> [ Var x ; x < b ]}~.
+
+The case ~c1~ does not introduce any pathsets, so the state at the
+ beginning of the ~Choose~ statement is 
+
+#+begin_src 
+{ {b} -> [ Choose [ c1 -> [], c2 -> [ Var x; x < b ] ] ] }
+#+end_src
+
+which we can read as: selecting a value for ~x~ requires choosing a
+future path, where the choice ~c1~ is unconstrained, whereas ~c2~
+requires also selecting a value for ~b~ such that ~x < b~.  Finally
+the assignment to ~b~ is reached, the assignment is annotated, and the
+state is the empty set.
+
+Consider a similar example, where the assignment to ~x~ has been moved
+out of the choice:
+
+#+begin_src daedalus
+  def Ex3.1 = {
+    b = UInt8;
+    x = UInt8;
+    Choose {
+      c1 = UInt8;
+      c2 = { x < b };
+    }
+  }
+#+end_src
+
+The annotation at ~b~ is now
+#+begin_src 
+[ Var x ; Choose [ c1 -> [], c2 -> [ x < b ] ] ]
+#+end_src
+As with ~Ex3~ the variables ~x~ and ~b~ are entangled, but there is a
+path where ~x~ is live, but unentangled (i.e., ~c1~).  Therefore,
+synthesising ~x~ simultaneously may involve performing work that
+is independent of the path chosen, and hence could be delayed.
+Overall this work is not wasted, as a value for ~x~ is required
+eventually, but may make solver timeouts more likely.
+
+A possible solution to this is path compaction, where, for a given
+variable ~y~, only those variables entangled with ~y~ _along that
+path_ are synthesized.  A question then arises as how path compaction
+interacts with infeasible path detection --- it may be possible that
+unentangle variables remove otherwise feasible paths, although again
+these paths may by rejected when the unentangle is reached.  A larger
+concern is that compacting after pruning infeasible paths discards the
+work done in detecting the infeasible paths relating to the
+unentangled variables.
+
+A reasonable middle ground may be to select the path with all
+variables, but to then disentangle the variables and synthesize the
+entangled sets separately: if the path ~c1~ is chose in ~Ex3.1~ then
+~b~ and ~x~ can be synthesized n parallel, but the path choice ~c1~ is
+kept.
+
+** Merging paths
+
+Consider
+#+begin_src daedalus
+   1   def Ex4 = {
+   2       a = UInt8;
+   3       b = UInt8;
+   4       c = UInt8;
+   5       ind1 = UInt8;
+   6       ind2 = UInt8;
+   7 
+   8       Choose {
+   9         c1 = { a < b; ind1 < 100 };
+  10         c2 = { b < c; ind2 < 20 };
+  11       };
+  12 
+  13       a < 42;
+  14       c < 100
+  15   }
+#+end_src
+
+Before processing the ~Choose~ statement on line 8, (i.e., after the last 2
+guards) we have state
+#+begin_src 
+{ {a} -> [ a < 42 ]
+, {c} -> [ DontCare 1; c < 100 ]
+}
+#+end_src
+
+One approach to calculating the state at the ~Choose~ statement is to
+calculate it independent of the post-state.  This gives for path ~c1~ the
+state
+#+begin_src 
+{ {a, b} -> [a < b]
+, {ind1} -> [ DontCare 1; int1 < 100]
+}
+#+end_src
+and path ~c2~ the state
+#+begin_src 
+{ {b, c} -> [b < c] 
+, {ind2} -> [DontCare 1; ind2 < 20]
+}
+#+end_src
+
+Next the state at the beginning of the ~Choose~ is constructed by
+prepending the ~Choose~ node onto the post-~Choose~ state, merging
+where appropriate.  The merging is the tricky part!
+
+sjw: we may want to annotate the ~Choose~ with the entanglement info:
+i.e., that ~c1~ entangles ~a~ and ~b~?  This information could be
+useful in compacting paths during synthesis.
+
+Notionally, one could prepend a ~DontCare~ node to all of the pathsets
+in the post-state, representing the ~Choose~ node, and construct a
+~Choose~ path element for each case (with ~Unconstrained~ for the
+other cases) and then merge as appropriate.  For example, the
+un-merged state above is then
+
+#+begin_src 
+{ {a} -> [ DontCare 1; a < 42 ]                                    (1) 
+, {c} -> [ DontCare 2; c < 100 ]                                   (2) 
+, {a, b} -> Choose [ c1 -> [a < b]; c2 -> [] ]                     (3) 
+, {ind1} -> Choose [ c1 -> [DontCare 1; ind1 < 100]; c2 -> [] ]    (4) 
+, {b, c} -> Choose [ c1 -> []; c2 -> [b < c] ]                     (5) 
+, {ind2} -> Choose [ c1 -> []; c2 -> [Skip 1; ind2 < 20] ]         (6) 
+}
+#+end_src
+
+We can then note that ~(1)~ overlaps with ~(3)~ yielding
+#+begin_src 
+{a, b} -> [ Choose [ c1 -> [a < b]; c2 -> [] ] ; a < 42 ]  (7)
+#+end_src
+and ~(2)~ and ~(5)~ overlap, giving
+#+begin_src 
+{b, c} -> [ Choose [ c1 -> []; c2 -> [b < c] ]; DontCare 1; c < 100 (8) 
+#+end_src
+and finally ~(7)~ and ~(8)~ overlap, yielding
+#+begin_src 
+{a, b, c} -> [ Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100    (9) 
+#+end_src
+yielding the state at the beginning of line 8:
+
+#+begin_src 
+{ {ind1} -> Choose [ c1 -> [DontCare 1; ind1 < 100]; c2 -> [] ]            (4) 
+, {ind2} -> Choose [ c1 -> []; c2 -> [DontCare 1; ind2 < 20] ]             (6) 
+, {a, b, c} -> [ Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100  (9) 
+}
+#+end_src
+
+At line 6 (the assignment to ~ind2~) the variable ~ind2~ is annotated
+according to equation ~(6)~ above, that equation is removed from the
+state (as there are no remaining variables in the variable set), and
+the remaining paths have ~DontCare~ prepended, yielding
+
+#+begin_src 
+{ {ind1} -> [ DontCare 1; Choose [ c1 -> [DontCare 1; ind1 < 100]; c2 -> [] ] ] (10) 
+, {a, b, c} -> [ DontCare 1; Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100       (11) 
+}
+#+end_src
+
+and similarly for the assignment to ~ind1~ on line 5, leaving
+#+begin_src 
+{
+{a, b, c} -> [ DontCare 2; Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100       (12) 
+}
+#+end_src
+where another ~DontCare~ had been added to equation ~(11)~.  Note that
+the assignment on line 2 (to ~a~) dominates the assignments to ~b~ and
+~c~, and so these variables do not need to be annotated (sjw:
+probably?).  Instead, the path in equation ~(12)~ has ~Var~ nodes
+prepended, yielding the annotation for ~a~ as 
+#+begin_src 
+[ Var a; Var b; Var c; DontCare 2; Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100 (13)
+#+end_src
+
+** Synthesis
+
+Considering again Ex4, we show how the result computed in the previous
+section is used.  The synthesis algorithm's state consists of the
+input generated so far, the remainder of the program to synthesize,
+and a representation of any decision made up until this point, in the
+form of a ~SelectedPath~.  This represents an abstraction of a single
+path starting at the current program point, although in practice much
+of the future path is not important to the current synthesis problem,
+and so the ~SelectedPath~ corresponds a set of constrained future
+paths.
+
+Initially, the input is empty, the program point is the start of the
+function (line 1) and the future path (F) is ~Unconstrained~.  
+
+
+| Line # | candidate paths (P) | Refined candidate paths (F ∩ P)                           | Choice            | F'                                | Eqn # |
+|--------+---------------------+-----------------------------------------------------------+-------------------+-----------------------------------+-------|
+|      2 | (13)                | (13)                                                      | v_a; v_b; v_c; c1 | [ v_b; v_c; dc 2; wechose c1 [] ] | (14)  |
+|      3 |                     |                                                           |                   | [ v_c; dc 2; wechose c1 [] ]      |       |
+|      4 |                     |                                                           |                   | [ dc 2; wechose c1 [] ]           | (15)  |
+|      5 | (10)                | [ dc 1; Choose [ c1 -> [ dc 1; ind1 < 100], c2 -> ⊥ ] (*) | ind1              | [ dc 1; wechose c1 [] ]           |       |
+|      6 | (6)                 | [ Choose [ c1 -> [], c2 -> ⊥ ] ]                          | ind2              | [ wechose c1 [] ]                 |       |
+|      7 |                     |                                                           |                   |                                   |       |
+|      8 |                     |                                                           |                   |                                   |       |
+|      9 |                     |                                                           |                   | Unconstrained                     |       |
+|--------+---------------------+-----------------------------------------------------------+-------------------+-----------------------------------+-------|
+(*) We use ⊥ to represent infeasible/unchoosable paths
+
+Note that future paths do not include constraints, only assignments
+and choices.  
+
+** Solver synthesis 
+
+In general we want to be able to send an entire future path set to the
+solver to deal with infeasible paths, amongst other concerns.  In
+essence, a future path set can be considered a relation between the
+free variables, the assigned variables (and associated bytes), and the
+choice variables, of the path set.  For example, the path for ~a~ for
+~Ex4~ above (eqn 13) looks like
+#+begin_src 
+a = UInt8; b = UInt8; c = UInt8; DontCare 2; Choose [ c1 -> [a < b]; c2 -> [b < c] ]; a < 42; c < 100 
+#+end_src
+which corresponds to the relation (edited for clarity)
+#+begin_src 
+pred path_a (a_bs, b_bs, c_bs, pc1) :=
+  length a_bs = 1 /\ length b_bs = 1 /\ length c_bs = 1 /\
+  let a = head a_bs
+      b = head b_bs
+      c = head c_bs
+  in   (   (pc1 = 0 /\ a < b)
+        \/ (pc1 = 1 /\ b < c))
+    /\ (a < 42) /\ (c < 100)
+#+end_src
+noting that the actual values of the variables can be elided from the
+relation arguments as they are completely determined by the
+corresponding bytes.
+
+In practice, recursion and Many require special support.  Given the
+following example
+#+begin_src 
+def Ex5 = {
+  n = UInt8;
+  x = UInt8;
+  Many (1 .. n) {
+      Choose1 {
+         left = { y = UInt8; x < y}
+         right = { a = UInt8; b = UInt8}
+      }
+  }
+}
+#+end_src
+the corresponding relation will require one element for each instance
+of the body of the Many.  If we call the assigned and control
+variables the *configuration* of the relation, then the configuration
+of a Many will be a list of configurations of the body.  If we observe
+that the body can be summarised as 
+#+begin_src 
+pred body_rel (x, y_bs, a_bs, b_bs, pc1) :=
+    (pc1 = 0 /\ uint8P(y_bs) /\ let y = getUInt8(y_bs) in x < y)
+ \/ (pc1 = 1 /\ True)
+#+end_src
+
+sjw: maybe the configuration should have the same structure as the
+path set, with choices being in a sum type?  Otherwise we need to
+account for variables which we don't really care about because they
+don't occur on the path the prover selects.  This would look something
+like a representation of path sets as a datatype in SMT with an
+associated predicate.  For example
+#+begin_src 
+data config rel_t res_t =
+  { rel : rel_t
+  , res : res_t 
+  }
+
+data body_rel_t =
+ | c0 : (y_cfg : uint8_cfg) -> body_t
+ | c1 : body_t
+
+data body_config_t = config body_rel_t unit_t
+
+pred body_config_p (x, body_cfg : body_config_t) :=
+  let body_rel = rel body_cfg
+      body_res = res body_cfg
+  in 
+      (is-c0 body_cfg /\ let y_c = y_cfg body_cfg in (uint8P y_c /\ x < res y_c)))
+   /\ (is-c1 body_cfg /\ True)
+#+end_src
+
+The configuration for the Many would then be a list of ~(y_bs, a_bs, b_bs, pc1)~
+where the free variable ~x~ is not included (as it is constant in all
+iterations of the Many).  The auxiliary Many predicate would then be:
+#+begin_src 
+rec pred many_rel (x, body_cfg) :=
+   (isNil body_cfg /\ True)
+\/ (isCons body_cfg /\ body_rel (x, head body_cfg) /\ many_rel (x. tail body_cfg))
+#+end_src
+and finally
+#+begin_src 
+pred Ex5_n (n_bs, x_bs, body_cfg) :=
+  uint8P(n_bs) /\ uint8P(x_bs) 
+  /\ let n = getUInt8(n_bs)
+         x = getUInt8(x_bs)
+     in (length body_cfg >= 1 /\ length body_cfg <= n /\ many_rel (x, body_cfg))
+#+end_src
+
+#+begin_src 
+(set-option :produce-models true)
+;; Test for how model finding works with a general sum type
+
+(declare-datatype Sum (par (l r) ((Left (get-Left l)) (Right (get-Right r)))))
+
+(declare-datatype Config (par (rel res) ((mk-Config (get-rel rel) (get-res res)))))
+
+(declare-datatype Unit ((mk-Unit)))
+
+(define-sort Byte () (_ BitVec 8))
+
+(define-sort UInt8Config () (Config Byte Byte))
+
+(define-fun UInt8ConfigP ((cfg UInt8Config)) Bool
+  (= (get-rel cfg) (get-res cfg)))
+
+
+(define-sort body_rel () (Sum UInt8Config Unit))
+
+(define-sort bodyConfig () (Config body_rel Unit))
+
+(define-fun bodyConfigP ((x Byte) (body_cfg bodyConfig)) Bool
+  (let ((body_rel (get-rel body_cfg)))
+    (or (and (is-Left body_rel)
+             (let ((y_c (get-Left body_rel)))
+               (and (UInt8ConfigP y_c) (bvult x (get-res y_c)))))
+        (and (is-Right body_rel)
+             true))))
+
+(declare-const bcfg bodyConfig)
+(assert (bodyConfigP #x20 bcfg))
+(check-sat)
+(get-value (bcfg))
+#+end_src
+
+** Function calls
+
+Notionally, we should get the same results from the analysis of a
+function call as when the body of the function is inlined.
+
+Consider the leaf function
+#+begin_src daedalus
+  def Ex5 a b c = {
+      x = UInt8;
+      x < a;
+      ^ (x + b + c)
+  }
+#+end_src
+
+we can generate a summary for this function like
+#+begin_src 
+safety: { {a}          -> [ Var x; x < a ] }
+result: { {R, a, b, c} -> [ Var x; x < a, R = x + b + c ] }
+#+end_src
+where the safety condition is used to generate entanglements whenever
+the function is called, and the result condition is used whenever the
+result is required.  In both cases substitution of actuals for
+argument variables is required.
+
+Ideally the pathset could just include a summary node, and the
+analysis could just note the entanglements without splicing in the
+pathset for the called function (which would then include the pathset
+for all transitively called functions).  Furthermore, summaries are
+required to handle recursion, where inlining the pathset would give an
+infinite term.  Summaries do not work if we need to prune the pathset
+after selecting a prefix, as constraints in the function call are not
+present in the pathset (as it is just the call stub).  A summary with
+more information (an over-approximation?) might be useful as well.
+
+** Recursion
+
+sjw: figure this out
+
+** Problem Zoo
+
+These DDL fragments are somehow interesting, or problematic, for synthesis.
+
+*** Variables are entangled only on some paths.
+
+#+begin_src daedalus
+  def Zoo1 = {
+      x = UInt8;
+      y = Uint8;
+      x = UInt8;
+    
+      Choose {
+        c1 = { x < y };
+        c2 = {};
+      };
+      Choose {
+        c3 = { y < z };
+        c4 = { }
+      };
+      Choose {
+        c5 = { z < x };
+        c6 = {}
+      }
+  }
+
+#+end_src
+
+where on path ~[c2; c4; c6]~ the variables are not entangled, and
+path ~[c1 ; c3 ; c5]~ is infeasible.
+
+*** Path choices requires refining future paths
+
+Choosing one part of the future path may require pruning subsequent
+paths, as in the following
+
+#+BEGIN_SRC daedalus
+
+  def Zoo2 = {
+      a = UInt8;
+      Choose {
+        left = { a < 10 };
+        right = { a >= 20 };
+      };
+      Choose {
+        first  = { a < 15 };
+        second = { a >= 17 };
+      };
+  }
+
+#+END_SRC
+
+noting that choosing the 'left' path means that the 'second' choice is
+infeasible.  This is a potentially expensive operation, involving a
+solver, so we would like to know when we must do this, such that we
+can avoid it otherwise.  Alternately, we could choose at random and
+retry/backtrack on unsat, perhaps using unsat cores to figure out
+which path fragments conflict.  Finally, we could get the solver to
+choose the path, and have it pick only an enabled path.
+
+The strategy could be parametric on the type of guard: projections
+from sum types are simple to check against injections, so paths which
+refine sum values can be simply propagated.  For example.
+
+#+BEGIN_SRC daedalus
+
+  def Zoo3 = {
+      r = Choose {
+        left  = { x = UInt8; y = UInt8  };
+        right =  { a = UInt8 };
+      };
+      Choose {
+        first  = { v = r is left; ^ v.x };
+        second = {v = r is right; ^ v.a };
+      };
+  }
+
+#+END_SRC
+*** Function call argument entanglement
+
+#+BEGIN_SRC daedalus
+
+  def P a b = {
+      a < b;
+  }
+  
+  def Zoo4 = {
+      x = UInt8;
+      y = UInt8;
+      P x y;
+  }
+
+#+END_SRC
+
+Here ~x~ and ~y~ are entangled by the call to ~P~.  Question: is it
+possible to include some sort of summary in the pathset for calls?  In
+general this may not be possible: for instance, when pruning a pathset
+after choosing a prefix of the path like in [[*Variables are entangled only on some paths.]]
+
+*** Function call result entanglement
+
+#+BEGIN_SRC daedalus
+
+  def P a = {
+      @b = UInt8;
+      ^ a + b
+  }
+
+  def Zoo4 = {
+      @x = UInt8;
+      z = P x
+      z < 10;
+  }
+
+#+END_SRC
+
+Here the result of the function is on a constrained path, so we need
+to entangle the return value of ~P~ with the argument ~a~ via the
+(implicit) assignment to ~z~.  Note that ~x~ is also entangled with
+~b~ in ~P~.
+
+P:
+#+begin_src 
+safety: {}
+result: { {a} -> [ Var b; Result (a + b) ] }
+#+end_src
+
+When the assignment to ~z~ is reached in ~Zoo4~, the state looks like 
+#+begin_src 
+{ {z} -> [ z < 10 ] }
+#+end_src
+
+
+*** Appearance in the same expression is not necessarily entanglement
+
+#+BEGIN_SRC daedalus
+
+  def Zoo6 = {
+      @a = UInt8;
+      @b = UInt8;
+      c = ^ a + b;  
+  }
+
+#+END_SRC
+
+If the value of ~c~ is unconstrained, then ~a~ and ~b~ are not
+entangled by the assignment to ~c~.  If the return value of ~Zoo4~ is
+constrained by a caller, then ~a~ abd ~b~ should be entangled.  
+
+*** Appearance in the same expression is not necessarily entanglement
+
+#+BEGIN_SRC daedalus
+
+  def Zoo7 = {
+      @a = UInt8;
+      @b = UInt8;
+      c = ^ a + b;  
+      c < 10;
+  }
+
+#+END_SRC
+
+*** Many
+
+#+BEGIN_SRC daedalus
+
+  def Zoo8 = {
+      @a = UInt8;
+      Many { b = UInt8; b < a }
+  }
+
+#+END_SRC
+
+*** Choice order is important
+
+Choosing ~b~ before ~c~, where we pick the second case, leads to an
+infeasible path.
+
+#+begin_src  daedalus
+  def Zoo9 = {
+      a = UInt8;
+      b = UInt8;
+      c = { b < 10; ^ 10 } | { ^ 1 }
+      c = 10;
+  }
+#+end_src
+
+
+
+*** Field-sensitive analysis
+
+We usually only entangle with parts of a structured, a length field
+for example.  Having field sensitivity should result in fewer
+entanglements and more compact paths.
+
+*** PDF dictionary values with constrained keys
+
+sjw: todo
+
+
+** Concepts
+sjw: a bit dated below
+
+
+  There are 2 classes of synthesis variable: _dependent_ and
+_independent_. Independent variables are free, in the sense that the
+choice of value has no impact on the remainder of the synthesis, and
+conversely the choice of values for dependent variables may have an
+impact on synthesis. We may further classify dependent variables into
+_data-dependent_ variables, which impact the result of the synthesis
+(but not the success or otherwise of synthesis); and
+_control-dependent_ variables, the choice of which may restrict
+subsequent parsing options. In particular, some choices for a
+control-dependent variable may make synthesis impossible. (sjw: maybe
+-dependent isn't the best choice of terminology, perhaps -effecting?)
+
+In general, it is control-dependent variables which cause the most
+trouble, as data-dependent variables are (by definition)
+unconstrained; in practice we may wish to constrain data-dependent
+variable to make synthesis tractable, the size argument to Many being
+an obvious example here.
+
+
+
+
+
+
+
+
+** Sum types
+
+* Notes
+ - Index by failure path?
