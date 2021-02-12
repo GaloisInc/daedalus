@@ -354,11 +354,11 @@ buildPipelineLLA aut =
   in
   let
     (lla1, tab1) = go initDFAStates [] emptyLLA tab
+    lla11 = synthesizeLLA aut lla1
   in
     if isFullyDeterminizedLLA lla1
     then
-      let lla = synthesizeLLA aut lla1
-      in Left lla
+      Left lla11
     else
       let collectedStates = identifyStartStates ()
       in
@@ -366,7 +366,7 @@ buildPipelineLLA aut =
           (nextInitStates, tab2) = allocate collectedStates tab1
           (lla2, _tab3) = go nextInitStates [] lla1 tab2 in
         let lla3 = synthesizeLLA aut lla2
-        in Right (lla1, lla3)
+        in Right (lla11, lla3)
 
   where
     allocate lst tab =
