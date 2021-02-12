@@ -432,8 +432,8 @@ futureNodeConfig fpn =
       tSum (futurePathSetConfig (fnAltBody alt)) (encodeCase alts m_def)
 
 -- FIXME: move
-solverSynth :: Solver -> SummaryClass -> TCName Value -> FuturePathSet a -> ProvenanceTag -> IO SelectedPath
-solverSynth s cl root fps prov = S.inNewScope s $ do
+solverSynth :: Solver -> SummaryClass -> TCName Value -> ProvenanceTag -> FuturePathSet a -> IO SelectedPath
+solverSynth s cl root prov fps = S.inNewScope s $ do
   let modelN = "$model"
   model <- S.declare s modelN (S.const $ configRelTyName cl (tcName root))
   S.assert s (S.fun (configRelName cl (tcName root)) [model])
@@ -445,7 +445,7 @@ solverSynth s cl root fps prov = S.inNewScope s $ do
     S.Unknown -> error "Unknown"
 
   sexp <- getValue modelN  
-  ress <- evalVParser s (parseModel fps prov) sexp
+  ress <- evalVParser s (parseModel prov fps) sexp
   case ress of
     [] -> panic "No parse" []
     sp : _ -> pure sp
@@ -462,16 +462,16 @@ solverSynth s cl root fps prov = S.inNewScope s $ do
                     , "  Result: " ++ S.showsSExpr res ""
                     ]) []
 
-parseModel :: FuturePathSet a -> ProvenanceTag -> VParser SelectedPath
-parseModel fps prov =
+parseModel :: ProvenanceTag -> FuturePathSet a -> VParser SelectedPath
+parseModel prov fps =
   case fps of
     Unconstrained -> Unconstrained <$ pUnit
-    DontCare n fps' -> dontCare n <$> parseModel fps' prov 
-    PathNode (Assertion {}) fps' -> dontCare 1 <$> parseModel fps' prov
-    PathNode n fps'    -> uncurry PathNode <$> pTuple (parseNodeModel n prov) (parseModel fps' prov)
+    DontCare n fps' -> dontCare n <$> parseModel prov fps' 
+    PathNode (Assertion {}) fps' -> dontCare 1 <$> parseModel prov fps'
+    PathNode n fps'    -> uncurry PathNode <$> pTuple (parseNodeModel prov n) (parseModel prov fps')
 
-parseNodeModel :: FutureNode a -> ProvenanceTag -> VParser SelectedNode
-parseNodeModel fpn prov =
+parseNodeModel :: ProvenanceTag -> FutureNode a -> VParser SelectedNode
+parseNodeModel prov fpn =
   case fpn of
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
@@ -480,23 +480,23 @@ parseNodeModel fpn prov =
     FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) -> pCase 0 (NE.toList alts) m_fps
     Call (CallNode { callClass = cl, callPaths = paths }) ->
       SelectedCall cl <$> pCalls (Map.toList paths)
-    NestedNode fps        -> SelectedNested <$> parseModel fps prov
+    NestedNode fps        -> SelectedNested <$> parseModel prov fps
 
-    SimpleNode {}         -> (\bs -> SelectedSimple bs prov) <$> pByteString 
+    SimpleNode {}         -> (\bs -> SelectedSimple prov bs) <$> pByteString 
     
     Assertion {} -> panic "Impossible" [] 
   where
     pChoice _ [] = panic "Ran out of choices" []
-    pChoice n (fps : fpss) = pSum (SelectedChoice n <$> parseModel fps prov) (pChoice (n + 1) fpss)
+    pChoice n (fps : fpss) = pSum (SelectedChoice n <$> parseModel prov fps) (pChoice (n + 1) fpss)
 
     pCase _ [] Nothing         = panic "Ran out of cases" []
-    pCase n [] (Just fps)      = SelectedCase n <$> parseModel fps prov 
-    pCase n (alt : alts) m_def = pSum (SelectedCase n <$> parseModel (fnAltBody alt) prov)
+    pCase n [] (Just fps)      = SelectedCase n <$> parseModel prov fps 
+    pCase n (alt : alts) m_def = pSum (SelectedCase n <$> parseModel prov (fnAltBody alt))
                                       (pCase (n + 1) alts m_def)
 
     pCalls [] = pure Unconstrained
     pCalls ((_, Wrapped (_, fps)) : rest) = do
-      (l, rest') <- pTuple (parseModel fps prov) (pCalls rest)
+      (l, rest') <- pTuple (parseModel prov fps) (pCalls rest)
       pure (mergeSelectedPath l rest')
 
 -- Define a predicate over a corresponding config.  This holds when a

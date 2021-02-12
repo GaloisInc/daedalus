@@ -94,8 +94,9 @@ doSynthesis opts = do
   let doWriteModel n m_bs =
         case m_bs of
           Nothing      -> hPutStrLn stderr "Not enough models" >> exitFailure
-          Just (v, bs) -> do writeModel n v bs
-                             when (optPrettyModel opts) $ prettyBytes n v bs
+          Just (v, bs, provmap) -> 
+            do writeModel n v bs
+               when (optPrettyModel opts) $ prettyBytes n v bs
 
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss

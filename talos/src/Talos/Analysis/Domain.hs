@@ -398,8 +398,11 @@ type ProvenanceMap = Map ProvenanceTag (Set (Int,Int))
 randomProvenance :: ProvenanceTag
 randomProvenance = 0 
 
+synthVProvenance :: ProvenanceTag -- XXX: this is a placeholder. Need to work out what to do 
+synthVProvenance = 1 
+
 firstSolverProvenance :: ProvenanceTag
-firstSolverProvenance = 1 
+firstSolverProvenance = 2 
 
 data SelectedNode =
   SelectedChoice Int SelectedPath
@@ -416,7 +419,7 @@ data SelectedNode =
   -- Assertions are ignored at this point
   | SelectedNested SelectedPath
   
-  | SelectedSimple ByteString ProvenanceTag
+  | SelectedSimple ProvenanceTag ByteString 
   -- ^ The term has been fully processed and does not contain anything
   -- of interest to other paths.  We still need to execute the term on the bytes.
 
@@ -601,7 +604,7 @@ instance PP SelectedNode where
       SelectedCase   n' sp -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
       SelectedNested sp    -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
-      SelectedSimple bs pr -> pp bs
+      SelectedSimple pr bs -> pp bs  -- XXX: print provenance 
 
 instance PP EntangledVar where
   pp (ResultVar {}) = "$result"

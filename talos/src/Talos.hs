@@ -48,7 +48,7 @@ import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
 import Talos.Analysis.Annot
-import Talos.Analysis.Domain (SummaryClass)
+import Talos.Analysis.Domain (SummaryClass,ProvenanceMap)
 import Talos.Analysis.Monad (Summary)
 import qualified Talos.Analysis as A
 
@@ -106,7 +106,7 @@ synthesise :: FilePath           -- ^ DDL file
            -> IO ()              -- ^ Backend solver init
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
-           -> IO (InputStream (Value, ByteString))
+           -> IO (InputStream (Value, ByteString, ProvenanceMap))
 synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
   (mainRule, declTys, mods, nguid) <- runDaedalus inFile m_entry
 
