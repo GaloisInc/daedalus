@@ -8,7 +8,6 @@ module Talos.SymExec.Convenience where
 
 
 import Control.Monad.State
-import Control.Monad.Reader
 
 import GHC.Generics -- For uncurry and fresh
 

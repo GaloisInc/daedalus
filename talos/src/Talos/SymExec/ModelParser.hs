@@ -1,16 +1,16 @@
-{-# Language GADTs, ViewPatterns #-}
+{-# Language GADTs, ViewPatterns, RankNTypes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveFunctor #-}
 
 -- Parser combinators for reading back a model from the solver
 
 module Talos.SymExec.ModelParser
-  ( VParser, evalVParser
-  , pAtom, pExact, pSExpr, pByte, pList, pByteString, pSum, pTuple, pUnit
+  ( ModelP, evalModelP
+  , pBytes, pMUnit, pBranch, pSeq
   ) where
 
+import qualified Data.Vector as V
 import Control.Monad (ap, guard)
-import Control.Monad.IO.Class
-import Control.Applicative 
+import Control.Applicative
 import Data.List (foldl')
 import Data.Char (isDigit)
 import Data.ByteString (ByteString)
@@ -23,8 +23,34 @@ import Text.Read (readMaybe)
 
 import Daedalus.Panic
 
-import SimpleSMT (SExpr(..), Solver)
+import SimpleSMT (SExpr(..))
+  
+--------------------------------------------------------------------------------
+-- Model Combinators
+--
+-- Only what is needed by the relation type generated in SymExec.hs
+-- (sum, product, bytes, unit) 
 
+pBytes :: ModelP ByteString
+pBytes = pSExpr $ do
+  pExact "bytes"
+  pByteString
+
+pMUnit :: ModelP ()
+pMUnit = pExact "munit"
+
+pBranch :: (Int -> ModelP a) -> ModelP a
+pBranch rest = pSExpr $ do
+  pExact "branch"
+  n <- pNumber
+  rest (fromIntegral n)
+
+pSeq :: (Int -> ModelP a) -> ModelP a
+pSeq m = pSExpr $ do
+  pExact "seq"
+  n  <- pNumber -- count
+  pArray n (m (fromIntegral n))
+  
 -- -----------------------------------------------------------------------------
 -- Monadic parser 
 
@@ -34,53 +60,57 @@ import SimpleSMT (SExpr(..), Solver)
 type VEnv = Map String SExpr
 
 -- This is a bit hacky
-data VParserState =
-  VParserState { solver :: Solver
-               , vEnv   :: VEnv
+data ModelPState =
+  ModelPState {  vEnv   :: VEnv
                , sexps  :: [SExpr]
                }
 
-newtype VParser a = VParser { runVParser :: VParserState -> IO [(a, VParserState)] }
+newtype ModelP a = ModelP { runModelP :: ModelPState -> [(a, ModelPState)] }
   deriving (Functor)
 
-instance Applicative VParser where
-  pure v   = VParser $ \s -> pure [(v, s)]
+instance Applicative ModelP where
+  pure v   = ModelP $ \s -> [(v, s)]
   (<*>)    = ap
 
-instance Monad VParser where
-  m >>= f = VParser $ \s -> do    
-    ress <- runVParser m s
-    -- Not exactly pretty, but it suffices for out use case
-    concat <$> mapM (\(a, s') -> runVParser (f a) s') ress
+instance Monad ModelP where
+  m >>= f = ModelP $ \s -> do -- list monda
+    (a, s') <- runModelP m s
+    runModelP (f a) s'
+    -- -- Not exactly pretty, but it suffices for out use case
+    -- concat <$> mapM (\(a, s') -> runModelP (f a) s') ress
 
-instance Alternative VParser where
-  empty    = VParser $ \_ -> pure []
-  m <|> m' = VParser $ \s -> (++) <$> runVParser m s <*> runVParser m' s
+instance Alternative ModelP where
+  empty    = ModelP $ \_ -> []
+  m <|> m' = ModelP $ \s -> runModelP m s ++ runModelP m' s
 
-instance MonadIO VParser where
-  liftIO m = VParser $ \s -> m >>= \a -> pure [(a, s)]
+-- instance MonadIO ModelP where
+--   liftIO m = ModelP $ \s -> m >>= \a -> pure [(a, s)]
   
-evalVParser' :: VParser a -> VParserState -> IO [a]
-evalVParser' m s = map fst <$> runVParser m s
+evalModelP' :: ModelP a -> ModelPState -> [a]
+evalModelP' m s = map fst (runModelP m s)
 
-evalVParser :: Solver -> VParser a -> SExpr -> IO [a]
-evalVParser solv m sexpr = evalVParser' m (VParserState solv Map.empty [sexpr])
+evalModelP :: ModelP a -> SExpr -> [a]
+evalModelP m sexpr = evalModelP' m (ModelPState Map.empty [sexpr])
 
 --------------------------------------------------------------------------------
 -- Primitive combinators
 
+pRawHead :: ModelP SExpr
+pRawHead = ModelP $ \st -> do
+  case sexps st of
+    []     -> []
+    s : ss -> [(s, st { sexps = ss })]
+      
 -- Runs the parser p on the first element, taking care of let-related
 -- and 'as' annoyances
-pHead :: (String -> VParser a) -> -- ^ This is the atom case, it is in VParser as it can fail.
-         VParser a -> -- ^ THe list case 
-         VParser a
-pHead pA pS = VParser $ \st -> do
-  case sexps st of
-    []     -> pure []
-    s : ss -> do
-      -- We ignore any remaining sexps etc in the resulting state
-      ress <- handleLet st s
-      pure [ (r, st { sexps = ss }) | r <- ress ]
+pHead :: (String -> ModelP a) -> -- ^ This is the atom case, it is in ModelP as it can fail.
+         ModelP a -> -- ^ THe list case 
+         ModelP a
+pHead pA pS = do 
+  s <- pRawHead
+  ModelP $ \st -> do -- list monad
+    r <- handleLet st s
+    pure (r, st)
   where
     handleLet st (List [ident -> Just "let", List idents, b]) =
       handleLet (st { vEnv = foldl' addBind (vEnv st) idents }) b
@@ -88,30 +118,58 @@ pHead pA pS = VParser $ \st -> do
     -- FIXME: This does a map lookup for each atom in the sexp
     handleLet st (Atom a)
       | Just s <- Map.lookup a (vEnv st) = handleLet st s
-      | otherwise = evalVParser' (pA a) (st { sexps = [] })          
-    handleLet st (List ss') = evalVParser' pS (st { sexps = ss' })
+      | otherwise = evalModelP' (pA a) (st { sexps = [] })          
+    handleLet st (List ss') = evalModelP' pS (st { sexps = ss' })
 
     addBind env (List [ident -> Just v, e]) = Map.insert v e env
     addBind _    v = panic "handleLet unexpected let binding" [show v]
 
-pAtom :: VParser String
+pAtom :: ModelP String
 pAtom = pHead pure empty
 
-pExact :: String -> VParser ()
+pExact :: String -> ModelP ()
 pExact a = pAtom >>= guard . (==) a
 
-pSExpr :: VParser a -> VParser a
+pSExpr :: ModelP a -> ModelP a
 pSExpr = pHead (const empty)
+
+withSExprs :: [SExpr] -> ModelP a -> ModelP a
+withSExprs ss m = ModelP $ \st -> do
+  r <- evalModelP' m (st { sexps = ss })
+  pure (r, st)
+
+pArray :: Integer -> ModelP a -> ModelP a
+pArray count p = do
+  (els, arr) <- go
+  let v = V.replicate (fromInteger count) arr V.// els
+  withSExprs (V.toList v) p  
+  where
+    -- FIXME: maybe use a mutable vector here?
+    base :: ModelP ([(Int, SExpr)], SExpr)
+    base = pSExpr $ do
+      pExact "const"
+      s <- pRawHead
+      pure ([], s)
+
+    go :: ModelP ([(Int, SExpr)], SExpr)
+    go =
+      base <|> 
+      (pSExpr $
+        do pExact "store"
+           (els, arr) <- go
+           i   <- pNumber
+           s   <- pRawHead
+           pure (if i < count then (fromInteger i, s) : els else els, arr))
 
 -- FIXME: do we need this?
 
--- getValue :: String -> VParser SExpr
+-- getValue :: String -> ModelP SExpr
 -- getValue a = do
---   m_sexpr <- VParser $ asks (Map.lookup a . vEnv)
+--   m_sexpr <- ModelP $ asks (Map.lookup a . vEnv)
 --   case m_sexpr of
 --     Just v -> pure v
 --     Nothing -> do
---       s <- VParser $ asks solver
+--       s <- ModelP $ asks solver
 --       res <- liftIO $ command s $ fun "get-value" [List [S.const a]]
 --       case res of
 --         List [List [_, v]] -> pure v
@@ -122,26 +180,25 @@ pSExpr = pHead (const empty)
 --                 ]) []
 
 
-  
 --------------------------------------------------------------------------------
 -- Combinators
 --
 -- Only what is needed by the relation type generated in SymExec.hs
 -- (sum, product, bytes, unit) 
 
-pTuple :: VParser a -> VParser b -> VParser (a, b)
-pTuple l r = pSExpr $ do
-  pExact "mk-tuple"
-  (,) <$> l <*> r
+-- pTuple :: ModelP a -> ModelP b -> ModelP (a, b)
+-- pTuple l r = pSExpr $ do
+--   pExact "mk-tuple"
+--   (,) <$> l <*> r
 
-pUnit :: VParser ()
-pUnit = pExact "unit"
+-- pUnit :: ModelP ()
+-- pUnit = pExact "unit"
 
-pSum :: VParser a -> VParser a -> VParser a
-pSum l r = pSExpr $ do
-  (pExact "inl" *> l) <|> (pExact "inr" *> r)
+-- pSum :: ModelP a -> ModelP a -> ModelP a
+-- pSum l r = pSExpr $ do
+--   (pExact "inl" *> l) <|> (pExact "inr" *> r)
 
-pNumber :: VParser Integer
+pNumber :: ModelP Integer
 pNumber = pAtom >>= go
   where
     go ('#' : 'x' : rest) = do
@@ -167,16 +224,16 @@ pNumber = pAtom >>= go
     binDigit '1' = Just 1
     binDigit _   = Nothing
 
-pByte :: VParser Word8
+pByte :: ModelP Word8
 pByte = fromIntegral <$> pNumber
 
 -- This is nicer, we could use pHead directly
-pList :: VParser a -> VParser [a]
+pList :: ModelP a -> ModelP [a]
 pList p = ([] <$ pExact "nil") <|>
           (pSExpr $ do pExact "insert"
                        (:) <$> p <*> pList p)
 
-pByteString :: VParser ByteString
+pByteString :: ModelP ByteString
 pByteString = BS.pack <$> pList pByte
   
 --------------------------------------------------------------------------------
@@ -199,28 +256,28 @@ ident _ = Nothing
 
 
 
--- getValue :: Solver -> VEnv -> VParser a -> String -> IO a
--- getValue s e pOne ((Map.!?) e -> Just r) = runVParser pOne s e r
+-- getValue :: Solver -> VEnv -> ModelP a -> String -> IO a
+-- getValue s e pOne ((Map.!?) e -> Just r) = runModelP pOne s e r
 -- getValue s e pOne v = do
 --   res <- command s $ fun "get-value" [List [fun v []]]
 --   case res of
---     List [List [_, v]] -> runVParser pOne s e v
+--     List [List [_, v]] -> runModelP pOne s e v
 --     _ -> fail $ unlines
 --                 [ "Unexpected response from the SMT solver:"
 --                 , "  Exptected: a value"
 --                 , "  Result: " ++ showsSExpr res ""
 --                 ]
 
--- pBool :: VParser Bool
--- pBool = pLisp (VParser go)
+-- pBool :: ModelP Bool
+-- pBool = pLisp (ModelP go)
 --   where
 --     go s env (ident -> Just "true") = pure True
 --     go s env (ident -> Just "false") = pure False
 --     go s env (ident -> Just v) = getValue s env pBool v
 --     go s env e = error "Unparseable bool"
 
--- pNumber :: VParser Integer
--- pNumber = pLisp (VParser go)
+-- pNumber :: ModelP Integer
+-- pNumber = pLisp (ModelP go)
 --   where
 --     go s env (ident -> Just ('#' : 'x' : rest)) = do
 --       let str = "0x" ++ rest
@@ -246,11 +303,11 @@ ident _ = Nothing
 --     binDigit '1' = Just 1
 --     binDigit _   = Nothing
 
--- pByte :: VParser Word8
+-- pByte :: ModelP Word8
 -- pByte = fromIntegral <$> pNumber
 
--- pList :: VParser a -> VParser [a]
--- pList p = pLisp (VParser go)
+-- pList :: ModelP a -> ModelP [a]
+-- pList p = pLisp (ModelP go)
 --   where
 --     go s env e = 
 --       case e of
@@ -260,23 +317,23 @@ ident _ = Nothing
 --         -- check for 'foo!n' symbols?
 --         (ident -> Just v)     -> getValue s env (pList p) v
 --         List [ident -> Just "insert", e', more] ->
---           (:) <$> runVParser p s env e' <*> go s env more
+--           (:) <$> runModelP p s env e' <*> go s env more
 
 --         other  -> error $ "Not a list" ++ show e
 
--- pListWithLength :: VParser a -> VParser [a]
--- pListWithLength p = pLisp (VParser go)
+-- pListWithLength :: ModelP a -> ModelP [a]
+-- pListWithLength p = pLisp (ModelP go)
 --   where
 --     go s env e =
 --       case e of
 --         (ident -> Just v)     -> getValue s env (pListWithLength p) v
---         List [ident -> Just "mk-ListWithLength", l, _] -> runVParser (pList p) s env l
+--         List [ident -> Just "mk-ListWithLength", l, _] -> runModelP (pList p) s env l
 --         other  -> error $ "Not a list with length " ++ show e
       
                   
 
 -- getBytes :: Solver -> SExpr -> IO ByteString
--- getBytes s e = BS.pack <$> runVParser (pListWithLength pByte) s Map.empty e
+-- getBytes s e = BS.pack <$> runModelP (pListWithLength pByte) s Map.empty e
 
 
 
@@ -351,7 +408,7 @@ ident _ = Nothing
 -- --     declBVar bsId      = S.declare s (varHandleName bsId) (tListWithLength tByte)
 
 -- --     getValue' (tcn, vId) = do
--- --       v <- runVParser (sexprToValue (tcType tcn)) s Map.empty (symExecVarHandle vId)
+-- --       v <- runModelP (sexprToValue (tcType tcn)) s Map.empty (symExecVarHandle vId)
 -- --       -- print $ pp tcn <+> pp v
 -- --       pure (vId, v)
 
@@ -410,7 +467,7 @@ ident _ = Nothing
 --                 ]
 
 -- -- Constructs a parser for the value of the given type
--- sexprToValue :: Type -> VParser Value
+-- sexprToValue :: Type -> ModelP Value
 -- sexprToValue = go Map.empty
 --   where
 --     -- c.f. symExecTy

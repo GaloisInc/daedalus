@@ -20,7 +20,6 @@ import Daedalus.PP
 
 import CommandLine
 import Talos
-import Talos.SymExec (futurePathSetConfig, futurePathSetRel)
 
 -- debugging
 import qualified SimpleSMT as S
@@ -56,7 +55,8 @@ doSummary opts = do
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
   let bOpts = [ ("auto-config", "false")
-              , ("smt.phase_selection", "5") ]
+              -- , ("smt.phase_selection", "5")
+              ]
               ++ if optValidateModel opts
                  then [("model-validate", "true")]
                  else []
