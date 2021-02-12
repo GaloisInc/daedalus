@@ -3,7 +3,6 @@
 -- | Symbolically execute a fragment of DDL
 module Talos.SymExec ({- symExec, ruleName, -} symExecV, symExecP -- , Env(..)
                      , symExecTy, symExecTyDecl, symExecSummary, solverSynth
-                     , symExecFuturePathSet , futurePathSetConfig, futurePathSetRel -- debugging
                      {- , symExecG -}) where
 
 
@@ -154,7 +153,7 @@ symExecTy' env ty = go ty
             TInteger    -> S.tInt
             TBool       -> S.tBool
             TUnit       -> tUnit
-            TArray t'   -> tListWithLength (go t') -- S.tArray S.tInt (symExecTy t)
+            TArray _t'   -> error "Unimplemented" --  tListWithLength (go t') -- S.tArray S.tInt (symExecTy t)
             TMaybe t'   -> tMaybe (go t')
             TMap kt vt  -> tMap (go kt) (go vt)
 
@@ -347,96 +346,47 @@ symExecSummary s summary = do
   where
     cl = summaryClass summary
     go ev (evs, fps) = do
-      let tyName    = evRelTyName cl ev
-          relName   = evRelName cl ev
+      let predN     = evPredicateN cl ev
           ty        = typeOf ev
           hasResult = case ev of { ResultVar {} -> True; ProgramVar {} -> False }
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-      symExecFuturePathSet s hasResult tyName relName ty frees fps
+      symExecFuturePathSet s hasResult predN ty frees fps
 
-configRelTyName :: SummaryClass -> Name -> String
-configRelTyName cl root = "RelT-" ++ nameToSMTNameWithClass cl root
+mkPredicateN :: SummaryClass -> Name -> String
+mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
 
-configRelName :: SummaryClass -> Name -> String
-configRelName cl root = "Rel-" ++ nameToSMTNameWithClass cl root
-
-evRelName, evRelTyName :: SummaryClass -> EntangledVar -> String
-evRelName cl ev =
+evPredicateN :: SummaryClass -> EntangledVar -> String
+evPredicateN cl ev =
   case ev of
-    ResultVar fn _ -> configRelName cl fn
-    ProgramVar v   -> configRelName cl (tcName v)
-
-evRelTyName cl ev =
-  case ev of
-    ResultVar fn _ -> configRelTyName cl fn
-    ProgramVar v   -> configRelTyName cl (tcName v)
-
+    ResultVar fn _ -> mkPredicateN cl fn
+    ProgramVar v   -> mkPredicateN cl (tcName v)
 
 -- Used to turn future path sets and arg domains into SMT terms.
 -- Configs have a single constuctor, so we use define-sort to aid in
 -- readibility of the output.
-symExecFuturePathSet :: Solver -> Bool -> String -> String -> Type -> 
+symExecFuturePathSet :: Solver -> Bool -> String -> Type -> 
                         [TCName Value] -> FuturePathSet a -> IO ()
-symExecFuturePathSet s hasResult tyName relName ty  frees fps = do
-  S.ackCommand s (S.fun "define-sort" [S.const tyName, S.List [], futurePathSetConfig fps])
-  void $ S.defineFun s relName args S.tBool (futurePathSetRel (S.const relN) m_resN fps)
+symExecFuturePathSet s hasResult predN ty frees fps =
+  void $ S.defineFun s predN args S.tBool body
   where
+    body  = mkExists (Set.toList (assignedVars fps))
+                     (futurePathSetPred (S.const modelN) m_resN fps)
     m_resN = if hasResult then Just (S.const resN) else Nothing
-    args    = map (\v -> (tcNameToSMTName v, symExecTy ty)) frees
-              ++ [(relN, S.const tyName)]
+    args    = map (\v -> (tcNameToSMTName v, symExecTy (typeOf ty))) frees
+              ++ [(modelN, tModel)]
               ++ if hasResult then [(resN, symExecTy ty)] else []
 
--- FIXME: define Config and Rel simultaneously?
-
--- This functions constructs a configuration for a future path set,
--- which is the values of the bytes along a particular path.  This
--- avoids having to write the predicate over all bound variables (and
--- will help with recursion too).  A configuration is basically a
--- model for the FPS, and is very close to a parse tree (it is a parse
--- tree over an erased grammar, and can represent trees that don't
--- belong in the grammar, hence the predicate)
-futurePathSetConfig :: FuturePathSet a -> SExpr
-futurePathSetConfig = collect
-  where
-    collect fps = 
-      case fps of
-        Unconstrained -> tUnit
-        DontCare _ fps' -> collect fps'
-        PathNode (Assertion {}) fps' -> collect fps'
-        PathNode n fps' -> tTuple (futureNodeConfig n) (collect fps')
-        
-futureNodeConfig :: FutureNode a -> SExpr
-futureNodeConfig fpn =
-  case fpn of
-    -- We could also declare an aux type here which would make things
-    -- a fair bit more readable.  We could aso use a tree instead of a
-    -- list (for term size)
-    Choice _ fpss         -> foldr (\fps s -> tSum (futurePathSetConfig fps) s) tUnit fpss
-    FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps}) -> encodeCase (NE.toList alts) m_fps
-    Call (CallNode { callClass = cl, callPaths = paths }) -> encodeCalls cl (Map.keys paths)
-
-    NestedNode fps -> futurePathSetConfig fps
-    -- Base case
-    SimpleNode {} -> tBytes
-    
-    Assertion {} -> panic "Impossible" [] 
-  where
-    -- Written explicitly to make the decoding clearer
-    encodeCalls _  [] = tUnit
-    encodeCalls cl (root : rest) =
-      tTuple (S.const $ evRelTyName cl root) (encodeCalls cl rest)
-
-    encodeCase [] Nothing    = tUnit
-    encodeCase [] (Just fps) = futurePathSetConfig fps
-    encodeCase (alt : alts) m_def =
-      tSum (futurePathSetConfig (fnAltBody alt)) (encodeCase alts m_def)
+-- The SMT datatype looks something like this:
+-- data SMTPath =
+--   Bytes ByteString
+--   | Branch   Int SMTPath
+--   | Sequence SMTPath SMTPath
 
 -- FIXME: move
 solverSynth :: Solver -> SummaryClass -> TCName Value -> ProvenanceTag -> FuturePathSet a -> IO SelectedPath
 solverSynth s cl root prov fps = S.inNewScope s $ do
-  let modelN = "$model"
-  model <- S.declare s modelN (S.const $ configRelTyName cl (tcName root))
-  S.assert s (S.fun (configRelName cl (tcName root)) [model])
+  model <- S.declare s modelN tModel
+  S.assert s (S.fun (mkPredicateN cl (tcName root)) [model])
   r <- S.check s
   case r of
     S.Sat -> pure ()
@@ -445,8 +395,8 @@ solverSynth s cl root prov fps = S.inNewScope s $ do
     S.Unknown -> error "Unknown"
 
   sexp <- getValue modelN  
-  ress <- evalVParser s (parseModel prov fps) sexp
-  case ress of
+
+  case evalModelP (parseModel prov fps) sexp of
     [] -> panic "No parse" []
     sp : _ -> pure sp
     
@@ -462,42 +412,37 @@ solverSynth s cl root prov fps = S.inNewScope s $ do
                     , "  Result: " ++ S.showsSExpr res ""
                     ]) []
 
-parseModel :: ProvenanceTag -> FuturePathSet a -> VParser SelectedPath
-parseModel prov fps =
-  case fps of
-    Unconstrained -> Unconstrained <$ pUnit
-    DontCare n fps' -> dontCare n <$> parseModel prov fps' 
-    PathNode (Assertion {}) fps' -> dontCare 1 <$> parseModel prov fps'
-    PathNode n fps'    -> uncurry PathNode <$> pTuple (parseNodeModel prov n) (parseModel prov fps')
+parseModel :: ProvenanceTag -> FuturePathSet a ->  ModelP SelectedPath
+parseModel prov fps0 = pSeq (\_ -> go fps0)
+  where
+    go fps =
+      case fps of
+        Unconstrained   -> pure Unconstrained 
+        DontCare n fps' -> dontCare n <$> go fps'
+        PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
+        PathNode n fps'    -> PathNode <$> parseNodeModel n prov <*> go fps'
 
-parseNodeModel :: ProvenanceTag -> FutureNode a -> VParser SelectedNode
-parseNodeModel prov fpn =
+parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
+parseNodeModel prov fpn = 
   case fpn of
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
     -- list (for term size)
-    Choice _ fpss         -> pChoice 0 fpss
-    FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) -> pCase 0 (NE.toList alts) m_fps
-    Call (CallNode { callClass = cl, callPaths = paths }) ->
-      SelectedCall cl <$> pCalls (Map.toList paths)
-    NestedNode fps        -> SelectedNested <$> parseModel prov fps
+    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n) prov)
+    FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
+      let go n | n < NE.length alts = SelectedCase n <$> parseModel (fnAltBody (alts NE.!! n)) prov
+               | Just fps <- m_fps  = SelectedCase n <$> parseModel fps prov
+               | otherwise = panic "Case result out of bounds" [show n]
+      in pBranch go
 
-    SimpleNode {}         -> (\bs -> SelectedSimple prov bs) <$> pByteString 
+    Call (CallNode { callClass = cl, callPaths = paths }) ->
+      let doOne (Wrapped (_, fps)) = parseModel prov fps
+      in SelectedCall cl . foldl1 mergeSelectedPath <$> mapM doOne (Map.elems paths)
+      
+    NestedNode fps        -> SelectedNested <$> parseModel prov fps
+    SimpleNode {}         -> flip SelectedSimple prov <$> pBytes
     
     Assertion {} -> panic "Impossible" [] 
-  where
-    pChoice _ [] = panic "Ran out of choices" []
-    pChoice n (fps : fpss) = pSum (SelectedChoice n <$> parseModel prov fps) (pChoice (n + 1) fpss)
-
-    pCase _ [] Nothing         = panic "Ran out of cases" []
-    pCase n [] (Just fps)      = SelectedCase n <$> parseModel prov fps 
-    pCase n (alt : alts) m_def = pSum (SelectedCase n <$> parseModel prov (fnAltBody alt))
-                                      (pCase (n + 1) alts m_def)
-
-    pCalls [] = pure Unconstrained
-    pCalls ((_, Wrapped (_, fps)) : rest) = do
-      (l, rest') <- pTuple (parseModel prov fps) (pCalls rest)
-      pure (mergeSelectedPath l rest')
 
 -- Define a predicate over a corresponding config.  This holds when a
 -- path is valid --- a model for this (i.e. a config) tells us the
@@ -505,8 +450,9 @@ parseNodeModel prov fpn =
 
 -- FIXME: we will use the '$cfg' variable to refer to the current
 -- config, and use shadowing whe updating.
-relN, resN :: String
-relN = "$rel"
+modelN, mArrayN, resN :: String
+modelN  = "$model"
+mArrayN = "$marray"
 resN = "$res"
 
 -- Does not include the result
@@ -536,98 +482,120 @@ assignedVars = go
 -- if this causes solver issues.
 --
 -- We do traverse the fps again, so that might be expensive
-futurePathSetRel :: SExpr -> Maybe SExpr -> FuturePathSet a -> SExpr
-futurePathSetRel rel m_res fps0 =
-  mkExists (Set.toList (assignedVars fps0))
-           (mkAnd (collect rel fps0))
+futurePathSetPred :: SExpr -> Maybe SExpr -> FuturePathSet a -> SExpr
+futurePathSetPred model m_res fps0 = collect model fps0
   where
-    collect rel' fps =
-      let mkRest fps' = mklet relN (sSnd rel') (mkAnd (collect (S.const relN) fps')) in
-      case fps of
-        Unconstrained -> []
-        DontCare _ fps' -> collect rel' fps'
+    collect model' fps =
+      mkSeq model' (\count mArray -> mkAnd (collect' count mArray 0 fps))
+      
+    collect' count mArray idx fps =
+      let mkRest fps'        = collect' count mArray (idx + 1) fps'
+          mkRestNoModel fps' = collect' count mArray idx       fps'
+          thisModel          = S.select mArray (S.int idx)
+      in case fps of
+        Unconstrained -> [ S.eq count (S.int idx) ] -- maybe not required?
+        DontCare _ fps' -> mkRestNoModel fps'
             
-        PathNode (Assertion a) fps' -> -- Doesn't update rel
-          -- We don't have an associated cfg, so we just pass the
-          -- current cfg on.
-          symExecAssertion a : collect rel' fps'
+        PathNode (Assertion a) fps' ->
+         -- Doesn't have an associated element in the model, so we
+         -- don't increment idx
+          symExecAssertion a : mkRestNoModel fps'
         
         PathNode (SimpleNode rv tc) fps' -> -- Binds a variable.
-          [ mklet relN (sFst rel') (symExecG (S.const relN) (evToRHS rv) tc)
-          , mkRest fps'
-          ]
+          (mkBytes thisModel (\bytes -> symExecG bytes (evToRHS rv) tc)) : mkRest fps'
           
-        PathNode n fps' -> goN (sFst rel') n ++ [mkRest fps']
+        PathNode n fps' -> goN thisModel n ++ mkRest fps'
 
-    -- We inline the Node cases as they impact how we unpack the
-    -- cfg.  For the moment we turn Choose { A; B; C} into
-    -- match $rel with
-    --  Inl $rel -> ... A ...
-    --  Inr $rel -> match $rel with
-    --      Inl $rel -> ... B ...
-    --      Inr $rel -> match $rel with
-    --          Inl $rel -> ... C ...
-    --          Inr $rel -> false
+    -- rel' is possibly a complex expression here, so it needs to be bound if it is used multipe times.
     -- goN :: SExpr -> FutureNode a -> [SExpr]
-    goN rel' fpn =
+    goN model' fpn =
       case fpn of
         Assertion {} -> error "futurePathSetRel Impossible"
         SimpleNode {} -> error "futurePathSetRel Impossible"
 
-        -- We use shadowing of relN here
-        Choice _ fpss -> 
-          [ mklet relN rel'
-            (foldr (\fps'' s ->
-                      mkSumMatch (S.const relN) relN (mkAnd (collect (S.const relN) fps'')) relN s
-                  ) (S.bool False) fpss)
-          ]
-
-        -- There are a few ways to do this, we could (1) case over the
-        -- model, and assert the ctor; (2) case over the ctor and
-        -- assert the model; or (3) use 'or' and assert both.  (1) is
-        -- probably the easist, so that is what we will do for now.
-        -- This also gives a nicer story for union patterns.
+        -- We use shadowing of modelN here (mkBranch binds it)
+        Choice _ fpss -> [ mkBranch model' [ collect (S.const modelN) fps | fps <- fpss ] ]
+        
+        -- The idx isn't strictly required here, as we could just figure it out from the values.
         FNCase (CaseNode { caseCompleteness = _compl  -- we don't care here, we assert an alt is taken
                          , caseSummary      = summary
                          , caseTerm         = e
                          , caseAlts         = alts
-                         , caseDefault      = m_def}) -> 
-          let matchN = "$match"
+                         , caseDefault      = m_def}) ->
+          let matchN    = "$match"
+              altsPreds = map (mkCaseAlt (S.const matchN)) (NE.toList alts)
+              defPred fps = S.and (assertIsMissingLabel (S.const matchN) summary)
+                                  (collect (S.const modelN) fps)
           in [ mklet matchN (symExecV e)
-               (relCase rel' (S.const matchN) summary (NE.toList alts) m_def)
-             ]
+                     (mkBranch model' (altsPreds ++ maybeToList (defPred <$> m_def))) ]
           
-        Call (CallNode { callClass = cl, callResultAssign = res', callAllArgs = args, callPaths = paths })
-          -> [ relCalls cl rel' res' args (Map.toList paths) ]
+        Call (CallNode { callClass = cl
+                       , callResultAssign = m_res'
+                       , callAllArgs = args
+                       , callPaths = paths }) ->
+          let mkOne mArray n (ev, Wrapped (evs, _)) =
+                let resArg = maybeToList (evToRHS <$> m_res')
+                    -- c.f. symExecDomain
+                    execArg x | Just v <- Map.lookup x args = symExecV v
+                              | otherwise = panic "Missing argument" [showPP x]
+                    actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
+                in S.fun (evPredicateN cl ev) (actuals ++ [S.select mArray (S.int n)] ++ resArg)
+          in [ mkSeq model' (\count mArray ->
+                                mkAnd ( S.eq count (S.int $ fromIntegral $ Map.size paths)
+                                        : zipWith (mkOne mArray) [0..] (Map.toList paths)))
+             ]
+             
+        NestedNode fps -> [ collect model' fps ]
 
-        NestedNode fps -> collect rel' fps
+    -- binds $count and $marray
+    mkSeq model' bodyf =
+      let count  = S.const "$count"
+          mArray = S.const mArrayN
+      in mkMatch model' [ ( S.fun "seq" [count, mArray], bodyf count mArray)
+                        , ( S.const "_", S.bool False)
+                        ]
+    -- mkSeq model' bodyf =
+    --   let count  = S.const "$count"
+    --       mArray = S.const mArrayN
+    --   in mkAnd [ S.fun "(_ is seq)" [model']
+    --            , bodyf (S.fun "count" [model']) (S.fun "values" [model'])
+    --            ]
 
-    -- matchDef m_summary m_def =
-    --   case (m_summary, m_def) of
-    --     (Nothing, Nothing) -> [] -- case is total, no default
-    --     (Nothing, Just fps) -> [(S.const "_", mkAnd   )]
-  
-    -- expandAlts rel res alt = 
+    mkBytes model' bodyf =
+      let bytes  = S.const "$bytes"
+      in mkMatch model' [ ( S.fun "bytes" [bytes], bodyf bytes )
+                        , ( S.const "_", S.bool False)
+                        ]
 
-    relCalls _   _    _      _    []                    = S.bool True
-    relCalls cl  rel' m_res' args ((ev, Wrapped (evs, _)) : rest) = 
-      let resArg = maybeToList (evToRHS <$> m_res')
-          -- c.f. symExecDomain
-          actuals = [ maybe (panic "Missing argument" [showPP v]) symExecV (Map.lookup v args)
-                    | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-          callRel = S.fun (evRelName cl ev) (actuals ++ [sFst rel'] ++ resArg)
-          restRel = mklet relN (sSnd rel') (relCalls cl (S.const relN) m_res' args rest)
-      in S.and callRel restRel
+    -- mkBytes model' bodyf =
+    --   let bytes  = S.const "$bytes"
+    --   in mkAnd [ S.fun "(_ is bytes)" [model']
+    --            , bodyf (S.fun "get-bytes" [model'])
+    --            ]
+     
+    -- Shared between case and choice, although case doesn't strictly
+    -- required this (having the idx make replaying the model in
+    -- synthesise a bit nicer)
 
-    -- FIXME: Maybe lift these out to a top-level function?
-    relCase _rel' _e _summary [] Nothing    = S.bool False
-    relCase rel' e summary [] (Just fps) =
-      mkAnd (assertIsMissingLabel e summary : collect rel' fps)
-    relCase rel' e summary (FNAlt { fnAltPatterns = pats, fnAltBody = b } : alts) m_def =
-      let lhs = mkExists (Set.toList (Set.unions (map patBindsSet pats)))
-                         (mkAnd (concatMap (relPattern e) pats ++ collect (S.const relN) b))
-          rhs = relCase (S.const relN) e summary alts m_def
-      in mkSumMatch rel' relN lhs relN rhs
+    mkBranch model' branches =
+      let mkOne n branch = S.and (S.eq (S.const "$idx") (S.int n)) branch
+      in mkMatch model' [ ( S.fun "branch" [S.const "$idx", S.const modelN]
+                          , mkOr (zipWith mkOne [0..] branches)
+                          )
+                        , ( S.const "_", S.bool False)
+                        ]
+    -- mkBranch model' branches =
+    --   let mkOne n branch = S.and (S.eq (S.const "$idx") (S.int n)) branch
+    --   in mkAnd [ S.fun "(_ is branch)" [model']
+    --            , mklets [ (modelN, S.fun "get-branch" [model'])
+    --                     , ("$idx", S.fun "index" [model'])
+    --                     ] (mkOr (zipWith mkOne [0..] branches))
+    --            ]
+
+    mkCaseAlt e (FNAlt { fnAltPatterns = pats, fnAltBody = b }) =
+      mkExists (Set.toList (Set.unions (map patBindsSet pats)))
+               (mkAnd (concatMap (relPattern e) pats ++ [ collect (S.const modelN) b ]))
+      
 
     -- Assert we match a pattern
     relPattern e pat =
@@ -668,27 +636,28 @@ futurePathSetRel rel m_res fps0 =
         ResultVar {}
           | Just res <- m_res -> res
           | otherwise         -> panic "Expected a result" []
+
+    mkOr []  = S.bool True
+    mkOr [x] = x
+    mkOr xs  = S.orMany xs
       
     mkAnd []  = S.bool True
     mkAnd [x] = x
     mkAnd xs  = S.andMany xs
 
-    mkExists [] b = b
-    mkExists xs b =
-      S.fun "exists" [ S.List (map (\x -> S.List [ symExecTCName x, symExecTy (typeOf x) ]) xs)
-                     , b
-                     ]
   
     mkMatch e cs =
       S.fun "match" [ e
                     , S.List [ S.List [ pat, rhs ] | (pat, rhs) <- cs ]
                     ]
 
-    mkSumMatch e vl l vr r =
-      mkMatch e [ (S.fun "inl" [S.const vl], l)
-                , (S.fun "inr" [S.const vr], r)
-                ]
-    
+mkExists :: [TCName Value] -> SExpr -> SExpr
+mkExists [] b = b
+mkExists xs b =
+  S.fun "exists" [ S.List (map (\x -> S.List [ symExecTCName x, symExecTy (typeOf x) ]) xs)
+                 , b
+                 ]
+
 symExecAssertion :: Assertion a -> SExpr
 symExecAssertion (GuardAssertion tc) = symExecV tc
 
@@ -781,7 +750,7 @@ symExecV tc =
     TCMapEmpty    {} -> unimplemented
 
     -- Array operations
-    TCArrayLength v -> sLength $ symExecV v
+    TCArrayLength {} -> unimplemented -- sLength $ symExecV v
 
     -- coercion
     TCCoerce fromT toT v ->
