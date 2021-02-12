@@ -61,7 +61,7 @@ instantiate f es =
                   [ "Trying to inline a primitve: " ++ show (pp (fName f)) ]
     Def e ->
       let su = Map.fromList (fParams f `zip` es)
-      in (substitute su e)
+      in substitute su e
 
 updateInlineable :: (Inlineable -> Inlineable) -> InlineM ()
 updateInlineable f = InlineM (sets_ f)
@@ -147,15 +147,6 @@ orderFuns ins = comps ins
   cvt sc = case sc of
              AcyclicSCC n -> [NonRec n]
              CyclicSCC ns -> breakLoop ns
-{-
-               let loc = Set.fromList (map fName ns)
-                   hasExt f = not
-                            $ Set.null
-                            $ Map.findWithDefault Set.empty f callMap
-                                                        `Set.difference` loc
-                in MutRec [ (hasExt (fName n),n) | (n <- ns ]
--}
-
   node a = case deps a of
              (x,xs) -> (a,x,Set.toList xs)
 
@@ -169,6 +160,8 @@ orderFuns ins = comps ins
                    else orderFuns rest ++ [MutRec rec]
 
 
+-- we can also inline a recursive function that only tail calls itself
+-- but that would have to happen at the VM level...
 
 inlineAll ::
   (Expand e, FreeVars e) =>

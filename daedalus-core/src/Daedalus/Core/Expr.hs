@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
+{-# Language DeriveTraversable #-}
 module Daedalus.Core.Expr where
 
 import Data.ByteString(ByteString)
@@ -99,6 +100,7 @@ data OpN =
 
 
 data Case k = Case Expr [(Pattern,k)]
+  deriving (Functor,Foldable,Traversable)
 
 eCase :: Expr -> [(Pattern,Expr)] -> Expr
 eCase e ps = ECase (Case e ps)
