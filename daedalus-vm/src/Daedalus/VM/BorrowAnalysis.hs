@@ -13,8 +13,6 @@ import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
 import Daedalus.VM.TypeRep
 
-import Debug.Trace
-
 {-
 * Notes on reference variables:
 
