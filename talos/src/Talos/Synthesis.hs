@@ -149,8 +149,8 @@ newtype SynthesisM a =
   SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState IO) a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
-addBytes :: ByteString -> ProvenanceTag -> SynthesisM ()
-addBytes bs prov = SynthesisM $ 
+addBytes :: ProvenanceTag -> ByteString -> SynthesisM ()
+addBytes prov bs = SynthesisM $ 
                       modify (\s -> s { seenBytes = seenBytes s <> bs
                                       , curStream = updStream (curStream s)
                                       , provenances = updProvenances (curStream s) (provenances s)
@@ -161,12 +161,11 @@ addBytes bs prov = SynthesisM $
     updProvenances strm provs = 
       let off = fromIntegral $ streamOffset strm 
           len = fromIntegral $ BS.length bs
-          currset = fromMaybe Set.empty (Map.lookup prov provs)
       in 
-        Map.insert prov (Set.insert (off, len) currset) provs
+        Map.insertWith Set.union prov (Set.singleton (off,len)) provs 
 
-addByte :: Word8 -> ProvenanceTag -> SynthesisM ()
-addByte = addBytes . BS.singleton
+addByte :: ProvenanceTag -> Word8 -> SynthesisM ()
+addByte prov word = addBytes prov (BS.singleton word)
 
 -- currentNode :: SynthesisM (Maybe SelectedNode')
 -- currentNode = SynthesisM $ state go
@@ -195,7 +194,7 @@ synthesise :: Solver -> Maybe Int -> ScopedIdent
            -> Map TCTyName TCTyDecl
            -> [TCModule TCSynthAnnot]
            -> GUID
-           -> IO (InputStream (I.Value, ByteString))
+           -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
 synthesise solv m_seed root declTys mods nguid = do
   -- Send the needSolver decls to the solver
   -- print (fmap pp (Set.toList ns))
@@ -212,10 +211,10 @@ synthesise solv m_seed root declTys mods nguid = do
   gen <- maybe getStdGen (pure . mkStdGen) m_seed
   Streams.fromGenerator (go gen)
   where
-    go :: StdGen -> Generator (I.Value, ByteString) ()
+    go :: StdGen -> Generator (I.Value, ByteString, ProvenanceMap) ()
     go gen = do
       (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen)
-      Streams.yield (assertInterpValue a, seenBytes s)
+      Streams.yield (assertInterpValue a, seenBytes s, provenances s)
       go (stdGen s)
 
     Just rootDecl = find (\d -> nameScopedIdent (tcDeclName d) == root) allDecls
@@ -269,7 +268,7 @@ randL vs = (!!) vs <$> randR (0, length vs - 1)
 
 getByte :: SynthesisM Value
 getByte = do b <- rand
-             addByte b randomProvenance
+             addByte randomProvenance b 
              pure (InterpValue $  I.VUInt 8 (fromIntegral b))
 
 -- We could also invoke the solver here.  This is a bit brute force
@@ -285,7 +284,7 @@ synthesiseP tc = do
   when (bs == []) $ error "Empty predicate"
   b <- randL bs
   prov <- freshProvenanceTag
-  addByte b prov 
+  addByte prov b 
   pure (InterpValue $ I.VUInt 8 (fromIntegral b))
 
 synthesiseV :: TC TCSynthAnnot K.Value -> SynthesisM Value
@@ -422,7 +421,7 @@ choosePath cp (Just x) = do
       s   <- SynthesisM $ gets solver
       cl  <- SynthesisM $ asks currentClass
       prov <- freshProvenanceTag 
-      sp <- liftIO $ solverSynth s cl x fps prov -- FIXME: class
+      sp <- liftIO $ solverSynth s cl x prov fps -- FIXME: class
       -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp)
       pure (mergeSelectedPath cp sp)
       
@@ -468,8 +467,8 @@ matchPat pat =
 
 -- Does all the heavy lifting
 synthesiseGLHS :: Maybe SelectedNode -> TC TCSynthAnnot Grammar -> SynthesisM Value
-synthesiseGLHS (Just (SelectedSimple bs prov)) tc = do
-  addBytes bs prov
+synthesiseGLHS (Just (SelectedSimple prov bs)) tc = do
+  addBytes prov bs
   -- We could reuse the interpreter, but there aren't that many simple tcs
   case texprValue tc of
     TCPure v         -> synthesiseV v
@@ -525,7 +524,7 @@ synthesiseGLHS Nothing tc = -- We don't really care
     TCMatchBytes ws v -> do
       bs <- synthesiseV v
       prov <- freshProvenanceTag
-      addBytes (I.valueToByteString (assertInterpValue bs)) prov -- XXX is this the random case?
+      addBytes synthVProvenance (I.valueToByteString (assertInterpValue bs)) -- XXX is this the random case?
       mbPure ws bs
 
     -- we are ignoring commit here

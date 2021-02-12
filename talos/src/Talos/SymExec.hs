@@ -383,8 +383,8 @@ symExecFuturePathSet s hasResult predN ty frees fps =
 --   | Sequence SMTPath SMTPath
 
 -- FIXME: move
-solverSynth :: Solver -> SummaryClass -> TCName Value -> FuturePathSet a -> ProvenanceTag -> IO SelectedPath
-solverSynth s cl root fps prov = S.inNewScope s $ do
+solverSynth :: Solver -> SummaryClass -> TCName Value -> ProvenanceTag -> FuturePathSet a -> IO SelectedPath
+solverSynth s cl root prov fps = S.inNewScope s $ do
   model <- S.declare s modelN tModel
   S.assert s (S.fun (mkPredicateN cl (tcName root)) [model])
   r <- S.check s
@@ -396,7 +396,7 @@ solverSynth s cl root fps prov = S.inNewScope s $ do
 
   sexp <- getValue modelN  
 
-  case evalModelP (parseModel fps prov) sexp of
+  case evalModelP (parseModel prov fps) sexp of
     [] -> panic "No parse" []
     sp : _ -> pure sp
     
@@ -412,8 +412,8 @@ solverSynth s cl root fps prov = S.inNewScope s $ do
                     , "  Result: " ++ S.showsSExpr res ""
                     ]) []
 
-parseModel :: FuturePathSet a -> ProvenanceTag -> ModelP SelectedPath
-parseModel fps0 prov = pSeq (\_ -> go fps0)
+parseModel :: ProvenanceTag -> FuturePathSet a ->  ModelP SelectedPath
+parseModel prov fps0 = pSeq (\_ -> go fps0)
   where
     go fps =
       case fps of
@@ -422,8 +422,8 @@ parseModel fps0 prov = pSeq (\_ -> go fps0)
         PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
         PathNode n fps'    -> PathNode <$> parseNodeModel n prov <*> go fps'
 
-parseNodeModel :: FutureNode a -> ProvenanceTag -> ModelP SelectedNode
-parseNodeModel fpn prov = 
+parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
+parseNodeModel prov fpn = 
   case fpn of
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
@@ -436,10 +436,10 @@ parseNodeModel fpn prov =
       in pBranch go
 
     Call (CallNode { callClass = cl, callPaths = paths }) ->
-      let doOne (Wrapped (_, fps)) = parseModel fps prov
+      let doOne (Wrapped (_, fps)) = parseModel prov fps
       in SelectedCall cl . foldl1 mergeSelectedPath <$> mapM doOne (Map.elems paths)
       
-    NestedNode fps        -> SelectedNested <$> parseModel fps prov
+    NestedNode fps        -> SelectedNested <$> parseModel prov fps
     SimpleNode {}         -> flip SelectedSimple prov <$> pBytes
     
     Assertion {} -> panic "Impossible" [] 
