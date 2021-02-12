@@ -11,7 +11,7 @@ import Control.Monad.State
 import Control.Applicative
 import Data.Foldable (find)
 import Data.Word
-import Data.Maybe (isJust)
+import Data.Maybe (isJust,fromMaybe)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
@@ -141,20 +141,31 @@ data SynthesisMState =
                   , summaries :: Summaries
                   -- Only care about grammar rules
                   , rules  :: Map Name (TCDecl TCSynthAnnot)
+                  , nextProvenance :: ProvenanceTag 
+                  , provenances :: ProvenanceMap 
                   }
 
 newtype SynthesisM a =
   SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState IO) a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
-addBytes :: ByteString -> SynthesisM ()
-addBytes bs = SynthesisM $ modify (\s -> s { seenBytes = seenBytes s <> bs
-                                           , curStream = updStream (curStream s)
-                                           })
+addBytes :: ByteString -> ProvenanceTag -> SynthesisM ()
+addBytes bs prov = SynthesisM $ 
+                      modify (\s -> s { seenBytes = seenBytes s <> bs
+                                      , curStream = updStream (curStream s)
+                                      , provenances = updProvenances (curStream s) (provenances s)
+                                      })
   where
     updStream strm = strm { streamOffset = streamOffset strm + (fromIntegral $ BS.length bs) }
 
-addByte :: Word8 -> SynthesisM ()
+    updProvenances strm provs = 
+      let off = fromIntegral $ streamOffset strm 
+          len = fromIntegral $ BS.length bs
+          currset = fromMaybe Set.empty (Map.lookup prov provs)
+      in 
+        Map.insert prov (Set.insert (off, len) currset) provs
+
+addByte :: Word8 -> ProvenanceTag -> SynthesisM ()
 addByte = addBytes . BS.singleton
 
 -- currentNode :: SynthesisM (Maybe SelectedNode')
@@ -168,6 +179,12 @@ bindIn x v = SynthesisM . local (addVal x v) . getSynthesisM
 bindInMaybe :: Maybe (TCName K.Value) -> Value -> SynthesisM a -> SynthesisM a
 bindInMaybe Nothing  _ m = m
 bindInMaybe (Just x) v m = bindIn x v m
+
+freshProvenanceTag :: SynthesisM ProvenanceTag
+freshProvenanceTag = do 
+  p <- SynthesisM $ gets nextProvenance
+  SynthesisM $ modify (\s -> s { nextProvenance = p + 1 })
+  return p
 
 -- -----------------------------------------------------------------------------
 -- Top level
@@ -221,6 +238,8 @@ synthesise solv m_seed root declTys mods nguid = do
                       -- , currentPath  = Unconstrained
                       , summaries    = allSummaries
                       , rules        = rs
+                      , nextProvenance = firstSolverProvenance
+                      , provenances  = Map.empty 
                       }
 
     -- Topologically sorted (by reference)
@@ -250,7 +269,7 @@ randL vs = (!!) vs <$> randR (0, length vs - 1)
 
 getByte :: SynthesisM Value
 getByte = do b <- rand
-             addByte b
+             addByte b randomProvenance
              pure (InterpValue $  I.VUInt 8 (fromIntegral b))
 
 -- We could also invoke the solver here.  This is a bit brute force
@@ -265,7 +284,8 @@ synthesiseP tc = do
       bs           = filter p [0 .. 255] -- FIXME!!
   when (bs == []) $ error "Empty predicate"
   b <- randL bs
-  addByte b
+  prov <- freshProvenanceTag
+  addByte b prov 
   pure (InterpValue $ I.VUInt 8 (fromIntegral b))
 
 synthesiseV :: TC TCSynthAnnot K.Value -> SynthesisM Value
@@ -401,7 +421,8 @@ choosePath cp (Just x) = do
       -- corresponding SMT function and process any generated model.      
       s   <- SynthesisM $ gets solver
       cl  <- SynthesisM $ asks currentClass
-      sp <- liftIO $ solverSynth s cl x fps -- FIXME: class
+      prov <- freshProvenanceTag 
+      sp <- liftIO $ solverSynth s cl x fps prov -- FIXME: class
       -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp)
       pure (mergeSelectedPath cp sp)
       
@@ -447,8 +468,8 @@ matchPat pat =
 
 -- Does all the heavy lifting
 synthesiseGLHS :: Maybe SelectedNode -> TC TCSynthAnnot Grammar -> SynthesisM Value
-synthesiseGLHS (Just (SelectedSimple bs)) tc = do
-  addBytes bs
+synthesiseGLHS (Just (SelectedSimple bs prov)) tc = do
+  addBytes bs prov
   -- We could reuse the interpreter, but there aren't that many simple tcs
   case texprValue tc of
     TCPure v         -> synthesiseV v
@@ -503,7 +524,8 @@ synthesiseGLHS Nothing tc = -- We don't really care
       pure vUnit
     TCMatchBytes ws v -> do
       bs <- synthesiseV v
-      addBytes (I.valueToByteString (assertInterpValue bs))
+      prov <- freshProvenanceTag
+      addBytes (I.valueToByteString (assertInterpValue bs)) prov -- XXX is this the random case?
       mbPure ws bs
 
     -- we are ignoring commit here
