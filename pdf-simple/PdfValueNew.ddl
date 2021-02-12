@@ -9,7 +9,7 @@ def $lf                   = 10
 def $cr                   = 13
 def $simpleWS             = 0 | 9 | 12 | 32
 
-def SimpleEOL             = { $cr; $lf } | $lf
+def SimpleEOL             = { $cr; $lf } <| $lf
 def EOL                   = SimpleEOL <| $cr
 def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
 def AnyWS                 = $simpleWS <| Comment <| EOL
@@ -33,8 +33,8 @@ def Guard p               = p is true
 -- Boolean Objects (Section 7.3.2)
 
 def Bool =
-    When (KW "true")  true
-  | When (KW "false") false
+     When (KW "true")  true
+  <| When (KW "false") false
 
 
 --------------------------------------------------------------------------------
@@ -96,14 +96,14 @@ def StringChars = concat (Many StringChunk)
 
 def StringChunk =
     StringInParens
-  | StringEsc
-  | Many (1..) (Match1 (! "\\()"))
+ <| StringEsc
+ <| Many (1..) (Match1 (! "\\()"))
 
 def StringInParens = concat [ Match "(", StringChars, Match ")"]
 
 def StringEsc = {
    Match "\\";
-   Choose {
+   Choose1 {
      When (Match "n")   "\n";
      When (Match "r")   "\r";
      When (Match "t")   "\t";
@@ -126,7 +126,7 @@ def StringNumEsc = [ numBase 8 (Many (1..3) OctDigit) as! uint 8 ]
 
 def HexString = Between "<" ">" {
   @front = Many HexStringNum2;
-  concat [ front, [HexStringNum1] ] | front
+  concat [ front, [HexStringNum1] ] <| front
 }
 
 def HexStringNum2 = numBase 16 (Many 2 (Token HexDigit)) as! uint 8
@@ -139,7 +139,7 @@ def HexStringNum1 = 16 * Token HexDigit as! uint 8
 def Name     = Token { Match "/"; Many NameChar }
 
 def NameChar = Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
-             | NameEsc
+            <| NameEsc
 
 def NameEsc  = {
   Match "#";
