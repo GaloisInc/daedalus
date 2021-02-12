@@ -1,38 +1,9 @@
 packages:
   ./
   deps/simple-smt/
--- deps/daedalus/
--- deps/daedalus/daedalus-core
--- deps/daedalus/daedalus-utils
--- deps/daedalus/daedalus-vm
--- deps/daedalus/rts-hs
-
-source-repository-package
-    type: git
-    location: git@github.com:GaloisInc/daedalus.git
-    tag: 9b85b0e177c21727c3aaecb46c08bf3ab86fc4c9
-
-source-repository-package
-    type: git
-    location: git@github.com:GaloisInc/daedalus.git
-    tag: 9b85b0e177c21727c3aaecb46c08bf3ab86fc4c9
-    subdir: daedalus-core
-
-source-repository-package
-    type: git
-    location: git@github.com:GaloisInc/daedalus.git
-    tag: 9b85b0e177c21727c3aaecb46c08bf3ab86fc4c9
-    subdir: daedalus-utils
-
-source-repository-package
-    type: git
-    location: git@github.com:GaloisInc/daedalus.git
-    tag: 9b85b0e177c21727c3aaecb46c08bf3ab86fc4c9
-    subdir: daedalus-vm
-
-source-repository-package
-    type: git
-    location: git@github.com:GaloisInc/daedalus.git
-    tag: 9b85b0e177c21727c3aaecb46c08bf3ab86fc4c9
-    subdir: rts-hs
+  ../
+  ../daedalus-core
+  ../daedalus-utils
+  ../daedalus-vm
+  ../rts-hs
 
