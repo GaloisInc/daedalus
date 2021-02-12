@@ -69,13 +69,16 @@ doSynthesis opts = do
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines
-      prettyBytes _n v bs = do
+      prettyBytes _n v bs provmap = do
         putStrLn "Synthesised input: "
         putStr (indent (prettyHex bs))
         putStrLn "Semantic value: "
         print ("  " <> pp v)
+        putStrLn "Provenance map: "
+        putStr "  "
+        print provmap 
         putStrLn ""
-      writeStdOut _n _v bs = BS.hPutStrLn stdout bs >> hFlush stdout
+      writeStdOut _n _v bs _provmap = BS.hPutStrLn stdout bs >> hFlush stdout
 
 
   writeModel <-
@@ -84,19 +87,19 @@ doSynthesis opts = do
       Just (AllOutput "-") -> pure writeStdOut -- (\_ bs -> BS.hPutStrLn stdout bs >> hFlush stdout)
       Just (AllOutput fp) -> do
         hdl <- openFile fp WriteMode
-        pure (\_ _ bs -> BS.hPutStrLn hdl bs >> hFlush hdl)
+        pure (\_ _ bs _ -> BS.hPutStrLn hdl bs >> hFlush hdl)
       Just (PatOutput pat) -> do
         let mk = case break (== '%') pat of
                    (lhs, '%' : rhs) -> \n -> lhs ++ show n ++ rhs
                    _                -> \n -> pat ++ "." ++ show n
-        pure (\n _ -> BS.writeFile (mk n))
+        pure (\n _ bs _ -> BS.writeFile (mk n) bs)
 
   let doWriteModel n m_bs =
         case m_bs of
           Nothing      -> hPutStrLn stderr "Not enough models" >> exitFailure
           Just (v, bs, provmap) -> 
-            do writeModel n v bs
-               when (optPrettyModel opts) $ prettyBytes n v bs
+            do writeModel n v bs provmap
+               when (optPrettyModel opts) $ prettyBytes n v bs provmap
 
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
