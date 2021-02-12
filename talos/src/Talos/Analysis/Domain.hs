@@ -391,7 +391,16 @@ futurePathEqv = pathEqv futureNodeEqv
 --   + need to figure out deps and remember choices (not too tricky)
 --   + might need to merge paths on cycles.
 --   + might have to merge paths before we hit the variable
-  
+
+type ProvenanceTag = Int 
+type ProvenanceMap = Map ProvenanceTag (Set (Int,Int))
+
+randomProvenance :: ProvenanceTag
+randomProvenance = 0 
+
+firstSolverProvenance :: ProvenanceTag
+firstSolverProvenance = 1 
+
 data SelectedNode =
   SelectedChoice Int SelectedPath
   -- ^ We chose an alternative.
@@ -407,7 +416,7 @@ data SelectedNode =
   -- Assertions are ignored at this point
   | SelectedNested SelectedPath
   
-  | SelectedSimple ByteString
+  | SelectedSimple ByteString ProvenanceTag
   -- ^ The term has been fully processed and does not contain anything
   -- of interest to other paths.  We still need to execute the term on the bytes.
 
@@ -591,8 +600,8 @@ instance PP SelectedNode where
       SelectedChoice n' sp -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
       SelectedCase   n' sp -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
-      SelectedNested sp   -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
-      SelectedSimple bs   -> pp bs
+      SelectedNested sp    -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
+      SelectedSimple bs pr -> pp bs
 
 instance PP EntangledVar where
   pp (ResultVar {}) = "$result"

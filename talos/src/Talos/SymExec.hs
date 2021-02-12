@@ -383,8 +383,9 @@ symExecFuturePathSet s hasResult predN ty frees fps =
 --   | Sequence SMTPath SMTPath
 
 -- FIXME: move
-solverSynth :: Solver -> SummaryClass -> TCName Value -> FuturePathSet a -> IO SelectedPath
-solverSynth s cl root fps = S.inNewScope s $ do
+<<<<<<< HEAD
+solverSynth :: Solver -> SummaryClass -> TCName Value -> FuturePathSet a -> ProvenanceTag -> IO SelectedPath
+solverSynth s cl root fps prov = S.inNewScope s $ do
   model <- S.declare s modelN tModel
   S.assert s (S.fun (mkPredicateN cl (tcName root)) [model])
   r <- S.check s
@@ -395,7 +396,8 @@ solverSynth s cl root fps = S.inNewScope s $ do
     S.Unknown -> error "Unknown"
 
   sexp <- getValue modelN  
-  case evalModelP (parseModel fps) sexp of
+
+  case evalModelP (parseModel fps prov) sexp of
     [] -> panic "No parse" []
     sp : _ -> pure sp
     
@@ -411,35 +413,35 @@ solverSynth s cl root fps = S.inNewScope s $ do
                     , "  Result: " ++ S.showsSExpr res ""
                     ]) []
 
-parseModel :: FuturePathSet a -> ModelP SelectedPath
-parseModel fps0 = pSeq (\_ -> go fps0)
+parseModel :: FuturePathSet a -> ProvenanceTag -> VParser SelectedPath
+parseModel fps0 prov = pSeq (\_ -> go fps0)
   where
     go fps =
       case fps of
         Unconstrained   -> pure Unconstrained 
         DontCare n fps' -> dontCare n <$> go fps'
         PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
-        PathNode n fps'    -> PathNode <$> parseNodeModel n <*> go fps'
+        PathNode n fps'    -> PathNode <$> parseNodeModel n prov <*> go fps'
 
-parseNodeModel :: FutureNode a -> ModelP SelectedNode
-parseNodeModel fpn = 
+parseNodeModel :: FutureNode a -> ProvenanceTag -> ModelP SelectedNode
+parseNodeModel fpn prov = 
   case fpn of
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
     -- list (for term size)
-    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n))
+    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n)) prov
     FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
-      let go n | n < NE.length alts = SelectedCase n <$> parseModel (fnAltBody (alts NE.!! n))
-               | Just fps <- m_fps  = SelectedCase n <$> parseModel fps
+      let go n | n < NE.length alts = SelectedCase n <$> parseModel (fnAltBody (alts NE.!! n)) prov
+               | Just fps <- m_fps  = SelectedCase n <$> parseModel fps prov
                | otherwise = panic "Case result out of bounds" [show n]
       in pBranch go
 
     Call (CallNode { callClass = cl, callPaths = paths }) ->
-      let doOne (Wrapped (_, fps)) = parseModel fps
+      let doOne (Wrapped (_, fps)) = parseModel fps prov
       in SelectedCall cl . foldl1 mergeSelectedPath <$> mapM doOne (Map.elems paths)
       
-    NestedNode fps        -> SelectedNested <$> parseModel fps
-    SimpleNode {}         -> SelectedSimple <$> pBytes
+    NestedNode fps        -> SelectedNested <$> parseModel fps prov
+    SimpleNode {}         -> flip SelectedSimple prov <$> pBytes
     
     Assertion {} -> panic "Impossible" [] 
 

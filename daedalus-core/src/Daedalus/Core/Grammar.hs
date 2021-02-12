@@ -1,6 +1,8 @@
 {-# Language OverloadedStrings #-}
 module Daedalus.Core.Grammar where
 
+import Data.Functor.Identity(Identity(..))
+
 import Daedalus.PP
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -26,6 +28,31 @@ gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
 
 gCase :: Expr -> [(Pattern,Grammar)] -> Grammar
 gCase e as = GCase (Case e as)
+
+--------------------------------------------------------------------------------
+
+childrenG ::
+  Applicative f => (Grammar -> f Grammar) -> Grammar -> f Grammar
+childrenG f gram =
+  case gram of
+    Pure {}           -> pure gram
+    GetStream         -> pure gram
+    SetStream {}      -> pure gram
+    Fail {}           -> pure gram
+    Do_ g1 g2         -> Do_ <$> f g1 <*> f g2
+    Do  x g1 g2       -> Do x <$> f g1 <*> f g2
+    Let x e g         -> Let x e <$> f g
+    OrBiased g1 g2    -> OrBiased <$> f g1 <*> f g2
+    OrUnbiased g1 g2  -> OrUnbiased <$> f g1 <*> f g2
+    Call {}           -> pure gram
+    Annot a g         -> Annot a <$> f g
+    GCase c           -> GCase <$> traverse f c
+
+mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
+mapChildrenG f g = g1
+  where Identity g1 = childrenG (Identity . f) g
+
+
 
 --------------------------------------------------------------------------------
 

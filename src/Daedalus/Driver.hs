@@ -107,6 +107,7 @@ import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
+import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -708,10 +709,11 @@ passCore m =
              Just (SpecializedModule mo) -> pure mo
              _ -> ddlThrow (ADriverError ("Module " ++ show (pp m) ++
                                                         " is not specialized."))
-     let (cm,(tnms',cnms')) = Core.runM Map.empty Map.empty (Core.fromModule mo)
+     let (cm',(tnms',cnms')) = Core.runM Map.empty Map.empty (Core.fromModule mo)
+         cm = Core.normM cm'
      ddlUpdate_ \s ->
         s { loadedModules = Map.insert (fromMName (Core.mName cm))
-                                       (CoreModue cm)
+                                       (CoreModue (Core.normM cm))
                                        (loadedModules s)
           , coreTopNames = cnms'
           , coreTypeNames = tnms'
@@ -724,9 +726,10 @@ passInline no m =
      case ph of
        CoreModue ast ->
          ddlUpdate_ \s ->
-           s { loadedModules = Map.insert m
-                                (CoreModue (Core.inlineModule no ast))
-                                (loadedModules s) }
+           s { loadedModules =
+                  Map.insert m
+                     (CoreModue (Core.normM (Core.inlineModule no ast)))
+                     (loadedModules s) }
        _ -> panic "passInline" ["Module is not in Core form"]
 
 
