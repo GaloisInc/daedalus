@@ -383,7 +383,6 @@ symExecFuturePathSet s hasResult predN ty frees fps =
 --   | Sequence SMTPath SMTPath
 
 -- FIXME: move
-<<<<<<< HEAD
 solverSynth :: Solver -> SummaryClass -> TCName Value -> FuturePathSet a -> ProvenanceTag -> IO SelectedPath
 solverSynth s cl root fps prov = S.inNewScope s $ do
   model <- S.declare s modelN tModel
@@ -413,7 +412,7 @@ solverSynth s cl root fps prov = S.inNewScope s $ do
                     , "  Result: " ++ S.showsSExpr res ""
                     ]) []
 
-parseModel :: FuturePathSet a -> ProvenanceTag -> VParser SelectedPath
+parseModel :: FuturePathSet a -> ProvenanceTag -> ModelP SelectedPath
 parseModel fps0 prov = pSeq (\_ -> go fps0)
   where
     go fps =
@@ -429,7 +428,7 @@ parseNodeModel fpn prov =
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
     -- list (for term size)
-    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n)) prov
+    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n) prov)
     FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
       let go n | n < NE.length alts = SelectedCase n <$> parseModel (fnAltBody (alts NE.!! n)) prov
                | Just fps <- m_fps  = SelectedCase n <$> parseModel fps prov
