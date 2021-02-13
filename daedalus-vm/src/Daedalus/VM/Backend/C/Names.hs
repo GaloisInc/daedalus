@@ -69,6 +69,9 @@ cArgUse b a = cBlockLabel (blockName b) <.> "_" <.> pp a
 cRetVar :: VMT -> CIdent
 cRetVar ty = "ret_" <.> escDoc (pp ty)
 
+cRetInput :: CIdent
+cRetInput = "input_ret"
+
 escDoc :: Doc -> Doc
 escDoc = escString . show
 

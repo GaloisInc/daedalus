@@ -66,10 +66,8 @@ checkBlock ro block =
   checkArgs =
     case blockType block of
       NormalBlock -> pure ()
-      ReturnBlock n -> mapM_ (ownArg "Malformed return block")
-                          $ drop n (blockArgs block)
-      ThreadBlock -> mapM_ (ownArg "Malformed thread block")
-                          $ drop 1 (blockArgs block)
+      b -> mapM_ (ownArg "malformed block")
+                 $ drop (extraArgs b) $ blockArgs block
 
   ownArg loc a
     | typeRepOf a == HasRefs =
@@ -126,14 +124,12 @@ checkI loc ro i count =
       checkDef x args = newVar (LocalVar x) <$> checkArgs args
   in
   case i of
-    SetInput e      -> checkArgs [e]
     Say _           -> checkArgs []
     Output e        -> checkArgs [e]
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
-    GetInput x      -> checkDef x []
     Spawn x l -> newVar (LocalVar x) <$> checkJP loc ro (==ThreadBlock) l count
-    NoteFail        -> checkArgs []
+    NoteFail e      -> checkArgs [e]
 
     Let x e ->
       case eIsVar e of
@@ -149,7 +145,8 @@ checkTerm loc ro ci count =
   case ci of
     Yield         -> pure count
     ReturnNo      -> pure count
-    ReturnYes e   -> checkE "returnYes" e Owned count
+    ReturnYes e i -> checkE "returnYesI" i Owned =<<
+                     checkE "returnYesR" e Owned count
     ReturnPure e  -> checkE "returnPure" e Owned count
 
     Jump jp       -> checkJP loc ro (== NormalBlock) jp count
@@ -163,7 +160,7 @@ checkTerm loc ro ci count =
   where
   isRet r = case r of
               ReturnBlock _ -> True
-              _              -> False
+              _             -> False
 
   checkArgs f es =
     case Map.lookup f (roFuns ro) of
@@ -224,9 +221,7 @@ checkJP loc ro typeOk jp count =
     Just bl ->
       case blockType bl of
         t | not (typeOk t) -> Left ["Unexpecte block type: " ++ showPP t]
-        NormalBlock   -> check 0
-        ReturnBlock n -> check n
-        ThreadBlock   -> check 1
+          | otherwise -> check (extraArgs t)
       where
       sig     = map getOwnership (blockArgs bl)
       check n = checkEs loc (jArgs jp) (drop n sig) count

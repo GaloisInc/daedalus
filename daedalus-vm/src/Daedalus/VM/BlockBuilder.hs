@@ -3,6 +3,7 @@
 module Daedalus.VM.BlockBuilder where
 
 import Data.Map(Map)
+import Data.Maybe(isJust,maybeToList)
 import qualified Data.Map as Map
 import Data.Void(Void)
 import Control.Monad(liftM,ap)
@@ -15,13 +16,15 @@ import qualified Daedalus.Core.Basics as Src
 
 newtype BlockBuilder a = BlockBuilder ((a -> R) -> R)
 
-type R = BuildInfo -> ([Instr], (CInstr, Int, [(BA,FV)]))
+type R = BuildInfo -> ([Instr], (CInstr, Int, Maybe BA, [(BA,FV)]))
 
 
 data BuildInfo = BuildInfo
   { nextLocal   :: Int
   , nextArg     :: Int
   , localDefs   :: Map FV E
+  , inputVal    :: Maybe E
+  , externInp   :: Maybe BA
   , externArgs  :: [(BA,FV)]
   }
 
@@ -63,10 +66,31 @@ getLocal x = BlockBuilder \k info ->
                                   }
                     in k e i1
 
+
 setLocal :: FV -> E -> BlockBuilder ()
 setLocal x e = BlockBuilder \k i ->
   let i1 = i { localDefs = Map.insert x e (localDefs i) }
   in k () i1
+
+
+getInput :: BlockBuilder E
+getInput = BlockBuilder \k info ->
+             case inputVal info of
+               Just e  -> k e info
+               Nothing ->
+                 let a   = nextArg info
+                     arg = BA a (TSem Src.TStream) Borrowed {- placeholder -}
+                     e   = EBlockArg arg
+                     i1  = info { nextArg = a + 1
+                                , inputVal = Just e
+                                , externInp = Just arg
+                                }
+                 in k e i1
+
+setInput :: E -> BlockBuilder ()
+setInput v = BlockBuilder \k info -> k () info { inputVal = Just v }
+
+
 
 stmt :: VMT -> (BV -> Instr) -> BlockBuilder E
 stmt ty s = BlockBuilder \k i ->
@@ -82,13 +106,8 @@ stmt_ i = BlockBuilder \k info ->
                             in (i : is, r)
 
 term :: CInstr -> BlockBuilder Void
-term c = BlockBuilder \_ i -> ([], (c, nextLocal i, reverse (externArgs i)))
-
-getInput :: BlockBuilder E
-getInput = stmt (TSem Src.TStream) GetInput
-
-setInput :: E -> BlockBuilder ()
-setInput v = stmt_ (SetInput v)
+term c = BlockBuilder \_ i ->
+  ([], (c, nextLocal i, externInp i, reverse (externArgs i)))
 
 
 buildBlock ::
@@ -96,24 +115,27 @@ buildBlock ::
   BlockType ->
   [VMT] ->
   ([E] -> BlockBuilder Void) ->
-  (Block, [FV])
+  (Block, Bool, [FV])
 buildBlock nm bty tys f =
   let args = [ BA n t Borrowed{-placeholder-} | (n,t) <- [0..] `zip` tys ]
       BlockBuilder m = f (map EBlockArg args)
       info = BuildInfo { nextLocal = 0
                        , nextArg = length args
                        , localDefs = Map.empty
+                       , inputVal = Nothing
                        , externArgs = []
+                       , externInp  = Nothing
                        }
-      (is,(c,ln,ls)) = m (\v _ -> case v of {}) info
+      (is,(c,ln,inp,ls)) = m (\v _ -> case v of {}) info
       (extra,free) = unzip ls
   in ( Block { blockName = nm
              , blockType = bty
-             , blockArgs = args ++ extra
+             , blockArgs = args ++ maybeToList inp ++ extra
              , blockLocalNum = ln
              , blockInstrs = is
              , blockTerm = c
              }
+      , isJust inp
       , free
       )
 

@@ -219,14 +219,12 @@ instance DoSubst t => DoSubst (Maybe t) where
 instance DoSubst Instr where
   doSubst x v i =
     case i of
-      SetInput e      -> SetInput (doSubst x v e)
       Say {}          -> i
       Output e        -> Output (doSubst  x v e)
       Notify e        -> Notify (doSubst  x v e)
       CallPrim y p es -> CallPrim y p (doSubst x v es)
-      GetInput {}     -> i
       Spawn y l       -> Spawn y (doSubst x v l)
-      NoteFail        -> i
+      NoteFail e      -> NoteFail (doSubst x v e)
       Let y e         -> Let y (doSubst x v e)
       Free xs         -> Free (Set.delete (LocalVar x) (Set.delete v xs))
 
@@ -237,7 +235,7 @@ instance DoSubst CInstr where
       JumpIf e ls     -> JumpIf (doSubst x v e) (doSubst x v ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
-      ReturnYes e     -> ReturnYes  (doSubst x v e)
+      ReturnYes e i   -> ReturnYes  (doSubst x v e) (doSubst x v i)
       ReturnPure e    -> ReturnPure (doSubst x v e)
       CallPure f l es -> CallPure f (doSubst x v l) (doSubst x v es)
       Call f c no yes es -> Call f c (doSubst x v no) (doSubst x v yes)
@@ -425,7 +423,6 @@ insertCopy ro b = ( vs
 doInstr :: Instr -> M ()
 doInstr instr =
   case instr of
-    SetInput e      -> owned SetInput e
     Say {}          -> emit instr
     Output e        -> owned Output e
     Notify {}       -> emit instr
@@ -433,12 +430,11 @@ doInstr instr =
       do es1 <- doArgs es (modePrimName p)
          emit (CallPrim x p es1)
 
-    GetInput {}    -> emit instr
     Spawn x (JumpPoint l es) ->   -- this is a bit different because we
                                   -- are not jumping now
       do es1 <- mapM copy es
          emit (Spawn x (JumpPoint l es1))
-    NoteFail        -> emit instr
+    NoteFail {}     -> emit instr -- borrows
     Let {}          -> emit instr
     Free {}         -> emit instr
 
@@ -467,7 +463,7 @@ doCInstr cinstr =
 
     Yield        -> pure cinstr
     ReturnNo     -> pure cinstr
-    ReturnYes e  -> ReturnYes  <$> copy e
+    ReturnYes e i-> ReturnYes  <$> copy e <*> copy i
     ReturnPure e -> ReturnPure <$> copy e
 
     CallPure f l es ->

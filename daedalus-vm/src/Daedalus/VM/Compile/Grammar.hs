@@ -31,7 +31,8 @@ compile expr next0 =
     -- XXX: Don't ignore the errors
     Src.Fail _ _ _ ->
       pure
-        do stmt_$ NoteFail
+        do i <- getInput
+           stmt_ (NoteFail i)
            nextNo next
 
     Src.GetStream ->
@@ -93,14 +94,12 @@ compile expr next0 =
          qCode <- compile q next'
 
          l     <- newLocal (TSem Src.TStream)
-         pCode <- compile p next' { onNo = Just do i <- getLocal l
-                                                   setInput i
+         pCode <- compile p next' { onNo = Just do setInput =<< getLocal l
                                                    qCode
                                   }
 
          pure
-           do i <- getInput
-              setLocal l i
+           do setLocal l =<< getInput
               pCode
 
 
@@ -123,7 +122,7 @@ compile expr next0 =
                  }
 
          -- used to process the RHS
-         doRHS <- label1' ThreadBlock (Just (TSem Src.TBool)) \didFail ->
+         doRHS <- spawnBlock \didFail ->
                   do setLocal leftFailed didFail
                      i <- getLocal l
                      setInput i
@@ -150,23 +149,17 @@ compile expr next0 =
       do doCall <-
            case (onNo next, onYes next) of
              (Nothing,Nothing) -> pure \vs ->
-                do -- stmt_ $ Say ("Tail calling " ++ show (pp f))
-                   term $ TailCall f Capture vs
+                do i <- getInput
+                   term $ TailCall f Capture (i:vs)
 
              _ ->
 
-               do noL <- label0 (ReturnBlock 0) $
-                    do -- stmt_ $ Say ("Returning failure from " ++ show (pp f))
-                       nextNo next
-
-                  yesL <- label1' (ReturnBlock 1) Nothing \v ->
-                    do -- stmt_ $ Say ("Returning success from " ++ show (pp f))
-                       nextYes next v
-
+               do noL  <- retNo (nextNo next)
+                  yesL <- retYes \v -> nextYes next v
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 -- stmt_ $ Say ("Calling " ++ show (pp f))
-                                 term $ Call f Capture cloNo cloYes vs
+                                 i <- getInput
+                                 term $ Call f Capture cloNo cloYes (i:vs)
 
          compileEs es \vs -> doCall vs
 
@@ -181,7 +174,12 @@ nextNo :: WhatNext -> BlockBuilder Void
 nextNo = fromMaybe (term ReturnNo) . onNo
 
 nextYes :: WhatNext -> E -> BlockBuilder Void
-nextYes = fromMaybe (term . ReturnYes) . onYes
+nextYes next res =
+  case onYes next of
+    Just k  -> k res
+    Nothing ->
+      do i <- getInput
+         term (ReturnYes res i)
 
 ret :: WhatNext
 ret = Next { onNo = Nothing, onYes = Nothing }
@@ -197,7 +195,7 @@ sharedYes :: WhatNext -> C WhatNext
 sharedYes next =
   case onYes next of
     Nothing -> pure next
-    Just c  -> do l <- label1 NormalBlock c
+    Just c  -> do l <- label1 c
                   pure next { onYes = Just \v -> jump (l v) }
 
 

@@ -56,7 +56,7 @@ edge sty funMap b =
 
     Yield -> []
     ReturnNo -> []
-    ReturnYes _ -> []
+    ReturnYes _ _ -> []
     ReturnPure _ -> []
 
   where
