@@ -20,7 +20,6 @@ import Text.ParserCombinators.ReadP (readP_to_S)
 import qualified Text.ParserCombinators.ReadP as RP
 
 import Data.String (fromString)
-import Control.Monad (when, unless, forM_)
 import Control.Monad.State
 
 import System.IO (hFlush, hPutStr, hPutStrLn
@@ -47,18 +46,17 @@ import Talos.SymExec.Monad
 import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
-import Talos.Analysis.Annot
-import Talos.Analysis.Domain (SummaryClass,ProvenanceMap)
+import Talos.Analysis.Domain (SummaryClass, ProvenanceMap, TCSynthAnnot)
 import Talos.Analysis.Monad (Summary)
 import qualified Talos.Analysis as A
 
 
--- FIXME: move, maybe to GUID.hs?
-newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
-  deriving (Functor, Applicative, Monad)
+-- -- FIXME: move, maybe to GUID.hs?
+-- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
+--   deriving (Functor, Applicative, Monad)
 
-instance HasGUID FreshGUIDM where
-  getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
+-- instance HasGUID FreshGUIDM where
+--   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
 summarise :: FilePath -> Maybe String
           -> IO (Map Name (Map SummaryClass Summary))
@@ -153,9 +151,7 @@ runDaedalus inFile m_entry = daedalus $ do
 
   nguid <- ddlGet nextFreeGUID
   
-  let (mods', nguid') = runState (getFreshGUIDM (synthAnnotModule mods)) nguid
-
-  pure (ModScope mm entry, allTys, [mods'], nguid')
+  pure (ModScope mm entry, allTys, [mods], nguid)
 
 newFileLogger :: Maybe FilePath -> Int -> IO SMT.Logger
 newFileLogger  m_f l  =

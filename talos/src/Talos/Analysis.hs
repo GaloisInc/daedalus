@@ -27,8 +27,8 @@ import Daedalus.Type.AST
 import Daedalus.Type.Free
 import Daedalus.Type.Traverse
 
-import Talos.Analysis.Annot
 import Talos.Analysis.Monad
+import Talos.Analysis.Domain (TCSynthAnnot)
 import Talos.Analysis.PathSet
 
 -- import Debug.Trace

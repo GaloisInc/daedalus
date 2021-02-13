@@ -36,8 +36,7 @@ library
                      , Talos.Analysis.Domain
                      , Talos.Analysis.Monad
                      , Talos.Analysis.PathSet
-                     , Talos.Analysis.Annot
-                     
+                                          
                      , Talos
                      , Machine
   build-depends:       base ^>=4.13.0.0

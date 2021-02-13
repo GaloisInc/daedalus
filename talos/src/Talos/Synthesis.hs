@@ -58,7 +58,6 @@ import Talos.SymExec
 import Talos.SymExec.ModelParser
 import Talos.Lib
 
-import Talos.Analysis.Annot
 import Talos.Analysis.Monad (Summaries, Summary(..))
 import Talos.Analysis.Domain
 import Talos.Analysis.PathSet

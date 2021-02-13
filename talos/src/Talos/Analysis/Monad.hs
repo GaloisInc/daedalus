@@ -17,7 +17,6 @@ import Daedalus.Pass
 import Daedalus.GUID
 
 import Talos.Analysis.Domain
-import Talos.Analysis.Annot
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.

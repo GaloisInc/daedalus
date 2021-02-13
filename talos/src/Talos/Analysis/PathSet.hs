@@ -21,7 +21,6 @@ import qualified Daedalus.Type.PatComplete as PC
 import Daedalus.PP
 import Daedalus.Panic
 
-import Talos.Analysis.Annot
 import Talos.Analysis.Domain
 import Talos.Analysis.Monad
 
@@ -332,10 +331,6 @@ summariseG m_x doWrapper tc = do
       when (null gs) $ error "empty list of choices"
       doms <- mapM (summariseG m_x id) gs
 
-      let choiceVar
-            | ChoiceAnnot cv <- sannot (texprAnnot tc) = cv
-            | otherwise = panic "Expected a choice var" [show (pp tc)]
-
       -- doms contains a domain for each path in the choose. We create
       -- a diagonal list of domains, like
       --
@@ -343,7 +338,7 @@ summariseG m_x doWrapper tc = do
       --
       -- and then merge
       --
-      let mkOne p s fp = PathNode (Choice choiceVar (p ++ [fp] ++ s)) Unconstrained
+      let mkOne p s fp = PathNode (Choice (p ++ [fp] ++ s)) Unconstrained
           mk p d' s = mapDomain (mkOne p s) d'
           doms' = diagonalise Unconstrained doms mk
       pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?

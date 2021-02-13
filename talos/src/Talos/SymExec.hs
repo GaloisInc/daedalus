@@ -33,7 +33,6 @@ import Talos.SymExec.Monad
 import Talos.SymExec.ModelParser
 import Talos.Analysis.Domain
 import Talos.Analysis.Monad (Summary(..))
-import Talos.Analysis.Annot (isSimpleTC)
 
 -- -- -----------------------------------------------------------------------------
 -- -- Decls
@@ -420,7 +419,7 @@ parseModel prov fps0 = pSeq (\_ -> go fps0)
         Unconstrained   -> pure Unconstrained 
         DontCare n fps' -> dontCare n <$> go fps'
         PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
-        PathNode n fps'    -> PathNode <$> parseNodeModel n prov <*> go fps'
+        PathNode n fps'    -> PathNode <$> parseNodeModel prov n <*> go fps'
 
 parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
 parseNodeModel prov fpn = 
@@ -428,10 +427,10 @@ parseNodeModel prov fpn =
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
     -- list (for term size)
-    Choice _ fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel (fpss !! n) prov)
+    Choice fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel prov (fpss !! n))
     FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
-      let go n | n < NE.length alts = SelectedCase n <$> parseModel (fnAltBody (alts NE.!! n)) prov
-               | Just fps <- m_fps  = SelectedCase n <$> parseModel fps prov
+      let go n | n < NE.length alts = SelectedCase n <$> parseModel prov (fnAltBody (alts NE.!! n))
+               | Just fps <- m_fps  = SelectedCase n <$> parseModel prov fps
                | otherwise = panic "Case result out of bounds" [show n]
       in pBranch go
 
@@ -440,7 +439,7 @@ parseNodeModel prov fpn =
       in SelectedCall cl . foldl1 mergeSelectedPath <$> mapM doOne (Map.elems paths)
       
     NestedNode fps        -> SelectedNested <$> parseModel prov fps
-    SimpleNode {}         -> flip SelectedSimple prov <$> pBytes
+    SimpleNode {}         -> SelectedSimple prov <$> pBytes
     
     Assertion {} -> panic "Impossible" [] 
 
@@ -464,7 +463,7 @@ assignedVars = go
     go (PathNode n fps) = go fps `Set.union`
       case n of
         SimpleNode rv _ -> evToSet rv
-        Choice _ fpss -> foldMap go fpss
+        Choice     fpss -> foldMap go fpss
         FNCase (CaseNode { caseAlts = alts, caseDefault = m_def }) ->
           foldMap (go . fnAltBody) alts `Set.union` foldMap go m_def
         Call (CallNode { callResultAssign = Just ev }) -> evToSet ev
@@ -514,7 +513,7 @@ futurePathSetPred model m_res fps0 = collect model fps0
         SimpleNode {} -> error "futurePathSetRel Impossible"
 
         -- We use shadowing of modelN here (mkBranch binds it)
-        Choice _ fpss -> [ mkBranch model' [ collect (S.const modelN) fps | fps <- fpss ] ]
+        Choice fpss -> [ mkBranch model' [ collect (S.const modelN) fps | fps <- fpss ] ]
         
         -- The idx isn't strictly required here, as we could just figure it out from the values.
         FNCase (CaseNode { caseCompleteness = _compl  -- we don't care here, we assert an alt is taken
@@ -851,3 +850,20 @@ symExecG rel res tc
         
       _ -> panic "BUG: unexpected term in symExecG" [show (pp tc)]
      
+--------------------------------------------------------------------------------
+-- Simple nodes
+--
+-- A simple node is one where the synthesis can completely determine
+-- the value and bytes, e.g. Match, UInt8, etc.  Simple nodes are
+-- annotated with a corresponding BytesVar which is used to track
+-- bytes assigned earlier.
+
+isSimpleTC :: TC a k -> Bool
+isSimpleTC tc =
+  case texprValue tc of
+    TCMatchBytes {}  -> True
+    TCPure {}        -> True
+    TCGetByte {}     -> True
+    TCMatch {}       -> True
+    TCCoerceCheck {} -> True
+    _               -> False -- includes unsupported operations as well

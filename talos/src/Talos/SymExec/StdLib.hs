@@ -3,7 +3,7 @@ module Talos.SymExec.StdLib (makeStdLib) where
 
 import Control.Monad.IO.Class (liftIO)
 
-import SimpleSMT (SExpr, Solver)
+import SimpleSMT (Solver)
 import qualified SimpleSMT as S
 import Control.Monad (void)
 

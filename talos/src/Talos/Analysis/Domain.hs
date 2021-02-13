@@ -29,8 +29,8 @@ import Daedalus.Type.Free
 import Daedalus.Panic
 import Daedalus.PP
 
-import Talos.Analysis.Annot (ChoiceVar, TCSynthAnnot)
-  
+type TCSynthAnnot = SourceRange
+
 -- The analysis is simpler if all names are unique (due to the
 -- backward nature of the traversal), and also if all dos are
 -- associated
@@ -292,7 +292,7 @@ eqvCaseNode (CaseNode _pc _cs _tm alts1 m_def1) (CaseNode _pc' _cs' _tm' alts2 m
 -- A path node where we need to do something.  
 data FutureNode a =
   -- | A choose node in the DDL.
-  Choice ChoiceVar [FuturePathSet a]
+  Choice [FuturePathSet a]
 
   -- | A case statement in the DDL.
   | FNCase (CaseNode a)
@@ -309,8 +309,8 @@ data FutureNode a =
 type FuturePathSet a = PathSet a (FutureNode a)
 
 mergeFutureNode :: FutureNode a -> FutureNode a -> FutureNode a
-mergeFutureNode (Choice cv cs1)           (Choice _cv cs2) =
-  Choice cv (zipWith mergeFuturePathSet cs1 cs2)
+mergeFutureNode (Choice cs1)           (Choice cs2) =
+  Choice (zipWith mergeFuturePathSet cs1 cs2)
 mergeFutureNode (Call cn1) (Call cn2) = Call (mergeCallNode cn1 cn2)
 -- b and v should be identical, and the alts and m_defs should have the same shape.
 mergeFutureNode (FNCase cn1) (FNCase cn2) = FNCase (mergeCaseNode cn1 cn2)
@@ -335,7 +335,7 @@ futureNodeEqv = go
     go (SimpleNode {}) _             = True
     go (NestedNode ps1) (NestedNode ps2) = futurePathEqv ps1 ps2
     go (Call cn1) (Call cn2)         = eqvCallNode cn1 cn2
-    go (Choice _cv pss1)   (Choice _cv' pss2) =
+    go (Choice pss1)   (Choice pss2) =
       all (uncurry futurePathEqv) (zip pss1 pss2)
     go (FNCase c1) (FNCase c2) = eqvCaseNode c1 c2
     go _               _              = panic "Unexpected node comparison" []
@@ -577,8 +577,8 @@ instance PP (FNAlt a) where
 instance PP (FutureNode a) where
   ppPrec n fn =
     case fn of
-      Choice cv cs -> 
-        "Choice(" <> pp cv <> ") " <> block "{" "," "}" (map pp cs)
+      Choice cs -> 
+        "Choice" <> block "{" "," "}" (map pp cs)
 
       FNCase (CaseNode c _b e alts m_def) -> 
         wrapIf (n > 0)
