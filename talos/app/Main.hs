@@ -9,6 +9,8 @@ import System.IO (hFlush, hPutStrLn, stdout, stderr
                  , openFile, IOMode(..))
 import Control.Monad (replicateM, zipWithM_, when)
 
+import System.Console.ANSI
+
 import qualified Data.Map as Map
 
 import qualified Data.ByteString.Char8 as BS
@@ -73,13 +75,12 @@ doSynthesis opts = do
         putStrLn "Synthesised input: "
         putStr (indent (prettyHex bs))
         putStrLn "Semantic value: "
-        print ("  " <> pp v)
-        putStrLn "Provenance map: "
+        -- print ("  " <> pp v)
+        -- putStrLn "Provenance map: "
         putStr "  "
-        print provmap 
+        writeProvBS bs provmap 
         putStrLn ""
       writeStdOut _n _v bs _provmap = BS.hPutStrLn stdout bs >> hFlush stdout
-
 
   writeModel <-
     case optOutfile opts of
@@ -104,4 +105,31 @@ doSynthesis opts = do
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
 
+writeProvBS :: BS.ByteString -> ProvenanceMap -> IO() 
+writeProvBS bs provmap = 
+  do 
+    mapM_ putCharProv (zip [0..] (BS.unpack bs)) 
+  where 
+    putCharProv (off, c) = 
+      do 
+        let (int, col) = case Map.lookup off provmap of 
+                            Just p -> colors !! (p `mod` (length colors))
+                            Nothing -> (Vivid, White) 
+        setSGR [SetColor Foreground int col]
+        putChar c 
+        setSGR []
+        putStr "" 
 
+    colors = [(Vivid, Red), 
+              (Vivid, Green),
+              (Vivid, Yellow),
+              (Vivid, Blue),
+              (Vivid, Magenta),
+              (Vivid, Cyan),
+              (Dull, Red), 
+              (Dull, Green),
+              (Dull, Yellow),
+              (Dull, Blue),
+              (Dull, Magenta),
+              (Dull, Cyan)
+              ]

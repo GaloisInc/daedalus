@@ -8,7 +8,8 @@ module Talos (
   synthesise,
   summarise,
   -- * Useful helpers
-  runDaedalus
+  runDaedalus, 
+  ProvenanceMap, -- XXX: should do this properly 
   ) where
 
 import Data.List (find)

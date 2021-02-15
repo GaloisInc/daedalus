@@ -393,7 +393,7 @@ futurePathEqv = pathEqv futureNodeEqv
 --   + might have to merge paths before we hit the variable
 
 type ProvenanceTag = Int 
-type ProvenanceMap = Map ProvenanceTag (Set (Int,Int))
+type ProvenanceMap = Map Int ProvenanceTag
 
 randomProvenance :: ProvenanceTag
 randomProvenance = 0 

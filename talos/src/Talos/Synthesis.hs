@@ -157,11 +157,13 @@ addBytes prov bs = SynthesisM $
   where
     updStream strm = strm { streamOffset = streamOffset strm + (fromIntegral $ BS.length bs) }
 
-    updProvenances strm provs = 
-      let off = fromIntegral $ streamOffset strm 
-          len = fromIntegral $ BS.length bs
-      in 
-        Map.insertWith Set.union prov (Set.singleton (off,len)) provs 
+    updProvenances strm currprovs = 
+      if prov /= randomProvenance then 
+        let off = fromIntegral $ streamOffset strm 
+            len = fromIntegral $ BS.length bs
+        in 
+          foldr (\o -> Map.insert o prov) currprovs [off.. (off + (len - 1))]
+      else currprovs 
 
 addByte :: ProvenanceTag -> Word8 -> SynthesisM ()
 addByte prov word = addBytes prov (BS.singleton word)
