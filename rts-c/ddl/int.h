@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ddl/boxed.h>
 
+namespace DDL {
 class Integer {
   long data;
 
@@ -45,6 +46,14 @@ static inline
 std::ostream& operator<<(std::ostream& os, Integer x) {
   os << x.asSLong();
   return os;
+}
+
+
+static inline
+int compare(Integer x, Integer y) {
+  long a = x.asSLong();
+  long b = y.asSLong();
+  return (a < b) ? -1 : (a - b);
 }
 
 // owned
@@ -101,7 +110,12 @@ Integer operator >> (Integer x, Integer iamt) {
   return Integer(x.asSLong() >> iamt.asULong());
 }
 
-// NOTE: lcat is in `number.h` to avoid dependency convlicts
+static inline
+std::ostream& toJS(std::ostream& os, Integer x) {
+  return os << std::dec << x.asSLong();
+}
 
+// NOTE: lcat is in `number.h` to avoid dependency convlicts
+}
 
 

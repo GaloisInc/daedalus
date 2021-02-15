@@ -20,6 +20,7 @@ data Command =
   | DumpRuleRanges
   | DumpCore
   | DumpVM
+  | DumpGraph Bool
   | DumpGen
   | CompileHS
   | CompileCPP
@@ -35,6 +36,7 @@ data Options =
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
+          , optInline    :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -49,6 +51,7 @@ options = OptSpec
                            , optEntries   = []
                            , optForceUTF8 = True
                            , optShowJS    = False
+                           , optInline    = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -71,6 +74,11 @@ options = OptSpec
       , Option [] ["dump-vm"]
         "Dump VM AST"
        $ simpleCommand DumpVM
+
+      , Option [] ["dump-vm-graph"]
+        "Dump VM AST"
+       $ OptArg "FUN|BLOCK" \s o ->
+         Right o { optCommand = DumpGraph (s == Just "FUN") }
 
       , Option [] ["dump-gen"]
         "Dump parser-generator automaton-based parser"
@@ -107,6 +115,10 @@ options = OptSpec
       , Option [] ["compile-c++"]
         "Generate C++ code"
         $ NoArg \o -> Right o { optCommand = CompileCPP }
+
+      , Option [] ["inline"]
+        "Do aggressive inlining on Core"
+        $ NoArg \o -> Right o { optInline = True }
 
       , Option [] ["entry"]
         "Generate a library containg this parser."

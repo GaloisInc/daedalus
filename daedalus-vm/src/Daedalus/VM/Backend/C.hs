@@ -86,7 +86,7 @@ cProgram fileNameRoot prog =
                        ?allBlocks = allBlocks
                    in cBasicBlock b
 
-  parserDef      = vcat [ "DDL::ParserState p{i0};"
+  parserDef      = vcat [ "DDL::ParserState p;"
                         , params
                         , cDeclareRetVars allFuns
                         , cDeclareCallClosures (Map.elems allBlocks)
@@ -94,9 +94,15 @@ cProgram fileNameRoot prog =
                         , "// --- States ---"
                         , " "
                         , cSwitch "entry"
-                            [ cCase (int i) $
-                                   cGoto (cBlockLabel (entryLabel e))
-                                     | (i,e) <- zip [0..] (pEntries prog) ]
+                            [ cCase (int i) $ vcat
+                                  [ cAssign (cArgUse b i0) "i0"
+                                  , cGoto (cBlockLabel bn)
+                                  ]
+                            | (i,e) <- zip [0..] (pEntries prog)
+                            , let bn = entryLabel e
+                                  b  = entryBoot e Map.! bn
+                                  i0 = head (blockArgs b)
+                            ]
                         , " "
                         , vcat' (map doBlock (Map.elems allBlocks))
                         ]
@@ -156,15 +162,14 @@ to just have 1 varaible per type.
 Alternatively, we could generate separate variables for each functions.
 -}
 cDeclareRetVars :: [VMFun] -> CStmt
-cDeclareRetVars funs =
-  case stmts of
-    [] -> empty
-    _  -> vcat (header : stmts)
+cDeclareRetVars funs = vcat (header : retInp : stmts)
   where
   header  = "\n// Varaibles used to return values from functions"
   stmts   = map decl $ Set.toList $ Set.fromList
                                   $ map (Src.fnameType . vmfName) funs
   decl t  = cDeclareVar (cSemType t) (cRetVar (TSem t))
+
+  retInp  = cDeclareVar (cSemType Src.TStream) cRetInput
 
 
 cDeclareCallClosures :: [Block] -> CStmt
@@ -175,9 +180,12 @@ cDeclareCallClosures bs =
   where
   header = "\n// Types for preserving variables across calls"
   doClo b =
-    case blockType b of
+    let t = blockType b
+        n = extraArgs t
+    in
+    case t of
       NormalBlock   -> Nothing
-      ReturnBlock n ->
+      ReturnBlock {} ->
         Just $
         cReturnClass "DDL::Closure" (blockName b)
                                     (map getType (drop n (blockArgs b)))
@@ -221,12 +229,23 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   getArgs = case blockType b of
               NormalBlock -> empty
 
-              ReturnBlock rn ->
-                let (ras,cas) = splitAt rn (blockArgs b)
+              bty@(ReturnBlock how) ->
+                let rn = extraArgs bty
+                    (ras,cas) = splitAt rn (blockArgs b)
                     ty = cPtrT (cReturnClassName (blockName b))
+                    regN i v = case how of
+                                 RetPure -> cRetVar (getType v)
+                                 RetNo   -> panic "getArgs" ["RetNo"]
+                                 RetYes ->
+                                    case i :: Int of
+                                      0 -> cRetVar (getType v)
+                                      1 -> cRetInput
+                                      _ -> panic "getArgs" ["RetYes"]
+                    resultN i v =
+                      cAssign (cArgUse b v) (regN i v)
                 in
                 cBlock $
-                  [ cAssign (cArgUse b v) (cRetVar (getType v)) | v <- ras ] ++
+                  zipWith resultN [ 0.. ] ras ++
                   [ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
                   ] ++
                   [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
@@ -266,14 +285,12 @@ cVMVar vmvar =
 cBlockStmt :: (Copies,CurBlock) => Instr -> CStmt
 cBlockStmt cInstr =
   case cInstr of
-    SetInput e      -> cStmt (cCall "p.setInput" [ cExpr e])
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
     Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
                            o = parens (parens(t) <.> "out")
                        in cStmt (cCall (o <.> "->push_back") [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
-    NoteFail        -> cStmt (cCall "p.noteFail" [])
-    GetInput x      -> cVarDecl x (cCall "p.getInput" [])
+    NoteFail e      -> cStmt (cCall "p.noteFail" [ cExpr e ])
     Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
       where clo = "new" <+> cCall (cReturnClassName (jLabel l))
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
@@ -603,8 +620,9 @@ cTermStmt ccInstr =
       [ cGoto ("*" <.> cCall "p.returnNo" [])
       ]
 
-    ReturnYes e ->
+    ReturnYes e i ->
       [ cAssign (cRetVar (getType e)) (cExpr e)
+      , cAssign cRetInput (cExpr i)
       , cGoto ("*" <.> cCall "p.returnYes" [])
       ]
 

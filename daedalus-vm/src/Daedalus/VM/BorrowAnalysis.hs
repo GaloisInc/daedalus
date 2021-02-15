@@ -13,7 +13,7 @@ import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
 import Daedalus.VM.TypeRep
 
-import Debug.Trace
+-- import Debug.Trace
 
 {-
 * Notes on reference variables:
@@ -97,14 +97,12 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
 
   annI mp i =
     case i of
-      SetInput e      -> SetInput (annE mp e)
       Say {}          -> i
       Output e        -> Output (annE mp e)
       Notify e        -> Notify (annE mp e)
       CallPrim x p es -> CallPrim x p (map (annE mp) es)
-      GetInput {}     -> i
       Spawn x l       -> Spawn x (annClo mp l)
-      NoteFail        -> i
+      NoteFail e      -> NoteFail (annE mp e)
       Let x e         -> Let x (annE mp e)
       Free xs         -> Free (Set.map (annV mp) xs)
 
@@ -114,7 +112,7 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
       JumpIf e ls        -> JumpIf (annE mp e) (annJ2 mp ls)
       Yield              -> Yield
       ReturnNo           -> ReturnNo
-      ReturnYes e        -> ReturnYes (annE mp e)
+      ReturnYes e i      -> ReturnYes (annE mp e) (annE mp i)
       ReturnPure e       -> ReturnPure (annE mp e)
       CallPure f l es    -> CallPure f (annClo mp l) (annE mp <$> es)
       Call f c no yes es -> Call f c (annClo mp no)
@@ -165,7 +163,7 @@ addBlockArg y (prov,m) i =
     Borrowed | alreadyOwned
              , Just (l,n) <- prov ->
               -- trace ("Forcing argument " ++ show n ++ " of "
-              --    ++ show (pp l) ++ " to be owned.") $
+              -- ++ show (pp l) ++ " to be owned.") $
               i { iChanges = True
                 , iBlockInfo =
                   Map.insert l
@@ -214,11 +212,7 @@ getFunOwnership f i =
 implicitArgs :: Label -> Info -> Int
 implicitArgs l i =
   case Map.lookup l (iBlockType i) of
-    Just ty ->
-      case ty of
-        NormalBlock   -> 0
-        ReturnBlock n -> n
-        ThreadBlock   -> 1
+    Just ty -> extraArgs ty
     Nothing -> panic "implicitArgs" ["Missing block: " ++ show (pp l) ]
 
 --------------------------------------------------------------------------------
@@ -299,7 +293,8 @@ cinstr _b ci =
     JumpIf _ ls  -> jumpChoice ls   -- the scrutinized expression is "borrowed"
     Yield        -> id
     ReturnNo     -> id
-    ReturnYes e  -> expr e (Nothing,Owned `ifRefs` e)
+    ReturnYes e i -> expr e (Nothing,Owned `ifRefs` e)
+                   . expr i (Nothing,Owned `ifRefs` i)
     ReturnPure e -> expr e (Nothing,Owned `ifRefs` e)
 
     CallPure f l es ->
@@ -356,14 +351,12 @@ expr ex mo =
 modeI :: Instr -> [Ownership]
 modeI i =
   case i of
-    SetInput {}              -> [Owned]
     Say {}                   -> []
     Output e                 -> [ Owned `ifRefs` e ]
     Notify _                 -> [ Unmanaged ]
     CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
-    GetInput _               -> []
     Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
-    NoteFail                 -> []
+    NoteFail e               -> [ Borrowed `ifRefs` e ]
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
     Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
 

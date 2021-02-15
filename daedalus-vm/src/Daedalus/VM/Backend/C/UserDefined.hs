@@ -194,12 +194,20 @@ cUnboxedProd vis ty =
             | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit
             ]
   methods =
-       [ "// Construcotr" ]
+       [ "/** @name Constructor */"
+       , "///@{" ]
     ++ [ cProdCtr ty ]
-    ++ [ "// Selectors" ]
+    ++ [ "///@}"
+       , ""
+       , "/** @name Selectors */"
+       , "///@{" ]
     ++ cProdSels ty
-    ++ [ "// Memory Management" ]
+    ++ [ "///@}"
+       , ""
+       , "/** @name Memory Management */"
+       , "///@{" ]
     ++ [ copyMethodSig, freeMethodSig ]
+    ++ [ "///@}"]
 
 
 
@@ -264,12 +272,19 @@ cUnboxedSum vis tdecl =
     ]
 
   methods =
-      [ "// Constructors" ]
+       [ "/** @name Constructors */"
+       , "///@{" ]
    ++ cSumCtrs tdecl
-   ++ [ "// Selectors" ]
+   ++ [ "///@}"
+       , ""
+      , "/** @name Selectors */"
+      , "///@{" ]
    ++ [ cSumGetTag tdecl ]
    ++ cSumGetters tdecl
-   ++ [ "// Memory Management" ]
+   ++ [ "///@}"
+       , ""
+      , "/* @name Memory Management */"
+      , "///@{" ]
    ++ [ copyMethodSig, freeMethodSig ]
 
 
@@ -289,12 +304,19 @@ cBoxedSum tdecl =
     ]
 
   methods =
-       [ "// Constructors" ]
+       [ "/** @name Constructors */"
+       , "///@{" ]
     ++ cSumCtrs tdecl
-    ++ [ "// Selectors" ]
+    ++ [ "///@}"
+       , ""
+       , "/** @name Selectors */"
+       , "///@{" ]
     ++ [ cSumGetTag tdecl ]
     ++ cSumGetters tdecl
-    ++ [ "// Memory Management" ]
+    ++ [ "///@}"
+       , ""
+       , "/** @name Memory Management */"
+       , "///@{" ]
     ++ [ copyMethodSig, freeMethodSig ]
 
 
@@ -543,9 +565,18 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
            TStruct _ -> False
            TUnion  _ -> True
 
+
   sel (l,t) n =
-    let name = selName borrow l
-    in defMethod vis tdecl (cSemType t) name []
+    let name       = selName borrow l
+        uniNote    = if uni
+                       then "\nOnly valid when getTag() is " <+> cSumTagV l
+                       else ""
+        doc        = vcat [ "/** Get the value of field `" <.> pp l <.> "`."
+                          , uniNote
+                          , "*/"
+                          ]
+    in doc $$ (
+       defMethod vis tdecl (cSemType t) name []
        case boxed of
          GenBoxed ->
            [ cStmt ("return" <+> cCall ("ptr.getValue()." <.> name) []) ]
@@ -557,6 +588,7 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
                        _     -> f
            ]
            where f = if uni then "data." <.> cField n else cField n
+        )
 
 --------------------------------------------------------------------------------
 

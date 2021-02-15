@@ -116,7 +116,9 @@ T044.E : Grammar T044.E =
            y = y}
  
 T044.F (i : T044.A) : Grammar (uint 8) =
-  i is x
+  case i is
+    { {| x = _40 |} -> pure _40
+    }
  
 T044._A : Grammar {} =
   Choose fair
@@ -153,4 +155,6 @@ T044._E : Grammar {} =
        }
  
 T044._F (i : T044.A) : Grammar {} =
-  @(i is x)
+  case i is
+    { {| x = _40 |} -> pure {}
+    }

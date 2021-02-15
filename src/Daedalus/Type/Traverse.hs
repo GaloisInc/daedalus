@@ -117,10 +117,6 @@ instance TraverseTypes (TCF a k) where
       TCUniOp op e      -> TCUniOp op <$> traverseTypes f e
 
       TCSelStruct e l t -> (`TCSelStruct` l) <$> traverseTypes f e <*> f t
-      TCSelUnion s  e l t -> (\e' t' -> TCSelUnion s e' l t')
-                                <$> traverseTypes f e
-                                <*> f t
-      TCSelJust s e t -> TCSelJust s <$> traverseTypes f e <*> f t
 
       TCSetAny          -> pure expr
       TCSetSingle e     -> TCSetSingle <$> traverseTypes f e
@@ -326,9 +322,6 @@ traverseTCF f = go
               LoopMap  -> pure LoopMap
 
         TCSelStruct x n t  -> TCSelStruct  <$> f x <*> pure n <*> pure t
-        TCSelUnion s x n t -> TCSelUnion s <$> f x <*> pure n <*> pure t
-        TCSelJust s x t    -> TCSelJust s  <$> f x            <*> pure t
-
 
         TCIf be te fe      -> TCIf <$> f be <*> f te <*> f fe
 

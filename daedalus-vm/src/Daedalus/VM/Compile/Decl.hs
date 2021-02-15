@@ -36,22 +36,25 @@ moduleToProgram entries ms =
 compileEntry :: Src.FName -> Src.Grammar -> Entry
 compileEntry entry pe =
   Entry { entryLabel = l
-        , entryBoot  = b
+        , entryBoot  = Map.adjust addArgs l b
         , entryType  = Src.fnameType entry
         , entryName  = Text.pack ("parse" ++ show (pp entry))
         }
   where
+  addArgs bl = bl { blockArgs = [inpArg] }
   (l,b) =
     runC "__" (Src.typeOf pe) $
-    compile pe $
-    Next { onNo  = Just
-                   do stmt_ $ Say "Branch failed, resuming"
-                      term  $ Yield
-         , onYes = Just \v ->
-                   do stmt_ $ Say "Branch succeeded, resuming"
-                      stmt_ $ Output v
-                      term  $ Yield
-         }
+    -- XXX: get input from somewhere
+    do code <- compile pe
+                  Next { onNo  = Just
+                                 do stmt_ $ Say "Branch failed, resuming"
+                                    term  $ Yield
+                       , onYes = Just \v ->
+                                 do stmt_ $ Say "Branch succeeded, resuming"
+                                    stmt_ $ Output v
+                                    term  $ Yield
+                       }
+       pure (setInput (EBlockArg inpArg) >> code)
 
 
 compileModule :: Src.Module -> Module
@@ -63,6 +66,8 @@ compileModule m =
                    map compileGFun (Src.mGFuns m)
          }
 
+inpArg :: BA
+inpArg = BA 0 (TSem Src.TStream) Borrowed
 
 compileSomeFun ::
   Bool -> (Maybe a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
@@ -70,23 +75,31 @@ compileSomeFun isPure doBody fun =
   let xs         = Src.fParams fun
       name       = Src.fName fun
 
-      args       = zipWith argN xs [ 0 .. ]
+      inpArgs    = if isPure then [] else [ inpArg ]
+      args       = zipWith argN xs [ length inpArgs .. ]
       argN x n   = BA n (TSem (Src.typeOf x)) Borrowed{-placeholder-}
+
       getArgC (x,a) k =
         do v <- newLocal (getType a)
            code <- gdef x v k
            pure do setLocal v (EBlockArg a)
                    code
 
-      body = case Src.fDef fun of
-               Src.Def e    -> doBody (Just e)
-               Src.External -> doBody Nothing
+      setInp i k = do code <- k
+                      pure do setInput (EBlockArg i)
+                              code
+
+      body' = case Src.fDef fun of
+                Src.Def e    -> doBody (Just e)
+                Src.External -> doBody Nothing
+
+      body = foldr setInp body' inpArgs
 
       lab = Text.pack $ show $ pp name
 
       (l,ls)     = runC lab (Src.typeOf name)
                         (foldr getArgC body (zip xs args))
-      addArgs b = b { blockArgs = args }
+      addArgs b = b { blockArgs = inpArgs ++ args }
 
   in inlineBlocks
       VMFun { vmfName   = Src.fName fun

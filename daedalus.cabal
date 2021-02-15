@@ -105,6 +105,7 @@ executable daedalus
 
   build-depends:       daedalus,
                        daedalus-utils,
+                       daedalus-core,
                        daedalus-vm,
                        rts-hs,
                        pretty-hex >= 1.1,

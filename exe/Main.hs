@@ -38,6 +38,7 @@ import Daedalus.ParserGen as PGen
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
+import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
@@ -100,19 +101,36 @@ handleOptions opts
          DumpCore ->
            do passSpecialize specMod [mainRule]
               passCore specMod
+              entry <- ddlGetFName mm "Main" -- mainNm
+              when (optInline opts) (passInline [entry] specMod)
               ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM ->
            do passSpecialize specMod [mainRule]
               passCore specMod
+              entry <- ddlGetFName mm "Main" -- mainNm
+              let ents = [entry]
+              when (optInline opts) (passInline ents specMod)
               passVM specMod
               passCaptureAnalysis
               m <- ddlGetAST specMod astVM
-              entry <- ddlGetFName mm "Main" -- mainNm
               let prog = VM.addCopyIs
                        $ VM.doBorrowAnalysis
-                       $ VM.moduleToProgram [entry] [m]
+                       $ VM.moduleToProgram ents [m]
               ddlPrint (pp prog)
+
+         DumpGraph onlyFun ->
+           do passSpecialize specMod [mainRule]
+              passCore specMod
+              entry <- ddlGetFName mm "Main" -- mainNm
+              let ents = [entry]
+              when (optInline opts) (passInline ents specMod)
+              passVM specMod
+              m <- ddlGetAST specMod astVM
+              let prog = VM.moduleToProgram ents [m]
+                  sty = if onlyFun then VM.OnlyCalls else VM.Everything
+              ddlPutStrLn (VM.toGraphViz sty prog)
+
 
          DumpGen ->
            do passSpecialize specMod [mainRule]
@@ -187,10 +205,11 @@ generateCPP opts mm =
 
      passSpecialize specMod entRules
      passCore specMod
+     entries <- mapM (uncurry ddlGetFName) entRules
+     when (optInline opts) (passInline entries specMod)
      passVM specMod
      passCaptureAnalysis
      m <- ddlGetAST specMod astVM
-     entries <- mapM (uncurry ddlGetFName) entRules
      let prog = VM.addCopyIs
               $ VM.doBorrowAnalysis
               $ VM.moduleToProgram entries [m]

@@ -296,8 +296,6 @@ mbSem tc =
     TCArrayIndex  {}  -> pure (tc, tcFree tc)
 
     TCCoerceCheck {}  -> pure (tc, tcFree tc)
-    TCSelUnion {}     -> pure (tc, tcFree tc)
-    TCSelJust {}      -> pure (tc, tcFree tc)
     TCVar {}          -> pure (tc, tcFree tc)
 
     TCChoice c ms t -> do (ms',is) <- unzip <$> mapM mbSem ms
@@ -415,12 +413,6 @@ noSem' tc =
 
      TCCoerceCheck _ t1 t2 v ->
       pure ( exprAt tc (TCCoerceCheck NoSem t1 t2 v), tcFree v )
-
-     TCSelUnion _ v l t ->
-      pure (exprAt tc (TCSelUnion NoSem v l t), tcFree v)
-
-     TCSelJust _ v t ->
-      pure (exprAt tc (TCSelJust NoSem v t), tcFree v)
 
      TCErrorMode m p -> do (p',is) <- noSem' p
                            pure (exprAt tc (TCErrorMode m p'), is)

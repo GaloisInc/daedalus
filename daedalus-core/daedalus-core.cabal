@@ -22,7 +22,11 @@ library
     Daedalus.Core.Decl,
     Daedalus.Core.Type,
     Daedalus.Core.Free,
+    Daedalus.Core.Fresh,
     Daedalus.Core.Effect,
+    Daedalus.Core.Inline,
+    Daedalus.Core.Subst,
+    Daedalus.Core.Normalize,
     Daedalus.Core.Semantics.Value,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,
@@ -35,9 +39,11 @@ library
     text,
     containers,
     vector,
+    GraphSCC,
     parameterized-utils,
     bv-sized >= 1.0.1,
     rts-hs,
+    monadLib,
     daedalus-utils
 
   hs-source-dirs: src

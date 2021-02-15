@@ -598,8 +598,6 @@ hsGrammar env tc =
                          `Ap` hsApp env f ts as
           _ -> hsApp env f ts as
 
-     TCSelJust sem val _t -> hsMaybe sem erng (hsText "Expected `Just`")
-                                              (hsValue env val)
      TCMapLookup sem k mp ->
        hsMaybe sem erng (ApI "HS.++"
                             (hsText "Missing key: ")
@@ -615,11 +613,6 @@ hsGrammar env tc =
      TCArrayIndex sem e ix ->
        hsMaybe sem erng (hsText "Index out of bounds")
                         ("(Vector.!?)" `aps` [ hsValue env e, hsValue env ix])
-
-     TCSelUnion sem v l _ ->
-        hsMaybe sem erng (hsText ("Expected `" <> l <> "`"))
-                         ("HS.getField" `Ap` TyParam (hsLabelT l)
-                                        `Ap` hsValue env v)
 
      TCCoerceCheck sem _t1 t2 v ->
         hsMaybe sem erng (hsText ("Value does not fit in target type"))
@@ -686,9 +679,9 @@ hsPat env pat =
         Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
         _ -> panic "hsPat" [ "We don't support polymorphic case." ]
 
-    TCBoolPat b     -> Raw b
-    TCJustPat p     -> "Just" `Ap` hsPat env p
-    TCNothingPat _t -> "Nothing"
+    TCBoolPat b     -> hsBool b
+    TCJustPat p     -> "HS.Just" `Ap` hsPat env p
+    TCNothingPat _t -> "HS.Nothing"
     TCVarPat x      -> hsTCName env x
     TCWildPat _t    -> "_"
 

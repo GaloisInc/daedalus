@@ -681,9 +681,14 @@ compilePExpr env expr0 args = go expr0
              _ <- pMatch erng (vecFromRep (valueToByteString v))
              pure $! mbSkip s v
 
-        TCChoice c es _  -> foldr (alt c)
+        TCChoice c es _  ->
+          case es of
+            [] -> pError FromSystem erng "empty choice"
+            _  -> foldr1 (alt c) (map go es)
+{-
+foldr (alt c)
                               (pError FromSystem erng "all alternatives of `Choice` failed") (map go es)
-
+-}
         TCOptional c e   ->
              alt c (VMaybe . Just <$> go e) (pure (VMaybe Nothing))
 
@@ -753,19 +758,6 @@ compilePExpr env expr0 args = go expr0
 
           bad z = panic "compileExpr"
                   [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x)) ]
-
-        TCSelUnion s e sel _ ->
-          case valueToUnion (compilePureExpr env e) of
-            (lbl,va) | lbl == sel -> pure $! mbSkip s va
-                     | otherwise ->
-                       pError FromSystem erng
-                          ("union is not `" ++ Text.unpack sel ++ "`")
-
-        TCSelJust s e _ ->
-          case valueToMaybe (compilePureExpr env e) of
-            Just v  -> pure $! mbSkip s v
-            Nothing -> pError FromSystem erng "semantic value is not `just`"
-
 
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of

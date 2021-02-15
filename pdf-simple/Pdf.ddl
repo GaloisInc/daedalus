@@ -1,8 +1,9 @@
 import PdfValue
 
-def Main = {
+def Main = Only {
   version = SkipTo { Match "%PDF-"; $$ = Number; };
   chunks  = Many PdfChunk;
+  Many AnyWS;
 }
 
 def PdfChunk = {
@@ -62,7 +63,7 @@ def CrossRefEntry = {
            inUse = UsedEntry num gen;
            free  = FreeEntry num gen;
         };
-  { $simpleWS; $cr | $lf } | { $cr; $lf };
+  { $simpleWS; $cr <| $lf } <| { $cr; $lf };
 }
 
 def UsedEntry (num : int) (gen : int) = {
@@ -78,5 +79,9 @@ def NatN n = { @ds = Many n Digit; ^ numBase 10 ds }
 -- Utilities
 
 def CountTo P count = { P; count } <| { UInt8; CountTo P (count+1) }
-def SkipTo P        = P <| { UInt8; SkipTo P }
+-- def SkipTo P        = P <| { UInt8; SkipTo P }
+def SkipTo P        = case { P; true } is {
+                        true  -> {};
+                        false -> { UInt8; SkipTo P };
+                      }
 

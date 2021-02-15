@@ -9,14 +9,12 @@ import Daedalus.VM
 defines :: Instr -> [BV]
 defines instr =
   case instr of
-    SetInput {}     -> []
     Say {}          -> []
     Output {}       -> []
     Notify {}       -> []
     CallPrim v _ _  -> [v]
-    GetInput v      -> [v]
     Spawn v _       -> [v]
-    NoteFail        -> []
+    NoteFail _      -> []
     Free {}         -> []
     Let v _         -> [v]
 
@@ -79,7 +77,7 @@ instance FreeVars CInstr where
       JumpIf e ls       -> freeVars' (e, ls)
       Yield             -> id
       ReturnNo          -> id
-      ReturnYes e       -> freeVars' e
+      ReturnYes e i     -> freeVars' (e,i)
       Call _ _ no yes es -> freeVars' (es,(no,yes))
       CallPure _ l es   -> freeVars' (l,es)
       TailCall _ _ es   -> freeVars' es
@@ -89,14 +87,12 @@ instance FreeVars CInstr where
 instance FreeVars Instr where
   freeVars' instr =
     case instr of
-      SetInput e      -> freeVars' e
       Say {}          -> id
       Output e        -> freeVars' e
       Notify e        -> freeVars' e
       CallPrim _ _ es -> freeVars' es
-      GetInput _      -> id
       Spawn _ l       -> freeVars' l
-      NoteFail        -> id
+      NoteFail e      -> freeVars' e
       Free xs         -> freeVars' xs
       Let _ e         -> freeVars' e
 

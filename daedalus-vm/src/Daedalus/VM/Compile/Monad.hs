@@ -4,7 +4,7 @@ module Daedalus.VM.Compile.Monad where
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Void(Void)
-import Control.Monad(liftM,ap)
+import Control.Monad(liftM,ap,when)
 import Data.Text(Text)
 
 import Daedalus.PP
@@ -59,10 +59,10 @@ runC f ty (C m) =
                              , cLabels = Map.empty
                              }
       l = Label f (cLabel info)
-      (bl,extraArgs) = buildBlock l NormalBlock [] \ ~[] -> b
-  in case extraArgs of
-       [] -> (l, Map.insert l bl (cLabels info))
-       _  -> panic "runC" ["Undefined locals?"]
+      (bl,inp,extra) = buildBlock l NormalBlock [] \ ~[] -> b
+  in case extra of
+       [] | not inp -> (l, Map.insert l bl (cLabels info))
+       _  -> panic "runC" ["Undefined input/locals?"]
 
 
 staticR :: (StaticR -> a) -> C a
@@ -87,15 +87,16 @@ gdef :: Src.Name -> FV -> C a -> C a
 gdef x v (C m) = C \r -> m r { vEnv = Map.insert x v (vEnv r) }
 
 
-newBlock :: BlockType -> [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, [FV])
+newBlock ::
+  BlockType -> [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, Bool, [FV])
 newBlock bty tys def = C \r s ->
-  let l               = cLabel s
-      lab             = Label (curFun r) l
-      (b,extraArgs)   = buildBlock lab bty tys def
-  
+  let l              = cLabel s
+      lab            = Label (curFun r) l
+      (b,inp,extra)  = buildBlock lab bty tys def
+
   in case isJumpJump b of
-      Just otherL -> ( (otherL, extraArgs), s)
-      _           -> ( (lab, extraArgs)
+      -- Just otherL -> ( (otherL, inp, extra), s)
+      _           -> ( (lab, inp, extra)
                      , s { cLabel  = l + 1
                          , cLabels = Map.insert lab b (cLabels s)
                          }
@@ -121,38 +122,62 @@ newLocal t = C \_ s -> let x = cLocal s
 
 label0 :: BlockType -> BlockBuilder Void -> C (BlockBuilder JumpPoint)
 label0 bty b =
-  do (l,vs) <- newBlock bty []  \ ~[] -> b
+  do (l,inp,vs) <- newBlock bty []  \ ~[] -> b
      pure do es <- mapM getLocal vs
-             pure (JumpPoint l es)
+             is <- if inp then ((:[]) <$> getInput) else pure []
+             pure (JumpPoint l (is++es))
 
 label1 ::
-  BlockType ->
   (E -> BlockBuilder Void) ->
   C (E -> BlockBuilder JumpPoint)
-label1 bty def =
+label1 def =
   do t <- getCurTy
-     (l,vs) <- newBlock bty [t] \ ~[x] -> def x
+     (l,inp,vs) <- newBlock NormalBlock [t] \ ~[x] -> def x
      pure \e -> do es <- mapM getLocal vs
-                   pure (JumpPoint l (e:es))
+                   is <- if inp then (:[]) <$> getInput else pure []
+                   pure (JumpPoint l (e:is++es))
 
 
 -- | For closures
-label1' ::
-  BlockType ->
-  Maybe VMT ->
-  (E -> BlockBuilder Void) ->
-  C (BlockBuilder JumpPoint)
-label1' bty mb def =
-  do t <- case mb of
-            Nothing -> getCurTy
-            Just ty -> pure ty
-     (l,vs) <- newBlock bty [t] \ ~[x] -> def x
+spawnBlock :: (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
+spawnBlock def =
+  do let t = TSem Src.TBool
+     (l,inp,vs) <- newBlock ThreadBlock [t] \ ~[x] -> def x
+     when inp $ panic "spawnBlock" [ "Using input?" ]
      pure do es <- mapM getLocal vs
              pure (JumpPoint l es)
 
 
 
+-- | For returning from a call to a grammar function
+retNo :: BlockBuilder Void -> C (BlockBuilder JumpPoint)
+retNo def =
+  do (l,inp,vs) <- newBlock (ReturnBlock RetNo) [] \ ~[] -> def
+     pure do es <- mapM getLocal vs
+             is <- if inp then (:[]) <$> getInput else pure []
+             pure (JumpPoint l (is++es))
 
 
+
+-- | For returning from a call to a grammar function
+retYes :: (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
+retYes def =
+  do t <- getCurTy
+     (l,inp,vs) <- newBlock (ReturnBlock RetYes) [t,TSem Src.TStream]
+                                      \ ~[x,i] -> setInput i >> def x
+     when inp $ panic "retYes" [ "Input escaped?" ]
+     pure do es <- mapM getLocal vs
+             -- we don't store the input in the closure because
+             -- it will be returned by the function
+             pure (JumpPoint l es)
+
+
+-- | For returning from a call to a grammar function
+retPure :: Src.Type -> (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
+retPure t def =
+  do (l,inp,vs) <- newBlock (ReturnBlock RetPure) [TSem t] \ ~[x] -> def x
+     pure do es <- mapM getLocal vs
+             is <- if inp then (:[]) <$> getInput else pure []
+             pure (JumpPoint l (is++es))
 
 

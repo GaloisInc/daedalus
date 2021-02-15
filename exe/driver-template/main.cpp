@@ -59,16 +59,19 @@ int main(int argc, char* argv[]) {
 
   size_t resultNum = out.size();
 
-  cout << resultNum << " results:" << endl;
+  cout << "{ \"resultNum\": " << resultNum << endl;
+  cout << ", \"results\": " << endl;
 
   if (resultNum == 0) {
-    cout << "Parser error at " << err.offset << endl;
+    cout << "\"Parser error at " << err.offset << "\"" << endl;
     return 1;
   }
 
   for (size_t i = 0; i < resultNum; ++i) {
+    cout << (i > 0 ? ", " : "[ ");
     DDL::toJS(cout,(DDL::ResultOf::parseMain)out[i]);
   }
+  cout << "]}\n";
 
   return 0;
 }

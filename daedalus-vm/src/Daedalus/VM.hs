@@ -62,30 +62,25 @@ data Block = Block
 
 data BlockType =
     NormalBlock
-  | ReturnBlock Int
-    {- ^ The landing target for returning from functions.
-    These blocks will only ever be used by the various "return"
-    instructions and so they can use a different "calling" convention
-    for passing arguments.  The 'Int' indicates how many arguments are being
-    returns.  Those are the first arguments to the block.  The remaining
-    arguments are varaibles that needed to be preserved by the call and
-    should be restored from the closure.
-    -}
-
+  | ReturnBlock ReturnHow
   | ThreadBlock
     {- ^ This block is an entry point to a thread. -}
     deriving (Eq,Show)
 
+data ReturnHow =
+    RetPure     -- ^ pure function
+  | RetYes      -- ^ parser, success
+  | RetNo       -- ^ parser, failure
+    deriving (Eq,Show)
+
 -- | Instructions
 data Instr =
-    SetInput E
-  | Say String
+    Say String
   | Output E
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
-  | GetInput BV
   | Spawn BV Closure
-  | NoteFail
+  | NoteFail E
 
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
@@ -96,7 +91,7 @@ data CInstr =
   | JumpIf E JumpChoice
   | Yield
   | ReturnNo
-  | ReturnYes E
+  | ReturnYes E E   -- ^ Result, input
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
   | CallPure Src.FName Closure [E]
     -- ^ The jump point contains information on where to continue after
@@ -178,14 +173,12 @@ eVar var =
 iArgs :: Instr -> [E]
 iArgs i =
   case i of
-    SetInput e        -> [e]
     Say {}            -> []
     Output e          -> [e]
     Notify e          -> [e]
     CallPrim _ _ es   -> es
-    GetInput {}       -> []
     Spawn _ j         -> jArgs j
-    NoteFail          -> []
+    NoteFail e        -> [e]
 
     Let _ e           -> [e]
     Free _            -> []       -- XXX: these could be just owned args
@@ -194,6 +187,18 @@ pAllBlocks :: Program -> [Block]
 pAllBlocks p =
   [ b | ent <- pEntries p, b <- Map.elems (entryBoot ent) ] ++
   [ b | m <- pModules p, f <- mFuns m, b <- Map.elems (vmfBlocks f) ]
+
+extraArgs :: BlockType -> Int
+extraArgs b =
+  case b of
+    NormalBlock -> 0
+    ThreadBlock -> 1    -- notified?
+    ReturnBlock h ->
+      case h of
+        RetPure     -> 1    -- value
+        RetNo       -> 0
+        RetYes      -> 2    -- value, input
+
 
 --------------------------------------------------------------------------------
 -- Names
@@ -279,13 +284,11 @@ instance PP Instr where
   pp instr =
     case instr of
       CallPrim x f vs  -> pp x <+> "=" <+> ppFun (pp f) (map pp vs)
-      GetInput x       -> pp x <+> "=" <+> "input"
       Spawn x c        -> pp x <+> "=" <+> ppFun "spawn" [pp c]
-      SetInput e       -> "input" <+> "=" <+> pp e
       Say x            -> ppFun "say" [text (show x)]
       Output v         -> ppFun "output" [ pp v ]
       Notify v         -> ppFun "notify" [ pp v ]
-      NoteFail         -> ppFun "noteFail" []
+      NoteFail v       -> ppFun "noteFail" [pp v]
       Free x           -> "free" <+> commaSep (map pp (Set.toList x))
       Let x v          -> ppBinder x <+> "=" <+> "copy" <+> pp v
 
@@ -298,7 +301,7 @@ instance PP CInstr where
             where ppAlt (p,g) = pp p <+> "->" <+> pp g
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
-      ReturnYes e   -> ppFun "return" [pp e]
+      ReturnYes e i -> ppFun "return" [pp e, pp i]
       ReturnPure e  -> ppFun "return" [pp e]
       CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
       Call f c no yes es ->
@@ -384,8 +387,15 @@ instance PP BlockType where
   pp b =
     case b of
       NormalBlock   -> "/* normal block */"
-      ReturnBlock n -> "/* return" <+> int n <+> "*/"
       ThreadBlock   -> "/* thread */"
+      ReturnBlock r -> pp r
+
+instance PP ReturnHow where
+  pp r =
+    case r of
+      RetPure       -> "/* return pure */"
+      RetYes        -> "/* return yes */"
+      RetNo         -> "/* return no */"
 
 instance PP Block where
   pp b = l <.> colon <+> ty $$ nest 2

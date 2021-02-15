@@ -281,9 +281,10 @@ fromGrammar gram =
 
                  Let x e <$>
                    case sem of
-                     NoSem  -> checkAtLeast Nothing xe =<< pSkipAtMost vs1 xe ge
+                     NoSem  -> checkAtLeast Nothing xe =<<
+                                            pSkipAtMost cmt vs1 (Just xe) ge
                      YesSem -> checkAtLeast (Just ty) xe
-                                                   =<< pParseAtMost ty vs1 xe ge
+                                       =<< pParseAtMost cmt ty vs1 xe ge
 
            TC.Between Nothing Nothing ->
               case sem of
@@ -292,18 +293,18 @@ fromGrammar gram =
 
            TC.Between Nothing (Just e) ->
               case sem of
-                NoSem  -> pSkipAtMost vs e ge
-                YesSem -> pParseAtMost ty vs e ge
+                NoSem  -> pSkipAtMost cmt vs (Just e) ge
+                YesSem -> pParseAtMost cmt ty vs e ge
 
            TC.Between (Just e) Nothing ->
               case sem of
-                NoSem  -> checkAtLeast Nothing e =<< pSkipMany cmt vs ge
+                NoSem  -> checkAtLeast Nothing e =<< pSkipAtMost cmt vs Nothing ge
                 YesSem -> checkAtLeast (Just ty) e =<< pParseMany cmt ty vs ge
 
            TC.Between (Just lb) (Just ub) ->
               case sem of
-                NoSem  -> checkAtLeast Nothing lb =<< pSkipAtMost vs ub ge
-                YesSem -> checkAtLeast (Just ty) lb =<< pParseAtMost ty vs ub ge
+                NoSem  -> checkAtLeast Nothing lb =<< pSkipAtMost cmt vs (Just ub) ge
+                YesSem -> checkAtLeast (Just ty) lb =<< pParseAtMost cmt ty vs ub ge
 
     TC.TCMapLookup sem k mp ->
       do kE  <- fromExpr k
@@ -354,30 +355,6 @@ fromGrammar gram =
       do e   <- fromExpr v
          tgt <- fromTypeM t2
          fromMb sem tgt (coerceMaybeTo tgt e)
-
-    TC.TCSelJust sem v t ->
-      do e <- fromExpr v
-         ty <- fromTypeM t
-         fromMb sem ty e
-
-    TC.TCSelUnion sem v l t ->
-      do e <- fromExpr v
-         ty <- fromTypeM t
-         case sem of
-           NoSem -> pure $
-              gCase e
-                [ (PCon l, Pure unit)
-                , (PAny, sysErr TUnit "unexpected semantic value shape")
-                ]
-
-           YesSem ->
-             do x <- newLocal (typeOf e)
-                let xe = Var x
-                pure $ Let x e
-                     $ gCase e
-                         [ (PCon l, Pure (fromUnion ty l xe))
-                         , (PAny, sysErr ty "unexpected semantic value shape")
-                         ]
 
     TC.TCFor l -> doLoopG l
 
@@ -659,22 +636,45 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
      pure $ Call f (initS : newIterator colE : es)
 
 
+maybeSkip :: Commit -> Grammar -> Grammar -> Grammar -> M Grammar
+maybeSkip cmt p yes no =
+  do r <- newLocal TBool
+     pure case cmt of
+            Commit ->
+              Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
+               $ GCase $ Case (Var r)
+                           [ (PBool True, yes)
+                           , (PBool False, no)
+                           ]
+            _ -> orOp cmt (Do_ p yes) no
+
+
+maybeParse ::
+  Commit -> Type -> Grammar -> (Expr -> Grammar) -> Grammar -> M Grammar
+maybeParse cmt ty p yes no =
+  do r   <- newLocal ty
+     rMb <- newLocal (TMaybe ty)
+     pure case cmt of
+            Commit ->
+               Do rMb (OrBiased (Do r p (Pure (just (Var r))))
+                                (Pure (nothing ty)))
+                $ GCase
+                $ Case (Var rMb)
+                    [ (PJust,    yes (eFromJust (Var rMb)))
+                    , (PNothing, no)
+                    ]
+            _ ->
+             orOp cmt (Do r p (yes (Var r))) no
+
+
+
 
 pSkipMany :: Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany cmt vs p =
   do f <- newGName TUnit
      let es = map Var vs
-     r <- newLocal TBool
-     defFunG f vs $
-        case cmt of
-          -- we can make a tail call in this case
-          Commit ->
-            Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
-             $ GCase $ Case (Var r)
-                         [ (PBool True, Call f es)
-                         , (PBool False, Pure unit)
-                         ]
-          _ -> orOp cmt (Do_ p (Call f es)) (Pure unit)
+     skipBody <- maybeSkip cmt p (Call f es) (Pure unit)
+     defFunG f vs skipBody
      pure (Call f es)
 
 pParseMany :: Commit -> Type -> [Name] -> Grammar -> M Grammar
@@ -682,65 +682,46 @@ pParseMany cmt ty vs p =
   do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal (TBuilder ty)
-     y <- newLocal ty
-     rMb <- newLocal (TMaybe ty)
-     r   <- newLocal ty
      let xe = Var x
-     defFunG f (x:vs)
-       $ case cmt of
-           Commit ->
-              Do rMb(OrBiased (Do r p (Pure (just (Var r))))
-                              (Pure (nothing ty)))
-               $ GCase
-               $ Case (Var rMb)
-                   [ (PJust,    Call f (consBuilder (eFromJust (Var rMb)) xe
-                                                                      : es)
-                     )
-                   , (PNothing, Pure xe)
-                   ]
-           _ ->
-            orOp cmt (Do y p (Call f (consBuilder (Var y) xe : es))) (Pure xe)
-
+     body <- maybeParse cmt ty p
+                              (\a -> Call f (consBuilder a xe : es)) (Pure xe)
+     defFunG f (x:vs) body
      z <- newLocal (TBuilder ty)
      pure $ Do z (Call f (newBuilder ty : es))
                  (Pure $ finishBuilder $ Var z)
 
 
-pSkipAtMost :: [Name] -> Expr -> Grammar -> M Grammar
-pSkipAtMost vs tgt p =
+pSkipAtMost :: Commit -> [Name] -> Maybe Expr -> Grammar -> M Grammar
+pSkipAtMost cmt vs mbTgt p =
   do f <- newGName TInteger
      let es = map Var vs
      x <- newLocal TInteger
      let xe = Var x
+     skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 TInteger) : es))
+                                 (Pure xe)
      defFunG f (x:vs)
-             $ gIf (tgt `leq` xe)
-                  (Pure xe)
-                  ( Do_ p
-                  $     Call f (add xe (intL 1 TInteger) : es)
-                  )
+        case mbTgt of
+          Nothing  -> skipBody
+          Just tgt -> gIf (xe `lt` tgt) skipBody (Pure xe)
      pure (Call f (intL 0 TInteger : es))
 
 
-pParseAtMost :: Type -> [Name] -> Expr -> Grammar -> M Grammar
-pParseAtMost ty vs tgt p =
+pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+pParseAtMost cmt ty vs tgt p =
   do f <- newGName (TArray ty)
      let es = map Var vs
      x <- newLocal TInteger
      b <- newLocal (TBuilder ty)
-     z <- newLocal ty
      let xe = Var x
          be = Var b
-         ze = Var z
-     defFunG f (x : b : vs)
-              $ gIf (tgt `leq` xe)
-                   ( Pure $ finishBuilder be )
-                   ( Do z p
-                   $    Call f ( add xe (intL 1 TInteger)
-                               : consBuilder ze be
-                               : es
-                               )
-                   )
 
+     body <- maybeParse cmt ty p
+                (\a -> Call f (add xe (intL 1 TInteger)
+                              : consBuilder a be
+                              : es))
+                (Pure (finishBuilder be))
+
+     defFunG f (x : b : vs) (gIf (xe `lt` tgt) body (Pure (finishBuilder be)))
      pure $ Call f (intL 0 TInteger : newBuilder ty : es)
 
 

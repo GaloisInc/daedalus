@@ -146,7 +146,7 @@ updS b =
     JumpIf _ ls       -> stays2 ls
     Yield             -> id
     ReturnNo          -> id
-    ReturnYes _       -> id
+    ReturnYes {}      -> id
     ReturnPure _      -> id
     CallPure _ l _    -> addStays l
     Call _ _ no yes _ -> addStays no . addStays yes
@@ -176,14 +176,12 @@ mergeBlocks front back =
   renI i =
     case i of
       CallPrim x f e -> Just $ CallPrim (renBV x) f (map renE e)
-      GetInput x     -> Just $ GetInput (renBV x)
       Spawn x j      -> Just $ Spawn (renBV x) (renJ j)
 
-      SetInput e     -> Just $ SetInput (renE e)
       Say s          -> Just $ Say s
       Output e       -> Just $ Output (renE e)
       Notify e       -> Just $ Notify (renE e)
-      NoteFail       -> Just $ NoteFail
+      NoteFail e     -> Just $ NoteFail (renE e)
       Free xs        -> case mapMaybe renV (Set.toList xs) of
                           [] -> Nothing
                           ys -> Just (Free (Set.fromList ys))
@@ -196,7 +194,7 @@ mergeBlocks front back =
       JumpIf e ls     -> JumpIf (renE e) (renJ2 ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
-      ReturnYes e     -> ReturnYes (renE e)
+      ReturnYes e i   -> ReturnYes (renE e) (renE i)
       ReturnPure e    -> ReturnPure (renE e)
       Call f ca no yes es -> Call f ca (renJ no) (renJ yes) (map renE es)
       CallPure f l es -> CallPure f (renJ l) (map renE es)
@@ -332,7 +330,7 @@ jjInfo b =
     TailCall {}       -> id
     Yield             -> id
     ReturnNo          -> id
-    ReturnYes _       -> id
+    ReturnYes {}      -> id
     ReturnPure _      -> id
 
   where

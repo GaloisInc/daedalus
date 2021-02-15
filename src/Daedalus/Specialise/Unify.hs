@@ -176,10 +176,6 @@ instance Unify (TCF a k) where
 
       ( TCSelStruct x n t   , TCSelStruct x' n' t')
         | n == n' && t == t' -> unify x x'
-      ( TCSelUnion s x n t  , TCSelUnion s' x' n' t')
-        | s == s' && n == n' && t == t' -> unify x x'        
-      ( TCSelJust s1 e1 t1, TCSelJust s2 e2 t2)
-        | s1 == s2 && t1 == t2 -> unify e1 e2
 
       ( TCIf be te fe       , TCIf be' te' fe'   ) ->
         unify (be, te, fe) (be', te', fe')

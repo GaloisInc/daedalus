@@ -20,26 +20,17 @@ struct ParseError {
 
 class ParserState {
 
-  Input                 input;
   size_t                fail_offset;    // largest, only makes sense if we fail
   ListStack             stack;
   std::vector<Thread>   suspended;
 
 public:
-
-  // Argument is owned
-  ParserState(Input i) : input(i) , fail_offset(0) {}
+  ParserState() : fail_offset(0) {}
 
   size_t getFailOffset() { return fail_offset; }
 
 
   // ------------------------------------------------------------------------
-
-  // Argument is owned
-  void setInput(Input i) { input.free(); input = i; }
-
-  // Returns a copy of the current input (result is owned)
-  Input getInput() { input.copy(); return input; }
 
   // For debug
   void say(const char *msg) { debugLine(msg); }
@@ -53,7 +44,7 @@ public:
   // XXX: This is not quite right because, in principle, the failures
   // may be in different inputs.  For the moment, we ignore this, which
   // could result in confusing error locations.
-  void noteFail() {
+  void noteFail(Input input) {
     size_t offset = input.getOffset();
     if (offset > fail_offset) fail_offset = offset;
   }

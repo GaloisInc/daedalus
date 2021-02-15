@@ -30,6 +30,5 @@ cat "$DIR/Main.hs.template" >> "$DIR/Main.hs"
 
 pushd $DIR
 cabal build exe:test-bed
-cabal exec test-bed $2
 popd
 rm -rf test-code
