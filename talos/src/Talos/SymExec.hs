@@ -8,7 +8,6 @@ module Talos.SymExec ({- symExec, ruleName, -} symExecV, symExecP -- , Env(..)
 
 import Control.Monad.Reader
 import qualified Data.ByteString as BS
-
 import Data.Maybe (maybeToList)
 import qualified Data.List.NonEmpty as NE
 
@@ -412,14 +411,14 @@ solverSynth s cl root prov fps = S.inNewScope s $ do
                     ]) []
 
 parseModel :: ProvenanceTag -> FuturePathSet a ->  ModelP SelectedPath
-parseModel prov fps0 = pSeq (\_ -> go fps0)
+parseModel prov fps0 = go fps0
   where
     go fps =
       case fps of
         Unconstrained   -> pure Unconstrained 
         DontCare n fps' -> dontCare n <$> go fps'
         PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
-        PathNode n fps'    -> PathNode <$> parseNodeModel prov n <*> go fps'
+        PathNode n fps'    -> uncurry PathNode <$> pSeq (parseNodeModel prov n) (go fps')
 
 parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
 parseNodeModel prov fpn = 
@@ -436,7 +435,8 @@ parseNodeModel prov fpn =
 
     Call (CallNode { callClass = cl, callPaths = paths }) ->
       let doOne (Wrapped (_, fps)) = parseModel prov fps
-      in SelectedCall cl . foldl1 mergeSelectedPath <$> mapM doOne (Map.elems paths)
+      in SelectedCall cl <$> foldr1 (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
+                                    (map doOne (Map.elems paths))
       
     NestedNode fps        -> SelectedNested <$> parseModel prov fps
     SimpleNode {}         -> SelectedSimple prov <$> pBytes
@@ -484,15 +484,17 @@ assignedVars = go
 futurePathSetPred :: SExpr -> Maybe SExpr -> FuturePathSet a -> SExpr
 futurePathSetPred model m_res fps0 = collect model fps0
   where
-    collect model' fps =
-      mkSeq model' (\count mArray -> mkAnd (collect' count mArray 0 fps))
-      
-    collect' count mArray idx fps =
-      let mkRest fps'        = collect' count mArray (idx + 1) fps'
-          mkRestNoModel fps' = collect' count mArray idx       fps'
-          thisModel          = S.select mArray (S.int idx)
+    collect model' fps = mkAnd (collect' model' fps)
+    
+    collect' model' fps =
+      let mkRest fps'        =
+            [ (S.fun "(_ is seq)" [model'])
+            , mklet modelN (S.fun "msnd" [model']) (collect (S.const modelN) fps')
+            ]
+          mkRestNoModel fps' = collect' model' fps'
+          thisModel          = S.fun "mfst" [model']
       in case fps of
-        Unconstrained -> [ S.eq count (S.int idx) ] -- maybe not required?
+        Unconstrained -> [ ] -- maybe not required?
         DontCare _ fps' -> mkRestNoModel fps'
             
         PathNode (Assertion a) fps' ->
@@ -532,45 +534,30 @@ futurePathSetPred model m_res fps0 = collect model fps0
                        , callResultAssign = m_res'
                        , callAllArgs = args
                        , callPaths = paths }) ->
-          let mkOne mArray n (ev, Wrapped (evs, _)) =
+          let mkOne (ev, Wrapped (evs, _)) =
                 let resArg = maybeToList (evToRHS <$> m_res')
                     -- c.f. symExecDomain
                     execArg x | Just v <- Map.lookup x args = symExecV v
                               | otherwise = panic "Missing argument" [showPP x]
                     actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
-                in S.fun (evPredicateN cl ev) (actuals ++ [S.select mArray (S.int n)] ++ resArg)
-          in [ mkSeq model' (\count mArray ->
-                                mkAnd ( S.eq count (S.int $ fromIntegral $ Map.size paths)
-                                        : zipWith (mkOne mArray) [0..] (Map.toList paths)))
+                in S.fun (evPredicateN cl ev) (actuals ++ [S.const modelN] ++ resArg)
+          in [ mklet modelN model'
+               ( foldr1 (\fc rest -> mkAnd [ mkIsSeq (S.const modelN)
+                                           , mklet modelN (S.fun "mfst" [S.const modelN]) fc
+                                           , mklet modelN (S.fun "msnd" [S.const modelN]) rest])
+                        (map mkOne (Map.toList paths)))
              ]
              
         NestedNode fps -> [ collect model' fps ]
 
-    -- binds $count and $marray
-    mkSeq model' bodyf =
-      let count  = S.const "$count"
-          mArray = S.const mArrayN
-      in mkMatch model' [ ( S.fun "seq" [count, mArray], bodyf count mArray)
-                        , ( S.const "_", S.bool False)
-                        ]
-    -- mkSeq model' bodyf =
-    --   let count  = S.const "$count"
-    --       mArray = S.const mArrayN
-    --   in mkAnd [ S.fun "(_ is seq)" [model']
-    --            , bodyf (S.fun "count" [model']) (S.fun "values" [model'])
-    --            ]
+    mkIsSeq model' = S.fun "(_ is seq)" [model']
+
 
     mkBytes model' bodyf =
       let bytes  = S.const "$bytes"
       in mkMatch model' [ ( S.fun "bytes" [bytes], bodyf bytes )
                         , ( S.const "_", S.bool False)
                         ]
-
-    -- mkBytes model' bodyf =
-    --   let bytes  = S.const "$bytes"
-    --   in mkAnd [ S.fun "(_ is bytes)" [model']
-    --            , bodyf (S.fun "get-bytes" [model'])
-    --            ]
      
     -- Shared between case and choice, although case doesn't strictly
     -- required this (having the idx make replaying the model in
@@ -583,13 +570,6 @@ futurePathSetPred model m_res fps0 = collect model fps0
                           )
                         , ( S.const "_", S.bool False)
                         ]
-    -- mkBranch model' branches =
-    --   let mkOne n branch = S.and (S.eq (S.const "$idx") (S.int n)) branch
-    --   in mkAnd [ S.fun "(_ is branch)" [model']
-    --            , mklets [ (modelN, S.fun "get-branch" [model'])
-    --                     , ("$idx", S.fun "index" [model'])
-    --                     ] (mkOr (zipWith mkOne [0..] branches))
-    --            ]
 
     mkCaseAlt e (FNAlt { fnAltPatterns = pats, fnAltBody = b }) =
       mkExists (Set.toList (Set.unions (map patBindsSet pats)))

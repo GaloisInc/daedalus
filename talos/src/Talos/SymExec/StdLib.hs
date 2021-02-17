@@ -31,7 +31,8 @@ makeStdLib s = liftIO $ do
     [ ("bytes",   [("get-bytes", tList tByte)])
     , ("munit",    [])
     , ("branch",  [("index", S.tInt), ("get-branch", S.const "Model")])
-    , ("seq",     [("count", S.tInt), ("values", S.tArray S.tInt (S.const "Model"))])
+    -- , ("seq",     [("count", S.tInt), ("values", S.tArray S.tInt (S.const "Model"))])
+    , ("seq",     [("mfst", S.const "Model"), ("msnd", S.const "Model")])
     ]
 
   -- A stub for now

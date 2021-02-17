@@ -45,11 +45,16 @@ pBranch rest = pSExpr $ do
   n <- pNumber
   rest (fromIntegral n)
 
-pSeq :: (Int -> ModelP a) -> ModelP a
-pSeq m = pSExpr $ do
+-- pSeq :: (Int -> ModelP a) -> ModelP a
+-- pSeq m = pSExpr $ do
+--   pExact "seq"
+--   n  <- pNumber -- count
+--   pArray n (m (fromIntegral n))
+
+pSeq :: ModelP a -> ModelP b -> ModelP (a, b)
+pSeq pl pr = pSExpr $ do
   pExact "seq"
-  n  <- pNumber -- count
-  pArray n (m (fromIntegral n))
+  (,) <$> pl <*> pr
   
 -- -----------------------------------------------------------------------------
 -- Monadic parser 
