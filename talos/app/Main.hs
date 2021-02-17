@@ -76,7 +76,12 @@ doSynthesis opts = do
         putStr (indent (prettyHexWithProv provmap bs))
         -- putStrLn "Semantic value: "
         -- print ("  " <> pp v)
-        -- putStrLn "Provenance map: "
+        putStr "  "
+        writeProvBS bs provmap 
+        putStrLn ""
+        putStrLn "Provenance map: "
+        print provmap
+        putStrLn ""
       writeStdOut _n _v bs _provmap = BS.hPutStrLn stdout bs >> hFlush stdout
 
   writeModel <-

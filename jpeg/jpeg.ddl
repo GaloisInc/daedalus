@@ -1,4 +1,5 @@
 def Main = { 
+  0xff; 
   Start; 
   JFIF; 
   EXIF; 

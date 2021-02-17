@@ -1,4 +1,4 @@
 #!/bin/bash
 cabal run pdf-cos-generator
 cabal build pdf-cos
-notify-send GHC "Build finished"
+# notify-send GHC "Build finished"
