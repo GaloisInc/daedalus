@@ -76,12 +76,10 @@ doSynthesis opts = do
         putStr (indent (prettyHexWithProv provmap bs))
         -- putStrLn "Semantic value: "
         -- print ("  " <> pp v)
-        putStr "  "
-        writeProvBS bs provmap 
         putStrLn ""
-        putStrLn "Provenance map: "
-        print provmap
-        putStrLn ""
+        -- putStrLn "Provenance map: "
+        -- print provmap
+        -- putStrLn ""
       writeStdOut _n _v bs _provmap = BS.hPutStrLn stdout bs >> hFlush stdout
 
   writeModel <-
@@ -110,6 +108,7 @@ doSynthesis opts = do
 prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
 prettyHexWithProv provmap bs =
   prettyHexCfg (Cfg 0 mkColor) bs
+    ++ (setSGRCode [])
   where
     mkColor off s = 
       let (i, col) = case Map.lookup off provmap of 
