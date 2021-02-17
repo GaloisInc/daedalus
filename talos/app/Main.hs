@@ -73,13 +73,10 @@ doSynthesis opts = do
   let indent = unlines . map ((++) "  ") . lines
       prettyBytes _n v bs provmap = do
         putStrLn "Synthesised input: "
-        putStr (indent (prettyHex bs))
-        putStrLn "Semantic value: "
+        putStr (indent (prettyHexWithProv provmap bs))
+        -- putStrLn "Semantic value: "
         -- print ("  " <> pp v)
         -- putStrLn "Provenance map: "
-        putStr "  "
-        writeProvBS bs provmap 
-        putStrLn ""
       writeStdOut _n _v bs _provmap = BS.hPutStrLn stdout bs >> hFlush stdout
 
   writeModel <-
@@ -105,20 +102,16 @@ doSynthesis opts = do
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
 
-writeProvBS :: BS.ByteString -> ProvenanceMap -> IO() 
-writeProvBS bs provmap = 
-  do 
-    mapM_ putCharProv (zip [0..] (BS.unpack bs)) 
-  where 
-    putCharProv (off, c) = 
-      do 
-        let (int, col) = case Map.lookup off provmap of 
-                            Just p -> colors !! (p `mod` (length colors))
-                            Nothing -> (Vivid, White) 
-        setSGR [SetColor Foreground int col]
-        putChar c 
-        setSGR []
-        putStr "" 
+prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
+prettyHexWithProv provmap bs =
+  prettyHexCfg (Cfg 0 mkColor) bs
+  where
+    mkColor off s = 
+      let (i, col) = case Map.lookup off provmap of 
+                         Just p -> colors !! (p `mod` (length colors))
+                         Nothing -> (Vivid, White)
+      in
+        (setSGRCode [SetColor Foreground i col]) ++ s
 
     colors = [(Vivid, Red), 
               (Vivid, Green),
