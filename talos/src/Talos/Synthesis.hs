@@ -9,7 +9,7 @@ module Talos.Synthesis (synthesise) where
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Applicative
-import Data.Foldable (find)
+import Data.Foldable (find, foldlM)
 import Data.Word
 import Data.Maybe (isJust,fromMaybe)
 import Data.Map(Map)
@@ -202,12 +202,12 @@ synthesise solv m_seed root declTys mods nguid = do
   -- mapM_ (print . pp) orderedTys
   mapM_ (symExecTyDecl solv) orderedTys -- FIXME: filter by need
 
-  let symExecSummary' decl
+  let symExecSummary' nguid'' decl
         | Just sm <- Map.lookup (tcDeclName decl) allSummaries =
-          mapM_ (symExecSummary solv) (Map.elems sm)
-        | otherwise = pure ()
+          foldlM (symExecSummary solv) nguid'' (Map.elems sm)
+        | otherwise = pure nguid''
 
-  mapM_  symExecSummary' allDecls
+  void $ foldlM symExecSummary' nguid' allDecls
   
   gen <- maybe getStdGen (pure . mkStdGen) m_seed
   Streams.fromGenerator (go gen)
@@ -228,7 +228,7 @@ synthesise solv m_seed root declTys mods nguid = do
     once = synthesiseCallG Assertions Unconstrained (tcDeclName rootDecl) []
 
     env0      = SynthEnv (I.compile [] mods) Map.empty Map.empty Assertions 
-    allSummaries = summarise declTys [tcDeclName rootDecl] allDecls nguid
+    (allSummaries, nguid') = summarise declTys [tcDeclName rootDecl] allDecls nguid
     
     initState gen = 
       SynthesisMState { stdGen       = gen

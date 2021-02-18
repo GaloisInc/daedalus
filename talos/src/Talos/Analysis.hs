@@ -71,7 +71,9 @@ isComplex def =
 
 -- Top level function
 summarise :: Map TCTyName TCTyDecl ->
-             [Name] -> [TCDecl TCSynthAnnot] -> GUID -> Summaries
-summarise declTys _roots decls nguid  = calcFixpoint s0 
+             [Name] -> [TCDecl TCSynthAnnot] -> GUID -> (Summaries, GUID)
+summarise declTys _roots decls nguid  = (summaries s', nextGUID s')
+
   where
+    s' = calcFixpoint s0 
     s0 = initState declTys decls nguid 

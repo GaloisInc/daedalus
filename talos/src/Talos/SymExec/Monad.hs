@@ -46,6 +46,10 @@ module Talos.SymExec.Monad (
   sCons,
   sNil,
   sFromList,
+  -- ** List with their length (not checked)
+  tListWithLength,
+  sConsL,
+  sNilL,
   -- ** Map
   tMap
   ) where
@@ -112,7 +116,6 @@ mklets xs b =
 sByte :: Word8 -> SExpr
 sByte = S.bvHex 8 . fromIntegral
 
-
 tList :: SExpr -> SExpr
 tList t = S.fun "List" [t]
 
@@ -121,6 +124,19 @@ sCons x xs = S.fun "insert" [x, xs]
 
 sNil :: SExpr -> SExpr
 sNil elT = S.as (S.const "nil") (tList elT)
+
+tListWithLength :: SExpr -> SExpr
+tListWithLength t = S.fun "ListWithLength" [t]
+
+sConsL :: SExpr -> SExpr -> SExpr
+sConsL x xs = S.fun "mk-ListWithLength" [ S.fun "insert" [x, S.fun "get-list" [xs]]
+                                       , S.add (S.int 1) (S.fun "get-length" [xs])
+                                       ]
+
+sNilL :: SExpr -> SExpr
+sNilL elT = S.fun "mk-ListWithLength" [ S.as (S.const "nil") (tList elT)
+                                      , S.int 0
+                                      ]
 
 -- | Quote the structure of a list, given a type of its elements.  In
 -- other words, a Haskell list is converted to an SMT list by

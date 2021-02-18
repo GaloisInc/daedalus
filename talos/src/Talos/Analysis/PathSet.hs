@@ -29,7 +29,7 @@ import Talos.Analysis.Monad
 --------------------------------------------------------------------------------
 -- Summary functions
 
-calcFixpoint :: IterState -> Summaries
+calcFixpoint :: IterState -> IterState
 calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
   | Just ((fn, cl), wl') <- Set.minView wl
   , Just decl <- Map.lookup fn decls -- should always succeed
@@ -37,7 +37,7 @@ calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
                   runIterM (summariseDecl cl decl) (s { worklist = wl' }))
          
 -- Empty worklist
-calcFixpoint s = summaries s
+calcFixpoint s = s
 
 summariseDecl :: SummaryClass -> TCDecl TCSynthAnnot ->  IterM ()
 summariseDecl cls TCDecl { tcDeclName = fn

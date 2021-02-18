@@ -27,7 +27,7 @@ library
                      , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser
-                                          
+                     , Talos.SymExec.TC                                          
                      -- , Talos.Backend.Z3
 
                      , Talos.Analysis

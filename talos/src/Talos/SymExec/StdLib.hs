@@ -26,6 +26,14 @@ makeStdLib s = liftIO $ do
 
   S.declareDatatype s "Unit"  []  [ ("unit", []) ]
   
+  -- This has to be correct by construction, as the reason it is
+  -- needed is that we can't write a polymorphic length function in
+  -- smtlib
+  S.declareDatatype s "ListWithLength" ["t"] [ ("mk-ListWithLength", [ ("get-list",   tList (S.const "t"))
+                                                                     , ("get-length", S.tInt)
+                                                                     ])
+                                             ]
+
   -- The generic type of parse trees/paths
   S.declareDatatype s "Model" []
     [ ("bytes",   [("get-bytes", tList tByte)])

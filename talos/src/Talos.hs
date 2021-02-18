@@ -66,7 +66,7 @@ summarise inFile m_entry = do
   let allDecls  = concatMap (reverse . forgetRecs . tcModuleDecls) mods
   Just root <- pure (find (\tc -> nameScopedIdent (tcDeclName tc) == mainRule) allDecls)
   
-  pure (A.summarise declTys [tcDeclName root] allDecls nguid)
+  pure (fst $ A.summarise declTys [tcDeclName root] allDecls nguid)
 
 
 z3VersionCheck :: SMT.Solver -> IO ()
