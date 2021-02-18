@@ -182,7 +182,9 @@ data CallNode a =
            -- ^ Just x if this returns a value.(a var in the caller)
            , callAllArgs      :: Map (TCName Value) (TC a Value)
            -- ^ A shared map (across all domain elements) of the args to the call
-
+           , callName         :: Name
+           -- ^ The called function
+           
            -- FIXME: we probably get into trouble if we have the same var in different classes here.
            , callPaths        :: Map EntangledVar (Wrapped (EntangledVars, FuturePathSet a))
            -- ^ All entangled params for the call, the range (wrapped)
@@ -191,12 +193,16 @@ data CallNode a =
            }
   
 mergeCallNode :: CallNode a -> CallNode a -> CallNode a
-mergeCallNode (CallNode cl1 res1 args paths1) (CallNode cl2 res2 _args paths2)
+mergeCallNode cn@(CallNode { callClass = cl1, callResultAssign = res1, callPaths = paths1 })
+                 (CallNode { callClass = cl2, callResultAssign = res2, callPaths = paths2 })
   | cl1 /= cl2 = panic "Saw different function classes" []
-  | otherwise = CallNode cl1 (res1 <|> res2) args (Map.union paths1 paths2) -- don't have to use unionWith here
+  | otherwise = cn { callResultAssign = res1 <|> res2
+                   , callPaths = Map.union paths1 paths2 -- don't have to use unionWith here
+                   }
 
 eqvCallNode :: CallNode a -> CallNode a -> Bool
-eqvCallNode (CallNode cl1 res1 _args1 paths1) (CallNode cl2 res2 _args2 paths2) =
+eqvCallNode (CallNode { callClass = cl1, callResultAssign = res1, callPaths = paths1 })
+            (CallNode { callClass = cl2, callResultAssign = res2, callPaths = paths2 }) =
   cl1 == cl2 && res1 == res2 && Map.keys paths1 == Map.keys paths2
 
 data CaseNode a =
@@ -222,6 +228,20 @@ eqvCaseNode (CaseNode _pc _cs _tm alts1 m_def1) (CaseNode _pc' _cs' _tm' alts2 m
     cmpMB (Just ps1) (Just ps2) = futurePathEqv ps1 ps2
     cmpMB _          _          = False -- Can't happen?
 
+data ManyNode a =
+  ManyNode { manyResultAssign :: Maybe EntangledVar
+           , manyBounds       :: ManyBounds (TC a Value)
+           , manyBody         :: FuturePathSet a
+           }
+  
+mergeManyNode :: ManyNode a -> ManyNode a -> ManyNode a
+mergeManyNode mn@(ManyNode { manyBody = b1 }) (ManyNode { manyBody = b2 }) =
+  mn { manyBody = mergeFuturePathSet b1 b2 }
+  
+eqvManyNode :: ManyNode a -> ManyNode a -> Bool
+eqvManyNode (ManyNode { manyBody = b1 }) (ManyNode { manyBody = b2 }) =
+  futurePathEqv b1 b2
+  
 -- A path node where we need to do something.  
 data FutureNode a =
   -- | A choose node in the DDL.
@@ -233,6 +253,8 @@ data FutureNode a =
   | Call (CallNode a)
 
   | Assertion (Assertion a)
+
+  | FNMany (ManyNode a)
 
   | NestedNode (FuturePathSet a) -- ^ Allows for left-nested binds
 
@@ -247,6 +269,7 @@ mergeFutureNode (Choice cs1)           (Choice cs2) =
 mergeFutureNode (Call cn1) (Call cn2) = Call (mergeCallNode cn1 cn2)
 -- b and v should be identical, and the alts and m_defs should have the same shape.
 mergeFutureNode (FNCase cn1) (FNCase cn2) = FNCase (mergeCaseNode cn1 cn2)
+mergeFutureNode (FNMany mn1) (FNMany mn2) = FNMany (mergeManyNode mn1 mn2)
 mergeFutureNode x            _y           = x -- FIXME: check for equality.
 
 -- mergeAnnFutureNode :: AnnFutureNode a -> AnnFutureNode a -> AnnFutureNode a
@@ -271,6 +294,7 @@ futureNodeEqv = go
     go (Choice pss1)   (Choice pss2) =
       all (uncurry futurePathEqv) (zip pss1 pss2)
     go (FNCase c1) (FNCase c2) = eqvCaseNode c1 c2
+    go (FNMany m1) (FNMany m2) = eqvManyNode m1 m2    
     go _               _              = panic "Unexpected node comparison" []
 
 
@@ -416,9 +440,12 @@ instance PP (FutureNode a) where
                           Nothing -> xs
                           Just d  -> xs ++ ["_" <+> "->" <+> pp d]
 
-      Call (CallNode _cl m_x _argM evs) ->
-        wrapIf (n > 0) $ maybe mempty (\x -> pp x <> " = ") m_x <> "Call "
-        <> lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace
+      FNMany (ManyNode { manyResultAssign = m_x, manyBody = b }) ->
+        wrapIf (n > 0) $ (maybe mempty (\x -> pp x <> " = ") m_x <> "Many " <> ppPrec 1 b)
+
+      Call (CallNode { callResultAssign = m_x, callName = fname, callPaths = evs }) ->
+        wrapIf (n > 0) $ (maybe mempty (\x -> pp x <> " = ") m_x <> "Call " <> pp fname)
+                         <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
         
       Assertion a       -> wrapIf (n > 0) $ pp a
       NestedNode fps    -> wrapIf (n > 0) $ "Do" <+> parens (pp fps)

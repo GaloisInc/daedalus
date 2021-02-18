@@ -204,7 +204,7 @@ synthesise solv m_seed root declTys mods nguid = do
 
   let symExecSummary' nguid'' decl
         | Just sm <- Map.lookup (tcDeclName decl) allSummaries =
-          foldlM (symExecSummary solv) nguid'' (Map.elems sm)
+          foldlM (symExecSummary solv (tcDeclName decl)) nguid'' (Map.elems sm)
         | otherwise = pure nguid''
 
   void $ foldlM symExecSummary' nguid' allDecls
