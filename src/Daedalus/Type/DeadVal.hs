@@ -104,7 +104,7 @@ runNoFunM changePs r (NFM m) = m RO { roChangeParams = changePs
                                  RW { matchArgs = Map.empty }
                                
 instance HasGUID NoFunM where
-  getNextGUID = NFM \_ rw -> (,) <$> getNextGUID <*> pure rw
+  guidState f = NFM \_ rw -> (,) <$> guidState f <*> pure rw
 
 attempt :: NoFunM (Maybe a) -> NoFunM a -> NoFunM a
 attempt (NFM m1) (NFM m2) = NFM \r s -> do

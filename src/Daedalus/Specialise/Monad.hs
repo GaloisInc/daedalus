@@ -61,7 +61,7 @@ instance ExceptionM PApplyM [Char] where
   raise s = PApplyM (raise s)
 
 instance HasGUID PApplyM where
-  getNextGUID = PApplyM $ inBase (getNextGUID :: PassM GUID)
+  guidState f = PApplyM $ inBase (guidState f)
 
 runPApplyM :: [Name] -> PApplyM a -> PassM (Either String a)
 runPApplyM roots m = fst <$> runStateT s0 (runExceptionT (getPApplyM m))

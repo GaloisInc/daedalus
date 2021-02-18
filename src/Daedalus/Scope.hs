@@ -81,7 +81,7 @@ newtype ScopeM a = ScopeM (WithBase PassM
   deriving (Functor, Applicative, Monad)
 
 instance HasGUID ScopeM where
-  getNextGUID = ScopeM (inBase getNextGUID)
+  guidState f = ScopeM (inBase $ guidState f)
 
 runScopeM :: Scope -> ScopeM a -> PassM (Either ScopeError (a, ScopeState))
 runScopeM scope (ScopeM m) = runExceptionT (runStateT emptyScopeState (runReaderT scope m))
@@ -120,7 +120,7 @@ newtype ResolveM a =
   deriving (Functor, Applicative, Monad)
 
 instance HasGUID ResolveM where
-  getNextGUID = ResolveM $ inBase (getNextGUID :: PassM GUID)
+  guidState f = ResolveM $ inBase (guidState f)
 
 makeNameModScope :: ModuleName -> Name -> ResolveM Name
 makeNameModScope m n = do

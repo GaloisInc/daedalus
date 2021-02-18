@@ -85,8 +85,8 @@ instance RunM PassM a (IO a) where
   runM = runPassM
 
 instance HasGUID PassM where
-  getNextGUID =
-    PassM $ mkGetNextGUID nextFreeGUID (\g t -> t { nextFreeGUID = g })
+  guidState f =
+    PassM $ mkGUIDState nextFreeGUID (\g t -> t { nextFreeGUID = g }) f
 
 instance MonadIO PassM where
   liftIO = PassM . inBase

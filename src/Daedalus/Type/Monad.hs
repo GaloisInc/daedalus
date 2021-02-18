@@ -148,7 +148,7 @@ runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m
                    }
 
 instance HasGUID MTypeM where
-  getNextGUID = MTypeM $ inBase (getNextGUID :: PassM GUID)
+  guidState f = MTypeM $ inBase (guidState f)
 
 instance MTCMonad MTypeM where
   reportError r s =
