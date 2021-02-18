@@ -24,8 +24,8 @@ import CommandLine
 import Talos
 
 -- debugging
-import qualified SimpleSMT as S
-import Talos.Analysis.Monad (Summary(..))
+-- import qualified SimpleSMT as S
+-- import Talos.Analysis.Monad (Summary(..))
 -- import Talos.Analysis (summarise)
 -- import Analysis
 
@@ -71,7 +71,7 @@ doSynthesis opts = do
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines
-      prettyBytes _n v bs provmap = do
+      prettyBytes _n _v bs provmap = do
         putStrLn "Synthesised input: "
         putStr (indent (prettyHexWithProv provmap bs))
         -- putStrLn "Semantic value: "

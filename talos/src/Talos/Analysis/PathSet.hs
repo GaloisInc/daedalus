@@ -1,406 +1,434 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 -- Path set analysis
 
-module Talos.Analysis.PathSet (calcFixpoint) where
+module Talos.Analysis.PathSet where
 
-import Control.Monad.State
-import Data.Maybe (isJust)
-import Data.List (inits)
-import qualified Data.Map as Map
-
-import qualified Data.Set as Set
+import Control.Applicative ((<|>))
+import Data.ByteString (ByteString)
+import Data.Function (on)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-
-import Daedalus.Type.AST
-import qualified Daedalus.Type.PatComplete as PC 
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Daedalus.PP
 import Daedalus.Panic
+import Daedalus.Type.AST
+import Daedalus.Type.PatComplete (PatternCompleteness(..), CaseSummary)
 
-import Talos.Analysis.Domain
-import Talos.Analysis.Monad
-
--- import Debug.Trace
+import Talos.Analysis.EntangledVars
 
 --------------------------------------------------------------------------------
--- Summary functions
+-- Representation of paths/pathsets
 
-calcFixpoint :: IterState -> IterState
-calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
-  | Just ((fn, cl), wl') <- Set.minView wl
-  , Just decl <- Map.lookup fn decls -- should always succeed
-  = calcFixpoint (-- traceShow ("Entering " <+> pp fn <+> pp cl) $
-                  runIterM (summariseDecl cl decl) (s { worklist = wl' }))
-         
--- Empty worklist
-calcFixpoint s = s
+-- The analysis will be over something like
+--
+-- type AnalysisState = [ (EntangledVars, PathSet) ]
+--
+-- although we might want a union-find structure to help with
+-- entangling variables
 
-summariseDecl :: SummaryClass -> TCDecl TCSynthAnnot ->  IterM ()
-summariseDecl cls TCDecl { tcDeclName = fn
-                         , tcDeclDef = Defined def
-                         , tcDeclCtxt = AGrammar
-                         , tcDeclParams = ps } = do
-  IterM $ modify (\s -> s { currentDecl = fn, currentClass = cls })
+-- A collection of possible path, or a path, depending on n.
 
-  m_oldS <- lookupSummary fn cls
-  
-  newS   <- doSummary
-  IterM $ modify (addSummary newS)
-  propagateIfChanged newS m_oldS
+-- FIXME: this could be normalised, s.t. DontCare is never followed by
+-- Unconstrained, or DontCare.  We could express this in the type
+-- system, but it might make it a pain to use, e.g.
+--
+-- data PathSet a k n where
+--   Unconstrained :: PathSet a U n
+--   DontCare :: Int -> PathSet a N n -> PathSet a U n
+--   PathNode :: forall k. n   -> PathSet a k n -> PathSet a N n
+--
+-- We could also merge the PathNode following a DontCare into the
+-- DontCare, but that duplicates where a node can appear.  For now we
+-- just program defensively and assume a non-normalised term at the
+-- cost of somewhat increased complexity and maybe some performance
+-- overhead.
+data PathSet a n =
+  Unconstrained -- Base case, all paths are feasible
+  | DontCare Int (PathSet a n)
+  -- ^ We don't care about the nodes, so they can take any value.
+
+  -- A node we do care about.  The first argument is Just (v, tc) if
+  -- the variable is entangled on this path, the tc being the lhs of
+  -- the bind that assigns the variable.
+  | PathNode n (PathSet a n)
+  deriving (Functor)
+
+-- isXs, mainly because we don't always have equality over nodes
+isUnconstrained, isDontCare, isPathNode :: PathSet a n -> Bool
+isUnconstrained Unconstrained = True
+isUnconstrained _             = False
+
+isDontCare (DontCare {}) = True
+isDontCare _             = False
+
+isPathNode (PathNode {}) = True
+isPathNode _             = False
+
+-- FIXME: too general probably
+mergePathSet :: (m -> n -> p)
+             -> (m -> p)
+             -> (n -> p)
+             -> (PathSet a m -> PathSet a p)
+             -> (PathSet a n -> PathSet a p)             
+             -> PathSet a m -> PathSet a n -> PathSet a p
+mergePathSet mergeN inL inR pinL pinR = go 
   where
-    -- Do we need to propagate?  We only do so if the argument domain
-    -- changes (FIXME: is this sound?)
-    propagateIfChanged newS (Just oldS)
-      | domainEqv (exportedDomain oldS) (exportedDomain newS) = pure ()
-    propagateIfChanged _newS _ = propagate fn cls
-    
-    -- We always insert the new summary, as even if the pre-domain
-    -- hasn't changed, internal paths sets may have (which we could
-    -- check if this is too expensive).
-    --
-    -- FIXME: we don't merge domains, as the
-    -- summary should always get larger(?)
-    addSummary summary s =
-      let summaries' =
-            Map.insertWith Map.union fn (Map.singleton cls summary) (summaries s)
-      in s { summaries = summaries' }
-    
-    doSummary :: IterM Summary
-    doSummary = do
-      let ty = case typeOf def of
-            Type (TGrammar ty') -> ty'
-            ty' -> panic "Expecting a Grammar type" [showPP ty']
-            
-          m_ret = case cls of
-            Assertions     -> Nothing
-            FunctionResult -> Just (ResultVar fn ty)
-            
-          ps'    = map paramToValParam ps
-            
-      (d, m) <- runSummariseM (summariseG m_ret id def)
+    go psL psR = 
+      case (psL, psR) of
+        (Unconstrained, _) -> pinR psR        
+        (DontCare 0 rest, _)   -> go rest psR
+        (DontCare n rest, DontCare m rest') ->
+          let count = min m n
+          in dontCare count (go (dontCare (n - count) rest) (dontCare (m - count) rest'))
+        (DontCare n rest, PathNode pn ps') -> PathNode (inR pn) (go (dontCare (n - 1) rest) ps')
+
+        (PathNode n1 ps1, PathNode n2 ps2) ->
+          PathNode (mergeN n1 n2) (go ps1 ps2)
+          
+        _ -> mergePathSet (flip mergeN) inR inL pinR pinL psR psL
+        
+-- smart constructor for dontCares.
+dontCare :: Int -> PathSet a n -> PathSet a n
+dontCare 0 ps = ps
+dontCare  n (DontCare m ps)   = DontCare (n + m) ps
+dontCare _n Unconstrained = Unconstrained
+dontCare n  ps = DontCare n ps
+
+splitPath :: PathSet a n -> (Maybe n, PathSet a n)
+splitPath cp =
+  case cp of
+    Unconstrained             -> (Nothing, Unconstrained)
+    -- Shouldn't happen
+    DontCare 0 cp' -> splitPath cp'
+    DontCare n cp' -> (Nothing, dontCare (n - 1) cp')
+    PathNode n cp' -> (Just n, cp')
+
+-- This is used for comparing summaries when computing fixpoints.  It
+-- is only really correct when comparing path sets rooted at the same
+-- statement.
+pathEqv :: (n -> n -> Bool) -> PathSet a n -> PathSet a n -> Bool
+pathEqv eqvNode = go
+  where
+    go Unconstrained Unconstrained    = True
+    go Unconstrained (DontCare _ ps2) = go Unconstrained ps2 -- Probably shouldn't happen
+    go Unconstrained _                = False
+
+    go (DontCare 0 ps1) ps2           = go ps1 ps2
+    go (DontCare n ps1) (DontCare m ps2) =
+      go (dontCare (n - min n m) ps1) (dontCare (m - min n m) ps2)
+    go (DontCare {}) (PathNode {})    = False
+
+    go (PathNode n1 ps1) (PathNode n2 ps2) =
+      eqvNode n1 n2 && go ps1 ps2
       
-      pure (Summary { exportedDomain = d
-                    , pathRootMap = m
-                    , params = ps'
-                    , summaryClass = cls
-                    })
-
-    paramToValParam (ValParam v) = v
-    paramToValParam _ = panic "paramToValParam" []
-
-summariseDecl _ _ = panic "Expecting a grammar-level, defined, decl" []
-
-
--- summariseCtors :: Predicate -> [(Label, TC a Value)] -> IterM Assertion
--- summariseCtors Top cs         = mconcat <$> mapM (summariseTC Top . snd) cs
--- summariseCtors (Fields fs) cs = mconcat <$> mapM go cs
---   where
---     go (l, v) | Just p <- Map.lookup l fs = summariseTC p v
---     go _ = pure emptyAssertion
+    go x y = go y x
 
 --------------------------------------------------------------------------------
--- Decl-local monad 
+-- Nodes for path sets
 
-data SummariseMState =
-  SummariseMState { pathRoots :: PathRootMap }
+data Assertion a = GuardAssertion (TC a Value)
+
+-- This is the class of summary for a function; 'Assertions' summaries
+-- contain information internal to the function, while
+-- 'FunctionResult' also includes information about the return value.
+-- These are used when the result of a function is non used and when
+-- it is, resp.
+--
+-- In practice 'FunctionResult' will be a superset of 'Assertions'
+--
+-- We could compute both (simultaneously?) but for the most part only
+-- 'Assertions' will be required.
+data SummaryClass = Assertions | FunctionResult -- FIXME: add fields
+  deriving (Ord, Eq, Show)
+
+-- c.f. TCAlt.  FIXME: can we unify them?
+data FNAlt a = FNAlt { fnAltPatterns :: [TCPat]
+                     , fnAltBody     :: FuturePathSet a
+                     }
+
+-- Just to tell us not to e.g. merge
+newtype Wrapped a = Wrapped a
+
+
+-- We represent a Call by a set of the entangled args.  If the
+-- args aren't futher entangled by the calling context, then for
+-- each argument fps we get a single Call node, where the Set is a
+-- singleton containing the representative var as returned by
+-- 'explodeDomain'.  The second argument tells us how to instantiate
+-- the params used by the call.
+--
+-- We require a set so we can merge where the callers entangle params.
+--
+-- The first argument is whether this call is an assigned, in which
+-- case the entangled vars must contain ResultVar.  Note that we the
+-- first argument can also be ResultVar, but that is the result of
+-- the current function, not this call (e.g. def Foo = { ...; Bar })
+--
+-- Note that the set of entangled vars here is a bit different to
+-- that which appears in a Domain, if only in intent --- these are
+-- entangled by their context, while in a domain they are entangled
+-- by use.  Also, the range of the Map is _not_ merged, it is just
+-- carried around to avoid looking up the summary again.
+
+data CallNode a =
+  CallNode { callClass         :: SummaryClass           
+           , callResultAssign :: Maybe EntangledVar
+           -- ^ Just x if this returns a value.(a var in the caller)
+           , callAllArgs      :: Map (TCName Value) (TC a Value)
+           -- ^ A shared map (across all domain elements) of the args to the call
+
+           -- FIXME: we probably get into trouble if we have the same var in different classes here.
+           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars, FuturePathSet a))
+           -- ^ All entangled params for the call, the range (wrapped)
+           -- are in the _callee_'s namespace, so we don't merge etc.
+
+           }
   
-emptySummariseMState :: SummariseMState
-emptySummariseMState = SummariseMState Map.empty
+mergeCallNode :: CallNode a -> CallNode a -> CallNode a
+mergeCallNode (CallNode cl1 res1 args paths1) (CallNode cl2 res2 _args paths2)
+  | cl1 /= cl2 = panic "Saw different function classes" []
+  | otherwise = CallNode cl1 (res1 <|> res2) args (Map.union paths1 paths2) -- don't have to use unionWith here
 
-newtype SummariseM a = SummariseM { getSummariseM :: StateT SummariseMState IterM a }
-  deriving (Applicative, Functor, Monad)
+eqvCallNode :: CallNode a -> CallNode a -> Bool
+eqvCallNode (CallNode cl1 res1 _args1 paths1) (CallNode cl2 res2 _args2 paths2) =
+  cl1 == cl2 && res1 == res2 && Map.keys paths1 == Map.keys paths2
 
-runSummariseM :: SummariseM a -> IterM (a, PathRootMap)
-runSummariseM m = evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptySummariseMState
+data CaseNode a =
+  CaseNode { caseCompleteness :: PatternCompleteness
+           , caseSummary      :: CaseSummary
+           , caseTerm         :: TC a Value
+           , caseAlts         :: NonEmpty (FNAlt a)
+           , caseDefault      :: Maybe (FuturePathSet a)
+           }
 
-liftIterM :: IterM a -> SummariseM a
-liftIterM = SummariseM . lift
-
-addPathRoot :: TCName Value -> FuturePathSet TCSynthAnnot -> SummariseM ()
-addPathRoot v fp = SummariseM $ modify (\s -> s { pathRoots = Map.insert v fp (pathRoots s) })
-
---------------------------------------------------------------------------------
--- Transfer function
-
--- Get the summary and link it to the actual arguments
---
--- For each element in expDom, we need to construct a domain element
--- by substituting the free variables in the argument for the
--- paramaters in the entanglement set.  E.g., if we have
---
--- f x y z :: { x: {x, y} => ... x ... y ...; ... }
---
--- and we have a call
---
--- f (a + 1) (b + c) q
---
--- then we produce a node like
---
--- {a, b, c} => Call m_res args {x}
---
--- Where {a, b, c} is the result of substituting the args in {x, y};
--- m_res is Nothing unless 'x' is ResultVar and m_x is not Nothing;
--- args are all the actuals (this is informative, and doesn't depend
--- on the analysis); and {x} is a name for the path set above
--- (indexed by the variable returned by explodeDomain).
-
-summariseCall :: Maybe EntangledVar -> TCName Grammar -> [Arg TCSynthAnnot]
-              -> SummariseM (Domain TCSynthAnnot)
-summariseCall m_x fn args = do
-  -- We ignore rMap for this bit, it is only used during synthesis of
-  -- the internal bytes.  If cl is FunctionResult then ResultVar will
-  -- occur in expDom.
-  Summary expDom _rMap ps _cl <- liftIterM $ requestSummary (tcName fn) cl
-
-  -- do d <- liftIterM $ currentDeclName
-  --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
-
-  -- We need to now substitute the actuals for the params in
-  -- summary, and merge the results (the substitution may have
-  -- introduced duplicates, so we need to do a pointwise merge)
-  let argsMap    = Map.fromList $ zip ps (map argToVal args)
-      argsSubst  = tcEntangledVars <$> argsMap
-      paramMap p =
-        case p of
-          ProgramVar v | Just evs <- Map.lookup v argsSubst -> evs
-                       | otherwise -> panic "Missing parameter" [showPP v]
-          ResultVar {} -> maybe mempty singletonEntangledVars m_x
-
-      mkCallNode r body =
-        let m_res = case r of
-              ResultVar {} -> m_x
-              _            -> Nothing
-        in CallNode cl m_res argsMap (Map.singleton r (Wrapped body))
-
-      mkCall r b@(evs, _) = 
-        singletonDomain (substEntangledVars paramMap evs)
-                        (PathNode (Call $ mkCallNode r b) Unconstrained)
-  
-  pure $ Map.foldMapWithKey mkCall (explodeDomain expDom)
-
+mergeCaseNode :: CaseNode a -> CaseNode a -> CaseNode a
+mergeCaseNode (CaseNode pc cs tm alts1 m_def1) (CaseNode _pc _cs _tm alts2 m_def2) =
+  CaseNode pc cs tm (NE.zipWith goAlt alts1 alts2) (mergeFuturePathSet <$> m_def1 <*> m_def2)
   where
-    cl | isJust m_x = FunctionResult
-       | otherwise  = Assertions
-    
-    argToVal (ValArg v) = v
-    argToVal _ = panic "Shoudn't happen: summariseCall nonValue" []
+    goAlt a1 a2 = a1 { fnAltBody = mergeFuturePathSet (fnAltBody a1) (fnAltBody a2) }
 
--- Case is a bit tricky.
--- 
--- A) If (1) the rhss of the case are Unconstrained (impl. that m_x
--- is Nothing) AND (2) the case is total then the case is skipped.
+eqvCaseNode :: CaseNode a -> CaseNode a -> Bool
+eqvCaseNode (CaseNode _pc _cs _tm alts1 m_def1) (CaseNode _pc' _cs' _tm' alts2 m_def2) =
+  all (uncurry $ on futurePathEqv fnAltBody) (NE.toList (NE.zip alts1 alts2))
+  && cmpMB m_def1 m_def2
+  where
+    cmpMB Nothing    Nothing = True
+    cmpMB (Just ps1) (Just ps2) = futurePathEqv ps1 ps2
+    cmpMB _          _          = False -- Can't happen?
+
+-- A path node where we need to do something.  
+data FutureNode a =
+  -- | A choose node in the DDL.
+  Choice [FuturePathSet a]
+
+  -- | A case statement in the DDL.
+  | FNCase (CaseNode a)
+  
+  | Call (CallNode a)
+
+  | Assertion (Assertion a)
+
+  | NestedNode (FuturePathSet a) -- ^ Allows for left-nested binds
+
+  -- We can completely synthesise this value.
+  | SimpleNode EntangledVar (TC a Grammar)
+
+type FuturePathSet a = PathSet a (FutureNode a)
+
+mergeFutureNode :: FutureNode a -> FutureNode a -> FutureNode a
+mergeFutureNode (Choice cs1)           (Choice cs2) =
+  Choice (zipWith mergeFuturePathSet cs1 cs2)
+mergeFutureNode (Call cn1) (Call cn2) = Call (mergeCallNode cn1 cn2)
+-- b and v should be identical, and the alts and m_defs should have the same shape.
+mergeFutureNode (FNCase cn1) (FNCase cn2) = FNCase (mergeCaseNode cn1 cn2)
+mergeFutureNode x            _y           = x -- FIXME: check for equality.
+
+-- mergeAnnFutureNode :: AnnFutureNode a -> AnnFutureNode a -> AnnFutureNode a
+-- mergeAnnFutureNode (AnnFutureNode n ann) (AnnFutureNode n' ann') =
+--   AnnFutureNode (mergeFutureNode n n') (ann <|> ann')
+
+mergeFuturePathSet :: FuturePathSet a -> FuturePathSet a -> FuturePathSet a
+mergeFuturePathSet = mergePathSet mergeFutureNode id id id id
+
+-- This assumes the node came from the same statement (i.e., the paths
+-- we are comparing are rooted at the same statement).  This means we
+-- don't need to compare TC for equality.
 --
--- B) If (1) holds but (2) doesn't (i.e., the case is partial) then
--- we can emit just an assertion that the cased term satisfies one
--- of the patterns.
+-- Thus, for some cases, the presence of a node is enough to return True (e.g. for Assertion)
+futureNodeEqv :: FutureNode a -> FutureNode a -> Bool
+futureNodeEqv = go
+  where
+    go (Assertion {})  _             = True
+    go (SimpleNode {}) _             = True
+    go (NestedNode ps1) (NestedNode ps2) = futurePathEqv ps1 ps2
+    go (Call cn1) (Call cn2)         = eqvCallNode cn1 cn2
+    go (Choice pss1)   (Choice pss2) =
+      all (uncurry futurePathEqv) (zip pss1 pss2)
+    go (FNCase c1) (FNCase c2) = eqvCaseNode c1 c2
+    go _               _              = panic "Unexpected node comparison" []
+
+
+futurePathEqv :: FuturePathSet a -> FuturePathSet a -> Bool
+futurePathEqv = pathEqv futureNodeEqv
+
+--------------------------------------------------------------------------------
+-- Synthesis result nodes
+
+-- Question: do we care about a path inside a node for which we have a value?
 --
--- C) If (1) doesn't hold and (2) does, then we have something like
--- Choose, with the ordering imposed by the pattern (rather than
--- branch index in te Choose).  E.g.
---
--- def P = {
---   x = UInt8;
---   y = A_or_B;
---   case y is {
---     A -> x < 10 is true;
---     _ -> {}
---   };
+-- def Zoo = {
+--     a = UInt8;
+--     b = UInt8;
+--     c = { b < 10; ^ 10 } | { ^ 1 }
+--     c < a;
 -- }
 --
--- The question is: should x and y be entangled?  If we have a
--- guard on y later on, we certainly must pick y before x as
--- otherwise we may get an empty grammar; likewise, if there is a
--- later constraint on x (like x > 10) then we need to pick x
--- first.  In this case, we should entangle x and y,
+-- Choosing a will fix a path for c, which will refine when choosing
+-- b.  Thus, we _do care_.  This also means that we can pick a value
+-- without picking all bytes that result in that value.
+
+-- Interestingly, reversing the order of a and b changes this example
+-- significantly (from a synthesis POV). 
 --
--- D) is similar to (C) but we need to add a constraint.
-summariseCase :: Maybe EntangledVar ->
-                 TC TCSynthAnnot Grammar ->
-                 TC TCSynthAnnot Value ->
-                 NonEmpty (TCAlt TCSynthAnnot Grammar) ->
-                 Maybe (TC TCSynthAnnot Grammar) ->
-                 SummariseM (Domain TCSynthAnnot)
-summariseCase m_x tc e alts m_def = do
-  declTys <- liftIterM declaredTypes
-  bDoms   <- mapM (summariseG m_x id . tcAltBody) alts'
-  defDom  <- traverse (summariseG m_x id) m_def
-  let (caseClass, cSummary) = PC.summariseCase declTys tc
-      trivial   = all nullDomain (maybe emptyDomain id defDom : bDoms)
-      total     = caseClass == PC.Complete
-      
-  if trivial && total then pure emptyDomain else do
-    -- We have a non-trivial node, so we construct a singleton domain.
-    -- This breaks the domain abstraction, but it is a bit simpler to
-    -- write like this.
-    let (altVs, altFPs) = unzip $ zipWith mkAltPath alts' (map squashDomain bDoms)
-        m_defVF = asSingleton . squashDomain <$> defDom
-        vs     = mergeEntangledVarss (tcEntangledVars e : maybe mempty fst m_defVF : altVs)
-        cNode = CaseNode { caseCompleteness = caseClass
-                         , caseSummary      = cSummary
-                         , caseTerm         = e
-                         , caseAlts         = NE.fromList altFPs
-                         , caseDefault      = snd <$> m_defVF
-                         } 
-    pure (singletonDomain vs (PathNode (FNCase cNode) Unconstrained))
-  where
-    asSingleton dom
-      | nullDomain dom = (mempty, Unconstrained)
-      | [r] <- elements dom = r
-      | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
+-- def Zoo' = {
+--     a = UInt8;
+--     b = UInt8;
+--     c = { a < 10; ^ 10 } | { ^ 1 }
+--     c < b;
+-- }
+--
+-- FIXME: we need to ensure that selecting a path doesn't make a
+-- future selection infeasible, as in 
 
-    -- We have at least 1 non-empty domain (c.f. trivial)
-    mkAltPath alt dom =
-      let (fvs, fps) = asSingleton dom
-          binds      = altBinds alt -- singleton or empty
-      in (foldr deleteEntangledVar fvs (map ProgramVar binds)
-         , FNAlt (tcAltPatterns alt) fps)
-         
-    alts' = NE.toList alts
-  --         mkCase alts' m_def'
-  --           = PathNode (FNCase isMissing e alts' m_def') Unconstrained
-  --         mkAlt alt = FNAlt (tcAltPatterns alt)
-  --         mkCase' p s fp =
-  --           mkCase (NE.zipWith mkAlt alts (NE.fromList (p ++ [fp] ++ s)))
-  --                  (const Unconstrained <$> m_def)
-  --         mk p d s  = mapDomain (mkCase' p s) d
-  --         bdoms'  = diagonalise Unconstrained bdoms mk
-      
-  --     defDom <- mapDomain (\fp -> mkCase (replicate (NE.length alts) Unconstrained))
-  --                         <$> 
-                
-  --     pure (mconcat (defDom : bdoms'))
-      
+-- def Zoo = {
+--     b = UInt8;
+--     a = UInt8;
+--     c = { b < 10; ^ 10 } | { ^ 1 }
+--     c < 10;
+-- }
+--
+-- where selecting the left choice (when picking b) results in an
+-- infeasible path.
+--
+-- Solutions:
+-- - merge paths when we are assigning in a choice
+--   + Simplest
+--   + Results in variables being related which don't really need to be
+-- - Order path selection
+--   + need to figure out deps and remember choices (not too tricky)
+--   + might need to merge paths on cycles.
+--   + might have to merge paths before we hit the variable
+
+type ProvenanceTag = Int 
+type ProvenanceMap = Map Int ProvenanceTag
+
+randomProvenance :: ProvenanceTag
+randomProvenance = 0 
+
+synthVProvenance :: ProvenanceTag -- XXX: this is a placeholder. Need to work out what to do 
+synthVProvenance = 1 
+
+firstSolverProvenance :: ProvenanceTag
+firstSolverProvenance = 2 
+
+data SelectedNode =
+  SelectedChoice Int SelectedPath
+  -- ^ We chose an alternative.
+
+  | SelectedCase Int SelectedPath
+  -- ^ We have selected an alternative of a case.  The index is also
+  -- determined by the value (here to check). The default (if any) is
+  -- considered the last element in the list.
+
+  | SelectedCall SummaryClass SelectedPath
+  -- ^ We have a function call.
+
+  -- Assertions are ignored at this point
+  | SelectedNested SelectedPath
   
+  | SelectedSimple ProvenanceTag ByteString 
+  -- ^ The term has been fully processed and does not contain anything
+  -- of interest to other paths.  We still need to execute the term on the bytes.
 
--- This calculates the pathset for a grammar.  The first argument is
--- what parts (if any) we care about for the result of this function
--- (in general we only care about this for the final statement,
--- everything else is handled using path sets).
+--  We may merge nested nodes and calls, although choices and cases should occur on only 1 path.
+mergeSelectedNode :: SelectedNode -> SelectedNode -> SelectedNode
+mergeSelectedNode (SelectedChoice n1 sp1) (SelectedChoice n2 sp2)
+  | n1 /= n2  = panic "BUG: Incompatible paths selected in mergeSelectedNode" [show n1, show n2]
+  | otherwise = SelectedChoice n1 (mergeSelectedPath sp1 sp2)
+mergeSelectedNode (SelectedCase n1 sp1) (SelectedCase n2 sp2)
+  | n1 /= n2  = panic "BUG: Incompatible cases selected in mergeSelectedNode" [show n1, show n2]
+  | otherwise = SelectedCase n1 (mergeSelectedPath sp1 sp2)
+mergeSelectedNode (SelectedCall cl1 sp1) (SelectedCall cl2 sp2)
+  | cl1 /= cl2 = panic "BUG: Incompatible function classes" [showPP cl1, showPP cl2]
+  | otherwise = SelectedCall cl1 (mergeSelectedPath sp1 sp2)
+mergeSelectedNode (SelectedNested sp1) (SelectedNested sp2)
+  = SelectedNested (mergeSelectedPath sp1 sp2)
+mergeSelectedNode _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
 
-summariseG :: Maybe EntangledVar -> -- ^ the variable to bind the result of this do block
-              (FuturePathSet TCSynthAnnot -> FuturePathSet TCSynthAnnot) -> -- ^ A wrapper for nested do blocks
-              TC TCSynthAnnot Grammar -> SummariseM (Domain TCSynthAnnot)
-summariseG m_x doWrapper tc = do
-  d <- liftIterM $ currentDeclName
-  cl <- liftIterM $ currentSummaryClass
-  
-  -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
+mergeSelectedPath :: SelectedPath -> SelectedPath -> SelectedPath
+mergeSelectedPath = mergePathSet mergeSelectedNode id id id id                
 
-  case texprValue tc of
-    TCDo m_x' lhs rhs -> do
-      -- we add the dontCare to leave a spot to merge in the dom for lhs
-      rhsD <- dontCareD 1 <$> summariseG m_x id rhs
-      mapDomain doWrapper <$> case m_x' of
-        -- we care about the variable, so we need to assign it in lhs.
-        Just x' | Just _ <- lookupVar (ProgramVar x') rhsD -> do
-          let ev = ProgramVar x'          
-          lhsD <- summariseG (Just ev) wrapNested lhs
-          -- inefficient, but simple
-          let dom = mergeDomain rhsD lhsD
-          -- x' should always be assigned in lhsD
-          let (Just (ns, fp), dom') = splitOnVar ev dom
-          -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
-          --                                       , "binding" <+> pp ns <+> pp fp
-          --                                       , "dom"  <+> pp dom
-          --                                       , "lhsD" <+> pp lhsD
-          --                                       , "rhsD" <+> pp rhsD
-          --                                       ])
-          -- if ns contains just x', then x' is the root of this path.
-          if sizeEntangledVars ns == 1
-            then do addPathRoot x' fp
-                    pure dom'
-            else pure (primAddDomainElement (deleteEntangledVar ev ns, fp) dom')
-            
-        -- There is no variable, or no path from here is entangled with it
-        _ -> mergeDomain rhsD <$> summariseG Nothing wrapNested lhs
-            
-    TCLabel _ g     -> summariseG m_x doWrapper g
+type TCSynthAnnot = SourceRange
 
-    TCGuard b       -> mkNode (Assertion (GuardAssertion b))
-      
-    TCMatchBytes {} -> simple
-    TCPure {}       -> simple
-    TCGetByte {}    -> simple
-    TCMatch {}      -> simple
-
-    TCChoice _c gs _t -> do
-      when (null gs) $ error "empty list of choices"
-      doms <- mapM (summariseG m_x id) gs
-
-      -- doms contains a domain for each path in the choose. We create
-      -- a diagonal list of domains, like
-      --
-      --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
-      --
-      -- and then merge
-      --
-      let mkOne p s fp = PathNode (Choice (p ++ [fp] ++ s)) Unconstrained
-          mk p d' s = mapDomain (mkOne p s) d'
-          doms' = diagonalise Unconstrained doms mk
-      pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
-      
-    TCOptional {}      -> unimplemented
-
-    -- If we care about the return value, we fail
-    TCMany _s _c _bnds body 
-      | Just _ <- m_x -> panic "UNIMPLEMENTED: Relevant many is currently unsupported" [ show (pp tc), show (pp d), show (pp cl) ]
-      | otherwise -> do
-          bodyD <- summariseG Nothing id body
-          unless (nullDomain bodyD) (panic "UNIMPLEMENTED: Non-empty domain for Many" [ show (pp tc), show (pp d), show (pp cl) ])
-          pure emptyDomain
-
-    TCEnd              -> unimplemented
-    TCOffset           -> unimplemented
-
-    TCCurrentStream {} -> unimplemented
-    TCSetStream     {} -> unimplemented
-    TCStreamLen     {} -> unimplemented
-    TCStreamOff     {} -> unimplemented
-
-    -- Maps
-    TCMapLookup     {} -> unimplemented
-    TCMapInsert     {} -> unimplemented
-
-    -- Array operations
-    TCArrayIndex    {} -> unimplemented
-
-    -- coercion
-    TCCoerceCheck   {} -> simple
-
-    -- destructors
-    TCFor           {} -> unimplemented
-
-    TCVar           {} -> error "Saw a grammar-valued variable"
-
-    -- Should be no type args
-    TCCall fn _ args -> summariseCall m_x fn args
-    
-    TCCase e alts m_def -> summariseCase m_x tc e alts m_def
-    
-    TCErrorMode     {} -> unimplemented
-    TCFail {}          -> unimplemented
-  where
-    frees = maybe id insertEntangledVar m_x $ tcEntangledVars tc
-
-    mkNode n = pure (singletonDomain frees (PathNode n Unconstrained))
-    -- These correspond more or less to isSimpleTC
-    simple
-      | Just v <- m_x = mkNode (SimpleNode v tc)
-      | otherwise     = pure emptyDomain
-
-    wrapNested fps = PathNode (NestedNode fps) Unconstrained
-    
-    unimplemented = error ("Unimplemented: " ++ show (pp tc))
+type SelectedPath = PathSet TCSynthAnnot SelectedNode
 
 
-diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
-diagonalise el xs f =
-  let pfxs = inits (replicate (length xs - 1) el)
-      sfxs = reverse pfxs
-  in zipWith3 f pfxs xs sfxs 
-   
- 
+instance PP n => PP (PathSet a n) where
+  ppPrec n ps =
+    case ps of
+      Unconstrained -> "[..]*;"
+      -- These probably shouldn't have Unconstrained after them, so we
+      -- will not try to simplify the output
+      DontCare 1 ps' -> wrapIf (n > 0) $ "[..]; " <> pp ps'
+      DontCare n' ps' -> wrapIf (n > 0) $ "[..]" <> pp n' <> "; " <> pp ps'
+      PathNode n' Unconstrained -> ppPrec n n'
+      PathNode n' ps' -> wrapIf (n > 0) $  pp n' <> "; " <> pp ps'
+
+instance PP (Assertion a) where
+  pp (GuardAssertion g) = pp g
+
+instance PP SummaryClass where
+  pp Assertions     = "Assertions"
+  pp FunctionResult = "Result"
+
+instance PP (FNAlt a) where
+  ppPrec _ (FNAlt ps e) = lhs <+> "->" <+> pp e
+    where lhs = sep $ punctuate comma $ map pp ps
+
+instance PP (FutureNode a) where
+  ppPrec n fn =
+    case fn of
+      Choice cs -> 
+        "Choice" <> block "{" "," "}" (map pp cs)
+
+      FNCase (CaseNode c _b e alts m_def) -> 
+        wrapIf (n > 0)
+        ("case" <> if c == Incomplete then "?" else mempty) <+> pp e <+> "is" $$
+          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList alts))))
+        where
+        addDefault xs = case m_def of
+                          Nothing -> xs
+                          Just d  -> xs ++ ["_" <+> "->" <+> pp d]
+
+      Call (CallNode _cl m_x _argM evs) ->
+        wrapIf (n > 0) $ maybe mempty (\x -> pp x <> " = ") m_x <> "Call "
+        <> lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace
+        
+      Assertion a       -> wrapIf (n > 0) $ pp a
+      NestedNode fps    -> wrapIf (n > 0) $ "Do" <+> parens (pp fps)
+      SimpleNode v e -> wrapIf (n > 0) $ pp v <> " = " <> pp e
+
+instance PP SelectedNode where
+  ppPrec n sn =
+    case sn of
+      SelectedChoice n' sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
+      SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
+      SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
+      SelectedNested sp     -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
+      SelectedSimple _pr bs -> pp bs  -- XXX: print provenance 

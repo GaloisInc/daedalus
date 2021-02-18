@@ -10,11 +10,9 @@ module Talos.SymExec ({- symExec, ruleName, -} symExecV, symExecP -- , Env(..)
 import Control.Applicative (liftA2)
 import Control.Monad.Reader
 import Control.Monad.State
-import qualified Data.ByteString as BS
 import Data.Maybe (maybeToList)
 import qualified Data.List.NonEmpty as NE
 
-import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -31,12 +29,13 @@ import Daedalus.Type.AST hiding (tByte, tUnit, tMaybe, tMap)
 import Daedalus.Type.PatComplete (CaseSummary(..))
 import Daedalus.GUID
 
-import Talos.Lib
 import Talos.SymExec.Monad
 import Talos.SymExec.ModelParser
 import Talos.SymExec.TC
 
 import Talos.Analysis.Domain
+import Talos.Analysis.EntangledVars
+import Talos.Analysis.PathSet
 import Talos.Analysis.Monad (Summary(..))
 
 -- -- -----------------------------------------------------------------------------

@@ -36,6 +36,7 @@ library
                      , Talos.Analysis.Domain
                      , Talos.Analysis.Monad
                      , Talos.Analysis.PathSet
+                     , Talos.Analysis.EntangledVars
                                           
                      , Talos
                      , Machine

@@ -47,9 +47,9 @@ import Talos.SymExec.Monad
 import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
-import Talos.Analysis.Domain (SummaryClass, ProvenanceMap, TCSynthAnnot)
-import Talos.Analysis.Monad (Summary)
 import qualified Talos.Analysis as A
+import Talos.Analysis.Monad (Summary)
+import Talos.Analysis.PathSet (TCSynthAnnot, ProvenanceMap, SummaryClass)
 
 
 -- -- FIXME: move, maybe to GUID.hs?

@@ -16,6 +16,7 @@ import Daedalus.PP
 import Daedalus.Pass
 import Daedalus.GUID
 
+import Talos.Analysis.PathSet
 import Talos.Analysis.Domain
 
 -- This is the current map from variables to path sets that begin at
