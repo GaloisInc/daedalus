@@ -19,7 +19,7 @@ import Daedalus.Type.Free
 -- choices for the other.
 
 data EntangledVar =
-  ResultVar Name Type -- ^ The name is the function for which this is the result
+  ResultVar Type 
   | ProgramVar (TCName Value)
   deriving (Show, Eq) -- We define our own Ord as we want to ensure ResultVar < everything
 
@@ -29,7 +29,7 @@ data EntangledVar =
 newtype EntangledVars = EntangledVars { getEntangledVars :: Set EntangledVar }
   deriving (Eq)
 
-tcEntangledVars :: TC a k -> EntangledVars
+tcEntangledVars :: TCFree a => a-> EntangledVars
 tcEntangledVars = EntangledVars . Set.map (ProgramVar . unSome) . tcFree
   where
     unSome :: Some TCName -> TCName Value
@@ -74,15 +74,15 @@ intersects e1 e2 = not (Set.disjoint (getEntangledVars e1) (getEntangledVars e2)
 
 instance TypeOf EntangledVar where
   typeOf v = case v of
-               ResultVar _ ty  -> ty
+               ResultVar ty  -> ty
                ProgramVar pv -> typeOf pv
 
 instance Ord EntangledVar where
   ev <= ev' =
     case (ev, ev') of
       -- FIXME: this is a bit dangerous, 
-      (ResultVar fn ty, ResultVar fn' ty')
-        | fn == fn' && ty == ty' -> True
+      (ResultVar ty, ResultVar ty')
+        | ty == ty' -> True
         | otherwise -> panic "Comparing incomarable result variables" [show (pp ev), show (pp ev')]
       (ResultVar {}, _) -> True
       (ProgramVar v, ProgramVar v') -> v <= v'

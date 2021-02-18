@@ -246,8 +246,8 @@ nameToSMTNameWithClass cl n = show (pp (nameScopedIdent n) <> "@" <> pp (nameID 
 -- Symbolic execution of future path sets
 
 -- Turn a summary into a SMT formula (+ associated types)
-symExecSummary :: Solver -> GUID -> Summary -> IO GUID
-symExecSummary s nguid summary = flip execStateT nguid . getSymExecM $ do
+symExecSummary :: Solver -> Name -> GUID -> Summary -> IO GUID
+symExecSummary s fn nguid summary = flip execStateT nguid . getSymExecM $ do
   -- Send the roots to the solver
   Map.foldMapWithKey (\root fps -> go (ProgramVar root) (mempty, fps)) (pathRootMap summary)  
   -- Send the argument domain fpss to the solver
@@ -255,7 +255,7 @@ symExecSummary s nguid summary = flip execStateT nguid . getSymExecM $ do
   where
     cl = summaryClass summary
     go ev (evs, fps) = do
-      let predN     = evPredicateN cl ev
+      let predN     = evPredicateN cl fn ev
           ty        = typeOf ev
           hasResult = case ev of { ResultVar {} -> True; ProgramVar {} -> False }
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
@@ -264,10 +264,10 @@ symExecSummary s nguid summary = flip execStateT nguid . getSymExecM $ do
 mkPredicateN :: SummaryClass -> Name -> String
 mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
 
-evPredicateN :: SummaryClass -> EntangledVar -> String
-evPredicateN cl ev =
+evPredicateN :: SummaryClass -> Name -> EntangledVar -> String
+evPredicateN cl fn ev =
   case ev of
-    ResultVar fn _ -> mkPredicateN cl fn
+    ResultVar {} -> mkPredicateN cl fn
     ProgramVar v   -> mkPredicateN cl (tcName v)
 
 -- Used to turn future path sets and arg domains into SMT terms.
@@ -348,6 +348,8 @@ parseNodeModel prov fpn =
       let doOne (Wrapped (_, fps)) = parseModel prov fps
       in SelectedCall cl <$> foldr1 (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
                                     (map doOne (Map.elems paths))
+
+    FNMany {} -> panic "unimplemented" [showPP fpn]
       
     NestedNode fps        -> SelectedNested <$> parseModel prov fps
     SimpleNode {}         -> SelectedSimple prov <$> pBytes
@@ -378,7 +380,8 @@ assignedVars = go
           foldMap (go . fnAltBody) alts `Set.union` foldMap go m_def
         Call (CallNode { callResultAssign = Just ev }) -> evToSet ev
         Call {} -> mempty
-        Assertion {} -> mempty
+        FNMany {} -> mempty -- these are treated specially (they will be in their own pred??)
+        Assertion {} -> mempty        
         NestedNode fps' -> go fps'
 
     evToSet (ProgramVar v) = Set.singleton v
@@ -451,6 +454,7 @@ futurePathSetPred model m_res fps0 = collect model fps0
           
         Call (CallNode { callClass = cl
                        , callResultAssign = m_res'
+                       , callName = fn
                        , callAllArgs = args
                        , callPaths = paths }) ->
           let mkOne (ev, Wrapped (evs, _)) =
@@ -459,14 +463,20 @@ futurePathSetPred model m_res fps0 = collect model fps0
                     execArg x | Just v <- Map.lookup x args = symExecV v
                               | otherwise = panic "Missing argument" [showPP x]
                     actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
-                in S.fun (evPredicateN cl ev) (actuals ++ [S.const modelN] ++ resArg)
+                in S.fun (evPredicateN cl fn ev) (actuals ++ [S.const modelN] ++ resArg)
           in pure [ mklet modelN model'
                     ( foldr1 (\fc rest -> mkAnd [ mkIsSeq (S.const modelN)
                                                 , mklet modelN (S.fun "mfst" [S.const modelN]) fc
                                                 , mklet modelN (S.fun "msnd" [S.const modelN]) rest])
                       (map mkOne (Map.toList paths)))
                   ]
-             
+
+        FNMany (ManyNode { manyResultAssign = m_res'
+                         , manyBounds       = bnds
+                         , manyBody         = fps
+                         }) ->
+          panic "unimplemented" [showPP fpn]
+        
         NestedNode fps -> collect' model' fps
 
     mkIsSeq model' = S.fun "(_ is seq)" [model']

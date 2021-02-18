@@ -93,7 +93,7 @@ summariseDecl cls TCDecl { tcDeclName = fn
             
           m_ret = case cls of
             Assertions     -> Nothing
-            FunctionResult -> Just (ResultVar fn ty)
+            FunctionResult -> Just (ResultVar ty)
             
           ps'    = map paramToValParam ps
             
@@ -190,7 +190,12 @@ summariseCall m_x fn args = do
         let m_res = case r of
               ResultVar {} -> m_x
               _            -> Nothing
-        in CallNode cl m_res argsMap (Map.singleton r (Wrapped body))
+        in CallNode { callClass = cl
+                    , callResultAssign = m_res
+                    , callAllArgs      = argsMap
+                    , callName         = tcName fn
+                    , callPaths        = Map.singleton r (Wrapped body)
+                    }
 
       mkCall r b@(evs, _) = 
         singletonDomain (substEntangledVars paramMap evs)
@@ -204,6 +209,12 @@ summariseCall m_x fn args = do
     
     argToVal (ValArg v) = v
     argToVal _ = panic "Shoudn't happen: summariseCall nonValue" []
+
+asSingleton :: Domain a -> (EntangledVars, FuturePathSet a)
+asSingleton dom
+  | nullDomain dom = (mempty, Unconstrained)
+  | [r] <- elements dom = r
+  | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
 
 -- Case is a bit tricky.
 -- 
@@ -263,11 +274,6 @@ summariseCase m_x tc e alts m_def = do
                          } 
     pure (singletonDomain vs (PathNode (FNCase cNode) Unconstrained))
   where
-    asSingleton dom
-      | nullDomain dom = (mempty, Unconstrained)
-      | [r] <- elements dom = r
-      | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
-
     -- We have at least 1 non-empty domain (c.f. trivial)
     mkAltPath alt dom =
       let (fvs, fps) = asSingleton dom
@@ -290,7 +296,64 @@ summariseCase m_x tc e alts m_def = do
                 
   --     pure (mconcat (defDom : bdoms'))
       
-  
+
+-- Some examples:
+--
+-- def ManyEx1 = {
+--   x = UInt8
+--   Many { y = UInt8; y < x }
+-- }
+--
+-- The result of the Many is uninteresting, but it still appears on
+-- the path from x, and may (artificially) entangle other variables
+-- if, for example, there are bounds on the Many.  An alternative to
+-- this is to existentially quantify the path, so that we just assert
+-- that a solution exists for 1 iteration (and so for arbitrarily
+-- many) but we don't produce the solution until we are ready to
+-- determine the number of iterations.
+--
+-- Alternately:
+--
+-- def ManyEx2 = {
+--   x = UInt8
+--   rs = Many { y = UInt8; y < x }
+--   v = ^ makeNumber rs
+--   Guard (v < 100)
+-- }
+--
+-- We have that the result is relevant.
+
+-- FIXME: as with Choice and Case, we squash here to reduce
+-- complexity, but we might be able to avoid this by introducing
+-- orderings.
+
+summariseMany :: Maybe EntangledVar ->
+                 TC TCSynthAnnot Grammar ->
+                 ManyBounds (TC TCSynthAnnot Value) ->
+                 TC TCSynthAnnot Grammar ->
+                 SummariseM (Domain TCSynthAnnot)
+summariseMany m_x _tc bnds body = do
+  -- We squash as we need to unify the domain vars with the frees
+  -- in the bounds, modulo m_x
+  bodyD <- squashDomain <$> summariseG m_ret id body
+  -- bodyD has 0 or 1 elements
+  if nullDomain bodyD then pure emptyDomain else do
+    let (evs, fps) = asSingleton bodyD
+        evs'       = subst_x evs
+        node       = ManyNode { manyResultAssign = m_x
+                              , manyBounds       = bnds
+                              , manyBody         = fps
+                              }
+    pure $ singletonDomain (mergeEntangledVars evs' (tcEntangledVars bnds))
+                           (PathNode (FNMany node) Unconstrained)
+    where
+      (m_ret, subst_x) = case m_x of
+        Nothing -> (Nothing, id)
+        Just x  -> let ret = ResultVar (typeOf x)
+                       rSubst y
+                         | y == ret  = singletonEntangledVars x
+                         | otherwise = singletonEntangledVars y
+                   in (Just ret, substEntangledVars rSubst)
 
 -- This calculates the pathset for a grammar.  The first argument is
 -- what parts (if any) we care about for the result of this function
@@ -301,8 +364,8 @@ summariseG :: Maybe EntangledVar -> -- ^ the variable to bind the result of this
               (FuturePathSet TCSynthAnnot -> FuturePathSet TCSynthAnnot) -> -- ^ A wrapper for nested do blocks
               TC TCSynthAnnot Grammar -> SummariseM (Domain TCSynthAnnot)
 summariseG m_x doWrapper tc = do
-  d <- liftIterM $ currentDeclName
-  cl <- liftIterM $ currentSummaryClass
+  -- d <- liftIterM $ currentDeclName
+  -- cl <- liftIterM $ currentSummaryClass
   
   -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
 
@@ -361,13 +424,12 @@ summariseG m_x doWrapper tc = do
       
     TCOptional {}      -> unimplemented
 
-    -- If we care about the return value, we fail
-    TCMany _s _c _bnds body 
-      | Just _ <- m_x -> panic "UNIMPLEMENTED: Relevant many is currently unsupported" [ show (pp tc), show (pp d), show (pp cl) ]
-      | otherwise -> do
-          bodyD <- summariseG Nothing id body
-          unless (nullDomain bodyD) (panic "UNIMPLEMENTED: Non-empty domain for Many" [ show (pp tc), show (pp d), show (pp cl) ])
-          pure emptyDomain
+    TCMany _s _c bnds body -> summariseMany m_x tc bnds body 
+      -- | Just _ <- m_x -> panic "UNIMPLEMENTED: Relevant many is currently unsupported" [ show (pp tc), show (pp d), show (pp cl) ]
+      -- | otherwise -> do
+      --     bodyD <- summariseG Nothing id body
+      --     unless (nullDomain bodyD) (panic "UNIMPLEMENTED: Non-empty domain for Many" [ show (pp tc), show (pp d), show (pp cl) ])
+      --     pure emptyDomain
 
     TCEnd              -> unimplemented
     TCOffset           -> unimplemented
