@@ -104,3 +104,15 @@ executable talos-machine
   default-language:    Haskell2010
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
+
+executable talos-run-test
+  hs-source-dirs:     tests
+  main-is:            RunUnitTestsTalos.hs
+  default-language:    Haskell2010
+  build-depends:      base,
+                      filepath,
+                      bytestring,
+                      directory,
+                      process,
+                      process-extras,
+                      simple-get-opt >= 0.4
