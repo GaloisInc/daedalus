@@ -24,7 +24,7 @@ library
   exposed-modules:     Talos.Lib
                      , Talos.SymExec
                      , Talos.SymExec.Monad
-                     , Talos.SymExec.Convenience
+                     -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser
                      , Talos.SymExec.TC                                          

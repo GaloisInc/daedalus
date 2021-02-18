@@ -4,12 +4,13 @@
 
 module Talos.SymExec.TC where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Map(Map)
 import qualified Data.Map as Map
 
 import qualified Data.ByteString as BS
 
-import SimpleSMT (SExpr, Solver)
+import SimpleSMT (SExpr)
 import qualified SimpleSMT as S
 
 import Daedalus.Panic
@@ -17,6 +18,7 @@ import Daedalus.PP
 import Daedalus.Type.AST hiding (tByte, tUnit, tMaybe, tMap)
 
 import Talos.Lib
+import Talos.SymExec.StdLib
 import Talos.SymExec.Monad
 
 
@@ -31,9 +33,9 @@ typeNameToCtor n = "mk-" ++ symExecTCTyName n
 
 -- | Construct SMT solver datatype declaration based on DaeDaLus type
 -- declarations.
-symExecTyDecl :: Solver -> TCTyDecl -> IO ()
-symExecTyDecl s TCTyDecl { tctyName = name, tctyParams = ps, tctyDef = td } =
-  S.declareDatatype s n tvs sflds
+symExecTyDecl :: TCTyDecl -> SymExecM ()
+symExecTyDecl TCTyDecl { tctyName = name, tctyParams = ps, tctyDef = td } =
+  withSolver $ \s -> liftIO $ S.declareDatatype s n tvs sflds
   where
     tvs = map (\x -> "t" ++ show (tvarId x)) ps
     env = Map.fromList (zipWith (\p tv -> (p, S.const tv)) ps tvs)

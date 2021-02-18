@@ -7,9 +7,7 @@ module Talos.SymExec ({- symExec, ruleName, -} symExecV, symExecP -- , Env(..)
                      {- , symExecG -}) where
 
 
-import Control.Applicative (liftA2)
 import Control.Monad.Reader
-import Control.Monad.State
 import Data.Maybe (maybeToList)
 import qualified Data.List.NonEmpty as NE
 
@@ -27,16 +25,17 @@ import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.Type.AST hiding (tByte, tUnit, tMaybe, tMap)
 import Daedalus.Type.PatComplete (CaseSummary(..))
-import Daedalus.GUID
 
 import Talos.SymExec.Monad
 import Talos.SymExec.ModelParser
 import Talos.SymExec.TC
+import Talos.SymExec.StdLib
 
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
 import Talos.Analysis.PathSet
 import Talos.Analysis.Monad (Summary(..))
+
 
 -- -- -----------------------------------------------------------------------------
 -- -- Enironments (mapping bound variables to their smt equiv.)
@@ -216,18 +215,7 @@ import Talos.Analysis.Monad (Summary(..))
 -- -----------------------------------------------------------------------------
 -- Monad
 
-newtype SymExecM a = SymExecM { getSymExecM :: StateT GUID IO a }
-  deriving (Functor, Applicative, Monad, MonadIO)
 
-instance HasGUID SymExecM where
-  getNextGUID = SymExecM $ state (mkGetNextGUID' id const)
-
--- From the instances for IO
-instance Semigroup a => Semigroup (SymExecM a) where
-    (<>) = liftA2 (<>)
-
-instance Monoid a => Monoid (SymExecM a) where
-    mempty = pure mempty
 
 -- -----------------------------------------------------------------------------
 -- Names
@@ -246,8 +234,8 @@ nameToSMTNameWithClass cl n = show (pp (nameScopedIdent n) <> "@" <> pp (nameID 
 -- Symbolic execution of future path sets
 
 -- Turn a summary into a SMT formula (+ associated types)
-symExecSummary :: Solver -> Name -> GUID -> Summary -> IO GUID
-symExecSummary s fn nguid summary = flip execStateT nguid . getSymExecM $ do
+symExecSummary :: Name -> Summary -> SymExecM ()
+symExecSummary fn summary = do
   -- Send the roots to the solver
   Map.foldMapWithKey (\root fps -> go (ProgramVar root) (mempty, fps)) (pathRootMap summary)  
   -- Send the argument domain fpss to the solver
@@ -259,7 +247,7 @@ symExecSummary s fn nguid summary = flip execStateT nguid . getSymExecM $ do
           ty        = typeOf ev
           hasResult = case ev of { ResultVar {} -> True; ProgramVar {} -> False }
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-      symExecFuturePathSet s hasResult predN ty frees fps
+      symExecFuturePathSet hasResult predN ty frees fps
 
 mkPredicateN :: SummaryClass -> Name -> String
 mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
@@ -273,12 +261,12 @@ evPredicateN cl fn ev =
 -- Used to turn future path sets and arg domains into SMT terms.
 -- Configs have a single constuctor, so we use define-sort to aid in
 -- readibility of the output.
-symExecFuturePathSet :: Solver -> Bool -> String -> Type -> 
+symExecFuturePathSet :: Bool -> String -> Type -> 
                         [TCName Value] -> FuturePathSet a -> SymExecM ()
-symExecFuturePathSet s hasResult predN ty frees fps = do
+symExecFuturePathSet hasResult predN ty frees fps = do
   body  <- mkExists (Set.toList (assignedVars fps))
                    <$> futurePathSetPred (S.const modelN) m_resN fps
-  void $ liftIO $ S.defineFun s predN args S.tBool body
+  withSolver $ \s -> void $ liftIO $ S.defineFun s predN args S.tBool body
   where
     m_resN = if hasResult then Just (S.const resN) else Nothing
     args    = map (\v -> (tcNameToSMTName v, symExecTy (typeOf ty))) frees
@@ -380,7 +368,10 @@ assignedVars = go
           foldMap (go . fnAltBody) alts `Set.union` foldMap go m_def
         Call (CallNode { callResultAssign = Just ev }) -> evToSet ev
         Call {} -> mempty
-        FNMany {} -> mempty -- these are treated specially (they will be in their own pred??)
+        -- the body is treated specially, so doesn't contribute.
+        FNMany (ManyNode { manyResultAssign = Just ev }) -> evToSet ev
+        FNMany {} -> mempty
+
         Assertion {} -> mempty        
         NestedNode fps' -> go fps'
 

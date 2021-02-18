@@ -94,7 +94,7 @@ runIterM m s0 =  execState (getIterM m) s0
 -- low-level IterM primitives
 
 instance HasGUID IterM where
-  getNextGUID = IterM $ state (mkGetNextGUID' nextGUID (\v s -> s { nextGUID = v }))
+  guidState f = IterM $ state (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
 
 currentDeclName :: IterM Name
 currentDeclName = IterM $ gets currentDecl

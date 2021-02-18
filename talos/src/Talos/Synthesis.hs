@@ -54,14 +54,14 @@ import Daedalus.Rec (forgetRecs, topoOrder)
 import Daedalus.Type.Traverse (collectTypes)
 import Daedalus.Type.Subst    (freeTCons)
 
+import Talos.Analysis (summarise)
+import Talos.Analysis.Domain
+import Talos.Analysis.Monad (Summaries, Summary(..))
+import Talos.Analysis.PathSet
+import Talos.Lib
 import Talos.SymExec
 import Talos.SymExec.ModelParser
-import Talos.Lib
-
-import Talos.Analysis.Monad (Summaries, Summary(..))
-import Talos.Analysis.Domain
-import Talos.Analysis.PathSet
-import Talos.Analysis (summarise)
+import Talos.SymExec.Monad
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -191,33 +191,44 @@ freshProvenanceTag = do
 
 -- FIXME: we don't deal with recursion including in Analysis
 -- ScopedIdent here as it is easier to create
-synthesise :: Solver -> Maybe Int -> ScopedIdent
+synthesise :: Maybe Int -> ScopedIdent
            -> Map TCTyName TCTyDecl
            -> [TCModule TCSynthAnnot]
-           -> GUID
-           -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise solv m_seed root declTys mods nguid = do
-  -- Send the needSolver decls to the solver
-  -- print (fmap pp (Set.toList ns))
-  -- mapM_ (print . pp) orderedTys
-  mapM_ (symExecTyDecl solv) orderedTys -- FIXME: filter by need
+           -> SymExecM (InputStream (I.Value, ByteString, ProvenanceMap))
+synthesise m_seed root declTys mods = withSolver $ \solv -> do
+  mapM_ symExecTyDecl orderedTys -- FIXME: filter by need
 
-  let symExecSummary' nguid'' decl
+  allSummaries <- guidState (summarise declTys [tcDeclName rootDecl] allDecls)
+
+  let symExecSummary' decl
         | Just sm <- Map.lookup (tcDeclName decl) allSummaries =
-          foldlM (symExecSummary solv (tcDeclName decl)) nguid'' (Map.elems sm)
-        | otherwise = pure nguid''
+          mapM_ (symExecSummary (tcDeclName decl)) (Map.elems sm)
+        | otherwise = pure ()
 
-  void $ foldlM symExecSummary' nguid' allDecls
+  mapM_ symExecSummary' allDecls
   
   gen <- maybe getStdGen (pure . mkStdGen) m_seed
-  Streams.fromGenerator (go gen)
-  where
-    go :: StdGen -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go gen = do
-      (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen)
-      Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go (stdGen s)
 
+  let initState gen = 
+        SynthesisMState { stdGen       = gen
+                        , seenBytes    = mempty
+                        , curStream    = emptyStream
+                        , solver       = solv
+                        , summaries    = allSummaries
+                        , rules        = rs
+                        , nextProvenance = firstSolverProvenance
+                        , provenances  = Map.empty 
+                        }
+
+      go :: StdGen -> Generator (I.Value, ByteString, ProvenanceMap) ()
+      go gen = do
+        (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen)
+        Streams.yield (assertInterpValue a, seenBytes s, provenances s)
+        go (stdGen s)
+  
+  liftIO $ Streams.fromGenerator (go gen)
+  
+  where
     Just rootDecl = find (\d -> nameScopedIdent (tcDeclName d) == root) allDecls
 
     -- FIXME: figure out rec tys
@@ -228,19 +239,7 @@ synthesise solv m_seed root declTys mods nguid = do
     once = synthesiseCallG Assertions Unconstrained (tcDeclName rootDecl) []
 
     env0      = SynthEnv (I.compile [] mods) Map.empty Map.empty Assertions 
-    (allSummaries, nguid') = summarise declTys [tcDeclName rootDecl] allDecls nguid
-    
-    initState gen = 
-      SynthesisMState { stdGen       = gen
-                      , seenBytes    = mempty
-                      , curStream    = emptyStream
-                      , solver       = solv
-                      -- , currentPath  = Unconstrained
-                      , summaries    = allSummaries
-                      , rules        = rs
-                      , nextProvenance = firstSolverProvenance
-                      , provenances  = Map.empty 
-                      }
+
 
     -- Topologically sorted (by reference)
     allDecls  = concatMap (forgetRecs . tcModuleDecls) mods

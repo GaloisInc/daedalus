@@ -2,9 +2,10 @@
 module Daedalus.GUID (GUID
                      , invalidGUID
                      , firstValidGUID
-                     , succGUID
-                     , mkGetNextGUID
-                     , mkGetNextGUID'
+                     -- , succGUID
+                     , getNextGUID
+                     , mkGUIDState
+                     , mkGUIDState'
                      , HasGUID(..)
                      ) where
 
@@ -27,29 +28,36 @@ firstValidGUID = GUID 0
 succGUID :: GUID -> GUID
 succGUID guid = GUID (getGUID guid + 1)
 
-mkGetNextGUID :: StateM m s => (s -> GUID) -> (GUID -> s -> s) -> m GUID
-mkGetNextGUID proj inj = sets (mkGetNextGUID' proj inj)
 
-mkGetNextGUID' :: (s -> GUID) -> (GUID -> s -> s) -> (s -> (GUID, s))
-mkGetNextGUID' proj inj = \s -> let guid = proj s in (guid, inj (succGUID guid) s)
+mkGUIDState :: StateM m s => (s -> GUID) -> (GUID -> s -> s) -> (GUID -> (a, GUID)) -> m a
+mkGUIDState proj inj f = sets (mkGUIDState' proj inj f)
 
+mkGUIDState' :: (s -> GUID) -> (GUID -> s -> s) -> (GUID -> (a, GUID)) -> (s -> (a, s))
+mkGUIDState' proj inj = \f s -> let (r, guid') = f (proj s)
+                                in (r, inj guid' s)
+
+getNextGUID :: HasGUID m => m GUID
+getNextGUID = guidState (\guid -> (guid, succGUID guid))
+
+-- FIXME: we may want to have this be monadic/traversable so you can
+-- run impure computations inside.
 class Monad m => HasGUID m where
-  getNextGUID :: m GUID
+  guidState :: (GUID -> (a, GUID)) -> m a
 
 instance (HasGUID m) => HasGUID (IdT m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ReaderT i m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 instance (HasGUID m,Monoid i) => HasGUID (WriterT i m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 instance (HasGUID m) => HasGUID (StateT s m) where
-  getNextGUID = lift getNextGUID  
+  guidState = lift . guidState  
 instance (HasGUID m) => HasGUID (ExceptionT i m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ChoiceT m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ContT i m) where
-  getNextGUID = lift getNextGUID
+  guidState = lift . guidState
 
 
   
