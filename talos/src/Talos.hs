@@ -128,9 +128,10 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  runSolverM "stdlib" (makeStdLib solver)
-
-  T.synthesise solver m_seed mainRule declTys mods nguid
+  
+  fst <$> (runSymExecM solver nguid $ do
+    makeStdLib
+    T.synthesise m_seed mainRule declTys mods)
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type
