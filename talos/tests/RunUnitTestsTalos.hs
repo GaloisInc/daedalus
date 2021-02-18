@@ -1,7 +1,7 @@
 {-# Language BlockArguments #-}
 module Main where
 
-import Data.List(partition,sort)
+import Data.List(partition,sort,isInfixOf)
 import Control.Monad(unless,when)
 import Control.Exception(SomeException(..),catch)
 import System.Directory
@@ -97,7 +97,8 @@ findTests file =
 
 fileToTest :: FilePath -> [TestFile]
 fileToTest file =
-  [ file | takeExtension file `elem` [ ddlExt, testExt, inputExt ] ]
+  [ file | takeExtension file `elem` [ ddlExt, testExt, inputExt ], 
+           not $ "broken" `isInfixOf` takeFileName file ]
 
 
 
