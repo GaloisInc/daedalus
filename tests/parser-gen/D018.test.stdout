@@ -1,0 +1,34 @@
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+Main (188,1)-(188,35)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+AbortClosureUnhandledInputAction
+
+
+**********************
+**** Extended LLA ****
+**********************
+("AbortClassNotHandledYet_other class case",19)
+("AbortClosureUnhandledAction",14)
+("AbortClosureUnhandledInputAction",53)
+("Lookahead-0",1)
+("Lookahead-1",43)
+
+Total nb states: 130
+
+**********************
+***** Strict LLA *****
+**********************
+("AbortClosureUnhandledInputAction",1)
+
+Total nb DFAs: 1
+
+
+Warning: LL(*) failures:
+
+Main (188,1)-(188,35)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+AbortClosureUnhandledInputAction
+
+
