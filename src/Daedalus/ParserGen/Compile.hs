@@ -213,7 +213,7 @@ allocGExpr n ctx gexpr =
                       , loopType = loopType lp
                       }
               in
-                allocate (TCFor forContent) n1 3
+                allocate (TCFor forContent) n1 5
 
             LoopMap ->
               let gram = loopBody lp
@@ -228,7 +228,7 @@ allocGExpr n ctx gexpr =
                       , loopBody = agram
                       , loopType = loopType lp
                       }
-              in allocate (TCFor forContent) n1 3
+              in allocate (TCFor forContent) n1 5
         TCCall name [] le ->
           let ale = map subArg le
           in allocate (TCCall name [] ale) n 2
@@ -682,13 +682,18 @@ genGExpr gbl e =
               n1 = getS 0
               n2 = getS 1
               n3 = getS 2
+              n4 = getS 3
+              n5 = getS 4
+              infoN = n5
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (ForInit nname1 e1 nname2 e2), n2))
-                , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n3) ] n3)
-                , (f1, UniChoice (CAct (ForNext), n2))
+                , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n4) ] infoN)
+                , (f1, UniChoice (CAct (ForNext), n3))
+                , (n3, UniChoice (BAct (CutBiasAlt infoN), n2))
+                , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
-          in mkAutWithPop n1 (unionTr trans t1) n3 pops
+          in mkAutWithPop n1 (unionTr trans t1) n5 pops
         LoopMap ->
           let nname1 = tcName (loopElName lp)
               e1 = loopCol lp
@@ -696,13 +701,18 @@ genGExpr gbl e =
               n1 = getS 0
               n2 = getS 1
               n3 = getS 2
+              n4 = getS 3
+              n5 = getS 4
+              infoN = n5
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (MapInit nname1 e1), n2))
-                , (n2, SeqChoice [ (CAct MapHasMore, i1), (CAct (MapEnd), n3) ] n3)
-                , (f1, UniChoice (CAct (MapNext), n2))
+                , (n2, SeqChoice [ (CAct (MapHasMore), i1), (CAct (MapEnd), n4) ] infoN)
+                , (f1, UniChoice (CAct (MapNext), n3))
+                , (n3, UniChoice (BAct (CutBiasAlt infoN), n2))
+                , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
-          in mkAutWithPop n1 (unionTr trans t1) n3 pops
+          in mkAutWithPop n1 (unionTr trans t1) n5 pops
     TCCall name _ le ->
       let nname = tcName name
           (_, annot) =
