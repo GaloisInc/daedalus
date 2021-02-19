@@ -403,13 +403,22 @@ runnerLL gbl s aut laut flagMetrics =
             react cfg finalState resumption result
           Just (alt, alts) ->
             let tr = nextTransition aut q
-                (act, q2) = case (tr, alt) of
-                              (Nothing, (CPop, _)) -> (CAct Pop, q)
-                              (Just (UniChoice (a, q1)), (CUni, _)) -> (a, q1)
-                              (Just (SeqChoice lst _), (CSeq, i)) -> lst !! i
-                              (Just (ParChoice lst), (CPar, i)) -> lst !! i
+                (branching, (act, q2), g1) = case (tr, alt) of
+                              (Nothing, (CPop, _)) -> (CPop, (CAct Pop, q), -1)
+                              (Just (UniChoice (a, q1)), (CUni, _)) -> (CUni, (a, q1), -1)
+                              (Just (SeqChoice lst g), (CSeq, i)) -> (CSeq, (lst !! i), g)
+                              (Just (ParChoice lst), (CPar, i)) -> (CPar, lst !! i, -1)
                               _ -> error "impossible combination"
-                newResumption = addResumption resumption cfg (UniChoice (act, q2))
+                newResumption =
+                  let
+                    predChoice =
+                      case branching of
+                        CPop -> UniChoice (act, q2)
+                        CUni -> UniChoice (act, q2)
+                        CSeq -> SeqChoice [(act, q2)] g1
+                        CPar -> ParChoice [(act, q2)]
+                  in
+                    addResumption resumption cfg predChoice
             in
                -- trace (show act) $
                case act of
