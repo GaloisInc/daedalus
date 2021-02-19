@@ -423,7 +423,9 @@ createLLA :: Aut a => a -> LLA
 createLLA aut =
   case buildPipelineLLA aut of
     Left lla -> lla
-    Right (_lla1, lla2) -> lla2
+    Right (_lla1, lla2) ->
+      lla2
+      -- _lla1
 
 showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> [String]
 showStartSynthLLAState aut dfas q =

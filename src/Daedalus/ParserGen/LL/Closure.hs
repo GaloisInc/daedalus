@@ -168,6 +168,9 @@ closureEpsUntilPush ::
   a -> Set.Set Slk.SlkCfg -> ClosureMove ->
   Slk.HTable -> (Result (Maybe ClosureMove), Slk.HTable)
 closureEpsUntilPush aut busy cm tab =
+  --if True
+  --then (Result (Just cm), tab)
+  --else
   if Set.member cfg busy
   then (Abort AbortClosureInfiniteloop, tab)
   else
@@ -183,7 +186,8 @@ closureEpsUntilPush aut busy cm tab =
       Just ch1 ->
         case ch1 of
           Aut.UniChoice (act, q2) -> closureStep (initChoicePos CUni)  (act, q2)
-          Aut.SeqChoice _ _     -> (Result $ Just cm, tab)
+          Aut.SeqChoice _ _     -> -- (Abort AbortClosureUnhandledAction, tab)
+                                   (Result $ Just cm, tab)
           Aut.ParChoice _       -> (Result $ Just cm, tab)
 
   where

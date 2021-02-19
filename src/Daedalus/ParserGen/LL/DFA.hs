@@ -37,6 +37,9 @@ import Daedalus.ParserGen.LL.DFAStep
 cst_MAX_LOOKAHEAD_DEPTH :: Int
 cst_MAX_LOOKAHEAD_DEPTH = 20
 
+cst_MAX_DFA_NB_STATES :: Int
+cst_MAX_DFA_NB_STATES = 100
+
 cst_OVERFLOW_CFG :: Int
 cst_OVERFLOW_CFG = 10
 
@@ -102,6 +105,11 @@ initLinDFAState = LinDFAState 1
 
 nextLinDFAState :: LinDFAState -> LinDFAState
 nextLinDFAState st = LinDFAState (linDFAState st + 1)
+
+lastLinDFAState :: DFA -> Int
+lastLinDFAState dfa =
+  case lastLin dfa of
+    LinDFAState n -> n
 
 initDFA :: DFAState ->  DFA
 initDFA q =
@@ -519,9 +527,13 @@ createDFA aut qInit tab =
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
-              if depth > cst_MAX_LOOKAHEAD_DEPTH
+              if (depth > cst_MAX_LOOKAHEAD_DEPTH ||
+                 lastLinDFAState dfa > cst_MAX_DFA_NB_STATES)
               then
-                let newDfa = insertDFA q (Abort AbortDFAOverflowLookahead) dfa
+                let newDfa =
+                      if depth > cst_MAX_LOOKAHEAD_DEPTH
+                      then insertDFA q (Abort AbortDFAOverflowLookahead) dfa
+                      else insertDFA q (Abort AbortDFAOverflowNbStates) dfa
                 in go rest accToVisit newDfa localTab
               else
                 let (choices, tab1) =
