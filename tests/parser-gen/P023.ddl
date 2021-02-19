@@ -10,3 +10,4 @@ def B = Choose1
 
 
 def Main = { p = B; q = Match "bb"; END}
+  <| { p = B; q = Match "bb"; END}

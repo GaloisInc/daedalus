@@ -1,0 +1,70 @@
+module P038
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+P038.Block1 : Grammar [uint 8] =
+  Choose biased
+    { do ($$ : [uint 8]) <- MatchBytes "a"
+         pure $$
+    | do ($$ : [uint 8]) <- MatchBytes "a"
+         pure $$
+    }
+ 
+P038.Block3 : Grammar [uint 8] =
+  do Choose fair
+       { @MatchBytes "acd"
+       | @MatchBytes "ac"
+       }
+     ($$ : [uint 8]) <- MatchBytes "d"
+     pure $$
+ 
+P038.Block2 : Grammar [uint 8] =
+  Choose biased
+    { P038.Block3
+    | MatchBytes "RANDOM"
+    }
+ 
+P038._Block1 : Grammar {} =
+  Choose biased
+    { @MatchBytes "a"
+    | @MatchBytes "a"
+    }
+ 
+P038._Block3 : Grammar {} =
+  do Choose fair
+       { @MatchBytes "acd"
+       | @MatchBytes "ac"
+       }
+     @MatchBytes "d"
+ 
+P038._Block2 : Grammar {} =
+  Choose biased
+    { P038._Block3
+    | @MatchBytes "RANDOM"
+    }
+ 
+P038.Main : Grammar {} =
+  Choose biased
+    { do P038._Block1
+         P038._Block2
+         @MatchBytes "e"
+         ($$ : {}) <- END
+         pure $$
+    | do @MatchBytes "aacdde"
+         ($$ : {}) <- END
+         pure $$
+    }
+ 
+P038._Main : Grammar {} =
+  Choose biased
+    { do P038._Block1
+         P038._Block2
+         @MatchBytes "e"
+         END
+    | do @MatchBytes "aacdde"
+         END
+    }

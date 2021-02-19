@@ -1,6 +1,5 @@
 context:
   "Main"
-  "Case2"
 input: File context:
 Length: 1 (0x1) bytes
 0000:   32                                                   2
