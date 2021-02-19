@@ -3,10 +3,27 @@ module Daedalus.ParserGen.AST where
 
 import Numeric (showHex)
 import qualified Data.Map as Map
+import Data.Text(Text)
 
 import Daedalus.Type.AST hiding (ppBinder)
 import Daedalus.SourceRange
 
+
+name2Text :: Name -> Text
+name2Text n =
+  let x = nameScopedIdent n
+  in case x of
+    Unknown ident -> ident
+    Local   ident -> ident
+    ModScope _ ident -> ident
+
+showName :: Name -> String
+showName n =
+  showName1 (nameScopedIdent n)
+  where
+    showName1 ((ModScope _ x)) = show x
+    showName1 ((Unknown x)) = show x
+    showName1 ((Local x)) = show x
 
 
 type Contx = Name

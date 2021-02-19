@@ -3,6 +3,7 @@ module Daedalus.ParserGen.Utils where
 import System.IO
 import Data.List
 
+import Daedalus.ParserGen.AST
 import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
 

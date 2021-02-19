@@ -1,6 +1,37 @@
 {-# Language GADTs, DataKinds, ExistentialQuantification, RecordWildCards #-}
 
-module Daedalus.ParserGen.Action where
+module Daedalus.ParserGen.Action
+  ( State
+  , InputAction(..)
+  , SemanticAction(..)
+  , BranchAction(..)
+  , SemanticElm(..)
+  , ControlAction(..)
+  , Action(..)
+  , InputData
+  , ControlData
+  , SemanticData
+  , isClassActOrEnd
+  , isInputAction
+  , isActivateFrameAction
+  , isUnhandledInputAction
+  , isUnhandledAction
+  , isPushAction
+  , isBranchAction
+  , getMatchBytes
+  , getClassActOrEnd
+  , isEmptyControlData
+  , showCallStackDebug
+  , showSemanticData
+  , showCallStack
+  , evalNoFunCall
+  , isSimpleVExpr
+  , defaultValue
+  , evalLiteral
+  , valToInt
+  , applyAction
+  )
+where
 
 -- import Debug.Trace
 
@@ -10,7 +41,6 @@ import Data.Word
 import qualified Data.Vector as Vector
 import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
-import Data.Text(Text)
 import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 
 import Daedalus.PP hiding (empty)
@@ -21,7 +51,7 @@ import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
 import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr)
+import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr, showName)
 
 type State = Int
 
@@ -94,15 +124,6 @@ data Action =
 semToString :: WithSem -> String
 semToString YesSem = "S"
 semToString NoSem = ""
-
-
-showName :: Name -> String
-showName n =
-  showName1 (nameScopedIdent n)
-  where
-    showName1 ((ModScope _ x)) = show x
-    showName1 ((Unknown x)) = show x
-    showName1 ((Local x)) = show x
 
 
 instance Show(InputAction) where
@@ -625,25 +646,6 @@ applyBinop op e1 e2 =
     _ -> error ("TODO: " ++ show op)
 
 
-name2Text :: Name -> Text
-name2Text n =
-  let x = nameScopedIdent n
-  in case x of
-    Unknown ident -> ident
-    Local   ident -> ident
-    ModScope _ ident -> ident
-
--- name2Text2 :: PAST.NName -> Text
--- name2Text2 n =
---   let x = nameScope (PAST.nName n)
---   in case x of
---     Unknown ident -> ident
---     Local   ident -> ident
---     ModScope _ ident -> ident
-
-
-tODOCONST :: Integer
-tODOCONST = 2
 
 
 isSimpleVExpr :: NVExpr -> Bool
