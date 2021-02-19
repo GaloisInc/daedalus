@@ -8,23 +8,16 @@ module Talos.Synthesis (synthesise) where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Applicative
-import Data.Foldable (find, foldlM)
-import Data.Word
-import Data.Maybe (isJust,fromMaybe)
-import Data.Map(Map)
-import qualified Data.Map as Map
-import Data.Set(Set)
-import qualified Data.Set as Set
-import Data.List.NonEmpty(NonEmpty(..))
-import Data.Maybe (catMaybes)
-
-import System.Random
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.Foldable (find)
 import qualified Data.List.NonEmpty as NE
-
+import qualified Data.Map as Map
+import Data.Map(Map)
+import qualified Data.Set as Set
 import qualified Data.Vector as Vector
+import Data.Word
+import System.Random
 
 import           System.IO.Streams (Generator, InputStream)
 import qualified System.IO.Streams as Streams
@@ -32,35 +25,30 @@ import qualified System.IO.Streams as Streams
 import Data.Parameterized.Some
 
 -- To represent the partially constructed input
-import qualified Data.IntervalMap as IMap
-import Data.IntervalMap (IntervalMap)
+-- import qualified Data.IntervalMap as IMap
+-- import Data.IntervalMap (IntervalMap)
 
 import SimpleSMT (Solver)
 
-import Daedalus.Panic
-import Daedalus.PP
-import Daedalus.GUID
 import qualified Daedalus.AST as K
-import Daedalus.Type.AST hiding (Value)
-import Daedalus.Type.Free (TCFree(..))
-
-import RTS.ParserAPI hiding (SourceRange)
-
+import Daedalus.GUID
 import qualified Daedalus.Interp as I
 import qualified Daedalus.Interp.Value as I
-
+import Daedalus.PP
+import Daedalus.Panic
 import Daedalus.Rec (forgetRecs, topoOrder)
+import Daedalus.Type.AST hiding (Value)
+import Daedalus.Type.Free (TCFree(..))
+import RTS.ParserAPI hiding (SourceRange)
 -- FIXME: roll the topoOrder of type decls into Daedalus
 import Daedalus.Type.Traverse (collectTypes)
 import Daedalus.Type.Subst    (freeTCons)
 
 import Talos.Analysis (summarise)
-import Talos.Analysis.Domain
 import Talos.Analysis.Monad (Summaries, Summary(..))
 import Talos.Analysis.PathSet
 import Talos.Lib
 import Talos.SymExec
-import Talos.SymExec.ModelParser
 import Talos.SymExec.Monad
 
 data Stream = Stream { streamOffset :: Integer
@@ -93,9 +81,9 @@ data SynthEnv = SynthEnv { synthInterpEnv :: I.Env
 addVal :: TCName K.Value -> Value -> SynthEnv -> SynthEnv
 addVal x v e = e { synthValueEnv = Map.insert x v (synthValueEnv e) }
 
-addValMaybe :: Maybe (TCName K.Value) -> Value -> SynthEnv -> SynthEnv
-addValMaybe Nothing  _ e = e
-addValMaybe (Just x) v e = addVal x v e
+-- addValMaybe :: Maybe (TCName K.Value) -> Value -> SynthEnv -> SynthEnv
+-- addValMaybe Nothing  _ e = e
+-- addValMaybe (Just x) v e = addVal x v e
 
 projectInterpValue :: Value -> Maybe I.Value
 projectInterpValue (InterpValue v) = Just v
@@ -107,8 +95,8 @@ assertInterpValue (InterpValue v) = v
 assertInterpValue _               = error "Expecting an InterpValue, got a StreamValue"
 
 -- Projects out the I.Value for each free varable, returns Nothing if we see a non-InterpValue
-projectEnv :: SynthEnv -> Maybe (Map (TCName K.Value) I.Value)
-projectEnv se = traverse projectInterpValue (synthValueEnv se)
+-- projectEnv :: SynthEnv -> Maybe (Map (TCName K.Value) I.Value)
+-- projectEnv se = traverse projectInterpValue (synthValueEnv se)
 
 projectEnvFor :: TCFree t => t -> SynthEnv -> Maybe I.Env
 projectEnvFor tm se = flip I.setVals (synthInterpEnv se)
@@ -209,8 +197,8 @@ synthesise m_seed root declTys mods = withSolver $ \solv -> do
   
   gen <- maybe getStdGen (pure . mkStdGen) m_seed
 
-  let initState gen = 
-        SynthesisMState { stdGen       = gen
+  let initState gen' = 
+        SynthesisMState { stdGen       = gen'
                         , seenBytes    = mempty
                         , curStream    = emptyStream
                         , solver       = solv
@@ -221,8 +209,8 @@ synthesise m_seed root declTys mods = withSolver $ \solv -> do
                         }
 
       go :: StdGen -> Generator (I.Value, ByteString, ProvenanceMap) ()
-      go gen = do
-        (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen)
+      go gen' = do
+        (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen')
         Streams.yield (assertInterpValue a, seenBytes s, provenances s)
         go (stdGen s)
   
@@ -304,17 +292,17 @@ minMany = 0
 maxMany = 100
 
 -- Select a number of iterations
--- synthesiseManyBounds :: ManyBounds (TC TCSynthAnnot K.Value) -> SynthesisM Int
--- synthesiseManyBounds bnds =
---   case bnds of
---     Exactly v    -> getV v
---     Between l h ->  do
---       lv <- maybe (pure minMany) getV l
---       hv <- maybe (pure (maxMany + lv)) getV h
---       when (hv < lv) $ error "Shouldn't happen"
---       randR (lv, hv)
---   where
---     getV v = fromInteger . I.valueToInteger . assertInterpValue <$> synthesiseV v
+synthesiseManyBounds :: ManyBounds (TC TCSynthAnnot K.Value) -> SynthesisM Int
+synthesiseManyBounds bnds =
+  case bnds of
+    Exactly v    -> getV v
+    Between l h ->  do
+      lv <- maybe (pure minMany) getV l
+      hv <- maybe (pure (maxMany + lv)) getV h
+      when (hv < lv) $ panic "Shouldn't happen" []
+      randR (lv, hv)
+  where
+    getV v = fromInteger . I.valueToInteger . assertInterpValue <$> synthesiseV v
 
 synthesiseArg :: Arg TCSynthAnnot -> SynthesisM Value
 synthesiseArg (ValArg v) = synthesiseV v
@@ -331,37 +319,10 @@ synthesiseDecl cl fp TCDecl { tcDeclCtxt   = AGrammar, tcDeclDef = Defined def, 
 
 synthesiseDecl _ _ _ _ = error "Not a grammar"
 
--- -- We need to invoke the solver
--- symExecCall :: Name -> Type -> [Arg SourceRange] -> SynthesisM Value
--- symExecCall n typ args = do
---   args' <- mapM (fmap assertInterpValue . synthesiseArg) args
---   let tys = map typeOf args
---   s <- gets solver
---   offset <- gets (streamOffset . curStream)
-
---   bs <- liftIO $ callG s offset n (typeOfStripG typ) tys args'
---   addBytes bs
---   -- We have the underlying bytes, now we need to get the resulting
---   -- value.  For this we can just use the interpreter
-
---   e <- asks synthInterpEnv -- Don't need to add in local variables
---   case I.interpCompiled bs e (nameScope n) args' of
---     Results (v :| _) -> pure (InterpValue v)
---     NoResults err    -> error ("No results for " ++ show (pp n) ++ ": "
---                                 ++ show (ppParseError err) ++ "\nInput: " ++ show bs)
-
 synthesiseCallG :: SummaryClass -> SelectedPath -> Name -> [Arg TCSynthAnnot] -> SynthesisM Value
 synthesiseCallG cl fp n args = do
   decl <- SynthesisM $ gets (flip (Map.!) n . rules)
   synthesiseDecl cl fp decl args
-
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------
 
 -- =============================================================================
 -- Tricky Synthesis
@@ -428,15 +389,15 @@ choosePath cp (Just x) = do
 --------------------------------------------------------------------------------
 -- Simple Synthesis
 
-futurePathsMaybe :: Maybe (TCName K.Value) -> SynthesisM (FuturePathSet TCSynthAnnot)
-futurePathsMaybe Nothing  = pure Unconstrained
-futurePathsMaybe (Just x) = SynthesisM $ asks (Map.findWithDefault Unconstrained x . pathSetRoots)
-
 -- E.g.
 -- def Foo = {
 --   x = UInt8;
 --   y = { x < 10; ^ 0 } | { ^ 1 }
 -- }
+
+
+arrayFromList :: [Value] -> Value
+arrayFromList = InterpValue . I.VArray . Vector.fromList . map assertInterpValue
 
 -- FIXME: next 3 copied from Interp.hs
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
@@ -479,7 +440,7 @@ synthesiseGLHS (Just (SelectedSimple prov bs)) tc = do
     TCCoerceCheck YesSem _ t e -> do
       v <- assertInterpValue <$> synthesiseV e
       case I.doCoerceTo (I.evalType I.emptyEnv t) v of
-        (v, NotLossy) -> pure (InterpValue v)
+        (v', NotLossy) -> pure (InterpValue v')
         _ -> panic "BUG: unexpected term in synthesiseGLHS" [show (pp tc)]
         
     _ -> panic "BUG: unexpected term in synthesiseGLHS" [show (pp tc)]
@@ -506,6 +467,13 @@ synthesiseGLHS (Just (SelectedCall cl sp)) (texprValue -> TCCall fn _ args) =
   
 synthesiseGLHS (Just (SelectedCall {})) tc = panic "synthesiseGLHS: expected a call" [showPP tc]
 
+synthesiseGLHS (Just (SelectedMany sps)) (texprValue -> TCMany ws _c _bnds p) = do
+  v <- arrayFromList <$> mapM (flip synthesiseG p) sps
+  mbPure ws v
+  
+synthesiseGLHS (Just (SelectedMany {})) tc = panic "synthesiseGLHS: expected a Many" [showPP tc]
+
+
 synthesiseGLHS (Just (SelectedNested sp)) tc =
   synthesiseG sp tc -- ???
   
@@ -523,7 +491,7 @@ synthesiseGLHS Nothing tc = -- We don't really care
       pure vUnit
     TCMatchBytes ws v -> do
       bs <- synthesiseV v
-      prov <- freshProvenanceTag
+      -- prov <- freshProvenanceTag
       addBytes synthVProvenance (I.valueToByteString (assertInterpValue bs)) -- XXX is this the random case?
       mbPure ws bs
 
@@ -532,18 +500,17 @@ synthesiseGLHS Nothing tc = -- We don't really care
       g <- randL gs
       synthesiseG Unconstrained g
 
-    TCOptional _c g    -> unimplemented -- do
+    TCOptional _c _g    -> unimplemented -- do
       -- b <- rand
       -- if b
       --   then InterpValue . I.VMaybe . Just . assertInterpValue <$> synthesiseG g
       --   else pure (InterpValue (I.VMaybe Nothing))
 
     -- FIXME: commit value here
-    TCMany ws _c bnds p -> unimplemented -- do
-      -- count <- synthesiseManyBounds bnds
-      -- v <- (InterpValue . I.VArray . Vector.fromList . map assertInterpValue)
-      --      <$> replicateM count (synthesiseG p)
-      -- mbPure ws v
+    TCMany ws _c bnds p -> do
+      count <- synthesiseManyBounds bnds
+      v <- arrayFromList <$> replicateM count (synthesiseG Unconstrained p)
+      mbPure ws v
 
     TCEnd             -> pure vUnit -- FIXME
     TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))

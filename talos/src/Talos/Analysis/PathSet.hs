@@ -231,16 +231,20 @@ eqvCaseNode (CaseNode _pc _cs _tm alts1 m_def1) (CaseNode _pc' _cs' _tm' alts2 m
 data ManyNode a =
   ManyNode { manyResultAssign :: Maybe EntangledVar
            , manyBounds       :: ManyBounds (TC a Value)
+           , manyFrees        :: EntangledVars
            , manyBody         :: FuturePathSet a
            }
   
 mergeManyNode :: ManyNode a -> ManyNode a -> ManyNode a
-mergeManyNode mn@(ManyNode { manyBody = b1 }) (ManyNode { manyBody = b2 }) =
-  mn { manyBody = mergeFuturePathSet b1 b2 }
+mergeManyNode mn@(ManyNode { manyFrees = f1, manyBody = b1 })
+                 (ManyNode { manyFrees = f2, manyBody = b2 }) =
+  mn { manyFrees = mergeEntangledVars f1 f2
+     , manyBody = mergeFuturePathSet b1 b2 }
   
 eqvManyNode :: ManyNode a -> ManyNode a -> Bool
-eqvManyNode (ManyNode { manyBody = b1 }) (ManyNode { manyBody = b2 }) =
-  futurePathEqv b1 b2
+eqvManyNode (ManyNode { manyFrees = f1, manyBody = b1 })
+            (ManyNode { manyFrees = f2, manyBody = b2 }) =
+  f1 == f2 && futurePathEqv b1 b2
   
 -- A path node where we need to do something.  
 data FutureNode a =
@@ -375,6 +379,8 @@ data SelectedNode =
 
   -- Assertions are ignored at this point
   | SelectedNested SelectedPath
+
+  | SelectedMany [SelectedPath]
   
   | SelectedSimple ProvenanceTag ByteString 
   -- ^ The term has been fully processed and does not contain anything
@@ -458,4 +464,5 @@ instance PP SelectedNode where
       SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
       SelectedNested sp     -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
+      SelectedMany sps      -> wrapIf (n > 0) $ "many" <+> (vcat $ map (ppPrec 1) sps)
       SelectedSimple _pr bs -> pp bs  -- XXX: print provenance 
