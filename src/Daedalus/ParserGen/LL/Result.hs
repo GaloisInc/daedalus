@@ -24,6 +24,7 @@ data AbortOption =
   | AbortDFAIncompatibleInput
   | AbortDFAOverflowInitCfg
   | AbortDFAOverflowLookahead
+  | AbortDFAOverflowNbStates
 
 instance Show(AbortOption) where
   show a =
@@ -36,11 +37,12 @@ instance Show(AbortOption) where
       AbortClosureInfiniteloop -> "AbortClosureInfiniteloop"
 
       AbortClassIsDynamic -> "AbortClassIsDynamic"
-      AbortClassNotHandledYet str -> "AbortClassNotHandledYet-" ++ str
+      AbortClassNotHandledYet str -> "AbortClassNotHandledYet_" ++ str
 
       AbortDFAIncompatibleInput -> "AbortDFAIncompatibleInput"
       AbortDFAOverflowInitCfg -> "AbortDFAOverflowInitCfg"
       AbortDFAOverflowLookahead -> "AbortDFAOverflowLookahead"
+      AbortDFAOverflowNbStates -> "AbortDFAOverflowNbStates"
 
 data Result a =
     Abort AbortOption
