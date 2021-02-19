@@ -833,12 +833,19 @@ evalCase _gbl v lpat =
           case v of
             Interp.VMaybe Nothing -> Nothing
             Interp.VMaybe (Just v1) -> Just (Map.insert (tcName n) v1 Map.empty)
-            _ -> error "type error: shoudl be a Maybe"
+            _ -> error "type error: should be a Maybe"
         TCNothingPat _ ->
           case v of
             Interp.VMaybe Nothing -> Just (Map.empty)
             Interp.VMaybe (Just _) -> Nothing
-            _ -> error "type error: shoudl be a Maybe"
+            _ -> error "type error: should be a Maybe"
+        TCBoolPat b ->
+          case v of
+            Interp.VBool b1 ->
+              if b1 == b
+              then Just Map.empty
+              else Nothing
+            _ -> error "type error: should be a Bool"
         _ -> error ("TODO not handled pat" ++ show pat)
     _ -> error "TODO: not handled list"
 
