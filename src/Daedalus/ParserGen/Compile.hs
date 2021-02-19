@@ -894,7 +894,7 @@ buildMapAut decls =
          case b of
            Just res -> Just res
            Nothing ->
-             let ident = name2Text k in
+             let ident = PAST.name2Text k in
                -- TODO: this infixOf test should be removed
                if isInfixOf "Main" (show ident) then Just (k, getSourceRangeDecl a, a) else Nothing
       ) Nothing allocDecls
