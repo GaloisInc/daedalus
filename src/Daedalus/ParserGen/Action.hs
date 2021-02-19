@@ -4,6 +4,7 @@ module Daedalus.ParserGen.Action where
 
 -- import Debug.Trace
 
+
 import qualified Data.Map as Map
 import Data.Word
 import qualified Data.Vector as Vector
@@ -367,9 +368,43 @@ showCallStack ctrl =
     [] -> "context:"
     x : xs ->
       case x of
-        CallFrame name _ _ _ -> showCallStack xs ++ "\n" ++ spacing ++ showName name
+        CallFrame name _ _ _ ->
+          showCallStack xs ++ "\n"
+          ++ spacing ++ showName name
         _ -> showCallStack xs
   where spacing = "  "
+
+showCallStackDebug :: ControlData -> String
+showCallStackDebug ctrl =
+  case ctrl of
+    [] -> "context:"
+    x : xs ->
+      case x of
+        CallFrame name _ _ semData ->
+          showCallStackDebug xs ++ "\n"
+          ++ (concat $ map (\ s -> s ++ "\n") $ showSemanticData semData)
+          ++ spacing ++ showName name
+        _ -> showCallStackDebug xs
+  where spacing = "  "
+
+
+showSemanticData :: SemanticData -> [String]
+showSemanticData sem =
+  case sem of
+    [] -> []
+    x : xs ->
+      showSemanticData xs ++
+      case x of
+        SEnvMap m ->
+          let showm = Map.foldrWithKey (\ k _v acc -> (spacing ++ showName k) : acc) [] m
+          in showm
+        SManyVal lst ->
+          let showm = map (\ _ -> spacing ++ "*") lst
+          in showm
+        _ -> []
+  where
+    spacing = "    - "
+
 
 
 getByte :: Input -> Maybe (Word8,Input)
