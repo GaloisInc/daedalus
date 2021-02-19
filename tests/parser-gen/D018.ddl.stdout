@@ -1,0 +1,590 @@
+module D018
+ 
+--- Imports:
+ 
+--- Type defs:
+type D018.Number = { num: int
+                   ; exp: int
+                   }
+ 
+type D018.Ref = { obj: int
+                ; gen: int
+                }
+ 
+rec
+  type D018.Value = Choose { array: [D018.Value]
+                           ; bool: bool
+                           ; dict: Map [uint 8] D018.Value
+                           ; name: [uint 8]
+                           ; null: {}
+                           ; number: D018.Number
+                           ; ref: D018.Ref
+                           ; string: [uint 8]
+                           }
+ 
+type D018.Dict0 = { key: [uint 8]
+                  ; value: D018.Value
+                  }
+ 
+type D018.Sign = Choose { neg: {}
+                        ; pos: {}
+                        }
+ 
+type D018.Main = { x: [D018.Value]
+                 }
+ 
+--- Rules:
+ 
+D018.$lf : ByteClass =
+  {'\n'}
+ 
+D018.$cr : ByteClass =
+  {'\r'}
+ 
+D018.$simpleWS : ByteClass =
+  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+ 
+D018.SimpleEOL : Grammar (uint 8) =
+  Choose fair
+    { do @Match D018.$cr
+         ($$ : uint 8) <- Match D018.$lf
+         pure $$
+    | Match D018.$lf
+    }
+ 
+D018.EOL : Grammar (uint 8) =
+  Choose biased
+    { D018.SimpleEOL
+    | Match D018.$cr
+    }
+ 
+D018.Comment : Grammar (uint 8) =
+  do @MatchBytes "%"
+     @Many[] @Match (!(D018.$lf | D018.$cr))
+     ($$ : uint 8) <- D018.EOL
+     pure $$
+ 
+D018.AnyWS : Grammar (uint 8) =
+  Choose biased
+    { Choose biased
+        { Match D018.$simpleWS
+        | D018.Comment
+        }
+    | D018.EOL
+    }
+ 
+D018._SimpleEOL : Grammar {} =
+  Choose fair
+    { do @Match D018.$cr
+         @Match D018.$lf
+    | @Match D018.$lf
+    }
+ 
+D018._EOL : Grammar {} =
+  Choose biased
+    { D018._SimpleEOL
+    | @Match D018.$cr
+    }
+ 
+D018._Comment : Grammar {} =
+  do @MatchBytes "%"
+     @Many[] @Match (!(D018.$lf | D018.$cr))
+     D018._EOL
+ 
+D018._AnyWS : Grammar {} =
+  Choose biased
+    { Choose biased
+        { @Match D018.$simpleWS
+        | D018._Comment
+        }
+    | D018._EOL
+    }
+ 
+D018.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     @Many[] D018._AnyWS
+     pure $$
+ 
+D018._Token ?a1 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[] D018._AnyWS
+ 
+D018.KW (x : [uint 8]) : Grammar {} =
+  D018._Token [uint 8] (@MatchBytes x)
+ 
+D018._KW (x : [uint 8]) : Grammar {} =
+  D018._Token [uint 8] (@MatchBytes x)
+ 
+D018.Between ?a3 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a3) : Grammar ?a3 =
+  do D018._KW open
+     ($$ : ?a3) <- P
+     D018._KW close
+     pure $$
+ 
+D018.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
+  for ((val : ?a4) = 0; (d : ?a4) in ds)
+    ((val * base) + d)
+ 
+D018.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     END
+     pure $$
+ 
+D018.When ?a1 ?a5 (P : Grammar ?a5) (x : ?a1) : Grammar ?a1 =
+  do do P
+        pure {}
+     ($$ : ?a1) <- pure x
+     pure $$
+ 
+D018.Guard (p : bool) : Grammar {} =
+  Guard p
+ 
+D018.Bool : Grammar bool =
+  Choose fair
+    { D018.When bool {} (D018.KW "true") true
+    | D018.When bool {} (D018.KW "false") false
+    }
+ 
+D018.Sign : Grammar D018.Sign =
+  Choose biased
+    { {- neg -} do (_90 : {}) <- @MatchBytes "-"
+                   pure {neg: _90}
+    | {- pos -} do (_91 : {}) <- @MatchBytes "+"
+                   pure {pos: _91}
+    | {- pos -} do (_92 : {}) <- pure {}
+                   pure {pos: _92}
+    }
+ 
+D018.Digit : Grammar int =
+  do (_94 : uint 8) <- do (_93 : uint 8) <- Match ('0' .. '9')
+                          pure (_93 - '0')
+     _94 AS int
+ 
+D018.Natural : Grammar int =
+  do (_95 : [int]) <- Many[ 1 .. ] D018.Digit
+     pure (D018.numBase [int] int int 10 _95)
+ 
+D018.Frac (n : int) (w : D018.Number) : Grammar D018.Number =
+  do @MatchBytes "."
+     (ds : [int]) <- Many[ n .. ] D018.Digit
+     ($$ : D018.Number) <- pure (for ((val : D018.Number) = w; (d : int) in ds)
+                                   {num = (10 * (val.num)) + d,
+                                    exp = (val.exp) - 1})
+     pure $$
+ 
+D018.UnsignedLeadDigits : Grammar D018.Number =
+  do (n : int) <- D018.Natural
+     (val : D018.Number) <- pure {num = n,
+                                  exp = 0}
+     ($$ : D018.Number) <- Choose biased
+                             { D018.Frac 0 val
+                             | pure val
+                             }
+     pure $$
+ 
+D018.UnsignedNumber : Grammar D018.Number =
+  Choose biased
+    { D018.UnsignedLeadDigits
+    | D018.Frac 1 {num = 0,
+                   exp = 0}
+    }
+ 
+D018.Number : Grammar D018.Number =
+  D018.Token D018.Number do (sign : D018.Sign) <- D018.Sign
+                            (n : D018.Number) <- D018.UnsignedNumber
+                            ($$ : D018.Number) <- case sign is
+                                                    { {| pos = _ |} -> pure n
+                                                    ; {| neg = _ |} -> do (num : int) <- pure (0 - (n.num))
+                                                                          (exp : int) <- pure (n.exp)
+                                                                          pure {num = num,
+                                                                                exp = exp}
+                                                    }
+                            pure $$
+ 
+D018.OctDigit : Grammar int =
+  do (_100 : uint 8) <- do (_99 : uint 8) <- Match ('0' .. '7')
+                           pure (_99 - '0')
+     _100 AS int
+ 
+D018.HexDigit : Grammar int =
+  Choose biased
+    { D018.Digit
+    | Choose biased
+        { do (_103 : uint 8) <- do (_102 : uint 8) <- do (_101 : uint 8) <- Match ('a' .. 'f')
+                                                         pure (10 + _101)
+                                   pure (_102 - 'a')
+             _103 AS int
+        | do (_106 : uint 8) <- do (_105 : uint 8) <- do (_104 : uint 8) <- Match ('A' .. 'F')
+                                                         pure (10 + _104)
+                                   pure (_105 - 'A')
+             _106 AS int
+        }
+    }
+ 
+D018._Guard (p : bool) : Grammar {} =
+  Guard p
+ 
+D018.NumberAsNat (x : D018.Number) : Grammar int =
+  do D018._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+     ($$ : int) <- pure (x.num)
+     pure $$
+ 
+D018.StringNumEsc : Grammar [uint 8] =
+  do (_110 : uint 8) <- do (_109 : int) <- do (_108 : [int]) <- Many[ 1 .. 3 ] D018.OctDigit
+                                              pure (D018.numBase [int] int int 8 _108)
+                           pure (_109 as uint 8)
+     pure [_110]
+ 
+D018.StringEsc : Grammar [uint 8] =
+  do @MatchBytes "\\"
+     ($$ : [uint 8]) <- Choose fair
+                          { D018.When [uint 8] [uint 8] (MatchBytes "n") "\n"
+                          | Choose fair
+                              { D018.When [uint 8] [uint 8] (MatchBytes "r") "\r"
+                              | Choose fair
+                                  { D018.When [uint 8] [uint 8] (MatchBytes "t") "\t"
+                                  | Choose fair
+                                      { D018.When [uint 8] [uint 8] (MatchBytes "b") "\b"
+                                      | Choose fair
+                                          { D018.When [uint 8] [uint 8] (MatchBytes "f") "\f"
+                                          | Choose fair
+                                              { D018.When [uint 8] [uint 8] (MatchBytes "(") "("
+                                              | Choose fair
+                                                  { D018.When [uint 8] [uint 8] (MatchBytes ")") ")"
+                                                  | Choose fair
+                                                      { D018.When [uint 8] [uint 8] (MatchBytes "\\") "\\"
+                                                      | Choose fair
+                                                          { D018.When [uint 8] (uint 8) D018.EOL ""
+                                                          | D018.StringNumEsc
+                                                          }
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+     pure $$
+ 
+rec value
+  D018.StringChars : Grammar [uint 8] =
+    do (_112 : [[uint 8]]) <- Many[] D018.StringChunk
+       pure (concat _112)
+   
+  D018.StringInParens : Grammar [uint 8] =
+    do (_116 : [[uint 8]]) <- do (_113 : [uint 8]) <- MatchBytes "("
+                                 (_114 : [uint 8]) <- D018.StringChars
+                                 (_115 : [uint 8]) <- MatchBytes ")"
+                                 pure [_113,
+                                       _114,
+                                       _115]
+       pure (concat _116)
+   
+  D018.StringChunk : Grammar [uint 8] =
+    Choose fair
+      { Choose fair
+          { D018.StringInParens
+          | D018.StringEsc
+          }
+      | Many[ 1 .. ] Match (!"\\()")
+      }
+ 
+D018.String : Grammar [uint 8] =
+  D018.Between [uint 8] "(" ")" D018.StringChars
+ 
+D018.HexStringNum2 : Grammar (uint 8) =
+  do (_118 : int) <- do (_117 : [int]) <- Many[2] D018.Token int D018.HexDigit
+                        pure (D018.numBase [int] int int 16 _117)
+     pure (_118 as uint 8)
+ 
+D018.HexStringNum1 : Grammar (uint 8) =
+  do (_120 : int) <- do (_119 : int) <- D018.Token int D018.HexDigit
+                        pure (16 * _119)
+     pure (_120 as uint 8)
+ 
+D018.HexString : Grammar [uint 8] =
+  D018.Between [uint 8] "<" ">" do (front : [uint 8]) <- Many[] D018.HexStringNum2
+                                   ($$ : [uint 8]) <- Choose fair
+                                                        { do (_124 : [[uint 8]]) <- do (_123 : [uint 8]) <- do (_122 : uint 8) <- D018.HexStringNum1
+                                                                                                               pure [_122]
+                                                                                       pure [front,
+                                                                                             _123]
+                                                             pure (concat _124)
+                                                        | pure front
+                                                        }
+                                   pure $$
+ 
+D018.NameEsc : Grammar (uint 8) =
+  do @MatchBytes "#"
+     ($$ : uint 8) <- do (_126 : int) <- do (_125 : [int]) <- Many[2] D018.HexDigit
+                                            pure (D018.numBase [int] int int 16 _125)
+                         pure (_126 as uint 8)
+     D018._Guard (0 < $$)
+     pure $$
+ 
+D018.NameChar : Grammar (uint 8) =
+  Choose biased
+    { Match (!"\NUL\t\n\f\r ()<>[]{}/%#")
+    | D018.NameEsc
+    }
+ 
+D018.Name : Grammar [uint 8] =
+  D018.Token [uint 8] do @MatchBytes "/"
+                         ($$ : [uint 8]) <- Many[] D018.NameChar
+                         pure $$
+ 
+D018.Null : Grammar {} =
+  D018.KW "null"
+ 
+D018.Ref : Grammar D018.Ref =
+  do (obj : int) <- D018.Token int D018.Natural
+     (gen : int) <- D018.Token int D018.Natural
+     D018._KW "R"
+     pure {obj = obj,
+           gen = gen}
+ 
+rec value
+  D018.Array : Grammar [D018.Value] =
+    D018.Between [D018.Value] "[" "]" (Many[] D018.Value)
+   
+  D018.Dict : Grammar (Map [uint 8] D018.Value) =
+    do (ents : [D018.Dict0]) <- D018.Between [D018.Dict0] "<<" ">>" (Many[] do (key : [uint 8]) <- D018.Name
+                                                                               (value : D018.Value) <- D018.Value
+                                                                               pure {key = key,
+                                                                                     value = value})
+       ($$ : Map [uint 8] D018.Value) <- for ((d : Map [uint 8] D018.Value) = empty; (e : D018.Dict0) in ents)
+                                           (Insert (e.key) (e.value) d)
+       pure $$
+   
+  D018.Value : Grammar D018.Value =
+    Choose biased
+      { {- null -} do (_129 : {}) <- D018.Null
+                      pure {null: _129}
+      | {- bool -} do (_130 : bool) <- D018.Bool
+                      pure {bool: _130}
+      | {- ref -} do (_131 : D018.Ref) <- D018.Ref
+                     pure {ref: _131}
+      | {- name -} do (_132 : [uint 8]) <- D018.Name
+                      pure {name: _132}
+      | {- string -} do (_133 : [uint 8]) <- D018.String
+                        pure {string: _133}
+      | {- string -} do (_134 : [uint 8]) <- D018.HexString
+                        pure {string: _134}
+      | {- number -} do (_135 : D018.Number) <- D018.Number
+                        pure {number: _135}
+      | {- array -} do (_136 : [D018.Value]) <- D018.Array
+                       pure {array: _136}
+      | {- dict -} do (_137 : Map [uint 8] D018.Value) <- D018.Dict
+                      pure {dict: _137}
+      }
+ 
+D018.Main : Grammar D018.Main =
+  do (x : [D018.Value]) <- Many[] D018.Value
+     END
+     pure {x = x}
+ 
+D018._Between ?a3 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+  do D018._KW open
+     _P
+     D018._KW close
+ 
+D018._Only ?a1 (_P : Grammar {}) : Grammar {} =
+  do _P
+     END
+ 
+D018._When ?a1 ?a5 (_P : Grammar {}) : Grammar {} =
+  _P
+ 
+D018._Bool : Grammar {} =
+  Choose fair
+    { D018._When bool {} (D018._KW "true")
+    | D018._When bool {} (D018._KW "false")
+    }
+ 
+D018._Sign : Grammar {} =
+  Choose biased
+    { {- neg -} @MatchBytes "-"
+    | {- pos -} @MatchBytes "+"
+    | {- pos -} pure {}
+    }
+ 
+D018._Digit : Grammar {} =
+  do (_94 : uint 8) <- do (_93 : uint 8) <- Match ('0' .. '9')
+                          pure (_93 - '0')
+     @(_94 AS int)
+ 
+D018._Natural : Grammar {} =
+  @Many[ 1 .. ] D018._Digit
+ 
+D018._Number : Grammar {} =
+  D018._Token D018.Number do (sign : D018.Sign) <- D018.Sign
+                             do D018.UnsignedNumber
+                                pure {}
+                             case sign is
+                               { {| pos = _ |} -> pure {}
+                               ; {| neg = _ |} -> pure {}
+                               }
+ 
+D018._Frac (n : int) : Grammar {} =
+  do @MatchBytes "."
+     @Many[ n .. ] D018._Digit
+ 
+D018._UnsignedLeadDigits : Grammar {} =
+  do D018._Natural
+     Choose biased
+       { D018._Frac 0
+       | pure {}
+       }
+ 
+D018._UnsignedNumber : Grammar {} =
+  Choose biased
+    { D018._UnsignedLeadDigits
+    | D018._Frac 1
+    }
+ 
+D018._OctDigit : Grammar {} =
+  do (_100 : uint 8) <- do (_99 : uint 8) <- Match ('0' .. '7')
+                           pure (_99 - '0')
+     @(_100 AS int)
+ 
+D018._HexDigit : Grammar {} =
+  Choose biased
+    { D018._Digit
+    | Choose biased
+        { do (_103 : uint 8) <- do (_102 : uint 8) <- do (_101 : uint 8) <- Match ('a' .. 'f')
+                                                         pure (10 + _101)
+                                   pure (_102 - 'a')
+             @(_103 AS int)
+        | do (_106 : uint 8) <- do (_105 : uint 8) <- do (_104 : uint 8) <- Match ('A' .. 'F')
+                                                         pure (10 + _104)
+                                   pure (_105 - 'A')
+             @(_106 AS int)
+        }
+    }
+ 
+D018._NumberAsNat (x : D018.Number) : Grammar {} =
+  D018._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+ 
+D018._StringNumEsc : Grammar {} =
+  @Many[ 1 .. 3 ] D018._OctDigit
+ 
+D018._StringEsc : Grammar {} =
+  do @MatchBytes "\\"
+     Choose fair
+       { D018._When [uint 8] [uint 8] (@MatchBytes "n")
+       | Choose fair
+           { D018._When [uint 8] [uint 8] (@MatchBytes "r")
+           | Choose fair
+               { D018._When [uint 8] [uint 8] (@MatchBytes "t")
+               | Choose fair
+                   { D018._When [uint 8] [uint 8] (@MatchBytes "b")
+                   | Choose fair
+                       { D018._When [uint 8] [uint 8] (@MatchBytes "f")
+                       | Choose fair
+                           { D018._When [uint 8] [uint 8] (@MatchBytes "(")
+                           | Choose fair
+                               { D018._When [uint 8] [uint 8] (@MatchBytes ")")
+                               | Choose fair
+                                   { D018._When [uint 8] [uint 8] (@MatchBytes "\\")
+                                   | Choose fair
+                                       { D018._When [uint 8] (uint 8) D018._EOL
+                                       | D018._StringNumEsc
+                                       }
+                                   }
+                               }
+                           }
+                       }
+                   }
+               }
+           }
+       }
+ 
+D018._StringChars : Grammar {} =
+  @Many[] do D018.StringChunk
+             pure {}
+ 
+D018._StringInParens : Grammar {} =
+  do @MatchBytes "("
+     D018._StringChars
+     @MatchBytes ")"
+ 
+D018._StringChunk : Grammar {} =
+  Choose fair
+    { Choose fair
+        { D018._StringInParens
+        | D018._StringEsc
+        }
+    | @Many[ 1 .. ] @Match (!"\\()")
+    }
+ 
+D018._String : Grammar {} =
+  D018._Between [uint 8] "(" ")" D018._StringChars
+ 
+D018._HexStringNum2 : Grammar {} =
+  @Many[2] D018._Token int D018._HexDigit
+ 
+D018._HexStringNum1 : Grammar {} =
+  D018._Token int D018._HexDigit
+ 
+D018._HexString : Grammar {} =
+  D018._Between [uint 8] "<" ">" do @Many[] D018._HexStringNum2
+                                    Choose fair
+                                      { D018._HexStringNum1
+                                      | pure {}
+                                      }
+ 
+D018._NameEsc : Grammar {} =
+  do @MatchBytes "#"
+     ($$ : uint 8) <- do (_126 : int) <- do (_125 : [int]) <- Many[2] D018.HexDigit
+                                            pure (D018.numBase [int] int int 16 _125)
+                         pure (_126 as uint 8)
+     D018._Guard (0 < $$)
+ 
+D018._NameChar : Grammar {} =
+  Choose biased
+    { @Match (!"\NUL\t\n\f\r ()<>[]{}/%#")
+    | D018._NameEsc
+    }
+ 
+D018._Name : Grammar {} =
+  D018._Token [uint 8] do @MatchBytes "/"
+                          @Many[] D018._NameChar
+ 
+D018._Null : Grammar {} =
+  D018._KW "null"
+ 
+D018._Ref : Grammar {} =
+  do D018._Token int D018._Natural
+     D018._Token int D018._Natural
+     D018._KW "R"
+ 
+D018._Array : Grammar {} =
+  D018._Between [D018.Value] "[" "]" (@Many[] do D018.Value
+                                                 pure {})
+ 
+D018._Dict : Grammar {} =
+  do (ents : [D018.Dict0]) <- D018.Between [D018.Dict0] "<<" ">>" (Many[] do (key : [uint 8]) <- D018.Name
+                                                                             (value : D018.Value) <- D018.Value
+                                                                             pure {key = key,
+                                                                                   value = value})
+     for ((d : Map [uint 8] D018.Value) = empty; (e : D018.Dict0) in ents)
+       (Insert (e.key) (e.value) d)
+     pure {}
+ 
+D018._Value : Grammar {} =
+  Choose biased
+    { {- null -} D018._Null
+    | {- bool -} D018._Bool
+    | {- ref -} D018._Ref
+    | {- name -} D018._Name
+    | {- string -} D018._String
+    | {- string -} D018._HexString
+    | {- number -} D018._Number
+    | {- array -} D018._Array
+    | {- dict -} D018._Dict
+    }
+ 
+D018._Main : Grammar {} =
+  do @Many[] D018._Value
+     END
