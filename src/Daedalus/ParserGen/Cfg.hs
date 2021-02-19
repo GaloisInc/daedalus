@@ -2,9 +2,9 @@ module Daedalus.ParserGen.Cfg where
 
 import qualified Data.ByteString as BS
 
-import RTS.Input(newInput)
+import RTS.Input(newInput, inputBytes)
 
-import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData)
+import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData, showCallStackDebug, showSemanticData)
 import Daedalus.ParserGen.Aut (Aut, initialState, isAcceptingState)
 
 data Cfg = Cfg !InputData !ControlData !SemanticData {-# UNPACK #-} !State
@@ -16,6 +16,18 @@ instance (Show Cfg) where
     "out:" ++ (show out) ++ "\n" ++
     "ctl:" ++ (show ctrl) ++ "\n" ++
     "st :" ++ (show st) ++ "\n"
+
+showCfg :: Cfg -> String
+showCfg (Cfg inp ctrl sem q) =
+  "in : " ++
+  show (
+  map (\ x -> toEnum (fromIntegral x) :: Char )
+    (take 80 (BS.unpack (inputBytes inp)))
+  )
+  ++ "\n" ++
+  "ctl:" ++ showCallStackDebug ctrl ++ "\n" ++
+  "out:" ++ (concatMap (\ x -> x ++ "\n") (showSemanticData sem)) ++
+  "st :" ++ (show q) ++ "\n"
 
 initCfg :: Aut a => BS.ByteString -> a -> Cfg
 initCfg s aut =
