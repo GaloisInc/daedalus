@@ -12,11 +12,14 @@ module Daedalus.ParserGen.LL.DFA
   , lookupDFA
   , lookaheadDepth
   , revAppend
+  , printDFAtoGraphviz
+  , extractAmbiguity
   )
 where
 
 -- import Debug.Trace
 
+import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isNothing)
@@ -30,6 +33,18 @@ import Daedalus.ParserGen.LL.SlkCfg
 import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DFAStep
 
+
+cst_MAX_LOOKAHEAD_DEPTH :: Int
+cst_MAX_LOOKAHEAD_DEPTH = 20
+
+cst_MAX_DFA_NB_STATES :: Int
+cst_MAX_DFA_NB_STATES = 100
+
+cst_OVERFLOW_CFG :: Int
+cst_OVERFLOW_CFG = 10
+
+cst_DEMO_MODE :: Bool
+cst_DEMO_MODE = True
 
 
 data AmbiguityDetection =
@@ -90,6 +105,11 @@ initLinDFAState = LinDFAState 1
 
 nextLinDFAState :: LinDFAState -> LinDFAState
 nextLinDFAState st = LinDFAState (linDFAState st + 1)
+
+lastLinDFAState :: DFA -> Int
+lastLinDFAState dfa =
+  case lastLin dfa of
+    LinDFAState n -> n
 
 initDFA :: DFAState ->  DFA
 initDFA q =
@@ -196,7 +216,11 @@ showDFA dfa =
         Nothing -> error "missing state"
         Just r ->
           case r of
-            Result (DFATransition { ambiguityTrans = am, nextTrans = lst, acceptTrans = accTr } ) ->
+            Result
+              ( DFATransition
+                { ambiguityTrans = am, nextTrans = lst, acceptTrans = accTr
+                }
+              ) ->
               case am of
                 NotAmbiguous -> ""
                 Ambiguous -> "Ambiguous(acceptingPath + next)"
@@ -231,11 +255,147 @@ showDFA dfa =
                 let alts = Closure.getAltSeq $ dstEntry entry
                 in
                   "(" ++ show (length alts) ++
-                  -- ",q" ++ show q ++
+                  -- ",q" ++ showSlkCfg (Closure.lastCfg (dstEntry entry)) ++
                   ")," ++ b) "" s  ++ "]"
 
     space d = spaceHelper 0
        where spaceHelper cnt = if cnt < d then " " ++ spaceHelper (cnt+1) else ""
+
+
+
+printDFAtoGraphviz :: Int -> DFA -> [ String ]
+printDFAtoGraphviz llaState dfa =
+  showStates (mappingLinToDFAState dfa) ++
+  showTrans [] (startLinDFAState dfa)
+  where
+    stateToNode linState =
+      "N_" ++ (show llaState) ++ "_" ++ (show $ linDFAState linState)
+
+    showStates m =
+      Map.foldrWithKey
+      (\ linState qDFA acc ->
+         if not (elem linState (finalLinDFAState dfa))
+         then
+           ( stateToNode linState ++
+             " [shape=record, label=\"" ++ showGraphvizDFAState qDFA ++ "\"];"
+           ) : acc
+         else acc
+      ) [] m
+
+    showTrans :: [LinDFAState] -> LinDFAState -> [ String ]
+    showTrans vis qq =
+      if elem qq vis
+      then []
+      else
+      case lookupLinDFAState qq dfa of
+        Nothing -> error "missing state"
+        Just r ->
+          case r of
+            Result
+              ( DFATransition
+                { ambiguityTrans = am
+                , nextTrans = lst
+                , acceptTrans = accTr
+                }
+              ) ->
+              case am of
+                NotAmbiguous ->
+                  let
+                    nodeResolution = stateToNode qq ++ show am
+                  in
+                  [ nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.\"]" ++ ";"
+                  , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
+                  ]
+                Ambiguous ->
+                  let
+                    nodeResolution = stateToNode qq ++ "Ambiguous_acceptingPath_next"
+                  in
+                  [ nodeResolution ++ " [shape=box,style=filled,color=\"1. 0.7 0.7\"]" ++ ";"
+                  , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
+                  ]
+                DunnoAmbiguous ->
+                  concatMap (showAccept qq) accTr ++
+                  concatMap (showT (qq : vis) qq) lst
+            _ ->
+              let
+                nodeResolution = stateToNode qq ++ abortToString r
+              in
+                [ nodeResolution ++ " [shape=box,style=filled,color=\".1 0.2 1.\"]" ++ ";"
+                , (stateToNode qq ++ " -> " ++ nodeResolution ++ " [arrowhead=odiamond]")
+                ]
+
+    showT vis qq (i, s, am, _qq, ql) =
+      (nodeqq ++ " -> " ++ nodeql ++
+      "[fontsize = 20, fontname = courrier, label=\"" ++ showGraphvizInputHeadCondition i ++ "\"];") :
+      showDown am
+      where
+        nodeqq = stateToNode qq
+        nodeql = case am of
+                   Ambiguous ->
+                     stateToNode ql ++ "_" ++ "Reg" ++ show (length s) ++ "_" ++ show am
+                   NotAmbiguous ->
+                     stateToNode ql ++ "_" ++ "Reg" ++ show (length s) ++ "_" ++ show am
+                   _ -> stateToNode ql
+        showDown amb =
+          case amb of
+            NotAmbiguous ->
+              let nodeResolution = stateToNode ql ++ show amb in
+              [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
+              , nodeResolution ++ " [shape=box,style=filled,color=\".5 .5 1.0\"];"
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted,arrowhead=odiamond]")
+              ]
+            Ambiguous ->
+              let nodeResolution = stateToNode ql ++ show amb in
+              [ nodeql ++ " [shape=record, label=\"" ++ showGraphvizRegistry s ++ "\"];"
+              , nodeResolution ++ " [shape=box,style=filled,color=\"1. .7 .7\"];"
+              , (nodeql ++ " -> " ++ nodeResolution ++ "[style=dotted, arrowhead=odiamond]")
+              ]
+            DunnoAmbiguous -> showTrans vis ql
+
+    showAccept qq (reg, am) =
+      let nodeResolution = stateToNode qq ++ "AcceptingPath" ++ show am
+      in
+      [ nodeResolution ++  " [shape=box,style=filled,color=\".7 .3 1.0\"]" ++ ";"
+      , (stateToNode qq ++ " -> " ++ nodeResolution ++
+         "[" ++
+         " style=dotted, arrowhead=odiamond, " ++
+         " label=\"" ++ showSet reg ++ "\"" ++
+         "]")
+       ]
+
+    showGraphvizDFAState qq =
+      let iterator = initIteratorDFAState qq in
+      foldr (\ a b -> a ++ b) "" (List.intersperse " | " (translateCfgs iterator []))
+      where
+        translateCfgs it acc =
+          case nextIteratorDFAState it of
+            Nothing -> reverse acc
+            Just (cfg, it2) ->
+              translateCfgs it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
+
+    showSet s =
+      if cst_DEMO_MODE
+      then ""
+      else "Reg" ++ show (length s)
+
+    showGraphvizRegistry r =
+      let iterator = initIteratorDFARegistry r in
+      foldr (\ a b -> a ++ b) "" (List.intersperse " | " (translateRegistry iterator []))
+      where
+        translateRegistry it acc =
+          case nextIteratorDFARegistry it of
+            Nothing -> reverse acc
+            Just (entry, it2) ->
+              let cfg =
+                    let cm = dstEntry entry in
+                    case cm of
+                      Closure.ClosureMove {} -> Closure.closureCfg cm
+                      Closure.ClosurePath {} -> Closure.lastCfg cm
+                      Closure.ClosureAccepting {} -> Closure.closureCfg cm
+              in
+              translateRegistry it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
+
+
 
 lookaheadDepth :: DFA -> Int
 lookaheadDepth dfa =
@@ -262,10 +422,6 @@ lookaheadDepth dfa =
           in foldOverList vis src rest (max acc (i + 1))
 
 
-maxLookaheadDepth :: Int
-maxLookaheadDepth = 20
-
-
 getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
 getConflictSetsPerLoc s =
   partitionDFARegistry s sameEntryPerLoc
@@ -283,25 +439,25 @@ getConflictSetsPerLoc s =
 -- * `NotAmbiguous` when there is only one conflict set with only one possibility, or when the conflict set is empty
 -- * `Ambiguous` if there is at least one conflict set with at least 2 possibilities
 -- * `DunnoAmbiguous` if all the conflict sets have 1 possibility
-analyzeConflicts :: DFARegistry -> AmbiguityDetection
+analyzeConflicts :: DFARegistry -> (AmbiguityDetection, Maybe [DFAEntry])
 analyzeConflicts ts =
   let conflictSets = getConflictSetsPerLoc ts
   in case conflictSets of
-       [] -> NotAmbiguous
+       [] -> (NotAmbiguous, Nothing)
        [ [] ] -> error "empty list"
        [ lst ] ->
          if length lst == 1
-         then NotAmbiguous
-         else Ambiguous
+         then (NotAmbiguous, Nothing)
+         else (Ambiguous, Just lst)
        lstLst -> isAnyAmbiguous lstLst
   where
     isAnyAmbiguous cs =
       case cs of
-        [] -> DunnoAmbiguous
+        [] -> (DunnoAmbiguous, Nothing)
         [] : _rest -> error "empty list"
         lst : rest ->
           if length lst > 1
-          then Ambiguous
+          then (Ambiguous, Just lst)
           else isAnyAmbiguous rest
 
 revAppend :: [a] -> [a] -> [a]
@@ -336,16 +492,13 @@ mapAnalyzeConflicts dc =
   where
     fconvert (ihc, reg) =
       let newCfg = convertDFARegistryToDFAState reg
-          am = analyzeConflicts reg
+          (am, _) = analyzeConflicts reg
       in (ihc, reg, am, newCfg, dummyLinDFAState)
 
     fconvertAccepting reg =
-      let am = analyzeConflicts reg
+      let (am, _) = analyzeConflicts reg
       in Just (reg, am)
 
-
-oVERFLOW_CFG :: Int
-oVERFLOW_CFG = 10
 
 createDFA ::
   Aut a =>
@@ -355,7 +508,7 @@ createDFA aut qInit tab =
   let idfa = initDFA qInit in
   let
     (dfa, tab1) =
-      if measureDFAState qInit > oVERFLOW_CFG
+      if measureDFAState qInit > cst_OVERFLOW_CFG
       then (insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa, tab)
       else go [(startLinDFAState idfa, 0)] [] idfa tab
   in
@@ -374,9 +527,13 @@ createDFA aut qInit tab =
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
-              if depth > maxLookaheadDepth
+              if (depth > cst_MAX_LOOKAHEAD_DEPTH ||
+                 lastLinDFAState dfa > cst_MAX_DFA_NB_STATES)
               then
-                let newDfa = insertDFA q (Abort AbortDFAOverflowLookahead) dfa
+                let newDfa =
+                      if depth > cst_MAX_LOOKAHEAD_DEPTH
+                      then insertDFA q (Abort AbortDFAOverflowLookahead) dfa
+                      else insertDFA q (Abort AbortDFAOverflowNbStates) dfa
                 in go rest accToVisit newDfa localTab
               else
                 let (choices, tab1) =
@@ -508,3 +665,49 @@ computeHasNoAbort dfa =
             NotAmbiguous -> helper visited rest
             Ambiguous -> helper visited rest
             DunnoAmbiguous -> traverseWithVisited visited q && helper visited rest
+
+
+extractAmbiguity :: DFA -> Maybe ([InputHeadCondition], [DFAEntry])
+extractAmbiguity dfa =
+  let start = startLinDFAState dfa in
+  traverseWithVisited [] start
+  where
+    traverseWithVisited visited q =
+      if elem q visited
+      then Nothing
+      else
+        case lookupLinDFAState q dfa of
+          Nothing -> error "broken invariant"
+          Just r ->
+            case r of
+              Result (DFATransition { ambiguityTrans = NotAmbiguous, nextTrans = lst, acceptTrans = acceptTr}) ->
+                if (not (null lst) || not (isNothing acceptTr))
+                then error "broken invariant"
+                else Nothing
+              Result (DFATransition { ambiguityTrans = DunnoAmbiguous, nextTrans = lst, acceptTrans = Just (_, am)}) ->
+                if not (null lst)
+                then error "broken invariant"
+                else
+                case am of
+                  NotAmbiguous -> Nothing
+                  Ambiguous -> Just ([], [])
+                  DunnoAmbiguous -> error "broken invariant"
+              Result (DFATransition { ambiguityTrans = DunnoAmbiguous, nextTrans = lst, acceptTrans = Nothing}) ->
+                helper (q : visited) lst
+              Result (DFATransition {ambiguityTrans = Ambiguous}) -> Just ([], [])
+              Abort _ -> Nothing
+
+    helper visited lst =
+      case lst of
+        [] -> Nothing
+        (i, reg, am, _, q) : rest ->
+          case am of
+            NotAmbiguous -> helper visited rest
+            Ambiguous ->
+              case analyzeConflicts reg of
+                (Ambiguous, conflicts) -> Just ([i], fromJust conflicts)
+                _ -> error "Weird"
+            DunnoAmbiguous ->
+              case traverseWithVisited visited q of
+                Nothing -> helper visited rest
+                Just (r, conflicts) -> Just ((i : r), conflicts)

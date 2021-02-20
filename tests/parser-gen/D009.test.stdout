@@ -92,10 +92,10 @@ __ZSINK_STATE
 **********************
 ***** Strict LLA *****
 **********************
-("Result-0",2)
-("Result-1",5)
-("Result-2",1)
+("Lookahead-0",2)
+("Lookahead-1",5)
+("Lookahead-2",1)
 
-Total nb states: 8
+Total nb DFAs: 8
 
 SUCCESS: Fully determinized format

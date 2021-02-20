@@ -1,0 +1,88 @@
+Main (4,1)-(7,1)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['P']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Natural (28,9)-(28,24)
+SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(35),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(25),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Natural3 (33,10)-(33,25)
+SlkCfg{ q:94, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(35),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(25),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+PPM (16,14)-(16,26)
+SlkCfg{ q:150, ctrl:[?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(37),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Token__37 (11,3)-(11,15)
+SlkCfg{ q:70, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(13),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(52),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Token__38 (11,3)-(11,15)
+SlkCfg{ q:126, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(13),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(36),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
+
+**********************
+***** Strict LLA *****
+**********************
+("Lookahead-0",1)
+("Lookahead-1",12)
+
+Total nb DFAs: 13
+
+SUCCESS: Fully determinized format

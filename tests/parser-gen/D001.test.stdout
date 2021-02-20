@@ -32,9 +32,9 @@ DTrans [
 **********************
 ***** Strict LLA *****
 **********************
-("Result-0",1)
-("Result-1",2)
+("Lookahead-0",1)
+("Lookahead-1",2)
 
-Total nb states: 3
+Total nb DFAs: 3
 
 SUCCESS: Fully determinized format

@@ -11,6 +11,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.List (isInfixOf)
+import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Control.Monad.State as ST
 
@@ -193,6 +194,7 @@ allocGExpr n ctx gexpr =
         TCCoerceCheck ws t1 t2 e1 ->
           let ae1 = idVExpr e1
           in allocate (TCCoerceCheck ws t1 t2 ae1) n 2
+
         TCFor lp ->
           case loopFlav lp of
             Fold x e ->
@@ -211,7 +213,7 @@ allocGExpr n ctx gexpr =
                       , loopType = loopType lp
                       }
               in
-                allocate (TCFor forContent) n1 3
+                allocate (TCFor forContent) n1 5
 
             LoopMap ->
               let gram = loopBody lp
@@ -226,7 +228,7 @@ allocGExpr n ctx gexpr =
                       , loopBody = agram
                       , loopType = loopType lp
                       }
-              in allocate (TCFor forContent) n1 3
+              in allocate (TCFor forContent) n1 5
         TCCall name [] le ->
           let ale = map subArg le
           in allocate (TCCall name [] ale) n 2
@@ -237,7 +239,26 @@ allocGExpr n ctx gexpr =
         TCFail e1 t ->
           let ae1 = maybe Nothing (\ e -> Just $ idVExpr e) e1
           in allocate (TCFail ae1 t) n 2
+        TCCase e1 lpat mdpat ->
+          let ae1 = idVExpr e1 in
+          let stepPat (ags, n') g@(TCAlt { tcAltBody = body }) =
+                let (abody, n1) = allocGram n' ctx body
+                in (g{ tcAltBody = abody} : ags, n1)
+          in
+
+          let (alpat, ns1) = foldl stepPat ([], n) (NonEmpty.toList lpat) in
+          let (amdpat, ns2) =
+                case mdpat of
+                  Nothing -> (Nothing, ns1)
+                  Just dpat ->
+                    let (adpat, ndpat) = allocGram ns1 ctx dpat
+                    in (Just adpat, ndpat)
+
+          in allocate (TCCase ae1 (NonEmpty.fromList (reverse alpat)) amdpat) ns2 4
+          -- let n = length lpat + (maybe 0 (\ n -> 1) dpat)
+
         x -> error ("TODO: " ++ show x)
+
 
     subArg arg =
       case arg of
@@ -257,8 +278,7 @@ allocGram n ctx gram =
 
     allocDo :: Int -> TC a Grammar -> (TC (a, PAST.Annot) Grammar, Int)
     allocDo n1 gr =
-      (annotExpr ((texprAnnot gr), PAST.mkAnnot states ctx) subexpr, subexpr_n)
-      where
+      let
         ((subexpr, states), subexpr_n) =
           case texprValue gr of
             TCDo name gexpr gram1 ->
@@ -272,6 +292,9 @@ allocGram n ctx gram =
               let (ag,n2) = allocGExpr (n1+2) ctx gr
                   subannot = texprAnnot ag
               in ((texprValue ag, (PAST.annotStates $ snd subannot)++[n1+1, n1+2]), n2)
+      in
+      (annotExpr ((texprAnnot gr), PAST.mkAnnot states ctx) subexpr, subexpr_n)
+
 
   in
     -- Two states are reserved for the top-level of binds and they are
@@ -659,13 +682,18 @@ genGExpr gbl e =
               n1 = getS 0
               n2 = getS 1
               n3 = getS 2
+              n4 = getS 3
+              n5 = getS 4
+              infoN = n5
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (ForInit nname1 e1 nname2 e2), n2))
-                , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n3) ] n3)
-                , (f1, UniChoice (CAct (ForNext), n2))
+                , (n2, SeqChoice [ (CAct (ForHasMore), i1), (CAct (ForEnd), n4) ] infoN)
+                , (f1, UniChoice (CAct (ForNext), n3))
+                , (n3, UniChoice (BAct (CutBiasAlt infoN), n2))
+                , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
-          in mkAutWithPop n1 (unionTr trans t1) n3 pops
+          in mkAutWithPop n1 (unionTr trans t1) n5 pops
         LoopMap ->
           let nname1 = tcName (loopElName lp)
               e1 = loopCol lp
@@ -673,13 +701,18 @@ genGExpr gbl e =
               n1 = getS 0
               n2 = getS 1
               n3 = getS 2
+              n4 = getS 3
+              n5 = getS 4
+              infoN = n5
               (i1, t1, f1, pops) = dsAut $ genGram gbl gram
               trans = mkTr
                 [ (n1, UniChoice (CAct (MapInit nname1 e1), n2))
-                , (n2, SeqChoice [ (CAct MapHasMore, i1), (CAct (MapEnd), n3) ] n3)
-                , (f1, UniChoice (CAct (MapNext), n2))
+                , (n2, SeqChoice [ (CAct (MapHasMore), i1), (CAct (MapEnd), n4) ] infoN)
+                , (f1, UniChoice (CAct (MapNext), n3))
+                , (n3, UniChoice (BAct (CutBiasAlt infoN), n2))
+                , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
-          in mkAutWithPop n1 (unionTr trans t1) n3 pops
+          in mkAutWithPop n1 (unionTr trans t1) n5 pops
     TCCall name _ le ->
       let nname = tcName name
           (_, annot) =
@@ -712,6 +745,46 @@ genGExpr gbl e =
       let n1 = getS 0
           n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
+
+    TCCase e1 lpat dpat ->
+      let lstITF =
+            map
+            (\ _pat@(TCAlt{tcAltPatterns = pcase, tcAltBody = bdy}) ->
+                (Just pcase, dsAut $ genGram gbl bdy)
+            ) (NonEmpty.toList lpat)
+            ++
+            (case dpat of
+               Nothing -> []
+               Just bdy -> [ (Nothing, dsAut $ genGram gbl bdy) ]
+            )
+
+          n1 = getS 0
+          n2 = getS 1
+          n3 = getS 2
+          n4 = getS 3
+          infoN = n4
+          transIn  = foldr (\ (mpcase, (i1,_t1,_f1,_)) accTr ->
+                              (maybe
+                                ((CAct (CaseTry Nothing), i1) : accTr)
+                                (\pcase -> (CAct (CaseTry (Just pcase)), i1) : accTr)
+                                mpcase
+                              )
+                           )
+                     [] lstITF
+          transBdy = foldr (\ (_mpcase, (_i1,t1,_f1,_)) accTr -> unionTr t1 accTr) emptyTr lstITF
+          pops     = foldr (\ (_mpcase, (_,_,_, p1)) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
+      in
+        let transOut = foldr (\ (_mpcase, (_i1,_t1,f1,_)) accTr ->
+                                (f1, UniChoice (BAct (CutBiasAlt infoN), n3)) : accTr) [] lstITF
+        in mkAutWithPop n1
+           (unionTr
+             (mkTr [ (n1, UniChoice (CAct (CaseCall e1), n2))
+                   , (n2, SeqChoice transIn infoN)
+                   , (n3, UniChoice (CAct CaseEnd, n4))
+                   ])
+             (unionTr (mkTr transOut) transBdy)
+           )
+           n4 pops
 
     x -> error ("Case not handled: " ++ show x)
 
@@ -821,7 +894,7 @@ buildMapAut decls =
          case b of
            Just res -> Just res
            Nothing ->
-             let ident = name2Text k in
+             let ident = PAST.name2Text k in
                -- TODO: this infixOf test should be removed
                if isInfixOf "Main" (show ident) then Just (k, getSourceRangeDecl a, a) else Nothing
       ) Nothing allocDecls

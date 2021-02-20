@@ -140,6 +140,7 @@ handleOptions opts
                 do let (_gbl, aut) = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
                    let llas = PGen.buildPipelineLLA aut
+                   PGen.llaToGraphviz aut llas
                    PGen.statsLLA aut llas
                 )
 
@@ -258,7 +259,7 @@ interpPGen useJS inp moduls flagMetrics =
                   Nothing -> pure BS.empty
                   Just f  -> BS.readFile f
               let results = PGen.runnerLL gbl bytes aut lla flagMetrics  -- LL
-               -- let results = PGen.runnerBias gbl bytes aut
+              -- let results = PGen.runnerBias gbl bytes aut
               let resultValues = PGen.extractValues results
               if null resultValues
                 then
@@ -275,7 +276,7 @@ interpPGen useJS inp moduls flagMetrics =
                           countLL =        snd (extractMetrics results)
                       in
                         do putStrLn
-                             ( "\nScore (LLpredict / (Backtrack + LLpredict)): " ++
+                             ( "\nScore (LL / (Backtrack + LL)): " ++
                                (if (countBacktrack + countLL) == 0
                                 then "NA"
                                 else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")

@@ -4,6 +4,7 @@
 module Daedalus.ParserGen.LL.ClassInterval
   ( IntervalEndpoint(..)
   , ClassInterval(..)
+  , showGraphvizClassInterval
   , insertItvInOrderedList
   , matchClassInterval
   , classToInterval
@@ -13,7 +14,9 @@ where
 
 -- import Debug.Trace
 
+import Numeric (showHex)
 import Data.Word
+
 
 import qualified Daedalus.Interp as Interp
 import Daedalus.Type.AST
@@ -42,6 +45,17 @@ instance Show IntervalEndpoint where
   show MinusInfinity = "-inf"
   show (CValue i) = show (toEnum (fromIntegral i) :: Char)
 
+
+showGraphvizIntervalPoint :: IntervalEndpoint -> String
+showGraphvizIntervalPoint a =
+  case a of
+    CValue i ->
+      let x = toInteger i in
+      if (48 <= x && x <= 57) || (65 <= x && x <= 90) || (97 <= x && x <= 122)
+      then (toEnum (fromIntegral i) :: Char) : ""
+      else "x" ++ showHex (fromIntegral i :: Integer) ""
+    _ -> show a
+
 incrItv :: IntervalEndpoint -> IntervalEndpoint
 incrItv i =
   case i of
@@ -62,6 +76,17 @@ data ClassInterval =
 
 instance Show ClassInterval where
   show (ClassBtw i j) = if i == j then "[" ++ show i ++ "]" else "[" ++ show i ++ "," ++ show j ++ "]"
+
+
+
+
+showGraphvizClassInterval :: ClassInterval -> String
+showGraphvizClassInterval c =
+  case c of
+    ClassBtw i j ->
+      if i == j
+      then showGraphvizIntervalPoint i
+      else showGraphvizIntervalPoint i ++ "-" ++ showGraphvizIntervalPoint j
 
 
 data Who = A1 | A2 | A12

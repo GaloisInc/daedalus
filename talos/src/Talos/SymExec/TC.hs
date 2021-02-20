@@ -72,7 +72,7 @@ symExecTy' env ty = go ty
             TInteger    -> S.tInt
             TBool       -> S.tBool
             TUnit       -> tUnit
-            TArray t'   -> tListWithLength (go t') -- S.tArray S.tInt (symExecTy t)
+            TArray t'   -> tArrayWithLength (go t') -- S.tArray S.tInt (symExecTy t)
             TMaybe t'   -> tMaybe (go t')
             TMap kt vt  -> tMap (go kt) (go vt)
 

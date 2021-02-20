@@ -3,6 +3,7 @@
 module Daedalus.ParserGen.LL.DFAStep
   ( SourceCfg,
     DFAEntry(..),
+    getInfoEntry,
     DFARegistry,
     IteratorDFARegistry,
     initIteratorDFARegistry,
@@ -29,7 +30,7 @@ module Daedalus.ParserGen.LL.DFAStep
 import qualified Data.Set as Set
 
 import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd)
-import Daedalus.ParserGen.Aut (Aut(..))
+import Daedalus.ParserGen.Aut (Aut(..), stateToString)
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.Result
 import qualified Daedalus.ParserGen.LL.SlkCfg as Slk
@@ -74,6 +75,16 @@ instance Eq DFAEntry where
 instance Ord DFAEntry where
   compare p1 p2 = compareDFAEntry p1 p2
 
+
+
+getInfoEntry :: Aut a => a -> DFAEntry -> [ String ]
+getInfoEntry aut (DFAEntry {srcEntry = src, dstEntry = dst}) =
+  case dst of
+    Closure.ClosureMove { Closure.moveCfg = (_,_,q), Closure.closureCfg = cfg } ->
+      Slk.showSlkControlData aut (Slk.cfgCtrl cfg) ++ ["MATCH: " ++ stateToString q aut]
+    Closure.ClosurePath { Closure.infoMove = (_,_,q), Closure.closureCfg = cfg } ->
+      Slk.showSlkControlData aut (Slk.cfgCtrl cfg) ++ ["MATCH: " ++ stateToString q aut]
+    Closure.ClosureAccepting {} -> ["MATCH: " ++ stateToString (Slk.cfgState src) aut]
 
 -- A generic iterator datatype.
 -- Note the type of data is the same of the generic type
@@ -157,8 +168,6 @@ unionDFARegistry s1 s2 = Set.union s1 s2
 
 singletonDFARegistry :: DFAEntry -> DFARegistry
 singletonDFARegistry x = Set.singleton x
-
-
 
 
 
@@ -306,7 +315,11 @@ newtype DFAState =
   DFAState
   { dfaState :: Set.Set Slk.SlkCfg
   }
-  deriving Show
+
+instance Show(DFAState) where
+  show q =
+    Set.fold (\ cfg s -> s ++ Slk.showSlkCfg cfg) "" (dfaState q)
+
 
 mkDFAState :: State -> Slk.HTable -> (DFAState, Slk.HTable)
 mkDFAState q tab =

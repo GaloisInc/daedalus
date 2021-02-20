@@ -152,7 +152,7 @@ toListAut aut =
 
 stateToString :: Aut a => State -> a -> String
 stateToString q aut =
-  let annToString (srcRg, x) = T.unpack (name2Text x) ++ " " ++ PAST.showSourceRange srcRg
+  let annToString (srcRg, x) = T.unpack (PAST.name2Text x) ++ " " ++ PAST.showSourceRange srcRg
   in
     maybe "__ZAuxiliaryState" (\ p -> annToString p) $ stateMappingAut aut q
 

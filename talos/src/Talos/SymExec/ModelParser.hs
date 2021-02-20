@@ -5,7 +5,7 @@
 
 module Talos.SymExec.ModelParser
   ( ModelP, evalModelP
-  , pBytes, pMUnit, pBranch, pSeq
+  , pBytes, pMUnit, pIndexed, pSeq
   ) where
 
 import qualified Data.Vector as V
@@ -39,9 +39,9 @@ pBytes = pSExpr $ do
 pMUnit :: ModelP ()
 pMUnit = pExact "munit"
 
-pBranch :: (Int -> ModelP a) -> ModelP a
-pBranch rest = pSExpr $ do
-  pExact "branch"
+pIndexed :: (Int -> ModelP a) -> ModelP a
+pIndexed rest = pSExpr $ do
+  pExact "indexed"
   n <- pNumber
   rest (fromIntegral n)
 

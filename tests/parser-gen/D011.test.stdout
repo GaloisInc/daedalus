@@ -139,9 +139,9 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
-("Result-0",3)
-("Result-1",53)
-("Result-ambiguous-13",3)
+("Lookahead-0",3)
+("Lookahead-1",53)
+("Lookahead-ambiguous-13",3)
 ("abort-1",3)
 ("abort-7",1)
 
@@ -150,11 +150,11 @@ Total nb states: 63
 **********************
 ***** Strict LLA *****
 **********************
-("Result-0",1)
-("Result-1",17)
-("Result-ambiguous-13",1)
+("Lookahead-0",1)
+("Lookahead-1",17)
+("Lookahead-ambiguous-13",1)
 
-Total nb states: 19
+Total nb DFAs: 19
 
 
 Warning: LL(*) failures:
@@ -276,3 +276,22 @@ DTrans [
   ),
 ]
 
+*******  Found Ambiguity  *******
+  Start: Main (24,1)-(27,3)
+  Paths : 
+  -  
+     *
+     __ZAuxiliaryState
+     Main (26,10)-(26,22)
+     UnsignedNum (12,19)-(12,23)
+     Digit (9,20)-(9,26)
+     MATCH: Numeral (7,15)-(7,32)
+  -  
+     *
+     __ZAuxiliaryState
+     Main (26,10)-(26,22)
+     UnsignedNum (12,19)-(12,23)
+     Digit (9,20)-(9,26)
+     MATCH: Numeral (7,15)-(7,32)
+********  input witness  ********
+9999999999990-9

@@ -1,19 +1,22 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL.SlkCfg
-  ( SlkInput,
-    SlkCfg(..),
-    compareSlkCfg,
-    measureSlkCfg,
-    initSlkCfg,
-    isInitSlkCfg,
-    showSlkCfg,
-    HTable,
-    emptyHTable,
-    simulateActionSlkCfg,
-    InputHeadCondition(..),
-    matchInputHeadCondition,
-    simulateMove
+  ( SlkInput
+  , SlkCfg(..)
+  , compareSlkCfg
+  , measureSlkCfg
+  , initSlkCfg
+  , isInitSlkCfg
+  , showSlkCfg
+  , showSlkControlData
+  , showGraphvizSlkCfg
+  , HTable
+  , emptyHTable
+  , simulateActionSlkCfg
+  , InputHeadCondition(..)
+  , showGraphvizInputHeadCondition
+  , matchInputHeadCondition
+  , simulateMove
   ) where
 
 -- import Debug.Trace
@@ -112,39 +115,42 @@ mkSlkStack ::
   (Ord a, Show a) =>
   SlkStackShape a ->
   HTableSlkStack a -> (SlkStack a, HTableSlkStack a)
-mkSlkStack s tbl =
-  -- _createSlkStackDumb s tbl
-  let knownTbl = (knownSlkStack tbl) in
-  case Map.lookup s knownTbl of
+mkSlkStack s tab =
+  -- _createSlkStackDumb s tab
+  let knownTab = (knownSlkStack tab) in
+  -- trace (show knownTab) $
+  case Map.lookup s knownTab of
     Nothing ->
-      let k = nextKeySlkStack tbl
+      let k = nextKeySlkStack tab
           hs =
             SlkStack
             { keySlkStack = Just k
             , valueSlkStack = s
             }
-          tbl1 =
+          tab1 =
             HTableSlkStack
             { nextKeySlkStack = k + 1
-            , knownSlkStack = Map.insert s hs knownTbl
+            , knownSlkStack = Map.insert s hs knownTab
             }
-      in -- trace (show (k+1)) $
-         -- trace (showSlkStack hs) $
-         (hs, tbl1)
-    Just x -> (x, tbl)
+      in
+        -- trace (show (k+1)) $
+        (hs, tab1)
+    Just x ->
+      -- trace "ALREADY IN" $
+      (x, tab)
 
 _mkSlkStackDumb ::
   Ord a =>
   SlkStackShape a -> HTableSlkStack a ->
   (SlkStack a, HTableSlkStack a)
-_mkSlkStackDumb s tbl =
+_mkSlkStackDumb s tab =
   let
     hs =
       SlkStack
       { keySlkStack = Nothing
       , valueSlkStack = s
       }
-  in (hs, tbl)
+  in (hs, tab)
 
 showSlkStack :: SlkStack a -> String
 showSlkStack s =
@@ -202,6 +208,17 @@ data SlkControlElm =
   deriving (Show, Eq, Ord)
 
 type SlkControlData = SlkStack SlkControlElm
+
+
+showSlkControlData :: Aut.Aut a => a -> SlkControlData -> [String]
+showSlkControlData aut ctrl =
+  case destrSlkStack ctrl of
+    SWildcard -> [ "*" ]
+    SCons (SlkCallFrame _name q _ _) rest ->
+      showSlkControlData aut rest ++ [ Aut.stateToString q aut ]
+    SCons _ rest ->
+      showSlkControlData aut rest
+    SEmpty ->  []
 
 
 
@@ -345,6 +362,25 @@ showSlkCfg
   "inp:" ++ showSlkInput inp ++
   " }"
 
+showGraphvizSlkCfg :: Bool -> SlkCfg -> String
+showGraphvizSlkCfg
+  demoMode
+  (SlkCfg
+  { cfgState = q
+  , cfgCtrl = ctrl
+  , cfgSem = sem
+  , cfgInput = inp
+  }) =
+  if demoMode
+  then
+    "q" ++ show q
+  else
+    "q" ++ show q ++ " " ++
+    "ctrl" ++ showSlkStack ctrl ++ " " ++
+    "sem" ++ showSlkStack sem ++ " " ++
+    "inp" ++ showSlkInput inp
+
+
 
 compareSlkCfg :: SlkCfg -> SlkCfg -> Ordering
 compareSlkCfg cfg1 cfg2 =
@@ -459,17 +495,26 @@ slkValToInt s =
 
 
 -- The `Many` operator is symbolically executed in the following manner.
--- If the bound is `Exactly` and determined then the count is concretely used.
--- If the bound is `Exactly` and abstract then the count abstract.
--- If the bound is `Between` and the upper bound is unlimited or limited but abstract then the count is abstract
--- If the bound is `Between` and the upper bound is limited and known then the count is concretely used
--- NOTE: We could do something when the bound is between and the lower bound is limited.
+-- * If the bound is `Exactly` and determined then the count is concretely used.
+-- * If the bound is `Exactly` and abstract then the count abstract.
+-- * If the bound is `Between` and the lower bound is limited but abstract and
+--   the uppper bound is unlimited, then the count is abstract
+-- * If the bound is `Between` and the lower bound is limited and known and
+--   the upper bound is unlimited, then the count is concrete until the lower bound is passed.
+-- * If the bound is `Between` and the upper bound is unlimited or limited but abstract
+--   then the count is abstract
+-- * If the bound is `Between` and the upper bound is limited and known
+--   then the count is concretely used
 setupCountFromBound :: SlkBetweenItv -> Slk Int
 setupCountFromBound sbet =
   case sbet of
     SlkCExactly Wildcard -> Wildcard
     SlkCExactly (SConcrete _) -> SConcrete 0
-    SlkCBetween _ Nothing -> Wildcard
+
+    SlkCBetween Nothing Nothing -> Wildcard
+    SlkCBetween (Just Wildcard) Nothing -> Wildcard
+    SlkCBetween (Just (SConcrete _)) Nothing -> SConcrete 0
+
     SlkCBetween _ (Just Wildcard) -> Wildcard
     SlkCBetween _ (Just (SConcrete _)) -> SConcrete 0
 
@@ -478,7 +523,17 @@ incrBound sbet scnt =
   case (sbet, scnt) of
     (SlkCExactly (Wildcard), Wildcard) -> Wildcard
     (SlkCExactly (SConcrete _), SConcrete cnt) -> SConcrete (cnt+1)
-    (SlkCBetween _ Nothing, Wildcard) -> Wildcard
+
+    (SlkCBetween Nothing Nothing, Wildcard) -> Wildcard
+    (SlkCBetween (Just Wildcard) Nothing, Wildcard) -> Wildcard
+    (SlkCBetween (Just (SConcrete ii)) Nothing, SConcrete cnt) ->
+      -- once the current cnt exceeds the lower bound and there is no
+      -- upper bound then it is set to wildcard
+      let cnt1 = cnt + 1 in
+      if ii <= cnt1
+      then Wildcard
+      else SConcrete cnt1
+    (SlkCBetween (Just (SConcrete _)) Nothing, Wildcard) -> Wildcard
     (SlkCBetween _ (Just Wildcard), Wildcard) -> Wildcard
     (SlkCBetween _ (Just (SConcrete _)), SConcrete cnt) -> SConcrete (cnt+1)
     _ -> error "case not handled"
@@ -486,6 +541,18 @@ incrBound sbet scnt =
 getCount :: Slk Int -> Int
 getCount (SConcrete cnt) = cnt
 getCount _ = error "broken invariant"
+
+
+
+data CounterLowerBound =
+    Pre Int
+  | Post
+
+getCountWithLowerBound :: Slk Int -> CounterLowerBound
+getCountWithLowerBound (SConcrete cnt) = Pre cnt
+getCountWithLowerBound Wildcard = Post
+
+
 
 
 symbExecCtrlNonPop ::
@@ -520,7 +587,10 @@ symbExecCtrlNonPop _aut ctrl out act
               if i == getCount cnt
               then rJust (rest, out)
               else if i < 0
-                   then rJust (rest, out) -- case aligned with DaeDaLus interp. `Nothing` could be another option
+                   then
+                     -- this case is aligned with DaeDaLus interp.
+                     -- `Nothing` could be another option
+                     rJust (rest, out)
                    else rNothing
             Wildcard ->
               rJust (rest, out)
@@ -534,8 +604,13 @@ symbExecCtrlNonPop _aut ctrl out act
                   then rJust (rest, out)
                   else rNothing
                 Wildcard -> rJust (rest, out)
-            (Just _sii, Nothing) ->
-              rJust (rest, out)
+            (Just sii, Nothing) ->
+              case sii of
+                SConcrete _ ->
+                  case getCountWithLowerBound cnt of
+                    Pre _ -> rNothing
+                    Post -> rJust (rest, out)
+                Wildcard -> rJust (rest, out)
             (Just sii, Just sjj) ->
               case (sii, sjj) of
                 (SConcrete ii, SConcrete jj) ->
@@ -646,9 +721,11 @@ symbExecCtrl aut ctrl out act q2
                 (targetsr, (tcr, tsr)) =
                   foldr
                   (\ q (acc, (tc, ts)) ->
-                     let (wildcard1, newTabC)  = mkSlkStack SWildcard tc
-                         (wildcard2, newTabS1) = mkSlkStack SWildcard ts
-                         (elm, newTabS2) = mkSlkStack (SCons (headSem out) wildcard2) newTabS1
+                     let
+                       (wildcard1, newTabC)  = mkSlkStack SWildcard tc
+                       (wildcard2, newTabS1) = mkSlkStack SWildcard ts
+                       (elm, newTabS2) =
+                         mkSlkStack (SCons (headSem out) wildcard2) newTabS1
                      in
                      ( ( wildcard1
                        , elm
@@ -729,15 +806,12 @@ symbExecSem ctrl out act
         _ -> error "Should not Happen: drop on empty sem stack"
     ManyFreshList _s -> rJust (SCons (SlkSEVal Wildcard) out)
     ManyAppend _s ->
-      -- trace (show out) $
-      -- trace (show ctrl) $
       case destrSlkStack out of
         SWildcard -> rJust SWildcard
         SCons _ y -> Just (y, tab)
         _ -> error "impossible"
 
     -- TODO: move these to unhandled cases
-    SelUnion _ _ _ -> rJust (SCons (SlkSEVal Wildcard) out)
     Guard _ -> rJust (SCons (SlkSEVal Wildcard) out)
     CoerceCheck _ _ _ _ -> rJust (SCons (SlkSEVal Wildcard) out)
 
@@ -760,8 +834,7 @@ symbExecInp act ctrl out inp
       case ev of
         SConcrete (Right x) -> rJust (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
         Wildcard -> R.Abort R.AbortSlkCfgExecution
-        _ -> -- trace (show ev) $
-             error "TODO"
+        _ -> error "TODO"
     StreamLen _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
@@ -769,7 +842,8 @@ symbExecInp act ctrl out inp
         case ev1 of
           SConcrete (Left (Interp.VInteger n)) ->
             case ev2 of
-              SConcrete (Right x) -> rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
+              SConcrete (Right x) ->
+                rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
               Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
           _ -> -- trace "nont integer const" $
@@ -878,13 +952,23 @@ data InputHeadCondition =
   | EndInput
   deriving (Show)
 
+
+showGraphvizInputHeadCondition :: InputHeadCondition -> String
+showGraphvizInputHeadCondition c =
+  case c of
+    HeadInput a -> showGraphvizClassInterval a
+    EndInput -> "END"
+
 matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
 matchInputHeadCondition c i =
   case c of
     HeadInput a ->
       case Input.inputByte i of
         Nothing -> Nothing
-        Just (x, xs) -> if matchClassInterval a x then Just xs else Nothing
+        Just (x, xs) ->
+          if matchClassInterval a x
+          then Just xs
+          else Nothing
     EndInput ->
       if Input.inputEmpty i then Just i else Nothing
 

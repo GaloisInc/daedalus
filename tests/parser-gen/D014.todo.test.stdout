@@ -181,7 +181,7 @@ AbortDFAOverflowInitCfg
 **********************
 ("AbortClosureInfiniteloop",2)
 ("AbortDFAOverflowInitCfg",3)
-("Result-1",1)
+("Lookahead-1",1)
 ("abort-1",12)
 ("abort-2",21)
 
@@ -193,7 +193,7 @@ Total nb states: 39
 ("AbortDFAOverflowInitCfg",1)
 ("abort-2",10)
 
-Total nb states: 11
+Total nb DFAs: 11
 
 
 Warning: LL(*) failures:
@@ -373,3 +373,53 @@ SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 AbortDFAOverflowInitCfg
 
 
+*******  Found Ambiguity  *******
+  Start: Main (11,1)-(11,25)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a
+*******  Found Ambiguity  *******
+  Start: SkipTo__11 (7,32)-(7,39)
+  Paths : 
+********  input witness  ********
+a

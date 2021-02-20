@@ -28,7 +28,7 @@ def ManyDigit = Many (1..) Digit
 
 def BigNumber = {
     $$ = Natural;     -- $$ is the 'default' semantic value of the rule
-    $$ > 100;
+    $$ > 100 is true;
 }
 -- Convert a list of digits to a natural
 def Natural = {

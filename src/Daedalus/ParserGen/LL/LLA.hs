@@ -6,6 +6,7 @@ module Daedalus.ParserGen.LL.LLA
   , statsLLA
   , SynthLLAState
   , LLA(..)
+  , llaToGraphviz
   , Prediction
   , destrPrediction
   , predictLL
@@ -19,7 +20,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromJust)
+import qualified Data.List as List
 import qualified Data.Array.IArray as Array
+import System.IO
 
 import qualified RTS.Input as Input
 
@@ -62,7 +65,7 @@ data LLA = LLA
     -- mapping from the Final states of the DFA to the SynthLLAState
   , mappingFinalToSynth :: Map.Map SynthLLAState MapFinalToSynthLLAState
 
-    -- mapping from the NFA states as to SynthLLAState
+    -- mapping from the NFA states to SynthLLAState
   , mappingNFAToSynth :: IntMap.IntMap SynthLLAState
 
   , mappingDFAStateToSynth :: Map.Map DFAState SynthLLAState
@@ -351,11 +354,11 @@ buildPipelineLLA aut =
   in
   let
     (lla1, tab1) = go initDFAStates [] emptyLLA tab
+    lla11 = synthesizeLLA aut lla1
   in
     if isFullyDeterminizedLLA lla1
     then
-      let lla = synthesizeLLA aut lla1
-      in Left lla
+      Left lla11
     else
       let collectedStates = identifyStartStates ()
       in
@@ -363,7 +366,7 @@ buildPipelineLLA aut =
           (nextInitStates, tab2) = allocate collectedStates tab1
           (lla2, _tab3) = go nextInitStates [] lla1 tab2 in
         let lla3 = synthesizeLLA aut lla2
-        in Right (lla1, lla3)
+        in Right (lla11, lla3)
 
   where
     allocate lst tab =
@@ -401,13 +404,11 @@ buildPipelineLLA aut =
       HTable -> (LLA, HTable)
     go toVisit nextRound lla tab =
       if synthLLAState (lastSynth lla) > 1000000 then error "Stop" else
-      -- trace (show (Map.size lla)) $
       case toVisit of
         [] -> case nextRound of
                 [] -> (lla, tab)
                 _ -> go (reverse nextRound) [] lla tab
         q : qs ->
-          -- trace (show q) $
           if memberLLA q lla
           then go qs nextRound lla tab
           else
@@ -422,23 +423,26 @@ createLLA :: Aut a => a -> LLA
 createLLA aut =
   case buildPipelineLLA aut of
     Left lla -> lla
-    Right (_lla1, lla2) -> lla2
+    Right (_lla1, lla2) ->
+      lla2
+      -- _lla1
 
-showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> String
+showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> [String]
 showStartSynthLLAState aut dfas q =
   let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
   case nextIteratorDFAState (initIteratorDFAState dfaSt) of
-    Nothing -> "__ZSINK_STATE"
+    Nothing -> [ "__ZSINK_STATE" ]
     Just (cfg, qs) ->
       if isEmptyIteratorDFAState qs
-      then stateToString (cfgState cfg) aut ++ "\n" ++
-           showSlkCfg cfg
+      then [ stateToString (cfgState cfg) aut
+           , showSlkCfg cfg
+           ]
       else error "broken invariant"
 
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
-printLLA aut dfas cond =
-  let t = Map.toAscList (transitionLLA dfas)
-      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut dfas q, dfa)) t
+printLLA aut lla cond =
+  let t = Map.toAscList (transitionLLA lla)
+      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
@@ -451,13 +455,69 @@ printLLA aut dfas cond =
                        )
                     then
                       do
-                        putStrLn $ ann
+                        mapM_ putStrLn ann
                         putStrLn $ showDFA dfa
                         putStrLn ""
                     else
                       return ()
 
                 ) tOrdered
+
+printAmbiguities :: Aut a => a -> LLA -> IO ()
+printAmbiguities aut lla =
+  let t = Map.toAscList (transitionLLA lla)
+      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
+      tMapped = Map.fromList tAnnotated
+      tOrdered = Map.assocs tMapped
+  in if length t > 10000
+     then do return ()
+     else mapM_ (\ (ann, dfa) ->
+                    case extractAmbiguity dfa of
+                      Nothing ->
+                        return ()
+                      Just (l, conflicts) ->
+                        do putStrLn "*******  Found Ambiguity  *******"
+                           putStrLn ("  Start: " ++ (head ann))
+                           putStrLn ("  Paths : ")
+                           printConflicts conflicts
+                           putStrLn "********  input witness  ********"
+                           putStrLn $ printPath l
+                ) tOrdered
+  where
+    printPath l =
+      concat (List.intersperse "" (map showGraphvizInputHeadCondition l))
+
+    printConflicts conflicts =
+      do mapM_ (\ c -> do putStrLn ("  -  ")
+                          mapM_ (\ s -> putStrLn ("     " ++ s)
+                                ) (getInfoEntry aut c)
+               ) conflicts
+
+
+
+llaToGraphviz :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
+llaToGraphviz _aut lla =
+  do
+    autFile <- openFile "lla.dot" WriteMode
+    hPutStrLn autFile prelude
+    mapM_ (hPutStrLn autFile) trans
+    hPutStrLn autFile postlude
+    hClose autFile
+  where
+    theLLA =
+      case lla of
+          Left lla1 -> lla1
+          Right (lla1, _lla2) -> lla1
+    m = transitionLLA theLLA
+    f k a b =
+      printDFAtoGraphviz (synthLLAState k) a ++ b
+
+    trans = Map.foldrWithKey f [] m
+    prelude =
+      "// copy this to lla.dot and run\n"
+      ++ "// dot -Tpdf lla.dot > lla.pdf \n"
+      ++ "digraph G { size=\"8,5\"; rankdir=\"LR\";"
+    postlude = "}" ++ "\n// dot -Tpdf lla.dot > lla.pdf " -- "f.view()\n"
 
 
 statsLLA :: Aut a => a -> Either LLA (LLA, LLA) -> IO ()
@@ -471,7 +531,7 @@ statsLLA aut llas =
          putStrLn "***** Strict LLA *****"
          putStrLn "**********************"
          putStrLn $ getReport t initReport
-         putStrLn $ "Total nb states: " ++ show (length t) ++ "\n"
+         putStrLn $ "Total nb DFAs: " ++ show (length t) ++ "\n"
          putStrLn "SUCCESS: Fully determinized format"
 
     Right (lla1, lla) ->
@@ -490,9 +550,10 @@ statsLLA aut llas =
          putStrLn "***** Strict LLA *****"
          putStrLn "**********************"
          putStrLn $ getReport t1 initReport
-         putStrLn $ "Total nb states: " ++ show (length t1) ++ "\n"
+         putStrLn $ "Total nb DFAs: " ++ show (length t1) ++ "\n"
          putStrLn "\nWarning: LL(*) failures:\n"
          printLLA aut lla1 (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
+         printAmbiguities aut lla1
 
   where
     getReport lst report =
@@ -501,7 +562,7 @@ statsLLA aut llas =
         dfa : xs ->
           getReport xs (incrReport report dfa)
 
-    result str = "Result" ++ str
+    result str = "Lookahead" ++ str
 
     initReport :: Map.Map String Int
     initReport = Map.fromAscList []

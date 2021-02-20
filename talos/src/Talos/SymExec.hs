@@ -2,15 +2,14 @@
 {-# Language GeneralizedNewtypeDeriving, ScopedTypeVariables, RankNTypes #-}
 
 -- | Symbolically execute a fragment of DDL
-module Talos.SymExec ({- symExec, ruleName, -} symExecV, symExecP -- , Env(..)
-                     , symExecTy, symExecTyDecl, symExecSummary, solverSynth
-                     {- , symExecG -}) where
+module Talos.SymExec ( solverSynth
+                     , symExecTy, symExecTyDecl, symExecSummary
+                     ) where
 
 
 import Control.Monad.Reader
 import Data.Maybe (maybeToList)
 import qualified Data.List.NonEmpty as NE
-
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -37,25 +36,77 @@ import Talos.Analysis.PathSet
 import Talos.Analysis.Monad (Summary(..))
 
 
--- -- -----------------------------------------------------------------------------
--- -- Enironments (mapping bound variables to their smt equiv.)
+--------------------------------------------------------------------------------
+-- Solver synthesis
 
--- data Env = Env { symVars :: Map (TCName Value) SExpr }
--- --                , solver  :: Solver -- used to for Many
--- --                }
+solverSynth :: Solver -> SummaryClass -> TCName Value -> ProvenanceTag -> FuturePathSet a -> IO SelectedPath
+solverSynth s cl root prov fps = S.inNewScope s $ do
+  model <- S.declare s modelN tModel
+  S.assert s (S.fun (mkPredicateN cl (tcName root)) [model])
+  r <- S.check s
+  case r of
+    S.Sat -> pure ()
+    -- FIXME: pretty gross
+    S.Unsat   -> error "Unsat"
+    S.Unknown -> error "Unknown"
 
--- extendEnv :: TCName Value -> SExpr -> Env -> Env
--- extendEnv k v e = e { symVars = Map.insert k v (symVars e) }
+  sexp <- getValue modelN  
 
--- lookupEnv :: Env -> TCName Value -> SExpr
--- lookupEnv e k = symVars e Map.! k
+  case evalModelP (parseModel prov fps) sexp of
+    [] -> panic "No parse" []
+    sp : _ -> pure sp
+    
+  where
+    getValue :: String -> IO SExpr
+    getValue a = do
+      res <- S.command s $ S.fun "get-value" [S.List [S.const a]]
+      case res of
+        S.List [S.List [_, v]] -> pure v
+        _ -> panic (unlines
+                    [ "Unexpected response from the SMT solver:"
+                    , "  Exptected: a value"
+                    , "  Result: " ++ S.showsSExpr res ""
+                    ]) []
 
--- envFromParams :: Solver -> [TCName Value] -> SolverM (Env, [(String, SExpr)])
--- envFromParams s ns = do
---   args <- mapM (\a -> (,) a <$> freshSym (show (pp a))) ns
---   let env  = Env (S.const <$> Map.fromList args) s
---       args' = map (\(n, v) -> (v, symExecTy (tcType n))) args
---   pure (env, args')
+-- This has to follow symExecFuturePathSet
+parseModel :: ProvenanceTag -> FuturePathSet a ->  ModelP SelectedPath
+parseModel prov fps0 = go fps0
+  where
+    go fps =
+      case fps of
+        Unconstrained   -> pure Unconstrained 
+        DontCare n fps' -> dontCare n <$> go fps'
+        PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
+        PathNode n fps'    -> uncurry PathNode <$> pSeq (parseNodeModel prov n) (go fps')
+
+parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
+parseNodeModel prov fpn = 
+  case fpn of
+    -- We could also declare an aux type here which would make things
+    -- a fair bit more readable.  We could aso use a tree instead of a
+    -- list (for term size)
+    Choice fpss         -> pIndexed (\n -> SelectedChoice n <$> parseModel prov (fpss !! n))
+    FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
+      let go n | n < NE.length alts = SelectedCase n <$> parseModel prov (fnAltBody (alts NE.!! n))
+               | Just fps <- m_fps  = SelectedCase n <$> parseModel prov fps
+               | otherwise = panic "Case result out of bounds" [show n]
+      in pIndexed go
+
+    Call (CallNode { callClass = cl, callPaths = paths }) ->
+      let doOne (Wrapped (_, fps)) = parseModel prov fps
+      in SelectedCall cl <$> foldr1 (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
+                                    (map doOne (Map.elems paths))
+
+    FNMany (ManyNode { manyBody = fps }) -> do
+      let pfps = parseModel prov fps
+          doOne l r = uncurry (:) <$> pSeq l r
+          
+      SelectedMany <$> (pIndexed $ \n -> foldr doOne (pure []) (replicate (fromIntegral n) pfps))
+      
+    NestedNode fps        -> SelectedNested <$> parseModel prov fps
+    SimpleNode {}         -> SelectedSimple prov <$> pBytes
+    
+    Assertion {} -> panic "Impossible" [] 
 
 -- -----------------------------------------------------------------------------
 -- Types
@@ -88,15 +139,6 @@ import Talos.Analysis.Monad (Summary(..))
 --       sbind (scallP name (map (S.const . fst) args))
 --             (\n_xs -> spure (sTuple (S.add (sFst n_xs) (S.int 1))
 --                                     (sCons x (sSnd n_xs))))
-
--- -- Returns a predicate over the last argument
--- symExecManyBounds :: Env -> ManyBounds (TC a Value) -> SExpr -> SParserM
--- symExecManyBounds e (Exactly t)   v = S.eq v <$> symExecV e t
--- symExecManyBounds e (Between l h) v =
---   S.and <$> mBound l (S.geq v) <*> mBound h (S.leq v)
---   where
---     mBound Nothing  _ = pure (S.bool True)
---     mBound (Just t) f = f <$> symExecV e t
 
 -- -- This is a bit evil as it relies on having IO inside SParserM
 -- symExecMany :: Env -> WithSem -> Commit -> ManyBounds (TC a Value) -> TC a Grammar
@@ -212,10 +254,6 @@ import Talos.Analysis.Monad (Summary(..))
 -- symExecVLoop _e (Loop { loopFlav = LoopMap }) =
 --   error "symExecVLoop map is unimplemented"
 
--- -----------------------------------------------------------------------------
--- Monad
-
-
 
 -- -----------------------------------------------------------------------------
 -- Names
@@ -269,7 +307,7 @@ symExecFuturePathSet hasResult predN ty frees fps = do
   withSolver $ \s -> void $ liftIO $ S.defineFun s predN args S.tBool body
   where
     m_resN = if hasResult then Just (S.const resN) else Nothing
-    args    = map (\v -> (tcNameToSMTName v, symExecTy (typeOf ty))) frees
+    args    = map (\v -> (tcNameToSMTName v, symExecTy (typeOf v))) frees
               ++ [(modelN, tModel)]
               ++ if hasResult then [(resN, symExecTy ty)] else []
 
@@ -278,71 +316,6 @@ symExecFuturePathSet hasResult predN ty frees fps = do
 --   Bytes ByteString
 --   | Branch   Int SMTPath
 --   | Sequence SMTPath SMTPath
-
--- FIXME: move
-solverSynth :: Solver -> SummaryClass -> TCName Value -> ProvenanceTag -> FuturePathSet a -> IO SelectedPath
-solverSynth s cl root prov fps = S.inNewScope s $ do
-  model <- S.declare s modelN tModel
-  S.assert s (S.fun (mkPredicateN cl (tcName root)) [model])
-  r <- S.check s
-  case r of
-    S.Sat -> pure ()
-    -- FIXME: pretty gross
-    S.Unsat   -> error "Unsat"
-    S.Unknown -> error "Unknown"
-
-  sexp <- getValue modelN  
-
-  case evalModelP (parseModel prov fps) sexp of
-    [] -> panic "No parse" []
-    sp : _ -> pure sp
-    
-  where
-    getValue :: String -> IO SExpr
-    getValue a = do
-      res <- S.command s $ S.fun "get-value" [S.List [S.const a]]
-      case res of
-        S.List [S.List [_, v]] -> pure v
-        _ -> panic (unlines
-                    [ "Unexpected response from the SMT solver:"
-                    , "  Exptected: a value"
-                    , "  Result: " ++ S.showsSExpr res ""
-                    ]) []
-
-parseModel :: ProvenanceTag -> FuturePathSet a ->  ModelP SelectedPath
-parseModel prov fps0 = go fps0
-  where
-    go fps =
-      case fps of
-        Unconstrained   -> pure Unconstrained 
-        DontCare n fps' -> dontCare n <$> go fps'
-        PathNode (Assertion {}) fps' -> dontCare 1 <$> go fps'
-        PathNode n fps'    -> uncurry PathNode <$> pSeq (parseNodeModel prov n) (go fps')
-
-parseNodeModel :: ProvenanceTag -> FutureNode a -> ModelP SelectedNode
-parseNodeModel prov fpn = 
-  case fpn of
-    -- We could also declare an aux type here which would make things
-    -- a fair bit more readable.  We could aso use a tree instead of a
-    -- list (for term size)
-    Choice fpss         -> pBranch (\n -> SelectedChoice n <$> parseModel prov (fpss !! n))
-    FNCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
-      let go n | n < NE.length alts = SelectedCase n <$> parseModel prov (fnAltBody (alts NE.!! n))
-               | Just fps <- m_fps  = SelectedCase n <$> parseModel prov fps
-               | otherwise = panic "Case result out of bounds" [show n]
-      in pBranch go
-
-    Call (CallNode { callClass = cl, callPaths = paths }) ->
-      let doOne (Wrapped (_, fps)) = parseModel prov fps
-      in SelectedCall cl <$> foldr1 (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
-                                    (map doOne (Map.elems paths))
-
-    FNMany {} -> panic "unimplemented" [showPP fpn]
-      
-    NestedNode fps        -> SelectedNested <$> parseModel prov fps
-    SimpleNode {}         -> SelectedSimple prov <$> pBytes
-    
-    Assertion {} -> panic "Impossible" [] 
 
 -- Define a predicate over a corresponding config.  This holds when a
 -- path is valid --- a model for this (i.e. a config) tells us the
@@ -377,7 +350,130 @@ assignedVars = go
 
     evToSet (ProgramVar v) = Set.singleton v
     evToSet (ResultVar {}) = mempty                                                 
-          
+
+--------------------------------------------------------------------------------
+-- SMT Helpers
+
+mkAnd, mkOr :: [SExpr] -> SExpr
+mkOr []  = S.bool True
+mkOr [x] = x
+mkOr xs  = S.orMany xs
+  
+mkAnd []  = S.bool True
+mkAnd [x] = x
+mkAnd xs  = S.andMany xs
+
+--------------------------------------------------------------------------------
+-- Model predicates
+
+mkIsSeq :: SExpr -> SExpr
+mkIsSeq model' = S.fun "(_ is seq)" [model']
+
+mkMatch :: SExpr -> [(SExpr, SExpr)] -> SExpr
+mkMatch e cs =
+  S.fun "match" [ e
+                , S.List [ S.List [ pat, rhs ] | (pat, rhs) <- cs ]
+                ]
+
+-- Shared between case and choice, although case doesn't strictly
+-- required this (having the idx make replaying the model in
+-- synthesise a bit nicer)
+
+mkIndexed :: String -> SExpr -> SExpr -> SExpr
+mkIndexed idxN model body =
+  mkMatch model [ ( S.fun "indexed" [S.const idxN, S.const modelN], body)
+                , ( S.const "_", S.bool False)
+                ]
+
+mkBranch :: SExpr -> [SExpr] -> SExpr
+mkBranch model branches =
+  mkIndexed idxN model (mkOr (zipWith mkOne [0..] branches))
+  where
+    mkOne n branch = S.and (S.eq (S.const idxN) (S.int n)) branch
+    idxN = "$idx"
+    
+--------------------------------------------------------------------------------
+-- Other helpers
+
+evToRHS :: Maybe SExpr -> EntangledVar -> SExpr
+evToRHS _ (ProgramVar v)          = symExecTCName v
+evToRHS (Just res) (ResultVar {}) = res
+evToRHS _ _                       = panic "Expected a result" []
+
+--------------------------------------------------------------------------------
+-- Many
+
+-- Returns a predicate over the last argument
+symExecManyBounds ::  ManyBounds (TC a Value) -> SExpr -> [SExpr]
+symExecManyBounds (Exactly t)   v = [ S.eq v (symExecV t) ]
+symExecManyBounds (Between l h) v = mBound l (S.geq v) ++ mBound h (S.leq v)
+  where
+    mBound Nothing  _ = []
+    mBound (Just t) f = [ f (symExecV t) ]
+
+-- We turn Many (l .. h) b into an assertion over l and h, and a call
+-- into a recursive procedure for b, using tuples as a list.
+symExecMany :: SExpr -> Maybe SExpr -> ManyNode a -> SymExecM SExpr
+symExecMany model m_funres (ManyNode { manyResultAssign = m_res
+                                     , manyBounds       = bnds
+                                     , manyFrees        = evFrees
+                                     , manyBody         = fps
+                                     }) = do
+  auxN <- freshSym "many"
+
+  symExecBody auxN
+  
+  let bndsP = symExecManyBounds bnds count
+      resP  = S.eq count . sArrayLen <$> resCallArgs
+      callP = [ S.fun auxN (passArgs ++ resCallArgs ++ [S.int 0 {- i -}, model ]) ]
+      p     = mkAnd (bndsP ++ resP ++ callP)
+  
+  pure (mkIndexed countN model p)
+
+  where
+    count  = S.const countN
+    countN = "$count"
+    iN = "$i"
+    i  = S.const iN
+
+    -- Dealing with optional returns
+    (resParam, resCallArgs, m_res') = case m_res of
+      Nothing  -> ([], [], Nothing)
+      Just res -> ( [(resN, symExecTy (typeOf res))]
+                  , [(evToRHS m_funres res)]
+                  , Just (sSelectL (S.const resN) i)
+                  )
+    
+    frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evFrees) ]
+
+    -- These are passed through.
+    passParams  = map (\v -> (tcNameToSMTName v, symExecTy (typeOf v))) frees
+                  ++ [(countN, S.tInt)]
+
+    passArgs    = map (S.const . fst) passParams
+    
+    -- c.f. symExecFuturePathSet
+    symExecBody predN = do
+      let varArgs = [ S.add i (S.int 1)
+                    , S.fun "msnd" [S.const modelN]
+                    ]
+
+          resArgs  = map (S.const . fst) resParam
+          recCallP = S.fun predN (passArgs ++ resArgs ++ varArgs)
+      
+      fpsP <- mkExists (Set.toList (assignedVars fps))
+              . mklet modelN (S.fun "mfst" [S.const modelN])
+              <$> futurePathSetPred (S.const modelN) m_res' fps
+
+      let body = S.ite (S.lt i count)
+                 (S.and fpsP recCallP)
+                  -- the prover can probably figure this out itself?
+                 (S.and (S.eq i count) (S.eq (S.const modelN) (S.const "munit")))
+
+      let ps = passParams ++ resParam ++ [(iN, S.tInt), (modelN, tModel)]
+
+      withSolver $ \s -> void $ liftIO $ S.defineFunRec s predN ps S.tBool (\_ -> body)
+                             
 -- FIXME: we use exists here as an implementation technique, they
 -- aren't really requires as they are all assigned (well, asserted
 -- equal) eventually.  It is convenient to do it this was as then we
@@ -396,7 +492,7 @@ futurePathSetPred model m_res fps0 = collect model fps0
     collect' model' fps = do
       let mkRest fps'        = do
             rest <- mklet modelN (S.fun "msnd" [model']) <$> collect (S.const modelN) fps'
-            pure [ (S.fun "(_ is seq)" [model']), rest ]
+            pure [ mkIsSeq model', rest ]
           mkRestNoModel fps' = collect' model' fps'
           thisModel          = S.fun "mfst" [model']
       case fps of
@@ -409,7 +505,7 @@ futurePathSetPred model m_res fps0 = collect model fps0
           (:) (symExecAssertion a) <$> mkRestNoModel fps'
         
         PathNode (SimpleNode rv tc) fps' -> -- Binds a variable.
-          (:) (mkBytes thisModel (\bytes -> symExecG bytes (evToRHS rv) tc))
+          (:) (mkBytes thisModel (\bytes -> symExecG bytes (evToRHS m_res rv) tc))
               <$> mkRest fps'
           
         PathNode n fps' -> (++) <$> goN thisModel n <*> mkRest fps'
@@ -449,7 +545,7 @@ futurePathSetPred model m_res fps0 = collect model fps0
                        , callAllArgs = args
                        , callPaths = paths }) ->
           let mkOne (ev, Wrapped (evs, _)) =
-                let resArg = maybeToList (evToRHS <$> m_res')
+                let resArg = maybeToList (evToRHS m_res <$> m_res')
                     -- c.f. symExecDomain
                     execArg x | Just v <- Map.lookup x args = symExecV v
                               | otherwise = panic "Missing argument" [showPP x]
@@ -462,16 +558,9 @@ futurePathSetPred model m_res fps0 = collect model fps0
                       (map mkOne (Map.toList paths)))
                   ]
 
-        FNMany (ManyNode { manyResultAssign = m_res'
-                         , manyBounds       = bnds
-                         , manyBody         = fps
-                         }) ->
-          panic "unimplemented" [showPP fpn]
+        FNMany mn -> (: []) <$> symExecMany model' m_res mn
         
         NestedNode fps -> collect' model' fps
-
-    mkIsSeq model' = S.fun "(_ is seq)" [model']
-
 
     mkBytes model' bodyf =
       let bytes  = S.const "$bytes"
@@ -479,18 +568,6 @@ futurePathSetPred model m_res fps0 = collect model fps0
                         , ( S.const "_", S.bool False)
                         ]
      
-    -- Shared between case and choice, although case doesn't strictly
-    -- required this (having the idx make replaying the model in
-    -- synthesise a bit nicer)
-
-    mkBranch model' branches =
-      let mkOne n branch = S.and (S.eq (S.const "$idx") (S.int n)) branch
-      in mkMatch model' [ ( S.fun "branch" [S.const "$idx", S.const modelN]
-                          , mkOr (zipWith mkOne [0..] branches)
-                          )
-                        , ( S.const "_", S.bool False)
-                        ]
-
     mkCaseAlt e (FNAlt { fnAltPatterns = pats, fnAltBody = b }) = do
       b' <- collect' (S.const modelN) b
       pure (mkExists (Set.toList (Set.unions (map patBindsSet pats)))
@@ -530,26 +607,8 @@ futurePathSetPred model m_res fps0 = collect model fps0
         TCVarPat v -> [ S.eq (symExecTCName v) e ]
         _          -> [] 
                                
-    evToRHS ev =
-      case ev of
-        ProgramVar v -> symExecTCName v
-        ResultVar {}
-          | Just res <- m_res -> res
-          | otherwise         -> panic "Expected a result" []
-
-    mkOr []  = S.bool True
-    mkOr [x] = x
-    mkOr xs  = S.orMany xs
-      
-    mkAnd []  = S.bool True
-    mkAnd [x] = x
-    mkAnd xs  = S.andMany xs
 
   
-    mkMatch e cs =
-      S.fun "match" [ e
-                    , S.List [ S.List [ pat, rhs ] | (pat, rhs) <- cs ]
-                    ]
 
 mkExists :: [TCName Value] -> SExpr -> SExpr
 mkExists [] b = b

@@ -37,9 +37,9 @@ module Talos.SymExec.StdLib (
   sNil,
   sFromList,
   -- ** List with their length (not checked)
-  tListWithLength,
-  sConsL,
-  sNilL,
+  tArrayWithLength,
+  sArrayLen,
+  sSelectL,
   -- ** Map
   tMap
   ) where
@@ -73,16 +73,17 @@ makeStdLib = withSolver $ \s -> liftIO $ do
   -- This has to be correct by construction, as the reason it is
   -- needed is that we can't write a polymorphic length function in
   -- smtlib
-  S.declareDatatype s "ListWithLength" ["t"] [ ("mk-ListWithLength", [ ("get-list",   tList (S.const "t"))
-                                                                     , ("get-length", S.tInt)
-                                                                     ])
-                                             ]
+  S.declareDatatype s "ArrayWithLength" ["t"] [ ("mk-ArrayWithLength",
+                                                  [ ("get-array", S.tArray S.tInt (S.const "t"))
+                                                  , ("get-length", S.tInt)
+                                                  ])
+                                              ]
 
   -- The generic type of parse trees/paths
   S.declareDatatype s "Model" []
     [ ("bytes",   [("get-bytes", tList tByte)])
     , ("munit",    [])
-    , ("branch",  [("index", S.tInt), ("get-branch", S.const "Model")])
+    , ("indexed",  [("index", S.tInt), ("get-body", S.const "Model")])
     -- , ("seq",     [("count", S.tInt), ("values", S.tArray S.tInt (S.const "Model"))])
     , ("seq",     [("mfst", S.const "Model"), ("msnd", S.const "Model")])
     ]
@@ -146,18 +147,14 @@ sCons x xs = S.fun "insert" [x, xs]
 sNil :: SExpr -> SExpr
 sNil elT = S.as (S.const "nil") (tList elT)
 
-tListWithLength :: SExpr -> SExpr
-tListWithLength t = S.fun "ListWithLength" [t]
+tArrayWithLength :: SExpr -> SExpr
+tArrayWithLength t = S.fun "ArrayWithLength" [t]
 
-sConsL :: SExpr -> SExpr -> SExpr
-sConsL x xs = S.fun "mk-ListWithLength" [ S.fun "insert" [x, S.fun "get-list" [xs]]
-                                       , S.add (S.int 1) (S.fun "get-length" [xs])
-                                       ]
+sArrayLen :: SExpr -> SExpr
+sArrayLen arr = S.fun "get-length" [arr]
 
-sNilL :: SExpr -> SExpr
-sNilL elT = S.fun "mk-ListWithLength" [ S.as (S.const "nil") (tList elT)
-                                      , S.int 0
-                                      ]
+sSelectL :: SExpr -> SExpr -> SExpr
+sSelectL arr n = S.select (S.fun "get-array" [arr]) n
 
 -- | Quote the structure of a list, given a type of its elements.  In
 -- other words, a Haskell list is converted to an SMT list by

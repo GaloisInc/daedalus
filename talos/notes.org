@@ -868,3 +868,7 @@ an obvious example here.
 
 * Notes
  - Index by failure path?
+* Links
+  https://stackoverflow.com/questions/53470973/z3-control-preference-for-model-return-values
+
+

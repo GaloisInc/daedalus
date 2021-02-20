@@ -342,6 +342,7 @@ summariseMany m_x _tc bnds body = do
         evs'       = subst_x evs
         node       = ManyNode { manyResultAssign = m_x
                               , manyBounds       = bnds
+                              , manyFrees        = maybe evs (flip deleteEntangledVar evs) m_ret
                               , manyBody         = fps
                               }
     pure $ singletonDomain (mergeEntangledVars evs' (tcEntangledVars bnds))

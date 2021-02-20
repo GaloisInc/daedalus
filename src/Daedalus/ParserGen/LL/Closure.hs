@@ -25,6 +25,11 @@ import Daedalus.ParserGen.LL.Result
 import qualified Daedalus.ParserGen.LL.SlkCfg as Slk
 
 
+
+cst_MAX_DEPTH_REC :: Int
+cst_MAX_DEPTH_REC = 200
+
+
 data ChoiceTag = CUni | CPar | CSeq | CPop
   deriving(Eq, Show, Ord)
 
@@ -131,7 +136,6 @@ getAltSeq c =
     ClosureAccepting {} -> altSeq c
 
 
-
 simulateMoveClosure ::
   Slk.InputHeadCondition -> ClosureMove ->
   Slk.HTable -> Maybe (ClosureMove, Slk.HTable)
@@ -159,15 +163,14 @@ simulateMoveClosure ih m tab =
 type ClosureMoveSet = [ClosureMove]
 
 
-maxDepthRec :: Int
-maxDepthRec = 800
-
-
 closureEpsUntilPush ::
   Aut.Aut a =>
   a -> Set.Set Slk.SlkCfg -> ClosureMove ->
   Slk.HTable -> (Result (Maybe ClosureMove), Slk.HTable)
 closureEpsUntilPush aut busy cm tab =
+  --if True
+  --then (Result (Just cm), tab)
+  --else
   if Set.member cfg busy
   then (Abort AbortClosureInfiniteloop, tab)
   else
@@ -183,7 +186,8 @@ closureEpsUntilPush aut busy cm tab =
       Just ch1 ->
         case ch1 of
           Aut.UniChoice (act, q2) -> closureStep (initChoicePos CUni)  (act, q2)
-          Aut.SeqChoice _ _     -> (Result $ Just cm, tab)
+          Aut.SeqChoice _ _     -> -- (Abort AbortClosureUnhandledAction, tab)
+                                   (Result $ Just cm, tab)
           Aut.ParChoice _       -> (Result $ Just cm, tab)
 
   where
@@ -206,7 +210,7 @@ closureEpsUntilPush aut busy cm tab =
       | isPushAction act =
           -- trace (show act) $
           (Result (Just cm), tab)
-      | Seq.length alts > maxDepthRec = (Abort AbortClosureOverflowMaxDepth, tab)
+      | Seq.length alts > cst_MAX_DEPTH_REC = (Abort AbortClosureOverflowMaxDepth, tab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg tab of
             Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)
@@ -268,7 +272,7 @@ closureLoop aut busy (alts, cfg) tab =
       | isUnhandledAction act =
           -- trace (show act) $
           (Abort AbortClosureUnhandledAction, stepTab)
-      | Seq.length alts > maxDepthRec =
+      | Seq.length alts > cst_MAX_DEPTH_REC =
           (Abort AbortClosureOverflowMaxDepth, stepTab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg stepTab of

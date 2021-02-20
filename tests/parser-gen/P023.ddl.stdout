@@ -19,26 +19,33 @@ type P023.Main = { p: P023.B
  
 P023.A : Grammar P023.A =
   Choose fair
-    { {- x -} do (_5 : [uint 8]) <- MatchBytes "ab"
-                 pure {x: _5}
-    | {- y -} do (_6 : [uint 8]) <- MatchBytes "a"
-                 pure {y: _6}
+    { {- x -} do (_7 : [uint 8]) <- MatchBytes "ab"
+                 pure {x: _7}
+    | {- y -} do (_8 : [uint 8]) <- MatchBytes "a"
+                 pure {y: _8}
     }
  
 P023.B : Grammar P023.B =
   Choose biased
-    { {- z -} do (_7 : P023.A) <- P023.A
-                 pure {z: _7}
-    | {- t -} do (_8 : [uint 8]) <- MatchBytes "a"
-                 pure {t: _8}
+    { {- z -} do (_9 : P023.A) <- P023.A
+                 pure {z: _9}
+    | {- t -} do (_10 : [uint 8]) <- MatchBytes "a"
+                 pure {t: _10}
     }
  
 P023.Main : Grammar P023.Main =
-  do (p : P023.B) <- P023.B
-     (q : [uint 8]) <- MatchBytes "bb"
-     END
-     pure {p = p,
-           q = q}
+  Choose biased
+    { do (p : P023.B) <- P023.B
+         (q : [uint 8]) <- MatchBytes "bb"
+         END
+         pure {p = p,
+               q = q}
+    | do (p : P023.B) <- P023.B
+         (q : [uint 8]) <- MatchBytes "bb"
+         END
+         pure {p = p,
+               q = q}
+    }
  
 P023._A : Grammar {} =
   Choose fair
@@ -53,6 +60,11 @@ P023._B : Grammar {} =
     }
  
 P023._Main : Grammar {} =
-  do P023._B
-     @MatchBytes "bb"
-     END
+  Choose biased
+    { do P023._B
+         @MatchBytes "bb"
+         END
+    | do P023._B
+         @MatchBytes "bb"
+         END
+    }

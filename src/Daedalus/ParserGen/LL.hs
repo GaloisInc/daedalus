@@ -3,6 +3,7 @@
 module Daedalus.ParserGen.LL
   ( createLLA
   , buildPipelineLLA
+  , llaToGraphviz
   , statsLLA
   , LLA(..)
   , Prediction

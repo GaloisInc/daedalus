@@ -188,11 +188,11 @@ DTrans [
 **********************
 ***** Strict LLA *****
 **********************
-("Result-0",1)
-("Result-1",2)
-("Result-2",1)
-("Result-3",1)
+("Lookahead-0",1)
+("Lookahead-1",2)
+("Lookahead-2",1)
+("Lookahead-3",1)
 
-Total nb states: 5
+Total nb DFAs: 5
 
 SUCCESS: Fully determinized format

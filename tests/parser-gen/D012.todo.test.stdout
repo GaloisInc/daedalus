@@ -1,29 +1,53 @@
-**********************************
-***** Strict LLA Transitions *****
-**********************************
-Main (36,1)-(38,1)
+Main (36,1)-(39,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-Ambiguous(acceptingPath + next)
+DTrans [
+  ( [(33),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
-**********************
-**** Extended LLA ****
-**********************
-("Result-1",2)
-("abort-1",9)
+_Natural (23,9)-(23,24)
+SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
-Total nb states: 11
+_Token__29 (7,3)-(7,15)
+SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(13),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(27),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
 
 **********************
 ***** Strict LLA *****
 **********************
-("abort-1",1)
+("Lookahead-0",1)
+("Lookahead-1",7)
 
-Total nb states: 1
+Total nb DFAs: 8
 
-
-Warning: LL(*) failures:
-
-Main (36,1)-(38,1)
-SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-Ambiguous(acceptingPath + next)
-
+SUCCESS: Fully determinized format
