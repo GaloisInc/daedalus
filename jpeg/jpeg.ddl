@@ -11,15 +11,19 @@ def EOI = {
 }
 
 -- JFIF metadata 
-def JFIF : [uint 8] = { 
+def JFIF = { 
   Match [0xff, 0xe0]; 
-  SegmentBody;  
+  len = Many 2 UInt8; 
+  Match "JFIF"; 
+  body = SegmentBody;  
 } 
 
 -- EXIF metadata 
-def EXIF : [uint 8] = { 
+def EXIF = { 
   Match [0xff, 0xe1]; 
-  SegmentBody;  
+  len = Many 2 UInt8; 
+  Match "Exif"; 
+  body = SegmentBody;  
 } 
 
 -- Match some segment 
@@ -77,9 +81,9 @@ def SegmentBody = Many {
 
 def Main = { 
   SOI; 
-  JFIF; 
-  EXIF; 
-  $$ = Many Segment; 
+  jfif = JFIF; 
+  exif = EXIF; 
+  segments = Many Segment; 
   EOI; 
   END; 
 } 
