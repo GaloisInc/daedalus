@@ -35,10 +35,21 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
+    - name: Install Z3
+      run: |
+        wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.10/z3-4.8.10-x64-ubuntu-18.04.zip
+        unzip z3-4.8.10-x64-ubuntu-18.04.zip
+        cp z3-4.8.10-x64-ubuntu-18.04/bin/z3 .
+
     - name: Install dependencies
       run: |
         cabal update
         cabal build --only-dependencies --enable-tests
+    - name: Build Talos
+      run: cabal build --enable-tests exe:talos
+    - name: Run Talos tests
+      run: cabal test talos-tests -- --test-options="--solver=./z3"
+
     - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
     - name: Build ICC Parser
