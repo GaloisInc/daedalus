@@ -45,6 +45,11 @@ jobs:
       run: cabal build exe:pdf-hs-driver
     - name: Build PDF dom
       run: cabal build exe:pdf-dom
-    - name: Run tests
+    - name: Build Talos
+      run: cabal build exe:talos 
+    - name: Run Daedalus tests
       run: cabal test daedalus-tests
-           cabal test talos
+    - name: Run Talos tests 
+      run: 
+        cd talos 
+        cabal test talos
