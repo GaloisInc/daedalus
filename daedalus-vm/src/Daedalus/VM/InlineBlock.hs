@@ -62,9 +62,10 @@ import Daedalus.Panic
 import Daedalus.VM
 
 
+
 -- | We assume that the only block visible to other functions is the entry
 inlineBlocks :: VMFun -> VMFun
-inlineBlocks fun = jjElim fun { vmfBlocks = doInline is0 }
+inlineBlocks fun = {-jjElim-} fun { vmfBlocks = doInline is0 }
   where
   s0  = S { stays = Set.singleton (vmfEntry fun)
           , inline = Set.empty
@@ -243,6 +244,7 @@ jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
   where
   jj0   = JJS { jjFixedType = Set.singleton (vmfEntry fun)
               , jjs         = Map.empty
+              , jjMap       = Map.empty
               }
 
   info  = foldr jjInfo jj0 (Map.elems (vmfBlocks fun))
@@ -270,7 +272,8 @@ jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
                          }
 
   changeBlock b
-    | nm `Map.member` jjReplace subst = Nothing -- remove this block
+    | nm `Map.member` jjReplace subst =
+       Nothing -- remove this block
     | otherwise = Just b { blockType = Map.findWithDefault (blockType b) nm
                                                       (jjChangeType subst)
                          , blockTerm = rewTerm (blockTerm b)
@@ -311,6 +314,7 @@ emptySubst = JJSu { jjChangeType = Map.empty, jjReplace = Map.empty }
 data JJS = JJS
   { jjFixedType :: Set Label         -- ^ Can't change the type of these blocks
   , jjs         :: Map Label [Label] -- ^ Target to sources
+  , jjMap       :: Map Label Label   -- ^ source to target
   } deriving Show
 
 jjInfo :: Block -> JJS -> JJS
@@ -320,8 +324,12 @@ jjInfo b =
       case blockInstrs b of
         [] | Just as <- mapM isArg (jArgs l)
            , as == blockArgs b
-            -> \mp -> mp { jjs = Map.insertWith (++) (jLabel l) [blockName b]
-                                                     (jjs mp) }
+            -> \mp -> let src = blockName b
+                          tgt' = jLabel l
+                          tgt = Map.findWithDefault tgt' tgt' (jjMap mp)
+                      in mp { jjMap = Map.insert src tgt (jjMap mp)
+                            , jjs = Map.insertWith (++) tgt [src] (jjs mp)
+                            }
         _ -> addFixed l
 
     JumpIf _ ls       -> fixed2 ls
