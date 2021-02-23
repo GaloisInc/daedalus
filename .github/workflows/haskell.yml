@@ -15,18 +15,12 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: true
+
     - name: Install Z3
       run: |
         wget --quiet https://github.com/Z3Prover/z3/releases/download/z3-4.8.10/z3-4.8.10-x64-ubuntu-18.04.zip
         unzip z3-4.8.10-x64-ubuntu-18.04.zip
         cp z3-4.8.10-x64-ubuntu-18.04/bin/z3 .
-        ./z3 --version
-
-
-    - name: Test Z3
-      run: |
-        pwd
-        ls
         ./z3 --version
 
     - uses: actions/setup-haskell@v1
@@ -56,8 +50,7 @@ jobs:
     - name: Build Talos
       run: cabal build --enable-tests exe:talos
     - name: Run Talos tests
-      run: cabal test talos-tests --test-options="--solver=./z3"
-
+      run: cabal test talos-tests --test-options="--solver=./z3 talos/tests"
     - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
     - name: Build ICC Parser
