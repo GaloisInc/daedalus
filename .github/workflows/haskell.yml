@@ -23,6 +23,11 @@ jobs:
         ./z3 --version
 
 
+    -name: Test Z3
+      run: |
+        pwd
+        ls
+        ./z3 --version
 
     - uses: actions/setup-haskell@v1
       id: setup-haskell
