@@ -23,7 +23,7 @@ jobs:
         ./z3 --version
 
 
-    -name: Test Z3
+    - name: Test Z3
       run: |
         pwd
         ls
