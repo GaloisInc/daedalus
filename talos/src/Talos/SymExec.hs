@@ -47,8 +47,8 @@ solverSynth s cl root prov fps = S.inNewScope s $ do
   case r of
     S.Sat -> pure ()
     -- FIXME: pretty gross
-    S.Unsat   -> error "Unsat"
-    S.Unknown -> error "Unknown"
+    S.Unsat   -> error "SMT solver result: Unsat"
+    S.Unknown -> error "SMT solver result: Unknown"
 
   sexp <- getValue modelN  
 
