@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
     - uses: actions/setup-haskell@v1
       id: setup-haskell
       with:
@@ -33,8 +35,6 @@ jobs:
           ${{ runner.os }}-
 
     - name: Install dependencies
-      with:
-        submodules: true
       run: |
         cabal update
         cabal build --only-dependencies --enable-tests
