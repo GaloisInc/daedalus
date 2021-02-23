@@ -94,25 +94,11 @@ newBlock bty tys def = C \r s ->
       lab            = Label (curFun r) l
       (b,inp,extra)  = buildBlock lab bty tys def
 
-  in case isJumpJump b of
-      -- Just otherL -> ( (otherL, inp, extra), s)
-      _           -> ( (lab, inp, extra)
-                     , s { cLabel  = l + 1
-                         , cLabels = Map.insert lab b (cLabels s)
-                         }
-                     )
-  where
-  isJumpJump b =
-    case (blockInstrs b, blockTerm b) of
-      ([], Jump (JumpPoint l es))
-        | NormalBlock <- bty
-        , Just as <- mapM isArg es
-        , and (zipWith (==) as [ 0 .. ]) -> Just l
-      _ -> Nothing
-
-  isArg e = case e of
-              EBlockArg (BA n _ _) -> Just n
-              _ -> Nothing
+  in ( (lab, inp, extra)
+     , s { cLabel  = l + 1
+         , cLabels = Map.insert lab b (cLabels s)
+         }
+     )  -- jump to jump is handled by InlineBlock later
 
 newLocal :: VMT -> C FV
 newLocal t = C \_ s -> let x = cLocal s
