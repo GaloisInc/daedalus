@@ -52,4 +52,4 @@ jobs:
     - name: Run Talos tests 
       run: | 
         cd talos 
-        cabal test talos
+        cabal test talos-tests
