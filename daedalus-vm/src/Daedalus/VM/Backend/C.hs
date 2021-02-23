@@ -10,7 +10,7 @@ import           Data.Set (Set)
 import           Data.Word(Word64)
 import           Data.Int(Int64)
 import qualified Data.Set as Set
-import           Data.Maybe(maybeToList,mapMaybe,fromMaybe)
+import           Data.Maybe(maybeToList,fromMaybe)
 import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
@@ -89,7 +89,7 @@ cProgram fileNameRoot prog =
   parserDef      = vcat [ "DDL::ParserState p;"
                         , params
                         , cDeclareRetVars allFuns
-                        , cDeclareCallClosures (Map.elems allBlocks)
+                        , cDeclareClosures (Map.elems allBlocks)
                         , " "
                         , "// --- States ---"
                         , " "
@@ -172,28 +172,26 @@ cDeclareRetVars funs = vcat (header : retInp : stmts)
   retInp  = cDeclareVar (cSemType Src.TStream) cRetInput
 
 
-cDeclareCallClosures :: [Block] -> CStmt
-cDeclareCallClosures bs =
-  case mapMaybe doClo bs of
-    [] -> empty
-    ps -> vcat' (header : ps)
+cDeclareClosures :: [Block] -> CStmt
+cDeclareClosures bs =
+    vcat' (header : map declareThr (Set.toList threadClos) ++
+          map declareRet (Set.toList retClos))
   where
   header = "\n// Types for preserving variables across calls"
-  doClo b =
-    let t = blockType b
-        n = extraArgs t
-    in
-    case t of
-      NormalBlock   -> Nothing
-      ReturnBlock {} ->
-        Just $
-        cReturnClass "DDL::Closure" (blockName b)
-                                    (map getType (drop n (blockArgs b)))
-      ThreadBlock ->
-        Just $
-        cReturnClass "DDL::ThreadClosure" (blockName b)
-                                    (map getType (drop 1 (blockArgs b)))
 
+  (retClos,threadClos) = foldr addClo (Set.empty,Set.empty) bs
+
+  addClo b (rets,threads) =
+    let t  = blockType b
+        n  = extraArgs t
+        as = map getType (drop n (blockArgs b))
+    in case t of
+         NormalBlock    -> (rets,threads)
+         ReturnBlock {} -> (Set.insert as rets,threads)
+         ThreadBlock    -> (rets, Set.insert as threads)
+
+  declareRet ts = cClosureClass "DDL::Closure" (cReturnClassName ts) ts
+  declareThr ts = cClosureClass "DDL::Thread"  (cThreadClassName ts) ts
 
 
 
@@ -232,7 +230,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
               bty@(ReturnBlock how) ->
                 let rn = extraArgs bty
                     (ras,cas) = splitAt rn (blockArgs b)
-                    ty = cPtrT (cReturnClassName (blockName b))
+                    ty = cPtrT (cReturnClassName (map getType cas))
                     regN i v = case how of
                                  RetPure -> cRetVar (getType v)
                                  RetNo   -> panic "getArgs" ["RetNo"]
@@ -255,7 +253,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
 
               ThreadBlock ->
                 let x : xs = blockArgs b
-                    ty = cPtrT (cReturnClassName (blockName b))
+                    ty = cPtrT (cThreadClassName (map getType xs))
                 in
                 cBlock
                   $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
@@ -292,7 +290,7 @@ cBlockStmt cInstr =
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
     NoteFail e      -> cStmt (cCall "p.noteFail" [ cExpr e ])
     Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
-      where clo = "new" <+> cCall (cReturnClassName (jLabel l))
+      where clo = "new" <+> cCall (cThreadClassName (map getType (jArgs l)))
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
 
     Free xs         -> vcat (cFree xs)
@@ -647,7 +645,7 @@ cTermStmt ccInstr =
                Nothing  -> panic "cTermStmt" [ "Unknown function", show (pp f) ]
 
   doPush l =
-    let clo = cCall (cReturnClassName (jLabel l))
+    let clo = cCall (cReturnClassName (map getType (jArgs l)))
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
     in cStmt (cCall "p.push" ["new" <+> clo])
 
