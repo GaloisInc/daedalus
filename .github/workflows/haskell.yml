@@ -25,6 +25,7 @@ jobs:
       uses: actions/cache@v2
       env:
         cache-name: cache-cabal
+      with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
           dist-newstyle
