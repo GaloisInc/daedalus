@@ -17,8 +17,13 @@ import Daedalus.VM.Backend.C.Lang
 
 
 
-cReturnClassName :: Label -> Doc
-cReturnClassName l = "Return_" <.> escDoc (pp l)
+cReturnClassName :: [VMT] -> Doc
+cReturnClassName ts = "Return_" <.> escDoc nm
+  where nm = hcat $ punctuate "_" $ map pp ts
+
+cThreadClassName :: [VMT] -> Doc
+cThreadClassName ts = "Thread_" <.> escDoc nm
+  where nm = hcat $ punctuate "_" $ map pp ts
 
 -- | Name of a type.
 -- XXX: module names, namespaces?
