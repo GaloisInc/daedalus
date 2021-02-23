@@ -21,6 +21,7 @@ jobs:
 
     - name: Cache
       uses: actions/cache@v2
+      submodules: true
       env:
         cache-name: cache-cabal
       with:
