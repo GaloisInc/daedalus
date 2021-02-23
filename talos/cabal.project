@@ -1,9 +1,0 @@
-packages:
-  ./
-  deps/simple-smt/
-  ../
-  ../daedalus-core
-  ../daedalus-utils
-  ../daedalus-vm
-  ../rts-hs
-
