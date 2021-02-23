@@ -48,7 +48,7 @@ jobs:
     - name: Build Talos
       run: cabal build --enable-tests exe:talos
     - name: Run Talos tests
-      run: cabal test talos-tests -- --test-options="--solver=./z3"
+      run: cabal test talos-tests --test-options="--solver=./z3"
 
     - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
