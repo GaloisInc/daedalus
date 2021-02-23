@@ -23,8 +23,6 @@ jobs:
       uses: actions/cache@v2
       env:
         cache-name: cache-cabal
-      with:
-        submodules: true
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
           dist-newstyle
@@ -35,6 +33,8 @@ jobs:
           ${{ runner.os }}-
 
     - name: Install dependencies
+      with:
+        submodules: true
       run: |
         cabal update
         cabal build --only-dependencies --enable-tests
