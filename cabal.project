@@ -7,6 +7,7 @@ packages:
   pdf-cos/
   pdf-driver/
   icc-driver/
+  talos/ 
 
 constraints:
   utf8-string < 1.0.2

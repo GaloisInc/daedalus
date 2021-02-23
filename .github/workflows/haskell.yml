@@ -47,3 +47,4 @@ jobs:
       run: cabal build exe:pdf-dom
     - name: Run tests
       run: cabal test daedalus-tests
+      run: cabal test talos

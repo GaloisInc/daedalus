@@ -116,3 +116,17 @@ executable talos-run-test
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
+
+test-suite talos-tests
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            RunUnitTestsTalos.hs
+  default-language:    Haskell2010
+  build-depends:      base,
+                      filepath,
+                      bytestring,
+                      directory,
+                      process,
+                      process-extras,
+                      simple-get-opt >= 0.4
+
