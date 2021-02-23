@@ -34,6 +34,7 @@ defaultOutDir = "test-output"
 data Options = Options
   { inputs    :: [FilePath]
   , outDir    :: FilePath
+  , solver    :: Maybe FilePath
   , showHelp  :: Bool
   } deriving Show
 
@@ -41,12 +42,17 @@ options :: OptSpec Options
 options = OptSpec
   { progDefaults = Options { inputs = []
                            , outDir = defaultOutDir
+                           , solver = Nothing
                            , showHelp = False
                            }
   , progOptions =
       [ Option [] ["out-dir"]
         "Save test output in this directory"
         $ ReqArg "DIR" $ \s o -> Right o { outDir = s }
+
+      , Option [] ["solver"]
+        "Path to solver to use"
+        $ ReqArg "FILE" $ \s o -> Right o { solver = Just s }
 
       , Option [] ["help"]
         "Show this help"
@@ -71,7 +77,7 @@ main =
                   [] -> ["tests"]
                   is -> is
               )
-     results <- mapM (runTest (outDir opts)) tests
+     results <- mapM (runTest opts) tests
      summarize results
 
 
@@ -116,16 +122,20 @@ summarize rs =
 
 
 
-runTest :: FilePath -> TestFile -> IO TestResult
-runTest odir file =
+runTest :: Options -> TestFile -> IO TestResult
+runTest opts file =
   done (
   do putStr file
      hFlush stdout
      let testDir = takeDirectory file
-         dir     = odir </> testDir
+         dir     = outDir opts </> testDir
      createDirectoryIfMissing True dir
-     let ps = [ "exec", exeName, "--", takeFileName file ]
+     let sol = case solver opts of
+                 Nothing -> []
+                 Just s  -> ["--solver=" ++ s]
+         ps = [ "exec", exeName, "--"] ++ sol ++ [takeFileName file]
          cp = (proc "cabal" ps) { cwd = Just testDir }
+     print ps
      (exit,out,err) <- BS.readCreateProcessWithExitCode cp BS.empty
      BS.writeFile stdFile out
      BS.writeFile errFile err
@@ -137,8 +147,8 @@ runTest odir file =
   )
 
   where
-  stdFile = odir </> file <.> "stdout"
-  errFile = odir </> file <.> "stderr"
+  stdFile = outDir opts </> file <.> "stdout"
+  errFile = outDir opts </> file <.> "stderr"
   goldFile = file <.> "stdout"
 
   done m =
