@@ -135,7 +135,6 @@ runTest opts file =
                  Just s  -> ["--solver=" ++ s]
          ps = [ "exec", exeName, "--"] ++ sol ++ [takeFileName file]
          cp = (proc "cabal" ps) { cwd = Just testDir }
-     print ps
      (exit,out,err) <- BS.readCreateProcessWithExitCode cp BS.empty
      BS.writeFile stdFile out
      BS.writeFile errFile err
