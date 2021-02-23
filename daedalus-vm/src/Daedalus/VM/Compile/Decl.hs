@@ -19,17 +19,14 @@ import Daedalus.VM.Compile.Expr
 import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
+import Daedalus.VM.FindLoops
 
 
-
-compileProgram :: [Src.FName] -> [Src.Module] -> Program
-compileProgram entries ms =
-  moduleToProgram entries (captureAnalysis (map compileModule ms))
 
 moduleToProgram :: [Src.FName] -> [Module] -> Program
 moduleToProgram entries ms =
   Program
-    { pModules = ms
+    { pModules = captureAnalysis $ map loopAnalysis ms
     , pEntries = [ compileEntry entry (Src.Call entry []) | entry <- entries ]
     }
 
@@ -105,6 +102,7 @@ compileSomeFun isPure doBody fun =
       VMFun { vmfName   = Src.fName fun
             , vmfCaptures = Capture -- Conservative
             , vmfPure   = isPure
+            , vmfLoop   = False
             , vmfEntry  = l
             , vmfBlocks = Map.adjust addArgs l ls
             }

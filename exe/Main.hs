@@ -112,7 +112,6 @@ handleOptions opts
               let ents = [entry]
               when (optInline opts) (passInline ents specMod)
               passVM specMod
-              passCaptureAnalysis
               m <- ddlGetAST specMod astVM
               let prog = VM.addCopyIs
                        $ VM.doBorrowAnalysis
@@ -209,7 +208,6 @@ generateCPP opts mm =
      entries <- mapM (uncurry ddlGetFName) entRules
      when (optInline opts) (passInline entries specMod)
      passVM specMod
-     passCaptureAnalysis
      m <- ddlGetAST specMod astVM
      let prog = VM.addCopyIs
               $ VM.doBorrowAnalysis

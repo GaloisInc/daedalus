@@ -46,6 +46,8 @@ data VMFun = VMFun
   { vmfName     :: Src.FName
   , vmfCaptures :: Captures
   , vmfPure     :: Bool     -- ^ True if this is not a parser
+  , vmfLoop     :: Bool     -- XXX we need to know the other loop members
+                            -- for inlining
   , vmfEntry    :: Label
   , vmfBlocks   :: Map Label Block
   }
@@ -337,7 +339,7 @@ instance PP Module where
 instance PP VMFun where
   pp f =
     (".function" <+> pp (vmfName f)) $$
-    nest 2 (pp (vmfCaptures f)
+    nest 2 (pp (vmfCaptures f) <+> (if vmfLoop f then ".loop" else empty)
         $$ (".entry" <+> pp (vmfEntry f))
         $$ blocks)
     where

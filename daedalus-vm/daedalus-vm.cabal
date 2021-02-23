@@ -20,6 +20,7 @@ library
     Daedalus.VM.BlockBuilder
     Daedalus.VM.InlineBlock
     Daedalus.VM.FreeVars
+    Daedalus.VM.FindLoops
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.TypeRep

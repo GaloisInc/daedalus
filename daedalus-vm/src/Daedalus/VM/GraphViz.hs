@@ -18,11 +18,13 @@ toGraphViz sty p = unlines
   : "size=\"6,4\";"
   : "ratio=\"fill\";"
   : "graph [splines=true overlap=false];"
-  : concat (zipWith (doFun sty funMap) [1..] allFuns)
+  : concat ns ++ concat es
   ++ ["}"]
   where
   allFuns = [ f | m <- pModules p, f <- mFuns m ]
   funMap = Map.fromList [ (vmfName f, f) | m <- pModules p, f <- mFuns m ]
+
+  (ns,es) = unzip (zipWith (doFun sty funMap) [1..] allFuns)
 
 node :: Label -> String
 node = map esc . show . pp
@@ -31,14 +33,17 @@ node = map esc . show . pp
     | isAlphaNum c = c
     | otherwise = '_'
 
-doFun :: GraphStyle -> Map FName VMFun -> Int -> VMFun -> [String]
+doFun :: GraphStyle -> Map FName VMFun -> Int -> VMFun -> ([String],[String])
 doFun sty funMap n fun =
-    ("subgraph cluster_" ++ show n ++ " {")
+ (  ("subgraph cluster_" ++ show n ++ " {")
   : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
-  : "color=\"#0000000A\";"
+  : ("color=" ++ (if vmfLoop fun then show "green" else show "gray") ++ ";")
   : "style=\"filled\";"
-  : [ l | b <- Map.elems (vmfBlocks fun), l <- edge sty funMap b ]
+  : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks fun) ]
   ++ ["}"]
+  ,
+  [ l | b <- Map.elems (vmfBlocks fun), l <- edge sty funMap b ]
+  )
 
 edge :: GraphStyle -> Map FName VMFun -> Block -> [String]
 edge sty funMap b =
