@@ -40,7 +40,7 @@ library
                                           
                      , Talos
                      , Machine
-  build-depends:       base ^>=4.13.0.0
+  build-depends:       base
                      , daedalus
                      , daedalus-utils
                      , random
@@ -58,7 +58,7 @@ executable talos
   main-is:             Main.hs
   other-modules:       CommandLine
   -- other-extensions:
-  build-depends:       base ^>=4.13.0.0
+  build-depends:       base
                      , talos
                      , daedalus
                      , daedalus-utils
@@ -84,7 +84,7 @@ executable talos-machine
   main-is:             Main.hs
   other-modules:       CommandLine
   -- other-extensions:
-  build-depends:       base ^>=4.13.0.0
+  build-depends:       base
                      , talos
                      , daedalus
                      , daedalus-utils
