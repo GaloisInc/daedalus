@@ -37,7 +37,7 @@ doFun :: GraphStyle -> Map FName VMFun -> Int -> VMFun -> ([String],[String])
 doFun sty funMap n fun =
  (  ("subgraph cluster_" ++ show n ++ " {")
   : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
-  : ("color=" ++ (if vmfLoop fun then show "green" else show "gray") ++ ";")
+  : ("color=" ++ (if vmfLoop fun then show "#ccccccff" else show "#999999ff") ++ ";")
   : "style=\"filled\";"
   : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks fun) ]
   ++ ["}"]
