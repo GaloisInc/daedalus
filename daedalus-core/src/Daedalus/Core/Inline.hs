@@ -54,6 +54,9 @@ shouldExpand f this = InlineM (Map.lookup this . f <$> get)
 isInlineable :: FName -> InlineM Bool
 isInlineable f = InlineM (not . (f `Set.member`) . noInline <$> get)
 
+getNoInline :: InlineM (Set FName)
+getNoInline = InlineM (noInline <$> get)
+
 instantiate :: Subst e => Fun e -> [Expr] -> e
 instantiate f es =
   case fDef f of
@@ -133,8 +136,8 @@ instance Expand e => Expand (Fun e) where
 --    * whihc definitions we may want to keep, even if they are
 --      to be inlined (in case we want to make them into entry points)
 
-orderFuns :: (FreeVars e) => [Fun e] -> [Rec (Fun e)]
-orderFuns ins = comps ins
+orderFuns :: (FreeVars e) => Set FName -> [Fun e] -> [Rec (Fun e)]
+orderFuns noI ins = comps ins
   where
   callMap   = Map.fromListWith Set.union
                 [ (v,Set.singleton n)
@@ -147,17 +150,19 @@ orderFuns ins = comps ins
   cvt sc = case sc of
              AcyclicSCC n -> [NonRec n]
              CyclicSCC ns -> breakLoop ns
+
   node a = case deps a of
              (x,xs) -> (a,x,Set.toList xs)
 
   breakLoop els
     | null els = []
     | otherwise =
-    let loc         = Set.fromList (map fName els)
-        hasExt fu   = not (callersOf (fName fu) `Set.isSubsetOf` loc)
-        (rec,rest)  = partition hasExt els
-    in if null rec then [MutRec rest]
-                   else orderFuns rest ++ [MutRec rec]
+    let isNoI fu     = fName fu `Set.member` noI
+        isSelfRec fu = fName fu `Set.member` callersOf (fName fu)
+    in case (partition isNoI els, partition isSelfRec els) of
+         ((b : more,other),_)   -> orderFuns noI (more++other) ++ [MutRec [b]]
+         (_, (b : more,other)) -> orderFuns noI (more++other) ++ [MutRec [b]]
+         _ -> orderFuns noI (tail els) ++ [MutRec [head els]]
 
 
 -- we can also inline a recursive function that only tail calls itself
@@ -167,7 +172,9 @@ inlineAll ::
   (Expand e, FreeVars e) =>
   (Fun e -> Inlineable -> Inlineable) ->
   [Fun e] -> InlineM [Fun e]
-inlineAll ext = fmap concat . traverse (inlineRec ext) . orderFuns
+inlineAll ext xs =
+  do noI <- getNoInline
+     fmap concat $ traverse (inlineRec ext) $ orderFuns noI xs
 
 inlineRec ::
   (Expand e) =>
@@ -191,5 +198,4 @@ expandModule m =
      pure m { mFFuns = efuns, mGFuns = gfuns }
 
 
--- X -> [*A -> B, B -> A]
 
