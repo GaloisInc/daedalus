@@ -1,4 +1,4 @@
-
+{-# Language GeneralizedNewtypeDeriving #-}
 module Daedalus.GUID (GUID
                      , invalidGUID
                      , firstValidGUID
@@ -7,6 +7,7 @@ module Daedalus.GUID (GUID
                      , mkGUIDState
                      , mkGUIDState'
                      , HasGUID(..)
+                     , FreshM, runFresh, runFreshIn
                      ) where
 
 import MonadLib
@@ -41,8 +42,21 @@ mkGUIDState' proj inj = \f s -> let (r, guid') = f (proj s)
 getNextGUID :: HasGUID m => m GUID
 getNextGUID = guidState (\guid -> (guid, succGUID guid))
 
--- FIXME: we may want to have this be monadic/traversable so you can
--- run impure computations inside.
+
+newtype FreshM a = FreshM (StateT GUID Id a)
+  deriving (Functor,Applicative,Monad)
+
+instance HasGUID FreshM where
+  guidState f = FreshM (sets f)
+
+runFresh :: FreshM a -> GUID -> (a,GUID)
+runFresh (FreshM m) n = runId (runStateT n m)
+
+runFreshIn :: HasGUID m => FreshM a -> m a
+runFreshIn = guidState . runFresh
+
+
+
 class Monad m => HasGUID m where
   guidState :: (GUID -> (a, GUID)) -> m a
 

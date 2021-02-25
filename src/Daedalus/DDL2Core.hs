@@ -19,7 +19,7 @@ import MonadLib
 
 import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
-import Daedalus.GUID(invalidGUID,guidState)
+import Daedalus.GUID(invalidGUID)
 
 import Daedalus.Pass(PassM)
 import qualified Daedalus.Type.AST as TC
@@ -1283,7 +1283,7 @@ fromMb sem t e =
 --------------------------------------------------------------------------------
 -- Translation monad
 
-newtype M a = M (ReaderT R (StateT S FreshM) a)
+newtype M a = M (ReaderT R (StateT S PassM) a)
   deriving (Functor,Applicative,Monad)
 
 data R = R
@@ -1307,8 +1307,6 @@ data S = S
 runToCore :: Map TC.TCTyName TName -> Map TC.Name FName -> M a ->
         PassM (a, (Map TC.TCTyName TName, Map TC.Name FName))
 runToCore topT topN (M m) =
-  guidState $
-  runFresh
   do (a,s) <- runStateT s0 $ runReaderT r0 m
      pure (a, (topTNames s, topNames s))
   where

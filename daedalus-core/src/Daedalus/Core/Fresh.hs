@@ -1,19 +1,9 @@
-{-# Language BlockArguments, GeneralizedNewtypeDeriving #-}
+{-# Language BlockArguments #-}
 module Daedalus.Core.Fresh where
 
-import MonadLib
 import Daedalus.GUID
 import Daedalus.Core.Basics
 
-
-newtype FreshM a = FreshM (StateT GUID Id a)
-  deriving (Functor,Applicative,Monad)
-
-instance HasGUID FreshM where
-  guidState f = FreshM (sets f)
-
-runFresh :: FreshM a -> GUID -> (a,GUID)
-runFresh (FreshM m) n = runId (runStateT n m)
 
 freshTName :: HasGUID m => TName -> m TName
 freshTName n =
