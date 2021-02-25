@@ -1,18 +1,20 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+module Daedalus.Pass
+  ( PassM
+  , runPassM
+  -- * Fresh Name
+  , freshName
+  , freshLocalName
+  , deriveName
+  , deriveNameWith
 
-module Daedalus.Pass (PassM
-                     , runPassM
-                     -- Name functions
-                     , deriveName
-                     , deriveNameWith
-                     , deriveTCName
-                     , deriveTCNameWith
-                     , freshName
-                     , freshTCName
-                     , freshLocalName
-                     , freshLocalTCName
-                     )  where
+    -- * Fresh TCName
+  , deriveTCName
+  , deriveTCNameWith
+  , freshTCName
+  , freshLocalTCName
+  ) where
 
 import Control.Monad.IO.Class
 import MonadLib
@@ -37,7 +39,15 @@ initState = PassState { nextFreeGUID = firstValidGUID }
 runPassM :: PassM a -> IO a
 runPassM m = fst <$> runM (getPassM m) initState 
 
--- FIXME: do these belong here?
+
+--------------------------------------------------------------------------------
+-- Name
+
+freshName :: HasGUID m => ModuleName -> Ident -> Context c -> m Name
+freshName m x c = Name (ModScope m x) c synthetic <$> getNextGUID
+
+freshLocalName :: HasGUID m => Ident -> Context c -> m Name
+freshLocalName x c = Name (Local x) c synthetic <$> getNextGUID
 
 deriveName :: HasGUID m => Name -> m Name
 deriveName x = do
@@ -53,6 +63,11 @@ deriveNameWith f x = do
               ModScope m t -> ModScope m (f t)
   pure (x { nameScopedIdent = si', nameID = nextg })
 
+
+
+--------------------------------------------------------------------------------
+-- TCName
+
 deriveTCName :: HasGUID m =>  TCName k -> m (TCName k)
 deriveTCName x = do
   n <- deriveName (tcName x)
@@ -63,24 +78,22 @@ deriveTCNameWith f x = do
   n <- deriveNameWith f (tcName x)
   pure x { tcName = n }
 
-freshName :: HasGUID m => ModuleName -> Ident -> Context c -> m Name
-freshName m x c = Name (ModScope m x) c synthetic <$> getNextGUID
-
-freshTCName :: HasGUID m => ModuleName -> Ident -> Type -> Context c -> m (TCName c)
+freshTCName ::
+  HasGUID m => ModuleName -> Ident -> Type -> Context c -> m (TCName c)
 freshTCName m x ty c  = do
   n <- freshName m x c
   pure (TCName n ty c)
-  
-freshLocalName :: HasGUID m => Ident -> Context c -> m Name
-freshLocalName x c = Name (Local x) c synthetic <$> getNextGUID
+
 
 freshLocalTCName :: HasGUID m => Ident -> Type -> Context c -> m (TCName c)
 freshLocalTCName x ty c  = do
   n <- freshLocalName x c
   pure (TCName n ty c)
 
+
+
 --------------------------------------------------------------------------------
-  
+
 instance RunM PassM a (IO a) where
   runM = runPassM
 

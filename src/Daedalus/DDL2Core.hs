@@ -3,21 +3,24 @@
 {-# Language ImplicitParams #-}
 {-# Language OverloadedStrings #-}
 {-# Language RecordWildCards #-}
+{-# Language GeneralizedNewtypeDeriving #-}
 module Daedalus.DDL2Core where
 
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Control.Monad(ap,liftM)
 import Data.Maybe(maybeToList)
 import Data.List((\\))
 import Data.Either(partitionEithers)
 import qualified Data.ByteString.Char8 as BS8
 
+import MonadLib
+
 import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
 
+import Daedalus.Pass
 import qualified Daedalus.Type.AST as TC
 import Daedalus.Type.AST (Commit(..), WithSem(..))
 import Daedalus.Core
@@ -28,12 +31,12 @@ import Daedalus.Core.Type(typeOf)
 --------------------------------------------------------------------------------
 
 -- | Assumes that the modules are in dependency order, with leaves first.
-importModules :: [TC.TCModule a] -> TC.ScopedIdent -> ([Module], FName)
-importModules ms entry = fst
-                       $ runM Map.empty Map.empty
-                       $ do ms1 <- mapM fromModule ms
-                            f   <- scopedIdent entry
-                            pure (ms1,f)
+importModules :: [TC.TCModule a] -> TC.ScopedIdent -> PassM ([Module], FName)
+importModules ms entry =
+  fst <$> runToCore Map.empty Map.empty
+          do ms1 <- mapM fromModule ms
+             f   <- scopedIdent entry
+             pure (ms1,f)
 
 
 fromModule :: TC.TCModule a -> M Module
@@ -1278,7 +1281,8 @@ fromMb sem t e =
 --------------------------------------------------------------------------------
 -- Translation monad
 
-newtype M a = M (R -> S -> (a,S))
+newtype M a = M (ReaderT R (StateT S PassM) a)
+  deriving (Functor,Applicative,Monad)
 
 data R = R
   { sourceLocals :: Map (TC.TCName TC.Value) Name
@@ -1301,25 +1305,12 @@ data S = S
   }
 
 
-instance Functor M where
-  fmap = liftM
-
-instance Applicative M where
-  pure a = M \_ s -> (a,s)
-  (<*>)  = ap
-
-instance Monad M where
-  M m >>= f = M \r s -> let (a,s1) = m r s
-                            M m1 = f a
-                        in m1 r s1
-
-
-runM :: Map TC.TCTyName TName -> Map TC.Name FName -> M a ->
-        (a, (Map TC.TCTyName TName, Map TC.Name FName))
-runM topT topN (M m) = (a, (topTNames s, topNames s))
+runToCore :: Map TC.TCTyName TName -> Map TC.Name FName -> M a ->
+        PassM (a, (Map TC.TCTyName TName, Map TC.Name FName))
+runToCore topT topN (M m) =
+  do (a,s) <- runStateT s0 $ runReaderT r0 m
+     pure (a, (topTNames s, topNames s))
   where
-  (a,s) = m r0 s0
-
   r0 = R { sourceLocals = Map.empty
          , curMod       = MName "(no module)"
          }
@@ -1336,10 +1327,10 @@ runM topT topN (M m) = (a, (topTNames s, topNames s))
 --------------------------------------------------------------------------------
 -- The current module
 withModuleName :: TC.ModuleName -> M a -> M a
-withModuleName n (M m) = M \r s -> m r { curMod = MName n } s
+withModuleName n (M m) = M (mapReader (\r -> r { curMod = MName n }) m)
 
 getCurModule :: M MName
-getCurModule = M \r s -> (curMod r, s)
+getCurModule = M (curMod <$> ask)
 
 
 
@@ -1363,31 +1354,35 @@ newTNameRec rec =
     in newTName r flavor (TC.tctyName d)
 
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
-newTName isRec flavor nm = M \r s ->
-  let n = tname s
-      (l,anon) = case nm of
-                   TC.TCTy a -> (a, Nothing)
-                   TC.TCTyAnon a i -> (a, Just i)
-      x = TName { tnameId = n
-                , tnameText = case TC.nameScopedIdent l of
-                                TC.ModScope _ txt -> txt
-                                _ -> panic "newTName" [ "Not a ModScope" ]
-                , tnameAnon = anon
-                , tnameMod = curMod r
-                , tnameRec = isRec
-                , tnameFlav = flavor
-                }
-  in ((), s { tname = tname s + 1
+newTName isRec flavor nm = M
+  do r <- ask
+     sets_ \s ->
+       let n = tname s
+           (l,anon) = case nm of
+                        TC.TCTy a -> (a, Nothing)
+                        TC.TCTyAnon a i -> (a, Just i)
+           x = TName { tnameId = n
+                     , tnameText = case TC.nameScopedIdent l of
+                                     TC.ModScope _ txt -> txt
+                                     _ -> panic "newTName" [ "Not a ModScope" ]
+                     , tnameAnon = anon
+                     , tnameMod = curMod r
+                     , tnameRec = isRec
+                     , tnameFlav = flavor
+                     }
+       in s { tname = tname s + 1
             , topTNames = Map.insert nm x (topTNames s)
-            })
+            }
 
 -- | Type environemnt during translation of declaraionts.
 -- There should be not type variables.
 getTEnv :: M TEnv
-getTEnv = M \_ s -> (TEnv { tVars     = Map.empty
-                          , tNumVars  = Map.empty
-                          , tCons     = topTNames s
-                          }, s)
+getTEnv = M
+  do s <- get
+     pure TEnv { tVars     = Map.empty
+               , tNumVars  = Map.empty
+               , tCons     = topTNames s
+               }
 
 
 
@@ -1396,7 +1391,7 @@ getTEnv = M \_ s -> (TEnv { tVars     = Map.empty
 
 
 newName :: Maybe Text -> Type -> M Name
-newName mb t = M \_ s ->
+newName mb t = M $ sets \s ->
   let n = localName s
       x = Name { nameId = n, nameType = t, nameText = mb }
   in (x, s { localName = localName s + 1 })
@@ -1410,7 +1405,7 @@ newLocal = newName Nothing
 -- | Add a local varialble from the source (i.e., not newly generate)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a
 withSourceLocal (x,n) (M m) =
-  M \r s -> m r { sourceLocals = Map.insert x n (sourceLocals r) } s
+  M $ mapReader (\r -> r { sourceLocals = Map.insert x n (sourceLocals r) }) m
 
 -- | Add mulitple local variable from the source.
 withSourceLocals :: [(TC.TCName TC.Value,Name)] -> M a -> M a
@@ -1418,10 +1413,11 @@ withSourceLocals xs m = foldr withSourceLocal m xs
 
 -- | Resolve a local name.
 sourceLocal :: TC.TCName TC.Value -> M Name
-sourceLocal x = M \r s ->
-  case Map.lookup x (sourceLocals r) of
-    Just v  -> (v,s)
-    Nothing -> panic "sourceLocal" ["Missing source local: " ++ show x ]
+sourceLocal x = M
+  do r <- ask
+     case Map.lookup x (sourceLocals r) of
+       Just v  -> pure v
+       Nothing -> panic "sourceLocal" ["Missing source local: " ++ show x ]
 
 
 
@@ -1430,32 +1426,34 @@ sourceLocal x = M \r s ->
 
 -- | Resolve a top-level name
 topName :: TC.Name -> M FName
-topName x = M \_ s ->
+topName x = M $ sets \s ->
   case Map.lookup x (topNames s) of
     Just v -> (v,s)
     Nothing -> error "topNames" ["Missing top name: " ++ show x ]
 
 scopedIdent :: TC.ScopedIdent -> M FName
-scopedIdent n = M \_ s ->
+scopedIdent n = M $ sets \s ->
   case [ r | (x,r) <- Map.toList (topNames s), TC.nameScopedIdent x == n ] of
     [ f ] -> (f,s)
     _ -> error "scopedIdent" ["Missing entry: " ++ show n ]
 
 addTopName :: TC.Name -> FName -> M ()
-addTopName x f = M \_ s -> ((), s { topNames = Map.insert x f (topNames s) })
+addTopName x f = M $ sets_ \s -> s { topNames = Map.insert x f (topNames s) }
 
 newGName :: Type -> M FName
 newGName = newFName' Nothing
 
 newFName' :: Maybe Text -> Type -> M FName
-newFName' mb ty = M \r s ->
-  let n = globName s
-      x = FName { fnameId = n
-                , fnameType = ty
-                , fnameText = mb
-                , fnameMod = curMod r
-                }
-  in (x, s { globName = globName s + 1 })
+newFName' mb ty = M
+  do r <- ask
+     sets \s ->
+       let n = globName s
+           x = FName { fnameId = n
+                     , fnameType = ty
+                     , fnameText = mb
+                     , fnameMod = curMod r
+                     }
+       in (x, s { globName = globName s + 1 })
 
 
 
@@ -1466,18 +1464,19 @@ newFName' mb ty = M \r s ->
 
 defFunG :: FName -> [Name] -> Grammar -> M ()
 defFunG  f xs e =
-  M \_ s -> ((), s { newGFuns = Fun { fName = f, fParams = xs, fDef = Def e }
-                              : newGFuns s })
+  M $ sets_ \s -> s { newGFuns = Fun { fName = f, fParams = xs, fDef = Def e }
+                               : newGFuns s }
 
 defFunF :: FName -> [Name] -> Expr -> M ()
 defFunF f xs e =
-  M \_ s -> ((), s { newFFuns = Fun { fName = f, fParams = xs, fDef = Def e }
-                              : newFFuns s })
+  M $ sets_ \s -> s { newFFuns = Fun { fName = f, fParams = xs, fDef = Def e }
+                               : newFFuns s }
 
 
 removeNewFuns :: M ([Fun Expr], [Fun Grammar])
-removeNewFuns = M \_ s -> ( (newFFuns s, newGFuns s)
-                          , s { newFFuns = [], newGFuns = [] }
-                          )
+removeNewFuns =
+  M $ sets \s -> ( (newFFuns s, newGFuns s)
+                 , s { newFFuns = [], newGFuns = [] }
+                 )
 
 

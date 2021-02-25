@@ -707,8 +707,9 @@ passCore m =
              Just (SpecializedModule mo) -> pure mo
              _ -> ddlThrow (ADriverError ("Module " ++ show (pp m) ++
                                                         " is not specialized."))
-     let (cm',(tnms',cnms')) = Core.runM Map.empty Map.empty (Core.fromModule mo)
-         cm = Core.normM cm'
+     (cm',(tnms',cnms')) <- ddlRunPass $ Core.runToCore Map.empty Map.empty
+                                                            (Core.fromModule mo)
+     let cm = Core.normM cm'
      ddlUpdate_ \s ->
         s { loadedModules = Map.insert (fromMName (Core.mName cm))
                                        (CoreModue (Core.normM cm))
