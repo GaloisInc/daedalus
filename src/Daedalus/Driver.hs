@@ -724,11 +724,12 @@ passInline no m =
   do ph <- doGetLoaded m
      case ph of
        CoreModue ast ->
-         ddlUpdate_ \s ->
-           s { loadedModules =
-                  Map.insert m
-                     (CoreModue (Core.normM (Core.inlineModule no ast)))
-                     (loadedModules s) }
+         do i <- ddlRunPass (Core.inlineModule no ast)
+            ddlUpdate_ \s ->
+              s { loadedModules =
+                     Map.insert m
+                        (CoreModue (Core.normM i))
+                        (loadedModules s) }
        _ -> panic "passInline" ["Module is not in Core form"]
 
 

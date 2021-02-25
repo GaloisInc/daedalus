@@ -6,6 +6,7 @@ import Data.Text(Text)
 import Data.Function(on)
 
 import Daedalus.PP
+import Daedalus.GUID
 
 
 -- | Module names
@@ -14,7 +15,7 @@ newtype MName = MName { mNameText :: Text }
 
 -- | Type declaration names
 data TName = TName
-  { tnameId   :: Int
+  { tnameId   :: GUID
   , tnameText :: Text
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
@@ -29,7 +30,7 @@ data TFlav = TFlavStruct
 
 -- | Names of top-level functions
 data FName = FName
-  { fnameId         :: Int
+  { fnameId         :: GUID
   , fnameText       :: Maybe Text
   , fnameType       :: Type
   , fnameMod        :: MName
@@ -37,7 +38,7 @@ data FName = FName
 
 -- | Names of local variables
 data Name = Name
-  { nameId   :: Int
+  { nameId   :: GUID
   , nameText :: Maybe Text      -- ^ Name in source, if any
   , nameType :: Type
   }
@@ -124,13 +125,13 @@ instance PP TName where
 
 instance PP FName where
   pp f = case fnameText f of
-           Nothing -> "_F" <.> int (fnameId f)
+           Nothing -> "_F" <.> pp (fnameId f)
            Just t  -> pp t
 
 
 instance PP Name where
   pp n = case nameText n of
-           Nothing -> "_x" <.> int (nameId n)
+           Nothing -> "_x" <.> pp (nameId n)
            Just t  -> pp t
 
 

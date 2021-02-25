@@ -8,31 +8,29 @@ import Data.Set(Set)
 import qualified Data.Set as Set
 import MonadLib
 
+import Daedalus.GUID(HasGUID)
+
 import Daedalus.Core.Free(freeVars)
-import Daedalus.Core.Fresh(FreshM,freshName,runFresh)
+import Daedalus.Core.Fresh(freshName)
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import Daedalus.Core.Grammar
 
 
 -- | Substitute in a grammar or an expression.
--- Avoids capture by not using any free variables in the RHS of the subst
-substitute :: Subst e => Map Name Expr -> e -> e
-substitute su e = fst $ runFresh nextFresh $ runReaderT ro m
+-- Avoids capture by generating fresh names
+substitute :: (Subst e, HasGUID m) => Map Name Expr -> e -> m e
+substitute su e = runReaderT ro m
   where
   SubstM m = subst e
-  vs = freeVars (Map.elems su)
-  nextFresh = case map nameId (Set.toList vs) of
-                [] -> 0
-                is -> 1 + maximum is
-  ro = RO { avoid    = vs
-          , theSubst = su
-          }
-
+  vs       = freeVars (Map.elems su)
+  ro       = RO { avoid    = vs
+                , theSubst = su
+                }
 
 
 class Subst t where
-  subst :: t -> SubstM t
+  subst :: HasGUID m => t -> SubstM m t
 
 instance Subst Expr where
   subst expr =
@@ -75,7 +73,8 @@ instance Subst e => Subst (Case e) where
 
 
 letLike ::
-  (Subst a, Subst b) => (Name -> a -> b -> c) -> Name -> a -> b -> SubstM c
+  (Subst a, Subst b, HasGUID m) =>
+  (Name -> a -> b -> c) -> Name -> a -> b -> SubstM m c
 letLike f x a b =
   do a'     <- subst a
      (y,b') <- bound x (subst b)
@@ -86,7 +85,7 @@ letLike f x a b =
 --------------------------------------------------------------------------------
 -- Monad to keep track of name capture etc
 
-newtype SubstM a = SubstM (ReaderT RO FreshM a)
+newtype SubstM m a = SubstM (ReaderT RO m a)
   deriving (Functor,Applicative,Monad)
 
 data RO = RO
@@ -97,22 +96,22 @@ data RO = RO
 -- | These are guaranteed to not clash with the names in the RHS of the subst
 -- however they may clash with existing binders, in which case we rename
 -- the binders.
-newName :: Name -> SubstM Name
+newName :: HasGUID m => Name -> SubstM m Name
 newName x = SubstM $ lift $ freshName x
 
-captures :: Name -> SubstM Bool
+captures :: Monad m => Name -> SubstM m Bool
 captures x = SubstM $ ((x `Set.member`) . avoid) <$> ask
 
-shouldSubst :: Name -> SubstM (Maybe Expr)
+shouldSubst :: Monad m => Name -> SubstM m (Maybe Expr)
 shouldSubst x = SubstM $ Map.lookup x . theSubst <$> ask
 
-rename :: Name -> Name -> SubstM a -> SubstM a
+rename :: Monad m => Name -> Name -> SubstM m a -> SubstM m a
 rename x y (SubstM m) = SubstM (mapReader extend m)
   where extend ro = RO { avoid    = Set.insert y (avoid ro)
                        , theSubst = Map.insert x (Var y) (theSubst ro)
                        }
 
-bound :: Name -> SubstM t -> SubstM (Name,t)
+bound :: HasGUID m => Name -> SubstM m t -> SubstM m (Name,t)
 bound x scope =
   do yes <- captures x
      if yes

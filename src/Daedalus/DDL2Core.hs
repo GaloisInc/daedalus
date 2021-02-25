@@ -19,13 +19,15 @@ import MonadLib
 
 import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
+import Daedalus.GUID(invalidGUID,guidState)
 
-import Daedalus.Pass
+import Daedalus.Pass(PassM)
 import qualified Daedalus.Type.AST as TC
 import Daedalus.Type.AST (Commit(..), WithSem(..))
 import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.Type(typeOf)
+import Daedalus.Core.Fresh
 
 
 --------------------------------------------------------------------------------
@@ -1281,7 +1283,7 @@ fromMb sem t e =
 --------------------------------------------------------------------------------
 -- Translation monad
 
-newtype M a = M (ReaderT R (StateT S PassM) a)
+newtype M a = M (ReaderT R (StateT S FreshM) a)
   deriving (Functor,Applicative,Monad)
 
 data R = R
@@ -1290,10 +1292,7 @@ data R = R
   }
 
 data S = S
-  { localName :: Int
-  , globName  :: Int
-  , tname     :: Int
-  , newFFuns  :: [Fun Expr]
+  { newFFuns  :: [Fun Expr]
   , newGFuns  :: [Fun Grammar]
 
     -- These don't change during the translation,
@@ -1308,6 +1307,8 @@ data S = S
 runToCore :: Map TC.TCTyName TName -> Map TC.Name FName -> M a ->
         PassM (a, (Map TC.TCTyName TName, Map TC.Name FName))
 runToCore topT topN (M m) =
+  guidState $
+  runFresh
   do (a,s) <- runStateT s0 $ runReaderT r0 m
      pure (a, (topTNames s, topNames s))
   where
@@ -1315,10 +1316,7 @@ runToCore topT topN (M m) =
          , curMod       = MName "(no module)"
          }
 
-  s0 = S { localName  = 0
-         , globName   = 0
-         , tname      = 0
-         , newFFuns   = []
+  s0 = S { newFFuns   = []
          , newGFuns   = []
          , topNames   = topN
          , topTNames  = topT
@@ -1356,23 +1354,21 @@ newTNameRec rec =
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
 newTName isRec flavor nm = M
   do r <- ask
-     sets_ \s ->
-       let n = tname s
-           (l,anon) = case nm of
-                        TC.TCTy a -> (a, Nothing)
-                        TC.TCTyAnon a i -> (a, Just i)
-           x = TName { tnameId = n
-                     , tnameText = case TC.nameScopedIdent l of
-                                     TC.ModScope _ txt -> txt
-                                     _ -> panic "newTName" [ "Not a ModScope" ]
-                     , tnameAnon = anon
-                     , tnameMod = curMod r
-                     , tnameRec = isRec
-                     , tnameFlav = flavor
-                     }
-       in s { tname = tname s + 1
-            , topTNames = Map.insert nm x (topTNames s)
-            }
+     let (l,anon) = case nm of
+                      TC.TCTy a -> (a, Nothing)
+                      TC.TCTyAnon a i -> (a, Just i)
+     x <- freshTName
+            TName { tnameId = invalidGUID
+                  , tnameText = case TC.nameScopedIdent l of
+                                  TC.ModScope _ txt -> txt
+                                  _ -> panic "newTName" [ "Not a ModScope" ]
+                  , tnameAnon = anon
+                  , tnameMod = curMod r
+                  , tnameRec = isRec
+                  , tnameFlav = flavor
+                  }
+     sets_ \s -> s { topTNames = Map.insert nm x (topTNames s) }
+
 
 -- | Type environemnt during translation of declaraionts.
 -- There should be not type variables.
@@ -1391,11 +1387,8 @@ getTEnv = M
 
 
 newName :: Maybe Text -> Type -> M Name
-newName mb t = M $ sets \s ->
-  let n = localName s
-      x = Name { nameId = n, nameType = t, nameText = mb }
-  in (x, s { localName = localName s + 1 })
-
+newName mb t =
+  M $ freshName Name { nameId = invalidGUID, nameType = t, nameText = mb }
 
 -- | Make up a new local name
 newLocal :: Type -> M Name
@@ -1404,8 +1397,8 @@ newLocal = newName Nothing
 
 -- | Add a local varialble from the source (i.e., not newly generate)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a
-withSourceLocal (x,n) (M m) =
-  M $ mapReader (\r -> r { sourceLocals = Map.insert x n (sourceLocals r) }) m
+withSourceLocal (x,n) (M m) = M (mapReader upd m)
+  where upd r = r { sourceLocals = Map.insert x n (sourceLocals r) }
 
 -- | Add mulitple local variable from the source.
 withSourceLocals :: [(TC.TCName TC.Value,Name)] -> M a -> M a
@@ -1446,15 +1439,12 @@ newGName = newFName' Nothing
 newFName' :: Maybe Text -> Type -> M FName
 newFName' mb ty = M
   do r <- ask
-     sets \s ->
-       let n = globName s
-           x = FName { fnameId = n
-                     , fnameType = ty
-                     , fnameText = mb
-                     , fnameMod = curMod r
-                     }
-       in (x, s { globName = globName s + 1 })
-
+     freshFName
+       FName { fnameId = invalidGUID
+             , fnameType = ty
+             , fnameText = mb
+             , fnameMod = curMod r
+             }
 
 
 

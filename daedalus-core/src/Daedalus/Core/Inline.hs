@@ -15,6 +15,7 @@ import Data.Graph(SCC(..))
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Rec(Rec(..))
+import Daedalus.GUID(HasGUID)
 
 import Daedalus.Core.Free(FreeVars(freeFVars))
 import Daedalus.Core.Subst
@@ -24,9 +25,8 @@ import Daedalus.Core.Expr
 import Daedalus.Core.Grammar
 import Daedalus.Core.Basics
 
-inlineModule :: [FName] -> Module -> Module
+inlineModule :: HasGUID m => [FName] -> Module -> m Module
 inlineModule no = runInlineM (Set.fromList no) . expandModule
-
 
 data Inlineable = Inlineable
   { inlineE  :: Map FName (Fun Expr)
@@ -40,39 +40,40 @@ addE f i = i { inlineE = Map.insert (fName f) f (inlineE i) }
 addG :: Fun Grammar -> Inlineable -> Inlineable
 addG f i = i { inlineG = Map.insert (fName f) f (inlineG i) }
 
-newtype InlineM a = InlineM (StateT Inlineable Id a)
-  deriving (Functor,Applicative,Monad)
+newtype InlineM m a = InlineM (StateT Inlineable m a)
+  deriving (Functor,Applicative,Monad,HasGUID)
 
-runInlineM :: Set FName -> InlineM a -> a
-runInlineM no (InlineM m) = fst $ runId $ runStateT s m
+runInlineM :: HasGUID m => Set FName -> InlineM m a -> m a
+runInlineM no (InlineM m) = fst <$> runStateT s m
   where s = Inlineable { inlineE = Map.empty, inlineG = Map.empty
                        , noInline = no }
 
-shouldExpand :: (Inlineable -> Map FName a) -> FName -> InlineM (Maybe a)
+shouldExpand ::
+  Monad m => (Inlineable -> Map FName a) -> FName -> InlineM m (Maybe a)
 shouldExpand f this = InlineM (Map.lookup this . f <$> get)
 
-isInlineable :: FName -> InlineM Bool
+isInlineable :: Monad m => FName -> InlineM m Bool
 isInlineable f = InlineM (not . (f `Set.member`) . noInline <$> get)
 
-getNoInline :: InlineM (Set FName)
+getNoInline :: Monad m => InlineM m (Set FName)
 getNoInline = InlineM (noInline <$> get)
 
-instantiate :: Subst e => Fun e -> [Expr] -> e
+instantiate :: (HasGUID m, Subst e) => Fun e -> [Expr] -> InlineM m e
 instantiate f es =
   case fDef f of
     External -> panic "instantiate"
                   [ "Trying to inline a primitve: " ++ show (pp (fName f)) ]
     Def e ->
-      let su = Map.fromList (fParams f `zip` es)
-      in substitute su e
+      do let su = Map.fromList (fParams f `zip` es)
+         substitute su e
 
-updateInlineable :: (Inlineable -> Inlineable) -> InlineM ()
+updateInlineable :: Monad m => (Inlineable -> Inlineable) -> InlineM m ()
 updateInlineable f = InlineM (sets_ f)
 
 
 -- | Do inlining in the given thing
 class Expand e where
-  expand :: e -> InlineM e
+  expand :: HasGUID m => e -> InlineM m e
 
 instance Expand Expr where
   expand expr =
@@ -91,9 +92,9 @@ instance Expand Expr where
            case op of
              CallF f ->
                do mb <- shouldExpand inlineE f
-                  pure case mb of
-                          Nothing  -> ApN op es'
-                          Just def -> instantiate def es'
+                  case mb of
+                    Nothing  -> pure (ApN op es')
+                    Just def -> instantiate def es'
              _ -> pure (ApN op es')
 
 instance Expand e => Expand (Case e) where
@@ -115,9 +116,9 @@ instance Expand Grammar where
       Call f es ->
         do es' <- traverse expand es
            mb <- shouldExpand inlineG f
-           pure case mb of
-                   Nothing  -> Call f es'
-                   Just yes -> instantiate yes es'
+           case mb of
+             Nothing  -> pure (Call f es')
+             Just yes -> instantiate yes es'
       Annot a g -> Annot a <$> expand g
       GCase c   -> GCase <$> expand c
 
@@ -170,17 +171,17 @@ orderFuns noI ins = comps ins
 -- but that would have to happen at the VM level...
 
 inlineAll ::
-  (Expand e, FreeVars e) =>
+  (HasGUID m, Expand e, FreeVars e) =>
   (Fun e -> Inlineable -> Inlineable) ->
-  [Fun e] -> InlineM [Fun e]
+  [Fun e] -> InlineM m [Fun e]
 inlineAll ext xs =
   do noI <- getNoInline
      fmap concat $ traverse (inlineRec ext) $ orderFuns noI xs
 
 inlineRec ::
-  (Expand e) =>
+  (HasGUID m, Expand e) =>
   (Fun e -> Inlineable -> Inlineable) ->
-  Rec (Fun e) -> InlineM [Fun e]
+  Rec (Fun e) -> InlineM m [Fun e]
 inlineRec ext rec =
   do r1 <- traverse expand rec
      case r1 of
@@ -192,7 +193,7 @@ inlineRec ext rec =
        _ -> pure (Foldable.toList r1)
 
 
-expandModule :: Module -> InlineM Module
+expandModule :: HasGUID m => Module -> InlineM m Module
 expandModule m =
   do efuns <- inlineAll addE (mFFuns m)
      gfuns <- inlineAll addG (mGFuns m)
