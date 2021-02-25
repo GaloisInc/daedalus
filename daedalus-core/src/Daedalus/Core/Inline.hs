@@ -105,6 +105,7 @@ instance Expand Grammar where
       Pure e -> Pure <$> expand e
       GetStream -> pure gram
       SetStream e -> SetStream <$> expand e
+      Match s e -> Match s <$> expand e
       Fail e t mb -> Fail e t <$> traverse expand mb
       Do_ g1 g2 -> Do_ <$> expand g1 <*> expand g2
       Do  x g1 g2 -> Do x <$> expand g1 <*> expand g2

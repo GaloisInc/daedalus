@@ -2,7 +2,9 @@ module Daedalus.Core.Semantics.Grammar where
 
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS8
+import Control.Monad(unless)
 
+import RTS.Input(inputBytes)
 import RTS.Parser
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
@@ -25,6 +27,15 @@ evalG gram env =
     SetStream e ->
       do pSetInput $! fromVInput $ eval e env
          pure VUnit
+
+    Match s e ->
+      do i <- pPeek
+         let v  = eval e env
+             ok = fromVByteArray v `BS8.isPrefixOf` inputBytes i
+         unless ok (pError' FromSystem [] "match failed")
+         case s of
+           SemNo  -> pure VUnit
+           SemYes -> pure v
 
     Fail src _ mbMsg -> pError' dsrc [] msg
       where

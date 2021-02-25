@@ -157,6 +157,9 @@ instance TypeOf Grammar where
       Pure e          -> typeOf e
       GetStream       -> TStream
       SetStream _     -> TUnit
+      Match s _       -> case s of
+                           SemNo  -> TUnit
+                           SemYes -> TArray (TUInt (TSize 8))
       Fail _ t _      -> t
       Do_ _ g         -> typeOf g
       Do  _ _ g       -> typeOf g

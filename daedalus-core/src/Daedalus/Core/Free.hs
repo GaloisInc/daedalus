@@ -91,6 +91,7 @@ instance FreeVars Grammar where
       Pure e            -> freeVars e
       GetStream         -> Set.empty
       SetStream e       -> freeVars e
+      Match _ e         -> freeVars e
       Fail _ _ e        -> freeVars e
       Do_ g1 g2         -> freeVars [g1,g2]
       Do  x g1 g2       -> freeVars g1 `Set.union` Set.delete x (freeVars g2)
@@ -106,6 +107,7 @@ instance FreeVars Grammar where
       Pure e            -> freeFVars e
       GetStream         -> Set.empty
       SetStream e       -> freeFVars e
+      Match _ e         -> freeFVars e
       Fail _ _ e        -> freeFVars e
       Do_ g1 g2         -> freeFVars [g1,g2]
       Do  _ g1 g2       -> freeFVars [g1,g2]

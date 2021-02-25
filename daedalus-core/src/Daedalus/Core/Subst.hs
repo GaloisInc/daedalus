@@ -16,7 +16,7 @@ import Daedalus.Core.Grammar
 
 
 -- | Substitute in a grammar or an expression.
--- Avoids capture by using the given name supply to rename bound variables.
+-- Avoids capture by not using any free variables in the RHS of the subst
 substitute :: Subst e => Map Name Expr -> e -> e
 substitute su e = fst $ runFresh nextFresh $ runReaderT ro m
   where
@@ -58,6 +58,7 @@ instance Subst Grammar where
       Pure e              -> Pure <$> subst e
       GetStream           -> pure grammar
       SetStream e         -> SetStream <$> subst e
+      Match s e           -> Match s <$> subst e
       Fail er t mbE       -> Fail er t <$> traverse subst mbE
       Do_ g1 g2           -> Do_ <$> subst g1 <*> subst g2
       Do  x g1 g2         -> letLike Do x g1 g2

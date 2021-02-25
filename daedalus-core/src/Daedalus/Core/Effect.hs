@@ -18,6 +18,7 @@ canFail gram =
     Pure {}           -> False
     GetStream {}      -> False
     SetStream {}      -> False
+    Match {}          -> True
     Fail {}           -> True
     Call {}           -> True
 
@@ -54,6 +55,7 @@ annotate annCall = annot
       GetStream {}      -> gram
       SetStream {}      -> gram
       Fail {}           -> gram
+      Match {}          -> gram
 
       Call f es         -> annCall f es
 

@@ -11,6 +11,7 @@ data Grammar =
     Pure Expr
   | GetStream
   | SetStream Expr
+  | Match Sem Expr
   | Fail ErrorSource Type (Maybe Expr)
   | Do_ Grammar Grammar
   | Do  Name Grammar Grammar
@@ -22,6 +23,7 @@ data Grammar =
   | GCase (Case Grammar)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
+data Sem = SemNo | SemYes
 
 gIf :: Expr -> Grammar -> Grammar -> Grammar
 gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
@@ -38,6 +40,7 @@ childrenG f gram =
     Pure {}           -> pure gram
     GetStream         -> pure gram
     SetStream {}      -> pure gram
+    Match {}          -> pure gram
     Fail {}           -> pure gram
     Do_ g1 g2         -> Do_ <$> f g1 <*> f g2
     Do  x g1 g2       -> Do x <$> f g1 <*> f g2
@@ -56,10 +59,12 @@ mapChildrenG f g = g1
 
 --------------------------------------------------------------------------------
 
+
 instance PP Grammar where
   pp gram =
     case gram of
       Pure e         -> "pure" <+> ppPrec 1 e
+      Match s e      -> "match" <.> ppSemSuff s <+> pp e
       GetStream      -> "getStream"
       SetStream e    -> "setStream" <+> ppPrec 1 e
       Fail src t e   -> ppTApp 0 ("fail" <.> suff) [t] <+> ppMb e
@@ -75,6 +80,12 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
+
+ppSemSuff :: Sem -> Doc
+ppSemSuff sem =
+  case sem of
+    SemYes -> ""
+    SemNo  -> "_"
 
 ppOrUnbiased :: Grammar -> Doc
 ppOrUnbiased gram =
