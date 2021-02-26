@@ -4,6 +4,7 @@ module Daedalus.Core.Semantics.Decl where
 import qualified Data.Map as Map
 import Data.Either(partitionEithers)
 import Data.List(foldl')
+import Data.Word(Word8)
 
 import RTS.Parser(Parser)
 import Daedalus.Rec(topoOrder)
@@ -19,7 +20,7 @@ import Daedalus.Core.Semantics.Grammar
 
 
 evalModule :: Module -> Env -> Env
-evalModule m = evalGFuns (mGFuns m) . evalFuns (mFFuns m)
+evalModule m = evalGFuns (mGFuns m) . evalBFuns (mBFuns m) . evalFuns (mFFuns m)
 
 evalFuns :: [Fun Expr] -> Env -> Env
 evalFuns fns0 env0 = foldl' evalRec env0 (topoOrder deps fns0)
@@ -68,3 +69,17 @@ evalGFun fn env = (fName fn, val)
                     External -> lookupGFun (fName fn) env vs
 
 
+evalBFun :: Fun ByteSet -> Env -> (FName, [Value] -> Word8 -> Bool)
+evalBFun fn env = (fName fn, val)
+  where
+  val = \vs -> let env1 = foldr (uncurry defLocal) env (zip (fParams fn) vs)
+               in case fDef fn of
+                    Def e    -> evalByteSet e env1
+                    External -> lookupBFun (fName fn) env vs
+
+
+evalBFuns :: [Fun ByteSet] -> Env -> Env
+evalBFuns fns env = newEnv
+  where
+  newEnv = defBFuns (Map.fromList [ evalBFun f newEnv | f <- fns ]) env
+  -- these are not recursive, but in this way we don't need to order them.

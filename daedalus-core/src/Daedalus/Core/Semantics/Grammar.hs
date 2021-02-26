@@ -1,10 +1,12 @@
 module Daedalus.Core.Semantics.Grammar where
 
 import qualified Data.Text as Text
+import Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Control.Monad(unless)
+import Data.Word(Word8)
 
-import RTS.Input(inputBytes)
+import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
 import RTS.Parser
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
@@ -64,12 +66,53 @@ evalG gram env =
 evalMatch :: Sem -> Match -> Env -> Parser Value
 evalMatch sem mat env =
   case mat of
+
+    MatchEnd ->
+      do i <- pPeek
+         unless (inputEmpty i) (pError' FromSystem [] "left over input")
+         pure VUnit
+
     MatchBytes e ->
       do i <- pPeek
          let v  = eval e env
-             ok = fromVByteArray v `BS8.isPrefixOf` inputBytes i
+             bs = fromVByteArray v
+             ok = bs `BS8.isPrefixOf` inputBytes i
          unless ok (pError' FromSystem [] "match failed")
+         let Just i1 = advanceBy (toInteger (BS.length bs)) i
+         pSetInput $! i1
          case sem of
            SemNo  -> pure VUnit
            SemYes -> pure v
+
+    MatchByte b ->
+      do i <- pPeek
+         case inputByte i of
+           Just (w,i1) ->
+             if evalByteSet b env w
+                then do pSetInput $! i1
+                        case sem of
+                          SemNo  -> pure VUnit
+                          SemYes -> pure (vByte w)
+                else pError' FromSystem [] "byte does not match spec"
+           Nothing -> pError' FromSystem [] "unexpected end of file"
+
+
+
+evalByteSet :: ByteSet -> Env -> Word8 -> Bool
+evalByteSet bs env =
+  case bs of
+    SetAny      -> const True
+    SetSingle e -> (fromVByte (eval e env) ==)
+    SetRange a b -> \w -> x <= w && w <= y
+      where x = fromVByte (eval a env)
+            y = fromVByte (eval b env)
+
+    SetComplement f     -> not . evalByteSet f env
+    SetUnion a b        -> \w -> evalByteSet a env w || evalByteSet b env w
+    SetIntersection a b -> \w -> evalByteSet a env w && evalByteSet b env w
+
+    SetLet x e b -> evalByteSet b $! defLocal x (eval e env) env
+    SetCall f es -> lookupBFun f env [ eval e env | e <- es ]
+    SetCase b    -> evalCase evalByteSet (const False) b env
+
 

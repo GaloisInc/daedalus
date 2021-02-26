@@ -3,6 +3,7 @@ module Daedalus.Core.Semantics.Env where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Word(Word8)
 
 import RTS.Parser(Parser)
 
@@ -16,6 +17,7 @@ data Env = Env
   { vEnv    :: Map Name Value
   , cEnv    :: Map FName Value   -- ^ Top level constants
   , fEnv    :: Map FName ([Value] -> Value)
+  , bEnv    :: Map FName ([Value] -> Word8 -> Bool)
   , gEnv    :: Map FName ([Value] -> Parser Value)
   }
 
@@ -58,4 +60,13 @@ lookupGFun f env =
 
 defGFuns :: Map FName ([Value] -> Parser Value) -> Env -> Env
 defGFuns fs env = env { gEnv = Map.union fs (gEnv env) }
+
+lookupBFun :: FName -> Env -> [Value] -> Word8 -> Bool
+lookupBFun f env =
+  case Map.lookup f (bEnv env) of
+    Just fv -> fv
+    Nothing -> panic "lookupBFun" [ "Undefined function", show (pp f) ]
+
+defBFuns :: Map FName ([Value] -> Word8 -> Bool) -> Env -> Env
+defBFuns fs env = env { bEnv = Map.union fs (bEnv env) }
 
