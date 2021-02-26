@@ -11,9 +11,9 @@ import MonadLib
 import Daedalus.GUID(HasGUID)
 
 import Daedalus.Core.Free(freeVars)
-import Daedalus.Core.Fresh(freshName)
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 
 
@@ -56,7 +56,7 @@ instance Subst Grammar where
       Pure e              -> Pure <$> subst e
       GetStream           -> pure grammar
       SetStream e         -> SetStream <$> subst e
-      Match s e           -> Match s <$> subst e
+      Match s m           -> Match s <$> subst m
       Fail er t mbE       -> Fail er t <$> traverse subst mbE
       Do_ g1 g2           -> Do_ <$> subst g1 <*> subst g2
       Do  x g1 g2         -> letLike Do x g1 g2
@@ -66,6 +66,28 @@ instance Subst Grammar where
       Call f es           -> Call f <$> traverse subst es
       Annot a g           -> Annot a <$> subst g
       GCase c             -> GCase <$> subst c
+
+instance Subst Match where
+  subst mat =
+    case mat of
+      MatchBytes e -> MatchBytes <$> subst e
+      MatchByte  e -> MatchByte  <$> subst e
+      MatchEnd     -> pure MatchEnd
+
+instance Subst ByteSet where
+  subst bs =
+    case bs of
+      SetAny                -> pure bs
+      SetSingle e           -> SetSingle <$> subst e
+      SetRange e1 e2        -> SetRange <$> subst e1 <*> subst e2
+      SetComplement x       -> SetComplement <$> subst x
+      SetUnion x y          -> SetUnion <$> subst x <*> subst y
+      SetIntersection x y   -> SetIntersection <$> subst x <*> subst y
+      SetCall f es          -> SetCall f <$> traverse subst es
+      SetCase e             -> SetCase <$> subst e
+      SetLet x e s          -> letLike SetLet x e s
+
+
 
 instance Subst e => Subst (Case e) where
   subst (Case e ps) = Case <$> subst e <*> mapM substBranch ps

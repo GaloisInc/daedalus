@@ -15,7 +15,7 @@ normGFun fu =
     Def g -> fu { fDef = Def (normG g) }
     _     -> fu
 
-
+-- XXX: rename things rather than disabling the optimization
 normG :: Grammar -> Grammar
 normG gram =
   case mapChildrenG normG gram of

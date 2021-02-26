@@ -28,14 +28,7 @@ evalG gram env =
       do pSetInput $! fromVInput $ eval e env
          pure VUnit
 
-    Match s e ->
-      do i <- pPeek
-         let v  = eval e env
-             ok = fromVByteArray v `BS8.isPrefixOf` inputBytes i
-         unless ok (pError' FromSystem [] "match failed")
-         case s of
-           SemNo  -> pure VUnit
-           SemYes -> pure v
+    Match s m -> evalMatch s m env
 
     Fail src _ mbMsg -> pError' dsrc [] msg
       where
@@ -68,5 +61,15 @@ evalG gram env =
     GCase c ->
       evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
 
-
+evalMatch :: Sem -> Match -> Env -> Parser Value
+evalMatch sem mat env =
+  case mat of
+    MatchBytes e ->
+      do i <- pPeek
+         let v  = eval e env
+             ok = fromVByteArray v `BS8.isPrefixOf` inputBytes i
+         unless ok (pError' FromSystem [] "match failed")
+         case sem of
+           SemNo  -> pure VUnit
+           SemYes -> pure v
 

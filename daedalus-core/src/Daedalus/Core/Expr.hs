@@ -160,6 +160,7 @@ oneOf b       = Ap1 (OneOf b)
 -- Numbers
 
 intL n t      = Ap0 (IntL n t)
+byteL b       = Ap0 (IntL (toInteger b) (TUInt (TSize 8)))
 neg           = Ap1 Neg
 add           = Ap2 Add
 sub           = Ap2 Sub

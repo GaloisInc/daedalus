@@ -13,6 +13,7 @@ import qualified Data.Set as Set
 import Data.Maybe(maybeToList)
 import Data.List((\\))
 import Data.Either(partitionEithers)
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 
 import MonadLib
@@ -27,18 +28,9 @@ import Daedalus.Type.AST (Commit(..), WithSem(..))
 import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.Type(typeOf)
-import Daedalus.Core.Fresh
 
 
 --------------------------------------------------------------------------------
-
--- | Assumes that the modules are in dependency order, with leaves first.
-importModules :: [TC.TCModule a] -> TC.ScopedIdent -> PassM ([Module], FName)
-importModules ms entry =
-  fst <$> runToCore Map.empty Map.empty
-          do ms1 <- mapM fromModule ms
-             f   <- scopedIdent entry
-             pure (ms1,f)
 
 
 fromModule :: TC.TCModule a -> M Module
@@ -57,7 +49,7 @@ fromDecls mo tdecls decls =
 
      let ds = concatMap recToList decls
      mapM_ addDeclName ds
-     (dffs,dgfs) <- partitionEithers <$> mapM fromDecl ds
+     (dffs,dbfs,dgfs) <- splitSomeFuns <$> mapM fromDecl ds
      (effs,egfs) <- removeNewFuns
 
      m <- getCurModule
@@ -66,6 +58,7 @@ fromDecls mo tdecls decls =
               , mImports = []
               , mTypes  = tds
               , mFFuns  = effs ++ dffs
+              , mBFuns  = dbfs
               , mGFuns  = egfs ++ dgfs
               }
 
@@ -90,7 +83,15 @@ addDeclName TC.TCDecl { .. } =
 sysErr :: Type -> String -> Grammar
 sysErr t msg = Fail ErrorFromSystem t (Just (byteArrayL (BS8.pack msg)))
 
-fromDecl :: TC.TCDecl a -> M (Either (Fun Expr) (Fun Grammar))
+data SomeFun = FE (Fun Expr) | FB (Fun ByteSet) | FG (Fun Grammar)
+
+splitSomeFuns :: [SomeFun] -> ([Fun Expr], [Fun ByteSet], [Fun Grammar])
+splitSomeFuns fs = ( [ x | FE x <- fs ]
+                   , [ x | FB x <- fs ]
+                   , [ x | FG x <- fs ]
+                   )
+
+fromDecl :: TC.TCDecl a -> M SomeFun
 fromDecl TC.TCDecl { .. }
   | null tcDeclTyParams
   , null tcDeclCtrs =
@@ -102,33 +103,30 @@ fromDecl TC.TCDecl { .. }
            TC.AValue   ->
               case tcDeclDef of
                 TC.ExternDecl _ ->
-                  pure $ Left Fun { fName = f, fParams = xs, fDef = External }
+                  pure $ FE Fun { fName = f, fParams = xs, fDef = External }
 
                 TC.Defined v ->
                    do e <- fromExpr v
-                      pure $ Left Fun { fName = f, fParams = xs, fDef = Def e }
+                      pure $ FE Fun { fName = f, fParams = xs, fDef = Def e }
 
            TC.AClass ->
-             do x <- newLocal tByte
-                case tcDeclDef of
-                  TC.ExternDecl _ ->
-                    pure $ Left
-                           Fun { fName = f, fParams = x : xs, fDef = External }
+             case tcDeclDef of
+               TC.ExternDecl _ ->
+                 pure $ FB Fun { fName = f, fParams = xs, fDef = External }
 
-                  TC.Defined v ->
-                    do e <- fromClass v x
-                       pure $ Left
-                              Fun { fName = f, fParams = x : xs, fDef = Def e }
+               TC.Defined v ->
+                 do e <- fromClass v
+                    pure $ FB Fun { fName = f, fParams = xs, fDef = Def e }
 
            TC.AGrammar ->
              case tcDeclDef of
 
                TC.ExternDecl _ ->
-                 pure $ Right Fun { fName = f, fParams = xs, fDef = External }
+                 pure $ FG Fun { fName = f, fParams = xs, fDef = External }
 
                TC.Defined v ->
                  do e <- fromGrammar v
-                    pure $ Right Fun { fName = f, fParams = xs, fDef = Def e }
+                    pure $ FG Fun { fName = f, fParams = xs, fDef = Def e }
 
 
   | otherwise =
@@ -159,50 +157,19 @@ fromGrammar gram =
       Annot (SrcAnnot t) <$> fromGrammar g
 
     TC.TCGetByte sem ->
-      do x <- newLocal TStream
-         let xe = Var x
-             ty = resTy sem tByte
-         pure $ Do x GetStream
-              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
-                 $ Do_ (SetStream (eDrop (intL 1 TInteger) xe))
-                 $     Pure $ result sem $ eHead xe
+      pure (Match (fromSem sem) (MatchByte SetAny))
 
     TC.TCMatch sem c ->
-      do x <- newLocal TStream
-         y <- newLocal tByte
-         let xe = Var x
-         let ye = Var y
-
-         p <- fromClass c y
-         let ty = resTy sem tByte
-
-         pure $ Do x GetStream
-              $ gIf (isEmptyStream xe) (sysErr ty "unexpected end of input")
-              $ Let y (eHead xe)
-              $ gIf p ( Do_ (SetStream (eDrop (intL 1 TInteger) xe))
-                     $     Pure (result sem ye)
-                     )
-                     (sysErr ty "unexpected byte")
-
+      do p <- fromClass c
+         pure (Match (fromSem sem) (MatchByte p))
 
     TC.TCGuard e ->
       do v <- fromExpr e
          pure $ gIf v (Pure unit) (sysErr TUnit "guard failed")
 
     TC.TCMatchBytes sem e ->
-      do x <- newLocal TStream
-         y <- newLocal (TArray tByte)
-         let xe = Var x
-             ye = Var y
-             ty = resTy sem (TArray tByte)
-
-         v <- fromExpr e
-         pure $ Do x GetStream
-              $    Let y v
-              $    gIf (isPrefix ye xe)
-                      (Do_ (SetStream (eDrop (arrayLen ye) xe))
-                         $ Pure (result sem ye))
-                      (sysErr ty "unexpected byte sequence")
+      do e' <- fromExpr e
+         pure (Match (fromSem sem) (MatchBytes e'))
 
     TC.TCChoice cmt opts ty ->
       case opts of
@@ -380,37 +347,42 @@ fromGrammar gram =
 
     TC.TCCase e as dflt ->
       do t  <- fromGTypeM (TC.typeOf gram)
-         ms <- mapM (doAlt fromGrammar t) as
+         ms <- mapM (doAlt fromGrammar) as
          mbase <- case dflt of
-                    Nothing -> pure (Failure t)
+                    Nothing -> pure Failure
                     Just d  -> Success Nothing <$> fromGrammar d
          let match = foldr biasedOr mbase ms
          matchToGrammar t match <$> fromExpr e
 
 
 
+fromSem :: WithSem -> Sem
+fromSem sem = case sem of
+                NoSem -> SemNo
+                YesSem -> SemYes
+
 --------------------------------------------------------------------------------
 -- Pattern Matching
 
-data Match k =
+data PMatch k =
     Success (Maybe Name) k
-  | Failure Type
-  | IfPat Pattern (Maybe Type) (Match k) (Match k)
+  | Failure
+  | IfPat Pattern (Maybe Type) (PMatch k) (PMatch k)
     -- ^ If then pattern succeeds, use the first match otherwise try the second.
     -- The `maybe type` indicates if we have a nested patern (Just) or not.
     -- If we have a nested pattern, the "then" 'Match' will examine it.
     -- The type is for the nested value
 
-dumpMatch :: Show a => Match a -> Doc
+dumpMatch :: Show a => PMatch a -> Doc
 dumpMatch match =
   case match of
     Success _ k -> text (show k)
-    Failure {} -> "FAIL"
+    Failure -> "FAIL"
     IfPat p _ m1 m2 ->
       "if" <+> pp p $$ nest 2 ("then" <+> dumpMatch m1)
                     $$ "else" <+> dumpMatch m2
 
-patMatch :: TC.TCPat -> (src -> M tgt) -> (Type, src) -> M (Match tgt)
+patMatch :: TC.TCPat -> (src -> M tgt) -> src -> M (PMatch tgt)
 patMatch pat leaf k =
   case pat of
      TC.TCConPat _ l p   -> nested (PCon l) p
@@ -421,38 +393,38 @@ patMatch pat leaf k =
      TC.TCWildPat {}     -> success
      TC.TCVarPat x ->
        do x' <- fromName x
-          g  <- withSourceLocal x' (leaf (snd k))
+          g  <- withSourceLocal x' (leaf k)
           pure (Success (Just (snd x')) g)
   where
-  failure     = pure (Failure (fst k))
+  failure     = pure Failure
   terminal p  = IfPat p Nothing <$> success <*> failure
   nested p q  = IfPat p <$> (Just <$> fromTypeM (TC.typeOf q))
                          <*> patMatch q leaf k
                          <*> failure
 
   success =
-    do g <- leaf (snd k)
+    do g <- leaf k
        pure (Success Nothing g)
 
 
 -- XXX: for now we duplicate alternatives
-doAlt :: (TC.TC a k -> M tgt) -> Type -> TC.TCAlt a k -> M (Match tgt)
-doAlt eval t (TC.TCAlt ps k) =
-  do ms <- sequence [ patMatch pat eval (t,k) | pat <- ps ]
+doAlt :: (TC.TC a k -> M tgt) -> TC.TCAlt a k -> M (PMatch tgt)
+doAlt eval (TC.TCAlt ps k) =
+  do ms <- sequence [ patMatch pat eval k | pat <- ps ]
      pure (foldr1 matchOr ms)
 
 
 
 -- union of two patterns
-matchOr :: Match k -> Match k -> Match k
+matchOr :: PMatch k -> PMatch k -> PMatch k
 matchOr m1 m2 =
   case m1 of
     Success {} -> m1
-    Failure {} -> m2
+    Failure    -> m2
     IfPat p1 pt pNest pOr ->
       case m2 of
         Success {} -> m2
-        Failure {} -> m1
+        Failure    -> m1
         IfPat q1 qt qNest qOr ->
           case compare p1 q1 of
             EQ -> IfPat p1 pt (matchOr pNest qNest) (matchOr pOr qOr)
@@ -461,14 +433,14 @@ matchOr m1 m2 =
 
 
 -- match left, if that fails, match right
-biasedOr :: Match k -> Match k -> Match k
+biasedOr :: PMatch k -> PMatch k -> PMatch k
 biasedOr m1 m2 =
   case m1 of
     Success {} -> m1
-    Failure {} -> m2
+    Failure    -> m2
     IfPat p1 pt pNest pOr ->
       case m2 of
-        Failure {} -> m1
+        Failure -> m1
         -- NOTE: duplicates `m2`
         Success {} -> IfPat p1 pt (biasedOr pNest m2) (biasedOr pOr m2)
         IfPat q1 qt qNest qOr ->
@@ -478,10 +450,10 @@ biasedOr m1 m2 =
             GT -> IfPat q1 qt qNest (biasedOr m1 qOr)
 
 
-matchToGrammar :: Type -> Match Grammar -> Expr -> Grammar
+matchToGrammar :: Type -> PMatch Grammar -> Expr -> Grammar
 matchToGrammar t match e =
   case match of
-    Failure {} -> pFail
+    Failure -> pFail
     Success mb g ->
       case mb of
         Nothing -> g
@@ -491,10 +463,20 @@ matchToGrammar t match e =
   where
   pFail = sysErr t "Pattern match failure"
 
-matchToExpr :: Match Expr -> Expr -> Expr
+matchToByteSet :: PMatch ByteSet -> Expr -> ByteSet
+matchToByteSet match e =
+  case match of
+    Failure -> SetComplement SetAny
+    Success mb k ->
+      case mb of
+        Nothing -> k
+        Just x -> SetLet x e k
+    IfPat {} -> bCase e (matchToAlts matchToByteSet match e)
+
+matchToExpr :: PMatch Expr -> Expr -> Expr
 matchToExpr match e =
   case match of
-    Failure {} -> panic "matchToExpr" [ "empty case" ]
+    Failure -> panic "matchToExpr" [ "empty case" ]
     Success mb k ->
       case mb of
        Nothing -> k
@@ -502,12 +484,12 @@ matchToExpr match e =
     IfPat {} -> eCase e (matchToAlts matchToExpr match e)
 
 matchToAlts ::
-  (Match k -> Expr -> k) ->
-  Match k ->
+  (PMatch k -> Expr -> k) ->
+  PMatch k ->
   Expr -> [(Pattern,k)]
 matchToAlts mExpr match e =
   case match of
-    Failure {} -> []
+    Failure -> []
     Success {} -> [(PAny, mExpr match e)]
     IfPat p nestP yes no -> (p, mExpr yes nested) : matchToAlts mExpr no e
       where
@@ -751,52 +733,50 @@ checkAtLeast mb tgt g =
 --------------------------------------------------------------------------------
 
 
-
-fromClass :: TC.TC a TC.Class -> Name -> M Expr
-fromClass cla x =
+fromClass :: TC.TC a TC.Class -> M ByteSet
+fromClass cla =
   case TC.texprValue cla of
-    TC.TCSetAny          -> pure (boolL True)
-    TC.TCSetSingle v     -> do e <- fromExpr v
-                               pure (Var x `eq` e)
-    TC.TCSetComplement c -> do e <- fromClass c x
-                               pure (eNot e)
-
-    TC.TCSetUnion cs     -> do es <- mapM (`fromClass` x) cs
+    TC.TCSetAny          -> pure SetAny
+    TC.TCSetSingle v     -> SetSingle <$> fromExpr v
+    TC.TCSetComplement c -> SetComplement <$> fromClass c
+    TC.TCSetUnion cs     -> do es <- mapM fromClass cs
                                pure case es of
-                                      [] -> boolL False
-                                      _  -> foldr1 eOr es
+                                      [] -> SetComplement SetAny
+                                      _  -> foldr1 SetUnion es
 
-    TC.TCSetOneOf xs     -> pure (oneOf xs (Var x))
+    TC.TCSetOneOf xs
+      | BS.null xs -> pure (SetComplement SetAny)
+      | otherwise  -> pure (foldr1 SetUnion (map fromByte (BS.unpack xs)))
+        where fromByte b = SetSingle (byteL b)
 
-    TC.TCSetDiff c1 c2   -> do e1 <- fromClass c1 x
-                               e2 <- fromClass c2 x
-                               pure (eAnd e1 (eNot e2))
+    TC.TCSetDiff c1 c2 ->
+      do e1 <- fromClass c1
+         e2 <- fromClass c2
+         pure (SetIntersection e1 (SetComplement e2))
 
-    TC.TCSetRange v1 v2  -> do e1 <- fromExpr v1
-                               e2 <- fromExpr v2
-                               pure (eAnd (e1 `leq` Var x) (Var x `leq` e2))
+    TC.TCSetRange v1 v2  -> SetRange <$> fromExpr v1 <*> fromExpr v2
 
     TC.TCCall f ts as ->
       case ts of
         [] ->
           do fc <- fromCName f
              es <- mapM fromArg as
-             pure (callF fc (Var x : es))
+             pure (SetCall fc es)
 
         _ -> panic "fromClass" ["Unexptect type parameters"]
 
-
     TC.TCCase e as dflt ->
-      do ms <- mapM (doAlt (`fromClass` x) TBool) as
+      do ms <- mapM (doAlt fromClass) as
          match <- case dflt of
                     Nothing -> pure (foldr1 biasedOr ms)
                     Just d  ->
-                      do base <- Success Nothing <$> fromClass d x
+                      do base <- Success Nothing <$> fromClass d
                          pure (foldr biasedOr base ms)
-         matchToExpr match <$> fromExpr e
+         matchToByteSet match <$> fromExpr e
 
     TC.TCFor {} -> panic "fromClass" ["Unexpected loop"]
     TC.TCVar {} -> panic "fromClass" ["Unexpected var"]
+
 
 
 
@@ -860,8 +840,7 @@ fromExpr expr =
          e3 <- fromExpr v3
          pure (eIf e1 e2 e3)
 
-    TC.TCVar x ->
-      Var <$> sourceLocal x
+    TC.TCVar x -> sourceLocal x
 
     TC.TCCall f ts as ->
       case ts of
@@ -919,8 +898,7 @@ fromExpr expr =
     TC.TCFor lp -> doLoop lp
 
     TC.TCCase e as dflt ->
-      do t  <- fromTypeM (TC.typeOf expr)
-         ms <- mapM (doAlt fromExpr t) as
+      do ms <- mapM (doAlt fromExpr) as
          match <- case dflt of
                     Nothing -> pure (foldr1 biasedOr ms)
                     Just d  ->
@@ -1230,6 +1208,16 @@ fromParam p =
     TC.ClassParam _ -> panic "fromParam" [ "Unexpected class parameter" ]
     TC.GrammarParam _ -> panic "fromParam" [ "Unexpected grammar parameter" ]
 
+fromParamE :: TC.Param -> Expr -> (TC.TCName TC.Value, Expr)
+fromParamE p e =
+  case p of
+    TC.ValParam x -> (x,e)
+    TC.ClassParam _ -> panic "fromParam" [ "Unexpected class parameter" ]
+    TC.GrammarParam _ -> panic "fromParam" [ "Unexpected grammar parameter" ]
+
+
+
+
 
 fromManybeBound :: TC.ManyBounds (TC.TC a TC.Value) -> M (TC.ManyBounds Expr)
 fromManybeBound bnds =
@@ -1287,13 +1275,14 @@ newtype M a = M (ReaderT R (StateT S PassM) a)
   deriving (Functor,Applicative,Monad)
 
 data R = R
-  { sourceLocals :: Map (TC.TCName TC.Value) Name
+  { sourceLocals :: Map (TC.TCName TC.Value) Expr
   , curMod       :: MName
   }
 
 data S = S
   { newFFuns  :: [Fun Expr]
   , newGFuns  :: [Fun Grammar]
+
 
     -- These don't change during the translation,
     -- we only modify them once at the beginning of a module.
@@ -1396,14 +1385,26 @@ newLocal = newName Nothing
 -- | Add a local varialble from the source (i.e., not newly generate)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a
 withSourceLocal (x,n) (M m) = M (mapReader upd m)
+  where upd r = r { sourceLocals = Map.insert x (Var n) (sourceLocals r) }
+
+-- | Add a local varialble from the source (i.e., not newly generate)
+withSourceLocalE :: (TC.TCName TC.Value, Expr) -> M a -> M a
+withSourceLocalE (x,n) (M m) = M (mapReader upd m)
   where upd r = r { sourceLocals = Map.insert x n (sourceLocals r) }
+
 
 -- | Add mulitple local variable from the source.
 withSourceLocals :: [(TC.TCName TC.Value,Name)] -> M a -> M a
 withSourceLocals xs m = foldr withSourceLocal m xs
 
+-- | Add mulitple local variable from the source.
+withSourceLocalsE :: [(TC.TCName TC.Value,Expr)] -> M a -> M a
+withSourceLocalsE xs m = foldr withSourceLocalE m xs
+
+
+
 -- | Resolve a local name.
-sourceLocal :: TC.TCName TC.Value -> M Name
+sourceLocal :: TC.TCName TC.Value -> M Expr
 sourceLocal x = M
   do r <- ask
      case Map.lookup x (sourceLocals r) of

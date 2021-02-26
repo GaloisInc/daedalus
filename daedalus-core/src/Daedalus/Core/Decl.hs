@@ -6,6 +6,7 @@ import Daedalus.Rec
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 
 data Module = Module
@@ -13,6 +14,7 @@ data Module = Module
   , mImports  :: [MName]
   , mTypes    :: [Rec TDecl]
   , mFFuns    :: [Fun Expr]
+  , mBFuns    :: [Fun ByteSet]
   , mGFuns    :: [Fun Grammar]
   }
 
@@ -56,6 +58,7 @@ instance PP Module where
           : map pp (mTypes m)
          ++ [ "-------------" ]
          ++ map pp (mFFuns m)
+         ++ map pp (mBFuns m)
          ++ map pp (mGFuns m)
 
 
@@ -97,5 +100,9 @@ class DefKW a where
 instance DefKW Expr where
   defKW _ = "func"
 
+instance DefKW ByteSet where
+  defKW _ = "byteset"
+
 instance DefKW Grammar where
   defKW _ = "proc"
+

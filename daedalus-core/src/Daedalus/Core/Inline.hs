@@ -22,6 +22,7 @@ import Daedalus.Core.Subst
 
 import Daedalus.Core.Decl
 import Daedalus.Core.Expr
+import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 import Daedalus.Core.Basics
 
@@ -31,11 +32,15 @@ inlineModule no = runInlineM (Set.fromList no) . expandModule
 data Inlineable = Inlineable
   { inlineE  :: Map FName (Fun Expr)
   , inlineG  :: Map FName (Fun Grammar)
+  , inlineB  :: Map FName (Fun ByteSet)
   , noInline :: Set FName
   }
 
 addE :: Fun Expr -> Inlineable -> Inlineable
 addE f i = i { inlineE = Map.insert (fName f) f (inlineE i) }
+
+addB :: Fun ByteSet -> Inlineable -> Inlineable
+addB f i = i { inlineB = Map.insert (fName f) f ( inlineB i) }
 
 addG :: Fun Grammar -> Inlineable -> Inlineable
 addG f i = i { inlineG = Map.insert (fName f) f (inlineG i) }
@@ -45,7 +50,9 @@ newtype InlineM m a = InlineM (StateT Inlineable m a)
 
 runInlineM :: HasGUID m => Set FName -> InlineM m a -> m a
 runInlineM no (InlineM m) = fst <$> runStateT s m
-  where s = Inlineable { inlineE = Map.empty, inlineG = Map.empty
+  where s = Inlineable { inlineE = Map.empty
+                       , inlineG = Map.empty
+                       , inlineB = Map.empty
                        , noInline = no }
 
 shouldExpand ::
@@ -122,6 +129,33 @@ instance Expand Grammar where
       Annot a g -> Annot a <$> expand g
       GCase c   -> GCase <$> expand c
 
+instance Expand Match where
+  expand mat =
+    case mat of
+      MatchBytes e -> MatchBytes <$> expand e
+      MatchByte e  -> MatchByte <$> expand e
+      MatchEnd     -> pure MatchEnd
+
+instance Expand ByteSet where
+  expand bs =
+    case bs of
+      SetAny                -> pure bs
+      SetSingle e           -> SetSingle <$> expand e
+      SetRange e1 e2        -> SetRange <$> expand e1 <*> expand e2
+      SetComplement x       -> SetComplement <$> expand x
+      SetUnion x y          -> SetUnion <$> expand x <*> expand y
+      SetIntersection x y   -> SetIntersection <$> expand x <*> expand y
+      SetCase e             -> SetCase <$> expand e
+      SetLet x e1 e2        -> SetLet x <$> expand e1 <*> expand e2
+      SetCall f es ->
+        do es' <- traverse expand es
+           mb <- shouldExpand inlineB f
+           case mb of
+             Nothing  -> pure (SetCall f es')
+             Just yes -> instantiate yes es'
+
+
+
 instance Expand e => Expand (Fun e) where
   expand f =
     case fDef f of
@@ -196,8 +230,9 @@ inlineRec ext rec =
 expandModule :: HasGUID m => Module -> InlineM m Module
 expandModule m =
   do efuns <- inlineAll addE (mFFuns m)
+     bfuns <- inlineAll addB (mBFuns m)
      gfuns <- inlineAll addG (mGFuns m)
-     pure m { mFFuns = efuns, mGFuns = gfuns }
+     pure m { mFFuns = efuns, mBFuns = bfuns, mGFuns = gfuns }
 
 
 

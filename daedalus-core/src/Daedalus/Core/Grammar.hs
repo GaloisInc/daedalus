@@ -6,12 +6,13 @@ import Data.Functor.Identity(Identity(..))
 import Daedalus.PP
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Daedalus.Core.ByteSet
 
 data Grammar =
     Pure Expr
   | GetStream
   | SetStream Expr
-  | Match Sem Expr
+  | Match Sem Match
   | Fail ErrorSource Type (Maybe Expr)
   | Do_ Grammar Grammar
   | Do  Name Grammar Grammar
@@ -22,8 +23,17 @@ data Grammar =
   | Annot Annot Grammar
   | GCase (Case Grammar)
 
-data ErrorSource = ErrorFromUser | ErrorFromSystem
+-- | Implicit input manipulation
+data Match =
+    MatchByte ByteSet       -- ^ Match a single byte
+  | MatchBytes Expr         -- ^ Match a sequence of bytes
+  | MatchEnd                -- ^ Match the end of input
+
 data Sem = SemNo | SemYes
+
+
+data ErrorSource = ErrorFromUser | ErrorFromSystem
+
 
 gIf :: Expr -> Grammar -> Grammar -> Grammar
 gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
@@ -64,7 +74,7 @@ instance PP Grammar where
   pp gram =
     case gram of
       Pure e         -> "pure" <+> ppPrec 1 e
-      Match s e      -> "match" <.> ppSemSuff s <+> pp e
+      Match s m      -> ppMatch s m
       GetStream      -> "getStream"
       SetStream e    -> "setStream" <+> ppPrec 1 e
       Fail src t e   -> ppTApp 0 ("fail" <.> suff) [t] <+> ppMb e
@@ -80,6 +90,13 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
+
+ppMatch :: Sem -> Match -> Doc
+ppMatch s mat =
+  case mat of
+    MatchBytes e -> "match" <.> ppSemSuff s <+> pp e
+    MatchByte bs -> "match1" <.> ppSemSuff s <+> pp bs
+    MatchEnd     -> "matchEnd"
 
 ppSemSuff :: Sem -> Doc
 ppSemSuff sem =

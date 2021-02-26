@@ -94,6 +94,22 @@ data Pattern =
 
 
 --------------------------------------------------------------------------------
+freshTName :: HasGUID m => TName -> m TName
+freshTName n =
+  do x <- getNextGUID
+     pure n { tnameId = x }
+
+freshFName :: HasGUID m => FName -> m FName
+freshFName n =
+  do x <- getNextGUID
+     pure n { fnameId = x }
+
+freshName :: HasGUID m => Name -> m Name
+freshName n =
+  do x <- getNextGUID
+     pure n { nameId = x }
+
+--------------------------------------------------------------------------------
 instance Eq Name where
   (==) = (==) `on` nameId
 

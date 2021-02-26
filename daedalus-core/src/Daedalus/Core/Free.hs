@@ -5,6 +5,7 @@ import qualified Data.Set as Set
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 import Daedalus.Core.Decl
 
@@ -117,6 +118,45 @@ instance FreeVars Grammar where
       Call f es         -> Set.insert f (freeFVars es)
       Annot _ g         -> freeFVars g
       GCase c           -> freeFVars c
+
+instance FreeVars Match where
+  freeVars mat =
+    case mat of
+      MatchBytes e  -> freeVars e
+      MatchByte e   -> freeVars e
+      MatchEnd      -> Set.empty
+
+  freeFVars mat =
+    case mat of
+      MatchBytes e  -> freeFVars e
+      MatchByte e   -> freeFVars e
+      MatchEnd      -> Set.empty
+
+instance FreeVars ByteSet where
+  freeVars bs =
+    case bs of
+      SetAny -> Set.empty
+      SetSingle e -> freeVars e
+      SetRange e1 e2 -> freeVars [e1,e2]
+      SetComplement x -> freeVars x
+      SetUnion x y    -> freeVars [x,y]
+      SetIntersection x y -> freeVars [x,y]
+      SetCall _ es -> freeVars es
+      SetCase e -> freeVars e
+      SetLet x e k -> freeVars e `Set.union` Set.delete x (freeVars k)
+
+  freeFVars bs =
+    case bs of
+      SetAny -> Set.empty
+      SetSingle e -> freeFVars e
+      SetRange e1 e2 -> freeFVars [e1,e2]
+      SetComplement x -> freeFVars x
+      SetUnion x y    -> freeFVars [x,y]
+      SetIntersection x y -> freeFVars [x,y]
+      SetCall f es -> Set.insert f (freeFVars es)
+      SetCase e -> freeFVars e
+      SetLet _ e1 e2 -> freeFVars e1 `Set.union` freeFVars e2
+
 
 instance FreeVars e => FreeVars (Case e) where
   freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
