@@ -109,6 +109,11 @@ freshName n =
   do x <- getNextGUID
      pure n { nameId = x }
 
+freshNameSys :: HasGUID m => Type -> m Name
+freshNameSys t =
+  do x <- getNextGUID
+     pure Name { nameId = x, nameType = t, nameText = Nothing }
+
 --------------------------------------------------------------------------------
 instance Eq Name where
   (==) = (==) `on` nameId

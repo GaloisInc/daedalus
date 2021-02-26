@@ -107,6 +107,7 @@ import qualified Daedalus.Compile.LangHS as HS
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
+import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -564,7 +565,8 @@ analyzeDeadVal m =
 
 convertToVM :: Core.Module -> Daedalus ()
 convertToVM m =
-  do let vm = VM.compileModule m
+  do m1 <- ddlRunPass (Core.noMatch m)
+     let vm = VM.compileModule m1
      ddlUpdate_ \s ->
         s { loadedModules = Map.insert (fromMName (VM.mName vm)) (VMModule vm)
                                        (loadedModules s)
