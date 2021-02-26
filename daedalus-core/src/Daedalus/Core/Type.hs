@@ -157,9 +157,9 @@ instance TypeOf Grammar where
       Pure e          -> typeOf e
       GetStream       -> TStream
       SetStream _     -> TUnit
-      Match s _       -> case s of
+      Match s m       -> case s of
                            SemNo  -> TUnit
-                           SemYes -> TArray (TUInt (TSize 8))
+                           SemYes -> typeOf m
       Fail _ t _      -> t
       Do_ _ g         -> typeOf g
       Do  _ _ g       -> typeOf g
@@ -169,6 +169,13 @@ instance TypeOf Grammar where
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
       GCase c         -> typeOf c
+
+instance TypeOf Match where
+  typeOf mat =
+    case mat of
+      MatchEnd      -> TUnit
+      MatchBytes {} -> TArray (TUInt (TSize 8))
+      MatchByte {}  -> TUInt (TSize 8)
 
 instance TypeOf a => TypeOf (Case a) where
   typeOf (Case _ as) = typeOf (snd (head as))
