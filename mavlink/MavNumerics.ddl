@@ -48,6 +48,11 @@ def Natural numDigs = numBase 10 (Many numDigs Digit)
 
 def LowBits = ~HighBit
 
+def IsInfty mant exp = {
+  Guard (exp == 0xFF);
+  Guard (mant == 0)
+}
+
 -- Float: single precision (32-bit) float, serialied in IEEE754
 -- TODO: correctly represent sign bit, biased exp, significand, special values
 def Float = {
@@ -64,19 +69,14 @@ def Float = {
   -- check for special values:
   Choose1 {
     posInfty = {
-      Guard (exp == 0xFF);
-      Guard (mant == 0);
-      Guard (sign == 1);
+      IsInfty mant exp;
+      Guard (sign == 1)
     };
     negInfty = {
-      Guard (exp == 0xFF);
-      Guard (mant == 0);
-      Guard (sign == -1);
+      IsInfty mant exp;
+      Guard (sign == -1)
     };
-    nan = {
-      Guard (exp == 0xFF);
-      ^{}
-    };
+    nan = Guard (exp == 0xFF);
     number = {
       mantissa = ^(sign * mant);
       exponent = ^exp;
