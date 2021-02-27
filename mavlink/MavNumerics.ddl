@@ -46,10 +46,42 @@ def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 def Natural numDigs = numBase 10 (Many numDigs Digit)
 
+def LowBits = ~HighBit
+
 -- Float: single precision (32-bit) float, serialied in IEEE754
+-- TODO: correctly represent sign bit, biased exp, significand, special values
 def Float = {
-  significand = Int24;
-  exponent = Int8;
+  -- read bytes:
+  @dig0 = UInt8;
+  @dig1 = UInt8;
+  @mantissaLow = UInt16;
+
+  -- shift bits
+  @sign = ^(if (dig0 .&. HighBit) then 1 else -1);
+  @mant = ^(sign * (((dig1 .&. LowBits) << 16) + mantissaLow));
+  @exp = ((dig0 .&. LowBits) << 1) + ((dig1 .&. HighBit) >> 7);
+
+  -- check for special values:
+  Choose1 {
+    posInfty = {
+      Guard (exp == 0xFF);
+      Guard (mant == 0);
+      Guard (sign == 1);
+    };
+    negInfty = {
+      Guard (exp == 0xFF);
+      Guard (mant == 0);
+      Guard (sign == -1);
+    };
+    nan = {
+      Guard (exp == 0xFF);
+      ^{}
+    };
+    number = {
+      mantissa = ^(sign * mant);
+      exponent = ^exp;
+    };
+  }
 }
 
 def Sub60 = {

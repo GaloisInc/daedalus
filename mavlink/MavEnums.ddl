@@ -25,19 +25,7 @@ def MavFrame = Choose1 {
   mavFrameLocalFlu = @Match1 21;
 }
 
--- MAVLink Commands (MAV_CMD)
--- TODO: fix to always parse two bytes
-def MavCmd = Choose1 {
-  mavCmdNavWaypoint = @Match1 16;
-  mavCmdNavLoiterUnlim = @Match1 17;
-  mavCmdNavLoiterTurns = @Match1 18;
-  mavCmdNavLoiterTime = @Match1 19;
-  mavCmdNavReturnToLaunch = @Match1 20;
-  -- mavCmdSome can be further refined into cases for more precise value checking:
-  mavCmdSome = UInt16;
-}
-
--- CmdParams: parameters of a command, uninterpreted
+-- CmdParams: parameters of a command
 def CmdParams = {
   param1 = Float;
   param2 = Float;
@@ -48,9 +36,44 @@ def CmdParams = {
   z = Float;
 } 
 
--- MAV_CMD_NAV_WAYPOINT (16)
--- TODO: refine all of these definitions
-def CmdNavWaypoint = CmdParams
+def Position params = {
+  latitude = ^params.x;
+  longitude = ^params.y;
+  altitude = ^params.z;
+}
+
+-- MAVLink Commands (MAV_CMD)
+-- TODO: fix to always parse two bytes
+def MavCmd params = Choose1 {
+  mavCmdNavWaypoint = { -- MAV_CMD_NAV_WAYPOINT (16)
+    @Match1 16;
+
+    NonNegFloat params.param1;
+    hold = ^params.param1;
+
+    NonNegFloat params.param2;
+    acceptRadius = ^params.param2;
+
+    passRadius = ^params.param3;
+    yaw = ^params.param4;
+
+    position = Position params;
+  };
+
+  mavCmdNavLoiterUnlim = {
+    @Match1 17;
+
+    radius = ^params.param3;
+    yaw = TODO
+    
+  };
+
+  mavCmdNavLoiterTurns = @Match1 18;
+  mavCmdNavLoiterTime = @Match1 19;
+  mavCmdNavReturnToLaunch = @Match1 20;
+  -- mavCmdSome can be further refined into cases for more precise value checking:
+  mavCmdSome = UInt16;
+}
 
 -- MAV_CMD_NAV_LOITER_UNLIM (17)
 def CmdNavLoiterUnlim = CmdParams
