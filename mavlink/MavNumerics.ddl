@@ -46,40 +46,88 @@ def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 def Natural numDigs = numBase 10 (Many numDigs Digit)
 
-def LowBits = ~HighBit
-
-def IsInfty mant exp = {
-  Guard (exp == 0xFF);
-  Guard (mant == 0)
+def LowBits = {
+  @hb = HighBit;
+  ^ ~hb
 }
 
 -- Float: single precision (32-bit) float, serialied in IEEE754
--- TODO: correctly represent sign bit, biased exp, significand, special values
 def Float = {
   -- read bytes:
   @dig0 = UInt8;
   @dig1 = UInt8;
   @mantissaLow = UInt16;
 
-  -- shift bits
-  @sign = ^(if (dig0 .&. HighBit) then 1 else -1);
-  @mant = ^(sign * (((dig1 .&. LowBits) << 16) + mantissaLow));
-  @exp = ((dig0 .&. LowBits) << 1) + ((dig1 .&. HighBit) >> 7);
+  -- define sign bit, mantissa, and exponent:
+  @hb = HighBit;
+  @signBit = ^(dig0 .&. hb);
+  @isPos = Choose1 {
+    pos = signBit == 0;
+    neg = ^{};
+  };
+  @lbs = LowBits;
+  @mant = ^(((dig1 .&. lbs as uint 23) << 16) .|. (mantissaLow as uint 23));
+  @exp = ^(((dig0 .&. lbs) << 1) .|. ((dig1 .&. hb) >> 7));
 
   -- check for special values:
   Choose1 {
-    posInfty = {
-      IsInfty mant exp;
-      Guard (sign == 1)
+    zero = {
+      Guard (exp == 0);
+      Guard (mant == 0)
     };
-    negInfty = {
-      IsInfty mant exp;
-      Guard (sign == -1)
+    denormalized = {
+      Guard (exp == 0);
+      ^ mant
     };
-    nan = Guard (exp == 0xFF);
+    infty = {
+      Guard (exp == 0xFF);
+      Guard (mant == 0);
+      ^isPos
+    };
+    nan = {
+      Guard (exp == 0xFF);
+      Guard (mant != 0)
+    };
     number = {
-      mantissa = ^(sign * mant);
-      exponent = ^exp;
+      sign = isPos;
+      mantissa = ^mant;
+      exponent = ^((exp as int) - 127);
+    };
+  }
+}
+
+-- NonNegFloat f: coerce f into a non-negative number:
+def NonNegFloat f = Choose1 {
+  nonNegZero = f is zero;
+  nonNegDenorm = f is denormalized;
+  nonNegInfty = {
+    @s = f is infty;
+    s is pos
+  };
+  nonNegNumber = {
+    @n = f is number;
+    n.sign is pos;
+    nnMantissa = ^n.mantissa;
+    nnExponent = ^n.exponent;
+  };
+}
+
+-- InclusiveFractional f: coerce f into a value in 0 <= n <= 1
+def InclusiveFractional f = {
+  @nnf = NonNegFloat f;
+  Choose1 {
+    inclusiveZero = nnf is nonNegZero;
+    inclusiveDenorm = nnf is nonNegDenorm;
+    inclusiveFrac = {
+      @nnNum = nnf is nonNegNumber;
+      Guard (nnNum.nnExponent < 0);
+      incMantissa = nnNum.nnMantissa;
+      incExponent = nnNum.nnExponent;
+    };
+    inclusiveOne = {
+      @n = nnf is nonNegNumber;
+      Guard (n.nnMantissa == 0);
+      Guard (n.nnExponent == 0)
     };
   }
 }
