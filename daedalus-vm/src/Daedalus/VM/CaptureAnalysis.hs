@@ -13,14 +13,23 @@ import Daedalus.PP
 import Daedalus.VM
 
 
-captureAnalysis :: [Module] -> [Module]
-captureAnalysis ms = map annotateModule ms
+
+
+
+captureAnalysis :: Program -> Program
+captureAnalysis prog = Program { pModules = map annotateModule ms
+                               , pEntries = map annotateEntry (pEntries prog)
+                               }
   where
+  ms = pModules prog
+
   info = fixCaptureInfo
        $ Map.fromList
          [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateEntry e = e { entryBoot = annotateBlock <$> entryBoot e }
+
   annotateFun f = f { vmfCaptures = getCaptures info (vmfName f)
                     , vmfBlocks = annotateBlock <$> vmfBlocks f }
   annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }
