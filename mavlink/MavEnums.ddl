@@ -122,8 +122,19 @@ def MavCmd params = {
       position = Position params;
     };
 
+    mavCmdNavTakeoff = {
+      Guard (cmd == 22); -- MAV_CMD_NAV_TAKEOFF(22)
+
+      pitch = ^params.param1;
+      -- param 2: Empty
+      -- param 3: Empty
+      yaw = ^params.param4;
+
+      position = Position params
+    };
+
     -- TODO: refine this clause to define deeper command and parameter
-    -- validation for commands >= 22
+    -- validation for commands >= 23
     mavCmdSome = ^params;
   }
 }
