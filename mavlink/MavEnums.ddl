@@ -42,76 +42,89 @@ def Position params = {
   altitude = ^params.z;
 }
 
--- MAVLink Commands (MAV_CMD)
--- TODO: fix to always parse two bytes
-def MavCmd params = Choose1 {
-  mavCmdNavWaypoint = { -- MAV_CMD_NAV_WAYPOINT (16)
-    @Match1 16;
-
-    NonNegFloat params.param1;
-    hold = ^params.param1;
-
-    NonNegFloat params.param2;
-    acceptRadius = ^params.param2;
-
-    passRadius = ^params.param3;
-    yaw = ^params.param4;
-
-    position = Position params;
+-- PrecisionLandMode f: the precision land mode represented by float f:
+def PrecisionLandMode f = Choose1 {
+  precisionLandModeDisabled = f is zero;
+  precisionLandModeOpportunistic = {
+    @n = f is number;
+    n.sign is pos;
+    Guard (n.exponent == 0);
+    Guard (n.mantissa == 1)
+  };
+  precisionLandModeRequired = {
+    @n = f is number;
+    n.sign is pos;
+    Guard (n.exponent == 0);
+    Guard (n.mantissa == 2)
   };
 
-  mavCmdNavLoiterUnlim = {
-    @Match1 17;
-
-    radius = ^params.param3;
-    yaw = TODO
-    
-  };
-
-  mavCmdNavLoiterTurns = @Match1 18;
-  mavCmdNavLoiterTime = @Match1 19;
-  mavCmdNavReturnToLaunch = @Match1 20;
-  -- mavCmdSome can be further refined into cases for more precise value checking:
-  mavCmdSome = UInt16;
 }
 
--- MAV_CMD_NAV_LOITER_UNLIM (17)
-def CmdNavLoiterUnlim = CmdParams
+-- MAVLink Commands (MAV_CMD)
+def MavCmd params = {
+  @cmd = UInt16;
+  Choose1 {
+    mavCmdNavWaypoint = { 
+      Guard (cmd == 16); -- MAV_CMD_NAV_WAYPOINT (16)
 
--- MAV_CMD_NAV_LOITER_TURNS (18)
-def CmdNavLoiterTurns = CmdParams
+      hold = NonNegFloat params.param1;
+      acceptRadius = NonNegFloat params.param2;
+      passRadius = ^params.param3;
+      yaw = ^params.param4;
 
--- MAV_CMD_NAV_LOITER_TIME (19)
-def CmdNavLoiterTime = CmdParams
+      position = Position params;
+    };
 
--- MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
-def CmdNavReturnToLaunch = CmdParams
+    mavCmdNavLoiterUnlim = {
+      Guard (cmd == 17); -- MAV_CMD_LOITER_UNLIM (17)
 
--- MavCmdParams cmd: paramters for the MavCmd cmd
-def MavCmdParams cmd = Choose1 {
-  mavCmdNavWaypointParams = {
-    cmd is mavCmdNavWaypoint;
-    CmdNavWaypoint;
-  };
-  mavCmdNavLoiterUnlimParams = {
-    cmd is mavCmdNavLoiterUnlim;
-    CmdNavLoiterUnlim 
-  } ;
-  mavCmdNavLoiterTurnsParams = {
-    cmd is mavCmdNavLoiterTurns;
-    CmdNavLoiterTurns
-  };
-  mavCmdNavLoiterTimeParams = {
-    cmd is mavCmdNavLoiterTime;
-    CmdNavLoiterTime
-  };
-  mavCmdNavReturnToLaunchParams = {
-    cmd is mavCmdNavReturnToLaunch;
-    CmdNavReturnToLaunch 
-  };
-  mavCmdSomeParams = { -- default case
-    opc = cmd is mavCmdSome;
-    ps = CmdParams;
+      -- param 1: Empty
+      -- param 2: Empty
+      radius = ^params.param3;
+      yaw = ^params.param4;
+
+      position = Position params;
+    };
+
+    mavCmdNavLoiterTurns = {
+      Guard (cmd == 18); -- MAV_CMD_NAV_LOITER_TURNS(18)
+
+      turns = NonNegFloat params.param1;
+      headingRequired = InclusiveFractional params.param2;
+      radius = ^params.param3;
+      xtrackLoc = ^params.param4;
+
+      position = Position params;
+    };
+  
+    mavCmdNavLoiterTime = {
+      Guard (cmd == 19); -- MAV_CMD_NAV_LOITER_TIME(19)
+
+      time = NonNegFloat params.param1;
+      headingRequired = InclusiveFractional params.param2;
+      radius = ^params.param3;
+      xtrackLocation = ^params.param4;
+
+      position = Position params;
+    };
+
+    -- MAV_CMD_NAV_RETURN_TO_LAUNCH(20):
+    mavCmdNavReturnToLaunch = Guard (cmd == 20);
+
+    mavCmdNavLand = {
+      Guard (cmd == 21); -- MAV_CMD_NAV_LAND(21)
+
+      abortAlt = ^params.param1;
+      landMode = PrecisionLandMode params.param2; 
+      -- param 3: Empty
+      yawAngle = ^params.param4;
+
+      position = Position params;
+    };
+
+    -- TODO: refine this clause to define deeper command and parameter
+    -- validation for commands >= 22
+    mavCmdSome = ^params;
   }
 }
 
