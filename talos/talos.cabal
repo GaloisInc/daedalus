@@ -35,7 +35,7 @@ library
 
                      , Talos.Analysis.Domain
                      , Talos.Analysis.Monad
-                     , Talos.Analysis.PathSet
+                     , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
                                           
                      , Talos
@@ -43,6 +43,7 @@ library
   build-depends:       base
                      , daedalus
                      , daedalus-utils
+                     , daedalus-core
                      , random
                      , rts-hs
                      , vector

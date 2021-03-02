@@ -8,25 +8,20 @@
 module Talos.Analysis.Slice where
 
 import Data.Function (on)
-import Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Daedalus.PP
 import Daedalus.Panic
-import Daedalus.Type.AST hiding (ppStmt)
-import Daedalus.Type.PatComplete (PatternCompleteness(..), CaseSummary)
+import Daedalus.Core
 
 import Talos.Analysis.EntangledVars
-
-type TCSynthAnnot = SourceRange
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 -- smart constructor for dontCares.
 
-dontCare :: Int -> Slice a -> Slice a
+dontCare :: Int -> Slice -> Slice
 dontCare 0 sl = sl
 dontCare  n (SDontCare m ps)   = SDontCare (n + m) ps
 dontCare _n SUnconstrained = SUnconstrained
@@ -35,7 +30,7 @@ dontCare n  ps = SDontCare n ps
 --------------------------------------------------------------------------------
 -- Nodes for path sets
 
-data Assertion a = GuardAssertion (TC a Value)
+data Assertion = GuardAssertion Expr
 
 -- This is the class of summary for a function; 'Assertions' summaries
 -- contain information internal to the function, while
@@ -49,11 +44,6 @@ data Assertion a = GuardAssertion (TC a Value)
 -- 'Assertions' will be required.
 data SummaryClass = Assertions | FunctionResult -- FIXME: add fields
   deriving (Ord, Eq, Show)
-
--- c.f. TCAlt.  FIXME: can we unify them?
-data SAlt a = SAlt { sAltPatterns :: [TCPat]
-                   , sAltBody     :: Slice a
-                   }
 
 -- Just to tell us not to e.g. merge
 newtype Wrapped a = Wrapped a
@@ -78,99 +68,88 @@ newtype Wrapped a = Wrapped a
 -- by use.  Also, the range of the Map is _not_ merged, it is just
 -- carried around to avoid looking up the summary again.
 
-data CallNode a =
+data CallNode =
   CallNode { callClass        :: SummaryClass           
-           , callAllArgs      :: Map (TCName Value) (TC a Value)
+           , callAllArgs      :: Map Name Expr
            -- ^ A shared map (across all domain elements) of the args to the call
-           , callName         :: Name
+           , callName         :: FName
            -- ^ The called function
            
            -- FIXME: we probably get into trouble if we have the same var in different classes here.
-           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars, Slice a))
+           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars, Slice))
            -- ^ All entangled params for the call, the range (wrapped)
            -- are in the _callee_'s namespace, so we don't merge etc.
            }
   
-mergeCallNode :: CallNode a -> CallNode a -> CallNode a
+mergeCallNode :: CallNode -> CallNode -> CallNode
 mergeCallNode cn@(CallNode { callClass = cl1, callPaths = paths1 })
                  (CallNode { callClass = cl2, callPaths = paths2 })
   | cl1 /= cl2 = panic "Saw different function classes" []
   | otherwise = cn { callPaths = Map.union paths1 paths2 -- don't have to use unionWith here
                    }
 
-eqvCallNode :: CallNode a -> CallNode a -> Bool
+eqvCallNode :: CallNode -> CallNode -> Bool
 eqvCallNode (CallNode { callClass = cl1, callPaths = paths1 })
             (CallNode { callClass = cl2, callPaths = paths2 }) =
   cl1 == cl2 && Map.keys paths1 == Map.keys paths2
 
-data CaseNode a =
-  CaseNode { caseCompleteness :: PatternCompleteness
-           , caseSummary      :: CaseSummary
-           , caseTerm         :: TC a Value
-           , caseAlts         :: NonEmpty (SAlt a)
-           , caseDefault      :: Maybe (Slice a)
-           }
 
-mergeCaseNode :: CaseNode a -> CaseNode a -> CaseNode a
-mergeCaseNode (CaseNode pc cs tm alts1 m_def1) (CaseNode _pc _cs _tm alts2 m_def2) =
-  CaseNode pc cs tm (NE.zipWith goAlt alts1 alts2) (mergeSlice <$> m_def1 <*> m_def2)
+type CaseNode = Case Slice
+
+mergeCaseNode :: CaseNode -> CaseNode -> CaseNode 
+mergeCaseNode (Case e alts1) (Case _e alts2) =
+  Case e (zipWith goAlt alts1 alts2)
   where
-    goAlt a1 a2 = a1 { sAltBody = mergeSlice (sAltBody a1) (sAltBody a2) }
+    goAlt (p, a1) (_p, a2) = (p, mergeSlice a1 a2)
 
-eqvCaseNode :: CaseNode a -> CaseNode a -> Bool
-eqvCaseNode (CaseNode _pc _cs _tm alts1 m_def1) (CaseNode _pc' _cs' _tm' alts2 m_def2) =
-  all (uncurry $ on sliceEqv sAltBody) (NE.toList (NE.zip alts1 alts2))
-  && cmpMB m_def1 m_def2
-  where
-    cmpMB Nothing    Nothing = True
-    cmpMB (Just ps1) (Just ps2) = sliceEqv ps1 ps2
-    cmpMB _          _          = False -- Can't happen?
-
-data ManyNode a =
-  ManyNode { manyBounds       :: ManyBounds (TC a Value)
-           , manyFrees        :: EntangledVars
-           , manyBody         :: Slice a
-           }
-  
-mergeManyNode :: ManyNode a -> ManyNode a -> ManyNode a
-mergeManyNode mn@(ManyNode { manyFrees = f1, manyBody = b1 })
-                 (ManyNode { manyFrees = f2, manyBody = b2 }) =
-  mn { manyFrees = mergeEntangledVars f1 f2
-     , manyBody = mergeSlice b1 b2 }
-  
-eqvManyNode :: ManyNode a -> ManyNode a -> Bool
-eqvManyNode (ManyNode { manyFrees = f1, manyBody = b1 })
-            (ManyNode { manyFrees = f2, manyBody = b2 }) =
-  f1 == f2 && sliceEqv b1 b2
+eqvCaseNode :: CaseNode -> CaseNode -> Bool
+eqvCaseNode (Case _e alts1) (Case _e' alts2) =
+  all (uncurry $ on sliceEqv snd) (zip alts1 alts2)
 
 -- These are the supported leaf nodes -- we could just reuse TC but it
 -- is nice to be explicit here.
-data SimpleSlice a =
-  SPure (TC a Value)
-  | SMatchBytes (TC a Value)
-  | SGetByte
-  | SMatch (TC a Class)
-  | SCoerceCheck Type Type (TC a Value)
+data SliceLeaf =
+  SPure Expr
+  | SMatch Match
+  | SAssertion Assertion -- FIXME: this is inferred from e.g. case x of True -> ...
+  | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
+  | SCall CallNode
+  | SCase CaseNode
+  
+mergeSliceLeaf :: SliceLeaf -> SliceLeaf -> SliceLeaf
+mergeSliceLeaf l r =
+  case (l, r) of
+    (SPure {}, SPure {})           -> l
+    (SMatch {}, SMatch {})         -> l
+    (SAssertion {}, SAssertion {}) -> l
+    (SChoice cs1, SChoice cs2)     -> SChoice (zipWith mergeSlice cs1 cs2)
+    (SCall lc, SCall rc)           -> SCall (mergeCallNode lc rc)
+    (SCase lc, SCase rc)           -> SCase (mergeCaseNode lc rc)
+    _                              -> panic "Mismatched terms in mergeSliceLeaf" [showPP l, showPP r]
 
-data Slice a =
+sliceLeafEqv :: SliceLeaf -> SliceLeaf -> Bool
+sliceLeafEqv l r =
+  case (l, r) of
+    (SPure {}, SPure {})           -> True
+    (SMatch {}, SMatch {})         -> True
+    (SAssertion {}, SAssertion {}) -> True    
+    (SChoice ls, SChoice rs)       -> all (uncurry sliceEqv) (zip ls rs)
+    (SCall lc, SCall rc)           -> eqvCallNode lc rc
+    (SCase lc, SCase rc)           -> eqvCaseNode lc rc
+    _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
+  
+-- We assume the core has been simplified (no nested do etc.)
+data Slice =
   -- Sequencing
-  SDontCare Int (Slice a)
-  | SDo (TCName Value) (Slice a) (Slice a)
-  | SDo_ (Slice a) (Slice a)
+  SDontCare Int Slice
+  | SDo (Maybe Name) SliceLeaf Slice -- We merge Do and Do_
   -- Terminals
   | SUnconstrained
-  | SSimple (SimpleSlice a)
-  -- | A choose node in the DDL.
-  | SChoice [Slice a]
-  -- | A case statement in the DDL.
-  | SCase (CaseNode a)
-  | SCall (CallNode a)
-  | SAssertion (Assertion a)
-  | SMany (ManyNode a)
+  | SLeaf SliceLeaf
 
 -- This assumes the slices come from the same program, i.e., we don't
 -- simple slices should be identical.
-mergeSlice :: Slice a -> Slice a -> Slice a
+mergeSlice :: Slice -> Slice -> Slice
 mergeSlice l r = 
   case (l, r) of
     (_, SUnconstrained)            -> l
@@ -180,31 +159,18 @@ mergeSlice l r =
     (SDontCare n rest, SDontCare m rest') ->
       let count = min m n
       in dontCare count (mergeSlice (dontCare (n - count) rest) (dontCare (m - count) rest'))
-    (SDontCare n rest, SDo x slL slR) -> SDo x slL (mergeSlice (dontCare (n - 1) rest) slR)
-    (SDontCare n rest, SDo_  slL slR) -> SDo_  slL (mergeSlice (dontCare (n - 1) rest) slR)
+    (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (mergeSlice (dontCare (n - 1) rest) slR)
     
-    -- Terminal case
-    (SDontCare n rest, _)             -> SDo_ r (dontCare (n - 1) rest)
+    -- FIXME: does this make sense?
+    (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (dontCare (n - 1) rest)
 
-    (SDo  {}, SDontCare {}) -> mergeSlice r l
-    (SDo_ {}, SDontCare {}) -> mergeSlice r l
+    (_, SDontCare {})       -> mergeSlice r l
 
     (SDo x slL1 slR1, SDo _x slL2 slR2) ->
-      SDo x (mergeSlice slL1 slL2) (mergeSlice slR1 slR2)
-    (SDo x slL1 slR1, SDo_ slL2 slR2) ->
-      SDo x (mergeSlice slL1 slL2) (mergeSlice slR1 slR2)
-    (SDo_ slL1 slR1, SDo x slL2 slR2) ->
-      SDo x (mergeSlice slL1 slL2) (mergeSlice slR1 slR2)
-    (SDo_ slL1 slR1, SDo_ slL2 slR2) ->
-      SDo_ (mergeSlice slL1 slL2) (mergeSlice slR1 slR2)
+      SDo x (mergeSliceLeaf slL1 slL2) (mergeSlice slR1 slR2)
 
-    (SSimple {}, SSimple {})       -> l
-    (SChoice ls, SChoice rs)       -> SChoice (zipWith mergeSlice ls rs)
-    (SCase lc, SCase rc)           -> SCase (mergeCaseNode lc rc)
-    (SCall lc, SCall rc)           -> SCall (mergeCallNode lc rc)
-    (SAssertion {}, SAssertion {}) -> l 
-    (SMany lmn, SMany rmn)         -> SMany (mergeManyNode lmn rmn) -- Shouldn't happen
-      
+    (SLeaf sl1, SLeaf sl2) -> SLeaf (mergeSliceLeaf sl1 sl2)
+    
     _ -> panic "Merging non-mergeable nodes" [showPP l, showPP r]
 
 -- This assumes the node came from the same statement (i.e., the paths
@@ -212,82 +178,55 @@ mergeSlice l r =
 -- don't need to compare TC for equality.
 --
 -- Thus, for some cases, the presence of a node is enough to return True (e.g. for Assertion)
-sliceEqv :: Slice a -> Slice a -> Bool
+sliceEqv :: Slice -> Slice -> Bool
 sliceEqv l r = 
   case (l, r) of
     (SDontCare n rest, SDontCare m rest') -> m == n && sliceEqv rest rest'
 
     (SDo _x slL1 slR1, SDo _x' slL2 slR2) ->
-      sliceEqv slL1 slL2 && sliceEqv slR1 slR2
-    (SDo_ slL1 slR1, SDo_ slL2 slR2) ->
-      sliceEqv slL1 slL2 && sliceEqv slR1 slR2
+      sliceLeafEqv slL1 slL2 && sliceEqv slR1 slR2
 
     (SUnconstrained, SUnconstrained) -> True
-    (SSimple {}, SSimple {})       -> True
-    (SChoice ls, SChoice rs)       -> all (uncurry sliceEqv) (zip ls rs)
-    (SCase lc, SCase rc)           -> eqvCaseNode lc rc
-    (SCall lc, SCall rc)           -> eqvCallNode lc rc
-    (SAssertion {}, SAssertion {}) -> True
-    (SMany lmn, SMany rmn)         -> eqvManyNode lmn rmn
-    _ -> False
+    (SLeaf sl1, SLeaf sl2) -> sliceLeafEqv sl1 sl2
+
+    _ -> panic "Comparing non-comparable nodes" [showPP l, showPP r]
 
 --------------------------------------------------------------------------------
 -- Instances
 
-instance PP (SimpleSlice a) where
+instance PP SliceLeaf where
   ppPrec n sl =
     case sl of
-      SPure v       -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 v
-      SMatchBytes v -> wrapIf (n > 0) $ "MatchBytes" <+> ppPrec 1 v
-      SGetByte      -> "GetByte"
-      SMatch p      -> wrapIf (n > 0) $ "Match" <+> ppPrec 1 p
-      SCoerceCheck _ t2 e -> wrapIf (n > 0) (ppPrec 1 e <+> "AS" <+> pp t2)
+      SPure v  -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 v
+      SMatch m -> wrapIf (n > 0) $ ppMatch SemYes m
+      SAssertion e -> wrapIf (n > 0) $ "matchassert" <+> ppPrec 1 e
+      SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)
+      SCall (CallNode { callName = fname, callPaths = evs }) ->
+        wrapIf (n > 0) $ ("call " <> pp fname)
+                         <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
+      SCase c -> pp c
 
-ppStmt :: Slice a -> Doc
+ppStmt :: Slice -> Doc
 ppStmt sl =
   case sl of
-    SDo x e1 e2 -> (pp x <+> "<-" <+> pp e1) $$ ppStmt e2
-    SDo_  e1 e2 ->                    pp e1  $$ ppStmt e2 
+    SDo (Just x) e1 e2 -> (pp x <+> "<-" <+> pp e1) $$ ppStmt e2
+    SDo Nothing  e1 e2 ->                    pp e1  $$ ppStmt e2 
     _           -> pp sl
-
       
-instance PP (Slice a) where
+instance PP Slice where
   ppPrec n ps =
     case ps of
       SDontCare 1 sl  -> wrapIf (n > 0) $ "[..]; " <> pp sl
       SDontCare n' sl -> wrapIf (n > 0) $ "[..]"   <> pp n' <> "; " <> pp sl
       SDo  {}         -> "do" <+> ppStmt ps
-      SDo_ {}         -> "do" <+> ppStmt ps
       
       SUnconstrained -> "[..]*;"
-      SSimple s     -> ppPrec n s
-      SChoice cs    -> "Choice" <> block "{" "," "}" (map pp cs)
-      SCase (CaseNode c _b e alts m_def) -> 
-        wrapIf (n > 0)
-        ("case" <> if c == Incomplete then "?" else mempty) <+> pp e <+> "is" $$
-           nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList alts))))
-        where
-        addDefault xs = case m_def of
-                          Nothing -> xs
-                          Just d  -> xs ++ ["_" <+> "->" <+> pp d]
-
-      SCall (CallNode { callName = fname, callPaths = evs }) ->
-        wrapIf (n > 0) $ ("Call " <> pp fname)
-                         <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
-
-      SAssertion a       -> wrapIf (n > 0) $ "Guard" <+> ppPrec 1 a
+      SLeaf s     -> ppPrec n s
       
-      SMany (ManyNode { manyBody = b }) ->
-        wrapIf (n > 0) $ "Many " <> ppPrec 1 b
-      
-instance PP (Assertion a) where
+instance PP Assertion where
   pp (GuardAssertion g) = pp g
 
 instance PP SummaryClass where
   pp Assertions     = "Assertions"
   pp FunctionResult = "Result"
-
-instance PP (SAlt a) where
-  ppPrec _ (SAlt ps e) = lhs <+> "->" <+> pp e
-    where lhs = sep $ punctuate comma $ map pp ps
         

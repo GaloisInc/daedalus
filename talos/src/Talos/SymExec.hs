@@ -32,7 +32,7 @@ import Talos.SymExec.StdLib
 
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
-import Talos.Analysis.PathSet
+import Talos.Analysis.Slice
 import Talos.Analysis.Monad (Summary(..))
 
 
