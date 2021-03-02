@@ -178,6 +178,6 @@ instance TypeOf Match where
       MatchByte {}  -> TUInt (TSize 8)
 
 instance TypeOf a => TypeOf (Case a) where
-  typeOf (Case _ as) = typeOf (snd (head as))
+  typeOf (Case _ as _def) = head (foldMap (\x -> [typeOf x]) as)
 
 

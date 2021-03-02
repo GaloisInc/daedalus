@@ -85,16 +85,17 @@ desugarMatch s mat =
 
 
 desugarByteSet :: ByteSet -> Expr -> Expr
-desugarByteSet bs b =
-  case bs of
-    SetAny        -> boolL True
-    SetSingle x   -> x `eq` b
-    SetRange x y  -> (x `leq` b) `eAnd` (b `leq` y)
-    SetComplement x -> eNot (desugarByteSet x b)
-    SetUnion x y -> desugarByteSet x b `eOr` desugarByteSet y b
-    SetIntersection x y -> desugarByteSet x b `eAnd` desugarByteSet y b
-    SetLet x e y -> PureLet x e (desugarByteSet y b) -- assumes no capture
-    SetCall f es -> callF f (b:es)
-    SetCase (Case e as) ->
-      ECase (Case e [ (p, desugarByteSet x b) | (p,x) <- as ])
+desugarByteSet bs b = go bs
+  where
+    go bs' = 
+      case bs' of
+        SetAny          -> boolL True
+        SetSingle x     -> x `eq` b
+        SetRange x y    -> (x `leq` b) `eAnd` (b `leq` y)
+        SetComplement x -> eNot (go x)
+        SetUnion x y    -> go x `eOr` go y
+        SetIntersection x y -> go x `eAnd` go y
+        SetLet x e y    -> PureLet x e (go y) -- assumes no capture
+        SetCall f es    -> callF f (b:es)
+        SetCase (Case e as def) -> ECase (Case e (go <$> as) (go <$> def))
 

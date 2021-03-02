@@ -159,8 +159,8 @@ instance FreeVars ByteSet where
 
 
 instance FreeVars e => FreeVars (Case e) where
-  freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
-  freeFVars (Case e opts) = freeFVars e `Set.union` freeFVars (map snd opts)
+  freeVars  (Case e opts def) = freeVars e `Set.union` foldMap freeVars opts `Set.union` foldMap freeVars def
+  freeFVars (Case e opts def) = freeFVars e `Set.union` foldMap freeFVars opts `Set.union` foldMap freeFVars def
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =

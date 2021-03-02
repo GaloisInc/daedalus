@@ -6,6 +6,7 @@
 {-# Language RankNTypes #-}
 module Daedalus.Core.Semantics.Expr where
 
+import Control.Applicative ( (<|>) )
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified Data.ByteString as BS
@@ -51,40 +52,24 @@ eval expr env =
 
 
 evalCase :: (a -> Env -> b) -> b -> Case a -> Env -> b
-evalCase cont nope (Case e alts) env =
+evalCase cont nope (Case e alts def) env =
   let v = eval e env
-  in case [ k | (p,k) <- alts, matches p v ] of
-       g : _ -> cont g env
-       []    -> nope
+  in case matches alts v <|> def of
+       Just g -> cont g env
+       _      -> nope
 
-matches :: Pattern -> Value -> Bool
-matches pat v =
-  case pat of
-    PBool b  -> VBool b == v
-    PNothing -> case v of
-                  VNothing {} -> True
-                  _           -> False
-    PJust    -> case v of
-                  VJust {} -> True
-                  _        -> False
-    PNum n ->
-      case v of
-        VInt i    -> i == n
-        VUInt _ u -> BV.asUnsigned u == n
-        VSInt w s -> BV.asSigned w s == n
-        _         -> False
-
-    PCon l ->
-      case v of
-        VUnion _ l1 _ -> l == l1
-        _              -> False
-
-    PAny -> True
-
-
-
-
-
+matches :: CaseBody a -> Value -> Maybe a
+matches cbody v =
+  case (cbody, v) of
+    (UnionCase cs, VUnion _ l _) -> lookup l                 cs
+    (NumberCase cs, VInt i)      -> lookup i                 cs
+    (NumberCase cs, VUInt _ u)   -> lookup (BV.asUnsigned u) cs
+    (NumberCase cs, VSInt w s)   -> lookup (BV.asSigned w s) cs
+    (BoolCase   cs, VBool b)     -> lookup b                 cs
+    (MaybeCase  cs, VNothing {}) -> lookup Nothing           cs
+    (MaybeCase  cs, VJust    {}) -> lookup (Just ())         cs
+    _ -> panic "Incompatible value in match" [] 
+    
 evalArgs :: [Expr] -> Env -> [Value]
 evalArgs xs env =
   case xs of

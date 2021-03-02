@@ -19,8 +19,8 @@ data ByteSet =
   | SetCall FName [Expr]
   | SetCase (Case ByteSet)
 
-bCase :: Expr -> [(Pattern,ByteSet)] -> ByteSet
-bCase e bs = SetCase (Case e bs)
+bCase :: Expr -> CaseBody ByteSet -> Maybe ByteSet -> ByteSet
+bCase e bs def = SetCase (Case e bs def)
 
 instance PP ByteSet where
   ppPrec n bs =

@@ -1,6 +1,7 @@
 {-# Language BlockArguments #-}
 module Daedalus.Core.Effect(annotateNoFail, canFailFun, canFail) where
 
+import Data.Monoid (Any(..))
 import Data.Set(Set)
 import qualified Data.Set as Set
 
@@ -31,18 +32,14 @@ canFail gram =
     Let _ _ g         -> canFail g
     OrBiased _ g2     -> canFail g2
     OrUnbiased g1 g2  -> canFail g1 && canFail g2
-    GCase (Case _ alts) -> any (canFail . snd) alts || partial (map fst alts)
+    GCase (Case _ alts def) -> partial alts || getAny (go alts <> go def)
       where
+      go :: Foldable f => f Grammar -> Any
+      go = foldMap (Any . canFail)
       partial xs =
         case xs of
-          [] -> True
-
-          PAny     : _                    -> False
-          PNothing : PJust : _            -> False
-          PJust    : PNothing : _         -> False
-          PBool x : PBool y : _ | x /= y  -> False
-
-          _ : ys                          -> partial ys
+          NumberCase {} -> True  -- FIXME: we over-approximate this, even though this is feasible for small n
+          _             -> False -- the invariant is that other cases are total, with explicit failure.
 
 -- | Cache analysis results in annotation nodes
 annotate :: (FName -> [Expr] -> Grammar) -> Grammar -> Grammar
@@ -66,7 +63,7 @@ annotate annCall = annot
       Let x e g         -> Let x e (annot g)
       OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
       OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
-      GCase (Case e alts) -> GCase (Case e [ (p,annot g1) | (p,g1) <- alts ])
+      GCase (Case e alts def) -> GCase (Case e (annot <$> alts) (annot <$> def))
 
   annNoFail g = case g of
 

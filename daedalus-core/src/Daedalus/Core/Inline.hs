@@ -105,7 +105,7 @@ instance Expand Expr where
              _ -> pure (ApN op es')
 
 instance Expand e => Expand (Case e) where
-  expand (Case e rs) = Case <$> expand e <*> forM rs \(p,r) -> (p,) <$> expand r
+  expand (Case e rs def) = Case <$> expand e <*> traverse expand rs <*> traverse expand def
 
 instance Expand Grammar where
   expand gram =

@@ -36,10 +36,10 @@ data ErrorSource = ErrorFromUser | ErrorFromSystem
 
 
 gIf :: Expr -> Grammar -> Grammar -> Grammar
-gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
+gIf e g1 g2 = gCase e (BoolCase [ (True, g1), (False, g2) ]) Nothing
 
-gCase :: Expr -> [(Pattern,Grammar)] -> Grammar
-gCase e as = GCase (Case e as)
+gCase :: Expr -> CaseBody Grammar -> Maybe Grammar -> Grammar
+gCase e as def = GCase (Case e as def)
 
 --------------------------------------------------------------------------------
 

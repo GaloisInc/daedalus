@@ -98,12 +98,21 @@ data OpN =
     ArrayL Type
   | CallF FName
 
-
-data Case k = Case Expr [(Pattern,k)]
+data Case k = Case { cTerm    :: Expr
+                   , cBody    :: CaseBody k
+                   , cDefault :: Maybe k
+                   }
   deriving (Functor,Foldable,Traversable)
 
-eCase :: Expr -> [(Pattern,Expr)] -> Expr
-eCase e ps = ECase (Case e ps)
+data CaseBody k =
+    UnionCase  [(Label, k)]
+  | NumberCase [(Integer, k)]
+  | BoolCase   [(Bool, k)]
+  | MaybeCase  [(Maybe (), k)]
+  deriving (Functor,Foldable,Traversable)
+
+eCase :: Expr -> CaseBody Expr -> Maybe Expr -> Expr
+eCase e ps def = ECase (Case e ps def)
 
 --------------------------------------------------------------------------------
 unit    = Ap0 Unit
@@ -188,7 +197,7 @@ boolL b      = Ap0 (BoolL b)
 eNot         = Ap1 Not
 eOr x y      = eIf x (boolL True) y
 eAnd x y     = eIf x y (boolL False)
-eIf e e1 e2  = eCase e [ (PBool True, e1), (PBool False, e2) ]
+eIf e e1 e2  = eCase e (BoolCase [ (True, e1), (False, e2) ]) Nothing
 
 
 --------------------------------------------------------------------------------
@@ -387,9 +396,19 @@ instance PP OpN where
     case op of
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
+
 instance PP a => PP (Case a) where
-  pp (Case e as) = "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
+  pp (Case { cTerm = e, cBody = b, cDefault = def }) =
+    "case" <+> pp e <+> "of" $$ nest 2 (vcat (ppBody b ++ ppDef))
     where
-    alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+      ppBody (UnionCase cs)  = map alt cs
+      ppBody (NumberCase cs) = map alt cs
+      ppBody (BoolCase   cs) = map alt cs
+      ppBody (MaybeCase  cs) = map mbAlt cs
 
-
+      ppDef | Just g <- def = [ "_" <+> "->" $$ nest 2 (pp g) ]
+            | otherwise     = []
+          
+      alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+      mbAlt (Nothing,g) = "nothing" <+> "->" $$ nest 2 (pp g)
+      mbAlt (Just _,g)  = "just" <+> "->" $$ nest 2 (pp g)

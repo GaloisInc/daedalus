@@ -83,16 +83,6 @@ newtype TParam = TP Int
   deriving (Eq,Ord)
 
 
-data Pattern =
-    PBool Bool
-  | PNothing
-  | PJust
-  | PNum Integer
-  | PCon Label
-  | PAny
-    deriving (Eq,Ord)
-
-
 --------------------------------------------------------------------------------
 freshTName :: HasGUID m => TName -> m TName
 freshTName n =
@@ -199,13 +189,3 @@ instance PP SizeType where
       TSize n -> pp n
       TSizeParam x -> pp x
 
-
-instance PP Pattern where
-  pp pat =
-    case pat of
-      PBool  b  -> pp b
-      PNothing  -> "nothing"
-      PJust     -> "just"
-      PNum   n  -> pp n
-      PCon   l  -> pp l
-      PAny      -> "_"

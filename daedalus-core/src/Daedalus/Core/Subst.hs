@@ -90,9 +90,7 @@ instance Subst ByteSet where
 
 
 instance Subst e => Subst (Case e) where
-  subst (Case e ps) = Case <$> subst e <*> mapM substBranch ps
-    where substBranch (p,rhs) = (,) p <$> subst rhs
-
+  subst (Case e ps def) = Case <$> subst e <*> traverse subst ps <*> traverse subst def
 
 letLike ::
   (Subst a, Subst b, HasGUID m) =>
