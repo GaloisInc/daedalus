@@ -26,9 +26,9 @@ import Talos.Analysis.Slice
 -- Invariants: forall (vs1, ps1) (vs2, ps2) : elements, vs1 \inter vs2 = {}
 --             forall (vs, ps) : elements, vs = tcFree ps
 
-newtype Domain a = Domain { elements :: [ (EntangledVars, Slice a) ] } 
+newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] } 
 
-mergeDomain :: Domain a -> Domain a -> Domain a
+mergeDomain :: Domain -> Domain -> Domain
 mergeDomain dL dR = Domain (go (elements dL) (elements dR))
   where
     go [] d2 = d2
@@ -42,30 +42,30 @@ mergeDomain dL dR = Domain (go (elements dL) (elements dR))
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?
-instance Semigroup (Domain a) where
+instance Semigroup (Domain) where
   (<>) = mergeDomain
 
-emptyDomain :: Domain a 
+emptyDomain :: Domain 
 emptyDomain = Domain []
 
-singletonDomain :: EntangledVars -> Slice a -> Domain a
+singletonDomain :: EntangledVars -> Slice -> Domain
 singletonDomain vs fp = Domain [ (vs, fp) ]
 
-instance Monoid (Domain a) where
+instance Monoid (Domain) where
   mempty = emptyDomain
 
-dontCareD :: Int -> Domain a -> Domain a
+dontCareD :: Int -> Domain -> Domain
 dontCareD n d = Domain [ (evs, dontCare n fp) | (evs, fp) <- elements d ]
 
-nullDomain :: Domain a -> Bool
+nullDomain :: Domain -> Bool
 nullDomain (Domain []) = True
 nullDomain _           = False
 
-mapDomain :: (EntangledVars -> Slice a -> Slice a) -> Domain a -> Domain a
+mapDomain :: (EntangledVars -> Slice -> Slice) -> Domain -> Domain
 mapDomain f = Domain . map (\(x, y) -> (x, f x y)) . elements
 
 
--- substResultInDomain :: EntangledVar -> Domain a -> Domain a
+-- substResultInDomain :: EntangledVar -> Domain -> Domain
 -- substResultInDomain x d =
 --   case splitOnVarWith isResult d of
 --     (Nothing, _) -> d
@@ -76,7 +76,7 @@ mapDomain f = Domain . map (\(x, y) -> (x, f x y)) . elements
 --       isResult (ResultVar {}) = True
 --       isResult _              = False
 
-squashDomain :: Domain a -> Domain a
+squashDomain :: Domain -> Domain
 squashDomain d@(Domain []) = d
 squashDomain (Domain els) =
   singletonDomain (mergeEntangledVarss fvss)
@@ -84,7 +84,7 @@ squashDomain (Domain els) =
   where
     (fvss, fpss) = unzip els
 
-domainEqv :: Domain a -> Domain a -> Bool
+domainEqv :: Domain -> Domain -> Bool
 domainEqv dL dR = go (elements dL) (elements dR)
   where
     go [] [] = True
@@ -97,7 +97,7 @@ domainEqv dL dR = go (elements dL) (elements dR)
 
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
-explodeDomain :: Domain a -> Map EntangledVar (EntangledVars, Slice a)
+explodeDomain :: Domain -> Map EntangledVar (EntangledVars, Slice)
 explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
                                | el <- elements d ]
   where -- FIXME
@@ -106,10 +106,10 @@ explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
 --------------------------------------------------------------------------------
 -- Helpers
 
-lookupVar :: EntangledVar -> Domain a -> Maybe (EntangledVars, Slice a)
+lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
 lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
 
-splitOnVarWith :: (EntangledVar -> Bool) -> Domain a -> (Maybe (EntangledVars, Slice a), Domain a)
+splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
 splitOnVarWith f ds =
   case nin of
     []  -> (Nothing, ds)
@@ -118,17 +118,17 @@ splitOnVarWith f ds =
   where
     (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
 
-splitOnVar :: EntangledVar -> Domain a -> (Maybe (EntangledVars, Slice a), Domain a)
+splitOnVar :: EntangledVar -> Domain -> (Maybe (EntangledVars, Slice), Domain)
 splitOnVar n = splitOnVarWith ((==) n)
 
 -- doesn't merge
-primAddDomainElement :: (EntangledVars, Slice a) -> Domain a -> Domain a
+primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
 primAddDomainElement d ds = Domain (d : elements ds)
 
 --------------------------------------------------------------------------------
 -- Class instances
 
-instance PP (Domain a) where
+instance PP Domain where
   pp d = vcat (map pp_el (elements d))
     where
       pp_el (vs, fp) = pp vs <> " => " <> pp fp
