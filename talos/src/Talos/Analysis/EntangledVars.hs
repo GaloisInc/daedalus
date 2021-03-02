@@ -69,6 +69,9 @@ substEntangledVars s (EntangledVars evs) =
 intersects :: EntangledVars -> EntangledVars -> Bool
 intersects e1 e2 = not (Set.disjoint (getEntangledVars e1) (getEntangledVars e2))
 
+memberEntangledVars :: EntangledVar -> EntangledVars -> Bool
+memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
+
 --------------------------------------------------------------------------------
 -- Class instances
 

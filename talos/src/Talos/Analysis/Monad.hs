@@ -16,12 +16,12 @@ import Daedalus.PP
 import Daedalus.Pass
 import Daedalus.GUID
 
-import Talos.Analysis.PathSet
+import Talos.Analysis.Slice
 import Talos.Analysis.Domain
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
-type PathRootMap =  Map (TCName Value) (FuturePathSet TCSynthAnnot)
+type PathRootMap =  Map (TCName Value) (Slice TCSynthAnnot)
 
 -- This is the summarisation for a given class for a given function
 data Summary =

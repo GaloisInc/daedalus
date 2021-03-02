@@ -2,7 +2,9 @@
 module Talos.SymExec.StdLib (
   makeStdLib,
   -- * Model types
-  tModel,  
+  tModel,
+  -- * Monadic results
+  tResult,
   -- * Convenience wrappers for SMT
   -- ** Syntactic helpers
   mklet,
@@ -69,6 +71,9 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     ]
 
   S.declareDatatype s "Unit"  []  [ ("unit", []) ]
+
+  -- Define 'Byte' as a bv8
+  S.ackCommand s (S.fun "define-sort" [S.const "Byte", S.List [], S.tBits 8])
   
   -- This has to be correct by construction, as the reason it is
   -- needed is that we can't write a polymorphic length function in
@@ -86,6 +91,11 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     , ("indexed",  [("index", S.tInt), ("get-body", S.const "Model")])
     -- , ("seq",     [("count", S.tInt), ("values", S.tArray S.tInt (S.const "Model"))])
     , ("seq",     [("mfst", S.const "Model"), ("msnd", S.const "Model")])
+    ]
+
+  S.declareDatatype s "Result" ["t"]
+    [ ("failure", [])
+    , ("success", [("get-result", S.const "t")])
     ]
 
   -- A stub for now
@@ -164,7 +174,7 @@ sFromList :: SExpr -> [SExpr] -> SExpr
 sFromList elT = foldr sCons (sNil elT)
 
 tByte :: SExpr
-tByte = S.tBits 8
+tByte = S.const "Byte"
 
 tBytes :: SExpr
 tBytes = tList tByte
@@ -216,3 +226,6 @@ sGetRight v = S.fun "get-Right" [v]
 
 tModel :: SExpr
 tModel = S.const "Model"
+
+tResult :: SExpr -> SExpr
+tResult t = S.fun "Result" [t]

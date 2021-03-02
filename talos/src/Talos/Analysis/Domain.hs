@@ -18,7 +18,7 @@ import Daedalus.PP
 import Daedalus.Panic
 
 import Talos.Analysis.EntangledVars
-import Talos.Analysis.PathSet
+import Talos.Analysis.Slice
 
 --------------------------------------------------------------------------------
 -- Domains
@@ -26,7 +26,7 @@ import Talos.Analysis.PathSet
 -- Invariants: forall (vs1, ps1) (vs2, ps2) : elements, vs1 \inter vs2 = {}
 --             forall (vs, ps) : elements, vs = tcFree ps
 
-newtype Domain a = Domain { elements :: [ (EntangledVars, FuturePathSet a) ] } 
+newtype Domain a = Domain { elements :: [ (EntangledVars, Slice a) ] } 
 
 mergeDomain :: Domain a -> Domain a -> Domain a
 mergeDomain dL dR = Domain (go (elements dL) (elements dR))
@@ -35,7 +35,7 @@ mergeDomain dL dR = Domain (go (elements dL) (elements dR))
     -- d might overlap with multiple elements from d2 (but none from d1') 
     go ((els, ps) : d1') d2 = go d1' ((newEls, newPs) : indep)
       where
-        newPs = foldl mergeFuturePathSet ps depPs
+        newPs = foldl mergeSlice ps depPs
         newEls = mergeEntangledVarss (els : depEls)
         (depEls, depPs) = unzip dep
         (dep, indep) = partition (\(els', _) -> els `intersects` els') d2
@@ -48,7 +48,7 @@ instance Semigroup (Domain a) where
 emptyDomain :: Domain a 
 emptyDomain = Domain []
 
-singletonDomain :: EntangledVars -> FuturePathSet a -> Domain a
+singletonDomain :: EntangledVars -> Slice a -> Domain a
 singletonDomain vs fp = Domain [ (vs, fp) ]
 
 instance Monoid (Domain a) where
@@ -61,14 +61,26 @@ nullDomain :: Domain a -> Bool
 nullDomain (Domain []) = True
 nullDomain _           = False
 
-mapDomain :: (FuturePathSet a -> FuturePathSet a) -> Domain a -> Domain a
-mapDomain f = Domain . map (\(x, y) -> (x, f y)) . elements
+mapDomain :: (EntangledVars -> Slice a -> Slice a) -> Domain a -> Domain a
+mapDomain f = Domain . map (\(x, y) -> (x, f x y)) . elements
+
+
+-- substResultInDomain :: EntangledVar -> Domain a -> Domain a
+-- substResultInDomain x d =
+--   case splitOnVarWith isResult d of
+--     (Nothing, _) -> d
+--     (Just (evs, sl), d') ->
+--       singletonDomain (substEntangledVars (\ev -> Set.singleton $ if isResult ev then x else ev) evs, sl)
+--       <> d'
+--     where
+--       isResult (ResultVar {}) = True
+--       isResult _              = False
 
 squashDomain :: Domain a -> Domain a
 squashDomain d@(Domain []) = d
 squashDomain (Domain els) =
   singletonDomain (mergeEntangledVarss fvss)
-                  (foldl1' mergeFuturePathSet fpss)
+                  (foldl1' mergeSlice fpss)
   where
     (fvss, fpss) = unzip els
 
@@ -80,12 +92,12 @@ domainEqv dL dR = go (elements dL) (elements dR)
     go ((els, ps) : d1') d2 =
       case partition ((==) els . fst) d2 of
         ([], _)           -> False
-        ([(_, ps')], d2') -> futurePathEqv ps ps' && go d1' d2'
+        ([(_, ps')], d2') -> sliceEqv ps ps' && go d1' d2'
         _ -> panic "Malformed domain" []
 
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
-explodeDomain :: Domain a -> Map EntangledVar (EntangledVars, FuturePathSet a)
+explodeDomain :: Domain a -> Map EntangledVar (EntangledVars, Slice a)
 explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
                                | el <- elements d ]
   where -- FIXME
@@ -94,20 +106,23 @@ explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
 --------------------------------------------------------------------------------
 -- Helpers
 
-lookupVar :: EntangledVar -> Domain a -> Maybe (EntangledVars, FuturePathSet a)
+lookupVar :: EntangledVar -> Domain a -> Maybe (EntangledVars, Slice a)
 lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
-  
-splitOnVar :: EntangledVar -> Domain a -> (Maybe (EntangledVars, FuturePathSet a), Domain a)
-splitOnVar n ds =
+
+splitOnVarWith :: (EntangledVar -> Bool) -> Domain a -> (Maybe (EntangledVars, Slice a), Domain a)
+splitOnVarWith f ds =
   case nin of
     []  -> (Nothing, ds)
     [d] -> (Just d, Domain nout)
     _   -> panic "Multiple occurences of a variable in a domain" []
   where
-    (nin, nout) = partition (\(ns, _) -> n `Set.member` getEntangledVars ns) (elements ds)
+    (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
+
+splitOnVar :: EntangledVar -> Domain a -> (Maybe (EntangledVars, Slice a), Domain a)
+splitOnVar n = splitOnVarWith ((==) n)
 
 -- doesn't merge
-primAddDomainElement :: (EntangledVars, FuturePathSet a) -> Domain a -> Domain a
+primAddDomainElement :: (EntangledVars, Slice a) -> Domain a -> Domain a
 primAddDomainElement d ds = Domain (d : elements ds)
 
 --------------------------------------------------------------------------------
