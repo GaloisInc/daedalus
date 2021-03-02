@@ -11,12 +11,8 @@ module Talos.Analysis ( summarise
                       , Summary
                       ) where
 
-import Data.Map (Map)
-
 import Control.Monad.State
 import Data.List (inits)
-import Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import Data.Maybe (isJust)
 import qualified Data.Set as Set
@@ -24,8 +20,7 @@ import qualified Data.Set as Set
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
-import Daedalus.Type.AST
-import qualified Daedalus.Type.PatComplete as PC 
+import Daedalus.Core
 
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
@@ -35,12 +30,11 @@ import Talos.Analysis.Slice
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: Map TCTyName TCTyDecl ->
-             [Name] -> [TCDecl TCSynthAnnot] -> GUID -> (Summaries, GUID)
-summarise declTys _roots decls nguid  = (summaries s', nextGUID s')
+summarise :: [FName] -> [Fun Grammar] -> GUID -> (Summaries, GUID)
+summarise _roots decls nguid  = (summaries s', nextGUID s')
   where
     s' = calcFixpoint s0 
-    s0 = initState declTys decls nguid 
+    s0 = initState decls nguid 
 
 --------------------------------------------------------------------------------
 -- Summary functions
@@ -55,11 +49,10 @@ calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
 -- Empty worklist
 calcFixpoint s = s
 
-summariseDecl :: SummaryClass -> TCDecl TCSynthAnnot ->  IterM ()
-summariseDecl cls TCDecl { tcDeclName = fn
-                         , tcDeclDef = Defined def
-                         , tcDeclCtxt = AGrammar
-                         , tcDeclParams = ps } = do
+summariseDecl :: SummaryClass -> Fun Grammar -> IterM ()
+summariseDecl cls Fun { fName = fn
+                      , fDef = Def def
+                      , fParams = ps } = do
   IterM $ modify (\s -> s { currentDecl = fn, currentClass = cls })
 
   m_oldS <- lookupSummary fn cls
@@ -87,36 +80,19 @@ summariseDecl cls TCDecl { tcDeclName = fn
     
     doSummary :: IterM Summary
     doSummary = do
-      let ty = case typeOf def of
-            Type (TGrammar ty') -> ty'
-            ty' -> panic "Expecting a Grammar type" [showPP ty']
-            
-          m_ret = case cls of
+      let m_ret = case cls of
             Assertions     -> Nothing
-            FunctionResult -> Just (ResultVar ty)
-            
-          ps'    = map paramToValParam ps
-            
+            FunctionResult -> Just (ResultVar (fnameType fn))
+                        
       (d, m) <- runSummariseM (summariseG m_ret def)
       
       pure (Summary { exportedDomain = d
                     , pathRootMap = m
-                    , params = ps'
+                    , params = ps
                     , summaryClass = cls
                     })
 
-    paramToValParam (ValParam v) = v
-    paramToValParam _ = panic "paramToValParam" []
-
-summariseDecl _ _ = panic "Expecting a grammar-level, defined, decl" []
-
-
--- summariseCtors :: Predicate -> [(Label, TC a Value)] -> IterM Assertion
--- summariseCtors Top cs         = mconcat <$> mapM (summariseTC Top . snd) cs
--- summariseCtors (Fields fs) cs = mconcat <$> mapM go cs
---   where
---     go (l, v) | Just p <- Map.lookup l fs = summariseTC p v
---     go _ = pure emptyAssertion
+summariseDecl _ _ = panic "Expecting a defined decl" []
 
 --------------------------------------------------------------------------------
 -- Decl-local monad 
@@ -136,7 +112,7 @@ runSummariseM m = evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptyS
 liftIterM :: IterM a -> SummariseM a
 liftIterM = SummariseM . lift
 
-addPathRoot :: TCName Value -> Slice TCSynthAnnot -> SummariseM ()
+addPathRoot :: Name -> Slice -> SummariseM ()
 addPathRoot v fp = SummariseM $ modify (\s -> s { pathRoots = Map.insert v fp (pathRoots s) })
 
 --------------------------------------------------------------------------------
@@ -164,13 +140,12 @@ addPathRoot v fp = SummariseM $ modify (\s -> s { pathRoots = Map.insert v fp (p
 -- on the analysis); and {x} is a name for the path set above
 -- (indexed by the variable returned by explodeDomain).
 
-summariseCall :: Maybe EntangledVar -> TCName Grammar -> [Arg TCSynthAnnot]
-              -> SummariseM (Domain TCSynthAnnot)
+summariseCall :: Maybe EntangledVar -> FName -> [Expr] -> SummariseM Domain
 summariseCall m_x fn args = do
   -- We ignore rMap for this bit, it is only used during synthesis of
   -- the internal bytes.  If cl is FunctionResult then ResultVar will
   -- occur in expDom.
-  Summary expDom _rMap ps _cl <- liftIterM $ requestSummary (tcName fn) cl
+  Summary expDom _rMap ps _cl <- liftIterM $ requestSummary fn cl
 
   -- do d <- liftIterM $ currentDeclName
   --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
@@ -178,7 +153,7 @@ summariseCall m_x fn args = do
   -- We need to now substitute the actuals for the params in
   -- summary, and merge the results (the substitution may have
   -- introduced duplicates, so we need to do a pointwise merge)
-  let argsMap    = Map.fromList $ zip ps (map argToVal args)
+  let argsMap    = Map.fromList $ zip ps args
       argsSubst  = tcEntangledVars <$> argsMap
       paramMap p =
         case p of
@@ -189,28 +164,25 @@ summariseCall m_x fn args = do
       mkCallNode r body =
         CallNode { callClass        = cl
                  , callAllArgs      = argsMap
-                 , callName         = tcName fn
+                 , callName         = fn
                  , callPaths        = Map.singleton r (Wrapped body)
                  }
 
       mkCall r b@(evs, _) = 
         singletonDomain (substEntangledVars paramMap evs)
-                        (SCall $ mkCallNode r b)
+                        (SLeaf . SCall $ mkCallNode r b)
   
   pure $ Map.foldMapWithKey mkCall (explodeDomain expDom)
 
   where
     cl | isJust m_x = FunctionResult
        | otherwise  = Assertions
-    
-    argToVal (ValArg v) = v
-    argToVal _ = panic "Shoudn't happen: summariseCall nonValue" []
 
-asSingleton :: Domain a -> (EntangledVars, Slice a)
-asSingleton dom
-  | nullDomain dom = (mempty, SUnconstrained)
-  | [r] <- elements dom = r
-  | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
+-- asSingleton :: Domain -> (EntangledVars, Slice)
+-- asSingleton dom
+--   | nullDomain dom = (mempty, SUnconstrained)
+--   | [r] <- elements dom = r
+--   | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
 
 -- Case is a bit tricky.
 -- 
@@ -241,56 +213,42 @@ asSingleton dom
 -- first.  In this case, we should entangle x and y,
 --
 -- D) is similar to (C) but we need to add a constraint.
-summariseCase :: Maybe EntangledVar ->
-                 TC TCSynthAnnot Grammar ->
-                 TC TCSynthAnnot Value ->
-                 NonEmpty (TCAlt TCSynthAnnot Grammar) ->
-                 Maybe (TC TCSynthAnnot Grammar) ->
-                 SummariseM (Domain TCSynthAnnot)
-summariseCase m_x tc e alts m_def = do
-  declTys <- liftIterM declaredTypes
-  bDoms   <- mapM (summariseG m_x . tcAltBody) alts'
-  defDom  <- traverse (summariseG m_x) m_def
-  let (caseClass, cSummary) = PC.summariseCase declTys tc
-      trivial   = all nullDomain (maybe emptyDomain id defDom : bDoms)
-      total     = caseClass == PC.Complete
+-- summariseCase :: Maybe EntangledVar ->
+--                  Grammar ->
+--                  Expr ->
+--                  [(Pattern, Grammar)] ->
+--                  SummariseM Domain
+-- summariseCase m_x tc e alts = do
+--   declTys <- liftIterM declaredTypes
+--   bDoms   <- mapM (summariseG m_x . tcAltBody) alts'
+--   defDom  <- traverse (summariseG m_x) m_def
+--   let (caseClass, cSummary) = PC.summariseCase declTys tc
+--       trivial   = all nullDomain (maybe emptyDomain id defDom : bDoms)
+--       total     = caseClass == PC.Complete
       
-  if trivial && total then pure emptyDomain else do
-    -- We have a non-trivial node, so we construct a singleton domain.
-    -- This breaks the domain abstraction, but it is a bit simpler to
-    -- write like this.
-    let (altVs, altFPs) = unzip $ zipWith mkAltPath alts' (map squashDomain bDoms)
-        m_defVF = asSingleton . squashDomain <$> defDom
-        vs     = mergeEntangledVarss (tcEntangledVars e : maybe mempty fst m_defVF : altVs)
-        cNode = CaseNode { caseCompleteness = caseClass
-                         , caseSummary      = cSummary
-                         , caseTerm         = e
-                         , caseAlts         = NE.fromList altFPs
-                         , caseDefault      = snd <$> m_defVF
-                         } 
-    pure (singletonDomain vs (SCase cNode))
-  where
-    -- We have at least 1 non-empty domain (c.f. trivial)
-    mkAltPath alt dom =
-      let (fvs, fps) = asSingleton dom
-          binds      = altBinds alt -- singleton or empty
-      in (foldr deleteEntangledVar fvs (map ProgramVar binds)
-         , SAlt (tcAltPatterns alt) fps)
+--   if trivial && total then pure emptyDomain else do
+--     -- We have a non-trivial node, so we construct a singleton domain.
+--     -- This breaks the domain abstraction, but it is a bit simpler to
+--     -- write like this.
+--     let (altVs, altFPs) = unzip $ zipWith mkAltPath alts' (map squashDomain bDoms)
+--         m_defVF = asSingleton . squashDomain <$> defDom
+--         vs     = mergeEntangledVarss (tcEntangledVars e : maybe mempty fst m_defVF : altVs)
+--         cNode = CaseNode { caseCompleteness = caseClass
+--                          , caseSummary      = cSummary
+--                          , caseTerm         = e
+--                          , caseAlts         = NE.fromList altFPs
+--                          , caseDefault      = snd <$> m_defVF
+--                          } 
+--     pure (singletonDomain vs (SCase cNode))
+--   where
+--     -- We have at least 1 non-empty domain (c.f. trivial)
+--     mkAltPath alt dom =
+--       let (fvs, fps) = asSingleton dom
+--           binds      = altBinds alt -- singleton or empty
+--       in (foldr deleteEntangledVar fvs (map ProgramVar binds)
+--          , SAlt (tcAltPatterns alt) fps)
          
-    alts' = NE.toList alts
-  --         mkCase alts' m_def'
-  --           = PathNode (FNCase isMissing e alts' m_def') Unconstrained
-  --         mkAlt alt = FNAlt (tcAltPatterns alt)
-  --         mkCase' p s fp =
-  --           mkCase (NE.zipWith mkAlt alts (NE.fromList (p ++ [fp] ++ s)))
-  --                  (const Unconstrained <$> m_def)
-  --         mk p d s  = mapDomain (mkCase' p s) d
-  --         bdoms'  = diagonalise Unconstrained bdoms mk
-      
-  --     defDom <- mapDomain (\fp -> mkCase (replicate (NE.length alts) Unconstrained))
-  --                         <$> 
-                
-  --     pure (mconcat (defDom : bdoms'))
+--     alts' = NE.toList alts
       
 
 -- Some examples:
@@ -323,65 +281,100 @@ summariseCase m_x tc e alts m_def = do
 -- complexity, but we might be able to avoid this by introducing
 -- orderings.
 
-summariseMany :: Maybe EntangledVar ->
-                 TC TCSynthAnnot Grammar ->
-                 ManyBounds (TC TCSynthAnnot Value) ->
-                 TC TCSynthAnnot Grammar ->
-                 SummariseM (Domain TCSynthAnnot)
-summariseMany m_x _tc bnds body = do
-  -- We squash as we need to unify the domain vars with the frees
-  -- in the bounds, modulo m_x
-  bodyD <- squashDomain <$> summariseG m_ret body
-  -- bodyD has 0 or 1 elements
-  if nullDomain bodyD then pure emptyDomain else do
-    let (evs, fps) = asSingleton bodyD
-        evs'       = subst_x evs
-        node       = ManyNode { manyBounds       = bnds
-                              , manyFrees        = maybe evs (flip deleteEntangledVar evs) m_ret
-                              , manyBody         = fps
-                              }
-    pure $ singletonDomain (mergeEntangledVars evs' (tcEntangledVars bnds))
-                           (SMany node)
-    where
-      (m_ret, subst_x) = case m_x of
-        Nothing -> (Nothing, id)
-        Just x  -> let ret = ResultVar (typeOf x)
-                       rSubst y
-                         | y == ret  = singletonEntangledVars x
-                         | otherwise = singletonEntangledVars y
-                   in (Just ret, substEntangledVars rSubst)
+-- summariseMany :: Maybe EntangledVar ->
+--                  TC TCSynthAnnot Grammar ->
+--                  ManyBounds (TC TCSynthAnnot Value) ->
+--                  TC TCSynthAnnot Grammar ->
+--                  SummariseM (Domain)
+-- summariseMany m_x _tc bnds body = do
+--   -- We squash as we need to unify the domain vars with the frees
+--   -- in the bounds, modulo m_x
+--   bodyD <- squashDomain <$> summariseG m_ret body
+--   -- bodyD has 0 or 1 elements
+--   if nullDomain bodyD then pure emptyDomain else do
+--     let (evs, fps) = asSingleton bodyD
+--         evs'       = subst_x evs
+--         node       = ManyNode { manyBounds       = bnds
+--                               , manyFrees        = maybe evs (flip deleteEntangledVar evs) m_ret
+--                               , manyBody         = fps
+--                               }
+--     pure $ singletonDomain (mergeEntangledVars evs' (tcEntangledVars bnds))
+--                            (SMany node)
+--     where
+--       (m_ret, subst_x) = case m_x of
+--         Nothing -> (Nothing, id)
+--         Just x  -> let ret = ResultVar (typeOf x)
+--                        rSubst y
+--                          | y == ret  = singletonEntangledVars x
+--                          | otherwise = singletonEntangledVars y
+--                    in (Just ret, substEntangledVars rSubst)
 
 -- This calculates the pathset for a grammar.  The first argument is
 -- what parts (if any) we care about for the result of this function
 -- (in general we only care about this for the final statement,
 -- everything else is handled using path sets).
 
+
+explodeOr :: Grammar -> [Grammar]
+explodeOr (OrUnbiased l r) = explodeOr l ++ explodeOr r
+explodeOr (OrBiased l r)   = explodeOr l ++ explodeOr r
+explodeOr g                = [g]
+
+-- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
+-- that we choose one.
+summariseOr :: Maybe EntangledVar -> -- Do we want the result of tc or not?
+               Grammar -> SummariseM Domain
+summariseOr m_x g = do
+  doms <- mapM (summariseG m_x) gs
+  -- doms contains a domain for each path in the choose. We create a
+  -- diagonal list of domains, like
+  --
+  --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
+  --
+  -- and then merge
+  --
+  let mkOne p s fp = SLeaf (SChoice (p ++ [fp] ++ s))
+      mk p d' s = mapDomain (\_ -> mkOne p s) d'
+      doms' = diagonalise SUnconstrained doms mk
+  pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
+  
+  where
+    gs = explodeOr g
+
 summariseG :: Maybe EntangledVar -> -- Do we want the result of tc or not?
-              TC TCSynthAnnot Grammar -> SummariseM (Domain TCSynthAnnot)
+              Grammar -> SummariseM Domain
 summariseG m_x tc = do
   -- d <- liftIterM $ currentDeclName
   -- cl <- liftIterM $ currentSummaryClass
   
   -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
 
-  case texprValue tc of
-    TCDo m_x' lhs rhs -> do
+  case tc of
+    Pure v    -> simple (SPure v)
+    GetStream    -> unimplemented
+    SetStream {} -> unimplemented
+    Match _ m -> simple (SMatch m)
+    Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
+    
+    Do_ lhs rhs -> do
+      rhsD <- dontCareD 1 <$> summariseG m_x rhs
+      mergeDomain rhsD <$> summariseG Nothing lhs
+    
+    Do x' lhs rhs -> do
       -- we add the dontCare to leave a spot to merge in the dom for lhs
       rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      case m_x' of
-      -- we care about the variable, so we need a FunctionResult summary
-        Just x' | Just _ <- lookupVar (ProgramVar x') rhsD -> do
+      if memberVar (ProgramVar x') rhsD
+        then do
+        -- we care about the variable, so we need a FunctionResult summary
           let ex' = ProgramVar x'
-
           lhsD <- summariseG (Just ex') lhs
-
-          let lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
-                                            then SDo x' sl SUnconstrained
-                                            else sl) lhsD
+          let -- lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
+              --                               then SDo x' sl SUnconstrained
+              --                               else sl) lhsD
               -- inefficient, but simple
-              dom = mergeDomain rhsD lhsD'
+              dom = mergeDomain rhsD lhsD
 
-              -- x' should always be assigned as we check above.
+          -- x' should always be assigned as we check above.
           let (Just (ns, sl), dom') = splitOnVar ex' dom
             
           -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
@@ -397,81 +390,37 @@ summariseG m_x tc = do
             else pure (primAddDomainElement (deleteEntangledVar ex' ns, sl) dom')
             
         -- There is no variable, or no path from here is entangled with it
-        _ -> mergeDomain rhsD <$> summariseG Nothing lhs
-            
-    TCLabel _ g      -> summariseG m_x g
+        else mergeDomain rhsD <$> summariseG Nothing lhs
 
-    TCGuard b        -> pure (singletonDomain (tcEntangledVars b) (SAssertion (GuardAssertion b)))
-      
-    TCMatchBytes _ v -> simple (SMatchBytes v)
-    TCPure v         -> simple (SPure v)
-    TCGetByte {}     -> simple SGetByte
-    TCMatch _ v      -> simple (SMatch v)
+    Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
+    OrBiased {}   -> summariseOr m_x tc
+    OrUnbiased {} -> summariseOr m_x tc
+    Call fn args  -> summariseCall m_x fn args
+    Annot _ g     -> summariseG m_x g
+    GCase _cs      -> unimplemented -- SLeaf . SCase <$> traverse (summariseG 
 
-    TCChoice _c gs _t -> do
-      when (null gs) $ error "empty list of choices"
-      doms <- mapM (summariseG m_x) gs
+  --   Choice _c gs _t -> do
+  --     when (null gs) $ error "empty list of choices"
+  --     doms <- mapM (summariseG m_x) gs
 
-      -- doms contains a domain for each path in the choose. We create
-      -- a diagonal list of domains, like
-      --
-      --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
-      --
-      -- and then merge
-      --
-      let mkOne p s fp = SChoice (p ++ [fp] ++ s)
-          mk p d' s = mapDomain (\_ -> mkOne p s) d'
-          doms' = diagonalise SUnconstrained doms mk
-      pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
-      
-    TCOptional {}      -> unimplemented
-
-    TCMany _s _c bnds body -> summariseMany m_x tc bnds body 
-      -- | Just _ <- m_x -> panic "UNIMPLEMENTED: Relevant many is currently unsupported" [ show (pp tc), show (pp d), show (pp cl) ]
-      -- | otherwise -> do
-      --     bodyD <- summariseG Nothing id body
-      --     unless (nullDomain bodyD) (panic "UNIMPLEMENTED: Non-empty domain for Many" [ show (pp tc), show (pp d), show (pp cl) ])
-      --     pure emptyDomain
-
-    TCEnd              -> unimplemented
-    TCOffset           -> unimplemented
-
-    TCCurrentStream {} -> unimplemented
-    TCSetStream     {} -> unimplemented
-    TCStreamLen     {} -> unimplemented
-    TCStreamOff     {} -> unimplemented
-
-    -- Maps
-    TCMapLookup     {} -> unimplemented
-    TCMapInsert     {} -> unimplemented
-
-    -- Array operations
-    TCArrayIndex    {} -> unimplemented
-
-    -- coercion
-    TCCoerceCheck _ t1 t2 e -> simple (SCoerceCheck t1 t2 e)
-
-    -- destructors
-    TCFor           {} -> unimplemented
-
-    TCVar           {} -> error "Saw a grammar-valued variable"
-
-    -- Should be no type args
-    TCCall fn _ args -> summariseCall m_x fn args
-    
-    TCCase e alts m_def -> summariseCase m_x tc e alts m_def
-    
-    TCErrorMode     {} -> unimplemented
-    TCFail {}          -> unimplemented
+  --     -- doms contains a domain for each path in the choose. We create
+  --     -- a diagonal list of domains, like
+  --     --
+  --     --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
+  --     --
+  --     -- and then merge
+  --     --
+  --     let mkOne p s fp = SChoice (p ++ [fp] ++ s)
+  --         mk p d' s = mapDomain (\_ -> mkOne p s) d'
+  --         doms' = diagonalise SUnconstrained doms mk
+  --     pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
   where
-    -- These correspond more or less to isSimpleTC
     simple n
       | Just x <- m_x = pure (singletonDomain (insertEntangledVar x (tcEntangledVars tc))
-                                              (SSimple n))
+                                              (SLeaf n))
       | otherwise     = pure emptyDomain
     
-    unimplemented = error ("Unimplemented: " ++ show (pp tc))
-
+    unimplemented = panic "summariseG unimplemented" [showPP tc]
 
 diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
 diagonalise el xs f =

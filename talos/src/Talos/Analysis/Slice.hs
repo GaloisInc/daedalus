@@ -7,6 +7,8 @@
 
 module Talos.Analysis.Slice where
 
+
+import Control.Applicative ((<|>)) 
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -166,8 +168,8 @@ mergeSlice l r =
 
     (_, SDontCare {})       -> mergeSlice r l
 
-    (SDo x slL1 slR1, SDo _x slL2 slR2) ->
-      SDo x (mergeSliceLeaf slL1 slL2) (mergeSlice slR1 slR2)
+    (SDo x1 slL1 slR1, SDo x2 slL2 slR2) ->
+      SDo (x1 <|> x2) (mergeSliceLeaf slL1 slL2) (mergeSlice slR1 slR2)
 
     (SLeaf sl1, SLeaf sl2) -> SLeaf (mergeSliceLeaf sl1 sl2)
     

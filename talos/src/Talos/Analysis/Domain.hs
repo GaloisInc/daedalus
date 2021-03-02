@@ -109,6 +109,9 @@ explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
 lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
 lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
 
+memberVar :: EntangledVar -> Domain -> Bool
+memberVar n ds = any (memberEntangledVars n . fst) (elements ds)
+
 splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
 splitOnVarWith f ds =
   case nin of
