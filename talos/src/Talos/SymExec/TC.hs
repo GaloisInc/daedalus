@@ -16,6 +16,7 @@ import qualified SimpleSMT as S
 import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.Type.AST hiding (tByte, tUnit, tMaybe, tMap)
+import qualified Daedalus.Type.AST as T
 
 import Talos.Lib
 import Talos.SymExec.StdLib
@@ -99,7 +100,7 @@ symExecTCName =  S.const . tcNameToSMTName
 -- mbPure _     v = spure v
 
 symExecBinop :: BinOp -> Type -> SExpr -> SExpr -> SExpr
-symExecBinop bop (isBits -> Just (signed, _n)) =
+symExecBinop bop (isBits -> Just (signed, nBits)) =
   case bop of
     Add    -> S.bvAdd
     Sub    -> S.bvSub
@@ -112,8 +113,9 @@ symExecBinop bop (isBits -> Just (signed, _n)) =
     NotEq  -> \x y -> S.distinct [x, y]
     Cat    -> S.concat
     LCat   -> error "Unimplemented"
-    LShift -> S.bvShl
-    RShift -> if signed then S.bvAShr else S.bvLShr
+    LShift -> \x y -> S.bvShl x (S.List [ S.fam "int2bv" [nBits], y] )
+    RShift -> \x y -> (if signed then S.bvAShr else S.bvLShr)
+                       x (S.List [ S.fam "int2bv" [nBits], y] )
     BitwiseAnd -> S.bvAnd
     BitwiseOr  -> S.bvOr
     BitwiseXor -> S.bvXOr
@@ -146,6 +148,25 @@ symExecBinop bop t | isInteger t =
   where unimplemented = panic "Unimplemented" []
             
 symExecBinop _bop t  = error ("Shouldn't happend: symExecBinop got a " ++ show (pp t))
+
+symExecUniop :: UniOp -> Type -> SExpr -> SExpr
+symExecUniop uop (isBits -> Just (_signed, _nBits)) =
+  case uop of
+    Not -> unimplemented
+    Neg -> S.bvNeg
+    Concat -> unimplemented
+    BitwiseComplement -> S.bvNot
+  where unimplemented = panic "Unimplemented" []
+
+symExecUniop Not t | isBool t = S.not
+
+symExecUniop uop t | isInteger t =
+  case uop of
+    Neg -> S.neg
+    _   -> unimplemented
+  where unimplemented = panic "Unimplemented" []
+                       
+symExecUniop _uop t  = error ("Shouldn't happen: symExecBinop got a " ++ show (pp t))
 
 symExecCoerce :: Type -> Type -> SExpr -> SExpr
 symExecCoerce fromT toT v | fromT == toT = v
@@ -214,13 +235,14 @@ symExecV tc =
 
     TCBinOp op e1 e2 _resT ->
       symExecBinop op (typeOf e1) (symExecV e1) (symExecV e2)
-    TCUniOp     {} -> unimplemented
+    TCUniOp op e -> symExecUniop op (typeOf e) (symExecV e)
     TCFor {}       -> unimplemented -- symExecVLoop e loop
 
     TCSelStruct {} -> unimplemented
     TCIf b l r -> do
       S.ite (symExecV b) (symExecV l) (symExecV r)
 
+    TCVar n | typeOf n == T.tUnit -> sUnit
     TCVar n -> symExecTCName n -- lookupEnv e n
     TCCall {} -> unimplemented -- S.fun (ruleName (tcName fname)) <$> mapM (symExecArg e) args
     TCCase {} -> unimplemented
@@ -270,10 +292,11 @@ symExecG rel res tc
         S.and (S.eq rel res) (S.eq res (symExecV v))
 
       -- Convert a value of tyFrom into tyTo.  Currently very limited
-      TCCoerceCheck ws (Type tyFrom) (Type tyTo) e
-        | TUInt _ <- tyFrom, TInteger <- tyTo ->
-            S.and (S.fun "is-nil" [rel])
-                  (if ws == YesSem then (S.fun "bv2int" [symExecV e]) else S.bool True)
+      TCCoerceCheck ws tFrom@(Type tyFrom) tTo@(Type tyTo) e
+        | TUInt _ <- tyFrom, TInteger <- tyTo -> mbCoerce ws tFrom tTo e
+      TCCoerceCheck ws tFrom@(isBits -> Just (_signed1, nFrom)) tTo@(isBits -> Just (_signed2, nTo)) e
+        | nFrom <= nTo -> mbCoerce ws tFrom tTo e
+
       TCCoerceCheck _ws tyFrom tyTo _e ->
         panic "Unsupported types" [showPP tyFrom, showPP tyTo]
         
@@ -281,6 +304,10 @@ symExecG rel res tc
 
   where
     resN = "$tres"
+    mbCoerce ws tyFrom tyTo e =
+      S.and (S.fun "is-nil" [rel])
+            (if ws == YesSem then (S.eq res (symExecCoerce tyFrom tyTo (symExecV e))) else S.bool True)
+
       
 --------------------------------------------------------------------------------
 -- Simple nodes

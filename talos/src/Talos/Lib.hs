@@ -36,6 +36,10 @@ isMaybe :: Type -> Maybe Type
 isMaybe (Type (TMaybe t)) = Just t
 isMaybe _                 = Nothing
 
+isBool :: Type -> Bool
+isBool (Type TBool) = True
+isBool _            = False
+
 stripParam :: Param -> TCName Value
 stripParam (ValParam n) = n
 stripParam _            = error "Shouldn't happen (stripParam)"
