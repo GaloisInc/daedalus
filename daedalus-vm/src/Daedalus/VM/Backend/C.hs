@@ -11,6 +11,7 @@ import           Data.Word(Word64)
 import           Data.Int(Int64)
 import qualified Data.Set as Set
 import           Data.Maybe(maybeToList,fromMaybe)
+import           Data.List(partition)
 import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
@@ -21,6 +22,7 @@ import Daedalus.Rec(topoOrder,forgetRecs)
 import Daedalus.VM
 import qualified Daedalus.Core as Src
 import Daedalus.VM.RefCountSane
+import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
@@ -67,6 +69,10 @@ cProgram fileNameRoot prog =
   cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
+
+               map cFunSig noCapFun ++
+               (let ?allFuns = allFunMap in map cFun noCapFun) ++
+
                [ parserSig <+> "{"
                , nest 2 parserDef
                , "}"
@@ -80,15 +86,21 @@ cProgram fileNameRoot prog =
 
   allTypes       = concatMap mTypes orderedModules
   allFuns        = concatMap mFuns orderedModules
+  allFunMap      = Map.fromList [ (vmfName f, f) | f <- allFuns ]
+
+  (capFuns,noCapFun) = partition ((Capture ==) . vmfCaptures) allFuns
+
   allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
-                                                          map vmfBlocks allFuns)
-  doBlock b      = let ?allFuns = Map.fromList [ (vmfName f, f) | f <- allFuns ]
+                                                          map vmfBlocks capFuns)
+  doBlock b      = let ?allFuns = allFunMap
                        ?allBlocks = allBlocks
+                       ?captures = Capture
                    in cBasicBlock b
 
   parserDef      = vcat [ "DDL::ParserState p;"
+                        , "clang_bug_workaround: void *clang_bug = &&clang_bug_workaround;"
                         , params
-                        , cDeclareRetVars allFuns
+                        , cDeclareRetVars capFuns
                         , cDeclareClosures (Map.elems allBlocks)
                         , " "
                         , "// --- States ---"
@@ -130,6 +142,7 @@ type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
 type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
+type CaptureFun = (?captures  :: Captures)
 
 cEntrySig :: Entry -> Doc
 cEntrySig ent =
@@ -187,7 +200,11 @@ cDeclareClosures bs =
         as = map getType (drop n (blockArgs b))
     in case t of
          NormalBlock    -> (rets,threads)
-         ReturnBlock {} -> (Set.insert as rets,threads)
+         ReturnBlock how ->
+           case how of
+             RetYes Capture -> (Set.insert as rets,threads)
+             RetNo  Capture -> (Set.insert as rets,threads)
+             _              -> (rets,threads)
          ThreadBlock    -> (rets, Set.insert as threads)
 
   declareRet ts = cClosureClass "DDL::Closure" (cReturnClassName ts) ts
@@ -195,73 +212,112 @@ cDeclareClosures bs =
 
 
 
-cBasicBlock :: (AllFuns,AllBlocks) => Block -> CStmt
+--------------------------------------------------------------------------------
+
+cFunSig :: VMFun -> CDecl
+cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
+  where
+  res  = if vmfPure fun then retTy else "bool"
+  args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
+  normalArgs = [ cType (getType x)
+               | let b = vmfBlocks fun Map.! vmfEntry fun
+               , x <- blockArgs b
+               ]
+
+  retTy   = cSemType (Src.fnameType (vmfName fun))
+  retArgs = [ "DDL::ParserState&", cPtrT retTy, cPtrT (cSemType Src.TStream) ]
+
+cFun :: (AllFuns) => VMFun -> CDecl
+cFun fun = cDefineFun res (cFName (vmfName fun)) args body
+  where
+
+
+  res  = if vmfPure fun then retTy else "bool"
+  args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
+
+  entryBlock = vmfBlocks fun Map.! vmfEntry fun
+
+  argName n = "a" <.> int n
+
+  normalArgs = [ cType (getType x) <+> argName n
+               | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
+               ]
+
+  retTy   = cSemType (Src.fnameType (vmfName fun))
+  retArgs = [ "DDL::ParserState& p"
+            , cPtrT retTy <+> cRetVarFun
+            , cPtrT (cSemType Src.TStream) <+> cRetInputFun
+            ]
+
+  body   = let ?allBlocks = vmfBlocks fun
+               ?captures  = NoCapture
+           in map cDeclareBlockParams (Map.elems (vmfBlocks fun))
+             ++ [ cAssign (cArgUse entryBlock x) (argName n)
+                | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
+                ]
+             ++ cGoto (cBlockLabel (vmfEntry fun))
+              : [ cBasicBlock b | b <- Map.elems (vmfBlocks fun) ]
+
+
+
+--------------------------------------------------------------------------------
+
+
+cBasicBlock :: (AllFuns,AllBlocks,CaptureFun) => Block -> CStmt
 cBasicBlock b = "//" <+> text (show (blockType b))
              $$ cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
-         in dbg1
-         $$ getArgs
-         $$ dbg
+         in getArgs
          $$ vcat (map cBlockStmt (blockInstrs b))
          $$ vcat (cTermStmt (blockTerm b))
-
-  dbg1 :: (CurBlock,Copies) => CStmt
-  dbg1 = vcat $ map cStmt
-       [ cDebug ("enter " ++ show (pp (blockName b)))
-       , cDebug "("
-       , cDebugVal ("&&" <.> cBlockLabel (blockName b))
-       , cDebugLine ")"
-       ]
-
-  dbg :: (CurBlock,Copies) => CStmt
-  dbg = vcat $ map cStmt $
-        cDebug "  args"
-      : concat [ [ cDebug s, cDebugVal (cExpr (EBlockArg a)) ]
-               | a <- blockArgs b
-               | s <- ": " : repeat ", "
-               ]
-      ++ [ cDebugNL ]
 
   getArgs = case blockType b of
               NormalBlock -> empty
 
-              bty@(ReturnBlock how) ->
-                let rn = extraArgs bty
-                    (ras,cas) = splitAt rn (blockArgs b)
-                    ty = cPtrT (cReturnClassName (map getType cas))
-                    regN i v = case how of
-                                 RetPure -> cRetVar (getType v)
-                                 RetNo   -> panic "getArgs" ["RetNo"]
-                                 RetYes ->
-                                    case i :: Int of
-                                      0 -> cRetVar (getType v)
-                                      1 -> cRetInput
-                                      _ -> panic "getArgs" ["RetYes"]
-                    resultN i v =
-                      cAssign (cArgUse b v) (regN i v)
-                in
-                cBlock $
-                  zipWith resultN [ 0.. ] ras ++
-                  [ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
-                  ] ++
-                  [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
-                  | (v,n) <- cas `zip` [ 0 .. ]
-                  ] ++
-                  [ cStmt (cCall "clo->free" ["true"]) ]
+              ReturnBlock how ->
+                case how of
+                  RetPure -> empty
+                  RetNo NoCapture -> empty
+                  RetYes NoCapture -> empty
+                  bty ->
+                    let rn = extraArgs (ReturnBlock bty)
+                        (ras,cas) = splitAt rn (blockArgs b)
+                        ty = cPtrT (cReturnClassName (map getType cas))
+                        regN i v = case how of
+                                     RetYes Capture
+                                        | i == (0::Int) -> cRetVar (getType v)
+                                        | i == 1        -> cRetInput
+                                     _ -> panic "getArgs.regN" ["invalid arg"]
+                        resultN i v =
+                          cAssign (cArgUse b v) (regN i v)
+                    in
+                    cBlock $
+                      zipWith resultN [ 0.. ] ras ++
+                      [ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
+                      ] ++
+                      [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
+                      | (v,n) <- cas `zip` [ 0 .. ]
+                      ] ++
+                      [ cStmt (cCall "clo->free" ["true"]) ]
 
-              ThreadBlock ->
-                let x : xs = blockArgs b
-                    ty = cPtrT (cThreadClassName (map getType xs))
-                in
-                cBlock
-                  $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
-                  : cAssign (cArgUse b x) (cCall "DDL::Bool" ["clo->notified"])
-                  : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
-                    | (v,n) <- xs `zip` [ 0 .. ]
-                    ]
-                 ++ [ cStmt (cCall "clo->free" ["true"]) ]
+
+
+              ThreadBlock
+                | Capture <- ?captures ->
+                  let x : xs = blockArgs b
+                      ty = cPtrT (cThreadClassName (map getType xs))
+                  in
+                  cBlock
+                    $ cDeclareInitVar ty "clo" (parens ty <.> cCall "p.pop" [])
+                    : cAssign (cArgUse b x)(cCall "DDL::Bool" ["clo->notified"])
+                    : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
+                      | (v,n) <- xs `zip` [ 0 .. ]
+                      ]
+                   ++ [ cStmt (cCall "clo->free" ["true"]) ]
+
+                | otherwise -> panic "getArgs" ["Thread block in no-capture?"]
 
 
 
@@ -601,7 +657,8 @@ cExpr expr =
 
 --------------------------------------------------------------------------------
 
-cTermStmt :: (AllFuns, AllBlocks, CurBlock, Copies) => CInstr -> [CStmt]
+cTermStmt :: (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+  CInstr -> [CStmt]
 cTermStmt ccInstr =
   case ccInstr of
     Jump jp -> cJump jp
@@ -615,33 +672,103 @@ cTermStmt ccInstr =
       ]
 
     ReturnNo ->
-      [ cGoto ("*" <.> cCall "p.returnNo" [])
-      ]
+      case ?captures of
+        Capture   -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
+        NoCapture -> [ "return false;" ]
 
     ReturnYes e i ->
-      [ cAssign (cRetVar (getType e)) (cExpr e)
-      , cAssign cRetInput (cExpr i)
-      , cGoto ("*" <.> cCall "p.returnYes" [])
-      ]
+      case ?captures of
+        Capture ->
+          [ cAssign (cRetVar (getType e)) (cExpr e)
+          , cAssign cRetInput (cExpr i)
+          , cGoto ("*" <.> cCall "p.returnYes" [])
+          ]
+        NoCapture ->
+          [ cAssign ("*" <.> cRetVarFun)   (cExpr e)
+          , cAssign ("*" <.> cRetInputFun) (cExpr i)
+          , "return true;"
+          ]
 
     ReturnPure e ->
-      [ cAssign (cRetVar (getType e)) (cExpr e)
-      , cGoto ("*" <.> cCall "p.returnPure" [])
-      ]
+      case ?captures of
+        Capture ->
+          [ cAssign (cRetVar (getType e)) (cExpr e)
+          , cGoto ("*" <.> cCall "p.returnPure" [])
+          ]
+        NoCapture ->
+          [ cStmt ("return" <+> cExpr e) ]
 
-    Call f _ no yes es ->
-        doPush no
-      : doPush yes
-      : cJump (JumpPoint (lkpFun f) es)
+    Call f captures no yes es ->
+      case captures of
+        Capture ->
+            doPush no
+          : doPush yes
+          : cJump (JumpPoint (vmfEntry (lkpFun f)) es)
 
-    CallPure f l es -> doPush l : cJump (JumpPoint (lkpFun f) es)
+        NoCapture ->
+          let JumpPoint lYes esYes = yes
+              JumpPoint lNo esNo = no
+              bYes = ?allBlocks Map.! lYes
+              bNo  = ?allBlocks Map.! lNo
+              a : i : _ = blockArgs bYes
+              call = cCall (cFName f)
+                   $ "p"
+                   : ("&" <.> cArgUse bYes a)
+                   : ("&" <.> cArgUse bYes i)
+                   : map cExpr es
+          in [ cIf call
+                  (freeClo no  ++ cDoJump bYes esYes)
+                  (freeClo yes ++ cDoJump bNo  esNo)
+            ]
 
-    TailCall f _ es ->
-        cJump (JumpPoint (lkpFun f) es)
+          where freeClo (JumpPoint _ vs) =
+                   [ cStmt (cCallMethod (cExpr e) "free" [])
+                   | e <- vs, typeRepOf e == HasRefs ]
+
+    -- XXX: this one does not need to be terminal
+    CallPure f l es ->
+      let doCall = cCall (cFName f) (map cExpr es)
+      in
+      case ?captures of
+        Capture   -> cAssign (cRetVar (TSem (Src.fnameType f))) doCall : cJump l
+        NoCapture -> cDoReturn l [ doCall ]
+
+
+
+    TailCall f captures es ->
+      let fun       = lkpFun f
+          retT      = TSem (Src.fnameType f)
+          doCall as = cCall (cFName f) (as ++ map cExpr es)
+      in
+      case (captures, ?captures) of
+        (Capture,Capture) -> cJump (JumpPoint (vmfEntry (lkpFun f)) es)
+        (Capture,NoCapture) -> panic "cBasicBlock" [ "Capture from no-capture" ]
+
+        -- this is not a tail call anymore
+        (NoCapture,Capture)
+          | vmfPure fun ->
+            [ cAssign (cRetVar retT) (doCall [])
+            , cGoto ("*" <.> cCall "p.returnPure" [])
+            ]
+
+          | otherwise ->
+            [ cIf (doCall [ "p", "&" <.> cRetVar retT, "&" <.> cRetInput ])
+                  [cGoto ("*" <.> cCall "p.returnYes" [])]
+                  [cGoto ("*" <.> cCall "p.returnNo" [])]
+            ]
+
+        (NoCapture,NoCapture) ->
+            [ cStmt $ "return" <+> doCall args ]
+
+          where
+          args
+            | vmfPure fun = []
+            | otherwise   = [ "p", cRetVarFun, cRetInputFun ]
+
 
   where
   lkpFun f = case Map.lookup f ?allFuns of
-               Just fun -> vmfEntry fun
+               Just fun -> fun
                Nothing  -> panic "cTermStmt" [ "Unknown function", show (pp f) ]
 
   doPush l =
@@ -650,28 +777,32 @@ cTermStmt ccInstr =
     in cStmt (cCall "p.push" ["new" <+> clo])
 
 
-cDoJump :: (Copies,CurBlock) => Block -> [E] -> [CStmt]
+cDoReturn ::
+  (AllBlocks, Copies,CurBlock,CaptureFun) => JumpPoint -> [CExpr] -> [CStmt]
+cDoReturn (JumpPoint l es) xs =
+  case Map.lookup l ?allBlocks of
+    Just b -> zipWith assignP (blockArgs b) (xs ++ map cExpr es) ++
+              [ cGoto (cBlockLabel (blockName b)) ]
+      where assignP ba = cAssign (cArgUse b ba)
+
+    Nothing -> panic "cDoReturn" [ "Missing block: " ++ show (pp l) ]
+
+cDoJump :: (Copies,CurBlock,CaptureFun) => Block -> [E] -> [CStmt]
 cDoJump b es =
-  zipWith assignP (blockArgs b) es ++ [ dbg, cGoto (cBlockLabel l) ]
+  zipWith assignP as es ++ [ cGoto (cBlockLabel l) ]
   where
+  as           = drop (extraArgs (blockType b)) (blockArgs b)
   l            = blockName b
   assignP ba e = cAssign (cArgUse b ba) (cExpr e)
-  dbg    = empty
-  {-cStmt $ hsep $ intersperse "<<"
-         $ "std::cout"
-         : text (show ("call " ++ show (pp l)))
-         : concat (zipWith dbgE (": " : repeat ", ") es)
-        ++ [ "std::endl" ]
 
-  dbgE sep e = [ text (show sep), parens (cExpr e) ] -}
 
-cJump :: (AllBlocks, CurBlock, Copies) => JumpPoint -> [CStmt]
+cJump :: (AllBlocks, CurBlock, Copies,CaptureFun) => JumpPoint -> [CStmt]
 cJump (JumpPoint l es) =
   case Map.lookup l ?allBlocks of
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
-cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies) =>
+cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
            E -> Map Pattern JumpWithFree -> [CStmt]
 cDoCase e opts =
   case getType e of

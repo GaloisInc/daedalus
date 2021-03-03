@@ -12,8 +12,10 @@ for the members.    We can inline a call to `F no yes` like this:
 -}
 module Daedalus.VM.FindLoops where
 
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Daedalus.Panic
 import Daedalus.Rec
 import Daedalus.VM
 
@@ -39,16 +41,29 @@ annotateLoops = foldr doComp [] . topoOrder deps
 
 
 isLoop :: [VMFun] -> [VMFun]
-isLoop xs = [ x { vmfLoop = yes } | x <- xs ]
+isLoop xs
+  | all okFun xs = makeLoop
+  | otherwise = xs
   where
-  yes = all okFun xs
 
-  names = map vmfName xs
+  names = Map.fromList [ (vmfName x, vmfEntry x) | x <- xs ]
 
   okFun f = all ok (vmfBlocks f)
 
   ok b = case blockTerm b of
-           CallPure f _ _ -> not (f `elem` names)
-           Call f _ _ _ _ -> not (f `elem` names)
+           CallPure f _ _ -> not (f `Map.member` names)
+           Call f _ _ _ _ -> not (f `Map.member` names)
            _ -> True
+
+
+  rewBlock b = case blockTerm b of
+                 TailCall f _ es | Just l <- Map.lookup f names ->
+                    b { blockTerm = Jump JumpPoint { jLabel = l, jArgs = es } }
+                 _ -> b
+
+  makeLoop =
+    case xs of
+      [x] -> [x { vmfLoop = True, vmfBlocks = rewBlock <$> vmfBlocks x }]
+      _   -> panic "isLoop" [ "XXX: multi-function loops" ]
+
 
