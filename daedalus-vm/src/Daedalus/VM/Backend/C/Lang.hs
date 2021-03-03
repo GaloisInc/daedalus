@@ -129,6 +129,10 @@ cDefineFun ty name params stmts =
        , "}"
        ]
 
+cDeclareFun :: CType -> CIdent -> [CType] -> CDecl
+cDeclareFun ty name params = cStmt decl
+  where decl = ty <+> name P.<> parens (fsep (punctuate comma params))
+
 cUnion :: CIdent -> [CDecl] -> CDecl
 cUnion n as =
   cStmt ("union" <+> n <+> "{" $$ nest 2 (vcat as) $$ "}")
