@@ -494,10 +494,10 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ cCall "DDL::UInt<8>" [ cCallMethod e "iHead" [] ]
 
     Src.StreamOffset ->
-      cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "getOffset" [] ]
+      cVarDecl x $ cCallMethod e "getOffset" []
 
     Src.StreamLen ->
-      cVarDecl x $ cCall "DDL::Integer" [ cCallMethod e "length" [] ]
+      cVarDecl x $ cCallMethod e "length" []
 
     Src.OneOf bs ->
       let v     = cVarUse x
@@ -521,7 +521,7 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ "!" <> e
 
     Src.ArrayLen ->
-      cVarDecl x $ cCall "DDL::Integer" [ cCall (e <.> ".size") [] ]
+      cVarDecl x $ cCall (e <.> ".size") []
 
     Src.Concat ->
       cVarDecl x $ cCall (cType (getType x)) [ e ]
@@ -570,8 +570,8 @@ cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
 cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
-    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDropI"    [ e1 ])
-    Src.Take     -> cVarDecl x (cCallMethod e2 "iTakeI"    [ e1 ])
+    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ e1 ])
+    Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ e1 ])
 
     Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
     Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]

@@ -74,17 +74,12 @@ public:
   // Advance current location
   // Mutates
   // Assumes: n <= length()
-  void    iDropMut(size_t n) { offset += n; }
+  void    iDropMut(UInt<64> n) { offset += n.rep(); }
 
   // Restrict amount of input
   // Mutates
   // Assumes: n <= length()
-  void    iTakeMut(size_t n) { last_offset = offset + n; }
-
-  // borrow n, own this
-  Input iDropI(DDL::Integer n) { return iDrop(n.asULong()); }
-  Input iTakeI(DDL::Integer n) { return iTake(n.asULong()); }
-
+  void    iTakeMut(UInt<64> n) { last_offset = offset + n.rep(); }
 
   // Advance current location
   // Assumes: n <= length()
@@ -92,7 +87,7 @@ public:
   // Since we own *this* the copy constructor does not need to adjust
   // counts:  we are destroyed, but a new copy is returned so counts are
   // preserved
-  Input iDrop(size_t n) { Input x(*this); x.iDropMut(n); return x; }
+  Input iDrop(UInt<64> n) { Input x(*this); x.iDropMut(n); return x; }
 
   // Restrict amount of input
   // Assumes: n <= length()
@@ -100,7 +95,7 @@ public:
   // Since we own *this* the copy constructor does not need to adjust
   // counts:  we are destroyed, but a new copy is returned so counts are
   // preserved
-  Input iTake(size_t n) { Input x(*this); x.iTakeMut(n); return x; }
+  Input iTake(UInt<64> n) { Input x(*this); x.iTakeMut(n); return x; }
 
   // Check if the given array of bytes is prefix of the current input.
   bool hasPrefix(DDL::Array<UInt<8>> pref) {

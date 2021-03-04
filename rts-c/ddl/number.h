@@ -65,14 +65,14 @@ public:
 
   // yikes, we really should use something other than integer here
   // we are borrowing the integer
-  UInt operator << (DDL::Integer x) {
-    unsigned long n = x.asULong();
+  UInt operator << (UInt<64> x) {
+    uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data << n);
   }
 
   // same as for <<
-  UInt operator >> (DDL::Integer x) {
-    unsigned long n = x.asULong();
+  UInt operator >> (UInt<64> x) {
+    uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data >> n);
   }
 
@@ -215,16 +215,14 @@ public:
     return -maxValRep()-1;
   }
 
-  // yikes, we really should use something other than integer here
-  // we are borrowing the integer
-  SInt operator << (DDL::Integer x) {
-    unsigned long n = x.asULong();
+  SInt operator << (UInt<64> x) {
+    uint64_t n = x.rep();
     return n >= w? SInt(0) : SInt(data << n);
   }
 
   // same as for <<
-  SInt operator >> (DDL::Integer x) {
-    unsigned long n = x.asULong();
+  SInt operator >> (UInt<64> x) {
+    uint64_t n = x.rep();
     return n >= w? SInt(0) : SInt(data >> n);
   }
 };

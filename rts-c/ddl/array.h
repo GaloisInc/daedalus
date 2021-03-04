@@ -5,7 +5,7 @@
 
 #include <ddl/debug.h>
 #include <ddl/list.h>
-#include <ddl/integer.h>
+#include <ddl/number.h>
 
 namespace DDL {
 
@@ -148,7 +148,7 @@ public:
     Iterator(Array xs)  : index(0), xs(xs) {}
 
     bool   done()       { return index >= xs.size(); }
-    DDL::Integer key()  { return DDL::Integer(index); }
+    DDL::UInt<64> key() { return DDL::UInt<64>(index); }
 
     // Returns owned value
     T value()       { return xs[index]; }
