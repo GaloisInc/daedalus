@@ -107,6 +107,14 @@ projectEnvFor tm se = doMerge (synthInterpEnv se)
     go k v | k `Set.member` frees = Just <$> projectInterpValue v
     go _ _                        = Just Nothing
 
+projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
+projectEnvForM tm = do
+  m_e <- SynthesisM $ asks (projectEnvFor tm)
+  e <- case m_e of
+         Just e  -> pure e
+         Nothing -> panic "Captured stream value" []
+  pure e
+
 vUnit :: Value
 vUnit = InterpValue I.VUnit
 
@@ -249,11 +257,7 @@ randL vs = (!!) vs <$> randR (0, length vs - 1)
 -- We could also invoke the solver here.  This is a bit brute force
 synthesiseByteSet :: ByteSet -> SynthesisM Value
 synthesiseByteSet bset = do
-  m_e <- SynthesisM $ asks (projectEnvFor bset)
-  e <- case m_e of
-         Just e  -> pure e
-         Nothing -> panic "synthesiseByteSet: captured stream value" []
-  
+  e <- projectEnvForM bset
   let bs           = filter (I.evalByteSet bset e) [0 .. 255] -- FIXME!!
   when (bs == []) $ panic "Empty predicate" [showPP bset]
   b <- randL bs
@@ -261,10 +265,8 @@ synthesiseByteSet bset = do
   pure (InterpValue $ I.vByte b)
 
 synthesiseV :: Expr -> SynthesisM Value
-synthesiseV v = do m_e <- SynthesisM $ asks (projectEnvFor v)
-                   case m_e of
-                     Just e -> pure (InterpValue $ I.eval v e)
-                     Nothing -> panic "synthesiseV: captured stream value" []
+synthesiseV v = do e <- projectEnvForM v
+                   pure (InterpValue $ I.eval v e)
 
 {-# NOINLINE mbPure #-}
 mbPure :: Sem -> Value -> SynthesisM Value
@@ -428,7 +430,11 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     
     Call fn args     -> synthesiseCallG Assertions Unconstrained fn args
     Annot {}         -> impossible
-    GCase {}         -> unimplemented
+    GCase c@(Case e _) -> do
+      env <- projectEnvForM e
+      I.evalCase (\g' _env -> synthesiseG Unconstrained g')
+                 (panic "Case failed" [showPP g])
+                 c env
 
     -- TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))
   where
