@@ -113,6 +113,14 @@ fromVInput v =
     VInput i -> i
     _        -> typeError "Input" v
 
+fromVSize :: Value -> Integer
+fromVSize v =
+  case v of
+    VUInt _ i -> fromInteger (BV.asUnsigned i)
+    _ -> typeError "Int" v
+
+
+
 fromVInt :: Value -> Integer
 fromVInt v =
   case v of

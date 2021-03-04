@@ -714,6 +714,11 @@ tUnit = Type TUnit
 tInteger :: Type
 tInteger = Type TInteger
 
+-- | This type is a bit like size_t in `C`, and is used for
+-- sizes of things, indexing, shifting operators, etc.
+tSize :: Type
+tSize = tUInt (tNum 64)
+
 tBool :: Type
 tBool = Type TBool
 

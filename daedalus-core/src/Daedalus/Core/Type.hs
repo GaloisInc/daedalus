@@ -6,6 +6,7 @@ import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import Daedalus.Core.Grammar
 
+
 class TypeOf t where
   typeOf :: t -> Type
 
@@ -16,6 +17,9 @@ instance TypeOf Name where
 instance TypeOf FName where
   typeOf = fnameType
 
+
+sizeType :: Type
+sizeType = TUInt (TSize 64)
 
 instance TypeOf Expr where
   typeOf expr =
@@ -41,13 +45,13 @@ instance TypeOf Expr where
           CoerceMaybeTo t -> TMaybe t
           IsEmptyStream   -> TBool
           Head            -> TUInt (TSize 8)
-          StreamOffset    -> TInteger
-          StreamLen       -> TInteger
+          StreamOffset    -> sizeType
+          StreamLen       -> sizeType
           OneOf _         -> TBool
           Neg             -> typeOf e
           BitNot          -> typeOf e
           Not             -> TBool
-          ArrayLen        -> TInteger
+          ArrayLen        -> sizeType
 
           Concat ->
             case typeOf e of
@@ -66,7 +70,7 @@ instance TypeOf Expr where
             case typeOf e of
               TIterator t ->
                 case t of
-                  TArray _ -> TInteger
+                  TArray _ -> sizeType
                   TMap k _ -> k
                   _        -> bad "IteratorKey/1"
               _ -> bad "IteratorKey/2"

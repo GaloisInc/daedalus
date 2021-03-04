@@ -307,14 +307,14 @@ evalOp2 op e1 e2 env =
          VBool $ fromVByteArray v1 `BS.isPrefixOf` inputBytes (fromVInput v2)
 
        Drop ->
-        let n   = fromVInt v1
+        let n   = fromVSize v1
             i   = fromVInput v2
         in case advanceBy n i of
              Just i' -> VInput i'
              Nothing -> panic "evalOp2.Drop" [ "Not enough bytes." ]
 
        Take ->
-        let n   = fromVInt v1
+        let n   = fromVSize v1
             i   = fromVInput v2
         in case limitLen n i of
              Just i' -> VInput i'
@@ -376,13 +376,13 @@ evalOp2 op e1 e2 env =
            VUInt w i
               | amt >= 0  -> VUInt w (BV.lshr w i (fromIntegral amt))
               | otherwise -> VUInt w (BV.shl  w i (fromIntegral (negate amt)))
-                where amt = fromVInt v2
+                where amt = fromVSize v2
            _ -> typeError "UInt" v1
 
        -- array is 1st
        ArrayIndex -> fromVArray v1 Vector.! ix
-         where ix = let i = fromVInt v2
-                        j = fromIntegral (fromVInt v2)
+         where ix = let i = fromVSize v2
+                        j = fromIntegral (fromVSize v2)
                     in if toInteger j == i
                           then j else error "Array lookup out of bounds."
 
