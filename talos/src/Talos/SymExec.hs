@@ -39,7 +39,7 @@ import Talos.Analysis.Monad (Summary(..))
 solverSynth :: Solver -> SummaryClass -> Name -> ProvenanceTag -> Slice -> IO SelectedPath
 solverSynth s cl root prov sl = S.inNewScope s $ do
   model <- S.declare s modelN tModel
-  S.assert s (S.fun (mkPredicateN cl root) [model])
+  S.assert s (S.fun "is-success" [ S.fun (mkPredicateN cl root) [model]])
   r <- S.check s
   case r of
     S.Sat -> pure ()
@@ -241,8 +241,8 @@ mkBranch model branches = mkIndexed idxN model body
 
 sBind' :: Maybe (String, SExpr) -> SExpr -> SExpr -> SExpr
 sBind' m_x lhs rhs =
-  mkMatch lhs' [ ( S.fun "Success" [S.const v], rhs )
-              , ( S.const "Failure", sFail )
+  mkMatch lhs' [ ( S.fun "success" [S.const v], rhs )
+              , ( S.const "failure", sFail )
               ]
   where
     (v, sty) = maybe ("_", tUnit) id m_x
@@ -256,7 +256,7 @@ sBind Nothing  = sBind' Nothing
 -- sBind_ = sBind Nothing
 
 sPure :: SExpr -> SExpr
-sPure v = S.fun "Success" [v]
+sPure v = S.fun "success" [v]
 
 sGuard :: SExpr -> SExpr -> SExpr
 sGuard b rest = 
@@ -266,7 +266,7 @@ sFail :: SExpr
 sFail = S.const failN
 
 withFail :: SExpr -> SExpr -> SExpr
-withFail ty = mklet failN (S.as (S.const "Failure") (tResult ty))
+withFail ty = mklet failN (S.as (S.const "failure") (tResult ty))
 
 -- withModel :: SExpr -> SExpr -> SExpr
 -- withModel = mklet modelN

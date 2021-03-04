@@ -106,13 +106,11 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     ]
 
   -- Grammar operations
-  void $ S.defineFun s "getByteP" [("$rel", tBytes), ("$res", tByte)] S.tBool
-    $ let rel = S.const "$rel"
-          res = S.const "$res"
-      in S.andMany [ S.not (S.fun "is-nil" [rel])
-                   , S.eq (S.fun "head" [rel]) res
-                   , S.fun "is-nil" [S.fun "tail" [rel]]
-                   ]
+  void $ S.defineFun s "$get-byte" [("$bytes", tBytes)] (tResult tByte)
+    $ let bytes = S.const "$bytes"
+      in S.ite (S.andMany [ S.not (S.fun "is-nil" [bytes])
+                          , S.fun "is-nil" [S.fun "tail" [bytes]]
+                          ]) (S.fun "success" [S.fun "head" [bytes]]) (S.as (S.const "failure") (tResult tByte))
 
 -- Get around SMT monomorphic function restriction
 -- lookupMap :: SExpr -> SExpr -> SExpr -> SExpr

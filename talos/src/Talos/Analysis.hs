@@ -28,6 +28,8 @@ import Talos.Analysis.EntangledVars
 import Talos.Analysis.Monad
 import Talos.Analysis.Slice
 
+import Debug.Trace
+
 --------------------------------------------------------------------------------
 -- Top level function
 
@@ -345,17 +347,20 @@ summariseG m_x tc = do
         -- we care about the variable, so we need a FunctionResult summary
           let ex' = ProgramVar x'
           lhsD <- summariseG (Just ex') lhs
-          let -- lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
-              --                               then SDo x' sl SUnconstrained
-              --                               else sl) lhsD
+          let fromLeaf (SLeaf sl') = sl'
+              fromLeaf sl'         = panic "Expecting leaf" [showPP sl']
+              -- FIXME
+              lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
+                                            then SDo (Just x') (fromLeaf sl) SUnconstrained
+                                            else sl) lhsD
               -- inefficient, but simple
-              dom = mergeDomain rhsD lhsD
+              dom = mergeDomain rhsD lhsD'
 
           -- x' should always be assigned as we check above.
           let (Just (ns, sl), dom') = splitOnVar ex' dom
             
           -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
-          --                                       , "binding" <+> pp ns <+> pp fp
+          --                                       , "binding" <+> pp ns <+> pp sl
           --                                       , "dom"  <+> pp dom
           --                                       , "lhsD" <+> pp lhsD
           --                                       , "rhsD" <+> pp rhsD

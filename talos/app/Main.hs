@@ -58,6 +58,7 @@ doSynthesis :: Options -> IO ()
 doSynthesis opts = do
   let bOpts = [ ("auto-config", "false")
               -- , ("smt.phase_selection", "5")
+              -- see :smt.arith.random_initial_value also and seed options
               ]
               ++ if optValidateModel opts
                  then [("model-validate", "true")]
