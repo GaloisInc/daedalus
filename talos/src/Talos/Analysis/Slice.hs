@@ -23,11 +23,11 @@ import Talos.Analysis.EntangledVars
 -- Representation of paths/pathsets
 -- smart constructor for dontCares.
 
-dontCare :: Int -> Slice -> Slice
-dontCare 0 sl = sl
-dontCare  n (SDontCare m ps)   = SDontCare (n + m) ps
-dontCare _n SUnconstrained = SUnconstrained
-dontCare n  ps = SDontCare n ps
+sDontCare :: Int -> Slice -> Slice
+sDontCare 0 sl = sl
+sDontCare  n (SDontCare m ps)   = SDontCare (n + m) ps
+sDontCare _n SUnconstrained = SUnconstrained
+sDontCare n  ps = SDontCare n ps
 
 --------------------------------------------------------------------------------
 -- Nodes for path sets
@@ -160,11 +160,11 @@ mergeSlice l r =
     (SDontCare 0 rest, _)   -> mergeSlice rest r -- Shouldn't happen.
     (SDontCare n rest, SDontCare m rest') ->
       let count = min m n
-      in dontCare count (mergeSlice (dontCare (n - count) rest) (dontCare (m - count) rest'))
-    (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (mergeSlice (dontCare (n - 1) rest) slR)
+      in sDontCare count (mergeSlice (sDontCare (n - count) rest) (sDontCare (m - count) rest'))
+    (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (mergeSlice (sDontCare (n - 1) rest) slR)
     
     -- FIXME: does this make sense?
-    (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (dontCare (n - 1) rest)
+    (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (sDontCare (n - 1) rest)
 
     (_, SDontCare {})       -> mergeSlice r l
 

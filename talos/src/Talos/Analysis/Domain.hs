@@ -55,7 +55,7 @@ instance Monoid (Domain) where
   mempty = emptyDomain
 
 dontCareD :: Int -> Domain -> Domain
-dontCareD n d = Domain [ (evs, dontCare n fp) | (evs, fp) <- elements d ]
+dontCareD n d = Domain [ (evs, sDontCare n fp) | (evs, fp) <- elements d ]
 
 nullDomain :: Domain -> Bool
 nullDomain (Domain []) = True
