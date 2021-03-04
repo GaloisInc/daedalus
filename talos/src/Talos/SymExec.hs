@@ -103,7 +103,7 @@ parseLeafModel prov sl =
     --            | otherwise = panic "Case result out of bounds" [show n]
     --   in pIndexed go
     
-    _ -> panic "Impossible" [] 
+    _ -> panic "Impossible" [showPP sl] 
 
 -- -----------------------------------------------------------------------------
 -- Names
@@ -142,7 +142,7 @@ symExecSummary fn summary = do
           ty | ResultVar rty <- ev = rty
              | otherwise           = TUnit -- no return value
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-      symExecSlice predN ty frees sl
+      sliceToFun predN ty frees sl
 
 mkPredicateN :: SummaryClass -> Name -> String
 mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
@@ -158,10 +158,10 @@ evPredicateN cl fn ev =
     ProgramVar v -> mkPredicateN cl v
 
 -- Used to turn future path sets and arg domains into SMT terms.
-symExecSlice :: String -> Type -> 
+sliceToFun :: String -> Type -> 
                 [Name] -> Slice -> SymExecM ()
-symExecSlice predN ty frees sl = do
-  body  <- withFail sty <$> slicePred sl 
+sliceToFun predN ty frees sl = do
+  body  <- withFail sty <$> symExecSlice sl 
   withSolver $ \s -> void $ liftIO $ S.defineFun s predN args (tResult sty) body
   where
     sty     = symExecTy ty
@@ -281,8 +281,8 @@ withFail ty = mklet failN (S.as (S.const "failure") (tResult ty))
 -- right type.  This is a little fragile, but it avoids plumbing them
 -- through.
 
-sliceLeafPred :: SExpr -> SliceLeaf -> SymExecM SExpr
-sliceLeafPred m sl =
+symExecSliceLeaf :: SExpr -> SliceLeaf -> SymExecM SExpr
+symExecSliceLeaf m sl =
   case sl of
     -- Similar to Do case.
     SPure e  -> pure (mkPure m (symExecV e))
@@ -300,7 +300,7 @@ sliceLeafPred m sl =
       
     SAssertion a -> pure (sGuard (symExecAssertion a) (mkPure m sUnit))
     
-    SChoice sls -> mkBranch m <$> mapM slicePred sls
+    SChoice sls -> mkBranch m <$> mapM symExecSlice sls
     
     SCall {} -> unimplemented
     SCase {} -> unimplemented
@@ -332,8 +332,8 @@ sliceLeafPred m sl =
                         , ( S.const "_", sFail )
                         ]
 
-slicePred :: Slice -> SymExecM SExpr
-slicePred = go 
+symExecSlice :: Slice -> SymExecM SExpr
+symExecSlice = go 
   where
     go sl =
       case sl of
@@ -345,10 +345,10 @@ slicePred = go
           let mk body = mkMatch model [ (S.fun "seq" [leafModel, model], body)
                                       , (S.const "_", sFail)
                                       ]
-          mk <$> (sBind m_x <$> sliceLeafPred leafModel sl' <*> go rest)
+          mk <$> (sBind m_x <$> symExecSliceLeaf leafModel sl' <*> go rest)
             
         SUnconstrained  -> pure (mkPure sUnit)
-        SLeaf sl'       -> sliceLeafPred model sl'
+        SLeaf sl'       -> symExecSliceLeaf model sl'
   
     model      = S.const modelN
     leafModel = S.const leafModelN
