@@ -21,6 +21,9 @@ data Env = Env
   , gEnv    :: Map FName ([Value] -> Parser Value)
   }
 
+emptyEnv :: Env
+emptyEnv = Env mempty mempty mempty mempty mempty 
+
 lookupVar :: Name -> Env -> Value
 lookupVar x env =
   case Map.lookup x (vEnv env) of

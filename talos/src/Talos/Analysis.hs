@@ -30,8 +30,8 @@ import Talos.Analysis.Slice
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: [FName] -> [Fun Grammar] -> GUID -> (Summaries, GUID)
-summarise _roots decls nguid  = (summaries s', nextGUID s')
+summarise :: [Fun Grammar] -> GUID -> (Summaries, GUID)
+summarise decls nguid  = (summaries s', nextGUID s')
   where
     s' = calcFixpoint s0 
     s0 = initState decls nguid 
@@ -314,32 +314,8 @@ summariseCall m_x fn args = do
 -- (in general we only care about this for the final statement,
 -- everything else is handled using path sets).
 
-
-explodeOr :: Grammar -> [Grammar]
-explodeOr (OrUnbiased l r) = explodeOr l ++ explodeOr r
-explodeOr (OrBiased l r)   = explodeOr l ++ explodeOr r
-explodeOr g                = [g]
-
 -- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
 -- that we choose one.
-summariseOr :: Maybe EntangledVar -> -- Do we want the result of tc or not?
-               Grammar -> SummariseM Domain
-summariseOr m_x g = do
-  doms <- mapM (summariseG m_x) gs
-  -- doms contains a domain for each path in the choose. We create a
-  -- diagonal list of domains, like
-  --
-  --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
-  --
-  -- and then merge
-  --
-  let mkOne p s fp = SLeaf (SChoice (p ++ [fp] ++ s))
-      mk p d' s = mapDomain (\_ -> mkOne p s) d'
-      doms' = diagonalise SUnconstrained doms mk
-  pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
-  
-  where
-    gs = explodeOr g
 
 summariseG :: Maybe EntangledVar -> -- Do we want the result of tc or not?
               Grammar -> SummariseM Domain
@@ -393,12 +369,26 @@ summariseG m_x tc = do
         else mergeDomain rhsD <$> summariseG Nothing lhs
 
     Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
-    OrBiased {}   -> summariseOr m_x tc
-    OrUnbiased {} -> summariseOr m_x tc
+
+    -- doms contains a domain for each path in the choose. We create a
+    -- diagonal list of domains, like
+    --
+    --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
+    --
+    -- and then merge
+    --
+    Choice _biased gs -> do
+      doms <- mapM (summariseG m_x) gs
+      let mkOne p s fp = SLeaf (SChoice (p ++ [fp] ++ s))
+          mk p d' s = mapDomain (\_ -> mkOne p s) d'
+          doms' = diagonalise SUnconstrained doms mk
+      pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
+
     Call fn args  -> summariseCall m_x fn args
     Annot _ g     -> summariseG m_x g
     GCase _cs      -> unimplemented -- SLeaf . SCase <$> traverse (summariseG 
-
+    _ -> panic "impossible" [] -- 'Or's, captured by Choice above
+    
   --   Choice _c gs _t -> do
   --     when (null gs) $ error "empty list of choices"
   --     doms <- mapM (summariseG m_x) gs

@@ -62,13 +62,8 @@ data SelectedNode =
 
   | SelectedCall SummaryClass SelectedPath
   -- ^ We have a function call.
-
-  -- Assertions are ignored at this point
-  | SelectedNested SelectedPath
-
-  | SelectedMany [SelectedPath]
   
-  | SelectedSimple ProvenanceTag ByteString 
+  | SelectedMatch ProvenanceTag ByteString 
   -- ^ The term has been fully processed and does not contain anything
   -- of interest to other paths.  We still need to execute the term on the bytes.
 
@@ -190,8 +185,6 @@ mergeSelectedNode (SelectedCase n1 sp1) (SelectedCase n2 sp2)
 mergeSelectedNode (SelectedCall cl1 sp1) (SelectedCall cl2 sp2)
   | cl1 /= cl2 = panic "BUG: Incompatible function classes" [showPP cl1, showPP cl2]
   | otherwise = SelectedCall cl1 (mergeSelectedPath sp1 sp2)
-mergeSelectedNode (SelectedNested sp1) (SelectedNested sp2)
-  = SelectedNested (mergeSelectedPath sp1 sp2)
 mergeSelectedNode _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
 
 --------------------------------------------------------------------------------
@@ -214,6 +207,4 @@ instance PP SelectedNode where
       SelectedChoice n' sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
       SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
-      SelectedNested sp     -> wrapIf (n > 0) $ "do" <+> ppPrec 1 sp
-      SelectedMany sps      -> wrapIf (n > 0) $ "many" <+> (vcat $ map (ppPrec 1) sps)
-      SelectedSimple _pr bs -> pp bs  -- XXX: print provenance 
+      SelectedMatch _pr bs -> pp bs  -- XXX: print provenance 

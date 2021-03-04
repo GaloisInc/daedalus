@@ -83,7 +83,7 @@ parseModel prov = go
 parseLeafModel :: ProvenanceTag -> SliceLeaf -> ModelP SelectedNode
 parseLeafModel prov sl = 
   case sl of
-    SMatch {}   -> SelectedSimple prov <$> pBytes
+    SMatch {}   -> SelectedMatch prov <$> pBytes
     SChoice sls -> pIndexed (\n -> SelectedChoice n <$> parseModel prov (sls !! n))
 
     SCall (CallNode { callClass = cl, callPaths = paths }) ->
@@ -252,8 +252,8 @@ sBind :: Maybe Name -> SExpr -> SExpr -> SExpr
 sBind (Just x) = sBind' (Just (nameToSMTName x, symExecTy (typeOf x)))
 sBind Nothing  = sBind' Nothing
 
-sBind_ :: SExpr -> SExpr -> SExpr
-sBind_ = sBind Nothing
+-- sBind_ :: SExpr -> SExpr -> SExpr
+-- sBind_ = sBind Nothing
 
 sPure :: SExpr -> SExpr
 sPure v = S.fun "Success" [v]

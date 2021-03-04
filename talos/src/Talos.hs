@@ -12,7 +12,6 @@ module Talos (
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
-import Data.List (find)
 import Data.IORef(newIORef, modifyIORef', readIORef,
                   writeIORef)
 
@@ -38,10 +37,8 @@ import qualified SimpleSMT as SMT
 
 import Daedalus.GUID
 import Daedalus.Driver hiding (State)
-import Daedalus.Type.AST (ScopedIdent(ModScope), TCTyName, TCTyDecl, TCModule (..)
-                         , TCDecl (..), Name (..))
-import Daedalus.Interp.Value (Value)
-import Daedalus.Rec (forgetRecs)
+import Daedalus.Core
+import Daedalus.Core.Semantics.Value (Value)
 
 import Talos.SymExec.Monad
 import Talos.SymExec.StdLib
@@ -49,7 +46,8 @@ import qualified Talos.Synthesis as T
 
 import qualified Talos.Analysis as A
 import Talos.Analysis.Monad (Summary)
-import Talos.Analysis.PathSet (TCSynthAnnot, ProvenanceMap, SummaryClass)
+import Talos.SymExec.Path (ProvenanceMap)
+import Talos.Analysis.Slice (SummaryClass)
 
 
 -- -- FIXME: move, maybe to GUID.hs?
@@ -60,13 +58,11 @@ import Talos.Analysis.PathSet (TCSynthAnnot, ProvenanceMap, SummaryClass)
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
 summarise :: FilePath -> Maybe String
-          -> IO (Map Name (Map SummaryClass Summary))
+          -> IO (Map FName (Map SummaryClass Summary))
 summarise inFile m_entry = do
-  (mainRule, declTys, mods, nguid) <- runDaedalus inFile m_entry
-  let allDecls  = concatMap (reverse . forgetRecs . tcModuleDecls) mods
-  Just root <- pure (find (\tc -> nameScopedIdent (tcDeclName tc) == mainRule) allDecls)
-  
-  pure (fst $ A.summarise declTys [tcDeclName root] allDecls nguid)
+  (_mainRule, md, nguid) <- runDaedalus inFile m_entry
+  let allDecls  = mGFuns md
+  pure (fst $ A.summarise allDecls nguid)
 
 
 z3VersionCheck :: SMT.Solver -> IO ()
@@ -107,7 +103,7 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe Int          -- ^ Random seed
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
 synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
-  (mainRule, declTys, mods, nguid) <- runDaedalus inFile m_entry
+  (mainRule, md, nguid) <- runDaedalus inFile m_entry
 
   -- SMT init
   logger <- case m_logOpts of
@@ -131,7 +127,7 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
   
   fst <$> (runSymExecM solver nguid $ do
     makeStdLib
-    T.synthesise m_seed mainRule declTys mods)
+    T.synthesise m_seed mainRule md)
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type
@@ -139,21 +135,21 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
 -- type-checked modules. The main rule's name includes the module
 -- information needed to find it.r
 runDaedalus :: FilePath -> Maybe String ->
-               IO (ScopedIdent, Map TCTyName TCTyDecl, [TCModule TCSynthAnnot], GUID)
+               IO (FName, Module, GUID)
 runDaedalus inFile m_entry = daedalus $ do
   mm <- ddlPassFromFile ddlLoadModule inFile
-  let entry    = maybe "Main" fromString m_entry
+  let entryName = maybe "Main" fromString m_entry
       specMod  = "DaedalusMain"
         
-  passSpecialize specMod [(mm, entry)]
-  allTys <- ddlGet declaredTypes
+  passSpecialize specMod [(mm, entryName)]
+  passCore specMod
+  entry <- ddlGetFName mm entryName
 
-  -- allMods <- ddlBasis mm
-  mods <- ddlGetAST specMod astTC
-
+  md    <- ddlGetAST specMod astCore
+  
   nguid <- ddlGet nextFreeGUID
   
-  pure (ModScope mm entry, allTys, [mods], nguid)
+  pure (entry, md, nguid)
 
 newFileLogger :: Maybe FilePath -> Int -> IO SMT.Logger
 newFileLogger  m_f l  =
