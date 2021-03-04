@@ -47,9 +47,14 @@ data Assertion = GuardAssertion Expr
 data SummaryClass = Assertions | FunctionResult -- FIXME: add fields
   deriving (Ord, Eq, Show)
 
--- Just to tell us not to e.g. merge
-newtype Wrapped a = Wrapped a
-
+data CallInstance =
+  CallInstance { callParams :: EntangledVars
+               -- ^ Set of params (+ result) free in the slice, used to call the model function in SMT
+               
+               , callSlice  :: Slice
+               -- ^ The slice inside the function, used to parse back the model (could also be ModelP SelectedPath)
+               }
+    
 -- We represent a Call by a set of the entangled args.  If the
 -- args aren't futher entangled by the calling context, then for
 -- each argument fps we get a single Call node, where the Set is a
@@ -84,9 +89,8 @@ data CallNode =
            , callName         :: FName
            -- ^ The called function
 
-           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars -- ^ Set of params (+ result) free in the slice, used to call the model function in SMT
-                                                           , Slice        -- ^ The slice inside the function, used to parse back the model
-                                                           ))
+           , callPaths        :: Map EntangledVar CallInstance
+           
            -- ^ All entangled params for the call, the range (wrapped)
            -- are in the _callee_'s namespace, so we don't merge etc.
            }

@@ -164,11 +164,11 @@ summariseCall m_x fn args = do
                        | otherwise -> panic "Missing parameter" [showPP v]
           ResultVar {} -> maybe mempty singletonEntangledVars m_x
 
-      mkCallNode r body =
+      mkCallNode r (evs, sl) =
         CallNode { callClass        = cl
                  , callAllArgs      = argsMap
                  , callName         = fn
-                 , callPaths        = Map.singleton r (Wrapped body)
+                 , callPaths        = Map.singleton r (CallInstance evs sl)
                  }
 
       mkCall r b@(evs, _) = 

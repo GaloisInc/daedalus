@@ -87,7 +87,7 @@ parseLeafModel prov sl =
     SChoice sls -> pIndexed (\n -> SelectedChoice n <$> parseModel prov (sls !! n))
 
     SCall (CallNode { callClass = cl, callPaths = paths }) ->
-      let doOne (Wrapped (_, sl')) = parseModel prov sl'
+      let doOne (CallInstance { callSlice = sl' }) = parseModel prov sl'
           (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
           base = case m_rsl of
             Nothing  -> Unconstrained <$ pMUnit -- make sure we are looking at a unit.
@@ -315,7 +315,7 @@ symExecSliceLeaf m sl =
                     , callName = fn
                     , callAllArgs = args
                     , callPaths = paths }) ->
-      let doOne (ev, Wrapped (evs, _)) =
+      let doOne (ev, CallInstance { callParams = evs }) =
             let -- c.f. symExecDomain
                 execArg x | Just v <- Map.lookup x args = symExecV v
                           | otherwise = panic "Missing argument" [showPP x]
