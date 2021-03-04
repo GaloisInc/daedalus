@@ -7,11 +7,9 @@ module Talos.Analysis.EntangledVars where
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Daedalus.Panic
 import Daedalus.PP
 
 import Daedalus.Core
-import Daedalus.Core.Type
 import Daedalus.Core.Free
 
 -- Two variables are entangled if information can flow between them
@@ -19,8 +17,7 @@ import Daedalus.Core.Free
 -- choices for the other.
 
 data EntangledVar =
-  ResultVar Type 
-  | ProgramVar Name
+  ResultVar | ProgramVar Name
   deriving Eq -- We define our own Ord as we want to ensure ResultVar < everything
 
 --
@@ -69,24 +66,17 @@ memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
 --------------------------------------------------------------------------------
 -- Class instances
 
-instance TypeOf EntangledVar where
-  typeOf v = case v of
-               ResultVar ty  -> ty
-               ProgramVar pv -> typeOf pv
-
 instance Ord EntangledVar where
   ev <= ev' =
     case (ev, ev') of
       -- FIXME: this is a bit dangerous, 
-      (ResultVar ty, ResultVar ty')
-        | ty == ty' -> True
-        | otherwise -> panic "Comparing incomarable result variables" [show (pp ev), show (pp ev')]
-      (ResultVar {}, _) -> True
+      (ResultVar, ResultVar) -> True
+      (ResultVar, _) -> True
       (ProgramVar v, ProgramVar v') -> v <= v'
       _ -> False
 
 instance PP EntangledVar where
-  pp (ResultVar {}) = "$result"
+  pp (ResultVar) = "$result"
   pp (ProgramVar v) = pp v
 
 instance PP EntangledVars where

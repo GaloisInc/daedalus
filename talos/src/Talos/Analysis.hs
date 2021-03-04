@@ -85,7 +85,7 @@ summariseDecl cls Fun { fName = fn
     doSummary = do
       let m_ret = case cls of
             Assertions     -> Nothing
-            FunctionResult -> Just (ResultVar (fnameType fn))
+            FunctionResult -> Just ResultVar
                         
       (d, m) <- runSummariseM (summariseG m_ret def)
       

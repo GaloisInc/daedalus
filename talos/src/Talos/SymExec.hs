@@ -88,8 +88,14 @@ parseLeafModel prov sl =
 
     SCall (CallNode { callClass = cl, callPaths = paths }) ->
       let doOne (Wrapped (_, sl')) = parseModel prov sl'
-      in SelectedCall cl <$> foldr1 (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
-                                    (map doOne (Map.elems paths))
+          (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
+          base = case m_rsl of
+            Nothing  -> Unconstrained <$ pMUnit -- make sure we are looking at a unit.
+            Just rsl -> doOne rsl
+          
+      in SelectedCall cl <$> foldr (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
+                                   base
+                                   (map doOne (Map.elems lpaths ++ Map.elems rpaths))
 
     -- We could also declare an aux type here which would make things
     -- a fair bit more readable.  We could aso use a tree instead of a
@@ -139,8 +145,8 @@ symExecSummary fn summary = do
     cl = summaryClass summary
     go ev (evs, sl) = do
       let predN     = evPredicateN cl fn ev
-          ty | ResultVar rty <- ev = rty
-             | otherwise           = TUnit -- no return value
+          ty | ev == ResultVar = fnameType fn
+             | otherwise       = TUnit -- no return value
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
       sliceToFun predN ty frees sl
 
@@ -150,11 +156,10 @@ mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
 mkFPredicateN :: SummaryClass -> FName -> String
 mkFPredicateN cl root = "Rel-" ++ fnameToSMTNameWithClass cl root
 
-
 evPredicateN :: SummaryClass -> FName -> EntangledVar -> String
 evPredicateN cl fn ev =
   case ev of
-    ResultVar {} -> mkFPredicateN cl fn
+    ResultVar    -> mkFPredicateN cl fn
     ProgramVar v -> mkPredicateN cl v
 
 -- Used to turn future path sets and arg domains into SMT terms.
@@ -167,7 +172,6 @@ sliceToFun predN ty frees sl = do
     sty     = symExecTy ty
     args    = map (\v -> (nameToSMTName v, symExecTy (typeOf v))) frees
               ++ [(modelN, tModel)]
-
 
 -- The SMT datatype looks something like this:
 -- data SMTPath =
@@ -201,6 +205,11 @@ failN  = "$fail"
 -- mkIsSeq :: SExpr -> SExpr
 -- mkIsSeq model' = S.fun "(_ is seq)" [model']
 
+mkSeq :: SExpr -> SExpr -> SExpr -> SExpr -> SExpr
+mkSeq m n1 n2 body = mkMatch m [ (S.fun "seq" [n1, n2], body)
+                               , (S.const "_", sFail)
+                               ]
+
 mkMatch :: SExpr -> [(SExpr, SExpr)] -> SExpr
 mkMatch e cs =
   S.fun "match" [ e
@@ -214,7 +223,7 @@ mkMatch e cs =
 mkIndexed :: String -> SExpr -> SExpr -> SExpr
 mkIndexed idxN model body =
   mkMatch model [ ( S.fun "indexed" [S.const idxN, S.const modelN], body)
-                , ( S.const "_", S.bool False)
+                , ( S.const "_", sFail)
                 ]
 
 mkBranch :: SExpr -> [SExpr] -> SExpr
@@ -252,8 +261,8 @@ sBind :: Maybe Name -> SExpr -> SExpr -> SExpr
 sBind (Just x) = sBind' (Just (nameToSMTName x, symExecTy (typeOf x)))
 sBind Nothing  = sBind' Nothing
 
--- sBind_ :: SExpr -> SExpr -> SExpr
--- sBind_ = sBind Nothing
+sBind_ :: SExpr -> SExpr -> SExpr
+sBind_ = sBind Nothing
 
 sPure :: SExpr -> SExpr
 sPure v = S.fun "success" [v]
@@ -302,26 +311,27 @@ symExecSliceLeaf m sl =
     
     SChoice sls -> mkBranch m <$> mapM symExecSlice sls
     
-    SCall {} -> unimplemented
+    SCall (CallNode { callClass = cl
+                    , callName = fn
+                    , callAllArgs = args
+                    , callPaths = paths }) ->
+      let doOne (ev, Wrapped (evs, _)) =
+            let -- c.f. symExecDomain
+                execArg x | Just v <- Map.lookup x args = symExecV v
+                          | otherwise = panic "Missing argument" [showPP x]
+                actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
+            in S.fun (evPredicateN cl fn ev) (actuals ++ [S.const modelN])
+          (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
+          base = case m_rsl of
+            Nothing  -> mkPure m sUnit
+            Just rsl -> doOne (ResultVar, rsl)
+            
+      in pure (foldr (\fc rest -> mkSeq m leafModel model (sBind_ fc rest))
+                     base
+                     (map doOne (Map.toList lpaths ++ Map.toList rpaths)))
+
     SCase {} -> unimplemented
     
-    -- SCall (CallNode { callClass = cl
-    --                 , callName = fn
-    --                 , callAllArgs = args
-    --                 , callPaths = paths }) ->
-    --   let mkOne (ev, Wrapped (evs, _)) =
-    --         let resArg = maybeToList (evToRHS m_res <$> m_res')
-    --             -- c.f. symExecDomain
-    --             execArg x | Just v <- Map.lookup x args = symExecV v
-    --                       | otherwise = panic "Missing argument" [showPP x]
-    --             actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
-    --         in S.fun (evPredicateN cl fn ev) (actuals ++ [S.const modelN] ++ resArg)
-    --   in pure [ mklet modelN model'
-    --             ( foldr1 (\fc rest -> mkAnd [ mkIsSeq (S.const modelN)
-    --                                         , mklet modelN (S.fun "mfst" [S.const modelN]) fc
-    --                                         , mklet modelN (S.fun "msnd" [S.const modelN]) rest])
-    --               (map mkOne (Map.toList paths)))
-    --           ]
   where
     unimplemented = panic "Unimplemented" [showPP sl]
     mkPure m' = sGuard (S.eq m' (S.const "munit")) . sPure
@@ -331,6 +341,9 @@ symExecSliceLeaf m sl =
       in mkMatch model' [ ( S.fun "bytes" [bytes], bodyf bytes )
                         , ( S.const "_", sFail )
                         ]
+    -- FIXME: clag
+    model      = S.const modelN
+    leafModel = S.const leafModelN
 
 symExecSlice :: Slice -> SymExecM SExpr
 symExecSlice = go 
@@ -342,9 +355,7 @@ symExecSlice = go
           mklet (nameToSMTName x) (symExecV e) <$> go rest
         SDo _ (SAssertion a) rest -> sGuard (symExecAssertion a) <$> go rest
         SDo m_x sl' rest -> do
-          let mk body = mkMatch model [ (S.fun "seq" [leafModel, model], body)
-                                      , (S.const "_", sFail)
-                                      ]
+          let mk = mkSeq model leafModel model
           mk <$> (sBind m_x <$> symExecSliceLeaf leafModel sl' <*> go rest)
             
         SUnconstrained  -> pure (mkPure sUnit)
