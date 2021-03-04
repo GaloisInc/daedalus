@@ -28,8 +28,8 @@ data EntangledVar =
 newtype EntangledVars = EntangledVars { getEntangledVars :: Set EntangledVar }
   deriving (Eq)
 
-tcEntangledVars :: FreeVars a => a -> EntangledVars
-tcEntangledVars = EntangledVars . Set.map ProgramVar . freeVars
+freeEntangledVars :: FreeVars a => a -> EntangledVars
+freeEntangledVars = EntangledVars . Set.map ProgramVar . freeVars
 
 instance Semigroup EntangledVars where
   (<>) = mergeEntangledVars

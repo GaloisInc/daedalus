@@ -201,7 +201,7 @@ instance PP SliceLeaf where
     case sl of
       SPure v  -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 v
       SMatch m -> wrapIf (n > 0) $ ppMatch SemYes m
-      SAssertion e -> wrapIf (n > 0) $ "matchassert" <+> ppPrec 1 e
+      SAssertion e -> wrapIf (n > 0) $ "assert" <+> ppPrec 1 e
       SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)
       SCall (CallNode { callName = fname, callPaths = evs }) ->
         wrapIf (n > 0) $ ("call " <> pp fname)

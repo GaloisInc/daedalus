@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-} -- for dealing with TCDecl and existential k
 
@@ -154,7 +155,7 @@ summariseCall m_x fn args = do
   -- summary, and merge the results (the substitution may have
   -- introduced duplicates, so we need to do a pointwise merge)
   let argsMap    = Map.fromList $ zip ps args
-      argsSubst  = tcEntangledVars <$> argsMap
+      argsSubst  = freeEntangledVars <$> argsMap
       paramMap p =
         case p of
           ProgramVar v | Just evs <- Map.lookup v argsSubst -> evs
@@ -386,6 +387,13 @@ summariseG m_x tc = do
 
     Call fn args  -> summariseCall m_x fn args
     Annot _ g     -> summariseG m_x g
+
+    -- Cases
+    GuardP e g    -> do
+      rhsD <- dontCareD 1 <$> summariseG m_x g
+      let lhsD = singletonDomain (freeEntangledVars e) (SLeaf (SAssertion (GuardAssertion e)))
+      pure (mergeDomain lhsD rhsD)
+    
     GCase _cs      -> unimplemented -- SLeaf . SCase <$> traverse (summariseG 
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
     
@@ -406,7 +414,7 @@ summariseG m_x tc = do
   --     pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
   where
     simple n
-      | Just x <- m_x = pure (singletonDomain (insertEntangledVar x (tcEntangledVars tc))
+      | Just x <- m_x = pure (singletonDomain (insertEntangledVar x (freeEntangledVars tc))
                                               (SLeaf n))
       | otherwise     = pure emptyDomain
     
@@ -419,3 +427,27 @@ diagonalise el xs f =
   in zipWith3 f pfxs xs sfxs 
    
  
+-- -----------------------------------------------------------------------------
+-- Special patterns
+
+pattern GuardP :: Expr -> Grammar -> Grammar
+pattern GuardP e g <- (caseIsGuard -> Just (e, g))
+
+-- Attempts to catch things ike
+--
+-- case b of
+--   True  -> ...
+--   False -> Fail ...
+
+caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
+caseIsGuard (GCase (Case e cs)) =
+  case cs of
+    -- FIXME: Annot
+    [(PBool b, g), (_, Fail {})]       -> mk b g
+    [(PBool _, Fail {}), (PBool b, g)] -> mk b g
+    [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g    
+    [(PBool b, g)]                     -> mk b g
+    _ -> Nothing
+  where
+    mk b g = Just (if b then e else eNot e, g)
+caseIsGuard _ = Nothing
