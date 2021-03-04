@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DefaultSignatures #-}
 
 -- Path set analysis
 
@@ -30,7 +30,7 @@ sDontCare _n SUnconstrained = SUnconstrained
 sDontCare n  ps = SDontCare n ps
 
 --------------------------------------------------------------------------------
--- Nodes for path sets
+-- Slices
 
 data Assertion = GuardAssertion Expr
 
@@ -70,45 +70,39 @@ newtype Wrapped a = Wrapped a
 -- by use.  Also, the range of the Map is _not_ merged, it is just
 -- carried around to avoid looking up the summary again.
 
+-- def F x y = { Guard (x > 10); Guard (y > 10); ^ 42 }
+--
+-- def Q = { a = UInt8; z = F a a; Guard (z > 10); ^ true } -- entangles x and y aboveb
+--
+-- F will generate slices for 'x', 'y', and the result, but at Q we
+-- entangle 'x' and 'y' through 'a'
+
 data CallNode =
   CallNode { callClass        :: SummaryClass           
            , callAllArgs      :: Map Name Expr
            -- ^ A shared map (across all domain elements) of the args to the call
            , callName         :: FName
            -- ^ The called function
-           
-           -- FIXME: we probably get into trouble if we have the same var in different classes here.
-           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars, Slice))
+
+           , callPaths        :: Map EntangledVar (Wrapped (EntangledVars -- ^ Set of params (+ result) free in the slice, used to call the model function in SMT
+                                                           , Slice        -- ^ The slice inside the function, used to parse back the model
+                                                           ))
            -- ^ All entangled params for the call, the range (wrapped)
            -- are in the _callee_'s namespace, so we don't merge etc.
            }
-  
-mergeCallNode :: CallNode -> CallNode -> CallNode
-mergeCallNode cn@(CallNode { callClass = cl1, callPaths = paths1 })
-                 (CallNode { callClass = cl2, callPaths = paths2 })
-  | cl1 /= cl2 = panic "Saw different function classes" []
-  | otherwise = cn { callPaths = Map.union paths1 paths2 -- don't have to use unionWith here
-                   }
-
-eqvCallNode :: CallNode -> CallNode -> Bool
-eqvCallNode (CallNode { callClass = cl1, callPaths = paths1 })
-            (CallNode { callClass = cl2, callPaths = paths2 }) =
-  cl1 == cl2 && Map.keys paths1 == Map.keys paths2
-
 
 type CaseNode = Case Slice
+    
+-- We assume the core has been simplified (no nested do etc.)
+data Slice =
+  -- Sequencing
+  SDontCare Int Slice
+  | SDo (Maybe Name) SliceLeaf Slice -- We merge Do and Do_
+  -- Terminals
+  | SUnconstrained -- shorthand for 'SDontCare \infty (SLeaf (SPure VUnit))'
+  | SLeaf SliceLeaf
 
-mergeCaseNode :: CaseNode -> CaseNode -> CaseNode 
-mergeCaseNode (Case e alts1) (Case _e alts2) =
-  Case e (zipWith goAlt alts1 alts2)
-  where
-    goAlt (p, a1) (_p, a2) = (p, mergeSlice a1 a2)
-
-eqvCaseNode :: CaseNode -> CaseNode -> Bool
-eqvCaseNode (Case _e alts1) (Case _e' alts2) =
-  all (uncurry $ on sliceEqv snd) (zip alts1 alts2)
-
--- These are the supported leaf nodes -- we could just reuse TC but it
+-- These are the supported leaf nodes -- we could just reuse Grammar but it
 -- is nice to be explicit here.
 data SliceLeaf =
   SPure Expr
@@ -117,84 +111,122 @@ data SliceLeaf =
   | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
   | SCall CallNode
   | SCase CaseNode
-  
-mergeSliceLeaf :: SliceLeaf -> SliceLeaf -> SliceLeaf
-mergeSliceLeaf l r =
-  case (l, r) of
-    (SPure {}, SPure {})           -> l
-    (SMatch {}, SMatch {})         -> l
-    (SAssertion {}, SAssertion {}) -> l
-    (SChoice cs1, SChoice cs2)     -> SChoice (zipWith mergeSlice cs1 cs2)
-    (SCall lc, SCall rc)           -> SCall (mergeCallNode lc rc)
-    (SCase lc, SCase rc)           -> SCase (mergeCaseNode lc rc)
-    _                              -> panic "Mismatched terms in mergeSliceLeaf" [showPP l, showPP r]
 
-sliceLeafEqv :: SliceLeaf -> SliceLeaf -> Bool
-sliceLeafEqv l r =
-  case (l, r) of
-    (SPure {}, SPure {})           -> True
-    (SMatch {}, SMatch {})         -> True
-    (SAssertion {}, SAssertion {}) -> True    
-    (SChoice ls, SChoice rs)       -> all (uncurry sliceEqv) (zip ls rs)
-    (SCall lc, SCall rc)           -> eqvCallNode lc rc
-    (SCase lc, SCase rc)           -> eqvCaseNode lc rc
-    _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
-  
--- We assume the core has been simplified (no nested do etc.)
-data Slice =
-  -- Sequencing
-  SDontCare Int Slice
-  | SDo (Maybe Name) SliceLeaf Slice -- We merge Do and Do_
-  -- Terminals
-  | SUnconstrained
-  | SLeaf SliceLeaf
-
--- This assumes the slices come from the same program, i.e., we don't
--- simple slices should be identical.
-mergeSlice :: Slice -> Slice -> Slice
-mergeSlice l r = 
-  case (l, r) of
-    (_, SUnconstrained)            -> l
-    (SUnconstrained, _)            -> r
-
-    (SDontCare 0 rest, _)   -> mergeSlice rest r -- Shouldn't happen.
-    (SDontCare n rest, SDontCare m rest') ->
-      let count = min m n
-      in sDontCare count (mergeSlice (sDontCare (n - count) rest) (sDontCare (m - count) rest'))
-    (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (mergeSlice (sDontCare (n - 1) rest) slR)
-    
-    -- FIXME: does this make sense?
-    (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (sDontCare (n - 1) rest)
-
-    (_, SDontCare {})       -> mergeSlice r l
-
-    (SDo x1 slL1 slR1, SDo x2 slL2 slR2) ->
-      SDo (x1 <|> x2) (mergeSliceLeaf slL1 slL2) (mergeSlice slR1 slR2)
-
-    (SLeaf sl1, SLeaf sl2) -> SLeaf (mergeSliceLeaf sl1 sl2)
-    
-    _ -> panic "Merging non-mergeable nodes" [showPP l, showPP r]
+--------------------------------------------------------------------------------
+-- Domain Instances
 
 -- This assumes the node came from the same statement (i.e., the paths
 -- we are comparing are rooted at the same statement).  This means we
--- don't need to compare TC for equality.
+-- don't need to compare for equality.
 --
--- Thus, for some cases, the presence of a node is enough to return True (e.g. for Assertion)
-sliceEqv :: Slice -> Slice -> Bool
-sliceEqv l r = 
-  case (l, r) of
-    (SDontCare n rest, SDontCare m rest') -> m == n && sliceEqv rest rest'
+-- Thus, for some cases, the presence of a node is enough to return
+-- True (e.g. for Assertion)
 
-    (SDo _x slL1 slR1, SDo _x' slL2 slR2) ->
-      sliceLeafEqv slL1 slL2 && sliceEqv slR1 slR2
+class Eqv a where
+  eqv :: a -> a -> Bool
+  default eqv :: Eq a => a -> a -> Bool
+  eqv = (==)
 
-    (SUnconstrained, SUnconstrained) -> True
-    (SLeaf sl1, SLeaf sl2) -> sliceLeafEqv sl1 sl2
+instance Eqv Int 
+instance Eqv Integer
+instance Eqv SummaryClass
 
-    _ -> panic "Comparing non-comparable nodes" [showPP l, showPP r]
+instance (Eqv a, Eqv b) => Eqv (a, b) where
+  eqv (a, b) (a', b') = a `eqv` a' && b `eqv` b'
+
+instance Eqv Slice where
+  eqv l r = 
+    case (l, r) of
+      (SDontCare n rest, SDontCare m rest') -> (m, rest) `eqv` (n, rest')
+
+      (SDo _x slL1 slR1, SDo _x' slL2 slR2) -> (slL1, slR1) `eqv` (slL2, slR2)
+
+      (SUnconstrained, SUnconstrained) -> True
+      (SLeaf sl1, SLeaf sl2) -> sl1 `eqv` sl2
+
+      _ -> panic "Comparing non-comparable nodes" [showPP l, showPP r]
+
+instance Eqv SliceLeaf where
+  eqv l r =
+    case (l, r) of
+      (SPure {}, SPure {})           -> True
+      (SMatch {}, SMatch {})         -> True
+      (SAssertion {}, SAssertion {}) -> True    
+      (SChoice ls, SChoice rs)       -> all (uncurry eqv) (zip ls rs)
+      (SCall lc, SCall rc)           -> lc `eqv` rc
+      (SCase lc, SCase rc)           -> lc `eqv` rc
+      _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
+
+instance Eqv CallNode where
+  eqv (CallNode { callClass = cl1, callPaths = paths1 })
+      (CallNode { callClass = cl2, callPaths = paths2 }) =
+    cl1 == cl2 && Map.keys paths1 == Map.keys paths2
+
+instance Eqv a => Eqv (Case a) where
+  eqv (Case _e alts1) (Case _e' alts2) =
+    all (uncurry $ on eqv snd) (zip alts1 alts2)
+
+-- Merging
+--
+-- Similar to a semigroup, but with more restrictions about how it can
+-- be used (i.e., the merged objects come from the same program)
+
+class Merge a where
+  merge :: a -> a -> a
+
+instance Merge CallNode where
+  merge cn@(CallNode { callClass = cl1, callPaths = paths1 }) 
+          (CallNode { callClass = cl2, callPaths = paths2 })
+    | cl1 /= cl2 = panic "Saw different function classes" []
+    | otherwise = cn { callPaths = Map.union paths1 paths2 -- don't have to use unionWith here
+                     }
+
+instance Merge a => Merge (Case a) where
+  merge (Case e alts1) (Case _e alts2) = Case e (zipWith goAlt alts1 alts2)
+    where
+      goAlt (p, a1) (_p, a2) = (p, merge a1 a2)
+
+  
+instance Merge SliceLeaf where
+  merge l r =
+    case (l, r) of
+      (SPure {}, SPure {})           -> l
+      (SMatch {}, SMatch {})         -> l
+      (SAssertion {}, SAssertion {}) -> l
+      (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
+      (SCall lc, SCall rc)           -> SCall (merge lc rc)
+      (SCase lc, SCase rc)           -> SCase (merge lc rc)
+      _                              -> panic "Mismatched terms in merge" [showPP l, showPP r]
+
+-- This assumes the slices come from the same program, i.e., simple
+-- slices should be identical.
+instance Merge Slice where
+  merge l r = 
+    case (l, r) of
+      (_, SUnconstrained)            -> l
+      (SUnconstrained, _)            -> r
+
+      (SDontCare 0 rest, _)          -> merge rest r -- Shouldn't happen.
+      (SDontCare n rest, SDontCare m rest') ->
+        let count = min m n
+        in sDontCare count (merge (sDontCare (n - count) rest) (sDontCare (m - count) rest'))
+      (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (merge (sDontCare (n - 1) rest) slR)
+    
+      -- FIXME: does this make sense?
+      (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (sDontCare (n - 1) rest)
+
+      (_, SDontCare {})       -> merge r l
+
+      (SDo x1 slL1 slR1, SDo x2 slL2 slR2) ->
+        SDo (x1 <|> x2) (merge slL1 slL2) (merge slR1 slR2)
+
+      (SLeaf sl1, SLeaf sl2) -> SLeaf (merge sl1 sl2)
+    
+      _ -> panic "Merging non-mergeable nodes" [showPP l, showPP r]
+
 
 --------------------------------------------------------------------------------
--- Instances
+-- PP Instances
 
 instance PP SliceLeaf where
   ppPrec n sl =

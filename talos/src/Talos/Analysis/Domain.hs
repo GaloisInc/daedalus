@@ -28,22 +28,22 @@ import Talos.Analysis.Slice
 
 newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] } 
 
-mergeDomain :: Domain -> Domain -> Domain
-mergeDomain dL dR = Domain (go (elements dL) (elements dR))
-  where
-    go [] d2 = d2
-    -- d might overlap with multiple elements from d2 (but none from d1') 
-    go ((els, ps) : d1') d2 = go d1' ((newEls, newPs) : indep)
-      where
-        newPs = foldl mergeSlice ps depPs
-        newEls = mergeEntangledVarss (els : depEls)
-        (depEls, depPs) = unzip dep
-        (dep, indep) = partition (\(els', _) -> els `intersects` els') d2
+instance Merge Domain where
+  merge dL dR = Domain (go (elements dL) (elements dR))
+    where
+      go [] d2 = d2
+      -- d might overlap with multiple elements from d2 (but none from d1') 
+      go ((els, ps) : d1') d2 = go d1' ((newEls, newPs) : indep)
+        where
+          newPs = foldl merge ps depPs
+          newEls = mergeEntangledVarss (els : depEls)
+          (depEls, depPs) = unzip dep
+          (dep, indep) = partition (\(els', _) -> els `intersects` els') d2
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?
-instance Semigroup (Domain) where
-  (<>) = mergeDomain
+instance Semigroup Domain where
+  (<>) = merge
 
 emptyDomain :: Domain 
 emptyDomain = Domain []
@@ -80,9 +80,9 @@ squashDomain :: Domain -> Domain
 squashDomain d@(Domain []) = d
 squashDomain (Domain els) =
   singletonDomain (mergeEntangledVarss fvss)
-                  (foldl1' mergeSlice fpss)
+                  (foldl1' merge sls)
   where
-    (fvss, fpss) = unzip els
+    (fvss, sls) = unzip els
 
 domainEqv :: Domain -> Domain -> Bool
 domainEqv dL dR = go (elements dL) (elements dR)
@@ -92,7 +92,7 @@ domainEqv dL dR = go (elements dL) (elements dR)
     go ((els, ps) : d1') d2 =
       case partition ((==) els . fst) d2 of
         ([], _)           -> False
-        ([(_, ps')], d2') -> sliceEqv ps ps' && go d1' d2'
+        ([(_, ps')], d2') -> eqv ps ps' && go d1' d2'
         _ -> panic "Malformed domain" []
 
 -- Turns a domain into a map from a representative entangle var to the

@@ -337,7 +337,7 @@ summariseG m_x tc = do
     
     Do_ lhs rhs -> do
       rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      mergeDomain rhsD <$> summariseG Nothing lhs
+      merge rhsD <$> summariseG Nothing lhs
     
     Do x' lhs rhs -> do
       -- we add the dontCare to leave a spot to merge in the dom for lhs
@@ -354,7 +354,7 @@ summariseG m_x tc = do
                                             then SDo (Just x') (fromLeaf sl) SUnconstrained
                                             else sl) lhsD
               -- inefficient, but simple
-              dom = mergeDomain rhsD lhsD'
+              dom = merge rhsD lhsD'
 
           -- x' should always be assigned as we check above.
           let (Just (ns, sl), dom') = splitOnVar ex' dom
@@ -372,7 +372,7 @@ summariseG m_x tc = do
             else pure (primAddDomainElement (deleteEntangledVar ex' ns, sl) dom')
             
         -- There is no variable, or no path from here is entangled with it
-        else mergeDomain rhsD <$> summariseG Nothing lhs
+        else merge rhsD <$> summariseG Nothing lhs
 
     Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
 
@@ -397,7 +397,7 @@ summariseG m_x tc = do
     GuardP e g    -> do
       rhsD <- dontCareD 1 <$> summariseG m_x g
       let lhsD = singletonDomain (freeEntangledVars e) (SLeaf (SAssertion (GuardAssertion e)))
-      pure (mergeDomain lhsD rhsD)
+      pure (merge lhsD rhsD)
     
     GCase _cs      -> unimplemented -- SLeaf . SCase <$> traverse (summariseG 
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
