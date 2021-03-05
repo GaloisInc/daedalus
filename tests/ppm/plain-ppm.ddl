@@ -13,9 +13,9 @@ def PPM = {
   Match "P";
   @version = Token Natural;
   version == 3 is true;
-  width  = Token Natural;
-  height = Token Natural;
-  maxVal = Token Natural;
+  width  = Token Natural as uint 64;
+  height = Token Natural as uint 64;
+  maxVal = Token Natural as uint 64;
   data   = Many height (Many width RGB);
 }
 
