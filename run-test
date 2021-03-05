@@ -1,6 +1,3 @@
 #!/bin/bash
 
-OUT=$(cabal test ${*/#/--test-options=})
-RES=$?
-cat $(echo "$OUT" | grep -A 1 "Test suite logged to:" | tail -n 1)
-exit $RES
+cabal test --test-show-details=streaming ${*/#/--test-options=}
