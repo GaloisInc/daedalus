@@ -35,7 +35,7 @@ stripFailG gram =
 
     Annot _ f@(Fail {}) -> f
     GCase (Case e cs) ->
-      case filter (isFail . snd) cs of
+      case filter (not . isFail . snd) cs of
         []  -> snd (head cs) -- propagate failure (should be a Fail)
         cs' -> GCase (Case e cs')
 
