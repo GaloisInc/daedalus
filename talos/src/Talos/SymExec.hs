@@ -10,6 +10,7 @@ module Talos.SymExec ( solverSynth
 import Control.Monad.Reader
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Foldable (find, foldrM)
 
 -- import qualified Data.Text as T
 
@@ -97,17 +98,10 @@ parseLeafModel prov sl =
                                    base
                                    (map doOne (Map.elems lpaths ++ Map.elems rpaths))
 
-    -- We could also declare an aux type here which would make things
-    -- a fair bit more readable.  We could aso use a tree instead of a
-    -- list (for term size)
-
-    SCase {} -> error "Unimplemented"
-    
-    -- SCase (CaseNode { caseAlts = alts, caseDefault = m_fps }) ->
-    --   let go n | n < NE.length alts = SelectedCase n <$> parseModel prov (fnAltBody (alts NE.!! n))
-    --            | Just fps <- m_fps  = SelectedCase n <$> parseModel prov fps
-    --            | otherwise = panic "Case result out of bounds" [show n]
-    --   in pIndexed go
+    SCase _ (Case _ alts) ->
+      let go n | n < length alts = SelectedCase n <$> parseModel prov (snd (alts !! n))
+               | otherwise = panic "Case result out of bounds" [show n]
+      in pIndexed go
     
     _ -> panic "Impossible" [showPP sl] 
 
@@ -278,8 +272,10 @@ withFail :: SExpr -> SExpr -> SExpr
 withFail ty = mklet failN (S.as (S.const "failure") (tResult ty))
 
 -- withModel :: SExpr -> SExpr -> SExpr
--- withModel = mklet modelN
-
+-- withModel model
+--   | model == S.const modelN = id
+--   | otherwise               = mklet modelN model
+  
 --------------------------------------------------------------------------------
 -- Symbolically executing a slice
                              
@@ -289,6 +285,61 @@ withFail ty = mklet failN (S.as (S.const "failure") (tResult ty))
 -- --- $model is to the current model, and $fail is Failure at the
 -- right type.  This is a little fragile, but it avoids plumbing them
 -- through.
+
+symExecCase :: SExpr -> Bool -> Case Slice -> SymExecM SExpr
+symExecCase m total (Case e alts) = mkIndexed idxN m <$> body
+  where
+    -- modelN is bound in body
+    body = case typeOf e of
+      TBool     -> S.ite e' <$> match 0 (PBool True) <*>  match 1 (PBool False)
+      TMaybe {} -> do
+        nc <- match 0 PNothing
+        jc <- match 1 PJust
+        pure (mkMatch e' [ (S.const "Nothing", nc)
+                         , (S.fun "Just" [S.const "_"], jc)
+                         ])
+
+      -- We translate a case into a smt case
+      -- FIXME: is it more efficient to ite on the index?
+      TUser ut -> do
+        bodies <- zipWithM (goAlt ut) [0..] alts
+        pure (mkMatch e' (bodies ++ defCase))
+
+      -- numeric cases
+      _ -> do
+        let pats = [ (n, sl) | (PNum n, sl) <- alts ]
+            resN = "$r"
+            res  = S.const resN              
+            go (n, (patn, sl)) rest =
+              S.ite (S.eq res (S.int patn)) <$> check n sl <*> pure rest                
+        base <- match (fromIntegral (length pats)) PAny
+        mklet resN e' <$> foldrM go base (zip [0..] pats)
+
+    goAlt ut n (p, sl) = do
+      let sp = case p of
+                 PAny   -> wildcard
+                 PCon l -> S.fun (labelToField (utName ut) l) [wildcard]
+                 _      -> panic "Unknown pattern" [showPP p]
+                 
+      alt <- check n sl
+      pure (sp, alt)
+
+    defCase = if total then [] else [(wildcard, sFail)]
+  
+    wildcard = S.const "_"      
+      
+    check n sl = sGuard (S.eq idx (S.int n)) <$> symExecSlice sl
+        
+    match n p =
+      case find (\(p', _) -> p == p' || p' == PAny) alts of
+        Nothing      -> pure sFail
+        Just (_, sl) -> check n sl
+
+    e' = symExecV e
+    
+    idxN = "$i"
+    idx  = S.const idxN
+  
 
 symExecSliceLeaf :: SExpr -> SliceLeaf -> SymExecM SExpr
 symExecSliceLeaf m sl =
@@ -330,10 +381,9 @@ symExecSliceLeaf m sl =
                      base
                      (map doOne (Map.toList lpaths ++ Map.toList rpaths)))
 
-    SCase {} -> unimplemented
+    SCase total cs -> symExecCase m total cs
     
   where
-    unimplemented = panic "Unimplemented" [showPP sl]
     mkPure m' = sGuard (S.eq m' (S.const "munit")) . sPure
 
     mkBytes model' bodyf =
@@ -365,62 +415,6 @@ symExecSlice = go
     leafModel = S.const leafModelN
     -- FIXME: copied
     mkPure = sGuard (S.eq model (S.const "munit")) . sPure
-        
-        -- The idx isn't strictly required here, as we could just figure it out from the values.
-        -- FNCase (CaseNode { caseCompleteness = _compl  -- we don't care here, we assert an alt is taken
-        --                  , caseSummary      = summary
-        --                  , caseTerm         = e
-        --                  , caseAlts         = alts
-        --                  , caseDefault      = m_def}) -> do
-        --   let matchN    = "$match"
-
-        --   altsPreds <- mapM (mkCaseAlt (S.const matchN)) (NE.toList alts)
-        --   defPred <- case m_def of
-        --     Nothing  -> pure []
-        --     Just fps -> do r <- S.and (assertIsMissingLabel (S.const matchN) summary)
-        --                         <$> collect (S.const modelN) fps
-        --                    pure [r]
-        --   pure [ mklet matchN (symExecV e) (mkBranch model' (altsPreds ++ defPred)) ]
-          
-     
-    -- mkCaseAlt e (FNAlt { fnAltPatterns = pats, fnAltBody = b }) = do
-    --   b' <- collect' (S.const modelN) b
-    --   pure (mkExists (Set.toList (Set.unions (map patBindsSet pats)))
-    --         (mkAnd (concatMap (relPattern e) pats ++ b')))
-      
-
-    -- -- Assert we match a pattern
-    -- relPattern e pat =
-    --   case pat of
-    --     TCConPat (TCon tyName _) lbl pat' ->
-    --       let getter = S.fun ("get-" ++ labelToField tyName lbl) [e]
-    --       in assertLabel e tyName lbl : bindLabel getter pat'
-    --     TCConPat {}    -> panic "Missing type name" [showPP pat]
-    --     TCNumPat {}    -> panic "Unimplemented (number pattern)" [showPP pat]
-    --     TCBoolPat b    -> [ S.eq e (S.bool b) ]
-    --     TCJustPat pat'  -> S.fun "is-Just" [e] : bindLabel (S.fun "fromJust" [e]) pat'
-    --     TCNothingPat {} -> [ S.fun "is-Nothing" [e] ]
-    --     _               -> panic "Saw an unexpected  pat" [showPP pat]
-      
-    -- -- We assert that the expression must be of a form not matched by the other cases.
-    -- assertIsMissingLabel e summary =
-    --   case summary of
-    --     UnionCase tyName _seen missing ->
-    --       S.orMany (map (assertLabel e tyName) missing)
-    --     MaybeCase seen ->
-    --       mkAnd ([ S.fun "is-Nothing" [e] | Nothing `notElem` seen]
-    --              ++ [ S.fun "is-Just" [e] | Just () `notElem` seen]
-    --             )
-    --     NumberCase {} -> panic "Unimplemented (case over numbers)" []
-    --     BoolCase seen ->
-    --       mkAnd ([ e | True `notElem` seen] ++ [ S.not e | False `notElem` seen])
-
-    -- assertLabel e tyName lbl = S.fun ("is-" ++ labelToField tyName lbl) [e]
-    
-    -- bindLabel e pat =
-    --   case pat of
-    --     TCVarPat v -> [ S.eq (symExecTCName v) e ]
-    --     _          -> [] 
 
 symExecAssertion :: Assertion -> SExpr
 symExecAssertion (GuardAssertion tc) = symExecV tc

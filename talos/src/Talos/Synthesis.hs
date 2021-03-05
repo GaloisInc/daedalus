@@ -388,16 +388,14 @@ synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs) =
   
 synthesiseGLHS (Just (SelectedChoice {})) g = panic "synthesiseGLHS: expected a choose" [showPP g]
 
--- synthesiseGLHS (Just (SelectedCase n sp)) tc@(texprValue -> TCCase e alts m_def)
---   | n < length alts = do
---       v <- synthesiseV e
---       let alt = (alts NE.!! n)
---           bindIn' (x, v') = bindIn x (InterpValue v')
---       case matchPatOneOf (tcAltPatterns alt) (assertInterpValue v) of
---         Just binds -> foldr bindIn' (synthesiseG sp (tcAltBody alt)) binds
---         Nothing -> panic "Failed to match pattern" [show n, showPP tc]
---   | Just def <- m_def = synthesiseG sp def -- FIXME: check we fail the other pats?
---   | otherwise = panic "No matching case" [show n, showPP tc]
+synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case e alts))
+  | n < length alts = do
+      v <- synthesiseV e
+      let (pat, g) = alts !! n
+      if I.matches pat (assertInterpValue v) -- sanity check prover result
+        then synthesiseG sp g
+        else panic "Failed to match pattern" [show n, showPP cs]
+  | otherwise = panic "No matching case" [show n, showPP cs]
   
 synthesiseGLHS (Just (SelectedCase {})) g = panic "synthesiseGLHS: expected a case" [showPP g]
 

@@ -21,14 +21,16 @@ import qualified Data.Set as Set
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
+
 import Daedalus.Core
+import Daedalus.Core.Type
 
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
 import Talos.Analysis.Monad
 import Talos.Analysis.Slice
 
-import Debug.Trace
+-- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -181,11 +183,11 @@ summariseCall m_x fn args = do
     cl | isJust m_x = FunctionResult
        | otherwise  = Assertions
 
--- asSingleton :: Domain -> (EntangledVars, Slice)
--- asSingleton dom
---   | nullDomain dom = (mempty, SUnconstrained)
---   | [r] <- elements dom = r
---   | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
+asSingleton :: Domain -> (EntangledVars, Slice)
+asSingleton dom
+  | nullDomain dom = (mempty, SUnconstrained)
+  | [r] <- elements dom = r
+  | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
 
 -- Case is a bit tricky.
 -- 
@@ -216,43 +218,48 @@ summariseCall m_x fn args = do
 -- first.  In this case, we should entangle x and y,
 --
 -- D) is similar to (C) but we need to add a constraint.
--- summariseCase :: Maybe EntangledVar ->
---                  Grammar ->
---                  Expr ->
---                  [(Pattern, Grammar)] ->
---                  SummariseM Domain
--- summariseCase m_x tc e alts = do
---   declTys <- liftIterM declaredTypes
---   bDoms   <- mapM (summariseG m_x . tcAltBody) alts'
---   defDom  <- traverse (summariseG m_x) m_def
---   let (caseClass, cSummary) = PC.summariseCase declTys tc
---       trivial   = all nullDomain (maybe emptyDomain id defDom : bDoms)
---       total     = caseClass == PC.Complete
+
+-- This assumes type safety etc. (hence we can get away with length for labels)
+caseIsTotal :: Case k -> Bool
+caseIsTotal (Case e alts)
+  | hasDefault = True
+  | otherwise  =
+      case typeOf e of
+        -- Assume numeric types cannot be total (unless hasDefault)
+        TInteger  -> False
+        TUInt {}  -> False -- FIXME: for small sizes totality is possible
+        TSInt {}  -> False
+        TBool     -> nAlts == 2 -- no repeated patterns
+        TMaybe {} -> nAlts == 2
+        TUser ut  -> nAlts == nLabels ut
+        ty -> panic "Unexpected type in caseIsTotal" [showPP ty]
+  where
+    nAlts = length alts
+    -- should be the last pattern.
+    hasDefault = any ((==) PAny . fst) alts
+
+    nLabels ut = case tnameFlav (utName ut) of
+      TFlavStruct   -> panic "Unexpected struct" []
+      TFlavUnion ls -> length ls
+      TFlavEnum  ls -> length ls
+
+summariseCase :: Maybe EntangledVar ->
+                 Case Grammar ->
+                 SummariseM Domain
+summariseCase m_x cs@(Case e alts) = do
+  bDoms   <- mapM (summariseG m_x . snd) alts
+  let trivial   = all nullDomain bDoms
+      total     = caseIsTotal cs
       
---   if trivial && total then pure emptyDomain else do
---     -- We have a non-trivial node, so we construct a singleton domain.
---     -- This breaks the domain abstraction, but it is a bit simpler to
---     -- write like this.
---     let (altVs, altFPs) = unzip $ zipWith mkAltPath alts' (map squashDomain bDoms)
---         m_defVF = asSingleton . squashDomain <$> defDom
---         vs     = mergeEntangledVarss (tcEntangledVars e : maybe mempty fst m_defVF : altVs)
---         cNode = CaseNode { caseCompleteness = caseClass
---                          , caseSummary      = cSummary
---                          , caseTerm         = e
---                          , caseAlts         = NE.fromList altFPs
---                          , caseDefault      = snd <$> m_defVF
---                          } 
---     pure (singletonDomain vs (SCase cNode))
---   where
---     -- We have at least 1 non-empty domain (c.f. trivial)
---     mkAltPath alt dom =
---       let (fvs, fps) = asSingleton dom
---           binds      = altBinds alt -- singleton or empty
---       in (foldr deleteEntangledVar fvs (map ProgramVar binds)
---          , SAlt (tcAltPatterns alt) fps)
-         
---     alts' = NE.toList alts
-      
+  if trivial && total then pure emptyDomain else do
+    -- We have a non-trivial node, so we construct a singleton domain.
+    -- This breaks the domain abstraction, but it is a bit simpler to
+    -- write like this.
+    let pats = map fst alts
+        (vs, els) = unzip (map (asSingleton . squashDomain) bDoms)
+        cs'       = Case e (zip pats els)
+        vs'       = mergeEntangledVarss (freeEntangledVars e : vs)
+    pure (singletonDomain vs' (SLeaf (SCase total cs')))
 
 -- Some examples:
 --
@@ -323,7 +330,6 @@ summariseCall m_x fn args = do
 summariseG :: Maybe EntangledVar -> -- Do we want the result of tc or not?
               Grammar -> SummariseM Domain
 summariseG m_x tc = do
-  -- d <- liftIterM $ currentDeclName
   -- cl <- liftIterM $ currentSummaryClass
   
   -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
@@ -358,7 +364,9 @@ summariseG m_x tc = do
 
           -- x' should always be assigned as we check above.
           let (Just (ns, sl), dom') = splitOnVar ex' dom
-            
+
+          -- d <- liftIterM $ currentDeclName
+              
           -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
           --                                       , "binding" <+> pp ns <+> pp sl
           --                                       , "dom"  <+> pp dom
@@ -396,27 +404,13 @@ summariseG m_x tc = do
     -- Cases
     GuardP e g    -> do
       rhsD <- dontCareD 1 <$> summariseG m_x g
-      let lhsD = singletonDomain (freeEntangledVars e) (SLeaf (SAssertion (GuardAssertion e)))
+      let lhsD = singletonDomain (freeEntangledVars e)
+                                 (SLeaf (SAssertion (GuardAssertion e)))
       pure (merge lhsD rhsD)
     
-    GCase _cs      -> unimplemented -- SLeaf . SCase <$> traverse (summariseG 
+    GCase cs      -> summariseCase m_x cs
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
     
-  --   Choice _c gs _t -> do
-  --     when (null gs) $ error "empty list of choices"
-  --     doms <- mapM (summariseG m_x) gs
-
-  --     -- doms contains a domain for each path in the choose. We create
-  --     -- a diagonal list of domains, like
-  --     --
-  --     --  [ Just Unconstrained, ... , fp, ... Just Unconstrained]
-  --     --
-  --     -- and then merge
-  --     --
-  --     let mkOne p s fp = SChoice (p ++ [fp] ++ s)
-  --         mk p d' s = mapDomain (\_ -> mkOne p s) d'
-  --         doms' = diagonalise SUnconstrained doms mk
-  --     pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
   where
     simple n
       | Just x <- m_x = pure (singletonDomain (insertEntangledVar x (freeEntangledVars tc))

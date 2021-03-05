@@ -94,8 +94,6 @@ data CallNode =
            -- ^ All entangled params for the call, the range (wrapped)
            -- are in the _callee_'s namespace, so we don't merge etc.
            }
-
-type CaseNode = Case Slice
     
 -- We assume the core has been simplified (no nested do etc.)
 data Slice =
@@ -114,7 +112,7 @@ data SliceLeaf =
   | SAssertion Assertion -- FIXME: this is inferred from e.g. case x of True -> ...
   | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
   | SCall CallNode
-  | SCase CaseNode
+  | SCase Bool (Case Slice)
 
 --------------------------------------------------------------------------------
 -- Domain Instances
@@ -158,7 +156,7 @@ instance Eqv SliceLeaf where
       (SAssertion {}, SAssertion {}) -> True    
       (SChoice ls, SChoice rs)       -> all (uncurry eqv) (zip ls rs)
       (SCall lc, SCall rc)           -> lc `eqv` rc
-      (SCase lc, SCase rc)           -> lc `eqv` rc
+      (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
       _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
 
 instance Eqv CallNode where
@@ -199,7 +197,7 @@ instance Merge SliceLeaf where
       (SAssertion {}, SAssertion {}) -> l
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
-      (SCase lc, SCase rc)           -> SCase (merge lc rc)
+      (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
       _                              -> panic "Mismatched terms in merge" [showPP l, showPP r]
 
 -- This assumes the slices come from the same program, i.e., simple
@@ -242,7 +240,7 @@ instance PP SliceLeaf where
       SCall (CallNode { callName = fname, callPaths = evs }) ->
         wrapIf (n > 0) $ ("call " <> pp fname)
                          <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
-      SCase c -> pp c
+      SCase _ c -> pp c
 
 ppStmt :: Slice -> Doc
 ppStmt sl =

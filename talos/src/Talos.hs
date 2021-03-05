@@ -141,8 +141,10 @@ runDaedalus inFile m_entry = daedalus $ do
   let entryName = maybe "Main" fromString m_entry
       specMod  = "DaedalusMain"
         
-  passSpecialize specMod [(mm, entryName)]
+  passSpecialize specMod [(mm, entryName)]  
   passCore specMod
+  passStripFail specMod
+  
   entry <- ddlGetFName mm entryName
 
   md    <- ddlGetAST specMod astCore
