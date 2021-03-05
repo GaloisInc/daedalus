@@ -9,3 +9,6 @@ def MissionCount = {
                                   --  in the sequence
   mission_type = MavMissionType;  -- Mission type 
 }
+
+-- uncomment to add entry point for compilation
+-- def Main = MissionCount

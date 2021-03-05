@@ -25,8 +25,9 @@ import Daedalus.VM.FindLoops
 
 moduleToProgram :: [Src.FName] -> [Module] -> Program
 moduleToProgram entries ms =
+  captureAnalysis
   Program
-    { pModules = captureAnalysis $ map loopAnalysis ms
+    { pModules = map loopAnalysis ms
     , pEntries = [ compileEntry entry (Src.Call entry []) | entry <- entries ]
     }
 

@@ -230,10 +230,10 @@ Integer operator >> (Integer x, Integer iamt) {
 
 // NOTE: lcat is in `number.h` to avoid dependency convlicts
 
-#endif
 
 
 }
+#endif
 
 
 

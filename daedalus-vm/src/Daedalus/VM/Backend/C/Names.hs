@@ -77,6 +77,13 @@ cRetVar ty = "ret_" <.> escDoc (pp ty)
 cRetInput :: CIdent
 cRetInput = "input_ret"
 
+cRetVarFun :: CIdent
+cRetVarFun = "_result"
+
+cRetInputFun :: CIdent
+cRetInputFun = "_result_input"
+
+
 escDoc :: Doc -> Doc
 escDoc = escString . show
 
@@ -105,6 +112,9 @@ selName own l = pref <.> "_" <.> cLabel l
                  GenBorrow -> "borrow"
                  GenOwn    -> "get"
 
+
+cFName :: FName -> CIdent
+cFName f = escDoc ("parese_" <.> pp f)
 
 --------------------------------------------------------------------------------
 isReserved :: Text -> Bool

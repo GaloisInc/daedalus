@@ -46,6 +46,14 @@ This would become just:
 >   ...
 
 And we replace @L1@ and @L2@ with @L3@.
+
+
+(XXX): Another pattern:
+
+> L1(x):
+>   tail_call f(x)
+
+We should elimiate L1, and replace `jump L1(e)` with `tail_call f(e)`
 -}
 {-# Language BlockArguments, BangPatterns #-}
 {-# Language OverloadedStrings #-}

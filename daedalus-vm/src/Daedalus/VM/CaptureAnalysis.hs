@@ -13,14 +13,56 @@ import Daedalus.PP
 import Daedalus.VM
 
 
-captureAnalysis :: [Module] -> [Module]
-captureAnalysis ms = map annotateModule ms
+
+
+
+captureAnalysis :: Program -> Program
+captureAnalysis prog =
+  Program { pModules = map changeModule (pModules p1)
+          , pEntries = map changeEntry  (pEntries p1)
+          }
   where
+  p1 = Program { pModules = map annotateModule ms
+               , pEntries = map annotateEntry (pEntries prog)
+               }
+
+
+  ms = pModules prog
+
   info = fixCaptureInfo
        $ Map.fromList
          [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
+  -- The following return blocks should be changed to `NoCapture`
+  noCapRetBlocks =
+    Set.unions
+    [ case blockTerm b of
+        Call _ NoCapture no yes _ -> Set.fromList [jLabel no,jLabel yes]
+        _                         -> Set.empty
+    | b <- pAllBlocks p1
+    ]
+
+  changeRetBlock b =
+    case blockType b of
+      ReturnBlock how
+        | RetNo Capture <- how
+        , blockName b `Set.member` noCapRetBlocks ->
+          b { blockType = ReturnBlock (RetNo NoCapture) }
+
+        | RetYes Capture <- how
+        , blockName b `Set.member` noCapRetBlocks ->
+          b { blockType = ReturnBlock (RetYes NoCapture) }
+
+      _ -> b
+
+  changeEntry e   = e { entryBoot = changeRetBlock <$> entryBoot e }
+  changeModule m  = m { mFuns = map changeFun (mFuns m) }
+  changeFun f     = f { vmfBlocks = changeRetBlock <$> vmfBlocks f }
+
+
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateEntry e = e { entryBoot = annotateBlock <$> entryBoot e }
+
   annotateFun f = f { vmfCaptures = getCaptures info (vmfName f)
                     , vmfBlocks = annotateBlock <$> vmfBlocks f }
   annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }

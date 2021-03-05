@@ -70,9 +70,9 @@ data BlockType =
     deriving (Eq,Show)
 
 data ReturnHow =
-    RetPure     -- ^ pure function
-  | RetYes      -- ^ parser, success
-  | RetNo       -- ^ parser, failure
+    RetPure             -- ^ pure function
+  | RetYes Captures     -- ^ parser, success, is it a capturing parser
+  | RetNo Captures      -- ^ parser, failure, is it a capturing parser
     deriving (Eq,Show)
 
 -- | Instructions
@@ -112,6 +112,7 @@ data CInstr =
 -- explicitly store the continuation closures.
 -- It is always safe, but less efficient, to use 'Capture'
 data Captures = Capture | NoCapture
+  deriving (Eq,Show)
 
 
 -- | Target of a jump
@@ -198,8 +199,8 @@ extraArgs b =
     ReturnBlock h ->
       case h of
         RetPure     -> 1    -- value
-        RetNo       -> 0
-        RetYes      -> 2    -- value, input
+        RetNo _     -> 0
+        RetYes _    -> 2    -- value, input
 
 
 --------------------------------------------------------------------------------
@@ -313,7 +314,7 @@ instance PP CInstr where
                              , "fail:" <+> pp no
                              ]
              ]
-      TailCall f c xs -> ppFun (pp f) (map pp xs) <+> pp c
+      TailCall f c xs -> ppFun (pp f) (map pp xs) <+> ".tail" <+> pp c
 
 instance PP JumpWithFree where
   pp jf = ppF <+> pp (Jump (jumpTarget jf))
@@ -396,8 +397,8 @@ instance PP ReturnHow where
   pp r =
     case r of
       RetPure       -> "/* return pure */"
-      RetYes        -> "/* return yes */"
-      RetNo         -> "/* return no */"
+      RetYes c      -> "/* return yes" <+> pp c <+> "*/"
+      RetNo c       -> "/* return no" <+> pp c <+> "*/"
 
 instance PP Block where
   pp b = l <.> colon <+> ty $$ nest 2
