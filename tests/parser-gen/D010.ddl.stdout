@@ -13,7 +13,7 @@ type D010.ShouldAbortWithIncompatibleInput = Choose { x: [uint 8]
  
 --- Rules:
  
-D010.Chunk ?a5 (n : int) (P : Grammar ?a5) : Grammar ?a5 =
+D010.Chunk ?a5 (n : uint 64) (P : Grammar ?a5) : Grammar ?a5 =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
@@ -32,7 +32,7 @@ D010.CanDisambiguate : Grammar D010.CanDisambiguate =
                  pure {y: _15}
     }
  
-D010._Chunk ?a5 (n : int) (_P : Grammar {}) : Grammar {} =
+D010._Chunk ?a5 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur

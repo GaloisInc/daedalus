@@ -48,6 +48,8 @@ mkUInt n v = VUInt n (v .&. ((1 `shiftL` n ) - 1))
 mkSInt :: Int -> Integer -> Value
 mkSInt n v = VSInt n (v .&. ((1 `shiftL` n ) - 1))
 
+mkSize :: Integer -> Value
+mkSize n = VUInt 64 n
 
 
 --------------------------------------------------------------------------------
@@ -122,6 +124,13 @@ valueToStream v =
   case v of
     VStream i -> i
     _ -> error "BUG: expected a stream"
+
+-- | This 
+valueToSize :: Value -> Integer
+valueToSize v =
+  case v of
+    VUInt _ n -> n
+    _         -> error "BUG: execpted a size (uint 64)"
 
 --------------------------------------------------------------------------------
 

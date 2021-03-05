@@ -133,7 +133,7 @@ P026.Natural : Grammar int =
      ($$ : int) <- pure (P026.numBase [int] int int 10 ds)
      pure $$
  
-P026.Frac (n : int) (w : P026.Number) : Grammar P026.Number =
+P026.Frac (n : uint 64) (w : P026.Number) : Grammar P026.Number =
   do (ds : [int]) <- do @MatchBytes "."
                         ($$ : [int]) <- Many[ n .. ] P026.Digit
                         pure $$
@@ -216,7 +216,7 @@ P026._Number : Grammar {} =
                                    }
                                }
  
-P026._Frac (n : int) : Grammar {} =
+P026._Frac (n : uint 64) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] P026._Digit
  

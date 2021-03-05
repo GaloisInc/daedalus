@@ -9,7 +9,7 @@ def Header = @Match [ 0x89 ; 0x50 ; 0x4e ; 0x47 ; 0x0d ; 0x0a ; 0x1a; 0x0a ]
 
 def BE = UInt8 # UInt8 # UInt8 # UInt8
 
-def Length = BE as int
+def Length = BE as uint 64
 def CRC    = BE
 def Type   = Many 4 (Match1 $letter)
 

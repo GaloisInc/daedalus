@@ -4,7 +4,7 @@ module array-length
  
 --- Type defs:
 type array-length.Main = { arr: [int]
-                         ; len: int
+                         ; len: uint 64
                          }
  
 --- Rules:
@@ -15,7 +15,7 @@ array-length.Main : Grammar array-length.Main =
                             4,
                             5,
                             6]
-     (len : int) <- pure (Length arr)
+     (len : uint 64) <- pure (Length arr)
      pure {arr = arr,
            len = len}
  

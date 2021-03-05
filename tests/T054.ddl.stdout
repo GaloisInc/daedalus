@@ -10,7 +10,7 @@ T054.z ?a0 (Literal 1 ?a0) : ?a0 =
   1
  
 T054.Main : Grammar [uint 8] =
-  Many[T054.z int] Match {'a'}
+  Many[T054.z (uint 64)] Match {'a'}
  
 T054._Main : Grammar {} =
-  @Many[T054.z int] @Match {'a'}
+  @Many[T054.z (uint 64)] @Match {'a'}

@@ -47,7 +47,7 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
+import Daedalus.Interp.Value (valueToByteString, valueToSize, doCoerceTo)
 import RTS.Input(Input(..), newInput)
 import qualified RTS.Input as Input
 
@@ -498,7 +498,7 @@ lookupEnvName nname ctrl out =
     lookupCtrl _ = error "Case not handled"
 
 applyBinop :: BinOp -> Val -> Val -> Val
-applyBinop op e1 e2 =
+applyBinop = Interp.evalBinOp {-op e1 e2 =
   case op of
     Add ->
       case (e1, e2) of
@@ -586,8 +586,10 @@ applyBinop op e1 e2 =
         (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VBool (v1 <= v2)
         _ -> error "Impossible values"
     LShift ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VInteger v2) ->
+      let amt = valToInt e2
+      in
+      case e1 of
+        Interp.VUInt p1 v1 ->
           Interp.VUInt p1 (shiftL v1 (fromIntegral v2))
         (Interp.VInteger v1, Interp.VInteger v2) ->
            Interp.VInteger (shiftL v1 (fromIntegral v2))
@@ -644,7 +646,7 @@ applyBinop op e1 e2 =
       where nm = valueToByteString e1
             bs = valueToByteString e2
     _ -> error ("TODO: " ++ show op)
-
+-}
 
 
 
@@ -715,7 +717,8 @@ evalVExpr gbl expr ctrl out =
               ve2 = eval env e2
           in
             applyBinop binop ve1 ve2
-        TCUniOp uniop e1 ->
+        TCUniOp uniop e1 -> Interp.evalUniOp uniop (eval env e1)
+{-
           let ve1 = eval env e1
           in case (ve1, uniop) of
             (Interp.VBool b, Not) -> Interp.VBool (not b)
@@ -732,6 +735,7 @@ evalVExpr gbl expr ctrl out =
                 )
               )
             x -> error ("not Integer type" ++ show x ++ show uniop)
+-}
         TCSelStruct e1 n _ty ->
           let ve1 = eval env e1
           in case ve1 of
@@ -810,7 +814,8 @@ evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
 valToInt :: Val -> Int
 valToInt v =
   case v of
-    Interp.VUInt 8 i -> toEnum (fromIntegral i ::Int)
+    Interp.VUInt _ i  -> toEnum (fromIntegral i ::Int)
+    Interp.VSInt _ i  -> toEnum (fromIntegral i ::Int)
     Interp.VInteger i -> fromIntegral i :: Int
     _ -> error "valToInt pb"
 
@@ -955,29 +960,25 @@ applyInputAction gbl (inp, ctrl, out) act =
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen s e1 e2 ->
-      let ev1 = evalVExpr gbl e1 ctrl out
+      let n   = valueToSize (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
-      in case ev1 of
-           Interp.VInteger n ->
-             case ev2 of
-               Interp.VStream i1 ->
-                 case limitLen n i1 of
-                   Nothing -> error "stream value too short for len"
-                   Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
-               _ -> error "Not an input stream"
-           _ -> error "Not an integer for Taking"
+      in case ev2 of
+           Interp.VStream i1 ->
+             case limitLen n i1 of
+               Nothing -> error "stream value too short for len"
+               Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
+           _ -> error "Not an input stream"
+
+
     StreamOff s e1 e2 ->
-      let ev1 = evalVExpr gbl e1 ctrl out
+      let n   = valueToSize (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
-      in case ev1 of
-        Interp.VInteger n ->
-          case ev2 of
-            Interp.VStream i1 ->
-              case advanceBy n i1 of
-                Nothing -> error "stream too short for advance"
-                Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
-            _ -> error "Not an input stream"
-        _ -> error "Not an integer for Taking"
+      in case ev2 of
+           Interp.VStream i1 ->
+             case advanceBy n i1 of
+               Nothing -> error "stream too short for advance"
+               Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
+           _ -> error "Not an input stream"
   where
     resultWithSem YesSem i o = Just (i, o : out)
     resultWithSem NoSem  i _ = Just (i, SEVal (defaultValue) : out)

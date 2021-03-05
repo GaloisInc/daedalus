@@ -23,7 +23,7 @@ Number.Natural : Grammar int =
                            (Number.addDigit int val d))
      pure $$
  
-Number.Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
+Number.Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : uint 64) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
   do (ds : [int]) <- do @MatchBytes "."
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
@@ -51,7 +51,7 @@ Number._Digit : Grammar {} =
 Number._Natural : Grammar {} =
   @Many[ 1 .. ] Number._Digit
  
-Number._Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : int) : Grammar {} =
+Number._Frac ?a10 (Literal 1 ?a10) (Numeric ?a10) (n : uint 64) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] Number._Digit
  

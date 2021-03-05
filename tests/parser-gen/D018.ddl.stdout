@@ -164,7 +164,7 @@ D018.Natural : Grammar int =
   do (_95 : [int]) <- Many[ 1 .. ] D018.Digit
      pure (D018.numBase [int] int int 10 _95)
  
-D018.Frac (n : int) (w : D018.Number) : Grammar D018.Number =
+D018.Frac (n : uint 64) (w : D018.Number) : Grammar D018.Number =
   do @MatchBytes "."
      (ds : [int]) <- Many[ n .. ] D018.Digit
      ($$ : D018.Number) <- pure (for ((val : D018.Number) = w; (d : int) in ds)
@@ -426,7 +426,7 @@ D018._Number : Grammar {} =
                                ; {| neg = _ |} -> pure {}
                                }
  
-D018._Frac (n : int) : Grammar {} =
+D018._Frac (n : uint 64) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] D018._Digit
  

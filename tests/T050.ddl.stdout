@@ -27,7 +27,7 @@ T050.Default ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar ?a0 =
     | pure x
     }
  
-T050.LookupInt (arr : [T050.V]) (i : int) : Grammar int =
+T050.LookupInt (arr : [T050.V]) (i : uint 64) : Grammar int =
   T050.Default int 0 do (n : T050.V) <- Index arr i
                         Commit
                           do ($$ : int) <- case n is
@@ -57,7 +57,7 @@ T050._Default ?a0 (_P : Grammar {}) : Grammar {} =
     | pure {}
     }
  
-T050._LookupInt (arr : [T050.V]) (i : int) : Grammar {} =
+T050._LookupInt (arr : [T050.V]) (i : uint 64) : Grammar {} =
   T050._Default int do (n : T050.V) <- Index arr i
                        Commit
                          (case) n is
