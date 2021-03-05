@@ -103,6 +103,7 @@ handleOptions opts
               passCore specMod
               entry <- ddlGetFName mm "Main" -- mainNm
               when (optInline opts) (passInline [entry] specMod)
+              when (optStripFail opts) (passStripFail specMod)
               ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM ->
@@ -111,6 +112,7 @@ handleOptions opts
               entry <- ddlGetFName mm "Main" -- mainNm
               let ents = [entry]
               when (optInline opts) (passInline ents specMod)
+              when (optStripFail opts) (passStripFail specMod)              
               passVM specMod
               m <- ddlGetAST specMod astVM
               let prog = VM.addCopyIs
@@ -124,6 +126,7 @@ handleOptions opts
               entry <- ddlGetFName mm "Main" -- mainNm
               let ents = [entry]
               when (optInline opts) (passInline ents specMod)
+              when (optStripFail opts) (passStripFail specMod)              
               passVM specMod
               m <- ddlGetAST specMod astVM
               let prog = VM.moduleToProgram ents [m]
@@ -207,6 +210,7 @@ generateCPP opts mm =
      passCore specMod
      entries <- mapM (uncurry ddlGetFName) entRules
      when (optInline opts) (passInline entries specMod)
+     when (optStripFail opts) (passStripFail specMod)     
      passVM specMod
      m <- ddlGetAST specMod astVM
      let prog = VM.addCopyIs

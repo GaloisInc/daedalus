@@ -28,6 +28,7 @@ library
     Daedalus.Core.NoMatch,
     Daedalus.Core.Subst,
     Daedalus.Core.Normalize,
+    Daedalus.Core.StripFail,
     Daedalus.Core.Semantics.Value,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,

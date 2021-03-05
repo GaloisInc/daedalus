@@ -7,35 +7,26 @@ module Talos.Analysis.EntangledVars where
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Data.Parameterized.Some
-
-import Daedalus.Panic
 import Daedalus.PP
-import Daedalus.Type.AST
-import Daedalus.Type.Free
+
+import Daedalus.Core
+import Daedalus.Core.Free
 
 -- Two variables are entangled if information can flow between them
 -- --- i.e., the choice of value for one variable may impact the
 -- choices for the other.
 
 data EntangledVar =
-  ResultVar Type 
-  | ProgramVar (TCName Value)
-  deriving (Show, Eq) -- We define our own Ord as we want to ensure ResultVar < everything
-
+  ResultVar | ProgramVar Name
+  deriving Eq -- We define our own Ord as we want to ensure ResultVar < everything
 
 --
 -- FIXME: represent as a dep. graph?
 newtype EntangledVars = EntangledVars { getEntangledVars :: Set EntangledVar }
   deriving (Eq)
 
-tcEntangledVars :: TCFree a => a-> EntangledVars
-tcEntangledVars = EntangledVars . Set.map (ProgramVar . unSome) . tcFree
-  where
-    unSome :: Some TCName -> TCName Value
-    unSome (Some t@(TCName {tcNameCtx = AValue})) = t
-    unSome t = panic "BUG: saw a non-Value variable" [ viewSome showPP t ]
-
+freeEntangledVars :: FreeVars a => a -> EntangledVars
+freeEntangledVars = EntangledVars . Set.map ProgramVar . freeVars
 
 instance Semigroup EntangledVars where
   (<>) = mergeEntangledVars
@@ -69,27 +60,23 @@ substEntangledVars s (EntangledVars evs) =
 intersects :: EntangledVars -> EntangledVars -> Bool
 intersects e1 e2 = not (Set.disjoint (getEntangledVars e1) (getEntangledVars e2))
 
+memberEntangledVars :: EntangledVar -> EntangledVars -> Bool
+memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
+
 --------------------------------------------------------------------------------
 -- Class instances
-
-instance TypeOf EntangledVar where
-  typeOf v = case v of
-               ResultVar ty  -> ty
-               ProgramVar pv -> typeOf pv
 
 instance Ord EntangledVar where
   ev <= ev' =
     case (ev, ev') of
       -- FIXME: this is a bit dangerous, 
-      (ResultVar ty, ResultVar ty')
-        | ty == ty' -> True
-        | otherwise -> panic "Comparing incomarable result variables" [show (pp ev), show (pp ev')]
-      (ResultVar {}, _) -> True
+      (ResultVar, ResultVar) -> True
+      (ResultVar, _) -> True
       (ProgramVar v, ProgramVar v') -> v <= v'
       _ -> False
 
 instance PP EntangledVar where
-  pp (ResultVar {}) = "$result"
+  pp (ResultVar) = "$result"
   pp (ProgramVar v) = pp v
 
 instance PP EntangledVars where

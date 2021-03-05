@@ -37,6 +37,7 @@ data Options =
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
           , optInline    :: Bool
+          , optStripFail :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -52,6 +53,7 @@ options = OptSpec
                            , optForceUTF8 = True
                            , optShowJS    = False
                            , optInline    = False
+                           , optStripFail = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -119,6 +121,10 @@ options = OptSpec
       , Option [] ["inline"]
         "Do aggressive inlining on Core"
         $ NoArg \o -> Right o { optInline = True }
+
+      , Option [] ["strip-fail"]
+        "Strip failure nodes in Core"
+        $ NoArg \o -> Right o { optStripFail = True }
 
       , Option [] ["entry"]
         "Generate a library containg this parser."
