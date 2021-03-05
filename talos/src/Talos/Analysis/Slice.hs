@@ -146,7 +146,7 @@ instance Eqv Slice where
       (SUnconstrained, SUnconstrained) -> True
       (SLeaf sl1, SLeaf sl2) -> sl1 `eqv` sl2
 
-      _ -> panic "Comparing non-comparable nodes" [showPP l, showPP r]
+      _ -> False -- panic "Comparing non-comparable nodes" [showPP l, showPP r]
 
 instance Eqv SliceLeaf where
   eqv l r =
@@ -222,10 +222,12 @@ instance Merge Slice where
       (SDo x1 slL1 slR1, SDo x2 slL2 slR2) ->
         SDo (x1 <|> x2) (merge slL1 slL2) (merge slR1 slR2)
 
-      (SLeaf sl1, SLeaf sl2) -> SLeaf (merge sl1 sl2)
-    
-      _ -> panic "Merging non-mergeable nodes" [showPP l, showPP r]
+      -- This happens due to the way we construct nodes
+      (SDo x slL slR, SLeaf sl) -> SDo x (merge slL sl) slR
 
+      (_, SDo {})               -> merge r l
+
+      (SLeaf sl1, SLeaf sl2) -> SLeaf (merge sl1 sl2)
 
 --------------------------------------------------------------------------------
 -- PP Instances
