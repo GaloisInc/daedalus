@@ -371,7 +371,7 @@ symExecSliceLeaf m sl =
                 execArg x | Just v <- Map.lookup x args = symExecV v
                           | otherwise = panic "Missing argument" [showPP x]
                 actuals = [ execArg x | ProgramVar x <- Set.toList (getEntangledVars evs) ]
-            in S.fun (evPredicateN cl fn ev) (actuals ++ [S.const modelN])
+            in S.fun (evPredicateN cl fn ev) (actuals ++ [m])
           (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
           base = case m_rsl of
             Nothing  -> mkPure m sUnit
