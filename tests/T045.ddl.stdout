@@ -12,7 +12,7 @@ T045.f ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs :
  
 T045.G ?a1 (x : Maybe ?a1) : Grammar ?a1 =
   case x is
-    { just _22 -> pure _22
+    { just _20 -> pure _20
     }
  
 T045.A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
@@ -20,11 +20,6 @@ T045.A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
  
 T045.B ?a0 ?a2 (k : ?a0) (mp : Map ?a0 ?a2) : Grammar ?a2 =
   Lookup k mp
- 
-T045.C ?a0 ?a1 (HasUnion ?a0 L ?a1) (x : ?a0) : Grammar ?a1 =
-  case x is
-    { {| L = _23 |} -> pure _23
-    }
  
 T045.D : Grammar (uint 8) =
   287 AS uint 8
@@ -40,7 +35,7 @@ T045.F : Grammar Stream =
  
 T045._G ?a1 (x : Maybe ?a1) : Grammar {} =
   case x is
-    { just _22 -> pure {}
+    { just _20 -> pure {}
     }
  
 T045._A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
@@ -48,11 +43,6 @@ T045._A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
  
 T045._B ?a0 ?a2 (k : ?a0) (mp : Map ?a0 ?a2) : Grammar {} =
   @Lookup k mp
- 
-T045._C ?a0 ?a1 (HasUnion ?a0 L ?a1) (x : ?a0) : Grammar {} =
-  case x is
-    { {| L = _23 |} -> pure {}
-    }
  
 T045._D : Grammar {} =
   @(287 AS uint 8)

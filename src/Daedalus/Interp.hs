@@ -633,7 +633,7 @@ compilePExpr env expr0 args = go expr0
           in case limitLen vn vs of
                Just i  -> pure $ mbSkip sem $ VStream i
                Nothing -> pError FromSystem erng
-                             ("Not enough bytes: need " ++ show vn
+                             ("Not enough bytes: need " ++ show (sizeToInt vn)
                                          ++ ", have " ++ show (inputLength vs))
 
         TCStreamOff sem n s ->

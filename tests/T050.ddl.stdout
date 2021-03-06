@@ -60,9 +60,9 @@ T050._Default ?a0 (_P : Grammar {}) : Grammar {} =
 T050._LookupInt (arr : [T050.V]) (i : uint 64) : Grammar {} =
   T050._Default int do (n : T050.V) <- Index arr i
                        Commit
-                         (case) n is
-                           { {| number = _15 |} -> pure {}
-                           }
+                         (case n is
+                            { {| number = _15 |} -> pure {}
+                            })
  
 T050._Main : Grammar {} =
   do T050._LookupInt T050.arr 0

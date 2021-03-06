@@ -8,8 +8,6 @@ def T x = Choose { A = ^ x; B = {} }
 
 def Ex3 = { @x = Ex2; x is A }
 
-def Ex4 x = x is A
-
 def Ex5 = { @x = Ex1; x is B }
 
 def Ex6 = { x = UInt8; y = ^ true }
