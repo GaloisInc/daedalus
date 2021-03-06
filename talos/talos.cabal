@@ -41,7 +41,7 @@ library
                      , Talos.Analysis.EntangledVars
                                           
                      , Talos
-                     , Machine
+                     -- , Machine
   build-depends:       base
                      , daedalus
                      , daedalus-utils
@@ -83,30 +83,30 @@ executable talos
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
 
-executable talos-machine
-  main-is:             Main.hs
-  other-modules:       CommandLine
-  -- other-extensions:
-  build-depends:       base
-                     , talos
-                     , daedalus
-                     , daedalus-utils
-                     , optparse-applicative
-                     , bytestring
-                     , io-streams
-                     , pretty-hex
-                     -- , rts-hs
-                     -- , vector
-                     -- , parameterized-utils
-                     , mtl
-                     , containers
-                     , random
+-- executable talos-machine
+--   main-is:             Main.hs
+--   other-modules:       CommandLine
+--   -- other-extensions:
+--   build-depends:       base
+--                      , talos
+--                      , daedalus
+--                      , daedalus-utils
+--                      , optparse-applicative
+--                      , bytestring
+--                      , io-streams
+--                      , pretty-hex
+--                      -- , rts-hs
+--                      -- , vector
+--                      -- , parameterized-utils
+--                      , mtl
+--                      , containers
+--                      , random
 
-                     -- , simple-smt
-  hs-source-dirs:      machine-app
-  default-language:    Haskell2010
-  ghc-options:         -Wall -O2
-  ghc-prof-options:    -fprof-auto
+--                      -- , simple-smt
+--   hs-source-dirs:      machine-app
+--   default-language:    Haskell2010
+--   ghc-options:         -Wall -O2
+--   ghc-prof-options:    -fprof-auto
 
 executable talos-run-test
   hs-source-dirs:     tests
