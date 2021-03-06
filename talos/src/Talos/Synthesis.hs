@@ -140,11 +140,12 @@ newtype SynthesisM a =
   deriving (Functor, Applicative, Monad, MonadIO)
 
 addBytes :: ProvenanceTag -> ByteString -> SynthesisM ()
-addBytes prov bs = SynthesisM $ 
-                      modify (\s -> s { seenBytes = seenBytes s <> bs
-                                      , curStream = updStream (curStream s)
-                                      , provenances = updProvenances (curStream s) (provenances s)
-                                      })
+addBytes prov bs = 
+  SynthesisM $ 
+    modify (\s -> s { seenBytes = seenBytes s <> bs
+                    , curStream = updStream (curStream s)
+                    , provenances = updProvenances (curStream s) (provenances s)
+                    })
   where
     updStream strm = strm { streamOffset = streamOffset strm + (fromIntegral $ BS.length bs) }
 
@@ -325,8 +326,9 @@ choosePath cp x = do
       cl  <- SynthesisM $ asks currentClass
       prov <- freshProvenanceTag 
       sp <- liftIO $ solverSynth s cl x prov sl
-      -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp)
-      pure (mergeSelectedPath cp sp)
+      let new = (mergeSelectedPath cp sp)      
+      -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp $+$ pp new)
+      pure new
       
 -- --------------------------------------------------------------------------------
 -- -- Simple Synthesis
@@ -431,7 +433,12 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     GCase c@(Case e _) -> do
       env <- projectEnvForM e
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')
-                 (panic "Case failed" [showPP g])
+                 (do bs <- SynthesisM $ gets seenBytes
+                     panic "Case failed" [showPP g
+                                      , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
+                                              (Map.toList $ I.vEnv env))
+                                      , show bs
+                                      ])
                  c env
 
     -- TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))
@@ -455,8 +462,9 @@ synthesiseG cPath g = do
       bindIn x v (synthesiseG cp' rhs)
 
     Let x e g' -> do
+      let (_n, cp') = splitPath cPath -- discard a 'dontCare' 
       v <- synthesiseV e
-      bindIn x v (synthesiseG cPath g')
+      bindIn x v (synthesiseG cp' g')
       
     Annot _ g'       -> synthesiseG cPath g'
     
