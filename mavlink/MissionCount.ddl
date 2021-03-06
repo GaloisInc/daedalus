@@ -11,4 +11,4 @@ def MissionCount = {
 }
 
 -- uncomment to add entry point for compilation
--- def Main = MissionCount
+def Main = MissionCount
