@@ -8,22 +8,26 @@ on:
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
 
-    runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
 
-    - name: Install Z3
-      run: |
-        wget --quiet https://github.com/Z3Prover/z3/releases/download/z3-4.8.10/z3-4.8.10-x64-ubuntu-18.04.zip
-        unzip z3-4.8.10-x64-ubuntu-18.04.zip
-        cp z3-4.8.10-x64-ubuntu-18.04/bin/z3 .
-        ./z3 --version
-
-    - uses: actions/setup-haskell@v1
+    # Required for working with act        
+    # - name: Install prereqs.
+    #   run: |
+    #     apt-get update
+    #     apt-get install -y build-essential
+    #     apt-get install -y libgmp-dev zlib1g-dev
+        
+    - name: Install GHC
+      uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
         ghc-version: '8.8.3'
@@ -47,17 +51,72 @@ jobs:
       run: |
         cabal update
         cabal build all --only-dependencies --enable-tests
+
+    # pretty much everything depends on this, so we build it here
     - name: Build Daedalus
       run: cabal build --enable-tests exe:daedalus
+
     - name: Build Talos
       run: cabal build --enable-tests exe:talos
-    - name: Build ICC Parser
-      run: cabal build exe:icc-parser
-    - name: Build PDF driver
-      run: cabal build exe:pdf-hs-driver
-    - name: Build PDF dom
-      run: cabal build exe:pdf-dom
-    - name: Run Daedalus tests
-      run: cabal test daedalus-tests
-    - name: Run Talos tests
-      run: cabal test talos-tests --test-options="--solver=./z3 talos/tests"
+
+  # Run the tests in matrix.components, in parallel.
+  tests:
+    name: Test ${{ matrix.component.name }}
+    
+    runs-on: ${{ matrix.os }}
+
+    needs: [build]
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
+                   , { name: 'Haskell PDF driver', verb: 'build', noun: 'exe:pdf-hs-driver' }
+                   , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
+                   , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3 talos/tests\"', noun: 'talos' }
+                   , { name: 'Daedalus', verb: 'test', noun: 'daedalus' }
+                   ]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+        
+    # - name: Install prereqs.
+    #   run: |
+    #     apt-get update
+    #     apt-get install -y build-essential
+    #     apt-get install -y libgmp-dev zlib1g-dev
+        
+    - name: Install Z3 (Ubuntu)
+      if: matrix.component.noun == 'talos' && matrix.os == 'ubuntu-latest'
+      run: |
+        wget --quiet https://github.com/Z3Prover/z3/releases/download/z3-4.8.10/z3-4.8.10-x64-ubuntu-18.04.zip
+        unzip z3-4.8.10-x64-ubuntu-18.04.zip
+        cp z3-4.8.10-x64-ubuntu-18.04/bin/z3 .
+        ./z3 --version
+
+    # Copied from 'build'
+    - name: Install GHC
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
+      with:
+        ghc-version: '8.8.3'
+        cabal-version: '3.4'
+
+    - name: Cache
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-cabal
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: ${{ matrix.component.name }} 
+      run: echo cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
+      
