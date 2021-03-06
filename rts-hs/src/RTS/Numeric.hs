@@ -20,9 +20,12 @@ module RTS.Numeric
   , Size(..)
   , SizeOf
 
-  , toInt
   , UIntRep, fromUInt
   , SIntRep, fromSInt
+
+  , intToSize
+  , sizeToInt
+  , toInt
   ) where
 
 import GHC.TypeNats
@@ -32,7 +35,6 @@ import Data.Word
 import Data.Int
 import Data.Bits
 import Data.List(foldl',unfoldr)
-import Numeric.Natural
 
 import RTS.Base
 
@@ -97,6 +99,7 @@ fromSInt :: SInt n -> SIntRep n
 fromSInt (SInt x) = x
 {-# INLINE fromSInt #-}
 
+
 --------------------------------------------------------------------------------
 
 type Supports c n  = (c (UIntRep n) :: Constraint, c (SIntRep n))
@@ -121,10 +124,9 @@ normU n@(UInt w) = UInt (mask n w)
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
 mask num a = a .&. complement (1 `shiftL` thisWidth num)
 
+-- XXX: may overflow
 thisWidth :: KnownNat n => num n -> Int
-thisWidth x = case toInt (natVal x) of
-                Just i -> i
-                Nothing -> error "Type width exceeds limit"
+thisWidth x = fromIntegral (natVal x)
 
 normS' :: NormCtrs n => Int -> SInt n -> SInt n
 normS' repW n@(SInt i) = SInt ((mask n i `shiftL` amt) `shiftR` amt)
@@ -288,34 +290,28 @@ cat :: (SizeType m, SizeType n, SizeType (m+n)) =>
 cat x y = cvtNum x `lcat` y
 
 
-maxInt :: Integer
-maxInt = toInteger (maxBound :: Int)
+
+shiftl :: Numeric t => t -> UInt 64 -> t
+shiftl t x = shiftl' t (sizeToInt x)
+
+shiftr :: Numeric t => t -> UInt 64 -> t
+shiftr t x = shiftr' t (sizeToInt x)
+
+intToSize :: Int -> UInt 64
+intToSize n = UInt (toEnum n)
+
+-- Hopefully it fits
+sizeToInt :: UInt 64 -> Int
+sizeToInt (UInt n) = fromEnum n
 
 
-class ToInt t where
-  toInt :: t -> Maybe Int
-
-instance ToInt Integer where
-  toInt n = if n <= maxInt then Just (fromInteger n) else Nothing
-
-instance ToInt Natural where
-  toInt n = if n <= fromIntegral (maxBound :: Int)
-              then Just (fromIntegral n)
-              else Nothing
-
-
-shiftl :: Numeric t => t -> Integer -> t
-shiftl t x =
-  case toInt x of
-    Just i  -> shiftl' t i
-    Nothing -> error "shiftl: shift amount too large"
-
-shiftr :: Numeric t => t -> Integer -> t
-shiftr t x =
-  case toInt x of
-    Just i  -> shiftr' t i
-    Nothing -> error "shiftr: shift amount too large"
-
+toInt :: Integer -> Maybe Int
+toInt n
+  | lower <= n && n <= upper = Just (fromIntegral n)
+  | otherwise                = Nothing
+  where
+  lower = toInteger (minBound :: Int)
+  upper = toInteger (maxBound :: Int)
 
 
 --------------------------------------------------------------------------------

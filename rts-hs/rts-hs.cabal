@@ -35,18 +35,5 @@ library
   ghc-options:         -O2 -Wall
   default-language:    Haskell2010
 
-executable rts-hs-test
-  main-is:             Main.hs
-  other-modules:       Midi
-  hs-source-dirs:      exe
-  build-depends:       base >=4.13 && <4.15,
-                       rts-hs,
-                       pretty-show,
-                       ansi-terminal,
-                       bytestring,
-                       text,
-                       pretty-hex
-
-  default-language:    Haskell2010
 
 

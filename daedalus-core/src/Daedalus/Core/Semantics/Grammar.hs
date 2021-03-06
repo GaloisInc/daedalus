@@ -8,6 +8,7 @@ import Data.Word(Word8)
 
 import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
 import RTS.Parser
+import RTS.Numeric(intToSize)
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
                     )
@@ -78,7 +79,7 @@ evalMatch sem mat env =
              bs = fromVByteArray v
              ok = bs `BS8.isPrefixOf` inputBytes i
          unless ok (pError' FromSystem [] "match failed")
-         let Just i1 = advanceBy (toInteger (BS.length bs)) i
+         let Just i1 = advanceBy (intToSize (BS.length bs)) i
          pSetInput $! i1
          case sem of
            SemNo  -> pure VUnit

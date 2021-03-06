@@ -75,7 +75,7 @@ def CatalogIsOK r = {
 --------------------------------------------------------------------------------
 -- Checked
 
-def CheckDecl expectId expectGen (decl : TopDec) = {
+def CheckDecl expectId expectGen (decl : TopDecl) = {
   Guard (decl.id == expectId);
   Guard (decl.gen == expectGen);
   obj    = ^ decl.obj;

@@ -162,7 +162,7 @@ D018.Digit : Grammar int =
  
 D018.Natural : Grammar int =
   do (_95 : [int]) <- Many[ 1 .. ] D018.Digit
-     pure (D018.numBase [int] int int 10 _95)
+     pure (D018.numBase [int] (uint 64) int 10 _95)
  
 D018.Frac (n : uint 64) (w : D018.Number) : Grammar D018.Number =
   do @MatchBytes "."
@@ -231,7 +231,7 @@ D018.NumberAsNat (x : D018.Number) : Grammar int =
  
 D018.StringNumEsc : Grammar [uint 8] =
   do (_110 : uint 8) <- do (_109 : int) <- do (_108 : [int]) <- Many[ 1 .. 3 ] D018.OctDigit
-                                              pure (D018.numBase [int] int int 8 _108)
+                                              pure (D018.numBase [int] (uint 64) int 8 _108)
                            pure (_109 as uint 8)
      pure [_110]
  
@@ -295,7 +295,7 @@ D018.String : Grammar [uint 8] =
  
 D018.HexStringNum2 : Grammar (uint 8) =
   do (_118 : int) <- do (_117 : [int]) <- Many[2] D018.Token int D018.HexDigit
-                        pure (D018.numBase [int] int int 16 _117)
+                        pure (D018.numBase [int] (uint 64) int 16 _117)
      pure (_118 as uint 8)
  
 D018.HexStringNum1 : Grammar (uint 8) =
@@ -318,7 +318,7 @@ D018.HexString : Grammar [uint 8] =
 D018.NameEsc : Grammar (uint 8) =
   do @MatchBytes "#"
      ($$ : uint 8) <- do (_126 : int) <- do (_125 : [int]) <- Many[2] D018.HexDigit
-                                            pure (D018.numBase [int] int int 16 _125)
+                                            pure (D018.numBase [int] (uint 64) int 16 _125)
                          pure (_126 as uint 8)
      D018._Guard (0 < $$)
      pure $$
@@ -537,7 +537,7 @@ D018._HexString : Grammar {} =
 D018._NameEsc : Grammar {} =
   do @MatchBytes "#"
      ($$ : uint 8) <- do (_126 : int) <- do (_125 : [int]) <- Many[2] D018.HexDigit
-                                            pure (D018.numBase [int] int int 16 _125)
+                                            pure (D018.numBase [int] (uint 64) int 16 _125)
                          pure (_126 as uint 8)
      D018._Guard (0 < $$)
  

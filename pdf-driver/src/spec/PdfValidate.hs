@@ -10,6 +10,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language TypeApplications #-}
 {-# Language TypeFamilies #-}
+{-# Language ViewPatterns #-}
 module PdfValidate where
  
 import qualified Primitives.Validate as D
@@ -88,7 +89,10 @@ pCheckValue (ty :: Vector.Vector (RTS.UInt 8))
     (do (__ :: ()) <-
           (RTS.<||)
             (do (r :: PdfValue.Ref) <-
-                  RTS.pIsJust "29:13--29:20" "Expected `ref`" (HS.getField @"ref" v)
+                  case v of
+                    PdfValue.Value_ref (_1491 :: PdfValue.Ref) -> HS.pure _1491
+                    _ -> RTS.pError RTS.FromSystem "29:13--29:20"
+                           "Pattern match failure"
                 RTS.pErrorMode RTS.Abort
                   (do (__ :: ()) <-
                         RTS.pEnter "PdfValidate.CheckRef" (pCheckRef ty pP r)
@@ -119,7 +123,11 @@ pPdfName ::
 pPdfName (pP :: (Vector.Vector (RTS.UInt 8) -> D.Parser e))
   (v :: PdfValue.Value) =
   do (x :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "53:8--53:16" "Expected `name`" (HS.getField @"name" v)
+       case v of
+         PdfValue.Value_name
+           (_1493 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _1493
+         _ -> RTS.pError RTS.FromSystem "53:8--53:16"
+                "Pattern match failure"
      (__ :: e) <- RTS.pEnter "P" (pP x)
      HS.pure __
  
@@ -129,14 +137,14 @@ pPdfType ::
  
 pPdfType (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
   (expect :: Vector.Vector (RTS.UInt 8)) =
-  do (_1415 :: PdfValue.Value) <-
+  do (_1495 :: PdfValue.Value) <-
        RTS.pIsJust "57:45--57:59"
          ("Missing key: "
             HS.++ HS.show
                     (Vector.vecFromRep "Type" :: Vector.Vector (RTS.UInt 8)))
          (Map.lookup (Vector.vecFromRep "Type") d)
      RTS.pEnter "PdfValidate.PdfName"
-       (pPdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) _1415)
+       (pPdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) _1495)
  
 pPdfIndirect ::
       Vector.Vector (RTS.UInt 8)
@@ -147,7 +155,10 @@ pPdfIndirect (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (v :: PdfValue.Value) =
   do (r :: PdfValue.Ref) <-
-       RTS.pIsJust "60:8--60:15" "Expected `ref`" (HS.getField @"ref" v)
+       case v of
+         PdfValue.Value_ref (_1496 :: PdfValue.Ref) -> HS.pure _1496
+         _ -> RTS.pError RTS.FromSystem "60:8--60:15"
+                "Pattern match failure"
      (__ :: ()) <- RTS.pEnter "PdfValidate.CheckRef" (pCheckRef ty pP r)
      HS.pure __
  
@@ -156,8 +167,10 @@ pPdfInteger :: PdfValue.Value -> D.Parser HS.Integer
 pPdfInteger (v :: PdfValue.Value) =
   (RTS.<||)
     (do (n :: PdfValue.Number) <-
-          RTS.pIsJust "73:8--73:18" "Expected `number`"
-            (HS.getField @"number" v)
+          case v of
+            PdfValue.Value_number (_1498 :: PdfValue.Number) -> HS.pure _1498
+            _ -> RTS.pError RTS.FromSystem "73:8--73:18"
+                   "Pattern match failure"
         RTS.pEnter "PdfValue._Guard"
           (PdfValue._Guard
              (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer)))
@@ -171,8 +184,11 @@ pCheckDate ::
  
 pCheckDate (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "80:5--80:15" "Expected `string`"
-         (HS.getField @"string" v)
+       case v of
+         PdfValue.Value_string
+           (_1501 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _1501
+         _ -> RTS.pError RTS.FromSystem "80:5--80:15"
+                "Pattern match failure"
      HS.pure __
  
 pCheckText ::
@@ -180,8 +196,11 @@ pCheckText ::
  
 pCheckText (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "84:5--84:15" "Expected `string`"
-         (HS.getField @"string" v)
+       case v of
+         PdfValue.Value_string
+           (_1503 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _1503
+         _ -> RTS.pError RTS.FromSystem "84:5--84:15"
+                "Pattern match failure"
      HS.pure __
  
 pCheckASCII ::
@@ -189,8 +208,11 @@ pCheckASCII ::
  
 pCheckASCII (v :: PdfValue.Value) =
   do (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "88:5--88:15" "Expected `string`"
-         (HS.getField @"string" v)
+       case v of
+         PdfValue.Value_string
+           (_1505 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _1505
+         _ -> RTS.pError RTS.FromSystem "88:5--88:15"
+                "Pattern match failure"
      HS.pure __
  
 pEqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
@@ -244,7 +266,10 @@ _CheckValue (ty :: Vector.Vector (RTS.UInt 8))
   RTS.pErrorMode RTS.Fail
     ((RTS.<||)
        (do (r :: PdfValue.Ref) <-
-             RTS.pIsJust "29:13--29:20" "Expected `ref`" (HS.getField @"ref" v)
+             case v of
+               PdfValue.Value_ref (_1491 :: PdfValue.Ref) -> HS.pure _1491
+               _ -> RTS.pError RTS.FromSystem "29:13--29:20"
+                      "Pattern match failure"
            RTS.pErrorMode RTS.Abort
              (RTS.pEnter "PdfValidate._CheckRef" (_CheckRef ty pP r)))
        (RTS.pEnter "P" (pP v)))
@@ -272,7 +297,11 @@ _PdfName ::
 _PdfName (pP :: (Vector.Vector (RTS.UInt 8) -> D.Parser e))
   (v :: PdfValue.Value) =
   do (x :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pIsJust "53:8--53:16" "Expected `name`" (HS.getField @"name" v)
+       case v of
+         PdfValue.Value_name
+           (_1493 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _1493
+         _ -> RTS.pError RTS.FromSystem "53:8--53:16"
+                "Pattern match failure"
      HS.void (RTS.pEnter "P" (pP x))
      HS.pure ()
  
@@ -282,14 +311,14 @@ _PdfType ::
  
 _PdfType (d :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
   (expect :: Vector.Vector (RTS.UInt 8)) =
-  do (_1415 :: PdfValue.Value) <-
+  do (_1495 :: PdfValue.Value) <-
        RTS.pIsJust "57:45--57:59"
          ("Missing key: "
             HS.++ HS.show
                     (Vector.vecFromRep "Type" :: Vector.Vector (RTS.UInt 8)))
          (Map.lookup (Vector.vecFromRep "Type") d)
      RTS.pEnter "PdfValidate._PdfName"
-       (_PdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) _1415)
+       (_PdfName @() (pIs @(Vector.Vector (RTS.UInt 8)) expect) _1495)
  
 _PdfIndirect ::
       Vector.Vector (RTS.UInt 8)
@@ -300,7 +329,10 @@ _PdfIndirect (ty :: Vector.Vector (RTS.UInt 8))
   (pP :: (PdfValue.Value -> D.Parser ()))
   (v :: PdfValue.Value) =
   do (r :: PdfValue.Ref) <-
-       RTS.pIsJust "60:8--60:15" "Expected `ref`" (HS.getField @"ref" v)
+       case v of
+         PdfValue.Value_ref (_1496 :: PdfValue.Ref) -> HS.pure _1496
+         _ -> RTS.pError RTS.FromSystem "60:8--60:15"
+                "Pattern match failure"
      RTS.pEnter "PdfValidate._CheckRef" (_CheckRef ty pP r)
  
 _PdfInteger :: PdfValue.Value -> D.Parser ()
@@ -308,8 +340,10 @@ _PdfInteger :: PdfValue.Value -> D.Parser ()
 _PdfInteger (v :: PdfValue.Value) =
   (RTS.<||)
     (do (n :: PdfValue.Number) <-
-          RTS.pIsJust "73:8--73:18" "Expected `number`"
-            (HS.getField @"number" v)
+          case v of
+            PdfValue.Value_number (_1498 :: PdfValue.Number) -> HS.pure _1498
+            _ -> RTS.pError RTS.FromSystem "73:8--73:18"
+                   "Pattern match failure"
         RTS.pEnter "PdfValue._Guard"
           (PdfValue._Guard
              (HS.getField @"exp" n HS.== (RTS.lit 0 :: HS.Integer))))
@@ -319,20 +353,29 @@ _PdfInteger (v :: PdfValue.Value) =
 _CheckDate :: PdfValue.Value -> D.Parser ()
  
 _CheckDate (v :: PdfValue.Value) =
-  RTS.pIsJust_ "80:5--80:15" "Expected `string`"
-    (HS.getField @"string" v)
+  case v of
+    PdfValue.Value_string
+      (_1501 :: Vector.Vector (RTS.UInt 8)) -> HS.pure ()
+    _ -> RTS.pError RTS.FromSystem "80:5--80:15"
+           "Pattern match failure"
  
 _CheckText :: PdfValue.Value -> D.Parser ()
  
 _CheckText (v :: PdfValue.Value) =
-  RTS.pIsJust_ "84:5--84:15" "Expected `string`"
-    (HS.getField @"string" v)
+  case v of
+    PdfValue.Value_string
+      (_1503 :: Vector.Vector (RTS.UInt 8)) -> HS.pure ()
+    _ -> RTS.pError RTS.FromSystem "84:5--84:15"
+           "Pattern match failure"
  
 _CheckASCII :: PdfValue.Value -> D.Parser ()
  
 _CheckASCII (v :: PdfValue.Value) =
-  RTS.pIsJust_ "88:5--88:15" "Expected `string`"
-    (HS.getField @"string" v)
+  case v of
+    PdfValue.Value_string
+      (_1505 :: Vector.Vector (RTS.UInt 8)) -> HS.pure ()
+    _ -> RTS.pError RTS.FromSystem "88:5--88:15"
+           "Pattern match failure"
  
 _EqNumber :: PdfValue.Number -> (PdfValue.Number -> D.Parser ())
  

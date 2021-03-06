@@ -778,6 +778,7 @@ inferExpr expr =
                  liftValApp expr [e] \ ~[(e1,t)] ->
                  do let lab = thingValue f
                     addConstraint f (HasUnion t lab a)
+                    addConstraint f (IsNamed t)
                     resVar <- newName expr a
                     let pat = TCConPat t lab (TCVarPat resVar)
                         alt = TCAlt [pat] (exprAt expr $ TCPure
@@ -1244,6 +1245,7 @@ checkPattern ty pat =
           do a  <- newTVar c KValue
              p' <- checkPattern a p
              addConstraint c (HasUnion ty l a)
+             addConstraint c (IsNamed ty)
              pure (TCConPat ty l p')
 
         ConNothing ->

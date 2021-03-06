@@ -130,7 +130,7 @@ P026.Digit : Grammar int =
  
 P026.Natural : Grammar int =
   do (ds : [int]) <- Many[ 1 .. ] P026.Digit
-     ($$ : int) <- pure (P026.numBase [int] int int 10 ds)
+     ($$ : int) <- pure (P026.numBase [int] (uint 64) int 10 ds)
      pure $$
  
 P026.Frac (n : uint 64) (w : P026.Number) : Grammar P026.Number =

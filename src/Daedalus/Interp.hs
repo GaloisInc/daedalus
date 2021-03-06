@@ -59,6 +59,7 @@ import RTS.Input
 import RTS.Parser as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
+import RTS.Numeric(sizeToInt)
 import qualified RTS.Vector as RTS
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
@@ -203,9 +204,8 @@ evalBinOp op v1 v2 =
                   [show (pp v1), show (pp v2)]
 
   shiftOp sh =
-    let w = valueToSize v2
-        --- XXX: fromIntegral is a bit wrong
-        mk f i = f (sh i (fromIntegral w))
+    let w = sizeToInt (valueToSize v2)
+        mk f i = f (sh i w)
     in case v1 of
          VInteger x -> mk VInteger  x
          VUInt n x  -> mk (VUInt n) x
@@ -620,7 +620,7 @@ compilePExpr env expr0 args = go expr0
              else pError FromSystem erng "guard failed"
 
         TCEnd -> pEnd erng >> pure (VStruct [])
-        TCOffset -> VInteger . fromIntegral <$> pOffset
+        TCOffset -> mkSize <$> pOffset
 
         TCCurrentStream -> VStream <$> pPeek
 
@@ -667,8 +667,8 @@ compilePExpr env expr0 args = go expr0
 
         TCArrayIndex s e ix -> do
           let v   = valueToVector  (compilePureExpr env e)
-              ixv = valueToSize    (compilePureExpr env ix)
-          case v Vector.!? (fromInteger ixv) of
+              ixv = sizeToInt (valueToSize (compilePureExpr env ix))
+          case v Vector.!? ixv of
             Just v'  -> pure $! mbSkip s v'
             Nothing -> pError FromSystem erng
                                   ("index out of bounds " ++ show (pp ixv))
@@ -692,7 +692,7 @@ foldr (alt c)
 
 
         TCMany s _ (Exactly e) e' ->
-          do let v = fromIntegral (valueToSize (compilePureExpr env e))
+          do let v = sizeToInt (valueToSize (compilePureExpr env e))
                  p = go e'
              case s of
                YesSem -> do vs <- replicateM v p

@@ -1,7 +1,7 @@
 
 def xs = [7,8,9 : int]
 
-def Mp = for (s = empty; k,x in xs) Insert x k s
+def Mp = for (s = empty; k,x in xs) Insert k x s
 
 def Main = {
   a = ^ map (x in xs) x + 1;

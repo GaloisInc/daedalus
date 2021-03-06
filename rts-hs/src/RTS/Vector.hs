@@ -130,8 +130,6 @@ instance (a ~ VecElT a, ValidV a) => VecElem a where
   {-# INLINE readingList #-}
 
 
-
-
 instance VecElem a => Show (Vector a) where
   showsPrec p (Vec xs) = showsPrec p xs
 
@@ -141,8 +139,8 @@ deriving instance VecElem a => Ord (Vector a)
 empty :: VecElem a => Vector a
 empty = Vec vEmpty
 
-length :: VecElem a => Vector a -> Int
-length (Vec x) = vLen x
+length :: VecElem a => Vector a -> UInt 64
+length (Vec x) = intToSize (vLen x)
 
 fromList :: VecElem a => [a] -> Vector a
 fromList xs = Vec (vFromList (storingList xs))
@@ -154,11 +152,8 @@ unfoldrM step s = Vec <$> vUnfoldrM step' s
         upd (a,s1) = (storing a, s1)
 
 
-replicateM :: (VecElem a, Monad m) => Integer -> m a -> m (Vector a)
-replicateM n m =
-  case toInt n of
-    Just i -> Vec <$> vReplicateM i (storing <$> m)
-    Nothing -> error "Number of iteration exceeds limit"
+replicateM :: (VecElem a, Monad m) => UInt 64 -> m a -> m (Vector a)
+replicateM n m = Vec <$> vReplicateM (sizeToInt n) (storing <$> m)
 
 concat :: VecElem a => Vector (Vector a) -> Vector a
 concat (Vec xs) = Vec (vConcat (coerce (vToList xs)))
@@ -170,8 +165,8 @@ imapM_ f (Vec xs) = vImapM_ f' xs
 toList :: (VecElem a) => Vector a -> [a]
 toList (Vec xs) = readingList (vToList xs)
 
-(!?) :: VecElem a => Vector a -> Integer -> Maybe a
-Vec xs !? i = reading <$> (vLookup xs =<< toInt i)
+(!?) :: VecElem a => Vector a -> UInt 64 -> Maybe a
+Vec xs !? i = reading <$> vLookup xs (sizeToInt i)
 
 rangeUp :: (VecElem a, Ord a, Numeric a) => a -> a -> a -> Vector a
 rangeUp start stop step
@@ -382,7 +377,7 @@ bsLookup bs i
 
 
 type instance ElType (Vector a) = a
-type instance KeyType (Vector a) = Integer
+type instance KeyType (Vector a) = UInt 64
 
 instance VecElem a => IsLoop (Vector a) where
 
@@ -390,13 +385,13 @@ instance VecElem a => IsLoop (Vector a) where
     where f' s' a = f s' (reading a)
 
   loopIFold f s (Vec xs) = vIFoldl' f' s xs
-    where f' s' i a = f s' (toInteger i) (reading a)
+    where f' s' i a = f s' (intToSize i) (reading a)
 
   loopFoldM f s (Vec xs) = vFoldM' f' s xs
     where f' s' a = f s' (reading a)
 
   loopIFoldM f s (Vec xs) = vIFoldM' f' s xs
-    where f' s' i a = f s' (toInteger i) (reading a)
+    where f' s' i a = f s' (intToSize i) (reading a)
 
   {-# INLINE loopFold   #-}
   {-# INLINE loopIFold  #-}
@@ -415,7 +410,7 @@ instance (VecElem a, VecElem b) => IsMapLoop (Vector a) (Vector b) where
   loopIMap f (Vec xs) = Vec
                       $ vFromList
                       $ map (\(i,a) -> storing (f i (reading a)))
-                      $ zip [ 0 .. ]
+                      $ zip (map UInt [ 0 .. ])
                       $ vToList xs
 
   loopMapM f (Vec xs) = fmap (Vec . vFromList)
@@ -424,7 +419,7 @@ instance (VecElem a, VecElem b) => IsMapLoop (Vector a) (Vector b) where
 
   loopIMapM f (Vec xs) = fmap (Vec . vFromList)
                        $ traverse (\(i,a) -> fmap storing (f i (reading a)))
-                       $ zip [ 0 .. ]
+                       $ zip (map UInt [ 0 .. ])
                        $ vToList xs
   {-# INLINE loopMapM #-}
   {-# INLINE loopIMapM #-}

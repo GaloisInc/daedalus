@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, ViewPatterns #-}
+{-# Language OverloadedStrings, ViewPatterns, DataKinds #-}
 module Daedalus.Interp.Value where
 
 import Data.Vector(Vector)
@@ -16,6 +16,7 @@ import Numeric(showHex)
 import Daedalus.PP hiding (empty)
 import Daedalus.Type.AST hiding (Value)
 import RTS.Input(Input(..),inputName,inputOffset,inputLength)
+import RTS.Numeric(UInt(..))
 
 data Value =
     VUInt !Int {- nbits -} !Integer
@@ -48,8 +49,8 @@ mkUInt n v = VUInt n (v .&. ((1 `shiftL` n ) - 1))
 mkSInt :: Int -> Integer -> Value
 mkSInt n v = VSInt n (v .&. ((1 `shiftL` n ) - 1))
 
-mkSize :: Integer -> Value
-mkSize n = VUInt 64 n
+mkSize :: UInt 64 -> Value
+mkSize (UInt n) = VUInt 64 (toInteger n)
 
 
 --------------------------------------------------------------------------------
@@ -126,10 +127,10 @@ valueToStream v =
     _ -> error "BUG: expected a stream"
 
 -- | This 
-valueToSize :: Value -> Integer
+valueToSize :: Value -> UInt 64
 valueToSize v =
   case v of
-    VUInt _ n -> n
+    VUInt _ n -> UInt (fromInteger n)
     _         -> error "BUG: execpted a size (uint 64)"
 
 --------------------------------------------------------------------------------

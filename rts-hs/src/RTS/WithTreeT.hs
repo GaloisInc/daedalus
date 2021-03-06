@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 
 import RTS.ParserAPI
+import RTS.Numeric(sizeToInt)
 import RTS.StateT
 import RTS.ByteRanges
 
@@ -48,7 +49,7 @@ record :: BasicParser m => WithTreeT m ()
 record =
   do x <- pOffset
      s <- pStack
-     P $ sets_ $ insert x (reverse s) -- XXX: lots of reversing
+     P $ sets_ $ insert (sizeToInt x) (reverse s) -- XXX: lots of reversing
 
 ----------------------------------------------------------------
 data Trie = Trie Ranges (Map String Trie)

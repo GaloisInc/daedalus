@@ -18,6 +18,7 @@ import Data.Parameterized.NatRepr
 import Data.Parameterized.Some
 
 import RTS.Input(Input(..))
+import RTS.Numeric(UInt(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.Core(Label, Type, UserType)
@@ -113,10 +114,10 @@ fromVInput v =
     VInput i -> i
     _        -> typeError "Input" v
 
-fromVSize :: Value -> Integer
+fromVSize :: Value -> UInt 64
 fromVSize v =
   case v of
-    VUInt _ i -> fromInteger (BV.asUnsigned i)
+    VUInt _ i -> UInt (fromInteger (BV.asUnsigned i))
     _ -> typeError "Int" v
 
 

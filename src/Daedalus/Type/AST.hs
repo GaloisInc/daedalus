@@ -492,9 +492,9 @@ instance PP (TCF a k) where
           Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
       TCCase e pats mdef ->
-        wrapIf (n > 0)
+        wrapIf (n > 0) (
         "case" <+> pp e <+> "is" $$
-          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats))))
+          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats)))))
         where
         addDefault xs = case mdef of
                           Nothing -> xs

@@ -46,7 +46,8 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import Daedalus.Interp.Value (valueToSize, doCoerceTo)
+import Daedalus.Interp.Value (valueToInteger, doCoerceTo)
+import RTS.Numeric(intToSize)
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
@@ -740,13 +741,13 @@ evalCExpr gbl expr x ctrl out =
 -- | Limit the input to the given number of bytes.
 -- Fails if there aren't enough bytes.
 limitLen :: Integer -> Input -> Maybe Input
-limitLen = Input.limitLen
+limitLen n = Input.limitLen (intToSize (fromInteger n))
 
 -- copy from rts-hs/src/RTS/ParserAPI.hs
 -- Fails if we don't have enough bytes, although it is ok to
 -- get to the very end of the input.
 advanceBy :: Integer -> Input -> Maybe Input
-advanceBy = Input.advanceBy
+advanceBy n = Input.advanceBy (intToSize (fromInteger n))
 
 applyInputAction :: GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) act =
@@ -791,7 +792,7 @@ applyInputAction gbl (inp, ctrl, out) act =
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen s e1 e2 ->
-      let n   = valueToSize (evalVExpr gbl e1 ctrl out)
+      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->
@@ -802,7 +803,7 @@ applyInputAction gbl (inp, ctrl, out) act =
 
 
     StreamOff s e1 e2 ->
-      let n   = valueToSize (evalVExpr gbl e1 ctrl out)
+      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->

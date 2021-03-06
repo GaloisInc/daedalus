@@ -842,7 +842,7 @@ symbExecInp act ctrl out inp
       in
         case ev1 of
           SConcrete (Left val) ->
-            let n = Interp.valueToSize val in
+            let n = Interp.valueToInteger val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
@@ -856,7 +856,7 @@ symbExecInp act ctrl out inp
       in
         case ev1 of
           SConcrete (Left val) ->
-            let n = Interp.valueToSize val in
+            let n = Interp.valueToInteger val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)

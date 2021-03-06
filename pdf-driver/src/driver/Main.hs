@@ -17,6 +17,7 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate)
+import RTS.Numeric(intToSize)
 import RTS.Vector(vecFromRep,vecToString,vecToRep)
 import RTS.Input
 
@@ -49,7 +50,7 @@ data Format = Format
   , catalogParseError :: ParseError -> IO ()
   , catalogOK   :: Bool -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
-  , declParsed  :: R -> ObjLoc -> DeclResult' (CheckDecl TopDeclDef) -> IO ()
+  , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
 
 fawFormat :: Format
@@ -141,7 +142,7 @@ fmtDriver fmt file pwd =
 
 
 --------------------------------------------------------------------------------
-type DeclResult = DeclResult' (PdfResult (CheckDecl TopDeclDef))
+type DeclResult = DeclResult' (PdfResult CheckDecl)
 
 data DeclResult' a = DeclResult
                       { declTime       :: Int
@@ -163,7 +164,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
     case loc of
 
       InFileAt off ->
-        ( case advanceBy (toInteger off) topInput of
+        ( case advanceBy (intToSize off) topInput of
             Just i -> do pSetInput i
                          pTopDeclCheck (toInteger (refObj ref))
                                        (toInteger (refGen ref))
@@ -178,7 +179,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
                                          (toInteger (refGen ref))
                                          (toInteger (refObj o))
                                          (toInteger (refGen o))
-                                         (toInteger idx)
+                                         (intToSize idx)
         , True
         , Nothing 
         )
@@ -242,7 +243,7 @@ parseObjs fileN fileEC topInput refMap = mapM_ doOne (Map.toList refMap)
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)
                 report cl fileN 0 (timeMsg <+> oidMsg <+> msg)
        
-       let saySafety (x :: CheckDecl TopDeclDef) (si :: TsafetyInfo) =
+       let saySafety (x :: CheckDecl) (si :: TsafetyInfo) =
              case (getField @"hasJS" si, getField @"hasURI" si) of
                (False, False) -> sayTimed RInfo (sayObj (getField @"obj" x) <+> "parsed successfully")
                (True, False)  -> sayTimed RUnsafe "contains JavaScript"

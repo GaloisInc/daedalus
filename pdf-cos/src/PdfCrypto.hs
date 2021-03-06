@@ -10,6 +10,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language TypeApplications #-}
 {-# Language TypeFamilies #-}
+{-# Language ViewPatterns #-}
 module PdfCrypto where
  
 import qualified PdfMonad as D
@@ -132,96 +133,121 @@ instance HS.HasField "noencryption" MakeContext (HS.Maybe ()) where
   getField _ = HS.Nothing
  
 pV4stmFname ::
-  forall b c o.
-    (RTS.DDL b, RTS.DDL c, RTS.DDL o, RTS.HasUnion c "name" b,
-     RTS.HasUnion c "dict" (Map.Map b o),
-     RTS.HasUnion o "dict"
-       (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =>
-      Map.Map (Vector.Vector (RTS.UInt 8)) c
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
         -> D.Parser (Vector.Vector (RTS.UInt 8))
  
-pV4stmFname (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) c) =
-  do (stmF :: b) <-
-       do (_0 :: c) <-
+pV4stmFname
+  (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
+  do (stmF :: Vector.Vector (RTS.UInt 8)) <-
+       do (_932 :: PdfValue.Value) <-
             RTS.pIsJust "52:12--52:30"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "StmF") edict)
-          RTS.pIsJust "52:12--52:39" "Expected `name`"
-            (HS.getField @"name" _0)
-     (strF :: b) <-
-       do (_1 :: c) <-
+          case _932 of
+            PdfValue.Value_name (_933 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _933
+            _ -> RTS.pError RTS.FromSystem "52:12--52:39"
+                   "Pattern match failure"
+     (strF :: Vector.Vector (RTS.UInt 8)) <-
+       do (_934 :: PdfValue.Value) <-
             RTS.pIsJust "53:12--53:30"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "StrF") edict)
-          RTS.pIsJust "53:12--53:39" "Expected `name`"
-            (HS.getField @"name" _1)
-     (cf :: Map.Map b o) <-
-       do (_2 :: c) <-
+          case _934 of
+            PdfValue.Value_name (_935 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _935
+            _ -> RTS.pError RTS.FromSystem "53:12--53:39"
+                   "Pattern match failure"
+     (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_936 :: PdfValue.Value) <-
             RTS.pIsJust "54:10--54:26"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "CF") edict)
-          RTS.pIsJust "54:10--54:35" "Expected `dict`"
-            (HS.getField @"dict" _2)
+          case _936 of
+            PdfValue.Value_dict
+              (_937
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _937
+            _ -> RTS.pError RTS.FromSystem "54:10--54:35"
+                   "Pattern match failure"
      (stmFdict
         :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_3 :: o) <-
+       do (_938 :: PdfValue.Value) <-
             RTS.pIsJust "57:16--57:29"
-              ("Missing key: " HS.++ HS.show (stmF :: b))
+              ("Missing key: "
+                 HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup stmF cf)
-          RTS.pIsJust "57:16--57:38" "Expected `dict`"
-            (HS.getField @"dict" _3)
+          case _938 of
+            PdfValue.Value_dict
+              (_939
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _939
+            _ -> RTS.pError RTS.FromSystem "57:16--57:38"
+                   "Pattern match failure"
      (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-       do (_4 :: PdfValue.Value) <-
+       do (_940 :: PdfValue.Value) <-
             RTS.pIsJust "58:16--58:36"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
-          RTS.pIsJust "58:16--58:45" "Expected `name`"
-            (HS.getField @"name" _4)
+          case _940 of
+            PdfValue.Value_name (_941 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _941
+            _ -> RTS.pError RTS.FromSystem "58:16--58:45"
+                   "Pattern match failure"
      RTS.pEnter "PdfDecl._LookupNat"
        (PdfDecl._LookupNat (Vector.vecFromRep "Length") stmFdict)
      (strFdict
         :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_5 :: o) <-
+       do (_942 :: PdfValue.Value) <-
             RTS.pIsJust "62:16--62:29"
-              ("Missing key: " HS.++ HS.show (strF :: b))
+              ("Missing key: "
+                 HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup strF cf)
-          RTS.pIsJust "62:16--62:38" "Expected `dict`"
-            (HS.getField @"dict" _5)
-     do (_6 :: PdfValue.Value) <-
+          case _942 of
+            PdfValue.Value_dict
+              (_943
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _943
+            _ -> RTS.pError RTS.FromSystem "62:16--62:38"
+                   "Pattern match failure"
+     do (_944 :: PdfValue.Value) <-
           RTS.pIsJust "63:16--63:36"
             ("Missing key: "
                HS.++ HS.show
                        (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
             (Map.lookup (Vector.vecFromRep "CFM") strFdict)
-        RTS.pIsJust_ "63:16--63:45" "Expected `name`"
-          (HS.getField @"name" _6)
+        case _944 of
+          PdfValue.Value_name (_945 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                        ()
+          _ -> RTS.pError RTS.FromSystem "63:16--63:45"
+                 "Pattern match failure"
      RTS.pEnter "PdfDecl._LookupNat"
        (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
      (__ :: Vector.Vector (RTS.UInt 8)) <- HS.pure stmFname
      HS.pure __
  
 pChooseCiph ::
-  forall u.
-    (RTS.DDL u, RTS.Literal 2 u, RTS.Literal 4 u) =>
+  forall r.
+    (RTS.DDL r, RTS.Literal 2 r, RTS.Literal 4 r) =>
       Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
-        -> (u -> D.Parser ChooseCiph)
+        -> (r -> D.Parser ChooseCiph)
  
 pChooseCiph
   (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
-  (v :: u) =
+  (v :: r) =
   (RTS.<||)
     (RTS.pEnter "v2RC4"
-       (do (_7 :: ()) <-
+       (do (_948 :: ()) <-
              do RTS.pGuard "35:5--35:18" "guard failed"
-                  (v HS.== (RTS.lit 2 :: u))
+                  (v HS.== (RTS.lit 2 :: r))
                 (len :: HS.Integer) <-
                   RTS.pEnter "PdfDecl.LookupNat"
                     (PdfDecl.pLookupNat (Vector.vecFromRep "Length") edict)
@@ -229,36 +255,30 @@ pChooseCiph
                   RTS.pGuard "37:5--37:22" "guard failed"
                     (len HS.== (RTS.lit 128 :: HS.Integer))
                 HS.pure __
-           HS.pure (ChooseCiph_v2RC4 _7)))
+           HS.pure (ChooseCiph_v2RC4 _948)))
     ((RTS.<||)
        (RTS.pEnter "v4RC4"
-          (do (_8 :: ()) <-
+          (do (_950 :: ()) <-
                 do RTS.pGuard "40:5--40:18" "guard failed"
-                     (v HS.== (RTS.lit 4 :: u))
+                     (v HS.== (RTS.lit 4 :: r))
                    (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-                     RTS.pEnter "PdfCrypto.V4stmFname"
-                       (pV4stmFname @(Vector.Vector (RTS.UInt 8)) @PdfValue.Value
-                          @PdfValue.Value
-                          edict)
+                     RTS.pEnter "PdfCrypto.V4stmFname" (pV4stmFname edict)
                    (__ :: ()) <-
                      RTS.pGuard "42:5--42:28" "guard failed"
                        (stmFname HS.== Vector.vecFromRep "V2")
                    HS.pure __
-              HS.pure (ChooseCiph_v4RC4 _8)))
+              HS.pure (ChooseCiph_v4RC4 _950)))
        (RTS.pEnter "v4AES"
-          (do (_9 :: ()) <-
+          (do (_952 :: ()) <-
                 do RTS.pGuard "45:5--45:18" "guard failed"
-                     (v HS.== (RTS.lit 4 :: u))
+                     (v HS.== (RTS.lit 4 :: r))
                    (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-                     RTS.pEnter "PdfCrypto.V4stmFname"
-                       (pV4stmFname @(Vector.Vector (RTS.UInt 8)) @PdfValue.Value
-                          @PdfValue.Value
-                          edict)
+                     RTS.pEnter "PdfCrypto.V4stmFname" (pV4stmFname edict)
                    (__ :: ()) <-
                      RTS.pGuard "47:5--47:31" "guard failed"
                        (stmFname HS.== Vector.vecFromRep "AESV2")
                    HS.pure __
-              HS.pure (ChooseCiph_v4AES _9))))
+              HS.pure (ChooseCiph_v4AES _952))))
  
 pEncryptionDict ::
       PdfXRef.TrailerDictEncrypt -> D.Parser EncryptionDict
@@ -266,34 +286,44 @@ pEncryptionDict ::
 pEncryptionDict (enc :: PdfXRef.TrailerDictEncrypt) =
   do (edict
         :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_10 :: PdfValue.Value) <-
+       do (_953 :: PdfValue.Value) <-
             RTS.pEnter "PdfDecl.ResolveValRef"
               (PdfDecl.pResolveValRef (HS.getField @"eref" enc))
-          RTS.pIsJust "7:13--7:43" "Expected `dict`"
-            (HS.getField @"dict" _10)
+          case _953 of
+            PdfValue.Value_dict
+              (_954
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _954
+            _ -> RTS.pError RTS.FromSystem "7:13--7:43" "Pattern match failure"
      (id0 :: Vector.Vector (RTS.UInt 8)) <-
        HS.pure (HS.getField @"id0" enc)
      (encFilter :: Vector.Vector (RTS.UInt 8)) <-
-       do (_11 :: PdfValue.Value) <-
+       do (_955 :: PdfValue.Value) <-
             RTS.pIsJust "11:16--11:36"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "Filter" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "Filter") edict)
-          RTS.pIsJust "11:16--11:45" "Expected `name`"
-            (HS.getField @"name" _11)
+          case _955 of
+            PdfValue.Value_name (_956 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _956
+            _ -> RTS.pError RTS.FromSystem "11:16--11:45"
+                   "Pattern match failure"
      RTS.pGuard "12:3--12:33" "guard failed"
        (encFilter HS.== Vector.vecFromRep "Standard")
      (encSubFilter :: HS.Maybe (Vector.Vector (RTS.UInt 8))) <-
        RTS.pOptional (RTS.<||) HS.Just
-         (do (_12 :: PdfValue.Value) <-
+         (do (_957 :: PdfValue.Value) <-
                RTS.pIsJust "14:29--14:52"
                  ("Missing key: "
                     HS.++ HS.show
                             (Vector.vecFromRep "SubFilter" :: Vector.Vector (RTS.UInt 8)))
                  (Map.lookup (Vector.vecFromRep "SubFilter") edict)
-             RTS.pIsJust "14:29--14:61" "Expected `name`"
-               (HS.getField @"name" _12))
+             case _957 of
+               PdfValue.Value_name (_958 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                             _958
+               _ -> RTS.pError RTS.FromSystem "14:29--14:61"
+                      "Pattern match failure")
      (encV :: HS.Integer) <-
        RTS.pEnter "PdfDecl.LookupNat"
          (PdfDecl.pLookupNat (Vector.vecFromRep "V") edict)
@@ -305,33 +335,41 @@ pEncryptionDict (enc :: PdfXRef.TrailerDictEncrypt) =
           HS.|| ((encV HS.== (RTS.lit 4 :: HS.Integer))
                    HS.&& (encR HS.== (RTS.lit 4 :: HS.Integer))))
      (encO :: Vector.Vector (RTS.UInt 8)) <-
-       do (_13 :: PdfValue.Value) <-
+       do (_959 :: PdfValue.Value) <-
             RTS.pIsJust "22:11--22:26"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "O" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "O") edict)
-          RTS.pIsJust "22:11--22:37" "Expected `string`"
-            (HS.getField @"string" _13)
+          case _959 of
+            PdfValue.Value_string
+              (_960 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _960
+            _ -> RTS.pError RTS.FromSystem "22:11--22:37"
+                   "Pattern match failure"
      (encU :: Vector.Vector (RTS.UInt 8)) <-
-       do (_14 :: PdfValue.Value) <-
+       do (_961 :: PdfValue.Value) <-
             RTS.pIsJust "23:11--23:26"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "U" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "U") edict)
-          RTS.pIsJust "23:11--23:37" "Expected `string`"
-            (HS.getField @"string" _14)
+          case _961 of
+            PdfValue.Value_string
+              (_962 :: Vector.Vector (RTS.UInt 8)) -> HS.pure _962
+            _ -> RTS.pError RTS.FromSystem "23:11--23:37"
+                   "Pattern match failure"
      (encP :: HS.Integer) <-
        do (v :: PdfValue.Number) <-
-            do (_15 :: PdfValue.Value) <-
+            do (_963 :: PdfValue.Value) <-
                  RTS.pIsJust "26:11--26:26"
                    ("Missing key: "
                       HS.++ HS.show
                               (Vector.vecFromRep "P" :: Vector.Vector (RTS.UInt 8)))
                    (Map.lookup (Vector.vecFromRep "P") edict)
-               RTS.pIsJust "26:11--26:37" "Expected `number`"
-                 (HS.getField @"number" _15)
+               case _963 of
+                 PdfValue.Value_number (_964 :: PdfValue.Number) -> HS.pure _964
+                 _ -> RTS.pError RTS.FromSystem "26:11--26:37"
+                        "Pattern match failure"
           (__ :: HS.Integer) <- HS.pure (HS.getField @"num" v)
           HS.pure __
      (ciph :: ChooseCiph) <-
@@ -346,32 +384,132 @@ pMakeContext :: PdfXRef.TrailerDict -> D.Parser MakeContext
 pMakeContext (t :: PdfXRef.TrailerDict) =
   (RTS.<||)
     (RTS.pEnter "encryption"
-       (do (_16 :: EncryptionDict) <-
+       (do (_968 :: EncryptionDict) <-
              do (enc :: PdfXRef.TrailerDictEncrypt) <-
-                  RTS.pIsJust "71:12--71:28" "Expected `Just`"
-                    (HS.getField @"encrypt" t)
+                  case HS.getField @"encrypt" t of
+                    HS.Just (_966 :: PdfXRef.TrailerDictEncrypt) -> HS.pure _966
+                    _ -> RTS.pError RTS.FromSystem "71:12--71:28"
+                           "Pattern match failure"
                 RTS.pErrorMode RTS.Abort
                   (do (__ :: EncryptionDict) <-
                         RTS.pEnter "PdfCrypto.EncryptionDict" (pEncryptionDict enc)
                       HS.pure __)
-           HS.pure (MakeContext_encryption _16)))
+           HS.pure (MakeContext_encryption _968)))
     (RTS.pEnter "noencryption"
-       (do (_17 :: ()) <- HS.pure ()
-           HS.pure (MakeContext_noencryption _17)))
+       (do (_969 :: ()) <- HS.pure ()
+           HS.pure (MakeContext_noencryption _969)))
+ 
+_V4stmFname ::
+      Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value -> D.Parser ()
+ 
+_V4stmFname
+  (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) =
+  do (stmF :: Vector.Vector (RTS.UInt 8)) <-
+       do (_932 :: PdfValue.Value) <-
+            RTS.pIsJust "52:12--52:30"
+              ("Missing key: "
+                 HS.++ HS.show
+                         (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup (Vector.vecFromRep "StmF") edict)
+          case _932 of
+            PdfValue.Value_name (_933 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _933
+            _ -> RTS.pError RTS.FromSystem "52:12--52:39"
+                   "Pattern match failure"
+     (strF :: Vector.Vector (RTS.UInt 8)) <-
+       do (_934 :: PdfValue.Value) <-
+            RTS.pIsJust "53:12--53:30"
+              ("Missing key: "
+                 HS.++ HS.show
+                         (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup (Vector.vecFromRep "StrF") edict)
+          case _934 of
+            PdfValue.Value_name (_935 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _935
+            _ -> RTS.pError RTS.FromSystem "53:12--53:39"
+                   "Pattern match failure"
+     (cf :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_936 :: PdfValue.Value) <-
+            RTS.pIsJust "54:10--54:26"
+              ("Missing key: "
+                 HS.++ HS.show
+                         (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup (Vector.vecFromRep "CF") edict)
+          case _936 of
+            PdfValue.Value_dict
+              (_937
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _937
+            _ -> RTS.pError RTS.FromSystem "54:10--54:35"
+                   "Pattern match failure"
+     (stmFdict
+        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_938 :: PdfValue.Value) <-
+            RTS.pIsJust "57:16--57:29"
+              ("Missing key: "
+                 HS.++ HS.show (stmF :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup stmF cf)
+          case _938 of
+            PdfValue.Value_dict
+              (_939
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _939
+            _ -> RTS.pError RTS.FromSystem "57:16--57:38"
+                   "Pattern match failure"
+     do (_940 :: PdfValue.Value) <-
+          RTS.pIsJust "58:16--58:36"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
+        case _940 of
+          PdfValue.Value_name (_941 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                        ()
+          _ -> RTS.pError RTS.FromSystem "58:16--58:45"
+                 "Pattern match failure"
+     RTS.pEnter "PdfDecl._LookupNat"
+       (PdfDecl._LookupNat (Vector.vecFromRep "Length") stmFdict)
+     (strFdict
+        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
+       do (_942 :: PdfValue.Value) <-
+            RTS.pIsJust "62:16--62:29"
+              ("Missing key: "
+                 HS.++ HS.show (strF :: Vector.Vector (RTS.UInt 8)))
+              (Map.lookup strF cf)
+          case _942 of
+            PdfValue.Value_dict
+              (_943
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _943
+            _ -> RTS.pError RTS.FromSystem "62:16--62:38"
+                   "Pattern match failure"
+     do (_944 :: PdfValue.Value) <-
+          RTS.pIsJust "63:16--63:36"
+            ("Missing key: "
+               HS.++ HS.show
+                       (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
+            (Map.lookup (Vector.vecFromRep "CFM") strFdict)
+        case _944 of
+          PdfValue.Value_name (_945 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                        ()
+          _ -> RTS.pError RTS.FromSystem "63:16--63:45"
+                 "Pattern match failure"
+     RTS.pEnter "PdfDecl._LookupNat"
+       (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)
  
 _ChooseCiph ::
-  forall u.
-    (RTS.DDL u, RTS.Literal 2 u, RTS.Literal 4 u) =>
+  forall r.
+    (RTS.DDL r, RTS.Literal 2 r, RTS.Literal 4 r) =>
       Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value
-        -> (u -> D.Parser ())
+        -> (r -> D.Parser ())
  
 _ChooseCiph
   (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)
-  (v :: u) =
+  (v :: r) =
   (RTS.<||)
     (RTS.pEnter "v2RC4"
        (do RTS.pGuard "35:5--35:18" "guard failed"
-             (v HS.== (RTS.lit 2 :: u))
+             (v HS.== (RTS.lit 2 :: r))
            (len :: HS.Integer) <-
              RTS.pEnter "PdfDecl.LookupNat"
                (PdfDecl.pLookupNat (Vector.vecFromRep "Length") edict)
@@ -380,22 +518,16 @@ _ChooseCiph
     ((RTS.<||)
        (RTS.pEnter "v4RC4"
           (do RTS.pGuard "40:5--40:18" "guard failed"
-                (v HS.== (RTS.lit 4 :: u))
+                (v HS.== (RTS.lit 4 :: r))
               (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-                RTS.pEnter "PdfCrypto.V4stmFname"
-                  (pV4stmFname @(Vector.Vector (RTS.UInt 8)) @PdfValue.Value
-                     @PdfValue.Value
-                     edict)
+                RTS.pEnter "PdfCrypto.V4stmFname" (pV4stmFname edict)
               RTS.pGuard "42:5--42:28" "guard failed"
                 (stmFname HS.== Vector.vecFromRep "V2")))
        (RTS.pEnter "v4AES"
           (do RTS.pGuard "45:5--45:18" "guard failed"
-                (v HS.== (RTS.lit 4 :: u))
+                (v HS.== (RTS.lit 4 :: r))
               (stmFname :: Vector.Vector (RTS.UInt 8)) <-
-                RTS.pEnter "PdfCrypto.V4stmFname"
-                  (pV4stmFname @(Vector.Vector (RTS.UInt 8)) @PdfValue.Value
-                     @PdfValue.Value
-                     edict)
+                RTS.pEnter "PdfCrypto.V4stmFname" (pV4stmFname edict)
               RTS.pGuard "47:5--47:31" "guard failed"
                 (stmFname HS.== Vector.vecFromRep "AESV2"))))
  
@@ -404,31 +536,41 @@ _EncryptionDict :: PdfXRef.TrailerDictEncrypt -> D.Parser ()
 _EncryptionDict (enc :: PdfXRef.TrailerDictEncrypt) =
   do (edict
         :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_10 :: PdfValue.Value) <-
+       do (_953 :: PdfValue.Value) <-
             RTS.pEnter "PdfDecl.ResolveValRef"
               (PdfDecl.pResolveValRef (HS.getField @"eref" enc))
-          RTS.pIsJust "7:13--7:43" "Expected `dict`"
-            (HS.getField @"dict" _10)
+          case _953 of
+            PdfValue.Value_dict
+              (_954
+                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) -> HS.pure
+                                                                              _954
+            _ -> RTS.pError RTS.FromSystem "7:13--7:43" "Pattern match failure"
      (encFilter :: Vector.Vector (RTS.UInt 8)) <-
-       do (_11 :: PdfValue.Value) <-
+       do (_955 :: PdfValue.Value) <-
             RTS.pIsJust "11:16--11:36"
               ("Missing key: "
                  HS.++ HS.show
                          (Vector.vecFromRep "Filter" :: Vector.Vector (RTS.UInt 8)))
               (Map.lookup (Vector.vecFromRep "Filter") edict)
-          RTS.pIsJust "11:16--11:45" "Expected `name`"
-            (HS.getField @"name" _11)
+          case _955 of
+            PdfValue.Value_name (_956 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                          _956
+            _ -> RTS.pError RTS.FromSystem "11:16--11:45"
+                   "Pattern match failure"
      RTS.pGuard "12:3--12:33" "guard failed"
        (encFilter HS.== Vector.vecFromRep "Standard")
      (RTS.<||)
-       (do (_12 :: PdfValue.Value) <-
+       (do (_957 :: PdfValue.Value) <-
              RTS.pIsJust "14:29--14:52"
                ("Missing key: "
                   HS.++ HS.show
                           (Vector.vecFromRep "SubFilter" :: Vector.Vector (RTS.UInt 8)))
                (Map.lookup (Vector.vecFromRep "SubFilter") edict)
-           RTS.pIsJust_ "14:29--14:61" "Expected `name`"
-             (HS.getField @"name" _12))
+           case _957 of
+             PdfValue.Value_name (_958 :: Vector.Vector (RTS.UInt 8)) -> HS.pure
+                                                                           ()
+             _ -> RTS.pError RTS.FromSystem "14:29--14:61"
+                    "Pattern match failure")
        (HS.pure ())
      (encV :: HS.Integer) <-
        RTS.pEnter "PdfDecl.LookupNat"
@@ -440,30 +582,38 @@ _EncryptionDict (enc :: PdfXRef.TrailerDictEncrypt) =
        ((encR HS.== (RTS.lit 3 :: HS.Integer))
           HS.|| ((encV HS.== (RTS.lit 4 :: HS.Integer))
                    HS.&& (encR HS.== (RTS.lit 4 :: HS.Integer))))
-     do (_13 :: PdfValue.Value) <-
+     do (_959 :: PdfValue.Value) <-
           RTS.pIsJust "22:11--22:26"
             ("Missing key: "
                HS.++ HS.show
                        (Vector.vecFromRep "O" :: Vector.Vector (RTS.UInt 8)))
             (Map.lookup (Vector.vecFromRep "O") edict)
-        RTS.pIsJust_ "22:11--22:37" "Expected `string`"
-          (HS.getField @"string" _13)
-     do (_14 :: PdfValue.Value) <-
+        case _959 of
+          PdfValue.Value_string
+            (_960 :: Vector.Vector (RTS.UInt 8)) -> HS.pure ()
+          _ -> RTS.pError RTS.FromSystem "22:11--22:37"
+                 "Pattern match failure"
+     do (_961 :: PdfValue.Value) <-
           RTS.pIsJust "23:11--23:26"
             ("Missing key: "
                HS.++ HS.show
                        (Vector.vecFromRep "U" :: Vector.Vector (RTS.UInt 8)))
             (Map.lookup (Vector.vecFromRep "U") edict)
-        RTS.pIsJust_ "23:11--23:37" "Expected `string`"
-          (HS.getField @"string" _14)
-     do (_15 :: PdfValue.Value) <-
+        case _961 of
+          PdfValue.Value_string
+            (_962 :: Vector.Vector (RTS.UInt 8)) -> HS.pure ()
+          _ -> RTS.pError RTS.FromSystem "23:11--23:37"
+                 "Pattern match failure"
+     do (_963 :: PdfValue.Value) <-
           RTS.pIsJust "26:11--26:26"
             ("Missing key: "
                HS.++ HS.show
                        (Vector.vecFromRep "P" :: Vector.Vector (RTS.UInt 8)))
             (Map.lookup (Vector.vecFromRep "P") edict)
-        RTS.pIsJust_ "26:11--26:37" "Expected `number`"
-          (HS.getField @"number" _15)
+        case _963 of
+          PdfValue.Value_number (_964 :: PdfValue.Number) -> HS.pure ()
+          _ -> RTS.pError RTS.FromSystem "26:11--26:37"
+                 "Pattern match failure"
      RTS.pEnter "PdfCrypto._ChooseCiph"
        (_ChooseCiph @HS.Integer edict encV)
  
@@ -473,81 +623,10 @@ _MakeContext (t :: PdfXRef.TrailerDict) =
   (RTS.<||)
     (RTS.pEnter "encryption"
        (do (enc :: PdfXRef.TrailerDictEncrypt) <-
-             RTS.pIsJust "71:12--71:28" "Expected `Just`"
-               (HS.getField @"encrypt" t)
+             case HS.getField @"encrypt" t of
+               HS.Just (_966 :: PdfXRef.TrailerDictEncrypt) -> HS.pure _966
+               _ -> RTS.pError RTS.FromSystem "71:12--71:28"
+                      "Pattern match failure"
            RTS.pErrorMode RTS.Abort
              (RTS.pEnter "PdfCrypto._EncryptionDict" (_EncryptionDict enc))))
     (RTS.pEnter "noencryption" (HS.pure ()))
- 
-_V4stmFname ::
-  forall b c o.
-    (RTS.DDL b, RTS.DDL c, RTS.DDL o, RTS.HasUnion c "name" b,
-     RTS.HasUnion c "dict" (Map.Map b o),
-     RTS.HasUnion o "dict"
-       (Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value)) =>
-      Map.Map (Vector.Vector (RTS.UInt 8)) c -> D.Parser ()
- 
-_V4stmFname (edict :: Map.Map (Vector.Vector (RTS.UInt 8)) c) =
-  do (stmF :: b) <-
-       do (_0 :: c) <-
-            RTS.pIsJust "52:12--52:30"
-              ("Missing key: "
-                 HS.++ HS.show
-                         (Vector.vecFromRep "StmF" :: Vector.Vector (RTS.UInt 8)))
-              (Map.lookup (Vector.vecFromRep "StmF") edict)
-          RTS.pIsJust "52:12--52:39" "Expected `name`"
-            (HS.getField @"name" _0)
-     (strF :: b) <-
-       do (_1 :: c) <-
-            RTS.pIsJust "53:12--53:30"
-              ("Missing key: "
-                 HS.++ HS.show
-                         (Vector.vecFromRep "StrF" :: Vector.Vector (RTS.UInt 8)))
-              (Map.lookup (Vector.vecFromRep "StrF") edict)
-          RTS.pIsJust "53:12--53:39" "Expected `name`"
-            (HS.getField @"name" _1)
-     (cf :: Map.Map b o) <-
-       do (_2 :: c) <-
-            RTS.pIsJust "54:10--54:26"
-              ("Missing key: "
-                 HS.++ HS.show
-                         (Vector.vecFromRep "CF" :: Vector.Vector (RTS.UInt 8)))
-              (Map.lookup (Vector.vecFromRep "CF") edict)
-          RTS.pIsJust "54:10--54:35" "Expected `dict`"
-            (HS.getField @"dict" _2)
-     (stmFdict
-        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_3 :: o) <-
-            RTS.pIsJust "57:16--57:29"
-              ("Missing key: " HS.++ HS.show (stmF :: b))
-              (Map.lookup stmF cf)
-          RTS.pIsJust "57:16--57:38" "Expected `dict`"
-            (HS.getField @"dict" _3)
-     do (_4 :: PdfValue.Value) <-
-          RTS.pIsJust "58:16--58:36"
-            ("Missing key: "
-               HS.++ HS.show
-                       (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-            (Map.lookup (Vector.vecFromRep "CFM") stmFdict)
-        RTS.pIsJust_ "58:16--58:45" "Expected `name`"
-          (HS.getField @"name" _4)
-     RTS.pEnter "PdfDecl._LookupNat"
-       (PdfDecl._LookupNat (Vector.vecFromRep "Length") stmFdict)
-     (strFdict
-        :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
-       do (_5 :: o) <-
-            RTS.pIsJust "62:16--62:29"
-              ("Missing key: " HS.++ HS.show (strF :: b))
-              (Map.lookup strF cf)
-          RTS.pIsJust "62:16--62:38" "Expected `dict`"
-            (HS.getField @"dict" _5)
-     do (_6 :: PdfValue.Value) <-
-          RTS.pIsJust "63:16--63:36"
-            ("Missing key: "
-               HS.++ HS.show
-                       (Vector.vecFromRep "CFM" :: Vector.Vector (RTS.UInt 8)))
-            (Map.lookup (Vector.vecFromRep "CFM") strFdict)
-        RTS.pIsJust_ "63:16--63:45" "Expected `name`"
-          (HS.getField @"name" _6)
-     RTS.pEnter "PdfDecl._LookupNat"
-       (PdfDecl._LookupNat (Vector.vecFromRep "Length") strFdict)

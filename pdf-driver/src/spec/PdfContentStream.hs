@@ -10,6 +10,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language TypeApplications #-}
 {-# Language TypeFamilies #-}
+{-# Language ViewPatterns #-}
 module PdfContentStream where
  
 import qualified PdfMonad as D
@@ -183,6 +184,42 @@ instance HS.HasField "x" ContentPoint PdfValue.Number where
  
 instance HS.HasField "y" ContentPoint PdfValue.Number where
   getField (ContentPoint _ x) = x
+ 
+data PathBeginOp_0
+  = PathBeginOp_0 ContentPoint
+  
+ 
+deriving instance HS.Eq PathBeginOp_0
+ 
+deriving instance HS.Ord PathBeginOp_0
+ 
+deriving instance HS.Show PathBeginOp_0
+ 
+instance RTS.DDL PathBeginOp_0 where
+ 
+instance HS.HasField "pt" PathBeginOp_0 ContentPoint where
+  getField (PathBeginOp_0 x) = x
+ 
+data PathBeginOp_1
+  = PathBeginOp_1 ContentPoint PdfValue.Number PdfValue.Number
+  
+ 
+deriving instance HS.Eq PathBeginOp_1
+ 
+deriving instance HS.Ord PathBeginOp_1
+ 
+deriving instance HS.Show PathBeginOp_1
+ 
+instance RTS.DDL PathBeginOp_1 where
+ 
+instance HS.HasField "pt" PathBeginOp_1 ContentPoint where
+  getField (PathBeginOp_1 x _ _) = x
+ 
+instance HS.HasField "width" PathBeginOp_1 PdfValue.Number where
+  getField (PathBeginOp_1 _ x _) = x
+ 
+instance HS.HasField "height" PathBeginOp_1 PdfValue.Number where
+  getField (PathBeginOp_1 _ _ x) = x
  
 data PathConsOp_0
   = PathConsOp_0 ContentPoint
@@ -1388,67 +1425,6 @@ instance HS.HasField "imageData" InlineImageObj
            (Vector.Vector (RTS.UInt 8)) where
   getField (InlineImageObj _ x) = x
  
-data PathObj_0
-  = PathObj_0 ContentPoint
-  
- 
-deriving instance HS.Eq PathObj_0
- 
-deriving instance HS.Ord PathObj_0
- 
-deriving instance HS.Show PathObj_0
- 
-instance RTS.DDL PathObj_0 where
- 
-instance HS.HasField "pt" PathObj_0 ContentPoint where
-  getField (PathObj_0 x) = x
- 
-data PathObj_1
-  = PathObj_1 ContentPoint PdfValue.Number PdfValue.Number
-  
- 
-deriving instance HS.Eq PathObj_1
- 
-deriving instance HS.Ord PathObj_1
- 
-deriving instance HS.Show PathObj_1
- 
-instance RTS.DDL PathObj_1 where
- 
-instance HS.HasField "pt" PathObj_1 ContentPoint where
-  getField (PathObj_1 x _ _) = x
- 
-instance HS.HasField "width" PathObj_1 PdfValue.Number where
-  getField (PathObj_1 _ x _) = x
- 
-instance HS.HasField "height" PathObj_1 PdfValue.Number where
-  getField (PathObj_1 _ _ x) = x
- 
-data PathObj_2
-  = PathObj_2_appendRect PathObj_1
-  | PathObj_2_beginNewSuppath PathObj_0
-  
- 
-deriving instance HS.Eq PathObj_2
- 
-deriving instance HS.Ord PathObj_2
- 
-deriving instance HS.Show PathObj_2
- 
-instance RTS.DDL PathObj_2 where
- 
-instance HS.HasField "appendRect" PathObj_2
-           (HS.Maybe PathObj_1) where
-  getField (PathObj_2_appendRect x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "beginNewSuppath" PathObj_2
-           (HS.Maybe PathObj_0) where
-  getField (PathObj_2_beginNewSuppath x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
 data PathPaintingOp
   = PathPaintingOp_closeFillStrokeEvenOdd ()
   | PathPaintingOp_closeFillStrokeNzWinding ()
@@ -1528,11 +1504,37 @@ instance HS.HasField "stroke" PathPaintingOp (HS.Maybe ()) where
    
   getField _ = HS.Nothing
  
+data PathBeginOp
+  = PathBeginOp_appendRect PathBeginOp_1
+  | PathBeginOp_beginNewSuppath PathBeginOp_0
+  
+ 
+deriving instance HS.Eq PathBeginOp
+ 
+deriving instance HS.Ord PathBeginOp
+ 
+deriving instance HS.Show PathBeginOp
+ 
+instance RTS.DDL PathBeginOp where
+ 
+instance HS.HasField "appendRect" PathBeginOp
+           (HS.Maybe PathBeginOp_1) where
+  getField (PathBeginOp_appendRect x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "beginNewSuppath" PathBeginOp
+           (HS.Maybe PathBeginOp_0) where
+  getField (PathBeginOp_beginNewSuppath x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
 data PathConsOp
   = PathConsOp_appendCurvedFinalPt PathConsOp_3
   | PathConsOp_appendCurvedInitPtRepl PathConsOp_2
   | PathConsOp_appendCurvedThreePoints PathConsOp_1
   | PathConsOp_appendLine PathConsOp_0
+  | PathConsOp_beginSubpath PathBeginOp
   | PathConsOp_closeSubpath ()
   
  
@@ -1568,6 +1570,12 @@ instance HS.HasField "appendLine" PathConsOp
    
   getField _ = HS.Nothing
  
+instance HS.HasField "beginSubpath" PathConsOp
+           (HS.Maybe PathBeginOp) where
+  getField (PathConsOp_beginSubpath x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
 instance HS.HasField "closeSubpath" PathConsOp (HS.Maybe ()) where
   getField (PathConsOp_closeSubpath x) = HS.Just x
    
@@ -1599,7 +1607,7 @@ instance HS.HasField "setClippingNzWinding" ClippingPathOp
   getField _ = HS.Nothing
  
 data PathObj
-  = PathObj PathObj_2 (Vector.Vector PathConsOp)
+  = PathObj PathBeginOp (Vector.Vector PathConsOp)
       (HS.Maybe ClippingPathOp)
       PathPaintingOp
   
@@ -1612,7 +1620,7 @@ deriving instance HS.Show PathObj
  
 instance RTS.DDL PathObj where
  
-instance HS.HasField "begin" PathObj PathObj_2 where
+instance HS.HasField "begin" PathObj PathBeginOp where
   getField (PathObj x _ _ _) = x
  
 instance HS.HasField "pathOps" PathObj
@@ -2124,20 +2132,20 @@ pFractional :: D.Parser PdfValue.Number
 pFractional =
   do (__ :: PdfValue.Number) <-
        RTS.pEnter "PdfValue.Number" PdfValue.pNumber
-     do (_693 :: Fractional_0) <-
+     do (_695 :: Fractional_0) <-
           do (num :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
              (exp :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
              HS.pure (Fractional_0 num exp)
         RTS.pEnter "PdfContentStream._Cmp"
-          (_Cmp @Fractional_0 @PdfValue.Number @HS.Integer @HS.Integer _693
+          (_Cmp @Fractional_0 @PdfValue.Number @HS.Integer @HS.Integer _695
              __)
-     do (_694 :: Fractional_1) <-
+     do (_696 :: Fractional_1) <-
           do (num :: HS.Integer) <- HS.pure (RTS.lit 1 :: HS.Integer)
              (exp :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
              HS.pure (Fractional_1 num exp)
         RTS.pEnter "PdfContentStream._Cmp"
           (_Cmp @PdfValue.Number @Fractional_1 @HS.Integer @HS.Integer __
-             _694)
+             _696)
      HS.pure __
  
 pBoundedNonNeg ::
@@ -2158,56 +2166,56 @@ pDirectObj :: D.Parser DirectObj
 pDirectObj =
   (RTS.<||)
     (RTS.pEnter "null"
-       (do (_695 :: ()) <- RTS.pEnter "PdfValue.Null" PdfValue.pNull
-           HS.pure (DirectObj_null _695)))
+       (do (_697 :: ()) <- RTS.pEnter "PdfValue.Null" PdfValue.pNull
+           HS.pure (DirectObj_null _697)))
     ((RTS.<||)
        (RTS.pEnter "bool"
-          (do (_696 :: HS.Bool) <- RTS.pEnter "PdfValue.Bool" PdfValue.pBool
-              HS.pure (DirectObj_bool _696)))
+          (do (_698 :: HS.Bool) <- RTS.pEnter "PdfValue.Bool" PdfValue.pBool
+              HS.pure (DirectObj_bool _698)))
        ((RTS.<||)
           (RTS.pEnter "name"
-             (do (_697 :: Vector.Vector (RTS.UInt 8)) <-
+             (do (_699 :: Vector.Vector (RTS.UInt 8)) <-
                    RTS.pEnter "PdfValue.Name" PdfValue.pName
-                 HS.pure (DirectObj_name _697)))
+                 HS.pure (DirectObj_name _699)))
           ((RTS.<||)
              (RTS.pEnter "string"
-                (do (_698 :: Vector.Vector (RTS.UInt 8)) <-
+                (do (_700 :: Vector.Vector (RTS.UInt 8)) <-
                       RTS.pEnter "PdfValue.String" PdfValue.pString
-                    HS.pure (DirectObj_string _698)))
+                    HS.pure (DirectObj_string _700)))
              ((RTS.<||)
                 (RTS.pEnter "string"
-                   (do (_699 :: Vector.Vector (RTS.UInt 8)) <-
+                   (do (_701 :: Vector.Vector (RTS.UInt 8)) <-
                          RTS.pEnter "PdfValue.HexString" PdfValue.pHexString
-                       HS.pure (DirectObj_string _699)))
+                       HS.pure (DirectObj_string _701)))
                 ((RTS.<||)
                    (RTS.pEnter "number"
-                      (do (_700 :: PdfValue.Number) <-
+                      (do (_702 :: PdfValue.Number) <-
                             RTS.pEnter "PdfValue.Number" PdfValue.pNumber
-                          HS.pure (DirectObj_number _700)))
+                          HS.pure (DirectObj_number _702)))
                    ((RTS.<||)
                       (RTS.pEnter "array"
-                         (do (_701 :: Vector.Vector PdfValue.Value) <-
+                         (do (_703 :: Vector.Vector PdfValue.Value) <-
                                RTS.pEnter "PdfValue.Array" PdfValue.pArray
-                             HS.pure (DirectObj_array _701)))
+                             HS.pure (DirectObj_array _703)))
                       (RTS.pEnter "dict"
-                         (do (_702
+                         (do (_704
                                 :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
                                RTS.pEnter "PdfValue.Dict" PdfValue.pDict
-                             HS.pure (DirectObj_dict _702)))))))))
+                             HS.pure (DirectObj_dict _704)))))))))
  
 pContentProps :: D.Parser ContentProps
  
 pContentProps =
   (RTS.|||)
     (RTS.pEnter "inline"
-       (do (_703
+       (do (_705
               :: Map.Map (Vector.Vector (RTS.UInt 8)) PdfValue.Value) <-
              RTS.pEnter "PdfValue.Dict" PdfValue.pDict
-           HS.pure (ContentProps_inline _703)))
+           HS.pure (ContentProps_inline _705)))
     (RTS.pEnter "nm"
-       (do (_704 :: Vector.Vector (RTS.UInt 8)) <-
+       (do (_706 :: Vector.Vector (RTS.UInt 8)) <-
              RTS.pEnter "PdfValue.Name" PdfValue.pName
-           HS.pure (ContentProps_nm _704)))
+           HS.pure (ContentProps_nm _706)))
  
 pContentPoint :: D.Parser ContentPoint
  
@@ -2234,92 +2242,92 @@ pIntent :: D.Parser Intent
 pIntent =
   (RTS.<||)
     (RTS.pEnter "absoluteColorimetric"
-       (do (_705 :: Vector.Vector (RTS.UInt 8)) <-
+       (do (_707 :: Vector.Vector (RTS.UInt 8)) <-
              HS.pure (Vector.vecFromRep "/Absolutecolorimetric")
-           HS.pure (Intent_absoluteColorimetric _705)))
+           HS.pure (Intent_absoluteColorimetric _707)))
     ((RTS.<||)
        (RTS.pEnter "relativeColorimetric"
-          (do (_706 :: Vector.Vector (RTS.UInt 8)) <-
+          (do (_708 :: Vector.Vector (RTS.UInt 8)) <-
                 HS.pure (Vector.vecFromRep "/RelativeColorimetric")
-              HS.pure (Intent_relativeColorimetric _706)))
+              HS.pure (Intent_relativeColorimetric _708)))
        ((RTS.<||)
           (RTS.pEnter "saturation"
-             (do (_707 :: Vector.Vector (RTS.UInt 8)) <-
+             (do (_709 :: Vector.Vector (RTS.UInt 8)) <-
                    HS.pure (Vector.vecFromRep "/Saturation")
-                 HS.pure (Intent_saturation _707)))
+                 HS.pure (Intent_saturation _709)))
           (RTS.pEnter "perceptual"
-             (do (_708 :: Vector.Vector (RTS.UInt 8)) <-
+             (do (_710 :: Vector.Vector (RTS.UInt 8)) <-
                    HS.pure (Vector.vecFromRep "/Perceptual")
-                 HS.pure (Intent_perceptual _708)))))
+                 HS.pure (Intent_perceptual _710)))))
  
 pPathPaintingOp :: D.Parser PathPaintingOp
  
 pPathPaintingOp =
   (RTS.<||)
     (RTS.pEnter "stroke"
-       (do (_709 :: ()) <-
+       (do (_711 :: ()) <-
              RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "S"))
-           HS.pure (PathPaintingOp_stroke _709)))
+           HS.pure (PathPaintingOp_stroke _711)))
     ((RTS.<||)
        (RTS.pEnter "closeStrokePath"
-          (do (_710 :: ()) <-
+          (do (_712 :: ()) <-
                 RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "s"))
-              HS.pure (PathPaintingOp_closeStrokePath _710)))
+              HS.pure (PathPaintingOp_closeStrokePath _712)))
        ((RTS.<||)
           (RTS.pEnter "fillPathNzWindingOld"
-             (do (_711 :: ()) <-
+             (do (_713 :: ()) <-
                    RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "F"))
-                 HS.pure (PathPaintingOp_fillPathNzWindingOld _711)))
+                 HS.pure (PathPaintingOp_fillPathNzWindingOld _713)))
           ((RTS.<||)
              (RTS.pEnter "fillPathEvenOdd"
-                (do (_712 :: ()) <-
+                (do (_714 :: ()) <-
                       RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "f*"))
-                    HS.pure (PathPaintingOp_fillPathEvenOdd _712)))
+                    HS.pure (PathPaintingOp_fillPathEvenOdd _714)))
              ((RTS.<||)
                 (RTS.pEnter "fillPathNzWinding"
-                   (do (_713 :: ()) <-
+                   (do (_715 :: ()) <-
                          RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "f"))
-                       HS.pure (PathPaintingOp_fillPathNzWinding _713)))
+                       HS.pure (PathPaintingOp_fillPathNzWinding _715)))
                 ((RTS.<||)
                    (RTS.pEnter "fillStrokeEvenOdd"
-                      (do (_714 :: ()) <-
+                      (do (_716 :: ()) <-
                             RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "B*"))
-                          HS.pure (PathPaintingOp_fillStrokeEvenOdd _714)))
+                          HS.pure (PathPaintingOp_fillStrokeEvenOdd _716)))
                    ((RTS.<||)
                       (RTS.pEnter "fillStroke"
-                         (do (_715 :: ()) <-
+                         (do (_717 :: ()) <-
                                RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "B"))
-                             HS.pure (PathPaintingOp_fillStroke _715)))
+                             HS.pure (PathPaintingOp_fillStroke _717)))
                       ((RTS.<||)
                          (RTS.pEnter "closeFillStrokeEvenOdd"
-                            (do (_716 :: ()) <-
+                            (do (_718 :: ()) <-
                                   RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "b*"))
-                                HS.pure (PathPaintingOp_closeFillStrokeEvenOdd _716)))
+                                HS.pure (PathPaintingOp_closeFillStrokeEvenOdd _718)))
                          ((RTS.<||)
                             (RTS.pEnter "closeFillStrokeNzWinding"
-                               (do (_717 :: ()) <-
+                               (do (_719 :: ()) <-
                                      RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "b"))
-                                   HS.pure (PathPaintingOp_closeFillStrokeNzWinding _717)))
+                                   HS.pure (PathPaintingOp_closeFillStrokeNzWinding _719)))
                             (RTS.pEnter "endPath"
-                               (do (_718 :: ()) <-
+                               (do (_720 :: ()) <-
                                      RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "n"))
-                                   HS.pure (PathPaintingOp_endPath _718)))))))))))
+                                   HS.pure (PathPaintingOp_endPath _720)))))))))))
  
 pMarkedContentOp :: D.Parser MarkedContentOp
  
 pMarkedContentOp =
   (RTS.<||)
     (RTS.pEnter "defineMarkedContent"
-       (do (_719 :: MarkedContentOp_0) <-
+       (do (_721 :: MarkedContentOp_0) <-
              do (tag :: Vector.Vector (RTS.UInt 8)) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                        (RTS.pEnter "PdfValue.Name" PdfValue.pName))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "MP"))
                 HS.pure (MarkedContentOp_0 tag)
-           HS.pure (MarkedContentOp_defineMarkedContent _719)))
+           HS.pure (MarkedContentOp_defineMarkedContent _721)))
     (RTS.pEnter "defMarkedContentPoint"
-       (do (_720 :: MarkedContentOp_1) <-
+       (do (_722 :: MarkedContentOp_1) <-
              do (tag :: Vector.Vector (RTS.UInt 8)) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
@@ -2330,54 +2338,54 @@ pMarkedContentOp =
                        (RTS.pEnter "PdfContentStream.ContentProps" pContentProps))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "DP"))
                 HS.pure (MarkedContentOp_1 tag props)
-           HS.pure (MarkedContentOp_defMarkedContentPoint _720)))
+           HS.pure (MarkedContentOp_defMarkedContentPoint _722)))
  
 pGenGraphicsStateOp :: D.Parser GenGraphicsStateOp
  
 pGenGraphicsStateOp =
   (RTS.<||)
     (RTS.pEnter "setLineWidth"
-       (do (_721 :: GenGraphicsStateOp_0) <-
+       (do (_723 :: GenGraphicsStateOp_0) <-
              do (lineWidth :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
                        (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "w"))
                 HS.pure (GenGraphicsStateOp_0 lineWidth)
-           HS.pure (GenGraphicsStateOp_setLineWidth _721)))
+           HS.pure (GenGraphicsStateOp_setLineWidth _723)))
     ((RTS.<||)
        (RTS.pEnter "setLineCapStyle"
-          (do (_722 :: GenGraphicsStateOp_1) <-
+          (do (_724 :: GenGraphicsStateOp_1) <-
                 do (lineCap :: RTS.UInt 8) <-
                      RTS.pEnter "PdfValue.Token"
                        (PdfValue.pToken @(RTS.UInt 8)
                           (RTS.pEnter "PdfContentStream.LineStyle" pLineStyle))
                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "J"))
                    HS.pure (GenGraphicsStateOp_1 lineCap)
-              HS.pure (GenGraphicsStateOp_setLineCapStyle _722)))
+              HS.pure (GenGraphicsStateOp_setLineCapStyle _724)))
        ((RTS.<||)
           (RTS.pEnter "setLineJoinStyle"
-             (do (_723 :: GenGraphicsStateOp_2) <-
+             (do (_725 :: GenGraphicsStateOp_2) <-
                    do (lineJoin :: RTS.UInt 8) <-
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @(RTS.UInt 8)
                              (RTS.pEnter "PdfContentStream.LineStyle" pLineStyle))
                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "j"))
                       HS.pure (GenGraphicsStateOp_2 lineJoin)
-                 HS.pure (GenGraphicsStateOp_setLineJoinStyle _723)))
+                 HS.pure (GenGraphicsStateOp_setLineJoinStyle _725)))
           ((RTS.<||)
              (RTS.pEnter "setMiterLimit"
-                (do (_724 :: GenGraphicsStateOp_3) <-
+                (do (_726 :: GenGraphicsStateOp_3) <-
                       do (miterLimit :: PdfValue.Number) <-
                            RTS.pEnter "PdfValue.Token"
                              (PdfValue.pToken @PdfValue.Number
                                 (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                          RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "M"))
                          HS.pure (GenGraphicsStateOp_3 miterLimit)
-                    HS.pure (GenGraphicsStateOp_setMiterLimit _724)))
+                    HS.pure (GenGraphicsStateOp_setMiterLimit _726)))
              ((RTS.<||)
                 (RTS.pEnter "setLineDash"
-                   (do (_725 :: GenGraphicsStateOp_4) <-
+                   (do (_727 :: GenGraphicsStateOp_4) <-
                          do (dashArray :: Vector.Vector HS.Integer) <-
                               RTS.pEnter "PdfValue.Token"
                                 (PdfValue.pToken @(Vector.Vector HS.Integer)
@@ -2393,70 +2401,70 @@ pGenGraphicsStateOp =
                                    (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                             RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "d"))
                             HS.pure (GenGraphicsStateOp_4 dashArray dashPhase)
-                       HS.pure (GenGraphicsStateOp_setLineDash _725)))
+                       HS.pure (GenGraphicsStateOp_setLineDash _727)))
                 ((RTS.<||)
                    (RTS.pEnter "setColorRenderingIntent"
-                      (do (_726 :: GenGraphicsStateOp_5) <-
+                      (do (_728 :: GenGraphicsStateOp_5) <-
                             do (intent :: Intent) <-
                                  RTS.pEnter "PdfValue.Token"
                                    (PdfValue.pToken @Intent
                                       (RTS.pEnter "PdfContentStream.Intent" pIntent))
                                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "ri"))
                                HS.pure (GenGraphicsStateOp_5 intent)
-                          HS.pure (GenGraphicsStateOp_setColorRenderingIntent _726)))
+                          HS.pure (GenGraphicsStateOp_setColorRenderingIntent _728)))
                    ((RTS.<||)
                       (RTS.pEnter "setFlat"
-                         (do (_728 :: GenGraphicsStateOp_7) <-
+                         (do (_730 :: GenGraphicsStateOp_7) <-
                                do (flatness :: PdfValue.Number) <-
                                     RTS.pEnter "PdfValue.Token"
                                       (PdfValue.pToken @PdfValue.Number
-                                         (do (_727 :: GenGraphicsStateOp_6) <-
+                                         (do (_729 :: GenGraphicsStateOp_6) <-
                                                do (num :: HS.Integer) <-
                                                     HS.pure (RTS.lit 100 :: HS.Integer)
                                                   (exp :: HS.Integer) <-
                                                     HS.pure (RTS.lit 0 :: HS.Integer)
                                                   HS.pure (GenGraphicsStateOp_6 num exp)
                                              RTS.pEnter "PdfContentStream.BoundedNonNeg"
-                                               (pBoundedNonNeg @GenGraphicsStateOp_6 _727)))
+                                               (pBoundedNonNeg @GenGraphicsStateOp_6 _729)))
                                   RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "i"))
                                   HS.pure (GenGraphicsStateOp_7 flatness)
-                             HS.pure (GenGraphicsStateOp_setFlat _728)))
+                             HS.pure (GenGraphicsStateOp_setFlat _730)))
                       (RTS.pEnter "setGraphicsStateParams"
-                         (do (_729 :: GenGraphicsStateOp_8) <-
+                         (do (_731 :: GenGraphicsStateOp_8) <-
                                do (dictName :: Vector.Vector (RTS.UInt 8)) <-
                                     RTS.pEnter "PdfValue.Token"
                                       (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                                          (RTS.pEnter "PdfValue.Name" PdfValue.pName))
                                   RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "gs"))
                                   HS.pure (GenGraphicsStateOp_8 dictName)
-                             HS.pure (GenGraphicsStateOp_setGraphicsStateParams _729)))))))))
+                             HS.pure (GenGraphicsStateOp_setGraphicsStateParams _731)))))))))
  
 pColourOp :: D.Parser ColourOp
  
 pColourOp =
   (RTS.<||)
     (RTS.pEnter "setColorSpaceStroking"
-       (do (_730 :: ColourOp_0) <-
+       (do (_732 :: ColourOp_0) <-
              do (nm :: Vector.Vector (RTS.UInt 8)) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                        (RTS.pEnter "PdfValue.Name" PdfValue.pName))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "CS"))
                 HS.pure (ColourOp_0 nm)
-           HS.pure (ColourOp_setColorSpaceStroking _730)))
+           HS.pure (ColourOp_setColorSpaceStroking _732)))
     ((RTS.<||)
        (RTS.pEnter "setColorSpaceNonStroking"
-          (do (_731 :: ColourOp_1) <-
+          (do (_733 :: ColourOp_1) <-
                 do (nm :: Vector.Vector (RTS.UInt 8)) <-
                      RTS.pEnter "PdfValue.Token"
                        (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                           (RTS.pEnter "PdfValue.Name" PdfValue.pName))
                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "cs"))
                    HS.pure (ColourOp_1 nm)
-              HS.pure (ColourOp_setColorSpaceNonStroking _731)))
+              HS.pure (ColourOp_setColorSpaceNonStroking _733)))
        ((RTS.<||)
           (RTS.pEnter "setColorStroking"
-             (do (_732 :: ColourOp_2) <-
+             (do (_734 :: ColourOp_2) <-
                    do (cs :: Vector.Vector PdfValue.Number) <-
                         RTS.pMany (RTS.<||)
                           (RTS.pEnter "PdfValue.Token"
@@ -2464,10 +2472,10 @@ pColourOp =
                                 (RTS.pEnter "PdfValue.Number" PdfValue.pNumber)))
                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "SC"))
                       HS.pure (ColourOp_2 cs)
-                 HS.pure (ColourOp_setColorStroking _732)))
+                 HS.pure (ColourOp_setColorStroking _734)))
           ((RTS.<||)
              (RTS.pEnter "setColorStrokingICC"
-                (do (_733 :: ColourOp_3) <-
+                (do (_735 :: ColourOp_3) <-
                       do (cs :: Vector.Vector PdfValue.Number) <-
                            RTS.pMany (RTS.<||)
                              (RTS.pEnter "PdfValue.Token"
@@ -2475,10 +2483,10 @@ pColourOp =
                                    (RTS.pEnter "PdfValue.Number" PdfValue.pNumber)))
                          RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "SCN"))
                          HS.pure (ColourOp_3 cs)
-                    HS.pure (ColourOp_setColorStrokingICC _733)))
+                    HS.pure (ColourOp_setColorStrokingICC _735)))
              ((RTS.<||)
                 (RTS.pEnter "setColorNonStroking"
-                   (do (_734 :: ColourOp_4) <-
+                   (do (_736 :: ColourOp_4) <-
                          do (cs :: Vector.Vector PdfValue.Number) <-
                               RTS.pMany (RTS.<||)
                                 (RTS.pEnter "PdfValue.Token"
@@ -2486,10 +2494,10 @@ pColourOp =
                                       (RTS.pEnter "PdfValue.Number" PdfValue.pNumber)))
                             RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "sc"))
                             HS.pure (ColourOp_4 cs)
-                       HS.pure (ColourOp_setColorNonStroking _734)))
+                       HS.pure (ColourOp_setColorNonStroking _736)))
                 ((RTS.<||)
                    (RTS.pEnter "setColorNonStrokingICC"
-                      (do (_735 :: ColourOp_5) <-
+                      (do (_737 :: ColourOp_5) <-
                             do (cs :: Vector.Vector PdfValue.Number) <-
                                  RTS.pMany (RTS.<||)
                                    (RTS.pEnter "PdfValue.Token"
@@ -2497,20 +2505,20 @@ pColourOp =
                                          (RTS.pEnter "PdfValue.Number" PdfValue.pNumber)))
                                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "scn"))
                                HS.pure (ColourOp_5 cs)
-                          HS.pure (ColourOp_setColorNonStrokingICC _735)))
+                          HS.pure (ColourOp_setColorNonStrokingICC _737)))
                    ((RTS.<||)
                       (RTS.pEnter "setGrayStroking"
-                         (do (_736 :: ColourOp_6) <-
+                         (do (_738 :: ColourOp_6) <-
                                do (gray :: PdfValue.Number) <-
                                     RTS.pEnter "PdfValue.Token"
                                       (PdfValue.pToken @PdfValue.Number
                                          (RTS.pEnter "PdfContentStream.Fractional" pFractional))
                                   RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "G"))
                                   HS.pure (ColourOp_6 gray)
-                             HS.pure (ColourOp_setGrayStroking _736)))
+                             HS.pure (ColourOp_setGrayStroking _738)))
                       ((RTS.<||)
                          (RTS.pEnter "setGrayNonStroking"
-                            (do (_737 :: ColourOp_7) <-
+                            (do (_739 :: ColourOp_7) <-
                                   do (gray :: PdfValue.Number) <-
                                        RTS.pEnter "PdfValue.Token"
                                          (PdfValue.pToken @PdfValue.Number
@@ -2518,10 +2526,10 @@ pColourOp =
                                      RTS.pEnter "PdfValue._KW"
                                        (PdfValue._KW (Vector.vecFromRep "g"))
                                      HS.pure (ColourOp_7 gray)
-                                HS.pure (ColourOp_setGrayNonStroking _737)))
+                                HS.pure (ColourOp_setGrayNonStroking _739)))
                          ((RTS.<||)
                             (RTS.pEnter "setRGBStroking"
-                               (do (_738 :: ColourOp_8) <-
+                               (do (_740 :: ColourOp_8) <-
                                      do (r :: PdfValue.Number) <-
                                           RTS.pEnter "PdfValue.Token"
                                             (PdfValue.pToken @PdfValue.Number
@@ -2540,10 +2548,10 @@ pColourOp =
                                         RTS.pEnter "PdfValue._KW"
                                           (PdfValue._KW (Vector.vecFromRep "RG"))
                                         HS.pure (ColourOp_8 r g b)
-                                   HS.pure (ColourOp_setRGBStroking _738)))
+                                   HS.pure (ColourOp_setRGBStroking _740)))
                             ((RTS.<||)
                                (RTS.pEnter "setRGBNonStroking"
-                                  (do (_739 :: ColourOp_9) <-
+                                  (do (_741 :: ColourOp_9) <-
                                         do (r :: PdfValue.Number) <-
                                              RTS.pEnter "PdfValue.Token"
                                                (PdfValue.pToken @PdfValue.Number
@@ -2562,10 +2570,10 @@ pColourOp =
                                            RTS.pEnter "PdfValue._KW"
                                              (PdfValue._KW (Vector.vecFromRep "rg"))
                                            HS.pure (ColourOp_9 r g b)
-                                      HS.pure (ColourOp_setRGBNonStroking _739)))
+                                      HS.pure (ColourOp_setRGBNonStroking _741)))
                                ((RTS.<||)
                                   (RTS.pEnter "setCMYKStroking"
-                                     (do (_740 :: ColourOp_10) <-
+                                     (do (_742 :: ColourOp_10) <-
                                            do (c :: PdfValue.Number) <-
                                                 RTS.pEnter "PdfValue.Token"
                                                   (PdfValue.pToken @PdfValue.Number
@@ -2589,9 +2597,9 @@ pColourOp =
                                               RTS.pEnter "PdfValue._KW"
                                                 (PdfValue._KW (Vector.vecFromRep "K"))
                                               HS.pure (ColourOp_10 c m y k)
-                                         HS.pure (ColourOp_setCMYKStroking _740)))
+                                         HS.pure (ColourOp_setCMYKStroking _742)))
                                   (RTS.pEnter "setCMYKNonStroking"
-                                     (do (_741 :: ColourOp_11) <-
+                                     (do (_743 :: ColourOp_11) <-
                                            do (c :: PdfValue.Number) <-
                                                 RTS.pEnter "PdfValue.Token"
                                                   (PdfValue.pToken @PdfValue.Number
@@ -2615,54 +2623,54 @@ pColourOp =
                                               RTS.pEnter "PdfValue._KW"
                                                 (PdfValue._KW (Vector.vecFromRep "K"))
                                               HS.pure (ColourOp_11 c m y k)
-                                         HS.pure (ColourOp_setCMYKNonStroking _741)))))))))))))
+                                         HS.pure (ColourOp_setCMYKNonStroking _743)))))))))))))
  
 pTextStateOp :: D.Parser TextStateOp
  
 pTextStateOp =
   (RTS.<||)
     (RTS.pEnter "setCharSpacing"
-       (do (_742 :: TextStateOp_0) <-
+       (do (_744 :: TextStateOp_0) <-
              do (charSpace :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
                        (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tc"))
                 HS.pure (TextStateOp_0 charSpace)
-           HS.pure (TextStateOp_setCharSpacing _742)))
+           HS.pure (TextStateOp_setCharSpacing _744)))
     ((RTS.<||)
        (RTS.pEnter "setWordSpacing"
-          (do (_743 :: TextStateOp_1) <-
+          (do (_745 :: TextStateOp_1) <-
                 do (x :: PdfValue.Number) <-
                      RTS.pEnter "PdfValue.Token"
                        (PdfValue.pToken @PdfValue.Number
                           (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tw"))
                    HS.pure (TextStateOp_1 x)
-              HS.pure (TextStateOp_setWordSpacing _743)))
+              HS.pure (TextStateOp_setWordSpacing _745)))
        ((RTS.<||)
           (RTS.pEnter "setHorizontalTextScaling"
-             (do (_744 :: TextStateOp_2) <-
+             (do (_746 :: TextStateOp_2) <-
                    do (scale :: PdfValue.Number) <-
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @PdfValue.Number
                              (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tz"))
                       HS.pure (TextStateOp_2 scale)
-                 HS.pure (TextStateOp_setHorizontalTextScaling _744)))
+                 HS.pure (TextStateOp_setHorizontalTextScaling _746)))
           ((RTS.<||)
              (RTS.pEnter "setTextLeading"
-                (do (_745 :: TextStateOp_3) <-
+                (do (_747 :: TextStateOp_3) <-
                       do (leading :: PdfValue.Number) <-
                            RTS.pEnter "PdfValue.Token"
                              (PdfValue.pToken @PdfValue.Number
                                 (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                          RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "TL"))
                          HS.pure (TextStateOp_3 leading)
-                    HS.pure (TextStateOp_setTextLeading _745)))
+                    HS.pure (TextStateOp_setTextLeading _747)))
              ((RTS.<||)
                 (RTS.pEnter "setTextFont"
-                   (do (_746 :: TextStateOp_4) <-
+                   (do (_748 :: TextStateOp_4) <-
                          do (font :: Vector.Vector (RTS.UInt 8)) <-
                               RTS.pEnter "PdfValue.Token"
                                 (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
@@ -2673,26 +2681,26 @@ pTextStateOp =
                                    (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                             RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tf"))
                             HS.pure (TextStateOp_4 font size)
-                       HS.pure (TextStateOp_setTextFont _746)))
+                       HS.pure (TextStateOp_setTextFont _748)))
                 ((RTS.<||)
                    (RTS.pEnter "setTextRendering"
-                      (do (_747 :: TextStateOp_5) <-
+                      (do (_749 :: TextStateOp_5) <-
                             do (render :: HS.Integer) <-
                                  RTS.pEnter "PdfValue.Token"
                                    (PdfValue.pToken @HS.Integer
                                       (RTS.pEnter "PdfValue.Natural" PdfValue.pNatural))
                                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tr"))
                                HS.pure (TextStateOp_5 render)
-                          HS.pure (TextStateOp_setTextRendering _747)))
+                          HS.pure (TextStateOp_setTextRendering _749)))
                    (RTS.pEnter "setTextRise"
-                      (do (_748 :: TextStateOp_6) <-
+                      (do (_750 :: TextStateOp_6) <-
                             do (rise :: PdfValue.Number) <-
                                  RTS.pEnter "PdfValue.Token"
                                    (PdfValue.pToken @PdfValue.Number
                                       (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Ts"))
                                HS.pure (TextStateOp_6 rise)
-                          HS.pure (TextStateOp_setTextRise _748))))))))
+                          HS.pure (TextStateOp_setTextRise _750))))))))
  
 pTextPosOp :: D.Parser TextPosOp
  
@@ -2757,40 +2765,40 @@ pShowVal :: D.Parser ShowVal
 pShowVal =
   (RTS.<||)
     (RTS.pEnter "str"
-       (do (_749 :: Vector.Vector (RTS.UInt 8)) <-
+       (do (_751 :: Vector.Vector (RTS.UInt 8)) <-
              RTS.pEnter "PdfValue.String" PdfValue.pString
-           HS.pure (ShowVal_str _749)))
+           HS.pure (ShowVal_str _751)))
     (RTS.pEnter "num"
-       (do (_750 :: PdfValue.Number) <-
+       (do (_752 :: PdfValue.Number) <-
              RTS.pEnter "PdfValue.Number" PdfValue.pNumber
-           HS.pure (ShowVal_num _750)))
+           HS.pure (ShowVal_num _752)))
  
 pTextShowOp :: D.Parser TextShowOp
  
 pTextShowOp =
   (RTS.<||)
     (RTS.pEnter "showText"
-       (do (_751 :: TextShowOp_0) <-
+       (do (_753 :: TextShowOp_0) <-
              do (str :: Vector.Vector (RTS.UInt 8)) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                        (RTS.pEnter "PdfValue.String" PdfValue.pString))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Tj"))
                 HS.pure (TextShowOp_0 str)
-           HS.pure (TextShowOp_showText _751)))
+           HS.pure (TextShowOp_showText _753)))
     ((RTS.<||)
        (RTS.pEnter "moveShow"
-          (do (_752 :: TextShowOp_1) <-
+          (do (_754 :: TextShowOp_1) <-
                 do (str :: Vector.Vector (RTS.UInt 8)) <-
                      RTS.pEnter "PdfValue.Token"
                        (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
                           (RTS.pEnter "PdfValue.String" PdfValue.pString))
                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "'"))
                    HS.pure (TextShowOp_1 str)
-              HS.pure (TextShowOp_moveShow _752)))
+              HS.pure (TextShowOp_moveShow _754)))
        ((RTS.<||)
           (RTS.pEnter "setSpacing"
-             (do (_753 :: TextShowOp_2) <-
+             (do (_755 :: TextShowOp_2) <-
                    do (aw :: PdfValue.Number) <-
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @PdfValue.Number
@@ -2801,9 +2809,9 @@ pTextShowOp =
                              (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "\""))
                       HS.pure (TextShowOp_2 aw ac)
-                 HS.pure (TextShowOp_setSpacing _753)))
+                 HS.pure (TextShowOp_setSpacing _755)))
           (RTS.pEnter "showTextIndGlyph"
-             (do (_754 :: TextShowOp_3) <-
+             (do (_756 :: TextShowOp_3) <-
                    do (arr :: Vector.Vector ShowVal) <-
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @(Vector.Vector ShowVal)
@@ -2814,7 +2822,7 @@ pTextShowOp =
                                          (RTS.pEnter "PdfContentStream.ShowVal" pShowVal))))))
                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "TJ"))
                       HS.pure (TextShowOp_3 arr)
-                 HS.pure (TextShowOp_showTextIndGlyph _754)))))
+                 HS.pure (TextShowOp_showTextIndGlyph _756)))))
  
 pShadingObj :: D.Parser ShadingObj
  
@@ -2857,47 +2865,69 @@ pInlineImageObj =
      (imageData :: Vector.Vector (RTS.UInt 8)) <-
        RTS.pMany (RTS.<||)
          (RTS.uint8
-            HS.<$> RTS.pMatch1 "426:21--426:40"
+            HS.<$> RTS.pMatch1 "441:21--441:40"
                      (RTS.bcComplement (RTS.bcUnion PdfValue.cs_lf PdfValue.cs_cr)))
      RTS.pEnter "PdfValue._SimpleEOL" PdfValue._SimpleEOL
      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "EI"))
      HS.pure (InlineImageObj dict imageData)
  
-pPathConsOp :: D.Parser PathConsOp
+pPathBeginOp :: D.Parser PathBeginOp
  
-pPathConsOp =
+pPathBeginOp =
   (RTS.<||)
-    (RTS.pEnter "appendLine"
-       (do (_755 :: PathConsOp_0) <-
+    (RTS.pEnter "beginNewSuppath"
+       (do (_757 :: PathBeginOp_0) <-
              do (pt :: ContentPoint) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @ContentPoint
                        (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "l"))
-                HS.pure (PathConsOp_0 pt)
-           HS.pure (PathConsOp_appendLine _755)))
+                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "m"))
+                HS.pure (PathBeginOp_0 pt)
+           HS.pure (PathBeginOp_beginNewSuppath _757)))
+    (RTS.pEnter "appendRect"
+       (do (_758 :: PathBeginOp_1) <-
+             do (pt :: ContentPoint) <-
+                  RTS.pEnter "PdfValue.Token"
+                    (PdfValue.pToken @ContentPoint
+                       (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
+                (width :: PdfValue.Number) <-
+                  RTS.pEnter "PdfValue.Token"
+                    (PdfValue.pToken @PdfValue.Number
+                       (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
+                (height :: PdfValue.Number) <-
+                  RTS.pEnter "PdfValue.Token"
+                    (PdfValue.pToken @PdfValue.Number
+                       (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
+                RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "re"))
+                HS.pure (PathBeginOp_1 pt width height)
+           HS.pure (PathBeginOp_appendRect _758)))
+ 
+pPathConsOp :: D.Parser PathConsOp
+ 
+pPathConsOp =
+  (RTS.<||)
+    (RTS.pEnter "beginSubpath"
+       (do (_759 :: PathBeginOp) <-
+             RTS.pEnter "PdfContentStream.PathBeginOp" pPathBeginOp
+           HS.pure (PathConsOp_beginSubpath _759)))
     ((RTS.<||)
-       (RTS.pEnter "appendCurvedThreePoints"
-          (do (_756 :: PathConsOp_1) <-
-                do (pt1 :: ContentPoint) <-
+       (RTS.pEnter "appendLine"
+          (do (_760 :: PathConsOp_0) <-
+                do (pt :: ContentPoint) <-
                      RTS.pEnter "PdfValue.Token"
                        (PdfValue.pToken @ContentPoint
                           (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                   (pt2 :: ContentPoint) <-
-                     RTS.pEnter "PdfValue.Token"
-                       (PdfValue.pToken @ContentPoint
-                          (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                   (pt3 :: ContentPoint) <-
-                     RTS.pEnter "PdfValue.Token"
-                       (PdfValue.pToken @ContentPoint
-                          (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                   RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "c"))
-                   HS.pure (PathConsOp_1 pt1 pt2 pt3)
-              HS.pure (PathConsOp_appendCurvedThreePoints _756)))
+                   RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "l"))
+                   HS.pure (PathConsOp_0 pt)
+              HS.pure (PathConsOp_appendLine _760)))
        ((RTS.<||)
-          (RTS.pEnter "appendCurvedInitPtRepl"
-             (do (_757 :: PathConsOp_2) <-
-                   do (pt2 :: ContentPoint) <-
+          (RTS.pEnter "appendCurvedThreePoints"
+             (do (_761 :: PathConsOp_1) <-
+                   do (pt1 :: ContentPoint) <-
+                        RTS.pEnter "PdfValue.Token"
+                          (PdfValue.pToken @ContentPoint
+                             (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
+                      (pt2 :: ContentPoint) <-
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @ContentPoint
                              (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
@@ -2905,13 +2935,13 @@ pPathConsOp =
                         RTS.pEnter "PdfValue.Token"
                           (PdfValue.pToken @ContentPoint
                              (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "v"))
-                      HS.pure (PathConsOp_2 pt2 pt3)
-                 HS.pure (PathConsOp_appendCurvedInitPtRepl _757)))
+                      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "c"))
+                      HS.pure (PathConsOp_1 pt1 pt2 pt3)
+                 HS.pure (PathConsOp_appendCurvedThreePoints _761)))
           ((RTS.<||)
-             (RTS.pEnter "appendCurvedFinalPt"
-                (do (_758 :: PathConsOp_3) <-
-                      do (pt1 :: ContentPoint) <-
+             (RTS.pEnter "appendCurvedInitPtRepl"
+                (do (_762 :: PathConsOp_2) <-
+                      do (pt2 :: ContentPoint) <-
                            RTS.pEnter "PdfValue.Token"
                              (PdfValue.pToken @ContentPoint
                                 (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
@@ -2919,58 +2949,46 @@ pPathConsOp =
                            RTS.pEnter "PdfValue.Token"
                              (PdfValue.pToken @ContentPoint
                                 (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                         RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "y"))
-                         HS.pure (PathConsOp_3 pt1 pt3)
-                    HS.pure (PathConsOp_appendCurvedFinalPt _758)))
-             (RTS.pEnter "closeSubpath"
-                (do (_759 :: ()) <-
-                      RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "h"))
-                    HS.pure (PathConsOp_closeSubpath _759))))))
+                         RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "v"))
+                         HS.pure (PathConsOp_2 pt2 pt3)
+                    HS.pure (PathConsOp_appendCurvedInitPtRepl _762)))
+             ((RTS.<||)
+                (RTS.pEnter "appendCurvedFinalPt"
+                   (do (_763 :: PathConsOp_3) <-
+                         do (pt1 :: ContentPoint) <-
+                              RTS.pEnter "PdfValue.Token"
+                                (PdfValue.pToken @ContentPoint
+                                   (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
+                            (pt3 :: ContentPoint) <-
+                              RTS.pEnter "PdfValue.Token"
+                                (PdfValue.pToken @ContentPoint
+                                   (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
+                            RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "y"))
+                            HS.pure (PathConsOp_3 pt1 pt3)
+                       HS.pure (PathConsOp_appendCurvedFinalPt _763)))
+                (RTS.pEnter "closeSubpath"
+                   (do (_764 :: ()) <-
+                         RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "h"))
+                       HS.pure (PathConsOp_closeSubpath _764)))))))
  
 pClippingPathOp :: D.Parser ClippingPathOp
  
 pClippingPathOp =
   (RTS.<||)
     (RTS.pEnter "setClippingEvenOdd"
-       (do (_760 :: ()) <-
+       (do (_765 :: ()) <-
              RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "W*"))
-           HS.pure (ClippingPathOp_setClippingEvenOdd _760)))
+           HS.pure (ClippingPathOp_setClippingEvenOdd _765)))
     (RTS.pEnter "setClippingNzWinding"
-       (do (_761 :: ()) <-
+       (do (_766 :: ()) <-
              RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "W"))
-           HS.pure (ClippingPathOp_setClippingNzWinding _761)))
+           HS.pure (ClippingPathOp_setClippingNzWinding _766)))
  
 pPathObj :: D.Parser PathObj
  
 pPathObj =
-  do (begin :: PathObj_2) <-
-       (RTS.<||)
-         (RTS.pEnter "beginNewSuppath"
-            (do (_762 :: PathObj_0) <-
-                  do (pt :: ContentPoint) <-
-                       RTS.pEnter "PdfValue.Token"
-                         (PdfValue.pToken @ContentPoint
-                            (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                     RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "m"))
-                     HS.pure (PathObj_0 pt)
-                HS.pure (PathObj_2_beginNewSuppath _762)))
-         (RTS.pEnter "appendRect"
-            (do (_763 :: PathObj_1) <-
-                  do (pt :: ContentPoint) <-
-                       RTS.pEnter "PdfValue.Token"
-                         (PdfValue.pToken @ContentPoint
-                            (RTS.pEnter "PdfContentStream.ContentPoint" pContentPoint))
-                     (width :: PdfValue.Number) <-
-                       RTS.pEnter "PdfValue.Token"
-                         (PdfValue.pToken @PdfValue.Number
-                            (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
-                     (height :: PdfValue.Number) <-
-                       RTS.pEnter "PdfValue.Token"
-                         (PdfValue.pToken @PdfValue.Number
-                            (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
-                     RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "re"))
-                     HS.pure (PathObj_1 pt width height)
-                HS.pure (PathObj_2_appendRect _763)))
+  do (begin :: PathBeginOp) <-
+       RTS.pEnter "PdfContentStream.PathBeginOp" pPathBeginOp
      (pathOps :: Vector.Vector PathConsOp) <-
        RTS.pMany (RTS.<||)
          (RTS.pEnter "PdfContentStream.PathConsOp" pPathConsOp)
@@ -3003,11 +3021,11 @@ pMarkedContentSeq (pFutureOp :: D.Parser PossibleOp) =
   do (beginMarked :: MarkedContentSeq_1) <-
        (RTS.<||)
          (RTS.pEnter "beginMarkedContent"
-            (do (_764 :: ()) <-
+            (do (_767 :: ()) <-
                   RTS.pEnter "PdfValue.KW" (PdfValue.pKW (Vector.vecFromRep "BMC"))
-                HS.pure (MarkedContentSeq_1_beginMarkedContent _764)))
+                HS.pure (MarkedContentSeq_1_beginMarkedContent _767)))
          (RTS.pEnter "beginMarkedContentProp"
-            (do (_765 :: MarkedContentSeq_0) <-
+            (do (_768 :: MarkedContentSeq_0) <-
                   do (tag :: Vector.Vector (RTS.UInt 8)) <-
                        RTS.pEnter "PdfValue.Token"
                          (PdfValue.pToken @(Vector.Vector (RTS.UInt 8))
@@ -3018,7 +3036,7 @@ pMarkedContentSeq (pFutureOp :: D.Parser PossibleOp) =
                             (RTS.pEnter "PdfContentStream.ContentProps" pContentProps))
                      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "BDC"))
                      HS.pure (MarkedContentSeq_0 tag props)
-                HS.pure (MarkedContentSeq_1_beginMarkedContentProp _765)))
+                HS.pure (MarkedContentSeq_1_beginMarkedContentProp _768)))
      (page :: Vector.Vector PageDescription_0) <-
        RTS.pEnter "PdfContentStream.PageDescription"
          (pPageDescription pFutureOp)
@@ -3030,7 +3048,7 @@ pCompatOps :: D.Parser PossibleOp -> D.Parser CompatOps
 pCompatOps (pFutureOp :: D.Parser PossibleOp) =
   (RTS.<||)
     (RTS.pEnter "compatSection"
-       (do (_766 :: Vector.Vector PageDescription_0) <-
+       (do (_769 :: Vector.Vector PageDescription_0) <-
              do RTS.pEnter "PdfValue._KW"
                   (PdfValue._KW (Vector.vecFromRep "BX"))
                 (__ :: Vector.Vector PageDescription_0) <-
@@ -3039,10 +3057,10 @@ pCompatOps (pFutureOp :: D.Parser PossibleOp) =
                        (RTS.pEnter "PdfContentStream.PossibleOp" pPossibleOp))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "EX"))
                 HS.pure __
-           HS.pure (CompatOps_compatSection _766)))
+           HS.pure (CompatOps_compatSection _769)))
     (RTS.pEnter "futureOp"
-       (do (_767 :: PossibleOp) <- pFutureOp
-           HS.pure (CompatOps_futureOp _767)))
+       (do (_770 :: PossibleOp) <- pFutureOp
+           HS.pure (CompatOps_futureOp _770)))
  
 pTextObj :: D.Parser PossibleOp -> D.Parser TextObj
  
@@ -3053,35 +3071,35 @@ pTextObj (pFutureOp :: D.Parser PossibleOp) =
        RTS.pMany (RTS.<||)
          ((RTS.<||)
             (RTS.pEnter "graphicsStateOp"
-               (do (_768 :: GenGraphicsStateOp) <-
+               (do (_771 :: GenGraphicsStateOp) <-
                      RTS.pEnter "PdfContentStream.GenGraphicsStateOp"
                        pGenGraphicsStateOp
-                   HS.pure (TextObj_0_graphicsStateOp _768)))
+                   HS.pure (TextObj_0_graphicsStateOp _771)))
             ((RTS.<||)
                (RTS.pEnter "color"
-                  (do (_769 :: ColourOp) <-
+                  (do (_772 :: ColourOp) <-
                         RTS.pEnter "PdfContentStream.ColourOp" pColourOp
-                      HS.pure (TextObj_0_color _769)))
+                      HS.pure (TextObj_0_color _772)))
                ((RTS.<||)
                   (RTS.pEnter "textState"
-                     (do (_770 :: TextStateOp) <-
+                     (do (_773 :: TextStateOp) <-
                            RTS.pEnter "PdfContentStream.TextStateOp" pTextStateOp
-                         HS.pure (TextObj_0_textState _770)))
+                         HS.pure (TextObj_0_textState _773)))
                   ((RTS.<||)
-                     (RTS.pEnter "textShow"
-                        (do (_771 :: TextShowOp) <-
-                              RTS.pEnter "PdfContentStream.TextShowOp" pTextShowOp
-                            HS.pure (TextObj_0_textShow _771)))
+                     (RTS.pEnter "textPos"
+                        (do (_774 :: TextPosOp) <-
+                              RTS.pEnter "PdfContentStream.TextPosOp" pTextPosOp
+                            HS.pure (TextObj_0_textPos _774)))
                      ((RTS.<||)
-                        (RTS.pEnter "textPos"
-                           (do (_772 :: TextPosOp) <-
-                                 RTS.pEnter "PdfContentStream.TextPosOp" pTextPosOp
-                               HS.pure (TextObj_0_textPos _772)))
+                        (RTS.pEnter "textShow"
+                           (do (_775 :: TextShowOp) <-
+                                 RTS.pEnter "PdfContentStream.TextShowOp" pTextShowOp
+                               HS.pure (TextObj_0_textShow _775)))
                         (RTS.pEnter "marked"
-                           (do (_773 :: MarkedContentSeq) <-
+                           (do (_776 :: MarkedContentSeq) <-
                                  RTS.pEnter "PdfContentStream.MarkedContentSeq"
                                    (pMarkedContentSeq pFutureOp)
-                               HS.pure (TextObj_0_marked _773))))))))
+                               HS.pure (TextObj_0_marked _776))))))))
      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "ET"))
      HS.pure (TextObj ops)
  
@@ -3091,16 +3109,16 @@ pSpecialGraphicsStateSeq ::
 pSpecialGraphicsStateSeq (pFutureOps :: D.Parser PossibleOp) =
   (RTS.<||)
     (RTS.pEnter "nesting"
-       (do (_774 :: SpecialGraphicsStateSeq_0) <-
+       (do (_777 :: SpecialGraphicsStateSeq_0) <-
              do RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "q"))
                 (page :: Vector.Vector PageDescription_0) <-
                   RTS.pEnter "PdfContentStream.PageDescription"
                     (pPageDescription pFutureOps)
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "Q"))
                 HS.pure (SpecialGraphicsStateSeq_0 page)
-           HS.pure (SpecialGraphicsStateSeq_nesting _774)))
+           HS.pure (SpecialGraphicsStateSeq_nesting _777)))
     (RTS.pEnter "concatMatrix"
-       (do (_775 :: SpecialGraphicsStateSeq_1) <-
+       (do (_778 :: SpecialGraphicsStateSeq_1) <-
              do (a :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
@@ -3127,7 +3145,7 @@ pSpecialGraphicsStateSeq (pFutureOps :: D.Parser PossibleOp) =
                        (RTS.pEnter "PdfValue.Number" PdfValue.pNumber))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "cm"))
                 HS.pure (SpecialGraphicsStateSeq_1 a b c d e f)
-           HS.pure (SpecialGraphicsStateSeq_concatMatrix _775)))
+           HS.pure (SpecialGraphicsStateSeq_concatMatrix _778)))
  
 pPageDescription ::
       D.Parser PossibleOp -> D.Parser (Vector.Vector PageDescription_0)
@@ -3136,126 +3154,126 @@ pPageDescription (pFutureOp :: D.Parser PossibleOp) =
   RTS.pMany (RTS.<||)
     ((RTS.<||)
        (RTS.pEnter "genGraphics"
-          (do (_776 :: GenGraphicsStateOp) <-
+          (do (_779 :: GenGraphicsStateOp) <-
                 RTS.pEnter "PdfContentStream.GenGraphicsStateOp"
                   pGenGraphicsStateOp
-              HS.pure (PageDescription_0_genGraphics _776)))
+              HS.pure (PageDescription_0_genGraphics _779)))
        ((RTS.<||)
           (RTS.pEnter "specialGraphics"
-             (do (_777 :: SpecialGraphicsStateSeq) <-
+             (do (_780 :: SpecialGraphicsStateSeq) <-
                    RTS.pEnter "PdfContentStream.SpecialGraphicsStateSeq"
                      (pSpecialGraphicsStateSeq pFutureOp)
-                 HS.pure (PageDescription_0_specialGraphics _777)))
+                 HS.pure (PageDescription_0_specialGraphics _780)))
           ((RTS.<||)
              (RTS.pEnter "colour"
-                (do (_778 :: ColourOp) <-
+                (do (_781 :: ColourOp) <-
                       RTS.pEnter "PdfContentStream.ColourOp" pColourOp
-                    HS.pure (PageDescription_0_colour _778)))
+                    HS.pure (PageDescription_0_colour _781)))
              ((RTS.<||)
                 (RTS.pEnter "textState"
-                   (do (_779 :: TextStateOp) <-
+                   (do (_782 :: TextStateOp) <-
                          RTS.pEnter "PdfContentStream.TextStateOp" pTextStateOp
-                       HS.pure (PageDescription_0_textState _779)))
+                       HS.pure (PageDescription_0_textState _782)))
                 ((RTS.<||)
                    (RTS.pEnter "markedContent"
-                      (do (_780 :: MarkedContentSeq) <-
+                      (do (_783 :: MarkedContentSeq) <-
                             RTS.pEnter "PdfContentStream.MarkedContentSeq"
                               (pMarkedContentSeq pFutureOp)
-                          HS.pure (PageDescription_0_markedContent _780)))
+                          HS.pure (PageDescription_0_markedContent _783)))
                    ((RTS.<||)
                       (RTS.pEnter "textObj"
-                         (do (_781 :: TextObj) <-
+                         (do (_784 :: TextObj) <-
                                RTS.pEnter "PdfContentStream.TextObj" (pTextObj pFutureOp)
-                             HS.pure (PageDescription_0_textObj _781)))
+                             HS.pure (PageDescription_0_textObj _784)))
                       ((RTS.<||)
                          (RTS.pEnter "shadingObj"
-                            (do (_782 :: ShadingObj) <-
+                            (do (_785 :: ShadingObj) <-
                                   RTS.pEnter "PdfContentStream.ShadingObj" pShadingObj
-                                HS.pure (PageDescription_0_shadingObj _782)))
+                                HS.pure (PageDescription_0_shadingObj _785)))
                          ((RTS.<||)
                             (RTS.pEnter "xObj"
-                               (do (_783 :: XObj) <- RTS.pEnter "PdfContentStream.XObj" pXObj
-                                   HS.pure (PageDescription_0_xObj _783)))
+                               (do (_786 :: XObj) <- RTS.pEnter "PdfContentStream.XObj" pXObj
+                                   HS.pure (PageDescription_0_xObj _786)))
                             ((RTS.<||)
                                (RTS.pEnter "inlineObj"
-                                  (do (_784 :: InlineImageObj) <-
+                                  (do (_787 :: InlineImageObj) <-
                                         RTS.pEnter "PdfContentStream.InlineImageObj" pInlineImageObj
-                                      HS.pure (PageDescription_0_inlineObj _784)))
+                                      HS.pure (PageDescription_0_inlineObj _787)))
                                ((RTS.<||)
                                   (RTS.pEnter "pathObj"
-                                     (do (_785 :: PathObj) <-
+                                     (do (_788 :: PathObj) <-
                                            RTS.pEnter "PdfContentStream.PathObj" pPathObj
-                                         HS.pure (PageDescription_0_pathObj _785)))
+                                         HS.pure (PageDescription_0_pathObj _788)))
                                   (RTS.pEnter "compat"
-                                     (do (_786 :: CompatOps) <-
+                                     (do (_789 :: CompatOps) <-
                                            RTS.pEnter "PdfContentStream.CompatOps"
                                              (pCompatOps pFutureOp)
-                                         HS.pure (PageDescription_0_compat _786)))))))))))))
+                                         HS.pure (PageDescription_0_compat _789)))))))))))))
  
 pColorSpace :: D.Parser ColorSpace
  
 pColorSpace =
   (RTS.<||)
     (RTS.pEnter "calRGB"
-       (do (_787 :: Vector.Vector (RTS.UInt 8)) <-
+       (do (_790 :: Vector.Vector (RTS.UInt 8)) <-
              HS.pure (Vector.vecFromRep "/CalRGB")
-           HS.pure (ColorSpace_calRGB _787)))
+           HS.pure (ColorSpace_calRGB _790)))
     ((RTS.<||)
        (RTS.pEnter "calGray"
-          (do (_788 :: Vector.Vector (RTS.UInt 8)) <-
+          (do (_791 :: Vector.Vector (RTS.UInt 8)) <-
                 HS.pure (Vector.vecFromRep "CalGray")
-              HS.pure (ColorSpace_calGray _788)))
+              HS.pure (ColorSpace_calGray _791)))
        ((RTS.<||)
           (RTS.pEnter "lab"
-             (do (_789 :: Vector.Vector (RTS.UInt 8)) <-
+             (do (_792 :: Vector.Vector (RTS.UInt 8)) <-
                    HS.pure (Vector.vecFromRep "/Lab")
-                 HS.pure (ColorSpace_lab _789)))
+                 HS.pure (ColorSpace_lab _792)))
           ((RTS.<||)
              (RTS.pEnter "iccBased"
-                (do (_790 :: Vector.Vector (RTS.UInt 8)) <-
+                (do (_793 :: Vector.Vector (RTS.UInt 8)) <-
                       HS.pure (Vector.vecFromRep "/ICCBased")
-                    HS.pure (ColorSpace_iccBased _790)))
+                    HS.pure (ColorSpace_iccBased _793)))
              ((RTS.<||)
                 (RTS.pEnter "deviceRGB"
-                   (do (_791 :: Vector.Vector (RTS.UInt 8)) <-
+                   (do (_794 :: Vector.Vector (RTS.UInt 8)) <-
                          HS.pure (Vector.vecFromRep "/DeviceRGB")
-                       HS.pure (ColorSpace_deviceRGB _791)))
+                       HS.pure (ColorSpace_deviceRGB _794)))
                 ((RTS.<||)
                    (RTS.pEnter "deviceCMYK"
-                      (do (_792 :: Vector.Vector (RTS.UInt 8)) <-
+                      (do (_795 :: Vector.Vector (RTS.UInt 8)) <-
                             HS.pure (Vector.vecFromRep "/DeviceCMYK")
-                          HS.pure (ColorSpace_deviceCMYK _792)))
+                          HS.pure (ColorSpace_deviceCMYK _795)))
                    ((RTS.<||)
                       (RTS.pEnter "deviceGray"
-                         (do (_793 :: Vector.Vector (RTS.UInt 8)) <-
+                         (do (_796 :: Vector.Vector (RTS.UInt 8)) <-
                                HS.pure (Vector.vecFromRep "/DeviceGray")
-                             HS.pure (ColorSpace_deviceGray _793)))
+                             HS.pure (ColorSpace_deviceGray _796)))
                       ((RTS.<||)
                          (RTS.pEnter "sep"
-                            (do (_794 :: Vector.Vector (RTS.UInt 8)) <-
+                            (do (_797 :: Vector.Vector (RTS.UInt 8)) <-
                                   HS.pure (Vector.vecFromRep "/Separation")
-                                HS.pure (ColorSpace_sep _794)))
+                                HS.pure (ColorSpace_sep _797)))
                          ((RTS.<||)
                             (RTS.pEnter "devN"
-                               (do (_795 :: Vector.Vector (RTS.UInt 8)) <-
+                               (do (_798 :: Vector.Vector (RTS.UInt 8)) <-
                                      HS.pure (Vector.vecFromRep "/DeviceN")
-                                   HS.pure (ColorSpace_devN _795)))
+                                   HS.pure (ColorSpace_devN _798)))
                             ((RTS.<||)
                                (RTS.pEnter "indexed"
-                                  (do (_796 :: Vector.Vector (RTS.UInt 8)) <-
+                                  (do (_799 :: Vector.Vector (RTS.UInt 8)) <-
                                         HS.pure (Vector.vecFromRep "/Indexed")
-                                      HS.pure (ColorSpace_indexed _796)))
+                                      HS.pure (ColorSpace_indexed _799)))
                                (RTS.pEnter "pattern"
-                                  (do (_797 :: Vector.Vector (RTS.UInt 8)) <-
+                                  (do (_800 :: Vector.Vector (RTS.UInt 8)) <-
                                         HS.pure (Vector.vecFromRep "/Pattern")
-                                      HS.pure (ColorSpace_pattern _797))))))))))))
+                                      HS.pure (ColorSpace_pattern _800))))))))))))
  
 pFontOp :: D.Parser FontOp
  
 pFontOp =
   (RTS.<||)
     (RTS.pEnter "setGlyphWidth"
-       (do (_798 :: FontOp_0) <-
+       (do (_801 :: FontOp_0) <-
              do (wx :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
@@ -3263,12 +3281,12 @@ pFontOp =
                 RTS.pEnter "PdfValue._Token"
                   (PdfValue._Token @(RTS.UInt 8)
                      (HS.const ()
-                        HS.<$> RTS.pMatch1 "285:12--285:21" (RTS.bcSingle (RTS.uint8 48))))
+                        HS.<$> RTS.pMatch1 "300:12--300:21" (RTS.bcSingle (RTS.uint8 48))))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "d0"))
                 HS.pure (FontOp_0 wx)
-           HS.pure (FontOp_setGlyphWidth _798)))
+           HS.pure (FontOp_setGlyphWidth _801)))
     (RTS.pEnter "setGlpyhWidthBoundingBox"
-       (do (_799 :: FontOp_1) <-
+       (do (_802 :: FontOp_1) <-
              do (wx :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
@@ -3276,7 +3294,7 @@ pFontOp =
                 RTS.pEnter "PdfValue._Token"
                   (PdfValue._Token @(RTS.UInt 8)
                      (HS.const ()
-                        HS.<$> RTS.pMatch1 "290:12--290:21" (RTS.bcSingle (RTS.uint8 48))))
+                        HS.<$> RTS.pMatch1 "305:12--305:21" (RTS.bcSingle (RTS.uint8 48))))
                 (llx :: PdfValue.Number) <-
                   RTS.pEnter "PdfValue.Token"
                     (PdfValue.pToken @PdfValue.Number
@@ -3296,10 +3314,10 @@ pFontOp =
                 RTS.pEnter "PdfValue._Token"
                   (PdfValue._Token @(RTS.UInt 8)
                      (HS.const ()
-                        HS.<$> RTS.pMatch1 "295:12--295:21" (RTS.bcSingle (RTS.uint8 48))))
+                        HS.<$> RTS.pMatch1 "310:12--310:21" (RTS.bcSingle (RTS.uint8 48))))
                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "d1"))
                 HS.pure (FontOp_1 wx llx lly urx ury)
-           HS.pure (FontOp_setGlpyhWidthBoundingBox _799)))
+           HS.pure (FontOp_setGlpyhWidthBoundingBox _802)))
  
 pContentStream :: D.Parser (Vector.Vector PageDescription_0)
  
@@ -3333,20 +3351,20 @@ _Fractional :: D.Parser ()
 _Fractional =
   do (__ :: PdfValue.Number) <-
        RTS.pEnter "PdfValue.Number" PdfValue.pNumber
-     do (_693 :: Fractional_0) <-
+     do (_695 :: Fractional_0) <-
           do (num :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
              (exp :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
              HS.pure (Fractional_0 num exp)
         RTS.pEnter "PdfContentStream._Cmp"
-          (_Cmp @Fractional_0 @PdfValue.Number @HS.Integer @HS.Integer _693
+          (_Cmp @Fractional_0 @PdfValue.Number @HS.Integer @HS.Integer _695
              __)
-     (_694 :: Fractional_1) <-
+     (_696 :: Fractional_1) <-
        do (num :: HS.Integer) <- HS.pure (RTS.lit 1 :: HS.Integer)
           (exp :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
           HS.pure (Fractional_1 num exp)
      RTS.pEnter "PdfContentStream._Cmp"
        (_Cmp @PdfValue.Number @Fractional_1 @HS.Integer @HS.Integer __
-          _694)
+          _696)
  
 _BoundedNonNeg ::
   forall a.
@@ -3520,13 +3538,13 @@ _GenGraphicsStateOp =
                       (RTS.pEnter "setFlat"
                          (do RTS.pEnter "PdfValue._Token"
                                (PdfValue._Token @PdfValue.Number
-                                  (do (_727 :: GenGraphicsStateOp_6) <-
+                                  (do (_729 :: GenGraphicsStateOp_6) <-
                                         do (num :: HS.Integer) <-
                                              HS.pure (RTS.lit 100 :: HS.Integer)
                                            (exp :: HS.Integer) <- HS.pure (RTS.lit 0 :: HS.Integer)
                                            HS.pure (GenGraphicsStateOp_6 num exp)
                                       RTS.pEnter "PdfContentStream._BoundedNonNeg"
-                                        (_BoundedNonNeg @GenGraphicsStateOp_6 _727)))
+                                        (_BoundedNonNeg @GenGraphicsStateOp_6 _729)))
                              RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "i"))))
                       (RTS.pEnter "setGraphicsStateParams"
                          (do RTS.pEnter "PdfValue._Token"
@@ -3819,53 +3837,77 @@ _InlineImageObj =
      RTS.pEnter "PdfValue._SimpleEOL" PdfValue._SimpleEOL
      RTS.pSkipMany (RTS.<||)
        (HS.const ()
-          HS.<$> RTS.pMatch1 "426:21--426:40"
+          HS.<$> RTS.pMatch1 "441:21--441:40"
                    (RTS.bcComplement (RTS.bcUnion PdfValue.cs_lf PdfValue.cs_cr)))
      RTS.pEnter "PdfValue._SimpleEOL" PdfValue._SimpleEOL
      RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "EI"))
+ 
+_PathBeginOp :: D.Parser ()
+ 
+_PathBeginOp =
+  (RTS.<||)
+    (RTS.pEnter "beginNewSuppath"
+       (do RTS.pEnter "PdfValue._Token"
+             (PdfValue._Token @ContentPoint
+                (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
+           RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "m"))))
+    (RTS.pEnter "appendRect"
+       (do RTS.pEnter "PdfValue._Token"
+             (PdfValue._Token @ContentPoint
+                (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
+           RTS.pEnter "PdfValue._Token"
+             (PdfValue._Token @PdfValue.Number
+                (RTS.pEnter "PdfValue._Number" PdfValue._Number))
+           RTS.pEnter "PdfValue._Token"
+             (PdfValue._Token @PdfValue.Number
+                (RTS.pEnter "PdfValue._Number" PdfValue._Number))
+           RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "re"))))
  
 _PathConsOp :: D.Parser ()
  
 _PathConsOp =
   (RTS.<||)
-    (RTS.pEnter "appendLine"
-       (do RTS.pEnter "PdfValue._Token"
-             (PdfValue._Token @ContentPoint
-                (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-           RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "l"))))
+    (RTS.pEnter "beginSubpath"
+       (RTS.pEnter "PdfContentStream._PathBeginOp" _PathBeginOp))
     ((RTS.<||)
-       (RTS.pEnter "appendCurvedThreePoints"
+       (RTS.pEnter "appendLine"
           (do RTS.pEnter "PdfValue._Token"
                 (PdfValue._Token @ContentPoint
                    (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-              RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @ContentPoint
-                   (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-              RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @ContentPoint
-                   (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-              RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "c"))))
+              RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "l"))))
        ((RTS.<||)
-          (RTS.pEnter "appendCurvedInitPtRepl"
+          (RTS.pEnter "appendCurvedThreePoints"
              (do RTS.pEnter "PdfValue._Token"
                    (PdfValue._Token @ContentPoint
                       (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
                  RTS.pEnter "PdfValue._Token"
                    (PdfValue._Token @ContentPoint
                       (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "v"))))
+                 RTS.pEnter "PdfValue._Token"
+                   (PdfValue._Token @ContentPoint
+                      (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
+                 RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "c"))))
           ((RTS.<||)
-             (RTS.pEnter "appendCurvedFinalPt"
+             (RTS.pEnter "appendCurvedInitPtRepl"
                 (do RTS.pEnter "PdfValue._Token"
                       (PdfValue._Token @ContentPoint
                          (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
                     RTS.pEnter "PdfValue._Token"
                       (PdfValue._Token @ContentPoint
                          (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "y"))))
-             (RTS.pEnter "closeSubpath"
-                (RTS.pEnter "PdfValue._KW"
-                   (PdfValue._KW (Vector.vecFromRep "h")))))))
+                    RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "v"))))
+             ((RTS.<||)
+                (RTS.pEnter "appendCurvedFinalPt"
+                   (do RTS.pEnter "PdfValue._Token"
+                         (PdfValue._Token @ContentPoint
+                            (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
+                       RTS.pEnter "PdfValue._Token"
+                         (PdfValue._Token @ContentPoint
+                            (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
+                       RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "y"))))
+                (RTS.pEnter "closeSubpath"
+                   (RTS.pEnter "PdfValue._KW"
+                      (PdfValue._KW (Vector.vecFromRep "h"))))))))
  
 _ClippingPathOp :: D.Parser ()
  
@@ -3880,23 +3922,7 @@ _ClippingPathOp =
 _PathObj :: D.Parser ()
  
 _PathObj =
-  do (RTS.<||)
-       (RTS.pEnter "beginNewSuppath"
-          (do RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @ContentPoint
-                   (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-              RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "m"))))
-       (RTS.pEnter "appendRect"
-          (do RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @ContentPoint
-                   (RTS.pEnter "PdfContentStream._ContentPoint" _ContentPoint))
-              RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @PdfValue.Number
-                   (RTS.pEnter "PdfValue._Number" PdfValue._Number))
-              RTS.pEnter "PdfValue._Token"
-                (PdfValue._Token @PdfValue.Number
-                   (RTS.pEnter "PdfValue._Number" PdfValue._Number))
-              RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "re"))))
+  do RTS.pEnter "PdfContentStream._PathBeginOp" _PathBeginOp
      RTS.pSkipMany (RTS.<||)
        (RTS.pEnter "PdfContentStream._PathConsOp" _PathConsOp)
      (RTS.<||)
@@ -3970,11 +3996,11 @@ _TextObj (pFutureOp :: D.Parser PossibleOp) =
                 (RTS.pEnter "textState"
                    (RTS.pEnter "PdfContentStream._TextStateOp" _TextStateOp))
                 ((RTS.<||)
-                   (RTS.pEnter "textShow"
-                      (RTS.pEnter "PdfContentStream._TextShowOp" _TextShowOp))
+                   (RTS.pEnter "textPos"
+                      (RTS.pEnter "PdfContentStream._TextPosOp" _TextPosOp))
                    ((RTS.<||)
-                      (RTS.pEnter "textPos"
-                         (RTS.pEnter "PdfContentStream._TextPosOp" _TextPosOp))
+                      (RTS.pEnter "textShow"
+                         (RTS.pEnter "PdfContentStream._TextShowOp" _TextShowOp))
                       (RTS.pEnter "marked"
                          (RTS.pEnter "PdfContentStream._MarkedContentSeq"
                             (_MarkedContentSeq pFutureOp))))))))
@@ -4081,7 +4107,7 @@ _FontOp =
            RTS.pEnter "PdfValue._Token"
              (PdfValue._Token @(RTS.UInt 8)
                 (HS.const ()
-                   HS.<$> RTS.pMatch1 "285:12--285:21" (RTS.bcSingle (RTS.uint8 48))))
+                   HS.<$> RTS.pMatch1 "300:12--300:21" (RTS.bcSingle (RTS.uint8 48))))
            RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "d0"))))
     (RTS.pEnter "setGlpyhWidthBoundingBox"
        (do RTS.pEnter "PdfValue._Token"
@@ -4090,7 +4116,7 @@ _FontOp =
            RTS.pEnter "PdfValue._Token"
              (PdfValue._Token @(RTS.UInt 8)
                 (HS.const ()
-                   HS.<$> RTS.pMatch1 "290:12--290:21" (RTS.bcSingle (RTS.uint8 48))))
+                   HS.<$> RTS.pMatch1 "305:12--305:21" (RTS.bcSingle (RTS.uint8 48))))
            RTS.pEnter "PdfValue._Token"
              (PdfValue._Token @PdfValue.Number
                 (RTS.pEnter "PdfValue._Number" PdfValue._Number))
@@ -4106,7 +4132,7 @@ _FontOp =
            RTS.pEnter "PdfValue._Token"
              (PdfValue._Token @(RTS.UInt 8)
                 (HS.const ()
-                   HS.<$> RTS.pMatch1 "295:12--295:21" (RTS.bcSingle (RTS.uint8 48))))
+                   HS.<$> RTS.pMatch1 "310:12--310:21" (RTS.bcSingle (RTS.uint8 48))))
            RTS.pEnter "PdfValue._KW" (PdfValue._KW (Vector.vecFromRep "d1"))))
  
 _ContentStream :: D.Parser ()

@@ -5,7 +5,7 @@ module T046
 --- Type defs:
 type T046.Main = { a1: int
                  ; a2: int
-                 ; m: Map int int
+                 ; m: Map (uint 64) int
                  ; a3: int
                  ; a4: int
                  }
@@ -16,36 +16,36 @@ T046.l1 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (xs : ?a
   for ((s : int) = 0; (x : int) in xs)
     (s + x)
  
-T046.l2 ?a0 (Traversable ?a0) (HasKey ?a0 int) (HasElement ?a0 int) (xs : ?a0) : int =
-  for ((s : int) = 0; (k : int), (x : int) in xs)
-    ((s + x) + k)
+T046.l2 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (Coerce safe ?a2 int) (xs : ?a0) : int =
+  for ((s : int) = 0; (k : ?a2), (x : int) in xs)
+    ((s + x) + (k as int))
  
-T046.ExampleMap : Grammar (Map int int) =
-  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
-                                                           6,
-                                                           7])
+T046.ExampleMap : Grammar (Map (uint 64) int) =
+  for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in [5,
+                                                                     6,
+                                                                     7])
     (Insert k x s)
  
 T046.Main : Grammar T046.Main =
-  do (a1 : int) <- pure (T046.l1 [int] int [1,
-                                            2,
-                                            3])
-     (a2 : int) <- pure (T046.l2 [int] [1,
-                                        2,
-                                        3])
-     (m : Map int int) <- T046.ExampleMap
-     (a3 : int) <- pure (T046.l1 (Map int int) int m)
-     (a4 : int) <- pure (T046.l2 (Map int int) m)
+  do (a1 : int) <- pure (T046.l1 [int] (uint 64) [1,
+                                                  2,
+                                                  3])
+     (a2 : int) <- pure (T046.l2 [int] (uint 64) [1,
+                                                  2,
+                                                  3])
+     (m : Map (uint 64) int) <- T046.ExampleMap
+     (a3 : int) <- pure (T046.l1 (Map (uint 64) int) (uint 64) m)
+     (a4 : int) <- pure (T046.l2 (Map (uint 64) int) (uint 64) m)
      pure {a1 = a1,
            a2 = a2,
            m = m,
            a3 = a3,
            a4 = a4}
  
-T046._ExampleMap : Grammar (Map int int) =
-  for ((s : Map int int) = empty; (k : int), (x : int) in [5,
-                                                           6,
-                                                           7])
+T046._ExampleMap : Grammar (Map (uint 64) int) =
+  for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in [5,
+                                                                     6,
+                                                                     7])
     (Insert k x s)
  
 T046._Main : Grammar {} =

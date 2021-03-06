@@ -5,6 +5,7 @@ import Control.Monad
 import Data.List.NonEmpty(NonEmpty(..))
 
 import RTS.Input
+import RTS.Numeric(intToSize)
 import RTS.ParserAPI
 
 
@@ -150,7 +151,7 @@ instance BasicParser Parser where
          Just (_,i1) -> pErrorAt FromSystem [r] i1 "unexpected left over input"
   {-# INLINE pEnd #-}
 
-  pOffset = inputOffset <$> pPeek
+  pOffset = intToSize . inputOffset <$> pPeek
   {-# INLINE pOffset #-}
 
   pMatch1 erng (ClassVal p str) =
