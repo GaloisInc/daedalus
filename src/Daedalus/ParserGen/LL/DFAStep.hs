@@ -29,7 +29,7 @@ module Daedalus.ParserGen.LL.DFAStep
 
 import qualified Data.Set as Set
 
-import Daedalus.ParserGen.Action (State, InputAction(..), getClassActOrEnd)
+import Daedalus.ParserGen.Action (State)
 import Daedalus.ParserGen.Aut (Aut(..), stateToString)
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.Result
@@ -138,14 +138,18 @@ partitionDFARegistry s test =
   let llst = helper (initIteratorDFARegistry s) [] in
     map (\ (_, lst) -> lst) llst
   where
-    helper :: IteratorDFARegistry -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ]
+    helper ::
+      IteratorDFARegistry -> [ (DFAEntry, [DFAEntry]) ] ->
+      [ (DFAEntry, [DFAEntry]) ]
     helper iter part =
       case nextIteratorDFARegistry iter of
         Nothing -> part
         Just (x, xs) ->
           helper xs (insertInPartition x part [])
 
-    insertInPartition :: DFAEntry -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ]
+    insertInPartition ::
+      DFAEntry -> [ (DFAEntry, [DFAEntry]) ] -> [ (DFAEntry, [DFAEntry]) ] ->
+      [ (DFAEntry, [DFAEntry]) ]
     insertInPartition x part acc =
       case part of
         [] -> reverse ((x,[x]) : acc)
@@ -187,7 +191,8 @@ emptyDetChoice =
   }
 
 
-insertDetChoiceAccepting :: SourceCfg -> Closure.ClosureMove -> DetChoice -> DetChoice
+insertDetChoiceAccepting ::
+  SourceCfg -> Closure.ClosureMove -> DetChoice -> DetChoice
 insertDetChoiceAccepting src cm detChoice =
   let q = singletonDFARegistry (DFAEntry src cm) in
   let acceptingDetChoice' =
@@ -198,7 +203,8 @@ insertDetChoiceAccepting src cm detChoice =
 
 
 
-insertDetChoiceInputHeadCondition :: SourceCfg -> Slk.InputHeadCondition -> Closure.ClosureMove -> DetChoice -> DetChoice
+insertDetChoiceInputHeadCondition ::
+  SourceCfg -> Slk.InputHeadCondition -> Closure.ClosureMove -> DetChoice -> DetChoice
 insertDetChoiceInputHeadCondition src ih cm detChoice =
   let q = singletonDFARegistry (DFAEntry src cm) in
   case ih of
@@ -216,7 +222,16 @@ insertDetChoiceInputHeadCondition src ih cm detChoice =
 
 
 unionDetChoice :: DetChoice -> DetChoice -> DetChoice
-unionDetChoice (DetChoice acc1 e1 cl1) (DetChoice acc2 e2 cl2) =
+unionDetChoice
+  (DetChoice
+   { acceptingDetChoice = acc1
+   , endDetChoice = e1
+   , classDetChoice = cl1})
+  (DetChoice
+   { acceptingDetChoice = acc2
+   , endDetChoice = e2
+   , classDetChoice = cl2})
+  =
   let acc3 =
         case (acc1, acc2) of
           (Nothing, _) -> acc2
@@ -224,14 +239,17 @@ unionDetChoice (DetChoice acc1 e1 cl1) (DetChoice acc2 e2 cl2) =
           (Just a1, Just a2) -> Just (unionDFARegistry a1 a2)
 
       e3 =
-        case (e1,e2) of
-          (Nothing, Nothing) -> Nothing
-          (Nothing, Just _tr2) -> e2
-          (Just _tr1, Nothing) -> e1
+        case (e1, e2) of
+          (Nothing, _) -> e2
+          (_, Nothing) -> e1
           (Just tr1, Just tr2) -> Just (unionDFARegistry tr1 tr2)
   in
-  let cl3 =
-        foldr (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFARegistry) cl2 cl1
+  let
+    cl3 =
+      foldr
+      (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFARegistry)
+      cl2
+      cl1
   in DetChoice acc3 e3 cl3
 
 
@@ -242,7 +260,8 @@ determinizeMove src tc =
   determinizeWithAccu tc Nothing emptyDetChoice
 
   where
-    determinizeWithAccu :: Closure.ClosureMoveSet -> Maybe Slk.SlkInput -> DetChoice -> Result DetChoice
+    determinizeWithAccu ::
+      Closure.ClosureMoveSet -> Maybe Slk.SlkInput -> DetChoice -> Result DetChoice
     determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
@@ -253,24 +272,14 @@ determinizeMove src tc =
             resAcc =
               case t of
                 Closure.ClosureMove {} ->
-                  let
-                    (_pos, act, _q) = Closure.moveCfg t
-                  in
-                    case getClassActOrEnd act of
-                      Left (Left c) ->
-                        let res = classToInterval c in
-                        case res of
-                          Abort AbortClassIsDynamic -> coerceAbort res
-                          Abort (AbortClassNotHandledYet _) -> coerceAbort res
-                          Result r ->
-                            Result $ insertDetChoiceInputHeadCondition src (Slk.HeadInput r) t acc
-
-                          _ -> error "Impossible abort"
-                      Left (Right (IGetByte _)) ->
-                        Result $ insertDetChoiceInputHeadCondition src (Slk.HeadInput (ClassBtw (CValue 0) (CValue 255))) t acc
-                      Right IEnd ->
-                        Result $ insertDetChoiceInputHeadCondition src Slk.EndInput t acc
-                      _ -> error "Impossible case"
+                  let (_pos, act, _q) = Closure.moveCfg t in
+                  let mIhc = Slk.convertActionToInputHeadCondition act in
+                  case mIhc of
+                    Abort AbortClassIsDynamic -> coerceAbort mIhc
+                    Abort (AbortClassNotHandledYet _) -> coerceAbort mIhc
+                    Result ihc ->
+                      Result $ insertDetChoiceInputHeadCondition src ihc t acc
+                    _ -> error "Impossible abort"
                 Closure.ClosureAccepting {} ->
                   Result $ insertDetChoiceAccepting src t acc
                 _ -> error "impossible case"

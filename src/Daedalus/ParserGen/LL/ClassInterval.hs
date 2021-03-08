@@ -150,11 +150,15 @@ combineInterval itv1 itv2 =
             (GT, GT) -> [(itv1, A1), (itv2, A2)]
 
 
-insertItvInOrderedList :: forall a. (ClassInterval, a) -> [(ClassInterval, a)] -> (a -> a -> a) -> [(ClassInterval,a)]
+insertItvInOrderedList ::
+  forall a.
+  (ClassInterval, a) -> [(ClassInterval, a)] -> (a -> a -> a) -> [(ClassInterval,a)]
 insertItvInOrderedList (itv, a) lstItv merge =
   step [] (itv,a) lstItv
   where
-    step :: [(ClassInterval, a)] -> (ClassInterval, a) -> [(ClassInterval, a)] -> [(ClassInterval, a)]
+    step ::
+      [(ClassInterval, a)] -> (ClassInterval, a) -> [(ClassInterval, a)] ->
+      [(ClassInterval, a)]
     step acc (itv1, a1) lst =
       case lst of
         [] -> reverse acc ++ [(itv1, a1)]
@@ -162,7 +166,9 @@ insertItvInOrderedList (itv, a) lstItv merge =
           let comb = combineInterval itv1 itv2 in
             insertComb a1 a2 acc (reverse comb) rest
 
-    insertComb :: a -> a -> [(ClassInterval, a)] -> [(ClassInterval, Who)] -> [(ClassInterval, a)] -> [(ClassInterval, a)]
+    insertComb ::
+      a -> a -> [(ClassInterval, a)] -> [(ClassInterval, Who)] -> [(ClassInterval, a)] ->
+      [(ClassInterval, a)]
     insertComb a1 a2 acc revComb rest =
       case revComb of
         [] -> error "nothing"
