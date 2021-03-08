@@ -13,6 +13,7 @@ copyright:           2019, Galois Inc
 build-type:          Simple
 extra-source-files:
   CHANGELOG.md,
+  spec/PdfDecl.ddl,
   spec/PdfDemo.ddl,
   spec/ISOCodes.ddl,
   spec/PdfText.ddl,

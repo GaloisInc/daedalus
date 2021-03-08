@@ -40,10 +40,10 @@ def ObjectStreamEntry (oid : Nat) = {
 
 def ObjStreamMeta first = {
   oid     = Token Natural;
-  off     = (Token Natural as uint 64) + first;
+  off     = Token Natural + first;
 }
 
-def ObjectStream (n : uint 64) (first : uint 64) = {
+def ObjectStream (n : Nat) (first : Nat) = {
   @meta = Many n (ObjStreamMeta first);
   map (entry in meta) {
     @here = Offset;
@@ -53,7 +53,7 @@ def ObjectStream (n : uint 64) (first : uint 64) = {
   };
 }
 
-def ObjectStreamNth (n : uint 64) (first : Nat) (idx : Nat) = {
+def ObjectStreamNth (n : Nat) (first : Nat) (idx : Nat) = {
   -- FIXME: only really need to parse up to idx
   @meta  = Many n (ObjStreamMeta first);
   @entry = Index meta idx;
@@ -91,17 +91,16 @@ def ResolveValRef (r : Ref) : Value = {
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
   @stm = ResolveStream v;
   CheckType "ObjStm" stm.header;
-  @n       = LookupSize "N" stm.header;
-  @first   = LookupSize "First" stm.header;
+  @n       = LookupNat "N" stm.header;
+  @first   = LookupNat "First" stm.header;
   WithStream (stm.body is ok) (ObjectStream n first);
 }
 
-def ResolveObjectStreamEntry
-      (oid : Nat) (gen : Nat) (idx : uint 64) : TopDecl = {
+def ResolveObjectStreamEntry (oid : Nat) (gen : Nat) (idx : Nat) : TopDecl = {
   @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
   CheckType "ObjStm" stm.header;
-  @n       = LookupSize "N"     stm.header;
-  @first   = LookupSize "First" stm.header;
+  @n       = LookupNat "N" stm.header;
+  @first   = LookupNat "First" stm.header;
   @s       = stm.body is ok;
   @entry   = WithStream s (ObjectStreamNth n first idx);
   ^ { id = entry.oid; gen = 0; obj = {| value = entry.val |} };
@@ -134,7 +133,7 @@ def StreamBody header = Token {
 def StreamLen header = {
   @lenV = LookupResolve "Length" header;
   @lenI = lenV is number;
-  NumberAsNat lenI as uint 64;
+  NumberAsNat lenI;
 }
 
 -- Section 7.3.8.2
@@ -155,7 +154,7 @@ def Filter (name : Value) (param : Value) = {
   param = FilterParam param;
 }
 
-def FilterParam (param : Value) =
+def FilterParam param =
     { param      is null; ^ nothing }
   | { @x = param is dict; ^ just x }
 
@@ -324,8 +323,6 @@ def LookupNat k m =
     @v  = vV is number;
     NumberAsNat v; 
   }
-
-def LookupSize k m = LookupNat k m as uint 64
 
 def LookupNats k m = {
   @kV = LookupResolve k m : Value;

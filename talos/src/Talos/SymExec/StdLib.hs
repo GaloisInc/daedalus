@@ -2,7 +2,9 @@
 module Talos.SymExec.StdLib (
   makeStdLib,
   -- * Model types
-  tModel,  
+  tModel,
+  -- * Monadic results
+  tResult,
   -- * Convenience wrappers for SMT
   -- ** Syntactic helpers
   mklet,
@@ -69,6 +71,9 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     ]
 
   S.declareDatatype s "Unit"  []  [ ("unit", []) ]
+
+  -- Define 'Byte' as a bv8
+  S.ackCommand s (S.fun "define-sort" [S.const "Byte", S.List [], S.tBits 8])
   
   -- This has to be correct by construction, as the reason it is
   -- needed is that we can't write a polymorphic length function in
@@ -88,6 +93,11 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     , ("seq",     [("mfst", S.const "Model"), ("msnd", S.const "Model")])
     ]
 
+  S.declareDatatype s "Result" ["t"]
+    [ ("failure", [])
+    , ("success", [("get-result", S.const "t")])
+    ]
+
   -- A stub for now
   S.declareDatatype s "Map" ["k", "v"]
     [ ("mk-Map", [ ("vals", S.tArray (S.const "k") (S.const "v"))
@@ -96,13 +106,11 @@ makeStdLib = withSolver $ \s -> liftIO $ do
     ]
 
   -- Grammar operations
-  void $ S.defineFun s "getByteP" [("$rel", tBytes), ("$res", tByte)] S.tBool
-    $ let rel = S.const "$rel"
-          res = S.const "$res"
-      in S.andMany [ S.not (S.fun "is-nil" [rel])
-                   , S.eq (S.fun "head" [rel]) res
-                   , S.fun "is-nil" [S.fun "tail" [rel]]
-                   ]
+  void $ S.defineFun s "$get-byte" [("$bytes", tBytes)] (tResult tByte)
+    $ let bytes = S.const "$bytes"
+      in S.ite (S.andMany [ S.not (S.fun "is-nil" [bytes])
+                          , S.fun "is-nil" [S.fun "tail" [bytes]]
+                          ]) (S.fun "success" [S.fun "head" [bytes]]) (S.as (S.const "failure") (tResult tByte))
 
 -- Get around SMT monomorphic function restriction
 -- lookupMap :: SExpr -> SExpr -> SExpr -> SExpr
@@ -164,7 +172,7 @@ sFromList :: SExpr -> [SExpr] -> SExpr
 sFromList elT = foldr sCons (sNil elT)
 
 tByte :: SExpr
-tByte = S.tBits 8
+tByte = S.const "Byte"
 
 tBytes :: SExpr
 tBytes = tList tByte
@@ -216,3 +224,6 @@ sGetRight v = S.fun "get-Right" [v]
 
 tModel :: SExpr
 tModel = S.const "Model"
+
+tResult :: SExpr -> SExpr
+tResult t = S.fun "Result" [t]

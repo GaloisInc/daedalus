@@ -77,9 +77,9 @@ We are working on adding support for generating parsers in other languages
 as well.  The parser generation functionality is very much in development
 at the moment.
 
-The repositry contains two examples of Haskell applications using Daedalus
-parsers.  They are both validators, for the ICC and PDF format respectively.
-You may install them using the commands:
+The repository contains two examples of Haskell applications using
+Daedalus parsers.  They are both validators, for the ICC and PDF
+format respectively.  You may install them using the commands:
 
 .. code-block:: bash
 
@@ -89,6 +89,35 @@ You may install them using the commands:
 The source code for the ICC validator is in ``icc-driver`` and the source
 code for the PDF validator is in ``pdf-driver``.
 
+Generating C++ Parsers
+----------------------
+
+The daedalus compiler, given a DaeDaLus format description, can
+generate a parser in C++ that parses the format. To generate a C++17
+parser for a format `Main` defined in `format.ddl`, storing the parser
+in directory `parser_dir`, run the command
+
+.. code-block:: bash
+
+   daedalus format.ddl --compile-c++ --out-dir=parser_dir
+
+As a result, `parser_dir` will contain an implementation of the
+parser, with header file `parser_dir/main_parser.h` and and procedure
+implementations in `main_parser.cpp`.
+
+The entry procedure of the parser will be named `parseMain`, and has
+the following parameters:
+* an input, of type `DDL::Input`. In short, a `DDL::Input` can be constructed
+  from an `Array` of bytes or a pointer to a null-terminated sequence
+  of characters.
+* a reference to a `DDL::ParseError`, where `main_parser.cpp` stores
+  its result in the case of an error;
+* a reference to a vector of parse results. The class of parse results is declared/defined in `main_parser.h` / `main_parser.cpp`, and contains selector methods for accessings its various components.
+
+All classes in the `DDL` namespace are defined in `rts-c/ddl`.
+
+The generated parsers require C++17, so to compile them you may need
+to provide a flag such as `std=c++17` to the compiler.
 
 Acknowledgements
 ----------------

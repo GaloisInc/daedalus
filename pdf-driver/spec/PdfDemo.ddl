@@ -1,9 +1,9 @@
-
+import Stdlib
 import PdfValue
 import PdfDecl
 import PdfXRef
 
-import PdfContentStream
+-- import PdfContentStream
 
 def IsRootPages r = Default false { IsPageOrPages nothing r; ^ true }
 
@@ -53,7 +53,7 @@ def CheckContents d = @Optional {
      @strm = ResolveStream s ;
      commit ;
      @strmBody = strm.body is ok ;
-     WithStream strmBody (Only ContentStream) ;
+     -- WithStream strmBody (Only ContentStream) ;
    }
   }
 }

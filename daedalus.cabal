@@ -10,7 +10,7 @@ author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
 -- copyright:
 category:            Development
-extra-source-files:  CHANGELOG.md
+extra-source-files:  CHANGELOG.md exe/driver-template/Doxyfile exe/driver-template/Makefile exe/driver-template/main.cpp
 
 library
   hs-source-dirs:      src
