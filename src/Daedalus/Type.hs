@@ -77,7 +77,12 @@ generalize ds =
      -- Check no left-over mono types
      cs <- forM lcs \lc ->
               case thingValue lc of
-                IsNamed _ -> reportError lc "Failed to infer type."
+                IsNamed _ -> reportDetailedError lc
+                  "Failed to infer expression type."
+                  [ "Expressions examined with `case` or `is`" <+>
+                                                    "need a concrete type."
+                  , "Plese use a type annotation to specify it."
+                  ]
                 x         -> pure x
 
      -- Check that all types that needed definitions were defined
