@@ -120,7 +120,7 @@ jobs:
       run: echo cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
 
 
-   pdf-driver:
+  pdf-driver:
 
     runs-on: ${{ matrix.os }}
 
