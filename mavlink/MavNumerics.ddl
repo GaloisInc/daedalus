@@ -97,7 +97,7 @@ def Float = {
 }
 
 -- NonNegFloat f: coerce f into a non-negative number:
-def NonNegFloat f = Choose1 {
+def NonNegFloat (f : Float) = Choose1 {
   nonNegZero = f is zero;
   nonNegDenorm = f is denormalized;
   nonNegInfty = {
