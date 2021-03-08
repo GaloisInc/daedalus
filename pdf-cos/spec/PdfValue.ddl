@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- The declarations in this module are all related to Section 7
 --------------------------------------------------------------------------------
+import Stdlib
 
 --------------------------------------------------------------------------------
 -- White Space (Section 7.2)
@@ -22,10 +23,6 @@ def AnyWS                 = $simpleWS | Comment | EOL
 def Token P               = { $$ = P; Many AnyWS }
 def KW x                  = @ (Token (Match x))
 def Between open close P  = { KW open; $$ = P; KW close }
-def numBase base ds       = for (val = 0; d in ds) (val * base + d)
-def Only P                = { $$ = P; END }
-def When P x              = { P; ^ x }
-def Guard p               = p is true
 --------------------------------------------------------------------------------
 
 

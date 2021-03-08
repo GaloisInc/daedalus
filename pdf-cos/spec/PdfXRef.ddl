@@ -1,6 +1,6 @@
 import PdfDecl
 import PdfValue
-
+import Stdlib
 
 def CrossRef = Choose {
   oldXref = CrossRefAndTrailer;

@@ -77,9 +77,9 @@ We are working on adding support for generating parsers in other languages
 as well.  The parser generation functionality is very much in development
 at the moment.
 
-The repositry contains two examples of Haskell applications using Daedalus
-parsers.  They are both validators, for the ICC and PDF format respectively.
-You may install them using the commands:
+The repository contains two examples of Haskell applications using
+Daedalus parsers.  They are both validators, for the ICC and PDF
+format respectively.  You may install them using the commands:
 
 .. code-block:: bash
 
