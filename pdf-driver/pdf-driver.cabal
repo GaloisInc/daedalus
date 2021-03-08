@@ -33,8 +33,6 @@ library pdf-spec
     PdfValidate,
     PdfContentStream,
     PdfDOM
-    -- PdfText,
-    -- ISOCodes,
 
   build-depends:
     base >=4.13 && <4.15,
