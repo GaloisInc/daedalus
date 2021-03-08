@@ -306,14 +306,17 @@ symExecCase m total (Case e alts) = mkIndexed idxN m <$> body
         pure (mkMatch e' (bodies ++ defCase))
 
       -- numeric cases
-      _ -> do
+      ty -> do
         let pats = [ (n, sl) | (PNum n, sl) <- alts ]
             resN = "$r"
             res  = S.const resN              
             go (n, (patn, sl)) rest =
-              S.ite (S.eq res (S.int patn)) <$> check n sl <*> pure rest                
+              S.ite (S.eq res (mkLit ty patn)) <$> check n sl <*> pure rest                
         base <- match (fromIntegral (length pats)) PAny
         mklet resN e' <$> foldrM go base (zip [0..] pats)
+
+    mkLit ty n = -- a bit hacky
+      symExecOp0 (IntL n ty)
 
     goAlt ut n (p, sl) = do
       let sp = case p of

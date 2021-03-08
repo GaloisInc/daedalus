@@ -2,14 +2,18 @@
 {-# Language DataKinds #-}
 {-# Language TypeOperators #-}
 {-# Language GADTs #-}
+{-# Language ViewPatterns #-}
+{-# Language OverloadedStrings #-}
 module Daedalus.Core.Semantics.Value where
 
-import Data.Map(Map)
-import Data.Vector(Vector)
-import qualified Data.Vector as Vector
-import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
+import Data.ByteString(ByteString)
+import Data.Char (isAscii, isPrint, chr)
+import qualified Data.Map as Map
+import Data.Map(Map)
 import Data.Maybe(fromMaybe)
+import qualified Data.Vector as Vector
+import Data.Vector(Vector)
 import Data.Word(Word8)
 
 import Data.BitVector.Sized(BV)
@@ -20,7 +24,8 @@ import Data.Parameterized.Some
 import RTS.Input(Input(..))
 
 import Daedalus.Panic(panic)
-import Daedalus.Core(Label, Type, UserType)
+import Daedalus.PP
+import Daedalus.Core(Label, Type, UserType, Type(TUInt), SizeType(TSize))
 
 
 data Value =
@@ -79,6 +84,41 @@ instance Ord Value where
       (VIterator _ xs, VIterator _ ys)      -> compare xs ys
 
       _ -> panic "compare @Value" [ "Values have different shapes." ]
+
+-- c.f. Daedalus.Interp.Value
+instance PP Value where
+  ppPrec n val =
+    case val of
+      VUnit -> "{}"
+      VStruct _ (Map.toList -> xs) -> block "{" "," "}" (map ppF xs)
+        where ppF (x,t) = pp x <.> colon <+> pp t
+      VUnion _ut lbl v -> braces (pp lbl <+> colon <+> pp v)
+      
+      VInt x -> pp x      
+      VUInt (intValue -> 8) (BV.asUnsigned -> x)
+        | isAscii c && isPrint c -> quotes (char (chr (fromInteger x)))
+          where c = toEnum (fromInteger x)
+      VUInt (intValue -> nb) (BV.asUnsigned -> x) -> pp x <> "[" <> pp nb <> "]"
+      VSInt w x -> pp (BV.asSigned w x) <> "[" <> pp (intValue w) <> "]"
+
+      VBool b    -> if b then "T" else "F"
+      VBuilder _ seen -> block "[|" "," "|]" (map pp (reverse seen))
+        
+      VArray (TUInt (TSize 8)) v ->
+        text (show (BS.pack [ fromInteger (BV.asUnsigned x) | VUInt _ x <- vs ]))
+        where vs = Vector.toList v
+        
+      VArray _ v -> block "[" "," "]" (map pp vs)
+        where vs = Vector.toList v
+
+      VMap _tyF _tyT m ->  block "{|" ", " "|}"
+                           [ ppPrec 1 k <+> "->" <+> ppPrec 1 v | (k,v) <- Map.toList m ]
+
+      VNothing {}       -> "Nothing"
+      VJust v'          -> wrapIf (n > 0) ("Just" <+> ppPrec 1 v')
+      VInput i -> text (show i)
+
+      VIterator _ty _ -> "<iterator>"
 
 
 
