@@ -1,6 +1,6 @@
 
 def l1 xs = for (s = 0 : int; x in xs) s + x
-def l2 xs = for (s = 0 : int; k,x in xs) s + x + k
+def l2 xs = for (s = 0 : int; k,x in xs) s + x + (k as int)
 
 def ExampleMap = for (s = empty; k,x in [ 5 : int, 6, 7 ]) (Insert k x s)
 

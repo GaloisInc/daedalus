@@ -1,5 +1,6 @@
 {-# Language GeneralizedNewtypeDeriving, ConstraintKinds, KindSignatures #-}
 {-# Language RankNTypes #-}
+{-# Language DataKinds #-}
 module PdfMonad.Release (Parser, runParser, DbgMode, pdfMain) where
 
 import Data.Foldable(toList)

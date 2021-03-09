@@ -91,7 +91,8 @@ newtype TypeError = TypeError (Located Doc)
 
 instance PP TypeError where
   pp (TypeError l) =
-    text (prettySourceRangeLong (thingRange l)) <.> colon <+> thingValue l
+    hang (text (prettySourceRangeLong (thingRange l)) <.> colon)
+        2 (thingValue l)
 
 instance Exception TypeError where
   displayException = show . pp

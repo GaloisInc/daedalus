@@ -4,6 +4,7 @@ module Daedalus.Core.NoMatch where
 import Daedalus.GUID(HasGUID)
 
 import Daedalus.Core
+import Daedalus.Core.Type(sizeType)
 
 
 noMatch :: HasGUID m => Module -> m Module
@@ -71,7 +72,7 @@ desugarMatch s mat =
          x <- freshNameSys byte
          let msgNoByte = byteArrayL "Unexpected end of input"
              msgBadByte = byteArrayL "Byte does not match specification"
-             advance = SetStream (eDrop (intL 1 TInteger) (Var i))
+             advance = SetStream (eDrop (intL 1 sizeType) (Var i))
              (t,ok) = case s of
                         SemNo  -> (TUnit, advance)
                         SemYes -> (byte, Do_ advance (Pure (Var x)))

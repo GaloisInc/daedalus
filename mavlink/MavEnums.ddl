@@ -43,7 +43,7 @@ def Position params = {
 }
 
 -- PrecisionLandMode f: the precision land mode represented by float f:
-def PrecisionLandMode f = Choose1 {
+def PrecisionLandMode (f : Float) = Choose1 {
   precisionLandModeDisabled = f is zero;
   precisionLandModeOpportunistic = {
     @n = f is number;

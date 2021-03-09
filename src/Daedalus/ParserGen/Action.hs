@@ -41,14 +41,14 @@ import Data.Word
 import qualified Data.Vector as Vector
 import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
-import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 
 import Daedalus.PP hiding (empty)
 
 import Daedalus.Type.AST
 import qualified Daedalus.Interp as Interp
-import Daedalus.Interp.Value (valueToByteString, doCoerceTo)
-import RTS.Input(Input(..), newInput)
+import Daedalus.Interp.Value (valueToInteger, doCoerceTo)
+import RTS.Numeric(intToSize)
+import RTS.Input(Input(..))
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr, showName)
@@ -498,155 +498,7 @@ lookupEnvName nname ctrl out =
     lookupCtrl _ = error "Case not handled"
 
 applyBinop :: BinOp -> Val -> Val -> Val
-applyBinop op e1 e2 =
-  case op of
-    Add ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 (v1 + v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VInteger (v1 + v2)
-        _ -> error "Impossible values"
-    Sub ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 (v1 - v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VInteger (v1 - v2)
-        _ -> error "Impossible values"
-    Mul ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 (v1 * v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VInteger (v1 * v2)
-        _ -> error "Impossible values"
-    Lt ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VBool (v1 < v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VBool (v1 < v2)
-        _ -> error "Impossible values"
-    Eq ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VBool (v1 == v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VBool (v1 == v2)
-        (Interp.VArray arr1, Interp.VArray arr2) ->
-          Interp.VBool $ iterateTest arr1 arr2
-          where iterateTest array1 array2 =
-                  if (Vector.null array1)
-                  then if Vector.null array2
-                       then True
-                       else False
-                  else if Vector.null array2
-                       then False
-                       else
-                         let h1 = Vector.head array1
-                             t1 = Vector.tail array1
-                             h2 = Vector.head array2
-                             t2 = Vector.tail array2
-                         in
-                           case applyBinop Eq h1 h2 of
-                             Interp.VBool b -> if not b then False
-                                               else iterateTest t1 t2
-                             _ -> error "Eq test cannot return something else than a boolean"
-        (Interp.VStruct a1, Interp.VStruct a2) ->
-          Interp.VBool $ iterateTest a1 a2
-          where iterateTest arr1 arr2 =
-                  case (arr1, arr2) of
-                    ([], []) -> True
-                    ( _ : _, []) -> False
-                    ([], _ : _) -> False
-                    ((lbl1, v1): r1, (lbl2, v2) : r2) ->
-                      if lbl1 == lbl2
-                      then case applyBinop Eq v1 v2 of
-                             Interp.VBool b -> if not b then False
-                                               else iterateTest r1 r2
-                             _ -> error "Eq test cannot return something else than a boolean"
-                      else False
-        _ -> error $ "Impossible values: " ++ show (e1, e2)
-    NotEq ->
-      case applyBinop Eq e1 e2 of
-        Interp.VBool b -> Interp.VBool (not b)
-        _ -> error "Eq test cannot return something else than a boolean"
-    Leq ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VBool (v1 <= v2)
-          else error "Incompatible precision"
-        (Interp.VInteger v1, Interp.VInteger v2) -> Interp.VBool (v1 <= v2)
-        _ -> error "Impossible values"
-    LShift ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VInteger v2) ->
-          Interp.VUInt p1 (shiftL v1 (fromIntegral v2))
-        (Interp.VInteger v1, Interp.VInteger v2) ->
-           Interp.VInteger (shiftL v1 (fromIntegral v2))
-        _ -> error ("Impossible values: " ++ show (e1,e2))
-    RShift ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VInteger v2) ->
-          Interp.VUInt p1 (shiftR v1 (fromIntegral v2))
-        (Interp.VInteger v1, Interp.VInteger v2) ->
-          Interp.VInteger (shiftR v1 (fromIntegral v2))
-        _ -> error ("Impossible values: " ++ show (e1,e2))
-    BitwiseXor ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 (xor v1 v2)
-          else error "Incompatible precision"
-        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
-    BitwiseAnd ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 ((.&.) v1 v2)
-          else error "Incompatible precision"
-        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
-    BitwiseOr ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          if p1 == p2
-          then Interp.VUInt p1 ((.|.) v1 v2)
-          else error "Incompatible precision"
-        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
-    Cat ->
-      case (e1, e2) of
-        (Interp.VUInt p1 v1, Interp.VUInt p2 v2) ->
-          Interp.VUInt (p1 + p2) ((v1 `shiftL` fromIntegral p2) .|. v2)
-        _ -> error ("Impossible values: " ++ show op ++ show (e1,e2))
-    LCat ->
-      -- copied from Interp.hs
-      case e2 of
-        Interp.VUInt w y ->
-          let mk f i = f ((i `shiftL` fromIntegral w) .|. y)
-              --- XXX: fromIntegral is a bit wrong
-          in
-          case e1 of
-            Interp.VInteger x -> mk Interp.VInteger  x
-            Interp.VUInt n x  -> mk (Interp.VUInt n) x
-            Interp.VSInt n x  -> mk (Interp.VSInt n) x
-            _          -> error "BUG: 1st argument to (<#) must be numeric"
-        _ -> error "BUG: 2nd argument of (<#) should be UInt"
-
-    ArrayStream ->
-      Interp.VStream (newInput nm bs)
-      where nm = valueToByteString e1
-            bs = valueToByteString e2
-    _ -> error ("TODO: " ++ show op)
-
-
-
+applyBinop = Interp.evalBinOp
 
 isSimpleVExpr :: NVExpr -> Bool
 isSimpleVExpr e =
@@ -715,23 +567,7 @@ evalVExpr gbl expr ctrl out =
               ve2 = eval env e2
           in
             applyBinop binop ve1 ve2
-        TCUniOp uniop e1 ->
-          let ve1 = eval env e1
-          in case (ve1, uniop) of
-            (Interp.VBool b, Not) -> Interp.VBool (not b)
-            (Interp.VInteger i, Neg) -> Interp.VInteger (negate i)
-            (Interp.VArray v, Concat) ->
-              Interp.VArray
-              (Vector.fromList
-                (Vector.foldr (
-                    \ a b ->
-                      case a of
-                        Interp.VArray av -> Vector.toList av ++ b
-                        _ -> error "element in Array concatenation is not an Array")
-                  [] v
-                )
-              )
-            x -> error ("not Integer type" ++ show x ++ show uniop)
+        TCUniOp uniop e1 -> Interp.evalUniOp uniop (eval env e1)
         TCSelStruct e1 n _ty ->
           let ve1 = eval env e1
           in case ve1 of
@@ -810,7 +646,8 @@ evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
 valToInt :: Val -> Int
 valToInt v =
   case v of
-    Interp.VUInt 8 i -> toEnum (fromIntegral i ::Int)
+    Interp.VUInt _ i  -> toEnum (fromIntegral i ::Int)
+    Interp.VSInt _ i  -> toEnum (fromIntegral i ::Int)
     Interp.VInteger i -> fromIntegral i :: Int
     _ -> error "valToInt pb"
 
@@ -904,13 +741,13 @@ evalCExpr gbl expr x ctrl out =
 -- | Limit the input to the given number of bytes.
 -- Fails if there aren't enough bytes.
 limitLen :: Integer -> Input -> Maybe Input
-limitLen = Input.limitLen
+limitLen n = Input.limitLen (intToSize (fromInteger n))
 
 -- copy from rts-hs/src/RTS/ParserAPI.hs
 -- Fails if we don't have enough bytes, although it is ok to
 -- get to the very end of the input.
 advanceBy :: Integer -> Input -> Maybe Input
-advanceBy = Input.advanceBy
+advanceBy n = Input.advanceBy (intToSize (fromInteger n))
 
 applyInputAction :: GblFuns -> (InputData, ControlData, SemanticData) -> InputAction -> Maybe (InputData, SemanticData)
 applyInputAction gbl (inp, ctrl, out) act =
@@ -955,29 +792,25 @@ applyInputAction gbl (inp, ctrl, out) act =
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen s e1 e2 ->
-      let ev1 = evalVExpr gbl e1 ctrl out
+      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
-      in case ev1 of
-           Interp.VInteger n ->
-             case ev2 of
-               Interp.VStream i1 ->
-                 case limitLen n i1 of
-                   Nothing -> error "stream value too short for len"
-                   Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
-               _ -> error "Not an input stream"
-           _ -> error "Not an integer for Taking"
+      in case ev2 of
+           Interp.VStream i1 ->
+             case limitLen n i1 of
+               Nothing -> error "stream value too short for len"
+               Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
+           _ -> error "Not an input stream"
+
+
     StreamOff s e1 e2 ->
-      let ev1 = evalVExpr gbl e1 ctrl out
+      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
-      in case ev1 of
-        Interp.VInteger n ->
-          case ev2 of
-            Interp.VStream i1 ->
-              case advanceBy n i1 of
-                Nothing -> error "stream too short for advance"
-                Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
-            _ -> error "Not an input stream"
-        _ -> error "Not an integer for Taking"
+      in case ev2 of
+           Interp.VStream i1 ->
+             case advanceBy n i1 of
+               Nothing -> error "stream too short for advance"
+               Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
+           _ -> error "Not an input stream"
   where
     resultWithSem YesSem i o = Just (i, o : out)
     resultWithSem NoSem  i _ = Just (i, SEVal (defaultValue) : out)

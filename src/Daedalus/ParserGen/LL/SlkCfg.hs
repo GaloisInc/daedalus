@@ -25,6 +25,7 @@ import qualified Data.Map.Strict as Map
 
 import Daedalus.Type.AST
 import Daedalus.Interp as Interp
+import Daedalus.Interp.Value as Interp
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST
@@ -482,7 +483,7 @@ symbolicEval e ctrl sem =
     TCLiteral lit ty ->
       let v = evalLiteral lit ty in
       case v of
-        Interp.VInteger _ -> SConcrete (Left v)
+        Interp.VUInt {} -> SConcrete (Left v)
         _ -> Wildcard
     _ -> Wildcard
 
@@ -840,7 +841,8 @@ symbExecInp act ctrl out inp
           ev2 = symbolicEval e2 ctrl out
       in
         case ev1 of
-          SConcrete (Left (Interp.VInteger n)) ->
+          SConcrete (Left val) ->
+            let n = Interp.valueToInteger val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
@@ -853,7 +855,8 @@ symbExecInp act ctrl out inp
           ev2 = symbolicEval e2 ctrl out
       in
         case ev1 of
-          SConcrete (Left (Interp.VInteger n)) ->
+          SConcrete (Left val) ->
+            let n = Interp.valueToInteger val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)

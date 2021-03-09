@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -55,11 +56,21 @@ int main(int argc, char* argv[]) {
 
   DDL::ParseError err;
   std::vector<DDL::ResultOf::parseMain> out;
+  auto start = std::chrono::high_resolution_clock::now();
   parseMain(i,err,out);
+  auto end  = std::chrono::high_resolution_clock::now();
+  auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+            .count();
+  double mb = double(i.length()) / double(1024 * 1024);
+  double secs = double(diff) / double(1000);
+  double mb_s = (double)mb / secs;
 
   size_t resultNum = out.size();
 
   cout << "{ \"resultNum\": " << resultNum << endl;
+  cout << "{ \"input_mb\": " << mb << endl;
+  cout << ", \"time_secs\": " << secs << endl;
+  cout << ", \"mb_s\": " << mb_s << endl;
   cout << ", \"results\": " << endl;
 
   if (resultNum == 0) {

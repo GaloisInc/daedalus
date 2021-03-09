@@ -52,7 +52,7 @@ def CrossRefSection = {
 
 def CrossRefSubSection = {
   firstId = Token Natural;
-  @num    = Token Natural;
+  @num    = Token Natural as uint 64;
   entries = Many num CrossRefEntry;
 }
 
@@ -66,15 +66,15 @@ def CrossRefEntry = {
   { $simpleWS; $cr <| $lf } <| { $cr; $lf };
 }
 
-def UsedEntry (num : int) (gen : int) = {
-  Match1 'n'; offset = ^num; gen = ^gen;
+def UsedEntry (num : uint 64) (gen : uint 64) = {
+  Match1 'n'; offset = num; gen = gen;
 }
 
-def FreeEntry (num : int) (gen : int) = {
-  Match1 'f'; obj = ^num; gen = ^gen;
+def FreeEntry (num : uint 64) (gen : uint 64) = {
+  Match1 'f'; obj = num; gen = gen;
 }
 
-def NatN n = { @ds = Many n Digit; ^ numBase 10 ds }
+def NatN n = { @ds = Many n Digit; numBase 10 ds as uint 64 }
 --------------------------------------------------------------------------------
 -- Utilities
 

@@ -20,7 +20,7 @@ import Data.ByteString.Short(ShortByteString,toShort)
 import Data.Word(Word8)
 import Control.Monad(guard)
 
-import RTS.Numeric(UInt,toInt)
+import RTS.Numeric(UInt,sizeToInt)
 import RTS.Vector(Vector)
 import qualified RTS.Vector as Vector
 
@@ -103,9 +103,9 @@ inputEmpty Input { .. } = inputOffset >= BS.length inputAllBytes
 
 -- | Limit the input to the given number of bytes.
 -- Fails if there aren't enough bytes.
-limitLen :: Integer -> Input -> Maybe Input
+limitLen :: UInt 64 -> Input -> Maybe Input
 limitLen n' i =
-  do n <- toInt n'
+  do let n = sizeToInt n'
      let newLen = inputOffset i + n
          bs     = BS.take newLen (inputAllBytes i)
      guard (0 <= n && newLen == BS.length bs)
@@ -116,9 +116,9 @@ limitLen n' i =
 -- | Advance the input by the given number of bytes.
 -- Fails if we don't have enough bytes, although it is ok to
 -- get to the very end of the input.
-advanceBy :: Integer -> Input -> Maybe Input
+advanceBy :: UInt 64 -> Input -> Maybe Input
 advanceBy n' i =
-  do n <- toInt n'
+  do let n = sizeToInt n'
      guard (0 <= n && n <= inputLength i)
      pure i { inputOffset = inputOffset i + n }
 {-# INLINE advanceBy #-}

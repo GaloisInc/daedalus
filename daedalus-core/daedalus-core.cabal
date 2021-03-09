@@ -22,6 +22,7 @@ library
     Daedalus.Core.Grammar,
     Daedalus.Core.Decl,
     Daedalus.Core.Type,
+    Daedalus.Core.TypeCheck,
     Daedalus.Core.Free,
     Daedalus.Core.Effect,
     Daedalus.Core.Inline,

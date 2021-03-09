@@ -48,7 +48,7 @@ def ChooseCiph edict v = Choose1 {
   }; 
 }
 
-def V4stmFname edict = {
+def V4stmFname (edict : [ [uint 8] -> Value ])= {
   @stmF = (Lookup "StmF" edict) is name; 
   @strF = (Lookup "StrF" edict) is name;       
   @cf = (Lookup "CF" edict) is dict; 

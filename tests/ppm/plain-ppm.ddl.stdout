@@ -8,9 +8,9 @@ type plain-ppm.RGB = { red: int
                      ; blue: int
                      }
  
-type plain-ppm.PPM = { width: int
-                     ; height: int
-                     ; maxVal: int
+type plain-ppm.PPM = { width: uint 64
+                     ; height: uint 64
+                     ; maxVal: uint 64
                      ; data: [[plain-ppm.RGB]]
                      }
  
@@ -51,9 +51,12 @@ plain-ppm.PPM : Grammar plain-ppm.PPM =
   do @MatchBytes "P"
      (version : int) <- plain-ppm.Token int plain-ppm.Natural
      Guard (version == 3)
-     (width : int) <- plain-ppm.Token int plain-ppm.Natural
-     (height : int) <- plain-ppm.Token int plain-ppm.Natural
-     (maxVal : int) <- plain-ppm.Token int plain-ppm.Natural
+     (width : uint 64) <- do (_27 : int) <- plain-ppm.Token int plain-ppm.Natural
+                             _27 AS uint 64
+     (height : uint 64) <- do (_28 : int) <- plain-ppm.Token int plain-ppm.Natural
+                              _28 AS uint 64
+     (maxVal : uint 64) <- do (_29 : int) <- plain-ppm.Token int plain-ppm.Natural
+                              _29 AS uint 64
      (data : [[plain-ppm.RGB]]) <- Many[height] Many[width] plain-ppm.RGB
      pure {width = width,
            height = height,
@@ -88,9 +91,12 @@ plain-ppm._PPM : Grammar {} =
   do @MatchBytes "P"
      (version : int) <- plain-ppm.Token int plain-ppm.Natural
      Guard (version == 3)
-     (width : int) <- plain-ppm.Token int plain-ppm.Natural
-     (height : int) <- plain-ppm.Token int plain-ppm.Natural
-     plain-ppm._Token int plain-ppm._Natural
+     (width : uint 64) <- do (_27 : int) <- plain-ppm.Token int plain-ppm.Natural
+                             _27 AS uint 64
+     (height : uint 64) <- do (_28 : int) <- plain-ppm.Token int plain-ppm.Natural
+                              _28 AS uint 64
+     do (_29 : int) <- plain-ppm.Token int plain-ppm.Natural
+        @(_29 AS uint 64)
      @Many[height] @Many[width] plain-ppm._RGB
  
 plain-ppm._Main : Grammar {} =

@@ -24,7 +24,7 @@ P027.Digit : Grammar int =
 P027.Frac : Grammar int =
   do @MatchBytes "."
      (t : int) <- do (ds : [int]) <- Many[] P027.Digit
-                     ($$ : int) <- pure (P027.numBase [int] int int 10 ds)
+                     ($$ : int) <- pure (P027.numBase [int] (uint 64) int 10 ds)
                      pure $$
      ($$ : int) <- pure t
      pure $$
@@ -42,7 +42,7 @@ P027.Continue : Grammar int =
  
 P027.Natural : Grammar int =
   do (ds : [int]) <- Many[ 1 .. ] P027.Digit
-     ($$ : int) <- pure (P027.numBase [int] int int 10 ds)
+     ($$ : int) <- pure (P027.numBase [int] (uint 64) int 10 ds)
      pure $$
  
 P027.UnsignedNumber : Grammar P027.UnsignedNumber =

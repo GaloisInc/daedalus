@@ -70,7 +70,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
-                   , { name: 'Haskell PDF driver', verb: 'build', noun: 'exe:pdf-hs-driver' }
                    , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
                    , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3 talos/tests\"', noun: 'talos' }
                    , { name: 'Daedalus', verb: 'test', noun: 'daedalus' }
@@ -119,4 +118,47 @@ jobs:
 
     - name: ${{ matrix.component.name }} 
       run: echo cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
-      
+
+
+  pdf-driver:
+
+    runs-on: ${{ matrix.os }}
+
+    needs: [build]
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+    
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+        
+    # Copied from 'build'
+    - name: Install GHC
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
+      with:
+        ghc-version: '8.8.3'
+        cabal-version: '3.4'
+
+    - name: Cache
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-cabal
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Build COS
+      run: cd pdf-cos && ./scripts/build
+
+    - name: Build driver
+      run: cd pdf-driver && ./scripts/build
+

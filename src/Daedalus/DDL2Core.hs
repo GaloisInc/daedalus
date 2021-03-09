@@ -27,7 +27,7 @@ import qualified Daedalus.Type.AST as TC
 import Daedalus.Type.AST (Commit(..), WithSem(..))
 import Daedalus.Core
 import Daedalus.Core.Free
-import Daedalus.Core.Type(typeOf)
+import Daedalus.Core.Type(typeOf,sizeType)
 
 
 --------------------------------------------------------------------------------
@@ -214,7 +214,7 @@ fromGrammar gram =
                               (sysErr TUnit "unexpected end of input")
 
 
-           YesSem -> do len <- newLocal TInteger
+           YesSem -> do len <- newLocal sizeType
                         str <- newLocal TStream
                         pure $ Let len lenE
                              $ Let str strE
@@ -230,7 +230,7 @@ fromGrammar gram =
                               (Pure unit)
                               (sysErr TUnit "unexpected end of input")
            YesSem ->
-             do len <- newLocal TInteger
+             do len <- newLocal sizeType
                 str <- newLocal TStream
                 pure $ Let len lenE
                      $ Let str strE
@@ -247,7 +247,7 @@ fromGrammar gram =
 
          case cbnd of
            TC.Exactly e ->
-              do x <- newLocal TInteger
+              do x <- newLocal sizeType
                  let xe = Var x
                      vs1 = x : vs
 
@@ -312,8 +312,8 @@ fromGrammar gram =
                            TArray t -> t
                            _ -> panic "fromGrammar"
                                    [ "TCArrayIndex: not an array" ]
-                a <- newLocal TInteger
-                i <- newLocal TInteger
+                a <- newLocal sizeType
+                i <- newLocal sizeType
                 pure $ Let a aE
                      $ Let i iE
                      $ gIf (arrayLen (Var a) `leq` Var i)
@@ -680,36 +680,36 @@ pParseMany cmt ty vs p =
 
 pSkipAtMost :: Commit -> [Name] -> Maybe Expr -> Grammar -> M Grammar
 pSkipAtMost cmt vs mbTgt p =
-  do f <- newGName TInteger
+  do f <- newGName sizeType
      let es = map Var vs
-     x <- newLocal TInteger
+     x <- newLocal sizeType
      let xe = Var x
-     skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 TInteger) : es))
+     skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 sizeType) : es))
                                  (Pure xe)
      defFunG f (x:vs)
         case mbTgt of
           Nothing  -> skipBody
           Just tgt -> gIf (xe `lt` tgt) skipBody (Pure xe)
-     pure (Call f (intL 0 TInteger : es))
+     pure (Call f (intL 0 sizeType: es))
 
 
 pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseAtMost cmt ty vs tgt p =
   do f <- newGName (TArray ty)
      let es = map Var vs
-     x <- newLocal TInteger
+     x <- newLocal sizeType
      b <- newLocal (TBuilder ty)
      let xe = Var x
          be = Var b
 
      body <- maybeParse cmt ty p
-                (\a -> Call f (add xe (intL 1 TInteger)
+                (\a -> Call f (add xe (intL 1 sizeType)
                               : consBuilder a be
                               : es))
                 (Pure (finishBuilder be))
 
      defFunG f (x : b : vs) (gIf (xe `lt` tgt) body (Pure (finishBuilder be)))
-     pure $ Call f (intL 0 TInteger : newBuilder ty : es)
+     pure $ Call f (intL 0 sizeType : newBuilder ty : es)
 
 
 -- | Use to check the lower bounds for `many`
@@ -717,7 +717,7 @@ checkAtLeast :: Maybe Type -> Expr -> Grammar -> M Grammar
 checkAtLeast mb tgt g =
   case mb of
     Nothing ->
-      do x <- newLocal TInteger
+      do x <- newLocal sizeType
          pure $ Do x g $ gIf (Var x `lt` tgt)
                             (nope TUnit)
                             (Pure unit)

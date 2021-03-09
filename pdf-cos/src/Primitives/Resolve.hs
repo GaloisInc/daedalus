@@ -1,15 +1,14 @@
-{-# Language BlockArguments #-}
+{-# Language BlockArguments, DataKinds #-}
 module Primitives.Resolve where
 
-import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 
-import RTS.Numeric(toInt)
+import RTS.Numeric(toInt,intToSize,UInt)
 import RTS.Input
 import PdfMonad.Transformer
 
 resolveImpl :: PdfParser parser => parser a
-  -> (Integer -> Integer -> Integer -> parser a)
+  -> (Integer -> Integer -> UInt 64 -> parser a)
   -> Integer -> Integer -> parser (Maybe a)
 resolveImpl pTop pCompressed obj gen =
   do oi <- toInt' obj
@@ -24,7 +23,7 @@ resolveImpl pTop pCompressed obj gen =
                 InFileAt o ->
                   do inp <- getTopInput
                      cur <- pPeek
-                     case advanceBy (toInteger o) inp of
+                     case advanceBy (intToSize o) inp of
                        Just inp1 -> pSetInput inp1
                        Nothing   -> pError FromUser "resolveImpl"
                          $ unlines [ "Object offset out of file"
@@ -38,7 +37,7 @@ resolveImpl pTop pCompressed obj gen =
                 -- FIXME: we shouldn't always return Just x?
                 InObj ro idx -> Just <$> pCompressed (fromIntegral (refObj ro))
                                                      (fromIntegral (refGen ro))
-                                                     (fromIntegral idx)
+                                                     (intToSize idx)
   where
   toInt' x = case toInt x of
                Just i -> pure i

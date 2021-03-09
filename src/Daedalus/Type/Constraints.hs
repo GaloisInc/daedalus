@@ -121,10 +121,10 @@ isColKeyType r t e =
   case t of
     TVar {}         -> pure Unsolved
 
-    Type TArray {}  -> unify tInteger (r,e) *> pure Solved
-    Type (TMap a _) -> unify a        (r,e) *> pure Solved
-    Type TInteger   -> unify t        (r,e) *> pure Solved
-    Type TUInt{}    -> unify t        (r,e) *> pure Solved
+    Type TArray {}  -> unify tSize (r,e) *> pure Solved
+    Type (TMap a _) -> unify a     (r,e) *> pure Solved
+    Type TInteger   -> unify t     (r,e) *> pure Solved
+    Type TUInt{}    -> unify t     (r,e) *> pure Solved
 
     _ -> reportDetailedError r "Invalid collection type"
               [ "Collection:" <+> pp t

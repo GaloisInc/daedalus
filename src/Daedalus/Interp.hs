@@ -59,6 +59,7 @@ import RTS.Input
 import RTS.Parser as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
+import RTS.Numeric(sizeToInt)
 import qualified RTS.Vector as RTS
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
@@ -203,24 +204,20 @@ evalBinOp op v1 v2 =
                   [show (pp v1), show (pp v2)]
 
   shiftOp sh =
-    case v2 of
-      VInteger w ->
-        --- XXX: fromIntegral is a bit wrong
-        let mk f i = f (sh i (fromIntegral w))
-        in
-        case v1 of
-          VInteger x -> mk VInteger  x
-          VUInt n x  -> mk (VUInt n) x
-          VSInt n x  -> mk (VSInt n) x
-          _          -> error "BUG: 1st argument to (<#) must be numeric"
-      _ -> error "BUG: 2nd argument to shuft must be an integer"
+    let w = sizeToInt (valueToSize v2)
+        mk f i = f (sh i w)
+    in case v1 of
+         VInteger x -> mk VInteger  x
+         VUInt n x  -> mk (VUInt n) x
+         VSInt n x  -> mk (VSInt n) x
+         _          -> error "BUG: 1st argument to (<#) must be numeric"
 
   numBin f =
     case (v1,v2) of
       (VInteger x, VInteger y) -> f VInteger   x y
       (VUInt m x,  VUInt _ y)  -> f (mkUInt m) x y
       (VSInt m x,  VSInt _ y)  -> f (mkSInt m) x y
-      _ -> error ("BUG: invalid binaryo operation: " ++ show op)
+      _ -> error ("BUG: invalid binary operation: " ++ show op)
 
 
 evalTriOp :: TriOp -> Value -> Value -> Value -> Value
@@ -623,7 +620,7 @@ compilePExpr env expr0 args = go expr0
              else pError FromSystem erng "guard failed"
 
         TCEnd -> pEnd erng >> pure (VStruct [])
-        TCOffset -> VInteger . fromIntegral <$> pOffset
+        TCOffset -> mkSize <$> pOffset
 
         TCCurrentStream -> VStream <$> pPeek
 
@@ -631,16 +628,16 @@ compilePExpr env expr0 args = go expr0
                             pure (VStruct [])
 
         TCStreamLen sem n s ->
-          let vn = valueToInteger (compilePureExpr env n)
+          let vn = valueToSize   (compilePureExpr env n)
               vs = valueToStream (compilePureExpr env s)
           in case limitLen vn vs of
                Just i  -> pure $ mbSkip sem $ VStream i
                Nothing -> pError FromSystem erng
-                             ("Not enough bytes: need " ++ show vn
+                             ("Not enough bytes: need " ++ show (sizeToInt vn)
                                          ++ ", have " ++ show (inputLength vs))
 
         TCStreamOff sem n s ->
-          let vn = valueToInteger (compilePureExpr env n)
+          let vn = valueToSize    (compilePureExpr env n)
               vs = valueToStream  (compilePureExpr env s)
           in case advanceBy vn vs of
                Just i  -> pure $ mbSkip sem $ VStream i
@@ -670,8 +667,8 @@ compilePExpr env expr0 args = go expr0
 
         TCArrayIndex s e ix -> do
           let v   = valueToVector  (compilePureExpr env e)
-              ixv = valueToInteger (compilePureExpr env ix)
-          case v Vector.!? (fromInteger ixv) of
+              ixv = sizeToInt (valueToSize (compilePureExpr env ix))
+          case v Vector.!? ixv of
             Just v'  -> pure $! mbSkip s v'
             Nothing -> pError FromSystem erng
                                   ("index out of bounds " ++ show (pp ixv))
@@ -695,7 +692,7 @@ foldr (alt c)
 
 
         TCMany s _ (Exactly e) e' ->
-          do let v = fromIntegral (valueToInteger (compilePureExpr env e))
+          do let v = sizeToInt (valueToSize (compilePureExpr env e))
                  p = go e'
              case s of
                YesSem -> do vs <- replicateM v p
@@ -706,8 +703,8 @@ foldr (alt c)
         TCMany s cmt (Between m_le m_ue) e ->
           let code   = go e
               code'  = void code
-              m_l    = (valueToInteger . compilePureExpr env) <$> m_le
-              m_u    = (valueToInteger . compilePureExpr env) <$> m_ue
+              m_l    = (valueToSize . compilePureExpr env) <$> m_le
+              m_u    = (valueToSize . compilePureExpr env) <$> m_ue
 
               vec :: RTS.Vector Value -> Value
               vec xs  = VArray (vecToRep xs)

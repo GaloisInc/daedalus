@@ -20,4 +20,4 @@ def MissionItemInt = {
 }
 
 -- uncomment to add entry point for compilation
-def Main = MissionItemInt
+-- def Main = MissionItemInt

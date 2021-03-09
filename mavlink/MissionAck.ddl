@@ -10,4 +10,4 @@ def MissionAck = {
 }
 
 -- uncomment to add entry point for compilation
-def Main = MissionAck
+-- def Main = MissionAck

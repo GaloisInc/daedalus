@@ -6,7 +6,7 @@ module DaedalusMain
  
 --- Rules:
  
-T054.z__3 : int =
+T054.z__3 : uint 64 =
   1
  
 T054.Main : Grammar [uint 8] =

@@ -77,7 +77,12 @@ generalize ds =
      -- Check no left-over mono types
      cs <- forM lcs \lc ->
               case thingValue lc of
-                IsNamed _ -> reportError lc "Failed to infer type."
+                IsNamed _ -> reportDetailedError lc
+                  "Failed to infer expression type."
+                  [ "Expressions examined with `case` or `is`" <+>
+                                                    "need a concrete type."
+                  , "Plese use a type annotation to specify it."
+                  ]
                 x         -> pure x
 
      -- Check that all types that needed definitions were defined
@@ -738,9 +743,7 @@ inferExpr expr =
       shiftOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
         do addConstraint expr (Numeric t1)
-           unify tInteger (e2',t2)
-                              -- XXX: either overload or maybe use another type
-                              -- Same as Many
+           unify tSize (e2',t2)
            pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
       num2 = liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
@@ -780,6 +783,7 @@ inferExpr expr =
                  liftValApp expr [e] \ ~[(e1,t)] ->
                  do let lab = thingValue f
                     addConstraint f (HasUnion t lab a)
+                    addConstraint f (IsNamed t)
                     resVar <- newName expr a
                     let pat = TCConPat t lab (TCVarPat resVar)
                         alt = TCAlt [pat] (exprAt expr $ TCPure
@@ -823,7 +827,7 @@ inferExpr expr =
 
     EOffset ->
       grammarOnly expr
-      (pure (exprAt expr TCOffset, tGrammar tInteger))
+      (pure (exprAt expr TCOffset, tGrammar tSize))
 
     ECurrentStream ->
       grammarOnly expr
@@ -838,14 +842,14 @@ inferExpr expr =
     EStreamLen i s ->
       grammarOnly expr $
       liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
-      do unify tInteger (ie,it)
+      do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamLen YesSem ie se), tGrammar tStream)
 
     EStreamOff i s ->
       grammarOnly expr $
       liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
-      do unify tInteger (ie,it)
+      do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamOff YesSem ie se), tGrammar tStream)
 
@@ -885,14 +889,14 @@ inferExpr expr =
       liftValAppPure expr [e] \ ~[(e1,et)] ->
       do vt <- newTVar e KValue
          unify (tArray vt) (e, et)
-         pure (exprAt expr (TCArrayLength e1), tInteger)
+         pure (exprAt expr (TCArrayLength e1), tSize)
 
     EArrayIndex e ix ->
       grammarOnly expr $
       liftValApp expr [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
       do vt         <- newTVar e KValue
          unify (tArray vt) (e, et)
-         unify tInteger (ix, ixt)
+         unify tSize (ix, ixt)
          pure (exprAt expr (TCArrayIndex YesSem e1 ix1), tGrammar vt)
 
     EStruct fs ->
@@ -1246,6 +1250,7 @@ checkPattern ty pat =
           do a  <- newTVar c KValue
              p' <- checkPattern a p
              addConstraint c (HasUnion ty l a)
+             addConstraint c (IsNamed ty)
              pure (TCConPat ty l p')
 
         ConNothing ->
@@ -1529,11 +1534,9 @@ checkManyBounds bnds =
     Exactly e     -> Exactly <$> checkNum e
     Between e1 e2 -> Between <$> traverse checkNum e1 <*> traverse checkNum e2
   where
-  -- XXX: allow different numeric types
   checkNum e =
     do (e1,t) <- inContext AValue (inferExpr e)
-       unify tInteger (e,t)
-       -- isNumeric e t
+       unify tSize (e,t)
        pure e1
 
 

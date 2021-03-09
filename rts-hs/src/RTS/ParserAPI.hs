@@ -147,7 +147,7 @@ class Monad p => BasicParser p where
   pSetInput :: Input -> p ()
   pErrorMode :: ErrorMode -> p a -> p a
 
-  pOffset   :: p Int    -- more generally, describes current loc. in input
+  pOffset   :: p (UInt 64)
   pEnd      :: SourceRange -> p ()     -- are we at the end
   pMatch1   :: SourceRange -> ClassVal -> p Word8
 
@@ -205,10 +205,10 @@ pErrorAt src r inp m =
 
 -- | Check that the vector has at least that many elements.
 pMinLength :: (VecElem a, BasicParser p) =>
-              SourceRange -> Integer -> p (Vector a) -> p (Vector a)
+              SourceRange -> UInt 64 -> p (Vector a) -> p (Vector a)
 pMinLength rng need p =
   do as <- p
-     let have = toInteger (Vector.length as)
+     let have = Vector.length as
      unless (have >= need) $
        pError FromSystem rng
          $ "Not enough entries, found " ++ show have ++ ", but need at least " ++ show need
@@ -230,21 +230,13 @@ pMany orElse = \p ->
 {-# INLINE pMany #-}
 
 pManyUpTo :: (VecElem a, BasicParser p) =>
-            Commit p -> Integer -> p a -> p (Vector a)
+            Commit p -> UInt 64 -> p a -> p (Vector a)
 pManyUpTo orElse = \limI p ->
-  do let (short,lim) = case toInt limI of
-                         Just i  -> (False,i)
-                         Nothing -> (True,maxBound)
-
+  do let lim = sizeToInt limI
          step n = if n < lim then pOptional orElse (ok n) p else pure Nothing
          ok n x = Just (x,n+1)
 
-     v <- Vector.unfoldrM step 0
-
-     -- we probably already run out of memory...
-     when (short && Vector.length v == maxBound)
-          $ error ("pManyUpTo: Vector length exceeded maximum")
-     pure v
+     Vector.unfoldrM step 0
 {-# INLINE pManyUpTo #-}
 
 
@@ -253,39 +245,31 @@ pSkipMany orElse = \p -> let go = orElse (p >> go) (pure ())
                          in go
 {-# INLINE pSkipMany #-}
 
-pSkipManyUpTo :: BasicParser p => Commit p -> Integer -> p () -> p ()
+pSkipManyUpTo :: BasicParser p => Commit p -> UInt 64 -> p () -> p ()
 pSkipManyUpTo orElse limI p = go 0
   where
-  (short,lim) = case toInt limI of
-                  Just i  -> (False, i)
-                  Nothing -> (True, maxBound)
-
-  go n = if n < lim then orElse (p >> go (n+1)) done else done
-  done = if short then pSkipManyUpTo orElse (limI - toInteger lim) p
-                  else pure ()
+  lim  = sizeToInt limI
+  go n = when (n < lim) (orElse (p >> go (n+1)) (pure ()))
 
 
-pSkipExact :: BasicParser p => Integer -> p () -> p ()
+pSkipExact :: BasicParser p => UInt 64 -> p () -> p ()
 pSkipExact limI p =
-  do let (short,lim) = case toInt limI of
-                         Just i  -> (False,i)
-                         Nothing -> (True,maxBound)
+  do let lim = sizeToInt limI
      replicateM_ lim p
-     when short (pSkipExact (limI - toInteger lim) p)
 {-# INLINE pSkipExact #-}
 
 
-pSkipAtLeast :: BasicParser p => Commit p -> Integer -> p () -> p ()
+pSkipAtLeast :: BasicParser p => Commit p -> UInt 64 -> p () -> p ()
 pSkipAtLeast orElse = \limI p ->
   do pSkipExact limI p
      pSkipMany orElse p
 {-# INLINE pSkipAtLeast #-}
 
 pSkipWithBounds :: BasicParser p =>
-  SourceRange -> Commit p -> Integer -> Integer -> p () -> p ()
+  SourceRange -> Commit p -> UInt 64 -> UInt 64 -> p () -> p ()
 pSkipWithBounds erng orElse lb ub p
   | lb > ub = pError FromSystem erng "Inconsitent bounds"
-  | otherwise = pSkipExact lb p >> pSkipManyUpTo orElse (ub - lb) p
+  | otherwise = pSkipExact lb p >> pSkipManyUpTo orElse (ub `sub` lb) p
 {-# INLINE pSkipWithBounds #-}
 
 

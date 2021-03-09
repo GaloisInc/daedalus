@@ -28,18 +28,18 @@ T042.Main : Grammar T042.Ex6 =
  
 T042.Ex1 : Grammar T042.Ex1 =
   Choose fair
-    { {- A -} do (_14 : {}) <- pure {}
-                 pure {A: _14}
-    | {- B -} do (_15 : {}) <- pure {}
-                 pure {B: _15}
+    { {- A -} do (_12 : {}) <- pure {}
+                 pure {A: _12}
+    | {- B -} do (_13 : {}) <- pure {}
+                 pure {B: _13}
     }
  
 T042.T ?a0 (x : ?a0) : Grammar (T042.T ?a0) =
   Choose fair
-    { {- A -} do (_16 : ?a0) <- pure x
-                 pure {A: _16}
-    | {- B -} do (_17 : {}) <- pure {}
-                 pure {B: _17}
+    { {- A -} do (_14 : ?a0) <- pure x
+                 pure {A: _14}
+    | {- B -} do (_15 : {}) <- pure {}
+                 pure {B: _15}
     }
  
 T042.Ex2 : Grammar (T042.T (uint 8)) =
@@ -48,19 +48,14 @@ T042.Ex2 : Grammar (T042.T (uint 8)) =
 T042.Ex3 : Grammar (uint 8) =
   do (x : T042.T (uint 8)) <- T042.Ex2
      ($$ : uint 8) <- case x is
-                        { {| A = _19 |} -> pure _19
+                        { {| A = _17 |} -> pure _17
                         }
      pure $$
- 
-T042.Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar ?a1 =
-  case x is
-    { {| A = _20 |} -> pure _20
-    }
  
 T042.Ex5 : Grammar {} =
   do (x : T042.Ex1) <- T042.Ex1
      ($$ : {}) <- case x is
-                    { {| B = _22 |} -> pure _22
+                    { {| B = _19 |} -> pure _19
                     }
      pure $$
  
@@ -88,16 +83,11 @@ T042._Ex2 : Grammar {} =
 T042._Ex3 : Grammar {} =
   do (x : T042.T (uint 8)) <- T042.Ex2
      case x is
-       { {| A = _19 |} -> pure {}
+       { {| A = _17 |} -> pure {}
        }
- 
-T042._Ex4 ?a0 ?a1 (HasUnion ?a0 A ?a1) (x : ?a0) : Grammar {} =
-  case x is
-    { {| A = _20 |} -> pure {}
-    }
  
 T042._Ex5 : Grammar {} =
   do (x : T042.Ex1) <- T042.Ex1
      case x is
-       { {| B = _22 |} -> pure {}
+       { {| B = _19 |} -> pure {}
        }

@@ -492,9 +492,9 @@ instance PP (TCF a k) where
           Just msg -> wrapIf (n > 0) ("Fail" <+> ppPrec 1 msg)
 
       TCCase e pats mdef ->
-        wrapIf (n > 0)
+        wrapIf (n > 0) (
         "case" <+> pp e <+> "is" $$
-          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats))))
+          nest 2 (block "{" ";" "}" (addDefault (map pp (NE.toList pats)))))
         where
         addDefault xs = case mdef of
                           Nothing -> xs
@@ -713,6 +713,11 @@ tUnit = Type TUnit
 
 tInteger :: Type
 tInteger = Type TInteger
+
+-- | This type is a bit like size_t in `C`, and is used for
+-- sizes of things, indexing, shifting operators, etc.
+tSize :: Type
+tSize = tUInt (tNum 64)
 
 tBool :: Type
 tBool = Type TBool

@@ -432,7 +432,7 @@ hsValue env tc =
     TCFor lp -> evalFor env lp
 
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
-    TCArrayLength e -> "HS.toInteger" `Ap` ("Vector.length" `Ap` hsValue env e)
+    TCArrayLength e -> "Vector.length" `Ap` hsValue env e
 
     TCCase e as d -> hsCase hsValue err env e as d
       where err = "HS.error" `Ap` Raw ("Pattern match failure" :: String)
@@ -589,7 +589,7 @@ hsGrammar env tc =
      TCEnd    -> "RTS.pEnd" `Ap` erng
 
 
-     TCOffset -> ApI "HS.<$>" "HS.toInteger" "RTS.pOffset"
+     TCOffset -> "RTS.pOffset"
 
      TCCall f ts as ->
         case typeOf f of
@@ -669,9 +669,11 @@ hsPat env pat =
   case pat of
     TCConPat t l p -> hsUniConName env NameUse nm l `Ap` hsPat env p
       where nm = case t of
-                  TCon c _ -> c
-                  _ -> panic "hsPat" [ "Unexepected type in unoin constructor"
-                                     , show (pp t) ]
+                   TCon c _ -> c
+                   _ -> panic "hsPat" [ "Unexepected type in union constructor"
+                                      , show (pp t)
+                                      , show (pp pat)
+                                      ]
     TCNumPat t i ->
       case t of
         Type TInteger  -> Raw i

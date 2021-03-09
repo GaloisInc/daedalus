@@ -35,14 +35,17 @@ library
     Primitives.ASCIIHex,
     Primitives.ASCII85,
     Primitives.Decrypt, 
+    PdfMonad.Transformer,
+    PdfMonad.Release,
+    PdfParserNotSpecialized,
+
+    Stdlib,
+    Jpeg,
     PdfParser,
     PdfValue,
     PdfDecl,
     PdfXRef,
-    PdfCrypto, 
-    PdfMonad.Transformer,
-    PdfMonad.Release,
-    PdfParserNotSpecialized
+    PdfCrypto
 
   build-depends:
     base,

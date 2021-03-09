@@ -14,7 +14,7 @@ type T036.Main = { bit7: uint 7
  
 --- Rules:
  
-T036.testBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (a : ?a0) (x : int) : bool =
+T036.testBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (a : ?a0) (x : uint 64) : bool =
   (a >> x as uint 1) == 1
  
 T036.Main : Grammar T036.Main =

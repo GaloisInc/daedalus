@@ -31,7 +31,7 @@ parseXRefs inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
          Nothing -> pError FromUser "parseXRefs.go" "Missing document root."
 
   go mbRoot (Just offset) =
-    case advanceBy (toInteger offset) inp of
+    case advanceBy (intToSize offset) inp of
       Just i ->
         do pSetInput i
            refSec <- pCrossRef

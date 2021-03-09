@@ -15,7 +15,7 @@ main :: IO ()
 main =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfDOM" ]
+     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfContentStream" ]
      mapM_ ddlLoadModule mods
      todo <- filter (not . (`elem` external)) <$> ddlBasisMany mods
      let cfgFor m = case m of
@@ -26,7 +26,7 @@ main =
   where
 
   -- in pdf-cos
-  external = [ "PdfValue", "PdfXRef", "PdfDecl" ]
+  external = [ "PdfValue", "PdfXRef", "PdfDecl", "Stdlib", "Jpeg" ]
 
   -- XXX: untested and currently unused
   _roots :: [(ModuleName,Ident)]

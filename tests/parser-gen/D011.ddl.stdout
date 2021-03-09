@@ -25,7 +25,7 @@ D011.Digit : Grammar int =
      ($$ : int) <- pure (d - '0' as int)
      pure $$
  
-D011.UnsignedNum (digs : int) : Grammar int =
+D011.UnsignedNum (digs : uint 64) : Grammar int =
   do (ds : [int]) <- Many[digs] D011.Digit
      ($$ : int) <- pure (D011.numBase 10 ds)
      pure $$
@@ -50,7 +50,7 @@ D011._Numeral : Grammar {} =
 D011._Digit : Grammar {} =
   D011._Numeral
  
-D011._UnsignedNum (digs : int) : Grammar {} =
+D011._UnsignedNum (digs : uint 64) : Grammar {} =
   @Many[digs] D011._Digit
  
 D011._FL : Grammar {} =

@@ -19,6 +19,7 @@ import Data.Parameterized.NatRepr
 import Daedalus.Panic(panic)
 
 import RTS.Input as RTS
+import RTS.Numeric(fromUInt,sizeToInt)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -307,14 +308,14 @@ evalOp2 op e1 e2 env =
          VBool $ fromVByteArray v1 `BS.isPrefixOf` inputBytes (fromVInput v2)
 
        Drop ->
-        let n   = fromVInt v1
+        let n   = fromVSize v1
             i   = fromVInput v2
         in case advanceBy n i of
              Just i' -> VInput i'
              Nothing -> panic "evalOp2.Drop" [ "Not enough bytes." ]
 
        Take ->
-        let n   = fromVInt v1
+        let n   = fromVSize v1
             i   = fromVInput v2
         in case limitLen n i of
              Just i' -> VInput i'
@@ -365,26 +366,19 @@ evalOp2 op e1 e2 env =
          | otherwise -> typeError "Bit vecotr" v2
 
        LShift ->
-         case (v1,v2) of
-           (VUInt w i, VInt amt)
-              | amt >= 0  -> VUInt w (BV.shl w i (fromIntegral amt))
-              | otherwise -> VUInt w (BV.lshr w i (fromIntegral (negate amt)))
+         case v1 of
+           VUInt w i -> VUInt w (BV.shl w i amt)
+              where amt = fromIntegral (fromUInt (fromVSize v2))
            _ -> panic "evalOp2.LShift" ["Type error"]
 
        RShift ->
          case v1 of
-           VUInt w i
-              | amt >= 0  -> VUInt w (BV.lshr w i (fromIntegral amt))
-              | otherwise -> VUInt w (BV.shl  w i (fromIntegral (negate amt)))
-                where amt = fromVInt v2
+           VUInt w i -> VUInt w (BV.lshr w i amt)
+              where amt = fromIntegral (fromUInt (fromVSize v2))
            _ -> typeError "UInt" v1
 
        -- array is 1st
-       ArrayIndex -> fromVArray v1 Vector.! ix
-         where ix = let i = fromVInt v2
-                        j = fromIntegral (fromVInt v2)
-                    in if toInteger j == i
-                          then j else error "Array lookup out of bounds."
+       ArrayIndex -> fromVArray v1 Vector.! sizeToInt (fromVSize v2)
 
        -- builder is 2nd
        ConsBuilder ->
