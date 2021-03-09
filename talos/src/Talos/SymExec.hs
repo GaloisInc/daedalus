@@ -3,12 +3,13 @@
 
 -- | Symbolically execute a fragment of DDL
 module Talos.SymExec ( solverSynth
-                     , symExecTy, symExecTDecl, symExecSummary
+                     , symExecTy, symExecTDecl, symExecSummaries, symExecSummary
                      ) where
 
 
 import Control.Monad.Reader
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Foldable (find, foldrM)
 
@@ -19,8 +20,10 @@ import qualified SimpleSMT as S
 
 import Daedalus.Panic
 import Daedalus.PP
+import Daedalus.Rec
 
 import Daedalus.Core
+import Daedalus.Core.Free
 import Daedalus.Core.Type
 
 import Talos.SymExec.Monad
@@ -32,7 +35,7 @@ import Talos.SymExec.Path
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
 import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summary(..))
+import Talos.Analysis.Monad (Summaries, Summary(..))
 
 --------------------------------------------------------------------------------
 -- Solver synthesis
@@ -128,13 +131,42 @@ fnameToSMTNameWithClass cl n = fnameToSMTName n ++ clPart
 -- -----------------------------------------------------------------------------
 -- Symbolic execution of slices
 
+data SMTFunDef = SMTFunDef { sfdName :: String
+                           , sfdArgs :: [(String, SExpr)]
+                           , sfdRet  :: SExpr
+                           , sfdBody :: SExpr
+                           , sfdDeps  :: Set String -- called deps in smt
+                           }
+                 
+defineSMTFunDefs :: Solver -> Rec SMTFunDef -> IO ()
+defineSMTFunDefs s (NonRec sfd) =
+  void $ S.defineFun s (sfdName sfd) (sfdArgs sfd) (sfdRet sfd) (sfdBody sfd)
+defineSMTFunDefs s (MutRec sfds) = S.defineFunsRec s defs
+  where
+    defs = map (\sfd -> (sfdName sfd, sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
+
+-- This could be more efficient, but we generate all the bodies of the
+-- SMT terms and run the SCC analysis to get recursive groupings, then
+-- send them to the solver.
+symExecSummaries :: Module -> Summaries -> SymExecM ()
+symExecSummaries md allSummaries = do
+  mapM_ symExecTDecl orderedTys -- FIXME: filter by need
+  fdefs <- Map.foldMapWithKey (\fn -> foldMap (symExecSummary fn)) allSummaries
+  let rFDefs = topoOrder (\sfd -> (sfdName sfd, sfdDeps sfd)) fdefs
+  withSolver $ \s -> liftIO $ mapM_ (defineSMTFunDefs s) rFDefs
+  where
+    -- FIXME: figure out rec tys
+    orderedTys = forgetRecs (mTypes md)
+
+
 -- Turn a summary into a SMT formula (+ associated types)
-symExecSummary :: FName -> Summary -> SymExecM ()
+symExecSummary :: FName -> Summary -> SymExecM [SMTFunDef]
 symExecSummary fn summary = do
   -- Send the roots to the solver
-  Map.foldMapWithKey (\root sl -> go (ProgramVar root) (mempty, sl)) (pathRootMap summary)
+  rootFuns <- Map.foldMapWithKey (\root sl -> go (ProgramVar root) (mempty, sl)) (pathRootMap summary)
   -- Send the argument domain slices to the solver
-  Map.foldMapWithKey go (explodeDomain (exportedDomain summary))
+  argFuns  <- Map.foldMapWithKey go (explodeDomain (exportedDomain summary))
+  pure (rootFuns ++ argFuns)
   where
     cl = summaryClass summary
     go ev (evs, sl) = do
@@ -142,7 +174,7 @@ symExecSummary fn summary = do
           ty | ev == ResultVar = fnameType fn
              | otherwise       = TUnit -- no return value
           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-      sliceToFun predN ty frees sl
+      (: []) <$> sliceToFun predN ty frees sl
 
 mkPredicateN :: SummaryClass -> Name -> String
 mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root
@@ -158,15 +190,47 @@ evPredicateN cl fn ev =
 
 -- Used to turn future path sets and arg domains into SMT terms.
 sliceToFun :: String -> Type -> 
-                [Name] -> Slice -> SymExecM ()
+              [Name] -> Slice -> SymExecM SMTFunDef
 sliceToFun predN ty frees sl = do
-  body  <- withFail sty <$> symExecSlice sl 
-  withSolver $ \s -> void $ liftIO $ S.defineFun s predN args (tResult sty) body
+  body  <- withFail sty <$> symExecSlice sl
+  pure (SMTFunDef { sfdName = predN, sfdArgs = args, sfdRet = tResult sty
+                  , sfdBody = body
+                  , sfdDeps = deps
+                  })
+  -- withSolver $ \s -> void $ liftIO $ S.defineFun s predN args  body
   where
     sty     = symExecTy ty
     args    = map (\v -> (nameToSMTName v, symExecTy (typeOf v))) frees
               ++ [(modelN, tModel)]
 
+    allFDeps = freeFVars sl
+    gdeps    = sliceToGDeps sl
+    gFDeps   = Set.map (\(_, fn, _) -> fn) gdeps
+    deps     = Set.map (\(cl, fn, ev) -> evPredicateN cl fn ev) gdeps
+               <> (Set.map fnameToSMTName (allFDeps `Set.difference` gFDeps))
+
+sliceToGDeps :: Slice -> Set (SummaryClass, FName, EntangledVar)
+sliceToGDeps = go
+  where
+    go sl =
+      case sl of
+        SDontCare _ sl' -> go sl'
+        SDo _ l r       -> goLeaf l <> go r
+        SUnconstrained  -> mempty
+        SLeaf s         -> goLeaf s
+
+    goLeaf sl =
+      case sl of
+        SPure {}               -> mempty
+        SMatch {}              -> mempty
+        SAssertion {}          -> mempty
+        SChoice cs            -> foldMap go cs
+        SCall cn              -> goCallNode cn
+        SCase _ (Case _ alts) -> foldMap (go . snd) alts
+
+    goCallNode cn =
+      Set.map (\ev -> (callClass cn, callName cn, ev)) (Map.keysSet (callPaths cn))
+      
 -- The SMT datatype looks something like this:
 -- data SMTPath =
 --   Bytes ByteString

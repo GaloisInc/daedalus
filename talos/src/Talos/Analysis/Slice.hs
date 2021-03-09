@@ -12,10 +12,13 @@ import Control.Applicative ((<|>))
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Daedalus.PP
 import Daedalus.Panic
+
 import Daedalus.Core
+import Daedalus.Core.Free
 
 import Talos.Analysis.EntangledVars
 
@@ -228,6 +231,61 @@ instance Merge Slice where
       (_, SDo {})               -> merge r l
 
       (SLeaf sl1, SLeaf sl2) -> SLeaf (merge sl1 sl2)
+
+--------------------------------------------------------------------------------
+-- Free instances
+--
+--  Used for getting deps for the SMT solver defs.
+
+instance FreeVars Slice where
+  freeVars sl = 
+    case sl of
+      SDontCare _ sl'   -> freeVars sl'
+      SDo Nothing  l r  -> freeVars l <> freeVars r
+      SDo (Just x) l r  -> freeVars l <> (Set.delete x (freeVars r))
+      SUnconstrained    -> mempty
+      SLeaf s           -> freeVars s
+
+  freeFVars sl = 
+    case sl of
+      SDontCare _ sl' -> freeFVars sl'
+      SDo _ l r       -> freeFVars l <> freeFVars r
+      SUnconstrained  -> mempty
+      SLeaf s         -> freeFVars s
+
+instance FreeVars SliceLeaf where
+  freeVars sl =
+    case sl of
+      SPure v      -> freeVars v
+      SMatch m     -> freeVars m
+      SAssertion e -> freeVars e
+      SChoice cs   -> foldMap freeVars cs
+      SCall cn     -> freeVars cn
+      SCase _ c    -> freeVars c
+
+  freeFVars sl =
+    case sl of
+      SPure v      -> freeFVars v
+      SMatch m     -> freeFVars m
+      SAssertion e -> freeFVars e
+      SChoice cs   -> foldMap freeFVars cs
+      SCall cn     -> freeFVars cn
+      SCase _ c    -> freeFVars c
+
+callNodeActualArgs :: CallNode -> Map Name Expr
+callNodeActualArgs cn =
+  Map.restrictKeys (callAllArgs cn) usedParams
+  where
+    usedEVParams = foldMap callParams (callPaths cn)
+    usedParams = Set.fromList [ v | ProgramVar v <- Set.toList (getEntangledVars usedEVParams) ]
+
+instance FreeVars CallNode where
+  freeVars cn  = foldMap freeVars (Map.elems (callNodeActualArgs cn))
+  freeFVars cn = Set.insert (callName cn) (foldMap freeFVars (Map.elems (callNodeActualArgs cn)))
+    
+instance FreeVars Assertion where
+  freeVars  (GuardAssertion e) = freeVars e
+  freeFVars (GuardAssertion e) = freeFVars e
 
 --------------------------------------------------------------------------------
 -- PP Instances

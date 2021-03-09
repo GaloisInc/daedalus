@@ -177,21 +177,21 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
--- FIXME: we don't deal with recursion including in Analysis
--- ScopedIdent here as it is easier to create
 synthesise :: Maybe Int -> FName -> Module 
            -> SymExecM (InputStream (I.Value, ByteString, ProvenanceMap))
 synthesise m_seed root md = withSolver $ \solv -> do
-  mapM_ symExecTDecl orderedTys -- FIXME: filter by need
-
   allSummaries <- guidState (summarise allDecls)
 
-  let symExecSummary' fun
-        | Just sm <- Map.lookup (fName fun) allSummaries =
-          mapM_ (symExecSummary (fName fun)) (Map.elems sm)
-        | otherwise = pure ()
+  -- We do this in one giant step to deal with recursion and deps on
+  -- pure functions.
+  symExecSummaries md allSummaries
 
-  mapM_ symExecSummary' allDecls
+  -- let symExecSummary' fun
+  --       | Just sm <- Map.lookup (fName fun) allSummaries =
+  --         mapM_ (symExecSummary (fName fun)) (Map.elems sm)
+  --       | otherwise = pure ()
+
+  -- mapM_ symExecSummary' allDecls
   
   gen <- maybe getStdGen (pure . mkStdGen) m_seed
 
@@ -216,9 +216,6 @@ synthesise m_seed root md = withSolver $ \solv -> do
   
   where
     Just rootDecl = find (\d -> fName d == root) allDecls
-
-    -- FIXME: figure out rec tys
-    orderedTys = forgetRecs (mTypes md)
 
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
 

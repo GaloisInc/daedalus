@@ -24,6 +24,7 @@ data SymExecMState =
   SymExecMState { nextGUID :: GUID
                 , solver   :: Solver
                 --                , globalPrefix :: String
+                -- , seenSliceFuns :: Set String -- ^ Used to figure out recursive groupdings
                 }
 
 newtype SymExecM a = SymExecM { getSymExecM :: StateT SymExecMState IO a }
@@ -44,6 +45,16 @@ freshSym :: String {- ^ The hint string to base the fresh name upon -} ->
 freshSym hint =
   do nf <- getNextGUID
      pure (S.quoteSymbol (hint ++ "@" ++ showPP nf))
+
+-- Ugly!
+-- clearSeenSliceFuns :: SymExecM ()
+-- clearSeenSliceFuns = SymExecM $ modify (\s -> s { seenSliceFuns = Set.empty })
+
+-- getSeenSliceFuns :: SymExecM (Set String)
+-- getSeenSliceFuns = SymExecM $ gets seenSliceFuns
+
+-- addSeenSliceFun :: String -> SymExecM ()
+-- addSeenSliceFun fn = SymExecM $ modify (\s -> s { seenSliceFuns = Set.insert fn (seenSliceFuns s) })
 
 withSolver :: (Solver -> SymExecM a) -> SymExecM a
 withSolver f = do
