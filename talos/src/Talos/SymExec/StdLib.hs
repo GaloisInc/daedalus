@@ -10,6 +10,9 @@ module Talos.SymExec.StdLib (
   mklet,
   mklets,
   mkMatch,
+  -- ** Type defs
+  tSize,
+  sSize,
   -- ** Bytes
   tByte,
   sByte,
@@ -83,21 +86,22 @@ makeStdLib = withSolver $ \s -> liftIO $ do
 
   S.declareDatatype s "Unit"  []  [ ("unit", []) ]
 
-  -- Define 'Byte' as a bv8
+  -- Define 'Byte' as a bv8 and Size as bv64
   S.ackCommand s (S.fun "define-sort" [S.const "Byte", S.List [], S.tBits 8])
+  S.ackCommand s (S.fun "define-sort" [S.const "Size", S.List [], S.tBits 64])
   
   -- This has to be correct by construction, as the reason it is
   -- needed is that we can't write a polymorphic length function in
   -- smtlib
   S.declareDatatype s "ArrayWithLength" ["t"] [ ("mk-ArrayWithLength",
-                                                  [ ("get-array", S.tArray S.tInt (S.const "t"))
-                                                  , ("get-length", S.tInt)
+                                                  [ ("get-array", S.tArray tSize (S.const "t"))
+                                                  , ("get-length", tSize)
                                                   ])
                                               ]
 
   S.declareDatatype s "ArrayIter" ["t"] [ ("mk-ArrayIter",
                                            [ ("get-arrayL", tArrayWithLength (S.const "t"))
-                                           , ("get-index", S.tInt)
+                                           , ("get-index", tSize)
                                            ])
                                         ]
 
@@ -166,8 +170,20 @@ mkMatch e cs =
 -- -----------------------------------------------------------------------------
 -- Types, both builtin and ours
 
+tByte :: SExpr
+tByte = S.const "Byte"
+
+tBytes :: SExpr
+tBytes = tList tByte
+
 sByte :: Word8 -> SExpr
 sByte = S.bvHex 8 . fromIntegral
+
+tSize :: SExpr
+tSize = S.const "Size"
+
+sSize :: Integer -> SExpr
+sSize = S.bvHex 64
 
 tList :: SExpr -> SExpr
 tList t = S.fun "List" [t]
@@ -192,7 +208,7 @@ sArrayL :: SExpr -> SExpr
 sArrayL arr = S.fun "get-array" [arr]
 
 sEmptyL :: SExpr -> SExpr -> SExpr
-sEmptyL ty def = sArrayWithLength (S.app (S.as (S.const "const") (S.tArray S.tInt ty)) [def]) (S.int 0) 
+sEmptyL ty def = sArrayWithLength (S.app (S.as (S.const "const") (S.tArray tSize ty)) [def]) (sSize 0) 
 
 sSelectL :: SExpr -> SExpr -> SExpr
 sSelectL arr n = S.select (sArrayL arr) n
@@ -206,17 +222,17 @@ sPushBack el arrL =
   -- FIXME: is this ok wrt clashing with other names?
   letUnlessAtom "$arrL" arrL
   $ \arrL' -> sArrayWithLength (S.store (sArrayL arrL') (sArrayLen arrL') el)
-                               (S.add (sArrayLen arrL') (S.int 1))
+                               (S.bvAdd (sArrayLen arrL') (sSize 1))
 
 -- Iterators
 tArrayIter :: SExpr -> SExpr
 tArrayIter t = S.fun "ArrayIter" [t]
 
 sArrayIterNew :: SExpr -> SExpr
-sArrayIterNew arr = S.fun "mk-ArrayIter" [arr, S.int 0]
+sArrayIterNew arr = S.fun "mk-ArrayIter" [arr, sSize 0]
 
 sArrayIterDone :: SExpr -> SExpr
-sArrayIterDone arrI = S.geq (S.fun "get-index" [arrI]) (sArrayLen (S.fun "get-arrayL" [arrI]))
+sArrayIterDone arrI = S.bvULeq (sArrayLen (S.fun "get-arrayL" [arrI])) (S.fun "get-index" [arrI])
 
 sArrayIterKey :: SExpr -> SExpr
 sArrayIterKey arrI = S.fun "get-index" [arrI]
@@ -226,7 +242,7 @@ sArrayIterVal arrI = sSelectL (S.fun "get-arrayL" [arrI]) (sArrayIterKey arrI)
 
 sArrayIterNext :: SExpr -> SExpr
 sArrayIterNext arrI = S.fun "mk-ArrayIter" [ S.fun "get-arrayL" [arrI]
-                                           , S.add (sArrayIterKey arrI) (S.int 1)
+                                           , S.bvAdd (sArrayIterKey arrI) (sSize 1)
                                            ]
 
 -- | Quote the structure of a list, given a type of its elements.  In
@@ -235,12 +251,6 @@ sArrayIterNext arrI = S.fun "mk-ArrayIter" [ S.fun "get-arrayL" [arrI]
 -- corresponing SMT list.
 sFromList :: SExpr -> [SExpr] -> SExpr
 sFromList elT = foldr sCons (sNil elT)
-
-tByte :: SExpr
-tByte = S.const "Byte"
-
-tBytes :: SExpr
-tBytes = tList tByte
 
 tMaybe :: SExpr -> SExpr
 tMaybe t = S.fun "Maybe" [t]

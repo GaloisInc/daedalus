@@ -160,7 +160,7 @@ symExecOp0 op =
     BoolL b -> S.bool b
     ByteArrayL bs ->
       let sBytes = map sByte (BS.unpack bs)
-      in foldr (\(i, b) -> S.store b (S.int i)) (S.fun "const" [sByte 0]) (zip [0..] sBytes)
+      in foldr (\(i, b) -> S.store b (sSize i)) (S.fun "const" [sByte 0]) (zip [0..] sBytes)
       
     NewBuilder ty -> sEmptyL (symExecTy ty) (typeDefault ty)
     MapEmpty {}   -> unimplemented
