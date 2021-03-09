@@ -40,8 +40,12 @@ module Talos.SymExec.StdLib (
   sFromList,
   -- ** List with their length (not checked)
   tArrayWithLength,
+  sArrayWithLength,
   sArrayLen,
   sSelectL,
+  sPushBack,
+  -- ** Iterators
+  tArrayIter,
   -- ** Map
   tMap
   ) where
@@ -83,6 +87,12 @@ makeStdLib = withSolver $ \s -> liftIO $ do
                                                   , ("get-length", S.tInt)
                                                   ])
                                               ]
+
+  S.declareDatatype s "ArrayIter" ["t"] [ ("mk-ArrayIter",
+                                           [ ("get-arrayL", tArrayWithLength (S.const "t"))
+                                           , ("get-index", S.tInt)
+                                           ])
+                                        ]
 
   -- The generic type of parse trees/paths
   S.declareDatatype s "Model" []
@@ -158,11 +168,34 @@ sNil elT = S.as (S.const "nil") (tList elT)
 tArrayWithLength :: SExpr -> SExpr
 tArrayWithLength t = S.fun "ArrayWithLength" [t]
 
+-- FIXME: check length somehow?
+sArrayWithLength :: SExpr -> SExpr -> SExpr
+sArrayWithLength arr l = S.fun "mk-ArrayWithLength" [arr, l]
+
 sArrayLen :: SExpr -> SExpr
 sArrayLen arr = S.fun "get-length" [arr]
 
+sArrayL :: SExpr -> SExpr
+sArrayL arr = S.fun "get-array" [arr]
+
+
 sSelectL :: SExpr -> SExpr -> SExpr
-sSelectL arr n = S.select (S.fun "get-array" [arr]) n
+sSelectL arr n = S.select (sArrayL arr) n
+
+letUnlessAtom :: String -> SExpr -> (SExpr -> SExpr) -> SExpr
+letUnlessAtom _v x@(S.Atom _) f = f x
+letUnlessAtom v  x f = mklet v x (f (S.const v))
+
+sPushBack :: SExpr -> SExpr -> SExpr
+sPushBack el arrL =
+  -- FIXME: is this ok wrt clashing with other names?
+  letUnlessAtom "$arrL" arrL
+  $ \arrL' -> sArrayWithLength (S.store (sArrayLen arrL') el (sArrayL arrL'))
+                               (S.add (sArrayLen arrL') (S.int 1))
+
+-- Iterators
+tArrayIter :: SExpr -> SExpr
+tArrayIter t = S.fun "ArrayIter" [t]
 
 -- | Quote the structure of a list, given a type of its elements.  In
 -- other words, a Haskell list is converted to an SMT list by

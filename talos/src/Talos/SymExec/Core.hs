@@ -71,8 +71,9 @@ symExecTy' env ty = go ty
         TArray t'       -> tArrayWithLength (go t')
         TMaybe t'       -> tMaybe (go t')
         TMap kt vt      -> tMap (go kt) (go vt)
-        TBuilder {}     -> unimplemented
-        TIterator {}    -> unimplemented    
+        TBuilder elTy   -> tArrayWithLength (go elTy)
+        TIterator (TArray elTy) -> tArrayIter (go elTy)
+        TIterator {}    -> unimplemented -- map iterators
         TUser (UserType { utName = n, utNumArgs = [], utTyArgs = args }) -> 
           S.fun (symExecTName n) (map go args)
         TUser {}        -> unimplemented
@@ -81,6 +82,15 @@ symExecTy' env ty = go ty
 
 symExecTy :: Type -> SExpr
 symExecTy = symExecTy' mempty
+
+--------------------------------------------------------------------------------
+-- Functions
+
+
+-- -- Pure functions
+-- symExecFun :: Fun a -> SExpr
+-- symExecFun f = 
+
 
 --------------------------------------------------------------------------------
 -- Values
@@ -120,7 +130,10 @@ symExecOp0 op =
       else S.bvBin (fromIntegral n) i
 
     BoolL b -> S.bool b
-    ByteArrayL {} -> unimplemented --  sFromList tByte (map sByte (BS.unpack bs))    
+    ByteArrayL bs ->
+      let sBytes = map sByte (BS.unpack bs)
+      in foldr (\(i, b) -> S.store (S.int i) b) (S.fun "const" [sByte 0]) (zip [0..] sBytes)
+      
     NewBuilder {} -> unimplemented
     MapEmpty {}   -> unimplemented
     ENothing ty   -> sNothing (symExecTy ty)
@@ -142,15 +155,15 @@ symExecOp1 op ty =
         | TInteger <- ty      -> S.neg
     BitNot | Just _ <- isBits ty -> S.bvNot
     Not | TBool <- ty  -> S.not
-    ArrayLen -> unimplemented
+    ArrayLen -> sArrayLen
     Concat   -> unimplemented -- concat an array of arrays
-    FinishBuilder -> unimplemented
-    NewIterator -> unimplemented
-    IteratorDone -> unimplemented
-    IteratorKey  -> unimplemented
-    IteratorVal  -> unimplemented
-    IteratorNext -> unimplemented
-    EJust        -> sJust
+    FinishBuilder -> id -- builders and arrays are identical
+    NewIterator   -> unimplemented
+    IteratorDone  -> unimplemented
+    IteratorKey   -> unimplemented
+    IteratorVal   -> unimplemented
+    IteratorNext  -> unimplemented
+    EJust         -> sJust
     FromJust        -> fun "fromJust"
     SelStruct (TUser ut) l -> fun (labelToField (utName ut) l)
     -- FIXME: we probably need (_ as Foo) ...
@@ -165,6 +178,10 @@ symExecOp1 op ty =
     fun f = \v -> S.fun f [v]
 
 symExecOp2 :: Op2 -> Type -> SExpr -> SExpr -> SExpr
+
+-- Generic ops
+symExecOp2 ConsBuilder _ = sPushBack
+
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of
     -- Stream ops
@@ -199,7 +216,7 @@ symExecOp2 bop (isBits -> Just (signed, nBits)) =
     MapMember   -> unimplemented
 
     ArrayStream -> unimplemented
-  where unimplemented = panic "Unimplemented" []
+  where unimplemented = panic "Unimplemented" [showPP bop]
 
 symExecOp2 bop TInteger =
   case bop of
@@ -237,7 +254,6 @@ symExecOp2 bop TInteger =
   where unimplemented = panic "Unimplemented" []
             
 symExecOp2 bop _t = panic "Unsupported operation" [showPP bop]
-
 
 -- -----------------------------------------------------------------------------
 -- Coercion
@@ -302,7 +318,7 @@ symExecByteSet bs b = go bs
         SetIntersection l r -> S.and (go l) (go r)
 
         SetLet n e bs'' -> mklet (nameToSMTName n) (symExecV e) (go bs'')
-        SetCall {}    -> unimplemented
+        SetCall f es    -> S.fun (fnameToSMTName f) (map symExecV es ++ [b])
         SetCase {}    -> unimplemented
 
     unimplemented = panic "SymExecP: Unimplemented inside" [showPP bs]

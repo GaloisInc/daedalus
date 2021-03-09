@@ -11,7 +11,7 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (find, foldrM)
+import Data.Foldable (find, foldrM, fold)
 
 -- import qualified Data.Text as T
 
@@ -136,6 +136,7 @@ data SMTFunDef = SMTFunDef { sfdName :: String
                            , sfdRet  :: SExpr
                            , sfdBody :: SExpr
                            , sfdDeps  :: Set String -- called deps in smt
+                           , sfdPureDeps :: Set FName
                            }
                  
 defineSMTFunDefs :: Solver -> Rec SMTFunDef -> IO ()
@@ -145,21 +146,67 @@ defineSMTFunDefs s (MutRec sfds) = S.defineFunsRec s defs
   where
     defs = map (\sfd -> (sfdName sfd, sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
 
+-- transitive closure from the roots in the grammar functions.
+-- FIXME: (perf) we recalculate freeFVars in symExecPureFun.
+calcPureDeps :: Module -> Set FName -> Set FName
+calcPureDeps md = go 
+  where
+    go roots =
+      let next = once roots
+      in if next == roots then roots else go next
+
+    once roots = fold (Map.restrictKeys depM roots)
+
+    depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
+      
+    mkOne :: FreeVars e => Fun e -> (FName, Set FName)
+    mkOne f = (fName f, freeFVars f)
+
+-- We don't share code with sliceToFun as they are substantially different
+symExecPureFun :: FreeVars e => (e -> SExpr) -> [(String, SExpr)] -> Fun e -> SMTFunDef
+symExecPureFun _ _ Fun { fDef = External } =
+  panic "Saw an external function" []
+
+symExecPureFun sexec extraArgs f@(Fun { fDef = Def body }) =
+  SMTFunDef { sfdName = fnameToSMTName (fName f)
+            , sfdArgs = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f)
+                        ++ extraArgs -- For bytesets
+            , sfdRet  = symExecTy (fnameType (fName f))
+            , sfdBody = sexec body
+            , sfdDeps = mempty
+            , sfdPureDeps = freeFVars f
+            }
+  
 -- This could be more efficient, but we generate all the bodies of the
 -- SMT terms and run the SCC analysis to get recursive groupings, then
 -- send them to the solver.
 symExecSummaries :: Module -> Summaries -> SymExecM ()
 symExecSummaries md allSummaries = do
   mapM_ symExecTDecl orderedTys -- FIXME: filter by need
-  fdefs <- Map.foldMapWithKey (\fn -> foldMap (symExecSummary fn)) allSummaries
-  let rFDefs = topoOrder (\sfd -> (sfdName sfd, sfdDeps sfd)) fdefs
+  gdefs <- Map.foldMapWithKey (\fn -> foldMap (symExecSummary fn)) allSummaries
+  let pureRoots   = foldMap sfdPureDeps gdefs
+      allPureFuns = calcPureDeps md pureRoots
+      fdefs       = foldMap (mkOneF allPureFuns [] symExecV) (mFFuns md)
+      bdefs       = foldMap (mkOneF allPureFuns byteArg (flip symExecByteSet byteV)) (mBFuns md)
+      rFDefs      = topoOrder (\sfd -> (sfdName sfd, getDeps sfd)) (gdefs ++ fdefs ++ bdefs)
   withSolver $ \s -> liftIO $ mapM_ (defineSMTFunDefs s) rFDefs
   where
     -- FIXME: figure out rec tys
-    orderedTys = forgetRecs (mTypes md)
+    orderedTys   = forgetRecs (mTypes md)
+    getDeps sfd  = sfdDeps sfd <> (Set.map fnameToSMTName (sfdPureDeps sfd))
+
+    mkOneF allFs extraArgs sexec f
+      | fName f `Set.member` allFs = [symExecPureFun sexec extraArgs f]
+      | otherwise                  = []
+
+    -- Byte value for byteset functions
+    byteN        = "$b"
+    byteV        = S.const byteN
+    byteArg      = [(byteN, tByte)]
 
 
 -- Turn a summary into a SMT formula (+ associated types)
+-- FIXME: probably doesn't need to be monadic, the move to Core means we don't introduce aux. definitions.
 symExecSummary :: FName -> Summary -> SymExecM [SMTFunDef]
 symExecSummary fn summary = do
   -- Send the roots to the solver
@@ -195,7 +242,8 @@ sliceToFun predN ty frees sl = do
   body  <- withFail sty <$> symExecSlice sl
   pure (SMTFunDef { sfdName = predN, sfdArgs = args, sfdRet = tResult sty
                   , sfdBody = body
-                  , sfdDeps = deps
+                  , sfdDeps     = deps
+                  , sfdPureDeps = allFDeps `Set.difference` gFDeps
                   })
   -- withSolver $ \s -> void $ liftIO $ S.defineFun s predN args  body
   where
@@ -207,7 +255,6 @@ sliceToFun predN ty frees sl = do
     gdeps    = sliceToGDeps sl
     gFDeps   = Set.map (\(_, fn, _) -> fn) gdeps
     deps     = Set.map (\(cl, fn, ev) -> evPredicateN cl fn ev) gdeps
-               <> (Set.map fnameToSMTName (allFDeps `Set.difference` gFDeps))
 
 sliceToGDeps :: Slice -> Set (SummaryClass, FName, EntangledVar)
 sliceToGDeps = go
