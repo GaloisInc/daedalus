@@ -8,7 +8,8 @@ module Talos.SymExec.StdLib (
   -- * Convenience wrappers for SMT
   -- ** Syntactic helpers
   mklet,
-  mklets,  
+  mklets,
+  mkMatch,
   -- ** Bytes
   tByte,
   sByte,
@@ -41,11 +42,17 @@ module Talos.SymExec.StdLib (
   -- ** List with their length (not checked)
   tArrayWithLength,
   sArrayWithLength,
+  sEmptyL,
   sArrayLen,
   sSelectL,
   sPushBack,
   -- ** Iterators
   tArrayIter,
+  sArrayIterNew,
+  sArrayIterDone,
+  sArrayIterKey,
+  sArrayIterVal,
+  sArrayIterNext,
   -- ** Map
   tMap
   ) where
@@ -150,6 +157,12 @@ mklets [] b = b
 mklets xs b =
   S.fun "let" [S.List (map (\(v, e) -> S.List [S.const v, e]) xs), b]
 
+mkMatch :: SExpr -> [(SExpr, SExpr)] -> SExpr
+mkMatch e cs =
+  S.fun "match" [ e
+                , S.List [ S.List [ pat, rhs ] | (pat, rhs) <- cs ]
+                ]
+
 -- -----------------------------------------------------------------------------
 -- Types, both builtin and ours
 
@@ -178,6 +191,8 @@ sArrayLen arr = S.fun "get-length" [arr]
 sArrayL :: SExpr -> SExpr
 sArrayL arr = S.fun "get-array" [arr]
 
+sEmptyL :: SExpr -> SExpr -> SExpr
+sEmptyL ty def = sArrayWithLength (S.app (S.as (S.const "const") (S.tArray S.tInt ty)) [def]) (S.int 0) 
 
 sSelectL :: SExpr -> SExpr -> SExpr
 sSelectL arr n = S.select (sArrayL arr) n
@@ -190,12 +205,29 @@ sPushBack :: SExpr -> SExpr -> SExpr
 sPushBack el arrL =
   -- FIXME: is this ok wrt clashing with other names?
   letUnlessAtom "$arrL" arrL
-  $ \arrL' -> sArrayWithLength (S.store (sArrayLen arrL') el (sArrayL arrL'))
+  $ \arrL' -> sArrayWithLength (S.store (sArrayL arrL') (sArrayLen arrL') el)
                                (S.add (sArrayLen arrL') (S.int 1))
 
 -- Iterators
 tArrayIter :: SExpr -> SExpr
 tArrayIter t = S.fun "ArrayIter" [t]
+
+sArrayIterNew :: SExpr -> SExpr
+sArrayIterNew arr = S.fun "mk-ArrayIter" [arr, S.int 0]
+
+sArrayIterDone :: SExpr -> SExpr
+sArrayIterDone arrI = S.geq (S.fun "get-index" [arrI]) (sArrayLen (S.fun "get-arrayL" [arrI]))
+
+sArrayIterKey :: SExpr -> SExpr
+sArrayIterKey arrI = S.fun "get-index" [arrI]
+
+sArrayIterVal :: SExpr -> SExpr
+sArrayIterVal arrI = sSelectL (S.fun "get-arrayL" [arrI]) (sArrayIterKey arrI)
+
+sArrayIterNext :: SExpr -> SExpr
+sArrayIterNext arrI = S.fun "mk-ArrayIter" [ S.fun "get-arrayL" [arrI]
+                                           , S.add (sArrayIterKey arrI) (S.int 1)
+                                           ]
 
 -- | Quote the structure of a list, given a type of its elements.  In
 -- other words, a Haskell list is converted to an SMT list by

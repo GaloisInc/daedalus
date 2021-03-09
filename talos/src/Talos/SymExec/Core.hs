@@ -4,6 +4,7 @@
 
 module Talos.SymExec.Core where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -35,17 +36,29 @@ labelToField n l = symExecTName n ++ "-" ++ show (pp l)
 typeNameToCtor :: TName -> String
 typeNameToCtor n = "mk-" ++ symExecTName n
 
+typeNameToDefault :: TName -> String
+typeNameToDefault n = "default-" ++ symExecTName n
+
 -- | Construct SMT solver datatype declaration based on DaeDaLus type
 -- declarations.
 symExecTDecl :: TDecl -> SymExecM ()
 symExecTDecl td@(TDecl { tTParamKNumber = _ : _ }) =
-  panic "Unsupported type decl" [showPP td]
+  panic "Unsupported type decl (number params)" [showPP td]
 
-symExecTDecl TDecl { tName = name, tTParamKNumber = [], tTParamKValue = ps, tDef = td } =
-  withSolver $ \s -> liftIO $ S.declareDatatype s n tvs sflds
+symExecTDecl td@(TDecl { tTParamKValue = _ : _ }) =
+  panic "Unsupported type decl (type params)" [showPP td]
+
+symExecTDecl TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [], tDef = td } =
+  withSolver $ \s -> liftIO $ do
+    S.declareDatatype s n [] sflds
+    
+    -- Add a 'default' constant for this type, which is used to
+    -- init. arrays etc.  We never care what it actually is.
+    void $ S.declare s (typeNameToDefault name) (S.const n)
   where
-    tvs = map showPP ps
-    env = Map.fromList (zipWith (\p tv -> (p, S.const tv)) ps tvs)
+    -- tvs = map showPP ps
+    -- env = Map.fromList (zipWith (\p tv -> (p, S.const tv)) ps tvs)
+    env = Map.empty 
     n = symExecTName name
     sflds = case td of
               TStruct flds -> [(typeNameToCtor name, map mkOneS flds) ]
@@ -61,6 +74,7 @@ symExecTy' env ty = go ty
       let unimplemented = panic "Unsupported type" [showPP ty']
       in case ty' of
         TStream         -> unimplemented
+        TUInt (TSize 8) -> tByte -- prettier in the output
         TUInt (TSize n) -> S.tBits n
         TUInt {}        -> panic "Non-constant bit size" [ showPP ty' ]
         TSInt (TSize n) -> S.tBits n
@@ -83,14 +97,28 @@ symExecTy' env ty = go ty
 symExecTy :: Type -> SExpr
 symExecTy = symExecTy' mempty
 
---------------------------------------------------------------------------------
--- Functions
-
-
--- -- Pure functions
--- symExecFun :: Fun a -> SExpr
--- symExecFun f = 
-
+typeDefault :: Type -> SExpr
+typeDefault = go
+  where
+    go ty =
+      let unimplemented = panic "Unsupported type" [showPP ty]
+      in case ty of
+        TStream         -> unimplemented
+        TUInt {}        -> symExecOp0 (IntL 0 ty)
+        TSInt {}        -> symExecOp0 (IntL 0 ty)
+        TInteger        -> symExecOp0 (IntL 0 ty)
+        TBool           -> S.bool False
+        TUnit           -> sUnit
+        TArray t'       -> sEmptyL (symExecTy t') (typeDefault t')
+        TMaybe t'       -> sNothing (symExecTy t')
+        TMap {}         -> unimplemented
+        TBuilder elTy   -> go (TArray elTy) -- probably not needed?
+        TIterator (TArray _elTy) -> unimplemented
+        TIterator {}    -> unimplemented -- map iterators
+        TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> 
+          S.const (typeNameToDefault n)
+        TUser {}        -> unimplemented
+        TParam {}       -> unimplemented
 
 --------------------------------------------------------------------------------
 -- Values
@@ -132,9 +160,9 @@ symExecOp0 op =
     BoolL b -> S.bool b
     ByteArrayL bs ->
       let sBytes = map sByte (BS.unpack bs)
-      in foldr (\(i, b) -> S.store (S.int i) b) (S.fun "const" [sByte 0]) (zip [0..] sBytes)
+      in foldr (\(i, b) -> S.store b (S.int i)) (S.fun "const" [sByte 0]) (zip [0..] sBytes)
       
-    NewBuilder {} -> unimplemented
+    NewBuilder ty -> sEmptyL (symExecTy ty) (typeDefault ty)
     MapEmpty {}   -> unimplemented
     ENothing ty   -> sNothing (symExecTy ty)
     _ -> unimplemented
@@ -158,11 +186,11 @@ symExecOp1 op ty =
     ArrayLen -> sArrayLen
     Concat   -> unimplemented -- concat an array of arrays
     FinishBuilder -> id -- builders and arrays are identical
-    NewIterator   -> unimplemented
-    IteratorDone  -> unimplemented
-    IteratorKey   -> unimplemented
-    IteratorVal   -> unimplemented
-    IteratorNext  -> unimplemented
+    NewIterator  | TArray {} <- ty ->  sArrayIterNew
+    IteratorDone | TIterator (TArray {}) <- ty -> sArrayIterDone
+    IteratorKey  | TIterator (TArray {}) <- ty -> sArrayIterKey
+    IteratorVal  | TIterator (TArray {}) <- ty -> sArrayIterVal
+    IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
     EJust         -> sJust
     FromJust        -> fun "fromJust"
     SelStruct (TUser ut) l -> fun (labelToField (utName ut) l)
@@ -171,9 +199,11 @@ symExecOp1 op ty =
       S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
     
     FromUnion (TUser ut) l -> fun (labelToField (utName ut) l)
+    
     _ -> unimplemented -- shouldn't really happen, we should cover everything above
 
   where
+    unimplemented :: a
     unimplemented = panic "Unimplemented" [showPP op]
     fun f = \v -> S.fun f [v]
 
@@ -285,6 +315,57 @@ symExecCoerce fromT toT _v  =
 -- -----------------------------------------------------------------------------
 -- Expressions
 
+-- Pure case.  c.f. symExecGCase FIXME: merge the 2 functions?
+
+symExecCase :: Case SExpr -> SExpr
+symExecCase (Case e alts) =
+  case typeOf e of
+    -- FIXME: maybe we should normalise these somehow
+    TBool -> let mk = S.ite (symExecV e) in
+      case alts of
+        (PBool True, tc) : (PBool False, fc) : _ -> mk tc fc
+        (PBool False, fc) : (PBool True, tc) : _ -> mk tc fc
+        (PBool True, tc) : (PAny, fc) : _        -> mk tc fc
+        (PBool False, fc) : (PAny, tc) : _       -> mk tc fc
+        _ -> panic "Unknown Bool case" []
+          
+    TMaybe {} ->
+      let mk nc jc = mkMatch (symExecV e) [ (S.const "Nothing", nc)
+                                          , (S.fun "Just" [S.const "_"], jc)
+                                          ]
+      in case alts of
+        (PNothing, nc) : (PJust, jc) : _ -> mk nc jc
+        (PJust, jc) : (PNothing, nc) : _ -> mk nc jc
+        (PNothing, nc) : (PAny, jc) : _ -> mk nc jc
+        (PJust, jc) : (PAny, nc) : _ -> mk nc jc
+        _ -> panic "Unknown Maybe case" []
+        
+    -- We translate a case into a smt case
+    TUser ut -> mkMatch (symExecV e) (map (goAlt ut) alts)
+
+    -- numeric cases
+    ty -> 
+      let pats = [ (n, sl) | (PNum n, sl) <- alts ]
+          -- FIXME: inefficient for non-trivial e
+          go (patn, s) rest = S.ite (S.eq (symExecV e) (mkLit ty patn)) s rest
+          
+          base = case lookup PAny alts of
+            Nothing -> panic "Pure numeric case lacks a default" []
+            Just s  -> s
+      in foldr go base pats
+  where
+    mkLit ty n = -- a bit hacky
+      symExecOp0 (IntL n ty)
+
+    goAlt ut (p, s) = 
+      let sp = case p of
+                 PAny   -> wildcard
+                 PCon l -> S.fun (labelToField (utName ut) l) [wildcard]
+                 _      -> panic "Unknown pattern" [showPP p]
+      in (sp, s)
+  
+    wildcard = S.const "_"      
+
 symExecV :: Expr -> SExpr
 symExecV tc =
   case tc of
@@ -292,13 +373,13 @@ symExecV tc =
     PureLet n e e' -> mklet (nameToSMTName n) (symExecV e) (symExecV e')
     Struct ut ctors ->
       S.fun (typeNameToCtor (utName ut)) $ map (symExecV . snd) ctors
-    ECase {} -> unimplemented
+    ECase c -> symExecCase (symExecV <$> c)
     
     Ap0 op      -> symExecOp0 op 
     Ap1 op e    -> symExecOp1 op (typeOf e) (symExecV e)
     Ap2 op e e' -> symExecOp2 op (typeOf e) (symExecV e) (symExecV e')
     Ap3 {}      -> unimplemented
-    ApN (CallF _fn) _args -> unimplemented -- FIXME
+    ApN (CallF fn) args -> S.fun (fnameToSMTName fn) (map symExecV args)
     ApN {} -> unimplemented
   where
     unimplemented = panic "SymExecV: Unimplemented" [showPP tc]

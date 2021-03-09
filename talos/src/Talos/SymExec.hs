@@ -315,12 +315,7 @@ mkSeq m n1 n2 body = mkMatch m [ (S.fun "seq" [n1, n2], body)
                                , (S.const "_", sFail)
                                ]
 
-mkMatch :: SExpr -> [(SExpr, SExpr)] -> SExpr
-mkMatch e cs =
-  S.fun "match" [ e
-                , S.List [ S.List [ pat, rhs ] | (pat, rhs) <- cs ]
-                ]
-
+                     
 -- Shared between case and choice, although case doesn't strictly
 -- required this (having the idx make replaying the model in
 -- synthesise a bit nicer)
@@ -397,8 +392,8 @@ withModel model
 -- right type.  This is a little fragile, but it avoids plumbing them
 -- through.
 
-symExecCase :: SExpr -> Bool -> Case Slice -> SymExecM SExpr
-symExecCase m total (Case e alts) = mkIndexed idxN m <$> body
+symExecGCase :: SExpr -> Bool -> Case Slice -> SymExecM SExpr
+symExecGCase m total (Case e alts) = mkIndexed idxN m <$> body
   where
     -- modelN is bound in body
     body = case typeOf e of
@@ -495,7 +490,7 @@ symExecSliceLeaf m sl =
                      base
                      (map doOne (Map.toList lpaths ++ Map.toList rpaths)))
 
-    SCase total cs -> symExecCase m total cs
+    SCase total cs -> symExecGCase m total cs
     
   where
     mkPure m' = sGuard (S.eq m' (S.const "munit")) . sPure
