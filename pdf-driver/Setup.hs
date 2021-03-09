@@ -1,18 +1,31 @@
 {-# Language OverloadedStrings #-}
 {-# Language BlockArguments #-}
-module Main where
+
+import Distribution.Simple
+import Distribution.Simple.Setup
+import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
-
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
 
 
+
+main :: IO ()
+main = defaultMainWithHooks simpleUserHooks
+  { preBuild = \_ _ ->
+      do putStrLn "Compiling DDL"
+         compileDDL
+         pure emptyHookedBuildInfo
+  }
+
+
+
 {- We split up basic PDF validation from DOM related stuff into separate
 packages.  This allows us to avoid recompiling things that have not changed. -}
-main :: IO ()
-main =
+compileDDL :: IO ()
+compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
      let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfContentStream" ]

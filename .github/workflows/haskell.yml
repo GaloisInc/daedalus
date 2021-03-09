@@ -157,8 +157,8 @@ jobs:
           ${{ runner.os }}-
 
     - name: Build COS
-      run: cd pdf-cos && ./scripts/build
+      run: cabal build pdf-cos
 
     - name: Build driver
-      run: cd pdf-driver && ./scripts/build
+      run: cabal build pdf-driver
 

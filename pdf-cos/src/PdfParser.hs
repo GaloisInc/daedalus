@@ -4,4 +4,3 @@ import PdfParserNotSpecialized as E
 -- or
 -- import PdfParserSpecialized as E
 
-

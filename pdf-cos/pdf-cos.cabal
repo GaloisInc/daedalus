@@ -11,12 +11,18 @@ author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
 copyright:           2019, Galois Inc
 -- category:
-build-type:          Simple
+build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
+  spec/Stdlib.ddl,
   spec/PdfDecl.ddl,
   spec/PdfValue.ddl,
-  spec/PdfXRef.ddl
+  spec/PdfXRef.ddl,
+  spec/PdfCrypto.ddl,
+  spec/Jpeg.ddl
+
+custom-setup
+  setup-depends: base, containers, daedalus, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
@@ -47,6 +53,15 @@ library
     PdfXRef,
     PdfCrypto
 
+  autogen-modules:
+    Stdlib,
+    Jpeg,
+    PdfParser,
+    PdfValue,
+    PdfDecl,
+    PdfXRef,
+    PdfCrypto
+
   build-depends:
     base,
     bytestring,
@@ -56,13 +71,5 @@ library
     cryptonite,
     cereal, 
     memory 
-
--- This is the compiler: it generates the sources in `pdf-spec`
-executable pdf-cos-generator
-  default-language:     Haskell2010
-  hs-source-dirs: generator
-  main-is:        Main.hs
-  build-depends:  base, containers, daedalus, filepath
-  ghc-options:    -Wall
 
 
