@@ -76,13 +76,13 @@ parseModel prov = go
     go sl =
       case sl of
         SDontCare n sl' -> dontCare n <$> go sl'
-        SDo _ (SPure {})      rhs -> dontCare 1 <$> go rhs
-        SDo _ (SAssertion {}) rhs -> dontCare 1 <$> go rhs
-        SDo _ lhs             rhs -> uncurry PathNode <$> pSeq (parseLeafModel prov lhs) (go rhs)
+        SDo _ (SLeaf (SPure {})) rhs -> dontCare 1 <$> go rhs
+        SDo _ (SLeaf (SAssertion {})) rhs -> dontCare 1 <$> go rhs
+        SDo _ lhs             rhs -> uncurry pathNode <$> pSeq (SelectedDo <$> go lhs) (go rhs)
         SUnconstrained            -> pure Unconstrained
         SLeaf (SPure {})          -> pure Unconstrained
         SLeaf (SAssertion {})     -> pure Unconstrained
-        SLeaf sl'                 -> flip PathNode Unconstrained <$> parseLeafModel prov sl'
+        SLeaf sl'                 -> flip pathNode Unconstrained <$> parseLeafModel prov sl'
         
 parseLeafModel :: ProvenanceTag -> SliceLeaf -> ModelP SelectedNode
 parseLeafModel prov sl = 
@@ -97,7 +97,7 @@ parseLeafModel prov sl =
             Nothing  -> Unconstrained <$ pMUnit -- make sure we are looking at a unit.
             Just rsl -> doOne rsl
           
-      in SelectedCall cl <$> foldr (\fc rest -> uncurry mergeSelectedPath <$> pSeq fc rest)
+      in SelectedCall cl <$> foldr (\fc rest -> uncurry merge <$> pSeq fc rest)
                                    base
                                    (map doOne (Map.elems lpaths ++ Map.elems rpaths))
 
@@ -215,7 +215,7 @@ sliceToGDeps = go
     go sl =
       case sl of
         SDontCare _ sl' -> go sl'
-        SDo _ l r       -> goLeaf l <> go r
+        SDo _ l r       -> go l <> go r
         SUnconstrained  -> mempty
         SLeaf s         -> goLeaf s
 
@@ -335,10 +335,10 @@ sFail = S.const failN
 withFail :: SExpr -> SExpr -> SExpr
 withFail ty = mklet failN (S.as (S.const "failure") (tResult ty))
 
--- withModel :: SExpr -> SExpr -> SExpr
--- withModel model
---   | model == S.const modelN = id
---   | otherwise               = mklet modelN model
+withModel :: SExpr -> SExpr -> SExpr
+withModel model
+  | model == S.const modelN = id
+  | otherwise               = mklet modelN model
   
 --------------------------------------------------------------------------------
 -- Symbolically executing a slice
@@ -468,12 +468,12 @@ symExecSlice = go
     go sl =
       case sl of
         SDontCare _n sl'  -> go sl'
-        SDo (Just x) (SPure e) rest ->
+        SDo (Just x) (SLeaf (SPure e)) rest ->
           mklet (nameToSMTName x) (symExecV e) <$> go rest
-        SDo _ (SAssertion a) rest -> sGuard (symExecAssertion a) <$> go rest
+        SDo _ (SLeaf (SAssertion a)) rest -> sGuard (symExecAssertion a) <$> go rest
         SDo m_x sl' rest -> do
           let mk = mkSeq model leafModel model
-          mk <$> (sBind m_x <$> symExecSliceLeaf leafModel sl' <*> go rest)
+          mk <$> (sBind m_x <$> (withModel leafModel <$> go sl') <*> go rest)
             
         SUnconstrained  -> pure (mkPure sUnit)
         SLeaf sl'       -> symExecSliceLeaf model sl'

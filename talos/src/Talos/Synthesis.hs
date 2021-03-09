@@ -30,7 +30,6 @@ import SimpleSMT (Solver)
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
-import Daedalus.Rec (forgetRecs)
 
 import Daedalus.Core hiding (streamOffset)
 import Daedalus.Core.Free
@@ -323,7 +322,7 @@ choosePath cp x = do
       cl  <- SynthesisM $ asks currentClass
       prov <- freshProvenanceTag 
       sp <- liftIO $ solverSynth s cl x prov sl
-      let new = (mergeSelectedPath cp sp)      
+      let new = (merge cp sp)      
       -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp $+$ pp new)
       pure new
       
@@ -401,6 +400,8 @@ synthesiseGLHS (Just (SelectedCase {})) g = panic "synthesiseGLHS: expected a ca
 synthesiseGLHS (Just (SelectedCall cl sp)) (Call fn args) = synthesiseCallG cl sp fn args
   
 synthesiseGLHS (Just (SelectedCall {})) tc = panic "synthesiseGLHS: expected a call" [showPP tc]
+
+synthesiseGLHS (Just (SelectedDo cp)) g = synthesiseG cp g
   
 synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose randomly
   case g of

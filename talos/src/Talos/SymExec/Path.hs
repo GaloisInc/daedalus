@@ -13,7 +13,7 @@ import Data.Map (Map)
 import Daedalus.PP
 import Daedalus.Panic
 
-import Talos.Analysis.Slice (SummaryClass)
+import Talos.Analysis.Slice (SummaryClass, Merge(..))
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -67,6 +67,8 @@ data SelectedNode =
   -- ^ The term has been fully processed and does not contain anything
   -- of interest to other paths.  We still need to execute the term on the bytes.
 
+  | SelectedDo SelectedPath -- ^ Wraps a nested Do node
+
 -- isXs, mainly because we don't always have equality over nodes
 isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
 isUnconstrained Unconstrained = True
@@ -77,31 +79,7 @@ isDontCare _             = False
 
 isPathNode (PathNode {}) = True
 isPathNode _             = False
-
--- FIXME: too general probably
-mergeSelectedPath :: SelectedPath -> SelectedPath -> SelectedPath
-mergeSelectedPath = go 
-  where
-    go psL psR = 
-      case (psL, psR) of
-        (Unconstrained, _) -> psR   
-        (DontCare 0 rest, _)   -> go rest psR
-        (DontCare n rest, DontCare m rest') ->
-          let count = min m n
-          in dontCare count (go (dontCare (n - count) rest) (dontCare (m - count) rest'))
-        (DontCare n rest, PathNode pn ps') -> PathNode pn (go (dontCare (n - 1) rest) ps')
-        (PathNode n1 ps1, PathNode n2 ps2) ->
-          PathNode (mergeSelectedNode n1 n2) (go ps1 ps2)
-          
-        _ -> go psR psL
         
--- smart constructor for dontCares.
-dontCare :: Int -> SelectedPath -> SelectedPath
-dontCare 0 ps = ps
-dontCare  n (DontCare m ps)   = DontCare (n + m) ps
-dontCare _n Unconstrained = Unconstrained
-dontCare n  ps = DontCare n ps
-
 splitPath :: SelectedPath -> (Maybe SelectedNode, SelectedPath)
 splitPath cp =
   case cp of
@@ -110,6 +88,21 @@ splitPath cp =
     DontCare 0 cp' -> splitPath cp'
     DontCare n cp' -> (Nothing, dontCare (n - 1) cp')
     PathNode n cp' -> (Just n, cp')
+
+--------------------------------------------------------------------------------
+-- smart constructors
+
+-- smart constructor for dontCares.
+dontCare :: Int -> SelectedPath -> SelectedPath
+dontCare 0 ps = ps
+dontCare  n (DontCare m ps)   = DontCare (n + m) ps
+dontCare _n Unconstrained = Unconstrained
+dontCare n  ps = DontCare n ps
+
+pathNode :: SelectedNode -> SelectedPath ->  SelectedPath
+pathNode (SelectedDo Unconstrained) rhs = dontCare 1 rhs
+pathNode n rhs = PathNode n rhs
+
 
 --------------------------------------------------------------------------------
 -- Provenances
@@ -174,21 +167,37 @@ firstSolverProvenance = 2
 --   + might need to merge paths on cycles.
 --   + might have to merge paths before we hit the variable
 
---  We may merge nested nodes and calls, although choices and cases should occur on only 1 path.
-mergeSelectedNode :: SelectedNode -> SelectedNode -> SelectedNode
-mergeSelectedNode (SelectedChoice n1 sp1) (SelectedChoice n2 sp2)
-  | n1 /= n2  = panic "BUG: Incompatible paths selected in mergeSelectedNode" [show n1, show n2]
-  | otherwise = SelectedChoice n1 (mergeSelectedPath sp1 sp2)
-mergeSelectedNode (SelectedCase n1 sp1) (SelectedCase n2 sp2)
-  | n1 /= n2  = panic "BUG: Incompatible cases selected in mergeSelectedNode" [show n1, show n2]
-  | otherwise = SelectedCase n1 (mergeSelectedPath sp1 sp2)
-mergeSelectedNode (SelectedCall cl1 sp1) (SelectedCall cl2 sp2)
-  | cl1 /= cl2 = panic "BUG: Incompatible function classes" [showPP cl1, showPP cl2]
-  | otherwise = SelectedCall cl1 (mergeSelectedPath sp1 sp2)
-mergeSelectedNode _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
-
 --------------------------------------------------------------------------------
 -- Instances
+
+
+-- FIXME: too general probably
+instance Merge SelectedPath where
+  merge psL psR = 
+    case (psL, psR) of
+      (Unconstrained, _) -> psR   
+      (DontCare 0 rest, _)   -> merge rest psR
+      (DontCare n rest, DontCare m rest') ->
+        let count = min m n
+        in dontCare count (merge (dontCare (n - count) rest) (dontCare (m - count) rest'))
+      (DontCare n rest, PathNode pn ps') -> PathNode pn (merge (dontCare (n - 1) rest) ps')
+      (PathNode n1 ps1, PathNode n2 ps2) ->
+        PathNode (merge n1 n2) (merge ps1 ps2)
+      _ -> merge psR psL
+
+instance Merge SelectedNode where
+  --  We may merge nested nodes and calls, although choices and cases should occur on only 1 path.
+  merge (SelectedChoice n1 sp1) (SelectedChoice n2 sp2)
+    | n1 /= n2  = panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
+    | otherwise = SelectedChoice n1 (merge sp1 sp2)
+  merge (SelectedCase n1 sp1) (SelectedCase n2 sp2)
+    | n1 /= n2  = panic "BUG: Incompatible cases selected in merge" [show n1, show n2]
+    | otherwise = SelectedCase n1 (merge sp1 sp2)
+  merge (SelectedCall cl1 sp1) (SelectedCall cl2 sp2)
+    | cl1 /= cl2 = panic "BUG: Incompatible function classes" [showPP cl1, showPP cl2]
+    | otherwise = SelectedCall cl1 (merge sp1 sp2)
+  merge (SelectedDo ps1) (SelectedDo ps2) = SelectedDo (merge ps1 ps2)  
+  merge _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
 
 instance PP SelectedPath where
   ppPrec n ps =
@@ -208,3 +217,4 @@ instance PP SelectedNode where
       SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
       SelectedMatch _pr bs -> pp bs  -- XXX: print provenance 
+      SelectedDo ps        -> "do" $$ pp ps

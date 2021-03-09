@@ -353,11 +353,8 @@ summariseG m_x tc = do
         -- we care about the variable, so we need a FunctionResult summary
           let ex' = ProgramVar x'
           lhsD <- summariseG (Just ex') lhs
-          let fromLeaf (SLeaf sl') = sl'
-              fromLeaf sl'         = panic "Expecting leaf" [showPP sl']
-              -- FIXME
-              lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
-                                            then SDo (Just x') (fromLeaf sl) SUnconstrained
+          let lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
+                                            then SDo (Just x') sl SUnconstrained
                                             else sl) lhsD
               -- inefficient, but simple
               dom = merge rhsD lhsD'

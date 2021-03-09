@@ -102,7 +102,7 @@ data CallNode =
 data Slice =
   -- Sequencing
   SDontCare Int Slice
-  | SDo (Maybe Name) SliceLeaf Slice -- We merge Do and Do_
+  | SDo (Maybe Name) Slice Slice -- We merge Do and Do_
   -- Terminals
   | SUnconstrained -- shorthand for 'SDontCare \infty (SLeaf (SPure VUnit))'
   | SLeaf SliceLeaf
@@ -218,7 +218,7 @@ instance Merge Slice where
       (SDontCare n rest, SDo m_x slL slR) -> SDo m_x slL (merge (sDontCare (n - 1) rest) slR)
     
       -- FIXME: does this make sense?
-      (SDontCare n rest, SLeaf sl) -> SDo Nothing sl (sDontCare (n - 1) rest)
+      (SDontCare n rest, sl) -> SDo Nothing sl (sDontCare (n - 1) rest)
 
       (_, SDontCare {})       -> merge r l
 
@@ -226,7 +226,7 @@ instance Merge Slice where
         SDo (x1 <|> x2) (merge slL1 slL2) (merge slR1 slR2)
 
       -- This happens due to the way we construct nodes
-      (SDo x slL slR, SLeaf sl) -> SDo x (merge slL sl) slR
+      (SDo x slL slR, SLeaf sl) -> SDo x (merge slL (SLeaf sl)) slR
 
       (_, SDo {})               -> merge r l
 
