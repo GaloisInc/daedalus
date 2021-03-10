@@ -88,7 +88,10 @@ parseLeafModel :: ProvenanceTag -> SliceLeaf -> ModelP SelectedNode
 parseLeafModel prov sl = 
   case sl of
     SMatch {}   -> SelectedMatch prov <$> pBytes
-    SChoice sls -> pIndexed (\n -> SelectedChoice n <$> parseModel prov (sls !! n))
+    SChoice sls ->
+      let go n | n < length sls = SelectedChoice n <$> parseModel prov (sls !! n)
+               | otherwise      = panic "Choice index out of range" [show n, show (length sls)]
+      in pIndexed go 
 
     SCall (CallNode { callClass = cl, callPaths = paths }) ->
       let doOne (CallInstance { callSlice = sl' }) = parseModel prov sl'
@@ -397,10 +400,10 @@ symExecGCase m total (Case e alts) = mkIndexed idxN m <$> body
   where
     -- modelN is bound in body
     body = case typeOf e of
-      TBool     -> S.ite e' <$> match 0 (PBool True) <*>  match 1 (PBool False)
+      TBool     -> S.ite e' <$> match (PBool True) <*>  match (PBool False)
       TMaybe {} -> do
-        nc <- match 0 PNothing
-        jc <- match 1 PJust
+        nc <- match PNothing
+        jc <- match PJust
         pure (mkMatch e' [ (S.const "Nothing", nc)
                          , (S.fun "Just" [S.const "_"], jc)
                          ])
@@ -418,7 +421,7 @@ symExecGCase m total (Case e alts) = mkIndexed idxN m <$> body
             res  = S.const resN              
             go (n, (patn, sl)) rest =
               S.ite (S.eq res (mkLit ty patn)) <$> check n sl <*> pure rest                
-        base <- match (fromIntegral (length pats)) PAny
+        base <- match PAny
         mklet resN e' <$> foldrM go base (zip [0..] pats)
 
     mkLit ty n = -- a bit hacky
@@ -439,10 +442,10 @@ symExecGCase m total (Case e alts) = mkIndexed idxN m <$> body
       
     check n sl = sGuard (S.eq idx (S.int n)) <$> symExecSlice sl
         
-    match n p =
-      case find (\(p', _) -> p == p' || p' == PAny) alts of
-        Nothing      -> pure sFail
-        Just (_, sl) -> check n sl
+    match p =
+      case find (\(_, (p', _)) -> p == p' || p' == PAny) (zip [0..] alts) of
+        Nothing           -> pure sFail
+        Just (n, (_, sl)) -> check n sl
 
     e' = symExecV e
     

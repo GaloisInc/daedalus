@@ -381,8 +381,9 @@ synthesiseGLHS (Just (SelectedMatch prov bs)) g@(Match SemYes m) = do
 synthesiseGLHS (Just (SelectedMatch {})) g = 
   panic "BUG: unexpected term in synthesiseGLHS/SelectedMatch" [showPP g]
   
-synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs) =
-  synthesiseG sp (gs !! n)
+synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs)
+  | n < length gs = synthesiseG sp (gs !! n)
+  | otherwise     = panic "Index out of bounds" []
   
 synthesiseGLHS (Just (SelectedChoice {})) g = panic "synthesiseGLHS: expected a choose" [showPP g]
 
