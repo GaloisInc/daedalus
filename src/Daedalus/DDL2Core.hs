@@ -884,8 +884,8 @@ fromExpr expr =
                 TC.BitwiseXor   -> bitXor e1 e2
 
                 TC.ArrayStream  -> arrayStream e1 e2
-
-                -- XXX: Logic And and OR
+                TC.LogicAnd     -> eAnd e1 e2
+                TC.LogicOr      -> eOr  e1 e2
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1
