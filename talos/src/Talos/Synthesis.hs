@@ -48,6 +48,9 @@ import Talos.SymExec
 import Talos.SymExec.Monad
 import Talos.SymExec.Path
 
+import Talos.Strategy.Monad
+
+
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
                      }
@@ -121,22 +124,15 @@ vUnit = InterpValue I.VUnit
 -- Synthesis state
 
 data SynthesisMState =
-  SynthesisMState { stdGen    :: StdGen
-                  , seenBytes :: ByteString
+  SynthesisMState { seenBytes :: ByteString
                   , curStream :: Stream
-                  -- , currentPath  :: SelectedPath
-                  -- Read only
-                  , solver :: Solver
-                  , summaries :: Summaries
-                  -- Only care about grammar rules
-                  , rules  :: Map FName (Fun Grammar)
                   , nextProvenance :: ProvenanceTag 
-                  , provenances :: ProvenanceMap 
+                  , provenances :: ProvenanceMap
                   }
 
 newtype SynthesisM a =
-  SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState IO) a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState StrategyM) a }
+  deriving (Functor, Applicative, Monad, MonadIO, LiftStrategyM)
 
 addBytes :: ProvenanceTag -> ByteString -> SynthesisM ()
 addBytes prov bs = 
@@ -226,23 +222,6 @@ synthesise m_seed root md = withSolver $ \solv -> do
     -- ns        = needsSolver allDecls
     rs     = Map.fromList [ (fName d, d) | d <- allDecls ]
   
--- -- -----------------------------------------------------------------------------
--- -- Random values
-
--- rand :: Random a => SynthesisM a
--- rand = SynthesisM $ state go
---   where
---     go s = let (b, g') = random (stdGen s) in (b, s { stdGen = g' })
-
-randR :: Random a => (a, a) -> SynthesisM a
-randR r = SynthesisM $ state go
-  where
-    go s = let (b, g') = randomR r (stdGen s) in (b, s { stdGen = g' })
-
-randL :: [a] -> SynthesisM a
-randL [] = panic "randL: empty list" []
-randL vs = (!!) vs <$> randR (0, length vs - 1)
-
 -- -- -----------------------------------------------------------------------------
 -- -- Random bytes
 
@@ -421,9 +400,9 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
       mbPure s bs
     Match _s _        -> unimplemented
     Fail {}           -> unimplemented -- probably should be impossible
-    Do  {}            -> impossible
-    Do_ {}            -> impossible
-    Let {}            -> impossible
+    Do  {}            -> synthesiseG Unconstrained g
+    Do_ {}            -> synthesiseG Unconstrained g
+    Let {}            -> synthesiseG Unconstrained g
     Choice _biased gs -> do
       g' <- randL gs
       synthesiseG Unconstrained g'
@@ -431,7 +410,7 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     OrUnbiased {}    -> impossible
     
     Call fn args     -> synthesiseCallG Assertions Unconstrained fn args
-    Annot {}         -> impossible
+    Annot {}         -> synthesiseG Unconstrained g
     GCase c@(Case e _) -> do
       env <- projectEnvForM e
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')

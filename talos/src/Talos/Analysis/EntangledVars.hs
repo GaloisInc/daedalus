@@ -8,6 +8,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Daedalus.PP
+import Daedalus.Panic
 
 import Daedalus.Core
 import Daedalus.Core.Free
@@ -62,6 +63,14 @@ intersects e1 e2 = not (Set.disjoint (getEntangledVars e1) (getEntangledVars e2)
 
 memberEntangledVars :: EntangledVar -> EntangledVars -> Bool
 memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
+
+programVars :: EntangledVars -> Set Name
+programVars (EntangledVars vs) =
+  Set.mapMonotonic fromProgramVar (Set.delete ResultVar vs)
+  where
+    fromProgramVar (ProgramVar v) = v
+    fromProgramVar ResultVar      = panic "Impossible" []
+
 
 --------------------------------------------------------------------------------
 -- Class instances
