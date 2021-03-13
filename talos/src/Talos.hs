@@ -114,7 +114,7 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
 
   -- Check version: z3 before 4.8.10 (or .9) seems to have an issue
   -- with match.  
-  z3VersionCheck solver
+  -- z3VersionCheck solver
   
   -- Set options
   forM_ bOpts $ \(opt, val) -> do
@@ -124,10 +124,7 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  
-  fst <$> (runSymExecM solver nguid $ do
-    makeStdLib
-    T.synthesise m_seed mainRule md)
+  T.synthesise m_seed nguid solver mainRule md
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type

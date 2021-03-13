@@ -61,18 +61,14 @@ module Talos.SymExec.StdLib (
   ) where
 
 import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
 import Data.Word
 
-import SimpleSMT (SExpr)
+import SimpleSMT (SExpr, Solver)
 import qualified SimpleSMT as S
 
-import Talos.SymExec.Monad
--- import Talos.SymExec.Convenience
-
 -- Should be run once
-makeStdLib :: SymExecM ()
-makeStdLib = withSolver $ \s -> liftIO $ do
+makeStdLib :: Solver -> IO ()
+makeStdLib s = do
   S.declareDatatype s "Maybe" ["t"] [ ("Nothing", [])
                                     , ("Just", [("fromJust", S.const "t")]) ]
 

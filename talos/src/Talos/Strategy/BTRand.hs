@@ -1,14 +1,15 @@
+{-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.BTRand where
+module Talos.Strategy.BTRand (randDFS, mkStrategyFun) where
 
 import Control.Applicative
 import Control.Monad.Reader
+
 import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl')
 import qualified Data.Map as Map
-
 
 import Daedalus.Panic
 
@@ -23,9 +24,25 @@ import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
 
+-- ----------------------------------------------------------------------------------------
+-- Backtracking random strats
+
+randDFS :: Strategy
+randDFS = 
+  Strategy { stratName  = "rand-dfs"
+           , stratDescr = "Simple depth-first random generation"
+           , stratFun   = \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+           }
+  where
+    go :: ProvenanceTag -> Slice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
+    go ptag sl = mkStrategyFun ptag sl
+  
+-- ----------------------------------------------------------------------------------------
+-- Main functions
+             
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
-mkStrategy :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice -> m SelectedPath
-mkStrategy ptag = fmap snd . flip runReaderT I.emptyEnv . stratSlice ptag
+mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice -> m SelectedPath
+mkStrategyFun ptag = fmap snd . flip runReaderT I.emptyEnv . stratSlice ptag
 
 stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice
            -> ReaderT I.Env m (I.Value, SelectedPath)
@@ -54,6 +71,7 @@ stratSlice ptag = go
           let bs = filter (I.evalByteSet bset env) [0 .. 255]
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
+          liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
           pure (I.vUInt 8 (fromIntegral b), SelectedMatch ptag (BS.singleton b))
 
         SMatch (MatchBytes e) -> do
@@ -108,7 +126,7 @@ stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths =
 choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
 choose bs = do
   bs' <- randPermute bs
-  foldl (<|>) mzero (map pure bs')
+  foldl mplus mzero (map pure bs')
 
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
@@ -131,6 +149,66 @@ enumerate t = evalState (traverse go t) 0
     go a = state (\i -> ((i, a), i + 1))
 
 
+-- =============================================================================
+-- DFS monad transformer
+--
+-- This is similar to the list monad, but it wraps another monad and
+-- hence has to be a bit careful about what to do when --- if we use
+-- ListT, we get effects from all the alternatives, which could be
+-- expensive.  This is similar to ContT, but we also keep around a
+-- failure continuation.
+--
+
+-- The dfsCont takes the return value, and also an updated failure
+-- continuation, as we may want to backtrack into a completed
+-- computation.
+data DFSTContext r m a =
+  DFSTContext { dfsCont :: a -> m r -> m r
+              , dfsFail :: m r
+              }
+
+newtype DFST r m a = DFST { getDFST :: DFSTContext r m a -> m r }
+
+runDFST :: DFST r m a -> (a -> m r) -> m r -> m r
+runDFST m cont fl = getDFST m (DFSTContext (\v _ -> cont v) fl)
+
+instance Functor (DFST r m) where
+  fmap f (DFST m) = DFST $ \ctxt -> m (ctxt { dfsCont = dfsCont ctxt . f })
+
+instance Applicative (DFST r m) where
+  pure v              = DFST $ \ctxt -> dfsCont ctxt v (dfsFail ctxt)
+  (<*>)               = ap
+  -- DFST fm <*> DFST vm = DFST $ \ctxt ->
+  --   let vCont f = \v -> dfsCont ctxt (f v)
+  --       fCont   = \f -> vm (ctxt { dfsCont = vCont f })
+  --   in fm (ctxt { dfsCont = fCont })
+
+instance Monad (DFST r m) where
+  DFST m >>= f = DFST $ \ctxt ->
+    let cont v fl = getDFST (f v) ( ctxt { dfsFail = fl })
+    in m (ctxt { dfsCont = cont })
+
+-- | We want
+--
+-- (a `mplus` b) >>= f == (a >>= f) `mplus` (b >>= f)
+--
+-- i.e., we give f the result of a, but if that fails, we run f on b's
+-- result.
+
+instance Alternative (DFST r m) where
+  (DFST m1) <|> (DFST m2) = DFST $ \ctxt ->
+    let ctxt1 = ctxt { dfsFail = m2 ctxt } in m1 ctxt1
+  empty = DFST dfsFail 
+
+instance MonadPlus (DFST r m) where -- default body (Alternative)
+                     
+instance MonadTrans (DFST r) where
+  lift m = DFST $ \ctxt -> m >>= \v -> dfsCont ctxt v (dfsFail ctxt)
+  
+instance LiftStrategyM m => LiftStrategyM (DFST r m) where
+  liftStrategy m = lift (liftStrategy m)
+    
+    
 
 
 
@@ -141,3 +219,4 @@ enumerate t = evalState (traverse go t) 0
         
 
           
+

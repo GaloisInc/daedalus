@@ -4,14 +4,18 @@
 
 module Talos.Strategy.Monad ( Strategy(..)
                             , StratFun
-                            , StrategyM
+                            , StrategyM, StrategyMState, emptyStrategyMState
+                            , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
+                            , summaries, getGFun, withSolver
                             , rand, randR, randL, randPermute
                             ) where
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Trans.Maybe
 import System.Random
+import Data.Foldable (find)
 
 import SimpleSMT (Solver)
 
@@ -28,7 +32,7 @@ import Talos.Analysis.Monad (Summaries)
 -- Core datatypes
 
 -- FIXME: add: config (e.g. depth/max backtracks/etc.)
-type StratFun = ProvenanceTag -> Slice -> StrategyM SelectedPath
+type StratFun = ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
 
 data Strategy =
   Strategy { stratName  :: String
@@ -45,27 +49,38 @@ data StrategyMState =
                  , stsSolver :: Solver
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
-                 , stsNextGUID     :: GUID
+                 , stsNextGUID  :: GUID
                  }
+
+emptyStrategyMState :: StdGen -> Solver -> Summaries -> Module -> GUID -> StrategyMState
+emptyStrategyMState = StrategyMState
 
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
-class Monad m => LiftStrategyM m where
-  liftStrategy :: StrategyM a -> m a
+runStrategyM :: StrategyM a -> StrategyMState -> IO (a, StrategyMState)
+runStrategyM m st = runStateT (getStrategyM m) st
 
-instance LiftStrategyM StrategyM where
-  liftStrategy = id
+-- -----------------------------------------------------------------------------
+-- State access
 
-instance LiftStrategyM m => LiftStrategyM (StateT s m) where
-  liftStrategy m = lift (liftStrategy m)
+summaries :: LiftStrategyM m => m Summaries
+summaries = liftStrategy (StrategyM (gets stsSummaries))
 
-instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
-  liftStrategy m = lift (liftStrategy m)
+getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
+getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
+  where
+    getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
+      Nothing -> panic "Missing function" [showPP f]
+      Just v  -> v
 
--- -- -----------------------------------------------------------------------------
--- -- Random values
+-- We could maybe start the solver if needed.
+withSolver :: LiftStrategyM m => (Solver -> m a) -> m a
+withSolver f = liftStrategy (StrategyM $ gets stsSolver) >>= f
+
+-- -----------------------------------------------------------------------------
+-- Random values
 
 rand :: (LiftStrategyM m, Random a) => m a
 rand = liftStrategy (StrategyM $ state go)
@@ -88,3 +103,31 @@ randPermute = go
     go xs = do idx <- randR (0, length xs - 1)
                let (pfx, x : sfx) = splitAt idx xs
                (:) x <$> go (pfx ++ sfx)
+
+-- -----------------------------------------------------------------------------
+-- Class
+
+class Monad m => LiftStrategyM m where
+  liftStrategy :: StrategyM a -> m a
+
+instance LiftStrategyM StrategyM where
+  liftStrategy = id
+
+instance LiftStrategyM m => LiftStrategyM (StateT s m) where
+  liftStrategy m = lift (liftStrategy m)
+
+instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
+  liftStrategy m = lift (liftStrategy m)
+
+instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
+  liftStrategy m = lift (liftStrategy m)
+
+-- -----------------------------------------------------------------------------
+-- Instances
+
+instance HasGUID StrategyM where
+  guidState f = StrategyM (state go)
+    where
+      go s = let (r, guid') = f (stsNextGUID s)
+             in (r, s { stsNextGUID = guid' })
+
