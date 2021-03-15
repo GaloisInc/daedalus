@@ -1,4 +1,4 @@
-{-# Language DataKinds, RecordWildCards #-}
+{-# Language DataKinds, RecordWildCards, OverloadedStrings #-}
 module RTS.Input
   ( Input
   , inputName
@@ -12,10 +12,12 @@ module RTS.Input
   , advanceBy
   , arrayStream
   , newInput
+  , newInputFromFile
   ) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Short(ShortByteString,toShort)
 import Data.Word(Word8)
 import Control.Monad(guard)
@@ -140,5 +142,12 @@ newInput name bs =
 {-# INLINE newInput #-}
 
 
-
+-- | Either make an empty input, or get some bytes from a file
+newInputFromFile :: Maybe FilePath -> IO Input
+newInputFromFile mb =
+  case mb of
+    Nothing -> pure (newInput "(no input)" "")
+    Just file ->
+      do bs <- BS.readFile file
+         pure (newInput (BS8.pack file) bs)
 

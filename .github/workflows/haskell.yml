@@ -31,7 +31,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: '8.8.3'
-        cabal-version: '3.2'
+        cabal-version: '3.4'
 
     - name: Cache
       uses: actions/cache@v2
@@ -72,7 +72,7 @@ jobs:
         component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
                    , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
                    , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3 talos/tests\"', noun: 'talos' }
-                   , { name: 'Daedalus', verb: 'test', noun: 'daedalus' }
+                   , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
 
     steps:
@@ -116,8 +116,8 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - name: ${{ matrix.component.name }} 
-      run: echo cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
+    - name: ${{ matrix.component.name }} (${{ matrix.component.verb }})
+      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
 
 
   pdf-driver:
