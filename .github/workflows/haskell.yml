@@ -69,12 +69,11 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        component: [ # { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
-                   # , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
-                   # , { name: 'Talos', verb: 'test --test-options=\"--solver=/github/workspace/z3\"', noun: 'talos' }
-                   { name: 'Talos', verb: 'test', noun: 'talos' }
-                   
-                   # , { name: 'Daedalus', verb: 'test', noun: '' }
+        component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
+                   , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
+                   , { name: 'Talos', verb: 'test', noun: 'talos' }
+                   , { name: 'Talos', verb: 'test', noun: 'talos' }
+                   , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
 
     steps:
