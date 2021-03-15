@@ -117,7 +117,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: ${{ matrix.component.name }} 
-      run: echo cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
+      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
 
 
   pdf-driver:
