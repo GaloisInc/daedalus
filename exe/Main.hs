@@ -123,7 +123,7 @@ handleOptions opts
               prog <- ddlGetAST specMod astTC
               -- prog <- normalizedDecls
               ddlIO (
-                do let (_gbl, aut) = PGen.buildArrayAut [prog]
+                do let aut = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
                    let llas = PGen.buildPipelineLLA aut
                    PGen.llaToGraphviz aut llas
@@ -260,7 +260,7 @@ generateCPP opts mm =
 
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
 interpPGen useJS inp moduls flagMetrics =
-  do let (gbl, aut) = PGen.buildArrayAut moduls
+  do let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
      do
@@ -270,8 +270,8 @@ interpPGen useJS inp moduls flagMetrics =
                 case inp of
                   Nothing -> pure BS.empty
                   Just f  -> BS.readFile f
-              let results = PGen.runnerLL gbl bytes aut lla flagMetrics  -- LL
-              -- let results = PGen.runnerBias gbl bytes aut
+              let results = PGen.runnerLL bytes aut lla flagMetrics  -- LL
+              -- let results = PGen.runnerBias bytes aut
               let resultValues = PGen.extractValues results
               if null resultValues
                 then
@@ -299,7 +299,7 @@ interpPGen useJS inp moduls flagMetrics =
 
 compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
 compilePGen moduls outDir =
-  do let (_, aut) = PGen.buildArrayAut moduls
+  do let aut = PGen.buildArrayAut moduls
      t <- ddlIO $ PGen.generateTextIO aut
      -- TODO: This needs more thought
      finalText <- completeContent t
