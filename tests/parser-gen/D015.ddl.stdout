@@ -11,7 +11,8 @@ type D015.PPM = { width: int
 --- Rules:
  
 D015._WS : Grammar {} =
-  @Match {' '}
+  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+          {'\r'})
  
 D015.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
   do ($$ : ?a1) <- P
@@ -55,7 +56,8 @@ D015.Main : Grammar D015.PPM =
      pure $$
  
 D015.WS : Grammar (uint 8) =
-  Match {' '}
+  Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
+         {'\r'})
  
 D015._Token ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
