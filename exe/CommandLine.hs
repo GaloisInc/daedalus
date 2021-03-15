@@ -92,7 +92,11 @@ options = OptSpec
 
       , Option ['i'] ["interp"]
         "Parse this file"
-        $ OptArg "FILE" \s o -> Right o { optCommand = Interp s }
+        $ ReqArg "FILE" \s o -> Right o { optCommand = Interp (Just s) }
+
+      , Option [] ["run"]
+        "Run a parser with empty input"
+        $ NoArg \o -> Right o { optCommand = Interp Nothing }
 
       , Option [] ["json"]
         "Show semantics values as JSON."
