@@ -71,7 +71,7 @@ jobs:
         os: [ ubuntu-latest ]
         component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
                    , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
-                   , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3"', noun: 'talos' }
+                   , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3\"', noun: 'talos' }
                    , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
 
