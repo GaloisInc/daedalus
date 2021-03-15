@@ -53,9 +53,9 @@ public:
   UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
 
   UInt operator + (UInt x) { return UInt(data + x.data); }
-  UInt operator % (UInt x) { return UInt(data % x.data); }  
   UInt operator - (UInt x) { return UInt(data - x.data); }
   UInt operator * (UInt x) { return UInt(data * x.data); }
+  UInt operator % (UInt x) { return UInt(rep() % x.rep(); }
   UInt operator / (UInt x) { return UInt(rep() / x.rep()); }
   UInt operator - ()       { return UInt(-data); }
   UInt operator ~ ()       { return UInt(~data); }
@@ -194,6 +194,7 @@ public:
   SInt operator + (SInt x) { return Rep(data + x.data); }
   SInt operator - (SInt x) { return Rep(data - x.data); }
   SInt operator * (SInt x) { return Rep(data * x.data); }
+  SInt operator % (SInt x) { return Rep(data % x.data); }
   SInt operator / (SInt x) { return Rep(data / x.data); }
   SInt operator - ()       { return Rep(-data); }
 
