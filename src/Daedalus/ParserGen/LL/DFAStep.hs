@@ -254,8 +254,8 @@ unionDetChoice
 
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
-determinizeMove :: SourceCfg -> Closure.ClosureMoveSet -> Result DetChoice
-determinizeMove src tc =
+determinizeMove :: Aut a => a -> SourceCfg -> Closure.ClosureMoveSet -> Result DetChoice
+determinizeMove aut src tc =
   determinizeWithAccu tc Nothing emptyDetChoice
 
   where
@@ -272,7 +272,7 @@ determinizeMove src tc =
               case t of
                 Closure.ClosureMove {} ->
                   let (_pos, act, _q) = Closure.moveCfg t in
-                  let mIhc = Slk.convertActionToInputHeadCondition act in
+                  let mIhc = Slk.convertActionToInputHeadCondition (gblFunsAut aut) act in
                   case mIhc of
                     Abort AbortClassIsDynamic -> coerceAbort mIhc
                     Abort (AbortClassNotHandledYet _) -> coerceAbort mIhc
@@ -315,7 +315,7 @@ deterministicSlkCfg aut cfg tab =
     Abort AbortClosureInfiniteloop -> (coerceAbort res, tab1)
     Abort AbortClosureUnhandledInputAction -> (coerceAbort res, tab1)
     Abort AbortClosureUnhandledAction -> (coerceAbort res, tab1)
-    Result r -> (determinizeMove cfg r, tab1)
+    Result r -> (determinizeMove aut cfg r, tab1)
     _ -> error "Impossible abort"
 
 

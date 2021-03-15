@@ -965,11 +965,11 @@ showGraphvizInputHeadCondition c =
     EndInput -> "END"
 
 
-convertActionToInputHeadCondition :: Action -> R.Result InputHeadCondition
-convertActionToInputHeadCondition act =
+convertActionToInputHeadCondition :: GblFuns -> Action -> R.Result InputHeadCondition
+convertActionToInputHeadCondition gbl act =
   case getClassActOrEnd act of
     Left (Left c) ->
-      let res = classToInterval c in
+      let res = classToInterval gbl c in
       case res of
         R.Abort R.AbortClassIsDynamic -> R.coerceAbort res
         R.Abort (R.AbortClassNotHandledYet _) -> R.coerceAbort res
