@@ -217,7 +217,7 @@ insertDetChoiceInputHeadCondition src ih cm detChoice =
     Slk.HeadInput x ->
       let classDetChoice' =
             let c = classDetChoice detChoice
-            in insertItvInOrderedList (x, q) c unionDFARegistry
+            in insertByteConditionInOrderedList (x, q) c unionDFARegistry
       in detChoice { classDetChoice = classDetChoice' }
 
 
@@ -244,13 +244,12 @@ unionDetChoice
           (_, Nothing) -> e1
           (Just tr1, Just tr2) -> Just (unionDFARegistry tr1 tr2)
   in
-  let
-    cl3 =
-      foldr
-      (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc unionDFARegistry)
-      cl2
-      cl1
-  in DetChoice acc3 e3 cl3
+  let cl3 = unionClassIntervalList cl1 cl2 unionDFARegistry in
+  DetChoice
+  { acceptingDetChoice = acc3
+  , endDetChoice = e3
+  , classDetChoice = cl3
+  }
 
 
 -- this function takes a tree representing a set of choices and
@@ -436,7 +435,9 @@ slkExecMoveRegistry aut ih r tab =
             case mCm of
               Nothing -> helper es stepTab
               Just (cmMove, tab1) ->
-                let (mCmEps, tab2) = Closure.closureEpsUntilPush aut Set.empty cmMove tab1
+                let
+                  (mCmEps, tab2) =
+                    Closure.closureEpsUntilPush aut Set.empty cmMove tab1
                 in
                 case mCmEps of
                   Result Nothing -> helper es tab2
@@ -503,7 +504,7 @@ determinizeDFAState aut s tab =
           case lst of
             [] -> (Result (reverse acc), loclocTab)
             (cl, r) : rest ->
-              let (sr, tab1) = slkExecMoveRegistry aut (Slk.HeadInput cl) r loclocTab in
+              let (sr, tab1) = slkExecMoveRegistry aut (Slk.HeadInput (ByteCondition [cl])) r loclocTab in
               case sr of
                 Result r1 -> computeOnClass rest ((cl, r1) : acc) tab1
                 Abort _ -> (coerceAbort sr, tab1)
