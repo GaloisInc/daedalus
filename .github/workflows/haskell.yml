@@ -72,7 +72,7 @@ jobs:
         component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
                    , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
                    , { name: 'Talos', verb: 'test --test-options=\"--solver=./z3 talos/tests\"', noun: 'talos' }
-                   , { name: 'Daedalus', verb: 'test', noun: 'daedalus' }
+                   , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
 
     steps:
@@ -116,7 +116,7 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - name: ${{ matrix.component.name }} 
+    - name: ${{ matrix.component.name }} (${{ matrix.component.verb }})
       run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
 
 
