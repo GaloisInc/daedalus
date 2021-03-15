@@ -16,6 +16,7 @@ module Daedalus.ParserGen.Aut
   , unionPopTrans
   , emptyPopTrans
   , addPopTrans
+  , addGblFunsAut
   , mkArrayAut
   , getMaxState
   , convertToArrayAut
@@ -47,6 +48,7 @@ class Aut a where
   destructureAut :: a -> (State, [(State, Action, State)], State)
   popTransAut :: a -> PopTrans
   stateMappingAut :: a -> State -> Maybe (SourceRange, PAST.Contx)
+  gblFunsAut :: a -> PAST.GblFuns
 
 type Transition = Map.Map State Choice
 
@@ -60,6 +62,7 @@ data MapAut = MapAut
   , acceptings  :: Acceptings
   , popTrans :: PopTrans
   , stateMapping :: Map.Map State (SourceRange, PAST.Contx)
+  , gblFuns :: Maybe (PAST.GblFuns)
   }
   deriving Show
 
@@ -71,6 +74,10 @@ instance Aut MapAut where
   destructureAut dta = toListAut dta
   popTransAut dta = popTrans dta
   stateMappingAut dta q = Map.lookup q (stateMapping dta)
+  gblFunsAut dta =
+    case gblFuns dta of
+      Nothing -> error "gblFuns are not set"
+      Just gbl -> gbl
 
 mkAut :: State -> Transition -> Acceptings -> MapAut
 mkAut initial trans accepts =
@@ -79,6 +86,7 @@ mkAut initial trans accepts =
          , acceptings = accepts
          , popTrans = emptyPopTrans
          , stateMapping = Map.empty
+         , gblFuns = Nothing
          }
 
 mkAutWithPop :: State -> Transition -> Acceptings -> PopTrans -> MapAut
@@ -88,6 +96,7 @@ mkAutWithPop initial trans accepts pops =
          , acceptings = accepts
          , popTrans = pops
          , stateMapping = Map.empty
+         , gblFuns = Nothing
          }
 
 dsAut :: MapAut -> (State, Transition, Acceptings, PopTrans)
@@ -165,7 +174,9 @@ isAccepting :: State -> MapAut -> Bool
 isAccepting q aut =
   q == acceptings aut
 
-
+addGblFunsAut :: PAST.GblFuns -> MapAut -> MapAut
+addGblFunsAut gbl aut =
+  aut {gblFuns = Just gbl}
 
 type ArrayA = Array Int (Maybe Choice)
 
@@ -220,6 +231,7 @@ instance Aut ArrayAut where
   destructureAut dta = toListAut $ mapAut dta
   popTransAut dta = popTrans $ mapAut dta
   stateMappingAut dta q = stateMappingAut (mapAut dta) q
+  gblFunsAut dta = gblFunsAut $ mapAut dta
   {-# SPECIALIZE INLINE nextTransition :: ArrayAut -> State -> Maybe Choice  #-}
   {-# INLINE isAcceptingState #-}
   {-# INLINE popTransAut #-}
