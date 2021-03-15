@@ -378,19 +378,6 @@ astImports ph =
 newtype Daedalus a = Daedalus (StateT State PassM a)
   deriving (Functor, Applicative, Monad)
 
--- instance Functor Daedalus where
---   fmap = liftM
-
--- instance Applicative Daedalus where
---   pure a = Daedalus \s -> pure (a,s)
---   (<*>)  = ap
-
--- instance Monad Daedalus where
---   Daedalus m >>= f =  Daedalus \s ->
---                         do (a,s1) <- m s
---                            let Daedalus m1 = f a
---                            m1 s1
-
 instance MonadIO Daedalus where
   liftIO = Daedalus . inBase . liftIO
 
@@ -411,7 +398,6 @@ ddlGet f =
 
 ddlUpdate_ :: (State -> State) -> Daedalus ()
 ddlUpdate_ = Daedalus . sets_
-                               
 
 ddlIO :: IO a -> Daedalus a
 ddlIO = Daedalus . inBase . liftIO
