@@ -19,12 +19,12 @@ jobs:
       with:
         submodules: true
 
-    # Required for working with act        
-    - name: Install prereqs.
-      run: |
-        apt-get update
-        apt-get install -y build-essential
-        apt-get install -y libgmp-dev zlib1g-dev
+    # # Required for working with act        
+    # - name: Install prereqs.
+    #   run: |
+    #     apt-get update
+    #     apt-get install -y build-essential
+    #     apt-get install -y libgmp-dev zlib1g-dev
         
     - name: Install GHC
       uses: haskell/actions/setup@v1
@@ -80,11 +80,11 @@ jobs:
       with:
         submodules: true
         
-    - name: Install prereqs.
-      run: |
-        apt-get update
-        apt-get install -y build-essential
-        apt-get install -y libgmp-dev zlib1g-dev
+    # - name: Install prereqs.
+    #   run: |
+    #     apt-get update
+    #     apt-get install -y build-essential
+    #     apt-get install -y libgmp-dev zlib1g-dev
         
     - name: Install Z3 (Ubuntu)
       if: matrix.component.noun == 'talos' && matrix.os == 'ubuntu-latest'
