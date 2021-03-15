@@ -31,15 +31,18 @@ library
                      , Talos.SymExec.Path
                      
                      -- , Talos.Backend.Z3
-
                      , Talos.Analysis
-                     , Talos.Synthesis
-
                      , Talos.Analysis.Domain
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
-                                          
+
+                     , Talos.Strategy
+                     , Talos.Strategy.Monad
+                     , Talos.Strategy.BTRand
+                     
+                     , Talos.Synthesis
+                                        
                      , Talos
                      -- , Machine
   build-depends:       base
@@ -55,6 +58,7 @@ library
                      , bytestring
                      , simple-smt
                      , io-streams
+                     , transformers
                      , IntervalMap
 
 executable talos

@@ -42,11 +42,19 @@ import qualified Daedalus.Core.Semantics.Env as I
 -- import RTS.ParserAPI hiding (SourceRange)
 
 import Talos.Analysis (summarise)
-import Talos.Analysis.Monad (Summaries, Summary(..))
+import Talos.Analysis.Monad (Summary(..))
 import Talos.Analysis.Slice
 import Talos.SymExec
 import Talos.SymExec.Monad
 import Talos.SymExec.Path
+import Talos.SymExec.StdLib
+
+import Talos.Strategy
+import Talos.Strategy.Monad
+
+
+import Talos.Strategy.Monad
+
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -121,22 +129,15 @@ vUnit = InterpValue I.VUnit
 -- Synthesis state
 
 data SynthesisMState =
-  SynthesisMState { stdGen    :: StdGen
-                  , seenBytes :: ByteString
+  SynthesisMState { seenBytes :: ByteString
                   , curStream :: Stream
-                  -- , currentPath  :: SelectedPath
-                  -- Read only
-                  , solver :: Solver
-                  , summaries :: Summaries
-                  -- Only care about grammar rules
-                  , rules  :: Map FName (Fun Grammar)
                   , nextProvenance :: ProvenanceTag 
-                  , provenances :: ProvenanceMap 
+                  , provenances :: ProvenanceMap
                   }
 
 newtype SynthesisM a =
-  SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState IO) a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState StrategyM) a }
+  deriving (Functor, Applicative, Monad, MonadIO, LiftStrategyM)
 
 addBytes :: ProvenanceTag -> ByteString -> SynthesisM ()
 addBytes prov bs = 
@@ -176,14 +177,14 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> FName -> Module 
-           -> SymExecM (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed root md = withSolver $ \solv -> do
-  allSummaries <- guidState (summarise allDecls)
+synthesise :: Maybe Int -> GUID -> Solver -> FName -> Module 
+           -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
+synthesise m_seed nguid solv root md = do
+  let (allSummaries, nguid') = summarise allDecls nguid
 
   -- We do this in one giant step to deal with recursion and deps on
   -- pure functions.
-  symExecSummaries md allSummaries
+  -- symExecSummaries md allSummaries
 
   -- let symExecSummary' fun
   --       | Just sm <- Map.lookup (fName fun) allSummaries =
@@ -192,28 +193,30 @@ synthesise m_seed root md = withSolver $ \solv -> do
 
   -- mapM_ symExecSummary' allDecls
   
-  gen <- maybe getStdGen (pure . mkStdGen) m_seed
+  gen      <- maybe getStdGen (pure . mkStdGen) m_seed
+  let sst0 = emptyStrategyMState gen solv allSummaries md nguid'
 
-  let initState gen' = 
-        SynthesisMState { stdGen       = gen'
-                        , seenBytes    = mempty
-                        , curStream    = emptyStream
-                        , solver       = solv
-                        , summaries    = allSummaries
-                        , rules        = rs
-                        , nextProvenance = firstSolverProvenance
-                        , provenances  = Map.empty 
-                        }
+  -- Init solver stdlib
+  -- FIXME: probably move?
+  makeStdLib solv 
 
-      go :: StdGen -> Generator (I.Value, ByteString, ProvenanceMap) ()
-      go gen' = do
-        (a, s) <- liftIO $ runStateT (runReaderT (getSynthesisM once) env0) (initState gen')
-        Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-        go (stdGen s)
-  
-  liftIO $ Streams.fromGenerator (go gen)
+  Streams.fromGenerator (go sst0)
   
   where
+    go :: StrategyMState -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go s0 = do
+      ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0) initState) s0
+      Streams.yield (assertInterpValue a, seenBytes s, provenances s)
+      go sts
+
+    initState = 
+      SynthesisMState { seenBytes      = mempty
+                      , curStream      = emptyStream
+                      , nextProvenance = firstSolverProvenance
+                      , provenances    = Map.empty 
+                      }
+
+    
     Just rootDecl = find (\d -> fName d == root) allDecls
 
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
@@ -224,25 +227,8 @@ synthesise m_seed root md = withSolver $ \solv -> do
     allDecls  = mGFuns md
     
     -- ns        = needsSolver allDecls
-    rs     = Map.fromList [ (fName d, d) | d <- allDecls ]
+    -- rs     = Map.fromList [ (fName d, d) | d <- allDecls ]
   
--- -- -----------------------------------------------------------------------------
--- -- Random values
-
--- rand :: Random a => SynthesisM a
--- rand = SynthesisM $ state go
---   where
---     go s = let (b, g') = random (stdGen s) in (b, s { stdGen = g' })
-
-randR :: Random a => (a, a) -> SynthesisM a
-randR r = SynthesisM $ state go
-  where
-    go s = let (b, g') = randomR r (stdGen s) in (b, s { stdGen = g' })
-
-randL :: [a] -> SynthesisM a
-randL [] = panic "randL: empty list" []
-randL vs = (!!) vs <$> randR (0, length vs - 1)
-
 -- -- -----------------------------------------------------------------------------
 -- -- Random bytes
 
@@ -291,7 +277,7 @@ mbPure _     v = pure v
 synthesiseDecl :: SummaryClass -> SelectedPath -> Fun Grammar -> [Expr] -> SynthesisM Value
 synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
-  summary <- SynthesisM $ gets (flip (Map.!) cl . flip (Map.!) fName . summaries)
+  summary <- flip (Map.!) cl . flip (Map.!) fName <$> summaries
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
       setRoots e = e { pathSetRoots = pathRootMap summary }
       setClass e = e { currentClass = cl }
@@ -301,7 +287,7 @@ synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
 synthesiseCallG :: SummaryClass -> SelectedPath -> FName -> [Expr] -> SynthesisM Value
 synthesiseCallG cl fp n args = do
-  decl <- SynthesisM $ gets (flip (Map.!) n . rules)
+  decl <- getGFun n
   synthesiseDecl cl fp decl args
 
 -- =============================================================================
@@ -312,19 +298,25 @@ synthesiseCallG cl fp n args = do
 
 choosePath :: SelectedPath -> Name -> SynthesisM SelectedPath
 choosePath cp x = do
-  m_fps <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
-  case m_fps of
+  m_sl <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
+  case m_sl of
     Nothing  -> pure cp
     Just sl -> do
-      -- We have a path starting at this node, so we need to call the
-      -- corresponding SMT function and process any generated model.      
-      s   <- SynthesisM $ gets solver
-      cl  <- SynthesisM $ asks currentClass
       prov <- freshProvenanceTag 
-      sp <- liftIO $ solverSynth s cl x prov sl
-      let new = (merge cp sp)      
-      -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp $+$ pp new)
-      pure new
+      m_cp <- runStrategies strategies prov sl
+      case m_cp of
+        Nothing -> panic "All strategies failed" []
+        Just sp -> pure (merge cp sp)
+        
+      -- -- We have a path starting at this node, so we need to call the
+      -- -- corresponding SMT function and process any generated model.      
+      -- s   <- SynthesisM $ gets solver
+      -- cl  <- SynthesisM $ asks currentClass
+      -- prov <- freshProvenanceTag 
+      -- sp <- liftIO $ solverSynth s cl x prov sl
+      -- let new = (merge cp sp)      
+      -- -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp $+$ pp new)
+      -- pure new
       
 -- --------------------------------------------------------------------------------
 -- -- Simple Synthesis
@@ -421,9 +413,9 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
       mbPure s bs
     Match _s _        -> unimplemented
     Fail {}           -> unimplemented -- probably should be impossible
-    Do  {}            -> impossible
-    Do_ {}            -> impossible
-    Let {}            -> impossible
+    Do  {}            -> synthesiseG Unconstrained g
+    Do_ {}            -> synthesiseG Unconstrained g
+    Let {}            -> synthesiseG Unconstrained g
     Choice _biased gs -> do
       g' <- randL gs
       synthesiseG Unconstrained g'
@@ -431,7 +423,7 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     OrUnbiased {}    -> impossible
     
     Call fn args     -> synthesiseCallG Assertions Unconstrained fn args
-    Annot {}         -> impossible
+    Annot {}         -> synthesiseG Unconstrained g
     GCase c@(Case e _) -> do
       env <- projectEnvForM e
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')
