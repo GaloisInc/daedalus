@@ -35,6 +35,7 @@ import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
+import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
@@ -65,6 +66,11 @@ main =
        ]
 
 
+-- Currently during specialization we combine all input modules into a single
+-- module.  This is the name of the resulting module
+specMod :: ModuleName
+specMod = "DaedalusMain"
+
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
   | DumpRuleRanges <- optCommand opts =
@@ -82,7 +88,6 @@ handleOptions opts
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
        let mainRule = (mm,"Main")
-           specMod  = "DaedalusMain"
 
        case optCommand opts of
 
@@ -99,38 +104,14 @@ handleOptions opts
               mapM_ (ddlPrint . pp) =<< normalizedDecls
 
          DumpCore ->
-           do passSpecialize specMod [mainRule]
-              passCore specMod
-              entry <- ddlGetFName mm "Main" -- mainNm
-              when (optInline opts) (passInline [entry] specMod)
-              when (optStripFail opts) (passStripFail specMod)
-              ddlPrint . pp =<< ddlGetAST specMod astCore
+            do doToCore opts mm
+               ddlPrint . pp =<< ddlGetAST specMod astCore
 
-         DumpVM ->
-           do passSpecialize specMod [mainRule]
-              passCore specMod
-              entry <- ddlGetFName mm "Main" -- mainNm
-              let ents = [entry]
-              when (optInline opts) (passInline ents specMod)
-              when (optStripFail opts) (passStripFail specMod)              
-              passVM specMod
-              m <- ddlGetAST specMod astVM
-              let prog = VM.addCopyIs
-                       $ VM.doBorrowAnalysis
-                       $ VM.moduleToProgram ents [m]
-              ddlPrint (pp prog)
+         DumpVM -> ddlPrint . pp =<< doToVM opts mm
 
          DumpGraph onlyFun ->
-           do passSpecialize specMod [mainRule]
-              passCore specMod
-              entry <- ddlGetFName mm "Main" -- mainNm
-              let ents = [entry]
-              when (optInline opts) (passInline ents specMod)
-              when (optStripFail opts) (passStripFail specMod)              
-              passVM specMod
-              m <- ddlGetAST specMod astVM
-              let prog = VM.moduleToProgram ents [m]
-                  sty = if onlyFun then VM.OnlyCalls else VM.Everything
+           do prog <- doToVM opts mm
+              let sty = if onlyFun then VM.OnlyCalls else VM.Everything
               ddlPutStrLn (VM.toGraphViz sty prog)
 
 
@@ -196,31 +177,33 @@ interpInterp useJS inp prog (m,i) =
 
 
 
-generateCPP :: Options -> ModuleName -> Daedalus ()
-generateCPP opts mm =
-  do let (makeExe,entRules) = case optEntries opts of
-                                [] -> (True,[(mm,"Main")])
-                                es -> (False,map parseEntry es)
-         specMod    = "DaedalusMain"
-     when (makeExe && optOutDir opts == Nothing)
-       $ ddlIO $ throwOptError
-           [ "Generating a parser executable requires an output director" ]
-
-     passSpecialize specMod entRules
+doToCore :: Options -> ModuleName -> Daedalus ()
+doToCore opts mm =
+  do let entries = parseEntries opts mm
+     passSpecialize specMod entries
      passCore specMod
-     entries <- mapM (uncurry ddlGetFName) entRules
-     when (optInline opts) (passInline entries specMod)
-     when (optStripFail opts) (passStripFail specMod)     
+     ents <- mapM (uncurry ddlGetFName) entries
+     when (optInline opts) (passInline ents specMod)
+     when (optStripFail opts) (passStripFail specMod)
+
+doToVM :: Options -> ModuleName -> Daedalus VM.Program
+doToVM opts mm =
+  do let entries = parseEntries opts mm
+     doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
-     let prog = VM.addCopyIs
-              $ VM.doBorrowAnalysis
-              $ VM.moduleToProgram entries [m]
-         outFileRoot = "main_parser" -- XXX: parameterize on this
-         (hpp,cpp) = C.cProgram outFileRoot prog
+     let addMM = VM.addCopyIs . VM.doBorrowAnalysis
+     ents <- mapM (uncurry ddlGetFName) entries
+     pure $ addMM $ VM.moduleToProgram ents [m]
 
-     ddlIO (saveFiles makeExe outFileRoot hpp cpp)
 
+
+
+parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]
+parseEntries opts mm =
+  case optEntries opts of
+    [] -> [(mm,"Main")]
+    es -> map parseEntry es
   where
   parseEntry x =
     case break (== '.') x of
@@ -228,6 +211,20 @@ generateCPP opts mm =
       _         -> (mm, Text.pack x)
 
 
+generateCPP :: Options -> ModuleName -> Daedalus ()
+generateCPP opts mm =
+  do let makeExe = null (optEntries opts)
+     when (makeExe && optOutDir opts == Nothing)
+       $ ddlIO $ throwOptError
+           [ "Generating a parser executable requires an output director" ]
+
+     prog <- doToVM opts mm
+     let outFileRoot = "main_parser" -- XXX: parameterize on this
+         (hpp,cpp) = C.cProgram outFileRoot prog
+
+     ddlIO (saveFiles makeExe outFileRoot hpp cpp)
+
+  where
   saveFiles makeExe outFileRoot hpp cpp =
     do dir <- case optOutDir opts of
                 Nothing -> pure "."
