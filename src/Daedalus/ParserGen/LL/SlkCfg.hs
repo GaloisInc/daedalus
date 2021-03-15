@@ -953,7 +953,7 @@ simulateActionSlkCfg aut act q2 cfg tab =
       )
 
 data InputHeadCondition =
-    HeadInput ClassInterval
+    HeadInput ByteCondition
   | EndInput
   deriving (Show)
 
@@ -961,7 +961,7 @@ data InputHeadCondition =
 showGraphvizInputHeadCondition :: InputHeadCondition -> String
 showGraphvizInputHeadCondition c =
   case c of
-    HeadInput a -> showGraphvizClassInterval a
+    HeadInput a -> showGraphvizByteCondition a
     EndInput -> "END"
 
 
@@ -976,7 +976,7 @@ convertActionToInputHeadCondition act =
         R.Result r -> R.Result $ HeadInput r
         _ -> error "Impossible abort"
     Left (Right (IGetByte _)) ->
-      R.Result $ HeadInput (ClassBtw (CValue 0) (CValue 255))
+      R.Result $ HeadInput (ByteCondition [ClassBtw (CValue 0) (CValue 255)])
     Right IEnd ->
       R.Result $ EndInput
     _ -> error "Impossible case"
@@ -989,7 +989,7 @@ matchInputHeadCondition c i =
       case Input.inputByte i of
         Nothing -> Nothing
         Just (x, xs) ->
-          if matchClassInterval a x
+          if matchByteCondition a x
           then Just xs
           else Nothing
     EndInput ->

@@ -29,6 +29,7 @@ import Daedalus.ParserGen.Aut (Aut(..))
 
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.SlkCfg
 import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DFAStep
@@ -467,7 +468,7 @@ revAppend (x:xs) ys = revAppend xs (x:ys)
 
 detChoiceToList :: DetChoice -> [(InputHeadCondition, DFARegistry)]
 detChoiceToList detChoice =
-  let tr = map (\ (i,t) -> (HeadInput i, t)) (classDetChoice detChoice) in
+  let tr = map (\ (i,t) -> (HeadInput (ByteCondition [i]), t)) (classDetChoice detChoice) in
     case endDetChoice detChoice of
       Nothing -> tr
       Just t -> tr ++ [(EndInput, t)]
