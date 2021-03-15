@@ -786,7 +786,7 @@ instance TypeOf Type where
 
 instance TypeOf (TCDecl a) where
   typeOf TCDecl {..} = typeOf tcDeclDef
-   
+
 instance TypeOf (TCDeclDef a k) where
   typeOf d = case d of
                ExternDecl t -> t
@@ -839,14 +839,14 @@ instance TypeOf (TCF a k) where
       TCMatch s _     -> tGrammar (mbTy s tByte)
       TCMatchBytes s _-> tGrammar (mbTy s (tArray tByte))
       TCEnd           -> tGrammar tUnit
-      TCOffset        -> tGrammar tInteger
+      TCOffset        -> tGrammar tSize
 
       TCMapEmpty t    -> t
       TCMapInsert s _ _ m -> tGrammar (mbTy s (typeOf m))
       TCMapLookup s _ m   -> let Type (TMap _ vt) = typeOf m
                              in tGrammar (mbTy s vt)
 
-      TCArrayLength _    -> tInteger
+      TCArrayLength _    -> tSize
       TCArrayIndex s e _ -> let Type (TArray t) = typeOf e
                             in tGrammar (mbTy s t)
 
