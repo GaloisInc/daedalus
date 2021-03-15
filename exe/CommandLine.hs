@@ -27,7 +27,7 @@ data Command =
   | Interp (Maybe FilePath)
   | ShowHelp
 
-data Backend = UseInterp | UsePGen Bool
+data Backend = UseInterp | UseCore | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
@@ -105,6 +105,10 @@ options = OptSpec
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"
         $ NoArg \o -> Right o { optBackend = UsePGen False}
+
+      , Option [] ["core"]
+        "Use the Core interpreter"
+        $ NoArg \o -> Right o { optBackend = UseCore }
 
       , Option [] ["gen-metrics"]
         "Use parser-generator backend when interpreting and print metrics"

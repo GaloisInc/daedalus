@@ -6,7 +6,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when)
+import Control.Monad(when,forM_)
 import Data.Maybe(fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -35,6 +35,9 @@ import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
+import qualified Daedalus.Core as Core
+import qualified Daedalus.Core.Semantics.Value as Core
+import qualified Daedalus.Core.Semantics.Decl as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
@@ -104,7 +107,7 @@ handleOptions opts
               mapM_ (ddlPrint . pp) =<< normalizedDecls
 
          DumpCore ->
-            do doToCore opts mm
+            do _ <- doToCore opts mm
                ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM -> ddlPrint . pp =<< doToVM opts mm
@@ -132,6 +135,9 @@ handleOptions opts
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
                   ddlIO (interpInterp (optShowJS opts) inp prog mainRule)
+
+             UseCore -> interpCore opts mm inp
+
              UsePGen flagMetrics ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -154,8 +160,10 @@ handleOptions opts
                     }
 
          CompileCPP ->
+           -- XXX: this is a backend in a different sense
            case optBackend opts of
              UseInterp -> generateCPP opts mm
+             UseCore   -> generateCPP opts mm
              UsePGen _ ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -170,14 +178,20 @@ interpInterp ::
     IO ()
 interpInterp useJS inp prog (m,i) =
   do (_,res) <- interpFile inp prog (ModScope m i)
-     dumpResult useJS res
+     dumpResult (dumpInterpVal useJS) res
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
 
+interpCore :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
+interpCore opts mm inpMb =
+  do ents <- doToCore opts mm
+     env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
+     inp  <- ddlIO (RTS.newInputFromFile inpMb)
+     let showVal = dumpCoreVal (optShowJS opts)
+     ddlIO $ forM_ ents \ent -> dumpResult showVal (Core.runEntry env ent inp)
 
-
-doToCore :: Options -> ModuleName -> Daedalus ()
+doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
@@ -185,15 +199,14 @@ doToCore opts mm =
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts) (passInline ents specMod)
      when (optStripFail opts) (passStripFail specMod)
+     pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
-  do let entries = parseEntries opts mm
-     doToCore opts mm
+  do ents <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
      let addMM = VM.addCopyIs . VM.doBorrowAnalysis
-     ents <- mapM (uncurry ddlGetFName) entries
      pure $ addMM $ VM.moduleToProgram ents [m]
 
 
@@ -267,7 +280,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then dumpValues useJS resultValues
+                      then dumpValues (dumpInterpVal useJS) resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -314,8 +327,8 @@ inputHack opts =
 
 
 
-dumpResult :: Bool -> RTS.Result Value -> IO ()
-dumpResult useJS r =
+dumpResult :: (a -> Doc) -> RTS.Result a -> IO ()
+dumpResult ppVal r =
   case r of
 
    RTS.NoResults err ->
@@ -340,9 +353,16 @@ dumpResult useJS r =
         putStrLn "File context:"
         putStrLn $ prettyHexCfg cfg ctx
 
-   RTS.Results as -> dumpValues useJS (toList as)
+   RTS.Results as -> dumpValues ppVal (toList as)
 
-dumpValues :: Bool -> [Value] -> IO ()
-dumpValues useJS as =
+dumpValues :: (a -> Doc) -> [a] -> IO ()
+dumpValues ppVal as =
   do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
-     print $ vcat' $ map (if useJS then valueToJS else pp) as
+     print $ vcat' $ map ppVal as
+
+
+dumpInterpVal :: Bool -> Value -> Doc
+dumpInterpVal useJS = if useJS then valueToJS else pp
+
+dumpCoreVal :: Bool -> Core.Value -> Doc
+dumpCoreVal useJS = if useJS then pp else pp -- XXX: JS

@@ -6,7 +6,8 @@ import Data.Either(partitionEithers)
 import Data.List(foldl')
 import Data.Word(Word8)
 
-import RTS.Parser(Parser)
+import RTS.Parser(Parser,runParser)
+import RTS.ParserAPI(Result,Input)
 import Daedalus.Rec(topoOrder)
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
@@ -18,6 +19,15 @@ import Daedalus.Core.Semantics.Env
 import Daedalus.Core.Semantics.Expr
 import Daedalus.Core.Semantics.Grammar
 
+
+runEntry :: Env -> FName -> Input -> Result Value
+runEntry env f =
+  case Map.lookup f (gEnv env) of
+    Just fun -> runParser (fun [])
+    Nothing  -> panic "runEntry" ["Unknown entry: " ++ show (pp f)]
+
+evalModuleEmptyEnv :: Module -> Env
+evalModuleEmptyEnv m = evalModule m emptyEnv
 
 evalModule :: Module -> Env -> Env
 evalModule m = evalGFuns (mGFuns m) . evalBFuns (mBFuns m) . evalFuns (mFFuns m)
