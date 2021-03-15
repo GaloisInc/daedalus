@@ -152,7 +152,7 @@ def Response16Number = {
 
 def TagTable = {
   @tag_count = BE32;
-  Many (tag_count as int) TagEntry;
+  Many (tag_count as size) TagEntry;
 }
 
 def TagEntry = {
@@ -163,8 +163,8 @@ def TagEntry = {
 
 -- ENTRY: Should only be used when the stream is at offset 0
 def ParseTag (t : TagEntry) = {
-  Goto (t.offset_to_data_element as int);
-  ParseChunk (t.size_of_data_element as int) (Tag t.tag_signature);
+  Goto (t.offset_to_data_element as size);
+  ParseChunk (t.size_of_data_element as size) (Tag t.tag_signature);
 }
 
 
@@ -275,7 +275,7 @@ def MultiLocalizedUnicodeType = {
   @record_number = BE32;
   @record_size   = BE32;
   Guard (record_size == 12);
-  Many (record_number as int) (UnicodeRecord s);
+  Many (record_number as size) (UnicodeRecord s);
 }
 
 def UnicodeRecord s = {
@@ -283,7 +283,7 @@ def UnicodeRecord s = {
   country  = BE16;
   @size    = BE32;
   @offset  = BE32;
-  data     = Remote (ChunkRelativeTo s (offset as int) (size as int));
+  data     = Remote (ChunkRelativeTo s (offset as size) (size as size));
 }
 
 def S15Fixed16ArrayType = {
@@ -295,7 +295,7 @@ def ChromaticityType = {
   StartTag "chrm";
   @number_of_device_channels = BE16;
   phosphor_or_colorant       = BE16;
-  cie_coords                 = Many (number_of_device_channels as int) XYNumber;
+  cie_coords                 = Many (number_of_device_channels as size) XYNumber;
 }
 
 def ColorantOrderType = {
@@ -307,7 +307,7 @@ def ColorantOrderType = {
 def ColorantTableType = {
   StartTag "clrt";
   @count_of_colorant = BE32;
-  Many (count_of_colorant as int) Colorant;
+  Many (count_of_colorant as size) Colorant;
 }
 
 def Colorant = {
@@ -318,7 +318,7 @@ def Colorant = {
 def CurveType = {
   StartTag "curv";
   @n = BE32;
-  Many (n as int) BE16;
+  Many (n as size) BE16;
 }
 
 def ParametricCurveType = {
@@ -334,9 +334,9 @@ def ResponseCurveSet16Type = {
   StartTag "rcs2";
   @number_of_channels = BE16;
   @count              = BE16;
-  Many (count as int) {
+  Many (count as size) {
     @off  = BE32;
-    Remote { GotoRel s (off as int); ResponseCurve (number_of_channels as int)};
+    Remote { GotoRel s (off as size); ResponseCurve (number_of_channels as size)};
   }
 }
 
@@ -344,17 +344,17 @@ def ResponseCurve n = {
   measurement_unit  = BE32;
   @counts           = Many n BE32;
   pcxyzs            = Many n XYNumber;
-  response_arrays   = map (qi in counts) (Many (qi as int) Response16Number)
+  response_arrays   = map (qi in counts) (Many (qi as size) Response16Number)
 }
 
 def Lut8Type = {
   StartTag "mft1";
   number_of_input_channels = UInt8;
-  @i = ^ number_of_input_channels as int;
+  @i = ^ number_of_input_channels as size;
   number_of_output_channels = UInt8;
-  @o = ^ number_of_output_channels as int;
+  @o = ^ number_of_output_channels as size;
   number_of_clut_grid_points = UInt8;
-  @g = number_of_clut_grid_points as int;
+  @g = number_of_clut_grid_points as size;
   Match1 0x00;
   encoded_e_parameters = Many 9 { @x = BE32; ^ x as! sint 32 };
   input_tables  = Chunk (256 * i);
@@ -365,17 +365,17 @@ def Lut8Type = {
 def Lut16Type = {
   StartTag "mft2";
   number_of_input_channels = UInt8;
-  @i = ^ number_of_input_channels as int;
+  @i = ^ number_of_input_channels as size;
   number_of_output_channels = UInt8;
-  @o = ^ number_of_output_channels as int;
+  @o = ^ number_of_output_channels as size;
   number_of_clut_grid_points = UInt8;
-  @g = number_of_clut_grid_points as int;
+  @g = number_of_clut_grid_points as size;
   Match1 0x00;
   encoded_e_parameters = Many 9 { @x = BE32; ^ x as! sint 32 };
   number_of_input_table_entries = BE32;
-  @n = ^ number_of_input_table_entries as int;
+  @n = ^ number_of_input_table_entries as size;
   number_of_output_table_entries = BE32;
-  @m = ^ number_of_output_table_entries as int;
+  @m = ^ number_of_output_table_entries as size;
   input_tables  = Chunk (256 * n * i);
   clut_values   = Chunk (2 * (exp g i) * o);
   output_tables = Chunk (2 * m * o);
@@ -415,11 +415,11 @@ def MultiProcessElementsType = {
   number_of_input_channels      = BE16;
   number_of_output_channels     = BE16;
   number_of_processing_elements = BE32;
-  n = ^ number_of_processing_elements as int;
+  n = ^ number_of_processing_elements as size;
   Guard (n > 0);
   @els = Many n PositionNumber;
   elements = map (e in els)
-                 (ChunkRelativeTo s (e.offset as int) (e.size as int));
+                 (ChunkRelativeTo s (e.offset as size) (e.size as size));
 }
 
 
@@ -448,7 +448,7 @@ def NamedColor2Type = {
   @number_of_coords = BE32;
   prefix            = ParseChunk 32 (Only ASCII7);
   suffix            = ParseChunk 32 (Only ASCII7);
-  names             = Many (count as int) (ColorName (number_of_coords as int));
+  names             = Many (count as size) (ColorName (number_of_coords as size));
 }
 
 def ColorName m = {

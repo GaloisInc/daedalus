@@ -10,6 +10,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language TypeApplications #-}
 {-# Language TypeFamilies #-}
+{-# Language ViewPatterns #-}
 module ICC where
  
 import qualified RTS.Parser as RTS
@@ -23,90 +24,86 @@ import qualified RTS.Map as Map
 import qualified RTS.Vector as Vector
  
  
-data XYNumber
-  = XYNumber (RTS.UInt 32) (RTS.UInt 32)
+data VersionField
+  = VersionField (RTS.UInt 8) (RTS.UInt 4) (RTS.UInt 4)
   
  
-deriving instance HS.Eq XYNumber
+deriving instance HS.Eq VersionField
  
-deriving instance HS.Ord XYNumber
+deriving instance HS.Ord VersionField
  
-deriving instance HS.Show XYNumber
+deriving instance HS.Show VersionField
  
-instance RTS.DDL XYNumber where
+instance RTS.DDL VersionField where
  
-instance HS.HasField "x" XYNumber (RTS.UInt 32) where
-  getField (XYNumber x _) = x
+instance HS.HasField "major" VersionField (RTS.UInt 8) where
+  getField (VersionField x _ _) = x
  
-instance HS.HasField "y" XYNumber (RTS.UInt 32) where
-  getField (XYNumber _ x) = x
+instance HS.HasField "minor" VersionField (RTS.UInt 4) where
+  getField (VersionField _ x _) = x
  
-data ChromaticityType
-  = ChromaticityType (RTS.UInt 16) (Vector.Vector XYNumber)
+instance HS.HasField "bugfix" VersionField (RTS.UInt 4) where
+  getField (VersionField _ _ x) = x
+ 
+data ProfileClasses
+  = ProfileClasses_abstract_profile ()
+  | ProfileClasses_color_space_profile ()
+  | ProfileClasses_device_link_profile ()
+  | ProfileClasses_display_device_profile ()
+  | ProfileClasses_input_device_profile ()
+  | ProfileClasses_named_color_profile ()
+  | ProfileClasses_output_device_profile ()
   
  
-deriving instance HS.Eq ChromaticityType
+deriving instance HS.Eq ProfileClasses
  
-deriving instance HS.Ord ChromaticityType
+deriving instance HS.Ord ProfileClasses
  
-deriving instance HS.Show ChromaticityType
+deriving instance HS.Show ProfileClasses
  
-instance RTS.DDL ChromaticityType where
+instance RTS.DDL ProfileClasses where
  
-instance HS.HasField "phosphor_or_colorant" ChromaticityType
-           (RTS.UInt 16) where
-  getField (ChromaticityType x _) = x
+instance HS.HasField "abstract_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_abstract_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-instance HS.HasField "cie_coords" ChromaticityType
-           (Vector.Vector XYNumber) where
-  getField (ChromaticityType _ x) = x
+instance HS.HasField "color_space_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_color_space_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-data ColorName
-  = ColorName (Vector.Vector (RTS.UInt 7))
-      (Vector.Vector (RTS.UInt 16))
-      (Vector.Vector (RTS.UInt 16))
-  
+instance HS.HasField "device_link_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_device_link_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-deriving instance HS.Eq ColorName
+instance HS.HasField "display_device_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_display_device_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-deriving instance HS.Ord ColorName
+instance HS.HasField "input_device_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_input_device_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-deriving instance HS.Show ColorName
+instance HS.HasField "named_color_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_named_color_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
-instance RTS.DDL ColorName where
- 
-instance HS.HasField "name_root" ColorName
-           (Vector.Vector (RTS.UInt 7)) where
-  getField (ColorName x _ _) = x
- 
-instance HS.HasField "pcs_coords" ColorName
-           (Vector.Vector (RTS.UInt 16)) where
-  getField (ColorName _ x _) = x
- 
-instance HS.HasField "device_coords" ColorName
-           (Vector.Vector (RTS.UInt 16)) where
-  getField (ColorName _ _ x) = x
- 
-data Colorant
-  = Colorant (Vector.Vector (RTS.UInt 7))
-      (Vector.Vector (RTS.UInt 16))
-  
- 
-deriving instance HS.Eq Colorant
- 
-deriving instance HS.Ord Colorant
- 
-deriving instance HS.Show Colorant
- 
-instance RTS.DDL Colorant where
- 
-instance HS.HasField "name" Colorant
-           (Vector.Vector (RTS.UInt 7)) where
-  getField (Colorant x _) = x
- 
-instance HS.HasField "pcs" Colorant
-           (Vector.Vector (RTS.UInt 16)) where
-  getField (Colorant _ x) = x
+instance HS.HasField "output_device_profile" ProfileClasses
+           (HS.Maybe ()) where
+  getField (ProfileClasses_output_device_profile x) = HS.Just x
+   
+  getField _ = HS.Nothing
  
 data DataColorSpaces
   = DataColorSpaces_cielab_or_pcslab ()
@@ -285,324 +282,6 @@ instance HS.HasField "ycbcr" DataColorSpaces (HS.Maybe ()) where
    
   getField _ = HS.Nothing
  
-data DateTimeNumber
-  = DateTimeNumber (RTS.UInt 16) (RTS.UInt 16) (RTS.UInt 16)
-      (RTS.UInt 16)
-      (RTS.UInt 16)
-      (RTS.UInt 16)
-  
- 
-deriving instance HS.Eq DateTimeNumber
- 
-deriving instance HS.Ord DateTimeNumber
- 
-deriving instance HS.Show DateTimeNumber
- 
-instance RTS.DDL DateTimeNumber where
- 
-instance HS.HasField "year" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber x _ _ _ _ _) = x
- 
-instance HS.HasField "month" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber _ x _ _ _ _) = x
- 
-instance HS.HasField "day" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber _ _ x _ _ _) = x
- 
-instance HS.HasField "hour" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber _ _ _ x _ _) = x
- 
-instance HS.HasField "minute" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber _ _ _ _ x _) = x
- 
-instance HS.HasField "second" DateTimeNumber (RTS.UInt 16) where
-  getField (DateTimeNumber _ _ _ _ _ x) = x
- 
-data Lut16Type
-  = Lut16Type (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 8)
-      (Vector.Vector (RTS.SInt 32))
-      (RTS.UInt 32)
-      (RTS.UInt 32)
-      RTS.Input
-      RTS.Input
-      RTS.Input
-  
- 
-deriving instance HS.Eq Lut16Type
- 
-deriving instance HS.Ord Lut16Type
- 
-deriving instance HS.Show Lut16Type
- 
-instance RTS.DDL Lut16Type where
- 
-instance HS.HasField "number_of_input_channels" Lut16Type
-           (RTS.UInt 8) where
-  getField (Lut16Type x _ _ _ _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_channels" Lut16Type
-           (RTS.UInt 8) where
-  getField (Lut16Type _ x _ _ _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_clut_grid_points" Lut16Type
-           (RTS.UInt 8) where
-  getField (Lut16Type _ _ x _ _ _ _ _ _) = x
- 
-instance HS.HasField "encoded_e_parameters" Lut16Type
-           (Vector.Vector (RTS.SInt 32)) where
-  getField (Lut16Type _ _ _ x _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_input_table_entries" Lut16Type
-           (RTS.UInt 32) where
-  getField (Lut16Type _ _ _ _ x _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_table_entries" Lut16Type
-           (RTS.UInt 32) where
-  getField (Lut16Type _ _ _ _ _ x _ _ _) = x
- 
-instance HS.HasField "input_tables" Lut16Type RTS.Input where
-  getField (Lut16Type _ _ _ _ _ _ x _ _) = x
- 
-instance HS.HasField "clut_values" Lut16Type RTS.Input where
-  getField (Lut16Type _ _ _ _ _ _ _ x _) = x
- 
-instance HS.HasField "output_tables" Lut16Type RTS.Input where
-  getField (Lut16Type _ _ _ _ _ _ _ _ x) = x
- 
-data Lut8Type
-  = Lut8Type (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 8)
-      (Vector.Vector (RTS.SInt 32))
-      RTS.Input
-      RTS.Input
-      RTS.Input
-  
- 
-deriving instance HS.Eq Lut8Type
- 
-deriving instance HS.Ord Lut8Type
- 
-deriving instance HS.Show Lut8Type
- 
-instance RTS.DDL Lut8Type where
- 
-instance HS.HasField "number_of_input_channels" Lut8Type
-           (RTS.UInt 8) where
-  getField (Lut8Type x _ _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_channels" Lut8Type
-           (RTS.UInt 8) where
-  getField (Lut8Type _ x _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_clut_grid_points" Lut8Type
-           (RTS.UInt 8) where
-  getField (Lut8Type _ _ x _ _ _ _) = x
- 
-instance HS.HasField "encoded_e_parameters" Lut8Type
-           (Vector.Vector (RTS.SInt 32)) where
-  getField (Lut8Type _ _ _ x _ _ _) = x
- 
-instance HS.HasField "input_tables" Lut8Type RTS.Input where
-  getField (Lut8Type _ _ _ _ x _ _) = x
- 
-instance HS.HasField "clut_values" Lut8Type RTS.Input where
-  getField (Lut8Type _ _ _ _ _ x _) = x
- 
-instance HS.HasField "output_tables" Lut8Type RTS.Input where
-  getField (Lut8Type _ _ _ _ _ _ x) = x
- 
-data LutAToBType
-  = LutAToBType (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 32) (RTS.UInt 32)
-      (RTS.UInt 32)
-      (RTS.UInt 32)
-      (RTS.UInt 32)
-      RTS.Input
-  
- 
-deriving instance HS.Eq LutAToBType
- 
-deriving instance HS.Ord LutAToBType
- 
-deriving instance HS.Show LutAToBType
- 
-instance RTS.DDL LutAToBType where
- 
-instance HS.HasField "number_of_input_channels" LutAToBType
-           (RTS.UInt 8) where
-  getField (LutAToBType x _ _ _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_channels" LutAToBType
-           (RTS.UInt 8) where
-  getField (LutAToBType _ x _ _ _ _ _ _) = x
- 
-instance HS.HasField "offset_first_B_curve" LutAToBType
-           (RTS.UInt 32) where
-  getField (LutAToBType _ _ x _ _ _ _ _) = x
- 
-instance HS.HasField "offset_to_matrix" LutAToBType
-           (RTS.UInt 32) where
-  getField (LutAToBType _ _ _ x _ _ _ _) = x
- 
-instance HS.HasField "offset_to_first_M_curve" LutAToBType
-           (RTS.UInt 32) where
-  getField (LutAToBType _ _ _ _ x _ _ _) = x
- 
-instance HS.HasField "offset_to_CLUT" LutAToBType
-           (RTS.UInt 32) where
-  getField (LutAToBType _ _ _ _ _ x _ _) = x
- 
-instance HS.HasField "offset_to_first_A_curve" LutAToBType
-           (RTS.UInt 32) where
-  getField (LutAToBType _ _ _ _ _ _ x _) = x
- 
-instance HS.HasField "data" LutAToBType RTS.Input where
-  getField (LutAToBType _ _ _ _ _ _ _ x) = x
- 
-data LutBToAType
-  = LutBToAType (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 32) (RTS.UInt 32)
-      (RTS.UInt 32)
-      (RTS.UInt 32)
-      (RTS.UInt 32)
-      RTS.Input
-  
- 
-deriving instance HS.Eq LutBToAType
- 
-deriving instance HS.Ord LutBToAType
- 
-deriving instance HS.Show LutBToAType
- 
-instance RTS.DDL LutBToAType where
- 
-instance HS.HasField "number_of_input_channels" LutBToAType
-           (RTS.UInt 8) where
-  getField (LutBToAType x _ _ _ _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_channels" LutBToAType
-           (RTS.UInt 8) where
-  getField (LutBToAType _ x _ _ _ _ _ _) = x
- 
-instance HS.HasField "offset_first_B_curve" LutBToAType
-           (RTS.UInt 32) where
-  getField (LutBToAType _ _ x _ _ _ _ _) = x
- 
-instance HS.HasField "offset_to_matrix" LutBToAType
-           (RTS.UInt 32) where
-  getField (LutBToAType _ _ _ x _ _ _ _) = x
- 
-instance HS.HasField "offset_to_first_M_curve" LutBToAType
-           (RTS.UInt 32) where
-  getField (LutBToAType _ _ _ _ x _ _ _) = x
- 
-instance HS.HasField "offset_to_CLUT" LutBToAType
-           (RTS.UInt 32) where
-  getField (LutBToAType _ _ _ _ _ x _ _) = x
- 
-instance HS.HasField "offset_to_first_A_curve" LutBToAType
-           (RTS.UInt 32) where
-  getField (LutBToAType _ _ _ _ _ _ x _) = x
- 
-instance HS.HasField "data" LutBToAType RTS.Input where
-  getField (LutBToAType _ _ _ _ _ _ _ x) = x
- 
-data Lut_8_16_AB
-  = Lut_8_16_AB_lut16 Lut16Type
-  | Lut_8_16_AB_lut8 Lut8Type
-  | Lut_8_16_AB_lutAB LutAToBType
-  
- 
-deriving instance HS.Eq Lut_8_16_AB
- 
-deriving instance HS.Ord Lut_8_16_AB
- 
-deriving instance HS.Show Lut_8_16_AB
- 
-instance RTS.DDL Lut_8_16_AB where
- 
-instance HS.HasField "lut16" Lut_8_16_AB (HS.Maybe Lut16Type) where
-  getField (Lut_8_16_AB_lut16 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lut8" Lut_8_16_AB (HS.Maybe Lut8Type) where
-  getField (Lut_8_16_AB_lut8 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lutAB" Lut_8_16_AB
-           (HS.Maybe LutAToBType) where
-  getField (Lut_8_16_AB_lutAB x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-data Lut_8_16_AB_BA
-  = Lut_8_16_AB_BA_lut16 Lut16Type
-  | Lut_8_16_AB_BA_lut8 Lut8Type
-  | Lut_8_16_AB_BA_lutAB LutAToBType
-  | Lut_8_16_AB_BA_lutBA LutBToAType
-  
- 
-deriving instance HS.Eq Lut_8_16_AB_BA
- 
-deriving instance HS.Ord Lut_8_16_AB_BA
- 
-deriving instance HS.Show Lut_8_16_AB_BA
- 
-instance RTS.DDL Lut_8_16_AB_BA where
- 
-instance HS.HasField "lut16" Lut_8_16_AB_BA
-           (HS.Maybe Lut16Type) where
-  getField (Lut_8_16_AB_BA_lut16 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lut8" Lut_8_16_AB_BA
-           (HS.Maybe Lut8Type) where
-  getField (Lut_8_16_AB_BA_lut8 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lutAB" Lut_8_16_AB_BA
-           (HS.Maybe LutAToBType) where
-  getField (Lut_8_16_AB_BA_lutAB x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lutBA" Lut_8_16_AB_BA
-           (HS.Maybe LutBToAType) where
-  getField (Lut_8_16_AB_BA_lutBA x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-data Lut_8_16_BA
-  = Lut_8_16_BA_lut16 Lut16Type
-  | Lut_8_16_BA_lut8 Lut8Type
-  | Lut_8_16_BA_lutBA LutBToAType
-  
- 
-deriving instance HS.Eq Lut_8_16_BA
- 
-deriving instance HS.Ord Lut_8_16_BA
- 
-deriving instance HS.Show Lut_8_16_BA
- 
-instance RTS.DDL Lut_8_16_BA where
- 
-instance HS.HasField "lut16" Lut_8_16_BA (HS.Maybe Lut16Type) where
-  getField (Lut_8_16_BA_lut16 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lut8" Lut_8_16_BA (HS.Maybe Lut8Type) where
-  getField (Lut_8_16_BA_lut8 x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "lutBA" Lut_8_16_BA
-           (HS.Maybe LutBToAType) where
-  getField (Lut_8_16_BA_lutBA x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
 data PrimaryPlatforms
   = PrimaryPlatforms_apple_computer_inc ()
   | PrimaryPlatforms_microsoft_corporation ()
@@ -648,66 +327,6 @@ instance HS.HasField "sun_microsystems" PrimaryPlatforms
    
   getField _ = HS.Nothing
  
-data ProfileClasses
-  = ProfileClasses_abstract_profile ()
-  | ProfileClasses_color_space_profile ()
-  | ProfileClasses_device_link_profile ()
-  | ProfileClasses_display_device_profile ()
-  | ProfileClasses_input_device_profile ()
-  | ProfileClasses_named_color_profile ()
-  | ProfileClasses_output_device_profile ()
-  
- 
-deriving instance HS.Eq ProfileClasses
- 
-deriving instance HS.Ord ProfileClasses
- 
-deriving instance HS.Show ProfileClasses
- 
-instance RTS.DDL ProfileClasses where
- 
-instance HS.HasField "abstract_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_abstract_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "color_space_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_color_space_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "device_link_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_device_link_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "display_device_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_display_device_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "input_device_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_input_device_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "named_color_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_named_color_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
-instance HS.HasField "output_device_profile" ProfileClasses
-           (HS.Maybe ()) where
-  getField (ProfileClasses_output_device_profile x) = HS.Just x
-   
-  getField _ = HS.Nothing
- 
 data RenderingIntent
   = RenderingIntent_icc_absolute_colorimetric ()
   | RenderingIntent_media_relative_colorimetric ()
@@ -748,27 +367,6 @@ instance HS.HasField "saturation" RenderingIntent
    
   getField _ = HS.Nothing
  
-data VersionField
-  = VersionField (RTS.UInt 8) (RTS.UInt 4) (RTS.UInt 4)
-  
- 
-deriving instance HS.Eq VersionField
- 
-deriving instance HS.Ord VersionField
- 
-deriving instance HS.Show VersionField
- 
-instance RTS.DDL VersionField where
- 
-instance HS.HasField "major" VersionField (RTS.UInt 8) where
-  getField (VersionField x _ _) = x
- 
-instance HS.HasField "minor" VersionField (RTS.UInt 4) where
-  getField (VersionField _ x _) = x
- 
-instance HS.HasField "bugfix" VersionField (RTS.UInt 4) where
-  getField (VersionField _ _ x) = x
- 
 data XYZNumber
   = XYZNumber (RTS.UInt 32) (RTS.UInt 32) (RTS.UInt 32)
   
@@ -789,6 +387,39 @@ instance HS.HasField "y" XYZNumber (RTS.UInt 32) where
  
 instance HS.HasField "z" XYZNumber (RTS.UInt 32) where
   getField (XYZNumber _ _ x) = x
+ 
+data DateTimeNumber
+  = DateTimeNumber (RTS.UInt 16) (RTS.UInt 16) (RTS.UInt 16)
+      (RTS.UInt 16)
+      (RTS.UInt 16)
+      (RTS.UInt 16)
+  
+ 
+deriving instance HS.Eq DateTimeNumber
+ 
+deriving instance HS.Ord DateTimeNumber
+ 
+deriving instance HS.Show DateTimeNumber
+ 
+instance RTS.DDL DateTimeNumber where
+ 
+instance HS.HasField "year" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber x _ _ _ _ _) = x
+ 
+instance HS.HasField "month" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber _ x _ _ _ _) = x
+ 
+instance HS.HasField "day" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber _ _ x _ _ _) = x
+ 
+instance HS.HasField "hour" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber _ _ _ x _ _) = x
+ 
+instance HS.HasField "minute" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber _ _ _ _ x _) = x
+ 
+instance HS.HasField "second" DateTimeNumber (RTS.UInt 16) where
+  getField (DateTimeNumber _ _ _ _ _ x) = x
  
 data ProfileHeader
   = ProfileHeader (RTS.UInt 32) (RTS.UInt 32) VersionField
@@ -921,123 +552,23 @@ instance HS.HasField "profileHeader" Main ProfileHeader where
 instance HS.HasField "tagTable" Main (Vector.Vector TagEntry) where
   getField (Main _ x) = x
  
-data MeasurementType
-  = MeasurementType (RTS.UInt 32) XYZNumber (RTS.UInt 32)
-      (RTS.UInt 32)
-      (RTS.UInt 32)
+data XYNumber
+  = XYNumber (RTS.UInt 32) (RTS.UInt 32)
   
  
-deriving instance HS.Eq MeasurementType
+deriving instance HS.Eq XYNumber
  
-deriving instance HS.Ord MeasurementType
+deriving instance HS.Ord XYNumber
  
-deriving instance HS.Show MeasurementType
+deriving instance HS.Show XYNumber
  
-instance RTS.DDL MeasurementType where
+instance RTS.DDL XYNumber where
  
-instance HS.HasField "standard_observer" MeasurementType
-           (RTS.UInt 32) where
-  getField (MeasurementType x _ _ _ _) = x
+instance HS.HasField "x" XYNumber (RTS.UInt 32) where
+  getField (XYNumber x _) = x
  
-instance HS.HasField "nCIEXYZ" MeasurementType XYZNumber where
-  getField (MeasurementType _ x _ _ _) = x
- 
-instance HS.HasField "geometry" MeasurementType (RTS.UInt 32) where
-  getField (MeasurementType _ _ x _ _) = x
- 
-instance HS.HasField "flare" MeasurementType (RTS.UInt 32) where
-  getField (MeasurementType _ _ _ x _) = x
- 
-instance HS.HasField "illuminant" MeasurementType
-           (RTS.UInt 32) where
-  getField (MeasurementType _ _ _ _ x) = x
- 
-data MultiProcessElementsType
-  = MultiProcessElementsType (RTS.UInt 16) (RTS.UInt 16)
-      (RTS.UInt 32)
-      HS.Integer
-      (Vector.Vector RTS.Input)
-  
- 
-deriving instance HS.Eq MultiProcessElementsType
- 
-deriving instance HS.Ord MultiProcessElementsType
- 
-deriving instance HS.Show MultiProcessElementsType
- 
-instance RTS.DDL MultiProcessElementsType where
- 
-instance HS.HasField "number_of_input_channels"
-           MultiProcessElementsType
-           (RTS.UInt 16) where
-  getField (MultiProcessElementsType x _ _ _ _) = x
- 
-instance HS.HasField "number_of_output_channels"
-           MultiProcessElementsType
-           (RTS.UInt 16) where
-  getField (MultiProcessElementsType _ x _ _ _) = x
- 
-instance HS.HasField "number_of_processing_elements"
-           MultiProcessElementsType
-           (RTS.UInt 32) where
-  getField (MultiProcessElementsType _ _ x _ _) = x
- 
-instance HS.HasField "n" MultiProcessElementsType HS.Integer where
-  getField (MultiProcessElementsType _ _ _ x _) = x
- 
-instance HS.HasField "elements" MultiProcessElementsType
-           (Vector.Vector RTS.Input) where
-  getField (MultiProcessElementsType _ _ _ _ x) = x
- 
-data NamedColor2Type
-  = NamedColor2Type (RTS.UInt 32) (Vector.Vector (RTS.UInt 7))
-      (Vector.Vector (RTS.UInt 7))
-      (Vector.Vector ColorName)
-  
- 
-deriving instance HS.Eq NamedColor2Type
- 
-deriving instance HS.Ord NamedColor2Type
- 
-deriving instance HS.Show NamedColor2Type
- 
-instance RTS.DDL NamedColor2Type where
- 
-instance HS.HasField "vendor_specific" NamedColor2Type
-           (RTS.UInt 32) where
-  getField (NamedColor2Type x _ _ _) = x
- 
-instance HS.HasField "prefix" NamedColor2Type
-           (Vector.Vector (RTS.UInt 7)) where
-  getField (NamedColor2Type _ x _ _) = x
- 
-instance HS.HasField "suffix" NamedColor2Type
-           (Vector.Vector (RTS.UInt 7)) where
-  getField (NamedColor2Type _ _ x _) = x
- 
-instance HS.HasField "names" NamedColor2Type
-           (Vector.Vector ColorName) where
-  getField (NamedColor2Type _ _ _ x) = x
- 
-data ParametricCurveType
-  = ParametricCurveType (RTS.UInt 16) (Vector.Vector (RTS.UInt 32))
-  
- 
-deriving instance HS.Eq ParametricCurveType
- 
-deriving instance HS.Ord ParametricCurveType
- 
-deriving instance HS.Show ParametricCurveType
- 
-instance RTS.DDL ParametricCurveType where
- 
-instance HS.HasField "function" ParametricCurveType
-           (RTS.UInt 16) where
-  getField (ParametricCurveType x _) = x
- 
-instance HS.HasField "parameters" ParametricCurveType
-           (Vector.Vector (RTS.UInt 32)) where
-  getField (ParametricCurveType _ x) = x
+instance HS.HasField "y" XYNumber (RTS.UInt 32) where
+  getField (XYNumber _ x) = x
  
 data PositionNumber
   = PositionNumber (RTS.UInt 32) (RTS.UInt 32)
@@ -1076,30 +607,310 @@ instance HS.HasField "measurement" Response16Number
            (RTS.UInt 32) where
   getField (Response16Number _ x) = x
  
-data ResponseCurve
-  = ResponseCurve (RTS.UInt 32) (Vector.Vector XYNumber)
-      (Vector.Vector (Vector.Vector Response16Number))
+data Lut8Type
+  = Lut8Type (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 8)
+      (Vector.Vector (RTS.SInt 32))
+      RTS.Input
+      RTS.Input
+      RTS.Input
   
  
-deriving instance HS.Eq ResponseCurve
+deriving instance HS.Eq Lut8Type
  
-deriving instance HS.Ord ResponseCurve
+deriving instance HS.Ord Lut8Type
  
-deriving instance HS.Show ResponseCurve
+deriving instance HS.Show Lut8Type
  
-instance RTS.DDL ResponseCurve where
+instance RTS.DDL Lut8Type where
  
-instance HS.HasField "measurement_unit" ResponseCurve
+instance HS.HasField "number_of_input_channels" Lut8Type
+           (RTS.UInt 8) where
+  getField (Lut8Type x _ _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_output_channels" Lut8Type
+           (RTS.UInt 8) where
+  getField (Lut8Type _ x _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_clut_grid_points" Lut8Type
+           (RTS.UInt 8) where
+  getField (Lut8Type _ _ x _ _ _ _) = x
+ 
+instance HS.HasField "encoded_e_parameters" Lut8Type
+           (Vector.Vector (RTS.SInt 32)) where
+  getField (Lut8Type _ _ _ x _ _ _) = x
+ 
+instance HS.HasField "input_tables" Lut8Type RTS.Input where
+  getField (Lut8Type _ _ _ _ x _ _) = x
+ 
+instance HS.HasField "clut_values" Lut8Type RTS.Input where
+  getField (Lut8Type _ _ _ _ _ x _) = x
+ 
+instance HS.HasField "output_tables" Lut8Type RTS.Input where
+  getField (Lut8Type _ _ _ _ _ _ x) = x
+ 
+data Lut16Type
+  = Lut16Type (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 8)
+      (Vector.Vector (RTS.SInt 32))
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+      RTS.Input
+      RTS.Input
+      RTS.Input
+  
+ 
+deriving instance HS.Eq Lut16Type
+ 
+deriving instance HS.Ord Lut16Type
+ 
+deriving instance HS.Show Lut16Type
+ 
+instance RTS.DDL Lut16Type where
+ 
+instance HS.HasField "number_of_input_channels" Lut16Type
+           (RTS.UInt 8) where
+  getField (Lut16Type x _ _ _ _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_output_channels" Lut16Type
+           (RTS.UInt 8) where
+  getField (Lut16Type _ x _ _ _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_clut_grid_points" Lut16Type
+           (RTS.UInt 8) where
+  getField (Lut16Type _ _ x _ _ _ _ _ _) = x
+ 
+instance HS.HasField "encoded_e_parameters" Lut16Type
+           (Vector.Vector (RTS.SInt 32)) where
+  getField (Lut16Type _ _ _ x _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_input_table_entries" Lut16Type
            (RTS.UInt 32) where
-  getField (ResponseCurve x _ _) = x
+  getField (Lut16Type _ _ _ _ x _ _ _ _) = x
  
-instance HS.HasField "pcxyzs" ResponseCurve
-           (Vector.Vector XYNumber) where
-  getField (ResponseCurve _ x _) = x
+instance HS.HasField "number_of_output_table_entries" Lut16Type
+           (RTS.UInt 32) where
+  getField (Lut16Type _ _ _ _ _ x _ _ _) = x
  
-instance HS.HasField "response_arrays" ResponseCurve
-           (Vector.Vector (Vector.Vector Response16Number)) where
-  getField (ResponseCurve _ _ x) = x
+instance HS.HasField "input_tables" Lut16Type RTS.Input where
+  getField (Lut16Type _ _ _ _ _ _ x _ _) = x
+ 
+instance HS.HasField "clut_values" Lut16Type RTS.Input where
+  getField (Lut16Type _ _ _ _ _ _ _ x _) = x
+ 
+instance HS.HasField "output_tables" Lut16Type RTS.Input where
+  getField (Lut16Type _ _ _ _ _ _ _ _ x) = x
+ 
+data LutAToBType
+  = LutAToBType (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 32) (RTS.UInt 32)
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+      RTS.Input
+  
+ 
+deriving instance HS.Eq LutAToBType
+ 
+deriving instance HS.Ord LutAToBType
+ 
+deriving instance HS.Show LutAToBType
+ 
+instance RTS.DDL LutAToBType where
+ 
+instance HS.HasField "number_of_input_channels" LutAToBType
+           (RTS.UInt 8) where
+  getField (LutAToBType x _ _ _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_output_channels" LutAToBType
+           (RTS.UInt 8) where
+  getField (LutAToBType _ x _ _ _ _ _ _) = x
+ 
+instance HS.HasField "offset_first_B_curve" LutAToBType
+           (RTS.UInt 32) where
+  getField (LutAToBType _ _ x _ _ _ _ _) = x
+ 
+instance HS.HasField "offset_to_matrix" LutAToBType
+           (RTS.UInt 32) where
+  getField (LutAToBType _ _ _ x _ _ _ _) = x
+ 
+instance HS.HasField "offset_to_first_M_curve" LutAToBType
+           (RTS.UInt 32) where
+  getField (LutAToBType _ _ _ _ x _ _ _) = x
+ 
+instance HS.HasField "offset_to_CLUT" LutAToBType
+           (RTS.UInt 32) where
+  getField (LutAToBType _ _ _ _ _ x _ _) = x
+ 
+instance HS.HasField "offset_to_first_A_curve" LutAToBType
+           (RTS.UInt 32) where
+  getField (LutAToBType _ _ _ _ _ _ x _) = x
+ 
+instance HS.HasField "data" LutAToBType RTS.Input where
+  getField (LutAToBType _ _ _ _ _ _ _ x) = x
+ 
+data LutBToAType
+  = LutBToAType (RTS.UInt 8) (RTS.UInt 8) (RTS.UInt 32) (RTS.UInt 32)
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+      RTS.Input
+  
+ 
+deriving instance HS.Eq LutBToAType
+ 
+deriving instance HS.Ord LutBToAType
+ 
+deriving instance HS.Show LutBToAType
+ 
+instance RTS.DDL LutBToAType where
+ 
+instance HS.HasField "number_of_input_channels" LutBToAType
+           (RTS.UInt 8) where
+  getField (LutBToAType x _ _ _ _ _ _ _) = x
+ 
+instance HS.HasField "number_of_output_channels" LutBToAType
+           (RTS.UInt 8) where
+  getField (LutBToAType _ x _ _ _ _ _ _) = x
+ 
+instance HS.HasField "offset_first_B_curve" LutBToAType
+           (RTS.UInt 32) where
+  getField (LutBToAType _ _ x _ _ _ _ _) = x
+ 
+instance HS.HasField "offset_to_matrix" LutBToAType
+           (RTS.UInt 32) where
+  getField (LutBToAType _ _ _ x _ _ _ _) = x
+ 
+instance HS.HasField "offset_to_first_M_curve" LutBToAType
+           (RTS.UInt 32) where
+  getField (LutBToAType _ _ _ _ x _ _ _) = x
+ 
+instance HS.HasField "offset_to_CLUT" LutBToAType
+           (RTS.UInt 32) where
+  getField (LutBToAType _ _ _ _ _ x _ _) = x
+ 
+instance HS.HasField "offset_to_first_A_curve" LutBToAType
+           (RTS.UInt 32) where
+  getField (LutBToAType _ _ _ _ _ _ x _) = x
+ 
+instance HS.HasField "data" LutBToAType RTS.Input where
+  getField (LutBToAType _ _ _ _ _ _ _ x) = x
+ 
+data Lut_8_16_AB_BA
+  = Lut_8_16_AB_BA_lut16 Lut16Type
+  | Lut_8_16_AB_BA_lut8 Lut8Type
+  | Lut_8_16_AB_BA_lutAB LutAToBType
+  | Lut_8_16_AB_BA_lutBA LutBToAType
+  
+ 
+deriving instance HS.Eq Lut_8_16_AB_BA
+ 
+deriving instance HS.Ord Lut_8_16_AB_BA
+ 
+deriving instance HS.Show Lut_8_16_AB_BA
+ 
+instance RTS.DDL Lut_8_16_AB_BA where
+ 
+instance HS.HasField "lut16" Lut_8_16_AB_BA
+           (HS.Maybe Lut16Type) where
+  getField (Lut_8_16_AB_BA_lut16 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lut8" Lut_8_16_AB_BA
+           (HS.Maybe Lut8Type) where
+  getField (Lut_8_16_AB_BA_lut8 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lutAB" Lut_8_16_AB_BA
+           (HS.Maybe LutAToBType) where
+  getField (Lut_8_16_AB_BA_lutAB x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lutBA" Lut_8_16_AB_BA
+           (HS.Maybe LutBToAType) where
+  getField (Lut_8_16_AB_BA_lutBA x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+data Lut_8_16_AB
+  = Lut_8_16_AB_lut16 Lut16Type
+  | Lut_8_16_AB_lut8 Lut8Type
+  | Lut_8_16_AB_lutAB LutAToBType
+  
+ 
+deriving instance HS.Eq Lut_8_16_AB
+ 
+deriving instance HS.Ord Lut_8_16_AB
+ 
+deriving instance HS.Show Lut_8_16_AB
+ 
+instance RTS.DDL Lut_8_16_AB where
+ 
+instance HS.HasField "lut16" Lut_8_16_AB (HS.Maybe Lut16Type) where
+  getField (Lut_8_16_AB_lut16 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lut8" Lut_8_16_AB (HS.Maybe Lut8Type) where
+  getField (Lut_8_16_AB_lut8 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lutAB" Lut_8_16_AB
+           (HS.Maybe LutAToBType) where
+  getField (Lut_8_16_AB_lutAB x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+data Lut_8_16_BA
+  = Lut_8_16_BA_lut16 Lut16Type
+  | Lut_8_16_BA_lut8 Lut8Type
+  | Lut_8_16_BA_lutBA LutBToAType
+  
+ 
+deriving instance HS.Eq Lut_8_16_BA
+ 
+deriving instance HS.Ord Lut_8_16_BA
+ 
+deriving instance HS.Show Lut_8_16_BA
+ 
+instance RTS.DDL Lut_8_16_BA where
+ 
+instance HS.HasField "lut16" Lut_8_16_BA (HS.Maybe Lut16Type) where
+  getField (Lut_8_16_BA_lut16 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lut8" Lut_8_16_BA (HS.Maybe Lut8Type) where
+  getField (Lut_8_16_BA_lut8 x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+instance HS.HasField "lutBA" Lut_8_16_BA
+           (HS.Maybe LutBToAType) where
+  getField (Lut_8_16_BA_lutBA x) = HS.Just x
+   
+  getField _ = HS.Nothing
+ 
+data ParametricCurveType
+  = ParametricCurveType (RTS.UInt 16) (Vector.Vector (RTS.UInt 32))
+  
+ 
+deriving instance HS.Eq ParametricCurveType
+ 
+deriving instance HS.Ord ParametricCurveType
+ 
+deriving instance HS.Show ParametricCurveType
+ 
+instance RTS.DDL ParametricCurveType where
+ 
+instance HS.HasField "function" ParametricCurveType
+           (RTS.UInt 16) where
+  getField (ParametricCurveType x _) = x
+ 
+instance HS.HasField "parameters" ParametricCurveType
+           (Vector.Vector (RTS.UInt 32)) where
+  getField (ParametricCurveType _ x) = x
  
 data SomeCurve
   = SomeCurve_curve (Vector.Vector (RTS.UInt 16))
@@ -1146,6 +957,177 @@ instance HS.HasField "country" UnicodeRecord (RTS.UInt 16) where
  
 instance HS.HasField "data" UnicodeRecord RTS.Input where
   getField (UnicodeRecord _ _ x) = x
+ 
+data Colorant
+  = Colorant (Vector.Vector (RTS.UInt 7))
+      (Vector.Vector (RTS.UInt 16))
+  
+ 
+deriving instance HS.Eq Colorant
+ 
+deriving instance HS.Ord Colorant
+ 
+deriving instance HS.Show Colorant
+ 
+instance RTS.DDL Colorant where
+ 
+instance HS.HasField "name" Colorant
+           (Vector.Vector (RTS.UInt 7)) where
+  getField (Colorant x _) = x
+ 
+instance HS.HasField "pcs" Colorant
+           (Vector.Vector (RTS.UInt 16)) where
+  getField (Colorant _ x) = x
+ 
+data ResponseCurve
+  = ResponseCurve (RTS.UInt 32) (Vector.Vector XYNumber)
+      (Vector.Vector (Vector.Vector Response16Number))
+  
+ 
+deriving instance HS.Eq ResponseCurve
+ 
+deriving instance HS.Ord ResponseCurve
+ 
+deriving instance HS.Show ResponseCurve
+ 
+instance RTS.DDL ResponseCurve where
+ 
+instance HS.HasField "measurement_unit" ResponseCurve
+           (RTS.UInt 32) where
+  getField (ResponseCurve x _ _) = x
+ 
+instance HS.HasField "pcxyzs" ResponseCurve
+           (Vector.Vector XYNumber) where
+  getField (ResponseCurve _ x _) = x
+ 
+instance HS.HasField "response_arrays" ResponseCurve
+           (Vector.Vector (Vector.Vector Response16Number)) where
+  getField (ResponseCurve _ _ x) = x
+ 
+data MultiProcessElementsType
+  = MultiProcessElementsType (RTS.UInt 16) (RTS.UInt 16)
+      (RTS.UInt 32)
+      (RTS.UInt 64)
+      (Vector.Vector RTS.Input)
+  
+ 
+deriving instance HS.Eq MultiProcessElementsType
+ 
+deriving instance HS.Ord MultiProcessElementsType
+ 
+deriving instance HS.Show MultiProcessElementsType
+ 
+instance RTS.DDL MultiProcessElementsType where
+ 
+instance HS.HasField "number_of_input_channels"
+           MultiProcessElementsType
+           (RTS.UInt 16) where
+  getField (MultiProcessElementsType x _ _ _ _) = x
+ 
+instance HS.HasField "number_of_output_channels"
+           MultiProcessElementsType
+           (RTS.UInt 16) where
+  getField (MultiProcessElementsType _ x _ _ _) = x
+ 
+instance HS.HasField "number_of_processing_elements"
+           MultiProcessElementsType
+           (RTS.UInt 32) where
+  getField (MultiProcessElementsType _ _ x _ _) = x
+ 
+instance HS.HasField "n" MultiProcessElementsType
+           (RTS.UInt 64) where
+  getField (MultiProcessElementsType _ _ _ x _) = x
+ 
+instance HS.HasField "elements" MultiProcessElementsType
+           (Vector.Vector RTS.Input) where
+  getField (MultiProcessElementsType _ _ _ _ x) = x
+ 
+data MeasurementType
+  = MeasurementType (RTS.UInt 32) XYZNumber (RTS.UInt 32)
+      (RTS.UInt 32)
+      (RTS.UInt 32)
+  
+ 
+deriving instance HS.Eq MeasurementType
+ 
+deriving instance HS.Ord MeasurementType
+ 
+deriving instance HS.Show MeasurementType
+ 
+instance RTS.DDL MeasurementType where
+ 
+instance HS.HasField "standard_observer" MeasurementType
+           (RTS.UInt 32) where
+  getField (MeasurementType x _ _ _ _) = x
+ 
+instance HS.HasField "nCIEXYZ" MeasurementType XYZNumber where
+  getField (MeasurementType _ x _ _ _) = x
+ 
+instance HS.HasField "geometry" MeasurementType (RTS.UInt 32) where
+  getField (MeasurementType _ _ x _ _) = x
+ 
+instance HS.HasField "flare" MeasurementType (RTS.UInt 32) where
+  getField (MeasurementType _ _ _ x _) = x
+ 
+instance HS.HasField "illuminant" MeasurementType
+           (RTS.UInt 32) where
+  getField (MeasurementType _ _ _ _ x) = x
+ 
+data ColorName
+  = ColorName (Vector.Vector (RTS.UInt 7))
+      (Vector.Vector (RTS.UInt 16))
+      (Vector.Vector (RTS.UInt 16))
+  
+ 
+deriving instance HS.Eq ColorName
+ 
+deriving instance HS.Ord ColorName
+ 
+deriving instance HS.Show ColorName
+ 
+instance RTS.DDL ColorName where
+ 
+instance HS.HasField "name_root" ColorName
+           (Vector.Vector (RTS.UInt 7)) where
+  getField (ColorName x _ _) = x
+ 
+instance HS.HasField "pcs_coords" ColorName
+           (Vector.Vector (RTS.UInt 16)) where
+  getField (ColorName _ x _) = x
+ 
+instance HS.HasField "device_coords" ColorName
+           (Vector.Vector (RTS.UInt 16)) where
+  getField (ColorName _ _ x) = x
+ 
+data NamedColor2Type
+  = NamedColor2Type (RTS.UInt 32) (Vector.Vector (RTS.UInt 7))
+      (Vector.Vector (RTS.UInt 7))
+      (Vector.Vector ColorName)
+  
+ 
+deriving instance HS.Eq NamedColor2Type
+ 
+deriving instance HS.Ord NamedColor2Type
+ 
+deriving instance HS.Show NamedColor2Type
+ 
+instance RTS.DDL NamedColor2Type where
+ 
+instance HS.HasField "vendor_specific" NamedColor2Type
+           (RTS.UInt 32) where
+  getField (NamedColor2Type x _ _ _) = x
+ 
+instance HS.HasField "prefix" NamedColor2Type
+           (Vector.Vector (RTS.UInt 7)) where
+  getField (NamedColor2Type _ x _ _) = x
+ 
+instance HS.HasField "suffix" NamedColor2Type
+           (Vector.Vector (RTS.UInt 7)) where
+  getField (NamedColor2Type _ _ x _) = x
+ 
+instance HS.HasField "names" NamedColor2Type
+           (Vector.Vector ColorName) where
+  getField (NamedColor2Type _ _ _ x) = x
  
 data ViewConditionsType
   = ViewConditionsType XYZNumber XYZNumber (RTS.UInt 32)
@@ -1504,204 +1486,89 @@ instance HS.HasField "viewConditions" Tag
    
   getField _ = HS.Nothing
  
-pASCII7 :: RTS.Parser (Vector.Vector (RTS.UInt 7))
+data ChromaticityType
+  = ChromaticityType (RTS.UInt 16) (Vector.Vector XYNumber)
+  
  
-pASCII7 =
-  do (__ :: Vector.Vector (RTS.UInt 7)) <-
-       RTS.pMany (RTS.<||)
-         (do (_0 :: RTS.UInt 8) <-
-               RTS.uint8
-                 HS.<$> RTS.pMatch1 "136:14--136:24"
-                          (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
-             RTS.pIsJust "136:14--136:35" "Value does not fit in target type"
-               (RTS.convertMaybe _0 :: HS.Maybe (RTS.UInt 7)))
-     (RTS.<||)
-       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
-          (HS.const ()
-             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
-       (RTS.pError RTS.FromUser "137:30--137:59"
-          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
-     HS.pure __
+deriving instance HS.Eq ChromaticityType
  
-pBE16 :: RTS.Parser (RTS.UInt 16)
+deriving instance HS.Ord ChromaticityType
  
-pBE16 =
-  do (_1 :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "479:12--479:16"
-     (_2 :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "479:20--479:24"
-     HS.pure (RTS.cat _1 _2)
+deriving instance HS.Show ChromaticityType
  
-pBE32 :: RTS.Parser (RTS.UInt 32)
+instance RTS.DDL ChromaticityType where
  
-pBE32 =
-  do (_3 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     (_4 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     HS.pure (RTS.cat _3 _4)
+instance HS.HasField "phosphor_or_colorant" ChromaticityType
+           (RTS.UInt 16) where
+  getField (ChromaticityType x _) = x
  
-pBE64 :: RTS.Parser (RTS.UInt 64)
+instance HS.HasField "cie_coords" ChromaticityType
+           (Vector.Vector XYNumber) where
+  getField (ChromaticityType _ x) = x
  
-pBE64 =
-  do (_5 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (_6 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure (RTS.cat _5 _6)
+pVersionField :: RTS.Parser VersionField
  
-pXYNumber :: RTS.Parser XYNumber
+pVersionField =
+  do (major :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "36:18--36:22"
+     (min_bf :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "37:18--37:22"
+     (minor :: RTS.UInt 4) <-
+       HS.pure
+         (RTS.convert (RTS.shiftr min_bf (RTS.lit 4 :: RTS.UInt 64))
+            :: RTS.UInt 4)
+     (bugfix :: RTS.UInt 4) <-
+       HS.pure (RTS.convert min_bf :: RTS.UInt 4)
+     HS.const ()
+       HS.<$> RTS.pMatch "40:3--40:20"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     HS.pure (VersionField major minor bugfix)
  
-pXYNumber =
-  do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (y :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure (XYNumber x y)
+pProfileClasses :: RTS.Parser ProfileClasses
  
-_StartTag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser ()
- 
-_StartTag (x :: Vector.Vector (RTS.UInt 8)) =
-  do HS.const () HS.<$> RTS.pMatch "264:20--264:26" x
-     RTS.pErrorMode RTS.Abort
-       (HS.const ()
-          HS.<$> RTS.pMatch "264:37--264:51"
-                   (Vector.fromList
-                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8]))
- 
-pChromaticityType :: RTS.Parser ChromaticityType
- 
-pChromaticityType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "chrm"))
-     (number_of_device_channels :: RTS.UInt 16) <-
-       RTS.pEnter "ICC.BE16" pBE16
-     (phosphor_or_colorant :: RTS.UInt 16) <-
-       RTS.pEnter "ICC.BE16" pBE16
-     (cie_coords :: Vector.Vector XYNumber) <-
-       Vector.replicateM
-         (RTS.convert number_of_device_channels :: HS.Integer)
-         (RTS.pEnter "ICC.XYNumber" pXYNumber)
-     HS.pure (ChromaticityType phosphor_or_colorant cie_coords)
- 
-_GotoRel :: RTS.Input -> (HS.Integer -> RTS.Parser ())
- 
-_GotoRel (s :: RTS.Input) (n :: HS.Integer) =
-  do (s1 :: RTS.Input) <-
-       RTS.pIsJust "493:9--493:14" "Not enough bytes" (RTS.advanceBy n s)
-     RTS.pSetInput s1
- 
-_Goto :: HS.Integer -> RTS.Parser ()
- 
-_Goto (n :: HS.Integer) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pEnter "ICC._GotoRel" (_GotoRel s n)
- 
-pChunk :: HS.Integer -> RTS.Parser RTS.Input
- 
-pChunk (sz :: HS.Integer) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     (__ :: RTS.Input) <-
-       RTS.pIsJust "500:8--500:14" "Not enough bytes" (RTS.limitLen sz s)
-     RTS.pEnter "ICC._Goto" (_Goto sz)
-     HS.pure __
- 
-pChunkRelativeTo ::
-      RTS.Input -> (HS.Integer -> (HS.Integer -> RTS.Parser RTS.Input))
- 
-pChunkRelativeTo (s :: RTS.Input) (off :: HS.Integer)
-  (sz :: HS.Integer) =
-  do RTS.pEnter "ICC._GotoRel" (_GotoRel s off)
-     (__ :: RTS.Input) <- RTS.pEnter "ICC.Chunk" (pChunk sz)
-     HS.pure __
- 
-pParseChunk ::
-  forall e. RTS.DDL e => HS.Integer -> (RTS.Parser e -> RTS.Parser e)
- 
-pParseChunk (sz :: HS.Integer) (pP :: RTS.Parser e) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     (s1 :: RTS.Input) <-
-       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
-     RTS.pSetInput s1
-     (__ :: e) <- pP
-     (s2 :: RTS.Input) <-
-       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
-     RTS.pSetInput s2
-     HS.pure __
- 
-pColorName :: HS.Integer -> RTS.Parser ColorName
- 
-pColorName (m :: HS.Integer) =
-  do (name_root :: Vector.Vector (RTS.UInt 7)) <-
-       RTS.pEnter "ICC.ParseChunk"
-         (pParseChunk @(Vector.Vector (RTS.UInt 7))
-            (RTS.lit 32 :: HS.Integer)
-            (RTS.pEnter "ICC.ASCII7" pASCII7))
-     (pcs_coords :: Vector.Vector (RTS.UInt 16)) <-
-       Vector.replicateM (RTS.lit 3 :: HS.Integer)
-         (RTS.pEnter "ICC.BE16" pBE16)
-     (device_coords :: Vector.Vector (RTS.UInt 16)) <-
-       Vector.replicateM m (RTS.pEnter "ICC.BE16" pBE16)
-     HS.pure (ColorName name_root pcs_coords device_coords)
- 
-pOnly :: forall b. RTS.DDL b => RTS.Parser b -> RTS.Parser b
- 
-pOnly (pP :: RTS.Parser b) =
-  do (__ :: b) <- pP
-     RTS.pEnd "535:24--535:26"
-     HS.pure __
- 
-pColorant :: RTS.Parser Colorant
- 
-pColorant =
-  do (name :: Vector.Vector (RTS.UInt 7)) <-
-       RTS.pEnter "ICC.ParseChunk"
-         (pParseChunk @(Vector.Vector (RTS.UInt 7))
-            (RTS.lit 32 :: HS.Integer)
-            (RTS.pEnter "ICC.Only"
-               (pOnly @(Vector.Vector (RTS.UInt 7))
-                  (RTS.pEnter "ICC.ASCII7" pASCII7))))
-     (pcs :: Vector.Vector (RTS.UInt 16)) <-
-       Vector.replicateM (RTS.lit 3 :: HS.Integer)
-         (RTS.pEnter "ICC.BE16" pBE16)
-     HS.pure (Colorant name pcs)
- 
-_BE16 :: RTS.Parser ()
- 
-_BE16 =
-  do HS.const () HS.<$> RTS.pByte "479:12--479:16"
-     HS.const () HS.<$> RTS.pByte "479:20--479:24"
- 
-_BE32 :: RTS.Parser ()
- 
-_BE32 =
-  do RTS.pEnter "ICC._BE16" _BE16
-     RTS.pEnter "ICC._BE16" _BE16
- 
-pColorantOrderType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
- 
-pColorantOrderType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "clro"))
-     RTS.pEnter "ICC._BE32" _BE32
-     (__ :: Vector.Vector (RTS.UInt 8)) <-
-       RTS.pMany (RTS.<||) (RTS.uint8 HS.<$> RTS.pByte "304:8--304:12")
-     HS.pure __
- 
-pColorantTableType :: RTS.Parser (Vector.Vector Colorant)
- 
-pColorantTableType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "clrt"))
-     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (__ :: Vector.Vector Colorant) <-
-       Vector.replicateM (RTS.convert count_of_colorant :: HS.Integer)
-         (RTS.pEnter "ICC.Colorant" pColorant)
-     HS.pure __
- 
-pCurveType :: RTS.Parser (Vector.Vector (RTS.UInt 16))
- 
-pCurveType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "curv"))
-     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (__ :: Vector.Vector (RTS.UInt 16)) <-
-       Vector.replicateM (RTS.convert n :: HS.Integer)
-         (RTS.pEnter "ICC.BE16" pBE16)
+pProfileClasses =
+  do (__ :: ProfileClasses) <-
+       (RTS.<||)
+         (RTS.pEnter "input_device_profile"
+            (do (_262 :: ()) <-
+                  HS.const ()
+                    HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")
+                HS.pure (ProfileClasses_input_device_profile _262)))
+         ((RTS.<||)
+            (RTS.pEnter "display_device_profile"
+               (do (_263 :: ()) <-
+                     HS.const ()
+                       HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")
+                   HS.pure (ProfileClasses_display_device_profile _263)))
+            ((RTS.<||)
+               (RTS.pEnter "output_device_profile"
+                  (do (_264 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")
+                      HS.pure (ProfileClasses_output_device_profile _264)))
+               ((RTS.<||)
+                  (RTS.pEnter "device_link_profile"
+                     (do (_265 :: ()) <-
+                           HS.const ()
+                             HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")
+                         HS.pure (ProfileClasses_device_link_profile _265)))
+                  ((RTS.<||)
+                     (RTS.pEnter "color_space_profile"
+                        (do (_266 :: ()) <-
+                              HS.const ()
+                                HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")
+                            HS.pure (ProfileClasses_color_space_profile _266)))
+                     ((RTS.<||)
+                        (RTS.pEnter "abstract_profile"
+                           (do (_267 :: ()) <-
+                                 HS.const ()
+                                   HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")
+                               HS.pure (ProfileClasses_abstract_profile _267)))
+                        (RTS.pEnter "named_color_profile"
+                           (do (_268 :: ()) <-
+                                 HS.const ()
+                                   HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl")
+                               HS.pure (ProfileClasses_named_color_profile _268))))))))
      HS.pure __
  
 pDataColorSpaces :: RTS.Parser DataColorSpaces
@@ -1710,123 +1577,123 @@ pDataColorSpaces =
   do (__ :: DataColorSpaces) <-
        (RTS.<||)
          (RTS.pEnter "nciexyz_or_pcsxyz"
-            (do (_7 :: ()) <-
+            (do (_270 :: ()) <-
                   HS.const ()
                     HS.<$> RTS.pMatch "57:26--57:37" (Vector.vecFromRep "XYZ ")
-                HS.pure (DataColorSpaces_nciexyz_or_pcsxyz _7)))
+                HS.pure (DataColorSpaces_nciexyz_or_pcsxyz _270)))
          ((RTS.<||)
             (RTS.pEnter "cielab_or_pcslab"
-               (do (_8 :: ()) <-
+               (do (_271 :: ()) <-
                      HS.const ()
                        HS.<$> RTS.pMatch "58:26--58:37" (Vector.vecFromRep "Lab ")
-                   HS.pure (DataColorSpaces_cielab_or_pcslab _8)))
+                   HS.pure (DataColorSpaces_cielab_or_pcslab _271)))
             ((RTS.<||)
                (RTS.pEnter "cieluv"
-                  (do (_9 :: ()) <-
+                  (do (_272 :: ()) <-
                         HS.const ()
                           HS.<$> RTS.pMatch "59:26--59:37" (Vector.vecFromRep "Luv ")
-                      HS.pure (DataColorSpaces_cieluv _9)))
+                      HS.pure (DataColorSpaces_cieluv _272)))
                ((RTS.<||)
                   (RTS.pEnter "ycbcr"
-                     (do (_10 :: ()) <-
+                     (do (_273 :: ()) <-
                            HS.const ()
                              HS.<$> RTS.pMatch "60:26--60:37" (Vector.vecFromRep "Ycbr")
-                         HS.pure (DataColorSpaces_ycbcr _10)))
+                         HS.pure (DataColorSpaces_ycbcr _273)))
                   ((RTS.<||)
                      (RTS.pEnter "cieyxy"
-                        (do (_11 :: ()) <-
+                        (do (_274 :: ()) <-
                               HS.const ()
                                 HS.<$> RTS.pMatch "61:26--61:37" (Vector.vecFromRep "Yxy ")
-                            HS.pure (DataColorSpaces_cieyxy _11)))
+                            HS.pure (DataColorSpaces_cieyxy _274)))
                      ((RTS.<||)
                         (RTS.pEnter "rgb"
-                           (do (_12 :: ()) <-
+                           (do (_275 :: ()) <-
                                  HS.const ()
                                    HS.<$> RTS.pMatch "62:26--62:37" (Vector.vecFromRep "RGB ")
-                               HS.pure (DataColorSpaces_rgb _12)))
+                               HS.pure (DataColorSpaces_rgb _275)))
                         ((RTS.<||)
                            (RTS.pEnter "gray"
-                              (do (_13 :: ()) <-
+                              (do (_276 :: ()) <-
                                     HS.const ()
                                       HS.<$> RTS.pMatch "63:26--63:37" (Vector.vecFromRep "GRAY")
-                                  HS.pure (DataColorSpaces_gray _13)))
+                                  HS.pure (DataColorSpaces_gray _276)))
                            ((RTS.<||)
                               (RTS.pEnter "hsv"
-                                 (do (_14 :: ()) <-
+                                 (do (_277 :: ()) <-
                                        HS.const ()
                                          HS.<$> RTS.pMatch "64:26--64:37" (Vector.vecFromRep "HSV ")
-                                     HS.pure (DataColorSpaces_hsv _14)))
+                                     HS.pure (DataColorSpaces_hsv _277)))
                               ((RTS.<||)
                                  (RTS.pEnter "hls"
-                                    (do (_15 :: ()) <-
+                                    (do (_278 :: ()) <-
                                           HS.const ()
                                             HS.<$> RTS.pMatch "65:26--65:37"
                                                      (Vector.vecFromRep "HLS ")
-                                        HS.pure (DataColorSpaces_hls _15)))
+                                        HS.pure (DataColorSpaces_hls _278)))
                                  ((RTS.<||)
                                     (RTS.pEnter "cmyk"
-                                       (do (_16 :: ()) <-
+                                       (do (_279 :: ()) <-
                                              HS.const ()
                                                HS.<$> RTS.pMatch "66:26--66:37"
                                                         (Vector.vecFromRep "CMYK")
-                                           HS.pure (DataColorSpaces_cmyk _16)))
+                                           HS.pure (DataColorSpaces_cmyk _279)))
                                     ((RTS.<||)
                                        (RTS.pEnter "cmy"
-                                          (do (_17 :: ()) <-
+                                          (do (_280 :: ()) <-
                                                 HS.const ()
                                                   HS.<$> RTS.pMatch "67:26--67:37"
                                                            (Vector.vecFromRep "CMY ")
-                                              HS.pure (DataColorSpaces_cmy _17)))
+                                              HS.pure (DataColorSpaces_cmy _280)))
                                        ((RTS.<||)
                                           (RTS.pEnter "two_colour"
-                                             (do (_18 :: ()) <-
+                                             (do (_281 :: ()) <-
                                                    HS.const ()
                                                      HS.<$> RTS.pMatch "68:26--68:37"
                                                               (Vector.vecFromRep "2CLR")
-                                                 HS.pure (DataColorSpaces_two_colour _18)))
+                                                 HS.pure (DataColorSpaces_two_colour _281)))
                                           ((RTS.<||)
                                              (RTS.pEnter "three_colour"
-                                                (do (_19 :: ()) <-
+                                                (do (_282 :: ()) <-
                                                       HS.const ()
                                                         HS.<$> RTS.pMatch "69:26--69:37"
                                                                  (Vector.vecFromRep "3CLR")
-                                                    HS.pure (DataColorSpaces_three_colour _19)))
+                                                    HS.pure (DataColorSpaces_three_colour _282)))
                                              ((RTS.<||)
                                                 (RTS.pEnter "four_colour"
-                                                   (do (_20 :: ()) <-
+                                                   (do (_283 :: ()) <-
                                                          HS.const ()
                                                            HS.<$> RTS.pMatch "70:26--70:37"
                                                                     (Vector.vecFromRep "4CLR")
-                                                       HS.pure (DataColorSpaces_four_colour _20)))
+                                                       HS.pure (DataColorSpaces_four_colour _283)))
                                                 ((RTS.<||)
                                                    (RTS.pEnter "five_colour"
-                                                      (do (_21 :: ()) <-
+                                                      (do (_284 :: ()) <-
                                                             HS.const ()
                                                               HS.<$> RTS.pMatch "71:26--71:37"
                                                                        (Vector.vecFromRep "5CLR")
                                                           HS.pure
-                                                            (DataColorSpaces_five_colour _21)))
+                                                            (DataColorSpaces_five_colour _284)))
                                                    ((RTS.<||)
                                                       (RTS.pEnter "six_colour"
-                                                         (do (_22 :: ()) <-
+                                                         (do (_285 :: ()) <-
                                                                HS.const ()
                                                                  HS.<$> RTS.pMatch "72:26--72:37"
                                                                           (Vector.vecFromRep "6CLR")
                                                              HS.pure
-                                                               (DataColorSpaces_six_colour _22)))
+                                                               (DataColorSpaces_six_colour _285)))
                                                       ((RTS.<||)
                                                          (RTS.pEnter "seven_colour"
-                                                            (do (_23 :: ()) <-
+                                                            (do (_286 :: ()) <-
                                                                   HS.const ()
                                                                     HS.<$> RTS.pMatch "73:26--73:37"
                                                                              (Vector.vecFromRep
                                                                                 "7CLR")
                                                                 HS.pure
                                                                   (DataColorSpaces_seven_colour
-                                                                     _23)))
+                                                                     _286)))
                                                          ((RTS.<||)
                                                             (RTS.pEnter "eight_colour"
-                                                               (do (_24 :: ()) <-
+                                                               (do (_287 :: ()) <-
                                                                      HS.const ()
                                                                        HS.<$> RTS.pMatch
                                                                                 "74:26--74:37"
@@ -1834,10 +1701,10 @@ pDataColorSpaces =
                                                                                    "8CLR")
                                                                    HS.pure
                                                                      (DataColorSpaces_eight_colour
-                                                                        _24)))
+                                                                        _287)))
                                                             ((RTS.<||)
                                                                (RTS.pEnter "nine_colour"
-                                                                  (do (_25 :: ()) <-
+                                                                  (do (_288 :: ()) <-
                                                                         HS.const ()
                                                                           HS.<$> RTS.pMatch
                                                                                    "75:26--75:37"
@@ -1845,10 +1712,10 @@ pDataColorSpaces =
                                                                                       "9CLR")
                                                                       HS.pure
                                                                         (DataColorSpaces_nine_colour
-                                                                           _25)))
+                                                                           _288)))
                                                                ((RTS.<||)
                                                                   (RTS.pEnter "ten_colour"
-                                                                     (do (_26 :: ()) <-
+                                                                     (do (_289 :: ()) <-
                                                                            HS.const ()
                                                                              HS.<$> RTS.pMatch
                                                                                       "76:26--76:37"
@@ -1856,10 +1723,10 @@ pDataColorSpaces =
                                                                                          "ACLR")
                                                                          HS.pure
                                                                            (DataColorSpaces_ten_colour
-                                                                              _26)))
+                                                                              _289)))
                                                                   ((RTS.<||)
                                                                      (RTS.pEnter "eleven_colour"
-                                                                        (do (_27 :: ()) <-
+                                                                        (do (_290 :: ()) <-
                                                                               HS.const ()
                                                                                 HS.<$> RTS.pMatch
                                                                                          "77:26--77:37"
@@ -1867,10 +1734,10 @@ pDataColorSpaces =
                                                                                             "BCLR")
                                                                             HS.pure
                                                                               (DataColorSpaces_eleven_colour
-                                                                                 _27)))
+                                                                                 _290)))
                                                                      ((RTS.<||)
                                                                         (RTS.pEnter "twelve_colour"
-                                                                           (do (_28 :: ()) <-
+                                                                           (do (_291 :: ()) <-
                                                                                  HS.const ()
                                                                                    HS.<$> RTS.pMatch
                                                                                             "78:26--78:37"
@@ -1878,11 +1745,11 @@ pDataColorSpaces =
                                                                                                "CCLR")
                                                                                HS.pure
                                                                                  (DataColorSpaces_twelve_colour
-                                                                                    _28)))
+                                                                                    _291)))
                                                                         ((RTS.<||)
                                                                            (RTS.pEnter
                                                                               "thirteen_colour"
-                                                                              (do (_29 :: ()) <-
+                                                                              (do (_292 :: ()) <-
                                                                                     HS.const ()
                                                                                       HS.<$> RTS.pMatch
                                                                                                "79:26--79:37"
@@ -1890,11 +1757,11 @@ pDataColorSpaces =
                                                                                                   "DCLR")
                                                                                   HS.pure
                                                                                     (DataColorSpaces_thirteen_colour
-                                                                                       _29)))
+                                                                                       _292)))
                                                                            ((RTS.<||)
                                                                               (RTS.pEnter
                                                                                  "fourteen_colour"
-                                                                                 (do (_30 :: ()) <-
+                                                                                 (do (_293 :: ()) <-
                                                                                        HS.const ()
                                                                                          HS.<$> RTS.pMatch
                                                                                                   "80:26--80:37"
@@ -1902,10 +1769,10 @@ pDataColorSpaces =
                                                                                                      "ECLR")
                                                                                      HS.pure
                                                                                        (DataColorSpaces_fourteen_colour
-                                                                                          _30)))
+                                                                                          _293)))
                                                                               (RTS.pEnter
                                                                                  "fifteen_colour"
-                                                                                 (do (_31 :: ()) <-
+                                                                                 (do (_294 :: ()) <-
                                                                                        HS.const ()
                                                                                          HS.<$> RTS.pMatch
                                                                                                   "81:26--81:37"
@@ -1913,8 +1780,110 @@ pDataColorSpaces =
                                                                                                      "FCLR")
                                                                                      HS.pure
                                                                                        (DataColorSpaces_fifteen_colour
-                                                                                          _31))))))))))))))))))))))))))
+                                                                                          _294))))))))))))))))))))))))))
      HS.pure __
+ 
+pPrimaryPlatforms :: RTS.Parser PrimaryPlatforms
+ 
+pPrimaryPlatforms =
+  do (__ :: PrimaryPlatforms) <-
+       (RTS.<||)
+         (RTS.pEnter "none"
+            (do (_296 :: ()) <-
+                  HS.const ()
+                    HS.<$> RTS.pMatch "87:30--87:44"
+                             (Vector.fromList
+                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+                HS.pure (PrimaryPlatforms_none _296)))
+         ((RTS.<||)
+            (RTS.pEnter "apple_computer_inc"
+               (do (_297 :: ()) <-
+                     HS.const ()
+                       HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")
+                   HS.pure (PrimaryPlatforms_apple_computer_inc _297)))
+            ((RTS.<||)
+               (RTS.pEnter "microsoft_corporation"
+                  (do (_298 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")
+                      HS.pure (PrimaryPlatforms_microsoft_corporation _298)))
+               ((RTS.<||)
+                  (RTS.pEnter "silicon_graphics_inc"
+                     (do (_299 :: ()) <-
+                           HS.const ()
+                             HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")
+                         HS.pure (PrimaryPlatforms_silicon_graphics_inc _299)))
+                  (RTS.pEnter "sun_microsystems"
+                     (do (_300 :: ()) <-
+                           HS.const ()
+                             HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW")
+                         HS.pure (PrimaryPlatforms_sun_microsystems _300))))))
+     HS.pure __
+ 
+pRenderingIntent :: RTS.Parser RenderingIntent
+ 
+pRenderingIntent =
+  do (__ :: RenderingIntent) <-
+       (RTS.<||)
+         (RTS.pEnter "perceptual"
+            (do (_302 :: ()) <-
+                  HS.const ()
+                    HS.<$> RTS.pMatch "98:36--98:50"
+                             (Vector.fromList
+                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+                HS.pure (RenderingIntent_perceptual _302)))
+         ((RTS.<||)
+            (RTS.pEnter "media_relative_colorimetric"
+               (do (_303 :: ()) <-
+                     HS.const ()
+                       HS.<$> RTS.pMatch "99:36--99:50"
+                                (Vector.fromList
+                                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                    RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])
+                   HS.pure (RenderingIntent_media_relative_colorimetric _303)))
+            ((RTS.<||)
+               (RTS.pEnter "saturation"
+                  (do (_304 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "100:36--100:50"
+                                   (Vector.fromList
+                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])
+                      HS.pure (RenderingIntent_saturation _304)))
+               (RTS.pEnter "icc_absolute_colorimetric"
+                  (do (_305 :: ()) <-
+                        HS.const ()
+                          HS.<$> RTS.pMatch "101:36--101:50"
+                                   (Vector.fromList
+                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])
+                      HS.pure (RenderingIntent_icc_absolute_colorimetric _305)))))
+     HS.pure __
+ 
+pBE16 :: RTS.Parser (RTS.UInt 16)
+ 
+pBE16 =
+  do (_306 :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "479:12--479:16"
+     (_307 :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "479:20--479:24"
+     HS.pure (RTS.cat _306 _307)
+ 
+pBE32 :: RTS.Parser (RTS.UInt 32)
+ 
+pBE32 =
+  do (_308 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (_309 :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     HS.pure (RTS.cat _308 _309)
+ 
+pXYZNumber :: RTS.Parser XYZNumber
+ 
+pXYZNumber =
+  do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (y :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (z :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (XYZNumber x y z)
  
 pDateTimeNumber :: RTS.Parser DateTimeNumber
  
@@ -1927,34 +1896,160 @@ pDateTimeNumber =
      (second :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
      HS.pure (DateTimeNumber year month day hour minute second)
  
-pDateTimeType :: RTS.Parser DateTimeNumber
+pBE64 :: RTS.Parser (RTS.UInt 64)
  
-pDateTimeType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "dtim"))
-     (__ :: DateTimeNumber) <-
+pBE64 =
+  do (_310 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (_311 :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (RTS.cat _310 _311)
+ 
+pProfileHeader :: RTS.Parser ProfileHeader
+ 
+pProfileHeader =
+  do (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (preferred_cmm_type :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (version :: VersionField) <-
+       RTS.pEnter "ICC.VersionField" pVersionField
+     (devce_class :: ProfileClasses) <-
+       RTS.pEnter "ICC.ProfileClasses" pProfileClasses
+     (color_space :: DataColorSpaces) <-
+       RTS.pEnter "ICC.DataColorSpaces" pDataColorSpaces
+     (pcs :: DataColorSpaces) <-
+       RTS.pEnter "ICC.DataColorSpaces" pDataColorSpaces
+     (creation_date_time :: DateTimeNumber) <-
        RTS.pEnter "ICC.DateTimeNumber" pDateTimeNumber
+     HS.const ()
+       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
+     (primary_platform :: PrimaryPlatforms) <-
+       RTS.pEnter "ICC.PrimaryPlatforms" pPrimaryPlatforms
+     (profile_flags :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (device_manufacturer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (device_model :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (device_attributes :: RTS.UInt 64) <- RTS.pEnter "ICC.BE64" pBE64
+     (rendering_intent :: RenderingIntent) <-
+       RTS.pEnter "ICC.RenderingIntent" pRenderingIntent
+     (illuminant :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
+     (creatior :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (identifier :: Vector.Vector (RTS.UInt 8)) <-
+       Vector.replicateM (RTS.lit 16 :: RTS.UInt 64)
+         (RTS.uint8 HS.<$> RTS.pByte "31:33--31:37")
+     (reserved_data :: Vector.Vector (RTS.UInt 8)) <-
+       Vector.replicateM (RTS.lit 28 :: RTS.UInt 64)
+         (RTS.uint8
+            HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
+     HS.pure
+       (ProfileHeader size preferred_cmm_type version devce_class
+          color_space
+          pcs
+          creation_date_time
+          primary_platform
+          profile_flags
+          device_manufacturer
+          device_model
+          device_attributes
+          rendering_intent
+          illuminant
+          creatior
+          identifier
+          reserved_data)
+ 
+pTagEntry :: RTS.Parser TagEntry
+ 
+pTagEntry =
+  do (tag_signature :: Vector.Vector (RTS.UInt 8)) <-
+       Vector.replicateM (RTS.lit 4 :: RTS.UInt 64)
+         (RTS.uint8 HS.<$> RTS.pByte "159:36--159:40")
+     (offset_to_data_element :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (size_of_data_element :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     HS.pure
+       (TagEntry tag_signature offset_to_data_element
+          size_of_data_element)
+ 
+pTagTable :: RTS.Parser (Vector.Vector TagEntry)
+ 
+pTagTable =
+  do (tag_count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (__ :: Vector.Vector TagEntry) <-
+       Vector.replicateM (RTS.convert tag_count :: RTS.UInt 64)
+         (RTS.pEnter "ICC.TagEntry" pTagEntry)
      HS.pure __
  
-pGotoRel :: RTS.Input -> (HS.Integer -> RTS.Parser ())
+pMain :: RTS.Parser Main
  
-pGotoRel (s :: RTS.Input) (n :: HS.Integer) =
+pMain =
+  do (profileHeader :: ProfileHeader) <-
+       RTS.pEnter "ICC.ProfileHeader" pProfileHeader
+     (tagTable :: Vector.Vector TagEntry) <-
+       RTS.pEnter "ICC.TagTable" pTagTable
+     HS.pure (Main profileHeader tagTable)
+ 
+pXYNumber :: RTS.Parser XYNumber
+ 
+pXYNumber =
+  do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (y :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (XYNumber x y)
+ 
+pPositionNumber :: RTS.Parser PositionNumber
+ 
+pPositionNumber =
+  do (offset :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (PositionNumber offset size)
+ 
+pASCII7 :: RTS.Parser (Vector.Vector (RTS.UInt 7))
+ 
+pASCII7 =
+  do (__ :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pMany (RTS.<||)
+         (do (_313 :: RTS.UInt 8) <-
+               RTS.uint8
+                 HS.<$> RTS.pMatch1 "136:14--136:24"
+                          (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
+             RTS.pIsJust "136:14--136:35" "Value does not fit in target type"
+               (RTS.convertMaybe _313 :: HS.Maybe (RTS.UInt 7)))
+     (RTS.<||)
+       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: RTS.UInt 64)
+          (HS.const ()
+             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
+       (RTS.pError RTS.FromUser "137:30--137:59"
+          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
+     HS.pure __
+ 
+pResponse16Number :: RTS.Parser Response16Number
+ 
+pResponse16Number =
+  do (device :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     HS.const ()
+       HS.<$> RTS.pMatch "142:3--142:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     (measurement :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure (Response16Number device measurement)
+ 
+_GotoRel :: RTS.Input -> (RTS.UInt 64 -> RTS.Parser ())
+ 
+_GotoRel (s :: RTS.Input) (n :: RTS.UInt 64) =
   do (s1 :: RTS.Input) <-
        RTS.pIsJust "493:9--493:14" "Not enough bytes" (RTS.advanceBy n s)
-     (__ :: ()) <- RTS.pSetInput s1
-     HS.pure __
+     RTS.pSetInput s1
  
-pGoto :: HS.Integer -> RTS.Parser ()
+_Goto :: RTS.UInt 64 -> RTS.Parser ()
  
-pGoto (n :: HS.Integer) =
+_Goto (n :: RTS.UInt 64) =
   do (s :: RTS.Input) <- RTS.pPeek
-     (__ :: ()) <- RTS.pEnter "ICC.GotoRel" (pGotoRel s n)
+     RTS.pEnter "ICC._GotoRel" (_GotoRel s n)
+ 
+pChunk :: RTS.UInt 64 -> RTS.Parser RTS.Input
+ 
+pChunk (sz :: RTS.UInt 64) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     (__ :: RTS.Input) <-
+       RTS.pIsJust "500:8--500:14" "Not enough bytes" (RTS.limitLen sz s)
+     RTS.pEnter "ICC._Goto" (_Goto sz)
      HS.pure __
- 
-pGuard :: HS.Bool -> RTS.Parser ()
- 
-pGuard (p :: HS.Bool) =
-  RTS.pGuard "537:15--537:23" "guard failed" p
  
 exp ::
   forall a g.
@@ -1966,62 +2061,16 @@ exp (b :: a) (e :: g) =
   RTS.loopFold (\(x :: a) (i :: g) -> RTS.mul x b) (RTS.lit 1 :: a)
     (Vector.rangeUp (RTS.lit 0 :: g) e (RTS.lit 1 :: g))
  
-pLut16Type :: RTS.Parser Lut16Type
+_StartTag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser ()
  
-pLut16Type =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "mft2"))
-     (number_of_input_channels :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
-     (i :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-     (number_of_output_channels :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
-     (o :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-     (number_of_clut_grid_points :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
-     (g :: HS.Integer) <-
-       RTS.pIsJust "372:8--372:40" "Value does not fit in target type"
-         (RTS.convertMaybe number_of_clut_grid_points
-            :: HS.Maybe HS.Integer)
-     HS.const ()
-       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
-     (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
-       Vector.replicateM (RTS.lit 9 :: HS.Integer)
-         (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-             (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
-             HS.pure __)
-     (number_of_input_table_entries :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (n :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
-     (number_of_output_table_entries :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (m :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
-     (input_tables :: RTS.Input) <-
-       RTS.pEnter "ICC.Chunk"
-         (pChunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
-     (clut_values :: RTS.Input) <-
-       RTS.pEnter "ICC.Chunk"
-         (pChunk
-            (RTS.mul
-               (RTS.mul (RTS.lit 2 :: HS.Integer)
-                  (exp @HS.Integer @HS.Integer g i))
-               o))
-     (output_tables :: RTS.Input) <-
-       RTS.pEnter "ICC.Chunk"
-         (pChunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o))
-     HS.pure
-       (Lut16Type number_of_input_channels number_of_output_channels
-          number_of_clut_grid_points
-          encoded_e_parameters
-          number_of_input_table_entries
-          number_of_output_table_entries
-          input_tables
-          clut_values
-          output_tables)
+_StartTag (x :: Vector.Vector (RTS.UInt 8)) =
+  do HS.const () HS.<$> RTS.pMatch "264:20--264:26" x
+     RTS.pErrorMode RTS.Abort
+       (HS.const ()
+          HS.<$> RTS.pMatch "264:37--264:51"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8]))
  
 pLut8Type :: RTS.Parser Lut8Type
  
@@ -2030,38 +2079,95 @@ pLut8Type =
        (_StartTag (Vector.vecFromRep "mft1"))
      (number_of_input_channels :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "352:30--352:34"
-     (i :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (i :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_channels :: RTS.UInt 64)
      (number_of_output_channels :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "354:31--354:35"
-     (o :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (o :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_channels :: RTS.UInt 64)
      (number_of_clut_grid_points :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "356:32--356:36"
-     (g :: HS.Integer) <-
-       RTS.pIsJust "357:8--357:40" "Value does not fit in target type"
+     (g :: RTS.UInt 64) <-
+       RTS.pIsJust "357:8--357:41" "Value does not fit in target type"
          (RTS.convertMaybe number_of_clut_grid_points
-            :: HS.Maybe HS.Integer)
+            :: HS.Maybe (RTS.UInt 64))
      HS.const ()
        HS.<$> RTS.pMatch1 "358:3--358:13" (RTS.bcSingle (RTS.uint8 0))
      (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
-       Vector.replicateM (RTS.lit 9 :: HS.Integer)
+       Vector.replicateM (RTS.lit 9 :: RTS.UInt 64)
          (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
              (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
              HS.pure __)
      (input_tables :: RTS.Input) <-
        RTS.pEnter "ICC.Chunk"
-         (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
+         (pChunk (RTS.mul (RTS.lit 256 :: RTS.UInt 64) i))
      (clut_values :: RTS.Input) <-
        RTS.pEnter "ICC.Chunk"
-         (pChunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
+         (pChunk (RTS.mul (exp @(RTS.UInt 64) @(RTS.UInt 64) g i) o))
      (output_tables :: RTS.Input) <-
        RTS.pEnter "ICC.Chunk"
-         (pChunk (RTS.mul (RTS.lit 256 :: HS.Integer) o))
+         (pChunk (RTS.mul (RTS.lit 256 :: RTS.UInt 64) o))
      HS.pure
        (Lut8Type number_of_input_channels number_of_output_channels
           number_of_clut_grid_points
           encoded_e_parameters
+          input_tables
+          clut_values
+          output_tables)
+ 
+pLut16Type :: RTS.Parser Lut16Type
+ 
+pLut16Type =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft2"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
+     (i :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_channels :: RTS.UInt 64)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
+     (o :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_channels :: RTS.UInt 64)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
+     (g :: RTS.UInt 64) <-
+       RTS.pIsJust "372:8--372:41" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe (RTS.UInt 64))
+     HS.const ()
+       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
+     (encoded_e_parameters :: Vector.Vector (RTS.SInt 32)) <-
+       Vector.replicateM (RTS.lit 9 :: RTS.UInt 64)
+         (do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+             (__ :: RTS.SInt 32) <- HS.pure (RTS.convert x :: RTS.SInt 32)
+             HS.pure __)
+     (number_of_input_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_table_entries :: RTS.UInt 64)
+     (number_of_output_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (m :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_table_entries :: RTS.UInt 64)
+     (input_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.mul (RTS.lit 256 :: RTS.UInt 64) n) i))
+     (clut_values :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk
+            (RTS.mul
+               (RTS.mul (RTS.lit 2 :: RTS.UInt 64)
+                  (exp @(RTS.UInt 64) @(RTS.UInt 64) g i))
+               o))
+     (output_tables :: RTS.Input) <-
+       RTS.pEnter "ICC.Chunk"
+         (pChunk (RTS.mul (RTS.mul (RTS.lit 2 :: RTS.UInt 64) m) o))
+     HS.pure
+       (Lut16Type number_of_input_channels number_of_output_channels
+          number_of_clut_grid_points
+          encoded_e_parameters
+          number_of_input_table_entries
+          number_of_output_table_entries
           input_tables
           clut_values
           output_tables)
@@ -2128,306 +2234,133 @@ pLutBToAType =
           offset_to_first_A_curve
           _data)
  
-pLut_8_16_AB :: RTS.Parser Lut_8_16_AB
- 
-pLut_8_16_AB =
-  (RTS.<||)
-    (RTS.pEnter "lut8"
-       (do (_32 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_AB_lut8 _32)))
-    ((RTS.<||)
-       (RTS.pEnter "lut16"
-          (do (_33 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_AB_lut16 _33)))
-       (RTS.pEnter "lutAB"
-          (do (_34 :: LutAToBType) <-
-                RTS.pEnter "ICC.LutAToBType" pLutAToBType
-              HS.pure (Lut_8_16_AB_lutAB _34))))
- 
 pLut_8_16_AB_BA :: RTS.Parser Lut_8_16_AB_BA
  
 pLut_8_16_AB_BA =
   (RTS.<||)
     (RTS.pEnter "lut8"
-       (do (_35 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_AB_BA_lut8 _35)))
+       (do (_319 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_AB_BA_lut8 _319)))
     ((RTS.<||)
        (RTS.pEnter "lut16"
-          (do (_36 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_AB_BA_lut16 _36)))
+          (do (_320 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_AB_BA_lut16 _320)))
        ((RTS.<||)
           (RTS.pEnter "lutAB"
-             (do (_37 :: LutAToBType) <-
+             (do (_321 :: LutAToBType) <-
                    RTS.pEnter "ICC.LutAToBType" pLutAToBType
-                 HS.pure (Lut_8_16_AB_BA_lutAB _37)))
+                 HS.pure (Lut_8_16_AB_BA_lutAB _321)))
           (RTS.pEnter "lutBA"
-             (do (_38 :: LutBToAType) <-
+             (do (_322 :: LutBToAType) <-
                    RTS.pEnter "ICC.LutBToAType" pLutBToAType
-                 HS.pure (Lut_8_16_AB_BA_lutBA _38)))))
+                 HS.pure (Lut_8_16_AB_BA_lutBA _322)))))
+ 
+pLut_8_16_AB :: RTS.Parser Lut_8_16_AB
+ 
+pLut_8_16_AB =
+  (RTS.<||)
+    (RTS.pEnter "lut8"
+       (do (_323 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_AB_lut8 _323)))
+    ((RTS.<||)
+       (RTS.pEnter "lut16"
+          (do (_324 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_AB_lut16 _324)))
+       (RTS.pEnter "lutAB"
+          (do (_325 :: LutAToBType) <-
+                RTS.pEnter "ICC.LutAToBType" pLutAToBType
+              HS.pure (Lut_8_16_AB_lutAB _325))))
  
 pLut_8_16_BA :: RTS.Parser Lut_8_16_BA
  
 pLut_8_16_BA =
   (RTS.<||)
     (RTS.pEnter "lut8"
-       (do (_39 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
-           HS.pure (Lut_8_16_BA_lut8 _39)))
+       (do (_326 :: Lut8Type) <- RTS.pEnter "ICC.Lut8Type" pLut8Type
+           HS.pure (Lut_8_16_BA_lut8 _326)))
     ((RTS.<||)
        (RTS.pEnter "lut16"
-          (do (_40 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
-              HS.pure (Lut_8_16_BA_lut16 _40)))
+          (do (_327 :: Lut16Type) <- RTS.pEnter "ICC.Lut16Type" pLut16Type
+              HS.pure (Lut_8_16_BA_lut16 _327)))
        (RTS.pEnter "lutBA"
-          (do (_41 :: LutBToAType) <-
+          (do (_328 :: LutBToAType) <-
                 RTS.pEnter "ICC.LutBToAType" pLutBToAType
-              HS.pure (Lut_8_16_BA_lutBA _41))))
+              HS.pure (Lut_8_16_BA_lutBA _328))))
  
-pPrimaryPlatforms :: RTS.Parser PrimaryPlatforms
+pCurveType :: RTS.Parser (Vector.Vector (RTS.UInt 16))
  
-pPrimaryPlatforms =
-  do (__ :: PrimaryPlatforms) <-
-       (RTS.<||)
-         (RTS.pEnter "none"
-            (do (_42 :: ()) <-
-                  HS.const ()
-                    HS.<$> RTS.pMatch "87:30--87:44"
-                             (Vector.fromList
-                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-                HS.pure (PrimaryPlatforms_none _42)))
-         ((RTS.<||)
-            (RTS.pEnter "apple_computer_inc"
-               (do (_43 :: ()) <-
-                     HS.const ()
-                       HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")
-                   HS.pure (PrimaryPlatforms_apple_computer_inc _43)))
-            ((RTS.<||)
-               (RTS.pEnter "microsoft_corporation"
-                  (do (_44 :: ()) <-
-                        HS.const ()
-                          HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")
-                      HS.pure (PrimaryPlatforms_microsoft_corporation _44)))
-               ((RTS.<||)
-                  (RTS.pEnter "silicon_graphics_inc"
-                     (do (_45 :: ()) <-
-                           HS.const ()
-                             HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")
-                         HS.pure (PrimaryPlatforms_silicon_graphics_inc _45)))
-                  (RTS.pEnter "sun_microsystems"
-                     (do (_46 :: ()) <-
-                           HS.const ()
-                             HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW")
-                         HS.pure (PrimaryPlatforms_sun_microsystems _46))))))
+pCurveType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "curv"))
+     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (__ :: Vector.Vector (RTS.UInt 16)) <-
+       Vector.replicateM (RTS.convert n :: RTS.UInt 64)
+         (RTS.pEnter "ICC.BE16" pBE16)
      HS.pure __
  
-pProfileClasses :: RTS.Parser ProfileClasses
+pParametricCurveType :: RTS.Parser ParametricCurveType
  
-pProfileClasses =
-  do (__ :: ProfileClasses) <-
-       (RTS.<||)
-         (RTS.pEnter "input_device_profile"
-            (do (_47 :: ()) <-
-                  HS.const ()
-                    HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")
-                HS.pure (ProfileClasses_input_device_profile _47)))
-         ((RTS.<||)
-            (RTS.pEnter "display_device_profile"
-               (do (_48 :: ()) <-
-                     HS.const ()
-                       HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")
-                   HS.pure (ProfileClasses_display_device_profile _48)))
-            ((RTS.<||)
-               (RTS.pEnter "output_device_profile"
-                  (do (_49 :: ()) <-
-                        HS.const ()
-                          HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")
-                      HS.pure (ProfileClasses_output_device_profile _49)))
-               ((RTS.<||)
-                  (RTS.pEnter "device_link_profile"
-                     (do (_50 :: ()) <-
-                           HS.const ()
-                             HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")
-                         HS.pure (ProfileClasses_device_link_profile _50)))
-                  ((RTS.<||)
-                     (RTS.pEnter "color_space_profile"
-                        (do (_51 :: ()) <-
-                              HS.const ()
-                                HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")
-                            HS.pure (ProfileClasses_color_space_profile _51)))
-                     ((RTS.<||)
-                        (RTS.pEnter "abstract_profile"
-                           (do (_52 :: ()) <-
-                                 HS.const ()
-                                   HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")
-                               HS.pure (ProfileClasses_abstract_profile _52)))
-                        (RTS.pEnter "named_color_profile"
-                           (do (_53 :: ()) <-
-                                 HS.const ()
-                                   HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl")
-                               HS.pure (ProfileClasses_named_color_profile _53))))))))
-     HS.pure __
- 
-pRenderingIntent :: RTS.Parser RenderingIntent
- 
-pRenderingIntent =
-  do (__ :: RenderingIntent) <-
-       (RTS.<||)
-         (RTS.pEnter "perceptual"
-            (do (_54 :: ()) <-
-                  HS.const ()
-                    HS.<$> RTS.pMatch "98:36--98:50"
-                             (Vector.fromList
-                                [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                                 RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-                HS.pure (RenderingIntent_perceptual _54)))
-         ((RTS.<||)
-            (RTS.pEnter "media_relative_colorimetric"
-               (do (_55 :: ()) <-
-                     HS.const ()
-                       HS.<$> RTS.pMatch "99:36--99:50"
-                                (Vector.fromList
-                                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                                    RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])
-                   HS.pure (RenderingIntent_media_relative_colorimetric _55)))
-            ((RTS.<||)
-               (RTS.pEnter "saturation"
-                  (do (_56 :: ()) <-
-                        HS.const ()
-                          HS.<$> RTS.pMatch "100:36--100:50"
-                                   (Vector.fromList
-                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])
-                      HS.pure (RenderingIntent_saturation _56)))
-               (RTS.pEnter "icc_absolute_colorimetric"
-                  (do (_57 :: ()) <-
-                        HS.const ()
-                          HS.<$> RTS.pMatch "101:36--101:50"
-                                   (Vector.fromList
-                                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])
-                      HS.pure (RenderingIntent_icc_absolute_colorimetric _57)))))
-     HS.pure __
- 
-pVersionField :: RTS.Parser VersionField
- 
-pVersionField =
-  do (major :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "36:18--36:22"
-     (min_bf :: RTS.UInt 8) <- RTS.uint8 HS.<$> RTS.pByte "37:18--37:22"
-     (minor :: RTS.UInt 4) <-
-       HS.pure
-         (RTS.convert (RTS.shiftr min_bf (RTS.lit 4 :: HS.Integer))
-            :: RTS.UInt 4)
-     (bugfix :: RTS.UInt 4) <-
-       HS.pure (RTS.convert min_bf :: RTS.UInt 4)
+pParametricCurveType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "para"))
+     (function :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
      HS.const ()
-       HS.<$> RTS.pMatch "40:3--40:20"
+       HS.<$> RTS.pMatch "327:3--327:13"
                 (Vector.fromList
                    [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-     HS.pure (VersionField major minor bugfix)
+     (parameters :: Vector.Vector (RTS.UInt 32)) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
+     HS.pure (ParametricCurveType function parameters)
  
-pXYZNumber :: RTS.Parser XYZNumber
+pSomeCurve :: RTS.Parser SomeCurve
  
-pXYZNumber =
-  do (x :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (y :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (z :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure (XYZNumber x y z)
+pSomeCurve =
+  (RTS.<||)
+    (RTS.pEnter "curve"
+       (do (_330 :: Vector.Vector (RTS.UInt 16)) <-
+             RTS.pEnter "ICC.CurveType" pCurveType
+           HS.pure (SomeCurve_curve _330)))
+    (RTS.pEnter "parametric_curve"
+       (do (_331 :: ParametricCurveType) <-
+             RTS.pEnter "ICC.ParametricCurveType" pParametricCurveType
+           HS.pure (SomeCurve_parametric_curve _331)))
  
-pProfileHeader :: RTS.Parser ProfileHeader
+pDateTimeType :: RTS.Parser DateTimeNumber
  
-pProfileHeader =
-  do (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (preferred_cmm_type :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (version :: VersionField) <-
-       RTS.pEnter "ICC.VersionField" pVersionField
-     (devce_class :: ProfileClasses) <-
-       RTS.pEnter "ICC.ProfileClasses" pProfileClasses
-     (color_space :: DataColorSpaces) <-
-       RTS.pEnter "ICC.DataColorSpaces" pDataColorSpaces
-     (pcs :: DataColorSpaces) <-
-       RTS.pEnter "ICC.DataColorSpaces" pDataColorSpaces
-     (creation_date_time :: DateTimeNumber) <-
+pDateTimeType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "dtim"))
+     (__ :: DateTimeNumber) <-
        RTS.pEnter "ICC.DateTimeNumber" pDateTimeNumber
-     HS.const ()
-       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
-     (primary_platform :: PrimaryPlatforms) <-
-       RTS.pEnter "ICC.PrimaryPlatforms" pPrimaryPlatforms
-     (profile_flags :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (device_manufacturer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (device_model :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (device_attributes :: RTS.UInt 64) <- RTS.pEnter "ICC.BE64" pBE64
-     (rendering_intent :: RenderingIntent) <-
-       RTS.pEnter "ICC.RenderingIntent" pRenderingIntent
-     (illuminant :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
-     (creatior :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (identifier :: Vector.Vector (RTS.UInt 8)) <-
-       Vector.replicateM (RTS.lit 16 :: HS.Integer)
-         (RTS.uint8 HS.<$> RTS.pByte "31:33--31:37")
-     (reserved_data :: Vector.Vector (RTS.UInt 8)) <-
-       Vector.replicateM (RTS.lit 28 :: HS.Integer)
-         (RTS.uint8
-            HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
-     HS.pure
-       (ProfileHeader size preferred_cmm_type version devce_class
-          color_space
-          pcs
-          creation_date_time
-          primary_platform
-          profile_flags
-          device_manufacturer
-          device_model
-          device_attributes
-          rendering_intent
-          illuminant
-          creatior
-          identifier
-          reserved_data)
- 
-pTagEntry :: RTS.Parser TagEntry
- 
-pTagEntry =
-  do (tag_signature :: Vector.Vector (RTS.UInt 8)) <-
-       Vector.replicateM (RTS.lit 4 :: HS.Integer)
-         (RTS.uint8 HS.<$> RTS.pByte "159:36--159:40")
-     (offset_to_data_element :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (size_of_data_element :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     HS.pure
-       (TagEntry tag_signature offset_to_data_element
-          size_of_data_element)
- 
-pTagTable :: RTS.Parser (Vector.Vector TagEntry)
- 
-pTagTable =
-  do (tag_count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (__ :: Vector.Vector TagEntry) <-
-       Vector.replicateM (RTS.convert tag_count :: HS.Integer)
-         (RTS.pEnter "ICC.TagEntry" pTagEntry)
      HS.pure __
  
-pMain :: RTS.Parser Main
+pOnly :: forall b. RTS.DDL b => RTS.Parser b -> RTS.Parser b
  
-pMain =
-  do (profileHeader :: ProfileHeader) <-
-       RTS.pEnter "ICC.ProfileHeader" pProfileHeader
-     (tagTable :: Vector.Vector TagEntry) <-
-       RTS.pEnter "ICC.TagTable" pTagTable
-     HS.pure (Main profileHeader tagTable)
+pOnly (pP :: RTS.Parser b) =
+  do (__ :: b) <- pP
+     RTS.pEnd "535:24--535:26"
+     HS.pure __
  
-pMeasurementType :: RTS.Parser MeasurementType
+pTextType :: RTS.Parser (Vector.Vector (RTS.UInt 7))
  
-pMeasurementType =
+pTextType =
   do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "meas"))
-     (standard_observer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (nCIEXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
-     (geometry :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (flare :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure
-       (MeasurementType standard_observer nCIEXYZ geometry flare
-          illuminant)
+       (_StartTag (Vector.vecFromRep "text"))
+     (__ :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.Only"
+         (pOnly @(Vector.Vector (RTS.UInt 7))
+            (RTS.pEnter "ICC.ASCII7" pASCII7))
+     HS.pure __
+ 
+pSignatureType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
+ 
+pSignatureType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sig "))
+     (__ :: Vector.Vector (RTS.UInt 8)) <-
+       Vector.replicateM (RTS.lit 4 :: RTS.UInt 64)
+         (RTS.uint8 HS.<$> RTS.pByte "270:47--270:51")
+     HS.pure __
  
 pRemote :: forall c. RTS.DDL c => RTS.Parser c -> RTS.Parser c
  
@@ -2435,6 +2368,15 @@ pRemote (pP :: RTS.Parser c) =
   do (s :: RTS.Input) <- RTS.pPeek
      (__ :: c) <- pP
      RTS.pSetInput s
+     HS.pure __
+ 
+pChunkRelativeTo ::
+      RTS.Input -> (RTS.UInt 64 -> (RTS.UInt 64 -> RTS.Parser RTS.Input))
+ 
+pChunkRelativeTo (s :: RTS.Input) (off :: RTS.UInt 64)
+  (sz :: RTS.UInt 64) =
+  do RTS.pEnter "ICC._GotoRel" (_GotoRel s off)
+     (__ :: RTS.Input) <- RTS.pEnter "ICC.Chunk" (pChunk sz)
      HS.pure __
  
 pUnicodeRecord :: RTS.Input -> RTS.Parser UnicodeRecord
@@ -2448,8 +2390,8 @@ pUnicodeRecord (s :: RTS.Input) =
        RTS.pEnter "ICC.Remote"
          (pRemote @RTS.Input
             (RTS.pEnter "ICC.ChunkRelativeTo"
-               (pChunkRelativeTo s (RTS.convert offset :: HS.Integer)
-                  (RTS.convert size :: HS.Integer))))
+               (pChunkRelativeTo s (RTS.convert offset :: RTS.UInt 64)
+                  (RTS.convert size :: RTS.UInt 64))))
      HS.pure (UnicodeRecord language country _data)
  
 _Guard :: HS.Bool -> RTS.Parser ()
@@ -2468,16 +2410,121 @@ pMultiLocalizedUnicodeType =
      RTS.pEnter "ICC._Guard"
        (_Guard (record_size HS.== (RTS.lit 12 :: RTS.UInt 32)))
      (__ :: Vector.Vector UnicodeRecord) <-
-       Vector.replicateM (RTS.convert record_number :: HS.Integer)
+       Vector.replicateM (RTS.convert record_number :: RTS.UInt 64)
          (RTS.pEnter "ICC.UnicodeRecord" (pUnicodeRecord s))
      HS.pure __
  
-pPositionNumber :: RTS.Parser PositionNumber
+pS15Fixed16ArrayType :: RTS.Parser (Vector.Vector (RTS.UInt 32))
  
-pPositionNumber =
-  do (offset :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure (PositionNumber offset size)
+pS15Fixed16ArrayType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sf32"))
+     (__ :: Vector.Vector (RTS.UInt 32)) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
+     HS.pure __
+ 
+_BE16 :: RTS.Parser ()
+ 
+_BE16 =
+  do HS.const () HS.<$> RTS.pByte "479:12--479:16"
+     HS.const () HS.<$> RTS.pByte "479:20--479:24"
+ 
+_BE32 :: RTS.Parser ()
+ 
+_BE32 =
+  do RTS.pEnter "ICC._BE16" _BE16
+     RTS.pEnter "ICC._BE16" _BE16
+ 
+pColorantOrderType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
+ 
+pColorantOrderType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clro"))
+     RTS.pEnter "ICC._BE32" _BE32
+     (__ :: Vector.Vector (RTS.UInt 8)) <-
+       RTS.pMany (RTS.<||) (RTS.uint8 HS.<$> RTS.pByte "304:8--304:12")
+     HS.pure __
+ 
+pParseChunk ::
+  forall e.
+    RTS.DDL e => RTS.UInt 64 -> (RTS.Parser e -> RTS.Parser e)
+ 
+pParseChunk (sz :: RTS.UInt 64) (pP :: RTS.Parser e) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     (s1 :: RTS.Input) <-
+       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
+     RTS.pSetInput s1
+     (__ :: e) <- pP
+     (s2 :: RTS.Input) <-
+       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
+     RTS.pSetInput s2
+     HS.pure __
+ 
+pColorant :: RTS.Parser Colorant
+ 
+pColorant =
+  do (name :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.ParseChunk"
+         (pParseChunk @(Vector.Vector (RTS.UInt 7))
+            (RTS.lit 32 :: RTS.UInt 64)
+            (RTS.pEnter "ICC.Only"
+               (pOnly @(Vector.Vector (RTS.UInt 7))
+                  (RTS.pEnter "ICC.ASCII7" pASCII7))))
+     (pcs :: Vector.Vector (RTS.UInt 16)) <-
+       Vector.replicateM (RTS.lit 3 :: RTS.UInt 64)
+         (RTS.pEnter "ICC.BE16" pBE16)
+     HS.pure (Colorant name pcs)
+ 
+pColorantTableType :: RTS.Parser (Vector.Vector Colorant)
+ 
+pColorantTableType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clrt"))
+     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (__ :: Vector.Vector Colorant) <-
+       Vector.replicateM (RTS.convert count_of_colorant :: RTS.UInt 64)
+         (RTS.pEnter "ICC.Colorant" pColorant)
+     HS.pure __
+ 
+pResponseCurve :: RTS.UInt 64 -> RTS.Parser ResponseCurve
+ 
+pResponseCurve (n :: RTS.UInt 64) =
+  do (measurement_unit :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (counts :: Vector.Vector (RTS.UInt 32)) <-
+       Vector.replicateM n (RTS.pEnter "ICC.BE32" pBE32)
+     (pcxyzs :: Vector.Vector XYNumber) <-
+       Vector.replicateM n (RTS.pEnter "ICC.XYNumber" pXYNumber)
+     (response_arrays
+        :: Vector.Vector (Vector.Vector Response16Number)) <-
+       RTS.loopMapM
+         (\(qi :: RTS.UInt 32) ->
+            Vector.replicateM (RTS.convert qi :: RTS.UInt 64)
+              (RTS.pEnter "ICC.Response16Number" pResponse16Number))
+         counts
+         :: RTS.Parser (Vector.Vector (Vector.Vector Response16Number))
+     HS.pure (ResponseCurve measurement_unit pcxyzs response_arrays)
+ 
+pResponseCurveSet16Type :: RTS.Parser (Vector.Vector ResponseCurve)
+ 
+pResponseCurveSet16Type =
+  do (s :: RTS.Input) <- RTS.pPeek
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "rcs2"))
+     (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
+     (__ :: Vector.Vector ResponseCurve) <-
+       Vector.replicateM (RTS.convert count :: RTS.UInt 64)
+         (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+             (__ :: ResponseCurve) <-
+               RTS.pEnter "ICC.Remote"
+                 (pRemote @ResponseCurve
+                    (do RTS.pEnter "ICC._GotoRel"
+                          (_GotoRel s (RTS.convert off :: RTS.UInt 64))
+                        (__ :: ResponseCurve) <-
+                          RTS.pEnter "ICC.ResponseCurve"
+                            (pResponseCurve (RTS.convert number_of_channels :: RTS.UInt 64))
+                        HS.pure __))
+             HS.pure __)
+     HS.pure __
  
 pMultiProcessElementsType :: RTS.Parser MultiProcessElementsType
  
@@ -2490,9 +2537,10 @@ pMultiProcessElementsType =
        RTS.pEnter "ICC.BE16" pBE16
      (number_of_processing_elements :: RTS.UInt 32) <-
        RTS.pEnter "ICC.BE32" pBE32
-     (n :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
-     RTS.pEnter "ICC._Guard" (_Guard ((RTS.lit 0 :: HS.Integer) HS.< n))
+     (n :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_processing_elements :: RTS.UInt 64)
+     RTS.pEnter "ICC._Guard"
+       (_Guard ((RTS.lit 0 :: RTS.UInt 64) HS.< n))
      (els :: Vector.Vector PositionNumber) <-
        Vector.replicateM n
          (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
@@ -2501,8 +2549,8 @@ pMultiProcessElementsType =
          (\(e :: PositionNumber) ->
             RTS.pEnter "ICC.ChunkRelativeTo"
               (pChunkRelativeTo s
-                 (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
-                 (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
+                 (RTS.convert (HS.getField @"offset" e) :: RTS.UInt 64)
+                 (RTS.convert (HS.getField @"size" e) :: RTS.UInt 64)))
          els
          :: RTS.Parser (Vector.Vector RTS.Input)
      HS.pure
@@ -2511,6 +2559,44 @@ pMultiProcessElementsType =
           number_of_processing_elements
           n
           elements)
+ 
+pXYZType :: RTS.Parser (Vector.Vector XYZNumber)
+ 
+pXYZType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "XYZ "))
+     (__ :: Vector.Vector XYZNumber) <-
+       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.XYZNumber" pXYZNumber)
+     HS.pure __
+ 
+pMeasurementType :: RTS.Parser MeasurementType
+ 
+pMeasurementType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "meas"))
+     (standard_observer :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (nCIEXYZ :: XYZNumber) <- RTS.pEnter "ICC.XYZNumber" pXYZNumber
+     (geometry :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (flare :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     HS.pure
+       (MeasurementType standard_observer nCIEXYZ geometry flare
+          illuminant)
+ 
+pColorName :: RTS.UInt 64 -> RTS.Parser ColorName
+ 
+pColorName (m :: RTS.UInt 64) =
+  do (name_root :: Vector.Vector (RTS.UInt 7)) <-
+       RTS.pEnter "ICC.ParseChunk"
+         (pParseChunk @(Vector.Vector (RTS.UInt 7))
+            (RTS.lit 32 :: RTS.UInt 64)
+            (RTS.pEnter "ICC.ASCII7" pASCII7))
+     (pcs_coords :: Vector.Vector (RTS.UInt 16)) <-
+       Vector.replicateM (RTS.lit 3 :: RTS.UInt 64)
+         (RTS.pEnter "ICC.BE16" pBE16)
+     (device_coords :: Vector.Vector (RTS.UInt 16)) <-
+       Vector.replicateM m (RTS.pEnter "ICC.BE16" pBE16)
+     HS.pure (ColorName name_root pcs_coords device_coords)
  
 pNamedColor2Type :: RTS.Parser NamedColor2Type
  
@@ -2523,36 +2609,22 @@ pNamedColor2Type =
      (prefix :: Vector.Vector (RTS.UInt 7)) <-
        RTS.pEnter "ICC.ParseChunk"
          (pParseChunk @(Vector.Vector (RTS.UInt 7))
-            (RTS.lit 32 :: HS.Integer)
+            (RTS.lit 32 :: RTS.UInt 64)
             (RTS.pEnter "ICC.Only"
                (pOnly @(Vector.Vector (RTS.UInt 7))
                   (RTS.pEnter "ICC.ASCII7" pASCII7))))
      (suffix :: Vector.Vector (RTS.UInt 7)) <-
        RTS.pEnter "ICC.ParseChunk"
          (pParseChunk @(Vector.Vector (RTS.UInt 7))
-            (RTS.lit 32 :: HS.Integer)
+            (RTS.lit 32 :: RTS.UInt 64)
             (RTS.pEnter "ICC.Only"
                (pOnly @(Vector.Vector (RTS.UInt 7))
                   (RTS.pEnter "ICC.ASCII7" pASCII7))))
      (names :: Vector.Vector ColorName) <-
-       Vector.replicateM (RTS.convert count :: HS.Integer)
+       Vector.replicateM (RTS.convert count :: RTS.UInt 64)
          (RTS.pEnter "ICC.ColorName"
-            (pColorName (RTS.convert number_of_coords :: HS.Integer)))
+            (pColorName (RTS.convert number_of_coords :: RTS.UInt 64)))
      HS.pure (NamedColor2Type vendor_specific prefix suffix names)
- 
-pParametricCurveType :: RTS.Parser ParametricCurveType
- 
-pParametricCurveType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "para"))
-     (function :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     HS.const ()
-       HS.<$> RTS.pMatch "327:3--327:13"
-                (Vector.fromList
-                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-     (parameters :: Vector.Vector (RTS.UInt 32)) <-
-       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
-     HS.pure (ParametricCurveType function parameters)
  
 pStartTag ::
       Vector.Vector (RTS.UInt 8)
@@ -2575,100 +2647,6 @@ pProfileSequenceDescType =
        RTS.pEnter "ICC.StartTag" (pStartTag (Vector.vecFromRep "pseq"))
      HS.pure __
  
-pResponse16Number :: RTS.Parser Response16Number
- 
-pResponse16Number =
-  do (device :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     HS.const ()
-       HS.<$> RTS.pMatch "142:3--142:13"
-                (Vector.fromList
-                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-     (measurement :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     HS.pure (Response16Number device measurement)
- 
-pResponseCurve :: HS.Integer -> RTS.Parser ResponseCurve
- 
-pResponseCurve (n :: HS.Integer) =
-  do (measurement_unit :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (counts :: Vector.Vector (RTS.UInt 32)) <-
-       Vector.replicateM n (RTS.pEnter "ICC.BE32" pBE32)
-     (pcxyzs :: Vector.Vector XYNumber) <-
-       Vector.replicateM n (RTS.pEnter "ICC.XYNumber" pXYNumber)
-     (response_arrays
-        :: Vector.Vector (Vector.Vector Response16Number)) <-
-       RTS.loopMapM
-         (\(qi :: RTS.UInt 32) ->
-            Vector.replicateM (RTS.convert qi :: HS.Integer)
-              (RTS.pEnter "ICC.Response16Number" pResponse16Number))
-         counts
-         :: RTS.Parser (Vector.Vector (Vector.Vector Response16Number))
-     HS.pure (ResponseCurve measurement_unit pcxyzs response_arrays)
- 
-pResponseCurveSet16Type :: RTS.Parser (Vector.Vector ResponseCurve)
- 
-pResponseCurveSet16Type =
-  do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "rcs2"))
-     (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     (__ :: Vector.Vector ResponseCurve) <-
-       Vector.replicateM (RTS.convert count :: HS.Integer)
-         (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-             (__ :: ResponseCurve) <-
-               RTS.pEnter "ICC.Remote"
-                 (pRemote @ResponseCurve
-                    (do RTS.pEnter "ICC._GotoRel"
-                          (_GotoRel s (RTS.convert off :: HS.Integer))
-                        (__ :: ResponseCurve) <-
-                          RTS.pEnter "ICC.ResponseCurve"
-                            (pResponseCurve (RTS.convert number_of_channels :: HS.Integer))
-                        HS.pure __))
-             HS.pure __)
-     HS.pure __
- 
-pS15Fixed16ArrayType :: RTS.Parser (Vector.Vector (RTS.UInt 32))
- 
-pS15Fixed16ArrayType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "sf32"))
-     (__ :: Vector.Vector (RTS.UInt 32)) <-
-       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.BE32" pBE32)
-     HS.pure __
- 
-pSignatureType :: RTS.Parser (Vector.Vector (RTS.UInt 8))
- 
-pSignatureType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "sig "))
-     (__ :: Vector.Vector (RTS.UInt 8)) <-
-       Vector.replicateM (RTS.lit 4 :: HS.Integer)
-         (RTS.uint8 HS.<$> RTS.pByte "270:47--270:51")
-     HS.pure __
- 
-pSomeCurve :: RTS.Parser SomeCurve
- 
-pSomeCurve =
-  (RTS.<||)
-    (RTS.pEnter "curve"
-       (do (_58 :: Vector.Vector (RTS.UInt 16)) <-
-             RTS.pEnter "ICC.CurveType" pCurveType
-           HS.pure (SomeCurve_curve _58)))
-    (RTS.pEnter "parametric_curve"
-       (do (_59 :: ParametricCurveType) <-
-             RTS.pEnter "ICC.ParametricCurveType" pParametricCurveType
-           HS.pure (SomeCurve_parametric_curve _59)))
- 
-pTextType :: RTS.Parser (Vector.Vector (RTS.UInt 7))
- 
-pTextType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "text"))
-     (__ :: Vector.Vector (RTS.UInt 7)) <-
-       RTS.pEnter "ICC.Only"
-         (pOnly @(Vector.Vector (RTS.UInt 7))
-            (RTS.pEnter "ICC.ASCII7" pASCII7))
-     HS.pure __
- 
 pViewConditionsType :: RTS.Parser ViewConditionsType
  
 pViewConditionsType =
@@ -2680,101 +2658,92 @@ pViewConditionsType =
      (illuminant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
      HS.pure (ViewConditionsType illuminantXYZ surroundXYZ illuminant)
  
-pXYZType :: RTS.Parser (Vector.Vector XYZNumber)
- 
-pXYZType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "XYZ "))
-     (__ :: Vector.Vector XYZNumber) <-
-       RTS.pMany (RTS.<||) (RTS.pEnter "ICC.XYZNumber" pXYZNumber)
-     HS.pure __
- 
 pTag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser Tag
  
 pTag (sig :: Vector.Vector (RTS.UInt 8)) =
   (RTS.<||)
     ((RTS.<||)
        (RTS.pEnter "AToB0"
-          (do (_60 :: Lut_8_16_AB) <-
+          (do (_345 :: Lut_8_16_AB) <-
                 do RTS.pEnter "ICC._Guard"
                      (_Guard (sig HS.== Vector.vecFromRep "A2B0"))
                    RTS.pErrorMode RTS.Abort
                      (do (__ :: Lut_8_16_AB) <-
                            RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                          HS.pure __)
-              HS.pure (Tag_AToB0 _60)))
+              HS.pure (Tag_AToB0 _345)))
        ((RTS.<||)
           (RTS.pEnter "AToB1"
-             (do (_61 :: Lut_8_16_AB) <-
+             (do (_347 :: Lut_8_16_AB) <-
                    do RTS.pEnter "ICC._Guard"
                         (_Guard (sig HS.== Vector.vecFromRep "A2B1"))
                       RTS.pErrorMode RTS.Abort
                         (do (__ :: Lut_8_16_AB) <-
                               RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                             HS.pure __)
-                 HS.pure (Tag_AToB1 _61)))
+                 HS.pure (Tag_AToB1 _347)))
           ((RTS.<||)
              (RTS.pEnter "AToB2"
-                (do (_62 :: Lut_8_16_AB) <-
+                (do (_349 :: Lut_8_16_AB) <-
                       do RTS.pEnter "ICC._Guard"
                            (_Guard (sig HS.== Vector.vecFromRep "A2B2"))
                          RTS.pErrorMode RTS.Abort
                            (do (__ :: Lut_8_16_AB) <-
                                  RTS.pEnter "ICC.Lut_8_16_AB" pLut_8_16_AB
                                HS.pure __)
-                    HS.pure (Tag_AToB2 _62)))
+                    HS.pure (Tag_AToB2 _349)))
              ((RTS.<||)
                 (RTS.pEnter "blueMatrixColumn"
-                   (do (_63 :: Vector.Vector XYZNumber) <-
+                   (do (_351 :: Vector.Vector XYZNumber) <-
                          do RTS.pEnter "ICC._Guard"
                               (_Guard (sig HS.== Vector.vecFromRep "bXYZ"))
                             RTS.pErrorMode RTS.Abort
                               (do (__ :: Vector.Vector XYZNumber) <-
                                     RTS.pEnter "ICC.XYZType" pXYZType
                                   HS.pure __)
-                       HS.pure (Tag_blueMatrixColumn _63)))
+                       HS.pure (Tag_blueMatrixColumn _351)))
                 ((RTS.<||)
                    (RTS.pEnter "blueTRC"
-                      (do (_64 :: SomeCurve) <-
+                      (do (_353 :: SomeCurve) <-
                             do RTS.pEnter "ICC._Guard"
                                  (_Guard (sig HS.== Vector.vecFromRep "bTRC"))
                                RTS.pErrorMode RTS.Abort
                                  (do (__ :: SomeCurve) <- RTS.pEnter "ICC.SomeCurve" pSomeCurve
                                      HS.pure __)
-                          HS.pure (Tag_blueTRC _64)))
+                          HS.pure (Tag_blueTRC _353)))
                    ((RTS.<||)
                       (RTS.pEnter "BToA0"
-                         (do (_65 :: Lut_8_16_BA) <-
+                         (do (_355 :: Lut_8_16_BA) <-
                                do RTS.pEnter "ICC._Guard"
                                     (_Guard (sig HS.== Vector.vecFromRep "B2A0"))
                                   RTS.pErrorMode RTS.Abort
                                     (do (__ :: Lut_8_16_BA) <-
                                           RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                         HS.pure __)
-                             HS.pure (Tag_BToA0 _65)))
+                             HS.pure (Tag_BToA0 _355)))
                       ((RTS.<||)
                          (RTS.pEnter "BToA1"
-                            (do (_66 :: Lut_8_16_BA) <-
+                            (do (_357 :: Lut_8_16_BA) <-
                                   do RTS.pEnter "ICC._Guard"
                                        (_Guard (sig HS.== Vector.vecFromRep "B2A1"))
                                      RTS.pErrorMode RTS.Abort
                                        (do (__ :: Lut_8_16_BA) <-
                                              RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                            HS.pure __)
-                                HS.pure (Tag_BToA1 _66)))
+                                HS.pure (Tag_BToA1 _357)))
                          ((RTS.<||)
                             (RTS.pEnter "BToA2"
-                               (do (_67 :: Lut_8_16_BA) <-
+                               (do (_359 :: Lut_8_16_BA) <-
                                      do RTS.pEnter "ICC._Guard"
                                           (_Guard (sig HS.== Vector.vecFromRep "B2A2"))
                                         RTS.pErrorMode RTS.Abort
                                           (do (__ :: Lut_8_16_BA) <-
                                                 RTS.pEnter "ICC.Lut_8_16_BA" pLut_8_16_BA
                                               HS.pure __)
-                                   HS.pure (Tag_BToA2 _67)))
+                                   HS.pure (Tag_BToA2 _359)))
                             ((RTS.<||)
                                (RTS.pEnter "BToD0"
-                                  (do (_68 :: MultiProcessElementsType) <-
+                                  (do (_361 :: MultiProcessElementsType) <-
                                         do RTS.pEnter "ICC._Guard"
                                              (_Guard (sig HS.== Vector.vecFromRep "B2D0"))
                                            RTS.pErrorMode RTS.Abort
@@ -2782,10 +2751,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                    RTS.pEnter "ICC.MultiProcessElementsType"
                                                      pMultiProcessElementsType
                                                  HS.pure __)
-                                      HS.pure (Tag_BToD0 _68)))
+                                      HS.pure (Tag_BToD0 _361)))
                                ((RTS.<||)
                                   (RTS.pEnter "BToD1"
-                                     (do (_69 :: MultiProcessElementsType) <-
+                                     (do (_363 :: MultiProcessElementsType) <-
                                            do RTS.pEnter "ICC._Guard"
                                                 (_Guard (sig HS.== Vector.vecFromRep "B2D1"))
                                               RTS.pErrorMode RTS.Abort
@@ -2793,10 +2762,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                       RTS.pEnter "ICC.MultiProcessElementsType"
                                                         pMultiProcessElementsType
                                                     HS.pure __)
-                                         HS.pure (Tag_BToD1 _69)))
+                                         HS.pure (Tag_BToD1 _363)))
                                   ((RTS.<||)
                                      (RTS.pEnter "BToD2"
-                                        (do (_70 :: MultiProcessElementsType) <-
+                                        (do (_365 :: MultiProcessElementsType) <-
                                               do RTS.pEnter "ICC._Guard"
                                                    (_Guard (sig HS.== Vector.vecFromRep "B2D2"))
                                                  RTS.pErrorMode RTS.Abort
@@ -2804,10 +2773,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                          RTS.pEnter "ICC.MultiProcessElementsType"
                                                            pMultiProcessElementsType
                                                        HS.pure __)
-                                            HS.pure (Tag_BToD2 _70)))
+                                            HS.pure (Tag_BToD2 _365)))
                                      ((RTS.<||)
                                         (RTS.pEnter "BToD3"
-                                           (do (_71 :: MultiProcessElementsType) <-
+                                           (do (_367 :: MultiProcessElementsType) <-
                                                  do RTS.pEnter "ICC._Guard"
                                                       (_Guard (sig HS.== Vector.vecFromRep "B2D3"))
                                                     RTS.pErrorMode RTS.Abort
@@ -2816,10 +2785,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                               "ICC.MultiProcessElementsType"
                                                               pMultiProcessElementsType
                                                           HS.pure __)
-                                               HS.pure (Tag_BToD3 _71)))
+                                               HS.pure (Tag_BToD3 _367)))
                                         ((RTS.<||)
                                            (RTS.pEnter "calibrationDateTime"
-                                              (do (_72 :: DateTimeNumber) <-
+                                              (do (_369 :: DateTimeNumber) <-
                                                     do RTS.pEnter "ICC._Guard"
                                                          (_Guard
                                                             (sig HS.== Vector.vecFromRep "calt"))
@@ -2828,10 +2797,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                RTS.pEnter "ICC.DateTimeType"
                                                                  pDateTimeType
                                                              HS.pure __)
-                                                  HS.pure (Tag_calibrationDateTime _72)))
+                                                  HS.pure (Tag_calibrationDateTime _369)))
                                            ((RTS.<||)
                                               (RTS.pEnter "charTarget"
-                                                 (do (_73 :: Vector.Vector (RTS.UInt 7)) <-
+                                                 (do (_371 :: Vector.Vector (RTS.UInt 7)) <-
                                                        do RTS.pEnter "ICC._Guard"
                                                             (_Guard
                                                                (sig HS.== Vector.vecFromRep "targ"))
@@ -2841,10 +2810,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                   RTS.pEnter "ICC.TextType"
                                                                     pTextType
                                                                 HS.pure __)
-                                                     HS.pure (Tag_charTarget _73)))
+                                                     HS.pure (Tag_charTarget _371)))
                                               ((RTS.<||)
                                                  (RTS.pEnter "chromaticAdaptation"
-                                                    (do (_74 :: Vector.Vector (RTS.UInt 32)) <-
+                                                    (do (_373 :: Vector.Vector (RTS.UInt 32)) <-
                                                           do RTS.pEnter "ICC._Guard"
                                                                (_Guard
                                                                   (sig
@@ -2858,10 +2827,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                        "ICC.S15Fixed16ArrayType"
                                                                        pS15Fixed16ArrayType
                                                                    HS.pure __)
-                                                        HS.pure (Tag_chromaticAdaptation _74)))
+                                                        HS.pure (Tag_chromaticAdaptation _373)))
                                                  ((RTS.<||)
                                                     (RTS.pEnter "colorantOrder"
-                                                       (do (_75 :: Vector.Vector (RTS.UInt 8)) <-
+                                                       (do (_375 :: Vector.Vector (RTS.UInt 8)) <-
                                                              do RTS.pEnter "ICC._Guard"
                                                                   (_Guard
                                                                      (sig
@@ -2875,10 +2844,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                           "ICC.ColorantOrderType"
                                                                           pColorantOrderType
                                                                       HS.pure __)
-                                                           HS.pure (Tag_colorantOrder _75)))
+                                                           HS.pure (Tag_colorantOrder _375)))
                                                     ((RTS.<||)
                                                        (RTS.pEnter "colorantTable"
-                                                          (do (_76 :: Vector.Vector Colorant) <-
+                                                          (do (_377 :: Vector.Vector Colorant) <-
                                                                 do RTS.pEnter "ICC._Guard"
                                                                      (_Guard
                                                                         (sig
@@ -2892,10 +2861,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                              "ICC.ColorantTableType"
                                                                              pColorantTableType
                                                                          HS.pure __)
-                                                              HS.pure (Tag_colorantTable _76)))
+                                                              HS.pure (Tag_colorantTable _377)))
                                                        ((RTS.<||)
                                                           (RTS.pEnter "colorantTableOut"
-                                                             (do (_77 :: Vector.Vector Colorant) <-
+                                                             (do (_379 :: Vector.Vector Colorant) <-
                                                                    do RTS.pEnter "ICC._Guard"
                                                                         (_Guard
                                                                            (sig
@@ -2910,11 +2879,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                 pColorantTableType
                                                                             HS.pure __)
                                                                  HS.pure
-                                                                   (Tag_colorantTableOut _77)))
+                                                                   (Tag_colorantTableOut _379)))
                                                           ((RTS.<||)
                                                              (RTS.pEnter
                                                                 "colorimetricIntentImageState"
-                                                                (do (_78
+                                                                (do (_381
                                                                        :: Vector.Vector
                                                                             (RTS.UInt 8)) <-
                                                                       do RTS.pEnter "ICC._Guard"
@@ -2933,10 +2902,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                HS.pure __)
                                                                     HS.pure
                                                                       (Tag_colorimetricIntentImageState
-                                                                         _78)))
+                                                                         _381)))
                                                              ((RTS.<||)
                                                                 (RTS.pEnter "copyright"
-                                                                   (do (_79
+                                                                   (do (_383
                                                                           :: Vector.Vector
                                                                                UnicodeRecord) <-
                                                                          do RTS.pEnter "ICC._Guard"
@@ -2952,10 +2921,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                       "ICC.MultiLocalizedUnicodeType"
                                                                                       pMultiLocalizedUnicodeType
                                                                                   HS.pure __)
-                                                                       HS.pure (Tag_copyright _79)))
+                                                                       HS.pure
+                                                                         (Tag_copyright _383)))
                                                                 ((RTS.<||)
                                                                    (RTS.pEnter "deviceMfgDesc"
-                                                                      (do (_80
+                                                                      (do (_385
                                                                              :: Vector.Vector
                                                                                   UnicodeRecord) <-
                                                                             do RTS.pEnter
@@ -2975,10 +2945,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                      HS.pure __)
                                                                           HS.pure
                                                                             (Tag_deviceMfgDesc
-                                                                               _80)))
+                                                                               _385)))
                                                                    ((RTS.<||)
                                                                       (RTS.pEnter "deviceModelDesc"
-                                                                         (do (_81
+                                                                         (do (_387
                                                                                 :: Vector.Vector
                                                                                      UnicodeRecord) <-
                                                                                do RTS.pEnter
@@ -2998,10 +2968,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                         HS.pure __)
                                                                              HS.pure
                                                                                (Tag_deviceModelDesc
-                                                                                  _81)))
+                                                                                  _387)))
                                                                       ((RTS.<||)
                                                                          (RTS.pEnter "DToB0"
-                                                                            (do (_82
+                                                                            (do (_389
                                                                                    :: MultiProcessElementsType) <-
                                                                                   do RTS.pEnter
                                                                                        "ICC._Guard"
@@ -3019,10 +2989,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                            HS.pure
                                                                                              __)
                                                                                 HS.pure
-                                                                                  (Tag_DToB0 _82)))
+                                                                                  (Tag_DToB0 _389)))
                                                                          ((RTS.<||)
                                                                             (RTS.pEnter "DToB1"
-                                                                               (do (_83
+                                                                               (do (_391
                                                                                       :: MultiProcessElementsType) <-
                                                                                      do RTS.pEnter
                                                                                           "ICC._Guard"
@@ -3041,10 +3011,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                 __)
                                                                                    HS.pure
                                                                                      (Tag_DToB1
-                                                                                        _83)))
+                                                                                        _391)))
                                                                             ((RTS.<||)
                                                                                (RTS.pEnter "DToB2"
-                                                                                  (do (_84
+                                                                                  (do (_393
                                                                                          :: MultiProcessElementsType) <-
                                                                                         do RTS.pEnter
                                                                                              "ICC._Guard"
@@ -3063,11 +3033,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                    __)
                                                                                       HS.pure
                                                                                         (Tag_DToB2
-                                                                                           _84)))
+                                                                                           _393)))
                                                                                ((RTS.<||)
                                                                                   (RTS.pEnter
                                                                                      "DToB3"
-                                                                                     (do (_85
+                                                                                     (do (_395
                                                                                             :: MultiProcessElementsType) <-
                                                                                            do RTS.pEnter
                                                                                                 "ICC._Guard"
@@ -3086,11 +3056,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                       __)
                                                                                          HS.pure
                                                                                            (Tag_DToB3
-                                                                                              _85)))
+                                                                                              _395)))
                                                                                   ((RTS.<||)
                                                                                      (RTS.pEnter
                                                                                         "gamut"
-                                                                                        (do (_86
+                                                                                        (do (_397
                                                                                                :: Lut_8_16_BA) <-
                                                                                               do RTS.pEnter
                                                                                                    "ICC._Guard"
@@ -3109,11 +3079,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                          __)
                                                                                             HS.pure
                                                                                               (Tag_gamut
-                                                                                                 _86)))
+                                                                                                 _397)))
                                                                                      ((RTS.<||)
                                                                                         (RTS.pEnter
                                                                                            "grayTRC"
-                                                                                           (do (_87
+                                                                                           (do (_399
                                                                                                   :: SomeCurve) <-
                                                                                                  do RTS.pEnter
                                                                                                       "ICC._Guard"
@@ -3132,11 +3102,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                             __)
                                                                                                HS.pure
                                                                                                  (Tag_grayTRC
-                                                                                                    _87)))
+                                                                                                    _399)))
                                                                                         ((RTS.<||)
                                                                                            (RTS.pEnter
                                                                                               "greenMatrixColumn"
-                                                                                              (do (_88
+                                                                                              (do (_401
                                                                                                      :: Vector.Vector
                                                                                                           XYZNumber) <-
                                                                                                     do RTS.pEnter
@@ -3157,11 +3127,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                __)
                                                                                                   HS.pure
                                                                                                     (Tag_greenMatrixColumn
-                                                                                                       _88)))
+                                                                                                       _401)))
                                                                                            ((RTS.<||)
                                                                                               (RTS.pEnter
                                                                                                  "greenTRC"
-                                                                                                 (do (_89
+                                                                                                 (do (_403
                                                                                                         :: SomeCurve) <-
                                                                                                        do RTS.pEnter
                                                                                                             "ICC._Guard"
@@ -3180,11 +3150,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                   __)
                                                                                                      HS.pure
                                                                                                        (Tag_greenTRC
-                                                                                                          _89)))
+                                                                                                          _403)))
                                                                                               ((RTS.<||)
                                                                                                  (RTS.pEnter
                                                                                                     "luminance"
-                                                                                                    (do (_90
+                                                                                                    (do (_405
                                                                                                            :: Vector.Vector
                                                                                                                 XYZNumber) <-
                                                                                                           do RTS.pEnter
@@ -3205,11 +3175,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                      __)
                                                                                                         HS.pure
                                                                                                           (Tag_luminance
-                                                                                                             _90)))
+                                                                                                             _405)))
                                                                                                  ((RTS.<||)
                                                                                                     (RTS.pEnter
                                                                                                        "measurement"
-                                                                                                       (do (_91
+                                                                                                       (do (_407
                                                                                                               :: MeasurementType) <-
                                                                                                              do RTS.pEnter
                                                                                                                   "ICC._Guard"
@@ -3228,11 +3198,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                         __)
                                                                                                            HS.pure
                                                                                                              (Tag_measurement
-                                                                                                                _91)))
+                                                                                                                _407)))
                                                                                                     ((RTS.<||)
                                                                                                        (RTS.pEnter
                                                                                                           "mediaWhitePoint"
-                                                                                                          (do (_92
+                                                                                                          (do (_409
                                                                                                                  :: Vector.Vector
                                                                                                                       XYZNumber) <-
                                                                                                                 do RTS.pEnter
@@ -3253,11 +3223,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                            __)
                                                                                                               HS.pure
                                                                                                                 (Tag_mediaWhitePoint
-                                                                                                                   _92)))
+                                                                                                                   _409)))
                                                                                                        ((RTS.<||)
                                                                                                           (RTS.pEnter
                                                                                                              "namedColor2"
-                                                                                                             (do (_93
+                                                                                                             (do (_411
                                                                                                                     :: NamedColor2Type) <-
                                                                                                                    do RTS.pEnter
                                                                                                                         "ICC._Guard"
@@ -3276,11 +3246,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                               __)
                                                                                                                  HS.pure
                                                                                                                    (Tag_namedColor2
-                                                                                                                      _93)))
+                                                                                                                      _411)))
                                                                                                           ((RTS.<||)
                                                                                                              (RTS.pEnter
                                                                                                                 "outputResponse"
-                                                                                                                (do (_94
+                                                                                                                (do (_413
                                                                                                                        :: Vector.Vector
                                                                                                                             ResponseCurve) <-
                                                                                                                       do RTS.pEnter
@@ -3301,11 +3271,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                  __)
                                                                                                                     HS.pure
                                                                                                                       (Tag_outputResponse
-                                                                                                                         _94)))
+                                                                                                                         _413)))
                                                                                                              ((RTS.<||)
                                                                                                                 (RTS.pEnter
                                                                                                                    "perceptualRenderingIntentGamut"
-                                                                                                                   (do (_95
+                                                                                                                   (do (_415
                                                                                                                           :: Vector.Vector
                                                                                                                                (RTS.UInt
                                                                                                                                   8)) <-
@@ -3328,11 +3298,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                     __)
                                                                                                                        HS.pure
                                                                                                                          (Tag_perceptualRenderingIntentGamut
-                                                                                                                            _95)))
+                                                                                                                            _415)))
                                                                                                                 ((RTS.<||)
                                                                                                                    (RTS.pEnter
                                                                                                                       "preview0"
-                                                                                                                      (do (_96
+                                                                                                                      (do (_417
                                                                                                                              :: Lut_8_16_AB_BA) <-
                                                                                                                             do RTS.pEnter
                                                                                                                                  "ICC._Guard"
@@ -3351,11 +3321,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                        __)
                                                                                                                           HS.pure
                                                                                                                             (Tag_preview0
-                                                                                                                               _96)))
+                                                                                                                               _417)))
                                                                                                                    ((RTS.<||)
                                                                                                                       (RTS.pEnter
                                                                                                                          "preview1"
-                                                                                                                         (do (_97
+                                                                                                                         (do (_419
                                                                                                                                 :: Lut_8_16_BA) <-
                                                                                                                                do RTS.pEnter
                                                                                                                                     "ICC._Guard"
@@ -3374,11 +3344,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                           __)
                                                                                                                              HS.pure
                                                                                                                                (Tag_preview1
-                                                                                                                                  _97)))
+                                                                                                                                  _419)))
                                                                                                                       ((RTS.<||)
                                                                                                                          (RTS.pEnter
                                                                                                                             "preview2"
-                                                                                                                            (do (_98
+                                                                                                                            (do (_421
                                                                                                                                    :: Lut_8_16_BA) <-
                                                                                                                                   do RTS.pEnter
                                                                                                                                        "ICC._Guard"
@@ -3397,11 +3367,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                              __)
                                                                                                                                 HS.pure
                                                                                                                                   (Tag_preview2
-                                                                                                                                     _98)))
+                                                                                                                                     _421)))
                                                                                                                          ((RTS.<||)
                                                                                                                             (RTS.pEnter
                                                                                                                                "profileDescription"
-                                                                                                                               (do (_99
+                                                                                                                               (do (_423
                                                                                                                                       :: Vector.Vector
                                                                                                                                            UnicodeRecord) <-
                                                                                                                                      do RTS.pEnter
@@ -3422,11 +3392,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                 __)
                                                                                                                                    HS.pure
                                                                                                                                      (Tag_profileDescription
-                                                                                                                                        _99)))
+                                                                                                                                        _423)))
                                                                                                                             ((RTS.<||)
                                                                                                                                (RTS.pEnter
                                                                                                                                   "profileSequenceDesc"
-                                                                                                                                  (do (_100
+                                                                                                                                  (do (_425
                                                                                                                                          :: Vector.Vector
                                                                                                                                               (RTS.UInt
                                                                                                                                                  8)) <-
@@ -3449,11 +3419,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                    __)
                                                                                                                                       HS.pure
                                                                                                                                         (Tag_profileSequenceDesc
-                                                                                                                                           _100)))
+                                                                                                                                           _425)))
                                                                                                                                ((RTS.<||)
                                                                                                                                   (RTS.pEnter
                                                                                                                                      "profileSequenceIdentifier"
-                                                                                                                                     (do (_101
+                                                                                                                                     (do (_427
                                                                                                                                             :: ()) <-
                                                                                                                                            do RTS.pEnter
                                                                                                                                                 "ICC._Guard"
@@ -3471,11 +3441,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                       __)
                                                                                                                                          HS.pure
                                                                                                                                            (Tag_profileSequenceIdentifier
-                                                                                                                                              _101)))
+                                                                                                                                              _427)))
                                                                                                                                   ((RTS.<||)
                                                                                                                                      (RTS.pEnter
                                                                                                                                         "redMatrixColumn"
-                                                                                                                                        (do (_102
+                                                                                                                                        (do (_429
                                                                                                                                                :: Vector.Vector
                                                                                                                                                     XYZNumber) <-
                                                                                                                                               do RTS.pEnter
@@ -3496,11 +3466,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                          __)
                                                                                                                                             HS.pure
                                                                                                                                               (Tag_redMatrixColumn
-                                                                                                                                                 _102)))
+                                                                                                                                                 _429)))
                                                                                                                                      ((RTS.<||)
                                                                                                                                         (RTS.pEnter
                                                                                                                                            "redTRC"
-                                                                                                                                           (do (_103
+                                                                                                                                           (do (_431
                                                                                                                                                   :: SomeCurve) <-
                                                                                                                                                  do RTS.pEnter
                                                                                                                                                       "ICC._Guard"
@@ -3519,11 +3489,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                             __)
                                                                                                                                                HS.pure
                                                                                                                                                  (Tag_redTRC
-                                                                                                                                                    _103)))
+                                                                                                                                                    _431)))
                                                                                                                                         ((RTS.<||)
                                                                                                                                            (RTS.pEnter
                                                                                                                                               "saturationRenderingIntentGamut"
-                                                                                                                                              (do (_104
+                                                                                                                                              (do (_433
                                                                                                                                                      :: Vector.Vector
                                                                                                                                                           (RTS.UInt
                                                                                                                                                              8)) <-
@@ -3546,11 +3516,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                __)
                                                                                                                                                   HS.pure
                                                                                                                                                     (Tag_saturationRenderingIntentGamut
-                                                                                                                                                       _104)))
+                                                                                                                                                       _433)))
                                                                                                                                            ((RTS.<||)
                                                                                                                                               (RTS.pEnter
                                                                                                                                                  "technology"
-                                                                                                                                                 (do (_105
+                                                                                                                                                 (do (_435
                                                                                                                                                         :: Vector.Vector
                                                                                                                                                              (RTS.UInt
                                                                                                                                                                 8)) <-
@@ -3573,11 +3543,11 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                   __)
                                                                                                                                                      HS.pure
                                                                                                                                                        (Tag_technology
-                                                                                                                                                          _105)))
+                                                                                                                                                          _435)))
                                                                                                                                               ((RTS.<||)
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewCondDesc"
-                                                                                                                                                    (do (_106
+                                                                                                                                                    (do (_437
                                                                                                                                                            :: Vector.Vector
                                                                                                                                                                 UnicodeRecord) <-
                                                                                                                                                           do RTS.pEnter
@@ -3598,10 +3568,10 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                      __)
                                                                                                                                                         HS.pure
                                                                                                                                                           (Tag_viewCondDesc
-                                                                                                                                                             _106)))
+                                                                                                                                                             _437)))
                                                                                                                                                  (RTS.pEnter
                                                                                                                                                     "viewConditions"
-                                                                                                                                                    (do (_107
+                                                                                                                                                    (do (_439
                                                                                                                                                            :: ViewConditionsType) <-
                                                                                                                                                           do RTS.pEnter
                                                                                                                                                                "ICC._Guard"
@@ -3620,7 +3590,7 @@ pTag (sig :: Vector.Vector (RTS.UInt 8)) =
                                                                                                                                                                      __)
                                                                                                                                                         HS.pure
                                                                                                                                                           (Tag_viewConditions
-                                                                                                                                                             _107))))))))))))))))))))))))))))))))))))))))))))))))))
+                                                                                                                                                             _439))))))))))))))))))))))))))))))))))))))))))))))))))
     (RTS.pError RTS.FromUser "228:6--228:46"
        (Vector.vecToString
           (Vector.concat
@@ -3632,12 +3602,51 @@ pParseTag (t :: TagEntry) =
   do RTS.pEnter "ICC._Goto"
        (_Goto
           (RTS.convert (HS.getField @"offset_to_data_element" t)
-             :: HS.Integer))
+             :: RTS.UInt 64))
      (__ :: Tag) <-
        RTS.pEnter "ICC.ParseChunk"
          (pParseChunk @Tag
-            (RTS.convert (HS.getField @"size_of_data_element" t) :: HS.Integer)
+            (RTS.convert (HS.getField @"size_of_data_element" t)
+               :: RTS.UInt 64)
             (RTS.pEnter "ICC.Tag" (pTag (HS.getField @"tag_signature" t))))
+     HS.pure __
+ 
+pChromaticityType :: RTS.Parser ChromaticityType
+ 
+pChromaticityType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "chrm"))
+     (number_of_device_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (phosphor_or_colorant :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     (cie_coords :: Vector.Vector XYNumber) <-
+       Vector.replicateM
+         (RTS.convert number_of_device_channels :: RTS.UInt 64)
+         (RTS.pEnter "ICC.XYNumber" pXYNumber)
+     HS.pure (ChromaticityType phosphor_or_colorant cie_coords)
+ 
+getBit ::
+  forall b.
+    (RTS.DDL b, RTS.Numeric b, RTS.Convert b (RTS.UInt 1)) =>
+      RTS.UInt 64 -> (b -> RTS.UInt 1)
+ 
+getBit (n :: RTS.UInt 64) (b :: b) =
+  RTS.convert (RTS.shiftr b n) :: RTS.UInt 1
+ 
+pGotoRel :: RTS.Input -> (RTS.UInt 64 -> RTS.Parser ())
+ 
+pGotoRel (s :: RTS.Input) (n :: RTS.UInt 64) =
+  do (s1 :: RTS.Input) <-
+       RTS.pIsJust "493:9--493:14" "Not enough bytes" (RTS.advanceBy n s)
+     (__ :: ()) <- RTS.pSetInput s1
+     HS.pure __
+ 
+pGoto :: RTS.UInt 64 -> RTS.Parser ()
+ 
+pGoto (n :: RTS.UInt 64) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     (__ :: ()) <- RTS.pEnter "ICC.GotoRel" (pGotoRel s n)
      HS.pure __
  
 pValidateArray ::
@@ -3655,133 +3664,51 @@ pValidateArray (arr :: Vector.Vector (RTS.UInt 8))
      (__ :: ()) <- RTS.pSetInput s
      HS.pure __
  
-_ASCII7 :: RTS.Parser ()
+pGuard :: HS.Bool -> RTS.Parser ()
  
-_ASCII7 =
-  do RTS.pSkipMany (RTS.<||)
-       (do (_0 :: RTS.UInt 8) <-
-             RTS.uint8
-               HS.<$> RTS.pMatch1 "136:14--136:24"
-                        (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
-           RTS.pIsJust_ "136:14--136:35" "Value does not fit in target type"
-             (RTS.convertMaybe _0 :: HS.Maybe (RTS.UInt 7)))
-     (RTS.<||)
-       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: HS.Integer)
+pGuard (p :: HS.Bool) =
+  RTS.pGuard "537:15--537:23" "guard failed" p
+ 
+_VersionField :: RTS.Parser ()
+ 
+_VersionField =
+  do HS.const () HS.<$> RTS.pByte "36:18--36:22"
+     HS.const () HS.<$> RTS.pByte "37:18--37:22"
+     HS.const ()
+       HS.<$> RTS.pMatch "40:3--40:20"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+ 
+_ProfileClasses :: RTS.Parser ()
+ 
+_ProfileClasses =
+  (RTS.<||)
+    (RTS.pEnter "input_device_profile"
+       (HS.const ()
+          HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")))
+    ((RTS.<||)
+       (RTS.pEnter "display_device_profile"
           (HS.const ()
-             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
-       (RTS.pError RTS.FromUser "137:30--137:59"
-          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
- 
-_BE64 :: RTS.Parser ()
- 
-_BE64 =
-  do RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_XYNumber :: RTS.Parser ()
- 
-_XYNumber =
-  do RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_ChromaticityType :: RTS.Parser ()
- 
-_ChromaticityType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "chrm"))
-     (number_of_device_channels :: RTS.UInt 16) <-
-       RTS.pEnter "ICC.BE16" pBE16
-     RTS.pEnter "ICC._BE16" _BE16
-     RTS.pSkipExact
-       (RTS.convert number_of_device_channels :: HS.Integer)
-       (RTS.pEnter "ICC._XYNumber" _XYNumber)
- 
-_Chunk :: HS.Integer -> RTS.Parser ()
- 
-_Chunk (sz :: HS.Integer) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     HS.void
-       (RTS.pIsJust_ "500:8--500:14" "Not enough bytes"
-          (RTS.limitLen sz s))
-     RTS.pEnter "ICC._Goto" (_Goto sz)
- 
-_ChunkRelativeTo ::
-      RTS.Input -> (HS.Integer -> (HS.Integer -> RTS.Parser ()))
- 
-_ChunkRelativeTo (s :: RTS.Input) (off :: HS.Integer)
-  (sz :: HS.Integer) =
-  do RTS.pEnter "ICC._GotoRel" (_GotoRel s off)
-     RTS.pEnter "ICC._Chunk" (_Chunk sz)
- 
-_ParseChunk ::
-  forall e.
-    RTS.DDL e => HS.Integer -> (RTS.Parser () -> RTS.Parser ())
- 
-_ParseChunk (sz :: HS.Integer) (_P :: RTS.Parser ()) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     (s1 :: RTS.Input) <-
-       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
-     RTS.pSetInput s1
-     _P
-     (s2 :: RTS.Input) <-
-       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
-     RTS.pSetInput s2
- 
-_ColorName :: HS.Integer -> RTS.Parser ()
- 
-_ColorName (m :: HS.Integer) =
-  do RTS.pEnter "ICC._ParseChunk"
-       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-          (RTS.lit 32 :: HS.Integer)
-          (RTS.pEnter "ICC._ASCII7" _ASCII7))
-     RTS.pSkipExact (RTS.lit 3 :: HS.Integer)
-       (RTS.pEnter "ICC._BE16" _BE16)
-     RTS.pSkipExact m (RTS.pEnter "ICC._BE16" _BE16)
- 
-_Only :: forall b. RTS.DDL b => RTS.Parser () -> RTS.Parser ()
- 
-_Only (_P :: RTS.Parser ()) =
-  do _P
-     RTS.pEnd "535:24--535:26"
- 
-_Colorant :: RTS.Parser ()
- 
-_Colorant =
-  do RTS.pEnter "ICC._ParseChunk"
-       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-          (RTS.lit 32 :: HS.Integer)
-          (RTS.pEnter "ICC._Only"
-             (_Only @(Vector.Vector (RTS.UInt 7))
-                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
-     RTS.pSkipExact (RTS.lit 3 :: HS.Integer)
-       (RTS.pEnter "ICC._BE16" _BE16)
- 
-_ColorantOrderType :: RTS.Parser ()
- 
-_ColorantOrderType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "clro"))
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pSkipMany (RTS.<||)
-       (HS.const () HS.<$> RTS.pByte "304:8--304:12")
- 
-_ColorantTableType :: RTS.Parser ()
- 
-_ColorantTableType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "clrt"))
-     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pSkipExact (RTS.convert count_of_colorant :: HS.Integer)
-       (RTS.pEnter "ICC._Colorant" _Colorant)
- 
-_CurveType :: RTS.Parser ()
- 
-_CurveType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "curv"))
-     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pSkipExact (RTS.convert n :: HS.Integer)
-       (RTS.pEnter "ICC._BE16" _BE16)
+             HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")))
+       ((RTS.<||)
+          (RTS.pEnter "output_device_profile"
+             (HS.const ()
+                HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")))
+          ((RTS.<||)
+             (RTS.pEnter "device_link_profile"
+                (HS.const ()
+                   HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")))
+             ((RTS.<||)
+                (RTS.pEnter "color_space_profile"
+                   (HS.const ()
+                      HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")))
+                ((RTS.<||)
+                   (RTS.pEnter "abstract_profile"
+                      (HS.const ()
+                         HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")))
+                   (RTS.pEnter "named_color_profile"
+                      (HS.const ()
+                         HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl"))))))))
  
 _DataColorSpaces :: RTS.Parser ()
  
@@ -3915,6 +3842,70 @@ _DataColorSpaces =
                                                                                         (Vector.vecFromRep
                                                                                            "FCLR"))))))))))))))))))))))))))
  
+_PrimaryPlatforms :: RTS.Parser ()
+ 
+_PrimaryPlatforms =
+  (RTS.<||)
+    (RTS.pEnter "none"
+       (HS.const ()
+          HS.<$> RTS.pMatch "87:30--87:44"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
+    ((RTS.<||)
+       (RTS.pEnter "apple_computer_inc"
+          (HS.const ()
+             HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")))
+       ((RTS.<||)
+          (RTS.pEnter "microsoft_corporation"
+             (HS.const ()
+                HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")))
+          ((RTS.<||)
+             (RTS.pEnter "silicon_graphics_inc"
+                (HS.const ()
+                   HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")))
+             (RTS.pEnter "sun_microsystems"
+                (HS.const ()
+                   HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW"))))))
+ 
+_RenderingIntent :: RTS.Parser ()
+ 
+_RenderingIntent =
+  (RTS.<||)
+    (RTS.pEnter "perceptual"
+       (HS.const ()
+          HS.<$> RTS.pMatch "98:36--98:50"
+                   (Vector.fromList
+                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
+    ((RTS.<||)
+       (RTS.pEnter "media_relative_colorimetric"
+          (HS.const ()
+             HS.<$> RTS.pMatch "99:36--99:50"
+                      (Vector.fromList
+                         [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                          RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])))
+       ((RTS.<||)
+          (RTS.pEnter "saturation"
+             (HS.const ()
+                HS.<$> RTS.pMatch "100:36--100:50"
+                         (Vector.fromList
+                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])))
+          (RTS.pEnter "icc_absolute_colorimetric"
+             (HS.const ()
+                HS.<$> RTS.pMatch "101:36--101:50"
+                         (Vector.fromList
+                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
+                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])))))
+ 
+_XYZNumber :: RTS.Parser ()
+ 
+_XYZNumber =
+  do RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+ 
 _DateTimeNumber :: RTS.Parser ()
  
 _DateTimeNumber =
@@ -3925,54 +3916,106 @@ _DateTimeNumber =
      RTS.pEnter "ICC._BE16" _BE16
      RTS.pEnter "ICC._BE16" _BE16
  
-_DateTimeType :: RTS.Parser ()
+_BE64 :: RTS.Parser ()
  
-_DateTimeType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "dtim"))
+_BE64 =
+  do RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+ 
+_ProfileHeader :: RTS.Parser ()
+ 
+_ProfileHeader =
+  do RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._VersionField" _VersionField
+     RTS.pEnter "ICC._ProfileClasses" _ProfileClasses
+     RTS.pEnter "ICC._DataColorSpaces" _DataColorSpaces
+     RTS.pEnter "ICC._DataColorSpaces" _DataColorSpaces
      RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber
- 
-_Lut16Type :: RTS.Parser ()
- 
-_Lut16Type =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "mft2"))
-     (number_of_input_channels :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
-     (i :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
-     (number_of_output_channels :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
-     (o :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
-     (number_of_clut_grid_points :: RTS.UInt 8) <-
-       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
-     (g :: HS.Integer) <-
-       RTS.pIsJust "372:8--372:40" "Value does not fit in target type"
-         (RTS.convertMaybe number_of_clut_grid_points
-            :: HS.Maybe HS.Integer)
      HS.const ()
-       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
-     RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
-       (RTS.pEnter "ICC._BE32" _BE32)
-     (number_of_input_table_entries :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (n :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_table_entries :: HS.Integer)
-     (number_of_output_table_entries :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (m :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_table_entries :: HS.Integer)
-     RTS.pEnter "ICC._Chunk"
-       (_Chunk (RTS.mul (RTS.mul (RTS.lit 256 :: HS.Integer) n) i))
-     RTS.pEnter "ICC._Chunk"
-       (_Chunk
-          (RTS.mul
-             (RTS.mul (RTS.lit 2 :: HS.Integer)
-                (exp @HS.Integer @HS.Integer g i))
-             o))
-     RTS.pEnter "ICC._Chunk"
-       (_Chunk (RTS.mul (RTS.mul (RTS.lit 2 :: HS.Integer) m) o))
+       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
+     RTS.pEnter "ICC._PrimaryPlatforms" _PrimaryPlatforms
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE64" _BE64
+     RTS.pEnter "ICC._RenderingIntent" _RenderingIntent
+     RTS.pEnter "ICC._XYZNumber" _XYZNumber
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pSkipExact (RTS.lit 16 :: RTS.UInt 64)
+       (HS.const () HS.<$> RTS.pByte "31:33--31:37")
+     RTS.pSkipExact (RTS.lit 28 :: RTS.UInt 64)
+       (HS.const ()
+          HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
+ 
+_TagEntry :: RTS.Parser ()
+ 
+_TagEntry =
+  do RTS.pSkipExact (RTS.lit 4 :: RTS.UInt 64)
+       (HS.const () HS.<$> RTS.pByte "159:36--159:40")
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+ 
+_TagTable :: RTS.Parser ()
+ 
+_TagTable =
+  do (tag_count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pSkipExact (RTS.convert tag_count :: RTS.UInt 64)
+       (RTS.pEnter "ICC._TagEntry" _TagEntry)
+ 
+_Main :: RTS.Parser ()
+ 
+_Main =
+  do RTS.pEnter "ICC._ProfileHeader" _ProfileHeader
+     RTS.pEnter "ICC._TagTable" _TagTable
+ 
+_XYNumber :: RTS.Parser ()
+ 
+_XYNumber =
+  do RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+ 
+_PositionNumber :: RTS.Parser ()
+ 
+_PositionNumber =
+  do RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+ 
+_ASCII7 :: RTS.Parser ()
+ 
+_ASCII7 =
+  do RTS.pSkipMany (RTS.<||)
+       (do (_313 :: RTS.UInt 8) <-
+             RTS.uint8
+               HS.<$> RTS.pMatch1 "136:14--136:24"
+                        (RTS.bcRange (RTS.lit 1 :: RTS.UInt 8) (RTS.lit 255 :: RTS.UInt 8))
+           RTS.pIsJust_ "136:14--136:35" "Value does not fit in target type"
+             (RTS.convertMaybe _313 :: HS.Maybe (RTS.UInt 7)))
+     (RTS.<||)
+       (RTS.pSkipAtLeast (RTS.<||) (RTS.lit 1 :: RTS.UInt 64)
+          (HS.const ()
+             HS.<$> RTS.pMatch1 "137:17--137:24" (RTS.bcSingle (RTS.uint8 0))))
+       (RTS.pError RTS.FromUser "137:30--137:59"
+          (Vector.vecToString (Vector.vecFromRep "Non 0 string terminator")))
+ 
+_Response16Number :: RTS.Parser ()
+ 
+_Response16Number =
+  do RTS.pEnter "ICC._BE16" _BE16
+     HS.const ()
+       HS.<$> RTS.pMatch "142:3--142:13"
+                (Vector.fromList
+                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
+     RTS.pEnter "ICC._BE32" _BE32
+ 
+_Chunk :: RTS.UInt 64 -> RTS.Parser ()
+ 
+_Chunk (sz :: RTS.UInt 64) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     HS.void
+       (RTS.pIsJust_ "500:8--500:14" "Not enough bytes"
+          (RTS.limitLen sz s))
+     RTS.pEnter "ICC._Goto" (_Goto sz)
  
 _Lut8Type :: RTS.Parser ()
  
@@ -3981,28 +4024,70 @@ _Lut8Type =
        (_StartTag (Vector.vecFromRep "mft1"))
      (number_of_input_channels :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "352:30--352:34"
-     (i :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_input_channels :: HS.Integer)
+     (i :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_channels :: RTS.UInt 64)
      (number_of_output_channels :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "354:31--354:35"
-     (o :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_output_channels :: HS.Integer)
+     (o :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_channels :: RTS.UInt 64)
      (number_of_clut_grid_points :: RTS.UInt 8) <-
        RTS.uint8 HS.<$> RTS.pByte "356:32--356:36"
-     (g :: HS.Integer) <-
-       RTS.pIsJust "357:8--357:40" "Value does not fit in target type"
+     (g :: RTS.UInt 64) <-
+       RTS.pIsJust "357:8--357:41" "Value does not fit in target type"
          (RTS.convertMaybe number_of_clut_grid_points
-            :: HS.Maybe HS.Integer)
+            :: HS.Maybe (RTS.UInt 64))
      HS.const ()
        HS.<$> RTS.pMatch1 "358:3--358:13" (RTS.bcSingle (RTS.uint8 0))
-     RTS.pSkipExact (RTS.lit 9 :: HS.Integer)
+     RTS.pSkipExact (RTS.lit 9 :: RTS.UInt 64)
        (RTS.pEnter "ICC._BE32" _BE32)
      RTS.pEnter "ICC._Chunk"
-       (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) i))
+       (_Chunk (RTS.mul (RTS.lit 256 :: RTS.UInt 64) i))
      RTS.pEnter "ICC._Chunk"
-       (_Chunk (RTS.mul (exp @HS.Integer @HS.Integer g i) o))
+       (_Chunk (RTS.mul (exp @(RTS.UInt 64) @(RTS.UInt 64) g i) o))
      RTS.pEnter "ICC._Chunk"
-       (_Chunk (RTS.mul (RTS.lit 256 :: HS.Integer) o))
+       (_Chunk (RTS.mul (RTS.lit 256 :: RTS.UInt 64) o))
+ 
+_Lut16Type :: RTS.Parser ()
+ 
+_Lut16Type =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "mft2"))
+     (number_of_input_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "367:30--367:34"
+     (i :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_channels :: RTS.UInt 64)
+     (number_of_output_channels :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "369:31--369:35"
+     (o :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_channels :: RTS.UInt 64)
+     (number_of_clut_grid_points :: RTS.UInt 8) <-
+       RTS.uint8 HS.<$> RTS.pByte "371:32--371:36"
+     (g :: RTS.UInt 64) <-
+       RTS.pIsJust "372:8--372:41" "Value does not fit in target type"
+         (RTS.convertMaybe number_of_clut_grid_points
+            :: HS.Maybe (RTS.UInt 64))
+     HS.const ()
+       HS.<$> RTS.pMatch1 "373:3--373:13" (RTS.bcSingle (RTS.uint8 0))
+     RTS.pSkipExact (RTS.lit 9 :: RTS.UInt 64)
+       (RTS.pEnter "ICC._BE32" _BE32)
+     (number_of_input_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_input_table_entries :: RTS.UInt 64)
+     (number_of_output_table_entries :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (m :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_output_table_entries :: RTS.UInt 64)
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.mul (RTS.lit 256 :: RTS.UInt 64) n) i))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk
+          (RTS.mul
+             (RTS.mul (RTS.lit 2 :: RTS.UInt 64)
+                (exp @(RTS.UInt 64) @(RTS.UInt 64) g i))
+             o))
+     RTS.pEnter "ICC._Chunk"
+       (_Chunk (RTS.mul (RTS.mul (RTS.lit 2 :: RTS.UInt 64) m) o))
  
 _LutAToBType :: RTS.Parser ()
  
@@ -4038,15 +4123,6 @@ _LutBToAType =
      RTS.pEnter "ICC._BE32" _BE32
      RTS.pEnter "ICC._BE32" _BE32
  
-_Lut_8_16_AB :: RTS.Parser ()
- 
-_Lut_8_16_AB =
-  (RTS.<||)
-    (RTS.pEnter "lut8" (RTS.pEnter "ICC._Lut8Type" _Lut8Type))
-    ((RTS.<||)
-       (RTS.pEnter "lut16" (RTS.pEnter "ICC._Lut16Type" _Lut16Type))
-       (RTS.pEnter "lutAB" (RTS.pEnter "ICC._LutAToBType" _LutAToBType)))
- 
 _Lut_8_16_AB_BA :: RTS.Parser ()
  
 _Lut_8_16_AB_BA =
@@ -4058,6 +4134,15 @@ _Lut_8_16_AB_BA =
           (RTS.pEnter "lutAB" (RTS.pEnter "ICC._LutAToBType" _LutAToBType))
           (RTS.pEnter "lutBA" (RTS.pEnter "ICC._LutBToAType" _LutBToAType))))
  
+_Lut_8_16_AB :: RTS.Parser ()
+ 
+_Lut_8_16_AB =
+  (RTS.<||)
+    (RTS.pEnter "lut8" (RTS.pEnter "ICC._Lut8Type" _Lut8Type))
+    ((RTS.<||)
+       (RTS.pEnter "lut16" (RTS.pEnter "ICC._Lut16Type" _Lut16Type))
+       (RTS.pEnter "lutAB" (RTS.pEnter "ICC._LutAToBType" _LutAToBType)))
+ 
 _Lut_8_16_BA :: RTS.Parser ()
  
 _Lut_8_16_BA =
@@ -4067,250 +4152,14 @@ _Lut_8_16_BA =
        (RTS.pEnter "lut16" (RTS.pEnter "ICC._Lut16Type" _Lut16Type))
        (RTS.pEnter "lutBA" (RTS.pEnter "ICC._LutBToAType" _LutBToAType)))
  
-_PrimaryPlatforms :: RTS.Parser ()
+_CurveType :: RTS.Parser ()
  
-_PrimaryPlatforms =
-  (RTS.<||)
-    (RTS.pEnter "none"
-       (HS.const ()
-          HS.<$> RTS.pMatch "87:30--87:44"
-                   (Vector.fromList
-                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
-    ((RTS.<||)
-       (RTS.pEnter "apple_computer_inc"
-          (HS.const ()
-             HS.<$> RTS.pMatch "88:30--88:41" (Vector.vecFromRep "APPL")))
-       ((RTS.<||)
-          (RTS.pEnter "microsoft_corporation"
-             (HS.const ()
-                HS.<$> RTS.pMatch "89:30--89:41" (Vector.vecFromRep "MSFT")))
-          ((RTS.<||)
-             (RTS.pEnter "silicon_graphics_inc"
-                (HS.const ()
-                   HS.<$> RTS.pMatch "90:30--90:41" (Vector.vecFromRep "SGI ")))
-             (RTS.pEnter "sun_microsystems"
-                (HS.const ()
-                   HS.<$> RTS.pMatch "91:30--91:41" (Vector.vecFromRep "SUNW"))))))
- 
-_ProfileClasses :: RTS.Parser ()
- 
-_ProfileClasses =
-  (RTS.<||)
-    (RTS.pEnter "input_device_profile"
-       (HS.const ()
-          HS.<$> RTS.pMatch "45:31--45:42" (Vector.vecFromRep "scnr")))
-    ((RTS.<||)
-       (RTS.pEnter "display_device_profile"
-          (HS.const ()
-             HS.<$> RTS.pMatch "46:31--46:42" (Vector.vecFromRep "mntr")))
-       ((RTS.<||)
-          (RTS.pEnter "output_device_profile"
-             (HS.const ()
-                HS.<$> RTS.pMatch "47:31--47:42" (Vector.vecFromRep "prtr")))
-          ((RTS.<||)
-             (RTS.pEnter "device_link_profile"
-                (HS.const ()
-                   HS.<$> RTS.pMatch "48:31--48:42" (Vector.vecFromRep "link")))
-             ((RTS.<||)
-                (RTS.pEnter "color_space_profile"
-                   (HS.const ()
-                      HS.<$> RTS.pMatch "49:31--49:42" (Vector.vecFromRep "spac")))
-                ((RTS.<||)
-                   (RTS.pEnter "abstract_profile"
-                      (HS.const ()
-                         HS.<$> RTS.pMatch "50:31--50:42" (Vector.vecFromRep "abst")))
-                   (RTS.pEnter "named_color_profile"
-                      (HS.const ()
-                         HS.<$> RTS.pMatch "51:31--51:42" (Vector.vecFromRep "nmcl"))))))))
- 
-_RenderingIntent :: RTS.Parser ()
- 
-_RenderingIntent =
-  (RTS.<||)
-    (RTS.pEnter "perceptual"
-       (HS.const ()
-          HS.<$> RTS.pMatch "98:36--98:50"
-                   (Vector.fromList
-                      [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                       RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])))
-    ((RTS.<||)
-       (RTS.pEnter "media_relative_colorimetric"
-          (HS.const ()
-             HS.<$> RTS.pMatch "99:36--99:50"
-                      (Vector.fromList
-                         [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                          RTS.lit 0 :: RTS.UInt 8, RTS.lit 1 :: RTS.UInt 8])))
-       ((RTS.<||)
-          (RTS.pEnter "saturation"
-             (HS.const ()
-                HS.<$> RTS.pMatch "100:36--100:50"
-                         (Vector.fromList
-                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 2 :: RTS.UInt 8])))
-          (RTS.pEnter "icc_absolute_colorimetric"
-             (HS.const ()
-                HS.<$> RTS.pMatch "101:36--101:50"
-                         (Vector.fromList
-                            [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8,
-                             RTS.lit 0 :: RTS.UInt 8, RTS.lit 3 :: RTS.UInt 8])))))
- 
-_VersionField :: RTS.Parser ()
- 
-_VersionField =
-  do HS.const () HS.<$> RTS.pByte "36:18--36:22"
-     HS.const () HS.<$> RTS.pByte "37:18--37:22"
-     HS.const ()
-       HS.<$> RTS.pMatch "40:3--40:20"
-                (Vector.fromList
-                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
- 
-_XYZNumber :: RTS.Parser ()
- 
-_XYZNumber =
-  do RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_ProfileHeader :: RTS.Parser ()
- 
-_ProfileHeader =
-  do RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._VersionField" _VersionField
-     RTS.pEnter "ICC._ProfileClasses" _ProfileClasses
-     RTS.pEnter "ICC._DataColorSpaces" _DataColorSpaces
-     RTS.pEnter "ICC._DataColorSpaces" _DataColorSpaces
-     RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber
-     HS.const ()
-       HS.<$> RTS.pMatch "22:3--22:14" (Vector.vecFromRep "acsp")
-     RTS.pEnter "ICC._PrimaryPlatforms" _PrimaryPlatforms
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE64" _BE64
-     RTS.pEnter "ICC._RenderingIntent" _RenderingIntent
-     RTS.pEnter "ICC._XYZNumber" _XYZNumber
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pSkipExact (RTS.lit 16 :: HS.Integer)
-       (HS.const () HS.<$> RTS.pByte "31:33--31:37")
-     RTS.pSkipExact (RTS.lit 28 :: HS.Integer)
-       (HS.const ()
-          HS.<$> RTS.pMatch1 "32:34--32:41" (RTS.bcSingle (RTS.uint8 0)))
- 
-_TagEntry :: RTS.Parser ()
- 
-_TagEntry =
-  do RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-       (HS.const () HS.<$> RTS.pByte "159:36--159:40")
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_TagTable :: RTS.Parser ()
- 
-_TagTable =
-  do (tag_count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pSkipExact (RTS.convert tag_count :: HS.Integer)
-       (RTS.pEnter "ICC._TagEntry" _TagEntry)
- 
-_Main :: RTS.Parser ()
- 
-_Main =
-  do RTS.pEnter "ICC._ProfileHeader" _ProfileHeader
-     RTS.pEnter "ICC._TagTable" _TagTable
- 
-_MeasurementType :: RTS.Parser ()
- 
-_MeasurementType =
+_CurveType =
   do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "meas"))
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._XYZNumber" _XYZNumber
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_Remote :: forall c. RTS.DDL c => RTS.Parser () -> RTS.Parser ()
- 
-_Remote (_P :: RTS.Parser ()) =
-  do (s :: RTS.Input) <- RTS.pPeek
-     _P
-     RTS.pSetInput s
- 
-_UnicodeRecord :: RTS.Input -> RTS.Parser ()
- 
-_UnicodeRecord (s :: RTS.Input) =
-  do RTS.pEnter "ICC._BE16" _BE16
-     RTS.pEnter "ICC._BE16" _BE16
-     (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (offset :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pEnter "ICC._Remote"
-       (_Remote @RTS.Input
-          (RTS.pEnter "ICC._ChunkRelativeTo"
-             (_ChunkRelativeTo s (RTS.convert offset :: HS.Integer)
-                (RTS.convert size :: HS.Integer))))
- 
-_MultiLocalizedUnicodeType :: RTS.Parser ()
- 
-_MultiLocalizedUnicodeType =
-  do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mluc"))
-     (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pEnter "ICC._Guard"
-       (_Guard (record_size HS.== (RTS.lit 12 :: RTS.UInt 32)))
-     RTS.pSkipExact (RTS.convert record_number :: HS.Integer)
-       (RTS.pEnter "ICC._UnicodeRecord" (_UnicodeRecord s))
- 
-_MultiProcessElementsType :: RTS.Parser ()
- 
-_MultiProcessElementsType =
-  do (s :: RTS.Input) <- RTS.pPeek
-     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mpet"))
-     RTS.pEnter "ICC._BE16" _BE16
-     RTS.pEnter "ICC._BE16" _BE16
-     (number_of_processing_elements :: RTS.UInt 32) <-
-       RTS.pEnter "ICC.BE32" pBE32
-     (n :: HS.Integer) <-
-       HS.pure (RTS.convert number_of_processing_elements :: HS.Integer)
-     RTS.pEnter "ICC._Guard" (_Guard ((RTS.lit 0 :: HS.Integer) HS.< n))
-     (els :: Vector.Vector PositionNumber) <-
-       Vector.replicateM n
-         (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
-     HS.void
-       (RTS.loopMapM
-          (\(e :: PositionNumber) ->
-             RTS.pEnter "ICC.ChunkRelativeTo"
-               (pChunkRelativeTo s
-                  (RTS.convert (HS.getField @"offset" e) :: HS.Integer)
-                  (RTS.convert (HS.getField @"size" e) :: HS.Integer)))
-          els
-          :: RTS.Parser (Vector.Vector RTS.Input))
-     HS.pure ()
- 
-_NamedColor2Type :: RTS.Parser ()
- 
-_NamedColor2Type =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "ncl2"))
-     RTS.pEnter "ICC._BE32" _BE32
-     (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
-     RTS.pEnter "ICC._ParseChunk"
-       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-          (RTS.lit 32 :: HS.Integer)
-          (RTS.pEnter "ICC._Only"
-             (_Only @(Vector.Vector (RTS.UInt 7))
-                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
-     RTS.pEnter "ICC._ParseChunk"
-       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
-          (RTS.lit 32 :: HS.Integer)
-          (RTS.pEnter "ICC._Only"
-             (_Only @(Vector.Vector (RTS.UInt 7))
-                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
-     RTS.pSkipExact (RTS.convert count :: HS.Integer)
-       (RTS.pEnter "ICC._ColorName"
-          (_ColorName (RTS.convert number_of_coords :: HS.Integer)))
+       (_StartTag (Vector.vecFromRep "curv"))
+     (n :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pSkipExact (RTS.convert n :: RTS.UInt 64)
+       (RTS.pEnter "ICC._BE16" _BE16)
  
 _ParametricCurveType :: RTS.Parser ()
  
@@ -4324,14 +4173,138 @@ _ParametricCurveType =
                    [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
      RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32)
  
-_ProfileSequenceDescType :: RTS.Parser ()
+_SomeCurve :: RTS.Parser ()
  
-_ProfileSequenceDescType =
-  RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "pseq"))
+_SomeCurve =
+  (RTS.<||)
+    (RTS.pEnter "curve" (RTS.pEnter "ICC._CurveType" _CurveType))
+    (RTS.pEnter "parametric_curve"
+       (RTS.pEnter "ICC._ParametricCurveType" _ParametricCurveType))
  
-_ResponseCurve :: HS.Integer -> RTS.Parser ()
+_DateTimeType :: RTS.Parser ()
  
-_ResponseCurve (n :: HS.Integer) =
+_DateTimeType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "dtim"))
+     RTS.pEnter "ICC._DateTimeNumber" _DateTimeNumber
+ 
+_Only :: forall b. RTS.DDL b => RTS.Parser () -> RTS.Parser ()
+ 
+_Only (_P :: RTS.Parser ()) =
+  do _P
+     RTS.pEnd "535:24--535:26"
+ 
+_TextType :: RTS.Parser ()
+ 
+_TextType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "text"))
+     RTS.pEnter "ICC._Only"
+       (_Only @(Vector.Vector (RTS.UInt 7))
+          (RTS.pEnter "ICC._ASCII7" _ASCII7))
+ 
+_SignatureType :: RTS.Parser ()
+ 
+_SignatureType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sig "))
+     RTS.pSkipExact (RTS.lit 4 :: RTS.UInt 64)
+       (HS.const () HS.<$> RTS.pByte "270:47--270:51")
+ 
+_Remote :: forall c. RTS.DDL c => RTS.Parser () -> RTS.Parser ()
+ 
+_Remote (_P :: RTS.Parser ()) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     _P
+     RTS.pSetInput s
+ 
+_ChunkRelativeTo ::
+      RTS.Input -> (RTS.UInt 64 -> (RTS.UInt 64 -> RTS.Parser ()))
+ 
+_ChunkRelativeTo (s :: RTS.Input) (off :: RTS.UInt 64)
+  (sz :: RTS.UInt 64) =
+  do RTS.pEnter "ICC._GotoRel" (_GotoRel s off)
+     RTS.pEnter "ICC._Chunk" (_Chunk sz)
+ 
+_UnicodeRecord :: RTS.Input -> RTS.Parser ()
+ 
+_UnicodeRecord (s :: RTS.Input) =
+  do RTS.pEnter "ICC._BE16" _BE16
+     RTS.pEnter "ICC._BE16" _BE16
+     (size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (offset :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._Remote"
+       (_Remote @RTS.Input
+          (RTS.pEnter "ICC._ChunkRelativeTo"
+             (_ChunkRelativeTo s (RTS.convert offset :: RTS.UInt 64)
+                (RTS.convert size :: RTS.UInt 64))))
+ 
+_MultiLocalizedUnicodeType :: RTS.Parser ()
+ 
+_MultiLocalizedUnicodeType =
+  do (s :: RTS.Input) <- RTS.pPeek
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mluc"))
+     (record_number :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (record_size :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._Guard"
+       (_Guard (record_size HS.== (RTS.lit 12 :: RTS.UInt 32)))
+     RTS.pSkipExact (RTS.convert record_number :: RTS.UInt 64)
+       (RTS.pEnter "ICC._UnicodeRecord" (_UnicodeRecord s))
+ 
+_S15Fixed16ArrayType :: RTS.Parser ()
+ 
+_S15Fixed16ArrayType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "sf32"))
+     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32)
+ 
+_ColorantOrderType :: RTS.Parser ()
+ 
+_ColorantOrderType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clro"))
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pSkipMany (RTS.<||)
+       (HS.const () HS.<$> RTS.pByte "304:8--304:12")
+ 
+_ParseChunk ::
+  forall e.
+    RTS.DDL e => RTS.UInt 64 -> (RTS.Parser () -> RTS.Parser ())
+ 
+_ParseChunk (sz :: RTS.UInt 64) (_P :: RTS.Parser ()) =
+  do (s :: RTS.Input) <- RTS.pPeek
+     (s1 :: RTS.Input) <-
+       RTS.pIsJust "520:9--520:15" "Not enough bytes" (RTS.limitLen sz s)
+     RTS.pSetInput s1
+     _P
+     (s2 :: RTS.Input) <-
+       RTS.pIsJust "523:9--523:15" "Not enough bytes" (RTS.advanceBy sz s)
+     RTS.pSetInput s2
+ 
+_Colorant :: RTS.Parser ()
+ 
+_Colorant =
+  do RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: RTS.UInt 64)
+          (RTS.pEnter "ICC._Only"
+             (_Only @(Vector.Vector (RTS.UInt 7))
+                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
+     RTS.pSkipExact (RTS.lit 3 :: RTS.UInt 64)
+       (RTS.pEnter "ICC._BE16" _BE16)
+ 
+_ColorantTableType :: RTS.Parser ()
+ 
+_ColorantTableType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "clrt"))
+     (count_of_colorant :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pSkipExact (RTS.convert count_of_colorant :: RTS.UInt 64)
+       (RTS.pEnter "ICC._Colorant" _Colorant)
+ 
+_ResponseCurve :: RTS.UInt 64 -> RTS.Parser ()
+ 
+_ResponseCurve (n :: RTS.UInt 64) =
   do RTS.pEnter "ICC._BE32" _BE32
      (counts :: Vector.Vector (RTS.UInt 32)) <-
        Vector.replicateM n (RTS.pEnter "ICC.BE32" pBE32)
@@ -4339,7 +4312,7 @@ _ResponseCurve (n :: HS.Integer) =
      HS.void
        (RTS.loopMapM
           (\(qi :: RTS.UInt 32) ->
-             Vector.replicateM (RTS.convert qi :: HS.Integer)
+             Vector.replicateM (RTS.convert qi :: RTS.UInt 64)
                (RTS.pEnter "ICC.Response16Number" pResponse16Number))
           counts
           :: RTS.Parser (Vector.Vector (Vector.Vector Response16Number)))
@@ -4352,46 +4325,99 @@ _ResponseCurveSet16Type =
      RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "rcs2"))
      (number_of_channels :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
      (count :: RTS.UInt 16) <- RTS.pEnter "ICC.BE16" pBE16
-     RTS.pSkipExact (RTS.convert count :: HS.Integer)
+     RTS.pSkipExact (RTS.convert count :: RTS.UInt 64)
        (do (off :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
            RTS.pEnter "ICC._Remote"
              (_Remote @ResponseCurve
                 (do RTS.pEnter "ICC._GotoRel"
-                      (_GotoRel s (RTS.convert off :: HS.Integer))
+                      (_GotoRel s (RTS.convert off :: RTS.UInt 64))
                     RTS.pEnter "ICC._ResponseCurve"
-                      (_ResponseCurve (RTS.convert number_of_channels :: HS.Integer)))))
+                      (_ResponseCurve (RTS.convert number_of_channels :: RTS.UInt 64)))))
  
-_S15Fixed16ArrayType :: RTS.Parser ()
+_MultiProcessElementsType :: RTS.Parser ()
  
-_S15Fixed16ArrayType =
+_MultiProcessElementsType =
+  do (s :: RTS.Input) <- RTS.pPeek
+     RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "mpet"))
+     RTS.pEnter "ICC._BE16" _BE16
+     RTS.pEnter "ICC._BE16" _BE16
+     (number_of_processing_elements :: RTS.UInt 32) <-
+       RTS.pEnter "ICC.BE32" pBE32
+     (n :: RTS.UInt 64) <-
+       HS.pure (RTS.convert number_of_processing_elements :: RTS.UInt 64)
+     RTS.pEnter "ICC._Guard"
+       (_Guard ((RTS.lit 0 :: RTS.UInt 64) HS.< n))
+     (els :: Vector.Vector PositionNumber) <-
+       Vector.replicateM n
+         (RTS.pEnter "ICC.PositionNumber" pPositionNumber)
+     HS.void
+       (RTS.loopMapM
+          (\(e :: PositionNumber) ->
+             RTS.pEnter "ICC.ChunkRelativeTo"
+               (pChunkRelativeTo s
+                  (RTS.convert (HS.getField @"offset" e) :: RTS.UInt 64)
+                  (RTS.convert (HS.getField @"size" e) :: RTS.UInt 64)))
+          els
+          :: RTS.Parser (Vector.Vector RTS.Input))
+     HS.pure ()
+ 
+_XYZType :: RTS.Parser ()
+ 
+_XYZType =
   do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "sf32"))
-     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._BE32" _BE32)
+       (_StartTag (Vector.vecFromRep "XYZ "))
+     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._XYZNumber" _XYZNumber)
  
-_SignatureType :: RTS.Parser ()
+_MeasurementType :: RTS.Parser ()
  
-_SignatureType =
+_MeasurementType =
   do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "sig "))
-     RTS.pSkipExact (RTS.lit 4 :: HS.Integer)
-       (HS.const () HS.<$> RTS.pByte "270:47--270:51")
+       (_StartTag (Vector.vecFromRep "meas"))
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._XYZNumber" _XYZNumber
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
+     RTS.pEnter "ICC._BE32" _BE32
  
-_SomeCurve :: RTS.Parser ()
+_ColorName :: RTS.UInt 64 -> RTS.Parser ()
  
-_SomeCurve =
-  (RTS.<||)
-    (RTS.pEnter "curve" (RTS.pEnter "ICC._CurveType" _CurveType))
-    (RTS.pEnter "parametric_curve"
-       (RTS.pEnter "ICC._ParametricCurveType" _ParametricCurveType))
- 
-_TextType :: RTS.Parser ()
- 
-_TextType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "text"))
-     RTS.pEnter "ICC._Only"
-       (_Only @(Vector.Vector (RTS.UInt 7))
+_ColorName (m :: RTS.UInt 64) =
+  do RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: RTS.UInt 64)
           (RTS.pEnter "ICC._ASCII7" _ASCII7))
+     RTS.pSkipExact (RTS.lit 3 :: RTS.UInt 64)
+       (RTS.pEnter "ICC._BE16" _BE16)
+     RTS.pSkipExact m (RTS.pEnter "ICC._BE16" _BE16)
+ 
+_NamedColor2Type :: RTS.Parser ()
+ 
+_NamedColor2Type =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "ncl2"))
+     RTS.pEnter "ICC._BE32" _BE32
+     (count :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     (number_of_coords :: RTS.UInt 32) <- RTS.pEnter "ICC.BE32" pBE32
+     RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: RTS.UInt 64)
+          (RTS.pEnter "ICC._Only"
+             (_Only @(Vector.Vector (RTS.UInt 7))
+                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
+     RTS.pEnter "ICC._ParseChunk"
+       (_ParseChunk @(Vector.Vector (RTS.UInt 7))
+          (RTS.lit 32 :: RTS.UInt 64)
+          (RTS.pEnter "ICC._Only"
+             (_Only @(Vector.Vector (RTS.UInt 7))
+                (RTS.pEnter "ICC._ASCII7" _ASCII7))))
+     RTS.pSkipExact (RTS.convert count :: RTS.UInt 64)
+       (RTS.pEnter "ICC._ColorName"
+          (_ColorName (RTS.convert number_of_coords :: RTS.UInt 64)))
+ 
+_ProfileSequenceDescType :: RTS.Parser ()
+ 
+_ProfileSequenceDescType =
+  RTS.pEnter "ICC._StartTag" (_StartTag (Vector.vecFromRep "pseq"))
  
 _ViewConditionsType :: RTS.Parser ()
  
@@ -4401,13 +4427,6 @@ _ViewConditionsType =
      RTS.pEnter "ICC._XYZNumber" _XYZNumber
      RTS.pEnter "ICC._XYZNumber" _XYZNumber
      RTS.pEnter "ICC._BE32" _BE32
- 
-_XYZType :: RTS.Parser ()
- 
-_XYZType =
-  do RTS.pEnter "ICC._StartTag"
-       (_StartTag (Vector.vecFromRep "XYZ "))
-     RTS.pSkipMany (RTS.<||) (RTS.pEnter "ICC._XYZNumber" _XYZNumber)
  
 _Tag :: Vector.Vector (RTS.UInt 8) -> RTS.Parser ()
  
@@ -4953,27 +4972,24 @@ _ParseTag (t :: TagEntry) =
   do RTS.pEnter "ICC._Goto"
        (_Goto
           (RTS.convert (HS.getField @"offset_to_data_element" t)
-             :: HS.Integer))
+             :: RTS.UInt 64))
      RTS.pEnter "ICC._ParseChunk"
        (_ParseChunk @Tag
-          (RTS.convert (HS.getField @"size_of_data_element" t) :: HS.Integer)
+          (RTS.convert (HS.getField @"size_of_data_element" t)
+             :: RTS.UInt 64)
           (RTS.pEnter "ICC._Tag" (_Tag (HS.getField @"tag_signature" t))))
  
-_PositionNumber :: RTS.Parser ()
+_ChromaticityType :: RTS.Parser ()
  
-_PositionNumber =
-  do RTS.pEnter "ICC._BE32" _BE32
-     RTS.pEnter "ICC._BE32" _BE32
- 
-_Response16Number :: RTS.Parser ()
- 
-_Response16Number =
-  do RTS.pEnter "ICC._BE16" _BE16
-     HS.const ()
-       HS.<$> RTS.pMatch "142:3--142:13"
-                (Vector.fromList
-                   [RTS.lit 0 :: RTS.UInt 8, RTS.lit 0 :: RTS.UInt 8])
-     RTS.pEnter "ICC._BE32" _BE32
+_ChromaticityType =
+  do RTS.pEnter "ICC._StartTag"
+       (_StartTag (Vector.vecFromRep "chrm"))
+     (number_of_device_channels :: RTS.UInt 16) <-
+       RTS.pEnter "ICC.BE16" pBE16
+     RTS.pEnter "ICC._BE16" _BE16
+     RTS.pSkipExact
+       (RTS.convert number_of_device_channels :: RTS.UInt 64)
+       (RTS.pEnter "ICC._XYNumber" _XYNumber)
  
 _ValidateArray ::
   forall g.
@@ -4987,11 +5003,3 @@ _ValidateArray (arr :: Vector.Vector (RTS.UInt 8))
      _P
      RTS.pEnd "531:3--531:5"
      RTS.pSetInput s
- 
-getBit ::
-  forall b.
-    (RTS.DDL b, RTS.Numeric b, RTS.Convert b (RTS.UInt 1)) =>
-      HS.Integer -> (b -> RTS.UInt 1)
- 
-getBit (n :: HS.Integer) (b :: b) =
-  RTS.convert (RTS.shiftr b n) :: RTS.UInt 1
