@@ -66,8 +66,8 @@ doSynthesis opts = do
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
 
-  strm <- synthesise (optDDLInput opts) (optDDLEntry opts) (optSolver opts)
-            ["-smt2", "-in"] bOpts (pure ())
+  strm <- synthesise (optDDLInput opts) (optDDLEntry opts) (optSolver opts) 
+            ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
             logOpt (optSeed opts)
 
   -- model output

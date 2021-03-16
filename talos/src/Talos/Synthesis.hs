@@ -52,10 +52,6 @@ import Talos.SymExec.StdLib
 import Talos.Strategy
 import Talos.Strategy.Monad
 
-
-import Talos.Strategy.Monad
-
-
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
                      }
@@ -133,6 +129,7 @@ data SynthesisMState =
                   , curStream :: Stream
                   , nextProvenance :: ProvenanceTag 
                   , provenances :: ProvenanceMap
+                  , stratlist :: [Strategy]
                   }
 
 newtype SynthesisM a =
@@ -177,9 +174,9 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> FName -> Module 
+synthesise :: Maybe Int -> GUID -> Solver -> [Strategy] -> FName -> Module 
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv root md = do
+synthesise m_seed nguid solv strat root md = do
   let (allSummaries, nguid') = summarise allDecls nguid
 
   -- We do this in one giant step to deal with recursion and deps on
@@ -214,6 +211,7 @@ synthesise m_seed nguid solv root md = do
                       , curStream      = emptyStream
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
+                      , stratlist      = strat
                       }
 
     
@@ -303,7 +301,8 @@ choosePath cp x = do
     Nothing  -> pure cp
     Just sl -> do
       prov <- freshProvenanceTag 
-      m_cp <- runStrategies strategies prov sl
+      strats <- SynthesisM $ gets stratlist
+      m_cp <- runStrategies strats prov sl
       case m_cp of
         Nothing -> panic "All strategies failed" []
         Just sp -> pure (merge cp sp)

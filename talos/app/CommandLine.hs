@@ -26,6 +26,7 @@ data Options =
           -- Debugging options
           , optMode :: Mode
           , optDDLEntry   :: Maybe String
+          , optStrategy  :: Maybe String  
           , optDDLInput  :: FilePath
           }
 
@@ -105,6 +106,14 @@ entryOpt = strOption
     <> help "The entry point to use (default: 'Main')"
     )
 
+strategyOpt :: Parser String
+strategyOpt = strOption
+    ( long "strat"
+    <> short 't'
+    <> metavar "STRATEGY-NAME"
+    <> help "The synthesis strategy to use"
+    )
+
 options :: Parser Options
 options = Options <$> solverOpt
                   <*> optional logfileOpt
@@ -116,6 +125,7 @@ options = Options <$> solverOpt
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt
+                  <*> optional strategyOpt 
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options
