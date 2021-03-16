@@ -19,7 +19,7 @@ import Data.Parameterized.NatRepr
 import Daedalus.Panic(panic)
 
 import RTS.Input as RTS
-import RTS.Numeric(fromUInt,sizeToInt)
+import RTS.Numeric(UInt(..),fromUInt,sizeToInt,intToSize)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -144,10 +144,10 @@ evalOp1 op e env =
           Nothing    -> panic "evalOp1" ["Head of empty list"]
 
       StreamOffset ->
-        VInt $ toInteger $ inputOffset $ fromVInput v
+        vSize $ intToSize $ inputOffset $ fromVInput v
 
       StreamLen ->
-        VInt $ toInteger $ inputLength $ fromVInput v
+        vSize $ intToSize $ inputLength $ fromVInput v
 
       OneOf bs ->
         VBool $ isJust $ BS.elemIndex (fromVByte v) bs
@@ -163,7 +163,7 @@ evalOp1 op e env =
         VBool $ not $ fromVBool v
 
       ArrayLen ->
-        VInt $ toInteger $ Vector.length $ fromVArray v
+        vSize $ intToSize $ Vector.length $ fromVArray v
 
       Concat ->
         case v of
@@ -180,7 +180,9 @@ evalOp1 op e env =
       NewIterator ->
         case v of
           VArray t a ->
-            VIterator (TArray t) $ zip (map VInt [ 0 .. ]) (Vector.toList a)
+            VIterator (TArray t) $
+               zip [ vSize (UInt n) | n <- [0 .. ] ] (Vector.toList a)
+
           VMap t1 t2 mp ->
             VIterator (TMap t1 t2) $ Map.toList mp
           _ -> typeError "Array or Map" v
