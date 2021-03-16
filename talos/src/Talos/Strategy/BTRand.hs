@@ -121,7 +121,7 @@ stratSlice ptag = go
           let bs = filter (I.evalByteSet bset env) [0 .. 255]
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
-          liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
+          -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
           pure (I.vUInt 8 (fromIntegral b), SelectedMatch ptag (BS.singleton b))
 
         SMatch (MatchBytes e) -> do

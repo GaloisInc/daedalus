@@ -1,6 +1,6 @@
 {-# Language OverloadedStrings #-}
 
-module Talos.Strategy (strategies, runStrategies) where
+module Talos.Strategy (allStrategies, runStrategies) where
 
 import Control.Monad.IO.Class
 
@@ -10,8 +10,8 @@ import Talos.Strategy.Monad (Strategy(..), LiftStrategyM(..))
 -- strategies
 import Talos.Strategy.BTRand
 
-strategies :: [Strategy]
-strategies = [ randRestart, randMaybeT, randDFS ]
+allStrategies :: [Strategy]
+allStrategies = [ randRestart, randMaybeT, randDFS ]
 
 runStrategies :: LiftStrategyM m => [Strategy] -> ProvenanceTag -> Slice -> m (Maybe SelectedPath)
 runStrategies strats0 ptag sl = liftStrategy $ go strats0

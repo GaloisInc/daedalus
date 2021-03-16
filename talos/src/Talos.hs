@@ -31,9 +31,10 @@ import System.IO.Streams (InputStream)
 
 import Data.ByteString (ByteString)
 
-import Data.Map ( Map )
+import Data.Map ( Map, mapMaybe )
 
 import Data.List ( find )
+import Data.List.Split ( splitWhen )
 
 import qualified SimpleSMT as SMT
 
@@ -127,16 +128,13 @@ synthesise inFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = 
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
-  strat <- case stratOpt of 
-             Nothing    -> pure strategies
-             Just "all" -> pure strategies 
-             Just name  -> do 
-               case find (\s -> (stratName s) == name) strategies of 
-                 Nothing  -> do 
-                   hPutStrLn stderr ("Unsupported strategy: " ++ name) 
-                   hFlush stderr
-                   exitFailure 
-                 Just res -> pure [res]
+  let strat = case stratOpt of 
+             Nothing    -> allStrategies
+             Just "all" -> allStrategies 
+             Just names  -> 
+               let stratNames = (splitWhen (==',') names) in 
+               let maybes = map (\n -> find (\s -> (stratName s) == n) allStrategies) stratNames in 
+                 [x | Just x <- maybes] 
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
