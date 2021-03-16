@@ -49,7 +49,7 @@ randRestart =
            }
 
 restartBound :: Int
-restartBound = 100
+restartBound = 1000
 
 randRestartStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
 randRestartStrat ptag sl = go restartBound
@@ -62,7 +62,7 @@ randRestartStrat ptag sl = go restartBound
         Nothing -> go (n - 1)
     
     once :: StrategyM (Maybe SelectedPath)
-    once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)  
+    once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)
 
 -- ----------------------------------------------------------------------------------------
 -- Local backtracking, restart
@@ -138,6 +138,7 @@ stratSlice ptag = go
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
+          -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
           onSlice (SelectedChoice i) <$> go sl'
 
         SCall cn -> ask >>= stratCallNode ptag cn
@@ -176,7 +177,7 @@ stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths =
 choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
 choose bs = do
   bs' <- randPermute bs
-  foldl mplus mzero (map pure bs')
+  foldr mplus mzero (map pure bs')
 
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
