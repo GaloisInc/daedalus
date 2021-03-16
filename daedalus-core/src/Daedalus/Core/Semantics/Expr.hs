@@ -344,7 +344,7 @@ evalOp2 op e1 e2 env =
 
        LCat
          | VUInt w2 y <- v2
-         , let fInt i = (i `shiftL` widthVal w2) .|. i
+         , let fInt i = (i `shiftL` widthVal w2) .|. BV.asUnsigned y
 
                fUInt :: NatRepr w -> BV w -> BV w
                fUInt w i =
