@@ -1,11 +1,12 @@
 {-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.BTRand (randDFS, mkStrategyFun) where
+module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) where
 
 import Control.Applicative
 import Control.Monad.Reader
 
+import Control.Monad.Trans.Maybe
 import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl')
@@ -36,6 +37,55 @@ randDFS =
   where
     go :: ProvenanceTag -> Slice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
     go ptag sl = mkStrategyFun ptag sl
+
+-- ----------------------------------------------------------------------------------------
+-- Restarting strat (restart-on-failure)
+
+randRestart :: Strategy
+randRestart = 
+  Strategy { stratName  = "rand-restart"
+           , stratDescr = "Restart on failure with random selection"
+           , stratFun   = randRestartStrat
+           }
+
+restartBound :: Int
+restartBound = 100
+
+randRestartStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randRestartStrat ptag sl = go restartBound
+  where
+    go 0 = pure Nothing
+    go n = do
+      m_p <- once
+      case m_p of
+        Just {} -> pure m_p
+        Nothing -> go (n - 1)
+    
+    once :: StrategyM (Maybe SelectedPath)
+    once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)  
+
+-- ----------------------------------------------------------------------------------------
+-- Local backtracking, restart
+
+randMaybeT :: Strategy
+randMaybeT = 
+  Strategy { stratName  = "rand-restart-local-bt"
+           , stratDescr = "Backtrack locally on failure, restart on (global) failure with random selection"
+           , stratFun   = randMaybeStrat
+           }
+
+randMaybeStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randMaybeStrat ptag sl = go restartBound
+  where
+    go 0 = pure Nothing
+    go n = do
+      m_p <- once
+      case m_p of
+        Just {} -> pure m_p
+        Nothing -> go (n - 1)
+    
+    once :: StrategyM (Maybe SelectedPath)
+    once = runMaybeT (mkStrategyFun ptag sl)
   
 -- ----------------------------------------------------------------------------------------
 -- Main functions
@@ -208,6 +258,59 @@ instance MonadTrans (DFST r) where
 instance LiftStrategyM m => LiftStrategyM (DFST r m) where
   liftStrategy m = lift (liftStrategy m)
     
+-- =============================================================================
+-- Restart monad transformer
+--
+-- This is similar to the list monad, but it wraps another monad and
+-- hence has to be a bit careful about what to do when --- if we use
+-- ListT, we get effects from all the alternatives, which could be
+-- expensive.  This is similar to ContT, but we also keep around a
+-- failure continuation.
+--
+
+-- The dfsCont takes the return value, and also an updated failure
+-- continuation, as we may want to backtrack into a completed
+-- computation.
+data RestartTContext r m a =
+  RestartTContext { randCont   :: a -> m r
+                  , randEscape :: m r
+                  }
+
+newtype RestartT r m a = RestartT { getRestartT :: RestartTContext r m a -> m r }
+
+runRestartT :: RestartT r m a -> (a -> m r) -> m r -> m r
+runRestartT m cont fl = getRestartT m (RestartTContext (\v -> cont v) fl)
+
+instance Functor (RestartT r m) where
+  fmap f (RestartT m) = RestartT $ \ctxt -> m (ctxt { randCont = randCont ctxt . f })
+
+instance Applicative (RestartT r m) where
+  pure v              = RestartT $ \ctxt -> randCont ctxt v
+  (<*>)               = ap
+
+instance Monad (RestartT r m) where
+  RestartT m >>= f = RestartT $ \ctxt ->
+    let cont v = getRestartT (f v) ctxt
+    in m (ctxt { randCont = cont })
+
+-- | We want
+--
+-- (a `mplus` b) >>= f == (a >>= f) `mplus` (b >>= f)
+--
+-- i.e., we give f the result of a, but if that fails, we run f on b's
+-- result.
+
+instance Alternative (RestartT r m) where
+  m1 <|> _m2 = m1 
+  empty = RestartT randEscape
+
+instance MonadPlus (RestartT r m) where -- default body (Alternative)
+                     
+instance MonadTrans (RestartT r) where
+  lift m = RestartT $ \ctxt -> m >>= \v -> randCont ctxt v
+  
+instance LiftStrategyM m => LiftStrategyM (RestartT r m) where
+  liftStrategy m = lift (liftStrategy m)
     
 
 
