@@ -59,7 +59,7 @@ import RTS.Input
 import RTS.Parser as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
-import RTS.Numeric(sizeToInt)
+import RTS.Numeric(sizeToInt,intToSize)
 import qualified RTS.Vector as RTS
 
 -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
@@ -433,7 +433,8 @@ compilePureExpr env = go
         TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
 
         TCMapEmpty _ -> VMap Map.empty
-        TCArrayLength e -> VInteger (fromIntegral (Vector.length (valueToVector (go e))))
+        TCArrayLength e -> mkSize $ intToSize
+                                  $ Vector.length $ valueToVector $ go e
 
         TCCase e alts def ->
           evalCase
