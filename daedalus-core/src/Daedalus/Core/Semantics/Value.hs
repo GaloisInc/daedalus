@@ -35,7 +35,7 @@ data Value =
   | VUnion   UserType  !Label !Value
 
   | VInt               !Integer
-  | forall w. (1 <= w) =>
+  | forall w.
     VUInt !(NatRepr w) !(BV w)
   | forall w. (1 <= w) =>
     VSInt !(NatRepr w) !(BV w)

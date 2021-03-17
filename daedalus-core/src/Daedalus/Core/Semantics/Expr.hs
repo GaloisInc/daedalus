@@ -240,14 +240,14 @@ doCoerceTo t v =
       case v of
         VInt i -> vUInt n i
         VUInt _ ui -> vUInt n (BV.asUnsigned ui)
-        VSInt _ si -> vUInt n (BV.asUnsigned si)
+        VSInt w si -> vUInt n (BV.asSigned w si) -- sext then coerce bits
         _ -> typeError "Numeric type" v
 
     TSInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
     TSInt (TSize n) ->
       case v of
         VInt i     -> vSInt n i
-        VUInt w ui -> vUInt n (BV.asSigned w ui)
+        VUInt _ ui -> vSInt n (BV.asUnsigned ui)
         VSInt w si -> vSInt n (BV.asSigned w si)
         _ -> typeError "Numeric type" v
 
@@ -302,9 +302,7 @@ evalOp2 op e1 e2 env =
        BitXor   -> bitOp2 BV.xor  v1 v2
        Cat ->
          case (v1,v2) of
-           (VUInt (w :: NatRepr n) x, VUInt w' y) ->
-             case leqAdd (LeqProof :: LeqProof 1 n) w' of
-               LeqProof -> VUInt (addNat w w') (BV.concat w w' x y)
+           (VUInt w x, VUInt w' y) -> VUInt (addNat w w') (BV.concat w w' x y)
            _ -> panic "evalOp2.Cat" [ "Bad inputs" ]
 
        LCat
