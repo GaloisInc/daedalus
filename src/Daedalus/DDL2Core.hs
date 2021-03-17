@@ -4,6 +4,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language RecordWildCards #-}
 {-# Language GeneralizedNewtypeDeriving #-}
+{-# Language ViewPatterns #-}
 module Daedalus.DDL2Core where
 
 import Data.Text(Text)
@@ -326,7 +327,10 @@ fromGrammar gram =
     TC.TCCoerceCheck sem _t1 t2 v ->
       do e   <- fromExpr v
          tgt <- fromTypeM t2
-         fromMb sem tgt (coerceMaybeTo tgt e)
+         let e' = Pure $ case sem of { YesSem -> e; NoSem -> unit }
+         pure $ case needsCoerceCheck tgt e of
+           Nothing  -> e'
+           Just c   -> gIf c e' (sysErr tgt "Coercion is lossy")
 
     TC.TCFor l -> doLoopG l
 
@@ -360,7 +364,28 @@ fromSem :: WithSem -> Sem
 fromSem sem = case sem of
                 NoSem -> SemNo
                 YesSem -> SemYes
-
+  
+needsCoerceCheck :: Type -> Expr -> Maybe Expr
+needsCoerceCheck toTy e =
+  case (toTy, fromTy) of
+    _ | toTy == fromTy -> Nothing
+    (isBits -> Just _, TInteger) ->
+      Just (eAnd lowerBoundCheck upperBoundCheck)
+           
+    -- Something is different here (eq. caught above)
+    (isBits -> Just (toSigned, nTo), isBits -> Just (fromSigned, nFrom))
+      | nFrom < nTo && (toSigned == fromSigned || not fromSigned) -> Nothing
+      | nFrom <= nTo && not toSigned -> Just lowerBoundCheck -- signed -> unsigned
+      | nFrom == nTo && toSigned     -> Just upperBoundCheck  -- unsigned -> signed
+      | nTo < nFrom                  -> Just (eAnd lowerBoundCheck upperBoundCheck)
+        
+    _ -> Nothing
+  where
+    fromTy = typeOf e
+    Just (s, n) = isBits toTy -- lazy
+    upperBoundCheck = e `leq` intL (2 ^ (if s then n - 1 else n) - 1) fromTy
+    lowerBoundCheck = intL (if s then - (2 ^ (n - 1)) else 0) fromTy `leq` e
+    
 --------------------------------------------------------------------------------
 -- Pattern Matching
 
