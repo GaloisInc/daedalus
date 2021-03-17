@@ -1,14 +1,17 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, DeriveAnyClass #-}
 
 -- Path set analysis
 
 module Talos.SymExec.Path where
 
+import GHC.Generics (Generic)
 import Data.ByteString (ByteString)
 import Data.Map (Map)
+
+import Control.DeepSeq -- for benchmarking etc.
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -50,6 +53,7 @@ data SelectedPath =
   -- the variable is entangled on this path, the tc being the lhs of
   -- the bind that assigns the variable.
   | PathNode SelectedNode SelectedPath
+  deriving (Generic, NFData)
 
 data SelectedNode =
   SelectedChoice Int SelectedPath
@@ -68,6 +72,7 @@ data SelectedNode =
   -- of interest to other paths.  We still need to execute the term on the bytes.
 
   | SelectedDo SelectedPath -- ^ Wraps a nested Do node
+  deriving (Generic, NFData)
 
 -- isXs, mainly because we don't always have equality over nodes
 isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool

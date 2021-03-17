@@ -9,13 +9,18 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , LiftStrategyM (..)
                             , summaries, getGFun, withSolver
                             , rand, randR, randL, randPermute
+                            , timeStrategy
                             ) where
 
+import Control.Exception (evaluate)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 import System.Random
 import Data.Foldable (find)
+
+import Control.DeepSeq (force)
+import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
 
 import SimpleSMT (Solver)
 
@@ -103,6 +108,22 @@ randPermute = go
     go xs = do idx <- randR (0, length xs - 1)
                let (pfx, x : sfx) = splitAt idx xs
                (:) x <$> go (pfx ++ sfx)
+
+-- -----------------------------------------------------------------------------
+-- Timing
+
+-- Returns the result and wall-clock time (in ns)
+timeStrategy :: Strategy -> ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath, Integer)
+timeStrategy f ptag sl = StrategyM $ do
+  st <- get
+  (res, st') <- liftIO $ do
+    start     <- getTime MonotonicRaw
+    (rv, st') <- runStrategyM (stratFun f ptag sl) st
+    rv' <- evaluate $ force rv
+    end       <- getTime MonotonicRaw
+    pure ((rv', toNanoSecs (diffTimeSpec end start)), st')
+  put st'
+  pure res
 
 -- -----------------------------------------------------------------------------
 -- Class

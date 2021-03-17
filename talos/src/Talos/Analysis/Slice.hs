@@ -1,18 +1,20 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor, DefaultSignatures #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, DeriveAnyClass, DefaultSignatures #-}
 
 -- Path set analysis
 
 module Talos.Analysis.Slice where
 
-
+import GHC.Generics (Generic)
 import Control.Applicative ((<|>)) 
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+
+import Control.DeepSeq (NFData)
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -48,7 +50,7 @@ data Assertion = GuardAssertion Expr
 -- We could compute both (simultaneously?) but for the most part only
 -- 'Assertions' will be required.
 data SummaryClass = Assertions | FunctionResult -- FIXME: add fields
-  deriving (Ord, Eq, Show)
+  deriving (Ord, Eq, Show, Generic, NFData)
 
 data CallInstance =
   CallInstance { callParams :: EntangledVars
