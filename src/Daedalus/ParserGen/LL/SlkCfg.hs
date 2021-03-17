@@ -15,6 +15,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , simulateActionSlkCfg
   , InputHeadCondition(..)
   , showGraphvizInputHeadCondition
+  , convertActionToInputHeadCondition
   , matchInputHeadCondition
   , simulateMove
   ) where
@@ -32,6 +33,7 @@ import Daedalus.ParserGen.AST
 import Daedalus.ParserGen.Action
   ( State
   , Action(..)
+  , getClassActOrEnd
   , ControlAction(..)
   , SemanticAction(..)
   , InputAction(..)
@@ -951,7 +953,7 @@ simulateActionSlkCfg aut act q2 cfg tab =
       )
 
 data InputHeadCondition =
-    HeadInput ClassInterval
+    HeadInput ByteCondition
   | EndInput
   deriving (Show)
 
@@ -959,8 +961,26 @@ data InputHeadCondition =
 showGraphvizInputHeadCondition :: InputHeadCondition -> String
 showGraphvizInputHeadCondition c =
   case c of
-    HeadInput a -> showGraphvizClassInterval a
+    HeadInput a -> showGraphvizByteCondition a
     EndInput -> "END"
+
+
+convertActionToInputHeadCondition :: GblFuns -> Action -> R.Result InputHeadCondition
+convertActionToInputHeadCondition gbl act =
+  case getClassActOrEnd act of
+    Left (Left c) ->
+      let res = classToInterval gbl c in
+      case res of
+        R.Abort R.AbortClassIsDynamic -> R.coerceAbort res
+        R.Abort (R.AbortClassNotHandledYet _) -> R.coerceAbort res
+        R.Result r -> R.Result $ HeadInput r
+        _ -> error "Impossible abort"
+    Left (Right (IGetByte _)) ->
+      R.Result $ HeadInput (ByteCondition [ClassBtw (CValue 0) (CValue 255)])
+    Right IEnd ->
+      R.Result $ EndInput
+    _ -> error "Impossible case"
+
 
 matchInputHeadCondition :: InputHeadCondition -> Input.Input -> Maybe Input.Input
 matchInputHeadCondition c i =
@@ -969,7 +989,7 @@ matchInputHeadCondition c i =
       case Input.inputByte i of
         Nothing -> Nothing
         Just (x, xs) ->
-          if matchClassInterval a x
+          if matchByteCondition a x
           then Just xs
           else Nothing
     EndInput ->

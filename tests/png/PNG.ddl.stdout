@@ -35,7 +35,7 @@ PNG.BE : Grammar (uint 32) =
  
 PNG.Length : Grammar (uint 64) =
   do (_32 : uint 32) <- PNG.BE
-     _32 AS uint 64
+     pure (_32 as uint 64)
  
 PNG.CRC : Grammar (uint 32) =
   PNG.BE
@@ -92,8 +92,7 @@ PNG._BE : Grammar {} =
      @GetByte
  
 PNG._Length : Grammar {} =
-  do (_32 : uint 32) <- PNG.BE
-     @(_32 AS uint 64)
+  PNG._BE
  
 PNG._CRC : Grammar {} =
   PNG._BE

@@ -146,7 +146,8 @@ vSInt wi i =
      LeqProof <- isPosNat w
      pure (VSInt w (BV.mkBV w i))
 
-
+vSize :: UInt 64 -> Value
+vSize (UInt x) = vUInt 64 (toInteger x)
 
 --------------------------------------------------------------------------------
 fromVInput :: Value -> Input

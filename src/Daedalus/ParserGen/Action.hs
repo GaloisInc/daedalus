@@ -24,6 +24,7 @@ module Daedalus.ParserGen.Action
   , showCallStackDebug
   , showSemanticData
   , showCallStack
+  , callCExpr
   , evalNoFunCall
   , isSimpleVExpr
   , defaultValue
@@ -688,6 +689,25 @@ evalCase _gbl v lpat =
         _ -> error ("TODO not handled pat" ++ show pat)
     _ -> error "TODO: not handled list"
 
+callCExpr :: GblFuns -> NCExpr -> NCExpr
+callCExpr gbl expr =
+  let e = texprValue expr in
+  case e of
+    TCCall cname _ _lst -> -- this code is a simplification of TCVCall
+      let
+        cname1 = tcName cname
+        argsAndBody = Map.lookup cname1 gbl
+        body =
+          case argsAndBody of
+            Nothing -> error ("Class Fun '" ++ show cname1 ++ "' not found!")
+            Just (_args, bdy) -> bdy
+      in
+      case body of
+        ClassExpr bdy -> bdy
+        _ -> error "Unexpected body type not a ClassExpression"
+    _ -> error $ "Broken invariant: this function can only be called on TCCall:" ++ show e
+
+
 evalCExpr :: GblFuns -> NCExpr -> Word8 -> ControlData -> SemanticData -> Maybe SemanticElm
 evalCExpr gbl expr x ctrl out =
   case texprValue expr of
@@ -725,15 +745,10 @@ evalCExpr gbl expr x ctrl out =
             then let o = SEVal (Interp.VUInt 8 (fromIntegral x))
                  in Just o
             else Nothing
-    TCCall cname _ _lst -> -- this code is a simplification of TCVCall
-      let cname1 = tcName cname
-          argsAndBody = Map.lookup cname1 gbl
-          body = case argsAndBody of
-                   Nothing -> error ("Class Fun '" ++ show cname1 ++ "' not found!")
-                   Just (_args, bdy) -> bdy
-      in case body of
-           ClassExpr bdy -> evalCExpr gbl bdy x ctrl out
-           _ -> error "Unexpected body type not a ClassExpression"
+    TCCall {} -> -- this code is a simplification of TCVCall
+      let calledClass = callCExpr gbl expr
+      in evalCExpr gbl calledClass x ctrl out
+
     _ -> error ("TODO: " ++ (show expr))
 
 

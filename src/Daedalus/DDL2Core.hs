@@ -187,13 +187,7 @@ fromGrammar gram =
          pure (orOp cmt lhs (Pure (nothing ty)))
 
 
-    TC.TCEnd ->
-      do x <- newLocal TStream
-         pure $ Do x GetStream
-              $    gIf (isEmptyStream (Var x))
-                      (Pure unit)
-                      (sysErr TUnit "unexpected leftover input")
-
+    TC.TCEnd -> pure (Match SemNo MatchEnd)
 
     TC.TCOffset ->
       do x <- newLocal TStream

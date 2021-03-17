@@ -21,7 +21,7 @@ def PPM = {
 }
 
 
-def WS = Match1 (32) -- (0 | 9 | 12 | 32 | '\n' | '\r')
+def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
 
 
 def Natural = {

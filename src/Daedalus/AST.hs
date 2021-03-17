@@ -213,7 +213,7 @@ data FLoopFlav e = FFold !Name e
 data Commit = Commit | Backtrack
   deriving (Eq, Show, Lift)
 
-data SigType = MatchType | CoerceCheck | CoerceForce
+data SigType = MatchType | CoerceSafe | CoerceCheck | CoerceForce
   deriving Show
 
 data TriOp = RangeUp | RangeDown

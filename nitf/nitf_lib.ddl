@@ -18,6 +18,10 @@ def numBase (base : int) (ds : [ int ]) =
   for (val = 0; d in ds)
     (val * base + d)
 
+def numBaseUInt (base : uint 64) (ds : [ uint 64 ]) =
+  for (val = 0; d in ds)
+    (val * base + d)
+
 def strlen s = for (len = (0 : int); c in s) (len + 1)
 
 -- parsers:
@@ -51,6 +55,8 @@ def Sign = Match1 ('+' | '-')
 
 def Digit = { @d = Numeral ; ^ d - '0' as int }
 
+def DigitUInt = { @d = Numeral ; ^ d - '0' as uint 64 }
+
 def FixedPoint = {
   digs = Many Digit ;
   Match1 '.' ;
@@ -60,6 +66,11 @@ def FixedPoint = {
 def UnsignedNum digs = {
   @ds = Many digs Digit ;
   ^ numBase 10 ds
+}
+
+def UnsignedNumUInt digs = {
+  @ds = Many digs DigitUInt ;
+  ^ numBaseUInt 10 ds
 }
 
 def NegNum digs = {
@@ -74,13 +85,13 @@ def SignedNum digs = Choose {
 }
 
 def BoundedNum digs lb ub = {
-  $$ = UnsignedNum digs ;
+  $$ = UnsignedNumUInt digs ;
   Guard (lb <= $$) ;
   Guard ($$ <= ub)
 }
 
 def PosNumber digs = {
-  $$ = UnsignedNum digs ;
+  $$ = UnsignedNumUInt digs ;
   Guard (1 <= $$)
 }
 
@@ -99,7 +110,7 @@ def UpperBounded digs ub = BoundedNum digs 0 ub
 def PosQuad = BoundedNum 4 1 9999
 
 def LowerBoundedOrZero digs lb = {
-  $$ = UnsignedNum digs ;
+  $$ = UnsignedNumUInt digs ;
   Guard ($$ == 0) | Guard (lb <= $$)
 }
 
@@ -110,7 +121,7 @@ def AlphaNum = Alpha | Numeral
 -- TODO: replace with specific BCS classes
 def Byte = Match1 (0 .. 255)
 
-def Spaces n = Many n (Match1 ' ')
+def Spaces (n : uint 64) = Many n (Match1 ' ')
 
 def PadWSpaces n P = 
   Chunk n {$$ = P; Many (Match1 ' '); END}
@@ -138,7 +149,7 @@ def Lt x y = Guard (x < y)
 
 def Leq x y = (Eq x y) | (Lt x y)   -- XXX: Why not use <= ?
 
-def PartialEq x y =
+def PartialEq (x : OrBytes) (y : OrBytes) =
   x is default
 | y is default
 | { @x0 = x is actual ;
@@ -146,7 +157,7 @@ def PartialEq x y =
     Eq x0 y0
   }
 
-def PartialLt x y =
+def PartialLt (x : OrBytes) (y : OrBytes) =
   x is default
 | y is default
 | { @x0 = x is actual ;
@@ -154,7 +165,7 @@ def PartialLt x y =
     Lt x0 y0
   }
 
-def PartialLeq x y = 
+def PartialLeq (x : OrBytes) (y : OrBytes) =
   x is default
 | y is default
 | { @x0 = x is actual ;
@@ -283,7 +294,7 @@ def CodeWords = DefaultSpaces 11 {
     Match1 ' ' ;
     SecCtrlMarking
   } ;
-  Spaces (11 - (2 + 3 * (strlen rest)))
+  Spaces (11 - (2 + 3 * length rest))
 }
 
 -- Security control markings: translated from Table A-4:

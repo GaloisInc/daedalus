@@ -1,7 +1,7 @@
 
 def Main =
   { header = Header;
-    @n     = header.track_num as uint 64;
+    @n     = header.track_num as? uint 64;
     tracks = Many n Track
   }
 
@@ -99,15 +99,15 @@ def ModeMessage =
 
 def SysEx =
   Choose {
-    add_f0 = { Match1 0xF0; @len = VarQ as uint 64; Block len GetStream };
-    as_is  = { Match1 0xF7; @len = VarQ as uint 64; Block len GetStream };
+    add_f0 = { Match1 0xF0; @len = VarQ as? uint 64; Block len GetStream };
+    as_is  = { Match1 0xF7; @len = VarQ as? uint 64; Block len GetStream };
   }
 
 
 def Meta =
   { Match1 0xFF;
     @type = UInt8; Guard (type <= 0x7F);
-    @len  = VarQ as uint 64;
+    @len  = VarQ as? uint 64;
     Block len
       Choose1 {
         sequence     = { Guard (type == 0x00); Only BE16 };
@@ -154,7 +154,7 @@ def TAG16 n     = Guard (BE16 == n)
 def getBit n b  = b >> n as! uint 1
 
 
-def UInt7       = UInt8 as uint 7
+def UInt7       = UInt8 as? uint 7
 
 def Block n P =
   { @cur = GetStream;
