@@ -35,7 +35,6 @@ data Op0 =
 
 data Op1 =
     CoerceTo Type
-  | CoerceMaybeTo Type
   | IsEmptyStream
   | Head
   | StreamOffset
@@ -131,8 +130,6 @@ fromUnion t l     = Ap1 (FromUnion t l)
 -- Coercions
 
 coerceTo t      = Ap1 (CoerceTo t)
-coerceMaybeTo t = Ap1 (CoerceMaybeTo t)
-
 
 --------------------------------------------------------------------------------
 -- Input
@@ -291,7 +288,6 @@ instance PP Op1 where
   pp op =
     case op of
       CoerceTo t      -> ppTApp 0 "cast" [t]
-      CoerceMaybeTo t -> ppTApp 0 "castMaybe" [t]
       IsEmptyStream   -> "iNull"
       Head            -> "iHead"
       StreamOffset    -> "iOffset"
