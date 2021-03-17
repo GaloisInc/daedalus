@@ -4,6 +4,7 @@
 {-# Language DataKinds #-}
 {-# Language TypeOperators #-}
 {-# Language RankNTypes #-}
+{-# Language ScopedTypeVariables #-}
 module Daedalus.Core.Semantics.Expr where
 
 import qualified Data.Map as Map
@@ -235,17 +236,16 @@ doCoerceTo t v =
     TUInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
     TUInt (TSize n) ->
       case v of
-
         VInt i -> vUInt n i
         VUInt _ ui -> vUInt n (BV.asUnsigned ui)
-        VSInt w si -> vSInt n (BV.asSigned w si)
+        VSInt _ si -> vUInt n (BV.asUnsigned si)
         _ -> typeError "Numeric type" v
 
     TSInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
     TSInt (TSize n) ->
       case v of
         VInt i     -> vSInt n i
-        VUInt _ ui -> vUInt n (BV.asUnsigned ui)
+        VUInt w ui -> vUInt n (BV.asSigned w ui)
         VSInt w si -> vSInt n (BV.asSigned w si)
         _ -> typeError "Numeric type" v
 
@@ -300,7 +300,9 @@ evalOp2 op e1 e2 env =
        BitXor   -> bitOp2 BV.xor  v1 v2
        Cat ->
          case (v1,v2) of
-           (VUInt w x, VUInt w' y) -> VUInt (addNat w w') (BV.concat w w' x y)
+           (VUInt (w :: NatRepr n) x, VUInt w' y) ->
+             case leqAdd (LeqProof :: LeqProof 1 n) w' of
+               LeqProof -> VUInt (addNat w w') (BV.concat w w' x y)
            _ -> panic "evalOp2.Cat" [ "Bad inputs" ]
 
        LCat

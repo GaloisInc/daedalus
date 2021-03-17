@@ -35,7 +35,7 @@ data Value =
   | VUnion   UserType  !Label !Value
 
   | VInt               !Integer
-  | forall w.
+  | forall w. (1 <= w) =>
     VUInt !(NatRepr w) !(BV w)
   | forall w. (1 <= w) =>
     VSInt !(NatRepr w) !(BV w)
@@ -134,10 +134,11 @@ vByte w = VUInt knownNat (BV.word8 w)
 
 vUInt :: Integer -> Integer -> Value
 vUInt wi i =
-  case someNat wi of
-    Just (Some w) -> VUInt w (BV.mkBV w i)
-    _ -> panic "vUInt" ["Invalid width: " ++ show wi ]
-
+  fromMaybe (panic "vUInt" [ "Invalid width: " ++ show wi ])
+  do Some w   <- someNat wi
+     LeqProof <- isPosNat w
+     pure (VUInt w (BV.mkBV w i))
+  
 vSInt :: Integer -> Integer -> Value
 vSInt wi i =
   fromMaybe (panic "vSInt" [ "Invalid width: " ++ show wi ])
