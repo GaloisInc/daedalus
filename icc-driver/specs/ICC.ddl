@@ -133,7 +133,7 @@ def PositionNumber = {
 
 -- 0 terminated ASCII 7 string (sem value does not include the 0)
 def ASCII7 = {
-  $$ = Many (Match1 (1..) as uint 7);
+  $$ = Many (Match1 (1..) as? uint 7);
   Many (1 .. ) (Match1 0) <| Fail "Non 0 string terminator";
 }
 
