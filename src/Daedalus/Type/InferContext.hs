@@ -36,7 +36,8 @@ inferContext expr =
     EHasType sig e _ ->
       case sig of
         MatchType   -> inferContext e
-        CoerceCheck -> inferContext e
+        CoerceCheck -> Some AGrammar
+        CoerceSafe  -> inferContext e
         CoerceForce -> inferContext e
 
     EQuiet {} -> Some AGrammar

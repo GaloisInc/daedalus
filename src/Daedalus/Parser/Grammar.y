@@ -105,6 +105,7 @@ import Daedalus.Parser.Monad
   'import'    { Lexeme { lexemeRange = $$, lexemeToken = KWImport } }
   'as'        { Lexeme { lexemeRange = $$, lexemeToken = KWAs } }
   'as!'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsBang } }
+  'as?'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsQuestion } }
   'concat'    { Lexeme { lexemeRange = $$, lexemeToken = KWConcat } }
   'END'       { Lexeme { lexemeRange = $$, lexemeToken = KWEND } }
   'COMMIT'    { Lexeme { lexemeRange = $$, lexemeToken = KWCOMMIT } }
@@ -134,7 +135,7 @@ import Daedalus.Parser.Monad
 %left '^' '@'
 %left 'is'
 %nonassoc '..'
-%left ':' 'as' 'as!'
+%left ':' 'as' 'as!' 'as?'
 %left '||'
 %left '&&'
 %left '.|.' '.^.'
@@ -298,9 +299,11 @@ expr                                     :: { Expr }
   | expr ':' type                           { at ($1,$3)
                                                  (EHasType MatchType $1 $3) }
   | expr 'as' type                          { at ($1,$3)
-                                                 (EHasType CoerceCheck $1 $3) }
+                                                 (EHasType CoerceSafe $1 $3) }
   | expr 'as!' type                         { at ($1,$3)
                                                  (EHasType CoerceForce $1 $3) }
+  | expr 'as?' type                         { at ($1,$3)
+                                                 (EHasType CoerceCheck $1 $3) }
   | '^' expr                                { at ($1,$2) (EPure $2) }
   | '@' expr                                { at ($1,$2) (EQuiet $2) }
 

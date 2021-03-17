@@ -13,7 +13,7 @@ syn keyword ddlKeyword def
 syn keyword ddlKeyword for map in
 syn keyword ddlKeyword if then else
 syn keyword ddlKeyword is
-syn keyword ddlKeyword as as!
+syn keyword ddlKeyword as
 syn match   ddlKeyword "\$\$"
 syn keyword ddlKeyword Choose Choose1
 syn keyword ddlKeyword commit

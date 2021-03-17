@@ -1,7 +1,7 @@
 
 
 def V = Choose {
-  number = 1 as int;
+  number = 1 as? int;
   other  = Match "X";
 }
 

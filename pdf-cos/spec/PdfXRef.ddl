@@ -24,7 +24,7 @@ def CrossRefSection = {
 
 def CrossRefSubSection = {
   firstId = Token Natural;
-  @num    = Token Natural as uint 64;
+  @num    = Token Natural as? uint 64;
   entries = Many num CrossRefEntry;
 }
 
@@ -68,11 +68,11 @@ def XRefMeta header = {
 def XRefFormat header = {
   @kv    = LookupResolve "W" header;
   @vs    = kv is array;
-  b1     = LookupInt vs 0 as uint 64;
-  b2     = LookupInt vs 1 as uint 64;
-  b3     = LookupInt vs 2 as uint 64;
+  b1     = LookupInt vs 0 as? uint 64;
+  b2     = LookupInt vs 1 as? uint 64;
+  b3     = LookupInt vs 2 as? uint 64;
   @bigwidth = for (s = 0; x in vs) { s + NatValue x };
-  width  = bigwidth as uint 64;
+  width  = bigwidth as? uint 64;
 }
 
 def LookupInt arr i = Default 0 {
@@ -87,7 +87,7 @@ def XRefIndex header = {
   @arr  = Default [0,size] (LookupNats "Index" header);
   map (i in rangeUp 0 (length arr) 2) {
     firstId = Index arr i;
-    num     = Index arr (i+1) as uint 64;
+    num     = Index arr (i+1) as? uint 64;
   }
 }
 

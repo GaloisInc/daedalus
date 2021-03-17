@@ -88,6 +88,7 @@ data Token =
   | KWImport
   | KWAs
   | KWAsBang
+  | KWAsQuestion
   | KWConcat
   | KWEND
   | KWCOMMIT

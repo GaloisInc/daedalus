@@ -106,6 +106,7 @@ $ws+        ;
 "else"      { lexeme KWElse }
 "as"        { lexeme KWAs }
 "as!"       { lexeme KWAsBang }
+"as?"       { lexeme KWAsQuestion }
 "case"      { lexeme KWCase }
 
 "Choose"    { lexeme KWChoose }
