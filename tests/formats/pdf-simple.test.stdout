@@ -753,15 +753,18 @@ Pdf.PdfChunk : Grammar Pdf.PdfChunk =
            declaredStartXref = declaredStartXref}
  
 rec value
-  Pdf.SkipTo ?a9 (P : Grammar ?a9) : Grammar {} =
-    do (_208 : bool) <- do do P
-                              pure {}
-                           ($$ : bool) <- pure true
-                           pure $$
+  Pdf.SkipTo ?a10 (P : Grammar ?a10) : Grammar {} =
+    do (_208 : bool) <- Choose biased
+                          { do do P
+                                  pure {}
+                               ($$ : bool) <- pure true
+                               pure $$
+                          | pure false
+                          }
        case _208 is
          { true -> pure {}
          ; false -> do @GetByte
-                       ($$ : {}) <- Pdf.SkipTo ?a9 P
+                       ($$ : {}) <- Pdf.SkipTo ?a10 P
                        pure $$
          }
  
@@ -860,14 +863,17 @@ Pdf._PdfChunk : Grammar {} =
         PdfValue._EOL
      PdfValue._KW "%%EOF"
  
-Pdf._SkipTo ?a9 (P : Grammar ?a9) (_P : Grammar {}) : Grammar {} =
-  do (_208 : bool) <- do _P
-                         ($$ : bool) <- pure true
-                         pure $$
+Pdf._SkipTo ?a10 (P : Grammar ?a10) (_P : Grammar {}) : Grammar {} =
+  do (_208 : bool) <- Choose biased
+                        { do _P
+                             ($$ : bool) <- pure true
+                             pure $$
+                        | pure false
+                        }
      case _208 is
        { true -> pure {}
        ; false -> do @GetByte
-                     Pdf.SkipTo ?a9 P
+                     Pdf.SkipTo ?a10 P
        }
  
 Pdf._Main : Grammar {} =
