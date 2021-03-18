@@ -100,6 +100,7 @@ $ws+        ;
 "map"       { lexeme KWMap }
 "in"        { lexeme KWIn }
 "is"        { lexeme KWIs }
+"of"        { lexeme KWOf }
 "if"        { lexeme KWIf }
 "try"       { lexeme KWTry }
 "then"      { lexeme KWThen }

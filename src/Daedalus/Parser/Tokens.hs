@@ -76,6 +76,7 @@ data Token =
   | KWMap
   | KWIn
   | KWIs
+  | KWOf
   | KWInt
   | KWUInt
   | KWSInt

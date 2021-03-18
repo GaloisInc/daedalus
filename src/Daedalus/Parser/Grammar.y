@@ -80,6 +80,7 @@ import Daedalus.Parser.Monad
   'map'       { Lexeme { lexemeRange = $$, lexemeToken = KWMap } }
   'in'        { Lexeme { lexemeRange = $$, lexemeToken = KWIn } }
   'is'        { Lexeme { lexemeRange = $$, lexemeToken = KWIs } }
+  'of'        { Lexeme { lexemeRange = $$, lexemeToken = KWOf } }
   'int'       { Lexeme { lexemeRange = $$, lexemeToken = KWInt } }
   'uint'      { Lexeme { lexemeRange = $$, lexemeToken = KWUInt } }
   '$uint'     { Lexeme { lexemeRange = $$, lexemeToken = KWDollarUInt } }
@@ -387,7 +388,7 @@ aexpr                                    :: { Expr }
   | chooseKW '{' separated(union_field, commaOrSemi) '}' 
                                             {% at ($1,$4) `fmap`
                                                mkUnion (thingValue $1) $3 }
-  | 'case' expr 'is' '{' separated(case_patterns, ';') '}'
+  | 'case' expr 'of' '{' separated(case_patterns, ';') '}'
                                             { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)

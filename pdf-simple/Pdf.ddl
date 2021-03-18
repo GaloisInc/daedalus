@@ -80,7 +80,7 @@ def NatN n = { @ds = Many n Digit; numBase 10 ds as? uint 64 }
 
 def CountTo P count = { P; count } <| { UInt8; CountTo P (count+1) }
 -- def SkipTo P        = P <| { UInt8; SkipTo P }
-def SkipTo P        = case { P; true } is {
+def SkipTo P        = case { P; true } of {
                         true  -> {};
                         false -> { UInt8; SkipTo P };
                       }
