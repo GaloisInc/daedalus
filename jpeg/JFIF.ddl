@@ -26,8 +26,8 @@ def RGB = {
 }
 
 def DensityUnits = Choose1 {
-  NoUnits     = { UInt8 == 0 };
-  Inches      = { UInt8 == 1 };
-  Centimeters = { UInt8 == 2 };
+  NoUnits     = Match1 0;
+  Inches      = Match1 1;
+  Centimeters = Match1 2;
 } <| Fail "Invalid density unit"
 
