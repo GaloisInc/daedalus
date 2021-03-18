@@ -32,22 +32,13 @@ import Daedalus.ParserGen.Action (evalNoFunCall, isSimpleVExpr, callCExpr)
 import Daedalus.ParserGen.LL.Result as R
 
 data IntervalEndpoint =
-    PlusInfinity
-  | MinusInfinity
-  | CValue Word8
+  CValue Word8
   deriving(Eq)
 
 instance Ord IntervalEndpoint where
-  (<=) MinusInfinity _ = True
-  (<=) (CValue _) MinusInfinity = False
   (<=) (CValue x) (CValue y) = x <= y
-  (<=) (CValue _) PlusInfinity = True
-  (<=) PlusInfinity PlusInfinity = True
-  (<=) PlusInfinity _ = False
 
 instance Show IntervalEndpoint where
-  show PlusInfinity = "+inf"
-  show MinusInfinity = "-inf"
   show (CValue i) = show (toEnum (fromIntegral i) :: Char)
 
 
@@ -59,20 +50,15 @@ showGraphvizIntervalPoint a =
       if (48 <= x && x <= 57) || (65 <= x && x <= 90) || (97 <= x && x <= 122)
       then (toEnum (fromIntegral i) :: Char) : ""
       else "x" ++ showHex (fromIntegral i :: Integer) ""
-    _ -> show a
 
 incrItv :: IntervalEndpoint -> IntervalEndpoint
 incrItv i =
   case i of
-    PlusInfinity -> error "cannot increment plus infinity"
-    MinusInfinity -> error "cannot increment minis infinity"
     CValue n -> CValue (n+1)
 
 decrItv :: IntervalEndpoint -> IntervalEndpoint
 decrItv i =
   case i of
-    PlusInfinity -> error "cannot decrement plus infinity"
-    MinusInfinity -> error "cannot decrement minis infinity"
     CValue n -> CValue (n-1)
 
 
@@ -251,7 +237,6 @@ matchClassInterval :: ClassInterval -> Word8 -> Bool
 matchClassInterval itv c =
   case itv of
     ClassBtw (CValue a) (CValue b) -> a <= c && c <= b
-    ClassBtw {} -> undefined
 
 
 classToInterval :: PAST.GblFuns -> PAST.NCExpr -> Result ByteCondition
