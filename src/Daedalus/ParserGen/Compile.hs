@@ -23,6 +23,14 @@ import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
 
 
+-------- Global states
+
+cSTART_STATE :: State
+cSTART_STATE = 1
+
+cFINAL_STATE :: State
+cFINAL_STATE = 0
+
 ------- 1 Allocate States
 
 allocate :: a -> Int -> Int -> ((a, [Int]), Int)
@@ -339,12 +347,6 @@ allocDecl n _decl@(TCDecl {..}) =
       }
   in (eAnnot, lastState)
 
-globalStartState :: State
-globalStartState = 1
-
-globalFinalState :: State
-globalFinalState = 0
-
 allocTCModule :: Show a => Int -> TCModule a -> (TCModule (a, PAST.Annot), Int)
 allocTCModule n _tc@(TCModule{..}) =
   let (n1, atc) = foldl fRec (n,[]) tcModuleDecls
@@ -380,7 +382,7 @@ allocStates decls =
         foldl (
         \ (b,acc) a ->
           let (allocMod, st) = allocTCModule b a in (st, allocMod : acc))
-        (globalStartState, []) decls
+        (cSTART_STATE, []) decls
   in
     foldl fRec Map.empty lstMod
   where
@@ -884,10 +886,10 @@ buildMapAut :: [TCModule SourceRange] -> MapAut
 buildMapAut decls =
   let
     aut =
-      mkAutWithPop globalStartState (unionTr mainTrans table) globalFinalState (unionPopTrans mainPop pops)
+      mkAutWithPop cSTART_STATE (unionTr mainTrans table) cFINAL_STATE (unionPopTrans mainPop pops)
   in
   let
-    aut1 = aut { stateMapping = Map.insert globalStartState (mainSourceRange, mainName) stateInfo }
+    aut1 = aut { stateMapping = Map.insert cSTART_STATE (mainSourceRange, mainName) stateInfo }
   in
   let
     aut2 = addGblFunsAut (systemToFunctions allocDecls) aut1
@@ -925,9 +927,9 @@ buildMapAut decls =
 
     stateInfo = collectDecls allocDecls
     mainTrans = mkTr
-      [ (globalStartState, UniChoice (CAct (Push mainName [] globalFinalState), startState))
+      [ (cSTART_STATE, UniChoice (CAct (Push mainName [] cFINAL_STATE), startState))
       ]
-    mainPop = addPopTrans finalState globalFinalState emptyPopTrans
+    mainPop = addPopTrans finalState cFINAL_STATE emptyPopTrans
 
 buildArrayAut :: [TCModule SourceRange] -> ArrayAut
 buildArrayAut decls =
