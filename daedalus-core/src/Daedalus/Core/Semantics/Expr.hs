@@ -4,6 +4,7 @@
 {-# Language DataKinds #-}
 {-# Language TypeOperators #-}
 {-# Language RankNTypes #-}
+{-# Language ScopedTypeVariables #-}
 module Daedalus.Core.Semantics.Expr where
 
 import qualified Data.Map as Map
@@ -129,11 +130,7 @@ evalOp1 :: Op1 -> Expr -> Env -> Value
 evalOp1 op e env =
   let v = eval e env
   in case op of
-      CoerceTo t -> fst (doCoerceTo t v)
-      CoerceMaybeTo t ->
-        case doCoerceTo t v of
-          (r,Exact) -> VJust r
-          _         -> VNothing t
+      CoerceTo t -> doCoerceTo t v
 
       IsEmptyStream ->
         VBool $ inputEmpty $ fromVInput v
@@ -227,77 +224,43 @@ evalOp1 op e env =
           VUnion _ _ a -> a
           _ -> typeError "union" v
 
-data Lossy = Exact | Lossy
-
-doCoerceTo :: Type -> Value -> (Value, Lossy)
+doCoerceTo :: Type -> Value -> Value
 doCoerceTo t v =
   case t of
 
     TInteger ->
       case v of
-        VInt {}     -> (v, Exact)
-        VUInt _ i   -> (VInt (BV.asUnsigned i), Exact)
-        VSInt w i   -> (VInt (BV.asSigned w i), Exact)
+        VInt {}     -> v
+        VUInt _ i   -> VInt (BV.asUnsigned i)
+        VSInt w i   -> VInt (BV.asSigned w i)
         _           -> typeError "Numeric type" v
 
     TUInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
     TUInt (TSize n) ->
       case v of
-
-        VInt i ->
-          let r = vUInt n i
-          in (r, check i r)
-
-        VUInt _ ui ->
-          let i = BV.asUnsigned ui
-              r = vUInt n i
-          in (r, check i r)
-
-        VSInt w si ->
-          let i = BV.asSigned w si
-              r = vSInt n i
-          in (r, check i r)
-
+        VInt i -> vUInt n i
+        VUInt _ ui -> vUInt n (BV.asUnsigned ui)
+        VSInt w si -> vUInt n (BV.asSigned w si) -- sext then coerce bits
         _ -> typeError "Numeric type" v
 
     TSInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
     TSInt (TSize n) ->
       case v of
-
-        VInt i ->
-          let r = vSInt n i
-          in (r, check i r)
-
-        VUInt _ ui ->
-          let i = BV.asUnsigned ui
-              r = vUInt n i
-          in (r, check i r)
-
-        VSInt w si ->
-          let i = BV.asSigned w si
-              r = vSInt n i
-          in (r, check i r)
-
+        VInt i     -> vSInt n i
+        VUInt _ ui -> vSInt n (BV.asUnsigned ui)
+        VSInt w si -> vSInt n (BV.asSigned w si)
         _ -> typeError "Numeric type" v
 
-    TStream         -> (v, Exact)
-    TBool           -> (v, Exact)
-    TUnit           -> (v, Exact)
-    TMaybe {}       -> (v, Exact)
-    TArray {}       -> (v, Exact)
-    TMap {}         -> (v, Exact)
-    TBuilder {}     -> (v, Exact)
-    TIterator {}    -> (v, Exact)
-    TUser {}        -> (v, Exact)
+    TStream         -> v
+    TBool           -> v
+    TUnit           -> v
+    TMaybe {}       -> v
+    TArray {}       -> v
+    TMap {}         -> v
+    TBuilder {}     -> v
+    TIterator {}    -> v
+    TUser {}        -> v
     TParam {}       -> panic "doCoerceTo" [ "Type parameter" ]
-
-
-
-  where
-  check x y = case y of
-                VUInt _ z -> if x == BV.asUnsigned z then Exact else Lossy
-                VSInt w z -> if x == BV.asSigned w z then Exact else Lossy
-                _ -> panic "doCoerceTo.check" [ "Unexpected" ]
 
 --------------------------------------------------------------------------------
 

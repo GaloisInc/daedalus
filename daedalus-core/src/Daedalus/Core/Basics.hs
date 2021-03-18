@@ -1,5 +1,7 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
+{-# Language ViewPatterns #-}
+
 module Daedalus.Core.Basics where
 
 import Data.Text(Text)
@@ -91,6 +93,22 @@ data Pattern =
   | PCon Label
   | PAny
     deriving (Eq,Ord)
+
+--------------------------------------------------------------------------------
+-- Convenience functions
+
+isBits :: Type -> Maybe (Bool, Integer)
+isBits (isUInt -> Just n) = Just (False, n)
+isBits (isSInt -> Just n) = Just (True, n)
+isBits _                  = Nothing
+
+isUInt :: Type -> Maybe Integer
+isUInt (TUInt (TSize n)) = Just n
+isUInt _                 = Nothing
+
+isSInt :: Type -> Maybe Integer
+isSInt (TSInt (TSize n)) = Just n
+isSInt _                 = Nothing
 
 
 --------------------------------------------------------------------------------

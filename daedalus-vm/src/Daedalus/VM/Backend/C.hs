@@ -440,53 +440,6 @@ cOp1 x op1 ~[e'] =
           _ | srcT == tgtT -> cInst "DDL::refl_cast" [cSemType tgtT]
             | otherwise    -> bad "Unexpected source type"
 
-
-
-    Src.CoerceMaybeTo tgtT -> cVarDecl x (cCall fun [e])
-      where
-      srcT = case getType e' of
-               TSem t -> t
-               _ -> bad "Expected a semantic type"
-
-      bad :: String -> a
-      bad msg = panic "cOp1" [ "Bad coercions"
-                             , "from " ++ show (pp srcT)
-                             , "to " ++ show (pp tgtT)
-                             , msg
-                             ]
-
-      sz t = case t of
-              Src.TSize i -> integer i
-              _           -> bad "Size not an integer"
-
-      fun =
-        case srcT of
-
-          Src.TUInt from ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::uint_to_integer_maybe" [sz from]
-              Src.TUInt to  -> cInst "DDL::uint_to_uint_maybe" [sz from, sz to]
-              Src.TSInt to  -> cInst "DDL::uint_to_sint_maybe" [sz from, sz to]
-              _             -> bad "Unexpected target type"
-
-          Src.TSInt from ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::sint_to_integer_maybe" [sz from]
-              Src.TUInt to  -> cInst "DDL::sint_to_uint_maybe" [sz from, sz to]
-              Src.TSInt to  -> cInst "DDL::sint_to_sint_maybe" [sz from, sz to]
-              _             -> bad "Unexpected target type"
-
-          Src.TInteger ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
-              Src.TUInt to  -> cInst "DDL::integer_to_uint_maybe" [sz to]
-              Src.TSInt to  -> cInst "DDL::integer_to_sint_maybe" [sz to]
-              _             -> bad "Unexped target type"
-
-          _ | srcT == tgtT -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
-            | otherwise    -> bad "Unexpected source type"
-
-
     Src.IsEmptyStream ->
       cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
 
