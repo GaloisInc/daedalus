@@ -1,0 +1,4 @@
+../../pdf-simple/Pdf.ddl:77:53--77:59:
+  Failed to match types:
+    • int
+    • uint 64
