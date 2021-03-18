@@ -509,8 +509,8 @@ completeAlts d ps0 =
         PBool b       -> this : go [PBool (not b)] more
         PNothing      -> this : go [PJust] more
         PJust         -> this : go [PNothing] more
-        PNum {}       -> ps0 ++ [(PAny,d)]
-        PCon {}       -> ps0 ++ [(PAny,d)] -- XXX: could check that we have all
+        PNum {}       -> this : completeAlts d more
+        PCon {}       -> this : completeAlts d more -- XXX: could check that we have all
   where
   go need ps =
     case ps of
