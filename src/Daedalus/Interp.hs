@@ -217,7 +217,7 @@ evalBinOp op v1 v2 =
       (VInteger x, VInteger y) -> f VInteger   x y
       (VUInt m x,  VUInt _ y)  -> f (mkUInt m) x y
       (VSInt m x,  VSInt _ y)  -> f (mkSInt m) x y
-      _ -> error ("BUG: invalid binary operation: " ++ show op)
+      _ -> error ("BUG: invalid binary operation: " ++ show op ++ show [v1,v2])
 
 
 evalTriOp :: TriOp -> Value -> Value -> Value -> Value
@@ -327,8 +327,8 @@ evalFor env lp =
       , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
       }
       where
-      stepKey f    = \sV kV elV -> f sV (VInteger (toInteger kV)) elV
-      stepKeyMap f = \   kV elV -> f    (VInteger (toInteger kV)) elV
+      stepKey f    = \sV kV elV -> f sV (mkSize (intToSize kV)) elV
+      stepKeyMap f = \   kV elV -> f    (mkSize (intToSize kV)) elV
 
     TVMap -> doLoop env lp LoopEval
       { unboxCol  = valueToMap
@@ -355,8 +355,8 @@ evalForM env lp =
       , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
       }
       where
-      stepKey f    = \sV kV elV -> f sV (VInteger (toInteger kV)) elV
-      stepKeyMap f = \   kV elV -> f    (VInteger (toInteger kV)) elV
+      stepKey f    = \sV kV elV -> f sV (mkSize (intToSize kV)) elV
+      stepKeyMap f = \   kV elV -> f    (mkSize (intToSize kV)) elV
 
     TVMap -> doLoop env lp LoopEval
       { unboxCol  = valueToMap
