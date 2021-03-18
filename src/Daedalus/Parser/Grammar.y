@@ -29,6 +29,9 @@ import Daedalus.Parser.Monad
   ')'         { Lexeme { lexemeRange = $$, lexemeToken = CloseParen } }
   '{'         { Lexeme { lexemeRange = $$, lexemeToken = OpenBrace } }
   '}'         { Lexeme { lexemeRange = $$, lexemeToken = CloseBrace } }
+  'v{'        { Lexeme { lexemeRange = $$, lexemeToken = VOpen } }
+  'v;'        { Lexeme { lexemeRange = $$, lexemeToken = VSemi } }
+  'v}'        { Lexeme { lexemeRange = $$, lexemeToken = VClose } }
   '{|'        { Lexeme { lexemeRange = $$, lexemeToken = OpenBraceBar } }
   '|}'        { Lexeme { lexemeRange = $$, lexemeToken = CloseBraceBar } }
   '['         { Lexeme { lexemeRange = $$, lexemeToken = OpenBracket } }
@@ -90,6 +93,7 @@ import Daedalus.Parser.Monad
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
   'Choose'    { Lexeme { lexemeRange = $$, lexemeToken = KWChoose } }
   'Choose1'   { Lexeme { lexemeRange = $$, lexemeToken = KWChoose1 } }
+  'block'     { Lexeme { lexemeRange = $$, lexemeToken = KWblock } }
   'Optional'  { Lexeme { lexemeRange = $$, lexemeToken = KWOptional } }
   'Optional?' { Lexeme { lexemeRange = $$, lexemeToken = KWOptionalQuestion } }
   'Many'      { Lexeme { lexemeRange = $$, lexemeToken = KWMany } }
@@ -379,16 +383,18 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
+  | 'block' 'v{' separated(struct_field, 'v;') 'v}'
+                                            { at ($1,$4) (EStruct $3) }
   | '{' separated(struct_field, commaOrSemi) '}' 
                                             { at ($1,$3) (EStruct $2) }
   | '{|' label '=' expr '|}'                { at ($1,$5) (mkIn $2 $5 (Just $4))}
   | '{|' label '|}'                         { at ($1,$3) (mkIn $2 $3 Nothing) }
 
   | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
-  | chooseKW '{' separated(union_field, commaOrSemi) '}' 
+  | chooseKW 'v{' separated(union_field, 'v;') 'v}'
                                             {% at ($1,$4) `fmap`
                                                mkUnion (thingValue $1) $3 }
-  | 'case' expr 'of' '{' separated(case_patterns, ';') '}'
+  | 'case' expr 'of' 'v{' separated(case_patterns, 'v;') 'v}'
                                             { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)

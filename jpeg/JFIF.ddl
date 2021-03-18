@@ -25,9 +25,11 @@ def RGB = {
   b = UInt8;
 }
 
-def DensityUnits = Choose1 {
-  NoUnits     = Match1 0;
-  Inches      = Match1 1;
-  Centimeters = Match1 2;
-} <| Fail "Invalid density unit"
+def DensityUnits =
+  Choose1
+    NoUnits     = Match1 0
+    Inches      = Match1 1
+    Centimeters = Match1 2
+  <| Fail "Invalid density unit"
+
 

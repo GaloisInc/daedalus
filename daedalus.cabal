@@ -24,6 +24,7 @@ library
   ghc-prof-options:    -fprof-auto
   build-tool-depends:  alex:alex, happy:happy
   exposed-modules:     Daedalus.Parser.Tokens,
+                       Daedalus.Parser.Layout,
                        Daedalus.Parser.Monad,
                        Daedalus.Parser.Lexer,
                        Daedalus.Parser.Grammar,

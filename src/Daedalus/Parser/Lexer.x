@@ -12,6 +12,7 @@ import qualified Data.ByteString as BS
 import Data.Char(isDigit)
 
 import Daedalus.Parser.Tokens
+import Daedalus.Parser.Layout
 
 }
 
@@ -109,6 +110,7 @@ $ws+        ;
 "as!"       { lexeme KWAsBang }
 "as?"       { lexeme KWAsQuestion }
 "case"      { lexeme KWCase }
+"block"     { lexeme KWblock }
 
 "Choose"    { lexeme KWChoose }
 "Choose1"   { lexeme KWChoose1 }
@@ -262,7 +264,7 @@ endComment =
      pure []
 
 lexer :: Text -> Text -> [Lexeme Token]
-lexer file txt = $makeLexer cfg (initialInput file txt)
+lexer file txt = layout ($makeLexer cfg (initialInput file txt))
   where
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
   --            "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
