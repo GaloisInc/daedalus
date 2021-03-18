@@ -896,15 +896,24 @@ buildMapAut decls =
   where
     allocDecls = allocStates decls
     allocGrammar = systemToGrammars allocDecls
-    (mainFullName, mainSourceRange, mainInfo) = fromJust $ Map.foldrWithKey
-      (\ k a b ->
-         case b of
-           Just res -> Just res
-           Nothing ->
-             let ident = PAST.name2Text k in
-               -- TODO: this infixOf test should be removed
-               if isInfixOf "Main" (show ident) then Just (k, getSourceRangeDecl a, a) else Nothing
-      ) Nothing allocDecls
+    (mainFullName, mainSourceRange, mainInfo) =
+      let
+        searchMain =
+          Map.foldrWithKey
+          (\ k a b ->
+             case b of
+               Just res -> Just res
+               Nothing ->
+                 let ident = PAST.name2Text k in
+                   -- TODO: this infixOf test should be removed
+                 if isInfixOf "Main" (show ident)
+                 then Just (k, getSourceRangeDecl a, a)
+                 else Nothing
+          ) Nothing allocDecls
+      in
+        case searchMain of
+          Nothing -> error "Missing Main rule"
+          Just x -> x
     mainAnnots = getTCModuleAnnot mainInfo
     startState = PAST.getState mainAnnots 0
     finalState = PAST.getState mainAnnots 1
