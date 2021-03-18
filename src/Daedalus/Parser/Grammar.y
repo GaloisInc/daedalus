@@ -380,7 +380,9 @@ aexpr                                    :: { Expr }
   | '(' expr ')'                            { $2 }
   | '{' separated(struct_field, commaOrSemi) '}' 
                                             { at ($1,$3) (EStruct $2) }
-  | '{|' label '=' expr '|}'                { at ($1,$3) (EIn ($2 :> $4)) }
+  | '{|' label '=' expr '|}'                { at ($1,$5) (mkIn $2 $5 (Just $4))}
+  | '{|' label '|}'                         { at ($1,$3) (mkIn $2 $3 Nothing) }
+
   | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
   | chooseKW '{' separated(union_field, commaOrSemi) '}' 
                                             {% at ($1,$4) `fmap`
@@ -644,5 +646,10 @@ mkRule d nm ps t e = Rule { ruleName = nm,
                       case ps of
                         _ : _ -> range (last ps)
                         [] -> range nm
+
+mkIn :: Located Label -> SourceRange -> Maybe Expr -> ExprF Expr
+mkIn l b mbE = EIn (l :> case mbE of
+                           Just e  -> e
+                           Nothing -> at (l,b) (EStruct []))
 
 }

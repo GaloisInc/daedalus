@@ -193,5 +193,5 @@ def NatValue (v : Value) = {
   NumberAsNat n;
 }
 
-def nullValue : Value = {| null = {} |}
+def nullValue : Value = {| null |}
 
