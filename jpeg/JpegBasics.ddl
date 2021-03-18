@@ -39,23 +39,25 @@ def EOI = Marker 0xD9
 -- Comment
 def COM = { Marker 0xFE; Payload GetStream }
 
--- Application speciifc
+-- Application specific
 def APP (x : uint 4) P = {
   Marker (0xE # x);
   Payload P;
 }
 
+-- Application specific, uninterpreted
 def SomeAPP = {
   app  = SomeMarker 0xE;
   data = Payload GetStream;
 }
 
--- Start of frame (n /= 4)
+-- Start of frame (x /= 4)
 def SOF (x : uint 4) = {
   Marker (0xC # x);
   SOFPayload;
 }
 
+-- Start of frame, uninterpreted
 def SomeSOF = {
   sof  = SomeMarker 0xC;
   data = SOFPayload;
