@@ -91,8 +91,8 @@ def FrameComponent =
 def SOS =
   block
     Marker 0xDA
-    $$ = Payload SOSHeader
-    SkipEntropyEncodedData
+    header = Payload SOSHeader
+    data   = Many EntropyEncodedEntry
 
 def SOSHeader =
   block
@@ -151,21 +151,16 @@ def DRI =
     Marker 0xDD
     Payload BE16
 
--- Hack
-def SkipEntropyEncodedData =
-  block
-    @here = GetStream
-    @byte = UInt8
-    case byte of
-      0xFF ->
-        block
-          @byte1 = UInt8
-          case byte1 of
-            0x00 -> SkipEntropyEncodedData -- Escape
-            0xDD -> SkipEntropyEncodedData -- Restart
-            _    -> SetStream here
-      _ -> SkipEntropyEncodedData
 
+def EntropyEncodedEntry =
+  Choose1
+    segment = Segment
+    bytes   = Many (1..) EntropyEncodedByte
+
+def EntropyEncodedByte =
+  Choose1
+    { $$ = Match1 0xFF; Match1 0x00 }
+    { Match1 (!0xFF) }
 
 def Segment =
   Choose1
