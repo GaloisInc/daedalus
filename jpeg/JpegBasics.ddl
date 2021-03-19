@@ -92,8 +92,8 @@ def FrameComponent = {
 def SOS = {
   Marker 0xDA;
   commit;
-  $$ = Payload SOSHeader;
-  SkipEntropyEncodedData;
+  header = Payload SOSHeader;
+  data   = Many EntropyEncodedDatum;
 }
 
 def SOSHeader = {
@@ -155,22 +155,20 @@ def DRI = {
   Payload BE16;
 }
 
+def SomeRST = {
+  $$ = SomeMarker 0xD;
+  ($$ < 8) is true;
+}
 
--- Hack
-def SkipEntropyEncodedData = {
-  @here = GetStream;
-  @byte = UInt8;
-  case byte of {
-    0xFF -> {
-        @byte1 = UInt8;
-        case byte1 of {
-          0x00 -> SkipEntropyEncodedData; -- Escape
-          0xDD -> SkipEntropyEncodedData; -- Restart
-          _    -> SetStream here;
-        }
-      };
-    _ -> SkipEntropyEncodedData
+def EntropyEncodedDatum =
+  Choose1 {
+    segment = Segment;
+    bytes   = Many (1..) EntropyByte;
   }
+
+def EntropyByte = Choose1 {
+  { $$ = Match1 0xFF; Match1 0x00; };
+  Match1 (!0xFF);
 }
 
 
@@ -183,6 +181,7 @@ def Segment = Choose1 {
   app     = SomeAPP;
   dqt     = DQT;
   dht     = DHT;
+  rst     = SomeRST;
 }
 
 def SomeJpeg = { SOI; $$ = Many Segment; EOI }

@@ -1,6 +1,6 @@
 import Stdlib
 import PdfValue
-import Jpeg
+import JpegBasics
 
 def TopDecl = {
   id   = Token Natural;
@@ -211,7 +211,7 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
     Guard (f.name == "DCTDecode");
     -- stream is a JPEG
     commit;
-    WithStream body Jpeg;
+    WithStream body SomeJpeg;
     ^ body
   };
 
