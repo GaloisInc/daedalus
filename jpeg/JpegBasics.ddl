@@ -43,21 +43,18 @@ def COM = { Marker 0xFE; Payload (Many UInt8); }
 -- Application specific
 def APP (x : uint 4) P = {
   Marker (0xE # x);
-  commit;
   Payload P;
 }
 
 -- Application specific, uninterpreted
 def SomeAPP = {
   app  = SomeMarker 0xE;
-  commit;
   data = Payload (Many UInt8);
 }
 
 -- Start of frame (x /= 4)
 def SOF (x : uint 4) = {
   Marker (0xC # x);
-  commit;
   SOFPayload;
 }
 
@@ -65,7 +62,6 @@ def SOF (x : uint 4) = {
 def SomeSOF = {
   sof  = SomeMarker 0xC;
   sof == 4 is false;
-  commit;
   data = SOFPayload;
 }
 
@@ -91,7 +87,6 @@ def FrameComponent = {
 -- Start of Scan
 def SOS = {
   Marker 0xDA;
-  commit;
   header = Payload SOSHeader;
   data   = Many EntropyEncodedDatum;
 }
@@ -117,7 +112,6 @@ def SOSComponent = {
 -- Define Huffman tables
 def DHT = {
   Marker 0xC4;
-  commit;
   Payload (Many HT);
 }
 
@@ -133,7 +127,6 @@ def HT = {
 -- Define quantization tables
 def DQT = {
   Marker 0xDB;
-  commit;
   Payload (Many QT);
 }
 
@@ -151,7 +144,6 @@ def QT = {
 
 def DRI = {
   Marker 0xDD;
-  commit;
   Payload BE16;
 }
 
