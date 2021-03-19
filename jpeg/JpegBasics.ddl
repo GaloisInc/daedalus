@@ -152,10 +152,10 @@ def DRI = {
 def SkipEntropyEncodedData = {
   @here = GetStream;
   @byte = UInt8;
-  case byte is {
+  case byte of {
     0xFF -> {
         @byte1 = UInt8;
-        case byte1 is {
+        case byte1 of {
           0x00 -> SkipEntropyEncodedData; -- Escape
           0xDD -> SkipEntropyEncodedData; -- Restart
           _    -> SetStream here;
