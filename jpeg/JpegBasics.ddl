@@ -34,8 +34,8 @@ def Payload P = {
 
 
 -- Start / End image
-def SOI = Marker 0xD8
-def EOI = Marker 0xD9
+def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
+def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
 
 -- Comment
 def COM = { Marker 0xFE; Payload (Many UInt8); }
@@ -43,18 +43,21 @@ def COM = { Marker 0xFE; Payload (Many UInt8); }
 -- Application specific
 def APP (x : uint 4) P = {
   Marker (0xE # x);
+  commit;
   Payload P;
 }
 
 -- Application specific, uninterpreted
 def SomeAPP = {
   app  = SomeMarker 0xE;
+  commit;
   data = Payload (Many UInt8);
 }
 
 -- Start of frame (x /= 4)
 def SOF (x : uint 4) = {
   Marker (0xC # x);
+  commit;
   SOFPayload;
 }
 
@@ -62,6 +65,7 @@ def SOF (x : uint 4) = {
 def SomeSOF = {
   sof  = SomeMarker 0xC;
   sof == 4 is false;
+  commit;
   data = SOFPayload;
 }
 
@@ -72,7 +76,7 @@ def SOFPayload = Payload {
   numberOfSamplesPerLine = BE16;
   @comNumber             = UInt8 as uint 64;
   components             = Many comNumber FrameComponent;
-}
+} <| Fail "Malformed SOF Payload"
 
 
 def FrameComponent = {
@@ -81,12 +85,13 @@ def FrameComponent = {
   hoizontalSampling = (samplingFactors >> 4) as! uint 4;
   verticalSampling  = samplingFactors        as! uint 4;
   quantTableSel     = UInt8;
-}
+} <| Fail "Malformed Frame Component"
 
 
 -- Start of Scan
 def SOS = {
   Marker 0xDA;
+  commit;
   $$ = Payload SOSHeader;
   SkipEntropyEncodedData;
 }
@@ -99,19 +104,20 @@ def SOSHeader = {
   @a = UInt8;
   ah = a >> 4 as! uint 4;
   al = a      as! uint 4;
-}
+} <| Fail "Malformed SOS Header"
 
 def SOSComponent = {
   id = UInt8;
   @table = UInt8;
   acTable = table        as! uint 4;
   dcTable = (table >> 4) as! uint 4;
-}
+} <| Fail "Malformed SOS Component"
 
 
 -- Define Huffman tables
 def DHT = {
   Marker 0xC4;
+  commit;
   Payload (Many HT);
 }
 
@@ -127,6 +133,7 @@ def HT = {
 -- Define quantization tables
 def DQT = {
   Marker 0xDB;
+  commit;
   Payload (Many QT);
 }
 
@@ -139,11 +146,12 @@ def QT = {
            bit8  = { precision == 0 is true; Many 64 UInt8; };
            bit16 = { precision == 1 is true; Many 64 BE16;  };
          }
-}
+} <| Fail "Malformed Quantization Table"
 
 
 def DRI = {
   Marker 0xDD;
+  commit;
   Payload BE16;
 }
 
@@ -166,6 +174,7 @@ def SkipEntropyEncodedData = {
 }
 
 
+
 def Segment = Choose1 {
   comment = COM;
   dri     = DRI;
@@ -176,3 +185,4 @@ def Segment = Choose1 {
   dht     = DHT;
 }
 
+def SomeJpeg = { SOI; $$ = Many Segment; EOI }
