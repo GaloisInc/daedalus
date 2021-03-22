@@ -106,7 +106,7 @@ def FileData_FileInfo = {
 
 -- Instantiable, top-level includes CDR encapsulation signature
 def FileData_FileInfo_Top = {
-    -- Match [0x0, 0x1, 0x0, 0x0];
+    Match [0x0, 0x1, 0x0, 0x0];
     $$ = Many FileData_FileInfo;
 }
 
