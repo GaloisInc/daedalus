@@ -1,7 +1,7 @@
 -- Definition of DDS messages, based on the DDSI-RTPS spec.
 import Stdlib
 
--- TODO: account for endianness parameters
+-- TODO: account for endianness encoding modes
 def Octet = UInt8
 
 def OctetArray2 = Many 2 Octet
@@ -20,26 +20,13 @@ def ULong = {
   ^(highUShort # lowUShort)
 }
 
--- SubmessageFlag: a Boolean value
-def SubmessageFlag = {
-  @v = Octet;
-  Choose1 {
-    { Guard (v == 1);
-      ^true
-    };
-    { Guard (v == 0);
-      ^false
-    };
-  }
-}
-
--- Sec. 8.3.3 The Overall sStrucutre of an RTPS Message: the overall
+-- Sec. 8.3.3 The Overall strucutre of an RTPS Message: the overall
 -- structure of an RTPS Message consists of a fixed-size leading RTPS
 -- Header followed by a variable number of RTPS Submessage
 -- parts. Fig. 8.8:
-def Message = {
+def Message PayloadData = {
   header = Header;
-  submessages = Many Submessage;
+  submessages = Many (Submessage PayloadData);
 }
 
 -- Sec. 8.3.3.1 Header Structure. Table 8.14:
@@ -54,29 +41,29 @@ def Header = {
 def Protocol = ProtocolRTPS
 
 -- Sec. 8.3.3.1.2 version:
-def ProtocolVersion = Version24
+def ProtocolVersion = {
+  major = Octet;
+  mintor = Octet;
+}
 
 def VendorId = Many 2 Octet
 
 def ProtocolRTPS = "RTPS" -- ?
 
-def Version24 = "24"
-
 def GuidPrefix = Many 12 Octet
 
-def Submessage = {
+def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Chunk
     (subHeader.submessageLength as int)
-    (SubmessageElement subHeader.flags);
+    (SubmessageElement PayloadData subHeader.flags);
 }
 
 -- Sec 8.3.3.2 Submessage structure: Table 8.15:
 def SubmessageHeader = {
   submessageId = SubmessageId;
-
   flags = SubmessageFlags submessageId;
-  submessageLength = UShort; -- TODO: validate this (Sec. 8.3.3.2.3)
+  submessageLength = UShort; 
 }
 
 -- Sec 8.3.3.2.1 SubmessageId: a SubmessageKind (Sec 9.4.5.1.1)
@@ -101,7 +88,7 @@ def NthBit n fs = {
 }
 
 -- SubmessageFlags:
-def SubmessageFlags subId = {
+def SubmessageFlags subId = { 
   @flagBits = UInt8;
   Choose1 {
     dataFlags = {
@@ -110,6 +97,8 @@ def SubmessageFlags subId = {
       inlineQosFlag = NthBit 1 flagBits;
       dataFlag = NthBit 2 flagBits;
       keyFlag = NthBit 3 flagBits;
+      Guard (!(dataFlag && keyFlag)); -- invalid combo
+
       nonStandardPayloadFlag = NthBit 4 flagBits;
     };
     dataFragFlags = {
@@ -123,11 +112,16 @@ def SubmessageFlags subId = {
   }
 }
 
-def SubmessageElement flags = Choose1 {
+def SubmessageElement PayloadData flags = Choose1 {
   dataElt = {
     dFlags = flags is dataFlags;
-    readerId = EntityId;
-    writerId = EntityId;
+    Match [0x00, 0x00]; -- extra flags for future compatibility
+    octetsToInlineQos = UShort; 
+
+    Chunk (octetsToInlineQos as int) {
+      readerId = EntityId;
+      writerId = EntityId;
+    };
 
     writerSN = SequenceNumber;
     Guard (writerSN > 0);
@@ -137,12 +131,12 @@ def SubmessageElement flags = Choose1 {
         Guard (dFlags.inlineQosFlag);
         ParameterList;
       };
-      noQos = Guard (dFlags.inlineQosFlag == false);
+      noQos = Guard (!(dFlags.inlineQosFlag));
     };
     serializedPayload = Choose1 {
       hasPayload = {
         (Guard (dFlags.dataFlag) | Guard (dFlags.keyFlag));
-        SerializedPayload;
+        SerializedPayload PayloadData inlineQos;
       };
       noPayload = {
         Guard (dFlags.dataFlag == false);
@@ -152,6 +146,12 @@ def SubmessageElement flags = Choose1 {
   };
   dataFragElt = {
     fragFlags = flags is dataFragFlags;
+    Match [0x00, 0x00]; -- extraFlags
+    octetsToInlineQos = UShort;
+
+    Chunk (octetsToInlineQos as int) {
+    };
+
     readerId = EntityId;
     writerId = EntityId;
 
@@ -164,25 +164,25 @@ def SubmessageElement flags = Choose1 {
     fragmentsInSubmessage = UShort;
     Guard (fragmentStartingNum <= (fragmentsInSubmessage as uint 32));
 
-    dataSize = ULong;
-
     fragmentSize = UShort;
-    Guard (fragmentSize as uint 32 < dataSize); 
     Guard (fragmentSize <= 64000);
+
+    sampleSize = ULong;
+    Guard (fragmentSize as uint 32 < sampleSize); 
 
     inlineQos = Choose1 {
       hasQos = {
         Guard fragFlags.inlineQosFlag;
         ParameterList;
       };
-      noQos = Guard (fragFlags.inlineQosFlag == false);
+      noQos = Guard (!(fragFlags.inlineQosFlag));
     };
 
     serializedPayload = Chunk
       ((fragmentsInSubmessage * fragmentSize) as int)
       (Many
         ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as int)
-        SerializedPayload);
+        (SerializedPayload PayloadData inlineQos));
   }
 }
 
@@ -249,26 +249,189 @@ def ParameterIdT = Choose1 {
     pidEndpointGuid = @Match [0x00, 0x5a];
 }
 
-def Parameter = {
-  parameterId = ParameterIdT;
-  @len = UShort;
-  value = Choose1 {
-    sentinel = {
-      parameterId is pidSentinel;
-    };
-    other = {
-      Guard (len % 4 == 0);
-      Many (len as int) Octet;
-    };
-  };
+-- Table 9.13:
+def ParameterIdValues pid = Choose1 {
+  padVal = Many Octet;
+  -- sentinel: not allowed
+  userDataVal = UserDataQosPolicy;
+  topicNameVal = String256;
+  typeNameVal = String256;
+  groupDataVal = GroupDataQosPolicy;
+  topicDataVal = TopicDataQosPolicy;
+  durabilityVal = DurabilityQosPolicy;
+  durabilityServiceVal = DurabilityServiceQosPolicy;
+  deadlineVal = DeadlineQosPolicy;
+  latencyBudgetVal = LatencyBudgetQosPolicy;
+  livelinessVal = LivenessQosPolicy;
+  reliabilityVal = ReliabilityQosPolicy;
+  lifespanVal = LifespanQosPolicy;
+  destinationOrderVal = DestinationOrderQosPolicy;
+  historyVal = HistoryQosPolicy;
+  resourceLimitsVal = ResourceLimitsQosPolicy;
+  ownershipVal = OwnershipQosPolicy;
+  ownershipStrengthVal = OwnershipStrengthQosPolicy;
+  presentationVal = PresentationQosPolicy;
+  partitionVal = PartitionQosPolicy;
+  timeBasedFilterVal = TimeBasedFilterQosPolicy;
+  transportPriorityVal = TransportPriorityQosPolicy;
+  domainIdVal = DomainIdT;
+  domainTagVal = String256;
+  protocolVersionVal = ProtocolVersion;
+  vendorIdVal = VendorId;
+  unicastLocator = LocatorT;
+  multicastLocator = LocatorT;
+  defaultUnicastLocator = LocatorT;
+  multicastLocator = LocatorT;
+  metatrafficUnicastLocator = LocatorT;
+  metatrafficMulticastLocator = LocatorT;
+  expectsInlineQos = Boolean;
+  participantManualLivelinessCountVal = CountT;
+  participantLeaseDurationVal = DurationT;
+  contentFilterPropertyVal = ContentFilterProperty;
+  participantGUIDVal = GUIDT;
+  groupGUIDVal = GUIDT;
+  builtinEndpointSetVal = BuiltinEndpointSetT;
+  buildtinEndpointQosVal = BuiltinEndpointQosT;
+  propertyListVal = Many PropertyT;
+  typeMaxSizeSerializedVal = ULong;
+  entityNameVal = EntityName;
+  endpointGuidVal = GUIDT;
 }
 
-def ParameterList = Many Parameter
+-- relaxed definition. Refine as needed.
+def UserDataQosPolicy = Many Octet
+
+def BndString n = {
+  @len = ULong;
+  Guard (len <= n);
+  $$ = Many (len as int - 1) Octet;
+  Match1 0x00;
+}
+
+def String256 = BndString 256
+
+-- relaxed definition. Refine as needed.
+def GroupDataQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def TopicDataQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def DurabilityQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def DurabilityServiceQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def DeadlineQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def LatencyBudgetQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def LivenessQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def ReliabilityQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def LifespanQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def DestinationOrderQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def HistoryQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def ResourceLimitsQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def OwnershipQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def OwnershipStrengthQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def PresentationQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def PartitionQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def TimeBasedFilterQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def TransportPriorityQosPolicy = Many Octet
+
+-- relaxed definition. Refine as needed.
+def DomainIdT = Many Octet
+
+def LocatorT = {
+  kind = ULong;
+  port = ULong;
+  address = Many 16 Octet;
+}
+
+def CountT = ULong
+
+-- relaxed definition. Refine as needed.
+def DurationT = Many Octet
+
+def ContentFilterProperty = {
+  contentFilteredTopicName = String256;
+  relatedTopicName = String256;
+  filterClassName = String256;
+  filterExpression = String;
+  expressionParameters = Many String;
+}
+
+def TimeT = {
+  seconds = ULong;
+  fraction = ULong;
+}
+
+def GUIDT = {
+  guidPrefix = GuidPrefix;
+  entityId = EntityId;
+}
+
+-- relaxed definition. Refine as needed.
+def BuiltinEndpointSetT = Many Octet
+
+-- relaxed definition. Refine as needed.
+def BuiltinEndpointQosT = Many Octet
+
+-- relaxed definition. Refine as needed.
+def PropertyT = Many Octet
+
+def EntityName = String
+
+def Parameter = {
+  parameterId = ParameterIdT;
+  Guard (parameterId != {| pidSentinel = {} |});
+
+  @len = UShort;
+  Guard (len % 4 == 0);
+
+  Chunk (len as int) (ParameterIdValues parameterId);
+}
+
+def Sentinel = {
+  @pId = ParameterIdT;
+  pId is pidSentinel;
+  UShort;
+}
+
+def ParameterList = {
+  $$ = Many Parameter;
+  Sentinel;
+}
 
 -- Sec 10 Serialized Payload Representation:
-def SerializedPayload = {
+def SerializedPayload PayloadData qos = {
   payloadHeader = SerializedPayloadHeader;
-  data = PayloadData;
+  data = PayloadData qos;
 }
 
 def SerializedPayloadHeader = {
@@ -293,10 +456,3 @@ def SerializedPayloadHeader = {
 
 -- Sec 9.3.2
 def FragmentNumber = ULong
-
--- TODO: import payload definition here
-def PayloadData = Fail "import definition"
-
--- parse messages
-def Main = Message 
-
