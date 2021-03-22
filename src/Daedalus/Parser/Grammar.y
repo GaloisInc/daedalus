@@ -94,6 +94,7 @@ import Daedalus.Parser.Monad
   'Choose'    { Lexeme { lexemeRange = $$, lexemeToken = KWChoose } }
   'Choose1'   { Lexeme { lexemeRange = $$, lexemeToken = KWChoose1 } }
   'block'     { Lexeme { lexemeRange = $$, lexemeToken = KWblock } }
+  'let'       { Lexeme { lexemeRange = $$, lexemeToken = KWlet } }
   'Optional'  { Lexeme { lexemeRange = $$, lexemeToken = KWOptional } }
   'Optional?' { Lexeme { lexemeRange = $$, lexemeToken = KWOptionalQuestion } }
   'Many'      { Lexeme { lexemeRange = $$, lexemeToken = KWMany } }
@@ -337,6 +338,7 @@ call_expr                                :: { Expr }
                                                  (EOptional Backtrack $2) }
   | 'Match' aexpr                           { at ($1,$2) (EMatch $2) }
   | 'Match1' aexpr                          { at ($1,$2) (EMatch1 $2) }
+  | 'UInt8' aexpr                           { at ($1,$2) (EMatch1 $2) }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 
@@ -383,18 +385,25 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
-  | 'block' 'v{' separated(struct_field, 'v;') 'v}'
+  | 'block' 'v{' separated(struct_field, virtSep) 'v}'
                                             { at ($1,$4) (EStruct $3) }
-  | '{' separated(struct_field, commaOrSemi) '}' 
+  | '{' separated(struct_field, commaOrSemi) '}'
                                             { at ($1,$3) (EStruct $2) }
   | '{|' label '=' expr '|}'                { at ($1,$5) (mkIn $2 $5 (Just $4))}
   | '{|' label '|}'                         { at ($1,$3) (mkIn $2 $3 Nothing) }
 
   | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
-  | chooseKW 'v{' separated(union_field, 'v;') 'v}'
+  | chooseKW 'v{' separated(union_field, virtSep) 'v}'
                                             {% at ($1,$4) `fmap`
                                                mkUnion (thingValue $1) $3 }
-  | 'case' expr 'of' 'v{' separated(case_patterns, 'v;') 'v}'
+  | chooseKW '{' separated(union_field, commaOrSemi) '}'
+                                            {% at ($1,$4) `fmap`
+                                               mkUnion (thingValue $1) $3 }
+
+  | 'case' expr 'of' 'v{' separated(case_patterns, virtSep) 'v}'
+                                            { at ($1,$6) (ECase $2 $5) } 
+
+  | 'case' expr 'of' '{' separated(case_patterns, ';') '}'
                                             { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)
@@ -403,6 +412,11 @@ aexpr                                    :: { Expr }
 commaOrSemi                              :: { () }
   : ','                                     { () }
   | ';'                                     { () }
+
+virtSep                                  :: { () }
+  : ';'                                     { () }
+  | 'v;'                                    { () }
+  | virtSep 'v;'                            { () }
 
 chooseKW                                 :: { Located Commit }
   : 'Choose'                                { loc $1 Backtrack }
@@ -415,6 +429,7 @@ manyKW                                   :: { Located Commit }
 struct_field                             :: { StructField Expr }
   : expr                                    { Anon $1 }
   | '@' name '=' expr                       { $2 :@= $4 }
+  | 'let' name '=' expr                     { $2 :@= $4 }
   | name '=' expr                           { $1 := $3 }
   | 'COMMIT'                                { COMMIT $1 }
 

@@ -1,32 +1,25 @@
 -- Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
-def Marker x =
-  block
-    Match1 0xFF
-    @Match1 x
+def Marker x = Match [ 0xFF, x ]
 
 -- For families of markers, such as APP or SOF
 def SomeMarker (front : uint 4) =
   block
-    Match1 0xFF
-    @tag   = UInt8
-    @upper = (tag >> 4) as! uint 4
-    (upper == front) is true
+    UInt8 0xFF
+    let tag   = UInt8
+    let upper = (tag >> 4) as! uint 4
+    upper == front is true
     tag as! uint 4
 
 def BE16 = UInt8 # UInt8
 
-def NonZero P =
-  block
-    $$ = P
-    $$ > 0 is true
 
 def Payload P =
   block
-    @size = BE16 as uint 64
+    let size = BE16 as uint 64
     size >= 2 is true
-    @len = size - 2
-    @here = GetStream
+    let len = size - 2
+    let here = GetStream
     SetStream (Take len here)
     $$ = P
     END
@@ -70,21 +63,21 @@ def SomeSOF =
 
 def SOFPayload =
   Payload
-    block
-      samplePrecision        = UInt8
-      numberOfLines          = BE16
-      numberOfSamplesPerLine = BE16
-      @comNumber             = UInt8 as uint 64
-      components             = Many comNumber FrameComponent
+  block
+    samplePrecision        = UInt8
+    numberOfLines          = BE16
+    numberOfSamplesPerLine = BE16
+    let comNumber          = UInt8 as uint 64
+    components             = Many comNumber FrameComponent
 
 
 def FrameComponent =
   block
-    identifier        = UInt8
-    @samplingFactors  = UInt8
-    hoizontalSampling = (samplingFactors >> 4) as! uint 4
-    verticalSampling  = samplingFactors        as! uint 4
-    quantTableSel     = UInt8
+    identifier          = UInt8
+    let samplingFactors = UInt8
+    hoizontalSampling   = (samplingFactors >> 4) as! uint 4
+    verticalSampling    = samplingFactors        as! uint 4
+    quantTableSel       = UInt8
 
 
 -- Start of Scan
@@ -96,18 +89,18 @@ def SOS =
 
 def SOSHeader =
   block
-    @componentNum = UInt8
+    let componentNum = UInt8
     components = Many (componentNum as uint 64) SOSComponent
     ss = UInt8
     se = UInt8
-    @a = UInt8
+    let a = UInt8
     ah = a >> 4 as! uint 4
     al = a      as! uint 4
 
 def SOSComponent =
   block
     id      = UInt8
-    @table  = UInt8
+    let table  = UInt8
     acTable = table        as! uint 4
     dcTable = (table >> 4) as! uint 4
 
@@ -121,11 +114,11 @@ def DHT =
 -- Huffman table
 def HT =
   block
-    @info     = UInt8
-    class     = info as! uint 4
-    type      = (info >> 4) as! uint 4    -- 0 = DC, 1 = AC
-    @symNums  = Many 16 UInt8
-    table     = map (n in symNums) (Many (n as uint 64) UInt8)
+    let info    = UInt8
+    class       = info as! uint 4
+    type        = (info >> 4) as! uint 4    -- 0 = DC, 1 = AC
+    let symNums = Many 16 UInt8
+    table       = map (n in symNums) (Many (n as uint 64) UInt8)
   <| Fail "Malformed Huffman table"
 
 -- Define quantization tables
@@ -137,9 +130,9 @@ def DQT =
 -- Quantization table
 def QT =
   block
-    @info      = UInt8
-    number     = info as! uint 4
-    @precision = info >> 4
+    let info = UInt8
+    number   = info as! uint 4
+    let precision = info >> 4
     data =
       Choose1
         bit8  = { precision == 0 is true; Many 64 UInt8; }
@@ -159,8 +152,8 @@ def EntropyEncodedEntry =
 
 def EntropyEncodedByte =
   Choose1
-    { $$ = Match1 0xFF; Match1 0x00 }
-    { Match1 (!0xFF) }
+    block $$ = UInt8 0xFF; UInt8 0x00
+    UInt8 (!0xFF)
 
 def Segment =
   Choose1

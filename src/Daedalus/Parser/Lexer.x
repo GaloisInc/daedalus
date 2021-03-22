@@ -14,6 +14,8 @@ import Data.Char(isDigit)
 import Daedalus.Parser.Tokens
 import Daedalus.Parser.Layout
 
+-- import Debug.Trace
+
 }
 
 $bigAlpha   = [A-Z]
@@ -111,6 +113,7 @@ $ws+        ;
 "as?"       { lexeme KWAsQuestion }
 "case"      { lexeme KWCase }
 "block"     { lexeme KWblock }
+"let"       { lexeme KWlet }
 
 "Choose"    { lexeme KWChoose }
 "Choose1"   { lexeme KWChoose1 }

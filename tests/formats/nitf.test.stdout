@@ -2240,7 +2240,7 @@ type nitf_img_subheader.IC = Choose { c1: {}
                                     ; nm: {}
                                     }
  
-type nitf_img_subheader.IMode = Choose { block: {}
+type nitf_img_subheader.IMode = Choose { blockMode: {}
                                        ; pixel: {}
                                        ; row: {}
                                        ; seq: {}
@@ -2936,8 +2936,8 @@ nitf_img_subheader.ISync : Grammar (uint 8) =
  
 nitf_img_subheader.IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar nitf_img_subheader.IMode =
   do ($$ : nitf_img_subheader.IMode) <- Choose fair
-                                          { {- block -} do (_960 : {}) <- @Match {'B'}
-                                                           pure {block: _960}
+                                          { {- blockMode -} do (_960 : {}) <- @Match {'B'}
+                                                               pure {blockMode: _960}
                                           | {- pixel -} do (_961 : {}) <- @Match {'P'}
                                                            pure {pixel: _961}
                                           | {- row -} do (_962 : {}) <- @Match {'R'}
@@ -2948,7 +2948,7 @@ nitf_img_subheader.IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar nitf_img_s
      Choose fair
        { nitf_lib._Guard (nbands != 1)
        | case $$ is
-           { {| block = _964 |} -> pure {}
+           { {| blockMode = _964 |} -> pure {}
            }
        }
      pure $$
@@ -4453,7 +4453,7 @@ nitf_img_subheader.ISHeader : Grammar nitf_img_subheader.ISHeader =
        | Choose fair
            { Choose fair
                { case imode is
-                   { {| block = _1205 |} -> pure {}
+                   { {| blockMode = _1205 |} -> pure {}
                    }
                | case imode is
                    { {| pixel = _1206 |} -> pure {}
@@ -4793,8 +4793,8 @@ nitf_img_subheader._ISubCatN : Grammar {} =
  
 nitf_img_subheader._IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar {} =
   do ($$ : nitf_img_subheader.IMode) <- Choose fair
-                                          { {- block -} do (_960 : {}) <- @Match {'B'}
-                                                           pure {block: _960}
+                                          { {- blockMode -} do (_960 : {}) <- @Match {'B'}
+                                                               pure {blockMode: _960}
                                           | {- pixel -} do (_961 : {}) <- @Match {'P'}
                                                            pure {pixel: _961}
                                           | {- row -} do (_962 : {}) <- @Match {'R'}
@@ -4805,7 +4805,7 @@ nitf_img_subheader._IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar {} =
      Choose fair
        { nitf_lib._Guard (nbands != 1)
        | case $$ is
-           { {| block = _964 |} -> pure {}
+           { {| blockMode = _964 |} -> pure {}
            }
        }
  
@@ -5554,7 +5554,7 @@ nitf_img_subheader._ISHeader : Grammar {} =
        | Choose fair
            { Choose fair
                { case imode is
-                   { {| block = _1205 |} -> pure {}
+                   { {| blockMode = _1205 |} -> pure {}
                    }
                | case imode is
                    { {| pixel = _1206 |} -> pure {}

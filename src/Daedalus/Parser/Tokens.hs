@@ -65,6 +65,7 @@ data Token =
   | KWChoose
   | KWChoose1
   | KWblock
+  | KWlet
   | KWTry
   | KWMatch
   | KWMatch1
