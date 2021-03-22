@@ -11,13 +11,13 @@ def OctetArray3 = Many 3 Octet
 def UShort = {
   @highByte = UInt8;
   @lowByte = UInt8;
-  ^(highByte as (uint 16) << 8 + (lowByte as uint 16))
+  ^(highByte # lowByte)
 }
 
 def ULong = {
   @highUShort = UShort;
   @lowUShort = UShort;
-  ^((highUShort << 16) + lowUShort)
+  ^(highUShort # lowUShort)
 }
 
 -- SubmessageFlag: a Boolean value
@@ -162,12 +162,12 @@ def SubmessageElement flags = Choose1 {
     Guard (0 < fragmentStartingNum);
     
     fragmentsInSubmessage = UShort;
-    Guard (fragmentStartingNum <= fragmentsInSubmessage);
+    Guard (fragmentStartingNum <= (fragmentsInSubmessage as uint 32));
 
     dataSize = ULong;
 
     fragmentSize = UShort;
-    Guard (fragmentSize < dataSize); 
+    Guard (fragmentSize as uint 32 < dataSize); 
     Guard (fragmentSize <= 64000);
 
     inlineQos = Choose1 {
@@ -181,7 +181,7 @@ def SubmessageElement flags = Choose1 {
     serializedPayload = Chunk
       ((fragmentsInSubmessage * fragmentSize) as int)
       (Many
-        ((fragmentsInSubmessage - fragmentStartingNum) as int)
+        ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as int)
         SerializedPayload);
   }
 }
@@ -195,193 +195,58 @@ def EntityId = {
 def SequenceNumber = {
   @high = ULong;
   @low = ULong;
-  ^((high << 32) + low);
+  ^(high # low);
 }
 
 -- Sec 9.4.2.11 ParameterList:
 
 -- Sec 9.6.2.2.2 ParameterID values: Table 9.13:
 def ParameterIdT = Choose1 {
-    pidPad = @{
-      Match1 0x00; 
-      Match1 0x00; 
-    };
-    pidSentinel = @{
-      Match1 0x00; 
-      Match1 0x01; 
-    };
-    pidUserData = @{
-      Match1 0x00; 
-      Match1 0x2c; 
-    };
-    pidTopicName = @{
-      Match1 0x00;
-      Match1 0x05;
-    };
-    pidTypeName = @{
-      Match1 0x00;
-      Match1 0x07;
-    };
-    pidGroupData = @{
-      Match1 0x00;
-      Match1 0x2d;
-    };
-    pidTopicData = @{
-      Match1 0x00;
-      Match1 0x2e;
-    };
-    pidDurability = @{
-      Match1 0x00;
-      Match1 0x1d;
-    };
-    pidDurabilityService = @{
-      Match1 0x00;
-      Match1 0x1e;
-    };
-    pidDeadline = @{
-      Match1 0x00;
-      Match1 0x23;
-    };
-    pidLatencyBudget = @{
-      Match1 0x00;
-      Match1 0x27;
-    };
-    pidLiveliness = @{
-      Match1 0x00;
-      Match1 0x1b;
-    };
-    pidReliability = @{
-      Match1 0x00;
-      Match1 0x1a;
-    };
-    pidLifespan = @{
-      Match1 0x00;
-      Match1 0x2b;
-    };
-    pidDestinationOrder = @{
-      Match1 0x00;
-      Match1 0x25;
-    };
-    pidHistory = @{
-      Match1 0x00;
-      Match1 0x40;
-    };
-    pidResourceLimits = @{
-      Match1 0x00;
-      Match1 0x41;
-    };
-    pidOwnership = @{
-      Match1 0x00;
-      Match1 0x1f;
-    };
-    pidOwnershipStrength = @{
-      Match1 0x00;
-      Match1 0x06;
-    };
-    pidPresentation = @{
-      Match1 0x00;
-      Match1 0x21;
-    };
-    pidPartition = @{
-      Match1 0x00;
-      Match1 0x29;
-    };
-    pidTimeBasedFilter = @{
-      Match1 0x00;
-      Match1 0x04;
-    };
-    pidTransportPriority = @{
-      Match1 0x00;
-      Match1 0x49;
-    };
-    pidDomainId = @{
-      Match1 0x00;
-      Match1 0x0f;
-    };
-    pidDomainTag = @{
-      Match1 0x40;
-      Match1 0x14;
-    };
-    pidProtocolVersion = @{
-      Match1 0x00;
-      Match1 0x15;
-    };
-    pidVendorid = @{
-      Match1 0x00;
-      Match1 0x16;
-    };
-    pidUnicastLocator = @{
-      Match1 0x00;
-      Match1 0x2f;
-    };
-    pidMulticastLocator = @{
-      Match1 0x00;
-      Match1 0x30;
-    };
-    pidDefaultUnicastLocator = @{
-      Match1 0x00;
-      Match1 0x31;
-    };
-    pidDefaultMulticastLocator = @{
-      Match1 0x00;
-      Match1 0x48;
-    };
-    pidMetatrafficUnicastLocator = @{
-      Match1 0x00;
-      Match1 0x32;
-    };
-    pidMetatrafficMulticastLocator = @{
-      Match1 0x00;
-      Match1 0x33;
-    };
-    pidExpectsInlineQos = @{
-      Match1 0x00;
-      Match1 0x43;
-    };
-    pidParticipantManualLivelinessCount = @{
-      Match1 0x00;
-      Match1 0x34;
-    };
-    pidParticipantLeaseDuration = @{
-      Match1 0x00;
-      Match1 0x02;
-    };
-    pidContentFilterProperty = @{
-      Match1 0x00;
-      Match1 0x35;
-    };
-    pidParticipantGuid = @{
-      Match1 0x00;
-      Match1 0x50;
-    };
-    pidGroupGuid = @{
-      Match1 0x00;
-      Match1 0x52;
-    };
-    pidBuiltinEndpointSet = @{
-      Match1 0x00;
-      Match1 0x58;
-    };
-    pidBuiltinEndpointQos = @{
-      Match1 0x00;
-      Match1 0x77;
-    };
-    pidPropertyList = @{
-      Match1 0x00;
-      Match1 0x59;
-    };
-    pidTypeMaxSizeSerialized = @{
-      Match1 0x00;
-      Match1 0x60;
-    };
-    pidEntityName = @{
-      Match1 0x00;
-      Match1 0x62;
-    };
-    pidEndpointGuid = @{
-      Match1 0x00;
-      Match1 0x5a;
-    };
+    pidPad = @Match [0x00, 0x00];
+    pidSentinel = @Match [0x00, 0x01];
+    pidUserData = @Match [0x00, 0x2c]; 
+    pidTopicName = @Match [0x00, 0x05];
+    pidTypeName = @Match [0x00, 0x07];
+    pidGroupData = @Match [0x00, 0x2d];
+    pidTopicData = @Match [0x00, 0x2e];
+    pidDurability = @Match [0x00, 0x1d];
+    pidDurabilityService = @Match [0x00, 0x1e];
+    pidDeadline = @Match [0x00, 0x23];
+    pidLatencyBudget = @Match [0x00, 0x27];
+    pidLiveliness = @Match [0x00, 0x1b];
+    pidReliability = @Match [0x00, 0x1a];
+    pidLifespan = @Match [0x00, 0x2b];
+    pidDestinationOrder = @Match [0x00, 0x25];
+    pidHistory = @Match [0x00, 0x40];
+    pidResourceLimits = @Match [0x00, 0x41];
+    pidOwnership = @Match [0x00, 0x1f];
+    pidOwnershipStrength = @Match [0x00, 0x06];
+    pidPresentation = @Match [0x00, 0x21];
+    pidPartition = @Match [0x00, 0x29];
+    pidTimeBasedFilter = @Match [0x00, 0x04];
+    pidTransportPriority = @Match [0x00, 0x49];
+    pidDomainId = @Match [0x00, 0x0f];
+    pidDomainTag = @Match [0x40, 0x14];
+    pidProtocolVersion = @Match [0x00, 0x15];
+    pidVendorid = @Match [0x00, 0x16];
+    pidUnicastLocator = @Match [0x00, 0x2f];
+    pidMulticastLocator = @Match [0x00, 0x30];
+    pidDefaultUnicastLocator = @Match [0x00, 0x31];
+    pidDefaultMulticastLocator = @Match [0x00, 0x48];
+    pidMetatrafficUnicastLocator = @Match [0x00, 0x32];
+    pidMetatrafficMulticastLocator = @Match [0x00, 0x33];
+    pidExpectsInlineQos = @Match [0x00, 0x43];
+    pidParticipantManualLivelinessCount = @Match [0x00, 0x34];
+    pidParticipantLeaseDuration = @Match [0x00, 0x02];
+    pidContentFilterProperty = @Match [0x00, 0x35];
+    pidParticipantGuid = @Match [0x00, 0x50];
+    pidGroupGuid = @Match [0x00, 0x52];
+    pidBuiltinEndpointSet = @Match [0x00, 0x58];
+    pidBuiltinEndpointQos = @Match [0x00, 0x77];
+    pidPropertyList = @Match [0x00, 0x59];
+    pidTypeMaxSizeSerialized = @Match [0x00, 0x60];
+    pidEntityName = @Match [0x00, 0x62];
+    pidEndpointGuid = @Match [0x00, 0x5a];
 }
 
 def Parameter = {
@@ -410,50 +275,17 @@ def SerializedPayloadHeader = {
   representationIdentifier = Choose1 {
     -- Table 10.3:
     userDefinedTopicData = Choose1 {
-      cdrBe = @{
-        Match1 0x00;
-        Match1 0x00;
-      };
-      cdrLe = @{
-        Match1 0x00;
-        Match1 0x01;
-      };
-      plCdrBE = @{
-        Match1 0x00;
-        Match1 0x02;
-      };
-      plCdrLE = @{
-        Match1 0x00;
-        Match1 0x03;
-      };
-      cdr2Be = @{
-        Match1 0x00;
-        Match1 0x10;
-      };
-      cdr2LE = @{
-        Match1 0x00;
-        Match1 0x11;
-      };
-      plCdr2Be = @{
-        Match1 0x00;
-        Match1 0x12;
-      };
-      plCdr2LE = @{
-        Match1 0x00;
-        Match1 0x03;
-      };
-      dCdrBe = @{
-        Match1 0x00;
-        Match1 0x14;
-      };
-      dCdrLe = @{
-        Match1 0x00;
-        Match1 0x15;
-      };
-      xml = @{
-        Match1 0x00;
-        Match1 0x04;
-      };
+      cdrBe = @Match [0x00, 0x00];
+      cdrLe = @Match [0x00, 0x01];
+      plCdrBE = @Match [0x00, 0x02];
+      plCdrLE = @Match [0x00, 0x03];
+      cdr2Be = @Match [0x00, 0x10];
+      cdr2LE = @Match [0x00, 0x11];
+      plCdr2Be = @Match [0x00, 0x12];
+      plCdr2LE = @Match [0x00, 0x03];
+      dCdrBe = @Match [0x00, 0x14];
+      dCdrLe = @Match [0x00, 0x15];
+      xml = @Match [0x00, 0x04];
     };
   };
   representationOptions = OctetArray2;
