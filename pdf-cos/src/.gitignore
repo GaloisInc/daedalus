@@ -3,4 +3,4 @@ PdfValue.hs
 PdfDecl.hs
 PdfCrypto.hs
 PdfXRef.hs
-Jpeg.hs
+JpegBasics.hs

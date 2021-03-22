@@ -34,8 +34,8 @@ def Payload P = {
 
 
 -- Start / End image
-def SOI = Marker 0xD8
-def EOI = Marker 0xD9
+def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
+def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
 
 -- Comment
 def COM = { Marker 0xFE; Payload (Many UInt8); }
@@ -72,7 +72,7 @@ def SOFPayload = Payload {
   numberOfSamplesPerLine = BE16;
   @comNumber             = UInt8 as uint 64;
   components             = Many comNumber FrameComponent;
-}
+} <| Fail "Malformed SOF Payload"
 
 
 def FrameComponent = {
@@ -81,14 +81,14 @@ def FrameComponent = {
   hoizontalSampling = (samplingFactors >> 4) as! uint 4;
   verticalSampling  = samplingFactors        as! uint 4;
   quantTableSel     = UInt8;
-}
+} <| Fail "Malformed Frame Component"
 
 
 -- Start of Scan
 def SOS = {
   Marker 0xDA;
-  $$ = Payload SOSHeader;
-  SkipEntropyEncodedData;
+  header = Payload SOSHeader;
+  data   = Many EntropyEncodedDatum;
 }
 
 def SOSHeader = {
@@ -99,14 +99,14 @@ def SOSHeader = {
   @a = UInt8;
   ah = a >> 4 as! uint 4;
   al = a      as! uint 4;
-}
+} <| Fail "Malformed SOS Header"
 
 def SOSComponent = {
   id = UInt8;
   @table = UInt8;
   acTable = table        as! uint 4;
   dcTable = (table >> 4) as! uint 4;
-}
+} <| Fail "Malformed SOS Component"
 
 
 -- Define Huffman tables
@@ -139,7 +139,7 @@ def QT = {
            bit8  = { precision == 0 is true; Many 64 UInt8; };
            bit16 = { precision == 1 is true; Many 64 BE16;  };
          }
-}
+} <| Fail "Malformed Quantization Table"
 
 
 def DRI = {
@@ -147,23 +147,22 @@ def DRI = {
   Payload BE16;
 }
 
-
--- Hack
-def SkipEntropyEncodedData = {
-  @here = GetStream;
-  @byte = UInt8;
-  case byte is {
-    0xFF -> {
-        @byte1 = UInt8;
-        case byte1 is {
-          0x00 -> SkipEntropyEncodedData; -- Escape
-          0xDD -> SkipEntropyEncodedData; -- Restart
-          _    -> SetStream here;
-        }
-      };
-    _ -> SkipEntropyEncodedData
-  }
+def SomeRST = {
+  $$ = SomeMarker 0xD;
+  ($$ < 8) is true;
 }
+
+def EntropyEncodedDatum =
+  Choose1 {
+    segment = Segment;
+    bytes   = Many (1..) EntropyByte;
+  }
+
+def EntropyByte = Choose1 {
+  { $$ = Match1 0xFF; Match1 0x00; };
+  Match1 (!0xFF);
+}
+
 
 
 def Segment = Choose1 {
@@ -174,5 +173,7 @@ def Segment = Choose1 {
   app     = SomeAPP;
   dqt     = DQT;
   dht     = DHT;
+  rst     = SomeRST;
 }
 
+def SomeJpeg = { SOI; $$ = Many Segment; EOI }
