@@ -55,7 +55,7 @@ def GuidPrefix = Many 12 Octet
 def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Chunk
-    (subHeader.submessageLength as int)
+    (subHeader.submessageLength as uint 64)
     (SubmessageElement PayloadData subHeader.flags);
 }
 
@@ -88,7 +88,7 @@ def NthBit n fs = {
 }
 
 -- SubmessageFlags:
-def SubmessageFlags subId = { 
+def SubmessageFlags (subId: SubmessageId) = { 
   @flagBits = UInt8;
   Choose1 {
     dataFlags = {
@@ -112,13 +112,21 @@ def SubmessageFlags subId = {
   }
 }
 
-def SubmessageElement PayloadData flags = Choose1 {
+def QosParams f = Choose1 {
+  hasQos = {
+    Guard f;
+    ParameterList;
+  };
+  noQos = Guard (!f);
+}
+
+def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   dataElt = {
     dFlags = flags is dataFlags;
     Match [0x00, 0x00]; -- extra flags for future compatibility
     octetsToInlineQos = UShort; 
 
-    Chunk (octetsToInlineQos as int) {
+    Chunk (octetsToInlineQos as uint 64) {
       readerId = EntityId;
       writerId = EntityId;
     };
@@ -126,13 +134,7 @@ def SubmessageElement PayloadData flags = Choose1 {
     writerSN = SequenceNumber;
     Guard (writerSN > 0);
 
-    inlineQos = Choose1 {
-      hasQos = {
-        Guard (dFlags.inlineQosFlag);
-        ParameterList;
-      };
-      noQos = Guard (!(dFlags.inlineQosFlag));
-    };
+    inlineQos = QosParams dFlags.inlineQosFlag;
     serializedPayload = Choose1 {
       hasPayload = {
         (Guard (dFlags.dataFlag) | Guard (dFlags.keyFlag));
@@ -149,7 +151,7 @@ def SubmessageElement PayloadData flags = Choose1 {
     Match [0x00, 0x00]; -- extraFlags
     octetsToInlineQos = UShort;
 
-    Chunk (octetsToInlineQos as int) {
+    Chunk (octetsToInlineQos as uint 64) {
     };
 
     readerId = EntityId;
@@ -170,18 +172,12 @@ def SubmessageElement PayloadData flags = Choose1 {
     sampleSize = ULong;
     Guard (fragmentSize as uint 32 < sampleSize); 
 
-    inlineQos = Choose1 {
-      hasQos = {
-        Guard fragFlags.inlineQosFlag;
-        ParameterList;
-      };
-      noQos = Guard (!(fragFlags.inlineQosFlag));
-    };
+    inlineQos = QosParams fragFlags.inlineQosFlag;
 
     serializedPayload = Chunk
-      ((fragmentsInSubmessage * fragmentSize) as int)
+      ((fragmentsInSubmessage * fragmentSize) as uint 64)
       (Many
-        ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as int)
+        ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as uint 64)
         (SerializedPayload PayloadData inlineQos));
   }
 }
@@ -304,7 +300,7 @@ def UserDataQosPolicy = Many Octet
 def BndString n = {
   @len = ULong;
   Guard (len <= n);
-  $$ = Many (len as int - 1) Octet;
+  $$ = Many (len as uint 64) Octet;
   Match1 0x00;
 }
 
@@ -408,13 +404,13 @@ def PropertyT = Many Octet
 def EntityName = String
 
 def Parameter = {
-  parameterId = ParameterIdT;
+  @parameterId = ParameterIdT;
   Guard (parameterId != {| pidSentinel = {} |});
 
   @len = UShort;
   Guard (len % 4 == 0);
 
-  Chunk (len as int) (ParameterIdValues parameterId);
+  Chunk (len as uint 64) (ParameterIdValues parameterId);
 }
 
 def Sentinel = {

@@ -81,13 +81,13 @@ def LongDouble = { @w1 = LE64;  @w2 = LE64;  ^ w1 } -- Not fully supported
 def String = {
     @PadTo 4;
     @len = Uint32; -- Note: length includes string terminator byte
-    $$ = Many (len as int - 1) UInt8;
+    $$ = Many (len as uint64 - 1) UInt8;
     Match1 0x0; -- String terminator
 }
 def WString = {
     @PadTo 4;
     @len = Uint32; -- Note: length does NOT includes string terminator byte for Wstring
-    $$ = Many (len as int) Uint16;
+    $$ = Many (len as uint 64) Uint16;
 }
 
 -- Sequences of generic type. max can be zero for unbounded sequences
@@ -95,7 +95,7 @@ def Sequence P max = {
     @PadTo 4;
     @len = Uint32;
     ( (max > 0) && (len > max)) is false;   -- Fail if seq. exceed max size
-    $$ = Many (len as int) P;
+    $$ = Many (len as uint 64) P;
 }
 
 
