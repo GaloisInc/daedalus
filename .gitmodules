@@ -1,3 +1,0 @@
-[submodule "talos/deps/simple-smt"]
-	path = talos/deps/simple-smt
-	url = https://github.com/GaloisInc/simple-smt
