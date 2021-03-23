@@ -18,7 +18,14 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 
 
-import Daedalus.ParserGen.Action (State, Action(..), ControlAction(..), isClassActOrEnd, isUnhandledInputAction, isUnhandledAction, isPushAction)
+import Daedalus.ParserGen.Action (
+  State,
+  Action(..),
+  ControlAction(..),
+  isClassActOrEnd,
+  isUnhandledInputAction,
+  isUnhandledAction,
+  isPushAction)
 import qualified Daedalus.ParserGen.Aut as Aut
 
 import Daedalus.ParserGen.LL.Result
@@ -57,12 +64,12 @@ data ClosureMove =
     ClosureMove
     { altSeq :: ChoiceSeq
     , closureCfg :: Slk.SlkCfg
-    , moveCfg :: (ChoicePos, Action, State)
+    , moveCfg :: (ChoicePos, (Action, Slk.InputHeadCondition), State)
     }
   | ClosurePath
     { altSeq :: ChoiceSeq
     , closureCfg :: Slk.SlkCfg
-    , infoMove :: (ChoicePos, Action, State)
+    , infoMove :: (ChoicePos, (Action, Slk.InputHeadCondition), State)
     , lastCfg :: Slk.SlkCfg
     }
   | ClosureAccepting
@@ -137,13 +144,18 @@ getAltSeq c =
 
 
 simulateMoveClosure ::
-  Slk.InputHeadCondition -> ClosureMove ->
+  Slk.InputHeadCondition ->
+  ClosureMove ->
   Slk.HTable -> Maybe (ClosureMove, Slk.HTable)
 simulateMoveClosure ih m tab =
+  -- here the `InputHeadCondition` is provided as an extra parameter,
+  -- instead of using the one in the move because this function is
+  -- called from the DFA and the `InputHeadCondition` can be a subset
+  -- of the one associated with the `Action` in the move.
   let
     alt = altSeq $ m
     closCfg = closureCfg $ m
-    mv@(pos,act,q) = moveCfg $ m
+    mv@(pos, (act, _), q) = moveCfg $ m
   in
     let mCfg = Slk.simulateMove ih closCfg act q tab in
       case mCfg of
@@ -265,7 +277,15 @@ closureLoop aut busy (alts, cfg) tab =
       Slk.HTable -> (Result ClosureMoveSet, Slk.HTable)
     closureStep pos (act, q2) stepTab
       | isClassActOrEnd act =
-          (Result [ ClosureMove alts cfg (pos, act, q2) ], stepTab)
+          let
+            mIhc = Slk.convertActionToInputHeadCondition (Aut.gblFunsAut aut) act cfg
+          in
+          case mIhc of
+            Result ihc ->
+              (Result [ ClosureMove alts cfg (pos, (act, ihc), q2) ], stepTab)
+            Abort AbortSlkCfgClassIsDynamic -> (coerceAbort mIhc, stepTab)
+            Abort (AbortSlkCfgClassNotHandledYet _) -> (coerceAbort mIhc, stepTab)
+            _ -> error "Broken invariant: this case should not happen here"
       | isUnhandledInputAction act =
           -- trace (show act) $
           (Abort AbortClosureUnhandledInputAction, stepTab)
@@ -317,6 +337,8 @@ closureLoop aut busy (alts, cfg) tab =
         r1 : rest ->
           case r1 of
             Abort AbortSlkCfgExecution -> r1
+            Abort AbortSlkCfgClassIsDynamic -> r1
+            Abort (AbortSlkCfgClassNotHandledYet _) -> r1
             Abort AbortClosureOverflowMaxDepth -> r1
             Abort AbortClosureInfiniteloop -> r1
             Abort AbortClosureUnhandledInputAction -> r1
@@ -325,6 +347,8 @@ closureLoop aut busy (alts, cfg) tab =
               let r2 = combineResults rest in
               case r2 of
                 Abort AbortSlkCfgExecution -> r2
+                Abort AbortSlkCfgClassIsDynamic -> r2
+                Abort (AbortSlkCfgClassNotHandledYet _) -> r2
                 Abort AbortClosureOverflowMaxDepth -> r2
                 Abort AbortClosureInfiniteloop -> r2
                 Abort AbortClosureUnhandledInputAction -> r2

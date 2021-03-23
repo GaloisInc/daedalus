@@ -22,13 +22,14 @@ module Daedalus.ParserGen.LL.SlkCfg
 
 -- import Debug.Trace
 
+import Data.ByteString (unpack)
 import qualified Data.Map.Strict as Map
 
 import Daedalus.Type.AST
 import Daedalus.Value as Interp
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.AST
+import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
   ( State
   , Action(..)
@@ -36,9 +37,11 @@ import Daedalus.ParserGen.Action
   , ControlAction(..)
   , SemanticAction(..)
   , InputAction(..)
+  , BranchAction(..)
   , valToInt
   , defaultValue
   , evalLiteral
+  , callCExpr
   )
 import qualified Daedalus.ParserGen.Aut as Aut
 
@@ -223,6 +226,22 @@ showSlkControlData aut ctrl =
     SEmpty ->  []
 
 
+_showDebugSlkControlData :: SlkControlData -> [String]
+_showDebugSlkControlData ctrl =
+  case destrSlkStack ctrl of
+    SWildcard -> [ "*" ]
+    SCons (SlkCallFrame name _q (SlkActivatedFrame m) sem) rest ->
+      [PAST.showName name] ++
+      _showDebugSlkSemanticData sem ++
+      [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m ]
+      ++
+      _showDebugSlkControlData rest
+    SCons _ rest ->
+      _showDebugSlkControlData rest
+    SEmpty ->  []
+
+
+
 
 
 -- NOTE: this type is more convoluted than expected because of how
@@ -235,6 +254,21 @@ data SlkSemElm =
   deriving (Show, Eq, Ord)
 
 type SlkSemanticData = SlkStack SlkSemElm
+
+_showDebugSlkSemanticData :: SlkSemanticData -> [String]
+_showDebugSlkSemanticData ctrl =
+  case destrSlkStack ctrl of
+    SWildcard -> [ "*" ]
+    SCons (SlkSEnvMap sm) rest ->
+      case sm of
+        Wildcard ->
+          ["*"] ++ _showDebugSlkSemanticData rest
+        SConcrete m ->
+          [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m
+          ] ++ _showDebugSlkSemanticData rest
+    SCons _ rest ->
+      _showDebugSlkSemanticData rest
+    SEmpty ->  []
 
 
 data SlkInput =
@@ -476,7 +510,7 @@ symbolicLookupEnvName nname ctrl out =
         SEmpty -> error "missing var"
         _ -> error "TODO"
 
-symbolicEval :: NVExpr -> SlkControlData -> SlkSemanticData -> SlkValue
+symbolicEval :: PAST.NVExpr -> SlkControlData -> SlkSemanticData -> SlkValue
 symbolicEval e ctrl sem =
   case texprValue e of
     TCVar nname ->
@@ -485,8 +519,32 @@ symbolicEval e ctrl sem =
       let v = evalLiteral lit ty in
       case v of
         Interp.VUInt {} -> SConcrete (Left v)
-        _ -> Wildcard
-    _ -> Wildcard
+        _ -> -- trace "Not UINT" $
+          Wildcard
+    TCBinOp Cat e1 e2 _t ->
+      -- trace ("") $
+      -- trace (concat $ _showDebugSlkControlData ctrl) $
+      -- trace (concat $ _showDebugSlkSemanticData sem) $
+      let
+        ev1 = symbolicEval e1 ctrl sem
+        ev2 = symbolicEval e2 ctrl sem
+      in
+        case (ev1, ev2) of
+          (Wildcard, _) ->
+            Wildcard
+          (_, Wildcard) ->
+            Wildcard
+          (SConcrete (Left v1), SConcrete (Left v2)) ->
+            SConcrete (Left (evalBinOp Cat v1 v2))
+          _ ->
+            -- trace "" $
+            -- trace (show e1) $
+            -- trace (show ev1) $
+            -- trace (show e1) $
+            -- trace (show ev2) $
+            error ""
+    _ -> -- trace ("Not Var/Literal" ++ show e) $
+      Wildcard
 
 slkValToInt :: SlkValue -> Slk Int
 slkValToInt s =
@@ -674,13 +732,14 @@ symbExecCtrlNonPop _aut ctrl out act
     ActivateFrame ln ->
       case destrSlkStack ctrl of
         SCons (SlkCallFrame rname q (SlkListArgs lvs) savedFrame) ctrls ->
-          let zipped =
-                if Prelude.length ln == Prelude.length lvs
-                then Prelude.zip lvs ln
-                else error "activate"
+          let
+            zipped =
+              if Prelude.length ln == Prelude.length lvs
+              then Prelude.zip lvs ln
+              else error "activate"
 
-              activatedFrame = SlkActivatedFrame (
-                foldr (\ (val, name) set -> (Map.insert name val set)) Map.empty zipped)
+            activatedFrame = SlkActivatedFrame (
+              foldr (\ (val, name) set -> (Map.insert name val set)) Map.empty zipped)
           in
           let
             frame = SlkCallFrame rname q activatedFrame savedFrame
@@ -712,6 +771,7 @@ symbExecCtrl ::
   HTable -> Maybe ([(SlkControlData, SlkSemanticData, State)], HTable)
 symbExecCtrl aut ctrl out act q2
   tab@(HTable { tabCtrl = tabC, tabSem = tabS}) =
+  -- trace (show out) $
   case act of
     Pop ->
       case destrSlkStack ctrl of
@@ -825,6 +885,148 @@ symbExecSem ctrl out act
       let (newSem, tabS1) = mkSlkStack o tabS in
       Just (newSem, HTable tabC tabS1)
 
+slkExecClass ::
+  PAST.GblFuns ->
+  PAST.NCExpr ->
+  SlkControlData ->
+  SlkSemanticData ->
+  R.Result ByteCondition
+slkExecClass gbl expr ctrl out =
+  classToIntervalRec expr
+  where
+    classToIntervalRec :: PAST.NCExpr -> R.Result ByteCondition
+    classToIntervalRec e =
+      case texprValue e of
+        TCSetAny ->
+          R.Result $ ByteCondition [ ClassBtw (CValue 0) (CValue 255) ]
+        TCSetSingle e1 ->
+          case symbolicEval e1 ctrl out of
+            Wildcard -> -- trace "HEHE SetSingle" $
+              R.Abort R.AbortSlkCfgClassIsDynamic
+            SConcrete b ->
+              case b of
+                Left v ->
+                  case v of
+                    VUInt 8 c ->
+                      let c1 = fromIntegral c
+                      in R.Result (ByteCondition [ClassBtw (CValue c1) (CValue c1)])
+                    _ -> error "Expected UInt 8 value"
+                Right _ ->
+                  error "expected value not SlkInput"
+        TCSetRange e1 e2 ->
+          let
+            ev1 = symbolicEval e1 ctrl out
+            ev2 = symbolicEval e2 ctrl out
+          in
+          case (ev1, ev2) of
+            (Wildcard, _) -> R.Abort R.AbortSlkCfgClassIsDynamic
+            (_, Wildcard) -> R.Abort R.AbortSlkCfgClassIsDynamic
+            (SConcrete (Left v1), SConcrete (Left v2)) ->
+              case (v1, v2) of
+                (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
+                  let x1 = fromIntegral x
+                      y1 = fromIntegral y
+                  in
+                  if x1 <= y1
+                  then R.Result $ ByteCondition [ ClassBtw (CValue x1) (CValue y1) ]
+                  else
+                    error
+                    ( "SetRange values not ordered:" ++
+                      show (toEnum (fromIntegral x1) :: Char) ++ " " ++
+                      show (toEnum (fromIntegral y1) :: Char))
+                _ -> error "Should not happen"
+            _ -> R.Abort R.AbortSlkCfgClassIsDynamic
+        TCSetUnion lst ->
+          let mLItv = iterUnion lst [] in
+          case mLItv of
+            R.Result lItv ->
+              R.Result (ByteCondition (map (\ (a,()) -> a) lItv))
+            R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mLItv
+            R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mLItv
+            _ -> error "case not possible"
+
+          where
+            iterUnion l acc =
+              case l of
+                [] -> R.Result acc
+                e1 : rest ->
+                  let mbc = classToIntervalRec e1 in
+                  let
+                    mNewAcc =
+                      case mbc of
+                        R.Result bc ->
+                          R.Result $ insertByteConditionInOrderedList (bc, ()) acc (\ () () -> ())
+                        R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mbc
+                        R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mbc
+                        _ -> error "case not possible"
+                  in
+                  case mNewAcc of
+                    R.Result newAcc -> iterUnion rest newAcc
+                    R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mNewAcc
+                    R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mNewAcc
+                    _ -> error "case not possible"
+        TCSetOneOf lst ->
+          let lItv = iterOneOf (unpack lst) [] in
+            R.Result (ByteCondition (map (\ (a,()) -> a) lItv))
+          where
+            iterOneOf l acc =
+              case l of
+                [] -> acc
+                b : rest ->
+                  let
+                    newAcc =
+                      insertItvInOrderedList
+                      (ClassBtw (CValue b) (CValue b), ())
+                      acc
+                      (\ () () -> ())
+                  in
+                    iterOneOf rest newAcc
+
+        TCSetComplement e1 ->
+          let
+            mbc = classToIntervalRec e1
+            iterCompl i lst acc =
+              case lst of
+                [] ->
+                  if i <= 255
+                  then R.Result $ ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
+                  else R.Result $ ByteCondition (reverse acc)
+                ClassBtw (CValue j) (CValue k) : rest ->
+                  let j1 = j-1 in
+                  if i <= j1
+                  then
+                    iterCompl (k+1) rest (ClassBtw (CValue i) (CValue (j1)) : acc)
+                  else
+                    iterCompl (k+1) rest acc
+          in
+          case mbc of
+            R.Result bc ->
+              iterCompl 0 (byteCondition bc) []
+            R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mbc
+            R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mbc
+            _ -> error "Should not be another"
+        TCSetDiff _ _ -> error "Not implemented yet: SetDiff LL"
+        TCCall {} ->
+          let calledClass = callCExpr gbl e
+          in  classToIntervalRec calledClass
+        TCVar x ->
+          case symbolicLookupEnvName (tcName x) ctrl out of
+            Wildcard ->
+              R.Abort R.AbortSlkCfgClassIsDynamic
+            SConcrete b ->
+              case b of
+                Left v ->
+                  case v of
+                    VUInt 8 c ->
+                      let c1 = fromIntegral c
+                      in R.Result (ByteCondition [ClassBtw (CValue c1) (CValue c1)])
+                    _ ->
+                      R.Abort R.AbortSlkCfgClassIsDynamic
+                Right _ -> error "Cannot be an SlkInput"
+        _ ->
+          -- trace (show (texprValue e)) $
+          R.Abort (R.AbortSlkCfgClassNotHandledYet "other class case")
+
 symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
   HTable -> R.Result (Maybe ((SlkInput, SlkSemanticData), HTable))
 symbExecInp act ctrl out inp
@@ -849,7 +1051,7 @@ symbExecInp act ctrl out inp
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
               Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
-          _ -> -- trace "nont integer const" $
+          _ -> -- trace "TAKE a symbolic value" $
             R.Abort R.AbortSlkCfgExecution
     StreamOff _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
@@ -863,7 +1065,8 @@ symbExecInp act ctrl out inp
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
               Wildcard -> R.Abort R.AbortSlkCfgExecution
               _ -> error "TODO"
-          _ -> R.Abort R.AbortSlkCfgExecution
+          _ -> -- trace "DROP a symbolic value" $
+            R.Abort R.AbortSlkCfgExecution
 
     _ -> error "TODO"
 
@@ -960,14 +1163,18 @@ showGraphvizInputHeadCondition c =
     EndInput -> "END"
 
 
-convertActionToInputHeadCondition :: GblFuns -> Action -> R.Result InputHeadCondition
-convertActionToInputHeadCondition gbl act =
+convertActionToInputHeadCondition ::
+  PAST.GblFuns ->
+  Action ->
+  SlkCfg ->
+  R.Result InputHeadCondition
+convertActionToInputHeadCondition gbl act cfg =
   case getClassActOrEnd act of
     Left (Left c) ->
-      let res = classToInterval gbl c in
+      let res = slkExecClass gbl c (cfgCtrl cfg) (cfgSem cfg) in
       case res of
-        R.Abort R.AbortClassIsDynamic -> R.coerceAbort res
-        R.Abort (R.AbortClassNotHandledYet _) -> R.coerceAbort res
+        R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort res
+        R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort res
         R.Result r -> R.Result $ HeadInput r
         _ -> error "Impossible abort"
     Left (Right (IGetByte _)) ->

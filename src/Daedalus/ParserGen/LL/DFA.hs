@@ -576,12 +576,12 @@ createDFA aut qInit tab =
         rFinalized =
           case r of
             Abort AbortSlkCfgExecution -> coerceAbort r
+            Abort AbortSlkCfgClassIsDynamic -> coerceAbort r
+            Abort (AbortSlkCfgClassNotHandledYet _) -> coerceAbort r
             Abort AbortClosureOverflowMaxDepth -> coerceAbort r
             Abort AbortClosureInfiniteloop -> coerceAbort r
             Abort AbortClosureUnhandledInputAction -> coerceAbort r
             Abort AbortClosureUnhandledAction -> coerceAbort r
-            Abort AbortClassIsDynamic -> coerceAbort r
-            Abort (AbortClassNotHandledYet _) -> coerceAbort r
             Abort AbortDFAIncompatibleInput -> coerceAbort r
             Result r1 ->
               let r2 = mapAnalyzeConflicts r1 in
