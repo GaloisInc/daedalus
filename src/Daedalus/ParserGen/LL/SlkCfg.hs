@@ -939,17 +939,13 @@ simulateActionSlkCfg aut act q2 cfg tab =
           )
         R.Abort R.AbortSlkCfgExecution -> R.Abort R.AbortSlkCfgExecution
         _ -> error "impossible"
-    _ ->
-      R.Result $ Just
-      ( [ SlkCfg
-          { cfgState = q2
-          , cfgCtrl = cfgCtrl cfg
-          , cfgSem = cfgSem cfg
-          , cfgInput = cfgInput cfg
-          }
-        ]
-      , tab
-      )
+    BAct (FailAction _) ->
+      R.Result Nothing
+    BAct _ ->
+      R.Result $ Just ([ cfg { cfgState = q2 } ], tab)
+    EpsA ->
+      R.Result $ Just ([ cfg { cfgState = q2 } ], tab)
+
 
 data InputHeadCondition =
     HeadInput ByteCondition
