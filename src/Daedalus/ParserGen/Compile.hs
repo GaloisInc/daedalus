@@ -73,6 +73,7 @@ idVExpr vexpr =
         TCStruct s t -> TCStruct (map (\ (s',e) -> (s', idVExpr e)) s) t
         TCUnit -> TCUnit
         TCArray lst t -> TCArray (map idVExpr lst) t
+        TCArrayLength e -> TCArrayLength (idVExpr e)
         TCMapEmpty t -> TCMapEmpty t
         TCIn lbl e lst -> TCIn lbl (idVExpr e) lst
         TCBinOp op e1 e2 t -> TCBinOp op (idVExpr e1) (idVExpr e2) t
