@@ -24,8 +24,9 @@ def Long = Int32
 -- DBG: def Message PayloadData = {
 def Message = {
   header = Header;
--- DBG:  submessages = Many (Submessage PayloadData);
-  subm0 = Submessage;
+-- DBG:
+-- submessages = Many (Submessage PayloadData);
+  submessages = Many Submessage;
   END
 }
 
@@ -48,7 +49,7 @@ def ProtocolVersion = {
 
 def VendorId = Many 2 Octet
 
-def ProtocolRTPS = Match "RTPS" -- ?
+def ProtocolRTPS = Match "RTPS" 
 
 def GuidPrefix = Many 12 Octet
 
