@@ -17,7 +17,6 @@ module Daedalus.ParserGen.Action
   , isUnhandledInputAction
   , isUnhandledAction
   , isPushAction
-  , isBranchAction
   , getMatchBytes
   , getClassActOrEnd
   , isEmptyControlData
@@ -261,12 +260,6 @@ isPushAction act =
     CAct (Push _ _ _) -> True
     _ -> False
 
-isBranchAction :: Action -> Bool
-isBranchAction act =
-  case act of
-    BAct _ -> True
-    _ -> False
-
 getClassActOrEnd :: Action -> Either (Either NCExpr InputAction) InputAction
 getClassActOrEnd act =
   case act of
@@ -508,6 +501,7 @@ isSimpleVExpr e =
     TCLiteral (LNumber {}) _ -> True
     TCLiteral (LByte   {}) _ -> True
     TCLiteral _            _ -> False
+    TCVar _nname -> True
     TCNothing _ty -> False
     TCStruct _lst _ -> False
     TCMapEmpty _ty -> False
@@ -518,7 +512,6 @@ isSimpleVExpr e =
     TCIf _e1 _e2 _e3 -> False
     TCCall _fname _t _lst -> False
     TCFor _ -> False
-    TCVar _nname -> False
     TCArray _lste _ty -> False
     TCUnit -> False
     x -> error ("TODO: "++ show x)

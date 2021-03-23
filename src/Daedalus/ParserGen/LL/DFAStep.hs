@@ -114,7 +114,8 @@ initIteratorDFARegistry r =
   , size = Set.size r
   }
 
-nextIteratorDFARegistry :: IteratorDFARegistry -> Maybe (DFAEntry, IteratorDFARegistry)
+nextIteratorDFARegistry ::
+  IteratorDFARegistry -> Maybe (DFAEntry, IteratorDFARegistry)
 nextIteratorDFARegistry iter@(Iterator { iii = r, curr = c, size = s}) =
   if c >= s
   then Nothing
@@ -133,7 +134,10 @@ revAppend lst1 lst2 =
     [] -> lst2
     x:xs -> revAppend xs (x:lst2)
 
-partitionDFARegistry :: DFARegistry -> (DFAEntry -> DFAEntry -> Bool) -> [ [DFAEntry] ]
+partitionDFARegistry ::
+  DFARegistry ->
+  (DFAEntry -> DFAEntry -> Bool) ->
+  [ [DFAEntry] ]
 partitionDFARegistry s test =
   let llst = helper (initIteratorDFARegistry s) [] in
     map (\ (_, lst) -> lst) llst
@@ -204,7 +208,11 @@ insertDetChoiceAccepting src cm detChoice =
 
 
 insertDetChoiceInputHeadCondition ::
-  SourceCfg -> Slk.InputHeadCondition -> Closure.ClosureMove -> DetChoice -> DetChoice
+  SourceCfg ->
+  Slk.InputHeadCondition ->
+  Closure.ClosureMove ->
+  DetChoice ->
+  DetChoice
 insertDetChoiceInputHeadCondition src ih cm detChoice =
   let q = singletonDFARegistry (DFAEntry src cm) in
   case ih of
@@ -254,13 +262,16 @@ unionDetChoice
 
 -- this function takes a tree representing a set of choices and
 -- convert it to a Input factored deterministic transition.
-determinizeMove :: Aut a => a -> SourceCfg -> Closure.ClosureMoveSet -> Result DetChoice
-determinizeMove aut src tc =
+determinizeMove :: SourceCfg -> Closure.ClosureMoveSet -> Result DetChoice
+determinizeMove src tc =
   determinizeWithAccu tc Nothing emptyDetChoice
 
   where
     determinizeWithAccu ::
-      Closure.ClosureMoveSet -> Maybe Slk.SlkInput -> DetChoice -> Result DetChoice
+      Closure.ClosureMoveSet ->
+      Maybe Slk.SlkInput ->
+      DetChoice ->
+      Result DetChoice
     determinizeWithAccu lst minp acc =
       case lst of
         [] -> Result acc
@@ -268,28 +279,18 @@ determinizeMove aut src tc =
           let
             cfg = Closure.closureCfg t
             inp = Slk.cfgInput cfg
-            resAcc =
+            newAcc =
               case t of
                 Closure.ClosureMove {} ->
-                  let (_pos, act, _q) = Closure.moveCfg t in
-                  let mIhc = Slk.convertActionToInputHeadCondition (gblFunsAut aut) act in
-                  case mIhc of
-                    Abort AbortClassIsDynamic -> coerceAbort mIhc
-                    Abort (AbortClassNotHandledYet _) -> coerceAbort mIhc
-                    Result ihc ->
-                      Result $ insertDetChoiceInputHeadCondition src ihc t acc
-                    _ -> error "Impossible abort"
+                  let (_pos, (_act, ihc), _q) = Closure.moveCfg t in
+                  insertDetChoiceInputHeadCondition src ihc t acc
                 Closure.ClosureAccepting {} ->
-                  Result $ insertDetChoiceAccepting src t acc
+                  insertDetChoiceAccepting src t acc
                 _ -> error "impossible case"
           in
           if compatibleInput inp minp
           then
-            case resAcc of
-              Abort AbortClassIsDynamic -> coerceAbort resAcc
-              Abort (AbortClassNotHandledYet _) -> coerceAbort resAcc
-              Result newAcc -> determinizeWithAccu ms (Just $ inp) newAcc
-              _ -> error "impossible abort"
+            determinizeWithAccu ms (Just $ inp) newAcc
           else
             Abort AbortDFAIncompatibleInput
 
@@ -311,11 +312,13 @@ deterministicSlkCfg aut cfg tab =
   let (res, tab1) = Closure.closureLL aut cfg tab in
   case res of
     Abort AbortSlkCfgExecution -> (coerceAbort res, tab1)
+    Abort AbortSlkCfgClassIsDynamic -> (coerceAbort res, tab1)
+    Abort (AbortSlkCfgClassNotHandledYet _) -> (coerceAbort res, tab1)
     Abort AbortClosureOverflowMaxDepth -> (coerceAbort res, tab1)
     Abort AbortClosureInfiniteloop -> (coerceAbort res, tab1)
     Abort AbortClosureUnhandledInputAction -> (coerceAbort res, tab1)
     Abort AbortClosureUnhandledAction -> (coerceAbort res, tab1)
-    Result r -> (determinizeMove aut cfg r, tab1)
+    Result r -> (determinizeMove cfg r, tab1)
     _ -> error "Impossible abort"
 
 
@@ -416,11 +419,13 @@ convertDFARegistryToDFAState r =
           addDFAState (Closure.lastCfg $ dstEntry entry) (helper es)
 
 
-slkExecMoveRegistry ::
+slkExecMoveAndEpsRegistry ::
   Aut a =>
-  a -> Slk.InputHeadCondition -> DFARegistry ->
+  a ->
+  Slk.InputHeadCondition ->
+  DFARegistry ->
   Slk.HTable -> (Result DFARegistry, Slk.HTable)
-slkExecMoveRegistry aut ih r tab =
+slkExecMoveAndEpsRegistry aut ih r tab =
   helper (initIteratorDFARegistry r) tab
   where
     helper s stepTab =
@@ -432,28 +437,28 @@ slkExecMoveRegistry aut ih r tab =
             cm = dstEntry entry
           in
           let mCm = Closure.simulateMoveClosure ih cm stepTab in
-            case mCm of
-              Nothing -> helper es stepTab
-              Just (cmMove, tab1) ->
-                let
-                  (mCmEps, tab2) =
-                    Closure.closureEpsUntilPush aut Set.empty cmMove tab1
-                in
-                case mCmEps of
-                  Result Nothing -> helper es tab2
-                  Result (Just cmEps) ->
-                    let
-                      newEntry =
-                        DFAEntry
-                        { srcEntry = src
-                        , dstEntry = cmEps
-                        }
-                      (mr, tab3) = helper es tab2
-                    in
-                    case mr of
-                      Result h -> (Result (addDFARegistry newEntry h), tab3)
-                      a -> (coerceAbort a, tab3)
-                  Abort _ -> (coerceAbort mCmEps, tab2)
+          case mCm of
+            Nothing -> helper es stepTab
+            Just (cmMove, tab1) ->
+              let
+                (mCmEps, tab2) =
+                  Closure.closureEpsUntilPush aut Set.empty cmMove tab1
+              in
+              case mCmEps of
+                Result Nothing -> helper es tab2
+                Result (Just cmEps) ->
+                  let
+                    newEntry =
+                      DFAEntry
+                      { srcEntry = src
+                      , dstEntry = cmEps
+                      }
+                    (mr, tab3) = helper es tab2
+                  in
+                  case mr of
+                    Result h -> (Result (addDFARegistry newEntry h), tab3)
+                    a -> (coerceAbort a, tab3)
+                Abort _ -> (coerceAbort mCmEps, tab2)
 
 
 determinizeDFAState ::
@@ -461,7 +466,8 @@ determinizeDFAState ::
   a -> DFAState ->
   Slk.HTable -> (Result DetChoice, Slk.HTable)
 determinizeDFAState aut s tab =
-  let (detChoice1, tab1) = determinizeAcc (initIteratorDFAState s) emptyDetChoice tab
+  let (detChoice1, tab1) =
+        determinizeAcc (initIteratorDFAState s) emptyDetChoice tab
   in
   case detChoice1 of
     Result r1 -> slkExecClassAndEps r1 tab1
@@ -478,12 +484,12 @@ determinizeDFAState aut s tab =
           let (r, tab1) = deterministicSlkCfg aut cfg localTab in
           case r of
             Abort AbortSlkCfgExecution -> (coerceAbort r, tab1)
+            Abort AbortSlkCfgClassIsDynamic -> (coerceAbort r, tab1)
+            Abort (AbortSlkCfgClassNotHandledYet _) -> (coerceAbort r, tab1)
             Abort AbortClosureOverflowMaxDepth -> (coerceAbort r, tab1)
             Abort AbortClosureInfiniteloop -> (coerceAbort r, tab1)
             Abort AbortClosureUnhandledInputAction -> (coerceAbort r, tab1)
             Abort AbortClosureUnhandledAction -> (coerceAbort r, tab1)
-            Abort AbortClassIsDynamic -> (coerceAbort r, tab1)
-            Abort (AbortClassNotHandledYet _) -> (coerceAbort r, tab1)
             Abort AbortDFAIncompatibleInput -> (coerceAbort r, tab1)
             Result r1 ->
               let newAcc = unionDetChoice r1 acc
@@ -504,7 +510,11 @@ determinizeDFAState aut s tab =
           case lst of
             [] -> (Result (reverse acc), loclocTab)
             (cl, r) : rest ->
-              let (sr, tab1) = slkExecMoveRegistry aut (Slk.HeadInput (ByteCondition [cl])) r loclocTab in
+              let
+                ih = (Slk.HeadInput (ByteCondition [cl]))
+                (sr, tab1) =
+                  slkExecMoveAndEpsRegistry aut ih r loclocTab
+              in
               case sr of
                 Result r1 -> computeOnClass rest ((cl, r1) : acc) tab1
                 Abort _ -> (coerceAbort sr, tab1)
@@ -516,7 +526,11 @@ determinizeDFAState aut s tab =
               Nothing ->
                 (Result (d { classDetChoice = cd, endDetChoice = Nothing}), tab1)
               Just r ->
-                let (mR1, tab2) = slkExecMoveRegistry aut (Slk.EndInput) r tab1 in
+                let
+                  ih = Slk.EndInput
+                  (mR1, tab2) =
+                    slkExecMoveAndEpsRegistry aut ih r tab1
+                in
                 case mR1 of
                   Result r1 ->
                     (Result (d { classDetChoice = cd, endDetChoice = Just r1 }), tab2)
