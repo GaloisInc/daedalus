@@ -231,8 +231,14 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     @gapFlags0 = flags.subFlags is gapFlags;
     readerId = EntityId;
     writerId = EntityId;
+
     gapStart = SequenceNumber;
+    Guard (gapStart > 0);
+
     gapList = SequenceNumberSet;
+
+    -- Table 8.37 contains fields gapStart and gapList that are not
+    -- defined at the PSM level.
   };
   heartBeatElt = {
     @hbFlags = flags.subFlags is heartBeatFlags;
