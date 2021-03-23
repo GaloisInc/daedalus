@@ -62,6 +62,7 @@ def Submessage PayloadData = {
 -- Sec 8.3.3.2 Submessage structure: Table 8.15:
 def SubmessageHeader = {
   submessageId = SubmessageId;
+  -- TODO: spec says this is one byte, JSON has 4 bytes
   flags = SubmessageFlags submessageId;
   submessageLength = UShort; 
 }
@@ -88,12 +89,18 @@ def NthBit n fs = {
 }
 
 -- SubmessageFlags:
+
+-- TODO: add definitions of all sub-messages
 def SubmessageFlags (subId: SubmessageId) = { 
   @flagBits = UInt8;
-  Choose1 {
+  endiannessFlag = NthBit 0 flagBits;
+  subFlags = Choose1 {
+    ackNackFlags = {
+      subId is acknack;
+      finalFlag = NthBit 1 flagBits;
+    };
     dataFlags = {
       subId is data;
-      endiannessFlag = NthBit 0 flagBits;
       inlineQosFlag = NthBit 1 flagBits;
       dataFlag = NthBit 2 flagBits;
       keyFlag = NthBit 3 flagBits;
@@ -103,12 +110,45 @@ def SubmessageFlags (subId: SubmessageId) = {
     };
     dataFragFlags = {
       subId is dataFrag;
-      endiannessFlag = NthBit 0 flagBits;
       inlineQosFlag = NthBit 1 flagBits;
       nonStandardPayloadFlag = NthBit 2 flagBits;
       keyFlag = NthBit 3 flagBits;
     };
-    -- submessages that don't contain data are not supported
+    gapFlags = {
+      subId is gap;
+    };
+    heartBeatFlags = {
+      subId is heartbeat;
+      finalFlag = NthBit 1 flagBits;
+      livelinessFlag = NthBit 2 flagBits;
+    };
+    heartBeatFragFlags = {
+      subId is heartbeatFrag;
+    };
+    infoDstFlags = {
+      subId is infoDst;
+    };
+    infoReplyFlags = {
+      subId is infoReply;
+      multicastFlag = NthBit 1 flagBits;
+    };
+    infoSourceFlags = {
+      subId is infoSrc;
+    };
+    infoTimestampFlags = {
+      subId is infoTs;
+      invalidateFlag = NthBit 1 flagBits;
+    };
+    padFlags = {
+      subId is pad;
+    };
+    nackFragFlags = {
+      subId is acknack;
+    };
+    infoReplyIP4Flags = {
+      subId is infoReplyIP4;
+      multicastFlag = NthBit 1 flagBits;
+    };
   }
 }
 
@@ -121,8 +161,15 @@ def QosParams f = Choose1 {
 }
 
 def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
+  ackNackElt = {
+    @ackNackFlags = flags.subFlags is ackNackFlags;
+    readerId = EntityId;
+    writerId = EntityId;
+    readerSNState = SequenceNumberSet;
+    count = Count;
+  };
   dataElt = {
-    dFlags = flags is dataFlags;
+    @dFlags = flags.subFlags is dataFlags;
     Match [0x00, 0x00]; -- extra flags for future compatibility
     octetsToInlineQos = UShort; 
 
@@ -147,7 +194,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     };
   };
   dataFragElt = {
-    fragFlags = flags is dataFragFlags;
+    @fragFlags = flags.subFlags is dataFragFlags;
     Match [0x00, 0x00]; -- extraFlags
     octetsToInlineQos = UShort;
 
@@ -179,6 +226,74 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
       (Many
         ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as uint 64)
         (SerializedPayload PayloadData inlineQos));
+  };
+  gapElt = {
+    @gapFlags0 = flags.subFlags is gapFlags;
+    readerId = EntityId;
+    writerId = EntityId;
+    gapStart = SequenceNumber;
+    gapList = SequenceNumberSet;
+  };
+  heartBeatElt = {
+    @hbFlags = flags.subFlags is heartBeatFlags;
+    readerId = EntityId;
+    writerId = EntityId;
+    firstSN = SequenceNumber;
+    lastSN = SequenceNumber;
+    count = Count;
+  };
+  heartBeatFragElt = {
+    @hbFragFlags = flags.subFlags is heartBeatFragFlags;
+    readerId = EntityId;
+    writerId = EntityId;
+    writerSN = SequenceNumber;
+    lastFragmentNum = FragmentNumber;
+    count = Count;
+  };
+  infoDstElt = {
+    @infoDstFlags0 = flags.subFlags is infoDstFlags;
+    guidPrefix = GuidPrefix;
+  };
+  infoReplyElt = {
+    @replyFlags0 = flags.subFlags is infoReplyFlags;
+    unicastLocatorList = LocatorList;
+    multicastLocatorList = Choose1 {
+      hasLocs = {
+        Guard replyFlags0.multicastFlag;
+        LocatorList;
+      };
+      noLocs = Guard (!(replyFlags0.multicastFlag));
+    };
+  };
+  infoSourceElt = {
+    @infoSourceFlags0 = flags.subFlags is infoSourceFlags;
+    ULong; -- unused
+    version = ProtocolVersion;
+    vendorId = VendorId;
+    guidPrefix = GuidPrefix;
+  };
+  timestampElt = {
+    @tsFlags0 = flags.subFlags is infoTimestampFlags;
+    Choose1 {
+      hasTs = {
+        Guard (!(tsFlags0.invalidateFlag));
+        Time;
+      };
+      noTs = Guard (tsFlags0.invalidateFlag);
+    }
+  };
+  padElt = {
+    @padFlags = flags.subFlags is padFlags;
+    Many Octet;
+  };
+  nackFragElt = {
+    @nackFlags = flags.subFlags is nackFragFlags;
+    Many Octet;
+  };
+  infoReplyIP4Elt = {
+    @replyIP4Flags0 = flags.subFlags is infoReplyIP4Flags;
+    unicastLocator = LocatorUDPv4;
+    multicastLocator = LocatorUDPv4;
   }
 }
 
@@ -192,6 +307,12 @@ def SequenceNumber = {
   @high = ULong;
   @low = ULong;
   ^(high # low);
+}
+
+def SequenceNumberSet = {
+  bitmapBase = SequenceNumber;
+  numBits = ULong;
+  Many ((numBits + 31)/32 - 1 as uint 64) ULong;
 }
 
 -- Sec 9.4.2.11 ParameterList:
@@ -281,7 +402,7 @@ def ParameterIdValues pid = Choose1 {
   metatrafficUnicastLocator = LocatorT;
   metatrafficMulticastLocator = LocatorT;
   expectsInlineQos = Boolean;
-  participantManualLivelinessCountVal = CountT;
+  participantManualLivelinessCountVal = Count;
   participantLeaseDurationVal = DurationT;
   contentFilterPropertyVal = ContentFilterProperty;
   participantGUIDVal = GUIDT;
@@ -369,7 +490,17 @@ def LocatorT = {
   address = Many 16 Octet;
 }
 
-def CountT = ULong
+def LocatorList = {
+  numLocators = ULong;
+  Many (numLocators as uint 64) LocatorT;
+}
+
+def LocatorUDPv4 = {
+  address = ULong;
+  port = ULong;
+}
+
+def Count = ULong
 
 -- relaxed definition. Refine as needed.
 def DurationT = Many Octet
@@ -382,7 +513,7 @@ def ContentFilterProperty = {
   expressionParameters = Many String;
 }
 
-def TimeT = {
+def Time = {
   seconds = ULong;
   fraction = ULong;
 }
