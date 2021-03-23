@@ -8,17 +8,14 @@ def OctetArray2 = Many 2 Octet
 
 def OctetArray3 = Many 3 Octet
 
-def UShort = {
-  @highByte = UInt8;
-  @lowByte = UInt8;
-  ^(highByte # lowByte)
-}
+-- type aliases to match terms in spec:
+def UShort = Uint16
 
-def ULong = {
-  @highUShort = UShort;
-  @lowUShort = UShort;
-  ^(highUShort # lowUShort)
-}
+def Short = Int16
+
+def ULong = Uint32
+
+def Long = Int32
 
 -- Sec. 8.3.3 The Overall strucutre of an RTPS Message: the overall
 -- structure of an RTPS Message consists of a fixed-size leading RTPS
@@ -237,23 +234,36 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     gapList = SequenceNumberSet;
 
-    -- Table 8.37 contains fields gapStart and gapList that are not
-    -- defined at the PSM level.
+    -- Table 8.37 contains fields gapStartGSN and gapEndGSN that are
+    -- not defined at the PSM level.
+    
   };
   heartBeatElt = {
     @hbFlags = flags.subFlags is heartBeatFlags;
     readerId = EntityId;
     writerId = EntityId;
+
     firstSN = SequenceNumber;
+    Guard (firstSN > 0);
+
     lastSN = SequenceNumber;
+    Guard (lastSN >= firstSN - 1);
     count = Count;
+
+    -- Table 8.38 contains fields *GSN that are not defined at the PSM
+    -- level.
   };
   heartBeatFragElt = {
     @hbFragFlags = flags.subFlags is heartBeatFragFlags;
     readerId = EntityId;
     writerId = EntityId;
+
     writerSN = SequenceNumber;
+    Guard (writerSN > 0);
+    
     lastFragmentNum = FragmentNumber;
+    Guard (lastFragmentNum > 0);
+
     count = Count;
   };
   infoDstElt = {
@@ -294,7 +304,11 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   nackFragElt = {
     @nackFlags = flags.subFlags is nackFragFlags;
-    Many Octet;
+    readerId = EntityId;
+    writerId = EntityId;
+    writerSN = SequenceNumber;
+    fragmentNumberState = FragmentNumberSet;
+    count = Count;
   };
   infoReplyIP4Elt = {
     @replyIP4Flags0 = flags.subFlags is infoReplyIP4Flags;
@@ -587,5 +601,12 @@ def SerializedPayloadHeader = {
   representationOptions = OctetArray2;
 }
 
--- Sec 9.3.2
+-- Sec 9.3.2:
 def FragmentNumber = ULong
+
+-- Sec 9.4.2.8:
+def FragmentNumberSet = {
+  bitmapBase = FragmentNumber;
+  numBits = ULong;
+  bitmap = Many ((numBits + 31)/32 - 1 as uint 64) Long;
+}
