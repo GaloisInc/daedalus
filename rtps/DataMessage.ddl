@@ -21,12 +21,14 @@ def Long = Int32
 -- structure of an RTPS Message consists of a fixed-size leading RTPS
 -- Header followed by a variable number of RTPS Submessage
 -- parts. Fig. 8.8:
--- DBG: def Message PayloadData = {
-def Message = {
+-- DBG:
+def Message PayloadData = {
+-- def Message = {
   header = Header;
 -- DBG:
--- submessages = Many (Submessage PayloadData);
-  submessages = Many Submessage;
+  submessages = Many (Submessage PayloadData);
+--  submessages = Many Submessage;
+--  subm0 = Submessage PayloadData;
   END
 }
 
@@ -54,23 +56,20 @@ def ProtocolRTPS = Match "RTPS"
 def GuidPrefix = Many 12 Octet
 
 -- DBG:
--- def Submessage PayloadData = {
-def Submessage = {
+def Submessage PayloadData = {
+-- def Submessage = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
-      Chunk
+      $$ = Chunk
         (subHeader.submessageLength as uint 64)
-        (Many Octet);
 -- DBG:
---      (SubmessageElement PayloadData subHeader.flags);
-
+        (SubmessageElement PayloadData subHeader.flags);
+      (Many Octet);
     };
     { Guard (subHeader.submessageLength == 0);
-      Many Octet;
--- DBG:
---      (SubmessageElement PayloadData subHeader.flags);
-
+      $$ = SubmessageElement PayloadData subHeader.flags;
+      Many Octet; -- TODO: this is maybe too sloppy
     };
   }
 }
