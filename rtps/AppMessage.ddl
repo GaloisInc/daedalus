@@ -38,4 +38,4 @@ def AppParser (maybeQos: QosParams) = {
 }
 
 -- entry point: 
-def Main = Message AppParser
+def Main = Message 
