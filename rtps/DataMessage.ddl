@@ -81,7 +81,7 @@ def SubmessageId = Choose1{
 }
 
 def NthBit n fs = {
-  ^((fs .&. (1 << n)) == 1);
+  ^((fs .&. (1 << n)) != 0);
 }
 
 -- SubmessageFlags:
