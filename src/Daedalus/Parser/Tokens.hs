@@ -22,6 +22,8 @@ data Token =
   | OpenTri
   | CloseTri
 
+  | VOpen | VSemi | VClose    -- inserted via layout
+
   | Semi
   | Colon
   | Dot
@@ -62,6 +64,8 @@ data Token =
 
   | KWChoose
   | KWChoose1
+  | KWblock
+  | KWlet
   | KWTry
   | KWMatch
   | KWMatch1

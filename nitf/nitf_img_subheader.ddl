@@ -373,12 +373,12 @@ def ISync = Match1 '0' -- reserved for future use
 
 def IMode nbands = {
   $$ = Choose {
-    block = @Match1 'B' ;
+    blockMode = @Match1 'B' ;
     pixel = @Match1 'P' ;
     row = @Match1 'R' ;
     seq = @Match1 'S' ;
   } ;
-  Guard (nbands != 1) | $$ is block
+  Guard (nbands != 1) | $$ is blockMode
 }
 
 def NBPR = PosQuad
@@ -784,7 +784,7 @@ def ISHeader = {
   -- TODO: rework to remove negations
   nbpc = NBPC ;
     (Guard (nbpr != 1) | Guard (nbpc != 1))
-  | (imode is block | imode is pixel | imode is row);
+  | (imode is blockMode | imode is pixel | imode is row);
   -- is R really allowed? Needed by i_3201c.ntf.
 
   nppbh = NPPBH ;

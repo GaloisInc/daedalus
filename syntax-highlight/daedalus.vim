@@ -19,6 +19,8 @@ syn match   ddlKeyword "\$\$"
 syn keyword ddlKeyword Choose Choose1
 syn keyword ddlKeyword commit
 syn keyword ddlKeyword case
+syn keyword ddlKeyword block
+syn keyword ddlKeyword let
 
 syn keyword ddlKeywordFun   Optional Optional?
 syn keyword ddlKeywordFun   Many Many?
