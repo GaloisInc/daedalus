@@ -59,7 +59,6 @@ def Submessage PayloadData = {
 -- Sec 8.3.3.2 Submessage structure: Table 8.15:
 def SubmessageHeader = {
   submessageId = SubmessageId;
-  -- TODO: spec says this is one byte, JSON has 4 bytes
   flags = SubmessageFlags submessageId;
   submessageLength = UShort; 
 }
@@ -87,7 +86,6 @@ def NthBit n fs = {
 
 -- SubmessageFlags:
 
--- TODO: add definitions of all sub-messages
 def SubmessageFlags (subId: SubmessageId) = { 
   @flagBits = UInt8;
   endiannessFlag = NthBit 0 flagBits;
@@ -108,16 +106,18 @@ def SubmessageFlags (subId: SubmessageId) = {
     dataFragFlags = {
       subId is dataFrag;
       inlineQosFlag = NthBit 1 flagBits;
-      nonStandardPayloadFlag = NthBit 2 flagBits;
-      keyFlag = NthBit 3 flagBits;
+      keyFlag = NthBit 2 flagBits;
+      nonStandardPayloadFlag = NthBit 3 flagBits;
     };
     gapFlags = {
       subId is gap;
+      groupInfoFlag = NthBit 1 flagBits;
     };
     heartBeatFlags = {
       subId is heartbeat;
       finalFlag = NthBit 1 flagBits;
       livelinessFlag = NthBit 2 flagBits;
+      groupInfoFlag = NthBit 3 flagBits;
     };
     heartBeatFragFlags = {
       subId is heartbeatFrag;
@@ -180,14 +180,12 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     inlineQos = QosParams dFlags.inlineQosFlag;
     serializedPayload = Choose1 {
-      hasPayload = {
-        (Guard (dFlags.dataFlag) | Guard (dFlags.keyFlag));
+      hasData = {
+        Guard dFlags.dataFlag;
         SerializedPayload PayloadData inlineQos;
       };
-      noPayload = {
-        Guard (dFlags.dataFlag == false);
-        Guard (dFlags.keyFlag == false);
-      };
+      hasKey = Guard dFlags.keyFlag;
+      noPayload = Guard (!(dFlags.dataFlag || dFlags.keyFlag));
     };
   };
   dataFragElt = {
@@ -218,11 +216,18 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     inlineQos = QosParams fragFlags.inlineQosFlag;
 
-    serializedPayload = Chunk
-      ((fragmentsInSubmessage * fragmentSize) as uint 64)
-      (Many
-        ((fragmentsInSubmessage as uint 32 - fragmentStartingNum) as uint 64)
-        (SerializedPayload PayloadData inlineQos));
+    serializedPayload = Choose1 {
+      hasData = {
+        Guard (!(fragFlags.keyFlag));
+        Chunk
+          ((fragmentsInSubmessage * fragmentSize) as uint 64)
+          (Many
+            ((fragmentsInSubmessage as uint 32 -
+              fragmentStartingNum) as uint 64)
+            (SerializedPayload PayloadData inlineQos));
+      };
+      hasKey = Guard fragFlags.keyFlag;
+    };
   };
   gapElt = {
     @gapFlags0 = flags.subFlags is gapFlags;
@@ -234,9 +239,20 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     gapList = SequenceNumberSet;
 
-    -- Table 8.37 contains fields gapStartGSN and gapEndGSN that are
-    -- not defined at the PSM level.
-    
+    -- WARNING: layout of these is not defined at PSM level. This is a
+    -- guess.
+    Choose1 {
+      hasGpInfo = {
+        Guard (gapFlags0.groupInfoFlag);
+
+        gapStartGSN = SequenceNumber;
+        Guard (gapStartGSN > 0);
+
+        gapEndGSN = SequenceNumber;
+        Guard (gapEndGSN >= gapStartGSN - 1);
+      };
+      noGpInfo = Guard (!(gapFlags0.groupInfoFlag));
+    }
   };
   heartBeatElt = {
     @hbFlags = flags.subFlags is heartBeatFlags;
@@ -250,8 +266,27 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     Guard (lastSN >= firstSN - 1);
     count = Count;
 
-    -- Table 8.38 contains fields *GSN that are not defined at the PSM
-    -- level.
+    -- WARNING: layout of these is not defined at PSM level. This is a
+    -- guess, based on Table 8.38.
+    Choose1 {
+      hasGpInfo = {
+        Guard (hbFlags.groupInfoFlag);
+
+        currentGSN = SequenceNumber;
+
+        firstGSN = SequenceNumber;
+        Guard (firstGSN > 0);
+        Guard (currentGSN >= firstGSN);
+
+        lastGSN = SequenceNumber;
+        Guard (lastGSN >= firstGSN - 1);
+        Guard (currentGSN >= lastGSN);
+
+        writerSet = GroupDigest;
+        secureWriterSet = GroupDigest;
+      };
+      noGpInfo = Guard (!(hbFlags.groupInfoFlag));
+    }
   };
   heartBeatFragElt = {
     @hbFragFlags = flags.subFlags is heartBeatFragFlags;
@@ -323,17 +358,15 @@ def EntityId = {
 }
 
 -- Sec 9.3.2 Mapping of the Types that Appear Within Submessages...
-def SequenceNumber = {
-  @high = ULong;
-  @low = ULong;
-  ^(high # low);
-}
+def SequenceNumber = Int64
 
 def SequenceNumberSet = {
   bitmapBase = SequenceNumber;
   numBits = ULong;
   Many ((numBits + 31)/32 - 1 as uint 64) ULong;
 }
+
+def GroupDigest = Many 4 Octet
 
 -- Sec 9.4.2.11 ParameterList:
 
@@ -411,19 +444,19 @@ def ParameterIdValues pid = Choose1 {
   partitionVal = PartitionQosPolicy;
   timeBasedFilterVal = TimeBasedFilterQosPolicy;
   transportPriorityVal = TransportPriorityQosPolicy;
-  domainIdVal = DomainIdT;
+  domainIdVal = DomainId;
   domainTagVal = String256;
   protocolVersionVal = ProtocolVersion;
   vendorIdVal = VendorId;
-  unicastLocator = LocatorT;
-  multicastLocator = LocatorT;
-  defaultUnicastLocator = LocatorT;
-  multicastLocator = LocatorT;
-  metatrafficUnicastLocator = LocatorT;
-  metatrafficMulticastLocator = LocatorT;
+  unicastLocator = Locator;
+  multicastLocator = Locator;
+  defaultUnicastLocator = Locator;
+  multicastLocator = Locator;
+  metatrafficUnicastLocator = Locator;
+  metatrafficMulticastLocator = Locator;
   expectsInlineQos = Boolean;
   participantManualLivelinessCountVal = Count;
-  participantLeaseDurationVal = DurationT;
+  participantLeaseDurationVal = Duration;
   contentFilterPropertyVal = ContentFilterProperty;
   participantGUIDVal = GUIDT;
   groupGUIDVal = GUIDT;
@@ -502,17 +535,17 @@ def TimeBasedFilterQosPolicy = Many Octet
 def TransportPriorityQosPolicy = Many Octet
 
 -- relaxed definition. Refine as needed.
-def DomainIdT = Many Octet
+def DomainId = ULong
 
-def LocatorT = {
-  kind = ULong;
+def Locator = {
+  kind = Long;
   port = ULong;
   address = Many 16 Octet;
 }
 
 def LocatorList = {
   numLocators = ULong;
-  Many (numLocators as uint 64) LocatorT;
+  Many (numLocators as uint 64) Locator;
 }
 
 def LocatorUDPv4 = {
@@ -520,10 +553,12 @@ def LocatorUDPv4 = {
   port = ULong;
 }
 
-def Count = ULong
+def Count = Long
 
--- relaxed definition. Refine as needed.
-def DurationT = Many Octet
+def Duration = {
+  seconds = Long;
+  fraction = ULong;
+}
 
 def ContentFilterProperty = {
   contentFilteredTopicName = String256;
