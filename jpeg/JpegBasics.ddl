@@ -13,6 +13,10 @@ def SomeMarker (front : uint 4) =
 
 def BE16 = UInt8 # UInt8
 
+def NonZero P =
+  block
+    $$ = P;
+    $$ > 0 is true;
 
 def Payload P =
   block
@@ -27,8 +31,8 @@ def Payload P =
 
 
 -- Start / End image
-def SOI = Marker 0xD8
-def EOI = Marker 0xD9
+def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
+def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
 
 -- Comment
 def COM =
@@ -109,6 +113,7 @@ def SOSComponent =
 def DHT =
   block
     Marker 0xC4
+    commit
     Payload (Many HT)
 
 -- Huffman table
@@ -119,7 +124,6 @@ def HT =
     type        = (info >> 4) as! uint 4    -- 0 = DC, 1 = AC
     let symNums = Many 16 UInt8
     table       = map (n in symNums) (Many (n as uint 64) UInt8)
-  <| Fail "Malformed Huffman table"
 
 -- Define quantization tables
 def DQT =
@@ -144,6 +148,10 @@ def DRI =
     Marker 0xDD
     Payload BE16
 
+def SomeRST =
+  block
+    $$ = SomeMarker 0xD
+    ($$ < 8) is true
 
 def EntropyEncodedEntry =
   Choose1
@@ -155,14 +163,17 @@ def EntropyEncodedByte =
     block $$ = UInt8 0xFF; UInt8 0x00
     UInt8 (!0xFF)
 
+
+
 def Segment =
   Choose1
-    comment = COM
-    dri     = DRI
-    sof     = SomeSOF
-    sos     = SOS
-    app     = SomeAPP
-    dqt     = DQT
-    dht     = DHT
+    comment = COM;
+    dri     = DRI;
+    sof     = SomeSOF;
+    sos     = SOS;
+    app     = SomeAPP;
+    dqt     = DQT;
+    dht     = DHT;
+    rst     = SomeRST;
 
-
+def SomeJpeg = block SOI; $$ = Many Segment; EOI

@@ -176,7 +176,6 @@ symExecOp1 :: Op1 -> Type -> SExpr -> SExpr
 symExecOp1 op ty =
   case op of
     CoerceTo tyTo    -> symExecCoerce ty tyTo
-    CoerceMaybeTo {} -> unimplemented
     IsEmptyStream    -> unimplemented
     Head             -> unimplemented
     StreamOffset     -> unimplemented

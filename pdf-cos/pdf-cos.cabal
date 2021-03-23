@@ -19,7 +19,7 @@ extra-source-files:
   spec/PdfValue.ddl,
   spec/PdfXRef.ddl,
   spec/PdfCrypto.ddl,
-  spec/Jpeg.ddl
+  spec/JpegBasics.ddl
 
 custom-setup
   setup-depends: base, containers, daedalus, filepath, Cabal
@@ -46,7 +46,7 @@ library
     PdfParserNotSpecialized,
 
     Stdlib,
-    Jpeg,
+    JpegBasics,
     PdfParser,
     PdfValue,
     PdfDecl,
@@ -55,7 +55,7 @@ library
 
   autogen-modules:
     Stdlib,
-    Jpeg,
+    JpegBasics,
     PdfParser,
     PdfValue,
     PdfDecl,
