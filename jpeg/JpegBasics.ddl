@@ -154,7 +154,7 @@ def SomeRST =
 
 def EntropyEncodedEntry =
   Choose1
-    segment = Segment
+    restart = SomeRST
     bytes   = Many (1..) EntropyEncodedByte
 
 def EntropyEncodedByte =
@@ -175,4 +175,56 @@ def Segment =
     dht     = DHT;
     rst     = SomeRST;
 
-def SomeJpeg = block SOI; $$ = Many Segment; EOI
+def CheckSegments = block
+  let start = UInt8
+  (start == 0xFF is true) <|
+        Fail (concat [ "Invalid byte ", showByte start, " expected 0xFF" ])
+  let tag = UInt8
+  case tag of
+    0xFE -> block -- COM
+      Payload (Many UInt8)
+      CheckSegments
+
+    0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+      0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF -> block
+        SOFPayload
+        CheckSegments
+
+    0xC4 -> block -- DHT
+      Payload (Many HT)
+      CheckSegments
+
+
+    0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0xD6,0xD7 -> -- RST
+      CheckSegments
+
+    0xD9 -> {} -- EOI
+
+    0xDA -> block -- SOS
+      Payload SOSHeader
+      Many EntropyEncodedEntry
+      CheckSegments
+
+    0xDB -> block
+      Payload (Many QT)
+      CheckSegments       -- DQT
+
+    0xDD -> block -- DRI
+      Payload BE16
+      CheckSegments
+
+    0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7,  -- APP
+      0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF -> block
+        Payload (Many UInt8)
+        CheckSegments
+
+
+    _ -> Fail (concat [ "Unknown marker: ", showByte tag ])
+
+
+def showByte (x : uint 8) =
+  [ '0', 'x', showHexDigit (x >> 4), showHexDigit (x .&. 0x0F) ]
+
+def showHexDigit (x : uint 8) = if x < 10 then '0' + x else 'a' + x - 10
+
+def SomeJpeg = block SOI; CheckSegments -- $$ = Many Segment; EOI
