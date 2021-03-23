@@ -1,0 +1,28 @@
+module D019
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+D019.A : Grammar {} =
+  Choose biased
+    { @MatchBytes "b"
+    | Fail "Its not b"
+    }
+ 
+D019.Main : Grammar {} =
+  do @MatchBytes "a"
+     ($$ : {}) <- D019.A
+     pure $$
+ 
+D019._A : Grammar {} =
+  Choose biased
+    { @MatchBytes "b"
+    | Fail "Its not b"
+    }
+ 
+D019._Main : Grammar {} =
+  do @MatchBytes "a"
+     D019._A

@@ -336,11 +336,9 @@ runnerBias s aut =
                     newCfg = Cfg inp ctrl out q2
                 in
                    react newCfg updResumption result
-              BAct (FailAction Nothing) ->
+              BAct (FailAction _) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
-              BAct (FailAction _) ->
-                error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
@@ -473,11 +471,9 @@ runnerLL s aut laut flagMetrics =
                     newCfg = Cfg inp ctrl out q2
                 in
                    react newCfg Nothing newResumption result
-              BAct (FailAction Nothing) ->
+              BAct (FailAction _) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
-              BAct (FailAction _) ->
-                error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
