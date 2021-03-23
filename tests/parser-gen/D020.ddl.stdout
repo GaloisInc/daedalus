@@ -1,0 +1,24 @@
+module D020
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+D020.A (x : uint 8) : Grammar {} =
+  @Match {x}
+ 
+D020._A (x : uint 8) : Grammar {} =
+  @Match {x}
+ 
+D020.Main : Grammar {} =
+  do D020._A 97
+     D020._A 98
+     ($$ : {}) <- END
+     pure $$
+ 
+D020._Main : Grammar {} =
+  do D020._A 97
+     D020._A 98
+     END

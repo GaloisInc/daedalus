@@ -901,7 +901,7 @@ slkExecClass gbl expr ctrl out =
           R.Result $ ByteCondition [ ClassBtw (CValue 0) (CValue 255) ]
         TCSetSingle e1 ->
           case symbolicEval e1 ctrl out of
-            Wildcard -> -- trace "HEHE SetSingle" $
+            Wildcard ->
               R.Abort R.AbortSlkCfgClassIsDynamic
             SConcrete b ->
               case b of
