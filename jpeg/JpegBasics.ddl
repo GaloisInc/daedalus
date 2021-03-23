@@ -113,7 +113,6 @@ def SOSComponent =
 def DHT =
   block
     Marker 0xC4
-    commit
     Payload (Many HT)
 
 -- Huffman table
