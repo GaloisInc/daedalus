@@ -28,6 +28,7 @@ def Message PayloadData = {
 -- DBG:
 --  submessages = Many (Submessage PayloadData);
   subm0 = Submessage PayloadData;
+--  subm0 = Submessage;
   END
 }
 
@@ -54,17 +55,23 @@ def ProtocolRTPS = Match "RTPS"
 
 def GuidPrefix = Many 12 Octet
 
+-- DBG:
 def Submessage PayloadData = {
+-- def Submessage = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
       $$ = Chunk
         (subHeader.submessageLength as uint 64)
+-- DBG:        
         (SubmessageElement PayloadData subHeader.flags);
+--        (SubmessageElement subHeader.flags);
       (Many Octet); -- TODO: this is maybe too sloppy
     };
     { Guard (subHeader.submessageLength == 0);
+      -- DBG:
       $$ = SubmessageElement PayloadData subHeader.flags;
+--      $$ = SubmessageElement subHeader.flags;
       Many Octet; -- TODO: this is maybe too sloppy
     };
   }
@@ -164,14 +171,16 @@ def SubmessageFlags (subId: SubmessageId) = {
 }
 
 def QosParams f = Choose1 {
-  hasQos = {
-    Guard f;
+  { Guard f;
     ParameterList;
   };
-  noQos = Guard (!f);
+  { Guard (!f);
+    ^[]
+  }
 }
 
 def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
+-- def SubmessageElement (flags: SubmessageFlags) = Choose1 {
   ackNackElt = {
     @ackNackFlags = flags.subFlags is ackNackFlags;
     readerId = EntityId;
@@ -192,16 +201,16 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
       Guard (writerSN > 0);
     };
 
-
+-- DBG:
     inlineQos = QosParams dFlags.inlineQosFlag;
-    -- serializedPayload = Choose1 {
-    --   hasData = {
-    --     Guard dFlags.dataFlag;
-    --     SerializedPayload PayloadData inlineQos;
-    --   };
-    --   hasKey = Guard dFlags.keyFlag;
-    --   noPayload = Guard (!(dFlags.dataFlag || dFlags.keyFlag));
-    -- };
+    serializedPayload = Choose1 {
+      hasData = {
+        Guard dFlags.dataFlag;
+        SerializedPayload PayloadData inlineQos;
+      };
+      hasKey = Guard dFlags.keyFlag;
+      noPayload = Guard (!(dFlags.dataFlag || dFlags.keyFlag));
+    };
   };
   dataFragElt = {
     @fragFlags = flags.subFlags is dataFragFlags;
@@ -231,6 +240,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     inlineQos = QosParams fragFlags.inlineQosFlag;
 
+    -- DBG:
     serializedPayload = Choose1 {
       hasData = {
         Guard (!(fragFlags.keyFlag));
@@ -393,64 +403,67 @@ def GroupDigest = Many 4 Octet
 -- Sec 9.4.2.11 ParameterList:
 
 -- Sec 9.6.2.2.2 ParameterID values: Table 9.13:
-def ParameterIdT = Choose1 {
-    pidPad = @Match [0x00, 0x00];
-    pidSentinel = @Match [0x00, 0x01];
-    pidUserData = @Match [0x00, 0x2c]; 
-    pidTopicName = @Match [0x00, 0x05];
-    pidTypeName = @Match [0x00, 0x07];
-    pidGroupData = @Match [0x00, 0x2d];
-    pidTopicData = @Match [0x00, 0x2e];
-    pidDurability = @Match [0x00, 0x1d];
-    pidDurabilityService = @Match [0x00, 0x1e];
-    pidDeadline = @Match [0x00, 0x23];
-    pidLatencyBudget = @Match [0x00, 0x27];
-    pidLiveliness = @Match [0x00, 0x1b];
-    pidReliability = @Match [0x00, 0x1a];
-    pidLifespan = @Match [0x00, 0x2b];
-    pidDestinationOrder = @Match [0x00, 0x25];
-    pidHistory = @Match [0x00, 0x40];
-    pidResourceLimits = @Match [0x00, 0x41];
-    pidOwnership = @Match [0x00, 0x1f];
-    pidOwnershipStrength = @Match [0x00, 0x06];
-    pidPresentation = @Match [0x00, 0x21];
-    pidPartition = @Match [0x00, 0x29];
-    pidTimeBasedFilter = @Match [0x00, 0x04];
-    pidTransportPriority = @Match [0x00, 0x49];
-    pidDomainId = @Match [0x00, 0x0f];
-    pidDomainTag = @Match [0x40, 0x14];
-    pidProtocolVersion = @Match [0x00, 0x15];
-    pidVendorId = @Match [0x00, 0x16];
-    pidUnicastLocator = @Match [0x00, 0x2f];
-    pidMulticastLocator = @Match [0x00, 0x30];
-    pidDefaultUnicastLocator = @Match [0x00, 0x31];
-    pidDefaultMulticastLocator = @Match [0x00, 0x48];
-    pidMetatrafficUnicastLocator = @Match [0x00, 0x32];
-    pidMetatrafficMulticastLocator = @Match [0x00, 0x33];
-    pidExpectsInlineQos = @Match [0x00, 0x43];
-    pidParticipantManualLivelinessCount = @Match [0x00, 0x34];
-    pidParticipantLeaseDuration = @Match [0x00, 0x02];
-    pidContentFilterProperty = @Match [0x00, 0x35];
-    pidParticipantGuid = @Match [0x00, 0x50];
-    pidGroupGuid = @Match [0x00, 0x52];
-    pidBuiltinEndpointSet = @Match [0x00, 0x58];
-    pidBuiltinEndpointQos = @Match [0x00, 0x77];
-    pidPropertyList = @Match [0x00, 0x59];
-    pidTypeMaxSizeSerialized = @Match [0x00, 0x60];
-    pidEntityName = @Match [0x00, 0x62];
-    pidEndpointGuid = @Match [0x00, 0x5a];
+def ParameterIdT = {
+  @p = Short;
+  Choose1 {
+    pidPad = Guard (p == 0x0000);
+    pidSentinel = Guard (p == 0x0001);
+    pidUserData = Guard (p == 0x002c);
+    pidTopicName = Guard (p == 0x0005);
+    pidTypeName = Guard (p == 0x0007);
+    pidGroupData = Guard (p == 0x002d);
+    pidTopicData = Guard (p == 0x002e);
+    pidDurability = Guard (p == 0x001d);
+    pidDurabilityService = Guard (p == 0x001e);
+    pidDeadline = Guard (p == 0x0023);
+    pidLatencyBudget = Guard (p == 0x0027);
+    pidLiveliness = Guard (p == 0x001b);
+    pidReliability = Guard (p == 0x001a);
+    pidLifespan = Guard (p == 0x002b);
+    pidDestinationOrder = Guard (p == 0x0025);
+    pidHistory = Guard (p == 0x0040);
+    pidResourceLimits = Guard (p == 0x0041);
+    pidOwnership = Guard (p == 0x001f);
+    pidOwnershipStrength = Guard (p == 0x0006);
+    pidPresentation = Guard (p == 0x0021);
+    pidPartition = Guard (p == 0x0029);
+    pidTimeBasedFilter = Guard (p == 0x0004);
+    pidTransportPriority = Guard (p == 0x0049);
+    pidDomainId = Guard (p == 0x000f);
+    pidDomainTag = Guard (p == 0x4014);
+    pidProtocolVersion = Guard (p == 0x0015);
+    pidVendorId = Guard (p == 0x0016);
+    pidUnicastLocator = Guard (p == 0x002f);
+    pidMulticastLocator = Guard (p == 0x0030);
+    pidDefaultUnicastLocator = Guard (p == 0x0031);
+    pidDefaultMulticastLocator = Guard (p == 0x0048);
+    pidMetatrafficUnicastLocator = Guard (p == 0x0032);
+    pidMetatrafficMulticastLocator = Guard (p == 0x0033);
+    pidExpectsInlineQos = Guard (p == 0x0043);
+    pidParticipantManualLivelinessCount = Guard (p == 0x0034);
+    pidParticipantLeaseDuration = Guard (p == 0x0002);
+    pidContentFilterProperty = Guard (p == 0x0035);
+    pidParticipantGuid = Guard (p == 0x0050);
+    pidGroupGuid = Guard (p == 0x0052);
+    pidBuiltinEndpointSet = Guard (p == 0x0058);
+    pidBuiltinEndpointQos = Guard (p == 0x0077);
+    pidPropertyList = Guard (p == 0x0059);
+    pidTypeMaxSizeSerialized = Guard (p == 0x0060);
+    pidEntityName = Guard (p == 0x0062);
+    pidEndpointGuid = Guard (p == 0x005a);
 
     -- Table 9.15:
-    pidContentFilterInfo = @Match [0x00, 0x55];
-    pidCoherentSet = @Match [0x00, 0x56];
-    pidDirectedWrite = @Match [0x00, 0x57];
-    pidOriginalWriterInfo = @Match[0x00, 0x61];
-    pidGroupCoherentSet = @Match[0x00, 0x63];
-    pidGroupSeqNum = @Match[0x00, 0x64];
-    pidWriterGroupInfo = @Match[0x00, 0x65];
-    pidSecureWriterGroupInfo = @Match[0x00, 0x66];
-    pidKeyHash = @Match[0x00, 0x70];
-    pidStatusInfo = @Match[0x00, 0x71];
+    pidContentFilterInfo = Guard (p == 0x0055);
+    pidCoherentSet = Guard (p == 0x0056);
+    pidDirectedWrite = Guard (p == 0x0057);
+    pidOriginalWriterInfo = Guard (p == 0x0061);
+    pidGroupCoherentSet = Guard (p == 0x0063);
+    pidGroupSeqNum = @Guard (p == 0x0064);
+    pidWriterGroupInfo = Guard (p == 0x0065);
+    pidSecureWriterGroupInfo = Guard (p == 0x0066);
+    pidKeyHash = Guard (p == 0x0070);
+    pidStatusInfo = Guard (p == 0x0071);
+  }
 }
 
 -- Table 9.13:
@@ -633,7 +646,6 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
     GUIDT;
   };
 
-  -- TODO: define stubs for Info
   contentFilterInfoVal = {
     pid is pidContentFilterInfo;
     ContentFilterInfo;
@@ -828,7 +840,9 @@ def Parameter = {
   len = UShort;
   Guard (len % 4 == 0);
 
+-- DBG:
   val = Chunk (len as uint 64) (ParameterIdValues parameterId);
+--  val = Many (len as uint 64) Octet;
 }
 
 def Sentinel = {

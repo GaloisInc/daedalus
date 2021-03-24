@@ -7,9 +7,7 @@ import FileData
 import DisplayInfo
 
 -- AppParser: parse application payloads
-def AppParser (maybeQos: QosParams) = Choose1 {
-  appQos = {
-    qos = maybeQos is hasQos; 
+def AppParser (qos: [Parameter]) = {
     -- get the type name from the parameter list
     @tyNameMaybe = for (tyNmMaybe = nothing; p in qos) (
       Choose1 {
@@ -41,9 +39,9 @@ def AppParser (maybeQos: QosParams) = Choose1 {
       };
       noTyName = tyNameMaybe is nothing;
     };
-  };
-  appNoQos = maybeQos is noQos;
 }
 
 -- entry point: 
+-- DBG:
 def Main = Message AppParser
+-- def Main = Message 
