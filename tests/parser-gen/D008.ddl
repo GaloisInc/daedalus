@@ -1,4 +1,4 @@
--- Testing stream operations
+-- Testing fixed length stream operations
 
 
 def Chunk P =  {
@@ -10,7 +10,7 @@ def Chunk P =  {
   SetStream next;
 }
 
-def PadWSpaces P = 
+def PadWSpaces P =
   Chunk {$$ = P; Many (Match1 ' '); END}
 
 def Main =
