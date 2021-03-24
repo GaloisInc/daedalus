@@ -60,10 +60,9 @@ def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
-      $$ = Chunk
+      Chunk
         (subHeader.submessageLength as uint 64)
         (SubmessageElement PayloadData subHeader.flags);
-      (Many Octet); -- TODO: this is maybe too sloppy
     };
     { Guard (subHeader.submessageLength == 0);
       $$ = SubmessageElement PayloadData subHeader.flags;
@@ -386,8 +385,10 @@ def SequenceNumber = {
 
 def SequenceNumberSet = {
   bitmapBase = SequenceNumber;
+  Guard (bitmapBase >= 1);
+  
   numBits = ULong;
-  Many ((numBits + 31)/32 - 1 as uint 64) ULong;
+  Many ((numBits + 31)/32 as uint 64) ULong;
 }
 
 def GroupDigest = Many 4 Octet
@@ -827,6 +828,7 @@ def EntityName = String
 
 def Parameter = {
   parameterId = ParameterIdT;
+  -- TODO: clean this up
   Guard (parameterId != {| pidSentinel = {} |});
 
   len = UShort;
@@ -878,5 +880,5 @@ def FragmentNumber = ULong
 def FragmentNumberSet = {
   bitmapBase = FragmentNumber;
   numBits = ULong;
-  bitmap = Many ((numBits + 31)/32 - 1 as uint 64) Long;
+  bitmap = Many ((numBits + 31)/32 as uint 64) Long;
 }
