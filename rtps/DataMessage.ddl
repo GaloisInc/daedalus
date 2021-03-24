@@ -26,8 +26,8 @@ def Message PayloadData = {
 -- def Message = {
   header = Header;
 -- DBG:
---  submessages = Many (Submessage PayloadData);
-  subm0 = Submessage PayloadData;
+  submessages = Many (Submessage PayloadData);
+--  subm0 = Submessage PayloadData;
 --  subm0 = Submessage;
   END
 }
@@ -57,21 +57,16 @@ def GuidPrefix = Many 12 Octet
 
 -- DBG:
 def Submessage PayloadData = {
--- def Submessage = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
       $$ = Chunk
         (subHeader.submessageLength as uint 64)
--- DBG:        
         (SubmessageElement PayloadData subHeader.flags);
---        (SubmessageElement subHeader.flags);
       (Many Octet); -- TODO: this is maybe too sloppy
     };
     { Guard (subHeader.submessageLength == 0);
-      -- DBG:
       $$ = SubmessageElement PayloadData subHeader.flags;
---      $$ = SubmessageElement subHeader.flags;
       Many Octet; -- TODO: this is maybe too sloppy
     };
   }
@@ -180,7 +175,6 @@ def QosParams f = Choose1 {
 }
 
 def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
--- def SubmessageElement (flags: SubmessageFlags) = Choose1 {
   ackNackElt = {
     @ackNackFlags = flags.subFlags is ackNackFlags;
     readerId = EntityId;
@@ -201,7 +195,6 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
       Guard (writerSN > 0);
     };
 
--- DBG:
     inlineQos = QosParams dFlags.inlineQosFlag;
     serializedPayload = Choose1 {
       hasData = {
@@ -240,7 +233,6 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
 
     inlineQos = QosParams fragFlags.inlineQosFlag;
 
-    -- DBG:
     serializedPayload = Choose1 {
       hasData = {
         Guard (!(fragFlags.keyFlag));
@@ -840,9 +832,7 @@ def Parameter = {
   len = UShort;
   Guard (len % 4 == 0);
 
--- DBG:
   val = Chunk (len as uint 64) (ParameterIdValues parameterId);
---  val = Many (len as uint 64) Octet;
 }
 
 def Sentinel = {
@@ -864,7 +854,6 @@ def SerializedPayload PayloadData qos = {
 
 def SerializedPayloadHeader = {
   representationIdentifier = Choose1 {
-    -- Table 10.3:
     userDefinedTopicData = Choose1 {
       cdrBe = @Match [0x00, 0x00];
       cdrLe = @Match [0x00, 0x01];

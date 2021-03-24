@@ -42,6 +42,4 @@ def AppParser (qos: [Parameter]) = {
 }
 
 -- entry point: 
--- DBG:
 def Main = Message AppParser
--- def Main = Message 
