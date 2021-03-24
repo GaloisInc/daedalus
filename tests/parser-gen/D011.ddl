@@ -1,4 +1,4 @@
--- test Many with known bound
+-- test Many with constant bound
 
 def numBase (base : int) (ds : [ int ]) =
   for (val = 0; d in ds)
@@ -14,10 +14,10 @@ def UnsignedNum digs = {
 }
 
 
-def FL = Choose1 { 
-  unknown_length = Many 12 (Match1 '9');  
+def FL = Choose1 {
+  unknown_length = Many 12 (Match1 '9');
   -- TODO put interval bounds here:
-  file_length = UnsignedNum 12 ; 
+  file_length = UnsignedNum 12 ;
 }
 
 
