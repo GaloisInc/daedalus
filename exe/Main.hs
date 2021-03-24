@@ -1,4 +1,5 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, BlockArguments #-}
+{-# Language ImplicitParams #-}
 module Main where
 
 import qualified Data.Text as Text
@@ -10,6 +11,7 @@ import Control.Monad(when,forM_)
 import Data.Maybe(fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
@@ -134,7 +136,7 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp (optShowJS opts) inp prog mainRule)
+                  ddlIO (interpInterp opts inp prog mainRule)
 
              UseCore -> interpCore opts mm inp
 
@@ -174,11 +176,14 @@ handleOptions opts
 
 
 interpInterp ::
-  Bool -> Maybe FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) ->
+  Options -> Maybe FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) ->
     IO ()
-interpInterp useJS inp prog (m,i) =
+interpInterp opts inp prog (m,i) =
   do (_,res) <- interpFile inp prog (ModScope m i)
-     dumpResult (dumpInterpVal useJS) (dumpErr useJS) res
+     let ?useJS = optShowJS opts
+     let txt1   = dumpResult dumpInterpVal res
+         txt2   = if optShowHTML opts then dumpHTML txt1 else txt1
+     print txt2
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
@@ -188,9 +193,10 @@ interpCore opts mm inpMb =
   do ents <- doToCore opts mm
      env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
-     let showVal = dumpCoreVal (optShowJS opts)
-         showErr = dumpErr (optShowJS opts)
-     ddlIO $ forM_ ents \ent -> dumpResult showVal showErr (Core.runEntry env ent inp)
+     let ?useJS = optShowJS opts
+     -- XXX: html, etc
+     ddlIO $ forM_ ents \ent ->
+                  print (dumpResult dumpCoreVal (Core.runEntry env ent inp))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -210,8 +216,6 @@ doToVM opts mm =
      m <- ddlGetAST specMod astVM
      let addMM = VM.addCopyIs . VM.doBorrowAnalysis
      pure $ addMM $ VM.moduleToProgram ents [m]
-
-
 
 
 parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]
@@ -262,7 +266,8 @@ generateCPP opts mm =
 
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
 interpPGen useJS inp moduls flagMetrics =
-  do let aut = PGen.buildArrayAut moduls
+  do let ?useJS = useJS
+     let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
      do
@@ -282,7 +287,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then dumpValues (dumpInterpVal useJS) resultValues
+                      then print $ dumpValues dumpInterpVal resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -329,47 +334,74 @@ inputHack opts =
 
 
 
-dumpResult :: (a -> Doc) -> (ParseError -> IO ()) -> RTS.Result a -> IO ()
-dumpResult ppVal ppErr r =
+dumpResult :: (?useJS :: Bool) => (a -> Doc) -> RTS.Result a -> Doc
+dumpResult ppVal r =
   case r of
-   RTS.NoResults err -> ppErr err
+   RTS.NoResults err -> dumpErr err
    RTS.Results as -> dumpValues ppVal (toList as)
 
-dumpValues :: (a -> Doc) -> [a] -> IO ()
-dumpValues ppVal as =
-  do putStrLn $ "--- Found " ++ show (length as) ++ " results:"
-     print $ vcat' $ map ppVal as
-
-
-dumpInterpVal :: Bool -> Value -> Doc
-dumpInterpVal useJS = if useJS then valueToJS else pp
-
-dumpCoreVal :: Bool -> Core.Value -> Doc
-dumpCoreVal useJS = if useJS then pp else pp -- XXX: JS
-
-dumpErr :: Bool -> ParseError -> IO ()
-dumpErr useJS err
-  | useJS = print (RTS.errorToJS err)
+dumpValues :: (?useJS :: Bool) => (a -> Doc) -> [a] -> Doc
+dumpValues ppVal as
+  | ?useJS = brackets (vcat $ punctuate comma $ map ppVal as)
   | otherwise =
-  do putStrLn "--- Parse error: "
-     print (RTS.ppParseError err)
-     let ctxtAmt = 32
-         bs      = RTS.inputTopBytes (RTS.peInput err)
-         errLoc  = RTS.peOffset err
-         start = max 0 (errLoc - ctxtAmt)
-         end   = errLoc + 10
-         len   = end - start
-         ctx = BS.take len (BS.drop start bs)
-         startErr =
-            setSGRCode [ SetConsoleIntensity
-                         BoldIntensity
-                       , SetColor Foreground Vivid Red ]
-         endErr = setSGRCode [ Reset ]
-         cfg = defaultCfg { startByte = start
-                          , transformByte =
-                             wrapRange startErr endErr
-                             errLoc errLoc }
-     putStrLn "File context:"
-     putStrLn $ prettyHexCfg cfg ctx
+    vcat [ "--- Found" <+> int (length as) <+> "results:"
+         , vcat' (map ppVal as)
+         ]
+dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
+dumpInterpVal = if ?useJS then valueToJS else pp
+
+dumpCoreVal :: (?useJS :: Bool) => Core.Value -> Doc
+dumpCoreVal = if ?useJS then pp else pp -- XXX: JS
+
+dumpErr :: (?useJS :: Bool) => ParseError -> Doc
+dumpErr err
+  | ?useJS = RTS.errorToJS err
+  | otherwise =
+    vcat
+      [ "--- Parse error: "
+      , text (show (RTS.ppParseError err))
+      , "File context:"
+      , text (prettyHexCfg cfg ctx)
+      ]
+  where
+  ctxtAmt = 32
+  bs      = RTS.inputTopBytes (RTS.peInput err)
+  errLoc  = RTS.peOffset err
+  start = max 0 (errLoc - ctxtAmt)
+  end   = errLoc + 10
+  len   = end - start
+  ctx = BS.take len (BS.drop start bs)
+  startErr =
+     setSGRCode [ SetConsoleIntensity
+                  BoldIntensity
+                , SetColor Foreground Vivid Red ]
+  endErr = setSGRCode [ Reset ]
+  cfg = defaultCfg { startByte = start
+                   , transformByte =
+                      wrapRange startErr endErr
+                                errLoc errLoc }
+
+
+dumpHTML :: Doc -> Doc
+dumpHTML jsData = vcat
+  [ "<html>"
+  , "<head>"
+  , "<style>"
+  , bytes tstyle
+  , "</style>"
+  , "<script>"
+  , "const inf = 'inf'"
+  , "const data =" <+> jsData
+  , bytes trender
+  , "</script>"
+  , "</head>"
+  , "<body id='container' onload=\"main()\">"
+  , "</body>"
+  , "</html>"
+  ]
+  where
+  Just tstyle  = lookup "style.css" template_files
+  Just trender = lookup "render.js" template_files
+  bytes = text . BS8.unpack
 
 

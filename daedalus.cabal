@@ -15,6 +15,8 @@ extra-source-files:
   exe/driver-template/Makefile
   exe/driver-template/Doxyfile
   exe/driver-template/main.cpp
+  exe/driver-template/render.js
+  exe/driver-template/style.css
   rts-c/ddl/*.h
 
 library
