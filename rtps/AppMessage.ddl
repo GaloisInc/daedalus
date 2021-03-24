@@ -9,11 +9,11 @@ import DisplayInfo
 -- AppParser: parse application payloads
 def AppParser (maybeQos: QosParams) = Choose1 {
   appQos = {
-    qos = maybeQos is hasQos; -- TODO: weaken this
+    qos = maybeQos is hasQos; 
     -- get the type name from the parameter list
     @tyNameMaybe = for (tyNmMaybe = nothing; p in qos) (
       Choose1 {
-        { @nm = p is typeNameVal;
+        { @nm = p.val is typeNameVal;
           ^just nm;
         };
         ^tyNmMaybe;

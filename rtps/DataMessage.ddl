@@ -26,9 +26,8 @@ def Message PayloadData = {
 -- def Message = {
   header = Header;
 -- DBG:
-  submessages = Many (Submessage PayloadData);
---  submessages = Many Submessage;
---  subm0 = Submessage PayloadData;
+--  submessages = Many (Submessage PayloadData);
+  subm0 = Submessage PayloadData;
   END
 }
 
@@ -55,17 +54,14 @@ def ProtocolRTPS = Match "RTPS"
 
 def GuidPrefix = Many 12 Octet
 
--- DBG:
 def Submessage PayloadData = {
--- def Submessage = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
       $$ = Chunk
         (subHeader.submessageLength as uint 64)
--- DBG:
         (SubmessageElement PayloadData subHeader.flags);
-      (Many Octet);
+      (Many Octet); -- TODO: this is maybe too sloppy
     };
     { Guard (subHeader.submessageLength == 0);
       $$ = SubmessageElement PayloadData subHeader.flags;
@@ -188,23 +184,24 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     Match [0x00, 0x00]; -- extra flags for future compatibility
     octetsToInlineQos = UShort; 
 
-    Chunk (octetsToInlineQos as uint 64) {
+    rdWrs = Chunk (octetsToInlineQos as uint 64)
+    {
       readerId = EntityId;
       writerId = EntityId;
+      writerSN = SequenceNumber;
+      Guard (writerSN > 0);
     };
 
-    writerSN = SequenceNumber;
-    Guard (writerSN > 0);
 
     inlineQos = QosParams dFlags.inlineQosFlag;
-    serializedPayload = Choose1 {
-      hasData = {
-        Guard dFlags.dataFlag;
-        SerializedPayload PayloadData inlineQos;
-      };
-      hasKey = Guard dFlags.keyFlag;
-      noPayload = Guard (!(dFlags.dataFlag || dFlags.keyFlag));
-    };
+    -- serializedPayload = Choose1 {
+    --   hasData = {
+    --     Guard dFlags.dataFlag;
+    --     SerializedPayload PayloadData inlineQos;
+    --   };
+    --   hasKey = Guard dFlags.keyFlag;
+    --   noPayload = Guard (!(dFlags.dataFlag || dFlags.keyFlag));
+    -- };
   };
   dataFragElt = {
     @fragFlags = flags.subFlags is dataFragFlags;
@@ -375,8 +372,15 @@ def EntityId = {
   entityKind = Octet;
 }
 
+def HighBit32 = (1 : uint 32) << 31
+
 -- Sec 9.3.2 Mapping of the Types that Appear Within Submessages...
-def SequenceNumber = Int64
+def SequenceNumber = {
+  @high = ULong;
+  @low = ULong;
+  (high .&. ~HighBit32) # low -
+  (high .&. HighBit32 as uint 64) << 56 as int
+}
 
 def SequenceNumberSet = {
   bitmapBase = SequenceNumber;
@@ -416,7 +420,7 @@ def ParameterIdT = Choose1 {
     pidDomainId = @Match [0x00, 0x0f];
     pidDomainTag = @Match [0x40, 0x14];
     pidProtocolVersion = @Match [0x00, 0x15];
-    pidVendorid = @Match [0x00, 0x16];
+    pidVendorId = @Match [0x00, 0x16];
     pidUnicastLocator = @Match [0x00, 0x2f];
     pidMulticastLocator = @Match [0x00, 0x30];
     pidDefaultUnicastLocator = @Match [0x00, 0x31];
@@ -435,56 +439,264 @@ def ParameterIdT = Choose1 {
     pidTypeMaxSizeSerialized = @Match [0x00, 0x60];
     pidEntityName = @Match [0x00, 0x62];
     pidEndpointGuid = @Match [0x00, 0x5a];
+
+    -- Table 9.15:
+    pidContentFilterInfo = @Match [0x00, 0x55];
+    pidCoherentSet = @Match [0x00, 0x56];
+    pidDirectedWrite = @Match [0x00, 0x57];
+    pidOriginalWriterInfo = @Match[0x00, 0x61];
+    pidGroupCoherentSet = @Match[0x00, 0x63];
+    pidGroupSeqNum = @Match[0x00, 0x64];
+    pidWriterGroupInfo = @Match[0x00, 0x65];
+    pidSecureWriterGroupInfo = @Match[0x00, 0x66];
+    pidKeyHash = @Match[0x00, 0x70];
+    pidStatusInfo = @Match[0x00, 0x71];
 }
 
 -- Table 9.13:
-def ParameterIdValues pid = Choose1 {
-  padVal = Many Octet;
+def ParameterIdValues (pid: ParameterIdT) = Choose1 {
+  padVal = {
+    pid is pidPad;
+    Many Octet;
+  };
   -- sentinel: not allowed
-  userDataVal = UserDataQosPolicy;
-  topicNameVal = String256;
-  typeNameVal = String256;
-  groupDataVal = GroupDataQosPolicy;
-  topicDataVal = TopicDataQosPolicy;
-  durabilityVal = DurabilityQosPolicy;
-  durabilityServiceVal = DurabilityServiceQosPolicy;
-  deadlineVal = DeadlineQosPolicy;
-  latencyBudgetVal = LatencyBudgetQosPolicy;
-  livelinessVal = LivenessQosPolicy;
-  reliabilityVal = ReliabilityQosPolicy;
-  lifespanVal = LifespanQosPolicy;
-  destinationOrderVal = DestinationOrderQosPolicy;
-  historyVal = HistoryQosPolicy;
-  resourceLimitsVal = ResourceLimitsQosPolicy;
-  ownershipVal = OwnershipQosPolicy;
-  ownershipStrengthVal = OwnershipStrengthQosPolicy;
-  presentationVal = PresentationQosPolicy;
-  partitionVal = PartitionQosPolicy;
-  timeBasedFilterVal = TimeBasedFilterQosPolicy;
-  transportPriorityVal = TransportPriorityQosPolicy;
-  domainIdVal = DomainId;
-  domainTagVal = String256;
-  protocolVersionVal = ProtocolVersion;
-  vendorIdVal = VendorId;
-  unicastLocator = Locator;
-  multicastLocator = Locator;
-  defaultUnicastLocator = Locator;
-  multicastLocator = Locator;
-  metatrafficUnicastLocator = Locator;
-  metatrafficMulticastLocator = Locator;
-  expectsInlineQos = Boolean;
-  participantManualLivelinessCountVal = Count;
-  participantLeaseDurationVal = Duration;
-  contentFilterPropertyVal = ContentFilterProperty;
-  participantGUIDVal = GUIDT;
-  groupGUIDVal = GUIDT;
-  builtinEndpointSetVal = BuiltinEndpointSetT;
-  buildtinEndpointQosVal = BuiltinEndpointQosT;
-  propertyListVal = Many PropertyT;
-  typeMaxSizeSerializedVal = ULong;
-  entityNameVal = EntityName;
-  endpointGuidVal = GUIDT;
+  userDataVal = {
+    pid is pidUserData;
+    UserDataQosPolicy;
+  };
+  topicNameVal = {
+    pid is pidTopicName;
+    String256;
+  };
+  typeNameVal = {
+    pid is pidTypeName;
+    String256;
+  };
+  groupDataVal = {
+    pid is pidGroupData;
+    GroupDataQosPolicy;
+  };
+  topicDataVal = {
+    pid is pidTopicData;
+    TopicDataQosPolicy;
+  };
+  durabilityVal = {
+    pid is pidDurability;
+    DurabilityQosPolicy;
+  };
+  durabilityServiceVal = {
+    pid is pidDurabilityService;
+    DurabilityServiceQosPolicy;
+  };
+  deadlineVal = {
+    pid is pidDeadline;
+    DeadlineQosPolicy;
+  };
+  latencyBudgetVal = {
+    pid is pidLatencyBudget;
+    LatencyBudgetQosPolicy;
+  };
+  livelinessVal = {
+    pid is pidLiveliness;
+    LivenessQosPolicy;
+  };
+  reliabilityVal = {
+    pid is pidReliability;
+    ReliabilityQosPolicy;
+  };
+  lifespanVal = {
+    pid is pidLifespan;
+    LifespanQosPolicy;
+  };
+  destinationOrderVal = {
+    pid is pidDestinationOrder;
+    DestinationOrderQosPolicy;
+  };
+  historyVal = {
+    pid is pidHistory;
+    HistoryQosPolicy;
+  };
+  resourceLimitsVal = {
+    pid is pidResourceLimits;
+    ResourceLimitsQosPolicy;
+  };
+  ownershipVal = {
+    pid is pidOwnership;
+    OwnershipQosPolicy;
+  };
+  ownershipStrengthVal = {
+    pid is pidOwnershipStrength;
+    OwnershipStrengthQosPolicy;
+  };
+  presentationVal = {
+    pid is pidPresentation;
+    PresentationQosPolicy;
+  };
+  partitionVal = {
+    pid is pidPartition;
+    PartitionQosPolicy;
+  };
+  timeBasedFilterVal = {
+    pid is pidTimeBasedFilter;
+    TimeBasedFilterQosPolicy;
+  };
+  transportPriorityVal = {
+    pid is pidTransportPriority;
+    TransportPriorityQosPolicy;
+  };
+  domainIdVal = {
+    pid is pidDomainId;
+    DomainId;
+  };
+  domainTagVal = {
+    pid is pidDomainTag;
+    String256;
+  };
+  protocolVersionVal = {
+    pid is pidProtocolVersion;
+    ProtocolVersion;
+  };
+  vendorIdVal = {
+    pid is pidVendorId;
+    VendorId;
+  };
+  unicastLocatorVal = {
+    pid is pidUnicastLocator;
+    Locator;
+  };
+  multicastLocatorVal = {
+    pid is pidMulticastLocator;
+    Locator;
+  };
+  defaultUnicastLocatorVal = {
+    pid is pidDefaultUnicastLocator;
+    Locator;
+  };
+  multicastDefaultLocatorVal = {
+    pid is pidDefaultMulticastLocator;
+    Locator;
+  };
+  metatrafficUnicastLocatorVal = {
+    pid is pidMetatrafficUnicastLocator;
+    Locator;
+  };
+  metatrafficMulticastLocatorVal = {
+    pid is pidMetatrafficMulticastLocator;
+    Locator;
+  };
+  expectsInlineQos = {
+    pid is pidExpectsInlineQos;
+    Boolean;
+  };
+  participantManualLivelinessCountVal = {
+    pid is pidParticipantManualLivelinessCount;
+    Count;
+  };
+  participantLeaseDurationVal = {
+    pid is pidParticipantLeaseDuration;
+    Duration;
+  };
+  contentFilterPropertyVal = {
+    pid is pidContentFilterProperty;
+    ContentFilterProperty;
+  };
+  participantGUIDVal = {
+    pid is pidParticipantGuid;
+    GUIDT;
+  };
+  groupGUIDVal = {
+    pid is pidGroupGuid;
+    GUIDT;
+  };
+  builtinEndpointSetVal = {
+    pid is pidBuiltinEndpointSet;
+    BuiltinEndpointSetT;
+  };
+  buildtinEndpointQosVal = {
+    pid is pidBuiltinEndpointQos;
+    BuiltinEndpointQosT;
+  };
+  propertyListVal = {
+    pid is pidPropertyList;
+    Many PropertyT;
+  };
+  typeMaxSizeSerializedVal = {
+    pid is pidTypeMaxSizeSerialized;
+    ULong;
+  };
+  entityNameVal = {
+    pid is pidEntityName;
+    EntityName;
+  };
+  endpointGuidVal = {
+    pid is pidEndpointGuid;
+    GUIDT;
+  };
+
+  -- TODO: define stubs for Info
+  contentFilterInfoVal = {
+    pid is pidContentFilterInfo;
+    ContentFilterInfo;
+  };
+  coherentSetVal = {
+    pid is pidCoherentSet;
+    SequenceNumber;
+  };
+  directedWriteVal = {
+    pid is pidDirectedWrite;
+    GUIDT;
+  };
+  orignalWriterInfoVal = {
+    pid is pidOriginalWriterInfo;
+    OriginalWriterInfo;
+  };
+  groupCoherentSetVal = {
+    pid is pidGroupCoherentSet;
+    SequenceNumber;
+  };
+  groupSeqNumVal = {
+    pid is pidGroupSeqNum;
+    SequenceNumber;
+  };
+  writerGroupInfoVal = {
+    pid is pidWriterGroupInfo;
+    WriterGroupInfo;
+  };
+  secureWriterGroupInfoVal = {
+    pid is pidSecureWriterGroupInfo;
+    WriterGroupInfo;
+  };
+  keyHashVal = {
+    pid is pidKeyHash;
+    KeyHash;
+  };
+  statusInfoVal = {
+    pid is pidStatusInfo;
+    StatusInfo;
+  };
 }
+
+def ContentFilterInfo = {
+  numBitmaps = ULong;
+  bitmaps = Many (numBitmaps as uint 64) Long;
+  numSigs = ULong;
+  signatures = Many (numSigs as uint 64) FilterSignature;
+}
+
+def OriginalWriterInfo = {
+  originalWriterGUID = GUIDT;
+  originalWriterSN = SequenceNumber;
+}
+
+def WriterGroupInfo = {
+  writerSet = GroupDigest;
+}
+
+def FilterSignature = Many 4 Long
+
+def KeyHash = Many 16 Octet
+
+def StatusInfo = Many 4 Octet
 
 -- relaxed definition. Refine as needed.
 def UserDataQosPolicy = Many Octet
@@ -552,6 +764,8 @@ def TimeBasedFilterQosPolicy = Many Octet
 -- relaxed definition. Refine as needed.
 def TransportPriorityQosPolicy = Many Octet
 
+def ContentFilter = Many Octet
+
 -- relaxed definition. Refine as needed.
 def DomainId = ULong
 
@@ -608,13 +822,13 @@ def PropertyT = Many Octet
 def EntityName = String
 
 def Parameter = {
-  @parameterId = ParameterIdT;
+  parameterId = ParameterIdT;
   Guard (parameterId != {| pidSentinel = {} |});
 
-  @len = UShort;
+  len = UShort;
   Guard (len % 4 == 0);
 
-  Chunk (len as uint 64) (ParameterIdValues parameterId);
+  val = Chunk (len as uint 64) (ParameterIdValues parameterId);
 }
 
 def Sentinel = {
