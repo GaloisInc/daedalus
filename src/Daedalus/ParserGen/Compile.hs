@@ -6,7 +6,6 @@ module Daedalus.ParserGen.Compile where
 
 -- import Debug.Trace
 
-import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
@@ -116,22 +115,23 @@ convertManyBounds :: Show a => ManyBounds (TC a Value) -> ManyBounds (TC (a, PAS
 convertManyBounds b = fmap idVExpr b
 
 
-getByteArray :: Show a => TC a Value -> Maybe [Word8]
+getByteArray :: Show a => TC a Value -> Maybe [TC a Value]
 getByteArray e =
   case texprValue e of
-    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
+    TCLiteral (LBytes w) _ ->
+      Just
+      ( map
+        (\ c ->
+            TC $
+            TCAnnot
+            { tcAnnot = texprAnnot e
+            , tcAnnotExpr = TCLiteral (LByte c) tByte
+            }
+        )
+        (BS.unpack w)
+      )
     TCArray arr _ ->
-      foldr ( \ a b ->
-                case b of
-                  Nothing -> Nothing
-                  Just acc ->
-                    case texprValue a of
-                      TCLiteral (LNumber n) _ ->
-                        if (0 <= n && n <= 255)
-                        then Just $ ((toEnum . fromEnum) n) : acc
-                        else Nothing
-                      _ -> Nothing
-            ) (Just []) arr
+      Just arr
     _ -> Nothing
 
 
@@ -580,8 +580,7 @@ genGExpr gbl e =
                     let eunit = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCUnit}) in
                     [(stSemStart, UniChoice (SAct (EvalPure eunit), stSemEnd))]
               else
-                let ebyte = TC (TCAnnot { tcAnnot = texprAnnot e
-                                        , tcAnnotExpr = TCLiteral (LByte (w !! index)) tByte })
+                let ebyte = w !! index
                     eSetSingle = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCSetSingle ebyte})
                     iact = ClssAct NoSem eSetSingle
                     n0 = getS (2 * index)
