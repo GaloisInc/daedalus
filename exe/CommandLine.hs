@@ -38,6 +38,7 @@ data Options =
           , optShowJS    :: Bool
           , optInline    :: Bool
           , optStripFail :: Bool
+          , optSpecTys   :: Bool
           , optOutDir    :: Maybe FilePath
           }
 
@@ -54,6 +55,7 @@ options = OptSpec
                            , optShowJS    = False
                            , optInline    = False
                            , optStripFail = False
+                           , optSpecTys   = False
                            , optOutDir    = Nothing
                            }
   , progOptions =
@@ -134,6 +136,10 @@ options = OptSpec
         "Strip failure nodes in Core"
         $ NoArg \o -> Right o { optStripFail = True }
 
+      , Option [] ["spec-types"]
+        "Specialise types"
+        $ NoArg \o -> Right o { optSpecTys = True }
+      
       , Option [] ["entry"]
         "Generate a library containg this parser."
         $ ReqArg "[MODULE.]NAME"

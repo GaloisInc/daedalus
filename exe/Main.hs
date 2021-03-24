@@ -200,6 +200,7 @@ doToCore opts mm =
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts) (passInline ents specMod)
      when (optStripFail opts) (passStripFail specMod)
+     when (optSpecTys opts) (passSpecTys specMod)     
      pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program

@@ -41,6 +41,7 @@ module Daedalus.Driver
   , passCore
   , passInline
   , passStripFail
+  , passSpecTys
   , passVM
 
     -- * State
@@ -110,6 +111,7 @@ import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.Core.StripFail as Core
+import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -733,6 +735,17 @@ passStripFail m =
                         (CoreModue (Core.stripFailM ast)) -- FIXME: should we normM?
                         (loadedModules s) }
        _ -> panic "passInline" ["Module is not in Core form"]
+
+
+passSpecTys :: ModuleName -> Daedalus ()
+passSpecTys m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do i <- ddlRunPass (Core.specialiseTypes ast)
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passSpecTys" ["Module is not in Core form"]
 
 -- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()

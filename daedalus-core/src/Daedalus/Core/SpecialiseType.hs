@@ -11,6 +11,7 @@ module Daedalus.Core.SpecialiseType (specialiseTypes) where
 -- a fixpoint over the types (processing a type may introduce further
 -- specialised types)
 
+import Data.List (partition)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -18,6 +19,7 @@ import qualified Data.Set as Set
 import MonadLib
 
 import Daedalus.GUID
+import Daedalus.Panic
 import Daedalus.Rec
 
 import Daedalus.Core
@@ -59,11 +61,79 @@ processUserType ut = do
                                })
       pure ut'
 
+-- Gets the next element of the worklist
+getNextWL :: Monad m => SpecTyM m (Maybe (UserType, UserType))
+getNextWL = SpecTyM (sets go)
+  where
+    go s
+      | Just (ut, wl) <- Set.minView (stsWorklist s)
+      , Just ut'      <- Map.lookup ut (stsSeenTypes s) =
+          (Just (ut, ut'), s { stsWorklist = wl })
+      | otherwise = (Nothing, s)
+    
 -- -----------------------------------------------------------------------------
 -- Worker functions (second phase)
 
 specTyDecls :: HasGUID m => [TDecl] -> SpecTyM m [TDecl]
-specTyDecls = undefined
+specTyDecls polyTys = go []
+  where
+    go acc = do
+      m_next <- getNextWL
+      case m_next of
+        Nothing -> pure acc
+        Just (ut, ut') | Just td <- Map.lookup (utName ut) tyMap -> do
+              let td' = instantiateTDecl ut ut' td
+              td'' <- specTy td'
+              go (td'' : acc)
+
+        Just {} -> panic "Missing instantiation" []
+        
+    tyMap = Map.fromList [ (tName td, td) | td <- polyTys ]
+
+instantiateTDecl :: UserType -> UserType -> TDecl -> TDecl
+instantiateTDecl orig new td =
+  TDecl { tName = utName new
+        , tTParamKNumber = []
+        , tTParamKValue  = []
+        , tDef = def'
+        }
+  where
+    def' = case tDef td of
+             TStruct ls -> TStruct (goLabeled ls)
+             TUnion  ls -> TUnion  (goLabeled ls)
+             
+    goTy ty =
+      case ty of
+        TStream   -> ty
+        TUInt tsz -> TUInt (goSize tsz)
+        TSInt tsz -> TSInt (goSize tsz)
+        TInteger  -> ty
+        TBool     -> ty
+        TUnit     -> ty
+        TArray ty' -> TArray (goTy ty')
+        TMaybe ty' -> TMaybe (goTy ty')
+        TMap dTy rTy -> TMap (goTy dTy) (goTy rTy)
+        TBuilder ty' -> TBuilder (goTy ty')
+        TIterator ty' -> TIterator (goTy ty')
+        TUser ut      -> TUser (ut { utNumArgs = map goSize (utNumArgs ut)
+                                   , utTyArgs  = map goTy (utTyArgs ut)
+                                   })
+        TParam p
+          | Just ty' <- Map.lookup p tenv -> ty'
+          | otherwise -> panic "Missing type param" []
+
+    goSize (TSizeParam p) 
+      | Just n <- Map.lookup p nenv = n -- _should_ be a size? 
+      | otherwise = panic "Missing type param" []
+    goSize sz = sz
+
+    goLabeled = map (\(l, t) -> (l, goTy t))
+
+    nenv = Map.fromList (zip (tTParamKNumber td) (utNumArgs orig))
+    tenv = Map.fromList (zip (tTParamKValue  td) (utTyArgs orig))
+    
+    
+  
 
 -- -----------------------------------------------------------------------------
 -- Worker functions (first phase)
@@ -75,28 +145,39 @@ class SpecTy a where
   specTy v = traverse specTy v
 
 instance SpecTy a => SpecTy [a] where {- default -}
-instance SpecTy a => SpecTy (Fun a) where {- default -}
 instance SpecTy a => SpecTy (Maybe a) where {- default -}
 instance SpecTy a => SpecTy (Case a) where {- default -}
+instance SpecTy a => SpecTy (FunDef a) where
 
+instance SpecTy a => SpecTy (Fun a) where
+  specTy fn =
+    Fun <$> specTy (fName fn) <*> specTy (fParams fn) <*> specTy (fDef fn)
+
+  
 instance SpecTy Name where
-  specTy n = (\n' -> n { nameType = n' }) <$> specTy (nameType n)
+  specTy n = do
+    n' <- specTy (nameType n)
+    pure (n { nameType = n' })
 
 instance SpecTy FName where
-  specTy n = (\n' -> n { fnameType = n' }) <$> specTy (fnameType n)
+  specTy n = do
+    n' <- specTy (fnameType n)
+    pure (n { fnameType = n' })
 
 instance SpecTy Module where
   specTy m = do
-    ffs <- traverse specTy (mFFuns m)
-    bfs <- traverse specTy (mBFuns m)
-    gfs <- traverse specTy (mGFuns m)
-    newTys <- specTyDecls allTys
-    let tys  = newTys ++ filter isParamTy allTys
-        -- FIXME: move
-        mTys = topoOrder (\td -> (tName td, freeTCons td)) tys
+    ffs  <- traverse specTy (mFFuns m)
+    bfs  <- traverse specTy (mBFuns m)
+    gfs  <- traverse specTy (mGFuns m)
+    tys' <- traverse specTy tys
+    
+    newTys <- specTyDecls pTys
+    
+    let mTys = topoOrder (\td -> (tName td, freeTCons td)) (newTys ++ tys')
 
     pure $ m { mFFuns = ffs, mBFuns = bfs, mGFuns = gfs, mTypes = mTys }
       where
+        (pTys, tys) = partition isParamTy allTys        
         allTys = forgetRecs (mTypes m)
         isParamTy td = not (null (tTParamKNumber td) && null (tTParamKValue td))
   
@@ -146,12 +227,38 @@ instance SpecTy Expr where
       Struct ut ls     -> Struct  <$> specTy ut <*> mapM (\(l, e') -> (,) l <$> specTy e') ls
       ECase c          -> ECase   <$> specTy c
      
-      Ap0 {}           -> pure e
-      Ap1 op1 e'       -> Ap1 op1 <$> specTy e'
+      Ap0 op0          -> Ap0 <$> specTy op0
+      Ap1 op1 e'       -> Ap1 <$> specTy op1 <*> specTy e'
       Ap2 op2 e' e''   -> Ap2 op2 <$> specTy e' <*> specTy e''
       Ap3 op3 e1 e2 e3 -> Ap3 op3 <$> specTy e1 <*> specTy e2 <*> specTy e3
-      ApN (CallF f) es -> ApN <$> (CallF <$> specTy f) <*> specTy es
-      ApN opN es       -> ApN opN <$> specTy es
+      ApN opN es       -> ApN <$> specTy opN <*> specTy es
+
+
+instance SpecTy Op0 where
+  specTy op0 =
+    case op0 of
+      Unit      -> pure op0
+      IntL n ty -> IntL n <$> specTy ty
+      BoolL {}  -> pure op0
+      ByteArrayL {} -> pure op0
+      NewBuilder ty -> NewBuilder <$> specTy ty
+      MapEmpty dTy rTy -> MapEmpty <$> specTy dTy <*> specTy rTy
+      ENothing ty      -> ENothing <$> specTy ty
+
+instance SpecTy Op1 where
+  specTy op1 =
+    case op1 of
+      CoerceTo ty -> CoerceTo <$> specTy ty
+      SelStruct ty l -> flip SelStruct l <$> specTy ty
+      InUnion ut l   -> flip InUnion   l <$> specTy ut
+      FromUnion ty l -> flip FromUnion l <$> specTy ty
+      _ -> pure op1  
+
+instance SpecTy OpN where
+  specTy opN =
+    case opN of
+      ArrayL ty -> ArrayL <$> specTy ty
+      CallF n   -> CallF  <$> specTy n
 
 instance SpecTy Type where
   specTy ty =
@@ -177,3 +284,16 @@ instance SpecTy UserType where
       _ -> do 
         targs' <- specTy (utTyArgs ut)
         processUserType (ut { utTyArgs = targs' })
+
+instance SpecTy TDecl where
+  specTy td = do
+    def' <- specTy (tDef td)
+    pure (td { tDef = def' })
+
+instance SpecTy TDef where
+  specTy tdef =
+    case tdef of
+      TStruct fs -> TStruct <$> go fs
+      TUnion  fs -> TUnion  <$> go fs
+    where
+      go = mapM (\(l, e') -> (,) l <$> specTy e')
