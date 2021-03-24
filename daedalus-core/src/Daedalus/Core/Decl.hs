@@ -1,4 +1,6 @@
 {-# Language OverloadedStrings #-}
+{-# Language DeriveTraversable #-}
+
 module Daedalus.Core.Decl where
 
 import Daedalus.PP
@@ -23,8 +25,10 @@ data Fun e = Fun
   , fParams  :: [Name]
   , fDef     :: FunDef e
   }
+  deriving (Functor, Foldable, Traversable)
 
 data FunDef e = Def e | External
+  deriving (Functor, Foldable, Traversable)
 
 data TDecl = TDecl
   { tName          :: TName
