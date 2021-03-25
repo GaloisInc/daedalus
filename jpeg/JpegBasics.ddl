@@ -1,5 +1,38 @@
 -- Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
+
+def SomeJpeg =
+  block
+    SOI
+    $$ = Many Segment
+    EOI
+
+-- Start / End image
+def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
+def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
+
+-- Generic JPEG segment
+def Segment =
+  block
+    segmentStart = Offset
+    data         = SegmentBody
+    segmentEnd   = Offset
+
+def SegmentBody =
+  Choose1
+    comment = COM
+    dri     = DRI
+    sof     = SomeSOF
+    sos     = SOS
+    app     = SomeAPP
+    dqt     = DQT
+    dht     = DHT
+    rst     = SomeRST
+
+
+
+
+-- Specific marker
 def Marker x = Match [ 0xFF, x ]
 
 -- For families of markers, such as APP or SOF
@@ -11,13 +44,7 @@ def SomeMarker (front : uint 4) =
     upper == front is true
     tag as! uint 4
 
-def BE16 = UInt8 # UInt8
-
-def NonZero P =
-  block
-    $$ = P;
-    $$ > 0 is true;
-
+-- Segement payload
 def Payload P =
   block
     let size = BE16 as uint 64
@@ -28,11 +55,6 @@ def Payload P =
     $$ = P
     END
     SetStream (Drop len here)
-
-
--- Start / End image
-def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
-def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
 
 -- Comment
 def COM =
@@ -47,7 +69,12 @@ def APP (x : uint 4) P =
     Payload P
 
 -- Application specific, uninterpreted
-def SomeAPP =
+def SomeAPP = Choose1
+  jfif  = JFIF_APP0
+  exif  = Exif_APP1
+  other = UnknownApp
+
+def UnknownApp =
   block
     app  = SomeMarker 0xE
     data = Payload (Many UInt8)
@@ -141,7 +168,6 @@ def QT =
         bit8  = { precision == 0 is true; Many 64 UInt8; }
         bit16 = { precision == 1 is true; Many 64 BE16;  }
 
-
 def DRI =
   block
     Marker 0xDD
@@ -164,22 +190,133 @@ def EntropyEncodedByte =
 
 
 
-def Segment =
-  block
-    segmentStart = Offset
-    data         = SegmentBody
-    segmentEnd   = Offset
+--------------------------------------------------------------------------------
+-- JFIF Segment
 
-def SegmentBody =
+def JFIF_APP0 = APP 0 {
+  Match "JFIF\0";
+  versionMajor = UInt8;
+  versionminor = UInt8;
+  densityUnits = DensityUnits;
+  xDensity     = NonZero BE16;
+  yDensity     = NonZero BE16;
+  @xThumbnail  = UInt8 as uint 64;
+  @yThumbnail  = UInt8 as uint 64;
+  thumbnailData = Many (xThumbnail * yThumbnail) RGB;
+}
+
+def RGB = {
+  r = UInt8;
+  g = UInt8;
+  b = UInt8;
+}
+
+def DensityUnits =
   Choose1
-    comment = COM;
-    dri     = DRI;
-    sof     = SomeSOF;
-    sos     = SOS;
-    app     = SomeAPP;
-    dqt     = DQT;
-    dht     = DHT;
-    rst     = SomeRST;
+    NoUnits     = Match1 0
+    Inches      = Match1 1
+    Centimeters = Match1 2
+  <| Fail "Invalid density unit"
+
+
+--------------------------------------------------------------------------------
+-- Exif Segment
+
+def Exif_APP1 = APP 1
+  block
+    Match "Exif\0\0"
+    let data_start = GetStream
+    tiff_header = TIFFHeader
+    ifd0 = IFD tiff_header.e
+    other_data = Many UInt8
+
+def TIFFHeader = block
+  e = Endian
+  Word16 e == 0x2A is true
+  start = Word32 e
+  start == 8 is true      -- assume first comes right after
+
+def Endian = Choose1
+  LE = @Match "II"
+  BE = @Match "MM"
+
+def IFD e =
+  block
+    let entryNum = Word16 e as uint 64
+    entries      = Many entryNum (IFDEntry e)
+    next         = Word32 e
+
+def IFDEntry e = Choose1
+  imageWidth  = NumericTag e 0x100
+  imageHeight = NumericTag e 0x101
+  -- bits per sample
+  compression = NumericTag e 0x103    -- 1 = none, 6 = jpeg
+  photometricInterpretation = NumericTag e 0x106
+
+  samplesPerPixel = NumericTag e 0x115
+  rowsPerStrip    = NumericTag e 0x116
+
+  unknown     = IFDUnknown e
+
+def Tag e x = Word16 e == x is true
+def NumericTag e x = block
+  Tag e x
+  Unsgned e
+
+def Unsgned e = block
+  let format = Word16 e
+  let items  = Word32 e
+  items == 1 is true
+  case format of
+    1 -> block $$ = UInt8    as uint 64; Many 3 UInt8
+    3 -> block $$ = Word16 e as uint 64; Many 2 UInt8
+    4 -> Word32 e as uint 64
+
+def IFDUnknown e = block
+  tag    = Word16 e
+  format = Word16 e as uint 64
+  items  = Word32 e as uint 64
+  data   = Word32 e
+
+
+--------------------------------------------------------------------------------
+-- Misc. utilities
+
+def jn (e : Endian) x y =
+  case e of
+    BE -> x # y
+    LE -> y # x
+
+def Word16 e = jn e UInt8 UInt8
+def Word32 e = jn e (Word16 e) (Word16 e)
+
+def BE16 = UInt8 # UInt8
+
+def NonZero P =
+  block
+    $$ = P;
+    $$ > 0 is true;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+-- Another way to check segments
 
 def CheckSegments = block
   let start = UInt8
@@ -233,5 +370,4 @@ def showByte (x : uint 8) =
 
 def showHexDigit (x : uint 8) = if x < 10 then '0' + x else 'a' + x - 10
 
--- def SomeJpeg = block SOI; CheckSegments
-def SomeJpeg = block SOI; $$ = Many Segment; EOI
+
