@@ -36,6 +36,7 @@ data Options =
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
+          , optShowHTML  :: Bool
           , optInline    :: Bool
           , optStripFail :: Bool
           , optSpecTys   :: Bool
@@ -53,6 +54,7 @@ options = OptSpec
                            , optEntries   = []
                            , optForceUTF8 = True
                            , optShowJS    = False
+                           , optShowHTML  = False
                            , optInline    = False
                            , optStripFail = False
                            , optSpecTys   = False
@@ -103,6 +105,10 @@ options = OptSpec
       , Option [] ["json"]
         "Show semantics values as JSON."
         $ NoArg \o -> Right o { optShowJS = True }
+
+      , Option [] ["html"]
+        "Show semantics values as HTML."
+        $ NoArg \o -> Right o { optShowJS = True, optShowHTML = True }
 
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"
