@@ -27,7 +27,7 @@ def HighBit = (1 : uint 8) << 7
 
 -- *** BIG ENDIAN ***
 def BE16 = { @b1 = UInt8; @b2 = UInt8; ^ b1 # b2 }
-def BE32 = { @w1 = LE16;  @w2 = LE16;  ^ w1 # w2 }
+def BE32 = { @w1 = BE16;  @w2 = BE16;  ^ w1 # w2 }
 
 -- *** Parameterized Endian ***
 def End16 littleEnd = case littleEnd of {

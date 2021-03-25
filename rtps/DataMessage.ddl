@@ -56,6 +56,7 @@ def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
+      commit;
       Chunk
         (subHeader.submessageLength as uint 64)
         (SubmessageElement PayloadData subHeader.flags);
@@ -202,6 +203,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   dataFragElt = {
     @fragFlags = flags.subFlags is dataFragFlags;
+    commit;
     Match [0x00, 0x00]; -- extraFlags
     octetsToInlineQos = EndUShort flags.endiannessFlag;
 
@@ -243,6 +245,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   gapElt = {
     @gapFlags0 = flags.subFlags is gapFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
@@ -268,6 +271,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   heartBeatElt = {
     @hbFlags = flags.subFlags is heartBeatFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
@@ -302,6 +306,7 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   heartBeatFragElt = {
     @hbFragFlags = flags.subFlags is heartBeatFragFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
@@ -311,6 +316,11 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     lastFragmentNum = FragmentNumber flags.endiannessFlag;
     Guard (lastFragmentNum > 0);
 
+    GuidPrefix;
+  };
+  infoDstElt = {
+    @infoDstFlags0 = flags.subFlags is infoDstFlags;
+    commit;
     GuidPrefix;
   };
   timestampElt = {
