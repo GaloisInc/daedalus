@@ -30,6 +30,7 @@ import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ParamLL
 import Daedalus.ParserGen.LL.SlkCfg
 import Daedalus.ParserGen.LL.Closure
 import Daedalus.ParserGen.LL.DFAStep
@@ -356,7 +357,7 @@ buildPipelineLLA aut =
     (lla1, tab1) = go initDFAStates [] emptyLLA tab
     lla11 = synthesizeLLA aut lla1
   in
-    if isFullyDeterminizedLLA lla1
+    if isFullyDeterminizedLLA lla1 || flag_ONLY_STRICT_LLA
     then
       Left lla11
     else
@@ -403,7 +404,10 @@ buildPipelineLLA aut =
       [DFAState] -> [DFAState] -> LLA ->
       HTable -> (LLA, HTable)
     go toVisit nextRound lla tab =
-      if synthLLAState (lastSynth lla) > 1000000 then error "Stop" else
+      if synthLLAState (lastSynth lla) > cst_MAX_LLA_SIZE
+      then
+        (lla, tab)
+      else
       case toVisit of
         [] -> case nextRound of
                 [] -> (lla, tab)

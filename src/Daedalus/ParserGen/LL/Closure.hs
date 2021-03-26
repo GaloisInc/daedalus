@@ -29,12 +29,10 @@ import Daedalus.ParserGen.Action (
 import qualified Daedalus.ParserGen.Aut as Aut
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ParamLL (cst_CLOSURE_MAX_DEPTH)
 import qualified Daedalus.ParserGen.LL.SlkCfg as Slk
 
 
-
-cst_MAX_DEPTH_REC :: Int
-cst_MAX_DEPTH_REC = 200
 
 
 data ChoiceTag = CUni | CPar | CSeq | CPop
@@ -222,7 +220,7 @@ closureEpsUntilPush aut busy cm tab =
       | isPushAction act =
           -- trace (show act) $
           (Result (Just cm), tab)
-      | Seq.length alts > cst_MAX_DEPTH_REC = (Abort AbortClosureOverflowMaxDepth, tab)
+      | Seq.length alts > cst_CLOSURE_MAX_DEPTH = (Abort AbortClosureOverflowMaxDepth, tab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg tab of
             Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)
@@ -292,7 +290,7 @@ closureLoop aut busy (alts, cfg) tab =
       | isUnhandledAction act =
           -- trace (show act) $
           (Abort AbortClosureUnhandledAction, stepTab)
-      | Seq.length alts > cst_MAX_DEPTH_REC =
+      | Seq.length alts > cst_CLOSURE_MAX_DEPTH =
           (Abort AbortClosureOverflowMaxDepth, stepTab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg stepTab of

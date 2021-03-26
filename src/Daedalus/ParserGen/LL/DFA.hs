@@ -29,23 +29,11 @@ import Daedalus.ParserGen.Aut (Aut(..))
 
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ParamLL
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.SlkCfg
 import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DFAStep
-
-
-cst_MAX_LOOKAHEAD_DEPTH :: Int
-cst_MAX_LOOKAHEAD_DEPTH = 20
-
-cst_MAX_DFA_NB_STATES :: Int
-cst_MAX_DFA_NB_STATES = 100
-
-cst_OVERFLOW_CFG :: Int
-cst_OVERFLOW_CFG = 10
-
-cst_DEMO_MODE :: Bool
-cst_DEMO_MODE = True
 
 
 data AmbiguityDetection =
