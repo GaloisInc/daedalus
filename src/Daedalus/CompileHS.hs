@@ -169,7 +169,7 @@ hsConstraint env ctr =
     Literal i t ->
       "RTS.Literal" `Ap` hsType env (Type (TNum i)) `Ap` hsType env t
 
-    CAdd x y z   -> ApI "~" (ApI "+" (hsType env x) (hsType env y))
+    CAdd x y z   -> ApI "~" (ApI "HS.+" (hsType env x) (hsType env y))
                             (hsType env z)
 
     Coerce _ a b -> "RTS.Convert" `Ap` hsType env a `Ap` hsType env b
