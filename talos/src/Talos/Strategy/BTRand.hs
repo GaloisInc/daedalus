@@ -3,7 +3,6 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.BTRand (randDFS, mkStrategyFun) where
 
-import Control.Applicative
 import Control.Monad.Reader
 
 import Control.Monad.State
@@ -32,7 +31,7 @@ randDFS :: Strategy
 randDFS = 
   Strategy { stratName  = "rand-dfs"
            , stratDescr = "Simple depth-first random generation"
-           , stratFun   = \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+           , stratFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
            }
   where
     go :: ProvenanceTag -> Slice -> DFST (Maybe SelectedPath) StrategyM SelectedPath

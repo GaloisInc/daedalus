@@ -663,7 +663,7 @@ symExecAssertion (GuardAssertion tc) = symExecV tc
 --   -- The collection (list in this case)
 --   accInit <- symExecV e accInitE
 --   col     <- symExecV e (loopCol loop)
-
+v
 --   pure (S.fun loopN (params ++ [ accInit, S.fun "get-list" [col] ]))
 
 --   where -- FIXME: copied from above

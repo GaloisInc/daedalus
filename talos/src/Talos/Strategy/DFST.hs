@@ -1,5 +1,5 @@
 
-module Talos.Strategy.DFST where
+module Talos.Strategy.DFST (DFST, runDFST, onBacktrack) where
 
 import Control.Monad
 import Control.Monad.Trans
@@ -29,6 +29,13 @@ newtype DFST r m a = DFST { getDFST :: DFSTContext r m a -> m r }
 
 runDFST :: DFST r m a -> (a -> m r) -> m r -> m r
 runDFST m cont fl = getDFST m (DFSTContext (\v _ -> cont v) fl)
+
+onBacktrack :: DFST r m a -> DFST r m a -> DFST r m a
+onBacktrack m handler =
+  DFST $ \ctxt -> getDFST m (ctxt { dfsFail = getDFST handler ctxt })
+  
+-- ----------------------------------------------------------------------------------------
+-- Instances
 
 instance Functor (DFST r m) where
   fmap f (DFST m) = DFST $ \ctxt -> m (ctxt { dfsCont = dfsCont ctxt . f })
@@ -62,6 +69,9 @@ instance MonadPlus (DFST r m) where -- default body (Alternative)
                      
 instance MonadTrans (DFST r) where
   lift m = DFST $ \ctxt -> m >>= \v -> dfsCont ctxt v (dfsFail ctxt)
+
+instance MonadIO m => MonadIO (DFST r m) where
+  liftIO = lift . liftIO
   
 instance LiftStrategyM m => LiftStrategyM (DFST r m) where
   liftStrategy m = lift (liftStrategy m)

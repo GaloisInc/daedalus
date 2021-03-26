@@ -3,11 +3,11 @@
 -- API for strategies, which say how to produce a path from a slice.
 
 module Talos.Strategy.Monad ( Strategy(..)
-                            , StratFun
+                            , StratFun(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getGFun, withSolver
+                            , summaries, getGFun
                             , rand, randR, randL, randPermute
                             ) where
 
@@ -16,8 +16,6 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 import System.Random
 import Data.Foldable (find)
-
-import SimpleSMT (Solver)
 
 import Daedalus.Core
 import Daedalus.GUID
@@ -28,11 +26,17 @@ import Talos.SymExec.Path
 import Talos.Analysis.Slice
 import Talos.Analysis.Monad (Summaries)
 
+import Talos.SymExec.Monad (SolverT)
+
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
 
 -- FIXME: add: config (e.g. depth/max backtracks/etc.)
-type StratFun = ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+
+-- Gives some flexibility in how they are run.
+data StratFun =
+  SimpleStrat   (ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath))
+  | SolverStrat (ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath))
 
 data Strategy =
   Strategy { stratName  :: String
@@ -46,13 +50,12 @@ data Strategy =
 data StrategyMState =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
-                 , stsSolver :: Solver
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
                  , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Solver -> Summaries -> Module -> GUID -> StrategyMState
+emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
 emptyStrategyMState = StrategyMState
 
 newtype StrategyM a =
@@ -74,10 +77,6 @@ getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
     getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
       Nothing -> panic "Missing function" [showPP f]
       Just v  -> v
-
--- We could maybe start the solver if needed.
-withSolver :: LiftStrategyM m => (Solver -> m a) -> m a
-withSolver f = liftStrategy (StrategyM $ gets stsSolver) >>= f
 
 -- -----------------------------------------------------------------------------
 -- Random values

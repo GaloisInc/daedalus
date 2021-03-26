@@ -149,8 +149,12 @@ sUnit = S.const "unit"
 -- Helpers
 
 -- | Emit an SMT let expression
-mklet :: String -> SExpr -> SExpr -> SExpr
-mklet v e b = S.fun "let" [S.List [S.List [S.const v, e]], b]
+-- mklet :: String -> SExpr -> SExpr -> SExpr
+-- mklet v e b = S.fun "let" [S.List [S.List [S.const v, e]], b]
+
+mklet :: SExpr -> SExpr -> SExpr -> SExpr
+mklet v e b = S.fun "let" [S.List [S.List [v, e]], b]
+
 
 mklets :: [(String, SExpr)] -> SExpr -> SExpr
 mklets [] b = b
@@ -211,7 +215,7 @@ sSelectL arr n = S.select (sArrayL arr) n
 
 letUnlessAtom :: String -> SExpr -> (SExpr -> SExpr) -> SExpr
 letUnlessAtom _v x@(S.Atom _) f = f x
-letUnlessAtom v  x f = mklet v x (f (S.const v))
+letUnlessAtom v  x f = mklet (S.const v) x (f (S.const v))
 
 sPushBack :: SExpr -> SExpr -> SExpr
 sPushBack el arrL =
