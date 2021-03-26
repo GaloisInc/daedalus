@@ -338,13 +338,17 @@ synthesizeLLA aut lla =
 isFullyDeterminizedLLA :: LLA -> Bool
 isFullyDeterminizedLLA lla =
   let m = mappingSynthToDFAState lla in
-  foldr (\ q b ->
-           case Map.lookup q (transitionLLA lla) of
-             Nothing -> error "broken invariant"
-             Just dfa ->
-               if fromJust $ flagHasFullResolution dfa
-               then b
-               else False) True (map fst (Map.toAscList m))
+  foldr
+  (\ q b ->
+      case Map.lookup q (transitionLLA lla) of
+        Nothing -> error "broken invariant"
+        Just dfa ->
+          if fromJust $ flagHasFullResolution dfa
+          then b
+          else False
+  )
+  True
+  (map fst (Map.toAscList m))
 
 
 buildPipelineLLA :: Aut a => a -> Either LLA (LLA, LLA)
@@ -416,11 +420,12 @@ buildPipelineLLA aut =
           if memberLLA q lla
           then go qs nextRound lla tab
           else
-            let (dfa, tab1) = createDFA aut q tab
-                newlla = insertLLA q dfa lla
-                newNextRound =
-                  let finalStates = getFinalStates dfa in
-                    revAppend finalStates nextRound
+            let
+              (dfa, tab1) = createDFA aut q tab
+              newlla = insertLLA q dfa lla
+              newNextRound =
+                let finalStates = getFinalStates dfa in
+                revAppend finalStates nextRound
             in go qs newNextRound newlla tab1
 
 createLLA :: Aut a => a -> LLA
@@ -446,26 +451,30 @@ showStartSynthLLAState aut dfas q =
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
 printLLA aut lla cond =
   let t = Map.toAscList (transitionLLA lla)
-      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
+      tAnnotated =
+        map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ (ann, dfa) ->
-                    if ( cond dfa
-                         -- (lookaheadDepth dfa < 10)
-                         -- ||
-                         -- (fromJust $ flagHasFullResolution dfa)
-                       )
-                    then
-                      do
-                        mapM_ putStrLn ann
-                        putStrLn $ showDFA dfa
-                        putStrLn ""
-                    else
-                      return ()
+     else
+       mapM_
+       (\ (ann, dfa) ->
+           if ( cond dfa
+                -- (lookaheadDepth dfa < 10)
+                -- ||
+                -- (fromJust $ flagHasFullResolution dfa)
+              )
+           then
+             do
+               mapM_ putStrLn ann
+               putStrLn $ showDFA dfa
+               putStrLn ""
+           else
+             return ()
 
-                ) tOrdered
+       )
+       tOrdered
 
 printAmbiguities :: Aut a => a -> LLA -> IO ()
 printAmbiguities aut lla =
@@ -475,18 +484,21 @@ printAmbiguities aut lla =
       tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ (ann, dfa) ->
-                    case extractAmbiguity dfa of
-                      Nothing ->
-                        return ()
-                      Just (l, conflicts) ->
-                        do putStrLn "*******  Found Ambiguity  *******"
-                           putStrLn ("  Start: " ++ (head ann))
-                           putStrLn ("  Paths : ")
-                           printConflicts conflicts
-                           putStrLn "********  input witness  ********"
-                           putStrLn $ printPath l
-                ) tOrdered
+     else
+       mapM_
+       (\ (ann, dfa) ->
+           case extractAmbiguity dfa of
+             Nothing ->
+               return ()
+             Just (l, conflicts) ->
+               do putStrLn "*******  Found Ambiguity  *******"
+                  putStrLn ("  Start: " ++ (head ann))
+                  putStrLn ("  Paths : ")
+                  printConflicts conflicts
+                  putStrLn "********  input witness  ********"
+                  putStrLn $ printPath l
+       )
+       tOrdered
   where
     printPath l =
       concat (List.intersperse "" (map showGraphvizInputHeadCondition l))
