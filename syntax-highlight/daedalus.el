@@ -78,7 +78,7 @@ Customize the variable `daedalus-command' to change how it is invoked."
   ;;    src/Daedalus/Parser/Lexer.x .
   ;; Please maintain the same ordering and grouping here as there for
   ;; easy updates.
-  (list "import" "def" "for" "map" "in" "is" "if" "try" "then" "else" "as" "as!"
+  (list "import" "def" "block" "let" "for" "map" "in" "is" "if" "try" "then" "else" "as" "as!"
         "Choose" "Choose1" "Optional" "Optional?" "Many" "Many?" "UInt8" "$uint" "END" "commit" "Fail"
         "empty" "Insert" "Lookup"
         "Offset" "SetStream" "GetStream" "Take" "Drop" "arrayStream"
