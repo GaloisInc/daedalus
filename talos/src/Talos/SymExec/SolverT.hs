@@ -4,7 +4,7 @@
 
 -- | Defines the symbolic parser API.  This wraps the SimpleSMT API
 
-module Talos.SymExec.Monad (
+module Talos.SymExec.SolverT (
   -- * Solver interaction monad
   SolverT, runSolverT, mapSolverT, emptySolverState,
   freshNameIn,

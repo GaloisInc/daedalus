@@ -26,7 +26,7 @@ import Talos.SymExec.Path
 import Talos.Analysis.Slice
 import Talos.Analysis.Monad (Summaries)
 
-import Talos.SymExec.Monad (SolverT)
+import Talos.SymExec.SolverT (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes

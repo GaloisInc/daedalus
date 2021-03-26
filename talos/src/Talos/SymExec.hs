@@ -26,7 +26,7 @@ import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.Type
 
-import Talos.SymExec.Monad
+import Talos.SymExec.SolverT
 import Talos.SymExec.ModelParser
 import Talos.SymExec.Core
 import Talos.SymExec.StdLib

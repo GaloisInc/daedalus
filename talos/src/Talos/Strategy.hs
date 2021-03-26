@@ -3,7 +3,7 @@
 module Talos.Strategy (strategies, runStrategies) where
 
 import Talos.Analysis.Slice
-import Talos.SymExec.Monad (SolverState, runSolverT)
+import Talos.SymExec.SolverT (SolverState, runSolverT)
 import Talos.SymExec.Path
 import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM)
 -- strategies

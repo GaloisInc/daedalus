@@ -23,7 +23,7 @@ library
   ghc-prof-options:    -fprof-auto
   exposed-modules:     Talos.Lib
                      -- , Talos.SymExec
-                     , Talos.SymExec.Monad
+                     , Talos.SymExec.SolverT
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser

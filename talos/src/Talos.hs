@@ -40,7 +40,7 @@ import Daedalus.Driver hiding (State)
 import Daedalus.Core
 import Daedalus.Core.Semantics.Value (Value)
 
-import Talos.SymExec.Monad
+import Talos.SymExec.SolverT
 import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 

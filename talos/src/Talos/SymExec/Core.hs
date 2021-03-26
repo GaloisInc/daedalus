@@ -24,7 +24,7 @@ import Daedalus.Core.Type
 import Talos.Strategy.Monad
 
 import Talos.SymExec.StdLib
-import Talos.SymExec.Monad
+import Talos.SymExec.SolverT
 
 -- -----------------------------------------------------------------------------
 -- Class

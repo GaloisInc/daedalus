@@ -45,7 +45,7 @@ import Talos.Analysis (summarise)
 import Talos.Analysis.Monad (Summary(..))
 import Talos.Analysis.Slice
 -- import Talos.SymExec
-import Talos.SymExec.Monad (SolverState, emptySolverState)
+import Talos.SymExec.SolverT (SolverState, emptySolverState)
 import Talos.SymExec.Path
 import Talos.SymExec.StdLib
 
