@@ -2,6 +2,7 @@
 
 module Daedalus.ParserGen.LL.SlkCfg
   ( SlkInput
+  , compatibleInput
   , SlkCfg(..)
   , compareSlkCfg
   , measureSlkCfg
@@ -277,7 +278,8 @@ data SlkInput =
   | InpDrop Int SlkInput
   | InpNext Int SlkInput
   | InpEnd
-  deriving (Show, Ord)
+  deriving (Show, Eq, Ord)
+
 
 showSlkInput :: SlkInput -> String
 showSlkInput inp =
@@ -289,6 +291,9 @@ showSlkInput inp =
     InpDrop i _ -> "---[" ++ show i ++ "..]"
     InpEnd -> "---"
     _ ->  error "case not handled"
+
+initSlkInput :: SlkInput
+initSlkInput = InpBegin
 
 nextSlkInput :: SlkInput -> Maybe SlkInput
 nextSlkInput inp =
@@ -317,50 +322,56 @@ endSlkInput inp =
     _ -> error "impossible IEND"
 
 
-newtype InputWindow = InputWindow { _win :: (Int, Maybe Int) }
+data InputWindow =
+    InputWindow (Int, Maybe Int) -- Maybe when is input is not bounded
+  | EndWindow
   deriving(Eq)
 
-positionFromBeginning :: SlkInput -> Maybe InputWindow
+positionFromBeginning :: SlkInput -> InputWindow
 positionFromBeginning inp =
-  case go inp of
-    Nothing -> Nothing
-    Just p -> Just $ InputWindow p
+  go inp
   where
     go input =
       case input of
-        InpBegin -> Just (0, Nothing)
+        InpBegin -> InputWindow (0, Nothing)
         InpTake n inp' ->
-          let p = go inp'
-          in case p of
-               Nothing -> Nothing
-               Just (i, Nothing) -> Just (i, Just (i + n))
-               Just (i, Just j) ->
-                 if j - i < n
-                 then Nothing
-                 else Just (i, Just (i + n))
+          let p = go inp' in
+          case p of
+            EndWindow -> EndWindow
+            InputWindow (i, Nothing) -> InputWindow (i, Just (i + n))
+            InputWindow (i, Just j) ->
+              if j - i < n
+              then EndWindow
+              else InputWindow (i, Just (i + n))
         InpDrop n inp' ->
-          let p = go inp'
-          in case p of
-               Nothing -> Nothing
-               Just (i, Nothing) -> Just (i + n, Nothing)
-               Just (i, Just j) ->
-                 if j - i < n
-                 then Nothing
-                 else Just (i + n, Just j)
+          let p = go inp' in
+          case p of
+            EndWindow -> EndWindow
+            InputWindow (i, Nothing) -> InputWindow (i + n, Nothing)
+            InputWindow (i, Just j) ->
+              if j - i < n
+              then EndWindow
+              else InputWindow (i + n, Just j)
         InpNext n inp' ->
-          let p = go inp'
-          in case p of
-               Nothing -> Nothing
-               Just (i, Nothing) -> Just (i + n, Nothing)
-               Just (i, Just j) ->
-                 if i + n > j
-                 then Nothing
-                 else Just (i + n, Just j)
-        InpEnd -> Nothing
+          let p = go inp' in
+          case p of
+            EndWindow -> EndWindow
+            InputWindow (i, Nothing) -> InputWindow (i + n, Nothing)
+            InputWindow (i, Just j) ->
+              if i + n > j
+              then EndWindow
+              else InputWindow (i + n, Just j)
+        InpEnd -> EndWindow
 
 
-instance Eq (SlkInput) where
-  (==) inp1 inp2 = positionFromBeginning inp1 == positionFromBeginning inp2
+
+compatibleInput :: SlkInput -> SlkInput -> Bool
+compatibleInput inp1 inp2 =
+  -- inp1 == inp2
+  positionFromBeginning inp1 == positionFromBeginning inp2
+  -- NOTE: this condition is somewhat strict but beware of relaxing it
+  -- because it could non-terminate
+
 
 data SlkCfg = SlkCfg
   { cfgState :: !State
@@ -463,7 +474,7 @@ initSlkCfg q (HTable { tabCtrl = c, tabSem = s }) =
     { cfgState = q
     , cfgCtrl = ctrl
     , cfgSem = sem
-    , cfgInput = InpBegin
+    , cfgInput = initSlkInput
     }
   , HTable tab1 tab2
   )

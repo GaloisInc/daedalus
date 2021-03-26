@@ -288,19 +288,17 @@ determinizeMove src tc =
                   insertDetChoiceAccepting src t acc
                 _ -> error "impossible case"
           in
-          if compatibleInput inp minp
+          if testCompatibleInput inp minp
           then
             determinizeWithAccu ms (Just $ inp) newAcc
           else
             Abort AbortDFAIncompatibleInput
 
-    compatibleInput :: Slk.SlkInput -> Maybe Slk.SlkInput -> Bool
-    compatibleInput inp minp =
+    testCompatibleInput :: Slk.SlkInput -> Maybe Slk.SlkInput -> Bool
+    testCompatibleInput inp minp =
       case minp of
         Nothing -> True
-        Just inp2 -> if compare inp inp2 == EQ
-                     then True
-                     else False
+        Just inp2 -> Slk.compatibleInput inp inp2
 
 
 
