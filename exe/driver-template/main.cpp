@@ -68,13 +68,13 @@ int main(int argc, char* argv[]) {
   size_t resultNum = out.size();
 
   cout << "{ \"resultNum\": " << resultNum << endl;
-  cout << "{ \"input_mb\": " << mb << endl;
+  cout << ", \"input_mb\": " << mb << endl;
   cout << ", \"time_secs\": " << secs << endl;
   cout << ", \"mb_s\": " << mb_s << endl;
   cout << ", \"results\": " << endl;
 
   if (resultNum == 0) {
-    cout << "\"Parser error at " << err.offset << "\"" << endl;
+    cout << "\"Parser error at " << err.offset << "\"}" << endl;
     return 1;
   }
 

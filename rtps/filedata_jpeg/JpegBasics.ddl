@@ -227,5 +227,4 @@ def showByte (x : uint 8) =
 
 def showHexDigit (x : uint 8) = if x < 10 then '0' + x else 'a' + x - 10
 
-def SomeJpeg = block SOI; CheckSegments
--- def SomeJpeg = block SOI; $$ = Many Segment; EOI
+def SomeJpeg = block SOI; CheckSegments -- $$ = Many Segment; EOI
