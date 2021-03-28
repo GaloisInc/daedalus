@@ -63,6 +63,7 @@ library
                      , io-streams
                      , transformers
                      , IntervalMap
+                     , text
 
 executable talos
   main-is:             Main.hs

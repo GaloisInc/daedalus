@@ -18,7 +18,7 @@ import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.GUID
 
-import Daedalus.Core
+import Daedalus.Core hiding (freshName)
 import Daedalus.Core.Type
 
 import Talos.Strategy.Monad
@@ -370,9 +370,8 @@ instance SymExec Expr where
   symExec expr =
     case expr of
       Var n       -> symExec n
-      PureLet n e e' -> do -- FIXME: we might not have to get a fresh name here
-        (n', se') <- freshNameIn n (\_ -> symExec e')
-        mklet n' <$> symExec e <*> pure se'
+      PureLet n e e' -> 
+        mklet <$> freshName n <*> symExec e <*> symExec e'
 
       Struct ut ctors ->
         S.fun (typeNameToCtor (utName ut)) <$> mapM (symExec . snd) ctors
@@ -401,9 +400,8 @@ symExecByteSet bs b = go bs
         SetUnion l r    -> S.or <$> go l <*> go r
         SetIntersection l r -> S.and <$> go l <*> go r
 
-        SetLet n e bs'' -> do
-          (n', sbs) <- freshNameIn n (\_ -> go bs'')
-          mklet n' <$> symExec e <*> pure sbs
+        SetLet n e bs'' -> 
+          mklet <$> freshName n <*> symExec e <*> go bs''
           
         SetCall f es  -> S.fun (fnameToSMTName f) <$> ((++ [b]) <$> mapM symExec es)
         SetCase {}    -> unimplemented

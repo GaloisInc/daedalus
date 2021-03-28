@@ -7,14 +7,18 @@
 module Talos.SymExec.SolverT (
   -- * Solver interaction monad
   SolverT, runSolverT, mapSolverT, emptySolverState,
-  freshNameIn,
   nameToSMTName,
   fnameToSMTName,
   getName,
   SolverState,
   withSolver, scoped,
   -- assert, declare, check,
-  liftSolverOp, solverState,
+  solverOp, solverState,
+  getValue,
+  -- * Context management
+  freshName, defineName, declareName, declareSymbol, 
+  push, pop, popAll,
+  assert
   
   ) where
 
@@ -22,7 +26,7 @@ import Control.Applicative
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Text.Read (readMaybe)
+import Data.Text(Text)
 
 import Data.Set (Set)
 
@@ -36,11 +40,12 @@ import Daedalus.PP
 import Daedalus.Core hiding (freshName)
 import qualified Daedalus.Core as C
 
-data SolverState =
-  SolverState { solver     :: Solver
-              , knownTypes :: Set TName -- ^ We lazily define types, but their names are mapped directly
+-- We manage this explicitly to make sure we are in synch with the
+-- solver as push/pop are effectful.
+data SolverFrame =
+  SolverFrame { knownTypes :: Set TName -- ^ We lazily define types, but their names are mapped directly
               , knownFuns  :: Set FName -- ^ Similarly for (pure) functions (incl. bytesets)
-              , boundNames :: Map Name SExpr
+              , boundNames :: Map Name String
               -- ^ May include names bound in closed scopes, to allow for
               --
               -- def P = { x = { $$ = UInt8; $$ > 10 }, ...}
@@ -48,15 +53,60 @@ data SolverState =
               -- where the execution of the body of x will return
               -- '$$' as it's symbolc result
               }
+  
+emptySolverFrame :: SolverFrame
+emptySolverFrame = SolverFrame mempty mempty mempty
+
+data SolverState =
+  SolverState { solver       :: Solver
+              , frames       :: [SolverFrame]
+              , currentFrame :: SolverFrame
+              }
 
 emptySolverState :: Solver -> SolverState
-emptySolverState s = SolverState s mempty mempty mempty 
+emptySolverState s = SolverState s mempty emptySolverFrame
 
-bindName :: Name -> SExpr -> SolverState -> SolverState
-bindName k v st = st { boundNames = Map.insert k v (boundNames st) }
 
-lookupName :: Name -> SolverState -> Maybe SExpr
-lookupName k = Map.lookup k . boundNames
+inCurrentFrame :: Monad m => (SolverFrame -> SolverT m a) -> SolverT m a
+inCurrentFrame f = SolverT (gets currentFrame) >>= f
+
+overCurrentFrame :: Monad m => (SolverFrame -> SolverT m (a, SolverFrame)) -> SolverT m a
+overCurrentFrame f = do
+  (r, frame') <- inCurrentFrame f
+  SolverT (modify (\s -> s { currentFrame = frame' }))
+  pure r
+
+modifyCurrentFrame :: Monad m => (SolverFrame -> SolverFrame) -> SolverT m ()
+modifyCurrentFrame f = overCurrentFrame (\s -> pure ((), f s))
+
+push :: MonadIO m => SolverT m ()
+push = do
+  SolverT (modify (\s -> s { frames = currentFrame s : frames s }))
+  solverOp S.push
+
+pop :: MonadIO m => SolverT m ()
+pop = do
+  fs <- SolverT (gets frames)
+  case fs of
+    [] -> panic "Attempted to pop past top of solver stack" []
+    (_ : fs') -> do
+      SolverT (modify (\s -> s { frames = fs' }))
+      solverOp S.pop
+
+popAll :: MonadIO m => SolverT m ()
+popAll = do
+  fs <- SolverT (gets frames)
+  case reverse fs of
+    [] -> pure () -- do nothing
+    (topF : _rest) -> do
+      solverOp (\s -> S.popMany s (fromIntegral $ length fs))
+      SolverT (modify (\s -> s { frames = [], currentFrame = topF }))
+
+bindName :: Name -> String -> SolverFrame -> SolverFrame
+bindName k v f = f { boundNames = Map.insert k v (boundNames f) }
+
+lookupName :: Name -> SolverFrame -> Maybe SExpr
+lookupName k = fmap S.const . Map.lookup k . boundNames
 
 newtype SolverT m a = SolverT { getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
@@ -69,31 +119,40 @@ withSolver f = do
 -- -----------------------------------------------------------------------------
 -- Solver operations, over SExprs 
 
-liftSolverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
-liftSolverOp f = SolverT $ do
+solverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
+solverOp f = SolverT $ do
   s <- gets solver
   liftIO (f s)
   
--- -- MonadIO would be enough here.
--- assert :: LiftStrategyM m => SExpr -> SolverT m ()
--- assert assn = liftSolverOp (\s -> S.assert s assn)
+-- MonadIO would be enough here.
+assert :: MonadIO m => SExpr -> SolverT m ()
+assert assn = solverOp (\s -> S.assert s assn)
 
--- declare :: LiftStrategyM m => String -> SExpr -> SolverT m ()
--- declare n ty = SolverT $ do
---   s <- gets solver
---   void $ liftStrategy (liftIO (S.declare s n ty))
+check :: MonadIO m => SolverT m S.Result
+check = solverOp S.check
 
--- check :: LiftStrategyM m => String -> SExpr -> SolverT m S.Result
--- check 
+getValue :: MonadIO m => SExpr -> SolverT m SExpr
+getValue v = do
+  res <- solverOp (\s -> S.command s $ S.fun "get-value" [S.List [v]])
+  case res of
+    S.List [S.List [_, v']] -> pure v'
+    _ -> panic (unlines
+                 [ "Unexpected response from the SMT solver:"
+                 , "  Exptected: a value"
+                 , "  Result: " ++ S.showsSExpr res ""
+                 ]) []
 
 -- -----------------------------------------------------------------------------
 -- Names
 
+stringToSMTName :: Text -> GUID -> String
+stringToSMTName n g = show (pp n <> "@" <> pp g)
+
 nameToSMTName :: Name -> String
-nameToSMTName n = show (maybe "_" pp (nameText n) <> "@" <> pp (nameId n))
+nameToSMTName n = stringToSMTName (maybe "_" id (nameText n)) (nameId n)
 
 fnameToSMTName :: FName -> String
-fnameToSMTName n = show (maybe "_" pp (fnameText n) <> "@" <> pp (fnameId n))
+fnameToSMTName n = stringToSMTName (maybe "_" id (fnameText n)) (fnameId n)
 
 -- symExecName :: Name -> SExpr
 -- symExecName =  S.const . nameToSMTName
@@ -101,19 +160,41 @@ fnameToSMTName n = show (maybe "_" pp (fnameText n) <> "@" <> pp (fnameId n))
 -- symExecFName :: FName -> SExpr
 -- symExecFName =  S.const . fnameToSMTName
 
-
 getName :: Monad m => Name -> SolverT m SExpr
 getName n = do
-  m_s <- SolverT (gets (lookupName n))
+  m_s <- inCurrentFrame (pure . lookupName n)
   case m_s of
     Just s -> pure s
     Nothing -> panic "Missing name" [showPP n]
 
-freshNameIn :: (Monad m, HasGUID m) => Name -> (SExpr -> SolverT m a) -> SolverT m (SExpr, a)
-freshNameIn n f = do
+freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m String
+freshSymbol pfx = do
+  guid <- lift getNextGUID
+  pure (stringToSMTName pfx guid)
+
+declareSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
+declareSymbol pfx ty = do
+  sym <- freshSymbol pfx
+  solverOp (\s -> S.declare s sym ty)
+
+freshName :: (Monad m, HasGUID m) => Name -> SolverT m String
+freshName n = do
   n' <- lift (C.freshName n)
-  let s = S.const (nameToSMTName n')
-  (,) s <$> SolverT (withStateT (bindName n s) (getSolverT (f s)))
+  let ns = nameToSMTName n'
+  modifyCurrentFrame (bindName n ns)
+  pure ns
+
+-- FIXME: we could convert the type here
+-- gives a name a value, returns the fresh name
+defineName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
+defineName n ty v = do
+  n' <- freshName n
+  solverOp (\s -> S.define s n' ty v)
+
+declareName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SolverT m SExpr
+declareName n ty = do
+  n' <- freshName n
+  solverOp (\s -> S.declare s n' ty)
 
 solverState :: Monad m => (SolverState -> m (a, SolverState)) -> SolverT m a
 solverState f = do
@@ -122,34 +203,18 @@ solverState f = do
   SolverT (put s')
   pure a
 
-
--- FIXME: might be nicer if we have this monad take care of push/pop
--- and have an explicit stack of bound names etc.
-
 -- Execute the monadic action and clean up the scope and state when it
 -- completes.
 scoped :: MonadIO m => SolverT m a -> SolverT m a
 scoped m = do
-  s  <- SolverT get
-  -- Get the initial stack level from the solver to restore to later.
-  l <- getLevel (solver s)
-  liftIO (S.push (solver s))
+  st0  <- SolverT get
+  SolverT (put (st0 { frames = [] }))
+  push
   r <- m
-  l' <- getLevel (solver s)
-  liftIO (S.popMany (solver s) (l' - l))
-  
-  -- restore state as well, note that everything in the state is
-  -- contextual or read-only  
-  SolverT (put s)
+  popAll
+  -- We could just reuse st0, but this avoids issues if we change the state type.
+  SolverT (modify (\s -> s { frames = frames st0 })) 
   pure r
-  where
-    getLevel s = liftIO $ do
-      res <- S.command s (S.fun "get-info" [S.const ":assertion-stack-levels"])
-      pure $ case res of
-        S.List [S.Atom ":assertion-stack-levels", S.Atom n]
-          | Just lvl <- readMaybe n -> lvl
-          | otherwise -> panic "Malformed level count" [n]
-        _ -> panic "Unexpected get-info result" [show res]
 
 runSolverT :: SolverT m a -> SolverState -> m (a, SolverState)
 runSolverT (SolverT m) s = runStateT m s

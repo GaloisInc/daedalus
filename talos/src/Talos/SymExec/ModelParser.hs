@@ -5,7 +5,7 @@
 
 module Talos.SymExec.ModelParser
   ( ModelP, evalModelP
-  , pBytes, pMUnit, pIndexed, pSeq
+  , pByte, pBytes, pMUnit, pIndexed, pSeq
   ) where
 
 import qualified Data.Vector as V

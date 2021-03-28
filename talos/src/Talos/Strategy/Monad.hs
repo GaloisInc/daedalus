@@ -121,6 +121,10 @@ instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
   liftStrategy m = lift (liftStrategy m)
 
+instance LiftStrategyM m => LiftStrategyM (SolverT m) where
+  liftStrategy m = lift (liftStrategy m)
+
+
 -- -----------------------------------------------------------------------------
 -- Instances
 
