@@ -19,6 +19,7 @@ import Daedalus.Panic
 
 import Daedalus.Core
 import Daedalus.Core.Free
+import Daedalus.Core.TraverseUserTypes
 
 import Talos.Analysis.EntangledVars
 
@@ -286,6 +287,45 @@ instance FreeVars CallNode where
 instance FreeVars Assertion where
   freeVars  (GuardAssertion e) = freeVars e
   freeFVars (GuardAssertion e) = freeFVars e
+
+
+-- -----------------------------------------------------------------------------
+-- FreeTCons
+traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applicative f) =>
+                        (UserType -> f UserType) -> Map a b -> f (Map a b)
+traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
+
+instance TraverseUserTypes Slice where
+  traverseUserTypes f sl = 
+    case sl of
+      SDontCare n sl'   -> SDontCare n <$> traverseUserTypes f sl'
+      SDo m_x l r       -> SDo <$> traverseUserTypes f m_x <*> traverseUserTypes f l <*> traverseUserTypes f r
+      SUnconstrained    -> pure sl
+      SLeaf s           -> SLeaf <$> traverseUserTypes f s
+
+instance TraverseUserTypes SliceLeaf where
+  traverseUserTypes f sl =
+    case sl of
+      SPure v      -> SPure <$> traverseUserTypes f v
+      SMatch m     -> SMatch <$> traverseUserTypes f m
+      SAssertion e -> SAssertion <$> traverseUserTypes f e
+      SChoice cs   -> SChoice <$> traverseUserTypes f cs
+      SCall cn     -> SCall   <$> traverseUserTypes f cn
+      SCase b c    -> SCase b <$> traverseUserTypes f c
+
+instance TraverseUserTypes CallNode where
+  traverseUserTypes f cn  =
+    (\args' n' paths' -> cn { callAllArgs = args', callName = n', callPaths = paths'  })
+    <$> traverseUserTypesMap f (callNodeActualArgs cn)
+    <*> traverseUserTypes f (callName cn)
+    <*> traverseUserTypesMap f (callPaths cn)    
+
+instance TraverseUserTypes CallInstance where
+  traverseUserTypes f ci  =
+    CallInstance <$> traverseUserTypes f (callParams ci) <*> traverseUserTypes f (callSlice ci)
+
+instance TraverseUserTypes Assertion where
+  traverseUserTypes f (GuardAssertion e) = GuardAssertion <$> traverseUserTypes f e
 
 --------------------------------------------------------------------------------
 -- PP Instances

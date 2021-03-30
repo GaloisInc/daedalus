@@ -4,10 +4,11 @@
 
 module Talos.SymExec.Core where
 
-import Control.Monad (void)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Map(Map)
+import Control.Monad.IO.Class (MonadIO)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
+import Data.Foldable (fold)
 
 import qualified Data.ByteString as BS
 
@@ -17,11 +18,14 @@ import qualified SimpleSMT as S
 import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.GUID
+import Daedalus.Rec
 
 import Daedalus.Core hiding (freshName)
+import Daedalus.Core.Free
 import Daedalus.Core.Type
 
-import Talos.Strategy.Monad
+-- import Talos.Strategy.Monad
+import Talos.Analysis.Slice
 
 import Talos.SymExec.StdLib
 import Talos.SymExec.SolverT
@@ -42,7 +46,7 @@ instance SymExec Name where
 -- Types are embedded direclty (without renaming), hence this is non-monadic
   
 symExecTName :: TName -> String
-symExecTName n = show (pp (tnameText n) <> "@" <> pp (tnameId n))
+symExecTName = tnameToSMTName
 
 labelToField :: TName -> Label -> String
 labelToField n l = symExecTName n ++ "-" ++ show (pp l)
@@ -50,34 +54,47 @@ labelToField n l = symExecTName n ++ "-" ++ show (pp l)
 typeNameToCtor :: TName -> String
 typeNameToCtor n = "mk-" ++ symExecTName n
 
-typeNameToDefault :: TName -> String
-typeNameToDefault n = "default-" ++ symExecTName n
-
 -- | Construct SMT solver datatype declaration based on DaeDaLus type
 -- declarations.
 
-symExecTDecl :: (MonadIO m, Monad m) => TDecl -> SolverT m ()
-symExecTDecl td@(TDecl { tTParamKNumber = _ : _ }) =
+-- we already have recs and it is ordered, so we don't need to calculate a fixpoint
+sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
+sliceToSMTTypeDefs md sl = go [] roots0 (reverse (mTypes md))
+  where
+    roots0 = freeTCons sl
+
+    go acc _ [] = reverse acc
+    go acc roots (NonRec td : rest) 
+      | tName td `Set.member` roots =
+        go (NonRec (tdeclToSMTTypeDef td) : acc) (Set.union roots (freeTCons td)) rest
+      | otherwise                   = go acc roots rest
+      
+    go acc roots (MutRec tds : rest) 
+      | any (\td -> tName td `Set.member` roots) tds = 
+        go (MutRec (map tdeclToSMTTypeDef tds) : acc) (Set.unions (roots : map freeTCons tds)) rest
+      | otherwise                   = go acc roots rest
+
+tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
+tdeclToSMTTypeDef td@(TDecl { tTParamKNumber = _ : _ }) =
   panic "Unsupported type decl (number params)" [showPP td]
 
-symExecTDecl td@(TDecl { tTParamKValue = _ : _ }) =
+tdeclToSMTTypeDef td@(TDecl { tTParamKValue = _ : _ }) =
   panic "Unsupported type decl (type params)" [showPP td]
 
-symExecTDecl TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [], tDef = td } =
-  withSolver $ \s -> liftIO $ do
-    S.declareDatatype s n [] sflds
-    
-    -- Add a 'default' constant for this type, which is used to
-    -- init. arrays etc.  We never care what it actually is.
-    void $ S.declare s (typeNameToDefault name) (S.const n)
+tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [], tDef = td } =
+  SMTTypeDef { stdName = name
+             , stdBody = sflds
+             }
   where
-    n = symExecTName name
     sflds = case td of
               TStruct flds -> [(typeNameToCtor name, map mkOneS flds) ]
               TUnion flds  -> map mkOneU flds
     mkOneS (l, t) = (lblToFld l, symExecTy t)
     mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
+      
+defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceTypeDefs md sl = mapM_ defineSMTTypeDefs (sliceToSMTTypeDefs md sl)
 
 symExecTy :: Type -> SExpr
 symExecTy = go 
@@ -101,8 +118,8 @@ symExecTy = go
         TIterator (TArray elTy) -> tArrayIter (go elTy)
         TIterator {}    -> unimplemented -- map iterators
         TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> S.const (symExecTName n)
-        TUser ut        -> panic "Saw type with arguments" [showPP ty']
-        TParam x        -> panic "Saw type variable" [showPP ty']
+        TUser _ut       -> panic "Saw type with arguments" [showPP ty']
+        TParam _x       -> panic "Saw type variable" [showPP ty']
 
 typeDefault :: Type -> SExpr
 typeDefault = go
@@ -128,9 +145,65 @@ typeDefault = go
         TParam {}       -> unimplemented
 
 --------------------------------------------------------------------------------
--- Values
+-- Functions
+
+-- transitive closure from the roots in the grammar functions.
+-- FIXME: (perf) we recalculate freeFVars in sliceToFunDefs
+calcPureDeps :: Module -> Set FName -> Set FName
+calcPureDeps md = go 
+  where
+    go roots =
+      let next = once roots
+      in if next == roots then roots else go next
+
+    once roots = fold (Map.restrictKeys depM roots)
+
+    depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
+      
+    mkOne :: FreeVars e => Fun e -> (FName, Set FName)
+    mkOne f = (fName f, freeFVars f)
+
+-- We don't share code with sliceToFun as they are substantially different
+funToFunDef :: (Monad m, FreeVars e) => (e -> SolverT m SExpr) -> [(String, SExpr)] -> Fun e ->
+               SolverT m SMTFunDef
+funToFunDef _ _ Fun { fDef = External } =
+  panic "Saw an external function" []
+
+funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
+  b <- sexec body
+  pure SMTFunDef { sfdName = fName f
+                 , sfdArgs = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f)
+                             ++ extraArgs -- For bytesets
+                 , sfdRet  = symExecTy (fnameType (fName f))
+                 , sfdBody = b
+                 , sfdPureDeps = freeFVars f
+                 }
+
+-- FIXME: maybe calculate some of this once in StrategyM.
+-- FIXME: filter by knownFNames here instead of in SolverT 
+defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceFunDefs md sl = do
+  fdefs <- sequence $ foldMap (mkOneF [] symExec) (mFFuns md)
+  bdefs <- sequence $ foldMap (mkOneF byteArg (flip symExecByteSet byteV)) (mBFuns md)
+  let rFDefs      = topoOrder (\sfd -> (sfdName sfd, sfdPureDeps sfd)) (fdefs ++ bdefs)
+  mapM_ defineSMTFunDefs rFDefs
+  where
+    roots = freeFVars sl -- includes grammar calls as well
+    allFs = calcPureDeps md roots
+
+    byteN        = "$b"
+    byteV        = S.const byteN
+    byteArg      = [(byteN, tByte)]
+
+    mkOneF :: (Monad m, FreeVars e) => [(String, SExpr)] -> (e -> SolverT m SExpr) -> Fun e ->
+              [SolverT m SMTFunDef]
+    mkOneF extraArgs sexec f
+      | fName f `Set.member` allFs = [funToFunDef sexec extraArgs f]
+      | otherwise                  = []
 
 
+
+  
 -- -----------------------------------------------------------------------------
 -- Symbolic execution of terms
 

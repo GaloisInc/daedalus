@@ -7,28 +7,35 @@
 module Talos.SymExec.SolverT (
   -- * Solver interaction monad
   SolverT, runSolverT, mapSolverT, emptySolverState,
-  nameToSMTName,
-  fnameToSMTName,
+  nameToSMTName, fnameToSMTName, tnameToSMTName,
   getName,
   SolverState,
   withSolver, scoped,
   -- assert, declare, check,
   solverOp, solverState,
   getValue,
+
+  -- * Functions
+  SMTFunDef(..), defineSMTFunDefs,
+  -- * Types
+  SMTTypeDef(..), defineSMTTypeDefs,
+  typeNameToDefault, 
   -- * Context management
-  freshName, defineName, declareName, declareSymbol, 
+  freshName, defineName, declareName, declareSymbol, knownFNames,
   push, pop, popAll,
-  assert
+  assert, check
   
   ) where
 
 import Control.Applicative
+import Data.Functor ( ($>) )
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text(Text)
 
 import Data.Set (Set)
+import qualified Data.Set as Set
 
 import SimpleSMT (Solver, SExpr)
 import qualified SimpleSMT as S
@@ -43,9 +50,9 @@ import qualified Daedalus.Core as C
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
 data SolverFrame =
-  SolverFrame { knownTypes :: Set TName -- ^ We lazily define types, but their names are mapped directly
-              , knownFuns  :: Set FName -- ^ Similarly for (pure) functions (incl. bytesets)
-              , boundNames :: Map Name String
+  SolverFrame { frKnownTypes :: Set TName -- ^ We lazily define types, but their names are mapped directly
+              , frKnownFuns  :: Set FName -- ^ Similarly for (pure) functions (incl. bytesets)
+              , frBoundNames :: Map Name String
               -- ^ May include names bound in closed scopes, to allow for
               --
               -- def P = { x = { $$ = UInt8; $$ > 10 }, ...}
@@ -103,12 +110,12 @@ popAll = do
       SolverT (modify (\s -> s { frames = [], currentFrame = topF }))
 
 bindName :: Name -> String -> SolverFrame -> SolverFrame
-bindName k v f = f { boundNames = Map.insert k v (boundNames f) }
+bindName k v f = f { frBoundNames = Map.insert k v (frBoundNames f) }
 
 lookupName :: Name -> SolverFrame -> Maybe SExpr
-lookupName k = fmap S.const . Map.lookup k . boundNames
+lookupName k = fmap S.const . Map.lookup k . frBoundNames
 
-newtype SolverT m a = SolverT { getSolverT :: StateT SolverState m a }
+newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
 
 withSolver :: Monad m => (Solver -> SolverT m a) -> SolverT m a
@@ -154,11 +161,17 @@ nameToSMTName n = stringToSMTName (maybe "_" id (nameText n)) (nameId n)
 fnameToSMTName :: FName -> String
 fnameToSMTName n = stringToSMTName (maybe "_" id (fnameText n)) (fnameId n)
 
+tnameToSMTName :: TName -> String
+tnameToSMTName n = stringToSMTName (tnameText n) (tnameId n)
+
 -- symExecName :: Name -> SExpr
 -- symExecName =  S.const . nameToSMTName
 
 -- symExecFName :: FName -> SExpr
 -- symExecFName =  S.const . fnameToSMTName
+
+knownFNames :: Monad m => SolverT m (Set FName)
+knownFNames = inCurrentFrame (pure . frKnownFuns)
 
 getName :: Monad m => Name -> SolverT m SExpr
 getName n = do
@@ -183,7 +196,7 @@ freshName n = do
   let ns = nameToSMTName n'
   modifyCurrentFrame (bindName n ns)
   pure ns
-
+    
 -- FIXME: we could convert the type here
 -- gives a name a value, returns the fresh name
 defineName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
@@ -221,6 +234,107 @@ runSolverT (SolverT m) s = runStateT m s
 
 mapSolverT :: (m (a, SolverState) -> n (b, SolverState)) -> SolverT m a -> SolverT n b
 mapSolverT f (SolverT m) = SolverT (mapStateT f m)
+
+-- ----------------------------------------------------------------------------------------
+-- Types
+
+data SMTTypeDef =
+  SMTTypeDef { stdName :: TName
+             , stdBody :: [(String, [(String, SExpr)])]
+             }
+  
+typeNameToDefault :: TName -> String
+typeNameToDefault n = "default-" ++ tnameToSMTName n
+
+-- FIXME: merge into simple-smt
+
+-- Arguments are as for declareDatatype: (name, tparams, constructors)
+declareDatatypes :: Solver -> [ (String, [String], [(String, [(String, SExpr)])]) ] -> IO ()
+declareDatatypes s ts = S.ackCommand s (S.fun "declare-datatypes" [namesArities, decls])
+  where
+    namesArities = S.List (map nameArity ts)
+    nameArity (n, tparams, _) = S.List [ S.Atom n, S.int (fromIntegral $ length tparams) ]
+    decls        = S.List (map decl ts)
+    decl (_, [], ctors) = mkbody ctors
+    decl (_, tparams, ctors) = S.fun "par" [ S.List (map S.Atom tparams), mkbody ctors ]
+    mkbody ctors = S.List [ S.fun ctor [ S.List [ S.Atom fld, ty ]
+                                       | (fld, ty) <- flds ]
+                          | (ctor, flds) <- ctors
+                          ]
+
+defineDefaultType :: MonadIO m => SMTTypeDef -> SolverT m ()
+defineDefaultType std = void $ solverOp (\s -> S.declare s n ty)
+  where
+    ty = S.const (tnameToSMTName (stdName std))
+    n  = typeNameToDefault (stdName std)
+    
+-- FIXME: merge with defineSMTFunDefs ?
+-- FIXME: add defaults
+defineSMTTypeDefs :: MonadIO m => Rec SMTTypeDef -> SolverT m ()
+defineSMTTypeDefs (NonRec std) = overCurrentFrame $ \f -> 
+  if stdName std `Set.member` frKnownTypes f
+  then pure ((), f)
+  else do solverOp doDef
+          defineDefaultType std
+          pure ((), f { frKnownTypes = Set.insert (stdName std) (frKnownTypes f) })
+  where
+    doDef s = void $ S.declareDatatype s n' [] (stdBody std)
+    n' = tnameToSMTName (stdName std)
+      
+defineSMTTypeDefs (MutRec stds) = overCurrentFrame $ \f -> 
+  if not (Set.disjoint allNames (frKnownTypes f)) -- if we define one we should have defined all
+  then pure ((), f)
+  else do solverOp (flip declareDatatypes defs)
+          mapM_ defineDefaultType stds
+          pure ((), f { frKnownTypes = Set.union allNames (frKnownTypes f) })
+  where
+    allNames = Set.fromList (map stdName stds)
+    defs = map (\std -> (tnameToSMTName (stdName std), [], stdBody std)) stds
+
+
+-- defineTName :: (MonadIO m) => TName ->  -> SolverT m SExpr
+-- defineTName n flds = overCurrentFrame $ \f ->
+--   if n `Set.member` frKnownTypes f
+--   then pure (sn, f)
+--   else do
+--     solverOp (\s -> S.declareDatatype s n' [] flds)
+--     -- Add a 'default' constant for this type, which is used to
+--     -- init. arrays etc.  We never care what it actually is.
+--     solverOp (\s -> void $ S.declare s (typeNameToDefault n) sn)
+    
+--     pure (sn, f { frKnownTypes = Set.insert n (frKnownTypes f) })
+  
+--   where
+--     n' = tnameToSMTName n
+--     sn = S.const n'
+
+
+
+-- -----------------------------------------------------------------------------
+-- Functions
+
+data SMTFunDef = SMTFunDef { sfdName :: FName
+                           , sfdArgs :: [(String, SExpr)]
+                           , sfdRet  :: SExpr
+                           , sfdBody :: SExpr
+                           , sfdPureDeps :: Set FName
+                           }
+
+defineSMTFunDefs :: MonadIO m => Rec SMTFunDef -> SolverT m ()
+defineSMTFunDefs (NonRec sfd) = overCurrentFrame $ \f -> 
+  if sfdName sfd `Set.member` frKnownFuns f
+  then pure ((), f)
+  else solverOp doDef $> ((), f { frKnownFuns = Set.insert (sfdName sfd) (frKnownFuns f) })
+  where
+    doDef s = void $ S.defineFun s (fnameToSMTName (sfdName sfd)) (sfdArgs sfd) (sfdRet sfd) (sfdBody sfd)
+
+defineSMTFunDefs (MutRec sfds) = overCurrentFrame $ \f -> 
+  if not (Set.disjoint allNames (frKnownFuns f)) -- if we define one we should have defined all
+  then pure ((), f)
+  else solverOp (flip S.defineFunsRec defs) $> ((), f { frKnownFuns = Set.union allNames (frKnownFuns f) })
+  where
+    allNames = Set.fromList (map sfdName sfds)
+    defs = map (\sfd -> (fnameToSMTName (sfdName sfd), sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
   
 -- -----------------------------------------------------------------------------
 -- instances

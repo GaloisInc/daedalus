@@ -7,7 +7,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getGFun
+                            , summaries, getModule, getGFun
                             , rand, randR, randL, randPermute
                             ) where
 
@@ -77,6 +77,9 @@ getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
     getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
       Nothing -> panic "Missing function" [showPP f]
       Just v  -> v
+
+getModule :: LiftStrategyM m => m Module
+getModule = liftStrategy (StrategyM (gets stsModule))
 
 -- -----------------------------------------------------------------------------
 -- Random values

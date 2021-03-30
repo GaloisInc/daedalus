@@ -148,37 +148,6 @@ defineSMTFunDefs s (NonRec sfd) =
 defineSMTFunDefs s (MutRec sfds) = S.defineFunsRec s defs
   where
     defs = map (\sfd -> (sfdName sfd, sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
-
--- transitive closure from the roots in the grammar functions.
--- FIXME: (perf) we recalculate freeFVars in symExecPureFun.
-calcPureDeps :: Module -> Set FName -> Set FName
-calcPureDeps md = go 
-  where
-    go roots =
-      let next = once roots
-      in if next == roots then roots else go next
-
-    once roots = fold (Map.restrictKeys depM roots)
-
-    depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
-      
-    mkOne :: FreeVars e => Fun e -> (FName, Set FName)
-    mkOne f = (fName f, freeFVars f)
-
--- We don't share code with sliceToFun as they are substantially different
-symExecPureFun :: FreeVars e => (e -> SExpr) -> [(String, SExpr)] -> Fun e -> SMTFunDef
-symExecPureFun _ _ Fun { fDef = External } =
-  panic "Saw an external function" []
-
-symExecPureFun sexec extraArgs f@(Fun { fDef = Def body }) =
-  SMTFunDef { sfdName = fnameToSMTName (fName f)
-            , sfdArgs = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f)
-                        ++ extraArgs -- For bytesets
-            , sfdRet  = symExecTy (fnameType (fName f))
-            , sfdBody = sexec body
-            , sfdDeps = mempty
-            , sfdPureDeps = freeFVars f
-            }
   
 -- This could be more efficient, but we generate all the bodies of the
 -- SMT terms and run the SCC analysis to get recursive groupings, then
@@ -203,9 +172,6 @@ symExecSummaries md allSummaries = do
       | otherwise                  = []
 
     -- Byte value for byteset functions
-    byteN        = "$b"
-    byteV        = S.const byteN
-    byteArg      = [(byteN, tByte)]
 
 
 -- Turn a summary into a SMT formula (+ associated types)

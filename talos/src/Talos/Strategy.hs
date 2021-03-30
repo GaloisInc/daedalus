@@ -8,9 +8,10 @@ import Talos.SymExec.Path
 import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM)
 -- strategies
 import Talos.Strategy.BTRand (randDFS)
+import Talos.Strategy.Symbolic (symbolicStrat)
 
 strategies :: [Strategy]
-strategies = [ randDFS ]
+strategies = [ symbolicStrat ]
 
 runStrategy :: SolverState -> Strategy -> ProvenanceTag -> Slice ->
                StrategyM (Maybe SelectedPath, SolverState)

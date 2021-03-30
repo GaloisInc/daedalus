@@ -12,6 +12,7 @@ import Daedalus.Panic
 
 import Daedalus.Core
 import Daedalus.Core.Free
+import Daedalus.Core.TraverseUserTypes
 
 -- Two variables are entangled if information can flow between them
 -- --- i.e., the choice of value for one variable may impact the
@@ -90,3 +91,13 @@ instance PP EntangledVar where
 
 instance PP EntangledVars where
   pp evs = lbrace <> commaSep (map pp (Set.toList (getEntangledVars evs))) <> rbrace
+
+instance TraverseUserTypes EntangledVar where
+  traverseUserTypes f ev =
+    case ev of
+      ResultVar -> pure ev
+      ProgramVar v -> ProgramVar <$> traverseUserTypes f v
+
+instance TraverseUserTypes EntangledVars where
+  traverseUserTypes f =
+    fmap (EntangledVars . Set.fromList) . traverseUserTypes f . Set.toList . getEntangledVars

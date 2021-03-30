@@ -7,7 +7,6 @@ module Talos.Strategy.Symbolic (symbolicStrat) where
 import Control.Applicative
 import Control.Monad.Reader
 
-import Control.Monad.Trans.Cont
 import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl')
@@ -20,10 +19,6 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Core hiding (streamOffset)
 import Daedalus.Core.Type
-import qualified Daedalus.Core.Semantics.Grammar as I
-import qualified Daedalus.Core.Semantics.Expr as I
-import qualified Daedalus.Core.Semantics.Value as I
-import qualified Daedalus.Core.Semantics.Env as I
   
 import SimpleSMT (SExpr)
 import qualified SimpleSMT as S
@@ -56,9 +51,15 @@ symbolicStrat =
 
 -- FIXME: define all types etc. eagerly
 symbolicFun :: ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath)
-symbolicFun ptag sl = scoped $ runSymbolicM $ do
-  (_, pathM) <- stratSlice ptag sl
-  pathM
+symbolicFun ptag sl = do
+  -- defined referenced types/functions
+  md <- getModule
+  defineSliceTypeDefs md sl
+  defineSliceFunDefs md sl
+  scoped $ runSymbolicM $ do
+    (_, pathM) <- stratSlice ptag sl
+    pathM
+
 
 -- We return the symbolic value (which may contain bound variables, so
 -- those have to be all at the top level) and a computation for
@@ -83,7 +84,8 @@ stratSlice ptag = go
         SUnconstrained  -> pure (sUnit, pure Unconstrained)
         SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
         
-    goLeaf sl =
+    goLeaf sl = do
+      liftIO (print (pp sl))
       case sl of
         SPure e -> uncPath <$> synthesiseExpr e
 
@@ -91,14 +93,16 @@ stratSlice ptag = go
           bname <- solverOp (declareSymbol "b" tByte)
           bassn <- solverOp (symExecByteSet bset bname)
           solverOp (assert bassn)
+          -- solverOp check -- required?          
           pure (bname, SelectedMatch ptag . BS.singleton <$> byteModel bname)
   
-        SMatch (MatchBytes e) -> unimplemented -- should probably not happen?
+        SMatch (MatchBytes _e) -> unimplemented -- should probably not happen?
         SMatch {} -> unimplemented
           
         SAssertion (GuardAssertion e) -> do
           se <- synthesiseExpr e
           solverOp (assert se)
+          check          
           pure (uncPath sUnit)
 
         SChoice sls -> do
@@ -131,7 +135,7 @@ stratCase ptag (Case e ps) = do
         PAny     -> S.bool True
 
   solverOp (assert assn)
-  
+  check
   onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
   where
     ty = typeOf e
@@ -172,10 +176,19 @@ choose bs = do
   foldr mplus mzero (map pure bs')
 
 -- ----------------------------------------------------------------------------------------
--- Environment helpers
+-- Solver helpers
 
 synthesiseExpr :: SymExec a => a -> SymbolicM SExpr
 synthesiseExpr e = solverOp (symExec e)
+
+check :: SymbolicM ()
+check = do
+  r <- solverOp Solv.check
+  case r of
+    S.Sat     -> pure ()
+    S.Unsat   -> mzero
+    S.Unknown -> mzero
+    
 
 -- ----------------------------------------------------------------------------------------
 -- Utils
@@ -210,7 +223,7 @@ byteModel symB = do
 --    to be careful to pop contexts appropriately.
 --  * A StrategyM
 
-newtype SymbolicM a = SymbolicM { getSymbolicM :: DFST (Maybe SelectedPath) (SolverT StrategyM) a }
+newtype SymbolicM a = SymbolicM { _getSymbolicM :: DFST (Maybe SelectedPath) (SolverT StrategyM) a }
   deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM)
 
 runSymbolicM :: SymbolicM SelectedPath -> SolverT StrategyM (Maybe SelectedPath)
