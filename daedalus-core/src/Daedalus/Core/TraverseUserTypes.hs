@@ -26,6 +26,9 @@ class TraverseUserTypes a where
     
 
 instance TraverseUserTypes a => TraverseUserTypes [a] where {- default -}
+instance (TraverseUserTypes a, TraverseUserTypes b) => TraverseUserTypes (a, b) where
+  traverseUserTypes f (a, b) = (,) <$> traverseUserTypes f a <*> traverseUserTypes f b
+
 instance TraverseUserTypes a => TraverseUserTypes (Maybe a) where {- default -}
 instance TraverseUserTypes a => TraverseUserTypes (Case a) where {- default -}
 instance TraverseUserTypes a => TraverseUserTypes (FunDef a) where {- default -}
