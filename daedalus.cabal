@@ -36,6 +36,7 @@ library
                        Daedalus.Scope,
                        Daedalus.ExportRuleRanges,
                        Daedalus.Interp,
+                       Daedalus.Interp1,
                        Daedalus.Specialise,
                        Daedalus.CompileHS,
                        Daedalus.Compile.LangHS,
@@ -103,6 +104,7 @@ library
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
+                       daedalus-value,
                        rts-hs
 
 
@@ -114,6 +116,7 @@ executable daedalus
   build-depends:       daedalus,
                        daedalus-utils,
                        daedalus-core,
+                       daedalus-value,
                        daedalus-vm,
                        rts-hs,
                        pretty-hex >= 1.1,
