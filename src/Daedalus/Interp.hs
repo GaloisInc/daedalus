@@ -29,14 +29,13 @@ module Daedalus.Interp
   ) where
 
 
-import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum)
+import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
-import Data.Bits(shiftL,shiftR,(.|.),(.&.),xor)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
@@ -48,9 +47,10 @@ import Daedalus.SourceRange
 import Daedalus.PP hiding (empty)
 import Daedalus.Panic
 
+import Daedalus.Value
+
 import qualified Daedalus.AST as K
 import Daedalus.Type.AST hiding (Value)
-import Daedalus.Interp.Value
 import Daedalus.Rec (forgetRecs)
 
 
@@ -59,15 +59,8 @@ import RTS.Input
 import RTS.Parser as P
 import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
-import RTS.Numeric(sizeToInt,intToSize)
+import RTS.Numeric(UInt(..))
 import qualified RTS.Vector as RTS
-
--- We can use VUInt instead of mkUInt here b/c we are coming from Word8
-byteStringToValue :: ByteString -> Value
-byteStringToValue = VArray . Vector.fromList . map (VUInt 8 . fromIntegral) . BS.unpack
-
-vUnit :: Value
-vUnit = VStruct []
 
 -- A rule can take either parsers or values as an argument, e.g.
 --
@@ -77,7 +70,7 @@ data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
 data SomeFun      = FVal (Fun Value)
                   | FClass (Fun ClassVal)
                   | FGrm (Fun (Parser Value))
-newtype Fun a     = Fun ([TVal] -> [SomeVal] -> a)
+newtype Fun a     = Fun ([TValue] -> [SomeVal] -> a)
 
 
 instance Show (Fun a) where
@@ -97,7 +90,7 @@ data Env = Env
   , clsEnv  :: Map Name ClassVal
   , gmrEnv  :: Map Name (PParser Value)
 
-  , tyEnv   :: Map TVar TVal
+  , tyEnv   :: Map TVar TValue
     -- ^ Bindings for polymorphic type argumens
   }
 
@@ -118,136 +111,63 @@ addValMaybe :: Maybe (TCName K.Value) -> Value -> Env -> Env
 addValMaybe Nothing  _ e = e
 addValMaybe (Just x) v e = addVal x v e
 
+--------------------------------------------------------------------------------
+
+partial :: Partial Value -> Value
+partial val =
+  case val of
+    Left err -> error err
+    Right a  -> a
+
+partial2 :: (Value -> Value -> Partial Value) -> Value -> Value -> Value
+partial2 f = \x y -> partial (f x y)
+
+partial3 :: (Value -> Value -> Value -> Partial Value) ->
+            Value -> Value -> Value -> Value
+partial3 f = \x y z -> partial (f x y z)
 
 evalUniOp :: UniOp -> Value -> Value
-evalUniOp op v =
+evalUniOp op =
   case op of
-    Not -> VBool $ not $ valueToBool v
-    Neg ->
-      case v of
-        VInteger i -> VInteger (negate i)
-        VUInt n i  -> mkUInt n (negate i)
-        VSInt n i  -> mkSInt n (negate i)
-        _ -> panic "evalUniOp" [ "Neg on a non-numeric value" ]
-
-
-    Concat -> VArray $ Vector.concat
-                     $ Vector.toList
-                     $ Vector.map valueToVector
-                     $ valueToVector v
-
-    BitwiseComplement ->
-      case v of
-        VUInt n x -> VUInt n (2 ^ n - x - 1)
-        r         -> panic "expecting a uint" [show (pp r)]
+    Not               -> vNot
+    Neg               -> partial . vNeg
+    Concat            -> vArrayConcat
+    BitwiseComplement -> vComplement
 
 
 
 evalBinOp :: BinOp -> Value -> Value -> Value
-evalBinOp op v1 v2 =
+evalBinOp op =
   case op of
-    Add     -> numBin $ \mk a b -> mk (a + b)
-    Sub     -> numBin $ \mk a b -> mk (a - b)
-    Mul     -> numBin $ \mk a b -> mk (a * b)
-    Div     -> numBin $ \mk a b -> mk (a `div` b)
-    Mod     -> numBin $ \mk a b -> mk (a `mod` b)
-    Lt      -> numBin $ \_  a b -> VBool (a < b)
-    Leq     -> numBin $ \_  a b -> VBool (a <= b)
-    Eq      -> VBool (v1 == v2)
-    NotEq   -> VBool (v1 /= v2)
-    -- It is OK to use Haskell's derived Eq here as the DDL type checker
-    -- guarantess that the values have the same shape, so false negatives
-    -- (e.g. integer == struct) are ruled out statically.
+    Add         -> partial2 vAdd
+    Sub         -> partial2 vSub
+    Mul         -> partial2 vMul
+    Div         -> partial2 vDiv
+    Mod         -> partial2 vMod
 
-    Cat -> case (v1,v2) of
-             (VUInt m x, VUInt n y) ->
-                mkUInt (m + n) ((x `shiftL` fromIntegral n) .|. y)
-             _ -> error "BUG: invalid bit concatenation"
+    Lt          -> vLt
+    Leq         -> vLeq
+    Eq          -> vEq
+    NotEq       -> vNeq
 
-    LCat ->
-      case v2 of
-        VUInt w y ->
-          let mk f i = f ((i `shiftL` fromIntegral w) .|. y)
-              --- XXX: fromIntegral is a bit wrong
-          in
-          case v1 of
-            VInteger x -> mk VInteger  x
-            VUInt n x  -> mk (VUInt n) x
-            VSInt n x  -> mk (VSInt n) x
-            _          -> error "BUG: 1st argument to (<#) must be numeric"
-        _ -> error "BUG: 2nd argument of (<#) should be UInt"
+    Cat         -> vCat
+    LCat        -> partial2 vLCat
+    LShift      -> partial2 vShiftL
+    RShift      -> partial2 vShiftR
+    BitwiseAnd  -> vBitAnd
+    BitwiseOr   -> vBitOr
+    BitwiseXor  -> vBitXor
 
-    LShift -> shiftOp shiftL
-    RShift -> shiftOp shiftR
-    BitwiseAnd -> bitwiseOp (.&.)
-    BitwiseOr  -> bitwiseOp (.|.)
-    BitwiseXor -> bitwiseOp xor
+    ArrayStream -> vStreamFromArray
 
-    ArrayStream -> VStream (newInput nm bs)
-      where nm = valueToByteString v1
-            bs = valueToByteString v2
 
-    LogicAnd -> logicOp (&&)
-    LogicOr  -> logicOp (||)
-
-  where
-  logicOp f =
-    case (v1,v2) of
-      (VBool x, VBool y) -> VBool (f x y)
-      _ -> panic "argument to logic binop must be a bool"
-                  [show (pp v1), show (pp v2)]
-
-  bitwiseOp f =
-    case (v1, v2) of
-      (VUInt n x, VUInt _ y)  -> VUInt n (f x y)
-      _ -> panic "argument to binop must be an unsigned int"
-                  [show (pp v1), show (pp v2)]
-
-  shiftOp sh =
-    let w = sizeToInt (valueToSize v2)
-        mk f i = f (sh i w)
-    in case v1 of
-         VInteger x -> mk VInteger  x
-         VUInt n x  -> mk (VUInt n) x
-         VSInt n x  -> mk (VSInt n) x
-         _          -> error "BUG: 1st argument to (<#) must be numeric"
-
-  numBin f =
-    case (v1,v2) of
-      (VInteger x, VInteger y) -> f VInteger   x y
-      (VUInt m x,  VUInt _ y)  -> f (mkUInt m) x y
-      (VSInt m x,  VSInt _ y)  -> f (mkSInt m) x y
-      _ -> error ("BUG: invalid binary operation: " ++ show op ++ show [v1,v2])
 
 
 evalTriOp :: TriOp -> Value -> Value -> Value -> Value
-evalTriOp op e1 e2 e3 =
+evalTriOp op =
   case op of
-    RangeUp -> rangeOp
-    RangeDown -> rangeOp
-  where
-  rangeOp
-    | step <= 0 = error "rangeUp: invalid step"
-    | otherwise = VArray
-                $ Vector.fromList
-                $ map tag
-                $ takeWhile notDone
-                $ iterate upd start
-      where
-      upd   = case op of
-                RangeUp   -> (+ step)
-                RangeDown -> subtract step
-      notDone = case op of
-                  RangeUp -> (< end)
-                  RangeDown -> (> end)
-      start = valueToInteger e1
-      end   = valueToInteger e2
-      step  = valueToInteger e3
-      tag = case e1 of
-              VUInt n _   -> VUInt n
-              VSInt n _   -> VSInt n
-              VInteger _  -> VInteger
-              _ -> error "rangeUp: Unexpected numeric type"
+    RangeUp   -> partial3 vRangeUp
+    RangeDown -> partial3 vRangeDown
 
 
 --------------------------------------------------------------------------------
@@ -327,8 +247,8 @@ evalFor env lp =
       , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
       }
       where
-      stepKey f    = \sV kV elV -> f sV (mkSize (intToSize kV)) elV
-      stepKeyMap f = \   kV elV -> f    (mkSize (intToSize kV)) elV
+      stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
+      stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
 
     TVMap -> doLoop env lp LoopEval
       { unboxCol  = valueToMap
@@ -355,8 +275,8 @@ evalForM env lp =
       , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
       }
       where
-      stepKey f    = \sV kV elV -> f sV (mkSize (intToSize kV)) elV
-      stepKeyMap f = \   kV elV -> f    (mkSize (intToSize kV)) elV
+      stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
+      stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
 
     TVMap -> doLoop env lp LoopEval
       { unboxCol  = valueToMap
@@ -388,22 +308,22 @@ compilePureExpr env = go
           in
           case evalType env t of
             TVInteger -> VInteger n
-            TVUInt s  -> mkUInt s n
-            TVSInt s  -> mkSInt s n
+            TVUInt s  -> vUInt s n
+            TVSInt s  -> partial (vSInt s n)
             TVNum {}  -> panic "compilePureExpr" ["Kind error"]
             TVArray   -> bad
             TVMap     -> bad
             TVOther   -> bad
 
         TCLiteral (LBool b)   _ -> VBool b
-        TCLiteral (LByte w)   _ -> mkUInt 8 (fromIntegral w)
-        TCLiteral (LBytes bs) _ -> byteStringToValue bs
+        TCLiteral (LByte w)   _ -> vByte w
+        TCLiteral (LBytes bs) _ -> vByteString bs
 
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCUnit         -> VStruct [] -- XXX
-        TCStruct fs _  -> VStruct $ map (\(n, e) -> (n, go e)) fs
+        TCUnit         -> vUnit
+        TCStruct fs _  -> vStruct (map (\(n, e) -> (n, go e)) fs)
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
         TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
@@ -419,22 +339,17 @@ compilePureExpr env = go
 
         TCIf be te fe  -> go (if valueToBool (go be) then te else fe)
 
-        TCSelStruct e n _ ->
-          case lookup n (valueToStruct (go e)) of
-            Just v  -> v
-            Nothing ->
-              panic "BUG: missing field or not a struct" [ show (pp n) ]
+        TCSelStruct e n _ -> vStructLookup (go e) n
 
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts [] es
             Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
-        TCCoerce _ t2 e -> fst (doCoerceTo (evalType env t2) (go e))
+        TCCoerce _ t2 e -> fst (vCoerceTo (evalType env t2) (go e))
 
-        TCMapEmpty _ -> VMap Map.empty
-        TCArrayLength e -> mkSize $ intToSize
-                                  $ Vector.length $ valueToVector $ go e
+        TCMapEmpty _    -> VMap Map.empty
+        TCArrayLength e -> vArrayLength (go e)
 
         TCCase e alts def ->
           evalCase
@@ -478,7 +393,7 @@ matchPat pat =
     TCConPat _ l p    -> \v -> case valueToUnion v of
                                  (l1,v1) | l == l1 -> matchPat p v1
                                  _ -> Nothing
-    TCNumPat _ i      -> \v -> do guard (valueToInteger v == i)
+    TCNumPat _ i      -> \v -> do guard (valueToIntegral v == i)
                                   pure []
     TCBoolPat b       -> \v -> do guard (valueToBool v == b)
                                   pure []
@@ -501,7 +416,7 @@ invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
                ClassArg e -> VClass (compilePredicateExpr env e)
                GrammarArg e -> VGrm (compilePExpr env e)
 
-evalType :: Env -> Type -> TVal
+evalType :: Env -> Type -> TValue
 evalType env ty =
   case ty of
     TVar x -> lkpTy x
@@ -577,7 +492,7 @@ compilePredicateExpr env = go
 
 mbSkip :: WithSem -> Value -> Value
 mbSkip s v = case s of
-               NoSem  -> VStruct []
+               NoSem  -> vUnit
                YesSem -> v
 
 compileExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> Parser Value
@@ -609,70 +524,78 @@ compilePExpr env expr0 args = go expr0
 
         TCGetByte s ->
           do r <- pByte erng
-             pure $! mbSkip s (mkUInt 8 (fromIntegral r))
+             pure $! mbSkip s (vByte r)
 
         TCMatch s e ->
           do b <- pMatch1 erng (compilePredicateExpr env e)
-             return $! mbSkip s (mkUInt 8 (fromIntegral b))
+             return $! mbSkip s (vByte b)
 
         TCGuard e ->
           if valueToBool (compilePureExpr env e)
              then pure vUnit
              else pError FromSystem erng "guard failed"
 
-        TCEnd -> pEnd erng >> pure (VStruct [])
-        TCOffset -> mkSize <$> pOffset
+        TCEnd -> pEnd erng >> pure vUnit
+        TCOffset -> vSize . toInteger . inputLength <$> pPeek
 
         TCCurrentStream -> VStream <$> pPeek
 
         TCSetStream s -> do pSetInput (valueToStream (compilePureExpr env s))
-                            pure (VStruct [])
+                            pure vUnit
 
         TCStreamLen sem n s ->
-          let vn = valueToSize   (compilePureExpr env n)
-              vs = valueToStream (compilePureExpr env s)
-          in case limitLen vn vs of
-               Just i  -> pure $ mbSkip sem $ VStream i
-               Nothing -> pError FromSystem erng
-                             ("Not enough bytes: need " ++ show (sizeToInt vn)
-                                         ++ ", have " ++ show (inputLength vs))
+          case vStreamTake vn vs of
+            Right v -> pure $ mbSkip sem v
+            Left _  -> pError FromSystem erng
+                             ("Not enough bytes: need " ++
+                              show (valueToSize vn)
+                              ++ ", have " ++
+                              show (inputLength (valueToStream vs)))
+          where
+          vn = compilePureExpr env n
+          vs = compilePureExpr env s
 
         TCStreamOff sem n s ->
-          let vn = valueToSize    (compilePureExpr env n)
-              vs = valueToStream  (compilePureExpr env s)
-          in case advanceBy vn vs of
-               Just i  -> pure $ mbSkip sem $ VStream i
-               Nothing -> pError FromSystem erng
-                             ("Offset out of bounds: offset " ++ show vn
-                                      ++ ", have " ++ show (inputLength vs))
-
+          case vStreamDrop vn vs of
+            Right v -> pure $ mbSkip sem v
+            Left _ -> pError FromSystem erng
+                             ("Offset out of bounds: offset " ++
+                               show (valueToSize vn)
+                             ++ ", have " ++
+                             show (inputLength (valueToStream vs)))
+          where
+          vn = compilePureExpr env n
+          vs = compilePureExpr env s
 
 
 
         TCLabel l p -> pEnter (Text.unpack l) (go p)
 
         TCMapInsert s ke ve me ->
-          do let kv = compilePureExpr env ke
-                 vv = compilePureExpr env ve
-                 m  = valueToMap (compilePureExpr env me)
-             if kv `Map.member` m
-               then pError FromSystem erng ("duplicate key " ++ show (pp kv))
-               else pure $! mbSkip s (VMap (Map.insert kv vv m))
+          case vMapInsert kv vv mv of
+            Right a -> pure $! mbSkip s a
+            Left _  -> pError FromSystem erng ("duplicate key " ++ show (pp kv))
+          where
+          kv = compilePureExpr env ke
+          vv = compilePureExpr env ve
+          mv = compilePureExpr env me
 
-        TCMapLookup s ke me -> do
-          let kv = compilePureExpr env ke
-              m  = valueToMap (compilePureExpr env me)
-          case Map.lookup kv m of
-            Just v  -> pure $! mbSkip s v
-            Nothing -> pError FromSystem erng ("missing key " ++ show (pp kv))
+        TCMapLookup s ke me ->
+          case vMapLookup kv mv of
+            Right a -> pure $! mbSkip s a
+            Left _  -> pError FromSystem erng ("missing key " ++ show (pp kv))
+          where
+          kv = compilePureExpr env ke
+          mv = compilePureExpr env me
 
-        TCArrayIndex s e ix -> do
-          let v   = valueToVector  (compilePureExpr env e)
-              ixv = sizeToInt (valueToSize (compilePureExpr env ix))
-          case v Vector.!? ixv of
-            Just v'  -> pure $! mbSkip s v'
-            Nothing -> pError FromSystem erng
-                                  ("index out of bounds " ++ show (pp ixv))
+        TCArrayIndex s e ix ->
+          case vArrayIndex v ixv of
+            Right a  -> pure $! mbSkip s a
+            Left _   -> pError FromSystem erng
+                            ("index out of bounds " ++ showPP ixv)
+          where
+          v   = compilePureExpr env e
+          ixv = compilePureExpr env ix
 
         TCMatchBytes s e  ->
           do let v  = compilePureExpr env e
@@ -683,60 +606,62 @@ compilePExpr env expr0 args = go expr0
           case es of
             [] -> pError FromSystem erng "empty choice"
             _  -> foldr1 (alt c) (map go es)
-{-
-foldr (alt c)
-                              (pError FromSystem erng "all alternatives of `Choice` failed") (map go es)
--}
+
         TCOptional c e   ->
              alt c (VMaybe . Just <$> go e) (pure (VMaybe Nothing))
 
-
-
         TCMany s _ (Exactly e) e' ->
-          do let v = sizeToInt (valueToSize (compilePureExpr env e))
-                 p = go e'
-             case s of
-               YesSem -> do vs <- replicateM v p
-                            pure (VArray (Vector.fromList vs))
-               NoSem  -> do replicateM_ v p
-                            pure (VStruct [])
+          case valueToIntSize (compilePureExpr env e) of
+            Nothing -> pError FromSystem erng "Limit of `Many` is too large"
+            Just v ->
+              case s of
+                YesSem -> vArray <$> replicateM v p
+                NoSem  -> replicateM_ v p >> pure vUnit
+             where p = go e'
 
         TCMany s cmt (Between m_le m_ue) e ->
-          let code   = go e
-              code'  = void code
-              m_l    = (valueToSize . compilePureExpr env) <$> m_le
-              m_u    = (valueToSize . compilePureExpr env) <$> m_ue
+          do let checkBound mb =
+                   forM mb \b ->
+                     case valueToIntSize (compilePureExpr env b) of
+                       Just a  -> pure (UInt (fromIntegral a))
+                       Nothing -> pError FromSystem erng
+                                                "Limit of `Many` is too large"
 
-              vec :: RTS.Vector Value -> Value
-              vec xs  = VArray (vecToRep xs)
-              unit _  = VStruct []
+             let code   = go e
+                 code'  = void code
 
-          in
-          case (m_l, m_u) of
+             m_l <- checkBound m_le
+             m_u <- checkBound m_ue
 
-            (Nothing, Nothing) ->
-              case s of
-                YesSem -> vec  <$> RTS.pMany     (alt cmt) code
-                NoSem  -> unit <$> RTS.pSkipMany (alt cmt) code'
+             let vec :: RTS.Vector Value -> Value
+                 vec xs  = VArray (vecToRep xs)
+                 unit _  = vUnit
 
-            (Nothing, Just ub) ->
-              case s of
-                YesSem -> vec  <$> RTS.pManyUpTo (alt cmt) ub code
-                NoSem  -> unit <$> RTS.pSkipManyUpTo (alt cmt) ub code'
+             case (m_l, m_u) of
 
-            (Just lb,Nothing) ->
-              case s of
-                YesSem -> vec <$> RTS.pMinLength erng lb
-                                                  (RTS.pMany (alt cmt) code)
+               (Nothing, Nothing) ->
+                 case s of
+                   YesSem -> vec  <$> RTS.pMany     (alt cmt) code
+                   NoSem  -> unit <$> RTS.pSkipMany (alt cmt) code'
 
-                NoSem  -> unit <$> RTS.pSkipAtLeast (alt cmt) lb code'
+               (Nothing, Just ub) ->
+                 case s of
+                   YesSem -> vec  <$> RTS.pManyUpTo (alt cmt) ub code
+                   NoSem  -> unit <$> RTS.pSkipManyUpTo (alt cmt) ub code'
 
-            (Just lb, Just ub) ->
-              case s of
-                YesSem -> vec <$> RTS.pMinLength erng lb
-                                          (RTS.pManyUpTo (alt cmt) ub code)
-                NoSem  -> unit <$>
-                              RTS.pSkipWithBounds erng (alt cmt) lb ub code'
+               (Just lb,Nothing) ->
+                 case s of
+                   YesSem -> vec <$> RTS.pMinLength erng lb
+                                                     (RTS.pMany (alt cmt) code)
+
+                   NoSem  -> unit <$> RTS.pSkipAtLeast (alt cmt) lb code'
+
+               (Just lb, Just ub) ->
+                 case s of
+                   YesSem -> vec <$> RTS.pMinLength erng lb
+                                             (RTS.pManyUpTo (alt cmt) ub code)
+                   NoSem  -> unit <$>
+                                 RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
         TCCall x ts es -> pEnter (show lab) (invoke rule env ts args es)
@@ -763,10 +688,11 @@ foldr (alt c)
             Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
         TCCoerceCheck  s _ t e ->
-          case doCoerceTo (evalType env t) (compilePureExpr env e) of
-            (v, NotLossy) -> pure $! mbSkip s v
-            (_, Lossy) ->
-                pError FromSystem erng "value does not fit in target type"
+          case vCoerceTo (evalType env t) (compilePureExpr env e) of
+            (v, exact) ->
+              if exact
+                then pure $! mbSkip s v
+                else pError FromSystem erng "value does not fit in target type"
 
         TCFor lp -> evalForM env  lp
 

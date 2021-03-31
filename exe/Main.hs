@@ -31,7 +31,7 @@ import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS
 
 import Daedalus.Value
-import Daedalus.Interp1
+import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS

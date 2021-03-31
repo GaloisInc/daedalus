@@ -45,7 +45,7 @@ import qualified Data.ByteString as BS
 
 import Daedalus.PP hiding (empty)
 import qualified Daedalus.Value as Interp
-import qualified Daedalus.Interp1 as Interp
+import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
 import RTS.Numeric(intToSize)
