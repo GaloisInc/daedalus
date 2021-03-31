@@ -31,7 +31,6 @@ library
     Daedalus.Core.Normalize,
     Daedalus.Core.StripFail,
     Daedalus.Core.SpecialiseType,
-    Daedalus.Core.Semantics.Value,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,
     Daedalus.Core.Semantics.Grammar,

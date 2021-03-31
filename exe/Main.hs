@@ -42,7 +42,6 @@ import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
-import qualified Daedalus.Core.Semantics.Value as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -358,9 +357,6 @@ dumpInterpVal = if ?useJS then valueToJS else pp
 
 dumpInterpOldVal :: (?useJS :: Bool) => Old.Value -> Doc
 dumpInterpOldVal = if ?useJS then Old.valueToJS else pp
-
-dumpCoreVal :: (?useJS :: Bool) => Core.Value -> Doc
-dumpCoreVal = if ?useJS then pp else pp -- XXX: JS
 
 dumpErr :: (?useJS :: Bool) => ParseError -> Doc
 dumpErr err
