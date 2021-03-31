@@ -5,6 +5,7 @@ module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) w
 
 import Control.Monad.Reader
 
+import Control.Applicative
 import Control.Monad.Trans.Maybe
 import Control.Monad.State
 import qualified Data.ByteString as BS
@@ -45,7 +46,7 @@ randRestart :: Strategy
 randRestart = 
   Strategy { stratName  = "rand-restart"
            , stratDescr = "Restart on failure with random selection"
-           , stratFun   = randRestartStrat
+           , stratFun   = SimpleStrat randRestartStrat
            }
 
 restartBound :: Int
@@ -71,7 +72,7 @@ randMaybeT :: Strategy
 randMaybeT = 
   Strategy { stratName  = "rand-restart-local-bt"
            , stratDescr = "Backtrack locally on failure, restart on (global) failure with random selection"
-           , stratFun   = randMaybeStrat
+           , stratFun   = SimpleStrat randMaybeStrat
            }
 
 randMaybeStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)

@@ -52,10 +52,6 @@ import Talos.SymExec.StdLib
 import Talos.Strategy
 import Talos.Strategy.Monad
 
-<<<<<<< HEAD
-=======
-
->>>>>>> wip/talos-sym-exec
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
                      }
@@ -312,7 +308,7 @@ choosePath cp x = do
       strats <- SynthesisM $ gets stratlist
       solvSt <- SynthesisM $ gets solverState
       -- FIXME: abstract
-      (m_cp, solvSt') <- runStrategies solvSt strategies prov sl
+      (m_cp, solvSt') <- runStrategies solvSt strats prov sl
       SynthesisM $ modify (\s -> s { solverState = solvSt' })
       case m_cp of
         Nothing -> panic "All strategies failed" []

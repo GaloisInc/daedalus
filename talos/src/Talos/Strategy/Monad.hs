@@ -9,7 +9,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , LiftStrategyM (..)
                             , summaries, getModule, getGFun, getParamSlice
                             , rand, randR, randL, randPermute
-                            , timeStrategy
+                            -- , timeStrategy
                             ) where
 
 import Control.Exception (evaluate)
@@ -131,17 +131,17 @@ randPermute = go
 -- Timing
 
 -- Returns the result and wall-clock time (in ns)
-timeStrategy :: Strategy -> ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath, Integer)
-timeStrategy f ptag sl = StrategyM $ do
-  st <- get
-  (res, st') <- liftIO $ do
-    start     <- getTime MonotonicRaw
-    (rv, st') <- runStrategyM (stratFun f ptag sl) st
-    rv' <- evaluate $ force rv
-    end       <- getTime MonotonicRaw
-    pure ((rv', toNanoSecs (diffTimeSpec end start)), st')
-  put st'
-  pure res
+-- timeStrategy :: Strategy -> ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath, Integer)
+-- timeStrategy f ptag sl = StrategyM $ do
+--   st <- get
+--   (res, st') <- liftIO $ do
+--     start     <- getTime MonotonicRaw
+--     (rv, st') <- runStrategyM (stratFun f ptag sl) st
+--     rv' <- evaluate $ force rv
+--     end       <- getTime MonotonicRaw
+--     pure ((rv', toNanoSecs (diffTimeSpec end start)), st')
+--   put st'
+--   pure res
 
 -- -----------------------------------------------------------------------------
 -- Class

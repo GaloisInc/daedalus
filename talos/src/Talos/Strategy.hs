@@ -8,7 +8,7 @@ import Text.Printf
 import Talos.Analysis.Slice
 import Talos.SymExec.SolverT (SolverState, runSolverT)
 import Talos.SymExec.Path
-import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM, timeStrategy)
+import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM {-, timeStrategy -})
 -- strategies
 import Talos.Strategy.BTRand
 import Talos.Strategy.Symbolic (symbolicStrat)
