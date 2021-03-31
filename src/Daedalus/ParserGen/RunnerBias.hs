@@ -285,9 +285,13 @@ incrResultMetrics b r flagMetrics =
 -- configurations using a backtracking algorithm.  Its design is
 -- similar to the reactive engine by G. Huet, or its extension to
 -- Eilenberg's X-machines
-runnerBias :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> Result
-runnerBias gbl s aut =
-  let react :: Cfg -> Resumption -> Result -> Result
+runnerBias :: Aut a => BS.ByteString -> a -> Result
+runnerBias s aut =
+  let
+      gbl :: PAST.GblFuns
+      gbl = gblFunsAut aut
+
+      react :: Cfg -> Resumption -> Result -> Result
       react cfg resumption result =
         -- trace "REACT" $
         case cfg of
@@ -358,9 +362,13 @@ runnerBias gbl s aut =
 
 
 -- This runner is using both the NFA and the DFA to parse.
-runnerLL :: Aut a => PAST.GblFuns -> BS.ByteString -> a -> LLA -> Bool -> Result
-runnerLL gbl s aut laut flagMetrics =
-  let react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
+runnerLL :: Aut a => BS.ByteString -> a -> LLA -> Bool -> Result
+runnerLL s aut laut flagMetrics =
+  let
+      gbl :: PAST.GblFuns
+      gbl = gblFunsAut aut
+
+      react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
       react cfg@(Cfg inp _ctrl _out q) mq resumption result =
         -- trace "REACT" $
         -- trace (show (_getCommitStack resumption)) $

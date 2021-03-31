@@ -378,7 +378,6 @@ modeOp1 :: Op1 -> [Ownership]
 modeOp1 op =
   case op of
     CoerceTo {}           -> [Borrowed]
-    CoerceMaybeTo {}      -> [Borrowed]
     IsEmptyStream         -> [Borrowed]
     Head                  -> [Borrowed]
     StreamOffset          -> [Borrowed]

@@ -8,7 +8,6 @@ packages:
   pdf-driver/
   icc-driver/
   talos/
-  talos/deps/simple-smt
 
 constraints:
   utf8-string < 1.0.2

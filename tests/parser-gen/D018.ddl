@@ -38,7 +38,7 @@ def Bool =
 def Number = Token {
   @sign = Sign;
   @n    = UnsignedNumber;
-  case sign is {
+  case sign of {
     pos -> n;
     neg -> { num = 0 - n.num; exp = n.exp };
   }

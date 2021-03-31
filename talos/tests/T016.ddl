@@ -6,7 +6,7 @@ def P = Choose {
 
 def Main = {
     p = P;
-    case p is {
+    case p of {
          left -> UInt8
     }
 }    

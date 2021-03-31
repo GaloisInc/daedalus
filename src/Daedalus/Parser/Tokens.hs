@@ -22,6 +22,8 @@ data Token =
   | OpenTri
   | CloseTri
 
+  | VOpen | VSemi | VClose    -- inserted via layout
+
   | Semi
   | Colon
   | Dot
@@ -62,6 +64,8 @@ data Token =
 
   | KWChoose
   | KWChoose1
+  | KWblock
+  | KWlet
   | KWTry
   | KWMatch
   | KWMatch1
@@ -76,6 +80,7 @@ data Token =
   | KWMap
   | KWIn
   | KWIs
+  | KWOf
   | KWInt
   | KWUInt
   | KWSInt
@@ -88,6 +93,7 @@ data Token =
   | KWImport
   | KWAs
   | KWAsBang
+  | KWAsQuestion
   | KWConcat
   | KWEND
   | KWCOMMIT

@@ -42,7 +42,6 @@ instance TypeOf Expr where
       Ap1 op e ->
         case op of
           CoerceTo t      -> t
-          CoerceMaybeTo t -> TMaybe t
           IsEmptyStream   -> TBool
           Head            -> TUInt (TSize 8)
           StreamOffset    -> sizeType

@@ -123,7 +123,7 @@ handleOptions opts
               prog <- ddlGetAST specMod astTC
               -- prog <- normalizedDecls
               ddlIO (
-                do let (_gbl, aut) = PGen.buildArrayAut [prog]
+                do let aut = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
                    let llas = PGen.buildPipelineLLA aut
                    PGen.llaToGraphviz aut llas
@@ -178,7 +178,7 @@ interpInterp ::
     IO ()
 interpInterp useJS inp prog (m,i) =
   do (_,res) <- interpFile inp prog (ModScope m i)
-     dumpResult (dumpInterpVal useJS) res
+     dumpResult (dumpInterpVal useJS) (dumpErr useJS) res
      case res of
        Results {}   -> exitSuccess
        NoResults {} -> exitFailure
@@ -189,7 +189,8 @@ interpCore opts mm inpMb =
      env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
      let showVal = dumpCoreVal (optShowJS opts)
-     ddlIO $ forM_ ents \ent -> dumpResult showVal (Core.runEntry env ent inp)
+         showErr = dumpErr (optShowJS opts)
+     ddlIO $ forM_ ents \ent -> dumpResult showVal showErr (Core.runEntry env ent inp)
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -199,6 +200,7 @@ doToCore opts mm =
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts) (passInline ents specMod)
      when (optStripFail opts) (passStripFail specMod)
+     when (optSpecTys opts) (passSpecTys specMod)     
      pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
@@ -260,7 +262,7 @@ generateCPP opts mm =
 
 interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
 interpPGen useJS inp moduls flagMetrics =
-  do let (gbl, aut) = PGen.buildArrayAut moduls
+  do let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
      do
@@ -270,8 +272,8 @@ interpPGen useJS inp moduls flagMetrics =
                 case inp of
                   Nothing -> pure BS.empty
                   Just f  -> BS.readFile f
-              let results = PGen.runnerLL gbl bytes aut lla flagMetrics  -- LL
-              -- let results = PGen.runnerBias gbl bytes aut
+              let results = PGen.runnerLL bytes aut lla flagMetrics  -- LL
+              -- let results = PGen.runnerBias bytes aut
               let resultValues = PGen.extractValues results
               if null resultValues
                 then
@@ -299,7 +301,7 @@ interpPGen useJS inp moduls flagMetrics =
 
 compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
 compilePGen moduls outDir =
-  do let (_, aut) = PGen.buildArrayAut moduls
+  do let aut = PGen.buildArrayAut moduls
      t <- ddlIO $ PGen.generateTextIO aut
      -- TODO: This needs more thought
      finalText <- completeContent t
@@ -327,32 +329,10 @@ inputHack opts =
 
 
 
-dumpResult :: (a -> Doc) -> RTS.Result a -> IO ()
-dumpResult ppVal r =
+dumpResult :: (a -> Doc) -> (ParseError -> IO ()) -> RTS.Result a -> IO ()
+dumpResult ppVal ppErr r =
   case r of
-
-   RTS.NoResults err ->
-     do putStrLn "--- Parse error: "
-        print (RTS.ppParseError err)
-        let ctxtAmt = 32
-            bs      = RTS.inputTopBytes (RTS.peInput err)
-            errLoc  = RTS.peOffset err
-            start = max 0 (errLoc - ctxtAmt)
-            end   = errLoc + 10
-            len   = end - start
-            ctx = BS.take len (BS.drop start bs)
-            startErr =
-               setSGRCode [ SetConsoleIntensity
-                            BoldIntensity
-                          , SetColor Foreground Vivid Red ]
-            endErr = setSGRCode [ Reset ]
-            cfg = defaultCfg { startByte = start
-                             , transformByte =
-                                wrapRange startErr endErr
-                                errLoc errLoc }
-        putStrLn "File context:"
-        putStrLn $ prettyHexCfg cfg ctx
-
+   RTS.NoResults err -> ppErr err
    RTS.Results as -> dumpValues ppVal (toList as)
 
 dumpValues :: (a -> Doc) -> [a] -> IO ()
@@ -366,3 +346,30 @@ dumpInterpVal useJS = if useJS then valueToJS else pp
 
 dumpCoreVal :: Bool -> Core.Value -> Doc
 dumpCoreVal useJS = if useJS then pp else pp -- XXX: JS
+
+dumpErr :: Bool -> ParseError -> IO ()
+dumpErr useJS err
+  | useJS = print (RTS.errorToJS err)
+  | otherwise =
+  do putStrLn "--- Parse error: "
+     print (RTS.ppParseError err)
+     let ctxtAmt = 32
+         bs      = RTS.inputTopBytes (RTS.peInput err)
+         errLoc  = RTS.peOffset err
+         start = max 0 (errLoc - ctxtAmt)
+         end   = errLoc + 10
+         len   = end - start
+         ctx = BS.take len (BS.drop start bs)
+         startErr =
+            setSGRCode [ SetConsoleIntensity
+                         BoldIntensity
+                       , SetColor Foreground Vivid Red ]
+         endErr = setSGRCode [ Reset ]
+         cfg = defaultCfg { startByte = start
+                          , transformByte =
+                             wrapRange startErr endErr
+                             errLoc errLoc }
+     putStrLn "File context:"
+     putStrLn $ prettyHexCfg cfg ctx
+
+

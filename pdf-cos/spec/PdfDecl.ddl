@@ -1,6 +1,6 @@
 import Stdlib
 import PdfValue
-import Jpeg
+import JpegBasics
 
 def TopDecl = {
   id   = Token Natural;
@@ -40,7 +40,7 @@ def ObjectStreamEntry (oid : Nat) = {
 
 def ObjStreamMeta first = {
   oid     = Token Natural;
-  off     = (Token Natural as uint 64) + first;
+  off     = (Token Natural + (first as int)) as? uint 64
 }
 
 def ObjectStream (n : uint 64) (first : uint 64) = {
@@ -134,7 +134,7 @@ def StreamBody header = Token {
 def StreamLen header = {
   @lenV = LookupResolve "Length" header;
   @lenI = lenV is number;
-  NumberAsNat lenI as uint 64;
+  NumberAsNat lenI as? uint 64;
 }
 
 -- Section 7.3.8.2
@@ -211,7 +211,7 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
     Guard (f.name == "DCTDecode");
     -- stream is a JPEG
     commit;
-    WithStream body Jpeg;
+    WithStream body SomeJpeg;
     ^ body
   };
 
@@ -325,7 +325,7 @@ def LookupNat k m =
     NumberAsNat v; 
   }
 
-def LookupSize k m = LookupNat k m as uint 64
+def LookupSize k m = LookupNat k m as? uint 64
 
 def LookupNats k m = {
   @kV = LookupResolve k m : Value;

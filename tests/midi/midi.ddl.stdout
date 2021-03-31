@@ -170,7 +170,7 @@ midi.Chunk ?a4 ?a8 (Ty : Grammar ?a4) (P : Grammar ?a8) : Grammar ?a8 =
   do midi._Block ?a4 4 (midi._Only ?a4 do Ty
                                           pure {})
      ($$ : ?a8) <- do (_102 : uint 64) <- do (_101 : uint 32) <- midi.BE32
-                                             _101 AS uint 64
+                                             pure (_101 as uint 64)
                       midi.Block ?a8 _102 (midi.Only ?a8 P)
      pure $$
  
@@ -494,7 +494,7 @@ midi._BE32 : Grammar {} =
 midi._Chunk ?a4 ?a8 (_Ty : Grammar {}) (_P : Grammar {}) : Grammar {} =
   do midi._Block ?a4 4 (midi._Only ?a4 _Ty)
      (_102 : uint 64) <- do (_101 : uint 32) <- midi.BE32
-                            _101 AS uint 64
+                            pure (_101 as uint 64)
      midi._Block ?a8 _102 (midi._Only ?a8 _P)
  
 midi._TAG16 (n : uint 16) : Grammar {} =

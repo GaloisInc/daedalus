@@ -6,7 +6,7 @@ def P = Choose {
 }
 
 def Main = { p   = P
-           ; tag = case p is {
+           ; tag = case p of {
                      c1 _, c2 _ -> ^ "either";
                    }
            }

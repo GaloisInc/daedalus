@@ -29,6 +29,9 @@ import Daedalus.Parser.Monad
   ')'         { Lexeme { lexemeRange = $$, lexemeToken = CloseParen } }
   '{'         { Lexeme { lexemeRange = $$, lexemeToken = OpenBrace } }
   '}'         { Lexeme { lexemeRange = $$, lexemeToken = CloseBrace } }
+  'v{'        { Lexeme { lexemeRange = $$, lexemeToken = VOpen } }
+  'v;'        { Lexeme { lexemeRange = $$, lexemeToken = VSemi } }
+  'v}'        { Lexeme { lexemeRange = $$, lexemeToken = VClose } }
   '{|'        { Lexeme { lexemeRange = $$, lexemeToken = OpenBraceBar } }
   '|}'        { Lexeme { lexemeRange = $$, lexemeToken = CloseBraceBar } }
   '['         { Lexeme { lexemeRange = $$, lexemeToken = OpenBracket } }
@@ -80,6 +83,7 @@ import Daedalus.Parser.Monad
   'map'       { Lexeme { lexemeRange = $$, lexemeToken = KWMap } }
   'in'        { Lexeme { lexemeRange = $$, lexemeToken = KWIn } }
   'is'        { Lexeme { lexemeRange = $$, lexemeToken = KWIs } }
+  'of'        { Lexeme { lexemeRange = $$, lexemeToken = KWOf } }
   'int'       { Lexeme { lexemeRange = $$, lexemeToken = KWInt } }
   'uint'      { Lexeme { lexemeRange = $$, lexemeToken = KWUInt } }
   '$uint'     { Lexeme { lexemeRange = $$, lexemeToken = KWDollarUInt } }
@@ -89,6 +93,8 @@ import Daedalus.Parser.Monad
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
   'Choose'    { Lexeme { lexemeRange = $$, lexemeToken = KWChoose } }
   'Choose1'   { Lexeme { lexemeRange = $$, lexemeToken = KWChoose1 } }
+  'block'     { Lexeme { lexemeRange = $$, lexemeToken = KWblock } }
+  'let'       { Lexeme { lexemeRange = $$, lexemeToken = KWlet } }
   'Optional'  { Lexeme { lexemeRange = $$, lexemeToken = KWOptional } }
   'Optional?' { Lexeme { lexemeRange = $$, lexemeToken = KWOptionalQuestion } }
   'Many'      { Lexeme { lexemeRange = $$, lexemeToken = KWMany } }
@@ -105,6 +111,7 @@ import Daedalus.Parser.Monad
   'import'    { Lexeme { lexemeRange = $$, lexemeToken = KWImport } }
   'as'        { Lexeme { lexemeRange = $$, lexemeToken = KWAs } }
   'as!'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsBang } }
+  'as?'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsQuestion } }
   'concat'    { Lexeme { lexemeRange = $$, lexemeToken = KWConcat } }
   'END'       { Lexeme { lexemeRange = $$, lexemeToken = KWEND } }
   'COMMIT'    { Lexeme { lexemeRange = $$, lexemeToken = KWCOMMIT } }
@@ -134,7 +141,7 @@ import Daedalus.Parser.Monad
 %left '^' '@'
 %left 'is'
 %nonassoc '..'
-%left ':' 'as' 'as!'
+%left ':' 'as' 'as!' 'as?'
 %left '||'
 %left '&&'
 %left '.|.' '.^.'
@@ -298,9 +305,11 @@ expr                                     :: { Expr }
   | expr ':' type                           { at ($1,$3)
                                                  (EHasType MatchType $1 $3) }
   | expr 'as' type                          { at ($1,$3)
-                                                 (EHasType CoerceCheck $1 $3) }
+                                                 (EHasType CoerceSafe $1 $3) }
   | expr 'as!' type                         { at ($1,$3)
                                                  (EHasType CoerceForce $1 $3) }
+  | expr 'as?' type                         { at ($1,$3)
+                                                 (EHasType CoerceCheck $1 $3) }
   | '^' expr                                { at ($1,$2) (EPure $2) }
   | '@' expr                                { at ($1,$2) (EQuiet $2) }
 
@@ -329,6 +338,7 @@ call_expr                                :: { Expr }
                                                  (EOptional Backtrack $2) }
   | 'Match' aexpr                           { at ($1,$2) (EMatch $2) }
   | 'Match1' aexpr                          { at ($1,$2) (EMatch1 $2) }
+  | 'UInt8' aexpr                           { at ($1,$2) (EMatch1 $2) }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 
@@ -375,14 +385,25 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
-  | '{' separated(struct_field, commaOrSemi) '}' 
+  | 'block' 'v{' separated(struct_field, virtSep) 'v}'
+                                            { at ($1,$4) (EStruct $3) }
+  | '{' separated(struct_field, commaOrSemi) '}'
                                             { at ($1,$3) (EStruct $2) }
-  | '{|' label '=' expr '|}'                { at ($1,$3) (EIn ($2 :> $4)) }
+  | '{|' label '=' expr '|}'                { at ($1,$5) (mkIn $2 $5 (Just $4))}
+  | '{|' label '|}'                         { at ($1,$3) (mkIn $2 $3 Nothing) }
+
   | '[' separated(expr, commaOrSemi) ']'    { at ($1,$3) (EArray $2) }
-  | chooseKW '{' separated(union_field, commaOrSemi) '}' 
+  | chooseKW 'v{' separated(union_field, virtSep) 'v}'
                                             {% at ($1,$4) `fmap`
                                                mkUnion (thingValue $1) $3 }
-  | 'case' expr 'is' '{' separated(case_patterns, ';') '}'
+  | chooseKW '{' separated(union_field, commaOrSemi) '}'
+                                            {% at ($1,$4) `fmap`
+                                               mkUnion (thingValue $1) $3 }
+
+  | 'case' expr 'of' 'v{' separated(case_patterns, virtSep) 'v}'
+                                            { at ($1,$6) (ECase $2 $5) } 
+
+  | 'case' expr 'of' '{' separated(case_patterns, ';') '}'
                                             { at ($1,$6) (ECase $2 $5) } 
 
   | aexpr '.' label                         { at ($1,$3)
@@ -391,6 +412,11 @@ aexpr                                    :: { Expr }
 commaOrSemi                              :: { () }
   : ','                                     { () }
   | ';'                                     { () }
+
+virtSep                                  :: { () }
+  : ';'                                     { () }
+  | 'v;'                                    { () }
+  | virtSep 'v;'                            { () }
 
 chooseKW                                 :: { Located Commit }
   : 'Choose'                                { loc $1 Backtrack }
@@ -403,6 +429,7 @@ manyKW                                   :: { Located Commit }
 struct_field                             :: { StructField Expr }
   : expr                                    { Anon $1 }
   | '@' name '=' expr                       { $2 :@= $4 }
+  | 'let' name '=' expr                     { $2 :@= $4 }
   | name '=' expr                           { $1 := $3 }
   | 'COMMIT'                                { COMMIT $1 }
 
@@ -641,5 +668,10 @@ mkRule d nm ps t e = Rule { ruleName = nm,
                       case ps of
                         _ : _ -> range (last ps)
                         [] -> range nm
+
+mkIn :: Located Label -> SourceRange -> Maybe Expr -> ExprF Expr
+mkIn l b mbE = EIn (l :> case mbE of
+                           Just e  -> e
+                           Nothing -> at (l,b) (EStruct []))
 
 }

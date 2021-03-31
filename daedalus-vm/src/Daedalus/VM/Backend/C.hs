@@ -172,7 +172,7 @@ cDeclareBlockParams b
 
 {- A function always returns 0 or 1 things, so it should be sufficient
 to just have 1 varaible per type.
-Alternatively, we could generate separate variables for each functions.
+Alternatively, we could generate separate variables for each function.
 -}
 cDeclareRetVars :: [VMFun] -> CStmt
 cDeclareRetVars funs = vcat (header : retInp : stmts)
@@ -208,7 +208,7 @@ cDeclareClosures bs =
          ThreadBlock    -> (rets, Set.insert as threads)
 
   declareRet ts = cClosureClass "DDL::Closure" (cReturnClassName ts) ts
-  declareThr ts = cClosureClass "DDL::Thread"  (cThreadClassName ts) ts
+  declareThr ts = cClosureClass "DDL::ThreadClosure"  (cThreadClassName ts) ts
 
 
 
@@ -439,53 +439,6 @@ cOp1 x op1 ~[e'] =
 
           _ | srcT == tgtT -> cInst "DDL::refl_cast" [cSemType tgtT]
             | otherwise    -> bad "Unexpected source type"
-
-
-
-    Src.CoerceMaybeTo tgtT -> cVarDecl x (cCall fun [e])
-      where
-      srcT = case getType e' of
-               TSem t -> t
-               _ -> bad "Expected a semantic type"
-
-      bad :: String -> a
-      bad msg = panic "cOp1" [ "Bad coercions"
-                             , "from " ++ show (pp srcT)
-                             , "to " ++ show (pp tgtT)
-                             , msg
-                             ]
-
-      sz t = case t of
-              Src.TSize i -> integer i
-              _           -> bad "Size not an integer"
-
-      fun =
-        case srcT of
-
-          Src.TUInt from ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::uint_to_integer_maybe" [sz from]
-              Src.TUInt to  -> cInst "DDL::uint_to_uint_maybe" [sz from, sz to]
-              Src.TSInt to  -> cInst "DDL::uint_to_sint_maybe" [sz from, sz to]
-              _             -> bad "Unexpected target type"
-
-          Src.TSInt from ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::sint_to_integer_maybe" [sz from]
-              Src.TUInt to  -> cInst "DDL::sint_to_uint_maybe" [sz from, sz to]
-              Src.TSInt to  -> cInst "DDL::sint_to_sint_maybe" [sz from, sz to]
-              _             -> bad "Unexpected target type"
-
-          Src.TInteger ->
-            case tgtT of
-              Src.TInteger  -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
-              Src.TUInt to  -> cInst "DDL::integer_to_uint_maybe" [sz to]
-              Src.TSInt to  -> cInst "DDL::integer_to_sint_maybe" [sz to]
-              _             -> bad "Unexped target type"
-
-          _ | srcT == tgtT -> cInst "DDL::refl_cast_maybe" [cSemType tgtT]
-            | otherwise    -> bad "Unexpected source type"
-
 
     Src.IsEmptyStream ->
       cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
@@ -726,13 +679,13 @@ cTermStmt ccInstr =
                    | e <- vs, typeRepOf e == HasRefs ]
 
     -- XXX: this one does not need to be terminal
-    CallPure f l es ->
-      let doCall = cCall (cFName f) (map cExpr es)
-      in
-      case ?captures of
-        Capture   -> cAssign (cRetVar (TSem (Src.fnameType f))) doCall : cJump l
-        NoCapture -> cDoReturn l [ doCall ]
-
+    CallPure f (JumpPoint lab les) es ->
+      case Map.lookup lab ?allBlocks of
+        Just b -> zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
+                  [ cGoto (cBlockLabel (blockName b)) ]
+          where assignP ba = cAssign (cArgUse b ba)
+                doCall = cCall (cFName f) (map cExpr es)
+        Nothing -> panic "CallPure" [ "Missing block: " ++ show (pp lab) ]
 
 
     TailCall f captures es ->
@@ -776,16 +729,6 @@ cTermStmt ccInstr =
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
     in cStmt (cCall "p.push" ["new" <+> clo])
 
-
-cDoReturn ::
-  (AllBlocks, Copies,CurBlock,CaptureFun) => JumpPoint -> [CExpr] -> [CStmt]
-cDoReturn (JumpPoint l es) xs =
-  case Map.lookup l ?allBlocks of
-    Just b -> zipWith assignP (blockArgs b) (xs ++ map cExpr es) ++
-              [ cGoto (cBlockLabel (blockName b)) ]
-      where assignP ba = cAssign (cArgUse b ba)
-
-    Nothing -> panic "cDoReturn" [ "Missing block: " ++ show (pp l) ]
 
 cDoJump :: (Copies,CurBlock,CaptureFun) => Block -> [E] -> [CStmt]
 cDoJump b es =

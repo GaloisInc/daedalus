@@ -43,7 +43,7 @@ def Bool =
 def Number = Token {
   @sign = Sign;
   @n    = UnsignedNumber;
-  case sign is {
+  case sign of {
     pos -> n;
     neg -> { num = 0 - n.num; exp = n.exp };
   }
@@ -193,5 +193,5 @@ def NatValue (v : Value) = {
   NumberAsNat n;
 }
 
-def nullValue : Value = {| null = {} |}
+def nullValue : Value = {| null |}
 

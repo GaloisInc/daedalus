@@ -5,9 +5,13 @@ module Daedalus.ParserGen.LL.ClassInterval
   ( IntervalEndpoint(..)
   , ClassInterval(..)
   , showGraphvizClassInterval
-  , insertItvInOrderedList
+  , insertByteConditionInOrderedList
+  , unionClassIntervalList
   , matchClassInterval
   , classToInterval
+  , ByteCondition(..)
+  , showGraphvizByteCondition
+  , matchByteCondition
   )
 
 where
@@ -15,14 +19,15 @@ where
 -- import Debug.Trace
 
 import Numeric (showHex)
+import Data.ByteString (unpack)
 import Data.Word
-
+import Data.List (intersperse)
 
 import qualified Daedalus.Interp as Interp
 import Daedalus.Type.AST
 
 import Daedalus.ParserGen.AST as PAST
-import Daedalus.ParserGen.Action (evalNoFunCall, isSimpleVExpr)
+import Daedalus.ParserGen.Action (evalNoFunCall, isSimpleVExpr, callCExpr)
 
 import Daedalus.ParserGen.LL.Result as R
 
@@ -92,6 +97,7 @@ showGraphvizClassInterval c =
 data Who = A1 | A2 | A12
   deriving(Eq)
 
+-- combine interval and return an ordered list
 combineInterval :: ClassInterval -> ClassInterval -> [(ClassInterval, Who)]
 combineInterval itv1 itv2 =
   case (itv1, itv2) of
@@ -149,29 +155,67 @@ combineInterval itv1 itv2 =
             (GT, EQ) -> error "impossible"
             (GT, GT) -> [(itv1, A1), (itv2, A2)]
 
+newtype ByteCondition =
+  ByteCondition { byteCondition :: [ClassInterval] }
 
-insertItvInOrderedList :: forall a. (ClassInterval, a) -> [(ClassInterval, a)] -> (a -> a -> a) -> [(ClassInterval,a)]
+instance Show ByteCondition where
+  show b =
+    concat $ intersperse
+    "-"
+    (map (\ c -> show c) (byteCondition b))
+
+
+
+showGraphvizByteCondition :: ByteCondition -> String
+showGraphvizByteCondition b =
+  concat $ intersperse
+  " and "
+  (map (\ c -> showGraphvizClassInterval c)
+   (byteCondition b) )
+
+
+insertItvInOrderedList ::
+  forall a.
+  (ClassInterval, a) -> [(ClassInterval, a)] -> (a -> a -> a) -> [(ClassInterval,a)]
 insertItvInOrderedList (itv, a) lstItv merge =
-  step [] (itv,a) lstItv
+  go [] (itv,a) lstItv
   where
-    step :: [(ClassInterval, a)] -> (ClassInterval, a) -> [(ClassInterval, a)] -> [(ClassInterval, a)]
-    step acc (itv1, a1) lst =
+    go ::
+      [(ClassInterval, a)] -> (ClassInterval, a) -> [(ClassInterval, a)] ->
+      [(ClassInterval, a)]
+    go acc (itv1, a1) lst =
       case lst of
         [] -> reverse acc ++ [(itv1, a1)]
         (itv2, a2) : rest ->
           let comb = combineInterval itv1 itv2 in
-            insertComb a1 a2 acc (reverse comb) rest
+          case updateAcc acc a1 a2 (reverse comb) of
+            (newAcc, Nothing) ->
+              reverse newAcc ++ rest
+            (newAcc, Just (itv3, a3)) ->
+              go newAcc (itv3, a3) rest
 
-    insertComb :: a -> a -> [(ClassInterval, a)] -> [(ClassInterval, Who)] -> [(ClassInterval, a)] -> [(ClassInterval, a)]
-    insertComb a1 a2 acc revComb rest =
+    -- Update the accumulator and decided whether there is more to do.
+    -- This function is constant time with revComb being of max length 3
+    updateAcc ::
+      [(ClassInterval, a)] -> a -> a -> [(ClassInterval, Who)] ->
+      ([(ClassInterval, a)], Maybe (ClassInterval, a))
+    updateAcc acc a1 a2 revComb =
       case revComb of
         [] -> error "nothing"
         (itv3, w) : xs ->
           case w of
             A1 ->
+              -- if the last element is `A1` then the accumulator is
+              -- just updated with the other elements and the last
+              -- element is just returned
               let newAcc = applyAdd a1 a2 xs ++ acc
-              in step newAcc (itv3, a1) rest
-            _ -> reverse acc ++ reverse (applyAdd a1 a2 revComb) ++ rest
+              in (newAcc, Just (itv3, a1))
+            _ ->
+              -- if the last element is different from `A1` then the
+              -- accumulator is updated with all the intervals and
+              -- nothing is left to insert
+              let newAcc = applyAdd a1 a2 revComb ++ acc
+              in (newAcc, Nothing)
 
 
     applyAdd :: a -> a -> [(ClassInterval, Who)] -> [(ClassInterval, a)]
@@ -185,6 +229,24 @@ insertItvInOrderedList (itv, a) lstItv merge =
         A12 -> (i, merge a1 a2)
 
 
+insertByteConditionInOrderedList ::
+  forall a.
+  (ByteCondition, a) -> [(ClassInterval, a)] -> (a -> a -> a) -> [(ClassInterval, a)]
+insertByteConditionInOrderedList (bc, a) lstItv merge =
+  let ByteCondition lst = bc in
+  foldr (\ itv b -> insertItvInOrderedList (itv, a) b merge) lstItv lst
+
+
+unionClassIntervalList ::
+  [(ClassInterval, a)] -> [(ClassInterval, a)] -> (a -> a -> a) ->
+  [(ClassInterval, a)]
+unionClassIntervalList lst1 lst2 merge =
+  foldr
+  (\ (itv, s) acc -> insertItvInOrderedList (itv, s) acc merge)
+  lst2
+  lst1
+
+
 matchClassInterval :: ClassInterval -> Word8 -> Bool
 matchClassInterval itv c =
   case itv of
@@ -192,34 +254,130 @@ matchClassInterval itv c =
     ClassBtw {} -> undefined
 
 
-classToInterval :: PAST.NCExpr -> Result ClassInterval
-classToInterval e =
-  case texprValue e of
-    TCSetAny -> Result $ ClassBtw MinusInfinity PlusInfinity
-    TCSetSingle e1 ->
-      if not (isSimpleVExpr e1)
-      then Abort AbortClassIsDynamic
-      else
-        let v = evalNoFunCall e1 [] [] in
-        case v of
-          Interp.VUInt 8 x ->
-            let vx = fromIntegral x
-            in Result $ ClassBtw (CValue vx) (CValue vx)
-          _                -> Abort (AbortClassNotHandledYet "SetSingle")
-    TCSetRange e1 e2 ->
-      if isSimpleVExpr e1 && isSimpleVExpr e2
-      then
-        let v1 = evalNoFunCall e1 [] []
-            v2 = evalNoFunCall e2 [] []
-        in case (v1, v2) of
-             (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
-               let x1 = fromIntegral x
-                   y1 = fromIntegral y
-               in if x1 <= y1
-                  then Result $ ClassBtw (CValue x1) (CValue y1)
-                  else error ("SetRange values not ordered:" ++
-                              show (toEnum (fromIntegral x1) :: Char) ++ " " ++
-                              show (toEnum (fromIntegral y1) :: Char))
-             _ -> Abort (AbortClassNotHandledYet "SetRange")
-      else Abort AbortClassIsDynamic
-    _ -> Abort (AbortClassNotHandledYet "other class case")
+classToInterval :: PAST.GblFuns -> PAST.NCExpr -> Result ByteCondition
+classToInterval gbl expr =
+  classToIntervalRec expr
+  where
+    classToIntervalRec :: PAST.NCExpr -> Result ByteCondition
+    classToIntervalRec e =
+      case texprValue e of
+        TCSetAny ->
+          Result $ ByteCondition [ ClassBtw (CValue 0) (CValue 255) ]
+        TCSetSingle e1 ->
+          if not (isSimpleVExpr e1)
+          then Abort AbortClassIsDynamic
+          else
+            let v = evalNoFunCall e1 [] [] in
+            case v of
+              Interp.VUInt 8 x ->
+                let vx = fromIntegral x
+                in Result $ ByteCondition [ ClassBtw (CValue vx) (CValue vx) ]
+              _  -> Abort (AbortClassNotHandledYet "SetSingle")
+        TCSetRange e1 e2 ->
+          if isSimpleVExpr e1 && isSimpleVExpr e2
+          then
+            let v1 = evalNoFunCall e1 [] []
+                v2 = evalNoFunCall e2 [] []
+            in
+            case (v1, v2) of
+              (Interp.VUInt 8 x, Interp.VUInt 8 y) ->
+                let x1 = fromIntegral x
+                    y1 = fromIntegral y
+                in if x1 <= y1
+                   then Result $ ByteCondition [ ClassBtw (CValue x1) (CValue y1) ]
+                   else error
+                        ( "SetRange values not ordered:" ++
+                          show (toEnum (fromIntegral x1) :: Char) ++ " " ++
+                          show (toEnum (fromIntegral y1) :: Char))
+              _ -> Abort (AbortClassNotHandledYet "SetRange")
+          else Abort AbortClassIsDynamic
+        TCSetUnion lst ->
+          let mLItv = iterUnion lst [] in
+          case mLItv of
+            Result lItv ->
+              Result (ByteCondition (map (\ (a,()) -> a) lItv))
+            Abort (AbortClassNotHandledYet _) -> coerceAbort mLItv
+            Abort AbortClassIsDynamic -> coerceAbort mLItv
+            _ -> error "case not possible"
+
+          where
+            iterUnion l acc =
+              case l of
+                [] -> Result acc
+                e1 : rest ->
+                  let mbc = classToIntervalRec e1 in
+                  let
+                    mNewAcc =
+                      case mbc of
+                        Result bc ->
+                          Result $ insertByteConditionInOrderedList (bc, ()) acc (\ () () -> ())
+                        Abort (AbortClassNotHandledYet _) -> coerceAbort mbc
+                        Abort AbortClassIsDynamic -> coerceAbort mbc
+                        _ -> error "case not possible"
+                  in
+                  case mNewAcc of
+                    Result newAcc -> iterUnion rest newAcc
+                    Abort (AbortClassNotHandledYet _) -> coerceAbort mNewAcc
+                    Abort AbortClassIsDynamic -> coerceAbort mNewAcc
+                    _ -> error "case not possible"
+        TCSetOneOf lst ->
+          let lItv = iterOneOf (unpack lst) [] in
+            Result (ByteCondition (map (\ (a,()) -> a) lItv))
+          where
+            iterOneOf l acc =
+              case l of
+                [] -> acc
+                b : rest ->
+                  let
+                    newAcc =
+                      insertItvInOrderedList
+                      (ClassBtw (CValue b) (CValue b), ())
+                      acc
+                      (\ () () -> ())
+                  in
+                    iterOneOf rest newAcc
+
+        TCSetComplement e1 ->
+          let
+            mbc = classToIntervalRec e1
+            iterCompl i lst acc =
+              case lst of
+                [] ->
+                  if i <= 255
+                  then Result $ ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
+                  else Result $ ByteCondition (reverse acc)
+                ClassBtw (CValue j) (CValue k) : rest ->
+                  let j1 = j-1 in
+                  if i <= j1
+                  then
+                    iterCompl (k+1) rest (ClassBtw (CValue i) (CValue (j1)) : acc)
+                  else
+                    iterCompl (k+1) rest acc
+          in
+          case mbc of
+            Result bc ->
+              iterCompl 0 (byteCondition bc) []
+            Abort (AbortClassNotHandledYet _) -> coerceAbort mbc
+            Abort AbortClassIsDynamic -> coerceAbort mbc
+            _ -> error "Should not be another"
+        TCSetDiff _ _ -> error "Not implemented yet: SetDiff LL"
+        TCCall {} ->
+          let calledClass = callCExpr gbl e
+          in  classToIntervalRec calledClass
+        _ ->
+          -- trace (show (texprValue e)) $
+          Abort (AbortClassNotHandledYet "other class case")
+
+
+matchByteCondition :: ByteCondition -> Word8 -> Bool
+matchByteCondition b byte  =
+  go (byteCondition b)
+
+  where
+    go l =
+      case l of
+        [] -> False
+        itv : itvs ->
+          if matchClassInterval itv byte
+          then True
+          else go itvs

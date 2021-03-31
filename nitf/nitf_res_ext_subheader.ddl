@@ -9,7 +9,7 @@ def ResExtHeader = {
 
   -- TODO: implement validation in note on p125
 
-  resshl = UnsignedNum 4 ;
+  resshl = UnsignedNumUInt 4 ;
   resshf = Many resshl BCSA ;
 
   Many Byte 

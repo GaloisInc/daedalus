@@ -22,8 +22,8 @@ library
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
   exposed-modules:     Talos.Lib
-                     , Talos.SymExec
-                     , Talos.SymExec.Monad
+                     -- , Talos.SymExec
+                     , Talos.SymExec.SolverT
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser
@@ -39,11 +39,15 @@ library
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
+                     , Talos.Strategy.DFST
+                     
                      , Talos.Strategy.BTRand
-                     -- , Talos.Strategy.Symbolic
+                     , Talos.Strategy.Symbolic
                      
                      , Talos.Synthesis
-                                        
+
+                     , Talos.NameConstArgs
+                                 
                      , Talos
                      -- , Machine
   build-depends:       base
@@ -57,13 +61,14 @@ library
                      , mtl
                      , containers
                      , bytestring
-                     , simple-smt
+                     , simple-smt >= 0.9.6
                      , io-streams
                      , transformers
                      , IntervalMap
                      , split
                      , deepseq
                      , clock
+                     , text
 
 executable talos
   main-is:             Main.hs

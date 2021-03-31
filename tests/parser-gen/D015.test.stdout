@@ -11,6 +11,26 @@ Natural (28,9)-(28,24)
 SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(35),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\t']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\n']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\f']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\r']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
   ),
@@ -23,6 +43,26 @@ DTrans [
 Natural3 (33,10)-(33,25)
 SlkCfg{ q:94, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
+  ( [(35),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\t']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\n']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\f']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\r']
+  , Resolution (NotAmbiguous)
+  ),
   ( [(35),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
@@ -46,6 +86,26 @@ Token__37 (11,3)-(11,15)
 SlkCfg{ q:70, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(13),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\t']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\n']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\f']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\r']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)
   ),
@@ -58,6 +118,26 @@ DTrans [
 Token__38 (11,3)-(11,15)
 SlkCfg{ q:126, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
+  ( [(13),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\t']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\n']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\f']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['\r']
+  , Resolution (NotAmbiguous)
+  ),
   ( [(13),]
   , HeadInput [' ']
   , Resolution (NotAmbiguous)

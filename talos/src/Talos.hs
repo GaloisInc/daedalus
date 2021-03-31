@@ -43,7 +43,7 @@ import Daedalus.Driver hiding (State)
 import Daedalus.Core
 import Daedalus.Core.Semantics.Value (Value)
 
-import Talos.SymExec.Monad
+import Talos.SymExec.SolverT
 import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
@@ -55,6 +55,7 @@ import Talos.Analysis.Slice (SummaryClass)
 import Talos.Strategy
 import Talos.Strategy.Monad 
 
+import Talos.NameConstArgs
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -156,10 +157,11 @@ runDaedalus inFile m_entry = daedalus $ do
   passSpecialize specMod [(mm, entryName)]  
   passCore specMod
   passStripFail specMod
-  
+  passSpecTys specMod
+    
   entry <- ddlGetFName mm entryName
 
-  md    <- ddlGetAST specMod astCore
+  md    <- ddlGetAST specMod astCore >>= ddlRunPass . nameConstArgsM -- FIXME: hack
   
   nguid <- ddlGet nextFreeGUID
   

@@ -158,7 +158,7 @@ D018.Sign : Grammar D018.Sign =
 D018.Digit : Grammar int =
   do (_94 : uint 8) <- do (_93 : uint 8) <- Match ('0' .. '9')
                           pure (_93 - '0')
-     _94 AS int
+     pure (_94 as int)
  
 D018.Natural : Grammar int =
   do (_95 : [int]) <- Many[ 1 .. ] D018.Digit
@@ -204,7 +204,7 @@ D018.Number : Grammar D018.Number =
 D018.OctDigit : Grammar int =
   do (_100 : uint 8) <- do (_99 : uint 8) <- Match ('0' .. '7')
                            pure (_99 - '0')
-     _100 AS int
+     pure (_100 as int)
  
 D018.HexDigit : Grammar int =
   Choose biased
@@ -213,11 +213,11 @@ D018.HexDigit : Grammar int =
         { do (_103 : uint 8) <- do (_102 : uint 8) <- do (_101 : uint 8) <- Match ('a' .. 'f')
                                                          pure (10 + _101)
                                    pure (_102 - 'a')
-             _103 AS int
+             pure (_103 as int)
         | do (_106 : uint 8) <- do (_105 : uint 8) <- do (_104 : uint 8) <- Match ('A' .. 'F')
                                                          pure (10 + _104)
                                    pure (_105 - 'A')
-             _106 AS int
+             pure (_106 as int)
         }
     }
  
@@ -410,9 +410,7 @@ D018._Sign : Grammar {} =
     }
  
 D018._Digit : Grammar {} =
-  do (_94 : uint 8) <- do (_93 : uint 8) <- Match ('0' .. '9')
-                          pure (_93 - '0')
-     @(_94 AS int)
+  @Match ('0' .. '9')
  
 D018._Natural : Grammar {} =
   @Many[ 1 .. ] D018._Digit
@@ -444,22 +442,14 @@ D018._UnsignedNumber : Grammar {} =
     }
  
 D018._OctDigit : Grammar {} =
-  do (_100 : uint 8) <- do (_99 : uint 8) <- Match ('0' .. '7')
-                           pure (_99 - '0')
-     @(_100 AS int)
+  @Match ('0' .. '7')
  
 D018._HexDigit : Grammar {} =
   Choose biased
     { D018._Digit
     | Choose biased
-        { do (_103 : uint 8) <- do (_102 : uint 8) <- do (_101 : uint 8) <- Match ('a' .. 'f')
-                                                         pure (10 + _101)
-                                   pure (_102 - 'a')
-             @(_103 AS int)
-        | do (_106 : uint 8) <- do (_105 : uint 8) <- do (_104 : uint 8) <- Match ('A' .. 'F')
-                                                         pure (10 + _104)
-                                   pure (_105 - 'A')
-             @(_106 AS int)
+        { @Match ('a' .. 'f')
+        | @Match ('A' .. 'F')
         }
     }
  

@@ -134,10 +134,11 @@ vByte w = VUInt knownNat (BV.word8 w)
 
 vUInt :: Integer -> Integer -> Value
 vUInt wi i =
-  case someNat wi of
-    Just (Some w) -> VUInt w (BV.mkBV w i)
-    _ -> panic "vUInt" ["Invalid width: " ++ show wi ]
-
+  fromMaybe (panic "vUInt" [ "Invalid width: " ++ show wi ])
+  do Some w   <- someNat wi
+     LeqProof <- isPosNat w
+     pure (VUInt w (BV.mkBV w i))
+  
 vSInt :: Integer -> Integer -> Value
 vSInt wi i =
   fromMaybe (panic "vSInt" [ "Invalid width: " ++ show wi ])
@@ -145,7 +146,8 @@ vSInt wi i =
      LeqProof <- isPosNat w
      pure (VSInt w (BV.mkBV w i))
 
-
+vSize :: UInt 64 -> Value
+vSize (UInt x) = vUInt 64 (toInteger x)
 
 --------------------------------------------------------------------------------
 fromVInput :: Value -> Input

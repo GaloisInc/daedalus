@@ -231,7 +231,7 @@ def IGeoLo = Choose {
   plain_utm = Many 4 PlainUtm
 }
 
-def NICom = Digit
+def NICom = DigitUInt
 
 def IComn n = Many n (Many 80 Byte)
 
@@ -255,7 +255,7 @@ def IC = Choose {
   nm = @Match "NM" ;
 }
 
-def ComRat ic = Choose {
+def ComRat (ic : IC) = Choose {
   dim_coding = { 
       ic is c1
     | ic is m1 ;
@@ -298,9 +298,9 @@ def ComRat ic = Choose {
 }
 
 
-def NBands irep = (
+def NBands (irep : IRep) = (
   { irep is nodisplay ;
-    Digit ;
+    DigitUInt ;
   }
 | { irep is monochrome ;
     IsNum 1 1
@@ -315,7 +315,7 @@ def NBands irep = (
     IsNum 3 3
   }
 | { irep is cartesian ;
-    Digit
+    DigitUInt
   }
 | { irep is polar ;
     IsNum 1 2
@@ -373,12 +373,12 @@ def ISync = Match1 '0' -- reserved for future use
 
 def IMode nbands = {
   $$ = Choose {
-    block = @Match1 'B' ;
+    blockMode = @Match1 'B' ;
     pixel = @Match1 'P' ;
     row = @Match1 'R' ;
     seq = @Match1 'S' ;
   } ;
-  Guard (nbands != 1) | $$ is block
+  Guard (nbands != 1) | $$ is blockMode
 }
 
 def NBPR = PosQuad
@@ -389,7 +389,7 @@ def NPPBH = UpperBounded 4 8192
 
 def NPPBV = UpperBounded 4 8192
 
-def NBPP abpp ic = {
+def NBPP abpp (ic : IC) = {
   $$ = BoundedPos 2 96 ;
   Guard ($$ >= abpp) ;
     {   ic is c3
@@ -426,7 +426,7 @@ def IALvl = AttachmentLvl
 def IMag = Choose {
   fp = {
     $$ = FixedPoint ;
-    @fplen = ^ (strlen $$.digs) + 1 + (strlen $$.radix) ;
+    @fplen = ^ (length $$.digs) + 1 + (length $$.radix) ;
     -- DOC: why was this hard to refactor?
     Guard (fplen <= 4) ;
     Spaces (4 - fplen)
@@ -434,7 +434,7 @@ def IMag = Choose {
   frac = { 
     Match1 '/' ;
     $$ = Many (..3) Digit ;
-    @fplen = ^ (strlen $$) + 1 ;
+    @fplen = ^ (length $$) + 1 ;
     Guard (fplen <= 4) ;
     Spaces (4 - fplen) 
   }
@@ -453,7 +453,7 @@ def IXSOfl = UnsignedNum 3
 def IXShD n = Many (n - 3) Byte
 
 -- encoding of display-dependent parameters (Table A-2)
-def DispParams (irep : IRep) (irepband : IRepBandN) nbands pvtype nluts =
+def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nluts =
   { irep is nodisplay ;
     irepband is default ;
       { Guard (1 <= nbands) ; Guard (nbands <= 9) }
@@ -784,7 +784,7 @@ def ISHeader = {
   -- TODO: rework to remove negations
   nbpc = NBPC ;
     (Guard (nbpr != 1) | Guard (nbpc != 1))
-  | (imode is block | imode is pixel | imode is row);
+  | (imode is blockMode | imode is pixel | imode is row);
   -- is R really allowed? Needed by i_3201c.ntf.
 
   nppbh = NPPBH ;

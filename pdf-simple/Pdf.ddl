@@ -52,7 +52,7 @@ def CrossRefSection = {
 
 def CrossRefSubSection = {
   firstId = Token Natural;
-  @num    = Token Natural as uint 64;
+  @num    = Token Natural as? uint 64;
   entries = Many num CrossRefEntry;
 }
 
@@ -74,13 +74,12 @@ def FreeEntry (num : uint 64) (gen : uint 64) = {
   Match1 'f'; obj = num; gen = gen;
 }
 
-def NatN n = { @ds = Many n Digit; numBase 10 ds as uint 64 }
+def NatN n = { @ds = Many n Digit; numBase 10 ds as? uint 64 }
 --------------------------------------------------------------------------------
 -- Utilities
 
 def CountTo P count = { P; count } <| { UInt8; CountTo P (count+1) }
--- def SkipTo P        = P <| { UInt8; SkipTo P }
-def SkipTo P        = case { P; true } is {
+def SkipTo P        = case { P; true } <| false of {
                         true  -> {};
                         false -> { UInt8; SkipTo P };
                       }

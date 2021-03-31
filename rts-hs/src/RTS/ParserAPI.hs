@@ -10,6 +10,7 @@ import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Text.PrettyPrint hiding ((<>))
+import qualified Text.PrettyPrint as PP
 
 import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
@@ -130,6 +131,22 @@ ppParseError pe@PE { .. } =
   bullets ds  = vcat (map buletItem ds)
   commaSep ds = hsep (punctuate comma ds)
 
+errorToJS :: ParseError -> Doc
+errorToJS pe@PE { .. } =
+  jsBlock "{" "," "}"
+    [ jsField "error" (jsStr peMsg)
+    , jsField "offset" (jsNum (peOffset pe))
+    ]
+  where
+  jsField x y = jsStr x PP.<> colon <+> y
+  jsStr x = text (show x)
+  jsNum x = text (show x)
+  jsBlock open separ close ds =
+    case ds of
+      []  -> open PP.<> close
+      [d] -> open <+> d <+> close
+      _   -> vcat $ [ s <+> d | (s,d) <- zip (open : repeat separ) ds ] ++
+                    [ close ]
 
 
 --------------------------------------------------------------------------------

@@ -6,18 +6,18 @@ import Daedalus.Core
 -- -----------------------------------------------------------------------------
 -- Daedalus helpers
 
-isBits :: Type -> Maybe (Bool, Integer)
-isBits (isUInt -> Just n) = Just (False, n)
-isBits (isSInt -> Just n) = Just (True, n)
-isBits _                  = Nothing
+-- isBits :: Type -> Maybe (Bool, Integer)
+-- isBits (isUInt -> Just n) = Just (False, n)
+-- isBits (isSInt -> Just n) = Just (True, n)
+-- isBits _                  = Nothing
 
-isUInt :: Type -> Maybe Integer
-isUInt (TUInt (TSize n)) = Just n
-isUInt _                 = Nothing
+-- isUInt :: Type -> Maybe Integer
+-- isUInt (TUInt (TSize n)) = Just n
+-- isUInt _                 = Nothing
 
-isSInt :: Type -> Maybe Integer
-isSInt (TSInt (TSize n)) = Just n
-isSInt _                 = Nothing
+-- isSInt :: Type -> Maybe Integer
+-- isSInt (TSInt (TSize n)) = Just n
+-- isSInt _                 = Nothing
 
 -- isInteger :: Type -> Bool
 -- isInteger (Type TInteger) = True

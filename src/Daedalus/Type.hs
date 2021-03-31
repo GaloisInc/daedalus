@@ -1185,25 +1185,17 @@ inferExpr expr =
          unify (ty,twant) (e1,t)
          pure (e1,t)
 
-    -- This one has a non-standard lifting: in grammar contexts we do
-    -- a dynamic check, instead of `fmap`ing the static check.
     EHasType CoerceCheck e ty ->
-      do ctxt <- getContext
-         case ctxt of
-           AClass ->
-              promoteValueToSet =<< inContext AValue (inferExpr expr)
-
-           AGrammar ->
-             do t       <- checkType KValue ty
-                liftValApp expr [e] \ ~[(e1,t1)] ->
+      grammarOnly expr
+      do t    <- checkType KValue ty
+         liftValApp expr [e] \ ~[(e1,t1)] ->
                    pure (exprAt expr (TCCoerceCheck YesSem t1 t e1), tGrammar t)
 
-           AValue ->
-             do t <- checkType KValue ty
-                (e1,t1) <- inContext AValue (inferExpr e)
-                addConstraint ty (Coerce NotLossy t1 t)
-                pure (exprAt expr (TCCoerce t1 t e1), t)
-
+    EHasType CoerceSafe e ty ->
+      liftValAppPure expr [e] \ ~[(e1,t1)] ->
+      do t <- checkType KValue ty
+         addConstraint ty (Coerce NotLossy t1 t)
+         pure (exprAt expr (TCCoerce t1 t e1), t)
 
     EHasType CoerceForce e ty ->
       liftValAppPure expr [e] \ ~[(e1,t1)] ->

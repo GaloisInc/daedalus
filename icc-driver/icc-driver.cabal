@@ -2,17 +2,14 @@ cabal-version:       >=1.10
 
 name:                icc-driver
 version:             0.1.0.0
--- synopsis:
--- description:
--- bug-reports:
--- license:
 license-file:        LICENSE
 author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
--- copyright:
--- category:
-build-type:          Simple
+build-type:          Custom
 extra-source-files:  CHANGELOG.md
+
+custom-setup
+  setup-depends: base, containers, daedalus, Cabal
 
 executable icc-parser
   main-is: Main.hs
@@ -28,10 +25,7 @@ executable icc-parser
     rts-hs
   ghc-options: -Wall
 
-executable icc-generator
-  main-is: Generator.hs
-  build-depends:       base >=4.13 && <4.15, containers, daedalus
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options: -Wall
+  autogen-modules:
+    ICC
+
 
