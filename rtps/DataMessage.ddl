@@ -51,12 +51,10 @@ def ProtocolRTPS = Match "RTPS"
 
 def GuidPrefix = Many 12 Octet
 
--- DBG:
 def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
-      commit;
       Chunk
         (subHeader.submessageLength as uint 64)
         (SubmessageElement PayloadData subHeader.flags);
@@ -170,6 +168,7 @@ def QosParams littleEnd f = Choose1 {
   }
 }
 
+-- refactor id and flag parsing into this
 def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   ackNackElt = {
     @ackNackFlags = flags.subFlags is ackNackFlags;
@@ -863,5 +862,6 @@ def FragmentNumber littleEnd = EndULong littleEnd
 def FragmentNumberSet littleEnd = {
   bitmapBase = FragmentNumber littleEnd;
   numBits = EndULong littleEnd;
-  bitmap = Many ((numBits + 31)/32 as uint 64) (EndLong littleEnd);
+  bitmap = Many ((numBits + 31)/32 as uint 64)
+    (EndLong littleEnd);
 }
