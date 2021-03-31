@@ -25,8 +25,7 @@ module Daedalus.ParserGen.LL.SlkCfg
 import qualified Data.Map.Strict as Map
 
 import Daedalus.Type.AST
-import Daedalus.Interp as Interp
-import Daedalus.Interp.Value as Interp
+import Daedalus.Value as Interp
 import qualified RTS.Input as Input
 
 import Daedalus.ParserGen.AST
@@ -844,7 +843,7 @@ symbExecInp act ctrl out inp
       in
         case ev1 of
           SConcrete (Left val) ->
-            let n = Interp.valueToInteger val in
+            let n = Interp.valueToIntegral val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
@@ -858,7 +857,7 @@ symbExecInp act ctrl out inp
       in
         case ev1 of
           SConcrete (Left val) ->
-            let n = Interp.valueToInteger val in
+            let n = Interp.valueToIntegral val in
             case ev2 of
               SConcrete (Right x) ->
                 rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)

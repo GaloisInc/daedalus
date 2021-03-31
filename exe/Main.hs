@@ -33,9 +33,6 @@ import qualified RTS.Input as RTS
 import Daedalus.Value
 import Daedalus.Interp1
 
--- Only until we update PGen
-import qualified Daedalus.Interp.Value as Old
-
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
@@ -290,7 +287,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then print $ dumpValues dumpInterpOldVal resultValues
+                      then print $ dumpValues dumpInterpVal resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -354,9 +351,6 @@ dumpValues ppVal as
 
 dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
 dumpInterpVal = if ?useJS then valueToJS else pp
-
-dumpInterpOldVal :: (?useJS :: Bool) => Old.Value -> Doc
-dumpInterpOldVal = if ?useJS then Old.valueToJS else pp
 
 dumpErr :: (?useJS :: Bool) => ParseError -> Doc
 dumpErr err

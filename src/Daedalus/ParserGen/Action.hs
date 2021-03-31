@@ -44,10 +44,10 @@ import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
 
 import Daedalus.PP hiding (empty)
+import qualified Daedalus.Value as Interp
+import qualified Daedalus.Interp1 as Interp
 
 import Daedalus.Type.AST
-import qualified Daedalus.Interp as Interp
-import Daedalus.Interp.Value (valueToInteger, doCoerceTo)
 import RTS.Numeric(intToSize)
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
@@ -550,7 +550,7 @@ evalVExpr gbl expr ctrl out =
       case texprValue e of
         TCCoerce _ty1 ty2 e1 ->
           let ev = eval env e1 in
-          fst $ doCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
+          fst $ Interp.vCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
         TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
@@ -807,7 +807,7 @@ applyInputAction gbl (inp, ctrl, out) act =
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen s e1 e2 ->
-      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
+      let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->
@@ -818,7 +818,7 @@ applyInputAction gbl (inp, ctrl, out) act =
 
 
     StreamOff s e1 e2 ->
-      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
+      let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->
@@ -1131,9 +1131,9 @@ applySemanticAction gbl (ctrl, out) act =
            _ -> error "Lookup is not applied to value of type map"
     CoerceCheck s _t1 t2 e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out in
-        case doCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
-          (v, NotLossy) -> resultWithSem s v
-          (_, Lossy) -> Nothing -- error "Lossy coercion"
+        case Interp.vCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
+          (v, True) -> resultWithSem s v
+          (_, False) -> Nothing -- error "Lossy coercion"
 
     Guard e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out
