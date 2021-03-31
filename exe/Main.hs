@@ -30,9 +30,13 @@ import Daedalus.Driver
 import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS
 
+import Daedalus.Value
+import Daedalus.Interp1
+
+-- Only until we update PGen
+import qualified Daedalus.Interp.Value as Old
+
 import Daedalus.AST hiding (Value)
-import Daedalus.Interp
-import Daedalus.Interp.Value(valueToJS)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
@@ -287,7 +291,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then print $ dumpValues dumpInterpVal resultValues
+                      then print $ dumpValues dumpInterpOldVal resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -347,8 +351,13 @@ dumpValues ppVal as
     vcat [ "--- Found" <+> int (length as) <+> "results:"
          , vcat' (map ppVal as)
          ]
+
+
 dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
 dumpInterpVal = if ?useJS then valueToJS else pp
+
+dumpInterpOldVal :: (?useJS :: Bool) => Old.Value -> Doc
+dumpInterpOldVal = if ?useJS then Old.valueToJS else pp
 
 dumpCoreVal :: (?useJS :: Bool) => Core.Value -> Doc
 dumpCoreVal = if ?useJS then pp else pp -- XXX: JS
