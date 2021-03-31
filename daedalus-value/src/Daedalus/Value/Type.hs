@@ -31,6 +31,8 @@ data Value =
   | VMaybe                 !(Maybe Value)
   | VMap                   !(Map Value Value)
   | VStream                !Input
+  | VBuilder               ![Value]   -- array builder
+  | VIterator              ![(Value,Value)]
     deriving Show
 
 type Label = Text
@@ -142,19 +144,26 @@ valueToStream v =
     VStream i -> i
     _         -> panic "valueToStream" [ "Not a stream", show v ]
 
+valueToBuilder :: Value -> [Value]
+valueToBuilder v =
+  case v of
+    VBuilder xs -> xs
+    _           -> panic "valueToBuilder" [ "Not a builder", show v ]
+
+valueToIterator :: Value -> [(Value,Value)]
+valueToIterator v =
+  case v of
+    VIterator xs -> xs
+    _            -> panic "valueToIterator" [ "Not an iterator", show v ]
+
 valueToSize :: Value -> Integer
 valueToSize v =
   case v of
     VUInt 64 i -> i
     _          -> panic "valueToSize" [ "Not a size", show v ]
 
-integerToIntMaybe :: Integer -> Maybe Int
-integerToIntMaybe x
-  | inRange intRange x = Just (fromIntegral x)
-  | otherwise          = Nothing
-
 valueToIntSize :: Value -> Maybe Int
-valueToIntSize = integerToIntMaybe . valueToSize
+valueToIntSize = integerToInt . valueToSize
 
 --------------------------------------------------------------------------------
 
@@ -227,6 +236,10 @@ instance PP Value where
 
       VStream i -> text (show i)
 
+      VBuilder vs -> block "[builder|" ",       " "|]" (map pp vs)
+      VIterator vs -> block "[iterator|" ",        " "|]"
+                             [ pp x <+> "->" <+> pp y | (x,y) <- vs ]
+
 
 -- | Render a value as JSON
 valueToJS :: Value -> Doc
@@ -246,8 +259,7 @@ valueToJS val =
 
     VArray vs -> jsBlock "[" "," "]" (map valueToJS (Vector.toList vs))
 
-    VMap mp -> tagged "$$map" $ jsBlock "[" "," "]" (map rec (Map.toList mp))
-      where rec (a,b) = "[" <+> valueToJS a <.> "," <+> valueToJS b <+> "]"
+    VMap mp -> tagged "$$map" $ jsBlock "[" "," "]" (map pair (Map.toList mp))
 
     VMaybe mb ->
       case mb of
@@ -261,7 +273,13 @@ valueToJS val =
       rng = "0x" ++ showHex (inputOffset inp) (
           "--0x" ++ showHex (inputOffset inp + inputLength inp) "")
       toStr = map (toEnum . fromEnum) . SBS.unpack
+
+    VBuilder xs -> tagged "$$builder" $ jsBlock "[" "," "]" (map valueToJS xs)
+    VIterator xs -> tagged "$$iterator" $ jsBlock "[" "," "]" (map pair xs)
+
   where
+  pair (a,b) = "[" <+> valueToJS a <.> "," <+> valueToJS b <+> "]"
+
   tagged t v = "{ \"$" <.> t <.> "\":" <+> v <+> "}"
 
   jsBlock open separ close ds =

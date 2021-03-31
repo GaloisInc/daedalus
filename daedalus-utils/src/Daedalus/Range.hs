@@ -17,4 +17,6 @@ intRange = (toInteger (minBound :: Int), toInteger (maxBound :: Int))
 inRange :: (Integer,Integer) -> Integer -> Bool
 inRange (l,u) x = l <= x && x <= u
 
+integerToInt :: Integer -> Maybe Int
+integerToInt i = if inRange intRange i then Just (fromIntegral i) else Nothing
 

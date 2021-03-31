@@ -22,7 +22,9 @@ library
     Daedalus.Value.Bits
     Daedalus.Value.Bool
     Daedalus.Value.Array
+    Daedalus.Value.Map
     Daedalus.Value.Stream
+    Daedalus.Value.Iterator
     Daedalus.Value.Coerce
     Daedalus.Value.Utils
 

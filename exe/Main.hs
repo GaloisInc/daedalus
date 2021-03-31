@@ -200,7 +200,7 @@ interpCore opts mm inpMb =
      let ?useJS = optShowJS opts
      -- XXX: html, etc
      ddlIO $ forM_ ents \ent ->
-                  print (dumpResult dumpCoreVal (Core.runEntry env ent inp))
+                  print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =

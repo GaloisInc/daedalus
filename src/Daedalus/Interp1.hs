@@ -131,7 +131,7 @@ evalUniOp op =
   case op of
     Not               -> vNot
     Neg               -> partial . vNeg
-    Concat            -> vConcat
+    Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
 
 
@@ -158,7 +158,7 @@ evalBinOp op =
     BitwiseOr   -> vBitOr
     BitwiseXor  -> vBitXor
 
-    ArrayStream -> vArrayStream
+    ArrayStream -> vStreamFromArray
 
 
 
@@ -544,7 +544,7 @@ compilePExpr env expr0 args = go expr0
                             pure vUnit
 
         TCStreamLen sem n s ->
-          case vTake vn vs of
+          case vStreamTake vn vs of
             Right v -> pure $ mbSkip sem v
             Left _  -> pError FromSystem erng
                              ("Not enough bytes: need " ++
@@ -556,7 +556,7 @@ compilePExpr env expr0 args = go expr0
           vs = compilePureExpr env s
 
         TCStreamOff sem n s ->
-          case vDrop vn vs of
+          case vStreamDrop vn vs of
             Right v -> pure $ mbSkip sem v
             Left _ -> pError FromSystem erng
                              ("Offset out of bounds: offset " ++
@@ -572,19 +572,21 @@ compilePExpr env expr0 args = go expr0
         TCLabel l p -> pEnter (Text.unpack l) (go p)
 
         TCMapInsert s ke ve me ->
-          do let kv = compilePureExpr env ke
-                 vv = compilePureExpr env ve
-                 m  = valueToMap (compilePureExpr env me)
-             if kv `Map.member` m
-               then pError FromSystem erng ("duplicate key " ++ show (pp kv))
-               else pure $! mbSkip s (VMap (Map.insert kv vv m))
+          case vMapInsert kv vv mv of
+            Right a -> pure $! mbSkip s a
+            Left _  -> pError FromSystem erng ("duplicate key " ++ show (pp kv))
+          where
+          kv = compilePureExpr env ke
+          vv = compilePureExpr env ve
+          mv = compilePureExpr env me
 
-        TCMapLookup s ke me -> do
-          let kv = compilePureExpr env ke
-              m  = valueToMap (compilePureExpr env me)
-          case Map.lookup kv m of
-            Just v  -> pure $! mbSkip s v
-            Nothing -> pError FromSystem erng ("missing key " ++ show (pp kv))
+        TCMapLookup s ke me ->
+          case vMapLookup kv mv of
+            Right a -> pure $! mbSkip s a
+            Left _  -> pError FromSystem erng ("missing key " ++ show (pp kv))
+          where
+          kv = compilePureExpr env ke
+          mv = compilePureExpr env me
 
         TCArrayIndex s e ix ->
           case vArrayIndex v ixv of

@@ -12,9 +12,10 @@ import Daedalus.Rec(topoOrder)
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 
+import Daedalus.Value
+
 import Daedalus.Core
 import Daedalus.Core.Free
-import Daedalus.Core.Semantics.Value
 import Daedalus.Core.Semantics.Env
 import Daedalus.Core.Semantics.Expr
 import Daedalus.Core.Semantics.Grammar

@@ -8,24 +8,19 @@
 module Daedalus.Core.Semantics.Expr where
 
 import qualified Data.Map as Map
-import qualified Data.Vector as Vector
 import qualified Data.ByteString as BS
 import Data.Maybe(isJust)
-import Data.Bits(shiftL,(.|.))
 
-import Data.BitVector.Sized(BV)
-import qualified Data.BitVector.Sized as BV
-import Data.Parameterized.NatRepr
-
+import Daedalus.Range(integerToInt)
 import Daedalus.Panic(panic)
 
-import RTS.Input as RTS
-import RTS.Numeric(UInt(..),fromUInt,sizeToInt,intToSize)
+import Daedalus.Value
+import RTS.Input (inputBytes)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Daedalus.Core.Type(typeOf)
 
-import Daedalus.Core.Semantics.Value
 import Daedalus.Core.Semantics.Env
 
 
@@ -38,18 +33,22 @@ eval expr env =
     PureLet x e1 e2 ->
       eval e2 $! defLocal x (eval e1 env) env
 
-    Struct t fs ->
-      let flist = [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
-      in VStruct (SType t (map fst flist)) (Map.fromList flist)
+    Struct _ fs -> vStruct [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
 
     ECase c -> evalCase eval err c env
       where err = panic "eval" [ "Pattern match failure in semantic value" ]
 
-    Ap0 op          -> evalOp0 op
+    Ap0 op          -> partial (evalOp0 op)
     Ap1 op e        -> evalOp1 op e env
     Ap2 op e1 e2    -> evalOp2 op e1 e2 env
     Ap3 op e1 e2 e3 -> evalOp3 op e1 e2 e3 env
     ApN op es       -> evalOpN op es env
+
+partial :: Partial Value -> Value
+partial mbV =
+  case mbV of
+    Right a  -> a
+    Left err -> error err
 
 
 evalCase :: (a -> Env -> b) -> b -> Case a -> Env -> b
@@ -63,25 +62,16 @@ matches :: Pattern -> Value -> Bool
 matches pat v =
   case pat of
     PBool b  -> VBool b == v
-    PNothing -> case v of
-                  VNothing {} -> True
-                  _           -> False
-    PJust    -> case v of
-                  VJust {} -> True
-                  _        -> False
-    PNum n ->
-      case v of
-        VInt i    -> i == n
-        VUInt _ u -> BV.asUnsigned u == n
-        VSInt w s -> BV.asSigned w s == n
-        _         -> False
+    PNothing -> case valueToMaybe v of
+                  Nothing -> True
+                  _       -> False
+    PJust    -> case valueToMaybe v of
+                  Just {} -> True
+                  _       -> False
+    PNum n -> valueToIntegral v == n
 
-    PCon l ->
-      case v of
-        VUnion _ l1 _ -> l == l1
-        _              -> False
-
-    PAny -> True
+    PCon l -> fst (valueToUnion v) == l
+    PAny   -> True
 
 
 
@@ -99,168 +89,96 @@ evalArgs xs env =
 
 --------------------------------------------------------------------------------
 
-evalOp0 :: Op0 -> Value
+evalOp0 :: Op0 -> Partial Value
 evalOp0 op =
   case op of
-    Unit -> VUnit
+    Unit -> pure vUnit
 
     IntL i t ->
       case t of
-        TInteger        -> VInt    i
-        TUInt (TSize n) -> vUInt n i
-        TSInt (TSize n) -> vSInt n i
+        TInteger        -> pure (VInteger i)
+        TUInt (TSize n) -> case integerToInt n of
+                             Just w  -> pure (vUInt w i)
+                             Nothing -> panic "evalOp0" [ "Vector size too big"
+                                                        , show n ]
+        TSInt (TSize n) -> case integerToInt n of
+                             Just w  -> vSInt w i
+                             Nothing -> panic "evalOp0" [ "Vector size too big"
+                                                        , show n ]
+
         _ -> panic "evalOp0" [ "Numeric type" ]
 
-    BoolL b         -> VBool b
-
-    ByteArrayL bs   -> VArray t $
-                       Vector.fromList [ vByte w | w <- BS.unpack bs ]
-      where t = TUInt (TSize 8)
-
-    NewBuilder t    -> VBuilder t []
-
-    MapEmpty t1 t2  -> VMap t1 t2 Map.empty
-
-    ENothing t      -> VNothing t
+    BoolL b         -> pure (VBool b)
+    ByteArrayL bs   -> pure (vByteString bs)
+    NewBuilder _    -> pure vBuilder
+    MapEmpty {}     -> pure (VMap Map.empty)
+    ENothing _      -> pure (VMaybe Nothing)
 
 
 --------------------------------------------------------------------------------
+
+evalType :: Type -> TValue
+evalType ty =
+  case ty of
+    TStream       -> TVOther
+    TUInt n       -> TVUInt (sizeType n)
+    TSInt n       -> TVSInt (sizeType n)
+    TInteger      -> TVInteger
+    TBool         -> TVOther
+    TUnit         -> TVOther
+    TArray {}     -> TVArray
+    TMaybe {}     -> TVOther
+    TMap {}       -> TVMap
+    TBuilder {}   -> TVOther
+    TIterator {}  -> TVOther
+    TUser {}      -> TVOther
+    TParam {}     -> panic "evalType" [ "Unexpected type parameter" ]
+  where
+  sizeType x = case x of
+                 TSize y -> case integerToInt y of
+                              Just v  -> v
+                              Nothing -> panic "evalType" [ "Size type too big"]
+                 TSizeParam {} ->
+                   panic "evalType" [ "Unexpected numeric type parameter" ]
 
 evalOp1 :: Op1 -> Expr -> Env -> Value
 evalOp1 op e env =
   let v = eval e env
   in case op of
-      CoerceTo t -> doCoerceTo t v
+      CoerceTo t    -> fst (vCoerceTo (evalType t) v)
 
-      IsEmptyStream ->
-        VBool $ inputEmpty $ fromVInput v
-
-      Head ->
-        case inputByte (fromVInput v) of
-          Just (w,_) -> vByte w
-          Nothing    -> panic "evalOp1" ["Head of empty list"]
-
-      StreamOffset ->
-        vSize $ intToSize $ inputOffset $ fromVInput v
-
-      StreamLen ->
-        vSize $ intToSize $ inputLength $ fromVInput v
-
-      OneOf bs ->
-        VBool $ isJust $ BS.elemIndex (fromVByte v) bs
-
-      Neg -> numeric1 negate BV.negate BV.negate v
-
-      BitNot ->
-        case v of
-          VUInt w x -> VUInt w (BV.complement w x)
-          _         -> typeError "UInt" v
-
-      Not ->
-        VBool $ not $ fromVBool v
-
-      ArrayLen ->
-        vSize $ intToSize $ Vector.length $ fromVArray v
-
-      Concat ->
-        case v of
-          VArray (TArray t) a ->
-            VArray t $ Vector.concat $ Vector.toList $ fromVArray <$> a
-          _ -> typeError "Array of Array" v
-
-      FinishBuilder ->
-        case v of
-          VBuilder t a ->
-            VArray t $ Vector.fromList $ reverse a
-          _ -> typeError "Builder" v
-
+      IsEmptyStream -> vStreamIsEmpty v
+      Head          -> partial (vStreamHead v)
+      StreamOffset  -> vStreamOffset v
+      StreamLen     -> vStreamLength v
+      OneOf bs      -> VBool $ isJust $ BS.elemIndex (valueToByte v) bs
+      Neg           -> partial (vNeg v)
+      BitNot        -> vComplement v
+      Not           -> vNot v
+      ArrayLen      -> vArrayLength v
+      Concat        -> vArrayConcat v
+      FinishBuilder -> vFinishBuilder v
       NewIterator ->
-        case v of
-          VArray t a ->
-            VIterator (TArray t) $
-               zip [ vSize (UInt n) | n <- [0 .. ] ] (Vector.toList a)
+        case evalType (typeOf e) of
+          TVArray -> vIteratorFromArray v
+          TVMap   -> vIteratorFromMap v
+          _       -> panic "newIterator" [ "Not a map or array", show v ]
 
-          VMap t1 t2 mp ->
-            VIterator (TMap t1 t2) $ Map.toList mp
-          _ -> typeError "Array or Map" v
+      IteratorDone -> vIteratorDone v
+      IteratorKey  -> partial (vIteratorKey v)
+      IteratorVal  -> partial (vIteratorValue v)
+      IteratorNext -> partial (vIteratorNext v)
 
-      IteratorDone ->
-        case v of
-          VIterator _ xs -> VBool $ null xs
-          _ -> typeError "Iterator" v
-
-      IteratorKey ->
-        case v of
-          VIterator _ ((k,_) : _) -> k
-          _ -> panic "evalOp1" [ "Key of empty iterator" ]
-
-      IteratorVal ->
-        case v of
-          VIterator _ ((_,x) : _) -> x
-          _ -> panic "evalOp1" [ "Value of empty iterator" ]
-
-      IteratorNext ->
-        case v of
-          VIterator t ( ( !_, _) : xs) -> VIterator t xs
-          _ -> panic "evalOp1" [ "Next of empty iterator" ]
-
-      EJust -> VJust v
-
+      EJust -> VMaybe (Just v)
       FromJust ->
-        case v of
-          VJust r -> r
-          _ -> panic "evalOp1" [ "Not Just" ]
+        case valueToMaybe v of
+          Just r  -> r
+          Nothing -> panic "evalOp1" [ "Not Just" ]
 
-      SelStruct _ l ->
-        case v of
-          VStruct _ mp | Just r <- Map.lookup l mp -> r
-          _ -> typeError ("Sturct with " ++ show l) v
+      SelStruct _ l -> vStructLookup v l
 
-      InUnion t l ->
-        VUnion t l v
-
-      FromUnion _ _ ->
-        case v of
-          VUnion _ _ a -> a
-          _ -> typeError "union" v
-
-doCoerceTo :: Type -> Value -> Value
-doCoerceTo t v =
-  case t of
-
-    TInteger ->
-      case v of
-        VInt {}     -> v
-        VUInt _ i   -> VInt (BV.asUnsigned i)
-        VSInt w i   -> VInt (BV.asSigned w i)
-        _           -> typeError "Numeric type" v
-
-    TUInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
-    TUInt (TSize n) ->
-      case v of
-        VInt i -> vUInt n i
-        VUInt _ ui -> vUInt n (BV.asUnsigned ui)
-        VSInt w si -> vUInt n (BV.asSigned w si) -- sext then coerce bits
-        _ -> typeError "Numeric type" v
-
-    TSInt (TSizeParam _) -> panic "doCoerceTo" [ "Type variable" ]
-    TSInt (TSize n) ->
-      case v of
-        VInt i     -> vSInt n i
-        VUInt _ ui -> vSInt n (BV.asUnsigned ui)
-        VSInt w si -> vSInt n (BV.asSigned w si)
-        _ -> typeError "Numeric type" v
-
-    TStream         -> v
-    TBool           -> v
-    TUnit           -> v
-    TMaybe {}       -> v
-    TArray {}       -> v
-    TMap {}         -> v
-    TBuilder {}     -> v
-    TIterator {}    -> v
-    TUser {}        -> v
-    TParam {}       -> panic "doCoerceTo" [ "Type parameter" ]
+      InUnion _ l   -> VUnionElem l v
+      FromUnion _ _ -> snd (valueToUnion v)
 
 --------------------------------------------------------------------------------
 
@@ -270,141 +188,48 @@ evalOp2 op e1 e2 env =
       v2 = eval e2 env
   in case op of
        IsPrefix ->
-         VBool $ fromVByteArray v1 `BS.isPrefixOf` inputBytes (fromVInput v2)
+         VBool $ valueToByteString v1 `BS.isPrefixOf`
+                                                inputBytes (valueToStream v2)
 
-       Drop ->
-        let n   = fromVSize v1
-            i   = fromVInput v2
-        in case advanceBy n i of
-             Just i' -> VInput i'
-             Nothing -> panic "evalOp2.Drop" [ "Not enough bytes." ]
+       Drop -> partial (vStreamDrop v1 v2)
+       Take -> partial (vStreamTake v1 v2)
 
-       Take ->
-        let n   = fromVSize v1
-            i   = fromVInput v2
-        in case limitLen n i of
-             Just i' -> VInput i'
-             _       -> panic "evalOp2.Take" [ "Not enough bytes." ]
+       Eq       -> vEq  v1 v2
+       NotEq    -> vNeq v1 v2
+       Leq      -> vLeq v1 v2
+       Lt       -> vLt  v1 v2
 
-       Eq       -> VBool (v1 == v2)
-       NotEq    -> VBool (v1 /= v2)
-       Leq      -> VBool (v1 <= v2)
-       Lt       -> VBool (v1 < v2)
+       Add      -> partial (vAdd v1 v2)
+       Sub      -> partial (vSub v1 v2)
+       Mul      -> partial (vMul v1 v2)
+       Div      -> partial (vDiv v1 v2)
+       Mod      -> partial (vMod v1 v2)
 
-       Add      -> numeric2 (+) BV.add BV.add v1 v2
-       Sub      -> numeric2 (-) BV.sub BV.sub v1 v2
-       Mul      -> numeric2 (*) BV.mul BV.mul v1 v2
-       Div      -> numeric2 quot (const BV.uquot) BV.squot v1 v2
-       Mod      -> numeric2 rem  (const BV.urem)  BV.srem v1 v2
-
-       BitAnd   -> bitOp2 BV.and  v1 v2
-       BitOr    -> bitOp2 BV.or   v1 v2
-       BitXor   -> bitOp2 BV.xor  v1 v2
-       Cat ->
-         case (v1,v2) of
-           (VUInt w x, VUInt w' y) -> VUInt (addNat w w') (BV.concat w w' x y)
-           _ -> panic "evalOp2.Cat" [ "Bad inputs" ]
-
-       LCat
-         | VUInt w2 y <- v2
-         , let fInt i = (i `shiftL` widthVal w2) .|. BV.asUnsigned y
-
-               fUInt :: NatRepr w -> BV w -> BV w
-               fUInt w i =
-                 case testNatCases w2 w of
-                   NatCaseLT LeqProof ->
-                     BV.shl w i (natValue w2) `BV.or` BV.zext w y
-                   NatCaseEQ   -> i
-                   NatCaseGT _ -> BV.select' 0 w y
-
-               fSInt :: (1 <= w) => NatRepr w -> BV w -> BV w
-               fSInt w i =
-                 case testNatCases w2 w of
-                   NatCaseLT LeqProof ->
-                     BV.shl w i (natValue w2) `BV.or` BV.zext w y
-                   NatCaseEQ   -> i
-                   NatCaseGT _ -> BV.select' 0 w y
-
-
-             -> numeric1 fInt fUInt fSInt v1
-
-         | otherwise -> typeError "Bit vecotr" v2
-
-       LShift ->
-         case v1 of
-           VUInt w i -> VUInt w (BV.shl w i amt)
-              where amt = fromIntegral (fromUInt (fromVSize v2))
-           _ -> panic "evalOp2.LShift" ["Type error"]
-
-       RShift ->
-         case v1 of
-           VUInt w i -> VUInt w (BV.lshr w i amt)
-              where amt = fromIntegral (fromUInt (fromVSize v2))
-           _ -> typeError "UInt" v1
+       BitAnd   -> vBitAnd v1 v2
+       BitOr    -> vBitOr  v1 v2
+       BitXor   -> vBitXor v1 v2
+       Cat      -> vCat    v1 v2
+       LCat     -> partial (vLCat   v1 v2)
+       LShift   -> partial (vShiftL v1 v2)
+       RShift   -> partial (vShiftR v1 v2)
 
        -- array is 1st
-       ArrayIndex -> fromVArray v1 Vector.! sizeToInt (fromVSize v2)
+       ArrayIndex -> partial (vArrayIndex v1 v2)
 
        -- builder is 2nd
-       ConsBuilder ->
-         case v2 of
-           VBuilder t xs -> v1 `seq` VBuilder t (v1 : xs)
-           _ -> typeError "Builder" v2
+       ConsBuilder -> vConsBuilder v1 v2
 
        -- map is 1st
        MapLookup ->
-         case v1 of
-           VMap _kT vT mp ->
-             case Map.lookup v2 mp of
-               Just v  -> VJust v
-               Nothing -> VNothing vT
-           _ -> typeError "Map" v1
+         case vMapLookup v2 v1 of
+           Right a -> VMaybe (Just a)
+           Left _  -> VMaybe Nothing
 
        -- map is 1st
-       MapMember -> VBool $ Map.member v2 $ fromVMap v1
+       MapMember -> vMapMember v2 v1
 
+       ArrayStream -> vStreamFromArray v1 v2
 
-       ArrayStream ->
-         let name  = fromVByteArray v1
-             bytes = fromVByteArray v2
-         in VInput (newInput name bytes)
-
-
-bitOp2 :: (forall w. BV w -> BV w -> BV w) -> Value -> Value -> Value
-bitOp2 f v1 v2 =
-  case (v1,v2) of
-    (VUInt w x, VUInt w' y)
-      | Just Refl <- testEquality w w' -> VUInt w (f x y)
-    _ -> panic "bitOp2" ["Not matched bit vectors."]
-
-
-numeric1 ::
-  (Integer -> Integer) ->
-  (forall w. NatRepr w -> BV w -> BV w) ->
-  (forall w. (1 <= w) => NatRepr w -> BV w -> BV w) ->
-  Value -> Value
-numeric1 fInt fUInt fSInt v =
-  case v of
-    VInt x    -> VInt (fInt x)
-    VUInt w x -> VUInt w (fUInt w x)
-    VSInt w x -> VSInt w (fSInt w x)
-    _ -> typeError "numeric type" v
-
-
-
-numeric2 ::
-  (Integer -> Integer -> Integer) ->
-  (forall w. NatRepr w -> BV w -> BV w -> BV w) ->
-  (forall w. (1 <= w) => NatRepr w -> BV w -> BV w -> BV w) ->
-  Value -> Value -> Value
-numeric2 fInt fUInt fSInt v1 v2 =
-  case (v1,v2) of
-    (VInt x, VInt y)                    -> VInt (fInt x y)
-    (VUInt w x, VUInt w' y)
-      | Just Refl <- testEquality w w'  -> VUInt w (fUInt w x y)
-    (VSInt w x, VSInt w' y)
-      | Just Refl <- testEquality w w'  -> VSInt w (fSInt w x y)
-    _ -> typeError "numeric type" v1
 
 --------------------------------------------------------------------------------
 
@@ -414,93 +239,9 @@ evalOp3 op e1 e2 e3 env =
       v2 = eval e2 env
       v3 = eval e3 env
   in case op of
-       RangeUp ->
-         case (v1,v2,v3) of
-           (VInt start, VInt end, VInt step)
-              | step > 0 -> rangeArray TInteger VInt
-                              [ start, start + step .. end - 1 ]
-              | otherwise -> error "Range must be positive"
-
-           (VUInt w start, VUInt w' end, VUInt w'' step)
-              | Just Refl <- testEquality w w'
-              , Just Refl <- testEquality w w'' ->
-                rangeArray (TUInt (TSize (intValue w))) (VUInt w) $
-                vRangeUp w (const BV.ult) start step end
-
-           (VSInt w start, VSInt w' end, VSInt w'' step)
-              | Just Refl <- testEquality w w'
-              , Just Refl <- testEquality w w'' ->
-                rangeArray (TSInt (TSize (intValue w))) (VSInt w) $
-                vRangeUp w BV.slt start step end
-
-           _ -> panic "evalOp3.rangeUp" [ "Type error" ]
-
-       RangeDown ->
-         case (v1,v2,v3) of
-           (VInt start, VInt end, VInt step)
-              | step > 0 -> rangeArray TInteger VInt
-                              [ start, start - step .. end + 1 ]
-              | otherwise -> error "Range must be positive"
-
-           (VUInt w start, VUInt w' end, VUInt w'' step)
-              | Just Refl <- testEquality w w'
-              , Just Refl <- testEquality w w'' ->
-                rangeArray (TUInt (TSize (intValue w))) (VUInt w) $
-                vRangeDown w (const BV.ult) start step end
-
-           (VSInt w start, VSInt w' end, VSInt w'' step)
-              | Just Refl <- testEquality w w'
-              , Just Refl <- testEquality w w'' ->
-                rangeArray (TSInt (TSize (intValue w))) (VSInt w) $
-                vRangeDown w BV.slt start step end
-
-           _ -> panic "evalOp3.rangeDown" [ "Type error" ]
-
-
-
-       -- mp, key, value
-       MapInsert ->
-         case v1 of
-           VMap kT kV mp -> v3 `seq` VMap kT kV (Map.insert v2 v3 mp)
-           _ -> typeError "Map" v1
-
-
-rangeArray :: Type -> (a -> Value) -> [a] -> Value
-rangeArray ty mkV els = VArray ty $ Vector.fromList $ map mkV els
-
-
-vRangeUp ::
-  NatRepr w ->
-  (NatRepr w -> BV w -> BV w -> Bool) ->
-  BV w -> BV w -> BV w -> [BV w]
-vRangeUp w isLt start step end
-  | isLt w step (BV.mkBV w 1) = error "Step must be positive"
-  | isLt w start end = enum w isLt BV.add step start (BV.sub w end start)
-  | otherwise = []
-
-vRangeDown ::
-  NatRepr w ->
-  (NatRepr w -> BV w -> BV w -> Bool) ->
-  BV w -> BV w -> BV w -> [BV w]
-vRangeDown w isLt start step end
-  | isLt w step (BV.mkBV w 1) = error "Step must be positive"
-  | isLt w end start = enum w isLt BV.sub step end   (BV.sub w start end)
-  | otherwise = []
-
-
-enum ::
-  NatRepr w ->
-  (NatRepr w -> BV w -> BV w -> Bool) ->
-  (NatRepr w -> BV w -> BV w -> BV w) ->
-  BV w -> BV w -> BV w -> [ BV w ]
-enum w isLt upd step = go
-    where
-    go cur todo = cur : more
-      where
-      more = if isLt w step todo
-               then go (upd w cur step) (BV.sub w todo step)
-               else []
-
+       RangeUp   -> partial (vRangeUp v1 v2 v3)
+       RangeDown -> partial (vRangeDown v1 v2 v3)
+       MapInsert -> partial (vMapInsert v2 v3 v1)
 
 
 --------------------------------------------------------------------------------
@@ -509,9 +250,8 @@ evalOpN :: OpN -> [Expr] -> Env -> Value
 evalOpN op es env =
   let vs = evalArgs es env
   in case op of
-       ArrayL t -> VArray t (Vector.fromList vs)
+       ArrayL _ -> vArray vs
        CallF f  -> case vs of
                      [] -> lookupConst f env
                      _  -> lookupFun f env vs
-
 

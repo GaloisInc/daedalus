@@ -6,11 +6,11 @@ import qualified Data.Map as Map
 import Data.Word(Word8)
 
 import RTS.Parser(Parser)
+import Daedalus.Value
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Core(Name,FName)
-import Daedalus.Core.Semantics.Value
 
 
 data Env = Env
