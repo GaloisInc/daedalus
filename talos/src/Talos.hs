@@ -38,7 +38,7 @@ import qualified SimpleSMT as SMT
 import Daedalus.GUID
 import Daedalus.Driver hiding (State)
 import Daedalus.Core
-import Daedalus.Core.Semantics.Value (Value)
+import Daedalus.Value (Value)
 
 import Talos.SymExec.Monad
 import Talos.SymExec.StdLib

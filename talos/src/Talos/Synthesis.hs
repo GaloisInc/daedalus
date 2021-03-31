@@ -30,13 +30,13 @@ import SimpleSMT (Solver)
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
+import qualified Daedalus.Value as I
 
 import Daedalus.Core hiding (streamOffset)
 import Daedalus.Core.Free
 import qualified Daedalus.Core.Semantics.Grammar as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import qualified Daedalus.Core.Semantics.Decl as I
-import qualified Daedalus.Core.Semantics.Value as I
 import qualified Daedalus.Core.Semantics.Env as I
 
 -- import RTS.ParserAPI hiding (SourceRange)
@@ -123,7 +123,7 @@ projectEnvForM tm = do
   pure e
 
 vUnit :: Value
-vUnit = InterpValue I.VUnit
+vUnit = InterpValue I.vUnit
 
 --------------------------------------------------------------------------------
 -- Synthesis state
@@ -334,7 +334,7 @@ choosePath cp x = do
 -- -- FIXME: next 3 copied from Interp.hs
 -- -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
 byteStringToValue :: ByteString -> I.Value
-byteStringToValue = I.VArray (TUInt (TSize 8)) . Vector.fromList . map I.vByte . BS.unpack
+byteStringToValue = I.vByteString
 
 -- matchPatOneOf :: [TCPat] -> I.Value -> Maybe [(Name,I.Value)]
 -- matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
@@ -409,7 +409,7 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     Match s (MatchBytes v) -> do
       bs <- synthesiseV v
       -- prov <- freshProvenanceTag
-      addBytes synthVProvenance (I.fromVByteArray (assertInterpValue bs)) -- XXX is this the random case?
+      addBytes synthVProvenance (I.valueToByteString (assertInterpValue bs)) -- XXX is this the random case?
       mbPure s bs
     Match _s _        -> unimplemented
     Fail {}           -> unimplemented -- probably should be impossible
