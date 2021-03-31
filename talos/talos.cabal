@@ -45,7 +45,9 @@ library
                      , Talos.Strategy.Symbolic
                      
                      , Talos.Synthesis
-                                        
+
+                     , Talos.NameConstArgs
+                                 
                      , Talos
                      -- , Machine
   build-depends:       base

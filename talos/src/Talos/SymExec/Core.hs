@@ -63,7 +63,7 @@ sliceToSMTTypeDefs md sl = go [] roots0 (reverse (mTypes md))
   where
     roots0 = freeTCons sl
 
-    go acc _ [] = reverse acc
+    go acc _ [] = acc
     go acc roots (NonRec td : rest) 
       | tName td `Set.member` roots =
         go (NonRec (tdeclToSMTTypeDef td) : acc) (Set.union roots (freeTCons td)) rest
@@ -263,12 +263,12 @@ symExecOp1 op ty =
     IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
     EJust         -> sJust
     FromJust        -> fun "fromJust"
-    SelStruct (TUser ut) l -> fun (labelToField (utName ut) l)
+    SelStruct _ l | TUser ut <- ty -> fun (labelToField (utName ut) l)
     -- FIXME: we probably need (_ as Foo) ...
     InUnion ut l    -> 
       S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
     
-    FromUnion (TUser ut) l -> fun (labelToField (utName ut) l)
+    FromUnion _ l | TUser ut <- ty -> fun ("get-" ++ labelToField (utName ut) l)
     
     _ -> unimplemented -- shouldn't really happen, we should cover everything above
 

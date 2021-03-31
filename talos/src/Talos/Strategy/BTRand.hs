@@ -105,14 +105,15 @@ stratSlice ptag = go
 -- Synthesise for each call 
 stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> I.Env -> 
                  ReaderT I.Env m (I.Value, SelectedNode)
-stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
-  (_, nonRes) <- unzip <$> mapM doOne (Map.elems lpaths ++ Map.elems rpaths)
-  (v, res)    <- maybe (pure (I.VUnit, Unconstrained)) doOne m_rsl
+stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
+  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
+  (v, res)    <- maybe (pure (I.VUnit, Unconstrained)) (doOne ResultVar) m_rsl
   pure (v, SelectedCall cl (foldl' merge res nonRes))
   where
     (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
     
-    doOne CallInstance { callParams = evs, callSlice = sl } =
+    doOne ev CallInstance { callParams = evs {- , callSlice = sl -} } = do
+      sl <- getParamSlice fn cl ev
       local (const (evsToEnv evs)) (stratSlice ptag sl)
 
     -- we rely on laziness to avoid errors in computing values with free variables

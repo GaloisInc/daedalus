@@ -23,6 +23,8 @@ import Daedalus.Core.TraverseUserTypes
 
 import Talos.Analysis.EntangledVars
 
+-- import Debug.Trace
+
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 -- smart constructor for dontCares.
@@ -55,8 +57,8 @@ data CallInstance =
   CallInstance { callParams :: EntangledVars
                -- ^ Set of params (+ result) free in the slice, used to call the model function in SMT
                
-               , callSlice  :: Slice
-               -- ^ The slice inside the function, used to parse back the model (could also be ModelP SelectedPath)
+              -- , callSlice  :: Slice
+               -- ^ The slice inside the function
                }
     
 -- We represent a Call by a set of the entangled args.  If the
@@ -164,9 +166,16 @@ instance Eqv SliceLeaf where
       _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
 
 instance Eqv CallNode where
-  eqv (CallNode { callClass = cl1, callPaths = paths1 })
-      (CallNode { callClass = cl2, callPaths = paths2 }) =
+  eqv cn@(CallNode { callClass = cl1, callPaths = paths1 })
+      cn'@(CallNode { callClass = cl2, callPaths = paths2 }) =
+    -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
     cl1 == cl2 && Map.keys paths1 == Map.keys paths2
+    && all (uncurry eqv) (zip (Map.elems paths1) (Map.elems paths2)) -- assumes same order, we have same keys
+
+instance Eqv CallInstance where
+  eqv (CallInstance { callParams = ps1 {- , callSlice = sl1 -} })
+      (CallInstance { callParams = ps2 {- , callSlice = sl2 -} }) =
+    ps1 == ps2 -- && eqv sl1 sl2
 
 instance Eqv a => Eqv (Case a) where
   eqv (Case _e alts1) (Case _e' alts2) =
@@ -182,10 +191,18 @@ class Merge a where
 
 instance Merge CallNode where
   merge cn@(CallNode { callClass = cl1, callPaths = paths1 }) 
-          (CallNode { callClass = cl2, callPaths = paths2 })
+        cn'@(CallNode { callClass = cl2, callPaths = paths2 })
     | cl1 /= cl2 = panic "Saw different function classes" []
-    | otherwise = cn { callPaths = Map.union paths1 paths2 -- don't have to use unionWith here
-                     }
+    -- FIXME: need to deal with slices as they may have changed in deps, maybe better to drop this and just store the keys
+    -- FIXME: we really need domain merging here, as we maybe have different keys but related var sets
+    | otherwise =
+      -- trace ("Merging " ++ showPP cn ++ " and " ++ showPP cn') $
+      cn { callPaths = Map.unionWith merge paths1 paths2 }
+
+instance Merge CallInstance where
+  merge (CallInstance { callParams = ps1 {- , callSlice = sl1 -} })
+        (CallInstance { callParams = ps2 {- , callSlice = sl2 -} }) =
+    CallInstance { callParams = mergeEntangledVars ps1 ps2 {- , callSlice = merge sl1 sl2 -} }
 
 instance Merge a => Merge (Case a) where
   merge (Case e alts1) (Case _e alts2) = Case e (zipWith goAlt alts1 alts2)
@@ -322,13 +339,22 @@ instance TraverseUserTypes CallNode where
 
 instance TraverseUserTypes CallInstance where
   traverseUserTypes f ci  =
-    CallInstance <$> traverseUserTypes f (callParams ci) <*> traverseUserTypes f (callSlice ci)
+    CallInstance <$> traverseUserTypes f (callParams ci) -- <*> traverseUserTypes f (callSlice ci)
 
 instance TraverseUserTypes Assertion where
   traverseUserTypes f (GuardAssertion e) = GuardAssertion <$> traverseUserTypes f e
 
 --------------------------------------------------------------------------------
 -- PP Instances
+
+-- instance PP CallInstance where
+--   ppPrec n (CallInstance { callParams = ps, callSlice = sl }) =
+--     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
+
+instance PP CallNode where
+  ppPrec n (CallNode { callName = fname, callPaths = evs }) =
+        wrapIf (n > 0) $ ("call " <> pp fname)
+                         <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
 
 instance PP SliceLeaf where
   ppPrec n sl =
@@ -337,9 +363,7 @@ instance PP SliceLeaf where
       SMatch m -> wrapIf (n > 0) $ ppMatch SemYes m
       SAssertion e -> wrapIf (n > 0) $ "assert" <+> ppPrec 1 e
       SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)
-      SCall (CallNode { callName = fname, callPaths = evs }) ->
-        wrapIf (n > 0) $ ("call " <> pp fname)
-                         <+> (lbrace <> commaSep (map pp (Map.keys evs)) <> rbrace)
+      SCall cn -> ppPrec n cn
       SCase _ c -> pp c
 
 ppStmt :: Slice -> Doc

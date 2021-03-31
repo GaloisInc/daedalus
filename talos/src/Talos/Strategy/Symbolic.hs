@@ -58,6 +58,7 @@ symbolicFun ptag sl = do
   defineSliceFunDefs md sl
   scoped $ runSymbolicM $ do
     (_, pathM) <- stratSlice ptag sl
+    check -- FIXME: only required if there was no recent 'check' command
     pathM
 
 
@@ -71,7 +72,8 @@ symbolicFun ptag sl = do
 stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SExpr, SymbolicM SelectedPath)
 stratSlice ptag = go
   where
-    go sl = 
+    go sl =  do
+      -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
         SDontCare n sl' -> onSlice (fmap (dontCare n)) <$> go sl'
         SDo m_x lsl rsl -> do
@@ -85,7 +87,7 @@ stratSlice ptag = go
         SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
         
     goLeaf sl = do
-      liftIO (print (pp sl))
+      -- liftIO (putStrLn "Leaf" >> print (pp sl))
       case sl of
         SPure e -> uncPath <$> synthesiseExpr e
 
@@ -148,20 +150,23 @@ stratCase ptag (Case e ps) = do
 
 -- Synthesise for each call 
 stratCallNode :: ProvenanceTag -> CallNode -> SymbolicM (SExpr, SymbolicM SelectedNode)
-stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths = paths } = do
+stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } = do
   -- define all arguments.  We need to evaluate the args in the
   -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
   allUsedArgsV <- traverse (solverOp . symExec) allUsedArgs
   Map.foldMapWithKey defineName' allUsedArgsV
-  (_, nonRes) <- unzip <$> mapM doOne (Map.elems lpaths ++ Map.elems rpaths)
-  (v, res)    <- maybe (pure (sUnit, pure Unconstrained)) doOne m_rsl
+  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
+  (v, res)    <- maybe (pure (sUnit, pure Unconstrained)) (doOne ResultVar) m_rsl
   pure (v, SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
   where
     (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
 
     defineName' x e = void $ solverOp (defineName x (symExecTy (typeOf x)) e)
     
-    doOne = stratSlice ptag . callSlice
+    doOne ev _ = do
+      sl <- getParamSlice fn cl ev
+      stratSlice ptag sl
+
 
     allUsedParams = foldMap (programVars . callParams) paths
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
@@ -173,7 +178,11 @@ stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths =
 choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
 choose bs = do
   bs' <- randPermute bs
-  foldr mplus mzero (map pure bs')
+  foldr mplus doFail (map pure bs')
+  where
+    doFail = do
+      -- liftStrategy (liftIO (putStrLn "failing"))
+      mzero
 
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers

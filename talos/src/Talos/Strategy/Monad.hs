@@ -7,7 +7,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun
+                            , summaries, getModule, getGFun, getParamSlice
                             , rand, randR, randL, randPermute
                             ) where
 
@@ -16,6 +16,7 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 import System.Random
 import Data.Foldable (find)
+import qualified Data.Map as Map
 
 import Daedalus.Core
 import Daedalus.GUID
@@ -24,7 +25,9 @@ import Daedalus.PP
 
 import Talos.SymExec.Path
 import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summaries)
+import Talos.Analysis.Domain (lookupVar)
+import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
+import Talos.Analysis.EntangledVars (EntangledVar)
 
 import Talos.SymExec.SolverT (SolverT)
 
@@ -70,6 +73,17 @@ runStrategyM m st = runStateT (getStrategyM m) st
 
 summaries :: LiftStrategyM m => m Summaries
 summaries = liftStrategy (StrategyM (gets stsSummaries))
+
+getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVar -> m Slice
+getParamSlice fn cl ev = do
+  ss <- summaries
+  let m_s = do
+        summM <- Map.lookup fn ss
+        summ  <- Map.lookup cl summM
+        snd <$> lookupVar ev (exportedDomain summ)
+  case m_s of
+    Just sl -> pure sl
+    Nothing -> panic "Missing summary" [showPP fn, showPP cl, showPP ev]
 
 getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
 getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))

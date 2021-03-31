@@ -43,6 +43,7 @@ module Daedalus.Driver
   , passStripFail
   , passSpecTys
   , passVM
+  , ddlRunPass
 
     -- * State
   , State(..)
