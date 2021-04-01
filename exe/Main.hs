@@ -31,10 +31,7 @@ import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS
 
 import Daedalus.Value
-import Daedalus.Interp1
-
--- Only until we update PGen
-import qualified Daedalus.Interp.Value as Old
+import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
@@ -42,7 +39,6 @@ import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
-import qualified Daedalus.Core.Semantics.Value as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -200,7 +196,7 @@ interpCore opts mm inpMb =
      let ?useJS = optShowJS opts
      -- XXX: html, etc
      ddlIO $ forM_ ents \ent ->
-                  print (dumpResult dumpCoreVal (Core.runEntry env ent inp))
+                  print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -291,7 +287,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then print $ dumpValues dumpInterpOldVal resultValues
+                      then print $ dumpValues dumpInterpVal resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -355,12 +351,6 @@ dumpValues ppVal as
 
 dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
 dumpInterpVal = if ?useJS then valueToJS else pp
-
-dumpInterpOldVal :: (?useJS :: Bool) => Old.Value -> Doc
-dumpInterpOldVal = if ?useJS then Old.valueToJS else pp
-
-dumpCoreVal :: (?useJS :: Bool) => Core.Value -> Doc
-dumpCoreVal = if ?useJS then pp else pp -- XXX: JS
 
 dumpErr :: (?useJS :: Bool) => ParseError -> Doc
 dumpErr err

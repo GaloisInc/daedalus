@@ -23,7 +23,7 @@ import Data.ByteString (unpack)
 import Data.Word
 import Data.List (intersperse)
 
-import qualified Daedalus.Interp as Interp
+import qualified Daedalus.Value as Interp
 import Daedalus.Type.AST
 
 import Daedalus.ParserGen.AST as PAST

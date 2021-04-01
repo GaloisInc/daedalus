@@ -11,7 +11,7 @@ import Daedalus.ParserGen.Action as Action
 
 import qualified Daedalus.Type.AST as DAST
 
-import Daedalus.Interp
+import Daedalus.Value
 
 import Data.Text (unpack)
 import Data.Array as Arr

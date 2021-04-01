@@ -16,7 +16,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Sequence as Seq
 
 import RTS.Input(Input(..))
-import qualified Daedalus.Interp as Interp
+import qualified Daedalus.Value as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action as Action

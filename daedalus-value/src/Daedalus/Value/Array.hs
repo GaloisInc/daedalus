@@ -24,11 +24,11 @@ vArrayIndex a b =
   where
   outOfBounds =  vErr "Array index out of bounds"
 
-vConcat :: Value -> Value
-vConcat = VArray . Vector.concat
-                 . Vector.toList
-                 . Vector.map valueToVector
-                 . valueToVector
+vArrayConcat :: Value -> Value
+vArrayConcat = VArray . Vector.concat
+                      . Vector.toList
+                      . Vector.map valueToVector
+                      . valueToVector
 
 
 vRangeUp :: Value -> Value -> Value -> Partial Value
@@ -37,11 +37,14 @@ vRangeUp = rangeOp "rangeUp" (+) (>)
 vRangeDown :: Value -> Value -> Value -> Partial Value
 vRangeDown = rangeOp "rangeDown" subtract (<)
 
+vBuilder :: Value
+vBuilder = VBuilder []
 
+vConsBuilder :: Value -> Value -> Value
+vConsBuilder v b = VBuilder (v : valueToBuilder b)
 
-
-
-
+vFinishBuilder :: Value -> Value
+vFinishBuilder = vArray . reverse . valueToBuilder
 
 
 

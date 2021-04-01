@@ -12,11 +12,11 @@ import Data.List (foldl')
 import qualified Data.Map as Map
 
 import Daedalus.Panic
+import qualified Daedalus.Value as I
 
 import Daedalus.Core hiding (streamOffset)
 import qualified Daedalus.Core.Semantics.Grammar as I
 import qualified Daedalus.Core.Semantics.Expr as I
-import qualified Daedalus.Core.Semantics.Value as I
 import qualified Daedalus.Core.Semantics.Env as I
 
 import Talos.Analysis.EntangledVars 
@@ -55,7 +55,7 @@ stratSlice ptag = go
           (v, lpath)  <- go lsl
           onSlice (pathNode (SelectedDo lpath)) <$> bindInMaybe m_x v (go rsl)
           
-        SUnconstrained  -> pure (I.VUnit, Unconstrained)
+        SUnconstrained  -> pure (I.vUnit, Unconstrained)
         SLeaf sl'        -> onSlice (flip pathNode Unconstrained) <$> goLeaf sl'
         
     goLeaf sl =
@@ -76,15 +76,15 @@ stratSlice ptag = go
 
         SMatch (MatchBytes e) -> do
           v <- synthesiseExpr e
-          let bs = I.fromVByteArray v
+          let bs = I.valueToByteString v
           pure (v, SelectedMatch ptag bs)
 
         SMatch {} -> unimplemented
           
         SAssertion (GuardAssertion e) -> do
-          b <- I.fromVBool <$> synthesiseExpr e
+          b <- I.valueToBool <$> synthesiseExpr e
           guard b
-          pure (uncPath I.VUnit)
+          pure (uncPath I.vUnit)
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
@@ -107,7 +107,7 @@ stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> 
                  ReaderT I.Env m (I.Value, SelectedNode)
 stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
   (_, nonRes) <- unzip <$> mapM doOne (Map.elems lpaths ++ Map.elems rpaths)
-  (v, res)    <- maybe (pure (I.VUnit, Unconstrained)) doOne m_rsl
+  (v, res)    <- maybe (pure (I.vUnit, Unconstrained)) doOne m_rsl
   pure (v, SelectedCall cl (foldl' merge res nonRes))
   where
     (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths

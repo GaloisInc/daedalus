@@ -47,6 +47,8 @@ vCoerceTo tgt v =
     VStream {}    -> (v, exact)
     VArray {}     -> (v, exact)
     VMaybe {}     -> (v, exact)
+    VBuilder {}   -> (v, exact)
+    VIterator {}  -> (v, exact)
 
 
 

@@ -65,17 +65,36 @@ module Daedalus.Value
   , vArray
   , vArrayLength
   , vArrayIndex
-  , vConcat
+  , vArrayConcat
   , vRangeUp
   , vRangeDown
   , vByteString
+  , vBuilder
+  , vConsBuilder
+  , vFinishBuilder
+
+  -- * Maps
+  , vMapEmpty
+  , vMapInsert
+  , vMapLookup
+  , vMapMember
 
   -- * Streams
-  , vArrayStream
-  , vOffset
-  , vTake
-  , vDrop
+  , vStreamFromArray
+  , vStreamIsEmpty
+  , vStreamHead
+  , vStreamOffset
+  , vStreamLength
+  , vStreamTake
+  , vStreamDrop
 
+  -- * Iterators
+  , vIteratorFromArray
+  , vIteratorFromMap
+  , vIteratorDone
+  , vIteratorKey
+  , vIteratorValue
+  , vIteratorNext
 
     -- * Export
   , valueToDoc
@@ -91,7 +110,9 @@ import Daedalus.Value.Arith
 import Daedalus.Value.Bits
 import Daedalus.Value.Compare
 import Daedalus.Value.Array
+import Daedalus.Value.Map
 import Daedalus.Value.Stream
+import Daedalus.Value.Iterator
 import Daedalus.Value.Coerce
 
 -- | Pretty print a value
