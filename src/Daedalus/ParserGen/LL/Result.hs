@@ -20,9 +20,12 @@ data AbortOption =
 
     -- Abort cases for DFA
   | AbortDFAIncompatibleInput
-  | AbortDFAOverflowInitCfg
+  | AbortDFAOverflowCfg
   | AbortDFAOverflowLookahead
   | AbortDFAOverflowNbStates
+
+    -- Abort cases for LLA
+  | AbortLLAOverflow
 
 instance Show(AbortOption) where
   show a =
@@ -37,9 +40,11 @@ instance Show(AbortOption) where
       AbortClosureInfiniteloop -> "AbortClosureInfiniteloop"
 
       AbortDFAIncompatibleInput -> "AbortDFAIncompatibleInput"
-      AbortDFAOverflowInitCfg -> "AbortDFAOverflowInitCfg"
+      AbortDFAOverflowCfg -> "AbortDFAOverflowCfg"
       AbortDFAOverflowLookahead -> "AbortDFAOverflowLookahead"
       AbortDFAOverflowNbStates -> "AbortDFAOverflowNbStates"
+
+      AbortLLAOverflow -> "AbortLLAOverflow"
 
 data Result a =
     Abort AbortOption

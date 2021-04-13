@@ -13,7 +13,10 @@ module Daedalus.ParserGen.LL.DFAStep
     DetChoice(..),
     DFAState(..),
     mkDFAState,
+    mkDFAStateFromSlkCfg,
     isDFAStateInit,
+    isDFAStateInitForDep,
+    getCfgFromDFAState,
     nullDFAState,
     convertDFARegistryToDFAState,
     IteratorDFAState,
@@ -21,6 +24,7 @@ module Daedalus.ParserGen.LL.DFAStep
     nextIteratorDFAState,
     isEmptyIteratorDFAState,
     measureDFAState,
+    closureDataDependentOnDFAState,
     determinizeDFAState,
   ) where
 
@@ -335,6 +339,10 @@ mkDFAState q tab =
   let (initCfg, tab1) = Slk.initSlkCfg q tab
   in (DFAState (Set.singleton initCfg), tab1)
 
+mkDFAStateFromSlkCfg :: Slk.SlkCfg -> DFAState
+mkDFAStateFromSlkCfg cfg =
+  DFAState { dfaState = Set.singleton cfg }
+
 isDFAStateInit :: DFAState -> Maybe State
 isDFAStateInit q =
   if (Set.size (dfaState q) == 1)
@@ -346,6 +354,26 @@ isDFAStateInit q =
         if (Slk.isInitSlkCfg cfg)
         then Just qNFA
         else Nothing
+  else Nothing
+
+isDFAStateInitForDep :: DFAState -> Maybe State
+isDFAStateInitForDep q =
+  if (Set.size (dfaState q) == 1)
+  then
+    let cfg = Set.elemAt 0 (dfaState q)
+    in
+    case cfg of
+      Slk.SlkCfg{ Slk.cfgState = qNFA } ->
+        Just qNFA
+  else Nothing
+
+getCfgFromDFAState :: DFAState -> Maybe Slk.SlkCfg
+getCfgFromDFAState q =
+  if (Set.size (dfaState q) == 1)
+  then
+    let cfg = Set.elemAt 0 (dfaState q)
+    in
+    Just cfg
   else Nothing
 
 equivDFAState :: DFAState -> DFAState -> Bool
@@ -417,6 +445,19 @@ convertDFARegistryToDFAState r =
           addDFAState (Closure.lastCfg $ dstEntry entry) (helper es)
 
 
+closureDataDependentOnDFAState ::
+  Aut a =>
+  a ->
+  DFAState ->
+  Slk.HTable -> (Result (Maybe Closure.DataDepInstr), Slk.HTable)
+closureDataDependentOnDFAState aut qDFA tab =
+  case isDFAStateInitForDep qDFA of
+    Nothing -> (Result Nothing, tab)
+    Just _ ->
+      let cfg = Set.elemAt 0 (dfaState qDFA) in
+      Closure.closureEpsUntilDataDependent aut Set.empty (Closure.emptyChoiceSeq, cfg) tab
+
+
 slkExecMoveAndEpsRegistry ::
   Aut a =>
   a ->
@@ -459,13 +500,15 @@ slkExecMoveAndEpsRegistry aut ih r tab =
                 Abort _ -> (coerceAbort mCmEps, tab2)
 
 
+
 determinizeDFAState ::
   Aut a =>
   a -> DFAState ->
   Slk.HTable -> (Result DetChoice, Slk.HTable)
 determinizeDFAState aut s tab =
-  let (detChoice1, tab1) =
-        determinizeAcc (initIteratorDFAState s) emptyDetChoice tab
+  let
+    (detChoice1, tab1) =
+      determinizeAcc (initIteratorDFAState s) emptyDetChoice tab
   in
   case detChoice1 of
     Result r1 -> slkExecClassAndEps r1 tab1
