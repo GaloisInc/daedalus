@@ -366,14 +366,14 @@ runnerLL s aut laut flagMetrics =
       gbl :: PAST.GblFuns
       gbl = gblFunsAut aut
 
-      react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
+      react :: Cfg -> Maybe LL.LLAState -> Resumption -> Result -> Result
       react cfg@(Cfg inp _ctrl _out q) mq resumption result =
         -- trace "REACT" $
         -- trace (show (_getCommitStack resumption)) $
         -- trace (showCfg cfg) $
         let pq = case mq of
                    Nothing -> Left q
-                   Just qSynth -> Right qSynth in
+                   Just qLLA -> Right qLLA in
         let
           mpdx = LL.predictLL pq laut inp
         in
@@ -399,7 +399,7 @@ runnerLL s aut laut flagMetrics =
                 let newResumption = addResumption resumption cfg ch
                 in choose newResumption result
 
-      applyPredictions :: LL.Prediction -> Maybe LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
+      applyPredictions :: LL.Prediction -> Maybe LL.LLAState -> Cfg -> Resumption -> Result -> Result
       applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
         -- trace "applyPredictions" $
         let result = incrResultMetrics tickLL rslt flagMetrics in

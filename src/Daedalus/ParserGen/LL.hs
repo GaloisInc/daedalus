@@ -7,7 +7,7 @@ module Daedalus.ParserGen.LL
   , statsLLA
   , LLA(..)
   , Prediction
-  , SynthLLAState
+  , LLAState
   , destrPrediction
   , predictLL
   , ChoiceTag(..)
