@@ -30,6 +30,7 @@ import qualified Data.Map.Strict as Map
 
 import Daedalus.Type.AST
 import Daedalus.Value as Interp
+import Daedalus.Interp as Interp
 import qualified RTS.Input as Input
 
 import qualified Daedalus.ParserGen.AST as PAST
@@ -552,7 +553,7 @@ symbolicEval e ctrl sem =
           (_, Wildcard) ->
             Wildcard
           (SConcrete (Left v1), SConcrete (Left v2)) ->
-            SConcrete (Left (evalBinOp Cat v1 v2))
+            SConcrete (Left (Interp.evalBinOp Cat v1 v2))
           _ ->
             -- trace "" $
             -- trace (show e1) $
