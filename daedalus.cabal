@@ -77,7 +77,7 @@ library
                        Daedalus.ParserGen.LL.DFAStep,
                        Daedalus.ParserGen.LL.DFA,
                        Daedalus.ParserGen.LL.LLA,
-                       Daedalus.ParserGen.RunnerBias,
+                       Daedalus.ParserGen.Runner,
                        Daedalus.ParserGen.Generate
 
   build-depends:       base,

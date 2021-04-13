@@ -206,7 +206,7 @@ doToCore opts mm =
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts) (passInline ents specMod)
      when (optStripFail opts) (passStripFail specMod)
-     when (optSpecTys opts) (passSpecTys specMod)     
+     when (optSpecTys opts) (passSpecTys specMod)
      pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
@@ -278,7 +278,7 @@ interpPGen useJS inp moduls flagMetrics =
                   Nothing -> pure BS.empty
                   Just f  -> BS.readFile f
               let results = PGen.runnerLL bytes aut lla flagMetrics  -- LL
-              -- let results = PGen.runnerBias bytes aut
+              -- let results = PGen.runner bytes aut
               let resultValues = PGen.extractValues results
               if null resultValues
                 then
@@ -402,5 +402,3 @@ dumpHTML jsData = vcat
   Just tstyle  = lookup "style.css" template_files
   Just trender = lookup "render.js" template_files
   bytes = text . BS8.unpack
-
-
