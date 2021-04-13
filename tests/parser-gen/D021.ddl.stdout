@@ -1,0 +1,22 @@
+module D021
+ 
+--- Imports:
+ 
+--- Type defs:
+type D021.Main = { t: [[[uint 8]]]
+                 }
+ 
+--- Rules:
+ 
+D021.Main : Grammar D021.Main =
+  do (y : uint 8) <- GetByte
+     (x : uint 8) <- GetByte
+     (t : [[[uint 8]]]) <- Many[x as uint 64] Many[y as uint 64] MatchBytes "abc"
+     END
+     pure {t = t}
+ 
+D021._Main : Grammar {} =
+  do (y : uint 8) <- GetByte
+     (x : uint 8) <- GetByte
+     @Many[x as uint 64] @Many[y as uint 64] @MatchBytes "abc"
+     END
