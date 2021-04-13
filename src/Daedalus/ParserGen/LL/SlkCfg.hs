@@ -11,9 +11,11 @@ module Daedalus.ParserGen.LL.SlkCfg
   , showSlkCfg
   , showSlkControlData
   , showGraphvizSlkCfg
+  , _showDebugSlkControlData
   , HTable
   , emptyHTable
   , simulateActionSlkCfg
+  , isManyExactDependent
   , InputHeadCondition(..)
   , showGraphvizInputHeadCondition
   , convertActionToInputHeadCondition
@@ -232,11 +234,14 @@ _showDebugSlkControlData ctrl =
   case destrSlkStack ctrl of
     SWildcard -> [ "*" ]
     SCons (SlkCallFrame name _q (SlkActivatedFrame m) sem) rest ->
-      [PAST.showName name] ++
-      _showDebugSlkSemanticData sem ++
-      [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m ]
-      ++
-      _showDebugSlkControlData rest
+      _showDebugSlkControlData rest ++
+      [ PAST.showName name ++ " " ++
+        concat (_showDebugSlkSemanticData sem) ++ " " ++
+        concat [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m ]
+      ]
+    SCons (SlkManyFrame b _) rest ->
+      _showDebugSlkControlData rest ++
+      [ "MANY(" ++ show b ++ ")"]
     SCons _ rest ->
       _showDebugSlkControlData rest
     SEmpty ->  []
@@ -263,10 +268,11 @@ _showDebugSlkSemanticData ctrl =
     SCons (SlkSEnvMap sm) rest ->
       case sm of
         Wildcard ->
-          ["*"] ++ _showDebugSlkSemanticData rest
+          _showDebugSlkSemanticData rest ++ ["*"]
         SConcrete m ->
+          _showDebugSlkSemanticData rest ++
           [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m
-          ] ++ _showDebugSlkSemanticData rest
+          ]
     SCons _ rest ->
       _showDebugSlkSemanticData rest
     SEmpty ->  []
@@ -624,7 +630,17 @@ getCountWithLowerBound (SConcrete cnt) = Pre cnt
 getCountWithLowerBound Wildcard = Post
 
 
-
+isManyExactDependent :: SlkCfg -> Bool
+isManyExactDependent cfg =
+  let
+    ctrl = cfgCtrl cfg
+  in
+  case destrSlkStack ctrl of
+    SCons (SlkManyFrame (SlkCExactly sv) _) _ ->
+      case sv of
+        SConcrete _ -> False
+        _ -> True
+    _ -> False
 
 symbExecCtrlNonPop ::
   Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction ->
@@ -764,7 +780,7 @@ symbExecCtrlNonPop _aut ctrl out act
         SCons (SlkCallFrame _rname _q (SlkActivatedFrame _) _savedFrame) _ctrls ->
           rJust (ctrl, out)
         SWildcard -> rJust (ctrl, out)
-        _ -> error "unexpected out"
+        _ -> error "unexpected ctrl"
       )
     _ -> rJust (ctrl, out)
 

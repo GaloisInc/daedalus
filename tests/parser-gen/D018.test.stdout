@@ -11,13 +11,13 @@ AbortClosureUnhandledInputAction
 **********************
 ("AbortClosureUnhandledAction",14)
 ("AbortClosureUnhandledInputAction",62)
-("AbortDFAOverflowInitCfg",10)
+("AbortDFAOverflowCfg",10)
 ("Lookahead-0",1)
 ("Lookahead-1",65)
 ("Lookahead-ambiguous-1",6)
 ("Lookahead-ambiguous-2",7)
-("Lookahead-ambiguous-3",8)
-("abort-1",14)
+("Lookahead-ambiguous-3",5)
+("abort-1",17)
 ("abort-2",1)
 
 Total nb states: 188

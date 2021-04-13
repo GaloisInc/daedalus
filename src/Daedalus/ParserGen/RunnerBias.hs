@@ -378,13 +378,13 @@ runnerLL s aut laut flagMetrics =
           mpdx = LL.predictLL pq laut inp
         in
         case mpdx of
-          Just (pdxs, finalState) ->
+          Just (Left (pdxs, finalState)) ->
             -- trace (show pdxs) $
             -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
             -- trace "BEFORE" $
             -- trace (showCfg cfg) $
             applyPredictions pdxs finalState cfg resumption result
-          Nothing ->
+          _ ->
             let localTransitions = nextTransition aut q in
             case localTransitions of
               Nothing -> {-# SCC backtrackSetStep #-}
