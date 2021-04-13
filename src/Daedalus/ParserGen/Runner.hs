@@ -1,6 +1,6 @@
-module Daedalus.ParserGen.RunnerBias
+module Daedalus.ParserGen.Runner
   ( Result(..)
-  , runnerBias
+  , runner
   , runnerLL
   , extractValues
   , extractMetrics
@@ -285,8 +285,8 @@ incrResultMetrics b r flagMetrics =
 -- configurations using a backtracking algorithm.  Its design is
 -- similar to the reactive engine by G. Huet, or its extension to
 -- Eilenberg's X-machines
-runnerBias :: Aut a => BS.ByteString -> a -> Result
-runnerBias s aut =
+runner :: Aut a => BS.ByteString -> a -> Result
+runner s aut =
   let
       gbl :: PAST.GblFuns
       gbl = gblFunsAut aut
