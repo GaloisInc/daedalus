@@ -53,7 +53,7 @@ def GraphicHeader = {
   sxshd = Choose {
     tre = {
       seq = sxshdl is taggedrec ;
-      Many seq Byte
+      Many (seq as! uint 64) Byte
     } ;
     ommitted = sxshdl is notre
   } ;
