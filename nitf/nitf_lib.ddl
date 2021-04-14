@@ -18,9 +18,6 @@ def numBase (base : int) (ds : [ int ]) =
   for (val = 0; d in ds)
     (val * base + d)
 
-def numBaseUInt (base : uint 64) (ds : [ uint 64 ]) =
-  for (val = 0; d in ds)
-    (val * base + d)
 
 def strlen s = for (len = (0 : int); c in s) (len + 1)
 
@@ -55,8 +52,6 @@ def Sign = Match1 ('+' | '-')
 
 def Digit = { @d = Numeral ; ^ d - '0' as int }
 
-def DigitUInt = { @d = Numeral ; ^ d - '0' as uint 64 }
-
 def FixedPoint = {
   digs = Many Digit ;
   Match1 '.' ;
@@ -66,11 +61,6 @@ def FixedPoint = {
 def UnsignedNum digs = {
   @ds = Many digs Digit ;
   ^ numBase 10 ds
-}
-
-def UnsignedNumUInt digs = {
-  @ds = Many digs DigitUInt ;
-  ^ numBaseUInt 10 ds
 }
 
 def NegNum digs = {
@@ -85,13 +75,13 @@ def SignedNum digs = Choose {
 }
 
 def BoundedNum digs lb ub = {
-  $$ = UnsignedNumUInt digs ;
+  $$ = UnsignedNum digs;
   Guard (lb <= $$) ;
   Guard ($$ <= ub)
 }
 
 def PosNumber digs = {
-  $$ = UnsignedNumUInt digs ;
+  $$ = UnsignedNum digs;
   Guard (1 <= $$)
 }
 
@@ -101,7 +91,7 @@ def IsNum digs v = BoundedNum digs v v
 
 def BoundedDigit lb ub = BoundedNum 1 lb ub
 
-def UpperBoundedDigit ub = BoundedDigit 0 ub
+def UpperBoundedDigit ub = BoundedDigit 0 ub as! uint 64
 
 def BoundedPos digs ub = BoundedNum digs 1 ub
 
@@ -110,7 +100,7 @@ def UpperBounded digs ub = BoundedNum digs 0 ub
 def PosQuad = BoundedNum 4 1 9999
 
 def LowerBoundedOrZero digs lb = {
-  $$ = UnsignedNumUInt digs ;
+  $$ = UnsignedNum digs;
   Guard ($$ == 0) | Guard (lb <= $$)
 }
 

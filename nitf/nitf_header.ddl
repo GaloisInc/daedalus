@@ -188,7 +188,7 @@ def UDHDL = Many 5 BCSN
 
 def UserData = Choose1 { 
                  none = { Match "00000"; ^ {} } ; 
-                 udhd = {@l = UnsignedNumUInt 5;
+                 udhd = {@l = UnsignedNum 5 as! uint 64;
                          overflow = Many 3 BCSN; 
                          data = Many (l - 3) UInt8; }; 
                } 
@@ -235,23 +235,23 @@ def Header = {
   fl = FL; 
   hl = HL; 
 
-  numi = UnsignedNumUInt 3;
-  li = Many numi ImgLens ; 
+  numi = UnsignedNum 3 ;
+  li = Many (numi as! uint 64) ImgLens ;
 
-  nums = UnsignedNumUInt 3;
-  graphlens = Many nums GraphLens ;
+  nums = UnsignedNum 3 ;
+  graphlens = Many (nums as! uint 64) GraphLens ;
 
   NUMX; 
-  @numt = UnsignedNumUInt 3;
-  textlens = Many numt TextLens ; 
+  @numt = UnsignedNum 3 ;
+  textlens = Many (numt as! uint 64) TextLens ;
 
-  @numdes = UnsignedNumUInt 3;
-  dataextlens = Many numdes DataExtLens ;
+  @numdes = UnsignedNum 3 ;
+  dataextlens = Many (numdes as! uint 64) DataExtLens ;
 
-  @numres = UnsignedNumUInt 3;
-  resextlens = Many numres ResExtLens ;
+  @numres = UnsignedNum 3 ;
+  resextlens = Many (numres as! uint 64) ResExtLens ;
 
-  lre = Many numres [LRESH; LRE]; 
+  lre = Many (numres as! uint 64) [LRESH; LRE];
   
   udhd = UserData;
   xhd = UserData; 
