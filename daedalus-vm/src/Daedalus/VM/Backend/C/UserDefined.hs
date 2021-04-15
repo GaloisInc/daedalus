@@ -653,7 +653,7 @@ defCopyFree vis boxed fun tdecl = defMethod vis tdecl "void" fun [] def
   def =
     case boxed of
       GenBoxed ->
-        [ cStmt $ cCall ("ptr.getValue()." <.> fun) [] ]
+        [ cStmt $ cCall ("ptr." <.> fun) [] ]
       GenUnboxed ->
         case tDef tdecl of
           TStruct _ -> map snd (stmts True)
