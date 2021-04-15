@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
   for (size_t i = 0; i < resultNum; ++i) {
     cout << (i > 0 ? ", " : "[ ");
     DDL::toJS(cout,(DDL::ResultOf::parseMain)out[i]);
+    if constexpr (DDL::hasRefs<DDL::ResultOf::parseMain>()) out[i].free();
   }
   cout << "]}\n";
 
