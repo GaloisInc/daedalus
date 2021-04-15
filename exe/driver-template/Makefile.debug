@@ -5,8 +5,8 @@ all: parser docs
 CC=g++
 CPPFLAGS=-I.
 WARNS=-Wall -Wno-uninitialized
-CXXFLAGS=--std=c++17 $(WARNS) -O3 -o parser
-LIBS=-lgmpxx -lgmp
+CXXFLAGS=--std=c++17 $(WARNS) -O1 -g -o parser -fsanitize=address
+LIBS=-lgmpxx -lgmp -fsanitize=address -static-libasan
 
 FILES=ddl/*.h main_parser.h main_parser.cpp main.cpp
 
