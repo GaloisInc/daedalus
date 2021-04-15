@@ -74,7 +74,7 @@ Only the B) part of a type can depend on the A) part.
 
 The types in a recursive group are declared in this order:
   1. Add declarations (without definitions) for all types in the group
-    (withou enums)
+    (without enums)
   2. Declare enums
   3. Add class declarations (without methods) for the B) parts of sum types
   4. Add class declarations (without methods) for the struct types,
@@ -181,13 +181,14 @@ cSumCtrs tdecl =
 -- | Interface definition for struct types
 cUnboxedProd :: GenVis -> TDecl -> CDecl
 cUnboxedProd vis ty =
-  vcat
+  vcat $
     [ cTypeDecl' vis ty <+> ": public DDL::HasRefs {"
     , nest 2 $ vcat attribs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
-    ]
+    ] ++
+    decFunctions vis ty
   where
   TStruct fields = tDef ty
   attribs = [ cStmt (cSemType t <+> cField n)
@@ -249,13 +250,14 @@ cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 -- | Class signature for an unboxed sum
 cUnboxedSum :: GenVis -> TDecl -> CDecl
 cUnboxedSum vis tdecl =
-  vcat
+  vcat $
     [ cTypeDecl' vis tdecl <+> ": DDL::HasRefs {"
     , nest 2 $ vcat attribs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
     ]
+    ++ decFunctions vis tdecl
   where
   fields = getFields tdecl
 
@@ -291,13 +293,13 @@ cUnboxedSum vis tdecl =
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
 cBoxedSum tdecl =
-  vcat
+  vcat $
     [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
     , nest 2 $ vcat attrs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
-    ]
+    ] ++ decFunctions GenPublic tdecl
   where
   attrs =
     [ cStmt  $ cInst "DDL::Boxed" [ cTypeNameUse GenPrivate tdecl ] <+> "ptr"
@@ -326,6 +328,23 @@ cBoxedSum tdecl =
 
 data GenBoxed = GenBoxed  | GenUnboxed
 
+
+decFunctions :: GenVis -> TDecl -> [CDecl]
+decFunctions vis ty =
+  [ decCompare vis ty
+  , decCmpOp "==" vis ty
+  , decCmpOp "!=" vis ty
+  , decCmpOp "<" vis ty
+  , decCmpOp ">" vis ty
+  , decCmpOp "<=" vis ty
+  , decCmpOp ">=" vis ty
+  ] ++
+  [ decShow vis ty
+  , decShowJS vis ty
+  ]
+
+
+
 generateMethods :: GenVis -> GenBoxed -> TDecl -> Doc
 generateMethods vis boxed ty =
   vcat' $
@@ -344,7 +363,7 @@ generateMethods vis boxed ty =
     , defCmpOp "<=" vis ty
     , defCmpOp ">=" vis ty
     ] ++
-    [defShow vis boxed ty, defShowJS vis boxed ty]
+    [defShow vis ty, defShowJS vis ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
@@ -360,10 +379,18 @@ defMethod vis tdecl retT fun params def =
 --------------------------------------------------------------------------------
 -- Output
 
+decShow :: GenVis -> TDecl -> CDecl
+decShow vis tdecl =
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDeclareFun "std::ostream&" "operator <<" [ "std::ostream&", ty ]
+  where
+  ty = cTypeNameUse vis tdecl
+
 -- XXX: for boxed things we could delegate, but that would require
 -- friendship to access `ptr`
-defShow :: GenVis -> GenBoxed -> TDecl -> CDecl
-defShow vis _ tdecl =
+defShow :: GenVis -> TDecl -> CDecl
+defShow vis tdecl =
   cTemplateDecl tdecl $$
   "inline" $$
   cDefineFun "std::ostream&" "operator <<" [ "std::ostream& os", ty <+> "x" ]
@@ -397,9 +424,19 @@ defShow vis _ tdecl =
   ty = cTypeNameUse vis tdecl
 
 
+decShowJS :: GenVis -> TDecl -> CDecl
+decShowJS vis tdecl = 
+  "namespace DDL {" $$
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDeclareFun "std::ostream&" "toJS" [ "std::ostream&", ty ] $$
+  "}"
+  where
+  ty = cTypeNameUse vis tdecl
+
 -- | Show in ppshow friendly format
-defShowJS :: GenVis -> GenBoxed -> TDecl -> CDecl
-defShowJS vis _ tdecl =
+defShowJS :: GenVis -> TDecl -> CDecl
+defShowJS vis tdecl =
   "namespace DDL {" $$
   cTemplateDecl tdecl $$
   "inline" $$
@@ -442,6 +479,12 @@ defShowJS vis _ tdecl =
 --------------------------------------------------------------------------------
 -- Comparisons
 
+decCompare :: GenVis -> TDecl -> CDecl
+decCompare vis tdecl =
+  cDeclareFun "static inline int" "compare" [ ty, ty ]
+  where
+  ty = cTypeNameUse vis tdecl
+
 defCompare :: GenVis -> TDecl -> CDecl
 defCompare vis tdecl =
   cTemplateDecl tdecl $$
@@ -481,6 +524,11 @@ defCompare vis tdecl =
         , cUnreachable
         ]
 
+decCmpOp :: Doc -> GenVis -> TDecl -> CDecl
+decCmpOp op vis tdecl =
+  cDeclareFun "static inline bool" ("operator" <+> op)
+                      [ ty <+> "x", ty <+> "y" ]
+  where ty = cTypeNameUse vis tdecl
 
 defCmpOp :: Doc -> GenVis -> TDecl -> CStmt
 defCmpOp op vis tdecl =
