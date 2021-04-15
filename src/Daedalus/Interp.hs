@@ -536,7 +536,7 @@ compilePExpr env expr0 args = go expr0
              else pError FromSystem erng "guard failed"
 
         TCEnd -> pEnd erng >> pure vUnit
-        TCOffset -> vSize . toInteger . inputLength <$> pPeek
+        TCOffset -> vStreamOffset . VStream <$> pPeek
 
         TCCurrentStream -> VStream <$> pPeek
 
