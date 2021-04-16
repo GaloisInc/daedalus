@@ -64,8 +64,8 @@ data InputAction =
   | IMatchBytes WithSem NVExpr
   | GetStream
   | SetStream NVExpr
-  | StreamLen WithSem NVExpr NVExpr
-  | StreamOff WithSem NVExpr NVExpr
+  | StreamTake WithSem NVExpr NVExpr
+  | StreamDrop WithSem NVExpr NVExpr
 
 
 data ControlAction =
@@ -134,8 +134,8 @@ instance Show(InputAction) where
   show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
   show (GetStream)       = "GetStream"
   show (SetStream _)     = "SetStream"
-  show (StreamLen s _ _) = semToString s ++ "StreamLen"
-  show (StreamOff s _ _) = semToString s ++ "StreamOff"
+  show (StreamTake s _ _) = semToString s ++ "StreamTake"
+  show (StreamDrop s _ _) = semToString s ++ "StreamDrop"
 
 instance Show(ControlAction) where
   show (BoundSetup _)      = "BoundSetup"
@@ -223,8 +223,8 @@ isUnhandledInputAction act =
         ClssAct _ _ -> False
         GetStream -> False
         SetStream _ -> False
-        StreamLen {} -> False
-        StreamOff {} -> False
+        StreamTake {} -> False
+        StreamDrop {} -> False
         _ -> -- trace (show iact) $
              True
     _ -> False
@@ -805,7 +805,7 @@ applyInputAction gbl (inp, ctrl, out) act =
       in case ev1 of
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
-    StreamLen s e1 e2 ->
+    StreamTake s e1 e2 ->
       let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
@@ -816,7 +816,7 @@ applyInputAction gbl (inp, ctrl, out) act =
            _ -> error "Not an input stream"
 
 
-    StreamOff s e1 e2 ->
+    StreamDrop s e1 e2 ->
       let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of

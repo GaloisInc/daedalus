@@ -199,6 +199,11 @@ destrSlkStack2 s =
 
 
 
+-- NOTE: this type is more convoluted than expected because of how
+-- symbolic vlues for streams/input are represented
+type SlkValue = Slk (Either Interp.Value SlkInput)
+
+
 
 
 data SlkBetweenItv =
@@ -248,12 +253,6 @@ _showDebugSlkControlData ctrl =
     SEmpty ->  []
 
 
-
-
-
--- NOTE: this type is more convoluted than expected because of how
--- symbolic vlues for streams/input are represented
-type SlkValue = Slk (Either Interp.Value SlkInput)
 
 data SlkSemElm =
     SlkSEVal  !SlkValue
@@ -1059,42 +1058,45 @@ symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
   HTable -> R.Result (Maybe ((SlkInput, SlkSemanticData), HTable))
 symbExecInp act ctrl out inp
   (HTable { tabCtrl = tabC, tabSem = tabS}) =
+  -- trace (show act) $
   case act of
-    GetStream -> rJust (inp, SCons (SlkSEVal (SConcrete (Right inp))) out)
+    GetStream ->
+      rJust (inp, SCons (SlkSEVal (SConcrete (Right inp))) out)
     SetStream name ->
       let ev = symbolicEval name ctrl out in
       case ev of
-        SConcrete (Right x) -> rJust (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
+        SConcrete (Right x) ->
+          rJust (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
         Wildcard -> R.Abort R.AbortSlkCfgExecution
         _ -> error "TODO"
-    StreamLen _s e1 e2 ->
+    StreamTake _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
       in
-        case ev1 of
-          SConcrete (Left val) ->
-            let n = Interp.valueToIntegral val in
-            case ev2 of
-              SConcrete (Right x) ->
-                rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSlkCfgExecution
-              _ -> error "TODO"
-          _ -> -- trace "TAKE a symbolic value" $
+      case ev1 of
+        SConcrete (Left val) ->
+          let n = Interp.valueToIntegral val in
+          case ev2 of
+            SConcrete (Right x) ->
+              rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
+            _ -> error "TODO"
+        _ -> -- trace "TAKE a symbolic value" $
             R.Abort R.AbortSlkCfgExecution
-    StreamOff _s e1 e2 ->
+    StreamDrop _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
       in
-        case ev1 of
-          SConcrete (Left val) ->
-            let n = Interp.valueToIntegral val in
-            case ev2 of
-              SConcrete (Right x) ->
-                rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSlkCfgExecution
-              _ -> error "TODO"
-          _ -> -- trace "DROP a symbolic value" $
-            R.Abort R.AbortSlkCfgExecution
+      case ev1 of
+        SConcrete (Left val) ->
+          let n = Interp.valueToIntegral val in
+          case ev2 of
+            SConcrete (Right x) ->
+              rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
+            _ -> error "TODO"
+        _ -> -- trace "DROP a symbolic value" $
+          R.Abort R.AbortSlkCfgExecution
 
     _ -> error "TODO"
 
