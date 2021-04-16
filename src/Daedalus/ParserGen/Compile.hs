@@ -546,11 +546,11 @@ genGExpr gbl e =
     TCStreamLen s e1 e2 ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamLen s e1 e2), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamTake s e1 e2), n2)) ]) n2
     TCStreamOff s e1 e2 ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamOff s e1 e2), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamDrop s e1 e2), n2)) ]) n2
     TCGetByte s ->
       let n1 = getS 0
           n2 = getS 1
