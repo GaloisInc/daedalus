@@ -481,6 +481,7 @@ defShowJS vis tdecl =
 
 decCompare :: GenVis -> TDecl -> CDecl
 decCompare vis tdecl =
+  cTemplateDecl tdecl $$
   cDeclareFun "static inline int" "compare" [ ty, ty ]
   where
   ty = cTypeNameUse vis tdecl
@@ -526,6 +527,7 @@ defCompare vis tdecl =
 
 decCmpOp :: Doc -> GenVis -> TDecl -> CDecl
 decCmpOp op vis tdecl =
+  cTemplateDecl tdecl $$
   cDeclareFun "static inline bool" ("operator" <+> op)
                       [ ty <+> "x", ty <+> "y" ]
   where ty = cTypeNameUse vis tdecl
