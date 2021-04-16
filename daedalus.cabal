@@ -45,6 +45,7 @@ library
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
                        Daedalus.Type,
+                       Daedalus.Type.Generalize,
                        Daedalus.Type.InferContext,
                        Daedalus.Type.AST,
                        Daedalus.Type.Monad,
