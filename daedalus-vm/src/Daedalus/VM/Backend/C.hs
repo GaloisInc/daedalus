@@ -801,7 +801,10 @@ cDoCase e opts =
                PNum n -> integer n
                _ -> panic "numPat" [ "Unexpected", show (pp p) ]
 
-  conPat ~(PCon l) = cSumTagV l
+  conPat ~(PCon l) =
+    case getType e of
+      TSem (Src.TUser ut) -> cSumTagV (Src.utName ut) l
+      _ -> panic "cDoCase" [ "conPat on non-user type" ]
 
   mkSwitch getNum pToCase =
     let addDflt cs = case dflt of

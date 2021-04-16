@@ -228,7 +228,7 @@ cSumTags sums
 -- | The enum for a tag type
 cSumTag :: TDecl -> CDecl
 cSumTag ty =
-  fsep $ [ "enum", cTName (tName ty), "{" ] ++
+  fsep $ [ "enum class", cTName (tName ty), "{" ] ++
          punctuate comma (map (cLabel . fst) fields) ++
          [ "};" ]
   where
@@ -238,8 +238,8 @@ cSumTag ty =
 cSumTagT :: TDecl -> CType
 cSumTagT tdecl = "Tag::" <.> cTName (tName tdecl)
 
-cSumTagV :: Label -> Doc
-cSumTagV l = "Tag::" <.> cLabel l
+cSumTagV :: TName -> Label -> Doc
+cSumTagV t l = "Tag::" <.> cTName t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -408,7 +408,7 @@ defShow vis tdecl =
         [ cStmt ("os <<" <+> cString "{| ")
         , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ "case" <+> cSumTagV l <.> colon <+>
+                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon <+>
                       vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
                            , cStmt "break"
                            ]
@@ -455,7 +455,7 @@ defShowJS vis tdecl =
       TUnion fs ->
         [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ "case" <+> cSumTagV l <.> colon $$ nest 2 (
+                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$ nest 2 (
                       vcat [ cStmt ("os <<" <+>
                                       cString ("{ " ++ show lab ++ ": "))
                            , cStmt (cCall "toJS" [ "os", val ])
@@ -511,10 +511,10 @@ defCompare vis tdecl =
         ]
       TUnion fs ->
         [ cSwitch "x.getTag()"
-            [ cCaseBlock (cSumTagV f)
+            [ cCaseBlock (cSumTagV (tName tdecl) f)
               [ cDeclareInitVar "auto" "tag" "y.getTag()"
-              , cIf' (cSumTagV f <+> "< tag") [ cRetrun "-1" ]
-              , cIf' (cSumTagV f <+> "> tag") [ cRetrun "1" ]
+              , cIf' (cSumTagV (tName tdecl) f <+> "< tag") [ cRetrun "-1" ]
+              , cIf' (cSumTagV (tName tdecl) f <+> "> tag") [ cRetrun "1" ]
               , let get a = cCallMethod a (selName GenBorrow f) []
                 in cRetrun (cCall "compare" [ get "x", get "y" ])
               ]
@@ -579,7 +579,7 @@ defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
                      , cStmt (cCall ("ptr.getValue()." <.> name) (map snd fs))
                      ]
          GenUnboxed ->
-            cStmt ("tag =" <+> cSumTagV l)
+            cStmt ("tag =" <+> cSumTagV (tName tdecl) l)
           : [ cStmt ("data." <.> cField n <+> "=" <+> cLabel l) | t /= TUnit ]
 
 
@@ -617,7 +617,7 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   sel (l,t) n =
     let name       = selName borrow l
         uniNote    = if uni
-                       then "\nOnly valid when getTag() is " <+> cSumTagV l
+                       then "\nOnly valid when getTag() is " <+> cSumTagV (tName tdecl) l
                        else ""
         doc        = vcat [ "/** Get the value of field `" <.> pp l <.> "`."
                           , uniNote
@@ -661,7 +661,7 @@ defCopyFree vis boxed fun tdecl = defMethod vis tdecl "void" fun [] def
             case stmts False of
               [] -> []
               xs -> [ vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
-                           , nest 2 $ vcat' [ "case" <+> cSumTagV l <.> colon $$
+                           , nest 2 $ vcat' [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$
                                                nest 2 (s $$ "break;")
                                             | (l,s) <- xs ] 
                                     $$ "default: break;"
