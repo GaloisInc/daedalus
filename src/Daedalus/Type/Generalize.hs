@@ -20,16 +20,23 @@ import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.Constraints
 
+-- | This is result of generalization.
 data DeclInfo = DeclInfo
   { tcDecls     :: Rec (TCDecl SourceRange)
+    -- ^ A generalized recursive group.
+
   , tcTypeDefs  :: Map TCTyName TCTyDecl
+    -- ^ Type declarations computed from the declarations.
   }
 
 
 
+-- | Generalize the types of a type-checked group of definitions.
 generalize :: Rec (TCDecl SourceRange) -> STypeM DeclInfo
 generalize ds =
-  do (lcs,tds,ds1) <- simpCtrs ds
+  do -- Simplify constraints.
+     -- Includes adding definitions for "inferred" type defintitions.
+     (lcs,tds,ds1) <- simpCtrs ds
 
      -- Check no left-over mono types
      cs <- forM lcs \lc ->
@@ -55,7 +62,7 @@ generalize ds =
 
 
      -- Since we don't have local definitions there should be no free
-     -- type variable in the environment
+     -- type variables in the environment
      let freeInTys = completeFreeInTD tds
          as        = Set.toList
                    $ Set.unions ( freeTVS ds1
@@ -68,7 +75,7 @@ generalize ds =
                      , tcTypeDefs = tds
                      }
 
-
+--------------------------------------------------------------------------------
 
 
 
@@ -116,7 +123,7 @@ renameAnonTC lcs tys ds
                 , True
                 )
   where
-  -- renaming substitutin
+  -- renaming substitution
   renSu = Map.fromList (mapMaybe shouldRename (recToList ds))
 
   -- replace anonymous types with the entries from the renaming substitutin.
@@ -147,7 +154,10 @@ renameAnonTC lcs tys ds
         _ -> Nothing
 
 
-{- | Free variables in a collection of (possible recursive) declarations.
+--------------------------------------------------------------------------------
+
+
+{- | Free variables in a collection of (possibly recursive) declarations.
 Example:
 
     data T1 = MkT1 T2
@@ -188,7 +198,13 @@ completeFreeInTD tds = foldl' addFree Map.empty
 
 
 
+--------------------------------------------------------------------------------
+-- Real generalization
 
+
+
+-- | This abstracts the given variables and makes the recursive group of
+-- types.  It happens after all the type declaring shenanigans.
 doGeneralize :: [TVar] {- ^ Params for decl -} ->
                 [Constraint] {- ^ Constraints on type (for decl) -} ->
                 Map TCTyName [TVar] {- ^ Params for each type -} ->
@@ -224,12 +240,8 @@ doGeneralize as cs tparams decls
   addTPsTy d = fixUpTCons tconMap d { tctyParams = tparams Map.! tctyName d }
 
 
-
-
-
 fixUpTCons :: TraverseTypes a => Map TCTyName [Type] -> a -> a
 fixUpTCons mp = if Map.null mp then id else mapTypes (fixUpTConsT mp)
-
 
 fixUpTConsT :: Map TCTyName [Type] -> Type -> Type
 fixUpTConsT mp ty =
