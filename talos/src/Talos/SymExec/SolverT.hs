@@ -96,8 +96,8 @@ pop = do
   fs <- SolverT (gets frames)
   case fs of
     [] -> panic "Attempted to pop past top of solver stack" []
-    (_ : fs') -> do
-      SolverT (modify (\s -> s { frames = fs' }))
+    (f : fs') -> do
+      SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
       solverOp S.pop
 
 popAll :: MonadIO m => SolverT m ()

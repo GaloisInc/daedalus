@@ -87,7 +87,7 @@ stratSlice ptag = go
         SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
         
     goLeaf sl = do
-      -- liftIO (putStrLn "Leaf" >> print (pp sl))
+      -- liftIO (putStr "Leaf: " >> print (pp sl))
       case sl of
         SPure e -> uncPath <$> synthesiseExpr e
 
@@ -109,6 +109,7 @@ stratSlice ptag = go
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
+          -- liftIO (putStrLn ("Chose " ++ show i)) 
           onSlice (fmap (SelectedChoice i)) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
@@ -128,6 +129,8 @@ stratCase :: ProvenanceTag -> Case Slice -> SymbolicM (SExpr, SymbolicM Selected
 stratCase ptag (Case e ps) = do
   se <- solverOp (symExec e)
   (i, (p, sl)) <- choose (enumerate ps)
+  -- liftIO (putStr "Chose " >> print (pp p))
+  
   let assn = case p of
         PBool b  -> if b then se else S.not se
         PNothing -> S.fun "is-Nothing" [se]
@@ -181,7 +184,7 @@ choose bs = do
   foldr mplus doFail (map pure bs')
   where
     doFail = do
-      -- liftStrategy (liftIO (putStrLn "failing"))
+      -- liftStrategy (liftIO (putStrLn "No more choices"))
       mzero
 
 -- ----------------------------------------------------------------------------------------
