@@ -222,7 +222,7 @@ PdfValue._Guard (p : bool) : Grammar {} =
   Guard p
  
 PdfValue.NumberAsNat (x : PdfValue.Number) : Grammar int =
-  do PdfValue._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+  do PdfValue._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
      ($$ : int) <- pure (x.num)
      pure $$
  
@@ -456,7 +456,7 @@ PdfValue._HexDigit : Grammar {} =
     }
  
 PdfValue._NumberAsNat (x : PdfValue.Number) : Grammar {} =
-  PdfValue._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+  PdfValue._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
  
 PdfValue._StringNumEsc : Grammar {} =
   @Many[ 1 .. 3 ] PdfValue._OctDigit

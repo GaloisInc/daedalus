@@ -482,8 +482,12 @@ inferExpr expr =
         BitwiseOr  -> bitwiseOp
         BitwiseXor -> bitwiseOp
 
-        LogicOr  -> logicOp
-        LogicAnd -> logicOp
+        LogicOr  ->
+          inferExpr $ pExprAt expr
+                    $ EIf e1 (pExprAt expr (ELiteral (LBool True))) e2
+        LogicAnd ->
+          inferExpr $ pExprAt expr
+                    $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
         Add   -> num2
         Sub   -> num2
@@ -496,15 +500,6 @@ inferExpr expr =
         NotEq -> relEq
 
       where
-      -- NOTE: In this version, if there is liftin we are strict in the
-      -- sense that we'd run both arguments, even the value of the first
-      -- one could determine the overall result.
-      logicOp =
-        liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-            do unify tBool (e1',t1)
-               unify tBool (e2',t2)
-               pure (exprAt expr (TCBinOp op e1' e2' tBool), tBool)
-
       bitwiseOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
         do addConstraint expr (Numeric t1)
@@ -932,17 +927,7 @@ inferExpr expr =
                   , expect
                   )
 
-    -- XXX: This one is not lifted the usual way, because we
-    -- want it to be lazy
-    EIf be te fe ->
-      valueOnly expr -- We don't support conditionals a the grammar level (yet?)
-      do -- FIXME: probably don't need the inContext AValue bits?
-         (be', bt) <- inContext AValue (inferExpr be)
-         unify tBool (be',bt)
-         (te', tt) <- inContext AValue (inferExpr te)
-         (fe', ft) <- inContext AValue (inferExpr fe)
-         unify (te',tt) (fe,ft)
-         pure (exprAt expr (TCIf be' te' fe'), tt)
+    EIf be te fe -> inferIf expr be te fe
 
     EHasType MatchType e ty ->
       do ctx <- getContext
@@ -985,7 +970,28 @@ inferExpr expr =
 
 
 --------------------------------------------------------------------------------
--- Patterns & Case
+-- Patterns & Case & If
+
+inferIf ::
+  HasRange r =>
+  r -> Expr -> Expr -> Expr -> TypeM ctx (TC SourceRange ctx, Type)
+inferIf r eCond eThen eElse =
+  do ((eCond',tCond),mbS) <- liftValExpr eCond
+     unify tBool (eCond',tCond)
+     (eThen',tThen) <- inferExpr eThen
+     (eElse',tElse) <- inferExpr eElse
+     unify (eThen',tThen) (eElse,tElse)
+     let expr1 = exprAt r (TCIf eCond' eThen' eElse')
+     expr <- case mbS of
+               Nothing -> pure expr1
+               Just s ->
+                 do ctx <- getContext
+                    case ctx of
+                      AGrammar -> pure (addBind s expr1)
+                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+     pure (expr, tThen)
+
+
 
 checkPattern :: Type -> Pattern -> TypeM ctx TCPat
 checkPattern ty pat =
@@ -1069,7 +1075,6 @@ checkPatternCases rng tIn tOut done cases =
     case reverse done of
       []       -> reportError rng "`case` needs at least one non-default pattern."
       (x : xs) -> pure (x :| xs, mb)
-
 
 inferCase ::
   HasRange r =>

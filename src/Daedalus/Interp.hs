@@ -484,6 +484,11 @@ compilePredicateExpr env = go
               u = compilePureExpr env e'
           in cv \b -> valueToByte l <= b && b <= valueToByte u
 
+        TCIf e e1 e2 ->
+          if valueToBool (compilePureExpr env e)
+             then compilePredicateExpr env e1
+             else compilePredicateExpr env e2
+
         TCCase e alts def ->
           evalCase
             compilePredicateExpr
@@ -700,6 +705,9 @@ compilePExpr env expr0 args = go expr0
           where m' = case m of
                        Commit    -> Abort
                        Backtrack -> Fail
+
+        TCIf e e1 e2 ->
+          if valueToBool (compilePureExpr env e) then go e1 else go e2
 
         TCCase e alts def ->
           evalCase

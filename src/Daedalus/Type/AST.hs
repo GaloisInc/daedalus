@@ -183,7 +183,7 @@ data TCF :: HS -> Ctx -> HS where
    TCFor :: Loop a k -> TCF a k
 
    TCSelStruct :: TC a Value -> Label -> Type -> TCF a Value
-   TCIf        :: TC a Value -> TC a Value -> TC a Value -> TCF a Value
+   TCIf        :: TC a Value -> TC a k -> TC a k -> TCF a k
 
    TCVar  :: TCName k -> TCF a k
    -- Local variable/parameter

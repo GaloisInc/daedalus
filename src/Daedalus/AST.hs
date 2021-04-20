@@ -284,6 +284,9 @@ newtype Expr = Expr (Located (ExprF Expr))
 exprValue :: Expr -> ExprF Expr
 exprValue (Expr e) = thingValue e
 
+pExprAt :: HasRange r => r -> ExprF Expr -> Expr
+pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
+
 
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a

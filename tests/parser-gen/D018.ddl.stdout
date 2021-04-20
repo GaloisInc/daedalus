@@ -225,7 +225,7 @@ D018._Guard (p : bool) : Grammar {} =
   Guard p
  
 D018.NumberAsNat (x : D018.Number) : Grammar int =
-  do D018._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+  do D018._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
      ($$ : int) <- pure (x.num)
      pure $$
  
@@ -454,7 +454,7 @@ D018._HexDigit : Grammar {} =
     }
  
 D018._NumberAsNat (x : D018.Number) : Grammar {} =
-  D018._Guard ((0 <= (x.num)) && ((x.exp) == 0))
+  D018._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
  
 D018._StringNumEsc : Grammar {} =
   @Many[ 1 .. 3 ] D018._OctDigit

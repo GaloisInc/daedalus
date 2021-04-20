@@ -458,6 +458,8 @@ hsByteClass env tc =
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
 
+     TCIf e e1 e2 -> If (hsValue env e) (hsByteClass env e1)
+                                        (hsByteClass env e2)
      TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
 
@@ -636,6 +638,8 @@ hsGrammar env tc =
        where m' = case m of
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
+
+     TCIf e e1 e2 -> If (hsValue env e) (hsGrammar env e1) (hsGrammar env e2)
 
      TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
        where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
