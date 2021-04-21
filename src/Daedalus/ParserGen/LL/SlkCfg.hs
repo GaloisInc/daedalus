@@ -1016,19 +1016,24 @@ slkExecClass gbl expr ctrl out =
               case lst of
                 [] ->
                   if i <= 255
-                  then R.Result $ ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
-                  else R.Result $ ByteCondition (reverse acc)
+                  then ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
+                  else ByteCondition (reverse acc)
                 ClassBtw (CValue j) (CValue k) : rest ->
-                  let j1 = j-1 in
-                  if i <= j1
+                  if i < j
                   then
-                    iterCompl (k+1) rest (ClassBtw (CValue i) (CValue (j1)) : acc)
+                    let newAcc = (ClassBtw (CValue i) (CValue (j -1)) : acc) in
+                    if k == 255 -- test necessary to prevent overflow/wrapping-around k+1
+                    then ByteCondition (reverse newAcc)
+                    else iterCompl (k+1) rest newAcc
                   else
-                    iterCompl (k+1) rest acc
+                    if k == 255 -- test necessary to prevent overflow/wrapping-around k+1
+                    then ByteCondition (reverse acc)
+                    else iterCompl (k+1) rest acc
           in
           case mbc of
             R.Result bc ->
-              iterCompl 0 (byteCondition bc) []
+              let compl = iterCompl 0 (byteCondition bc) [] in
+              R.Result compl
             R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mbc
             R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mbc
             _ -> error "Should not be another"
