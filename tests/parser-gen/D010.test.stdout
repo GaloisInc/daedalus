@@ -27,13 +27,13 @@ AbortDFAIncompatibleInput
 **********************
 **** Extended LLA ****
 **********************
-("AbortDFAIncompatibleInput",4)
-("AbortSlkCfgExecution",8)
+("AbortDFAIncompatibleInput",8)
+("DataDepTrans",11)
 ("Lookahead-0",2)
-("Lookahead-1",1)
+("Lookahead-1",11)
 ("Lookahead-2",3)
 
-Total nb states: 18
+Total nb states: 35
 
 **********************
 ***** Strict LLA *****
