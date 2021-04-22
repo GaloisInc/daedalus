@@ -1,0 +1,29 @@
+module D024
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+D024.A : Grammar (uint 8) =
+  Choose biased
+    { do ($$ : uint 8) <- Match {'\255'}
+         @Match {'\NUL'}
+         pure $$
+    | Match (!{'\255'})
+    }
+ 
+D024.Main : Grammar (uint 8) =
+  do ($$ : uint 8) <- D024.A
+     pure $$
+ 
+D024._A : Grammar {} =
+  Choose biased
+    { do @Match {'\255'}
+         @Match {'\NUL'}
+    | @Match (!{'\255'})
+    }
+ 
+D024._Main : Grammar {} =
+  D024._A
