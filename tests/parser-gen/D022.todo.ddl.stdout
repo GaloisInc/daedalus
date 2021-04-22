@@ -1,0 +1,320 @@
+module D022.todo
+ 
+--- Imports:
+ 
+--- Type defs:
+type D022.todo.FrameComponent = { identifier: uint 8
+                                ; hoizontalSampling: uint 4
+                                ; verticalSampling: uint 4
+                                ; quantTableSel: uint 8
+                                }
+ 
+type D022.todo.SOFPayload = { samplePrecision: uint 8
+                            ; numberOfLines: uint 16
+                            ; numberOfSamplesPerLine: uint 16
+                            ; components: [D022.todo.FrameComponent]
+                            }
+ 
+type D022.todo.SomeSOF = { sof: uint 4
+                         ; data: D022.todo.SOFPayload
+                         }
+ 
+type D022.todo.SOSComponent = { id: uint 8
+                              ; acTable: uint 4
+                              ; dcTable: uint 4
+                              }
+ 
+type D022.todo.SOSHeader = { components: [D022.todo.SOSComponent]
+                           ; ss: uint 8
+                           ; se: uint 8
+                           ; ah: uint 4
+                           ; al: uint 4
+                           }
+ 
+type D022.todo.SOS = { header: D022.todo.SOSHeader
+                     ; data: [[uint 8]]
+                     }
+ 
+type D022.todo.Segment = Choose { comment: [uint 8]
+                                ; dri: uint 16
+                                }
+ 
+--- Rules:
+ 
+D022.todo.Marker (x : uint 8) : Grammar [uint 8] =
+  MatchBytes [255,
+              x]
+ 
+D022.todo.SomeMarker (front : uint 4) : Grammar (uint 4) =
+  do @Match {'\255'}
+     (tag : uint 8) <- GetByte
+     (upper : uint 4) <- pure (tag >> 4 as uint 4)
+     Guard (upper == front)
+     ($$ : uint 4) <- pure (tag as uint 4)
+     pure $$
+ 
+D022.todo.BE16 : Grammar (uint 16) =
+  do (_65 : uint 8) <- GetByte
+     (_66 : uint 8) <- GetByte
+     pure (_65 # _66)
+ 
+D022.todo.NonZero ?a1 (Literal 0 ?a1) (P : Grammar ?a1) : Grammar ?a1 =
+  do ($$ : ?a1) <- P
+     Guard (0 < $$)
+     pure $$
+ 
+D022.todo.Payload ?a10 (P : Grammar ?a10) : Grammar ?a10 =
+  do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
+                            pure (_67 as uint 64)
+     Guard (2 <= size)
+     (len : uint 64) <- pure (size - 2)
+     (here : Stream) <- CurrentStream
+     @StreamLen len here
+     do (_68 : Stream) <- StreamLen len here
+        SetStream _68
+     ($$ : ?a10) <- P
+     END
+     do (_69 : Stream) <- StreamOff len here
+        SetStream _69
+     pure $$
+ 
+D022.todo.SOI : Grammar [uint 8] =
+  Choose biased
+    { D022.todo.Marker 216
+    | Fail "Missing Start-of-Image"
+    }
+ 
+D022.todo.EOI : Grammar [uint 8] =
+  Choose biased
+    { D022.todo.Marker 217
+    | Fail "Missing End-of-Image"
+    }
+ 
+D022.todo._Marker (x : uint 8) : Grammar {} =
+  @MatchBytes [255,
+               x]
+ 
+D022.todo.COM : Grammar [uint 8] =
+  do D022.todo._Marker 254
+     ($$ : [uint 8]) <- D022.todo.Payload [uint 8] (Many[] GetByte)
+     pure $$
+ 
+D022.todo.APP ?a5 (x : uint 4) (P : Grammar ?a5) : Grammar ?a5 =
+  do D022.todo._Marker (14 # x)
+     ($$ : ?a5) <- D022.todo.Payload ?a5 P
+     pure $$
+ 
+D022.todo.FrameComponent : Grammar D022.todo.FrameComponent =
+  do (identifier : uint 8) <- GetByte
+     (samplingFactors : uint 8) <- GetByte
+     (hoizontalSampling : uint 4) <- pure (samplingFactors >> 4 as uint 4)
+     (verticalSampling : uint 4) <- pure (samplingFactors as uint 4)
+     (quantTableSel : uint 8) <- GetByte
+     pure {identifier = identifier,
+           hoizontalSampling = hoizontalSampling,
+           verticalSampling = verticalSampling,
+           quantTableSel = quantTableSel}
+ 
+D022.todo.SOFPayload : Grammar D022.todo.SOFPayload =
+  D022.todo.Payload D022.todo.SOFPayload do (samplePrecision : uint 8) <- GetByte
+                                            (numberOfLines : uint 16) <- D022.todo.BE16
+                                            (numberOfSamplesPerLine : uint 16) <- D022.todo.BE16
+                                            (comNumber : uint 64) <- do (_72 : uint 8) <- GetByte
+                                                                        pure (_72 as uint 64)
+                                            (components : [D022.todo.FrameComponent]) <- Many[comNumber] D022.todo.FrameComponent
+                                            pure {samplePrecision = samplePrecision,
+                                                  numberOfLines = numberOfLines,
+                                                  numberOfSamplesPerLine = numberOfSamplesPerLine,
+                                                  components = components}
+ 
+D022.todo.SomeSOF : Grammar D022.todo.SomeSOF =
+  do (sof : uint 4) <- D022.todo.SomeMarker 12
+     Guard (! (sof == 4))
+     (data : D022.todo.SOFPayload) <- D022.todo.SOFPayload
+     pure {sof = sof,
+           data = data}
+ 
+D022.todo.DRI : Grammar (uint 16) =
+  do D022.todo._Marker 221
+     ($$ : uint 16) <- D022.todo.Payload (uint 16) D022.todo.BE16
+     pure $$
+ 
+D022.todo.SOSComponent : Grammar D022.todo.SOSComponent =
+  do (id : uint 8) <- GetByte
+     (table : uint 8) <- GetByte
+     (acTable : uint 4) <- pure (table as uint 4)
+     (dcTable : uint 4) <- pure (table >> 4 as uint 4)
+     pure {id = id,
+           acTable = acTable,
+           dcTable = dcTable}
+ 
+D022.todo.SOSHeader : Grammar D022.todo.SOSHeader =
+  do (componentNum : uint 8) <- GetByte
+     (components : [D022.todo.SOSComponent]) <- Many[componentNum as uint 64] D022.todo.SOSComponent
+     (ss : uint 8) <- GetByte
+     (se : uint 8) <- GetByte
+     (a : uint 8) <- GetByte
+     (ah : uint 4) <- pure (a >> 4 as uint 4)
+     (al : uint 4) <- pure (a as uint 4)
+     pure {components = components,
+           ss = ss,
+           se = se,
+           ah = ah,
+           al = al}
+ 
+D022.todo.EntropyEncodedByte : Grammar (uint 8) =
+  Choose biased
+    { do ($$ : uint 8) <- Match {'\255'}
+         @Match {'\NUL'}
+         pure $$
+    | Match (!{'\255'})
+    }
+ 
+D022.todo.EntropyEncodedEntry : Grammar [uint 8] =
+  Many[ 1 .. ] D022.todo.EntropyEncodedByte
+ 
+D022.todo.SOS : Grammar D022.todo.SOS =
+  do D022.todo._Marker 218
+     (header : D022.todo.SOSHeader) <- D022.todo.Payload D022.todo.SOSHeader D022.todo.SOSHeader
+     (data : [[uint 8]]) <- Many[] D022.todo.EntropyEncodedEntry
+     pure {header = header,
+           data = data}
+ 
+D022.todo.SomeRST : Grammar (uint 4) =
+  do ($$ : uint 4) <- D022.todo.SomeMarker 13
+     Guard ($$ < 8)
+     pure $$
+ 
+D022.todo.Segment : Grammar D022.todo.Segment =
+  Choose biased
+    { {- comment -} do (_74 : [uint 8]) <- D022.todo.COM
+                       pure {comment: _74}
+    | {- dri -} do (_75 : uint 16) <- D022.todo.DRI
+                   pure {dri: _75}
+    }
+ 
+D022.todo._SOI : Grammar {} =
+  Choose biased
+    { D022.todo._Marker 216
+    | Fail "Missing Start-of-Image"
+    }
+ 
+D022.todo._EOI : Grammar {} =
+  Choose biased
+    { D022.todo._Marker 217
+    | Fail "Missing End-of-Image"
+    }
+ 
+D022.todo.SomeJpeg : Grammar [D022.todo.Segment] =
+  do D022.todo._SOI
+     ($$ : [D022.todo.Segment]) <- Many[] D022.todo.Segment
+     D022.todo._EOI
+     pure $$
+ 
+D022.todo._Payload ?a10 (_P : Grammar {}) : Grammar {} =
+  do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
+                            pure (_67 as uint 64)
+     Guard (2 <= size)
+     (len : uint 64) <- pure (size - 2)
+     (here : Stream) <- CurrentStream
+     @StreamLen len here
+     do (_68 : Stream) <- StreamLen len here
+        SetStream _68
+     _P
+     END
+     (_69 : Stream) <- StreamOff len here
+     SetStream _69
+ 
+D022.todo._COM : Grammar {} =
+  do D022.todo._Marker 254
+     D022.todo._Payload [uint 8] (@Many[] @GetByte)
+ 
+D022.todo._BE16 : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+D022.todo._DRI : Grammar {} =
+  do D022.todo._Marker 221
+     D022.todo._Payload (uint 16) D022.todo._BE16
+ 
+D022.todo._Segment : Grammar {} =
+  Choose biased
+    { {- comment -} D022.todo._COM
+    | {- dri -} D022.todo._DRI
+    }
+ 
+D022.todo._SomeJpeg : Grammar {} =
+  do D022.todo._SOI
+     @Many[] D022.todo._Segment
+     D022.todo._EOI
+ 
+D022.todo.Main : Grammar {} =
+  do D022.todo._SomeJpeg
+     ($$ : {}) <- END
+     pure $$
+ 
+D022.todo._SomeMarker (front : uint 4) : Grammar {} =
+  do @Match {'\255'}
+     (tag : uint 8) <- GetByte
+     (upper : uint 4) <- pure (tag >> 4 as uint 4)
+     Guard (upper == front)
+ 
+D022.todo._NonZero ?a1 (Literal 0 ?a1) (P : Grammar ?a1) : Grammar {} =
+  do ($$ : ?a1) <- P
+     Guard (0 < $$)
+ 
+D022.todo._APP ?a5 (x : uint 4) (_P : Grammar {}) : Grammar {} =
+  do D022.todo._Marker (14 # x)
+     D022.todo._Payload ?a5 _P
+ 
+D022.todo._FrameComponent : Grammar {} =
+  do @GetByte
+     @GetByte
+     @GetByte
+ 
+D022.todo._SOFPayload : Grammar {} =
+  D022.todo._Payload D022.todo.SOFPayload do @GetByte
+                                             D022.todo._BE16
+                                             D022.todo._BE16
+                                             (comNumber : uint 64) <- do (_72 : uint 8) <- GetByte
+                                                                         pure (_72 as uint 64)
+                                             @Many[comNumber] D022.todo._FrameComponent
+ 
+D022.todo._SomeSOF : Grammar {} =
+  do (sof : uint 4) <- D022.todo.SomeMarker 12
+     Guard (! (sof == 4))
+     D022.todo._SOFPayload
+ 
+D022.todo._SOSComponent : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+D022.todo._SOSHeader : Grammar {} =
+  do (componentNum : uint 8) <- GetByte
+     @Many[componentNum as uint 64] D022.todo._SOSComponent
+     @GetByte
+     @GetByte
+     @GetByte
+ 
+D022.todo._EntropyEncodedByte : Grammar {} =
+  Choose biased
+    { do @Match {'\255'}
+         @Match {'\NUL'}
+    | @Match (!{'\255'})
+    }
+ 
+D022.todo._EntropyEncodedEntry : Grammar {} =
+  @Many[ 1 .. ] D022.todo._EntropyEncodedByte
+ 
+D022.todo._SOS : Grammar {} =
+  do D022.todo._Marker 218
+     D022.todo._Payload D022.todo.SOSHeader D022.todo._SOSHeader
+     @Many[] D022.todo._EntropyEncodedEntry
+ 
+D022.todo._SomeRST : Grammar {} =
+  do ($$ : uint 4) <- D022.todo.SomeMarker 13
+     Guard ($$ < 8)
+ 
+D022.todo._Main : Grammar {} =
+  do D022.todo._SomeJpeg
+     END
