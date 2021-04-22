@@ -524,8 +524,10 @@ symbolicLookupEnvName nname ctrl out =
           case Map.lookup nname m of
             Nothing -> Nothing
             Just v -> Just v
+        SCons (SlkManyFrame _ _) rest ->
+          lookupCtrl rest
         SEmpty -> error "missing var"
-        _ -> error "TODO"
+        _ -> error ("TODO: " ++ show c)
 
 symbolicEval :: PAST.NVExpr -> SlkControlData -> SlkSemanticData -> SlkValue
 symbolicEval e ctrl sem =
