@@ -400,6 +400,9 @@ getFinalStatesDDA dda =
       [ mkDFAStateFromSlkCfg cfg1
       , mkDFAStateFromSlkCfg cfg2
       ]
+    Result (Closure.DDStreamSet cfg1) ->
+      [ mkDFAStateFromSlkCfg cfg1
+      ]
     Abort _ -> []
 
 
