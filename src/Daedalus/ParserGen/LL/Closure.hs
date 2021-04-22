@@ -177,9 +177,11 @@ type ClosureMoveSet = [ClosureMove]
 
 
 data DataDepInstr =
-  DDManyBetween ChoiceSeq Slk.SlkCfg Slk.SlkCfg
+    DDManyBetween ChoiceSeq Slk.SlkCfg Slk.SlkCfg
+  | DDStreamSet Slk.SlkCfg
   deriving (Show)
 
+-- This a non-deterministic closure path.
 closureEpsUntilDataDependent ::
   Aut.Aut a =>
   a -> Set.Set Slk.SlkCfg -> (ChoiceSeq, Slk.SlkCfg) ->
@@ -207,7 +209,6 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
             , (act2@(CAct (BoundCheckSuccess)), j)
             ] _ ->
             if Slk.isManyExactDependent cfg
-               -- (Abort AbortClosureUnhandledAction, tab)
             then
               case
                 ( Slk.simulateActionSlkCfg aut act1 i cfg tab
@@ -219,7 +220,8 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
                   (Result $ Just (DDManyBetween alts cfg1 cfg2), tab2)
                 _ -> error "should not happen"
 
-            else (Result Nothing, tab)
+            else
+              (Result Nothing, tab)
           Aut.SeqChoice _ _ ->
             (Result Nothing, tab)
           Aut.ParChoice _ ->
@@ -242,6 +244,9 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
           (Result Nothing, tab)
       | Seq.length alts > cst_CLOSURE_MAX_DEPTH =
           (Abort AbortClosureOverflowMaxDepth, tab)
+      | Slk.isStreamSetDynamic act cfg =
+          let (newCfg, newTab) = Slk.simulateDynamicStreamSet act q2 cfg tab in
+          (Result $ Just $ DDStreamSet newCfg, newTab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg tab of
             Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)
@@ -299,16 +304,15 @@ closureEpsUntilPush aut busy cm tab =
       | isClassActOrEnd act =
           (Result (Just cm), tab)
       | isUnhandledInputAction act =
-          -- trace (show act) $
           (Abort AbortClosureUnhandledInputAction, tab)
       | isUnhandledAction act =
-          -- trace (show act) $
           (Abort AbortClosureUnhandledAction, tab)
       | isPushAction act =
-          -- trace (show act) $
           (Result (Just cm), tab)
       | Seq.length alts > cst_CLOSURE_MAX_DEPTH =
           (Abort AbortClosureOverflowMaxDepth, tab)
+      | Slk.isStreamSetDynamic act cfg =
+        (Result (Just cm), tab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg tab of
             Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)
@@ -374,10 +378,8 @@ closureLoop aut busy (alts, cfg) tab =
             Abort (AbortSlkCfgClassNotHandledYet _) -> (coerceAbort mIhc, stepTab)
             _ -> error "Broken invariant: this case should not happen here"
       | isUnhandledInputAction act =
-          -- trace (show act) $
           (Abort AbortClosureUnhandledInputAction, stepTab)
       | isUnhandledAction act =
-          -- trace (show act) $
           (Abort AbortClosureUnhandledAction, stepTab)
       | Seq.length alts > cst_CLOSURE_MAX_DEPTH =
           (Abort AbortClosureOverflowMaxDepth, stepTab)
