@@ -1,0 +1,37 @@
+Main (3,1)-(10,8)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(27),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Main (9,5)-(9,21)
+SlkCfg{ q:53, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(19),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+__ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
+
+**********************
+***** Strict LLA *****
+**********************
+("DataDepTrans",4)
+("Lookahead-0",1)
+("Lookahead-1",2)
+
+Total nb DFAs: 7
+
+SUCCESS: Fully determinized format
