@@ -1,0 +1,57 @@
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+A (7,29)-(7,38)
+SlkCfg{ q:16, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(15),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+B (3,9)-(3,20)
+SlkCfg{ q:36, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+Ambiguous(acceptingPath + next)
+
+Main (11,1)-(13,6)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(27),]
+  , HeadInput ['\NUL','\254']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(24),]
+  , HeadInput ['\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+**********************
+**** Extended LLA ****
+**********************
+("Lookahead-1",9)
+("abort-1",6)
+
+Total nb states: 15
+
+**********************
+***** Strict LLA *****
+**********************
+("Lookahead-1",2)
+("abort-1",1)
+
+Total nb DFAs: 3
+
+
+Warning: LL(*) failures:
+
+B (3,9)-(3,20)
+SlkCfg{ q:36, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+Ambiguous(acceptingPath + next)
+
+*******  Found Ambiguity  *******
+  Start: B (3,9)-(3,20)
+  Paths : 
+********  input witness  ********
+
