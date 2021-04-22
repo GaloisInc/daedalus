@@ -62,6 +62,10 @@ instance ApSubst TCTyDef where
     apF (x,t) = (x,) <$> apSubstT' su t
 
 
+instance ApSubst TCTyField where
+  apSubstT' su tf = (\t' -> tf { tctyfType = t' }) <$> apSubstT' su (tctyfType tf)
+
+
 instance ApSubst Constraint where
   apSubstT' su ctr =
     case ctr of
@@ -203,7 +207,8 @@ instance FreeTVS (TCDeclDef a k) where
       Defined e    -> freeTVS e
 
 instance FreeTVS TCTyDecl where
-  freeTVS d = freeTVS (tctyDef d) `Set.difference` Set.fromList (tctyParams d)
+  freeTVS d = (freeTVS (tctyDef d) `Set.union` freeTVS (tctyBDWidth d))
+              `Set.difference` Set.fromList (tctyParams d)
 
 instance FreeTVS TCTyDef where
   freeTVS = collectTypes freeTVS

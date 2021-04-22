@@ -251,18 +251,34 @@ data Param = ValParam (TCName Value)
 data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
                    , tctyParams :: ![TVar]
+                   , tctyBDWidth :: !(Maybe Type)
+                   -- ^ number of bits for this type if it is a bitdata
                    , tctyDef    :: !TCTyDef
                    } deriving Show
-
 
 data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct [(Label,Type)]
-                | TCTyUnion  [(Label,Type)]
+data TCTyDef    = TCTyStruct [(Label, TCTyField)]
+                | TCTyUnion  [(Label, TCTyField)]
                   deriving Show
 
+data TCTyField =
+  TCTyField { tctyfType    :: !Type
+            , tctyfBDRange :: !(Maybe TCBitDataRange)
+            }
+  deriving Show
+
+-- These (should) be known at type checking time.  An 8 bit field in
+-- the least-significant bits of a word will be TCBitDataRange { lowBit = 0, highBit = 7 }
+data TCBitDataRange =
+  TCBitDataRange { tcbdrLowBit  :: !Int
+                 , tcbdfHighBit :: !Int
+                 , tcbdrValue   :: !Int
+                  -- ^ This is the corresponding tag for union fields,
+                  -- 0 (ignored) for struct fields
+                 }  deriving Show
 
 data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
@@ -544,6 +560,8 @@ instance PP TCTyDef where
     where
     ppF (x,t) = pp x <.> ":" <+> pp t
 
+instance PP TCTyField where
+  ppPrec _ tyf = pp (tctyfType tyf)
 
 instance PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e

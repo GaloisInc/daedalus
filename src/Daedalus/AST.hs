@@ -97,8 +97,11 @@ instance PP Name where
 
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
+                     , moduleBitData :: [BitData] -- ordered
                      , moduleRules   :: [Rec Rule]
                      } deriving Show
+
+data Decl = DeclRule Rule | DeclBitData BitData
 
 data Rule =
   Rule { ruleName     :: !Name
@@ -118,6 +121,18 @@ instance HasRange RuleParam where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
+
+data BitData =
+  BitData { bdName  :: !Name
+          , bdCtors :: ![ (Located Label, [ Located BitDataField ] ) ]
+          , bdRange :: !SourceRange
+          } deriving Show
+
+data BitDataField =
+  BDFLiteral Integer       (Maybe SrcType)
+  | BDFField Label         (Maybe SrcType)
+  | BDFWildcard            (Maybe SrcType)
+  deriving Show
 
 data Ctx = Grammar | Value | Class
   deriving (Eq,Show)
@@ -310,10 +325,9 @@ data TypeF t =
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
 data SrcType = SrcVar Name
+             | SrcBitData Name
              | SrcType (Located (TypeF SrcType))
               deriving Show
-
-
 
 --------------------------------------------------------------------------------
 instance HasRange (Located a) where
@@ -329,6 +343,7 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
+      SrcBitData x -> range x
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -461,6 +476,7 @@ instance OrdF Context where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
+                  SrcBitData x -> ppPrec n x
                   SrcType l -> ppPrec n (thingValue l)
 
 

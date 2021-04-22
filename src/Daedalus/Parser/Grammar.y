@@ -77,6 +77,9 @@ import Daedalus.Parser.Monad
    for 'label` also, as it is likely to be a valid union label. -}
 
   'def'       { Lexeme { lexemeRange = $$, lexemeToken = KWDef } }
+  'bitdata'   { Lexeme { lexemeRange = $$, lexemeToken = KWBitData } }
+  'where'     { Lexeme { lexemeRange = $$, lexemeToken = KWWhere } }
+
   'true'      { Lexeme { lexemeRange = $$, lexemeToken = KWTrue } }
   'false'     { Lexeme { lexemeRange = $$, lexemeToken = KWFalse } }
   'for'       { Lexeme { lexemeRange = $$, lexemeToken = KWFor } }
@@ -157,7 +160,7 @@ import Daedalus.Parser.Monad
 -- High Precedence
 %%
 
-module ::                                     { ([Located ModuleName], [Rule]) }
+module ::                                     { ([Located ModuleName], [Decl]) }
   : imports decls                             { ($1, $2) }
 
 imports ::                                    { [Located ModuleName] }
@@ -171,12 +174,39 @@ import ::                                     { Located ModuleName }
   : 'import' BIGIDENT                         { Located (fst $2) (snd $2) }
   | 'import' SMALLIDENT                       { Located (fst $2) (snd $2) }
 
-decls ::                                      { [Rule] }
+decls ::                                      { [Decl] }
   : listOf(decl)                              { $1 }
 
-decl                                       :: { Rule }
+decl                                       :: { Decl }
+  : rule                                      { DeclRule $1 }
+  | bitdata                                   { DeclBitData $1 }
+  
+rule ::                                     { Rule }
   : 'def' name listOf(ruleParam)
-    optRetType optDef                         { mkRule $1 $2 $3 $4 $5 }
+          optRetType optDef                 { mkRule $1 $2 $3 $4 $5 }
+
+bitdata ::                                  { BitData }
+  : 'bitdata' name 'where' 
+     'v{' separated(bitdata_ctor, virtSep) 'v}' { BitData { bdName = $2, bdCtors = $5
+     	  			  	   	          , bdRange = $1 <-> $6 } }
+
+bitdata_ctor ::                             { ( Located Label, [ Located BitDataField ] ) }
+  : label '=' bitdata_defn                  { ( $1, $3 ) }
+
+bitdata_defn ::                             { [ Located BitDataField ] }
+  : bitdata_tag                             { [ $1 ] }
+  | '{'
+    separated1(bitdata_field, commaOrSemi)  
+    '}'                                     { $2 }
+
+bitdata_field ::                            { Located BitDataField }
+  : bitdata_tag                             { $1 }
+  | '_'   ':' type                          { loc ($1 <-> $3) (BDFWildcard (Just $3)) }
+  | label ':' type                          { loc ($1 <-> $3) (BDFField (thingValue $1) (Just $3)) }
+
+bitdata_tag ::                              { Located BitDataField }
+  : NUMBER                                  { Located (fst $1) (BDFLiteral (snd $1) Nothing) }
+  | NUMBER ':' type                         { loc (fst $1 <-> $3)  (BDFLiteral (snd $1) (Just $3)) }
 
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
@@ -469,7 +499,10 @@ nested_pattern                           :: { Pattern }
 
 separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }
-  | p                                       { [$1] }
+  | separated1(p,s)                         { $1 }
+
+separated1(p,s)                          :: { [p] }
+  : p                                       { [$1] }
   | p s separated(p,s)                      { $1 : $3 }
 
 type                                     :: { SrcType }

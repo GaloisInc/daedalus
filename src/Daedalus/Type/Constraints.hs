@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings, BlockArguments, FlexibleInstances #-}
 module Daedalus.Type.Constraints (simplifyConstraints, unify) where
 
+import Data.Foldable (find)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -223,9 +224,9 @@ hasStruct r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyStruct fs | Just fty1 <- lookup l fs ->
+                        TCTyStruct fs | Just fld1 <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
-                             unify (apSubstT su fty1) (r,fty)
+                             unify (apSubstT su (tctyfType fld1)) (r,fty)
                              pure Solved
                         _ -> doErr
     _ -> doErr
@@ -248,9 +249,9 @@ hasUnion r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyUnion fs | Just fty1 <- lookup l fs ->
+                        TCTyUnion fs | Just fld1 <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
-                             unify (apSubstT su fty1) (r,fty)
+                             unify (apSubstT su (tctyfType fld1)) (r,fty)
                              pure Solved
                         _ -> doErr
 
@@ -430,11 +431,11 @@ isTyDef r ty t fs0 =
            Just def ->
              case def of
                TCTyStruct dfs
-                 | StructDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | StructDef <- ty -> do checkFields r c (tctyfType <$> Map.fromList dfs) fs0
                                          pure Solved
                  | otherwise -> reportError r "Structure used as union."
                TCTyUnion dfs
-                 | UnionDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | UnionDef <- ty -> do checkFields r c (tctyfType <$> Map.fromList dfs) fs0
                                         pure Solved
                  | otherwise -> reportError r "Union used a structure"
 
@@ -600,7 +601,7 @@ simplifyConstraints =
 
              where
              defTy tcon =
-               do let fields = [ (f,thingValue t) | (f,t) <- fs ]
+               do let fields = [ (f, TCTyField (thingValue t) Nothing) | (f,t) <- fs ]
                   newTypeDef tcon
                     case ty of
                       StructDef -> TCTyStruct fields

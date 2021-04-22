@@ -116,9 +116,12 @@ data Token =
   | KWArrayStream
   | KWFail
   | KWCase
-
+  | KWBitData
+  | KWWhere
+  
   | TokError !String
   | TokEOF
+
     deriving Show
 
 

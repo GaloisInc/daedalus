@@ -99,6 +99,9 @@ $ws+        ;
 
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }
+"bitdata"   { lexeme KWBitData }
+"where"     { lexeme KWWhere }
+
 "for"       { lexeme KWFor }
 "map"       { lexeme KWMap }
 "in"        { lexeme KWIn }
@@ -158,7 +161,6 @@ $ws+        ;
 "bool"      { lexeme KWBool }
 "maybe"     { lexeme KWMaybe }
 "stream"    { lexeme KWStream }
-
 
 @bigIdent   { lexeme BigIdent }
 @smallIdent { lexeme SmallIdent }
@@ -270,7 +272,7 @@ lexer :: Text -> Text -> [Lexeme Token]
 lexer file txt = layout ($makeLexer cfg (initialInput file txt))
   where
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
-  --            "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
+  --           "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
 
   eof p = Lexeme { lexemeToken = TokEOF
                  , lexemeText  = ""

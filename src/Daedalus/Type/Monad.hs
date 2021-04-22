@@ -298,6 +298,7 @@ instance STCMonad STypeM where
     do def <- traverseTypes zonkT def'
        let decl = TCTyDecl { tctyName = x
                            , tctyParams = []
+                           , tctyBDWidth = Nothing
                            , tctyDef = def
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }

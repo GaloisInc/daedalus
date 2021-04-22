@@ -9,7 +9,7 @@ import Daedalus.Parser.Grammar
 import Daedalus.Parser.Monad
 import Daedalus.PrettyError
 
-parseFromFile :: FilePath -> IO ([Located ModuleName], [Rule])
+parseFromFile :: FilePath -> IO ([Located ModuleName], [Decl])
 parseFromFile file =
   do txt <- Text.readFile file
      case runParser moduleP (Text.pack file) txt of
