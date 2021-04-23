@@ -5,7 +5,7 @@
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
-import Control.Monad(forM,forM_,unless)
+import Control.Monad(forM,forM_,unless,when)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
 import Data.Maybe(catMaybes)
@@ -749,7 +749,7 @@ inferExpr expr =
                        pure (x, lt)
 
          tcon <- newTyDefName
-         addConstraint expr (TyDef UnionDef (Just tcon) ty tagTy)
+         addConstraint expr (TyDef UnionDef tcon ty tagTy)
 
          pure ( exprAt expr (TCChoice c stmts ty)
               , tGrammar ty
@@ -965,7 +965,7 @@ inferExpr expr =
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
     -- e should have the same type as the 
-    ECase e ps -> inferCase expr e ps
+    ECase e ps -> inferCase expr False e ps
 
 
 
@@ -988,7 +988,7 @@ inferIf r eCond eThen eElse =
                  do ctx <- getContext
                     case ctx of
                       AGrammar -> pure (addBind s expr1)
-                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+                      _ -> panic "inferIf" [ "Lifted in non-grammar context"]
      pure (expr, tThen)
 
 
@@ -1078,14 +1078,28 @@ checkPatternCases rng tIn tOut done cases =
 
 inferCase ::
   HasRange r =>
-  r -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
-inferCase rng e ps =
+  r -> Bool -> Expr -> [PatternCase Expr] ->
+  TypeM ctx (TC SourceRange ctx, Type)
+inferCase rng newTy e ps =
   do ((e1,tIn),mbS) <- liftValExpr e
-     tOut <- do ctx <- getContext
-                case ctx of
-                  AGrammar -> tGrammar <$> newTVar e KValue
-                  AValue   -> newTVar e KValue
-                  AClass   -> newTVar e KClass
+     (valT,tOut) <-
+        do ctx <- getContext
+           case ctx of
+             AGrammar -> do v <- newTVar e KValue
+                            pure (v, tGrammar v)
+             AValue   -> do v <- newTVar e KValue
+                            pure (v,v)
+             AClass   ->
+               if newTy
+                 then reportError e
+                      "union case does not work in character class definitions."
+                 else do x <- newTVar e KClass
+                         pure (x,x)
+
+     when newTy
+       do tcon <- newTyDefName
+          addConstraint rng (TyDef UnionDef tcon valT [])
+
      (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
      let expr1 = exprAt rng (TCCase e1 alts mbDefault)
      expr <- case mbS of
@@ -1383,7 +1397,7 @@ pureStruct r ls ts es
       _  -> do ty <- newTVar r KValue
                nm <- newTyDefName
                addConstraint r $
-                  TyDef StructDef (Just nm) ty
+                  TyDef StructDef nm ty
                     [ (l, Located { thingRange = range e, thingValue = t })
                     | l <- ls
                     | e <- es

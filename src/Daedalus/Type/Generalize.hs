@@ -104,6 +104,9 @@ matches the declaration's name, then we make this type not-anonymous.
 Note that as a result, we may have to revisit some of the existing
 constraints (e.g. Has), which were not solved because the non-anonymous
 type was not yet defined.
+
+For example, if the result of `X` happans to be `X-Anon1`, then we just
+replace all occurances of `X-Anon1` with `X`
 -}
 renameAnonTC ::
   [Located Constraint] ->
@@ -157,7 +160,7 @@ renameAnonTC lcs tys ds
 --------------------------------------------------------------------------------
 
 
-{- | Free variables in a collection of (possibly recursive) declarations.
+{- | Free variables in a collection of (possibly recursive) type declarations.
 Example:
 
     data T1 = MkT1 T2

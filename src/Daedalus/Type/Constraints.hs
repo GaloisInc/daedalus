@@ -133,36 +133,6 @@ isColKeyType r t e =
 
 
 
-{-
-isTraversable ::
-  (STCMonad m, HasRange r) => r -> Type -> Type -> Type -> m CtrStatus
-isTraversable r t k v =
-  case t of
-    TVar _  -> pure Unsolved
-
-    Type (TArray el) ->
-      do unify tInteger (r,k)   -- XXX: generalize?
-         unify el (r,v)
-         pure Solved
-
-    Type (TMap tk tv) ->
-      do unify tk (r,k)
-         unify tv (r,v)
-         pure Solved
-
-    Type TInteger  -> numTrav
-    Type (TUInt _) -> numTrav
-    -- Signed?
-
-    _ -> reportDetailedError r "Cannot iterate over this type" [ pp t ]
-
-  where
-  numTrav = do unify t (r,k)
-               unify t (r,v)
-               pure Solved
--}
-
-
 isAdd :: (STCMonad m,HasRange r) => r -> Type -> Type -> Type -> m CtrStatus
 isAdd r t1 t2 t3 =
   case (t1,t2,t3) of
@@ -586,7 +556,7 @@ simplifyConstraints =
       c : more ->
 
         case thingValue c of
-          TyDef ty (Just suggest) theTy fs ->
+          TyDef ty suggest theTy fs ->
 
             case (suggest, theTy) of
               (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])

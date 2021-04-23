@@ -55,7 +55,7 @@ data Poly a     = Poly [TVar] [Constraint] a
 
 data Constraint = Numeric Type
                 | HasStruct Type Label Type
-                | TyDef TyDef (Maybe TCTyName) Type [(Label,Located Type)]
+                | TyDef TyDef TCTyName Type [(Label,Located Type)]
                   -- ^ The TCTyName is the name to use
                   -- in case we decide to solve this by using an anonymous type.
                 | HasUnion  Type Label Type
