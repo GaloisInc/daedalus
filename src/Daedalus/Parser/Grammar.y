@@ -18,12 +18,12 @@ import Daedalus.Parser.Monad
 %tokentype    { Lexeme Token }
 
 %token
-  BIGIDENT    { (isLexBigIdent   -> Just $$) }
-  SMALLIDENT  { (isLexSmallIdent -> Just $$) }
-  SETIDNET    { (isLexSetIdent   -> Just $$) }
-  BYTE        { (isLexByte       -> Just $$) }
-  BYTES       { (isLexBytes      -> Just $$) }
-  NUMBER      { (isLexNumber     -> Just $$) }
+  BIGIDENT    { (isLexBigIdent    -> Just $$) }
+  SMALLIDENT  { (isLexSmallIdent  -> Just $$) }
+  SETIDNET    { (isLexSetIdent    -> Just $$) }
+  BYTE        { (isLexByte        -> Just $$) }
+  BYTES       { (isLexBytes       -> Just $$) }
+  NUMBER      { (isLexTypedNumber -> Just $$) }
 
   '('         { Lexeme { lexemeRange = $$, lexemeToken = OpenParen } }
   ')'         { Lexeme { lexemeRange = $$, lexemeToken = CloseParen } }
@@ -205,8 +205,8 @@ bitdata_field ::                            { Located BitDataField }
   | label ':' type                          { loc ($1 <-> $3) (BDFField (thingValue $1) (Just $3)) }
 
 bitdata_tag ::                              { Located BitDataField }
-  : NUMBER                                  { Located (fst $1) (BDFLiteral (snd $1) Nothing) }
-  | NUMBER ':' type                         { loc (fst $1 <-> $3)  (BDFLiteral (snd $1) (Just $3)) }
+  : NUMBER                                  { Located (fst $1)    (BDFLiteral (fst (snd $1)) (snd (snd $1))) }
+  | NUMBER ':' type                         { loc (fst $1 <-> $3) (BDFLiteral (fst (snd $1)) (Just $3)) }
 
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
@@ -406,7 +406,7 @@ call_expr                                :: { Expr }
 aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'UInt8'                                 { at $1      EAnyByte }
-  | '$uint' NUMBER                          {% mkUInt $1 $2 }
+  | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
   | name                                    { at $1 (EVar $1) }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
@@ -468,7 +468,7 @@ union_field                              :: { Either Expr (UnionField Expr) }
   | label '=' expr                          { Right ($1 :> $3) }
 
 literal                                  :: { (SourceRange, Literal) }
-  : NUMBER                                  { LNumber `fmap` $1 }
+  : NUMBER                                  { (LNumber . fst) `fmap` $1 }
   | 'true'                                  { ($1, LBool True) }
   | 'false'                                 { ($1, LBool False) }
   | BYTES                                   { LBytes `fmap` $1 }
@@ -515,7 +515,7 @@ type                                     :: { SrcType }
   | '(' type  ')'                           { $2 }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
-  | NUMBER                                  { atT (fst $1) (TNum (snd $1)) }
+  | NUMBER                                  { atT (fst $1) (TNum (fst (snd $1))) }
   | name                                    { SrcVar $1 }
 
 arr_or_map                               :: { TypeF SrcType }
@@ -579,8 +579,16 @@ isLexBytes x = case lexemeToken x of
 
 isLexNumber :: LexPattern Integer
 isLexNumber x = case lexemeToken x of
-                  Number v -> Just (lexemeRange x, v)
-                  _        -> Nothing
+                  Number v _ -> Just (lexemeRange x, v)
+                  _          -> Nothing
+
+isLexTypedNumber :: LexPattern (Integer, Maybe SrcType)
+isLexTypedNumber x = case lexemeToken x of
+		 Number v m_n -> 
+		   let r   = lexemeRange x
+		       m_t = atT r . TUInt . atT r . TNum . fromIntegral <$> m_n
+		   in Just (r, (v, m_t))
+		 _            -> Nothing
 
 --------------------------------------------------------------------------------
 

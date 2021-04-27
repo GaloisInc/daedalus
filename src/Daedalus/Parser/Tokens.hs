@@ -7,7 +7,7 @@ data Token =
     BigIdent
   | SmallIdent
   | SetIdent
-  | Number  !Integer
+  | Number  !Integer !(Maybe Int)
   | Bytes   !ByteString
   | Byte    !Word8
 
