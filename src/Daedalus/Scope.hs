@@ -21,7 +21,6 @@ import MonadLib
 
 import Daedalus.GUID
 import Daedalus.SourceRange
-import Daedalus.Panic
 import Daedalus.PP
 import Daedalus.Rec
 
@@ -367,13 +366,7 @@ instance ResolveNames SrcType where
   resolve ty =
     case ty of
       -- FIXME: should we treat tvs differently?
-      SrcVar x -> do
-        scope <- getScope
-        case Map.lookup (nameScopeAsUnknown x) (identScope scope) of
-          Just _  -> SrcBitData <$> resolve x
-          Nothing -> SrcVar     <$> resolve x
-          
-      SrcBitData _ -> panic "Impossible" []
+      SrcVar x   -> SrcVar  <$> resolve x
       SrcType tf -> SrcType <$> resolve tf
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]

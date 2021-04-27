@@ -59,12 +59,8 @@ instance ApSubst TCTyDef where
       TCTyStruct fs -> TCTyStruct <$> someJusts apF fs
       TCTyUnion fs  -> TCTyUnion  <$> someJusts apF fs
     where
-    apF (x,t) = (x,) <$> apSubstT' su t
-
-
-instance ApSubst TCTyField where
-  apSubstT' su tf = (\t' -> tf { tctyfType = t' }) <$> apSubstT' su (tctyfType tf)
-
+    apF :: (Label, (Type, a)) -> Maybe (Label, (Type, a))
+    apF (x,(t,m)) = (x,) <$> ((,) <$> apSubstT' su t <*> pure m)
 
 instance ApSubst Constraint where
   apSubstT' su ctr =
@@ -207,8 +203,7 @@ instance FreeTVS (TCDeclDef a k) where
       Defined e    -> freeTVS e
 
 instance FreeTVS TCTyDecl where
-  freeTVS d = (freeTVS (tctyDef d) `Set.union` freeTVS (tctyBDWidth d))
-              `Set.difference` Set.fromList (tctyParams d)
+  freeTVS d = freeTVS (tctyDef d) `Set.difference` Set.fromList (tctyParams d)
 
 instance FreeTVS TCTyDef where
   freeTVS = collectTypes freeTVS

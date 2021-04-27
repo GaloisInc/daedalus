@@ -71,7 +71,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Control.Exception(Exception(..))
-import MonadLib
+import MonadLib hiding (Label)
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -202,6 +202,9 @@ data SRW = SRW
                                             --   were used before defined
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
   }
+
+instance HasGUID STypeM where
+  guidState f = mType (guidState f)
 
 instance MTCMonad STypeM where
   reportError r e     = mType (reportError r e)
@@ -399,6 +402,8 @@ instance STCMonad (TypeM ctx) where
   needsDef r d            = sType (needsDef r d)
   getNeedsDef             = sType getNeedsDef
 
+instance HasGUID (TypeM ctx) where
+  guidState f = sType (guidState f)
 
 allowPartialApps :: Bool -> TypeM ctx a -> TypeM ctx a
 allowPartialApps yes (TypeM m) = TypeM (mapReader upd m)
@@ -450,7 +455,8 @@ apSubstTCTyDef su def =
     TCTyStruct fs -> TCTyStruct (map doField fs)
     TCTyUnion  fs -> TCTyUnion  (map doField fs)
   where
-  doField (f,t) = (f,apSubstT su t)
+  doField :: (Label, (Type, a)) -> (Label, (Type, a))
+  doField (f,(t,m)) = (f,(apSubstT su t, m))
 
 
 --------------------------------------------------------------------------------

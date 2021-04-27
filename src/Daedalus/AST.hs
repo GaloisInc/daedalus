@@ -111,7 +111,6 @@ data Rule =
        , ruleRange    :: !SourceRange
        } deriving Show
 
-
 data RuleParam = RuleParam
   { paramName :: Name
   , paramType :: Maybe SrcType
@@ -325,7 +324,6 @@ data TypeF t =
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
 data SrcType = SrcVar Name
-             | SrcBitData Name
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
@@ -343,7 +341,6 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
-      SrcBitData x -> range x
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -353,7 +350,9 @@ instance HasRange Pattern where
       ConPattern c p -> range c <-> range p
       WildPattern r -> r
       VarPattern r -> range r
- 
+
+instance HasRange BitData where
+  range = bdRange
 
 --------------------------------------------------------------------------------
 
@@ -476,7 +475,6 @@ instance OrdF Context where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
-                  SrcBitData x -> ppPrec n x
                   SrcType l -> ppPrec n (thingValue l)
 
 

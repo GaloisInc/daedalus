@@ -29,13 +29,19 @@ import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
 import Daedalus.Type.Generalize
+import Daedalus.Type.BitData
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
-inferRules m = go [] (moduleRules m)
+inferRules m = goBD [] (moduleBitData m)
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 
-  go done todo =
+  goBD done [] = go done [] (moduleRules m)
+  goBD done (x : more) = do
+    newDecls <- inferBitData x
+    extGlobTyDefs newDecls $ goBD (newDecls : done) more
+  
+  go bds done todo =
     case todo of
       [] -> pure TCModule
                    { tcModuleName = moduleName m
@@ -43,7 +49,8 @@ inferRules m = go [] (moduleRules m)
                    , tcModuleTypes = map sccToRec
                                    $ stronglyConnComp
                                    $ map getDeps
-                                   $ concatMap (Map.elems . tcTypeDefs) done
+                                   $ concatMap Map.elems
+                                   $ bds ++ map tcTypeDefs done
                    , tcModuleDecls = map tcDecls (reverse done)
                    }
 
@@ -54,9 +61,7 @@ inferRules m = go [] (moduleRules m)
                      ]
            extEnvManyRules env
              $ extGlobTyDefs (tcTypeDefs info)
-             $ go (info : done) more
-
-
+             $ go bds (info : done) more
 
 --------------------------------------------------------------------------------
 
