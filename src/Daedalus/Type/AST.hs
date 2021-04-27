@@ -55,10 +55,12 @@ data Poly a     = Poly [TVar] [Constraint] a
 
 data Constraint = Numeric Type
                 | HasStruct Type Label Type
-                | TyDef TyDef (Maybe TCTyName) Type [(Label,Located Type)]
-                  -- ^ The TCTyName is the name to use
-                  -- in case we decide to solve this by using an anonymous type.
                 | HasUnion  Type Label Type
+
+
+                | TyDef TyDef TCTyName Type [(Label,Located Type)]
+                  -- See [Note] The TyDef Constraint
+
                 | Coerce Lossy Type Type
                 | Literal Integer Type
                 | CAdd Type Type Type
@@ -68,6 +70,29 @@ data Constraint = Numeric Type
                 | ColKeyType Type Type        -- col, key
                 | IsNamed Type
                   deriving Show
+
+{- [Note] The TyDef Constraint
+   ===========================
+
+The Constraint `TyDef StructDef suggestedName t [(x,q)]` asserts that the type
+`t` can represent the struct value with a field `x` of type `q`
+
+We discharge this constraint if `t` becoes a constructor type:  in that case
+we either check the definition to make sure things are OK, or report an
+error.
+
+If we never infer `t` (i.e., it stays as a tpe variable), we don;t generalize
+over it.  Instead we use the definition and the suggested name to generate
+a new type declaration.
+
+Note that we can't just manufacture a new type every type we see a struct.
+Consider, for example, this definition:
+
+def Main = { x = Match1 'a' } <| { x = Uint8 }
+
+In this case we have 2 structs, but they must be *of the same type* so we'd
+only generate a single type declaration.
+-}
 
 data TyDef = StructDef | UnionDef
   deriving Show

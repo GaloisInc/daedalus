@@ -11,7 +11,7 @@ module Daedalus.Type.Monad
     -- * Typechecking a group of declarations
   , STypeM, runSTypeM, STCMonad
 
-    -- * Typechecking a single declart
+    -- * Typechecking a single declartion
   , TypeM, runTypeM
 
     -- * Error reporting

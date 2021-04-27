@@ -21,6 +21,7 @@ library
     Daedalus.Rec,
     Daedalus.Range,
     Daedalus.Panic,
+    Daedalus.BDD,
     Daedalus.GUID
 
   build-depends:

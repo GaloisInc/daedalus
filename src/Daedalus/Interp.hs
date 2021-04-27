@@ -160,6 +160,9 @@ evalBinOp op =
 
     ArrayStream -> vStreamFromArray
 
+    LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
+    LogicOr     -> panic "evalBinOp" ["LogicOr"]
+
 
 
 
