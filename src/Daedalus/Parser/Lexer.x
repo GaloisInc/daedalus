@@ -198,7 +198,7 @@ lexBinLiteral =
   do ds <- Text.unpack <$> matchText
      let vs = map (\x -> if x == '0' then 0 else 1) (drop 2 ds) -- removing the '0b'
          r  = foldl (\acc x -> x + 2 * acc) 0 vs
-     lexeme $! Number r (Just (length ds))
+     lexeme $! Number r (Just (length vs))
 
 lexByte :: Action s [Lexeme Token]
 lexByte =

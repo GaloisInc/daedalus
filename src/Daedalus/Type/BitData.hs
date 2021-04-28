@@ -3,6 +3,7 @@
 
 module Daedalus.Type.BitData (inferBitData) where
 
+import Data.Foldable (find)
 import Control.Monad (zipWithM_, zipWithM, when, unless)
 import Data.Maybe (catMaybes)
 import Data.Bits  (shiftL, (.|.) )
@@ -119,14 +120,17 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
 
   -- Get the first known type width, if it exists (error otherwise)
   let knownWidths = catMaybes (zipWith knownWidth (bdCtors bd) m_sz_tyss)
-  width <- case knownWidths of
+  (kfld, width) <- case knownWidths of
     []            -> reportError bd "Unable to determine size of type"
-    (_fld, w) : _ -> pure w
+    r : _         -> pure r
       
   -- Check all known widths are the same
-  unless (all ((==) width . snd) knownWidths) $
-    -- FIXME: we know the fields, produce a better error message (after figuring out what that looks like)
-    reportError bd "Mismatched field widths" 
+  case find (not . (==) width . snd) knownWidths of
+    Nothing         -> pure ()
+    Just (fld', w') -> reportDetailedError bd "Mismatched constructor widths"
+      [ "constructor" <+> pp kfld <+> "has width" <+> pp width
+      , "constructor" <+> pp fld' <+> "has width" <+> pp w'
+      ]
   
   (decls, ctors) <- unzip <$> zipWithM (inferCtor (bdName bd) width) (bdCtors bd) m_sz_tyss
 
