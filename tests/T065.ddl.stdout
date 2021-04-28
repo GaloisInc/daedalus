@@ -1,0 +1,31 @@
+module T065
+ 
+--- Imports:
+ 
+--- Type defs:
+type T065.Bar_b1 = { }
+ 
+type T065.Bar_b2 = { }
+ 
+type T065.Bar = Choose { b1: T065.Bar_b1
+                       ; b2: T065.Bar_b2
+                       }
+ 
+type T065.Foo_A = { }
+ 
+type T065.Foo_B = { x: uint 6
+                  }
+ 
+type T065.Foo_C = { b: T065.Bar
+                  }
+ 
+type T065.Foo_D = { }
+ 
+type T065.Foo = Choose { A: T065.Foo_A
+                       ; B: T065.Foo_B
+                       ; C: T065.Foo_C
+                       ; D: T065.Foo_D
+                       }
+ 
+--- Rules:
+ 
