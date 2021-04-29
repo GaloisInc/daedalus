@@ -44,17 +44,13 @@ import qualified Daedalus.Core.Semantics.Env as I
 import Talos.Analysis (summarise)
 import Talos.Analysis.Monad (Summary(..))
 import Talos.Analysis.Slice
-import Talos.SymExec
-import Talos.SymExec.Monad
+-- import Talos.SymExec
+import Talos.SymExec.SolverT (SolverState, emptySolverState)
 import Talos.SymExec.Path
 import Talos.SymExec.StdLib
 
 import Talos.Strategy
 import Talos.Strategy.Monad
-
-
-import Talos.Strategy.Monad
-
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -133,6 +129,8 @@ data SynthesisMState =
                   , curStream :: Stream
                   , nextProvenance :: ProvenanceTag 
                   , provenances :: ProvenanceMap
+                  , stratlist :: [Strategy]
+                  , solverState :: SolverState
                   }
 
 newtype SynthesisM a =
@@ -177,9 +175,9 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> FName -> Module 
+synthesise :: Maybe Int -> GUID -> Solver -> [Strategy] -> FName -> Module 
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv root md = do
+synthesise m_seed nguid solv strat root md = do
   let (allSummaries, nguid') = summarise allDecls nguid
 
   -- We do this in one giant step to deal with recursion and deps on
@@ -194,28 +192,32 @@ synthesise m_seed nguid solv root md = do
   -- mapM_ symExecSummary' allDecls
   
   gen      <- maybe getStdGen (pure . mkStdGen) m_seed
-  let sst0 = emptyStrategyMState gen solv allSummaries md nguid'
-
+  let sst0 = emptyStrategyMState gen allSummaries md nguid'
+      solvSt0 = emptySolverState solv
+      
   -- Init solver stdlib
   -- FIXME: probably move?
   makeStdLib solv 
 
-  Streams.fromGenerator (go sst0)
+  Streams.fromGenerator (go sst0 solvSt0)
   
   where
-    go :: StrategyMState -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go s0 = do
-      ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0) initState) s0
+    go :: StrategyMState -> SolverState -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go s0 solvSt = do
+      ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
+                                               (initState solvSt)) s0
+                       
       Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go sts
+      go sts (solverState s)
 
-    initState = 
+    initState solvSt = 
       SynthesisMState { seenBytes      = mempty
                       , curStream      = emptyStream
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
+                      , stratlist      = strat
+                      , solverState    = solvSt
                       }
-
     
     Just rootDecl = find (\d -> fName d == root) allDecls
 
@@ -303,7 +305,11 @@ choosePath cp x = do
     Nothing  -> pure cp
     Just sl -> do
       prov <- freshProvenanceTag 
-      m_cp <- runStrategies strategies prov sl
+      strats <- SynthesisM $ gets stratlist
+      solvSt <- SynthesisM $ gets solverState
+      -- FIXME: abstract
+      (m_cp, solvSt') <- runStrategies solvSt strats prov sl
+      SynthesisM $ modify (\s -> s { solverState = solvSt' })
       case m_cp of
         Nothing -> panic "All strategies failed" []
         Just sp -> pure (merge cp sp)

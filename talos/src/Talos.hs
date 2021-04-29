@@ -27,11 +27,14 @@ import System.IO (hFlush, hPutStr, hPutStrLn
                  , openFile, IOMode(..))
 import System.Exit (exitFailure)
 
-import           System.IO.Streams (InputStream)
+import System.IO.Streams (InputStream)
 
 import Data.ByteString (ByteString)
 
-import Data.Map ( Map )
+import Data.Map ( Map, mapMaybe )
+
+import Data.List ( find )
+import Data.List.Split ( splitWhen )
 
 import qualified SimpleSMT as SMT
 
@@ -40,7 +43,7 @@ import Daedalus.Driver hiding (State)
 import Daedalus.Core
 import Daedalus.Value (Value)
 
-import Talos.SymExec.Monad
+import Talos.SymExec.SolverT
 import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
@@ -49,6 +52,10 @@ import Talos.Analysis.Monad (Summary)
 import Talos.SymExec.Path (ProvenanceMap)
 import Talos.Analysis.Slice (SummaryClass)
 
+import Talos.Strategy
+import Talos.Strategy.Monad 
+
+import Talos.Passes
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -99,10 +106,11 @@ synthesise :: FilePath           -- ^ DDL file
            -> [String]           -- ^ Solver args
            -> [(String, String)] -- ^ Backend solver options
            -> IO ()              -- ^ Backend solver init
+           -> Maybe String       -- ^ Synthesis strategy 
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
+synthesise inFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = do
   (mainRule, md, nguid) <- runDaedalus inFile m_entry
 
   -- SMT init
@@ -121,10 +129,18 @@ synthesise inFile m_entry backend bArgs bOpts bInit m_logOpts m_seed = do
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
+  let strat = case stratOpt of 
+             Nothing    -> allStrategies
+             Just "all" -> allStrategies 
+             Just names  -> 
+               let stratNames = (splitWhen (==',') names) in 
+               let maybes = map (\n -> find (\s -> (stratName s) == n) allStrategies) stratNames in 
+                 [x | Just x <- maybes] 
+
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  T.synthesise m_seed nguid solver mainRule md
+  T.synthesise m_seed nguid solver strat mainRule md
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type
@@ -141,10 +157,11 @@ runDaedalus inFile m_entry = daedalus $ do
   passSpecialize specMod [(mm, entryName)]  
   passCore specMod
   passStripFail specMod
-  
+  passSpecTys specMod
+    
   entry <- ddlGetFName mm entryName
 
-  md    <- ddlGetAST specMod astCore
+  md    <- ddlGetAST specMod astCore >>= ddlRunPass . nameConstArgsM -- FIXME: hack
   
   nguid <- ddlGet nextFreeGUID
   

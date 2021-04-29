@@ -57,7 +57,7 @@ doSummary opts = do
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
   let bOpts = [ ("auto-config", "false")
-              -- , ("smt.phase_selection", "5")
+              , ("smt.phase_selection", "5")
               -- see :smt.arith.random_initial_value also and seed options
               ]
               ++ if optValidateModel opts
@@ -66,8 +66,8 @@ doSynthesis opts = do
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
 
-  strm <- synthesise (optDDLInput opts) (optDDLEntry opts) (optSolver opts)
-            ["-smt2", "-in"] bOpts (pure ())
+  strm <- synthesise (optDDLInput opts) (optDDLEntry opts) (optSolver opts) 
+            ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
             logOpt (optSeed opts)
 
   -- model output

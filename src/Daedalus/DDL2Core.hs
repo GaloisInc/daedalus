@@ -237,7 +237,7 @@ fromGrammar gram =
       do ge <- fromGrammar g
          ty   <- fromGTypeM (TC.typeOf g)
          cbnd <- fromManybeBound bnd
-         let vs = Set.toList (freeVars ge)
+         let vs = Set.toList (freeVars ge `Set.union` foldMap freeVars cbnd)
 
          case cbnd of
            TC.Exactly e ->

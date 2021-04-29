@@ -1,11 +1,12 @@
 {-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.BTRand (randDFS, mkStrategyFun) where
+module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) where
 
-import Control.Applicative
 import Control.Monad.Reader
 
+import Control.Applicative
+import Control.Monad.Trans.Maybe
 import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl')
@@ -23,6 +24,7 @@ import Talos.Analysis.EntangledVars
 import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
+import Talos.Strategy.DFST
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -31,11 +33,60 @@ randDFS :: Strategy
 randDFS = 
   Strategy { stratName  = "rand-dfs"
            , stratDescr = "Simple depth-first random generation"
-           , stratFun   = \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+           , stratFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
            }
   where
     go :: ProvenanceTag -> Slice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
     go ptag sl = mkStrategyFun ptag sl
+
+-- ----------------------------------------------------------------------------------------
+-- Restarting strat (restart-on-failure)
+
+randRestart :: Strategy
+randRestart = 
+  Strategy { stratName  = "rand-restart"
+           , stratDescr = "Restart on failure with random selection"
+           , stratFun   = SimpleStrat randRestartStrat
+           }
+
+restartBound :: Int
+restartBound = 1000
+
+randRestartStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randRestartStrat ptag sl = go restartBound
+  where
+    go 0 = pure Nothing
+    go n = do
+      m_p <- once
+      case m_p of
+        Just {} -> pure m_p
+        Nothing -> go (n - 1)
+    
+    once :: StrategyM (Maybe SelectedPath)
+    once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)
+
+-- ----------------------------------------------------------------------------------------
+-- Local backtracking, restart
+
+randMaybeT :: Strategy
+randMaybeT = 
+  Strategy { stratName  = "rand-restart-local-bt"
+           , stratDescr = "Backtrack locally on failure, restart on (global) failure with random selection"
+           , stratFun   = SimpleStrat randMaybeStrat
+           }
+
+randMaybeStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randMaybeStrat ptag sl = go restartBound
+  where
+    go 0 = pure Nothing
+    go n = do
+      m_p <- once
+      case m_p of
+        Just {} -> pure m_p
+        Nothing -> go (n - 1)
+    
+    once :: StrategyM (Maybe SelectedPath)
+    once = runMaybeT (mkStrategyFun ptag sl)
   
 -- ----------------------------------------------------------------------------------------
 -- Main functions
@@ -71,7 +122,7 @@ stratSlice ptag = go
           let bs = filter (I.evalByteSet bset env) [0 .. 255]
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
-          liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
+          -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
           pure (I.vUInt 8 (fromIntegral b), SelectedMatch ptag (BS.singleton b))
 
         SMatch (MatchBytes e) -> do
@@ -88,6 +139,7 @@ stratSlice ptag = go
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
+          -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
           onSlice (SelectedChoice i) <$> go sl'
 
         SCall cn -> ask >>= stratCallNode ptag cn
@@ -105,14 +157,15 @@ stratSlice ptag = go
 -- Synthesise for each call 
 stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> I.Env -> 
                  ReaderT I.Env m (I.Value, SelectedNode)
-stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
-  (_, nonRes) <- unzip <$> mapM doOne (Map.elems lpaths ++ Map.elems rpaths)
-  (v, res)    <- maybe (pure (I.vUnit, Unconstrained)) doOne m_rsl
+stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
+  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
+  (v, res)    <- maybe (pure (I.vUnit, Unconstrained)) (doOne ResultVar) m_rsl
   pure (v, SelectedCall cl (foldl' merge res nonRes))
   where
     (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
     
-    doOne CallInstance { callParams = evs, callSlice = sl } =
+    doOne ev CallInstance { callParams = evs {- , callSlice = sl -} } = do
+      sl <- getParamSlice fn cl ev
       local (const (evsToEnv evs)) (stratSlice ptag sl)
 
     -- we rely on laziness to avoid errors in computing values with free variables
@@ -126,7 +179,7 @@ stratCallNode ptag CallNode { callClass = cl, callAllArgs = allArgs, callPaths =
 choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
 choose bs = do
   bs' <- randPermute bs
-  foldl mplus mzero (map pure bs')
+  foldr mplus mzero (map pure bs')
 
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
@@ -147,10 +200,9 @@ enumerate :: Traversable t => t a -> t (Int, a)
 enumerate t = evalState (traverse go t) 0
   where
     go a = state (\i -> ((i, a), i + 1))
-
-
+    
 -- =============================================================================
--- DFS monad transformer
+-- Restart monad transformer
 --
 -- This is similar to the list monad, but it wraps another monad and
 -- hence has to be a bit careful about what to do when --- if we use
@@ -162,31 +214,27 @@ enumerate t = evalState (traverse go t) 0
 -- The dfsCont takes the return value, and also an updated failure
 -- continuation, as we may want to backtrack into a completed
 -- computation.
-data DFSTContext r m a =
-  DFSTContext { dfsCont :: a -> m r -> m r
-              , dfsFail :: m r
-              }
+data RestartTContext r m a =
+  RestartTContext { randCont   :: a -> m r
+                  , randEscape :: m r
+                  }
 
-newtype DFST r m a = DFST { getDFST :: DFSTContext r m a -> m r }
+newtype RestartT r m a = RestartT { getRestartT :: RestartTContext r m a -> m r }
 
-runDFST :: DFST r m a -> (a -> m r) -> m r -> m r
-runDFST m cont fl = getDFST m (DFSTContext (\v _ -> cont v) fl)
+runRestartT :: RestartT r m a -> (a -> m r) -> m r -> m r
+runRestartT m cont fl = getRestartT m (RestartTContext (\v -> cont v) fl)
 
-instance Functor (DFST r m) where
-  fmap f (DFST m) = DFST $ \ctxt -> m (ctxt { dfsCont = dfsCont ctxt . f })
+instance Functor (RestartT r m) where
+  fmap f (RestartT m) = RestartT $ \ctxt -> m (ctxt { randCont = randCont ctxt . f })
 
-instance Applicative (DFST r m) where
-  pure v              = DFST $ \ctxt -> dfsCont ctxt v (dfsFail ctxt)
+instance Applicative (RestartT r m) where
+  pure v              = RestartT $ \ctxt -> randCont ctxt v
   (<*>)               = ap
-  -- DFST fm <*> DFST vm = DFST $ \ctxt ->
-  --   let vCont f = \v -> dfsCont ctxt (f v)
-  --       fCont   = \f -> vm (ctxt { dfsCont = vCont f })
-  --   in fm (ctxt { dfsCont = fCont })
 
-instance Monad (DFST r m) where
-  DFST m >>= f = DFST $ \ctxt ->
-    let cont v fl = getDFST (f v) ( ctxt { dfsFail = fl })
-    in m (ctxt { dfsCont = cont })
+instance Monad (RestartT r m) where
+  RestartT m >>= f = RestartT $ \ctxt ->
+    let cont v = getRestartT (f v) ctxt
+    in m (ctxt { randCont = cont })
 
 -- | We want
 --
@@ -195,19 +243,17 @@ instance Monad (DFST r m) where
 -- i.e., we give f the result of a, but if that fails, we run f on b's
 -- result.
 
-instance Alternative (DFST r m) where
-  (DFST m1) <|> (DFST m2) = DFST $ \ctxt ->
-    let ctxt1 = ctxt { dfsFail = m2 ctxt } in m1 ctxt1
-  empty = DFST dfsFail 
+instance Alternative (RestartT r m) where
+  m1 <|> _m2 = m1 
+  empty = RestartT randEscape
 
-instance MonadPlus (DFST r m) where -- default body (Alternative)
+instance MonadPlus (RestartT r m) where -- default body (Alternative)
                      
-instance MonadTrans (DFST r) where
-  lift m = DFST $ \ctxt -> m >>= \v -> dfsCont ctxt v (dfsFail ctxt)
+instance MonadTrans (RestartT r) where
+  lift m = RestartT $ \ctxt -> m >>= \v -> randCont ctxt v
   
-instance LiftStrategyM m => LiftStrategyM (DFST r m) where
+instance LiftStrategyM m => LiftStrategyM (RestartT r m) where
   liftStrategy m = lift (liftStrategy m)
-    
     
 
 

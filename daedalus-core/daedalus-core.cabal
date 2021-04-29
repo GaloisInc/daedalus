@@ -29,6 +29,7 @@ library
     Daedalus.Core.NoMatch,
     Daedalus.Core.Subst,
     Daedalus.Core.Normalize,
+    Daedalus.Core.TraverseUserTypes,    
     Daedalus.Core.StripFail,
     Daedalus.Core.SpecialiseType,
     Daedalus.Core.Semantics.Env,

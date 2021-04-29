@@ -3,19 +3,25 @@
 -- API for strategies, which say how to produce a path from a slice.
 
 module Talos.Strategy.Monad ( Strategy(..)
-                            , StratFun
+                            , StratFun(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getGFun, withSolver
+                            , summaries, getModule, getGFun, getParamSlice
                             , rand, randR, randL, randPermute
+                            -- , timeStrategy
                             ) where
 
+import Control.Exception (evaluate)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 import System.Random
 import Data.Foldable (find)
+import qualified Data.Map as Map
+
+import Control.DeepSeq (force)
+import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
 
 import SimpleSMT (Solver)
 
@@ -26,13 +32,21 @@ import Daedalus.PP
 
 import Talos.SymExec.Path
 import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summaries)
+import Talos.Analysis.Domain (lookupVar)
+import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
+import Talos.Analysis.EntangledVars (EntangledVar)
+
+import Talos.SymExec.SolverT (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
 
 -- FIXME: add: config (e.g. depth/max backtracks/etc.)
-type StratFun = ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+
+-- Gives some flexibility in how they are run.
+data StratFun =
+  SimpleStrat   (ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath))
+  | SolverStrat (ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath))
 
 data Strategy =
   Strategy { stratName  :: String
@@ -46,13 +60,12 @@ data Strategy =
 data StrategyMState =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
-                 , stsSolver :: Solver
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
                  , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Solver -> Summaries -> Module -> GUID -> StrategyMState
+emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
 emptyStrategyMState = StrategyMState
 
 newtype StrategyM a =
@@ -68,6 +81,17 @@ runStrategyM m st = runStateT (getStrategyM m) st
 summaries :: LiftStrategyM m => m Summaries
 summaries = liftStrategy (StrategyM (gets stsSummaries))
 
+getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVar -> m Slice
+getParamSlice fn cl ev = do
+  ss <- summaries
+  let m_s = do
+        summM <- Map.lookup fn ss
+        summ  <- Map.lookup cl summM
+        snd <$> lookupVar ev (exportedDomain summ)
+  case m_s of
+    Just sl -> pure sl
+    Nothing -> panic "Missing summary" [showPP fn, showPP cl, showPP ev]
+
 getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
 getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
   where
@@ -75,9 +99,8 @@ getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
       Nothing -> panic "Missing function" [showPP f]
       Just v  -> v
 
--- We could maybe start the solver if needed.
-withSolver :: LiftStrategyM m => (Solver -> m a) -> m a
-withSolver f = liftStrategy (StrategyM $ gets stsSolver) >>= f
+getModule :: LiftStrategyM m => m Module
+getModule = liftStrategy (StrategyM (gets stsModule))
 
 -- -----------------------------------------------------------------------------
 -- Random values
@@ -105,6 +128,22 @@ randPermute = go
                (:) x <$> go (pfx ++ sfx)
 
 -- -----------------------------------------------------------------------------
+-- Timing
+
+-- Returns the result and wall-clock time (in ns)
+-- timeStrategy :: Strategy -> ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath, Integer)
+-- timeStrategy f ptag sl = StrategyM $ do
+--   st <- get
+--   (res, st') <- liftIO $ do
+--     start     <- getTime MonotonicRaw
+--     (rv, st') <- runStrategyM (stratFun f ptag sl) st
+--     rv' <- evaluate $ force rv
+--     end       <- getTime MonotonicRaw
+--     pure ((rv', toNanoSecs (diffTimeSpec end start)), st')
+--   put st'
+--   pure res
+
+-- -----------------------------------------------------------------------------
 -- Class
 
 class Monad m => LiftStrategyM m where
@@ -121,6 +160,10 @@ instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
 
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
   liftStrategy m = lift (liftStrategy m)
+
+instance LiftStrategyM m => LiftStrategyM (SolverT m) where
+  liftStrategy m = lift (liftStrategy m)
+
 
 -- -----------------------------------------------------------------------------
 -- Instances
