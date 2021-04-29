@@ -1189,7 +1189,7 @@ fromTCTyDef tdef =
     TC.TCTyStruct fs -> TStruct (map field fs)
     TC.TCTyUnion fs  -> TUnion  (map field fs)
   where
-  field (l,t) = (l, fromType t)
+  field (l,(t, _)) = (l, fromType t) -- FIXME: this erases bitdata info
 
 
 
@@ -1385,8 +1385,8 @@ newTNameRec rec =
     let flavor = case TC.tctyDef d of
                    TC.TCTyStruct {} -> TFlavStruct
                    TC.TCTyUnion cs
-                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum (map fst cs)
-                     | otherwise                    -> TFlavUnion (map fst cs)
+                     | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
+                     | otherwise                                -> TFlavUnion (map fst cs)
     in newTName r flavor (TC.tctyName d)
 
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()

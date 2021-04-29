@@ -193,7 +193,7 @@ hasStruct r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyStruct fs | Just fty1 <- lookup l fs ->
+                        TCTyStruct fs | Just (fty1, _) <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
                              unify (apSubstT su fty1) (r,fty)
                              pure Solved
@@ -218,7 +218,7 @@ hasUnion r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyUnion fs | Just fty1 <- lookup l fs ->
+                        TCTyUnion fs | Just (fty1,_) <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
                              unify (apSubstT su fty1) (r,fty)
                              pure Solved
@@ -400,11 +400,11 @@ isTyDef r ty t fs0 =
            Just def ->
              case def of
                TCTyStruct dfs
-                 | StructDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | StructDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
                                          pure Solved
                  | otherwise -> reportError r "Structure used as union."
                TCTyUnion dfs
-                 | UnionDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | UnionDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
                                         pure Solved
                  | otherwise -> reportError r "Union used a structure"
 
@@ -570,11 +570,10 @@ simplifyConstraints =
 
              where
              defTy tcon =
-               do let fields = [ (f,thingValue t) | (f,t) <- fs ]
-                  newTypeDef tcon
+               do newTypeDef tcon
                     case ty of
-                      StructDef -> TCTyStruct fields
-                      UnionDef  -> TCTyUnion  fields
+                      StructDef -> TCTyStruct [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
+                      UnionDef  -> TCTyUnion  [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
                   su <- getTypeSubst
                   go [] su (notYet ++ more)
 

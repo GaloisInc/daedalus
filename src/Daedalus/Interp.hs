@@ -31,6 +31,7 @@ module Daedalus.Interp
 
 import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
 
+import Data.Bits (shiftR, (.&.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -92,6 +93,8 @@ data Env = Env
 
   , tyEnv   :: Map TVar TValue
     -- ^ Bindings for polymorphic type argumens
+  , tyDecls :: Map TCTyName TCTyDecl
+    -- ^ Used for bitdata (for coercion)
   }
 
 type Prims = Map Name SomeFun
@@ -99,7 +102,7 @@ type Prims = Map Name SomeFun
 emptyEnv :: Env
 emptyEnv = Env Map.empty Map.empty Map.empty
                Map.empty Map.empty Map.empty
-               Map.empty
+               Map.empty Map.empty
 
 setVals :: Map Name Value -> Env -> Env
 setVals vs env = env { valEnv = vs }
@@ -379,14 +382,50 @@ evalCase eval ifFail env e alts def =
            Just d  -> eval env d
            Nothing -> ifFail
 
-
-
 tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
 tryAlt eval env v (TCAlt ps e) =
   do binds <- matchPatOneOf ps v
      let newEnv = foldr (uncurry addVal) env binds
      pure (eval newEnv e)
 
+evalBitData :: HasRange a =>
+  Env ->
+  TC a K.Value -> 
+  Type ->
+  Maybe Value
+evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
+  where
+    go bits ty' = 
+      case ty' of
+        Type (TUInt (Type (TNum w))) -> Just $ vUInt  (fromIntegral w) bits
+        Type (TSInt (Type (TNum w))) -> Just $ vSInt' (fromIntegral w) bits
+        TCon n [] | Just tdecl <- Map.lookup n (tyDecls env) -> goCon bits tdecl 
+        _ -> panic "evalBitData"
+                   [ "Cannot coerce to type"
+                   , show (pp ty')
+                   ]
+
+    goCon bits tdecl =
+      case tctyDef tdecl of
+        TCTyStruct flds -> vStruct <$> mapM (goS bits) flds
+        TCTyUnion  flds -> msum (map (goU bits) flds)
+
+    goS _bits (_, (_, Nothing)) =
+      panic "evalBitData" [ "Missing bitdata struct meta data"
+                          , show (pp ty)
+                          ]
+      
+    goS bits (fld, (ty', Just sm)) =
+      (,) fld <$> go ((bits `shiftR` tcbdsLowBit sm) `mod` 2 ^  (tcbdsWidth sm)) ty'
+
+    goU _bits (_, (_, Nothing)) =
+      panic "evalBitData" [ "Missing bitdata union meta data"
+                          , show (pp ty)
+                          ]
+    goU bits (fld, (ty', Just sm))
+      | bits .&. tcbduMask sm == tcbduBits sm = VUnionElem fld <$> go bits ty'
+      | otherwise                             = Nothing
+      
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
 matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
 
@@ -695,6 +734,12 @@ compilePExpr env expr0 args = go expr0
             Just v  -> v args
             Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
+        -- BitData
+        TCCoerceCheck  s _ t@(TCon {}) e ->
+          case evalBitData env e t of
+            Just v  -> pure $! mbSkip s v
+            Nothing -> pError FromSystem erng "value does not fit in target type"
+            
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of
             (v, exact) ->
@@ -801,7 +846,7 @@ compileDecls prims env decls = env'
 compile :: HasRange a =>
           [ (Name, ([Value] -> Parser Value)) ]
         -> [TCModule a] -> Env
-compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
+compile builtins prog = foldl (compileDecls prims) env0 allRules
   where
     prims = Map.fromList [ (i, mkRule f) | (i, f) <- builtins ]
     someValToValue sv =
@@ -811,7 +856,10 @@ compile builtins prog = foldl (compileDecls prims) emptyEnv allRules
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
     
-    allRules = map (forgetRecs . tcModuleDecls) prog
+    allRules   = map (forgetRecs . tcModuleDecls) prog
+    allTyDecls = concatMap (forgetRecs . tcModuleTypes) prog
+
+    env0     = emptyEnv { tyDecls = Map.fromList [ (tctyName d, d) | d <- allTyDecls ] }
 
 interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled name bytes env startName args = 

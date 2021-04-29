@@ -8,6 +8,7 @@ module Daedalus.Value
     -- * Numbers
   , vUInt
   , vSInt
+  , vSInt'
   , vSize
   , vByte
   , vCoerceTo

@@ -18,12 +18,12 @@ import Daedalus.Parser.Monad
 %tokentype    { Lexeme Token }
 
 %token
-  BIGIDENT    { (isLexBigIdent   -> Just $$) }
-  SMALLIDENT  { (isLexSmallIdent -> Just $$) }
-  SETIDNET    { (isLexSetIdent   -> Just $$) }
-  BYTE        { (isLexByte       -> Just $$) }
-  BYTES       { (isLexBytes      -> Just $$) }
-  NUMBER      { (isLexNumber     -> Just $$) }
+  BIGIDENT    { (isLexBigIdent    -> Just $$) }
+  SMALLIDENT  { (isLexSmallIdent  -> Just $$) }
+  SETIDNET    { (isLexSetIdent    -> Just $$) }
+  BYTE        { (isLexByte        -> Just $$) }
+  BYTES       { (isLexBytes       -> Just $$) }
+  NUMBER      { (isLexTypedNumber -> Just $$) }
 
   '('         { Lexeme { lexemeRange = $$, lexemeToken = OpenParen } }
   ')'         { Lexeme { lexemeRange = $$, lexemeToken = CloseParen } }
@@ -77,6 +77,9 @@ import Daedalus.Parser.Monad
    for 'label` also, as it is likely to be a valid union label. -}
 
   'def'       { Lexeme { lexemeRange = $$, lexemeToken = KWDef } }
+  'bitdata'   { Lexeme { lexemeRange = $$, lexemeToken = KWBitData } }
+  'where'     { Lexeme { lexemeRange = $$, lexemeToken = KWWhere } }
+
   'true'      { Lexeme { lexemeRange = $$, lexemeToken = KWTrue } }
   'false'     { Lexeme { lexemeRange = $$, lexemeToken = KWFalse } }
   'for'       { Lexeme { lexemeRange = $$, lexemeToken = KWFor } }
@@ -157,7 +160,7 @@ import Daedalus.Parser.Monad
 -- High Precedence
 %%
 
-module ::                                     { ([Located ModuleName], [Rule]) }
+module ::                                     { ([Located ModuleName], [Decl]) }
   : imports decls                             { ($1, $2) }
 
 imports ::                                    { [Located ModuleName] }
@@ -171,12 +174,39 @@ import ::                                     { Located ModuleName }
   : 'import' BIGIDENT                         { Located (fst $2) (snd $2) }
   | 'import' SMALLIDENT                       { Located (fst $2) (snd $2) }
 
-decls ::                                      { [Rule] }
+decls ::                                      { [Decl] }
   : listOf(decl)                              { $1 }
 
-decl                                       :: { Rule }
+decl                                       :: { Decl }
+  : rule                                      { DeclRule $1 }
+  | bitdata                                   { DeclBitData $1 }
+  
+rule ::                                     { Rule }
   : 'def' name listOf(ruleParam)
-    optRetType optDef                         { mkRule $1 $2 $3 $4 $5 }
+          optRetType optDef                 { mkRule $1 $2 $3 $4 $5 }
+
+bitdata ::                                  { BitData }
+  : 'bitdata' name 'where' 
+     'v{' separated(bitdata_ctor, virtSep) 'v}' { BitData { bdName = $2, bdCtors = $5
+     	  			  	   	          , bdRange = $1 <-> $6 } }
+
+bitdata_ctor ::                             { ( Located Label, [ Located BitDataField ] ) }
+  : label '=' bitdata_defn                  { ( $1, $3 ) }
+
+bitdata_defn ::                             { [ Located BitDataField ] }
+  : bitdata_tag                             { [ $1 ] }
+  | '{'
+    separated1(bitdata_field, commaOrSemi)  
+    '}'                                     { $2 }
+
+bitdata_field ::                            { Located BitDataField }
+  : bitdata_tag                             { $1 }
+  | '_'   ':' type                          { loc ($1 <-> $3) (BDFWildcard (Just $3)) }
+  | label ':' type                          { loc ($1 <-> $3) (BDFField (thingValue $1) (Just $3)) }
+
+bitdata_tag ::                              { Located BitDataField }
+  : NUMBER                                  { Located (fst $1)    (BDFLiteral (fst (snd $1)) (snd (snd $1))) }
+  | NUMBER ':' type                         { loc (fst $1 <-> $3) (BDFLiteral (fst (snd $1)) (Just $3)) }
 
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
@@ -376,7 +406,7 @@ call_expr                                :: { Expr }
 aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'UInt8'                                 { at $1      EAnyByte }
-  | '$uint' NUMBER                          {% mkUInt $1 $2 }
+  | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
   | name                                    { at $1 (EVar $1) }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
@@ -438,7 +468,7 @@ union_field                              :: { Either Expr (UnionField Expr) }
   | label '=' expr                          { Right ($1 :> $3) }
 
 literal                                  :: { (SourceRange, Literal) }
-  : NUMBER                                  { LNumber `fmap` $1 }
+  : NUMBER                                  { (LNumber . fst) `fmap` $1 }
   | 'true'                                  { ($1, LBool True) }
   | 'false'                                 { ($1, LBool False) }
   | BYTES                                   { LBytes `fmap` $1 }
@@ -469,7 +499,10 @@ nested_pattern                           :: { Pattern }
 
 separated(p,s)                           :: { [p] }
   : {- empty -}                             { [] }
-  | p                                       { [$1] }
+  | separated1(p,s)                         { $1 }
+
+separated1(p,s)                          :: { [p] }
+  : p                                       { [$1] }
   | p s separated(p,s)                      { $1 : $3 }
 
 type                                     :: { SrcType }
@@ -482,7 +515,7 @@ type                                     :: { SrcType }
   | '(' type  ')'                           { $2 }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
-  | NUMBER                                  { atT (fst $1) (TNum (snd $1)) }
+  | NUMBER                                  { atT (fst $1) (TNum (fst (snd $1))) }
   | name                                    { SrcVar $1 }
 
 arr_or_map                               :: { TypeF SrcType }
@@ -546,8 +579,16 @@ isLexBytes x = case lexemeToken x of
 
 isLexNumber :: LexPattern Integer
 isLexNumber x = case lexemeToken x of
-                  Number v -> Just (lexemeRange x, v)
-                  _        -> Nothing
+                  Number v _ -> Just (lexemeRange x, v)
+                  _          -> Nothing
+
+isLexTypedNumber :: LexPattern (Integer, Maybe SrcType)
+isLexTypedNumber x = case lexemeToken x of
+		 Number v m_n -> 
+		   let r   = lexemeRange x
+		       m_t = atT r . TUInt . atT r . TNum . fromIntegral <$> m_n
+		   in Just (r, (v, m_t))
+		 _            -> Nothing
 
 --------------------------------------------------------------------------------
 

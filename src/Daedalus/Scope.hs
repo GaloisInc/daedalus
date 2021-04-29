@@ -3,7 +3,7 @@
 
 module Daedalus.Scope (
   -- resolveModules,
-  resolveModule, ScopeError(..), prettyScopeError
+  resolveModule, Scope(..), ScopeError(..), prettyScopeError
   ) where
 
 import Data.Functor ( ($>) )
@@ -35,9 +35,12 @@ import Daedalus.Pass
 -- which variables are used by each rule.  The latter information is
 -- used to determine the SCCs.
 
-type VarScope = Map Ident Name
+data Scope =
+  Scope { identScope :: Map Ident (IdentClass, Name)
+         -- ^ Both function names and types (mainly bitdata)
+        }
 
-data Scope = Scope { varScope      :: VarScope }
+data IdentClass = IdentFun | IdentTy
 
 data ScopeState = ScopeState { seenToplevelNames :: Set Name }
 
@@ -50,6 +53,7 @@ emptyScopeState = ScopeState { seenToplevelNames = Set.empty }
 data ScopeError = ScopeViolation ModuleName Name
                 | DuplicateNames ModuleName (Map Ident [Name])
                 | DifferentCaseVars [Set Name]
+                | RecursiveBitData  [Name]
                   deriving Show
 
 instance PP ScopeError where
@@ -62,6 +66,9 @@ instance PP ScopeError where
                                $$ nest 2 (bullets (map mkOne (Map.toList m)))
     where
       mkOne (k, vs) = pp k <+> "declared at" <+> vcat (map (pp . nameRange) vs)
+                               
+  pp (RecursiveBitData ns) = "Recursive bitdata rules:"
+                               $$ sep (punctuate comma (map pp ns))
 
 instance Exception ScopeError where
   displayException = show . pp
@@ -95,8 +102,8 @@ recordNameRef r
 extendLocalScopeIn :: [Name] -> ScopeM a -> ScopeM a
 extendLocalScopeIn ids (ScopeM m) = ScopeM (mapReader extendScope m)
   where
-    extendScope s = s { varScope = foldl extendOneScope (varScope s) ids }
-    extendOneScope vs n = Map.insert (nameScopeAsLocal n) n vs
+    extendScope s = s { identScope = foldl extendOneScope (identScope s) ids }
+    extendOneScope vs n = Map.insert (nameScopeAsLocal n) (IdentFun, n) vs
 
 makeNameLocal :: Name -> ScopeM Name
 makeNameLocal n = do
@@ -109,7 +116,7 @@ getScope = ScopeM ask
 --------------------------------------------------------------------------------
 -- Entry points
 
-type GlobalScope = Map ModuleName (Map Ident Name) {- ^ Maps module name to what's in scope -}
+type GlobalScope = Map ModuleName Scope {- ^ Maps module name to what's in scope -}
 
 newtype ResolveM a =
   ResolveM { getResolveM ::
@@ -141,47 +148,64 @@ resolveModule scope m = runExceptionT (runStateT scope (getResolveM go))
 resolveModule' :: Module -> ResolveM Module
 resolveModule' m =
   do ns' <- mapM (makeNameModScope (moduleName m) . ruleName) rs
-     let namedRs = (zip ns' rs)
+     let namedRs = zip ns' rs
+     bdns' <- mapM (makeNameModScope (moduleName m) . bdName) (moduleBitData m)
+     let namedBDs = zip bdns' (moduleBitData m)
+     
      ms <- ResolveM get
-     scope <- Scope <$> moduleScope m ms namedRs
-     rs' <- mkRec <$> mapM (runResolve scope) namedRs
-     pure $ m { moduleRules = rs' }
+     scope <- moduleScope m ms namedRs namedBDs
+     
+     rs'  <- mkRec <$> mapM (runResolve scope) namedRs
+     bds' <- (mkRec <$> mapM (runResolveBD scope) namedBDs) >>= mapM checkBDRecs
+     
+     pure $ m { moduleBitData = bds', moduleRules = rs' }
   where
     rs  = forgetRecs (moduleRules m)
     mkRec = map sccToRec . stronglyConnComp
 
+    checkBDRecs :: Rec BitData -> ResolveM BitData
+    checkBDRecs (NonRec v) = pure v
+    checkBDRecs (MutRec vs) = ResolveM $ raise (RecursiveBitData (map bdName vs))
+    
     -- FIXME: make nicer (can plumb through nextguid better)
     runResolve :: Scope -> (Name, Rule) -> ResolveM (Rule, Name, [Name])
     runResolve scope (n, r) = do
       (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveRule r n))) >>= raises)
       return (r', n, Set.toList (seenToplevelNames st))
 
+    runResolveBD :: Scope -> (Name, BitData) -> ResolveM (BitData, Name, [Name])
+    runResolveBD scope (n, bd) = do
+      (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveBitData bd n))) >>= raises)
+      return (r', n, Set.toList (seenToplevelNames st))
+
 -- | Figure out the map from idents to resolved names for a given
 -- module.  This is slightly more complex than it has to be, as we try
 -- to detect all dups, not just the first.
-moduleScope :: Module -> GlobalScope -> [(Name, Rule)] -> ResolveM VarScope
+moduleScope :: Module -> GlobalScope -> [(Name, Rule)] -> [(Name, BitData)] -> ResolveM Scope
   {- ^ All things in scope of this module, new things defined -}
-moduleScope m ms rs =
+moduleScope m ms rs bds =
   case runM merged Map.empty of
     ((allDs, defs'), dups) | Map.null dups -> allDs <$ (ResolveM $ sets_ (addRuleNames defs'))
     (_, dups)                 -> ResolveM $ raise (DuplicateNames (moduleName m) dups)
   where
     addRuleNames defs' = Map.insert (moduleName m) defs'
     
-    merged  :: StateT (Map Ident [Name]) Id (VarScope, Map Ident Name)
+    merged  :: StateT (Map Ident [Name]) Id (Scope, Scope)
     merged  = do defs' <- foldM doMerge Map.empty defs
                  allDs <- foldM doMerge defs' imported
-                 return (allDs, defs')
+                 return (Scope allDs, Scope defs')
 
     doMerge = mergeA preserveMissing preserveMissing (zipWithAMatched matched)
     
-    matched :: Ident -> Name -> Name -> StateT (Map Ident [Name]) Id Name
-    matched k x y = sets_ (Map.insertWith (++) k [x, y]) $> x
+    matched :: Ident -> (IdentClass, Name) -> (IdentClass, Name) ->
+               StateT (Map Ident [Name]) Id (IdentClass, Name)
+    matched k x y = sets_ (Map.insertWith (++) k [snd x, snd y]) $> x
 
-    imported = [ ms Map.! thingValue i | i <- moduleImports m ]
+    imported = [ identScope (ms Map.! thingValue i) | i <- moduleImports m ]
 
     -- Makes it easier to detect duplicates
-    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) n | (n, r) <- rs ]
+    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) (IdentFun, n) | (n, r) <- rs ]
+            ++ [ Map.singleton (nameScopeAsUnknown (bdName bd)) (IdentTy, n) | (n, bd) <- bds ]
 
 -- -----------------------------------------------------------------------------
 -- A type class for resolving names
@@ -198,6 +222,13 @@ resolveRule r n' = do
                , ruleRange  = ruleRange r
                })
 
+resolveBitData :: BitData -> Name -> ScopeM BitData
+resolveBitData bd n' = do
+  ctors' <- mapM (\(a, b) -> (,) a <$> resolve b) (bdCtors bd)
+  return (bd { bdName   = n'
+             , bdCtors  = ctors'
+             })
+
 class ResolveNames t where
   resolve :: t -> ScopeM t
 
@@ -211,9 +242,9 @@ instance ResolveNames a => ResolveNames (Maybe a) where
 instance ResolveNames Name where
   resolve x = do
     do scope <- getScope
-       case Map.lookup (nameScopeAsUnknown x) (varScope scope) of
-         Just n -> x { nameScopedIdent = nameScopedIdent n
-                     , nameID = nameID n } <$ recordNameRef n
+       case Map.lookup (nameScopeAsUnknown x) (identScope scope) of
+         Just (_cl, n) -> x { nameScopedIdent = nameScopedIdent n
+                            , nameID = nameID n } <$ recordNameRef n
          Nothing -> makeNameLocal x
 
 instance ResolveNames Expr where
@@ -222,6 +253,13 @@ instance ResolveNames Expr where
 instance ResolveNames RuleParam where
   resolve p = RuleParam <$> makeNameLocal (paramName p)
                         <*> resolve (paramType p)
+
+instance ResolveNames BitDataField where
+  resolve p =
+    case p of
+      BDFLiteral n m_t -> BDFLiteral n <$> resolve m_t
+      BDFField   l m_t -> BDFField l   <$> resolve m_t
+      BDFWildcard  m_t -> BDFWildcard  <$> resolve m_t
 
 instance ResolveNames e => ResolveNames (ExprF e) where
   resolve expr =
@@ -328,10 +366,8 @@ instance ResolveNames SrcType where
   resolve ty =
     case ty of
       -- FIXME: should we treat tvs differently?
-      SrcVar x -> SrcVar <$> resolve x
-
+      SrcVar x   -> SrcVar  <$> resolve x
       SrcType tf -> SrcType <$> resolve tf
-
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]
 resolveStructFields []       = return []

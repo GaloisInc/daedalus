@@ -272,7 +272,8 @@ hsTyDeclDef env me@TCTyDecl { .. } =
         )
 
   where
-  fldT (f,t) = (f, hsType env t)
+  fldT :: (Label, (Type, a)) -> (Label, Term)
+  fldT (f,(t, _)) = (f, hsType env t) -- FIXME: this erases BitData info
 
 -- | Declara a type and related instances.
 hsTyDecl :: Env -> TCTyDecl -> [Decl]

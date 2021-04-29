@@ -204,16 +204,19 @@ instance TraverseTypes (TCDeclDef a k) where
       Defined d    -> Defined <$> traverseTypes f d
 
 instance TraverseTypes TCTyDecl where
-  traverseTypes f TCTyDecl { .. } = mk <$> traverseTypes f tctyDef
+  traverseTypes f TCTyDecl { .. } =
+    mk <$> traverseTypes f tctyDef
     where
     mk d = TCTyDecl { tctyDef = d, .. }
 
 instance TraverseTypes TCTyDef where
-  traverseTypes f def =
+  traverseTypes (f :: Type -> f Type) def =
     case def of
       TCTyStruct fs -> TCTyStruct <$> traverse doField fs
       TCTyUnion  fs -> TCTyUnion  <$> traverse doField fs
-    where doField (x,t) = (x,) <$> f t
+    where
+      doField :: (Label, (Type, a)) -> f (Label, (Type, a))
+      doField (x,(t,m)) = (x,) <$> ( (,) <$> f t <*> pure m)
 
 instance TraverseTypes a => TraverseTypes (Rec a) where
   traverseTypes f r =

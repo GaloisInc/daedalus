@@ -276,18 +276,43 @@ data Param = ValParam (TCName Value)
 data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
                    , tctyParams :: ![TVar]
+                   , tctyBDWidth :: !(Maybe Int)
+                   -- ^ number of bits for this type if it is a bitdata
                    , tctyDef    :: !TCTyDef
                    } deriving Show
-
 
 data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct [(Label,Type)]
-                | TCTyUnion  [(Label,Type)]
+data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
+                | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
                   deriving Show
 
+data TCBDStructMeta =
+  TCBDStructMeta { tcbdsLowBit :: !Int
+                 , tcbdsWidth  :: !Int
+                 } deriving Show
+
+-- ^ The mask and value let us match the corresponding tag bits for
+-- union constructors. This does not include the masks etc. for
+-- sub-fields (which may also be unions).  We use Integer here as we
+-- support arbitrary bit widths.
+data TCBDUnionMeta =
+  TCBDUnionMeta { tcbduMask :: !Integer
+                , tcbduBits :: !Integer
+                } deriving Show
+
+
+-- These (should) be known at type checking time.  An 8 bit field in
+-- the least-significant bits of a word will be TCBitDataRange { lowBit = 0, highBit = 7 }
+data TCBitDataRange =
+  TCBitDataRange { tcbdrLowBit  :: !Int
+                 , tcbdfHighBit :: !Int
+                 -- FIXME: split this into 2 types, one for struct, one for unions?
+                 , tcbdrMask    :: !Integer
+                 , tcbdrValue   :: !Integer
+                 }  deriving Show
 
 data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
@@ -567,8 +592,7 @@ instance PP TCTyDef where
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where
-    ppF (x,t) = pp x <.> ":" <+> pp t
-
+    ppF (x,(t, _)) = pp x <.> ":" <+> pp t
 
 instance PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
