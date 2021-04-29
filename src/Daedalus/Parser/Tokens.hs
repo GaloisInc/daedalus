@@ -7,7 +7,7 @@ data Token =
     BigIdent
   | SmallIdent
   | SetIdent
-  | Number  !Integer
+  | Number  !Integer !(Maybe Int)
   | Bytes   !ByteString
   | Byte    !Word8
 
@@ -116,9 +116,12 @@ data Token =
   | KWArrayStream
   | KWFail
   | KWCase
-
+  | KWBitData
+  | KWWhere
+  
   | TokError !String
   | TokEOF
+
     deriving Show
 
 

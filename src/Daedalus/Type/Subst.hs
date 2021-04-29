@@ -59,8 +59,8 @@ instance ApSubst TCTyDef where
       TCTyStruct fs -> TCTyStruct <$> someJusts apF fs
       TCTyUnion fs  -> TCTyUnion  <$> someJusts apF fs
     where
-    apF (x,t) = (x,) <$> apSubstT' su t
-
+    apF :: (Label, (Type, a)) -> Maybe (Label, (Type, a))
+    apF (x,(t,m)) = (x,) <$> ((,) <$> apSubstT' su t <*> pure m)
 
 instance ApSubst Constraint where
   apSubstT' su ctr =

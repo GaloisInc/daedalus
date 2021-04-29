@@ -1,0 +1,18 @@
+module T063
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T063.Main : Grammar bool =
+  do (_2 : bool) <- do (_1 : uint 8) <- GetByte
+                       pure (_1 == 2)
+     if _2 then pure true else do (_3 : uint 8) <- GetByte
+                                  pure (_3 == 3)
+ 
+T063._Main : Grammar {} =
+  do (_2 : bool) <- do (_1 : uint 8) <- GetByte
+                       pure (_1 == 2)
+     if _2 then pure {} else @GetByte

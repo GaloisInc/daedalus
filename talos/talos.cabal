@@ -53,6 +53,7 @@ library
   build-depends:       base
                      , daedalus
                      , daedalus-utils
+                     , daedalus-value
                      , daedalus-core
                      , random
                      , rts-hs
@@ -77,6 +78,7 @@ executable talos
   build-depends:       base
                      , talos
                      , daedalus
+                     , daedalus-value
                      , daedalus-utils
                      , optparse-applicative
                      , bytestring

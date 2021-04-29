@@ -41,7 +41,7 @@ def Main = {
         graphHeader = GraphicHeader ;
 
         -- parse the bytes in the data segment
-        graphData = Many gls.seglen Byte ;
+        graphData = Many (gls.seglen as! uint 64) Byte ;
       } ; 
 
     -- parse each text segment:
@@ -52,7 +52,7 @@ def Main = {
         CheckDateTime ldt txtHeader.txtdt ;
 
         -- parse the bytes in the data segment
-        txtData = Many textls.lt Byte ;
+        txtData = Many (textls.lt as! uint 64) Byte ;
       };
 
     -- parse each data-extension segment:
@@ -61,7 +61,7 @@ def Main = {
         dataExtHeader = DataExtHeader ;
 
         -- parse the bytes in the data extension data segment
-        dataExtData = Many dataextls.ld Byte ;
+        dataExtData = Many (dataextls.ld as! uint 64) Byte ;
       } ;
 
     -- parse each reserved-extension segment:
@@ -70,7 +70,7 @@ def Main = {
         resExtHeader = ResExtHeader ;
 
         -- parse the bytes in the reserved extension data segment
-        resExtData = Many resextls.lre Byte ;
+        resExtData = Many (resextls.lre as! uint 64) Byte ;
       } ;
 
     -- TEST: enable to fail JITC Neg Format cases

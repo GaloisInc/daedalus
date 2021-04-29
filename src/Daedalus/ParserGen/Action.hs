@@ -17,7 +17,6 @@ module Daedalus.ParserGen.Action
   , isUnhandledInputAction
   , isUnhandledAction
   , isPushAction
-  , isBranchAction
   , getMatchBytes
   , getClassActOrEnd
   , isEmptyControlData
@@ -44,10 +43,10 @@ import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
 
 import Daedalus.PP hiding (empty)
+import qualified Daedalus.Value as Interp
+import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
-import qualified Daedalus.Interp as Interp
-import Daedalus.Interp.Value (valueToInteger, doCoerceTo)
 import RTS.Numeric(intToSize)
 import RTS.Input(Input(..))
 import qualified RTS.Input as Input
@@ -259,12 +258,6 @@ isPushAction :: Action -> Bool
 isPushAction act =
   case act of
     CAct (Push _ _ _) -> True
-    _ -> False
-
-isBranchAction :: Action -> Bool
-isBranchAction act =
-  case act of
-    BAct _ -> True
     _ -> False
 
 getClassActOrEnd :: Action -> Either (Either NCExpr InputAction) InputAction
@@ -508,6 +501,7 @@ isSimpleVExpr e =
     TCLiteral (LNumber {}) _ -> True
     TCLiteral (LByte   {}) _ -> True
     TCLiteral _            _ -> False
+    TCVar _nname -> True
     TCNothing _ty -> False
     TCStruct _lst _ -> False
     TCMapEmpty _ty -> False
@@ -518,7 +512,6 @@ isSimpleVExpr e =
     TCIf _e1 _e2 _e3 -> False
     TCCall _fname _t _lst -> False
     TCFor _ -> False
-    TCVar _nname -> False
     TCArray _lste _ty -> False
     TCUnit -> False
     x -> error ("TODO: "++ show x)
@@ -550,7 +543,7 @@ evalVExpr gbl expr ctrl out =
       case texprValue e of
         TCCoerce _ty1 ty2 e1 ->
           let ev = eval env e1 in
-          fst $ doCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
+          fst $ Interp.vCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
         TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
@@ -623,6 +616,12 @@ evalVExpr gbl expr ctrl out =
         TCArray lste _ty ->
           let lev = map (\ ex -> eval env ex) lste
           in Interp.VArray (Vector.fromList lev)
+        TCArrayLength e1 ->
+          let ev = eval env e1
+          in
+          case ev of
+            Interp.VArray v -> Interp.VUInt 64 (fromIntegral $ length v)
+            _ -> error "should be an array"
         TCUnit -> defaultValue
         x -> error ("TODO: "++ show x)
 
@@ -807,7 +806,7 @@ applyInputAction gbl (inp, ctrl, out) act =
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
     StreamLen s e1 e2 ->
-      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
+      let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->
@@ -818,7 +817,7 @@ applyInputAction gbl (inp, ctrl, out) act =
 
 
     StreamOff s e1 e2 ->
-      let n   = valueToInteger (evalVExpr gbl e1 ctrl out)
+      let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
            Interp.VStream i1 ->
@@ -1131,9 +1130,9 @@ applySemanticAction gbl (ctrl, out) act =
            _ -> error "Lookup is not applied to value of type map"
     CoerceCheck s _t1 t2 e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out in
-        case doCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
-          (v, NotLossy) -> resultWithSem s v
-          (_, Lossy) -> Nothing -- error "Lossy coercion"
+        case Interp.vCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
+          (v, True) -> resultWithSem s v
+          (_, False) -> Nothing -- error "Lossy coercion"
 
     Guard e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out

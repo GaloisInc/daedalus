@@ -169,7 +169,7 @@ hsConstraint env ctr =
     Literal i t ->
       "RTS.Literal" `Ap` hsType env (Type (TNum i)) `Ap` hsType env t
 
-    CAdd x y z   -> ApI "~" (ApI "+" (hsType env x) (hsType env y))
+    CAdd x y z   -> ApI "~" (ApI "HS.+" (hsType env x) (hsType env y))
                             (hsType env z)
 
     Coerce _ a b -> "RTS.Convert" `Ap` hsType env a `Ap` hsType env b
@@ -272,7 +272,8 @@ hsTyDeclDef env me@TCTyDecl { .. } =
         )
 
   where
-  fldT (f,t) = (f, hsType env t)
+  fldT :: (Label, (Type, a)) -> (Label, Term)
+  fldT (f,(t, _)) = (f, hsType env t) -- FIXME: this erases BitData info
 
 -- | Declara a type and related instances.
 hsTyDecl :: Env -> TCTyDecl -> [Decl]
@@ -458,6 +459,8 @@ hsByteClass env tc =
 
      TCFor {} -> panic "hsByteClass" ["Unexpected TCFor"]
 
+     TCIf e e1 e2 -> If (hsValue env e) (hsByteClass env e1)
+                                        (hsByteClass env e2)
      TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
 
@@ -636,6 +639,8 @@ hsGrammar env tc =
        where m' = case m of
                     Commit    -> "RTS.Abort"
                     Backtrack -> "RTS.Fail"
+
+     TCIf e e1 e2 -> If (hsValue env e) (hsGrammar env e1) (hsGrammar env e2)
 
      TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
        where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng

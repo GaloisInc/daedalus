@@ -146,10 +146,21 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
 --------------------------------------------------------------------------------
 data Info = Info
   { iBlockOwned :: Set BA
+    -- ^ Only meaningful while analyzing a block.  Contains block
+    -- arguments that need to be owned for the current block.
+
   , iBlockInfo  :: Map Label [Ownership]
+    -- ^ Ownership information for the arguments of existing blocks.
+
   , iFunEntry   :: Map FName Label
+    -- ^ Entry block for a function.
+
   , iBlockType  :: Map Label BlockType
+    -- ^ Information about what kind of block is this (return,thread,regular)
+    -- as those use different calling conventions.
+
   , iChanges    :: Bool
+    -- ^ Did we change anything?  Used to see if we reached a fixed point.
   }
 
 -- | Add a constraint on a block argument
@@ -222,7 +233,8 @@ borrowAnalysis :: Program -> Map Label [Ownership]
 borrowAnalysis p = loop i0
   where
   i0 = Info { iBlockOwned = Set.empty
-            , iBlockInfo  = Map.empty
+            , iBlockInfo  = Map.fromList $ (entryOwns <$> pEntries p)
+                                        ++ (concatMap nonNormal (pAllBlocks p))
             , iChanges    = False
             , iFunEntry   = Map.fromList [ (vmfName f, vmfEntry f)
                                          | m <- pModules p, f <- mFuns m
@@ -236,6 +248,17 @@ borrowAnalysis p = loop i0
                 then loop i1 { iChanges = False }
                 else iBlockInfo i
 
+  -- entries own their arguments
+  entryOwns ent =
+      let l = entryLabel ent
+          args = blockArgs (entryBoot ent Map.! l)
+      in (l, [ Owned `ifRefs` a | a <- args ])
+
+  -- return and thread blocks own thier arguments
+  nonNormal b =
+    case blockType b of
+      NormalBlock {} -> []
+      _ -> [(blockName b, [ Owned `ifRefs` a | a <- blockArgs b ])]
 
 vmProgram :: Program -> Info -> Info
 vmProgram p i = foldr vmModule bs (pModules p)
@@ -273,9 +296,11 @@ block b i =
 
   loc = showPP (blockName b)
 
-  newOwnershipOf a = (if a `Set.member` iBlockOwned i1 then Owned else Borrowed)
-                     `ifRefs` a
-  newOwnership     = map newOwnershipOf (blockArgs b)
+  newOwnershipOf a =
+    (if a `Set.member` iBlockOwned i1 then Owned else Borrowed) `ifRefs` a
+
+  -- return and thread blocks own their arguments
+  newOwnership = map newOwnershipOf (blockArgs b)
 
 
 instr :: String -> Instr -> Info -> Info

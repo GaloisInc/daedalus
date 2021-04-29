@@ -5,15 +5,12 @@
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
-import Control.Monad(forM,forM_,unless)
+import Control.Monad(forM,forM_,unless,when)
 import Data.Graph.SCC(stronglyConnComp)
-import Data.Graph(SCC(..))
-import Data.List(foldl',sort,group)
-import Data.Maybe(mapMaybe,catMaybes)
+import Data.List(sort,group)
+import Data.Maybe(catMaybes)
 import Control.Monad(zipWithM)
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Parameterized.Some(Some(..))
 import Data.List.NonEmpty (NonEmpty, NonEmpty((:|)) )
@@ -31,13 +28,20 @@ import Daedalus.Type.Kind
 import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
+import Daedalus.Type.Generalize
+import Daedalus.Type.BitData
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
-inferRules m = go [] (moduleRules m)
+inferRules m = goBD [] (moduleBitData m)
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 
-  go done todo =
+  goBD done [] = go done [] (moduleRules m)
+  goBD done (x : more) = do
+    newDecls <- inferBitData x
+    extGlobTyDefs newDecls $ goBD (newDecls : done) more
+  
+  go bds done todo =
     case todo of
       [] -> pure TCModule
                    { tcModuleName = moduleName m
@@ -45,7 +49,8 @@ inferRules m = go [] (moduleRules m)
                    , tcModuleTypes = map sccToRec
                                    $ stronglyConnComp
                                    $ map getDeps
-                                   $ concatMap (Map.elems . tcTypeDefs) done
+                                   $ concatMap Map.elems
+                                   $ bds ++ map tcTypeDefs done
                    , tcModuleDecls = map tcDecls (reverse done)
                    }
 
@@ -56,238 +61,9 @@ inferRules m = go [] (moduleRules m)
                      ]
            extEnvManyRules env
              $ extGlobTyDefs (tcTypeDefs info)
-             $ go (info : done) more
-
-
+             $ go bds (info : done) more
 
 --------------------------------------------------------------------------------
-
-
-data DeclInfo = DeclInfo
-  { tcDecls     :: Rec (TCDecl SourceRange)
-  , tcTypeDefs  :: Map TCTyName TCTyDecl
-  }
-
-
-
-generalize :: Rec (TCDecl SourceRange) -> STypeM DeclInfo
-generalize ds =
-  do (lcs,tds,ds1) <- simpCtrs ds
-
-     -- Check no left-over mono types
-     cs <- forM lcs \lc ->
-              case thingValue lc of
-                IsNamed _ -> reportDetailedError lc
-                  "Failed to infer expression type."
-                  [ "Expressions examined with `case` or `is`" <+>
-                                                    "need a concrete type."
-                  , "Plese use a type annotation to specify it."
-                  ]
-                x         -> pure x
-
-     -- Check that all types that needed definitions were defined
-     todo <- getNeedsDef
-     forM_ todo \l ->
-         do let nm = thingValue l
-            unless (nm `Map.member` tds) $
-               do mb <- lookupTypeDef nm
-                  case mb of
-                    Nothing -> reportError l ("Name" <+> backticks (pp nm)
-                                         <+> "does not refer to a named type.")
-                    _ -> pure ()
-
-
-
-
-
-     -- Since we don't have local definitions there should be no free
-     -- type variable in the environment
-     let freeInTys = completeFreeInTD tds
-         as        = Set.toList
-                   $ Set.unions ( freeTVS ds1
-                                : freeTVS cs
-                                : Map.elems freeInTys
-                                )
-
-     pure $ doGeneralize as cs (Set.toList <$> freeInTys)
-            DeclInfo { tcDecls    = ds1
-                     , tcTypeDefs = tds
-                     }
-
-
-simpCtrs :: Rec (TCDecl SourceRange) ->
-            STypeM ( [Located Constraint]
-                   , Map TCTyName TCTyDecl
-                   , Rec (TCDecl SourceRange)
-                   )
-simpCtrs ds =
-  do lcs  <- simplifyConstraints
-     ds1  <- traverse (traverseTypes zonkT) ds
-     tds  <- getNewTypeDefs
-     let (lcs1,tds1,ds2,hasRen) = renameAnonTC lcs tds ds1
-
-     -- if some types were renamed, add back constraints and keep simplifying
-     if hasRen
-       then do forM_ lcs1 \lc -> addConstraint lc (thingValue lc)
-               replaceNewTypeDefs tds1
-               simpCtrs ds2
-       else pure (lcs1,tds1,ds2)
-
-
-{- | If the result of a declaration is an anonymous named type that
-matches the declaration's name, then we make this type not-anonymous.
-Note that as a result, we may have to revisit some of the existing
-constraints (e.g. Has), which were not solved because the non-anonymous
-type was not yet defined.
--}
-renameAnonTC ::
-  [Located Constraint] ->
-  Map TCTyName TCTyDecl ->
-  Rec (TCDecl SourceRange) ->
-  ( [Located Constraint]
-  , Map TCTyName TCTyDecl
-  , Rec (TCDecl SourceRange)
-  , Bool
-  )
-renameAnonTC lcs tys ds
-  | Map.null renSu = (lcs,tys,ds,False)
-  | otherwise = ( [ mapTypes renTC lc | lc <- lcs ]
-                , Map.fromList
-                      [ (tctyName d,d) | d <- map renTD (Map.elems tys) ]
-                , renD <$> ds
-                , True
-                )
-  where
-  -- renaming substitutin
-  renSu = Map.fromList (mapMaybe shouldRename (recToList ds))
-
-  -- replace anonymous types with the entries from the renaming substitutin.
-  renTC ty = case ty of
-               TVar _ -> ty
-               TCon x ts -> TCon y (map renTC ts)
-                  where y = Map.findWithDefault x x renSu
-               Type tf -> Type (renTC <$> tf)
-
-  renD = mapTypes renTC
-
-  renTD t = let nm = Map.findWithDefault (tctyName t) (tctyName t) renSu
-            in t { tctyName = nm
-                 , tctyDef = mapTypes renTC (tctyDef t)
-                 }
-
-  -- Check if the result type of declaration matches one of the
-  -- anonymous types from the declaration's definition.
-  shouldRename TCDecl { tcDeclDef, tcDeclName } =
-    case typeOf tcDeclDef of
-      Type (TGrammar ty) -> matches ty
-      ty -> matches ty
-    where
-    matches ty =
-      case ty of
-        TCon nm@(TCTyAnon x _) _
-          | tcDeclName == x -> Just (nm, TCTy x)
-        _ -> Nothing
-
-
-{- | Free variables in a collection of (possible recursive) declarations.
-Example:
-
-    data T1 = MkT1 T2
-    data T2 = MkT2 ?a T1
-
-We'd like to generalize the free variable `?a`.  Note that it is not enough
-to compute just the free variables in each type individually, as this would
-give us:
-
-    data T1   = MkT1 T2     -- WRONG:
-    data T2 a = MkT2 a T1
-
-To get the correct answer each type needs not only its parameters, but
-also the paraemetrs for its dependency.  Mutually recursive types, like
-in the above example, are processed together.
--}
-
-completeFreeInTD :: Map TCTyName TCTyDecl -> Map TCTyName (Set TVar)
-completeFreeInTD tds = foldl' addFree Map.empty
-                     $ stronglyConnComp
-                     $ map getDeps
-                     $ Map.elems tds
-  where
-  freeInTys = freeTVS <$> tds
-
-  getDeps d = let me   = tctyName d
-                  deps = Set.toList (collectTypes freeTCons (tctyDef d))
-              in ((me,deps),me,deps)
-
-  lkp mp x = Map.findWithDefault Set.empty x mp
-  addFree mp scc =
-    let one (me,deps) = Set.unions (lkp freeInTys me : map (lkp mp) deps)
-    in case scc of
-         AcyclicSCC t -> Map.insert (fst t) (one t) mp
-         CyclicSCC ts -> let vs      = Set.unions (map one ts)
-                             ins m x = Map.insert (fst x) vs m
-                          in foldl' ins mp ts
-
-
-
-
-doGeneralize :: [TVar] {- ^ Params for decl -} ->
-                [Constraint] {- ^ Constraints on type (for decl) -} ->
-                Map TCTyName [TVar] {- ^ Params for each type -} ->
-                DeclInfo -> DeclInfo
-doGeneralize as cs tparams decls
-  | null as   = decls -- tparams are asssumed to be a subset of as
-  | otherwise = DeclInfo
-                  { tcTypeDefs = addTPsTy <$> tcTypeDefs decls
-                  , tcDecls =
-                      case tcDecls decls of
-                        NonRec d  -> NonRec (addTPs False d)
-                        MutRec ds -> MutRec (map (addTPs True) ds)
-                  }
-  where
-  ts      = map TVar as
-  tconMap = map TVar <$> tparams
-  dMap    = Map.fromList [ (tcDeclName d, ts) | d <- recToList (tcDecls decls) ]
-
-  addTPs :: Bool -> TCDecl SourceRange -> TCDecl SourceRange
-  addTPs r TCDecl { .. } =
-           TCDecl { tcDeclName     = tcDeclName
-                  , tcDeclTyParams = as
-                  , tcDeclCtrs     = map (fixUpTCons tconMap) cs
-                  , tcDeclParams   = fixUpTCons tconMap tcDeclParams
-                  , tcDeclDef      =
-                      case fixUpTCons tconMap tcDeclDef of
-                        Defined d | r -> Defined (fixUpRecCallSites dMap d)
-                        res ->  res
-                  , tcDeclCtxt     = tcDeclCtxt
-                  , tcDeclAnnot    = tcDeclAnnot
-                  }
-
-  addTPsTy d = fixUpTCons tconMap d { tctyParams = tparams Map.! tctyName d }
-
-
-
-
-
-fixUpTCons :: TraverseTypes a => Map TCTyName [Type] -> a -> a
-fixUpTCons mp = if Map.null mp then id else mapTypes (fixUpTConsT mp)
-
-
-fixUpTConsT :: Map TCTyName [Type] -> Type -> Type
-fixUpTConsT mp ty =
-  case ty of
-    TVar {} -> ty
-    TCon x [] | Just ts <- Map.lookup x mp -> TCon x ts
-    TCon x ts -> TCon x (map (fixUpTConsT mp) ts)
-    Type tf -> Type (fixUpTConsT mp <$> tf)
-
-fixUpRecCallSites :: Map Name [Type] -> TC SourceRange k -> TC SourceRange k
-fixUpRecCallSites ch expr =
-  exprAt expr $
-    case mapTCF (fixUpRecCallSites ch) (texprValue expr) of
-      TCCall x [] es | Just ts <- Map.lookup (tcName x) ch -> TCCall x ts es
-      e                                                    -> e
-
 
 inferRuleRec :: Rec Rule -> STypeM (Rec (TCDecl SourceRange))
 inferRuleRec sr =
@@ -711,8 +487,12 @@ inferExpr expr =
         BitwiseOr  -> bitwiseOp
         BitwiseXor -> bitwiseOp
 
-        LogicOr  -> logicOp
-        LogicAnd -> logicOp
+        LogicOr  ->
+          inferExpr $ pExprAt expr
+                    $ EIf e1 (pExprAt expr (ELiteral (LBool True))) e2
+        LogicAnd ->
+          inferExpr $ pExprAt expr
+                    $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
         Add   -> num2
         Sub   -> num2
@@ -725,15 +505,6 @@ inferExpr expr =
         NotEq -> relEq
 
       where
-      -- NOTE: In this version, if there is liftin we are strict in the
-      -- sense that we'd run both arguments, even the value of the first
-      -- one could determine the overall result.
-      logicOp =
-        liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-            do unify tBool (e1',t1)
-               unify tBool (e2',t2)
-               pure (exprAt expr (TCBinOp op e1' e2' tBool), tBool)
-
       bitwiseOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
         do addConstraint expr (Numeric t1)
@@ -983,7 +754,7 @@ inferExpr expr =
                        pure (x, lt)
 
          tcon <- newTyDefName
-         addConstraint expr (TyDef UnionDef (Just tcon) ty tagTy)
+         addConstraint expr (TyDef UnionDef tcon ty tagTy)
 
          pure ( exprAt expr (TCChoice c stmts ty)
               , tGrammar ty
@@ -1161,17 +932,7 @@ inferExpr expr =
                   , expect
                   )
 
-    -- XXX: This one is not lifted the usual way, because we
-    -- want it to be lazy
-    EIf be te fe ->
-      valueOnly expr -- We don't support conditionals a the grammar level (yet?)
-      do -- FIXME: probably don't need the inContext AValue bits?
-         (be', bt) <- inContext AValue (inferExpr be)
-         unify tBool (be',bt)
-         (te', tt) <- inContext AValue (inferExpr te)
-         (fe', ft) <- inContext AValue (inferExpr fe)
-         unify (te',tt) (fe,ft)
-         pure (exprAt expr (TCIf be' te' fe'), tt)
+    EIf be te fe -> inferIf expr be te fe
 
     EHasType MatchType e ty ->
       do ctx <- getContext
@@ -1209,12 +970,33 @@ inferExpr expr =
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
     -- e should have the same type as the 
-    ECase e ps -> inferCase expr e ps
+    ECase e ps -> inferCase expr False e ps
 
 
 
 --------------------------------------------------------------------------------
--- Patterns & Case
+-- Patterns & Case & If
+
+inferIf ::
+  HasRange r =>
+  r -> Expr -> Expr -> Expr -> TypeM ctx (TC SourceRange ctx, Type)
+inferIf r eCond eThen eElse =
+  do ((eCond',tCond),mbS) <- liftValExpr eCond
+     unify tBool (eCond',tCond)
+     (eThen',tThen) <- inferExpr eThen
+     (eElse',tElse) <- inferExpr eElse
+     unify (eThen',tThen) (eElse,tElse)
+     let expr1 = exprAt r (TCIf eCond' eThen' eElse')
+     expr <- case mbS of
+               Nothing -> pure expr1
+               Just s ->
+                 do ctx <- getContext
+                    case ctx of
+                      AGrammar -> pure (addBind s expr1)
+                      _ -> panic "inferIf" [ "Lifted in non-grammar context"]
+     pure (expr, tThen)
+
+
 
 checkPattern :: Type -> Pattern -> TypeM ctx TCPat
 checkPattern ty pat =
@@ -1299,17 +1081,30 @@ checkPatternCases rng tIn tOut done cases =
       []       -> reportError rng "`case` needs at least one non-default pattern."
       (x : xs) -> pure (x :| xs, mb)
 
-
 inferCase ::
   HasRange r =>
-  r -> Expr -> [PatternCase Expr] -> TypeM ctx (TC SourceRange ctx, Type)
-inferCase rng e ps =
+  r -> Bool -> Expr -> [PatternCase Expr] ->
+  TypeM ctx (TC SourceRange ctx, Type)
+inferCase rng newTy e ps =
   do ((e1,tIn),mbS) <- liftValExpr e
-     tOut <- do ctx <- getContext
-                case ctx of
-                  AGrammar -> tGrammar <$> newTVar e KValue
-                  AValue   -> newTVar e KValue
-                  AClass   -> newTVar e KClass
+     (valT,tOut) <-
+        do ctx <- getContext
+           case ctx of
+             AGrammar -> do v <- newTVar e KValue
+                            pure (v, tGrammar v)
+             AValue   -> do v <- newTVar e KValue
+                            pure (v,v)
+             AClass   ->
+               if newTy
+                 then reportError e
+                      "union case does not work in character class definitions."
+                 else do x <- newTVar e KClass
+                         pure (x,x)
+
+     when newTy
+       do tcon <- newTyDefName
+          addConstraint rng (TyDef UnionDef tcon valT [])
+
      (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
      let expr1 = exprAt rng (TCCase e1 alts mbDefault)
      expr <- case mbS of
@@ -1607,7 +1402,7 @@ pureStruct r ls ts es
       _  -> do ty <- newTVar r KValue
                nm <- newTyDefName
                addConstraint r $
-                  TyDef StructDef (Just nm) ty
+                  TyDef StructDef nm ty
                     [ (l, Located { thingRange = range e, thingValue = t })
                     | l <- ls
                     | e <- es

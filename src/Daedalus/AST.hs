@@ -97,8 +97,11 @@ instance PP Name where
 
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
+                     , moduleBitData :: [BitData] -- ordered
                      , moduleRules   :: [Rec Rule]
                      } deriving Show
+
+data Decl = DeclRule Rule | DeclBitData BitData
 
 data Rule =
   Rule { ruleName     :: !Name
@@ -107,7 +110,6 @@ data Rule =
        , ruleDef      :: !(Maybe Expr)
        , ruleRange    :: !SourceRange
        } deriving Show
-
 
 data RuleParam = RuleParam
   { paramName :: Name
@@ -118,6 +120,18 @@ instance HasRange RuleParam where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
+
+data BitData =
+  BitData { bdName  :: !Name
+          , bdCtors :: ![ (Located Label, [ Located BitDataField ] ) ]
+          , bdRange :: !SourceRange
+          } deriving Show
+
+data BitDataField =
+  BDFLiteral Integer       (Maybe SrcType)
+  | BDFField Label         (Maybe SrcType)
+  | BDFWildcard            (Maybe SrcType)
+  deriving Show
 
 data Ctx = Grammar | Value | Class
   deriving (Eq,Show)
@@ -284,6 +298,9 @@ newtype Expr = Expr (Located (ExprF Expr))
 exprValue :: Expr -> ExprF Expr
 exprValue (Expr e) = thingValue e
 
+pExprAt :: HasRange r => r -> ExprF Expr -> Expr
+pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
+
 
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
@@ -310,8 +327,6 @@ data SrcType = SrcVar Name
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
-
-
 --------------------------------------------------------------------------------
 instance HasRange (Located a) where
   range = thingRange
@@ -335,7 +350,9 @@ instance HasRange Pattern where
       ConPattern c p -> range c <-> range p
       WildPattern r -> r
       VarPattern r -> range r
- 
+
+instance HasRange BitData where
+  range = bdRange
 
 --------------------------------------------------------------------------------
 

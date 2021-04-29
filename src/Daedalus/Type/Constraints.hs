@@ -133,36 +133,6 @@ isColKeyType r t e =
 
 
 
-{-
-isTraversable ::
-  (STCMonad m, HasRange r) => r -> Type -> Type -> Type -> m CtrStatus
-isTraversable r t k v =
-  case t of
-    TVar _  -> pure Unsolved
-
-    Type (TArray el) ->
-      do unify tInteger (r,k)   -- XXX: generalize?
-         unify el (r,v)
-         pure Solved
-
-    Type (TMap tk tv) ->
-      do unify tk (r,k)
-         unify tv (r,v)
-         pure Solved
-
-    Type TInteger  -> numTrav
-    Type (TUInt _) -> numTrav
-    -- Signed?
-
-    _ -> reportDetailedError r "Cannot iterate over this type" [ pp t ]
-
-  where
-  numTrav = do unify t (r,k)
-               unify t (r,v)
-               pure Solved
--}
-
-
 isAdd :: (STCMonad m,HasRange r) => r -> Type -> Type -> Type -> m CtrStatus
 isAdd r t1 t2 t3 =
   case (t1,t2,t3) of
@@ -223,7 +193,7 @@ hasStruct r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyStruct fs | Just fty1 <- lookup l fs ->
+                        TCTyStruct fs | Just (fty1, _) <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
                              unify (apSubstT su fty1) (r,fty)
                              pure Solved
@@ -248,7 +218,7 @@ hasUnion r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyUnion fs | Just fty1 <- lookup l fs ->
+                        TCTyUnion fs | Just (fty1,_) <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
                              unify (apSubstT su fty1) (r,fty)
                              pure Solved
@@ -430,11 +400,11 @@ isTyDef r ty t fs0 =
            Just def ->
              case def of
                TCTyStruct dfs
-                 | StructDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | StructDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
                                          pure Solved
                  | otherwise -> reportError r "Structure used as union."
                TCTyUnion dfs
-                 | UnionDef <- ty -> do checkFields r c (Map.fromList dfs) fs0
+                 | UnionDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
                                         pure Solved
                  | otherwise -> reportError r "Union used a structure"
 
@@ -586,7 +556,7 @@ simplifyConstraints =
       c : more ->
 
         case thingValue c of
-          TyDef ty (Just suggest) theTy fs ->
+          TyDef ty suggest theTy fs ->
 
             case (suggest, theTy) of
               (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
@@ -600,11 +570,10 @@ simplifyConstraints =
 
              where
              defTy tcon =
-               do let fields = [ (f,thingValue t) | (f,t) <- fs ]
-                  newTypeDef tcon
+               do newTypeDef tcon
                     case ty of
-                      StructDef -> TCTyStruct fields
-                      UnionDef  -> TCTyUnion  fields
+                      StructDef -> TCTyStruct [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
+                      UnionDef  -> TCTyUnion  [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
                   su <- getTypeSubst
                   go [] su (notYet ++ more)
 

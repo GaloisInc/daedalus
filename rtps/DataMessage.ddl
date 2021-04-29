@@ -8,14 +8,10 @@ def OctetArray2 = Many 2 Octet
 
 def OctetArray3 = Many 3 Octet
 
--- type aliases to match terms in spec:
-def UShort = Uint16
-
-def Short = Int16
-
-def ULong = Uint32
-
-def Long = Int32
+-- Big Endian parsers:
+def EndUShort littleEnd = End16 littleEnd
+def EndULong littleEnd = End32 littleEnd
+def EndLong littleEnd = EndSign32 littleEnd
 
 -- Sec. 8.3.3 The Overall strucutre of an RTPS Message: the overall
 -- structure of an RTPS Message consists of a fixed-size leading RTPS
@@ -55,15 +51,13 @@ def ProtocolRTPS = Match "RTPS"
 
 def GuidPrefix = Many 12 Octet
 
--- DBG:
 def Submessage PayloadData = {
   subHeader = SubmessageHeader;
   elt = Choose1 {
     { Guard (subHeader.submessageLength > 0);
-      $$ = Chunk
+      Chunk
         (subHeader.submessageLength as uint 64)
         (SubmessageElement PayloadData subHeader.flags);
-      (Many Octet); -- TODO: this is maybe too sloppy
     };
     { Guard (subHeader.submessageLength == 0);
       $$ = SubmessageElement PayloadData subHeader.flags;
@@ -76,7 +70,7 @@ def Submessage PayloadData = {
 def SubmessageHeader = {
   submessageId = SubmessageId;
   flags = SubmessageFlags submessageId;
-  submessageLength = UShort; 
+  submessageLength = EndUShort flags.endiannessFlag;
 }
 
 -- Sec 8.3.3.2.1 SubmessageId: a SubmessageKind (Sec 9.4.5.1.1)
@@ -92,7 +86,7 @@ def SubmessageId = Choose1{
   infoReply = @Match1 0x0f;
   nackFrag = @Match1 0x12;
   heartbeatFrag = @Match1 0x13;
-  data = @Match1 0x015;
+  data = @Match1 0x15;
   dataFrag = @Match1 0x16;
 }
 
@@ -165,37 +159,38 @@ def SubmessageFlags (subId: SubmessageId) = {
   }
 }
 
-def QosParams f = Choose1 {
+def QosParams littleEnd f = Choose1 {
   { Guard f;
-    ParameterList;
+    ParameterList littleEnd;
   };
   { Guard (!f);
     ^[]
   }
 }
 
+-- refactor id and flag parsing into this
 def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   ackNackElt = {
     @ackNackFlags = flags.subFlags is ackNackFlags;
     readerId = EntityId;
     writerId = EntityId;
-    readerSNState = SequenceNumberSet;
-    count = Count;
+    readerSNState = SequenceNumberSet flags.endiannessFlag;
+    count = Count flags.endiannessFlag;
   };
   dataElt = {
     @dFlags = flags.subFlags is dataFlags;
     Match [0x00, 0x00]; -- extra flags for future compatibility
-    octetsToInlineQos = UShort; 
+    octetsToInlineQos = EndUShort flags.endiannessFlag; 
 
     rdWrs = Chunk (octetsToInlineQos as uint 64)
     {
       readerId = EntityId;
       writerId = EntityId;
-      writerSN = SequenceNumber;
+      writerSN = SequenceNumber flags.endiannessFlag;
       Guard (writerSN > 0);
     };
 
-    inlineQos = QosParams dFlags.inlineQosFlag;
+    inlineQos = QosParams flags.endiannessFlag dFlags.inlineQosFlag;
     serializedPayload = Choose1 {
       hasData = {
         Guard dFlags.dataFlag;
@@ -207,8 +202,9 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   dataFragElt = {
     @fragFlags = flags.subFlags is dataFragFlags;
+    commit;
     Match [0x00, 0x00]; -- extraFlags
-    octetsToInlineQos = UShort;
+    octetsToInlineQos = EndUShort flags.endiannessFlag;
 
     Chunk (octetsToInlineQos as uint 64) {
     };
@@ -216,22 +212,22 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
     readerId = EntityId;
     writerId = EntityId;
 
-    writerSN = SequenceNumber;
+    writerSN = SequenceNumber flags.endiannessFlag;
     Guard (writerSN > 0);
 
-    fragmentStartingNum = FragmentNumber;
+    fragmentStartingNum = FragmentNumber flags.endiannessFlag;
     Guard (0 < fragmentStartingNum);
     
-    fragmentsInSubmessage = UShort;
+    fragmentsInSubmessage = EndUShort flags.endiannessFlag;
     Guard (fragmentStartingNum <= (fragmentsInSubmessage as uint 32));
 
-    fragmentSize = UShort;
+    fragmentSize = EndUShort flags.endiannessFlag;
     Guard (fragmentSize <= 64000);
 
-    sampleSize = ULong;
+    sampleSize = EndULong flags.endiannessFlag;
     Guard (fragmentSize as uint 32 < sampleSize); 
 
-    inlineQos = QosParams fragFlags.inlineQosFlag;
+    inlineQos = QosParams flags.endiannessFlag fragFlags.inlineQosFlag;
 
     serializedPayload = Choose1 {
       hasData = {
@@ -248,13 +244,14 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   gapElt = {
     @gapFlags0 = flags.subFlags is gapFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
-    gapStart = SequenceNumber;
+    gapStart = SequenceNumber flags.endiannessFlag;
     Guard (gapStart > 0);
 
-    gapList = SequenceNumberSet;
+    gapList = SequenceNumberSet flags.endiannessFlag;
 
     -- WARNING: layout of these is not defined at PSM level. This is a
     -- guess.
@@ -262,10 +259,10 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
       hasGpInfo = {
         Guard (gapFlags0.groupInfoFlag);
 
-        gapStartGSN = SequenceNumber;
+        gapStartGSN = SequenceNumber flags.endiannessFlag;
         Guard (gapStartGSN > 0);
 
-        gapEndGSN = SequenceNumber;
+        gapEndGSN = SequenceNumber flags.endiannessFlag;
         Guard (gapEndGSN >= gapStartGSN - 1);
       };
       noGpInfo = Guard (!(gapFlags0.groupInfoFlag));
@@ -273,15 +270,16 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   heartBeatElt = {
     @hbFlags = flags.subFlags is heartBeatFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
-    firstSN = SequenceNumber;
+    firstSN = SequenceNumber flags.endiannessFlag;
     Guard (firstSN > 0);
 
-    lastSN = SequenceNumber;
+    lastSN = SequenceNumber flags.endiannessFlag;
     Guard (lastSN >= firstSN - 1);
-    count = Count;
+    count = Count flags.endiannessFlag;
 
     -- WARNING: layout of these is not defined at PSM level. This is a
     -- guess, based on Table 8.38.
@@ -289,13 +287,13 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
       hasGpInfo = {
         Guard (hbFlags.groupInfoFlag);
 
-        currentGSN = SequenceNumber;
+        currentGSN = SequenceNumber flags.endiannessFlag;
 
-        firstGSN = SequenceNumber;
+        firstGSN = SequenceNumber flags.endiannessFlag;
         Guard (firstGSN > 0);
         Guard (currentGSN >= firstGSN);
 
-        lastGSN = SequenceNumber;
+        lastGSN = SequenceNumber flags.endiannessFlag;
         Guard (lastGSN >= firstGSN - 1);
         Guard (currentGSN >= lastGSN);
 
@@ -307,65 +305,48 @@ def SubmessageElement PayloadData (flags: SubmessageFlags) = Choose1 {
   };
   heartBeatFragElt = {
     @hbFragFlags = flags.subFlags is heartBeatFragFlags;
+    commit;
     readerId = EntityId;
     writerId = EntityId;
 
-    writerSN = SequenceNumber;
+    writerSN = SequenceNumber flags.endiannessFlag;
     Guard (writerSN > 0);
     
-    lastFragmentNum = FragmentNumber;
+    lastFragmentNum = FragmentNumber flags.endiannessFlag;
     Guard (lastFragmentNum > 0);
 
-    count = Count;
+    GuidPrefix;
   };
   infoDstElt = {
     @infoDstFlags0 = flags.subFlags is infoDstFlags;
-    guidPrefix = GuidPrefix;
-  };
-  infoReplyElt = {
-    @replyFlags0 = flags.subFlags is infoReplyFlags;
-    unicastLocatorList = LocatorList;
-    multicastLocatorList = Choose1 {
-      hasLocs = {
-        Guard replyFlags0.multicastFlag;
-        LocatorList;
-      };
-      noLocs = Guard (!(replyFlags0.multicastFlag));
-    };
-  };
-  infoSourceElt = {
-    @infoSourceFlags0 = flags.subFlags is infoSourceFlags;
-    ULong; -- unused
-    version = ProtocolVersion;
-    vendorId = VendorId;
-    guidPrefix = GuidPrefix;
+    commit;
+    GuidPrefix;
   };
   timestampElt = {
     @tsFlags0 = flags.subFlags is infoTimestampFlags;
     Choose1 {
       hasTs = {
         Guard (!(tsFlags0.invalidateFlag));
-        Time;
+        Time flags.endiannessFlag;
       };
       noTs = Guard (tsFlags0.invalidateFlag);
     }
   };
   padElt = {
     @padFlags = flags.subFlags is padFlags;
-    Many Octet;
   };
   nackFragElt = {
     @nackFlags = flags.subFlags is nackFragFlags;
     readerId = EntityId;
     writerId = EntityId;
-    writerSN = SequenceNumber;
-    fragmentNumberState = FragmentNumberSet;
-    count = Count;
+    writerSN = SequenceNumber flags.endiannessFlag;
+    fragmentNumberState = FragmentNumberSet flags.endiannessFlag;
+    count = Count flags.endiannessFlag;
   };
   infoReplyIP4Elt = {
     @replyIP4Flags0 = flags.subFlags is infoReplyIP4Flags;
-    unicastLocator = LocatorUDPv4;
-    multicastLocator = LocatorUDPv4;
+    unicastLocator = LocatorUDPv4 flags.endiannessFlag;
+    multicastLocator = LocatorUDPv4 flags.endiannessFlag;
   }
 }
 
@@ -377,17 +358,19 @@ def EntityId = {
 def HighBit32 = (1 : uint 32) << 31
 
 -- Sec 9.3.2 Mapping of the Types that Appear Within Submessages...
-def SequenceNumber = {
-  @high = ULong;
-  @low = ULong;
+def SequenceNumber littleEnd = {
+  @high = EndULong littleEnd;
+  @low = EndULong littleEnd;
   (high .&. ~HighBit32) # low -
   (high .&. HighBit32 as uint 64) << 56 as int
 }
 
-def SequenceNumberSet = {
-  bitmapBase = SequenceNumber;
-  numBits = ULong;
-  Many ((numBits + 31)/32 - 1 as uint 64) ULong;
+def SequenceNumberSet littleEnd = {
+  bitmapBase = SequenceNumber littleEnd;
+  Guard (bitmapBase >= 1);
+  
+  numBits = EndULong littleEnd;
+  Many ((numBits + 31)/32 as uint 64) (EndLong littleEnd);
 }
 
 def GroupDigest = Many 4 Octet
@@ -395,8 +378,8 @@ def GroupDigest = Many 4 Octet
 -- Sec 9.4.2.11 ParameterList:
 
 -- Sec 9.6.2.2.2 ParameterID values: Table 9.13:
-def ParameterIdT = {
-  @p = Short;
+def ParameterIdT littleEnd = {
+  @p = EndUShort littleEnd;
   Choose1 {
     pidPad = Guard (p == 0x0000);
     pidSentinel = Guard (p == 0x0001);
@@ -459,7 +442,7 @@ def ParameterIdT = {
 }
 
 -- Table 9.13:
-def ParameterIdValues (pid: ParameterIdT) = Choose1 {
+def ParameterIdValues littleEnd (pid: ParameterIdT) = Choose1 {
   padVal = {
     pid is pidPad;
     Many Octet;
@@ -471,11 +454,11 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   topicNameVal = {
     pid is pidTopicName;
-    String256;
+    String256 littleEnd;
   };
   typeNameVal = {
     pid is pidTypeName;
-    String256;
+    String256 littleEnd;
   };
   groupDataVal = {
     pid is pidGroupData;
@@ -551,11 +534,11 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   domainIdVal = {
     pid is pidDomainId;
-    DomainId;
+    DomainId littleEnd;
   };
   domainTagVal = {
     pid is pidDomainTag;
-    String256;
+    String256 littleEnd;
   };
   protocolVersionVal = {
     pid is pidProtocolVersion;
@@ -567,27 +550,27 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   unicastLocatorVal = {
     pid is pidUnicastLocator;
-    Locator;
+    Locator littleEnd;
   };
   multicastLocatorVal = {
     pid is pidMulticastLocator;
-    Locator;
+    Locator littleEnd;
   };
   defaultUnicastLocatorVal = {
     pid is pidDefaultUnicastLocator;
-    Locator;
+    Locator littleEnd;
   };
   multicastDefaultLocatorVal = {
     pid is pidDefaultMulticastLocator;
-    Locator;
+    Locator littleEnd;
   };
   metatrafficUnicastLocatorVal = {
     pid is pidMetatrafficUnicastLocator;
-    Locator;
+    Locator littleEnd;
   };
   metatrafficMulticastLocatorVal = {
     pid is pidMetatrafficMulticastLocator;
-    Locator;
+    Locator littleEnd;
   };
   expectsInlineQos = {
     pid is pidExpectsInlineQos;
@@ -595,15 +578,15 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   participantManualLivelinessCountVal = {
     pid is pidParticipantManualLivelinessCount;
-    Count;
+    Count littleEnd;
   };
   participantLeaseDurationVal = {
     pid is pidParticipantLeaseDuration;
-    Duration;
+    Duration littleEnd;
   };
   contentFilterPropertyVal = {
     pid is pidContentFilterProperty;
-    ContentFilterProperty;
+    ContentFilterProperty littleEnd;
   };
   participantGUIDVal = {
     pid is pidParticipantGuid;
@@ -627,7 +610,7 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   typeMaxSizeSerializedVal = {
     pid is pidTypeMaxSizeSerialized;
-    ULong;
+    EndULong littleEnd;
   };
   entityNameVal = {
     pid is pidEntityName;
@@ -640,11 +623,11 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
 
   contentFilterInfoVal = {
     pid is pidContentFilterInfo;
-    ContentFilterInfo;
+    ContentFilterInfo littleEnd;
   };
   coherentSetVal = {
     pid is pidCoherentSet;
-    SequenceNumber;
+    SequenceNumber littleEnd;
   };
   directedWriteVal = {
     pid is pidDirectedWrite;
@@ -652,15 +635,15 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
   orignalWriterInfoVal = {
     pid is pidOriginalWriterInfo;
-    OriginalWriterInfo;
+    OriginalWriterInfo littleEnd;
   };
   groupCoherentSetVal = {
     pid is pidGroupCoherentSet;
-    SequenceNumber;
+    SequenceNumber littleEnd;
   };
   groupSeqNumVal = {
     pid is pidGroupSeqNum;
-    SequenceNumber;
+    SequenceNumber littleEnd;
   };
   writerGroupInfoVal = {
     pid is pidWriterGroupInfo;
@@ -680,23 +663,23 @@ def ParameterIdValues (pid: ParameterIdT) = Choose1 {
   };
 }
 
-def ContentFilterInfo = {
-  numBitmaps = ULong;
-  bitmaps = Many (numBitmaps as uint 64) Long;
-  numSigs = ULong;
-  signatures = Many (numSigs as uint 64) FilterSignature;
+def ContentFilterInfo littleEnd = {
+  numBitmaps = EndULong littleEnd;
+  bitmaps = Many (numBitmaps as uint 64) (EndLong littleEnd);
+  numSigs = EndULong littleEnd;
+  signatures = Many (numSigs as uint 64) (FilterSignature littleEnd);
 }
 
-def OriginalWriterInfo = {
+def OriginalWriterInfo littleEnd = {
   originalWriterGUID = GUIDT;
-  originalWriterSN = SequenceNumber;
+  originalWriterSN = SequenceNumber littleEnd;
 }
 
 def WriterGroupInfo = {
   writerSet = GroupDigest;
 }
 
-def FilterSignature = Many 4 Long
+def FilterSignature littleEnd = Many 4 (EndLong littleEnd)
 
 def KeyHash = Many 16 Octet
 
@@ -705,14 +688,14 @@ def StatusInfo = Many 4 Octet
 -- relaxed definition. Refine as needed.
 def UserDataQosPolicy = Many Octet
 
-def BndString n = {
-  @len = ULong;
+def BndString littleEnd n = {
+  @len = EndULong littleEnd ;
   Guard (len <= n);
   $$ = Many (len as uint 64) Octet;
   Match1 0x00;
 }
 
-def String256 = BndString 256
+def String256 littleEnd = BndString littleEnd 256
 
 -- relaxed definition. Refine as needed.
 def GroupDataQosPolicy = Many Octet
@@ -771,42 +754,42 @@ def TransportPriorityQosPolicy = Many Octet
 def ContentFilter = Many Octet
 
 -- relaxed definition. Refine as needed.
-def DomainId = ULong
+def DomainId littleEnd = EndULong littleEnd
 
-def Locator = {
-  kind = Long;
-  port = ULong;
+def Locator littleEnd = {
+  kind = EndLong littleEnd;
+  port = EndULong littleEnd;
   address = Many 16 Octet;
 }
 
-def LocatorList = {
-  numLocators = ULong;
-  Many (numLocators as uint 64) Locator;
+def LocatorList littleEnd = {
+  numLocators = EndULong littleEnd;
+  Many (numLocators as uint 64) (Locator littleEnd);
 }
 
-def LocatorUDPv4 = {
-  address = ULong;
-  port = ULong;
+def LocatorUDPv4 littleEnd = {
+  address = EndULong littleEnd;
+  port = EndULong littleEnd;
 }
 
-def Count = Long
+def Count littleEnd = EndLong littleEnd
 
-def Duration = {
-  seconds = Long;
-  fraction = ULong;
+def Duration littleEnd = {
+  seconds = EndLong littleEnd;
+  fraction = EndULong littleEnd;
 }
 
-def ContentFilterProperty = {
-  contentFilteredTopicName = String256;
-  relatedTopicName = String256;
-  filterClassName = String256;
-  filterExpression = String;
+def ContentFilterProperty littleEnd = {
+  contentFilteredTopicName = String256 littleEnd;
+  relatedTopicName = String256 littleEnd;
+  filterClassName = String256 littleEnd;
+  filterExpression = String littleEnd;
   expressionParameters = Many String;
 }
 
-def Time = {
-  seconds = ULong;
-  fraction = ULong;
+def Time littleEnd = {
+  seconds = EndULong littleEnd;
+  fraction = EndULong littleEnd;
 }
 
 def GUIDT = {
@@ -825,25 +808,26 @@ def PropertyT = Many Octet
 
 def EntityName = String
 
-def Parameter = {
-  parameterId = ParameterIdT;
+def Parameter littleEnd = {
+  parameterId = ParameterIdT littleEnd;
+  -- TODO: clean this up
   Guard (parameterId != {| pidSentinel = {} |});
 
-  len = UShort;
+  len = EndUShort littleEnd;
   Guard (len % 4 == 0);
 
-  val = Chunk (len as uint 64) (ParameterIdValues parameterId);
+  val = Chunk (len as uint 64) (ParameterIdValues littleEnd parameterId);
 }
 
-def Sentinel = {
-  @pId = ParameterIdT;
+def Sentinel littleEnd = {
+  @pId = ParameterIdT littleEnd;
   pId is pidSentinel;
-  UShort;
+  EndUShort littleEnd;
 }
 
-def ParameterList = {
-  $$ = Many Parameter;
-  Sentinel;
+def ParameterList littleEnd = {
+  $$ = Many (Parameter littleEnd);
+  Sentinel littleEnd;
 }
 
 -- Sec 10 Serialized Payload Representation:
@@ -872,11 +856,12 @@ def SerializedPayloadHeader = {
 }
 
 -- Sec 9.3.2:
-def FragmentNumber = ULong
+def FragmentNumber littleEnd = EndULong littleEnd
 
 -- Sec 9.4.2.8:
-def FragmentNumberSet = {
-  bitmapBase = FragmentNumber;
-  numBits = ULong;
-  bitmap = Many ((numBits + 31)/32 - 1 as uint 64) Long;
+def FragmentNumberSet littleEnd = {
+  bitmapBase = FragmentNumber littleEnd;
+  numBits = EndULong littleEnd;
+  bitmap = Many ((numBits + 31)/32 as uint 64)
+    (EndLong littleEnd);
 }

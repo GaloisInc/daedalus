@@ -74,7 +74,7 @@ Only the B) part of a type can depend on the A) part.
 
 The types in a recursive group are declared in this order:
   1. Add declarations (without definitions) for all types in the group
-    (withou enums)
+    (without enums)
   2. Declare enums
   3. Add class declarations (without methods) for the B) parts of sum types
   4. Add class declarations (without methods) for the struct types,
@@ -181,13 +181,14 @@ cSumCtrs tdecl =
 -- | Interface definition for struct types
 cUnboxedProd :: GenVis -> TDecl -> CDecl
 cUnboxedProd vis ty =
-  vcat
+  vcat $
     [ cTypeDecl' vis ty <+> ": public DDL::HasRefs {"
     , nest 2 $ vcat attribs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
-    ]
+    ] ++
+    decFunctions vis ty
   where
   TStruct fields = tDef ty
   attribs = [ cStmt (cSemType t <+> cField n)
@@ -227,7 +228,7 @@ cSumTags sums
 -- | The enum for a tag type
 cSumTag :: TDecl -> CDecl
 cSumTag ty =
-  fsep $ [ "enum", cTName (tName ty), "{" ] ++
+  fsep $ [ "enum class", cTName (tName ty), "{" ] ++
          punctuate comma (map (cLabel . fst) fields) ++
          [ "};" ]
   where
@@ -237,8 +238,8 @@ cSumTag ty =
 cSumTagT :: TDecl -> CType
 cSumTagT tdecl = "Tag::" <.> cTName (tName tdecl)
 
-cSumTagV :: Label -> Doc
-cSumTagV l = "Tag::" <.> cLabel l
+cSumTagV :: TName -> Label -> Doc
+cSumTagV t l = "Tag::" <.> cTName t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -249,13 +250,14 @@ cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 -- | Class signature for an unboxed sum
 cUnboxedSum :: GenVis -> TDecl -> CDecl
 cUnboxedSum vis tdecl =
-  vcat
+  vcat $
     [ cTypeDecl' vis tdecl <+> ": DDL::HasRefs {"
     , nest 2 $ vcat attribs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
     ]
+    ++ decFunctions vis tdecl
   where
   fields = getFields tdecl
 
@@ -291,13 +293,13 @@ cUnboxedSum vis tdecl =
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
 cBoxedSum tdecl =
-  vcat
+  vcat $
     [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
     , nest 2 $ vcat attrs
     , "public:"
     , nest 2 $ vcat methods
     , "};"
-    ]
+    ] ++ decFunctions GenPublic tdecl
   where
   attrs =
     [ cStmt  $ cInst "DDL::Boxed" [ cTypeNameUse GenPrivate tdecl ] <+> "ptr"
@@ -326,6 +328,23 @@ cBoxedSum tdecl =
 
 data GenBoxed = GenBoxed  | GenUnboxed
 
+
+decFunctions :: GenVis -> TDecl -> [CDecl]
+decFunctions vis ty =
+  [ decCompare vis ty
+  , decCmpOp "==" vis ty
+  , decCmpOp "!=" vis ty
+  , decCmpOp "<" vis ty
+  , decCmpOp ">" vis ty
+  , decCmpOp "<=" vis ty
+  , decCmpOp ">=" vis ty
+  ] ++
+  [ decShow vis ty
+  , decShowJS vis ty
+  ]
+
+
+
 generateMethods :: GenVis -> GenBoxed -> TDecl -> Doc
 generateMethods vis boxed ty =
   vcat' $
@@ -344,7 +363,7 @@ generateMethods vis boxed ty =
     , defCmpOp "<=" vis ty
     , defCmpOp ">=" vis ty
     ] ++
-    [defShow vis boxed ty, defShowJS vis boxed ty]
+    [defShow vis ty, defShowJS vis ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
@@ -360,10 +379,18 @@ defMethod vis tdecl retT fun params def =
 --------------------------------------------------------------------------------
 -- Output
 
+decShow :: GenVis -> TDecl -> CDecl
+decShow vis tdecl =
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDeclareFun "std::ostream&" "operator <<" [ "std::ostream&", ty ]
+  where
+  ty = cTypeNameUse vis tdecl
+
 -- XXX: for boxed things we could delegate, but that would require
 -- friendship to access `ptr`
-defShow :: GenVis -> GenBoxed -> TDecl -> CDecl
-defShow vis _ tdecl =
+defShow :: GenVis -> TDecl -> CDecl
+defShow vis tdecl =
   cTemplateDecl tdecl $$
   "inline" $$
   cDefineFun "std::ostream&" "operator <<" [ "std::ostream& os", ty <+> "x" ]
@@ -381,7 +408,7 @@ defShow vis _ tdecl =
         [ cStmt ("os <<" <+> cString "{| ")
         , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ "case" <+> cSumTagV l <.> colon <+>
+                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon <+>
                       vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
                            , cStmt "break"
                            ]
@@ -397,9 +424,19 @@ defShow vis _ tdecl =
   ty = cTypeNameUse vis tdecl
 
 
+decShowJS :: GenVis -> TDecl -> CDecl
+decShowJS vis tdecl = 
+  "namespace DDL {" $$
+  cTemplateDecl tdecl $$
+  "inline" $$
+  cDeclareFun "std::ostream&" "toJS" [ "std::ostream&", ty ] $$
+  "}"
+  where
+  ty = cTypeNameUse vis tdecl
+
 -- | Show in ppshow friendly format
-defShowJS :: GenVis -> GenBoxed -> TDecl -> CDecl
-defShowJS vis _ tdecl =
+defShowJS :: GenVis -> TDecl -> CDecl
+defShowJS vis tdecl =
   "namespace DDL {" $$
   cTemplateDecl tdecl $$
   "inline" $$
@@ -418,7 +455,7 @@ defShowJS vis _ tdecl =
       TUnion fs ->
         [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                , nest 2 $ vcat
-                    [ "case" <+> cSumTagV l <.> colon $$ nest 2 (
+                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$ nest 2 (
                       vcat [ cStmt ("os <<" <+>
                                       cString ("{ " ++ show lab ++ ": "))
                            , cStmt (cCall "toJS" [ "os", val ])
@@ -441,6 +478,13 @@ defShowJS vis _ tdecl =
 
 --------------------------------------------------------------------------------
 -- Comparisons
+
+decCompare :: GenVis -> TDecl -> CDecl
+decCompare vis tdecl =
+  cTemplateDecl tdecl $$
+  cDeclareFun "static inline int" "compare" [ ty, ty ]
+  where
+  ty = cTypeNameUse vis tdecl
 
 defCompare :: GenVis -> TDecl -> CDecl
 defCompare vis tdecl =
@@ -468,10 +512,10 @@ defCompare vis tdecl =
         ]
       TUnion fs ->
         [ cSwitch "x.getTag()"
-            [ cCaseBlock (cSumTagV f)
+            [ cCaseBlock (cSumTagV (tName tdecl) f)
               [ cDeclareInitVar "auto" "tag" "y.getTag()"
-              , cIf' (cSumTagV f <+> "< tag") [ cRetrun "-1" ]
-              , cIf' (cSumTagV f <+> "> tag") [ cRetrun "1" ]
+              , cIf' (cSumTagV (tName tdecl) f <+> "< tag") [ cRetrun "-1" ]
+              , cIf' (cSumTagV (tName tdecl) f <+> "> tag") [ cRetrun "1" ]
               , let get a = cCallMethod a (selName GenBorrow f) []
                 in cRetrun (cCall "compare" [ get "x", get "y" ])
               ]
@@ -481,6 +525,12 @@ defCompare vis tdecl =
         , cUnreachable
         ]
 
+decCmpOp :: Doc -> GenVis -> TDecl -> CDecl
+decCmpOp op vis tdecl =
+  cTemplateDecl tdecl $$
+  cDeclareFun "static inline bool" ("operator" <+> op)
+                      [ ty <+> "x", ty <+> "y" ]
+  where ty = cTypeNameUse vis tdecl
 
 defCmpOp :: Doc -> GenVis -> TDecl -> CStmt
 defCmpOp op vis tdecl =
@@ -531,7 +581,7 @@ defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
                      , cStmt (cCall ("ptr.getValue()." <.> name) (map snd fs))
                      ]
          GenUnboxed ->
-            cStmt ("tag =" <+> cSumTagV l)
+            cStmt ("tag =" <+> cSumTagV (tName tdecl) l)
           : [ cStmt ("data." <.> cField n <+> "=" <+> cLabel l) | t /= TUnit ]
 
 
@@ -569,7 +619,7 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
   sel (l,t) n =
     let name       = selName borrow l
         uniNote    = if uni
-                       then "\nOnly valid when getTag() is " <+> cSumTagV l
+                       then "\nOnly valid when getTag() is " <+> cSumTagV (tName tdecl) l
                        else ""
         doc        = vcat [ "/** Get the value of field `" <.> pp l <.> "`."
                           , uniNote
@@ -605,7 +655,7 @@ defCopyFree vis boxed fun tdecl = defMethod vis tdecl "void" fun [] def
   def =
     case boxed of
       GenBoxed ->
-        [ cStmt $ cCall ("ptr.getValue()." <.> fun) [] ]
+        [ cStmt $ cCall ("ptr." <.> fun) [] ]
       GenUnboxed ->
         case tDef tdecl of
           TStruct _ -> map snd (stmts True)
@@ -613,7 +663,7 @@ defCopyFree vis boxed fun tdecl = defMethod vis tdecl "void" fun [] def
             case stmts False of
               [] -> []
               xs -> [ vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
-                           , nest 2 $ vcat' [ "case" <+> cSumTagV l <.> colon $$
+                           , nest 2 $ vcat' [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$
                                                nest 2 (s $$ "break;")
                                             | (l,s) <- xs ] 
                                     $$ "default: break;"

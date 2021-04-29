@@ -4,7 +4,7 @@ module Daedalus.ParserGen.LL.LLA
   ( createLLA
   , buildPipelineLLA
   , statsLLA
-  , SynthLLAState
+  , LLAState
   , LLA(..)
   , llaToGraphviz
   , Prediction
@@ -30,10 +30,13 @@ import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ParamLL
 import Daedalus.ParserGen.LL.SlkCfg
 import Daedalus.ParserGen.LL.Closure
 import Daedalus.ParserGen.LL.DFAStep
 import Daedalus.ParserGen.LL.DFA
+
+
 
 
 -- LLA: Lockstep Lookahead Automaton
@@ -41,151 +44,208 @@ import Daedalus.ParserGen.LL.DFA
 -- LLA: lalalalala
 -- LLA: reverse of ALL(*)
 
-data SynthLLAState = SynthLLAState { synthLLAState :: {-# UNPACK #-} !Int }
+data LLAState = LLAState { qLLAState :: {-# UNPACK #-} !Int }
 
-instance Eq SynthLLAState where
-  (==) q1 q2 = synthLLAState q1 == synthLLAState q2
+instance Eq LLAState where
+  (==) q1 q2 = qLLAState q1 == qLLAState q2
 
-instance Ord SynthLLAState where
+instance Ord LLAState where
   compare q1 q2 =
-    compare (synthLLAState q1) (synthLLAState q2)
+    compare (qLLAState q1) (qLLAState q2)
 
-instance Show SynthLLAState where
-  show (SynthLLAState q) = "l" ++ show q
+instance Show LLAState where
+  show (LLAState q) = "l" ++ show q
 
-initSynthLLAState :: SynthLLAState
-initSynthLLAState = SynthLLAState 0
+initLLAState :: LLAState
+initLLAState = LLAState 0
 
 
-type MapFinalToSynthLLAState = Map.Map LinDFAState SynthLLAState
+type MapFinalToLLAState = Map.Map LinDFAState LLAState
 
 data LLA = LLA
-  { transitionLLA :: !(Map.Map SynthLLAState DFA)
+  { transitionLLA :: !(Map.Map LLAState (Either DFA DDA))
 
-    -- mapping from the Final states of the DFA to the SynthLLAState
-  , mappingFinalToSynth :: Map.Map SynthLLAState MapFinalToSynthLLAState
+    -- mapping from the Final states of the DFA to the `LLAState`
+    -- This is necessary for fast linking final states of the DFA to
+    -- `LLAState` during the prediction
+  , mappingFinalToLLAState :: Map.Map LLAState MapFinalToLLAState
 
-    -- mapping from the NFA states to SynthLLAState
-  , mappingNFAToSynth :: IntMap.IntMap SynthLLAState
+    -- mapping from the NFA states to LLAState
+  , mappingNFAStateToLLAState :: IntMap.IntMap LLAState
 
-  , mappingDFAStateToSynth :: Map.Map DFAState SynthLLAState
-  , mappingSynthToDFAState :: Map.Map SynthLLAState DFAState
-  , lastSynth :: SynthLLAState
+  , mappingDFAStateToLLAState :: Map.Map DFAState LLAState
+  , mappingLLAStateToDFAState :: Map.Map LLAState DFAState
+  , _lastLLAState :: LLAState
 
-    -- synthesized mapping of mappingNFAToSynth
-  , synthesizedMappingNFAToSynth :: !(Array.Array Int (Maybe SynthLLAState))
+    -- synthesized mapping of mappingNFAStateToLLAState
+  , synthesizedMappingNFAStateToLLAState :: !(Array.Array Int (Maybe LLAState))
   }
 
 emptyLLA :: LLA
 emptyLLA =
   LLA
   { transitionLLA = Map.empty
-  , mappingFinalToSynth = Map.empty
-  , mappingNFAToSynth = IntMap.empty
-  , mappingDFAStateToSynth = Map.empty
-  , mappingSynthToDFAState = Map.empty
-  , lastSynth = initSynthLLAState
-  , synthesizedMappingNFAToSynth = Array.array (0,0) [ (0, Nothing) ]
+  , mappingFinalToLLAState = Map.empty
+  , mappingNFAStateToLLAState = IntMap.empty
+  , mappingDFAStateToLLAState = Map.empty
+  , mappingLLAStateToDFAState = Map.empty
+  , _lastLLAState = initLLAState
+  , synthesizedMappingNFAStateToLLAState = Array.array (0,0) [ (0, Nothing) ]
   }
 
-nextSynthLLAState :: SynthLLAState -> SynthLLAState
-nextSynthLLAState (SynthLLAState q) = SynthLLAState (q+1)
+nextLLAState :: LLAState -> LLAState
+nextLLAState (LLAState q) = LLAState (q+1)
 
 
-lookupSynthArray :: State -> LLA -> Maybe SynthLLAState
-lookupSynthArray q aut =
+lookupSynthArray :: State -> LLA -> Maybe LLAState
+lookupSynthArray q lla =
   {-# SCC breakpointLookupSynthArray #-}
-  -- IntMap.lookup q (mappingNFAToSynth aut)
-  let m = synthesizedMappingNFAToSynth aut in
+  -- IntMap.lookup q (mappingNFAStateToLLAState lla)
+  let m = synthesizedMappingNFAStateToLLAState lla in
     m Array.! q
 
-lookupLLAFromState :: State -> LLA -> Maybe (DFA, MapFinalToSynthLLAState)
-lookupLLAFromState q aut =
-  let mSynth = lookupSynthArray q aut
-  in case mSynth of
-       Nothing -> Nothing
-       Just sq ->
-         Just
-         ( fromJust $ Map.lookup sq (transitionLLA aut)
-         , fromJust $ Map.lookup sq (mappingFinalToSynth aut)
-         )
+lookupLLAFromState ::
+  State ->
+  LLA ->
+  Maybe (Either (DFA, MapFinalToLLAState) DDA)
+lookupLLAFromState q lla =
+  let mSynth = lookupSynthArray q lla
+  in
+  case mSynth of
+    Nothing -> Nothing
+    Just sq ->
+      let t = fromJust $ Map.lookup sq (transitionLLA lla)
+      in
+      case t of
+        Left dfa ->
+          Just $ Left
+          ( dfa
+          , fromJust $ Map.lookup sq (mappingFinalToLLAState lla)
+          )
+        Right dda ->
+          Just $ Right dda
 
-lookupLLAFromSynth :: SynthLLAState -> LLA -> (DFA, MapFinalToSynthLLAState)
-lookupLLAFromSynth q aut =
-  let dfa = fromJust $ Map.lookup q (transitionLLA aut)
-      finalMapping = fromJust $ Map.lookup q (mappingFinalToSynth aut)
-  in (dfa, finalMapping)
 
+lookupLLAFromLLAState ::
+  LLAState ->
+  LLA ->
+  Either (DFA, MapFinalToLLAState) DDA
+lookupLLAFromLLAState q lla =
+  let
+    t = fromJust $ Map.lookup q (transitionLLA lla)
+  in
+  case t of
+    Left dfa ->
+      let finalMapping = fromJust $ Map.lookup q (mappingFinalToLLAState lla)
+      in Left (dfa, finalMapping)
+    Right dda -> Right dda
 
 
 memberLLA :: DFAState -> LLA -> Bool
-memberLLA q aut =
-  if Map.member q (mappingDFAStateToSynth aut)
+memberLLA q lla =
+  if Map.member q (mappingDFAStateToLLAState lla)
   then
-    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut)
-    in Map.member qSynth (transitionLLA aut)
+    let qLLA = fromJust $ Map.lookup q (mappingDFAStateToLLAState lla)
+    in Map.member qLLA (transitionLLA lla)
   else False
 
-insertLLA :: DFAState -> DFA -> LLA -> LLA
-insertLLA q dfa =
+insertLLA :: DFAState -> Either DFA DDA -> LLA -> LLA
+insertLLA q ddfa =
   (\ aut ->
-  if Map.member q (mappingDFAStateToSynth aut)
-  then
-    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut) in
-    if Map.member qSynth (transitionLLA aut)
-    then error "broken invariant"
-    else allocFinalAndTransition qSynth aut
-  else
-    let aut1 = addToMappings q aut in
-    let qSynth = fromJust $ Map.lookup q (mappingDFAStateToSynth aut1) in
-    allocFinalAndTransition qSynth aut1
+  let
+    (qLLA, lla) =
+      if Map.member q (mappingDFAStateToLLAState aut)
+      then
+        let q1 = fromJust $ Map.lookup q (mappingDFAStateToLLAState aut) in
+        (q1, aut)
+      else
+        let aut1 = addDFAStateToMappings q aut in
+        let q1 = fromJust $ Map.lookup q (mappingDFAStateToLLAState aut1) in
+        (q1, aut1)
+  in
+  allocFinalAndTransition qLLA lla
   )
 
   where
-    allocFinalAndTransition :: SynthLLAState -> LLA -> LLA
-    allocFinalAndTransition qSynth aut1 =
-      let (finalMapping, aut2) = allocFinal (Set.toList (finalLinDFAState dfa)) (Map.empty, aut1) in
-      if (Map.size finalMapping) /= (Set.size (finalLinDFAState dfa))
-      then error "broken invariant"
-      else
-        aut2
-        { transitionLLA = Map.insert qSynth dfa (transitionLLA aut1)
-        , mappingFinalToSynth = Map.insert qSynth finalMapping (mappingFinalToSynth aut1)
-        }
-
-    addToMappings qDFA aut1 =
-      if Map.member qDFA (mappingDFAStateToSynth aut1)
-      then aut1
-      else
-        let newSynth = nextSynthLLAState (lastSynth aut1) in
-        let newMappingNFAToSynth =
-              case isDFAStateInit qDFA of
-                Nothing -> mappingNFAToSynth aut1
-                Just qNFA -> IntMap.insert qNFA newSynth (mappingNFAToSynth aut1)
-            newMappingDFAStateToSynth =
-              Map.insert qDFA newSynth (mappingDFAStateToSynth aut1)
-            newMappingSynthToDFAState =
-              Map.insert newSynth qDFA (mappingSynthToDFAState aut1)
-        in
-          aut1
-          { mappingNFAToSynth = newMappingNFAToSynth
-          , mappingDFAStateToSynth = newMappingDFAStateToSynth
-          , mappingSynthToDFAState = newMappingSynthToDFAState
-          , lastSynth = newSynth
+    allocFinalAndTransition :: LLAState -> LLA -> LLA
+    allocFinalAndTransition qLLA lla =
+      case ddfa of
+        Left dfa ->
+          let finalStates = finalLinDFAState dfa in
+          let
+            (finalMapping, lla1) =
+              allocFinal (Set.toList finalStates) dfa (Map.empty, lla)
+          in
+          lla1
+          { transitionLLA = Map.insert qLLA ddfa (transitionLLA lla)
+          , mappingFinalToLLAState =
+              Map.insert qLLA finalMapping (mappingFinalToLLAState lla)
+          }
+        Right dda ->
+          let finalStates = getFinalStatesDDA dda in
+          let lla1 = allocFinalDDA finalStates lla in
+          lla1
+          { transitionLLA = Map.insert qLLA ddfa (transitionLLA lla1)
           }
 
-    allocFinal :: [LinDFAState] -> (MapFinalToSynthLLAState, LLA) -> (MapFinalToSynthLLAState, LLA)
-    allocFinal lst (finalMapping, aut1) =
+    addDFAStateToMappings qDFA lla1 =
+      -- Membership tested here bc function used at top level and by
+      -- `allocFinal`
+      if Map.member qDFA (mappingDFAStateToLLAState lla1)
+      then lla1
+      else
+        let newSynth = nextLLAState (_lastLLAState lla1) in
+        let
+          newMappingNFAToSynth =
+            case isDFAStateInit qDFA of
+              Nothing -> mappingNFAStateToLLAState lla1
+              Just qNFA -> IntMap.insert qNFA newSynth (mappingNFAStateToLLAState lla1)
+          newMappingDFAStateToSynth =
+            Map.insert qDFA newSynth (mappingDFAStateToLLAState lla1)
+          newMappingSynthToDFAState =
+            Map.insert newSynth qDFA (mappingLLAStateToDFAState lla1)
+        in
+          lla1
+          { mappingNFAStateToLLAState = newMappingNFAToSynth
+          , mappingDFAStateToLLAState = newMappingDFAStateToSynth
+          , mappingLLAStateToDFAState = newMappingSynthToDFAState
+          , _lastLLAState = newSynth
+          }
+
+    -- Allocate the final states, add them to the lla and return the
+    -- mappingfrom the final states of the dfa/dda to the
+    -- `LLAState`
+    allocFinal ::
+      [LinDFAState] ->
+      DFA ->
+      (MapFinalToLLAState, LLA) ->
+      (MapFinalToLLAState, LLA)
+    allocFinal lst dfa (finalMapping, lla) =
       case lst of
-        [] -> (finalMapping, aut1)
+        [] -> (finalMapping, lla)
         qLinDFA : qs ->
           let qDFA = fromJust $ Map.lookup qLinDFA (mappingLinToDFAState dfa) in
-          let newAut = addToMappings qDFA aut1 in
-          let newFinalMapping =
-                let qSynth = fromJust $ Map.lookup qDFA (mappingDFAStateToSynth newAut)
-                in Map.insert qLinDFA qSynth finalMapping
-          in allocFinal qs (newFinalMapping, newAut)
+          let newLla = addDFAStateToMappings qDFA lla in
+          let
+            newFinalMapping =
+              let
+                qLLA =
+                  fromJust $ Map.lookup qDFA (mappingDFAStateToLLAState newLla)
+              in
+              Map.insert qLinDFA qLLA finalMapping
+          in allocFinal qs dfa (newFinalMapping, newLla)
 
+
+    allocFinalDDA ::
+      [DFAState] ->
+      LLA ->
+      LLA
+    allocFinalDDA lst lla =
+      case lst of
+        [] -> lla
+        qDFA : qs ->
+          let newLla = addDFAStateToMappings qDFA lla
+          in allocFinalDDA qs newLla
 
 
 type Prediction = ChoiceSeq
@@ -197,7 +257,7 @@ destrPrediction pdx =
     c Seq.:<| cs -> Just (c, cs)
 
 
--- TODO: Explain this in some document. This is basically the key of
+-- TODO: Explain this in some document. This is basically the key to
 -- the new faithful determinization.
 predictDFA :: DFA -> Input.Input -> Maybe (Prediction, Maybe LinDFAState)
 predictDFA dfa i =
@@ -280,7 +340,8 @@ predictDFA dfa i =
           error "broken invariant: cannot be ClosureMove here"
         _ -> error "ambiguous prediction"
 
-    extractPredictionFromDFARegistry :: SourceCfg -> IteratorDFARegistry -> (SourceCfg, Prediction)
+    extractPredictionFromDFARegistry ::
+      SourceCfg -> IteratorDFARegistry -> (SourceCfg, Prediction)
     extractPredictionFromDFARegistry src s =
       case nextIteratorDFARegistry s of
         Nothing -> error "could not find src from previous cfg"
@@ -294,18 +355,28 @@ predictDFA dfa i =
            error "broken invariant: cannot be ClosureMove here"
 
 
-predictLL :: Either State SynthLLAState -> LLA -> Input.Input -> Maybe (Prediction, Maybe SynthLLAState)
-predictLL qq aut inp =
+predictLL ::
+  Either State LLAState ->
+  LLA ->
+  Input.Input ->
+  Maybe (Either (Prediction, Maybe LLAState) DDA)
+predictLL qq lla inp =
   case qq of
     Left q ->
-      let mdfa = lookupLLAFromState q aut in
-        case mdfa of
-          Nothing -> Nothing
-          Just (dfa, finalMapping) ->
-            predictFromPDXA dfa finalMapping
-    Right qSynth ->
-      let (dfa, finalMapping) = lookupLLAFromSynth qSynth aut in
-        predictFromPDXA dfa finalMapping
+      let r = lookupLLAFromState q lla in
+      case r of
+        Nothing -> Nothing
+        Just (Left (dfa, finalMapping)) ->
+          predictFromPDXA dfa finalMapping
+        Just (Right dda) ->
+          Just (Right dda)
+    Right qLLA ->
+      let r = lookupLLAFromLLAState qLLA lla in
+      case r of
+        Left (dfa, finalMapping) ->
+          predictFromPDXA dfa finalMapping
+        Right dda ->
+          Just $ Right dda
 
   where
     predictFromPDXA dfa finalMapping =
@@ -313,18 +384,24 @@ predictLL qq aut inp =
         case mp of
           Nothing -> Nothing
           Just (pdx, mlinState) ->
-            let finalSynth = maybe Nothing (\ linState -> Map.lookup linState finalMapping) mlinState in
-            Just (pdx, finalSynth)
+            let
+              finalSynth =
+                maybe
+                Nothing
+                (\ linState -> Map.lookup linState finalMapping)
+                mlinState
+            in
+            Just (Left (pdx, finalSynth))
 
 
 synthesizeLLA :: Aut a => a -> LLA -> LLA
 synthesizeLLA aut lla =
-  let m = mappingNFAToSynth lla
+  let m = mappingNFAStateToLLAState lla
       maxState = getMaxState aut -- List.maximum (map fst (IntMap.toAscList m))
       arr = generate (maxState + 1) m
-  in lla { synthesizedMappingNFAToSynth = arr}
+  in lla { synthesizedMappingNFAStateToLLAState = arr }
   where
-    generate :: Int -> IntMap.IntMap SynthLLAState -> Array.Array Int (Maybe SynthLLAState)
+    generate :: Int -> IntMap.IntMap LLAState -> Array.Array Int (Maybe LLAState)
     generate size mapping =
       Array.array (0, size) lst
       where
@@ -336,14 +413,22 @@ synthesizeLLA aut lla =
 
 isFullyDeterminizedLLA :: LLA -> Bool
 isFullyDeterminizedLLA lla =
-  let m = mappingSynthToDFAState lla in
-  foldr (\ q b ->
-           case Map.lookup q (transitionLLA lla) of
-             Nothing -> error "broken invariant"
-             Just dfa ->
-               if fromJust $ flagHasFullResolution dfa
-               then b
-               else False) True (map fst (Map.toAscList m))
+  let m = mappingLLAStateToDFAState lla in
+  foldr
+  (\ q b ->
+      case Map.lookup q (transitionLLA lla) of
+        Nothing -> error "broken invariant"
+        Just (Left dfa) ->
+          if fromJust $ flagHasFullResolution dfa
+          then b
+          else False
+        Just (Right dda) ->
+          if computeHasFullResolutionDDA dda
+          then b
+          else False
+  )
+  True
+  (map fst (Map.toAscList m))
 
 
 buildPipelineLLA :: Aut a => a -> Either LLA (LLA, LLA)
@@ -356,7 +441,7 @@ buildPipelineLLA aut =
     (lla1, tab1) = go initDFAStates [] emptyLLA tab
     lla11 = synthesizeLLA aut lla1
   in
-    if isFullyDeterminizedLLA lla1
+    if isFullyDeterminizedLLA lla1 || flag_ONLY_STRICT_LLA
     then
       Left lla11
     else
@@ -403,21 +488,40 @@ buildPipelineLLA aut =
       [DFAState] -> [DFAState] -> LLA ->
       HTable -> (LLA, HTable)
     go toVisit nextRound lla tab =
-      if synthLLAState (lastSynth lla) > 1000000 then error "Stop" else
       case toVisit of
         [] -> case nextRound of
                 [] -> (lla, tab)
                 _ -> go (reverse nextRound) [] lla tab
         q : qs ->
+          if qLLAState (_lastLLAState lla) > cst_MAX_LLA_SIZE
+          then
+            let
+              dfa = createAbortDFA q (Abort AbortLLAOverflow)
+              newlla = insertLLA q (Left dfa) lla
+            in
+            go qs nextRound newlla tab
+          else
           if memberLLA q lla
           then go qs nextRound lla tab
           else
-            let (dfa, tab1) = createDFA aut q tab
-                newlla = insertLLA q dfa lla
-                newNextRound =
-                  let finalStates = getFinalStates dfa in
+            let r = createDFA aut q tab in
+            case r of
+              Left (dfa, tab1) ->
+                let
+                  newlla = insertLLA q (Left dfa) lla
+                  newNextRound =
+                    let finalStates = getFinalStates dfa in
                     revAppend finalStates nextRound
-            in go qs newNextRound newlla tab1
+                in go qs newNextRound newlla tab1
+              Right (dda, tab1) ->
+                let
+                  newlla = insertLLA q (Right dda) lla
+                  newNextRound =
+                    let finalStates = getFinalStatesDDA dda in
+                    revAppend finalStates nextRound
+                in
+                  go qs newNextRound newlla tab1
+
 
 createLLA :: Aut a => a -> LLA
 createLLA aut =
@@ -427,10 +531,10 @@ createLLA aut =
       lla2
       -- _lla1
 
-showStartSynthLLAState :: Aut a => a -> LLA -> SynthLLAState -> [String]
-showStartSynthLLAState aut dfas q =
-  let dfaSt = fromJust $ Map.lookup q (mappingSynthToDFAState dfas) in
-  case nextIteratorDFAState (initIteratorDFAState dfaSt) of
+showStartLLAState :: Aut a => a -> LLA -> LLAState -> [String]
+showStartLLAState aut lla q =
+  let qDFA = fromJust $ Map.lookup q (mappingLLAStateToDFAState lla) in
+  case nextIteratorDFAState (initIteratorDFAState qDFA) of
     Nothing -> [ "__ZSINK_STATE" ]
     Just (cfg, qs) ->
       if isEmptyIteratorDFAState qs
@@ -442,47 +546,61 @@ showStartSynthLLAState aut dfas q =
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
 printLLA aut lla cond =
   let t = Map.toAscList (transitionLLA lla)
-      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
+      tAnnotated =
+        map (\ (q, d) -> (showStartLLAState aut lla q, d)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ (ann, dfa) ->
-                    if ( cond dfa
-                         -- (lookaheadDepth dfa < 10)
-                         -- ||
-                         -- (fromJust $ flagHasFullResolution dfa)
-                       )
-                    then
-                      do
-                        mapM_ putStrLn ann
-                        putStrLn $ showDFA dfa
-                        putStrLn ""
-                    else
-                      return ()
-
-                ) tOrdered
+     else
+       mapM_
+       (\ (ann, d) ->
+          case d of
+            Left dfa ->
+              if
+                ( cond dfa
+                  -- (lookaheadDepth dfa < 10)
+                  -- ||
+                  -- (fromJust $ flagHasFullResolution dfa)
+                )
+              then
+                do
+                  mapM_ putStrLn ann
+                  putStrLn $ showDFA dfa
+                  putStrLn ""
+              else
+                return ()
+            Right _dda -> return ()
+       )
+       tOrdered
 
 printAmbiguities :: Aut a => a -> LLA -> IO ()
 printAmbiguities aut lla =
   let t = Map.toAscList (transitionLLA lla)
-      tAnnotated = map (\ (q, dfa) -> (showStartSynthLLAState aut lla q, dfa)) t
+      tAnnotated = map (\ (q, dfa) -> (showStartLLAState aut lla q, dfa)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in if length t > 10000
      then do return ()
-     else mapM_ (\ (ann, dfa) ->
-                    case extractAmbiguity dfa of
-                      Nothing ->
-                        return ()
-                      Just (l, conflicts) ->
-                        do putStrLn "*******  Found Ambiguity  *******"
-                           putStrLn ("  Start: " ++ (head ann))
-                           putStrLn ("  Paths : ")
-                           printConflicts conflicts
-                           putStrLn "********  input witness  ********"
-                           putStrLn $ printPath l
-                ) tOrdered
+     else
+       mapM_
+       (\ (ann, d) ->
+          case d of
+            Left dfa ->
+              case extractAmbiguity dfa of
+                Nothing ->
+                  return ()
+                Just (l, conflicts) ->
+                  do putStrLn "*******  Found Ambiguity  *******"
+                     putStrLn ("  Start: " ++ (head ann))
+                     putStrLn ("  Paths : ")
+                     printConflicts conflicts
+                     putStrLn "********  input witness  ********"
+                     putStrLn $ printPath l
+            Right _dda ->
+              return ()
+       )
+       tOrdered
   where
     printPath l =
       concat (List.intersperse "" (map showGraphvizInputHeadCondition l))
@@ -506,11 +624,15 @@ llaToGraphviz _aut lla =
   where
     theLLA =
       case lla of
-          Left lla1 -> lla1
-          Right (lla1, _lla2) -> lla1
+        Left lla1 -> lla1
+        Right (lla1, _lla2) -> lla1
     m = transitionLLA theLLA
     f k a b =
-      printDFAtoGraphviz (synthLLAState k) a ++ b
+      case a of
+        Left dfa ->
+          printDFAtoGraphviz (qLLAState k) dfa ++ b
+        Right _dda ->
+          [""]
 
     trans = Map.foldrWithKey f [] m
     prelude =
@@ -559,8 +681,12 @@ statsLLA aut llas =
     getReport lst report =
       case lst of
         [] -> foldr (\ a b -> show a ++ "\n" ++ b) "" (Map.assocs report)
-        dfa : xs ->
-          getReport xs (incrReport report dfa)
+        d : xs ->
+          case d of
+            Left dfa ->
+              getReport xs (incrReport report dfa)
+            Right dda ->
+              getReport xs (incrReportDDA report dda)
 
     result str = "Lookahead" ++ str
 
@@ -588,9 +714,18 @@ statsLLA aut llas =
           --else res
         _ -> abortToString r
 
+    mapResultToKeyDDA :: DDA -> String
+    mapResultToKeyDDA dda =
+      case computeHasFullResolutionDDA dda of
+        True -> "DataDepTrans"
+        False -> "Abort-DataDepTrans"
 
     incrReport :: Map.Map String Int -> DFA -> Map.Map String Int
-    incrReport report r =
-      let key = mapResultToKey r
-      in
-        Map.insertWith (\ a b -> a+b) key 1 report
+    incrReport report dfa =
+      let key = mapResultToKey dfa in
+      Map.insertWith (\ a b -> a+b) key 1 report
+
+    incrReportDDA :: Map.Map String Int -> DDA -> Map.Map String Int
+    incrReportDDA report dda =
+      let key = mapResultToKeyDDA dda in
+      Map.insertWith (\ a b -> a+b) key 1 report

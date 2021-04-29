@@ -1,0 +1,15 @@
+module T062
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T062.Main : Grammar bool =
+  do (x : uint 8) <- GetByte
+     ($$ : bool) <- pure (if (x == 2) then true else if (x == 3) then x == 4 else false)
+     pure $$
+ 
+T062._Main : Grammar {} =
+  @GetByte

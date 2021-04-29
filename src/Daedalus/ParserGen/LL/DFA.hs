@@ -6,10 +6,14 @@ module Daedalus.ParserGen.LL.DFA
   , DFATransition(..)
   , AmbiguityDetection(..)
   , lookupLinDFAState
+  , createAbortDFA
   , createDFA
   , getFinalStates
   , showDFA
   , lookupDFA
+  , DDA(..)
+  , getFinalStatesDDA
+  , computeHasFullResolutionDDA
   , lookaheadDepth
   , revAppend
   , printDFAtoGraphviz
@@ -29,23 +33,11 @@ import Daedalus.ParserGen.Aut (Aut(..))
 
 
 import Daedalus.ParserGen.LL.Result
+import Daedalus.ParserGen.LL.ParamLL
 import Daedalus.ParserGen.LL.ClassInterval
 import Daedalus.ParserGen.LL.SlkCfg
 import qualified Daedalus.ParserGen.LL.Closure as Closure
 import Daedalus.ParserGen.LL.DFAStep
-
-
-cst_MAX_LOOKAHEAD_DEPTH :: Int
-cst_MAX_LOOKAHEAD_DEPTH = 20
-
-cst_MAX_DFA_NB_STATES :: Int
-cst_MAX_DFA_NB_STATES = 100
-
-cst_OVERFLOW_CFG :: Int
-cst_OVERFLOW_CFG = 10
-
-cst_DEMO_MODE :: Bool
-cst_DEMO_MODE = True
 
 
 data AmbiguityDetection =
@@ -396,6 +388,19 @@ printDFAtoGraphviz llaState dfa =
               in
               translateRegistry it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
 
+data DDA = DDA
+  { startDDA :: DFAState
+  , transitionDDA :: (Result Closure.DataDepInstr)
+  }
+
+getFinalStatesDDA :: DDA -> [DFAState]
+getFinalStatesDDA dda =
+  case transitionDDA dda of
+    Result (Closure.DDManyBetween _ cfg1 cfg2) ->
+      [ mkDFAStateFromSlkCfg cfg1
+      , mkDFAStateFromSlkCfg cfg2
+      ]
+    Abort _ -> []
 
 
 lookaheadDepth :: DFA -> Int
@@ -501,21 +506,31 @@ mapAnalyzeConflicts dc =
       in Just (reg, am)
 
 
+createAbortDFA :: DFAState -> Result DFATransition -> DFA
+createAbortDFA qInit r =
+  let idfa = initDFA qInit in
+  let dfa =insertDFA (startLinDFAState idfa) r idfa in
+  let dfa1 = computeHasFullResolution dfa in
+  let dfa2 = computeHasNoAbort dfa1 in
+  dfa2
+
 createDFA ::
   Aut a =>
   a -> DFAState ->
-  HTable -> (DFA, HTable)
+  HTable -> Either (DFA, HTable) (DDA, HTable)
 createDFA aut qInit tab =
   let idfa = initDFA qInit in
-  let
-    (dfa, tab1) =
-      if measureDFAState qInit > cst_OVERFLOW_CFG
-      then (insertDFA (startLinDFAState idfa) (Abort AbortDFAOverflowInitCfg) idfa, tab)
-      else go [(startLinDFAState idfa, 0)] [] idfa tab
-  in
-  let dfa1 = computeHasFullResolution dfa
-      dfa2 = computeHasNoAbort dfa1
-  in (dfa2, tab1)
+  -- It starts attempting `closureDataDependentOnDFAState` and if not
+  -- successful then it attempts the determinization with `detSubset`
+  let c = closureDataDependentOnDFAState aut qInit tab in
+  case c of
+    (Result (Just t), tab2) ->
+      Right (DDA { startDDA = qInit, transitionDDA = Result t}, tab2)
+    (_, _) ->
+      let (dfa, tab2) = go [(startLinDFAState idfa, 0)] [] idfa tab in
+      let dfa1 = computeHasFullResolution dfa in
+      let dfa2 = computeHasNoAbort dfa1 in
+      Left (dfa2, tab2)
   where
     go ::
       [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> DFA ->
@@ -528,17 +543,23 @@ createDFA aut qInit tab =
         (q, depth) : rest ->
           case lookupLinDFAState q dfa of
             Nothing ->
-              if (depth > cst_MAX_LOOKAHEAD_DEPTH ||
+              let qDFA = fromJust $ Map.lookup q (mappingLinToDFAState dfa) in
+              if (measureDFAState qDFA > cst_OVERFLOW_CFG ||
+                  depth > cst_MAX_LOOKAHEAD_DEPTH ||
                  lastLinDFAState dfa > cst_MAX_DFA_NB_STATES)
               then
-                let newDfa =
-                      if depth > cst_MAX_LOOKAHEAD_DEPTH
-                      then insertDFA q (Abort AbortDFAOverflowLookahead) dfa
-                      else insertDFA q (Abort AbortDFAOverflowNbStates) dfa
+                let
+                  newDfa =
+                    if measureDFAState qDFA > cst_OVERFLOW_CFG
+                    then insertDFA q (Abort AbortDFAOverflowCfg) dfa
+                    else
+                    if depth > cst_MAX_LOOKAHEAD_DEPTH
+                    then insertDFA q (Abort AbortDFAOverflowLookahead) dfa
+                    else insertDFA q (Abort AbortDFAOverflowNbStates) dfa
                 in go rest accToVisit newDfa localTab
               else
                 let (choices, tab1) =
-                      detSubset (fromJust $ Map.lookup q (mappingLinToDFAState dfa)) localTab in
+                      detSubset qDFA localTab in
                 let newDfa = insertDFA q choices dfa in
                 let allocatedChoice = fromJust $ lookupLinDFAState q newDfa
                 in
@@ -552,7 +573,10 @@ createDFA aut qInit tab =
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
               go rest accToVisit dfa localTab
 
-    collectVisit :: Int -> [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState, LinDFAState)] -> [(LinDFAState, Int)]
+    collectVisit ::
+      Int ->
+      [(InputHeadCondition, DFARegistry, AmbiguityDetection, DFAState, LinDFAState)] ->
+      [(LinDFAState, Int)]
     collectVisit depth lst =
       foldr
       (\ (_, _, am, _qq, q) vis ->
@@ -576,12 +600,12 @@ createDFA aut qInit tab =
         rFinalized =
           case r of
             Abort AbortSlkCfgExecution -> coerceAbort r
+            Abort AbortSlkCfgClassIsDynamic -> coerceAbort r
+            Abort (AbortSlkCfgClassNotHandledYet _) -> coerceAbort r
             Abort AbortClosureOverflowMaxDepth -> coerceAbort r
             Abort AbortClosureInfiniteloop -> coerceAbort r
             Abort AbortClosureUnhandledInputAction -> coerceAbort r
             Abort AbortClosureUnhandledAction -> coerceAbort r
-            Abort AbortClassIsDynamic -> coerceAbort r
-            Abort (AbortClassNotHandledYet _) -> coerceAbort r
             Abort AbortDFAIncompatibleInput -> coerceAbort r
             Result r1 ->
               let r2 = mapAnalyzeConflicts r1 in
@@ -667,6 +691,11 @@ computeHasNoAbort dfa =
             Ambiguous -> helper visited rest
             DunnoAmbiguous -> traverseWithVisited visited q && helper visited rest
 
+computeHasFullResolutionDDA :: DDA -> Bool
+computeHasFullResolutionDDA dda =
+  case transitionDDA dda of
+    Result _ -> True
+    _ -> False
 
 extractAmbiguity :: DFA -> Maybe ([InputHeadCondition], [DFAEntry])
 extractAmbiguity dfa =

@@ -3,6 +3,7 @@ packages:
   daedalus-utils/
   daedalus-core/
   daedalus-vm/
+  daedalus-value/
   rts-hs/
   pdf-cos/
   pdf-driver/

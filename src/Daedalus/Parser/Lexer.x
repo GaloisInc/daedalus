@@ -23,6 +23,7 @@ $smallAlpha = [a-z]
 $alpha      = [$bigAlpha $smallAlpha _]
 $digit      = [0-9]
 $hexDigit   = [0-9a-fA-F]
+$binDigit   = [01]
 $anybyte    = [\32-\127]
 $ws         = [\0\9\10\13\32]
 
@@ -32,6 +33,8 @@ $ws         = [\0\9\10\13\32]
 @natural    = $digit+
 @integer    = \-? @natural
 @hexLiteral = 0 [xX] $hexDigit $hexDigit*
+@binLiteral = 0 [bB] $binDigit $binDigit*
+
 @esc        = \\ (@natural | \\ | \' | " | n | t | r | [xX] $hexDigit $hexDigit* )
 @byte       = \' ($anybyte # [\\] | @esc) \'
 @bytes      = \" ($anybyte # [\"\\] | @esc)* \"
@@ -99,6 +102,9 @@ $ws+        ;
 
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }
+"bitdata"   { lexeme KWBitData }
+"where"     { lexeme KWWhere }
+
 "for"       { lexeme KWFor }
 "map"       { lexeme KWMap }
 "in"        { lexeme KWIn }
@@ -159,7 +165,6 @@ $ws+        ;
 "maybe"     { lexeme KWMaybe }
 "stream"    { lexeme KWStream }
 
-
 @bigIdent   { lexeme BigIdent }
 @smallIdent { lexeme SmallIdent }
 @setIdent   { lexeme SetIdent }
@@ -167,6 +172,7 @@ $ws+        ;
 @bytes      { lexBytes }
 @integer    { lexInteger }
 @hexLiteral { lexHexLiteral }
+@binLiteral { lexBinLiteral }
 
 .           { do { txt <- matchText
                  ; lexeme (TokError
@@ -179,13 +185,20 @@ $ws+        ;
 lexInteger :: Action s [Lexeme Token]
 lexInteger =
   do x <- Text.unpack <$> matchText
-     lexeme $! Number (read x)
+     lexeme $! Number (read x) Nothing
 
 lexHexLiteral :: Action s [Lexeme Token]
 lexHexLiteral =
   do x <- Text.unpack <$> matchText
      -- read supports hex literals too
-     lexeme $! Number (read x)
+     lexeme $! Number (read x) (Just ((length x - 2) * 4)) -- - 2 for '0x'
+
+lexBinLiteral :: Action s [Lexeme Token]
+lexBinLiteral =
+  do ds <- Text.unpack <$> matchText
+     let vs = map (\x -> if x == '0' then 0 else 1) (drop 2 ds) -- removing the '0b'
+         r  = foldl (\acc x -> x + 2 * acc) 0 vs
+     lexeme $! Number r (Just (length vs))
 
 lexByte :: Action s [Lexeme Token]
 lexByte =
@@ -270,7 +283,7 @@ lexer :: Text -> Text -> [Lexeme Token]
 lexer file txt = layout ($makeLexer cfg (initialInput file txt))
   where
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
-  --            "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
+  --          "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
 
   eof p = Lexeme { lexemeToken = TokEOF
                  , lexemeText  = ""

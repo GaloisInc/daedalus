@@ -6,7 +6,6 @@ module Daedalus.ParserGen.Compile where
 
 -- import Debug.Trace
 
-import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
@@ -22,6 +21,14 @@ import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
 
+
+-------- Global states
+
+cSTART_STATE :: State
+cSTART_STATE = 1
+
+cFINAL_STATE :: State
+cFINAL_STATE = 0
 
 ------- 1 Allocate States
 
@@ -65,6 +72,7 @@ idVExpr vexpr =
         TCStruct s t -> TCStruct (map (\ (s',e) -> (s', idVExpr e)) s) t
         TCUnit -> TCUnit
         TCArray lst t -> TCArray (map idVExpr lst) t
+        TCArrayLength e -> TCArrayLength (idVExpr e)
         TCMapEmpty t -> TCMapEmpty t
         TCIn lbl e lst -> TCIn lbl (idVExpr e) lst
         TCBinOp op e1 e2 t -> TCBinOp op (idVExpr e1) (idVExpr e2) t
@@ -107,22 +115,23 @@ convertManyBounds :: Show a => ManyBounds (TC a Value) -> ManyBounds (TC (a, PAS
 convertManyBounds b = fmap idVExpr b
 
 
-getByteArray :: Show a => TC a Value -> Maybe [Word8]
+getByteArray :: Show a => TC a Value -> Maybe [TC a Value]
 getByteArray e =
   case texprValue e of
-    TCLiteral (LBytes w) _ -> Just (BS.unpack w)
+    TCLiteral (LBytes w) _ ->
+      Just
+      ( map
+        (\ c ->
+            TC $
+            TCAnnot
+            { tcAnnot = texprAnnot e
+            , tcAnnotExpr = TCLiteral (LByte c) tByte
+            }
+        )
+        (BS.unpack w)
+      )
     TCArray arr _ ->
-      foldr ( \ a b ->
-                case b of
-                  Nothing -> Nothing
-                  Just acc ->
-                    case texprValue a of
-                      TCLiteral (LNumber n) _ ->
-                        if (0 <= n && n <= 255)
-                        then Just $ ((toEnum . fromEnum) n) : acc
-                        else Nothing
-                      _ -> Nothing
-            ) (Just []) arr
+      Just arr
     _ -> Nothing
 
 
@@ -339,12 +348,6 @@ allocDecl n _decl@(TCDecl {..}) =
       }
   in (eAnnot, lastState)
 
-globalStartState :: State
-globalStartState = 1
-
-globalFinalState :: State
-globalFinalState = 0
-
 allocTCModule :: Show a => Int -> TCModule a -> (TCModule (a, PAST.Annot), Int)
 allocTCModule n _tc@(TCModule{..}) =
   let (n1, atc) = foldl fRec (n,[]) tcModuleDecls
@@ -380,7 +383,7 @@ allocStates decls =
         foldl (
         \ (b,acc) a ->
           let (allocMod, st) = allocTCModule b a in (st, allocMod : acc))
-        (globalStartState, []) decls
+        (cSTART_STATE, []) decls
   in
     foldl fRec Map.empty lstMod
   where
@@ -577,8 +580,7 @@ genGExpr gbl e =
                     let eunit = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCUnit}) in
                     [(stSemStart, UniChoice (SAct (EvalPure eunit), stSemEnd))]
               else
-                let ebyte = TC (TCAnnot { tcAnnot = texprAnnot e
-                                        , tcAnnotExpr = TCLiteral (LByte (w !! index)) tByte })
+                let ebyte = w !! index
                     eSetSingle = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCSetSingle ebyte})
                     iact = ClssAct NoSem eSetSingle
                     n0 = getS (2 * index)
@@ -884,10 +886,10 @@ buildMapAut :: [TCModule SourceRange] -> MapAut
 buildMapAut decls =
   let
     aut =
-      mkAutWithPop globalStartState (unionTr mainTrans table) globalFinalState (unionPopTrans mainPop pops)
+      mkAutWithPop cSTART_STATE (unionTr mainTrans table) cFINAL_STATE (unionPopTrans mainPop pops)
   in
   let
-    aut1 = aut { stateMapping = Map.insert globalStartState (mainSourceRange, mainName) stateInfo }
+    aut1 = aut { stateMapping = Map.insert cSTART_STATE (mainSourceRange, mainName) stateInfo }
   in
   let
     aut2 = addGblFunsAut (systemToFunctions allocDecls) aut1
@@ -896,15 +898,24 @@ buildMapAut decls =
   where
     allocDecls = allocStates decls
     allocGrammar = systemToGrammars allocDecls
-    (mainFullName, mainSourceRange, mainInfo) = fromJust $ Map.foldrWithKey
-      (\ k a b ->
-         case b of
-           Just res -> Just res
-           Nothing ->
-             let ident = PAST.name2Text k in
-               -- TODO: this infixOf test should be removed
-               if isInfixOf "Main" (show ident) then Just (k, getSourceRangeDecl a, a) else Nothing
-      ) Nothing allocDecls
+    (mainFullName, mainSourceRange, mainInfo) =
+      let
+        searchMain =
+          Map.foldrWithKey
+          (\ k a b ->
+             case b of
+               Just res -> Just res
+               Nothing ->
+                 let ident = PAST.name2Text k in
+                   -- TODO: this infixOf test should be removed
+                 if isInfixOf "Main" (show ident)
+                 then Just (k, getSourceRangeDecl a, a)
+                 else Nothing
+          ) Nothing allocDecls
+      in
+        case searchMain of
+          Nothing -> error "Missing Main rule"
+          Just x -> x
     mainAnnots = getTCModuleAnnot mainInfo
     startState = PAST.getState mainAnnots 0
     finalState = PAST.getState mainAnnots 1
@@ -916,9 +927,9 @@ buildMapAut decls =
 
     stateInfo = collectDecls allocDecls
     mainTrans = mkTr
-      [ (globalStartState, UniChoice (CAct (Push mainName [] globalFinalState), startState))
+      [ (cSTART_STATE, UniChoice (CAct (Push mainName [] cFINAL_STATE), startState))
       ]
-    mainPop = addPopTrans finalState globalFinalState emptyPopTrans
+    mainPop = addPopTrans finalState cFINAL_STATE emptyPopTrans
 
 buildArrayAut :: [TCModule SourceRange] -> ArrayAut
 buildArrayAut decls =

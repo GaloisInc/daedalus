@@ -31,8 +31,7 @@ library
     Daedalus.Core.Normalize,
     Daedalus.Core.TraverseUserTypes,    
     Daedalus.Core.StripFail,
-    Daedalus.Core.SpecialiseType,    
-    Daedalus.Core.Semantics.Value,
+    Daedalus.Core.SpecialiseType,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,
     Daedalus.Core.Semantics.Grammar,
@@ -49,8 +48,9 @@ library
     bv-sized >= 1.0.1,
     rts-hs,
     monadLib,
-    daedalus-utils
-    
+    daedalus-utils,
+    daedalus-value
+
   hs-source-dirs: src
   default-language:    Haskell2010
   ghc-options: -Wall

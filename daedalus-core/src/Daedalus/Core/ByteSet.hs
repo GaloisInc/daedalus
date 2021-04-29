@@ -19,6 +19,9 @@ data ByteSet =
   | SetCall FName [Expr]
   | SetCase (Case ByteSet)
 
+bIf :: Expr -> ByteSet -> ByteSet -> ByteSet
+bIf e b1 b2 = bCase e [ (PBool True, b1), (PBool False, b2) ]
+
 bCase :: Expr -> [(Pattern,ByteSet)] -> ByteSet
 bCase e bs = SetCase (Case e bs)
 

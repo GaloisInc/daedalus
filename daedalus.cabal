@@ -15,6 +15,8 @@ extra-source-files:
   exe/driver-template/Makefile
   exe/driver-template/Doxyfile
   exe/driver-template/main.cpp
+  exe/driver-template/render.js
+  exe/driver-template/style.css
   rts-c/ddl/*.h
 
 library
@@ -40,10 +42,10 @@ library
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
                        Daedalus.Pass,
-                       Daedalus.Interp.Value,
                        Daedalus.Normalise.AST,
                        Daedalus.Normalise,
                        Daedalus.Type,
+                       Daedalus.Type.Generalize,
                        Daedalus.Type.InferContext,
                        Daedalus.Type.AST,
                        Daedalus.Type.Monad,
@@ -54,7 +56,8 @@ library
                        Daedalus.Type.Free,
                        Daedalus.Type.DeadVal,
                        Daedalus.Type.RefreshGUID,
-                       Daedalus.Type.PatComplete,          
+                       Daedalus.Type.PatComplete, 
+                       Daedalus.Type.BitData,                      
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
@@ -70,12 +73,13 @@ library
                        Daedalus.ParserGen.LL,
                        Daedalus.ParserGen.LL.ClassInterval,
                        Daedalus.ParserGen.LL.Result,
+                       Daedalus.ParserGen.LL.ParamLL,
                        Daedalus.ParserGen.LL.SlkCfg,
                        Daedalus.ParserGen.LL.Closure,
                        Daedalus.ParserGen.LL.DFAStep,
                        Daedalus.ParserGen.LL.DFA,
                        Daedalus.ParserGen.LL.LLA,
-                       Daedalus.ParserGen.RunnerBias,
+                       Daedalus.ParserGen.Runner,
                        Daedalus.ParserGen.Generate
 
   build-depends:       base,
@@ -101,6 +105,7 @@ library
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
+                       daedalus-value,
                        rts-hs
 
 
@@ -112,6 +117,7 @@ executable daedalus
   build-depends:       daedalus,
                        daedalus-utils,
                        daedalus-core,
+                       daedalus-value,
                        daedalus-vm,
                        rts-hs,
                        pretty-hex >= 1.1,

@@ -335,6 +335,11 @@ mbSem tc =
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
 
+    TCIf e e1 e2 ->
+      do (e1',vs1) <- mbSem e1
+         (e2',vs2) <- mbSem e2
+         pure (exprAt tc (TCIf e e1' e2'), mconcat [ tcFree e, vs1, vs2 ])
+
     TCCase e pats mb ->
       do (pats1,vs1) <- NE.unzip <$> mapM (noSemAltWith mbSem) pats
          mb1 <- traverse mbSem mb
@@ -487,6 +492,11 @@ noSem' tc =
                  pure ( exprAt tc (TCCall (matchFun argInfo) ts (as1 ++ as2))
                       , mconcat (is1 ++ is2)
                       )
+
+     TCIf e e1 e2 ->
+        do (e1',vs1) <- noSem' e1
+           (e2',vs2) <- noSem' e2
+           pure (exprAt tc (TCIf e e1' e2'), Set.unions [ tcFree e, vs1, vs2 ])
 
      TCCase e pats mb ->
        do (pats1,vs1) <- NE.unzip <$> mapM (noSemAltWith noSem') pats

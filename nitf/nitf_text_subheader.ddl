@@ -30,7 +30,7 @@ def TextHeader = {
 
   txtfmt = TxtFmt ;
 
-  txshdl = TxShDL ;
+  txshdl = TxShDL as! uint 64;
 
   Choose {
     txsofl = {

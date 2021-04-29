@@ -1,0 +1,41 @@
+module T064
+ 
+--- Imports:
+ 
+--- Type defs:
+type T064.myBD2_B = { }
+ 
+type T064.myBD2_C = { }
+ 
+type T064.myBD2 = Choose { B: T064.myBD2_B
+                         ; C: T064.myBD2_C
+                         }
+ 
+type T064.myBD3_D = { x: T064.myBD2
+                    }
+ 
+type T064.myBD3_E = { x: T064.myBD2
+                    }
+ 
+type T064.myBD3 = Choose { D: T064.myBD3_D
+                         ; E: T064.myBD3_E
+                         }
+ 
+--- Rules:
+ 
+T064.Main : Grammar T064.myBD3 =
+  do SetStream (arrayStream "array" ['A',
+                                     'B'])
+     (v : uint 16) <- do (_8 : uint 8) <- GetByte
+                         (_9 : uint 8) <- GetByte
+                         pure (_8 # _9)
+     ($$ : T064.myBD3) <- v AS T064.myBD3
+     pure $$
+ 
+T064._Main : Grammar {} =
+  do SetStream (arrayStream "array" ['A',
+                                     'B'])
+     (v : uint 16) <- do (_8 : uint 8) <- GetByte
+                         (_9 : uint 8) <- GetByte
+                         pure (_8 # _9)
+     @(v AS T064.myBD3)

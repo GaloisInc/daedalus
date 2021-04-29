@@ -25,6 +25,21 @@ def LE32 = { @w1 = LE16;  @w2 = LE16;  ^ w2 # w1 }
 def LE64 = { @w1 = LE32;  @w2 = LE32;  ^ w2 # w1 }
 def HighBit = (1 : uint 8) << 7
 
+-- *** BIG ENDIAN ***
+def BE16 = { @b1 = UInt8; @b2 = UInt8; ^ b1 # b2 }
+def BE32 = { @w1 = BE16;  @w2 = BE16;  ^ w1 # w2 }
+
+-- *** Parameterized Endian ***
+def End16 littleEnd = case littleEnd of {
+  true -> LE16;
+  false -> BE16;
+}
+
+def End32 littleEnd = case littleEnd of {
+  true -> LE32;
+  false -> BE32;
+}
+
 --
 -- BASIC TYPES
 --
@@ -67,6 +82,20 @@ def Int64 = {
   @dig0 = UInt8;
   ((dig0 .&. ~HighBit) # dig1 # dig2 # dig3 # dig4 #dig5 #dig6 #dig7 as int) -
   ((dig0 .&. HighBit as uint 64) << 56 as int)
+}
+
+def BESign32 = { 
+  @dig0 = UInt8;
+  @dig1 = UInt8;
+  @dig2 = UInt8;
+  @dig3 = UInt8;
+  ((dig0 .&. ~HighBit) # dig1 # dig2 # dig3 as int) -
+  ((dig0 .&. HighBit as uint 32) << 24 as int)
+}
+
+def EndSign32 littleEnd = case littleEnd of {
+  true -> Int32;
+  false -> BESign32;
 }
 
 def Char = UInt8

@@ -6,8 +6,9 @@ import DataMessage
 import FileData
 import DisplayInfo
 
+-- DBG:
 -- AppParser: parse application payloads
-def AppParser (qos: [Parameter]) = {
+def AppParser0 (qos: [Parameter]) = {
     -- get the type name from the parameter list
     @tyNameMaybe = for (tyNmMaybe = nothing; p in qos) (
       Choose1 {
@@ -40,6 +41,8 @@ def AppParser (qos: [Parameter]) = {
       noTyName = tyNameMaybe is nothing;
     };
 }
+
+def AppParser x = ^{}
 
 -- entry point: 
 def Main = Message AppParser

@@ -1,6 +1,6 @@
-module Daedalus.ParserGen.RunnerBias
+module Daedalus.ParserGen.Runner
   ( Result(..)
-  , runnerBias
+  , runner
   , runnerLL
   , extractValues
   , extractMetrics
@@ -16,7 +16,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Sequence as Seq
 
 import RTS.Input(Input(..))
-import qualified Daedalus.Interp as Interp
+import qualified Daedalus.Value as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action as Action
@@ -285,8 +285,8 @@ incrResultMetrics b r flagMetrics =
 -- configurations using a backtracking algorithm.  Its design is
 -- similar to the reactive engine by G. Huet, or its extension to
 -- Eilenberg's X-machines
-runnerBias :: Aut a => BS.ByteString -> a -> Result
-runnerBias s aut =
+runner :: Aut a => BS.ByteString -> a -> Result
+runner s aut =
   let
       gbl :: PAST.GblFuns
       gbl = gblFunsAut aut
@@ -336,11 +336,9 @@ runnerBias s aut =
                     newCfg = Cfg inp ctrl out q2
                 in
                    react newCfg updResumption result
-              BAct (FailAction Nothing) ->
+              BAct (FailAction _) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
-              BAct (FailAction _) ->
-                error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}
@@ -368,25 +366,25 @@ runnerLL s aut laut flagMetrics =
       gbl :: PAST.GblFuns
       gbl = gblFunsAut aut
 
-      react :: Cfg -> Maybe LL.SynthLLAState -> Resumption -> Result -> Result
+      react :: Cfg -> Maybe LL.LLAState -> Resumption -> Result -> Result
       react cfg@(Cfg inp _ctrl _out q) mq resumption result =
         -- trace "REACT" $
         -- trace (show (_getCommitStack resumption)) $
         -- trace (showCfg cfg) $
         let pq = case mq of
                    Nothing -> Left q
-                   Just qSynth -> Right qSynth in
+                   Just qLLA -> Right qLLA in
         let
           mpdx = LL.predictLL pq laut inp
         in
         case mpdx of
-          Just (pdxs, finalState) ->
+          Just (Left (pdxs, finalState)) ->
             -- trace (show pdxs) $
             -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
             -- trace "BEFORE" $
             -- trace (showCfg cfg) $
             applyPredictions pdxs finalState cfg resumption result
-          Nothing ->
+          _ ->
             let localTransitions = nextTransition aut q in
             case localTransitions of
               Nothing -> {-# SCC backtrackSetStep #-}
@@ -401,7 +399,7 @@ runnerLL s aut laut flagMetrics =
                 let newResumption = addResumption resumption cfg ch
                 in choose newResumption result
 
-      applyPredictions :: LL.Prediction -> Maybe LL.SynthLLAState -> Cfg -> Resumption -> Result -> Result
+      applyPredictions :: LL.Prediction -> Maybe LL.LLAState -> Cfg -> Resumption -> Result -> Result
       applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
         -- trace "applyPredictions" $
         let result = incrResultMetrics tickLL rslt flagMetrics in
@@ -473,11 +471,9 @@ runnerLL s aut laut flagMetrics =
                     newCfg = Cfg inp ctrl out q2
                 in
                    react newCfg Nothing newResumption result
-              BAct (FailAction Nothing) ->
+              BAct (FailAction _) ->
                 let updResult = updateError resumption cfg result in
                 backtrack resumption updResult
-              BAct (FailAction _) ->
-                error "FailAction not handled"
               _ ->
                 case applyAction gbl (inp, ctrl, out) q2 act of
                   Nothing -> {-# SCC backtrackFailApplyAction #-}

@@ -231,7 +231,7 @@ def IGeoLo = Choose {
   plain_utm = Many 4 PlainUtm
 }
 
-def NICom = DigitUInt
+def NICom = Digit as! uint 64
 
 def IComn n = Many n (Many 80 Byte)
 
@@ -300,7 +300,7 @@ def ComRat (ic : IC) = Choose {
 
 def NBands (irep : IRep) = (
   { irep is nodisplay ;
-    DigitUInt ;
+    Digit ;
   }
 | { irep is monochrome ;
     IsNum 1 1
@@ -315,7 +315,7 @@ def NBands (irep : IRep) = (
     IsNum 3 3
   }
 | { irep is cartesian ;
-    DigitUInt
+    Digit
   }
 | { irep is polar ;
     IsNum 1 2
@@ -440,13 +440,13 @@ def IMag = Choose {
   }
 }
 
-def UDIDL = LowerBoundedOrZero 5 3 
+def UDIDL = LowerBoundedOrZero 5 3 as! uint 64
 
 def UDOfl = UnsignedNum 3
 
 def UDID n = Many (n - 3) Byte
 
-def IXShDL = LowerBoundedOrZero 5 3 
+def IXShDL = LowerBoundedOrZero 5 3 as! uint 64
 
 def IXSOfl = UnsignedNum 3
 
@@ -751,7 +751,7 @@ def ISHeader = {
       ^ bnds
     } ;
 
-  bandinfo = Many num_bands {
+  bandinfo = Many (num_bands as! uint 64) {
     irepbandn = IRepBandN ;
     isubcatn = ISubCatN ;
 

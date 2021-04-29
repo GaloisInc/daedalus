@@ -17,13 +17,16 @@ class Array : IsBoxed {
     size_t ref_count;
     size_t size;
     T      data[];
+
+
   public:
 
     // Allocate an array with unitialized data
     static
     Content *allocate(size_t n) {
       size_t bytes = sizeof(Content) + sizeof(T[n]);
-      Content *p   = (Content*) ::operator new(bytes);
+      char *raw = new char[bytes];    // XXX: alignment?
+      Content *p   = (Content*) raw;
       p->ref_count = 1;
       p->size      = n;
       return p;
@@ -127,7 +130,7 @@ public:
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
       debug("  Freeing array "); debugValNL((void*)ptr);
-      delete ptr;
+      delete[] (char*)ptr;
     } else {
       ptr->ref_count = n - 1;
     }

@@ -9,6 +9,8 @@ module Daedalus.ParserGen.LL.Result
 data AbortOption =
     -- Abort cases for `SlkCfg`
     AbortSlkCfgExecution
+  | AbortSlkCfgClassIsDynamic
+  | AbortSlkCfgClassNotHandledYet String
 
     -- Abort cases for `Closure`
   | AbortClosureUnhandledInputAction
@@ -16,33 +18,33 @@ data AbortOption =
   | AbortClosureOverflowMaxDepth
   | AbortClosureInfiniteloop
 
-    -- Abort cases for `ClassInterval`
-  | AbortClassIsDynamic
-  | AbortClassNotHandledYet String
-
     -- Abort cases for DFA
   | AbortDFAIncompatibleInput
-  | AbortDFAOverflowInitCfg
+  | AbortDFAOverflowCfg
   | AbortDFAOverflowLookahead
   | AbortDFAOverflowNbStates
+
+    -- Abort cases for LLA
+  | AbortLLAOverflow
 
 instance Show(AbortOption) where
   show a =
     case a of
       AbortSlkCfgExecution -> "AbortSlkCfgExecution"
+      AbortSlkCfgClassIsDynamic -> "AbortSlkCfgClassIsDynamic"
+      AbortSlkCfgClassNotHandledYet str -> "AbortSlkCfgClassNotHandledYet_" ++ str
 
       AbortClosureUnhandledInputAction -> "AbortClosureUnhandledInputAction"
       AbortClosureUnhandledAction -> "AbortClosureUnhandledAction"
       AbortClosureOverflowMaxDepth -> "AbortClosureOverflowMaxDepth"
       AbortClosureInfiniteloop -> "AbortClosureInfiniteloop"
 
-      AbortClassIsDynamic -> "AbortClassIsDynamic"
-      AbortClassNotHandledYet str -> "AbortClassNotHandledYet_" ++ str
-
       AbortDFAIncompatibleInput -> "AbortDFAIncompatibleInput"
-      AbortDFAOverflowInitCfg -> "AbortDFAOverflowInitCfg"
+      AbortDFAOverflowCfg -> "AbortDFAOverflowCfg"
       AbortDFAOverflowLookahead -> "AbortDFAOverflowLookahead"
       AbortDFAOverflowNbStates -> "AbortDFAOverflowNbStates"
+
+      AbortLLAOverflow -> "AbortLLAOverflow"
 
 data Result a =
     Abort AbortOption

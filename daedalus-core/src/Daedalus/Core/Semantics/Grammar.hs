@@ -13,9 +13,10 @@ import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
                     )
 
+import Daedalus.Value
+
 import Daedalus.Core
 import Daedalus.Core.Semantics.Expr
-import Daedalus.Core.Semantics.Value
 import Daedalus.Core.Semantics.Env
 
 evalG :: Grammar -> Env -> Parser Value
@@ -25,11 +26,11 @@ evalG gram env =
 
     GetStream ->
       do v <- pPeek
-         pure $! VInput v
+         pure $! VStream v
 
     SetStream e ->
-      do pSetInput $! fromVInput $ eval e env
-         pure VUnit
+      do pSetInput $! valueToStream $ eval e env
+         pure vUnit
 
     Match s m -> evalMatch s m env
 
@@ -40,7 +41,7 @@ evalG gram env =
                ErrorFromSystem -> FromSystem
       msg  = case mbMsg of
                Nothing -> "Parse error"
-               Just e  -> BS8.unpack (fromVByteArray (eval e env))
+               Just e  -> BS8.unpack (valueToByteString (eval e env))
 
     Do_ g1 g2 ->
       do _ <- evalG g1 env
@@ -71,18 +72,18 @@ evalMatch sem mat env =
     MatchEnd ->
       do i <- pPeek
          unless (inputEmpty i) (pError' FromSystem [] "left over input")
-         pure VUnit
+         pure vUnit
 
     MatchBytes e ->
       do i <- pPeek
          let v  = eval e env
-             bs = fromVByteArray v
+             bs = valueToByteString v
              ok = bs `BS8.isPrefixOf` inputBytes i
          unless ok (pError' FromSystem [] "match failed")
          let Just i1 = advanceBy (intToSize (BS.length bs)) i
          pSetInput $! i1
          case sem of
-           SemNo  -> pure VUnit
+           SemNo  -> pure vUnit
            SemYes -> pure v
 
     MatchByte b ->
@@ -92,7 +93,7 @@ evalMatch sem mat env =
              if evalByteSet b env w
                 then do pSetInput $! i1
                         case sem of
-                          SemNo  -> pure VUnit
+                          SemNo  -> pure vUnit
                           SemYes -> pure (vByte w)
                 else pError' FromSystem [] "byte does not match spec"
            Nothing -> pError' FromSystem [] "unexpected end of file"
@@ -103,10 +104,10 @@ evalByteSet :: ByteSet -> Env -> Word8 -> Bool
 evalByteSet bs env =
   case bs of
     SetAny      -> const True
-    SetSingle e -> (fromVByte (eval e env) ==)
+    SetSingle e -> (valueToByte (eval e env) ==)
     SetRange a b -> \w -> x <= w && w <= y
-      where x = fromVByte (eval a env)
-            y = fromVByte (eval b env)
+      where x = valueToByte (eval a env)
+            y = valueToByte (eval b env)
 
     SetComplement f     -> not . evalByteSet f env
     SetUnion a b        -> \w -> evalByteSet a env w || evalByteSet b env w

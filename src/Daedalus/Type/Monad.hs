@@ -11,7 +11,7 @@ module Daedalus.Type.Monad
     -- * Typechecking a group of declarations
   , STypeM, runSTypeM, STCMonad
 
-    -- * Typechecking a single declart
+    -- * Typechecking a single declartion
   , TypeM, runTypeM
 
     -- * Error reporting
@@ -71,7 +71,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Control.Exception(Exception(..))
-import MonadLib
+import MonadLib hiding (Label)
 
 import Daedalus.SourceRange
 import Daedalus.PP
@@ -203,6 +203,9 @@ data SRW = SRW
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
   }
 
+instance HasGUID STypeM where
+  guidState f = mType (guidState f)
+
 instance MTCMonad STypeM where
   reportError r e     = mType (reportError r e)
   newName r t         = mType (newName r t)
@@ -298,6 +301,7 @@ instance STCMonad STypeM where
     do def <- traverseTypes zonkT def'
        let decl = TCTyDecl { tctyName = x
                            , tctyParams = []
+                           , tctyBDWidth = Nothing
                            , tctyDef = def
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }
@@ -398,6 +402,8 @@ instance STCMonad (TypeM ctx) where
   needsDef r d            = sType (needsDef r d)
   getNeedsDef             = sType getNeedsDef
 
+instance HasGUID (TypeM ctx) where
+  guidState f = sType (guidState f)
 
 allowPartialApps :: Bool -> TypeM ctx a -> TypeM ctx a
 allowPartialApps yes (TypeM m) = TypeM (mapReader upd m)
@@ -449,7 +455,8 @@ apSubstTCTyDef su def =
     TCTyStruct fs -> TCTyStruct (map doField fs)
     TCTyUnion  fs -> TCTyUnion  (map doField fs)
   where
-  doField (f,t) = (f,apSubstT su t)
+  doField :: (Label, (Type, a)) -> (Label, (Type, a))
+  doField (f,(t,m)) = (f,(apSubstT su t, m))
 
 
 --------------------------------------------------------------------------------

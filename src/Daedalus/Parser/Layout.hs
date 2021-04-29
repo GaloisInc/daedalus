@@ -21,6 +21,7 @@ layout tokIn = go False [] (error "Last token") tokIn
       KWChoose | nonBrace  -> True
       KWChoose1 | nonBrace -> True
       KWblock              -> True
+      KWWhere              -> True      
       _                    -> False
     where
     nonBrace = case next of

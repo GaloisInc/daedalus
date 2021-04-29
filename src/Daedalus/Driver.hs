@@ -75,6 +75,7 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
+import Data.Either (partitionEithers)
 import Data.List(find)
 import Control.Monad(msum,foldM,forM)
 import Control.Monad.IO.Class (MonadIO(..))
@@ -96,6 +97,7 @@ import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
+import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
@@ -259,7 +261,7 @@ data State = State
   , loadedModules :: Map ModuleName ModulePhase
     -- ^ Modules, in various stages of processing.
 
-  , moduleDefines :: Map ModuleName (Map Ident Name)
+  , moduleDefines :: Map ModuleName Scope
     -- ^ The identifiers defined by each module.
 
   , ruleTypes     :: Map Name (Poly RuleType)
@@ -482,19 +484,25 @@ ddlGetFName m f =
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
 parseModuleFromFile n file =
   do mb <- ddlIO (try (parseFromFile file))
-     (imps,rs) <- case mb of
+     (imps,ds) <- case mb of
                     Left err -> ddlThrow (AParseError err)
                     Right a -> pure a
      -- hack so we can reuse the same type after scope analysis
-     let rs' = map NonRec rs
-         m   = ParsedModule (Module n imps rs')
+     let (rs, bds) = partitionEithers (map declToEither ds)
+         rs' = map NonRec rs
+         m   = ParsedModule (Module n imps bds rs')
      ddlUpdate_ \s ->
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
+  where
+    declToEither :: Decl -> Either Rule BitData
+    declToEither (DeclRule rl) = Left rl
+    declToEither (DeclBitData bd) = Right bd
 
+         
 
--- | Just parse a single module
+-- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
 parseModule n =
   do sp     <- ddlGetOpt optSearchPath

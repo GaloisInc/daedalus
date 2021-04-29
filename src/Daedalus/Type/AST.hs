@@ -55,10 +55,12 @@ data Poly a     = Poly [TVar] [Constraint] a
 
 data Constraint = Numeric Type
                 | HasStruct Type Label Type
-                | TyDef TyDef (Maybe TCTyName) Type [(Label,Located Type)]
-                  -- ^ The TCTyName is the name to use
-                  -- in case we decide to solve this by using an anonymous type.
                 | HasUnion  Type Label Type
+
+
+                | TyDef TyDef TCTyName Type [(Label,Located Type)]
+                  -- See [Note] The TyDef Constraint
+
                 | Coerce Lossy Type Type
                 | Literal Integer Type
                 | CAdd Type Type Type
@@ -68,6 +70,29 @@ data Constraint = Numeric Type
                 | ColKeyType Type Type        -- col, key
                 | IsNamed Type
                   deriving Show
+
+{- [Note] The TyDef Constraint
+   ===========================
+
+The Constraint `TyDef StructDef suggestedName t [(x,q)]` asserts that the type
+`t` can represent the struct value with a field `x` of type `q`
+
+We discharge this constraint if `t` becoes a constructor type:  in that case
+we either check the definition to make sure things are OK, or report an
+error.
+
+If we never infer `t` (i.e., it stays as a tpe variable), we don;t generalize
+over it.  Instead we use the definition and the suggested name to generate
+a new type declaration.
+
+Note that we can't just manufacture a new type every type we see a struct.
+Consider, for example, this definition:
+
+def Main = { x = Match1 'a' } <| { x = Uint8 }
+
+In this case we have 2 structs, but they must be *of the same type* so we'd
+only generate a single type declaration.
+-}
 
 data TyDef = StructDef | UnionDef
   deriving Show
@@ -183,7 +208,7 @@ data TCF :: HS -> Ctx -> HS where
    TCFor :: Loop a k -> TCF a k
 
    TCSelStruct :: TC a Value -> Label -> Type -> TCF a Value
-   TCIf        :: TC a Value -> TC a Value -> TC a Value -> TCF a Value
+   TCIf        :: TC a Value -> TC a k -> TC a k -> TCF a k
 
    TCVar  :: TCName k -> TCF a k
    -- Local variable/parameter
@@ -251,18 +276,43 @@ data Param = ValParam (TCName Value)
 data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
                    , tctyParams :: ![TVar]
+                   , tctyBDWidth :: !(Maybe Int)
+                   -- ^ number of bits for this type if it is a bitdata
                    , tctyDef    :: !TCTyDef
                    } deriving Show
-
 
 data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct [(Label,Type)]
-                | TCTyUnion  [(Label,Type)]
+data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
+                | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
                   deriving Show
 
+data TCBDStructMeta =
+  TCBDStructMeta { tcbdsLowBit :: !Int
+                 , tcbdsWidth  :: !Int
+                 } deriving Show
+
+-- ^ The mask and value let us match the corresponding tag bits for
+-- union constructors. This does not include the masks etc. for
+-- sub-fields (which may also be unions).  We use Integer here as we
+-- support arbitrary bit widths.
+data TCBDUnionMeta =
+  TCBDUnionMeta { tcbduMask :: !Integer
+                , tcbduBits :: !Integer
+                } deriving Show
+
+
+-- These (should) be known at type checking time.  An 8 bit field in
+-- the least-significant bits of a word will be TCBitDataRange { lowBit = 0, highBit = 7 }
+data TCBitDataRange =
+  TCBitDataRange { tcbdrLowBit  :: !Int
+                 , tcbdfHighBit :: !Int
+                 -- FIXME: split this into 2 types, one for struct, one for unions?
+                 , tcbdrMask    :: !Integer
+                 , tcbdrValue   :: !Integer
+                 }  deriving Show
 
 data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
@@ -542,8 +592,7 @@ instance PP TCTyDef where
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where
-    ppF (x,t) = pp x <.> ":" <+> pp t
-
+    ppF (x,(t, _)) = pp x <.> ":" <+> pp t
 
 instance PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e

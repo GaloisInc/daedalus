@@ -44,7 +44,7 @@ missingConPatterns declTys allPats
   where
     summary = UnionCase tyName caseLabels (Set.toList missing)
     missing =   Set.fromList allLabels `Set.difference` Set.fromList caseLabels
-    allLabels = fst (unzip allTyCtors)
+    (allLabels,_) = unzip allTyCtors
     (tyName, allTyCtors)
       | TCon tyN _ : _ <- typs
       , Just TCTyDecl { tctyDef = TCTyUnion cs } <- Map.lookup tyN declTys 

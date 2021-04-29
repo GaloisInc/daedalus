@@ -33,7 +33,6 @@ import Daedalus.Core.Type(typeOf,sizeType)
 
 --------------------------------------------------------------------------------
 
-
 fromModule :: TC.TCModule a -> M Module
 fromModule mo =
   fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
@@ -342,6 +341,7 @@ fromGrammar gram =
         Backtrack -> fromGrammar g
         Commit -> panic "fromGrammar" ["Commit is not yet supported"]
 
+    TC.TCIf e e1 e2 -> gIf <$> fromExpr e <*> fromGrammar e1 <*> fromGrammar e2
 
     TC.TCCase e as dflt ->
       do t  <- fromGTypeM (TC.typeOf gram)
@@ -813,6 +813,9 @@ fromClass cla =
 
         _ -> panic "fromClass" ["Unexptect type parameters"]
 
+
+    TC.TCIf e e1 e2 -> bIf <$> fromExpr e <*> fromClass e1 <*> fromClass e2
+
     TC.TCCase e as dflt ->
       do ms <- mapM (doAlt fromClass) as
          match <- case dflt of
@@ -1186,7 +1189,7 @@ fromTCTyDef tdef =
     TC.TCTyStruct fs -> TStruct (map field fs)
     TC.TCTyUnion fs  -> TUnion  (map field fs)
   where
-  field (l,t) = (l, fromType t)
+  field (l,(t, _)) = (l, fromType t) -- FIXME: this erases bitdata info
 
 
 
@@ -1382,8 +1385,8 @@ newTNameRec rec =
     let flavor = case TC.tctyDef d of
                    TC.TCTyStruct {} -> TFlavStruct
                    TC.TCTyUnion cs
-                     | all ((== TC.tUnit) . snd) cs -> TFlavEnum (map fst cs)
-                     | otherwise                    -> TFlavUnion (map fst cs)
+                     | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
+                     | otherwise                                -> TFlavUnion (map fst cs)
     in newTName r flavor (TC.tctyName d)
 
 newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
