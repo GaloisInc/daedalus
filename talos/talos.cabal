@@ -46,7 +46,7 @@ library
                      
                      , Talos.Synthesis
 
-                     , Talos.NameConstArgs
+                     , Talos.Passes
                                  
                      , Talos
                      -- , Machine

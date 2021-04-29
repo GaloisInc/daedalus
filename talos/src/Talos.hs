@@ -55,7 +55,7 @@ import Talos.Analysis.Slice (SummaryClass)
 import Talos.Strategy
 import Talos.Strategy.Monad 
 
-import Talos.NameConstArgs
+import Talos.Passes
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }

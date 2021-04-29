@@ -1,7 +1,7 @@
 
 -- This is a hack so that the analysis works when we have constant arguments.
 
-module Talos.NameConstArgs (nameConstArgsM) where
+module Talos.Passes (nameConstArgsM) where
 
 import qualified Data.Set as Set
 
