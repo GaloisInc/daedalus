@@ -1,7 +1,17 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (26,1)-(30,3)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (28,10)-(28,41)
+SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
+AbortDFAIncompatibleInput
+
+
+Stack:
+    *
+Start: Main (26,1)-(30,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(38),(38),]
@@ -18,11 +28,6 @@ DTrans [
     ]
   ),
 ]
-
-Main (28,10)-(28,41)
-SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
-AbortDFAIncompatibleInput
-
 
 **********************
 **** Extended LLA ****
@@ -46,7 +51,10 @@ Total nb DFAs: 2
 
 Warning: LL(*) failures:
 
-Main (28,10)-(28,41)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (28,10)-(28,41)
 SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
 AbortDFAIncompatibleInput
 

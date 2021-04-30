@@ -1,13 +1,14 @@
--- test handle completeness in biased Many
-
-def B = Many (1..) A
+-- TODO: test handle completeness in biased choice
+-- The trick is this should not match "ab"
 
 def A =
   Choose1
-    block $$ = UInt8 0xFF ; UInt8 0x00
-    UInt8 (!0xFF)
+    block $$ = UInt8 'a'; UInt8 'b'
+    UInt8 (!'a')
 
 
 def Main =
   block
-    B
+    Many A
+    UInt8 'a'
+    UInt8 'b'

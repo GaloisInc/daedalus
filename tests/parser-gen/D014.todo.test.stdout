@@ -1,160 +1,37 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (11,1)-(11,25)
-SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-DTrans [
-  ( [(15),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(25),(15),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(15),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+AbortDFAOverflowCfg
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(32),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(42),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(52),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(62),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(72),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(82),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(92),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(102),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
 SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(12),]
@@ -172,10 +49,220 @@ DTrans [
   ),
 ]
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-AbortDFAOverflowCfg
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(102),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(92),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(82),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(72),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(62),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(52),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(42),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(32),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (11,1)-(11,25)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(15),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(25),(15),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(15),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
 **********************
 **** Extended LLA ****
@@ -200,160 +287,37 @@ Total nb DFAs: 11
 
 Warning: LL(*) failures:
 
-Main (11,1)-(11,25)
-SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-DTrans [
-  ( [(15),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(25),(15),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(15),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+AbortDFAOverflowCfg
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(32),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(42),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(52),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(62),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(72),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(82),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(92),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(12),]
-  , HeadInput ['\NUL','`']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(102),(12),]
-  , HeadInput ['a']
-  , Ambiguous(acceptingPath + next)
-  ),
-  ( [(12),]
-  , HeadInput ['b','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-SkipTo__11 (7,32)-(7,39)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
 SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(12),]
@@ -371,53 +335,263 @@ DTrans [
   ),
 ]
 
-SkipTo__11 (7,32)-(7,39)
-SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-AbortDFAOverflowCfg
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(102),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(92),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(82),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(72),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(62),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(52),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+    SkipTo__11 (7,32)-(7,39)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(42),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (11,12)-(11,25)
+Start: SkipTo__11 (7,32)-(7,39)
+SlkCfg{ q:20, ctrl:[?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(12),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(32),(12),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(12),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (11,1)-(11,25)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(15),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(25),(15),]
+  , HeadInput ['a']
+  , Ambiguous(acceptingPath + next)
+  ),
+  ( [(15),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
 *******  Found Ambiguity  *******
-  Start: Main (11,1)-(11,25)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a
 *******  Found Ambiguity  *******
-  Start: SkipTo__11 (7,32)-(7,39)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
 a

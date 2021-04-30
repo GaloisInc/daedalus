@@ -1,4 +1,7 @@
-Main (10,5)-(10,7)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (10,5)-(10,7)
 SlkCfg{ q:60, ctrl:[?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(9),]
@@ -7,7 +10,9 @@ DTrans [
   ),
 ]
 
-Main (5,1)-(11,3)
+Stack:
+    *
+Start: Main (5,1)-(11,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(24),(24),]
@@ -37,7 +42,9 @@ DTrans [
   ),
 ]
 
-__ZAuxiliaryState
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

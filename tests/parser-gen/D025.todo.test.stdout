@@ -1,28 +1,51 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-A (7,29)-(7,38)
-SlkCfg{ q:16, ctrl:[?, ?, ?, ?, *], sem:[?, ], inp:--- }
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (12,5)-(12,10)
+SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
-  ( [(15),]
-  , HeadInput ['\NUL']
+  ( [(17),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),(12),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(17),]
+  , HeadInput ['b','\255']
   , Resolution (NotAmbiguous)
   ),
 ]
 
-B (3,9)-(3,20)
-SlkCfg{ q:36, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-Ambiguous(acceptingPath + next)
-
-Main (11,1)-(13,6)
+Stack:
+    *
+Start: Main (10,1)-(14,14)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
-  ( [(27),]
-  , HeadInput ['\NUL','\254']
+  ( [(24),]
+  , HeadInput ['\NUL','`']
   , Resolution (NotAmbiguous)
   ),
+  ( [(20),(19),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
   ( [(24),]
-  , HeadInput ['\255']
+  , HeadInput ['b','\255']
   , Resolution (NotAmbiguous)
   ),
 ]
@@ -30,28 +53,78 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
-("Lookahead-1",9)
-("abort-1",6)
+("Lookahead-0",2)
+("Lookahead-1",4)
+("abort-3",7)
 
-Total nb states: 15
+Total nb states: 13
 
 **********************
 ***** Strict LLA *****
 **********************
-("Lookahead-1",2)
-("abort-1",1)
+("abort-3",2)
 
-Total nb DFAs: 3
+Total nb DFAs: 2
 
 
 Warning: LL(*) failures:
 
-B (3,9)-(3,20)
-SlkCfg{ q:36, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-Ambiguous(acceptingPath + next)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (12,5)-(12,10)
+SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),(12),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(17),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (10,1)-(14,14)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(20),(19),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(24),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
 
 *******  Found Ambiguity  *******
-  Start: B (3,9)-(3,20)
-  Paths : 
+  Start: Stack:
+  Paths :
 ********  input witness  ********
-
+ab
+*******  Found Ambiguity  *******
+  Start: Stack:
+  Paths :
+********  input witness  ********
+ab

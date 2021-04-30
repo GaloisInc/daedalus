@@ -1,7 +1,45 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (3,1)-(9,3)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (5,33)-(5,48)
+SlkCfg{ q:42, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['a','y']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (6,33)-(6,48)
+SlkCfg{ q:18, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['x','z']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (8,5)-(8,7)
+SlkCfg{ q:58, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (3,1)-(9,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(17),]
@@ -31,34 +69,9 @@ DTrans [
   ),
 ]
 
-Main (5,33)-(5,48)
-SlkCfg{ q:42, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
-DTrans [
-  ( [(17),]
-  , HeadInput ['a','y']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (6,33)-(6,48)
-SlkCfg{ q:18, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
-DTrans [
-  ( [(17),]
-  , HeadInput ['x','z']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (8,5)-(8,7)
-SlkCfg{ q:58, ctrl:[?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-__ZAuxiliaryState
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]
@@ -88,7 +101,9 @@ Total nb DFAs: 5
 
 Warning: LL(*) failures:
 
-Main (3,1)-(9,3)
+Stack:
+    *
+Start: Main (3,1)-(9,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(17),]
@@ -119,8 +134,8 @@ DTrans [
 ]
 
 *******  Found Ambiguity  *******
-  Start: Main (3,1)-(9,3)
-  Paths : 
+  Start: Stack:
+  Paths :
   -  
      *
      __ZAuxiliaryState

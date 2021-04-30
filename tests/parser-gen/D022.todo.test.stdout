@@ -1,58 +1,10 @@
-BE16 (14,20)-(14,24)
-SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(43),]
-  , HeadInput ['\NUL','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (138,1)-(138,31)
-SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-DTrans [
-  ( [(20),]
-  , HeadInput ['\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Main (138,28)-(138,30)
-SlkCfg{ q:318, ctrl:[?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_BE16 (14,20)-(14,24)
-SlkCfg{ q:166, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(10),]
-  , HeadInput ['\NUL','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_COM (44,5)-(44,23)
-SlkCfg{ q:152, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(17),]
-  , HeadInput ['\NUL','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_DRI (81,5)-(81,16)
-SlkCfg{ q:256, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(17),]
-  , HeadInput ['\NUL','\255']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Marker (3,16)-(3,32)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,22)-(136,24)
+    _SOI (35,11)-(35,21)
+Start: _Marker (3,16)-(3,32)
 SlkCfg{ q:24, ctrl:[?, ?, ?, ?, *], sem:[], inp:--- }
 DTrans [
   ( [(17),]
@@ -61,47 +13,31 @@ DTrans [
   ),
 ]
 
-_Payload__121 (28,5)-(28,23)
-SlkCfg{ q:209, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (127,15)-(127,17)
+    _COM (44,5)-(44,23)
+    _Payload__122 (23,16)-(23,19)
+Start: BE16 (14,20)-(14,24)
+SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
-  ( [(15),]
+  ( [(43),]
   , HeadInput ['\NUL','\255']
   , Resolution (NotAmbiguous)
   ),
 ]
 
-_Payload__121 (30,5)-(30,7)
-SlkCfg{ q:218, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Payload__121 (31,5)-(31,23)
-SlkCfg{ q:227, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
-DTrans [
-  ( [(46),(46),(44),]
-  , HeadInput ['\255']
-  , DTrans [
-      ( [(21),]
-      , HeadInput ['\217']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(9),]
-      , HeadInput ['\221']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(9),]
-      , HeadInput ['\254']
-      , Resolution (NotAmbiguous)
-      ),
-    ]
-  ),
-]
-
-_Payload__122 (28,5)-(28,23)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (127,15)-(127,17)
+    _COM (44,5)-(44,23)
+Start: _Payload__122 (28,5)-(28,23)
 SlkCfg{ q:95, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
   ( [(15),]
@@ -114,7 +50,14 @@ DTrans [
   ),
 ]
 
-_Payload__122 (29,10)-(29,10)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (127,15)-(127,17)
+    _COM (44,5)-(44,23)
+Start: _Payload__122 (29,10)-(29,10)
 SlkCfg{ q:106, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(7),]
@@ -127,7 +70,14 @@ DTrans [
   ),
 ]
 
-_Payload__122 (31,5)-(31,23)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (127,15)-(127,17)
+    _COM (44,5)-(44,23)
+Start: _Payload__122 (31,5)-(31,23)
 SlkCfg{ q:123, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(46),(46),(44),]
@@ -149,7 +99,136 @@ DTrans [
   ),
 ]
 
-_SomeJpeg (136,32)-(136,43)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (127,15)-(127,17)
+Start: _COM (44,5)-(44,23)
+SlkCfg{ q:152, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+    _DRI (81,5)-(81,16)
+    _Payload__121 (23,16)-(23,19)
+Start: BE16 (14,20)-(14,24)
+SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(43),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+    _DRI (81,5)-(81,16)
+    _Payload__121 (29,10)-(29,10)
+Start: _BE16 (14,20)-(14,24)
+SlkCfg{ q:166, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(10),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+    _DRI (81,5)-(81,16)
+Start: _Payload__121 (28,5)-(28,23)
+SlkCfg{ q:209, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(15),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+    _DRI (81,5)-(81,16)
+Start: _Payload__121 (30,5)-(30,7)
+SlkCfg{ q:218, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+    _DRI (81,5)-(81,16)
+Start: _Payload__121 (31,5)-(31,23)
+SlkCfg{ q:227, ctrl:[?, ?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(46),(46),(44),]
+  , HeadInput ['\255']
+  , DTrans [
+      ( [(21),]
+      , HeadInput ['\217']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(9),]
+      , HeadInput ['\221']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(9),]
+      , HeadInput ['\254']
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+    _SomeJpeg (136,37)-(136,43)
+    _Segment (128,15)-(128,17)
+Start: _DRI (81,5)-(81,16)
+SlkCfg{ q:256, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (138,18)-(138,25)
+Start: _SomeJpeg (136,32)-(136,43)
 SlkCfg{ q:294, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(18),(18),(16),]
@@ -171,7 +250,32 @@ DTrans [
   ),
 ]
 
-__ZAuxiliaryState
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (138,28)-(138,30)
+SlkCfg{ q:318, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (138,1)-(138,31)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(20),]
+  , HeadInput ['\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

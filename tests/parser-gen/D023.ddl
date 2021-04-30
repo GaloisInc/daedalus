@@ -5,6 +5,6 @@ def Main =
     let x = UInt8 as uint 64
     y = GetStream
     SetStream (Take x y)
-    Many x 'a'
+    Many x (Match1 'a')
     SetStream (Drop x y)
     END
