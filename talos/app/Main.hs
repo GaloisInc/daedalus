@@ -39,6 +39,13 @@ main = do
   case optMode opts of
     SynthesisMode -> doSynthesis opts
     SummaryMode   -> doSummary opts
+    DumpCoreMode  -> doDumpCore opts
+
+
+doDumpCore :: Options -> IO ()
+doDumpCore opts = do
+  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optDDLEntry opts)
+  print (pp md)
 
 doSummary :: Options -> IO ()
 doSummary opts = do

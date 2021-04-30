@@ -9,7 +9,7 @@ import Options.Applicative
 
 data Outfile = AllOutput FilePath | PatOutput FilePath
 
-data Mode = SynthesisMode | SummaryMode
+data Mode = SynthesisMode | SummaryMode | DumpCoreMode
 
 data Options =
   Options { optSolver    :: FilePath
@@ -96,8 +96,10 @@ patOutputOpt = strOption
   <> help "A collection of files to write models to.  The first '%' in the file name is replaced by the model number.  If there is no '%', an implicit '.%' is added to the end" )
 
 modeOpt :: Parser Mode
-modeOpt = flag SynthesisMode SummaryMode ( long "summary" <> help "Print out analysis results")
-
+modeOpt = flag' SummaryMode ( long "summary" <> help "Print out analysis results")
+          <|> flag' DumpCoreMode ( long "dump-core" <> help "Print out intermediate core")
+          <|> pure SynthesisMode -- defaultx
+          
 entryOpt :: Parser String
 entryOpt = strOption
     ( long "entry"
