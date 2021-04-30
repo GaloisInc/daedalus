@@ -1,7 +1,9 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (188,1)-(188,35)
+Stack:
+    *
+Start: Main (188,1)-(188,35)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 AbortClosureUnhandledInputAction
 
@@ -32,7 +34,9 @@ Total nb DFAs: 1
 
 Warning: LL(*) failures:
 
-Main (188,1)-(188,35)
+Stack:
+    *
+Start: Main (188,1)-(188,35)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 AbortClosureUnhandledInputAction
 

@@ -1,4 +1,18 @@
-Main (3,1)-(9,3)
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (8,5)-(8,7)
+SlkCfg{ q:34, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (3,1)-(9,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(22),]
@@ -11,16 +25,9 @@ DTrans [
   ),
 ]
 
-Main (8,5)-(8,7)
-SlkCfg{ q:34, ctrl:[?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-__ZAuxiliaryState
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

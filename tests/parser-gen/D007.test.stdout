@@ -1,4 +1,73 @@
-Main (11,1)-(17,3)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (13,13)-(13,13)
+Start: _A (4,5)-(4,28)
+SlkCfg{ q:10, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(7),]
+  , HeadInput ['a','b']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(7),(21),]
+  , HeadInput ['c']
+  , DTrans [
+      ( [(7),]
+      , HeadInput ['a','b']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(7),(21),]
+      , HeadInput ['c']
+      , **** loop ****
+      ),
+      ( [(7),]
+      , HeadInput ['d','m']
+      , Resolution (NotAmbiguous)
+      ),
+      ( [(9),]
+      , EndInput
+      , Resolution (NotAmbiguous)
+      ),
+    ]
+  ),
+  ( [(7),]
+  , HeadInput ['d','m']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (14,13)-(14,13)
+Start: _B (8,5)-(8,28)
+SlkCfg{ q:26, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(21),]
+  , HeadInput ['d']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(7),]
+  , HeadInput ['f','t']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (16,5)-(16,7)
+SlkCfg{ q:74, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(9),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (11,1)-(17,3)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(22),]
@@ -120,63 +189,9 @@ DTrans [
   ),
 ]
 
-Main (16,5)-(16,7)
-SlkCfg{ q:74, ctrl:[?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(9),]
-  , EndInput
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_A (4,5)-(4,28)
-SlkCfg{ q:10, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(7),]
-  , HeadInput ['a','b']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(7),(21),]
-  , HeadInput ['c']
-  , DTrans [
-      ( [(7),]
-      , HeadInput ['a','b']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(7),(21),]
-      , HeadInput ['c']
-      , **** loop ****
-      ),
-      ( [(7),]
-      , HeadInput ['d','m']
-      , Resolution (NotAmbiguous)
-      ),
-      ( [(9),]
-      , EndInput
-      , Resolution (NotAmbiguous)
-      ),
-    ]
-  ),
-  ( [(7),]
-  , HeadInput ['d','m']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_B (8,5)-(8,28)
-SlkCfg{ q:26, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(21),]
-  , HeadInput ['d']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(7),]
-  , HeadInput ['f','t']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-__ZAuxiliaryState
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

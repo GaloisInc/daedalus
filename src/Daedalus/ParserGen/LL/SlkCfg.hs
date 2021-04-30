@@ -368,7 +368,7 @@ data InputWindow =
     InputWindow (Int, Maybe Int) -- Maybe when is input is not bounded
   | EndWindow
   | WildWindow
-  deriving(Eq)
+  deriving(Show, Eq)
 
 positionFromBeginning :: SlkInput -> InputWindow
 positionFromBeginning inp =
@@ -1125,8 +1125,8 @@ symbExecInp act ctrl out inp
     SetStream name ->
       let ev = symbolicEval name ctrl out in
       case ev of
-        SConcrete (Right x) ->
-          rJust (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
+        SConcrete (Right inp1) ->
+          rJust (inp1, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
         Wildcard -> R.Abort R.AbortSlkCfgExecution
         _ -> error "TODO"
     StreamTake _s e1 e2 ->

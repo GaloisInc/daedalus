@@ -14,7 +14,7 @@ D023.Main : Grammar D023.Main =
      (y : Stream) <- CurrentStream
      do (_4 : Stream) <- StreamLen x y
         SetStream _4
-     @Many[x] pure {}
+     @Many[x] @Match {'a'}
      do (_5 : Stream) <- StreamOff x y
         SetStream _5
      END
@@ -26,7 +26,7 @@ D023._Main : Grammar {} =
      (y : Stream) <- CurrentStream
      do (_4 : Stream) <- StreamLen x y
         SetStream _4
-     @Many[x] pure {}
+     @Many[x] @Match {'a'}
      do (_5 : Stream) <- StreamOff x y
         SetStream _5
      END

@@ -538,9 +538,12 @@ showStartLLAState aut lla q =
     Nothing -> [ "__ZSINK_STATE" ]
     Just (cfg, qs) ->
       if isEmptyIteratorDFAState qs
-      then [ stateToString (cfgState cfg) aut
-           , showSlkCfg cfg
-           ]
+      then
+        [ "Stack:" ] ++
+        map (\ x -> "    " ++ x) (showSlkControlData aut (cfgCtrl cfg)) ++
+        [ "Start: " ++ stateToString (cfgState cfg) aut
+        , showSlkCfg cfg
+        ]
       else error "broken invariant"
 
 printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
@@ -550,29 +553,30 @@ printLLA aut lla cond =
         map (\ (q, d) -> (showStartLLAState aut lla q, d)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
-  in if length t > 10000
-     then do return ()
-     else
-       mapM_
-       (\ (ann, d) ->
-          case d of
-            Left dfa ->
-              if
-                ( cond dfa
-                  -- (lookaheadDepth dfa < 10)
-                  -- ||
-                  -- (fromJust $ flagHasFullResolution dfa)
-                )
-              then
-                do
-                  mapM_ putStrLn ann
-                  putStrLn $ showDFA dfa
-                  putStrLn ""
-              else
-                return ()
-            Right _dda -> return ()
-       )
-       tOrdered
+  in
+  if length t > 10000
+  then do return ()
+  else
+    mapM_
+    (\ (ann, d) ->
+        case d of
+          Left dfa ->
+            if
+              ( cond dfa
+                -- (lookaheadDepth dfa < 10)
+                -- ||
+                -- (fromJust $ flagHasFullResolution dfa)
+              )
+            then
+              do
+                mapM_ putStrLn ann
+                putStrLn $ showDFA dfa
+                putStrLn ""
+            else
+              return ()
+          Right _dda -> return ()
+    )
+    tOrdered
 
 printAmbiguities :: Aut a => a -> LLA -> IO ()
 printAmbiguities aut lla =
@@ -580,27 +584,28 @@ printAmbiguities aut lla =
       tAnnotated = map (\ (q, dfa) -> (showStartLLAState aut lla q, dfa)) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
-  in if length t > 10000
-     then do return ()
-     else
-       mapM_
-       (\ (ann, d) ->
-          case d of
-            Left dfa ->
-              case extractAmbiguity dfa of
-                Nothing ->
-                  return ()
-                Just (l, conflicts) ->
-                  do putStrLn "*******  Found Ambiguity  *******"
-                     putStrLn ("  Start: " ++ (head ann))
-                     putStrLn ("  Paths : ")
-                     printConflicts conflicts
-                     putStrLn "********  input witness  ********"
-                     putStrLn $ printPath l
-            Right _dda ->
-              return ()
-       )
-       tOrdered
+  in
+  if length t > 10000
+  then do return ()
+  else
+    mapM_
+    (\ (ann, d) ->
+       case d of
+         Left dfa ->
+           case extractAmbiguity dfa of
+             Nothing ->
+               return ()
+             Just (l, conflicts) ->
+               do putStrLn "*******  Found Ambiguity  *******"
+                  putStrLn ("  Start: " ++ (head ann))
+                  putStrLn ("  Paths :")
+                  printConflicts conflicts
+                  putStrLn "********  input witness  ********"
+                  putStrLn $ printPath l
+         Right _dda ->
+           return ()
+    )
+    tOrdered
   where
     printPath l =
       concat (List.intersperse "" (map showGraphvizInputHeadCondition l))

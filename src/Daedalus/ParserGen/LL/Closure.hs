@@ -158,19 +158,21 @@ simulateMoveClosure ih m tab =
     closCfg = closureCfg $ m
     mv@(pos, (act, _), q) = moveCfg $ m
   in
-    let mCfg = Slk.simulateMove ih closCfg act q tab in
-      case mCfg of
-        Nothing -> Nothing
-        Just (newCfg, tab1) ->
-          Just $
-          ( ClosurePath
-            { altSeq = addChoiceSeq pos alt
-            , closureCfg = closCfg
-            , infoMove = mv
-            , lastCfg = newCfg
-            }
-          , tab1
-          )
+  let
+    mCfg = Slk.simulateMove ih closCfg act q tab
+  in
+  case mCfg of
+    Nothing -> Nothing
+    Just (newCfg, tab1) ->
+      Just $
+      ( ClosurePath
+        { altSeq = addChoiceSeq pos alt
+        , closureCfg = closCfg
+        , infoMove = mv
+        , lastCfg = newCfg
+        }
+      , tab1
+      )
 
 
 type ClosureMoveSet = [ClosureMove]
@@ -239,6 +241,8 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
       | isUnhandledInputAction act =
           (Abort AbortClosureUnhandledInputAction, tab)
       | isUnhandledAction act =
+          -- trace (show act) $
+          -- trace (Aut.stateToString q2 aut) $
           (Abort AbortClosureUnhandledAction, tab)
       | isPushAction act =
           (Result Nothing, tab)
@@ -306,6 +310,8 @@ closureEpsUntilPush aut busy cm tab =
       | isUnhandledInputAction act =
           (Abort AbortClosureUnhandledInputAction, tab)
       | isUnhandledAction act =
+          -- trace (show act) $
+          -- trace (Aut.stateToString q2 aut) $
           (Abort AbortClosureUnhandledAction, tab)
       | isPushAction act =
           (Result (Just cm), tab)
@@ -380,6 +386,8 @@ closureLoop aut busy (alts, cfg) tab =
       | isUnhandledInputAction act =
           (Abort AbortClosureUnhandledInputAction, stepTab)
       | isUnhandledAction act =
+          -- trace (show act) $
+          -- trace (Aut.stateToString q2 aut) $
           (Abort AbortClosureUnhandledAction, stepTab)
       | Seq.length alts > cst_CLOSURE_MAX_DEPTH =
           (Abort AbortClosureOverflowMaxDepth, stepTab)
