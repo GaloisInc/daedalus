@@ -180,33 +180,43 @@ decls ::                                      { [Decl] }
 decl                                       :: { Decl }
   : rule                                      { DeclRule $1 }
   | bitdata                                   { DeclBitData $1 }
-  
-rule ::                                     { Rule }
+
+rule                                     :: { Rule }
   : 'def' name listOf(ruleParam)
           optRetType optDef                 { mkRule $1 $2 $3 $4 $5 }
 
 bitdata ::                                  { BitData }
-  : 'bitdata' name 'where' 
-     'v{' separated(bitdata_ctor, virtSep) 'v}' { BitData { bdName = $2, bdCtors = $5
-     	  			  	   	          , bdRange = $1 <-> $6 } }
+  : 'bitdata' name 'where'
+     'v{' separated(bitdata_ctor, virtSep) 'v}'
+                                            { BitData { bdName  = $2
+                                                      , bdCtors = $5
+                                                      , bdRange = $1 <-> $6 } }
 
-bitdata_ctor ::                             { ( Located Label, [ Located BitDataField ] ) }
+bitdata_ctor                             :: { ( Located Label
+                                              , [ Located BitDataField ]
+                                              ) }
   : label '=' bitdata_defn                  { ( $1, $3 ) }
 
-bitdata_defn ::                             { [ Located BitDataField ] }
+bitdata_defn                             :: { [ Located BitDataField ] }
   : bitdata_tag                             { [ $1 ] }
   | '{'
-    separated1(bitdata_field, commaOrSemi)  
+    separated1(bitdata_field, commaOrSemi)
     '}'                                     { $2 }
 
-bitdata_field ::                            { Located BitDataField }
+bitdata_field                            :: { Located BitDataField }
   : bitdata_tag                             { $1 }
-  | '_'   ':' type                          { loc ($1 <-> $3) (BDFWildcard (Just $3)) }
-  | label ':' type                          { loc ($1 <-> $3) (BDFField (thingValue $1) (Just $3)) }
+  | '_'   ':' type                          { loc ($1 <-> $3)
+                                              (BDFWildcard (Just $3)) }
+  | label ':' type                          { loc ($1 <-> $3)
+                                              (BDFField (thingValue $1)
+                                                        (Just $3)) }
 
-bitdata_tag ::                              { Located BitDataField }
-  : NUMBER                                  { Located (fst $1)    (BDFLiteral (fst (snd $1)) (snd (snd $1))) }
-  | NUMBER ':' type                         { loc (fst $1 <-> $3) (BDFLiteral (fst (snd $1)) (Just $3)) }
+bitdata_tag                              :: { Located BitDataField }
+  : NUMBER                                  { let (l,(n,t)) = $1
+                                              in loc l (BDFLiteral n t) }
+  | NUMBER ':' type                         { let (l,(n,_)) = $1
+                                              in loc l (BDFLiteral n (Just $3))}
+
 
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
@@ -610,6 +620,7 @@ atT r t = SrcType Located { thingRange = range r, thingValue = t }
 
 loc :: SourceRange -> a -> Located a
 loc r v = Located { thingRange = r, thingValue = v }
+
 
 mkUnion :: Commit -> [Either Expr (UnionField Expr)] -> Parser (ExprF Expr)
 mkUnion cmt fs
