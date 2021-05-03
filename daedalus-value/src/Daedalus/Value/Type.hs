@@ -173,40 +173,55 @@ valueToIntSize = integerToInt . valueToSize
 vCompare :: Value -> Value -> Ordering
 vCompare a b =
   case (a,b) of
-    (VUInt n x,      VUInt n' y) | n == n'  -> compare x y
-    (VUInt n _,      VUInt n' _)            -> compare n n'
+    (VUInt n x,      VUInt n' y)            -> compare (n,x) (n',y)
     (VUInt _ _,      _)                     -> LT
     (_,              VUInt _ _)             -> GT
-    (VSInt n x,      VSInt n' y) | n == n'  -> compare x y
-    (VSInt n _,      VSInt n' _)            -> compare n n'
+
+    (VSInt n x,      VSInt n' y)            -> compare (n,x) (n',y)
     (VSInt _ _,      _)                     -> LT
     (_ ,             VSInt _ _)             -> GT
+
     (VInteger x,     VInteger y)            -> compare x y
     (VInteger _,     _)                     -> LT
     (_,              VInteger _)            -> GT
+
     (VBool x,        VBool y)               -> compare x y
     (VBool _,        _)                     -> LT
     (_,              VBool _)               -> GT
+
     (VUnionElem p x, VUnionElem q y)        -> compare (p,x) (q,y)
     (VUnionElem _ _, _)                     -> LT
     (_,              VUnionElem _ _)        -> GT
-    (VStruct xs,     VStruct ys)            -> compare xs ys
+
+    (VStruct xs,     VStruct ys)            -> compare (Map.fromList xs)
+                                                       (Map.fromList ys)
     (VStruct _,      _)                     -> LT
     (_,              VStruct _)             -> GT
+
     (VArray xs,      VArray ys)             -> compare xs ys
     (VArray _,       _)                     -> LT
     (_,              VArray _)              -> GT
+
     (VMaybe x,       VMaybe y)              -> compare x y
     (VMaybe _,       _)                     -> LT
     (_,              VMaybe _)              -> GT
+
     (VMap x,         VMap y)                -> compare x y
     (VMap _,         _)                     -> LT
     (_,              VMap _)                -> GT
+
     (VStream x,      VStream y)             -> compare x y
       -- WARNING: Only by name, see Input!
     (VStream _,      _)                     -> LT
     (_,              VStream _)             -> GT
 
+    (VBuilder xs,    VBuilder ys)           -> compare xs ys
+    (VBuilder {},    _)                     -> LT
+    (_,             VBuilder {})            -> GT
+
+    (VIterator xs,    VIterator ys)         -> compare xs ys
+    -- (VIterator {},    _)                     -> LT
+    -- (_,             VIterator {})            -> GT
 
 
 instance Eq Value where
