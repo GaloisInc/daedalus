@@ -161,7 +161,7 @@ runDaedalus inFile m_entry = daedalus $ do
     
   entry <- ddlGetFName mm entryName
 
-  md    <- ddlGetAST specMod astCore >>= ddlRunPass . nameConstArgsM -- FIXME: hack
+  md    <- ddlGetAST specMod astCore >>= ddlRunPass . allPassesM
   
   nguid <- ddlGet nextFreeGUID
   

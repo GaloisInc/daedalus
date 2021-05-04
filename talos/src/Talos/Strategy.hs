@@ -1,9 +1,15 @@
-{-# Language OverloadedStrings #-}
+-- {-# Language OverloadedStrings #-}
 
 module Talos.Strategy (allStrategies, runStrategies) where
 
+import System.IO (hFlush, stdout)
+import Control.Exception (evaluate)
 import Control.Monad.IO.Class
+import Data.Maybe (isNothing)
 import Text.Printf
+
+import Control.DeepSeq (force)
+import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
 
 import Talos.Analysis.Slice
 import Talos.SymExec.SolverT (SolverState, runSolverT)
@@ -23,22 +29,37 @@ runStrategy solvSt strat ptag sl =
     SimpleStrat f -> flip (,) solvSt <$> f ptag sl
     SolverStrat f -> runSolverT (f ptag sl) solvSt
 
+-- Returns the result and wall-clock time (in ns)
+timeStrategy :: SolverState -> Strategy -> ProvenanceTag -> Slice -> StrategyM ((Maybe SelectedPath, Integer), SolverState)
+timeStrategy solvSt strat ptag sl = do
+  start         <- liftIO $ getTime MonotonicRaw
+  (rv, solvSt') <- runStrategy solvSt strat ptag sl
+  rv'           <- liftIO $ evaluate $ force rv
+  end           <- liftIO $ getTime MonotonicRaw
+  pure ((rv', toNanoSecs (diffTimeSpec end start)), solvSt')
+
 runStrategies :: LiftStrategyM m => SolverState -> [Strategy] -> ProvenanceTag -> Slice ->
                  m (Maybe SelectedPath, SolverState)
 runStrategies solvSt strats0 ptag sl = liftStrategy $ go solvSt strats0
   where
     -- FIXME: There is probably a nicer way of doing this
-    -- go (strat : strats) = do
-    --   liftStrategy (liftIO (putStr $ "Trying strategy " ++ stratName strat))
-    --   (m_r, ns) <- timeStrategy strat ptag sl
-    --   let dns = (fromIntegral ns :: Double)
-    --   liftStrategy (liftIO (printf " (%.3fms)\n" (dns  / 1000000)))
-    go s [] = pure (Nothing, s)
+    go s [] = pure (Nothing, s)    
     go s (strat : strats) = do
-      (m_r, s') <- runStrategy s strat ptag sl
+      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ stratName strat ++ " ... "; hFlush stdout }))
+      ((m_r, ns), s') <- timeStrategy s strat ptag sl
+      let dns = (fromIntegral ns :: Double)
+      let resReport = if isNothing m_r then "failed" else "succeeded"
+      liftStrategy (liftIO (printf "%s (%.3fms)\n" resReport (dns  / 1000000)))
       case m_r of
         Just {} -> pure (m_r, s')
         Nothing -> go s' strats
+      
+    -- go s [] = pure (Nothing, s)
+    -- go s (strat : strats) = do
+    --   (m_r, s') <- runStrategy s strat ptag sl
+    --   case m_r of
+    --     Just {} -> pure (m_r, s')
+    --     Nothing -> go s' strats
   
   
   
