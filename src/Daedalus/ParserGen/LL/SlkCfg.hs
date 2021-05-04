@@ -425,9 +425,22 @@ compatibleInput inp1 inp2 =
     p2 = positionFromBeginning inp2
   in
   case (p1, p2) of
-    (WildWindow, _) -> False
-    (_, WildWindow) -> False
-    _ -> p1 == p2
+    (WildWindow, _) ->
+      -- trace (show inp1) $
+      -- trace (show inp2) $
+      False
+    (_, WildWindow) ->
+      -- trace (show inp1) $
+      -- trace (show inp2) $
+      False
+    _ ->
+      if (p1 == p2)
+      then
+        True
+      else
+        -- trace (show inp1) $
+        -- trace (show inp2) $
+        False
   -- NOTE: this condition is somewhat strict but beware of relaxing it
   -- because it could non-terminate
 
