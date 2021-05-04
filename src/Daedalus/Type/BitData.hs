@@ -27,7 +27,7 @@ srcTypeToSizedType sTy = do
   let badType msg = reportError sTy ("Type " <> backticks (pp ty) <> " cannot be used as bitdata" <> msg)
   n <- case ty of
     TCon n [] -> do
-      m_decl <- lookupTypeDef n
+      m_decl <- lookupTypeDefMaybe n
       case m_decl of
         Nothing -> reportError sTy ("Unknown type " <> pp ty)
         Just decl | Just w <- tctyBDWidth decl -> pure w

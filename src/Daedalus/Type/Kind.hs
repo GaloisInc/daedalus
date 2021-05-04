@@ -17,7 +17,7 @@ checkType expK srcty =
       case nameScopedIdent x of
         ModScope {} ->
           do let nm = TCTy x
-             mb <- lookupTypeDef nm
+             mb <- lookupTypeDefMaybe nm
              case mb of
                Just td -> do ps <- forM (tctyParams td) \_ ->
                                       newTVar x KValue

@@ -180,7 +180,8 @@ hsConstraint env ctr =
     ColElType s t  -> "RTS.ColElType" `Ap` hsType env s `Ap` hsType env t
     ColKeyType s t -> "RTS.ColKeyType" `Ap` hsType env s `Ap` hsType env t
 
-    TyDef {}        -> panic "hsConstraint" ["Unexpected TyDef"]
+    StructCon {}    -> panic "hsConstraint" ["Unexpected StructCon"]
+    UnionCon {}     -> panic "hsConstraint" ["Unexpected UnionCon"]
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
 
 hsRuleType :: Env -> RuleType -> Term

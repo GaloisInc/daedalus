@@ -5,7 +5,7 @@
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
-import Control.Monad(forM,forM_,unless,when)
+import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
 import Data.Maybe(catMaybes)
@@ -40,7 +40,7 @@ inferRules m = goBD [] (moduleBitData m)
   goBD done (x : more) = do
     newDecls <- inferBitData x
     extGlobTyDefs newDecls $ goBD (newDecls : done) more
-  
+
   go bds done todo =
     case todo of
       [] -> pure TCModule
@@ -698,8 +698,9 @@ inferExpr expr =
     EIn (lf :> e) ->
       liftValAppPure expr [e] \ ~[(e1,t)] ->
       do ty     <- newTVar expr KValue
+         tcon   <- newTyDefName
          let l = thingValue lf
-         addConstraint lf (HasUnion ty l t)
+         addConstraint lf (UnionCon tcon ty l lf { thingValue = t })
          addConstraint expr (IsNamed ty)
          pure (exprAt expr (TCIn l e1 ty), ty)
 
@@ -748,13 +749,11 @@ inferExpr expr =
              withLoc x t = [Located { thingRange = range x, thingValue = t }]
              tagMap      = Map.fromListWith (++)
                                             (zip labs (zipWith withLoc xs ts))
-         tagTy <- forM (Map.toList tagMap) \(x,lt:more) ->
+         tcon <- newTyDefName
+         forM_ (Map.toList tagMap) \(x,lt:more) ->
                     do forM_  more \t1 -> unify (lt, thingValue lt)
                                                 (t1, thingValue t1)
-                       pure (x, lt)
-
-         tcon <- newTyDefName
-         addConstraint expr (TyDef UnionDef tcon ty tagTy)
+                       addConstraint lt (UnionCon tcon ty x lt)
 
          pure ( exprAt expr (TCChoice c stmts ty)
               , tGrammar ty
@@ -970,7 +969,7 @@ inferExpr expr =
          pure (exprAt expr (TCErrorMode Backtrack e1), t)
 
     -- e should have the same type as the 
-    ECase e ps -> inferCase expr False e ps
+    ECase e ps -> inferCase expr e ps
 
 
 
@@ -1083,27 +1082,16 @@ checkPatternCases rng tIn tOut done cases =
 
 inferCase ::
   HasRange r =>
-  r -> Bool -> Expr -> [PatternCase Expr] ->
+  r -> Expr -> [PatternCase Expr] ->
   TypeM ctx (TC SourceRange ctx, Type)
-inferCase rng newTy e ps =
+inferCase rng e ps =
   do ((e1,tIn),mbS) <- liftValExpr e
-     (valT,tOut) <-
+     tOut <-
         do ctx <- getContext
            case ctx of
-             AGrammar -> do v <- newTVar e KValue
-                            pure (v, tGrammar v)
-             AValue   -> do v <- newTVar e KValue
-                            pure (v,v)
-             AClass   ->
-               if newTy
-                 then reportError e
-                      "union case does not work in character class definitions."
-                 else do x <- newTVar e KClass
-                         pure (x,x)
-
-     when newTy
-       do tcon <- newTyDefName
-          addConstraint rng (TyDef UnionDef tcon valT [])
+             AGrammar -> tGrammar <$> newTVar e KValue
+             AValue   -> newTVar e KValue
+             AClass   -> newTVar e KClass
 
      (alts,mbDefault) <- checkPatternCases e tIn tOut [] ps
      let expr1 = exprAt rng (TCCase e1 alts mbDefault)
@@ -1402,7 +1390,7 @@ pureStruct r ls ts es
       _  -> do ty <- newTVar r KValue
                nm <- newTyDefName
                addConstraint r $
-                  TyDef StructDef nm ty
+                  StructCon nm ty
                     [ (l, Located { thingRange = range e, thingValue = t })
                     | l <- ls
                     | e <- es

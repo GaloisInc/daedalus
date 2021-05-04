@@ -43,6 +43,7 @@ module Daedalus.Type.Monad
   , getNewTypeDefs
   , replaceNewTypeDefs
   , lookupTypeDef
+  , lookupTypeDefMaybe
   , extGlobTyDefs
   , getGlobTypeDefs
 
@@ -249,14 +250,21 @@ class MTCMonad m => STCMonad m where
 
 
 
-lookupTypeDef :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
+-- | The Bool indicates if this is a type that is in the process of being 
+-- defined.
+lookupTypeDef :: STCMonad m => TCTyName -> m (Maybe (TCTyDecl,Bool))
 lookupTypeDef x =
   do defs <- getNewTypeDefs
      case Map.lookup x defs of
-       Just d -> pure (Just d)
+       Just d -> pure (Just (d, True))
        Nothing ->
         do gdefs <- getGlobTypeDefs
-           pure (Map.lookup x gdefs)
+           pure case Map.lookup x gdefs of
+                  Just g -> Just (g, False)
+                  Nothing -> Nothing
+
+lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
+lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
 
 
 instance STCMonad STypeM where

@@ -189,7 +189,7 @@ hasStruct r ty l fty =
     TVar _ -> pure Unsolved
 
     TCon c ts ->
-      do mb <- lookupTypeDef c
+      do mb <- lookupTypeDefMaybe c
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
@@ -217,12 +217,17 @@ hasUnion r ty l fty =
       do mb <- lookupTypeDef c
          case mb of
            Nothing -> pure Unsolved
-           Just td -> case tctyDef td of
-                        TCTyUnion fs | Just (fty1,_) <- lookup l fs ->
-                          do let su = Map.fromList (zip (tctyParams td) ts)
-                             unify (apSubstT su fty1) (r,fty)
-                             pure Solved
-                        _ -> doErr
+           Just (td,inferring) ->
+              case tctyDef td of
+                TCTyUnion fs ->
+                  case lookup l fs of
+                    Just (fty1,_) ->
+                      do let su = Map.fromList (zip (tctyParams td) ts)
+                         unify (apSubstT su fty1) (r,fty)
+                         pure Solved
+                    Nothing -> if inferring then pure Unsolved
+                                            else doErr
+                _ -> doErr
 
     _ -> doErr
   where
@@ -352,28 +357,28 @@ validLiteral r i ty =
   nope = reportError r ("Literal" <+> pp i <+> "does not fit in" <+>
                                 backticks (pp ty))
 
-
 lookupTyDefInst :: (STCMonad m, HasRange r) =>
-  r -> TCTyName -> [Type] -> m (Maybe TCTyDef)
+  r -> TCTyName -> [Type] -> m (Maybe (TCTyDef, Bool))
 lookupTyDefInst r x ts =
   do mb <- lookupTypeDef x
      case mb of
        Nothing -> pure Nothing
-       Just def ->
-         do let as = tctyParams def
+       Just (def,inferring) ->
+         do let as     = tctyParams def
                 expect = length as
-                have = length ts
+                have   = length ts
             when (expect /= have)
                $ reportDetailedError r "Incorect number of parameters."
                     [ "Expected:" <+> int expect
                     , "Given:" <+> int have
                     ]
             let su = Map.fromList (zip as ts)
-            pure (Just (apSubstT su (tctyDef def)))
+            pure (Just (apSubstT su (tctyDef def), inferring))
+
 
 checkFields :: (STCMonad m, HasRange r) =>
               r -> TCTyName -> Map Label Type -> [(Label,Located Type)] -> m ()
-checkFields r x dfs fs =
+checkFields r x dfs fs =    -- `dsf`, existing fields, `fs` new fields
   case fs of
     [] -> case Map.keys dfs of
             []  -> pure ()
@@ -387,7 +392,7 @@ checkFields r x dfs fs =
                           ("Type" <+> backticks (pp x) <+>
                            "does not have field" <+> backticks (pp f))
 
-
+{-
 isTyDef :: (STCMonad m, HasRange r) =>
               r -> TyDef -> Type -> [(Label,Located Type)] -> m CtrStatus
 isTyDef r ty t fs0 =
@@ -400,17 +405,19 @@ isTyDef r ty t fs0 =
            Just def ->
              case def of
                TCTyStruct dfs
-                 | StructDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
-                                         pure Solved
+                 | StructDef <- ty ->
+                   do checkFields r c (fst <$> Map.fromList dfs) fs0
+                      pure Solved
                  | otherwise -> reportError r "Structure used as union."
                TCTyUnion dfs
-                 | UnionDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
-                                        pure Solved
+                 | UnionDef <- ty ->
+                   do checkFields r c (fst <$> Map.fromList dfs) fs0
+                      pure Solved
                  | otherwise -> reportError r "Union used a structure"
 
     Type _ -> reportDetailedError r "Expected a structure."
                   [ "Actual type:" <+> pp t ]
-
+-}
 
 isNamed :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
 isNamed r ty =
@@ -419,6 +426,55 @@ isNamed r ty =
     TVar {} -> pure Unsolved
     Type {} -> reportDetailedError r "Expected a named type"
                   [ pp ty <+> "is not." ]
+
+isStructCon ::
+  (STCMonad m, HasRange r) => r -> Type -> [(Label,Located Type)] -> m CtrStatus
+isStructCon r ty fs =
+  case ty of
+    TVar {} -> pure Unsolved
+
+    TCon c ts ->
+      do mb <- lookupTyDefInst r c ts
+         case mb of
+           Nothing -> pure Unsolved
+           Just (def,_) ->
+             case def of
+               TCTyStruct dfs ->
+                  do checkFields r c (fst <$> Map.fromList dfs) fs
+                     pure Solved
+               TCTyUnion {} -> reportError r "Union used a structure"
+
+    Type _ -> reportDetailedError r "Type is not a structure"
+                  [ "Type:" <+> pp ty ]
+
+
+isUnionCon ::
+  (STCMonad m, HasRange r) => r -> Type -> Label -> Located Type -> m CtrStatus
+isUnionCon r ty c t =
+  case ty of
+    TVar {} -> pure Unsolved
+    TCon tc ts ->
+      do mb <- lookupTyDefInst r tc ts
+         case mb of
+           Nothing -> pure Unsolved
+           Just (def,inferring) ->
+             case def of
+               TCTyUnion dfs ->
+                 do case lookup c dfs of
+                      Just (t1,_) -> unify t1 (t, thingValue t)
+                      Nothing
+                        | inferring -> undefined "Add constructor to definition"
+                        | otherwise ->
+                          reportDetailedError r
+                            "Union doesn't have this constructor"
+                                [ "Type:" <+> pp tc
+                                , "Constructor:" <+> pp c
+                                ]
+
+                    pure Solved
+               TCTyStruct {} -> reportError r "Structure used as a union"
+    Type _ -> reportDetailedError r "Type is not a union"
+                  [ "Type:" <+> pp ty ]
 
 
 -- | Try to solve a constraint.
@@ -430,7 +486,8 @@ solveConstraint lctr =
   case thingValue lctr of
     Numeric t          -> isNumeric lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
-    TyDef ty _ t fs    -> isTyDef lctr ty t fs
+    StructCon _ t fs   -> isStructCon lctr t fs
+    UnionCon _ t c ft  -> isUnionCon lctr t c ft
     HasUnion  t l fty  -> hasUnion  lctr t l fty
     Coerce lossy t1 t2 -> isCoercible lctr lossy t1 t2
     Literal n t        -> validLiteral lctr n t
@@ -553,31 +610,26 @@ simplifyConstraints =
 
   tryAddDefVar notYet todo =
     case todo of
-      c : more ->
+      ctr : more
+        | StructCon suggested ty fs <- thingValue ctr ->
+          chooseName suggested ty
+            (TCTyStruct [ (f, (thingValue lt,Nothing)) | (f,lt) <- fs ])
+        | UnionCon suggested ty c t <- thingValue ctr -> undefined
+        where
+        chooseName suggested theTy def =
+          case (suggested, theTy) of
+            (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
+               | nm == nm1 -> defTy tcon def
+            (_, TVar x)    -> do unify theTy (ctr, TCon suggested [])
+                                 defTy suggested def
+            _ -> tryAddDefVar (ctr : notYet) more
 
-        case thingValue c of
-          TyDef ty suggest theTy fs ->
+        defTy tcon def =
+          do newTypeDef tcon def
+             su <- getTypeSubst
+             go [] su (notYet ++ more)
 
-            case (suggest, theTy) of
-              (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
-                 | nm == nm1 -> defTy tcon
-
-              (_, TVar _) ->
-                 do unify theTy (c,tCon suggest [])
-                    defTy suggest
-
-              _ -> tryAddDefVar (c : notYet) more
-
-             where
-             defTy tcon =
-               do newTypeDef tcon
-                    case ty of
-                      StructDef -> TCTyStruct [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
-                      UnionDef  -> TCTyUnion  [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
-                  su <- getTypeSubst
-                  go [] su (notYet ++ more)
-
-          _ -> tryAddDefVar (c : notYet) more
+      ctr : more -> tryAddDefVar (ctr : notYet) more
 
       [] -> pure notYet
 
