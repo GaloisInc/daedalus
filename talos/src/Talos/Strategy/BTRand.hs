@@ -93,7 +93,9 @@ randMaybeStrat ptag sl = go restartBound
              
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
 mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice -> m SelectedPath
-mkStrategyFun ptag = fmap snd . flip runReaderT I.emptyEnv . stratSlice ptag
+mkStrategyFun ptag sl = do
+  env0 <- getIEnv -- for pure function implementations
+  snd <$> runReaderT (stratSlice ptag sl) env0 
 
 stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice
            -> ReaderT I.Env m (I.Value, SelectedPath)

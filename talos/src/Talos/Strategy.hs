@@ -11,6 +11,8 @@ import Text.Printf
 import Control.DeepSeq (force)
 import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
 
+import Daedalus.PP
+
 import Talos.Analysis.Slice
 import Talos.SymExec.SolverT (SolverState, runSolverT)
 import Talos.SymExec.Path
@@ -45,7 +47,7 @@ runStrategies solvSt strats0 ptag sl = liftStrategy $ go solvSt strats0
     -- FIXME: There is probably a nicer way of doing this
     go s [] = pure (Nothing, s)    
     go s (strat : strats) = do
-      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ stratName strat ++ " ... "; hFlush stdout }))
+      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ stratName strat ++ " for " ++ showPP ptag ++ " ... "; hFlush stdout }))
       ((m_r, ns), s') <- timeStrategy s strat ptag sl
       let dns = (fromIntegral ns :: Double)
       let resReport = if isNothing m_r then "failed" else "succeeded"
