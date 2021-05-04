@@ -5,6 +5,7 @@
 module Daedalus.Core.Expr where
 
 import Data.ByteString(ByteString)
+import Data.Functor.Identity(Identity(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
@@ -100,6 +101,33 @@ data OpN =
 
 data Case k = Case Expr [(Pattern,k)]
   deriving (Functor,Foldable,Traversable)
+
+
+--------------------------------------------------------------------------------
+-- Traversals
+
+childrenE ::
+    Applicative f => (Expr -> f Expr) -> Expr -> f Expr
+childrenE f expr =
+  case expr of
+    Var {} -> pure expr
+    PureLet n e1 e2 -> PureLet n <$> f e1 <*> f e2
+    Struct ut flds  -> Struct ut <$> traverse (\(fld,e) -> (,) fld <$> f e) flds
+    ECase (Case e ps) -> ECase <$> (Case <$> f e <*> traverse (\(l,e') -> (,) l <$> f e') ps)
+    Ap0 {} -> pure expr
+    Ap1 op1 e  -> Ap1 op1 <$> f e
+    Ap2 op2 e1 e2 -> Ap2 op2 <$> f e1 <*> f e2
+    Ap3 op3 e1 e2 e3 -> Ap3 op3 <$> f e1 <*> f e2 <*> f e3
+    ApN opN es -> ApN opN <$> traverse f es
+
+
+mapChildrenE :: (Expr -> Expr) -> Expr -> Expr
+mapChildrenE f g = g1
+  where Identity g1 = childrenE (Identity . f) g
+
+--------------------------------------------------------------------------------
+-- Constructors
+--------------------------------------------------------------------------------
 
 eCase :: Expr -> [(Pattern,Expr)] -> Expr
 eCase e ps = ECase (Case e ps)

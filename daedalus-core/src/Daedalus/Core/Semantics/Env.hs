@@ -1,4 +1,6 @@
 {-# Language BangPatterns #-}
+{-# Language OverloadedStrings #-}
+
 module Daedalus.Core.Semantics.Env where
 
 import Data.Map(Map)
@@ -9,7 +11,7 @@ import RTS.Parser(Parser)
 import Daedalus.Value
 
 import Daedalus.Panic(panic)
-import Daedalus.PP(pp)
+import Daedalus.PP (pp, hsep, punctuate)
 import Daedalus.Core(Name,FName)
 
 
@@ -47,7 +49,9 @@ lookupFun :: FName -> Env -> [Value] -> Value
 lookupFun f env =
   case Map.lookup f (fEnv env) of
     Just fv -> fv
-    Nothing -> panic "lookupFun" [ "Undefined function", show (pp f) ]
+    Nothing -> panic "lookupFun" [ "Undefined function", show (pp f), "Known "
+                                 , show (hsep (punctuate "," (map pp (Map.keys (fEnv env)))))
+                                 ]
 
 defFun :: FName -> ([Value] -> Value) -> Env -> Env
 defFun f v env = env { fEnv = Map.insert f v (fEnv env) }

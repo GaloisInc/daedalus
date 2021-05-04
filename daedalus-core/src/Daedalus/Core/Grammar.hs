@@ -63,29 +63,41 @@ collectChoices _ = Nothing
 
 --------------------------------------------------------------------------------
 
+-- geb is 'grammar expr byteset'
+gebChildrenG ::
+  Applicative f => (Grammar -> f Grammar) -> (Expr -> f Expr) -> (ByteSet -> f ByteSet) ->
+                   Grammar -> f Grammar
+gebChildrenG gf ef bf gram =
+  case gram of
+    Pure e            -> Pure <$> ef e
+    GetStream         -> pure gram
+    SetStream e       -> SetStream <$> ef e
+    Match s m         -> Match s <$> case m of
+      MatchByte bs -> MatchByte  <$> bf bs
+      MatchBytes e -> MatchBytes <$> ef e
+      MatchEnd     -> pure MatchEnd
+    Fail es ty m_e    -> Fail es ty <$> traverse ef m_e
+    Do_ g1 g2         -> Do_ <$> gf g1 <*> gf g2
+    Do  x g1 g2       -> Do x <$> gf g1 <*> gf g2
+    Let x e g         -> Let x <$> ef e <*> gf g
+    OrBiased g1 g2    -> OrBiased <$> gf g1 <*> gf g2
+    OrUnbiased g1 g2  -> OrUnbiased <$> gf g1 <*> gf g2
+    Call fn args      -> Call fn <$> traverse ef args
+    Annot a g         -> Annot a <$> gf g
+    GCase (Case e ps) -> GCase <$> (Case <$> ef e <*> traverse (\(a, b) -> (,) a <$> gf b) ps)
+
+gebMapChildrenG :: (Grammar -> Grammar) -> (Expr -> Expr) -> (ByteSet -> ByteSet) ->
+                   Grammar -> Grammar
+gebMapChildrenG gf ef bf g = g1
+  where Identity g1 = gebChildrenG (Identity . gf) (Identity . ef) (Identity . bf) g
+
 childrenG ::
   Applicative f => (Grammar -> f Grammar) -> Grammar -> f Grammar
-childrenG f gram =
-  case gram of
-    Pure {}           -> pure gram
-    GetStream         -> pure gram
-    SetStream {}      -> pure gram
-    Match {}          -> pure gram
-    Fail {}           -> pure gram
-    Do_ g1 g2         -> Do_ <$> f g1 <*> f g2
-    Do  x g1 g2       -> Do x <$> f g1 <*> f g2
-    Let x e g         -> Let x e <$> f g
-    OrBiased g1 g2    -> OrBiased <$> f g1 <*> f g2
-    OrUnbiased g1 g2  -> OrUnbiased <$> f g1 <*> f g2
-    Call {}           -> pure gram
-    Annot a g         -> Annot a <$> f g
-    GCase c           -> GCase <$> traverse f c
+childrenG f = gebChildrenG f (pure . id) (pure . id)
 
 mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
 mapChildrenG f g = g1
   where Identity g1 = childrenG (Identity . f) g
-
-
 
 --------------------------------------------------------------------------------
 
