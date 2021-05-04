@@ -1,34 +1,27 @@
 Stack:
     *
     __ZAuxiliaryState
-Start: Main (10,5)-(10,7)
-SlkCfg{ q:20, ctrl:[?, *], sem:[?, ], inp:--- }
+    Main (11,5)-(11,5)
+Start: A (5,29)-(5,38)
+SlkCfg{ q:16, ctrl:[?, ?, *], sem:[?, ], inp:--- }
 DTrans [
-  ( [(10),]
-  , EndInput
+  ( [(18),]
+  , HeadInput ['\NUL']
   , Resolution (NotAmbiguous)
   ),
 ]
 
 Stack:
     *
-    __ZAuxiliaryState
-Start: Main (9,5)-(9,8)
-SlkCfg{ q:16, ctrl:[?, *], sem:[?, ], inp:--- }
-DTrans [
-  ( [(11),]
-  , HeadInput ['b']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Stack:
-    *
-Start: Main (7,1)-(11,3)
+Start: Main (9,1)-(11,6)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
-  ( [(16),]
-  , HeadInput ['a']
+  ( [(23),]
+  , HeadInput ['\NUL','\254']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(17),]
+  , HeadInput ['\255']
   , Resolution (NotAmbiguous)
   ),
 ]
@@ -48,8 +41,8 @@ DTrans [
 ***** Strict LLA *****
 **********************
 ("Lookahead-0",1)
-("Lookahead-1",3)
+("Lookahead-1",2)
 
-Total nb DFAs: 4
+Total nb DFAs: 3
 
 SUCCESS: Fully determinized format

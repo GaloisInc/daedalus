@@ -102,6 +102,22 @@ idVExpr vexpr =
                   , loopType = loopType lp
                   }
 
+        TCCase e1 lpat mdpat ->
+          TCCase
+          (idVExpr e1)
+          lpat1
+          (fmap (\ e -> idVExpr e) mdpat)
+          where
+            lpat1 =
+              fmap
+              (\ p ->
+                 let
+                   patList = tcAltPatterns p
+                   body = tcAltBody p
+                 in
+                   TCAlt { tcAltPatterns = patList, tcAltBody = idVExpr body }
+              ) lpat
+
         TCVar v -> TCVar v
         _ -> error ("TODO: " ++ show vexpr)
 
@@ -546,11 +562,11 @@ genGExpr gbl e =
     TCStreamLen s e1 e2 ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamLen s e1 e2), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamTake s e1 e2), n2)) ]) n2
     TCStreamOff s e1 e2 ->
       let n1 = getS 0
           n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamOff s e1 e2), n2)) ]) n2
+      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamDrop s e1 e2), n2)) ]) n2
     TCGetByte s ->
       let n1 = getS 0
           n2 = getS 1
@@ -749,43 +765,50 @@ genGExpr gbl e =
       in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
 
     TCCase e1 lpat dpat ->
-      let lstITF =
-            map
-            (\ _pat@(TCAlt{tcAltPatterns = pcase, tcAltBody = bdy}) ->
-                (Just pcase, dsAut $ genGram gbl bdy)
-            ) (NonEmpty.toList lpat)
-            ++
-            (case dpat of
-               Nothing -> []
-               Just bdy -> [ (Nothing, dsAut $ genGram gbl bdy) ]
-            )
+      let
+        lstITF =
+          map
+          (\ _pat@(TCAlt{tcAltPatterns = pcase, tcAltBody = bdy}) ->
+              (Just pcase, dsAut $ genGram gbl bdy)
+          ) (NonEmpty.toList lpat)
+          ++
+          (case dpat of
+             Nothing -> []
+             Just bdy -> [ (Nothing, dsAut $ genGram gbl bdy) ]
+          )
 
-          n1 = getS 0
-          n2 = getS 1
-          n3 = getS 2
-          n4 = getS 3
-          infoN = n4
-          transIn  = foldr (\ (mpcase, (i1,_t1,_f1,_)) accTr ->
-                              (maybe
-                                ((CAct (CaseTry Nothing), i1) : accTr)
-                                (\pcase -> (CAct (CaseTry (Just pcase)), i1) : accTr)
-                                mpcase
-                              )
-                           )
-                     [] lstITF
-          transBdy = foldr (\ (_mpcase, (_i1,t1,_f1,_)) accTr -> unionTr t1 accTr) emptyTr lstITF
-          pops     = foldr (\ (_mpcase, (_,_,_, p1)) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
+        n1 = getS 0
+        n2 = getS 1
+        n3 = getS 2
+        n4 = getS 3
+        infoN = n4
+        transIn =
+          foldr
+          (\ (mpcase, (i1,_t1,_f1,_)) accTr ->
+              (maybe
+                ((CAct (CaseTry Nothing), i1) : accTr)
+                (\pcase -> (CAct (CaseTry (Just pcase)), i1) : accTr)
+                mpcase
+              )
+          ) [] lstITF
+        transBdy = foldr (\ (_mpcase, (_i1,t1,_f1,_)) accTr -> unionTr t1 accTr) emptyTr lstITF
+        pops     = foldr (\ (_mpcase, (_,_,_, p1)) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
       in
-        let transOut = foldr (\ (_mpcase, (_i1,_t1,f1,_)) accTr ->
-                                (f1, UniChoice (BAct (CutBiasAlt infoN), n3)) : accTr) [] lstITF
-        in mkAutWithPop n1
-           (unionTr
-             (mkTr [ (n1, UniChoice (CAct (CaseCall e1), n2))
-                   , (n2, SeqChoice transIn infoN)
-                   , (n3, UniChoice (CAct CaseEnd, n4))
-                   ])
-             (unionTr (mkTr transOut) transBdy)
-           )
+      let
+        transOut =
+          foldr
+          (\ (_mpcase, (_i1,_t1,f1,_)) accTr ->
+              (f1, UniChoice (BAct (CutBiasAlt infoN), n3)) : accTr
+          ) [] lstITF
+      in
+      mkAutWithPop n1
+      (unionTr
+        (mkTr [ (n1, UniChoice (CAct (CaseCall e1), n2))
+              , (n2, SeqChoice transIn infoN)
+              , (n3, UniChoice (CAct CaseEnd, n4))
+              ])
+        (unionTr (mkTr transOut) transBdy)
+      )
            n4 pops
 
     x -> error ("Case not handled: " ++ show x)

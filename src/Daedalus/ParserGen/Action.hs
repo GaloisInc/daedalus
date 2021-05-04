@@ -41,6 +41,8 @@ import Data.Word
 import qualified Data.Vector as Vector
 import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
+import qualified Data.List.NonEmpty as NonEmpty
+
 
 import Daedalus.PP hiding (empty)
 import qualified Daedalus.Value as Interp
@@ -64,8 +66,8 @@ data InputAction =
   | IMatchBytes WithSem NVExpr
   | GetStream
   | SetStream NVExpr
-  | StreamLen WithSem NVExpr NVExpr
-  | StreamOff WithSem NVExpr NVExpr
+  | StreamTake WithSem NVExpr NVExpr
+  | StreamDrop WithSem NVExpr NVExpr
 
 
 data ControlAction =
@@ -134,8 +136,8 @@ instance Show(InputAction) where
   show (IMatchBytes s e) = semToString s ++ "MatchBytes " ++ show (pp $ texprValue e)
   show (GetStream)       = "GetStream"
   show (SetStream _)     = "SetStream"
-  show (StreamLen s _ _) = semToString s ++ "StreamLen"
-  show (StreamOff s _ _) = semToString s ++ "StreamOff"
+  show (StreamTake s _ _) = semToString s ++ "StreamTake"
+  show (StreamDrop s _ _) = semToString s ++ "StreamDrop"
 
 instance Show(ControlAction) where
   show (BoundSetup _)      = "BoundSetup"
@@ -223,8 +225,8 @@ isUnhandledInputAction act =
         ClssAct _ _ -> False
         GetStream -> False
         SetStream _ -> False
-        StreamLen {} -> False
-        StreamOff {} -> False
+        StreamTake {} -> False
+        StreamDrop {} -> False
         _ -> -- trace (show iact) $
              True
     _ -> False
@@ -597,13 +599,14 @@ evalVExpr gbl expr ctrl out =
                   e3 = loopBody lp
               in
                 -- NVFor n1 e1 n2 e2 e3 ->
-                case eval env e2 of
-                  Interp.VArray vect ->
-                    Vector.foldl f (eval env e1) vect
-                    where f b a =
-                            let localenv = concatLocalEnv (Just ([(tcName n1, b), (tcName n2, a)])) env
-                            in eval localenv e3
-                  _ -> error "Unexpected type in For"
+              case eval env e2 of
+                Interp.VArray vect ->
+                  Vector.foldl f (eval env e1) vect
+                  where
+                    f b a =
+                      let localenv = concatLocalEnv (Just ([(tcName n1, b), (tcName n2, a)])) env
+                      in eval localenv e3
+                _ -> error "Unexpected type in For"
             LoopMap -> error "Unhandled LoopMap"
         TCVar nname ->
           case env of
@@ -623,20 +626,41 @@ evalVExpr gbl expr ctrl out =
             Interp.VArray v -> Interp.VUInt 64 (fromIntegral $ length v)
             _ -> error "should be an array"
         TCUnit -> defaultValue
+        TCCase e1 lpat defaultp ->
+          loop (NonEmpty.toList lpat)
+
+          where
+            ev = eval env e1
+            loop pat =
+              case pat of
+                [] ->
+                  case defaultp of
+                    Nothing -> error "No match found"
+                    Just e2 -> eval env e2
+                p : rest ->
+                  case evalCase gbl ev (Just $ tcAltPatterns p) of
+                    Nothing -> loop rest
+                    Just m ->
+                      let newEnv = concatLocalEnv (Just (Map.assocs m)) env
+                      in eval newEnv (tcAltBody p)
+
         x -> error ("TODO: "++ show x)
 
   in eval Nothing expr
-  where concatLocalEnv env1 env2 =
-          case (env1, env2) of
-            (Just env11, Just env22) -> Just (env11 ++ env22)
-            (Just _, Nothing) -> env1
-            (Nothing, Just _) -> env2
-            (Nothing, Nothing) -> Nothing
-        lookupLocalEnv n1 env =
-          foldl (\b (n2, v) -> case b of
-                                 Nothing -> if n1 == n2 then Just v else Nothing
-                                 Just v1 -> Just v1
-                ) Nothing env
+  where
+    concatLocalEnv env1 env2 =
+      case (env1, env2) of
+        (Just env11, Just env22) -> Just (env11 ++ env22)
+        (Just _, Nothing) -> env1
+        (Nothing, Just _) -> env2
+        (Nothing, Nothing) -> Nothing
+    lookupLocalEnv n1 env =
+      foldl
+      (\b (n2, v) ->
+         case b of
+           Nothing -> if n1 == n2 then Just v else Nothing
+           Just v1 -> Just v1
+      ) Nothing env
 
 evalNoFunCall:: NVExpr -> ControlData -> SemanticData -> Val
 evalNoFunCall e ctrl out = evalVExpr (Map.empty) e ctrl out
@@ -805,7 +829,7 @@ applyInputAction gbl (inp, ctrl, out) act =
       in case ev1 of
            Interp.VStream i1 -> Just (i1, SEVal (defaultValue) {- technically just for an invariant at the EnvStore handling -} : out)
            _ -> error "Not an input stream at this value"
-    StreamLen s e1 e2 ->
+    StreamTake s e1 e2 ->
       let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of
@@ -816,7 +840,7 @@ applyInputAction gbl (inp, ctrl, out) act =
            _ -> error "Not an input stream"
 
 
-    StreamOff s e1 e2 ->
+    StreamDrop s e1 e2 ->
       let n   = Interp.valueToIntegral (evalVExpr gbl e1 ctrl out)
           ev2 = evalVExpr gbl e2 ctrl out
       in case ev2 of

@@ -14,6 +14,8 @@ module Daedalus.ParserGen.LL.SlkCfg
   , _showDebugSlkControlData
   , HTable
   , emptyHTable
+  , isStreamSetDynamic
+  , simulateDynamicStreamSet
   , simulateActionSlkCfg
   , isManyExactDependent
   , InputHeadCondition(..)
@@ -199,6 +201,11 @@ destrSlkStack2 s =
 
 
 
+-- NOTE: this type is more convoluted than expected because of how
+-- symbolic vlues for streams/input are represented
+type SlkValue = Slk (Either Interp.Value SlkInput)
+
+
 
 
 data SlkBetweenItv =
@@ -249,12 +256,6 @@ _showDebugSlkControlData ctrl =
 
 
 
-
-
--- NOTE: this type is more convoluted than expected because of how
--- symbolic vlues for streams/input are represented
-type SlkValue = Slk (Either Interp.Value SlkInput)
-
 data SlkSemElm =
     SlkSEVal  !SlkValue
   | SlkSEnvMap !(Slk (Map.Map Name (SlkValue)))
@@ -281,9 +282,9 @@ _showDebugSlkSemanticData ctrl =
 
 data SlkInput =
     InpBegin
-  | InpTake Int SlkInput
-  | InpDrop Int SlkInput
-  | InpNext Int SlkInput
+  | InpTake (Slk Int) SlkInput
+  | InpDrop (Slk Int) SlkInput
+  | InpNext (Slk Int) SlkInput
   | InpEnd
   deriving (Show, Eq, Ord)
 
@@ -292,10 +293,14 @@ showSlkInput :: SlkInput -> String
 showSlkInput inp =
   case inp of
     InpBegin -> "---"
-    InpTake n _ -> "---[.." ++ show n ++ "]"
-    InpNext i (InpTake n _) ->
+    InpTake (SConcrete n) _ -> "---[.." ++ show n ++ "]"
+    InpTake Wildcard _ -> "---[.." ++ "?" ++ "]"
+    InpDrop (SConcrete i) _ -> "---[" ++ show i ++ "..]"
+    InpDrop Wildcard _ -> "---[" ++ "?" ++ "..]"
+    InpNext (SConcrete i) (InpTake (SConcrete n) _) ->
       "---[" ++ show i ++ ".." ++ show n ++ "]"
-    InpDrop i _ -> "---[" ++ show i ++ "..]"
+    InpNext Wildcard (InpTake Wildcard _) ->
+      "---[" ++ "?" ++ ".." ++ "?" ++ "]"
     InpEnd -> "---"
     _ ->  error "case not handled"
 
@@ -308,13 +313,22 @@ nextSlkInput inp =
     InpBegin ->
       -- when the input is unconstrained the advancement of the input is not tracked
       Just InpBegin
-    InpTake n _ -> if 1 <= n then Just $ InpNext 1 inp else Nothing
+    InpTake (SConcrete n) _ ->
+      if 1 <= n then Just $ InpNext (SConcrete 1) inp else Nothing
+    InpTake Wildcard _ ->
+          Just $ InpNext Wildcard inp
     InpDrop _ _ -> Just inp
-    InpNext i inp1@(InpTake n _) ->
+    InpNext (SConcrete i) inp1@(InpTake (SConcrete n) _) ->
       if (i+1 <= n)
-      then Just $ InpNext (i+1) inp1
+      then Just $ InpNext (SConcrete (i+1)) inp1
       else Nothing
-    InpEnd -> error "not possible InpEnd"
+    InpNext Wildcard inp1@(InpTake Wildcard _) ->
+      Just $ InpNext Wildcard inp1
+    InpEnd ->
+      -- TODO: change this to Nothing, because when reached the end
+      -- there is not possible next character, so it should definitely
+      -- fail. Cant do it now bc in the middle of something else.
+      error "not possible InpEnd"
     _ -> error ("not possible: " ++ show inp)
 
 endSlkInput :: SlkInput -> Maybe SlkInput
@@ -322,17 +336,39 @@ endSlkInput inp =
   case inp of
     InpBegin -> Just InpEnd
     InpEnd -> Just InpEnd
-    InpTake n _ -> if (n == 0) then Just InpEnd else Nothing
+    InpTake (SConcrete n) _ ->
+      if (n == 0) then Just InpEnd else Nothing
+    InpTake Wildcard _ ->
+      error "NOT SURE WE SHOULD REACH HERE"
     InpDrop _ _ -> Just InpEnd
-    InpNext i (InpTake n _) ->
+    InpNext (SConcrete i) (InpTake (SConcrete n) _) ->
       if (i == n) then Just InpEnd else Nothing
+    InpNext _ (InpTake Wildcard _) ->
+      Just InpEnd
+      -- TODO: NOT SURE ABOUT THIS CASE BUT ENCOUTERED inJPEG SomeSOF. error "REALLY? HERE?"
     _ -> error "impossible IEND"
+
+isSlkInputDynamic :: SlkInput -> Bool
+isSlkInputDynamic inp =
+  go inp
+  where
+    go input =
+      case input of
+        InpBegin -> False
+        InpTake (SConcrete _) inp1 -> go inp1
+        InpTake Wildcard _ -> True
+        InpDrop (SConcrete _) inp1 -> go inp1
+        InpDrop Wildcard _ -> True
+        InpNext (SConcrete _) inp1 -> go inp1
+        InpNext Wildcard _ -> True
+        InpEnd -> False
 
 
 data InputWindow =
     InputWindow (Int, Maybe Int) -- Maybe when is input is not bounded
   | EndWindow
-  deriving(Eq)
+  | WildWindow
+  deriving(Show, Eq)
 
 positionFromBeginning :: SlkInput -> InputWindow
 positionFromBeginning inp =
@@ -341,33 +377,42 @@ positionFromBeginning inp =
     go input =
       case input of
         InpBegin -> InputWindow (0, Nothing)
-        InpTake n inp' ->
+        InpTake (SConcrete n) inp' ->
           let p = go inp' in
           case p of
+            WildWindow -> WildWindow
             EndWindow -> EndWindow
             InputWindow (i, Nothing) -> InputWindow (i, Just (i + n))
             InputWindow (i, Just j) ->
               if j - i < n
               then EndWindow
               else InputWindow (i, Just (i + n))
-        InpDrop n inp' ->
+        InpTake (Wildcard) _ ->
+          WildWindow
+        InpDrop (SConcrete n) inp' ->
           let p = go inp' in
           case p of
+            WildWindow -> WildWindow
             EndWindow -> EndWindow
             InputWindow (i, Nothing) -> InputWindow (i + n, Nothing)
             InputWindow (i, Just j) ->
               if j - i < n
               then EndWindow
               else InputWindow (i + n, Just j)
-        InpNext n inp' ->
+        InpDrop (Wildcard) _ ->
+          WildWindow
+        InpNext (SConcrete n) inp' ->
           let p = go inp' in
           case p of
+            WildWindow -> WildWindow
             EndWindow -> EndWindow
             InputWindow (i, Nothing) -> InputWindow (i + n, Nothing)
             InputWindow (i, Just j) ->
               if i + n > j
               then EndWindow
               else InputWindow (i + n, Just j)
+        InpNext Wildcard _ ->
+          WildWindow
         InpEnd -> EndWindow
 
 
@@ -375,7 +420,14 @@ positionFromBeginning inp =
 compatibleInput :: SlkInput -> SlkInput -> Bool
 compatibleInput inp1 inp2 =
   -- inp1 == inp2
-  positionFromBeginning inp1 == positionFromBeginning inp2
+  let
+    p1 = positionFromBeginning inp1
+    p2 = positionFromBeginning inp2
+  in
+  case (p1, p2) of
+    (WildWindow, _) -> False
+    (_, WildWindow) -> False
+    _ -> p1 == p2
   -- NOTE: this condition is somewhat strict but beware of relaxing it
   -- because it could non-terminate
 
@@ -525,8 +577,10 @@ symbolicLookupEnvName nname ctrl out =
           case Map.lookup nname m of
             Nothing -> Nothing
             Just v -> Just v
+        SCons (SlkManyFrame _ _) rest ->
+          lookupCtrl rest
         SEmpty -> error "missing var"
-        _ -> error "TODO"
+        _ -> error ("TODO: " ++ show c)
 
 symbolicEval :: PAST.NVExpr -> SlkControlData -> SlkSemanticData -> SlkValue
 symbolicEval e ctrl sem =
@@ -1017,19 +1071,24 @@ slkExecClass gbl expr ctrl out =
               case lst of
                 [] ->
                   if i <= 255
-                  then R.Result $ ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
-                  else R.Result $ ByteCondition (reverse acc)
+                  then ByteCondition (reverse (ClassBtw (CValue i) (CValue 255) : acc))
+                  else ByteCondition (reverse acc)
                 ClassBtw (CValue j) (CValue k) : rest ->
-                  let j1 = j-1 in
-                  if i <= j1
+                  if i < j
                   then
-                    iterCompl (k+1) rest (ClassBtw (CValue i) (CValue (j1)) : acc)
+                    let newAcc = (ClassBtw (CValue i) (CValue (j -1)) : acc) in
+                    if k == 255 -- test necessary to prevent overflow/wrapping-around k+1
+                    then ByteCondition (reverse newAcc)
+                    else iterCompl (k+1) rest newAcc
                   else
-                    iterCompl (k+1) rest acc
+                    if k == 255 -- test necessary to prevent overflow/wrapping-around k+1
+                    then ByteCondition (reverse acc)
+                    else iterCompl (k+1) rest acc
           in
           case mbc of
             R.Result bc ->
-              iterCompl 0 (byteCondition bc) []
+              let compl = iterCompl 0 (byteCondition bc) [] in
+              R.Result compl
             R.Abort (R.AbortSlkCfgClassNotHandledYet _) -> R.coerceAbort mbc
             R.Abort R.AbortSlkCfgClassIsDynamic -> R.coerceAbort mbc
             _ -> error "Should not be another"
@@ -1059,42 +1118,68 @@ symbExecInp :: InputAction -> SlkControlData -> SlkSemanticData -> SlkInput ->
   HTable -> R.Result (Maybe ((SlkInput, SlkSemanticData), HTable))
 symbExecInp act ctrl out inp
   (HTable { tabCtrl = tabC, tabSem = tabS}) =
+  -- trace (show act) $
   case act of
-    GetStream -> rJust (inp, SCons (SlkSEVal (SConcrete (Right inp))) out)
+    GetStream ->
+      rJust (inp, SCons (SlkSEVal (SConcrete (Right inp))) out)
     SetStream name ->
       let ev = symbolicEval name ctrl out in
       case ev of
-        SConcrete (Right x) -> rJust (x, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
+        SConcrete (Right inp1) ->
+          rJust (inp1, SCons (SlkSEVal (SConcrete (Left defaultValue))) out)
         Wildcard -> R.Abort R.AbortSlkCfgExecution
         _ -> error "TODO"
-    StreamLen _s e1 e2 ->
+    StreamTake _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
       in
-        case ev1 of
-          SConcrete (Left val) ->
-            let n = Interp.valueToIntegral val in
-            case ev2 of
-              SConcrete (Right x) ->
-                rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpTake (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSlkCfgExecution
-              _ -> error "TODO"
-          _ -> -- trace "TAKE a symbolic value" $
-            R.Abort R.AbortSlkCfgExecution
-    StreamOff _s e1 e2 ->
+      case ev1 of
+        SConcrete (Left val) ->
+          let n = Interp.valueToIntegral val in
+          case ev2 of
+            SConcrete (Right x) ->
+              let
+                semInput = SConcrete (Right $ InpTake (SConcrete (fromIntegral n)) x)
+              in
+              rJust (inp, SCons (SlkSEVal semInput) out)
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
+            _ -> error "TODO"
+        SConcrete (Right _) -> error "Impossible Stream value"
+        Wildcard ->
+          case ev2 of
+            SConcrete (Right x) ->
+              let
+                semInput = SConcrete (Right $ InpTake Wildcard x)
+              in
+              rJust (inp, SCons (SlkSEVal semInput) out)
+            SConcrete (Left _) -> error "Impossible stream value"
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
+          -- R.Abort R.AbortSlkCfgExecution
+    StreamDrop _s e1 e2 ->
       let ev1 = symbolicEval e1 ctrl out
           ev2 = symbolicEval e2 ctrl out
       in
-        case ev1 of
-          SConcrete (Left val) ->
-            let n = Interp.valueToIntegral val in
-            case ev2 of
-              SConcrete (Right x) ->
-                rJust (inp, SCons (SlkSEVal (SConcrete (Right $ InpDrop (fromIntegral n) x))) out)
-              Wildcard -> R.Abort R.AbortSlkCfgExecution
-              _ -> error "TODO"
-          _ -> -- trace "DROP a symbolic value" $
-            R.Abort R.AbortSlkCfgExecution
+      case ev1 of
+        SConcrete (Left val) ->
+          let n = Interp.valueToIntegral val in
+          case ev2 of
+            SConcrete (Right x) ->
+              let
+                semInput = SConcrete (Right $ InpDrop (SConcrete (fromIntegral n)) x)
+              in
+              rJust (inp, SCons (SlkSEVal semInput) out)
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
+            _ -> error "TODO"
+        SConcrete (Right _) -> error "Impossible Stream value"
+        Wildcard ->
+          case ev2 of
+            SConcrete (Right x) ->
+              let
+                semInput = SConcrete (Right $ InpDrop Wildcard x)
+              in
+              rJust (inp, SCons (SlkSEVal semInput) out)
+            SConcrete (Left _) -> error "Impossible stream value"
+            Wildcard -> R.Abort R.AbortSlkCfgExecution
 
     _ -> error "TODO"
 
@@ -1102,6 +1187,55 @@ symbExecInp act ctrl out inp
     rJust (inp1, o) =
       let (newSem, tabS1) = mkSlkStack o tabS in
       R.Result (Just ((inp1, newSem), HTable tabC tabS1))
+
+isStreamSetDynamic :: Action -> SlkCfg -> Bool
+isStreamSetDynamic act cfg =
+  case act of
+    CAct _ -> False
+    SAct _ -> False
+    BAct _ -> False
+    IAct iact ->
+      let
+        ctrl = cfgCtrl cfg
+        sem = cfgSem cfg
+      in
+      case iact of
+        GetStream -> False
+        SetStream name ->
+          let ev = symbolicEval name ctrl sem in
+          case ev of
+            SConcrete (Right x) ->
+              if isSlkInputDynamic x
+              then True
+              else False
+            SConcrete (Left _) -> error "Impossible"
+            Wildcard -> True
+        _ -> False
+    EpsA -> False
+
+simulateDynamicStreamSet ::
+  Action -> State -> SlkCfg ->
+  HTable -> (SlkCfg, HTable)
+simulateDynamicStreamSet act q2 cfg (HTable tabC tabS) =
+  case act of
+    IAct (SetStream _name) ->
+      let
+        ctrl = cfgCtrl cfg
+        sem = cfgSem cfg
+      in
+      let
+        (newSem, tabS') = mkSlkStack (SCons (SlkSEVal (SConcrete (Left defaultValue))) sem) tabS
+        newInput = InpBegin
+      in
+      ( SlkCfg
+        { cfgState = q2
+        , cfgCtrl = ctrl
+        , cfgSem = newSem
+        , cfgInput = newInput
+        }
+      , HTable tabC tabS'
+      )
+    _ -> error "broken invariant, should not be called in this context"
 
 simulateActionSlkCfg ::
   Aut.Aut a => a -> Action -> State -> SlkCfg ->

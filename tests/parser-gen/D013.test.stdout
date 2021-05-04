@@ -1,7 +1,9 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (3,1)-(14,1)
+Stack:
+    *
+Start: Main (3,1)-(14,1)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(19),(22),(22),]
@@ -33,7 +35,9 @@ Total nb DFAs: 1
 
 Warning: LL(*) failures:
 
-Main (3,1)-(14,1)
+Stack:
+    *
+Start: Main (3,1)-(14,1)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 DTrans [
   ( [(19),(22),(22),]
@@ -47,8 +51,8 @@ DTrans [
 ]
 
 *******  Found Ambiguity  *******
-  Start: Main (3,1)-(14,1)
-  Paths : 
+  Start: Stack:
+  Paths :
   -  
      *
      __ZAuxiliaryState

@@ -1,13 +1,10 @@
-Main (36,1)-(39,3)
-SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
-DTrans [
-  ( [(33),]
-  , HeadInput ['0','9']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-_Natural (23,9)-(23,24)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (11,11)-(11,23)
+    _Token__29 (6,8)-(6,8)
+Start: _Natural (23,9)-(23,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(24),]
@@ -20,7 +17,86 @@ DTrans [
   ),
 ]
 
-_Token__29 (7,3)-(7,15)
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (11,11)-(11,23)
+Start: _Token__29 (7,3)-(7,15)
+SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(13),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (12,11)-(12,23)
+    _Token__29 (6,8)-(6,8)
+Start: _Natural (23,9)-(23,24)
+SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (12,11)-(12,23)
+Start: _Token__29 (7,3)-(7,15)
+SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(13),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(34),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (13,11)-(13,23)
+    _Token__29 (6,8)-(6,8)
+Start: _Natural (23,9)-(23,24)
+SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+    Main (37,5)-(37,7)
+    _RGB (13,11)-(13,23)
+Start: _Token__29 (7,3)-(7,15)
 SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(13),]
@@ -33,7 +109,20 @@ DTrans [
   ),
 ]
 
-__ZAuxiliaryState
+Stack:
+    *
+Start: Main (36,1)-(39,3)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(33),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: __ZAuxiliaryState
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

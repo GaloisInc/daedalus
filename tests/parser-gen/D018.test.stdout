@@ -1,7 +1,9 @@
 **********************************
 ***** Strict LLA Transitions *****
 **********************************
-Main (188,1)-(188,35)
+Stack:
+    *
+Start: Main (188,1)-(188,35)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 AbortClosureUnhandledInputAction
 
@@ -10,17 +12,17 @@ AbortClosureUnhandledInputAction
 **** Extended LLA ****
 **********************
 ("AbortClosureUnhandledAction",14)
-("AbortClosureUnhandledInputAction",62)
+("AbortClosureUnhandledInputAction",63)
 ("AbortDFAOverflowCfg",10)
 ("Lookahead-0",1)
-("Lookahead-1",65)
+("Lookahead-1",68)
 ("Lookahead-ambiguous-1",6)
 ("Lookahead-ambiguous-2",7)
 ("Lookahead-ambiguous-3",5)
-("abort-1",17)
+("abort-1",16)
 ("abort-2",1)
 
-Total nb states: 188
+Total nb states: 191
 
 **********************
 ***** Strict LLA *****
@@ -32,7 +34,9 @@ Total nb DFAs: 1
 
 Warning: LL(*) failures:
 
-Main (188,1)-(188,35)
+Stack:
+    *
+Start: Main (188,1)-(188,35)
 SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
 AbortClosureUnhandledInputAction
 

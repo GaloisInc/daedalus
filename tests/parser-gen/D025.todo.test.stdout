@@ -1,0 +1,130 @@
+**********************************
+***** Strict LLA Transitions *****
+**********************************
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (12,5)-(12,10)
+SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),(12),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(17),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (10,1)-(14,14)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(20),(19),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(24),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+**********************
+**** Extended LLA ****
+**********************
+("Lookahead-0",2)
+("Lookahead-1",4)
+("abort-3",7)
+
+Total nb states: 13
+
+**********************
+***** Strict LLA *****
+**********************
+("abort-3",2)
+
+Total nb DFAs: 2
+
+
+Warning: LL(*) failures:
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (12,5)-(12,10)
+SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(13),(12),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(17),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (10,1)-(14,14)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(24),]
+  , HeadInput ['\NUL','`']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(20),(19),]
+  , HeadInput ['a']
+  , DTrans [
+      ( [(12),(10),]
+      , HeadInput ['b']
+      , Ambiguous(acceptingPath + next)
+      ),
+    ]
+  ),
+  ( [(24),]
+  , HeadInput ['b','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+*******  Found Ambiguity  *******
+  Start: Stack:
+  Paths :
+********  input witness  ********
+ab
+*******  Found Ambiguity  *******
+  Start: Stack:
+  Paths :
+********  input witness  ********
+ab

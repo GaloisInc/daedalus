@@ -1,0 +1,33 @@
+module D025.todo
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+D025.todo.A : Grammar (uint 8) =
+  Choose biased
+    { do ($$ : uint 8) <- Match {'a'}
+         @Match {'b'}
+         pure $$
+    | Match (!{'a'})
+    }
+ 
+D025.todo._A : Grammar {} =
+  Choose biased
+    { do @Match {'a'}
+         @Match {'b'}
+    | @Match (!{'a'})
+    }
+ 
+D025.todo.Main : Grammar (uint 8) =
+  do @Many[] D025.todo._A
+     @Match {'a'}
+     ($$ : uint 8) <- Match {'b'}
+     pure $$
+ 
+D025.todo._Main : Grammar {} =
+  do @Many[] D025.todo._A
+     @Match {'a'}
+     @Match {'b'}

@@ -390,16 +390,16 @@ tryAlt eval env v (TCAlt ps e) =
 
 evalBitData :: HasRange a =>
   Env ->
-  TC a K.Value -> 
+  TC a K.Value ->
   Type ->
   Maybe Value
 evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
   where
-    go bits ty' = 
+    go bits ty' =
       case ty' of
         Type (TUInt (Type (TNum w))) -> Just $ vUInt  (fromIntegral w) bits
         Type (TSInt (Type (TNum w))) -> Just $ vSInt' (fromIntegral w) bits
-        TCon n [] | Just tdecl <- Map.lookup n (tyDecls env) -> goCon bits tdecl 
+        TCon n [] | Just tdecl <- Map.lookup n (tyDecls env) -> goCon bits tdecl
         _ -> panic "evalBitData"
                    [ "Cannot coerce to type"
                    , show (pp ty')
@@ -414,7 +414,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
       panic "evalBitData" [ "Missing bitdata struct meta data"
                           , show (pp ty)
                           ]
-      
+
     goS bits (fld, (ty', Just sm)) =
       (,) fld <$> go ((bits `shiftR` tcbdsLowBit sm) `mod` 2 ^  (tcbdsWidth sm)) ty'
 
@@ -425,7 +425,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
     goU bits (fld, (ty', Just sm))
       | bits .&. tcbduMask sm == tcbduBits sm = VUnionElem fld <$> go bits ty'
       | otherwise                             = Nothing
-      
+
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
 matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
 
@@ -739,7 +739,7 @@ compilePExpr env expr0 args = go expr0
           case evalBitData env e t of
             Just v  -> pure $! mbSkip s v
             Nothing -> pError FromSystem erng "value does not fit in target type"
-            
+
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of
             (v, exact) ->
@@ -855,14 +855,14 @@ compile builtins prog = foldl (compileDecls prims) env0 allRules
         _      -> panic "expecting a VVal" []
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
-    
+
     allRules   = map (forgetRecs . tcModuleDecls) prog
     allTyDecls = concatMap (forgetRecs . tcModuleTypes) prog
 
     env0     = emptyEnv { tyDecls = Map.fromList [ (tctyName d, d) | d <- allTyDecls ] }
 
 interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
-interpCompiled name bytes env startName args = 
+interpCompiled name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
     (rl : _)        -> P.runParser (rl [] (map VVal args))
