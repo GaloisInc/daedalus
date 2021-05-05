@@ -125,8 +125,8 @@ instance PP Stream where
               ]
     where
     body = case getField @"body" str of
-             ApplyFilter_ok i           -> pp i
-             ApplyFilter_unsupported {} -> "null"
+             ApplyFilters_ok i           -> pp i
+             ApplyFilters_unsupported {} -> "null"
 
 instance PP Input where
   pp inp = pp (Base64.encode (inputBytes inp))
