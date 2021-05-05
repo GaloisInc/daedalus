@@ -4,7 +4,9 @@
 
 module Talos.SymExec.Core where
 
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO(..))
+
+-- import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -149,16 +151,21 @@ typeDefault = go
 
 -- transitive closure from the roots in the grammar functions.
 -- FIXME: (perf) we recalculate freeFVars in sliceToFunDefs
+
 calcPureDeps :: Module -> Set FName -> Set FName
-calcPureDeps md = go 
+calcPureDeps md roots = go roots roots
   where
-    go roots =
-      let next = once roots
-      in if next == roots then roots else go next
+    go seen new
+      | Set.null new = seen
+      | otherwise =
+        let new' = once new `Set.difference` seen
+        in go (seen `Set.union` new') new'
 
-    once roots = fold (Map.restrictKeys depM roots)
+    once new = fold (Map.restrictKeys depM new)
 
-    depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
+    depM = Map.fromList (map mkOne (mGFuns md) ++
+                         map mkOne (mFFuns md) ++
+                         map mkOne (mBFuns md))
       
     mkOne :: FreeVars e => Fun e -> (FName, Set FName)
     mkOne f = (fName f, freeFVars f)
@@ -170,15 +177,19 @@ funToFunDef _ _ Fun { fDef = External } =
   panic "Saw an external function" []
 
 funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
+  -- FIXME: this should be local to the body, not the context, and we
+  -- can't really push as it would forget the defn. when popped
+  mapM_ (\n -> modifyCurrentFrame (bindName n (nameToSMTName n))) (fParams f)
   b <- sexec body
   pure SMTFunDef { sfdName = fName f
-                 , sfdArgs = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f)
-                             ++ extraArgs -- For bytesets
+                 , sfdArgs = args
                  , sfdRet  = symExecTy (fnameType (fName f))
                  , sfdBody = b
                  , sfdPureDeps = freeFVars f
                  }
-
+  where
+    args = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f) ++ extraArgs -- For bytesets
+    
 -- FIXME: maybe calculate some of this once in StrategyM.
 -- FIXME: filter by knownFNames here instead of in SolverT 
 defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
@@ -191,7 +202,7 @@ defineSliceFunDefs md sl = do
     roots = freeFVars sl -- includes grammar calls as well
     allFs = calcPureDeps md roots
 
-    byteN        = "$b"
+    byteN        = "_$b"
     byteV        = S.const byteN
     byteArg      = [(byteN, tByte)]
 
@@ -200,6 +211,18 @@ defineSliceFunDefs md sl = do
     mkOneF extraArgs sexec f
       | fName f `Set.member` allFs = [funToFunDef sexec extraArgs f]
       | otherwise                  = []
+
+
+    -- ppS :: PP a => Set a -> Doc
+    -- ppS  = braces . commaSep . map pp . Set.toList
+
+    -- ppM :: (a -> Doc) -> (b -> Doc) ->  Map a b -> Doc
+    -- ppM kf vf m = braces (commaSep [ kf x <> " -> " <> vf y | (x, y) <- Map.toList m])
+    
+    -- depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
+      
+    -- mkOne :: FreeVars e => Fun e -> (FName, Set FName)
+    -- mkOne f = (fName f, freeFVars f)
 
 
 
@@ -253,11 +276,11 @@ symExecOp1 op ty =
         | TInteger <- ty      -> S.neg
     BitNot | Just _ <- isBits ty -> S.bvNot
     Not | TBool <- ty  -> S.not
-    ArrayLen -> sArrayLen
+    ArrayLen | TArray elTy <- ty -> sArrayLen (symExecTy elTy)
     Concat   -> unimplemented -- concat an array of arrays
     FinishBuilder -> id -- builders and arrays are identical
     NewIterator  | TArray {} <- ty ->  sArrayIterNew
-    IteratorDone | TIterator (TArray {}) <- ty -> sArrayIterDone
+    IteratorDone | TIterator (TArray elTy) <- ty -> sArrayIterDone (symExecTy elTy)
     IteratorKey  | TIterator (TArray {}) <- ty -> sArrayIterKey
     IteratorVal  | TIterator (TArray {}) <- ty -> sArrayIterVal
     IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
@@ -280,7 +303,7 @@ symExecOp1 op ty =
 symExecOp2 :: Op2 -> Type -> SExpr -> SExpr -> SExpr
 
 -- Generic ops
-symExecOp2 ConsBuilder _ = sPushBack
+symExecOp2 ConsBuilder elTy = sPushBack (symExecTy elTy)
 
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of

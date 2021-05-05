@@ -98,8 +98,8 @@ stratSlice ptag = go
           -- solverOp check -- required?          
           pure (bname, SelectedMatch ptag . BS.singleton <$> byteModel bname)
   
-        SMatch (MatchBytes _e) -> unimplemented -- should probably not happen?
-        SMatch {} -> unimplemented
+        SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
+        SMatch {} -> unimplemented sl
           
         SAssertion (GuardAssertion e) -> do
           se <- synthesiseExpr e
@@ -118,7 +118,7 @@ stratSlice ptag = go
 
     uncPath v = (v, pure (SelectedDo Unconstrained))
 
-    unimplemented = panic "Unimplemented" []
+    unimplemented sl = panic "Unimplemented" [showPP sl]
 
 onSlice :: (SymbolicM a -> SymbolicM b)
         -> (c, SymbolicM a) -> (c, SymbolicM b)

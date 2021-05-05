@@ -21,6 +21,7 @@ module Talos.SymExec.SolverT (
   SMTTypeDef(..), defineSMTTypeDefs,
   typeNameToDefault, 
   -- * Context management
+  modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, defineName, declareName, declareSymbol, knownFNames,
   push, pop, popAll,
   assert, check

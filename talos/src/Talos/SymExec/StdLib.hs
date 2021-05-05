@@ -198,8 +198,8 @@ tArrayWithLength t = S.fun "ArrayWithLength" [t]
 sArrayWithLength :: SExpr -> SExpr -> SExpr
 sArrayWithLength arr l = S.fun "mk-ArrayWithLength" [arr, l]
 
-sArrayLen :: SExpr -> SExpr
-sArrayLen arr = S.fun "get-length" [arr]
+sArrayLen :: SExpr -> SExpr -> SExpr
+sArrayLen elTy arr = S.app (S.as (S.const "get-length") (tArrayWithLength elTy)) [arr]
 
 sArrayL :: SExpr -> SExpr
 sArrayL arr = S.fun "get-array" [arr]
@@ -214,12 +214,12 @@ letUnlessAtom :: String -> SExpr -> (SExpr -> SExpr) -> SExpr
 letUnlessAtom _v x@(S.Atom _) f = f x
 letUnlessAtom v  x f = mklet v x (f (S.const v))
 
-sPushBack :: SExpr -> SExpr -> SExpr
-sPushBack el arrL =
+sPushBack :: SExpr -> SExpr -> SExpr -> SExpr
+sPushBack elTy el arrL =
   -- FIXME: is this ok wrt clashing with other names?
   letUnlessAtom "$arrL" arrL
-  $ \arrL' -> sArrayWithLength (S.store (sArrayL arrL') (sArrayLen arrL') el)
-                               (S.bvAdd (sArrayLen arrL') (sSize 1))
+  $ \arrL' -> sArrayWithLength (S.store (sArrayL arrL') (sArrayLen elTy arrL') el)
+                               (S.bvAdd (sArrayLen elTy arrL') (sSize 1))
 
 -- Iterators
 tArrayIter :: SExpr -> SExpr
@@ -228,8 +228,8 @@ tArrayIter t = S.fun "ArrayIter" [t]
 sArrayIterNew :: SExpr -> SExpr
 sArrayIterNew arr = S.fun "mk-ArrayIter" [arr, sSize 0]
 
-sArrayIterDone :: SExpr -> SExpr
-sArrayIterDone arrI = S.bvULeq (sArrayLen (S.fun "get-arrayL" [arrI])) (S.fun "get-index" [arrI])
+sArrayIterDone :: SExpr -> SExpr -> SExpr
+sArrayIterDone elTy arrI = S.bvULeq (sArrayLen elTy (S.fun "get-arrayL" [arrI])) (S.fun "get-index" [arrI])
 
 sArrayIterKey :: SExpr -> SExpr
 sArrayIterKey arrI = S.fun "get-index" [arrI]

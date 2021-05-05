@@ -162,8 +162,15 @@ summariseCall m_x fn args = do
       argsSubst  = freeEntangledVars <$> argsMap
       paramMap p =
         case p of
-          ProgramVar v | Just evs <- Map.lookup v argsSubst -> evs
-                       | otherwise -> panic "Missing parameter" [showPP v]
+          ProgramVar v
+            | Just evs <- Map.lookup v argsSubst -> evs
+            | otherwise -> panic "Missing parameter" ["Call " ++ showPP fn ++ " "
+                                                      ++ show (parens (hsep (punctuate "," (map pp args))))
+                                                     , "Params: " ++ show (parens (hsep (punctuate "," (map pp ps))))
+                                                     , showPP v
+                                                     , showPP expDom
+                                                     ]
+                           
           ResultVar {} -> maybe mempty singletonEntangledVars m_x
 
       mkCallNode r (evs, _sl) =

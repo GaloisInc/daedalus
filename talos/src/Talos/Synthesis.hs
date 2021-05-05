@@ -14,7 +14,6 @@ import Data.Foldable (find)
 import qualified Data.Map as Map
 import Data.Map(Map)
 import qualified Data.Set as Set
-import qualified Data.Vector as Vector
 import Data.Word
 import System.Random
 
@@ -36,7 +35,6 @@ import Daedalus.Core hiding (streamOffset)
 import Daedalus.Core.Free
 import qualified Daedalus.Core.Semantics.Grammar as I
 import qualified Daedalus.Core.Semantics.Expr as I
-import qualified Daedalus.Core.Semantics.Decl as I
 import qualified Daedalus.Core.Semantics.Env as I
 
 -- import RTS.ParserAPI hiding (SourceRange)
@@ -73,8 +71,7 @@ emptyStream = Stream 0 Nothing
 
 data Value = InterpValue I.Value | StreamValue Stream
 
-data SynthEnv = SynthEnv { synthInterpEnv :: I.Env
-                         , synthValueEnv  :: Map Name Value
+data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
                          , pathSetRoots :: Map Name Slice
                          , currentClass :: SummaryClass                         
                          }
@@ -99,20 +96,20 @@ assertInterpValue _               = panic "Expecting an InterpValue, got a Strea
 -- projectEnv :: SynthEnv -> Maybe (Map (TCName K.Value) I.Value)
 -- projectEnv se = traverse projectInterpValue (synthValueEnv se)
 
-projectEnvFor :: FreeVars t => t -> SynthEnv -> Maybe I.Env
-projectEnvFor tm se = doMerge (synthInterpEnv se)
-                      <$> Map.traverseMaybeWithKey go (synthValueEnv se)
+projectEnvFor :: FreeVars t => t -> I.Env -> SynthEnv -> Maybe I.Env
+projectEnvFor tm env0 se = doMerge <$> Map.traverseMaybeWithKey go (synthValueEnv se)
   where
     frees = freeVars tm
 
-    doMerge e m = e { I.vEnv = Map.union m (I.vEnv e) } 
+    doMerge m = env0 { I.vEnv = Map.union m (I.vEnv env0) } 
     
     go k v | k `Set.member` frees = Just <$> projectInterpValue v
     go _ _                        = Just Nothing
 
 projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
 projectEnvForM tm = do
-  m_e <- SynthesisM $ asks (projectEnvFor tm)
+  env0 <- getIEnv
+  m_e <- SynthesisM $ asks (projectEnvFor tm env0)
   e <- case m_e of
          Just e  -> pure e
          Nothing -> panic "Captured stream value" []
@@ -223,7 +220,7 @@ synthesise m_seed nguid solv strat root md = do
 
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
 
-    env0      = SynthEnv (I.evalModule md I.emptyEnv) Map.empty Map.empty Assertions 
+    env0      = SynthEnv Map.empty Map.empty Assertions 
 
     -- FIXME: we assume topologically sorted (by reference)
     allDecls  = mGFuns md
@@ -435,10 +432,10 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')
                  (do bs <- SynthesisM $ gets seenBytes
                      panic "Case failed" [showPP g
-                                      , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
-                                              (Map.toList $ I.vEnv env))
-                                      , show bs
-                                      ])
+                                         , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
+                                                 (Map.toList $ I.vEnv env))
+                                         , show bs
+                                         ])
                  c env
 
     -- TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))
@@ -462,7 +459,9 @@ synthesiseG cPath g = do
       bindIn x v (synthesiseG cp' rhs)
 
     Let x e g' -> do
-      let (_n, cp') = splitPath cPath -- discard a 'dontCare' 
+      -- We can hang a slice off a let-bound variable, but it must be a literal
+      cp       <- choosePath cPath x
+      let (_n, cp') = splitPath cp
       v <- synthesiseV e
       bindIn x v (synthesiseG cp' g')
       

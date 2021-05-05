@@ -30,9 +30,13 @@ instance (TraverseUserTypes a, TraverseUserTypes b) => TraverseUserTypes (a, b) 
   traverseUserTypes f (a, b) = (,) <$> traverseUserTypes f a <*> traverseUserTypes f b
 
 instance TraverseUserTypes a => TraverseUserTypes (Maybe a) where {- default -}
-instance TraverseUserTypes a => TraverseUserTypes (Case a) where {- default -}
 instance TraverseUserTypes a => TraverseUserTypes (FunDef a) where {- default -}
 
+
+instance TraverseUserTypes a => TraverseUserTypes (Case a) where
+  traverseUserTypes f (Case e ps) =
+    Case <$> traverseUserTypes f e <*> traverse (\(p,a) -> (,) p <$> traverseUserTypes f a) ps
+  
 instance TraverseUserTypes Type where
   traverseUserTypes f ty =
     case ty of

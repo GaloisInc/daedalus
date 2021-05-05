@@ -7,12 +7,11 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getParamSlice
+                            , summaries, getModule, getGFun, getParamSlice, getIEnv
                             , rand, randR, randL, randPermute
                             -- , timeStrategy
                             ) where
 
-import Control.Exception (evaluate)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
@@ -20,15 +19,13 @@ import System.Random
 import Data.Foldable (find)
 import qualified Data.Map as Map
 
-import Control.DeepSeq (force)
-import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
-
-import SimpleSMT (Solver)
 
 import Daedalus.Core
 import Daedalus.GUID
 import Daedalus.Panic
 import Daedalus.PP
+import qualified Daedalus.Core.Semantics.Env as I
+import qualified Daedalus.Core.Semantics.Decl as I
 
 import Talos.SymExec.Path
 import Talos.Analysis.Slice
@@ -62,11 +59,14 @@ data StrategyMState =
                    -- Read only
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
+                 , stsIEnv      :: I.Env
                  , stsNextGUID  :: GUID
                  }
 
 emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
-emptyStrategyMState = StrategyMState
+emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md env0 nguid
+  where
+    env0 = I.evalModule md I.emptyEnv
 
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
@@ -102,6 +102,9 @@ getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
 getModule :: LiftStrategyM m => m Module
 getModule = liftStrategy (StrategyM (gets stsModule))
 
+getIEnv :: LiftStrategyM m => m I.Env
+getIEnv = liftStrategy (StrategyM (gets stsIEnv))
+
 -- -----------------------------------------------------------------------------
 -- Random values
 
@@ -126,22 +129,6 @@ randPermute = go
     go xs = do idx <- randR (0, length xs - 1)
                let (pfx, x : sfx) = splitAt idx xs
                (:) x <$> go (pfx ++ sfx)
-
--- -----------------------------------------------------------------------------
--- Timing
-
--- Returns the result and wall-clock time (in ns)
--- timeStrategy :: Strategy -> ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath, Integer)
--- timeStrategy f ptag sl = StrategyM $ do
---   st <- get
---   (res, st') <- liftIO $ do
---     start     <- getTime MonotonicRaw
---     (rv, st') <- runStrategyM (stratFun f ptag sl) st
---     rv' <- evaluate $ force rv
---     end       <- getTime MonotonicRaw
---     pure ((rv', toNanoSecs (diffTimeSpec end start)), st')
---   put st'
---   pure res
 
 -- -----------------------------------------------------------------------------
 -- Class
