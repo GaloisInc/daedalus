@@ -1,0 +1,40 @@
+module T068
+ 
+--- Imports:
+ 
+--- Type defs:
+type T068.Nested = { x: uint 8
+                   ; y: uint 8
+                   }
+ 
+type T068.Main = Choose { A: {}
+                        ; B: T068.Nested
+                        }
+ 
+--- Rules:
+ 
+T068.Nested : Grammar T068.Nested =
+  do (x : uint 8) <- GetByte
+     (y : uint 8) <- GetByte
+     pure {x = x,
+           y = y}
+ 
+T068.Main : Grammar T068.Main =
+  do (tag : uint 8) <- GetByte
+     ($$ : T068.Main) <- case tag is
+                           { 1 -> pure {A: {}}
+                           ; 2 -> do (_6 : T068.Nested) <- T068.Nested
+                                     pure {B: _6}
+                           }
+     pure $$
+ 
+T068._Nested : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+T068._Main : Grammar {} =
+  do (tag : uint 8) <- GetByte
+     case tag is
+       { 1 -> pure {}
+       ; 2 -> T068._Nested
+       }

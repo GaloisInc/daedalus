@@ -1,0 +1,35 @@
+module T067
+ 
+--- Imports:
+ 
+--- Type defs:
+type T067.X = Choose { x: uint 8
+                     ; y: uint 8
+                     }
+ 
+--- Rules:
+ 
+T067.X : Grammar T067.X =
+  Choose biased
+    { {- x -} do (_2 : uint 8) <- GetByte
+                 pure {x: _2}
+    | {- y -} do (_3 : uint 8) <- GetByte
+                 pure {y: _3}
+    }
+ 
+T067.Main : Grammar T067.X =
+  Choose biased
+    { {- x -} do (_4 : uint 8) <- GetByte
+                 pure {x: _4}
+    }
+ 
+T067._X : Grammar {} =
+  Choose biased
+    { {- x -} @GetByte
+    | {- y -} @GetByte
+    }
+ 
+T067._Main : Grammar {} =
+  Choose biased
+    { {- x -} @GetByte
+    }
