@@ -392,33 +392,6 @@ checkFields r x dfs fs =    -- `dsf`, existing fields, `fs` new fields
                           ("Type" <+> backticks (pp x) <+>
                            "does not have field" <+> backticks (pp f))
 
-{-
-isTyDef :: (STCMonad m, HasRange r) =>
-              r -> TyDef -> Type -> [(Label,Located Type)] -> m CtrStatus
-isTyDef r ty t fs0 =
-  case t of
-    TVar _ -> pure Unsolved
-    TCon c ts ->
-      do mb <- lookupTyDefInst r c ts
-         case mb of
-           Nothing -> pure Unsolved -- Add definition, if no params?
-           Just def ->
-             case def of
-               TCTyStruct dfs
-                 | StructDef <- ty ->
-                   do checkFields r c (fst <$> Map.fromList dfs) fs0
-                      pure Solved
-                 | otherwise -> reportError r "Structure used as union."
-               TCTyUnion dfs
-                 | UnionDef <- ty ->
-                   do checkFields r c (fst <$> Map.fromList dfs) fs0
-                      pure Solved
-                 | otherwise -> reportError r "Union used a structure"
-
-    Type _ -> reportDetailedError r "Expected a structure."
-                  [ "Actual type:" <+> pp t ]
--}
-
 isNamed :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
 isNamed r ty =
   case ty of
@@ -463,7 +436,7 @@ isUnionCon r ty c t =
                  do case lookup c dfs of
                       Just (t1,_) -> unify t1 (t, thingValue t)
                       Nothing
-                        | inferring -> undefined "Add constructor to definition"
+                        | inferring -> addCon tc c (thingValue t)
                         | otherwise ->
                           reportDetailedError r
                             "Union doesn't have this constructor"
@@ -584,6 +557,9 @@ simplifyConstraints =
   do su <- getTypeSubst
      go [] su =<< removeConstraints
   where
+  -- XXX: it might be better to solve the overloaded constructors first,
+  -- and add the definitions.
+
   go notYet su todo =
     case todo of
       [] -> case notYet of
@@ -614,14 +590,26 @@ simplifyConstraints =
         | StructCon suggested ty fs <- thingValue ctr ->
           chooseName suggested ty
             (TCTyStruct [ (f, (thingValue lt,Nothing)) | (f,lt) <- fs ])
-        | UnionCon suggested ty c t <- thingValue ctr -> undefined
+        | UnionCon suggested ty c t <- thingValue ctr ->
+          chooseName suggested ty
+            (TCTyUnion [ (c, (thingValue t,Nothing)) ])
         where
         chooseName suggested theTy def =
           case (suggested, theTy) of
+
+            {- This is to handle cases like this:
+            def F = { x = UInt8 } : F
+            In this case, we get a constractin: { x : uint 8 } in F
+            but `F` is not defined, so we need to add a definition.
+            Note that we have to be careful to only define it once,
+            here this is ensured because `constructor` constraints only
+            get to here if there was no definition, and we immediatly
+            restart the process after the definition. -}
             (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
                | nm == nm1 -> defTy tcon def
-            (_, TVar x)    -> do unify theTy (ctr, TCon suggested [])
-                                 defTy suggested def
+
+            (_, TVar {}) -> do unify theTy (ctr, TCon suggested [])
+                               defTy suggested def
             _ -> tryAddDefVar (ctr : notYet) more
 
         defTy tcon def =

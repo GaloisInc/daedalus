@@ -108,9 +108,6 @@ In this case we have 2 structs, but they must be *of the same type* so we'd
 only generate a single type declaration.
 -}
 
-data TyDef = StructDef | UnionDef
-  deriving Show
-
 data Lossy = Lossy | NotLossy
   deriving (Eq,Show)
 
@@ -676,11 +673,6 @@ ppStmt texpr =
 
 ppBinder :: TCName k -> Doc
 ppBinder x = parens (pp (tcName x) <+> ":" <+> pp (tcType x))
-
-instance PP TyDef where
-  pp d = case d of
-           StructDef -> "struct"
-           UnionDef  -> "union"
 
 instance PP Constraint where
   ppPrec n c =

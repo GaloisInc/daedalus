@@ -42,6 +42,7 @@ module Daedalus.Type.Monad
   , newTypeDef
   , getNewTypeDefs
   , replaceNewTypeDefs
+  , addCon
   , lookupTypeDef
   , lookupTypeDefMaybe
   , extGlobTyDefs
@@ -78,6 +79,7 @@ import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.GUID
 import Daedalus.Pass
+import Daedalus.Panic(panic)
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -265,6 +267,16 @@ lookupTypeDef x =
 
 lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
 lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
+
+addCon :: STCMonad m => TCTyName -> Label -> Type -> m ()
+addCon x l ft =
+  do defs <- getNewTypeDefs
+     case Map.lookup x defs of
+       Just decl | TCTyUnion fs <- tctyDef decl ->
+         do let d1 = decl { tctyDef = TCTyUnion ((l,(ft,Nothing)):fs) }
+                ds1 = Map.insert x d1 defs
+            replaceNewTypeDefs ds1
+       _ -> panic "addCon" [ "Cannot add constructor to a struct/undefined." ]
 
 
 instance STCMonad STypeM where
