@@ -432,10 +432,10 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')
                  (do bs <- SynthesisM $ gets seenBytes
                      panic "Case failed" [showPP g
-                                      , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
-                                              (Map.toList $ I.vEnv env))
-                                      , show bs
-                                      ])
+                                         , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
+                                                 (Map.toList $ I.vEnv env))
+                                         , show bs
+                                         ])
                  c env
 
     -- TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))
@@ -459,7 +459,9 @@ synthesiseG cPath g = do
       bindIn x v (synthesiseG cp' rhs)
 
     Let x e g' -> do
-      let (_n, cp') = splitPath cPath -- discard a 'dontCare' 
+      -- We can hang a slice off a let-bound variable, but it must be a literal
+      cp       <- choosePath cPath x
+      let (_n, cp') = splitPath cp
       v <- synthesiseV e
       bindIn x v (synthesiseG cp' g')
       

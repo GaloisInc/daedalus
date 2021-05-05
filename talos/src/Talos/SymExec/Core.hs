@@ -177,15 +177,19 @@ funToFunDef _ _ Fun { fDef = External } =
   panic "Saw an external function" []
 
 funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
+  -- FIXME: this should be local to the body, not the context, and we
+  -- can't really push as it would forget the defn. when popped
+  mapM_ (\n -> modifyCurrentFrame (bindName n (nameToSMTName n))) (fParams f)
   b <- sexec body
   pure SMTFunDef { sfdName = fName f
-                 , sfdArgs = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f)
-                             ++ extraArgs -- For bytesets
+                 , sfdArgs = args
                  , sfdRet  = symExecTy (fnameType (fName f))
                  , sfdBody = b
                  , sfdPureDeps = freeFVars f
                  }
-
+  where
+    args = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f) ++ extraArgs -- For bytesets
+    
 -- FIXME: maybe calculate some of this once in StrategyM.
 -- FIXME: filter by knownFNames here instead of in SolverT 
 defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
@@ -272,11 +276,11 @@ symExecOp1 op ty =
         | TInteger <- ty      -> S.neg
     BitNot | Just _ <- isBits ty -> S.bvNot
     Not | TBool <- ty  -> S.not
-    ArrayLen -> sArrayLen
+    ArrayLen | TArray elTy <- ty -> sArrayLen (symExecTy elTy)
     Concat   -> unimplemented -- concat an array of arrays
     FinishBuilder -> id -- builders and arrays are identical
     NewIterator  | TArray {} <- ty ->  sArrayIterNew
-    IteratorDone | TIterator (TArray {}) <- ty -> sArrayIterDone
+    IteratorDone | TIterator (TArray elTy) <- ty -> sArrayIterDone (symExecTy elTy)
     IteratorKey  | TIterator (TArray {}) <- ty -> sArrayIterKey
     IteratorVal  | TIterator (TArray {}) <- ty -> sArrayIterVal
     IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
@@ -299,7 +303,7 @@ symExecOp1 op ty =
 symExecOp2 :: Op2 -> Type -> SExpr -> SExpr -> SExpr
 
 -- Generic ops
-symExecOp2 ConsBuilder _ = sPushBack
+symExecOp2 ConsBuilder elTy = sPushBack (symExecTy elTy)
 
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of

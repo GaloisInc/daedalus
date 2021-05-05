@@ -9,9 +9,10 @@ import Daedalus.GUID
 import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.Type
+import Daedalus.Core.Normalize
 
 allPassesM :: (Monad m, HasGUID m) => Module -> m Module
-allPassesM m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM 
+allPassesM m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM >>= pure . normM
 
 -- ----------------------------------------------------------------------------------------
 -- Name literal args to functions
@@ -102,10 +103,11 @@ nameMatchResultsGFun fu =
 nameMatchResultsG :: (Monad m, HasGUID m) => Bool -> Grammar -> m Grammar
 nameMatchResultsG isTop gram = do
   gram' <- childrenG (nameMatchResultsG False) gram
-  case gram' of
-    Do x (Match SemYes (MatchBytes arr)) rhs -> bindMatch x arr <$> nameRHS True rhs
-    Do_ lhs rhs -> Do_ lhs <$> nameRHS True rhs
-    _ -> nameRHS isTop gram'
+  nameRHS True gram' -- FIXME: this always introduces a new variable
+  -- case gram' of
+  --   Do x (Match SemYes (MatchBytes arr)) rhs -> bindMatch x arr <$> nameRHS True rhs
+  --   Do_ lhs rhs -> Do_ lhs <$> nameRHS True rhs
+  --   _ -> nameRHS isTop gram'
 
   where
     -- create a new variable if we are in a Match
