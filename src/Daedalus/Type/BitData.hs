@@ -24,7 +24,8 @@ import Daedalus.Type.Kind
 srcTypeToSizedType :: SrcType -> TypeM Grammar (Type, Int)
 srcTypeToSizedType sTy = do
   ty <- checkType KValue sTy
-  let badType msg = reportError sTy ("Type " <> backticks (pp ty) <> " cannot be used as bitdata" <> msg)
+  let badType msg = reportError sTy ("Type " <> backticks (pp ty) <>
+                                          " cannot be used as bitdata" <> msg)
   n <- case ty of
     TCon n [] -> do
       m_decl <- lookupTypeDefMaybe n
@@ -41,7 +42,7 @@ srcTypeToSizedType sTy = do
 
   pure (ty, n)
 
--- FIXME: we don't care (?) about Grammar here, it is just here to make TC work    
+-- FIXME: we don't care (?) about Grammar here, it is just here to make TC work 
 bdfSizedType :: BitDataField -> TypeM Grammar (Maybe (Type, Int))
 bdfSizedType bdf =
   case bdf of
@@ -49,17 +50,21 @@ bdfSizedType bdf =
     BDFField   _ m_sty -> traverse srcTypeToSizedType m_sty
     BDFWildcard  m_sty -> traverse srcTypeToSizedType m_sty
 
-inferCtor :: Name -> Int -> (Located Label, [ Located BitDataField ]) -> [Maybe (Type, Int)] ->
-                   TypeM Grammar (TCTyDecl, (Label, (Type, Maybe TCBDUnionMeta)))
+inferCtor ::
+  Name ->
+  Int ->
+  (Located Label, [ Located BitDataField ]) ->
+  [Maybe (Type, Int)] ->
+  TypeM Grammar (TCTyDecl, (Label, (Type, Maybe TCBDUnionMeta)))
 inferCtor tyN w (ctor, fields) m_sz_tys = do
   sz_tys <- resolveMissingTypes m_sz_tys
   let (_tys, szs) = unzip sz_tys
 
   zipWithM_ checkLiteralWidth fields szs
-  
+
   let umeta = mkUnionMeta 0 0 (zip fields szs)
   let def = TCTyStruct (mkFields [] w (zip fields sz_tys))
-      
+
   n' <- TCTy <$> deriveNameWith mkIdent tyN
   let decl = TCTyDecl { tctyName    = n'
                       , tctyParams  = []
@@ -67,14 +72,15 @@ inferCtor tyN w (ctor, fields) m_sz_tys = do
                       , tctyDef     = def
                       }
       ty   = TCon n' []
-      
+
   pure (decl, (thingValue ctor, (ty, Just umeta)))
-  
+
   where
     mkIdent ident = ident <> "_" <> thingValue ctor
-    
+
     -- This assumes the high bits are stored as the first fields
-    mkUnionMeta macc bacc [] = TCBDUnionMeta { tcbduMask = macc, tcbduBits = bacc }
+    mkUnionMeta macc bacc [] = TCBDUnionMeta { tcbduMask = macc
+                                             , tcbduBits = bacc }
     mkUnionMeta macc bacc ((fld, n) : rest) =
       let (mask, v) = case thingValue fld of
             BDFLiteral l _ -> (2 ^ n - 1, l)
@@ -85,20 +91,22 @@ inferCtor tyN w (ctor, fields) m_sz_tys = do
     mkFields _acc w' [] = panic "Saw non-zero remainder" [showPP w']
     mkFields acc w' ((fld, (ty, n)) : rest) =
       let acc' = case thingValue fld of
-            BDFField l _ -> (l, (ty, Just $ TCBDStructMeta { tcbdsLowBit = w' - n, tcbdsWidth  = n}))
-                            : acc
-            _            -> acc
+                   BDFField l _ ->
+                     (l, (ty, Just TCBDStructMeta { tcbdsLowBit = w' - n
+                                                  , tcbdsWidth  = n})) : acc
+                   _            -> acc
       in mkFields acc' (w' - n) rest
-    
+
     resolveMissingTypes widths = do
       -- width of known fields
-      
+
       let knownWidths = sum (map snd (catMaybes widths))
       when (w < knownWidths) $
-        reportDetailedError ctor "Cannot instantiate missing type as type is too wide"
-                            [ "Type width:" <+> pp w
-                            , "Width of known fields:" <+> pp knownWidths
-                            ]
+        reportDetailedError ctor
+            "Cannot instantiate missing type as type is too wide"
+               [ "Type width:" <+> pp w
+               , "Width of known fields:" <+> pp knownWidths
+               ]
 
       pure (map (resolveField (w - knownWidths)) widths)
 
@@ -106,15 +114,16 @@ inferCtor tyN w (ctor, fields) m_sz_tys = do
     resolveField _w (Just x) = x
     resolveField w' Nothing   = (tUInt (tNum (fromIntegral w')), w')
 
-    checkLiteralWidth v@(thingValue -> BDFLiteral l _) n = 
+    checkLiteralWidth v@(thingValue -> BDFLiteral l _) n =
       unless (l < 2 ^ n) $
-        reportError v ("Literal value" <+> backticks (pp l) <+> "does not fit into type width of" <+> pp n)
+        reportError v ("Literal value" <+> backticks (pp l) <+>
+                              "does not fit into type width of" <+> pp n)
     checkLiteralWidth _ _ = pure ()
-                               
+
 inferBitData :: BitData -> MTypeM (Map TCTyName TCTyDecl)
 inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
   m_sz_tyss <- mapM (mapM (bdfSizedType . thingValue) . snd ) (bdCtors bd)
-  
+
   -- Check that no rule has more than 1 underspecified width
   zipWithM_ checkUnderspec (bdCtors bd) m_sz_tyss
 
@@ -123,7 +132,7 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
   (kfld, width) <- case knownWidths of
     []            -> reportError bd "Unable to determine size of type"
     r : _         -> pure r
-      
+
   -- Check all known widths are the same
   case find (not . (==) width . snd) knownWidths of
     Nothing         -> pure ()
@@ -131,8 +140,9 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
       [ "constructor" <+> pp kfld <+> "has width" <+> pp width
       , "constructor" <+> pp fld' <+> "has width" <+> pp w'
       ]
-  
-  (decls, ctors) <- unzip <$> zipWithM (inferCtor (bdName bd) width) (bdCtors bd) m_sz_tyss
+
+  (decls, ctors) <- unzip <$> zipWithM (inferCtor (bdName bd) width)
+                                       (bdCtors bd) m_sz_tyss
 
   let decl = TCTyDecl { tctyName    = TCTy (bdName bd)
                       , tctyParams  = []
@@ -145,13 +155,14 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
     -- label included for error reporting
     knownWidth :: ( Located Label, [ Located BitDataField ]) ->
                   [ Maybe (Type, Int) ] ->
-                  Maybe (Located Label, Int)                  
+                  Maybe (Located Label, Int)
     knownWidth (ctor, _field) sz_tys = do
       all_sz_tys <- sequenceA sz_tys
       pure (ctor, sum (map snd all_sz_tys))
-    
+
     checkUnderspec (fld, ctors) sz_tys = do
       let nothings = [ loc | (loc, Nothing) <- zip ctors sz_tys ]
       when (length nothings > 1) $
-        reportDetailedError fld "Multiple untyped fields, see: " [ pp (range x) | x <- nothings ]
+        reportDetailedError fld "Multiple untyped fields, see: "
+                                            [ pp (range x) | x <- nothings ]
 
