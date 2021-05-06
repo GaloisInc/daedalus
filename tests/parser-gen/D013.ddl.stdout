@@ -3,9 +3,9 @@ module D013
 --- Imports:
  
 --- Type defs:
-type D013.Main0 = Choose { x1: uint 8
+type D013.Main0 = Choose { x3: [uint 8]
                          ; x2: uint 8
-                         ; x3: [uint 8]
+                         ; x1: uint 8
                          }
  
 type D013.Main1 = Choose { y1: uint 8

@@ -3,8 +3,8 @@ module D009
 --- Imports:
  
 --- Type defs:
-type D009.Main0 = Choose { x: [uint 8]
-                         ; y: [uint 8]
+type D009.Main0 = Choose { y: [uint 8]
+                         ; x: [uint 8]
                          }
  
 --- Rules:

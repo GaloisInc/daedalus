@@ -44,17 +44,17 @@ type ICC.DataColorSpaces = Choose { cielab_or_pcslab: {}
                                   ; ycbcr: {}
                                   }
  
-type ICC.PrimaryPlatforms = Choose { apple_computer_inc: {}
-                                   ; microsoft_corporation: {}
-                                   ; none: {}
+type ICC.PrimaryPlatforms = Choose { sun_microsystems: {}
                                    ; silicon_graphics_inc: {}
-                                   ; sun_microsystems: {}
+                                   ; none: {}
+                                   ; microsoft_corporation: {}
+                                   ; apple_computer_inc: {}
                                    }
  
-type ICC.RenderingIntent = Choose { icc_absolute_colorimetric: {}
-                                  ; media_relative_colorimetric: {}
+type ICC.RenderingIntent = Choose { saturation: {}
                                   ; perceptual: {}
-                                  ; saturation: {}
+                                  ; media_relative_colorimetric: {}
+                                  ; icc_absolute_colorimetric: {}
                                   }
  
 type ICC.XYZNumber = { x: uint 32
@@ -538,7 +538,7 @@ ICC.Chunk (sz : uint 64) : Grammar Stream =
      ICC._Goto sz
      pure $$
  
-ICC.exp ?a0 ?a6 (Literal 1 ?a0) (Literal 0 ?a6) (Literal 1 ?a6) (Numeric ?a6) (Numeric ?a0) (b : ?a0) (e : ?a6) : ?a0 =
+ICC.exp ?a0 ?a6 (Numeric ?a0) (Numeric ?a6) (Literal 1 ?a6) (Literal 0 ?a6) (Literal 1 ?a0) (b : ?a0) (e : ?a6) : ?a0 =
   for ((x : ?a0) = 1; (i : ?a6) in rangeUp 0 e 1)
     (x * b)
  

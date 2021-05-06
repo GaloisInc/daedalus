@@ -3,8 +3,8 @@ module nitf_lib
 --- Imports:
  
 --- Type defs:
-type nitf_lib.ClSy0 = Choose { country: [uint 8]
-                             ; nato: {}
+type nitf_lib.ClSy0 = Choose { nato: {}
+                             ; country: [uint 8]
                              }
  
 type nitf_lib.SecCtrlMarking = Choose { atomal: {}
@@ -51,17 +51,17 @@ type nitf_lib.Date = { century: int
                      ; day: int
                      }
  
-type nitf_lib.Declassification0 = Choose { decldate: nitf_lib.Date
-                                         ; nodate: [uint 8]
+type nitf_lib.Declassification0 = Choose { nodate: [uint 8]
+                                         ; decldate: nitf_lib.Date
                                          }
  
-type nitf_lib.Declassification1 = Choose { notexempt: {}
-                                         ; reason: [int]
+type nitf_lib.Declassification1 = Choose { reason: [int]
+                                         ; notexempt: {}
                                          }
  
-type nitf_lib.Declassification2 = Choose { confidential: {}
+type nitf_lib.Declassification2 = Choose { secret: {}
                                          ; restricted: {}
-                                         ; secret: {}
+                                         ; confidential: {}
                                          }
  
 type nitf_lib.DefaultByte ?a3 = Choose { actual: ?a3
@@ -80,9 +80,9 @@ type nitf_lib.Declassification5 = Choose { hascltx: [uint 8]
                                          ; nocltx: [uint 8]
                                          }
  
-type nitf_lib.ClassificationAuthority0 = Choose { derivative: {}
+type nitf_lib.ClassificationAuthority0 = Choose { original: {}
                                                 ; multiple: {}
-                                                ; original: {}
+                                                ; derivative: {}
                                                 }
  
 type nitf_lib.ClassificationAuthority1 = Choose { clsrsnA: {}
@@ -98,8 +98,8 @@ type nitf_lib.FixedPoint = { digs: [int]
                            ; radix: [int]
                            }
  
-type nitf_lib.SignedNum = Choose { neg: int
-                                 ; pos: int
+type nitf_lib.SignedNum = Choose { pos: int
+                                 ; neg: int
                                  }
  
 type nitf_lib.OrBytes ?a4 = Choose { actual: ?a4
@@ -137,13 +137,13 @@ type nitf_lib.SecClas = Choose { confidential: {}
                                ; unclassified: {}
                                }
  
-type nitf_lib.DeclassificationType = Choose { date: {}
-                                            ; datelv: {}
-                                            ; event: {}
-                                            ; eventlv: {}
-                                            ; exempt: {}
+type nitf_lib.DeclassificationType = Choose { oadr: {}
                                             ; none: {}
-                                            ; oadr: {}
+                                            ; exempt: {}
+                                            ; eventlv: {}
+                                            ; event: {}
+                                            ; datelv: {}
+                                            ; date: {}
                                             }
  
 type nitf_lib.Declassification = { dctp: nitf_lib.DeclassificationType
@@ -195,7 +195,7 @@ nitf_lib.numBase (base : int) (ds : [int]) : int =
   for ((val : int) = 0; (d : int) in ds)
     ((val * base) + d)
  
-nitf_lib.strlen ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (s : ?a0) : int =
+nitf_lib.strlen ?a0 ?a2 ?a3 (HasElement ?a0 ?a3) (HasKey ?a0 ?a2) (Traversable ?a0) (s : ?a0) : int =
   for ((len : int) = 0; (c : ?a3) in s)
     (len + 1)
  
@@ -1581,16 +1581,16 @@ module nitf_data_ext_subheader
 import nitf_lib
  
 --- Type defs:
-type nitf_data_ext_subheader.DataExtHeader0 = Choose { oflwIXSHD: {}
-                                                     ; oflwSXSHD: {}
-                                                     ; oflwTXSHD: {}
-                                                     ; oflwUDHD: {}
+type nitf_data_ext_subheader.DataExtHeader0 = Choose { oflwXHD: {}
                                                      ; oflwUDID: {}
-                                                     ; oflwXHD: {}
+                                                     ; oflwUDHD: {}
+                                                     ; oflwTXSHD: {}
+                                                     ; oflwSXSHD: {}
+                                                     ; oflwIXSHD: {}
                                                      }
  
-type nitf_data_ext_subheader.DataExtHeader1 = Choose { nooflw: {}
-                                                     ; present: nitf_data_ext_subheader.DataExtHeader0
+type nitf_data_ext_subheader.DataExtHeader1 = Choose { present: nitf_data_ext_subheader.DataExtHeader0
+                                                     ; nooflw: {}
                                                      }
  
 type nitf_data_ext_subheader.DataExtHeader2 = Choose { omitted: {}
@@ -1697,8 +1697,8 @@ module nitf_text_subheader
 import nitf_lib
  
 --- Type defs:
-type nitf_text_subheader.TextHeader0 = Choose { omitted: {}
-                                              ; txsofl: int
+type nitf_text_subheader.TextHeader0 = Choose { txsofl: int
+                                              ; omitted: {}
                                               }
  
 type nitf_text_subheader.TxtFmt = Choose { bcs: {}
@@ -1822,13 +1822,13 @@ module nitf_graphic_subheader
 import nitf_lib
  
 --- Type defs:
-type nitf_graphic_subheader.GraphicHeader0 = Choose { notre: {}
-                                                    ; taggedrec: int
+type nitf_graphic_subheader.GraphicHeader0 = Choose { taggedrec: int
+                                                    ; notre: {}
                                                     }
  
-type nitf_graphic_subheader.GraphicHeader1 = Choose { desseq: int
+type nitf_graphic_subheader.GraphicHeader1 = Choose { omitted: {}
                                                     ; nooverflow: int
-                                                    ; omitted: {}
+                                                    ; desseq: int
                                                     }
  
 type nitf_graphic_subheader.GraphicHeader2 = { seq: int
@@ -1994,12 +1994,12 @@ type nitf_img_subheader.ICords0 = Choose { decimal: {}
                                          ; utm: {}
                                          }
  
-type nitf_img_subheader.Latitude0 = Choose { north: {}
-                                           ; south: {}
+type nitf_img_subheader.Latitude0 = Choose { south: {}
+                                           ; north: {}
                                            }
  
-type nitf_img_subheader.Longitude0 = Choose { east: {}
-                                            ; west: {}
+type nitf_img_subheader.Longitude0 = Choose { west: {}
+                                            ; east: {}
                                             }
  
 type nitf_img_subheader.MGRS0 = { col_id: uint 8
@@ -2026,9 +2026,9 @@ type nitf_img_subheader.IGeoLo0 = { lat0: nitf_img_subheader.LatDeg
                                   ; long3: nitf_img_subheader.LongDeg
                                   }
  
-type nitf_img_subheader.ComRat0 = Choose { oned: {}
+type nitf_img_subheader.ComRat0 = Choose { twods: {}
                                          ; twodh: {}
-                                         ; twods: {}
+                                         ; oned: {}
                                          }
  
 type nitf_img_subheader.ComRat1 = { img_data_type: int
@@ -2064,14 +2064,14 @@ type nitf_img_subheader.MGRS = { zone_num: [int]
                                ; northing: [uint 8]
                                }
  
-type nitf_img_subheader.IGeoLo = Choose { decimal_degs: nitf_img_subheader.IGeoLo0
-                                        ; lat_long: [nitf_img_subheader.LatLong]
+type nitf_img_subheader.IGeoLo = Choose { plain_utm: [nitf_img_subheader.PlainUtm]
                                         ; mgrs: [nitf_img_subheader.MGRS]
-                                        ; plain_utm: [nitf_img_subheader.PlainUtm]
+                                        ; lat_long: [nitf_img_subheader.LatLong]
+                                        ; decimal_degs: nitf_img_subheader.IGeoLo0
                                         }
  
-type nitf_img_subheader.ISHeader0 = Choose { empty: {}
-                                           ; igeolo: nitf_img_subheader.IGeoLo
+type nitf_img_subheader.ISHeader0 = Choose { igeolo: nitf_img_subheader.IGeoLo
+                                           ; empty: {}
                                            }
  
 type nitf_img_subheader.ComRat = Choose { bits_per_pixel: nitf_img_subheader.ComRat2
@@ -2080,12 +2080,12 @@ type nitf_img_subheader.ComRat = Choose { bits_per_pixel: nitf_img_subheader.Com
                                         ; quant_tables: nitf_img_subheader.ComRat1
                                         }
  
-type nitf_img_subheader.ISHeader1 = Choose { comrat: nitf_img_subheader.ComRat
-                                           ; empty: {}
+type nitf_img_subheader.ISHeader1 = Choose { empty: {}
+                                           ; comrat: nitf_img_subheader.ComRat
                                            }
  
-type nitf_img_subheader.ISHeader2 = Choose { def_xband: int
-                                           ; no_xband: {}
+type nitf_img_subheader.ISHeader2 = Choose { no_xband: {}
+                                           ; def_xband: int
                                            }
  
 type nitf_img_subheader.ISHeader3 = { nelutn: int
@@ -2096,31 +2096,31 @@ type nitf_img_subheader.ISHeader4 = Choose { luts: nitf_img_subheader.ISHeader3
                                            ; no_luts: {}
                                            }
  
-type nitf_img_subheader.IRepBandN = Choose { bandM: {}
-                                           ; blue: {}
-                                           ; chrominanceBlue: {}
-                                           ; chrominanceRed: {}
-                                           ; default: {}
-                                           ; green: {}
-                                           ; luminance: {}
-                                           ; lutBand: {}
+type nitf_img_subheader.IRepBandN = Choose { red: {}
                                            ; monoBand: {}
-                                           ; red: {}
+                                           ; lutBand: {}
+                                           ; luminance: {}
+                                           ; green: {}
+                                           ; default: {}
+                                           ; chrominanceRed: {}
+                                           ; chrominanceBlue: {}
+                                           ; blue: {}
+                                           ; bandM: {}
                                            }
  
-type nitf_img_subheader.ISubCatN = Choose { default: {}
-                                          ; direct: {}
-                                          ; easting: {}
-                                          ; inphase: {}
-                                          ; latitude: {}
-                                          ; longitude: {}
-                                          ; magnitude: {}
-                                          ; northing: {}
-                                          ; phase: {}
-                                          ; quadrature: {}
-                                          ; speed: {}
+type nitf_img_subheader.ISubCatN = Choose { waveLength: int
                                           ; userdef: [uint 8]
-                                          ; waveLength: int
+                                          ; speed: {}
+                                          ; quadrature: {}
+                                          ; phase: {}
+                                          ; northing: {}
+                                          ; magnitude: {}
+                                          ; longitude: {}
+                                          ; latitude: {}
+                                          ; inphase: {}
+                                          ; easting: {}
+                                          ; direct: {}
+                                          ; default: {}
                                           }
  
 type nitf_img_subheader.ISHeader5 = { irepbandn: nitf_img_subheader.IRepBandN
@@ -2149,54 +2149,54 @@ type nitf_img_subheader.TgtId = { be: nitf_lib.OrBytes [uint 8]
                                 ; country: nitf_lib.OrBytes [uint 8]
                                 }
  
-type nitf_img_subheader.PVType = Choose { bilevel: {}
-                                        ; complex: {}
-                                        ; integer: {}
+type nitf_img_subheader.PVType = Choose { signed: {}
                                         ; real: {}
-                                        ; signed: {}
+                                        ; integer: {}
+                                        ; complex: {}
+                                        ; bilevel: {}
                                         }
  
-type nitf_img_subheader.IRep = Choose { cartesian: {}
-                                      ; itur: {}
-                                      ; monochrome: {}
-                                      ; multi: {}
-                                      ; nodisplay: {}
-                                      ; polar: {}
-                                      ; rgb: {}
+type nitf_img_subheader.IRep = Choose { sar: {}
                                       ; rgblut: {}
-                                      ; sar: {}
+                                      ; rgb: {}
+                                      ; polar: {}
+                                      ; nodisplay: {}
+                                      ; multi: {}
+                                      ; monochrome: {}
+                                      ; itur: {}
+                                      ; cartesian: {}
                                       }
  
-type nitf_img_subheader.ICat = Choose { airWind: {}
-                                      ; barometric: {}
-                                      ; blackWhitePhoto: {}
-                                      ; catScans: {}
-                                      ; colorPatch: {}
-                                      ; colorPhoto: {}
-                                      ; electroOptical: {}
-                                      ; elevationModel: {}
-                                      ; fingerprints: {}
-                                      ; forwardLooking: {}
-                                      ; highResolution: {}
-                                      ; hyperSpectral: {}
-                                      ; infrared: {}
-                                      ; legends: {}
-                                      ; locationGrid: {}
-                                      ; mri: {}
-                                      ; multiSpectral: {}
-                                      ; optical: {}
-                                      ; otherMatrix: {}
-                                      ; radar: {}
-                                      ; rasterMap: {}
-                                      ; sarRadioHologram: {}
-                                      ; sideLooking: {}
-                                      ; synthApertureRadar: {}
-                                      ; thermalInfrared: {}
-                                      ; video: {}
-                                      ; visible: {}
-                                      ; waterCurrent: {}
+type nitf_img_subheader.ICat = Choose { xray: {}
                                       ; waterDepth: {}
-                                      ; xray: {}
+                                      ; waterCurrent: {}
+                                      ; visible: {}
+                                      ; video: {}
+                                      ; thermalInfrared: {}
+                                      ; synthApertureRadar: {}
+                                      ; sideLooking: {}
+                                      ; sarRadioHologram: {}
+                                      ; rasterMap: {}
+                                      ; radar: {}
+                                      ; otherMatrix: {}
+                                      ; optical: {}
+                                      ; multiSpectral: {}
+                                      ; mri: {}
+                                      ; locationGrid: {}
+                                      ; legends: {}
+                                      ; infrared: {}
+                                      ; hyperSpectral: {}
+                                      ; highResolution: {}
+                                      ; forwardLooking: {}
+                                      ; fingerprints: {}
+                                      ; elevationModel: {}
+                                      ; electroOptical: {}
+                                      ; colorPhoto: {}
+                                      ; colorPatch: {}
+                                      ; catScans: {}
+                                      ; blackWhitePhoto: {}
+                                      ; barometric: {}
+                                      ; airWind: {}
                                       }
  
 type nitf_img_subheader.PJust = Choose { leftJust: {}
@@ -2231,8 +2231,8 @@ type nitf_img_subheader.IMode = Choose { blockMode: {}
                                        ; seq: {}
                                        }
  
-type nitf_img_subheader.IMag = Choose { fp: nitf_lib.FixedPoint
-                                      ; frac: [int]
+type nitf_img_subheader.IMag = Choose { frac: [int]
+                                      ; fp: nitf_lib.FixedPoint
                                       }
  
 type nitf_img_subheader.ISHeader = { iid1: [uint 8]
@@ -3094,7 +3094,7 @@ nitf_img_subheader.IXSOfl : Grammar int =
 nitf_img_subheader.IXShD (n : uint 64) : Grammar [uint 8] =
   Many[n - 3] nitf_lib.Byte
  
-nitf_img_subheader.DispParams ?a123 ?a126 (Literal 1 ?a123) (Literal 9 ?a123) (Literal 0 ?a123) (Literal 0 ?a126) (Literal 2 ?a126) (Literal 3 ?a123) (Literal 3 ?a126) (Literal 2 ?a123) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
+nitf_img_subheader.DispParams ?a123 ?a126 (Literal 3 ?a126) (Literal 0 ?a126) (Literal 0 ?a123) (Literal 9 ?a123) (Literal 2 ?a123) (Literal 1 ?a123) (Literal 3 ?a123) (Literal 2 ?a126) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -3418,7 +3418,7 @@ nitf_img_subheader.CatComplex ?a2 ?a3 (Literal 64 ?a2) (Literal 64 ?a3) (nbpp : 
      ($$ : {}) <- nitf_lib.Guard (abpp == 64)
      pure $$
  
-nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 1 ?a235) (Literal 1 ?a217) (Literal 1 ?a219) (Literal 3 ?a235) (Literal 8 ?a217) (Literal 2 ?a219) (Literal 32 ?a217) (Literal 17 ?a219) (Literal 64 ?a217) (Literal 33 ?a219) (Literal 12 ?a217) (Literal 8 ?a219) (Literal 16 ?a217) (Literal 9 ?a219) (Literal 32 ?a219) (Literal 64 ?a219) (Literal 2 ?a235) (Literal 9 ?a235) (Literal 0 ?a235) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
+nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a217) (Literal 32 ?a219) (Literal 32 ?a217) (Literal 9 ?a219) (Literal 16 ?a217) (Literal 8 ?a219) (Literal 12 ?a217) (Literal 33 ?a219) (Literal 17 ?a219) (Literal 2 ?a219) (Literal 8 ?a217) (Literal 1 ?a235) (Literal 2 ?a235) (Literal 0 ?a235) (Literal 9 ?a235) (Literal 3 ?a235) (Literal 1 ?a219) (Literal 1 ?a217) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -4038,7 +4038,7 @@ nitf_img_subheader._IXSOfl : Grammar {} =
 nitf_img_subheader._IXShD (n : uint 64) : Grammar {} =
   @Many[n - 3] nitf_lib._Byte
  
-nitf_img_subheader._DispParams ?a123 ?a126 (Literal 1 ?a123) (Literal 9 ?a123) (Literal 0 ?a123) (Literal 0 ?a126) (Literal 2 ?a126) (Literal 3 ?a123) (Literal 3 ?a126) (Literal 2 ?a123) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
+nitf_img_subheader._DispParams ?a123 ?a126 (Literal 3 ?a126) (Literal 0 ?a126) (Literal 0 ?a123) (Literal 9 ?a123) (Literal 2 ?a123) (Literal 1 ?a123) (Literal 3 ?a123) (Literal 2 ?a126) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -4982,7 +4982,7 @@ nitf_img_subheader._CatComplex ?a2 ?a3 (Literal 64 ?a2) (Literal 64 ?a3) (nbpp :
   do nitf_lib._Guard (nbpp == 64)
      nitf_lib._Guard (abpp == 64)
  
-nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 1 ?a235) (Literal 1 ?a217) (Literal 1 ?a219) (Literal 3 ?a235) (Literal 8 ?a217) (Literal 2 ?a219) (Literal 32 ?a217) (Literal 17 ?a219) (Literal 64 ?a217) (Literal 33 ?a219) (Literal 12 ?a217) (Literal 8 ?a219) (Literal 16 ?a217) (Literal 9 ?a219) (Literal 32 ?a219) (Literal 64 ?a219) (Literal 2 ?a235) (Literal 9 ?a235) (Literal 0 ?a235) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
+nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a217) (Literal 32 ?a219) (Literal 32 ?a217) (Literal 9 ?a219) (Literal 16 ?a217) (Literal 8 ?a219) (Literal 12 ?a217) (Literal 33 ?a219) (Literal 17 ?a219) (Literal 2 ?a219) (Literal 8 ?a217) (Literal 1 ?a235) (Literal 2 ?a235) (Literal 0 ?a235) (Literal 9 ?a235) (Literal 3 ?a235) (Literal 1 ?a219) (Literal 1 ?a217) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -5609,12 +5609,12 @@ type nitf_header.FS_declass = { declass_type: nitf_header.FSDCTP
                               ; fscltx: Maybe {}
                               }
  
-type nitf_header.FBKGC = Choose { nonstandard_utf8: [uint 8]
-                                ; normal: [uint 8]
+type nitf_header.FBKGC = Choose { normal: [uint 8]
+                                ; nonstandard_utf8: [uint 8]
                                 }
  
-type nitf_header.FL = Choose { file_length: int
-                             ; unknown_length: [uint 8]
+type nitf_header.FL = Choose { unknown_length: [uint 8]
+                             ; file_length: int
                              }
  
 type nitf_header.ImgLens = { lish: int
@@ -5637,8 +5637,8 @@ type nitf_header.ResExtLens = { lresh: int
                               ; lre: int
                               }
  
-type nitf_header.UserData = Choose { none: {}
-                                   ; udhd: nitf_header.UserData0
+type nitf_header.UserData = Choose { udhd: nitf_header.UserData0
+                                   ; none: {}
                                    }
  
 type nitf_header.Header = { fver: [uint 8]

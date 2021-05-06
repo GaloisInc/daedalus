@@ -609,8 +609,8 @@ type Pdf.FreeEntry = { obj: uint 64
                      ; gen: uint 64
                      }
  
-type Pdf.CrossRefEntry = Choose { free: Pdf.FreeEntry
-                                ; inUse: Pdf.UsedEntry
+type Pdf.CrossRefEntry = Choose { inUse: Pdf.UsedEntry
+                                ; free: Pdf.FreeEntry
                                 }
  
 type Pdf.CrossRefSubSection = { firstId: int

@@ -9,8 +9,8 @@ type T044.e0 = { x: bool
 type T044.e1 = { x: bool
                }
  
-type T044.E0 = Choose { x: uint 8
-                      ; y: uint 8
+type T044.E0 = Choose { y: uint 8
+                      ; x: uint 8
                       }
  
 type T044.E1 = Choose { x: uint 8

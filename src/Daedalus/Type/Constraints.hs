@@ -473,6 +473,7 @@ isUnionCon r ty c t =
 -- | Try to solve a constraint.
 -- Fails if the constraint is known to be unsolvable.
 -- May bind variables.
+-- May add extra constructors to union types that are being deifned.
 -- Does not generate new constraints.
 solveConstraint :: STCMonad m => Located Constraint -> m CtrStatus
 solveConstraint lctr =
@@ -572,32 +573,33 @@ bindVar r s x t =
        | otherwise -> reportDetailedError r "Kind mismatch"
                          [ pp (tvarKind x), pp (kindOf t)  ]
 
+
 simplifyConstraints :: STCMonad m => m [Located Constraint]
 simplifyConstraints =
   do su <- getTypeSubst
-     go [] su =<< removeConstraints
+     go False [] su =<< removeConstraints
   where
-  -- XXX: it might be better to solve the overloaded constructors first,
-  -- and add the definitions.
 
-  go notYet su todo =
+  go anySolved notYet su todo =
     case todo of
       [] -> case notYet of
               [] -> pure []
-              _  -> goSame [] su notYet
+              _ -> do su1 <- getTypeSubst
+                      if anySolved then go False [] su1 notYet
+                                   else goSame [] su notYet
 
       c : cs ->
         do let c1 = apSubstT su c
            res <- solveConstraint c1
            case res of
-             Solved   -> go notYet su cs
-             Unsolved -> go (c1 : notYet) su cs
+             Solved   -> go True notYet su cs
+             Unsolved -> go anySolved (c1 : notYet) su cs
 
   goSame notYet su todo =
     case todo of
       [] -> do su1 <- getTypeSubst
                if Map.size su < Map.size su1
-                  then go [] su1 notYet
+                  then go False [] su1 notYet
                   else tryAddDefVar [] notYet
       c : cs ->
         do known <- checkKnown c notYet
@@ -635,7 +637,7 @@ simplifyConstraints =
         defTy tcon def =
           do newTypeDef tcon def
              su <- getTypeSubst
-             go [] su (notYet ++ more)
+             go False [] su (notYet ++ more)
 
       ctr : more -> tryAddDefVar (ctr : notYet) more
 

@@ -3,12 +3,12 @@ module D010
 --- Imports:
  
 --- Type defs:
-type D010.CanDisambiguate = Choose { x: [uint 8]
-                                   ; y: [uint 8]
+type D010.CanDisambiguate = Choose { y: [uint 8]
+                                   ; x: [uint 8]
                                    }
  
-type D010.ShouldAbortWithIncompatibleInput = Choose { x: [uint 8]
-                                                    ; y: [uint 8]
+type D010.ShouldAbortWithIncompatibleInput = Choose { y: [uint 8]
+                                                    ; x: [uint 8]
                                                     }
  
 --- Rules:
