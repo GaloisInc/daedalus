@@ -949,7 +949,8 @@ inferExpr expr =
       grammarOnly expr
       do t    <- checkType KValue ty
          liftValApp expr [e] \ ~[(e1,t1)] ->
-                   pure (exprAt expr (TCCoerceCheck YesSem t1 t e1), tGrammar t)
+          do addConstraint ty (Coerce Dynamic t1 t)
+             pure (exprAt expr (TCCoerceCheck YesSem t1 t e1), tGrammar t)
 
     EHasType CoerceSafe e ty ->
       liftValAppPure expr [e] \ ~[(e1,t1)] ->

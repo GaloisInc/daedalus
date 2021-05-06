@@ -398,7 +398,6 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
     go bits ty' =
       case ty' of
         Type (TUInt (Type (TNum w))) -> Just $ vUInt  (fromIntegral w) bits
-        Type (TSInt (Type (TNum w))) -> Just $ vSInt' (fromIntegral w) bits
         TCon n [] | Just tdecl <- Map.lookup n (tyDecls env) -> goCon bits tdecl
         _ -> panic "evalBitData"
                    [ "Cannot coerce to type"
@@ -735,10 +734,16 @@ compilePExpr env expr0 args = go expr0
             Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
 
         -- BitData
+        -- XXX: should go in generic value
         TCCoerceCheck  s _ t@(TCon {}) e ->
           case evalBitData env e t of
             Just v  -> pure $! mbSkip s v
             Nothing -> pError FromSystem erng "value does not fit in target type"
+
+        -- XXX:  actually identty coercions between *any* type should work...
+        TCCoerceCheck  s t@(TCon {}) _ e ->
+          panic "compileExpr"
+            [ "XXX: Coercion from bitdata to word is not yet implemented." ]
 
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of

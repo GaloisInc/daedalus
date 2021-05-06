@@ -5,7 +5,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe(fromMaybe)
-import Control.Monad(when)
+import Control.Monad(when,unless)
 
 import Daedalus.PP
 import Daedalus.SourceRange
@@ -236,13 +236,19 @@ hasUnion r ty l fty =
             [ "Problem type:" <+> pp ty ]
 
 
--- XXX: lossy
 isCoercible :: (STCMonad m, HasRange r) =>
                r -> Lossy -> Type -> Type -> m CtrStatus
 isCoercible r lossy tt1 tt2 =
   case tt1 of
     TVar _   -> pure Unsolved
-    TCon {} -> nope
+    TCon tc [] ->
+      do mb <- isBitData tc
+         case mb of
+           Nothing -> refl
+           Just w ->
+             do unify (tUInt (tNum (toInteger w))) (r,tt2)
+                pure Solved
+    TCon {} -> refl
     Type t1 ->
       case t1 of
         TInteger  -> fromInt
@@ -250,15 +256,20 @@ isCoercible r lossy tt1 tt2 =
         TSInt x   -> fromSInt x
         _         -> refl
   where
-  nope = reportDetailedError r "Cannot coerce safely"
+  nope = reportDetailedError r ("Cannot coerce" <+> how)
            [ "from type" <+> pp tt1
            , "to type" <+> pp tt2
            ]
 
+  how = case lossy of
+          NotLossy -> "safely"
+          _        -> empty
+
   refl = unify tt1 (r,tt2) >> pure Solved
 
   fromInt
-    | Lossy <- lossy =
+    | NotLossy <- lossy = refl
+    | otherwise =
       case tt2 of
         TVar _ -> pure Unsolved
         TCon {} -> nope
@@ -269,35 +280,42 @@ isCoercible r lossy tt1 tt2 =
             TInteger -> pure Solved
             _        -> nope
 
-    | otherwise = refl
-
-
 
   fromUInt x =
     case tt2 of
       TVar _ -> pure Unsolved
-      TCon {} -> nope
+      TCon tc args ->
+        do unless (null args) nope
+           mb <- isBitData tc
+           case mb of
+             Just w | Dynamic <- lossy ->
+                do unify x (r, tNum (toInteger w))
+                   pure Solved
+              -- XXX: we could allow a safe coercion if the bitdata has no tags
+             _ -> nope
       Type t2 ->
         case t2 of
           TInteger -> pure Solved
 
           TUInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                   | s1 <= s2  -> pure Solved
                   | otherwise -> nope
                 _ -> pure Unsolved
 
+            | otherwise -> pure Solved
+
           TSInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                   | s1 < s2   -> pure Solved
                   | otherwise -> nope
                 _ -> pure Unsolved
+
+            | otherwise -> pure Solved
 
           _  -> nope
 
@@ -312,16 +330,18 @@ isCoercible r lossy tt1 tt2 =
           TInteger -> pure Solved
 
           TUInt _
-            | Lossy <- lossy -> pure Solved
+            | Lossy  <- lossy -> pure Solved
+            | Dynamic <- lossy -> pure Solved
 
           TSInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                    | s1 <= s2       -> pure Solved
                    | otherwise      -> nope
                 _ -> pure Unsolved
+
+            | otherwise -> pure Solved
 
           _ -> nope
 

@@ -45,6 +45,7 @@ module Daedalus.Type.Monad
   , addCon
   , lookupTypeDef
   , lookupTypeDefMaybe
+  , isBitData
   , extGlobTyDefs
   , getGlobTypeDefs
 
@@ -264,6 +265,14 @@ lookupTypeDef x =
            pure case Map.lookup x gdefs of
                   Just g -> Just (g, False)
                   Nothing -> Nothing
+
+-- | Check if this type is a bitdata, and if so tell us its width
+isBitData :: STCMonad m => TCTyName -> m (Maybe Int)
+isBitData x =
+  do mb <- lookupTypeDef x
+     case mb of
+       Nothing -> pure Nothing
+       Just (td,_) -> pure (tctyBDWidth td)
 
 lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
 lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x

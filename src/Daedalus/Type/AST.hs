@@ -108,7 +108,7 @@ In this case we have 2 structs, but they must be *of the same type* so we'd
 only generate a single type declaration.
 -}
 
-data Lossy = Lossy | NotLossy
+data Lossy = Lossy | NotLossy | Dynamic
   deriving (Eq,Show)
 
 
@@ -717,6 +717,7 @@ instance PP Lossy where
   pp l = case l of
            Lossy -> "trunc"
            NotLossy -> "safe"
+           Dynamic -> "dynamic"
 
 
 
