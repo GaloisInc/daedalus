@@ -2,6 +2,11 @@
 DaeDaLus User Guide
 *******************
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+
 DaeDaLus is a language for specifying parsers with data dependencies,
 which allows a parser's behavior to be affected by the semantic values
 parsed from other parts of the inputs.  This allows a clear, yet precise,
