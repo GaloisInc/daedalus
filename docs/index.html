@@ -98,14 +98,14 @@ a parser that always succeeds and produces byte <code class="docutils literal no
 parser is parameterized by an optional location, along with an error
 message.</p>
 <p><strong>Examples:</strong></p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                    Matches       Result          -}
-def GetByte     = UInt8           -- Any byte X X
-def TheLetterA  = Match1 &#39;A&#39;      -- Byte 65    65
-def TheNumber3  = Match1 (0 .. 5) -- A byte between 0 to 5
-def TheNumber16 = Match1 0x10     -- Byte 16    16
-def Magic       = Match &quot;HELLO&quot;   -- &quot;HELLO&quot;    [72,69,76,76,79]
-def AlwaysA     = ^ &#39;A&#39;           -- &quot;&quot;         65
-def GiveUp      = Fail &quot;I give up&quot; -- (none)    Failure with message &quot;I give up&quot;
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                      Matches       Result          -}
+def GetByte     = UInt8             -- Any byte X X
+def TheLetterA  = Match1 &#39;A&#39;        -- Byte 65    65
+def TheNumber3  = Match1 (0 .. 5)   -- A byte between 0 to 5
+def TheNumber16 = Match1 0x10       -- Byte 16    16
+def Magic       = Match &quot;HELLO&quot;     -- &quot;HELLO&quot;    [72,69,76,76,79]
+def AlwaysA     = ^ &#39;A&#39;             -- &quot;&quot;         65
+def GiveUp      = Fail &quot;I give up&quot;  -- (none)    Failure with message &quot;I give up&quot;
 </pre></div>
 </div>
 </div>
@@ -123,28 +123,49 @@ with <code class="docutils literal notranslate"><span class="pre">[]</span></cod
 <p>By default, parsers sequenced with <code class="docutils literal notranslate"><span class="pre">{}</span></code> return the result of the last
 parser in the sequence.</p>
 <p>Examples:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                       Matches        Result      -}
-def ABC1 = { &#39;A&#39;; &#39;B&#39;; &#39;C&#39; }      -- &quot;ABC&quot;          67
-def ABC2 = [ &#39;A&#39;; &#39;B&#39;; &#39;C&#39; ]      -- &quot;ABC&quot;          [65,66,67]
-def ABC3 = { &quot;Hello&quot;; &quot;ABC&quot; }     -- &quot;HelloABC&quot;     [65,66,67]
-def ABC4 = { &quot;Hello&quot;; &#39;C&#39; }       -- &quot;HelloC&quot;       67
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                                      Matches        Result-}
+def ABC1 = { Match1 &#39;A&#39;; Mathc1 &#39;B&#39;; Match1 &#39;C&#39; }   -- &quot;ABC&quot;       67
+def ABC2 = [ Match1 &#39;A&#39;; Match1 &#39;B&#39;; Match1 &#39;C&#39; ]   -- &quot;ABC&quot;       [65,66,67]
+def ABC3 = { Match &quot;Hello&quot;; Match &quot;ABC&quot; }           -- &quot;HelloABC&quot;  [65,66,67]
+def ABC4 = { Match &quot;Hello&quot;; Match1 &#39;C&#39; }            -- &quot;HelloC&quot;    67
 </pre></div>
 </div>
-<p><strong>Explicit Result.</strong> A <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced group of parsers may return
+<p>An alternative notation for <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">..</span> <span class="pre">}</span></code> parsers is to use the <code class="docutils literal notranslate"><span class="pre">block</span></code> keywrd
+and <em>layout</em>:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def UseBraces = { Match &quot;A&quot;; Match &quot;B&quot; }
+def UseLayout =
+  block
+    Match &quot;A&quot;
+    Match &quot;B&quot;
+</pre></div>
+</div>
+<p>The parsers <code class="docutils literal notranslate"><span class="pre">UseBraces</span></code> and <code class="docutils literal notranslate"><span class="pre">UseLayout</span></code> are the same, just using a
+different notation.  When using layout, the entries in the sequence must start
+on the same column, and any text that is indented more than that column
+belongs to the corresponding parser.  So, the following parser is also
+equivalent to the previous two:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def AlsoTheSame =
+  block
+    Match
+      &quot;A&quot;
+    Match &quot;B&quot;
+</pre></div>
+</div>
+<p><strong>Explicit Result.</strong> A <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced group of parsers may return
 the result from any member of the group instead of the last one.  To do so,
 assign the result of the parser to the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>.  For example,
 <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">P;</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">R</span> <span class="pre">}</span></code> specifies that the group’s result should come from
 <code class="docutils literal notranslate"><span class="pre">Q</span></code> instead of <code class="docutils literal notranslate"><span class="pre">R</span></code>.   It is an error to assign <code class="docutils literal notranslate"><span class="pre">$$</span></code> more than once.</p>
 <p><strong>Local Variables.</strong> It is also possible to combine the results of some
-of the <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced parsers by using <em>local variables</em> and the pure parser.
-Assignments starting with the symbol <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> introduce a local variable,
-which is in scope in the following parsers.  Here is an example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def Add = {
-  @x = UInt8;
-  Match1 &#39;+&#39;;
-  @y = UInt8;
-  ^ x + y
-}
+of the <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced parsers by using <em>local variables</em> and the
+pure parser.  Assignments prefixed by the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code> introduce a local
+variable, which is in scope in the following parsers.  Here is an example:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def Add =
+  block
+    let x = UInt8
+    Match1 &#39;+&#39;
+    let y = UInt8
+    ^ x + y
 </pre></div>
 </div>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">Add</span></code> is a sequence of 4 parsers.  The local variables <code class="docutils literal notranslate"><span class="pre">x</span></code>
@@ -153,11 +174,15 @@ of the sequence is the result of the last parser, which does not consume
 any input, but only constructs a semantic value by adding <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>
 together.</p>
 <p><strong>Structure Sequence.</strong> It is also possible to return results from more than
-one of the parsers in a <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced group.  To do so give names to the
-desired results (<em>without</em> <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>).  The semantic value of the resulting parser
-is a structure with fields containing the value of the correspondingly
-named parsers.  Consider, for example, the following declaration:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S = { x = UInt8; y = Match &quot;HELLO&quot; }
+one of the parsers in a <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced group.  To do so give names
+to the desired results (<em>without</em> <code class="docutils literal notranslate"><span class="pre">let</span></code>).  The semantic value of the
+resulting parser is a structure with fields containing the value of
+the correspondingly named parsers.  Consider, for example, the
+following declaration:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S =
+  block
+    x = UInt8
+    y = Match &quot;HELLO&quot;
 </pre></div>
 </div>
 <p>This declaration defines a parser named <code class="docutils literal notranslate"><span class="pre">S</span></code>, which will extract a
@@ -167,7 +192,12 @@ a <em>structure type</em>, also named <code class="docutils literal notranslate"
 <p>Note that structure fields also introduce a local variable with the same name,
 so later parsers in the sequence may depend on the semantic values in
 earlier parsers in the sequence.  For example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S1 = { x = UInt8; y = { @z = UInt8; ^ x + z } }
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S1 =
+  block
+    x = UInt8
+    y = block
+          let z = UInt8
+          ^ x + z
 </pre></div>
 </div>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">S1</span></code> is a sequence of two parsers, whose semantic value
@@ -176,15 +206,19 @@ is a structure with two fields, <code class="docutils literal notranslate"><span
 parser is itself a sequence: first it extracts a byte from the input,
 but its semantic value is the sum of the two extracted bytes.  As another
 example, here is an equivalent way to define the same parser:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S2 = { x = UInt8; @z = UInt8; y = ^ x + z }
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S2 =
+  block
+    x = UInt8
+    let z = UInt8
+    y = ^ x + z
 </pre></div>
 </div>
 <p><strong>Syntactc Sugar.</strong> A number of the constructs described in this section are
 simply syntactic sugar for using local variables.  Here are some examples:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="31%" />
-<col width="69%" />
+<col width="29%" />
+<col width="71%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Expression:</th>
@@ -193,13 +227,13 @@ simply syntactic sugar for using local variables.  Here are some examples:</p>
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x</span> <span class="pre">=</span> <span class="pre">P;</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">x</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">}</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">x</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">}</span></code></td>
 </tr>
 <tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">]</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">&#64;x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,x1]</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">}</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,x1]</span>&#160;&#160;&#160;&#160;&#160; <span class="pre">}</span></code></td>
 </tr>
 <tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">Q</span> <span class="pre">}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x</span> <span class="pre">=</span> <span class="pre">P;</span>&#160; <span class="pre">&#64;y</span>&#160; <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span>&#160; <span class="pre">let</span> <span class="pre">y</span>&#160; <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code></td>
 </tr>
 </tbody>
 </table>
@@ -266,6 +300,20 @@ the <code class="docutils literal notranslate"><span class="pre">Choose</span></
 </tr>
 </tbody>
 </table>
+<p>The <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code> keywords also support <strong>layout</strong>, so instead
+of using braces and semi-colons we can just line-up the alternaitves like this:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def ChooseWithBraces =
+  Choose1 {
+    Match1 &#39;A&#39;;
+    Match1 &#39;B&#39;;
+  }
+
+def ChooseWithLayout =
+  Choose1
+    Match &#39;A&#39;
+    Match &#39;B&#39;
+</pre></div>
+</div>
 <p>Choose can also be used to construct tagged unions: see below.</p>
 </div>
 </div>
@@ -277,19 +325,33 @@ the <code class="docutils literal notranslate"><span class="pre">Choose</span></
 continues. For example, the following parser uses the guard
 <code class="docutils literal notranslate"><span class="pre">(i</span> <span class="pre">-</span> <span class="pre">'0')</span> <span class="pre">&gt;</span> <span class="pre">5</span> <span class="pre">is</span> <span class="pre">true</span></code> to distinguish whether an parsed digit is
 greater than 5.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{
-  @i = &#39;0&#39;..&#39;9&#39;;
-  Choose1 {
-      { (i - &#39;0&#39;) &gt; 5 is true; ^ &quot;input gt 5&quot;;} ;
-      { ^ &quot;input leq 5&quot;;}
-  }
-}
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+  let i = Match1 (&#39;0&#39;..&#39;9&#39;)
+  Choose1
+    block
+      (i - &#39;0&#39;) &gt; 5 is true
+      ^ &quot;input gt 5&quot;
+    ^ &quot;input leq 5&quot;
 </pre></div>
 </div>
 <p>So, if <code class="docutils literal notranslate"><span class="pre">p</span></code> is a boolean value, then <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">true</span></code> is a parser that
 succeeds without consuming input if <code class="docutils literal notranslate"><span class="pre">p</span></code> holds, and fails otherwise.
 Similarly, <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">false</span></code> is a parser that would succeed only
 if <code class="docutils literal notranslate"><span class="pre">p</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+</div>
+<div class="section" id="if-then-else">
+<h3>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>Booleans may also be used to choose between one of two parsers:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+  let i = Match1 (&#39;0&#39;..&#39;9&#39;)
+  if (i - &#39;0&#39;) &gt; 5
+    then Match &#39;X&#39;
+    else ^ 7
+</pre></div>
+</div>
+<p>The parser above parses a decimal digit and if it is larger than 5
+it will try to match <code class="docutils literal notranslate"><span class="pre">'X'</span></code> from the input, otherwise it will succeed
+with sematic value 7.</p>
 </div>
 <div class="section" id="for-loops">
 <h3><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline">¶</a></h3>
@@ -361,10 +423,10 @@ sequence indexes and values:</p>
 construct a union is to use <code class="docutils literal notranslate"><span class="pre">Choose</span></code>. For example, the following parser
 constructs a union with possible tags <code class="docutils literal notranslate"><span class="pre">good</span></code> and <code class="docutils literal notranslate"><span class="pre">bad</span></code>,
 depending on whether the input character is <code class="docutils literal notranslate"><span class="pre">'G'</span></code> or <code class="docutils literal notranslate"><span class="pre">'B'</span></code>.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>Choose {
-  good = &#39;G&#39;;
-  bad = &#39;B&#39;;
-}
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>-- (using layout)
+Choose
+  good = &#39;G&#39;
+  bad = &#39;B&#39;
 </pre></div>
 </div>
 <p>It is also possible to construct a union literal using <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">good</span> <span class="pre">=</span> <span class="pre">'G'</span> <span class="pre">|}</span></code>.
@@ -374,31 +436,47 @@ an explicit type signature.</p>
 <p>Given a union <code class="docutils literal notranslate"><span class="pre">u</span></code> and tag name <code class="docutils literal notranslate"><span class="pre">t</span></code>, the guard <code class="docutils literal notranslate"><span class="pre">u</span> <span class="pre">is</span> <span class="pre">t</span></code> succeeds
 if the union has the correct tag. This can be used to control parser
 control flow, as in the following example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{
-  @res = Choose {
-    good = &#39;G&#39;;
-    bad = &#39;B&#39;;
-  };
-  Choose {
-    {res is good; ^ &quot;Success!&quot;};
-    {res is bad; ^ &quot;Failure!&quot;};
-  }
-}
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+  let res = Choose
+              good = Match1 &#39;G&#39;
+              bad  = Match1 &#39;B&#39;
+
+  Choose
+
+    block
+      res is good
+      ^ &quot;Success!&quot;
+
+    block
+      res is bad
+      ^ &quot;Failure!&quot;
 </pre></div>
 </div>
 <p>The result of a succesful <code class="docutils literal notranslate"><span class="pre">is</span></code> guard is the value of the union
 element.  For example</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{
-  @res = Choose {
-    good = { &#39;G&#39;; Many (Match1 &#39;a&#39; .. &#39;z&#39;) };
-    bad =   &#39;B&#39; ;
-  };
-  Choose {
-    { @msg = res is good; ^ (concat [ &quot;Success!&quot;, msg])};
-    { res is bad; ^ &quot;Failure!&quot; };
-  }
-}
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+  let res = Choose
+              good =
+                block
+                  Match1 &#39;G&#39;
+                  Many (Match1 (&#39;a&#39; .. &#39;z&#39;))
+
+              bad = Match1 &#39;B&#39;
+
+  Choose
+
+    block
+      let msg = res is good
+      ^ concat [ &quot;Success!&quot;, msg]
+
+    block
+      res is bad
+      ^ &quot;Failure!&quot;
 </pre></div>
+</div>
+<div class="admonition-todo admonition" id="index-0">
+<p class="first admonition-title">Todo</p>
+<p class="last">Document <code class="docutils literal notranslate"><span class="pre">case</span></code></p>
 </div>
 </div>
 <div class="section" id="commit">
@@ -567,6 +645,7 @@ particular parser:</p>
 </li>
 <li><a class="reference internal" href="#control-structures">Control Structures</a><ul>
 <li><a class="reference internal" href="#guards">Guards</a></li>
+<li><a class="reference internal" href="#if-then-else">If-then-else</a></li>
 <li><a class="reference internal" href="#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li><a class="reference internal" href="#map">Map</a></li>
 <li><a class="reference internal" href="#unions-and-case-distinction">Unions and Case Distinction</a></li>

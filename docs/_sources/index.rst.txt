@@ -87,14 +87,14 @@ message.
 
 .. code-block:: Daedalus
 
-  {- Declaration                    Matches       Result          -}
-  def GetByte     = UInt8           -- Any byte X X
-  def TheLetterA  = Match1 'A'      -- Byte 65    65
-  def TheNumber3  = Match1 (0 .. 5) -- A byte between 0 to 5
-  def TheNumber16 = Match1 0x10     -- Byte 16    16
-  def Magic       = Match "HELLO"   -- "HELLO"    [72,69,76,76,79]
-  def AlwaysA     = ^ 'A'           -- ""         65
-  def GiveUp      = Fail "I give up" -- (none)    Failure with message "I give up"
+  {- Declaration                      Matches       Result          -}
+  def GetByte     = UInt8             -- Any byte X X
+  def TheLetterA  = Match1 'A'        -- Byte 65    65
+  def TheNumber3  = Match1 (0 .. 5)   -- A byte between 0 to 5
+  def TheNumber16 = Match1 0x10       -- Byte 16    16
+  def Magic       = Match "HELLO"     -- "HELLO"    [72,69,76,76,79]
+  def AlwaysA     = ^ 'A'             -- ""         65
+  def GiveUp      = Fail "I give up"  -- (none)    Failure with message "I give up"
 
 Sequencing Parsers
 ------------------
@@ -117,13 +117,42 @@ Examples:
 
 .. code-block:: Daedalus
 
-  {- Declaration                       Matches        Result      -}
-  def ABC1 = { 'A'; 'B'; 'C' }      -- "ABC"          67
-  def ABC2 = [ 'A'; 'B'; 'C' ]      -- "ABC"          [65,66,67]
-  def ABC3 = { "Hello"; "ABC" }     -- "HelloABC"     [65,66,67]
-  def ABC4 = { "Hello"; 'C' }       -- "HelloC"       67
+  {- Declaration                                      Matches        Result-}
+  def ABC1 = { Match1 'A'; Mathc1 'B'; Match1 'C' }   -- "ABC"       67
+  def ABC2 = [ Match1 'A'; Match1 'B'; Match1 'C' ]   -- "ABC"       [65,66,67]
+  def ABC3 = { Match "Hello"; Match "ABC" }           -- "HelloABC"  [65,66,67]
+  def ABC4 = { Match "Hello"; Match1 'C' }            -- "HelloC"    67
 
-**Explicit Result.** A ``{}``-sequenced group of parsers may return
+An alternative notation for ``{ .. }`` parsers is to use the ``block`` keywrd
+and *layout*:
+
+.. code-block:: Daedalus
+
+  def UseBraces = { Match "A"; Match "B" }
+  def UseLayout =
+    block
+      Match "A"
+      Match "B"
+
+The parsers ``UseBraces`` and ``UseLayout`` are the same, just using a
+different notation.  When using layout, the entries in the sequence must start
+on the same column, and any text that is indented more than that column
+belongs to the corresponding parser.  So, the following parser is also
+equivalent to the previous two:
+
+.. code-block:: Daedalus
+
+  def AlsoTheSame =
+    block
+      Match
+        "A"
+      Match "B"
+
+
+
+
+
+**Explicit Result.** A ``block/{}``-sequenced group of parsers may return
 the result from any member of the group instead of the last one.  To do so,
 assign the result of the parser to the special variable ``$$``.  For example,
 ``{ P; $$ = Q; R }`` specifies that the group's result should come from
@@ -131,18 +160,18 @@ assign the result of the parser to the special variable ``$$``.  For example,
 
 
 **Local Variables.** It is also possible to combine the results of some
-of the ``{}``-sequenced parsers by using *local variables* and the pure parser.
-Assignments starting with the symbol ``@`` introduce a local variable,
-which is in scope in the following parsers.  Here is an example:
+of the ``block/{}``-sequenced parsers by using *local variables* and the
+pure parser.  Assignments prefixed by the keyword ``let`` introduce a local
+variable, which is in scope in the following parsers.  Here is an example:
 
 .. code-block:: Daedalus
 
-  def Add = {
-    @x = UInt8;
-    Match1 '+';
-    @y = UInt8;
-    ^ x + y
-  }
+  def Add =
+    block
+      let x = UInt8
+      Match1 '+'
+      let y = UInt8
+      ^ x + y
 
 The parser ``Add`` is a sequence of 4 parsers.  The local variables ``x``
 and ``y`` store the results of the first and the third parser.  The result
@@ -151,14 +180,18 @@ any input, but only constructs a semantic value by adding ``x`` and ``y``
 together.
 
 **Structure Sequence.** It is also possible to return results from more than
-one of the parsers in a ``{}``-sequenced group.  To do so give names to the
-desired results (*without* ``@``).  The semantic value of the resulting parser
-is a structure with fields containing the value of the correspondingly
-named parsers.  Consider, for example, the following declaration:
+one of the parsers in a ``block/{}``-sequenced group.  To do so give names
+to the desired results (*without* ``let``).  The semantic value of the
+resulting parser is a structure with fields containing the value of
+the correspondingly named parsers.  Consider, for example, the
+following declaration:
 
 .. code-block:: Daedalus
 
-  def S = { x = UInt8; y = Match "HELLO" }
+  def S =
+    block
+      x = UInt8
+      y = Match "HELLO"
 
 This declaration defines a parser named ``S``, which will extract a
 byte followed by the sequence ``"HELLO"``. The result of this parser is
@@ -171,7 +204,12 @@ earlier parsers in the sequence.  For example:
 
 .. code-block:: Daedalus
 
-  def S1 = { x = UInt8; y = { @z = UInt8; ^ x + z } }
+  def S1 =
+    block
+      x = UInt8
+      y = block
+            let z = UInt8
+            ^ x + z
 
 The parser ``S1`` is a sequence of two parsers, whose semantic value
 is a structure with two fields, ``x`` and ``y``.  Both fields have type
@@ -182,21 +220,25 @@ example, here is an equivalent way to define the same parser:
 
 .. code-block:: Daedalus
 
-  def S2 = { x = UInt8; @z = UInt8; y = ^ x + z }
+  def S2 =
+    block
+      x = UInt8
+      let z = UInt8
+      y = ^ x + z
 
 
 **Syntactc Sugar.** A number of the constructs described in this section are
 simply syntactic sugar for using local variables.  Here are some examples:
 
-+----------------------+-------------------------------------------------+
-| Expression:          |  Equivalent to:                                 |
-+======================+=================================================+
-| ``{ $$ = P; Q }``    | ``{ @x = P;        Q; ^ x                }``    |
-+----------------------+-------------------------------------------------+
-| ``[ P; Q ]``         | ``{ @x0 = P; @x1 = Q; ^ [x0,x1]          }``    |
-+----------------------+-------------------------------------------------+
-| ``{ x = P; y = Q }`` | ``{ @x = P;  @y  = Q; ^ { x = x; y = y } }``    |
-+----------------------+-------------------------------------------------+
++----------------------+-----------------------------------------------------+
+| Expression:          |  Equivalent to:                                     |
++======================+=====================================================+
+| ``{ $$ = P; Q }``    | ``{ let x = P;        Q; ^ x                }``     |
++----------------------+-----------------------------------------------------+
+| ``[ P; Q ]``         | ``{ let x0 = P; let x1 = Q; ^ [x0,x1]      }``      |
++----------------------+-----------------------------------------------------+
+| ``{ x = P; y = Q }`` | ``{ let x = P;  let y  = Q; ^ { x = x; y = y } }``  |
++----------------------+-----------------------------------------------------+
 
 
 Parsing Alternatives
@@ -265,6 +307,25 @@ the ``Choose`` keyword for unbiased choice and ``Choose1`` for biased choice.
 | ``Choose1 { A ; B; ... }``| ``A <| B <| ...`` |
 +---------------------------+-------------------+
 
+The ``Choose`` and ``Choose1`` keywords also support **layout**, so instead
+of using braces and semi-colons we can just line-up the alternaitves like this:
+
+.. code-block:: Daedalus
+
+  def ChooseWithBraces =
+    Choose1 {
+      Match1 'A';
+      Match1 'B';
+    }
+
+  def ChooseWithLayout =
+    Choose1
+      Match 'A'
+      Match 'B'
+
+
+
+
 Choose can also be used to construct tagged unions: see below. 
 
 
@@ -279,21 +340,38 @@ continues. For example, the following parser uses the guard
 ``(i - '0') > 5 is true`` to distinguish whether an parsed digit is
 greater than 5.
 
-.. code-block:: Daedalus 
+.. code-block:: Daedalus
 
-  {
-    @i = '0'..'9';
-    Choose1 { 
-        { (i - '0') > 5 is true; ^ "input gt 5";} ; 
-        { ^ "input leq 5";}
-    }
-  }
+  block
+    let i = Match1 ('0'..'9')
+    Choose1
+      block
+        (i - '0') > 5 is true
+        ^ "input gt 5"
+      ^ "input leq 5"
 
 So, if ``p`` is a boolean value, then ``p is true`` is a parser that
 succeeds without consuming input if ``p`` holds, and fails otherwise.
 Similarly, ``p is false`` is a parser that would succeed only
 if ``p`` is ``false``.
 
+
+If-then-else
+------------
+
+Booleans may also be used to choose between one of two parsers:
+
+.. code-block:: Daedalus
+
+  block
+    let i = Match1 ('0'..'9')
+    if (i - '0') > 5
+      then Match 'X'
+      else ^ 7
+
+The parser above parses a decimal digit and if it is larger than 5
+it will try to match ``'X'`` from the input, otherwise it will succeed
+with sematic value 7.
 
 
 ``for`` loops
@@ -387,10 +465,10 @@ depending on whether the input character is ``'G'`` or ``'B'``.
 
 .. code-block:: Daedalus 
 
-  Choose { 
-    good = 'G';
-    bad = 'B'; 
-  }
+  -- (using layout)
+  Choose
+    good = 'G'
+    bad = 'B'
 
 It is also possible to construct a union literal using ``{| good = 'G' |}``.
 Note however that the compiler will reject programs where it cannot infer
@@ -403,34 +481,51 @@ control flow, as in the following example:
 
 .. code-block:: Daedalus 
 
-  { 
-    @res = Choose { 
-      good = 'G';
-      bad = 'B'; 
-    }; 
-    Choose { 
-      {res is good; ^ "Success!"}; 
-      {res is bad; ^ "Failure!"}; 
-    } 
-  }
+  block
+    let res = Choose
+                good = Match1 'G'
+                bad  = Match1 'B'
+
+    Choose
+
+      block
+        res is good
+        ^ "Success!"
+
+      block
+        res is bad
+        ^ "Failure!"
 
 The result of a succesful ``is`` guard is the value of the union
 element.  For example
 
 .. code-block:: Daedalus 
 
-  { 
-    @res = Choose { 
-      good = { 'G'; Many (Match1 'a' .. 'z') };
-      bad =   'B' ;
-    }; 
-    Choose { 
-      { @msg = res is good; ^ (concat [ "Success!", msg])}; 
-      { res is bad; ^ "Failure!" }; 
-    }
-  }
+  block
+    let res = Choose
+                good =
+                  block
+                    Match1 'G'
+                    Many (Match1 ('a' .. 'z'))
 
-  
+                bad = Match1 'B'
+
+    Choose
+
+      block
+        let msg = res is good
+        ^ concat [ "Success!", msg]
+
+      block
+        res is bad
+        ^ "Failure!"
+
+
+.. todo::
+  Document ``case``
+
+
+
 Commit
 ------
 
