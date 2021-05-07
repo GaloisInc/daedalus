@@ -2,72 +2,72 @@
 { width: 4[64]
 , height: 4[64]
 , maxVal: 15[64]
-, data: [ [ { red: 0
-            , green: 0
-            , blue: 0
+, data: [ [ { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
-            }
-          ]
-        , [ { red: 0
-            , green: 0
-            , blue: 0
-            }
-          , { red: 0
-            , green: 0
-            , blue: 0
-            }
-          , { red: 0
-            , green: 0
-            , blue: 0
-            }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
           ]
-        , [ { red: 0
-            , green: 0
-            , blue: 0
+        , [ { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
           ]
-        , [ { red: 0
-            , green: 0
-            , blue: 0
+        , [ { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
-          , { red: 0
-            , green: 0
-            , blue: 0
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
+            }
+          ]
+        , [ { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
+            }
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
+            }
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
+            }
+          , { red: 0[64]
+            , green: 0[64]
+            , blue: 0[64]
             }
           ]
         ]
