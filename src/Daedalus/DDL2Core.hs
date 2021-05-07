@@ -241,37 +241,50 @@ fromGrammar gram =
 
          case cbnd of
            TC.Exactly e ->
-              do x <- newLocal sizeType
-                 let xe = Var x
-                     vs1 = x : vs
-
-                 Let x e <$>
-                   case sem of
-                     NoSem  -> checkAtLeast Nothing xe =<<
-                                            pSkipAtMost cmt vs1 (Just xe) ge
-                     YesSem -> checkAtLeast (Just ty) xe
-                                       =<< pParseAtMost cmt ty vs1 xe ge
+             case sem of
+               NoSem  -> pSkipExactlyMany cmt vs e ge
+               YesSem -> pParseExactlyMany cmt ty vs e ge
+                         >>= finishMany ty
 
            TC.Between Nothing Nothing ->
               case sem of
                 NoSem  -> pSkipMany cmt vs ge
-                YesSem -> pParseMany cmt ty vs ge
+                YesSem -> pParseMany cmt ty vs (newBuilder ty) ge
+                          >>= finishMany ty
 
            TC.Between Nothing (Just e) ->
               case sem of
-                NoSem  -> pSkipAtMost cmt vs (Just e) ge
-                YesSem -> pParseAtMost cmt ty vs e ge
+                NoSem  -> pSkipAtMost cmt vs e ge
+                YesSem -> pParseAtMost cmt ty vs e (newBuilder ty) ge
+                          >>= finishMany ty
 
            TC.Between (Just e) Nothing ->
               case sem of
-                NoSem  -> checkAtLeast Nothing e =<< pSkipAtMost cmt vs Nothing ge
-                YesSem -> checkAtLeast (Just ty) e =<< pParseMany cmt ty vs ge
+                NoSem  -> do
+                  p1 <- pSkipExactlyMany cmt vs e ge
+                  p2 <- pSkipMany cmt vs ge
+                  pure $ Do_ p1 p2
+                YesSem -> do
+                  b <- newLocal (TBuilder ty)
+                  p1 <- pParseExactlyMany cmt ty vs e ge
+                  p2 <- pParseMany cmt ty vs (Var b) ge
+                  finishMany ty (Do b p1 p2)
 
            TC.Between (Just lb) (Just ub) ->
-              case sem of
-                NoSem  -> checkAtLeast Nothing lb =<< pSkipAtMost cmt vs (Just ub) ge
-                YesSem -> checkAtLeast (Just ty) lb =<< pParseAtMost cmt ty vs ub ge
-
+             -- FIXME: bind lb and ub?
+             gIf (ub `lt` lb)
+                 (sysErr (TArray ty) "Empty bounds")
+                 <$> case sem of
+             NoSem  -> do
+               p1 <- pSkipExactlyMany cmt vs lb ge
+               p2 <- pSkipAtMost cmt vs (ub `sub` lb) ge
+               pure $ Do_ p1 p2
+             YesSem -> do
+               b <- newLocal (TBuilder ty)
+               p1 <- pParseExactlyMany cmt ty vs lb ge
+               p2 <- pParseAtMost cmt ty vs (ub `sub` lb) (Var b) ge
+               finishMany ty (Do b p1 p2)
+             
     TC.TCMapLookup sem k mp ->
       do kE  <- fromExpr k
          mpE <- fromExpr mp
@@ -701,9 +714,6 @@ maybeParse cmt ty p yes no =
             _ ->
              orOp cmt (Do r p (yes (Var r))) no
 
-
-
-
 pSkipMany :: Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany cmt vs p =
   do f <- newGName TUnit
@@ -712,8 +722,8 @@ pSkipMany cmt vs p =
      defFunG f vs skipBody
      pure (Call f es)
 
-pParseMany :: Commit -> Type -> [Name] -> Grammar -> M Grammar
-pParseMany cmt ty vs p =
+pParseMany :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+pParseMany cmt ty vs be p =
   do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal (TBuilder ty)
@@ -721,62 +731,80 @@ pParseMany cmt ty vs p =
      body <- maybeParse cmt ty p
                               (\a -> Call f (consBuilder a xe : es)) (Pure xe)
      defFunG f (x:vs) body
-     z <- newLocal (TBuilder ty)
-     pure $ Do z (Call f (newBuilder ty : es))
-                 (Pure $ finishBuilder $ Var z)
+     pure $ Call f (be : es)
 
+pSkipExactlyMany :: Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipExactlyMany _cmt vs tgt p =
+  do f <- newGName TUnit
+     let es = map Var vs
+     x <- newLocal sizeType
+     let xe = Var x
 
-pSkipAtMost :: Commit -> [Name] -> Maybe Expr -> Grammar -> M Grammar
-pSkipAtMost cmt vs mbTgt p =
+     let body = Do_ (OrBiased p (sysErr TUnit "insufficient element occurances"))
+                    (Call f (add xe (intL 1 sizeType) : es))
+
+     defFunG f (x : vs) (gIf (xe `lt` tgt) body (Pure unit))
+     pure $ Call f (intL 0 sizeType : es)
+
+-- | Produces a function which returns a builder
+
+-- FIXME: we should evaluate tgt outside of the function if it is
+-- complex to avoid recomputing it.
+pParseExactlyMany :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+pParseExactlyMany _cmt ty vs tgt p =
+  do f <- newGName (TBuilder ty)
+     let es = map Var vs
+     x <- newLocal sizeType
+     b <- newLocal (TBuilder ty)
+     r <- newLocal ty
+     
+     let xe = Var x
+         be = Var b
+         re = Var r
+     
+     -- FIXME: We don't need to worry about commit here(?) as we 
+     -- always take exactly tgt many iterations
+     let body = Do r (OrBiased p (sysErr ty "insufficient element occurances"))
+                     (Call f (add xe (intL 1 sizeType)
+                              : consBuilder re be
+                              : es))
+             
+     defFunG f (x : b : vs) (gIf (xe `lt` tgt) body (Pure be))
+     pure $ Call f (intL 0 sizeType : newBuilder ty : es)
+
+pSkipAtMost :: Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipAtMost cmt vs tgt p =
   do f <- newGName sizeType
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
      skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 sizeType) : es))
                                  (Pure xe)
-     defFunG f (x:vs)
-        case mbTgt of
-          Nothing  -> skipBody
-          Just tgt -> gIf (xe `lt` tgt) skipBody (Pure xe)
-     pure (Call f (intL 0 sizeType: es))
+     defFunG f (x:vs) (gIf (xe `lt` tgt) skipBody (Pure xe))
+     pure (Call f (intL 0 sizeType : es))
 
-
-pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
-pParseAtMost cmt ty vs tgt p =
-  do f <- newGName (TArray ty)
+pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
+pParseAtMost cmt ty vs tgt be p =
+  do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
-     b <- newLocal (TBuilder ty)
+     bv <- newLocal (TBuilder ty)
      let xe = Var x
-         be = Var b
+         bve = Var bv
 
      body <- maybeParse cmt ty p
                 (\a -> Call f (add xe (intL 1 sizeType)
-                              : consBuilder a be
+                              : consBuilder a bve
                               : es))
-                (Pure (finishBuilder be))
+                (Pure bve)
 
-     defFunG f (x : b : vs) (gIf (xe `lt` tgt) body (Pure (finishBuilder be)))
-     pure $ Call f (intL 0 sizeType : newBuilder ty : es)
+     defFunG f (x : bv : vs) (gIf (xe `lt` tgt) body (Pure bve))
+     pure $ Call f (intL 0 sizeType : be : es)
 
-
--- | Use to check the lower bounds for `many`
-checkAtLeast :: Maybe Type -> Expr -> Grammar -> M Grammar
-checkAtLeast mb tgt g =
-  case mb of
-    Nothing ->
-      do x <- newLocal sizeType
-         pure $ Do x g $ gIf (Var x `lt` tgt)
-                            (nope TUnit)
-                            (Pure unit)
-    Just ty ->
-      do x <- newLocal (TArray ty)
-         pure $ Do x g $ gIf (arrayLen (Var x) `lt` tgt) (nope (TArray ty))
-                                                        (Pure (Var x))
-
-  where
-  nope ty = sysErr ty "insufficient element occurances"
-
+finishMany :: Type -> Grammar -> M Grammar
+finishMany ty p = do
+  b <- newLocal (TBuilder ty)
+  pure (Do b p (Pure (finishBuilder (Var b))))
 
 --------------------------------------------------------------------------------
 
