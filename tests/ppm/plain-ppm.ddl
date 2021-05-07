@@ -1,6 +1,6 @@
 def Main = {
   $$ = PPM;
-  END;
+ -- END;
 }
 
 def Token P = {
@@ -13,9 +13,9 @@ def PPM = {
   Match "P";
   @version = Token Natural;
   version == 3 is true;
-  width  = Token Natural as? uint 64;
-  height = Token Natural as? uint 64;
-  maxVal = Token Natural as? uint 64;
+  width  = Token Natural; --  as? uint 64;
+  height = Token Natural; -- as? uint 64;
+  maxVal = Token Natural; -- as? uint 64;
   data   = Many height (Many width RGB);
 }
 
@@ -42,4 +42,4 @@ def Digit = {
 
 
 def addDigit val d =
-  10 * val + (d as int)
+  10 * val + (d as uint 64)
