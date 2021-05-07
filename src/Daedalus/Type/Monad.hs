@@ -42,7 +42,10 @@ module Daedalus.Type.Monad
   , newTypeDef
   , getNewTypeDefs
   , replaceNewTypeDefs
+  , addCon
   , lookupTypeDef
+  , lookupTypeDefMaybe
+  , isBitData
   , extGlobTyDefs
   , getGlobTypeDefs
 
@@ -77,6 +80,7 @@ import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.GUID
 import Daedalus.Pass
+import Daedalus.Panic(panic)
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
@@ -249,14 +253,39 @@ class MTCMonad m => STCMonad m where
 
 
 
-lookupTypeDef :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
+-- | The Bool indicates if this is a type that is in the process of being 
+-- defined.
+lookupTypeDef :: STCMonad m => TCTyName -> m (Maybe (TCTyDecl,Bool))
 lookupTypeDef x =
   do defs <- getNewTypeDefs
      case Map.lookup x defs of
-       Just d -> pure (Just d)
+       Just d -> pure (Just (d, True))
        Nothing ->
         do gdefs <- getGlobTypeDefs
-           pure (Map.lookup x gdefs)
+           pure case Map.lookup x gdefs of
+                  Just g -> Just (g, False)
+                  Nothing -> Nothing
+
+-- | Check if this type is a bitdata, and if so tell us its width
+isBitData :: STCMonad m => TCTyName -> m (Maybe Int)
+isBitData x =
+  do mb <- lookupTypeDef x
+     case mb of
+       Nothing -> pure Nothing
+       Just (td,_) -> pure (tctyBDWidth td)
+
+lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
+lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
+
+addCon :: STCMonad m => TCTyName -> Label -> Type -> m ()
+addCon x l ft =
+  do defs <- getNewTypeDefs
+     case Map.lookup x defs of
+       Just decl | TCTyUnion fs <- tctyDef decl ->
+         do let d1 = decl { tctyDef = TCTyUnion ((l,(ft,Nothing)):fs) }
+                ds1 = Map.insert x d1 defs
+            replaceNewTypeDefs ds1
+       _ -> panic "addCon" [ "Cannot add constructor to a struct/undefined." ]
 
 
 instance STCMonad STypeM where

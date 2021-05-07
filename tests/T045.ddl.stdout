@@ -6,7 +6,7 @@ module T045
  
 --- Rules:
  
-T045.f ?a0 ?a2 ?a3 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : uint 8 =
+T045.f ?a0 ?a2 ?a3 (HasElement ?a0 ?a3) (HasKey ?a0 ?a2) (Traversable ?a0) (xs : ?a0) : uint 8 =
   for ((s : uint 8) = 0; (x : ?a3) in xs)
     (s + 1)
  

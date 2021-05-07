@@ -68,10 +68,15 @@ instance ApSubst Constraint where
       Numeric t         -> Numeric <$> apSubstT' su t
       HasStruct t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasStruct a l b)
-      TyDef ty nm t fs  -> someJust2 (TyDef ty nm)
-                                      (apSubstT' su) (someJusts apF)
-                                      t              fs
+      StructCon nm t fs -> someJust2 (StructCon nm)
+                                     (apSubstT' su) (someJusts apF)
+                                     t              fs
         where apF (x,ft) = (x,) <$> apSubstT' su ft
+
+      UnionCon nm t c ft -> someJust2 (\a b -> UnionCon nm a c b)
+                              (apSubstT' su) (apSubstT' su)
+                              t              ft
+
       HasUnion  t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasUnion a l b)
       Coerce l t1 t2    -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
@@ -230,7 +235,8 @@ instance FreeTVS Constraint where
     case c of
       Numeric t         -> freeTVS t
       HasStruct t1 _ t2 -> freeTVS t1 <> freeTVS t2
-      TyDef _ _ t fs    -> freeTVS t <> freeTVS (map snd fs)
+      StructCon _ t fs  -> freeTVS t <> freeTVS (map snd fs)
+      UnionCon _ t _ tf -> freeTVS t <> freeTVS tf
       HasUnion  t1 _ t2 -> freeTVS t1 <> freeTVS t2
       Coerce _ t1 t2    -> Set.union (freeTVS t1) (freeTVS t2)
       Literal _ t       -> freeTVS t

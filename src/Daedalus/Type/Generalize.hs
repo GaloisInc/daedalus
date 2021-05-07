@@ -54,7 +54,7 @@ generalize ds =
      forM_ todo \l ->
          do let nm = thingValue l
             unless (nm `Map.member` tds) $
-               do mb <- lookupTypeDef nm
+               do mb <- lookupTypeDefMaybe nm
                   case mb of
                     Nothing -> reportError l ("Name" <+> backticks (pp nm)
                                          <+> "does not refer to a named type.")

@@ -3,9 +3,9 @@ module midi
 --- Imports:
  
 --- Type defs:
-type midi.Header0 = Choose { multi_song: {}
+type midi.Header0 = Choose { single_track: {}
                            ; multi_track: {}
-                           ; single_track: {}
+                           ; multi_song: {}
                            }
  
 type midi.Header1 = Choose { quarter_len: uint 15
@@ -41,8 +41,8 @@ type midi.Meta1 = { nn: uint 8
                   ; bb: uint 8
                   }
  
-type midi.Meta2 = Choose { major: uint 8
-                         ; minor: uint 8
+type midi.Meta2 = Choose { minor: uint 8
+                         ; major: uint 8
                          }
  
 type midi.Meta3 = { key: uint 8
@@ -66,13 +66,13 @@ type midi.Delta ?a2 = { after: int
                       ; event: ?a2
                       }
  
-type midi.VoiceMessage = Choose { aftertouch: midi.VoiceMessage2
-                                ; channel_pressure: uint 7
-                                ; controller_change: midi.VoiceMessage3
-                                ; note_off: midi.VoiceMessage0
-                                ; note_on: midi.VoiceMessage1
+type midi.VoiceMessage = Choose { program_change: uint 7
                                 ; pitch_bend: uint 14
-                                ; program_change: uint 7
+                                ; note_on: midi.VoiceMessage1
+                                ; note_off: midi.VoiceMessage0
+                                ; controller_change: midi.VoiceMessage3
+                                ; channel_pressure: uint 7
+                                ; aftertouch: midi.VoiceMessage2
                                 }
  
 type midi.VoiceMessages = { channel: uint 4
@@ -80,15 +80,15 @@ type midi.VoiceMessages = { channel: uint 4
                           ; extra: [midi.Delta midi.VoiceMessage]
                           }
  
-type midi.ModeMessage = Choose { all_notes_off: {}
-                               ; all_sound_off: {}
-                               ; local_control_off: {}
-                               ; local_control_on: {}
-                               ; mono_on: uint 8
-                               ; omni_off: {}
-                               ; omni_on: {}
+type midi.ModeMessage = Choose { reset_controllers: {}
                                ; poly_on: {}
-                               ; reset_controllers: {}
+                               ; omni_on: {}
+                               ; omni_off: {}
+                               ; mono_on: uint 8
+                               ; local_control_on: {}
+                               ; local_control_off: {}
+                               ; all_sound_off: {}
+                               ; all_notes_off: {}
                                }
  
 type midi.ModeMessages = { channel: uint 4
@@ -96,8 +96,8 @@ type midi.ModeMessages = { channel: uint 4
                          ; extra: [midi.Delta midi.ModeMessage]
                          }
  
-type midi.SysEx = Choose { add_f0: Stream
-                         ; as_is: Stream
+type midi.SysEx = Choose { as_is: Stream
+                         ; add_f0: Stream
                          }
  
 type midi.Meta = Choose { channel: uint 8

@@ -175,8 +175,9 @@ instance TraverseTypes Constraint where
     case constraint of
       Numeric t         -> Numeric <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
-      TyDef ty nm t fs  -> TyDef ty nm <$> f t <*> traverse tF fs
+      StructCon nm t fs -> StructCon nm <$> f t <*> traverse tF fs
         where tF (x,ft) = (x,) <$> traverse f ft
+      UnionCon nm t c ft -> UnionCon nm <$> f t <*> pure c <*> traverse f ft
       HasUnion t1 l t2  -> HasUnion  <$> f t1 <*> pure l <*> f t2
       Coerce l t t'     -> Coerce l <$> f t <*> f t'
       Literal n t       -> Literal n <$> f t

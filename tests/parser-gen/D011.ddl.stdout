@@ -3,8 +3,8 @@ module D011
 --- Imports:
  
 --- Type defs:
-type D011.FL = Choose { file_length: int
-                      ; unknown_length: [uint 8]
+type D011.FL = Choose { unknown_length: [uint 8]
+                      ; file_length: int
                       }
  
 type D011.Main = { b1: D011.FL

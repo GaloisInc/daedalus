@@ -57,9 +57,19 @@ data Constraint = Numeric Type
                 | HasStruct Type Label Type
                 | HasUnion  Type Label Type
 
+                | StructCon TCTyName Type [(Label,Located Type)]
+                  -- ^ suggested name, type, fields.
+                  -- 1. The suggested name is used if we generate a new type
+                  -- 2. Asserts that the type can represent a struct with the
+                  -- given fields
+                  -- 3. See [Note] Constructor Constraints
 
-                | TyDef TyDef TCTyName Type [(Label,Located Type)]
-                  -- See [Note] The TyDef Constraint
+                | UnionCon TCTyName Type Label (Located Type)
+                  -- ^ suggested name, type, constructr, con type
+                  -- 1. The suggested name is used if we generate a new type
+                  -- 2. Asserts that the type is a union that has the
+                  -- given field
+                  -- 3. See [Note] Constructor Constraints
 
                 | Coerce Lossy Type Type
                 | Literal Integer Type
@@ -71,22 +81,26 @@ data Constraint = Numeric Type
                 | IsNamed Type
                   deriving Show
 
-{- [Note] The TyDef Constraint
-   ===========================
+{- [Note] Constructor Constraints
+   ==============================
 
-The Constraint `TyDef StructDef suggestedName t [(x,q)]` asserts that the type
-`t` can represent the struct value with a field `x` of type `q`
+`StructCon` and `UnoinCon` are emitted when we construct values of struct or
+union types.
 
-We discharge this constraint if `t` becoes a constructor type:  in that case
-we either check the definition to make sure things are OK, or report an
-error.
+We discharge this constraint if `t` becomes a known type:
+  1. For struct types, we check that the provided fields exactly match
+     the declared types
+  2. For union types, we check that the constructor exists in the declaration
+     - Furthermore, if the type is one that is currently being inferred,
+       and the constructir is missing from the definition, we *extend*
+       the definition to add the constructor.
 
-If we never infer `t` (i.e., it stays as a tpe variable), we don;t generalize
-over it.  Instead we use the definition and the suggested name to generate
-a new type declaration.
+If we never infer the type being constructed (i.e., it stays as a type
+variable), we don't generalize over it.  Instead we use the definition and
+the suggested name to generate a new type declaration.
 
-Note that we can't just manufacture a new type every type we see a struct.
-Consider, for example, this definition:
+Note that we can't just manufacture a new type every type we see a constrcutro
+constraint.  Consider, for example, this definition:
 
 def Main = { x = Match1 'a' } <| { x = Uint8 }
 
@@ -94,10 +108,7 @@ In this case we have 2 structs, but they must be *of the same type* so we'd
 only generate a single type declaration.
 -}
 
-data TyDef = StructDef | UnionDef
-  deriving Show
-
-data Lossy = Lossy | NotLossy
+data Lossy = Lossy | NotLossy | Dynamic
   deriving (Eq,Show)
 
 
@@ -663,20 +674,23 @@ ppStmt texpr =
 ppBinder :: TCName k -> Doc
 ppBinder x = parens (pp (tcName x) <+> ":" <+> pp (tcType x))
 
-instance PP TyDef where
-  pp d = case d of
-           StructDef -> "struct"
-           UnionDef  -> "union"
-
 instance PP Constraint where
   ppPrec n c =
     case c of
       Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
-      TyDef ty _ t fs -> wrapIf (n > 0)
-          (pp ty <+> ppPrec 2 t <+> block "{" ";" "}" (map ppF fs))
+
+      StructCon _ t fs ->
+        wrapIf (n > 0)
+        (block "{" ";" "}" (map ppF fs) <+> "in" <+> pp t)
         where ppF (f,ft) = pp f <.> ":" <+> pp ft
+
       HasUnion  x l t -> wrapIf (n > 0) ("HasUnion" <+> pp x <+> pp l <+> pp t)
+
+      UnionCon _ t con f ->
+        wrapIf (n > 0)
+        (parens (pp con <.> ":" <+> pp f) <+> "in" <+> pp t)
+
       Coerce s t1 t2 ->
           wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 2 t1 <+> ppPrec 2 t2)
       Literal i t ->
@@ -703,6 +717,7 @@ instance PP Lossy where
   pp l = case l of
            Lossy -> "trunc"
            NotLossy -> "safe"
+           Dynamic -> "dynamic"
 
 
 

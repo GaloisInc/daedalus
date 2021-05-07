@@ -5,7 +5,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe(fromMaybe)
-import Control.Monad(when)
+import Control.Monad(when,unless)
 
 import Daedalus.PP
 import Daedalus.SourceRange
@@ -189,7 +189,7 @@ hasStruct r ty l fty =
     TVar _ -> pure Unsolved
 
     TCon c ts ->
-      do mb <- lookupTypeDef c
+      do mb <- lookupTypeDefMaybe c
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
@@ -217,12 +217,17 @@ hasUnion r ty l fty =
       do mb <- lookupTypeDef c
          case mb of
            Nothing -> pure Unsolved
-           Just td -> case tctyDef td of
-                        TCTyUnion fs | Just (fty1,_) <- lookup l fs ->
-                          do let su = Map.fromList (zip (tctyParams td) ts)
-                             unify (apSubstT su fty1) (r,fty)
-                             pure Solved
-                        _ -> doErr
+           Just (td,inferring) ->
+              case tctyDef td of
+                TCTyUnion fs ->
+                  case lookup l fs of
+                    Just (fty1,_) ->
+                      do let su = Map.fromList (zip (tctyParams td) ts)
+                         unify (apSubstT su fty1) (r,fty)
+                         pure Solved
+                    Nothing -> if inferring then pure Unsolved
+                                            else doErr
+                _ -> doErr
 
     _ -> doErr
   where
@@ -231,13 +236,19 @@ hasUnion r ty l fty =
             [ "Problem type:" <+> pp ty ]
 
 
--- XXX: lossy
 isCoercible :: (STCMonad m, HasRange r) =>
                r -> Lossy -> Type -> Type -> m CtrStatus
 isCoercible r lossy tt1 tt2 =
   case tt1 of
     TVar _   -> pure Unsolved
-    TCon {} -> nope
+    TCon tc [] ->
+      do mb <- isBitData tc
+         case mb of
+           Nothing -> refl
+           Just w ->
+             do unify (tUInt (tNum (toInteger w))) (r,tt2)
+                pure Solved
+    TCon {} -> refl
     Type t1 ->
       case t1 of
         TInteger  -> fromInt
@@ -245,15 +256,20 @@ isCoercible r lossy tt1 tt2 =
         TSInt x   -> fromSInt x
         _         -> refl
   where
-  nope = reportDetailedError r "Cannot coerce safely"
+  nope = reportDetailedError r ("Cannot coerce" <+> how)
            [ "from type" <+> pp tt1
            , "to type" <+> pp tt2
            ]
 
+  how = case lossy of
+          NotLossy -> "safely"
+          _        -> empty
+
   refl = unify tt1 (r,tt2) >> pure Solved
 
   fromInt
-    | Lossy <- lossy =
+    | NotLossy <- lossy = refl
+    | otherwise =
       case tt2 of
         TVar _ -> pure Unsolved
         TCon {} -> nope
@@ -264,35 +280,42 @@ isCoercible r lossy tt1 tt2 =
             TInteger -> pure Solved
             _        -> nope
 
-    | otherwise = refl
-
-
 
   fromUInt x =
     case tt2 of
       TVar _ -> pure Unsolved
-      TCon {} -> nope
+      TCon tc args ->
+        do unless (null args) nope
+           mb <- isBitData tc
+           case mb of
+             Just w | Dynamic <- lossy ->
+                do unify x (r, tNum (toInteger w))
+                   pure Solved
+              -- XXX: we could allow a safe coercion if the bitdata has no tags
+             _ -> nope
       Type t2 ->
         case t2 of
           TInteger -> pure Solved
 
           TUInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                   | s1 <= s2  -> pure Solved
                   | otherwise -> nope
                 _ -> pure Unsolved
 
+            | otherwise -> pure Solved
+
           TSInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                   | s1 < s2   -> pure Solved
                   | otherwise -> nope
                 _ -> pure Unsolved
+
+            | otherwise -> pure Solved
 
           _  -> nope
 
@@ -307,16 +330,18 @@ isCoercible r lossy tt1 tt2 =
           TInteger -> pure Solved
 
           TUInt _
-            | Lossy <- lossy -> pure Solved
+            | Lossy  <- lossy -> pure Solved
+            | Dynamic <- lossy -> pure Solved
 
           TSInt y
-            | Lossy <- lossy -> pure Solved
-            | otherwise ->
+            | NotLossy <- lossy ->
               case (x,y) of
                 (Type (TNum s1), Type (TNum s2))
                    | s1 <= s2       -> pure Solved
                    | otherwise      -> nope
                 _ -> pure Unsolved
+
+            | otherwise -> pure Solved
 
           _ -> nope
 
@@ -352,28 +377,28 @@ validLiteral r i ty =
   nope = reportError r ("Literal" <+> pp i <+> "does not fit in" <+>
                                 backticks (pp ty))
 
-
 lookupTyDefInst :: (STCMonad m, HasRange r) =>
-  r -> TCTyName -> [Type] -> m (Maybe TCTyDef)
+  r -> TCTyName -> [Type] -> m (Maybe (TCTyDef, Bool))
 lookupTyDefInst r x ts =
   do mb <- lookupTypeDef x
      case mb of
        Nothing -> pure Nothing
-       Just def ->
-         do let as = tctyParams def
+       Just (def,inferring) ->
+         do let as     = tctyParams def
                 expect = length as
-                have = length ts
+                have   = length ts
             when (expect /= have)
                $ reportDetailedError r "Incorect number of parameters."
                     [ "Expected:" <+> int expect
                     , "Given:" <+> int have
                     ]
             let su = Map.fromList (zip as ts)
-            pure (Just (apSubstT su (tctyDef def)))
+            pure (Just (apSubstT su (tctyDef def), inferring))
+
 
 checkFields :: (STCMonad m, HasRange r) =>
               r -> TCTyName -> Map Label Type -> [(Label,Located Type)] -> m ()
-checkFields r x dfs fs =
+checkFields r x dfs fs =    -- `dsf`, existing fields, `fs` new fields
   case fs of
     [] -> case Map.keys dfs of
             []  -> pure ()
@@ -387,31 +412,6 @@ checkFields r x dfs fs =
                           ("Type" <+> backticks (pp x) <+>
                            "does not have field" <+> backticks (pp f))
 
-
-isTyDef :: (STCMonad m, HasRange r) =>
-              r -> TyDef -> Type -> [(Label,Located Type)] -> m CtrStatus
-isTyDef r ty t fs0 =
-  case t of
-    TVar _ -> pure Unsolved
-    TCon c ts ->
-      do mb <- lookupTyDefInst r c ts
-         case mb of
-           Nothing -> pure Unsolved -- Add definition, if no params?
-           Just def ->
-             case def of
-               TCTyStruct dfs
-                 | StructDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
-                                         pure Solved
-                 | otherwise -> reportError r "Structure used as union."
-               TCTyUnion dfs
-                 | UnionDef <- ty -> do checkFields r c (fst <$> Map.fromList dfs) fs0
-                                        pure Solved
-                 | otherwise -> reportError r "Union used a structure"
-
-    Type _ -> reportDetailedError r "Expected a structure."
-                  [ "Actual type:" <+> pp t ]
-
-
 isNamed :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
 isNamed r ty =
   case ty of
@@ -420,17 +420,68 @@ isNamed r ty =
     Type {} -> reportDetailedError r "Expected a named type"
                   [ pp ty <+> "is not." ]
 
+isStructCon ::
+  (STCMonad m, HasRange r) => r -> Type -> [(Label,Located Type)] -> m CtrStatus
+isStructCon r ty fs =
+  case ty of
+    TVar {} -> pure Unsolved
+
+    TCon c ts ->
+      do mb <- lookupTyDefInst r c ts
+         case mb of
+           Nothing -> pure Unsolved
+           Just (def,_) ->
+             case def of
+               TCTyStruct dfs ->
+                  do checkFields r c (fst <$> Map.fromList dfs) fs
+                     pure Solved
+               TCTyUnion {} -> reportError r "Union used a structure"
+
+    Type _ -> reportDetailedError r "Type is not a structure"
+                  [ "Type:" <+> pp ty ]
+
+
+isUnionCon ::
+  (STCMonad m, HasRange r) => r -> Type -> Label -> Located Type -> m CtrStatus
+isUnionCon r ty c t =
+  case ty of
+    TVar {} -> pure Unsolved
+    TCon tc ts ->
+      do mb <- lookupTyDefInst r tc ts
+         case mb of
+           Nothing -> pure Unsolved
+           Just (def,inferring) ->
+             case def of
+               TCTyUnion dfs ->
+                 do case lookup c dfs of
+                      Just (t1,_) -> unify t1 (t, thingValue t)
+                      Nothing
+                        | inferring -> addCon tc c (thingValue t)
+                        | otherwise ->
+                          reportDetailedError r
+                            "Union doesn't have this constructor"
+                                [ "Type:" <+> pp tc
+                                , "Constructor:" <+> pp c
+                                ]
+
+                    pure Solved
+               TCTyStruct {} -> reportError r "Structure used as a union"
+    Type _ -> reportDetailedError r "Type is not a union"
+                  [ "Type:" <+> pp ty ]
+
 
 -- | Try to solve a constraint.
 -- Fails if the constraint is known to be unsolvable.
 -- May bind variables.
+-- May add extra constructors to union types that are being deifned.
 -- Does not generate new constraints.
 solveConstraint :: STCMonad m => Located Constraint -> m CtrStatus
 solveConstraint lctr =
   case thingValue lctr of
     Numeric t          -> isNumeric lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
-    TyDef ty _ t fs    -> isTyDef lctr ty t fs
+    StructCon _ t fs   -> isStructCon lctr t fs
+    UnionCon _ t c ft  -> isUnionCon lctr t c ft
     HasUnion  t l fty  -> hasUnion  lctr t l fty
     Coerce lossy t1 t2 -> isCoercible lctr lossy t1 t2
     Literal n t        -> validLiteral lctr n t
@@ -522,29 +573,33 @@ bindVar r s x t =
        | otherwise -> reportDetailedError r "Kind mismatch"
                          [ pp (tvarKind x), pp (kindOf t)  ]
 
+
 simplifyConstraints :: STCMonad m => m [Located Constraint]
 simplifyConstraints =
   do su <- getTypeSubst
-     go [] su =<< removeConstraints
+     go False [] su =<< removeConstraints
   where
-  go notYet su todo =
+
+  go anySolved notYet su todo =
     case todo of
       [] -> case notYet of
               [] -> pure []
-              _  -> goSame [] su notYet
+              _ -> do su1 <- getTypeSubst
+                      if anySolved then go False [] su1 notYet
+                                   else goSame [] su notYet
 
       c : cs ->
         do let c1 = apSubstT su c
            res <- solveConstraint c1
            case res of
-             Solved   -> go notYet su cs
-             Unsolved -> go (c1 : notYet) su cs
+             Solved   -> go True notYet su cs
+             Unsolved -> go anySolved (c1 : notYet) su cs
 
   goSame notYet su todo =
     case todo of
       [] -> do su1 <- getTypeSubst
                if Map.size su < Map.size su1
-                  then go [] su1 notYet
+                  then go False [] su1 notYet
                   else tryAddDefVar [] notYet
       c : cs ->
         do known <- checkKnown c notYet
@@ -553,31 +608,38 @@ simplifyConstraints =
 
   tryAddDefVar notYet todo =
     case todo of
-      c : more ->
+      ctr : more
+        | StructCon suggested ty fs <- thingValue ctr ->
+          chooseName suggested ty
+            (TCTyStruct [ (f, (thingValue lt,Nothing)) | (f,lt) <- fs ])
+        | UnionCon suggested ty c t <- thingValue ctr ->
+          chooseName suggested ty
+            (TCTyUnion [ (c, (thingValue t,Nothing)) ])
+        where
+        chooseName suggested theTy def =
+          case (suggested, theTy) of
 
-        case thingValue c of
-          TyDef ty suggest theTy fs ->
+            {- This is to handle cases like this:
+            def F = { x = UInt8 } : F
+            In this case, we get a constractin: { x : uint 8 } in F
+            but `F` is not defined, so we need to add a definition.
+            Note that we have to be careful to only define it once,
+            here this is ensured because `constructor` constraints only
+            get to here if there was no definition, and we immediatly
+            restart the process after the definition. -}
+            (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
+               | nm == nm1 -> defTy tcon def
 
-            case (suggest, theTy) of
-              (TCTyAnon nm _, TCon tcon@(TCTy nm1) [])
-                 | nm == nm1 -> defTy tcon
+            (_, TVar {}) -> do unify theTy (ctr, TCon suggested [])
+                               defTy suggested def
+            _ -> tryAddDefVar (ctr : notYet) more
 
-              (_, TVar _) ->
-                 do unify theTy (c,tCon suggest [])
-                    defTy suggest
+        defTy tcon def =
+          do newTypeDef tcon def
+             su <- getTypeSubst
+             go False [] su (notYet ++ more)
 
-              _ -> tryAddDefVar (c : notYet) more
-
-             where
-             defTy tcon =
-               do newTypeDef tcon
-                    case ty of
-                      StructDef -> TCTyStruct [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
-                      UnionDef  -> TCTyUnion  [ (f, (thingValue t, Nothing)) | (f,t) <- fs ]
-                  su <- getTypeSubst
-                  go [] su (notYet ++ more)
-
-          _ -> tryAddDefVar (c : notYet) more
+      ctr : more -> tryAddDefVar (ctr : notYet) more
 
       [] -> pure notYet
 

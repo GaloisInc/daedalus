@@ -3,8 +3,8 @@ module D002
 --- Imports:
  
 --- Type defs:
-type D002.Main0 = Choose { x: [uint 8]
-                         ; y: [uint 8]
+type D002.Main0 = Choose { y: [uint 8]
+                         ; x: [uint 8]
                          }
  
 type D002.Main1 = Choose { x: [uint 8]

@@ -1,0 +1,17 @@
+This folder contains the sources for the Daedalus manual.
+
+The source for the manual is in `source/index.rst`.
+
+To build a PDF document use:
+
+    make latexpdf
+
+The result will be in a subdirectory of `build`.
+
+To update the documentation on the github pages, use:
+
+    make github
+
+This will build the `html` documentation and copy it to the `docs` folder,
+which is what the github pages show.
+

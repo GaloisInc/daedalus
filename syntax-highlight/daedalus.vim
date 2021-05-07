@@ -9,6 +9,7 @@ endif
 " Keywords
 syn keyword ddlKeywordImport import
 
+syn keyword ddlKeyword bitdata where
 syn keyword ddlKeyword def
 syn keyword ddlKeyword for map in
 syn keyword ddlKeyword if then else

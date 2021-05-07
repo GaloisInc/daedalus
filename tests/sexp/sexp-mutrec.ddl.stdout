@@ -4,8 +4,8 @@ module sexp-mutrec
  
 --- Type defs:
 rec
-  type sexp-mutrec.Sexp = Choose { sexp: [sexp-mutrec.Sexp]
-                                 ; symbol: [uint 8]
+  type sexp-mutrec.Sexp = Choose { symbol: [uint 8]
+                                 ; sexp: [sexp-mutrec.Sexp]
                                  }
  
 --- Rules:

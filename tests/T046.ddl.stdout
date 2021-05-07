@@ -12,11 +12,11 @@ type T046.Main = { a1: int
  
 --- Rules:
  
-T046.l1 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (xs : ?a0) : int =
+T046.l1 ?a0 ?a2 (HasElement ?a0 int) (HasKey ?a0 ?a2) (Traversable ?a0) (xs : ?a0) : int =
   for ((s : int) = 0; (x : int) in xs)
     (s + x)
  
-T046.l2 ?a0 ?a2 (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 int) (Coerce safe ?a2 int) (xs : ?a0) : int =
+T046.l2 ?a0 ?a2 (Coerce safe ?a2 int) (HasElement ?a0 int) (HasKey ?a0 ?a2) (Traversable ?a0) (xs : ?a0) : int =
   for ((s : int) = 0; (k : ?a2), (x : int) in xs)
     ((s + x) + (k as int))
  
