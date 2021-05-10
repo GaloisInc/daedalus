@@ -20,11 +20,13 @@ import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
 import Daedalus.VM.FindLoops
+import Daedalus.VM.TailCallJump
 
 
 
 moduleToProgram :: [Src.FName] -> [Module] -> Program
 moduleToProgram entries ms =
+  tailProgram $
   captureAnalysis
   Program
     { pModules = map loopAnalysis ms

@@ -9,6 +9,12 @@ for the members.    We can inline a call to `F no yes` like this:
     of `F_E` and `G_E` respectively
   3. Replace `ReturnNo` with `goto no`
   3. Same for `ReturnYes a b`
+
+XXX: it is possible to have two mutually recursive functions, `F` and `G`
+where `F` will either call itself *or* it will call `G`, and `G` will call `F`.
+While this might not count as a *loop* we still want to turn tail self-calls
+into jump, which is currently done in TailCallJump, but should probably fit
+here somewhere instead.
 -}
 module Daedalus.VM.FindLoops where
 
@@ -38,7 +44,6 @@ annotateLoops = foldr doComp [] . topoOrder deps
     case c of
       NonRec f  -> f : xs
       MutRec fs -> isLoop fs ++ xs
-
 
 isLoop :: [VMFun] -> [VMFun]
 isLoop xs
