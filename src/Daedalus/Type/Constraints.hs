@@ -8,6 +8,7 @@ import Data.Maybe(fromMaybe)
 import Control.Monad(when,unless)
 
 import Daedalus.PP
+import qualified Daedalus.BDD as BDD
 import Daedalus.SourceRange
 
 import Daedalus.AST
@@ -245,8 +246,9 @@ isCoercible r lossy tt1 tt2 =
       do mb <- isBitData tc
          case mb of
            Nothing -> refl
-           Just w ->
-             do unify (tUInt (tNum (toInteger w))) (r,tt2)
+           Just bd ->
+             do let n = toInteger (BDD.width bd)
+                unify (tUInt (tNum n)) (r,tt2)
                 pure Solved
     TCon {} -> refl
     Type t1 ->
@@ -288,10 +290,10 @@ isCoercible r lossy tt1 tt2 =
         do unless (null args) nope
            mb <- isBitData tc
            case mb of
-             Just w | Dynamic <- lossy ->
-                do unify x (r, tNum (toInteger w))
+             Just bd | Dynamic <- lossy ->
+                do unify x (r, tNum (toInteger (BDD.width bd)))
                    pure Solved
-              -- XXX: we could allow a safe coercion if the bitdata has no tags
+              -- XXX: we could allow a safe coercion if the bitdata is complete
              _ -> nope
       Type t2 ->
         case t2 of

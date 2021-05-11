@@ -76,6 +76,7 @@ import qualified Data.Text as Text
 import Control.Exception(Exception(..))
 import MonadLib hiding (Label)
 
+import qualified Daedalus.BDD as BDD
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.GUID
@@ -266,13 +267,13 @@ lookupTypeDef x =
                   Just g -> Just (g, False)
                   Nothing -> Nothing
 
--- | Check if this type is a bitdata, and if so tell us its width
-isBitData :: STCMonad m => TCTyName -> m (Maybe Int)
+-- | Check if this type is a bitdata, and if so tell us what we know about it
+isBitData :: STCMonad m => TCTyName -> m (Maybe BDD.Pat)
 isBitData x =
   do mb <- lookupTypeDef x
      case mb of
        Nothing -> pure Nothing
-       Just (td,_) -> pure (tctyBDWidth td)
+       Just (td,_) -> pure (tctyBD td)
 
 lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
 lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
@@ -330,7 +331,7 @@ instance STCMonad STypeM where
     do def <- traverseTypes zonkT def'
        let decl = TCTyDecl { tctyName = x
                            , tctyParams = []
-                           , tctyBDWidth = Nothing
+                           , tctyBD = Nothing
                            , tctyDef = def
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }

@@ -61,13 +61,15 @@ pNot (Pat n p)      = Pat n (ite p F T)  -- match if argument does not match
 pAnd               :: Pat {-n-} -> Pat {-n-} -> Pat {-n-}
 pAnd (Pat m p) (Pat n q)            
   | m == n          = Pat m (ite p q F)   -- match if both patterns matchs
-  | otherwise       = bug "pAnd" "Different widths"
+  | otherwise       = bug "pAnd"
+                          ("Different widths: " ++ show m ++ " vs. " ++ show n)
 
 -- | A pattern that succeeds if either pattern succeed (union)
 pOr          :: Pat {-n-} -> Pat {-n-} -> Pat {-n-}
-pOr (Pat m p) (Pat n q) 
+pOr (Pat m p) (Pat n q)
   | m == n          = Pat m (ite p T q)   -- match if one of the pats. matches
-  | otherwise       = bug "pOr" "Different widths"
+  | otherwise       = bug "pOr"
+                          ("Different widths: " ++ show m ++ " vs. " ++ show n)
 
 -- | An N-ary version of "pOr"
 pOrs               :: Width -> [Pat] -> Pat

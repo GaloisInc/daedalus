@@ -28,6 +28,7 @@ import Data.Parameterized.Classes -- OrdF
 
 import Daedalus.SourceRange
 import Daedalus.Rec
+import qualified Daedalus.BDD as BDD
 import Daedalus.AST as LocalAST
         ( Name(..), ManyBounds(..), BinOp(..), TriOp(..)
         , Ident, ScopedIdent(..), primName
@@ -287,8 +288,8 @@ data Param = ValParam (TCName Value)
 data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
                    , tctyParams :: ![TVar]
-                   , tctyBDWidth :: !(Maybe Int)
-                   -- ^ number of bits for this type if it is a bitdata
+                   , tctyBD     :: !(Maybe BDD.Pat)
+                   -- ^ Bitdata related information, if this is a bitdata decl.
                    , tctyDef    :: !TCTyDef
                    } deriving Show
 
@@ -301,8 +302,8 @@ data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
                   deriving Show
 
 data TCBDStructMeta =
-  TCBDStructMeta { tcbdsLowBit :: !Int
-                 , tcbdsWidth  :: !Int
+  TCBDStructMeta { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
+                 , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
                  } deriving Show
 
 -- ^ The mask and value let us match the corresponding tag bits for
@@ -310,8 +311,8 @@ data TCBDStructMeta =
 -- sub-fields (which may also be unions).  We use Integer here as we
 -- support arbitrary bit widths.
 data TCBDUnionMeta =
-  TCBDUnionMeta { tcbduMask :: !Integer
-                , tcbduBits :: !Integer
+  TCBDUnionMeta { tcbduMask :: !Integer   -- ^ Bits to consider
+                , tcbduBits :: !Integer   -- ^ Expected value
                 } deriving Show
 
 
@@ -593,8 +594,14 @@ instance PP (TCModule a) where
 
 instance PP TCTyDecl where
   ppPrec _ d =
+    ppBD $$
     "type" <+> pp (tctyName d)
            <+> hsep (map pp (tctyParams d)) <+> "=" <+> pp (tctyDef d)
+    where ppBD = case tctyBD d of
+                   Nothing -> empty
+                   Just pat -> vcat $ "{- bitdata"
+                                    : map text (lines (show pat))
+                                   ++ [ "-}" ]
 
 instance PP TCTyDef where
   ppPrec _ d =

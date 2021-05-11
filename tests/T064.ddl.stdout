@@ -3,20 +3,39 @@ module T064
 --- Imports:
  
 --- Type defs:
+{- bitdata
+________
+-}
 type T064.myBD2_B = { }
  
+{- bitdata
+________
+-}
 type T064.myBD2_C = { }
  
+{- bitdata
+0100001_
+-}
 type T064.myBD2 = Choose { B: T064.myBD2_B
                          ; C: T064.myBD2_C
                          }
  
+{- bitdata
+________0100001_
+-}
 type T064.myBD3_D = { x: T064.myBD2
                     }
  
+{- bitdata
+________0100001_
+-}
 type T064.myBD3_E = { x: T064.myBD2
                     }
  
+{- bitdata
+010000010100001_
+010000100100001_
+-}
 type T064.myBD3 = Choose { D: T064.myBD3_D
                          ; E: T064.myBD3_E
                          }

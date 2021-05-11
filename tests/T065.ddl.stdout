@@ -3,24 +3,52 @@ module T065
 --- Imports:
  
 --- Type defs:
+{- bitdata
+________
+-}
 type T065.Bar_b1 = { }
  
+{- bitdata
+________
+-}
 type T065.Bar_b2 = { }
  
+{- bitdata
+00111111
+01000000
+-}
 type T065.Bar = Choose { b1: T065.Bar_b1
                        ; b2: T065.Bar_b2
                        }
  
+{- bitdata
+________
+-}
 type T065.Foo_A = { }
  
+{- bitdata
+________
+-}
 type T065.Foo_B = { x: uint 6
                   }
  
+{- bitdata
+00111111
+01000000
+-}
 type T065.Foo_C = { b: T065.Bar
                   }
  
+{- bitdata
+________
+-}
 type T065.Foo_D = { }
  
+{- bitdata
+00111111
+010000_0
+1_______
+-}
 type T065.Foo = Choose { A: T065.Foo_A
                        ; B: T065.Foo_B
                        ; C: T065.Foo_C

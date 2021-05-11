@@ -4,6 +4,7 @@ module Daedalus.PP (module Daedalus.PP, module PP) where
 import Data.List(intersperse)
 import Data.Text (Text)
 import Data.ByteString(ByteString)
+import Data.Word
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as Text
 import qualified Text.PrettyPrint as PP
@@ -69,6 +70,9 @@ instance PP Int where
 
 instance PP Integer where
   pp = integer
+
+instance PP Word32 where
+  pp = text . show
 
 instance PP SourcePos where
   pp = text . prettySourcePos

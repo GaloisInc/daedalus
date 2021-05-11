@@ -415,7 +415,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
                           ]
 
     goS bits (fld, (ty', Just sm)) =
-      (,) fld <$> go ((bits `shiftR` tcbdsLowBit sm) `mod` 2 ^  (tcbdsWidth sm)) ty'
+      (,) fld <$> go ((bits `shiftR` fromIntegral (tcbdsLowBit sm)) `mod` 2 ^  (tcbdsWidth sm)) ty'
 
     goU _bits (_, (_, Nothing)) =
       panic "evalBitData" [ "Missing bitdata union meta data"
