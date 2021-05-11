@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
-import Data.Foldable (fold)
+import Data.Foldable (fold, forM_)
 
 import qualified Data.ByteString as BS
 
@@ -25,6 +25,7 @@ import Daedalus.Rec
 import Daedalus.Core hiding (freshName)
 import Daedalus.Core.Free
 import Daedalus.Core.Type
+import Daedalus.Core.TraverseUserTypes
 
 -- import Talos.Strategy.Monad
 import Talos.Analysis.Slice
@@ -59,12 +60,9 @@ typeNameToCtor n = "mk-" ++ symExecTName n
 -- | Construct SMT solver datatype declaration based on DaeDaLus type
 -- declarations.
 
--- we already have recs and it is ordered, so we don't need to calculate a fixpoint
-sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
-sliceToSMTTypeDefs md sl = go [] roots0 (reverse (mTypes md))
+tranclTypeDefs :: Module -> Set TName -> [Rec SMTTypeDef]
+tranclTypeDefs md roots0 = go [] roots0 (reverse (mTypes md))
   where
-    roots0 = freeTCons sl
-
     go acc _ [] = acc
     go acc roots (NonRec td : rest) 
       | tName td `Set.member` roots =
@@ -75,6 +73,11 @@ sliceToSMTTypeDefs md sl = go [] roots0 (reverse (mTypes md))
       | any (\td -> tName td `Set.member` roots) tds = 
         go (MutRec (map tdeclToSMTTypeDef tds) : acc) (Set.unions (roots : map freeTCons tds)) rest
       | otherwise                   = go acc roots rest
+
+
+-- we already have recs and it is ordered, so we don't need to calculate a fixpoint
+sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
+sliceToSMTTypeDefs md = tranclTypeDefs md . freeTCons
 
 tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
 tdeclToSMTTypeDef td@(TDecl { tTParamKNumber = _ : _ }) =
@@ -171,7 +174,7 @@ calcPureDeps md roots = go roots roots
     mkOne f = (fName f, freeFVars f)
 
 -- We don't share code with sliceToFun as they are substantially different
-funToFunDef :: (Monad m, FreeVars e) => (e -> SolverT m SExpr) -> [(String, SExpr)] -> Fun e ->
+funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e) => (e -> SolverT m SExpr) -> [(String, SExpr)] -> Fun e ->
                SolverT m SMTFunDef
 funToFunDef _ _ Fun { fDef = External } =
   panic "Saw an external function" []
@@ -186,6 +189,7 @@ funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
                  , sfdRet  = symExecTy (fnameType (fName f))
                  , sfdBody = b
                  , sfdPureDeps = freeFVars f
+                 , sfdTyDeps   = freeTCons f
                  }
   where
     args = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f) ++ extraArgs -- For bytesets
@@ -195,8 +199,12 @@ funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
 defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
 defineSliceFunDefs md sl = do
   fdefs <- sequence $ foldMap (mkOneF [] symExec) (mFFuns md)
-  bdefs <- sequence $ foldMap (mkOneF byteArg (flip symExecByteSet byteV)) (mBFuns md)
-  let rFDefs      = topoOrder (\sfd -> (sfdName sfd, sfdPureDeps sfd)) (fdefs ++ bdefs)
+  bdefs <- sequence $ foldMap (mkOneF byteArg (flip symExecByteSet byteV)) (mBFuns md)  
+  let allDefs     = fdefs ++ bdefs
+      rFDefs      = topoOrder (\sfd -> (sfdName sfd, sfdPureDeps sfd)) allDefs
+
+  forM_ allDefs $ mapM_ defineSMTTypeDefs . tranclTypeDefs md . sfdTyDeps
+    
   mapM_ defineSMTFunDefs rFDefs
   where
     roots = freeFVars sl -- includes grammar calls as well
@@ -206,7 +214,7 @@ defineSliceFunDefs md sl = do
     byteV        = S.const byteN
     byteArg      = [(byteN, tByte)]
 
-    mkOneF :: (Monad m, FreeVars e) => [(String, SExpr)] -> (e -> SolverT m SExpr) -> Fun e ->
+    mkOneF :: (Monad m, FreeVars e, TraverseUserTypes e) => [(String, SExpr)] -> (e -> SolverT m SExpr) -> Fun e ->
               [SolverT m SMTFunDef]
     mkOneF extraArgs sexec f
       | fName f `Set.member` allFs = [funToFunDef sexec extraArgs f]
@@ -288,8 +296,9 @@ symExecOp1 op ty =
     FromJust        -> fun "fromJust"
     SelStruct _ l | TUser ut <- ty -> fun (labelToField (utName ut) l)
     -- FIXME: we probably need (_ as Foo) ...
-    InUnion ut l    -> 
-      S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
+    InUnion ut l    -> fun (labelToField (utName ut) l)
+      
+      -- S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
     
     FromUnion _ l | TUser ut <- ty -> fun ("get-" ++ labelToField (utName ut) l)
     
@@ -304,6 +313,8 @@ symExecOp2 :: Op2 -> Type -> SExpr -> SExpr -> SExpr
 
 -- Generic ops
 symExecOp2 ConsBuilder elTy = sPushBack (symExecTy elTy)
+symExecOp2 Eq          _elTy = S.eq
+symExecOp2 NotEq       _elTy = \x y -> S.distinct [x, y]
 
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of

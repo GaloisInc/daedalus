@@ -199,7 +199,9 @@ sArrayWithLength :: SExpr -> SExpr -> SExpr
 sArrayWithLength arr l = S.fun "mk-ArrayWithLength" [arr, l]
 
 sArrayLen :: SExpr -> SExpr -> SExpr
-sArrayLen elTy arr = S.app (S.as (S.const "get-length") (tArrayWithLength elTy)) [arr]
+sArrayLen elTy arr = S.fun "get-length" [arr]
+-- sArrayLen :: SExpr -> SExpr -> SExpr
+-- sArrayLen elTy arr = S.app (S.as (S.const "get-length") (tArrayWithLength elTy)) [arr]
 
 sArrayL :: SExpr -> SExpr
 sArrayL arr = S.fun "get-array" [arr]
@@ -229,7 +231,8 @@ sArrayIterNew :: SExpr -> SExpr
 sArrayIterNew arr = S.fun "mk-ArrayIter" [arr, sSize 0]
 
 sArrayIterDone :: SExpr -> SExpr -> SExpr
-sArrayIterDone elTy arrI = S.bvULeq (sArrayLen elTy (S.fun "get-arrayL" [arrI])) (S.fun "get-index" [arrI])
+sArrayIterDone elTy arrI = S.bvULeq (sArrayLen elTy
+                                      (S.app (S.as (S.const "get-arrayL") (tArrayWithLength elTy)) [arrI])) (S.fun "get-index" [arrI])
 
 sArrayIterKey :: SExpr -> SExpr
 sArrayIterKey arrI = S.fun "get-index" [arrI]

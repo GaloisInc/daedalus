@@ -10,9 +10,11 @@ import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.Type
 import Daedalus.Core.Normalize
+import Daedalus.Core.Inline
 
-allPassesM :: (Monad m, HasGUID m) => Module -> m Module
-allPassesM m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM >>= pure . normM
+allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
+allPassesM _entry m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM >>= pure . normM
+                     -- >>= inlineModule [entry]
 
 -- ----------------------------------------------------------------------------------------
 -- Name literal args to functions

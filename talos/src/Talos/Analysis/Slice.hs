@@ -12,6 +12,7 @@ import Control.Applicative ((<|>))
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set) 
 import qualified Data.Set as Set
 
 import Control.DeepSeq (NFData)
@@ -165,7 +166,7 @@ instance Eqv SliceLeaf where
       (SChoice ls, SChoice rs)       -> all (uncurry eqv) (zip ls rs)
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
-      _                              -> panic "Mismatched terms in eqvSliceLeaf" [showPP l, showPP r]
+      _                              -> panic "Mismatched terms in eqvSliceLeaf" ["Left", showPP l, "Right", showPP r]
 
 instance Eqv CallNode where
   eqv cn@(CallNode { callClass = cl1, callPaths = paths1 })
@@ -221,7 +222,8 @@ instance Merge SliceLeaf where
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
-      _                              -> panic "Mismatched terms in merge" [showPP l, showPP r]
+      _                              -> panic "Mismatched terms in merge"
+                                              ["Left", showPP l, "Right", showPP r]
 
 -- This assumes the slices come from the same program, i.e., simple
 -- slices should be identical.
@@ -251,6 +253,28 @@ instance Merge Slice where
       (_, SDo {})               -> merge r l
 
       (SLeaf sl1, SLeaf sl2) -> SLeaf (merge sl1 sl2)
+
+
+--------------------------------------------------------------------------------
+-- Called slices
+--
+
+sliceToCallees :: Slice -> Set (FName, SummaryClass, EntangledVar)
+sliceToCallees = go
+  where
+    go sl = case sl of
+      SDontCare _ sl'   -> go sl'
+      SDo _ l r         -> go l <> go r
+      SUnconstrained    -> mempty
+      SLeaf l           -> goLeaf l
+
+    goLeaf l = case l of
+      SPure _v      -> mempty
+      SMatch _m     -> mempty
+      SAssertion _e -> mempty
+      SChoice cs    -> foldMap go cs
+      SCall cn      -> Set.map (\ev -> (callName cn, callClass cn, ev)) (Map.keysSet (callPaths cn))
+      SCase _ c     -> foldMap go c
 
 --------------------------------------------------------------------------------
 -- Free instances

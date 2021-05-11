@@ -23,7 +23,7 @@ module Talos.SymExec.SolverT (
   -- * Context management
   modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, defineName, declareName, declareSymbol, knownFNames,
-  push, pop, popAll,
+  push, pop, popAll, reset,
   assert, check
   
   ) where
@@ -47,6 +47,8 @@ import Daedalus.PP
 
 import Daedalus.Core hiding (freshName)
 import qualified Daedalus.Core as C
+
+import Talos.SymExec.StdLib
 
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
@@ -109,6 +111,14 @@ popAll = do
     (topF : _rest) -> do
       solverOp (\s -> S.popMany s (fromIntegral $ length fs))
       SolverT (modify (\s -> s { frames = [], currentFrame = topF }))
+
+
+reset :: MonadIO m => SolverT m ()
+reset = do
+  SolverT (modify (\s -> s { currentFrame = emptySolverFrame, frames = [] }))
+  solverOp (\s -> S.ackCommand s (S.app (S.const "reset") []))
+  solverOp makeStdLib
+
 
 bindName :: Name -> String -> SolverFrame -> SolverFrame
 bindName k v f = f { frBoundNames = Map.insert k v (frBoundNames f) }
@@ -319,6 +329,7 @@ data SMTFunDef = SMTFunDef { sfdName :: FName
                            , sfdRet  :: SExpr
                            , sfdBody :: SExpr
                            , sfdPureDeps :: Set FName
+                           , sfdTyDeps   :: Set TName
                            }
 
 defineSMTFunDefs :: MonadIO m => Rec SMTFunDef -> SolverT m ()

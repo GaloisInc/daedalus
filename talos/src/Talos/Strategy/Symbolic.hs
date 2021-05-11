@@ -11,6 +11,7 @@ import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl')
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Data.Word (Word8)
 
@@ -28,7 +29,7 @@ import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
 
-import Talos.SymExec.SolverT (SolverT, push, pop, scoped, defineName, declareSymbol, assert)
+import Talos.SymExec.SolverT (SolverT, push, pop, reset, scoped, defineName, declareSymbol, assert)
 import qualified Talos.SymExec.SolverT as Solv
 import Talos.SymExec.StdLib
 import Talos.SymExec.Core
@@ -53,14 +54,32 @@ symbolicStrat =
 symbolicFun :: ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath)
 symbolicFun ptag sl = do
   -- defined referenced types/functions
+  reset -- FIXME
+  
   md <- getModule
-  defineSliceTypeDefs md sl
-  defineSliceFunDefs md sl
+  slAndDeps <- sliceToDeps sl
+  forM_ slAndDeps $ \sl' -> do
+    defineSliceTypeDefs md sl'
+    defineSliceFunDefs md sl'
+    
   scoped $ runSymbolicM $ do
     (_, pathM) <- stratSlice ptag sl
     check -- FIXME: only required if there was no recent 'check' command
     pathM
 
+-- We need to get types etc for called slices (including root slice)
+sliceToDeps :: (Monad m, LiftStrategyM m) => Slice -> m [Slice]
+sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
+  where
+    go seen new
+      | Just (n, rest) <- Set.minView new = do
+          sl' <- getOne n
+          let new' = sliceToCallees sl' `Set.difference` seen
+          go (Set.insert n seen) (new' `Set.union` rest)
+
+    go seen _ = mapM getOne (Set.toList seen)
+
+    getOne (f,cl,ev) = getParamSlice f cl ev
 
 -- We return the symbolic value (which may contain bound variables, so
 -- those have to be all at the top level) and a computation for
