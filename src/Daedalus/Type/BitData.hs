@@ -56,7 +56,7 @@ inferCtor ::
   BDD.Width ->
   (Located Label, [ Located BitDataField ]) ->
   [Maybe (Type, BDD.Pat)] ->
-  TypeM Grammar (TCTyDecl, (Label, (Type, Maybe TCBDUnionMeta)), BDD.Pat)
+  TypeM a (TCTyDecl, (Label, (Type, Maybe TCBDUnionMeta)), BDD.Pat)
 inferCtor tyN w (ctor, fields) m_sz_tys = do
   sz_tys <- resolveMissingTypes ctor w m_sz_tys
   let (_tys, szs) = unzip sz_tys
@@ -67,15 +67,14 @@ inferCtor tyN w (ctor, fields) m_sz_tys = do
       (fs,fpat) = mkFields w (zip fields sz_tys)
 
   n' <- TCTy <$> deriveNameWith mkIdent tyN
-  let conpat = BDD.pAnd cpat fpat
-      decl = TCTyDecl { tctyName    = n'
+  let decl = TCTyDecl { tctyName    = n'
                       , tctyParams  = []
                       , tctyBD      = Just fpat
                       , tctyDef     = TCTyStruct fs
                       }
       ty   = TCon n' []
 
-  pure (decl, (thingValue ctor, (ty, Just umeta)), conpat)
+  pure (decl, (thingValue ctor, (ty, Just umeta)), BDD.pAnd cpat fpat)
 
   where
     mkIdent ident = ident <> "_" <> thingValue ctor
@@ -190,8 +189,21 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
       , "constructor" <+> pp fld' <+> "has width" <+> pp w'
       ]
 
-  (decls, ctors, pats) <- unzip3 <$> zipWithM (inferCtor (bdName bd) width)
+  (decls, ctors, pats) <-
+      unzip3 <$> zipWithM (inferCtor (bdName bd) width)
                                               (bdCtors bd) m_sz_tyss
+
+  -- Check that all constructors are distinct
+  let overlap a b = not (BDD.willAlwaysFail (BDD.pAnd a b))
+      overlappingCons xs =
+        case xs of
+          (l,a) : bs -> [ (l,m) | (m,b) <- bs, overlap a b ] ++
+                        overlappingCons bs
+          []     -> []
+  case overlappingCons (zip (map fst ctors) pats) of
+    [] -> pure ()
+    (a,b) : _ -> reportDetailedError bd "Overlapping constructors"
+                   [ "constructor" <+> pp a, "constructor" <+> pp b ]
 
   let decl = TCTyDecl { tctyName    = TCTy (bdName bd)
                       , tctyParams  = []
