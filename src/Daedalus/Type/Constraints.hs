@@ -53,8 +53,6 @@ isSameCtr cNew cOld =
 
     -- XXX: CAdd
 
-    -- no case for IsNamed, TyDef because we don't generalize those.
-
     _ -> pure False
 
 
@@ -290,10 +288,12 @@ isCoercible r lossy tt1 tt2 =
         do unless (null args) nope
            mb <- isBitData tc
            case mb of
-             Just bd | Dynamic <- lossy ->
+             Just bd ->
                 do unify x (r, tNum (toInteger (BDD.width bd)))
-                   pure Solved
-              -- XXX: we could allow a safe coercion if the bitdata is complete
+                   case lossy of
+                     Dynamic -> pure Solved
+                     NotLossy | BDD.willAlwaysMatch bd -> pure Solved
+                     _ -> nope
              _ -> nope
       Type t2 ->
         case t2 of

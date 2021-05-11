@@ -352,6 +352,12 @@ compilePureExpr env = go
             Just r  -> invoke r env ts [] es
             Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
+        -- XXX: move to generic
+        TCCoerce _ t@(TCon {}) e ->
+          case evalBitData env e t of
+            Just v  -> v
+            Nothing -> panic "TCCoerceCheck" [ "Unexpeted coercion failre" ]
+
         TCCoerce _ t2 e -> fst (vCoerceTo (evalType env t2) (go e))
 
         TCMapEmpty _    -> VMap Map.empty
