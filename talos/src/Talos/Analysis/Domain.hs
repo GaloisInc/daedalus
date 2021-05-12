@@ -98,31 +98,28 @@ domainEqv dL dR = go (elements dL) (elements dR)
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
 explodeDomain :: Domain -> Map EntangledVar (EntangledVars, Slice)
-explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
-                               | el <- elements d ]
-  where -- FIXME
-    fmin s | Set.null s = panic "empty domain?" [showPP d]
-           | otherwise  = Set.findMin s
+explodeDomain d = Map.fromList [ (representativeEntangledVar (fst el), el) | el <- elements d ]
+           
 --------------------------------------------------------------------------------
 -- Helpers
 
-lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
-lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
+-- lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
+-- lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
 
-memberVar :: EntangledVar -> Domain -> Bool
-memberVar n ds = any (memberEntangledVars n . fst) (elements ds)
+-- memberVar :: EntangledVar -> Domain -> Bool
+-- memberVar n ds = any (memberEntangledVars n . fst) (elements ds)
 
-splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
-splitOnVarWith f ds =
-  case nin of
-    []  -> (Nothing, ds)
-    [d] -> (Just d, Domain nout)
-    _   -> panic "Multiple occurences of a variable in a domain" []
-  where
-    (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
+-- splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
+-- splitOnVarWith f ds =
+--   case nin of
+--     []  -> (Nothing, ds)
+--     [d] -> (Just d, Domain nout)
+--     _   -> panic "Multiple occurences of a variable in a domain" []
+--   where
+--     (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
 
-splitOnVar :: EntangledVar -> Domain -> (Maybe (EntangledVars, Slice), Domain)
-splitOnVar n = splitOnVarWith ((==) n)
+-- splitOnVar :: EntangledVar -> Domain -> (Maybe (EntangledVars, Slice), Domain)
+-- splitOnVar n = splitOnVarWith ((==) n)
 
 -- doesn't merge
 primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain

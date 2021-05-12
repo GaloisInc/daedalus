@@ -169,8 +169,8 @@ instance Eqv SliceLeaf where
       _                              -> panic "Mismatched terms in eqvSliceLeaf" ["Left", showPP l, "Right", showPP r]
 
 instance Eqv CallNode where
-  eqv cn@(CallNode { callClass = cl1, callPaths = paths1 })
-      cn'@(CallNode { callClass = cl2, callPaths = paths2 }) =
+  eqv (CallNode { callClass = cl1, callPaths = paths1 })
+      (CallNode { callClass = cl2, callPaths = paths2 }) =
     -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
     cl1 == cl2 && Map.keys paths1 == Map.keys paths2
     && all (uncurry eqv) (zip (Map.elems paths1) (Map.elems paths2)) -- assumes same order, we have same keys
@@ -194,7 +194,7 @@ class Merge a where
 
 instance Merge CallNode where
   merge cn@(CallNode { callClass = cl1, callPaths = paths1 }) 
-        cn'@(CallNode { callClass = cl2, callPaths = paths2 })
+           (CallNode { callClass = cl2, callPaths = paths2 })
     | cl1 /= cl2 = panic "Saw different function classes" []
     -- FIXME: need to deal with slices as they may have changed in deps, maybe better to drop this and just store the keys
     -- FIXME: we really need domain merging here, as we maybe have different keys but related var sets
@@ -321,7 +321,7 @@ callNodeActualArgs cn =
   Map.restrictKeys (callAllArgs cn) usedParams
   where
     usedEVParams = foldMap callParams (callPaths cn)
-    usedParams = Set.fromList [ v | ProgramVar v <- Set.toList (getEntangledVars usedEVParams) ]
+    usedParams   = programVars usedEVParams
 
 instance FreeVars CallNode where
   freeVars cn  = foldMap freeVars (Map.elems (callNodeActualArgs cn))

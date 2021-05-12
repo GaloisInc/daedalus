@@ -5,12 +5,13 @@
 module Talos.Analysis.EntangledVars where
 
 import Data.List (isPrefixOf)
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Daedalus.PP
--- import Daedalus.Panic
+import Daedalus.Panic
 
 import Daedalus.Core
 import Daedalus.Core.Free
@@ -36,6 +37,7 @@ isPrefix (EntangledVar bv1 fs1) (EntangledVar bv2 fs2) = bv1 == bv2 && fs1 `isPr
 --
 -- Basically if we have x.a.b then there will be "a" -> "b" -> {}
 
+-- We use empty to mean 'all'
 data FieldSet = FieldSet { getFieldSet :: Map Label FieldSet }
   deriving Eq
 
@@ -51,6 +53,14 @@ mergeFieldSet (FieldSet fs1) (FieldSet fs2)
 
 explodeFieldSet :: FieldSet -> [ [Label] ]
 explodeFieldSet fs = [ l : ls | (l, fs') <- Map.toList (getFieldSet fs), ls <- explodeFieldSet fs' ]
+
+-- | This says whether two sets of fields overlap -- i.e.,
+--  exists x : explodeFieldSet fs1, exists y : explodeFieldSet fs2, x `isPrefixOf` y || y `isPrefixOf` x 
+overlappingFields :: FieldSet -> FieldSet -> Bool
+overlappingFields (FieldSet fs1) (FieldSet fs2)
+  | Map.null fs1 = True
+  | Map.null fs2 = True
+  | otherwise    = or (Map.intersectionWith overlappingFields fs1 fs2) -- c.f. intersects below
 
 instance Semigroup FieldSet where
   (<>) = mergeFieldSet
@@ -94,6 +104,11 @@ entangledVars evs = [ EntangledVar bv fs
                     , fs <- explodeFieldSet fs0
                     ]
 
+representativeEntangledVar :: EntangledVars -> EntangledVar
+representativeEntangledVar evs
+  | ev : _ <- entangledVars evs = ev
+  | otherwise = panic "Empty entangled vars" []
+
 -- deleteEntangledVar :: EntangledVar -> EntangledVars -> EntangledVars
 -- deleteEntangledVar ev evs = EntangledVars (Set.delete ev (getEntangledVars evs))
 
@@ -104,19 +119,16 @@ entangledVars evs = [ EntangledVar bv fs
 -- substEntangledVars s (EntangledVars evs) =
 --   EntangledVars $ Set.unions (map (getEntangledVars . s) (Set.toList evs))
 
--- intersects :: EntangledVars -> EntangledVars -> Bool
--- intersects e1 e2 = not (Set.disjoint (getEntangledVars e1) (getEntangledVars e2))
+intersects :: EntangledVars -> EntangledVars -> Bool
+intersects e1 e2 =
+  or (Map.intersectionWith overlappingFields (getEntangledVars e1) (getEntangledVars e2))
 
 -- memberEntangledVars :: EntangledVar -> EntangledVars -> Bool
 -- memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
 
--- programVars :: EntangledVars -> Set Name
--- programVars (EntangledVars vs) =
---   Set.mapMonotonic fromProgramVar (Set.delete ResultVar vs)
---   where
---     fromProgramVar (ProgramVar v) = v
---     fromProgramVar ResultVar      = panic "Impossible" []
-
+programVars :: EntangledVars -> Set Name
+programVars (EntangledVars vs) =
+  Set.fromList [ v | ProgramVar v <- Map.keys vs ]
 
 --------------------------------------------------------------------------------
 -- Class instances
