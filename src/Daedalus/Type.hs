@@ -1370,11 +1370,11 @@ inferStructGrammar r = go [] []
                            , tGrammar (tcType x)
                            )
           (x : y : more, []) ->
-             reportDetailedError y "Cannot have multiple `_` fields. See:"
+             reportDetailedError y "Cannot have multiple `$$` fields. See:"
                             [ pp (range z) | z <- x : y : more
                             ]
 
-          (x : _, _) -> reportError x "Cannot mix `_` and named fields."
+          (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
 
 
 pureStruct ::
