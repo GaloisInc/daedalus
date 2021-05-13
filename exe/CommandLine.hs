@@ -15,6 +15,7 @@ import SimpleGetOpt
 data Command =
     DumpRaw
   | DumpTC
+  | DumpTypes
   | DumpSpec
   | DumpNorm
   | DumpRuleRanges
@@ -68,6 +69,10 @@ options = OptSpec
       , Option ['t'] ["dump-tc"]
         "Dump type-checked AST"
         $ simpleCommand DumpTC
+
+      , Option [] ["show-types"]
+        "List declarations with their types"
+        $ simpleCommand DumpTypes
 
       , Option ['r'] ["dump-raw"]
         "Dump parsed AST"

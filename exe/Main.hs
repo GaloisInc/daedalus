@@ -1,5 +1,6 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, BlockArguments #-}
 {-# Language ImplicitParams #-}
+{-# Language GADTs #-}
 module Main where
 
 import qualified Data.Text as Text
@@ -9,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         )
 import Control.Monad(when,forM_)
 import Data.Maybe(fromMaybe)
-import System.FilePath hiding (normalise)
+import System.FilePath hiding (normalise,(<.>))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
@@ -24,6 +25,7 @@ import Hexdump
 
 import Daedalus.PP
 import Daedalus.SourceRange
+import Daedalus.Rec(forgetRecs)
 
 import Daedalus.Driver
 
@@ -36,7 +38,8 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Type.AST(TCModule(..))
+import Daedalus.Type.AST(TCModule(..),TCDecl(..),typeOf,Type(..))
+import qualified Daedalus.Type.AST as TC
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -98,6 +101,9 @@ handleOptions opts
 
          DumpTC ->
            for_ allMods \m -> ddlPrint . pp =<< ddlGetAST m astTC
+
+         DumpTypes ->
+           for_ allMods \m -> ddlPrint . ppTypes =<< ddlGetAST m astTC
 
          DumpSpec ->
            do passSpecialize specMod [mainRule]
@@ -402,3 +408,64 @@ dumpHTML jsData = vcat
   Just tstyle  = lookup "style.css" template_files
   Just trender = lookup "render.js" template_files
   bytes = text . BS8.unpack
+
+
+
+ppTypes :: TCModule a -> Doc
+ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
+  where
+  ppD :: TCDecl a -> Doc
+  ppD d@TCDecl { tcDeclCtxt = ctx, tcDeclDef = def }
+    | Text.take 1 nm == "_" = empty
+    | otherwise = what <+> pp nm <.> colon $$ nest 2 ty
+    where
+    (_,nm) = nameScopeAsModScope (tcDeclName d)
+
+    tpMap = Map.fromList (zip (tcDeclTyParams d) names)
+    names = [ if v == 0 then char x else char x <> int v
+            | v <- [ 0 .. ], x <- [ 'a' .. 'z' ] ]
+    what = case ctx of
+             AGrammar -> "parser"
+             AValue   -> "semantic value"
+             AClass   -> "character class"
+    ty = vcat [ "for any type" <+> hsep (Map.elems tpMap) <.> colon
+              | not (Map.null tpMap) ]
+      $$ vcat [ "parameter:" <+>
+                case p of
+                  TC.ValParam {} -> ppTy 0 (typeOf p)
+                  TC.ClassParam {} -> "character class"
+                  TC.GrammarParam {} -> "parser for" <+> ppTy 0 (typeOf p)
+              | p <- tcDeclParams d
+              ]
+      $$ vcat [ "returns:" <+> ppTy 0 (typeOf def)
+              , " "
+              ]
+
+    ppTy n t = case t of
+                Type ty ->
+                  case ty of
+                    TGrammar a -> ppTy n a
+                    TFun a b   -> wrap 1 (ppTy 1 a <+> "=>" <+> ppTy 0 b)
+                    TStream    -> "stream"
+                    TByteClass -> "byte class"
+                    TNum n     -> integer n
+                    TUInt n    -> wrap 2 ("uint" <+> pp n)
+                    TSInt n    -> wrap 2 ("sint" <+> pp n)
+                    TInteger   -> "int"
+                    TBool      -> "bool"
+                    TUnit      -> "{}"
+                    TArray a   -> "[" <+> ppTy 0 a <+> "]"
+                    TMaybe a   -> wrap 2 ("maybe" <+> pp a)
+                    TMap a b   -> "[" <+> ppTy 1 a <+> "->" <+> ppTy 0 b <+> "]"
+
+                TCon f []      -> ppTC f
+                TCon f ts      -> wrap 2 (ppTC f <+> hsep (map (ppTy 2) ts))
+                TVar x         -> tpMap Map.! x
+
+      where wrap p x = if n < p then x else parens x
+
+  ppTC x = case x of
+             TC.TCTy x -> ppNM x
+             TC.TCTyAnon x i -> ppNM x <.> int i
+
+  ppNM = pp . snd . nameScopeAsModScope
