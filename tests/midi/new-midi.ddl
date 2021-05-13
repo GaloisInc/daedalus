@@ -7,8 +7,8 @@ def Main =
 -- A tagged block of midi data
 def Chunk name Body =
   block
-    Block 4 (Only (Match name))
-    Block (BE32 as uint 64) (Only Body)
+    ExactBlock 4 (Match name)
+    ExactBlock (BE32 as uint 64) Body
 
 
 --------------------------------------------------------------------------------
@@ -90,6 +90,8 @@ def VoiceMessage (tag : VoiceMessageTag) =
                                 msb # lsb
                            |}
 
+
+
 def NoteEvent = block
   key      = UInt7
   velocity = UInt7
@@ -158,9 +160,9 @@ def Meta =
     Match1 0xFF
     let tag = UInt8
     Guard (tag <= 0x7F);
-    Block VarQ
+    ExactBlock VarQ
       case tag of
-        0x00 -> {| sequence       = Only BE16 |}
+        0x00 -> {| sequence       = BE16 |}
         0x01 -> {| text           = Many UInt8 |}
         0x02 -> {| copyright      = Many UInt8 |}
         0x03 -> {| name           = Many UInt8 |}
@@ -168,13 +170,13 @@ def Meta =
         0x05 -> {| lyrics         = Many UInt8 |}
         0x06 -> {| marker         = Many UInt8 |}
         0x07 -> {| cue            = Many UInt8 |}
-        0x20 -> {| channel        = Only UInt8 |}
+        0x20 -> {| channel        = UInt8 |}
         0x2F -> {| end_track      = END |}
-        0x51 -> {| tempo          = Only BE24 |}
-        0x54 -> {| smtpe_offset   = Only SMTPEOffset |}
-        0x58 -> {| time_sig       = Only TimeSig |}
-        0x59 -> {| key_sig        = Only KeySig |}
-        0x7F -> {| seq_specifiec  = Only MetaSeqSpecific |}
+        0x51 -> {| tempo          = BE24 |}
+        0x54 -> {| smtpe_offset   = SMTPEOffset |}
+        0x58 -> {| time_sig       = TimeSig |}
+        0x59 -> {| key_sig        = KeySig |}
+        0x7F -> {| seq_specifiec  = MetaSeqSpecific |}
         _    -> {| unknown        = MetaUnknown tag |}
 
 def MetaSeqSpecific =
@@ -189,7 +191,7 @@ def MetaSeqSpecific =
 
 def MetaUnknown tag =
   block
-    tag = tag
+    tag = tag : uint 8
     data = Many UInt8
 
 bitdata Accidentals where
@@ -260,5 +262,7 @@ def Only P =
   block
     $$ = P
     END
+
+def ExactBlock n P = Block n (Only P)
 
 def Guard p = p is true
