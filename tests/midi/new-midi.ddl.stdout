@@ -101,9 +101,9 @@ type new-midi.MetaSeqSpecific = { manufacturer: uint 16
                                 ; data: [uint 8]
                                 }
  
-type new-midi.MetaUnknown ?a0 = { tag: ?a0
-                                ; data: [uint 8]
-                                }
+type new-midi.MetaUnknown = { tag: uint 8
+                            ; data: [uint 8]
+                            }
  
 {- bitdata
 ________
@@ -158,7 +158,7 @@ type new-midi.TimeSig = { nn: uint 8
                         ; bb: uint 8
                         }
  
-type new-midi.Meta = Choose { unknown: new-midi.MetaUnknown (uint 8)
+type new-midi.Meta = Choose { unknown: new-midi.MetaUnknown
                             ; seq_specifiec: new-midi.MetaSeqSpecific
                             ; key_sig: new-midi.KeySig
                             ; time_sig: new-midi.TimeSig
@@ -286,22 +286,22 @@ type new-midi.VarQChunk = Choose { More: new-midi.VarQChunk_More
 --- Rules:
  
 new-midi.BE16 : Grammar (uint 16) =
-  do (_109 : uint 8) <- GetByte
-     (_110 : uint 8) <- GetByte
-     pure (_109 # _110)
+  do (_112 : uint 8) <- GetByte
+     (_113 : uint 8) <- GetByte
+     pure (_112 # _113)
  
 new-midi.BE32 : Grammar (uint 32) =
-  do (_111 : uint 16) <- new-midi.BE16
-     (_112 : uint 16) <- new-midi.BE16
-     pure (_111 # _112)
+  do (_114 : uint 16) <- new-midi.BE16
+     (_115 : uint 16) <- new-midi.BE16
+     pure (_114 # _115)
  
 new-midi.Block ?a4 (n : uint 64) (P : Grammar ?a4) : Grammar ?a4 =
   do (cur : Stream) <- CurrentStream
-     do (_113 : Stream) <- StreamLen n cur
-        SetStream _113
+     do (_116 : Stream) <- StreamLen n cur
+        SetStream _116
      ($$ : ?a4) <- P
-     do (_114 : Stream) <- StreamOff n cur
-        SetStream _114
+     do (_117 : Stream) <- StreamOff n cur
+        SetStream _117
      pure $$
  
 new-midi.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
@@ -309,48 +309,54 @@ new-midi.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
      END
      pure $$
  
+new-midi.ExactBlock ?a3 (n : uint 64) (P : Grammar ?a3) : Grammar ?a3 =
+  new-midi.Block ?a3 n (new-midi.Only ?a3 P)
+ 
 new-midi._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
-     do (_113 : Stream) <- StreamLen n cur
-        SetStream _113
+     do (_116 : Stream) <- StreamLen n cur
+        SetStream _116
      _P
-     (_114 : Stream) <- StreamOff n cur
-     SetStream _114
+     (_117 : Stream) <- StreamOff n cur
+     SetStream _117
  
 new-midi._Only ?a1 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-new-midi.Chunk ?a8 (name : [uint 8]) (Body : Grammar ?a8) : Grammar ?a8 =
-  do new-midi._Block [uint 8] 4 (new-midi._Only [uint 8] (@MatchBytes name))
-     ($$ : ?a8) <- do (_117 : uint 64) <- do (_116 : uint 32) <- new-midi.BE32
-                                             pure (_116 as uint 64)
-                      new-midi.Block ?a8 _117 (new-midi.Only ?a8 Body)
+new-midi._ExactBlock ?a3 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  new-midi._Block ?a3 n (new-midi._Only ?a3 _P)
+ 
+new-midi.Chunk ?a4 (name : [uint 8]) (Body : Grammar ?a4) : Grammar ?a4 =
+  do new-midi._ExactBlock [uint 8] 4 (@MatchBytes name)
+     ($$ : ?a4) <- do (_120 : uint 64) <- do (_119 : uint 32) <- new-midi.BE32
+                                             pure (_119 as uint 64)
+                      new-midi.ExactBlock ?a4 _120 Body
      pure $$
  
 new-midi.Header : Grammar new-midi.Header =
-  new-midi.Chunk new-midi.Header "MThd" do (format : new-midi.MidiFormat) <- do (_118 : uint 16) <- new-midi.BE16
-                                                                                _118 AS new-midi.MidiFormat
-                                           (track_num : uint 64) <- do (_119 : uint 16) <- new-midi.BE16
-                                                                       pure (_119 as uint 64)
-                                           (time_unit : new-midi.MidiTimeUnit) <- do (_120 : uint 16) <- new-midi.BE16
-                                                                                     pure (_120 as new-midi.MidiTimeUnit)
+  new-midi.Chunk new-midi.Header "MThd" do (format : new-midi.MidiFormat) <- do (_121 : uint 16) <- new-midi.BE16
+                                                                                _121 AS new-midi.MidiFormat
+                                           (track_num : uint 64) <- do (_122 : uint 16) <- new-midi.BE16
+                                                                       pure (_122 as uint 64)
+                                           (time_unit : new-midi.MidiTimeUnit) <- do (_123 : uint 16) <- new-midi.BE16
+                                                                                     pure (_123 as new-midi.MidiTimeUnit)
                                            pure {format = format,
                                                  track_num = track_num,
                                                  time_unit = time_unit}
  
 rec value
   new-midi.VarQBuilder (result : int) : Grammar int =
-    do (_122 : new-midi.VarQChunk) <- do (_121 : uint 8) <- GetByte
-                                         pure (_121 as new-midi.VarQChunk)
-       case _122 is
+    do (_125 : new-midi.VarQChunk) <- do (_124 : uint 8) <- GetByte
+                                         pure (_124 as new-midi.VarQChunk)
+       case _125 is
          { {| More = x |} -> new-midi.VarQBuilder (result <# (x.value))
          ; {| Last = x |} -> pure (result <# (x.value))
          }
  
 new-midi.VarQ : Grammar (uint 64) =
-  do (_123 : int) <- new-midi.VarQBuilder 0
-     _123 AS uint 64
+  do (_126 : int) <- new-midi.VarQBuilder 0
+     _126 AS uint 64
  
 new-midi.Delta ?a2 (E : Grammar ?a2) : Grammar (new-midi.Delta ?a2) =
   do (after : uint 64) <- new-midi.VarQ
@@ -359,8 +365,8 @@ new-midi.Delta ?a2 (E : Grammar ?a2) : Grammar (new-midi.Delta ?a2) =
            event = event}
  
 new-midi.UInt7 : Grammar (uint 7) =
-  do (_124 : uint 8) <- GetByte
-     _124 AS uint 7
+  do (_127 : uint 8) <- GetByte
+     _127 AS uint 7
  
 new-midi.NoteEvent : Grammar new-midi.NoteEvent =
   do (key : uint 7) <- new-midi.UInt7
@@ -380,29 +386,29 @@ new-midi.ControllerChange : Grammar new-midi.ControllerChange =
  
 new-midi.VoiceMessage (tag : new-midi.VoiceMessageTag) : Grammar new-midi.VoiceMessage =
   case tag is
-    { {| note_off = _ |} -> do (_125 : new-midi.NoteEvent) <- new-midi.NoteEvent
-                               pure {note_off: _125}
-    ; {| note_on = _ |} -> do (_126 : new-midi.NoteEvent) <- new-midi.NoteEvent
-                              pure {note_on: _126}
-    ; {| aftertouch = _ |} -> do (_127 : new-midi.NoteEvent) <- new-midi.NoteEvent
-                                 pure {aftertouch: _127}
-    ; {| controller_change = _ |} -> do (_128 : new-midi.ControllerChange) <- new-midi.ControllerChange
-                                        pure {controller_change: _128}
-    ; {| program_change = _ |} -> do (_129 : uint 7) <- new-midi.UInt7
-                                     pure {program_change: _129}
-    ; {| channel_pressure = _ |} -> do (_130 : uint 7) <- new-midi.UInt7
-                                       pure {channel_pressure: _130}
-    ; {| pitch_bend = _ |} -> do (_132 : uint 14) <- do (lsb : uint 7) <- new-midi.UInt7
+    { {| note_off = _ |} -> do (_128 : new-midi.NoteEvent) <- new-midi.NoteEvent
+                               pure {note_off: _128}
+    ; {| note_on = _ |} -> do (_129 : new-midi.NoteEvent) <- new-midi.NoteEvent
+                              pure {note_on: _129}
+    ; {| aftertouch = _ |} -> do (_130 : new-midi.NoteEvent) <- new-midi.NoteEvent
+                                 pure {aftertouch: _130}
+    ; {| controller_change = _ |} -> do (_131 : new-midi.ControllerChange) <- new-midi.ControllerChange
+                                        pure {controller_change: _131}
+    ; {| program_change = _ |} -> do (_132 : uint 7) <- new-midi.UInt7
+                                     pure {program_change: _132}
+    ; {| channel_pressure = _ |} -> do (_133 : uint 7) <- new-midi.UInt7
+                                       pure {channel_pressure: _133}
+    ; {| pitch_bend = _ |} -> do (_135 : uint 14) <- do (lsb : uint 7) <- new-midi.UInt7
                                                         (msb : uint 7) <- new-midi.UInt7
                                                         ($$ : uint 14) <- pure (msb # lsb)
                                                         pure $$
-                                 pure {pitch_bend: _132}
+                                 pure {pitch_bend: _135}
     }
  
 new-midi.VoiceMessages : Grammar new-midi.VoiceMessages =
-  do (_134 : new-midi.VoiceMessagesHeader) <- do (_133 : uint 8) <- GetByte
-                                                 _133 AS new-midi.VoiceMessagesHeader
-     case _134 is
+  do (_137 : new-midi.VoiceMessagesHeader) <- do (_136 : uint 8) <- GetByte
+                                                 _136 AS new-midi.VoiceMessagesHeader
+     case _137 is
        { {| VoiceMessagesHeader = header |} -> do (channel : uint 4) <- pure (header.channel)
                                                   (message : new-midi.VoiceMessage) <- new-midi.VoiceMessage (header.tag)
                                                   (extra : [new-midi.Delta new-midi.VoiceMessage]) <- Many[] new-midi.Delta new-midi.VoiceMessage (new-midi.VoiceMessage (header.tag))
@@ -413,41 +419,41 @@ new-midi.VoiceMessages : Grammar new-midi.VoiceMessages =
  
 new-midi.ModeMessage : Grammar new-midi.ModeMessage =
   Choose biased
-    { {- all_sound_off -} do (_135 : {}) <- @MatchBytes [120,
+    { {- all_sound_off -} do (_138 : {}) <- @MatchBytes [120,
                                                          0]
-                             pure {all_sound_off: _135}
-    | {- reset_controllers -} do (_136 : {}) <- @MatchBytes [121,
+                             pure {all_sound_off: _138}
+    | {- reset_controllers -} do (_139 : {}) <- @MatchBytes [121,
                                                              0]
-                                 pure {reset_controllers: _136}
-    | {- local_control_off -} do (_137 : {}) <- @MatchBytes [122,
+                                 pure {reset_controllers: _139}
+    | {- local_control_off -} do (_140 : {}) <- @MatchBytes [122,
                                                              0]
-                                 pure {local_control_off: _137}
-    | {- local_control_on -} do (_138 : {}) <- @MatchBytes [122,
+                                 pure {local_control_off: _140}
+    | {- local_control_on -} do (_141 : {}) <- @MatchBytes [122,
                                                             127]
-                                pure {local_control_on: _138}
-    | {- all_notes_off -} do (_139 : {}) <- @MatchBytes [123,
+                                pure {local_control_on: _141}
+    | {- all_notes_off -} do (_142 : {}) <- @MatchBytes [123,
                                                          0]
-                             pure {all_notes_off: _139}
-    | {- omni_off -} do (_140 : {}) <- @MatchBytes [124,
+                             pure {all_notes_off: _142}
+    | {- omni_off -} do (_143 : {}) <- @MatchBytes [124,
                                                     0]
-                        pure {omni_off: _140}
-    | {- omni_on -} do (_141 : {}) <- @MatchBytes [125,
+                        pure {omni_off: _143}
+    | {- omni_on -} do (_144 : {}) <- @MatchBytes [125,
                                                    0]
-                       pure {omni_on: _141}
-    | {- mono_on -} do (_142 : uint 8) <- do @Match {'~'}
+                       pure {omni_on: _144}
+    | {- mono_on -} do (_145 : uint 8) <- do @Match {'~'}
                                              ($$ : uint 8) <- GetByte
                                              new-midi._Guard ($$ <= 16)
                                              pure $$
-                       pure {mono_on: _142}
-    | {- poly_on -} do (_143 : {}) <- @MatchBytes [127,
+                       pure {mono_on: _145}
+    | {- poly_on -} do (_146 : {}) <- @MatchBytes [127,
                                                    0]
-                       pure {poly_on: _143}
+                       pure {poly_on: _146}
     }
  
 new-midi.ModeMessages : Grammar new-midi.ModeMessages =
-  do (_145 : new-midi.ModeMessagesHeader) <- do (_144 : uint 8) <- GetByte
-                                                _144 AS new-midi.ModeMessagesHeader
-     case _145 is
+  do (_148 : new-midi.ModeMessagesHeader) <- do (_147 : uint 8) <- GetByte
+                                                _147 AS new-midi.ModeMessagesHeader
+     case _148 is
        { {| ModeMessagesHeader = header |} -> do (channel : uint 4) <- pure (header.channel)
                                                  (message : new-midi.ModeMessage) <- new-midi.ModeMessage
                                                  (extra : [new-midi.Delta new-midi.ModeMessage]) <- Many[] new-midi.Delta new-midi.ModeMessage new-midi.ModeMessage
@@ -458,16 +464,16 @@ new-midi.ModeMessages : Grammar new-midi.ModeMessages =
  
 new-midi.SysEx : Grammar new-midi.SysEx =
   Choose biased
-    { {- add_f0 -} do (_148 : [uint 8]) <- do @Match {'\240'}
-                                              ($$ : [uint 8]) <- do (_147 : uint 64) <- new-midi.VarQ
-                                                                    new-midi.Block [uint 8] _147 (Many[] GetByte)
+    { {- add_f0 -} do (_151 : [uint 8]) <- do @Match {'\240'}
+                                              ($$ : [uint 8]) <- do (_150 : uint 64) <- new-midi.VarQ
+                                                                    new-midi.Block [uint 8] _150 (Many[] GetByte)
                                               pure $$
-                      pure {add_f0: _148}
-    | {- as_is -} do (_151 : [uint 8]) <- do @Match {'\247'}
-                                             ($$ : [uint 8]) <- do (_150 : uint 64) <- new-midi.VarQ
-                                                                   new-midi.Block [uint 8] _150 (Many[] GetByte)
+                      pure {add_f0: _151}
+    | {- as_is -} do (_154 : [uint 8]) <- do @Match {'\247'}
+                                             ($$ : [uint 8]) <- do (_153 : uint 64) <- new-midi.VarQ
+                                                                   new-midi.Block [uint 8] _153 (Many[] GetByte)
                                              pure $$
-                     pure {as_is: _151}
+                     pure {as_is: _154}
     }
  
 new-midi.MetaSeqSpecific : Grammar new-midi.MetaSeqSpecific =
@@ -475,24 +481,24 @@ new-midi.MetaSeqSpecific : Grammar new-midi.MetaSeqSpecific =
                                    { do @Match {'\NUL'}
                                         ($$ : uint 16) <- new-midi.BE16
                                         pure $$
-                                   | do (_153 : uint 8) <- GetByte
-                                        pure (_153 as uint 16)
+                                   | do (_156 : uint 8) <- GetByte
+                                        pure (_156 as uint 16)
                                    }
      (data : [uint 8]) <- Many[] GetByte
      pure {manufacturer = manufacturer,
            data = data}
  
-new-midi.MetaUnknown ?a0 (tag : ?a0) : Grammar (new-midi.MetaUnknown ?a0) =
-  do (tag : ?a0) <- pure tag
+new-midi.MetaUnknown (tag : uint 8) : Grammar new-midi.MetaUnknown =
+  do (tag : uint 8) <- pure tag
      (data : [uint 8]) <- Many[] GetByte
      pure {tag = tag,
            data = data}
  
 new-midi.KeySig : Grammar new-midi.KeySig =
-  do (key : new-midi.Accidentals) <- do (_154 : uint 8) <- GetByte
-                                        pure (_154 as new-midi.Accidentals)
-     (mode : new-midi.Mode) <- do (_155 : uint 8) <- GetByte
-                                  _155 AS new-midi.Mode
+  do (key : new-midi.Accidentals) <- do (_157 : uint 8) <- GetByte
+                                        pure (_157 as new-midi.Accidentals)
+     (mode : new-midi.Mode) <- do (_158 : uint 8) <- GetByte
+                                  _158 AS new-midi.Mode
      pure {key = key,
            mode = mode}
  
@@ -519,61 +525,61 @@ new-midi.TimeSig : Grammar new-midi.TimeSig =
            bb = bb}
  
 new-midi.BE24 : Grammar (uint 24) =
-  do (_156 : uint 16) <- new-midi.BE16
-     (_157 : uint 8) <- GetByte
-     pure (_156 # _157)
+  do (_159 : uint 16) <- new-midi.BE16
+     (_160 : uint 8) <- GetByte
+     pure (_159 # _160)
  
 new-midi.Meta : Grammar new-midi.Meta =
   do @Match {'\255'}
      (tag : uint 8) <- GetByte
      new-midi._Guard (tag <= 127)
-     ($$ : new-midi.Meta) <- do (_159 : uint 64) <- new-midi.VarQ
-                                new-midi.Block new-midi.Meta _159 (case tag is
-                                                                     { 0 -> do (_160 : uint 16) <- new-midi.Only (uint 16) new-midi.BE16
-                                                                               pure {sequence: _160}
-                                                                     ; 1 -> do (_161 : [uint 8]) <- Many[] GetByte
-                                                                               pure {text: _161}
-                                                                     ; 2 -> do (_162 : [uint 8]) <- Many[] GetByte
-                                                                               pure {copyright: _162}
-                                                                     ; 3 -> do (_163 : [uint 8]) <- Many[] GetByte
-                                                                               pure {name: _163}
-                                                                     ; 4 -> do (_164 : [uint 8]) <- Many[] GetByte
-                                                                               pure {instrument: _164}
-                                                                     ; 5 -> do (_165 : [uint 8]) <- Many[] GetByte
-                                                                               pure {lyrics: _165}
-                                                                     ; 6 -> do (_166 : [uint 8]) <- Many[] GetByte
-                                                                               pure {marker: _166}
-                                                                     ; 7 -> do (_167 : [uint 8]) <- Many[] GetByte
-                                                                               pure {cue: _167}
-                                                                     ; 32 -> do (_168 : uint 8) <- new-midi.Only (uint 8) GetByte
-                                                                                pure {channel: _168}
-                                                                     ; 47 -> do (_169 : {}) <- END
-                                                                                pure {end_track: _169}
-                                                                     ; 81 -> do (_170 : uint 24) <- new-midi.Only (uint 24) new-midi.BE24
-                                                                                pure {tempo: _170}
-                                                                     ; 84 -> do (_171 : new-midi.SMTPEOffset) <- new-midi.Only new-midi.SMTPEOffset new-midi.SMTPEOffset
-                                                                                pure {smtpe_offset: _171}
-                                                                     ; 88 -> do (_172 : new-midi.TimeSig) <- new-midi.Only new-midi.TimeSig new-midi.TimeSig
-                                                                                pure {time_sig: _172}
-                                                                     ; 89 -> do (_173 : new-midi.KeySig) <- new-midi.Only new-midi.KeySig new-midi.KeySig
-                                                                                pure {key_sig: _173}
-                                                                     ; 127 -> do (_174 : new-midi.MetaSeqSpecific) <- new-midi.Only new-midi.MetaSeqSpecific new-midi.MetaSeqSpecific
-                                                                                 pure {seq_specifiec: _174}
-                                                                     ; _ -> do (_175 : new-midi.MetaUnknown (uint 8)) <- new-midi.MetaUnknown (uint 8) tag
-                                                                               pure {unknown: _175}
-                                                                     })
+     ($$ : new-midi.Meta) <- do (_162 : uint 64) <- new-midi.VarQ
+                                new-midi.ExactBlock new-midi.Meta _162 (case tag is
+                                                                          { 0 -> do (_163 : uint 16) <- new-midi.BE16
+                                                                                    pure {sequence: _163}
+                                                                          ; 1 -> do (_164 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {text: _164}
+                                                                          ; 2 -> do (_165 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {copyright: _165}
+                                                                          ; 3 -> do (_166 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {name: _166}
+                                                                          ; 4 -> do (_167 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {instrument: _167}
+                                                                          ; 5 -> do (_168 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {lyrics: _168}
+                                                                          ; 6 -> do (_169 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {marker: _169}
+                                                                          ; 7 -> do (_170 : [uint 8]) <- Many[] GetByte
+                                                                                    pure {cue: _170}
+                                                                          ; 32 -> do (_171 : uint 8) <- GetByte
+                                                                                     pure {channel: _171}
+                                                                          ; 47 -> do (_172 : {}) <- END
+                                                                                     pure {end_track: _172}
+                                                                          ; 81 -> do (_173 : uint 24) <- new-midi.BE24
+                                                                                     pure {tempo: _173}
+                                                                          ; 84 -> do (_174 : new-midi.SMTPEOffset) <- new-midi.SMTPEOffset
+                                                                                     pure {smtpe_offset: _174}
+                                                                          ; 88 -> do (_175 : new-midi.TimeSig) <- new-midi.TimeSig
+                                                                                     pure {time_sig: _175}
+                                                                          ; 89 -> do (_176 : new-midi.KeySig) <- new-midi.KeySig
+                                                                                     pure {key_sig: _176}
+                                                                          ; 127 -> do (_177 : new-midi.MetaSeqSpecific) <- new-midi.MetaSeqSpecific
+                                                                                      pure {seq_specifiec: _177}
+                                                                          ; _ -> do (_178 : new-midi.MetaUnknown) <- new-midi.MetaUnknown tag
+                                                                                    pure {unknown: _178}
+                                                                          })
      pure $$
  
 new-midi.Event : Grammar new-midi.Event =
   Choose biased
-    { {- voiceMessage -} do (_176 : new-midi.VoiceMessages) <- new-midi.VoiceMessages
-                            pure {voiceMessage: _176}
-    | {- modeMessage -} do (_177 : new-midi.ModeMessages) <- new-midi.ModeMessages
-                           pure {modeMessage: _177}
-    | {- sysEx -} do (_178 : new-midi.SysEx) <- new-midi.SysEx
-                     pure {sysEx: _178}
-    | {- meta -} do (_179 : new-midi.Meta) <- new-midi.Meta
-                    pure {meta: _179}
+    { {- voiceMessage -} do (_179 : new-midi.VoiceMessages) <- new-midi.VoiceMessages
+                            pure {voiceMessage: _179}
+    | {- modeMessage -} do (_180 : new-midi.ModeMessages) <- new-midi.ModeMessages
+                           pure {modeMessage: _180}
+    | {- sysEx -} do (_181 : new-midi.SysEx) <- new-midi.SysEx
+                     pure {sysEx: _181}
+    | {- meta -} do (_182 : new-midi.Meta) <- new-midi.Meta
+                    pure {meta: _182}
     }
  
 new-midi.Track : Grammar [new-midi.Delta new-midi.Event] =
@@ -596,38 +602,38 @@ new-midi._BE32 : Grammar {} =
   do new-midi._BE16
      new-midi._BE16
  
-new-midi._Chunk ?a8 (name : [uint 8]) (_Body : Grammar {}) : Grammar {} =
-  do new-midi._Block [uint 8] 4 (new-midi._Only [uint 8] (@MatchBytes name))
-     (_117 : uint 64) <- do (_116 : uint 32) <- new-midi.BE32
-                            pure (_116 as uint 64)
-     new-midi._Block ?a8 _117 (new-midi._Only ?a8 _Body)
+new-midi._Chunk ?a4 (name : [uint 8]) (_Body : Grammar {}) : Grammar {} =
+  do new-midi._ExactBlock [uint 8] 4 (@MatchBytes name)
+     (_120 : uint 64) <- do (_119 : uint 32) <- new-midi.BE32
+                            pure (_119 as uint 64)
+     new-midi._ExactBlock ?a4 _120 _Body
  
 new-midi._Header : Grammar {} =
-  new-midi._Chunk new-midi.Header "MThd" do do (_118 : uint 16) <- new-midi.BE16
-                                               @(_118 AS new-midi.MidiFormat)
+  new-midi._Chunk new-midi.Header "MThd" do do (_121 : uint 16) <- new-midi.BE16
+                                               @(_121 AS new-midi.MidiFormat)
                                             new-midi._BE16
                                             new-midi._BE16
  
 new-midi._VarQBuilder (result : int) : Grammar {} =
-  do (_122 : new-midi.VarQChunk) <- do (_121 : uint 8) <- GetByte
-                                       pure (_121 as new-midi.VarQChunk)
-     case _122 is
+  do (_125 : new-midi.VarQChunk) <- do (_124 : uint 8) <- GetByte
+                                       pure (_124 as new-midi.VarQChunk)
+     case _125 is
        { {| More = x |} -> do new-midi.VarQBuilder (result <# (x.value))
                               pure {}
        ; {| Last = x |} -> pure {}
        }
  
 new-midi._VarQ : Grammar {} =
-  do (_123 : int) <- new-midi.VarQBuilder 0
-     @(_123 AS uint 64)
+  do (_126 : int) <- new-midi.VarQBuilder 0
+     @(_126 AS uint 64)
  
 new-midi._Delta ?a2 (_E : Grammar {}) : Grammar {} =
   do new-midi._VarQ
      _E
  
 new-midi._UInt7 : Grammar {} =
-  do (_124 : uint 8) <- GetByte
-     @(_124 AS uint 7)
+  do (_127 : uint 8) <- GetByte
+     @(_127 AS uint 7)
  
 new-midi._NoteEvent : Grammar {} =
   do new-midi._UInt7
@@ -651,9 +657,9 @@ new-midi._VoiceMessage (tag : new-midi.VoiceMessageTag) : Grammar {} =
     }
  
 new-midi._VoiceMessages : Grammar {} =
-  do (_134 : new-midi.VoiceMessagesHeader) <- do (_133 : uint 8) <- GetByte
-                                                 _133 AS new-midi.VoiceMessagesHeader
-     case _134 is
+  do (_137 : new-midi.VoiceMessagesHeader) <- do (_136 : uint 8) <- GetByte
+                                                 _136 AS new-midi.VoiceMessagesHeader
+     case _137 is
        { {| VoiceMessagesHeader = header |} -> do new-midi._VoiceMessage (header.tag)
                                                   @Many[] new-midi._Delta new-midi.VoiceMessage (new-midi._VoiceMessage (header.tag))
        }
@@ -682,9 +688,9 @@ new-midi._ModeMessage : Grammar {} =
     }
  
 new-midi._ModeMessages : Grammar {} =
-  do (_145 : new-midi.ModeMessagesHeader) <- do (_144 : uint 8) <- GetByte
-                                                _144 AS new-midi.ModeMessagesHeader
-     case _145 is
+  do (_148 : new-midi.ModeMessagesHeader) <- do (_147 : uint 8) <- GetByte
+                                                _147 AS new-midi.ModeMessagesHeader
+     case _148 is
        { {| ModeMessagesHeader = header |} -> do new-midi._ModeMessage
                                                  @Many[] new-midi._Delta new-midi.ModeMessage new-midi._ModeMessage
        }
@@ -692,11 +698,11 @@ new-midi._ModeMessages : Grammar {} =
 new-midi._SysEx : Grammar {} =
   Choose biased
     { {- add_f0 -} do @Match {'\240'}
-                      (_147 : uint 64) <- new-midi.VarQ
-                      new-midi._Block [uint 8] _147 (@Many[] @GetByte)
+                      (_150 : uint 64) <- new-midi.VarQ
+                      new-midi._Block [uint 8] _150 (@Many[] @GetByte)
     | {- as_is -} do @Match {'\247'}
-                     (_150 : uint 64) <- new-midi.VarQ
-                     new-midi._Block [uint 8] _150 (@Many[] @GetByte)
+                     (_153 : uint 64) <- new-midi.VarQ
+                     new-midi._Block [uint 8] _153 (@Many[] @GetByte)
     }
  
 new-midi._MetaSeqSpecific : Grammar {} =
@@ -707,13 +713,13 @@ new-midi._MetaSeqSpecific : Grammar {} =
        }
      @Many[] @GetByte
  
-new-midi._MetaUnknown ?a0 : Grammar {} =
+new-midi._MetaUnknown : Grammar {} =
   @Many[] @GetByte
  
 new-midi._KeySig : Grammar {} =
   do @GetByte
-     (_155 : uint 8) <- GetByte
-     @(_155 AS new-midi.Mode)
+     (_158 : uint 8) <- GetByte
+     @(_158 AS new-midi.Mode)
  
 new-midi._SMTPEOffset : Grammar {} =
   do @GetByte
@@ -736,26 +742,26 @@ new-midi._Meta : Grammar {} =
   do @Match {'\255'}
      (tag : uint 8) <- GetByte
      new-midi._Guard (tag <= 127)
-     (_159 : uint 64) <- new-midi.VarQ
-     new-midi._Block new-midi.Meta _159 (case tag is
-                                           { 0 -> new-midi._Only (uint 16) new-midi._BE16
-                                           ; 1 -> @Many[] @GetByte
-                                           ; 2 -> @Many[] @GetByte
-                                           ; 3 -> @Many[] @GetByte
-                                           ; 4 -> @Many[] @GetByte
-                                           ; 5 -> @Many[] @GetByte
-                                           ; 6 -> @Many[] @GetByte
-                                           ; 7 -> @Many[] @GetByte
-                                           ; 32 -> new-midi._Only (uint 8) @GetByte
-                                           ; 47 -> END
-                                           ; 81 -> new-midi._Only (uint 24) new-midi._BE24
-                                           ; 84 -> new-midi._Only new-midi.SMTPEOffset new-midi._SMTPEOffset
-                                           ; 88 -> new-midi._Only new-midi.TimeSig new-midi._TimeSig
-                                           ; 89 -> new-midi._Only new-midi.KeySig new-midi._KeySig
-                                           ; 127 -> new-midi._Only new-midi.MetaSeqSpecific new-midi._MetaSeqSpecific
-                                           ; _ -> do (_175 : new-midi.MetaUnknown (uint 8)) <- new-midi.MetaUnknown (uint 8) tag
-                                                     pure {unknown: _175}
-                                           })
+     (_162 : uint 64) <- new-midi.VarQ
+     new-midi._ExactBlock new-midi.Meta _162 (case tag is
+                                                { 0 -> new-midi._BE16
+                                                ; 1 -> @Many[] @GetByte
+                                                ; 2 -> @Many[] @GetByte
+                                                ; 3 -> @Many[] @GetByte
+                                                ; 4 -> @Many[] @GetByte
+                                                ; 5 -> @Many[] @GetByte
+                                                ; 6 -> @Many[] @GetByte
+                                                ; 7 -> @Many[] @GetByte
+                                                ; 32 -> @GetByte
+                                                ; 47 -> END
+                                                ; 81 -> new-midi._BE24
+                                                ; 84 -> new-midi._SMTPEOffset
+                                                ; 88 -> new-midi._TimeSig
+                                                ; 89 -> new-midi._KeySig
+                                                ; 127 -> new-midi._MetaSeqSpecific
+                                                ; _ -> do (_178 : new-midi.MetaUnknown) <- new-midi.MetaUnknown tag
+                                                          pure {unknown: _178}
+                                                })
  
 new-midi._Event : Grammar {} =
   Choose biased
