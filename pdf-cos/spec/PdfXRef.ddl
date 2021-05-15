@@ -59,7 +59,16 @@ def CrossRefEntry = {
            inUse = UsedEntry num gen;
            free  = FreeEntry num gen;
         };
-  { $simpleWS; $cr | $lf } | { $cr; $lf };
+
+   { $simpleWS;  $cr | $lf }
+    -- standard compliant:
+
+    -- | { $cr; $lf }
+
+    -- Extending the above to allow *commonly allowed* (qpdf, mutool) exuberances:
+    -- (which allows the CrossRefEntry to possibly only have 19 bytes):
+
+      | { $cr | $lf ; Choose1{ $cr, $lf, ^0 }};
 }
 
 def UsedEntry (num : int) (gen : int) = {
