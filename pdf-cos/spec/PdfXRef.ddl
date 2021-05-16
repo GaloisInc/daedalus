@@ -154,13 +154,13 @@ def XRefCompressed (w : XRefFormat) = {
 -- Trailers
 
 def TrailerDict (dict : [ [uint 8] -> Value] ) = {
-  size    = LookupNat "Size" dict;
+  size    = LookupNatDirect "Size" dict;
   root    = Default nothing { -- allowed to be nothing for linearlized PDF
                 @x = Lookup "Root" dict;
                 commit;
                 just (x is ref);
               };
-  prev    = Optional (LookupNat "Prev" dict);
+  prev    = Optional (LookupNatDirect "Prev" dict);
   encrypt = Optional (TrailerDictEncrypt dict);
   all = ^ dict;
 }

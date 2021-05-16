@@ -325,6 +325,13 @@ def LookupNat k m =
     NumberAsNat v; 
   }
 
+-- like LookupNat, but indirect reference disallowed
+def LookupNatDirect k m =
+  { @vV = Lookup k m : Value;
+    @v  = vV is number;
+    NumberAsNat v; 
+  }
+
 def LookupSize k m = LookupNat k m as? uint 64
 
 def LookupNats k m = {
