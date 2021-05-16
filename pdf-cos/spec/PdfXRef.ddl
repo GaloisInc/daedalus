@@ -8,7 +8,9 @@ def CrossRef = Choose {
 }
 
 --------------------------------------------------------------------------------
--- "Old style" xref section and trailer
+-- xref section and trailer
+-- "Old style"? not really, not deprecated.
+--   However, an alternative approach via "cross reference streams" was added in PDF 1.5.
 
 def CrossRefAndTrailer = {
   xref    = CrossRefSection;
@@ -59,7 +61,9 @@ def FreeEntry (num : int) (gen : int) = {
 
 
 --------------------------------------------------------------------------------
--- "New style" xref object
+-- Cross-reference streams (section 7.5.8)
+--  "beginning with PDF 1.5"
+--  Peter Wyatt: "not preferable"
 
 def XRefObj = {
   @str  = TopDecl.obj is stream;
