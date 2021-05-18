@@ -115,11 +115,11 @@ inferRuleRec sr =
   guessRuleType r =
     do ts <- mapM guessParamType (ruleParams r)
        t  <- guessType (ruleName r)
-       let rt = ts :-> t
+       let rt = ([],ts) :-> t
        pure (ruleName r, Poly [] [] rt)
 
-  checkRule r (Poly _ _ (gAs :-> gR)) =
-    do (res, actualAs :-> actualR) <- inferRule r
+  checkRule r (Poly _ _ ((_,gAs) :-> gR)) =
+    do (res, (_,actualAs) :-> actualR) <- inferRule r
        forM_ (zip3 (ruleParams r) gAs actualAs) \(l,g,a) ->
           unify g (l,a)
 
@@ -191,12 +191,13 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                    d   = TCDecl { tcDeclName     = ruleName r
                                 , tcDeclTyParams = []
                                 , tcDeclCtrs     = []
+                                , tcDeclImplicit = []
                                 , tcDeclParams   = tps
                                 , tcDeclDef      = def
                                 , tcDeclCtxt     = nameContext
                                 , tcDeclAnnot    = ruleRange r
                                 }
-               pure (d, map typeOf tps :-> typeOf def)
+               pure (d, ([], map typeOf tps) :-> typeOf def)
 
       p : more ->
         do pa <- checkSig (paramName p) (paramType p)
@@ -685,6 +686,10 @@ inferExpr expr =
                              do (e1,t1) <- inContext AValue (inferExpr e)
                                 pure (x,e1,t1)
 
+                           -- XXX
+                           x :?= _ -> reportError x
+                              "implcit parameters only work in parsers for now"
+
                            -- this could make sense as a `let`?
                            x :@= _ -> reportError x "Unexpected local variable."
 
@@ -765,8 +770,6 @@ inferExpr expr =
            TopRule tys sig -> checkTopRuleCall (range expr) f tys sig es
            LocalRule ty -> inferLocalCall (range expr) f es ty
 
-
-
     EVar x@Name { nameContext } ->
       do mb <- Map.lookup x <$> getEnv
          case mb of
@@ -776,6 +779,13 @@ inferExpr expr =
                 checkPromote nm (exprAt expr (TCVar nm)) t
            Nothing -> inferExpr (Expr Located { thingRange = range expr
                                               , thingValue = EApp x [] })
+
+    EImplicit ip ->
+      do p <- addIPUse ip
+         case p of
+           ValParam x     -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+           ClassParam x   -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+           GrammarParam x -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
 
     EAnyByte ->
       do ctxt <- getContext
@@ -1130,17 +1140,38 @@ inferLocalCall erng f@Name { nameContext } es ty =
                            backticks (pp f))
 
 
+checkImplicitParam ::
+  HasRange r => r -> (IPName,Type) -> TypeM ctx (Arg SourceRange)
+checkImplicitParam r (i,t) =
+  do mb <- lookupIP i
+     case mb of
+       Nothing -> noIP
+       Just a  -> pure a
+  where
+  noIP =
+    do p <- addIPUse i
+       unify (r,typeOf p) (i,t)
+       pure case p of
+              ValParam x     -> ValArg     (exprAt r (TCVar x))
+              ClassParam x   -> ClassArg   (exprAt r (TCVar x))
+              GrammarParam x -> GrammarArg (exprAt r (TCVar x))
+
+
 
 checkTopRuleCall ::
   SourceRange ->
   Name     {- ^ Name of function -} ->
   [Type]   {- ^ Type arguments -}   ->
-  RuleType {- ^ Instantiate type of called function -} ->
+  RuleType {- ^ Instantiated type of called function -} ->
   [Expr]   {- ^ Epxression arguments -} ->
   TypeM ctx (TC SourceRange ctx, Type)
-checkTopRuleCall r f@Name { nameContext = fctx } tys (inTs :-> outT) es =
+checkTopRuleCall r f@Name { nameContext = fctx } tys
+                    ((impTs,inTs) :-> outT) es =
   do ctx <- getContext
      let ppf = backticks (pp f)
+
+     iargs <- mapM (checkImplicitParam r) impTs
+
      (args,_,mbStmts) <-
                       unzip3 <$> zipWithM checkArg (map Just inTs) es
      let have  = length args
@@ -1165,7 +1196,7 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys (inTs :-> outT) es =
                      , tcType = out1
                      , tcNameCtx = fctx
                      }
-         call = exprAt r (TCCall nm tys args)
+         call = exprAt r (TCCall nm tys (iargs ++ args))
      case ctx of
        AGrammar ->
           do (e1,t1) <- checkPromote nm call out1
@@ -1255,19 +1286,6 @@ checkPromote x e t =
 
 
 
--- XXX: Remove when we generalize `if`
-valueOnly :: HasRange r => r -> TypeM Value (TC SourceRange Value, Type) ->
-                                TypeM ctx (TC SourceRange ctx, Type)
-valueOnly r k =
-  do ctxt <- getContext
-     case ctxt of
-       AValue -> k
-       AClass ->
-          reportError r "Expected a value, but encountered a set of bytes."
-       AGrammar ->
-         reportError r "Expected a value, but encountered a grammar."
-
-
 grammarOnly ::
   HasRange r =>
   r ->
@@ -1341,6 +1359,8 @@ inferStructGrammar r = go [] []
 
       [COMMIT rn] -> reportError rn "COMMIT at the end of a struct"
 
+      [x :?= _] -> reportError x "Implcit parameter at the end of a struct"
+
       f : more ->
         case f of
           COMMIT rn -> do (res,kt) <- go mbRes done more
@@ -1355,26 +1375,66 @@ inferStructGrammar r = go [] []
                (ke,kt) <- go mbRes done more
                pure (exprAt e (TCDo Nothing e1 ke), kt)
 
-      [] ->
-        case (mbRes, done) of
-          ([], _) ->
-            do let xs'   = reverse done
-                   ls    = map (nameScopeAsLocal . tcName) xs'
-               (e,ty) <- pureStruct r ls (map tcType xs')
-                                         [ exprAt x (TCVar x) | x <- xs' ]
-               pure ( exprAt r (TCPure e)
-                    , tGrammar ty
-                    )
-          ([x],[]) -> pure ( exprAt x $ TCPure $
-                             exprAt x $ TCVar x
-                           , tGrammar (tcType x)
-                           )
-          (x : y : more, []) ->
-             reportDetailedError y "Cannot have multiple `$$` fields. See:"
-                            [ pp (range z) | z <- x : y : more
-                            ]
+          x@IPName { ipContext } :?= e ->
+            case ipContext of
+              AGrammar ->
+                do (e1,_) <- allowPartialApps False (inferExpr e)
+                   -- this copies the parser many times, but we have no good
+                   -- way to name it for now.
+                   withIP x (GrammarArg e1) (go mbRes done more)
 
-          (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
+              AClass ->
+                -- copies the character class
+                do (e1,_) <- inContext AClass (inferExpr e)
+                   withIP x (ClassArg e1) (go mbRes done more)
+
+              AValue ->
+                do ((e1,et),mb) <- liftValExpr e
+                   case mb of
+                     Just b ->
+                        -- copy is OK, because `e1` is a variable
+                        withIP x (ValArg e1)
+                        do (k,y) <- go mbRes done more
+                           pure (addBind b k, y)
+                     Nothing ->
+                       case texprValue e1 of
+                         TCVar {} -> withIP x (ValArg e1) (go mbRes done more)
+
+                         -- name the expression
+                         _ -> do v <- newName x et
+                                 let e2 = exprAt x (TCVar v)
+                                 do (k,y) <- withIP x (ValArg e2)
+                                             (go mbRes done more)
+                                    let s = exprAt x (TCDo (Just v) (exprAt x (TCPure e1)) k)
+                                    pure (s,y)
+
+
+      [] ->
+        do ips <- getUndefinedIPs
+           case ips of
+             i : _ -> reportError i ("Undefined implicit parameter" <+> pp i)
+             []    -> pure ()
+
+           case (mbRes, done) of
+             ([], _) ->
+               do let xs'   = reverse done
+                      ls    = map (nameScopeAsLocal . tcName) xs'
+                  (e,ty) <- pureStruct r ls (map tcType xs')
+                                            [ exprAt x (TCVar x) | x <- xs' ]
+                  pure ( exprAt r (TCPure e)
+                       , tGrammar ty
+                       )
+             ([x],[]) -> pure ( exprAt x $ TCPure $
+                                exprAt x $ TCVar x
+                              , tGrammar (tcType x)
+                              )
+             (x : y : more, []) ->
+                reportDetailedError y "Cannot have multiple `$$` fields. See:"
+                               [ pp (range z) | z <- x : y : more
+                               ]
+
+             (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
+
 
 
 pureStruct ::

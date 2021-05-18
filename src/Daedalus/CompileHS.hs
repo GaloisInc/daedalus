@@ -185,7 +185,7 @@ hsConstraint env ctr =
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
 
 hsRuleType :: Env -> RuleType -> Term
-hsRuleType env (xs :-> y) = foldr fun (hsType env y) xs
+hsRuleType env ((as,bs) :-> y) = foldr fun (hsType env y) (map snd as ++ bs)
   where fun x t = ApI "->" (hsType env x) t
 
 hsPolyRule :: Env -> Poly RuleType -> Qual

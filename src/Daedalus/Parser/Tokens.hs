@@ -7,6 +7,9 @@ data Token =
     BigIdent
   | SmallIdent
   | SetIdent
+  | SmallIdentI
+  | BigIdentI
+  | SetIdentI
   | Number  !Integer !(Maybe Int)
   | Bytes   !ByteString
   | Byte    !Word8

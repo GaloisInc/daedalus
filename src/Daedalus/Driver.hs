@@ -662,9 +662,10 @@ passSpecialize tgt roots =
      -- Find the actual Names, not just the ScopedIdents.  Pretty ugly
      let rootIds = [ ModScope m i | (m,i) <- roots ]
          -- FIXME: this ignores GUIDs
-         findRootNames m = [ tcDeclName d | d <- forgetRecs (tcModuleDecls m)
-                                          , nameScopedIdent (tcDeclName d) `elem` rootIds ]
-                                  
+         findRootNames m = [ tcDeclName d
+                           | d <- forgetRecs (tcModuleDecls m)
+                           , nameScopedIdent (tcDeclName d) `elem` rootIds ]
+
      allDecls <- forM allMods \m ->
                     do mo <- ddlGetAST m astTC
                        pure (tcModuleTypes mo, tcModuleDecls mo, findRootNames mo)

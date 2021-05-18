@@ -30,7 +30,7 @@ import Daedalus.SourceRange
 import Daedalus.Rec
 import qualified Daedalus.BDD as BDD
 import Daedalus.AST as LocalAST
-        ( Name(..), ManyBounds(..), BinOp(..), TriOp(..)
+        ( Name(..), IPName(..), ManyBounds(..), BinOp(..), TriOp(..)
         , Ident, ScopedIdent(..), primName
         , Commit(..)
         , UniOp(..), Label, Ctx(..)
@@ -48,7 +48,7 @@ data Kind       = KValue | KGrammar | KClass | KNumber
                   deriving (Eq,Show)
 
 
-data RuleType   = [Type] :-> Type
+data RuleType   = ([(IPName,Type)],[Type]) :-> Type
                   deriving Show
 
 data Poly a     = Poly [TVar] [Constraint] a
@@ -330,6 +330,9 @@ data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
                          , tcDeclTyParams :: ![TVar]
                          , tcDeclCtrs     :: ![Constraint]
+                         , tcDeclImplicit :: ![IPName]
+                           -- the first N params are implicit, used only
+                           -- during type checking
                          , tcDeclParams   :: ![Param]
                          , tcDeclDef      :: !(TCDeclDef a k)
                          , tcDeclCtxt     :: !(Context k)
@@ -361,11 +364,12 @@ instance PP Kind where
       KNumber  -> "a size"
 
 instance PP RuleType where
-  ppPrec n (as :-> b) = wrapIf (n > 0)
+  ppPrec n ((is,as) :-> b) = wrapIf (n > 0)
                       $ hsep
                       $ intersperse "->"
-                      $ map (ppPrec 1)
-                      $ as ++ [b]
+                      $ map ppImp is ++ map (ppPrec 1) as ++ [ppPrec 1 b]
+    where
+    ppImp (x,t) = parens (pp x <+> ":" <+> pp t)
 
 
 instance PP TCTyName where
@@ -575,7 +579,6 @@ instance PP a => PP (Poly a) where
                               [] -> empty
                               _  -> parens (commaSep (map pp cs)) <+> "=>"
                  in wrapIf (n > 0) (qual <+> ctrs <+> pp a)
-
 
 
 instance PP (TCModule a) where
@@ -984,8 +987,13 @@ instance TypeOf (TCAlt a k) where
 
 declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =
-    Poly (tcDeclTyParams d) (tcDeclCtrs d)
-             $ map typeOf (tcDeclParams d) :-> typeOf tcDeclDef
+    Poly (tcDeclTyParams d) (tcDeclCtrs d) ((impl,expl) :-> typeOf tcDeclDef)
+  where
+  implicitNum = length (tcDeclImplicit d)
+  (is,es) = splitAt implicitNum (tcDeclParams d)
+  impl = zip (tcDeclImplicit d) (map typeOf is)
+  expl = map typeOf es
+
 
 
 -- | The type of thing we match

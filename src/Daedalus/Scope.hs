@@ -276,6 +276,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EArray es       -> EArray    <$> resolve es
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x
+      EImplicit {}    -> pure expr
       ETry e          -> ETry      <$> resolve e
       ECase e ps      -> ECase     <$> resolve e <*> mapM resolveCasePatterns ps
 
@@ -377,6 +378,7 @@ resolveStructFields (f : fs) =
     Anon e   -> (:) <$> (Anon <$> resolve e) <*> resolveStructFields fs
     x := e   -> go (:=)  x e
     x :@= e  -> go (:@=) x e
+    x :?= e  -> (:) <$> ((x :?=) <$> resolve e) <*> resolveStructFields fs
   where
     go ctor x e =
       do x'  <- makeNameLocal x

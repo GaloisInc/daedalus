@@ -52,6 +52,7 @@ partialApply tnm' targs newPs args
     tcDeclName     = tnm',
     tcDeclTyParams = [],
     tcDeclCtrs     = [],
+    tcDeclImplicit = [],
     tcDeclParams   = tparams' ++ newPs',
     tcDeclDef      = tdef',
     tcDeclCtxt     = tctxt,

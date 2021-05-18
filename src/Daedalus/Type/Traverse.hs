@@ -38,7 +38,10 @@ instance TraverseTypes e => TraverseTypes (TCAnnot a e) where
 
 
 instance TraverseTypes RuleType where
-  traverseTypes f (xs :-> y) = (:->) <$> traverse f xs <*> f y
+  traverseTypes f (xs :-> y) = (:->) <$> travArg xs <*> f y
+    where
+    traveIP (x,t) = (,) x <$> f t
+    travArg (is,ts) = (,) <$> traverse traveIP is <*> traverse f ts
 
 instance TraverseTypes (TC a k) where
   traverseTypes f (TC m) = TC <$> traverseTypes f m

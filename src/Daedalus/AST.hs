@@ -95,6 +95,36 @@ instance Ord Name where
 instance PP Name where
   pp = pp . nameScopedIdent
 
+
+-- Name for an implcit parameter.  Note that these are not resolvd like
+-- normal names as they are effectively global.
+data IPName = forall ctx. IPName
+  { ipName    :: Ident
+  , ipContext :: Context ctx
+  , ipRange   :: SourceRange
+  }
+
+instance Eq IPName where
+  x == y = ipName x == ipName y
+
+instance Ord IPName where
+  compare x y = compare (ipName x) (ipName y)
+
+instance PP IPName where
+  pp = pp . ipName
+
+instance Show IPName where
+  show IPName { .. } =
+    "IPName { ipName = "    ++ show ipName ++ ", " ++
+             "ipContext = " ++ show ipContext ++ ", " ++
+             "ipRange = "   ++ show ipContext ++ " }"
+
+instance HasRange IPName where
+  range = ipRange
+
+
+
+
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
                      , moduleBitData :: [BitData] -- ordered
@@ -174,6 +204,7 @@ data ExprF e =
   | EIn         !(UnionField e)    -- make a value of a union type
   | EApp        !Name [e]
   | EVar        !Name
+  | EImplicit   !IPName
   | ETry        !e
   | ECase       !Expr [PatternCase e]
 
@@ -261,6 +292,7 @@ data StructField e =
     Anon      !e
   | !Name :=  !e
   | !Name :@= !e
+  | !IPName :?= !e
   | COMMIT SourceRange
     deriving (Show, Functor, Foldable, Traversable)
 

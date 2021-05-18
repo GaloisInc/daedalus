@@ -181,7 +181,7 @@ instance FreeTVS a => FreeTVS (Rec a) where
   freeTVS = freeTVS . recToList
 
 instance FreeTVS a => FreeTVS (Poly a) where
-  freeTVS (Poly as cs t) = (freeTVS cs `Set.union` freeTVS t)
+  freeTVS (Poly as cs t) = Set.unions [ freeTVS cs, freeTVS t ]
                                   `Set.difference` Set.fromList as
 
 instance FreeTVS RuleType where

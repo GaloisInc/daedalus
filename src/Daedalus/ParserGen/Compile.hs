@@ -357,6 +357,7 @@ allocDecl n _decl@(TCDecl {..}) =
       { tcDeclName = tcDeclName
       , tcDeclTyParams = tcDeclTyParams
       , tcDeclCtrs = tcDeclCtrs
+      , tcDeclImplicit = []
       , tcDeclParams = tcDeclParams
       , tcDeclDef = ne
       , tcDeclCtxt = tcDeclCtxt

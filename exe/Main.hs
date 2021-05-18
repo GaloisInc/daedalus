@@ -414,6 +414,8 @@ dumpHTML jsData = vcat
 ppTypes :: TCModule a -> Doc
 ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
   where
+  -- XXX: Use declTypeOf :: TCDecl a -> Poly RuleType
+
   ppD :: TCDecl a -> Doc
   ppD d@TCDecl { tcDeclCtxt = ctx, tcDeclDef = def }
     | Text.take 1 nm == "_" = empty

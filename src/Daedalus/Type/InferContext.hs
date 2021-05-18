@@ -22,8 +22,11 @@ inferContext expr =
     EChoiceU {}           -> Some AGrammar    -- XXX: This is wrong due to "or" to be fixed soon
     EChoiceT {}           -> Some AGrammar
     EApp Name { .. } []   -> Some nameContext
+
     EApp Name { .. } es   -> nameContext `grammarIf` map inferContext es
+
     EVar Name { .. }      -> Some nameContext
+    EImplicit IPName { .. } -> Some ipContext
 
     ETry {}               -> Some AGrammar
 
@@ -109,4 +112,5 @@ inferStructField fi =
     COMMIT {} -> Some AGrammar
     _ :@= _   -> Some AGrammar
     _ := e    -> inferContext e
+    IPName { .. } :?= _   -> Some ipContext
 
