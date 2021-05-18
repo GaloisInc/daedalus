@@ -16,7 +16,7 @@ import System.CPUTime(getCPUTime)
 import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
-import Control.Exception(evaluate)
+import Control.Exception(evaluate,try,throwIO)
 import RTS.Numeric(intToSize)
 import RTS.Vector(vecFromRep,vecToString,vecToRep)
 import RTS.Input
@@ -135,9 +135,11 @@ fmtDriver fmt file pwd =
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
-     fileEC <- makeEncContext trail refs topInput pwd 
-
-     mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
+     mb <- try (makeEncContext trail refs topInput pwd)
+     case mb of
+       Left err -> catalogParseError fmt err
+       Right fileEC ->
+         mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
 
 
@@ -150,7 +152,10 @@ data DeclResult' a = DeclResult
                       , declResult     :: a
                       }
 
-parseDecl :: DbgMode => ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
+parseDecl ::
+  DbgMode =>
+  ((Int, Int) -> Maybe EncContext) ->
+  Input -> ObjIndex -> (R, ObjLoc) -> IO DeclResult
 parseDecl fileEC topInput refMap (ref,loc) =
   do start  <- getCPUTime
      result <- evaluate =<< runParser refMap objEC parser topInput
@@ -183,13 +188,17 @@ parseDecl fileEC topInput refMap (ref,loc) =
         , True
         , Nothing 
         )
-    
+
 --------------------------------------------------------------------------------
 
 
 
 
-checkDecl :: DbgMode => Format -> ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> (R, ObjLoc) -> IO ()
+checkDecl ::
+  DbgMode =>
+  Format ->
+  ((Int, Int) -> Maybe EncContext) ->
+  Input -> ObjIndex -> (R, ObjLoc) -> IO ()
 checkDecl fmt fileEC topInput refMap d@(ref,loc) =
   do res <- parseDecl fileEC topInput refMap d
      case declResult res of
@@ -229,11 +238,20 @@ driver opts = runReport opts $
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
-     fileEC <- liftIO $ makeEncContext trail refs topInput (BS.pack $ optPassword opts)
+     let pwd = BS.pack (optPassword opts)
+     mb <- liftIO (try (makeEncContext trail refs topInput pwd))
+     case mb of
+       Left err -> reportCritical file (peOffset err) (ppParserError err)
+       Right fileEC -> parseObjs file fileEC topInput refs
 
-     parseObjs file fileEC topInput refs
 
-parseObjs :: DbgMode => FilePath -> ((Int, Int) -> Maybe EncContext) -> Input -> ObjIndex -> ReportM ()
+     
+
+parseObjs ::
+  DbgMode =>
+  FilePath ->
+  ((Int, Int) -> Maybe EncContext) ->
+  Input -> ObjIndex -> ReportM ()
 parseObjs fileN fileEC topInput refMap = mapM_ doOne (Map.toList refMap)
   where
   doOne d@(ref,_) =
@@ -242,7 +260,7 @@ parseObjs fileN fileEC topInput refMap = mapM_ doOne (Map.toList refMap)
              do let timeMsg = parens (hcat [int (declTime res), "us"])
                     oidMsg = "OID" <+> int (refObj ref) <+> int (refGen ref)
                 report cl fileN 0 (timeMsg <+> oidMsg <+> msg)
-       
+
        let saySafety (x :: CheckDecl) (si :: TsafetyInfo) =
              case (getField @"hasJS" si, getField @"hasURI" si) of
                (False, False) -> sayTimed RInfo (sayObj (getField @"obj" x) <+> "parsed successfully")
@@ -273,17 +291,15 @@ sayVal v = case v of
              Value_array {}  -> "array"
              Value_dict {}   -> "dict"
 
-quit :: String -> IO a
-quit msg =
-  do error msg 
 
-handlePdfResult :: IO (PdfResult a) -> String -> IO a 
-handlePdfResult x msg = 
+-- | Turn parse error into an exception
+handlePdfResult :: IO (PdfResult a) -> String -> IO a
+handlePdfResult x msg =
   do  res <- x
       case res of
         ParseOk a     -> pure a
-        ParseAmbig {} -> quit msg 
-        ParseErr e    -> quit (show e) 
+        ParseAmbig {} -> error msg
+        ParseErr e    -> throwIO e
 
 -- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
