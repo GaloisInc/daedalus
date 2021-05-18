@@ -73,6 +73,7 @@ module Daedalus.Type.Monad
   , removeIPUses
   , withIP
   , lookupIP
+  , getUndefinedIPs
   ) where
 
 
@@ -521,6 +522,12 @@ lookupIP x = TypeM
      case Map.lookup x (roIP ro) of
        Nothing -> pure Nothing
        Just i  -> sets \s -> (Just i, s { sIPUsed = Set.insert x (sIPUsed s) })
+
+getUndefinedIPs :: TypeM ctx [ IPName ]
+getUndefinedIPs = TypeM
+  do ro <- ask
+     s  <- get
+     pure [ x | x <- Map.keys (roIP ro), not (x `Set.member` sIPUsed s) ]
 
 
 newTyDefName :: TypeM ctx TCTyName

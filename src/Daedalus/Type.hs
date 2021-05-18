@@ -1410,25 +1410,30 @@ inferStructGrammar r = go [] []
 
 
       [] ->
-        case (mbRes, done) of
-          ([], _) ->
-            do let xs'   = reverse done
-                   ls    = map (nameScopeAsLocal . tcName) xs'
-               (e,ty) <- pureStruct r ls (map tcType xs')
-                                         [ exprAt x (TCVar x) | x <- xs' ]
-               pure ( exprAt r (TCPure e)
-                    , tGrammar ty
-                    )
-          ([x],[]) -> pure ( exprAt x $ TCPure $
-                             exprAt x $ TCVar x
-                           , tGrammar (tcType x)
-                           )
-          (x : y : more, []) ->
-             reportDetailedError y "Cannot have multiple `$$` fields. See:"
-                            [ pp (range z) | z <- x : y : more
-                            ]
+        do ips <- getUndefinedIPs
+           case ips of
+             i : _ -> reportError i ("Undefined implicit parameter" <+> pp i)
+             []    -> pure ()
 
-          (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
+           case (mbRes, done) of
+             ([], _) ->
+               do let xs'   = reverse done
+                      ls    = map (nameScopeAsLocal . tcName) xs'
+                  (e,ty) <- pureStruct r ls (map tcType xs')
+                                            [ exprAt x (TCVar x) | x <- xs' ]
+                  pure ( exprAt r (TCPure e)
+                       , tGrammar ty
+                       )
+             ([x],[]) -> pure ( exprAt x $ TCPure $
+                                exprAt x $ TCVar x
+                              , tGrammar (tcType x)
+                              )
+             (x : y : more, []) ->
+                reportDetailedError y "Cannot have multiple `$$` fields. See:"
+                               [ pp (range z) | z <- x : y : more
+                               ]
+
+             (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
 
 
 
