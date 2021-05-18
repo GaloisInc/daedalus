@@ -9,10 +9,11 @@
 module Talos.Analysis.Domain where
 
 import Data.List (partition, foldl1')
+import Data.Either (partitionEithers)
+
 import Data.Map (Map)
+import Data.Maybe (mapMaybe)
 import qualified Data.Map as Map
-import Data.Maybe (listToMaybe)
-import qualified Data.Set as Set
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -103,27 +104,32 @@ explodeDomain d = Map.fromList [ (representativeEntangledVar (fst el), el) | el 
 --------------------------------------------------------------------------------
 -- Helpers
 
--- lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
--- lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
+-- Look up exactly the variable passed in (i.e., we don't check if it
+-- is covered by another variable)
+lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
+lookupVar n ds = Map.lookup n (explodeDomain ds)
 
--- memberVar :: EntangledVar -> Domain -> Bool
--- memberVar n ds = any (memberEntangledVars n . fst) (elements ds)
+-- | If this returns [] then the variable isn't mapped; it can also
+-- return [emptyFieldSet] which means we care about all the children
+-- (or it is not a struct)
+domainFileSets :: BaseEntangledVar -> Domain -> [FieldSet]
+domainFileSets bv ds = mapMaybe (lookupBaseEV bv . fst) (elements ds)
 
--- splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
--- splitOnVarWith f ds =
---   case nin of
---     []  -> (Nothing, ds)
---     [d] -> (Just d, Domain nout)
---     _   -> panic "Multiple occurences of a variable in a domain" []
---   where
---     (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
-
--- splitOnVar :: EntangledVar -> Domain -> (Maybe (EntangledVars, Slice), Domain)
--- splitOnVar n = splitOnVarWith ((==) n)
+-- Removes bv from the domain, returning any slices rooted at bv
+splitRemoveVar :: BaseEntangledVar -> Domain -> ([(FieldSet, Slice)], Domain)
+splitRemoveVar bv ds = (nin, Domain nout)
+  where
+    (nin, nout) =
+      partitionEithers [ case m_fs of
+                           Just fset | nullEntangledVars evs'-> Left  (fset, sl)
+                           _                                 -> Right (evs', sl)
+                       | (evs, sl) <- elements ds
+                       , let (m_fs, evs') = deleteBaseEV bv evs
+                       ]
 
 -- doesn't merge
-primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
-primAddDomainElement d ds = Domain (d : elements ds)
+-- primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
+-- primAddDomainElement d ds = Domain (d : elements ds)
 
 --------------------------------------------------------------------------------
 -- Class instances

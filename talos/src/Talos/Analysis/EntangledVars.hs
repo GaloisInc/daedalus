@@ -1,5 +1,6 @@
 {-# LANGUAGE KindSignatures, GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 
 module Talos.Analysis.EntangledVars where
@@ -10,11 +11,13 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
+
 import Daedalus.PP
 import Daedalus.Panic
 
 import Daedalus.Core
-import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
 -- Two variables are entangled if information can flow between them
@@ -38,8 +41,9 @@ isPrefix (EntangledVar bv1 fs1) (EntangledVar bv2 fs2) = bv1 == bv2 && fs1 `isPr
 -- Basically if we have x.a.b then there will be "a" -> "b" -> {}
 
 -- We use empty to mean 'all'
+-- FIXME: make this a sum type, e.g. SemanticProjection = IdentityProjection | FieldSet ...
 data FieldSet = FieldSet { getFieldSet :: Map Label FieldSet }
-  deriving Eq
+  deriving (Ord, Eq, Show, Generic, NFData)
 
 -- Not exactly empty, just has no children
 emptyFieldSet :: FieldSet
@@ -74,9 +78,6 @@ instance Monoid FieldSet where
 newtype EntangledVars = EntangledVars { getEntangledVars :: Map BaseEntangledVar FieldSet }
   deriving (Eq)
 
-freeEntangledVars :: FreeVars a => a -> EntangledVars
-freeEntangledVars = EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
-
 instance Semigroup EntangledVars where
   (<>) = mergeEntangledVars
   
@@ -87,16 +88,19 @@ mergeEntangledVars :: EntangledVars -> EntangledVars -> EntangledVars
 mergeEntangledVars evs1 evs2 =
   EntangledVars $ Map.unionWith mergeFieldSet (getEntangledVars evs1) (getEntangledVars evs2)
 
-singletonEntangledVars :: EntangledVar -> EntangledVars
-singletonEntangledVars (EntangledVar bv fs) = EntangledVars $ Map.singleton bv fs'
-  where
-    fs' = foldr (\a b -> FieldSet $ Map.singleton a b) emptyFieldSet fs
+singletonEntangledVars :: BaseEntangledVar -> FieldSet -> EntangledVars
+singletonEntangledVars bv fs = EntangledVars $ Map.singleton bv fs
+  -- where
+  --   fs' = foldr (\a b -> FieldSet $ Map.singleton a b) emptyFieldSet fs
   
 mergeEntangledVarss :: [EntangledVars] -> EntangledVars
 mergeEntangledVarss = mconcat
 
-insertEntangledVar :: EntangledVar -> EntangledVars -> EntangledVars
-insertEntangledVar ev evs = singletonEntangledVars ev <> evs
+nullEntangledVars :: EntangledVars -> Bool
+nullEntangledVars = Map.null . getEntangledVars
+
+-- insertEntangledVar :: EntangledVar -> EntangledVars -> EntangledVars
+-- insertEntangledVar ev evs = singletonEntangledVars ev <> evs
 
 entangledVars :: EntangledVars -> [EntangledVar]
 entangledVars evs = [ EntangledVar bv fs
@@ -109,22 +113,27 @@ representativeEntangledVar evs
   | ev : _ <- entangledVars evs = ev
   | otherwise = panic "Empty entangled vars" []
 
--- deleteEntangledVar :: EntangledVar -> EntangledVars -> EntangledVars
--- deleteEntangledVar ev evs = EntangledVars (Set.delete ev (getEntangledVars evs))
+
+lookupBaseEV :: BaseEntangledVar -> EntangledVars -> Maybe FieldSet
+lookupBaseEV bv evs = Map.lookup bv (getEntangledVars evs)
+
+deleteBaseEV :: BaseEntangledVar -> EntangledVars -> (Maybe FieldSet, EntangledVars)
+deleteBaseEV bv evs = 
+  ( Map.lookup bv (getEntangledVars evs)
+  , EntangledVars (Map.delete bv (getEntangledVars evs)))
 
 -- sizeEntangledVars :: EntangledVars -> Int
 -- sizeEntangledVars = Set.size . getEntangledVars
 
--- substEntangledVars :: (EntangledVar -> EntangledVars) -> EntangledVars -> EntangledVars
--- substEntangledVars s (EntangledVars evs) =
---   EntangledVars $ Set.unions (map (getEntangledVars . s) (Set.toList evs))
+substEntangledVars :: EntangledVars -> (BaseEntangledVar -> FieldSet -> EntangledVars) -> EntangledVars
+substEntangledVars (EntangledVars evs) f = Map.foldMapWithKey f evs
 
 intersects :: EntangledVars -> EntangledVars -> Bool
 intersects e1 e2 =
   or (Map.intersectionWith overlappingFields (getEntangledVars e1) (getEntangledVars e2))
 
--- memberEntangledVars :: EntangledVar -> EntangledVars -> Bool
--- memberEntangledVars ev evs = ev `Set.member` getEntangledVars evs
+memberEntangledVars :: BaseEntangledVar -> EntangledVars -> Bool
+memberEntangledVars bv evs = bv `Map.member` getEntangledVars evs
 
 programVars :: EntangledVars -> Set Name
 programVars (EntangledVars vs) =
@@ -156,6 +165,9 @@ instance PP EntangledVar where
 instance PP EntangledVars where
   pp evs = lbrace <> commaSep (map pp (entangledVars evs)) <> rbrace
 
+instance PP FieldSet where
+  pp fs = lbrace <> commaSep (map (hcat . punctuate "." . map pp) (explodeFieldSet fs)) <> rbrace
+
 instance TraverseUserTypes BaseEntangledVar where
   traverseUserTypes f ev =
     case ev of
@@ -168,3 +180,4 @@ instance TraverseUserTypes EntangledVar where
 instance TraverseUserTypes EntangledVars where
   traverseUserTypes f evs =
     EntangledVars . Map.fromList <$> sequenceA [ (,) <$> traverseUserTypes f k <*> pure v | (k, v) <- Map.toList (getEntangledVars evs) ]
+

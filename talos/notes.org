@@ -630,10 +630,90 @@ more information (an over-approximation?) might be useful as well.
 ** Many
 
 
-
 ** Recursion
 
 sjw: figure this out
+
+** Field sensitivity
+
+Given the following
+
+#+begin_src daedalus
+
+  def Two = {
+     let xv = UInt8
+     let yv = UInt8
+     ^ { x = xv, y = yv }
+  }
+
+  def Ex = {
+      r = Two
+      Guard (r.x > 0)
+      Guard (r.y > 0)
+  }
+
+#+end_src
+
+we note that the values of ~x~ and ~y~ in ~Two~ are not entangled,
+but, due to them being in a struct, they will be entangled via the
+result variable.  In use, they are not entangled (i.e., the guards are
+independent in the calling code) so there is no sonudness reason for
+them to be entangled.
+
+In particular, we can imagine the domain at the call of ~Two~ to be
+
+```
+{r.x} |-> Guard (r.x > 0); [...]*
+{r.y} |-> [...]; Guard (r.y > 0); [...]*
+```
+
+With this observation, we can summarise the result for ~Two~ in two
+separate passes, one for ~x~ and one for ~y~.  We would then get summaries
+
+```
+{result.x} |-> { xv = UInt8; [...]; ^ { x = xv, y = ??? } }
+{result.y} |-> { [...]; yv = UInt8; ^ { x = ???, y = xv } }
+```
+where we use ~???~ as a dont-care value. 
+
+If instead we have
+
+#+begin_src daedalus
+  def Two = {
+     let xv = UInt8
+     let yv = UInt8
+     Guard (xv < yv)
+     ^ { x = xv, y = yv }
+  }
+#+end_src
+
+then we need to entangle ~xv~ and ~yv~, which yields the summary
+```
+{result.x} |-> { xv = UInt8; yv = UInt8; Guard (xv < yv); ^ { x = xv, y = ??? } }
+{result.y} |-> { xv = UInt8; yv = UInt8; Guard (xv < yv); ^ { x = ???, y = yv} }
+```
+which violates the independence property for domains (both slices assign ~x~ and ~y~).  
+
+One solution is to analyse for multiple field sets simultaneously, so
+for the above the analysis is done for ```[{.x}, {.y}]``` resulting in 
+```
+{result.x, result.y} |-> { xv = UInt8; yv = UInt8; Guard (xv < yv); ^ { x = xv, y = yv } }
+```
+as required, or for the non-entangled ~Two~, we get
+```
+{result.x} |-> { xv = UInt8; [...]; ^ { x = xv, y = ??? } } 
+{result.y} |-> { xv = UInt8; [...]; ^ { x = ???, y = yv}  }
+```
+also as required.
+
+*** Notes
+ - How do we represent ???, esp. as we might need to merge these at some point.
+ - Variables outside the field set may be entangled by statements in
+   the function body, but we can't merge as we have ??? for fields
+   outside the target field set
+ - We probably should analyse the target function simultaneously to
+   get aruond some of the above problems.
+ - Maybe gor forward, generating multiple summaries just by looking at the return type/value?
 
 ** Problem Zoo
 

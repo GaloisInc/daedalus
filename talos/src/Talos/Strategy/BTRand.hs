@@ -9,7 +9,7 @@ import Control.Applicative
 import Control.Monad.Trans.Maybe
 import Control.Monad.State
 import qualified Data.ByteString as BS
-import Data.List (foldl')
+import Data.List (foldl', foldl1', partition)
 import qualified Data.Map as Map
 
 import Daedalus.Panic
@@ -117,7 +117,7 @@ stratSlice ptag = go
           v <- synthesiseExpr e
           pure (uncPath v)
 
-        SMatch (MatchByte bset) -> do
+        SMatch bset -> do
           env <- ask
           -- Run the predicate over all bytes.
           -- FIXME: Too brute force? We could probably be smarter
@@ -127,12 +127,12 @@ stratSlice ptag = go
           -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
           pure (I.vUInt 8 (fromIntegral b), SelectedMatch ptag (BS.singleton b))
 
-        SMatch (MatchBytes e) -> do
-          v <- synthesiseExpr e
-          let bs = I.valueToByteString v
-          pure (v, SelectedMatch ptag bs)
+        -- SMatch (MatchBytes e) -> do
+        --   v <- synthesiseExpr e
+        --   let bs = I.valueToByteString v
+        --   pure (v, SelectedMatch ptag bs)
 
-        SMatch {} -> unimplemented
+        -- SMatch {} -> unimplemented
           
         SAssertion (GuardAssertion e) -> do
           b <- I.valueToBool <$> synthesiseExpr e
@@ -154,18 +154,32 @@ stratSlice ptag = go
           
     onSlice f = \(a, sl') -> (a, f sl')
 
-    unimplemented = panic "Unimplemented" []
+    -- unimplemented = panic "Unimplemented" []
 
--- Synthesise for each call 
+-- Synthesise for each call
+
+-- Adding field sensitivity means that there can be multiple result
+-- slices, with non-overlapping projections.  As a result, we need to
+-- merge the resulting slices.
+--
+-- Merging all slices could introduce spurious internal backtracking,
+-- although it is not clear whether that is an issue or not.
+
 stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> I.Env -> 
                  ReaderT I.Env m (I.Value, SelectedNode)
 stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
-  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
-  (v, res)    <- maybe (pure (I.vUnit, Unconstrained)) (doOne ResultVar) m_rsl
+  (_, nonRes) <- unzip <$> mapM (uncurry doOne) asserts
+  (v, res)    <- case results of
+    [] -> pure (I.vUnit, Unconstrained)
+    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl . fst) results -- merge slices
+             let evs = foldMap (callParams . snd) results
+             local (const (evsToEnv evs)) (stratSlice ptag sl)
+
   pure (v, SelectedCall cl (foldl' merge res nonRes))
   where
-    (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
-    
+    -- This works because 'ResultVar' is < than all over basevars
+    (results, asserts) = partition (\(ev, _) -> baseVar ev == ResultVar) (Map.toList paths)
+        
     doOne ev CallInstance { callParams = evs {- , callSlice = sl -} } = do
       sl <- getParamSlice fn cl ev
       local (const (evsToEnv evs)) (stratSlice ptag sl)

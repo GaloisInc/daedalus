@@ -9,7 +9,7 @@ import Control.Monad.Reader
 
 import Control.Monad.State
 import qualified Data.ByteString as BS
-import Data.List (foldl')
+import Data.List (foldl', partition, foldl1')
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -110,15 +110,15 @@ stratSlice ptag = go
       case sl of
         SPure e -> uncPath <$> synthesiseExpr e
 
-        SMatch (MatchByte bset) -> do
+        SMatch bset -> do
           bname <- solverOp (declareSymbol "b" tByte)
           bassn <- solverOp (symExecByteSet bset bname)
           solverOp (assert bassn)
           -- solverOp check -- required?          
           pure (bname, SelectedMatch ptag . BS.singleton <$> byteModel bname)
   
-        SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
-        SMatch {} -> unimplemented sl
+        -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
+        -- SMatch {} -> unimplemented sl
           
         SAssertion (GuardAssertion e) -> do
           se <- synthesiseExpr e
@@ -137,7 +137,7 @@ stratSlice ptag = go
 
     uncPath v = (v, pure (SelectedDo Unconstrained))
 
-    unimplemented sl = panic "Unimplemented" [showPP sl]
+    -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
 onSlice :: (SymbolicM a -> SymbolicM b)
         -> (c, SymbolicM a) -> (c, SymbolicM b)
@@ -177,18 +177,23 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
   -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
   allUsedArgsV <- traverse (solverOp . symExec) allUsedArgs
   Map.foldMapWithKey defineName' allUsedArgsV
-  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
-  (v, res)    <- maybe (pure (sUnit, pure Unconstrained)) (doOne ResultVar) m_rsl
+  
+  (_, nonRes) <- unzip <$> mapM doOne asserts
+  (v, res)    <- case results of
+    [] -> pure (sUnit, pure Unconstrained)
+    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
+             stratSlice ptag sl
+             
   pure (v, SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
   where
-    (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
+    -- This works because 'ResultVar' is < than all over basevars
+    (results, asserts) = partition (\ev -> baseVar ev == ResultVar) (Map.keys paths)
 
     defineName' x e = void $ solverOp (defineName x (symExecTy (typeOf x)) e)
     
-    doOne ev _ = do
+    doOne ev = do
       sl <- getParamSlice fn cl ev
       stratSlice ptag sl
-
 
     allUsedParams = foldMap (programVars . callParams) paths
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams

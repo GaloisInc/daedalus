@@ -17,10 +17,11 @@ import Daedalus.GUID
 
 import Talos.Analysis.Slice
 import Talos.Analysis.Domain
+import Talos.Analysis.EntangledVars
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
-type PathRootMap =  Map Name Slice
+type PathRootMap =  Map Name [(FieldSet, Slice)]
 
 -- This is the summarisation for a given class for a given function
 data Summary =
@@ -146,9 +147,15 @@ propagate nm cl = do
 --------------------------------------------------------------------------------
 -- Instances
 
+explodePathRootMap :: PathRootMap -> [ (Name, FieldSet, Slice) ]
+explodePathRootMap m =
+  [ (n, fs, sl) | (n, m') <- Map.toList m, (fs, sl) <- m' ]
+
 instance PP Summary where
   pp s = bullets [ "exported" <+> pp (exportedDomain s)
-                 , "internal" <+> vcat (map pp_el (Map.toList (pathRootMap s)))
+                 , "internal" <+> vcat (map pp_el (explodePathRootMap (pathRootMap s)))
                  ]
     where
-      pp_el (n, fp) = pp n <> " => " <> pp fp
+      pp_el (n, fs, sl)
+        | fs == emptyFieldSet = pp n <> " => " <> pp sl
+        | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl

@@ -7,7 +7,8 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getParamSlice, getIEnv
+                            , summaries, getModule, getGFun, getParamSlice
+                            , getIEnv
                             , rand, randR, randL, randPermute
                             -- , timeStrategy
                             ) where

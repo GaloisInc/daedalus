@@ -53,7 +53,7 @@ data Assertion = GuardAssertion Expr
 --
 -- We could compute both (simultaneously?) but for the most part only
 -- 'Assertions' will be required.
-data SummaryClass = Assertions | FunctionResult -- FIXME: add fields
+data SummaryClass = Assertions | FunctionResult (Set FieldSet)
   deriving (Ord, Eq, Show, Generic, NFData)
 
 data CallInstance =
@@ -66,7 +66,7 @@ data CallInstance =
     
 -- We represent a Call by a set of the entangled args.  If the
 -- args aren't futher entangled by the calling context, then for
--- each argument fps we get a single Call node, where the Set is a
+-- each argument slice we get a single Call node, where the Set is a
 -- singleton containing the representative var as returned by
 -- 'explodeDomain'.  The second argument tells us how to instantiate
 -- the params used by the call.
@@ -74,19 +74,18 @@ data CallInstance =
 -- We require a set so we can merge where the callers entangle params.
 --
 -- The first argument is whether this call is an assigned, in which
--- case the entangled vars must contain ResultVar.  Note that we the
+-- case the entangled vars must contain ResultVar.  Note that the
 -- first argument can also be ResultVar, but that is the result of
 -- the current function, not this call (e.g. def Foo = { ...; Bar })
 --
 -- Note that the set of entangled vars here is a bit different to
 -- that which appears in a Domain, if only in intent --- these are
 -- entangled by their context, while in a domain they are entangled
--- by use.  Also, the range of the Map is _not_ merged, it is just
--- carried around to avoid looking up the summary again.
+-- by use
 
 -- def F x y = { Guard (x > 10); Guard (y > 10); ^ 42 }
 --
--- def Q = { a = UInt8; z = F a a; Guard (z > 10); ^ true } -- entangles x and y aboveb
+-- def Q = { a = UInt8; z = F a a; Guard (z > 10); ^ true } -- entangles x and y above
 --
 -- F will generate slices for 'x', 'y', and the result, but at Q we
 -- entangle 'x' and 'y' through 'a'
@@ -117,7 +116,7 @@ data Slice =
 -- is nice to be explicit here.
 data SliceLeaf =
   SPure Expr
-  | SMatch Match
+  | SMatch ByteSet       -- Match a byte
   | SAssertion Assertion -- FIXME: this is inferred from e.g. case x of True -> ...
   | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
   | SCall CallNode
@@ -386,7 +385,7 @@ instance PP SliceLeaf where
   ppPrec n sl =
     case sl of
       SPure v  -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 v
-      SMatch m -> wrapIf (n > 0) $ ppMatch SemYes m
+      SMatch m -> wrapIf (n > 0) $ "match" <+> pp m
       SAssertion e -> wrapIf (n > 0) $ "assert" <+> ppPrec 1 e
       SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn -> ppPrec n cn
@@ -414,5 +413,5 @@ instance PP Assertion where
 
 instance PP SummaryClass where
   pp Assertions     = "Assertions"
-  pp FunctionResult = "Result"
+  pp (FunctionResult fs) = "Result" <+> (lbrace <> commaSep (map pp (Set.toList fs)) <> rbrace)
         

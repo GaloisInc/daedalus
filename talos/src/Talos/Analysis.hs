@@ -15,14 +15,17 @@ module Talos.Analysis ( summarise
 import Control.Monad.State
 import Data.List (inits)
 import qualified Data.Map as Map
-import Data.Maybe (isJust)
+import Data.Map (Map)
 import qualified Data.Set as Set
+import Data.Set (Set)
+import Data.Maybe (isJust)
 
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
 
 import Daedalus.Core
+import Daedalus.Core.Free
 import Daedalus.Core.Type
 
 import Talos.Analysis.Domain
@@ -86,8 +89,8 @@ summariseDecl cls Fun { fName = fn
     doSummary :: IterM Summary
     doSummary = do
       let m_ret = case cls of
-            Assertions     -> Nothing
-            FunctionResult -> Just ResultVar
+            Assertions           -> Nothing
+            FunctionResult fsets -> Just (ResultVar, fsets)
                         
       (d, m) <- runSummariseM (summariseG m_ret def)
       
@@ -117,8 +120,10 @@ runSummariseM m = evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptyS
 liftIterM :: IterM a -> SummariseM a
 liftIterM = SummariseM . lift
 
-addPathRoot :: Name -> Slice -> SummariseM ()
-addPathRoot v fp = SummariseM $ modify (\s -> s { pathRoots = Map.insert v fp (pathRoots s) })
+-- v should not already be mapped
+addPathRoot :: Name -> [(FieldSet, Slice)] -> SummariseM ()
+addPathRoot _v []  = pure ()
+addPathRoot v  sls = SummariseM $ modify (\s -> s { pathRoots = Map.insert v sls (pathRoots s) })
 
 --------------------------------------------------------------------------------
 -- Transfer function
@@ -145,7 +150,38 @@ addPathRoot v fp = SummariseM $ modify (\s -> s { pathRoots = Map.insert v fp (p
 -- on the analysis); and {x} is a name for the path set above
 -- (indexed by the variable returned by explodeDomain).
 
-summariseCall :: Maybe EntangledVar -> FName -> [Expr] -> SummariseM Domain
+
+-- Given a call F(e1, e2, e3) to F(x, y, z) with domain
+--
+-- { {x.a.b, x.c, y.a} |-> sl1 , {x.d, y.c} |-> sl2 }
+--
+-- we need to construct the new var sets for the derived domain
+-- (i.e. where the node is Call F) by figuring out the free evs in the
+-- arguments w.r.t the domain field sets, so in the above we have
+--
+-- { e1/{a.b, c}, e2/{a} } and { e1/{d}, e2/{c} }
+--
+-- noting that two resulting var sets may overlap.
+
+substituteArgs :: Map Name Expr -> Maybe (BaseEntangledVar, a) ->
+                  EntangledVars -> EntangledVars
+substituteArgs argsMap m_x evs =
+  substEntangledVars evs $ \bv fset ->
+    case bv of
+      -- fset here is the result of the analysis, fset' was the
+      -- requested field set, so it should be contained in fset, but
+      -- may not be equal (if the analysis overapproximated, for
+      -- example)
+      ResultVar 
+        | Just (x, _fsets) <- m_x -> singletonEntangledVars x fset
+        | otherwise -> mempty
+      
+      ProgramVar n
+        | Just e <- Map.lookup n argsMap -> freeEntangledVars fset e
+        | otherwise -> panic "Missing parameter" [showPP n]
+
+summariseCall :: Maybe (BaseEntangledVar, Set FieldSet) -> FName -> [Expr] ->
+                 SummariseM Domain
 summariseCall m_x fn args = do
   -- We ignore rMap for this bit, it is only used during synthesis of
   -- the internal bytes.  If cl is FunctionResult then ResultVar will
@@ -158,21 +194,7 @@ summariseCall m_x fn args = do
   -- We need to now substitute the actuals for the params in
   -- summary, and merge the results (the substitution may have
   -- introduced duplicates, so we need to do a pointwise merge)
-  let argsMap    = Map.fromList $ zip ps args
-      argsSubst  = freeEntangledVars <$> argsMap
-      paramMap p =
-        case p of
-          ProgramVar v
-            | Just evs <- Map.lookup v argsSubst -> evs
-            | otherwise -> panic "Missing parameter" ["Call " ++ showPP fn ++ " "
-                                                      ++ show (parens (hsep (punctuate "," (map pp args))))
-                                                     , "Params: " ++ show (parens (hsep (punctuate "," (map pp ps))))
-                                                     , showPP v
-                                                     , showPP expDom
-                                                     ]
-                           
-          ResultVar {} -> maybe mempty singletonEntangledVars m_x
-
+  let argsMap    = Map.fromList $ zip ps args -- FIXME: This gets recomputed for each fset
       mkCallNode r (evs, _sl) =
         CallNode { callClass        = cl
                  , callAllArgs      = argsMap
@@ -181,14 +203,13 @@ summariseCall m_x fn args = do
                  }
 
       mkCall r b@(evs, _) = 
-        singletonDomain (substEntangledVars paramMap evs)
+        singletonDomain (substituteArgs argsMap m_x evs)
                         (SLeaf . SCall $ mkCallNode r b)
   
   pure $ Map.foldMapWithKey mkCall (explodeDomain expDom)
-
   where
-    cl | isJust m_x = FunctionResult
-       | otherwise  = Assertions
+    cl | Just (_, fsets) <- m_x = FunctionResult fsets
+       | otherwise              = Assertions
 
 asSingleton :: Domain -> (EntangledVars, Slice)
 asSingleton dom
@@ -250,7 +271,7 @@ caseIsTotal (Case e alts)
       TFlavUnion ls -> length ls
       TFlavEnum  ls -> length ls
 
-summariseCase :: Maybe EntangledVar ->
+summariseCase :: Maybe (BaseEntangledVar, Set FieldSet) ->
                  Case Grammar ->
                  SummariseM Domain
 summariseCase m_x cs@(Case e alts) = do
@@ -265,7 +286,7 @@ summariseCase m_x cs@(Case e alts) = do
     let pats = map fst alts
         (vs, els) = unzip (map (asSingleton . squashDomain) bDoms)
         cs'       = Case e (zip pats els)
-        vs'       = mergeEntangledVarss (freeEntangledVars e : vs)
+        vs'       = mergeEntangledVarss (freeEntangledVars emptyFieldSet e : vs)
     pure (singletonDomain vs' (SLeaf (SCase total cs')))
 
 -- Some examples:
@@ -334,7 +355,11 @@ summariseCase m_x cs@(Case e alts) = do
 -- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
 -- that we choose one.
 
-summariseG :: Maybe EntangledVar -> -- Do we want the result of tc or not?
+summariseG :: Maybe (BaseEntangledVar, Set FieldSet) ->
+              -- ^ The assigned variable, along with fields we care
+              -- about (the set of projections is non-empty, it can
+              -- contain [emptyFieldSet] representing the entire
+              -- object)
               Grammar -> SummariseM Domain
 summariseG m_x tc = do
   -- cl <- liftIterM $ currentSummaryClass
@@ -345,7 +370,15 @@ summariseG m_x tc = do
     Pure v    -> simple (SPure v)
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
-    Match _ m -> simple (SMatch m)
+    Match _ (MatchByte bset)
+        -- fsets should be {emptyFieldSet} here as we are returning a byte
+      | Just (x, _fsets) <- m_x -> 
+          pure $ singletonDomain (singletonEntangledVars x emptyFieldSet
+                                  <> freeEntangledVars emptyFieldSet bset)
+                                 (SLeaf (SMatch bset))
+      | otherwise -> pure emptyDomain
+    Match {} | isJust m_x -> panic "Saw a relevant match" [showPP tc]
+             | otherwise  -> pure emptyDomain
     Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
     
     Do_ lhs rhs -> do
@@ -355,20 +388,20 @@ summariseG m_x tc = do
     Do x' lhs rhs -> do
       -- we add the dontCare to leave a spot to merge in the dom for lhs
       rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      if memberVar (ProgramVar x') rhsD
-        then do
-        -- we care about the variable, so we need a FunctionResult summary
-          let ex' = ProgramVar x'
-          lhsD <- summariseG (Just ex') lhs
-          let lhsD' = mapDomain (\evs sl -> if memberEntangledVars ex' evs
-                                            then SDo (Just x') sl SUnconstrained
-                                            else sl) lhsD
+      let ex' = ProgramVar x'      
+      case domainFileSets ex' rhsD of
+        -- There is no variable, or no path from here is entangled with it
+        [] -> merge rhsD <$> summariseG Nothing lhs
+        fset -> do
+          -- we care about the variable, so we need a FunctionResult summary
+          lhsD <- summariseG (Just (ex', Set.fromList fset)) lhs
+          let lhsD' = mapDomain (bindBaseEV x') lhsD
               -- inefficient, but simple
               dom = merge rhsD lhsD'
 
-          -- x' should always be assigned as we check above.
-          let (Just (ns, sl), dom') = splitOnVar ex' dom
-
+          let (newRoots, dom') = splitRemoveVar ex' dom
+          dom' <$ addPathRoot x' newRoots
+          
           -- d <- liftIterM $ currentDeclName
               
           -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
@@ -377,15 +410,7 @@ summariseG m_x tc = do
           --                                       , "lhsD" <+> pp lhsD
           --                                       , "rhsD" <+> pp rhsD
           --                                       ])
-            
-          -- if ns contains just x', then x' is the root of this path.
-          if sizeEntangledVars ns == 1
-            then dom' <$ addPathRoot x' sl
-            else pure (primAddDomainElement (deleteEntangledVar ex' ns, sl) dom')
-            
-        -- There is no variable, or no path from here is entangled with it
-        else merge rhsD <$> summariseG Nothing lhs
-
+          
     Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
 
     -- doms contains a domain for each path in the choose. We create a
@@ -408,7 +433,7 @@ summariseG m_x tc = do
     -- Cases
     GuardP e g    -> do
       rhsD <- dontCareD 1 <$> summariseG m_x g
-      let lhsD = singletonDomain (freeEntangledVars e)
+      let lhsD = singletonDomain (freeEntangledVars emptyFieldSet e)
                                  (SLeaf (SAssertion (GuardAssertion e)))
       pure (merge lhsD rhsD)
     
@@ -417,11 +442,17 @@ summariseG m_x tc = do
     
   where
     simple n
-      | Just x <- m_x = pure (singletonDomain (insertEntangledVar x (freeEntangledVars tc))
-                                              (SLeaf n))
+      | Just (x, fsets) <- m_x = pure $ mconcat
+          [ singletonDomain (singletonEntangledVars x fset <> freeEntangledVars fset tc)
+                            (SLeaf n)
+          | fset <- Set.toList fsets ]
       | otherwise     = pure emptyDomain
     
     unimplemented = panic "summariseG unimplemented" [showPP tc]
+
+    bindBaseEV x evs sl
+      | Just _ <- lookupBaseEV (ProgramVar x) evs = SDo (Just x) sl SUnconstrained
+      | otherwise                                 = sl
 
 diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
 diagonalise el xs f =
@@ -454,3 +485,27 @@ caseIsGuard (GCase (Case e cs)) =
   where
     mk b g = Just (if b then e else eNot e, g)
 caseIsGuard _ = Nothing
+
+-- -----------------------------------------------------------------------------
+-- Expression level analysis
+--
+-- Calculate the EVs used in an expression relative to a given
+-- projection (field set) on the result.  We can always just return
+-- freeVars for the argument, but the hope is that we can do a bit
+-- better.
+
+-- FIXME: this is the fallback case
+class FreeEntangledVars a where
+  freeEntangledVars :: FieldSet -> a -> EntangledVars
+
+instance FreeEntangledVars Expr where
+  freeEntangledVars _fset = 
+    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
+
+instance FreeEntangledVars ByteSet where
+  freeEntangledVars _fset = 
+    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
+
+instance FreeEntangledVars Grammar where
+  freeEntangledVars _fset = 
+    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
