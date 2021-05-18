@@ -30,6 +30,9 @@ $ws         = [\0\9\10\13\32]
 @bigIdent   = $bigAlpha   [$alpha $digit]*
 @smallIdent = $smallAlpha [$alpha $digit]*
 @setIdent   = \$ @smallIdent
+@smallIdentI = \? @smallIdent
+@bigIdentI   = \? @bigIdent
+@setIdentI   = \? @setIdent
 @natural    = $digit+
 @integer    = \-? @natural
 @hexLiteral = 0 [xX] $hexDigit $hexDigit*
@@ -165,14 +168,17 @@ $ws+        ;
 "maybe"     { lexeme KWMaybe }
 "stream"    { lexeme KWStream }
 
-@bigIdent   { lexeme BigIdent }
-@smallIdent { lexeme SmallIdent }
-@setIdent   { lexeme SetIdent }
-@byte       { lexByte }
-@bytes      { lexBytes }
-@integer    { lexInteger }
-@hexLiteral { lexHexLiteral }
-@binLiteral { lexBinLiteral }
+@bigIdent     { lexeme BigIdent }
+@smallIdent   { lexeme SmallIdent }
+@bigIdentI    { lexeme BigIdentI }
+@smallIdentI  { lexeme SmallIdentI }
+@setIdent     { lexeme SetIdent }
+@setIdentI    { lexeme SetIdentI }
+@byte         { lexByte }
+@bytes        { lexBytes }
+@integer      { lexInteger }
+@hexLiteral   { lexHexLiteral }
+@binLiteral   { lexBinLiteral }
 
 .           { do { txt <- matchText
                  ; lexeme (TokError

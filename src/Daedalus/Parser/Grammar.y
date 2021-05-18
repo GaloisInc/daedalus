@@ -20,7 +20,10 @@ import Daedalus.Parser.Monad
 %token
   BIGIDENT    { (isLexBigIdent    -> Just $$) }
   SMALLIDENT  { (isLexSmallIdent  -> Just $$) }
+  BIGIDENTI   { (isLexBigIdentI   -> Just $$) }
+  SMALLIDENTI { (isLexSmallIdentI -> Just $$) }
   SETIDNET    { (isLexSetIdent    -> Just $$) }
+  SETIDNETI   { (isLexSetIdentI   -> Just $$) }
   BYTE        { (isLexByte        -> Just $$) }
   BYTES       { (isLexBytes       -> Just $$) }
   NUMBER      { (isLexTypedNumber -> Just $$) }
@@ -418,6 +421,7 @@ aexpr                                    :: { Expr }
   | 'UInt8'                                 { at $1      EAnyByte }
   | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
   | name                                    { at $1 (EVar $1) }
+  | implicitParam                           { at $1 (EImplicit $1) }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
   | 'nothing'                               { at $1 ENothing }
@@ -448,6 +452,11 @@ aexpr                                    :: { Expr }
 
   | aexpr '.' label                         { at ($1,$3)
                                                  (ESel $1 (SelStruct $3))}
+
+implicitParam                            :: { IPName }
+  : SMALLIDENTI                             { mkIP AValue   $1 }
+  | BIGIDENTI                               { mkIP AGrammar $1 }
+  | SETIDNETI                               { mkIP AClass   $1 }
 
 commaOrSemi                              :: { () }
   : ','                                     { () }
@@ -571,10 +580,32 @@ isLexSmallIdent x = case lexemeToken x of
                       SmallIdent -> Just (lexemeRange x, lexemeText x)
                       _     -> Nothing
 
+isLexBigIdentI :: LexPattern Text
+isLexBigIdentI x =
+  case lexemeToken x of
+    BigIdentI -> Just (lexemeRange x, lexemeText x)
+    _         -> Nothing
+
+isLexSmallIdentI :: LexPattern Text
+isLexSmallIdentI x =
+  case lexemeToken x of
+    SmallIdentI -> Just (lexemeRange x, lexemeText x)
+    _           -> Nothing
+
+
+
 isLexSetIdent :: LexPattern Text
 isLexSetIdent x = case lexemeToken x of
                     SetIdent -> Just (lexemeRange x, lexemeText x)
                     _        -> Nothing
+
+isLexSetIdentI :: LexPattern Text
+isLexSetIdentI x =
+  case lexemeToken x of
+    SetIdentI -> Just (lexemeRange x, lexemeText x)
+    _         -> Nothing
+
+
 
 isLexByte :: LexPattern Word8
 isLexByte x = case lexemeToken x of
@@ -610,6 +641,9 @@ instance AtExpr SourceRange where
   at x e = Expr Located { thingRange = x, thingValue = e }
 
 instance AtExpr Name where
+  at x = at (range x)
+
+instance AtExpr IPName where
   at x = at (range x)
 
 instance (HasRange a, HasRange b) => AtExpr (a,b) where
@@ -648,6 +682,9 @@ mkName ctx x = Name { nameScopedIdent = Unknown (snd x)
                     , nameContext     = ctx
                     , nameRange       = fst x 
                     , nameID          = invalidGUID }
+
+mkIP :: Context ctx -> (SourceRange, Text) -> IPName
+mkIP ctx (r,t) = IPName { ipName = t, ipContext = ctx, ipRange = r }
 
 mkLabel :: (SourceRange, Text) -> Located Label
 mkLabel (r,t) = Located { thingRange = r, thingValue = t }

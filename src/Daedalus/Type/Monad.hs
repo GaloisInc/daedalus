@@ -67,11 +67,18 @@ module Daedalus.Type.Monad
   , removeConstraints
   , needsDef
   , getNeedsDef
+
+    -- * Implicit parameters
+  , addIPUse
+  , removeIPUses
+  , withIP
   ) where
 
 
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Control.Exception(Exception(..))
 import MonadLib hiding (Label)
@@ -105,7 +112,7 @@ instance Exception TypeError where
 
 class Monad m => MTCMonad m where
   reportError     :: HasRange a => a -> Doc  -> m b
-  newName         :: HasRange r => r -> Type -> m (TCName Value)
+  newName'        :: HasRange r => r -> Context a -> Type -> m (TCName a)
   getRuleEnv      :: m RuleEnv
   getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
   extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
@@ -114,7 +121,8 @@ class Monad m => MTCMonad m where
 reportDetailedError :: MTCMonad m => HasRange a => a -> Doc -> [Doc] -> m b
 reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 
-
+newName :: (MTCMonad m, HasRange r) => r -> Type -> m (TCName Value)
+newName r t = newName' r AValue t
 
 
 
@@ -160,21 +168,18 @@ instance MTCMonad MTypeM where
   reportError r s =
     MTypeM (raise (TypeError Located { thingRange = range r, thingValue = s }))
 
-  newName r ty = do
+  newName' r ctx ty = do
     n <- getNextGUID
-    pure $ case kindOf ty of
-             KValue ->
-               let txt = Text.pack ("_" ++ show (pp n))
-               in TCName { tcName =
+    pure let txt = Text.pack ("_" ++ show (pp n))
+         in TCName { tcName =
                              Name { nameScopedIdent = Local txt
-                                  , nameContext     = AValue
+                                  , nameContext     = ctx
                                   , nameRange       = range r
                                   , nameID          = n
                                   }
                          , tcType = ty
-                         , tcNameCtx = AValue
+                         , tcNameCtx = ctx
                          }
-             k -> error ("bug: new name of unexpected kind: " ++ show k)
 
   getRuleEnv = MTypeM (roRuleTypes <$> ask)
 
@@ -203,6 +208,7 @@ data SRW = SRW
   { sSubst        :: !(Map TVar Type)       -- ^ Idempotent substitution
   , sNextTName    :: !Int                   -- ^ Generate type variables
   , sConstraints  :: ![Located Constraint]  -- ^ Constraints on type varis
+  , sIP           :: !(Map IPName Param)    -- ^ Implicit param constraint
   , sNeedDef      :: ![Located TCTyName]    -- ^ Types used in sigs that
                                             --   were used before defined
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
@@ -213,7 +219,7 @@ instance HasGUID STypeM where
 
 instance MTCMonad STypeM where
   reportError r e     = mType (reportError r e)
-  newName r t         = mType (newName r t)
+  newName' r c t      = mType (newName' r c t)
   getRuleEnv          = mType getRuleEnv
   getGlobTypeDefs     = mType getGlobTypeDefs
   extEnvManyRules rs (STypeM m) =
@@ -230,6 +236,7 @@ runSTypeM (STypeM m) = fst <$> runStateT rw m
   rw = SRW { sSubst       = Map.empty
            , sNextTName   = 0
            , sConstraints = []
+           , sIP          = Map.empty
            , sNeedDef     = []
            , sTypeDefs    = Map.empty
            }
@@ -251,6 +258,8 @@ class MTCMonad m => STCMonad m where
   needsDef          :: HasRange r => r -> TCTyName -> m ()
   getNeedsDef       :: m [Located TCTyName]
   addTVarDef        :: TVar -> Type -> m ()
+  addIPUse          :: IPName -> m Param
+  removeIPUses      :: m [Param]
 
 
 
@@ -336,6 +345,33 @@ instance STCMonad STypeM where
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }
 
+  addIPUse x =
+    do mb <- STypeM (Map.lookup x . sIP <$> get)
+       case mb of
+         Just p -> pure p
+         Nothing ->
+           do p <- newIPParam x
+              STypeM $ sets \s -> (p, s { sIP = Map.insert x p (sIP s) })
+
+  removeIPUses =
+    do xs <- STypeM (Map.elems . sIP <$> get)
+       traverseTypes zonkT xs
+
+newIPParam :: STCMonad m => IPName -> m Param
+newIPParam x@IPName { ipContext } =
+  case ipContext of
+    AValue ->
+      do t <- newTVar x KValue
+         ValParam <$> newName' x AValue t
+
+    AClass ->
+      ClassParam <$> newName' x AClass tByteClass
+
+    AGrammar ->
+      do t <- newTVar x KValue
+         GrammarParam <$> newName' x AGrammar (tGrammar t)
+
+ 
 
 zonkT :: (ApSubst t, STCMonad m) => t -> m t
 zonkT t = do su  <- getTypeSubst
@@ -383,6 +419,7 @@ newtype TypeM ctx a = TypeM ( WithBase STypeM '[ ReaderT (RO ctx)
 data RO ctx = RO
   { roEnv         :: !Env            -- ^ Types for locals
   , roName        :: !Name           -- ^ Root name for generating type decls
+  , roIP          :: !(Map IPName (Arg SourceRange))  -- ^ IPs in scope
   , allowPartial  :: !Bool           -- ^ Are partial apps OK?
   , roContext     :: !(Context ctx)  -- ^ Current context (lazy)
   }
@@ -390,6 +427,9 @@ data RO ctx = RO
 data RW = RW
   { sLocalTyVars  :: !(Map Name Type) -- ^ Names for local types (from sigs)
   , sNextType     :: !Int             -- ^ Used to generate variants of the root
+  , sIPUsed       :: !(Set IPName)
+    -- ^ IPs (from the ones in scope) that were used.  We keep track of this
+    -- so that we can report "undefined IP" for IPs that weren't used
   }
 
 
@@ -398,17 +438,18 @@ runTypeM n (TypeM m) = fst <$> runStateT rw (runReaderT ro m)
   where
   ro = RO { roEnv        = Map.empty
           , roName       = n
+          , roIP         = Map.empty
           , allowPartial = False
           , roContext    = AGrammar
           }
-  rw = RW { sLocalTyVars = Map.empty, sNextType = 0 }
+  rw = RW { sLocalTyVars = Map.empty, sNextType = 0, sIPUsed = Set.empty }
 
 sType :: STypeM a -> TypeM ctx a
 sType m = TypeM (lift (lift m))
 
 instance MTCMonad (TypeM ctx) where
   reportError r e     = sType (reportError r e)
-  newName r t         = sType (newName r t)
+  newName' r c t      = sType (newName' r c t)
   getRuleEnv          = sType getRuleEnv
   getGlobTypeDefs     = sType getGlobTypeDefs
   extEnvManyRules rs (TypeM m) =
@@ -431,6 +472,8 @@ instance STCMonad (TypeM ctx) where
   addTVarDef x t          = sType (addTVarDef x t)
   needsDef r d            = sType (needsDef r d)
   getNeedsDef             = sType getNeedsDef
+  addIPUse x              = sType (addIPUse x)
+  removeIPUses            = sType removeIPUses
 
 instance HasGUID (TypeM ctx) where
   guidState f = sType (guidState f)
@@ -464,6 +507,13 @@ getEnv = TypeM (roEnv <$> ask)
 extEnv :: Name -> Type -> TypeM ctx a -> TypeM ctx a
 extEnv x t (TypeM m) = TypeM (mapReader upd m)
   where upd ro = ro { roEnv = Map.insert x t (roEnv ro) }
+
+withIP :: IPName -> Arg SourceRange -> TypeM ctx a -> TypeM ctx a
+withIP x t (TypeM m) = TypeM
+  do ro   <- ask
+     a    <- local ro { roIP = Map.insert x t (roIP ro) } m
+     sets \s -> (a, s { sIPUsed = Set.delete x (sIPUsed s) })
+
 
 newTyDefName :: TypeM ctx TCTyName
 newTyDefName = TypeM $

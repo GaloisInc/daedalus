@@ -70,7 +70,9 @@ generalize ds =
                                 : Map.elems freeInTys
                                 )
 
-     pure $ doGeneralize as cs (Set.toList <$> freeInTys)
+     ips <- removeIPUses
+
+     pure $ doGeneralize as cs (Set.toList <$> freeInTys) ips
             DeclInfo { tcDecls    = ds1
                      , tcTypeDefs = tds
                      }
@@ -211,9 +213,10 @@ completeFreeInTD tds = foldl' addFree Map.empty
 doGeneralize :: [TVar] {- ^ Params for decl -} ->
                 [Constraint] {- ^ Constraints on type (for decl) -} ->
                 Map TCTyName [TVar] {- ^ Params for each type -} ->
+                [Param] {- ^ Collected implicit params -} ->
                 DeclInfo -> DeclInfo
-doGeneralize as cs tparams decls
-  | null as   = decls -- tparams are asssumed to be a subset of as
+doGeneralize as cs tparams ips decls
+  | null as && null ips  = decls -- tparams are asssumed to be a subset of as
   | otherwise = DeclInfo
                   { tcTypeDefs = addTPsTy <$> tcTypeDefs decls
                   , tcDecls =
@@ -224,14 +227,17 @@ doGeneralize as cs tparams decls
   where
   ts      = map TVar as
   tconMap = map TVar <$> tparams
-  dMap    = Map.fromList [ (tcDeclName d, ts) | d <- recToList (tcDecls decls) ]
+  dMap    = Map.fromList [ (tcDeclName d, (ts,ips))
+                         | d <- recToList (tcDecls decls) ]
 
   addTPs :: Bool -> TCDecl SourceRange -> TCDecl SourceRange
   addTPs r TCDecl { .. } =
            TCDecl { tcDeclName     = tcDeclName
                   , tcDeclTyParams = as
                   , tcDeclCtrs     = map (fixUpTCons tconMap) cs
-                  , tcDeclParams   = fixUpTCons tconMap tcDeclParams
+                  , tcDeclImplicit = length ips
+                  , tcDeclParams   = fixUpTCons tconMap ips ++
+                                     fixUpTCons tconMap tcDeclParams
                   , tcDeclDef      =
                       case fixUpTCons tconMap tcDeclDef of
                         Defined d | r -> Defined (fixUpRecCallSites dMap d)
@@ -254,9 +260,20 @@ fixUpTConsT mp ty =
     TCon x ts -> TCon x (map (fixUpTConsT mp) ts)
     Type tf -> Type (fixUpTConsT mp <$> tf)
 
-fixUpRecCallSites :: Map Name [Type] -> TC SourceRange k -> TC SourceRange k
+-- NOTE: the params all have the *same* name, so they are not globally unique
+-- which I am not sure if we are assuming somewere
+fixUpRecCallSites ::
+  Map Name ([Type],[Param]) -> TC SourceRange k -> TC SourceRange k
 fixUpRecCallSites ch expr =
   exprAt expr $
     case mapTCF (fixUpRecCallSites ch) (texprValue expr) of
-      TCCall x [] es | Just ts <- Map.lookup (tcName x) ch -> TCCall x ts es
+      TCCall x [] es | Just (ts,is) <- Map.lookup (tcName x) ch ->
+        TCCall x ts (map paramToE is ++ es)
       e                                                    -> e
+
+    where paramToE p = case p of
+                          ValParam x -> ValArg (exprAt expr (TCVar x))
+                          ClassParam x -> ClassArg (exprAt expr (TCVar x))
+                          GrammarParam x -> GrammarArg (exprAt expr (TCVar x))
+
+
