@@ -191,7 +191,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
                    d   = TCDecl { tcDeclName     = ruleName r
                                 , tcDeclTyParams = []
                                 , tcDeclCtrs     = []
-                                , tcDeclImplicit = 0
+                                , tcDeclImplicit = []
                                 , tcDeclParams   = tps
                                 , tcDeclDef      = def
                                 , tcDeclCtxt     = nameContext
@@ -1140,71 +1140,21 @@ inferLocalCall erng f@Name { nameContext } es ty =
                            backticks (pp f))
 
 
-checkImplicitParams ::
-  SourceRange       {-^ Location of call -} ->
-  Name              {-^ Name of function -} ->
-  [(IPName,Expr)]   {-^ Proided implicit parameters -} ->
-  [(IPName,Type)]   {-^ Expecetd implicit parameters -} ->
-  TypeM ctx ([Arg SourceRange], [BindStmt])
-checkImplicitParams r f ipArgs impTs
-  | x : _ <- dups = reportError r
-                  $ "Repated implicit argument" <+> backticks (pp x) <+>
-                    "in call to" <+> backticks (pp f)
-  | otherwise = do (expl,bs) <- unzip <$> traverse checkIPArg ipArgs
-                   as <- mapM (checkParam expl) impTs
-                   pure (as, catMaybes bs)
+checkImplicitParam ::
+  HasRange r => r -> (IPName,Type) -> TypeM ctx (Arg SourceRange)
+checkImplicitParam r (i,t) =
+  do mb <- lookupIP i
+     case mb of
+       Nothing -> noIP
+       Just a  -> pure a
   where
-  dups = [ x | x : _ : _ <- group $ sort $ map fst ipArgs ]
-
-  checkIPArg (i,e) =
-    case lookup i impTs of
-      Nothing -> reportError i $ "Function" <+> backticks (pp f) <+>
-                    "does not have implicit parameter" <+> backticks (pp i)
-      Just t ->
-        do (a,_,s) <- checkArg (Just t) e
-           pure ((i,a), s)
-
-  checkParam expl (i,t) =
-    case lookup i expl of
-      Just a -> pure a
-      Nothing ->
-        do p <- addIPUse i
-           unify t (r,typeOf p)
-           pure case p of
-                  ValParam x -> ValArg (exprAt r (TCVar x))
-                  ClassParam x -> ClassArg (exprAt r (TCVar x))
-                  GrammarParam x -> GrammarArg (exprAt r (TCVar x))
-
-
-{-
-     -- make implicit argument
-     let addIP (i,t) =
-           case lookup i ips of
-             Nothing ->
-               do p <- addIP i
-                  unify t (r,typeOf p)
-                  pure (
-
-
-     -- Validate explicitly provided implicit arguments
-     let checkIP (i,e) =
-            case lookup i impTs of
-              Nothing -> reportError r
-                         $ "Function" <+> ppf <+>
-                           "does not have implicit parameter" <+>
-                           backticks (pp i)
-              Just t -> checkArg (Just t) e
-     (iargs,its,mbStmts) <- unzip3 <$> traverse checkIP ips
-
-     -- implcit parameters that were not defined
-     let propagateI (i,t) = case lookup i ips of
-                              Just _ -> pure () -- defined
-                              Nothing ->
-                                do p <- addIP i
-                                   unify t (r,typeOf p)
-     mapM_ propagateI impTs
--}
-
+  noIP =
+    do p <- addIPUse i
+       unify (r,typeOf p) (i,t)
+       pure case p of
+              ValParam x     -> ValArg     (exprAt r (TCVar x))
+              ClassParam x   -> ClassArg   (exprAt r (TCVar x))
+              GrammarParam x -> GrammarArg (exprAt r (TCVar x))
 
 
 
@@ -1212,7 +1162,7 @@ checkTopRuleCall ::
   SourceRange ->
   Name     {- ^ Name of function -} ->
   [Type]   {- ^ Type arguments -}   ->
-  RuleType {- ^ Instantiate type of called function -} ->
+  RuleType {- ^ Instantiated type of called function -} ->
   [Expr]   {- ^ Epxression arguments -} ->
   TypeM ctx (TC SourceRange ctx, Type)
 checkTopRuleCall r f@Name { nameContext = fctx } tys
@@ -1220,14 +1170,13 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys
   do ctx <- getContext
      let ppf = backticks (pp f)
 
-     -- (iargs,istmts) <- checkImplicitParams r f ips impTs
-
+     iargs <- mapM (checkImplicitParam r) impTs
 
      (args,_,mbStmts) <-
                       unzip3 <$> zipWithM checkArg (map Just inTs) es
      let have  = length args
          need  = length inTs
-         stmts = {-istmts ++-} catMaybes mbStmts
+         stmts = catMaybes mbStmts
      out1 <- case compare have need of
                EQ -> pure outT
                GT -> reportError r $
@@ -1247,7 +1196,7 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys
                      , tcType = out1
                      , tcNameCtx = fctx
                      }
-         call = exprAt r (TCCall nm tys ({-iargs ++-} args))
+         call = exprAt r (TCCall nm tys (iargs ++ args))
      case ctx of
        AGrammar ->
           do (e1,t1) <- checkPromote nm call out1
@@ -1435,12 +1384,30 @@ inferStructGrammar r = go [] []
                    withIP x (GrammarArg e1) (go mbRes done more)
 
               AClass ->
+                -- copies the character class
                 do (e1,_) <- inContext AClass (inferExpr e)
                    withIP x (ClassArg e1) (go mbRes done more)
 
               AValue ->
-                do (e1,mb) <- liftValExpr e
-                   undefined --XXX
+                do ((e1,et),mb) <- liftValExpr e
+                   case mb of
+                     Just b ->
+                        -- copy is OK, because `e1` is a variable
+                        withIP x (ValArg e1)
+                        do (k,y) <- go mbRes done more
+                           pure (addBind b k, y)
+                     Nothing ->
+                       case texprValue e1 of
+                         TCVar {} -> withIP x (ValArg e1) (go mbRes done more)
+
+                         -- name the expression
+                         _ -> do v <- newName x et
+                                 let e2 = exprAt x (TCVar v)
+                                 do (k,y) <- withIP x (ValArg e2)
+                                             (go mbRes done more)
+                                    let s = exprAt x (TCDo (Just v) (exprAt x (TCPure e1)) k)
+                                    pure (s,y)
+
 
       [] ->
         case (mbRes, done) of
@@ -1462,6 +1429,7 @@ inferStructGrammar r = go [] []
                             ]
 
           (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
+
 
 
 pureStruct ::

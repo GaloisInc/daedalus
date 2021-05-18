@@ -330,7 +330,7 @@ data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
                          , tcDeclTyParams :: ![TVar]
                          , tcDeclCtrs     :: ![Constraint]
-                         , tcDeclImplicit :: !Int
+                         , tcDeclImplicit :: ![IPName]
                            -- the first N params are implicit, used only
                            -- during type checking
                          , tcDeclParams   :: ![Param]
@@ -989,25 +989,11 @@ declTypeOf :: TCDecl a -> Poly RuleType
 declTypeOf d@TCDecl { tcDeclDef } =
     Poly (tcDeclTyParams d) (tcDeclCtrs d) ((impl,expl) :-> typeOf tcDeclDef)
   where
-  (is,es) = splitAt (tcDeclImplicit d) (tcDeclParams d)
-  impl = map paramToIP is
+  implicitNum = length (tcDeclImplicit d)
+  (is,es) = splitAt implicitNum (tcDeclParams d)
+  impl = zip (tcDeclImplicit d) (map typeOf is)
   expl = map typeOf es
 
-paramToIP :: Param -> (IPName,Type)
-paramToIP p = (toIPName, typeOf p)
-  where
-  toIPName = case p of
-               ValParam x -> IPName { ipName = nameScopeAsLocal (tcName x)
-                                    , ipRange = range x
-                                    , ipContext = AValue }
-
-               ClassParam x -> IPName { ipName = nameScopeAsLocal (tcName x)
-                                      , ipRange = range x
-                                      , ipContext = AClass }
-
-               GrammarParam x -> IPName { ipName = nameScopeAsLocal (tcName x)
-                                       , ipRange = range x
-                                       , ipContext = AGrammar }
 
 
 -- | The type of thing we match

@@ -479,6 +479,7 @@ struct_field                             :: { StructField Expr }
   : expr                                    { Anon $1 }
   | '@' name '=' expr                       { $2 :@= $4 }
   | 'let' name '=' expr                     { $2 :@= $4 }
+  | 'let' implicitParam '=' expr            { $2 :?= $4 }
   | name '=' expr                           { $1 := $3 }
   | 'COMMIT'                                { COMMIT $1 }
 

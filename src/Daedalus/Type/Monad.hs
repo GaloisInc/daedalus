@@ -72,6 +72,7 @@ module Daedalus.Type.Monad
   , addIPUse
   , removeIPUses
   , withIP
+  , lookupIP
   ) where
 
 
@@ -259,7 +260,7 @@ class MTCMonad m => STCMonad m where
   getNeedsDef       :: m [Located TCTyName]
   addTVarDef        :: TVar -> Type -> m ()
   addIPUse          :: IPName -> m Param
-  removeIPUses      :: m [Param]
+  removeIPUses      :: m [(IPName,Param)]
 
 
 
@@ -354,8 +355,8 @@ instance STCMonad STypeM where
               STypeM $ sets \s -> (p, s { sIP = Map.insert x p (sIP s) })
 
   removeIPUses =
-    do xs <- STypeM (Map.elems . sIP <$> get)
-       traverseTypes zonkT xs
+    do xs <- STypeM (Map.toList . sIP <$> get)
+       forM xs \(i,t) -> (,) i <$> traverseTypes zonkT t
 
 newIPParam :: STCMonad m => IPName -> m Param
 newIPParam x@IPName { ipContext } =
@@ -513,6 +514,13 @@ withIP x t (TypeM m) = TypeM
   do ro   <- ask
      a    <- local ro { roIP = Map.insert x t (roIP ro) } m
      sets \s -> (a, s { sIPUsed = Set.delete x (sIPUsed s) })
+
+lookupIP :: IPName -> TypeM ctx (Maybe (Arg SourceRange))
+lookupIP x = TypeM
+  do ro <- ask
+     case Map.lookup x (roIP ro) of
+       Nothing -> pure Nothing
+       Just i  -> sets \s -> (Just i, s { sIPUsed = Set.insert x (sIPUsed s) })
 
 
 newTyDefName :: TypeM ctx TCTyName

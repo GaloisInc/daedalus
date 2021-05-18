@@ -213,7 +213,7 @@ completeFreeInTD tds = foldl' addFree Map.empty
 doGeneralize :: [TVar] {- ^ Params for decl -} ->
                 [Constraint] {- ^ Constraints on type (for decl) -} ->
                 Map TCTyName [TVar] {- ^ Params for each type -} ->
-                [Param] {- ^ Collected implicit params -} ->
+                [(IPName,Param)] {- ^ Collected implicit params -} ->
                 DeclInfo -> DeclInfo
 doGeneralize as cs tparams ips decls
   | null as && null ips  = decls -- tparams are asssumed to be a subset of as
@@ -227,7 +227,7 @@ doGeneralize as cs tparams ips decls
   where
   ts      = map TVar as
   tconMap = map TVar <$> tparams
-  dMap    = Map.fromList [ (tcDeclName d, (ts,ips))
+  dMap    = Map.fromList [ (tcDeclName d, (ts,map snd ips))
                          | d <- recToList (tcDecls decls) ]
 
   addTPs :: Bool -> TCDecl SourceRange -> TCDecl SourceRange
@@ -235,8 +235,8 @@ doGeneralize as cs tparams ips decls
            TCDecl { tcDeclName     = tcDeclName
                   , tcDeclTyParams = as
                   , tcDeclCtrs     = map (fixUpTCons tconMap) cs
-                  , tcDeclImplicit = length ips
-                  , tcDeclParams   = fixUpTCons tconMap ips ++
+                  , tcDeclImplicit = map fst ips
+                  , tcDeclParams   = fixUpTCons tconMap (map snd ips) ++
                                      fixUpTCons tconMap tcDeclParams
                   , tcDeclDef      =
                       case fixUpTCons tconMap tcDeclDef of
