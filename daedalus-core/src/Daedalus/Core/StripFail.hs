@@ -45,7 +45,7 @@ stripFailG gram =
     GCase (Case e cs) ->
       case filter (not . isFail . snd) cs of
         []  -> snd (head cs) -- propagate failure (should be a Fail)
-        cs' | not (any ((==) PAny . fst) cs) -> GCase (Case e cs')
+        cs' | not (any isNonFailPAny cs) -> GCase (Case e cs')
         _ -> GCase (Case e cs)
         
     nonFail -> nonFail
@@ -54,4 +54,6 @@ stripFailG gram =
     isFail (Fail {}) = True
     isFail _         = False
 
+    isNonFailPAny (PAny, g) | not (isFail g) = True
+    isNonFailPAny _ = False
 
