@@ -781,11 +781,23 @@ inferExpr expr =
                                               , thingValue = EApp x [] })
 
     EImplicit ip ->
-      do p <- addIPUse ip
-         case p of
-           ValParam x     -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
-           ClassParam x   -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
-           GrammarParam x -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+      do mb <- lookupIP ip
+         case mb of
+           Nothing -> newIP
+           Just arg -> fromArg arg
+      where
+      newIP =
+        do p <- addIPUse ip
+           case p of
+             ValParam x     -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+             ClassParam x   -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+             GrammarParam x -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
+
+      fromArg arg =
+        case arg of
+          ValArg x     -> checkPromoteFrom AValue   ip x (typeOf x)
+          ClassArg x   -> checkPromoteFrom AClass   ip x (typeOf x)
+          GrammarArg x -> checkPromoteFrom AGrammar ip x (typeOf x)
 
     EAnyByte ->
       do ctxt <- getContext
@@ -1258,10 +1270,17 @@ promoteSetToGrammar (e,t) =
 
 checkPromote ::
   TCName k -> TC SourceRange k -> Type -> TypeM ctx (TC SourceRange ctx, Type)
-checkPromote x e t =
+checkPromote x = checkPromoteFrom (tcNameCtx x) x
+
+
+checkPromoteFrom ::
+  (HasRange r, PP r) =>
+  Context k -> r ->
+  TC SourceRange k -> Type -> TypeM ctx (TC SourceRange ctx, Type)
+checkPromoteFrom fromCtxt x e t =
   do ctxt <- getContext
      let ppx = backticks (pp x)
-     case (tcNameCtx x, ctxt) of
+     case (fromCtxt, ctxt) of
        (AValue, AValue)   -> pure (e, t)
        (AValue, AClass)   -> promoteValueToSet (e, t)
        (AValue, AGrammar) ->
