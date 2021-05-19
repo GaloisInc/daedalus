@@ -7,10 +7,10 @@ DaeDaLus User Guide
    :caption: Contents:
 
 
-DaeDaLus is a language for specifying parsers with data dependencies,
-which allows a parser's behavior to be affected by the semantic values
-parsed from other parts of the inputs.  This allows a clear, yet precise,
-specification of many binary formats.
+DaeDaLus is a domain specific language for specifying parsers.  It supports
+data dependent parsing, which allows a parser's behavior to be affected by
+the semantic values parsed from other parts of the input.
+This allows for a clear, yet precise, specification of many binary formats.
 
 
 Declarations
@@ -47,6 +47,31 @@ Here are some sample declarations:
 Single line comments are marked with ``--``, while multi-line comment are
 enclosed between ``{-`` and ``-}``, and may be nested.
 
+Declarations may be parameterized, and the parameters of a declaration follow
+the same rules.  In a declaration with a parameter ``p``, the lower case
+indicates that the parameter is a semantic value, while ``P`` (upper case)
+would be a grammar parameter, and ``$p`` a character class parameter.
+
+Consider, for example the following declaration:
+
+.. code-block:: Daedalus
+
+  def Example n P $q =
+    if n > 0
+      then P
+      else Match1 $q
+
+This declares a parser called ``Example`` with 3 parameters, ``n``, ``P`` and
+``$q``.   Note that the parameters are simply separated by space, and usually
+there is no need to provide type annotations as Deadalus can infer the types
+based on the naming rules and the uses in the definition.
+
+
+
+
+
+
+
 
 Parsers
 =======
@@ -60,18 +85,19 @@ It fails if there are no bytes left in the input.  If successful, it constructs
 a value of type ``uint 8``.
 
 **Specific Byte.** The parser ``Match1 $set`` matches a single byte that
-belongs to the set of bytes described by ``$set``.
+belongs to the set of bytes (also referred to as *character class*)
+described by ``$set``.
 
 **Specific Byte Sequence.** The parser ``Match bytes`` matches the byte
 sequence ``bytes`` in the current input. The resulting semantic value is an
-array of bytes, ``[uint 8]``, correspnding to the matched bytes.
+array of bytes, ``[uint 8]``, corresponding to the matched bytes.
 For example ``Match "keyword"`` will match ``"keyword"``, while
-``Match [0x00,0x01]`` will match two bytes, 0 followed by 1.
+``Match [0x00,0x01]`` will match two bytes: 0 followed by 1.
 
 **End of Input.** The parser ``END`` succeeds only if there is no more input
 to be parsed.  If successful, the result is the trivial semantic value ``{}``.
 Normally Daedalus parsers succeed as long as they match a *prefix* of the
-entire input.  By sequencing (section `Sequencing Parsers`_) a parser with
+entire input.  By sequencing (see `Sequencing Parsers`_) a parser with
 ``END`` we specify that the entire input must be matched.
 
 **Pure Parsers.** Any semantic value may be turned into a parser that does
@@ -123,7 +149,7 @@ Examples:
   def ABC3 = { Match "Hello"; Match "ABC" }           -- "HelloABC"  [65,66,67]
   def ABC4 = { Match "Hello"; Match1 'C' }            -- "HelloC"    67
 
-An alternative notation for ``{ .. }`` parsers is to use the ``block`` keywrd
+An alternative notation for ``{ .. }`` parsers is to use the ``block`` keyword
 and *layout*:
 
 .. code-block:: Daedalus
@@ -152,11 +178,21 @@ equivalent to the previous two:
 
 
 
-**Explicit Result.** A ``block/{}``-sequenced group of parsers may return
-the result from any member of the group instead of the last one.  To do so,
-assign the result of the parser to the special variable ``$$``.  For example,
-``{ P; $$ = Q; R }`` specifies that the group's result should come from
-``Q`` instead of ``R``.   It is an error to assign ``$$`` more than once.
+**Explicit Result.** A ``block`` or ``{}``-sequenced group of parsers may
+return the result from any member of the group instead of the last one.
+To do so, assign the result of the parser to the special variable ``$$``.
+For example:
+
+.. code-block:: Daedalus
+
+  def ReturnMiddle =
+    block
+      P
+      $$ = Q
+      R
+
+In the example above, the semantic value produce by ``ReturnMiddle`` is that
+produced by ``Q``.
 
 
 **Local Variables.** It is also possible to combine the results of some
@@ -228,16 +264,17 @@ example, here is an equivalent way to define the same parser:
 
 
 **Syntactc Sugar.** A number of the constructs described in this section are
-simply syntactic sugar for using local variables.  Here are some examples:
+may be thought of as simply syntactic sugar for using local variables.
+Here are some examples:
 
 +----------------------+-----------------------------------------------------+
 | Expression:          |  Equivalent to:                                     |
 +======================+=====================================================+
-| ``{ $$ = P; Q }``    | ``{ let x = P;        Q; ^ x                }``     |
+| ``{ $$ = P; Q }``    | ``{ let x  = P; Q;          ^ x }``                 |
 +----------------------+-----------------------------------------------------+
-| ``[ P; Q ]``         | ``{ let x0 = P; let x1 = Q; ^ [x0,x1]      }``      |
+| ``[ P; Q ]``         | ``{ let x0 = P; let x1 = Q; ^ [x0,x1] }``           |
 +----------------------+-----------------------------------------------------+
-| ``{ x = P; y = Q }`` | ``{ let x = P;  let y  = Q; ^ { x = x; y = y } }``  |
+| ``{ x = P; y = Q }`` | ``{ let x  = P; let y  = Q; ^ { x = x; y = y } }``  |
 +----------------------+-----------------------------------------------------+
 
 
@@ -259,7 +296,7 @@ Here are some examples:
 
 .. code-block:: Daedalus
 
-  {- Declaration            Matches        Result   -}
+  {- Declaration           Matches        Result   -}
   def B1 = Match1 'A'   -- "A"            'A', or
         <| Match1 'B'   -- "B"            'B'
 
@@ -267,8 +304,12 @@ Here are some examples:
         <| ^ 'B'        -- "A"            'A', or
                         -- ""             'B'
 
-These two are quite different:  ``B1`` will fail unless the
-next byte in the input is ``'A'`` or ``'B'``, while ``B2`` never fails.
+These two are quite different:
+  * ``B1`` matches a single byte, either ``A`` or ``B`` and returns the
+    matched byte as the result of the parser.
+  * ``B2`` matches either 1 byte, which must be ``A`` and will be returned
+    as the result of the parser, or 0 bytes, in which case it will return
+    byte ``B``.
 
 
 **Unbiased Choice.** Given two parsers ``P`` and ``Q`` we may construct
@@ -323,14 +364,40 @@ of using braces and semi-colons we can just line-up the alternaitves like this:
       Match 'A'
       Match 'B'
 
+``Choose`` can also be used to construct tagged unions, which is useful if
+you'd like the semantic value to reflect which of the parsers succeeded,
+or if the branches need to return construct results of different types.
+This is discussed in section `Unions and Case Distinction`_
 
 
+Repetition
+----------
 
-Choose can also be used to construct tagged unions: see below. 
+.. todo::
+  Describe ``Many``
 
 
 Control Structures 
 ==================
+
+If-then-else
+------------
+
+Booleans may be used to choose between one of two parsers:
+
+.. code-block:: Daedalus
+
+  block
+    let i = Match1 ('0'..'9')
+    if (i - '0') > 5
+      then Match 'X'
+      else ^ 7
+
+The parser above parses a decimal digit and if it is larger than 5
+it will try to match ``'X'`` from the input, otherwise it will succeed
+with semantic value 7.
+
+
 
 Guards
 ------
@@ -356,23 +423,6 @@ Similarly, ``p is false`` is a parser that would succeed only
 if ``p`` is ``false``.
 
 
-If-then-else
-------------
-
-Booleans may also be used to choose between one of two parsers:
-
-.. code-block:: Daedalus
-
-  block
-    let i = Match1 ('0'..'9')
-    if (i - '0') > 5
-      then Match 'X'
-      else ^ 7
-
-The parser above parses a decimal digit and if it is larger than 5
-it will try to match ``'X'`` from the input, otherwise it will succeed
-with sematic value 7.
-
 
 ``for`` loops
 -------------
@@ -388,7 +438,7 @@ values in an array of integers:
 
   for (val = 0 : int; v in [1,2,3]) 
     val + v
-    
+
 Here, ``val`` is initially bound to ``0``. Each iteration of the loop binds
 ``v`` to the current element of the sequence, then computes the value of the
 body, ``val + v``. This returned value is the updated value of ``val``.
@@ -419,9 +469,8 @@ loop is a parser which fails when the value is less than the key:
   for (val = 0; k,v in d) 
     k <= v is true
 
-    
-Map
----
+Traversing with ``map``
+-----------------------
 
 Daedalus supports another iteration construct, ``map``. This performs an operation on each 
 element of a sequence, resulting in a sequence of results. For example, the following code 
@@ -529,6 +578,10 @@ element.  For example
 Commit
 ------
 
+.. warning::
+  ``commit`` is an unstable experimental feature and its behavior may change
+  or it may be removed entirely.
+
 Normally, at the point a parser fails, Daedalus will backtrack to a choice point 
 and try an alternative parser. The ``commit`` guard acts as a cut-point and prevents
 backtracking. For example, the following code cannot parse the string ``"AC"`` 
@@ -546,32 +599,6 @@ The ``try`` construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing ``try``
 construct, or until it escapes the top-level definition.
   
-Option type 
------------
-
-Daedalus supports the special polymorphic type ``maybe A``, which has possible 
-values ``nothing`` and ``just i``, for some value of type ``A``.
-The ``is`` guard can be used to identify which case holds.
-
-.. code-block:: Daedalus 
-
-  { 
-    @res = 
-      {@l = Match1 ('A'..'Z'); ^ just l}
-        <|
-      {^ nothing};
-    r = res is just
-  }
-
-The above example could also be written using the builtin ``Optional`` parser.
-
-.. code-block:: Daedalus 
-
-  { 
-    @res = Optional (Match1 'A'..'Z');
-    r = res is just
-  }
-
 Semantic Values
 ===============
 
@@ -630,6 +657,35 @@ The result of ``x <# y`` is a bitvector of type ``A`` that contains
 ``x # y`` but truncated to the ``A`` less significatn bits.
 
 
+Option type
+-----------
+
+Daedalus supports the special polymorphic type ``maybe A``, which has possible 
+values ``nothing`` and ``just i``, for some value of type ``A``.
+The ``is`` guard can be used to identify which case holds.
+
+.. code-block:: Daedalus 
+
+  { 
+    @res = 
+      {@l = Match1 ('A'..'Z'); ^ just l}
+        <|
+      {^ nothing};
+    r = res is just
+  }
+
+The above example could also be written using the builtin ``Optional`` parser.
+
+.. code-block:: Daedalus 
+
+  { 
+    @res = Optional (Match1 'A'..'Z');
+    r = res is just
+  }
+
+
+
+
 
 Stream manipulation
 ===================
@@ -640,12 +696,12 @@ we can write a parser function which runs two different parsers on the same stre
 
 .. code-block:: Daedalus 
 
-  def ParseTwice P1 P2 = {
-    @cur = GetStream; 
-    p1result = P1; 
-    SetStream cur; 
-    p2result = P2; 
-  }
+  def ParseTwice P1 P2 =
+    block
+      let cur = GetStream
+      p1result = P1
+      SetStream cur
+      p2result = P2
 
 By manipulating the stream, we can also run a parser on a fixed-size sub-stream.
 The following parser parses a size-n chunk which begins with a sequence of
@@ -653,16 +709,17 @@ letters, and then is filled with spaces:
 
 .. code-block:: Daedalus 
 
-  def LetterFill n = { 
-    @cur = GetStream; 
-    @this = Take n cur; 
-    @next = Drop n cur; 
-    SetStream this; 
-    $$ = { $$ = Many (Match1 ('A'..'Z'))
-            Many (Match1 ' '); 
-            END; }; 
-    SetStream next; 
-  }
+  def LetterFill n =
+    block
+      let cur  = GetStream
+      let this = Take n cur
+      let next = Drop n cur
+      SetStream this
+      $$ = block
+             $$ = Many (Match1 ('A'..'Z'))
+             Many (Match1 ' ') 
+             END
+      SetStream next
 
 It is also possible to directly access the current position in the stream using
 ``Offset``. This can be used to calculate how many characters were read by a
@@ -708,6 +765,25 @@ Character Classes
 
 External Declarations
 =====================
+
+
+Bitdata
+=======
+
+
+Implicit Lifting
+================
+
+
+Implicit Parameters
+===================
+
+
+
+
+
+
+
 
 
 
