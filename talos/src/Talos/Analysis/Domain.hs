@@ -132,6 +132,13 @@ splitRemoveVar bv ds = (nin, Domain nout)
 -- primAddDomainElement d ds = Domain (d : elements ds)
 
 --------------------------------------------------------------------------------
+-- Debugging etc.
+
+domainInvariant :: Domain -> Bool
+domainInvariant dom = all (\(evs, sl) -> evs /= mempty) (elements dom)
+
+
+--------------------------------------------------------------------------------
 -- Class instances
 
 instance PP Domain where

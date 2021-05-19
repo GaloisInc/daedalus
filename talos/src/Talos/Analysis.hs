@@ -66,6 +66,8 @@ summariseDecl cls Fun { fName = fn
   m_oldS <- lookupSummary fn cls
   
   newS   <- doSummary
+  when (not (domainInvariant (exportedDomain newS))) $
+    panic "Failed domain invariant" ["At " ++ showPP fn]
   IterM $ modify (addSummary newS)
   propagateIfChanged newS m_oldS
   where

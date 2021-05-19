@@ -33,6 +33,7 @@ import Talos.Analysis.Slice
 import Talos.Analysis.Domain (lookupVar)
 import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
 import Talos.Analysis.EntangledVars (EntangledVar)
+import Talos.Analysis.Domain (domainInvariant)
 
 import Talos.SymExec.SolverT (SolverT)
 
@@ -84,10 +85,14 @@ summaries = liftStrategy (StrategyM (gets stsSummaries))
 
 getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVar -> m Slice
 getParamSlice fn cl ev = do
-  ss <- summaries
+  ss <- summaries  
   let m_s = do
         summM <- Map.lookup fn ss
         summ  <- Map.lookup cl summM
+        
+        when (not (domainInvariant (exportedDomain summ))) $
+          panic "Failed domain invariant" ["At " ++ showPP fn]
+        
         snd <$> lookupVar ev (exportedDomain summ)
   case m_s of
     Just sl -> pure sl
