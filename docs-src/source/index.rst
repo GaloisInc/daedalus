@@ -21,8 +21,7 @@ Each declaration can specify either a *parser*, a *semantic value*, or
 a *character class*.  Parsers may examine and consume input, and have
 the ability to fail.  If successful, they produce a semantic value.
 Character classes describe sets of bytes, which may be used to define
-parsers, and will be discussed in more detail `later
-<character_classes_>`_.
+parsers, and will be discussed in more detail in section `Character Classes`_.
 
 The general form of a declarations is as follows:
 
@@ -125,7 +124,10 @@ message.
 Sequencing Parsers
 ------------------
 
-**Basic Sequencing.** Multiple parsers may be executed one after the other,
+Basic Sequencing
+^^^^^^^^^^^^^^^^
+
+Multiple parsers may be executed one after the other,
 by listing them either between ``{`` and ``}`` or between ``[`` and ``]``,
 and separating them with ``;``.  Thus, ``{ P; Q; R }`` and ``[ P; Q; R ]`` are
 both composite parsers that will execute ``P`` , then ``Q``, and finally ``R``.
@@ -176,9 +178,10 @@ equivalent to the previous two:
 
 
 
+Explicit Result
+^^^^^^^^^^^^^^^
 
-
-**Explicit Result.** A ``block`` or ``{}``-sequenced group of parsers may
+A ``block`` or ``{}``-sequenced group of parsers may
 return the result from any member of the group instead of the last one.
 To do so, assign the result of the parser to the special variable ``$$``.
 For example:
@@ -195,7 +198,10 @@ In the example above, the semantic value produce by ``ReturnMiddle`` is that
 produced by ``Q``.
 
 
-**Local Variables.** It is also possible to combine the results of some
+Local Variables
+^^^^^^^^^^^^^^^
+
+It is also possible to combine the results of some
 of the ``block/{}``-sequenced parsers by using *local variables* and the
 pure parser.  Assignments prefixed by the keyword ``let`` introduce a local
 variable, which is in scope in the following parsers.  Here is an example:
@@ -215,7 +221,11 @@ of the sequence is the result of the last parser, which does not consume
 any input, but only constructs a semantic value by adding ``x`` and ``y``
 together.
 
-**Structure Sequence.** It is also possible to return results from more than
+
+Structure Sequence
+^^^^^^^^^^^^^^^^^^
+
+It is also possible to return results from more than
 one of the parsers in a ``block/{}``-sequenced group.  To do so give names
 to the desired results (*without* ``let``).  The semantic value of the
 resulting parser is a structure with fields containing the value of
@@ -263,7 +273,10 @@ example, here is an equivalent way to define the same parser:
       y = ^ x + z
 
 
-**Syntactc Sugar.** A number of the constructs described in this section are
+Syntactic Sugar
+^^^^^^^^^^^^^^^
+
+A number of the constructs described in this section are
 may be thought of as simply syntactic sugar for using local variables.
 Here are some examples:
 
@@ -281,11 +294,12 @@ Here are some examples:
 Parsing Alternatives
 --------------------
 
-**Biased Choice.** Given two parsers ``P`` and ``Q`` we may construct
-the composite parser ``P <| Q``.   This parser succeeds if *either*
-``P`` *or* ``Q`` succeeds. In the case that *both* succeed, the parser behaves
-like ``P``.  Note that ``P`` and ``Q`` have to construct semantic values of
-the same type.
+Biased Choice
+^^^^^^^^^^^^^
+Given two parsers ``P`` and ``Q`` we may construct the composite
+parser ``P <| Q``.   This parser succeeds if *either* ``P`` *or* ``Q``
+succeeds. In the case that *both* succeed, the parser behaves like ``P``.
+Note that ``P`` and ``Q`` have to construct semantic values of the same type.
 
 More operationally, ``P`` would be used to parse the input first,
 and only if it fails would we execute ``Q`` on the same input.  While this
@@ -312,8 +326,11 @@ These two are quite different:
     byte ``B``.
 
 
-**Unbiased Choice.** Given two parsers ``P`` and ``Q`` we may construct
-the composite parser ``P | Q``.  This parser succeeds if either ``P`` or ``Q``
+Unbiased Choice
+^^^^^^^^^^^^^^^
+
+Given two parsers ``P`` and ``Q`` we may construct the composite
+parser``P | Q``.  This parser succeeds if either ``P`` or ``Q``
 succeeds on the given input.   Unlike biased choice, if *both* succeed,
 then the resulting parser is *ambigous* for the given input, which means
 that input may be parsed in more than one way.  It is possible, however, to
@@ -336,9 +353,11 @@ left alternative of ``U1``) or starting with ``"B"`` (by using the right
 alternative of ``U1``).  No inputs are ambiguous in this case.
 
 
+Alternative Syntax
+^^^^^^^^^^^^^^^^^^
 
-**Alternative Syntax.** Given multiple parsers ``A``, ``B``, ... we can use 
-the ``Choose`` keyword for unbiased choice and ``Choose1`` for biased choice. 
+Given multiple parsers ``A``, ``B``, ... we can use the ``Choose`` keyword
+for unbiased choice and ``Choose1`` for biased choice.
 
 +---------------------------+-------------------+ 
 | Expression:               | Equivalent to:    | 
@@ -364,10 +383,82 @@ of using braces and semi-colons we can just line-up the alternaitves like this:
       Match 'A'
       Match 'B'
 
-``Choose`` can also be used to construct tagged unions, which is useful if
+
+Tagged Unions
+^^^^^^^^^^^^^
+
+Daedalus supports a variation on ``Choose`` and ``Choose1``
+that can be used to construct tagged unions, which is useful if
 you'd like the semantic value to reflect which of the parsers succeeded,
 or if the branches need to return construct results of different types.
-This is discussed in section `Unions and Case Distinction`_
+
+For example, the following parser constructs a union with possible tags
+``good`` and ``bad``, depending on whether the input character is
+``'G'`` or ``'B'``. 
+
+.. code-block:: Daedalus 
+
+  def BorG =
+    Choose
+      good = Match1 'G'
+      bad  = Match1 'B'
+
+This parser works in a similar way to ordinary ``Choose`` except that if
+an alternative succeeds, the resulting semantic value is *tagged* with
+the given tag (e.g., ``good`` or ``bad`` and the previous example).  The type
+of the semantic value is of a new user-defined type, derived from the name
+of the declaration---in the previous example, the result of the parser would
+of a newly defined union type called ``BorG``.
+
+
+It is also possible to construct a value if a tagged-union type using
+the notation ``{| good = 'G' |}``.  For example, an alternative way
+to write the previous example is like this:
+
+.. code-block:: Daedalus
+
+  def AnotherBorG =
+    Choose
+      block
+        let x = Match1 'G'
+        ^ {| good = x |}
+      block
+        let x = Match1 'B'
+        ^ {| bad = x |}
+
+Note that when using the ``{| tag = value |}`` notation, Daedalus will try
+to infer the type of the tagged union.  If it cannot infer it, it will generate
+a new user defined type:  this is the case in the previous example, and so
+parser ``AnotherBorG`` will return values of a newly generated type also
+called ``AnotherBorG``.
+
+It is important to note that even though ``BorG`` and ``AnotherBorG`` have
+essentially the same values, these values have distinct types and **cannot**
+be freely interchanged.
+
+If we want to make a tagged union value of an existing type, we'd have to
+provide a *type annotation*, unless the type can already be inferred from
+the context.   For example:
+
+.. code-block:: Daedalus
+
+  def YetAnotherBorG =
+    Choose
+      block
+        let x = Match1 'G'
+        ^ {| good = x |} : BorG
+      block
+        let x = Match1 'B'
+        ^ {| bad = x |}
+
+The ``: BorG`` in the first alternative specifies that we are making a value
+of type ``BorG``.  Note that we do not need to provide the annotation on the
+second alternative because all alternatives in (untagged) ``Choose`` have
+the same type, so Daedalus can infer that we are also making a value of
+type ``BorG``.
+
+
+
 
 
 Repetition
@@ -398,14 +489,32 @@ it will try to match ``'X'`` from the input, otherwise it will succeed
 with semantic value 7.
 
 
+Case
+----
+
+.. todo::
+  Document ``case``
+
+
 
 Guards
 ------
 
-Boolean semantic values may be used as a guard to control whether parsing
-continues. For example, the following parser uses the guard
-``(i - '0') > 5 is true`` to distinguish whether an parsed digit is
-greater than 5.
+Guards provide one way to examine a semantic value, and their general form is:
+
+.. code-block:: Daedalus
+
+  expression is shape
+
+A guard is a parser that will succeed if the expression has the required shape.
+
+Boolean Guards
+^^^^^^^^^^^^^^
+
+Perhaps the most common guard is on boolean semantic values,
+which may be used to control whether parsing should continue. For example,
+the following parser uses the guard ``(i - '0') > 5 is true`` to continue
+parsing (on the given alternative) only for digits larger than 5.
 
 .. code-block:: Daedalus
 
@@ -421,6 +530,42 @@ So, if ``p`` is a boolean value, then ``p is true`` is a parser that
 succeeds without consuming input if ``p`` holds, and fails otherwise.
 Similarly, ``p is false`` is a parser that would succeed only
 if ``p`` is ``false``.
+
+
+Guards on ``maybe``
+^^^^^^^^^^^^^^^^^^^
+
+The type ``maybe`` also supports guards, with two shapes:
+``just`` and ``nothing``.  For example ``e is just`` is a parser that will
+succeed only if ``e`` is of the shape ``just x`` form some ``x``.  In that
+case the result of the parser would be the value ``x``.  Guards that have
+no interesting result (e.g., ``e is true``) simply return the trivial
+value ``{}``.
+
+Guards on Tagged Unions
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The same notation may be used to examine values of user-defined
+union types (see `Tagged Unions`_)
+
+
+.. code-block:: Daedalus 
+
+  block
+    let res = Choose
+                good = Match1 'G'
+                bad  = Match1 'B'
+
+    Choose
+
+      block
+        res is good
+        ^ "Success!"
+
+      block
+        res is bad
+        ^ "Failure!"
+
 
 
 
@@ -504,74 +649,6 @@ sequence indexes and values:
   }
 
 
-Unions and Case Distinction
----------------------------
-
-Daedalus supports tagged unions and case distinction on unions. The way to
-construct a union is to use ``Choose``. For example, the following parser
-constructs a union with possible tags ``good`` and ``bad``,
-depending on whether the input character is ``'G'`` or ``'B'``. 
-
-.. code-block:: Daedalus 
-
-  -- (using layout)
-  Choose
-    good = 'G'
-    bad = 'B'
-
-It is also possible to construct a union literal using ``{| good = 'G' |}``.
-Note however that the compiler will reject programs where it cannot infer
-the resulting type of the union.  In such cases, you'd need to provide
-an explicit type signature.
-
-Given a union ``u`` and tag name ``t``, the guard ``u is t`` succeeds
-if the union has the correct tag. This can be used to control parser
-control flow, as in the following example: 
-
-.. code-block:: Daedalus 
-
-  block
-    let res = Choose
-                good = Match1 'G'
-                bad  = Match1 'B'
-
-    Choose
-
-      block
-        res is good
-        ^ "Success!"
-
-      block
-        res is bad
-        ^ "Failure!"
-
-The result of a succesful ``is`` guard is the value of the union
-element.  For example
-
-.. code-block:: Daedalus 
-
-  block
-    let res = Choose
-                good =
-                  block
-                    Match1 'G'
-                    Many (Match1 ('a' .. 'z'))
-
-                bad = Match1 'B'
-
-    Choose
-
-      block
-        let msg = res is good
-        ^ concat [ "Success!", msg]
-
-      block
-        res is bad
-        ^ "Failure!"
-
-
-.. todo::
-  Document ``case``
 
 
 
@@ -598,7 +675,8 @@ reaching the alternative branch.
 The ``try`` construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing ``try``
 construct, or until it escapes the top-level definition.
-  
+
+
 Semantic Values
 ===============
 
@@ -614,8 +692,14 @@ Booleans
 The type ``bool`` classifies the usual boolean values ``true`` and ``false``.
 
 The operator ``!`` may be used to negate a boolean value.
+The operators ``||`` and ``&&`` are for (short-circuiting) "or" and "and"
+respectively.
 
-Boolean values may be compared for equality using ``==``.
+Boolean values may be compared for equality using ``==`` and are ordered
+with ``false < true``.
+
+Decisions on a boolean may be made either using `If-then-else`_, by
+using `Guards`_, or by using `Case`_.
 
 
 
@@ -630,23 +714,41 @@ The ``uint N`` classify unsigned numbers that can be represented using ``N``
 bits and ``sint N`` is for signed numbers that can be represented
 in ``N`` bits.
 
+
+Numeric Literals
+^^^^^^^^^^^^^^^^
+
 Literals of the numeric types may written either using decimal or hexadecimal
 notation (e.g., ``10`` or ``0xA``).  The type of a literal can be inferred
 from the context (e.g., ``10`` can be used as both ``int`` a ``uint 8``).
 
-Numeric types support basic arithmetic: addition, subtraction, 
-multiplication, division, and modulus using the usual operators
-``+``,``-``,``*``,``/``, and ``%``.  DaeDaLus also supports shift
-operations ``<<`` and ``>>``.
-These operations are overloaded and can be used on all numeric types,
-with the restriction that the inputs and the outputs must be of the
-same type.  
+
+Comparisons
+^^^^^^^^^^^
 
 Numeric types can also be compared for equality, using ``==`` and ordering
 using ``<``, ``<=``, ``>``, and ``>=``.
 
+Basic Arithmetic
+^^^^^^^^^^^^^^^^
+
+Numeric types support basic arithmetic: addition, subtraction, 
+multiplication, division, and modulus using the usual operators
+``+``,``-``,``*``,``/``, and ``%``.
+
+Bitwise Operations
+^^^^^^^^^^^^^^^^^^
+
+DaeDaLus also supports shift operations ``<<`` and ``>>``.
+These operations are overloaded and can be used on all numeric types,
+with the restriction that the inputs and the outputs must be of the
+same type.  The shift amount is a value of type ``uint 64``.
+
 Unsigned integers may also be treated as bit-vectors, and support various
-bitwise operations: complement: ``~``; exclusive-or ``^``; and bitwise-and ``&``.
+bitwise operations:
+  * complement: ``~``
+  * exclusive-or ``.^.``
+  * and bitwise-and ``.&.``.
 
 Unsigned numbers can also be appended to other numbers via the
 ``#`` and ``<#`` operator.  To see the difference between the two,
@@ -657,33 +759,34 @@ The result of ``x <# y`` is a bitvector of type ``A`` that contains
 ``x # y`` but truncated to the ``A`` less significatn bits.
 
 
-Option type
------------
+`maybe` type
+------------
 
 Daedalus supports the special polymorphic type ``maybe A``, which has possible 
-values ``nothing`` and ``just i``, for some value of type ``A``.
-The ``is`` guard can be used to identify which case holds.
+values ``nothing`` and ``just x``, for some value, ``x`` of type ``A``.
+
+The parser ``Optional P`` will try to parse the input using and produce
+a ``maybe`` value.  If ``P`` succeeds with result ``x`` then
+``Optional P`` will succeed with ``just x``, and if ``P`` fails, then
+``Optional P`` will *succeed* with ``nothing``.
 
 .. code-block:: Daedalus 
+  def MaybeLetter = Optional (Match1 ('A'..'Z'))
 
-  { 
-    @res = 
-      {@l = Match1 ('A'..'Z'); ^ just l}
-        <|
-      {^ nothing};
-    r = res is just
-  }
-
-The above example could also be written using the builtin ``Optional`` parser.
-
-.. code-block:: Daedalus 
-
-  { 
-    @res = Optional (Match1 'A'..'Z');
-    r = res is just
-  }
+To examine values of the ``maybe`` type you may use `Guards`_ or `Case`_.
 
 
+Arrays
+------
+
+.. todo::
+  Describe the interface to ``[ key -> value ]``
+
+Association Maps
+----------------
+
+.. todo::
+  Describe the interface to ``[ key -> value ]``
 
 
 
@@ -749,12 +852,6 @@ The ``arrayStream`` operator converts an array into a stream:
 
 This example will succeed if the concatenation of the arrays ``a`` and
 ``b`` starts with the string ``"AABBB"``.
-
-
-Types
-=====
-
-
 
 
 .. _character_classes:
