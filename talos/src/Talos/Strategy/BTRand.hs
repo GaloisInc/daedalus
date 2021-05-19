@@ -11,6 +11,7 @@ import Control.Monad.State
 import qualified Data.ByteString as BS
 import Data.List (foldl', foldl1', partition)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Daedalus.Panic
 import qualified Daedalus.Value as I
@@ -25,6 +26,7 @@ import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
 import Talos.Strategy.DFST
+
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -168,20 +170,20 @@ stratSlice ptag = go
 stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> I.Env -> 
                  ReaderT I.Env m (I.Value, SelectedNode)
 stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
-  (_, nonRes) <- unzip <$> mapM (uncurry doOne) asserts
+  (_, nonRes) <- unzip <$> mapM doOne asserts
   (v, res)    <- case results of
     [] -> pure (I.vUnit, Unconstrained)
-    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl . fst) results -- merge slices
-             let evs = foldMap (callParams . snd) results
+    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
+             let evs = mconcat results
              local (const (evsToEnv evs)) (stratSlice ptag sl)
 
   pure (v, SelectedCall cl (foldl' merge res nonRes))
   where
     -- This works because 'ResultVar' is < than all over basevars
-    (results, asserts) = partition (\(ev, _) -> baseVar ev == ResultVar) (Map.toList paths)
+    (results, asserts) = partition hasResultVar (Set.toList paths)
         
-    doOne ev CallInstance { callParams = evs {- , callSlice = sl -} } = do
-      sl <- getParamSlice fn cl ev
+    doOne evs = do
+      sl <- getParamSlice fn cl evs
       local (const (evsToEnv evs)) (stratSlice ptag sl)
 
     -- we rely on laziness to avoid errors in computing values with free variables

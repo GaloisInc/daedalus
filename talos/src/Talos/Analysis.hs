@@ -1,8 +1,8 @@
-{-# LANGUAGE GADTs, DataKinds, RankNTypes, KindSignatures, PolyKinds #-}
+{-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards #-} -- for dealing with TCDecl and existential k
+ -- for dealing with TCDecl and existential k
 
 -- We walk through the each decl figuring out if it has things we
 -- can't easily handle and thus need to send to the solver.  At the
@@ -41,8 +41,8 @@ import Talos.Analysis.Slice
 summarise :: [Fun Grammar] -> GUID -> (Summaries, GUID)
 summarise decls nguid  = (summaries s', nextGUID s')
   where
-    s' = calcFixpoint s0 
-    s0 = initState decls nguid 
+    s' = calcFixpoint s0
+    s0 = initState decls nguid
 
 --------------------------------------------------------------------------------
 -- Summary functions
@@ -53,7 +53,7 @@ calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
   , Just decl <- Map.lookup fn decls -- should always succeed
   = calcFixpoint (-- traceShow ("Entering " <+> pp fn <+> pp cl) $
                   runIterM (summariseDecl cl decl) (s { worklist = wl' }))
-         
+
 -- Empty worklist
 calcFixpoint s = s
 
@@ -64,7 +64,7 @@ summariseDecl cls Fun { fName = fn
   IterM $ modify (\s -> s { currentDecl = fn, currentClass = cls })
 
   m_oldS <- lookupSummary fn cls
-  
+
   newS   <- doSummary
   when (not (domainInvariant (exportedDomain newS))) $
     panic "Failed domain invariant" ["At " ++ showPP fn]
@@ -76,7 +76,7 @@ summariseDecl cls Fun { fName = fn
     propagateIfChanged newS (Just oldS)
       | domainEqv (exportedDomain oldS) (exportedDomain newS) = pure ()
     propagateIfChanged _newS _ = propagate fn cls
-    
+
     -- We always insert the new summary, as even if the pre-domain
     -- hasn't changed, internal paths sets may have (which we could
     -- check if this is too expensive).
@@ -87,15 +87,15 @@ summariseDecl cls Fun { fName = fn
       let summaries' =
             Map.insertWith Map.union fn (Map.singleton cls summary) (summaries s)
       in s { summaries = summaries' }
-    
+
     doSummary :: IterM Summary
     doSummary = do
       let m_ret = case cls of
             Assertions           -> Nothing
             FunctionResult fsets -> Just (ResultVar, fsets)
-                        
+
       (d, m) <- runSummariseM (summariseG m_ret def)
-      
+
       pure (Summary { exportedDomain = d
                     , pathRootMap = m
                     , params = ps
@@ -109,7 +109,7 @@ summariseDecl _ _ = panic "Expecting a defined decl" []
 
 data SummariseMState =
   SummariseMState { pathRoots :: PathRootMap }
-  
+
 emptySummariseMState :: SummariseMState
 emptySummariseMState = SummariseMState Map.empty
 
@@ -174,10 +174,10 @@ substituteArgs argsMap m_x evs =
       -- requested field set, so it should be contained in fset, but
       -- may not be equal (if the analysis overapproximated, for
       -- example)
-      ResultVar 
+      ResultVar
         | Just (x, _fsets) <- m_x -> singletonEntangledVars x fset
         | otherwise -> mempty
-      
+
       ProgramVar n
         | Just e <- Map.lookup n argsMap -> freeEntangledVars fset e
         | otherwise -> panic "Missing parameter" [showPP n]
@@ -197,18 +197,18 @@ summariseCall m_x fn args = do
   -- summary, and merge the results (the substitution may have
   -- introduced duplicates, so we need to do a pointwise merge)
   let argsMap    = Map.fromList $ zip ps args -- FIXME: This gets recomputed for each fset
-      mkCallNode r (evs, _sl) =
+      mkCallNode (evs, _sl) =
         CallNode { callClass        = cl
                  , callAllArgs      = argsMap
                  , callName         = fn
-                 , callPaths        = Map.singleton r (CallInstance evs {- sl -})
+                 , callPaths        = Set.singleton evs {- sl -}
                  }
 
-      mkCall r b@(evs, _) = 
+      mkCall b@(evs, _) =
         singletonDomain (substituteArgs argsMap m_x evs)
-                        (SLeaf . SCall $ mkCallNode r b)
-  
-  pure $ Map.foldMapWithKey mkCall (explodeDomain expDom)
+                        (SLeaf . SCall $ mkCallNode b)
+
+  pure $ foldMap mkCall (explodeDomain expDom)
   where
     cl | Just (_, fsets) <- m_x = FunctionResult fsets
        | otherwise              = Assertions
@@ -280,7 +280,7 @@ summariseCase m_x cs@(Case e alts) = do
   bDoms   <- mapM (summariseG m_x . snd) alts
   let trivial   = all nullDomain bDoms
       total     = caseIsTotal cs
-      
+
   if trivial && total then pure emptyDomain else do
     -- We have a non-trivial node, so we construct a singleton domain.
     -- This breaks the domain abstraction, but it is a bit simpler to
@@ -365,7 +365,7 @@ summariseG :: Maybe (BaseEntangledVar, Set FieldSet) ->
               Grammar -> SummariseM Domain
 summariseG m_x tc = do
   -- cl <- liftIterM $ currentSummaryClass
-  
+
   -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
 
   case tc of
@@ -374,7 +374,7 @@ summariseG m_x tc = do
     SetStream {} -> unimplemented
     Match _ (MatchByte bset)
         -- fsets should be {emptyFieldSet} here as we are returning a byte
-      | Just (x, _fsets) <- m_x -> 
+      | Just (x, _fsets) <- m_x ->
           pure $ singletonDomain (singletonEntangledVars x emptyFieldSet
                                   <> freeEntangledVars emptyFieldSet bset)
                                  (SLeaf (SMatch bset))
@@ -382,15 +382,15 @@ summariseG m_x tc = do
     Match {} | isJust m_x -> panic "Saw a relevant match" [showPP tc]
              | otherwise  -> pure emptyDomain
     Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
-    
+
     Do_ lhs rhs -> do
       rhsD <- dontCareD 1 <$> summariseG m_x rhs
       merge rhsD <$> summariseG Nothing lhs
-    
+
     Do x' lhs rhs -> do
       -- we add the dontCare to leave a spot to merge in the dom for lhs
       rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      let ex' = ProgramVar x'      
+      let ex' = ProgramVar x'
       case domainFileSets ex' rhsD of
         -- There is no variable, or no path from here is entangled with it
         [] -> merge rhsD <$> summariseG Nothing lhs
@@ -403,16 +403,16 @@ summariseG m_x tc = do
 
           let (newRoots, dom') = splitRemoveVar ex' dom
           dom' <$ addPathRoot x' newRoots
-          
+
           -- d <- liftIterM $ currentDeclName
-              
+
           -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
           --                                       , "binding" <+> pp ns <+> pp sl
           --                                       , "dom"  <+> pp dom
           --                                       , "lhsD" <+> pp lhsD
           --                                       , "rhsD" <+> pp rhsD
           --                                       ])
-          
+
     Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
 
     -- doms contains a domain for each path in the choose. We create a
@@ -438,10 +438,10 @@ summariseG m_x tc = do
       let lhsD = singletonDomain (freeEntangledVars emptyFieldSet e)
                                  (SLeaf (SAssertion (GuardAssertion e)))
       pure (merge lhsD rhsD)
-    
+
     GCase cs      -> summariseCase m_x cs
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
-    
+
   where
     simple n
       | Just (x, fsets) <- m_x = pure $ mconcat
@@ -449,7 +449,7 @@ summariseG m_x tc = do
                             (SLeaf n)
           | fset <- Set.toList fsets ]
       | otherwise     = pure emptyDomain
-    
+
     unimplemented = panic "summariseG unimplemented" [showPP tc]
 
     bindBaseEV x evs sl
@@ -460,9 +460,9 @@ diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
 diagonalise el xs f =
   let pfxs = inits (replicate (length xs - 1) el)
       sfxs = reverse pfxs
-  in zipWith3 f pfxs xs sfxs 
-   
- 
+  in zipWith3 f pfxs xs sfxs
+
+
 -- -----------------------------------------------------------------------------
 -- Special patterns
 
@@ -481,7 +481,7 @@ caseIsGuard (GCase (Case e cs)) =
     -- FIXME: Annot
     [(PBool b, g), (_, Fail {})]       -> mk b g
     [(PBool _, Fail {}), (PBool b, g)] -> mk b g
-    [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g    
+    [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g
     [(PBool b, g)]                     -> mk b g
     _ -> Nothing
   where
@@ -501,13 +501,13 @@ class FreeEntangledVars a where
   freeEntangledVars :: FieldSet -> a -> EntangledVars
 
 instance FreeEntangledVars Expr where
-  freeEntangledVars _fset = 
+  freeEntangledVars _fset =
     EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
 
 instance FreeEntangledVars ByteSet where
-  freeEntangledVars _fset = 
+  freeEntangledVars _fset =
     EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
 
 instance FreeEntangledVars Grammar where
-  freeEntangledVars _fset = 
+  freeEntangledVars _fset =
     EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars

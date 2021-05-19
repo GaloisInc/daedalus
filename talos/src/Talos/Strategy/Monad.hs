@@ -30,12 +30,11 @@ import qualified Daedalus.Core.Semantics.Decl as I
 
 import Talos.SymExec.Path
 import Talos.Analysis.Slice
-import Talos.Analysis.Domain (lookupVar)
 import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
-import Talos.Analysis.EntangledVars (EntangledVar)
-import Talos.Analysis.Domain (domainInvariant)
+import Talos.Analysis.Domain (domainInvariant, domainElement)
 
 import Talos.SymExec.SolverT (SolverT)
+import Talos.Analysis.EntangledVars (EntangledVars)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -83,20 +82,20 @@ runStrategyM m st = runStateT (getStrategyM m) st
 summaries :: LiftStrategyM m => m Summaries
 summaries = liftStrategy (StrategyM (gets stsSummaries))
 
-getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVar -> m Slice
-getParamSlice fn cl ev = do
-  ss <- summaries  
+getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVars -> m Slice
+getParamSlice fn cl evs = do
+  ss <- summaries
   let m_s = do
         summM <- Map.lookup fn ss
         summ  <- Map.lookup cl summM
-        
-        when (not (domainInvariant (exportedDomain summ))) $
+
+        unless (domainInvariant (exportedDomain summ)) $
           panic "Failed domain invariant" ["At " ++ showPP fn]
-        
-        snd <$> lookupVar ev (exportedDomain summ)
+
+        domainElement evs (exportedDomain summ)
   case m_s of
     Just sl -> pure sl
-    Nothing -> panic "Missing summary" [showPP fn, showPP cl, showPP ev]
+    Nothing -> panic "Missing summary" [showPP fn, showPP cl, showPP evs]
 
 getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
 getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))

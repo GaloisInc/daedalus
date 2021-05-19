@@ -1,5 +1,4 @@
 {-# LANGUAGE KindSignatures, GADTs #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- This module contains the datastructure representing future path
@@ -11,9 +10,7 @@ module Talos.Analysis.Domain where
 import Data.List (partition, foldl1')
 import Data.Either (partitionEithers)
 
-import Data.Map (Map)
 import Data.Maybe (mapMaybe)
-import qualified Data.Map as Map
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -27,7 +24,7 @@ import Talos.Analysis.Slice
 -- Invariants: forall (vs1, ps1) (vs2, ps2) : elements, vs1 \inter vs2 = {}
 --             forall (vs, ps) : elements, vs = tcFree ps
 
-newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] } 
+newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] }
 
 instance Merge Domain where
   merge dL dR = Domain (go (elements dL) (elements dR))
@@ -46,13 +43,13 @@ instance Merge Domain where
 instance Semigroup Domain where
   (<>) = merge
 
-emptyDomain :: Domain 
+emptyDomain :: Domain
 emptyDomain = Domain []
 
 singletonDomain :: EntangledVars -> Slice -> Domain
 singletonDomain vs fp = Domain [ (vs, fp) ]
 
-instance Monoid (Domain) where
+instance Monoid Domain where
   mempty = emptyDomain
 
 dontCareD :: Int -> Domain -> Domain
@@ -98,16 +95,19 @@ domainEqv dL dR = go (elements dL) (elements dR)
 
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
-explodeDomain :: Domain -> Map EntangledVar (EntangledVars, Slice)
-explodeDomain d = Map.fromList [ (representativeEntangledVar (fst el), el) | el <- elements d ]
-           
+explodeDomain :: Domain -> [(EntangledVars, Slice)]
+explodeDomain d = elements d
+
 --------------------------------------------------------------------------------
 -- Helpers
 
 -- Look up exactly the variable passed in (i.e., we don't check if it
 -- is covered by another variable)
-lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
-lookupVar n ds = Map.lookup n (explodeDomain ds)
+-- lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
+-- lookupVar n ds = Map.lookup n (explodeDomain ds)
+
+domainElement :: EntangledVars -> Domain -> Maybe Slice
+domainElement evs d = lookup evs (elements d)
 
 -- | If this returns [] then the variable isn't mapped; it can also
 -- return [emptyFieldSet] which means we care about all the children
@@ -135,8 +135,7 @@ splitRemoveVar bv ds = (nin, Domain nout)
 -- Debugging etc.
 
 domainInvariant :: Domain -> Bool
-domainInvariant dom = all (\(evs, sl) -> evs /= mempty) (elements dom)
-
+domainInvariant dom = all (\(evs, _sl) -> evs /= mempty) (elements dom)
 
 --------------------------------------------------------------------------------
 -- Class instances
