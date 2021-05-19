@@ -64,8 +64,10 @@ parseXRefs inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
 
        let newRoot = mbRoot <|> Just t
 
-       extendObjIndex entries (go newRoot prev) -- shadowing OK here, I think
-
+       extendObjIndex entries (go newRoot prev)
+         -- entries may be shadowing previous entries
+         -- note that the 'entries' are being added, in order, from the top of the file
+         -- and in the reverse order in which 'extensions' would be applied.
 
 type XRefSection s e o =
   ( VecElem e
