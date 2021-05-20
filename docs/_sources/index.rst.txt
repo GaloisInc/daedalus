@@ -748,6 +748,90 @@ The ``try`` construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing ``try``
 construct, or until it escapes the top-level definition.
 
+Type Annotations
+----------------
+
+DaeDaLus declarations and expressions may be annotated with explicit types,
+which is useful when type inference fails to infer the type of something,
+or to improve the readability of the specification.
+
+Annotating an Expression
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``e : t`` to specify that expression ``e`` should have type ``t``.
+For example:
+
+.. code-block:: DaeDaLus
+
+  def i_am_a_byte = 1 : uint 8
+
+Note that without the type annotation on the expression ``1`` the
+resulting declaration would be polymorphic because literals are overloaded
+and may be used at many different types.
+
+Annotating the Result of a Declaration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To specify the result type of a declaration use ``: t`` after the name
+(or the parameters, if any) of the declaration like this:
+
+.. code-block:: DaeDaLus
+
+  def also_byte : uint 8 = 1
+
+  def returns_byte x : uint 8 = x
+
+
+Annotating a Parameter
+^^^^^^^^^^^^^^^^^^^^^^
+
+Parameters of declarations may also be annotated with a type:
+
+.. code-block:: DaeDaLus
+
+  def Example (P : uint 8) = P
+
+The previous example specifies that parameter ``P`` is a parser that
+will construct a ``uint 8`` semantic value.
+
+
+Naming Unknown Types
+^^^^^^^^^^^^^^^^^^^^
+
+Occasionally it is useful to name a type without specifying it explicitly.
+For example:
+
+.. code-block:: DaeDaLus
+
+  def f (x : maybe a) = 1 : a
+
+In the previous example we assume that ``a`` is not the name of any type
+that is in scope.  The type annotation ``maybe a`` specifies that the input
+should be of type ``maybe a`` for *some* type ``a`` that we can refer to
+using the name ``a``, as we do in the body.
+
+.. warning::
+
+  This feature is a bit error prone an may change in the future.
+  Common problems are:
+    1. Modifying the specification to define type ``a`` changes the
+       meaning of a seemingly unrelated declarations
+    2. Mistypeing the name of a type could make you think that you've
+       speicfied the type, but in fact you just named it.
+
+
+
+Coercions
+---------
+
+Coercions provide a way to change a semantic value into the corresponding
+value of a different type.
+
+.. todo::
+
+  Document ``as`` ``as?`` and ``as!``
+
+
 
 Semantic Values
 ===============
