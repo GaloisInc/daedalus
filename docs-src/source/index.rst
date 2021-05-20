@@ -12,11 +12,83 @@ data dependent parsing, which allows a parser's behavior to be affected by
 the semantic values parsed from other parts of the input.
 This allows for a clear, yet precise, specification of many binary formats.
 
+Using the ``daedalus`` Tool
+=========================
+
+
+Help
+----
+
+To see a list of options:
+
+.. code-block:: bash
+
+  daedalus --help
+
+Check a Specification
+---------------------
+
+To type-check a DaeDaLus specification and see the types of the declarations:
+
+.. code-block:: bash
+
+  daedalus --show-types MyParserSpec.ddl
+
+
+Run the Interpreter
+-------------------
+
+To run interpret a specification on a particular input:
+
+.. code-block:: bash
+
+  daedalus MyParserSpec.ddl --interp=input.txt
+
+If successful, the resulting semantic value will be shown on ``stdout``.
+You may also add the flag ``--json`` or ``--html`` to see the semantic value
+in the corresponding formats.
+
+.. todo::
+
+  Document the JSON schema
+
+
+Compile to Haskell
+------------------
+
+To compile a DaeDaLus parser specification to Haskell:
+
+.. code-block:: bash
+
+  daedalus MyParserSpec.ddl --compile-hs
+
+The result is a Haskell module which contains definitions for the
+parsers and functions defined in the specification.   To use the generated
+code you'd have to integrate it with a Haskell project and also use
+the ``rts-hs`` package.
+
+
+Compile to C++
+--------------
+
+To compile a DaeDaLus package specification C++ 17:
+
+.. code-block:: bash
+
+  daedalus MyParserSpec.ddl --compile-c++ --out-dir=some_dir_name
+
+This will generate a number of C++ files together with a ``Makefile`` and
+a sample driver program in directory ``some_dir_name``.
+The ``Makefile`` shows how to build the parser and has an option to
+generate Doxygen documentation.
+
+
+
 
 Declarations
 ============
 
-A Daedalus specification consists of a sequence of *declarations*.
+A DaeDaLus specification consists of a sequence of *declarations*.
 Each declaration can specify either a *parser*, a *semantic value*, or
 a *character class*.  Parsers may examine and consume input, and have
 the ability to fail.  If successful, they produce a semantic value.
@@ -25,7 +97,7 @@ parsers, and will be discussed in more detail in section `Character Classes`_.
 
 The general form of a declarations is as follows:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def Name Parameters = Definition
 
@@ -37,7 +109,7 @@ The name of a declaration determines what sort of entity it defines:
 
 Here are some sample declarations:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def P   = UInt8       -- a parser named `P`
   def x   = true        -- a semantic value named `x`
@@ -53,7 +125,7 @@ would be a grammar parameter, and ``$p`` a character class parameter.
 
 Consider, for example the following declaration:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def Example n P $q =
     if n > 0
@@ -95,7 +167,7 @@ For example ``Match "keyword"`` will match ``"keyword"``, while
 
 **End of Input.** The parser ``END`` succeeds only if there is no more input
 to be parsed.  If successful, the result is the trivial semantic value ``{}``.
-Normally Daedalus parsers succeed as long as they match a *prefix* of the
+Normally DaeDaLus parsers succeed as long as they match a *prefix* of the
 entire input.  By sequencing (see `Sequencing Parsers`_) a parser with
 ``END`` we specify that the entire input must be matched.
 
@@ -110,7 +182,7 @@ message.
 
 **Examples:**
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   {- Declaration                      Matches       Result          -}
   def GetByte     = UInt8             -- Any byte X X
@@ -143,7 +215,7 @@ parser in the sequence.
 
 Examples:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   {- Declaration                                      Matches        Result-}
   def ABC1 = { Match1 'A'; Mathc1 'B'; Match1 'C' }   -- "ABC"       67
@@ -154,7 +226,7 @@ Examples:
 An alternative notation for ``{ .. }`` parsers is to use the ``block`` keyword
 and *layout*:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def UseBraces = { Match "A"; Match "B" }
   def UseLayout =
@@ -168,7 +240,7 @@ on the same column, and any text that is indented more than that column
 belongs to the corresponding parser.  So, the following parser is also
 equivalent to the previous two:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def AlsoTheSame =
     block
@@ -186,7 +258,7 @@ return the result from any member of the group instead of the last one.
 To do so, assign the result of the parser to the special variable ``$$``.
 For example:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def ReturnMiddle =
     block
@@ -206,7 +278,7 @@ of the ``block/{}``-sequenced parsers by using *local variables* and the
 pure parser.  Assignments prefixed by the keyword ``let`` introduce a local
 variable, which is in scope in the following parsers.  Here is an example:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def Add =
     block
@@ -232,7 +304,7 @@ resulting parser is a structure with fields containing the value of
 the correspondingly named parsers.  Consider, for example, the
 following declaration:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def S =
     block
@@ -248,7 +320,7 @@ Note that structure fields also introduce a local variable with the same name,
 so later parsers in the sequence may depend on the semantic values in
 earlier parsers in the sequence.  For example:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def S1 =
     block
@@ -264,7 +336,7 @@ parser is itself a sequence: first it extracts a byte from the input,
 but its semantic value is the sum of the two extracted bytes.  As another
 example, here is an equivalent way to define the same parser:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def S2 =
     block
@@ -308,7 +380,7 @@ parsing algorithm might implement this behavior in a different way.
 
 Here are some examples:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   {- Declaration           Matches        Result   -}
   def B1 = Match1 'A'   -- "A"            'A', or
@@ -338,7 +410,7 @@ resolve ambiguities by composing (e.g., in sequence) with other parsers.
 
 Here are some examples:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def U1 = Match1 'A' | ^ 0
   def U2 = { U1; 'B' }
@@ -370,7 +442,7 @@ for unbiased choice and ``Choose1`` for biased choice.
 The ``Choose`` and ``Choose1`` keywords also support **layout**, so instead
 of using braces and semi-colons we can just line-up the alternaitves like this:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def ChooseWithBraces =
     Choose1 {
@@ -387,7 +459,7 @@ of using braces and semi-colons we can just line-up the alternaitves like this:
 Tagged Unions
 ^^^^^^^^^^^^^
 
-Daedalus supports a variation on ``Choose`` and ``Choose1``
+DaeDaLus supports a variation on ``Choose`` and ``Choose1``
 that can be used to construct tagged unions, which is useful if
 you'd like the semantic value to reflect which of the parsers succeeded,
 or if the branches need to return construct results of different types.
@@ -396,7 +468,7 @@ For example, the following parser constructs a union with possible tags
 ``good`` and ``bad``, depending on whether the input character is
 ``'G'`` or ``'B'``. 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   def BorG =
     Choose
@@ -415,7 +487,7 @@ It is also possible to construct a value if a tagged-union type using
 the notation ``{| good = 'G' |}``.  For example, an alternative way
 to write the previous example is like this:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def AnotherBorG =
     Choose
@@ -426,7 +498,7 @@ to write the previous example is like this:
         let x = Match1 'B'
         ^ {| bad = x |}
 
-Note that when using the ``{| tag = value |}`` notation, Daedalus will try
+Note that when using the ``{| tag = value |}`` notation, DaeDaLus will try
 to infer the type of the tagged union.  If it cannot infer it, it will generate
 a new user defined type:  this is the case in the previous example, and so
 parser ``AnotherBorG`` will return values of a newly generated type also
@@ -440,7 +512,7 @@ If we want to make a tagged union value of an existing type, we'd have to
 provide a *type annotation*, unless the type can already be inferred from
 the context.   For example:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   def YetAnotherBorG =
     Choose
@@ -454,7 +526,7 @@ the context.   For example:
 The ``: BorG`` in the first alternative specifies that we are making a value
 of type ``BorG``.  Note that we do not need to provide the annotation on the
 second alternative because all alternatives in (untagged) ``Choose`` have
-the same type, so Daedalus can infer that we are also making a value of
+the same type, so DaeDaLus can infer that we are also making a value of
 type ``BorG``.
 
 
@@ -476,7 +548,7 @@ If-then-else
 
 Booleans may be used to choose between one of two parsers:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   block
     let i = Match1 ('0'..'9')
@@ -502,7 +574,7 @@ Guards
 
 Guards provide one way to examine a semantic value, and their general form is:
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   expression is shape
 
@@ -516,7 +588,7 @@ which may be used to control whether parsing should continue. For example,
 the following parser uses the guard ``(i - '0') > 5 is true`` to continue
 parsing (on the given alternative) only for digits larger than 5.
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   block
     let i = Match1 ('0'..'9')
@@ -549,7 +621,7 @@ The same notation may be used to examine values of user-defined
 union types (see `Tagged Unions`_)
 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   block
     let res = Choose
@@ -579,7 +651,7 @@ bound to the elements of the collection.  The body may be a parser, or
 a semantic value.  For example, the following expression sums the
 values in an array of integers:
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   for (val = 0 : int; v in [1,2,3]) 
     val + v
@@ -591,7 +663,7 @@ body, ``val + v``. This returned value is the updated value of ``val``.
 Another way to understand how this works is to see the following expression,
 which is the result of one step of evaluation: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   for (val = 1; v in [2, 3]) 
     val + v
@@ -600,7 +672,7 @@ which is the result of one step of evaluation:
 value of a collection. For example, the following loop multiplies 
 each element in the sequence by its index: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   for (val = 0; i,v in [1,2,3]) 
     val + (i * v)  
@@ -609,7 +681,7 @@ This construct is also useful when iterating over the contents of
 dictionaries, where the index is bound to the key.  The following
 loop is a parser which fails when the value is less than the key:
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   for (val = 0; k,v in d) 
     k <= v is true
@@ -617,11 +689,11 @@ loop is a parser which fails when the value is less than the key:
 Traversing with ``map``
 -----------------------
 
-Daedalus supports another iteration construct, ``map``. This performs an operation on each 
+DaeDaLus supports another iteration construct, ``map``. This performs an operation on each 
 element of a sequence, resulting in a sequence of results. For example, the following code 
 doubles each element in an array: 
 
-.. code-block:: Daedalus
+.. code-block:: DaeDaLus
 
   map (x in [1:int, 2, 3]) 
     2 * x
@@ -630,7 +702,7 @@ The ``map`` construct can be used to parse a sequence of blocks, based on a
 sequence of values. For example the following code parses blocks of the form ``0AAA...``, 
 with the number of ``'A'`` characters dicated by the input sequence. 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   map (x in [1, 2, 3]) {
     Match1 '0'; 
@@ -640,7 +712,7 @@ with the number of ``'A'`` characters dicated by the input sequence.
 Just as with ``for``, the map construct has an alternative form that includes both 
 sequence indexes and values: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   map (i,x in [5, 2, 1]) {
     Match1 '0'; 
@@ -659,13 +731,13 @@ Commit
   ``commit`` is an unstable experimental feature and its behavior may change
   or it may be removed entirely.
 
-Normally, at the point a parser fails, Daedalus will backtrack to a choice point 
+Normally, at the point a parser fails, DaeDaLus will backtrack to a choice point 
 and try an alternative parser. The ``commit`` guard acts as a cut-point and prevents
 backtracking. For example, the following code cannot parse the string ``"AC"`` 
 because parsing ``'A'`` and the subsequent ``commit`` will prevent backtracking 
 reaching the alternative branch. 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   Choose1 { 
     { Match1 'A'; commit; Match1 'B' }; 
@@ -683,7 +755,7 @@ Semantic Values
 If successful, a parser produces a semantic value, which describes the
 input in some way useful to the application invoking the parser.
 In addition, semantic values may be used to control how other parts of the
-input are to be parsed.  Daedalus has a number of built-in semantic values
+input are to be parsed.  DaeDaLus has a number of built-in semantic values
 types, and allows for user-defined record and union types.
 
 Booleans
@@ -707,7 +779,7 @@ using `Guards`_, or by using `Case`_.
 Numeric Types
 -------------
 
-Daedalus supports a variety of numeric types: ``int``, ``uint N``, and
+DaeDaLus supports a variety of numeric types: ``int``, ``uint N``, and
 ``sint N``, the latter two being families of types indexed by a number.
 The type ``int`` classifies integers of arbitrary size.
 The ``uint N`` classify unsigned numbers that can be represented using ``N``
@@ -759,10 +831,10 @@ The result of ``x <# y`` is a bitvector of type ``A`` that contains
 ``x # y`` but truncated to the ``A`` less significatn bits.
 
 
-`maybe` type
-------------
+``maybe`` type
+--------------
 
-Daedalus supports the special polymorphic type ``maybe A``, which has possible 
+DaeDaLus supports the special polymorphic type ``maybe A``, which has possible 
 values ``nothing`` and ``just x``, for some value, ``x`` of type ``A``.
 
 The parser ``Optional P`` will try to parse the input using and produce
@@ -770,7 +842,7 @@ a ``maybe`` value.  If ``P`` succeeds with result ``x`` then
 ``Optional P`` will succeed with ``just x``, and if ``P`` fails, then
 ``Optional P`` will *succeed* with ``nothing``.
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
   def MaybeLetter = Optional (Match1 ('A'..'Z'))
 
 To examine values of the ``maybe`` type you may use `Guards`_ or `Case`_.
@@ -780,7 +852,7 @@ Arrays
 ------
 
 .. todo::
-  Describe the interface to ``[ key -> value ]``
+  Describe the interface to ``[ el_type ]``
 
 Association Maps
 ----------------
@@ -793,11 +865,11 @@ Association Maps
 Stream manipulation
 ===================
 
-Daedalus parsers operate on an *input stream*, which by default is the input
+DaeDaLus parsers operate on an *input stream*, which by default is the input
 data to the parser. However, the input stream can be manipulated directly. For example, 
 we can write a parser function which runs two different parsers on the same stream. 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   def ParseTwice P1 P2 =
     block
@@ -810,7 +882,7 @@ By manipulating the stream, we can also run a parser on a fixed-size sub-stream.
 The following parser parses a size-n chunk which begins with a sequence of
 letters, and then is filled with spaces: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   def LetterFill n =
     block
@@ -828,7 +900,7 @@ It is also possible to directly access the current position in the stream using
 ``Offset``. This can be used to calculate how many characters were read by a
 particular parser: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   def OffsetTest = { 
       a = Offset; 
@@ -841,7 +913,7 @@ particular parser:
 
 The ``arrayStream`` operator converts an array into a stream:
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
   def CatStream a b = { 
       SetStream (arrayStream (concat [a, b]));

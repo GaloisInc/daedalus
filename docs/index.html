@@ -42,16 +42,69 @@
 data dependent parsing, which allows a parser’s behavior to be affected by
 the semantic values parsed from other parts of the input.
 This allows for a clear, yet precise, specification of many binary formats.</p>
+<div class="section" id="using-the-daedalus-tool">
+<h2>Using the <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> Tool<a class="headerlink" href="#using-the-daedalus-tool" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="help">
+<h3>Help<a class="headerlink" href="#help" title="Permalink to this headline">¶</a></h3>
+<p>To see a list of options:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
+</pre></div>
+</div>
+</div>
+<div class="section" id="check-a-specification">
+<h3>Check a Specification<a class="headerlink" href="#check-a-specification" title="Permalink to this headline">¶</a></h3>
+<p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --show-types MyParserSpec.ddl
+</pre></div>
+</div>
+</div>
+<div class="section" id="run-the-interpreter">
+<h3>Run the Interpreter<a class="headerlink" href="#run-the-interpreter" title="Permalink to this headline">¶</a></h3>
+<p>To run interpret a specification on a particular input:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --interp<span class="o">=</span>input.txt
+</pre></div>
+</div>
+<p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.
+You may also add the flag <code class="docutils literal notranslate"><span class="pre">--json</span></code> or <code class="docutils literal notranslate"><span class="pre">--html</span></code> to see the semantic value
+in the corresponding formats.</p>
+<div class="admonition-todo admonition" id="index-0">
+<p class="first admonition-title">Todo</p>
+<p class="last">Document the JSON schema</p>
+</div>
+</div>
+<div class="section" id="compile-to-haskell">
+<h3>Compile to Haskell<a class="headerlink" href="#compile-to-haskell" title="Permalink to this headline">¶</a></h3>
+<p>To compile a DaeDaLus parser specification to Haskell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-hs
+</pre></div>
+</div>
+<p>The result is a Haskell module which contains definitions for the
+parsers and functions defined in the specification.   To use the generated
+code you’d have to integrate it with a Haskell project and also use
+the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
+</div>
+<div class="section" id="compile-to-c">
+<h3>Compile to C++<a class="headerlink" href="#compile-to-c" title="Permalink to this headline">¶</a></h3>
+<p>To compile a DaeDaLus package specification C++ 17:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-c++ --out-dir<span class="o">=</span>some_dir_name
+</pre></div>
+</div>
+<p>This will generate a number of C++ files together with a <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> and
+a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
+generate Doxygen documentation.</p>
+</div>
+</div>
 <div class="section" id="declarations">
 <h2>Declarations<a class="headerlink" href="#declarations" title="Permalink to this headline">¶</a></h2>
-<p>A Daedalus specification consists of a sequence of <em>declarations</em>.
+<p>A DaeDaLus specification consists of a sequence of <em>declarations</em>.
 Each declaration can specify either a <em>parser</em>, a <em>semantic value</em>, or
 a <em>character class</em>.  Parsers may examine and consume input, and have
 the ability to fail.  If successful, they produce a semantic value.
 Character classes describe sets of bytes, which may be used to define
 parsers, and will be discussed in more detail in section <a class="reference internal" href="#id1">Character Classes</a>.</p>
 <p>The general form of a declarations is as follows:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def Name Parameters = Definition
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Name Parameters = Definition
 </pre></div>
 </div>
 <p>The name of a declaration determines what sort of entity it defines:</p>
@@ -63,7 +116,7 @@ parsers, and will be discussed in more detail in section <a class="reference int
 </ul>
 </div></blockquote>
 <p>Here are some sample declarations:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def P   = UInt8       -- a parser named `P`
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def P   = UInt8       -- a parser named `P`
 def x   = true        -- a semantic value named `x`
 def $d  = &#39;0&#39; .. &#39;9&#39;  -- a character class named `$d`
 </pre></div>
@@ -75,7 +128,7 @@ the same rules.  In a declaration with a parameter <code class="docutils literal
 indicates that the parameter is a semantic value, while <code class="docutils literal notranslate"><span class="pre">P</span></code> (upper case)
 would be a grammar parameter, and <code class="docutils literal notranslate"><span class="pre">$p</span></code> a character class parameter.</p>
 <p>Consider, for example the following declaration:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def Example n P $q =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Example n P $q =
   if n &gt; 0
     then P
     else Match1 $q
@@ -103,7 +156,7 @@ For example <code class="docutils literal notranslate"><span class="pre">Match</
 <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">[0x00,0x01]</span></code> will match two bytes: 0 followed by 1.</p>
 <p><strong>End of Input.</strong> The parser <code class="docutils literal notranslate"><span class="pre">END</span></code> succeeds only if there is no more input
 to be parsed.  If successful, the result is the trivial semantic value <code class="docutils literal notranslate"><span class="pre">{}</span></code>.
-Normally Daedalus parsers succeed as long as they match a <em>prefix</em> of the
+Normally DaeDaLus parsers succeed as long as they match a <em>prefix</em> of the
 entire input.  By sequencing (see <a class="reference internal" href="#sequencing-parsers">Sequencing Parsers</a>) a parser with
 <code class="docutils literal notranslate"><span class="pre">END</span></code> we specify that the entire input must be matched.</p>
 <p><strong>Pure Parsers.</strong> Any semantic value may be turned into a parser that does
@@ -114,7 +167,7 @@ a parser that always succeeds and produces byte <code class="docutils literal no
 parser is parameterized by an optional location, along with an error
 message.</p>
 <p><strong>Examples:</strong></p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                      Matches       Result          -}
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>{- Declaration                      Matches       Result          -}
 def GetByte     = UInt8             -- Any byte X X
 def TheLetterA  = Match1 &#39;A&#39;        -- Byte 65    65
 def TheNumber3  = Match1 (0 .. 5)   -- A byte between 0 to 5
@@ -141,7 +194,7 @@ with <code class="docutils literal notranslate"><span class="pre">[]</span></cod
 <p>By default, parsers sequenced with <code class="docutils literal notranslate"><span class="pre">{}</span></code> return the result of the last
 parser in the sequence.</p>
 <p>Examples:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration                                      Matches        Result-}
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>{- Declaration                                      Matches        Result-}
 def ABC1 = { Match1 &#39;A&#39;; Mathc1 &#39;B&#39;; Match1 &#39;C&#39; }   -- &quot;ABC&quot;       67
 def ABC2 = [ Match1 &#39;A&#39;; Match1 &#39;B&#39;; Match1 &#39;C&#39; ]   -- &quot;ABC&quot;       [65,66,67]
 def ABC3 = { Match &quot;Hello&quot;; Match &quot;ABC&quot; }           -- &quot;HelloABC&quot;  [65,66,67]
@@ -150,7 +203,7 @@ def ABC4 = { Match &quot;Hello&quot;; Match1 &#39;C&#39; }            -- &quot;H
 </div>
 <p>An alternative notation for <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">..</span> <span class="pre">}</span></code> parsers is to use the <code class="docutils literal notranslate"><span class="pre">block</span></code> keyword
 and <em>layout</em>:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def UseBraces = { Match &quot;A&quot;; Match &quot;B&quot; }
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def UseBraces = { Match &quot;A&quot;; Match &quot;B&quot; }
 def UseLayout =
   block
     Match &quot;A&quot;
@@ -162,7 +215,7 @@ different notation.  When using layout, the entries in the sequence must start
 on the same column, and any text that is indented more than that column
 belongs to the corresponding parser.  So, the following parser is also
 equivalent to the previous two:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def AlsoTheSame =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def AlsoTheSame =
   block
     Match
       &quot;A&quot;
@@ -176,7 +229,7 @@ equivalent to the previous two:</p>
 return the result from any member of the group instead of the last one.
 To do so, assign the result of the parser to the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>.
 For example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def ReturnMiddle =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def ReturnMiddle =
   block
     P
     $$ = Q
@@ -192,7 +245,7 @@ produced by <code class="docutils literal notranslate"><span class="pre">Q</span
 of the <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced parsers by using <em>local variables</em> and the
 pure parser.  Assignments prefixed by the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code> introduce a local
 variable, which is in scope in the following parsers.  Here is an example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def Add =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Add =
   block
     let x = UInt8
     Match1 &#39;+&#39;
@@ -214,7 +267,7 @@ to the desired results (<em>without</em> <code class="docutils literal notransla
 resulting parser is a structure with fields containing the value of
 the correspondingly named parsers.  Consider, for example, the
 following declaration:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def S =
   block
     x = UInt8
     y = Match &quot;HELLO&quot;
@@ -227,7 +280,7 @@ a <em>structure type</em>, also named <code class="docutils literal notranslate"
 <p>Note that structure fields also introduce a local variable with the same name,
 so later parsers in the sequence may depend on the semantic values in
 earlier parsers in the sequence.  For example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S1 =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def S1 =
   block
     x = UInt8
     y = block
@@ -241,7 +294,7 @@ is a structure with two fields, <code class="docutils literal notranslate"><span
 parser is itself a sequence: first it extracts a byte from the input,
 but its semantic value is the sum of the two extracted bytes.  As another
 example, here is an equivalent way to define the same parser:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def S2 =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def S2 =
   block
     x = UInt8
     let z = UInt8
@@ -291,7 +344,7 @@ and only if it fails would we execute <code class="docutils literal notranslate"
 may be a useful intuition about the behavior of this parser, the actual
 parsing algorithm might implement this behavior in a different way.</p>
 <p>Here are some examples:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>{- Declaration           Matches        Result   -}
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>{- Declaration           Matches        Result   -}
 def B1 = Match1 &#39;A&#39;   -- &quot;A&quot;            &#39;A&#39;, or
       &lt;| Match1 &#39;B&#39;   -- &quot;B&quot;            &#39;B&#39;
 
@@ -321,7 +374,7 @@ then the resulting parser is <em>ambigous</em> for the given input, which means
 that input may be parsed in more than one way.  It is possible, however, to
 resolve ambiguities by composing (e.g., in sequence) with other parsers.</p>
 <p>Here are some examples:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def U1 = Match1 &#39;A&#39; | ^ 0
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def U1 = Match1 &#39;A&#39; | ^ 0
 def U2 = { U1; &#39;B&#39; }
 </pre></div>
 </div>
@@ -358,7 +411,7 @@ for unbiased choice and <code class="docutils literal notranslate"><span class="
 </table>
 <p>The <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code> keywords also support <strong>layout</strong>, so instead
 of using braces and semi-colons we can just line-up the alternaitves like this:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def ChooseWithBraces =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def ChooseWithBraces =
   Choose1 {
     Match1 &#39;A&#39;;
     Match1 &#39;B&#39;;
@@ -373,14 +426,14 @@ def ChooseWithLayout =
 </div>
 <div class="section" id="tagged-unions">
 <h4>Tagged Unions<a class="headerlink" href="#tagged-unions" title="Permalink to this headline">¶</a></h4>
-<p>Daedalus supports a variation on <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code>
+<p>DaeDaLus supports a variation on <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code>
 that can be used to construct tagged unions, which is useful if
 you’d like the semantic value to reflect which of the parsers succeeded,
 or if the branches need to return construct results of different types.</p>
 <p>For example, the following parser constructs a union with possible tags
 <code class="docutils literal notranslate"><span class="pre">good</span></code> and <code class="docutils literal notranslate"><span class="pre">bad</span></code>, depending on whether the input character is
 <code class="docutils literal notranslate"><span class="pre">'G'</span></code> or <code class="docutils literal notranslate"><span class="pre">'B'</span></code>.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def BorG =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def BorG =
   Choose
     good = Match1 &#39;G&#39;
     bad  = Match1 &#39;B&#39;
@@ -395,7 +448,7 @@ of a newly defined union type called <code class="docutils literal notranslate">
 <p>It is also possible to construct a value if a tagged-union type using
 the notation <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">good</span> <span class="pre">=</span> <span class="pre">'G'</span> <span class="pre">|}</span></code>.  For example, an alternative way
 to write the previous example is like this:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def AnotherBorG =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def AnotherBorG =
   Choose
     block
       let x = Match1 &#39;G&#39;
@@ -405,7 +458,7 @@ to write the previous example is like this:</p>
       ^ {| bad = x |}
 </pre></div>
 </div>
-<p>Note that when using the <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">tag</span> <span class="pre">=</span> <span class="pre">value</span> <span class="pre">|}</span></code> notation, Daedalus will try
+<p>Note that when using the <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">tag</span> <span class="pre">=</span> <span class="pre">value</span> <span class="pre">|}</span></code> notation, DaeDaLus will try
 to infer the type of the tagged union.  If it cannot infer it, it will generate
 a new user defined type:  this is the case in the previous example, and so
 parser <code class="docutils literal notranslate"><span class="pre">AnotherBorG</span></code> will return values of a newly generated type also
@@ -416,7 +469,7 @@ be freely interchanged.</p>
 <p>If we want to make a tagged union value of an existing type, we’d have to
 provide a <em>type annotation</em>, unless the type can already be inferred from
 the context.   For example:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def YetAnotherBorG =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def YetAnotherBorG =
   Choose
     block
       let x = Match1 &#39;G&#39;
@@ -429,13 +482,13 @@ the context.   For example:</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">:</span> <span class="pre">BorG</span></code> in the first alternative specifies that we are making a value
 of type <code class="docutils literal notranslate"><span class="pre">BorG</span></code>.  Note that we do not need to provide the annotation on the
 second alternative because all alternatives in (untagged) <code class="docutils literal notranslate"><span class="pre">Choose</span></code> have
-the same type, so Daedalus can infer that we are also making a value of
+the same type, so DaeDaLus can infer that we are also making a value of
 type <code class="docutils literal notranslate"><span class="pre">BorG</span></code>.</p>
 </div>
 </div>
 <div class="section" id="repetition">
 <h3>Repetition<a class="headerlink" href="#repetition" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-0">
+<div class="admonition-todo admonition" id="index-1">
 <p class="first admonition-title">Todo</p>
 <p class="last">Describe <code class="docutils literal notranslate"><span class="pre">Many</span></code></p>
 </div>
@@ -446,7 +499,7 @@ type <code class="docutils literal notranslate"><span class="pre">BorG</span></c
 <div class="section" id="if-then-else">
 <h3>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline">¶</a></h3>
 <p>Booleans may be used to choose between one of two parsers:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
   let i = Match1 (&#39;0&#39;..&#39;9&#39;)
   if (i - &#39;0&#39;) &gt; 5
     then Match &#39;X&#39;
@@ -459,7 +512,7 @@ with semantic value 7.</p>
 </div>
 <div class="section" id="case">
 <h3>Case<a class="headerlink" href="#case" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-1">
+<div class="admonition-todo admonition" id="index-2">
 <p class="first admonition-title">Todo</p>
 <p class="last">Document <code class="docutils literal notranslate"><span class="pre">case</span></code></p>
 </div>
@@ -467,7 +520,7 @@ with semantic value 7.</p>
 <div class="section" id="guards">
 <h3>Guards<a class="headerlink" href="#guards" title="Permalink to this headline">¶</a></h3>
 <p>Guards provide one way to examine a semantic value, and their general form is:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>expression is shape
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>expression is shape
 </pre></div>
 </div>
 <p>A guard is a parser that will succeed if the expression has the required shape.</p>
@@ -477,7 +530,7 @@ with semantic value 7.</p>
 which may be used to control whether parsing should continue. For example,
 the following parser uses the guard <code class="docutils literal notranslate"><span class="pre">(i</span> <span class="pre">-</span> <span class="pre">'0')</span> <span class="pre">&gt;</span> <span class="pre">5</span> <span class="pre">is</span> <span class="pre">true</span></code> to continue
 parsing (on the given alternative) only for digits larger than 5.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
   let i = Match1 (&#39;0&#39;..&#39;9&#39;)
   Choose1
     block
@@ -504,7 +557,7 @@ value <code class="docutils literal notranslate"><span class="pre">{}</span></co
 <h4>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this headline">¶</a></h4>
 <p>The same notation may be used to examine values of user-defined
 union types (see <a class="reference internal" href="#tagged-unions">Tagged Unions</a>)</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
   let res = Choose
               good = Match1 &#39;G&#39;
               bad  = Match1 &#39;B&#39;
@@ -530,7 +583,7 @@ the accumulated result of the computation, and a variable that is
 bound to the elements of the collection.  The body may be a parser, or
 a semantic value.  For example, the following expression sums the
 values in an array of integers:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>for (val = 0 : int; v in [1,2,3])
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>for (val = 0 : int; v in [1,2,3])
   val + v
 </pre></div>
 </div>
@@ -539,38 +592,38 @@ values in an array of integers:</p>
 body, <code class="docutils literal notranslate"><span class="pre">val</span> <span class="pre">+</span> <span class="pre">v</span></code>. This returned value is the updated value of <code class="docutils literal notranslate"><span class="pre">val</span></code>.</p>
 <p>Another way to understand how this works is to see the following expression,
 which is the result of one step of evaluation:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>for (val = 1; v in [2, 3])
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>for (val = 1; v in [2, 3])
   val + v
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">for</span></code> supports an alternative form which binds both the index and
 value of a collection. For example, the following loop multiplies
 each element in the sequence by its index:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>for (val = 0; i,v in [1,2,3])
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>for (val = 0; i,v in [1,2,3])
   val + (i * v)
 </pre></div>
 </div>
 <p>This construct is also useful when iterating over the contents of
 dictionaries, where the index is bound to the key.  The following
 loop is a parser which fails when the value is less than the key:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>for (val = 0; k,v in d)
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>for (val = 0; k,v in d)
   k &lt;= v is true
 </pre></div>
 </div>
 </div>
 <div class="section" id="traversing-with-map">
 <h3>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this headline">¶</a></h3>
-<p>Daedalus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
+<p>DaeDaLus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
 element of a sequence, resulting in a sequence of results. For example, the following code
 doubles each element in an array:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>map (x in [1:int, 2, 3])
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>map (x in [1:int, 2, 3])
   2 * x
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">map</span></code> construct can be used to parse a sequence of blocks, based on a
 sequence of values. For example the following code parses blocks of the form <code class="docutils literal notranslate"><span class="pre">0AAA...</span></code>,
 with the number of <code class="docutils literal notranslate"><span class="pre">'A'</span></code> characters dicated by the input sequence.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>map (x in [1, 2, 3]) {
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>map (x in [1, 2, 3]) {
   Match1 &#39;0&#39;;
   Many x (Match1 &#39;A&#39;);
 }
@@ -578,7 +631,7 @@ with the number of <code class="docutils literal notranslate"><span class="pre">
 </div>
 <p>Just as with <code class="docutils literal notranslate"><span class="pre">for</span></code>, the map construct has an alternative form that includes both
 sequence indexes and values:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>map (i,x in [5, 2, 1]) {
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>map (i,x in [5, 2, 1]) {
   Match1 &#39;0&#39;;
   len       = ^ { index = i, elem = x };
   something = Many x (Match1 &#39;A&#39;);
@@ -593,12 +646,12 @@ sequence indexes and values:</p>
 <p class="last"><code class="docutils literal notranslate"><span class="pre">commit</span></code> is an unstable experimental feature and its behavior may change
 or it may be removed entirely.</p>
 </div>
-<p>Normally, at the point a parser fails, Daedalus will backtrack to a choice point
+<p>Normally, at the point a parser fails, DaeDaLus will backtrack to a choice point
 and try an alternative parser. The <code class="docutils literal notranslate"><span class="pre">commit</span></code> guard acts as a cut-point and prevents
 backtracking. For example, the following code cannot parse the string <code class="docutils literal notranslate"><span class="pre">&quot;AC&quot;</span></code>
 because parsing <code class="docutils literal notranslate"><span class="pre">'A'</span></code> and the subsequent <code class="docutils literal notranslate"><span class="pre">commit</span></code> will prevent backtracking
 reaching the alternative branch.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>Choose1 {
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>Choose1 {
   { Match1 &#39;A&#39;; commit; Match1 &#39;B&#39; };
   { Match1 &#39;A&#39;; Match1 &#39;C&#39; }  -- Can&#39;t happen
 }
@@ -614,7 +667,7 @@ construct, or until it escapes the top-level definition.</p>
 <p>If successful, a parser produces a semantic value, which describes the
 input in some way useful to the application invoking the parser.
 In addition, semantic values may be used to control how other parts of the
-input are to be parsed.  Daedalus has a number of built-in semantic values
+input are to be parsed.  DaeDaLus has a number of built-in semantic values
 types, and allows for user-defined record and union types.</p>
 <div class="section" id="booleans">
 <h3>Booleans<a class="headerlink" href="#booleans" title="Permalink to this headline">¶</a></h3>
@@ -629,7 +682,7 @@ using <a class="reference internal" href="#guards">Guards</a>, or by using <a cl
 </div>
 <div class="section" id="numeric-types">
 <h3>Numeric Types<a class="headerlink" href="#numeric-types" title="Permalink to this headline">¶</a></h3>
-<p>Daedalus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
+<p>DaeDaLus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>, the latter two being families of types indexed by a number.
 The type <code class="docutils literal notranslate"><span class="pre">int</span></code> classifies integers of arbitrary size.
 The <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> classify unsigned numbers that can be represented using <code class="docutils literal notranslate"><span class="pre">N</span></code>
@@ -677,8 +730,8 @@ The result of <code class="docutils literal notranslate"><span class="pre">x</sp
 </div>
 </div>
 <div class="section" id="maybe-type">
-<h3><cite>maybe</cite> type<a class="headerlink" href="#maybe-type" title="Permalink to this headline">¶</a></h3>
-<p>Daedalus supports the special polymorphic type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">A</span></code>, which has possible
+<h3><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type<a class="headerlink" href="#maybe-type" title="Permalink to this headline">¶</a></h3>
+<p>DaeDaLus supports the special polymorphic type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">A</span></code>, which has possible
 values <code class="docutils literal notranslate"><span class="pre">nothing</span></code> and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, for some value, <code class="docutils literal notranslate"><span class="pre">x</span></code> of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">Optional</span> <span class="pre">P</span></code> will try to parse the input using and produce
 a <code class="docutils literal notranslate"><span class="pre">maybe</span></code> value.  If <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds with result <code class="docutils literal notranslate"><span class="pre">x</span></code> then
@@ -688,14 +741,14 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </div>
 <div class="section" id="arrays">
 <h3>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-2">
+<div class="admonition-todo admonition" id="index-3">
 <p class="first admonition-title">Todo</p>
-<p class="last">Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">key</span> <span class="pre">-&gt;</span> <span class="pre">value</span> <span class="pre">]</span></code></p>
+<p class="last">Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">el_type</span> <span class="pre">]</span></code></p>
 </div>
 </div>
 <div class="section" id="association-maps">
 <h3>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-3">
+<div class="admonition-todo admonition" id="index-4">
 <p class="first admonition-title">Todo</p>
 <p class="last">Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">key</span> <span class="pre">-&gt;</span> <span class="pre">value</span> <span class="pre">]</span></code></p>
 </div>
@@ -703,10 +756,10 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </div>
 <div class="section" id="stream-manipulation">
 <h2>Stream manipulation<a class="headerlink" href="#stream-manipulation" title="Permalink to this headline">¶</a></h2>
-<p>Daedalus parsers operate on an <em>input stream</em>, which by default is the input
+<p>DaeDaLus parsers operate on an <em>input stream</em>, which by default is the input
 data to the parser. However, the input stream can be manipulated directly. For example,
 we can write a parser function which runs two different parsers on the same stream.</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def ParseTwice P1 P2 =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def ParseTwice P1 P2 =
   block
     let cur = GetStream
     p1result = P1
@@ -717,7 +770,7 @@ we can write a parser function which runs two different parsers on the same stre
 <p>By manipulating the stream, we can also run a parser on a fixed-size sub-stream.
 The following parser parses a size-n chunk which begins with a sequence of
 letters, and then is filled with spaces:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def LetterFill n =
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def LetterFill n =
   block
     let cur  = GetStream
     let this = Take n cur
@@ -733,7 +786,7 @@ letters, and then is filled with spaces:</p>
 <p>It is also possible to directly access the current position in the stream using
 <code class="docutils literal notranslate"><span class="pre">Offset</span></code>. This can be used to calculate how many characters were read by a
 particular parser:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def OffsetTest = {
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def OffsetTest = {
     a = Offset;
     Match &quot;AA&quot;;
     b = Offset;
@@ -744,7 +797,7 @@ particular parser:</p>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">arrayStream</span></code> operator converts an array into a stream:</p>
-<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>def CatStream a b = {
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def CatStream a b = {
     SetStream (arrayStream (concat [a, b]));
     Match &quot;AA&quot;;
     Match &quot;BBB&quot;;
@@ -781,6 +834,14 @@ particular parser:</p>
   <h3><a href="#">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">DaeDaLus User Guide</a><ul>
+<li><a class="reference internal" href="#using-the-daedalus-tool">Using the <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> Tool</a><ul>
+<li><a class="reference internal" href="#help">Help</a></li>
+<li><a class="reference internal" href="#check-a-specification">Check a Specification</a></li>
+<li><a class="reference internal" href="#run-the-interpreter">Run the Interpreter</a></li>
+<li><a class="reference internal" href="#compile-to-haskell">Compile to Haskell</a></li>
+<li><a class="reference internal" href="#compile-to-c">Compile to C++</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#declarations">Declarations</a></li>
 <li><a class="reference internal" href="#parsers">Parsers</a><ul>
 <li><a class="reference internal" href="#primitive-parsers">Primitive Parsers</a></li>
@@ -825,7 +886,7 @@ particular parser:</p>
 <li><a class="reference internal" href="#bitwise-operations">Bitwise Operations</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#maybe-type"><cite>maybe</cite> type</a></li>
+<li><a class="reference internal" href="#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li><a class="reference internal" href="#arrays">Arrays</a></li>
 <li><a class="reference internal" href="#association-maps">Association Maps</a></li>
 </ul>

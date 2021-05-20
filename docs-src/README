@@ -2,9 +2,10 @@ This folder contains the sources for the Daedalus manual.
 
 The source for the manual is in `source/index.rst`.
 
-To build a PDF document use:
+To build a PDF or html document use:
 
     make latexpdf
+    make html
 
 The result will be in a subdirectory of `build`.
 
