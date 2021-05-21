@@ -31,36 +31,41 @@ import PdfParser
 import Stdlib(pManyWS)
 import PdfPP
 
--- | Construct the xref table.
+type IncUpdate = (String,ObjIndex,TrailerDict)
+
 parseIncUpdates ::
-  DbgMode => Input -> Int -> IO ([(ObjIndex, TrailerDict)])
+  DbgMode => Input -> Int -> IO [IncUpdate]
 parseIncUpdates inp offset0 =
   do
   (x, next) <- parseOneIncUpdate offset0
   processIncUpdate offset0 x next
   case next of
-    Just offset -> (x:) <$> parseIncUpdates inp offset
+    Just offset -> (++[x]) <$> parseIncUpdates inp offset
     Nothing     -> return [x]
   
   where
 
-  parseOneIncUpdate :: Int -> IO ((ObjIndex, TrailerDict), Maybe Int)
+  parseOneIncUpdate :: Int -> IO (IncUpdate, Maybe Int)
   parseOneIncUpdate offset =
     handlePdfResult (runParserWithoutObjects (parseOneIncUpdate' inp offset) inp)
                     "parsing single incremental update"
 
-  processIncUpdate :: Int -> (ObjIndex,TrailerDict) -> Maybe Int -> IO ()
-  processIncUpdate offset (oi,trailer) next =
+  processIncUpdate :: Int -> (String,ObjIndex,TrailerDict) -> Maybe Int -> IO ()
+  processIncUpdate offset (xreftype,oi,trailer) next =
     do
-    putStrLn $ unlines ["incremental update:"
-                       ," starts at byte offset: " ++ show offset
-                       ]
-    case next of
-       Just offset' -> unless (offset' < offset) $
-                         quit ("Error: 'prev' offset " ++ show offset' ++ " does not precede in file")
-       _            -> return ()
+    s <- case next of
+           Nothing      -> return "initial DOM"
+           Just offset' -> do
+                           unless (offset' < offset) $
+                             quit ("Error: 'prev' offset "
+                                   ++ show offset' ++ " does not precede in file")
+                             -- this ensures no infinite loop.
+                           return "incremental update"
 
-   
+    putStrLn $ unlines [ s
+                       , " "++xreftype
+                       , " starts at byte offset " ++ show offset
+                       ]
     putStrLn " xref entries:"
     printObjIndex oi
     putStrLn " trailer dictionary:"
@@ -69,7 +74,7 @@ parseIncUpdates inp offset0 =
 printObjIndex :: ObjIndex -> IO ()
 printObjIndex oi = print $ nest 3 $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
   
-parseOneIncUpdate' :: Input -> Int -> Parser ((ObjIndex, TrailerDict), Maybe Int)
+parseOneIncUpdate' :: Input -> Int -> Parser (IncUpdate, Maybe Int)
 parseOneIncUpdate' inp offset = 
   case advanceBy (intToSize offset) inp of
     Just i ->
@@ -78,8 +83,8 @@ parseOneIncUpdate' inp offset =
                               --   - standard xref table OR xref streams
                               --   - the trailer too (in the former case)
          case refSec of
-           CrossRef_oldXref x -> parseTrailer x
-           CrossRef_newXref x -> parseTrailer x
+           CrossRef_oldXref x -> parseTrailer "cross-reference table"  x
+           CrossRef_newXref x -> parseTrailer "cross-reference stream" x
     Nothing -> pError FromUser "parseOneIncUpdate"
                  ("Offset out of bounds: " ++ show offset)
 
@@ -89,14 +94,13 @@ parseOneIncUpdate' inp offset =
                   , HasField "trailer" x TrailerDict
                   , HasField "xref"    x (Vector s)
                   , XRefSection s e o
-                  ) => x -> Parser ((ObjIndex, TrailerDict), Maybe Int)
-  parseTrailer x =
+                  ) => String -> x -> Parser (IncUpdate, Maybe Int)
+  parseTrailer xrefType x =
     do let t = getField @"trailer" x
        prev <- case getField @"prev" t of
                  Nothing -> pure Nothing
                  Just i ->
-                    case toInt i of  -- FIXME: TODO: remember previous offsets
-                                     -- to ensure we are not stuck in a loop.
+                    case toInt i of
                       Nothing  -> pError FromUser "parseTrailer"
                                                   "Prev offset too large."
                       Just off -> pure (Just off)
@@ -104,12 +108,13 @@ parseOneIncUpdate' inp offset =
        tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
-         (pError FromUser "parseOneInceUpdate'" "Duplicate entries in xref seciton")
+         (pError FromUser "parseOneIncUpdate'" "Duplicate entries in xref seciton")
            -- FIXME: put this into 'validate'
-       return ((entries, t), prev)
+       return ((xrefType, entries, t), prev)
 
 
----- de-duplicate ------------------------------------------------------------
+---- utilities ---------------------------------------------------------------
+-- FIXME: de-duplicate
 
 quit :: String -> IO a
 quit msg =
@@ -126,12 +131,6 @@ handlePdfResult x msg =
 
 ---- utilities ---------------------------------------------------------------
 
-foldr1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
-foldr1M f = g . reverse
-  where
-  g (x:xs) = foldlM (flip f) x xs
-  g []     = error "foldr1M"
-
 runParserWithoutObjects :: DbgMode => Parser a -> Input -> IO (PdfResult a)
 runParserWithoutObjects p i = 
   runParser (error "Unexpected ObjIndex reference") Nothing p i
@@ -139,7 +138,7 @@ runParserWithoutObjects p i =
   
 ---- xref table: parse and construct -----------------------------------------
 
-combineIncUpdates :: [(ObjIndex, TrailerDict)] -> IO (ObjIndex, TrailerDict)
+combineIncUpdates :: [IncUpdate] -> IO (ObjIndex, TrailerDict)
 combineIncUpdates = error "TODO: combineIncUpdates"
 
 -- | Construct the xref table, version 2
@@ -147,17 +146,18 @@ parseXRefs2 ::
   DbgMode => Input -> Int -> IO (ObjIndex, TrailerDict)
 parseXRefs2 inp off0 =
   do
-  xrefs <- parseIncUpdates inp off0
-  foldr1M applyIncUpdate xrefs
+  (_,oi,td):updates <- parseIncUpdates inp off0
+  foldlM applyIncUpdate (oi,td) updates
+   -- base is head, subsequent updates are subsequent in 'updates' list
 
-
--- | applyIncUpdate upd base = extend 'base' with the 'upd' incremental update
+-- | applyIncUpdate base upd = extend 'base' with the 'upd' incremental update
 applyIncUpdate :: Monad m =>
-                  (ObjIndex,TrailerDict) -> (ObjIndex,TrailerDict) -> m (ObjIndex,TrailerDict) 
-applyIncUpdate (oi',trailer') (oi,_trailer) =
+                  (ObjIndex,TrailerDict) -> (String,ObjIndex,TrailerDict) -> m (ObjIndex,TrailerDict) 
+applyIncUpdate (oi,_trailer) (_,oi',trailer') =
   return ( Map.union oi' oi, trailer')
     -- NOTE: Map.union is left-biased.
     -- FIXME[F2]: validate that trailers are consistent
+
 
 ---- xref table: parse and construct (old version) ---------------------------
 
@@ -203,7 +203,7 @@ parseXRefs1' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                     case toInt i of  -- XXX: remember previous offsets
                                      -- to ensure we are not stuck in a loop.
                       Nothing -> pError FromUser "parseXRefs.goWith(1)"
-                                                "Prev offset too large."
+                                                 "Prev offset too large."
                       Just off -> pure (Just off)
 
        tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
