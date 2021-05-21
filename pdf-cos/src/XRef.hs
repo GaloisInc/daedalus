@@ -1,7 +1,14 @@
 {-# Language TypeApplications, DataKinds #-}
 {-# Language FlexibleContexts, ConstraintKinds #-}
 {-# Language OverloadedStrings #-}
-module XRef where
+module XRef
+  ( findStartXRef
+  , parseXRefs1
+  , parseXRefs1'
+  , parseXRefs2
+  , printObjIndex
+  )
+  where
 
 import Data.Char(isSpace,isNumber)
 import Data.Foldable(foldlM)
@@ -12,6 +19,8 @@ import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
 import System.Exit(exitFailure)
 import System.IO(hPutStrLn,stderr)
+
+import Text.PrettyPrint
 
 import RTS.Vector(Vector,toList,VecElem)
 import RTS.Numeric
@@ -44,18 +53,21 @@ parseIncUpdates inp offset0 =
   processIncUpdate offset (oi,trailer) next =
     do
     putStrLn $ unlines ["incremental update:"
-                       ," start: " ++ show offset
+                       ," starts at byte offset: " ++ show offset
                        ]
     case next of
        Just offset' -> unless (offset' < offset) $
                          quit ("Error: 'prev' offset " ++ show offset' ++ " does not precede in file")
        _            -> return ()
 
+   
+    putStrLn " xref entries:"
     printObjIndex oi
-    print (pp trailer)
+    putStrLn " trailer dictionary:"
+    print (nest 3 $ pp trailer)
     
 printObjIndex :: ObjIndex -> IO ()
-printObjIndex oi = print $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
+printObjIndex oi = print $ nest 3 $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
   
 parseOneIncUpdate' :: Input -> Int -> Parser ((ObjIndex, TrailerDict), Maybe Int)
 parseOneIncUpdate' inp offset = 
@@ -92,8 +104,8 @@ parseOneIncUpdate' inp offset =
        tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
-         (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref seciton")
-         -- FIXME: put this into 'validate'
+         (pError FromUser "parseOneInceUpdate'" "Duplicate entries in xref seciton")
+           -- FIXME: put this into 'validate'
        return ((entries, t), prev)
 
 
@@ -149,14 +161,15 @@ applyIncUpdate (oi',trailer') (oi,_trailer) =
 
 ---- xref table: parse and construct (old version) ---------------------------
 
+-- | Construct the xref table, version 1
+
 parseXRefs1 :: Input -> Int -> IO (ObjIndex, TrailerDict)
 parseXRefs1 inp off0 =
-  handlePdfResult (parseXRefs' inp off0) "BUG: Ambiguous XRef table."
+  handlePdfResult (parseXRefs1' inp off0) "BUG: Ambiguous XRef table."
 
--- | Construct the xref table.
-parseXRefs' ::
+parseXRefs1' ::
   DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
+parseXRefs1' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =

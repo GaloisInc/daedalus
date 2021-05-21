@@ -13,7 +13,7 @@ import SimpleGetOpt
 import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
-import XRef(findStartXRef, parseXRefs1, parseXRefs2,printObjIndex)
+import XRef(findStartXRef, parseXRefs1, parseXRefs2, printObjIndex)
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
 
@@ -73,7 +73,9 @@ parsePdf opts file bs topInput =
      let myParseXRefs = case command opts of
                           ListIncUpdates -> parseXRefs2
                           _              -> parseXRefs1
-         
+                        -- FIXME: when more sure of equivalence, remove parseXRefs1
+                        -- FIXME: parseXRefs2 outputs each incremental update
+                        
      (refs, trail) <- myParseXRefs topInput idx
 
      fileEC <- makeEncContext trail refs topInput (password opts) 
@@ -93,7 +95,9 @@ parsePdf opts file bs topInput =
      case command opts of
        ListXRefs      -> printObjIndex refs
        
-       ListIncUpdates -> printObjIndex refs   -- FIXME: TODO
+       ListIncUpdates -> do
+                         putStrLn "Combined xref table:"
+                         printObjIndex refs
 
        PrettyPrintAll ->
          case map rToRef (Map.keys refs) of

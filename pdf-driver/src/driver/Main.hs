@@ -25,7 +25,7 @@ import Data.Char(isDigit)
 
 import Common
 import PdfMonad
-import XRef
+import XRef(findStartXRef, parseXRefs1')
 import PdfParser
 import PdfDemo
 import PdfExtractText
@@ -157,7 +157,7 @@ fmtDriver fmt file pageTreeParser pwd =
 
      xrefFound fmt idx
      (refs, trail) <-
-       parseXRefs topInput idx >>= \res ->
+       parseXRefs1' topInput idx >>= \res ->
          case res of
            ParseOk a    -> pure a
            ParseAmbig _ -> error "BUG: Ambiguous XRef table."
@@ -263,7 +263,7 @@ driverValidate opts = runReport opts $
                Right idx -> return idx
 
      (refs, root, trail) <-
-            liftIO (parseXRefs topInput idx) >>= \res ->
+            liftIO (parseXRefs1' topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
