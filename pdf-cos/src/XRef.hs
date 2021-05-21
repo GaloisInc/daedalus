@@ -28,6 +28,7 @@ parseIncUpdates ::
 parseIncUpdates inp offset0 =
   do
   (x, next) <- parseOneIncUpdate offset0
+  processIncUpdate offset0 x next
   case next of
     Just offset -> (x:) <$> parseIncUpdates inp offset
     Nothing     -> return [x]
@@ -38,8 +39,24 @@ parseIncUpdates inp offset0 =
   parseOneIncUpdate offset =
     handlePdfResult (runParserWithoutObjects (parseOneIncUpdate' inp offset) inp)
                     "parsing single incremental update"
-      
 
+  processIncUpdate :: Int -> (ObjIndex,TrailerDict) -> Maybe Int -> IO ()
+  processIncUpdate offset (oi,trailer) next =
+    do
+    putStrLn $ unlines ["incremental update:"
+                       ," start: " ++ show offset
+                       ]
+    case next of
+       Just offset' -> unless (offset' < offset) $
+                         quit ("Error: 'prev' offset " ++ show offset' ++ " does not precede in file")
+       _            -> return ()
+
+    printObjIndex oi
+    print (pp trailer)
+    
+printObjIndex :: ObjIndex -> IO ()
+printObjIndex oi = print $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
+  
 parseOneIncUpdate' :: Input -> Int -> Parser ((ObjIndex, TrailerDict), Maybe Int)
 parseOneIncUpdate' inp offset = 
   case advanceBy (intToSize offset) inp of
@@ -77,8 +94,8 @@ parseOneIncUpdate' inp offset =
        unless (Map.size entries == sum (map Map.size tabs))
          (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref seciton")
          -- FIXME: put this into 'validate'
-       -- let newRoot = mbRoot <|> Just t
        return ((entries, t), prev)
+
 
 ---- de-duplicate ------------------------------------------------------------
 
@@ -110,17 +127,17 @@ runParserWithoutObjects p i =
   
 ---- xref table: parse and construct -----------------------------------------
 
+combineIncUpdates :: [(ObjIndex, TrailerDict)] -> IO (ObjIndex, TrailerDict)
+combineIncUpdates = error "TODO: combineIncUpdates"
+
 -- | Construct the xref table, version 2
 parseXRefs2 ::
   DbgMode => Input -> Int -> IO (ObjIndex, TrailerDict)
 parseXRefs2 inp off0 =
   do
   xrefs <- parseIncUpdates inp off0
-  mapM_ validateXRef xrefs
   foldr1M applyIncUpdate xrefs
 
-validateXRef :: DbgMode => (ObjIndex,TrailerDict) -> IO ()
-validateXRef _ = return ()
 
 -- | applyIncUpdate upd base = extend 'base' with the 'upd' incremental update
 applyIncUpdate :: Monad m =>
@@ -132,6 +149,7 @@ applyIncUpdate (oi',trailer') (oi,_trailer) =
 
 ---- xref table: parse and construct (old version) ---------------------------
 
+parseXRefs1 :: Input -> Int -> IO (ObjIndex, TrailerDict)
 parseXRefs1 inp off0 =
   handlePdfResult (parseXRefs' inp off0) "BUG: Ambiguous XRef table."
 
