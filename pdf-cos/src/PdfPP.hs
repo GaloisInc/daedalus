@@ -1,7 +1,8 @@
 {-# Language OverloadedStrings #-}
 {-# Language TypeApplications #-}
 {-# Language DataKinds #-}
-module PP where
+
+module PdfPP where
 
 import GHC.Records(getField)
 import           Data.Map(Map)

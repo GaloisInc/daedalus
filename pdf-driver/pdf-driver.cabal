@@ -76,8 +76,7 @@ executable pdf-dom
   hs-source-dirs:   src/dom
   main-is:          Main.hs
   other-modules:
-    CommandLine,
-    PP
+    CommandLine
   build-depends:
     base,
     bytestring,
