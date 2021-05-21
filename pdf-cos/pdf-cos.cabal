@@ -201,6 +201,7 @@ library
     rts-hs, 
     cryptonite,
     cereal, 
-    memory 
+    memory,
+    pretty            
 
 

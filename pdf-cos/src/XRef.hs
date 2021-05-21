@@ -4,11 +4,14 @@
 module XRef where
 
 import Data.Char(isSpace,isNumber)
+import Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
 import Control.Monad(unless,foldM)
 import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
+import System.Exit(exitFailure)
+import System.IO(hPutStrLn,stderr)
 
 import RTS.Vector(Vector,toList,VecElem)
 import RTS.Numeric
@@ -19,9 +22,122 @@ import PdfParser
 import Stdlib(pManyWS)
 
 -- | Construct the xref table.
-parseXRefs ::
+parseIncUpdates ::
+  DbgMode => Input -> Int -> IO ([(ObjIndex, TrailerDict)])
+parseIncUpdates inp offset0 =
+  do
+  (x, next) <- parseOneIncUpdate offset0
+  case next of
+    Just offset -> (x:) <$> parseIncUpdates inp offset
+    Nothing     -> return [x]
+  
+  where
+
+  parseOneIncUpdate :: Int -> IO ((ObjIndex, TrailerDict), Maybe Int)
+  parseOneIncUpdate offset =
+    handlePdfResult (runParserWithoutObjects (parseOneIncUpdate' inp offset) inp)
+                    "parsing single incremental update"
+      
+
+parseOneIncUpdate' :: Input -> Int -> Parser ((ObjIndex, TrailerDict), Maybe Int)
+parseOneIncUpdate' inp offset = 
+  case advanceBy (intToSize offset) inp of
+    Just i ->
+      do pSetInput i
+         refSec <- pCrossRef  -- slight misnomer, this parses
+                              --   - standard xref table OR xref streams
+                              --   - the trailer too (in the former case)
+         case refSec of
+           CrossRef_oldXref x -> parseTrailer x
+           CrossRef_newXref x -> parseTrailer x
+    Nothing -> pError FromUser "parseOneIncUpdate"
+                 ("Offset out of bounds: " ++ show offset)
+
+  where
+  
+  parseTrailer :: ( VecElem s
+                  , HasField "trailer" x TrailerDict
+                  , HasField "xref"    x (Vector s)
+                  , XRefSection s e o
+                  ) => x -> Parser ((ObjIndex, TrailerDict), Maybe Int)
+  parseTrailer x =
+    do let t = getField @"trailer" x
+       prev <- case getField @"prev" t of
+                 Nothing -> pure Nothing
+                 Just i ->
+                    case toInt i of  -- FIXME: TODO: remember previous offsets
+                                     -- to ensure we are not stuck in a loop.
+                      Nothing  -> pError FromUser "parseTrailer"
+                                                  "Prev offset too large."
+                      Just off -> pure (Just off)
+
+       tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
+       let entries = Map.unions tabs
+       unless (Map.size entries == sum (map Map.size tabs))
+         (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref seciton")
+         -- FIXME: put this into 'validate'
+       -- let newRoot = mbRoot <|> Just t
+       return ((entries, t), prev)
+
+---- de-duplicate ------------------------------------------------------------
+
+quit :: String -> IO a
+quit msg =
+  do hPutStrLn stderr msg
+     exitFailure
+
+handlePdfResult :: IO (PdfResult a) -> String -> IO a
+handlePdfResult x msg =
+  do  res <- x
+      case res of
+        ParseOk a     -> pure a
+        ParseAmbig {} -> quit msg
+        ParseErr e    -> quit (show e) -- (pp e))
+
+---- utilities ---------------------------------------------------------------
+
+foldr1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
+foldr1M f = g . reverse
+  where
+  g (x:xs) = foldlM (flip f) x xs
+  g []     = error "foldr1M"
+
+runParserWithoutObjects :: DbgMode => Parser a -> Input -> IO (PdfResult a)
+runParserWithoutObjects p i = 
+  runParser (error "Unexpected ObjIndex reference") Nothing p i
+    -- the parser should not be attempting to deref any objects!
+  
+---- xref table: parse and construct -----------------------------------------
+
+-- | Construct the xref table, version 2
+parseXRefs2 ::
+  DbgMode => Input -> Int -> IO (ObjIndex, TrailerDict)
+parseXRefs2 inp off0 =
+  do
+  xrefs <- parseIncUpdates inp off0
+  mapM_ validateXRef xrefs
+  foldr1M applyIncUpdate xrefs
+
+validateXRef :: DbgMode => (ObjIndex,TrailerDict) -> IO ()
+validateXRef _ = return ()
+
+-- | applyIncUpdate upd base = extend 'base' with the 'upd' incremental update
+applyIncUpdate :: Monad m =>
+                  (ObjIndex,TrailerDict) -> (ObjIndex,TrailerDict) -> m (ObjIndex,TrailerDict) 
+applyIncUpdate (oi',trailer') (oi,_trailer) =
+  return ( Map.union oi' oi, trailer')
+    -- NOTE: Map.union is left-biased.
+    -- FIXME[F2]: validate that trailers are consistent
+
+---- xref table: parse and construct (old version) ---------------------------
+
+parseXRefs1 inp off0 =
+  handlePdfResult (parseXRefs' inp off0) "BUG: Ambiguous XRef table."
+
+-- | Construct the xref table.
+parseXRefs' ::
   DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
+parseXRefs' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =

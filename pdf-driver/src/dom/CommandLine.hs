@@ -11,7 +11,9 @@ data Command =
   | PrettyPrintAll
   | Validate
   | ListXRefs
-  | ParseType String  -- only allowable strings {"Value"}
+  | ParseType String  -- string must be name of a select few parsers (see Main.hs)
+  | ListIncUpdates
+  | ParseValue
   | ShowHelp
 
   -- | ShowEncrypt  
@@ -38,10 +40,14 @@ options = OptSpec
   , progOptions =
       [ Option [] ["xrefs"]
         "List the cross-reference table."
-      $ NoArg $ \s -> Right s { command = ListXRefs }
+        $ NoArg $ \s -> Right s { command = ListXRefs }
+
+      , Option [] ["updates"]
+        "List incremental updates."
+        $ NoArg $ \s -> Right s { command = ListIncUpdates }
 
       , Option [] ["pp"]
-        "Pretty print trailier or the reference --obj --gen"
+        "Pretty print trailer or the reference --obj --gen"
         $ NoArg \s -> Right s { command = PrettyPrint }
 
       -- , Option [] ["enc"]

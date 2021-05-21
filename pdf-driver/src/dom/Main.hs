@@ -13,15 +13,17 @@ import SimpleGetOpt
 import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
--- daedalus generated parsers:
-import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
+import Primitives.Decrypt(makeFileKey)
+
+-- daedalus generated parsers:
+import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
+import XRef(findStartXRef, parseXRefs1, parseXRefs2)
 import PdfDecl(pResolveRef)
 import PdfXRef(TrailerDict) 
 import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
 import PdfValue(Value(..),Ref(..),pValue)
-import Primitives.Decrypt(makeFileKey)
 
 import PdfDOM
 import CommandLine
@@ -68,8 +70,11 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     (refs, trail) <- 
-        handlePdfResult (parseXRefs topInput idx) "BUG: Ambiguous XRef table."
+     let myParseXRefs = case command opts of
+                          ListIncUpdates -> parseXRefs2
+                          _              -> parseXRefs1
+         
+     (refs, trail) <- myParseXRefs topInput idx
 
      fileEC <- makeEncContext trail refs topInput (password opts) 
 
@@ -87,6 +92,9 @@ parsePdf opts file bs topInput =
 
      case command opts of
        ListXRefs -> print $ ppBlock "[" "]" (map ppXRef (Map.toList refs))
+       
+       ListIncUpdates -> print $ ppBlock "[" "]" (map ppXRef (Map.toList refs))
+         -- FIXME: TODO
 
        PrettyPrintAll ->
          case map rToRef (Map.keys refs) of
