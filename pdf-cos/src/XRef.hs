@@ -226,7 +226,11 @@ type XRefSection s e o =
   )
 
 class SubSectionEntry t where
-  processEntry :: Int -> t -> Parser (Maybe (R,ObjLoc))
+  processEntry :: Int -> t -> Parser XRefEntry
+
+data XRefEntry = InUse R ObjLoc
+               | Free  -- TODO R -- object is next free object, generation
+               | Null    -- ??
 
 instance SubSectionEntry XRefObjEntry where
   processEntry o t =
@@ -234,16 +238,16 @@ instance SubSectionEntry XRefObjEntry where
       XRefObjEntry_inUse u ->
         do off <- integerToInt (getField @"offset" u)
            g   <- integerToInt (getField @"gen" u)
-           pure (Just (R { refObj = o, refGen = g }, InFileAt off))
+           pure $ InUse R{ refObj = o, refGen = g} (InFileAt off)
 
       XRefObjEntry_compressed u ->
         do cnt <- integerToInt (getField @"container_obj" u)
            let ref x = R { refObj = x, refGen = 0 }
            i <- integerToInt (getField @"obj_index" u)
-           pure (Just (ref o, InObj (ref cnt) i))
+           pure (InUse (ref o) (InObj (ref cnt) i))
 
-      XRefObjEntry_free {} -> pure Nothing
-      XRefObjEntry_null {} -> pure Nothing
+      XRefObjEntry_free {} -> pure Free
+      XRefObjEntry_null {} -> pure Null
 
 instance SubSectionEntry CrossRefEntry where
   processEntry o t =
@@ -251,9 +255,9 @@ instance SubSectionEntry CrossRefEntry where
       CrossRefEntry_inUse u ->
         do g   <- integerToInt (getField @"gen" u)
            off <- integerToInt (getField @"offset" u)
-           pure (Just (R { refObj = o, refGen = g }, InFileAt off))
+           pure (InUse (R { refObj = o, refGen = g }) (InFileAt off))
 
-      CrossRefEntry_free {} -> pure Nothing
+      CrossRefEntry_free {} -> pure Free
 
 
 
@@ -271,10 +275,11 @@ xrefSubSectionToMap xrs = foldM entry Map.empty
      to work out, and this also makes the code more portable, in theory. -}
   entry mp (n,e) =
     do o <- integerToInt n
-       mb <- processEntry o e
-       case mb of
-         Nothing -> pure mp    -- XXX: This skips compressed objects.
-         Just (ref,oi) ->
+       xref <- processEntry o e
+       case xref of
+         Free -> pure mp    -- XXX: This skips compressed objects.
+         Null -> pure mp
+         InUse ref oi ->
            let (exists,newMap) = Map.insertLookupWithKey (\_ x _ -> x) ref oi mp
            in case exists of
                 Nothing -> pure newMap
