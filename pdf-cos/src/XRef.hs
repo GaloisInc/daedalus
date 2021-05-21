@@ -229,7 +229,7 @@ class SubSectionEntry t where
   processEntry :: Int -> t -> Parser XRefEntry
 
 data XRefEntry = InUse R ObjLoc
-               | Free  -- TODO R -- object is next free object, generation
+               | Free  R -- object is next free object, generation
                | Null    -- ??
 
 instance SubSectionEntry XRefObjEntry where
@@ -244,9 +244,12 @@ instance SubSectionEntry XRefObjEntry where
         do cnt <- integerToInt (getField @"container_obj" u)
            let ref x = R { refObj = x, refGen = 0 }
            i <- integerToInt (getField @"obj_index" u)
-           pure (InUse (ref o) (InObj (ref cnt) i))
+           pure $ InUse (ref o) (InObj (ref cnt) i)
 
-      XRefObjEntry_free {} -> pure Free
+      XRefObjEntry_free u ->
+        do obj <- integerToInt (getField @"obj" u)
+           g   <- integerToInt (getField @"gen" u)
+           pure $ Free R{ refObj = obj, refGen = g}
       XRefObjEntry_null {} -> pure Null
 
 instance SubSectionEntry CrossRefEntry where
@@ -255,12 +258,12 @@ instance SubSectionEntry CrossRefEntry where
       CrossRefEntry_inUse u ->
         do g   <- integerToInt (getField @"gen" u)
            off <- integerToInt (getField @"offset" u)
-           pure (InUse (R { refObj = o, refGen = g }) (InFileAt off))
+           pure $ InUse (R { refObj = o, refGen = g }) (InFileAt off)
 
-      CrossRefEntry_free {} -> pure Free
-
-
-
+      CrossRefEntry_free u ->
+        do g   <- integerToInt (getField @"gen" u)
+           obj <- integerToInt (getField @"obj" u)
+           pure $ Free R{ refObj = obj, refGen = g }
 
 
 -- | Join together the entries in a single xref sub-section.
@@ -277,8 +280,8 @@ xrefSubSectionToMap xrs = foldM entry Map.empty
     do o <- integerToInt n
        xref <- processEntry o e
        case xref of
-         Free -> pure mp    -- XXX: This skips compressed objects.
-         Null -> pure mp
+         Free{} -> pure mp    -- XXX: This skips compressed objects.
+         Null   -> pure mp
          InUse ref oi ->
            let (exists,newMap) = Map.insertLookupWithKey (\_ x _ -> x) ref oi mp
            in case exists of
