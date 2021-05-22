@@ -71,10 +71,6 @@ parseIncUpdates inp offset0 =
     putStrLn "  trailer dictionary:"
     print (nest 4 $ pp trailer)
 
--- this is about printing the Map/Index, not the entries
-printObjIndex :: Int -> ObjIndex -> IO ()
-printObjIndex n oi = print $ nest n $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
-
 parseOneIncUpdate' :: Input -> Int -> Parser (IncUpdate, Maybe Int)
 parseOneIncUpdate' inp offset = 
   case advanceBy (intToSize offset) inp of
@@ -108,9 +104,9 @@ parseOneIncUpdate' inp offset =
 
        -- xrefs <- concat <$> mapM convertToXRefEntries (toList (getField @"xref" x))
        -- mapM_ (print . ppXRefEntry) xrefs 
-       -- xrefSubSectionToMap s = convertToXRefEntries s >>= xrefEntriesToMap 
 
-       tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
+       tabs <- mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
+                    (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
          (pError FromUser "parseOneIncUpdate'" "Duplicate entries in xref seciton")
@@ -118,8 +114,20 @@ parseOneIncUpdate' inp offset =
        return ((xrefType, entries, t), prev)
 
 
+---- abstract the xref tables / inc. updates into a Map (ObjIndex) -----------
+
+-- this is about printing the Map/Index, not the entries
+printObjIndex :: Int -> ObjIndex -> IO ()
+printObjIndex n oi = print $ nest n $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
+
 ---- utilities ---------------------------------------------------------------
--- FIXME: de-duplicate
+
+runParserWithoutObjects :: DbgMode => Parser a -> Input -> IO (PdfResult a)
+runParserWithoutObjects p i = 
+  runParser (error "Unexpected ObjIndex reference") Nothing p i
+    -- the parser should not be attempting to deref any objects!
+  
+-- FIXME: de-duplicate 
 
 quit :: String -> IO a
 quit msg =
@@ -134,17 +142,12 @@ handlePdfResult x msg =
         ParseAmbig {} -> quit msg
         ParseErr e    -> quit (show (pp e))
 
----- utilities ---------------------------------------------------------------
-
-runParserWithoutObjects :: DbgMode => Parser a -> Input -> IO (PdfResult a)
-runParserWithoutObjects p i = 
-  runParser (error "Unexpected ObjIndex reference") Nothing p i
-    -- the parser should not be attempting to deref any objects!
-  
 ---- xref table: parse and construct -----------------------------------------
 
+-- FIXME: dead code
 combineIncUpdates :: [IncUpdate] -> IO (ObjIndex, TrailerDict)
 combineIncUpdates = error "TODO: combineIncUpdates"
+
 
 -- | Construct the xref table, version 2
 parseXRefs2 ::
@@ -162,6 +165,7 @@ applyIncUpdate (oi,_trailer) (_,oi',trailer') =
   return ( Map.union oi' oi, trailer')
     -- NOTE: Map.union is left-biased.
     -- FIXME[F2]: validate that trailers are consistent
+
 
 
 ---- xref table: parse and construct (old version) ---------------------------
@@ -211,7 +215,8 @@ parseXRefs1' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                                                  "Prev offset too large."
                       Just off -> pure (Just off)
 
-       tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
+       tabs <- mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
+                    (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
          (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref seciton")
@@ -278,10 +283,12 @@ instance SubSectionEntry CrossRefEntry where
            obj <- integerToInt (getField @"obj" u)
            pure $ Free R{ refObj = obj, refGen = g }
 
+  {- Note the file offset and generation will never really fail
+     because in the format the offset is a 10 digit number, which
+     always fits in a 64-bit Int.  We still need the check to get the types
+     to work out, and this also makes the code more portable, in theory.
+  -}
 
-xrefSubSectionToMap :: XRefSection s e o => s -> Parser ObjIndex
-xrefSubSectionToMap s = convertToXRefEntries s >>= xrefEntriesToMap 
-  
 -- | Join together the entries into a single xref sub-section.
 convertToXRefEntries :: XRefSection s e o => s -> Parser [XRefEntry]
 convertToXRefEntries xrs =
@@ -295,10 +302,6 @@ convertToXRefEntries xrs =
 xrefEntriesToMap :: [XRefEntry] -> Parser ObjIndex
 xrefEntriesToMap = foldM entry Map.empty
   where
-  {- Note the file offset and generation will never really fail
-     because in the format the offset is a 10 digit number, which
-     always fits in a 64-bit Int.  We still need the check to get the types
-     to work out, and this also makes the code more portable, in theory. -}
   entry mp xref =
        case xref of
          Free{} -> pure mp   
@@ -308,8 +311,8 @@ xrefEntriesToMap = foldM entry Map.empty
            in case exists of
                 Nothing -> pure newMap
                 Just _  ->
-                  pError FromUser "xrefSubSectionToMap.entry"
-                                      ("Multiple entries for " ++ show ref)
+                  pError FromUser "xrefEntriesToMap.entry"
+                                  ("Multiple entries for " ++ show ref)
 
 
 integerToInt :: Integer -> Parser Int
