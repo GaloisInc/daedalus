@@ -50,7 +50,7 @@ parseIncUpdates inp offset0 =
     handlePdfResult (runParserWithoutObjects (parseOneIncUpdate' inp offset) inp)
                     "parsing single incremental update"
 
-  processIncUpdate :: Int -> (String,ObjIndex,TrailerDict) -> Maybe Int -> IO ()
+  processIncUpdate :: Int -> IncUpdate -> Maybe Int -> IO ()
   processIncUpdate offset (xreftype,oi,trailer) next =
     do
     s <- case next of
@@ -102,16 +102,16 @@ parseOneIncUpdate' inp offset =
                                                   "Prev offset too large."
                       Just off -> pure (Just off)
 
-       -- xrefs <- concat <$> mapM convertToXRefEntries (toList (getField @"xref" x))
+       xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
        -- mapM_ (print . ppXRefEntry) xrefs 
 
-       tabs <- mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
-                    (toList (getField @"xref" x))
-       let entries = Map.unions tabs
-       unless (Map.size entries == sum (map Map.size tabs))
+       objmaps  <- mapM xrefEntriesToMap xrefss
+
+       let objmap = Map.unions objmaps
+       unless (Map.size objmap == sum (map Map.size objmaps))
          (pError FromUser "parseOneIncUpdate'" "Duplicate entries in xref seciton")
            -- FIXME: put this into 'validate'
-       return ((xrefType, entries, t), prev)
+       return ((xrefType, objmap, t), prev)
 
 
 ---- abstract the xref tables / inc. updates into a Map (ObjIndex) -----------
