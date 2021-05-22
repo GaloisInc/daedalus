@@ -105,15 +105,19 @@ parseOneIncUpdate' inp offset =
        xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
        -- mapM_ (print . ppXRefEntry) xrefs 
 
-       objmaps  <- mapM xrefEntriesToMap xrefss
+       objMap <- convertSubSectionsToObjMap xrefss
+       return ((xrefType, objMap, t), prev)
 
-       let objmap = Map.unions objmaps
-       unless (Map.size objmap == sum (map Map.size objmaps))
-         (pError FromUser "parseOneIncUpdate'" "Duplicate entries in xref seciton")
+convertSubSectionsToObjMap :: [[XRefEntry]] -> Parser ObjIndex
+convertSubSectionsToObjMap xrefss =
+  do objMaps  <- mapM xrefEntriesToMap xrefss
+     let objMap = Map.unions objMaps
+     unless (Map.size objMap == sum (map Map.size objMaps))
+         (pError FromUser "convertSubSectionsToObjMap"
+                          "Duplicate entries in xref section")
            -- FIXME: put this into 'validate'
-       return ((xrefType, objmap, t), prev)
-
-
+     return objMap
+     
 ---- abstract the xref tables / inc. updates into a Map (ObjIndex) -----------
 
 -- this is about printing the Map/Index, not the entries
@@ -219,7 +223,7 @@ parseXRefs1' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                     (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
-         (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref seciton")
+         (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref section")
 
        let newRoot = mbRoot <|> Just t
 
