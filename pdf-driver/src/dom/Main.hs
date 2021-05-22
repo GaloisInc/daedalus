@@ -93,11 +93,11 @@ parsePdf opts file bs topInput =
          rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
 
      case command opts of
-       ListXRefs      -> printObjIndex refs
+       ListXRefs      -> printObjIndex 0 refs
        
        ListIncUpdates -> do
                          putStrLn "Combined xref table:"
-                         printObjIndex refs
+                         printObjIndex 2 refs
 
        PrettyPrintAll ->
          case map rToRef (Map.keys refs) of

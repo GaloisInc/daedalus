@@ -14,7 +14,7 @@ import Data.Char(isSpace,isNumber)
 import Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
-import Control.Monad(unless,foldM)
+import Control.Monad(unless,forM,foldM)
 import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
 import System.Exit(exitFailure)
@@ -62,18 +62,19 @@ parseIncUpdates inp offset0 =
                              -- this ensures no infinite loop.
                            return "incremental update"
 
-    putStrLn $ unlines [ s
-                       , " "++xreftype
-                       , " starts at byte offset " ++ show offset
-                       ]
-    putStrLn " xref entries:"
-    printObjIndex oi
-    putStrLn " trailer dictionary:"
-    print (nest 3 $ pp trailer)
-    
-printObjIndex :: ObjIndex -> IO ()
-printObjIndex oi = print $ nest 3 $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
-  
+    mapM_ putStrLn [ s ++ ":"
+                   , "  " ++ xreftype
+                   , "  starts at byte offset " ++ show offset
+                   , "  xref entries:"
+                   ]
+    printObjIndex 4 oi
+    putStrLn "  trailer dictionary:"
+    print (nest 4 $ pp trailer)
+
+-- this is about printing the Map/Index, not the entries
+printObjIndex :: Int -> ObjIndex -> IO ()
+printObjIndex n oi = print $ nest n $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
+
 parseOneIncUpdate' :: Input -> Int -> Parser (IncUpdate, Maybe Int)
 parseOneIncUpdate' inp offset = 
   case advanceBy (intToSize offset) inp of
@@ -83,19 +84,19 @@ parseOneIncUpdate' inp offset =
                               --   - standard xref table OR xref streams
                               --   - the trailer too (in the former case)
          case refSec of
-           CrossRef_oldXref x -> parseTrailer "cross-reference table"  x
-           CrossRef_newXref x -> parseTrailer "cross-reference stream" x
+           CrossRef_oldXref x -> processTrailer "cross-reference table"  x
+           CrossRef_newXref x -> processTrailer "cross-reference stream" x
     Nothing -> pError FromUser "parseOneIncUpdate"
                  ("Offset out of bounds: " ++ show offset)
 
   where
   
-  parseTrailer :: ( VecElem s
-                  , HasField "trailer" x TrailerDict
-                  , HasField "xref"    x (Vector s)
-                  , XRefSection s e o
-                  ) => String -> x -> Parser (IncUpdate, Maybe Int)
-  parseTrailer xrefType x =
+  processTrailer :: ( VecElem s
+                    , HasField "trailer" x TrailerDict
+                    , HasField "xref"    x (Vector s)
+                    , XRefSection s e o
+                    ) => String -> x -> Parser (IncUpdate, Maybe Int)
+  processTrailer xrefType x =
     do let t = getField @"trailer" x
        prev <- case getField @"prev" t of
                  Nothing -> pure Nothing
@@ -104,6 +105,10 @@ parseOneIncUpdate' inp offset =
                       Nothing  -> pError FromUser "parseTrailer"
                                                   "Prev offset too large."
                       Just off -> pure (Just off)
+
+       -- xrefs <- concat <$> mapM convertToXRefEntries (toList (getField @"xref" x))
+       -- mapM_ (print . ppXRefEntry) xrefs 
+       -- xrefSubSectionToMap s = convertToXRefEntries s >>= xrefEntriesToMap 
 
        tabs <- mapM xrefSubSectionToMap (toList (getField @"xref" x))
        let entries = Map.unions tabs
@@ -230,8 +235,16 @@ class SubSectionEntry t where
 
 data XRefEntry = InUse R ObjLoc
                | Free  R -- object is next free object, generation
-               | Null    -- ??
+               | Null    
 
+-- FIXME: use.
+ppXRefEntry :: XRefEntry -> Doc
+ppXRefEntry x =
+  case x of
+    InUse r loc -> ppXRef (r,loc)
+    Free r      -> "free" <+> pp r
+    Null        -> "null"
+      
 instance SubSectionEntry XRefObjEntry where
   processEntry o t =
     case t of
@@ -266,22 +279,30 @@ instance SubSectionEntry CrossRefEntry where
            pure $ Free R{ refObj = obj, refGen = g }
 
 
--- | Join together the entries in a single xref sub-section.
 xrefSubSectionToMap :: XRefSection s e o => s -> Parser ObjIndex
-xrefSubSectionToMap xrs = foldM entry Map.empty
-                        $ zip [ getField @"firstId" xrs .. ]
-                        $ toList (getField @"entries" xrs)
+xrefSubSectionToMap s = convertToXRefEntries s >>= xrefEntriesToMap 
+  
+-- | Join together the entries into a single xref sub-section.
+convertToXRefEntries :: XRefSection s e o => s -> Parser [XRefEntry]
+convertToXRefEntries xrs =
+  forM (zip [ getField @"firstId" xrs .. ]
+             (toList (getField @"entries" xrs))) $
+       \(n,e)->     
+          do o <- integerToInt n
+             processEntry o e
+
+-- | Create an Obj Index Map from the XRefEntry list
+xrefEntriesToMap :: [XRefEntry] -> Parser ObjIndex
+xrefEntriesToMap = foldM entry Map.empty
   where
   {- Note the file offset and generation will never really fail
      because in the format the offset is a 10 digit number, which
      always fits in a 64-bit Int.  We still need the check to get the types
      to work out, and this also makes the code more portable, in theory. -}
-  entry mp (n,e) =
-    do o <- integerToInt n
-       xref <- processEntry o e
+  entry mp xref =
        case xref of
-         Free{} -> pure mp    -- XXX: This skips compressed objects.
-         Null   -> pure mp
+         Free{} -> pure mp   
+         Null   -> pure mp   -- XXX: This skips compressed objects. ??
          InUse ref oi ->
            let (exists,newMap) = Map.insertLookupWithKey (\_ x _ -> x) ref oi mp
            in case exists of
