@@ -58,7 +58,16 @@ parseXRefs2 inp off0 =
   runParserWithoutObjects inp $
     do
     updates <- parseAllIncUpdates inp off0
+    unless (length (iu_xrefs (head updates)) == 1) $
+      pError FromUser "parseXRefs"
+                      "the first XRef table (base DOM) must have only one subsection"
 
+      -- Section 7.5.4: For a PDF file that has never been incrementally
+      -- updated, the cross-reference section shall contain only one subsection,
+      -- whose object numbering begins at 0.
+
+        -- FIXME: enforce this last.
+                       
     -- create object index (oi) map:
     oi <- foldlM
             (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
