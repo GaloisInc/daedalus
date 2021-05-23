@@ -58,16 +58,8 @@ parseXRefs2 inp off0 =
   runParserWithoutObjects inp $
     do
     updates <- parseAllIncUpdates inp off0
-    unless (length (iu_xrefs (head updates)) == 1) $
-      pError FromUser "parseXRefs"
-                      "the first XRef table (base DOM) must have only one subsection"
-
-      -- Section 7.5.4: For a PDF file that has never been incrementally
-      -- updated, the cross-reference section shall contain only one subsection,
-      -- whose object numbering begins at 0.
-
-        -- FIXME: enforce this last.
-                       
+    validateFirstUpdate (head updates)
+    
     -- create object index (oi) map:
     oi <- foldlM
             (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
@@ -90,10 +82,41 @@ parseXRefs2 inp off0 =
        let objMap = Map.unions objMaps
        unless (Map.size objMap == sum (map Map.size objMaps))
            (pError FromUser "convertSubSectionsToObjMap"
-                            "Duplicate entries in xref section")
-             -- FIXME: put this into 'validate'
+                   "Duplicate entries in xref section")
        pure objMap
-     
+
+validateFirstUpdate :: IncUpdate -> Parser ()
+validateFirstUpdate iu =
+  do
+  let xrefss = iu_xrefs iu
+  unless (length xrefss == 1) $
+    err "must have only one subsection"
+
+    -- Section 7.5.4: For a PDF file that has never been incrementally
+    -- updated, the cross-reference section shall contain only one subsection,
+    -- whose object numbering begins at 0.
+
+  let [xrefs] = xrefss
+  case xrefs of
+    []                     -> err "must not be empty"
+    Free 0 (R _ 65535) : _ -> return ()
+    _                      -> err "first object must be 0, free, generation 65535"
+
+    -- The first entry in the table (object number 0) shall always be free and
+    -- shall have a generation number of 65,535;
+
+    -- [first entry] shall be the head of the linked list of free objects.
+    -- The last free entry (the tail of the linked list) links back to object number 0.
+
+  case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
+    _:_ -> err "objects exist without generation number 0"
+    []  -> return ()
+
+    -- Except for object number 0, all objects in the cross-reference table
+    -- shall initially have generation numbers of 0.
+       
+  where
+  err s = pError FromUser "validateFirstUpdate" ("first xref table: " ++ s)
 
 ---- parsing IncUpdates ------------------------------------------------------
 
