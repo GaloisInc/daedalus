@@ -9,7 +9,6 @@ import           Data.Map(Map)
 import qualified Data.Map as Map
 import           Data.ByteString.Short(ShortByteString)
 import           Data.ByteString(ByteString)
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Base64 as Base64
 import Text.PrettyPrint
@@ -80,12 +79,13 @@ ppRef o g = ppTagged True "ref" (ppHDict [ "obj:" <+> pp o, "gen:" <+> pp g ])
 
 ppXRef :: (R,ObjLoc) -> Doc
 ppXRef (r,ol) =
-  ppHDict $ [ "id:" <+> pp r
-            ] ++ loc
-  where
-  loc = case ol of
-          InFileAt x -> [ "offset:" <+> pp x ]
-          InObj r i  -> [ "container:" <+> pp r <+> "ix:" <+> pp i ]
+  ppHDict $ [ "id:" <+> pp r ] ++ [ppObjLoc ol]
+
+ppObjLoc :: ObjLoc -> Doc
+ppObjLoc ol = case ol of
+                InFileAt x -> "offset:" <+> pp x
+                InObj r i  -> "container:" <+> pp r <+> "ix:" <+> pp i
+
 
 instance PP R where
   pp r = ppRef (refObj r) (refGen r)

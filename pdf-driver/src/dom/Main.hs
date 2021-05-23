@@ -4,6 +4,7 @@ import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
+import Control.Monad(when)
 import GHC.Records(getField) 
 import System.IO(hPutStrLn,stderr)
 import System.Exit(exitFailure)
@@ -13,7 +14,7 @@ import SimpleGetOpt
 import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
-import XRef(findStartXRef, parseXRefs1, parseXRefs2, printObjIndex)
+import XRef(findStartXRef, parseXRefs1, parseXRefs2, printIncUpdateReport,printObjIndex)
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
 
@@ -70,14 +71,20 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     let myParseXRefs = case command opts of
-                          ListIncUpdates -> parseXRefs2
-                          _              -> parseXRefs1
-                        -- FIXME: when more sure of equivalence, remove parseXRefs1
-                        -- FIXME: parseXRefs2 outputs each incremental update
-                        
-     (refs, trail) <- myParseXRefs topInput idx
+     
+     (refs, trail) <-
+        handlePdfResult (parseXRefs1 topInput idx) "BUG: Ambiguous XRef table."
+     (incUpdates, refs', trail') <-
+        handlePdfResult (parseXRefs2 topInput idx) "BUG: Ambiguous XRef table (2)."
 
+     when (trail /= trail') $
+        putStrLn "warn: trail-v1 /= trail-v2"
+     when (refs /= refs') $
+        putStrLn "warn: refs-v1 /= refs-v2"
+
+     -- FIXME:
+     --  - when more sure of the above, just remove the parseXRefs1 code.
+     
      fileEC <- makeEncContext trail refs topInput (password opts) 
 
      let ppRef pref r@(Ref ro rg) =
@@ -96,6 +103,7 @@ parsePdf opts file bs topInput =
        ListXRefs      -> printObjIndex 0 refs
        
        ListIncUpdates -> do
+                         printIncUpdateReport incUpdates
                          putStrLn "Combined xref table:"
                          printObjIndex 2 refs
 

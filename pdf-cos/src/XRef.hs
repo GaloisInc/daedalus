@@ -4,9 +4,9 @@
 module XRef
   ( findStartXRef
   , parseXRefs1
-  , parseXRefs1'
   , parseXRefs2
   , printObjIndex
+  , printIncUpdateReport
   )
   where
 
@@ -14,11 +14,9 @@ import Data.Char(isSpace,isNumber)
 import Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
-import Control.Monad(unless,forM,foldM)
+import Control.Monad(unless,forM,forM_,foldM)
 import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
-import System.Exit(exitFailure)
-import System.IO(hPutStrLn,stderr)
 
 import Text.PrettyPrint
 
@@ -31,48 +29,76 @@ import PdfParser
 import Stdlib(pManyWS)
 import PdfPP
 
-type IncUpdate = (String,ObjIndex,TrailerDict)
+---- types -------------------------------------------------------------------
 
-parseIncUpdates ::
-  DbgMode => Input -> Int -> IO [IncUpdate]
-parseIncUpdates inp offset0 =
+-- an incremental update (or the base DOM)
+data IncUpdate = IU { iu_offset  :: Int  -- offset of this IU
+                    , iu_type    :: XRefType
+                    , iu_xrefs   :: [[XRefEntry]]
+                    , iu_trailer :: TrailerDict
+                    }
+
+data XRefType = XRefTable  
+              | XRefStream  -- newer alternative to XRef table
+              deriving (Eq,Ord,Show)
+
+
+---- utilities ---------------------------------------------------------------
+
+runParserWithoutObjects :: DbgMode => Input -> Parser a -> IO (PdfResult a)
+runParserWithoutObjects i p = 
+  runParser (error "Unexpected ObjIndex reference") Nothing p i
+    -- the parser should not be attempting to deref any objects!
+  
+---- xref table: parse and construct -----------------------------------------
+
+-- | Construct the xref map (and etc), version 2
+parseXRefs2 :: DbgMode => Input -> Int -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
+parseXRefs2 inp off0 =
+  runParserWithoutObjects inp $
+    do
+    updates <- parseAllIncUpdates inp off0
+
+    -- create object index (oi) map:
+    oi <- foldlM
+            (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
+                         return (Map.union oi' oi)
+                                -- NOTE: Map.union is left-biased.
+            )
+            Map.empty
+            updates
+    pure (updates, oi, iu_trailer(last updates))
+
+    -- updates == [base,upd1,upd2,...]
+    -- length(updates) >= 1
+    -- FIXME[F2]: validate that trailers are consistent
+
+  where
+    
+  convertSubSectionsToObjMap :: [[XRefEntry]] -> Parser ObjIndex
+  convertSubSectionsToObjMap xrefss =
+    do objMaps  <- mapM xrefEntriesToMap xrefss
+       let objMap = Map.unions objMaps
+       unless (Map.size objMap == sum (map Map.size objMaps))
+           (pError FromUser "convertSubSectionsToObjMap"
+                            "Duplicate entries in xref section")
+             -- FIXME: put this into 'validate'
+       pure objMap
+     
+
+---- parsing IncUpdates ------------------------------------------------------
+
+parseAllIncUpdates :: Input -> Int -> Parser [IncUpdate]
+parseAllIncUpdates inp offset0 =
   do
-  (x, next) <- parseOneIncUpdate offset0
-  processIncUpdate offset0 x next
+  (x, next) <- parseOneIncUpdate inp offset0
   case next of
-    Just offset -> (++[x]) <$> parseIncUpdates inp offset
+    Just offset -> (++[x]) <$> parseAllIncUpdates inp offset
     Nothing     -> return [x]
   
-  where
 
-  parseOneIncUpdate :: Int -> IO (IncUpdate, Maybe Int)
-  parseOneIncUpdate offset =
-    handlePdfResult (runParserWithoutObjects (parseOneIncUpdate' inp offset) inp)
-                    "parsing single incremental update"
-
-  processIncUpdate :: Int -> IncUpdate -> Maybe Int -> IO ()
-  processIncUpdate offset (xreftype,oi,trailer) next =
-    do
-    s <- case next of
-           Nothing      -> return "initial DOM"
-           Just offset' -> do
-                           unless (offset' < offset) $
-                             quit ("Error: 'prev' offset "
-                                   ++ show offset' ++ " does not precede in file")
-                             -- this ensures no infinite loop.
-                           return "incremental update"
-
-    mapM_ putStrLn [ s ++ ":"
-                   , "  " ++ xreftype
-                   , "  starts at byte offset " ++ show offset
-                   , "  xref entries:"
-                   ]
-    printObjIndex 4 oi
-    putStrLn "  trailer dictionary:"
-    print (nest 4 $ pp trailer)
-
-parseOneIncUpdate' :: Input -> Int -> Parser (IncUpdate, Maybe Int)
-parseOneIncUpdate' inp offset = 
+parseOneIncUpdate :: Input -> Int -> Parser (IncUpdate, Maybe Int)
+parseOneIncUpdate inp offset = 
   case advanceBy (intToSize offset) inp of
     Just i ->
       do pSetInput i
@@ -80,9 +106,9 @@ parseOneIncUpdate' inp offset =
                               --   - standard xref table OR xref streams
                               --   - the trailer too (in the former case)
          case refSec of
-           CrossRef_oldXref x -> processTrailer "cross-reference table"  x
-           CrossRef_newXref x -> processTrailer "cross-reference stream" x
-    Nothing -> pError FromUser "parseOneIncUpdate"
+           CrossRef_oldXref x -> processTrailer XRefTable  x
+           CrossRef_newXref x -> processTrailer XRefStream x
+    Nothing -> pError FromUser "parseOneIncUpdate'"
                  ("Offset out of bounds: " ++ show offset)
 
   where
@@ -91,7 +117,7 @@ parseOneIncUpdate' inp offset =
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => String -> x -> Parser (IncUpdate, Maybe Int)
+                    ) => XRefType -> x -> Parser (IncUpdate, Maybe Int)
   processTrailer xrefType x =
     do let t = getField @"trailer" x
        prev <- case getField @"prev" t of
@@ -100,89 +126,67 @@ parseOneIncUpdate' inp offset =
                     case toInt i of
                       Nothing  -> pError FromUser "parseTrailer"
                                                   "Prev offset too large."
-                      Just off -> pure (Just off)
-
+                      Just offset' ->
+                          if offset' < offset then
+                            pure (Just offset')
+                          else
+                            -- this ensures no infinite loop:
+                            pError FromUser "parseTrailer"
+                              (unwords ["Prev offset", show offset'
+                                       ,"does not precede offset", show offset
+                                       ,"in file."
+                                       ])
+                           
        xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
-       -- mapM_ (print . ppXRefEntry) xrefs 
-
-       objMap <- convertSubSectionsToObjMap xrefss
-       return ((xrefType, objMap, t), prev)
-
-convertSubSectionsToObjMap :: [[XRefEntry]] -> Parser ObjIndex
-convertSubSectionsToObjMap xrefss =
-  do objMaps  <- mapM xrefEntriesToMap xrefss
-     let objMap = Map.unions objMaps
-     unless (Map.size objMap == sum (map Map.size objMaps))
-         (pError FromUser "convertSubSectionsToObjMap"
-                          "Duplicate entries in xref section")
-           -- FIXME: put this into 'validate'
-     return objMap
-     
----- abstract the xref tables / inc. updates into a Map (ObjIndex) -----------
-
--- this is about printing the Map/Index, not the entries
-printObjIndex :: Int -> ObjIndex -> IO ()
-printObjIndex n oi = print $ nest n $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
-
----- utilities ---------------------------------------------------------------
-
-runParserWithoutObjects :: DbgMode => Parser a -> Input -> IO (PdfResult a)
-runParserWithoutObjects p i = 
-  runParser (error "Unexpected ObjIndex reference") Nothing p i
-    -- the parser should not be attempting to deref any objects!
-  
--- FIXME: de-duplicate 
-
-quit :: String -> IO a
-quit msg =
-  do hPutStrLn stderr msg
-     exitFailure
-
-handlePdfResult :: IO (PdfResult a) -> String -> IO a
-handlePdfResult x msg =
-  do  res <- x
-      case res of
-        ParseOk a     -> pure a
-        ParseAmbig {} -> quit msg
-        ParseErr e    -> quit (show (pp e))
-
----- xref table: parse and construct -----------------------------------------
-
--- FIXME: dead code
-combineIncUpdates :: [IncUpdate] -> IO (ObjIndex, TrailerDict)
-combineIncUpdates = error "TODO: combineIncUpdates"
+       return ( IU{ iu_offset = offset
+                  , iu_type   = xrefType
+                  , iu_xrefs  = xrefss
+                  , iu_trailer= t
+                  }
+              , prev
+              )
 
 
--- | Construct the xref table, version 2
-parseXRefs2 ::
-  DbgMode => Input -> Int -> IO (ObjIndex, TrailerDict)
-parseXRefs2 inp off0 =
+---- report ------------------------------------------------------------------
+
+printIncUpdateReport :: [IncUpdate] -> IO ()
+printIncUpdateReport updates =
   do
-  (_,oi,td):updates <- parseIncUpdates inp off0
-  foldlM applyIncUpdate (oi,td) updates
-   -- base is head, subsequent updates are subsequent in 'updates' list
+  let us = zip ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
+               updates 
+  forM_ us $
+    \(nm,iu)->
+      do
+      mapM_ putStrLn [ nm ++ ":"
+                     , "  " ++ show (iu_type iu)
+                     , "  starts at byte offset " ++ show (iu_offset iu)
+                     , "  xref entries:"
+                     ]
+      printXRefs 4 (iu_xrefs iu)
+      putStrLn "  trailer dictionary:"
+      print (nest 4 $ pp (iu_trailer iu))
 
--- | applyIncUpdate base upd = extend 'base' with the 'upd' incremental update
-applyIncUpdate :: Monad m =>
-                  (ObjIndex,TrailerDict) -> (String,ObjIndex,TrailerDict) -> m (ObjIndex,TrailerDict) 
-applyIncUpdate (oi,_trailer) (_,oi',trailer') =
-  return ( Map.union oi' oi, trailer')
-    -- NOTE: Map.union is left-biased.
-    -- FIXME[F2]: validate that trailers are consistent
 
+printXRefs :: Int -> [[XRefEntry]] -> IO ()
+printXRefs indent ess =
+  print
+  $ nest indent
+  $ ppBlock "[" "]"
+     [ ppBlock "[" "]" (map ppXRefEntry es) | es <- ess]
+  
+-- | printObjIndex - NOTE prints the Map/Index abstraction (not the entries)
+printObjIndex :: Int -> ObjIndex -> IO ()
+printObjIndex indent oi = print
+                          $ nest indent
+                          $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
 
 
 ---- xref table: parse and construct (old version) ---------------------------
 
 -- | Construct the xref table, version 1
 
-parseXRefs1 :: Input -> Int -> IO (ObjIndex, TrailerDict)
-parseXRefs1 inp off0 =
-  handlePdfResult (parseXRefs1' inp off0) "BUG: Ambiguous XRef table."
-
-parseXRefs1' ::
-  DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs1' inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
+parseXRefs1 :: DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
+parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
@@ -243,16 +247,21 @@ class SubSectionEntry t where
   processEntry :: Int -> t -> Parser XRefEntry
 
 data XRefEntry = InUse R ObjLoc
-               | Free  R -- object is next free object, generation
+               | Free  Int R     -- object is next free object, generation
                | Null    
 
--- FIXME: use.
 ppXRefEntry :: XRefEntry -> Doc
 ppXRefEntry x =
   case x of
-    InUse r loc -> ppXRef (r,loc)
-    Free r      -> "free" <+> pp r
-    Null        -> "null"
+    InUse (R o g) loc -> "inuse" <+> ppHDict [ "obj:" <+> pp o
+                                             , "gen:" <+> pp g
+                                             , ppObjLoc loc
+                                             ]
+    Free obj (R n g)  -> "free " <+> ppHDict [ "obj:" <+> pp obj
+                                             , "next:" <+> pp n
+                                             , "gen:" <+> pp g
+                                             ]
+    Null              -> "null"
       
 instance SubSectionEntry XRefObjEntry where
   processEntry o t =
@@ -271,7 +280,7 @@ instance SubSectionEntry XRefObjEntry where
       XRefObjEntry_free u ->
         do obj <- integerToInt (getField @"obj" u)
            g   <- integerToInt (getField @"gen" u)
-           pure $ Free R{ refObj = obj, refGen = g}
+           pure $ Free o R{ refObj = obj, refGen = g}
       XRefObjEntry_null {} -> pure Null
 
 instance SubSectionEntry CrossRefEntry where
@@ -285,7 +294,7 @@ instance SubSectionEntry CrossRefEntry where
       CrossRefEntry_free u ->
         do g   <- integerToInt (getField @"gen" u)
            obj <- integerToInt (getField @"obj" u)
-           pure $ Free R{ refObj = obj, refGen = g }
+           pure $ Free o R{ refObj = obj, refGen = g }
 
   {- Note the file offset and generation will never really fail
      because in the format the offset is a 10 digit number, which
@@ -293,7 +302,8 @@ instance SubSectionEntry CrossRefEntry where
      to work out, and this also makes the code more portable, in theory.
   -}
 
--- | Join together the entries into a single xref sub-section.
+-- | Join together the entries into a single xref sub-section
+--    - merging XRefObjEntry and CrossRefEntry into XRefEntry
 convertToXRefEntries :: XRefSection s e o => s -> Parser [XRefEntry]
 convertToXRefEntries xrs =
   forM (zip [ getField @"firstId" xrs .. ]
