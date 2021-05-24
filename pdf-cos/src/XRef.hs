@@ -67,10 +67,10 @@ validateFirstUpdate iu =
 
   let [xrefs] = xrefss
   case xrefs of
-    []                     -> err "must not be empty"
-    Free 0 (R _ 65535) : _ -> return ()
-                              -- FIXME: change into a 'warning'? allow 0?
-    _                      -> err "first object must be 0, free, generation 65535"
+    []                              -> err "must not be empty"
+    Free 0 (R _ n) : _ | n == 65535 -> return ()
+                       | n == 0     -> warn "object 0 has generation 0 (should be 65535)"
+    _                               -> err "first object must be object 0, free, generation 65535"
 
     -- The first entry in the table (object number 0) shall always be free and
     -- shall have a generation number of 65,535;
@@ -86,8 +86,8 @@ validateFirstUpdate iu =
     -- shall initially have generation numbers of 0.
        
   where
-  warn s = putStrLn $ "Warning: " ++ s
-  err s  = quit ("validateFirstUpdate: " ++ "first xref table: " ++ s)
+  warn s = putStrLn $ "Warning: in first(base) xref table: " ++ s
+  err s  = quit ("Error: in first(base) xref table: " ++ s)
 
 -- duplicated!
 
