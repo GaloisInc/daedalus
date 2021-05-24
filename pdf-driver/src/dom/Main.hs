@@ -14,7 +14,7 @@ import SimpleGetOpt
 import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
-import XRef(findStartXRef, parseXRefs1, parseXRefs2, printIncUpdateReport,printObjIndex)
+import XRef(findStartXRef, parseXRefs1, parseXRefs2, printIncUpdateReport,printObjIndex,validateUpdates)
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
 
@@ -76,7 +76,8 @@ parsePdf opts file bs topInput =
         handlePdfResult (parseXRefs1 topInput idx) "BUG: Ambiguous XRef table."
      (incUpdates, refs', trail') <-
         handlePdfResult (parseXRefs2 topInput idx) "BUG: Ambiguous XRef table (2)."
-
+     validateUpdates (incUpdates, refs', trail')
+     
      when (trail /= trail') $
         putStrLn "warn: trail-v1 /= trail-v2"
      when (refs /= refs') $

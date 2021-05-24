@@ -7,6 +7,7 @@ module XRef
   , parseXRefs2
   , printObjIndex
   , printIncUpdateReport
+  , validateUpdates
   )
   where
 
@@ -17,6 +18,8 @@ import qualified Data.ByteString.Char8 as BS
 import Control.Monad(unless,forM,forM_,foldM)
 import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
+import System.Exit(exitFailure)
+import System.IO(hPutStrLn,stderr)
 
 import Text.PrettyPrint
 
@@ -43,13 +46,65 @@ data XRefType = XRefTable
               deriving (Eq,Ord,Show)
 
 
+---- additional validation ---------------------------------------------------
+-- validation done in IO to allow for warns as well as errors.
+
+validateUpdates :: ([IncUpdate], ObjIndex, TrailerDict) -> IO ()
+validateUpdates (updates,_,_) =
+  validateFirstUpdate (head updates)
+
+  
+validateFirstUpdate :: IncUpdate -> IO ()
+validateFirstUpdate iu =
+  do
+  let xrefss = iu_xrefs iu
+  unless (length xrefss == 1) $
+    err "must have only one subsection"
+
+    -- Section 7.5.4: For a PDF file that has never been incrementally
+    -- updated, the cross-reference section shall contain only one subsection,
+    -- whose object numbering begins at 0.
+
+  let [xrefs] = xrefss
+  case xrefs of
+    []                     -> err "must not be empty"
+    Free 0 (R _ 65535) : _ -> return ()
+                              -- FIXME: change into a 'warning'? allow 0?
+    _                      -> err "first object must be 0, free, generation 65535"
+
+    -- The first entry in the table (object number 0) shall always be free and
+    -- shall have a generation number of 65,535;
+
+    -- [first entry] shall be the head of the linked list of free objects.
+    -- The last free entry (the tail of the linked list) links back to object number 0.
+
+  case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
+    _:_ -> err "objects exist without generation number 0"
+    []  -> return ()
+
+    -- Except for object number 0, all objects in the cross-reference table
+    -- shall initially have generation numbers of 0.
+       
+  where
+  warn s = putStrLn $ "Warning: " ++ s
+  err s  = quit ("validateFirstUpdate: " ++ "first xref table: " ++ s)
+
+-- duplicated!
+
+quit :: String -> IO a
+quit msg =
+  do hPutStrLn stderr msg
+     exitFailure
+
+
 ---- utilities ---------------------------------------------------------------
 
 runParserWithoutObjects :: DbgMode => Input -> Parser a -> IO (PdfResult a)
 runParserWithoutObjects i p = 
   runParser (error "Unexpected ObjIndex reference") Nothing p i
     -- the parser should not be attempting to deref any objects!
-  
+
+
 ---- xref table: parse and construct -----------------------------------------
 
 -- | Construct the xref map (and etc), version 2
@@ -58,7 +113,6 @@ parseXRefs2 inp off0 =
   runParserWithoutObjects inp $
     do
     updates <- parseAllIncUpdates inp off0
-    validateFirstUpdate (head updates)
     
     -- create object index (oi) map:
     oi <- foldlM
@@ -85,38 +139,6 @@ parseXRefs2 inp off0 =
                    "Duplicate entries in xref section")
        pure objMap
 
-validateFirstUpdate :: IncUpdate -> Parser ()
-validateFirstUpdate iu =
-  do
-  let xrefss = iu_xrefs iu
-  unless (length xrefss == 1) $
-    err "must have only one subsection"
-
-    -- Section 7.5.4: For a PDF file that has never been incrementally
-    -- updated, the cross-reference section shall contain only one subsection,
-    -- whose object numbering begins at 0.
-
-  let [xrefs] = xrefss
-  case xrefs of
-    []                     -> err "must not be empty"
-    Free 0 (R _ 65535) : _ -> return ()
-    _                      -> err "first object must be 0, free, generation 65535"
-
-    -- The first entry in the table (object number 0) shall always be free and
-    -- shall have a generation number of 65,535;
-
-    -- [first entry] shall be the head of the linked list of free objects.
-    -- The last free entry (the tail of the linked list) links back to object number 0.
-
-  case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
-    _:_ -> err "objects exist without generation number 0"
-    []  -> return ()
-
-    -- Except for object number 0, all objects in the cross-reference table
-    -- shall initially have generation numbers of 0.
-       
-  where
-  err s = pError FromUser "validateFirstUpdate" ("first xref table: " ++ s)
 
 ---- parsing IncUpdates ------------------------------------------------------
 
