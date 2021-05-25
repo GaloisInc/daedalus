@@ -1158,7 +1158,9 @@ checkImplicitParam r (i,t) =
   do mb <- lookupIP i
      case mb of
        Nothing -> noIP
-       Just a  -> pure a
+       Just a  ->
+         do unify (r,typeOf a) (i,t)
+            pure a
   where
   noIP =
     do p <- addIPUse i
