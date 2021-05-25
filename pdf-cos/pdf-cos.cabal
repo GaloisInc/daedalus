@@ -184,6 +184,7 @@ library
     cryptonite,
     cereal, 
     memory,
-    pretty            
+    pretty,
+    range-set-list                   
 
 

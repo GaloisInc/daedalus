@@ -7,6 +7,7 @@ module XRef
   , parseXRefs2
   , printObjIndex
   , printIncUpdateReport
+  , printCavityReport
   , validateUpdates
   )
   where
@@ -20,6 +21,9 @@ import Control.Applicative((<|>))
 import GHC.Records(HasField, getField)
 import System.Exit(exitFailure)
 import System.IO(hPutStrLn,stderr)
+
+-- pkg range-set-list:
+import qualified Data.RangeSet.IntMap as RIntSet
 
 import Text.PrettyPrint
 
@@ -45,15 +49,23 @@ data XRefType = XRefTable
               | XRefStream  -- newer alternative to XRef table
               deriving (Eq,Ord,Show)
 
+-- Features to add
+--  - pass in flags
+--    - flag for each exuberance?
+--    - be able to specify sets of flags
+--      - "strict PDF"
+--      - commonly-allowed PDF
 
 ---- additional validation ---------------------------------------------------
 -- validation done in IO to allow for warns as well as errors.
 
 validateUpdates :: ([IncUpdate], ObjIndex, TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
+  do
   validateFirstUpdate (head updates)
+  -- FIXME: more things to validate!
+  return ()
 
-  
 validateFirstUpdate :: IncUpdate -> IO ()
 validateFirstUpdate iu =
   do
@@ -86,15 +98,15 @@ validateFirstUpdate iu =
     -- shall initially have generation numbers of 0.
        
   where
-  warn s = putStrLn $ "Warning: in first(base) xref table: " ++ s
-  err s  = quit ("Error: in first(base) xref table: " ++ s)
+  warn s = warning $ "in first(base) xref table: " ++ s
+  err  s = quit ("Error: in first(base) xref table: " ++ s)
 
--- duplicated!
+warning :: String -> IO ()
+warning s = putStrLn $ "Warning: " ++ s
 
 quit :: String -> IO a
-quit msg =
-  do hPutStrLn stderr msg
-     exitFailure
+quit msg = do hPutStrLn stderr msg
+              exitFailure
 
 
 ---- utilities ---------------------------------------------------------------
@@ -233,6 +245,87 @@ printObjIndex :: Int -> ObjIndex -> IO ()
 printObjIndex indent oi = print
                           $ nest indent
                           $ ppBlock "[" "]" (map ppXRef (Map.toList oi))
+
+
+---- cavities report ---------------------------------------------------------
+
+type Range = (Int,Int)
+
+printCavityReport :: Input -> [IncUpdate] -> IO ()
+printCavityReport inp updates =
+  do
+  let us = zip3 ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
+                updates
+                (0 : map iu_offset updates) 
+  forM_ us $
+    \(nm,iu,prevOffset)->
+      do
+      mapM_ putStrLn [ nm ++ ":"
+                     , "  " ++ show (iu_type iu)
+                     , "  body starts at byte offset " ++ show prevOffset
+                     , "  xref starts at byte offset " ++ show (iu_offset iu)
+                     , "  cavities:"
+                     ]
+      rs <- getObjectRanges inp iu
+
+      let
+          sr = RIntSet.singletonRange
+
+          -- intersection:
+          i = foldr (\x s-> RIntSet.intersection (sr x) s)
+                    RIntSet.empty
+                    rs
+        
+          -- cavities:
+          cs = RIntSet.toRangeList $
+                   sr (prevOffset, iu_offset iu - 1)
+                   RIntSet.\\
+                   foldr RIntSet.insertRange RIntSet.empty rs
+
+      unless (RIntSet.null i) $
+        warning $
+          "object definitions overlap (highly dubious) on the following offsets: "
+          ++ show (RIntSet.toRangeList i)
+      
+      mapM_ (\r->putStrLn ("    " ++ show r)) cs
+
+  -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
+  --  - must nab the locations when we parse these!
+
+getObjectRanges :: Input -> IncUpdate -> IO [Range]
+getObjectRanges inp iu =
+  do
+  rs <- sequence [getObjectAt off r | InUse r (InFileAt off) <- concat (iu_xrefs iu)]
+  return $ map fst rs
+
+  where
+  getObjectAt off r = 
+    do
+    res <- runParserWithoutObjects inp (parseObjectAt inp off)
+           -- ^^ work??
+    case res of
+      ParseOk (rng, TopDecl o g x) ->
+          do let o' = fromIntegral (refObj r)
+                 g' = fromIntegral (refGen r)
+             unless (o' == o && g' == g) $
+               warning "xref object gen =/= object gen obj ... endobj"
+             return (rng, x)
+      ParseErr e                    ->
+           quit ("uncomputable cavities when unparseable object: " ++ show e)
+      ParseAmbig {}                 ->
+           quit ("uncomputable cavities when ambiguous object")
+         
+           
+parseObjectAt :: Input -> Int -> Parser (Range, TopDecl)
+parseObjectAt inp offsetStart =
+  case advanceBy (intToSize offsetStart) inp of
+    Nothing -> pError FromUser "parseObjectAt"
+                ("Offset out of bounds: " ++ show offsetStart)
+    Just i ->
+      do pSetInput i
+         td <- pTopDecl
+         offsetEnd <- pOffset               
+         return $ ((offsetStart, sizeToInt offsetEnd), td)
 
 
 ---- xref table: parse and construct (old version) ---------------------------
