@@ -50,7 +50,7 @@ data RO = RO
 
 data RW = RW
   { rwValidated :: Map R ByteString
-    -- | Refernces that are validated (or in the process) at the given type
+    -- | References that are validated (or in the process) at the given type
   }
 
 data PdfResult a = ParseOk a
@@ -85,9 +85,16 @@ instance BasicParser m => PdfParser (PdfT m) where
       then liftS s $ pError FromSystem "PdfMonad.resolving" "Reference cycle"
       else m RO { roResolving = Set.insert r roResolving, .. } s
 
-  extendObjIndex new (P m) = P \RO{..} ->
-    m RO { roObjMap = Map.union new roObjMap, .. }
-
+  extendObjIndex prevInFileObjMap (P m) = P \RO{..} ->
+    m RO { roObjMap = Map.union roObjMap prevInFileObjMap, .. }
+    -- NOTE:
+    --  - shadowing object indexes happens often.
+    --  - this appears to be functioning correctly, it appears unintuitive but note 
+    --     - Map.union is left-biased
+    --     - extendObjIndex is called in order from the bottom of the file (last update first)
+    --     - thus 'roObjMap' is what has been constructed from the bottom of the file.
+    --     - so 'prevInFileObjMap' is an objectMap that is "previous in file" with respect to 'rObjMap'
+    
   getObjIndex = P \RO { .. } s -> pure (roObjMap,s)
 
   getTopInput = P \RO { .. } s -> pure (roTopInput,s)

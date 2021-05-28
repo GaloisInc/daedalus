@@ -8,29 +8,39 @@ def CrossRef = Choose {
 }
 
 --------------------------------------------------------------------------------
--- "Old style" xref section and trailer
+-- xref section and trailer
+-- "Old style"? not really, not deprecated.
+--   However, an alternative approach via "cross reference streams" was added in PDF 1.5.
 
 def CrossRefAndTrailer = {
   xref    = CrossRefSection;
+  Many JustWhite;
   KW "trailer";
+
   @t = Dict;
   trailer = TrailerDict t;
 }
 
+-- NOTE 7.5.4 of ISO_32000-2_2020:
+--  PDF comments shall not be included in a cross-reference table
+--  between the keywords xref and trailer.
+
 def CrossRefSection = {
-  KW "xref";
-  Many (1..) CrossRefSubSection;
+  Match "xref"; Many $simpleWS; EOL;
+  @x  = CrossRefSubSection;
+  @xs = Many CrossRefSubSection;
+  ^ concat [[x],xs];  -- this greatly improves error messages when errors in 'x'
 }
 
 def CrossRefSubSection = {
-  firstId = Token Natural;
-  @num    = Token Natural as? uint 64;
+  firstId = Natural; $space;
+  @num    = Natural as? uint 64; Many $simpleWS; EOL;
   entries = Many num CrossRefEntry;
 }
 
 def CrossRefEntry = {
-  @num = NatN 10; $simpleWS;
-  @gen = NatN 5;  $simpleWS;
+  @num = NatN 10; $space;
+  @gen = NatN 5;  $space;
   $$   = Choose {
            inUse = UsedEntry num gen;
            free  = FreeEntry num gen;
@@ -51,7 +61,9 @@ def FreeEntry (num : int) (gen : int) = {
 
 
 --------------------------------------------------------------------------------
--- "New style" xref object
+-- Cross-reference streams (section 7.5.8)
+--  "beginning with PDF 1.5"
+--  Peter Wyatt: "not preferable"
 
 def XRefObj = {
   @str  = TopDecl.obj is stream;
@@ -142,23 +154,23 @@ def XRefCompressed (w : XRefFormat) = {
 -- Trailers
 
 def TrailerDict (dict : [ [uint 8] -> Value] ) = {
-  size    = LookupNat "Size" dict;
+  size    = LookupNatDirect "Size" dict;
   root    = Default nothing { -- allowed to be nothing for linearlized PDF
                 @x = Lookup "Root" dict;
                 commit;
                 just (x is ref);
               };
-  prev    = Optional (LookupNat "Prev" dict);
-  encrypt = Optional (TrailerDictEncrypt dict); 
+  prev    = Optional (LookupNatDirect "Prev" dict);
+  encrypt = Optional (TrailerDictEncrypt dict);
   all = ^ dict;
 }
 
-def TrailerDictEncrypt (dict : [ [uint 8] -> Value]) = { 
-  d = Lookup "Encrypt" dict; 
-  commit; 
-  eref = d is ref; 
-  @i = Lookup "ID" dict; 
-  length (i is array) == 2;  
-  id0 = Index (i is array) 0 is string; 
-  id1 = Index (i is array) 1 is string; 
+def TrailerDictEncrypt (dict : [ [uint 8] -> Value]) = {
+  d = Lookup "Encrypt" dict;
+  commit;
+  eref = d is ref;
+  @i = Lookup "ID" dict;
+  length (i is array) == 2;
+  id0 = Index (i is array) 0 is string;
+  id1 = Index (i is array) 1 is string;
 }
