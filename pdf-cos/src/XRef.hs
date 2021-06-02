@@ -196,13 +196,17 @@ parseOneIncUpdate inp offset =
                           if offset' < offset then
                             pure (Just offset')
                           else
+                            pure (Just offset')
+                            -- FIXME!
                             -- this ensures no infinite loop:
+                            {-
                             pError FromUser "parseTrailer"
                               (unwords ["Prev offset", show offset'
                                        ,"does not precede offset", show offset
                                        ,"in file."
                                        ])
-                           
+                            -}
+                            
        xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
        return ( IU{ iu_offset = offset
                   , iu_type   = xrefType
