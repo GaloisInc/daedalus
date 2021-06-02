@@ -77,7 +77,6 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     
      (refs, trail) <-
         handlePdfResult (parseXRefs1 topInput idx) "BUG: Ambiguous XRef table."
      (incUpdates, refs', trail') <-

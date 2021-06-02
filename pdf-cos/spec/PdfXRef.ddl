@@ -29,6 +29,23 @@ def CrossRefAndTrailer = {
   trailer = TrailerDict t;
 }
 
+-- TrailerEnd should follow the CrossRefAndTrailer.
+-- This must be at the end of every [incremental] "body".
+-- Unclear from spec whether comments are allowed (we'll start by not allowing)
+-- We capture the offsets for the sake of reporting and determining 'cavities'
+
+def TrailerEnd = {
+  offset0 = Offset;
+  Many AnyWS;
+  offset1 = Offset;
+  Match "startxref"; Many $simpleWS; EOL;
+  offset2 = Offset;
+  xrefStart = Natural as? uint 64; Many $simpleWS; EOL;
+    -- spec doesn't constrain the integer, but ...
+  offset3 = Offset;
+  Match "%%EOF"; Many $simpleWS
+}
+
 -- NOTE 7.5.4 of ISO_32000-2_2020:
 --  PDF comments shall not be included in a cross-reference table
 --  between the keywords xref and trailer.

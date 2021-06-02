@@ -38,12 +38,14 @@ import PdfPP
 
 ---- types -------------------------------------------------------------------
 
+type FileOffset = UInt 64
+
 -- an incremental update (or the base DOM)
-data IncUpdate = IU { iu_offset  :: Int  -- offset of this IU
-                    , iu_type    :: XRefType
-                    , iu_xrefs   :: [[XRefEntry]]
-                    , iu_trailer :: TrailerDict
-                    }
+data IncUpdate = IU { iu_type      :: XRefType
+                    , iu_xrefs     :: [[XRefEntry]]
+                    , iu_trailer   :: TrailerDict
+                    , iu_startxref :: TrailerEnd  -- last part, holds startxref offset
+                    } 
 
 data XRefType = XRefTable  
               | XRefStream  -- newer alternative to XRef table
@@ -117,14 +119,17 @@ runParserWithoutObjects i p =
     -- the parser should not be attempting to deref any objects!
 
 
+getXRefStart :: TrailerEnd -> UInt 64
+getXRefStart x = getField @"xrefStart" x
+
 ---- xref table: parse and construct -----------------------------------------
 
 -- | Construct the xref map (and etc), version 2
-parseXRefs2 :: DbgMode => Input -> Int -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
-parseXRefs2 inp off0 =
+parseXRefs2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
+parseXRefs2 inp offset =
   runParserWithoutObjects inp $
     do
-    updates <- parseAllIncUpdates inp off0
+    updates <- parseAllIncUpdates inp offset
     
     -- create object index (oi) map:
     oi <- foldlM
@@ -154,7 +159,7 @@ parseXRefs2 inp off0 =
 
 ---- parsing IncUpdates ------------------------------------------------------
 
-parseAllIncUpdates :: Input -> Int -> Parser [IncUpdate]
+parseAllIncUpdates :: Input -> FileOffset -> Parser [IncUpdate]
 parseAllIncUpdates inp offset0 =
   do
   (x, next) <- parseOneIncUpdate inp offset0
@@ -162,10 +167,10 @@ parseAllIncUpdates inp offset0 =
     Just offset -> (++[x]) <$> parseAllIncUpdates inp offset
     Nothing     -> return [x]
   
-
-parseOneIncUpdate :: Input -> Int -> Parser (IncUpdate, Maybe Int)
+-- | parseOneIncUpdate - go to offset and parse xref table
+parseOneIncUpdate :: Input -> FileOffset -> Parser (IncUpdate, Maybe FileOffset)
 parseOneIncUpdate inp offset = 
-  case advanceBy (intToSize offset) inp of
+  case advanceBy offset inp of
     Just i ->
       do pSetInput i
          refSec <- pCrossRef  -- slight misnomer, this parses
@@ -178,12 +183,12 @@ parseOneIncUpdate inp offset =
                  ("Offset out of bounds: " ++ show offset)
 
   where
-  
+
   processTrailer :: ( VecElem s
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => XRefType -> x -> Parser (IncUpdate, Maybe Int)
+                    ) => XRefType -> x -> Parser (IncUpdate, Maybe FileOffset)
   processTrailer xrefType x =
     do let t = getField @"trailer" x
        prev <- case getField @"prev" t of
@@ -193,25 +198,28 @@ parseOneIncUpdate inp offset =
                       Nothing  -> pError FromUser "parseTrailer"
                                                   "Prev offset too large."
                       Just offset' ->
-                          if offset' < offset then
-                            pure (Just offset')
+                          let offset'' = intToSize offset' in
+                          if offset'' < offset then  -- intToSize _
+                            pure (Just offset'')
                           else
-                            pure (Just offset')
+                            pure (Just offset'')
                             -- FIXME!
                             -- this ensures no infinite loop:
                             {-
                             pError FromUser "parseTrailer"
-                              (unwords ["Prev offset", show offset'
+                              (unwords ["Prev offset", show offset''
                                        ,"does not precede offset", show offset
                                        ,"in file."
                                        ])
                             -}
-                            
+                           
        xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
-       return ( IU{ iu_offset = offset
-                  , iu_type   = xrefType
-                  , iu_xrefs  = xrefss
-                  , iu_trailer= t
+       te <- pTrailerEnd
+       -- FIXME: ensure 'te' consistent with ...
+       return ( IU{ iu_type      = xrefType
+                  , iu_xrefs     = xrefss
+                  , iu_trailer   = t
+                  , iu_startxref = te
                   }
               , prev
               )
@@ -229,7 +237,7 @@ printIncUpdateReport updates =
       do
       mapM_ putStrLn [ nm ++ ":"
                      , "  " ++ show (iu_type iu)
-                     , "  starts at byte offset " ++ show (iu_offset iu)
+                     , "  starts at byte offset " ++ show (getXRefStart $ iu_startxref iu)
                      , "  xref entries:"
                      ]
       printXRefs 4 (iu_xrefs iu)
@@ -260,20 +268,20 @@ printCavityReport inp updates =
   do
   let us = zip3 ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
                 updates
-                (0 : map iu_offset updates) 
+                (0 : map (sizeToInt . getXRefStart . iu_startxref) updates) 
   forM_ us $
     \(nm,iu,prevOffset)->
       do
+      let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
       mapM_ putStrLn [ nm ++ ":"
                      , "  " ++ show (iu_type iu)
                      , "  body starts at byte offset " ++ show prevOffset
-                     , "  xref starts at byte offset " ++ show (iu_offset iu)
+                     , "  xref starts at byte offset " ++ show xrefStart
                      , "  cavities:"
                      ]
       rs <- getObjectRanges inp iu
 
-      let
-          sr = RIntSet.singletonRange
+      let sr = RIntSet.singletonRange
 
           -- intersection:
           i = foldr (\x s-> RIntSet.intersection (sr x) s)
@@ -282,7 +290,7 @@ printCavityReport inp updates =
         
           -- cavities:
           cs = RIntSet.toRangeList $
-                   sr (prevOffset, iu_offset iu - 1)
+                   sr (prevOffset, xrefStart - 1)
                    RIntSet.\\
                    foldr RIntSet.insertRange RIntSet.empty rs
 
@@ -336,10 +344,10 @@ parseObjectAt inp offsetStart =
 
 -- | Construct the xref table, version 1
 
-parseXRefs1 :: DbgMode => Input -> Int -> IO (PdfResult (ObjIndex, TrailerDict))
+parseXRefs1 :: DbgMode => Input -> FileOffset -> IO (PdfResult (ObjIndex, TrailerDict))
 parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
-  go :: Maybe TrailerDict -> Maybe Int -> Parser (ObjIndex, TrailerDict)
+  go :: Maybe TrailerDict -> Maybe FileOffset -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
     do oix <- getObjIndex
        case mbRoot of
@@ -347,7 +355,7 @@ parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
          Nothing -> pError FromUser "parseXRefs.go" "Missing document root."
 
   go mbRoot (Just offset) =
-    case advanceBy (intToSize offset) inp of
+    case advanceBy offset inp of
       Just i ->
         do pSetInput i
            pManyWS  -- FIXME: later: warning if this consumes anything
@@ -372,7 +380,7 @@ parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                                      -- to ensure we are not stuck in a loop.
                       Nothing -> pError FromUser "parseXRefs.goWith(1)"
                                                  "Prev offset too large."
-                      Just off -> pure (Just off)
+                      Just off -> pure (Just $ intToSize off)
 
        tabs <- mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
                     (toList (getField @"xref" x))
@@ -489,13 +497,42 @@ integerToInt i =
 
 --------------------------------------------------------------------------------
 
+parseFinalTrailerEnd :: Input -> BS.ByteString -> IO (PdfResult TrailerEnd)
+parseFinalTrailerEnd inp bs =
+  do
+  offset <- case locationOf_startxref bs of
+              Left s  -> quit s
+              Right x -> return x
+  case advanceBy offset inp of
+    Nothing -> quit ("startxref offset out of bounds: " ++ show offset)    
+    Just inp' ->
+        runParserWithoutObjects inp' $ 
+          do pSetInput inp'
+             pTrailerEnd
+
+
+-- find the file byte offset of where we find (last) 'startxref'
+locationOf_startxref :: BS.ByteString -> Either String FileOffset
+locationOf_startxref bs =
+  case BS.findSubstring (BS.reverse startxref) (BS.reverse lastChunk) of
+    Nothing -> Left "Couldn't find startxref"
+    Just i  -> Right (intToSize $ len - i - BS.length startxref)
+
+  where
+  len             = BS.length bs
+  lastChunk       = BS.drop (len - magicNumber) bs
+  startxref       = "startxref"
+  magicNumber     = 500 -- stop searching after 500 bytes from EOF
+
+
+  
 -- Pretty gross
-findStartXRef :: BS.ByteString -> Either String Int
+findStartXRef :: BS.ByteString -> Either String FileOffset
 findStartXRef bs
   | BS.null post   = Left "Couldn't find EOF"
   | not (BS.isPrefixOf (BS.reverse "startxref") (BS.dropWhile isSpace rest)) =
       Left "Couldn't find startxref"
-  | otherwise      = Right $ read $ BS.unpack $ BS.reverse numBits
+  | otherwise      = Right $ intToSize $ read $ BS.unpack $ BS.reverse numBits
   where
   eof             = "%%EOF"
   (_pre, post)    = BS.breakSubstring (BS.reverse eof) (BS.reverse lastChunk)
