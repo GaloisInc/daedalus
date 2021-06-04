@@ -10,7 +10,7 @@ import           Data.Set (Set)
 import           Data.Word(Word64)
 import           Data.Int(Int64)
 import qualified Data.Set as Set
-import           Data.Maybe(maybeToList,fromMaybe)
+import           Data.Maybe(maybeToList,fromMaybe,mapMaybe)
 import           Data.List(partition)
 import qualified Data.Text as Text
 import           Control.Applicative((<|>))
@@ -71,7 +71,7 @@ cProgram fileNameRoot prog =
                ] ++
 
                map cFunSig noCapFun ++
-               (let ?allFuns = allFunMap in map cFun noCapFun) ++
+               (let ?allFuns = allFunMap in mapMaybe cFun noCapFun) ++
 
                [ parserSig <+> "{"
                , nest 2 parserDef
@@ -91,7 +91,7 @@ cProgram fileNameRoot prog =
   (capFuns,noCapFun) = partition ((Capture ==) . vmfCaptures) allFuns
 
   allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
-                                                          map vmfBlocks capFuns)
+                          [ vmfBlocks d | f <- capFuns, VMDef d <- [vmfDef f] ])
   doBlock b      = let ?allFuns = allFunMap
                        ?allBlocks = allBlocks
                        ?captures = Capture
@@ -220,43 +220,45 @@ cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
   res  = if vmfPure fun then retTy else "bool"
   args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
   normalArgs = [ cType (getType x)
-               | let b = vmfBlocks fun Map.! vmfEntry fun
-               , x <- blockArgs b
+               | x <- case vmfDef fun of
+                        VMDef d -> blockArgs (vmfBlocks d Map.! vmfEntry d)
+                        VMExtern as -> as
                ]
 
   retTy   = cSemType (Src.fnameType (vmfName fun))
   retArgs = [ "DDL::ParserState&", cPtrT retTy, cPtrT (cSemType Src.TStream) ]
 
-cFun :: (AllFuns) => VMFun -> CDecl
-cFun fun = cDefineFun res (cFName (vmfName fun)) args body
-  where
+cFun :: (AllFuns) => VMFun -> Maybe CDecl
+cFun fun =
+  case vmfDef fun of
+    VMExtern {} -> Nothing
+    VMDef d -> Just (cDefineFun res (cFName (vmfName fun)) args body)
+      where
+      res  = if vmfPure fun then retTy else "bool"
+      args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
 
+      entryBlock = vmfBlocks d Map.! vmfEntry d
 
-  res  = if vmfPure fun then retTy else "bool"
-  args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
+      argName n = "a" <.> int n
 
-  entryBlock = vmfBlocks fun Map.! vmfEntry fun
+      normalArgs = [ cType (getType x) <+> argName n
+                   | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
+                   ]
 
-  argName n = "a" <.> int n
-
-  normalArgs = [ cType (getType x) <+> argName n
-               | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
-               ]
-
-  retTy   = cSemType (Src.fnameType (vmfName fun))
-  retArgs = [ "DDL::ParserState& p"
-            , cPtrT retTy <+> cRetVarFun
-            , cPtrT (cSemType Src.TStream) <+> cRetInputFun
-            ]
-
-  body   = let ?allBlocks = vmfBlocks fun
-               ?captures  = NoCapture
-           in map cDeclareBlockParams (Map.elems (vmfBlocks fun))
-             ++ [ cAssign (cArgUse entryBlock x) (argName n)
-                | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
+      retTy   = cSemType (Src.fnameType (vmfName fun))
+      retArgs = [ "DDL::ParserState& p"
+                , cPtrT retTy <+> cRetVarFun
+                , cPtrT (cSemType Src.TStream) <+> cRetInputFun
                 ]
-             ++ cGoto (cBlockLabel (vmfEntry fun))
-              : [ cBasicBlock b | b <- Map.elems (vmfBlocks fun) ]
+
+      body   = let ?allBlocks = vmfBlocks d
+                   ?captures  = NoCapture
+               in map cDeclareBlockParams (Map.elems (vmfBlocks d))
+                 ++ [ cAssign (cArgUse entryBlock x) (argName n)
+                    | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
+                    ]
+                 ++ cGoto (cBlockLabel (vmfEntry d))
+                  : [ cBasicBlock b | b <- Map.elems (vmfBlocks d) ]
 
 
 
@@ -656,7 +658,9 @@ cTermStmt ccInstr =
         Capture ->
             doPush no
           : doPush yes
-          : cJump (JumpPoint (vmfEntry (lkpFun f)) es)
+          : case vmfDef (lkpFun f) of
+              VMDef d -> cJump (JumpPoint (vmfEntry d) es)
+              VMExtern {} -> panic "Capture call to extern" []
 
         NoCapture ->
           let JumpPoint lYes esYes = yes
@@ -694,7 +698,10 @@ cTermStmt ccInstr =
           doCall as = cCall (cFName f) (as ++ map cExpr es)
       in
       case (captures, ?captures) of
-        (Capture,Capture) -> cJump (JumpPoint (vmfEntry (lkpFun f)) es)
+        (Capture,Capture) ->
+          case vmfDef fun of
+            VMDef d  ->  cJump (JumpPoint (vmfEntry d) es)
+            VMExtern _ -> panic "Tail call" ["Capturing primitive?", showPP f]
         (Capture,NoCapture) -> panic "cBasicBlock" [ "Capture from no-capture" ]
 
         -- this is not a tail call anymore

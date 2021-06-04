@@ -89,25 +89,29 @@ compileSomeFun isPure doBody fun =
                       pure do setInput (EBlockArg i)
                               code
 
-      body' = case Src.fDef fun of
-                Src.Def e    -> doBody (Just e)
-                Src.External -> doBody Nothing
-
-      body = foldr setInp body' inpArgs
+      def = case Src.fDef fun of
+               Src.Def e    ->
+                 VMDef
+                   let body   = foldr setInp (doBody (Just e)) inpArgs
+                       (l,ls) = runC lab (Src.typeOf name)
+                                         (foldr getArgC body (zip xs args))
+                   in VMFBody { vmfEntry = l
+                              , vmfBlocks = Map.adjust addArgs l ls
+                              }
+               Src.External -> VMExtern args
 
       lab = Text.pack $ show $ pp name
 
-      (l,ls)     = runC lab (Src.typeOf name)
-                        (foldr getArgC body (zip xs args))
       addArgs b = b { blockArgs = inpArgs ++ args }
 
   in inlineBlocks
       VMFun { vmfName   = Src.fName fun
-            , vmfCaptures = Capture -- Conservative
+            , vmfCaptures = case Src.fDef fun of
+                              Src.Def {} -> Capture -- Conservative
+                              Src.External -> NoCapture
             , vmfPure   = isPure
             , vmfLoop   = False
-            , vmfEntry  = l
-            , vmfBlocks = Map.adjust addArgs l ls
+            , vmfDef    = def
             }
 
 compileFFun :: Src.Fun Src.Expr -> VMFun

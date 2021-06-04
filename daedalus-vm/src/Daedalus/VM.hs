@@ -48,8 +48,15 @@ data VMFun = VMFun
   , vmfPure     :: Bool     -- ^ True if this is not a parser
   , vmfLoop     :: Bool     -- XXX we need to know the other loop members
                             -- for inlining
-  , vmfEntry    :: Label
-  , vmfBlocks   :: Map Label Block
+  , vmfDef      :: VMFDef   -- ^ Definition for the function, if any
+  }
+
+data VMFDef = VMExtern [BA]      -- ^ Primitive with these arguments
+            | VMDef VMFBody      -- ^ Definition
+
+data VMFBody = VMFBody
+  { vmfEntry  :: Label
+  , vmfBlocks :: Map Label Block
   }
 
 -- | A basic block
@@ -189,7 +196,8 @@ iArgs i =
 pAllBlocks :: Program -> [Block]
 pAllBlocks p =
   [ b | ent <- pEntries p, b <- Map.elems (entryBoot ent) ] ++
-  [ b | m <- pModules p, f <- mFuns m, b <- Map.elems (vmfBlocks f) ]
+  [ b | m <- pModules p, f <- mFuns m, VMDef d <- [vmfDef f]
+      , b <- Map.elems (vmfBlocks d) ]
 
 extraArgs :: BlockType -> Int
 extraArgs b =
@@ -341,10 +349,13 @@ instance PP VMFun where
   pp f =
     (".function" <+> pp (vmfName f)) $$
     nest 2 (pp (vmfCaptures f) <+> (if vmfLoop f then ".loop" else empty)
-        $$ (".entry" <+> pp (vmfEntry f))
-        $$ blocks)
+        $$ case vmfDef f of
+             VMExtern as -> ".extern" <+>
+                  hsep [ parens (pp a <+> ":" <+> pp (getType a)) | a <- as ]
+             VMDef d  -> ".entry" <+> pp (vmfEntry d) $$ blocks (vmfBlocks d))
     where
-    blocks = vcat' $ map pp $ Map.elems $ vmfBlocks f
+    blocks = vcat' . map pp . Map.elems
+
 
 instance PP Captures where
   pp c = case c of

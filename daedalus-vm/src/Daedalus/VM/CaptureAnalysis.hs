@@ -57,14 +57,24 @@ captureAnalysis prog =
 
   changeEntry e   = e { entryBoot = changeRetBlock <$> entryBoot e }
   changeModule m  = m { mFuns = map changeFun (mFuns m) }
-  changeFun f     = f { vmfBlocks = changeRetBlock <$> vmfBlocks f }
-
+  changeFun f = f { vmfDef = changeDef (vmfDef f) }
+  changeDef d =
+    case d of
+      VMExtern {} -> d
+      VMDef b     -> VMDef b { vmfBlocks = changeRetBlock <$> vmfBlocks b }
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
   annotateEntry e = e { entryBoot = annotateBlock <$> entryBoot e }
 
   annotateFun f = f { vmfCaptures = getCaptures info (vmfName f)
-                    , vmfBlocks = annotateBlock <$> vmfBlocks f }
+                    , vmfDef = annotateDef (vmfDef f)
+                    }
+
+  annotateDef d =
+    case d of
+      VMExtern {} -> d
+      VMDef b -> VMDef b { vmfBlocks = annotateBlock <$> vmfBlocks b }
+
   annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }
   annotateTerm i =
     case i of
@@ -172,9 +182,15 @@ instance GetCaptureInfo Block where
   annotate mp b = b { blockTerm = annotate mp (blockTerm b) }
 
 instance GetCaptureInfo VMFun where
-  captureInfo b = foldMap captureInfo (vmfBlocks b)
-  annotate mp fu = fu { vmfBlocks = annotate mp <$> vmfBlocks fu
+  captureInfo b = case vmfDef b of
+                    VMExtern {} -> capturesNo
+                    VMDef d     -> foldMap captureInfo (vmfBlocks d)
+  annotate mp fu = fu { vmfDef = annDef (vmfDef fu)
                       , vmfCaptures = getCaptures mp (vmfName fu)
                       }
+    where annDef d = case d of
+                       VMExtern {} -> d
+                       VMDef b ->
+                          VMDef b { vmfBlocks = annotate mp <$> vmfBlocks b }
 
 

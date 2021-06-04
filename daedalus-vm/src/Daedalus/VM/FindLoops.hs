@@ -33,7 +33,9 @@ annotateLoops :: [VMFun] -> [VMFun]
 annotateLoops = foldr doComp [] . topoOrder deps
   where
   deps f      = (vmfName f,funDeps f)
-  funDeps f   = foldr blockDeps Set.empty (vmfBlocks f)
+  funDeps f   = case vmfDef f of
+                  VMExtern {} -> Set.empty
+                  VMDef b     -> foldr blockDeps Set.empty (vmfBlocks b)
   blockDeps b = case blockTerm b of
                   CallPure f _ _   -> Set.insert f
                   Call f _ _ _ _   -> Set.insert f
@@ -51,9 +53,12 @@ isLoop xs
   | otherwise = xs
   where
 
-  names = Map.fromList [ (vmfName x, vmfEntry x) | x <- xs ]
+  names = Map.fromList [ (vmfName x, vmfEntry b) | x <- xs
+                                                 , VMDef b <- [vmfDef x] ]
 
-  okFun f = all ok (vmfBlocks f)
+  okFun f = case vmfDef f of
+              VMDef b -> all ok (vmfBlocks b)
+              VMExtern {} -> False -- shouldn't be part of loops anyway
 
   ok b = case blockTerm b of
            CallPure f _ _ -> not (f `Map.member` names)
@@ -68,7 +73,12 @@ isLoop xs
 
   makeLoop =
     case xs of
-      [x] -> [x { vmfLoop = True, vmfBlocks = rewBlock <$> vmfBlocks x }]
+      [x] -> [ case vmfDef x of
+                 VMDef b -> x { vmfLoop = True
+                              , vmfDef = VMDef b { vmfBlocks =
+                                                    rewBlock <$> vmfBlocks b } }
+                 VMExtern {} -> x
+             ]
       _   -> panic "isLoop" [ "XXX: multi-function loops" ]
 
 
