@@ -26,6 +26,7 @@ import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
 import Talos.Strategy.DFST
+import Talos.Analysis.Projection (projectE)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -115,8 +116,8 @@ stratSlice ptag = go
         
     goLeaf sl =
       case sl of
-        SPure e -> do
-          v <- synthesiseExpr e
+        SPure fset e -> do
+          v <- synthesiseExpr (projectE (const Nothing) fset e) -- We can have partial values
           pure (uncPath v)
 
         SMatch bset -> do

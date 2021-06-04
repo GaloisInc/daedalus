@@ -10,6 +10,7 @@
 
 module Talos.Analysis ( summarise
                       , Summary
+                      -- FIXME: move
                       ) where
 
 import Control.Monad.State
@@ -18,20 +19,20 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Maybe (isJust)
+import Data.Maybe ( isJust )
 
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
 
 import Daedalus.Core
-import Daedalus.Core.Free
 import Daedalus.Core.Type
 
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
 import Talos.Analysis.Monad
 import Talos.Analysis.Slice
+import Talos.Analysis.Projection (freeEntangledVars, freeVarsToEntangledVars)
 
 -- import Debug.Trace
 
@@ -48,7 +49,7 @@ summarise decls nguid  = (summaries s', nextGUID s')
 -- Summary functions
 
 calcFixpoint :: IterState -> IterState
-calcFixpoint s@(IterState { worklist = wl, allDecls = decls})
+calcFixpoint s@IterState { worklist = wl, allDecls = decls}
   | Just ((fn, cl), wl') <- Set.minView wl
   , Just decl <- Map.lookup fn decls -- should always succeed
   = calcFixpoint (-- traceShow ("Entering " <+> pp fn <+> pp cl) $
@@ -66,7 +67,7 @@ summariseDecl cls Fun { fName = fn
   m_oldS <- lookupSummary fn cls
 
   newS   <- doSummary
-  when (not (domainInvariant (exportedDomain newS))) $
+  unless (domainInvariant (exportedDomain newS)) $
     panic "Failed domain invariant" ["At " ++ showPP fn]
   IterM $ modify (addSummary newS)
   propagateIfChanged newS m_oldS
@@ -358,25 +359,26 @@ summariseCase m_x cs@(Case e alts) = do
 -- that we choose one.
 
 summariseG :: Maybe (BaseEntangledVar, Set FieldSet) ->
-              -- ^ The assigned variable, along with fields we care
+              -- The assigned variable, along with fields we care
               -- about (the set of projections is non-empty, it can
               -- contain [emptyFieldSet] representing the entire
               -- object)
               Grammar -> SummariseM Domain
-summariseG m_x tc = do
-  -- cl <- liftIterM $ currentSummaryClass
-
-  -- traceShowM ((pp d <> "@" <> pp cl) <+> maybe "Nothing" ((<+>) "Just" . pp) m_x <+> braces (commaSep $ map pp (Set.toList frees)) <+> pp tc)
-
+summariseG m_x tc =
   case tc of
-    Pure v    -> simple (SPure v)
+    Pure e
+      | Just (x, fsets) <- m_x -> pure $ mconcat
+          [ singletonDomain (singletonEntangledVars x fset <> freeEntangledVars fset e)
+                            (SLeaf (SPure fset e))
+          | fset <- Set.toList fsets ]
+      | otherwise     -> pure emptyDomain
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
     Match _ (MatchByte bset)
         -- fsets should be {emptyFieldSet} here as we are returning a byte
       | Just (x, _fsets) <- m_x ->
           pure $ singletonDomain (singletonEntangledVars x emptyFieldSet
-                                  <> freeEntangledVars emptyFieldSet bset)
+                                  <> freeVarsToEntangledVars bset)
                                  (SLeaf (SMatch bset))
       | otherwise -> pure emptyDomain
     Match {} | isJust m_x -> panic "Saw a relevant match" [showPP tc]
@@ -443,12 +445,6 @@ summariseG m_x tc = do
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
-    simple n
-      | Just (x, fsets) <- m_x = pure $ mconcat
-          [ singletonDomain (singletonEntangledVars x fset <> freeEntangledVars fset tc)
-                            (SLeaf n)
-          | fset <- Set.toList fsets ]
-      | otherwise     = pure emptyDomain
 
     unimplemented = panic "summariseG unimplemented" [showPP tc]
 
@@ -487,27 +483,3 @@ caseIsGuard (GCase (Case e cs)) =
   where
     mk b g = Just (if b then e else eNot e, g)
 caseIsGuard _ = Nothing
-
--- -----------------------------------------------------------------------------
--- Expression level analysis
---
--- Calculate the EVs used in an expression relative to a given
--- projection (field set) on the result.  We can always just return
--- freeVars for the argument, but the hope is that we can do a bit
--- better.
-
--- FIXME: this is the fallback case
-class FreeEntangledVars a where
-  freeEntangledVars :: FieldSet -> a -> EntangledVars
-
-instance FreeEntangledVars Expr where
-  freeEntangledVars _fset =
-    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
-
-instance FreeEntangledVars ByteSet where
-  freeEntangledVars _fset =
-    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars
-
-instance FreeEntangledVars Grammar where
-  freeEntangledVars _fset =
-    EntangledVars . Map.fromSet (\_ -> emptyFieldSet ) . Set.map ProgramVar . freeVars

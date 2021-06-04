@@ -36,6 +36,8 @@ import Talos.SymExec.Core
 import Talos.SymExec.ModelParser (evalModelP, pByte)
 
 import Talos.Strategy.DFST
+import Talos.Analysis.Projection (projectE, typeToInhabitant)
+import Daedalus.Rec (forgetRecs)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -108,7 +110,11 @@ stratSlice ptag = go
     goLeaf sl = do
       -- liftIO (putStr "Leaf: " >> print (pp sl))
       case sl of
-        SPure e -> uncPath <$> synthesiseExpr e
+        SPure fset e -> do
+          md <- getModule
+          let tyMap = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+          
+          uncPath <$> synthesiseExpr (projectE (Just . typeToInhabitant tyMap) fset e)
 
         SMatch bset -> do
           bname <- solverOp (declareSymbol "b" tByte)

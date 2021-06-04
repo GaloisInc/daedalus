@@ -74,7 +74,8 @@ data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
                          , pathSetRoots :: PathRootMap
-                         , currentClass :: SummaryClass                         
+                         , currentClass :: SummaryClass
+                         , currentFName :: FName
                          }
 
 addVal :: Name -> Value -> SynthEnv -> SynthEnv
@@ -221,7 +222,7 @@ synthesise m_seed nguid solv strat root md = do
 
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
 
-    env0      = SynthEnv Map.empty Map.empty Assertions 
+    env0      = SynthEnv Map.empty Map.empty Assertions root
 
     -- FIXME: we assume topologically sorted (by reference)
     allDecls  = mGFuns md
@@ -279,9 +280,11 @@ synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
   summary <- flip (Map.!) cl . flip (Map.!) fName <$> summaries
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
-      setRoots e = e { pathSetRoots = pathRootMap summary }
-      setClass e = e { currentClass = cl }
-  SynthesisM $ local (setRoots . addPs . setClass) (getSynthesisM (synthesiseG fp def))
+      setEnv e = e { pathSetRoots = pathRootMap summary
+                   , currentClass = cl
+                   , currentFName = fName
+                   }
+  SynthesisM $ local (setEnv . addPs) (getSynthesisM (synthesiseG fp def))
 
 synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
@@ -311,9 +314,10 @@ choosePath cp x = do
       pure (foldl' merge cp acc)
       
     go acc solvSt (sl : sls) = do
-      prov <- freshProvenanceTag 
+      prov <- freshProvenanceTag
+      fn   <- SynthesisM $ asks currentFName
       strats <- SynthesisM $ gets stratlist
-      (m_cp, solvSt') <- runStrategies solvSt strats prov sl
+      (m_cp, solvSt') <- runStrategies solvSt strats prov fn x sl
       case m_cp of
         Nothing -> panic "All strategies failed" []
         Just sp -> go (sp : acc) solvSt' sls

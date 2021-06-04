@@ -14,6 +14,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Foldable (fold)
 
 import Control.DeepSeq (NFData)
 
@@ -25,7 +26,7 @@ import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
 import Talos.Analysis.EntangledVars
-import Data.Foldable (fold)
+import Talos.Analysis.Projection (projectE)
 
 -- import Debug.Trace
 
@@ -116,7 +117,7 @@ data Slice =
 -- These are the supported leaf nodes -- we could just reuse Grammar but it
 -- is nice to be explicit here.
 data SliceLeaf =
-  SPure Expr
+  SPure FieldSet Expr    -- FieldSet tells us which bits of the Expr we care about.
   | SMatch ByteSet       -- Match a byte
   | SAssertion Assertion -- FIXME: this is inferred from e.g. case x of True -> ...
   | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
@@ -160,7 +161,7 @@ instance Eqv Slice where
 instance Eqv SliceLeaf where
   eqv l r =
     case (l, r) of
-      (SPure {}, SPure {})           -> True
+      (SPure fset _, SPure fset' _)  -> fset == fset'
       (SMatch {}, SMatch {})         -> True
       (SAssertion {}, SAssertion {}) -> True
       (SChoice ls, SChoice rs)       -> all (uncurry eqv) (zip ls rs)
@@ -214,7 +215,7 @@ instance Merge a => Merge (Case a) where
 instance Merge SliceLeaf where
   merge l r =
     case (l, r) of
-      (SPure {}, SPure {})           -> l
+      (SPure fset e, SPure fset' _e) -> SPure (fset <> fset') e
       (SMatch {}, SMatch {})         -> l
       (SAssertion {}, SAssertion {}) -> l
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
@@ -267,7 +268,7 @@ sliceToCallees = go
       SLeaf l           -> goLeaf l
 
     goLeaf l = case l of
-      SPure _v      -> mempty
+      SPure {}      -> mempty
       SMatch _m     -> mempty
       SAssertion _e -> mempty
       SChoice cs    -> foldMap go cs
@@ -298,7 +299,7 @@ instance FreeVars Slice where
 instance FreeVars SliceLeaf where
   freeVars sl =
     case sl of
-      SPure v      -> freeVars v
+      SPure _ v    -> freeVars v -- FIXME: ignores fset, which night not be what we want
       SMatch m     -> freeVars m
       SAssertion e -> freeVars e
       SChoice cs   -> foldMap freeVars cs
@@ -307,7 +308,7 @@ instance FreeVars SliceLeaf where
 
   freeFVars sl =
     case sl of
-      SPure v      -> freeFVars v
+      SPure _ v    -> freeFVars v
       SMatch m     -> freeFVars m
       SAssertion e -> freeFVars e
       SChoice cs   -> foldMap freeFVars cs
@@ -347,7 +348,7 @@ instance TraverseUserTypes Slice where
 instance TraverseUserTypes SliceLeaf where
   traverseUserTypes f sl =
     case sl of
-      SPure v      -> SPure <$> traverseUserTypes f v
+      SPure fset v -> SPure fset <$> traverseUserTypes f v
       SMatch m     -> SMatch <$> traverseUserTypes f m
       SAssertion e -> SAssertion <$> traverseUserTypes f e
       SChoice cs   -> SChoice <$> traverseUserTypes f cs
@@ -383,7 +384,7 @@ instance PP CallNode where
 instance PP SliceLeaf where
   ppPrec n sl =
     case sl of
-      SPure v  -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 v
+      SPure fset v -> wrapIf (n > 0) $ "pure" <+> ppPrec 1 (projectE (const Nothing) fset v)
       SMatch m -> wrapIf (n > 0) $ "match" <+> pp m
       SAssertion e -> wrapIf (n > 0) $ "assert" <+> ppPrec 1 e
       SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)

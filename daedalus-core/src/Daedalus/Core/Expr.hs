@@ -4,6 +4,7 @@
 {-# Language DeriveTraversable #-}
 module Daedalus.Core.Expr where
 
+import Control.Applicative (Const(..))
 import Data.ByteString(ByteString)
 import Data.Functor.Identity(Identity(..))
 
@@ -122,8 +123,12 @@ childrenE f expr =
 
 
 mapChildrenE :: (Expr -> Expr) -> Expr -> Expr
-mapChildrenE f g = g1
-  where Identity g1 = childrenE (Identity . f) g
+mapChildrenE f e = e1
+  where Identity e1 = childrenE (Identity . f) e
+
+foldMapChildrenE :: Monoid m => (Expr -> m) -> Expr -> m
+foldMapChildrenE f e = m
+  where Const m = childrenE (Const . f) e
 
 --------------------------------------------------------------------------------
 -- Constructors

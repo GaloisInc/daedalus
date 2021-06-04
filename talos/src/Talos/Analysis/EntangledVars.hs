@@ -54,7 +54,15 @@ mergeFieldSet (FieldSet fs1) (FieldSet fs2)
   | otherwise    = FieldSet $ Map.unionWith mergeFieldSet fs1 fs2
 
 explodeFieldSet :: FieldSet -> [ [Label] ]
-explodeFieldSet fs = [ l : ls | (l, fs') <- Map.toList (getFieldSet fs), ls <- explodeFieldSet fs' ]
+explodeFieldSet fs
+  | fs == emptyFieldSet = [ [] ]
+  | otherwise           = [ l : ls | (l, fs') <- Map.toList (getFieldSet fs), ls <- explodeFieldSet fs' ]
+
+pathToFieldSet :: [Label] -> FieldSet
+pathToFieldSet ls =
+  case ls of
+    []       -> emptyFieldSet
+    (x : xs) -> FieldSet (Map.singleton x (pathToFieldSet xs))
 
 -- | This says whether two sets of fields overlap -- i.e.,
 --  exists x : explodeFieldSet fs1, exists y : explodeFieldSet fs2, x `isPrefixOf` y || y `isPrefixOf` x 
