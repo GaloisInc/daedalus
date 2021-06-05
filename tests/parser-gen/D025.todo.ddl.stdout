@@ -21,13 +21,15 @@ D025.todo._A : Grammar {} =
     | @Match (!{'a'})
     }
  
-D025.todo.Main : Grammar (uint 8) =
+D025.todo.Main : Grammar {} =
   do @Many[] D025.todo._A
      @Match {'a'}
-     ($$ : uint 8) <- Match {'b'}
+     @Match {'b'}
+     ($$ : {}) <- END
      pure $$
  
 D025.todo._Main : Grammar {} =
   do @Many[] D025.todo._A
      @Match {'a'}
      @Match {'b'}
+     END
