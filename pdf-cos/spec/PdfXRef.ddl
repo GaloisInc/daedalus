@@ -14,7 +14,7 @@ def CrossRef = Choose {
 
 def CrossRefAndTrailer = {
   xref    = CrossRefSection;
-  Many JustWhite;
+  Many JustWhite;   -- no comments, but arbitrary whitespace allowed here.
   KW "trailer";
 
   @t = Dict;
@@ -27,6 +27,12 @@ def CrossRefAndTrailer = {
 
 def CrossRefSection = {
   Match "xref"; Many $simpleWS; EOL;
+
+    -- we enforce EOL above (rejecting some NCBUR files).  The spec:
+    --   7.5.4
+    --   "Each cross-reference section shall begin with a line containing the keyword xref. Following
+    --   this line shall be one or more cross-reference subsections"
+
   @x  = CrossRefSubSection;
   @xs = Many CrossRefSubSection;
   ^ concat [[x],xs];  -- this greatly improves error messages when errors in 'x'
