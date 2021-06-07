@@ -7,6 +7,7 @@
 #include <ios>
 #include <cmath>
 
+#include <ddl/value.h>
 #include <ddl/bool.h>
 #include <ddl/integer.h>
 
@@ -14,7 +15,7 @@
 namespace DDL {
 
 template <int w>
-struct UInt {
+struct UInt : public Value {
   static_assert(w <= 64, "UInt larger than 64 not supported.");
 
   using Rep =
@@ -172,7 +173,7 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 // For the moment we assume no under/overflow, same as C does
 // but it is not clear if that's what we want from daedluas.
 template <int w>
-struct SInt {
+struct SInt : public Value {
   static_assert(w >= 1, "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
 
