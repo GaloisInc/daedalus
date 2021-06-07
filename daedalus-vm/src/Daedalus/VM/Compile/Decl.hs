@@ -98,7 +98,7 @@ compileSomeFun isPure doBody fun =
                    in VMFBody { vmfEntry = l
                               , vmfBlocks = Map.adjust addArgs l ls
                               }
-               Src.External -> VMExtern args
+               Src.External -> VMExtern (inpArgs ++ args)
 
       lab = Text.pack $ show $ pp name
 
