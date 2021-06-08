@@ -1,5 +1,4 @@
 {-# LANGUAGE KindSignatures, GADTs #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- This module contains the datastructure representing future path
@@ -9,10 +8,9 @@
 module Talos.Analysis.Domain where
 
 import Data.List (partition, foldl1')
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe (listToMaybe)
-import qualified Data.Set as Set
+import Data.Either (partitionEithers)
+
+import Data.Maybe (mapMaybe)
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -26,7 +24,7 @@ import Talos.Analysis.Slice
 -- Invariants: forall (vs1, ps1) (vs2, ps2) : elements, vs1 \inter vs2 = {}
 --             forall (vs, ps) : elements, vs = tcFree ps
 
-newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] } 
+newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] }
 
 instance Merge Domain where
   merge dL dR = Domain (go (elements dL) (elements dR))
@@ -45,13 +43,13 @@ instance Merge Domain where
 instance Semigroup Domain where
   (<>) = merge
 
-emptyDomain :: Domain 
+emptyDomain :: Domain
 emptyDomain = Domain []
 
 singletonDomain :: EntangledVars -> Slice -> Domain
 singletonDomain vs fp = Domain [ (vs, fp) ]
 
-instance Monoid (Domain) where
+instance Monoid Domain where
   mempty = emptyDomain
 
 dontCareD :: Int -> Domain -> Domain
@@ -97,36 +95,47 @@ domainEqv dL dR = go (elements dL) (elements dR)
 
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
-explodeDomain :: Domain -> Map EntangledVar (EntangledVars, Slice)
-explodeDomain d = Map.fromList [ (fmin (getEntangledVars (fst el)), el)
-                               | el <- elements d ]
-  where -- FIXME
-    fmin s | Set.null s = panic "empty domain?" [showPP d]
-           | otherwise  = Set.findMin s
+explodeDomain :: Domain -> [(EntangledVars, Slice)]
+explodeDomain d = elements d
+
 --------------------------------------------------------------------------------
 -- Helpers
 
-lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
-lookupVar n ds = listToMaybe [ d | d@(ns, _) <- elements ds, n `Set.member` getEntangledVars ns ]
+-- Look up exactly the variable passed in (i.e., we don't check if it
+-- is covered by another variable)
+-- lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
+-- lookupVar n ds = Map.lookup n (explodeDomain ds)
 
-memberVar :: EntangledVar -> Domain -> Bool
-memberVar n ds = any (memberEntangledVars n . fst) (elements ds)
+domainElement :: EntangledVars -> Domain -> Maybe Slice
+domainElement evs d = lookup evs (elements d)
 
-splitOnVarWith :: (EntangledVar -> Bool) -> Domain -> (Maybe (EntangledVars, Slice), Domain)
-splitOnVarWith f ds =
-  case nin of
-    []  -> (Nothing, ds)
-    [d] -> (Just d, Domain nout)
-    _   -> panic "Multiple occurences of a variable in a domain" []
+-- | If this returns [] then the variable isn't mapped; it can also
+-- return [emptyFieldSet] which means we care about all the children
+-- (or it is not a struct)
+domainFileSets :: BaseEntangledVar -> Domain -> [FieldSet]
+domainFileSets bv ds = mapMaybe (lookupBaseEV bv . fst) (elements ds)
+
+-- Removes bv from the domain, returning any slices rooted at bv
+splitRemoveVar :: BaseEntangledVar -> Domain -> ([(FieldSet, Slice)], Domain)
+splitRemoveVar bv ds = (nin, Domain nout)
   where
-    (nin, nout) = partition (\(ns, _) -> any f (getEntangledVars ns)) (elements ds)
-
-splitOnVar :: EntangledVar -> Domain -> (Maybe (EntangledVars, Slice), Domain)
-splitOnVar n = splitOnVarWith ((==) n)
+    (nin, nout) =
+      partitionEithers [ case m_fs of
+                           Just fset | nullEntangledVars evs'-> Left  (fset, sl)
+                           _                                 -> Right (evs', sl)
+                       | (evs, sl) <- elements ds
+                       , let (m_fs, evs') = deleteBaseEV bv evs
+                       ]
 
 -- doesn't merge
-primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
-primAddDomainElement d ds = Domain (d : elements ds)
+-- primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
+-- primAddDomainElement d ds = Domain (d : elements ds)
+
+--------------------------------------------------------------------------------
+-- Debugging etc.
+
+domainInvariant :: Domain -> Bool
+domainInvariant dom = all (\(evs, _sl) -> evs /= mempty) (elements dom)
 
 --------------------------------------------------------------------------------
 -- Class instances

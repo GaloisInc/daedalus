@@ -300,7 +300,7 @@ def ComRat (ic : IC) = Choose {
 
 def NBands (irep : IRep) = (
   { irep is nodisplay ;
-    Digit ;
+    Digit as uint 64;
   }
 | { irep is monochrome ;
     IsNum 1 1
@@ -315,7 +315,7 @@ def NBands (irep : IRep) = (
     IsNum 3 3
   }
 | { irep is cartesian ;
-    Digit
+    Digit as uint 64
   }
 | { irep is polar ;
     IsNum 1 2

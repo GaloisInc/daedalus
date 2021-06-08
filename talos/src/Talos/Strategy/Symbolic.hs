@@ -9,7 +9,7 @@ import Control.Monad.Reader
 
 import Control.Monad.State
 import qualified Data.ByteString as BS
-import Data.List (foldl')
+import Data.List (foldl', partition, foldl1')
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -20,11 +20,11 @@ import Daedalus.PP hiding (empty)
 
 import Daedalus.Core hiding (streamOffset)
 import Daedalus.Core.Type
-  
+
 import SimpleSMT (SExpr)
 import qualified SimpleSMT as S
 
-import Talos.Analysis.EntangledVars 
+import Talos.Analysis.EntangledVars
 import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
@@ -36,17 +36,19 @@ import Talos.SymExec.Core
 import Talos.SymExec.ModelParser (evalModelP, pByte)
 
 import Talos.Strategy.DFST
+import Talos.Analysis.Projection (projectE, typeToInhabitant)
+import Daedalus.Rec (forgetRecs)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
 symbolicStrat :: Strategy
-symbolicStrat = 
+symbolicStrat =
   Strategy { stratName  = "symbolic"
            , stratDescr = "Symbolic execution"
            , stratFun   = SolverStrat symbolicFun
            }
-  
+
 -- ----------------------------------------------------------------------------------------
 -- Main functions
 
@@ -55,13 +57,13 @@ symbolicFun :: ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath)
 symbolicFun ptag sl = do
   -- defined referenced types/functions
   reset -- FIXME
-  
+
   md <- getModule
   slAndDeps <- sliceToDeps sl
   forM_ slAndDeps $ \sl' -> do
     defineSliceTypeDefs md sl'
     defineSliceFunDefs md sl'
-    
+
   scoped $ runSymbolicM $ do
     (_, pathM) <- stratSlice ptag sl
     check -- FIXME: only required if there was no recent 'check' command
@@ -99,31 +101,35 @@ stratSlice ptag = go
           (v, lpath)  <- go lsl
           -- bind name
           maybe (pure ()) (\x -> void $ solverOp (defineName x (symExecTy (typeOf x)) v)) m_x
-          
+
           onSlice (\rhs -> pathNode <$> (SelectedDo <$> lpath) <*> rhs) <$> go rsl
-          
+
         SUnconstrained  -> pure (sUnit, pure Unconstrained)
         SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
-        
+
     goLeaf sl = do
       -- liftIO (putStr "Leaf: " >> print (pp sl))
       case sl of
-        SPure e -> uncPath <$> synthesiseExpr e
+        SPure fset e -> do
+          md <- getModule
+          let tyMap = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+          
+          uncPath <$> synthesiseExpr (projectE (Just . typeToInhabitant tyMap) fset e)
 
-        SMatch (MatchByte bset) -> do
+        SMatch bset -> do
           bname <- solverOp (declareSymbol "b" tByte)
           bassn <- solverOp (symExecByteSet bset bname)
           solverOp (assert bassn)
           -- solverOp check -- required?          
           pure (bname, SelectedMatch ptag . BS.singleton <$> byteModel bname)
-  
-        SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
-        SMatch {} -> unimplemented sl
-          
+
+        -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
+        -- SMatch {} -> unimplemented sl
+
         SAssertion (GuardAssertion e) -> do
           se <- synthesiseExpr e
           solverOp (assert se)
-          check          
+          check
           pure (uncPath sUnit)
 
         SChoice sls -> do
@@ -137,7 +143,7 @@ stratSlice ptag = go
 
     uncPath v = (v, pure (SelectedDo Unconstrained))
 
-    unimplemented sl = panic "Unimplemented" [showPP sl]
+    -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
 onSlice :: (SymbolicM a -> SymbolicM b)
         -> (c, SymbolicM a) -> (c, SymbolicM b)
@@ -149,7 +155,7 @@ stratCase ptag (Case e ps) = do
   se <- solverOp (symExec e)
   (i, (p, sl)) <- choose (enumerate ps)
   -- liftIO (putStr "Chose " >> print (pp p))
-  
+
   let assn = case p of
         PBool b  -> if b then se else S.not se
         PNothing -> S.fun "is-Nothing" [se]
@@ -177,20 +183,25 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
   -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
   allUsedArgsV <- traverse (solverOp . symExec) allUsedArgs
   Map.foldMapWithKey defineName' allUsedArgsV
-  (_, nonRes) <- unzip <$> mapM (uncurry doOne) (Map.toList lpaths ++ Map.toList rpaths)
-  (v, res)    <- maybe (pure (sUnit, pure Unconstrained)) (doOne ResultVar) m_rsl
+
+  (_, nonRes) <- unzip <$> mapM doOne asserts
+  (v, res)    <- case results of
+    [] -> pure (sUnit, pure Unconstrained)
+    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
+             stratSlice ptag sl
+
   pure (v, SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
   where
-    (lpaths, m_rsl, rpaths) = Map.splitLookup ResultVar paths
+    -- This works because 'ResultVar' is < than all over basevars
+    (results, asserts) = partition hasResultVar (Set.toList paths)
 
     defineName' x e = void $ solverOp (defineName x (symExecTy (typeOf x)) e)
-    
-    doOne ev _ = do
+
+    doOne ev = do
       sl <- getParamSlice fn cl ev
       stratSlice ptag sl
 
-
-    allUsedParams = foldMap (programVars . callParams) paths
+    allUsedParams = foldMap programVars paths
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
 
 -- ----------------------------------------------------------------------------------------
@@ -200,7 +211,7 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
 choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
 choose bs = do
   bs' <- randPermute bs
-  foldr mplus doFail (map pure bs')
+  foldr (mplus . pure) doFail bs'
   where
     doFail = do
       -- liftStrategy (liftIO (putStrLn "No more choices"))
@@ -219,7 +230,7 @@ check = do
     S.Sat     -> pure ()
     S.Unsat   -> mzero
     S.Unknown -> mzero
-    
+
 
 -- ----------------------------------------------------------------------------------------
 -- Utils
@@ -258,7 +269,7 @@ newtype SymbolicM a = SymbolicM { _getSymbolicM :: DFST (Maybe SelectedPath) (So
   deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM)
 
 runSymbolicM :: SymbolicM SelectedPath -> SolverT StrategyM (Maybe SelectedPath)
-runSymbolicM (SymbolicM m) = runDFST m (pure . Just) (pure Nothing) 
+runSymbolicM (SymbolicM m) = runDFST m (pure . Just) (pure Nothing)
 
 instance Alternative SymbolicM where
   (SymbolicM m1) <|> (SymbolicM m2) = SymbolicM $ bracketS m1 <|> bracketS m2
@@ -267,24 +278,24 @@ instance Alternative SymbolicM where
         lift push
         m `onBacktrack` popFail
       popFail = lift pop >> mzero
-    
+
   empty = SymbolicM empty
-  
+
 instance MonadPlus SymbolicM where -- default body (Alternative)
-    
-instance Semigroup a => Semigroup (SymbolicM a) where 
+
+instance Semigroup a => Semigroup (SymbolicM a) where
   m1 <> m2 = (<>) <$> m1 <*> m2
 
-instance Monoid a => Monoid (SymbolicM a) where 
+instance Monoid a => Monoid (SymbolicM a) where
   mempty = pure mempty
 
 
 
 
-        
-        
-        
 
-          
+
+
+
+
 
 

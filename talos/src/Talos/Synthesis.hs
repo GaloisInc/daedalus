@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.List (foldl')
 import Data.Foldable (find)
 import qualified Data.Map as Map
 import Data.Map(Map)
@@ -40,7 +41,7 @@ import qualified Daedalus.Core.Semantics.Env as I
 -- import RTS.ParserAPI hiding (SourceRange)
 
 import Talos.Analysis (summarise)
-import Talos.Analysis.Monad (Summary(..))
+import Talos.Analysis.Monad (Summary(..), PathRootMap)
 import Talos.Analysis.Slice
 -- import Talos.SymExec
 import Talos.SymExec.SolverT (SolverState, emptySolverState)
@@ -72,8 +73,9 @@ emptyStream = Stream 0 Nothing
 data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
-                         , pathSetRoots :: Map Name Slice
-                         , currentClass :: SummaryClass                         
+                         , pathSetRoots :: PathRootMap
+                         , currentClass :: SummaryClass
+                         , currentFName :: FName
                          }
 
 addVal :: Name -> Value -> SynthEnv -> SynthEnv
@@ -220,7 +222,7 @@ synthesise m_seed nguid solv strat root md = do
 
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
 
-    env0      = SynthEnv Map.empty Map.empty Assertions 
+    env0      = SynthEnv Map.empty Map.empty Assertions root
 
     -- FIXME: we assume topologically sorted (by reference)
     allDecls  = mGFuns md
@@ -278,9 +280,11 @@ synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
   summary <- flip (Map.!) cl . flip (Map.!) fName <$> summaries
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
-      setRoots e = e { pathSetRoots = pathRootMap summary }
-      setClass e = e { currentClass = cl }
-  SynthesisM $ local (setRoots . addPs . setClass) (getSynthesisM (synthesiseG fp def))
+      setEnv e = e { pathSetRoots = pathRootMap summary
+                   , currentClass = cl
+                   , currentFName = fName
+                   }
+  SynthesisM $ local (setEnv . addPs) (getSynthesisM (synthesiseG fp def))
 
 synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
@@ -300,16 +304,23 @@ choosePath cp x = do
   m_sl <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
   case m_sl of
     Nothing  -> pure cp
-    Just sl -> do
-      prov <- freshProvenanceTag 
-      strats <- SynthesisM $ gets stratlist
+    Just fsets_sls -> do
+      let (_, sls) = unzip fsets_sls
       solvSt <- SynthesisM $ gets solverState
-      -- FIXME: abstract
-      (m_cp, solvSt') <- runStrategies solvSt strats prov sl
-      SynthesisM $ modify (\s -> s { solverState = solvSt' })
+      go [] solvSt sls
+  where    
+    go acc solvSt [] = do
+      SynthesisM $ modify (\s -> s { solverState = solvSt })
+      pure (foldl' merge cp acc)
+      
+    go acc solvSt (sl : sls) = do
+      prov <- freshProvenanceTag
+      fn   <- SynthesisM $ asks currentFName
+      strats <- SynthesisM $ gets stratlist
+      (m_cp, solvSt') <- runStrategies solvSt strats prov fn x sl
       case m_cp of
         Nothing -> panic "All strategies failed" []
-        Just sp -> pure (merge cp sp)
+        Just sp -> go (sp : acc) solvSt' sls
         
       -- -- We have a path starting at this node, so we need to call the
       -- -- corresponding SMT function and process any generated model.      

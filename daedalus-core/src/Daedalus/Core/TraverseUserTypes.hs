@@ -4,6 +4,8 @@
 module Daedalus.Core.TraverseUserTypes where
 
 import Control.Applicative
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -32,6 +34,8 @@ instance (TraverseUserTypes a, TraverseUserTypes b) => TraverseUserTypes (a, b) 
 instance TraverseUserTypes a => TraverseUserTypes (Maybe a) where {- default -}
 instance TraverseUserTypes a => TraverseUserTypes (FunDef a) where {- default -}
 
+instance (Ord a, TraverseUserTypes a) => TraverseUserTypes (Set a) where
+  traverseUserTypes f = fmap Set.fromList . traverseUserTypes f . Set.toList
 
 instance TraverseUserTypes a => TraverseUserTypes (Case a) where
   traverseUserTypes f (Case e ps) =

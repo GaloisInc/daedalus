@@ -109,7 +109,10 @@ doSynthesis opts = do
           Just (v, bs, provmap) -> 
             do writeModel n v bs provmap
                when (optPrettyModel opts) $ prettyBytes n v bs provmap
-
+               case optProvFile opts of
+                 Nothing -> pure ()
+                 Just f  -> writeFile f (show provmap)
+                   
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
 
