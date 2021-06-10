@@ -13,7 +13,7 @@ the semantic values parsed from other parts of the input.
 This allows for a clear, yet precise, specification of many binary formats.
 
 Using the ``daedalus`` Tool
-=========================
+===========================
 
 
 Help
@@ -561,13 +561,6 @@ it will try to match ``'X'`` from the input, otherwise it will succeed
 with semantic value 7.
 
 
-Case
-----
-
-.. todo::
-  Document ``case``
-
-
 
 Guards
 ------
@@ -638,6 +631,49 @@ union types (see `Tagged Unions`_)
         res is bad
         ^ "Failure!"
 
+
+
+Case
+----
+
+The `case` construct provides an alternative method for examining semantic
+values. The body of a case expression consists of a list of matches with the
+syntax `pattern -> result`. For example, the following expression has the same
+functionality as the previous example, but avoids the need for backtracking. 
+
+.. code-block:: DaeDaLus 
+
+  block
+    let res = Choose
+                good = Match1 'G'
+                bad  = Match1 'B'
+    case res of 
+      good -> ^ "Success!"
+      bad  -> ^ "Failure!"
+
+A case expression can extract the value from a tagged union. In this case, the 
+match should have the form `pattern var -> result`. 
+
+.. code-block:: DaeDalus 
+
+  block 
+    let res = Choose 
+                number = Match1 ('0'..'9')
+                letter = Match1 ('a'..'z')
+                other = Match1 Uint8 
+    case res of 
+      number n -> ^ (n - '0')
+      letter l -> ^ (l - 'a')
+      _        -> Fail "Something went wrong" 
+
+Here the special pattern `_ -> result` serves as a default, which matches
+against any value. Similarly, a pattern of the form `pattern _ -> result`
+indicates that the value will not be used in the result. 
+
+In a parser expression, case need not be total (i.e. cover all possible
+patterns) as any omitted matches will implicitly result in failure and
+backtracking. In non-parser contexts, all case expressions are required to be
+total. 
 
 
 
@@ -812,25 +848,43 @@ using the name ``a``, as we do in the body.
 
 .. warning::
 
-  This feature is a bit error prone an may change in the future.
+  This feature is a bit error prone and may change in the future.
   Common problems are:
-    1. Modifying the specification to define type ``a`` changes the
-       meaning of a seemingly unrelated declarations
-    2. Mistypeing the name of a type could make you think that you've
-       speicfied the type, but in fact you just named it.
+
+  1. Modifying the specification to define type ``a`` changes the
+      meaning of a seemingly unrelated declarations
+  2. Mistypeing the name of a type could make you think that you've
+      speicfied the type, but in fact you just named it.
 
 
 
 Coercions
 ---------
 
-Coercions provide a way to change a semantic value into the corresponding
-value of a different type.
+Coercions provide a way to change a semantic value into the corresponding value
+of a different type. The general form is `e as T`, which converts the value of
+expression `e` into type `T`. For example, the following code will parse a byte
+and pad the resulting value out to a 32-bit unsigned integer. 
 
-.. todo::
+.. code-block:: DaeDaLus
 
-  Document ``as`` ``as?`` and ``as!``
+  block 
+    let i = UInt8 
+    ^ i as uint 32
 
+The base form `e as T` statically checks that the resulting type has enough bits
+to losslessly represent the original value. There are two other forms, `as!` and
+`as?` that can be used when this does not hold true statically: 
+
+* `e as! T` is guaranteed to succeed, but may lose information. In the case that
+  the original value fits into the target type, the behaviour coincides with the
+  lossless version of `as`. Otherwise, behaviour is implementation dependent, but
+  will attempt to do something reasonable. 
+
+* `e as? T` performs a run-time check that the coercion will not lose
+  information. If this holds, behaviour is identical to the lossless version of
+  `as`. Otherwise, the coercion fails and backtracks. As a result, this version
+  can only be used in parser expressions. 
 
 
 Semantic Values
@@ -902,9 +956,10 @@ same type.  The shift amount is a value of type ``uint 64``.
 
 Unsigned integers may also be treated as bit-vectors, and support various
 bitwise operations:
-  * complement: ``~``
-  * exclusive-or ``.^.``
-  * and bitwise-and ``.&.``.
+
+* complement: ``~``
+* exclusive-or ``.^.``
+* and bitwise-and ``.&.``.
 
 Unsigned numbers can also be appended to other numbers via the
 ``#`` and ``<#`` operator.  To see the difference between the two,
@@ -927,6 +982,7 @@ a ``maybe`` value.  If ``P`` succeeds with result ``x`` then
 ``Optional P`` will *succeed* with ``nothing``.
 
 .. code-block:: DaeDaLus 
+
   def MaybeLetter = Optional (Match1 ('A'..'Z'))
 
 To examine values of the ``maybe`` type you may use `Guards`_ or `Case`_.
@@ -1022,6 +1078,33 @@ External Declarations
 
 Bitdata
 =======
+
+The `bitdata` construct provides a convenient way to break bytes into groups of bits, which 
+then form a tagged union. 
+
+.. code-block:: DaeDaLus
+
+  bitdata ChooseOption where 
+    opt1 = 0x0 : uint 4 
+    opt2 = 0x1
+
+  bitdata OptionData where 
+    OptionData = { opt : ChooseOption, val : uint 4 }
+
+Bitdata defintions are not parsers, but rather are used by applying coercions to
+already parsed bytes. The following code parses a byte, and then checks that the
+first four bits select the correct option. 
+
+.. code-block:: DaeDalus 
+
+  block 
+    let odat = UInt8 as? OptionData 
+    case odat.OptionData.opt of 
+      opt1 -> ^ odat.OptionData.val 
+      _    -> Fail "Wrong option" 
+
+Note that the coercion may fail if the parsed byte does not contain either `0x0`
+or `0x1` in its first four bits. In this case, the parser will backtrack. 
 
 
 Implicit Lifting
