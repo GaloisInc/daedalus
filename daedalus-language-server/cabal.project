@@ -1,0 +1,8 @@
+packages:
+  ./      
+  ../
+  ../daedalus-utils/
+  ../daedalus-core/
+  ../daedalus-vm/
+  ../daedalus-value/
+  ../rts-hs/
