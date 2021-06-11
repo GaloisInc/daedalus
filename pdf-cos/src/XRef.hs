@@ -116,10 +116,11 @@ quit msg = do hPutStrLn stderr msg
 
 ---- utilities ---------------------------------------------------------------
 
-runParserWithoutObjects :: DbgMode => Input -> Parser a -> IO (PdfResult a)
-runParserWithoutObjects i p = 
-  runParser (error "Unexpected ObjIndex reference") Nothing p i
-    -- the parser should not be attempting to deref any objects!
+runParserWithoutObjects :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
+runParserWithoutObjects msg i p = 
+  runParser (error msg)
+            Nothing p i
+  -- the parser should not be attempting to deref any objects!
 
 
 getXRefStart :: TrailerEnd -> UInt 64
@@ -133,7 +134,7 @@ getEndOfTrailerEnd x = getField @"offset4" x
 -- | Construct the xref map (and etc), version 2
 parseXRefs2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
 parseXRefs2 inp offset =
-  runParserWithoutObjects inp $
+  runParserWithoutObjects "dereferencing object index during parsing [parseXRefs2]" inp $
     do
     updates <- parseAllIncUpdates inp offset
     
@@ -329,10 +330,12 @@ getObjectRanges inp iu =
   rs <- sequence [getObjectAt off r | InUse r (InFileAt off) <- concat (iu_xrefs iu)]
   return $ map fst rs
 
+  -- FIXME[F1]: Update to recover on parser errors!
   where
   getObjectAt off r = 
     do
-    res <- runParserWithoutObjects inp (parseObjectAt inp off)
+    res <- runParserWithoutObjects "dereferencing object index during parsing [getObjectAt]"
+           inp (parseObjectAt inp off)
            -- ^^ work??
     case res of
       ParseOk (rng, TopDecl o g x) ->
@@ -526,9 +529,11 @@ parseFinalTrailerEnd inp bs =
   case advanceBy offset inp of
     Nothing -> quit ("startxref offset out of bounds: " ++ show offset)    
     Just inp' ->
-        runParserWithoutObjects inp' $ 
-          do pSetInput inp'
-             pTrailerEnd
+        runParserWithoutObjects
+          "dereferencing object index during parsing [parseFinalTrailerEnd]"
+          inp'
+          (do pSetInput inp'
+              pTrailerEnd)
 
 
 -- find the file byte offset of where we find (last) 'startxref'
