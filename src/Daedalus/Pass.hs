@@ -3,6 +3,7 @@
 module Daedalus.Pass
   ( PassM
   , runPassM
+  , runPassM'
   -- * Fresh Name
   , freshName
   , freshLocalName
@@ -39,6 +40,10 @@ initState = PassState { nextFreeGUID = firstValidGUID }
 runPassM :: PassM a -> IO a
 runPassM m = fst <$> runM (getPassM m) initState 
 
+runPassM' :: GUID -> PassM a -> IO (a, GUID)
+runPassM' nguid m = do
+  (res, st') <- runM (getPassM m) (PassState nguid)
+  pure (res, nextFreeGUID st')
 
 --------------------------------------------------------------------------------
 -- Name

@@ -8,6 +8,7 @@ module Daedalus.Module
 
 import Control.Exception(Exception)
 import System.FilePath.Posix
+
 import qualified Data.Text as Text
 
 import Daedalus.PP hiding ((<.>))

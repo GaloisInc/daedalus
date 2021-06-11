@@ -483,24 +483,14 @@ ddlGetFName m f =
 
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
 parseModuleFromFile n file =
-  do mb <- ddlIO (try (parseFromFile file))
-     (imps,ds) <- case mb of
-                    Left err -> ddlThrow (AParseError err)
-                    Right a -> pure a
-     -- hack so we can reuse the same type after scope analysis
-     let (rs, bds) = partitionEithers (map declToEither ds)
-         rs' = map NonRec rs
-         m   = ParsedModule (Module n imps bds rs')
+  do mb <- ddlIO (parseFromFile file n)
+     m <- case mb of
+            Left err -> ddlThrow (AParseError err)
+            Right m -> pure (ParsedModule m)
      ddlUpdate_ \s ->
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
-  where
-    declToEither :: Decl -> Either Rule BitData
-    declToEither (DeclRule rl) = Left rl
-    declToEither (DeclBitData bd) = Right bd
-
-         
 
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
