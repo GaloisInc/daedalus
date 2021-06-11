@@ -107,11 +107,11 @@ def ResolveObjectStreamEntry
   ^ { id = entry.oid; gen = 0; obj = {| value = entry.val |} };
 }
 
-def ResolveVal (v : Value) = Default v {
-  @r = v is ref;
-  commit;
-  ResolveValRef r;
-}
+def ResolveVal (v : Value) =
+  case v of
+    ref r -> ResolveValRef r
+    _     -> v
+
 
 def LookupResolve k header = {
   @v = Lookup k header;
@@ -145,7 +145,9 @@ def ApplyFilters header initialBody = {
   for (bytes = {| ok = decrypt |}; ix, name in filter_names) {
     @param  = Default nullValue (Index filter_params ix);
     @filter = Filter name param;
-    Default bytes { @bs = bytes is ok; commit; ApplyFilter filter bs; };
+    case bytes of
+      ok bs -> TryApplyFilter filter bs
+      _     -> bytes
   };
 }
 
@@ -163,62 +165,56 @@ def FilterParam (param : Value) =
 def Decrypt (body : stream) 
             : stream 
 
-def ApplyFilter (f : Filter) (body : stream) = Choose1 {
+def TryApplyFilter (f : Filter) (body : stream) =
 
-  ok = {
-    Guard (f.name == "FlateDecode");
-    @params = FlateDecodeParams f.param;
-    -- For now, we only have these settings implemented.
-    Guard (params.predictor == 1 || params.predictor == 12);
-    Guard (params.colors == 1);
-    Guard (params.bpc == 8);
-    commit;
-    FlateDecode params.predictor
-                params.colors
-                params.bpc
-                params.columns
-                body;
-  };
+  if f.name == "FlateDecode"
+    then block
+      let params = FlateDecodeParams f.param
+      ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
+                      (params.colors == 1) &&
+                      (params.bpc == 8))
+                    (FlateDecode params.predictor
+                                 params.colors
+                                 params.bpc
+                                 params.columns
+                                 body)
 
-  ok = {
-    Guard (f.name == "LZWDecode"); 
-    @params = LZWDecodeParams f.param;
-    Guard (params.predictor == 1 || params.predictor == 12);
-    Guard (params.colors == 1);
-    Guard (params.bpc == 8);
-    commit;
-    LZWDecode params.predictor
-              params.colors
-              params.bpc
-              params.columns
-              params.earlychange
-              body;
-  }; 
+  else if f.name == "LZWDecode"
+    then block
+      let params = LZWDecodeParams f.param
+      ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
+                      (params.colors == 1) &&
+                      (params.bpc == 8) )
+                    ( LZWDecode params.predictor
+                                params.colors
+                                params.bpc
+                                params.columns
+                                params.earlychange
+                                body )
 
-  ok = {
-    Guard (f.name == "ASCIIHexDecode");
-    commit;
-    ASCIIHexDecode body;
-  }; 
+  else if f.name == "ASCIIHexDecode"
+    then ApplyFilter f true (ASCIIHexDecode body)
 
-  ok = {
-    Guard (f.name == "ASCII85Decode");
-    commit;
-    ASCII85Decode body;
-  }; 
+  else if f.name == "ASCII85Decode"
+    then ApplyFilter f true (ASCII85Decode body)
 
-  ok = { 
-    Guard (f.name == "DCTDecode");
-    -- stream is a JPEG
-    commit;
-    WithStream body SomeJpeg;
-    ^ body
-  };
+  else if f.name == "DCTDecode"
+    then ApplyFilter f true
+          block
+            WithStream body SomeJpeg  -- Just validate
+            body
 
-  -- | ... others ...
-  unsupported = { f.param is nothing; ^ f.name }
-             <| ^ concat [ f.name, " (with params)" ]
-}
+  else ApplyFilter f false (Fail "Unsupported filter")
+
+
+def ApplyFilter (f : Filter) guard (P : stream) : ApplyFilter =
+  if guard
+    then {| ok = P |}
+    else {| unsupported =
+              case f.param of
+                nothing -> f.name
+                _       -> concat [ f.name, " (with params)" ]
+         |}
 
 -- XXX: some more checking (e.g., predictor 1 does not support the other ps)
 def FlateDecodeParams (params : maybe [ [uint 8] -> Value ]) =
@@ -232,6 +228,7 @@ def FlateDecodeParams (params : maybe [ [uint 8] -> Value ]) =
     bpc       = Default fdDefaults.bpc       (LookupNat "BitsPerComponent" ps);
     columns   = Default fdDefaults.columns   (LookupNat "Columns" ps);
   }
+
 
 def fdDefaults = {
   predictor = 1 : int;
