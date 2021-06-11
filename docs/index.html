@@ -1,20 +1,19 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>DaeDaLus User Guide &#8212; Daedalus 0.1 documentation</title>
-    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
@@ -25,7 +24,8 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="#">Daedalus 0.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Daedalus 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">DaeDaLus User Guide</a></li> 
       </ul>
     </div>  
 
@@ -34,7 +34,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="daedalus-user-guide">
+  <section id="daedalus-user-guide">
 <h1>DaeDaLus User Guide<a class="headerlink" href="#daedalus-user-guide" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
@@ -42,23 +42,38 @@
 data dependent parsing, which allows a parser’s behavior to be affected by
 the semantic values parsed from other parts of the input.
 This allows for a clear, yet precise, specification of many binary formats.</p>
-<div class="section" id="using-the-daedalus-tool">
+<section id="using-the-daedalus-tool">
 <h2>Using the <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> Tool<a class="headerlink" href="#using-the-daedalus-tool" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="help">
+<section id="help">
 <h3>Help<a class="headerlink" href="#help" title="Permalink to this headline">¶</a></h3>
 <p>To see a list of options:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
 </pre></div>
 </div>
-</div>
-<div class="section" id="check-a-specification">
+</section>
+<section id="check-a-specification">
 <h3>Check a Specification<a class="headerlink" href="#check-a-specification" title="Permalink to this headline">¶</a></h3>
 <p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --show-types MyParserSpec.ddl
 </pre></div>
 </div>
+<p>The resulting types have the following form:</p>
+<div class="highlight-DaeDalus notranslate"><div class="highlight"><pre><span></span>ParserName:
+  parameter: &lt;type A&gt;
+  parameter: &lt;type B&gt;
+  ...
+  defines: &lt;type C&gt;
+</pre></div>
 </div>
-<div class="section" id="run-the-interpreter">
+<p>This resembles a C type declaration as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span> <span class="n">C</span><span class="o">&gt;</span> <span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">...);</span>
+</pre></div>
+</div>
+<p>The types themselves may be simple types such as integers or arrays, but they
+often have the form <cite>parser of &lt;type A&gt;</cite>. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type <cite>A</cite>.</p>
+</section>
+<section id="run-the-interpreter">
 <h3>Run the Interpreter<a class="headerlink" href="#run-the-interpreter" title="Permalink to this headline">¶</a></h3>
 <p>To run interpret a specification on a particular input:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --interp<span class="o">=</span>input.txt
@@ -67,12 +82,12 @@ This allows for a clear, yet precise, specification of many binary formats.</p>
 <p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.
 You may also add the flag <code class="docutils literal notranslate"><span class="pre">--json</span></code> or <code class="docutils literal notranslate"><span class="pre">--html</span></code> to see the semantic value
 in the corresponding formats.</p>
-<div class="admonition-todo admonition" id="index-0">
-<p class="first admonition-title">Todo</p>
-<p class="last">Document the JSON schema</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>Document the JSON schema</p>
 </div>
-</div>
-<div class="section" id="compile-to-haskell">
+</section>
+<section id="compile-to-haskell">
 <h3>Compile to Haskell<a class="headerlink" href="#compile-to-haskell" title="Permalink to this headline">¶</a></h3>
 <p>To compile a DaeDaLus parser specification to Haskell:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-hs
@@ -82,8 +97,8 @@ in the corresponding formats.</p>
 parsers and functions defined in the specification.   To use the generated
 code you’d have to integrate it with a Haskell project and also use
 the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
-</div>
-<div class="section" id="compile-to-c">
+</section>
+<section id="compile-to-c">
 <h3>Compile to C++<a class="headerlink" href="#compile-to-c" title="Permalink to this headline">¶</a></h3>
 <p>To compile a DaeDaLus package specification C++ 17:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-c++ --out-dir<span class="o">=</span>some_dir_name
@@ -93,16 +108,16 @@ the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></
 a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
 The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
 generate Doxygen documentation.</p>
-</div>
-</div>
-<div class="section" id="declarations">
+</section>
+</section>
+<section id="declarations">
 <h2>Declarations<a class="headerlink" href="#declarations" title="Permalink to this headline">¶</a></h2>
 <p>A DaeDaLus specification consists of a sequence of <em>declarations</em>.
 Each declaration can specify either a <em>parser</em>, a <em>semantic value</em>, or
 a <em>character class</em>.  Parsers may examine and consume input, and have
 the ability to fail.  If successful, they produce a semantic value.
 Character classes describe sets of bytes, which may be used to define
-parsers, and will be discussed in more detail in section <a class="reference internal" href="#id1">Character Classes</a>.</p>
+parsers, and will be discussed in more detail in section <a class="reference internal" href="#id5">Character Classes</a>.</p>
 <p>The general form of a declarations is as follows:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Name Parameters = Definition
 </pre></div>
@@ -110,9 +125,9 @@ parsers, and will be discussed in more detail in section <a class="reference int
 <p>The name of a declaration determines what sort of entity it defines:</p>
 <blockquote>
 <div><ul class="simple">
-<li><strong>parsers</strong> always have names starting with an <strong>uppercase</strong> letter,</li>
-<li><strong>semantic values</strong> have names starting with a <strong>lowercase</strong> letter,</li>
-<li><strong>character classes</strong> have names starting with the symbol <code class="docutils literal notranslate"><span class="pre">$</span></code>.</li>
+<li><p><strong>parsers</strong> always have names starting with an <strong>uppercase</strong> letter,</p></li>
+<li><p><strong>semantic values</strong> have names starting with a <strong>lowercase</strong> letter,</p></li>
+<li><p><strong>character classes</strong> have names starting with the symbol <code class="docutils literal notranslate"><span class="pre">$</span></code>.</p></li>
 </ul>
 </div></blockquote>
 <p>Here are some sample declarations:</p>
@@ -138,10 +153,10 @@ would be a grammar parameter, and <code class="docutils literal notranslate"><sp
 <code class="docutils literal notranslate"><span class="pre">$q</span></code>.   Note that the parameters are simply separated by space, and usually
 there is no need to provide type annotations as Deadalus can infer the types
 based on the naming rules and the uses in the definition.</p>
-</div>
-<div class="section" id="parsers">
+</section>
+<section id="parsers">
 <h2>Parsers<a class="headerlink" href="#parsers" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="primitive-parsers">
+<section id="primitive-parsers">
 <h3>Primitive Parsers<a class="headerlink" href="#primitive-parsers" title="Permalink to this headline">¶</a></h3>
 <p><strong>Any Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> extracts a single byte from the input.
 It fails if there are no bytes left in the input.  If successful, it constructs
@@ -177,10 +192,10 @@ def AlwaysA     = ^ &#39;A&#39;             -- &quot;&quot;         65
 def GiveUp      = Fail &quot;I give up&quot;  -- (none)    Failure with message &quot;I give up&quot;
 </pre></div>
 </div>
-</div>
-<div class="section" id="sequencing-parsers">
+</section>
+<section id="sequencing-parsers">
 <h3>Sequencing Parsers<a class="headerlink" href="#sequencing-parsers" title="Permalink to this headline">¶</a></h3>
-<div class="section" id="basic-sequencing">
+<section id="basic-sequencing">
 <h4>Basic Sequencing<a class="headerlink" href="#basic-sequencing" title="Permalink to this headline">¶</a></h4>
 <p>Multiple parsers may be executed one after the other,
 by listing them either between <code class="docutils literal notranslate"><span class="pre">{</span></code> and <code class="docutils literal notranslate"><span class="pre">}</span></code> or between <code class="docutils literal notranslate"><span class="pre">[</span></code> and <code class="docutils literal notranslate"><span class="pre">]</span></code>,
@@ -222,8 +237,8 @@ equivalent to the previous two:</p>
     Match &quot;B&quot;
 </pre></div>
 </div>
-</div>
-<div class="section" id="explicit-result">
+</section>
+<section id="explicit-result">
 <h4>Explicit Result<a class="headerlink" href="#explicit-result" title="Permalink to this headline">¶</a></h4>
 <p>A <code class="docutils literal notranslate"><span class="pre">block</span></code> or <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced group of parsers may
 return the result from any member of the group instead of the last one.
@@ -238,8 +253,8 @@ For example:</p>
 </div>
 <p>In the example above, the semantic value produce by <code class="docutils literal notranslate"><span class="pre">ReturnMiddle</span></code> is that
 produced by <code class="docutils literal notranslate"><span class="pre">Q</span></code>.</p>
-</div>
-<div class="section" id="local-variables">
+</section>
+<section id="local-variables">
 <h4>Local Variables<a class="headerlink" href="#local-variables" title="Permalink to this headline">¶</a></h4>
 <p>It is also possible to combine the results of some
 of the <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced parsers by using <em>local variables</em> and the
@@ -258,8 +273,8 @@ and <code class="docutils literal notranslate"><span class="pre">y</span></code>
 of the sequence is the result of the last parser, which does not consume
 any input, but only constructs a semantic value by adding <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>
 together.</p>
-</div>
-<div class="section" id="structure-sequence">
+</section>
+<section id="structure-sequence">
 <h4>Structure Sequence<a class="headerlink" href="#structure-sequence" title="Permalink to this headline">¶</a></h4>
 <p>It is also possible to return results from more than
 one of the parsers in a <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced group.  To do so give names
@@ -301,39 +316,39 @@ example, here is an equivalent way to define the same parser:</p>
     y = ^ x + z
 </pre></div>
 </div>
-</div>
-<div class="section" id="syntactic-sugar">
+</section>
+<section id="syntactic-sugar">
 <h4>Syntactic Sugar<a class="headerlink" href="#syntactic-sugar" title="Permalink to this headline">¶</a></h4>
 <p>A number of the constructs described in this section are
 may be thought of as simply syntactic sugar for using local variables.
 Here are some examples:</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="29%" />
-<col width="71%" />
+<col style="width: 29%" />
+<col style="width: 71%" />
 </colgroup>
-<thead valign="bottom">
-<tr class="row-odd"><th class="head">Expression:</th>
-<th class="head">Equivalent to:</th>
+<thead>
+<tr class="row-odd"><th class="head"><p>Expression:</p></th>
+<th class="head"><p>Equivalent to:</p></th>
 </tr>
 </thead>
-<tbody valign="top">
-<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span>&#160; <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q;</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">^</span> <span class="pre">x</span> <span class="pre">}</span></code></td>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span>&#160; <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q;</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">^</span> <span class="pre">x</span> <span class="pre">}</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">]</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,x1]</span> <span class="pre">}</span></code></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,x1]</span> <span class="pre">}</span></code></p></td>
 </tr>
-<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">Q</span> <span class="pre">}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span>&#160; <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">y</span>&#160; <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">Q</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span>&#160; <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">y</span>&#160; <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code></p></td>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div class="section" id="parsing-alternatives">
+</section>
+</section>
+<section id="parsing-alternatives">
 <h3>Parsing Alternatives<a class="headerlink" href="#parsing-alternatives" title="Permalink to this headline">¶</a></h3>
-<div class="section" id="biased-choice">
+<section id="biased-choice">
 <h4>Biased Choice<a class="headerlink" href="#biased-choice" title="Permalink to this headline">¶</a></h4>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code>.   This parser succeeds if <em>either</em> <code class="docutils literal notranslate"><span class="pre">P</span></code> <em>or</em> <code class="docutils literal notranslate"><span class="pre">Q</span></code>
@@ -353,19 +368,18 @@ def B2 = Match1 &#39;A&#39;
                       -- &quot;&quot;             &#39;B&#39;
 </pre></div>
 </div>
-<dl class="docutils">
-<dt>These two are quite different:</dt>
-<dd><ul class="first last simple">
-<li><code class="docutils literal notranslate"><span class="pre">B1</span></code> matches a single byte, either <code class="docutils literal notranslate"><span class="pre">A</span></code> or <code class="docutils literal notranslate"><span class="pre">B</span></code> and returns the
-matched byte as the result of the parser.</li>
-<li><code class="docutils literal notranslate"><span class="pre">B2</span></code> matches either 1 byte, which must be <code class="docutils literal notranslate"><span class="pre">A</span></code> and will be returned
+<dl class="simple">
+<dt>These two are quite different:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">B1</span></code> matches a single byte, either <code class="docutils literal notranslate"><span class="pre">A</span></code> or <code class="docutils literal notranslate"><span class="pre">B</span></code> and returns the
+matched byte as the result of the parser.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">B2</span></code> matches either 1 byte, which must be <code class="docutils literal notranslate"><span class="pre">A</span></code> and will be returned
 as the result of the parser, or 0 bytes, in which case it will return
-byte <code class="docutils literal notranslate"><span class="pre">B</span></code>.</li>
+byte <code class="docutils literal notranslate"><span class="pre">B</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
-</div>
-<div class="section" id="unbiased-choice">
+</section>
+<section id="unbiased-choice">
 <h4>Unbiased Choice<a class="headerlink" href="#unbiased-choice" title="Permalink to this headline">¶</a></h4>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser``P | Q``.  This parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code>
@@ -385,27 +399,27 @@ to match a prefix of the input to succeed.</p>
 <p>Parser <code class="docutils literal notranslate"><span class="pre">U2</span></code> accepts inputs starting with either <code class="docutils literal notranslate"><span class="pre">&quot;AB&quot;</span></code> (by using the
 left alternative of <code class="docutils literal notranslate"><span class="pre">U1</span></code>) or starting with <code class="docutils literal notranslate"><span class="pre">&quot;B&quot;</span></code> (by using the right
 alternative of <code class="docutils literal notranslate"><span class="pre">U1</span></code>).  No inputs are ambiguous in this case.</p>
-</div>
-<div class="section" id="alternative-syntax">
+</section>
+<section id="alternative-syntax">
 <h4>Alternative Syntax<a class="headerlink" href="#alternative-syntax" title="Permalink to this headline">¶</a></h4>
 <p>Given multiple parsers <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, … we can use the <code class="docutils literal notranslate"><span class="pre">Choose</span></code> keyword
 for unbiased choice and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code> for biased choice.</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="59%" />
-<col width="41%" />
+<col style="width: 59%" />
+<col style="width: 41%" />
 </colgroup>
-<thead valign="bottom">
-<tr class="row-odd"><th class="head">Expression:</th>
-<th class="head">Equivalent to:</th>
+<thead>
+<tr class="row-odd"><th class="head"><p>Expression:</p></th>
+<th class="head"><p>Equivalent to:</p></th>
 </tr>
 </thead>
-<tbody valign="top">
-<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">Choose</span> <span class="pre">{</span> <span class="pre">A</span> <span class="pre">;</span> <span class="pre">B;</span> <span class="pre">...}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">|</span> <span class="pre">B</span> <span class="pre">|</span> <span class="pre">...</span></code></td>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Choose</span> <span class="pre">{</span> <span class="pre">A</span> <span class="pre">;</span> <span class="pre">B;</span> <span class="pre">...}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">|</span> <span class="pre">B</span> <span class="pre">|</span> <span class="pre">...</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">Choose1</span> <span class="pre">{</span> <span class="pre">A</span> <span class="pre">;</span> <span class="pre">B;</span> <span class="pre">...</span> <span class="pre">}</span></code></td>
-<td><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">&lt;|</span> <span class="pre">B</span> <span class="pre">&lt;|</span> <span class="pre">...</span></code></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Choose1</span> <span class="pre">{</span> <span class="pre">A</span> <span class="pre">;</span> <span class="pre">B;</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">&lt;|</span> <span class="pre">B</span> <span class="pre">&lt;|</span> <span class="pre">...</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -423,8 +437,8 @@ def ChooseWithLayout =
     Match &#39;B&#39;
 </pre></div>
 </div>
-</div>
-<div class="section" id="tagged-unions">
+</section>
+<section id="tagged-unions">
 <h4>Tagged Unions<a class="headerlink" href="#tagged-unions" title="Permalink to this headline">¶</a></h4>
 <p>DaeDaLus supports a variation on <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code>
 that can be used to construct tagged unions, which is useful if
@@ -484,19 +498,48 @@ of type <code class="docutils literal notranslate"><span class="pre">BorG</span>
 second alternative because all alternatives in (untagged) <code class="docutils literal notranslate"><span class="pre">Choose</span></code> have
 the same type, so DaeDaLus can infer that we are also making a value of
 type <code class="docutils literal notranslate"><span class="pre">BorG</span></code>.</p>
-</div>
-</div>
-<div class="section" id="repetition">
+</section>
+</section>
+<section id="repetition">
 <h3>Repetition<a class="headerlink" href="#repetition" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-1">
-<p class="first admonition-title">Todo</p>
-<p class="last">Describe <code class="docutils literal notranslate"><span class="pre">Many</span></code></p>
+<p>The <cite>Many</cite> construct allows the same parser to be run multiple times in sequence
+on an incoming data stream, and it returns an array containing the resulting
+semantic values.</p>
+<div class="highlight-DaeDalus notranslate"><div class="highlight"><pre><span></span>block
+  $$ = Many (Match1 &#39;7&#39;)
+  Match1 &#39;0&#39;
+  END
+</pre></div>
 </div>
+<p>This code will successfully parse any stream consisting of multiple <cite>7</cite>
+characters, terminated by the <cite>0</cite> character at the end of the stream. For
+example, the stream ‘7770’ will return the array <cite>[‘7’, ‘7’, ‘7’]</cite>.</p>
+<p>The <cite>Many</cite> construct optionally takes either a <cite>uint 64</cite> value or an interval
+bounded by two <cite>uint 64</cite> values:</p>
+<ul class="simple">
+<li><p><cite>Many n P</cite> succeeds if it executes parser <cite>P</cite> exactly <cite>n</cite> times.</p></li>
+<li><p><cite>Many (i..j) P</cite> succeeds if it executes parser <cite>P</cite> at least <cite>i</cite> and at most
+<cite>j</cite> times.</p></li>
+<li><p><cite>Many</cite> also supports lower-bounded intervals <cite>Many (i..) P</cite>, and likewise upper-bounded
+intervals <cite>Many (..j) P</cite>.</p></li>
+</ul>
+<p>To avoid spurious backtracking, Many will parse any input maximally. This can
+have counter-intuitive consequences! For example, the following code will never
+succeed:</p>
+<div class="highlight-Daedalus notranslate"><div class="highlight"><pre><span></span>block
+  Many (Match1 &#39;7&#39;)
+  Match1 &#39;7&#39;
+</pre></div>
 </div>
-</div>
-<div class="section" id="control-structures">
+<p>The call to <cite>Many</cite> will consume all the input characters matching <cite>7</cite>, meaning
+that the following <cite>Match1</cite> will always fail. This may be difficult to spot
+in situations where two more complex parsers are run in sequence, the first of
+which contains an unbounded call to Many.</p>
+</section>
+</section>
+<section id="control-structures">
 <h2>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="if-then-else">
+<section id="if-then-else">
 <h3>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline">¶</a></h3>
 <p>Booleans may be used to choose between one of two parsers:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
@@ -509,22 +552,15 @@ type <code class="docutils literal notranslate"><span class="pre">BorG</span></c
 <p>The parser above parses a decimal digit and if it is larger than 5
 it will try to match <code class="docutils literal notranslate"><span class="pre">'X'</span></code> from the input, otherwise it will succeed
 with semantic value 7.</p>
-</div>
-<div class="section" id="case">
-<h3>Case<a class="headerlink" href="#case" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-2">
-<p class="first admonition-title">Todo</p>
-<p class="last">Document <code class="docutils literal notranslate"><span class="pre">case</span></code></p>
-</div>
-</div>
-<div class="section" id="guards">
+</section>
+<section id="guards">
 <h3>Guards<a class="headerlink" href="#guards" title="Permalink to this headline">¶</a></h3>
 <p>Guards provide one way to examine a semantic value, and their general form is:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>expression is shape
 </pre></div>
 </div>
 <p>A guard is a parser that will succeed if the expression has the required shape.</p>
-<div class="section" id="boolean-guards">
+<section id="boolean-guards">
 <h4>Boolean Guards<a class="headerlink" href="#boolean-guards" title="Permalink to this headline">¶</a></h4>
 <p>Perhaps the most common guard is on boolean semantic values,
 which may be used to control whether parsing should continue. For example,
@@ -543,8 +579,8 @@ parsing (on the given alternative) only for digits larger than 5.</p>
 succeeds without consuming input if <code class="docutils literal notranslate"><span class="pre">p</span></code> holds, and fails otherwise.
 Similarly, <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">false</span></code> is a parser that would succeed only
 if <code class="docutils literal notranslate"><span class="pre">p</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-</div>
-<div class="section" id="guards-on-maybe">
+</section>
+<section id="guards-on-maybe">
 <h4>Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code><a class="headerlink" href="#guards-on-maybe" title="Permalink to this headline">¶</a></h4>
 <p>The type <code class="docutils literal notranslate"><span class="pre">maybe</span></code> also supports guards, with two shapes:
 <code class="docutils literal notranslate"><span class="pre">just</span></code> and <code class="docutils literal notranslate"><span class="pre">nothing</span></code>.  For example <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">just</span></code> is a parser that will
@@ -552,8 +588,8 @@ succeed only if <code class="docutils literal notranslate"><span class="pre">e</
 case the result of the parser would be the value <code class="docutils literal notranslate"><span class="pre">x</span></code>.  Guards that have
 no interesting result (e.g., <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">true</span></code>) simply return the trivial
 value <code class="docutils literal notranslate"><span class="pre">{}</span></code>.</p>
-</div>
-<div class="section" id="guards-on-tagged-unions">
+</section>
+<section id="guards-on-tagged-unions">
 <h4>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this headline">¶</a></h4>
 <p>The same notation may be used to examine values of user-defined
 union types (see <a class="reference internal" href="#tagged-unions">Tagged Unions</a>)</p>
@@ -573,9 +609,49 @@ union types (see <a class="reference internal" href="#tagged-unions">Tagged Unio
       ^ &quot;Failure!&quot;
 </pre></div>
 </div>
+</section>
+</section>
+<section id="case">
+<h3>Case<a class="headerlink" href="#case" title="Permalink to this headline">¶</a></h3>
+<p>The <cite>case</cite> construct provides an alternative method for examining semantic
+values. The body of a case expression consists of a list of matches with the
+syntax <cite>pattern -&gt; result</cite>. For example, the following expression has the same
+functionality as the previous example, but avoids the need for backtracking.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
+  let res = Choose
+              good = Match1 &#39;G&#39;
+              bad  = Match1 &#39;B&#39;
+  case res of
+    good -&gt; ^ &quot;Success!&quot;
+    bad  -&gt; ^ &quot;Failure!&quot;
+</pre></div>
 </div>
+<p>A case expression can extract the value from a tagged union. In this case, the
+match should have the form <cite>pattern var -&gt; result</cite>.</p>
+<div class="highlight-DaeDalus notranslate"><div class="highlight"><pre><span></span>block
+  let res = Choose
+              number = Match1 (&#39;0&#39;..&#39;9&#39;)
+              letter = Match1 (&#39;a&#39;..&#39;z&#39;)
+              other = Match1 Uint8
+  case res of
+    number n -&gt; ^ (n - &#39;0&#39;)
+    letter l -&gt; ^ (l - &#39;a&#39;)
+    _        -&gt; Fail &quot;Something went wrong&quot;
+</pre></div>
 </div>
-<div class="section" id="for-loops">
+<p>Here the special pattern <cite>_ -&gt; result</cite> serves as a default, which matches
+against any value. Similarly, a pattern of the form <cite>pattern _ -&gt; result</cite>
+indicates that the value will not be used in the result.</p>
+<p>In a parser expression, case need not be total (i.e. cover all possible
+patterns) as any omitted matches will implicitly result in failure and
+backtracking. In non-parser contexts, all case expressions are required to be
+total.</p>
+<div class="admonition-todo admonition" id="id2">
+<p class="admonition-title">Todo</p>
+<p>It should be true that guards are just syntactic sugar for case</p>
+</div>
+</section>
+<section id="for-loops">
 <h3><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
@@ -610,8 +686,8 @@ loop is a parser which fails when the value is less than the key:</p>
   k &lt;= v is true
 </pre></div>
 </div>
-</div>
-<div class="section" id="traversing-with-map">
+</section>
+<section id="traversing-with-map">
 <h3>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this headline">¶</a></h3>
 <p>DaeDaLus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
 element of a sequence, resulting in a sequence of results. For example, the following code
@@ -638,12 +714,12 @@ sequence indexes and values:</p>
 }
 </pre></div>
 </div>
-</div>
-<div class="section" id="commit">
+</section>
+<section id="commit">
 <h3>Commit<a class="headerlink" href="#commit" title="Permalink to this headline">¶</a></h3>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last"><code class="docutils literal notranslate"><span class="pre">commit</span></code> is an unstable experimental feature and its behavior may change
+<p class="admonition-title">Warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">commit</span></code> is an unstable experimental feature and its behavior may change
 or it may be removed entirely.</p>
 </div>
 <p>Normally, at the point a parser fails, DaeDaLus will backtrack to a choice point
@@ -660,13 +736,13 @@ reaching the alternative branch.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">try</span></code> construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing <code class="docutils literal notranslate"><span class="pre">try</span></code>
 construct, or until it escapes the top-level definition.</p>
-</div>
-<div class="section" id="type-annotations">
+</section>
+<section id="type-annotations">
 <h3>Type Annotations<a class="headerlink" href="#type-annotations" title="Permalink to this headline">¶</a></h3>
 <p>DaeDaLus declarations and expressions may be annotated with explicit types,
 which is useful when type inference fails to infer the type of something,
 or to improve the readability of the specification.</p>
-<div class="section" id="annotating-an-expression">
+<section id="annotating-an-expression">
 <h4>Annotating an Expression<a class="headerlink" href="#annotating-an-expression" title="Permalink to this headline">¶</a></h4>
 <p>Use <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">:</span> <span class="pre">t</span></code> to specify that expression <code class="docutils literal notranslate"><span class="pre">e</span></code> should have type <code class="docutils literal notranslate"><span class="pre">t</span></code>.
 For example:</p>
@@ -676,8 +752,8 @@ For example:</p>
 <p>Note that without the type annotation on the expression <code class="docutils literal notranslate"><span class="pre">1</span></code> the
 resulting declaration would be polymorphic because literals are overloaded
 and may be used at many different types.</p>
-</div>
-<div class="section" id="annotating-the-result-of-a-declaration">
+</section>
+<section id="annotating-the-result-of-a-declaration">
 <h4>Annotating the Result of a Declaration<a class="headerlink" href="#annotating-the-result-of-a-declaration" title="Permalink to this headline">¶</a></h4>
 <p>To specify the result type of a declaration use <code class="docutils literal notranslate"><span class="pre">:</span> <span class="pre">t</span></code> after the name
 (or the parameters, if any) of the declaration like this:</p>
@@ -686,8 +762,8 @@ and may be used at many different types.</p>
 def returns_byte x : uint 8 = x
 </pre></div>
 </div>
-</div>
-<div class="section" id="annotating-a-parameter">
+</section>
+<section id="annotating-a-parameter">
 <h4>Annotating a Parameter<a class="headerlink" href="#annotating-a-parameter" title="Permalink to this headline">¶</a></h4>
 <p>Parameters of declarations may also be annotated with a type:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Example (P : uint 8) = P
@@ -695,8 +771,8 @@ def returns_byte x : uint 8 = x
 </div>
 <p>The previous example specifies that parameter <code class="docutils literal notranslate"><span class="pre">P</span></code> is a parser that
 will construct a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code> semantic value.</p>
-</div>
-<div class="section" id="naming-unknown-types">
+</section>
+<section id="naming-unknown-types">
 <h4>Naming Unknown Types<a class="headerlink" href="#naming-unknown-types" title="Permalink to this headline">¶</a></h4>
 <p>Occasionally it is useful to name a type without specifying it explicitly.
 For example:</p>
@@ -708,38 +784,60 @@ that is in scope.  The type annotation <code class="docutils literal notranslate
 should be of type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">a</span></code> for <em>some</em> type <code class="docutils literal notranslate"><span class="pre">a</span></code> that we can refer to
 using the name <code class="docutils literal notranslate"><span class="pre">a</span></code>, as we do in the body.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p>This feature is a bit error prone an may change in the future.
+<p class="admonition-title">Warning</p>
+<p>This feature is a bit error prone and may change in the future.
 Common problems are:</p>
-<blockquote class="last">
-<div><ol class="arabic simple">
-<li>Modifying the specification to define type <code class="docutils literal notranslate"><span class="pre">a</span></code> changes the
-meaning of a seemingly unrelated declarations</li>
-<li>Mistypeing the name of a type could make you think that you’ve
-speicfied the type, but in fact you just named it.</li>
+<ol class="arabic simple">
+<li><dl class="simple">
+<dt>Modifying the specification to define type <code class="docutils literal notranslate"><span class="pre">a</span></code> changes the</dt><dd><p>meaning of a seemingly unrelated declarations</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Mistypeing the name of a type could make you think that you’ve</dt><dd><p>speicfied the type, but in fact you just named it.</p>
+</dd>
+</dl>
+</li>
 </ol>
-</div></blockquote>
 </div>
-</div>
-</div>
-<div class="section" id="coercions">
+</section>
+</section>
+<section id="coercions">
 <h3>Coercions<a class="headerlink" href="#coercions" title="Permalink to this headline">¶</a></h3>
-<p>Coercions provide a way to change a semantic value into the corresponding
-value of a different type.</p>
-<div class="admonition-todo admonition" id="index-3">
-<p class="first admonition-title">Todo</p>
-<p class="last">Document <code class="docutils literal notranslate"><span class="pre">as</span></code> <code class="docutils literal notranslate"><span class="pre">as?</span></code> and <code class="docutils literal notranslate"><span class="pre">as!</span></code></p>
+<p>Coercions provide a way to change a semantic value into the corresponding value
+of a different type. The general form is <cite>e as T</cite>, which converts the value of
+expression <cite>e</cite> into type <cite>T</cite>. For example, the following code will parse a byte
+and pad the resulting value out to a 32-bit unsigned integer.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
+  let i = UInt8
+  ^ i as uint 32
+</pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="semantic-values">
+<p>The base form <cite>e as T</cite> statically checks that the resulting type has enough bits
+to losslessly represent the original value. There are two other forms, <cite>as!</cite> and
+<cite>as?</cite> that can be used when this does not hold true statically:</p>
+<ul class="simple">
+<li><p><cite>e as! T</cite> is guaranteed to succeed, but may lose information. In the case that
+the original value fits into the target type, the behaviour coincides with the
+lossless version of <cite>as</cite>. Otherwise, behaviour is implementation dependent, but
+will attempt to do something reasonable.</p></li>
+<li><p><cite>e as? T</cite> performs a run-time check that the coercion will not lose
+information. If this holds, behaviour is identical to the lossless version of
+<cite>as</cite>. Otherwise, the coercion fails and backtracks.</p></li>
+</ul>
+<p>Note that <cite>e as T</cite> and <cite>e as T</cite> are values, and <cite>e as? T</cite> is a parser. This is
+because <cite>e as? T</cite> can fail and backtrack, which is only meaningful in parser
+expressions.</p>
+</section>
+</section>
+<section id="semantic-values">
 <h2>Semantic Values<a class="headerlink" href="#semantic-values" title="Permalink to this headline">¶</a></h2>
 <p>If successful, a parser produces a semantic value, which describes the
 input in some way useful to the application invoking the parser.
 In addition, semantic values may be used to control how other parts of the
 input are to be parsed.  DaeDaLus has a number of built-in semantic values
 types, and allows for user-defined record and union types.</p>
-<div class="section" id="booleans">
+<section id="booleans">
 <h3>Booleans<a class="headerlink" href="#booleans" title="Permalink to this headline">¶</a></h3>
 <p>The type <code class="docutils literal notranslate"><span class="pre">bool</span></code> classifies the usual boolean values <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
 <p>The operator <code class="docutils literal notranslate"><span class="pre">!</span></code> may be used to negate a boolean value.
@@ -749,8 +847,8 @@ respectively.</p>
 with <code class="docutils literal notranslate"><span class="pre">false</span> <span class="pre">&lt;</span> <span class="pre">true</span></code>.</p>
 <p>Decisions on a boolean may be made either using <a class="reference internal" href="#if-then-else">If-then-else</a>, by
 using <a class="reference internal" href="#guards">Guards</a>, or by using <a class="reference internal" href="#case">Case</a>.</p>
-</div>
-<div class="section" id="numeric-types">
+</section>
+<section id="numeric-types">
 <h3>Numeric Types<a class="headerlink" href="#numeric-types" title="Permalink to this headline">¶</a></h3>
 <p>DaeDaLus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>, the latter two being families of types indexed by a number.
@@ -758,24 +856,24 @@ The type <code class="docutils literal notranslate"><span class="pre">int</span>
 The <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> classify unsigned numbers that can be represented using <code class="docutils literal notranslate"><span class="pre">N</span></code>
 bits and <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> is for signed numbers that can be represented
 in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits.</p>
-<div class="section" id="numeric-literals">
+<section id="numeric-literals">
 <h4>Numeric Literals<a class="headerlink" href="#numeric-literals" title="Permalink to this headline">¶</a></h4>
 <p>Literals of the numeric types may written either using decimal or hexadecimal
 notation (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> or <code class="docutils literal notranslate"><span class="pre">0xA</span></code>).  The type of a literal can be inferred
 from the context (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> can be used as both <code class="docutils literal notranslate"><span class="pre">int</span></code> a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
-</div>
-<div class="section" id="comparisons">
+</section>
+<section id="comparisons">
 <h4>Comparisons<a class="headerlink" href="#comparisons" title="Permalink to this headline">¶</a></h4>
 <p>Numeric types can also be compared for equality, using <code class="docutils literal notranslate"><span class="pre">==</span></code> and ordering
 using <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>.</p>
-</div>
-<div class="section" id="basic-arithmetic">
+</section>
+<section id="basic-arithmetic">
 <h4>Basic Arithmetic<a class="headerlink" href="#basic-arithmetic" title="Permalink to this headline">¶</a></h4>
 <p>Numeric types support basic arithmetic: addition, subtraction,
 multiplication, division, and modulus using the usual operators
 <code class="docutils literal notranslate"><span class="pre">+</span></code>,``-<code class="docutils literal notranslate"><span class="pre">,``*</span></code>,``/<code class="docutils literal notranslate"><span class="pre">,</span> <span class="pre">and</span> <span class="pre">``%</span></code>.</p>
-</div>
-<div class="section" id="bitwise-operations">
+</section>
+<section id="bitwise-operations">
 <h4>Bitwise Operations<a class="headerlink" href="#bitwise-operations" title="Permalink to this headline">¶</a></h4>
 <p>DaeDaLus also supports shift operations <code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;&gt;</span></code>.
 These operations are overloaded and can be used on all numeric types,
@@ -783,13 +881,11 @@ with the restriction that the inputs and the outputs must be of the
 same type.  The shift amount is a value of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code>.</p>
 <p>Unsigned integers may also be treated as bit-vectors, and support various
 bitwise operations:</p>
-<blockquote>
-<div><ul class="simple">
-<li>complement: <code class="docutils literal notranslate"><span class="pre">~</span></code></li>
-<li>exclusive-or <code class="docutils literal notranslate"><span class="pre">.^.</span></code></li>
-<li>and bitwise-and <code class="docutils literal notranslate"><span class="pre">.&amp;.</span></code>.</li>
+<ul class="simple">
+<li><p>complement: <code class="docutils literal notranslate"><span class="pre">~</span></code></p></li>
+<li><p>exclusive-or <code class="docutils literal notranslate"><span class="pre">.^.</span></code></p></li>
+<li><p>and bitwise-and <code class="docutils literal notranslate"><span class="pre">.&amp;.</span></code>.</p></li>
 </ul>
-</div></blockquote>
 <p>Unsigned numbers can also be appended to other numbers via the
 <code class="docutils literal notranslate"><span class="pre">#</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;#</span></code> operator.  To see the difference between the two,
 consider two bitvectors <code class="docutils literal notranslate"><span class="pre">(x</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">A)</span></code> and <code class="docutils literal notranslate"><span class="pre">(y</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">B)</span></code>.
@@ -797,9 +893,9 @@ The result of <code class="docutils literal notranslate"><span class="pre">x</sp
 <code class="docutils literal notranslate"><span class="pre">x</span></code> in the more significatn bits, and <code class="docutils literal notranslate"><span class="pre">y</span></code> in the less significant bits.
 The result of <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">&lt;#</span> <span class="pre">y</span></code> is a bitvector of type <code class="docutils literal notranslate"><span class="pre">A</span></code> that contains
 <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> but truncated to the <code class="docutils literal notranslate"><span class="pre">A</span></code> less significatn bits.</p>
-</div>
-</div>
-<div class="section" id="maybe-type">
+</section>
+</section>
+<section id="maybe-type">
 <h3><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type<a class="headerlink" href="#maybe-type" title="Permalink to this headline">¶</a></h3>
 <p>DaeDaLus supports the special polymorphic type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">A</span></code>, which has possible
 values <code class="docutils literal notranslate"><span class="pre">nothing</span></code> and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, for some value, <code class="docutils literal notranslate"><span class="pre">x</span></code> of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
@@ -807,24 +903,27 @@ values <code class="docutils literal notranslate"><span class="pre">nothing</spa
 a <code class="docutils literal notranslate"><span class="pre">maybe</span></code> value.  If <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds with result <code class="docutils literal notranslate"><span class="pre">x</span></code> then
 <code class="docutils literal notranslate"><span class="pre">Optional</span> <span class="pre">P</span></code> will succeed with <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, and if <code class="docutils literal notranslate"><span class="pre">P</span></code> fails, then
 <code class="docutils literal notranslate"><span class="pre">Optional</span> <span class="pre">P</span></code> will <em>succeed</em> with <code class="docutils literal notranslate"><span class="pre">nothing</span></code>.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def MaybeLetter = Optional (Match1 (&#39;A&#39;..&#39;Z&#39;))
+</pre></div>
+</div>
 <p>To examine values of the <code class="docutils literal notranslate"><span class="pre">maybe</span></code> type you may use <a class="reference internal" href="#guards">Guards</a> or <a class="reference internal" href="#case">Case</a>.</p>
-</div>
-<div class="section" id="arrays">
+</section>
+<section id="arrays">
 <h3>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-4">
-<p class="first admonition-title">Todo</p>
-<p class="last">Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">el_type</span> <span class="pre">]</span></code></p>
+<div class="admonition-todo admonition" id="id3">
+<p class="admonition-title">Todo</p>
+<p>Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">el_type</span> <span class="pre">]</span></code></p>
 </div>
-</div>
-<div class="section" id="association-maps">
+</section>
+<section id="association-maps">
 <h3>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this headline">¶</a></h3>
-<div class="admonition-todo admonition" id="index-5">
-<p class="first admonition-title">Todo</p>
-<p class="last">Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">key</span> <span class="pre">-&gt;</span> <span class="pre">value</span> <span class="pre">]</span></code></p>
+<div class="admonition-todo admonition" id="id4">
+<p class="admonition-title">Todo</p>
+<p>Describe the interface to <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">key</span> <span class="pre">-&gt;</span> <span class="pre">value</span> <span class="pre">]</span></code></p>
 </div>
-</div>
-</div>
-<div class="section" id="stream-manipulation">
+</section>
+</section>
+<section id="stream-manipulation">
 <h2>Stream manipulation<a class="headerlink" href="#stream-manipulation" title="Permalink to this headline">¶</a></h2>
 <p>DaeDaLus parsers operate on an <em>input stream</em>, which by default is the input
 data to the parser. However, the input stream can be manipulated directly. For example,
@@ -877,25 +976,50 @@ particular parser:</p>
 </div>
 <p>This example will succeed if the concatenation of the arrays <code class="docutils literal notranslate"><span class="pre">a</span></code> and
 <code class="docutils literal notranslate"><span class="pre">b</span></code> starts with the string <code class="docutils literal notranslate"><span class="pre">&quot;AABBB&quot;</span></code>.</p>
-</div>
-<div class="section" id="character-classes">
-<span id="id1"></span><h2>Character Classes<a class="headerlink" href="#character-classes" title="Permalink to this headline">¶</a></h2>
-</div>
-<div class="section" id="external-declarations">
+</section>
+<section id="character-classes">
+<span id="id5"></span><h2>Character Classes<a class="headerlink" href="#character-classes" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="external-declarations">
 <h2>External Declarations<a class="headerlink" href="#external-declarations" title="Permalink to this headline">¶</a></h2>
-</div>
-<div class="section" id="bitdata">
+</section>
+<section id="bitdata">
 <h2>Bitdata<a class="headerlink" href="#bitdata" title="Permalink to this headline">¶</a></h2>
+<p>The <cite>bitdata</cite> construct provides a convenient way to break bytes into groups of
+bits, which are then combined into a tagged union.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>bitdata ChooseOption where
+  opt1 = 0x0 : uint 4
+  opt2 = 0x1
+
+bitdata OptionData where
+  OptionData = { opt : ChooseOption, val : uint 4 }
+</pre></div>
 </div>
-<div class="section" id="implicit-lifting">
+<p>Bitdata defintions are not parsers, but rather are used by applying coercions to
+already parsed bytes. The following code parses a byte, and then checks that the
+first four bits select the correct option.</p>
+<div class="highlight-DaeDalus notranslate"><div class="highlight"><pre><span></span>block
+  let odat = UInt8 as? OptionData
+  case odat of
+    OptionData x -&gt;
+      case x.opt of
+        opt1 -&gt; ^ x.val
+        _    -&gt; Fail &quot;Wrong option&quot;
+</pre></div>
+</div>
+<p>Note that the coercion may fail if the parsed byte does not contain either <cite>0x0</cite>
+or <cite>0x1</cite> in its first four bits. In this case, the parser will backtrack.</p>
+</section>
+<section id="implicit-lifting">
 <h2>Implicit Lifting<a class="headerlink" href="#implicit-lifting" title="Permalink to this headline">¶</a></h2>
-</div>
-<div class="section" id="implicit-parameters">
+</section>
+<section id="implicit-parameters">
 <h2>Implicit Parameters<a class="headerlink" href="#implicit-parameters" title="Permalink to this headline">¶</a></h2>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
@@ -935,13 +1059,13 @@ particular parser:</p>
 </li>
 <li><a class="reference internal" href="#control-structures">Control Structures</a><ul>
 <li><a class="reference internal" href="#if-then-else">If-then-else</a></li>
-<li><a class="reference internal" href="#case">Case</a></li>
 <li><a class="reference internal" href="#guards">Guards</a><ul>
 <li><a class="reference internal" href="#boolean-guards">Boolean Guards</a></li>
 <li><a class="reference internal" href="#guards-on-maybe">Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code></a></li>
 <li><a class="reference internal" href="#guards-on-tagged-unions">Guards on Tagged Unions</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#case">Case</a></li>
 <li><a class="reference internal" href="#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li><a class="reference internal" href="#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
 <li><a class="reference internal" href="#commit">Commit</a></li>
@@ -987,17 +1111,15 @@ particular parser:</p>
     </ul>
    </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -1008,12 +1130,13 @@ particular parser:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="nav-item nav-item-0"><a href="#">Daedalus 0.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Daedalus 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">DaeDaLus User Guide</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2021, The Daedalus Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.0.2.
     </div>
   </body>
 </html>

@@ -34,6 +34,25 @@ To type-check a DaeDaLus specification and see the types of the declarations:
 
   daedalus --show-types MyParserSpec.ddl
 
+The resulting types have the following form: 
+
+.. code-block:: DaeDalus 
+
+  ParserName: 
+    parameter: <type A>
+    parameter: <type B> 
+    ... 
+    defines: <type C> 
+
+This resembles a C type declaration as follows: 
+
+.. code-block:: C 
+
+  <type C> ParserName(<type A>, <type B>, ...); 
+
+The types themselves may be simple types such as integers or arrays, but they
+often have the form `parser of <type A>`. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type `A`. 
 
 Run the Interpreter
 -------------------
@@ -536,8 +555,46 @@ type ``BorG``.
 Repetition
 ----------
 
-.. todo::
-  Describe ``Many``
+The `Many` construct allows the same parser to be run multiple times in sequence
+on an incoming data stream, and it returns an array containing the resulting
+semantic values.  
+
+.. code-block:: DaeDalus 
+
+  block 
+    $$ = Many (Match1 '7')
+    Match1 '0' 
+    END 
+
+This code will successfully parse any stream consisting of multiple `7`
+characters, terminated by the `0` character at the end of the stream. For
+example, the stream '7770' will return the array `['7', '7', '7']`. 
+
+The `Many` construct optionally takes either a `uint 64` value or an interval
+bounded by two `uint 64` values: 
+
+* `Many n P` succeeds if it executes parser `P` exactly `n` times. 
+
+* `Many (i..j) P` succeeds if it executes parser `P` at least `i` and at most
+  `j` times. 
+
+* `Many` also supports lower-bounded intervals `Many (i..) P`, and likewise upper-bounded 
+  intervals `Many (..j) P`. 
+
+To avoid spurious backtracking, Many will parse any input maximally. This can
+have counter-intuitive consequences! For example, the following code will never
+succeed: 
+
+.. code-block:: Daedalus 
+
+  block 
+    Many (Match1 '7')
+    Match1 '7' 
+
+The call to `Many` will consume all the input characters matching `7`, meaning
+that the following `Match1` will always fail. This may be difficult to spot 
+in situations where two more complex parsers are run in sequence, the first of 
+which contains an unbounded call to Many.
 
 
 Control Structures 
@@ -675,7 +732,8 @@ patterns) as any omitted matches will implicitly result in failure and
 backtracking. In non-parser contexts, all case expressions are required to be
 total. 
 
-
+.. todo:: 
+  It should be true that guards are just syntactic sugar for case
 
 ``for`` loops
 -------------
@@ -883,8 +941,11 @@ to losslessly represent the original value. There are two other forms, `as!` and
 
 * `e as? T` performs a run-time check that the coercion will not lose
   information. If this holds, behaviour is identical to the lossless version of
-  `as`. Otherwise, the coercion fails and backtracks. As a result, this version
-  can only be used in parser expressions. 
+  `as`. Otherwise, the coercion fails and backtracks. 
+
+Note that `e as T` and `e as T` are values, and `e as? T` is a parser. This is
+because `e as? T` can fail and backtrack, which is only meaningful in parser
+expressions. 
 
 
 Semantic Values
@@ -1079,8 +1140,8 @@ External Declarations
 Bitdata
 =======
 
-The `bitdata` construct provides a convenient way to break bytes into groups of bits, which 
-then form a tagged union. 
+The `bitdata` construct provides a convenient way to break bytes into groups of
+bits, which are then combined into a tagged union. 
 
 .. code-block:: DaeDaLus
 
@@ -1097,11 +1158,13 @@ first four bits select the correct option.
 
 .. code-block:: DaeDalus 
 
-  block 
-    let odat = UInt8 as? OptionData 
-    case odat.OptionData.opt of 
-      opt1 -> ^ odat.OptionData.val 
-      _    -> Fail "Wrong option" 
+  block
+    let odat = UInt8 as? OptionData
+    case odat of
+      OptionData x ->
+        case x.opt of
+          opt1 -> ^ x.val
+          _    -> Fail "Wrong option"
 
 Note that the coercion may fail if the parsed byte does not contain either `0x0`
 or `0x1` in its first four bits. In this case, the parser will backtrack. 
