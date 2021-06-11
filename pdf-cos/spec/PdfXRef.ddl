@@ -43,7 +43,8 @@ def TrailerEnd = {
   xrefStart = Natural as? uint 64; Many $simpleWS; EOL;
     -- spec doesn't constrain the integer, but ...
   offset3 = Offset;
-  Match "%%EOF"; Many $simpleWS
+  Match "%%EOF"; Many $simpleWS;
+  offset4 = Offset;
 }
 
 -- NOTE 7.5.4 of ISO_32000-2_2020:

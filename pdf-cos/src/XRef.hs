@@ -125,6 +125,9 @@ runParserWithoutObjects i p =
 getXRefStart :: TrailerEnd -> UInt 64
 getXRefStart x = getField @"xrefStart" x
 
+getEndOfTrailerEnd :: TrailerEnd -> UInt 64
+getEndOfTrailerEnd x = getField @"offset4" x
+
 ---- xref table: parse and construct -----------------------------------------
 
 -- | Construct the xref map (and etc), version 2
@@ -277,14 +280,14 @@ printCavityReport inp updates =
   do
   let us = zip3 ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
                 updates
-                (0 : map (sizeToInt . getXRefStart . iu_startxref) updates) 
+                (0 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates) 
   forM_ us $
-    \(nm,iu,prevOffset)->
+    \(nm,iu,bodyStart)->
       do
       let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
       mapM_ putStrLn [ nm ++ ":"
                      , "  " ++ ppXRefType (iu_type iu)
-                     , "  body starts at byte offset " ++ show prevOffset
+                     , "  body starts at byte offset " ++ show bodyStart
                      , "  xref starts at byte offset " ++ show xrefStart
                      , "  cavities:"
                      ]
@@ -299,7 +302,7 @@ printCavityReport inp updates =
         
           -- cavities:
           cs = RIntSet.toRangeList $
-                   sr (prevOffset, xrefStart - 1)
+                   sr (bodyStart, xrefStart - 1)
                    RIntSet.\\
                    foldr RIntSet.insertRange RIntSet.empty rs
 
