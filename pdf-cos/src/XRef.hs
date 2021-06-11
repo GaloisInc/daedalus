@@ -47,10 +47,13 @@ data IncUpdate = IU { iu_type      :: XRefType
                     , iu_startxref :: TrailerEnd  -- last part, holds startxref offset
                     } 
 
-data XRefType = XRefTable  
+data XRefType = XRefTable   -- traditional xref table
               | XRefStream  -- newer alternative to XRef table
-              deriving (Eq,Ord,Show)
+              deriving (Eq,Ord)
 
+ppXRefType XRefTable  = "traditional cross reference table"
+ppXRefType XRefStream = "cross reference stream"
+  
 -- Features to add
 --  - pass in flags
 --    - flag for each exuberance?
@@ -199,19 +202,24 @@ parseOneIncUpdate inp offset =
                                                   "Prev offset too large."
                       Just offset' ->
                           let offset'' = intToSize offset' in
-                          if offset'' < offset then  -- intToSize _
+                          if offset'' /= offset then
                             pure (Just offset'')
                           else
-                            pure (Just offset'')
-                            -- FIXME!
-                            -- this ensures no infinite loop:
-                            {-
                             pError FromUser "parseTrailer"
-                              (unwords ["Prev offset", show offset''
-                                       ,"does not precede offset", show offset
-                                       ,"in file."
-                                       ])
-                            -}
+                                            "Prev offset unchanged"
+                          -- FIXME: infinite loop possible!
+                          -- FIXME: TODO: change to allow for warnings.
+                          {-
+                          -- and this is not a fix, thanks to Linearized files (?)
+                           if offset'' < offset then
+                             pure (Just offset'')
+                           else
+                             pError FromUser "parseTrailer"
+                               (unwords ["Prev offset", show offset''
+                                        ,"does not precede offset", show offset
+                                        ,"in file."
+                                        ])
+                           -}
                            
        xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
        te <- pTrailerEnd
@@ -236,8 +244,9 @@ printIncUpdateReport updates =
     \(nm,iu)->
       do
       mapM_ putStrLn [ nm ++ ":"
-                     , "  " ++ show (iu_type iu)
-                     , "  starts at byte offset " ++ show (getXRefStart $ iu_startxref iu)
+                     , "  " ++ ppXRefType (iu_type iu)
+                     , "  starts at byte offset "
+                          ++ show (sizeToInt $ getXRefStart $ iu_startxref iu)
                      , "  xref entries:"
                      ]
       printXRefs 4 (iu_xrefs iu)
@@ -274,7 +283,7 @@ printCavityReport inp updates =
       do
       let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
       mapM_ putStrLn [ nm ++ ":"
-                     , "  " ++ show (iu_type iu)
+                     , "  " ++ ppXRefType (iu_type iu)
                      , "  body starts at byte offset " ++ show prevOffset
                      , "  xref starts at byte offset " ++ show xrefStart
                      , "  cavities:"
@@ -298,11 +307,17 @@ printCavityReport inp updates =
         warning $
           "object definitions overlap (highly dubious) on the following offsets: "
           ++ show (RIntSet.toRangeList i)
-      
-      mapM_ (\r->putStrLn ("    " ++ show r)) cs
+
+      mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
 
   -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
   --  - must nab the locations when we parse these!
+
+ppCavity (start,end) = unwords [ show start
+                               , "--"
+                               , show end
+                               , "(" ++ show (end - start + 1) ++ " bytes)"
+                               ]
 
 getObjectRanges :: Input -> IncUpdate -> IO [Range]
 getObjectRanges inp iu =
