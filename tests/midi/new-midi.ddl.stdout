@@ -759,8 +759,7 @@ new-midi._Meta : Grammar {} =
                                                 ; 88 -> new-midi._TimeSig
                                                 ; 89 -> new-midi._KeySig
                                                 ; 127 -> new-midi._MetaSeqSpecific
-                                                ; _ -> do (_178 : new-midi.MetaUnknown) <- new-midi.MetaUnknown tag
-                                                          pure {unknown: _178}
+                                                ; _ -> new-midi._MetaUnknown
                                                 })
  
 new-midi._Event : Grammar {} =
