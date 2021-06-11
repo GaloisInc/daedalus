@@ -305,7 +305,7 @@ printCavityReport inp updates =
 
       unless (RIntSet.null i) $
         warning $
-          "object definitions overlap (highly dubious) on the following offsets: "
+          "object definitions overlap (highly suspicious) on the following offsets: "
           ++ show (RIntSet.toRangeList i)
 
       mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
@@ -313,6 +313,7 @@ printCavityReport inp updates =
   -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
   --  - must nab the locations when we parse these!
 
+ppCavity :: (Int,Int) -> String
 ppCavity (start,end) = unwords [ show start
                                , "--"
                                , show end
@@ -511,6 +512,7 @@ integerToInt i =
 
 
 --------------------------------------------------------------------------------
+-- FIXME: dead code follows
 
 parseFinalTrailerEnd :: Input -> BS.ByteString -> IO (PdfResult TrailerEnd)
 parseFinalTrailerEnd inp bs =

@@ -48,7 +48,7 @@ options = OptSpec
         $ NoArg $ \s -> Right s { command = ListIncUpdates }
 
       , Option [] ["cavities"]
-        "List cavities (in each incr. update."
+        "List cavities (in each incr. update)."
         $ NoArg $ \s -> Right s { command = ListCavities }
 
       , Option [] ["pp"]
