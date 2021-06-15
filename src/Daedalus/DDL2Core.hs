@@ -319,7 +319,7 @@ fromGrammar gram =
                            TArray t -> t
                            _ -> panic "fromGrammar"
                                    [ "TCArrayIndex: not an array" ]
-                a <- newLocal sizeType
+                a <- newLocal ty0
                 i <- newLocal sizeType
                 pure $ Let a aE
                      $ Let i iE
