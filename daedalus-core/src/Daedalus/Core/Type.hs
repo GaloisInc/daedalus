@@ -139,8 +139,8 @@ instance TypeOf Expr where
 
       Ap3 op e1 _ _ ->
         case op of
-          RangeUp   -> typeOf e1
-          RangeDown -> typeOf e1
+          RangeUp   -> TArray (typeOf e1)
+          RangeDown -> TArray (typeOf e1)
           MapInsert -> typeOf e1
 
 
