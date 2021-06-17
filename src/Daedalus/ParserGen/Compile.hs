@@ -648,6 +648,7 @@ genGExpr gbl e =
           n6 = getS 5
           n7 = getS 6
           n8 = getS 7
+          tag = n8
           loopTrans =
             case c of
               Backtrack -> -- Not sure this case is possible or tested at the moment
@@ -663,11 +664,11 @@ genGExpr gbl e =
                 [ (n1, UniChoice (CAct (BoundSetup bounds), n2)),
                   (n2, UniChoice (SAct (ManyFreshList s), n3)),
                   (n3, SeqChoice [(CAct (BoundIsMore), i1),
-                                  (CAct (BoundCheckSuccess), n6)] n8),
+                                  (CAct (BoundCheckSuccess), n6)] tag),
                   (f1, UniChoice (SAct (ManyAppend s), n4)),
                   (n4, UniChoice (CAct (BoundIncr), n5)),
-                  (n5, UniChoice (BAct (CutBiasAlt n8), n3)),
-                  (n6, UniChoice (BAct (CutBiasAlt n8), n7)),
+                  (n5, UniChoice (BAct (CutBiasAlt tag), n3)),
+                  (n6, UniChoice (BAct (CutBiasAlt tag), n7)),
                   (n7, UniChoice (SAct (ManyReturn), n8))
                 ]
       in mkAutWithPop n1 (unionTr (mkTr loopTrans) t1) n8 pops
