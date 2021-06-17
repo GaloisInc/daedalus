@@ -1,4 +1,4 @@
--- test data dependant instructions on non-deterministic path
+-- test data dependent instructions on non-deterministic path
 
 def Main =
   block
