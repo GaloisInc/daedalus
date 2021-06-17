@@ -1,0 +1,92 @@
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (11,14)-(11,24)
+SlkCfg{ q:16, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(3),]
+  , HeadInput ['a']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (11,14)-(11,24)
+SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(2),]
+  , HeadInput ['b']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (11,14)-(11,24)
+SlkCfg{ q:22, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
+DTrans [
+  ( [(7),]
+  , HeadInput ['c']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (6,13)-(6,17)
+SlkCfg{ q:10, ctrl:[?, *], sem:[?, ], inp:--- }
+DTrans [
+  ( [(7),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    __ZAuxiliaryState
+Start: Main (7,9)-(11,24)
+SlkCfg{ q:39, ctrl:[?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(17),]
+  , EndInput
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: Main (3,1)-(12,8)
+SlkCfg{ q:1, ctrl:[*], sem:[*], inp:--- }
+DTrans [
+  ( [(10),]
+  , HeadInput ['\NUL','\255']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+Start: __ZAuxiliaryState
+SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
+DTrans [
+  ( [(0),]
+  , AcceptingPath
+  , NotAmbiguous
+  ),
+]
+
+**********************
+***** Strict LLA *****
+**********************
+("DataDepTrans",4)
+("Lookahead-0",1)
+("Lookahead-1",6)
+
+Total nb DFAs: 11
+
+SUCCESS: Fully determinized format
