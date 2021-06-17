@@ -166,16 +166,16 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
                 nothing -> nothing
 
     prev    = Optional (LookupNatDirect "Prev" dict)
-    encrypt = Optional (TrailerDictEncrypt dict)
+    encrypt = case Optional (Lookup "Encrypt" dict) of
+                just d  -> just (TrailerDictEncrypt dict d)
+                nothing -> nothing
     all     = dict
 
-def TrailerDictEncrypt (dict : [ [uint 8] -> Value]) =
-  case Optional (Lookup "Encrypt" dict) of
-    just d ->
-      block
-        d = d
-        eref = d is ref
-        let arr = (Lookup "ID" dict) is array
-        (length arr == 2) is true
-        id0 = Index arr 0 is string
-        id1 = Index arr 1 is string
+def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
+  block
+    d = d
+    eref = d is ref
+    let arr = (Lookup "ID" trailer) is array
+    (length arr == 2) is true
+    id0 = Index arr 0 is string
+    id1 = Index arr 1 is string
