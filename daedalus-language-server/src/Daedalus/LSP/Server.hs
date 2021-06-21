@@ -8,25 +8,28 @@
 -- | This modules has the LSP specific server code, including intialising LSP
 module Daedalus.LSP.Server where
 
-import Data.Aeson ( encode, fromJSON )
-import qualified Data.ByteString.Lazy.Char8 as BSL
 
-import Daedalus.LSP.Monad
-import Daedalus.LSP.Diagnostics
+import qualified Data.ByteString.Lazy.Char8   as BSL
 
-import qualified Control.Exception as E
-import Language.LSP.Server
-import Data.Aeson.Types (Result(..))
-import qualified Data.Text as Text
-import qualified Language.LSP.Types as J
-import Control.Concurrent.STM.TChan
-import qualified Language.LSP.Types.Lens as J
-import System.Log.Logger
-import Control.Concurrent (forkIO)
-import Control.Monad.STM
-import Control.Concurrent.STM.TVar
-import Control.Lens hiding (Iso)
-import Control.Monad.Reader
+import           Control.Lens                 hiding (Iso)
+import           Data.Aeson                   (encode, fromJSON)
+import           Data.Aeson.Types             (Result (..))
+import qualified Data.Text                    as Text
+
+import           Control.Concurrent           (forkIO)
+import           Control.Concurrent.STM.TChan
+import           Control.Concurrent.STM.TVar
+import qualified Control.Exception            as E
+import           Control.Monad.Reader
+import           Control.Monad.STM
+
+import           Language.LSP.Server
+import qualified Language.LSP.Types           as J
+import qualified Language.LSP.Types.Lens      as J
+import           System.Log.Logger
+
+import           Daedalus.LSP.Diagnostics
+import           Daedalus.LSP.Monad
 
 newtype ReactorInput
   = ReactorAction (IO ())
@@ -78,7 +81,6 @@ lspOptions :: Options
 lspOptions = defaultOptions
   { textDocumentSync = Just syncOptions
   }
-
 
 -- ---------------------------------------------------------------------
 

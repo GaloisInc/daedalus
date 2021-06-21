@@ -49,10 +49,10 @@ data Kind       = KValue | KGrammar | KClass | KNumber
 
 
 data RuleType   = ([(IPName,Type)],[Type]) :-> Type
-                  deriving Show
+                  deriving (Show, Eq)
 
 data Poly a     = Poly [TVar] [Constraint] a
-                  deriving Show
+                  deriving (Show, Eq)
 
 data Constraint = Numeric Type
                 | HasStruct Type Label Type
@@ -80,7 +80,7 @@ data Constraint = Numeric Type
                 | ColElType Type Type         -- col, elT
                 | ColKeyType Type Type        -- col, key
                 | IsNamed Type
-                  deriving Show
+                  deriving (Show, Eq)
 
 {- [Note] Constructor Constraints
    ==============================
@@ -291,7 +291,7 @@ data TCTyDecl   = TCTyDecl
                    , tctyBD     :: !(Maybe BDD.Pat)
                    -- ^ Bitdata related information, if this is a bitdata decl.
                    , tctyDef    :: !TCTyDef
-                   } deriving Show
+                   } deriving (Show, Eq)
 
 data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
@@ -299,12 +299,12 @@ data TCTyName   = TCTyAnon !Name !Int
 
 data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
                 | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
-                  deriving Show
+                  deriving (Show, Eq)
 
 data TCBDStructMeta =
   TCBDStructMeta { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
                  , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
-                 } deriving Show
+                 } deriving (Show, Eq)
 
 -- ^ The mask and value let us match the corresponding tag bits for
 -- union constructors. This does not include the masks etc. for
@@ -313,7 +313,7 @@ data TCBDStructMeta =
 data TCBDUnionMeta =
   TCBDUnionMeta { tcbduMask :: !Integer   -- ^ Bits to consider
                 , tcbduBits :: !Integer   -- ^ Expected value
-                } deriving Show
+                } deriving (Show, Eq)
 
 
 -- These (should) be known at type checking time.  An 8 bit field in

@@ -33,8 +33,8 @@ resolveModulePath [] _n = return Nothing
 resolveModulePath (p : _searchPaths) n =
                           return (Just (p </> Text.unpack n <.> "ddl"))
 
-pathToModuleName :: FilePath -> ([FilePath], ModuleName)
-pathToModuleName f = ([dir], Text.pack (dropExtension rest))
+pathToModuleName :: FilePath -> (FilePath, ModuleName)
+pathToModuleName f = (dir, Text.pack (dropExtension rest))
   where
     (dir, rest) = splitFileName f
 

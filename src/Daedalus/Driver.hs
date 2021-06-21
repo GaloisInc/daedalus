@@ -131,9 +131,9 @@ ddlPassFromFile ::
   (ModuleName -> Daedalus ()) ->
   FilePath -> Daedalus ModuleName
 ddlPassFromFile pass file =
-  do let (dirs,m) = pathToModuleName file
+  do let (dir,m) = pathToModuleName file
      search <- ddlGetOpt optSearchPath
-     ddlUpdOpt optSearchPath (dirs ++)
+     ddlUpdOpt optSearchPath (dir :)
      pass m
      ddlSetOpt optSearchPath search
      pure m

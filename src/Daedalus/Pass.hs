@@ -4,6 +4,8 @@ module Daedalus.Pass
   ( PassM
   , runPassM
   , runPassM'
+  , newPassState
+  , PassState
   -- * Fresh Name
   , freshName
   , freshLocalName
@@ -18,6 +20,7 @@ module Daedalus.Pass
   ) where
 
 import Control.Monad.IO.Class
+
 import MonadLib
 import Daedalus.SourceRange
 
@@ -25,25 +28,28 @@ import Daedalus.GUID
 
 import Daedalus.AST (Name(..), Context, ModuleName, Ident)
 import Daedalus.Type.AST (TCName(..), ScopedIdent(..), Type)
+import Data.IORef (IORef, atomicModifyIORef')
+import GHC.IORef (newIORef)
 
-data PassState =
-  PassState { nextFreeGUID :: !GUID
+newtype PassState =
+  PassState { guidVar :: IORef GUID
             -- ^ Plumb through fresh names
             }
 
-newtype PassM a = PassM { getPassM :: StateT PassState IO a }
+newtype PassM a = PassM { getPassM :: ReaderT PassState IO a }
   deriving (Functor, Applicative, Monad)
 
-initState :: PassState
-initState = PassState { nextFreeGUID = firstValidGUID }
-
 runPassM :: PassM a -> IO a
-runPassM m = fst <$> runM (getPassM m) initState 
+runPassM m = do
+  initState <- newPassState
+  runM (getPassM m) initState 
 
-runPassM' :: GUID -> PassM a -> IO (a, GUID)
-runPassM' nguid m = do
-  (res, st') <- runM (getPassM m) (PassState nguid)
-  pure (res, nextFreeGUID st')
+newPassState :: IO PassState
+newPassState = PassState <$> newIORef firstValidGUID
+
+-- | Execute the pass, mutating the state inside PassState
+runPassM' :: PassState -> PassM a -> IO a
+runPassM' st m = runM (getPassM m) st
 
 --------------------------------------------------------------------------------
 -- Name
@@ -67,8 +73,6 @@ deriveNameWith f x = do
               Local t      -> Local (f t)
               ModScope m t -> ModScope m (f t)
   pure (x { nameScopedIdent = si', nameID = nextg })
-
-
 
 --------------------------------------------------------------------------------
 -- TCName
@@ -95,17 +99,17 @@ freshLocalTCName x ty c  = do
   n <- freshLocalName x c
   pure (TCName n ty c)
 
-
-
 --------------------------------------------------------------------------------
 
 instance RunM PassM a (IO a) where
   runM = runPassM
 
 instance HasGUID PassM where
-  guidState f =
-    PassM $ mkGUIDState nextFreeGUID (\g t -> t { nextFreeGUID = g }) f
-
+  guidState f = PassM $ do
+    mv <- guidVar <$> ask
+    let swp (a, b) = (b, a)
+    lift $ atomicModifyIORef' mv (swp . f)
+    
 instance MonadIO PassM where
   liftIO = PassM . inBase
 
