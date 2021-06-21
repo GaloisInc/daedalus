@@ -19,7 +19,10 @@ extra-source-files:
   spec/PdfText.ddl,
   spec/PdfValidate.ddl,
   spec/PdfContentStream.ddl,
-  spec/PdfDOM.ddl
+  spec/PdfDOM.ddl,
+  spec/Unicode.ddl,
+  spec/Stdlib.ddl,
+  spec/PdfExtractText.ddl,
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 custom-setup

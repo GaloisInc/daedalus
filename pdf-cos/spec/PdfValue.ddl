@@ -14,8 +14,10 @@ def $simpleWS             = 0 | 9 | 12 | 32
 def SimpleEOL             = { $cr; $lf } | $lf
 def EOL                   = SimpleEOL <| $cr
 def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
-def AnyWS                 = $simpleWS | Comment | EOL
 def JustWhite             = $simpleWS | EOL
+
+def AnyWS                 = $simpleWS | Comment | EOL
+
 --------------------------------------------------------------------------------
 
 
@@ -25,6 +27,7 @@ def JustWhite             = $simpleWS | EOL
 def Token P               = { $$ = P; Many AnyWS }
 def KW x                  = @ (Token (Match x))
 def Between open close P  = { KW open; $$ = P; KW close }
+
 --------------------------------------------------------------------------------
 
 

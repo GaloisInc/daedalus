@@ -389,6 +389,7 @@ def TextShowOp = Choose1 {
   setSpacing = {
     aw = Token Number ;
     ac = Token Number ;
+    str = Token String;
     KW "\"" 
   } ;
   showTextIndGlyph = {
