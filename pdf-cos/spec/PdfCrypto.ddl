@@ -66,11 +66,9 @@ def V4stmFname (edict : [ [uint 8] -> Value ])= {
   ^ stmFname; 
 } 
 
-def MakeContext (t : TrailerDict) = Choose1 { 
-  encryption = { 
-    @enc = t.encrypt is just;
-    commit; 
-    EncryptionDict enc; 
-  }; 
-  noencryption = {}; 
-} 
+def MakeContext (t : TrailerDict) =
+  case t.encrypt of
+    just enc -> {| encryption = EncryptionDict enc |}
+    nothing  -> {| noencryption |}
+
+

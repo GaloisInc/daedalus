@@ -44,10 +44,10 @@ library
     PdfMonad.Transformer,
     PdfMonad.Release,
     PdfParserNotSpecialized,
+    PdfParser,
 
     Stdlib,
     JpegBasics,
-    PdfParser,
     PdfValue,
     PdfDecl,
     PdfXRef,
@@ -56,7 +56,6 @@ library
   autogen-modules:
     Stdlib,
     JpegBasics,
-    PdfParser,
     PdfValue,
     PdfDecl,
     PdfXRef,

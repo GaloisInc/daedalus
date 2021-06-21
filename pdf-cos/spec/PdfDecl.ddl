@@ -19,7 +19,6 @@ def TopDeclDef (val : Value) = Choose1 {
 def Stream (val : Value) = {
   header = val is dict;
   Match "stream";
-  commit;
   SimpleEOL;
   body = StreamBody header;
   KW "endstream"
@@ -317,7 +316,6 @@ def NatN n = { @ds = Many n Digit; ^ numBase 10 ds }
 
 def LookupNat k m =
   { @vV = LookupResolve k m : Value;
-    -- XXX: we should have a "strong" commit here.
     @v  = vV is number;
     NumberAsNat v; 
   }
