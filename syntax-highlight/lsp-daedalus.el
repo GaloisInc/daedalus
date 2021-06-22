@@ -22,7 +22,7 @@
 (add-to-list 'lsp-language-id-configuration '(daedalus-mode . "daedalus"))
 
 
-(setq lsp-daedalus-server-path "/Users/sjw/galois/safedocs/daedalus/daedalus-language-server/server-wrapper.sh")
+;; (setq lsp-daedalus-server-path "/Users/sjw/galois/safedocs/daedalus/daedalus-language-server/server-wrapper.sh")
 
 ;; (lsp-consistency-check lsp-daedalus)
 
