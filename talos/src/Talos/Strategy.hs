@@ -20,6 +20,7 @@ import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), Stra
 -- strategies
 import Talos.Strategy.BTRand
 import Talos.Strategy.Symbolic (symbolicStrat)
+import Daedalus.Core
 
 allStrategies :: [Strategy]
 allStrategies = [ randRestart, randMaybeT, randDFS, symbolicStrat ]
@@ -40,14 +41,14 @@ timeStrategy solvSt strat ptag sl = do
   end           <- liftIO $ getTime MonotonicRaw
   pure ((rv', toNanoSecs (diffTimeSpec end start)), solvSt')
 
-runStrategies :: LiftStrategyM m => SolverState -> [Strategy] -> ProvenanceTag -> Slice ->
+runStrategies :: LiftStrategyM m => SolverState -> [Strategy] -> ProvenanceTag -> FName -> Name -> Slice ->
                  m (Maybe SelectedPath, SolverState)
-runStrategies solvSt strats0 ptag sl = liftStrategy $ go solvSt strats0
+runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
   where
     -- FIXME: There is probably a nicer way of doing this
-    go s [] = pure (Nothing, s)    
+    go s [] = pure (Nothing, s)
     go s (strat : strats) = do
-      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ stratName strat ++ {- " for " ++ showPP sl ++ -} " ... "; hFlush stdout }))
+      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ stratName strat ++ " at " ++ showPP fn ++ "." ++ showPP x ++ " ... "; hFlush stdout }))
       ((m_r, ns), s') <- timeStrategy s strat ptag sl
       let dns = (fromIntegral ns :: Double)
       let resReport = if isNothing m_r then "failed" else "succeeded"

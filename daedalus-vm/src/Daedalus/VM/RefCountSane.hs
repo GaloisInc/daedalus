@@ -14,7 +14,8 @@ import Daedalus.VM.TypeRep
 import Daedalus.VM
 
 data RO       = RO { roBlocks :: Map Label Block
-                   , roFuns   :: Map FName Block -- entry block
+                   , roFuns   :: Map FName (Either [BA] Block)
+                      -- ^ args of prims, or entry block for normal functions
                    }
 
 type Error    = [String]
@@ -33,17 +34,26 @@ checkProgram prog =
 
   checkModule = mapM_ checkVMFun . mFuns
   checkEntry  = checkBlocks . entryBoot
-  checkVMFun  = checkBlocks . vmfBlocks
+  checkVMFun f = case vmfDef f of
+                   VMDef b -> checkBlocks (vmfBlocks b)
+                   VMExtern {} -> pure ()
   checkBlocks = mapM_ (checkBlock ro)
 
   ro = RO { roBlocks = allBlocks
           , roFuns = Map.fromList (map funInfo allFuns)
           }
 
-  funInfo vmf    = (vmfName vmf, vmfBlocks vmf Map.! vmfEntry vmf)
+  funInfo vmf    = ( vmfName vmf
+                   , case vmfDef vmf of
+                       VMExtern as -> Left as
+                       VMDef d  -> Right (vmfBlocks d Map.! vmfEntry d)
+                   )
   allFuns        = concatMap mFuns (pModules prog)
-  allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
-                                       map vmfBlocks allFuns)
+  allBlocks      = Map.fromList
+                    [ (blockName b, b)
+                    | b <- pAllBlocks prog
+                    ] -- Map.unions (map entryBoot (pEntries prog) ++
+                         --               map vmfBlocks allFuns)
 
 
 
@@ -164,12 +174,18 @@ checkTerm loc ro ci count =
 
   checkArgs f es =
     case Map.lookup f (roFuns ro) of
-      Just bl
-        | blockType bl == NormalBlock ->
-            checkEs (loc ++ ", call to " ++ showPP f)
-                     es
-                    (map getOwnership (blockArgs bl)) count
-        | otherwise -> Left ["Function entry is not normal: " ++ showPP f]
+      Just inf ->
+        case inf of
+          Right bl
+            | blockType bl == NormalBlock ->
+                checkEs (loc ++ ", call to " ++ showPP f)
+                         es
+                        (map getOwnership (blockArgs bl)) count
+            | otherwise -> Left ["Function entry is not normal: " ++ showPP f]
+          Left as ->
+                checkEs (loc ++ ", call to " ++ showPP f)
+                         es
+                         (map getOwnership as) count
       Nothing -> Left ["Missing function: " ++ showPP f]
 
   checkRet = checkJP (loc ++ ", return from call") ro isRet

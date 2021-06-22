@@ -15,12 +15,17 @@ tailModule :: Module -> Module
 tailModule m = m { mFuns = tailFun <$> mFuns m }
 
 tailFun :: VMFun -> VMFun
-tailFun fun = fun { vmfBlocks = checkBlock <$> vmfBlocks fun }
+tailFun fun =
+  case vmfDef fun of
+    VMExtern {} -> fun
+    VMDef body -> fun { vmfDef = VMDef (doBody body) }
   where
-  checkBlock b =
+  doBody b = b { vmfBlocks = checkBlock (vmfEntry b) <$> vmfBlocks b }
+
+  checkBlock ent b =
     case blockTerm b of
       TailCall f _ es | f == vmfName fun -> b { blockTerm = Jump jp }
-        where jp = JumpPoint { jLabel = vmfEntry fun
+        where jp = JumpPoint { jLabel = ent
                              , jArgs  = es
                              }
       _ -> b

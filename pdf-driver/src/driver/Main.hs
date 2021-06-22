@@ -234,7 +234,7 @@ driver opts = runReport opts $
      res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
-       ParseOk False -> report RUnsafe file 0 "Catalog (page tree) contains cycles"
+       ParseOk False -> report RUnsafe file 0 "Malformed Catalog (page tree)"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 

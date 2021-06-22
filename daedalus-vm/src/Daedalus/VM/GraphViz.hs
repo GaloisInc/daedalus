@@ -35,15 +35,19 @@ node = map esc . show . pp
 
 doFun :: GraphStyle -> Map FName VMFun -> Int -> VMFun -> ([String],[String])
 doFun sty funMap n fun =
- (  ("subgraph cluster_" ++ show n ++ " {")
-  : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
-  : ("color=" ++ (if vmfLoop fun then show "#ccccccff" else show "#999999ff") ++ ";")
-  : "style=\"filled\";"
-  : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks fun) ]
-  ++ ["}"]
-  ,
-  [ l | b <- Map.elems (vmfBlocks fun), l <- edge sty funMap b ]
-  )
+  case vmfDef fun of
+    VMExtern {} -> ([],[]) -- don't draw these for now
+    VMDef body ->
+      (  ("subgraph cluster_" ++ show n ++ " {")
+       : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
+       : ("color=" ++ (if vmfLoop fun then show "#ccccccff"
+                                      else show "#999999ff") ++ ";")
+       : "style=\"filled\";"
+       : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks body) ]
+       ++ ["}"]
+       ,
+       [ l | b <- Map.elems (vmfBlocks body), l <- edge sty funMap b ]
+       )
 
 edge :: GraphStyle -> Map FName VMFun -> Block -> [String]
 edge sty funMap b =
@@ -76,8 +80,11 @@ edge sty funMap b =
   doCall c f xs =
     case Map.lookup f funMap of
       Nothing  -> error "Missing function"
-      Just fu  -> edgeTo c "call" (vmfEntry fu)
-                : [ edgeTo black l (jLabel x)
-                                    | (l,x) <- zip ["fail","return"] xs
-                                    , sty == Everything ]
+      Just fu  ->
+        case vmfDef fu of
+          VMExtern {} -> [] -- ignore primitives for the moment
+          VMDef body -> edgeTo c "call" (vmfEntry body)
+                      : [ edgeTo black l (jLabel x)
+                                        | (l,x) <- zip ["fail","return"] xs
+                                        , sty == Everything ]
 

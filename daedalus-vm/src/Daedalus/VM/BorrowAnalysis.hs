@@ -77,7 +77,11 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
 
   annEntry  e = e { entryBoot = annBlock <$> entryBoot e }
   annModule m = m { mFuns     = annFun   <$> mFuns m }
-  annFun f    = f { vmfBlocks = annBlock <$> vmfBlocks f }
+  annFun f    = f { vmfDef    = annDef       (vmfDef f) }
+  annDef d    = case d of
+                  VMExtern as ->
+                    VMExtern [ BA x t (Owned `ifRefs` a) | a@(BA x t _) <- as ]
+                  VMDef b -> VMDef b { vmfBlocks = annBlock <$> vmfBlocks b }
   annBlock b =
     case Map.lookup (blockName b) info of
       Just sig ->
@@ -152,7 +156,7 @@ data Info = Info
   , iBlockInfo  :: Map Label [Ownership]
     -- ^ Ownership information for the arguments of existing blocks.
 
-  , iFunEntry   :: Map FName Label
+  , iFunEntry   :: Map FName (Either [OwnInfo] Label)
     -- ^ Entry block for a function.
 
   , iBlockType  :: Map Label BlockType
@@ -217,8 +221,12 @@ getBlockOwnership l i =
 getFunOwnership :: FName -> Info -> [OwnInfo]
 getFunOwnership f i =
   case Map.lookup f (iFunEntry i) of
-    Just l  -> getBlockOwnership l i
-    Nothing -> panic "getFunOwnership" [ "Missing entry point for " ++ show (pp f) ]
+    Just yes ->
+      case yes of
+        Left as -> as
+        Right l -> getBlockOwnership l i
+    Nothing ->
+      panic "getFunOwnership" [ "Missing entry point for " ++ show (pp f) ]
 
 implicitArgs :: Label -> Info -> Int
 implicitArgs l i =
@@ -234,14 +242,18 @@ borrowAnalysis p = loop i0
   where
   i0 = Info { iBlockOwned = Set.empty
             , iBlockInfo  = Map.fromList $ (entryOwns <$> pEntries p)
-                                        ++ (concatMap nonNormal (pAllBlocks p))
+                                        ++ concatMap nonNormal (pAllBlocks p)
             , iChanges    = False
-            , iFunEntry   = Map.fromList [ (vmfName f, vmfEntry f)
+            , iFunEntry   = Map.fromList [ (vmfName f, infoEntry f)
                                          | m <- pModules p, f <- mFuns m
                                          ]
             , iBlockType  = Map.fromList
                               [ (blockName b, blockType b) | b <- pAllBlocks p ]
             }
+
+  infoEntry f = case vmfDef f of
+                  VMExtern as -> Left [ (Nothing, Owned `ifRefs` a) | a <- as ]
+                  VMDef b     -> Right (vmfEntry b)
 
   loop i = let i1 = vmProgram p i
            in if iChanges i1
@@ -272,7 +284,9 @@ vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
 
 vmFun :: VMFun -> Info -> Info
-vmFun = foldr (.) id . map block . Map.elems . vmfBlocks
+vmFun f = case vmfDef f of
+            VMExtern {} -> id
+            VMDef b     -> foldr (.) id $ map block $ Map.elems $ vmfBlocks b
 
 block :: Block -> Info -> Info
 block b i =

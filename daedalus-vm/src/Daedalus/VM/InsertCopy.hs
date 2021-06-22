@@ -25,7 +25,10 @@ addCopyIs p = p { pEntries = annEntry  <$> pEntries p
   where
   annEntry e  = e { entryBoot = blockMap (entryBoot e) }
   annModule m = m { mFuns = map annFun (mFuns m) }
-  annFun f    = f { vmfBlocks = blockMap (vmfBlocks f) }
+  annFun f    = f { vmfDef = annDef (vmfDef f) }
+  annDef d    = case d of
+                  VMExtern {} -> d
+                  VMDef b -> VMDef b { vmfBlocks = blockMap (vmfBlocks b) }
   ro          = buildRO p
   blockMap    = Map.fromList
               . map (\b -> (blockName b, b))
@@ -41,11 +44,15 @@ buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
               }
 
   addFun f i =
-    let ls = blockSig <$> vmfBlocks f
-        fs = ls Map.! vmfEntry f
-    in RO { funMap = Map.insert (vmfName f) fs (funMap i)
-          , labOwn = Map.union ls (labOwn i)
-          }
+    case vmfDef f of
+      VMDef d -> RO { funMap = Map.insert (vmfName f) fs (funMap i)
+                    , labOwn = Map.union ls (labOwn i)
+                    }
+        where
+        ls = blockSig <$> vmfBlocks d
+        fs = fst (ls Map.! vmfEntry d)
+      VMExtern as -> i { funMap = Map.insert (vmfName f) fs (funMap i) }
+        where fs = map getOwnership as
 
   blockSig b = (map getOwnership (blockArgs b), blockType b)
 
@@ -353,7 +360,7 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
   --    owner.
   checkFun f es ls =
     case Map.lookup f (funMap ro) of
-      Just (sig,_) -> filter (needsOwner ls) (concat (zipWith checkArg sig es))
+      Just sig -> filter (needsOwner ls) (concat (zipWith checkArg sig es))
       Nothing  -> panic "funOwn" [ "Missing function " ++ show (pp f) ]
 
   -- an owned argument that is borrowed by the call
@@ -533,7 +540,7 @@ runM ro v (M m) = ( a
   where
   (a,s1) = m ro RW { nextName = v, newVars = [[]], revInstr = [] }
 
-data RO = RO { funMap :: Map FName ([Ownership], BlockType)
+data RO = RO { funMap :: Map FName [Ownership]
              , labOwn :: Map Label ([Ownership], BlockType)
              }
 
@@ -576,7 +583,7 @@ newBV t = M \_ s ->
 lookupFunMode :: FName -> M [Ownership]
 lookupFunMode f = M \r s ->
   case Map.lookup f (funMap r) of
-    Just ms -> (fst ms,s)
+    Just ms -> (ms,s)
     Nothing -> panic "lookupFunMode" ["Missing mode for " ++ show (pp f)]
 
 lookupLabelMode :: Label -> M [Ownership]

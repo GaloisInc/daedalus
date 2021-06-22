@@ -36,6 +36,7 @@ library
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
+                     , Talos.Analysis.Projection
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
@@ -98,6 +99,35 @@ executable talos
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
 
+
+executable talos-pretty
+  main-is:             Main.hs
+  -- other-modules:       CommandLine
+  -- other-extensions:
+  build-depends:       base
+                     , talos
+                     , daedalus
+                     , daedalus-value
+                     , daedalus-utils
+                     , optparse-applicative
+                     , bytestring
+                     , io-streams
+                     , pretty-hex
+                     -- , rts-hs
+                     -- , vector
+                     -- , parameterized-utils
+                     -- , mtl
+                     , containers
+
+                     , ansi-terminal
+                     , JuicyPixels
+
+  hs-source-dirs:      pretty-app
+  default-language:    Haskell2010
+  ghc-options:         -Wall -O2
+  ghc-prof-options:    -fprof-auto
+
+  
 -- executable talos-machine
 --   main-is:             Main.hs
 --   other-modules:       CommandLine

@@ -73,18 +73,21 @@ import Daedalus.VM
 
 -- | We assume that the only block visible to other functions is the entry
 inlineBlocks :: VMFun -> VMFun
-inlineBlocks fun = {-jjElim-} fun { vmfBlocks = doInline is0 }
-  where
-  s0  = S { stays = Set.singleton (vmfEntry fun)
-          , inline = Set.empty
-          }
-  usage = foldr updS s0 $ vmfBlocks fun
+inlineBlocks fun =
+  case vmfDef fun of
+    VMExtern {} -> fun
+    VMDef b -> fun { vmfDef = VMDef b { vmfBlocks = doInline is0 } }
+      where
+      s0 = S { stays = Set.singleton (vmfEntry b)
+             , inline = Set.empty
+             }
+      usage = foldr updS s0 $ vmfBlocks b
 
-  is0 = IS { doneBlocks = Map.empty
-           , todoBlocks = vmfBlocks fun
-           , redirect = Map.empty
-           , inlineable = inline usage
-           }
+      is0 = IS { doneBlocks = Map.empty
+               , todoBlocks = vmfBlocks b
+               , redirect = Map.empty
+               , inlineable = inline usage
+               }
 
 data IS = IS
   { doneBlocks  :: Map Label Block
@@ -247,7 +250,7 @@ mergeBlocks front back =
 --------------------------------------------------------------------------------
 -- Try to eliminate double jumps
 
-jjElim :: VMFun -> VMFun
+jjElim :: VMFBody -> VMFBody
 jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
   where
   jj0   = JJS { jjFixedType = Set.singleton (vmfEntry fun)

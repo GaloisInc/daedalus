@@ -14,7 +14,7 @@ def CrossRef = Choose {
 
 def CrossRefAndTrailer = {
   xref    = CrossRefSection;
-  Many JustWhite;
+  Many JustWhite;   -- no comments, but arbitrary whitespace allowed here.
   KW "trailer";
 
   @t = Dict;
@@ -27,6 +27,12 @@ def CrossRefAndTrailer = {
 
 def CrossRefSection = {
   Match "xref"; Many $simpleWS; EOL;
+
+    -- we enforce EOL above (rejecting some NCBUR files).  The spec:
+    --   7.5.4
+    --   "Each cross-reference section shall begin with a line containing the keyword xref. Following
+    --   this line shall be one or more cross-reference subsections"
+
   @x  = CrossRefSubSection;
   @xs = Many CrossRefSubSection;
   ^ concat [[x],xs];  -- this greatly improves error messages when errors in 'x'
@@ -87,11 +93,9 @@ def XRefFormat header = {
   width  = bigwidth as? uint 64;
 }
 
-def LookupInt arr i = Default 0 {
-  @n = Index arr i;
-  commit;
-  NatValue n;
-}
+def LookupInt arr i =
+  if i < length arr then NatValue (Index arr i)
+                    else 0
 
 
 def XRefIndex header = {
@@ -153,24 +157,25 @@ def XRefCompressed (w : XRefFormat) = {
 --------------------------------------------------------------------------------
 -- Trailers
 
-def TrailerDict (dict : [ [uint 8] -> Value] ) = {
-  size    = LookupNatDirect "Size" dict;
-  root    = Default nothing { -- allowed to be nothing for linearlized PDF
-                @x = Lookup "Root" dict;
-                commit;
-                just (x is ref);
-              };
-  prev    = Optional (LookupNatDirect "Prev" dict);
-  encrypt = Optional (TrailerDictEncrypt dict);
-  all = ^ dict;
-}
+def TrailerDict (dict : [ [uint 8] -> Value] ) =
+  block
+    size    = LookupNatDirect "Size" dict
 
-def TrailerDictEncrypt (dict : [ [uint 8] -> Value]) = {
-  d = Lookup "Encrypt" dict;
-  commit;
-  eref = d is ref;
-  @i = Lookup "ID" dict;
-  length (i is array) == 2;
-  id0 = Index (i is array) 0 is string;
-  id1 = Index (i is array) 1 is string;
-}
+    root    = case Optional (Lookup "Root" dict) of
+                just x -> just (x is ref)
+                nothing -> nothing
+
+    prev    = Optional (LookupNatDirect "Prev" dict)
+    encrypt = case Optional (Lookup "Encrypt" dict) of
+                just d  -> just (TrailerDictEncrypt dict d)
+                nothing -> nothing
+    all     = dict
+
+def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
+  block
+    d = d
+    eref = d is ref
+    let arr = (Lookup "ID" trailer) is array
+    (length arr == 2) is true
+    id0 = Index arr 0 is string
+    id1 = Index arr 1 is string

@@ -21,6 +21,7 @@ data Options =
           , optSeed      :: Maybe Int
           , optOutfile   :: Maybe Outfile
           , optPrettyModel :: Bool
+          , optProvFile  :: Maybe FilePath
           -- Prover options
           , optValidateModel :: Bool
           -- Debugging options
@@ -81,6 +82,13 @@ optPrettyOutput = switch
   <> help "Pretty-print model bytes and value to stdout"
   )
 
+optProvOutput :: Parser String
+optProvOutput = strOption
+   ( long "prov-map"
+     <> metavar "FILE"
+     <> help "Write provenance to FILE" )
+
+
 allOutputOpt :: Parser String
 allOutputOpt = strOption
    ( long "all-output"
@@ -124,6 +132,7 @@ options = Options <$> solverOpt
                   <*> optional seedOpt
                   <*> optional ((AllOutput <$> allOutputOpt) <|> (PatOutput <$> patOutputOpt))
                   <*> optPrettyOutput
+                  <*> optional optProvOutput
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt

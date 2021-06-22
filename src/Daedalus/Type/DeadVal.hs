@@ -502,7 +502,7 @@ noSem' tc =
 
      TCCase e pats mb ->
        do (pats1,vs1) <- NE.unzip <$> mapM (noSemAltWith noSem') pats
-          mb1 <- traverse mbSem mb
+          mb1 <- traverse noSem' mb
           case mb1 of
             Nothing -> pure ( exprAt tc $ TCCase e pats1 Nothing
                             , Set.unions (tcFree e : NE.toList vs1)

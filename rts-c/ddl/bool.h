@@ -2,9 +2,13 @@
 #define DDL_BOOL_H
 
 #include <iostream>
+#include <iostream>
+
+#include <ddl/value.h>
 
 namespace DDL {
-class Bool {
+
+class Bool : public Value {
   bool b;
 public:
   Bool()              {}
@@ -18,7 +22,6 @@ public:
   bool operator <= (Bool x) { return getValue() <= x.getValue(); }
 
   Bool operator ! ()        { return Bool(!getValue()); }
-
 };
 
 inline int compare(Bool x, Bool y) { return x.getValue() - y.getValue(); }

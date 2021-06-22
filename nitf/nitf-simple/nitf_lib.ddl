@@ -14,10 +14,9 @@ def Guard p = p is true
 
 -- library of parsers that are generally useful for NITF
 
--- def numBase (base : uint 64) (ds : [ uint 8 ]) =
---   for (val = 0; d in ds)
---     (val * base + (d as uint 64))
-
+def numBase (base : uint 64) (ds : [ uint 8 ]) =
+  for (val = 0; d in ds)
+    (val * base + (d as uint 64))
 
 -- def strlen s = for (len = (0 : int); c in s) (len + 1)
 
