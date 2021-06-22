@@ -50,6 +50,12 @@ nextChoicePos :: ChoicePos -> ChoicePos
 nextChoicePos pos = (fst pos, snd pos + 1)
 
 
+fstChoicePosSeqChoice :: ChoicePos
+fstChoicePosSeqChoice = initChoicePos CSeq
+
+sndChoicePosSeqChoice :: ChoicePos
+sndChoicePosSeqChoice = nextChoicePos fstChoicePosSeqChoice
+
 
 type ChoiceSeq = Seq.Seq ChoicePos
 
@@ -210,6 +216,24 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
             [ (act1@(CAct (BoundCheckMore)), i)
             , (act2@(CAct (BoundCheckSuccess)), j)
             ] _ ->
+            if Slk.isManyExactConstant cfg
+            then
+              case
+                ( Slk.simulateActionSlkCfg aut act1 i cfg tab
+                , Slk.simulateActionSlkCfg aut act2 j cfg tab
+                ) of
+                (   Result (Just ([ cfg1 ], tab1))
+                  , Result Nothing
+                  ) ->
+                  let newAltSeq = addChoiceSeq fstChoicePosSeqChoice alts in
+                  closureEpsUntilDataDependent aut newBusy (newAltSeq, cfg1) tab1
+                (   Result Nothing
+                  , Result (Just ([ cfg2 ], tab2))
+                  ) ->
+                  let newAltSeq = addChoiceSeq sndChoicePosSeqChoice alts in
+                  closureEpsUntilDataDependent aut newBusy (newAltSeq, cfg2) tab2
+                _ -> error "should not happen"
+            else
             if Slk.isManyExactDependent cfg
             then
               case
