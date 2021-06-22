@@ -30,8 +30,9 @@ import Daedalus.Type.Monad (RuleEnv)
 import Daedalus.PP
 
 
-data ModuleSource = ClientModule J.NormalizedUri Int
+data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
                   | FileModule FilePath -- FilePath here is the path to search
+                  deriving Show
 
 
 -- =============================================================================
@@ -39,6 +40,8 @@ data ModuleSource = ClientModule J.NormalizedUri Int
 
 data ParseRequest = ParseReq ModuleSource Int -- ms delay
                   | WakeUpReq
+                  deriving Show
+
 isFileModule :: ModuleSource -> Bool
 isFileModule FileModule {} = True
 isFileModule _ = False
@@ -98,25 +101,26 @@ newModuleState =
   ModuleState <$> newTChan <*> newTVar Nothing <*> newTVar emptyModuleInfo <*> newTVar Nothing
 
 data ServerState =
-  ServerState { knownModules :: TVar (Map ModuleName ModuleState)
+  ServerState { lspEnv       :: LanguageContextEnv Config
               , passState    :: PassState -- shared between threads
-              , lspEnv       :: LanguageContextEnv Config
+              , knownModules :: TVar (Map ModuleName ModuleState)
               }
 
 -- User-alterable config
 data Config = Config ()
   deriving (Generic, ToJSON, FromJSON, Show)
 
-type ServerM = ReaderT (TVar ServerState) (LspM Config)
+type ServerM = ReaderT ServerState (LspM Config)
 
 -- This needs to be behind a IO var of some sort as we need an Iso in
 -- interpretHandler (so we thread the state using mutation).
 
--- emptyServerState :: ServerState
--- emptyServerState = ServerState mempty firstValidGUID
+emptyServerState :: LanguageContextEnv Config -> IO ServerState
+emptyServerState lenv = do
+  ServerState lenv <$> newPassState <*> atomically (newTVar mempty)
 
-runServerM :: TVar ServerState -> LanguageContextEnv Config -> ServerM a -> IO a
-runServerM sst lspE m = runLspT lspE (runReaderT m sst)
+runServerM :: ServerState ->  ServerM a -> IO a
+runServerM sst m = runLspT (lspEnv sst) (runReaderT m sst)
 
 -- liftPassM :: PassM a -> ServerM a
 -- liftPassM m = do

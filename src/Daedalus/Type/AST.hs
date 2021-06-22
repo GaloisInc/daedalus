@@ -751,7 +751,13 @@ instance HasRange a => HasRange (Arg a) where
       ClassArg e -> range e
       GrammarArg e -> range e
 
-
+instance HasRange Param where
+  range arg =
+    case arg of
+      ValParam e -> range e
+      ClassParam e -> range e
+      GrammarParam e -> range e
+      
 --------------------------------------------------------------------------------
 
 

@@ -1,12 +1,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | Implements core diagnostics (parse errors, type errors, etc.)
 
 
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
-module Daedalus.LSP.Diagnostics where
+module Daedalus.LSP.Diagnostics (requestParse, sourceRangeToRange) where
 
 import           Control.Applicative          (Alternative)
 import           Control.Concurrent           (forkIO, threadDelay)
@@ -45,7 +46,7 @@ import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..))
 import           Daedalus.AST                 (Module (..))
 import           Daedalus.Module              (pathToModuleName)
 import           Daedalus.Parser              (ParseError (..), parseFromText)
-import           Daedalus.Scope               (Scope, ScopeError (..),
+import           Daedalus.Scope               (Scope(..), ScopeError (..),
                                                resolveModule)
 import           Daedalus.Type.AST            (Located (..), ModuleName,
                                                TCModule (..), TCTyDecl, TCDecl(..),
@@ -54,6 +55,7 @@ import           Daedalus.Type.Monad          (RuleEnv, TypeError (..), runMType
 
 import           Daedalus.LSP.Monad
 import Daedalus.Type (inferRules)
+import System.Log.Logger
 
 
 -- This module handles parsing and type checking of modules.  Note
@@ -75,7 +77,7 @@ type Snapshot = Map ModuleName (Located ModuleInfo)
 
 data SnapshotDelta =
   SnapshotDelta { scopeChanged :: Bool, typeInfoChanged :: Bool }
-  deriving Eq
+  deriving (Eq, Show)
 
 instance Monoid SnapshotDelta where
   mempty = SnapshotDelta False False
@@ -129,6 +131,7 @@ data WorkerAction =
   | SendDiagnosticAct [Diagnostic]
   | ScopeAct
   | SnapshotChangedAct SnapshotDelta
+  deriving Show
 
 data WorkerEnv =
   WorkerEnv { weServerState :: ServerState
@@ -188,7 +191,41 @@ data WorkerState =
               , _wsTimerThread   :: Maybe (Async ())
               }
 
+debugW :: (MonadIO m) => Doc -> WorkerT m ()
+debugW msg = do
+  mn <- asks weModuleName
+  liftIO $ debugM ("worker." ++ showPP mn) (show msg)
+      
 makeLenses ''WorkerState
+
+debugState :: MonadIO m => String -> WorkerT m ()
+debugState m = do
+  s <- get
+  ts <- liftIO $ timerStatus s
+  debugW $ text m <> hcat (punctuate "," [
+    dbgPS s wsParsedModule "ParsedModule"
+    , dbgPS s wsCycleCheck "CycleCheck"
+    , dbgPS s wsScopeRes   "ScopeRes"
+    , dbgPS s wsTCRes       "TCRes"
+    , dbgPS s wsSnapshot    "Snapshot"
+    , "Timer (" <> ts <> ")"
+    ])
+  where
+    timerStatus s = do
+      case s ^. wsTimerThread of
+        Nothing -> pure "N"
+        Just a  -> do
+          status <- poll a
+          pure $ case status of
+            Nothing -> "R"
+            Just _  -> "F"
+        
+    dbgPS s l n =
+      let msg = case s ^. l of
+            NotStarted -> "N"
+            ErrorStatus _e -> "E"
+            FinishedStatus _r -> "D"
+      in n <> " (" <> msg <> ")"
 
 emptyWorkerState :: ModuleSource -> WorkerState
 emptyWorkerState ms =
@@ -319,7 +356,7 @@ sendDiagnostics diags = do
     FileModule {} -> pure ()
     ClientModule uri ver -> do
       let maxNDiags = 100
-      lift $ publishDiagnostics maxNDiags uri (Just ver) (partitionBySource diags)
+      lift $ publishDiagnostics maxNDiags uri ver (partitionBySource diags)
 
 runIfNeeded :: Lens' WorkerState (PassStatus e a) ->
                (e -> [Diagnostic]) ->
@@ -335,7 +372,9 @@ runIfNeeded l mkD doIt = do
         Left err -> do
           l .= ErrorStatus err
           throwError (mkD err)
-        Right r -> pure r
+        Right r -> do
+          l .= FinishedStatus r
+          pure r
 
 writeIfChanged :: Eq v => TVar v -> v -> STM ()
 writeIfChanged var v = do
@@ -365,7 +404,7 @@ doNextThing = do
     doSnapshot m = Right <$> wAtomically (snapshotDeps m)
 
     doScopeCheck m snap = do
-      let scope = snapshotToScope snap
+      let scope = repairScope m (snapshotToScope snap)
       e_r <- wPassM (resolveModule scope m)
       mn <- asks weModuleName
       let projOurScope (m', gs) = case Map.lookup mn gs of
@@ -380,9 +419,16 @@ doNextThing = do
       let mk tcm = (tcm, tdecls)
       pure (mk <$> e_r)
 
+    -- The scope pass expects all modules to be mapped, so we add in an
+    -- empty scope for all the missing imports.  Basically a hack ...
+    repairScope m scope =
+      let impMap = Map.fromList [ (mn, Scope mempty) | mn <- map thingValue (moduleImports m) ]
+      in scope `Map.union` impMap
+
+
 -- Exports the results to other threads (based upon our state).  This
 -- way means we don't have to worry to much about setting the state in
--- doNextThing.  Nothing else should update these tvars.
+-- doNextThing.  
 publishInfo :: WorkerT STM ()
 publishInfo = do
   -- Imports
@@ -425,7 +471,12 @@ publishInfo = do
                            ]
 
 worker :: WorkerT (LspM Config) ()
-worker = forever $ wAtomically getNextWorkerAction >>= act
+worker = forever $ do
+  a <- wAtomically getNextWorkerAction
+  debugW $ "Got an action " <> text (show a)
+  debugState "pre:  "
+  act a
+  debugState "post: "
   where
     act next =
       case next of
@@ -463,6 +514,47 @@ worker = forever $ wAtomically getNextWorkerAction >>= act
           doNextThing
 
 -- ---------------------------------------------------------------------
+-- The worker thread and helpers
+
+parserThread :: ServerState -> ModuleName -> ModuleState -> ModuleSource -> IO ()
+parserThread sst mn mst ms = do
+  debugM "worker" ("Starting worker for module " ++ showPP mn)
+  void $ runLspT (lspEnv sst) $ runWorkerT worker (WorkerEnv sst mn mst) (emptyWorkerState ms)
+
+checkStartParserThread :: ServerState -> FilePath -> ModuleName
+                       -> STM (Maybe (IO ()))
+checkStartParserThread sst path mn = do
+  mods <- readTVar (knownModules sst)
+  case Map.lookup mn mods of
+    Just {} -> pure Nothing -- nothing to do, we could wake?
+    Nothing -> do
+      mst <- newModuleState
+      writeTVar (knownModules sst) (Map.insert mn mst mods)
+      writeTChan (moduleChan mst) WakeUpReq
+      pure (Just (void $ forkIO (parserThread sst mn mst (FileModule path))))
+
+-- | Wake/start a parser.  Should be callable in the main thread
+-- (shouldn't block etc.)
+requestParse :: ServerState -> ModuleName -> ModuleSource -> Int -> 
+                IO ()
+requestParse sst mn ms delay = do  
+  join $ atomically $ do
+    mods <- readTVar (knownModules sst)
+    case Map.lookup mn mods of
+      Just mst -> do
+        writeTChan (moduleChan mst) req
+        pure (pure ())
+      Nothing -> do -- FIXME: duped from above
+        mst <- newModuleState
+        writeTVar (knownModules sst) (Map.insert mn mst mods)        
+        writeTChan (moduleChan mst) req
+        pure (start mst)
+  where
+    start mst = void $ forkIO (parserThread sst mn mst ms)
+      
+    req = ParseReq ms delay
+
+-- ---------------------------------------------------------------------
 -- Parsing Operations
 --
 -- Each module is owned by a thread, which is responsible for parsing
@@ -474,21 +566,6 @@ worker = forever $ wAtomically getNextWorkerAction >>= act
 -- including their imports (to check for cycles).  We may have to
 -- start the parser thread for that module if, for example, it is not
 -- in the client (i.e., it is a file)
-
-parserThread :: ServerState -> ModuleName -> ModuleState -> ModuleSource -> IO ()
-parserThread sst mn mst ms =
-  void $ runLspT (lspEnv sst) $ runWorkerT worker (WorkerEnv sst mn mst) (emptyWorkerState ms)
-
-checkStartParserThread :: ServerState -> FilePath -> ModuleName
-                       -> STM (Maybe (IO ()))
-checkStartParserThread sst path mn = do
-  mods <- readTVar (knownModules sst)
-  case Map.lookup mn mods of
-    Just {} -> pure Nothing -- nothing to do.
-    Nothing -> do
-      mst <- newModuleState
-      writeTChan (moduleChan mst) WakeUpReq
-      pure (Just (void $ forkIO (parserThread sst mn mst (FileModule path))))
 
 -- Parse the module and ensure that any deps. are at least in the process of being loaded.
 parseModule :: WorkerT (LspM Config) (Either ParseError Module)
@@ -504,10 +581,11 @@ parseModule = do
         -- might update the doc before we start, so we check here and
         -- do nothing if we are out of date.
 
-        Just vf | virtualFileVersion vf == version ->
+        Just vf | version == Just (virtualFileVersion vf) -> 
                   case J.uriToFilePath (J.fromNormalizedUri uri) of
                     Just fp -> pure (fp, virtualFileText vf)
                     Nothing -> panic "Couldn't get filename" []
+        -- FIXME: this seems dangerous                    
         _ -> panic "Version mismatch" []
     FileModule dir -> do
       let filename = dir </> Text.unpack mn <.> "ddl"

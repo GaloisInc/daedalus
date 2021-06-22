@@ -1367,7 +1367,7 @@ inferStructGrammar r = go [] []
              a      <- grammarResult e t
              let x' = TCName { tcName = x, tcType = a, tcNameCtx = AValue }
              (ke,kt) <- extEnv x a (kont x')
-             pure (exprAt e (TCDo (Just x') e1 ke), kt)
+             pure (exprAt (x <-> ke) (TCDo (Just x') e1 ke), kt)
     in
     case fs of
       [Anon e] | null mbRes && null done ->
