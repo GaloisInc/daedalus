@@ -665,16 +665,17 @@ statsLLA aut llas =
          putStrLn "**********************"
          putStrLn $ getReport t initReport
          putStrLn $ "Total nb DFAs: " ++ show (length t) ++ "\n"
-         if isFullyDeterminizedLLA lla
-           then
-           putStrLn "SUCCESS: Fully determinized format"
-           else
-           putStrLn "\nWarning: LL(*) failures:\n"
          if flag_ONLY_STRICT_LLA
            then
            printLLA aut lla (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
            else
            return ()
+         if isFullyDeterminizedLLA lla
+           then
+           putStrLn "SUCCESS: Fully determinized format"
+           else
+           do putStrLn "\nWarning: LL(*) failures:\n"
+              printAmbiguities aut lla
 
     Right (lla1, lla) ->
       let t = map snd (Map.toAscList (transitionLLA lla))

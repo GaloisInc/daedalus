@@ -9,6 +9,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , initSlkCfg
   , isInitSlkCfg
   , showSlkCfg
+  , showSlkCfgWithAut
   , showSlkControlData
   , showGraphvizSlkCfg
   , _showDebugSlkControlData
@@ -17,6 +18,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , isStreamSetDynamic
   , simulateDynamicStreamSet
   , simulateActionSlkCfg
+  , isManyExactConstant
   , isManyExactDependent
   , InputHeadCondition(..)
   , showGraphvizInputHeadCondition
@@ -232,8 +234,8 @@ showSlkControlData aut ctrl =
     SWildcard -> [ "*" ]
     SCons (SlkCallFrame _name q _ _) rest ->
       showSlkControlData aut rest ++ [ Aut.stateToString q aut ]
-    SCons _ rest ->
-      showSlkControlData aut rest
+    SCons (SlkManyFrame _ _) rest ->
+      showSlkControlData aut rest ++ [ "Many" ]
     SEmpty ->  []
 
 
@@ -481,6 +483,23 @@ showSlkCfg
   "inp:" ++ showSlkInput inp ++
   " }"
 
+showSlkCfgWithAut :: Aut.Aut a => a -> SlkCfg -> String
+showSlkCfgWithAut aut
+  (SlkCfg
+  { cfgState = q
+  , cfgCtrl = ctrl
+  , cfgSem = sem
+  , cfgInput = inp
+  }) =
+  "SlkCfg{ " ++
+  "q:" ++ show q ++ ", " ++
+  "ctrl:" ++ concat (showSlkControlData aut ctrl) ++ ", " ++
+  "sem:" ++ showSlkStack sem ++ ", " ++
+  "inp:" ++ showSlkInput inp ++
+  " }"
+
+
+
 showGraphvizSlkCfg :: Bool -> SlkCfg -> String
 showGraphvizSlkCfg
   demoMode
@@ -697,6 +716,18 @@ getCountWithLowerBound :: Slk Int -> CounterLowerBound
 getCountWithLowerBound (SConcrete cnt) = Pre cnt
 getCountWithLowerBound Wildcard = Post
 
+
+isManyExactConstant :: SlkCfg -> Bool
+isManyExactConstant cfg =
+  let
+    ctrl = cfgCtrl cfg
+  in
+  case destrSlkStack ctrl of
+    SCons (SlkManyFrame (SlkCExactly sv) _) _ ->
+      case sv of
+        SConcrete _ -> True
+        _ -> False
+    _ -> False
 
 isManyExactDependent :: SlkCfg -> Bool
 isManyExactDependent cfg =
