@@ -207,7 +207,7 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
           Aut.UniChoice (act, q2) ->
             closureStep (initChoicePos CUni) (act, q2)
           Aut.SeqChoice
-            [ (act1@(CAct (BoundIsMore)), i)
+            [ (act1@(CAct (BoundCheckMore)), i)
             , (act2@(CAct (BoundCheckSuccess)), j)
             ] _ ->
             if Slk.isManyExactDependent cfg

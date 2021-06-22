@@ -654,7 +654,7 @@ genGExpr gbl e =
               Backtrack -> -- Not sure this case is possible or tested at the moment
                 [ (n1, UniChoice (CAct (BoundSetup bounds), n2)),
                   (n2, UniChoice (SAct (ManyFreshList s), n3)),
-                  (n3, ParChoice [(CAct (BoundIsMore), i1),
+                  (n3, ParChoice [(CAct (BoundCheckMore), i1),
                                   (CAct (BoundCheckSuccess), n7)]),
                   (f1, UniChoice (SAct (ManyAppend s), n4)),
                   (n4, UniChoice (CAct (BoundIncr), n3)),
@@ -663,7 +663,7 @@ genGExpr gbl e =
               Commit ->
                 [ (n1, UniChoice (CAct (BoundSetup bounds), n2)),
                   (n2, UniChoice (SAct (ManyFreshList s), n3)),
-                  (n3, SeqChoice [(CAct (BoundIsMore), i1),
+                  (n3, SeqChoice [(CAct (BoundCheckMore), i1),
                                   (CAct (BoundCheckSuccess), n6)] tag),
                   (f1, UniChoice (SAct (ManyAppend s), n4)),
                   (n4, UniChoice (CAct (BoundIncr), n5)),

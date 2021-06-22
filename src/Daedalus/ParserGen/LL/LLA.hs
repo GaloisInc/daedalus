@@ -489,14 +489,6 @@ buildPipelineLLA aut =
             then Set.singleton q1
             else Set.empty
 
-    -- this is an alternative function to collect only branching states
-    _collectStatesOnFanout2 q1 ch =
-      case ch of
-        UniChoice _ -> Set.empty
-        ParChoice _lst -> Set.singleton q1
-        SeqChoice _lst _ -> Set.singleton q1
-
-
     go ::
       [DFAState] -> [DFAState] -> LLA ->
       HTable -> (LLA, HTable)

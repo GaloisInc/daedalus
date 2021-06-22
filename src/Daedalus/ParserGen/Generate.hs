@@ -385,8 +385,8 @@ generateControlActionData (BoundSetup bound) = do
 generateControlActionData BoundCheckSuccess = do
   tagExpr <- makeEnumConstantExpr "ACT_BoundCheckSuccess"
   makeStructInitializer [("tag", tagExpr)]
-generateControlActionData BoundIsMore = do
-  tagExpr <- makeEnumConstantExpr "ACT_BoundIsMore"
+generateControlActionData BoundCheckMore = do
+  tagExpr <- makeEnumConstantExpr "ACT_BoundCheckMore"
   makeStructInitializer [("tag", tagExpr)]
 generateControlActionData BoundIncr = do
   tagExpr <- makeEnumConstantExpr "ACT_BoundIncr"
