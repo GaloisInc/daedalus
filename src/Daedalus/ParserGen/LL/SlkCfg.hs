@@ -781,7 +781,7 @@ symbExecCtrlNonPop _aut ctrl out act
                 (Wildcard, Wildcard) -> rJust (rest, out)
         SWildcard -> rJust (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
-    BoundIsMore ->
+    BoundCheckMore ->
       case destrSlkStack ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame (SlkCExactly si) cnt) _ ->
