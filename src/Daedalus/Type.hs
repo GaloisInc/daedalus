@@ -212,7 +212,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
 data BindStmt = BindStmt (TCName Value) (TC SourceRange Grammar)
 
 addBind :: BindStmt -> TC SourceRange Grammar -> TC SourceRange Grammar
-addBind (BindStmt n e1) e2 = exprAt (e1 <-> e2) (TCDo (Just n) e1 e2)
+addBind (BindStmt n e1) e2 = exprAt (n <-> e2) (TCDo (Just n) e1 e2)
 
 addBinds :: [BindStmt] -> TC SourceRange Grammar -> TC SourceRange Grammar
 addBinds xs e = foldr addBind e xs
@@ -1394,7 +1394,7 @@ inferStructGrammar r = go [] []
           Anon e ->
             do (e1,_t) <- inferExpr e
                (ke,kt) <- go mbRes done more
-               pure (exprAt e (TCDo Nothing e1 ke), kt)
+               pure (exprAt (e <-> ke) (TCDo Nothing e1 ke), kt)
 
           x@IPName { ipContext } :?= e ->
             case ipContext of
@@ -1426,7 +1426,7 @@ inferStructGrammar r = go [] []
                                  let e2 = exprAt x (TCVar v)
                                  do (k,y) <- withIP x (ValArg e2)
                                              (go mbRes done more)
-                                    let s = exprAt x (TCDo (Just v) (exprAt x (TCPure e1)) k)
+                                    let s = exprAt (x <-> k) (TCDo (Just v) (exprAt x (TCPure e1)) k)
                                     pure (s,y)
 
 
