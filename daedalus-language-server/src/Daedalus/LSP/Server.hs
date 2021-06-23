@@ -14,36 +14,39 @@ module Daedalus.LSP.Server where
 
 import qualified Data.ByteString.Lazy.Char8   as BSL
 
-import           Control.Lens                 hiding (Iso, Fold)
-import           Data.Aeson                   (encode, fromJSON)
-import           Data.Aeson.Types             (Result (..))
-import qualified Data.Text                    as Text
-
 import           Control.Concurrent           (forkIO)
+import           Control.Concurrent.STM       (readTVar)
 import           Control.Concurrent.STM.TChan
 import qualified Control.Exception            as E
+import           Control.Lens                 hiding (Fold, Iso)
 import           Control.Monad.Reader
 import           Control.Monad.STM
+import           Data.Foldable
+import qualified Data.HashMap.Strict          as HMap
+import qualified Data.Map                     as Map
+import           Data.Maybe                   (fromMaybe, maybeToList)
+import           Data.Monoid
+import qualified Data.Text                    as Text
+
+import           Data.Aeson                   (encode, fromJSON)
+import           Data.Aeson.Types             (Result (..))
 
 import           Language.LSP.Server
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
 import           System.Log.Logger
 
-import Data.Parameterized.Some
+import           Data.Parameterized.Some
 
-import           Daedalus.LSP.Diagnostics (requestParse, sourceRangeToRange)
+import           Daedalus.PP
+import           Daedalus.Rec
+import           Daedalus.SourceRange
+
+import           Daedalus.Type.AST
+import           Daedalus.Type.Traverse       (foldMapTC)
+
+import           Daedalus.LSP.Diagnostics     (requestParse, sourceRangeToRange)
 import           Daedalus.LSP.Monad
-import Daedalus.PP
-import qualified Data.Map as Map
-import Control.Concurrent.STM (readTVar)
-import Daedalus.SourceRange
-import Daedalus.Type.AST
-import Daedalus.Rec
-import Daedalus.Type.Traverse (foldMapTC)
-import Data.Maybe (fromMaybe)
-import Data.Monoid
-import Data.Foldable
 
 newtype ReactorInput
   = ReactorAction (IO ())
@@ -165,18 +168,24 @@ handle = mconcat
   --     liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
   --     sendDiagnostics (J.toNormalizedUri doc) Nothing
 
-  -- , requestHandler J.STextDocumentRename $ \req responder -> do
-  --     liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
-  --     let params = req ^. J.params
-  --         J.Position l c = params ^. J.position
-  --         newName = params ^. J.newName
-  --     vdoc <- getVersionedTextDoc (params ^. J.textDocument)
-  --     -- Replace some text at the position with what the user entered
-  --     let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
-  --         tde = J.TextDocumentEdit vdoc (J.List [edit])
-  --         -- "documentChanges" field is preferred over "changes"
-  --         rsp = J.WorkspaceEdit Nothing (Just (J.List [J.InL tde])) Nothing
-  --     responder (Right rsp)
+  , requestHandler J.STextDocumentRename $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
+      let params = req ^. J.params
+          uri  = params ^. J.textDocument
+                         . J.uri
+                         . to J.toNormalizedUri
+          pos = params ^. J.position
+          newName = params ^. J.newName
+
+      -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
+      rename responder uri pos newName -- vdoc
+      
+      -- -- Replace some text at the position with what the user entered
+      -- let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
+      --     tde = J.TextDocumentEdit vdoc (J.List [edit])
+      --     -- "documentChanges" field is preferred over "changes"
+      --     rsp = J.WorkspaceEdit Nothing (Just (J.List [J.InL tde])) Nothing
+      -- responder (Right rsp)
 
   , requestHandler J.STextDocumentHover $ \req responder -> do
       let uri  = req ^. J.params
@@ -187,6 +196,15 @@ handle = mconcat
           
       liftIO $ debugM "reactor.handle" ("Processing a textDocument/hover request " ++ show uri ++ " at " ++ show pos)
       hover responder uri pos
+      
+  , requestHandler J.STextDocumentDocumentHighlight $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a textDocument/documentHighlight request"
+      let uri  = req ^. J.params
+                      . J.textDocument
+                      . J.uri
+                      . to J.toNormalizedUri
+          pos = req ^. J.params . J.position
+      highlight responder uri pos
 
   -- , requestHandler J.STextDocumentDocumentSymbol $ \req responder -> do
   --     liftIO $ debugM "reactor.handle" "Processing a textDocument/documentSymbol request"
@@ -231,6 +249,82 @@ handle = mconcat
   --         liftIO $ threadDelay (1 * 1000000)
   ]
 
+-- -----------------------------------------------------------------------------
+-- Renaming (locals only right now)
+
+-- FIXME: we could do this on just the scoped module, we don't need TC (also for highlight)
+
+-- | Renames a symbol, currently only in a single module.  It will
+-- return Nothing if the symbol is defined in another module.  This
+-- doesn't guarantee that the edits will result in a well formed module.
+rename :: (Either J.ResponseError J.WorkspaceEdit -> ServerM ()) -> J.NormalizedUri ->
+          J.Position -> Text.Text -> ServerM ()
+rename resp uri pos newName = do
+  sst <- ask
+  let Just mn = uriToModuleName uri -- FIXME
+  e_tc <- liftIO $ atomically $ do
+    mods <- readTVar (knownModules sst)
+    case Map.lookup mn mods of
+      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just mi -> Right <$> readTVar (moduleTC mi)
+  
+  resp $ fmap (fromMaybe mempty . (doRename pos uri newName =<<)) e_tc
+
+doRename :: J.Position -> J.NormalizedUri -> Text.Text -> TCModule SourceRange -> Maybe J.WorkspaceEdit
+doRename pos uri newName m = do
+  d <- declAtPos pos m
+  let allnis = declToNames d
+  ni <- find (positionInRange pos) allnis
+  let allnis' =
+        if isLocalName (niName ni)
+        then allnis
+        -- This is pretty gross
+        else concatMap declToNames (forgetRecs (tcModuleDecls m))
+      nis = filter ((==) (niName ni) . niName) allnis'
+  -- if we don't have a definition in this file, we do nothing
+  guard (any ((==) NameDef . niNameRefClass) allnis')
+  -- Otherwise replace everything.
+  --
+  -- FIXME: We use 'changes' instead of 'documentChanges' until we
+  -- export the version etc. from the worker.
+  let edits = J.List [ J.TextEdit (sourceRangeToRange (range ni')) newName | ni' <- nis ]
+      emap = HMap.singleton (J.fromNormalizedUri uri) edits
+  pure (set J.changes (Just emap) mempty)
+
+-- -----------------------------------------------------------------------------
+-- Highlighting
+--
+-- This returns a list of places that a symbol is referenced.
+
+highlight :: (Either J.ResponseError (J.List J.DocumentHighlight) -> ServerM ()) -> J.NormalizedUri -> J.Position ->
+             ServerM ()
+highlight resp uri pos = do
+  sst <- ask
+  let Just mn = uriToModuleName uri -- FIXME
+  e_tc <- liftIO $ atomically $ do
+    mods <- readTVar (knownModules sst)
+    case Map.lookup mn mods of
+      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just mi -> Right <$> readTVar (moduleTC mi)
+  
+  resp $ fmap (maybe mempty (doHighlight pos)) e_tc
+
+doHighlight :: J.Position -> TCModule SourceRange -> J.List J.DocumentHighlight
+doHighlight pos m = fromMaybe mempty $ do
+  d <- declAtPos pos m
+  let allnis = declToNames d
+  ni <- find (positionInRange pos) allnis
+  let allnis' =
+        if isLocalName (niName ni)
+        then allnis
+        -- This is pretty gross
+        else concatMap declToNames (forgetRecs (tcModuleDecls m))
+      nis = filter ((==) (niName ni) . niName) allnis'
+  pure $ J.List (map niToHighlight nis)
+  where
+    niToHighlight ni = J.DocumentHighlight (sourceRangeToRange (range ni))
+                       (Just $ case niNameRefClass ni of { NameDef -> J.HkWrite ; NameUse -> J.HkRead })
+
 -- FIXME: what about version ?
 -- FIXME: check uri against module's URI
 hover :: (Either J.ResponseError (Maybe J.Hover) -> ServerM ()) -> J.NormalizedUri -> J.Position -> ServerM ()
@@ -267,6 +361,65 @@ doHover pos m = do
   (ty, r) <- getAlt $ typeAtModule pos m
   let ms = J.HoverContents $ J.markedUpContent "lsp-daedalus" (Text.pack (showPP ty))
   pure $ J.Hover ms (Just (sourceRangeToRange r))
+
+-- ---------------------------------------------------------------------------------------
+-- Mapping positions to things
+
+data NameRefClass = NameDef | NameUse
+  deriving Eq
+
+data NameInfo =
+  NameInfo { niNameRefClass :: NameRefClass
+           , niName     :: Name
+           , niType     :: Type -- result type for function calls
+           }
+
+instance HasRange NameInfo where
+  range = range . niName
+
+-- We can't use the free vars stuff here as we want each occurrence of
+-- a name, while that will just tell which vars are used (the free
+-- functions ignore source ranges).
+declToNames :: TCDecl SourceRange -> [NameInfo]
+declToNames d@TCDecl { tcDeclName = n, tcDeclParams = ps, tcDeclDef = def } =
+  fdef n (typeOf d) : map paramName ps ++
+  case def of
+    ExternDecl _ -> []
+    Defined tc   -> go tc
+  where
+    paramName p = case p of
+      ValParam v     -> vdef v
+      ClassParam v   -> vdef v
+      GrammarParam v -> vdef v
+
+    vdef :: forall k. TCName k -> NameInfo
+    vdef v = NameInfo NameDef (tcName v) (typeOf v)
+
+    vuse :: forall k. TCName k -> NameInfo
+    vuse v = NameInfo NameUse (tcName v) (typeOf v)
+
+    fdef :: Name -> Type -> NameInfo
+    fdef = NameInfo NameDef
+
+    fuse :: forall k. TCName k -> NameInfo
+    fuse v = NameInfo NameUse (tcName v) (typeOf v)
+
+    go :: forall k. TC SourceRange k -> [NameInfo]
+    go tc = case texprValue tc of
+      TCVar v           -> [vuse v]
+      TCDo (Just v) _ _ -> vdef v : goBody tc
+      TCFor l ->
+        case loopFlav l of
+          Fold v _ -> [vdef v]
+          _ -> []
+        ++ (vdef <$> maybeToList (loopKName l))
+        ++ [ vdef (loopElName l) ]
+        ++ goBody tc
+      TCCall v _ _      -> fuse v : goBody tc
+      TCCase _ alts _ -> (vdef <$> foldMap altBinds alts) ++ goBody tc
+      _ -> goBody tc
+
+    goBody = foldMapTC go
 
 typeAtModule :: J.Position -> TCModule SourceRange -> Alt Maybe (Type, SourceRange)
 typeAtModule pos m = foldMap (typeAtDecl pos) (forgetRecs (tcModuleDecls m))

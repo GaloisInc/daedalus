@@ -24,6 +24,7 @@ library
                        daedalus,
                        daedalus-utils,
                        parameterized-utils,
+                       unordered-containers,
                        lens,
                        containers,
                        lsp,
