@@ -3,7 +3,7 @@
 
 module Daedalus.Scope (
   -- resolveModules,
-  resolveModule, Scope(..), ScopeError(..), prettyScopeError
+  resolveModule, Scope(..), ScopeError(..), prettyScopeError, GlobalScope
   ) where
 
 import Data.Functor ( ($>) )
@@ -38,9 +38,10 @@ import Daedalus.Pass
 data Scope =
   Scope { identScope :: Map Ident (IdentClass, Name)
          -- ^ Both function names and types (mainly bitdata)
-        }
+        } deriving (Eq)
 
 data IdentClass = IdentFun | IdentTy
+  deriving (Eq)
 
 data ScopeState = ScopeState { seenToplevelNames :: Set Name }
 

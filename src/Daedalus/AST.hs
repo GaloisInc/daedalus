@@ -10,6 +10,7 @@ import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.Text(Text)
 import qualified Data.Kind as HS
+import Data.Function (on)
 
 import Data.Type.Equality
 import Data.Parameterized.Classes (OrdF(..)) 
@@ -21,6 +22,7 @@ import Daedalus.SourceRange
 import Daedalus.Rec
 import Daedalus.GUID
 import Daedalus.Panic
+
 
 data Name = forall ctx.
   Name { nameScopedIdent :: ScopedIdent
@@ -337,6 +339,9 @@ pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
                          } deriving (Show, Functor, Foldable, Traversable)
+
+instance Eq a => Eq (Located a) where
+  (==) = (==) `on` thingValue
 
 
 data TypeF t =

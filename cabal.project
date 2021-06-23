@@ -9,6 +9,7 @@ packages:
   pdf-driver/
   icc-driver/
   talos/
+  daedalus-language-server/
 
 constraints:
   utf8-string < 1.0.2
