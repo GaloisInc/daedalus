@@ -82,12 +82,28 @@ data ModuleInfo =
 emptyModuleInfo :: ModuleInfo
 emptyModuleInfo = ModuleInfo Nothing Nothing
 
+data ModuleResults =
+  ModuleResults { mrSource      :: ModuleSource
+                , mrImportScope :: Maybe (Map ModuleName Scope)
+                -- ^ Scope of imported modules, including this one.
+                , mrTC          :: Maybe (TCModule SourceRange)
+                }
+
+emptyModuleResults :: ModuleSource -> ModuleResults
+emptyModuleResults ms =
+  ModuleResults { mrSource = ms
+                , mrImportScope = Nothing
+                , mrTC          = Nothing
+                }
+
 data ModuleState =
   ModuleState { moduleChan :: TChan ParseRequest
               , moduleImportInfo :: TVar (Maybe [ModuleName])
               -- These maps can be partial if there are errors, so we can use some of the information
-              , moduleResults    :: TVar ModuleInfo
-              , moduleTC         :: TVar (Maybe (TCModule SourceRange))
+              , moduleInfo    :: TVar ModuleInfo
+              -- ^ Used between workers
+              , moduleResults         :: TVar ModuleResults
+              -- ^ Exported for use by front-end commands (hover, rename, etc)
 
              -- moduleSource  :: ModuleSource
              -- , modulePending :: Maybe (Async ())
@@ -96,9 +112,9 @@ data ModuleState =
              -- moduleTC      :: Maybe (TCModule SourceRange)
              }
 
-newModuleState :: STM ModuleState
-newModuleState =
-  ModuleState <$> newTChan <*> newTVar Nothing <*> newTVar emptyModuleInfo <*> newTVar Nothing
+newModuleState :: ModuleSource -> STM ModuleState
+newModuleState ms =
+  ModuleState <$> newTChan <*> newTVar Nothing <*> newTVar emptyModuleInfo <*> newTVar (emptyModuleResults ms)
 
 data ServerState =
   ServerState { lspEnv       :: LanguageContextEnv Config

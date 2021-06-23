@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -47,6 +48,7 @@ import           Daedalus.Type.Traverse       (foldMapTC)
 
 import           Daedalus.LSP.Diagnostics     (requestParse, sourceRangeToRange)
 import           Daedalus.LSP.Monad
+import Daedalus.Scope (Scope(identScope))
 
 newtype ReactorInput
   = ReactorAction (IO ())
@@ -168,6 +170,15 @@ handle = mconcat
   --     liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
   --     sendDiagnostics (J.toNormalizedUri doc) Nothing
 
+  , requestHandler J.STextDocumentDefinition $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
+      let params = req ^. J.params
+          uri  = params ^. J.textDocument
+                         . J.uri
+                         . to J.toNormalizedUri
+          pos = params ^. J.position
+      definition responder uri pos
+  
   , requestHandler J.STextDocumentRename $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
       let params = req ^. J.params
@@ -250,6 +261,50 @@ handle = mconcat
   ]
 
 -- -----------------------------------------------------------------------------
+-- Helpers
+
+uriToModuleResults :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleResults)
+uriToModuleResults uri = do
+  sst <- ask
+  let Just mn = uriToModuleName uri -- FIXME
+  liftIO $ atomically $ do
+    mods <- readTVar (knownModules sst)
+    case Map.lookup mn mods of
+      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just mi -> Right <$> readTVar (moduleResults mi)
+
+-- -----------------------------------------------------------------------------
+-- Definition links
+
+
+definition :: (Either J.ResponseError (J.Location J.|? (J.List J.Location J.|? J.List J.LocationLink)) -> ServerM ()) ->
+              J.NormalizedUri -> J.Position -> ServerM ()
+definition resp uri pos = do
+  e_mr <- uriToModuleResults uri
+  resp $ fmap (J.InR . J.InL . doDefinition uri pos) e_mr
+
+-- This currently returns a location, but we could return a
+-- locationlink --- we need the range of the target defn.
+doDefinition :: J.NormalizedUri -> J.Position -> ModuleResults -> J.List J.Location
+doDefinition _uri pos mr = J.List . maybeToList $ do
+  m     <- mrTC mr
+  gscope <- mrImportScope mr
+  
+  d <- declAtPos pos m
+  let allnis = declToNames d
+  ni <- find (positionInRange pos) allnis
+  let isNameDef ni' = niName ni' == niName ni && niNameRefClass ni' == NameDef
+  targetRange <-
+    case nameScopedIdent (niName ni) of
+      Unknown _ -> Nothing -- shouldn't happen
+      Local _ -> range <$> find isNameDef allnis
+      ModScope mn i -> do
+        scope <- Map.lookup mn gscope
+        range . snd <$> Map.lookup i (identScope scope)
+
+  pure (sourceRangeToLocation targetRange)
+  
+-- -----------------------------------------------------------------------------
 -- Renaming (locals only right now)
 
 -- FIXME: we could do this on just the scoped module, we don't need TC (also for highlight)
@@ -257,17 +312,11 @@ handle = mconcat
 -- | Renames a symbol, currently only in a single module.  It will
 -- return Nothing if the symbol is defined in another module.  This
 -- doesn't guarantee that the edits will result in a well formed module.
+
 rename :: (Either J.ResponseError J.WorkspaceEdit -> ServerM ()) -> J.NormalizedUri ->
           J.Position -> Text.Text -> ServerM ()
 rename resp uri pos newName = do
-  sst <- ask
-  let Just mn = uriToModuleName uri -- FIXME
-  e_tc <- liftIO $ atomically $ do
-    mods <- readTVar (knownModules sst)
-    case Map.lookup mn mods of
-      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
-      Just mi -> Right <$> readTVar (moduleTC mi)
-  
+  e_tc <- fmap mrTC <$> uriToModuleResults uri
   resp $ fmap (fromMaybe mempty . (doRename pos uri newName =<<)) e_tc
 
 doRename :: J.Position -> J.NormalizedUri -> Text.Text -> TCModule SourceRange -> Maybe J.WorkspaceEdit
@@ -299,14 +348,7 @@ doRename pos uri newName m = do
 highlight :: (Either J.ResponseError (J.List J.DocumentHighlight) -> ServerM ()) -> J.NormalizedUri -> J.Position ->
              ServerM ()
 highlight resp uri pos = do
-  sst <- ask
-  let Just mn = uriToModuleName uri -- FIXME
-  e_tc <- liftIO $ atomically $ do
-    mods <- readTVar (knownModules sst)
-    case Map.lookup mn mods of
-      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
-      Just mi -> Right <$> readTVar (moduleTC mi)
-  
+  e_tc <- fmap mrTC <$> uriToModuleResults uri
   resp $ fmap (maybe mempty (doHighlight pos)) e_tc
 
 doHighlight :: J.Position -> TCModule SourceRange -> J.List J.DocumentHighlight
@@ -329,13 +371,7 @@ doHighlight pos m = fromMaybe mempty $ do
 -- FIXME: check uri against module's URI
 hover :: (Either J.ResponseError (Maybe J.Hover) -> ServerM ()) -> J.NormalizedUri -> J.Position -> ServerM ()
 hover resp uri pos = do
-  sst <- ask
-  let Just mn = uriToModuleName uri -- FIXME
-  e_tc <- liftIO $ atomically $ do
-    mods <- readTVar (knownModules sst)
-    case Map.lookup mn mods of
-      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
-      Just mi -> Right <$> readTVar (moduleTC mi)
+  e_tc <- fmap mrTC <$> uriToModuleResults uri
 
   -- case e_tc of
   --   Right (Just m) -> do
@@ -489,3 +525,8 @@ positionInRange (J.Position line0 col0) (range -> SourceRange start end) =
   where
     line = line0 + 1
     col  = col0  + 1
+
+sourceRangeToLocation :: SourceRange -> J.Location
+sourceRangeToLocation pos =
+  J.Location (J.filePathToUri (Text.unpack $ sourceFile (sourceFrom pos)))
+             (sourceRangeToRange pos)

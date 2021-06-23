@@ -102,7 +102,7 @@ snapshotDeps m = do
   where
     snapshotOne mods lmn =
       case Map.lookup (thingValue lmn) mods of
-        Just mst -> (,) (thingValue lmn) . ($>) lmn <$> lift (readTVar (moduleResults mst))
+        Just mst -> (,) (thingValue lmn) . ($>) lmn <$> lift (readTVar (moduleInfo mst))
         Nothing -> panic "Missing dep" [showPP lmn]
 
 snapshotToScope :: Snapshot -> Map ModuleName Scope
@@ -182,7 +182,7 @@ data WorkerState =
               -- ^ This is a little odd -- we need to record whether
               -- we have started parsing, and if so, what the results
               -- were.
-              , _wsScopeRes      :: PassStatus ScopeError (Module, Scope)
+              , _wsScopeRes      :: PassStatus ScopeError (Module, Map ModuleName Scope)
               -- FIXME: this is also in the module state, maybe remove from here and use the tvar instead?
               , _wsTCRes         :: PassStatus TypeError (TCModule SourceRange, Map TCTyName TCTyDecl)
 
@@ -258,22 +258,6 @@ startTimer ms = do
     atomically $ writeTChan chan WakeUpReq
   wsTimerThread .= Just a
 
--- Resetting
-
-resetModuleInfo :: WorkerT STM ()
-resetModuleInfo = do
-  miv <- asks (moduleResults . weModuleState)
-  lift $ do
-    mi <- readTVar miv
-    when (mi /= emptyModuleInfo) (writeTVar miv emptyModuleInfo)
-
-resetTCResult :: WorkerT STM ()
-resetTCResult = do
-  tcv <- asks (moduleTC . weModuleState)
-  lift $ do
-    mtc <- readTVar tcv
-    when (isJust mtc) (writeTVar tcv Nothing)
-
 finished :: Getting (PassStatus e a) WorkerState (PassStatus e a)
          -> (a -> WorkerT STM b) -> WorkerT STM b
 finished getter f = do
@@ -342,10 +326,6 @@ getNextWorkerAction = do
           wsScopeRes   .= NotStarted
           wsTCRes      .= NotStarted
 
-          -- notify others, if required
-          resetModuleInfo
-          resetTCResult
-
           pure (SendDiagnosticAct (toDiagnostics err))
 
 sendDiagnostics :: [Diagnostic] -> WorkerT (LspM Config) ()
@@ -405,13 +385,7 @@ doNextThing = do
 
     doScopeCheck m snap = do
       let scope = repairScope m (snapshotToScope snap)
-      e_r <- wPassM (resolveModule scope m)
-      mn <- asks weModuleName
-      let projOurScope (m', gs) = case Map.lookup mn gs of
-            Nothing -> panic "Missing scope for us" [showPP mn]
-            Just scope' -> (m', scope')
-
-      pure (projOurScope <$> e_r)
+      wPassM (resolveModule scope m)
 
     doTypeCheck m snap = do
       let (renv, tdecls) = snapshotToTypeInfo snap
@@ -440,25 +414,29 @@ publishInfo = do
   lift $ writeIfChanged iiv newImps
   
   -- ModuleInfo
-  
+  mn       <- asks weModuleName
   scopeRes <- use wsScopeRes
   tcRes    <- use wsTCRes
-  let mi0 = case scopeRes of
-        FinishedStatus (_, scope) -> emptyModuleInfo { miScope = Just scope }
-        _    -> emptyModuleInfo
+  let (mi0, scope) = case scopeRes of
+        FinishedStatus (_, scope) -> (emptyModuleInfo { miScope = Map.lookup mn scope }, Just scope)
+        _    -> (emptyModuleInfo, Nothing)
 
   let (m_tcm, newInfo) = case tcRes of
         FinishedStatus (tcm, decls) ->
           (Just tcm, mi0 { miTypeEnv = Just (mkRules tcm, mkTDecls decls tcm) })
         _ -> (Nothing, mi0)
 
-  miv <- asks (moduleResults . weModuleState)
-  tcv <- asks (moduleTC . weModuleState)
-
+  miv <- asks (moduleInfo . weModuleState)
   lift $ writeIfChanged miv newInfo
-  -- FIXME: always?  maybe we should guard on if it has changed (we would need eq)
-  lift (writeTVar tcv m_tcm)
 
+  -- ModuleResults
+  ms <- use wsCurrentSource
+
+  let mr = ModuleResults { mrSource = ms, mrImportScope = scope, mrTC = m_tcm }
+
+  -- FIXME: always?  maybe we should guard on if it has changed (we would need eq)
+  mrv <- asks (moduleResults . weModuleState)
+  lift (writeTVar mrv mr)
   where
     -- Copied from Driver, more or less.
     mkTDecls importDecls m =
@@ -474,9 +452,7 @@ worker :: WorkerT (LspM Config) ()
 worker = forever $ do
   a <- wAtomically getNextWorkerAction
   debugW $ "Got an action " <> text (show a)
-  debugState "pre:  "
   act a
-  debugState "post: "
   where
     act next =
       case next of
@@ -495,9 +471,12 @@ worker = forever $ do
           wsTCRes         .= NotStarted
           wsSnapshot      .= NotStarted
 
+          -- We don't change the module info until we do something.
           if delta == 0 then doNextThing else startTimer delta
 
-        SendDiagnosticAct diags -> sendDiagnostics diags
+        SendDiagnosticAct diags -> do
+          wAtomically publishInfo
+          sendDiagnostics diags
 
         ScopeAct -> do
           wsScopeRes      .= NotStarted
@@ -528,10 +507,11 @@ checkStartParserThread sst path mn = do
   case Map.lookup mn mods of
     Just {} -> pure Nothing -- nothing to do, we could wake?
     Nothing -> do
-      mst <- newModuleState
+      let ms = FileModule path
+      mst <- newModuleState ms
       writeTVar (knownModules sst) (Map.insert mn mst mods)
       writeTChan (moduleChan mst) WakeUpReq
-      pure (Just (void $ forkIO (parserThread sst mn mst (FileModule path))))
+      pure (Just (void $ forkIO (parserThread sst mn mst ms)))
 
 -- | Wake/start a parser.  Should be callable in the main thread
 -- (shouldn't block etc.)
@@ -545,7 +525,7 @@ requestParse sst mn ms delay = do
         writeTChan (moduleChan mst) req
         pure (pure ())
       Nothing -> do -- FIXME: duped from above
-        mst <- newModuleState
+        mst <- newModuleState ms
         writeTVar (knownModules sst) (Map.insert mn mst mods)        
         writeTChan (moduleChan mst) req
         pure (start mst)
