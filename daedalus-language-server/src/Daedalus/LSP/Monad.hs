@@ -4,30 +4,28 @@
 
 module Daedalus.LSP.Monad where
 
+import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
-import           Control.Lens                hiding (Iso)
 import           Control.Monad.Reader
 import           Control.Monad.STM
-import           Data.Map                    (Map)
-import qualified Data.Map                    as Map
-import           GHC.Generics                (Generic)
+import           Data.Aeson                   (FromJSON, ToJSON)
+import           Data.Map                     (Map)
+import           GHC.Generics                 (Generic)
 
-import           Data.Aeson                  (FromJSON, ToJSON)
-
-import Daedalus.AST ( Module, ModuleName, Located )
-import           Daedalus.GUID
-import           Daedalus.Module             (pathToModuleName)
+import           Daedalus.AST                 (ModuleName)
+import           Daedalus.Module              (pathToModuleName)
+import           Daedalus.PP
+import           Daedalus.Parser.Lexer        (Lexeme, Token)
 import           Daedalus.Pass
-import           Daedalus.Type.AST           (SourceRange, TCModule, TCTyName, TCTyDecl)
+import           Daedalus.Scope               (Scope)
+import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
+                                               TCTyName)
+import           Daedalus.Type.Monad          (RuleEnv)
 
-import           Language.LSP.Server         (LanguageContextEnv, LspM, runLspT)
-import qualified Language.LSP.Types          as J
-import Control.Concurrent.Async (Async)
-import Control.Concurrent.STM.TChan
-import Control.Concurrent (MVar)
-import Daedalus.Scope (Scope)
-import Daedalus.Type.Monad (RuleEnv)
-import Daedalus.PP
+import           Language.LSP.Server          (LanguageContextEnv, LspM,
+                                               runLspT)
+import qualified Language.LSP.Types           as J
+
 
 
 data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
@@ -83,15 +81,17 @@ emptyModuleInfo :: ModuleInfo
 emptyModuleInfo = ModuleInfo Nothing Nothing
 
 data ModuleResults =
-  ModuleResults { mrSource      :: ModuleSource
-                , mrImportScope :: Maybe (Map ModuleName Scope)
+  ModuleResults { mrSource      :: !ModuleSource
+                , mrImportScope :: !(Maybe (Map ModuleName Scope))
+                , mrTokens      :: !(Maybe [Lexeme Token])
                 -- ^ Scope of imported modules, including this one.
-                , mrTC          :: Maybe (TCModule SourceRange)
+                , mrTC          :: !(Maybe (TCModule SourceRange))
                 }
 
 emptyModuleResults :: ModuleSource -> ModuleResults
 emptyModuleResults ms =
-  ModuleResults { mrSource = ms
+  ModuleResults { mrTokens      = Nothing
+                , mrSource = ms
                 , mrImportScope = Nothing
                 , mrTC          = Nothing
                 }

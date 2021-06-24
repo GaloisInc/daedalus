@@ -22,7 +22,7 @@ import           Data.Foldable                (fold)
 import           Data.Functor
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
-import           Data.Maybe                   (catMaybes, isJust)
+import           Data.Maybe                   (catMaybes)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
 import qualified Data.Text.IO                 as Text
@@ -36,6 +36,7 @@ import           Language.LSP.Types           (Diagnostic (..))
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
 import           Language.LSP.VFS
+import           System.Log.Logger
 
 import           Daedalus.PP                  hiding ((<.>))
 import           Daedalus.Panic
@@ -45,17 +46,19 @@ import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..))
 
 import           Daedalus.AST                 (Module (..))
 import           Daedalus.Module              (pathToModuleName)
-import           Daedalus.Parser              (ParseError (..), parseFromText)
-import           Daedalus.Scope               (Scope(..), ScopeError (..),
+import           Daedalus.Parser              (ParseError (..), parseFromTokens)
+import           Daedalus.Scope               (Scope (..), ScopeError (..),
                                                resolveModule)
 import           Daedalus.Type.AST            (Located (..), ModuleName,
-                                               TCModule (..), TCTyDecl, TCDecl(..),
-                                               TCTyName, tctyName, declTypeOf)
-import           Daedalus.Type.Monad          (RuleEnv, TypeError (..), runMTypeM)
+                                               TCDecl (..), TCModule (..),
+                                               TCTyDecl, TCTyName, declTypeOf,
+                                               tctyName)
+import           Daedalus.Type.Monad          (RuleEnv, TypeError (..),
+                                               runMTypeM)
 
 import           Daedalus.LSP.Monad
-import Daedalus.Type (inferRules)
-import System.Log.Logger
+import           Daedalus.Parser.Lexer        (Lexeme, Token, lexer)
+import           Daedalus.Type                (inferRules)
 
 
 -- This module handles parsing and type checking of modules.  Note
@@ -165,6 +168,12 @@ wPassM p = do
 
 data PassStatus e a = NotStarted | ErrorStatus e | FinishedStatus a
 
+passStatusToMaybe :: PassStatus e a -> Maybe a
+passStatusToMaybe (FinishedStatus r) = Just r
+passStatusToMaybe _ = Nothing
+
+
+
 newtype CycleCheckErrors = CycleCheckErrors [Located CycleCheckError]
 
 -- We care about locations, so we can't derive as Ea for Located ignores locations
@@ -174,7 +183,8 @@ instance Eq CycleCheckErrors where
       same (le1, le2) = thingRange le1 == thingRange le2 && thingValue le1 == thingValue le2
 
 data WorkerState =
-  WorkerState { _wsParsedModule  :: PassStatus ParseError Module
+  WorkerState { _wsTokens        :: PassStatus () [Lexeme Token]
+              , _wsParsedModule  :: PassStatus ParseError Module
               -- ^ The parsd module, not scoped.  We don't really need
               -- the error, but it is nice to have.
 
@@ -203,7 +213,8 @@ debugState m = do
   s <- get
   ts <- liftIO $ timerStatus s
   debugW $ text m <> hcat (punctuate "," [
-    dbgPS s wsParsedModule "ParsedModule"
+      dbgPS s wsTokens "Tokens"
+    , dbgPS s wsParsedModule "ParsedModule"
     , dbgPS s wsCycleCheck "CycleCheck"
     , dbgPS s wsScopeRes   "ScopeRes"
     , dbgPS s wsTCRes       "TCRes"
@@ -229,7 +240,8 @@ debugState m = do
 
 emptyWorkerState :: ModuleSource -> WorkerState
 emptyWorkerState ms =
-  WorkerState { _wsParsedModule  = NotStarted
+  WorkerState { _wsTokens        = NotStarted
+              , _wsParsedModule  = NotStarted
               , _wsCycleCheck    = NotStarted
               , _wsScopeRes      = NotStarted
               , _wsTCRes         = NotStarted
@@ -338,6 +350,10 @@ sendDiagnostics diags = do
       let maxNDiags = 100
       lift $ publishDiagnostics maxNDiags uri ver (partitionBySource diags)
 
+-- FIXME: is this right?
+clearDiagnostics :: WorkerT (LspM Config) ()
+clearDiagnostics = sendDiagnostics [] -- lift $ flushDiagnosticsBySource 100 Nothing
+
 runIfNeeded :: Lens' WorkerState (PassStatus e a) ->
                (e -> [Diagnostic]) ->
                WorkerT (LspM Config) (Either e a) ->
@@ -366,11 +382,12 @@ doNextThing = do
   e_r <- runExceptT go
   case e_r of
     Left d  -> sendDiagnostics d
-    Right _ -> sendDiagnostics [] -- clear any errors
+    Right _ -> clearDiagnostics
   wAtomically publishInfo
   where
     go = do
-      m <- runIfNeeded wsParsedModule toDiagnostics parseModule
+      toks <- runIfNeeded wsTokens (const []) tokenize
+      m <- runIfNeeded wsParsedModule toDiagnostics (parseModule toks)
       runIfNeeded wsCycleCheck toDiagnostics (doCycleCheck m)
       snap <- runIfNeeded wsSnapshot (const []) (doSnapshot m)
       (m', _scope) <- runIfNeeded wsScopeRes toDiagnostics (doScopeCheck m snap)
@@ -408,31 +425,30 @@ publishInfo = do
   -- Imports
   iiv <- asks (moduleImportInfo . weModuleState)
   parseRes <- use wsParsedModule
-  let newImps = case parseRes of
-        FinishedStatus m -> Just (map thingValue $ moduleImports m)
-        _ -> Nothing
+  let newImps = map thingValue . moduleImports <$> passStatusToMaybe parseRes
   lift $ writeIfChanged iiv newImps
   
   -- ModuleInfo
   mn       <- asks weModuleName
-  scopeRes <- use wsScopeRes
-  tcRes    <- use wsTCRes
-  let (mi0, scope) = case scopeRes of
-        FinishedStatus (_, scope) -> (emptyModuleInfo { miScope = Map.lookup mn scope }, Just scope)
-        _    -> (emptyModuleInfo, Nothing)
+  m_gscope <- fmap snd . passStatusToMaybe <$> use wsScopeRes
+  m_tcRes    <- passStatusToMaybe <$> use wsTCRes
+  let m_scope    = Map.lookup mn =<< m_gscope
+      m_tcm      = fst <$> m_tcRes
+      mk (tcm', decls)  = (mkRules tcm', mkTDecls decls tcm')
+      tenv     = mk <$> m_tcRes
 
-  let (m_tcm, newInfo) = case tcRes of
-        FinishedStatus (tcm, decls) ->
-          (Just tcm, mi0 { miTypeEnv = Just (mkRules tcm, mkTDecls decls tcm) })
-        _ -> (Nothing, mi0)
+  let newInfo = ModuleInfo { miScope   = m_scope
+                           , miTypeEnv = tenv
+                           }
 
   miv <- asks (moduleInfo . weModuleState)
   lift $ writeIfChanged miv newInfo
 
   -- ModuleResults
   ms <- use wsCurrentSource
-
-  let mr = ModuleResults { mrSource = ms, mrImportScope = scope, mrTC = m_tcm }
+  m_toks <- passStatusToMaybe <$> use wsTokens
+  let mr = ModuleResults { mrSource = ms, mrImportScope = m_gscope
+                         , mrTokens = m_toks, mrTC = m_tcm }
 
   -- FIXME: always?  maybe we should guard on if it has changed (we would need eq)
   mrv <- asks (moduleResults . weModuleState)
@@ -465,6 +481,7 @@ worker = forever $ do
           cancelTimer
 
           wsCurrentSource .= ms
+          wsTokens        .= NotStarted
           wsParsedModule  .= NotStarted
           wsCycleCheck    .= NotStarted
           wsScopeRes      .= NotStarted
@@ -547,9 +564,8 @@ requestParse sst mn ms delay = do
 -- start the parser thread for that module if, for example, it is not
 -- in the client (i.e., it is a file)
 
--- Parse the module and ensure that any deps. are at least in the process of being loaded.
-parseModule :: WorkerT (LspM Config) (Either ParseError Module)
-parseModule = do
+tokenize :: WorkerT (LspM Config) (Either () [Lexeme Token])
+tokenize = do
   ms <- use wsCurrentSource
   mn <- asks weModuleName
   (fsrc, txt) <- case ms of
@@ -571,7 +587,20 @@ parseModule = do
       let filename = dir </> Text.unpack mn <.> "ddl"
       txt <- liftIO $ Text.readFile filename
       pure (filename, txt)
-  case parseFromText (Text.pack fsrc) mn txt of
+  pure (Right (lexer (Text.pack fsrc) txt))
+
+-- Parse the module and ensure that any deps. are at least in the process of being loaded.
+parseModule :: [Lexeme Token] -> WorkerT (LspM Config) (Either ParseError Module)
+parseModule toks = do
+  ms <- use wsCurrentSource
+  mn <- asks weModuleName
+  let fsrc = case ms of
+        ClientModule uri _version -> 
+          case J.uriToFilePath (J.fromNormalizedUri uri) of
+            Just fp -> fp
+            Nothing -> panic "Couldn't get filename" []
+        FileModule dir -> dir </> Text.unpack mn <.> "ddl"
+  case parseFromTokens (Text.pack fsrc) mn toks of
     Left err -> pure (Left err)
     Right m  -> do
       -- FIXME: maybe move starting threads out of this function?

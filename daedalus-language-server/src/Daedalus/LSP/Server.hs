@@ -49,6 +49,8 @@ import           Daedalus.Type.Traverse       (foldMapTC)
 import           Daedalus.LSP.Diagnostics     (requestParse, sourceRangeToRange)
 import           Daedalus.LSP.Monad
 import Daedalus.Scope (Scope(identScope))
+-- SI for server impl.
+import qualified Daedalus.LSP.SemanticTokens as SI
 
 newtype ReactorInput
   = ReactorAction (IO ())
@@ -130,7 +132,7 @@ lspHandlers rin = mapHandlers goReq goNot handle
       liftIO $ atomically $ writeTChan rin $ ReactorAction (runServerM sst $ f msg)
 
 debounceTime :: Int
-debounceTime = 350 -- ms
+debounceTime = 100 -- ms
 
 -- | Where the actual logic resides for handling requests and notifications.
 handle :: Handlers ServerM
@@ -190,6 +192,25 @@ handle = mconcat
 
       -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
       rename responder uri pos newName -- vdoc
+
+  , requestHandler J.STextDocumentSemanticTokensFull $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
+      let params = req ^. J.params
+          uri  = params ^. to (J._textDocument :: J.SemanticTokensParams -> J.TextDocumentIdentifier)
+                         . J.uri
+                         . to J.toNormalizedUri
+                         
+      semanticTokens responder Nothing uri 
+
+  , requestHandler J.STextDocumentSemanticTokensRange $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/range request"
+      let params = req ^. J.params
+          uri  = params ^. to (J._textDocument :: J.SemanticTokensRangeParams -> J.TextDocumentIdentifier)
+                         . J.uri
+                         . to J.toNormalizedUri
+          r    = params ^. to (J._range :: J.SemanticTokensRangeParams -> J.Range)
+                         
+      semanticTokens responder (Just r) uri 
       
       -- -- Replace some text at the position with what the user entered
       -- let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
@@ -272,6 +293,30 @@ uriToModuleResults uri = do
     case Map.lookup mn mods of
       Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
       Just mi -> Right <$> readTVar (moduleResults mi)
+
+-- -----------------------------------------------------------------------------
+-- Semantic tokens (highlighting etc.)
+
+semanticTokens :: (Either J.ResponseError (Maybe J.SemanticTokens) -> ServerM ()) -> 
+                  Maybe J.Range -> J.NormalizedUri -> ServerM ()
+semanticTokens resp m_range uri = do
+  e_mr <- uriToModuleResults uri
+
+  caps <- getClientCapabilities
+  let m_semcaps = caps ^. J.textDocument >>= view J.semanticTokens
+
+  -- case e_mr of
+  --   Right mr | Just _tks <- mrTokens mr ->
+  --              liftIO $ debugM "reactor.semanticTokens" $ "Got some tokens" ++ show (SI.semanticTokens m_range m_semcaps mr)
+  --   Right _ -> liftIO $ debugM "reactor.semanticTokens" $ "No tokens"
+  --   Left  _ -> liftIO $ debugM "reactor.semanticTokens" $ "No results"
+
+  -- case m_semcaps of
+  --   Nothing   -> liftIO $ debugM "reactor.semanticTokens" $ "No caps"
+  --   Just caps -> liftIO $ debugM "reactor.semanticTokens" $ "Caps" ++ show (caps ^. J.tokenTypes)
+    
+  -- We might want to cache these?
+  resp $ fmap (SI.semanticTokens m_range m_semcaps) e_mr
 
 -- -----------------------------------------------------------------------------
 -- Definition links

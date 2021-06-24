@@ -6,3 +6,18 @@ packages:
   ../daedalus-vm/
   ../daedalus-value/
   ../rts-hs/
+  -- deps/lsp/lsp
+  -- deps/lsp/lsp-types
+
+-- Required for semantic tokens
+source-repository-package
+    type: git
+    location: https://github.com/haskell/lsp
+    tag: 6af22068b22051a6e8c9964bc179f8f02ee3bf77
+    subdir: lsp
+
+source-repository-package
+    type: git
+    location: https://github.com/haskell/lsp
+    tag: 6af22068b22051a6e8c9964bc179f8f02ee3bf77
+    subdir: lsp-types    

@@ -19,7 +19,9 @@ library
   ghc-prof-options:    -fprof-auto
   exposed-modules:     Daedalus.LSP.Monad,
                        Daedalus.LSP.Server,
-                       Daedalus.LSP.Diagnostics
+                       Daedalus.LSP.Diagnostics,
+                       Daedalus.LSP.SemanticTokens
+                      
   build-depends:       base ^>=4.13.0.0,
                        daedalus,
                        daedalus-utils,
@@ -36,7 +38,8 @@ library
                        bytestring,
                        mtl,
                        async,
-                       filepath
+                       filepath,
+                       data-default
  
 
                     

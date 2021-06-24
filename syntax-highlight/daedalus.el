@@ -10,6 +10,7 @@
 ;;
 
 ;;; Code:
+(require 'lsp-mode)
 
 (defgroup daedalus '()
   "Settings for DaeDaLus"
@@ -123,30 +124,62 @@ Customize the variable `daedalus-command' to change how it is invoked."
     (modify-syntax-entry ?' "\"" s)
     s))
 
-(defconst daedalus--kw-regexp (regexp-opt daedalus-keywords 'words)
-  "Regexp matching DaeDaLus keywords for use in highlighting.")
+;; (defconst daedalus--kw-regexp (regexp-opt daedalus-keywords 'words)
+;;   "Regexp matching DaeDaLus keywords for use in highlighting.")
 
-(defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";"))
-  "Regexp matching special DaeDaLus magic symbols.")
+;; (defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";"))
+;;   "Regexp matching special DaeDaLus magic symbols.")
 
-(defconst daedalus--big-ident-regexp "\\<[A-Z][a-zA-Z0-9]*\\>")
-(defconst daedalus--small-ident-regexp "\\<[a-z][a-zA-Z0-9]*\\>")
-(defconst daedalus--set-ident-regexp "\\<\\$[a-z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--big-ident-regexp "\\<[A-Z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--small-ident-regexp "\\<[a-z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--set-ident-regexp "\\<\\$[a-z][a-zA-Z0-9]*\\>")
 
-(defconst daedalus-font-lock-defaults
-  `((,daedalus--kw-regexp . font-lock-keyword-face)
-    (,daedalus--magic-symbol-regexp . font-lock-builtin-face)
-    (,daedalus--big-ident-regexp . font-lock-function-name-face)
-    (,daedalus--small-ident-regexp . font-lock-variable-name-face)
-    (,daedalus--set-ident-regexp . font-lock-reference-face)))
+;; (defconst daedalus-font-lock-defaults
+;;   `((,daedalus--kw-regexp . font-lock-keyword-face)
+;;     (,daedalus--magic-symbol-regexp . font-lock-builtin-face)
+;;     (,daedalus--big-ident-regexp . font-lock-function-name-face)
+;;     (,daedalus--small-ident-regexp . font-lock-variable-name-face)
+;;     (,daedalus--set-ident-regexp . font-lock-reference-face)))
 
 (define-derived-mode daedalus-mode prog-mode "DaeDaLus"
   "Major mode for editing DaeDaLus files"
   :group 'daedalus
   :syntax-table daedalus-syntax-table
-  (setq font-lock-defaults '((daedalus-font-lock-defaults))))
+  (setq font-lock-defaults '(()))
+  (setq-local lsp-semantic-tokens-enable t) ;; use lsp for fontification
+  )
+
+;; We use LSP for fontification
+;; (setq font-lock-defaults '((daedalus-font-lock-defaults))))
 
 (add-to-list 'auto-mode-alist (cons "\\.ddl\\'" 'daedalus-mode))
+
+;; LSP setup
+
+(defgroup lsp-daedalus nil
+  "LSP support for Daedalus."
+  :group 'lsp-mode
+  :link '(url-link "https://github.com/GaloisInc/Daedalus"))
+
+(defcustom lsp-daedalus-server-path "daedalus-language-server"
+  "Executable path for the server."
+  :group 'lsp-daedalus
+  :type 'string
+  :package-version '(lsp-mode . "7.1"))
+
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection (lambda () lsp-daedalus-server-path))
+                  :major-modes '(daedalus-mode)
+                  :server-id 'daedalus-lsp))
+
+
+(add-to-list 'lsp-language-id-configuration '(daedalus-mode . "daedalus"))
+
+;; (lsp-consistency-check lsp-daedalus)
+
+(add-hook 'daedalus-mode-hook #'lsp)
+
+(setq-local lsp-semantic-tokens-enable t)
 
 (provide 'daedalus)
 ;;; daedalus.el ends here
