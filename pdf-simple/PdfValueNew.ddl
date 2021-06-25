@@ -90,16 +90,19 @@ def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)
 
-def String = Between "(" ")" StringChars
+def String = Between "(" ")" (StringChars 16)
 
-def StringChars = concat (Many StringChunk)
+def StringChars (lim : uint 64) = concat (Many (StringChunk lim))
 
-def StringChunk =
-    StringInParens
+def StringChunk lim =
+    StringInParens lim
  <| StringEsc
  <| Many (1..) (Match1 (! "\\()"))
 
-def StringInParens = concat [ Match "(", StringChars, Match ")"]
+def StringInParens lim =
+  if lim == 0
+    then Fail "String nesting limit exceeded"
+    else concat [ Match "(", StringChars (lim - 1), Match ")"]
 
 def StringEsc = {
    Match "\\";
@@ -152,14 +155,16 @@ def NameEsc  = {
 --------------------------------------------------------------------------------
 -- Array Objectcs (Section 7.3.6)
 
-def Array = Between "[" "]" (Many Value)
+def Array lim = Between "[" "]" (Many (Value lim))
 
 
 --------------------------------------------------------------------------------
 -- Dictionary Objects (Section 7.3.7)
 
-def Dict = {
-  @ents = Between "<<" ">>" (Many { key = Name; value = Value });
+def PdfDict = Dict 32
+
+def Dict lim = {
+  @ents = Between "<<" ">>" (Many { key = Name; value = Value lim });
   for (d = empty; e in ents) (Insert e.key e.value d)
 }
 
@@ -175,18 +180,23 @@ def Ref = {
 
 -- Objects ---------------------------------------------------------------------
 
-def Value = 
-  Choose1 {
-    null    = Null;
-    bool    = Bool;
-    ref     = Ref;      -- This must come before number, as they overlap
-    name    = Name;
-    string  = String;
-    string  = HexString;
-    number  = Number;
-    array   = Array;
-    dict    = Dict;
-  }
+def PdfValue = Value 32
+
+def Value (lim : uint 64) =
+  if lim == 0
+    then Fail "Exceeded value nesting depth"
+    else
+      Choose1 {
+        null    = Null;
+        bool    = Bool;
+        ref     = Ref;      -- This must come before number, as they overlap
+        name    = Name;
+        string  = String;
+        string  = HexString;
+        number  = Number;
+       array    = Array (lim - 1);
+        dict    = Dict (lim - 1)
+      }
 
 def NatValue (v : Value) = {
   @n = v is number;
