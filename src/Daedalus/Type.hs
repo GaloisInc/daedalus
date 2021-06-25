@@ -1188,7 +1188,7 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys
 
      (args,_,mbStmts) <-
                       unzip3 <$> zipWithM checkArg (map Just inTs) es
-     let have  = length args
+     let have  = length es
          need  = length inTs
          stmts = catMaybes mbStmts
      out1 <- case compare have need of
@@ -1201,7 +1201,7 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys
                LT -> do ok <- arePartialAppsOK
                         unless (ok && null stmts) $
                           reportError r $
-                            hsep [ int (have - need)
+                            hsep [ int (need - have)
                                  , "too few arguments in call to"
                                  , ppf
                                  ]
