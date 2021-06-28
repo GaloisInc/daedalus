@@ -101,7 +101,7 @@ cTypeDecl vis ty = cTypeDecl' vis ty <.> semi
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
 cTypeDecl' :: GenVis -> TDecl -> CDecl
 cTypeDecl' vis ty =
-  vcat [ cTemplateDecl ty, "class" <+> cTName' vis (tName ty) ]
+  vcat [ cTemplateDecl ty, "class" <+> cTName' DeclSite vis (tName ty) ]
 
 cTemplateDecl :: TDecl -> Doc
 cTemplateDecl ty =
@@ -122,9 +122,22 @@ cTypeParams ty =
 -- Example: Node<T>
 cTypeNameUse :: GenVis -> TDecl -> CType
 cTypeNameUse vis tdecl =
-  cTypeUse (cTName' vis (tName tdecl))
+  cTypeUse (cTName' (UseSite "") vis (tName tdecl))
            (map cTParam (tTParamKNumber tdecl))
            (map cTParam (tTParamKValue tdecl))
+
+-- This is used when declaring methods.   The reason is that
+-- C++ does not support (reliably) qualifying the method name with
+-- the global name space, so we just don't qualify things.
+-- We wouldn't need this if we placed user-defined types in an explicit
+-- namespace.
+cTypeNameUse' :: GenVis -> TDecl -> CType
+cTypeNameUse' vis tdecl =
+  cTypeUse (cTName' DeclSite vis (tName tdecl))
+           (map cTParam (tTParamKNumber tdecl))
+           (map cTParam (tTParamKValue tdecl))
+
+
 
 --------------------------------------------------------------------------------
 -- Signatures
@@ -140,7 +153,7 @@ freeMethodSig = cStmt ("void" <+> cCall "free" [])
 eqMethodSig :: GenVis -> Doc -> TDecl -> CDecl
 eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
   where
-  name = cTName' vis (tName t)
+  name = cTName' (UseSite "") vis (tName t)
 
 -- | Constructor for a product
 cProdCtr :: TDecl -> CStmt
@@ -228,7 +241,7 @@ cSumTags sums
 -- | The enum for a tag type
 cSumTag :: TDecl -> CDecl
 cSumTag ty =
-  fsep $ [ "enum class", cTName (tName ty), "{" ] ++
+  fsep $ [ "enum class", cTName DeclSite (tName ty), "{" ] ++
          punctuate comma (map (cLabel . fst) fields) ++
          [ "};" ]
   where
@@ -236,10 +249,10 @@ cSumTag ty =
 
 -- | The type of tags for the given type
 cSumTagT :: TDecl -> CType
-cSumTagT tdecl = "Tag::" <.> cTName (tName tdecl)
+cSumTagT tdecl = cTName (UseSite "Tag") (tName tdecl)
 
 cSumTagV :: TName -> Label -> Doc
-cSumTagV t l = "Tag::" <.> cTName t <.> "::" <.> cLabel l
+cSumTagV t l = cTName (UseSite "Tag") t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -374,7 +387,7 @@ defMethod vis tdecl retT fun params def =
        , "}"
        ]
   where
-  name = cTypeNameUse vis tdecl <.> "::" <.> fun
+  name = cTypeNameUse' vis tdecl <.> "::" <.> fun
 
 --------------------------------------------------------------------------------
 -- Output

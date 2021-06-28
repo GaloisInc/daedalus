@@ -1,5 +1,4 @@
-{-# Language OverloadedStrings #-}
--- XXX: escapes
+{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)
@@ -16,6 +15,16 @@ import qualified Daedalus.Core as Src
 import Daedalus.VM.Backend.C.Lang
 
 
+data NameUse =
+    DeclSite
+  | UseSite Doc   -- ^ Namespace, without the `::`
+
+withUse :: NameUse -> Doc -> Doc
+withUse use name =
+  case use of
+    DeclSite -> name
+    UseSite ns -> ns <> "::" <> name
+
 
 cReturnClassName :: [VMT] -> Doc
 cReturnClassName ts = "Return_" <.> escDoc nm
@@ -25,23 +34,31 @@ cThreadClassName :: [VMT] -> Doc
 cThreadClassName ts = "Thread_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
--- | Name of a type.
--- XXX: module names, namespaces?
-cTName :: Src.TName -> CType
-cTName t = case Src.tnameAnon t of
-             Nothing -> root
-             Just i  -> root <.> int i
+
+cTNameRoot :: Src.TName -> CType
+cTNameRoot t =
+  case Src.tnameAnon t of
+    Nothing -> root
+    Just i  -> root <.> int i
   where
   root = text (pref ++ Text.unpack (Src.tnameText t))
   txt  = Src.tnameText t
   pref = if isReserved txt then "_" else ""
 
+
+
+-- | Name of a type.
+-- XXX: module names, namespaces?
+cTName :: NameUse -> Src.TName -> CType
+cTName use = withUse use . cTNameRoot
+
 -- | The name of the underlying type used by a boxed type.
-cTName' :: GenVis -> Src.TName -> CType
-cTName' vis x =
+cTName' :: NameUse -> GenVis -> Src.TName -> CType
+cTName' use vis x =
+  withUse use
   case vis of
-    GenPublic -> cTName x
-    GenPrivate -> "_" <.> cTName x
+    GenPublic  -> cTNameRoot x
+    GenPrivate -> "_" <.> cTNameRoot x
 
 
 data GenVis = GenPublic | GenPrivate
@@ -113,8 +130,8 @@ selName own l = pref <.> "_" <.> cLabel l
                  GenOwn    -> "get"
 
 
-cFName :: FName -> CIdent
-cFName f = escDoc ("parse_" <.> pp f)
+cFName :: NameUse -> FName -> CIdent
+cFName use f = withUse use (escDoc ("parse_" <.> pp f))
 
 --------------------------------------------------------------------------------
 isReserved :: Text -> Bool
