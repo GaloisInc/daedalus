@@ -43,7 +43,7 @@ def ContentStream = {
       { UInt8;
         ^ ""
       };
-    UnicodeString CharCodeToUnicode s
+    WithStream (arrayStream s) (Many UnicodeByte)
   };
   ^(concat shownStrings)
 }

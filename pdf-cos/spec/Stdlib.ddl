@@ -35,3 +35,10 @@ def bndBytes2 bs2 = cons bs2.second (bndBytes1 bs2.rest1)
 def bndBytes3 bs3 = cons bs3.third (bndBytes2 bs3.rest2)
 
 def bndBytes4 bs4 = cons bs4.fourth (bndBytes3 bs4.rest3)
+
+def WithStream s P = {
+  @cur = GetStream;
+  SetStream s;
+  $$ = P;
+  SetStream cur;
+}

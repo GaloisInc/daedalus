@@ -349,9 +349,3 @@ def LookupName k m = {
   vV is name;
 }
 
-def WithStream s P = {
-  @cur = GetStream;
-  SetStream s;
-  $$ = P;
-  SetStream cur;
-}
