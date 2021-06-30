@@ -22,7 +22,7 @@ library
                        Daedalus.LSP.Diagnostics,
                        Daedalus.LSP.SemanticTokens
                       
-  build-depends:       base ^>=4.13.0.0,
+  build-depends:       base >=4.13.0.0,
                        daedalus,
                        daedalus-utils,
                        parameterized-utils,
@@ -53,7 +53,7 @@ executable daedalus-language-server
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base ^>=4.13.0.0,
+        base >=4.13.0.0,
         daedalus-language-server,
         daedalus,
         daedalus-utils,        
