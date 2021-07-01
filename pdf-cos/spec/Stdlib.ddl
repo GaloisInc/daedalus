@@ -60,7 +60,7 @@ def Pair P0 P1 = {
 
 def DepPair P0 P1 = {
   depFst = P0;
-  depSnd = P1 fst;
+  depSnd = P1 depFst;
 }
 
 def GenMany P acc0 =

@@ -138,27 +138,27 @@ def CodeSpaceMap nm Rng = {
   -- codespace ranges
 }
 
-def CodeRange = CodeSpaceMap "codespace" Unit
+def CodeRanges = CodeSpaceMap "codespace" Unit
 
 def CodeNumMap nm = CodeSpaceMap nm Number
 
-def CodeRanges = {
-  codeSpace = CodeRange;
-  cid = CodeNumMap;
-  notDef = CodeNumMap;
-  bf = CodeNumMap;
+def CodeRangeOps = {
+  codeSpace = CodeRanges;
+  cid = CodeNumMap "cid";
+  notDef = CodeNumMap "notdef";
+  bf = CodeNumMap "bf";
 }
 
 -- TODO: define operations for extending fields of CodeRanges
-def ExtendCodeSpace cr : CodeRanges = {
-  codeSpace = ...;
+def ExtendCodeSpace cr : CodeRangeOps = {
+  codeSpace = ^cr.codeSpace; -- TODO: fix this line
   cid = ^cr.cid;
   notDef = ^cr.notDef;
   bf =  ^cr.bf;
 }
 
 -- CMapTail: the remainder of a CMap
-def CMapTail ds = ...
+-- def CMapTail ds = ...
 
 -- parser for CMap files, as specified in Adobe Technical Note #5014,
 -- Adobe CMap and CIDFont Files Specification. Definition is based

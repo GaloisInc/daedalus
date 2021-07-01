@@ -15,10 +15,10 @@ def NameStr s = GenName (Match s)
 
 def InsertNext Key Val m = {
   @p = DepPair Key Val;
-  Insert p.fst p.snd m
+  Insert p.depFst p.depSnd m
 }
 
 def DictEntries Key Val = {
   @es = Many (DepPair Key Val);
-  for (acc = empty; e in es) Insert e.fst e.snd acc
+  for (acc = empty; e in es) Insert e.depFst e.depSnd acc
 }
