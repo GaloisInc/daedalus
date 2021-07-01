@@ -20,7 +20,10 @@ library
   exposed-modules:     Daedalus.LSP.Monad,
                        Daedalus.LSP.Server,
                        Daedalus.LSP.Diagnostics,
-                       Daedalus.LSP.SemanticTokens
+                       Daedalus.LSP.SemanticTokens,
+                       Daedalus.LSP.Position,
+                       Daedalus.LSP.LanguageFeatures
+
                       
   build-depends:       base >=4.13.0.0,
                        daedalus,
