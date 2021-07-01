@@ -75,11 +75,10 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
-import Data.Either (partitionEithers)
 import Data.List(find)
 import Control.Monad(msum,foldM,forM)
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Exception(Exception,throwIO,try)
+import Control.Exception(Exception,throwIO)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing)
@@ -95,6 +94,7 @@ import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
+import qualified Daedalus.Type.CheckUnused as CheckUnused
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
@@ -217,6 +217,7 @@ data DaedalusError =
   | AModuleError ModuleException
   | AScopeError  Scope.ScopeError
   | ATypeError   TypeError
+  | MeaninglessStatments [SourceRange]
   | ASpecializeError String
   | ADriverError String
     deriving Show
@@ -238,6 +239,11 @@ prettyDaedalusError err =
         _ -> justShow e
     ASpecializeError e -> pure e
     ADriverError e -> pure e
+    MeaninglessStatments xs ->
+      pure $
+      unlines
+        [ prettySourceRangeLong x <>
+                                ": Statement has no effect" | x <- xs ]
 
   where
   justShow it = pure (show (pp it))
@@ -525,7 +531,11 @@ tcModule m =
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1 ->
+       Right m1
+         | let warn = CheckUnused.checkTCModule m1
+         , not (null warn) ->
+           ddlThrow $ MeaninglessStatments warn
+         | otherwise ->
         ddlUpdate_ \s -> s
           { loadedModules = Map.insert (tcModuleName m1) (TypeCheckedModule m1)
                                                          (loadedModules s)

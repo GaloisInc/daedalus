@@ -9,7 +9,7 @@ def Main = {
       count = MissionCount;
       itemInt = MissionItemInt;
     };
-    '\n'
+    Match1 '\n'
   };
   -- END
 }

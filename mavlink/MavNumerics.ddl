@@ -1,8 +1,8 @@
 def Guard p = p is true
 
 def Bool = Choose1 {
-  { @'0' ; ^false };
-  { @'1' ; ^true };
+  { @Match1 '0' ; ^false };
+  { @Match1 '1' ; ^true };
 }
 
 -- UInt16: two-byte unsigned integer

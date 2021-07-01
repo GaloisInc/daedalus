@@ -52,9 +52,11 @@ MavNumerics.Guard (p : bool) : Grammar {} =
  
 MavNumerics.Bool : Grammar bool =
   Choose biased
-    { do ($$ : bool) <- pure false
+    { do @Match {'0'}
+         ($$ : bool) <- pure false
          pure $$
-    | do ($$ : bool) <- pure true
+    | do @Match {'1'}
+         ($$ : bool) <- pure true
          pure $$
     }
  
@@ -267,8 +269,8 @@ MavNumerics.Long : Grammar MavNumerics.GeoCoord =
  
 MavNumerics._Bool : Grammar {} =
   Choose biased
-    { pure {}
-    | pure {}
+    { @Match {'0'}
+    | @Match {'1'}
     }
  
 MavNumerics._UInt16 : Grammar {} =
@@ -972,12 +974,14 @@ Main.Main : Grammar [Main.Main0] =
                                                              | {- itemInt -} do (_270 : MissionItemInt.MissionItemInt) <- MissionItemInt.MissionItemInt
                                                                                 pure {itemInt: _270}
                                                              }
+                                      @Match {'\n'}
                                       pure $$
      pure $$
  
 Main._Main : Grammar {} =
-  @Many[] Choose biased
-            { {- ack -} MissionAck._MissionAck
-            | {- count -} MissionCount._MissionCount
-            | {- itemInt -} MissionItemInt._MissionItemInt
-            }
+  @Many[] do Choose biased
+               { {- ack -} MissionAck._MissionAck
+               | {- count -} MissionCount._MissionCount
+               | {- itemInt -} MissionItemInt._MissionItemInt
+               }
+             @Match {'\n'}
