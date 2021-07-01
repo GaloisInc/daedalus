@@ -8,6 +8,8 @@ import Daedalus.Rec
 
 import Daedalus.Type.AST
 
+-- import Debug.Trace
+-- import Daedalus.PP
 
 checkTCModule :: TCModule SourceRange -> [SourceRange]
 checkTCModule = concatMap checkTCDecl . forgetRecs . tcModuleDecls
@@ -20,6 +22,8 @@ checkTCDecl TCDecl { tcDeclCtxt, tcDeclDef } =
 
 checkTC :: Bool -> TC SourceRange Grammar -> [SourceRange]
 checkTC triv tc =
+  -- | trace (show (triv, pp tc)) False = undefined
+  -- | otherwise =
   let warnIf b = if b then [ texprAnnot tc ] else []
       okLeaf   = []
   in

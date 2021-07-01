@@ -76,7 +76,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM)
+import Control.Monad(msum,foldM,forM,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
@@ -217,7 +217,6 @@ data DaedalusError =
   | AModuleError ModuleException
   | AScopeError  Scope.ScopeError
   | ATypeError   TypeError
-  | MeaninglessStatments [SourceRange]
   | ASpecializeError String
   | ADriverError String
     deriving Show
@@ -239,13 +238,7 @@ prettyDaedalusError err =
         _ -> justShow e
     ASpecializeError e -> pure e
     ADriverError e -> pure e
-    MeaninglessStatments xs ->
-      pure $
-      unlines
-        [ prettySourceRangeLong x <>
-                                ": Statement has no effect" | x <- xs ]
-
-  where
+ where
   justShow it = pure (show (pp it))
 
 --------------------------------------------------------------------------------
@@ -531,24 +524,30 @@ tcModule m =
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1
-         | let warn = CheckUnused.checkTCModule m1
-         , not (null warn) ->
-           ddlThrow $ MeaninglessStatments warn
-         | otherwise ->
-        ddlUpdate_ \s -> s
-          { loadedModules = Map.insert (tcModuleName m1) (TypeCheckedModule m1)
-                                                         (loadedModules s)
-          , declaredTypes =
-              foldr (\d -> Map.insert (tctyName d) d)
-                    (declaredTypes s)
-                    (forgetRecs (tcModuleTypes m1))
+       Right m1 ->
+         do let warn = CheckUnused.checkTCModule m1
+            unless (null warn) (ppWarn warn)
+            ddlUpdate_ \s -> s
+              { loadedModules = Map.insert (tcModuleName m1)
+                                           (TypeCheckedModule m1)
+                                           (loadedModules s)
+              , declaredTypes =
+                  foldr (\d -> Map.insert (tctyName d) d)
+                        (declaredTypes s)
+                        (forgetRecs (tcModuleTypes m1))
 
-          , ruleTypes =
-              foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
-                    (ruleTypes s)
-                    (forgetRecs (tcModuleDecls m1))
-          }
+              , ruleTypes =
+                  foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
+                        (ruleTypes s)
+                        (forgetRecs (tcModuleDecls m1))
+              }
+  where
+  ppWarn xs =
+    ddlPutStrLn $
+      unlines
+        [ prettySourceRangeLong x <>
+                                " [WARNING] Statement has no effect" | x <- xs ]
+
 
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
