@@ -287,8 +287,6 @@ def LookOptArray (key : [uint 8]) header =
 
 def OneOrArray (v : Value) = Default [v] (v is array)
 
-def Default x P = P <| ^ x
-
 def Chunk n P = {
   @cur  = GetStream;
   @this = Take n cur;
