@@ -184,6 +184,20 @@ Customize the variable `daedalus-command' to change how it is invoked."
 
 ;; LSP commands
 
+;; Running the definition under the cursor
+
+(defun lsp-daedalus-run (p)
+  (interactive "d")
+  (let* ((args (vector (lsp-text-document-identifier) (lsp-point-to-position p)))
+	 (res (lsp-send-execute-command "run" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Results*")
+       (erase-buffer)
+       (insert res)
+       (current-buffer)))))
+			    
+
+
 ;; Setting the region over surrounding expressions
 
 (defun lsp-daedalus-regions (p)

@@ -24,12 +24,14 @@ library
                        Daedalus.LSP.Position,
                        Daedalus.LSP.LanguageFeatures,
                        Daedalus.LSP.Command,                       
-                       Daedalus.LSP.Command.Regions
+                       Daedalus.LSP.Command.Regions,
+                       Daedalus.LSP.Command.Run
                        
                       
   build-depends:       base >=4.13.0.0,
                        daedalus,
                        daedalus-utils,
+                       rts-hs,
                        parameterized-utils,
                        unordered-containers,
                        lens,

@@ -5,20 +5,23 @@
 
 module Daedalus.LSP.Command (supportedCommands, executeCommand) where
 
-import qualified Data.Map                    as Map
-import Data.Map (Map)
-import Control.Lens
+import           Control.Lens
+import           Data.Aeson                   (FromJSON, Result (..), ToJSON,
+                                               fromJSON, toJSON)
+import qualified Data.Aeson                   as A
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
 
 import qualified Language.LSP.Types           as J
-import qualified Data.Aeson as A
-import Data.Aeson (ToJSON, FromJSON, Result(..), toJSON, fromJSON)
+import qualified Language.LSP.Types.Lens      as J
 
-import Daedalus.LSP.Monad
-import Daedalus.LSP.Position
 import qualified Daedalus.LSP.Command.Regions as C
-import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Language.LSP.Types.Lens as J
+import qualified Daedalus.LSP.Command.Run     as C
+import           Daedalus.LSP.Monad
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ask)
 
 type CommandImplFun = [A.Value] -> Either String (ServerM (Either J.ResponseError A.Value))
 
@@ -42,7 +45,9 @@ instance (FromJSON a, CanInvoke b) => CanInvoke (a -> b) where
   invoke _ _ = Left "Too few arguments"
 
 commands :: Map Text CommandImpl
-commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions) ]
+commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
+                        , ("run"              , CommandImpl runModule)
+                        ]
 
 executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
 executeCommand resp nm vs
@@ -64,7 +69,15 @@ positionToRegions doc pos = do
       Nothing -> Left $ J.ResponseError J.ParseError "Missing module" Nothing
       Just m  -> Right $ C.positionToRegions pos m
   
-  
+runModule :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
+runModule doc pos = do
+  sst <- ask
+  e_mr <- uriToModuleResults (J.toNormalizedUri (doc ^. J.uri))
+  case e_mr of
+    Left err -> pure (Left err)
+    Right mr -> case mrTC mr of
+      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Just m  -> liftIO $ Right <$> C.runModule pos sst m
 
 
 
