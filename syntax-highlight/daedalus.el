@@ -25,7 +25,7 @@
 
 (defvar daedalus-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") 'daedalus-check-current-buffer)
+    (define-key map (kbd "C-c C-c") 'lsp-daedalus-run)
     (define-key map (kbd "C-c C-i") 'daedalus-interpret-current-buffer)
     (define-key map (kbd "C-c C-e") 'lsp-daedalus-regions)
     
