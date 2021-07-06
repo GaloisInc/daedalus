@@ -1,4 +1,9 @@
+import Pair
+import Sum
+
 def Unit = ^{}
+
+def Void = Choose { }
 
 def FoldMany P acc = Choose1 {
   { @acc0 = P acc;
@@ -7,7 +12,12 @@ def FoldMany P acc = Choose1 {
   ^ acc
 }
 
+def inc n = n + 1
+def dec n = n - 1
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
+def bytesNum (bs : [ uint 8 ]) : uint 64 =
+  for (val = 0 : uint 64; b in bs) 8 * val + (b as uint 64)
+
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
 def Guard p               = p is true
@@ -23,6 +33,8 @@ def condJust p x = if p then just x else nothing
 def optionToList x = case x of
   just y -> [ y ]
   nothing -> [ ]
+
+def optionsToList xs = concat (map (x in xs) optionToList x)
 
 -- types of bounded sequences of bytes
 def Bytes1 = UInt8
@@ -53,16 +65,6 @@ def bndBytes4 bs4 = cons bs4.fourth (bndBytes3 bs4.rest3)
 
 def Default x P = P <| ^ x
 
-def Pair P0 P1 = {
-  fst = P0;
-  snd = P1;
-}
-
-def DepPair P0 P1 = {
-  depFst = P0;
-  depSnd = P1 depFst;
-}
-
 def GenMany P acc0 =
   { @acc1 = P acc0;
     GenMany P acc1
@@ -77,6 +79,20 @@ def WithStream s P = {
   SetStream cur;
 }
 
+def sepLists2 ls = {
+  fst = optionsToList (map (x in ls) getLeft x);
+  snd = optionsToList (map (x in ls) getRight x);
+}
+
+def Lists2 P0 P1 = {
+  @xs = Many (Sum P0 P1);
+  sepLists2 xs
+}
+
+def lenLists2 ls =
+  (length ls.fst) +
+  (length ls.snd)
+
 --------------------------------------------------------------------------------
 -- White Space (Section 7.2)
 
@@ -87,7 +103,11 @@ def $simpleWS             = 0 | 9 | 12 | 32
 
 def SimpleEOL             = { $cr; $lf } | $lf
 def EOL                   = SimpleEOL <| $cr
-def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
+def GenComment start = {
+  Match (append "%" start);
+  Many (Match1 (! ($lf | $cr)));
+  EOL }
+def Comment               = GenComment ""
 def JustWhite             = $simpleWS | EOL
 
 def AnyWS                 = $simpleWS | Comment | EOL
