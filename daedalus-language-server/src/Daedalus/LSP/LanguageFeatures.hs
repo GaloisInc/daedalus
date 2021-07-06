@@ -30,19 +30,6 @@ import           Daedalus.LSP.Position
 import qualified Daedalus.LSP.SemanticTokens as SI
 
 -- -----------------------------------------------------------------------------
--- Helpers
-
-uriToModuleResults :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleResults)
-uriToModuleResults uri = do
-  sst <-  ask
-  let Just mn = uriToModuleName uri -- FIXME
-  liftIO $ atomically $ do
-    mods <- readTVar (knownModules sst)
-    case Map.lookup mn mods of
-      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
-      Just mi -> Right <$> readTVar (moduleResults mi)
-
--- -----------------------------------------------------------------------------
 -- Semantic tokens (highlighting etc.)
 
 semanticTokens :: (Either J.ResponseError (Maybe J.SemanticTokens) -> ServerM ()) -> 

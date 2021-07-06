@@ -34,6 +34,8 @@ import           Daedalus.PP
 import           Daedalus.LSP.Diagnostics      (requestParse)
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
+import Daedalus.LSP.Command
+import Data.Maybe (fromMaybe)
 
 -- SI for server impl.
 
@@ -87,6 +89,7 @@ syncOptions = J.TextDocumentSyncOptions
 lspOptions :: Options
 lspOptions = defaultOptions
   { textDocumentSync = Just syncOptions
+  , executeCommandCommands = Just supportedCommands
   }
 
 -- ---------------------------------------------------------------------
@@ -252,16 +255,18 @@ handle = mconcat
   --         rsp = J.List $ map J.InL $ concatMap makeCommand diags
   --     responder (Right rsp)
 
-  -- , requestHandler J.SWorkspaceExecuteCommand $ \req responder -> do
-  --     liftIO $ debugM "reactor.handle" "Processing a workspace/executeCommand request"
-  --     let params = req ^. J.params
-  --         margs = params ^. J.arguments
+  , requestHandler J.SWorkspaceExecuteCommand $ \req responder -> do
+      liftIO $ debugM "reactor.handle" "Processing a workspace/executeCommand request"
+      let params = req    ^. J.params
+          cmd          = params ^. J.command
+          J.List args  = fromMaybe mempty (params ^. J.arguments)
 
-  --     liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show margs
-  --     responder (Right (J.Object mempty)) -- respond to the request
-
-  --     void $ withProgress "Executing some long running command" Cancellable $ \update ->
-  --       forM [(0 :: Double)..10] $ \i -> do
-  --         update (ProgressAmount (Just (i * 10)) (Just "Doing stuff"))
-  --         liftIO $ threadDelay (1 * 1000000)
+      liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show args
+      let resp' res = do
+            case res of
+              Left err -> liftIO $ debugM "reactor.handle" ("Request failed: " ++ show err)
+              _ -> pure ()
+            responder res
+      
+      executeCommand resp' cmd args
   ]

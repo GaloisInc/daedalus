@@ -2,6 +2,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 module Daedalus.LSP.Monad where
 
 import           Control.Concurrent.STM.TChan
@@ -22,9 +24,11 @@ import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
                                                TCTyName)
 import           Daedalus.Type.Monad          (RuleEnv)
 
-import           Language.LSP.Server          (LanguageContextEnv, LspM,
-                                               runLspT)
+import           Language.LSP.Server          (LanguageContextEnv, LspM, MonadLsp(..)
+                                              , runLspT)
 import qualified Language.LSP.Types           as J
+import Control.Monad.IO.Unlift (MonadUnliftIO)
+import qualified Data.Map as Map
 
 
 
@@ -126,7 +130,9 @@ data ServerState =
 data Config = Config ()
   deriving (Generic, ToJSON, FromJSON, Show)
 
-type ServerM = ReaderT ServerState (LspM Config)
+newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a }
+  deriving newtype (Applicative, Functor, Monad, MonadReader ServerState
+                   , MonadIO, MonadUnliftIO, MonadLsp Config)
 
 -- This needs to be behind a IO var of some sort as we need an Iso in
 -- interpretHandler (so we thread the state using mutation).
@@ -136,7 +142,7 @@ emptyServerState lenv = do
   ServerState lenv <$> newPassState <*> atomically (newTVar mempty)
 
 runServerM :: ServerState ->  ServerM a -> IO a
-runServerM sst m = runLspT (lspEnv sst) (runReaderT m sst)
+runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
 
 -- liftPassM :: PassM a -> ServerM a
 -- liftPassM m = do
@@ -151,3 +157,13 @@ runServerM sst m = runLspT (lspEnv sst) (runReaderT m sst)
 
 uriToModuleName :: J.NormalizedUri -> Maybe ModuleName
 uriToModuleName = fmap (snd . pathToModuleName) . J.uriToFilePath . J.fromNormalizedUri
+
+uriToModuleResults :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleResults)
+uriToModuleResults uri = do
+  sst <-  ask
+  let Just mn = uriToModuleName uri -- FIXME
+  liftIO $ atomically $ do
+    mods <- readTVar (knownModules sst)
+    case Map.lookup mn mods of
+      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just mi -> Right <$> readTVar (moduleResults mi)

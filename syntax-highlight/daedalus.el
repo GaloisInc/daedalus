@@ -27,6 +27,8 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-c") 'daedalus-check-current-buffer)
     (define-key map (kbd "C-c C-i") 'daedalus-interpret-current-buffer)
+    (define-key map (kbd "C-c C-e") 'lsp-daedalus-regions)
+    
     map)
   "The keymap used in `daedalus-mode'.")
 
@@ -179,7 +181,91 @@ Customize the variable `daedalus-command' to change how it is invoked."
 
 (add-hook 'daedalus-mode-hook #'lsp)
 
-(setq-local lsp-semantic-tokens-enable t)
+
+;; LSP commands
+
+;; Setting the region over surrounding expressions
+
+(defun lsp-daedalus-regions (p)
+  (interactive "d")
+  (let* ((args (vector (lsp-text-document-identifier) (lsp-point-to-position p)))
+	 (ranges (lsp-send-execute-command "positionToRegions" args)))
+    (lsp-daedalus-regions-mode)
+    (lsp-daedalus--region-set-list ranges)
+    (lsp-daedalus--region-update)))
+    
+;; Following isearch mode for its modality
+(defvar-local lsp-daedalus--region-list nil
+  "The list of the regions in the currently active selection")
+
+(defvar-local lsp-daedalus--region-index 0
+  "The index of the currently selected region")
+
+(defun lsp-daedalus--region-set-list (rs)
+  (setq lsp-daedalus--region-list rs
+	lsp-daedalus--region-index 0))
+
+(defun lsp-daedalus--region-dec ()
+  (when (> lsp-daedalus--region-index 0)
+    (setq lsp-daedalus--region-index (- lsp-daedalus--region-index 1))))
+
+(defun lsp-daedalus--region-inc ()
+  (when (< lsp-daedalus--region-index (- (length lsp-daedalus--region-list) 1))
+    (setq lsp-daedalus--region-index (+ lsp-daedalus--region-index 1))))
+
+(defun lsp-daedalus--region-update ()
+  (let ((r (lsp--range-to-region (lsp-elt lsp-daedalus--region-list lsp-daedalus--region-index))))
+    (set-mark (cdr r))
+    (goto-char (car r))))
+
+(defvar lsp-daedalus-regions-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-e" 'lsp-daedalus-region-expand)
+    (define-key map "\C-r" 'lsp-daedalus-region-contract)
+    map)
+
+  "Keymap for `lsp-daedalus-regions-mod'")
+
+(defun lsp-daedalus--region-pre-command-hook ()
+  "Figure out if we need to exit the region mode."
+  (let* ((key (this-single-command-keys))
+	 (main-event (aref key 0)))
+    (cond
+     ((commandp (lookup-key lsp-daedalus-regions-mode-map key nil)))
+     (t (lsp-daedalus--region-done)))))
+
+(define-minor-mode lsp-daedalus-regions-mode
+  "A mode for selecting regions around an expression via Daedalus LSP"
+  :init-value nil
+  :lighter " Regions"
+  :keymap  lsp-daedalus-regions-mode-map
+  
+  ;; c.f. isearch-mode
+  (add-hook 'pre-command-hook 'lsp-daedalus--region-pre-command-hook) ;; to exit the mode if required
+  (add-hook 'kbd-macro-termination-hook 'lsp-daedalus--region-done)
+
+  ;; Do we need this?
+  ;;(recursive-edit))
+  )
+
+(defun lsp-daedalus--region-done ()
+  "Clean up after Daedalus LSP regions"
+  (message "... done")
+  (remove-hook 'pre-command-hook 'lsp-daedalus--region-pre-command-hook) ;; to exit the mode if required
+  (remove-hook 'kbd-macro-termination-hook 'lsp-daedalus--region-done)
+  (lsp-daedalus--region-set-list nil)
+  (lsp-daedalus-regions-mode -1)
+  )
+
+(defun lsp-daedalus-region-expand ()
+  (interactive)
+  (lsp-daedalus--region-inc)
+  (lsp-daedalus--region-update))
+
+(defun lsp-daedalus-region-contract()
+  (interactive)
+  (lsp-daedalus--region-dec)
+  (lsp-daedalus--region-update))
 
 (provide 'daedalus)
 ;;; daedalus.el ends here
