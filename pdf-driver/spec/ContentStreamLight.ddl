@@ -35,15 +35,4 @@ def TextShowOp =
 
 -- ContentStream: a simple parser that never fails and returns all
 -- text in showing operators
-def ContentStream = {
-  @shownStrings = Many {
-    -- parse an object that shows text;
-    @s = TextShowOp <|
-      -- just eat a byte
-      { UInt8;
-        ^ ""
-      };
-    UnicodeString CharCodeToUnicode s
-  };
-  ^(concat shownStrings)
-}
+def ContentStream = ^[]

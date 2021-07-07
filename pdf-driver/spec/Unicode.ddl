@@ -8,8 +8,7 @@ def CharCode c = {
 }
 
 -- UnicodeString U s: the unicode representation of character string s
-def UnicodeString Unicoder s = map (c in s) 
-  (Unicoder (CharCode c))
+def UnicodeString s = map (c in s) {| utf81 = c |}
 
 -- UTF-8: byte sequences of length 1 <= n <= 4
 def UTF8 = Choose {
