@@ -7,12 +7,15 @@ module CommandLine ( Options(..)
 import Options.Applicative
 
 
-data RunMode = FAW | Demo
+data RunMode = FAW | Demo 
+
+data RunOps = Validate | ExtractText
 
 data Options =
   Options { optPDFInput :: FilePath
           , optOutput   :: FilePath
           , optMode     :: RunMode
+          , optOps      :: RunOps
           , optPassword :: String 
           }
 
@@ -28,6 +31,11 @@ modeOpt = flag Demo FAW
  <> short 'f'
  <> help "Enable debug (non-demo)  mode" )
 
+opsOpt = flag Validate ExtractText
+  ( long "text"
+ <> short 't'
+ <> help "Extract text from PDF" )
+
 passwordOpt = strOption 
    ( long "pwd" 
   <> short 'p' 
@@ -38,6 +46,7 @@ options :: Parser Options
 options = Options <$> argument str (metavar "FILE")
                   <*> outputOpt
                   <*> modeOpt
+                  <*> opsOpt
                   <*> passwordOpt 
           
 opts :: ParserInfo Options

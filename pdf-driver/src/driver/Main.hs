@@ -35,8 +35,9 @@ main =
   pdfMain
   do opts <- getOptions
      case optMode opts of
-       Demo  -> driver opts
-       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts) 
+       Demo  -> validateDriver opts
+       ExtractText -> textDriver opts 
+       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts)
 
 
 data Format = Format
@@ -141,7 +142,7 @@ fmtDriver fmt file pwd =
      textRes <- runParser refs Nothing (pExtractRootUTF8Bytes root) topInput
      case textRes of
        ParseOk ok    -> catalogText fmt (vecToString ok)
-       ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
+       ParseAmbig _  -> error "BUG: catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
      mb <- try (makeEncContext trail refs topInput pwd)
@@ -216,8 +217,11 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
 
 
-driver :: DbgMode => Options -> IO ()
-driver opts = runReport opts $ 
+-- driver: a generalized driver
+driver :: DbgMode => Options ->
+          (Ref -> PdfMonad.Parser r) -> (r -> Doc) ->
+          IO ()
+driver opts objGraphParser resToString = runReport opts $ 
   do let file = optPDFInput opts
      bs   <- liftIO (BS.readFile file)
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
@@ -240,12 +244,15 @@ driver opts = runReport opts $
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
+     res <- liftIO (runParser refs Nothing (pCatalogOK root) topInput)
      case res of
-       ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
-       ParseOk False -> report RUnsafe file 0 "Malformed Catalog (page tree)"
+       ParseOk r  -> report RInfo file 0 (resToString r)
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
+
+     getText <- case optOps opts of
+       Validate -> return ()
+         
 
      let pwd = BS.pack (optPassword opts)
      mb <- liftIO (try (makeEncContext trail refs topInput pwd))
@@ -254,7 +261,17 @@ driver opts = runReport opts $
        Right fileEC -> parseObjs file fileEC topInput refs
 
 
-     
+-- validateDriver: validate the page tree
+validateDriver :: DbgMode => Options -> IO ()
+validateDriver opts = driver opts pCatalogIsOK
+  (\res -> if res then "Catalog (page tree) is OK"
+           else "Malformed Catalog (page tree)")
+  
+
+-- textDriver: extract text from the page tree
+textDriver :: DbgMode => Options -> IO ()
+textDriver opts = driver opts pExtractRootUTF8Bytes (text . vecToString)
+
 
 parseObjs ::
   DbgMode =>
