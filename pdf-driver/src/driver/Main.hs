@@ -26,6 +26,7 @@ import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
+import PdfExtractText
 import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import Primitives.Decrypt(makeFileKey)
 
@@ -49,6 +50,7 @@ data Format = Format
   , rootFound   :: Ref -> IO ()
   , catalogParseError :: ParseError -> IO ()
   , catalogOK   :: Bool -> IO ()
+  , catalogText :: String -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
   , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
@@ -76,6 +78,7 @@ fawFormat = Format
   , catalogOK =
       \ok -> putStrLn (if ok then "INFO: Catalog is OK."
                              else "ERROR: Catalog is malformed.")
+  , catalogText = \bs -> putStrLn ("INFO: Catalog text:" ++ bs)
   , declErr =
       \r l res ->
         let x = declResult res
@@ -132,6 +135,12 @@ fmtDriver fmt file pwd =
      res <- runParser refs Nothing (pCatalogIsOK root) topInput
      case res of
        ParseOk ok    -> catalogOK fmt ok
+       ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
+       ParseErr e    -> catalogParseError fmt e
+
+     textRes <- runParser refs Nothing (pExtractRootUTF8Bytes root) topInput
+     case textRes of
+       ParseOk ok    -> catalogText fmt (vecToString ok)
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 

@@ -79,7 +79,7 @@ def WithStream s P = {
   SetStream cur;
 }
 
-def sepLists2 ls = {
+def sepLists2 ls : Pair = {
   fst = optionsToList (map (x in ls) getLeft x);
   snd = optionsToList (map (x in ls) getRight x);
 }

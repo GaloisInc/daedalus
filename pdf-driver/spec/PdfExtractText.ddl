@@ -90,22 +90,3 @@ def ExtractCatalogText r = {
   ExtractRootText pages;
 }
 
---------------------------------------------------------------------------------
--- Checked
-
-def CheckDecl expectId expectGen (decl : TopDecl) = {
-  Guard (decl.id == expectId);
-  Guard (decl.gen == expectGen);
-  obj    = ^ decl.obj;
-}
-
-def TopDeclCheck expectId expectGen = {
-  @decl = TopDecl;
-  CheckDecl expectId expectGen decl;
-}
-
-def ResolveObjectStreamEntryCheck
-      expectId expectGen (oid : Nat) (gen : Nat) (idx : Nat) = {
-  @decl = ResolveObjectStreamEntry oid gen idx;
-  CheckDecl expectId expectGen decl;
-}
