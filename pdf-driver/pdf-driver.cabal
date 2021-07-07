@@ -44,13 +44,17 @@ library
     PdfDemo,
     PdfValidate,
     PdfDOM,
-    PdfExtractText
+    PdfExtractText,
+    Unicode,
+    ContentStreamLight
 
   autogen-modules:
     PdfDemo,
     PdfValidate,
     PdfDOM,
-    PdfExtractText
+    PdfExtractText,
+    Unicode,
+    ContentStreamLight
 
 
   build-depends:
