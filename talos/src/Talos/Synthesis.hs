@@ -220,6 +220,12 @@ synthesise m_seed nguid solv strat root md = do
     
     Just rootDecl = find (\d -> fName d == root) allDecls
 
+    -- Do the actual synthesis by calling the main function. The
+    -- 'Assertions' is to tell the system that we don't care about the
+    -- result, and so the summary we should use is the one for the
+    -- 'Assertions' result class.
+    --
+    -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
     once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
 
     env0      = SynthEnv Map.empty Map.empty Assertions root
@@ -279,11 +285,15 @@ synthesiseDecl :: SummaryClass -> SelectedPath -> Fun Grammar -> [Expr] -> Synth
 synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
   summary <- flip (Map.!) cl . flip (Map.!) fName <$> summaries
+  -- Add definitions for the function parameters, mapping to the
+  -- actuals.  We also set the path root map for the duration of thsi
+  -- function from the results discovered during analysis.
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
       setEnv e = e { pathSetRoots = pathRootMap summary
                    , currentClass = cl
                    , currentFName = fName
                    }
+  -- Update the synthesis scope for the function and synthesise its body.
   SynthesisM $ local (setEnv . addPs) (getSynthesisM (synthesiseG fp def))
 
 synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
@@ -304,6 +314,10 @@ choosePath cp x = do
   m_sl <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
   case m_sl of
     Nothing  -> pure cp
+    -- The analysis determined that we have a set of projections on
+    -- the value of x that are rooted here.  We don't care about the
+    -- projections, just the slices as we will (re)construct the value for
+    -- x when we pass the bytes through the interpreter. 
     Just fsets_sls -> do
       let (_, sls) = unzip fsets_sls
       solvSt <- SynthesisM $ gets solverState

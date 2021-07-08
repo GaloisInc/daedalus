@@ -6,7 +6,6 @@ def A =
           { @t = Match1 'b'
           ; ^ 'c'
           }
-    ; ^ y
     }
 
 def Main = {res = A; END}

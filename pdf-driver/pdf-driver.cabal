@@ -19,7 +19,6 @@ extra-source-files:
   spec/PdfText.ddl,
   spec/PdfValidate.ddl,
   spec/PdfDOM.ddl,
-  spec/Unicode.ddl,
   spec/Stdlib.ddl,
   spec/PdfExtractText.ddl,
   spec/ContentStreamLight.ddl,
@@ -55,7 +54,6 @@ library
     PdfExtractText,
     Unicode,
     ContentStreamLight
-
 
   build-depends:
     base >=4.13 && <4.15,

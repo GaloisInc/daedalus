@@ -13,8 +13,7 @@ T038.Foo (x : Maybe int) : Grammar (Maybe int) =
   pure x
  
 T038.Main : Grammar T038.Main =
-  do (a : Maybe int) <- Optional do ($$ : int) <- pure 1
-                                    pure $$
+  do (a : Maybe int) <- pure (just 1)
      (b : Maybe int) <- T038.Foo a
      pure {a = a,
            b = b}
@@ -23,8 +22,4 @@ T038._Foo : Grammar {} =
   pure {}
  
 T038._Main : Grammar {} =
-  do Choose biased
-       { pure {}
-       | pure {}
-       }
-     T038._Foo
+  T038._Foo

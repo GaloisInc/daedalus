@@ -10,6 +10,7 @@
 ;;
 
 ;;; Code:
+(require 'lsp-mode)
 
 (defgroup daedalus '()
   "Settings for DaeDaLus"
@@ -24,8 +25,10 @@
 
 (defvar daedalus-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") 'daedalus-check-current-buffer)
+    (define-key map (kbd "C-c C-c") 'lsp-daedalus-run)
     (define-key map (kbd "C-c C-i") 'daedalus-interpret-current-buffer)
+    (define-key map (kbd "C-c C-e") 'lsp-daedalus-regions)
+    
     map)
   "The keymap used in `daedalus-mode'.")
 
@@ -123,30 +126,160 @@ Customize the variable `daedalus-command' to change how it is invoked."
     (modify-syntax-entry ?' "\"" s)
     s))
 
-(defconst daedalus--kw-regexp (regexp-opt daedalus-keywords 'words)
-  "Regexp matching DaeDaLus keywords for use in highlighting.")
+;; (defconst daedalus--kw-regexp (regexp-opt daedalus-keywords 'words)
+;;   "Regexp matching DaeDaLus keywords for use in highlighting.")
 
-(defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";"))
-  "Regexp matching special DaeDaLus magic symbols.")
+;; (defconst daedalus--magic-symbol-regexp (regexp-opt '("$$" "@" "^" ".." ";"))
+;;   "Regexp matching special DaeDaLus magic symbols.")
 
-(defconst daedalus--big-ident-regexp "\\<[A-Z][a-zA-Z0-9]*\\>")
-(defconst daedalus--small-ident-regexp "\\<[a-z][a-zA-Z0-9]*\\>")
-(defconst daedalus--set-ident-regexp "\\<\\$[a-z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--big-ident-regexp "\\<[A-Z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--small-ident-regexp "\\<[a-z][a-zA-Z0-9]*\\>")
+;; (defconst daedalus--set-ident-regexp "\\<\\$[a-z][a-zA-Z0-9]*\\>")
 
-(defconst daedalus-font-lock-defaults
-  `((,daedalus--kw-regexp . font-lock-keyword-face)
-    (,daedalus--magic-symbol-regexp . font-lock-builtin-face)
-    (,daedalus--big-ident-regexp . font-lock-function-name-face)
-    (,daedalus--small-ident-regexp . font-lock-variable-name-face)
-    (,daedalus--set-ident-regexp . font-lock-reference-face)))
+;; (defconst daedalus-font-lock-defaults
+;;   `((,daedalus--kw-regexp . font-lock-keyword-face)
+;;     (,daedalus--magic-symbol-regexp . font-lock-builtin-face)
+;;     (,daedalus--big-ident-regexp . font-lock-function-name-face)
+;;     (,daedalus--small-ident-regexp . font-lock-variable-name-face)
+;;     (,daedalus--set-ident-regexp . font-lock-reference-face)))
 
 (define-derived-mode daedalus-mode prog-mode "DaeDaLus"
   "Major mode for editing DaeDaLus files"
   :group 'daedalus
   :syntax-table daedalus-syntax-table
-  (setq font-lock-defaults '((daedalus-font-lock-defaults))))
+  (setq font-lock-defaults '(()))
+  (setq-local lsp-semantic-tokens-enable t) ;; use lsp for fontification
+  )
+
+;; We use LSP for fontification
+;; (setq font-lock-defaults '((daedalus-font-lock-defaults))))
 
 (add-to-list 'auto-mode-alist (cons "\\.ddl\\'" 'daedalus-mode))
+
+;; LSP setup
+
+(defgroup lsp-daedalus nil
+  "LSP support for Daedalus."
+  :group 'lsp-mode
+  :link '(url-link "https://github.com/GaloisInc/Daedalus"))
+
+(defcustom lsp-daedalus-server-path "daedalus-language-server"
+  "Executable path for the server."
+  :group 'lsp-daedalus
+  :type 'string
+  :package-version '(lsp-mode . "7.1"))
+
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection (lambda () lsp-daedalus-server-path))
+                  :major-modes '(daedalus-mode)
+                  :server-id 'daedalus-lsp))
+
+
+(add-to-list 'lsp-language-id-configuration '(daedalus-mode . "daedalus"))
+
+;; (lsp-consistency-check lsp-daedalus)
+
+(add-hook 'daedalus-mode-hook #'lsp)
+
+
+;; LSP commands
+
+;; Running the definition under the cursor
+
+(defun lsp-daedalus-run (p)
+  (interactive "d")
+  (let* ((args (vector (lsp-text-document-identifier) (lsp-point-to-position p)))
+	 (res (lsp-send-execute-command "run" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Results*")
+       (erase-buffer)
+       (insert res)
+       (current-buffer)))))
+			    
+
+
+;; Setting the region over surrounding expressions
+
+(defun lsp-daedalus-regions (p)
+  (interactive "d")
+  (let* ((args (vector (lsp-text-document-identifier) (lsp-point-to-position p)))
+	 (ranges (lsp-send-execute-command "positionToRegions" args)))
+    (lsp-daedalus-regions-mode)
+    (lsp-daedalus--region-set-list ranges)
+    (lsp-daedalus--region-update)))
+    
+;; Following isearch mode for its modality
+(defvar-local lsp-daedalus--region-list nil
+  "The list of the regions in the currently active selection")
+
+(defvar-local lsp-daedalus--region-index 0
+  "The index of the currently selected region")
+
+(defun lsp-daedalus--region-set-list (rs)
+  (setq lsp-daedalus--region-list rs
+	lsp-daedalus--region-index 0))
+
+(defun lsp-daedalus--region-dec ()
+  (when (> lsp-daedalus--region-index 0)
+    (setq lsp-daedalus--region-index (- lsp-daedalus--region-index 1))))
+
+(defun lsp-daedalus--region-inc ()
+  (when (< lsp-daedalus--region-index (- (length lsp-daedalus--region-list) 1))
+    (setq lsp-daedalus--region-index (+ lsp-daedalus--region-index 1))))
+
+(defun lsp-daedalus--region-update ()
+  (let ((r (lsp--range-to-region (lsp-elt lsp-daedalus--region-list lsp-daedalus--region-index))))
+    (set-mark (cdr r))
+    (goto-char (car r))))
+
+(defvar lsp-daedalus-regions-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-e" 'lsp-daedalus-region-expand)
+    (define-key map "\C-r" 'lsp-daedalus-region-contract)
+    map)
+
+  "Keymap for `lsp-daedalus-regions-mod'")
+
+(defun lsp-daedalus--region-pre-command-hook ()
+  "Figure out if we need to exit the region mode."
+  (let* ((key (this-single-command-keys))
+	 (main-event (aref key 0)))
+    (cond
+     ((commandp (lookup-key lsp-daedalus-regions-mode-map key nil)))
+     (t (lsp-daedalus--region-done)))))
+
+(define-minor-mode lsp-daedalus-regions-mode
+  "A mode for selecting regions around an expression via Daedalus LSP"
+  :init-value nil
+  :lighter " Regions"
+  :keymap  lsp-daedalus-regions-mode-map
+  
+  ;; c.f. isearch-mode
+  (add-hook 'pre-command-hook 'lsp-daedalus--region-pre-command-hook) ;; to exit the mode if required
+  (add-hook 'kbd-macro-termination-hook 'lsp-daedalus--region-done)
+
+  ;; Do we need this?
+  ;;(recursive-edit))
+  )
+
+(defun lsp-daedalus--region-done ()
+  "Clean up after Daedalus LSP regions"
+  (message "... done")
+  (remove-hook 'pre-command-hook 'lsp-daedalus--region-pre-command-hook) ;; to exit the mode if required
+  (remove-hook 'kbd-macro-termination-hook 'lsp-daedalus--region-done)
+  (lsp-daedalus--region-set-list nil)
+  (lsp-daedalus-regions-mode -1)
+  )
+
+(defun lsp-daedalus-region-expand ()
+  (interactive)
+  (lsp-daedalus--region-inc)
+  (lsp-daedalus--region-update))
+
+(defun lsp-daedalus-region-contract()
+  (interactive)
+  (lsp-daedalus--region-dec)
+  (lsp-daedalus--region-update))
 
 (provide 'daedalus)
 ;;; daedalus.el ends here

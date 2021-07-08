@@ -75,11 +75,10 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
-import Data.Either (partitionEithers)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM)
+import Control.Monad(msum,foldM,forM,unless)
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Exception(Exception,throwIO,try)
+import Control.Exception(Exception,throwIO)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing)
@@ -95,6 +94,7 @@ import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
+import qualified Daedalus.Type.CheckUnused as CheckUnused
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
@@ -131,9 +131,9 @@ ddlPassFromFile ::
   (ModuleName -> Daedalus ()) ->
   FilePath -> Daedalus ModuleName
 ddlPassFromFile pass file =
-  do let (dirs,m) = pathToModuleName file
+  do let (dir,m) = pathToModuleName file
      search <- ddlGetOpt optSearchPath
-     ddlUpdOpt optSearchPath (dirs ++)
+     ddlUpdOpt optSearchPath (dir :)
      pass m
      ddlSetOpt optSearchPath search
      pure m
@@ -238,8 +238,7 @@ prettyDaedalusError err =
         _ -> justShow e
     ASpecializeError e -> pure e
     ADriverError e -> pure e
-
-  where
+ where
   justShow it = pure (show (pp it))
 
 --------------------------------------------------------------------------------
@@ -483,24 +482,14 @@ ddlGetFName m f =
 
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
 parseModuleFromFile n file =
-  do mb <- ddlIO (try (parseFromFile file))
-     (imps,ds) <- case mb of
-                    Left err -> ddlThrow (AParseError err)
-                    Right a -> pure a
-     -- hack so we can reuse the same type after scope analysis
-     let (rs, bds) = partitionEithers (map declToEither ds)
-         rs' = map NonRec rs
-         m   = ParsedModule (Module n imps bds rs')
+  do mb <- ddlIO (parseFromFile file n)
+     m <- case mb of
+            Left err -> ddlThrow (AParseError err)
+            Right m -> pure (ParsedModule m)
      ddlUpdate_ \s ->
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
-  where
-    declToEither :: Decl -> Either Rule BitData
-    declToEither (DeclRule rl) = Left rl
-    declToEither (DeclBitData bd) = Right bd
-
-         
 
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
@@ -536,19 +525,29 @@ tcModule m =
      case r of
        Left err -> ddlThrow $ ATypeError err
        Right m1 ->
-        ddlUpdate_ \s -> s
-          { loadedModules = Map.insert (tcModuleName m1) (TypeCheckedModule m1)
-                                                         (loadedModules s)
-          , declaredTypes =
-              foldr (\d -> Map.insert (tctyName d) d)
-                    (declaredTypes s)
-                    (forgetRecs (tcModuleTypes m1))
+         do let warn = CheckUnused.checkTCModule m1
+            unless (null warn) (ppWarn warn)
+            ddlUpdate_ \s -> s
+              { loadedModules = Map.insert (tcModuleName m1)
+                                           (TypeCheckedModule m1)
+                                           (loadedModules s)
+              , declaredTypes =
+                  foldr (\d -> Map.insert (tctyName d) d)
+                        (declaredTypes s)
+                        (forgetRecs (tcModuleTypes m1))
 
-          , ruleTypes =
-              foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
-                    (ruleTypes s)
-                    (forgetRecs (tcModuleDecls m1))
-          }
+              , ruleTypes =
+                  foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
+                        (ruleTypes s)
+                        (forgetRecs (tcModuleDecls m1))
+              }
+  where
+  ppWarn xs =
+    ddlPutStrLn $
+      unlines
+        [ prettySourceRangeLong x <>
+                                " [WARNING] Statement has no effect" | x <- xs ]
+
 
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()

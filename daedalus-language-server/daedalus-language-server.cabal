@@ -1,0 +1,81 @@
+cabal-version:      2.4
+name:               daedalus-language-server
+version:            0.1.0.0
+synopsis:           A language-server-protocol implementation for Daedalus
+
+-- description:
+-- bug-reports:
+license-file:       LICENSE
+author:             Simon Winwood
+maintainer:         simonjwinwood@gmail.com
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+library
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -O2
+  ghc-prof-options:    -fprof-auto
+  exposed-modules:     Daedalus.LSP.Monad,
+                       Daedalus.LSP.Server,
+                       Daedalus.LSP.Diagnostics,
+                       Daedalus.LSP.SemanticTokens,
+                       Daedalus.LSP.Position,
+                       Daedalus.LSP.LanguageFeatures,
+                       Daedalus.LSP.Command,                       
+                       Daedalus.LSP.Command.Regions,
+                       Daedalus.LSP.Command.Run
+                       
+                      
+  build-depends:       base >=4.13.0.0,
+                       daedalus,
+                       daedalus-utils,
+                       rts-hs,
+                       parameterized-utils,
+                       unordered-containers,
+                       lens,
+                       containers,
+                       lsp,
+                       lsp-types,
+                       aeson,
+                       stm,
+                       text,
+                       hslogger,
+                       bytestring,
+                       mtl,
+                       async,
+                       filepath,
+                       data-default,
+                       unliftio-core
+ 
+
+                    
+executable daedalus-language-server
+    main-is:          Main.hs
+    ghc-options:      -Wall -O2 -threaded 
+
+    -- Modules included in this executable, other than Main.
+    other-modules: CommandLine
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:
+        base >=4.13.0.0,
+        daedalus-language-server,
+        daedalus,
+        daedalus-utils,        
+        optparse-applicative,
+        lens,
+        unordered-containers,
+        containers,
+        mtl,
+        text,
+        aeson,
+        hslogger,
+        stm,
+        bytestring,
+        lsp
+       
+    hs-source-dirs:   app
+    default-language: Haskell2010

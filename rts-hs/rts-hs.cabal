@@ -21,7 +21,6 @@ library
                        RTS.ParserAPI,
                        RTS.Parser,
                        RTS.StateT,
-                       RTS.WithTreeT,
                        RTS.Vector,
                        RTS.Map,
                        RTS.Input,
