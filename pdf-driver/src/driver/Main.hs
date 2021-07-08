@@ -41,7 +41,7 @@ main =
      let pw = BS.pack $ optPassword opts
      case optOps opts of
        Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
-       ExtractText -> fmtDriver fmt inputFile pExtractRootUTF8Bytes pw
+       ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
              
 
 data Format = Format

@@ -8,12 +8,6 @@ import Unicode
 import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
 
--- entry point for text extraction
-def ExtractRootUTF8Bytes r = {
-  @utf8s = ExtractRootText r;
-  ^(utf8Bytes utf8s)
-}
-
 def ExtractRootText r = Default [] {
   ExtractPageOrPagesText nothing r
 }
@@ -87,6 +81,6 @@ def ExtractCatalogText r = {
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;
-  ExtractRootText pages;
+  @utf8s = ExtractRootText pages;
+  ^(utf8Bytes utf8s)
 }
-
