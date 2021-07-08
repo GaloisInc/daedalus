@@ -1,6 +1,7 @@
 
 module CommandLine ( Options(..)
                    , RunMode(..)
+                   , RunOps(..)
                    , getOptions
                    ) where
 

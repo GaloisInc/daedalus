@@ -34,11 +34,15 @@ main :: IO ()
 main =
   pdfMain
   do opts <- getOptions
-     case optMode opts of
-       Demo  -> validateDriver opts
-       ExtractText -> textDriver opts 
-       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts)
-
+     let fmt = case optMode opts of
+                 Demo  -> demoFormat opts
+                 FAW   -> fawFormat 
+     let inputFile = optPDFInput opts
+     let pw = BS.pack $ optPassword opts
+     case optOps opts of
+       Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
+       ExtractText -> fmtDriver fmt inputFile pExtractRootUTF8Bytes pw
+             
 
 data Format = Format
   { onStart     :: FilePath -> ByteString -> IO ()
@@ -50,8 +54,7 @@ data Format = Format
   , rootMissing :: IO ()
   , rootFound   :: Ref -> IO ()
   , catalogParseError :: ParseError -> IO ()
-  , catalogOK   :: Bool -> IO ()
-  , catalogText :: String -> IO ()
+  , catalogParsed :: String -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
   , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
@@ -74,12 +77,10 @@ fawFormat = Format
   , rootFound =
       \r -> putStrLn ("INFO: Root reference is " ++
                         showR (getField @"obj" r) (getField @"gen" r))
-  , catalogParseError =
-      \p -> putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
-  , catalogOK =
-      \ok -> putStrLn (if ok then "INFO: Catalog is OK."
-                             else "ERROR: Catalog is malformed.")
-  , catalogText = \bs -> putStrLn ("INFO: Catalog text:" ++ bs)
+  , catalogParseError = \p ->
+      putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
+  , catalogParsed = \ok ->
+      putStrLn ("INFO: Catalog value:\n" ++ ok)
   , declErr =
       \r l res ->
         let x = declResult res
@@ -106,9 +107,40 @@ fawFormat = Format
                 InObj {}   -> "@compresed"
 
 
+-- demoFormat: format for reporting output directly. Tries to preserve
+-- old implementation of driver.
+demoFormat::Options -> Format
+demoFormat opts =
+  let optReport = runReport opts in
+  let fileN = optPDFInput opts in
+  let reportCritFile = \i d ->
+        (fmap $ const ()) (reportCritical fileN i d) in 
+  let reportInfo = report RInfo fileN 0 in 
+  let reportErr = report RError fileN in Format
+  { onStart = \_fp _bs -> return ()
+    , xrefMissing = \s -> optReport $ reportCritFile
+                          0 ("unable to find %%EOF" <+> parens (text s))
+    , xrefFound = \r -> return ()
+    , xrefBad = \err -> optReport $ reportCritFile
+                        (peOffset err) (ppParserError err)
+    , xrefOK = \idx m -> return ()
+    , warnEncrypt = return ()
+    , rootMissing = optReport $ reportCritFile
+                    0 ("Missing document root")
+    , rootFound = \r -> return ()
+    , catalogParseError = \err -> optReport $ reportErr
+      (peOffset err) (hang "Parsing Catalog/Page tree" 2 (ppParserError err))
+    , catalogParsed = \isOk -> optReport $ reportInfo
+      (text ("Catalog (page tree) result:\n" ++ isOk))
+    , declErr = \res loc err -> return ()
+    , declParsed = \res loc declRes -> return ()
+  }
 
-fmtDriver :: DbgMode => Format -> FilePath -> BS.ByteString -> IO ()
-fmtDriver fmt file pwd =
+
+fmtDriver :: (DbgMode, Show a) => Format -> FilePath ->
+  (Ref -> Parser a) -> 
+  BS.ByteString -> IO ()
+fmtDriver fmt file pageTreeParser pwd =
   do bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      onStart fmt file bs
@@ -133,16 +165,10 @@ fmtDriver fmt file pwd =
                Just r -> pure r
      rootFound fmt root
 
-     res <- runParser refs Nothing (pCatalogIsOK root) topInput
+     res <- runParser refs Nothing (pageTreeParser root) topInput
      case res of
-       ParseOk ok    -> catalogOK fmt ok
+       ParseOk r    -> catalogParsed fmt (show r)
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
-       ParseErr e    -> catalogParseError fmt e
-
-     textRes <- runParser refs Nothing (pExtractRootUTF8Bytes root) topInput
-     case textRes of
-       ParseOk ok    -> catalogText fmt (vecToString ok)
-       ParseAmbig _  -> error "BUG: catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
      mb <- try (makeEncContext trail refs topInput pwd)
@@ -217,7 +243,8 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
 
 
--- driver: a generalized driver
+-- driver: 
+-- deprecated for fmtDriver?
 driver :: DbgMode => Options ->
           (Ref -> PdfMonad.Parser r) -> (r -> Doc) ->
           IO ()
@@ -244,33 +271,17 @@ driver opts objGraphParser resToString = runReport opts $
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     res <- liftIO (runParser refs Nothing (pCatalogOK root) topInput)
+     res <- liftIO (runParser refs Nothing (objGraphParser root) topInput)
      case res of
        ParseOk r  -> report RInfo file 0 (resToString r)
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
-
-     getText <- case optOps opts of
-       Validate -> return ()
-         
 
      let pwd = BS.pack (optPassword opts)
      mb <- liftIO (try (makeEncContext trail refs topInput pwd))
      case mb of
        Left err -> reportCritical file (peOffset err) (ppParserError err)
        Right fileEC -> parseObjs file fileEC topInput refs
-
-
--- validateDriver: validate the page tree
-validateDriver :: DbgMode => Options -> IO ()
-validateDriver opts = driver opts pCatalogIsOK
-  (\res -> if res then "Catalog (page tree) is OK"
-           else "Malformed Catalog (page tree)")
-  
-
--- textDriver: extract text from the page tree
-textDriver :: DbgMode => Options -> IO ()
-textDriver opts = driver opts pExtractRootUTF8Bytes (text . vecToString)
 
 
 parseObjs ::
