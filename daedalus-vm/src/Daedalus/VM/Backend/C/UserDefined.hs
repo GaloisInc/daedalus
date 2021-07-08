@@ -23,7 +23,7 @@ cTypeGroup rec =
     case rec of
       NonRec d ->
         case tDef d of
-          TStruct {} -> vcat' [ cUnboxedProd GenPublic d
+          TStruct {} -> vcat' [ cUnboxedProd d
                               , generateMethods GenPublic GenUnboxed d
                               ]
           TUnion {}  -> vcat' [ cSumTags [d]
@@ -44,7 +44,7 @@ cTypeGroup rec =
           map cBoxedSum sums ++
 
           -- 4. Declare products
-          map (cUnboxedProd GenPublic) prods ++
+          map cUnboxedProd prods ++
 
           -- 5. Declare unboxed sums
           map (cUnboxedSum GenPrivate) sums ++
@@ -94,14 +94,18 @@ orderRecGroup tds = (sums, forgetRecs (topoOrder deps prods))
 
 
 
-
 cTypeDecl :: GenVis -> TDecl -> CDecl
-cTypeDecl vis ty = cTypeDecl' vis ty <.> semi
+cTypeDecl vis ty = cNamespace cUserNameSpace $ mbPriv $ cTypeDecl' ty <.> semi
+  where
+  mbPriv = case vis of
+             GenPublic -> id
+             GenPrivate -> cNamespace cUserPrivateNameSpace
 
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
-cTypeDecl' :: GenVis -> TDecl -> CDecl
-cTypeDecl' vis ty =
-  vcat [ cTemplateDecl ty, "class" <+> cTName' vis (tName ty) ]
+-- Note: This does not add the namespace
+cTypeDecl' :: TDecl -> CDecl
+cTypeDecl' ty =
+  vcat [ cTemplateDecl ty, "class" <+> cTNameRoot (tName ty) ]
 
 cTemplateDecl :: TDecl -> Doc
 cTemplateDecl ty =
@@ -122,7 +126,7 @@ cTypeParams ty =
 -- Example: Node<T>
 cTypeNameUse :: GenVis -> TDecl -> CType
 cTypeNameUse vis tdecl =
-  cTypeUse (cTName' vis (tName tdecl))
+  cTypeUse (cTNameUse vis (tName tdecl))
            (map cTParam (tTParamKNumber tdecl))
            (map cTParam (tTParamKValue tdecl))
 
@@ -136,11 +140,6 @@ copyMethodSig = cStmt ("void" <+> cCall "copy" [])
 -- | Signature for the @free@ method
 freeMethodSig :: Doc
 freeMethodSig = cStmt ("void" <+> cCall "free" [])
-
-eqMethodSig :: GenVis -> Doc -> TDecl -> CDecl
-eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
-  where
-  name = cTName' vis (tName t)
 
 -- | Constructor for a product
 cProdCtr :: TDecl -> CStmt
@@ -179,17 +178,18 @@ cSumCtrs tdecl =
 -- Unboxed Products
 
 -- | Interface definition for struct types
-cUnboxedProd :: GenVis -> TDecl -> CDecl
-cUnboxedProd vis ty =
-  vcat $
-    [ cTypeDecl' vis ty <+> ": public DDL::HasRefs {"
-    , nest 2 $ vcat attribs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ] ++
-    decFunctions vis ty
+cUnboxedProd :: TDecl -> CDecl
+cUnboxedProd ty = vcat (theClass : decFunctions GenPublic ty)
   where
+  theClass =
+    cNamespace cUserNameSpace $
+    vcat [ cTypeDecl' ty <+> ": public ::DDL::HasRefs {"
+         , nest 2 $ vcat attribs
+         , "public:"
+         , nest 2 $ vcat methods
+         , "};"
+         ]
+
   TStruct fields = tDef ty
   attribs = [ cStmt (cSemType t <+> cField n)
             | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit
@@ -219,27 +219,25 @@ cUnboxedProd vis ty =
 cSumTags :: [TDecl] -> CDecl
 cSumTags sums
   | null sums = empty
-  | otherwise = vcat
-                  [ "namespace Tag {"
-                  , nest 2 $ vcat $ map cSumTag sums
-                  , "}"
-                  ]
+  | otherwise = cNamespace cUserNameSpace
+              $ cNamespace "Tag"
+              $ vcat $ map cSumTag sums
 
--- | The enum for a tag type
-cSumTag :: TDecl -> CDecl
-cSumTag ty =
-  fsep $ [ "enum class", cTName (tName ty), "{" ] ++
-         punctuate comma (map (cLabel . fst) fields) ++
-         [ "};" ]
   where
-  TUnion fields = tDef ty
+  cSumTag ty =
+    fsep $ [ "enum class", cTNameRoot (tName ty), "{" ] ++
+           punctuate comma (map (cLabel . fst) fields) ++
+           [ "};" ]
+    where
+    TUnion fields = tDef ty
 
 -- | The type of tags for the given type
 cSumTagT :: TDecl -> CType
-cSumTagT tdecl = "Tag::" <.> cTName (tName tdecl)
+cSumTagT tdecl = cUserNameSpace <.> "::Tag::" <.> cTNameRoot (tName tdecl)
 
 cSumTagV :: TName -> Label -> Doc
-cSumTagV t l = "Tag::" <.> cTName t <.> "::" <.> cLabel l
+cSumTagV t l =
+  cUserNameSpace <.> "::Tag::" <.> cTNameRoot t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -249,16 +247,24 @@ cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 
 -- | Class signature for an unboxed sum
 cUnboxedSum :: GenVis -> TDecl -> CDecl
-cUnboxedSum vis tdecl =
-  vcat $
-    [ cTypeDecl' vis tdecl <+> ": DDL::HasRefs {"
-    , nest 2 $ vcat attribs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ]
-    ++ decFunctions vis tdecl
+cUnboxedSum vis tdecl = vcat (theClass : decFunctions vis tdecl)
   where
+  theClass =
+    let mbPriv = case vis of
+                   GenPublic -> id
+                   GenPrivate -> cNamespace cUserPrivateNameSpace
+    in
+    cNamespace cUserNameSpace $
+    mbPriv $
+    vcat
+       [ cTypeDecl' tdecl <+> ": ::DDL::HasRefs {"
+       , nest 2 $ vcat attribs
+       , "public:"
+       , nest 2 $ vcat methods
+       , "};"
+       ]
+
+
   fields = getFields tdecl
 
   attribs =
@@ -292,15 +298,18 @@ cUnboxedSum vis tdecl =
 
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
-cBoxedSum tdecl =
-  vcat $
-    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
-    , nest 2 $ vcat attrs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ] ++ decFunctions GenPublic tdecl
+cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
   where
+  theClass = cNamespace cUserNameSpace $
+             vcat
+               [ cTypeDecl' tdecl <+> ": public ::DDL::IsBoxed {"
+               , nest 2 $ vcat attrs
+               , "public:"
+               , nest 2 $ vcat methods
+               , "};"
+               ]
+
+
   attrs =
     [ cStmt  $ cInst "DDL::Boxed" [ cTypeNameUse GenPrivate tdecl ] <+> "ptr"
     ]
@@ -689,7 +698,7 @@ maybeCopyFree fun ty e =
     TParam {} ->
       Just $ vcat [ "if constexpr" <+> parens check <+> "{", nest 2 doIt , "}" ]
       where
-      check = cInst "std::is_base_of" [ "DDL::HasRefs", cSemType ty ]
+      check = cInst "std::is_base_of" [ "::DDL::HasRefs", cSemType ty ]
                                                                 <.> "::value"
 
     _ -> case typeRep ty of

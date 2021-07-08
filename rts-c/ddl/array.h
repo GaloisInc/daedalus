@@ -44,7 +44,49 @@ class Array : IsBoxed {
     fill(i+1,xs...);
   }
 
+  static
+  size_t rangeSize(size_t space, size_t step) {
+    size_t ents  = space / step;
+    size_t extra = space % step;
+    if (extra > 0) ++ents;
+    return ents;
+  }
+
 public:
+
+  static Array rangeUp(T start,T end, T step) {
+    // step > 0 && step <= MAX(size_t)
+    // start <= end
+    // (end - start) <= MAX(size_t)
+
+    size_t ents = rangeSize((end - start).asULong(), step.asULong());
+    Content *p = Content::allocate(ents);
+    T val = start;
+    for (size_t i = 0; i < ents; ++i) {
+      p->data[i] = val;
+      val = val + step;
+    }
+
+    return Array(p);
+  }
+
+  static Array rangeDown(T start,T end, T step) {
+    // step > 0 && step <= MAX(size_t)
+    // start >= end
+    // (start - end) <= MAX(size_t)
+
+    size_t ents = rangeSize((start - end).asULong(), step.asULong());
+    Content *p = Content::allocate(ents);
+    T val = start;
+    for (size_t i = 0; i < ents; ++i) {
+      p->data[i] = val;
+      val = val - step;
+    }
+
+    return Array(p);
+  }
+
+
 
   using Builder = List<T>;
 
@@ -97,11 +139,12 @@ public:
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
-  T borrowElement(size_t i) { return ptr->data[i]; }
+  T borrowElement(UInt<64> i) { return ptr->data[i.rep()]; }
 
   // Borrows this
   // Returns an owned copy of the element.
-  T operator[] (size_t i) {
+  T operator[] (UInt<64> i0) {
+    auto i = i0.rep();
     if constexpr (std::is_base_of<HasRefs,T>::value) {
       T& x = ptr->data[i];
       x.copy();
@@ -254,6 +297,7 @@ bool operator <= (Array<T> xs, Array<T> ys) { return !(xs > ys); }
 // Borrow arguments
 template <typename T> static inline
 bool operator >= (Array<T> xs, Array<T> ys) { return !(xs < ys); }
+
 
 
 

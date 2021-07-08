@@ -564,12 +564,13 @@ cOp2 x op2 ~[e1',e2'] =
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
 cOp3 x op es =
   case op of
-    Src.RangeUp     -> todo
-    Src.RangeDown   -> todo
+    Src.RangeUp   -> range "rangeUp"
+    Src.RangeDown -> range "rangeDown"
     Src.MapInsert -> cVarDecl x (cCallMethod e1 "insert" [ e2, e3 ])
   where
-  todo = "/* todo: op 3 " <+> pp op <+> "*/"
+  range m = cVarDecl x (cCall (ty <.> "::" <.> m) [ e1, e2, e3 ])
   [e1,e2,e3] = map cExpr es
+  ty = cType (getType x)
 
 
 

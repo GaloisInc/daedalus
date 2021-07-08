@@ -40,9 +40,10 @@ void compare_test() {
 
 
 int main() {
-  DDL::UInt<15> x;
-  DDL::SInt<15> y;
-  cout << (compare(x,x)) << endl;
-  cout << (compare(y,y)) << endl;
+  auto a = DDL::Array<DDL::UInt<64>>::rangeUp(0,10,2);
+  std::cout << a << std::endl;
+
+  auto b = DDL::Array<DDL::UInt<64>>::rangeDown(10,0,1);
+  std::cout << b << std::endl;
   return 0;
 }
