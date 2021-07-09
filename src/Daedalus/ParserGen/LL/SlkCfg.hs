@@ -9,6 +9,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , initSlkCfg
   , isInitSlkCfg
   , showSlkCfg
+  , showSlkCfgWithAut
   , showSlkControlData
   , showGraphvizSlkCfg
   , _showDebugSlkControlData
@@ -17,6 +18,7 @@ module Daedalus.ParserGen.LL.SlkCfg
   , isStreamSetDynamic
   , simulateDynamicStreamSet
   , simulateActionSlkCfg
+  , isManyExactConstant
   , isManyExactDependent
   , InputHeadCondition(..)
   , showGraphvizInputHeadCondition
@@ -232,8 +234,8 @@ showSlkControlData aut ctrl =
     SWildcard -> [ "*" ]
     SCons (SlkCallFrame _name q _ _) rest ->
       showSlkControlData aut rest ++ [ Aut.stateToString q aut ]
-    SCons _ rest ->
-      showSlkControlData aut rest
+    SCons (SlkManyFrame _ _) rest ->
+      showSlkControlData aut rest ++ [ "Many" ]
     SEmpty ->  []
 
 
@@ -425,9 +427,22 @@ compatibleInput inp1 inp2 =
     p2 = positionFromBeginning inp2
   in
   case (p1, p2) of
-    (WildWindow, _) -> False
-    (_, WildWindow) -> False
-    _ -> p1 == p2
+    (WildWindow, _) ->
+      -- trace (show inp1) $
+      -- trace (show inp2) $
+      False
+    (_, WildWindow) ->
+      -- trace (show inp1) $
+      -- trace (show inp2) $
+      False
+    _ ->
+      if (p1 == p2)
+      then
+        True
+      else
+        -- trace (show inp1) $
+        -- trace (show inp2) $
+        False
   -- NOTE: this condition is somewhat strict but beware of relaxing it
   -- because it could non-terminate
 
@@ -467,6 +482,23 @@ showSlkCfg
   "sem:" ++ showSlkStack sem ++ ", " ++
   "inp:" ++ showSlkInput inp ++
   " }"
+
+showSlkCfgWithAut :: Aut.Aut a => a -> SlkCfg -> String
+showSlkCfgWithAut aut
+  (SlkCfg
+  { cfgState = q
+  , cfgCtrl = ctrl
+  , cfgSem = sem
+  , cfgInput = inp
+  }) =
+  "SlkCfg{ " ++
+  "q:" ++ show q ++ ", " ++
+  "ctrl:" ++ concat (showSlkControlData aut ctrl) ++ ", " ++
+  "sem:" ++ showSlkStack sem ++ ", " ++
+  "inp:" ++ showSlkInput inp ++
+  " }"
+
+
 
 showGraphvizSlkCfg :: Bool -> SlkCfg -> String
 showGraphvizSlkCfg
@@ -685,6 +717,18 @@ getCountWithLowerBound (SConcrete cnt) = Pre cnt
 getCountWithLowerBound Wildcard = Post
 
 
+isManyExactConstant :: SlkCfg -> Bool
+isManyExactConstant cfg =
+  let
+    ctrl = cfgCtrl cfg
+  in
+  case destrSlkStack ctrl of
+    SCons (SlkManyFrame (SlkCExactly sv) _) _ ->
+      case sv of
+        SConcrete _ -> True
+        _ -> False
+    _ -> False
+
 isManyExactDependent :: SlkCfg -> Bool
 isManyExactDependent cfg =
   let
@@ -768,7 +812,7 @@ symbExecCtrlNonPop _aut ctrl out act
                 (Wildcard, Wildcard) -> rJust (rest, out)
         SWildcard -> rJust (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
-    BoundIsMore ->
+    BoundCheckMore ->
       case destrSlkStack ctrl of
         SEmpty -> error "Unexpected ctrl stack"
         SCons (SlkManyFrame (SlkCExactly si) cnt) _ ->

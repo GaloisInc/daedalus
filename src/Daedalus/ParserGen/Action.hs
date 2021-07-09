@@ -72,9 +72,9 @@ data InputAction =
 
 data ControlAction =
     BoundSetup (ManyBounds NVExpr)
+  | BoundCheckMore
   | BoundCheckSuccess
   | BoundIncr
-  | BoundIsMore
   | ActivateFrame [Name]
   | DeactivateReady
   | Push Name [NVExpr] State
@@ -141,9 +141,9 @@ instance Show(InputAction) where
 
 instance Show(ControlAction) where
   show (BoundSetup _)      = "BoundSetup"
+  show (BoundCheckMore)    = "BoundCheckMore"
   show (BoundCheckSuccess) = "BoundCheckSuccess"
   show (BoundIncr)         = "BoundIncr"
-  show (BoundIsMore)       = "BoundIsMore"
   show (ActivateFrame _) = "ActivateFrame"
   show (DeactivateReady) = "DeactivateReady"
   show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ showName n) ++ "_" ++ show dest
@@ -887,7 +887,7 @@ applyControlAction gbl (ctrl, out) act =
             (Just ii, Just jj) ->
               if ii <= cnt && jj >= cnt then Just (rest, out) else Nothing
         _ -> error "Unexpected ctrl stack top element"
-    BoundIsMore ->
+    BoundCheckMore ->
       case ctrl of
         [] -> error "Unexpected ctrl stack"
         ManyFrame (CExactly i) cnt : _ ->

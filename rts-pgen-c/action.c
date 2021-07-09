@@ -346,8 +346,8 @@ char * controlActionToString(ControlAction* action) {
             return "BoundSetup";
         case ACT_BoundCheckSuccess:
             return "BoundCheckSuccess";
-        case ACT_BoundIsMore:
-            return "BoundIsMore";
+        case ACT_BoundCheckMore:
+            return "BoundCheckMore";
         case ACT_BoundIncr:
             return "BoundIncr";
         default:

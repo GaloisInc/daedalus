@@ -72,7 +72,7 @@ typedef enum {
     ACT_DeactivateReady,
     ACT_BoundSetup,
     ACT_BoundCheckSuccess,
-    ACT_BoundIsMore,
+    ACT_BoundCheckMore,
     ACT_BoundIncr
 } ControlActionType;
 

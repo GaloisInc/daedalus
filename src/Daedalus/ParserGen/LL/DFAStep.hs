@@ -12,6 +12,7 @@ module Daedalus.ParserGen.LL.DFAStep
     partitionDFARegistry,
     DetChoice(..),
     DFAState(..),
+    showDFAState,
     mkDFAState,
     mkDFAStateFromSlkCfg,
     isDFAStateInit,
@@ -333,6 +334,9 @@ instance Show(DFAState) where
   show q =
     Set.fold (\ cfg s -> s ++ Slk.showSlkCfg cfg) "" (dfaState q)
 
+showDFAState :: Aut a => a -> DFAState -> String
+showDFAState aut q =
+  Set.fold (\ cfg s -> s ++ Slk.showSlkCfgWithAut aut cfg) "" (dfaState q)
 
 mkDFAState :: State -> Slk.HTable -> (DFAState, Slk.HTable)
 mkDFAState q tab =

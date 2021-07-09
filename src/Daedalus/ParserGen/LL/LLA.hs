@@ -441,17 +441,17 @@ buildPipelineLLA aut =
     (lla1, tab1) = go initDFAStates [] emptyLLA tab
     lla11 = synthesizeLLA aut lla1
   in
-    if isFullyDeterminizedLLA lla1 || flag_ONLY_STRICT_LLA
-    then
-      Left lla11
-    else
-      let collectedStates = identifyStartStates ()
-      in
-        let
-          (nextInitStates, tab2) = allocate collectedStates tab1
-          (lla2, _tab3) = go nextInitStates [] lla1 tab2 in
-        let lla3 = synthesizeLLA aut lla2
-        in Right (lla11, lla3)
+  if isFullyDeterminizedLLA lla1 || flag_ONLY_STRICT_LLA
+  then
+    Left lla11
+  else
+    let collectedStates = identifyStartStates () in
+    let
+      (nextInitStates, tab2) = allocate collectedStates tab1
+      (lla2, _tab3) = go nextInitStates [] lla1 tab2
+    in
+    let lla3 = synthesizeLLA aut lla2 in
+    Right (lla11, lla3)
 
   where
     allocate lst tab =
@@ -469,20 +469,25 @@ buildPipelineLLA aut =
       foldr (\ (q1, ch) b -> Set.union b (collectStatesOnFanout q1 ch)) (Set.empty) transitions
 
     collectStatesOnFanout q1 ch =
-      let helper lst = foldr (\ a b -> let sa = collectOnSingleTransition q1 a in Set.union b sa) Set.empty lst in
+      let
+        helper lst =
+          foldr
+          (\ tr b -> let sa = collectOnSingleTransition tr in Set.union b sa)
+          Set.empty lst
+      in
       case ch of
-        UniChoice (act, q2) -> collectOnSingleTransition q1 (act, q2)
+        UniChoice (act, q2) -> collectOnSingleTransition (act, q2)
         ParChoice lst -> helper lst
         SeqChoice lst _ -> helper lst
 
-    collectOnSingleTransition q1 (act, q2) =
-      if isInputAction act
-      then Set.singleton q2
-      else
-        if isActivateFrameAction act
-        then Set.singleton q1
-        else Set.empty
-
+      where
+        collectOnSingleTransition (act, q2) =
+          if isInputAction act
+          then Set.singleton q2
+          else
+            if isActivateFrameAction act
+            then Set.singleton q1
+            else Set.empty
 
     go ::
       [DFAState] -> [DFAState] -> LLA ->
@@ -512,7 +517,8 @@ buildPipelineLLA aut =
                   newNextRound =
                     let finalStates = getFinalStates dfa in
                     revAppend finalStates nextRound
-                in go qs newNextRound newlla tab1
+                in
+                go qs newNextRound newlla tab1
               Right (dda, tab1) ->
                 let
                   newlla = insertLLA q (Right dda) lla
@@ -520,7 +526,7 @@ buildPipelineLLA aut =
                     let finalStates = getFinalStatesDDA dda in
                     revAppend finalStates nextRound
                 in
-                  go qs newNextRound newlla tab1
+                go qs newNextRound newlla tab1
 
 
 createLLA :: Aut a => a -> LLA
@@ -659,16 +665,17 @@ statsLLA aut llas =
          putStrLn "**********************"
          putStrLn $ getReport t initReport
          putStrLn $ "Total nb DFAs: " ++ show (length t) ++ "\n"
-         if isFullyDeterminizedLLA lla
-           then
-           putStrLn "SUCCESS: Fully determinized format"
-           else
-           putStrLn "\nWarning: LL(*) failures:\n"
          if flag_ONLY_STRICT_LLA
            then
            printLLA aut lla (\ dfa -> not (fromJust $ flagHasFullResolution dfa))
            else
            return ()
+         if isFullyDeterminizedLLA lla
+           then
+           putStrLn "SUCCESS: Fully determinized format"
+           else
+           do putStrLn "\nWarning: LL(*) failures:\n"
+              printAmbiguities aut lla
 
     Right (lla1, lla) ->
       let t = map snd (Map.toAscList (transitionLLA lla))
