@@ -22,8 +22,8 @@ checkTCDecl TCDecl { tcDeclCtxt, tcDeclDef } =
 
 checkTC :: Bool -> TC SourceRange Grammar -> [SourceRange]
 checkTC triv tc =
-  -- | trace (show (triv, pp tc)) False = undefined
-  -- | otherwise =
+  --  | trace (show (triv, pp tc)) False = undefined
+  --  | otherwise =
   let warnIf b = if b then [ texprAnnot tc ] else []
       okLeaf   = []
   in
