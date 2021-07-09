@@ -52,7 +52,8 @@ cProgram fileNameRoot prog =
           , " "
           , includes
           , " "
-          , vcat' (map cTypeGroup allTypes)
+          , let (ds,defs) = unzip (map cTypeGroup allTypes)
+            in vcat' (ds ++ defs)
           , " "
           , "namespace DDL { namespace ResultOf {"
           ] ++ map declareParserResult (pEntries prog) ++

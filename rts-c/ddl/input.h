@@ -12,6 +12,11 @@
 
 namespace DDL {
 
+class Input;
+
+int compare(Input x, Input y);
+std::ostream& toJS(std::ostream& os, Input x);
+
 class Input : HasRefs {
   Array<UInt<8>> name;        // Name identifying the input (e.g , file name)
   Array<UInt<8>> bytes;       // Bytes for the whole input
