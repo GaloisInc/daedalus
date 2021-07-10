@@ -4,7 +4,9 @@ def Pair P0 P1 = {
   snd = P1;
 }
 
-def DepPair P0 P1 = {
-  depFst = P0;
-  depSnd = P1 depFst;
+-- DepPair: dependent pair
+-- TODO: experimental support
+def DepPair P0 P1 : Pair = {
+  fst = P0;
+  snd = P1 fst;
 }

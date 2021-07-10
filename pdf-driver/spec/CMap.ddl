@@ -2,20 +2,25 @@ import Stdlib
 import Pair
 import Sum
 import Map
-
+import Array
+       
+-- import PDF libraries:
 import GenPdfValue
 import PdfValue
-
-def HexStringNum3 : uint 64 = {
-  @hbs = HexString;
-  bytesNum hbs
-}
+import Unicode
 
 -- CodeRange: a range of code characters
-def CodeRange = {
-  lowEnd = HexStringNum3;
-  highEnd = HexStringNum3;
-  Guard (lowEnd <= highEnd) -- TODO: required in standard?
+-- TODO: change to base, offset representation?
+def CodeRange CharCode = {
+  lowEnd = CharCode;
+  highEnd = CharCode;
+  @size = (highEnd - lowEnd) as uint 32;
+  Guard (lowEnd <= highEnd) -- PETER: required in standard?
+}
+
+def SingletonRange CharCode : CodeRange = {
+  lowEnd = CharCode;
+  highEnd = ^lowEnd;
 }
 
 def subsumesRanges r0 r1 =
@@ -109,7 +114,7 @@ def UnsignedNatural = numBase 10 (Many (1..) UnsignedDigit)
 def CMapDict Key Val = CMapDefn {
   @size = UnsignedNatural;
   KW "dict";
-  KW "dup"; -- TODO: when should this be present?
+  KW "dup"; 
   CMapScope {
     @es = Many size (CMapDefn {
       fst = GenName Key;
@@ -119,12 +124,14 @@ def CMapDict Key Val = CMapDefn {
   }
 }
 
+-- keys in a CIDSystemInfo map
 def CIDSysInfoKey = Choose1 {
   registry = Match "Registry";
   ordering = Match "Ordering";
   supplement = Match "Supplement";
 }
 
+-- values in a CIDSystemInfo map
 def CIDSysInfoVal (k : CIDSysInfoKey) = case k of
   registry -> {| registryVal = String |}
   ordering -> {| orderingVal = String |}
@@ -143,8 +150,7 @@ def CMapKey = Choose1 {
 
 -- CMapVal: values in the CMap
 def CMapVal (k : CMapKey) = case k of
-  cidSysInfo -> {| cidSysInfoVal = CMapDict CIDSysInfoKey CIDSysInfoVal |}
-  -- TODO: replace with PDF dict
+  cidSysInfo -> {| cidSysInfoVal = PdfDict CIDSysInfoKey CIDSysInfoVal |}
   cMapMatch -> {| cMapMatchVal = Name |}
   cMapVersion -> {| cMapVersionVal = Number |}
   cMapType -> {| cMapTypeVal = Number |}
@@ -152,44 +158,55 @@ def CMapVal (k : CMapKey) = case k of
   xuid -> {| xuidVal = GenArray Number |}
   wMode -> {| wModeVal = Number |}
 
--- CodeSpaceMap nm Rng: a map from code spaces to Rng
-def CodeSpaceMap nm Rng = {
+def SizedOp Domain Rng nm = {
   @size = UInt8;
-  Guard (size <= 100);
+  Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope {
-      @es = Many (size as uint 64) (Pair CodeRange Rng);
-      ListToMap es
+    @es = DictEntries Domain Rng;
+    Guard (length es == (size as uint 64));
+    ListToMap es
     }
     nm
+}
+
+def CodeSpaceMap CharCode Rng nm = SizedOp
+  (CodeRange CharCode) Rng
+  (append nm "range")
+
+-- UnicodeSeq: a sequence of unicode characters
+def UnicodeSeq cc = {
+  -- single unicode char:
+  (LiftPToArray UTF8) |
+  -- multiple unicode chars:
+  (Between "[" "]" (Many ((cc.highEnd - cc.lowEnd) as uint 64) (Token UTF8)))
 }
 
 -- TODO: check that codespaces do not overlap, but only for
 -- codespace ranges
 
-def CodeRanges = CodeSpaceMap "codespace" Unit
+def CodeRanges CharCode = CodeSpaceMap CharCode (Const Unit) "codespace" 
 
-def CodeNumMap nm = CodeSpaceMap nm Number
+def CodeNumMap CharCode nm = CodeSpaceMap CharCode (Const Number) nm
 
-def CidRangeOp = CodeNumMap "cid"
+-- BfCharOp: define unicode of a single character
+def BfCharOp CharCode = SizedOp
+  (SingletonRange CharCode) (Const (LiftPToArray UTF8))
+  "bfchar"
 
-def NotDefRangeOp = CodeNumMap "notdef"
+def BfRangeOp CharCode = CodeSpaceMap CharCode UnicodeSeq "bf"
 
-def BfRangeOp = CodeNumMap "bf"
--- TODO: replace with map to range of codes
+def CidRangeOp CharCode = CodeNumMap CharCode "cid"
 
--- TODO: define bfchar range op
+def NotDefRangeOp CharCode = CodeNumMap CharCode "notdef"
 
 -- CodeRangeOps: code range operations
-def CodeRangeOp = Choose1 {
-  cid = CidRangeOp;
-  notDef = NotDefRangeOp;
-  bf = BfRangeOp;
+def CodeRangeOp CharCode = Choose1 {
+  cid = CidRangeOp CharCode;
+  notDef = NotDefRangeOp CharCode;
+  bf = (BfRangeOp CharCode) | (BfCharOp CharCode);
 }
 
-def CMapDictEntry = CMapDefn {
-  fst = GenName CMapKey;
-  snd = CMapVal fst;
-}
+def CMapDictEntry = CMapDefn (DepPair (GenName CMapKey) CMapVal)
 
 def PreRangeOp = Choose1 {
   useCMap = {
@@ -198,7 +215,8 @@ def PreRangeOp = Choose1 {
   }
 }
 
--- DictAndP P: parse dictionary entries and P
+-- DictAnd Code Ops: parse dictionary entries, code operations Code
+-- and operations Ops
 def DictAnd Code Ops = {
   @xs = Lists2 CMapDictEntry (Sum Code Ops);
   des = xs.fst;
@@ -212,20 +230,17 @@ def CollectRangeOp dom maybeOps = {
   RangeArrayCovers dom (mapDomain $$)
 }
 
--- parser for CMap files, as specified in Adobe Technical Note #5014,
--- Adobe CMap and CIDFont Files Specification. Definition is based
--- largely on examples and Sec. 7.3 CMap File Overview
-def CMapStream = {
-  -- A CMap file must begin with the comment characters %!
-  Optional (GenComment "!");
-  -- more comments
-  Many Comment;
-
-  -- CIDInit procset findresource appears immedately after the header
-  -- information
+def FindResourceOp = {
   Token (NameStr "CIDInit");
   Token (NameStr "ProcSet");
   KW "findresource";
+}
+
+-- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slighly
+-- differ from the ones specified in Adobe Technical Note #5014.
+def ToUnicodeCMap CharCode = {
+  Many Comment;
+  FindResourceOp;
 
   CMapScope {
     @size = UnsignedNatural;
@@ -233,9 +248,9 @@ def CMapStream = {
     CMapScope {
       -- the CMap dictionary:
       GenCMapScope {
-          -- TODO: refactor
-          @items0 = DictAnd CodeRanges PreRangeOp; -- code ranges
-          @items1 = DictAnd Void CodeRangeOp; -- code range operations
+          @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
+          @items1 = DictAnd Void (CodeRangeOp CharCode);
+          -- code range operations
           Guard ((size as uint 64) ==
                  (length items0.des) +
                  (length items0.codes) +
@@ -285,7 +300,25 @@ def CMapStream = {
       KW "pop";
     };
   };
-
-  Token (GenComment "%EndResource");
-  Token (GenComment "%EOF");
 } 
+
+-- HexByte: a single byte, represented as a hex code
+def HexByte = numBase 16 (Many 2 HexDigit) as? uint 32
+
+-- fontType: different types of fonts. Inherited from context of CMap.
+def FontType = Choose {
+  simpleFont = ^{};
+  cidFont = ^{};
+}
+
+-- FontCode: parse a font code as an integer:
+def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
+  simpleFont -> HexByte
+  cidFont -> numBase 256 (Many (1..) HexByte)
+)
+
+-- Main: entry point, for testing
+def Main = {
+  @testFontTy = {| simpleFont = ^{} |};
+  ToUnicodeCMap (FontCode testFontTy)
+}

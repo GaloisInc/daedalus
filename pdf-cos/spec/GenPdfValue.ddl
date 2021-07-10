@@ -1,6 +1,7 @@
 -- generalized PDF values
 import Stdlib
 import Pair
+import Map
 
 -- GenArray P: PDF array of P's
 def GenArray P = Between "[" "]" P
@@ -14,12 +15,13 @@ def GenName P = {
 -- NameStr s: name with string s
 def NameStr s = GenName (Match s)
 
-def InsertNext Key Val m = {
-  @p = DepPair Key Val;
-  Insert p.depFst p.depSnd m
+-- experimental: rank-2 parsing
+def DictEntries Key Val = Many (DepPair Key Val)
+
+def DictMap Key Val = {
+  @es = DictEntries Key Val;
+  ListToMap es
 }
 
-def DictEntries Key Val = {
-  @es = Many (DepPair Key Val);
-  for (acc = empty; e in es) Insert e.depFst e.depSnd acc
-}
+-- PdfDict: a PDF dictionary
+def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)

@@ -12,6 +12,8 @@ def FoldMany P acc = Choose1 {
   ^ acc
 }
 
+def Const P x = P
+
 def inc n = n + 1
 def dec n = n - 1
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)

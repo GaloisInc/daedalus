@@ -4,6 +4,7 @@ import Pair
 
 def mapDomain m = for (acc = [ ]; k, v in m) snoc k acc
 
+-- ListToMap l: collect list of entries l into a map:
 def ListToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
 
 def MapTo d v = for (acc = empty; k in d) Insert k v acc
