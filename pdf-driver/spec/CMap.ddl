@@ -101,11 +101,9 @@ def CMapDefn P = {
 
 -- GenCMapScope P nm: a generalized scope
 def GenCMapScope P nm = {
-  KW "begin";
-  Match nm;
+  KW (append "begin" nm);
   $$ = P;
-  KW "end";
-  Match nm;
+  KW (append "end" nm);
 }
 
 -- CMapScope: a definition in a scope
@@ -163,7 +161,7 @@ def CMapVal (k : CMapKey) = case k of
   wMode -> {| wModeVal = Number |}
 
 def SizedOp Domain Rng nm = {
-  @size = UInt8;
+  @size = UnsignedNatural;
   Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope {
     @es = DictEntries Domain Rng;
@@ -207,10 +205,16 @@ def NotDefRangeOp CharCode = CodeNumMap CharCode "notdef"
 def CodeRangeOp CharCode = Choose1 {
   cid = CidRangeOp CharCode;
   notDef = NotDefRangeOp CharCode;
-  bf = (BfRangeOp CharCode) | (BfCharOp CharCode);
+  bf = (BfRangeOp CharCode) |
+       (BfCharOp CharCode);
 }
 
-def CMapDictEntry = CMapDefn (DepPair (GenName CMapKey) CMapVal)
+-- BUG: doesn't tokenize right
+-- def CMapDictEntry = CMapDefn (DictEntry CMapKey CMapVal)
+def CMapDictEntry : Pair = CMapDefn {
+  fst = Token (GenName CMapKey);
+  snd = Token (CMapVal fst);
+} 
 
 def PreRangeOp = Choose1 {
   useCMap = {
@@ -234,20 +238,16 @@ def CollectRangeOp dom maybeOps = {
   RangeArrayCovers dom (mapDomain $$)
 }
 
-def FindResourceOp = {
-  Token (NameStr "CIDInit");
-  Token (NameStr "ProcSet");
-  KW "findresource";
-}
-
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slighly
 -- differ from the ones specified in Adobe Technical Note #5014.
 def ToUnicodeCMap CharCode = {
   Many Comment;
-  FindResourceOp;
 
+  Token (NameStr "CIDInit");
+  Token (NameStr "ProcSet");
+  KW "findresource";
   CMapScope {
-    @size = UnsignedNatural;
+    @size = Token UnsignedNatural;
     KW "dict";
     CMapScope {
       -- the CMap dictionary:

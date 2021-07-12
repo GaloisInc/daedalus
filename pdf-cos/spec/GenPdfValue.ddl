@@ -15,8 +15,12 @@ def GenName P = {
 -- NameStr s: name with string s
 def NameStr s = GenName (Match s)
 
+def Token1 P x = Token (P x)
+
+def DictEntry Key Val = DepPair (Token (GenName Key)) (Token1 Val)
+
 -- experimental: rank-2 parsing
-def DictEntries Key Val = Many (DepPair Key Val)
+def DictEntries Key Val = Many (DictEntry Key Val)
 
 def DictMap Key Val = {
   @es = DictEntries Key Val;
