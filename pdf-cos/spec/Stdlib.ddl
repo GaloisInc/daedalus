@@ -16,6 +16,9 @@ def Const P x = P
 
 def inc n = n + 1
 def dec n = n - 1
+def max m n = if m > n then m else n
+def min m n = if m < n then m else n
+
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def bytesNum (bs : [ uint 8 ]) : uint 64 =
   for (val = 0 : uint 64; b in bs) 8 * val + (b as uint 64)

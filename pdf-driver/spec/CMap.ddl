@@ -9,26 +9,29 @@ import GenPdfValue
 import PdfValue
 import Unicode
 
+-- numEntries rng: number of entires in the code range rng
+def numEntries rng = inc rng.numExtras
+
+-- highEnd rng: highest code in the code range rng
+def highEnd rng = rng.lowEnd + rng.numExtras
+
 -- CodeRange: a range of code characters
--- TODO: change to base, offset representation?
 def CodeRange CharCode = {
   lowEnd = CharCode;
-  highEnd = CharCode;
-  @size = (highEnd - lowEnd) as uint 32;
-  Guard (lowEnd <= highEnd) -- PETER: required in standard?
+
+  @highEnd = CharCode;
+  Guard (lowEnd <= highEnd); -- PDFA: required by standard?
+  numExtras = (highEnd - lowEnd) as uint 32
 }
 
+-- SigletonRange: a code range containing exactly one entry
 def SingletonRange CharCode : CodeRange = {
   lowEnd = CharCode;
-  highEnd = ^lowEnd;
+  numExtras = ^0;
 }
 
-def subsumesRanges r0 r1 =
-  r0.lowEnd <= r1.lowEnd &&
-  r1.highEnd <= r0.highEnd
-
 -- strictlyLower r0 r1: span of range r0 is before span of range r1
-def strictlyLower r0 r1 = r0.highEnd < r1.lowEnd
+def strictlyLower r0 r1 = (highEnd r0) < r1.lowEnd
 
 def disjointRanges r0 r1 = 
   (strictlyLower r0 r1) ||
@@ -36,25 +39,26 @@ def disjointRanges r0 r1 =
 
 -- minusRanges r0 r1: subtraction of range r1 from range r0
 def MinusRanges r0 r1 : [ CodeRange ] = {
-  @org = ^(if disjointRanges r0 r1 then just r0 else nothing);
   @leftDiff = {
     @ld = {
-      lowEnd = inc r1.highEnd;
-      highEnd = r0.highEnd;
+      lowEnd = max r0.lowEnd (inc (highEnd r1));
+      numExtras = r0.numExtras - (lowEnd - r0.lowEnd);
     };
-    condJust (!(subsumesRanges r1 r0) && r1.lowEnd < r0.lowEnd) ld
+    condJust ((highEnd r1) < (highEnd r0)) ld
   };
+
   @rightDiff = {
     @rd = {
       lowEnd = r0.lowEnd;
-      highEnd = dec r1.lowEnd;
+      numExtras = r0.numExtras -
+                  ((highEnd r0) - (min (highEnd r0) r1.lowEnd));
     };
-    condJust (!(subsumesRanges r1 r0) && r0.highEnd < r1.highEnd) rd;
+    condJust (r0.lowEnd < r1.lowEnd) rd;
   };
-  ^(concat [
-      (optionToList org),
-      (optionToList leftDiff),
-      (optionToList rightDiff) ] )
+  
+  ^(append
+      (optionToList leftDiff)
+      (optionToList rightDiff))
 }
 
 def MinusRangeArray (r0s : [ CodeRange ]) (r1 : CodeRange) : [ CodeRange ] =
@@ -178,7 +182,7 @@ def UnicodeSeq cc = {
   -- single unicode char:
   (LiftPToArray UTF8) |
   -- multiple unicode chars:
-  (Between "[" "]" (Many ((cc.highEnd - cc.lowEnd) as uint 64) (Token UTF8)))
+  (Between "[" "]" (Many ((numEntries cc) as uint 64) (Token UTF8)))
 }
 
 -- TODO: check that codespaces do not overlap, but only for
