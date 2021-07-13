@@ -13,7 +13,7 @@ def UnionMaps m0 m1 = for (acc = m1; k0, v0 in m0) Insert k0 v0 acc
 
 def UnionMapArray ms = for (acc = empty; m in ms) UnionMaps acc m
 
-def TryLookup d k default = Default default {
+def TryLookup d k dflt = Default dflt {
   @v = Lookup d k ;
   ^ v
 } 

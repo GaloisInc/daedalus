@@ -28,9 +28,14 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfExtractText" ]
+     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM"]
      mapM_ ddlLoadModule mods
      todo <- filter (not . (`elem` external)) <$> ddlBasisMany mods
+     ddlIO $
+       mapM putStrLn [ "generating .hs for these .ddl modules:"
+                     , "  " ++ show todo
+                     , ""
+                     ]
      let cfgFor m = case m of
                       "PdfValidate" -> cfgPdfValidate
                       _             -> cfg
@@ -38,8 +43,12 @@ compileDDL =
 
   where
 
-  -- in pdf-cos
-  external = [ "PdfValue", "PdfXRef", "PdfDecl", "Stdlib", "Jpeg" ]
+  -- ddl/hs from pdf-cos:
+  external = [ "PdfValue", "PdfXRef", "PdfDecl", "Stdlib", "Jpeg"
+             , "ContentStreamLight", "JpegBasics", "Pair", "Sum", "Unicode"
+             ]
+    --  FIXME: 2 versions of the truth: these must stay up to date with pdf-cos,
+    --  if not we'll be generating extraneous pdf-driver/src/spec/*.hs files.
 
   -- XXX: untested and currently unused
   _roots :: [(ModuleName,Ident)]

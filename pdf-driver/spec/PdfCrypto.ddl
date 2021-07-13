@@ -1,0 +1,1 @@
+../../pdf-cos/spec/PdfCrypto.ddl

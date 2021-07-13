@@ -1,6 +1,12 @@
 -- module for parsing unicode characters
 import Stdlib
 
+-- CharCode c: encoding of (ASCII) character c as a character code
+def CharCode c = {
+  high = ^0;
+  low = ^c;
+}
+
 -- UTF-8: byte sequences of length 1 <= n <= 4
 def UTF8 = Choose {
   utf81 = Bytes1;

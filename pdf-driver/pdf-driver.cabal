@@ -13,20 +13,9 @@ copyright:           2019, Galois Inc
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
-  spec/PdfDecl.ddl,
   spec/PdfDemo.ddl,
-  spec/ISOCodes.ddl,
-  spec/PdfText.ddl,
   spec/PdfValidate.ddl,
-  spec/PdfDOM.ddl,
-  spec/Stdlib.ddl,
-  spec/PdfExtractText.ddl,
-  spec/ContentStreamLight.ddl,
-  spec/CMap.ddl,
-  spec/GenPdfValue.ddl,
-  spec/Map.ddl,
-  spec/Pair.ddl,
-  spec/Sum.ddl
+  spec/PdfDOM.ddl
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 custom-setup
@@ -42,18 +31,12 @@ library
   exposed-modules:
     PdfDemo,
     PdfValidate,
-    PdfDOM,
-    PdfExtractText,
-    Unicode,
-    ContentStreamLight
+    PdfDOM
 
   autogen-modules:
     PdfDemo,
     PdfValidate,
     PdfDOM,
-    PdfExtractText,
-    Unicode,
-    ContentStreamLight
 
   build-depends:
     base >=4.13 && <4.15,
