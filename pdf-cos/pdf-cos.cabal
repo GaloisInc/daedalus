@@ -56,9 +56,9 @@ library
     PdfParser,
     
     -- copying the 'autogen-modules':
-    -- CMap, -- removing due to daedalus compilation problem
+    -- CMap, GenPdfValue,
+      -- ghc does not compile daedalus generated code for this pair of dependencies!
     ContentStreamLight,
-    -- GenPdfValue, -- removing due to daedalus compilation problem
     ISOCodes,
     JpegBasics,
     Map,
@@ -74,9 +74,9 @@ library
     Unicode
 
   autogen-modules:
-    -- CMap, -- removing due to daedalus compilation problem?!
+    -- CMap, GenPdfValue,
+      -- ghc does not compile daedalus generated code for this pair of dependencies!
     ContentStreamLight,
-    -- GenPdfValue, -- removing due to daedalus compilation problem
     ISOCodes,
     JpegBasics,
     Map,

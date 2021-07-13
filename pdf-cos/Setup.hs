@@ -29,9 +29,8 @@ compileDDL =
                 , "PdfCrypto"
 
                 -- library-like, just in case no-one imports:
-                -- , "CMap"
-                -- , "GenPdfValue"
-                --   [not used at the moment: AND the generated hs is not compiling]
+                , "CMap"
+                , "GenPdfValue"
                 , "JpegBasics"
                 , "Map"
                 , "Pair"
