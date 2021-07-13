@@ -4,7 +4,7 @@ import Pair
 import Map
 
 -- GenArray P: PDF array of P's
-def GenArray P = Between "[" "]" P
+def GenArray P = Between "[" "]" (Many (Token P)) 
 
 -- GenName P: a name built from P
 def GenName P = {

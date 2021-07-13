@@ -240,7 +240,7 @@ def CollectRangeOp dom maybeOps = {
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slighly
 -- differ from the ones specified in Adobe Technical Note #5014.
-def ToUnicodeCMap CharCode = {
+def ToUnicodeCMap0 CharCode = {
   Many Comment;
 
   Token (NameStr "CIDInit");
@@ -321,8 +321,10 @@ def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
   cidFont -> numBase 256 (Many (1..) HexByte)
 )
 
+def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
+
 -- Main: entry point, for testing
 def Main = {
   @testFontTy = {| simpleFont = ^{} |};
-  ToUnicodeCMap (FontCode testFontTy)
+  ToUnicodeCMap testFontTy
 }
