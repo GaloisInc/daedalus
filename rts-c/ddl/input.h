@@ -142,6 +142,8 @@ public:
     if (x.last_offset > y.last_offset) return 1;
     return compare(x.name,y.name);
   }
+
+  char* borrowBytes() { return (char*) bytes.borrowData() + offset; }
 };
 
 
