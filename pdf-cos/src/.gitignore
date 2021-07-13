@@ -1,3 +1,4 @@
+Array.hs
 CMap.hs
 ContentStreamLight.hs
 GenPdfValue.hs
