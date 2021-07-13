@@ -87,6 +87,5 @@ def ExtractCatalogText r = {
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;
-  ExtractRootText pages;
+  ExtractRootUTF8Bytes pages;
 }
-
