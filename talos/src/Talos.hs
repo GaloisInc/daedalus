@@ -8,7 +8,7 @@ module Talos (
   synthesise,
   summarise,
   -- * Useful helpers
-  runDaedalus, 
+  runDaedalus,
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
@@ -48,14 +48,19 @@ import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
 
 import qualified Talos.Analysis as A
-import Talos.Analysis.Monad (Summary)
+import Talos.Analysis.Monad (Summary, makeDeclInvs)
 import Talos.SymExec.Path (ProvenanceMap)
 import Talos.Analysis.Slice (SummaryClass)
 
 import Talos.Strategy
-import Talos.Strategy.Monad 
+import Talos.Strategy.Monad
 
 import Talos.Passes
+import Daedalus.AST (nameScopeAsModScope)
+import Daedalus.Type.AST (tcModuleDecls, tcDeclName)
+import Daedalus.Rec (forgetRecs)
+import qualified Data.Map as Map
+import Daedalus.PP
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -64,12 +69,15 @@ import Talos.Passes
 -- instance HasGUID FreshGUIDM where
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
-summarise :: FilePath -> Maybe String
+summarise :: FilePath -> Maybe FilePath -> Maybe String
           -> IO (Map FName (Map SummaryClass Summary))
-summarise inFile m_entry = do
-  (_mainRule, md, nguid) <- runDaedalus inFile m_entry
-  let allDecls  = mGFuns md
-  pure (fst $ A.summarise allDecls nguid)
+summarise inFile m_invFile m_entry = do
+  (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+
+  let invs = makeDeclInvs (mGFuns md) (mFFuns md)
+  putStrLn "Inverses"
+  print (pp <$> Map.keys invs)
+  pure (fst $ A.summarise md nguid)
 
 
 z3VersionCheck :: SMT.Solver -> IO ()
@@ -99,8 +107,9 @@ z3VersionCheck s = do
       hFlush stderr
       exitFailure
 
-            
+
 synthesise :: FilePath           -- ^ DDL file
+           -> Maybe FilePath     -- ^ Inverse file
            -> Maybe String       -- ^ Entry
            -> FilePath           -- ^ Backend solver executable
            -> [String]           -- ^ Solver args
@@ -110,8 +119,8 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = do
-  (mainRule, md, nguid) <- runDaedalus inFile m_entry
+synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = do
+  (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
   -- SMT init
   logger <- case m_logOpts of
@@ -123,19 +132,19 @@ synthesise inFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = 
   -- Check version: z3 before 4.8.10 (or .9) seems to have an issue
   -- with match.  
   -- z3VersionCheck solver
-  
+
   -- Set options
   forM_ bOpts $ \(opt, val) -> do
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
-  let strat = case stratOpt of 
+  let strat = case stratOpt of
              Nothing    -> allStrategies
-             Just "all" -> allStrategies 
-             Just names  -> 
-               let stratNames = (splitWhen (==',') names) in 
-               let maybes = map (\n -> find (\s -> (stratName s) == n) allStrategies) stratNames in 
-                 [x | Just x <- maybes] 
+             Just "all" -> allStrategies
+             Just names  ->
+               let stratNames = (splitWhen (==',') names) in
+               let maybes = map (\n -> find (\s -> (stratName s) == n) allStrategies) stratNames in
+                 [x | Just x <- maybes]
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
@@ -147,24 +156,31 @@ synthesise inFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = 
 -- declarations (that are named struct or union types), and a list of
 -- type-checked modules. The main rule's name includes the module
 -- information needed to find it.r
-runDaedalus :: FilePath -> Maybe String ->
+runDaedalus :: FilePath -> Maybe FilePath -> Maybe String ->
                IO (FName, Module, GUID)
-runDaedalus inFile m_entry = daedalus $ do
+runDaedalus inFile m_invFile m_entry = daedalus $ do
   mm <- ddlPassFromFile ddlLoadModule inFile
+  extras <- case m_invFile of
+    Nothing -> pure []
+    Just f  -> do
+      im <- ddlPassFromFile ddlLoadModule f
+      m  <- ddlGetAST im astTC
+      pure $ map (nameScopeAsModScope . tcDeclName) (forgetRecs (tcModuleDecls m))
+
   let entryName = maybe "Main" fromString m_entry
       specMod  = "DaedalusMain"
-        
-  passSpecialize specMod [(mm, entryName)]  
+
+  passSpecialize specMod ((mm, entryName) : extras)
   passCore specMod
   passStripFail specMod
   passSpecTys specMod
-    
+
   entry <- ddlGetFName mm entryName
 
   md    <- ddlGetAST specMod astCore >>= ddlRunPass . allPassesM entry
-  
+
   nguid <- ddlGet nextFreeGUID
-  
+
   pure (entry, md, nguid)
 
 newFileLogger :: Maybe FilePath -> Int -> IO SMT.Logger

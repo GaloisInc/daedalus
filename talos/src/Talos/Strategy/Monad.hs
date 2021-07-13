@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- API for strategies, which say how to produce a path from a slice.
@@ -9,7 +10,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , LiftStrategyM (..)
                             , summaries, getModule, getGFun, getParamSlice
                             , getIEnv
-                            , rand, randR, randL, randPermute
+                            , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
                             ) where
 
@@ -19,7 +20,7 @@ import Control.Monad.Trans.Maybe
 import System.Random
 import Data.Foldable (find)
 import qualified Data.Map as Map
-
+import Data.Map (Map)
 
 import Daedalus.Core
 import Daedalus.GUID
@@ -35,6 +36,10 @@ import Talos.Analysis.Domain (domainInvariant, domainElement)
 
 import Talos.SymExec.SolverT (SolverT)
 import Talos.Analysis.EntangledVars (EntangledVars)
+import qualified Data.ByteString as BS
+import Data.Foldable (foldl')
+import Daedalus.Rec (forgetRecs)
+
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -134,6 +139,71 @@ randPermute = go
     go xs = do idx <- randR (0, length xs - 1)
                let (pfx, x : sfx) = splitAt idx xs
                (:) x <$> go (pfx ++ sfx)
+
+typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
+typeToRandomInhabitant ty = do
+  md <- getModule
+  -- FIXME: maybe stick this in the monad so we don't keep recomputing it?
+  let tdecls = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+  typeToRandomInhabitant' tdecls ty
+  
+typeToRandomInhabitant' :: (LiftStrategyM m) => Map TName TDecl -> Type -> m Expr
+typeToRandomInhabitant' tdecls targetTy = go targetTy
+  where
+    go ty = case ty of
+      TStream    -> unimplemented
+
+      TUInt (TSize n) -> flip intL ty <$> randR (0, 2 ^ n - 1)
+      TUInt _    -> unimplemented
+      
+      TSInt (TSize n) -> flip intL ty <$> randR (- 2 ^ (n - 1), 2 ^ (n - 1) - 1)
+      TSInt _    -> unimplemented
+      
+      TInteger   -> flip intL ty <$> rand
+      TBool      -> boolL <$> rand
+      TUnit      -> pure unit
+      TArray (TUInt (TSize 8)) -> do
+        let maxLength = 100 -- FIXME
+        len <- randR (0, maxLength)
+        bs  <- replicateM len rand
+        pure (byteArrayL (BS.pack bs))
+
+      TArray t   ->  do
+        let maxLength = 100 -- FIXME
+        len <- randR (0, maxLength)
+        vs  <- replicateM len (go t)
+        pure (arrayL t vs)
+
+      TMaybe t -> do
+        b <- rand
+        if b then pure (nothing t) else just <$> go t
+      TMap tk tv -> do
+        let maxLength = 100
+        len <- randR (0, maxLength)
+        ks <- replicateM len (go tk)
+        vs <- replicateM len (go tv)
+        pure $ foldl' (\m (k, v) -> mapInsert m k v) (mapEmpty tk tv) (zip ks vs)
+        
+      TBuilder t -> do
+        let maxLength = 100
+        len <- randR (0, maxLength)
+        vs <- replicateM len (go t)
+        pure $ foldl' (flip consBuilder) (newBuilder t) vs
+        
+      TIterator _t -> unimplemented
+      TUser ut     -> goUT ut
+      TParam _     -> panic "Saw a type param" []
+
+    goUT ut
+      | Just decl <- Map.lookup (utName ut) tdecls =
+          case tDef decl of
+            TStruct fs -> Struct ut <$> sequence [ (,) l <$> go ty | (l, ty) <- fs ]
+            TUnion  fs -> do
+              (l, ty) <- randL fs
+              inUnion ut l <$> go ty
+      | otherwise = panic "Unknown user type " [showPP ut]
+      
+    unimplemented = panic "Unimplemented" [showPP targetTy]
 
 -- -----------------------------------------------------------------------------
 -- Class

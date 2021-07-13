@@ -5,7 +5,7 @@
 
 module Talos.SymExec.ModelParser
   ( ModelP, evalModelP
-  , pByte, pBytes, pMUnit, pIndexed, pSeq
+  , pByte, pBytes, pMUnit, pIndexed, pSeq, pValue
   ) where
 
 import qualified Data.Vector as V
@@ -24,7 +24,9 @@ import Text.Read (readMaybe)
 import Daedalus.Panic
 
 import SimpleSMT (SExpr(..))
-  
+import qualified Daedalus.Value as I
+import Daedalus.Core
+import Daedalus.PP (showPP)
 --------------------------------------------------------------------------------
 -- Model Combinators
 --
@@ -55,7 +57,7 @@ pSeq :: ModelP a -> ModelP b -> ModelP (a, b)
 pSeq pl pr = pSExpr $ do
   pExact "seq"
   (,) <$> pl <*> pr
-  
+
 -- -----------------------------------------------------------------------------
 -- Monadic parser 
 
@@ -85,12 +87,12 @@ instance Monad ModelP where
     -- concat <$> mapM (\(a, s') -> runModelP (f a) s') ress
 
 instance Alternative ModelP where
-  empty    = ModelP $ \_ -> []
+  empty    = ModelP $ const []
   m <|> m' = ModelP $ \s -> runModelP m s ++ runModelP m' s
 
 -- instance MonadIO ModelP where
 --   liftIO m = ModelP $ \s -> m >>= \a -> pure [(a, s)]
-  
+
 evalModelP' :: ModelP a -> ModelPState -> [a]
 evalModelP' m s = map fst (runModelP m s)
 
@@ -105,13 +107,13 @@ pRawHead = ModelP $ \st -> do
   case sexps st of
     []     -> []
     s : ss -> [(s, st { sexps = ss })]
-      
+
 -- Runs the parser p on the first element, taking care of let-related
 -- and 'as' annoyances
 pHead :: (String -> ModelP a) -> -- ^ This is the atom case, it is in ModelP as it can fail.
          ModelP a -> -- ^ THe list case 
          ModelP a
-pHead pA pS = do 
+pHead pA pS = do
   s <- pRawHead
   ModelP $ \st -> do -- list monad
     r <- handleLet st s
@@ -123,7 +125,7 @@ pHead pA pS = do
     -- FIXME: This does a map lookup for each atom in the sexp
     handleLet st (Atom a)
       | Just s <- Map.lookup a (vEnv st) = handleLet st s
-      | otherwise = evalModelP' (pA a) (st { sexps = [] })          
+      | otherwise = evalModelP' (pA a) (st { sexps = [] })
     handleLet st (List ss') = evalModelP' pS (st { sexps = ss' })
 
     addBind env (List [ident -> Just v, e]) = Map.insert v e env
@@ -147,7 +149,7 @@ pArray :: Integer -> ModelP a -> ModelP a
 pArray count p = do
   (els, arr) <- go
   let v = V.replicate (fromInteger count) arr V.// els
-  withSExprs (V.toList v) p  
+  withSExprs (V.toList v) p
   where
     -- FIXME: maybe use a mutable vector here?
     base :: ModelP ([(Int, SExpr)], SExpr)
@@ -158,7 +160,7 @@ pArray count p = do
 
     go :: ModelP ([(Int, SExpr)], SExpr)
     go =
-      base <|> 
+      base <|>
       (pSExpr $
         do pExact "store"
            (els, arr) <- go
@@ -240,7 +242,41 @@ pList p = ([] <$ pExact "nil") <|>
 
 pByteString :: ModelP ByteString
 pByteString = BS.pack <$> pList pByte
-  
+
+pBool :: ModelP Bool
+pBool = pAtom >>= go
+  where
+    go "true"  = pure True
+    go "false" = pure False
+    go _       = empty
+
+-- -----------------------------------------------------------------------------
+-- Values
+
+pValue :: Type -> ModelP I.Value
+pValue ty0 = go ty0
+  where
+    -- c.f. symExecTy
+    go ty =
+      case ty of
+        TStream -> unimplemented
+        TUInt (TSize n) -> I.vUInt (fromIntegral n) <$> pNumber
+        TUInt _ -> unimplemented
+        TSInt (TSize n) -> I.vSInt' (fromIntegral n) <$> pNumber
+        TSInt _ -> unimplemented
+        TInteger -> unimplemented -- FIXME
+        TBool -> I.VBool <$> pBool
+        TUnit -> pure I.vUnit
+        TArray _ -> unimplemented
+        TMaybe _ty' -> unimplemented
+        TMap {} -> unimplemented
+        TBuilder {} -> unimplemented
+        TIterator {} -> unimplemented
+        TUser _ut -> unimplemented
+        TParam {} -> unimplemented
+
+    unimplemented = panic "sexprToValue: Unimplemented" [ showPP ty0 ]
+
 --------------------------------------------------------------------------------
 -- Helpers
 
@@ -334,8 +370,8 @@ ident _ = Nothing
 --         (ident -> Just v)     -> getValue s env (pListWithLength p) v
 --         List [ident -> Just "mk-ListWithLength", l, _] -> runModelP (pList p) s env l
 --         other  -> error $ "Not a list with length " ++ show e
-      
-                  
+
+
 
 -- getBytes :: Solver -> SExpr -> IO ByteString
 -- getBytes s e = BS.pack <$> runModelP (pListWithLength pByte) s Map.empty e
@@ -359,7 +395,7 @@ ident _ = Nothing
 
 -- --   -- We don't really care about index, only that it is increasing
 -- --   -- assert s (eq (S.fun "index" [o0]) (S.tInt 0)
-  
+
 -- --   assert s (eq (S.fun "bytes" [S.fun "input" [st']]) (S.as (S.const "nil") (tList tByte)))
 
 -- --   -- assert that calling the parser doesn't fail (we don't care about
@@ -405,7 +441,7 @@ ident _ = Nothing
 
 -- --   rvMap <- Map.fromList <$> mapM getValue' (Map.toList vMap)
 -- --   bsMap <- sequence (Map.fromSet (getBytes s . symExecVarHandle) bsVs)
-  
+
 -- --   pure (rvMap, bsMap) -- FIXME
 -- --   where
 -- --     env0               = Map.mapWithKey (\tcn -> symExecValue (tcType tcn)) vEnv
@@ -425,20 +461,20 @@ ident _ = Nothing
 -- --     TCMatchBytes _ws v ->
 -- --       S.and (S.eq (symExecVarHandle bsId) (symExecVarHandle vId))
 -- --             (S.eq (symExecVarHandle vId)  (symExecV v))
-      
+
 -- --     TCPure v        ->
 -- --       S.and (S.eq (symExecVarHandle bsId) (sNil tByte))
 -- --             (S.eq (symExecVarHandle vId)  (symExecV v))
-      
+
 -- --     TCGetByte {}    -> getByte
 -- --     TCMatch _ p    ->
 -- --       S.and getByte
 -- --             (symExecP p (symExecVarHandle vId))
-      
+
 -- --     _               -> error ("BUG: saw a non-simple term: " ++ show (pp tc))
 -- --     where
 -- --       getByte = S.eq (symExecVarHandle bsId) (sCons (symExecVarHandle vId) (sNil tByte))
-      
+
 -- -- symExecPathConstraint e (AssertionConstraint assn) =
 -- --   case assn of
 -- --     GuardAssertion g -> symExecV g

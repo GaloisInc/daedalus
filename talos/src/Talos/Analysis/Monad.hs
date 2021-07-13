@@ -18,6 +18,9 @@ import Daedalus.GUID
 import Talos.Analysis.Slice
 import Talos.Analysis.Domain
 import Talos.Analysis.EntangledVars
+import Data.Maybe (mapMaybe, fromJust)
+import qualified Data.Text as Text
+import Daedalus.Panic
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
@@ -55,6 +58,7 @@ data IterState =  IterState
   , revDeps   :: RevDeps
   , summaries :: Summaries
   , allDecls  :: Map FName (Fun Grammar) -- read-only
+  , declInvs  :: Map FName (Name -> [Expr] -> (Expr, Expr))
   , currentDecl  :: FName
   , currentClass :: SummaryClass
   , nextGUID    :: GUID
@@ -63,12 +67,13 @@ data IterState =  IterState
 -- We want assertions for all decls as the base case for calls is to
 -- use 'Assertion although we may not always require them (if every
 -- call to a function uses the result in a relevant way)
-initState :: [Fun Grammar] -> GUID -> IterState
-initState decls nguid = IterState
+initState :: [Fun Grammar] -> [Fun Expr] -> GUID -> IterState
+initState decls funs nguid = IterState
   { worklist    = Set.fromList grammarDecls
   , revDeps     = Map.empty
   , summaries   = Map.empty
   , allDecls    = Map.fromList (map (\tc -> (fName tc, tc)) decls)
+  , declInvs    = makeDeclInvs decls funs
   , currentDecl  = error "No current decl"
   , currentClass = error "No current class"
   , nextGUID    = nguid
@@ -85,6 +90,51 @@ newtype IterM a = IterM { getIterM :: State IterState a }
 
 runIterM :: IterM a -> IterState -> IterState
 runIterM m s0 =  execState (getIterM m) s0
+
+
+--------------------------------------------------------------------------------
+-- Inverses
+
+-- For now, if we have a function invert_Foo then we call that an inverse
+-- for Foo, and similarly for pred_Foo.  This ignores modules.
+makeDeclInvs :: [Fun Grammar] -> [Fun Expr] -> Map FName (Name -> [Expr] -> (Expr, Expr))
+makeDeclInvs decls funs = Map.fromList fnsWithInvs
+  where
+    fnsWithInvs = [ (fName fn, \resN args -> (mkCall fn ifn resN args, mkPred fn t resN args))
+                  | fn <- decls
+                  , Just t <- [fnameText (fName fn)]
+                  , Just ifn <- [Map.lookup t inverses]
+                  ]
+                                           
+    inverses = mapByPfx "inverse_"
+    preds    = mapByPfx "pred_"
+
+    mkPred fn fnText
+      | Just pfn <- Map.lookup fnText preds = mkCall fn pfn
+      | otherwise = \_ _ -> boolL True
+
+    -- FIXME: inefficient, move the lambda somehow?
+    mkCall fn pfn = \resN args ->
+      -- We line up arguments by source name
+      -- FIXME: type check this!
+      let identMap = Map.fromList [ (n, e)
+                                  | (pn, e) <- zip (fParams fn) args
+                                  , Just n <- [nameText pn]
+                                  ]
+                     
+          -- Should only be the final argument which doesn't line up
+          (_resA, ps') = case reverse (fParams pfn) of
+            [] -> panic "Need more arguments" [showPP (fName pfn)]
+            resP : psR -> (resP, reverse psR)
+
+          args' = map ((Map.!) identMap . fromJust . nameText) ps'
+      in callF (fName pfn) (args' ++ [ Var resN ])
+      
+    mapByPfx pfx = Map.fromList (mapMaybe (\f -> flip (,) f <$> isPfx pfx (fName f)) funs)
+    
+    isPfx pfx fn = Text.stripPrefix pfx =<< fnameText fn 
+
+
 
 --------------------------------------------------------------------------------
 -- low-level IterM primitives
@@ -110,6 +160,9 @@ getRevDeps nm cl = do
 
 getDecl :: FName -> IterM (Fun Grammar)
 getDecl n = IterM $ gets (flip (Map.!) n . allDecls)
+
+getDeclInv :: FName -> IterM (Maybe (Name -> [Expr] -> (Expr, Expr)))
+getDeclInv n = IterM $ gets (Map.lookup n . declInvs)
 
 lookupSummary :: FName -> SummaryClass -> IterM (Maybe Summary)
 lookupSummary nm cls = do

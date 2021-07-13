@@ -27,7 +27,8 @@ data Options =
           -- Debugging options
           , optMode :: Mode
           , optDDLEntry   :: Maybe String
-          , optStrategy  :: Maybe String  
+          , optStrategy  :: Maybe String
+          , optInvFile    :: Maybe FilePath          
           , optDDLInput  :: FilePath
           }
 
@@ -88,6 +89,13 @@ optProvOutput = strOption
      <> metavar "FILE"
      <> help "Write provenance to FILE" )
 
+invFileOpt :: Parser FilePath
+invFileOpt = strOption
+   ( long "inverses"
+     <> metavar "FILE"
+     <> short 'i'
+     <> help "Inverse annotations" )
+
 
 allOutputOpt :: Parser String
 allOutputOpt = strOption
@@ -136,7 +144,8 @@ options = Options <$> solverOpt
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt
-                  <*> optional strategyOpt 
+                  <*> optional strategyOpt
+                  <*> optional invFileOpt
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

@@ -6,50 +6,52 @@
 
 module Talos.Synthesis (synthesise) where
 
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import Data.List (foldl')
-import Data.Foldable (find)
-import qualified Data.Map as Map
-import Data.Map(Map)
-import qualified Data.Set as Set
-import Data.Word
-import System.Random
-
-import           System.IO.Streams (Generator, InputStream)
-import qualified System.IO.Streams as Streams
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.ByteString                 (ByteString)
+import qualified Data.ByteString                 as BS
+import           Data.Foldable                   (find)
+import           Data.List                       (foldl')
+import qualified Data.List.NonEmpty              as NE
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import qualified Data.Set                        as Set
+import           Data.Word
+import           System.IO.Streams               (Generator, InputStream)
+import qualified System.IO.Streams               as Streams
+import           System.Random
 
 -- To represent the partially constructed input
 -- import qualified Data.IntervalMap as IMap
 -- import Data.IntervalMap (IntervalMap)
 
-import SimpleSMT (Solver)
+import           SimpleSMT                       (Solver)
 
-import Daedalus.GUID
-import Daedalus.PP
-import Daedalus.Panic
-import qualified Daedalus.Value as I
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
+import qualified Daedalus.Value                  as I
 
-import Daedalus.Core hiding (streamOffset)
-import Daedalus.Core.Free
+import           Daedalus.Core                   hiding (streamOffset)
+import           Daedalus.Core.Free
+import qualified Daedalus.Core.Semantics.Env     as I
+import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
-import qualified Daedalus.Core.Semantics.Expr as I
-import qualified Daedalus.Core.Semantics.Env as I
 
--- import RTS.ParserAPI hiding (SourceRange)
+import RTS.Parser (runParser)
+import RTS.ParserAPI (Result(..), ppParseError)
 
-import Talos.Analysis (summarise)
-import Talos.Analysis.Monad (Summary(..), PathRootMap)
-import Talos.Analysis.Slice
+import           Talos.Analysis                  (summarise)
+import           Talos.Analysis.Monad            (PathRootMap, Summary (..))
+import           Talos.Analysis.Slice
 -- import Talos.SymExec
-import Talos.SymExec.SolverT (SolverState, emptySolverState)
-import Talos.SymExec.Path
-import Talos.SymExec.StdLib
+import           Talos.SymExec.Path
+import           Talos.SymExec.SolverT           (SolverState, emptySolverState)
+import           Talos.SymExec.StdLib
 
-import Talos.Strategy
-import Talos.Strategy.Monad
+import           Talos.Strategy
+import           Talos.Strategy.Monad
+import RTS.Input (newInput)
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -112,10 +114,9 @@ projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
 projectEnvForM tm = do
   env0 <- getIEnv
   m_e <- SynthesisM $ asks (projectEnvFor tm env0)
-  e <- case m_e of
-         Just e  -> pure e
-         Nothing -> panic "Captured stream value" []
-  pure e
+  case m_e of
+    Just e  -> pure e
+    Nothing -> panic "Captured stream value" []
 
 vUnit :: Value
 vUnit = InterpValue I.vUnit
@@ -177,7 +178,7 @@ freshProvenanceTag = do
 synthesise :: Maybe Int -> GUID -> Solver -> [Strategy] -> FName -> Module 
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
 synthesise m_seed nguid solv strat root md = do
-  let (allSummaries, nguid') = summarise allDecls nguid
+  let (allSummaries, nguid') = summarise md nguid
 
   -- We do this in one giant step to deal with recursion and deps on
   -- pure functions.
@@ -374,19 +375,17 @@ byteStringToValue = I.vByteString
 
 -- -- Does all the heavy lifting
 synthesiseGLHS :: Maybe SelectedNode -> Grammar -> SynthesisM Value
-synthesiseGLHS (Just (SelectedMatch prov bs)) g@(Match SemYes m) = do
+synthesiseGLHS (Just (SelectedBytes prov bs)) g = do
   addBytes prov bs
-  
-  -- We could reuse the interpreter, but there aren't that many cases
-  case m of
-    -- FIXME: check match?
-    MatchByte {}  -> pure (InterpValue $ I.vByte (BS.head bs))
-    MatchBytes {} -> pure (InterpValue $ byteStringToValue bs)
-    _             -> panic "BUG: unexpected term in synthesiseGLHS" [showPP g]
-    
-synthesiseGLHS (Just (SelectedMatch {})) g = 
-  panic "BUG: unexpected term in synthesiseGLHS/SelectedMatch" [showPP g]
-  
+  env <- projectEnvForM g
+
+  let inp = newInput "<synthesised bytes>" bs
+      res = case runParser (I.evalG g env) inp of
+        NoResults e -> panic "No results" [ show (ppParseError e) ]
+        Results  rs -> NE.head rs
+      
+  pure (InterpValue res)
+      
 synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
