@@ -56,7 +56,7 @@ library
     PdfParser,
     
     -- copying the 'autogen-modules':
-    Array
+    Array,
     -- CMap, GenPdfValue,
       -- ghc does not compile daedalus generated code for this pair of dependencies!
     ContentStreamLight,
