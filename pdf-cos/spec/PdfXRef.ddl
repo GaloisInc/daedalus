@@ -7,6 +7,14 @@ def CrossRef = Choose {
   newXref = XRefObj;
 }
 
+def PdfEnd =
+  block
+    Match "strartxref"
+    EOL
+    $$ = Natural as? uint 64
+    EOL
+    Match "%%EOF"
+
 --------------------------------------------------------------------------------
 -- xref section and trailer
 -- "Old style"? not really, not deprecated.
