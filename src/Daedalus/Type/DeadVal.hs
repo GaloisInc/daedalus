@@ -332,7 +332,9 @@ mbSem tc =
                          ClassArg {} -> pure (a, tcFree a)
                          ValArg {}   -> pure (a, tcFree a)
 
-         pure (exprAt tc (TCCall f ts as'), mconcat is)
+         let extra = if isLocalName (tcName f) then Set.singleton (Some f)
+                                               else mempty
+         pure (exprAt tc (TCCall f ts as'), extra <> mconcat is)
 
     TCErrorMode m p -> do (p', vs) <- mbSem p
                           pure (exprAt tc (TCErrorMode m p'), vs)
@@ -445,7 +447,7 @@ noSem' tc =
                              )
 
          do (m'', i') <- mbSem (loopBody lp)
-            pure ( exprAt tc (TCFor lp { loopBody = m'' })
+            pure ( mkDo tc Nothing (exprAt tc (TCFor lp { loopBody = m'' })) (noSemPure tc)
                  , tcFree (loopFlav lp) <> tcFree (loopCol lp) <>
                    Set.difference i' bnd
                  )
