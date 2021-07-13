@@ -4457,8 +4457,9 @@ nitf_img_subheader.ISHeader : Grammar nitf_img_subheader.ISHeader =
      (nppbv : int) <- nitf_img_subheader.NPPBV
      nitf_lib._Guard (n_rows <= (nbpc * nppbv))
      (nbpp : int) <- nitf_img_subheader.NBPP abpp ic
-     map ((bi : nitf_img_subheader.ISHeader5) in bandinfo)
-       (nitf_img_subheader.CatParams int int int icat (bi.isubcatn) nbands pvtype nbpp abpp)
+     do map ((bi : nitf_img_subheader.ISHeader5) in bandinfo)
+          (nitf_img_subheader.CatParams int int int icat (bi.isubcatn) nbands pvtype nbpp abpp)
+        pure {}
      (idlvl : int) <- nitf_img_subheader.IDLvl
      (ialvl : int) <- nitf_img_subheader.IALvl
      (iloc : nitf_lib.Location) <- nitf_lib.Location
@@ -5558,8 +5559,9 @@ nitf_img_subheader._ISHeader : Grammar {} =
      (nppbv : int) <- nitf_img_subheader.NPPBV
      nitf_lib._Guard (n_rows <= (nbpc * nppbv))
      (nbpp : int) <- nitf_img_subheader.NBPP abpp ic
-     map ((bi : nitf_img_subheader.ISHeader5) in bandinfo)
-       (nitf_img_subheader.CatParams int int int icat (bi.isubcatn) nbands pvtype nbpp abpp)
+     do map ((bi : nitf_img_subheader.ISHeader5) in bandinfo)
+          (nitf_img_subheader.CatParams int int int icat (bi.isubcatn) nbands pvtype nbpp abpp)
+        pure {}
      nitf_img_subheader._IDLvl
      nitf_img_subheader._IALvl
      nitf_lib._Location
@@ -6486,26 +6488,30 @@ nitf_main.Main : Grammar nitf_main.Main =
 nitf_main._Main : Grammar {} =
   do (h : nitf_header.Header) <- nitf_header.Header
      (ldt : nitf_lib.PartialDateTime) <- nitf_lib.LiftDateTime (h.fdt)
-     map ((imglens : nitf_header.ImgLens) in h.li)
-       do (imgHeader : nitf_img_subheader.ISHeader) <- nitf_img_subheader.ISHeader
-          nitf_main._CheckDateTime ldt (imgHeader.idatim)
-          pure {imgHeader = imgHeader}
-     map ((gls : nitf_header.GraphLens) in h.graphlens)
-       do (graphHeader : nitf_graphic_subheader.GraphicHeader) <- nitf_graphic_subheader.GraphicHeader
-          (graphData : [uint 8]) <- Many[gls.seglen as uint 64] nitf_lib.Byte
-          pure {graphHeader = graphHeader,
-                graphData = graphData}
-     map ((textls : nitf_header.TextLens) in h.textlens)
-       do (txtHeader : nitf_text_subheader.TextHeader) <- nitf_text_subheader.TextHeader
-          nitf_main._CheckDateTime ldt (txtHeader.txtdt)
-          (txtData : [uint 8]) <- Many[textls.lt as uint 64] nitf_lib.Byte
-          pure {txtHeader = txtHeader,
-                txtData = txtData}
-     map ((dataextls : nitf_header.DataExtLens) in h.dataextlens)
-       do (dataExtHeader : nitf_data_ext_subheader.DataExtHeader) <- nitf_data_ext_subheader.DataExtHeader
-          (dataExtData : [uint 8]) <- Many[dataextls.ld as uint 64] nitf_lib.Byte
-          pure {dataExtHeader = dataExtHeader,
-                dataExtData = dataExtData}
+     do map ((imglens : nitf_header.ImgLens) in h.li)
+          do (imgHeader : nitf_img_subheader.ISHeader) <- nitf_img_subheader.ISHeader
+             nitf_main._CheckDateTime ldt (imgHeader.idatim)
+             pure {imgHeader = imgHeader}
+        pure {}
+     do map ((gls : nitf_header.GraphLens) in h.graphlens)
+          do (graphHeader : nitf_graphic_subheader.GraphicHeader) <- nitf_graphic_subheader.GraphicHeader
+             (graphData : [uint 8]) <- Many[gls.seglen as uint 64] nitf_lib.Byte
+             pure {graphHeader = graphHeader,
+                   graphData = graphData}
+        pure {}
+     do map ((textls : nitf_header.TextLens) in h.textlens)
+          do (txtHeader : nitf_text_subheader.TextHeader) <- nitf_text_subheader.TextHeader
+             nitf_main._CheckDateTime ldt (txtHeader.txtdt)
+             (txtData : [uint 8]) <- Many[textls.lt as uint 64] nitf_lib.Byte
+             pure {txtHeader = txtHeader,
+                   txtData = txtData}
+        pure {}
+     do map ((dataextls : nitf_header.DataExtLens) in h.dataextlens)
+          do (dataExtHeader : nitf_data_ext_subheader.DataExtHeader) <- nitf_data_ext_subheader.DataExtHeader
+             (dataExtData : [uint 8]) <- Many[dataextls.ld as uint 64] nitf_lib.Byte
+             pure {dataExtHeader = dataExtHeader,
+                   dataExtData = dataExtData}
+        pure {}
      map ((resextls : nitf_header.ResExtLens) in h.resextlens)
        do (resExtHeader : nitf_res_ext_subheader.ResExtHeader) <- nitf_res_ext_subheader.ResExtHeader
           (resExtData : [uint 8]) <- Many[resextls.lre as uint 64] nitf_lib.Byte
