@@ -92,7 +92,7 @@ public:
   void copy() { data.copy(); }
 
   friend
-  std::ostream& operator<<(std::ostream& os, ListStack & x) {
+  std::ostream& operator<<(std::ostream& os, const ListStack & x) {
     os << "[stack]\n";
     List<ClosureRef> p = x.data;
     while (! p.isNull()) {

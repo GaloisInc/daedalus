@@ -51,7 +51,8 @@ public:
     {}
 
   void dumpInput() {
-    debug("[");   debugVal((void*) this);
+    debug("[");   debugVal((void*) name.borrowData());
+    debug(",");   debugVal((void*) bytes.borrowData());
     debug("] ("); debugVal(name.refCount());
     debug(",");   debugVal(bytes.refCount());
     debugLine(")\n");

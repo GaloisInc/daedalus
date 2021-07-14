@@ -9,7 +9,7 @@ def CrossRef = Choose {
 
 def PdfEnd =
   block
-    Match "strartxref"
+    Match "startxref"
     EOL
     $$ = Natural as? uint 64
     EOL

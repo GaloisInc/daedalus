@@ -55,10 +55,12 @@ cProgram fileNameRoot prog =
           , let (ds,defs) = unzip (map cTypeGroup allTypes)
             in vcat' (ds ++ defs)
           , " "
+          , "// --- Parsing Functions ---"
           , "namespace DDL { namespace ResultOf {"
           ] ++ map declareParserResult (pEntries prog) ++
           [ "}}" ] ++
           [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
+          primSigs ++
           [ ""
           , "#endif"
           ]
@@ -67,11 +69,23 @@ cProgram fileNameRoot prog =
     cStmt ("using" <+> nm <+> "=" <+> cSemType (entryType ent))
     where nm = ptext (Text.unpack (entryName ent)) -- Not escaped!
 
+  (prims,noPrims) = flip partition noCapFun \fun ->
+                    case vmfDef fun of
+                      VMExtern {} -> True
+                      VMDef {}    -> False
+
+  primSigs = case prims of
+               [] -> []
+               _  -> " "
+                   : "// --- External Primitives ---"
+                   : map cFunSig prims
+
+
   cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
 
-               map cFunSig noCapFun ++
+               map cFunSig noPrims ++
                (let ?allFuns = allFunMap in mapMaybe cFun noCapFun) ++
 
                [ parserSig <+> "{"
