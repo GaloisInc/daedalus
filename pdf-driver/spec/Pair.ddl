@@ -1,1 +1,0 @@
-../../pdf-cos/spec/Pair.ddl

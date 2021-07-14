@@ -6,6 +6,7 @@ import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
+import qualified Data.Text
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -43,10 +44,9 @@ compileDDL =
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $
-       mapM putStrLn [ "generating .hs for these .ddl modules:"
-                     , "  " ++ show todo
-                     , ""
-                     ]
+       mapM putStrLn $ [ "generating .hs for these .ddl modules:"]
+                       ++ map (("  " ++) . Data.Text.unpack) todo
+                       ++ [""]
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg

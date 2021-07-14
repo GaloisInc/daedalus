@@ -19,7 +19,7 @@ extra-source-files:
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 custom-setup
-  setup-depends:  base, containers, daedalus, filepath, Cabal
+  setup-depends:  base, containers, text, daedalus, filepath, Cabal
 
 
 -- Compiled versions of the DDL specs.

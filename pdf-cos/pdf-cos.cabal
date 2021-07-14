@@ -31,7 +31,7 @@ extra-source-files:
   spec/Sum.ddl
 
 custom-setup
-  setup-depends: base, containers, daedalus, filepath, Cabal
+  setup-depends: base, containers, daedalus, text, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
