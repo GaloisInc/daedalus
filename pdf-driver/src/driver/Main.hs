@@ -36,13 +36,17 @@ main =
   do opts <- getOptions
      let fmt = case optMode opts of
                  Demo  -> demoFormat opts
-                 FAW   -> fawFormat 
+                 FAW   -> fawFormat
      let inputFile = optPDFInput opts
      let pw = BS.pack $ optPassword opts
-     case optOps opts of
-       Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
-       ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
-             
+     case optMode opts of
+       Demo  ->
+         case optOps opts of
+           Validate -> driverValidate opts
+           ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
+       FAW   -> fmtDriver fmt inputFile pCatalogIsOK pw
+
+
 
 data Format = Format
   { onStart     :: FilePath -> ByteString -> IO ()
@@ -114,8 +118,8 @@ demoFormat opts =
   let optReport = runReport opts in
   let fileN = optPDFInput opts in
   let reportCritFile = \i d ->
-        (fmap $ const ()) (reportCritical fileN i d) in 
-  let reportInfo = report RInfo fileN 0 in 
+        (fmap $ const ()) (reportCritical fileN i d) in
+  let reportInfo = report RInfo fileN 0 in
   let reportErr = report RError fileN in Format
   { onStart = \_fp _bs -> return ()
     , xrefMissing = \s -> optReport $ reportCritFile
@@ -138,7 +142,7 @@ demoFormat opts =
 
 
 fmtDriver :: (DbgMode, Show a) => Format -> FilePath ->
-  (Ref -> Parser a) -> 
+  (Ref -> Parser a) ->
   BS.ByteString -> IO ()
 fmtDriver fmt file pageTreeParser pwd =
   do bs <- BS.readFile file
@@ -211,7 +215,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
                                        (toInteger (refGen ref))
             Nothing -> pError' FromUser []
                        ("XRef entry outside file: " ++ show off)
-        , False  
+        , False
         , fileEC (refObj ref, refGen ref)
         )
 
@@ -222,7 +226,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
                                          (toInteger (refGen o))
                                          (intToSize idx)
         , True
-        , Nothing 
+        , Nothing
         )
 
 --------------------------------------------------------------------------------
@@ -243,12 +247,9 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
 
 
--- driver: 
--- deprecated for fmtDriver?
-driver :: DbgMode => Options ->
-          (Ref -> PdfMonad.Parser r) -> (r -> Doc) ->
-          IO ()
-driver opts objGraphParser resToString = runReport opts $ 
+-- driver for Validate mode
+driverValidate :: DbgMode => Options -> IO ()
+driverValidate opts = runReport opts $
   do let file = optPDFInput opts
      bs   <- liftIO (BS.readFile file)
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
@@ -271,9 +272,10 @@ driver opts objGraphParser resToString = runReport opts $
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
 
-     res <- liftIO (runParser refs Nothing (objGraphParser root) topInput)
+     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
-       ParseOk r  -> report RInfo file 0 (resToString r)
+       ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
+       ParseOk False -> report RUnsafe file 0 "Malformed Catalog (page tree)"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
@@ -339,31 +341,31 @@ handlePdfResult x msg =
         ParseErr e    -> throwIO e
 
 -- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
-makeEncContext :: Integral a => 
-                      TrailerDict  
-                  -> ObjIndex 
-                  -> Input 
-                  -> BS.ByteString 
+makeEncContext :: Integral a =>
+                      TrailerDict
+                  -> ObjIndex
+                  -> Input
+                  -> BS.ByteString
                   -> IO ((a, a) -> Maybe EncContext)
-makeEncContext trail refs topInput pwd = 
-  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
+makeEncContext trail refs topInput pwd =
+  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput)
                               "Ambiguous encryption dictionary"
-     case edict of 
-       MakeContext_noencryption _ -> pure $ const Nothing 
-       MakeContext_encryption enc -> do 
-        let encO = vecToRep $ getField @"encO" enc 
+     case edict of
+       MakeContext_noencryption _ -> pure $ const Nothing
+       MakeContext_encryption enc -> do
+        let encO = vecToRep $ getField @"encO" enc
             encP = fromIntegral $ getField @"encP" enc
-            id0 = vecToRep $ getField @"id0" enc 
+            id0 = vecToRep $ getField @"id0" enc
             filekey = makeFileKey pwd encO encP id0
-        pure $ \(ro, rg) -> 
-          Just EncContext { key  = filekey, 
-                            robj = fromIntegral ro, 
-                            rgen = fromIntegral rg, 
-                            ciph = chooseCipher $ getField @"ciph" enc  } 
+        pure $ \(ro, rg) ->
+          Just EncContext { key  = filekey,
+                            robj = fromIntegral ro,
+                            rgen = fromIntegral rg,
+                            ciph = chooseCipher $ getField @"ciph" enc  }
 
-chooseCipher :: ChooseCiph -> Cipher 
-chooseCipher enc = 
-  case enc of 
+chooseCipher :: ChooseCiph -> Cipher
+chooseCipher enc =
+  case enc of
     ChooseCiph_v2RC4 _ -> V2RC4
     ChooseCiph_v4RC4 _ -> V4RC4
     ChooseCiph_v4AES _ -> V4AES
