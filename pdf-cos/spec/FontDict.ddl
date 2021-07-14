@@ -1,11 +1,9 @@
--- Font: a font
-def Type0Font = Void
+import Stdlib
 
--- Type 1 font: encoding of Table 109
-def Type1Font = {
-  @fontDict = Type1Font0;
-  FinalizeFont0 fontDict
-}
+import Type1Font
+
+-- TODO: replace with property defns
+def Type0Font = Void
 
 def Type3Font = Void
 
@@ -13,7 +11,7 @@ def TrueTypeFont = Void
 
 def CIDFont = Void
 
-def Font = Choose1 { 
+def FontDict = Choose1 { 
   -- fonts are mutually exclusive, due to at least the Type field
   type0 = Type0Font;
   type1 = Type1Font;

@@ -3,6 +3,8 @@ import Stdlib
 import Pair
 import Map
 
+import PdfValue
+
 -- GenArray P: PDF array of P's
 def GenArray P = Between "[" "]" (Many (Token P)) 
 
@@ -17,6 +19,8 @@ def NameStr s = GenName (Match s)
 
 def Token1 P x = Token (P x)
 
+def NameToken s = Token (GenName s)
+
 def DictEntry Key Val = DepPair (Token (GenName Key)) (Token1 Val)
 
 -- experimental: rank-2 parsing
@@ -29,3 +33,5 @@ def DictMap Key Val = {
 
 -- PdfDict: a PDF dictionary
 def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
+
+def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
