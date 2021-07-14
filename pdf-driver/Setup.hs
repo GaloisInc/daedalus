@@ -6,6 +6,8 @@ import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
+import qualified Data.Text
+
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -21,16 +23,21 @@ main = defaultMainWithHooks simpleUserHooks
   }
 
 
-
-{- We split up basic PDF validation from DOM related stuff into separate
-packages.  This allows us to avoid recompiling things that have not changed. -}
 compileDDL :: IO ()
 compileDDL =
   daedalus
-  do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfExtractText" ]
+  do ddlSetOpt optSearchPath [ "spec"             -- new ddl modules here
+                             , "../pdf-cos/spec"  -- other ddl modules in pdf-cos pkg
+                             ]
+     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM"]
      mapM_ ddlLoadModule mods
-     todo <- filter (not . (`elem` external)) <$> ddlBasisMany mods
+     let todo = mods
+                -- Varying from ../pdf-cos/Setup.hs here:
+                --  we only generate hs for the listed files, not any dependencies
+     ddlIO $
+       mapM putStrLn $ [ "generating .hs for these .ddl modules:"]
+                       ++ map (("  " ++) . Data.Text.unpack) todo
+                       ++ [""]
      let cfgFor m = case m of
                       "PdfValidate" -> cfgPdfValidate
                       _             -> cfg
@@ -38,15 +45,11 @@ compileDDL =
 
   where
 
-  -- in pdf-cos
-  external = [ "PdfValue", "PdfXRef", "PdfDecl", "Stdlib", "Jpeg" ]
-
   -- XXX: untested and currently unused
   _roots :: [(ModuleName,Ident)]
   _roots = [ ("PdfDemo", "CatalogIsOK")
            , ("PdfDemo", "TopDeclCheck")
            , ("PdfDemo", "ResolveObjectStreamEntryCheck")
-           , ("PdfXRef", "CrossRef")
            , ("PdfDOM",  "DOMTrailer")
            ]
 

@@ -6,6 +6,7 @@ import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
+import qualified Data.Text
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -25,16 +26,34 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfXRef", "PdfCrypto" ]
+     let mods = [ "PdfXRef"
+                , "PdfCrypto"
+
+                -- library-like, just in case no-one imports:
+                , "CMap"
+                , "GenPdfValue"
+                , "JpegBasics"
+                , "Map"
+                , "Pair"
+
+                -- added for text extraction
+                , "PdfExtractText"
+                , "PdfText"
+                , "Unicode"
+                ]
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
+     ddlIO $
+       mapM putStrLn $ [ "generating .hs for these .ddl modules:"]
+                       ++ map (("  " ++) . Data.Text.unpack) todo
+                       ++ [""]
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg
      mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
 
   where
-  -- XXX: This shoudl list all parsers we need, and it'd be used if
+  -- XXX: This should list all parsers we need, and it'd be used if
   -- we specialized things
   _roots :: [(ModuleName,Ident)]
   _roots = [ ("PdfXRef", "CrossRef")

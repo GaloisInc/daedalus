@@ -14,15 +14,24 @@ copyright:           2019, Galois Inc
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
-  spec/Stdlib.ddl,
+  spec/CMap.ddl,
+  spec/ContentStreamLight.ddl,
+  spec/GenPdfValue.ddl,
+  spec/ISOCodes.ddl,
+  spec/JpegBasics.ddl,
+  spec/Map.ddl,
+  spec/Pair.ddl,
+  spec/PdfCrypto.ddl,
   spec/PdfDecl.ddl,
+  spec/PdfExtractText.ddl,
+  spec/PdfText.ddl,
   spec/PdfValue.ddl,
   spec/PdfXRef.ddl,
-  spec/PdfCrypto.ddl,
-  spec/JpegBasics.ddl
+  spec/Stdlib.ddl,
+  spec/Sum.ddl
 
 custom-setup
-  setup-depends: base, containers, daedalus, filepath, Cabal
+  setup-depends: base, containers, daedalus, text, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
@@ -45,21 +54,44 @@ library
     PdfMonad.Release,
     PdfParserNotSpecialized,
     PdfParser,
-
-    Stdlib,
+    
+    -- copying the 'autogen-modules':
+    Array,
+    -- CMap, GenPdfValue,
+      -- ghc does not compile daedalus generated code for this pair of dependencies!
+    ContentStreamLight,
+    ISOCodes,
     JpegBasics,
-    PdfValue,
+    Map,
+    Pair,
+    PdfCrypto,
     PdfDecl,
+    PdfExtractText,
+    PdfText,
+    PdfValue,
     PdfXRef,
-    PdfCrypto
+    Stdlib,
+    Sum,
+    Unicode
 
   autogen-modules:
-    Stdlib,
+    -- CMap, GenPdfValue,
+      -- ghc does not compile daedalus generated code for this pair of dependencies!
+    Array,
+    ContentStreamLight,
+    ISOCodes,
     JpegBasics,
-    PdfValue,
+    Map,
+    Pair,
+    PdfCrypto,
     PdfDecl,
+    PdfExtractText,
+    PdfText,
+    PdfValue,
     PdfXRef,
-    PdfCrypto
+    Stdlib,
+    Sum,
+    Unicode
 
   build-depends:
     base,
