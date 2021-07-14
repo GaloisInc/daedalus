@@ -14,6 +14,16 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "configuration": {
+            "title": "Daedalus configuration",
+            "properties": {
+                "daedalus.language-server-path": {
+                    "type": "string",
+                    "default": "daedalus-language-server",
+                    "description": "Path to the Daedalus language server"
+                }
+            }
+        },
         "languages": [{
             "id": "daedalus",
             "aliases": ["Daedalus", "daedalus"],
