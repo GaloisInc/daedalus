@@ -57,8 +57,8 @@ library
     
     -- copying the 'autogen-modules':
     Array,
-    -- CMap, GenPdfValue,
-      -- ghc does not compile daedalus generated code for this pair of dependencies!
+    CMap,
+    GenPdfValue,
     ContentStreamLight,
     ISOCodes,
     JpegBasics,
@@ -75,8 +75,8 @@ library
     Unicode
 
   autogen-modules:
-    -- CMap, GenPdfValue,
-      -- ghc does not compile daedalus generated code for this pair of dependencies!
+    CMap,
+    GenPdfValue,
     Array,
     ContentStreamLight,
     ISOCodes,
