@@ -44,7 +44,10 @@ main =
          case optOps opts of
            Validate -> driverValidate opts
            ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
-       FAW   -> fmtDriver fmt inputFile pCatalogIsOK pw
+       FAW   ->
+         case optOps opts of
+           Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
+           ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
 
 
 
