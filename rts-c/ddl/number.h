@@ -85,6 +85,7 @@ public:
   bool operator >  (UInt<w> x){ return rep() >  x.rep(); }
   bool operator >= (UInt<w> x){ return rep() >=  x.rep(); }
 
+  unsigned long asULong() { return (unsigned long) rep(); }
 };
 
 
@@ -228,6 +229,9 @@ public:
     uint64_t n = x.rep();
     return n >= w? SInt(0) : SInt(data >> n);
   }
+
+  // XXX: checks?
+  unsigned long asULong() { return (unsigned long) rep(); }
 };
 
 

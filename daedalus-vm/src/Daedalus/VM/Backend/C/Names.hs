@@ -16,19 +16,25 @@ import qualified Daedalus.Core as Src
 import Daedalus.VM.Backend.C.Lang
 
 
-
+-- These are always local to the main function, so no need for namespace
 cReturnClassName :: [VMT] -> Doc
 cReturnClassName ts = "Return_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
+-- These are always local to the main function, so no need for namespace
 cThreadClassName :: [VMT] -> Doc
 cThreadClassName ts = "Thread_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
--- | Name of a type.
--- XXX: module names, namespaces?
-cTName :: Src.TName -> CType
-cTName t = case Src.tnameAnon t of
+cUserNameSpace :: Doc
+cUserNameSpace = "User"
+
+cUserPrivateNameSpace :: Doc
+cUserPrivateNameSpace = "Private"
+
+-- | Root name of a type, without namesapces
+cTNameRoot :: Src.TName -> CType
+cTNameRoot t = case Src.tnameAnon t of
              Nothing -> root
              Just i  -> root <.> int i
   where
@@ -37,11 +43,12 @@ cTName t = case Src.tnameAnon t of
   pref = if isReserved txt then "_" else ""
 
 -- | The name of the underlying type used by a boxed type.
-cTName' :: GenVis -> Src.TName -> CType
-cTName' vis x =
+cTNameUse :: GenVis -> Src.TName -> CType
+cTNameUse vis x =
   case vis of
-    GenPublic -> cTName x
-    GenPrivate -> "_" <.> cTName x
+    GenPublic -> hcat [ cUserNameSpace, "::", cTNameRoot x ]
+    GenPrivate ->
+      hcat [ cUserNameSpace,"::",cUserPrivateNameSpace,"::",cTNameRoot x ]
 
 
 data GenVis = GenPublic | GenPrivate
