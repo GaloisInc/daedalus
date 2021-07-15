@@ -86,9 +86,7 @@ def BuildPageTree r : RootNode = ParseAtRef r (PageTreeP r)
 def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
   @kidsCStreams = map (k in kids) (case (k : PageNodeKid) of {
     pageKid pk -> [ pk.contents ];
-    treeKid tk -> [ ];
---    treeKid tk -> PageNodeContentStreams tk;
--- BUG: causes type error
+    treeKid tk -> PageNodeContentStreams tk;
   });
   concat kidsCStreams
 }
