@@ -1,5 +1,6 @@
 -- Page: a page object (Sec. 7.7.3.3)
 import Stdlib
+import Map
 
 import PdfDecl
 import PdfValue
@@ -51,7 +52,7 @@ def AddResources page0 : Page0 = {
   type0 = page0.type0;
   parent0 = page0.parent0;
 
-  resources0 = just ResourceDict;
+  resources0 = just (DirectOrRef ResourceDict);
 
   contents0 = page0.contents0;
   others0 = page0.others0;
@@ -88,7 +89,7 @@ def PageAddOther page0 : Page0 = {
   others0 = {
     @k = Token Name; 
     @v = Token Value;
-    Insert k v page0.others0
+    InsertFresh k v page0.others0
   };
 }
 
@@ -117,7 +118,6 @@ def CoercePage page0 = {
   Guard page0.parent0;
 
   resources = page0.resources0 is just;
-  -- TODO: allow resource dicts to be inherited
   contents = case page0.contents0 of {
     nothing -> [ ];
     just contentStream -> WithStream contentStream
