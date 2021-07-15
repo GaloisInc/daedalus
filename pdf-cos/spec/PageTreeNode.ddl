@@ -2,6 +2,7 @@
 -- actually forms a tree.
 import Stdlib
 import Array
+import Map
 
 import GenPdfValue
 import PdfValue
@@ -121,10 +122,8 @@ def NodeAddOther pageTree : PageTreeNode0 = {
   others0 = {
     @k = Token Name; 
     Guard (!(member k nodeKeys));
-    
-    -- TODO: check that key is not bound
     @v = Token Value;
-    Insert k v pageTree.others0
+    InsertFresh k v pageTree.others0
   };
 }
 
@@ -174,7 +173,6 @@ def PageTreeNodeP resrcs (par: Ref) (cur: Ref) = {
 -- Parse the root of a page tree:
 
 -- RootNode0: a partial page tree root value
--- TODO: extend with a field for Resources
 def RootNode0 = {
   rootType0 = ^false;
   rootKids0 = ^nothing;
@@ -250,9 +248,8 @@ def RootAddOther partialRoot : RootNode0 = {
     Guard (!(member k (cons "Parent" nodeKeys)));
     -- "Parent" key is not permitted in the root node.
     
-    -- TODO: check that key isn't already bound
     @v = Token Value;
-    Insert k v partialRoot.rootOthers0
+    InsertFresh k v partialRoot.rootOthers0
   };
 }
 

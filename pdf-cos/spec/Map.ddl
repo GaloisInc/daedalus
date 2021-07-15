@@ -17,3 +17,14 @@ def TryLookup d k dflt = Default dflt {
   @v = Lookup d k ;
   ^ v
 } 
+
+def IsBound k m = Default false {
+  @v = Lookup k m;
+  ^true
+}
+
+def InsertFresh k v m = {
+  @b = IsBound k m;
+  Guard (!b);
+  Insert k v m
+}
