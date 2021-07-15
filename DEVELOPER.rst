@@ -9,14 +9,14 @@ Note the general structure of the multiple cabal packages here:
   
 - pdf-driver is a package that builds executables (pdf-hs-driver, pdf-dom) that
   use the pdf-cos library. They also use daedalus to generate some Haskell modules, and
-  these specifications need to refer to some of definitions in pdf-cos/spec/.
+  these specifications need to refer to some of definitions in ``pdf-cos/spec/``.
   To typecheck these specs, we need the definitions (well, actually just their
   types, really) of the specs in pdf-cos, but we should not compile
   them again, as if we did we'd end up with two copies of the code and a big
   confusion.
 
-  - Previously we used 'sym-links' in pdf-driver/spec/ to refer to the modules
-    in pdf-cos/spec/ that are needed to type-check the specs before compiling to
+  - Previously we used 'sym-links' in ``pdf-driver/spec/`` to refer to the modules
+    in ``pdf-cos/spec/`` that are needed to type-check the specs before compiling to
     Haskell code. One should really think of them as interface files rather than
     full modules. However, ...
 
@@ -26,25 +26,23 @@ Note the general structure of the multiple cabal packages here:
     
     .. code-block::
 
-      [ "spec"             -- new ddl modules here
-      , "../pdf-cos/spec"  -- other ddl modules in pdf-cos pkg
-      ]
+       [ "spec"             -- new ddl modules in this directory
+       , "../pdf-cos/spec"  -- 'library' ddl modules here
+       ]
 
- - GUIDE (or the TLDR)
-   - if you have a generic, re-usable .ddl module, New.ddl
-     - put it here: `pdf-cos/spec/New.ddl`
-     - add the module name "New" to the 'mods' list in pdf-cos/Setup.hs
+Guide to adding new daedalus modules:
 
-       - CAVEAT: if New.ddl isn't compilable by daedalus this will break the
-         rest of the build.
+- If you have a generic, re-usable .ddl module, ``New.ddl``
+  
+  - Put the ddl here: ``pdf-cos/spec/New.ddl``
+    
+  - Add the module name "New" to the ``mods`` list in ``pdf-cos/Setup.hs``. 
+    (**CAVEAT**: if ``New.ddl`` isn't compilable by daedalus this will break the
+    rest of the build.)
 
-   - if you have a new pdf tool, it probably belongs in pdf-driver/, and if
-     there are ddl modules that are tool specific, put them pdf-driver/spec/.
- 
-    - add the module name "New" to the 'mods' list in pdf-driver/Setup.hs
+- If you have a new pdf tool, it probably belongs in ``pdf-driver/``, and if
+  there are ddl modules that are tool specific, put them in ``pdf-driver/spec/``.
 
-       - CAVEAT: as before, if the New.ddl isn't compilable by daedalus, this
-         will break the rest of the build.
-
-
-
+  - add the module name "New" to the ``mods`` list in ``pdf-driver/Setup.hs``
+    (**CAVEAT**: as before, if the ``New.ddl`` isn't compilable by daedalus, this
+    will break the rest of the build.)

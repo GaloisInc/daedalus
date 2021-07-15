@@ -73,19 +73,23 @@ T051.Main : Grammar T051.Main =
            g = g,
            h = h}
  
-T051._Mp : Grammar (Map (uint 64) int) =
-  for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in T051.xs)
-    (Insert k x s)
+T051._Mp : Grammar {} =
+  do for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in T051.xs)
+       (Insert k x s)
+     pure {}
  
 T051._Main : Grammar {} =
-  do map ((x : int) in T051.xs)
-       (pure (x + 1))
-     map ((k : uint 64), (x : int) in T051.xs)
-       (pure {k = k,
-              x = x + 1})
+  do do map ((x : int) in T051.xs)
+          (pure (x + 1))
+        pure {}
+     do map ((k : uint 64), (x : int) in T051.xs)
+          (pure {k = k,
+                 x = x + 1})
+        pure {}
      (m : Map (uint 64) int) <- T051.Mp
-     map ((x : int) in m)
-       (pure (x + 1))
+     do map ((x : int) in m)
+          (pure (x + 1))
+        pure {}
      map ((k : uint 64), (x : int) in m)
        (pure {k = k,
               x = x + 1})
