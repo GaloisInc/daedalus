@@ -1,10 +1,11 @@
 import Stdlib
+
 import PdfValue
 import PdfDecl
 import PdfXRef
 
+import PageTreeNode
 import Unicode
-
 import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
 
@@ -74,6 +75,28 @@ def ExtractContentsText d = Default [ ] {
       strm.body is ok
     };
   WithStream strm (Only ContentStream) -- parse the content stream
+}
+
+--------------------------------------------------------------------------------
+
+-- BuildPageTree r: builds the page tree from r
+def BuildPageTree r : PageTreeNode = ParseRef r (ParsePageTreeNode nothing r)
+
+def PageNodeContentStreams (pt: PageTreeNode) : [ [ ContentStreamOp ] ] = {
+  @kidsStreams = map (k in pt.kids) (case (k : PageNodeKid) of {
+    pageKid pk -> [ pk.contents ];
+    treeKid tk -> [ ];
+--    treeKid tk -> PageNodeContentStreams tk;
+-- BUG: causes type error
+  });
+  concat kidsStreams
+}
+
+def ExtractRootText1 (r : Ref) = {
+  @pageTree = BuildPageTree r;
+  @ptCs = PageNodeContentStreams pageTree;
+  @pageTexts = map (cs in ptCs) (ExtractContentStreamText cs);
+  concat pageTexts
 }
 
 --------------------------------------------------------------------------------

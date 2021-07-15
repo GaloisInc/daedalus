@@ -76,9 +76,12 @@ def CheckExpected (r : ref) (d : TopDecl) = {
   ^ d.obj;
 }
 
+def ResolveStreamRef (r : Ref) = 
+  CheckExpected r (ResolveRef r is just) is stream
+
 def ResolveStream (v : Value) = {
   @r  = v is ref;
-  CheckExpected r (ResolveRef r is just) is stream;
+  ResolveStreamRef r
 }
 
 def ResolveValRef (r : Ref) : Value = {
