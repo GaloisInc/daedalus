@@ -33,14 +33,16 @@ Note the general structure of the multiple cabal packages here:
 Guide to adding new daedalus modules:
 
 - If you have a generic, re-usable .ddl module, ``New.ddl``
-  - put it here: ``pdf-cos/spec/New.ddl``
-  - add the module name "New" to the ``mods`` list in ``pdf-cos/Setup.hs``
+  
+  - Put the ddl here: ``pdf-cos/spec/New.ddl``
+    
+  - Add the module name "New" to the ``mods`` list in ``pdf-cos/Setup.hs``. 
     (**CAVEAT**: if ``New.ddl`` isn't compilable by daedalus this will break the
-      rest of the build.)
+    rest of the build.)
 
 - If you have a new pdf tool, it probably belongs in ``pdf-driver/``, and if
-  there are ddl modules that are tool specific, put them ``pdf-driver/spec/``.
+  there are ddl modules that are tool specific, put them in ``pdf-driver/spec/``.
 
    - add the module name "New" to the ``mods`` list in ``pdf-driver/Setup.hs``
      (**CAVEAT**: as before, if the ``New.ddl`` isn't compilable by daedalus, this
-       will break the rest of the build.)
+     will break the rest of the build.)
