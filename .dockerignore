@@ -1,0 +1,12 @@
+Dockerfile
+.dockerignore
+dist-newstyle
+dist
+.ghc.environment.*
+/bin
+/test-output
+/talos/test-output
+/test-parser-gen-output
+.*.swp
+/icc_tests
+.DS_Store
