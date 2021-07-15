@@ -43,6 +43,6 @@ Guide to adding new daedalus modules:
 - If you have a new pdf tool, it probably belongs in ``pdf-driver/``, and if
   there are ddl modules that are tool specific, put them in ``pdf-driver/spec/``.
 
-   - add the module name "New" to the ``mods`` list in ``pdf-driver/Setup.hs``
-     (**CAVEAT**: as before, if the ``New.ddl`` isn't compilable by daedalus, this
-     will break the rest of the build.)
+  - add the module name "New" to the ``mods`` list in ``pdf-driver/Setup.hs``
+    (**CAVEAT**: as before, if the ``New.ddl`` isn't compilable by daedalus, this
+    will break the rest of the build.)
