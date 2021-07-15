@@ -1,5 +1,6 @@
 import Stdlib
 
+import GenPdfValue
 import PdfValue
 import PdfDecl
 import PdfXRef
@@ -80,21 +81,26 @@ def ExtractContentsText d = Default [ ] {
 --------------------------------------------------------------------------------
 
 -- BuildPageTree r: builds the page tree from r
-def BuildPageTree r : PageTreeNode = ParseRef r (ParsePageTreeNode nothing r)
+def BuildPageTree r : RootNode = ParseAtRef r (PageTreeP r)
 
-def PageNodeContentStreams (pt: PageTreeNode) : [ [ ContentStreamOp ] ] = {
-  @kidsStreams = map (k in pt.kids) (case (k : PageNodeKid) of {
+def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
+  @kidsCStreams = map (k in kids) (case (k : PageNodeKid) of {
     pageKid pk -> [ pk.contents ];
     treeKid tk -> [ ];
 --    treeKid tk -> PageNodeContentStreams tk;
 -- BUG: causes type error
   });
-  concat kidsStreams
+  concat kidsCStreams
 }
+
+def PageNodeContentStreams (pt: PageTreeNode) : [ [ ContentStreamOp ] ] =
+  KidsContentStreams pt.kids
+
+def PageTreeContentStreams pt = KidsContentStreams pt.rootKids
 
 def ExtractRootText1 (r : Ref) = {
   @pageTree = BuildPageTree r;
-  @ptCs = PageNodeContentStreams pageTree;
+  @ptCs = PageTreeContentStreams pageTree;
   @pageTexts = map (cs in ptCs) (ExtractContentStreamText cs);
   concat pageTexts
 }

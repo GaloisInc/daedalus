@@ -5,6 +5,9 @@ import GenPdfValue
 import FontDict
 
 -- ResourceDict: resource dictionary, with default values in all fields
+
+-- TODO: replace these with options, to ensure that each field is
+-- defined once
 def ResourceDict = {
   extGState = empty;
   colorSpace = empty;
@@ -143,6 +146,7 @@ def AddOther d : ResourceDict = {
   };
 }
 
+-- TODO: refactor NameToken's
 def ResourceDictRec dict = {
     @dict0 = Choose1 {
       { NameToken "ExtGState";

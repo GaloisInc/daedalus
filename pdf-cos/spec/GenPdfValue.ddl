@@ -14,6 +14,14 @@ def GenName P = {
   P
 }
 
+def GenObj P = {
+  Token Natural;
+  Token Natural;
+  KW "obj";
+  $$ = P;
+  Match "endobj";
+}
+
 -- NameStr s: name with string s
 def NameStr s = GenName (Match s)
 
@@ -35,3 +43,20 @@ def DictMap Key Val = {
 def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
+
+-- InputStream r: the input stream at reference r
+def InputStream r : Stream = Void
+-- TODO: implement as a new primitive
+
+-- ParseAtRef P r: parse the input at r, using P
+def ParseAtRef r P = {
+  @s = InputStream r;
+  WithStream s (GenObj P)
+}
+
+-- DirectOrRef P: parse either the current input or parse a ref and
+-- parse the input that it references.
+def DirectOrRef P = P <| {
+  @r = Ref;
+  ParseAtRef r P
+}

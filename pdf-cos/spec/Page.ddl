@@ -8,10 +8,10 @@ import ResourceDict
 import ContentStreamLight
 
 -- Page0: a partial Page value
-def Page0 = {
+def Page0 resrcs = {
   type0 = false;
   parent0 = false;
-  resources0 = nothing;
+  resources0 = resrcs ;
   contents0 = nothing;
   others0 = empty;
 }
@@ -126,8 +126,8 @@ def CoercePage page0 = {
   others = page0.others0;
 }
 
-def Page (par: Ref) = {
-  @initPage = Page0;
+def Page (resrcs : maybe ResourceDict) (par: Ref) = {
+  @initPage = Page0 resrcs;
   @pageRec = PageRec par initPage;
   CoercePage pageRec
 }
