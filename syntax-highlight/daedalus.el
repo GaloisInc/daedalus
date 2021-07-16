@@ -26,7 +26,7 @@
 (defvar daedalus-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-c") 'lsp-daedalus-run)
-    (define-key map (kbd "C-c C-i") 'daedalus-interpret-current-buffer)
+    (define-key map (kbd "C-c C-w") 'lsp-daedalus-watch)
     (define-key map (kbd "C-c C-e") 'lsp-daedalus-regions)
     
     map)
@@ -172,8 +172,8 @@ Customize the variable `daedalus-command' to change how it is invoked."
 (lsp-register-client
  (make-lsp-client :new-connection (lsp-stdio-connection (lambda () lsp-daedalus-server-path))
                   :major-modes '(daedalus-mode)
+		  :notification-handlers (ht ("daedalus/run/watchResult" 'lsp-daedalus--run-result-notfication))
                   :server-id 'daedalus-lsp))
-
 
 (add-to-list 'lsp-language-id-configuration '(daedalus-mode . "daedalus"))
 
@@ -192,11 +192,69 @@ Customize the variable `daedalus-command' to change how it is invoked."
 	 (res (lsp-send-execute-command "run" args)))
     (display-buffer
      (with-current-buffer (get-buffer-create "*LSP Daedalus Results*")
-       (erase-buffer)
-       (insert res)
+       (lsp-daedalus-watch-mode)
+       (lsp-daedalus--watch-update (current-buffer) res)
        (current-buffer)))))
 			    
+(defun lsp-daedalus-watch (p) 
+  (interactive "d")
+  (let* ((buf (generate-new-buffer "*LSP Daedalus Watch*"))
+	 (args (vector (lsp-text-document-identifier) (lsp-point-to-position p) (buffer-name buf)))
+	 (res (lsp-send-execute-command "run/watch" args))
+	 (workspaces (lsp-workspaces)))
+    (with-current-buffer buf
+      (lsp-daedalus-watch-mode)
+      (setq-local lsp-daedalus--watch-tag res)
+      ;; This seems risky?  I don't know how workspaces are managed.
+      (setq-local lsp-daedalus--workspaces workspaces)
+      )))
+    
+;; (lsp-defun lsp-daedalus--run-result-notfication (_workspace (&hash :clientHandle buf :result msg))
+;;   (display-buffer
+;;    (with-current-buffer buf
+;;      (erase-buffer)
+;;      (insert msg)
+;;      (current-buffer))))
 
+(defvar lsp-daedalus-watch-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "q" 'lsp-daedalus-watch-quit)
+    map)
+
+  "Keymap for `lsp-daedalus-watch-mode'")
+
+(define-derived-mode lsp-daedalus-watch-mode special-mode "Daedalus Results"
+  "A mode for showing the results of a Daedalus run"
+  :keymap  lsp-daedalus-watch-mode-map
+  (add-hook (make-local-variable 'kill-buffer-hook) 'lsp-daedalus--watch-cancel)
+  )
+
+;; Called in the buffer to quit, which is also in a window (otherwise we couldn't call this)
+(defun lsp-daedalus-watch-quit ()
+  (interactive)
+  (lsp-daedalus--watch-cancel)
+  (quit-window t))
+
+;; Needs to be run in the watch buffer.
+(defun lsp-daedalus--watch-cancel ()
+  (when (boundp 'lsp-daedalus--watch-tag)
+    (with-lsp-workspaces lsp-daedalus--workspaces
+      (let* ((args (vector lsp-daedalus--watch-tag)))
+	(lsp-send-execute-command "run/cancel" args))
+      (makunbound 'lsp-daedalus--watch-tag)
+      )))
+
+(defun lsp-daedalus--watch-update (buf res)
+  (with-current-buffer buf
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert res))))
+
+(defun lsp-daedalus--run-result-notfication (workspace params)
+  (-let [(&hash "clientHandle" buf "result" msg) params]
+    (when (buffer-live-p (get-buffer buf))
+      (lsp-daedalus--watch-update buf msg)
+      (display-buffer buf))))
 
 ;; Setting the region over surrounding expressions
 
