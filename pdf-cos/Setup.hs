@@ -28,15 +28,26 @@ compileDDL =
   do ddlSetOpt optSearchPath ["spec"]
      let mods = [ "PdfXRef"
                 , "PdfCrypto"
+                , "GenPdfValue"
 
                 -- library-like, just in case no-one imports:
-                , "CMap"
-                , "GenPdfValue"
-                , "JpegBasics"
+                , "Array"
                 , "Map"
                 , "Pair"
+                , "Stdlib"
+                , "Sum"
+
+                , "CMap"
+                , "FontDict"
+                , "GenPdfValue"
+                , "JpegBasics"
+                , "Page"
+                , "PageTreeNode"
+                , "ResourceDict"
+                , "Type1Font"
 
                 -- added for text extraction
+                , "ContentStreamLight"
                 , "PdfExtractText"
                 , "PdfText"
                 , "Unicode"

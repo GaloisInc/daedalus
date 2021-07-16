@@ -91,7 +91,7 @@ def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
   concat kidsCStreams
 }
 
-def PageNodeContentStreams (pt: PageTreeNode) : [ [ ContentStreamOp ] ] =
+def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamOp ] ] =
   KidsContentStreams pt.kids
 
 def PageTreeContentStreams pt = KidsContentStreams pt.rootKids

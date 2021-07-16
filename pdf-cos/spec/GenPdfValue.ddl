@@ -44,13 +44,16 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
+-- WrapGetStream: local wrapper to GetStream, used for primitive
+def WrapGetStream = GetStream
+
 -- InputStream r: the input stream at reference r
-def InputStream r : Stream = Void
+def InputStreamAtRef (r : Ref) : Stream -- = Void
 -- TODO: implement as a new primitive
 
 -- ParseAtRef P r: parse the input at r, using P
 def ParseAtRef r P = {
-  @s = InputStream r;
+  @s = InputStreamAtRef r;
   WithStream s (GenObj P)
 }
 

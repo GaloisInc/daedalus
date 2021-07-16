@@ -10,7 +10,7 @@ import PdfValue
 import ResourceDict
 import Page
 
-def PageTreeNode0 (resrcs : maybe Pair) = {
+def PartialPageTreeNode (resrcs : maybe Pair) = {
   type0 = false;
   parent0 = false;
   kids0 = nothing;
@@ -19,7 +19,7 @@ def PageTreeNode0 (resrcs : maybe Pair) = {
   others0 = empty;
 }
 
-def AddType pageTree : PageTreeNode0 = {
+def AddType pageTree : PartialPageTreeNode = {
   type0 = Holds (NameToken "Pages");
 
   parent0 = pageTree.parent0;
@@ -29,7 +29,7 @@ def AddType pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def AddParent (par: Ref) pageTree : PageTreeNode0 = {
+def AddParent (par: Ref) pageTree : PartialPageTreeNode = {
   type0 = pageTree.type0;
 
   parent0 = Holds (Guard (Token Ref == par));
@@ -40,7 +40,7 @@ def AddParent (par: Ref) pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def AddKids pageTree : PageTreeNode0 = {
+def AddKids pageTree : PartialPageTreeNode = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
 
@@ -51,7 +51,7 @@ def AddKids pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def AddCount pageTree : PageTreeNode0 = {
+def AddCount pageTree : PartialPageTreeNode = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
@@ -62,7 +62,7 @@ def AddCount pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def NodeAddResources pageTree : PageTreeNode0 = {
+def NodeAddResources pageTree : PartialPageTreeNode = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
@@ -73,7 +73,7 @@ def NodeAddResources pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def NodeAddOther k pageTree : PageTreeNode0 = {
+def NodeAddOther k pageTree : PartialPageTreeNode = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
@@ -116,9 +116,9 @@ def CheckKidsCount kids size = {
 }
 
 def ParseKidRefs (resrcs: maybe Pair) seen cur kidRefs = {
-  @res0 = Pair [ ] seen;
+  @res0 = Pair [ ] (cons cur seen);
   for (accRes = res0; kidRef in kidRefs) { 
-    Guard (!(member kidRef seen)); -- the check for cycle detection
+    Guard (!(member kidRef accRes.snd)); -- the check for cycle detection
     @kidRes = ParseAtRef kidRef (PageNodeKid resrcs accRes.snd cur kidRef);
     Pair (snoc kidRes.fst accRes.fst) (append kidRes.snd accRes.snd)
   }
@@ -141,11 +141,12 @@ def PageTreeNode seen (cur : Ref) pt0 = {
     kidsAndSeen.snd
 }
 
-def PageTreeNodeP resrcs seen (par: Ref) (cur: Ref) = Between "<<" ">>" {
-  @initPageTree = PageTreeNode0 (Inherit resrcs);
-  @ptRec = PageTreeNodeRec par cur initPageTree;
-  PageTreeNode (cons par seen) cur ptRec
-}
+def PageTreeNodeP resrcs seen (par: Ref) (cur: Ref) =
+  Between "<<" ">>" {
+    @initPageTree = PartialPageTreeNode (Inherit resrcs);
+    @ptRec = PageTreeNodeRec par cur initPageTree;
+    PageTreeNode (cons par seen) cur ptRec
+  }
 
 def PageNodeKid (resrcs : maybe Pair) seen (cur : Ref) (r : Ref) = Choose1 {
   Pair {| pageKid = Page (Bestow resrcs) cur |} [ ];
