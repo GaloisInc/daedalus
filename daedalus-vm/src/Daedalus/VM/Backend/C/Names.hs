@@ -43,11 +43,6 @@ cTNameRoot t = case Src.tnameAnon t of
 
 
 
--- | Name of a type.
--- XXX: module names, namespaces?
-cTName :: NameUse -> Src.TName -> CType
-cTName use = withUse use . cTNameRoot
-
 -- | The name of the underlying type used by a boxed type.
 cTNameUse :: GenVis -> Src.TName -> CType
 cTNameUse vis x =
@@ -126,8 +121,8 @@ selName own l = pref <.> "_" <.> cLabel l
                  GenOwn    -> "get"
 
 
-cFName :: NameUse -> FName -> CIdent
-cFName use f = withUse use (escDoc ("parse_" <.> pp f))
+cFName :: FName -> CIdent
+cFName f = escDoc ("parse_" <.> pp f)
 
 --------------------------------------------------------------------------------
 isReserved :: Text -> Bool

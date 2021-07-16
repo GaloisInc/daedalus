@@ -1,5 +1,6 @@
 #!/bin/bash
 
-cd /Users/sjw/galois/safedocs/daedalus/
+# TODO: parmaeterize this
+cd ~/research/daedalus/
 cabal exec daedalus-language-server
 
