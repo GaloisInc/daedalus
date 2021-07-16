@@ -1,6 +1,7 @@
 -- PageTreeNode: parse a page tree node. Ensures that the page tree
 -- actually forms a tree.
 import Stdlib
+import Pair
 import Array
 import Map
 
@@ -16,16 +17,6 @@ def PageTreeNode0 (resrcs : maybe Pair) = {
   count0 = nothing;
   nodeResources0 = resrcs;
   others0 = empty;
-}
-
-def PageNodeKid (resrcs : maybe Pair) (cur : Ref) (r : Ref) = Choose1 {
-  pageKid = Page (Bestow resrcs) cur;
-  treeKid = PageTreeNodeP (Bestow resrcs) cur r;
-}
-
-def pageNodeKidCount (k : PageNodeKid) = case k of {
-  pageKid -> 1;
-  treeKid k -> k.count;
 }
 
 def AddType pageTree : PageTreeNode0 = {
@@ -124,29 +115,51 @@ def CheckKidsCount kids size = {
   Guard (size == kidsCount)
 }
 
-def ParseKidRefs (resrcs: maybe Pair) kidRefs cur = map (kidRef in kidRefs)
-  (ParseAtRef kidRef (PageNodeKid resrcs cur kidRef))
+def ParseKidRefs (resrcs: maybe Pair) seen cur kidRefs = {
+  @res0 = Pair [ ] seen;
+  for (accRes = res0; kidRef in kidRefs) { 
+    Guard (!(member kidRef seen)); -- the check for cycle detection
+    @kidRes = ParseAtRef kidRef (PageNodeKid resrcs accRes.snd cur kidRef);
+    Pair (snoc kidRes.fst accRes.fst) (append kidRes.snd accRes.snd)
+  }
+}
 
 -- PageTreeNode: coerce an partial page-tree node into a page
 -- tree node
-def PageTreeNode (cur : Ref) pt0 = {
+def PageTreeNode seen (cur : Ref) pt0 = {
   Guard pt0.type0;
   Guard pt0.parent0;
-  kids = {
-    @kidRefs = pt0.kids0 is just;
-    ParseKidRefs pt0.nodeResources0 kidRefs cur
-  };
-  count = {
-    $$ = pt0.count0 is just;
-    CheckKidsCount kids $$
-  };
-  others = pt0.others0;
+  @kidRefs = pt0.kids0 is just;
+
+  @kidsAndSeen = ParseKidRefs pt0.nodeResources0 seen cur kidRefs;
+  Pair {
+      kids = kidsAndSeen.fst;      
+      count = {
+        $$ = pt0.count0 is just; -- TODO: inline this using promotion?
+        CheckKidsCount kids $$
+      };
+      others = pt0.others0;
+    }
+    kidsAndSeen.snd
 }
 
-def PageTreeNodeP resrcs (par: Ref) (cur: Ref) = Between "<<" ">>" {
+def PageTreeNodeP resrcs seen (par: Ref) (cur: Ref) = Between "<<" ">>" {
   @initPageTree = PageTreeNode0 (Inherit resrcs);
   @ptRec = PageTreeNodeRec par cur initPageTree;
-  PageTreeNode cur ptRec
+  PageTreeNode (cons par seen) cur ptRec
+}
+
+def PageNodeKid (resrcs : maybe Pair) seen (cur : Ref) (r : Ref) = Choose1 {
+  Pair {| pageKid = Page (Bestow resrcs) cur |} [ ];
+  { @x = PageTreeNodeP (Bestow resrcs) seen cur r;
+    Pair {| treeKid = x.fst |} x.snd
+  };
+}
+
+-- pageNodeKidCount k: number of pages under kid k
+def pageNodeKidCount (k : PageNodeKid) = case k of {
+  pageKid _ -> 1;
+  treeKid k -> k.count;
 }
 
 -- Parse the root of a page tree:
@@ -237,7 +250,8 @@ def RootNode (cur : Ref) partialRoot = {
   rootResources = partialRoot.rootResources0;
   rootKids = {
     @kidRefs = partialRoot.rootKids0 is just;
-    ParseKidRefs rootResources kidRefs cur
+    @x = ParseKidRefs rootResources [ ] cur kidRefs;
+    x.fst
   };
   rootCount = {
     $$ = partialRoot.rootCount0 is just;
