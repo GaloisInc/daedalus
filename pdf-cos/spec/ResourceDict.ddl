@@ -8,17 +8,6 @@ import FontDict
 
 -- ResourceDict: resource dictionary, with default values in all fields
 
-def resourceDictFields = [
-  "ExtGState",
-  "ColorSpace",
-  "Pattern",
-  "Shading",
-  "XObject",
-  "Font",
-  "ProcSet",
-  "Properties",
-]
-
 def ResourceDict0 = {
   extGState0 = nothing;
   colorSpace0 = nothing;
@@ -32,11 +21,8 @@ def ResourceDict0 = {
 }
 
 def AddExtGState d : ResourceDict0 = {
-  extGState0 = just {
-    NameToken "ExtGState";
-    d.extGState0 is nothing;
-    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 8.4.5, if needed
-  };
+  extGState0 = just (DirectOrRef (GenPdfDict Dict));
+  -- TODO: refine using Sec. 8.4.5, if needed
 
   colorSpace0 = ^d.colorSpace0;
   pattern0 = ^d.pattern0;
@@ -51,11 +37,8 @@ def AddExtGState d : ResourceDict0 = {
 def AddColorSpace d : ResourceDict0 = {
   extGState0 = ^d.extGState0;
 
-  colorSpace0 = just {
-    NameToken "ColorSpace";
-    d.colorSpace0 is nothing;
-    DirectOrRef Dict; -- TODO: refine using Sec 8.6, if needed
-  };
+  colorSpace0 = just (DirectOrRef Dict);
+  -- TODO: refine using Sec 8.6, if needed
 
   pattern0 = ^d.pattern0;
   shading0 = ^d.shading0;
@@ -70,11 +53,8 @@ def AddPattern d : ResourceDict0 = {
   extGState0 = ^d.extGState0;
   colorSpace0 = ^d.colorSpace0;
 
-  pattern0 = just {
-    NameToken "Pattern";
-    d.pattern0 is nothing;
-    DirectOrRef Dict; -- TODO: refine using Sec. 8.7, if needed
-  };
+  pattern0 = just (DirectOrRef Dict);
+  -- TODO: refine using Sec. 8.7, if needed
 
   shading0 = ^d.shading0;
   xObject0 = ^d.xObject0;
@@ -89,11 +69,8 @@ def AddShading d : ResourceDict0 = {
   colorSpace0 = ^d.colorSpace0;
   pattern0 = ^d.pattern0;
 
-  shading0 = just {
-    NameToken "Shading";
-    d.shading0 is nothing;
-    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 8.7.4.5, if needed
-  };
+  shading0 = just (DirectOrRef (GenPdfDict Dict));
+  -- TODO: refine using Sec. 8.7.4.5, if needed
 
   xObject0 = ^d.xObject0;
   font0 = ^d.font0;
@@ -108,11 +85,7 @@ def AddXObject d : ResourceDict0 = {
   pattern0 = ^d.pattern0;
   shading0 = ^d.shading0;
 
-  xObject0 = just {
-    NameToken "XObject";
-    d.xObject0 is nothing;
-    DirectOrRef Dict;
-  };
+  xObject0 = just (DirectOrRef Dict);
 
   font0 = ^d.font0;
   procSet0 = ^d.procSet0;
@@ -127,11 +100,7 @@ def AddFont d : ResourceDict0 = {
   shading0 = ^d.shading0;
   xObject0 = ^d.xObject0;
 
-  font0 = just {
-    NameToken "Font";
-    d.font0 is nothing;
-    DirectOrRef (GenPdfDict FontDict);
-  };
+  font0 = just (DirectOrRef (GenPdfDict FontDict));
 
   procSet0 = ^d.procSet0;
   properties0 = ^d.properties0;
@@ -146,11 +115,7 @@ def AddProcSet d : ResourceDict0 = {
   xObject0 = ^d.xObject0;
   font0 = ^d.font0;
 
-  procSet0 = just {
-    NameToken "ProcSet";
-    d.procSet0 is nothing;
-    DirectOrRef Array;
-  };
+  procSet0 = just (DirectOrRef Array);
 
   properties0 = ^d.properties0;
   others0 = empty;
@@ -165,16 +130,13 @@ def AddProperties d : ResourceDict0 = {
   font0 = ^d.font0;
   procSet0 = ^d.procSet0;
 
-  properties0 = just {
-    NameToken "Properties";
-    d.properties0 is nothing;
-    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 14.6.2, if needed
-  };
+  properties0 = just (DirectOrRef (GenPdfDict Dict));
+  -- TODO: refine using Sec. 14.6.2, if needed
 
   others0 = empty;
 }
 
-def AddOther d : ResourceDict0 = {
+def AddOther k d : ResourceDict0 = {
   extGState0 = ^d.extGState0;
   colorSpace0 = ^d.colorSpace0;
   pattern0 = ^d.pattern0;
@@ -184,26 +146,44 @@ def AddOther d : ResourceDict0 = {
   procSet0 = ^d.procSet0;
   properties0 = ^d.properties0;
 
-  others0 = { -- parse any unspecified fields
-    @k = Token Name; 
-    Guard (!(member k resourceDictFields));
-    @v = Token Value;
-    InsertFresh k v d.others0
-  };
+  others0 = Extend k (Token Value) d.others0;
 }
 
 def ResourceDictRec dict = Default dict {
-    @dict0 = Choose1 {
-      AddExtGState dict;
-      AddColorSpace dict;
-      AddPattern dict;
-      AddShading dict;
-      AddXObject dict;
-      AddFont dict;
-      AddProcSet dict;
-      AddProperties dict;
-      AddOther dict;
-    };
+  @k = Token Name;
+  @dict0 = if k == "ExtGState" then {
+      dict.extGState0 is nothing;
+      AddExtGState dict
+    }
+    else if k == "ColorSpace" then {
+      dict.colorSpace0 is nothing;
+      AddColorSpace dict
+    }
+    else if k == "Pattern" then {
+      dict.pattern0 is nothing;
+      AddPattern dict
+    }
+    else if k == "Shading" then {
+      dict.shading0 is nothing;
+      AddShading dict
+    }
+    else if k == "XObject" then {
+      dict.xObject0 is nothing;
+      AddXObject dict
+    }
+    else if k == "Font" then {
+      dict.font0 is nothing;
+      AddFont dict
+    }
+    else if k == "ProcSet" then {
+      dict.procSet0 is nothing;
+      AddProcSet dict
+    }
+    else if k == "Properties" then {
+      dict.properties0 is nothing;
+      AddProperties dict
+    }
+    else AddOther k dict;
     ResourceDictRec dict0
   }
 

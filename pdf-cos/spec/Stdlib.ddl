@@ -26,6 +26,7 @@ def bytesNum (bs : [ uint 8 ]) : uint 64 =
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
 def Guard p               = p is true
+def Holds P = When P true
 
 def append x y = concat [ x, y ]
 

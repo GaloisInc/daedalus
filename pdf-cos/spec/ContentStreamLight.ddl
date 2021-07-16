@@ -90,6 +90,7 @@ def ExtractContentStreamText (cs : [ ContentStreamOp ]) =
     @opStr = case op of {
       textStateOp -> "text state op";
       textShowOp -> "text show op";
+      -- TODO: per PDF Court, interpret TJ as inserting a newline
       unparsedByte -> "";
     };
     append str opStr

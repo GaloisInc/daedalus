@@ -23,25 +23,13 @@ def PageNodeKid (resrcs : maybe Pair) (cur : Ref) (r : Ref) = Choose1 {
   treeKid = PageTreeNodeP (Bestow resrcs) cur r;
 }
 
-def nodeKeys = [
-  "Type",
-  "Parent",
-  "Kids",
-  "Count",
-]
-
 def pageNodeKidCount (k : PageNodeKid) = case k of {
   pageKid -> 1;
   treeKid k -> k.count;
 }
 
 def AddType pageTree : PageTreeNode0 = {
-  type0 = {
-    NameToken "Type";
-    Guard (!pageTree.type0);
-    NameToken "Pages";
-    ^true
-  };
+  type0 = Holds (NameToken "Pages");
 
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
@@ -53,12 +41,9 @@ def AddType pageTree : PageTreeNode0 = {
 def AddParent (par: Ref) pageTree : PageTreeNode0 = {
   type0 = pageTree.type0;
 
-  parent0 = {
-    NameToken "Parent";
-    Guard (!pageTree.parent0);
+  parent0 = Holds {
     @r = Token Ref;
     Guard (r == par);
-    ^true
   };
 
   kids0 = pageTree.kids0;
@@ -67,15 +52,11 @@ def AddParent (par: Ref) pageTree : PageTreeNode0 = {
   others0 = pageTree.others0;
 }
 
-def AddKids (cur : Ref) pageTree : PageTreeNode0 = {
+def AddKids pageTree : PageTreeNode0 = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
 
-  kids0 = {
-    NameToken "Kids";
-    pageTree.kids0 is nothing;
-    just (GenArray Ref)
-  };
+  kids0 = just (GenArray Ref);
 
   count0 = pageTree.count0;
   nodeResources0 = pageTree.nodeResources0;
@@ -87,11 +68,7 @@ def AddCount pageTree : PageTreeNode0 = {
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
 
-  count0 = {
-    NameToken "Count";
-    pageTree.count0 is nothing;
-    just (DirectOrRef Natural);
-  };
+  count0 = just (DirectOrRef Natural);
 
   nodeResources0 = pageTree.nodeResources0;
   others0 = pageTree.others0;
@@ -103,39 +80,44 @@ def NodeAddResources pageTree : PageTreeNode0 = {
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
 
-  nodeResources0 = {
-    NameToken "Resources";
-    CheckNoLocalDefn pageTree.nodeResources0;
-    LocalDefn (DirectOrRef ResourceDictP);
-  };
+  nodeResources0 = LocalDefn (DirectOrRef ResourceDictP);
 
   others0 = pageTree.others0;
 }
 
-def NodeAddOther pageTree : PageTreeNode0 = {
+def NodeAddOther k pageTree : PageTreeNode0 = {
   type0 = pageTree.type0;
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
   nodeResources0 = pageTree.nodeResources0;
 
-  others0 = {
-    @k = Token Name; 
-    Guard (!(member k nodeKeys));
-    @v = Token Value;
-    InsertFresh k v pageTree.others0
-  };
+  others0 = Extend k (Token Value) pageTree.others0;
 }
 
 def PageTreeNodeRec (par : Ref) (cur : Ref) pageTree = Default pageTree 
-  { @pageTree0 = Choose1 {
-      AddType pageTree;
-      AddParent par pageTree;
-      AddKids cur pageTree;
-      AddCount pageTree;
-      NodeAddResources pageTree;
-      NodeAddOther pageTree;
-    };
+  { @k = Token Name;
+    @pageTree0 = if k == "Type" then {
+        pageTree.type0 is false;
+        AddType pageTree
+      }
+      else if k == "Parent" then {
+        pageTree.parent0 is false;
+        AddParent par pageTree
+      }
+      else if k == "Kids" then  {
+        pageTree.kids0 is nothing;
+        AddKids pageTree;
+      }
+      else if k == "Count" then {
+        pageTree.kids0 is nothing;
+        AddCount pageTree
+      }
+      else if k == "Resources" then {
+        CheckNoLocalDefn pageTree.nodeResources0;
+        NodeAddResources pageTree
+      }
+      else NodeAddOther k pageTree;
     PageTreeNodeRec par cur pageTree0
   }
 
@@ -182,12 +164,7 @@ def RootNode0 = {
 }
 
 def RootAddType partialRoot : RootNode0 = {
-  rootType0 = {
-    NameToken "Type";
-    Guard (!partialRoot.rootType0);
-    NameToken "Pages";
-    ^true
-  };
+  rootType0 = Holds (NameToken "Pages");
 
   rootKids0 = partialRoot.rootKids0;
   rootCount0 = partialRoot.rootCount0;
@@ -198,11 +175,7 @@ def RootAddType partialRoot : RootNode0 = {
 def RootAddKids partialRoot : RootNode0 = {
   rootType0 = partialRoot.rootType0;
 
-  rootKids0 = {
-    NameToken "Kids";
-    partialRoot.rootKids0 is nothing;
-    just (GenArray Ref)
-  };
+  rootKids0 = just (GenArray Ref);
 
   rootCount0 = partialRoot.rootCount0;
   rootResources0 = partialRoot.rootResources0;
@@ -213,11 +186,7 @@ def RootAddCount partialRoot : RootNode0 = {
   rootType0 = partialRoot.rootType0;
   rootKids0 = partialRoot.rootKids0;
 
-  rootCount0 = {
-    NameToken "Count";
-    partialRoot.rootCount0 is nothing;
-    just (DirectOrRef Natural);
-  };
+  rootCount0 = just (DirectOrRef Natural);
 
   rootResources0 = partialRoot.rootResources0;
   rootOthers0 = partialRoot.rootOthers0;
@@ -228,39 +197,43 @@ def RootAddResources partialRoot : RootNode0 = {
   rootKids0 = partialRoot.rootKids0;
   rootCount0 = partialRoot.rootCount0;
 
-  rootResources0 = {
-    NameToken "Resources";
-    CheckNoLocalDefn partialRoot.rootResources0;
-    LocalDefn (DirectOrRef ResourceDictP);
-  };
+  rootResources0 = LocalDefn (DirectOrRef ResourceDictP);
 
   rootOthers0 = partialRoot.rootOthers0;
 }
 
-def RootAddOther partialRoot : RootNode0 = {
+def RootAddOther k partialRoot : RootNode0 = {
   rootType0 = partialRoot.rootType0;
   rootKids0 = partialRoot.rootKids0;
   rootCount0 = partialRoot.rootCount0;
   rootResources0 = partialRoot.rootResources0;
 
   rootOthers0 = {
-    @k = Token Name; 
-    Guard (!(member k (cons "Parent" nodeKeys)));
-    -- "Parent" key is not permitted in the root node.
-    
     @v = Token Value;
-    InsertFresh k v partialRoot.rootOthers0
+    Extend k v partialRoot.rootOthers0
   };
 }
 
 def PageTreeRootRec partialRoot = Default partialRoot {
-  @partialRoot0 = Choose1 {
-    RootAddType partialRoot;
-    RootAddKids partialRoot;
-    RootAddCount partialRoot;
-    RootAddResources partialRoot;
-    RootAddOther partialRoot
-  };
+  @k = Token Name;
+  @partialRoot0 = if k == "Type" then {
+      partialRoot.rootType0 is false;
+      RootAddType partialRoot;
+    }
+    else if k == "Parent" then Void
+    else if k == "Kids" then {
+      partialRoot.rootKids0 is nothing;
+      RootAddKids partialRoot;
+    }
+    else if k == "Count" then {
+      partialRoot.rootCount0 is nothing;
+      RootAddCount partialRoot;
+    }
+    else if k == "Resources" then {
+      CheckNoLocalDefn partialRoot.rootResources0;
+      RootAddResources partialRoot;
+    }
+    else RootAddOther k partialRoot;
   PageTreeRootRec partialRoot0
 }
 

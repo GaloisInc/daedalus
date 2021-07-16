@@ -28,7 +28,7 @@ def IsBound k m = Default false {
   ^true
 }
 
-def InsertFresh k v m = {
+def Extend k v m = {
   @b = IsBound k m;
   Guard (!b);
   Insert k v m

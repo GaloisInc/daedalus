@@ -18,26 +18,15 @@ def Page0 resrcs = {
   others0 = empty;
 }
 
-def pageFields = [
-  "Type",
-  "Parent",
-  "Resources",
-  "Contents",
-  "Others"
-]
-
 -- TODO: precisely model other fields, as needed
 
 -- parsers for updating fields
 def PageAddType page0 : Page0 = {
-  type0 = {
-    NameToken "Type";
-    Guard (!page0.type0);
-    DirectOrRef (
-      (NameToken "Page") |
-      (NameToken "Template"));
-    ^true
-  };
+  type0 = Holds {
+      DirectOrRef (
+        (NameToken "Page") |
+        (NameToken "Template"));
+    };
 
   parent0 = page0.parent0;
   resources0 = page0.resources0;
@@ -48,13 +37,11 @@ def PageAddType page0 : Page0 = {
 def PageAddParent (par : Ref) page0 : Page0 = {
   type0 = page0.type0;
 
-  parent0 = {
-    NameToken "Parent";
-    Guard (!page0.parent0);
-    @r = Token Ref;
-    Guard (r == par);
-    ^true
-  };
+  -- TODO: refactor instance of When
+  parent0 = Holds {
+      @r = Token Ref;
+      Guard (r == par);
+    };
 
   resources0 = page0.resources0;
   contents0 = page0.contents0;
@@ -65,11 +52,8 @@ def AddResources page0 : Page0 = {
   type0 = page0.type0;
   parent0 = page0.parent0;
 
-  resources0 = {
-    NameToken "Resources";
-    CheckNoLocalDefn page0.resources0;
-    LocalDefn (DirectOrRef ResourceDictP);
-  };
+  resources0 = LocalDefn (DirectOrRef ResourceDictP);
+    
 
   contents0 = page0.contents0;
   others0 = page0.others0;
@@ -80,10 +64,7 @@ def AddContents page0 : Page0 = {
   parent0 = page0.parent0;
   resources0 = page0.resources0;
 
-  contents0 = {
-    NameToken "Parent";
-    page0.contents0 is nothing;
-    just (
+  contents0 = just (
       -- parse an array of references to streams
       { @arr = GenArray Ref;
         @strms = map (s in arr) {
@@ -96,34 +77,39 @@ def AddContents page0 : Page0 = {
       { @r = Ref;
         @strm = ResolveStreamRef r;
         strm.body is ok
-      })
-  };
+      });
+      
   others0 = page0.others0;
 }
 
-def PageAddOther page0 : Page0 = {
+def PageAddOther k page0 : Page0 = {
   type0 = page0.type0;
   parent0 = page0.parent0;
   resources0 = page0.resources0;
   contents0 = page0.contents0;
 
-  others0 = {
-    @k = Token Name; 
-    Guard (!(member k pageFields));
-
-    @v = Token Value;
-    InsertFresh k v page0.others0
-  };
+  others0 = Extend k (Token Value) page0.others0;
 }
 
 def PageRec (par : Ref) page0 = 
-  { @pageTree0 = Choose1 {
-      PageAddType page0;
-      PageAddParent par page0;
-      AddResources page0;
-      AddContents page0;
-      PageAddOther page0;
-    };
+  { @k = Token Name;
+    @page0 = if k == "Type" then {
+      page0.type0 is false;
+      PageAddType page0
+    }
+    else if k == "Parent" then {
+      page0.parent0 is false;
+      PageAddParent par page0
+    }
+    else if k == "Resources" then {
+      CheckNoLocalDefn page0.resources0;
+      AddResources page0
+    }
+    else if k == "Contents" then {
+      page0.contents0 is nothing;
+      AddContents page0
+    }
+    else PageAddOther k page0;
     PageRec par page0
   } <|
   ^page0

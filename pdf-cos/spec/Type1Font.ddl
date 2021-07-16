@@ -24,11 +24,8 @@ def Type1Font0 = {
 }
 
 -- AddType: note that the required Type field has been seen
-def AddType f : Type1Font0= {
-  type0 = {
-    NameToken "Font";
-    ^true
-  };
+def AddType f : Type1Font0 = {
+  type0 = Holds (DirectOrRef (GenName "Font"));
 
   subtype0 = ^f.subtype0;
   name0 = ^f.name0;
@@ -46,10 +43,7 @@ def AddType f : Type1Font0= {
 def AddSubtype f : Type1Font0 = {
   type0 = ^f.type0;
 
-  subtype0 = {
-    NameToken "Type1";
-    ^true
-  };
+  subtype0 = Holds (DirectOrRef (GenName "Type1"));
 
   name0 = ^f.name0;
   baseFont0 = ^f.baseFont0;
@@ -67,7 +61,7 @@ def AddName f : Type1Font0 = {
   type0 = ^f.type0;
   subtype0 = ^f.subtype0;
 
-  name0 = just (Token Name);
+  name0 = just (DirectOrRef (Token Name));
 
   baseFont0 = ^f.baseFont0;
   firstChar0 = ^f.firstChar0;
@@ -85,7 +79,7 @@ def AddBaseFont f : Type1Font0 = {
   subtype0 = ^f.subtype0;
   name0 = ^f.name0;
 
-  baseFont0 = just (Token Name);
+  baseFont0 = just (DirectOrRef (Token Name));
 
   firstChar0 = ^f.firstChar0;
   lastChar0 = ^f.lastChar0;
@@ -103,7 +97,7 @@ def AddFirstChar f : Type1Font0 = {
   name0 = ^f.name0;
   baseFont0 = ^f.baseFont0;
 
-  firstChar0 = just (Token Natural as! uint 64);
+  firstChar0 = just (DirectOrRef (Natural as! uint 64));
   -- TODO: rework to remove coercion
 
   lastChar0 = ^f.lastChar0;
@@ -122,7 +116,7 @@ def AddLastChar f : Type1Font0 = {
   baseFont0 = ^f.baseFont0;
   firstChar0 = ^f.firstChar0;
 
-  lastChar0 = just (Token Natural as! uint 64);
+  lastChar0 = just (DirectOrRef (Natural as! uint 64));
 
   widths0 = ^f.widths0;
   fontDesc0 = ^f.fontDesc0;
@@ -140,7 +134,7 @@ def AddWidths f : Type1Font0 = {
   firstChar0 = ^f.firstChar0;
   lastChar0 = ^f.lastChar0;
 
-  widths0 = just (Token (GenArray Natural));
+  widths0 = just (DirectOrRef (GenArray Natural));
 
   fontDesc0 = ^f.fontDesc0;
   encoding0 = ^f.encoding0;
@@ -158,7 +152,7 @@ def AddFontDesc f : Type1Font0 = {
   lastChar0 = ^f.lastChar0;
   widths0 = ^f.widths0;
 
-  fontDesc0 = just (Token FontDescriptor);
+  fontDesc0 = just (DirectOrRef (FontDescriptor));
 
   encoding0 = ^f.encoding0;
   toUnicode0 = ^f.toUnicode0;
@@ -176,7 +170,7 @@ def AddEncoding f : Type1Font0 = {
   widths0 = ^f.widths0;
   fontDesc0 = ^f.fontDesc0;
 
-  encoding0 = just (Token Encoding);
+  encoding0 = just (DirectOrRef Encoding);
 
   toUnicode0 = ^f.toUnicode0;
   others0 = ^f.others0;
@@ -194,12 +188,11 @@ def AddToUnicode f : Type1Font0 = {
   fontDesc0 = ^f.fontDesc0;
   encoding0 = ^f.encoding0;
 
-  toUnicode0 = {
+  toUnicode0 = just {
     @r = {| ref = Token Ref |};
     @strm = ResolveStream r;
     @fontTy = {| simpleFont = ^{} |};
-    @cmap = ToUnicodeCMap fontTy;
-    just cmap
+    ToUnicodeCMap fontTy
   };
 
   others0 = ^f.others0;
@@ -207,7 +200,7 @@ def AddToUnicode f : Type1Font0 = {
 
 
 -- AddToUnicode: add a to-unicode map
-def AddOther f : Type1Font0 = {
+def AddOther k f : Type1Font0 = {
   type0 = ^f.type0;
   subtype0 = ^f.subtype0;
   name0 = ^f.name0;
@@ -219,11 +212,7 @@ def AddOther f : Type1Font0 = {
   encoding0 = ^f.encoding0;
   toUnicode0 = ^f.toUnicode0;
 
-  others0 = {
-    @k = Token Name; -- parse any unspecified fields
-    @v = Token Value;
-    InsertFresh k v f.others0
-  };
+  others0 = Extend k (Token Value) f.others0;
 }
 
 
@@ -261,53 +250,54 @@ def Encoding = Choose {
 }
 
 
--- TODO: potentially lookup dictionary fields as references
-
 def Type1FontRec font = Default font {
-  @font0 = Choose1 {
-      { NameToken "Type";
-        AddType font 
-      };
-      { NameToken "Subtype";
-        AddSubtype font 
-      };
-      { NameToken "Name";
-        AddName font
-      };
-      { NameToken "BaseFont";
-        AddBaseFont font
-      };
-      { NameToken "FirstChar";
-        AddFirstChar font
-      };
-      { NameToken "LastChar";
-        AddLastChar font
-      };
-      { NameToken "Widths";
-        AddWidths font
-      };
-      { NameToken "FontDescriptor";
-        AddFontDesc font
-      };
-      { NameToken "Encoding";
-        AddEncoding font
-      };
-      { NameToken "ToUnicode";
-        AddToUnicode font
-      };
-      AddOther font; -- parse any unspecified fields
-    };
-    Type1FontRec font0
-  }
+  @k = Token Name;
+  @font0 = if k == "Type" then {
+      font.type0 is false;
+      AddType font
+    }
+    else if k == "Subtype" then {
+      font.subtype0 is false;
+      AddSubtype font
+    }
+    else if k == "Name" then {
+      font.name0 is nothing;
+      AddName font
+    }
+    else if k == "BaseFont" then {
+      font.baseFont0 is nothing;
+      AddBaseFont font
+    }
+    else if k == "FirstChar" then {
+      font.firstChar0 is nothing;
+      AddFirstChar font
+    }
+    else if k == "LastChar" then {
+      font.lastChar0 is nothing;
+      AddLastChar font
+    }
+    else if k == "Widths" then {
+      font.widths0 is nothing;
+      AddWidths font
+    }
+    else if k == "FontDescriptor" then {
+      font.fontDesc0 is nothing;
+      AddFontDesc font
+    }
+    else if k == "Encoding" then {
+      font.encoding0 is nothing;
+      AddEncoding font
+    }
+    else if k == "ToUnicode" then {
+      font.toUnicode0 is nothing;
+      AddToUnicode font
+    }
+    else AddOther k font;
+  Type1FontRec font0
+}
 
 def Type1Font = {
   @initFont = Type1Font0;
   @fontRec = Type1FontRec initFont;
   CoerceType1Font fontRec
 } 
-
--- TODO: refactor dictionary key checks
-
--- TODO: check for duplicate enties
-
--- TODO: allow references in dictionary values
