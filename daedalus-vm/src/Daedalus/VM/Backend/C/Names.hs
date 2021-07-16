@@ -15,31 +15,27 @@ import qualified Daedalus.Core as Src
 import Daedalus.VM.Backend.C.Lang
 
 
-data NameUse =
-    DeclSite
-  | UseSite Doc   -- ^ Namespace, without the `::`
-
-withUse :: NameUse -> Doc -> Doc
-withUse use name =
-  case use of
-    DeclSite -> name
-    UseSite ns -> ns <> "::" <> name
-
-
+-- These are always local to the main function, so no need for namespace
 cReturnClassName :: [VMT] -> Doc
 cReturnClassName ts = "Return_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
+-- These are always local to the main function, so no need for namespace
 cThreadClassName :: [VMT] -> Doc
 cThreadClassName ts = "Thread_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
+cUserNameSpace :: Doc
+cUserNameSpace = "User"
 
+cUserPrivateNameSpace :: Doc
+cUserPrivateNameSpace = "Private"
+
+-- | Root name of a type, without namesapces
 cTNameRoot :: Src.TName -> CType
-cTNameRoot t =
-  case Src.tnameAnon t of
-    Nothing -> root
-    Just i  -> root <.> int i
+cTNameRoot t = case Src.tnameAnon t of
+             Nothing -> root
+             Just i  -> root <.> int i
   where
   root = text (pref ++ Text.unpack (Src.tnameText t))
   txt  = Src.tnameText t
@@ -53,12 +49,12 @@ cTName :: NameUse -> Src.TName -> CType
 cTName use = withUse use . cTNameRoot
 
 -- | The name of the underlying type used by a boxed type.
-cTName' :: NameUse -> GenVis -> Src.TName -> CType
-cTName' use vis x =
-  withUse use
+cTNameUse :: GenVis -> Src.TName -> CType
+cTNameUse vis x =
   case vis of
-    GenPublic  -> cTNameRoot x
-    GenPrivate -> "_" <.> cTNameRoot x
+    GenPublic -> hcat [ cUserNameSpace, "::", cTNameRoot x ]
+    GenPrivate ->
+      hcat [ cUserNameSpace,"::",cUserPrivateNameSpace,"::",cTNameRoot x ]
 
 
 data GenVis = GenPublic | GenPrivate

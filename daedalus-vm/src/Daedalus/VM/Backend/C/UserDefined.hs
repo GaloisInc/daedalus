@@ -16,23 +16,21 @@ import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
 
 
-cTypeGroup :: Rec TDecl -> Doc
+-- | Returns (declaration, methods)
+cTypeGroup :: Rec TDecl -> (Doc,Doc)
 cTypeGroup rec =
-    "\n// --------------------------------------------------------- //\n"
-    $$
     case rec of
       NonRec d ->
         case tDef d of
-          TStruct {} -> vcat' [ cUnboxedProd GenPublic d
-                              , generateMethods GenPublic GenUnboxed d
-                              ]
-          TUnion {}  -> vcat' [ cSumTags [d]
-                              , cUnboxedSum GenPublic d
-                              , generateMethods GenPublic GenUnboxed d
-                              ]
+          TStruct {} -> ( cUnboxedProd d
+                        , generateMethods GenPublic GenUnboxed d
+                        )
+          TUnion {}  -> ( cSumTags [d] $$ cUnboxedSum GenPublic d
+                        , generateMethods GenPublic GenUnboxed d
+                        )
 
       MutRec ds ->
-        vcat' $
+        ( vcat' $
           -- 1. Declare names of types
           map (cTypeDecl GenPublic) (sums ++ prods) ++
           map (cTypeDecl GenPrivate) sums ++
@@ -44,15 +42,17 @@ cTypeGroup rec =
           map cBoxedSum sums ++
 
           -- 4. Declare products
-          map (cUnboxedProd GenPublic) prods ++
+          map cUnboxedProd prods ++
 
           -- 5. Declare unboxed sums
-          map (cUnboxedSum GenPrivate) sums ++
+          map (cUnboxedSum GenPrivate) sums
 
+        , vcat' $
           -- 6. Generate methods
           map (generateMethods GenPrivate GenUnboxed) sums ++
           map (generateMethods GenPublic GenUnboxed) prods ++
           map (generateMethods GenPublic GenBoxed) sums
+        )
 
         where
         (sums,prods) = orderRecGroup ds
@@ -93,15 +93,20 @@ orderRecGroup tds = (sums, forgetRecs (topoOrder deps prods))
   deps td = (tName td, freeTCons td `Set.difference` sumSet)
 
 
-
+cUserNS :: GenVis -> [Doc] -> Doc
+cUserNS vis = cNamespace cUserNameSpace
+            . case vis of
+                GenPublic -> id
+                GenPrivate -> (:[]) . cNamespace cUserPrivateNameSpace
 
 cTypeDecl :: GenVis -> TDecl -> CDecl
-cTypeDecl vis ty = cTypeDecl' vis ty <.> semi
+cTypeDecl vis ty = cUserNS vis [ cTypeDecl' ty <.> semi ]
 
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
-cTypeDecl' :: GenVis -> TDecl -> CDecl
-cTypeDecl' vis ty =
-  vcat [ cTemplateDecl ty, "class" <+> cTName' DeclSite vis (tName ty) ]
+-- Note: This does not add the namespace
+cTypeDecl' :: TDecl -> CDecl
+cTypeDecl' ty =
+  vcat [ cTemplateDecl ty, "class" <+> cTNameRoot (tName ty) ]
 
 cTemplateDecl :: TDecl -> Doc
 cTemplateDecl ty =
@@ -122,7 +127,7 @@ cTypeParams ty =
 -- Example: Node<T>
 cTypeNameUse :: GenVis -> TDecl -> CType
 cTypeNameUse vis tdecl =
-  cTypeUse (cTName' (UseSite "") vis (tName tdecl))
+  cTypeUse (cTNameUse vis (tName tdecl))
            (map cTParam (tTParamKNumber tdecl))
            (map cTParam (tTParamKValue tdecl))
 
@@ -149,11 +154,6 @@ copyMethodSig = cStmt ("void" <+> cCall "copy" [])
 -- | Signature for the @free@ method
 freeMethodSig :: Doc
 freeMethodSig = cStmt ("void" <+> cCall "free" [])
-
-eqMethodSig :: GenVis -> Doc -> TDecl -> CDecl
-eqMethodSig vis op t = cStmt $ "bool" <+> cCall ("operator" <+> op) [name]
-  where
-  name = cTName' (UseSite "") vis (tName t)
 
 -- | Constructor for a product
 cProdCtr :: TDecl -> CStmt
@@ -192,17 +192,18 @@ cSumCtrs tdecl =
 -- Unboxed Products
 
 -- | Interface definition for struct types
-cUnboxedProd :: GenVis -> TDecl -> CDecl
-cUnboxedProd vis ty =
-  vcat $
-    [ cTypeDecl' vis ty <+> ": public DDL::HasRefs {"
-    , nest 2 $ vcat attribs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ] ++
-    decFunctions vis ty
+cUnboxedProd :: TDecl -> CDecl
+cUnboxedProd ty = vcat (theClass : decFunctions GenPublic ty)
   where
+  theClass =
+    cNamespace cUserNameSpace
+      [ cTypeDecl' ty <+> ": public DDL::HasRefs {"
+      , nest 2 $ vcat attribs
+      , "public:"
+      , nest 2 $ vcat methods
+      , "};"
+      ]
+
   TStruct fields = tDef ty
   attribs = [ cStmt (cSemType t <+> cField n)
             | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit
@@ -232,27 +233,24 @@ cUnboxedProd vis ty =
 cSumTags :: [TDecl] -> CDecl
 cSumTags sums
   | null sums = empty
-  | otherwise = vcat
-                  [ "namespace Tag {"
-                  , nest 2 $ vcat $ map cSumTag sums
-                  , "}"
-                  ]
+  | otherwise = cNamespace cUserNameSpace
+                  [ cNamespace "Tag" (map cSumTag sums) ]
 
--- | The enum for a tag type
-cSumTag :: TDecl -> CDecl
-cSumTag ty =
-  fsep $ [ "enum class", cTName DeclSite (tName ty), "{" ] ++
-         punctuate comma (map (cLabel . fst) fields) ++
-         [ "};" ]
   where
-  TUnion fields = tDef ty
+  cSumTag ty =
+    fsep $ [ "enum class", cTNameRoot (tName ty), "{" ] ++
+           punctuate comma (map (cLabel . fst) fields) ++
+           [ "};" ]
+    where
+    TUnion fields = tDef ty
 
 -- | The type of tags for the given type
 cSumTagT :: TDecl -> CType
-cSumTagT tdecl = cTName (UseSite "Tag") (tName tdecl)
+cSumTagT tdecl = cUserNameSpace <.> "::Tag::" <.> cTNameRoot (tName tdecl)
 
 cSumTagV :: TName -> Label -> Doc
-cSumTagV t l = cTName (UseSite "Tag") t <.> "::" <.> cLabel l
+cSumTagV t l =
+  cUserNameSpace <.> "::Tag::" <.> cTNameRoot t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -262,16 +260,18 @@ cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 
 -- | Class signature for an unboxed sum
 cUnboxedSum :: GenVis -> TDecl -> CDecl
-cUnboxedSum vis tdecl =
-  vcat $
-    [ cTypeDecl' vis tdecl <+> ": DDL::HasRefs {"
-    , nest 2 $ vcat attribs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ]
-    ++ decFunctions vis tdecl
+cUnboxedSum vis tdecl = vcat (theClass : decFunctions vis tdecl)
   where
+  theClass =
+    cUserNS vis
+      [ cTypeDecl' tdecl <+> ": DDL::HasRefs {"
+      , nest 2 $ vcat attribs
+      , "public:"
+      , nest 2 $ vcat methods
+      , "};"
+      ]
+
+
   fields = getFields tdecl
 
   attribs =
@@ -305,15 +305,17 @@ cUnboxedSum vis tdecl =
 
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
-cBoxedSum tdecl =
-  vcat $
-    [ cTypeDecl' GenPublic tdecl <+> ": public DDL::IsBoxed {"
-    , nest 2 $ vcat attrs
-    , "public:"
-    , nest 2 $ vcat methods
-    , "};"
-    ] ++ decFunctions GenPublic tdecl
+cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
   where
+  theClass = cNamespace cUserNameSpace
+               [ cTypeDecl' tdecl <+> ": public DDL::IsBoxed {"
+               , nest 2 $ vcat attrs
+               , "public:"
+               , nest 2 $ vcat methods
+               , "};"
+               ]
+
+
   attrs =
     [ cStmt  $ cInst "DDL::Boxed" [ cTypeNameUse GenPrivate tdecl ] <+> "ptr"
     ]
@@ -394,9 +396,11 @@ defMethod vis tdecl retT fun params def =
 
 decShow :: GenVis -> TDecl -> CDecl
 decShow vis tdecl =
-  cTemplateDecl tdecl $$
-  "inline" $$
-  cDeclareFun "std::ostream&" "operator <<" [ "std::ostream&", ty ]
+  cUserNS vis
+  [ cTemplateDecl tdecl
+  , "inline"
+  , cDeclareFun "std::ostream&" "operator <<" [ "std::ostream&", ty ]
+  ]
   where
   ty = cTypeNameUse vis tdecl
 
@@ -404,9 +408,10 @@ decShow vis tdecl =
 -- friendship to access `ptr`
 defShow :: GenVis -> TDecl -> CDecl
 defShow vis tdecl =
-  cTemplateDecl tdecl $$
-  "inline" $$
-  cDefineFun "std::ostream&" "operator <<" [ "std::ostream& os", ty <+> "x" ]
+  cUserNS vis
+  [ cTemplateDecl tdecl
+  , "inline"
+  , cDefineFun "std::ostream&" "operator <<" [ "std::ostream& os", ty <+> "x" ]
     case tDef tdecl of
 
       TStruct fs ->
@@ -433,57 +438,57 @@ defShow vis tdecl =
                ]
         , cStmt ("return os <<" <+> cString " |}")
         ]
+    ]
   where
   ty = cTypeNameUse vis tdecl
 
 
 decShowJS :: GenVis -> TDecl -> CDecl
 decShowJS vis tdecl = 
-  "namespace DDL {" $$
-  cTemplateDecl tdecl $$
-  "inline" $$
-  cDeclareFun "std::ostream&" "toJS" [ "std::ostream&", ty ] $$
-  "}"
+  cNamespace "DDL"
+   [ cTemplateDecl tdecl, "inline",
+      cDeclareFun "std::ostream&" "toJS" [ "std::ostream&", ty ]
+   ]
   where
   ty = cTypeNameUse vis tdecl
 
 -- | Show in ppshow friendly format
 defShowJS :: GenVis -> TDecl -> CDecl
 defShowJS vis tdecl =
-  "namespace DDL {" $$
-  cTemplateDecl tdecl $$
-  "inline" $$
-  cDefineFun "std::ostream&" "toJS" [ "std::ostream& os", ty <+> "x" ]
-    case tDef tdecl of
+  cNamespace "DDL"
+    [ cTemplateDecl tdecl
+    , "inline"
+    ,  cDefineFun "std::ostream&" "toJS" [ "std::ostream& os", ty <+> "x" ]
+       case tDef tdecl of
 
-      -- assumes at least one field
-      TStruct fs ->
-        [ cStmt (cCall "toJS" ["os <<" <+> fld, thing])
-        | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
-        , let thing = cCallMethod "x" (selName GenBorrow l) []
-              fld   = cString (show (sepa <+> cString (show (pp l)) <.> ": "))
-        ] ++
-        [ cStmt ("return os <<" <+> cString " }") ]
+         -- assumes at least one field
+         TStruct fs ->
+           [ cStmt (cCall "DDL::toJS" ["os <<" <+> fld, thing])
+           | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
+           , let thing = cCallMethod "x" (selName GenBorrow l) []
+                 fld   = cString (show (sepa <+> cString (show (pp l)) <.> ": "))
+           ] ++
+           [ cStmt ("return os <<" <+> cString " }") ]
 
-      TUnion fs ->
-        [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
-               , nest 2 $ vcat
-                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$ nest 2 (
-                      vcat [ cStmt ("os <<" <+>
-                                      cString ("{ " ++ show lab ++ ": "))
-                           , cStmt (cCall "toJS" [ "os", val ])
-                           , cStmt "os << \"}\""
-                           , cStmt "break"
-                           ])
-                    | (l,_) <- fs
-                    , let lab = '$' : show (pp l)
-                          val = cCallMethod "x" (selName GenBorrow l) []
-                    ]
-               , "}"
-               ]
-        , cStmt "return os"
-        ]
-    $$ "}"
+         TUnion fs ->
+           [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
+                  , nest 2 $ vcat
+                       [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$ nest 2 (
+                         vcat [ cStmt ("os <<" <+>
+                                         cString ("{ " ++ show lab ++ ": "))
+                              , cStmt (cCall "DDL::toJS" [ "os", val ])
+                              , cStmt "os << \"}\""
+                              , cStmt "break"
+                              ])
+                       | (l,_) <- fs
+                       , let lab = '$' : show (pp l)
+                             val = cCallMethod "x" (selName GenBorrow l) []
+                       ]
+                  , "}"
+                  ]
+           , cStmt "return os"
+           ]
+      ]
   where
   ty = cTypeNameUse vis tdecl
 
@@ -494,15 +499,19 @@ defShowJS vis tdecl =
 
 decCompare :: GenVis -> TDecl -> CDecl
 decCompare vis tdecl =
-  cTemplateDecl tdecl $$
-  cDeclareFun "static inline int" "compare" [ ty, ty ]
+  cNamespace "DDL"
+    [ cTemplateDecl tdecl
+    , cDeclareFun "static inline int" "compare" [ ty, ty ]
+    ]
   where
   ty = cTypeNameUse vis tdecl
 
 defCompare :: GenVis -> TDecl -> CDecl
 defCompare vis tdecl =
-  cTemplateDecl tdecl $$
-  cDefineFun "static inline int" "compare" [ ty <+> "x", ty <+> "y" ] body
+  cNamespace "DDL"
+    [ cTemplateDecl tdecl
+    , cDefineFun "static inline int" "compare" [ ty <+> "x", ty <+> "y" ] body
+    ]
   where
   ty = cTypeNameUse vis tdecl
   body =
@@ -514,7 +523,7 @@ defCompare vis tdecl =
           | (f,_) <- fs
           , let m = selName GenBorrow f
           , s <-
-              [ cAssign "result" (cCall "compare"
+              [ cAssign "result" (cCall "DDL::compare"
                                     [ cCallMethod "x" m []
                                     , cCallMethod "y" m []
                                     ])
@@ -530,7 +539,7 @@ defCompare vis tdecl =
               , cIf' (cSumTagV (tName tdecl) f <+> "< tag") [ cRetrun "-1" ]
               , cIf' (cSumTagV (tName tdecl) f <+> "> tag") [ cRetrun "1" ]
               , let get a = cCallMethod a (selName GenBorrow f) []
-                in cRetrun (cCall "compare" [ get "x", get "y" ])
+                in cRetrun (cCall "DDL::compare" [ get "x", get "y" ])
               ]
 
             | (f,_) <- fs
@@ -540,17 +549,21 @@ defCompare vis tdecl =
 
 decCmpOp :: Doc -> GenVis -> TDecl -> CDecl
 decCmpOp op vis tdecl =
-  cTemplateDecl tdecl $$
-  cDeclareFun "static inline bool" ("operator" <+> op)
+  cUserNS vis
+  [ cTemplateDecl tdecl
+  , cDeclareFun "static inline bool" ("operator" <+> op)
                       [ ty <+> "x", ty <+> "y" ]
+  ]
   where ty = cTypeNameUse vis tdecl
 
 defCmpOp :: Doc -> GenVis -> TDecl -> CStmt
 defCmpOp op vis tdecl =
-  cTemplateDecl tdecl $$
-  cDefineFun "static inline bool" ("operator" <+> op)
+  cUserNS vis
+  [ cTemplateDecl tdecl
+  , cDefineFun "static inline bool" ("operator" <+> op)
                       [ ty <+> "x", ty <+> "y" ]
-    [ cRetrun (cCall "compare" ["x","y"] <+> op <+> "0") ]
+    [ cRetrun (cCall "DDL::compare" ["x","y"] <+> op <+> "0") ]
+  ]
   where ty = cTypeNameUse vis tdecl
 
 

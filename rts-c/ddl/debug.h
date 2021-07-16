@@ -3,6 +3,10 @@
 
 #define DEBUG_LEVEL 0
 
+#if DEBUG_LEVEL > 0
+#include <iostream>
+#endif
+
 namespace DDL {
 
 static inline
@@ -23,7 +27,7 @@ template <typename T>
 static inline
 void debugVal(const T& val) {
 #if DEBUG_LEVEL > 0
-  std::cout << msg;
+  std::cout << val;
 #endif
 }
 

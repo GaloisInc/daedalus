@@ -13,15 +13,22 @@ import {
 	TransportKind
 } from 'vscode-languageclient/node';
 
+import {
+	configLanguageServerPath,
+	getConfiguration,
+} from './configuration'
+
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-	// The server is implemented in node
-	let serverExecutable = 
-		path.join('Users', 'sjw', 'galois', 'safedocs', 'daedalus', 'daedalus-language-server', 'server-wrapper.sh');
+
+	const configuration = getConfiguration()
+
+	let serverExecutable = configuration[configLanguageServerPath]
+
 	// If the extension is launched in debug mode then the debug server options are used
 	// Otherwise the run options are used
-	
+
 	let serverOptions: ServerOptions = {
 		run: { command: serverExecutable, transport: TransportKind.stdio },
 		debug: { command: serverExecutable, transport: TransportKind.stdio }
@@ -29,7 +36,6 @@ export function activate(context: ExtensionContext) {
 
 	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
-		// Register the server for plain text documents
 		documentSelector: [{ scheme: 'file', language: 'daedalus' }]
 	};
 

@@ -137,9 +137,9 @@ cUnion :: CIdent -> [CDecl] -> CDecl
 cUnion n as =
   cStmt ("union" <+> n <+> "{" $$ nest 2 (vcat as) $$ "}")
 
-cNamespace :: CIdent -> CDecl -> CDecl
+cNamespace :: CIdent -> [CDecl] -> CDecl
 cNamespace nm d =
-  "namespace" <+> nm <+> "{" $$ nest 2 d $$ "}"
+  "namespace" <+> nm <+> "{" $$ nest 2 (vcat d) $$ "}"
 
 cUnreachable :: CStmt
 cUnreachable = "__builtin_unreachable();"

@@ -74,7 +74,9 @@ template <typename T>
 inline
 std::ostream& toJS(std::ostream& os, Maybe<T> x) {
   if (x.isJust()) {
-    os << " { \"$$just\": " << x.borrowValue() << "}";
+    os << " { \"$$just\": ";
+    toJS(os, x.borrowValue());
+    os << "}";
   } else {
     os << "null";
   }
