@@ -261,7 +261,7 @@ handle = mconcat
           cmd          = params ^. J.command
           J.List args  = fromMaybe mempty (params ^. J.arguments)
 
-      liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show args
+      liftIO $ debugM "reactor.handle" $ Text.unpack cmd ++ ": " ++ show args
       let resp' res = do
             case res of
               Left err -> liftIO $ debugM "reactor.handle" ("Request failed: " ++ show err)

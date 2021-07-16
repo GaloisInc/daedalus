@@ -29,12 +29,13 @@ import           Language.LSP.Server          (LanguageContextEnv, LspM, MonadLs
 import qualified Language.LSP.Types           as J
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Data.Map as Map
+import Control.Concurrent.Async (Async)
 
 
 
 data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
                   | FileModule FilePath -- FilePath here is the path to search
-                  deriving Show
+                  deriving (Eq, Show)
 
 
 -- =============================================================================
@@ -120,10 +121,13 @@ newModuleState :: ModuleSource -> STM ModuleState
 newModuleState ms =
   ModuleState <$> newTChan <*> newTVar Nothing <*> newTVar emptyModuleInfo <*> newTVar (emptyModuleResults ms)
 
+type WatcherTag = Int
+
 data ServerState =
   ServerState { lspEnv       :: LanguageContextEnv Config
               , passState    :: PassState -- shared between threads
               , knownModules :: TVar (Map ModuleName ModuleState)
+              , watchers     :: TVar (Map WatcherTag (Async ()))
               }
 
 -- User-alterable config
@@ -139,7 +143,7 @@ newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a 
 
 emptyServerState :: LanguageContextEnv Config -> IO ServerState
 emptyServerState lenv = do
-  ServerState lenv <$> newPassState <*> atomically (newTVar mempty)
+  ServerState lenv <$> newPassState <*> atomically (newTVar mempty) <*> atomically (newTVar mempty) 
 
 runServerM :: ServerState ->  ServerM a -> IO a
 runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)

@@ -22,6 +22,18 @@ import qualified Daedalus.LSP.Command.Run     as C
 import           Daedalus.LSP.Monad
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ask)
+import Control.Concurrent.STM (modifyTVar, atomically)
+import Control.Monad.IO.Unlift (withRunInIO)
+import Language.LSP.Server (sendNotification)
+import Control.Concurrent.Async (async, cancel)
+import Daedalus.LSP.Position (declAtPos)
+import Daedalus.Type.AST (tcDeclName, TCModule, tcModuleName)
+import Daedalus.SourceRange
+import Control.Concurrent.STM.TVar (stateTVar)
+import Data.Foldable (traverse_)
+import System.Log.Logger (debugM)
+import System.IO (stderr, hPutStrLn)
+import Control.Concurrent.STM (readTVar)
 
 type CommandImplFun = [A.Value] -> Either String (ServerM (Either J.ResponseError A.Value))
 
@@ -47,6 +59,8 @@ instance (FromJSON a, CanInvoke b) => CanInvoke (a -> b) where
 commands :: Map Text CommandImpl
 commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
                         , ("run"              , CommandImpl runModule)
+                        , ("run/watch"        , CommandImpl watchModule)
+                        , ("run/cancel"       , CommandImpl cancelWatchModule)
                         ]
 
 executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
@@ -79,6 +93,40 @@ runModule doc pos = do
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
       Just m  -> liftIO $ Right <$> C.runModule pos sst m
 
-
-
+watchModule :: J.TextDocumentIdentifier -> J.Position -> A.Value -> ServerM (Either J.ResponseError WatcherTag)
+watchModule doc pos clientHandle = do
+  e_mr <- uriToModuleResults (J.toNormalizedUri (doc ^. J.uri))
+  case e_mr of
+    Left err -> pure (Left err)
+    Right mr -> case mrTC mr of
+      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Just m  -> go m 
+  where
+    go :: TCModule SourceRange -> ServerM (Either J.ResponseError WatcherTag)
+    go m | Just d <- declAtPos pos m = do
+      sst <- ask
+      a <- withRunInIO $ \runInBase ->
+        async $ C.watchModule (runInBase . sendNotification (J.SCustomMethod "daedalus/run/watchResult"))
+                              (runInBase . sendNotification J.SWindowShowMessage)
+                              clientHandle sst (tcDeclName d)
+      liftIO $ atomically $ do
+        wmap <- readTVar (watchers sst)
+        let next = maybe 0 (1 +) $ fst <$> Map.lookupMax wmap
+        modifyTVar (watchers sst) (Map.insert next a)
+        pure (Right next)
+        
+    go _ = pure $ Left $ J.ResponseError J.ParseError "No decl at position" Nothing
+      
+-- We don't bother telling the client if the watcher doesn't exist
+cancelWatchModule :: WatcherTag -> ServerM (Either J.ResponseError ())
+cancelWatchModule tag = do
+  sst <- ask
+  -- This means we may reuse tags
+  m_a <- liftIO $ atomically $ stateTVar (watchers sst) (Map.updateLookupWithKey (\_ _ -> Nothing) tag)
+  liftIO $ traverse_ cancel m_a
+  pure (Right ())
+  
+-- pure $ Left $ J.ResponseError J.ParseError "Cannot determine decl" Nothing
+     
+                  
                          
