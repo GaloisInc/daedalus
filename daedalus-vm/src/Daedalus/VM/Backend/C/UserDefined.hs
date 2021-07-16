@@ -131,18 +131,6 @@ cTypeNameUse vis tdecl =
            (map cTParam (tTParamKNumber tdecl))
            (map cTParam (tTParamKValue tdecl))
 
--- This is used when declaring methods.   The reason is that
--- C++ does not support (reliably) qualifying the method name with
--- the global name space, so we just don't qualify things.
--- We wouldn't need this if we placed user-defined types in an explicit
--- namespace.
-cTypeNameUse' :: GenVis -> TDecl -> CType
-cTypeNameUse' vis tdecl =
-  cTypeUse (cTName' DeclSite vis (tName tdecl))
-           (map cTParam (tTParamKNumber tdecl))
-           (map cTParam (tTParamKValue tdecl))
-
-
 
 --------------------------------------------------------------------------------
 -- Signatures
@@ -389,7 +377,7 @@ defMethod vis tdecl retT fun params def =
        , "}"
        ]
   where
-  name = cTypeNameUse' vis tdecl <.> "::" <.> fun
+  name = cTypeNameUse vis tdecl <.> "::" <.> fun
 
 --------------------------------------------------------------------------------
 -- Output
