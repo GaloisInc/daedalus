@@ -60,3 +60,26 @@ def DirectOrRef P = P <| {
   @r = Ref;
   ParseAtRef r P
 }
+
+def CheckNoLocalDefn (x : maybe Pair) = case x of {
+  just rs -> Guard (!rs.fst);
+  nothing -> ^{};
+}
+
+def Bestow (x : maybe Pair) = case x of {
+  just x -> just x.snd;
+  nothing -> nothing;
+}
+
+def Inherit x : maybe Pair = case x of {
+  just y -> just {
+    fst = false;
+    snd = y;
+  };
+  nothing -> nothing;
+}
+
+def LocalDefn P : maybe Pair = just {
+  fst = true;
+  snd = P;
+}

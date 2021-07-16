@@ -1,4 +1,6 @@
 import Stdlib
+import Array
+import Map
 
 import PdfValue
 import GenPdfValue
@@ -6,183 +8,221 @@ import FontDict
 
 -- ResourceDict: resource dictionary, with default values in all fields
 
--- TODO: replace these with options, to ensure that each field is
--- defined once
-def ResourceDict = {
-  extGState = empty;
-  colorSpace = empty;
-  pattern = empty;
-  shading = empty;
-  xObject = empty;
-  font = empty;
-  procSet = ^[ ];
-  properties = empty;
-  others = empty;
+def resourceDictFields = [
+  "ExtGState",
+  "ColorSpace",
+  "Pattern",
+  "Shading",
+  "XObject",
+  "Font",
+  "ProcSet",
+  "Properties",
+]
+
+def ResourceDict0 = {
+  extGState0 = nothing;
+  colorSpace0 = nothing;
+  pattern0 = nothing;
+  shading0 = nothing;
+  xObject0 = nothing;
+  font0 = nothing;
+  procSet0 = nothing;
+  properties0 = nothing;
+  others0 = empty;
 }
 
-def AddExtGState d : ResourceDict = {
-  extGState = GenPdfDict Dict; -- TODO: refine using Sec. 8.4.5, if needed
+def AddExtGState d : ResourceDict0 = {
+  extGState0 = just {
+    NameToken "ExtGState";
+    d.extGState0 is nothing;
+    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 8.4.5, if needed
+  };
 
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddColorSpace d : ResourceDict = {
-  extGState = ^d.extGState;
+def AddColorSpace d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
 
-  colorSpace = Dict; -- TODO: refine using Sec 8.6, if needed
+  colorSpace0 = just {
+    NameToken "ColorSpace";
+    d.colorSpace0 is nothing;
+    DirectOrRef Dict; -- TODO: refine using Sec 8.6, if needed
+  };
 
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddPattern d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
+def AddPattern d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
 
-  pattern = Dict; -- TODO: refine using Sec. 8.7, if needed
+  pattern0 = just {
+    NameToken "Pattern";
+    d.pattern0 is nothing;
+    DirectOrRef Dict; -- TODO: refine using Sec. 8.7, if needed
+  };
 
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddShading d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
+def AddShading d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
 
-  shading = GenPdfDict Dict; -- TODO: refine using Sec. 8.7.4.5, if needed
+  shading0 = just {
+    NameToken "Shading";
+    d.shading0 is nothing;
+    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 8.7.4.5, if needed
+  };
 
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddXObject d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+def AddXObject d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+
+  xObject0 = just {
+    NameToken "XObject";
+    d.xObject0 is nothing;
+    DirectOrRef Dict;
+  };
+
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddFont d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
+def AddFont d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
 
-  font = GenPdfDict FontDict;
+  font0 = just {
+    NameToken "Font";
+    d.font0 is nothing;
+    DirectOrRef (GenPdfDict FontDict);
+  };
 
-  procSet = ^d.procSet;
-  properties = ^d.properties;
-  others = empty;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddProcSet d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
+def AddProcSet d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
 
-  procSet = Array;
+  procSet0 = just {
+    NameToken "ProcSet";
+    d.procSet0 is nothing;
+    DirectOrRef Array;
+  };
 
-  properties = ^d.properties;
-  others = empty;
+  properties0 = ^d.properties0;
+  others0 = empty;
 }
 
-def AddProperties d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
+def AddProperties d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
 
-  properties = GenPdfDict Dict; -- TODO: refine using Sec. 14.6.2, if needed
+  properties0 = just {
+    NameToken "Properties";
+    d.properties0 is nothing;
+    DirectOrRef (GenPdfDict Dict); -- TODO: refine using Sec. 14.6.2, if needed
+  };
 
-  others = empty;
+  others0 = empty;
 }
 
-def AddOther d : ResourceDict = {
-  extGState = ^d.extGState;
-  colorSpace = ^d.colorSpace;
-  pattern = ^d.pattern;
-  shading = ^d.shading;
-  xObject = ^d.xObject;
-  font = ^d.font;
-  procSet = ^d.procSet;
-  properties = ^d.properties;
+def AddOther d : ResourceDict0 = {
+  extGState0 = ^d.extGState0;
+  colorSpace0 = ^d.colorSpace0;
+  pattern0 = ^d.pattern0;
+  shading0 = ^d.shading0;
+  xObject0 = ^d.xObject0;
+  font0 = ^d.font0;
+  procSet0 = ^d.procSet0;
+  properties0 = ^d.properties0;
 
-  others = {
-    @k = Token Name; -- parse any unspecified fields
+  others0 = { -- parse any unspecified fields
+    @k = Token Name; 
+    Guard (!(member k resourceDictFields));
     @v = Token Value;
-    Insert k v d.others
+    InsertFresh k v d.others0
   };
 }
 
--- TODO: refactor NameToken's
-def ResourceDictRec dict = {
+def ResourceDictRec dict = Default dict {
     @dict0 = Choose1 {
-      { NameToken "ExtGState";
-        AddExtGState dict
-      };
-      { NameToken "ColorSpace";
-        AddColorSpace dict
-      };
-      { NameToken "Pattern";
-        AddPattern dict
-      };
-      { NameToken "Shading";
-        AddShading dict
-      };
-      { NameToken "XObject";
-        AddXObject dict
-      };
-      { NameToken "Font";
-        AddFont dict
-      };
-      { NameToken "ProcSet";
-        AddProcSet dict
-      };
-      { NameToken "Properties";
-        AddProperties dict
-      };
-      AddOther dict
+      AddExtGState dict;
+      AddColorSpace dict;
+      AddPattern dict;
+      AddShading dict;
+      AddXObject dict;
+      AddFont dict;
+      AddProcSet dict;
+      AddProperties dict;
+      AddOther dict;
     };
     ResourceDictRec dict0
-  } <|
-  ^dict
+  }
 
--- ResourceDict.ddl: definition of parser for resource
--- dictionaries. Currently only extracts the font dictionary.
-def ResourceDictP = {
-  @initDict = ResourceDict;
-  ResourceDictRec initDict
+def CoerceResourceDict d = {
+  extGState = defaultEmpty d.extGState0;
+  colorSpace = defaultEmpty d.colorSpace0;
+  pattern = defaultEmpty d.pattern0;
+  shading = defaultEmpty d.shading0;
+  xObject = defaultEmpty d.xObject0;
+  font = defaultEmpty d.font0;
+  procSet = defaultEmptyArr d.procSet0;
+  properties = defaultEmpty d.properties0;
+  others = d.others0;
 }
-  
+
+-- ResourceDictP: parse resource dictionaries. Currently only does
+-- detailed parsing of font dictionaries.
+def ResourceDictP = Between "<<" ">>" {
+  @initDict = ResourceDict0;
+  @partialRes = ResourceDictRec initDict;
+  CoerceResourceDict partialRes
+}

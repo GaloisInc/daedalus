@@ -1,3 +1,8 @@
+def defaultEmptyArr aopt = case aopt of {
+  just x -> x;
+  nothing -> [ ];
+}
+
 -- standard library for arrays
 def LiftPToArray P = {
   @x = P;

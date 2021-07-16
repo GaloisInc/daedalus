@@ -2,6 +2,11 @@
 import Stdlib
 import Pair
 
+def defaultEmpty mopt = case mopt of {
+  just m -> m;
+  nothing -> empty;
+}
+
 def mapDomain m = for (acc = [ ]; k, v in m) snoc k acc
 
 -- ListToMap l: collect list of entries l into a map:

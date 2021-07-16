@@ -9,18 +9,18 @@ import PdfValue
 import ResourceDict
 import Page
 
-def PageTreeNode0 resrcs = {
+def PageTreeNode0 (resrcs : maybe Pair) = {
   type0 = false;
   parent0 = false;
   kids0 = nothing;
   count0 = nothing;
-  resources0 = resrcs;
+  nodeResources0 = resrcs;
   others0 = empty;
 }
 
-def PageNodeKid (resrcs: maybe ResourceDict) (cur : Ref) (r : Ref) = Choose1 {
-  pageKid = Page resrcs cur;
-  treeKid = PageTreeNodeP resrcs cur r;
+def PageNodeKid (resrcs : maybe Pair) (cur : Ref) (r : Ref) = Choose1 {
+  pageKid = Page (Bestow resrcs) cur;
+  treeKid = PageTreeNodeP (Bestow resrcs) cur r;
 }
 
 def nodeKeys = [
@@ -46,7 +46,7 @@ def AddType pageTree : PageTreeNode0 = {
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
-  resources0 = pageTree.resources0;
+  nodeResources0 = pageTree.nodeResources0;
   others0 = pageTree.others0;
 }
 
@@ -63,7 +63,7 @@ def AddParent (par: Ref) pageTree : PageTreeNode0 = {
 
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
-  resources0 = pageTree.resources0;
+  nodeResources0 = pageTree.nodeResources0;
   others0 = pageTree.others0;
 }
 
@@ -78,7 +78,7 @@ def AddKids (cur : Ref) pageTree : PageTreeNode0 = {
   };
 
   count0 = pageTree.count0;
-  resources0 = pageTree.resources0;
+  nodeResources0 = pageTree.nodeResources0;
   others0 = pageTree.others0;
 }
 
@@ -93,7 +93,7 @@ def AddCount pageTree : PageTreeNode0 = {
     just (DirectOrRef Natural);
   };
 
-  resources0 = pageTree.resources0;
+  nodeResources0 = pageTree.nodeResources0;
   others0 = pageTree.others0;
 }
 
@@ -103,10 +103,10 @@ def NodeAddResources pageTree : PageTreeNode0 = {
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
 
-  resources0 = {
+  nodeResources0 = {
     NameToken "Resources";
-    pageTree.resources0 is nothing;
-    just (DirectOrRef ResourceDictP)
+    CheckNoLocalDefn pageTree.nodeResources0;
+    LocalDefn (DirectOrRef ResourceDictP);
   };
 
   others0 = pageTree.others0;
@@ -117,7 +117,7 @@ def NodeAddOther pageTree : PageTreeNode0 = {
   parent0 = pageTree.parent0;
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
-  resources0 = pageTree.resources0;
+  nodeResources0 = pageTree.nodeResources0;
 
   others0 = {
     @k = Token Name; 
@@ -145,7 +145,7 @@ def CheckKidsCount kids size = {
   Guard (size == kidsCount)
 }
 
-def ParseKidRefs resrcs kidRefs cur = map (kidRef in kidRefs)
+def ParseKidRefs (resrcs: maybe Pair) kidRefs cur = map (kidRef in kidRefs)
   (ParseAtRef kidRef (PageNodeKid resrcs cur kidRef))
 
 -- PageTreeNode: coerce an partial page-tree node into a page
@@ -155,7 +155,7 @@ def PageTreeNode (cur : Ref) pt0 = {
   Guard pt0.parent0;
   kids = {
     @kidRefs = pt0.kids0 is just;
-    ParseKidRefs pt0.resources0 kidRefs cur
+    ParseKidRefs pt0.nodeResources0 kidRefs cur
   };
   count = {
     $$ = pt0.count0 is just;
@@ -164,8 +164,8 @@ def PageTreeNode (cur : Ref) pt0 = {
   others = pt0.others0;
 }
 
-def PageTreeNodeP resrcs (par: Ref) (cur: Ref) = {
-  @initPageTree = PageTreeNode0 resrcs;
+def PageTreeNodeP resrcs (par: Ref) (cur: Ref) = Between "<<" ">>" {
+  @initPageTree = PageTreeNode0 (Inherit resrcs);
   @ptRec = PageTreeNodeRec par cur initPageTree;
   PageTreeNode cur ptRec
 }
@@ -230,8 +230,8 @@ def RootAddResources partialRoot : RootNode0 = {
 
   rootResources0 = {
     NameToken "Resources";
-    partialRoot.rootResources0 is nothing;
-    just (DirectOrRef ResourceDictP)
+    CheckNoLocalDefn partialRoot.rootResources0;
+    LocalDefn (DirectOrRef ResourceDictP);
   };
 
   rootOthers0 = partialRoot.rootOthers0;
@@ -279,7 +279,7 @@ def RootNode (cur : Ref) partialRoot = {
   rootOthers = partialRoot.rootOthers0;
 }
 
-def PageTreeP (cur : Ref) = {
+def PageTreeP (cur : Ref) = Between "<<" ">>" {
   @initRoot = RootNode0;
   @partialRoot = PageTreeRootRec initRoot;
   RootNode cur partialRoot
