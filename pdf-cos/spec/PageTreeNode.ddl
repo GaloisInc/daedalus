@@ -250,8 +250,8 @@ def RootNode (cur : Ref) partialRoot = {
   rootResources = partialRoot.rootResources0;
   rootKids = {
     @kidRefs = partialRoot.rootKids0 is just;
-    @x = ParseKidRefs rootResources [ ] cur kidRefs;
-    x.fst
+--    @x = ParseKidRefs rootResources [ ] cur kidRefs;
+    (ParseKidRefs rootResources [ ] cur kidRefs).fst
   };
   rootCount = {
     $$ = partialRoot.rootCount0 is just;
@@ -265,5 +265,3 @@ def PageTreeP (cur : Ref) = Between "<<" ">>" {
   @partialRoot = PageTreeRootRec initRoot;
   RootNode cur partialRoot
 }
-
--- TODO: check for cycles when building page tree
