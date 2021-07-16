@@ -134,10 +134,8 @@ def PageTreeNode seen (cur : Ref) pt0 = {
   @kidsAndSeen = ParseKidRefs pt0.nodeResources0 seen cur kidRefs;
   Pair {
       kids = kidsAndSeen.fst;      
-      count = {
-        $$ = pt0.count0 is just; -- TODO: inline this using promotion?
-        CheckKidsCount kids $$
-      };
+      count = pt0.count0 is just; 
+      CheckKidsCount kids count;
       others = pt0.others0;
     }
     kidsAndSeen.snd
@@ -248,15 +246,11 @@ def PageTreeRootRec partialRoot = Default partialRoot {
 def RootNode (cur : Ref) partialRoot = {
   Guard partialRoot.rootType0;
   rootResources = partialRoot.rootResources0;
-  rootKids = {
-    @kidRefs = partialRoot.rootKids0 is just;
---    @x = ParseKidRefs rootResources [ ] cur kidRefs;
-    (ParseKidRefs rootResources [ ] cur kidRefs).fst
-  };
-  rootCount = {
-    $$ = partialRoot.rootCount0 is just;
-    CheckKidsCount rootKids $$
-  };
+  rootKids = (ParseKidRefs
+    rootResources [ ] cur (partialRoot.rootKids0 is just)).fst;
+  rootCount = partialRoot.rootCount0 is just;
+  CheckKidsCount rootKids rootCount;
+
   rootOthers = partialRoot.rootOthers0;
 }
 
