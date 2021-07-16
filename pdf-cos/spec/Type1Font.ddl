@@ -1,12 +1,14 @@
 -- Type0Font: definition of a Type0 font:
 import Stdlib
+import Array
+import Map
 
 import GenPdfValue
 import PdfValue
 import PdfDecl
 import CMap
 
--- Type1Font0: accumulating type for font 0
+-- Type1Font0: partial definition of a Type1 font
 def Type1Font0 = {
   type0 = ^false;
   subtype0 = ^false;
@@ -220,7 +222,7 @@ def AddOther f : Type1Font0 = {
   others0 = {
     @k = Token Name; -- parse any unspecified fields
     @v = Token Value;
-    Insert k v f.others0
+    InsertFresh k v f.others0
   };
 }
 
@@ -261,8 +263,8 @@ def Encoding = Choose {
 
 -- TODO: potentially lookup dictionary fields as references
 
-def Type1FontRec font =
-  { @font0 = Choose1 {
+def Type1FontRec font = Default font {
+  @font0 = Choose1 {
       { NameToken "Type";
         AddType font 
       };
@@ -296,11 +298,16 @@ def Type1FontRec font =
       AddOther font; -- parse any unspecified fields
     };
     Type1FontRec font0
-  } <|
-  ^font
+  }
 
 def Type1Font = {
   @initFont = Type1Font0;
   @fontRec = Type1FontRec initFont;
   CoerceType1Font fontRec
 } 
+
+-- TODO: refactor dictionary key checks
+
+-- TODO: check for duplicate enties
+
+-- TODO: allow references in dictionary values
