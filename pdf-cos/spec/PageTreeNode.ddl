@@ -41,10 +41,7 @@ def AddType pageTree : PageTreeNode0 = {
 def AddParent (par: Ref) pageTree : PageTreeNode0 = {
   type0 = pageTree.type0;
 
-  parent0 = Holds {
-    @r = Token Ref;
-    Guard (r == par);
-  };
+  parent0 = Holds (Guard (Token Ref == par));
 
   kids0 = pageTree.kids0;
   count0 = pageTree.count0;
@@ -208,19 +205,16 @@ def RootAddOther k partialRoot : RootNode0 = {
   rootCount0 = partialRoot.rootCount0;
   rootResources0 = partialRoot.rootResources0;
 
-  rootOthers0 = {
-    @v = Token Value;
-    Extend k v partialRoot.rootOthers0
-  };
+  rootOthers0 = Extend k (Token Value) partialRoot.rootOthers0;
 }
 
 def PageTreeRootRec partialRoot = Default partialRoot {
   @k = Token Name;
+  Guard (k != "Parent");
   @partialRoot0 = if k == "Type" then {
       partialRoot.rootType0 is false;
       RootAddType partialRoot;
     }
-    else if k == "Parent" then Void
     else if k == "Kids" then {
       partialRoot.rootKids0 is nothing;
       RootAddKids partialRoot;

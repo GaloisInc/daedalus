@@ -296,7 +296,7 @@ def Type1FontRec font = Default font {
   Type1FontRec font0
 }
 
-def Type1Font = {
+def Type1Font = Between "<<" ">>" {
   @initFont = Type1Font0;
   @fontRec = Type1FontRec initFont;
   CoerceType1Font fontRec

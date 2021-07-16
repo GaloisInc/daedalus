@@ -22,11 +22,9 @@ def Page0 resrcs = {
 
 -- parsers for updating fields
 def PageAddType page0 : Page0 = {
-  type0 = Holds {
-      DirectOrRef (
-        (NameToken "Page") |
-        (NameToken "Template"));
-    };
+  type0 = Holds (DirectOrRef (
+    (NameToken "Page") |
+    (NameToken "Template")));
 
   parent0 = page0.parent0;
   resources0 = page0.resources0;
@@ -37,11 +35,7 @@ def PageAddType page0 : Page0 = {
 def PageAddParent (par : Ref) page0 : Page0 = {
   type0 = page0.type0;
 
-  -- TODO: refactor instance of When
-  parent0 = Holds {
-      @r = Token Ref;
-      Guard (r == par);
-    };
+  parent0 = Holds (Guard (Token Ref == par));
 
   resources0 = page0.resources0;
   contents0 = page0.contents0;
