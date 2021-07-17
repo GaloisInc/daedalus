@@ -230,7 +230,7 @@ cDeclareClosures bs =
 --------------------------------------------------------------------------------
 
 cFunSig :: VMFun -> CDecl
-cFunSig fun = cDeclareFun res (cFName DeclSite (vmfName fun)) args
+cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
   where
   res  = if vmfPure fun then retTy else "bool"
   args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
@@ -247,7 +247,7 @@ cFun :: (AllFuns) => VMFun -> Maybe CDecl
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> Nothing
-    VMDef d -> Just (cDefineFun res (cFName DeclSite (vmfName fun)) args body)
+    VMDef d -> Just (cDefineFun res (cFName (vmfName fun)) args body)
       where
       res  = if vmfPure fun then retTy else "bool"
       args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
@@ -684,7 +684,7 @@ cTermStmt ccInstr =
               bYes = ?allBlocks Map.! lYes
               bNo  = ?allBlocks Map.! lNo
               a : i : _ = blockArgs bYes
-              call = cCall (cFName (UseSite "") f)
+              call = cCall (cFName f)
                    $ "p"
                    : ("&" <.> cArgUse bYes a)
                    : ("&" <.> cArgUse bYes i)
@@ -704,14 +704,14 @@ cTermStmt ccInstr =
         Just b -> zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
                   [ cGoto (cBlockLabel (blockName b)) ]
           where assignP ba = cAssign (cArgUse b ba)
-                doCall = cCall (cFName (UseSite "") f) (map cExpr es)
+                doCall = cCall (cFName f) (map cExpr es)
         Nothing -> panic "CallPure" [ "Missing block: " ++ show (pp lab) ]
 
 
     TailCall f captures es ->
       let fun       = lkpFun f
           retT      = TSem (Src.fnameType f)
-          doCall as = cCall (cFName (UseSite "") f) (as ++ map cExpr es)
+          doCall as = cCall (cFName f) (as ++ map cExpr es)
       in
       case (captures, ?captures) of
         (Capture,Capture) ->

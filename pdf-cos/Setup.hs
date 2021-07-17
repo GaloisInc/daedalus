@@ -107,6 +107,14 @@ cfgPdfDecl = CompilerCfg
 
       , primName "PdfDecl" "Decrypt" AGrammar |-> 
         aps "D.decrypt" [ "body" ]
+
+      , primName "GenPdfValue" "InputAtRef" AGrammar |-> -- get a stream:
+        aps "D.resolveImpl" [ "GenPdfValue.pWrapGetStream"
+                            , "PdfDecl.pResolveObjectStreamEntry"
+                            , fld "obj" "r"
+                            , fld "gen" "r"
+                            ]
+
       ]
   , cParserType = "D.Parser"
   , cImports    = [ Import "Primitives.Resolve" (QualifyAs "D"),

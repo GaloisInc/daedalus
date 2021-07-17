@@ -15,6 +15,10 @@ def UTF8 = Choose {
   utf84 = Bytes4;
 }
 
+def UTF8Ascii (x : uint 8) : UTF8 = {|
+  utf81 = x;
+|}
+
 -- UnicodeByte: parse a byte as a unicode character
 def UnicodeByte : UTF8 = {|
     utf81 = Bytes1

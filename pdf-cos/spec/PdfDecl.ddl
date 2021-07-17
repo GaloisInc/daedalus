@@ -71,6 +71,13 @@ def SkipBytes n = Chunk n {}
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
+-- WrapGetStream: local wrapper to GetStream, used for primitive
+def WrapGetStream = GetStream
+
+-- InputStream r: the input stream at reference r
+def InputAtRef (r : Ref) : stream -- = Void
+-- TODO: implement as a new primitive
+
 def CheckExpected (r : ref) (d : TopDecl) = {
   Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;

@@ -4,6 +4,7 @@ import Pair
 import Map
 
 import PdfValue
+import PdfDecl
 
 -- GenArray P: PDF array of P's
 def GenArray P = Between "[" "]" (Many (Token P)) 
@@ -44,16 +45,9 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
--- WrapGetStream: local wrapper to GetStream, used for primitive
-def WrapGetStream = GetStream
-
--- InputStream r: the input stream at reference r
-def InputStreamAtRef (r : Ref) : Stream -- = Void
--- TODO: implement as a new primitive
-
 -- ParseAtRef P r: parse the input at r, using P
 def ParseAtRef r P = {
-  @s = InputStreamAtRef r;
+  @s = InputAtRef r;
   WithStream s (GenObj P)
 }
 
