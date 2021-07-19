@@ -30,11 +30,12 @@ def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
   @eff0 = InitEffect;
   for (effAcc = eff0; op in cs) {
     case op of {
-      textObj obj -> Sequence effAcc.output
+      textObj obj -> Sequence
+        effAcc
         (InterpTextObj obj effAcc.textState)
-    ; textStateOp tsOper -> TextEffect
+    ; textStateOp tsOper -> SetEffectState
         (UpdTextState tsOper effAcc.textState)
-        effAcc.output
+        effAcc
     ; unparsedByte -> effAcc;
     }
   }

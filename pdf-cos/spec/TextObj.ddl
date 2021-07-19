@@ -73,7 +73,7 @@ def TextOpP (rd: ResourceDict) : [ TextOp ] = (LiftPToArray (TextOp rd)) <|
 def TextObj (rd: ResourceDict) : [ TextOp ] = Between "BT" "ET"
   (concat (Many (TextOpP rd)))
 
-def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
+def InterpTextObj (obj: [ CTextOp ]) (q : TextState) : TextEffect = {
   @eff0 = LiftToTextEffect q;
   for (effAcc = eff0; op in obj) {
     case (op : TextOp) of {

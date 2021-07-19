@@ -161,7 +161,7 @@ def PageTreeNode (seen : maybe RefHistory) (cur : Ref) pt0 = {
 
       others = pt0.others0;
     }
-    kidsAndSeen.snd
+    (cons cur kidsAndSeen.snd)
 }
 
 def PageNodeKid (resrcs : maybe Pair) (seen : RefHistory) (r : Ref) = Choose1 {

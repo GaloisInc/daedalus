@@ -102,13 +102,16 @@ def TextEffect (q : TextState) (bs : [ UTF8 ]) = {
 
 def InitEffect = TextEffect InitTextState InitBytes
 
-def Sequence (bs : [ UTF8 ]) (q : TextEffect) = TextEffect
-  q.textState (append bs q.output)
-
-def PutStr (eff: TextEffect) (bs : [ UTF8 ] ) = TextEffect eff.textState
-  (append eff.output bs)
-
 def LiftToTextEffect (q : TextState) = TextEffect q [ ]
+
+def PutStr (eff: TextEffect) (bs : [ UTF8 ] ) = TextEffect
+  eff.textState (append eff.output bs)
+
+def Sequence (eff0: TextEffect) (eff1 : TextEffect) = TextEffect
+  eff1.textState (append eff0.output eff1.output)
+
+def SetEffectState (q : TextState) (eff: TextEffect) = Sequence
+  (LiftToTextEffect q) eff
 
 def ExtractString (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
   @szFont = q.sizedFont is just;
