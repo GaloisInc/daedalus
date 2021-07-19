@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# TODO: parmaeterize this
-cd ~/research/daedalus/
+# requires env variable DAEDALUS to point to the root directory of
+# DaeDaLus
+
+cd $DAEDALUS
 cabal exec daedalus-language-server
 

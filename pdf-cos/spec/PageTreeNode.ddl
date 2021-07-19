@@ -83,7 +83,18 @@ def NodeAddOther k pageTree : PartialPageTreeNode = {
   others0 = Extend k (Token Value) pageTree.others0;
 }
 
-def PageTreeNodeRec (par : Ref) (cur : Ref) pageTree = Default pageTree 
+def RefHistory (os: [ Ref ]) (p : Ref) = {
+  others = os;
+  parent = p;
+}
+
+def SeenParent (par : Ref) (h: RefHistory) = {
+  histOthers = cosn h.parent h.others;
+  histParent = par;
+}
+
+def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
+  Default pageTree 
   { @k = Token Name;
     @pageTree0 = if k == "Type" then {
         pageTree.type0 is false;
@@ -91,7 +102,8 @@ def PageTreeNodeRec (par : Ref) (cur : Ref) pageTree = Default pageTree
       }
       else if k == "Parent" then {
         pageTree.parent0 is false;
-        AddParent par pageTree
+        seen is just;
+        AddParent seen.histParent pageTree
       }
       else if k == "Kids" then  {
         pageTree.kids0 is nothing;
@@ -106,7 +118,7 @@ def PageTreeNodeRec (par : Ref) (cur : Ref) pageTree = Default pageTree
         NodeAddResources pageTree
       }
       else NodeAddOther k pageTree;
-    PageTreeNodeRec par cur pageTree0
+    PageTreeNodeRec seen cur pageTree0
   }
 
 def CheckKidsCount kids size = {
@@ -141,13 +153,6 @@ def PageTreeNode seen (cur : Ref) pt0 = {
     kidsAndSeen.snd
 }
 
-def PageTreeNodeP resrcs seen (par: Ref) (cur: Ref) =
-  Between "<<" ">>" {
-    @initPageTree = PartialPageTreeNode (Inherit resrcs);
-    @ptRec = PageTreeNodeRec par cur initPageTree;
-    PageTreeNode (cons par seen) cur ptRec
-  }
-
 def PageNodeKid (resrcs : maybe Pair) seen (cur : Ref) (r : Ref) = Choose1 {
   Pair {| pageKid = Page (Bestow resrcs) cur |} [ ];
   { @x = PageTreeNodeP (Bestow resrcs) seen cur r;
@@ -161,102 +166,8 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
   treeKid k -> k.count;
 }
 
--- Parse the root of a page tree:
-
--- RootNode0: a partial page tree root value
-def RootNode0 = {
-  rootType0 = ^false;
-  rootKids0 = ^nothing;
-  rootCount0 = ^nothing;
-  rootResources0 = ^nothing; 
-  rootOthers0 = empty;
-}
-
-def RootAddType partialRoot : RootNode0 = {
-  rootType0 = Holds (NameToken "Pages");
-
-  rootKids0 = partialRoot.rootKids0;
-  rootCount0 = partialRoot.rootCount0;
-  rootResources0 = partialRoot.rootResources0;
-  rootOthers0 = partialRoot.rootOthers0;
-}
-
-def RootAddKids partialRoot : RootNode0 = {
-  rootType0 = partialRoot.rootType0;
-
-  rootKids0 = just (GenArray Ref);
-
-  rootCount0 = partialRoot.rootCount0;
-  rootResources0 = partialRoot.rootResources0;
-  rootOthers0 = partialRoot.rootOthers0;
-}
-
-def RootAddCount partialRoot : RootNode0 = {
-  rootType0 = partialRoot.rootType0;
-  rootKids0 = partialRoot.rootKids0;
-
-  rootCount0 = just (DirectOrRef Natural);
-
-  rootResources0 = partialRoot.rootResources0;
-  rootOthers0 = partialRoot.rootOthers0;
-}
-
-def RootAddResources partialRoot : RootNode0 = {
-  rootType0 = partialRoot.rootType0;
-  rootKids0 = partialRoot.rootKids0;
-  rootCount0 = partialRoot.rootCount0;
-
-  rootResources0 = LocalDefn (DirectOrRef ResourceDictP);
-
-  rootOthers0 = partialRoot.rootOthers0;
-}
-
-def RootAddOther k partialRoot : RootNode0 = {
-  rootType0 = partialRoot.rootType0;
-  rootKids0 = partialRoot.rootKids0;
-  rootCount0 = partialRoot.rootCount0;
-  rootResources0 = partialRoot.rootResources0;
-
-  rootOthers0 = Extend k (Token Value) partialRoot.rootOthers0;
-}
-
-def PageTreeRootRec partialRoot = Default partialRoot {
-  @k = Token Name;
-  Guard (k != "Parent");
-  @partialRoot0 = if k == "Type" then {
-      partialRoot.rootType0 is false;
-      RootAddType partialRoot;
-    }
-    else if k == "Kids" then {
-      partialRoot.rootKids0 is nothing;
-      RootAddKids partialRoot;
-    }
-    else if k == "Count" then {
-      partialRoot.rootCount0 is nothing;
-      RootAddCount partialRoot;
-    }
-    else if k == "Resources" then {
-      CheckNoLocalDefn partialRoot.rootResources0;
-      RootAddResources partialRoot;
-    }
-    else RootAddOther k partialRoot;
-  PageTreeRootRec partialRoot0
-}
-
--- RootNode: coerce a partial root node into a root node
-def RootNode (cur : Ref) partialRoot = {
-  Guard partialRoot.rootType0;
-  rootResources = partialRoot.rootResources0;
-  rootKids = (ParseKidRefs
-    rootResources [ ] cur (partialRoot.rootKids0 is just)).fst;
-  rootCount = partialRoot.rootCount0 is just;
-  CheckKidsCount rootKids rootCount;
-
-  rootOthers = partialRoot.rootOthers0;
-}
-
-def PageTreeP (cur : Ref) = Between "<<" ">>" {
-  @initRoot = RootNode0;
-  @partialRoot = PageTreeRootRec initRoot;
-  RootNode cur partialRoot
+def PageTreeNodeP resrcs seen (cur: Ref) = Between "<<" ">>" {
+  @initPageTree = PartialPageTreeNode (Inherit resrcs);
+  @ptRec = PageTreeNodeRec seen cur initPageTree;
+  PageTreeNode (SeenParent par seen) cur ptRec
 }

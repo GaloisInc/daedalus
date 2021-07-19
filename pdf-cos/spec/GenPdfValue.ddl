@@ -6,6 +6,15 @@ import Map
 import PdfValue
 import PdfDecl
 
+def Integer : int = {
+  @sign = Sign;
+  @n = Natural;
+  case sign of {
+    pos -> n;
+    neg -> -1 * n;
+  }
+}
+
 -- GenArray P: PDF array of P's
 def GenArray P = Between "[" "]" (Many (Token P)) 
 
@@ -58,6 +67,7 @@ def DirectOrRef P = P <| {
   ParseAtRef r P
 }
 
+-- library for inherited values
 def CheckNoLocalDefn (x : maybe Pair) = case x of {
   just rs -> Guard (!rs.fst);
   nothing -> ^{};

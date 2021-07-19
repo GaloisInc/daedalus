@@ -16,7 +16,7 @@ def UTF8 = Choose {
 }
 
 def UTF8Ascii (x : uint 8) : UTF8 = {|
-  utf81 = x;
+  utf81 = x
 |}
 
 -- UnicodeByte: parse a byte as a unicode character
