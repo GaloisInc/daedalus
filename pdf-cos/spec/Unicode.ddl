@@ -7,9 +7,21 @@ def CharCode c = {
   low = ^c;
 }
 
+def highBitLow x = (0x80 .&. x) == 0
+
+def ASCIIByte = {
+  $$ = UInt8;
+  Guard (highBitLow $$)
+}
+
+def NonASCIIByte = {
+  $$ = UInt8;
+  Guard (!(highBitLow $$))
+}
+
 -- UTF-8: byte sequences of length 1 <= n <= 4
 def UTF8 = Choose {
-  utf81 = Bytes1;
+  utf81 = ASCIIByte;
   utf82 = Bytes2;
   utf83 = Bytes3;
   utf84 = Bytes4;
@@ -21,7 +33,7 @@ def UTF8Ascii (x : uint 8) : UTF8 = {|
 
 -- UnicodeByte: parse a byte as a unicode character
 def UnicodeByte : UTF8 = {|
-    utf81 = Bytes1
+    utf81 = ASCIIByte
 |}
 
 def utf8CharBytes (utfChar: UTF8) = case utfChar of

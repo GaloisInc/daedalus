@@ -2,6 +2,7 @@
 import Stdlib
 
 import FontDict
+import Unicode
 
 def SizedFont (f : FontDict) (s: int) = {
   font = f;
@@ -113,9 +114,14 @@ def Sequence (eff0: TextEffect) (eff1 : TextEffect) = TextEffect
 def SetEffectState (q : TextState) (eff: TextEffect) = Sequence
   (LiftToTextEffect q) eff
 
+def UTF81Code = {
+  Many NonASCIIByte; -- eat non-ASCII bytes
+  UnicodeByte
+}
+
 def ExtractString (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
   @szFont = q.sizedFont is just;
-  [ ]
+  WithStream (arrayStream s) (Many UTF81Code)
 }
 
 -- TODO: define: use the font in q to encoding s in UTF8
