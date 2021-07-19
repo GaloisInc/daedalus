@@ -80,9 +80,6 @@ def ExtractContentsText d = Default [ ] {
 
 --------------------------------------------------------------------------------
 
--- BuildPageTree r: builds the page tree from r
-def BuildPageTree r : RootNode = ParseAtRef r (PageTreeP r)
-
 def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
   @kidsCStreams = map (k in kids) (case (k : PageNodeKid) of {
     pageKid pk -> [ pk.contents ];
@@ -94,10 +91,10 @@ def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
 def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamOp ] ] =
   KidsContentStreams pt.kids
 
-def PageTreeContentStreams pt = KidsContentStreams pt.rootKids
+def PageTreeContentStreams pt = KidsContentStreams pt.kids
 
 def ExtractRootText1 (r : Ref) = {
-  @pageTree = BuildPageTree r;
+  @pageTree = PageTreeP r;
   @ptCs = PageTreeContentStreams pageTree;
   @pageTexts = map (cs in ptCs) (ExtractContentStreamText cs);
   concat pageTexts

@@ -8,22 +8,6 @@ import Unicode
 
 -- Text-positioning operators (Table 106)
 def TextPosOp = Choose1 { -- operations are mutually exclusive
-  mvNextLine = { -- updates only ouptut stream. TODO: refactor to Text Show
-    tx = Token Integer;
-    ty = Token Integer;
-    KW "Td"
-  };
-  setTextMatrix = { -- updates text matrix, which affects user space
-    -- TODO: refactor to ??
-    a = Token Number;
-    b = Token Number;
-    c = Token Number;
-    d = Token Number;
-    e = Token Number;
-    f = Token Number;
-    KW "Tm"
-  };
-  mvNextLineStart = KW "T*"; -- updates stream and state. TODO: hoist this to text ops
 }
 
 -- TODO: Td sets the text matrix, so does Tm. If we model Td, should

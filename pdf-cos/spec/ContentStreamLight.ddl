@@ -7,16 +7,17 @@ import GenPdfValue
 import PdfValue
 import FontDict
 import ResourceDict
+import TextEffect
 import TextObj
-import TextPosOp
 import TextShowOp
 import TextStateOp
 import Unicode
 
 -- ContentStreamOp: an operation in a content stream
-def ContentStreamOp resourceD = Choose1 {
-  textObj = TextObj resourceD;
-  unparsedByte = UInt8;
+def ContentStreamOp (rd : ResourceDict) = Choose1 {
+  textObj = TextObj rd; -- text object
+  textStateOp = TextStateOp rd; -- text state operators
+  unparsedByte = UInt8; -- leave other operators unparsed
 }
 
 -- InterpContentStream: interpret a content stream, resolving lookups
@@ -25,23 +26,23 @@ def InterpContentStream (resourceD : ResourceDict) =
   Many (ContentStreamOp resourceD)
 
 def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
-  TextEffect = 
-  for (acc = q0; op in cs) (case op of {
-    textPosOp posOp -> Sequence
-      (UpdPos posOp acc.textState) acc.output;
-  ; textStateOp stateOp -> TextEffect
-      (UpdTextState stateOp acc.textState) acc.output;
-  ; textShowOp showOp -> TextEffect
-      q (append acc.output (UpdTextShow showOp acc.textState))
-  ; unparsedByte -> acc;
-  })
+  TextEffect = {
+  @eff0 = InitEffect;
+  for (effAcc = eff0; op in cs) {
+    case op of {
+      textObj obj -> Sequence effAcc.output
+        (InterpTextObj obj effAcc.textState)
+    ; textStateOp tsOper -> TextEffect
+        (UpdTextState tsOper effAcc.textState)
+        effAcc.output
+    ; unparsedByte -> effAcc;
+    }
+  }
+}
 
 -- ExtractContentStreamText cs: extract text from content stream cs
 def ExtractContentStreamText (cs : [ ContentStreamOp ]) : [ UTF8 ] =
   (ContentStreamEffect cs InitTextState).output
-
--- TODO: finish definition. Involves extending state that is
--- accumulated in the for loop.
 
 -- DEPRECATED:
 

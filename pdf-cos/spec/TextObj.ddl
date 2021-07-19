@@ -1,44 +1,88 @@
+import Stdlib
+import Array
+
+import GenPdfValue
+import PdfValue
 import ResourceDict
 
+import TextEffect
 import TextShowOp
 import TextStateOp
-import TextPosOp
 
 -- TextOp: a text operation
 def TextOp (rd: ResourceDict) = Choose1 {
   -- all text operands are mutually exclusive
   textShowOp = TextShowOp;
   textStateOp = TextStateOp rd;
-  textPosOp = TextPosOp;
+  macroOp = MacroOp;
 }
 
-def MvNextLineWOffset (tx : int) (ty : int) = 
+def MacroOp = Choose1 {
+  mvNextLineStart = KW "T*";
+}
+
+def MvNextLineStart : MacroOp = {|
+  mvNextLineStart = { }
+|}
+
+def MvNextLineWOffset (tx : int) (ty : int) : TextShowOp = SetMatrixOp 
+  0
+  0
+  0
+  0
+  tx
+  ty
+
+def MvNextLineShow (s : string) : [ TextOp ] = [
+  {| macroOp = MvNextLineStart |}
+, {| textShowOp = ShowStringOp s |}
+]
 
 -- TextOpP: a parser for a sequence of text operations
-def TextOpP : [ TextOp ] = (LiftPToArray TextOp) <|
+def TextOpP (rd: ResourceDict) : [ TextOp ] = (LiftPToArray (TextOp rd)) <|
   -- text operations that are basically macros over other
   -- operations. TD operations: (Table 106)
   { @tx = Token Integer;
     @ty = Token Integer;
+    KW "Td"; -- Table 106
+    [ {| textShowOp = MvNextLineWOffset tx ty |} ]
+  } <|
+  { @tx = Token Integer;
+    @ty = Token Integer;
     KW "TD"; -- Table 106
     [ {| textStateOp = SetLeadingOp ty |}
-    , {| textShowOp = MvNextLineOp tx ty |}
+    , {| textShowOp = MvNextLineWOffset tx ty |}
     ]
   } <|
-  { KW "'"; -- Table 107
-    [ {| textPosOp = MvNextLineStart |}
-    , {| textShowOp = ShowStringOp |}
-    ]
+  { @s = Token String;
+    KW "'"; -- Table 107
+    MvNextLineShow s
   } <|
-  { @aw = Token Number;
-    @ac = Token Number;
-    @str = Token String;
+  { @aw = Token Integer;
+    @ac = Token Integer;
+    @s = Token String;
     KW "\""; -- Table 107
-    [ {| textStateOp = SetWordSpaceOp aw |}
-    , {| textStateOp = SetCharSpaceOp ac |}
-    , {| textPosOp = MvNextLineStart |}
-    ]
+    append 
+      [ {| textStateOp = SetWordSpaceOp aw |}
+      , {| textStateOp = SetCharSpaceOp ac |}
+      ]
+      (MvNextLineShow s)
   }
 
 -- TextObj: a text object
-def TextObj (rd: ResourceDict) = Between "BT" "ET" (concat (Many TextOpP))
+def TextObj (rd: ResourceDict) : [ TextOp ] = Between "BT" "ET"
+  (concat (Many (TextOpP rd)))
+
+def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
+  @eff0 = LiftToTextEffect q;
+  for (effAcc = eff0; op in obj) {
+    case (op : TextOp) of {
+      textShowOp showOp -> PutStr effAcc
+        (UpdTextShow showOp effAcc.textState)
+    ; textStateOp stateOp -> TextEffect 
+        (UpdTextState stateOp effAcc.textState)
+        effAcc.output
+--    ; macroOp -> ... TODO
+    }
+  }
+}

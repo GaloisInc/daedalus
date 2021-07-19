@@ -84,12 +84,22 @@ def NodeAddOther k pageTree : PartialPageTreeNode = {
 }
 
 def RefHistory (os: [ Ref ]) (p : Ref) = {
-  others = os;
-  parent = p;
+  histOthers = os;
+  histParent = p;
 }
 
-def SeenParent (par : Ref) (h: RefHistory) = {
-  histOthers = cosn h.parent h.others;
+def ParHistory (p : Ref) : RefHistory = {
+  histOthers = [ ];
+  histParent = p;
+}
+
+def SeenOthers (os: [ Ref ]) (h : RefHistory) : RefHistory = {
+  histOthers = append h.histOthers os;
+  histParent = h.histParent;
+}
+
+def SeenParent (par : Ref) (h: RefHistory) : RefHistory = {
+  histOthers = cons h.histParent h.histOthers;
   histParent = par;
 }
 
@@ -102,8 +112,8 @@ def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
       }
       else if k == "Parent" then {
         pageTree.parent0 is false;
-        seen is just;
-        AddParent seen.histParent pageTree
+        @history = seen is just;
+        AddParent history.histParent pageTree
       }
       else if k == "Kids" then  {
         pageTree.kids0 is nothing;
@@ -121,41 +131,42 @@ def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
     PageTreeNodeRec seen cur pageTree0
   }
 
-def CheckKidsCount kids size = {
-  @kidsCount = for (kidsCountAcc = 0; kid in kids)
-    (kidsCountAcc + (pageNodeKidCount kid));
-  Guard (size == kidsCount)
-}
-
-def ParseKidRefs (resrcs: maybe Pair) seen cur kidRefs = {
-  @res0 = Pair [ ] (cons cur seen);
-  for (accRes = res0; kidRef in kidRefs) { 
-    Guard (!(member kidRef accRes.snd)); -- the check for cycle detection
-    @kidRes = ParseAtRef kidRef (PageNodeKid resrcs accRes.snd cur kidRef);
-    Pair (snoc kidRes.fst accRes.fst) (append kidRes.snd accRes.snd)
-  }
-}
-
 -- PageTreeNode: coerce an partial page-tree node into a page
 -- tree node
-def PageTreeNode seen (cur : Ref) pt0 = {
+def PageTreeNode (seen : maybe RefHistory) (cur : Ref) pt0 = {
   Guard pt0.type0;
   Guard pt0.parent0;
   @kidRefs = pt0.kids0 is just;
 
-  @kidsAndSeen = ParseKidRefs pt0.nodeResources0 seen cur kidRefs;
+  @kidsAndSeen = {
+    @ancSeen = case seen of {
+      just s0 -> SeenParent cur s0
+    ; nothing -> ParHistory cur
+    };
+    @res0 = Pair [ ] [ ];
+    for (accRes = res0; kidRef in kidRefs) { 
+      Guard (!(member kidRef accRes.snd)); -- the check for cycle detection
+      @kidRes = ParseAtRef kidRef
+        (PageNodeKid pt0.nodeResources0 (SeenOthers accRes.snd ancSeen) kidRef);
+      Pair (snoc kidRes.fst accRes.fst) (append kidRes.snd accRes.snd)
+    }
+  };
+
   Pair {
       kids = kidsAndSeen.fst;      
       count = pt0.count0 is just; 
-      CheckKidsCount kids count;
+      @kidsCount = for (kidsCountAcc = 0; kid in kids)
+        (kidsCountAcc + (pageNodeKidCount kid));
+      Guard (count == kidsCount);
+
       others = pt0.others0;
     }
     kidsAndSeen.snd
 }
 
-def PageNodeKid (resrcs : maybe Pair) seen (cur : Ref) (r : Ref) = Choose1 {
-  Pair {| pageKid = Page (Bestow resrcs) cur |} [ ];
-  { @x = PageTreeNodeP (Bestow resrcs) seen cur r;
+def PageNodeKid (resrcs : maybe Pair) (seen : RefHistory) (r : Ref) = Choose1 {
+  Pair {| pageKid = Page (Bestow resrcs) r |} [ ];
+  { @x = PageTreeNodeP (Bestow resrcs) (just seen) r;
     Pair {| treeKid = x.fst |} x.snd
   };
 }
@@ -166,8 +177,11 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
   treeKid k -> k.count;
 }
 
-def PageTreeNodeP resrcs seen (cur: Ref) = Between "<<" ">>" {
-  @initPageTree = PartialPageTreeNode (Inherit resrcs);
-  @ptRec = PageTreeNodeRec seen cur initPageTree;
-  PageTreeNode (SeenParent par seen) cur ptRec
-}
+def PageTreeNodeP resrcs (seen: maybe RefHistory) (cur: Ref) =
+  Between "<<" ">>" {
+    @initPageTree = PartialPageTreeNode (Inherit resrcs);
+    @ptRec = PageTreeNodeRec seen cur initPageTree;
+    PageTreeNode seen cur ptRec
+  }
+
+def PageTreeP cur = (PageTreeNodeP nothing nothing cur).fst
