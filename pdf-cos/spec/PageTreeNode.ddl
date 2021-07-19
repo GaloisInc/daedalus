@@ -83,28 +83,7 @@ def NodeAddOther k pageTree : PartialPageTreeNode = {
   others0 = Extend k (Token Value) pageTree.others0;
 }
 
-def RefHistory (os: [ Ref ]) (p : Ref) = {
-  histOthers = os;
-  histParent = p;
-}
-
-def ParHistory (p : Ref) : RefHistory = {
-  histOthers = [ ];
-  histParent = p;
-}
-
-def SeenOthers (os: [ Ref ]) (h : RefHistory) : RefHistory = {
-  histOthers = append h.histOthers os;
-  histParent = h.histParent;
-}
-
-def SeenParent (par : Ref) (h: RefHistory) : RefHistory = {
-  histOthers = cons h.histParent h.histOthers;
-  histParent = par;
-}
-
-def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
-  Default pageTree 
+def PageTreeNodeRec (par : maybe Ref) (cur : Ref) pageTree = Default pageTree 
   { @k = Token Name;
     @pageTree0 = if k == "Type" then {
         pageTree.type0 is false;
@@ -112,8 +91,8 @@ def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
       }
       else if k == "Parent" then {
         pageTree.parent0 is false;
-        @history = seen is just;
-        AddParent history.histParent pageTree
+        @p = par is just;
+        AddParent p pageTree
       }
       else if k == "Kids" then  {
         pageTree.kids0 is nothing;
@@ -128,48 +107,8 @@ def PageTreeNodeRec (seen : maybe RefHistory) (cur : Ref) pageTree =
         NodeAddResources pageTree
       }
       else NodeAddOther k pageTree;
-    PageTreeNodeRec seen cur pageTree0
+    PageTreeNodeRec par cur pageTree0
   }
-
--- PageTreeNode: coerce an partial page-tree node into a page
--- tree node
-def PageTreeNode (seen : maybe RefHistory) (cur : Ref) pt0 = {
-  Guard pt0.type0;
-  Guard pt0.parent0;
-  @kidRefs = pt0.kids0 is just;
-
-  @kidsAndSeen = {
-    @ancSeen = case seen of {
-      just s0 -> SeenParent cur s0
-    ; nothing -> ParHistory cur
-    };
-    @res0 = Pair [ ] [ ];
-    for (accRes = res0; kidRef in kidRefs) { 
-      Guard (!(member kidRef accRes.snd)); -- the check for cycle detection
-      @kidRes = ParseAtRef kidRef
-        (PageNodeKid pt0.nodeResources0 (SeenOthers accRes.snd ancSeen) kidRef);
-      Pair (snoc kidRes.fst accRes.fst) (append kidRes.snd accRes.snd)
-    }
-  };
-
-  Pair {
-      kids = kidsAndSeen.fst;      
-      count = pt0.count0 is just; 
-      @kidsCount = for (kidsCountAcc = 0; kid in kids)
-        (kidsCountAcc + (pageNodeKidCount kid));
-      Guard (count == kidsCount);
-
-      others = pt0.others0;
-    }
-    (cons cur kidsAndSeen.snd)
-}
-
-def PageNodeKid (resrcs : maybe Pair) (seen : RefHistory) (r : Ref) = Choose1 {
-  Pair {| pageKid = Page (Bestow resrcs) r |} [ ];
-  { @x = PageTreeNodeP (Bestow resrcs) (just seen) r;
-    Pair {| treeKid = x.fst |} x.snd
-  };
-}
 
 -- pageNodeKidCount k: number of pages under kid k
 def pageNodeKidCount (k : PageNodeKid) = case k of {
@@ -177,11 +116,34 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
   treeKid k -> k.count;
 }
 
-def PageTreeNodeP resrcs (seen: maybe RefHistory) (cur: Ref) =
-  Between "<<" ">>" {
-    @initPageTree = PartialPageTreeNode (Inherit resrcs);
-    @ptRec = PageTreeNodeRec seen cur initPageTree;
-    PageTreeNode seen cur ptRec
-  }
+def PageNodeKid (resrcs : maybe Pair) (par : Ref) (r : Ref) = Choose1 {
+  pageKid = Page (Bestow resrcs) r;
+  treeKid = PageTreeNodeP (Bestow resrcs) (just par) r;
+}
 
-def PageTreeP cur = (PageTreeNodeP nothing nothing cur).fst
+-- PageTreeNode: coerce an partial page-tree node into a page
+-- tree node
+def PageTreeNode (par : maybe Ref) (cur : Ref) pt0 = {
+  Guard pt0.type0;
+  Guard pt0.parent0;
+
+  kids = {
+    @kidRefs = pt0.kids0 is just;
+    map (kidRef in kidRefs) (PageNodeKid pt0.nodeResources0 cur kidRef)
+  };
+
+  count = {
+    @kidsCount = for (kidsCountAcc = 0; kid in kids)
+      (kidsCountAcc + (pageNodeKidCount kid));
+    $$ = pt0.count0 is just;
+    Guard ($$ == kidsCount)
+  };
+
+  others = pt0.others0;
+}
+
+def PageTreeNodeP resrcs (par: maybe Ref) (cur: Ref) =
+  Between "<<" ">>" (PageTreeNode par cur
+    (PageTreeNodeRec par cur (PartialPageTreeNode (Inherit resrcs))) )
+
+def PageTreeP cur = PageTreeNodeP nothing nothing cur
