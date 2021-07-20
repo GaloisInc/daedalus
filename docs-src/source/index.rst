@@ -51,8 +51,8 @@ This resembles a C type declaration as follows:
   <type C> ParserName(<type A>, <type B>, ...); 
 
 The types themselves may be simple types such as integers or arrays, but they
-often have the form `parser of <type A>`. This indicates that the parameter or
-result is a parser, that itself generates semantic values of type `A`. 
+often have the form ``parser of <type A>``. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type ``A``. 
 
 Run the Interpreter
 -------------------
@@ -555,46 +555,46 @@ type ``BorG``.
 Repetition
 ----------
 
-The `Many` construct allows the same parser to be run multiple times in sequence
-on an incoming data stream, and it returns an array containing the resulting
-semantic values.  
+The ``Many`` construct allows the same parser to be run multiple times
+in sequence on an incoming data stream, and it returns an array containing
+the resulting semantic values.
 
-.. code-block:: DaeDalus 
+.. code-block:: DaeDalus
 
   block 
     $$ = Many (Match1 '7')
     Match1 '0' 
     END 
 
-This code will successfully parse any stream consisting of multiple `7`
-characters, terminated by the `0` character at the end of the stream. For
-example, the stream '7770' will return the array `['7', '7', '7']`. 
+This code will successfully parse any stream consisting of multiple ``7``
+characters, terminated by the ``0`` character at the end of the stream. For
+example, the stream ``"7770"`` will return the array ``['7', '7', '7']``. 
 
-The `Many` construct optionally takes either a `uint 64` value or an interval
-bounded by two `uint 64` values: 
+The ``Many`` construct optionally takes either a ``uint 64`` value or an
+interval bounded by two ``uint 64`` values: 
 
-* `Many n P` succeeds if it executes parser `P` exactly `n` times. 
+* ``Many n P`` succeeds if it executes parser ``P`` exactly ``n`` times.
 
-* `Many (i..j) P` succeeds if it executes parser `P` at least `i` and at most
-  `j` times. 
+* ``Many (i..j) P`` succeeds if it executes parser ``P`` at least ``i`` and
+  at most ``j`` times. 
 
-* `Many` also supports lower-bounded intervals `Many (i..) P`, and likewise upper-bounded 
-  intervals `Many (..j) P`. 
+* ``Many`` also supports lower-bounded intervals ``Many (i..) P``, and
+  likewise upper-bounded intervals ``Many (..j) P``.
 
-To avoid spurious backtracking, Many will parse any input maximally. This can
-have counter-intuitive consequences! For example, the following code will never
-succeed: 
+To avoid spurious backtracking, ``Many`` will parse any input maximally.
+This can have counter-intuitive consequences! For example, the following
+code will never succeed: 
 
 .. code-block:: Daedalus 
 
-  block 
+  block
     Many (Match1 '7')
     Match1 '7' 
 
-The call to `Many` will consume all the input characters matching `7`, meaning
-that the following `Match1` will always fail. This may be difficult to spot 
-in situations where two more complex parsers are run in sequence, the first of 
-which contains an unbounded call to Many.
+The call to ``Many`` will consume all the input characters matching ``7``,
+meaning that the following ``Match1`` will always fail. This may be difficult
+to spot in situations where two more complex parsers are run in sequence,
+the first of which contains an unbounded call to ``Many``.
 
 
 Control Structures 
@@ -693,9 +693,9 @@ union types (see `Tagged Unions`_)
 Case
 ----
 
-The `case` construct provides an alternative method for examining semantic
+The ``case`` construct provides an alternative method for examining semantic
 values. The body of a case expression consists of a list of matches with the
-syntax `pattern -> result`. For example, the following expression has the same
+syntax ``pattern -> result``. For example, the following expression has the same
 functionality as the previous example, but avoids the need for backtracking. 
 
 .. code-block:: DaeDaLus 
@@ -709,7 +709,7 @@ functionality as the previous example, but avoids the need for backtracking.
       bad  -> ^ "Failure!"
 
 A case expression can extract the value from a tagged union. In this case, the 
-match should have the form `pattern var -> result`. 
+match should have the form ``pattern var -> result``.
 
 .. code-block:: DaeDalus 
 
@@ -723,9 +723,9 @@ match should have the form `pattern var -> result`.
       letter l -> ^ (l - 'a')
       _        -> Fail "Something went wrong" 
 
-Here the special pattern `_ -> result` serves as a default, which matches
-against any value. Similarly, a pattern of the form `pattern _ -> result`
-indicates that the value will not be used in the result. 
+Here the special pattern ``_ -> result`` serves as a default, which matches
+against any value. Similarly, a pattern of the form ``pattern _ -> result``
+indicates that the value will not be used in the result.
 
 In a parser expression, case need not be total (i.e. cover all possible
 patterns) as any omitted matches will implicitly result in failure and
@@ -920,9 +920,9 @@ Coercions
 ---------
 
 Coercions provide a way to change a semantic value into the corresponding value
-of a different type. The general form is `e as T`, which converts the value of
-expression `e` into type `T`. For example, the following code will parse a byte
-and pad the resulting value out to a 32-bit unsigned integer. 
+of a different type. The general form is ``e as T``, which converts the value of
+expression ``e`` into type ``T``. For example, the following code will parse
+a byte and pad the resulting value out to a 32-bit unsigned integer. 
 
 .. code-block:: DaeDaLus
 
@@ -930,22 +930,23 @@ and pad the resulting value out to a 32-bit unsigned integer.
     let i = UInt8 
     ^ i as uint 32
 
-The base form `e as T` statically checks that the resulting type has enough bits
-to losslessly represent the original value. There are two other forms, `as!` and
-`as?` that can be used when this does not hold true statically: 
+The base form ``e as T`` statically checks that the resulting type has
+enough bits to losslessly represent the original value. There are two other
+forms, ``as!`` and ``as?`` that can be used when this does not hold true
+statically:
 
-* `e as! T` is guaranteed to succeed, but may lose information. In the case that
-  the original value fits into the target type, the behaviour coincides with the
-  lossless version of `as`. Otherwise, behaviour is implementation dependent, but
-  will attempt to do something reasonable. 
+* ``e as! T`` is guaranteed to succeed, but may lose information.
+  In the case that the original value fits into the target type, the behaviour
+  coincides with the lossless version of ``as``. Otherwise, behaviour is
+  implementation dependent, but will attempt to do something reasonable.
 
-* `e as? T` performs a run-time check that the coercion will not lose
+* ``e as? T`` performs a run-time check that the coercion will not lose
   information. If this holds, behaviour is identical to the lossless version of
-  `as`. Otherwise, the coercion fails and backtracks. 
+  ``as``. Otherwise, the coercion fails and backtracks. 
 
-Note that `e as T` and `e as T` are values, and `e as? T` is a parser. This is
-because `e as? T` can fail and backtrack, which is only meaningful in parser
-expressions. 
+Note that ``e as T`` and ``e as T`` are values, and ``e as? T`` is a parser.
+This is because ``e as? T`` can fail and backtrack, which is only meaningful
+in parser expressions.
 
 
 Semantic Values
@@ -1140,8 +1141,8 @@ External Declarations
 Bitdata
 =======
 
-The `bitdata` construct provides a convenient way to break bytes into groups of
-bits, which are then combined into a tagged union. 
+The ``bitdata`` construct provides a convenient way to break bytes into
+groups of bits, which are then combined into a tagged union. 
 
 .. code-block:: DaeDaLus
 
