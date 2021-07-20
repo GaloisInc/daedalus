@@ -56,7 +56,7 @@ def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
 -- ParseAtRef P r: parse the input at r, using P
 def ParseAtRef r P = {
-  @s = InputAtRef r;
+  @s = (InputAtRef r) is just;
   WithStream s (GenObj P)
 }
 
@@ -65,28 +65,4 @@ def ParseAtRef r P = {
 def DirectOrRef P = P <| {
   @r = Ref;
   ParseAtRef r P
-}
-
--- library for inherited values
-def CheckNoLocalDefn (x : maybe Pair) = case x of {
-  just rs -> Guard (!rs.fst);
-  nothing -> ^{};
-}
-
-def Bestow (x : maybe Pair) = case x of {
-  just x -> just x.snd;
-  nothing -> nothing;
-}
-
-def Inherit x : maybe Pair = case x of {
-  just y -> just {
-    fst = false;
-    snd = y;
-  };
-  nothing -> nothing;
-}
-
-def LocalDefn P : maybe Pair = just {
-  fst = true;
-  snd = P;
 }

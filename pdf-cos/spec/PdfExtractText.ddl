@@ -10,6 +10,9 @@ import Unicode
 import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
 
+-- TODO: indirect deps
+import Page
+
 -- entry point for text extraction
 def ExtractRootUTF8Bytes r = {
   @utf8s = ExtractRootText r;

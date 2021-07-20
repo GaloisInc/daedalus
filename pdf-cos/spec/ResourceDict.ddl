@@ -184,10 +184,10 @@ def ResourceDictRec dict = Default dict {
       AddProperties dict
     }
     else AddOther k dict;
-    ResourceDictRec dict0
-  }
+  ResourceDictRec dict0
+}
 
-def CoerceResourceDict d = {
+def ResourceDict d = {
   extGState = defaultEmpty d.extGState0;
   colorSpace = defaultEmpty d.colorSpace0;
   pattern = defaultEmpty d.pattern0;
@@ -204,5 +204,5 @@ def CoerceResourceDict d = {
 def ResourceDictP = Between "<<" ">>" {
   @initDict = ResourceDict0;
   @partialRes = ResourceDictRec initDict;
-  CoerceResourceDict partialRes
+  ResourceDict partialRes
 }

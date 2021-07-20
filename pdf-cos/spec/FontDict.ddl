@@ -2,6 +2,10 @@ import Stdlib
 
 import Type1Font
 
+-- TODO: indirect deps
+import PdfValue
+import CMap
+
 -- TODO: replace with property defns
 def Type0Font = Void
 

@@ -74,8 +74,11 @@ def ResolveRef (r : Ref) : maybe TopDecl
 -- WrapGetStream: local wrapper to GetStream, used for primitive
 def WrapGetStream = GetStream
 
+def ParamWrapGetStream (oid : Nat) (gen : Nat) (idx : uint 64) : stream = 
+  GetStream
+
 -- InputStream r: the input stream at reference r
-def InputAtRef (r : Ref) : stream -- = Void
+def InputAtRef (r : Ref) : maybe stream -- = Void
 -- TODO: implement as a new primitive
 
 def CheckExpected (r : ref) (d : TopDecl) = {

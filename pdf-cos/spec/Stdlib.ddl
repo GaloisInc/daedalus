@@ -118,9 +118,3 @@ def JustWhite             = $simpleWS | EOL
 
 def AnyWS                 = $simpleWS | Comment | EOL
 
---------------------------------------------------------------------------------
--- Helpers
-
-def Token P               = { $$ = P; Many AnyWS }
-def KW x                  = @ (Token (Match x))
-def Between open close P  = { KW open; $$ = P; KW close }

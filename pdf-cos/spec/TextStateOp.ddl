@@ -5,6 +5,9 @@ import PdfValue
 import GenPdfValue
 import TextEffect
 
+-- TODO: requires indirect import
+import FontDict
+
 -- Text state operators (Table 103)
 def TextStateOp resrcs = Choose1 { -- operations are mutually exclusive
   setCharSpace = {

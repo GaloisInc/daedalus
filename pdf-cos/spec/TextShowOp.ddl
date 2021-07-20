@@ -5,6 +5,9 @@ import PdfValue
 import GenPdfValue
 import TextEffect
 
+-- TODO: non-immediate dep
+import Unicode
+
 def TJOper = Choose {
   shownString = String;
   adjustNum = Number;

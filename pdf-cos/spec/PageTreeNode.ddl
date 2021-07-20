@@ -10,78 +10,79 @@ import PdfValue
 import ResourceDict
 import Page
 
-def PartialPageTreeNode (resrcs : maybe Pair) = {
-  type0 = false;
-  parent0 = false;
-  kids0 = nothing;
-  count0 = nothing;
-  nodeResources0 = resrcs;
-  others0 = empty;
+-- TODO: indirect deps
+import FontDict
+import Type1Font
+import CMap
+import Unicode
+import ContentStreamLight
+
+def PartialPageTreeNode (t: bool) (p: bool)
+  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe ResourceDict)
+  os = {
+  type0 = t;
+  parent0 = p;
+  kids0 = k;
+  count0 = c;
+  nodeResources0 = rs;
+  others0 = os;
 }
 
-def AddType pageTree : PartialPageTreeNode = {
-  type0 = Holds (NameToken "Pages");
+def InitPageTreeNode = PartialPageTreeNode
+  false
+  false
+  nothing
+  nothing
+  nothing
+  empty
 
-  parent0 = pageTree.parent0;
-  kids0 = pageTree.kids0;
-  count0 = pageTree.count0;
-  nodeResources0 = pageTree.nodeResources0;
-  others0 = pageTree.others0;
-}
+def AddType pageTree = PartialPageTreeNode
+  (Holds (NameToken "Pages"))
+  pageTree.parent0
+  pageTree.kids0
+  pageTree.count0
+  pageTree.nodeResources0
+  pageTree.others0
 
-def AddParent (par: Ref) pageTree : PartialPageTreeNode = {
-  type0 = pageTree.type0;
+def AddParent (par: Ref) pageTree = PartialPageTreeNode 
+  pageTree.type0
+  (Holds (Guard (Token Ref == par)))
+  pageTree.kids0
+  pageTree.count0
+  pageTree.nodeResources0
+  pageTree.others0
 
-  parent0 = Holds (Guard (Token Ref == par));
+def AddKids pageTree = PartialPageTreeNode
+  pageTree.type0
+  pageTree.parent0
+  (just (GenArray Ref))
+  pageTree.count0
+  pageTree.nodeResources0
+  pageTree.others0
 
-  kids0 = pageTree.kids0;
-  count0 = pageTree.count0;
-  nodeResources0 = pageTree.nodeResources0;
-  others0 = pageTree.others0;
-}
+def AddCount pageTree = PartialPageTreeNode 
+  pageTree.type0
+  pageTree.parent0
+  pageTree.kids0
+  (just (DirectOrRef Natural))
+  pageTree.nodeResources0
+  pageTree.others0
 
-def AddKids pageTree : PartialPageTreeNode = {
-  type0 = pageTree.type0;
-  parent0 = pageTree.parent0;
+def NodeAddResources pageTree = PartialPageTreeNode
+  pageTree.type0
+  pageTree.parent0
+  pageTree.kids0
+  pageTree.count0
+  (just (DirectOrRef ResourceDictP))
+  pageTree.others0
 
-  kids0 = just (GenArray Ref);
-
-  count0 = pageTree.count0;
-  nodeResources0 = pageTree.nodeResources0;
-  others0 = pageTree.others0;
-}
-
-def AddCount pageTree : PartialPageTreeNode = {
-  type0 = pageTree.type0;
-  parent0 = pageTree.parent0;
-  kids0 = pageTree.kids0;
-
-  count0 = just (DirectOrRef Natural);
-
-  nodeResources0 = pageTree.nodeResources0;
-  others0 = pageTree.others0;
-}
-
-def NodeAddResources pageTree : PartialPageTreeNode = {
-  type0 = pageTree.type0;
-  parent0 = pageTree.parent0;
-  kids0 = pageTree.kids0;
-  count0 = pageTree.count0;
-
-  nodeResources0 = LocalDefn (DirectOrRef ResourceDictP);
-
-  others0 = pageTree.others0;
-}
-
-def NodeAddOther k pageTree : PartialPageTreeNode = {
-  type0 = pageTree.type0;
-  parent0 = pageTree.parent0;
-  kids0 = pageTree.kids0;
-  count0 = pageTree.count0;
-  nodeResources0 = pageTree.nodeResources0;
-
-  others0 = Extend k (Token Value) pageTree.others0;
-}
+def NodeAddOther k pageTree = PartialPageTreeNode 
+  pageTree.type0
+  pageTree.parent0
+  pageTree.kids0
+  pageTree.count0
+  pageTree.nodeResources0
+  (Extend k (Token Value) pageTree.others0)
 
 def PageTreeNodeRec (par : maybe Ref) (cur : Ref) pageTree = Default pageTree 
   { @k = Token Name;
@@ -103,7 +104,7 @@ def PageTreeNodeRec (par : maybe Ref) (cur : Ref) pageTree = Default pageTree
         AddCount pageTree
       }
       else if k == "Resources" then {
-        CheckNoLocalDefn pageTree.nodeResources0;
+        pageTree.nodeResources0 is nothing;
         NodeAddResources pageTree
       }
       else NodeAddOther k pageTree;
@@ -116,20 +117,24 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
   treeKid k -> k.count;
 }
 
-def PageNodeKid (resrcs : maybe Pair) (par : Ref) (r : Ref) = Choose1 {
-  pageKid = Page (Bestow resrcs) r;
-  treeKid = PageTreeNodeP (Bestow resrcs) (just par) r;
+def PageNodeKid resrcs (par : Ref) (r : Ref) = Choose1 {
+  pageKid = PageP resrcs r;
+  treeKid = PageTreeNodeP resrcs (just par) r;
 }
 
 -- PageTreeNode: coerce an partial page-tree node into a page
 -- tree node
-def PageTreeNode (par : maybe Ref) (cur : Ref) pt0 = {
+def PageTreeNode ancRs (par : maybe Ref) (cur : Ref) pt0 = {
   Guard pt0.type0;
   Guard pt0.parent0;
 
   kids = {
     @kidRefs = pt0.kids0 is just;
-    map (kidRef in kidRefs) (PageNodeKid pt0.nodeResources0 cur kidRef)
+    @rs = case pt0.nodeResources0 of {
+      just _ -> pt0.nodeResources0
+    ; nothing -> ancRs
+    };
+    map (kidRef in kidRefs) (PageNodeKid rs cur kidRef)
   };
 
   count = {
@@ -142,8 +147,8 @@ def PageTreeNode (par : maybe Ref) (cur : Ref) pt0 = {
   others = pt0.others0;
 }
 
-def PageTreeNodeP resrcs (par: maybe Ref) (cur: Ref) =
-  Between "<<" ">>" (PageTreeNode par cur
-    (PageTreeNodeRec par cur (PartialPageTreeNode (Inherit resrcs))) )
+def PageTreeNodeP ancRs (par: maybe Ref) (cur: Ref) =
+  Between "<<" ">>" (PageTreeNode ancRs par cur
+    (PageTreeNodeRec par cur InitPageTreeNode))
 
 def PageTreeP cur = PageTreeNodeP nothing nothing cur

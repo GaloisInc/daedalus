@@ -24,7 +24,7 @@ def Type1Font0 = {
 }
 
 -- AddType: note that the required Type field has been seen
-def AddType f : Type1Font0 = {
+def Type1AddType f : Type1Font0 = {
   type0 = Holds (DirectOrRef (GenName "Font"));
 
   subtype0 = ^f.subtype0;
@@ -200,7 +200,7 @@ def AddToUnicode f : Type1Font0 = {
 
 
 -- AddToUnicode: add a to-unicode map
-def AddOther k f : Type1Font0 = {
+def Type1AddOther k f : Type1Font0 = {
   type0 = ^f.type0;
   subtype0 = ^f.subtype0;
   name0 = ^f.name0;
@@ -254,7 +254,7 @@ def Type1FontRec font = Default font {
   @k = Token Name;
   @font0 = if k == "Type" then {
       font.type0 is false;
-      AddType font
+      Type1AddType font
     }
     else if k == "Subtype" then {
       font.subtype0 is false;
@@ -292,7 +292,7 @@ def Type1FontRec font = Default font {
       font.toUnicode0 is nothing;
       AddToUnicode font
     }
-    else AddOther k font;
+    else Type1AddOther k font;
   Type1FontRec font0
 }
 

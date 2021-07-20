@@ -9,16 +9,20 @@ import TextEffect
 import TextShowOp
 import TextStateOp
 
+-- TODO: non-immediate dep
+import FontDict
+import Unicode
+
+def MacroOp = Choose1 {
+  mvNextLineStart = KW "T*";
+}
+
 -- TextOp: a text operation
 def TextOp (rd: ResourceDict) = Choose1 {
   -- all text operands are mutually exclusive
   textShowOp = TextShowOp;
   textStateOp = TextStateOp rd;
   macroOp = MacroOp;
-}
-
-def MacroOp = Choose1 {
-  mvNextLineStart = KW "T*";
 }
 
 def MvNextLineStart : MacroOp = {|

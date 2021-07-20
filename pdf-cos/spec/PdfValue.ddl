@@ -118,6 +118,12 @@ def NameEsc  = {
 }
 
 
+--------------------------------------------------------------------------------
+-- Helpers
+
+def Token P               = { $$ = P; Many AnyWS }
+def KW x                  = @ (Token (Match x))
+def Between open close P  = { KW open; $$ = P; KW close }
 
 --------------------------------------------------------------------------------
 -- Array Objectcs (Section 7.3.6)

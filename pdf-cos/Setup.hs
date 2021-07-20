@@ -28,7 +28,7 @@ compileDDL =
   do ddlSetOpt optSearchPath ["spec"]
      let mods = [ "PdfXRef"
                 , "PdfCrypto"
-                , "GenPdfValue"
+                , "PdfValue"
 
                 -- library-like, just in case no-one imports:
                 , "Array"
@@ -108,9 +108,9 @@ cfgPdfDecl = CompilerCfg
       , primName "PdfDecl" "Decrypt" AGrammar |-> 
         aps "D.decrypt" [ "body" ]
 
-      , primName "GenPdfValue" "InputAtRef" AGrammar |-> -- get a stream:
-        aps "D.resolveImpl" [ "GenPdfValue.pWrapGetStream"
-                            , "PdfDecl.pResolveObjectStreamEntry"
+      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
+        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
+                            , "PdfDecl.pParamWrapGetStream"
                             , fld "obj" "r"
                             , fld "gen" "r"
                             ]
