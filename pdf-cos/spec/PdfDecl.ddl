@@ -1,5 +1,6 @@
 import Stdlib
 import PdfValue
+import GenPdfValue
 import JpegBasics
 
 def TopDecl = {
@@ -71,9 +72,23 @@ def SkipBytes n = Chunk n {}
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
+-- ParseAtRef P r: parse the input at r, using P
+def ParseAtRef r P = {
+  @s = (InputAtRef r) is just;
+  WithStream s (GenObj P)
+}
+
+-- DirectOrRef P: parse either the current input or parse a ref and
+-- parse the input that it references.
+def DirectOrRef P = P <| {
+  @r = Ref;
+  ParseAtRef r P
+}
+
 -- WrapGetStream: local wrapper to GetStream, used for primitive
 def WrapGetStream = GetStream
 
+-- ParamWrapGetStream: used to implement InputAtRef primitive
 def ParamWrapGetStream (oid : Nat) (gen : Nat) (idx : uint 64) : stream = 
   GetStream
 

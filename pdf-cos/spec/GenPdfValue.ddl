@@ -4,7 +4,6 @@ import Pair
 import Map
 
 import PdfValue
-import PdfDecl
 
 def Integer : int = {
   @sign = Sign;
@@ -54,15 +53,3 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
--- ParseAtRef P r: parse the input at r, using P
-def ParseAtRef r P = {
-  @s = (InputAtRef r) is just;
-  WithStream s (GenObj P)
-}
-
--- DirectOrRef P: parse either the current input or parse a ref and
--- parse the input that it references.
-def DirectOrRef P = P <| {
-  @r = Ref;
-  ParseAtRef r P
-}

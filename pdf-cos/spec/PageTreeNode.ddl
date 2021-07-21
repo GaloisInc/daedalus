@@ -6,6 +6,7 @@ import Array
 import Map
 
 import GenPdfValue
+import PdfDecl
 import PdfValue
 import ResourceDict
 import Page

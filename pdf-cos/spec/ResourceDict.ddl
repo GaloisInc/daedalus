@@ -2,6 +2,7 @@ import Stdlib
 import Array
 import Map
 
+import PdfDecl
 import PdfValue
 import GenPdfValue
 import FontDict
