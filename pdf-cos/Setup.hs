@@ -1,6 +1,10 @@
 {-# Language OverloadedStrings #-}
 {-# Language BlockArguments #-}
 
+import System.Directory
+import System.IO
+import System.Posix.Temp(mkstemps)
+
 import Distribution.Simple
 import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
@@ -55,13 +59,17 @@ compileDDL =
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $
-       mapM putStrLn $ [ "generating .hs for these .ddl modules:"]
+       mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
+                       , "  (effciently: no updates when file contents would be equal)"
+                       ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
                        ++ [""]
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg
-     mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
+         saveHS' = saveHSCustomWriteFile smartWriteFile
+                   -- more efficient replacement for 'saveHS'
+     mapM_ (\m -> saveHS' (Just "src") (cfgFor m) m) todo
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if
@@ -71,6 +79,24 @@ compileDDL =
            ]
 
 
+-- equivalent to writeFile except that file access dates untouched when file-data unchanged.
+smartWriteFile :: FilePath -> String -> IO ()
+smartWriteFile outFile s =
+  do
+  exists <- doesFileExist outFile
+  if not exists then
+    writeFile outFile s
+  else
+    do
+    hOutfile <- openFile outFile ReadMode
+    s' <- hGetContents hOutfile
+    if s' == s then hClose hOutfile
+               else do
+                    (tmpFile,hTmpFile) <- mkstemps "swf" "temp"
+                    hPutStr hTmpFile s
+                    hClose hTmpFile
+                    hClose hOutfile
+                    renameFile tmpFile outFile
 
 cfg :: CompilerCfg
 cfg = CompilerCfg

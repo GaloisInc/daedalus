@@ -45,7 +45,7 @@ extra-source-files:
   spec/Unicode.ddl
 
 custom-setup
-  setup-depends: base, containers, daedalus, text, filepath, Cabal
+  setup-depends: base, containers, daedalus, directory, text, unix, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
