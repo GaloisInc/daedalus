@@ -328,3 +328,10 @@ def Main = {
   @testFontTy = {| simpleFont = ^{} |};
   ToUnicodeCMap testFontTy
 }
+
+
+def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
+def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
+
+
+
