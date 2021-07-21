@@ -60,7 +60,7 @@ compileDDL =
      todo <- ddlBasisMany mods
      ddlIO $
        mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
-                       , "  (effciently: no updates when file contents would be equal)"
+                       , "  (efficiently: no updates when file contents would be equal)"
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
                        ++ [""]
