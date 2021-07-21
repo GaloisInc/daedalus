@@ -86,7 +86,12 @@ def InterpTextObj (obj: [ CTextOp ]) (q : TextState) : TextEffect = {
     ; textStateOp stateOp -> TextEffect 
         (UpdTextState stateOp effAcc.textState)
         effAcc.output
---    ; macroOp -> ... TODO
+--    ; macroOp -> ... TODO: refactor this to a position op
     }
   }
 }
+
+-- TODO: refactor position ops to be separate from showing ops
+
+-- TODO: rework to require fonts to be defined for showing ops, put
+-- them in closure for sequences of showing ops.
