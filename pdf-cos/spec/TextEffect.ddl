@@ -120,6 +120,10 @@ def UTF81Code = {
   UnicodeByte
 }
 
+-- See 9.10.2 in the spec, not 100% sure that doing step 1 ("if the font
+-- dictinoary contains a ToUnicode CMap ...") really works for a Type0 font.  We
+-- can revisit once we get into the details of Type0/Composite fonts.
+
 def ExtractString (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
   @szFont = q.sizedFont is just;
     -- assume that there is no "default font" if not set by "Tf"
