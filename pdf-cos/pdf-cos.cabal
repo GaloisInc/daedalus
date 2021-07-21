@@ -14,8 +14,10 @@ copyright:           2021, Galois Inc
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
+  spec/Array.ddl,
   spec/CMap.ddl,
   spec/ContentStreamLight.ddl,
+  spec/FontDict.ddl,
   spec/GenPdfValue.ddl,
   spec/ISOCodes.ddl,
   spec/JpegBasics.ddl,
@@ -68,8 +70,10 @@ library
     PdfParser,
     
     -- copying the 'autogen-modules':
+    Array,
     CMap,
     ContentStreamLight,
+    FontDict,
     GenPdfValue,
     ISOCodes,
     JpegBasics,
@@ -95,8 +99,10 @@ library
     Unicode
 
   autogen-modules:
+    Array,
     CMap,
     ContentStreamLight,
+    FontDict,
     GenPdfValue,
     ISOCodes,
     JpegBasics,
