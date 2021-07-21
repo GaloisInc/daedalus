@@ -17,8 +17,9 @@ module Daedalus.Driver
 
   , normalizedDecls
 
-    -- * Compiling to Hasekell from TC
+    -- * Compiling to Haskell from TC
   , saveHS
+  , saveHSCustomWriteFile
   , CompilerCfg(..)
   , UseQual(..)
 
@@ -790,7 +791,17 @@ saveHS ::
   CompilerCfg ->
   ModuleName ->
   Daedalus ()
-saveHS mb cfg m =
+saveHS = saveHSCustomWriteFile writeFile
+
+
+-- | Save Haskell for the given module.: parameterized over writeFile
+saveHSCustomWriteFile ::
+  (FilePath -> String -> IO ()) ->
+  Maybe FilePath {- ^ Directory to save things in. -} ->
+  CompilerCfg ->
+  ModuleName ->
+  Daedalus ()
+saveHSCustomWriteFile writeFile' mb cfg m =
   do ast <- ddlGetAST m astTC
      let hs = HS.hsModule cfg ast
      case mb of
@@ -799,6 +810,6 @@ saveHS mb cfg m =
          ddlIO
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
-            writeFile file (show (pp hs))
+            writeFile' file (show (pp hs))
 
 

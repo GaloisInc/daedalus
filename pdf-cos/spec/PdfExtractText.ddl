@@ -1,12 +1,17 @@
 import Stdlib
+
+import GenPdfValue
 import PdfValue
 import PdfDecl
 import PdfXRef
 
+import PageTreeNode
 import Unicode
-
 import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
+
+-- TODO: indirect deps
+import Page
 
 -- entry point for text extraction
 def ExtractRootUTF8Bytes r = {
@@ -77,6 +82,28 @@ def ExtractContentsText d = Default [ ] {
 }
 
 --------------------------------------------------------------------------------
+
+def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
+  @kidsCStreams = map (k in kids) (case (k : PageNodeKid) of {
+    pageKid pk -> [ pk.contents ];
+    treeKid tk -> PageNodeContentStreams tk;
+  });
+  concat kidsCStreams
+}
+
+def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamOp ] ] =
+  KidsContentStreams pt.kids
+
+def PageTreeContentStreams pt = KidsContentStreams pt.kids
+
+def ExtractRootText1 (r : Ref) = {
+  @pageTree = PageTreeP r;
+  @ptCs = PageTreeContentStreams pageTree;
+  @pageTexts = map (cs in ptCs) (ExtractContentStreamText cs);
+  concat pageTexts
+}
+
+--------------------------------------------------------------------------------
 -- Catalogue objects
 
 -- The JS stuff will be take care of by the global safety check as
@@ -87,25 +114,5 @@ def ExtractCatalogText r = {
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;
-  ExtractRootText pages;
-}
-
---------------------------------------------------------------------------------
--- Checked
-
-def CheckDecl expectId expectGen (decl : TopDecl) = {
-  Guard (decl.id == expectId);
-  Guard (decl.gen == expectGen);
-  obj    = ^ decl.obj;
-}
-
-def TopDeclCheck expectId expectGen = {
-  @decl = TopDecl;
-  CheckDecl expectId expectGen decl;
-}
-
-def ResolveObjectStreamEntryCheck
-      expectId expectGen (oid : Nat) (gen : Nat) (idx : Nat) = {
-  @decl = ResolveObjectStreamEntry oid gen idx;
-  CheckDecl expectId expectGen decl;
+  ExtractRootUTF8Bytes pages;
 }

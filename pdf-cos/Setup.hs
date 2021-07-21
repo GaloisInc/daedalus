@@ -1,11 +1,16 @@
 {-# Language OverloadedStrings #-}
 {-# Language BlockArguments #-}
 
+import System.Directory
+import System.IO
+import System.Posix.Temp(mkstemps)
+
 import Distribution.Simple
 import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
+import qualified Data.Text
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -25,22 +30,73 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfXRef", "PdfCrypto" ]
+     let mods = [ "PdfXRef"
+                , "PdfCrypto"
+                , "PdfValue"
+
+                -- library-like, just in case no-one imports:
+                , "Array"
+                , "Map"
+                , "Pair"
+                , "Stdlib"
+                , "Sum"
+
+                , "CMap"
+                , "FontDict"
+                , "GenPdfValue"
+                , "JpegBasics"
+                , "Page"
+                , "PageTreeNode"
+                , "ResourceDict"
+                , "Type1Font"
+
+                -- added for text extraction
+                , "ContentStreamLight"
+                , "PdfExtractText"
+                , "PdfText"
+                , "Unicode"
+                ]
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
+     ddlIO $
+       mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
+                       , "  (efficiently: no updates when file contents would be equal)"
+                       ]
+                       ++ map (("  " ++) . Data.Text.unpack) todo
+                       ++ [""]
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg
-     mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
+         saveHS' = saveHSCustomWriteFile smartWriteFile
+                   -- more efficient replacement for 'saveHS'
+     mapM_ (\m -> saveHS' (Just "src") (cfgFor m) m) todo
 
   where
-  -- XXX: This shoudl list all parsers we need, and it'd be used if
+  -- XXX: This should list all parsers we need, and it'd be used if
   -- we specialized things
   _roots :: [(ModuleName,Ident)]
   _roots = [ ("PdfXRef", "CrossRef")
            ]
 
 
+-- equivalent to writeFile except that file access dates untouched when file-data unchanged.
+smartWriteFile :: FilePath -> String -> IO ()
+smartWriteFile outFile s =
+  do
+  exists <- doesFileExist outFile
+  if not exists then
+    writeFile outFile s
+  else
+    do
+    hOutfile <- openFile outFile ReadMode
+    s' <- hGetContents hOutfile
+    if s' == s then hClose hOutfile
+               else do
+                    (tmpFile,hTmpFile) <- mkstemps "swf" "temp"
+                    hPutStr hTmpFile s
+                    hClose hTmpFile
+                    hClose hOutfile
+                    renameFile tmpFile outFile
 
 cfg :: CompilerCfg
 cfg = CompilerCfg
@@ -77,6 +133,14 @@ cfgPdfDecl = CompilerCfg
 
       , primName "PdfDecl" "Decrypt" AGrammar |-> 
         aps "D.decrypt" [ "body" ]
+
+      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
+        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
+                            , "PdfDecl.pParamWrapGetStream"
+                            , fld "obj" "r"
+                            , fld "gen" "r"
+                            ]
+
       ]
   , cParserType = "D.Parser"
   , cImports    = [ Import "Primitives.Resolve" (QualifyAs "D"),

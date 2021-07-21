@@ -1,5 +1,4 @@
-{-# Language OverloadedStrings #-}
--- XXX: escapes
+{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)
@@ -41,6 +40,8 @@ cTNameRoot t = case Src.tnameAnon t of
   root = text (pref ++ Text.unpack (Src.tnameText t))
   txt  = Src.tnameText t
   pref = if isReserved txt then "_" else ""
+
+
 
 -- | The name of the underlying type used by a boxed type.
 cTNameUse :: GenVis -> Src.TName -> CType

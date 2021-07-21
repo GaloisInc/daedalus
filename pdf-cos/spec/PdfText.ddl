@@ -2,6 +2,7 @@
 -- Futher validation of basic fields
 --------------------------------------------------------------------------------
 
+import Stdlib
 import ISOCodes
 import PdfValue
 
@@ -61,7 +62,7 @@ def TextObj = {
       UFEFF ; -- magic number from Sec. 7.9.2.2
       Many UniChar 
     } ;
-  
+
     -- validate as PDFDocEncoding (arbitrary bytes)
     isPdfDoc = Many Byte ;
   } ;

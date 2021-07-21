@@ -71,14 +71,27 @@ def SkipBytes n = Chunk n {}
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
+-- WrapGetStream: local wrapper to GetStream, used for primitive
+def WrapGetStream = GetStream
+
+def ParamWrapGetStream (oid : Nat) (gen : Nat) (idx : uint 64) : stream = 
+  GetStream
+
+-- InputStream r: the input stream at reference r
+def InputAtRef (r : Ref) : maybe stream -- = Void
+-- TODO: implement as a new primitive
+
 def CheckExpected (r : ref) (d : TopDecl) = {
   Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;
 }
 
+def ResolveStreamRef (r : Ref) = 
+  CheckExpected r (ResolveRef r is just) is stream
+
 def ResolveStream (v : Value) = {
   @r  = v is ref;
-  CheckExpected r (ResolveRef r is just) is stream;
+  ResolveStreamRef r
 }
 
 def ResolveValRef (r : Ref) : Value = {
@@ -287,8 +300,6 @@ def LookOptArray (key : [uint 8]) header =
 
 def OneOrArray (v : Value) = Default [v] (v is array)
 
-def Default x P = P <| ^ x
-
 def Chunk n P = {
   @cur  = GetStream;
   @this = Take n cur;
@@ -349,9 +360,3 @@ def LookupName k m = {
   vV is name;
 }
 
-def WithStream s P = {
-  @cur = GetStream;
-  SetStream s;
-  $$ = P;
-  SetStream cur;
-}

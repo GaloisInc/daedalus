@@ -1,1 +1,0 @@
-../../pdf-cos/spec/PdfDecl.ddl
