@@ -9,29 +9,43 @@ license:             ISC
 license-file:        LICENSE
 author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
-copyright:           2019, Galois Inc
+copyright:           2021, Galois Inc
 -- category:
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
+  spec/Array.ddl,
   spec/CMap.ddl,
   spec/ContentStreamLight.ddl,
+  spec/FontDict.ddl,
   spec/GenPdfValue.ddl,
   spec/ISOCodes.ddl,
   spec/JpegBasics.ddl,
   spec/Map.ddl,
+  spec/Page.ddl,
+  spec/PageTreeNode.ddl,
   spec/Pair.ddl,
+  spec/PdfCos.ddl,
+     -- ddl convenience, no autogen'd file
   spec/PdfCrypto.ddl,
   spec/PdfDecl.ddl,
   spec/PdfExtractText.ddl,
   spec/PdfText.ddl,
   spec/PdfValue.ddl,
   spec/PdfXRef.ddl,
+  spec/ResourceDict.ddl,
   spec/Stdlib.ddl,
-  spec/Sum.ddl
+  spec/Sum.ddl,
+  spec/TextEffect.ddl,
+  spec/TextObj.ddl,
+  spec/TextShowOp.ddl,
+  spec/TextStateOp.ddl,
+  spec/Type0Font.ddl,
+  spec/Type1Font.ddl,
+  spec/Unicode.ddl
 
 custom-setup
-  setup-depends: base, containers, daedalus, text, filepath, Cabal
+  setup-depends: base, containers, daedalus, directory, text, unix, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
@@ -58,11 +72,14 @@ library
     -- copying the 'autogen-modules':
     Array,
     CMap,
-    GenPdfValue,
     ContentStreamLight,
+    FontDict,
+    GenPdfValue,
     ISOCodes,
     JpegBasics,
     Map,
+    Page,
+    PageTreeNode,
     Pair,
     PdfCrypto,
     PdfDecl,
@@ -70,18 +87,28 @@ library
     PdfText,
     PdfValue,
     PdfXRef,
+    ResourceDict,
     Stdlib,
     Sum,
+    TextEffect,
+    TextObj,
+    TextShowOp,
+    TextStateOp,
+    Type0Font,
+    Type1Font,
     Unicode
 
   autogen-modules:
-    CMap,
-    GenPdfValue,
     Array,
+    CMap,
     ContentStreamLight,
+    FontDict,
+    GenPdfValue,
     ISOCodes,
     JpegBasics,
     Map,
+    Page,
+    PageTreeNode,
     Pair,
     PdfCrypto,
     PdfDecl,
@@ -89,8 +116,15 @@ library
     PdfText,
     PdfValue,
     PdfXRef,
+    ResourceDict,
     Stdlib,
     Sum,
+    TextEffect,
+    TextObj,
+    TextShowOp,
+    TextStateOp,
+    Type0Font,
+    Type1Font,
     Unicode
 
   build-depends:

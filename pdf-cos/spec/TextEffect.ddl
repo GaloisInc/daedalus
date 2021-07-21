@@ -3,6 +3,7 @@ import Stdlib
 
 import FontDict
 import Unicode
+import Type0Font
 
 def SizedFont (f : FontDict) (s: int) = {
   font = f;
@@ -121,10 +122,21 @@ def UTF81Code = {
 
 def ExtractString (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
   @szFont = q.sizedFont is just;
-  WithStream (arrayStream s) (Many UTF81Code)
+    -- assume that there is no "default font" if not set by "Tf"
+  case szFont.font of
+    type0 fontdict  -> ExtractString_Composite fontdict    q s
+    _               -> ExtractString_Simple    szFont.font q s
 }
 
--- TODO: define: use the font in q to encoding s in UTF8
+def ExtractString_Composite (f: Font_Type0) (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
+  WithStream (arrayStream s) (Many UTF81Code)
+  -- TODO: define: use the font in q to encode s in UTF8
+}
+
+def ExtractString_Simple    (f: Font_Dict ) (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
+  WithStream (arrayStream s) (Many UTF81Code)
+  -- TODO: define: use the font in q to encode s in UTF8
+}
 
 -- TODO: use q.charSpace to inject space when necessary
 
