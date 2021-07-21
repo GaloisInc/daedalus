@@ -26,13 +26,6 @@ def TextStateOp resrcs = Choose1 { -- operations are mutually exclusive
     $$ = Token Integer;
     KW "TL"
   };
-  setFont = {
-    @fontNm = Token Name;
-    @font = Lookup fontNm resrcs.font;
-    @size = Token Integer;
-    KW "Tf";
-    SizedFont font size
-  };
   setRenderingMode = {
     $$ = Token Integer; 
     KW "Tr"
@@ -55,7 +48,6 @@ def UpdTextState (op: TextStateOp) (q: TextState) : TextState = case op of {
 ; setWordSpace wordSpace -> SetWordSpace wordSpace q
 ; setScale s -> SetScale s q
 ; setLeading l -> SetLeading l q
-; setFont sf -> SetSizedFont sf q
 ; setRenderingMode rm -> SetRenderingMode rm q
 ; setRise rs -> SetRise rs q
 }

@@ -6,22 +6,32 @@ import PdfValue
 import TextEffect
 import Unicode
 
--- Text-positioning operators (Table 106)
-def TextPosOp = Choose1 { -- operations are mutually exclusive
+
+def SetMatrixOp (pa: int) (pb: int) (pc: int)
+  (pd: int) (pe: int) (pf: int) = {
+  a = pa;
+  b = pb;
+  c = pc;
+  d = pd;
+  e = pe;
+  f = pf;
 }
 
--- TODO: Td sets the text matrix, so does Tm. If we model Td, should
--- we model Tm?
+-- Text-positioning operators (Table 106)
+def TextPosOp = Choose1 { 
+  setTextMatrix = {
+    $$ = SetMatrixOp
+      (Token Integer)
+      (Token Integer)
+      (Token Integer)
+      (Token Integer)
+      (Token Integer)
+      (Token Integer);
+    KW "Tm";
+  };
+}
 
-def MvNextLineOp (x : int) (y : int) : TextPosOp = {| mvNextLine = {
-  tx = x;
-  ty = y;
-} |}
-
-def MvNextLineStart = {| mvNextLineStart = {} |}
-
-def UpdPos (op: TextPosOp) (q : TextState) : TextEffect = case op of {
-  mvNextLine x -> TextEffect q [ UTF8Ascii '\n' ]
-; setTextMatrix m -> LiftToTextEffect q -- TODO: refine
-; mvNextLineStart -> UpdPos {| mvNextLineSetLeading = 0 |} q -- TODO: refine?
+def ShowPos (op: TextPosOp) : [ UTF8 ] = case op of {
+  -- interpret setting text position as injecting a newline
+  setTextMatrix m -> [ UTF8Ascii '\n' ]
 }

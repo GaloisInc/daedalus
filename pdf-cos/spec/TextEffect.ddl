@@ -11,12 +11,11 @@ def SizedFont (f : FontDict) (s: int) = {
 }
 
 def TextState (cs: int) (ws: int) (s: int) (l: int)
-  (sf: maybe SizedFont) (rm: int) (r: int) = {
+  (rm: int) (r: int) = {
   charSpace = cs;
   wordSpace = ws;
   scale = s;
   leading = l;
-  sizedFont = sf;
   renderingMode = rm;
   rise = r;
 }
@@ -27,7 +26,6 @@ def InitTextState : TextState = TextState
   0
   100
   0
-  nothing
   0
   0
 
@@ -37,16 +35,6 @@ def SetCharSpace (cs : int) (q : TextState) : TextState = TextState
   q.wordSpace
   q.scale
   q.leading
-  q.sizedFont
-  q.renderingMode
-  q.rise
-
-def SetSizedFont (f : SizedFont) (q : TextState) : TextState = TextState
-  q.charSpace
-  q.wordSpace
-  q.scale
-  q.leading
-  (just f)
   q.renderingMode
   q.rise
 
@@ -55,7 +43,6 @@ def SetLeading (l : int) (q : TextState) : TextState = TextState
   q.wordSpace
   q.scale
   l
-  q.sizedFont
   q.renderingMode
   q.rise
 
@@ -64,7 +51,6 @@ def SetRenderingMode (rm : int) (q : TextState) : TextState = TextState
   q.wordSpace
   q.scale
   q.leading
-  q.sizedFont
   rm
   q.rise
 
@@ -73,7 +59,6 @@ def SetRise (r : int) (q : TextState) : TextState = TextState
   q.wordSpace
   q.scale
   q.leading
-  q.sizedFont
   q.renderingMode
   r
 
@@ -82,7 +67,6 @@ def SetScale (s : int) (q : TextState) : TextState = TextState
   q.wordSpace
   s
   q.leading
-  q.sizedFont
   q.renderingMode
   q.rise
 
@@ -91,7 +75,6 @@ def SetWordSpace (ws : int) (q : TextState) : TextState = TextState
   ws
   q.scale
   q.leading
-  q.sizedFont
   q.renderingMode
   q.rise
 
@@ -120,9 +103,8 @@ def UTF81Code = {
   UnicodeByte
 }
 
-def ExtractString (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
-  @szFont = q.sizedFont is just;
-    -- assume that there is no "default font" if not set by "Tf"
+def ExtractString (q: TextState) (szFont: SizedFont) (s : [ uint 8 ]) :
+  [ UTF8 ] = {
   case szFont.font of
     type0 fontdict  -> ExtractString_Composite fontdict    q s
     _               -> ExtractString_Simple    szFont.font q s

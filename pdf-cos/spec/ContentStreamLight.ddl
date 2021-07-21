@@ -1,6 +1,7 @@
 -- ContentStreamLight: a lightweight parser for extracting text from
 -- content streams
 import Stdlib
+import Array
 import Pair
 
 import GenPdfValue
@@ -14,16 +15,16 @@ import TextStateOp
 import Unicode
 
 -- ContentStreamOp: an operation in a content stream
-def ContentStreamOp (rd : ResourceDict) = Choose1 {
-  textObj = TextObj rd; -- text object
+def ContentStreamOp (rd : ResourceDict) (f: maybe SizedFont) = Choose1 {
+  textObj = TextObj rd f; -- text object
   textStateOp = TextStateOp rd; -- text state operators
   unparsedByte = UInt8; -- leave other operators unparsed
 }
 
--- InterpContentStream: interpret a content stream, resolving lookups
+-- ContentStreamP: interpret a content stream, resolving lookups
 -- into the resource dictionary.
-def InterpContentStream (resourceD : ResourceDict) =
-  Many (ContentStreamOp resourceD)
+def ContentStreamP (rd : ResourceDict) =
+  ParseWFont rd nothing (ContentStreamOp rd) 
 
 def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
   TextEffect = {

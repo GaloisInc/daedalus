@@ -116,8 +116,7 @@ def Page ancRs (page0 : PartialPage) = {
     (ancRs is just);
   contents = case page0.contents0 of {
     nothing -> [ ];
-    just contentStream -> WithStream contentStream
-      (InterpContentStream resources)
+    just contentStream -> WithStream contentStream (ContentStreamP resources)
   };
   others = page0.others0;
 }
