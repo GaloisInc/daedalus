@@ -20,6 +20,7 @@ Stdlib.hs
 Sum.hs
 TextEffect.hs
 TextObj.hs
+TextPosOp.hs
 TextShowOp.hs
 TextStateOp.hs
 Type0Font.hs
