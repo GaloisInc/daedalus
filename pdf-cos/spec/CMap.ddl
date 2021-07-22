@@ -305,11 +305,11 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      GenCMapScope "cmap" (CMapProper CharCode);
+      $$ = GenCMapScope "cmap" (CMapProper CharCode);
 
       -- a CMapName directive
       KW "CMapName";
-      cMapName = Token(Many NameChar);
+      @cMapName = Token(Many NameChar);  -- FIXME: need to add back this name?
       Name;
       KW "defineresource";
       KW "pop";
