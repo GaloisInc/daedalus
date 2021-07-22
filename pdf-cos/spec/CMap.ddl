@@ -24,7 +24,7 @@ def CodeRange CharCode = {
   numExtras = (highEnd - lowEnd) as uint 32
 }
 
--- SigletonRange: a code range containing exactly one entry
+-- SingletonRange: a code range containing exactly one entry
 def SingletonRange CharCode : CodeRange = {
   lowEnd = CharCode;
   numExtras = ^0;
@@ -209,7 +209,7 @@ def CodeRangeOp CharCode = Choose1 {
        (BfCharOp CharCode);
 }
 
--- BUG: doesn't tokenize right
+-- FIXME: BUG: doesn't tokenize right
 -- def CMapDictEntry = CMapDefn (DictEntry CMapKey CMapVal)
 def CMapDictEntry : Pair = CMapDefn {
   fst = Token (GenName CMapKey);
