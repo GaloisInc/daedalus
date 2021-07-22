@@ -30,3 +30,5 @@ def Type0Font = {
   
   toUnicode = Optional (LookupResolve "ToUnicode" d);
   }
+
+def Type0FontP = Type0Font

@@ -136,13 +136,3 @@ def ExtractString_Simple    (f: Font_Dict ) (q: TextState) (s : [ uint 8 ]) : [ 
 
 -- TODO: Table 104: Text rendering modes: neither fill nor stroke is
 -- treated as invisible: should we replace with whitespace?
-
--- PDFA: should we model the text matrix and operations that set it
--- directly (Td/TD/Tm)? We would need to agree on expected behavior for:
--- * instances of Td/TD/Tm that set tx to something negative wo setting ty to next line
--- * instances of Td/TD/Tm that set ty to something less than leading;
-
--- leading:
--- * T* that when value of leading is very small/negative?
-
--- Note that there's an alternative here where we use the text state other than the text matrix (Table 103): just char space, word space (and maybe leading).

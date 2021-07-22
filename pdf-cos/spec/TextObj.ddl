@@ -94,7 +94,7 @@ def TextOpP (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] = Choose1 {
 def TextObj (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] =
   Between "BT" "ET" (concat (ParseWFont rd f (TextOpP rd)))
 
-def InterpTextObj (obj: [ CTextOp ]) (q : TextState) : TextEffect = {
+def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
   @eff0 = LiftToTextEffect q;
   for (effAcc = eff0; op in obj) {
     case (op : TextOp) of {
