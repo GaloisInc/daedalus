@@ -99,15 +99,15 @@ def CMapDefn P = {
   KW "def";
 }
 
--- GenCMapScope P nm: a generalized scope
-def GenCMapScope P nm = {
+-- GenCMapScope nm P: a generalized scope
+def GenCMapScope nm P = {
   KW (append "begin" nm);
   $$ = P;
   KW (append "end" nm);
 }
 
 -- CMapScope: a definition in a scope
-def CMapScope P = GenCMapScope P ""
+def CMapScope P = GenCMapScope "" P
 
 def UnsignedDigit = Match1 ('0' .. '9') - '0' as uint 64
 def UnsignedNatural = numBase 10 (Many (1..) UnsignedDigit)
@@ -163,12 +163,11 @@ def CMapVal (k : CMapKey) = case k of
 def SizedOp Domain Rng nm = {
   @size = UnsignedNatural;
   Guard (size <= 100); -- upper bound of 100 imposed by standard
-  GenCMapScope {
+  GenCMapScope nm {
     @es = DictEntries Domain Rng;
     Guard (length es == (size as uint 64));
     ListToMap es
     }
-    nm
 }
 
 def CodeSpaceMap CharCode Rng nm = SizedOp
@@ -251,7 +250,7 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      GenCMapScope {
+      GenCMapScope "cmap" {
           @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
           @items1 = DictAnd Void (CodeRangeOp CharCode);
           -- code range operations
@@ -293,8 +292,7 @@ def ToUnicodeCMap0 CharCode = {
               bf x2 -> just x2
               _ -> nothing
             ));
-        }
-        "cmap";
+        };
 
       -- a CMapName directive
       KW "CMapName";
