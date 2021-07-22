@@ -256,13 +256,13 @@ def ToUnicodeCMap0 CharCode = {
           @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
           @items1 = DictAnd Void (CodeRangeOp CharCode);
           -- code range operations
-          -- Guard ((size as uint 64) ==
-          --        (length items0.des) +
-          --        (length items0.codes) +
-          --        (length items0.ops) +
-          --        (length items1.des) +
-          --        (length items1.codes) +
-          --        (length items1.ops));
+          Guard ((size as uint 64) ==
+                 (length items0.des) +
+                 (length items0.codes) +
+                 (length items0.ops) +
+                 (length items1.des) +
+                 (length items1.codes) +
+                 (length items1.ops));
 
           -- cmapDict: define the cmap dictionary
           cmapDict = ListToMap (append items0.des items1.des);
