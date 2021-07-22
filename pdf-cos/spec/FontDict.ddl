@@ -1,4 +1,5 @@
 import Stdlib
+import Pair
 
 import Type1Font
 import Type0Font
@@ -18,7 +19,7 @@ def FontDict = Choose1 {
   -- fonts are mutually exclusive, due to at least the Subtype field
   --  these all dictionaries, all contain << /Type /Font >>
   type0 = Type0Font;
-  type1 = Type1Font;
+  type1 = Type1FontP;
   type3 = Type3Font;
   trueType = TrueTypeFont;
   cidFont = CIDFont;

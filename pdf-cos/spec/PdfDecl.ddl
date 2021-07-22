@@ -80,9 +80,9 @@ def ParseAtRef r P = {
 
 -- DirectOrRef P: parse either the current input or parse a ref and
 -- parse the input that it references.
-def DirectOrRef P = P <| {
-  @r = Ref;
-  ParseAtRef r P
+def DirectOrRef P = case OrRef P of {
+  direct x -> x
+; pref r -> ParseAtRef r P  
 }
 
 -- WrapGetStream: local wrapper to GetStream, used for primitive

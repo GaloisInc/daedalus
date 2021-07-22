@@ -19,14 +19,12 @@ import Unicode
 import ContentStreamLight
 
 def PartialPageTreeNode (t: bool) (p: bool)
-  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe ResourceDict)
-  os = {
+  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe ResourceDict) = {
   type0 = t;
   parent0 = p;
   kids0 = k;
   count0 = c;
   nodeResources0 = rs;
-  others0 = os;
 }
 
 def InitPageTreeNode = PartialPageTreeNode
@@ -35,7 +33,6 @@ def InitPageTreeNode = PartialPageTreeNode
   nothing
   nothing
   nothing
-  empty
 
 def AddType pageTree = PartialPageTreeNode
   (Holds (NameToken "Pages"))
@@ -43,7 +40,6 @@ def AddType pageTree = PartialPageTreeNode
   pageTree.kids0
   pageTree.count0
   pageTree.nodeResources0
-  pageTree.others0
 
 def AddParent (par: Ref) pageTree = PartialPageTreeNode 
   pageTree.type0
@@ -51,7 +47,6 @@ def AddParent (par: Ref) pageTree = PartialPageTreeNode
   pageTree.kids0
   pageTree.count0
   pageTree.nodeResources0
-  pageTree.others0
 
 def AddKids pageTree = PartialPageTreeNode
   pageTree.type0
@@ -59,7 +54,6 @@ def AddKids pageTree = PartialPageTreeNode
   (just (GenArray Ref))
   pageTree.count0
   pageTree.nodeResources0
-  pageTree.others0
 
 def AddCount pageTree = PartialPageTreeNode 
   pageTree.type0
@@ -67,7 +61,6 @@ def AddCount pageTree = PartialPageTreeNode
   pageTree.kids0
   (just (DirectOrRef Natural))
   pageTree.nodeResources0
-  pageTree.others0
 
 def NodeAddResources pageTree = PartialPageTreeNode
   pageTree.type0
@@ -75,42 +68,30 @@ def NodeAddResources pageTree = PartialPageTreeNode
   pageTree.kids0
   pageTree.count0
   (just (DirectOrRef ResourceDictP))
-  pageTree.others0
 
-def NodeAddOther k pageTree = PartialPageTreeNode 
-  pageTree.type0
-  pageTree.parent0
-  pageTree.kids0
-  pageTree.count0
-  pageTree.nodeResources0
-  (Extend k (Token Value) pageTree.others0)
-
-def PageTreeNodeRec (par : maybe Ref) (cur : Ref) pageTree = Default pageTree 
-  { @k = Token Name;
-    @pageTree0 = if k == "Type" then {
-        pageTree.type0 is false;
-        AddType pageTree
-      }
-      else if k == "Parent" then {
-        pageTree.parent0 is false;
-        @p = par is just;
-        AddParent p pageTree
-      }
-      else if k == "Kids" then  {
-        pageTree.kids0 is nothing;
-        AddKids pageTree;
-      }
-      else if k == "Count" then {
-        pageTree.kids0 is nothing;
-        AddCount pageTree
-      }
-      else if k == "Resources" then {
-        pageTree.nodeResources0 is nothing;
-        NodeAddResources pageTree
-      }
-      else NodeAddOther k pageTree;
-    PageTreeNodeRec par cur pageTree0
+def ExtendPageTreeNode (par : maybe Ref) (cur : Ref) k pageTree = 
+  if k == "Type" then {
+    pageTree.type0 is false;
+    just (AddType pageTree)
   }
+  else if k == "Parent" then {
+    pageTree.parent0 is false;
+    @p = par is just;
+    just (AddParent p pageTree)
+  }
+  else if k == "Kids" then  {
+    pageTree.kids0 is nothing;
+    just (AddKids pageTree)
+  }
+  else if k == "Count" then {
+    pageTree.kids0 is nothing;
+    just (AddCount pageTree)
+  }
+  else if k == "Resources" then {
+    pageTree.nodeResources0 is nothing;
+    just (NodeAddResources pageTree)
+  }
+  else nothing
 
 -- pageNodeKidCount k: number of pages under kid k
 def pageNodeKidCount (k : PageNodeKid) = case k of {
@@ -144,12 +125,13 @@ def PageTreeNode ancRs (par : maybe Ref) (cur : Ref) pt0 = {
     $$ = pt0.count0 is just;
     Guard ($$ == kidsCount)
   };
-
-  others = pt0.others0;
 }
 
-def PageTreeNodeP ancRs (par: maybe Ref) (cur: Ref) =
-  Between "<<" ">>" (PageTreeNode ancRs par cur
-    (PageTreeNodeRec par cur InitPageTreeNode))
+def PageTreeNodeP ancRes (par: maybe Ref) (cur: Ref) = GenPdfDict1
+  InitPageTreeNode
+  (ExtendPageTreeNode par cur)
+  (PageTreeNode ancRes par cur)
 
-def PageTreeP cur = PageTreeNodeP nothing nothing cur
+def PageTreeP cur = (PageTreeNodeP nothing nothing cur)
+
+  

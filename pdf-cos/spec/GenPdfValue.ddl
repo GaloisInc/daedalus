@@ -53,3 +53,22 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
+def DictAdderRec Adder d = Default d 
+  (DictAdderRec Adder {
+    @k = Token Name;
+    case Adder k d of {
+      just d2 -> ^d2
+    ; nothing -> When Value d
+    } })
+
+
+def GenPdfDict1 init Adder Final = Between "<<" ">>" {
+  @x = DictAdderRec Adder init;
+  Final x
+}
+ 
+-- OrRef P: parse a P, or a Ref
+def OrRef P = Choose1 {
+  direct = P;
+  pref = Token Ref;
+}
