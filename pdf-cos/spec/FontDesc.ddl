@@ -24,9 +24,7 @@ def AddFontDescName baseFontNm fd = PartialFontDesc
   fd.descType0
   (Holds (Guard (Token Name == baseFontNm)))
 
--- BUG:
--- def ExtendFontDesc (baseFontNm : string) (k: string) (fd: PartialFontDesc) = 
-def ExtendFontDesc (k: string) (fd: PartialFontDesc) = 
+def ExtendFontDesc (baseFontNm : string) (k: string) (fd: PartialFontDesc) = 
   if k == "Type" then {
     fd.descType0 is false;
     just (AddFontDescType fd)
@@ -35,9 +33,7 @@ def ExtendFontDesc (k: string) (fd: PartialFontDesc) =
     fd.descFontName0 is false;
     just (AddFontDescName "AGaramond-Semibold" fd)
   }
-  else
-    nothing
-    -- Fail "foo"
+  else nothing
 
 def FontDesc (fd: PartialFontDesc) = {
   Guard fd.descType0;
@@ -48,7 +44,5 @@ def FontDesc0 d = d
 
 def FontDescP (baseFontNm : string) = GenPdfDict1
   InitFontDesc
---  (ExtendFontDesc baseFontNm)
--- TODO: enable
-  ExtendFontDesc
+  (ExtendFontDesc baseFontNm)
   FontDesc
