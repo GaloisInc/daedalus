@@ -292,7 +292,7 @@ def CMapProper CharCode = {
     ));
 }
         
--- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slighly
+-- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
 -- differ from the ones specified in Adobe Technical Note #5014.
 def ToUnicodeCMap0 CharCode = {
   Many Comment;
