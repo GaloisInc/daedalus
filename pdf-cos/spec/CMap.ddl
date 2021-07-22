@@ -145,6 +145,7 @@ def CMapKey = Choose1 {
   cMapMatch = Match "CMapMatch";
   cMapVersion = Match "CMapVersion";
   cMapType = Match "CMapType";
+  cMapName = Match "CMapName";
   uidOffset = Match "UIDOffset";
   xuid = Match "XUID";
   wMode = Match "WMode";
@@ -156,6 +157,7 @@ def CMapVal (k : CMapKey) = case k of
   cMapMatch -> {| cMapMatchVal = Name |}
   cMapVersion -> {| cMapVersionVal = Number |}
   cMapType -> {| cMapTypeVal = Number |}
+  cMapName -> {| cMapNameVal = Name |}
   uidOffset -> {| uidOffsetVal = Number |}
   xuid -> {| xuidVal = GenArray Number |}
   wMode -> {| wModeVal = Number |}
@@ -296,7 +298,7 @@ def ToUnicodeCMap0 CharCode = {
 
       -- a CMapName directive
       KW "CMapName";
-      cMapName = Many NameChar;
+      cMapName = Token(Many NameChar);
       Name;
       KW "defineresource";
       KW "pop";
