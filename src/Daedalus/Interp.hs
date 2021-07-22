@@ -349,7 +349,7 @@ compilePureExpr env = go
 
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
-            Just r  -> invoke r env ts [] es
+            Just r  -> invoke r env ts es []
             Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
         -- XXX: move to generic
@@ -454,8 +454,8 @@ matchPat pat =
     TCWildPat {}      -> \_ -> Just []
 
 
-invoke :: HasRange ann => Fun a -> Env -> [Type] -> [SomeVal] -> [Arg ann] -> a
-invoke (Fun f) env ts cloAs as = f ts1 (cloAs ++ map valArg as)
+invoke :: HasRange ann => Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
+invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
   where
   ts1 = map (evalType env) ts
   valArg a = case a of
@@ -514,7 +514,7 @@ compilePredicateExpr env = go
         TCFor {} -> panic "compilePredicateExpr" [ "TCFor" ]
         TCCall f ts as ->
           case Map.lookup (tcName f) (clsFun env) of
-            Just p -> invoke p env ts [] as
+            Just p -> invoke p env ts as []
             Nothing -> error ("BUG: undefined clas function " ++ show f)
         TCSetAny -> cv \_ -> True
         TCSetSingle e ->
@@ -716,7 +716,7 @@ compilePExpr env expr0 args = go expr0
                                  RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
-        TCCall x ts es -> pEnter (show lab) (invoke rule env ts args es)
+        TCCall x ts es -> pEnter (show lab) (invoke rule env ts es args)
           where
           f   = tcName x
           lab = text erng <.> colon <+> pp x
@@ -824,7 +824,11 @@ compileDecl prims env TCDecl { .. } =
       (ClassParam x, VClass v) ->
         Env { clsEnv = Map.insert (tcName x) v clsEnv, .. }
 
-      _ -> error "BUG: type error in function call"
+      _ -> panic "compileDecl"
+              [ "type error in function call"
+              , "declaration: " ++ showPP tcDeclName
+              ]
+
 
   addTyArg (x,t) Env { .. } = Env { tyEnv = Map.insert x t tyEnv, .. }
 
