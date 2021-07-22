@@ -239,12 +239,20 @@ def CollectRangeOp dom maybeOps = {
   RangeArrayCovers dom (mapDomain $$)
 }
 
+-- parse bytes for "CMapProper" but do no processing/validating as yet
+def CMapProper_Raw CharCode = {
+  items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
+  items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+           -- {fst= [], snd=[]}; -- (for testing/exploring)
+     
+}
+
 def CMapProper CharCode = {
-  @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
-  @items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+  @raw = CMapProper_Raw CharCode;
+  @items0 = raw.items0;
+  @items1 = raw.items1;
 
   -- extract data from items1:
-  -- TEST
   @alldefs = append items0.des items1.fst;
   @rangeOps = items1.snd : [ CodeRangeOp ];
   
@@ -253,7 +261,7 @@ def CMapProper CharCode = {
   --  - so far I'm seeing size always equal to 12!?
   --  - disabling this guard for now.
   --  - FIXME: reinstate or change or _
-  -- Guard ((size as uint 64) ==
+  -- Guard ((size as uint 64) ==  -- 'size' now in caller
   --        (length items0.des) +
   --        (length items0.codes) +
   --        (length items0.ops) +
