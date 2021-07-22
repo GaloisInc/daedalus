@@ -78,6 +78,12 @@ compileDDL =
   _roots = [ ("PdfXRef", "CrossRef")
            ]
 
+-- FIXME:
+--   This 'saveHSCustomWriteFile smartWriteFile' would work even better if we
+--   were able to reset daedalus's "tmp var supply" counter between calls to
+--   saveHSCustomWriteFile; Because a change in just one file can cause the names
+--   of all temporary variables to change in the files that are compiled after
+--   that one.
 
 -- equivalent to writeFile except that file access dates untouched when file-data unchanged.
 smartWriteFile :: FilePath -> String -> IO ()

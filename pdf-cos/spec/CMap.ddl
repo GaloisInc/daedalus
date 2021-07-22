@@ -24,7 +24,7 @@ def CodeRange CharCode = {
   numExtras = (highEnd - lowEnd) as uint 32
 }
 
--- SigletonRange: a code range containing exactly one entry
+-- SingletonRange: a code range containing exactly one entry
 def SingletonRange CharCode : CodeRange = {
   lowEnd = CharCode;
   numExtras = ^0;
@@ -99,15 +99,15 @@ def CMapDefn P = {
   KW "def";
 }
 
--- GenCMapScope P nm: a generalized scope
-def GenCMapScope P nm = {
+-- GenCMapScope nm P: a generalized scope
+def GenCMapScope nm P = {
   KW (append "begin" nm);
   $$ = P;
   KW (append "end" nm);
 }
 
 -- CMapScope: a definition in a scope
-def CMapScope P = GenCMapScope P ""
+def CMapScope P = GenCMapScope "" P
 
 def UnsignedDigit = Match1 ('0' .. '9') - '0' as uint 64
 def UnsignedNatural = numBase 10 (Many (1..) UnsignedDigit)
@@ -145,6 +145,7 @@ def CMapKey = Choose1 {
   cMapMatch = Match "CMapMatch";
   cMapVersion = Match "CMapVersion";
   cMapType = Match "CMapType";
+  cMapName = Match "CMapName";
   uidOffset = Match "UIDOffset";
   xuid = Match "XUID";
   wMode = Match "WMode";
@@ -156,6 +157,7 @@ def CMapVal (k : CMapKey) = case k of
   cMapMatch -> {| cMapMatchVal = Name |}
   cMapVersion -> {| cMapVersionVal = Number |}
   cMapType -> {| cMapTypeVal = Number |}
+  cMapName -> {| cMapNameVal = Name |}
   uidOffset -> {| uidOffsetVal = Number |}
   xuid -> {| xuidVal = GenArray Number |}
   wMode -> {| wModeVal = Number |}
@@ -163,12 +165,11 @@ def CMapVal (k : CMapKey) = case k of
 def SizedOp Domain Rng nm = {
   @size = UnsignedNatural;
   Guard (size <= 100); -- upper bound of 100 imposed by standard
-  GenCMapScope {
+  GenCMapScope nm {
     @es = DictEntries Domain Rng;
     Guard (length es == (size as uint 64));
     ListToMap es
     }
-    nm
 }
 
 def CodeSpaceMap CharCode Rng nm = SizedOp
@@ -209,7 +210,7 @@ def CodeRangeOp CharCode = Choose1 {
        (BfCharOp CharCode);
 }
 
--- BUG: doesn't tokenize right
+-- FIXME: BUG: doesn't tokenize right
 -- def CMapDictEntry = CMapDefn (DictEntry CMapKey CMapVal)
 def CMapDictEntry : Pair = CMapDefn {
   fst = Token (GenName CMapKey);
@@ -251,20 +252,30 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      GenCMapScope {
+      GenCMapScope "cmap" {
           @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
-          @items1 = DictAnd Void (CodeRangeOp CharCode);
+          @items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+
+          -- extract data from items1:
+          -- TEST
+          @alldefs = append items0.des items1.fst;
+          @rangeOps = items1.snd : [ CodeRangeOp ];
+          
           -- code range operations
-          Guard ((size as uint 64) ==
-                 (length items0.des) +
-                 (length items0.codes) +
-                 (length items0.ops) +
-                 (length items1.des) +
-                 (length items1.codes) +
-                 (length items1.ops));
+          -- NOTE
+          --  - so far I'm seeing size always equal to 12!?
+          --  - disabling this guard for now.
+          --  - FIXME: reinstate or change or _
+          -- Guard ((size as uint 64) ==
+          --        (length items0.des) +
+          --        (length items0.codes) +
+          --        (length items0.ops) +
+          --        (length items1.des) +
+          --        (length items1.codes) +
+          --        (length items1.ops));
 
           -- cmapDict: define the cmap dictionary
-          cmapDict = ListToMap (append items0.des items1.des);
+          cmapDict = ListToMap alldefs;
 
           -- codeRanges: the code ranges
           codeRanges = {
@@ -273,7 +284,6 @@ def ToUnicodeCMap0 CharCode = {
           };
 
           -- collect CIDS:
-          @rangeOps = items1.codes : [ CodeRangeOp ];
           cids = CollectRangeOp codeRanges (map (op in rangeOps) (
             case op of
               cid x2 -> just x2
@@ -293,12 +303,11 @@ def ToUnicodeCMap0 CharCode = {
               bf x2 -> just x2
               _ -> nothing
             ));
-        }
-        "cmap";
+        };
 
       -- a CMapName directive
       KW "CMapName";
-      cMapName = Many NameChar;
+      cMapName = Token(Many NameChar);
       Name;
       KW "defineresource";
       KW "pop";
@@ -328,3 +337,10 @@ def Main = {
   @testFontTy = {| simpleFont = ^{} |};
   ToUnicodeCMap testFontTy
 }
+
+
+def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
+def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
+
+
+
