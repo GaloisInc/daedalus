@@ -298,6 +298,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   RetPure -> empty
                   RetNo NoCapture -> empty
                   RetYes NoCapture -> empty
+
+                  -- Return with capture: manual stack manipulation
                   bty ->
                     let rn = extraArgs (ReturnBlock bty)
                         (ras,cas) = splitAt rn (blockArgs b)
@@ -317,7 +319,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                       [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                       | (v,n) <- cas `zip` [ 0 .. ]
                       ] ++
-                      [ cStmt (cCall "clo->free" ["true"]) ]
+                      [ cStmt (cCall "clo->free" []) ]
 
 
 
@@ -332,7 +334,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                     : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                       | (v,n) <- xs `zip` [ 0 .. ]
                       ]
-                   ++ [ cStmt (cCall "clo->free" ["true"]) ]
+                   ++ [ cStmt (cCall "clo->free" []) ]
 
                 | otherwise -> panic "getArgs" ["Thread block in no-capture?"]
 
@@ -639,7 +641,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ cAssign "err.offset" "p.getFailOffset()", "return;" ]
+          [ cAssign "err.offset" "p.finalYield()", "return;" ]
       ]
 
     ReturnNo ->
