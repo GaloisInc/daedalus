@@ -254,7 +254,13 @@ def ToUnicodeCMap0 CharCode = {
       -- the CMap dictionary:
       GenCMapScope "cmap" {
           @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
-          @items1 = DictAnd Void (CodeRangeOp CharCode);
+          @items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+
+          -- extract data from items1:
+          -- TEST
+          @alldefs = append items0.des items1.fst;
+          @rangeOps = items1.snd : [ CodeRangeOp ];
+          
           -- code range operations
           -- NOTE
           --  - so far I'm seeing size always equal to 12!?
@@ -269,7 +275,7 @@ def ToUnicodeCMap0 CharCode = {
           --        (length items1.ops));
 
           -- cmapDict: define the cmap dictionary
-          cmapDict = ListToMap (append items0.des items1.des);
+          cmapDict = ListToMap alldefs;
 
           -- codeRanges: the code ranges
           codeRanges = {
@@ -278,7 +284,6 @@ def ToUnicodeCMap0 CharCode = {
           };
 
           -- collect CIDS:
-          @rangeOps = items1.codes : [ CodeRangeOp ];
           cids = CollectRangeOp codeRanges (map (op in rangeOps) (
             case op of
               cid x2 -> just x2
