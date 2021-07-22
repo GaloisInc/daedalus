@@ -189,6 +189,23 @@ def UnicodeSeq cc = {
 
 def CodeRanges CharCode = CodeSpaceMap CharCode (Const Unit) "codespace" 
 
+-- FIXME: (dead) code used for exploring CodeRanges
+def CodeRanges2 CharCode = {
+  -- inlining and exploring
+  {-
+    SizedOp
+    (CodeRange CharCode) (Const Unit)
+    "codespacerange"
+  -}
+  @size = Token(UnsignedNatural);
+  -- Guard (size <= 100); -- upper bound of 100 imposed by standard
+  GenCMapScope "codespacerange" {
+    @es = Many (1..) (Pair (CodeRange CharCode) Unit);
+    -- Guard (length es == (size as uint 64)); -- FIXME
+    ListToMap es
+   }
+}
+
 def CodeNumMap CharCode nm = CodeSpaceMap CharCode (Const Number) nm
 
 -- BfCharOp: define unicode of a single character
@@ -342,15 +359,18 @@ def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
 
 def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
 
--- Main: entry point, for testing
-def Main = {
-  @testFontTy = {| simpleFont = ^{} |};
-  ToUnicodeCMap testFontTy
-}
-
+-- for testing .... ---------------------------------------------
 
 def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
 def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
+
+def CodeRanges_HexByte       = CodeRanges HexByte
+def CodeRanges2_HexByte      = CodeRanges2 HexByte
+
+-- Main: entry point, for testing
+-- def Main = ToUnicodeCMap_simpleFont
+def Main = CodeRanges_HexByte
+
 
 
 
