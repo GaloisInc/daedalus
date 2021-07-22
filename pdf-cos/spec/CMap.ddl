@@ -239,7 +239,68 @@ def CollectRangeOp dom maybeOps = {
   RangeArrayCovers dom (mapDomain $$)
 }
 
--- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slighly
+-- parse bytes for "CMapProper" but do no processing/validating as yet
+def CMapProper_Raw CharCode = {
+  items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
+  items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+           -- {fst= [], snd=[]}; -- (for testing/exploring)
+     
+}
+
+def CMapProper CharCode = {
+  @raw = CMapProper_Raw CharCode;
+  @items0 = raw.items0;
+  @items1 = raw.items1;
+
+  -- extract data from items1:
+  @alldefs = append items0.des items1.fst;
+  @rangeOps = items1.snd : [ CodeRangeOp ];
+  
+  -- code range operations
+  -- NOTE
+  --  - so far I'm seeing size always equal to 12!?
+  --  - disabling this guard for now.
+  --  - FIXME: reinstate or change or _
+  -- Guard ((size as uint 64) ==  -- 'size' now in caller
+  --        (length items0.des) +
+  --        (length items0.codes) +
+  --        (length items0.ops) +
+  --        (length items1.des) +
+  --        (length items1.codes) +
+  --        (length items1.ops));
+
+  -- cmapDict: define the cmap dictionary
+  cmapDict = ListToMap alldefs;
+
+  -- codeRanges: the code ranges
+  codeRanges = {
+    @codeRangesM = UnionMapArray items0.codes;
+    mapDomain codeRangesM
+  };
+
+  -- collect CIDS:
+  cids = CollectRangeOp codeRanges (map (op in rangeOps) (
+    case op of
+      cid x2 -> just x2
+      _ -> nothing
+    ));
+
+  -- collect NotDefs:
+  notDefs = CollectRangeOp codeRanges (map (op in rangeOps) (
+    case op of
+      notDef x2 -> just x2
+      _ -> nothing
+    ));
+
+  -- collect BFs:
+  bfs = CollectRangeOp codeRanges (map (op in rangeOps) (
+    case op of
+      bf x2 -> just x2
+      _ -> nothing
+    ));
+}
+        
+-- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
 -- differ from the ones specified in Adobe Technical Note #5014.
 def ToUnicodeCMap0 CharCode = {
   Many Comment;
@@ -252,62 +313,11 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      GenCMapScope "cmap" {
-          @items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
-          @items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
-
-          -- extract data from items1:
-          -- TEST
-          @alldefs = append items0.des items1.fst;
-          @rangeOps = items1.snd : [ CodeRangeOp ];
-          
-          -- code range operations
-          -- NOTE
-          --  - so far I'm seeing size always equal to 12!?
-          --  - disabling this guard for now.
-          --  - FIXME: reinstate or change or _
-          -- Guard ((size as uint 64) ==
-          --        (length items0.des) +
-          --        (length items0.codes) +
-          --        (length items0.ops) +
-          --        (length items1.des) +
-          --        (length items1.codes) +
-          --        (length items1.ops));
-
-          -- cmapDict: define the cmap dictionary
-          cmapDict = ListToMap alldefs;
-
-          -- codeRanges: the code ranges
-          codeRanges = {
-            @codeRangesM = UnionMapArray items0.codes;
-            mapDomain codeRangesM
-          };
-
-          -- collect CIDS:
-          cids = CollectRangeOp codeRanges (map (op in rangeOps) (
-            case op of
-              cid x2 -> just x2
-              _ -> nothing
-            ));
-
-          -- collect NotDefs:
-          notDefs = CollectRangeOp codeRanges (map (op in rangeOps) (
-            case op of
-              notDef x2 -> just x2
-              _ -> nothing
-            ));
-
-          -- collect BFs:
-          bfs = CollectRangeOp codeRanges (map (op in rangeOps) (
-            case op of
-              bf x2 -> just x2
-              _ -> nothing
-            ));
-        };
+      $$ = GenCMapScope "cmap" (CMapProper CharCode);
 
       -- a CMapName directive
       KW "CMapName";
-      cMapName = Token(Many NameChar);
+      @cMapName = Token(Many NameChar);  -- FIXME: need to add back this name?
       Name;
       KW "defineresource";
       KW "pop";
