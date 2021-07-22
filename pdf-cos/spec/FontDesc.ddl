@@ -4,11 +4,12 @@ import Pair
 
 import GenPdfValue
 import PdfValue
-import PdfDecl
+-- import PdfDecl
+import Testing
 
-def PartialFontDesc (t: bool) (fn: bool) = {
-  descType0 = t;
-  descFontName0 = fn;
+def PartialFontDesc (pt: bool) (pfn: bool) = {
+  descType0 = pt;
+  descFontName0 = pfn;
 }
 
 def InitFontDesc = PartialFontDesc
@@ -16,30 +17,38 @@ def InitFontDesc = PartialFontDesc
   false
 
 def AddFontDescType fd = PartialFontDesc
-  (Holds (DirectOrRef (GenName "FontDescriptor")))
+  (Holds (Token (NameStr "FontDescriptor")))
   fd.descFontName0
 
 def AddFontDescName baseFontNm fd = PartialFontDesc
   fd.descType0
-  (Holds (Guard ((DirectOrRef Name) == baseFontNm)))
+  (Holds (Guard (Token Name == baseFontNm)))
 
-def ExtendFontDesc (baseFontNm : string) k fd =
+-- BUG:
+-- def ExtendFontDesc (baseFontNm : string) (k: string) (fd: PartialFontDesc) = 
+def ExtendFontDesc (k: string) (fd: PartialFontDesc) = 
   if k == "Type" then {
     fd.descType0 is false;
     just (AddFontDescType fd)
   }
   else if k == "FontName" then {
     fd.descFontName0 is false;
-    just (AddFontDescName baseFontNm fd)
+    just (AddFontDescName "AGaramond-Semibold" fd)
   }
-  else nothing
+  else
+    nothing
+    -- Fail "foo"
 
 def FontDesc (fd: PartialFontDesc) = {
   Guard fd.descType0;
   Guard fd.descFontName0;
 }
 
+def FontDesc0 d = d
+
 def FontDescP (baseFontNm : string) = GenPdfDict1
   InitFontDesc
-  (ExtendFontDesc baseFontNm)
+--  (ExtendFontDesc baseFontNm)
+-- TODO: enable
+  ExtendFontDesc
   FontDesc

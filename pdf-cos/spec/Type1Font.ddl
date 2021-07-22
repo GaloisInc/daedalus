@@ -6,9 +6,11 @@ import Pair
 
 import GenPdfValue
 import PdfValue
-import PdfDecl
+-- import PdfDecl
 import CMap
 import FontDesc
+
+import Testing
 
 -- Type1Font0: partial definition of a Type1 font
 def Type1Font0 (t: bool) (st: bool)
@@ -42,7 +44,7 @@ def InitType1Font = Type1Font0
 
 -- AddType: note that the required Type field has been seen
 def Type1AddType f = Type1Font0 
-  (Holds (DirectOrRef (GenName "Font")))
+  (Holds (DirectOrRef (Token (NameStr "Font"))))
   f.subtype0
   f.name0
   f.baseFont0
@@ -56,7 +58,7 @@ def Type1AddType f = Type1Font0
 -- AddSubtype f: note the subtype field has been seen
 def AddSubtype f = Type1Font0 
   f.type0
-  (Holds (DirectOrRef (GenName "Type1")))
+  (Holds (DirectOrRef (Token (NameStr "Type1"))))
   f.name0
   f.baseFont0
   f.firstChar0
@@ -98,7 +100,7 @@ def AddFirstChar f = Type1Font0
   f.subtype0
   f.name0
   f.baseFont0
-  (just (DirectOrRef (Natural as! uint 64)))
+  (just (DirectOrRef (Token (Natural as! uint 64))))
   -- TODO: rework to remove coercion
   f.lastChar0
   f.widths0
@@ -113,7 +115,7 @@ def AddLastChar f = Type1Font0
   f.name0
   f.baseFont0
   f.firstChar0
-  (just (DirectOrRef (Natural as! uint 64)))
+  (just (DirectOrRef (Token (Natural as! uint 64))))
   f.widths0
   f.fontDesc0
   f.encoding0
@@ -132,7 +134,7 @@ def AddWidths f = Type1Font0
   f.encoding0
   f.toUnicode0
 
--- AddFontDesc: add a font desriptor
+-- AddFontDesc: add a font descriptor
 def AddFontDesc f = Type1Font0
   f.type0
   f.subtype0
@@ -141,7 +143,10 @@ def AddFontDesc f = Type1Font0
   f.firstChar0
   f.lastChar0
   f.widths0
-  (just GetStream)
+  { @s = GetStream;
+    Dict;
+    just s
+  }
   f.encoding0
   f.toUnicode0
 
@@ -173,13 +178,13 @@ def AddToUnicode f = Type1Font0
     (WithStream ((ResolveStream {| ref = Token Ref |}).body is ok)
       (ToUnicodeCMap {| simpleFont = {} |})))
 
--- TODO: refine this defn
+-- TODO: refine this defn in another module
 def CharEncodingDict = Dict
 
 def Encoding = Choose {
-  macRoman = NameToken "MacRomanEncoding";
-  macExpert = NameToken "MacExpertEncoding";
-  winAnsi = NameToken "WinAnsiEncoding";
+  macRoman = @(NameToken "MacRomanEncoding");
+  macExpert = @(NameToken "MacExpertEncoding");
+  winAnsi = @(NameToken "WinAnsiEncoding");
   encDict = CharEncodingDict;
 }
 
@@ -233,7 +238,7 @@ def Type1Font f = {
   Guard f.type0;
   Guard f.subtype0;
 
-  name = f.name0 is just; -- required
+  name = f.name0; -- required
   baseFont = f.baseFont0 is just; -- required
   firstChar = f.firstChar0 is just; -- required?
   lastChar = f.lastChar0 is just; -- required

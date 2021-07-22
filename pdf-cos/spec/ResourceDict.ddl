@@ -3,10 +3,12 @@ import Array
 import Map
 import Pair
 
-import PdfDecl
+-- import PdfDecl
 import PdfValue
 import GenPdfValue
 import FontDict
+
+import Testing
 
 -- ResourceDict: resource dictionary, with default values in all fields
 

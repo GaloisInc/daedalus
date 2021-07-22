@@ -36,7 +36,7 @@ def NameStr s = GenName (Match s)
 
 def Token1 P x = Token (P x)
 
-def NameToken s = Token (GenName s)
+def NameToken s = Token (NameStr s)
 
 def DictEntry Key Val = DepPair (Token (GenName Key)) (Token1 Val)
 
@@ -53,17 +53,21 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
-def DictAdderRec Adder d = Default d 
-  (DictAdderRec Adder {
+def DictAdderRec Adder d = Default d {
+  @d0 = {
     @k = Token Name;
-    case Adder k d of {
+    @d1 = Adder k d;
+    case d1 of {
       just d2 -> ^d2
     ; nothing -> When Value d
-    } })
+    }
+  };
+  DictAdderRec Adder d0
+}
 
 
-def GenPdfDict1 init Adder Final = Between "<<" ">>" {
-  @x = DictAdderRec Adder init;
+def GenPdfDict1 init Adder Final = {
+  @x = Between "<<" ">>" (DictAdderRec Adder init);
   Final x
 }
  
