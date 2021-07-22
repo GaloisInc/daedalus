@@ -1,4 +1,5 @@
-SPEC:=../spec/PdfCos.ddl
+SPEC_DIR:=../spec
+SPEC:=$(SPEC_DIR)/PdfCos.ddl
 ENTRIES:=PdfXRef.PdfEnd PdfXRef.CrossRef PdfDecl.TopDecl
 
 RTS_DIR:=../../rts-c
@@ -27,7 +28,7 @@ parser-test: src/main.cpp src/primitives.cpp main_parser.o
 main_parser.o: $(GEN) $(wildcard $(RTS_DIR)/*.h)
 	$(CC) -c $(CPPFLAGS) $(CXXFLAGS) $(OUT_DIR)/main_parser.cpp
 
-$(GEN): $(SPEC)
+$(GEN): $(SPEC) $(wildcard $(SPEC_DIR)/*.ddl)
 	mkdir -p $(OUT_DIR)
 	cabal exec daedalus -- \
 	  --compile-c++ \
