@@ -163,7 +163,7 @@ def CMapVal (k : CMapKey) = case k of
   wMode -> {| wModeVal = Number |}
 
 def SizedOp Domain Rng nm = {
-  @size = UnsignedNatural;
+  @size = Token(UnsignedNatural);
   Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope nm {
     @es = DictEntries Domain Rng;
