@@ -1,0 +1,15 @@
+<</Type /FontDescriptor
+               /FontName /AGaramond-Semibold
+               /Flags 262178
+               /FontBBox [-177 -269 1123 866]
+               /MissingWidth 255
+               /StemV 105
+               /StemH 45
+               /CapHeight 660
+               /XHeight 394
+               /Ascent 720
+               /Descent -270
+ /Leading 83
+         /MaxWidth 1212
+         /AvgWidth 478
+>>
