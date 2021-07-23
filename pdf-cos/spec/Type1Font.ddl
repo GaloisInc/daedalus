@@ -6,8 +6,7 @@ import Pair
 
 import GenPdfValue
 import PdfValue
--- import PdfDecl
-import Testing
+import PdfDecl
 import CMap
 import FontDesc
 

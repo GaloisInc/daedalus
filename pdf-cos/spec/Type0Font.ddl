@@ -5,8 +5,7 @@ import Pair
 
 import GenPdfValue
 import PdfValue
--- import PdfDecl
-import Testing
+import PdfDecl
 import CIDFont
 import CMap
 import FontDesc
@@ -126,7 +125,7 @@ def Type0Font (f : PartialType0Font) = {
   Guard f.subtype0; -- required
 
   encoding = f.encoding0 is just; -- required
-  descFont = f.descFonts0; -- is just; -- required
+  descFont = f.descFonts0 is just; -- required
   baseFont = f.baseFont0 is just;
 
   -- Guard ((f.baseFont0 is just) ==

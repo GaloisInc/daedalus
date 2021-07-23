@@ -4,8 +4,7 @@ import Pair
 
 import GenPdfValue
 import PdfValue
--- import PdfDecl
-import Testing
+import PdfDecl
 
 def PartialFontDesc (pt: bool) (pfn: bool) = {
   descType0 = pt;
