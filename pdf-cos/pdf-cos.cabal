@@ -15,8 +15,10 @@ build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
   spec/Array.ddl,
+  spec/CIDFont.ddl,
   spec/CMap.ddl,
   spec/ContentStreamLight.ddl,
+  spec/FontDesc.ddl,
   spec/FontDict.ddl,
   spec/GenPdfValue.ddl,
   spec/ISOCodes.ddl,
@@ -72,8 +74,10 @@ library
     
     -- copying the 'autogen-modules':
     Array,
+    CIDFont,
     CMap,
     ContentStreamLight,
+    FontDesc,
     FontDict,
     GenPdfValue,
     ISOCodes,
@@ -102,8 +106,10 @@ library
 
   autogen-modules:
     Array,
+    CIDFont,
     CMap,
     ContentStreamLight,
+    FontDesc,
     FontDict,
     GenPdfValue,
     ISOCodes,
