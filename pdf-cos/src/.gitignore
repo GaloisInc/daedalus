@@ -1,6 +1,8 @@
 Array.hs
+CIDFont.hs
 CMap.hs
 ContentStreamLight.hs
+FontDesc.hs
 FontDict.hs
 GenPdfValue.hs
 ISOCodes.hs

@@ -5,6 +5,11 @@ import FontDict
 import Unicode
 import Type0Font
 
+-- TODO: indirect deps
+import CMap
+import CIDFont
+import PdfValue
+
 def SizedFont (f : FontDict) (s: int) = {
   font = f;
   size = s;

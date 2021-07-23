@@ -7,6 +7,7 @@ import Type0Font
 -- TODO: indirect deps
 import PdfValue
 import CMap
+import CIDFont
 
 -- TODO: replace with proper defns
 def Type3Font = Void
