@@ -8,12 +8,10 @@ import Type0Font
 import PdfValue
 import CMap
 
--- TODO: replace with property defns
+-- TODO: replace with proper defns
 def Type3Font = Void
 
 def TrueTypeFont = Void
-
-def CIDFont = Void
 
 def FontDict = Choose1 { 
   -- fonts are mutually exclusive, due to at least the Subtype field
@@ -22,5 +20,4 @@ def FontDict = Choose1 {
   type1 = Type1FontP;
 --  type3 = Type3Font;
 --  trueType = TrueTypeFont;
---  cidFont = CIDFont;
 }
