@@ -1,0 +1,2 @@
+INFO - tests/td00.pdf at 0 - Catalog (page tree) result:
+INFO - tests/td00.pdf at 0 - "The quic k bro wn fo x jumps o v er the lazy dog's bac k.\FS \ESC \GS \RS \USy es\NAKno\SYNma y b e.\DLEdouble quoted\DC11"
