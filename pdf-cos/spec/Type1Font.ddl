@@ -12,8 +12,8 @@ import FontDesc
 
 import Testing
 
--- Type1Font0: partial definition of a Type1 font
-def Type1Font0 (t: bool) (st: bool)
+-- PartialType1Font: partial definition of a Type1 font
+def PartialType1Font (t: bool) (st: bool)
   (name: maybe string) (bf: maybe string)
   (fc: maybe (uint 64)) (lc: maybe (uint 64))
   (ws: maybe [ int ]) (fd: maybe stream) (enc: maybe Encoding)
@@ -30,7 +30,7 @@ def Type1Font0 (t: bool) (st: bool)
   toUnicode0 = toUni;
 }
 
-def InitType1Font = Type1Font0
+def InitType1Font = PartialType1Font
   false
   false
   nothing
@@ -43,7 +43,7 @@ def InitType1Font = Type1Font0
   nothing
 
 -- AddType: note that the required Type field has been seen
-def Type1AddType f = Type1Font0 
+def Type1AddType f = PartialType1Font 
   (Holds (DirectOrRef (Token (NameStr "Font"))))
   f.subtype0
   f.name0
@@ -56,7 +56,7 @@ def Type1AddType f = Type1Font0
   f.toUnicode0
 
 -- AddSubtype f: note the subtype field has been seen
-def AddSubtype f = Type1Font0 
+def AddSubtype f = PartialType1Font 
   f.type0
   (Holds (DirectOrRef (Token (NameStr "Type1"))))
   f.name0
@@ -69,7 +69,7 @@ def AddSubtype f = Type1Font0
   f.toUnicode0
 
 -- AddName f nm: 
-def AddName f = Type1Font0 
+def AddName f = PartialType1Font 
   f.type0
   f.subtype0
   (just (DirectOrRef (Token Name)))
@@ -82,7 +82,7 @@ def AddName f = Type1Font0
   f.toUnicode0
 
 -- AddBaseFont nm f: add a base font to font
-def AddBaseFont f = Type1Font0 
+def Type1AddBaseFont f = PartialType1Font 
   f.type0
   f.subtype0
   f.name0
@@ -95,7 +95,7 @@ def AddBaseFont f = Type1Font0
   f.toUnicode0
 
 -- AddFirstChar: add a first character seen
-def AddFirstChar f = Type1Font0
+def AddFirstChar f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -109,7 +109,7 @@ def AddFirstChar f = Type1Font0
   f.toUnicode0
 
 -- AddLastChar: add the last character seen
-def AddLastChar f = Type1Font0
+def AddLastChar f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -122,7 +122,7 @@ def AddLastChar f = Type1Font0
   f.toUnicode0
 
 -- AddWidths: add the last character seen
-def AddWidths f = Type1Font0
+def AddWidths f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -135,7 +135,7 @@ def AddWidths f = Type1Font0
   f.toUnicode0
 
 -- AddFontDesc: add a font descriptor
-def AddFontDesc f = Type1Font0
+def AddFontDesc f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -151,7 +151,7 @@ def AddFontDesc f = Type1Font0
   f.toUnicode0
 
 -- AddEncoding: add an encoding
-def AddEncoding f = Type1Font0
+def Type1AddEncoding f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -164,7 +164,7 @@ def AddEncoding f = Type1Font0
   f.toUnicode0
 
 -- AddToUnicode: add a to-unicode map
-def AddToUnicode f = Type1Font0
+def Type1AddToUnicode f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
@@ -174,9 +174,7 @@ def AddToUnicode f = Type1Font0
   f.widths0
   f.fontDesc0
   f.encoding0
-  (just
-    (WithStream ((ResolveStream {| ref = Token Ref |}).body is ok)
-      (ToUnicodeCMap {| simpleFont = {} |})))
+  (just (CMapRef SimpleFontType))
 
 -- TODO: refine this defn in another module
 def CharEncodingDict = Dict
@@ -203,7 +201,7 @@ def ExtendType1Font k font = {
   }
   else if k == "BaseFont" then {
     font.baseFont0 is nothing;
-    just (AddBaseFont font)
+    just (Type1AddBaseFont font)
   }
   else if k == "FirstChar" then {
     font.firstChar0 is nothing;
@@ -223,11 +221,11 @@ def ExtendType1Font k font = {
   }
   else if k == "Encoding" then {
     font.encoding0 is nothing;
-    just (AddEncoding font)
+    just (Type1AddEncoding font)
   }
   else if k == "ToUnicode" then {
     font.toUnicode0 is nothing;
-    just (AddToUnicode font)
+    just (Type1AddToUnicode font)
   }
   else nothing
 }

@@ -1,34 +1,154 @@
-
 import Stdlib
-import PdfValue  -- TODO: need to replace with GenPdfValue??
-import PdfDecl   
+import Array
+import Map
+import Pair
 
-import Type1Font -- TODO: split out dependent defns
+import GenPdfValue
+import PdfValue
+-- import PdfDecl
+import Testing
+import CIDFont
+-- import CMap
+import FontDesc
 
--- the type 0 font dictionary, see spec p. 341
-def Type0Font = {
-  @d = Dict;
-  @ty = LookupName "Type" d;
-  Guard (ty == "Font");
-  
-  @subty = LookupName "SubType" d;
-  Guard (subty == "Type0");
-    
-  basefont  = LookupName "BaseFont" d;
-  
-  @enc = Lookup "Encoding" d;
+-- PartialType1Font: partial definition of a Type1 font
+def PartialType0Font (t: bool) (st: bool)
+  (bf: maybe string)
+  (enc: maybe Encoding) (dfs: maybe CIDFont)
+  toUni = {
+  type0 = t;
+  subtype0 = st;
+  baseFont0 = bf;
+  encoding0 = enc;
+  descFonts0 = dfs;
+  toUnicode0 = toUni;
+}
 
-  encoding = Choose1 {
-                {@v = ResolveVal enc; @n = v is name; ^ {| primName = n |} };
-                {@s = ResolveStream enc; ^ {| streamEnc = s |}};
-              };
-  
-              -- name or stream
-              -- not the same as 'Encoding' for other Type1,...
-  
-  descendants = LookupResolve "DescendantFonts" d; -- one element array
-  
-  toUnicode = Optional (LookupResolve "ToUnicode" d);
+def InitType0Font = PartialType0Font
+  false
+  false
+  nothing
+  nothing
+  nothing
+  nothing
+
+-- AddType: note that the required Type field has been seen
+def Type0AddType f = PartialType0Font 
+  (Holds (DirectOrRef (Token (NameStr "Font"))))
+  f.subtype0
+  f.baseFont0
+  f.encoding0
+  f.descFonts0
+  f.toUnicode0
+
+-- AddSubtype f: note the subtype field has been seen
+def Type0AddSubtype f = PartialType0Font 
+  f.type0
+  (Holds (DirectOrRef (Token (NameStr "Type0"))))
+  f.baseFont0
+  f.encoding0
+  f.descFonts0
+  f.toUnicode0
+
+-- AddBaseFont nm f: add a base font to font
+def AddBaseFont f = PartialType0Font 
+  f.type0
+  f.subtype0
+  (just (DirectOrRef (Token Name)))
+  f.encoding0
+  f.descFonts0
+  f.toUnicode0
+
+def Type0Encoding = Choose1 {
+  preDef = DirectOrRef (Token Name);
+  cmap = Token Number;
+  -- CMapRef SimpleFontType -- TODO: use Sec. 9.7.6.2
+  -- TODO:
+}
+
+-- AddEncoding: add an encoding
+def AddEncoding f = PartialType0Font
+  f.type0
+  f.subtype0
+  f.baseFont0
+  (just Type0Encoding)
+  f.descFonts0
+  f.toUnicode0
+
+-- AddFontDesc: add a font descriptor
+def AddDescFonts f = PartialType0Font
+  f.type0
+  f.subtype0
+  f.baseFont0
+  f.encoding0
+  (just (Between "[" "]" CIDFontP))
+  f.toUnicode0
+
+-- AddToUnicode: add a to-unicode map
+def AddToUnicode f = PartialType0Font
+  f.type0
+  f.subtype0
+  f.baseFont0
+  f.encoding0
+  f.descFonts0
+  (nothing)
+--  (just (CMapRef SimpleFontType))
+-- TODO:
+
+def ExtendType0Font k font = {
+  if k == "Type" then {
+    font.type0 is false;
+    just (Type0AddType font)
   }
+  else if k == "Subtype" then {
+    font.subtype0 is false;
+    just (Type0AddSubtype font)
+  }
+  else if k == "BaseFont" then {
+    font.baseFont0 is nothing;
+    just (AddBaseFont font)
+  }
+  else if k == "Encoding" then {
+    font.encoding0 is nothing;
+    just (AddEncoding font)
+  }
+  else if k == "DescendantFonts" then {
+    font.descFonts0 is nothing;
+    just (AddDescFonts font)
+  }
+  else if k == "ToUnicode" then {
+    font.toUnicode0 is nothing;
+    just (AddToUnicode font)
+  }
+  else nothing
+}
 
-def Type0FontP = Type0Font
+-- Type0Font f: coerce partial font f into an actual Type1
+-- font
+def Type0Font (f : PartialType0Font) = {
+  Guard f.type0; -- required
+  Guard f.subtype0; -- required
+
+  encoding = f.encoding0 is just; -- required
+
+  descFont = f.descFonts0 is just; -- required
+  f.baseFont0 is just;
+  -- Guard ((f.baseFont0 is just) ==
+  --   (append descFont.cidBaseFont
+  --     case (descFont.cidSubtype : CIDFontType) of {
+  --       cidFontType0 -> append "-"
+  --         (case (encoding : Type0Encoding) of {
+  --           preDef nm -> nm
+  --         ; cmap m -> ""
+  --           -- TODO: CMap: extend with field for name
+  --         })
+  --     ; cidFontType2 -> ""
+  --     }));
+
+  toUnicode = f.toUnicode0;
+}
+
+def Type0FontP = GenPdfDict1
+  InitType0Font
+  ExtendType0Font
+  Type0Font

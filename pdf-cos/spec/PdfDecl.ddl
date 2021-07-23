@@ -85,6 +85,10 @@ def DirectOrRef P = case OrRef P of {
 ; pref r -> ParseAtRef r P  
 }
 
+def WithReffedStreamBody P = WithStream
+  ((ResolveStreamRef (Token Ref)).body is ok)
+  P
+
 -- WrapGetStream: local wrapper to GetStream, used for primitive
 def WrapGetStream = GetStream
 

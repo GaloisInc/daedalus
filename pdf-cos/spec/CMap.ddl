@@ -5,6 +5,7 @@ import Map
 import Array
        
 -- import PDF libraries:
+import PdfDecl
 import GenPdfValue
 import PdfValue
 import Unicode
@@ -351,6 +352,8 @@ def FontType = Choose {
   cidFont = ^{};
 }
 
+def SimpleFontType : FontType = {| simpleFont = {} |}
+
 -- FontCode: parse a font code as an integer:
 def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
   simpleFont -> HexByte
@@ -358,6 +361,9 @@ def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
 )
 
 def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
+
+def CMapRef (ft : FontType) = WithReffedStreamBody
+  (ToUnicodeCMap SimpleFontType)
 
 -- for testing .... ---------------------------------------------
 

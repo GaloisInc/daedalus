@@ -14,6 +14,8 @@ def Integer : int = {
   }
 }
 
+def UNatural = Natural as! uint 64
+
 -- GenArray P: PDF array of P's
 def GenArray P = Between "[" "]" (Many (Token P)) 
 

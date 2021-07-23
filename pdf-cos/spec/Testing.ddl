@@ -7,3 +7,5 @@ def ResolveStream v = {
     ok = GetStream;
   }
 }
+
+def WithReffedStreamBody P = P
