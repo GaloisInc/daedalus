@@ -7,10 +7,10 @@ import Pair
 import GenPdfValue
 import PdfValue
 -- import PdfDecl
+import Testing
 import CMap
 import FontDesc
 
-import Testing
 
 -- PartialType1Font: partial definition of a Type1 font
 def PartialType1Font (t: bool) (st: bool)

@@ -8,7 +8,7 @@ import PdfValue
 -- import PdfDecl
 import Testing
 import CIDFont
--- import CMap
+import CMap
 import FontDesc
 
 -- PartialType1Font: partial definition of a Type1 font
@@ -61,9 +61,7 @@ def AddBaseFont f = PartialType0Font
 
 def Type0Encoding = Choose1 {
   preDef = DirectOrRef (Token Name);
-  cmap = Token Number;
-  -- CMapRef SimpleFontType -- TODO: use Sec. 9.7.6.2
-  -- TODO:
+  cmap = CMapRef SimpleFontType; -- TODO: use Sec. 9.7.6.2
 }
 
 -- AddEncoding: add an encoding
@@ -81,7 +79,7 @@ def AddDescFonts f = PartialType0Font
   f.subtype0
   f.baseFont0
   f.encoding0
-  (just (Between "[" "]" CIDFontP))
+  (just (DirectOrRef (Between "[" "]" (DirectOrRef CIDFontP))))
   f.toUnicode0
 
 -- AddToUnicode: add a to-unicode map
@@ -91,9 +89,7 @@ def AddToUnicode f = PartialType0Font
   f.baseFont0
   f.encoding0
   f.descFonts0
-  (nothing)
---  (just (CMapRef SimpleFontType))
--- TODO:
+  (just (CMapRef SimpleFontType))
 
 def ExtendType0Font k font = {
   if k == "Type" then {
@@ -130,9 +126,9 @@ def Type0Font (f : PartialType0Font) = {
   Guard f.subtype0; -- required
 
   encoding = f.encoding0 is just; -- required
+  descFont = f.descFonts0; -- is just; -- required
+  baseFont = f.baseFont0 is just;
 
-  descFont = f.descFonts0 is just; -- required
-  f.baseFont0 is just;
   -- Guard ((f.baseFont0 is just) ==
   --   (append descFont.cidBaseFont
   --     case (descFont.cidSubtype : CIDFontType) of {
@@ -144,6 +140,7 @@ def Type0Font (f : PartialType0Font) = {
   --         })
   --     ; cidFontType2 -> ""
   --     }));
+  -- TODO:
 
   toUnicode = f.toUnicode0;
 }

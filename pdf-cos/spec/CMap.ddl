@@ -5,7 +5,8 @@ import Map
 import Array
        
 -- import PDF libraries:
-import PdfDecl
+-- import PdfDecl
+import Testing
 import GenPdfValue
 import PdfValue
 import Unicode

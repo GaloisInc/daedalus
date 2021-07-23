@@ -55,18 +55,13 @@ def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
 
-def DictAdderRec Adder d = Default d {
-  @d0 = {
-    @k = Token Name;
-    @d1 = Adder k d;
-    case d1 of {
+def DictAdderRec Adder d = Default d (DictAdderRec Adder
+  { @k = Token Name;
+    case Adder k d of {
       just d2 -> ^d2
     ; nothing -> When Value d
     }
-  };
-  DictAdderRec Adder d0
-}
-
+  })
 
 def GenPdfDict1 init Adder Final = {
   @x = Between "<<" ">>" (DictAdderRec Adder init);
