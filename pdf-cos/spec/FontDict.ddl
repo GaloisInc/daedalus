@@ -22,3 +22,5 @@ def FontDict = Choose1 {
 --  type3 = Type3Font;
 --  trueType = TrueTypeFont;
 }
+
+def MkType0Font (f0 : Type0Font) : FontDict = {| type0 = f0 |}

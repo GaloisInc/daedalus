@@ -10,7 +10,26 @@ import FontDict
 
 -- ResourceDict: resource dictionary, with default values in all fields
 
-def ResourceDict0 pGState pCS pPattern pShading pXObj pFont pProcSet pProps = {
+def PartialResourceDict = {
+  extGState0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
+  colorSpace0 = nothing : maybe [ [ uint 8 ] -> Value ];
+  pattern0 = nothing : maybe [ [ uint 8 ] -> Value ];
+  shading0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
+  xObject0 = nothing : maybe [ [ uint 8 ] -> Value ];
+  font0 = nothing : maybe [ [ uint 8 ] -> FontDict ];
+  procSet0 = nothing : maybe [ Value ];
+  properties0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
+}
+
+def MkPartialResourceDict
+  pGState
+  pCS
+  pPattern
+  pShading
+  pXObj 
+  pFont
+  pProcSet
+  pProps : PartialResourceDict = {
   extGState0 = pGState;
   colorSpace0 = pCS;
   pattern0 = pPattern;
@@ -21,7 +40,7 @@ def ResourceDict0 pGState pCS pPattern pShading pXObj pFont pProcSet pProps = {
   properties0 = pProps;
 }
 
-def InitResourceDict = ResourceDict0
+def InitResourceDict = MkPartialResourceDict
   nothing
   nothing
   nothing
@@ -31,7 +50,7 @@ def InitResourceDict = ResourceDict0
   nothing
   nothing
 
-def AddExtGState d = ResourceDict0
+def AddExtGState d = MkPartialResourceDict
   (just (DirectOrRef (GenPdfDict Dict)))
   -- TODO: refine using Sec. 8.4.5, if needed
   d.colorSpace0
@@ -42,7 +61,7 @@ def AddExtGState d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddColorSpace d = ResourceDict0
+def AddColorSpace d = MkPartialResourceDict
   d.extGState0
   (just (DirectOrRef Dict))
   -- TODO: refine using Sec 8.6, if needed
@@ -53,7 +72,7 @@ def AddColorSpace d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddPattern d = ResourceDict0
+def AddPattern d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   (just (DirectOrRef Dict))
@@ -64,7 +83,7 @@ def AddPattern d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddShading d = ResourceDict0
+def AddShading d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -75,7 +94,7 @@ def AddShading d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddXObject d = ResourceDict0
+def AddXObject d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -85,7 +104,7 @@ def AddXObject d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddFont d = ResourceDict0
+def AddFont d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -95,7 +114,7 @@ def AddFont d = ResourceDict0
   d.procSet0
   d.properties0
 
-def AddProcSet d = ResourceDict0
+def AddProcSet d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -105,7 +124,7 @@ def AddProcSet d = ResourceDict0
   (just (DirectOrRef Array))
   d.properties0
 
-def AddProperties d = ResourceDict0
+def AddProperties d = MkPartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0

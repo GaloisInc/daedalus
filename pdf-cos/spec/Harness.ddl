@@ -1,15 +1,27 @@
 -- Harness: testing harness
 import ResourceDict
 -- import Type1Font
+import TextEffect
+import FontDict
 import Type0Font
 import FontDesc
 import TextObj
 
-def Main = Type0FontP
+def TestFont : FontDict = MkType0Font (Type0Font (MkPartialType0Font
+    true
+    true
+    (just "TestFont")
+    (just {| preDef = "TestEnc"|})
+    nothing
+    nothing))
+
+def Map1 k v = Insert k v empty
+
+def Main = TextObj
+  (ResourceDict InitResourceDict)
+  (just (SizedFont TestFont 12))
 
 -- TODO: unit test these parsers
--- CID Font dicts
--- TypeFont0
 -- content stream
 -- pages
 -- page tree nodes

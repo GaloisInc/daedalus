@@ -331,11 +331,11 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      $$ = GenCMapScope "cmap" (CMapProper CharCode);
+      dict = GenCMapScope "cmap" (CMapProper CharCode);
 
       -- a CMapName directive
       KW "CMapName";
-      @cMapName = Token(Many NameChar);  -- FIXME: need to add back this name?
+      cMapName = Token(Many NameChar);  -- FIXME: need to add back this name?
       Name;
       KW "defineresource";
       KW "pop";
@@ -362,7 +362,7 @@ def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
 
 def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
 
-def CMapRef (ft : FontType) = WithReffedStreamBody
+def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
   (ToUnicodeCMap SimpleFontType)
 
 -- for testing .... ---------------------------------------------

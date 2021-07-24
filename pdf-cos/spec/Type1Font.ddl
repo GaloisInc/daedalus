@@ -253,3 +253,5 @@ def Type1FontP = GenPdfDict1
   InitType1Font
   ExtendType1Font
   Type1Font
+
+-- TODO: make concrete types polymorphic
