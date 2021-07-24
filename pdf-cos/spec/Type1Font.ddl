@@ -10,13 +10,12 @@ import PdfDecl
 import CMap
 import FontDesc
 
-
 -- PartialType1Font: partial definition of a Type1 font
 def PartialType1Font (t: bool) (st: bool)
-  (name: maybe string) (bf: maybe string)
+  (name: maybe [ uint 8 ]) (bf: maybe FontName)
   (fc: maybe (uint 64)) (lc: maybe (uint 64))
   (ws: maybe [ int ]) (fd: maybe stream) (enc: maybe Encoding)
-  toUni = {
+  (toUni : maybe ToUnicodeCMap0) = {
   type0 = t;
   subtype0 = st;
   name0 = name;
@@ -85,7 +84,7 @@ def Type1AddBaseFont f = PartialType1Font
   f.type0
   f.subtype0
   f.name0
-  (just (DirectOrRef (Token Name)))
+  (just (DirectOrRef (Token (GenName FontName))))
   f.firstChar0
   f.lastChar0
   f.widths0
@@ -229,22 +228,38 @@ def ExtendType1Font k font = {
   else nothing
 }
 
+def CharSet (f : PartialType1Font) = {
+  firstChar = f.firstChar0 is just;
+  lastChar = f.lastChar0 is just;
+  Guard (firstChar <= lastChar);
+
+  widths = f.widths0 is just; 
+  Guard ((length widths) == inc (lastChar - firstChar));
+
+  fontDesc = WithStream (f.fontDesc0 is just)
+    (FontDescP (f.baseFont0 is just));
+}
+
 -- Type1Font f: coerce partial font f into an actual Type1
 -- font
-def Type1Font f = {
+def Type1Font (f: PartialType1Font) = {
   Guard f.type0;
   Guard f.subtype0;
 
-  name = f.name0; -- required
-  baseFont = f.baseFont0 is just; -- required
-  firstChar = f.firstChar0 is just; -- required?
-  lastChar = f.lastChar0 is just; -- required
-  Guard (firstChar <= lastChar);
+  name = f.name0; -- required in PDF2.0
+  baseFont = f.baseFont0 is just; -- required 
+  charSet = case (baseFont : Type1BaseFont) of {
+    standard _ -> (just (CharSet f)) |
+      (When {
+        f.firstChar0 is nothing;
+        f.lastChar0 is nothing;
+        f.widths0 is nothing;
+        f.fontDesc0 is nothing;
+      }
+      nothing)
+  ; nonStandard _ -> just (CharSet f)
+  };
 
-  widths = f.widths0 is just; -- required
-  Guard ((length widths) == inc (lastChar - firstChar));
-
-  fontDesc = WithStream (f.fontDesc0 is just) (FontDescP baseFont);
   encoding = f.encoding0;
   toUnicode = f.toUnicode0;
 }
@@ -253,5 +268,3 @@ def Type1FontP = GenPdfDict1
   InitType1Font
   ExtendType1Font
   Type1Font
-
--- TODO: make concrete types polymorphic

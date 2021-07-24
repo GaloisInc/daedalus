@@ -15,20 +15,11 @@ def Type0Encoding = Choose1 {
   cmap = CMapRef SimpleFontType; -- TODO: use Sec. 9.7.6.2
 }
 
-def PartialType0Font = {
-  type0 = false;
-  subtype0 = false;
-  baseFont0 = nothing : maybe [ uint 8 ];
-  encoding0 = nothing : maybe Type0Encoding;
-  descFonts0 = nothing : maybe CIDFont;
-  toUnicode0 = nothing : maybe ToUnicodeCMap0;
-}
-
 -- PartialType1Font: partial definition of a Type1 font
-def MkPartialType0Font (t: bool) (st: bool)
-  (bf: maybe [ uint 8 ])
+def PartialType0Font (t: bool) (st: bool)
+  (bf: maybe FontName)
   (enc: maybe Type0Encoding) (dfs: maybe CIDFont)
-  (toUni : maybe ToUnicodeCMap0) : PartialType0Font = {
+  (toUni : maybe ToUnicodeCMap0) = {
   type0 = t;
   subtype0 = st;
   baseFont0 = bf;
@@ -37,7 +28,7 @@ def MkPartialType0Font (t: bool) (st: bool)
   toUnicode0 = toUni;
 }
 
-def InitType0Font = MkPartialType0Font
+def InitType0Font = PartialType0Font
   false
   false
   nothing
@@ -46,7 +37,7 @@ def InitType0Font = MkPartialType0Font
   nothing
 
 -- AddType: note that the required Type field has been seen
-def Type0AddType f = MkPartialType0Font 
+def Type0AddType f = PartialType0Font 
   (Holds (DirectOrRef (Token (NameStr "Font"))))
   f.subtype0
   f.baseFont0
@@ -55,7 +46,7 @@ def Type0AddType f = MkPartialType0Font
   f.toUnicode0
 
 -- AddSubtype f: note the subtype field has been seen
-def Type0AddSubtype f = MkPartialType0Font 
+def Type0AddSubtype f = PartialType0Font 
   f.type0
   (Holds (DirectOrRef (Token (NameStr "Type0"))))
   f.baseFont0
@@ -64,16 +55,16 @@ def Type0AddSubtype f = MkPartialType0Font
   f.toUnicode0
 
 -- AddBaseFont nm f: add a base font to font
-def AddBaseFont f = MkPartialType0Font 
+def AddBaseFont f = PartialType0Font 
   f.type0
   f.subtype0
-  (just (DirectOrRef (Token Name)))
+  (just (DirectOrRef (Token (GenName FontName))))
   f.encoding0
   f.descFonts0
   f.toUnicode0
 
 -- AddEncoding: add an encoding
-def AddEncoding f = MkPartialType0Font
+def AddEncoding f = PartialType0Font
   f.type0
   f.subtype0
   f.baseFont0
@@ -82,7 +73,7 @@ def AddEncoding f = MkPartialType0Font
   f.toUnicode0
 
 -- AddFontDesc: add a font descriptor
-def AddDescFonts f = MkPartialType0Font
+def AddDescFonts f = PartialType0Font
   f.type0
   f.subtype0
   f.baseFont0
@@ -91,7 +82,7 @@ def AddDescFonts f = MkPartialType0Font
   f.toUnicode0
 
 -- AddToUnicode: add a to-unicode map
-def AddToUnicode f = MkPartialType0Font
+def AddToUnicode f = PartialType0Font
   f.type0
   f.subtype0
   f.baseFont0

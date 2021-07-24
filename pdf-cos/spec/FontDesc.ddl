@@ -6,39 +6,61 @@ import GenPdfValue
 import PdfValue
 import PdfDecl
 
-def PartialFontDesc = {
-  descType0 = false;
-  descFontName0 = false;
-  flags0 = nothing : maybe int;
+-- the 14 standard fonts
+def StandardFont = Choose1 {
+  timesRoman = @(Match "Times-Roman")
+; helvetica = @(Match "Helvetica")
+; courier = @(Match "Courier")
+; symbol = @(Match "Symbol")
+; timesBold = @(Match "Times-Bold")
+; helveticaBold = @(Match "Helvetica-Bold")
+; courierBold = @(Match "Courier-Bold")
+; zapfDingbats = @(Match "ZapfDingbats")
+; timesItalic = @(Match "Times-Italic")
+; helveticaOblique = @(Match "Helvetica-Obique")
+; courierOblique = @(Match "Courier-Oblique")
+; timesBoldItalic = @(Match "Times-BoldItalic")
+; helveticaBoldOblique = @(Match "Helvetica-BoldOblique")
+; courierBoldOblique = @(Match "Courier-BoldOblique")
 }
 
-def MkPartialFontDesc (pt: bool) (pfn: bool) mayFlags : PartialFontDesc = {
+def Helvetica : FontName = {|
+  standard = {| helvetica = { } |}
+|}
+
+-- Base fonts: the 14 standards and everything else
+def FontName = Choose1 {
+  standard = StandardFont
+; nonStandard = Many NameChar
+}
+
+def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe int) = {
   descType0 = pt;
   descFontName0 = pfn;
   flags0 = mayFlags;
 }
 
-def InitFontDesc = MkPartialFontDesc
+def InitFontDesc = PartialFontDesc
   false
   false
   nothing
 
-def AddFontDescType fd = MkPartialFontDesc
+def AddFontDescType fd = PartialFontDesc
   (Holds (Token (NameStr "FontDescriptor")))
   fd.descFontName0
   fd.flags0
 
-def AddFontDescName baseFontNm fd = MkPartialFontDesc
+def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
   fd.descType0
-  (Holds (Guard (Token Name == baseFontNm)))
+  (Holds (Guard ((GenName FontName) == parBaseFont)))
   fd.flags0
 
-def AddFlags fd = MkPartialFontDesc
+def AddFlags fd = PartialFontDesc
   fd.descType0
   fd.descFontName0
   (just Integer)
 
-def ExtendFontDesc (baseFontNm : [ uint 8 ]) (k: [ uint 8 ])
+def ExtendFontDesc (parBaseFont : FontName) (k: [ uint 8 ])
   (fd: PartialFontDesc) = 
   if k == "Type" then {
     fd.descType0 is false;
@@ -46,7 +68,7 @@ def ExtendFontDesc (baseFontNm : [ uint 8 ]) (k: [ uint 8 ])
   }
   else if k == "FontName" then {
     fd.descFontName0 is false;
-    just (AddFontDescName baseFontNm fd)
+    just (AddFontDescName parBaseFont fd)
   }
   else if k == "Flags" then {
     fd.flags0 is nothing;
@@ -57,13 +79,10 @@ def ExtendFontDesc (baseFontNm : [ uint 8 ]) (k: [ uint 8 ])
 def FontDesc (fd: PartialFontDesc) = {
   Guard fd.descType0;
   Guard fd.descFontName0;
-  -- TODO: add some field here to make this a named type
   flags = fd.flags0 is just;
 }
 
-def FontDesc0 d = d
-
-def FontDescP (baseFontNm : [ uint 8] ) = GenPdfDict1
+def FontDescP (parBaseFont : FontName ) = GenPdfDict1
   InitFontDesc
-  (ExtendFontDesc baseFontNm)
+  (ExtendFontDesc parBaseFont)
   FontDesc

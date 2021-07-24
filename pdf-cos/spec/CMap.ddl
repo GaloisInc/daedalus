@@ -154,7 +154,7 @@ def CMapKey = Choose1 {
 
 -- CMapVal: values in the CMap
 def CMapVal (k : CMapKey) = case k of
-  cidSysInfo -> {| cidSysInfoVal = PdfDict CIDSysInfoKey CIDSysInfoVal |}
+  cidSysInfo -> {| cidSysInfoVal = GenPdfDict CIDSysInfoKey CIDSysInfoVal |}
   cMapMatch -> {| cMapMatchVal = Name |}
   cMapVersion -> {| cMapVersionVal = Number |}
   cMapType -> {| cMapTypeVal = Number |}

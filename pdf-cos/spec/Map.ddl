@@ -2,7 +2,7 @@
 import Stdlib
 import Pair
 
-def defaultEmpty mopt = case mopt of {
+def defaultEmpty (mopt : maybe [k -> v ]) : [k -> v] = case mopt of {
   just m -> m;
   nothing -> empty;
 }

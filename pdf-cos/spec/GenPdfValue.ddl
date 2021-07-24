@@ -33,27 +33,26 @@ def GenObj P = {
   Match "endobj";
 }
 
+def NameBase = Many NameChar
+
 -- NameStr s: name with string s
 def NameStr s = GenName (Match s)
 
-def Token1 P x = Token (P x)
-
 def NameToken s = Token (NameStr s)
 
-def DictEntry Key Val = DepPair (Token (GenName Key)) (Token1 Val)
+def DictEntry Key Val = DepPair (Token (GenName Key)) Val
 
 -- experimental: rank-2 parsing
 def DictEntries Key Val = Many (DictEntry Key Val)
 
-def DictMap Key Val = {
-  @es = DictEntries Key Val;
-  ListToMap es
-}
+def DictMap Key Val = ListToMap (DictEntries Key Val)
+
+def GenPdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 
 -- PdfDict: a PDF dictionary
-def PdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
+def PdfDict Val = GenPdfDict NameBase (Const Val)
 
-def GenPdfDict Val = Between "<<" ">>" (DictMap Name (Const Val))
+-- TODO: broken: loses track of name slash prefixing
 
 def DictAdderRec Adder d = Default d (DictAdderRec Adder
   { @k = Token Name;

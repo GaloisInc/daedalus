@@ -10,26 +10,16 @@ import FontDict
 
 -- ResourceDict: resource dictionary, with default values in all fields
 
-def PartialResourceDict = {
-  extGState0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
-  colorSpace0 = nothing : maybe [ [ uint 8 ] -> Value ];
-  pattern0 = nothing : maybe [ [ uint 8 ] -> Value ];
-  shading0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
-  xObject0 = nothing : maybe [ [ uint 8 ] -> Value ];
-  font0 = nothing : maybe [ [ uint 8 ] -> FontDict ];
-  procSet0 = nothing : maybe [ Value ];
-  properties0 = nothing : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ];
-}
-
-def MkPartialResourceDict
-  pGState
-  pCS
-  pPattern
-  pShading
-  pXObj 
-  pFont
-  pProcSet
-  pProps : PartialResourceDict = {
+def PartialResourceDict
+  (pGState : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  (pCS : maybe [ [ uint 8 ] -> Value ])
+  (pPattern : maybe [ [ uint 8 ] -> Value ])
+  (pShading : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  (pXObj : maybe [ [ uint 8 ] -> Value ])
+  (pFont : maybe [ [ uint 8 ] -> FontDict ])
+  (pProcSet : maybe [ Value ])
+  (pProps : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  : PartialResourceDict = {
   extGState0 = pGState;
   colorSpace0 = pCS;
   pattern0 = pPattern;
@@ -40,7 +30,7 @@ def MkPartialResourceDict
   properties0 = pProps;
 }
 
-def InitResourceDict = MkPartialResourceDict
+def InitResourceDict = PartialResourceDict
   nothing
   nothing
   nothing
@@ -50,8 +40,8 @@ def InitResourceDict = MkPartialResourceDict
   nothing
   nothing
 
-def AddExtGState d = MkPartialResourceDict
-  (just (DirectOrRef (GenPdfDict Dict)))
+def AddExtGState d = PartialResourceDict
+  (just (DirectOrRef (PdfDict Dict)))
   -- TODO: refine using Sec. 8.4.5, if needed
   d.colorSpace0
   d.pattern0
@@ -61,7 +51,7 @@ def AddExtGState d = MkPartialResourceDict
   d.procSet0
   d.properties0
 
-def AddColorSpace d = MkPartialResourceDict
+def AddColorSpace d = PartialResourceDict
   d.extGState0
   (just (DirectOrRef Dict))
   -- TODO: refine using Sec 8.6, if needed
@@ -72,7 +62,7 @@ def AddColorSpace d = MkPartialResourceDict
   d.procSet0
   d.properties0
 
-def AddPattern d = MkPartialResourceDict
+def AddPattern d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   (just (DirectOrRef Dict))
@@ -83,18 +73,18 @@ def AddPattern d = MkPartialResourceDict
   d.procSet0
   d.properties0
 
-def AddShading d = MkPartialResourceDict
+def AddShading d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
-  (just (DirectOrRef (GenPdfDict Dict)))
+  (just (DirectOrRef (PdfDict Dict)))
   -- TODO: refine using Sec. 8.7.4.5, if needed
   d.xObject0
   d.font0
   d.procSet0
   d.properties0
 
-def AddXObject d = MkPartialResourceDict
+def AddXObject d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -104,17 +94,17 @@ def AddXObject d = MkPartialResourceDict
   d.procSet0
   d.properties0
 
-def AddFont d = MkPartialResourceDict
+def AddFont d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
   d.shading0
   d.xObject0
-  (just (DirectOrRef (GenPdfDict FontDict)))
+  (just (DirectOrRef (PdfDict FontDict)))
   d.procSet0
   d.properties0
 
-def AddProcSet d = MkPartialResourceDict
+def AddProcSet d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -124,7 +114,7 @@ def AddProcSet d = MkPartialResourceDict
   (just (DirectOrRef Array))
   d.properties0
 
-def AddProperties d = MkPartialResourceDict
+def AddProperties d = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -132,7 +122,7 @@ def AddProperties d = MkPartialResourceDict
   d.xObject0
   d.font0
   d.procSet0
-  (just (DirectOrRef (GenPdfDict Dict)))
+  (just (DirectOrRef (PdfDict Dict)))
 
 def ExtendResourceDict k dict = {
   if k == "ExtGState" then {
@@ -171,7 +161,7 @@ def ExtendResourceDict k dict = {
 }
 
 -- ResourceDict d: coerce d into a resource dictionary, using default values
-def ResourceDict d = {
+def ResourceDict (d : PartialResourceDict) = {
   extGState = defaultEmpty d.extGState0;
   colorSpace = defaultEmpty d.colorSpace0;
   pattern = defaultEmpty d.pattern0;
