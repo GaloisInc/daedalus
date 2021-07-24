@@ -15,6 +15,10 @@ def Type0Encoding = Choose1 {
   cmap = CMapRef SimpleFontType; -- TODO: use Sec. 9.7.6.2
 }
 
+def PreDefEncoding (s : [ uint 8 ]) : Type0Encoding = {|
+  preDef = s
+|}
+
 -- PartialType1Font: partial definition of a Type1 font
 def PartialType0Font (t: bool) (st: bool)
   (bf: maybe FontName)

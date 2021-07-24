@@ -5,6 +5,9 @@ import Array
 import Pair
 
 import GenPdfValue
+import ColourSpaceOps
+import GraphicsStateOps
+import MarkedContentOps
 import PdfValue
 import FontDict
 import ResourceDict
@@ -15,21 +18,46 @@ import TextStateOp
 import Unicode
 
 -- ContentStreamOp: an operation in a content stream
-def ContentStreamOp (rd : ResourceDict) (f: maybe SizedFont) = Choose1 {
-  textObj = TextObj rd f; -- text object
+def ContentStreamOp = Choose1 {
   textStateOp = TextStateOp; -- text state operators outside of object
+  graphicsStateOp = GraphicsStateOp;
+  colourOp = ColourOp;
+  markedPoint = MarkContentPoint;
+  markedSeq = MarkedContentSeqOp;
 }
 
-def CSOpOrByte (rd : ResourceDict) (f : maybe SizedFont) :
-  maybe ContentStreamOp =
-  OrEatByte (ContentStreamOp rd f)
+def ContentStreamObj = Choose1 {
+  textObj = [] : [ TextOp ]
+; csOp = ContentStreamOp
+}
 
--- ContentStreamP: interpret a content stream, resolving lookups
+def CSTextObj (tobj : [ TextOp ]) : ContentStreamObj = {|
+  textObj = tobj
+|}
+
+def CSOp (op : ContentStreamOp) : ContentStreamObj = {|
+  csOp = op
+|}
+
+def LiftedTextObj (rd: ResourceDict) (szFont: maybe SizedFont) :
+  FontEffect = {
+  @eff0 = TextObj rd szFont;
+  FontEffect eff0.fst (just (just (CSTextObj eff0.snd))) -- ?
+}
+
+-- ContentStreamP: parse a content stream, resolving lookups
 -- into the resource dictionary.
-def ContentStreamP (rd : ResourceDict) =
-  optionsToArray (OpsWithFont (CSOpOrByte rd) rd nothing)
+def ContentStreamP (rd : ResourceDict) : [ ContentStreamObj ] = {
+  @eff0 = ManyWithState (GenSum1
+    (FontOpEffect rd)
+    (GenSum1 (LiftedTextObj rd)
+      (LiftResToFontEffect (Const (OrEatByte (CSOp ContentStreamOp)))) ))
+    nothing;
+  optionsToArray eff0.snd
+}
 
-def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
+-- interpret a sequence of operators as a text effect
+def ContentStreamEffect (cs : [ ContentStreamObj ]) (q0 : TextState) :
   TextEffect = {
   @eff0 = InitEffect;
   for (effAcc = eff0; op in cs) {
@@ -37,16 +65,23 @@ def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
       textObj obj -> Sequence
         effAcc
         (InterpTextObj obj effAcc.textState)
-    ; textStateOp tsOper -> SetEffectState
-        (UpdTextState tsOper effAcc.textState)
-        effAcc
+    ; csOp csOper -> case csOper of {
+        textStateOp tsOper -> SetEffectState
+          (UpdTextState tsOper effAcc.textState)
+          effAcc
+      ; _ -> effAcc -- treat all other operations as noops, for now
+      }
     }
   }
 }
 
 -- ExtractContentStreamText cs: extract text from content stream cs
-def ExtractContentStreamText (cs : [ ContentStreamOp ]) : [ UTF8 ] =
+def ExtractContentStreamText (cs : [ ContentStreamObj ]) : [ UTF8 ] =
   (ContentStreamEffect cs InitTextState).output
+
+-- TODO: parse other operators
+
+-- TODO: thread the font through streams
 
 -- DEPRECATED:
 

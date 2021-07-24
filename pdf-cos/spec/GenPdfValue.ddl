@@ -52,8 +52,6 @@ def GenPdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 -- PdfDict: a PDF dictionary
 def PdfDict Val = GenPdfDict NameBase (Const Val)
 
--- TODO: broken: loses track of name slash prefixing
-
 def DictAdderRec Adder d = Default d (DictAdderRec Adder
   { @k = Token Name;
     case Adder k d of {
@@ -62,11 +60,15 @@ def DictAdderRec Adder d = Default d (DictAdderRec Adder
     }
   })
 
+-- TODO: maintain a set of all keys defined
+
+-- TODO: refactor to use a GenMany combinator
+ 
 def GenPdfDict1 init Adder Final = {
   @x = Between "<<" ">>" (DictAdderRec Adder init);
   Final x
 }
- 
+
 -- OrRef P: parse a P, or a Ref
 def OrRef P = Choose1 {
   direct = P;

@@ -23,27 +23,45 @@ def MacroOp = Choose1 {
   mvNextLineStart = KW "T*";
 }
 
-def WithFont P (resrcs : ResourceDict) (szFont : maybe SizedFont) = Sum1
-  { @fontNm = Token Name; -- parse operation that sets font
-    @font = Lookup fontNm resrcs.font; -- lookup the name in the font dict
-    @size = Token Integer;
-    KW "Tf";
-    just (SizedFont font size)
-  }
-  (P szFont)
+def FontEffect (szFont : maybe SizedFont) x : Pair = {
+  fst = szFont;
+  snd = x;
+}
 
-def OpsWithFont P resrcs szFont0 = ManyWithState (WithFont P resrcs) szFont0
+-- GenSum1: sum over parameterized parsers
+def GenSum1 P0 P1 x =
+  (P0 x) <|
+  (P1 x)
 
--- TODO: refator this into a loop for maintaining state and a font state
+-- LiftRes...: lift a result parser to a font effect parser
+def LiftResToFontEffect P (szFont : maybe SizedFont) = FontEffect
+  szFont
+  (just (P szFont))
 
--- TODO: weaken this to ignore ops that it doesn't recognize
+-- FontOp: parse a sized font 
+def FontOp (resrcs : ResourceDict) = {
+  @fontNm = Token Name;
+  @size = Token Integer; -- parse font size
+  KW "Tf";
+  SizedFont (Lookup fontNm resrcs.font) size
+}
 
--- TextOp: a text operation
+-- FontOpEffect: font ops, lifted into an effect
+def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
+  (just (FontOp resrcs))
+  nothing
+
+-- TextOp: an operation that can occur in a text object
 def TextOp (mayF : maybe SizedFont) = Choose1 {
   -- all text operands are mutually exclusive
   textShowOp = TextShowOp (mayF is just);
   textStateOp = TextStateOp;
   textPosOp = TextPosOp;
+  textGraphicsStateOp = GraphicsStateOp;
+  textColourOp = ColourOp;
+  textMarkedPoint = MarkContentPoint;
+  textMarkedSeq = MarkedContentSeqOp;
+  -- TODO: refine to parse well-nested sequences
   macroOp = MacroOp;
 }
 
@@ -51,12 +69,9 @@ def MvNextLineStart : MacroOp = {| mvNextLineStart = { } |}
 
 def MvNextLineWOffset (tx : int) (ty : int) : TextPosOp = {|
   setTextMatrix = SetMatrixOp 
-    0
-    0
-    0
-    0
-    tx
-    ty
+    0 0
+    0 0
+    tx ty
 |}
 
 def MvNextLineShow (f : SizedFont) (s : string) : [ TextOp ] = [
@@ -67,26 +82,26 @@ def MvNextLineShow (f : SizedFont) (s : string) : [ TextOp ] = [
 -- TextOpP: parses a text opcode into a sequence of text operations
 def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
   -- parse an actual text operation:
-  [ TextOp f ];
+  [ TextOp f ]
   -- text operations that are basically macros over other
   -- operations. TD operations: (Table 106)
-  { @tx = Token Integer;
+; { @tx = Token Integer;
     @ty = Token Integer;
     KW "Td"; -- Table 106
     [ {| textPosOp = MvNextLineWOffset tx ty |} ]
-  };
-  { @tx = Token Integer;
+  }
+; { @tx = Token Integer;
     @ty = Token Integer;
     KW "TD"; -- Table 106
     [ {| textStateOp = SetLeadingOp ty |}
     , {| textPosOp = MvNextLineWOffset tx ty |}
     ]
-  };
-  { @s = Token String;
+  }
+; { @s = Token String;
     KW "'"; -- Table 107
     MvNextLineShow (f is just) s
-  };
-  { @aw = Token Integer;
+  }
+; { @aw = Token Integer;
     @ac = Token Integer;
     @s = Token String;
     KW "\""; -- Table 107
@@ -95,16 +110,20 @@ def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
       , {| textStateOp = SetCharSpaceOp ac |}
       ]
       (MvNextLineShow (f is just) s)
-  };
-  -- eat the other operators that are allowed in a text object
-  (When GraphicsStateOp [ ]);
-  (When ColourOp [ ]);
-  (When MarkedContentOp [ ]);
+  }
 }
 
 -- TextObj: a text object
-def TextObj (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] =
-  Between "BT" "ET" (concat (OpsWithFont TextOpP rd f))
+def TextObj (rd: ResourceDict) (f : maybe SizedFont) : FontEffect = 
+  Between "BT" "ET" {
+    @sf = ManyWithState
+      (GenSum1
+        (FontOpEffect rd)
+        (LiftResToFontEffect TextOpP) )
+      f;
+    -- flatten out potential macro expansions of operators
+    FontEffect sf.fst (concat sf.snd)
+  }
 
 def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
   @eff0 = LiftToTextEffect q;
@@ -119,7 +138,10 @@ def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
     ; textPosOp posOp -> PutStr
         effAcc
         (ShowPos posOp)
---    ; macroOp -> ... TODO: implement 
+    ; _ -> effAcc
+--    ; macroOp -> ... TODO: define
     }
   }
 }
+
+-- TODO: fix to return font

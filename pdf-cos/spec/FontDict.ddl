@@ -9,7 +9,7 @@ import PdfValue
 import CMap
 import CIDFont
 
--- TODO: replace with proper defns
+-- TODO: replace with defn in Type3 module, refactor with Type0 and Type1
 def Type3Font = Void
 
 def TrueTypeFont = Void

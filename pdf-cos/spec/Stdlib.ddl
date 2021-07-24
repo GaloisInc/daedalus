@@ -45,7 +45,8 @@ def optionToArray x = case x of
   just y -> [ y ]
   nothing -> [ ]
 
-def optionsToArray xs = concat (map (x in xs) optionToArray x)
+def optionsToArray (xs : [ maybe a ]) : [ a ] = concat
+  (map (x in xs) optionToArray x)
 
 -- types of bounded sequences of bytes
 def OrEatByte P = OptionalIf P UInt8
@@ -84,11 +85,9 @@ def GenMany P acc0 =
   } <|
   ^acc0
 
-def ManyWithStateRec P q (res : [ a ]) : [ a ] = Default res {
-  case (P q : Sum) of {
-    injl q0 -> ManyWithStateRec P q0 res
-  ; injr pres -> ManyWithStateRec P q (snoc pres res)
-  }
+def ManyWithStateRec P q (res : [ a ]) : Pair = Default (Pair q res) {
+  @eff = P q;
+  ManyWithStateRec P eff.fst (append res (optionToArray eff.snd))
 }
 
 def ManyWithState P q0 = ManyWithStateRec P q0 [ ]

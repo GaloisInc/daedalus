@@ -8,22 +8,39 @@ def ContentProps = Choose1 {
 }
 
 -- Marked-content operators (Table 320)
-def MarkedContentOp = Choose1 {
+def MarkContentPoint = Choose1 {
   defineMarkedContent = {
-    tag = Token Name ;
+    $$ = Token Name;
     KW "MP";
   }
 ; defMarkedContentPoint = {
-    tag = Token Name ;
-    props = Token ContentProps ;
-    KW "DP" ;
+    tag = Token Name;
+    props = Token ContentProps;
+    KW "DP";
   }
-; beginMarked = @(KW "BMC")
-; beginMarkedProp = {
-    tag = Token Name ;
+}
+
+def BeginMarkedSeq = Choose1 {
+  bmc = {
+    $$ = Token Name;
+    KW "BMC"
+  }
+; bdc = {
+    tag = Token Name;
     props = Token ContentProps ;
     KW "BDC" ;
-  } 
-; endMarked = @(KW "EMC")
--- TODO: refine to check well-nesting property between operators
+  }
+}
+
+def EndMarkedSeq = @(KW "EMC")
+
+def MarkedContentSeq P = {
+  begin = BeginMarkedSeq;
+  markedContent = P;
+  EndMarkedSeq;
+}
+
+def MarkedContentSeqOp = Choose1 {
+  beginSeq = BeginMarkedSeq
+; endSeq = EndMarkedSeq
 }
