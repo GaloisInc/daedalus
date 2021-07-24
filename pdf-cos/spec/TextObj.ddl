@@ -1,9 +1,14 @@
 import Stdlib
+import Sum
 import Array
 
 import GenPdfValue
 import PdfValue
 import ResourceDict
+
+import ColourSpaceOps
+import GraphicsStateOps
+import MarkedContentOps
 
 import TextEffect
 import TextPosOp
@@ -18,24 +23,26 @@ def MacroOp = Choose1 {
   mvNextLineStart = KW "T*";
 }
 
--- ParseWFont: parse a sequence of operators, maintaining font
-def ParseWFont resrcs szFont0 P = Default [ ] {
-  Choose1 {
-    { @fontNm = Token Name; -- parse operation that sets font
-      @font = Lookup fontNm resrcs.font;
-      @size = Token Integer;
-      KW "Tf";
-      ParseWFont resrcs (just (SizedFont font size)) P
-    };
-    (cons (P szFont0) (ParseWFont resrcs szFont0 P))
+def WithFont P (resrcs : ResourceDict) (szFont : maybe SizedFont) = Sum1
+  { @fontNm = Token Name; -- parse operation that sets font
+    @font = Lookup fontNm resrcs.font; -- lookup the name in the font dict
+    @size = Token Integer;
+    KW "Tf";
+    just (SizedFont font size)
   }
-}
+  (P szFont)
+
+def OpsWithFont P resrcs szFont0 = ManyWithState (WithFont P resrcs) szFont0
+
+-- TODO: refator this into a loop for maintaining state and a font state
+
+-- TODO: weaken this to ignore ops that it doesn't recognize
 
 -- TextOp: a text operation
-def TextOp (rd: ResourceDict) (mayF : maybe SizedFont) = Choose1 {
+def TextOp (mayF : maybe SizedFont) = Choose1 {
   -- all text operands are mutually exclusive
   textShowOp = TextShowOp (mayF is just);
-  textStateOp = TextStateOp rd;
+  textStateOp = TextStateOp;
   textPosOp = TextPosOp;
   macroOp = MacroOp;
 }
@@ -57,9 +64,10 @@ def MvNextLineShow (f : SizedFont) (s : string) : [ TextOp ] = [
 , {| textShowOp = ShowStringOp f s |}
 ]
 
--- TextOpP: a parser for a sequence of text operations
-def TextOpP (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] = Choose1 {
-  [ TextOp rd f ];
+-- TextOpP: parses a text opcode into a sequence of text operations
+def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
+  -- parse an actual text operation:
+  [ TextOp f ];
   -- text operations that are basically macros over other
   -- operations. TD operations: (Table 106)
   { @tx = Token Integer;
@@ -88,11 +96,15 @@ def TextOpP (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] = Choose1 {
       ]
       (MvNextLineShow (f is just) s)
   };
+  -- eat the other operators that are allowed in a text object
+  (When GraphicsStateOp [ ]);
+  (When ColourOp [ ]);
+  (When MarkedContentOp [ ]);
 }
 
 -- TextObj: a text object
 def TextObj (rd: ResourceDict) (f : maybe SizedFont) : [ TextOp ] =
-  Between "BT" "ET" (concat (ParseWFont rd f (TextOpP rd)))
+  Between "BT" "ET" (concat (OpsWithFont TextOpP rd f))
 
 def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
   @eff0 = LiftToTextEffect q;

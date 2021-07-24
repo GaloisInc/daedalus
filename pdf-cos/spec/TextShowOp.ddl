@@ -26,23 +26,23 @@ def TextShowOper = Choose1 { -- operations are mutually exclusive:
 
 -- Text-showing operators (Table 107)
 def TextShowOp (f : SizedFont) = {
-  font = f;
+  showFont = f;
   oper = TextShowOper;
 }
 
 def ShowStringOp (szFont : SizedFont) (s : string) : TextShowOp = {
-  font = szFont;
+  showFont = szFont;
   oper = {| showString = s |};
 }
 
 -- Text-showing operators: Table 107
 def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
   case (op.oper: TextShowOper) of {
-    showString arg -> ExtractString q op.font arg
+    showString arg -> ExtractString q op.showFont arg
   ; showManyStrings args ->
     for (acc = []; a in args) {
       append acc (case (a : TJOper) of {
-          shownString s -> ExtractString q op.font s
+          shownString s -> ExtractString q op.showFont s
         ; adjustNum -> [ ] -- TODO: possibly refine 
         })
     }

@@ -22,6 +22,7 @@
          /FontDescriptor <<
              /Type /FontDescriptor
              /FontName /AGaramond-Semibold
+             /Flags 0
            >>
          /Encoding /MacRomanEncoding
 >>

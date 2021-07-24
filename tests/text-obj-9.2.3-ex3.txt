@@ -1,0 +1,6 @@
+BT
+  /F13 48 Tf
+            20 38 Td
+            7 Tr
+            (ABC) Tj
+ET

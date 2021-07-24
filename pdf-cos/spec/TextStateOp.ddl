@@ -9,7 +9,7 @@ import TextEffect
 import FontDict
 
 -- Text state operators (Table 103)
-def TextStateOp resrcs = Choose1 { -- operations are mutually exclusive
+def TextStateOp = Choose1 { -- operations are mutually exclusive
   setCharSpace = {
     $$ = Token Integer;
     KW "Tc"

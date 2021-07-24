@@ -36,13 +36,20 @@ def snoc x xs = append xs [ x ]
 
 def condJust p x = if p then just x else nothing
 
-def optionToList x = case x of
+def OptionalIf P N = case Optional P of {
+  just x -> just x
+; nothing -> When N nothing
+}
+
+def optionToArray x = case x of
   just y -> [ y ]
   nothing -> [ ]
 
-def optionsToList xs = concat (map (x in xs) optionToList x)
+def optionsToArray xs = concat (map (x in xs) optionToArray x)
 
 -- types of bounded sequences of bytes
+def OrEatByte P = OptionalIf P UInt8
+
 def Bytes1 = UInt8
 
 def Bytes2 = {
@@ -77,6 +84,14 @@ def GenMany P acc0 =
   } <|
   ^acc0
 
+def ManyWithStateRec P q (res : [ a ]) : [ a ] = Default res {
+  case (P q : Sum) of {
+    injl q0 -> ManyWithStateRec P q0 res
+  ; injr pres -> ManyWithStateRec P q (snoc pres res)
+  }
+}
+
+def ManyWithState P q0 = ManyWithStateRec P q0 [ ]
 
 def WithStream s P = {
   @cur = GetStream;
@@ -86,8 +101,8 @@ def WithStream s P = {
 }
 
 def sepLists2 ls : Pair = {
-  fst = optionsToList (map (x in ls) getLeft x);
-  snd = optionsToList (map (x in ls) getRight x);
+  fst = optionsToArray (map (x in ls) getLeft x);
+  snd = optionsToArray (map (x in ls) getRight x);
 }
 
 def Lists2 P0 P1 = {

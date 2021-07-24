@@ -17,14 +17,17 @@ import Unicode
 -- ContentStreamOp: an operation in a content stream
 def ContentStreamOp (rd : ResourceDict) (f: maybe SizedFont) = Choose1 {
   textObj = TextObj rd f; -- text object
-  textStateOp = TextStateOp rd; -- text state operators
-  unparsedByte = UInt8; -- leave other operators unparsed
+  textStateOp = TextStateOp; -- text state operators outside of object
 }
+
+def CSOpOrByte (rd : ResourceDict) (f : maybe SizedFont) :
+  maybe ContentStreamOp =
+  OrEatByte (ContentStreamOp rd f)
 
 -- ContentStreamP: interpret a content stream, resolving lookups
 -- into the resource dictionary.
 def ContentStreamP (rd : ResourceDict) =
-  ParseWFont rd nothing (ContentStreamOp rd) 
+  optionsToArray (OpsWithFont (CSOpOrByte rd) rd nothing)
 
 def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
   TextEffect = {
@@ -37,7 +40,6 @@ def ContentStreamEffect (cs : [ ContentStreamOp ]) (q0 : TextState) :
     ; textStateOp tsOper -> SetEffectState
         (UpdTextState tsOper effAcc.textState)
         effAcc
-    ; unparsedByte -> effAcc;
     }
   }
 }
@@ -74,7 +76,7 @@ def TextShowOp1 =
   } 
 
 -- ContentStream: a simple parser that never fails and returns all
--- text in showing operators. Deprecated
+-- text in showing operators
 def ContentStream = {
   @shownStrings = Many {
     -- parse an object that shows text;

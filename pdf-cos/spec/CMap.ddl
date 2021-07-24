@@ -58,8 +58,8 @@ def MinusRanges r0 r1 : [ CodeRange ] = {
   };
   
   ^(append
-      (optionToList leftDiff)
-      (optionToList rightDiff))
+      (optionToArray leftDiff)
+      (optionToArray rightDiff))
 }
 
 def MinusRangeArray (r0s : [ CodeRange ]) (r1 : CodeRange) : [ CodeRange ] =
@@ -253,7 +253,7 @@ def DictAnd Code Ops = {
 }
 
 def CollectRangeOp dom maybeOps = {
-  $$ = for (acc = empty; m in optionsToList maybeOps) Overwrite acc m;
+  $$ = for (acc = empty; m in optionsToArray maybeOps) Overwrite acc m;
   RangeArrayCovers dom (mapDomain $$)
 }
 

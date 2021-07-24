@@ -27,19 +27,10 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
 
 def TestSizedFont = SizedFont TestFont 12
 
-def Main = ResourceDictP
+-- Main: the entry point
+def Main = Type1FontP
 
--- TODO: unit test these parsers
--- other examples in Sec. 9.2.2
--- text objects
--- content stream
+-- TODO: 
 -- pages
 -- page tree nodes
 
--- embedded font programs
--- Type 2 CIDFonts
--- Compact Font Format
-
--- unknown CIDFontType
-
--- CIDKey

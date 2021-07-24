@@ -1,0 +1,7 @@
+BT
+/F13 48 Tf
+      20 40 Td
+      0 Tr
+      0.5 g
+      (ABC) Tj
+ET
