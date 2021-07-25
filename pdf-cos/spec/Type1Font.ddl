@@ -56,16 +56,6 @@ def Type1AddEncoding f = PartialType1Font
   f.baseFont0
   (just (DirectOrRef Encoding))
 
--- TODO: refine this defn in another module
-def CharEncodingDict = Dict
-
-def Encoding = Choose {
-  macRoman = @(NameToken "MacRomanEncoding");
-  macExpert = @(NameToken "MacExpertEncoding");
-  winAnsi = @(NameToken "WinAnsiEncoding");
-  encDict = CharEncodingDict;
-}
-
 def ExtendType1Font subtypePrefix Subst k font = {
   @cf0 = ExtendCommonFont (append subtypePrefix "Type1") SimpleFontType
            k font.common;
