@@ -1,16 +1,33 @@
 -- Type3Font: Type 3 fonts
+import Rectangle
+import GenPdfValue
+import PdfValue
+import PdfDecl
+
+import FontDesc
 import FontCommon
 import CMap
 
-def PartialType3Font (com : PartialFontCommon) (pChars : PartialCharSet)
+def FontMatrix = {
+  a = Token Number;
+  b = Token Number;
+  c = Token Number;
+  d = Token Number;
+  e = Token Number;
+  f = Token Number;
+}
+
+def PartialType3Font (com : PartialCommonFont) (pChars : PartialCharSet)
   (pBBox : maybe Rectangle) (pMatrix : maybe FontMatrix)
-  (pCharProcs : maybe [ [ uint 8 ] -> Stream ]) (pEnc : maybe EncodingDict) = {
+  (pCharProcs : maybe [ [ uint 8 ] -> Ref ]) (pEnc : maybe EncodingDict)
+  (pRes : maybe [ [ uint 8 ] -> Value ]) = {
   common = com
 ; chars = pChars
 ; fontBBox = pBBox
 ; fontMatrix = pMatrix
 ; charProcs = pCharProcs
 ; encoding = pEnc
+; resources = pRes
 }
 
 def InitType3Font : PartialType3Font = {
@@ -20,9 +37,10 @@ def InitType3Font : PartialType3Font = {
 ; fontMatrix = nothing
 ; charProcs = nothing
 ; encoding = nothing
+; resources = nothing
 }
 
-def Type3SetCommon (coms : PartialFontCommon) (f : PartialType3Font) =
+def Type3SetCommon (coms : PartialCommonFont) (f : PartialType3Font) =
   PartialType3Font
     coms
     f.chars
@@ -30,6 +48,7 @@ def Type3SetCommon (coms : PartialFontCommon) (f : PartialType3Font) =
     f.fontMatrix
     f.charProcs
     f.encoding
+    f.resources
 
 def Type3SetChars (cs : PartialCharSet) (f : PartialType3Font) =
   PartialType3Font
@@ -39,13 +58,54 @@ def Type3SetChars (cs : PartialCharSet) (f : PartialType3Font) =
     f.fontMatrix
     f.charProcs
     f.encoding
+    f.resources
 
--- TODO: complete
-def AddCharProcs (f : PartialType3Font) = {
-}
+def AddFontBBox (f : PartialType3Font) = PartialType3Font
+  f.common
+  f.chars
+  (just (DirectOrRef Rectangle))
+  f.fontMatrix
+  f.charProcs
+  f.encoding
+  f.resources
 
-def AddCharProcs (f : PartialType3Font) = {
-}
+def AddFontMatrix (f : PartialType3Font) = PartialType3Font
+  f.common
+  f.chars
+  f.fontBBox
+  (just (DirectOrRef (Between "[" "]" FontMatrix)))
+  f.charProcs
+  f.encoding
+  f.resources
+
+def AddCharProcs (f : PartialType3Font) = PartialType3Font
+  f.common
+  f.chars
+  f.fontBBox
+  f.fontMatrix
+  (just (DirectOrRef (PdfDict Ref)))
+  -- TODO: parse this more precisely by parsing ref as content stream
+  f.encoding
+  f.resources
+
+def AddEncoding (f : PartialType3Font) = PartialType3Font
+  f.common
+  f.chars
+  f.fontBBox
+  f.fontMatrix
+  f.charProcs
+  (just (DirectOrRef EncodingDict))
+  f.resources
+
+def AddResources (f : PartialType3Font) = PartialType3Font
+  f.common
+  f.chars
+  f.fontBBox
+  f.fontMatrix
+  f.charProcs
+  f.encoding
+  (just (DirectOrRef Dict))
+  -- TODO: parse this precisely by defining recursively with ResourceDict
 
 def ExtendType3Font k font = {
   @cf0 = ExtendCommonFont "Type3" SimpleFontType
@@ -55,7 +115,15 @@ def ExtendType3Font k font = {
   ; nothing -> case ExtendCharSet k font.chars of {
         just chars0 -> just (Type3SetChars chars0 font)
       ; nothing -> -- fields specific to Type3 fonts
-          if k == "CharProcs" then {
+          if k == "FontBBox" then {
+            font.fontBBox is nothing;
+            just (AddFontBBox font)
+          }
+          else if k == "FontMatrix" then {
+            font.fontMatrix is nothing;
+            just (AddFontMatrix font)
+          }
+          else if k == "CharProcs" then {
             font.charProcs is nothing;
             just (AddCharProcs font)
           }
@@ -63,11 +131,22 @@ def ExtendType3Font k font = {
             font.encoding is nothing;
             just (AddEncoding font)
           }
-          else if k == "Resoruces" then {
+          else if k == "Resources" then {
             font.resources is nothing;
             just (AddResources font)
           }
           else nothing
       }
   }
+}
+
+def Type3Font (f : PartialType3Font) = {
+  toUnicode = CommonFont f.common;
+  charSet = CharSet (NonStandardFont "") f.chars; -- PDFA: what should this be?
+
+  fontBBox = f.fontBBox is just;
+  fontMatrix = f.fontMatrix is just;
+  charProcs = f.charProcs is just;
+  encoding = f.encoding is just;
+  resources = f.resources is just;
 }

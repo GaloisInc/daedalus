@@ -24,15 +24,19 @@ def StandardFont = Choose1 {
 ; courierBoldOblique = @(Match "Courier-BoldOblique")
 }
 
-def Helvetica : FontName = {|
-  standard = {| helvetica = { } |}
-|}
-
 -- Base fonts: the 14 standards and everything else
 def FontName Subst = Choose1 {
   standard = StandardFont
 ; nonStandard = Many (Subst <| NameChar)
 }
+
+def Helvetica : FontName = {|
+  standard = {| helvetica = { } |}
+|}
+
+def NonStandardFont (nm : [ uint 8]) : FontName = {|
+  nonStandard = nm
+|}
 
 def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe int) = {
   descType0 = pt;

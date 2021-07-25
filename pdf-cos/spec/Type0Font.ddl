@@ -8,6 +8,7 @@ import PdfValue
 import PdfDecl
 import CIDFont
 import CMap
+import FontCommon
 import FontDesc
 
 def Type0Encoding = Choose1 {
@@ -20,117 +21,79 @@ def PreDefEncoding (s : [ uint 8 ]) : Type0Encoding = {|
 |}
 
 -- PartialType1Font: partial definition of a Type1 font
-def PartialType0Font (t: bool) (st: bool)
+def PartialType0Font (com : PartialCommonFont)
   (bf: maybe FontName)
-  (enc: maybe Type0Encoding) (dfs: maybe CIDFont)
-  (toUni : maybe ToUnicodeCMap0) = {
-  type0 = t;
-  subtype0 = st;
+  (enc: maybe Type0Encoding)
+  (dfs: maybe CIDFont) = {
+  common = com;
   baseFont0 = bf;
   encoding0 = enc;
   descFonts0 = dfs;
-  toUnicode0 = toUni;
 }
 
 def InitType0Font = PartialType0Font
-  false
-  false
-  nothing
+  InitCommonFont
   nothing
   nothing
   nothing
 
--- AddType: note that the required Type field has been seen
-def Type0AddType f = PartialType0Font 
-  (Holds (DirectOrRef (Token (NameStr "Font"))))
-  f.subtype0
-  f.baseFont0
-  f.encoding0
-  f.descFonts0
-  f.toUnicode0
-
--- AddSubtype f: note the subtype field has been seen
-def Type0AddSubtype f = PartialType0Font 
-  f.type0
-  (Holds (DirectOrRef (Token (NameStr "Type0"))))
-  f.baseFont0
-  f.encoding0
-  f.descFonts0
-  f.toUnicode0
+def Type0SetCommon (com : PartialCommonFont) (f : PartialType0Font) =
+  PartialType0Font
+    com
+    f.baseFont0
+    f.encoding0
+    f.descFonts0
 
 -- AddBaseFont nm f: add a base font to font
 def AddBaseFont f = PartialType0Font 
-  f.type0
-  f.subtype0
+  f.common
   (just (DirectOrRef (Token (GenName (FontName Void)))))
   f.encoding0
   f.descFonts0
-  f.toUnicode0
 
 -- AddEncoding: add an encoding
 def AddEncoding f = PartialType0Font
-  f.type0
-  f.subtype0
+  f.common
   f.baseFont0
   (just Type0Encoding)
   f.descFonts0
-  f.toUnicode0
 
 -- AddFontDesc: add a font descriptor
 def AddDescFonts f = PartialType0Font
-  f.type0
-  f.subtype0
+  f.common
   f.baseFont0
   f.encoding0
   (just (DirectOrRef (Between "[" "]" (DirectOrRef CIDFontP))))
-  f.toUnicode0
-
--- AddToUnicode: add a to-unicode map
-def AddToUnicode f = PartialType0Font
-  f.type0
-  f.subtype0
-  f.baseFont0
-  f.encoding0
-  f.descFonts0
-  (just (CMapRef SimpleFontType))
 
 def ExtendType0Font k font = {
-  if k == "Type" then {
-    font.type0 is false;
-    just (Type0AddType font)
+  @cf0 = ExtendCommonFont "Type0" SimpleFontType -- TODO: fix font type
+    k font.common;
+  case cf0 of {
+    just cf1 -> just (Type0SetCommon cf1 font)
+  ; nothing -> 
+      if k == "BaseFont" then {
+        font.baseFont0 is nothing;
+        just (AddBaseFont font)
+      }
+      else if k == "Encoding" then {
+        font.encoding0 is nothing;
+        just (AddEncoding font)
+      }
+      else if k == "DescendantFonts" then {
+        font.descFonts0 is nothing;
+        just (AddDescFonts font)
+      }
+      else nothing
   }
-  else if k == "Subtype" then {
-    font.subtype0 is false;
-    just (Type0AddSubtype font)
-  }
-  else if k == "BaseFont" then {
-    font.baseFont0 is nothing;
-    just (AddBaseFont font)
-  }
-  else if k == "Encoding" then {
-    font.encoding0 is nothing;
-    just (AddEncoding font)
-  }
-  else if k == "DescendantFonts" then {
-    font.descFonts0 is nothing;
-    just (AddDescFonts font)
-  }
-  else if k == "ToUnicode" then {
-    font.toUnicode0 is nothing;
-    just (AddToUnicode font)
-  }
-  else nothing
 }
 
 -- Type0Font f: coerce partial font f into an actual Type1
 -- font
 def Type0Font (f : PartialType0Font) = {
-  Guard f.type0; -- required
-  Guard f.subtype0; -- required
+  toUnicode = CommonFont f.common;
 
   encoding = f.encoding0 is just; -- required
-  --  descFont = f.descFonts0 is just; -- required
-  -- TODO: enable for testing
+  --  descFont = f.descFonts0 is just; -- required. TODO: enable
   baseFont = f.baseFont0 is just;
 
   -- Guard ((f.baseFont0 is just) ==
@@ -144,9 +107,7 @@ def Type0Font (f : PartialType0Font) = {
   --         })
   --     ; cidFontType2 -> ""
   --     }));
-  -- TODO:
-
-  toUnicode = f.toUnicode0;
+  -- TODO: enable once CMap parser extracts names
 }
 
 def Type0FontP = GenPdfDict1

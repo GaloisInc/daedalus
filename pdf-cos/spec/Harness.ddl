@@ -1,6 +1,8 @@
 -- Harness: testing harness
 import ResourceDict
 import TextEffect
+
+import FontCommon
 import FontDict
 import Type0Font
 import Type1Font
@@ -9,11 +11,12 @@ import TextObj
 import ContentStreamLight
 
 def TestFont : FontDict = MkType0Font (Type0Font (PartialType0Font
-  true
-  true
+  (PartialCommonFont
+    true
+    true
+    nothing)
   (just Helvetica)
   (just (PreDefEncoding "TestEnc"))
-  nothing
   nothing))
 
 def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
@@ -29,7 +32,9 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
 def TestSizedFont = SizedFont TestFont 12
 
 -- Main: the entry point
-def Main = ContentStreamP TestResrcs
+def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
+
+-- define Encoding Dicts
 
 -- TODO: test
 -- text extraction
