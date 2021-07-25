@@ -126,11 +126,7 @@ def AddFontDesc f = PartialCharSet
   f.firstChar0
   f.lastChar0
   f.widths0
-  { @s = InputAtRef Ref;
-    Dict;
-    just s
-    -- TODO: revise to follow reference
-  }
+  (just (InputAtRef Ref))
 
 def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
   maybe PartialCharSet =
