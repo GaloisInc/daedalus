@@ -7,18 +7,6 @@ import PdfDecl
 import FontDesc
 import CMap
 
--- TODO: refine according to Sec. 9.6.5
-def EncodingDict = {
-  dict = Dict;
-}
-
-def Encoding = Choose {
-  macRoman = @(NameToken "MacRomanEncoding");
-  macExpert = @(NameToken "MacExpertEncoding");
-  winAnsi = @(NameToken "WinAnsiEncoding");
-  encDict = EncodingDict;
-}
-
 -- CommonFont: fields that are common to all fonts
 --------------------------------------------------------------------------------
 

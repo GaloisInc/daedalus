@@ -7,7 +7,14 @@ def defaultEmpty (mopt : maybe [k -> v ]) : [k -> v] = case mopt of {
   nothing -> empty;
 }
 
-def mapDomain m = for (acc = [ ]; k, v in m) snoc k acc
+def MapToList m = for (l = [ ]; k, v in m) snoc (Pair k v) l
+
+def MapDomain m = {
+  @ents = MapToList m;
+  map (ent in ents) ent.fst
+}
+
+def MapLength m = length (MapToList m)
 
 -- ListToMap l: collect list of entries l into a map:
 def ListToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc

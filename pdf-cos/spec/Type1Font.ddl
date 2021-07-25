@@ -9,12 +9,18 @@ import PdfValue
 import PdfDecl
 import CMap
 import FontDesc
+import Encoding
 
 import FontCommon
 
+def EncodingRepr = Choose1 {
+  predefEnc = PredefEncoding;
+  encDict = EncodingP;
+}
+
 -- PartialType1Font: partial definition of a Type1 font
 def PartialType1Font (com : PartialFontCommon) (pChars : PartialCharSet)
-  (bf: maybe FontName) (enc: maybe Encoding) = {
+  (bf: maybe FontName) (enc: maybe EncodingRepr) = {
   common = com;
   chars = pChars;
 
@@ -54,7 +60,7 @@ def Type1AddEncoding f = PartialType1Font
   f.common
   f.chars
   f.baseFont0
-  (just (DirectOrRef Encoding))
+  (just (DirectOrRef EncodingRepr))
 
 def ExtendType1Font subtypePrefix Subst k font = {
   @cf0 = ExtendCommonFont (append subtypePrefix "Type1") SimpleFontType

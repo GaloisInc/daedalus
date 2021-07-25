@@ -15,7 +15,7 @@ def SizedFont (f : FontDict) (s: int) = {
   size = s;
 }
 
-def TextState (cs: int) (ws: int) (s: int) (l: int)
+def TextState (cs: int) (ws: int) (s: int) (l: Number)
   (rm: int) (r: int) = {
   charSpace = cs;
   wordSpace = ws;
@@ -30,7 +30,7 @@ def InitTextState : TextState = TextState
   0
   0
   100
-  0
+  (IntNumber 0)
   0
   0
 
@@ -43,7 +43,7 @@ def SetCharSpace (cs : int) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetLeading (l : int) (q : TextState) : TextState = TextState
+def SetLeading (l : Number) (q : TextState) : TextState = TextState
   q.charSpace
   q.wordSpace
   q.scale

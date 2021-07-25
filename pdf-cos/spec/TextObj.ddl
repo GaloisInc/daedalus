@@ -67,10 +67,10 @@ def TextOp (mayF : maybe SizedFont) = Choose1 {
 
 def MvNextLineStart : MacroOp = {| mvNextLineStart = { } |}
 
-def MvNextLineWOffset (tx : int) (ty : int) : TextPosOp = {|
+def MvNextLineWOffset (tx : Number) (ty : Number) : TextPosOp = {|
   setTextMatrix = SetMatrixOp 
-    0 0
-    0 0
+    (IntNumber 0) (IntNumber 0)
+    (IntNumber 0) (IntNumber 0)
     tx ty
 |}
 
@@ -85,13 +85,13 @@ def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
   [ TextOp f ]
   -- text operations that are basically macros over other
   -- operations. TD operations: (Table 106)
-; { @tx = Token Integer;
-    @ty = Token Integer;
+; { @tx = Token Number;
+    @ty = Token Number;
     KW "Td"; -- Table 106
     [ {| textPosOp = MvNextLineWOffset tx ty |} ]
   }
-; { @tx = Token Integer;
-    @ty = Token Integer;
+; { @tx = Token Number;
+    @ty = Token Number;
     KW "TD"; -- Table 106
     [ {| textStateOp = SetLeadingOp ty |}
     , {| textPosOp = MvNextLineWOffset tx ty |}

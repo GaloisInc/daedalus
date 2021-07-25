@@ -254,7 +254,7 @@ def DictAnd Code Ops = {
 
 def CollectRangeOp dom maybeOps = {
   $$ = for (acc = empty; m in optionsToArray maybeOps) Overwrite acc m;
-  RangeArrayCovers dom (mapDomain $$)
+  RangeArrayCovers dom (MapDomain $$)
 }
 
 -- parse bytes for "CMapProper" but do no processing/validating as yet
@@ -293,7 +293,7 @@ def CMapProper CharCode = {
   -- codeRanges: the code ranges
   codeRanges = {
     @codeRangesM = UnionMapArray items0.codes;
-    mapDomain codeRangesM
+    MapDomain codeRangesM
   };
 
   -- collect CIDS:

@@ -25,7 +25,7 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   nothing
-  (just (Insert "F13" TestFont empty))
+  (just (Insert "F1" TestFont empty))
   nothing
   nothing)
 
@@ -34,12 +34,11 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- define Encoding Dicts
+-- encode the glyphy lists
 
 -- TODO: test
--- text extraction
 -- pages
 -- page tree nodes
 
--- Type3 fonts: consider case where font is in scope for content
+-- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph

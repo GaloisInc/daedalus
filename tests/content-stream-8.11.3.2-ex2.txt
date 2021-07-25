@@ -1,0 +1,17 @@
+/OC /OC2 BDC 0 g
+  4 w
+      100 100 412 592 re s
+EMC
+
+/OC /OC3 BDC
+  q
+  412 0 0 592 100 100 cm
+  /Im3 Do Q
+EMC
+
+/OC /OC4 BDC
+  q
+  412 0 0 592 100 100 cm
+  /Im4 Do
+  Q
+EMC

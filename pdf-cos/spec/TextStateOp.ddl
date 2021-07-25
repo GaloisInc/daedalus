@@ -23,7 +23,7 @@ def TextStateOp = Choose1 { -- operations are mutually exclusive
     KW "Tz"
   };
   setLeading = {
-    $$ = Token Integer;
+    $$ = Token Number;
     KW "TL"
   };
   setRenderingMode = {
@@ -38,7 +38,7 @@ def TextStateOp = Choose1 { -- operations are mutually exclusive
 
 def SetCharSpaceOp (x : int) : TextStateOp = {| setCharSpace = ^x |}
 
-def SetLeadingOp (y : int) : TextStateOp = {| setLeading = ^y |}
+def SetLeadingOp (y : Number) : TextStateOp = {| setLeading = y |}
 
 def SetWordSpaceOp (x : int) : TextStateOp = {| setWordSpace = ^x |}
 

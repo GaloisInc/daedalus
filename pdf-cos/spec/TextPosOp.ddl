@@ -7,8 +7,9 @@ import TextEffect
 import Unicode
 
 
-def SetMatrixOp (pa: int) (pb: int) (pc: int)
-  (pd: int) (pe: int) (pf: int) = {
+def SetMatrixOp (pa: Number) (pb: Number)
+  (pc: Number) (pd: Number)
+  (pe: Number) (pf: Number) = {
   a = pa;
   b = pb;
   c = pc;
@@ -21,12 +22,12 @@ def SetMatrixOp (pa: int) (pb: int) (pc: int)
 def TextPosOp = Choose1 { 
   setTextMatrix = {
     $$ = SetMatrixOp
-      (Token Integer)
-      (Token Integer)
-      (Token Integer)
-      (Token Integer)
-      (Token Integer)
-      (Token Integer);
+      (Token Number)
+      (Token Number)
+      (Token Number)
+      (Token Number)
+      (Token Number)
+      (Token Number);
     KW "Tm";
   };
 }
