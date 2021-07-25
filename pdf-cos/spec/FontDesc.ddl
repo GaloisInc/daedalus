@@ -29,9 +29,9 @@ def Helvetica : FontName = {|
 |}
 
 -- Base fonts: the 14 standards and everything else
-def FontName = Choose1 {
+def FontName Subst = Choose1 {
   standard = StandardFont
-; nonStandard = Many NameChar
+; nonStandard = Many (Subst <| NameChar)
 }
 
 def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe int) = {
@@ -52,7 +52,7 @@ def AddFontDescType fd = PartialFontDesc
 
 def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
   fd.descType0
-  (Holds (Guard ((Token (GenName FontName)) == parBaseFont)))
+  (Holds (Guard ((Token (GenName (FontName Void))) == parBaseFont)))
   fd.flags0
 
 def AddFlags fd = PartialFontDesc

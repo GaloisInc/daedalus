@@ -62,7 +62,7 @@ def Type0AddSubtype f = PartialType0Font
 def AddBaseFont f = PartialType0Font 
   f.type0
   f.subtype0
-  (just (DirectOrRef (Token (GenName FontName))))
+  (just (DirectOrRef (Token (GenName (FontName Void)))))
   f.encoding0
   f.descFonts0
   f.toUnicode0

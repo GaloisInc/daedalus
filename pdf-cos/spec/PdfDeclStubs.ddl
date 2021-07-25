@@ -12,3 +12,5 @@ def ResolveStream v = {
 }
 
 def WithReffedStreamBody P = P
+
+def InputAtRef (r : Ref) = GetStream
