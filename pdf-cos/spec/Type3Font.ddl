@@ -41,6 +41,12 @@ def Type3SetChars (cs : PartialCharSet) (f : PartialType3Font) =
     f.encoding
 
 -- TODO: complete
+def AddCharProcs (f : PartialType3Font) = {
+}
+
+def AddCharProcs (f : PartialType3Font) = {
+}
+
 def ExtendType3Font k font = {
   @cf0 = ExtendCommonFont "Type3" SimpleFontType
            k font.common;
@@ -48,7 +54,20 @@ def ExtendType3Font k font = {
     just cf1 -> just (Type3SetCommon cf1 font)
   ; nothing -> case ExtendCharSet k font.chars of {
         just chars0 -> just (Type3SetChars chars0 font)
-      ; nothing -> nothing -- TODO: complete
+      ; nothing -> -- fields specific to Type3 fonts
+          if k == "CharProcs" then {
+            font.charProcs is nothing;
+            just (AddCharProcs font)
+          }
+          else if k == "Encoding" then {
+            font.encoding is nothing;
+            just (AddEncoding font)
+          }
+          else if k == "Resoruces" then {
+            font.resources is nothing;
+            just (AddResources font)
+          }
+          else nothing
       }
   }
 }
