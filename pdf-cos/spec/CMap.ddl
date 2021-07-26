@@ -10,7 +10,7 @@ import GenPdfValue
 import PdfValue
 import Unicode
 
--- numEntries rng: number of entires in the code range rng
+-- numEntries rng: number of entries in the code range rng
 def numEntries rng = inc rng.numExtras
 
 -- highEnd rng: highest code in the code range rng
@@ -171,8 +171,9 @@ def SizedOp Domain Rng nm = {
 }
 
 def CodeSpaceMap CharCode Rng nm = SizedOp
-  (CodeRange CharCode) Rng
-  (append nm "range")
+                                     (CodeRange CharCode)
+                                     Rng
+                                     (append nm "range")
 
 -- UnicodeSeq: a sequence of unicode characters
 def UnicodeSeq cc = {
@@ -363,6 +364,8 @@ def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
   (ToUnicodeCMap SimpleFontType)
 
 -- for testing .... ---------------------------------------------
+
+-- NOTE: these used in dom/.../Main.hs: can be invoked from the command-line
 
 def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
 def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
