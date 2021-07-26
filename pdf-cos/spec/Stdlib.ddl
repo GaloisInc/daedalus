@@ -14,14 +14,22 @@ def FoldMany P acc = Choose1 {
 
 def Const P x = P
 
+def boolInt b = if b then 1 else 0
+def intBool n = n != 1
+
+def boolXor b0 b1 = intBool ((boolInt b0) .^. (boolInt b1))
+
 def inc n = n + 1
 def dec n = n - 1
 def max m n = if m > n then m else n
 def min m n = if m < n then m else n
+def bitIsSet n bs = (n .&. (1 << bs)) != 0
 
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def bytesNum (bs : [ uint 8 ]) : uint 64 =
   for (val = 0 : uint 64; b in bs) 8 * val + (b as uint 64)
+
+def octalTriple a b c = numBase 8 [ a, b, c ]
 
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
@@ -48,25 +56,54 @@ def optionToArray x = case x of
 def optionsToArray (xs : [ maybe a ]) : [ a ] = concat
   (map (x in xs) optionToArray x)
 
--- types of bounded sequences of bytes
+-- bounded sequences of bytes:
 def OrEatByte P = OptionalIf P UInt8
 
-def Bytes1 = UInt8
+def Bytes1 (b : uint 8) = b
 
-def Bytes2 = {
-  second = UInt8;
-  rest1 = Bytes1;
+def Bytes1P = Bytes1 UInt8
+
+def Bytes2 (high : uint 8) (low : uint 8) = {
+  second = high
+; rest1 = low
 }
 
-def Bytes3 = {
-  third = UInt8;
-  rest2 = Bytes2;
+def Bytes2P = Bytes2 UInt8 Bytes1P
+
+def Bytes3 (pthird : uint 8) (others : Bytes2) = {
+  third = pthird;
+  rest2 = others;
 }
 
-def Bytes4 = {
-  fourth = UInt8;
-  rest3 = Bytes3;
+def Bytes3P = Bytes3 UInt8 Bytes2P
+
+def Bytes4 (pfourth : uint 8) (others : Bytes3) = {
+  fourth = pfourth;
+  rest3 = others;
 }
+
+def Bytes4All (b0 : uint 8) (b1 : uint 8) (b2 : uint 8) (b3 : uint 8) = 
+  Bytes4 b0 (Bytes3 b1 (Bytes2 b2 b3))
+
+def Bytes4P = Bytes4 UInt8 Bytes3P
+
+def Bytes5 (b0 : uint 8) (others : Bytes4) = {
+  byte5 = b0;
+  rest4 = others;
+}
+
+def Bytes5P = Bytes5 UInt8 Bytes4P
+
+def Bytes6 (b0 : uint 8) (others : Bytes5) = {
+  byte6 = b0;
+  rest5 = others;
+}
+
+def Bytes6P = Bytes6 UInt8 Bytes5P
+
+def Bytes6All (b0 : uint 8) (b1 : uint 8)
+  (b2 : uint 8) (b3 : uint 8)
+  (b4 : uint 8) (b5 : uint 8) = Bytes6 b0 (Bytes5 b1 (Bytes4All b2 b3 b4 b5))
 
 -- functions for serializing bounded structures into arrays
 def bndBytes1 bs1 = [ bs1 ]

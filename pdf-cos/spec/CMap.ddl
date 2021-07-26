@@ -91,7 +91,7 @@ def Overwrite m0 m1 = for (acc = m1; rng0, v0 in m0) {
   @rngs0 = for (rngDiffs0 = [ rng0 ]; rng1, v1 in m1) 
     MinusRangeArray rngDiffs0 rng1;
   @x = MapTo rngs0 v0;
-  UnionMaps acc x
+  MapUnion acc x
 }
 
 -- A CMap definition:
@@ -119,10 +119,7 @@ def CMapDict Key Val = CMapDefn {
   KW "dict";
   KW "dup"; 
   CMapScope {
-    @es = Many size (CMapDefn {
-      fst = GenName Key;
-      snd = Val fst;
-    });
+    @es = Many size (PairMapEntry (DepPair (GenName Key) Val));
     ListToMap es
   }
 }
@@ -201,7 +198,7 @@ def CodeRanges2 CharCode = {
   @size = Token(UnsignedNatural);
   -- Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope "codespacerange" {
-    @es = Many (1..) (Pair (CodeRange CharCode) Unit);
+    @es = Many (1..) (MapEntry (CodeRange CharCode) Unit);
     -- Guard (length es == (size as uint 64)); -- FIXME
     ListToMap es
    }
@@ -288,7 +285,7 @@ def CMapProper CharCode = {
   --        (length items1.ops));
 
   -- cmapDict: define the cmap dictionary
-  cmapDict = ListToMap alldefs;
+  cmapDict = ListToMap (map (defn in alldefs) (PairMapEntry defn));
 
   -- codeRanges: the code ranges
   codeRanges = {

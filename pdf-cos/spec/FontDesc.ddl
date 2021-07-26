@@ -80,10 +80,17 @@ def ExtendFontDesc (parBaseFont : FontName) (k: [ uint 8 ])
   }
   else nothing
 
+-- font flags (Table 121)
 def FontDesc (fd: PartialFontDesc) = {
   Guard fd.descType0;
   Guard fd.descFontName0;
-  flags = fd.flags0 is just;
+
+  @flags = fd.flags0 is just;
+  @fontIsSymbolic = bitIsSet flags 2;
+  @fontIsNonSymbolic = bitIsSet flags 5;
+
+  Guard (boolXor fontIsSymbolic fontIsNonSymbolic);
+  isLatin = fontIsNonSymbolic
 }
 
 def FontDescP (parBaseFont : FontName ) = GenPdfDict1

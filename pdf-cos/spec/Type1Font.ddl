@@ -14,7 +14,7 @@ import Encoding
 import FontCommon
 
 def EncodingRepr = Choose1 {
-  predefEnc = PredefEncoding;
+  predefEnc = PredefEncodingName;
   encDict = EncodingP;
 }
 

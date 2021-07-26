@@ -7,7 +7,14 @@ def defaultEmpty (mopt : maybe [k -> v ]) : [k -> v] = case mopt of {
   nothing -> empty;
 }
 
-def MapToList m = for (l = [ ]; k, v in m) snoc (Pair k v) l
+def MapEntry k v = {
+  key = k;
+  value = v;
+}
+
+def PairMapEntry p = MapEntry p.fst p.snd
+
+def MapToList m = for (l = [ ]; k, v in m) (snoc (Pair k v) l)
 
 def MapDomain m = {
   @ents = MapToList m;
@@ -17,13 +24,16 @@ def MapDomain m = {
 def MapLength m = length (MapToList m)
 
 -- ListToMap l: collect list of entries l into a map:
-def ListToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
+def ListToMap l = for (acc = empty; e in l) Insert e.key e.value acc
 
 def MapTo d v = for (acc = empty; k in d) Insert k v acc
 
-def UnionMaps m0 m1 = for (acc = m1; k0, v0 in m0) Insert k0 v0 acc
+def MapUnion m0 m1 = for (acc = m1; k0, v0 in m0) Insert k0 v0 acc
 
-def UnionMapArray ms = for (acc = empty; m in ms) UnionMaps acc m
+def UnionMapArray ms = for (acc = empty; m in ms) MapUnion acc m
+
+def ComposeMaps m0 m1 = for (res = empty; k0, v0 in m0) 
+  (Insert k0 (Lookup v0 m1) res)
 
 def TryLookup d k dflt = Default dflt {
   @v = Lookup d k ;

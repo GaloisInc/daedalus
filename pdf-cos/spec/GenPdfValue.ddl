@@ -40,7 +40,7 @@ def NameStr s = GenName (Match s)
 
 def NameToken s = Token (NameStr s)
 
-def DictEntry Key Val = DepPair (Token (GenName Key)) Val
+def DictEntry Key Val = PairMapEntry (DepPair (Token (GenName Key)) Val)
 
 -- experimental: rank-2 parsing
 def DictEntries Key Val = Many (DictEntry Key Val)

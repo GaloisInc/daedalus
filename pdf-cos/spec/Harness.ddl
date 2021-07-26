@@ -25,7 +25,7 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   nothing
-  (just (Insert "F1" TestFont empty))
+  (just (Insert "F13" TestFont empty))
   nothing
   nothing)
 
@@ -34,7 +34,8 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- encode the glyphy lists
+-- text extraction: support Type3 fonts
+-- text extraction: support Type0 fonts
 
 -- TODO: test
 -- pages

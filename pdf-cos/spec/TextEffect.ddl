@@ -1,14 +1,20 @@
 -- TextEffects: text state and effects
+import Map
 import Stdlib
 
+import Encoding
 import FontDict
-import Unicode
+import StdEncoding
 import Type0Font
+import Type1Font
+import Unicode
 
 -- TODO: indirect deps
 import CMap
 import CIDFont
 import PdfValue
+
+import GlyphList
 
 def SizedFont (f : FontDict) (s: int) = {
   font = f;
@@ -105,7 +111,7 @@ def SetEffectState (q : TextState) (eff: TextEffect) = Sequence
 
 def UTF81Code = {
   Many NonASCIIByte; -- eat non-ASCII bytes
-  UnicodeByte
+  UnicodeASCII
 }
 
 -- ExtractString in reference to Section 9.10.2 in the spec
@@ -133,6 +139,32 @@ def ExtractString_Composite (f: Font_Type0) (q: TextState) (s : [ uint 8 ]) : [ 
 def ExtractString_Simple    (f: Font_Dict ) (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
   WithStream (arrayStream s) (Many UTF81Code)
   -- TODO: define: use the font in q to encode s in UTF8
+}
+
+-- ExtractStringType1: extract string under a Type1 font
+def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
+  -- TODO: use CMap, if defined
+  @code2Glyph = case font.encoding of {
+    just enc -> case enc of {
+      predefEnc preDef -> -- use a pre-defined encoding
+        PredefEncoding preDef
+    ; encDict enc0 -> {  -- use differences applied to pre-defined encoding
+        @baseEncoding = case enc0.baseEncoding of {
+            just baseEnc -> PredefEncoding baseEnc
+          ; nothing -> StdEncoding;
+          };
+        MapUnion baseEncoding enc0.differences
+      } 
+    }
+  ; nothing -> StdEncoding -- use the standard encoding
+  };
+
+  -- compose [code -> glyph] and [glyph -> unicode] maps
+  -- TODO: GlyphMap may be very expensive; memoize?
+  @code2Uni = ComposeMaps code2Glyph GlyphMap;
+
+  -- parse the string, looking up each code in the unicode map
+  WithStream (arrayStream s) (Many (Lookup UInt8 code2Uni))
 }
 
 -- TODO: use q.charSpace to inject space when necessary
