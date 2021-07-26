@@ -46,3 +46,10 @@ Guide to adding new daedalus modules:
   - add the module name "New" to the ``mods`` list in ``pdf-driver/Setup.hs``
     (**CAVEAT**: as before, if the ``New.ddl`` isn't compilable by daedalus, this
     will break the rest of the build.)
+
+- And in either case, remember to update the respective cabal files:
+   - add the path to the ddl file to ``extra-source-files:``
+   - add the basename/module-name to both ``exposed-modules`` and ``autogen-modules``
+
+   
+     
