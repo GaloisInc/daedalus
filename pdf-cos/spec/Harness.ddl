@@ -37,6 +37,8 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 -- text extraction: support TrueType fonts
 -- text extraction: support Type0 fonts
 
+-- text extraction: support symbolic (non-Latin) fonts
+
 -- TODO: test
 -- pages
 -- page tree nodes

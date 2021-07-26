@@ -48,7 +48,9 @@ compileDDL =
                 , "Page"
                 , "PageTreeNode"
                 , "ResourceDict"
+                , "Type0Font"
                 , "Type1Font"
+                , "Type3Font"
 
                 -- added for text extraction
                 , "ContentStreamLight"
