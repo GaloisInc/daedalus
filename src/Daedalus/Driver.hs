@@ -146,13 +146,13 @@ ddlLoadModule :: ModuleName -> Daedalus ()
 ddlLoadModule = passDeadVal
 
 
--- | Get the phase assocaited with the given module, if any.
+-- | Get the phase associated with the given module, if any.
 ddlGetPhaseMaybe :: ModuleName -> Daedalus (Maybe ModulePhase)
 ddlGetPhaseMaybe m =
   do mp <- ddlGet loadedModules
      pure $! Map.lookup m mp
 
--- | Get the phase assocaited with the given module.
+-- | Get the phase associated with the given module.
 -- Panics if the module is not present.
 ddlGetPhase :: ModuleName -> Daedalus ModulePhase
 ddlGetPhase m =
@@ -161,7 +161,7 @@ ddlGetPhase m =
        Just ph -> pure ph
        Nothing -> panic "ddlGetPhase" [ "Missing module", show (pp m) ]
 
--- | Get the AST associtated with the given module name.
+-- | Get the AST associated with the given module name.
 -- Panics if the module is missing or its AST does not match the expectation.
 ddlGetAST :: ModuleName -> (ModulePhase -> Maybe a) -> Daedalus a
 ddlGetAST m ast =
@@ -311,7 +311,7 @@ data ModulePhase =
   | CoreModue Core.Module                     -- ^ Core module
   | VMModule VM.Module                        -- ^ VM module
 
--- | The passes, in the order they shoule happen
+-- | The passes, in the order they should happen
 data Pass =
     PassParse
   | PassRessolve
