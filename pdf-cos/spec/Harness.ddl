@@ -36,12 +36,14 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
 -- text extraction: support symbolic (non-Latin) fonts
 
--- text extraction: support TrueType fonts
--- text extraction: support Type0 fonts
+-- stub TrueType fonts
 
 -- TODO: test
 -- pages
 -- page tree nodes
+
+-- text extraction: support TrueType fonts
+-- text extraction: properly support Type0 fonts
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph
