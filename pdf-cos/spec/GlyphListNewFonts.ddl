@@ -2,7 +2,7 @@ import Stdlib
 import Pair
 import Map
 import GenPdfValue
-import Glyphs
+import Glyph
 import Unicode
 
 def NewGlyphList = [
