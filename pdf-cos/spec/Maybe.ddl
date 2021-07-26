@@ -1,5 +1,5 @@
 -- Maybe: library for maybe type
-def maybeDefault default m = case m of {
+def maybeDefault dfault m = case m of {
   just x -> x
-; nothing -> default
+; nothing -> dfault
 }

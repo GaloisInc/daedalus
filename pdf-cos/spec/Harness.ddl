@@ -43,3 +43,18 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph
+
+-- TODO: include in .cabal
+        -- ColourSpaceOps
+        -- Encoding
+        -- FontCommon
+        -- Glyph
+        -- GlyphList
+        -- GraphicsStateOps
+        -- MacEncoding
+        -- MarkedContentOps
+        -- Maybe
+        -- Rectangle
+        -- StdEncoding
+        -- Type3Font
+        -- WinEncoding

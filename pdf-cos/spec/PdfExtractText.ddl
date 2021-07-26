@@ -83,7 +83,7 @@ def ExtractContentsText d = Default [ ] {
 
 --------------------------------------------------------------------------------
 
-def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
+def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamObj ] ] = {
   @kidsCStreams = map (k in kids) (case (k : PageNodeKid) of {
     pageKid pk -> [ pk.contents ];
     treeKid tk -> PageNodeContentStreams tk;
@@ -91,7 +91,7 @@ def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamOp ] ] = {
   concat kidsCStreams
 }
 
-def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamOp ] ] =
+def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamObj ] ] =
   KidsContentStreams pt.kids
 
 def PageTreeContentStreams pt = KidsContentStreams pt.kids

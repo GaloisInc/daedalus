@@ -6,9 +6,10 @@ import Type1Font
 import Type3Font
 
 -- TODO: indirect deps
-import PdfValue
 import CMap
 import CIDFont
+import Encoding
+import PdfValue
 
 def FontDict = Choose1 { 
   -- fonts are mutually exclusive, due to at least the Subtype field

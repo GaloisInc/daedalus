@@ -7,16 +7,16 @@ def CharCode c = {
   low = ^c;
 }
 
-def highBitLow x = (0x80 .&. x) == 0
+def highBitIsSet (x : uint 8) = bitIsSet x 7
 
 def ASCIIByte = {
   $$ = UInt8;
-  Guard (highBitLow $$)
+  Guard (!(highBitIsSet $$))
 }
 
 def NonASCIIByte = {
   $$ = UInt8;
-  Guard (!(highBitLow $$))
+  Guard (highBitIsSet $$)
 }
 
 -- UTF-8: byte sequences of length 1 <= n <= 4
@@ -25,7 +25,6 @@ def UTF8 = Choose {
   utf82 = Bytes2P;
   utf83 = Bytes3P;
   utf84 = Bytes4P; -- TODO: refine to check byte values, if needed
-  utf86 = Bytes6P; -- not in standard, but occur in the Adobe Glyph List
 }
 
 def UTF8Ascii (x : uint 8) : UTF8 = {|
@@ -52,6 +51,5 @@ def utf8CharBytes (utfChar: UTF8) = case utfChar of
   utf84 cs4 -> bndBytes4 cs4
 
 -- UnicodeBytes utf8Chars: bytes in the sequence of UTF8 chars uniBytes
-def utf8Bytes utf8Chars = for (acc = []; uniChar in utf8Chars) (
-  append acc (utf8CharBytes uniChar)
-)
+def utf8Bytes utf8Chars = concat
+  (map (uniChar in utf8Chars) (utf8CharBytes uniChar))

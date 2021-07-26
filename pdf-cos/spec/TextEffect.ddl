@@ -9,6 +9,7 @@ import GlyphList
 import StdEncoding
 import Type0Font
 import Type1Font
+import Type3Font
 import Unicode
 
 -- TODO: indirect deps

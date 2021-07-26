@@ -1,6 +1,7 @@
 import Stdlib
 import Sum
 import Array
+import Pair
 
 import GenPdfValue
 import PdfValue
@@ -16,14 +17,17 @@ import TextShowOp
 import TextStateOp
 
 -- TODO: non-immediate dep
+import Encoding
 import FontDict
+import Type1Font
+import Type3Font
 import Unicode
 
 def MacroOp = Choose1 {
   mvNextLineStart = KW "T*";
 }
 
-def FontEffect (szFont : maybe SizedFont) x : Pair = {
+def FontEffect (szFont : maybe SizedFont) x = {
   fst = szFont;
   snd = x;
 }
