@@ -5,7 +5,7 @@ import Map
 import Array
        
 -- import PDF libraries:
-import PdfDecl
+import PdfDeclStubs
 import GenPdfValue
 import PdfValue
 import Unicode
@@ -18,17 +18,17 @@ def highEnd rng = rng.lowEnd + rng.numExtras
 
 -- CodeRange: a range of code characters
 def CodeRange CharCode = {
-  lowEnd = CharCode;
+  lowEnd = CharCode as int;
 
-  @highEnd = CharCode;
+  @highEnd = CharCode as int;
   Guard (lowEnd <= highEnd); -- PDFA: required by standard?
-  numExtras = (highEnd - lowEnd) as uint 32
+  numExtras = (highEnd - lowEnd);
 }
 
 -- SingletonRange: a code range containing exactly one entry
 def SingletonRange CharCode : CodeRange = {
-  lowEnd = CharCode;
-  numExtras = ^0;
+  lowEnd = CharCode as int;
+  numExtras = ^(0 : int);
 }
 
 -- strictlyLower r0 r1: span of range r0 is before span of range r1
@@ -164,12 +164,15 @@ def SizedOp Domain Rng nm = {
   @size = Token(UnsignedNatural);
   Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope nm {
-    @es = DictEntries Domain Rng;
+    @es = Many (DepPair Domain Rng);
     Guard (length es == (size as uint 64));
-    ListToMap es
+    ListOfPairsToMap es
     }
 }
 
+def ListOfPairsToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
+    -- FIXME: remove need for
+    
 def CodeSpaceMap CharCode Rng nm = SizedOp
                                      (CodeRange CharCode)
                                      Rng
@@ -178,30 +181,28 @@ def CodeSpaceMap CharCode Rng nm = SizedOp
 -- UnicodeSeq: a sequence of unicode characters
 def UnicodeSeq cc = {
   -- single unicode char:
-  (LiftPToArray UTF8) |
+  (LiftPToArray ParseUTF8) |
   -- multiple unicode chars:
-  (Between "[" "]" (Many ((numEntries cc) as uint 64) (Token UTF8)))
+  { @entries = numEntries cc as? uint 64;
+    Between "[" "]" (Many entries (Token ParseUTF8))
+   }
 }
 
+def ParseUTF8 = HexString
+                -- FIXME: TODO: convert bytes to UTF8
+                -- FIXME: may not want the HexString behavior (when odd num digits!)
+                
 -- TODO: check that codespaces do not overlap, but only for
 -- codespace ranges
 
-def CodeRanges CharCode = CodeSpaceMap CharCode (Const Unit) "codespace" 
-
--- FIXME: (dead) code used for exploring CodeRanges
-def CodeRanges2 CharCode = {
-  -- inlining and exploring
-  {-
-    SizedOp
-    (CodeRange CharCode) (Const Unit)
-    "codespacerange"
-  -}
+def CodeRanges CharCode = {
   @size = Token(UnsignedNatural);
-  -- Guard (size <= 100); -- upper bound of 100 imposed by standard
+  Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope "codespacerange" {
-    @es = Many (1..) (MapEntry (CodeRange CharCode) Unit);
-    -- Guard (length es == (size as uint 64)); -- FIXME
-    ListToMap es
+    -- @es = Many (1..) (MapEntry (CodeRange CharCode) Unit); -- New: FIXME: try this??
+    @es = Many (1..) (DepPair (CodeRange CharCode) (Const Unit));
+    Guard (length es == (size as uint 64));
+    ListOfPairsToMap es
    }
 }
 
@@ -209,8 +210,9 @@ def CodeNumMap CharCode nm = CodeSpaceMap CharCode (Const Number) nm
 
 -- BfCharOp: define unicode of a single character
 def BfCharOp CharCode = SizedOp
-  (SingletonRange CharCode) (Const (LiftPToArray UTF8))
-  "bfchar"
+                          (SingletonRange CharCode)
+                          (Const (LiftPToArray ParseUTF8))
+                          "bfchar"
 
 def BfRangeOp CharCode = CodeSpaceMap CharCode UnicodeSeq "bf"
 
@@ -240,6 +242,7 @@ def PreRangeOp = Choose1 {
   }
 }
 
+-- FIXME: currently dead:
 -- DictAnd Code Ops: parse dictionary entries, code operations Code
 -- and operations Ops
 def DictAnd Code Ops = {
@@ -257,23 +260,14 @@ def CollectRangeOp dom maybeOps = {
 
 -- parse bytes for "CMapProper" but do no processing/validating as yet
 def CMapProper_Raw CharCode = {
-  items0 = DictAnd (CodeRanges CharCode) PreRangeOp; -- code ranges
-  items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
-           -- {fst= [], snd=[]}; -- (for testing/exploring)
-     
-}
+  @items0 = Lists2 CMapDictEntry (CodeRanges CharCode);
+            -- NOTE: this is only call of 'CodeRanges'
+            -- FIXME: add back PreRangeOp;
+            
+  @items1 = Lists2 CMapDictEntry (CodeRangeOp CharCode);
+            -- {fst= [], snd=[]}; -- (for testing/exploring)
 
-def CMapProper CharCode = {
-  @raw = CMapProper_Raw CharCode;
-  @items0 = raw.items0;
-  @items1 = raw.items1;
-
-  -- extract data from items1:
-  @alldefs = append items0.des items1.fst;
-  @rangeOps = items1.snd : [ CodeRangeOp ];
-  
-  -- code range operations
-  -- NOTE
+-- NOTE
   --  - so far I'm seeing size always equal to 12!?
   --  - disabling this guard for now.
   --  - FIXME: reinstate or change or _
@@ -285,12 +279,27 @@ def CMapProper CharCode = {
   --        (length items1.codes) +
   --        (length items1.ops));
 
-  -- cmapDict: define the cmap dictionary
-  cmapDict = ListToMap (map (defn in alldefs) (PairMapEntry defn));
+  -- extract/merge data:
+  defs     = append items0.fst items1.fst;
+  codes    = items0.snd;
+  rangeOps = items1.snd : [ CodeRangeOp ];
+}
 
+{-
+def CMapProper CharCode = {
+  @raw      = CMapProper_Raw CharCode;
+  @defs     = raw.defs;
+  @codes    = raw.codes;
+  @rangeOps = raw.rangeOps;
+  
+  -- cmapDict: define the cmap dictionary
+  -- cmapDict = ListOfPairsToMap (map (defn in alldefs) (PairMapEntry defn));  -- OLD, FIXME: use?
+
+  cmapDict = ListOfPairsToMap defs;
+  
   -- codeRanges: the code ranges
   codeRanges = {
-    @codeRangesM = UnionMapArray items0.codes;
+    @codeRangesM = UnionMapArray codes;
     MapDomain codeRangesM
   };
 
@@ -315,7 +324,8 @@ def CMapProper CharCode = {
       _ -> nothing
     ));
 }
-        
+-}
+
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
 -- differ from the ones specified in Adobe Technical Note #5014.
 def ToUnicodeCMap0 CharCode = {
@@ -329,11 +339,11 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      dict = GenCMapScope "cmap" (CMapProper CharCode);
+      dict = GenCMapScope "cmap" (CMapProper_Raw CharCode);  -- FIXME: TESTONLY, revert '_Raw'
 
       -- a CMapName directive
       KW "CMapName";
-      cMapName = Token(Many NameChar);  -- FIXME: need to add back this name?
+      cMapName = Token(Many NameChar);
       Name;
       KW "defineresource";
       KW "pop";
@@ -341,8 +351,14 @@ def ToUnicodeCMap0 CharCode = {
   };
 } 
 
+-- The 1 byte / n byte formats for char codes in a cmap:
+
 -- HexByte: a single byte, represented as a hex code
-def HexByte = numBase 16 (Many 2 HexDigit) as? uint 32
+def HexByte = numBase 16 (Many 2 HexDigit) as int
+
+def FontCode_SF  = Between "<" ">" HexByte
+
+def FontCode_CID = Between "<" ">" (numBase (256 : int) (Many (1..) HexByte))
 
 -- fontType: different types of fonts. Inherited from context of CMap.
 def FontType = Choose {
@@ -353,10 +369,10 @@ def FontType = Choose {
 def SimpleFontType : FontType = {| simpleFont = {} |}
 
 -- FontCode: parse a font code as an integer:
-def FontCode (fontTy : FontType) = Between "<" ">" (case fontTy of
-  simpleFont -> HexByte
-  cidFont -> numBase 256 (Many (1..) HexByte)
-)
+def FontCode (fontTy : FontType) =
+  case fontTy of
+    simpleFont -> FontCode_SF
+    cidFont    -> FontCode_CID
 
 def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
 
@@ -370,12 +386,7 @@ def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
 def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
 def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
 
-def CodeRanges_HexByte       = CodeRanges HexByte
-def CodeRanges2_HexByte      = CodeRanges2 HexByte
-
 -- Main: entry point, for testing
--- def Main = ToUnicodeCMap_simpleFont
-def Main = CodeRanges_HexByte
 
 
 
