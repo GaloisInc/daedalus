@@ -76,7 +76,7 @@ compileDDL =
                       _             -> cfg
          saveHS' = saveHSCustomWriteFile smartWriteFile
                    -- more efficient replacement for 'saveHS'
-     mapM_ (\m -> saveHS' (Just "src") (cfgFor m) m) todo
+     mapM_ (\m -> saveHS' (Just "src/spec") (cfgFor m) m) todo
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if
