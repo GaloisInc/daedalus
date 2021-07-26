@@ -34,10 +34,10 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
+-- text extraction: support symbolic (non-Latin) fonts
+
 -- text extraction: support TrueType fonts
 -- text extraction: support Type0 fonts
-
--- text extraction: support symbolic (non-Latin) fonts
 
 -- TODO: test
 -- pages
@@ -45,6 +45,8 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph
+
+-- SPEC: Type3 fonts: may refer to resrc dicts, which may loop
 
 -- TODO: include in .cabal
         -- ColourSpaceOps
