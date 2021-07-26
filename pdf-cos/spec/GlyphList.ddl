@@ -1,14 +1,16 @@
 -- GlyphList: mapping form glyphs to unicode
 import Map
 import Stdlib
+
 import GenPdfValue
-import Glyphs
+import Glyph
 import Unicode
 
 -- GlyphList: encoding of glyph list
--- def GlyphEncodings = [
---   MapEntry (Glyph "A") [ UTF82 (Bytes2 0x00 0x41) ]
--- , MapEntry (Glyph "AE") [ UTF82 (Bytes2 0x00 0xC6) ]
+-- TODO: uncomment these for full definition
+def GlyphEncodings = [
+  MapEntry (Glyph "A") [ UTF82 (Bytes2 0x00 0x41) ]
+, MapEntry (Glyph "AE") [ UTF82 (Bytes2 0x00 0xC6) ]
 -- , MapEntry (Glyph "AEacute") [ UTF82 (Bytes2 0x01 0xFC) ]
 -- , MapEntry (Glyph "AEmacron") [ UTF82 (Bytes2 0x01 0xE2) ]
 -- , MapEntry (Glyph "AEsmall") [ UTF82 (Bytes2 0xF7 0xE6) ]
@@ -4288,8 +4290,6 @@ import Unicode
 -- , MapEntry (Glyph "zstroke") [ UTF82 (Bytes2 0x01 0xB6) ]
 -- , MapEntry (Glyph "zuhiragana") [ UTF82 (Bytes2 0x30 0x5A) ]
 -- , MapEntry (Glyph "zukatakana") [ UTF82 (Bytes2 0x30 0xBA) ]
--- ]
-
-def GlyphEncodings = [ ]
+]
 
 def GlyphMap = ListToMap GlyphEncodings

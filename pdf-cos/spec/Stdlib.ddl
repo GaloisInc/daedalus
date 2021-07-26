@@ -14,8 +14,8 @@ def FoldMany P acc = Choose1 {
 
 def Const P x = P
 
-def boolInt b = if b then 1 else 0
-def intBool n = n != 1
+def boolInt b : int = if b then 1 else 0
+def intBool (n : int) = n != 1
 
 def boolXor b0 b1 = intBool ((boolInt b0) .^. (boolInt b1))
 

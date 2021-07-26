@@ -1,214 +1,216 @@
 import Map
 import Stdlib
 
+import Glyph
+
 def MacEncodings = [
-  MapEntry (octalTriple 1 0 1) "A"
-, MapEntry (octalTriple 2 5 6) "AE"
-, MapEntry (octalTriple 3 4 7) "Aacute"
-, MapEntry (octalTriple 3 4 5) "Acircumflex"
-, MapEntry (octalTriple 2 0 0) "Adieresis"
-, MapEntry (octalTriple 3 1 3) "Agrave"
-, MapEntry (octalTriple 2 0 1) "Aring"
-, MapEntry (octalTriple 3 1 4) "Atilde"
-, MapEntry (octalTriple 1 0 2) "B"
-, MapEntry (octalTriple 1 0 3) "C"
-, MapEntry (octalTriple 2 0 2) "Ccedilla"
-, MapEntry (octalTriple 1 0 4) "D"
-, MapEntry (octalTriple 1 0 5) "E"
-, MapEntry (octalTriple 2 0 3) "Eacute"
-, MapEntry (octalTriple 3 4 6) "Ecircumflex"
-, MapEntry (octalTriple 3 5 0) "Edieresis"
-, MapEntry (octalTriple 3 5 1) "Egrave"
-, MapEntry (octalTriple 1 0 6) "F"
-, MapEntry (octalTriple 1 0 7) "G"
-, MapEntry (octalTriple 1 1 0) "H"
-, MapEntry (octalTriple 1 1 1) "I"
-, MapEntry (octalTriple 3 5 2) "Iacute"
-, MapEntry (octalTriple 3 5 3) "Icircumflex"
-, MapEntry (octalTriple 3 5 4) "Idieresis"
-, MapEntry (octalTriple 3 5 5) "Igrave"
-, MapEntry (octalTriple 1 1 2) "J"
-, MapEntry (octalTriple 1 1 3) "K"
-, MapEntry (octalTriple 1 1 4) "L"
-, MapEntry (octalTriple 1 1 5) "M"
-, MapEntry (octalTriple 1 1 6) "N"
-, MapEntry (octalTriple 2 0 4) "Ntilde"
-, MapEntry (octalTriple 1 1 7) "O"
-, MapEntry (octalTriple 3 1 6) "OE"
-, MapEntry (octalTriple 3 5 6) "Oacute"
-, MapEntry (octalTriple 3 5 7) "Ocircumflex"
-, MapEntry (octalTriple 2 0 5) "Odieresis"
-, MapEntry (octalTriple 3 6 1) "Ograve"
-, MapEntry (octalTriple 2 5 7) "Oslash"
-, MapEntry (octalTriple 3 1 5) "Otilde"
-, MapEntry (octalTriple 1 2 0) "P"
-, MapEntry (octalTriple 1 2 1) "Q"
-, MapEntry (octalTriple 1 2 2) "R"
-, MapEntry (octalTriple 1 2 3) "S"
-, MapEntry (octalTriple 1 2 4) "T"
-, MapEntry (octalTriple 1 2 5) "U"
-, MapEntry (octalTriple 3 6 2) "Uacute"
-, MapEntry (octalTriple 3 6 3) "Ucircumflex"
-, MapEntry (octalTriple 2 0 6) "Udieresis"
-, MapEntry (octalTriple 3 6 4) "Ugrave"
-, MapEntry (octalTriple 1 2 6) "V"
-, MapEntry (octalTriple 1 2 7) "W"
-, MapEntry (octalTriple 1 3 0) "X"
-, MapEntry (octalTriple 1 3 1) "Y"
-, MapEntry (octalTriple 3 3 1) "Ydieresis"
-, MapEntry (octalTriple 1 3 2) "Z"
-, MapEntry (octalTriple 1 4 1) "a"
-, MapEntry (octalTriple 2 0 7) "aacute"
-, MapEntry (octalTriple 2 1 1) "acircumflex"
-, MapEntry (octalTriple 2 5 3) "acute"
-, MapEntry (octalTriple 2 1 2) "adieresis"
-, MapEntry (octalTriple 2 7 6) "ae"
-, MapEntry (octalTriple 2 1 0) "agrave"
-, MapEntry (octalTriple 0 4 6) "ampersand"
-, MapEntry (octalTriple 2 1 4) "aring"
-, MapEntry (octalTriple 1 3 6) "asciicircum"
-, MapEntry (octalTriple 1 7 6) "asciitilde"
-, MapEntry (octalTriple 0 5 2) "asterisk"
-, MapEntry (octalTriple 1 0 0) "at"
-, MapEntry (octalTriple 2 1 3) "atilde"
-, MapEntry (octalTriple 1 4 2) "b"
-, MapEntry (octalTriple 1 3 4) "backslash"
-, MapEntry (octalTriple 1 7 4) "bar"
-, MapEntry (octalTriple 1 7 3) "braceleft"
-, MapEntry (octalTriple 1 7 5) "braceright"
-, MapEntry (octalTriple 1 3 3) "bracketleft"
-, MapEntry (octalTriple 1 3 5) "bracketright"
-, MapEntry (octalTriple 3 7 1) "breve"
-, MapEntry (octalTriple 2 4 5) "bullet"
-, MapEntry (octalTriple 1 4 3) "c"
-, MapEntry (octalTriple 3 7 7) "caron"
-, MapEntry (octalTriple 2 1 5) "ccedilla"
-, MapEntry (octalTriple 3 7 4) "cedilla"
-, MapEntry (octalTriple 2 4 2) "cent"
-, MapEntry (octalTriple 3 6 6) "circumflex"
-, MapEntry (octalTriple 0 7 2) "colon"
-, MapEntry (octalTriple 0 5 4) "comma"
-, MapEntry (octalTriple 2 5 1) "copyright"
-, MapEntry (octalTriple 3 3 3) "currency"
-, MapEntry (octalTriple 1 4 4) "d"
-, MapEntry (octalTriple 2 4 0) "dagger"
-, MapEntry (octalTriple 3 4 0) "daggerdbl"
-, MapEntry (octalTriple 2 4 1) "degree"
-, MapEntry (octalTriple 2 5 4) "dieresis"
-, MapEntry (octalTriple 3 2 6) "divide"
-, MapEntry (octalTriple 0 4 4) "dollar"
-, MapEntry (octalTriple 3 7 2) "dotaccent"
-, MapEntry (octalTriple 3 6 5) "dotlessi"
-, MapEntry (octalTriple 1 4 5) "e"
-, MapEntry (octalTriple 2 1 6) "eacute"
-, MapEntry (octalTriple 2 2 0) "ecircumflex"
-, MapEntry (octalTriple 2 2 1) "edieresis"
-, MapEntry (octalTriple 2 1 7) "egrave"
-, MapEntry (octalTriple 0 7 0) "eight"
-, MapEntry (octalTriple 3 1 1) "ellipsis"
-, MapEntry (octalTriple 3 2 1) "emdash"
-, MapEntry (octalTriple 3 2 0) "endash"
-, MapEntry (octalTriple 0 7 5) "equal"
-, MapEntry (octalTriple 0 4 1) "exclam"
-, MapEntry (octalTriple 3 0 1) "exclamdown"
-, MapEntry (octalTriple 1 4 6) "f"
-, MapEntry (octalTriple 3 3 6) "fi"
-, MapEntry (octalTriple 0 6 5) "five"
-, MapEntry (octalTriple 3 3 7) "fl"
-, MapEntry (octalTriple 3 0 4) "florin"
-, MapEntry (octalTriple 0 6 4) "four"
-, MapEntry (octalTriple 3 3 2) "fraction"
-, MapEntry (octalTriple 1 4 7) "g"
-, MapEntry (octalTriple 2 4 7) "germandbls"
-, MapEntry (octalTriple 1 4 0) "grave"
-, MapEntry (octalTriple 0 7 6) "greater"
-, MapEntry (octalTriple 3 0 7) "guillemotleft"
-, MapEntry (octalTriple 3 1 0) "guillemotright"
-, MapEntry (octalTriple 3 3 4) "guilsinglleft"
-, MapEntry (octalTriple 3 3 5) "guilsinglright"
-, MapEntry (octalTriple 1 5 0) "h"
-, MapEntry (octalTriple 3 7 5) "hungarumlaut"
-, MapEntry (octalTriple 0 5 5) "hyphen"
-, MapEntry (octalTriple 1 5 1) "i"
-, MapEntry (octalTriple 2 2 2) "iacute"
-, MapEntry (octalTriple 2 2 4) "icircumflex"
-, MapEntry (octalTriple 2 2 5) "idieresis"
-, MapEntry (octalTriple 2 2 3) "igrave"
-, MapEntry (octalTriple 1 5 2) "j"
-, MapEntry (octalTriple 1 5 3) "k"
-, MapEntry (octalTriple 1 5 4) "l"
-, MapEntry (octalTriple 0 7 4) "less"
-, MapEntry (octalTriple 3 0 2) "logicalnot"
-, MapEntry (octalTriple 1 5 5) "m"
-, MapEntry (octalTriple 3 7 0) "macron"
-, MapEntry (octalTriple 2 6 5) "mu"
-, MapEntry (octalTriple 1 5 6) "n"
-, MapEntry (octalTriple 0 7 1) "nine"
-, MapEntry (octalTriple 2 2 6) "ntilde"
-, MapEntry (octalTriple 0 4 3) "numbersign"
-, MapEntry (octalTriple 1 5 7) "o"
-, MapEntry (octalTriple 2 2 7) "oacute"
-, MapEntry (octalTriple 2 3 1) "ocircumflex"
-, MapEntry (octalTriple 2 3 2) "odieresis"
-, MapEntry (octalTriple 3 1 7) "oe"
-, MapEntry (octalTriple 3 7 6) "ogonek"
-, MapEntry (octalTriple 2 3 0) "ograve"
-, MapEntry (octalTriple 0 6 1) "one"
-, MapEntry (octalTriple 2 7 3) "ordfeminine"
-, MapEntry (octalTriple 2 7 4) "ordmasculine"
-, MapEntry (octalTriple 2 7 7) "oslash"
-, MapEntry (octalTriple 2 3 3) "otilde"
-, MapEntry (octalTriple 1 6 0) "p"
-, MapEntry (octalTriple 2 4 6) "paragraph"
-, MapEntry (octalTriple 0 5 0) "parenleft"
-, MapEntry (octalTriple 0 5 1) "parenright"
-, MapEntry (octalTriple 0 4 5) "percent"
-, MapEntry (octalTriple 0 5 6) "period"
-, MapEntry (octalTriple 3 4 1) "periodcentered"
-, MapEntry (octalTriple 3 4 4) "perthousand"
-, MapEntry (octalTriple 0 5 3) "plus"
-, MapEntry (octalTriple 2 6 1) "plusminus"
-, MapEntry (octalTriple 1 6 1) "q"
-, MapEntry (octalTriple 0 7 7) "question"
-, MapEntry (octalTriple 3 0 0) "questiondown"
-, MapEntry (octalTriple 0 4 2) "quotedbl"
-, MapEntry (octalTriple 3 4 3) "quotedblbase"
-, MapEntry (octalTriple 3 2 2) "quotedblleft"
-, MapEntry (octalTriple 3 2 3) "quotedblright"
-, MapEntry (octalTriple 3 2 4) "quoteleft"
-, MapEntry (octalTriple 3 2 5) "quoteright"
-, MapEntry (octalTriple 3 4 2) "quotesinglbase"
-, MapEntry (octalTriple 0 4 7) "quotesingle"
-, MapEntry (octalTriple 1 6 2) "r"
-, MapEntry (octalTriple 2 5 0) "registered"
-, MapEntry (octalTriple 3 7 3) "ring"
-, MapEntry (octalTriple 1 6 3) "s"
-, MapEntry (octalTriple 2 4 4) "section"
-, MapEntry (octalTriple 0 7 3) "semicolon"
-, MapEntry (octalTriple 0 6 7) "seven"
-, MapEntry (octalTriple 0 6 6) "six"
-, MapEntry (octalTriple 0 5 7) "slash"
-, MapEntry (octalTriple 0 4 0) "space"
-, MapEntry (octalTriple 2 4 3) "sterling"
-, MapEntry (octalTriple 1 6 4) "t"
-, MapEntry (octalTriple 0 6 3) "three"
-, MapEntry (octalTriple 3 6 7) "tilde"
-, MapEntry (octalTriple 2 5 2) "trademark"
-, MapEntry (octalTriple 0 6 2) "two"
-, MapEntry (octalTriple 1 6 5) "u"
-, MapEntry (octalTriple 2 3 4) "uacute"
-, MapEntry (octalTriple 2 3 6) "ucircumflex"
-, MapEntry (octalTriple 2 3 7) "udieresis"
-, MapEntry (octalTriple 2 3 5) "ugrave"
-, MapEntry (octalTriple 1 3 7) "underscore"
-, MapEntry (octalTriple 1 6 6) "v"
-, MapEntry (octalTriple 1 6 7) "w"
-, MapEntry (octalTriple 1 7 0) "x"
-, MapEntry (octalTriple 1 7 1) "y"
-, MapEntry (octalTriple 3 3 0) "ydieresis"
-, MapEntry (octalTriple 2 6 4) "yen"
-, MapEntry (octalTriple 1 7 2) "z"
-, MapEntry (octalTriple 0 6 0) "zero"
+  MapEntry (octalTriple 1 0 1) (Glyph "A")
+, MapEntry (octalTriple 2 5 6) (Glyph "AE")
+, MapEntry (octalTriple 3 4 7) (Glyph "Aacute")
+, MapEntry (octalTriple 3 4 5) (Glyph "Acircumflex")
+, MapEntry (octalTriple 2 0 0) (Glyph "Adieresis")
+, MapEntry (octalTriple 3 1 3) (Glyph "Agrave")
+, MapEntry (octalTriple 2 0 1) (Glyph "Aring")
+, MapEntry (octalTriple 3 1 4) (Glyph "Atilde")
+, MapEntry (octalTriple 1 0 2) (Glyph "B")
+, MapEntry (octalTriple 1 0 3) (Glyph "C")
+, MapEntry (octalTriple 2 0 2) (Glyph "Ccedilla")
+, MapEntry (octalTriple 1 0 4) (Glyph "D")
+, MapEntry (octalTriple 1 0 5) (Glyph "E")
+, MapEntry (octalTriple 2 0 3) (Glyph "Eacute")
+, MapEntry (octalTriple 3 4 6) (Glyph "Ecircumflex")
+, MapEntry (octalTriple 3 5 0) (Glyph "Edieresis")
+, MapEntry (octalTriple 3 5 1) (Glyph "Egrave")
+, MapEntry (octalTriple 1 0 6) (Glyph "F")
+, MapEntry (octalTriple 1 0 7) (Glyph "G")
+, MapEntry (octalTriple 1 1 0) (Glyph "H")
+, MapEntry (octalTriple 1 1 1) (Glyph "I")
+, MapEntry (octalTriple 3 5 2) (Glyph "Iacute")
+, MapEntry (octalTriple 3 5 3) (Glyph "Icircumflex")
+, MapEntry (octalTriple 3 5 4) (Glyph "Idieresis")
+, MapEntry (octalTriple 3 5 5) (Glyph "Igrave")
+, MapEntry (octalTriple 1 1 2) (Glyph "J")
+, MapEntry (octalTriple 1 1 3) (Glyph "K")
+, MapEntry (octalTriple 1 1 4) (Glyph "L")
+, MapEntry (octalTriple 1 1 5) (Glyph "M")
+, MapEntry (octalTriple 1 1 6) (Glyph "N")
+, MapEntry (octalTriple 2 0 4) (Glyph "Ntilde")
+, MapEntry (octalTriple 1 1 7) (Glyph "O")
+, MapEntry (octalTriple 3 1 6) (Glyph "OE")
+, MapEntry (octalTriple 3 5 6) (Glyph "Oacute")
+, MapEntry (octalTriple 3 5 7) (Glyph "Ocircumflex")
+, MapEntry (octalTriple 2 0 5) (Glyph "Odieresis")
+, MapEntry (octalTriple 3 6 1) (Glyph "Ograve")
+, MapEntry (octalTriple 2 5 7) (Glyph "Oslash")
+, MapEntry (octalTriple 3 1 5) (Glyph "Otilde")
+, MapEntry (octalTriple 1 2 0) (Glyph "P")
+, MapEntry (octalTriple 1 2 1) (Glyph "Q")
+, MapEntry (octalTriple 1 2 2) (Glyph "R")
+, MapEntry (octalTriple 1 2 3) (Glyph "S")
+, MapEntry (octalTriple 1 2 4) (Glyph "T")
+, MapEntry (octalTriple 1 2 5) (Glyph "U")
+, MapEntry (octalTriple 3 6 2) (Glyph "Uacute")
+, MapEntry (octalTriple 3 6 3) (Glyph "Ucircumflex")
+, MapEntry (octalTriple 2 0 6) (Glyph "Udieresis")
+, MapEntry (octalTriple 3 6 4) (Glyph "Ugrave")
+, MapEntry (octalTriple 1 2 6) (Glyph "V")
+, MapEntry (octalTriple 1 2 7) (Glyph "W")
+, MapEntry (octalTriple 1 3 0) (Glyph "X")
+, MapEntry (octalTriple 1 3 1) (Glyph "Y")
+, MapEntry (octalTriple 3 3 1) (Glyph "Ydieresis")
+, MapEntry (octalTriple 1 3 2) (Glyph "Z")
+, MapEntry (octalTriple 1 4 1) (Glyph "a")
+, MapEntry (octalTriple 2 0 7) (Glyph "aacute")
+, MapEntry (octalTriple 2 1 1) (Glyph "acircumflex")
+, MapEntry (octalTriple 2 5 3) (Glyph "acute")
+, MapEntry (octalTriple 2 1 2) (Glyph "adieresis")
+, MapEntry (octalTriple 2 7 6) (Glyph "ae")
+, MapEntry (octalTriple 2 1 0) (Glyph "agrave")
+, MapEntry (octalTriple 0 4 6) (Glyph "ampersand")
+, MapEntry (octalTriple 2 1 4) (Glyph "aring")
+, MapEntry (octalTriple 1 3 6) (Glyph "asciicircum")
+, MapEntry (octalTriple 1 7 6) (Glyph "asciitilde")
+, MapEntry (octalTriple 0 5 2) (Glyph "asterisk")
+, MapEntry (octalTriple 1 0 0) (Glyph "at")
+, MapEntry (octalTriple 2 1 3) (Glyph "atilde")
+, MapEntry (octalTriple 1 4 2) (Glyph "b")
+, MapEntry (octalTriple 1 3 4) (Glyph "backslash")
+, MapEntry (octalTriple 1 7 4) (Glyph "bar")
+, MapEntry (octalTriple 1 7 3) (Glyph "braceleft")
+, MapEntry (octalTriple 1 7 5) (Glyph "braceright")
+, MapEntry (octalTriple 1 3 3) (Glyph "bracketleft")
+, MapEntry (octalTriple 1 3 5) (Glyph "bracketright")
+, MapEntry (octalTriple 3 7 1) (Glyph "breve")
+, MapEntry (octalTriple 2 4 5) (Glyph "bullet")
+, MapEntry (octalTriple 1 4 3) (Glyph "c")
+, MapEntry (octalTriple 3 7 7) (Glyph "caron")
+, MapEntry (octalTriple 2 1 5) (Glyph "ccedilla")
+, MapEntry (octalTriple 3 7 4) (Glyph "cedilla")
+, MapEntry (octalTriple 2 4 2) (Glyph "cent")
+, MapEntry (octalTriple 3 6 6) (Glyph "circumflex")
+, MapEntry (octalTriple 0 7 2) (Glyph "colon")
+, MapEntry (octalTriple 0 5 4) (Glyph "comma")
+, MapEntry (octalTriple 2 5 1) (Glyph "copyright")
+, MapEntry (octalTriple 3 3 3) (Glyph "currency")
+, MapEntry (octalTriple 1 4 4) (Glyph "d")
+, MapEntry (octalTriple 2 4 0) (Glyph "dagger")
+, MapEntry (octalTriple 3 4 0) (Glyph "daggerdbl")
+, MapEntry (octalTriple 2 4 1) (Glyph "degree")
+, MapEntry (octalTriple 2 5 4) (Glyph "dieresis")
+, MapEntry (octalTriple 3 2 6) (Glyph "divide")
+, MapEntry (octalTriple 0 4 4) (Glyph "dollar")
+, MapEntry (octalTriple 3 7 2) (Glyph "dotaccent")
+, MapEntry (octalTriple 3 6 5) (Glyph "dotlessi")
+, MapEntry (octalTriple 1 4 5) (Glyph "e")
+, MapEntry (octalTriple 2 1 6) (Glyph "eacute")
+, MapEntry (octalTriple 2 2 0) (Glyph "ecircumflex")
+, MapEntry (octalTriple 2 2 1) (Glyph "edieresis")
+, MapEntry (octalTriple 2 1 7) (Glyph "egrave")
+, MapEntry (octalTriple 0 7 0) (Glyph "eight")
+, MapEntry (octalTriple 3 1 1) (Glyph "ellipsis")
+, MapEntry (octalTriple 3 2 1) (Glyph "emdash")
+, MapEntry (octalTriple 3 2 0) (Glyph "endash")
+, MapEntry (octalTriple 0 7 5) (Glyph "equal")
+, MapEntry (octalTriple 0 4 1) (Glyph "exclam")
+, MapEntry (octalTriple 3 0 1) (Glyph "exclamdown")
+, MapEntry (octalTriple 1 4 6) (Glyph "f")
+, MapEntry (octalTriple 3 3 6) (Glyph "fi")
+, MapEntry (octalTriple 0 6 5) (Glyph "five")
+, MapEntry (octalTriple 3 3 7) (Glyph "fl")
+, MapEntry (octalTriple 3 0 4) (Glyph "florin")
+, MapEntry (octalTriple 0 6 4) (Glyph "four")
+, MapEntry (octalTriple 3 3 2) (Glyph "fraction")
+, MapEntry (octalTriple 1 4 7) (Glyph "g")
+, MapEntry (octalTriple 2 4 7) (Glyph "germandbls")
+, MapEntry (octalTriple 1 4 0) (Glyph "grave")
+, MapEntry (octalTriple 0 7 6) (Glyph "greater")
+, MapEntry (octalTriple 3 0 7) (Glyph "guillemotleft")
+, MapEntry (octalTriple 3 1 0) (Glyph "guillemotright")
+, MapEntry (octalTriple 3 3 4) (Glyph "guilsinglleft")
+, MapEntry (octalTriple 3 3 5) (Glyph "guilsinglright")
+, MapEntry (octalTriple 1 5 0) (Glyph "h")
+, MapEntry (octalTriple 3 7 5) (Glyph "hungarumlaut")
+, MapEntry (octalTriple 0 5 5) (Glyph "hyphen")
+, MapEntry (octalTriple 1 5 1) (Glyph "i")
+, MapEntry (octalTriple 2 2 2) (Glyph "iacute")
+, MapEntry (octalTriple 2 2 4) (Glyph "icircumflex")
+, MapEntry (octalTriple 2 2 5) (Glyph "idieresis")
+, MapEntry (octalTriple 2 2 3) (Glyph "igrave")
+, MapEntry (octalTriple 1 5 2) (Glyph "j")
+, MapEntry (octalTriple 1 5 3) (Glyph "k")
+, MapEntry (octalTriple 1 5 4) (Glyph "l")
+, MapEntry (octalTriple 0 7 4) (Glyph "less")
+, MapEntry (octalTriple 3 0 2) (Glyph "logicalnot")
+, MapEntry (octalTriple 1 5 5) (Glyph "m")
+, MapEntry (octalTriple 3 7 0) (Glyph "macron")
+, MapEntry (octalTriple 2 6 5) (Glyph "mu")
+, MapEntry (octalTriple 1 5 6) (Glyph "n")
+, MapEntry (octalTriple 0 7 1) (Glyph "nine")
+, MapEntry (octalTriple 2 2 6) (Glyph "ntilde")
+, MapEntry (octalTriple 0 4 3) (Glyph "numbersign")
+, MapEntry (octalTriple 1 5 7) (Glyph "o")
+, MapEntry (octalTriple 2 2 7) (Glyph "oacute")
+, MapEntry (octalTriple 2 3 1) (Glyph "ocircumflex")
+, MapEntry (octalTriple 2 3 2) (Glyph "odieresis")
+, MapEntry (octalTriple 3 1 7) (Glyph "oe")
+, MapEntry (octalTriple 3 7 6) (Glyph "ogonek")
+, MapEntry (octalTriple 2 3 0) (Glyph "ograve")
+, MapEntry (octalTriple 0 6 1) (Glyph "one")
+, MapEntry (octalTriple 2 7 3) (Glyph "ordfeminine")
+, MapEntry (octalTriple 2 7 4) (Glyph "ordmasculine")
+, MapEntry (octalTriple 2 7 7) (Glyph "oslash")
+, MapEntry (octalTriple 2 3 3) (Glyph "otilde")
+, MapEntry (octalTriple 1 6 0) (Glyph "p")
+, MapEntry (octalTriple 2 4 6) (Glyph "paragraph")
+, MapEntry (octalTriple 0 5 0) (Glyph "parenleft")
+, MapEntry (octalTriple 0 5 1) (Glyph "parenright")
+, MapEntry (octalTriple 0 4 5) (Glyph "percent")
+, MapEntry (octalTriple 0 5 6) (Glyph "period")
+, MapEntry (octalTriple 3 4 1) (Glyph "periodcentered")
+, MapEntry (octalTriple 3 4 4) (Glyph "perthousand")
+, MapEntry (octalTriple 0 5 3) (Glyph "plus")
+, MapEntry (octalTriple 2 6 1) (Glyph "plusminus")
+, MapEntry (octalTriple 1 6 1) (Glyph "q")
+, MapEntry (octalTriple 0 7 7) (Glyph "question")
+, MapEntry (octalTriple 3 0 0) (Glyph "questiondown")
+, MapEntry (octalTriple 0 4 2) (Glyph "quotedbl")
+, MapEntry (octalTriple 3 4 3) (Glyph "quotedblbase")
+, MapEntry (octalTriple 3 2 2) (Glyph "quotedblleft")
+, MapEntry (octalTriple 3 2 3) (Glyph "quotedblright")
+, MapEntry (octalTriple 3 2 4) (Glyph "quoteleft")
+, MapEntry (octalTriple 3 2 5) (Glyph "quoteright")
+, MapEntry (octalTriple 3 4 2) (Glyph "quotesinglbase")
+, MapEntry (octalTriple 0 4 7) (Glyph "quotesingle")
+, MapEntry (octalTriple 1 6 2) (Glyph "r")
+, MapEntry (octalTriple 2 5 0) (Glyph "registered")
+, MapEntry (octalTriple 3 7 3) (Glyph "ring")
+, MapEntry (octalTriple 1 6 3) (Glyph "s")
+, MapEntry (octalTriple 2 4 4) (Glyph "section")
+, MapEntry (octalTriple 0 7 3) (Glyph "semicolon")
+, MapEntry (octalTriple 0 6 7) (Glyph "seven")
+, MapEntry (octalTriple 0 6 6) (Glyph "six")
+, MapEntry (octalTriple 0 5 7) (Glyph "slash")
+, MapEntry (octalTriple 0 4 0) (Glyph "space")
+, MapEntry (octalTriple 2 4 3) (Glyph "sterling")
+, MapEntry (octalTriple 1 6 4) (Glyph "t")
+, MapEntry (octalTriple 0 6 3) (Glyph "three")
+, MapEntry (octalTriple 3 6 7) (Glyph "tilde")
+, MapEntry (octalTriple 2 5 2) (Glyph "trademark")
+, MapEntry (octalTriple 0 6 2) (Glyph "two")
+, MapEntry (octalTriple 1 6 5) (Glyph "u")
+, MapEntry (octalTriple 2 3 4) (Glyph "uacute")
+, MapEntry (octalTriple 2 3 6) (Glyph "ucircumflex")
+, MapEntry (octalTriple 2 3 7) (Glyph "udieresis")
+, MapEntry (octalTriple 2 3 5) (Glyph "ugrave")
+, MapEntry (octalTriple 1 3 7) (Glyph "underscore")
+, MapEntry (octalTriple 1 6 6) (Glyph "v")
+, MapEntry (octalTriple 1 6 7) (Glyph "w")
+, MapEntry (octalTriple 1 7 0) (Glyph "x")
+, MapEntry (octalTriple 1 7 1) (Glyph "y")
+, MapEntry (octalTriple 3 3 0) (Glyph "ydieresis")
+, MapEntry (octalTriple 2 6 4) (Glyph "yen")
+, MapEntry (octalTriple 1 7 2) (Glyph "z")
+, MapEntry (octalTriple 0 6 0) (Glyph "zero")
 ]
 
-def MacEncoding = ListToMap MacEncodings
+def MacEncoding : [ uint 8 -> Glyph ] = ListToMap MacEncodings

@@ -4,6 +4,7 @@ import Map
 import Stdlib
 
 import GenPdfValue
+import Glyph
 import PdfValue
 import PdfDecl
 
@@ -22,7 +23,7 @@ def PredefEncodingName = Choose {
 }
 
 -- PredefEncoding: the encodings for each special encoding
-def PredefEncoding (encNm : PredefEncodingName) : [ uint 8 -> [ uint 8 ] ] =
+def PredefEncoding (encNm : PredefEncodingName) : [ uint 8 -> Glyph ] =
   case encNm of {
     macRoman -> MacEncoding
   ; macExpert -> MacEncoding -- TODO: use MacExpert
@@ -31,7 +32,7 @@ def PredefEncoding (encNm : PredefEncodingName) : [ uint 8 -> [ uint 8 ] ] =
 
 def PartialEncoding (pTy : bool)
   (pBaseEnc : maybe PredefEncodingName)
-  (pDiffs : maybe [ uint 8 -> [ uint 8 ] ]) = {
+  (pDiffs : maybe [ uint 8 -> Glyph ]) = {
   type = pTy;
   baseEncoding = pBaseEnc;
   differences = pDiffs;
@@ -52,19 +53,20 @@ def AddBaseEncoding (enc : PartialEncoding) = PartialEncoding
   (just (DirectOrRef (Token (GenName PredefEncodingName))))
   enc.differences
 
+-- parse difference arrays
 def AddDifferences (enc : PartialEncoding) = PartialEncoding
   enc.type
   enc.baseEncoding
   (just (DirectOrRef (Between "[" "]" {
     @es = Many {
       code = Token UInt8;
-      glyphs = Many (Token Name)
+      glyphs = Many (Glyph (Token Name))
     };
     @codeDiffs = map (ent in es) (
       for (entDict = empty; glyph in ent.glyphs) 
         (Insert (ent.code + ((MapLength entDict) as! uint 8)) glyph entDict)
     );
-    for (d = empty : [ uint 8 -> [ uint 8 ] ]; codeDict in codeDiffs)
+    for (d = empty : [ uint 8 -> Glyph ]; codeDict in codeDiffs)
       (MapUnion d codeDict)
     -- TODO: refine to require maps to be disjoint
   })))

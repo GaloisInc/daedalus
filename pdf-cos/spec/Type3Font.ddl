@@ -4,6 +4,7 @@ import GenPdfValue
 import PdfValue
 import PdfDecl
 
+import Encoding
 import FontDesc
 import FontCommon
 import CMap
@@ -88,13 +89,13 @@ def AddCharProcs (f : PartialType3Font) = PartialType3Font
   f.encoding
   f.resources
 
-def AddEncoding (f : PartialType3Font) = PartialType3Font
+def Type3AddEncoding (f : PartialType3Font) = PartialType3Font
   f.common
   f.chars
   f.fontBBox
   f.fontMatrix
   f.charProcs
-  (just (DirectOrRef EncodingDict))
+  (just (DirectOrRef EncodingP))
   f.resources
 
 def AddResources (f : PartialType3Font) = PartialType3Font
@@ -129,7 +130,7 @@ def ExtendType3Font k font = {
           }
           else if k == "Encoding" then {
             font.encoding is nothing;
-            just (AddEncoding font)
+            just (Type3AddEncoding font)
           }
           else if k == "Resources" then {
             font.resources is nothing;
@@ -150,3 +151,8 @@ def Type3Font (f : PartialType3Font) = {
   encoding = f.encoding is just;
   resources = f.resources is just;
 }
+
+def Type3FontP = GenPdfDict1
+  InitType3Font
+  ExtendType3Font
+  Type3Font

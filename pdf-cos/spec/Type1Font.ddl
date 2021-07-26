@@ -4,14 +4,13 @@ import Array
 import Map
 import Pair
 
+import CMap
+import Encoding
+import FontCommon
+import FontDesc
 import GenPdfValue
 import PdfValue
 import PdfDecl
-import CMap
-import FontDesc
-import Encoding
-
-import FontCommon
 
 def EncodingRepr = Choose1 {
   predefEnc = PredefEncodingName;

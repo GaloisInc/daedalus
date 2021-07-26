@@ -4,6 +4,8 @@ import Stdlib
 
 import Encoding
 import FontDict
+import Glyph
+import GlyphList
 import StdEncoding
 import Type0Font
 import Type1Font
@@ -14,7 +16,6 @@ import CMap
 import CIDFont
 import PdfValue
 
-import GlyphList
 
 def SizedFont (f : FontDict) (s: int) = {
   font = f;
@@ -124,47 +125,66 @@ def UTF81Code = {
 --  - FIXME: looking at CMap.FontCode: maybe step 1 would work for Type0 font?
 
 def ExtractString (q: TextState) (szFont: SizedFont) (s : [ uint 8 ]) :
-  [ UTF8 ] = {
+  [ UTF8 ] = 
   -- assume that there is no "default font" if not set by "Tf"
-  case szFont.font of
-    type0 fontdict  -> ExtractString_Composite fontdict    q s
-    _               -> ExtractString_Simple    szFont.font q s
-}
+  case szFont.font of {
+    type0 font0 -> ExtractString_Composite font0 q s
+  ; type1 font1 -> ExtractStringType1 font1 s
+  ; mmfont fontMM -> ExtractStringType1 fontMM s
+  ; type3 font3 -> ExtractStringType3 font3 s
+  }
 
-def ExtractString_Composite (f: Font_Type0) (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
+def ExtractString_Composite (f: Type0Font) (q: TextState) (s : [ uint 8 ]) :
+  [ UTF8 ] = {
+  -- TODO: use f to encode character codes in UTF
   WithStream (arrayStream s) (Many UTF81Code)
-  -- TODO: define: use the font in q to encode s in UTF8
-}
-
-def ExtractString_Simple    (f: Font_Dict ) (q: TextState) (s : [ uint 8 ]) : [ UTF8 ] = {
-  WithStream (arrayStream s) (Many UTF81Code)
-  -- TODO: define: use the font in q to encode s in UTF8
 }
 
 -- ExtractStringType1: extract string under a Type1 font
 def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
-  -- TODO: use CMap, if defined
-  @code2Glyph = case font.encoding of {
-    just enc -> case enc of {
-      predefEnc preDef -> -- use a pre-defined encoding
-        PredefEncoding preDef
-    ; encDict enc0 -> {  -- use differences applied to pre-defined encoding
-        @baseEncoding = case enc0.baseEncoding of {
-            just baseEnc -> PredefEncoding baseEnc
-          ; nothing -> StdEncoding;
-          };
-        MapUnion baseEncoding enc0.differences
-      } 
-    }
-  ; nothing -> StdEncoding -- use the standard encoding
-  };
+  -- TODO: use ToUnicode field, if defined
 
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  -- TODO: GlyphMap may be very expensive; memoize?
-  @code2Uni = ComposeMaps code2Glyph GlyphMap;
+  @code2Uni = ComposeMaps
+    -- build [ code -> glyph ] by inspecting the font
+    (case font.encoding of {
+      just enc -> case enc of {
+        predefEnc preDef -> -- use a pre-defined encoding
+          PredefEncoding preDef
+      ; encDict enc0 -> {
+          -- use differences applied to pre-defined encoding
+          MapUnion
+            (case enc0.baseEncoding of {
+              just baseEnc -> PredefEncoding baseEnc
+            ; nothing -> StdEncoding;
+            })
+            enc0.differences
+        } 
+      }
+    ; nothing -> StdEncoding -- use the standard encoding
+    })
+    -- TODO: GlyphMap may be very expensive; memoize?
+    GlyphMap;
 
   -- parse the string, looking up each code in the unicode map
-  WithStream (arrayStream s) (Many (Lookup UInt8 code2Uni))
+  WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
+}
+
+-- ExtractStringType1: extract string under a Type1 font
+-- TODO: call this to extract text from Type3 fonts
+def ExtractStringType3 (font : Type3Font) (s : [ uint 8 ]) : [ UTF8 ] = {
+  -- TODO: use ToUnicode, if defined
+
+  -- TODO: GlyphMap may be very expensive; memoize?
+  -- compose [code -> glyph] and [glyph -> unicode] maps
+  @code2Uni = ComposeMaps
+    -- for Type3 fonts, encoding is required and Differences entirely
+    -- specifies the character encoding
+    font.encoding.differences
+    GlyphMap;
+
+  -- parse the string, looking up each code in the unicode map
+  WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
 }
 
 -- TODO: use q.charSpace to inject space when necessary

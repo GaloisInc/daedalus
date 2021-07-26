@@ -34,7 +34,7 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- text extraction: support Type3 fonts
+-- text extraction: support TrueType fonts
 -- text extraction: support Type0 fonts
 
 -- TODO: test

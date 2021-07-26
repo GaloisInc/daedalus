@@ -3,10 +3,12 @@ import Array
 import Map
 import Pair
 
+import Encoding
+import FontDict
+import GenPdfValue
 import PdfDecl
 import PdfValue
-import GenPdfValue
-import FontDict
+import Type1Font
 
 -- ResourceDict: resource dictionary, with default values in all fields
 
@@ -19,7 +21,7 @@ def PartialResourceDict
   (pFont : maybe [ [ uint 8 ] -> FontDict ])
   (pProcSet : maybe [ Value ])
   (pProps : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
-  : PartialResourceDict = {
+  = {
   extGState0 = pGState;
   colorSpace0 = pCS;
   pattern0 = pPattern;
@@ -40,7 +42,7 @@ def InitResourceDict = PartialResourceDict
   nothing
   nothing
 
-def AddExtGState d = PartialResourceDict
+def AddExtGState (d : PartialResourceDict) = PartialResourceDict
   (just (DirectOrRef (PdfDict Dict)))
   -- TODO: refine using Sec. 8.4.5, if needed
   d.colorSpace0
@@ -51,7 +53,7 @@ def AddExtGState d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddColorSpace d = PartialResourceDict
+def AddColorSpace (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   (just (DirectOrRef Dict))
   -- TODO: refine using Sec 8.6, if needed
@@ -62,7 +64,7 @@ def AddColorSpace d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddPattern d = PartialResourceDict
+def AddPattern (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   (just (DirectOrRef Dict))
@@ -73,7 +75,7 @@ def AddPattern d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddShading d = PartialResourceDict
+def AddShading (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -84,7 +86,7 @@ def AddShading d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddXObject d = PartialResourceDict
+def AddXObject (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -94,7 +96,7 @@ def AddXObject d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddFont d = PartialResourceDict
+def AddFont (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -104,7 +106,7 @@ def AddFont d = PartialResourceDict
   d.procSet0
   d.properties0
 
-def AddProcSet d = PartialResourceDict
+def AddProcSet (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -114,7 +116,7 @@ def AddProcSet d = PartialResourceDict
   (just (DirectOrRef Array))
   d.properties0
 
-def AddProperties d = PartialResourceDict
+def AddProperties (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
@@ -124,7 +126,7 @@ def AddProperties d = PartialResourceDict
   d.procSet0
   (just (DirectOrRef (PdfDict Dict)))
 
-def ExtendResourceDict k dict = {
+def ExtendResourceDict (k : [ uint 8]) (dict : PartialResourceDict) = {
   if k == "ExtGState" then {
     dict.extGState0 is nothing;
     just (AddExtGState dict)
