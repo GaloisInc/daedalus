@@ -1,0 +1,93 @@
+* TODO next tasks
+
+1. get an example together so as to test code for the cmap lookup
+2. add the cmap lookup code to this defn
+  def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {...}
+3. add more cmap tests
+4. fixing CMap.ddl
+  - do UTF right: parse as UTF16-BE
+  - see other FIXMEs in CMap.ddl (some maybe unimportant)
+
+* TODO find a good hello-world.pdf
+** input.pdf with the qpdf generated input-read.pdf ?
+
+output
+
+  daedalus/pdf-font-exploration $ pdf-hs-driver --text input.pdf
+  INFO - input.pdf at 0 - Catalog (page tree) result:
+  INFO - input.pdf at 0 - "The quic k bro wn fo x jumps o v er the lazy dog's bac k.\FS \ESC \GS \RS \USy es\NAKno\SYNma y b e.\DLEdouble quoted\DC11"
+  ACCEPT
+  SAFE
+
+  daedalus/pdf-font-exploration $ pdf-hs-driver --text input-read.pdf
+  ERROR - input-read.pdf at 2591 - Parsing Catalog/Page tree
+  ERROR - input-read.pdf at 2591 -   byte offset: 2591
+  ERROR - input-read.pdf at 2591 -   error: expected "<<"
+  ERROR - input-read.pdf at 2591 -   call stack:
+  ERROR - input-read.pdf at 2591 -     PdfValue._Token
+  ERROR - input-read.pdf at 2591 -     PdfValue._KW
+  ERROR - input-read.pdf at 2591 -     PdfValue.Between
+  ERROR - input-read.pdf at 2591 -     PdfValue.Dict
+  ERROR - input-read.pdf at 2591 -     dict
+  ERROR - input-read.pdf at 2591 -     PdfValue.Value
+  ERROR - input-read.pdf at 2591 -     PdfDecl.ObjectStreamEntry
+  ERROR - input-read.pdf at 2591 -     PdfDecl.ObjectStreamNth
+  ERROR - input-read.pdf at 2591 -     Stdlib.WithStream
+  ERROR - input-read.pdf at 2591 -     PdfDecl.ResolveRef
+  ERROR - input-read.pdf at 2591 -     PdfDecl.ResolveValRef
+
+problems
+  - cmap and etc is in binary form in *both* files.
+  - and the readable form is clearly not equivalent
+
+** tests/td09-read.pdf
+*** NOTE data
+
+# cmap defn: ( daedalus/tests/cmaps/govdocs-000009-c.sf-cmap)
+
+/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo <<
+/Registry (F6+0) /Ordering (T1UV) /Supplement 0 >> def
+/CMapName /F6+0 def
+/CMapType 2 def
+1 begincodespacerange <01> <01> endcodespacerange
+1 beginbfchar
+<01> <2033>
+endbfchar
+endcmap CMapName currentdict /CMap defineresource pop end end
+
+# the unicode being displayed
+U+2033 = "double prime"
+
+# text drawing commands in pdf:
+
+[(Speak)-332.7(English)-332.7(less)-332.7(than)]TJ
+/F6 1 Tf
+11.169 0 TD
+<01>Tj
+/F3 1 Tf
+0.411 0 TD
+[(very)-332.7(well)]TJ
+/F6 1 Tf
+3.9437 0 TD
+<01>Tj
+
+*** NOTE output
+
+daedalus/pdf-font-exploration $ pdf-hs-driver --text tests/td09-read.pdf
+INFO - tests/td09-read.pdf at 0 - Catalog (page tree) result:
+INFO - tests/td09-read.pdf at 0 - "T a ble D P-1. Profile of General Demographic
+Characteristics: 2000Geographic ar ea: T enino city , W ashington[For
+information o n confidentiality pr otection, nonsampling e rr or , and
+definitions, s ee text]Subject Number PercentT otal
+population..........................1,447 100.0SEX AND AGEMale
+
+*** Analysis
+
+if you look at the rendering we have this
+  "English less than" 
+which shows up like this in the "pdf-hs-driver --text" output
+  "1 0 3 7 . 6Speak English less thanvery well........ 4 7 3 . 4"
+
+The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
+(Because we haven't implemented the CMAP stuff!)
+
