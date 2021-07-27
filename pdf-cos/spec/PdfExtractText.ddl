@@ -14,12 +14,9 @@ import ContentStreamLight
 import Page
 
 -- entry point for text extraction
-def ExtractRootUTF8Bytes r = {
-  @utf8s = ExtractRootText r;
-  ^(utf8Bytes utf8s)
-}
+def ExtractRootUTF8Bytes r = utf8Bytes (ExtractRootText1 r)
 
-def ExtractRootText r = Default [] {
+def ExtractRootText r = Default [ ] {
   ExtractPageOrPagesText nothing r
 }
 
