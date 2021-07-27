@@ -26,6 +26,8 @@ def MapLength m = length (MapToList m)
 -- ListToMap l: collect list of entries l into a map:
 def ListToMap l = for (acc = empty; e in l) Insert e.key e.value acc
 
+def ListOfPairsToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
+
 def MapTo d v = for (acc = empty; k in d) Insert k v acc
 
 def MapUnion m0 m1 = for (acc = m1; k0, v0 in m0) Insert k0 v0 acc
