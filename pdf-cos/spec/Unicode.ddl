@@ -20,15 +20,18 @@ def NonASCIIByte = {
 }
 
 -- UTF-8: byte sequences of length 1 <= n <= 4
-def UTF8 = Choose {
-  utf81 = Bytes1P;
-  utf82 = Bytes2P;
-  utf83 = Bytes3P;
-  utf84 = Bytes4P; -- TODO: refine to check byte values, if needed
+def UTF8 (bs1 : Bytes1)
+  (bs2 : Bytes2)
+  (bs3 : Bytes3)
+  (bs4 : Bytes4) = Choose {
+  utf81 = bs1;
+  utf82 = bs2;
+  utf83 = bs3;
+  utf84 = bs4; -- TODO: refine to check byte values, if needed
 }
 
-def UTF8Ascii (x : uint 8) : UTF8 = {|
-  utf81 = x
+def UTF81 (bs : Bytes1) : UTF8 = {|
+  utf81 = bs
 |}
 
 def UTF82 (bs : Bytes2) : UTF8 = {|
@@ -39,10 +42,7 @@ def UTF84 (bs : Bytes4) : UTF8 = {|
   utf84 = bs
 |}
 
--- UnicodeASCII: parse an ASCII byte as a unicode character
-def UnicodeASCII : UTF8 = {|
-  utf81 = ASCIIByte
-|}
+def UTF8AsciiP = UTF81 (Bytes1 ASCIIByte)
 
 def utf8CharBytes (utfChar: UTF8) = case utfChar of
   utf81 cs1 -> bndBytes1 cs1

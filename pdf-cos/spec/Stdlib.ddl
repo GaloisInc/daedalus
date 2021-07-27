@@ -59,14 +59,18 @@ def optionsToArray (xs : [ maybe a ]) : [ a ] = concat
 -- bounded sequences of bytes:
 def OrEatByte P = OptionalIf P UInt8
 
-def Bytes1 (b : uint 8) = b
+def Bytes1 (b : uint 8) = {
+  only = b
+}
 
 def Bytes1P = Bytes1 UInt8
 
-def Bytes2 (high : uint 8) (low : uint 8) = {
+def Bytes2 (high : uint 8) (others : Bytes1) = {
   second = high
-; rest1 = low
+; rest1 = others
 }
+
+def Bytes2All (high : uint 8) (low : uint 8) = Bytes2 high (Bytes1 low)
 
 def Bytes2P = Bytes2 UInt8 Bytes1P
 
@@ -83,7 +87,7 @@ def Bytes4 (pfourth : uint 8) (others : Bytes3) = {
 }
 
 def Bytes4All (b0 : uint 8) (b1 : uint 8) (b2 : uint 8) (b3 : uint 8) = 
-  Bytes4 b0 (Bytes3 b1 (Bytes2 b2 b3))
+  Bytes4 b0 (Bytes3 b1 (Bytes2 b2 (Bytes1 b3)))
 
 def Bytes4P = Bytes4 UInt8 Bytes3P
 
@@ -106,7 +110,7 @@ def Bytes6All (b0 : uint 8) (b1 : uint 8)
   (b4 : uint 8) (b5 : uint 8) = Bytes6 b0 (Bytes5 b1 (Bytes4All b2 b3 b4 b5))
 
 -- functions for serializing bounded structures into arrays
-def bndBytes1 bs1 = [ bs1 ]
+def bndBytes1 bs1 = [ bs1.only ]
 
 def bndBytes2 bs2 = cons bs2.second (bndBytes1 bs2.rest1)
 

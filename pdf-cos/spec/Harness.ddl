@@ -34,11 +34,9 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- text extraction: support symbolic (non-Latin) fonts
-
--- Unicode: don't have definition use parsers
-
 -- stub TrueType fonts
+
+-- font descriptors: disable parent check
 
 -- TODO: test
 -- pages

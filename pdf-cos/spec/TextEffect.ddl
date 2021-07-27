@@ -113,7 +113,7 @@ def SetEffectState (q : TextState) (eff: TextEffect) = Sequence
 
 def UTF81Code = {
   Many NonASCIIByte; -- eat non-ASCII bytes
-  UnicodeASCII
+  UTF8AsciiP
 }
 
 -- ExtractString in reference to Section 9.10.2 in the spec

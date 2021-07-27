@@ -120,7 +120,7 @@ def ContentStream = {
       { UInt8;
         ^ ""
       };
-    WithStream (arrayStream s) (Many UnicodeASCII)
+    WithStream (arrayStream s) (Many UTF8AsciiP)
   };
   ^(concat shownStrings)
 }

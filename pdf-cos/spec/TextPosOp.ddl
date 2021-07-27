@@ -34,5 +34,5 @@ def TextPosOp = Choose1 {
 
 def ShowPos (op: TextPosOp) : [ UTF8 ] = case op of {
   -- interpret setting text position as injecting a newline
-  setTextMatrix m -> [ UTF8Ascii '\n' ]
+  setTextMatrix m -> [ UTF81 (Bytes1 '\n') ]
 }
