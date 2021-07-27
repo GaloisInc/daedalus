@@ -10,13 +10,18 @@ import FontDesc
 import TextObj
 import ContentStreamLight
 
-def TestFont : FontDict = MkType0Font (Type0Font (PartialType0Font
-  (PartialCommonFont
-    true
-    true
-    nothing)
+def CommonFontWitness = PartialCommonFont true true nothing
+
+def Test0Font : FontDict = MkType0Font (Type0Font (PartialType0Font
+  CommonFontWitness
   (just Helvetica)
   (just (PreDefEncoding "TestEnc"))
+  nothing))
+
+def Test1Font : FontDict = MkType1Font (Type1Font (PartialType1Font
+  CommonFontWitness
+  InitCharSet
+  (just Helvetica)
   nothing))
 
 def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
@@ -25,16 +30,20 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   nothing
-  (just (Insert "F13" TestFont empty))
+  (just (Insert "F13" Test1Font empty))
   nothing
   nothing)
 
-def TestSizedFont = SizedFont TestFont 12
+def TestSizedFont = SizedFont Test1Font 12
 
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- TODO: test:
+-- TODO:
+
+-- TrueType
+
+-- regression tset content streams
 -- pages
 -- page tree nodes
 -- whole PDFs

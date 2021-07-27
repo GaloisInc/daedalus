@@ -133,6 +133,7 @@ def ExtractString (q: TextState) (szFont: SizedFont) (s : [ uint 8 ]) :
   ; type1 font1 -> ExtractStringType1 font1 s
   ; mmfont fontMM -> ExtractStringType1 fontMM s
   ; type3 font3 -> ExtractStringType3 font3 s
+  ; trueType fontTT -> ExtractStringType1 fontTT s
   }
 
 def ExtractString_Composite (f: Type0Font) (q: TextState) (s : [ uint 8 ]) :
@@ -146,7 +147,8 @@ def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
   -- TODO: use ToUnicode field, if defined
 
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposeMaps (Type1Enc font) GlyphMap;
+  @code2Uni = ComposePartialMaps (Type1Enc font) GlyphMap;
+  -- TODO: use hard compose
 
   -- parse the string, looking up each code in the unicode map
   WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
@@ -159,7 +161,7 @@ def ExtractStringType3 (font : Type3Font) (s : [ uint 8 ]) : [ UTF8 ] = {
 
   -- TODO: GlyphMap may be very expensive; memoize?
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposeMaps
+  @code2Uni = ComposePartialMaps -- TODO: use hard compose
     -- for Type3 fonts, encoding is required and Differences entirely
     -- specifies the character encoding
     font.encoding.differences

@@ -66,8 +66,8 @@ def Type1AddEncoding f = PartialType1Font
   f.baseFont0
   (just (DirectOrRef EncodingRepr))
 
-def ExtendType1Font subtypePrefix Subst k font = {
-  @cf0 = ExtendCommonFont (append subtypePrefix "Type1") SimpleFontType
+def ExtendType1Font subtypeNm Subst k font = {
+  @cf0 = ExtendCommonFont (subtypeNm) SimpleFontType
            k font.common;
   case cf0 of {
     just cf0 -> just (Type1SetCommon cf0 font)
@@ -136,13 +136,13 @@ def Type1Font (f: PartialType1Font) = {
 
 def Type1FontP = GenPdfDict1
   InitType1Font
-  (ExtendType1Font "" Void)
+  (ExtendType1Font "Type1" Void)
   Type1Font
 
 -- Multiple master fonts (Sec. 9.6.2.3)
 def MMFontP = GenPdfDict1
   InitType1Font
-  (ExtendType1Font "MM" (When (Match1 '_') ' ')) -- sub underscore w space
+  (ExtendType1Font "MMType1" (When (Match1 '_') ' ')) -- sub underscore w space
   Type1Font
 
 def LatinEnc (font : Type1Font) : [ uint 8 -> Glyph ] =
