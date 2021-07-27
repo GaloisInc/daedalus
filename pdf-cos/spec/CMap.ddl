@@ -186,8 +186,12 @@ def UnicodeSeq cc = {
    }
 }
 
+-- CodePoint = the numeric values making up codespace, Unicode comprises 1,114,112 code points,
+-- we represent with 'uint 32'
+
 def ParseUTF8 = HexString
-                -- FIXME: TODO: convert bytes to UTF8
+                -- FIXME: TODO: convert bytes from BE-UTF16 to codepoint (uint 32)
+                -- elsewhere we'll do the codepoint -> UTF8
                 -- FIXME: may not want the HexString behavior (when odd num digits!)
                 
 -- TODO: check that codespaces do not overlap, but only for
@@ -256,7 +260,7 @@ def CollectRangeOp dom maybeOps = {
   RangeArrayCovers dom (MapDomain $$)
 }
 
--- parse bytes for "CMapProper" but do no processing/validating as yet
+-- parse bytes for "CMapProper" but leaave processing/validating to others
 def CMapProper_Raw CharCode = {
   @items0 = Lists2 CMapDictEntry (CodeRanges CharCode);
             -- NOTE: this is only call of 'CodeRanges'
@@ -290,7 +294,7 @@ def CMapProper CharCode = {
   
   -- cmapDict: define the cmap dictionary
   cmapDict = ListOfPairsToMap defs;
-    -- OLD, FIXME: use?
+    -- OLD, FIXME: use
     -- cmapDict = ListOfPairsToMap (map (defn in alldefs) (PairMapEntry defn));  
   
   -- codeRanges: the code ranges
@@ -374,14 +378,14 @@ def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
 def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
   (ToUnicodeCMap SimpleFontType)
 
--- for testing .... ---------------------------------------------
 
--- NOTE: these used in dom/.../Main.hs: can be invoked from the command-line
+-- Special Entry Points --------------------------------------------------------
+-- NOTE: these parsers called in dom/.../Main.hs: and can be invoked from the
+-- pdf-dom command-line
 
 def ToUnicodeCMap_simpleFont = ToUnicodeCMap {| simpleFont = ^{} |}
 def ToUnicodeCMap_cidFont    = ToUnicodeCMap {| cidFont = ^{} |}
 
--- Main: entry point, for testing
 
 
 
