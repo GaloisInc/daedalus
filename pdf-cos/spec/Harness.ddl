@@ -37,9 +37,12 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 -- TODO: test:
 -- pages
 -- page tree nodes
+-- whole PDFs
 
 -- text extraction: properly support Type0 fonts
 -- text extraction: properly support TrueType fonts
+
+-- DDL: huge build times for dict list
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph
