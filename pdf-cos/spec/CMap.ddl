@@ -282,7 +282,6 @@ def CMapProper_Raw CharCode = {
   rangeOps = items1.snd : [ CodeRangeOp ];
 }
 
-{-
 def CMapProper CharCode = {
   @raw      = CMapProper_Raw CharCode;
   @defs     = raw.defs;
@@ -290,9 +289,9 @@ def CMapProper CharCode = {
   @rangeOps = raw.rangeOps;
   
   -- cmapDict: define the cmap dictionary
-  -- cmapDict = ListOfPairsToMap (map (defn in alldefs) (PairMapEntry defn));  -- OLD, FIXME: use?
-
   cmapDict = ListOfPairsToMap defs;
+    -- OLD, FIXME: use?
+    -- cmapDict = ListOfPairsToMap (map (defn in alldefs) (PairMapEntry defn));  
   
   -- codeRanges: the code ranges
   codeRanges = {
@@ -321,7 +320,6 @@ def CMapProper CharCode = {
       _ -> nothing
     ));
 }
--}
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
 -- differ from the ones specified in Adobe Technical Note #5014.
@@ -336,7 +334,7 @@ def ToUnicodeCMap0 CharCode = {
     KW "dict";
     CMapScope {
       -- the CMap dictionary:
-      dict = GenCMapScope "cmap" (CMapProper_Raw CharCode);  -- FIXME: TESTONLY, revert '_Raw'
+      dict = GenCMapScope "cmap" (CMapProper CharCode);
 
       -- a CMapName directive
       KW "CMapName";
