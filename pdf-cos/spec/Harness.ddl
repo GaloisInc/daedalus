@@ -4,6 +4,9 @@ import TextEffect
 
 import FontCommon
 import FontDict
+import Page
+import PageTreeNode
+import PdfValue
 import Type0Font
 import Type1Font
 import FontDesc
@@ -34,19 +37,19 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing)
 
+def TestRef : Ref = {
+  obj = 0;
+  gen = 0;
+}
+
 def TestSizedFont = SizedFont Test1Font 12
 
 -- Main: the entry point
-def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
+def Main = PageP (just TestResrcs) TestRef
 
 -- TODO:
 
--- TrueType
-
--- regression tset content streams
--- pages
--- page tree nodes
--- whole PDFs
+-- test whole PDFs
 
 -- text extraction: properly support Type0 fonts
 -- text extraction: properly support TrueType fonts

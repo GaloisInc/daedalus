@@ -4,6 +4,7 @@ import Stdlib
 import Pair
 import Array
 import Map
+import Maybe
 
 import GenPdfValue
 import PdfDecl
@@ -59,7 +60,7 @@ def AddCount pageTree = PartialPageTreeNode
   pageTree.type0
   pageTree.parent0
   pageTree.kids0
-  (just (DirectOrRef Natural))
+  (just (DirectOrRef (Token Natural)))
   pageTree.nodeResources0
 
 def NodeAddResources pageTree = PartialPageTreeNode
@@ -84,7 +85,7 @@ def ExtendPageTreeNode (par : maybe Ref) (cur : Ref) k pageTree =
     just (AddKids pageTree)
   }
   else if k == "Count" then {
-    pageTree.kids0 is nothing;
+    pageTree.count0 is nothing;
     just (AddCount pageTree)
   }
   else if k == "Resources" then {
@@ -108,7 +109,10 @@ def PageNodeKid resrcs (par : Ref) (r : Ref) = Choose1 {
 -- tree node
 def PageTreeNode ancRs (par : maybe Ref) (cur : Ref) pt0 = {
   Guard pt0.type0;
-  Guard pt0.parent0;
+  case par of {
+    just _ -> Guard pt0.parent0
+  ; nothing -> {}
+  };
 
   kids = {
     @kidRefs = pt0.kids0 is just;
@@ -132,6 +136,6 @@ def PageTreeNodeP ancRes (par: maybe Ref) (cur: Ref) = GenPdfDict1
   (ExtendPageTreeNode par cur)
   (PageTreeNode ancRes par cur)
 
-def PageTreeP cur = (PageTreeNodeP nothing nothing cur)
+def PageTreeP (cur : Ref) = PageTreeNodeP nothing nothing cur
 
   

@@ -2,6 +2,7 @@
 import Stdlib
 
 import GenPdfValue
+import FontCommon
 import PdfValue
 import Type1Font
 

@@ -23,7 +23,7 @@ def InitCommonFont = PartialCommonFont
   nothing
 
 -- AddType: note that the required Type field has been seen
-def AddType f = PartialCommonFont
+def FontAddType f = PartialCommonFont
   (Holds (DirectOrRef (Token (NameStr "Font"))))
   f.fontSubtype
   f.toUnicode
@@ -44,7 +44,7 @@ def ExtendCommonFont (subTy : [ uint 8]) (fontClass : FontType) (k : [ uint 8 ])
   (font : PartialCommonFont) : maybe PartialCommonFont = 
   if k == "Type" then {
     font.fontType is false;
-    just (AddType font)
+    just (FontAddType font)
   }
   else if k == "Subtype" then {
     font.fontSubtype is false;
