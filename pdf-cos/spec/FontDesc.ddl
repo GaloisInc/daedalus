@@ -62,7 +62,8 @@ def AddFontDescType fd = PartialFontDesc
 
 def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
   fd.descType0
-  (Holds (Guard ((Token (GenName (FontName Void))) == parBaseFont)))
+  (Holds (Token (GenName (FontName Void))))
+--  (Holds (Guard ((Token (GenName (FontName Void))) == parBaseFont)))
   fd.flags0
 
 def AddFlags fd = PartialFontDesc

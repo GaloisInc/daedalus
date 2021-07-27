@@ -34,31 +34,14 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- font descriptors: disable parent check
-
--- TODO: test
+-- TODO: test:
 -- pages
 -- page tree nodes
 
--- text extraction: support TrueType fonts
 -- text extraction: properly support Type0 fonts
+-- text extraction: properly support TrueType fonts
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph
 
 -- SPEC: Type3 fonts: may refer to resrc dicts, which may loop
-
--- TODO: include in .cabal
-        -- ColourSpaceOps
-        -- Encoding
-        -- FontCommon
-        -- Glyph
-        -- GlyphList
-        -- GraphicsStateOps
-        -- MacEncoding
-        -- MarkedContentOps
-        -- Maybe
-        -- Rectangle
-        -- StdEncoding
-        -- Type3Font
-        -- WinEncoding
