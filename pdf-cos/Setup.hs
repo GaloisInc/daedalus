@@ -42,6 +42,7 @@ compileDDL =
                 , "Sum"
 
                 , "CMap"
+                , "Encoding"
                 , "FontDict"
                 , "GenPdfValue"
                 , "Glyph"
@@ -53,9 +54,14 @@ compileDDL =
                 , "Page"
                 , "PageTreeNode"
                 , "ResourceDict"
+                , "StdEncoding"
+                , "SymbolEncoding"
+                , "TrueTypeFont"
                 , "Type0Font"
                 , "Type1Font"
                 , "Type3Font"
+                , "WinEncoding"
+                , "ZapfDingbatsEncoding"
 
                 -- added for text extraction
                 , "ContentStreamLight"

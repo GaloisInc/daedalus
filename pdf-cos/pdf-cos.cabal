@@ -123,16 +123,19 @@ library
     StdEncoding,
     Stdlib,
     Sum,
+    SymbolEncoding,
     TextEffect,
     TextObj,
     TextPosOp,
     TextShowOp,
     TextStateOp,
+    TrueTypeFont,
     Type0Font,
     Type1Font,
     Type3Font,
     Unicode,
-    WinEncoding
+    WinEncoding,
+    ZapfDingbatsEncoding
 
   autogen-modules:
     Array,
@@ -170,16 +173,19 @@ library
     StdEncoding,
     Stdlib,
     Sum,
+    SymbolEncoding,
     TextEffect,
     TextObj,
     TextPosOp,
     TextShowOp,
     TextStateOp,
+    TrueTypeFont,
     Type0Font,
     Type1Font,
     Type3Font,
     Unicode,
-    WinEncoding
+    WinEncoding,
+    ZapfDingbatsEncoding
 
   build-depends:
     base,

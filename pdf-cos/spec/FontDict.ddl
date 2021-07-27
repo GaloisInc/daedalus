@@ -1,15 +1,14 @@
 import Stdlib
 import Pair
 
-import Type0Font
-import Type1Font
-import Type3Font
-
--- TODO: indirect deps
 import CMap
 import CIDFont
 import Encoding
 import PdfValue
+import TrueTypeFont
+import Type0Font
+import Type1Font
+import Type3Font
 
 def FontDict = Choose1 { 
   -- fonts are mutually exclusive, due to at least the Subtype field
@@ -18,7 +17,7 @@ def FontDict = Choose1 {
   type1 = Type1FontP;
   mmfont = MMFontP;
   type3 = Type3FontP;
---  trueType = TrueTypeFont; TODO: define
+  trueType = TrueTypeFont; 
 }
 
 def MkType0Font (f0 : Type0Font) : FontDict = {| type0 = f0 |}

@@ -34,8 +34,6 @@ def TestSizedFont = SizedFont TestFont 12
 -- Main: the entry point
 def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
--- stub TrueType fonts
-
 -- font descriptors: disable parent check
 
 -- TODO: test
