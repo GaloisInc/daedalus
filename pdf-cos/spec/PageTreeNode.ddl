@@ -101,8 +101,8 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
 }
 
 def PageNodeKid resrcs (par : Ref) (r : Ref) = Choose1 {
-  pageKid = PageP resrcs r;
   treeKid = PageTreeNodeP resrcs (just par) r;
+  pageKid = PageP resrcs par;
 }
 
 -- PageTreeNode: coerce an partial page-tree node into a page
@@ -120,7 +120,7 @@ def PageTreeNode ancRs (par : maybe Ref) (cur : Ref) pt0 = {
       just _ -> pt0.nodeResources0
     ; nothing -> ancRs
     };
-    map (kidRef in kidRefs) (PageNodeKid rs cur kidRef)
+    map (kidRef in kidRefs) (ParseAtRef kidRef (PageNodeKid rs cur kidRef))
   };
 
   count = {
@@ -136,6 +136,5 @@ def PageTreeNodeP ancRes (par: maybe Ref) (cur: Ref) = GenPdfDict1
   (ExtendPageTreeNode par cur)
   (PageTreeNode ancRes par cur)
 
-def PageTreeP (cur : Ref) = PageTreeNodeP nothing nothing cur
-
-  
+def PageTreeP (cur : Ref) = ParseAtRef cur
+  (PageTreeNodeP nothing nothing cur)

@@ -73,10 +73,8 @@ def SkipBytes n = Chunk n {}
 def ResolveRef (r : Ref) : maybe TopDecl
 
 -- ParseAtRef P r: parse the input at r, using P
-def ParseAtRef r P = {
-  @s = (InputAtRef r) is just;
-  WithStream s (GenObj P)
-}
+def ParseAtRef r P = WithStream ((InputAtRef r) is just)
+  (GenObj P)
 
 -- DirectOrRef P: parse either the current input or parse a ref and
 -- parse the input that it references.

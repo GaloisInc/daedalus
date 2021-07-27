@@ -15,7 +15,7 @@ import Pair
 
 -- PartialPage: a partial Page value
 def PartialPage (t: bool) (p: bool)
-  rd (c: maybe stream) = {
+  (rd : maybe ResourceDict) (c: maybe stream) = {
   type0 = t;
   parent0 = p;
   resources0 = rd;
@@ -33,7 +33,7 @@ def InitPage = PartialPage
 -- parsers for updating fields
 def PageAddType (page0 : PartialPage) = PartialPage
   (Holds (DirectOrRef (
-    (NameToken "Page") |
+    (NameToken "Page") <|
     (NameToken "Template"))))
   page0.parent0
   page0.resources0
@@ -41,7 +41,9 @@ def PageAddType (page0 : PartialPage) = PartialPage
 
 def PageAddParent (par : Ref) (page0 : PartialPage) = PartialPage
   page0.type0
+-- BUG: causes page to be rejected
   (Holds (Guard (Token Ref == par)))
+--  (Holds (Token Ref))
   page0.resources0
   page0.contents0
 
@@ -85,10 +87,11 @@ def ExtendPage (par : Ref) k (p : PartialPage) =
     p.parent0 is false;
     just (PageAddParent par p)
   }
-  else if k == "Resources" then {
-    p.resources0 is nothing;
-    just (AddResources p)
-  }
+  -- else if k == "Resources" then {
+  --   p.resources0 is nothing;
+  --   just (AddResources p)
+  -- }
+  -- TEST:
   else if k == "Contents" then {
     p.contents0 is nothing;
     just (AddContents p)
@@ -99,16 +102,14 @@ def Page ancRes (page0 : PartialPage) = {
   Guard page0.type0;
   Guard page0.parent0;
 
-  resources =
-    (page0.resources0 is just) <|
-    (ancRes is just);
-  contents = case page0.contents0 of {
-    nothing -> [ ] : [ ContentStreamObj ];
-    just contentStream -> [ ContentStreamObj ]
-    -- TEST:
-    --WithStream contentStream
---      (ContentStreamP resources)
-  };
+  contents = [] : [ ContentStreamObj ];
+  -- contents = case page0.contents0 of {
+  --   nothing -> [ ] ;
+  --   just contentStream -> WithStream contentStream
+  --     (ContentStreamP
+  --       ((page0.resources0 is just) <|
+  --        (ancRes is just) ))
+  -- };
 }
 
 def PageP ancRes (par: Ref) = GenPdfDict1

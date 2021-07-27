@@ -6,6 +6,7 @@ import PdfDecl
 import PdfXRef
 
 import PageTreeNode
+import ResourceDict
 import Unicode
 import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
@@ -14,7 +15,7 @@ import ContentStreamLight
 import Page
 
 -- entry point for text extraction
-def ExtractRootUTF8Bytes r = utf8Bytes (ExtractRootText1 r)
+def ExtractRootUTF8Bytes r : [ uint 8] = utf8Bytes (ExtractRootText1 r)
 
 def ExtractRootText r = Default [ ] {
   ExtractPageOrPagesText nothing r

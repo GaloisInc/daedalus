@@ -50,6 +50,7 @@ def Main = PageP (just TestResrcs) TestRef
 -- TODO:
 
 -- test whole PDFs
+-- td09-read.pdf: re-enable parsing of Resources and Contents
 
 -- text extraction: properly support Type0 fonts
 -- text extraction: properly support TrueType fonts
