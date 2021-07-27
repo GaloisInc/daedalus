@@ -34,17 +34,15 @@ main :: IO ()
 main =
   pdfMain
   do opts <- getOptions
-     let fmt = case optMode opts of
-                 Demo  -> demoFormat opts
-                 FAW   -> fawFormat
      let inputFile = optPDFInput opts
      let pw = BS.pack $ optPassword opts
      case optMode opts of
        Demo  ->
          case optOps opts of
            Validate -> driverValidate opts
-           ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
+           ExtractText -> driverExtractText opts -- fmtDriver fmt inputFile pExtractCatalogText pw
        FAW   ->
+         let fmt = fawFormat in
          case optOps opts of
            Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
            ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
@@ -116,32 +114,32 @@ fawFormat = Format
 
 -- demoFormat: format for reporting output directly. Tries to preserve
 -- old implementation of driver.
-demoFormat::Options -> Format
-demoFormat opts =
-  let optReport = runReport opts in
-  let fileN = optPDFInput opts in
-  let reportCritFile = \i d ->
-        (fmap $ const ()) (reportCritical fileN i d) in
-  let reportInfo = report RInfo fileN 0 in
-  let reportErr = report RError fileN in Format
-  { onStart = \_fp _bs -> return ()
-    , xrefMissing = \s -> optReport $ reportCritFile
-                          0 ("unable to find %%EOF" <+> parens (text s))
-    , xrefFound = \r -> return ()
-    , xrefBad = \err -> optReport $ reportCritFile
-                        (peOffset err) (ppParserError err)
-    , xrefOK = \idx m -> return ()
-    , warnEncrypt = return ()
-    , rootMissing = optReport $ reportCritFile
-                    0 ("Missing document root")
-    , rootFound = \r -> return ()
-    , catalogParseError = \err -> optReport $ reportErr
-      (peOffset err) (hang "Parsing Catalog/Page tree" 2 (ppParserError err))
-    , catalogParsed = \isOk -> optReport $ reportInfo
-      (text ("Catalog (page tree) result:\n" ++ isOk))
-    , declErr = \res loc err -> return ()
-    , declParsed = \res loc declRes -> return ()
-  }
+-- demoFormat::Options -> Format
+-- demoFormat opts =
+--   let optReport = runReport opts in
+--   let fileN = optPDFInput opts in
+--   let reportCritFile = \i d ->
+--         (fmap $ const ()) (reportCritical fileN i d) in
+--   let reportInfo = report RInfo fileN 0 in
+--   let reportErr = report RError fileN in Format
+--   { onStart = \_fp _bs -> return ()
+--     , xrefMissing = \s -> optReport $ reportCritFile
+--                           0 ("unable to find %%EOF" <+> parens (text s))
+--     , xrefFound = \r -> return ()
+--     , xrefBad = \err -> optReport $ reportCritFile
+--                         (peOffset err) (ppParserError err)
+--     , xrefOK = \idx m -> return ()
+--     , warnEncrypt = return ()
+--     , rootMissing = optReport $ reportCritFile
+--                     0 ("Missing document root")
+--     , rootFound = \r -> return ()
+--     , catalogParseError = \err -> optReport $ reportErr
+--       (peOffset err) (hang "Parsing Catalog/Page tree" 2 (ppParserError err))
+--     , catalogParsed = \isOk -> optReport $ reportInfo
+--       (text ("Catalog (page tree) result:\n" ++ isOk))
+--     , declErr = \res loc err -> return ()
+--     , declParsed = \res loc declRes -> return ()
+--   }
 
 
 fmtDriver :: (DbgMode, Show a) => Format -> FilePath ->
@@ -279,6 +277,49 @@ driverValidate opts = runReport opts $
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseOk False -> report RUnsafe file 0 "Malformed Catalog (page tree)"
+       ParseAmbig _  -> report RError file 0 "Ambiguous results?"
+       ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
+
+     let pwd = BS.pack (optPassword opts)
+     mb <- liftIO (try (makeEncContext trail refs topInput pwd))
+     case mb of
+       Left err -> reportCritical file (peOffset err) (ppParserError err)
+       Right fileEC -> parseObjs file fileEC topInput refs
+
+-- TODO: In principle, we could merge driverValidate and
+-- driverExtractText. One challenge is the type of pCatalogIsOk and
+-- pExtractCatalogText are different, therefore this should be
+-- revisited once the associated ddl grammars are not under active
+-- development.
+
+-- driver for text extraction
+driverExtractText :: DbgMode => Options -> IO ()
+driverExtractText opts = runReport opts $
+  do let file = optPDFInput opts
+     bs   <- liftIO (BS.readFile file)
+     let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
+
+     idx  <- case findStartXRef bs of
+               Left err  -> reportCritical file 0
+                                            ("unable to find %%EOF" <+> parens (text err))
+               Right idx -> return idx
+
+     (refs, root, trail) <-
+            liftIO (parseXRefs topInput idx) >>= \res ->
+            case res of
+               ParseOk (r,t) -> case getField @"root" t of
+                                  Nothing ->
+                                    reportCritical file 0 "Missing document root"
+
+                                  Just ro -> pure (r,ro,t)
+               ParseAmbig _ ->
+                 reportCritical file 0 "Ambiguous results?"
+               ParseErr e ->
+                 reportCritical file (peOffset e) (ppParserError e)
+
+     res <- liftIO (runParser refs Nothing (pExtractCatalogText root) topInput)
+     case res of
+       ParseOk r -> reportTextExtraction opts (text (show r))
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
