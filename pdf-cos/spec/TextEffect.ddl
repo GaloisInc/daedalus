@@ -146,26 +146,7 @@ def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
   -- TODO: use ToUnicode field, if defined
 
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposeMaps
-    -- build [ code -> glyph ] by inspecting the font
-    (case font.encoding of {
-      just enc -> case enc of {
-        predefEnc preDef -> -- use a pre-defined encoding
-          PredefEncoding preDef
-      ; encDict enc0 -> {
-          -- use differences applied to pre-defined encoding
-          MapUnion
-            (case enc0.baseEncoding of {
-              just baseEnc -> PredefEncoding baseEnc
-            ; nothing -> StdEncoding;
-            })
-            enc0.differences
-        } 
-      }
-    ; nothing -> StdEncoding -- use the standard encoding
-    })
-    -- TODO: GlyphMap may be very expensive; memoize?
-    GlyphMap;
+  @code2Uni = ComposeMaps (Type1Enc font) GlyphMap;
 
   -- parse the string, looking up each code in the unicode map
   WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))

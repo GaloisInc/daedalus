@@ -36,6 +36,8 @@ def Main = ExtractContentStreamText (ContentStreamP TestResrcs)
 
 -- text extraction: support symbolic (non-Latin) fonts
 
+-- Unicode: don't have definition use parsers
+
 -- stub TrueType fonts
 
 -- TODO: test

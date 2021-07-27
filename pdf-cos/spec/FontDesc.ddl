@@ -24,6 +24,12 @@ def StandardFont = Choose1 {
 ; courierBoldOblique = @(Match "Courier-BoldOblique")
 }
 
+def stdFontIsLatin (f : StandardFont) : bool = case f of {
+  symbol -> false
+; zapfDingbats -> false
+; _ -> true
+}
+
 -- Base fonts: the 14 standards and everything else
 def FontName Subst = Choose1 {
   standard = StandardFont
