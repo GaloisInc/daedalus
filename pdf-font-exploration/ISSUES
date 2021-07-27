@@ -85,7 +85,9 @@ population..........................1,447 100.0SEX AND AGEMale
 
 if you look at the rendering we have this
   "English less than" 
-which shows up like this  --text output
+which shows up like this in the "pdf-hs-driver --text" output
   "1 0 3 7 . 6Speak English less thanvery well........ 4 7 3 . 4"
 
 The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
+(Because we haven't implemented the CMAP stuff!)
+
