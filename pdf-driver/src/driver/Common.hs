@@ -36,7 +36,7 @@ data ReportState  = ReportState { infoHandle   :: Handle
                                 , accept       :: Bool -- Whether to accept or reject file
                                 , safe         :: Bool -- Whether the file contains unsafe elements
                                 }
-  
+
 newtype ReportM a = ReportM { runReportM :: StateT ReportState IO a }
   deriving (Applicative, Functor, Monad, MonadState ReportState, MonadIO)
 
@@ -46,7 +46,7 @@ finalReport st = do
   -- FIXME: we always print, even if there were no errors.
   hPutStrLn (errHandle st) (if accept st then "ACCEPT" else "REJECT")
   hPutStrLn (errHandle st) (if safe st   then "SAFE"   else "UNSAFE")
-  hFlush (infoHandle st)  
+  hFlush (infoHandle st)
   hFlush (errHandle st)
 
 runReport :: Options -> ReportM a -> IO a
@@ -81,6 +81,17 @@ report code fileN off d = do
            RCritical -> "CRITICAL"
            RUnsafe   -> "UNSAFE"
            RInfo     -> "INFO"
+
+-- Print text extracted to output file and does not change the report
+reportTextExtraction :: Options -> Doc -> ReportM ()
+reportTextExtraction opts d = do
+  outFile <- liftIO (
+        case optTextOutput opts of
+          "-" -> return stdout
+          f   -> openFile f WriteMode)
+  liftIO (hPutStr outFile (show d))
+
+
 
 -- same as above, but we can't continue.  Maybe we should throw an exception or something.
 reportCritical :: FilePath -> Int -> Doc -> ReportM a
