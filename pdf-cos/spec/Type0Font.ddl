@@ -47,7 +47,7 @@ def Type0SetCommon (com : PartialCommonFont) (f : PartialType0Font) =
 -- AddBaseFont nm f: add a base font to font
 def AddBaseFont f = PartialType0Font 
   f.common
-  (just (DirectOrRef (Token (GenName (FontName Void)))))
+  (just (DirectOrRef (Token (GenName (FontName)))))
   f.encoding0
   f.descFonts0
 

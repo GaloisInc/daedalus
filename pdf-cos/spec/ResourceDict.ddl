@@ -43,7 +43,7 @@ def InitResourceDict = PartialResourceDict
   nothing
 
 def AddExtGState (d : PartialResourceDict) = PartialResourceDict
-  (just (DirectOrRef (PdfDict Dict)))
+  (just (DirectOrRef (PdfDict (DirectOrRef Dict))))
   -- TODO: refine using Sec. 8.4.5, if needed
   d.colorSpace0
   d.pattern0
@@ -102,7 +102,7 @@ def AddFont (d : PartialResourceDict) = PartialResourceDict
   d.pattern0
   d.shading0
   d.xObject0
-  (just (DirectOrRef (PdfDict FontDict)))
+  (just (DirectOrRef (PdfDict (DirectOrRef FontDict))))
   d.procSet0
   d.properties0
 

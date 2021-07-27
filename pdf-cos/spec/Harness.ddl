@@ -1,9 +1,12 @@
 -- Harness: testing harness
+import Stdlib
+
 import ResourceDict
 import TextEffect
 
 import FontCommon
 import FontDict
+import GenPdfValue
 import Page
 import PageTreeNode
 import PdfValue
@@ -13,19 +16,13 @@ import FontDesc
 import TextObj
 import ContentStreamLight
 
-def CommonFontWitness = PartialCommonFont true true nothing
-
 def Test0Font : FontDict = MkType0Font (Type0Font (PartialType0Font
   CommonFontWitness
   (just Helvetica)
   (just (PreDefEncoding "TestEnc"))
   nothing))
 
-def Test1Font : FontDict = MkType1Font (Type1Font (PartialType1Font
-  CommonFontWitness
-  InitCharSet
-  (just Helvetica)
-  nothing))
+def TestFont = MkType1Font Test1Font
 
 def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
@@ -33,7 +30,7 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   nothing
-  (just (Insert "F13" Test1Font empty))
+  (just (Insert "F13" TestFont empty))
   nothing
   nothing)
 
@@ -42,10 +39,14 @@ def TestRef : Ref = {
   gen = 0;
 }
 
-def TestSizedFont = SizedFont Test1Font 12
+def TestSizedFont = SizedFont TestFont 12
 
 -- Main: the entry point
-def Main = PageP (just TestResrcs) TestRef
+def Main = {
+  @flag = 4 : uint 32;
+  bitIsSet32 flag 5;
+  boolXor (bitIsSet32 flag 2) (bitIsSet32 flag 5)
+}
 
 -- TODO:
 
@@ -56,6 +57,8 @@ def Main = PageP (just TestResrcs) TestRef
 -- text extraction: properly support TrueType fonts
 
 -- DDL: huge build times for dict list
+
+-- DDL: compiler allows xor over ints, interpreter doesn't
 
 -- SPEC: Type3 fonts: consider case where font is in scope for content
 -- stream that defines its glyph

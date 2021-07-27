@@ -53,10 +53,11 @@ def Type1SetChars (pChars : PartialCharSet)
   f.encoding0
 
 -- AddBaseFont nm f: add a base font to font
-def Type1AddBaseFont Subst f = PartialType1Font 
+-- TODO: re-enable Subst
+def Type1AddBaseFont (Subst : uint 8) (f : PartialFontType) = PartialType1Font 
   f.common
   f.chars
-  (just (DirectOrRef (Token (GenName (FontName Subst)))))
+  (just (DirectOrRef (Token (GenName (FontName)))))
   f.encoding0
 
 -- AddEncoding: add an encoding
@@ -66,15 +67,16 @@ def Type1AddEncoding f = PartialType1Font
   f.baseFont0
   (just (DirectOrRef EncodingRepr))
 
-def ExtendType1Font subtypeNm Subst k font = {
+def ExtendType1Font (subtypeNm : [ uint 8]) (Subst : uint 8)
+  k (font : PartialType1Font) : maybe PartialType1Font = {
   @cf0 = ExtendCommonFont (subtypeNm) SimpleFontType
            k font.common;
   case cf0 of {
     just cf0 -> just (Type1SetCommon cf0 font)
   ; nothing ->
-      case ExtendCharSet k font.chars of {
-        just chars0 -> just (Type1SetChars chars0 font)
-      ; nothing ->
+       case ExtendCharSet k font.chars of {
+         just chars0 -> just (Type1SetChars chars0 font)
+       ; nothing ->
           if k == "BaseFont" then {
             font.baseFont0 is nothing;
             just (Type1AddBaseFont Subst font)
@@ -119,7 +121,7 @@ def Type1Font (f: PartialType1Font) = {
   @baseFont = f.baseFont0 is just;
 
   charSet = case (baseFont : FontName) of {
-    standard s -> MkType1StdDesc s
+    standard s -> MkType1StdDesc s 
       ((When {
           f.chars.firstChar0 is nothing;
           f.chars.lastChar0 is nothing;
@@ -133,6 +135,13 @@ def Type1Font (f: PartialType1Font) = {
 
   encoding = f.encoding0;
 }
+
+-- Test1Font: stub value for testing
+def Test1Font = Type1Font (PartialType1Font
+  CommonFontWitness
+  InitCharSet
+  (just Helvetica)
+  nothing)
 
 def Type1FontP = GenPdfDict1
   InitType1Font

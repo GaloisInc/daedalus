@@ -16,7 +16,7 @@ import WinEncoding
 -- Character encodings (Sec. 9.6.5)
 
 -- Names of pre-defined encodings:
-def PredefEncodingName = Choose {
+def PredefEncodingName = Choose1 {
   macRoman = @(NameToken "MacRomanEncoding");
   macExpert = @(NameToken "MacExpertEncoding");
   winAnsi = @(NameToken "WinAnsiEncoding");
@@ -44,7 +44,7 @@ def InitPartialEncoding = PartialEncoding
   nothing
 
 def EncAddType (enc : PartialEncoding) = PartialEncoding
-  (Holds (DirectOrRef (Token (NameStr "Encoding"))))
+  (Holds (DirectOrRef (NameToken "Encoding")))
   enc.baseEncoding
   enc.differences
 
@@ -59,7 +59,7 @@ def AddDifferences (enc : PartialEncoding) = PartialEncoding
   enc.baseEncoding
   (just (DirectOrRef (Between "[" "]" {
     @es = Many {
-      code = Token UInt8;
+      code = Token UNatural as! uint 8;
       glyphs = Many (Glyph (Token Name))
     };
     @codeDiffs = map (ent in es) (

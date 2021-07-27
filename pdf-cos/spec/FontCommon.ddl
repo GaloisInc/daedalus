@@ -22,23 +22,28 @@ def InitCommonFont = PartialCommonFont
   false
   nothing
 
+-- mainly used for testing
+def CommonFontWitness = PartialCommonFont true true nothing
+
 -- AddType: note that the required Type field has been seen
 def FontAddType f = PartialCommonFont
-  (Holds (DirectOrRef (Token (NameStr "Font"))))
+  (Holds (DirectOrRef (NameToken "Font")))
   f.fontSubtype
   f.toUnicode
 
 -- AddSubtype f: note the subtype field has been seen
 def AddSubtype (subTy : [ uint 8 ]) f = PartialCommonFont
   f.fontType
-  (Holds (DirectOrRef (Token (NameStr subTy))))
+  (Holds (DirectOrRef (NameToken subTy)))
   f.toUnicode
 
 -- AddToUnicode: add a to-unicode map
 def AddToUnicode (fontClass : FontType) f = PartialCommonFont
   f.fontType
   f.fontSubtype
-  (just (CMapRef fontClass))
+  (When (Token Ref) nothing)
+-- DBG:
+--  (just (CMapRef fontClass))
 
 def ExtendCommonFont (subTy : [ uint 8]) (fontClass : FontType) (k : [ uint 8 ])
   (font : PartialCommonFont) : maybe PartialCommonFont = 
@@ -126,10 +131,10 @@ def AddFontDesc f = PartialCharSet
   f.firstChar0
   f.lastChar0
   f.widths0
-  (just ((InputAtRef Ref) is just))
+  (just (InputAtRef (Token Ref) is just))
 
 def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
-  maybe PartialCharSet =
+  maybe PartialCharSet = 
   if k == "Name" then {
     chars.name0 is nothing;
     just (AddName chars)
@@ -163,7 +168,7 @@ def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
   widths = chars.widths0 is just; 
   Guard ((length widths) == inc (lastChar - firstChar));
 
-  fontDesc = WithStream (chars.fontDesc0 is just) (FontDescP baseFont);
+  fontDesc = WithStream (chars.fontDesc0 is just) (GenObj (FontDescP baseFont))
 }
 
 -- Type0: type, subtype, basefont, encoding (name or stream), descendants, toUnicode

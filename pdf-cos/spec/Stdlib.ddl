@@ -14,16 +14,15 @@ def FoldMany P acc = Choose1 {
 
 def Const P x = P
 
-def boolInt b : int = if b then 1 else 0
-def intBool (n : int) = n != 1
-
-def boolXor b0 b1 = intBool ((boolInt b0) .^. (boolInt b1))
+def boolXor b0 b1 = if b0 then !b1 else b1
 
 def inc n = n + 1
 def dec n = n - 1
 def max m n = if m > n then m else n
 def min m n = if m < n then m else n
-def bitIsSet n bs = (n .&. (1 << bs)) != 0
+def bitIsSet8 (n : uint 8) bs = (n .&. (1 << bs)) != 0
+def bitIsSet32 (n : uint 32) bs = (n .&. (1 << bs)) != 0
+def setBit bs (n : uint 32) = n .|. (1 << bs)
 
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def bytesNum (bs : [ uint 8 ]) : uint 64 =

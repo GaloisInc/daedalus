@@ -141,9 +141,11 @@ def ExtendType3Font k font = {
   }
 }
 
+def StubFont = Helvetica
+
 def Type3Font (f : PartialType3Font) = {
   toUnicode = CommonFont f.common;
-  charSet = CharSet (NonStandardFont "") f.chars; -- PDFA: what should this be?
+  charSet = CharSet StubFont f.chars; -- PDFA: what should this be?
 
   fontBBox = f.fontBBox is just;
   fontMatrix = f.fontMatrix is just;

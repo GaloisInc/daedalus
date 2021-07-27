@@ -7,7 +7,7 @@ def CharCode c = {
   low = ^c;
 }
 
-def highBitIsSet (x : uint 8) = bitIsSet x 7
+def highBitIsSet (x : uint 8) = bitIsSet8 x 7
 
 def ASCIIByte = {
   $$ = UInt8;

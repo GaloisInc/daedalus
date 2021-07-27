@@ -87,10 +87,10 @@ def ExtendPage (par : Ref) k (p : PartialPage) =
     p.parent0 is false;
     just (PageAddParent par p)
   }
-  -- else if k == "Resources" then {
-  --   p.resources0 is nothing;
-  --   just (AddResources p)
-  -- }
+  else if k == "Resources" then {
+    p.resources0 is nothing;
+    just (AddResources p)
+  }
   -- TEST:
   else if k == "Contents" then {
     p.contents0 is nothing;

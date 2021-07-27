@@ -7,22 +7,25 @@ import PdfValue
 import PdfDecl
 
 -- the 14 standard fonts
+-- KEY: prefix order of choices is critical
 def StandardFont = Choose1 {
-  timesRoman = @(Match "Times-Roman")
-; helvetica = @(Match "Helvetica")
-; courier = @(Match "Courier")
-; symbol = @(Match "Symbol")
-; timesBold = @(Match "Times-Bold")
-; helveticaBold = @(Match "Helvetica-Bold")
+  courierBoldOblique = @(Match "Courier-BoldOblique")
 ; courierBold = @(Match "Courier-Bold")
-; zapfDingbats = @(Match "ZapfDingbats")
-; timesItalic = @(Match "Times-Italic")
-; helveticaOblique = @(Match "Helvetica-Obique")
 ; courierOblique = @(Match "Courier-Oblique")
-; timesBoldItalic = @(Match "Times-BoldItalic")
+; courier = @(Match "Courier")
 ; helveticaBoldOblique = @(Match "Helvetica-BoldOblique")
-; courierBoldOblique = @(Match "Courier-BoldOblique")
+; helveticaBold = @(Match "Helvetica-Bold")
+; helveticaOblique = @(Match "Helvetica-Oblique")
+; helvetica = @(Match "Helvetica")
+; symbol = @(Match "Symbol")
+; timesBoldItalic = @(Match "Times-BoldItalic")
+; timesBold = @(Match "Times-Bold")
+; timesItalic = @(Match "Times-Italic")
+; timesRoman = @(Match "Times-Roman")
+; zapfDingbats = @(Match "ZapfDingbats")
 }
+
+def HelveticaNm : StandardFont = {| helvetica = {} |}
 
 def stdFontIsLatin (f : StandardFont) : bool = case f of {
   symbol -> false
@@ -31,20 +34,25 @@ def stdFontIsLatin (f : StandardFont) : bool = case f of {
 }
 
 -- Base fonts: the 14 standards and everything else
-def FontName Subst = Choose1 {
-  standard = StandardFont
-; nonStandard = Many (Subst <| NameChar)
+-- DBG:
+--def FontName (Subst : uint 8) = Choose1 {
+def FontName = {
+  @nameChars = Many NameChar;
+  Choose1 {
+    standard = WithStream (arrayStream nameChars) (Only StandardFont);
+    nonStandard = nameChars
+  }
 }
 
 def Helvetica : FontName = {|
-  standard = {| helvetica = { } |}
+  standard = HelveticaNm
 |}
 
 def NonStandardFont (nm : [ uint 8]) : FontName = {|
   nonStandard = nm
 |}
 
-def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe int) = {
+def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe (uint 32)) = {
   descType0 = pt;
   descFontName0 = pfn;
   flags0 = mayFlags;
@@ -56,23 +64,23 @@ def InitFontDesc = PartialFontDesc
   nothing
 
 def AddFontDescType fd = PartialFontDesc
-  (Holds (Token (NameStr "FontDescriptor")))
+  (Holds (NameToken "FontDescriptor"))
   fd.descFontName0
   fd.flags0
 
 def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
   fd.descType0
-  (Holds (Token (GenName (FontName Void))))
+  (Holds (Token (GenName (FontName))))
 --  (Holds (Guard ((Token (GenName (FontName Void))) == parBaseFont)))
   fd.flags0
 
 def AddFlags fd = PartialFontDesc
   fd.descType0
   fd.descFontName0
-  (just (Token Integer))
+  (just (Token Natural as! uint 32))
 
-def ExtendFontDesc (parBaseFont : FontName) (k: [ uint 8 ])
-  (fd: PartialFontDesc) = 
+def ExtendFontDesc (parBaseFont : FontName)
+  (k: [ uint 8 ]) (fd: PartialFontDesc) = 
   if k == "Type" then {
     fd.descType0 is false;
     just (AddFontDescType fd)
@@ -93,8 +101,8 @@ def FontDesc (fd: PartialFontDesc) = {
   Guard fd.descFontName0;
 
   @flags = fd.flags0 is just;
-  @fontIsSymbolic = bitIsSet flags 2;
-  @fontIsNonSymbolic = bitIsSet flags 5;
+  @fontIsSymbolic = bitIsSet32 flags 2;
+  @fontIsNonSymbolic = bitIsSet32 flags 5;
 
   Guard (boolXor fontIsSymbolic fontIsNonSymbolic);
   isLatin = fontIsNonSymbolic
@@ -104,3 +112,8 @@ def FontDescP (parBaseFont : FontName ) = GenPdfDict1
   InitFontDesc
   (ExtendFontDesc parBaseFont)
   FontDesc
+
+def StubFontDesc = FontDesc (PartialFontDesc
+  true
+  true
+  (just (setBit 2 0)) )
