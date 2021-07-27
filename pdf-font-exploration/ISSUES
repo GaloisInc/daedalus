@@ -5,10 +5,11 @@
   def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {...}
 3. add more cmap tests
 4. fixing CMap.ddl
-  - do UTF right: parse as UTF16-BE
+  - do UTF right: parse as hexadecimal UTF16-BE and convert to UTF8 bytes!
   - see other FIXMEs in CMap.ddl (some maybe unimportant)
-
+    
 * TODO find a good hello-world.pdf
+
 ** input.pdf with the qpdf generated input-read.pdf ?
 
 output

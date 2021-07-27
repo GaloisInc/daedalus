@@ -42,6 +42,7 @@ extra-source-files:
      -- ^ ddl convenience, no autogen'd file
   spec/PdfCrypto.ddl,
   spec/PdfDecl.ddl,
+  -- spec/PdfDeclStub.ddl,  part of repo, but you shouldn't be building it, don't add.
   spec/PdfExtractText.ddl,
   spec/PdfText.ddl,
   spec/PdfValue.ddl,
