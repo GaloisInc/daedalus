@@ -168,7 +168,8 @@ def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
   widths = chars.widths0 is just; 
   Guard ((length widths) == inc (lastChar - firstChar));
 
-  fontDesc = WithStream (chars.fontDesc0 is just) (GenObj (FontDescP baseFont))
+  fontDesc = WithStream (chars.fontDesc0 is just)
+    (GenObj (FontDescP baseFont))
 }
 
 -- Type0: type, subtype, basefont, encoding (name or stream), descendants, toUnicode

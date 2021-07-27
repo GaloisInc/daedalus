@@ -37,8 +37,8 @@ def UnionMapArray ms = for (acc = empty; m in ms) MapUnion acc m
 def ComposeMaps m0 m1 = for (res = empty; k0, v0 in m0) 
   (Insert k0 (Lookup v0 m1) res)
 
-def ComposePartialMaps m0 m1 = for (res = empty; k0, v0 in m0)
-  (Default res (Insert k0 (Lookup v0 m1) res))
+def ComposePartialMaps dflt m0 m1 = for (res = empty; k0, v0 in m0)
+  (Insert k0 (Default dflt (Lookup v0 m1)) res)
 
 def TryLookup d k dflt = Default dflt {
   @v = Lookup d k ;

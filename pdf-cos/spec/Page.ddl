@@ -91,7 +91,6 @@ def ExtendPage (par : Ref) k (p : PartialPage) =
     p.resources0 is nothing;
     just (AddResources p)
   }
-  -- TEST:
   else if k == "Contents" then {
     p.contents0 is nothing;
     just (AddContents p)
@@ -102,14 +101,13 @@ def Page ancRes (page0 : PartialPage) = {
   Guard page0.type0;
   Guard page0.parent0;
 
-  contents = [] : [ ContentStreamObj ];
-  -- contents = case page0.contents0 of {
-  --   nothing -> [ ] ;
-  --   just contentStream -> WithStream contentStream
-  --     (ContentStreamP
-  --       ((page0.resources0 is just) <|
-  --        (ancRes is just) ))
-  -- };
+  contents = case page0.contents0 of {
+    nothing -> [ ] ;
+    just contentStream -> WithStream contentStream
+      (ContentStreamP
+        ((page0.resources0 is just) <|
+         (ancRes is just) ))
+  };
 }
 
 def PageP ancRes (par: Ref) = GenPdfDict1

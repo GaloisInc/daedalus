@@ -43,7 +43,7 @@ def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
     for (acc = []; a in args) {
       append acc (case (a : TJOper) of {
           shownString s -> ExtractString q op.showFont s
-        ; adjustNum -> [ ] -- TODO: possibly refine 
+        ; adjustNum -> [ UTF81 (Bytes1 ' ') ] -- TODO: possibly tweak
         })
     }
   }
