@@ -35,6 +35,9 @@ def ShowStringOp (szFont : SizedFont) (s : string) : TextShowOp = {
   oper = {| showString = s |};
 }
 
+-- this is the size of visible space, to me
+def visible = 200 : int
+
 -- Text-showing operators: Table 107
 def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
   case (op.oper: TextShowOper) of {
@@ -43,7 +46,9 @@ def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
     for (acc = []; a in args) {
       append acc (case (a : TJOper) of {
           shownString s -> ExtractString q op.showFont s
-        ; adjustNum -> [ UTF81 (Bytes1 ' ') ] -- TODO: possibly tweak
+        ; adjustNum n -> optionToArray (condJust
+            ((0 - n.num) > visible)
+            (UTF81 (Bytes1 ' ')) )
         })
     }
   }
