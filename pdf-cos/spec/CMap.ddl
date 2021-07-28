@@ -5,11 +5,12 @@ import Map
 import Array
        
 -- import PDF libraries:
-import PdfDecl
--- import PdfDeclStubs
+-- import PdfDecl -- not directly needed/wanted
+import PdfDeclStubs  -- FIXME: TESTINGONLY
 import GenPdfValue
 import PdfValue
 import Unicode
+
 
 ---- CodeRange type ------------------------------------------------------------
 
@@ -25,7 +26,7 @@ def CodeRange CharCode = {
 
   @highEnd = CharCode as int;
   Guard (lowEnd <= highEnd); -- PDFA: required by standard?
-  numExtras = (highEnd - lowEnd);
+  numExtras = (highEnd - lowEnd) as int;
 }
 
 -- SingletonRange: a code range containing exactly one entry
@@ -179,20 +180,25 @@ def CMapVal (k : CMapKey) = case k of
 ---- CodeSpace/CodeRange functions ---------------------------------------------
 
 -- UnicodeSeq: a sequence of unicode characters
-def UnicodeSeq cc = {
-  -- single unicode char:
-  (LiftPToArray ParseUTF8) |
-  -- multiple unicode chars:
-  { @entries = numEntries cc as? uint 64;
-    Between "[" "]" (Many entries (Token ParseUTF8))
-   }
-}
+def UnicodeSeq cc =
+  Choose {
+    -- single unicode char:
+    singleUnicode= ParseCharacterCode;
 
+    -- multiple unicode chars:
+    multipleUnicode=
+      { @entries = numEntries cc as? uint 64;
+        Between "[" "]" (Many entries (Token ParseCharacterCode))
+      }
+  }
 
-def ParseUTF8 = HexString
-                -- FIXME: TODO: convert bytes from BE-UTF16 to codepoint (uint 32)
-                -- elsewhere we'll do the codepoint -> UTF8
-                -- FIXME: may not want the HexString behavior (when odd num digits!)
+def UnicodeSeq_single = {
+  @cc = ParseCharacterCode;
+  ^ {| singleUnicode= cc |} : UnicodeSeq
+  }
+
+def ParseCharacterCode = Token (Between "<" ">" ParseHexUTF16_BE)
+  -- FIXME: works for simple fonts, different for CID fonts.
                 
 -- TODO: check that codespaces do not overlap, but only for
 -- codespace ranges
@@ -222,8 +228,14 @@ def CodeSpaceMap CharCode Rng nm = SizedOp
 def CodeRangeOp CharCode = Choose1 {
   cid    = CidRangeOp CharCode;
   notDef = NotDefRangeOp CharCode;
-  bf = (BfRangeOp CharCode) |
-       (BfCharOp CharCode);
+  bfrange= SizedOp (CodeRange CharCode)
+                   UnicodeSeq
+                  "bfrange";
+  bfchar = SizedOp (SingletonRange CharCode)
+                   (Const UnicodeSeq_single)
+                   "bfchar";
+}
+
 def SizedOp Domain Rng nm = {
   @size = Token(UnsignedNatural);
   Guard (size <= 100); -- upper bound of 100 imposed by standard
@@ -233,6 +245,7 @@ def SizedOp Domain Rng nm = {
     ListOfPairsToMap es
     }
 }
+
 
 -- FIXME: BUG: doesn't tokenize right
 -- def CMapDictEntry = CMapDefn (DictEntry CMapKey CMapVal)
@@ -293,8 +306,6 @@ def CMapProper CharCode = {
   
   -- cmapDict: define the cmap dictionary
   cmapDict = ListOfPairsToMap defs;
-    -- OLD, FIXME: use
-    -- cmapDict = ListOfPairsToMap (map (defn in alldefs) (PairMapEntry defn));  
   
   -- codeRanges: the code ranges
   codeRanges = {
@@ -321,13 +332,14 @@ def CMapProper CharCode = {
                                    )));
                                    
   -- collect BFs:
-  bfs = CollectRangeOp codeRanges (map (op in rangeOps) (
-    case op of
-      bf x2 -> just x2
-      _     -> nothing
-    ));
-}
-
+  @ranges_ = optionsToArray (map (op in rangeOps)
+                                 (case op of
+                                    bfchar x2  -> just x2
+                                    bfrange x2 -> just x2
+                                    _          -> nothing
+                                 ));
+  bfs = CollectRangeOp codeRanges ranges_;
+  bfsMap = CodeRangeMapToCharCodeMap bfs;
 }
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
@@ -383,6 +395,36 @@ def ToUnicodeCMap fontTy = ToUnicodeCMap0 (FontCode fontTy)
 def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
   (ToUnicodeCMap SimpleFontType)
 
+
+-- functions for using cmaps --------------------------------------------------
+
+def MapLookupCodepoint (index : int) cmap : uint 32 = {
+  InCMapCodeRange index cmap;
+  @ccmap = CodeRangeMapToCharCodeMap cmap.bfs;
+  Lookup index ccmap;
+}
+
+def InCMapCodeRange (index : int) cmap : bool = {
+  ^true
+  -- FIXME: TODO
+  -- Guard(charindex >= cmap.codeRanges 
+}
+
+def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int -> uint 32 ] =
+  for (ccmap = empty : [int -> uint 32] ; k, unicode in crmap)
+    for (ccmap2 = ccmap ; j in rangeUp 0 k.numExtras)
+      { @key = k.lowEnd + j;
+        @val = case (unicode : UnicodeSeq) of {
+                  singleUnicode c ->
+                     { ^ c + (j as! uint 32) };
+                  multipleUnicode cs ->
+                     { Guard (length cs == (k.numExtras as! uint 64));
+                         -- shouldn't fail, see @entries above
+                       Index cs (j as! uint 64);
+                     };
+                  };
+        Insert key val ccmap2
+      }
 
 -- Special Entry Points --------------------------------------------------------
 -- NOTE: these parsers called in dom/.../Main.hs: and can be invoked from the
