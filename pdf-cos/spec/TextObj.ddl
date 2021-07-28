@@ -45,7 +45,7 @@ def LiftResToFontEffect P (szFont : maybe SizedFont) = FontEffect
 -- FontOp: parse a sized font 
 def FontOp (resrcs : ResourceDict) = {
   @fontNm = Token Name;
-  @size = Token Integer; -- parse font size
+  @size = Token Number; -- parse font size
   KW "Tf";
   SizedFont (Lookup fontNm resrcs.font) size
 }
@@ -56,7 +56,7 @@ def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
   nothing
 
 -- DBG:
-def TestSizedFont1 = SizedFont (MkType1Font Test1Font) 12
+def TestSizedFont = SizedFont (MkType1Font Test1Font) (IntNumber 12)
 
 -- TextOp: an operation that can occur in a text object
 def TextOp (mayF : maybe SizedFont) = Choose1 {

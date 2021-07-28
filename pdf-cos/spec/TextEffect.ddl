@@ -18,7 +18,7 @@ import CIDFont
 import PdfValue
 
 
-def SizedFont (f : FontDict) (s: int) = {
+def SizedFont (f : FontDict) (s: Number) = {
   font = f;
   size = s;
 }

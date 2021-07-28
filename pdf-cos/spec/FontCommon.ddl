@@ -76,7 +76,7 @@ def CommonFont (f : PartialCommonFont) = {
 -- TODO: add name and font desc to this
 def PartialCharSet (name: maybe [ uint 8 ]) 
   (first: maybe (uint 64)) (last : maybe (uint 64))
-  (pWidths : maybe [ uint 64 ])
+  (pWidths : maybe [ Number ])
   (pFontDesc : maybe Ref) = {
   name0 = name;
   firstChar0 = first;
@@ -122,7 +122,7 @@ def AddWidths f = PartialCharSet
   f.name0
   f.firstChar0
   f.lastChar0
-  (just (DirectOrRef (GenArray UNatural)))
+  (just (DirectOrRef (GenArray Number)))
   f.fontDesc0
 
 -- AddFontDesc: add a font descriptor

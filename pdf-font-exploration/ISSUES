@@ -94,7 +94,7 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 # PDFs accepted by pdf-hs-driver but not text-extract #
 
-* td00.pdf: rejects; likely cause: resolving in object stream is off
-  * fix 0: adjust the position that it gives
-  * fix 1: have logic try either parser directly or wrapped in an object
+* td00-read.pdf: extract full text
+  * TJ: allow for operands that are hex bytes
+* td00.pdf: test
 * MO_Arabic_Language_Lessons.pdf: failed; try with new primitive

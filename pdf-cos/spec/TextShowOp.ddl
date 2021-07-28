@@ -8,8 +8,10 @@ import TextEffect
 -- TODO: non-immediate dep
 import Unicode
 
+-- TJOper: operands in a use of TJ
 def TJOper = Choose {
   shownString = String;
+  hexBytes = HexString;
   adjustNum = Number;
 }
 
@@ -46,6 +48,7 @@ def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
     for (acc = []; a in args) {
       append acc (case (a : TJOper) of {
           shownString s -> ExtractString q op.showFont s
+        ; hexBytes bs -> ExtractString q op.showFont bs
         ; adjustNum n -> optionToArray (condJust
             ((0 - n.num) > visible)
             (UTF81 (Bytes1 ' ')) )

@@ -31,7 +31,7 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   (just
-    (Insert "F1" TestFont
+    (Insert "F16" TestFont
       (Insert "F2" TestFont
         (Insert "F3" TestFont
           (Insert "F4" TestFont
@@ -44,10 +44,8 @@ def TestRef : Ref = {
   gen = 0;
 }
 
-def TestSizedFont = SizedFont TestFont 12
-
 -- Main: the entry point
-def Main = (ContentStreamP TestResrcs)
+def Main = (ExtractContentStreamText (ContentStreamP TestResrcs))
 
 -- TODO:
 
