@@ -94,5 +94,5 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 # PDFs accepted by pdf-hs-driver but not text-extract #
 
-* bug: multi-byte UTF8 may not be getting serialized correctly
+* bug: need to compute code point from Unicode scalar value
 * MO_Arabic_Language_Lessons.pdf: fail
