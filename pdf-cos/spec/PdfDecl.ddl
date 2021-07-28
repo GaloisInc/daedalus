@@ -72,9 +72,52 @@ def SkipBytes n = Chunk n {}
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
+--------------------------------------------------------------------------------
+-- Resolving references to streams
+
+def ObjStart (s : stream) = Choose {
+  inInput = s
+; inObjStream = s
+}
+
+-- WrapGetStream: local wrapper to GetStream, used for primitive
+def WrapGetStream : ObjStart = {|
+  inInput = GetStream
+|}
+
+-- TODO: ugly near-clone of ObjectStreamNth, refactor. Used to
+-- implement InputAtRef primitive.
+def ObjectStreamStrm (n : uint 64) (first : Nat) (idx : Nat) : stream = {
+  -- FIXME: only really need to parse up to idx
+  @meta  = Many n (ObjStreamMeta first);
+  @entry = Index meta idx;
+  @here  = Offset;
+  Guard (here <= entry.off);
+  SkipBytes (entry.off - here);
+  GetStream
+}
+
+-- TODO: ugly near clone of ResolveObjectStreamEntry. Used to
+-- implement InputAtRef primitive.
+def ResolveObjectStreamPoint
+      (oid : Nat) (gen : Nat) (idx : uint 64) : ObjStart = {
+  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
+  CheckType "ObjStm" stm.header;
+  @n       = LookupSize "N"     stm.header;
+  @first   = LookupSize "First" stm.header;
+  @s       = stm.body is ok;
+  {| inObjStream = WithStream s (ObjectStreamStrm n first idx)
+  |}
+}
+
+-- InputStream r: the input stream at reference r
+def InputAtRef (r : Ref) : maybe ObjStart
+
 -- ParseAtRef P r: parse the input at r, using P
-def ParseAtRef r P = WithStream ((InputAtRef r) is just)
-  (GenObj P)
+def ParseAtRef r P = case (InputAtRef r) is just of {
+  inInput s -> WithStream s (GenObj P)
+; inObjStream s -> WithStream s P
+}
 
 -- DirectOrRef P: parse either the current input or parse a ref and
 -- parse the input that it references.
@@ -87,16 +130,7 @@ def WithReffedStreamBody P = WithStream
   ((ResolveStreamRef (Token Ref)).body is ok)
   P
 
--- WrapGetStream: local wrapper to GetStream, used for primitive
-def WrapGetStream = GetStream
-
--- ParamWrapGetStream: used to implement InputAtRef primitive
-def ParamWrapGetStream (oid : Nat) (gen : Nat) (idx : uint 64) : stream = 
-  GetStream
-
--- InputStream r: the input stream at reference r
-def InputAtRef (r : Ref) : maybe stream -- = Void
--- TODO: implement as a new primitive
+--------------------------------------------------------------------------------
 
 def CheckExpected (r : ref) (d : TopDecl) = {
   Guard (d.id  == r.obj && d.gen == r.gen);

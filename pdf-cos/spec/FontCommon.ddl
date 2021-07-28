@@ -77,7 +77,7 @@ def CommonFont (f : PartialCommonFont) = {
 def PartialCharSet (name: maybe [ uint 8 ]) 
   (first: maybe (uint 64)) (last : maybe (uint 64))
   (pWidths : maybe [ uint 64 ])
-  (pFontDesc : maybe stream) = {
+  (pFontDesc : maybe Ref) = {
   name0 = name;
   firstChar0 = first;
   lastChar0 = last;
@@ -131,7 +131,7 @@ def AddFontDesc f = PartialCharSet
   f.firstChar0
   f.lastChar0
   f.widths0
-  (just (InputAtRef (Token Ref) is just))
+  (just (Token Ref))
 
 def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
   maybe PartialCharSet = 
@@ -168,8 +168,8 @@ def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
   widths = chars.widths0 is just; 
   Guard ((length widths) == inc (lastChar - firstChar));
 
-  fontDesc = WithStream (chars.fontDesc0 is just)
-    (GenObj (FontDescP baseFont))
+  fontDesc = ParseAtRef (chars.fontDesc0 is just)
+    (FontDescP baseFont)
 }
 
 -- Type0: type, subtype, basefont, encoding (name or stream), descendants, toUnicode

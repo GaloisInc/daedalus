@@ -160,7 +160,7 @@ cfgPdfDecl = CompilerCfg
 
       , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
         aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
-                            , "PdfDecl.pParamWrapGetStream"
+                            , "PdfDecl.pResolveObjectStreamPoint"
                             , fld "obj" "r"
                             , fld "gen" "r"
                             ]

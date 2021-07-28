@@ -28,6 +28,10 @@ def ListToMap l = for (acc = empty; e in l) Insert e.key e.value acc
 
 def ListOfPairsToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
 
+-- MapDisjUnion m0 m1: union of disjoint maps m0 and m1
+def MapDisjUnion m0 m1 = for (acc = m0; k1, v1 in m1)
+  Insert k1 v1 acc
+
 def MapTo d v = for (acc = empty; k in d) Insert k v acc
 
 def MapUnion m0 m1 = for (acc = m1; k0, v0 in m0)

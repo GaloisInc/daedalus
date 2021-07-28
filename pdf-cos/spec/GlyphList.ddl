@@ -8,4292 +8,4608 @@ import Unicode
 
 -- GlyphList: encoding of glyph list
 -- TODO: uncomment these for full definition
-def GlyphEncodings = [
-  MapEntry (Glyph "A") [ UTF81 (Bytes1 0x41) ]
-, MapEntry (Glyph "AE") [ UTF81 (Bytes1 0xC6) ]
-, MapEntry (Glyph "AEacute") [ UTF82 (Bytes2All 0x01 0xFC) ]
-, MapEntry (Glyph "AEmacron") [ UTF82 (Bytes2All 0x01 0xE2) ]
-, MapEntry (Glyph "AEsmall") [ UTF82 (Bytes2All 0xF7 0xE6) ]
-, MapEntry (Glyph "Aacute") [ UTF81 (Bytes1 0xC1) ]
-, MapEntry (Glyph "Aacutesmall") [ UTF82 (Bytes2All 0xF7 0xE1) ]
-, MapEntry (Glyph "Abreve") [ UTF82 (Bytes2All 0x01 0x02) ]
-, MapEntry (Glyph "Abreveacute") [ UTF82 (Bytes2All 0x1E 0xAE) ]
-, MapEntry (Glyph "Abrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD0) ]
-, MapEntry (Glyph "Abrevedotbelow") [ UTF82 (Bytes2All 0x1E 0xB6) ]
-, MapEntry (Glyph "Abrevegrave") [ UTF82 (Bytes2All 0x1E 0xB0) ]
-, MapEntry (Glyph "Abrevehookabove") [ UTF82 (Bytes2All 0x1E 0xB2) ]
-, MapEntry (Glyph "Abrevetilde") [ UTF82 (Bytes2All 0x1E 0xB4) ]
-, MapEntry (Glyph "Acaron") [ UTF82 (Bytes2All 0x01 0xCD) ]
-, MapEntry (Glyph "Acircle") [ UTF82 (Bytes2All 0x24 0xB6) ]
-, MapEntry (Glyph "Acircumflex") [ UTF81 (Bytes1 0xC2) ]
-, MapEntry (Glyph "Acircumflexacute") [ UTF82 (Bytes2All 0x1E 0xA4) ]
-, MapEntry (Glyph "Acircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xAC) ]
-, MapEntry (Glyph "Acircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xA6) ]
-, MapEntry (Glyph "Acircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xA8) ]
-, MapEntry (Glyph "Acircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xE2) ]
-, MapEntry (Glyph "Acircumflextilde") [ UTF82 (Bytes2All 0x1E 0xAA) ]
-, MapEntry (Glyph "Acute") [ UTF82 (Bytes2All 0xF6 0xC9) ]
-, MapEntry (Glyph "Acutesmall") [ UTF82 (Bytes2All 0xF7 0xB4) ]
-, MapEntry (Glyph "Acyrillic") [ UTF82 (Bytes2All 0x04 0x10) ]
-, MapEntry (Glyph "Adblgrave") [ UTF82 (Bytes2All 0x02 0x00) ]
-, MapEntry (Glyph "Adieresis") [ UTF81 (Bytes1 0xC4) ]
-, MapEntry (Glyph "Adieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xD2) ]
-, MapEntry (Glyph "Adieresismacron") [ UTF82 (Bytes2All 0x01 0xDE) ]
-, MapEntry (Glyph "Adieresissmall") [ UTF82 (Bytes2All 0xF7 0xE4) ]
-, MapEntry (Glyph "Adotbelow") [ UTF82 (Bytes2All 0x1E 0xA0) ]
-, MapEntry (Glyph "Adotmacron") [ UTF82 (Bytes2All 0x01 0xE0) ]
-, MapEntry (Glyph "Agrave") [ UTF81 (Bytes1 0xC0) ]
-, MapEntry (Glyph "Agravesmall") [ UTF82 (Bytes2All 0xF7 0xE0) ]
-, MapEntry (Glyph "Ahookabove") [ UTF82 (Bytes2All 0x1E 0xA2) ]
-, MapEntry (Glyph "Aiecyrillic") [ UTF82 (Bytes2All 0x04 0xD4) ]
-, MapEntry (Glyph "Ainvertedbreve") [ UTF82 (Bytes2All 0x02 0x02) ]
-, MapEntry (Glyph "Alpha") [ UTF82 (Bytes2All 0x03 0x91) ]
-, MapEntry (Glyph "Alphatonos") [ UTF82 (Bytes2All 0x03 0x86) ]
-, MapEntry (Glyph "Amacron") [ UTF82 (Bytes2All 0x01 0x00) ]
-, MapEntry (Glyph "Amonospace") [ UTF82 (Bytes2All 0xFF 0x21) ]
-, MapEntry (Glyph "Aogonek") [ UTF82 (Bytes2All 0x01 0x04) ]
-, MapEntry (Glyph "Aring") [ UTF81 (Bytes1 0xC5) ]
-, MapEntry (Glyph "Aringacute") [ UTF82 (Bytes2All 0x01 0xFA) ]
-, MapEntry (Glyph "Aringbelow") [ UTF82 (Bytes2All 0x1E 0x00) ]
-, MapEntry (Glyph "Aringsmall") [ UTF82 (Bytes2All 0xF7 0xE5) ]
-, MapEntry (Glyph "Asmall") [ UTF82 (Bytes2All 0xF7 0x61) ]
-, MapEntry (Glyph "Atilde") [ UTF81 (Bytes1 0xC3) ]
-, MapEntry (Glyph "Atildesmall") [ UTF82 (Bytes2All 0xF7 0xE3) ]
-, MapEntry (Glyph "Aybarmenian") [ UTF82 (Bytes2All 0x05 0x31) ]
-, MapEntry (Glyph "B") [ UTF81 (Bytes1 0x42) ]
-, MapEntry (Glyph "Bcircle") [ UTF82 (Bytes2All 0x24 0xB7) ]
-, MapEntry (Glyph "Bdotaccent") [ UTF82 (Bytes2All 0x1E 0x02) ]
-, MapEntry (Glyph "Bdotbelow") [ UTF82 (Bytes2All 0x1E 0x04) ]
-, MapEntry (Glyph "Becyrillic") [ UTF82 (Bytes2All 0x04 0x11) ]
-, MapEntry (Glyph "Benarmenian") [ UTF82 (Bytes2All 0x05 0x32) ]
-, MapEntry (Glyph "Beta") [ UTF82 (Bytes2All 0x03 0x92) ]
-, MapEntry (Glyph "Bhook") [ UTF82 (Bytes2All 0x01 0x81) ]
-, MapEntry (Glyph "Blinebelow") [ UTF82 (Bytes2All 0x1E 0x06) ]
-, MapEntry (Glyph "Bmonospace") [ UTF82 (Bytes2All 0xFF 0x22) ]
-, MapEntry (Glyph "Brevesmall") [ UTF82 (Bytes2All 0xF6 0xF4) ]
-, MapEntry (Glyph "Bsmall") [ UTF82 (Bytes2All 0xF7 0x62) ]
-, MapEntry (Glyph "Btopbar") [ UTF82 (Bytes2All 0x01 0x82) ]
-, MapEntry (Glyph "C") [ UTF81 (Bytes1 0x43) ]
--- , MapEntry (Glyph "Caarmenian") [ UTF82 (Bytes2All 0x05 0x3E) ]
--- , MapEntry (Glyph "Cacute") [ UTF82 (Bytes2All 0x01 0x06) ]
--- , MapEntry (Glyph "Caron") [ UTF82 (Bytes2All 0xF6 0xCA) ]
--- , MapEntry (Glyph "Caronsmall") [ UTF82 (Bytes2All 0xF6 0xF5) ]
--- , MapEntry (Glyph "Ccaron") [ UTF82 (Bytes2All 0x01 0x0C) ]
-, MapEntry (Glyph "Ccedilla") [ UTF81 (Bytes1 0xC7) ]
--- , MapEntry (Glyph "Ccedillaacute") [ UTF82 (Bytes2All 0x1E 0x08) ]
--- , MapEntry (Glyph "Ccedillasmall") [ UTF82 (Bytes2All 0xF7 0xE7) ]
--- , MapEntry (Glyph "Ccircle") [ UTF82 (Bytes2All 0x24 0xB8) ]
--- , MapEntry (Glyph "Ccircumflex") [ UTF82 (Bytes2All 0x01 0x08) ]
--- , MapEntry (Glyph "Cdot") [ UTF82 (Bytes2All 0x01 0x0A) ]
--- , MapEntry (Glyph "Cdotaccent") [ UTF82 (Bytes2All 0x01 0x0A) ]
--- , MapEntry (Glyph "Cedillasmall") [ UTF82 (Bytes2All 0xF7 0xB8) ]
--- , MapEntry (Glyph "Chaarmenian") [ UTF82 (Bytes2All 0x05 0x49) ]
--- , MapEntry (Glyph "Cheabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBC) ]
--- , MapEntry (Glyph "Checyrillic") [ UTF82 (Bytes2All 0x04 0x27) ]
--- , MapEntry (Glyph "Chedescenderabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBE) ]
--- , MapEntry (Glyph "Chedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB6) ]
--- , MapEntry (Glyph "Chedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF4) ]
--- , MapEntry (Glyph "Cheharmenian") [ UTF82 (Bytes2All 0x05 0x43) ]
--- , MapEntry (Glyph "Chekhakassiancyrillic") [ UTF82 (Bytes2All 0x04 0xCB) ]
--- , MapEntry (Glyph "Cheverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB8) ]
--- , MapEntry (Glyph "Chi") [ UTF82 (Bytes2All 0x03 0xA7) ]
--- , MapEntry (Glyph "Chook") [ UTF82 (Bytes2All 0x01 0x87) ]
--- , MapEntry (Glyph "Circumflexsmall") [ UTF82 (Bytes2All 0xF6 0xF6) ]
--- , MapEntry (Glyph "Cmonospace") [ UTF82 (Bytes2All 0xFF 0x23) ]
--- , MapEntry (Glyph "Coarmenian") [ UTF82 (Bytes2All 0x05 0x51) ]
--- , MapEntry (Glyph "Csmall") [ UTF82 (Bytes2All 0xF7 0x63) ]
-, MapEntry (Glyph "D") [ UTF81 (Bytes1 0x44) ]
--- , MapEntry (Glyph "DZ") [ UTF82 (Bytes2All 0x01 0xF1) ]
--- , MapEntry (Glyph "DZcaron") [ UTF82 (Bytes2All 0x01 0xC4) ]
--- , MapEntry (Glyph "Daarmenian") [ UTF82 (Bytes2All 0x05 0x34) ]
--- , MapEntry (Glyph "Dafrican") [ UTF82 (Bytes2All 0x01 0x89) ]
--- , MapEntry (Glyph "Dcaron") [ UTF82 (Bytes2All 0x01 0x0E) ]
--- , MapEntry (Glyph "Dcedilla") [ UTF82 (Bytes2All 0x1E 0x10) ]
--- , MapEntry (Glyph "Dcircle") [ UTF82 (Bytes2All 0x24 0xB9) ]
--- , MapEntry (Glyph "Dcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x12) ]
--- , MapEntry (Glyph "Dcroat") [ UTF82 (Bytes2All 0x01 0x10) ]
--- , MapEntry (Glyph "Ddotaccent") [ UTF82 (Bytes2All 0x1E 0x0A) ]
--- , MapEntry (Glyph "Ddotbelow") [ UTF82 (Bytes2All 0x1E 0x0C) ]
--- , MapEntry (Glyph "Decyrillic") [ UTF82 (Bytes2All 0x04 0x14) ]
--- , MapEntry (Glyph "Deicoptic") [ UTF82 (Bytes2All 0x03 0xEE) ]
--- , MapEntry (Glyph "Delta") [ UTF82 (Bytes2All 0x22 0x06) ]
--- , MapEntry (Glyph "Deltagreek") [ UTF82 (Bytes2All 0x03 0x94) ]
--- , MapEntry (Glyph "Dhook") [ UTF82 (Bytes2All 0x01 0x8A) ]
--- , MapEntry (Glyph "Dieresis") [ UTF82 (Bytes2All 0xF6 0xCB) ]
--- , MapEntry (Glyph "DieresisAcute") [ UTF82 (Bytes2All 0xF6 0xCC) ]
--- , MapEntry (Glyph "DieresisGrave") [ UTF82 (Bytes2All 0xF6 0xCD) ]
--- , MapEntry (Glyph "Dieresissmall") [ UTF82 (Bytes2All 0xF7 0xA8) ]
--- , MapEntry (Glyph "Digammagreek") [ UTF82 (Bytes2All 0x03 0xDC) ]
--- , MapEntry (Glyph "Djecyrillic") [ UTF82 (Bytes2All 0x04 0x02) ]
--- , MapEntry (Glyph "Dlinebelow") [ UTF82 (Bytes2All 0x1E 0x0E) ]
--- , MapEntry (Glyph "Dmonospace") [ UTF82 (Bytes2All 0xFF 0x24) ]
--- , MapEntry (Glyph "Dotaccentsmall") [ UTF82 (Bytes2All 0xF6 0xF7) ]
--- , MapEntry (Glyph "Dslash") [ UTF82 (Bytes2All 0x01 0x10) ]
--- , MapEntry (Glyph "Dsmall") [ UTF82 (Bytes2All 0xF7 0x64) ]
--- , MapEntry (Glyph "Dtopbar") [ UTF82 (Bytes2All 0x01 0x8B) ]
--- , MapEntry (Glyph "Dz") [ UTF82 (Bytes2All 0x01 0xF2) ]
--- , MapEntry (Glyph "Dzcaron") [ UTF82 (Bytes2All 0x01 0xC5) ]
--- , MapEntry (Glyph "Dzeabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xE0) ]
--- , MapEntry (Glyph "Dzecyrillic") [ UTF82 (Bytes2All 0x04 0x05) ]
--- , MapEntry (Glyph "Dzhecyrillic") [ UTF82 (Bytes2All 0x04 0x0F) ]
-, MapEntry (Glyph "E") [ UTF81 (Bytes1 0x45) ]
-, MapEntry (Glyph "Eacute") [ UTF81 (Bytes1 0xC9) ]
--- , MapEntry (Glyph "Eacutesmall") [ UTF82 (Bytes2All 0xF7 0xE9) ]
--- , MapEntry (Glyph "Ebreve") [ UTF82 (Bytes2All 0x01 0x14) ]
--- , MapEntry (Glyph "Ecaron") [ UTF82 (Bytes2All 0x01 0x1A) ]
--- , MapEntry (Glyph "Ecedillabreve") [ UTF82 (Bytes2All 0x1E 0x1C) ]
--- , MapEntry (Glyph "Echarmenian") [ UTF82 (Bytes2All 0x05 0x35) ]
--- , MapEntry (Glyph "Ecircle") [ UTF82 (Bytes2All 0x24 0xBA) ]
-, MapEntry (Glyph "Ecircumflex") [ UTF81 (Bytes1 0xCA) ]
--- , MapEntry (Glyph "Ecircumflexacute") [ UTF82 (Bytes2All 0x1E 0xBE) ]
--- , MapEntry (Glyph "Ecircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x18) ]
--- , MapEntry (Glyph "Ecircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xC6) ]
--- , MapEntry (Glyph "Ecircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xC0) ]
--- , MapEntry (Glyph "Ecircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xC2) ]
--- , MapEntry (Glyph "Ecircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xEA) ]
--- , MapEntry (Glyph "Ecircumflextilde") [ UTF82 (Bytes2All 0x1E 0xC4) ]
--- , MapEntry (Glyph "Ecyrillic") [ UTF82 (Bytes2All 0x04 0x04) ]
--- , MapEntry (Glyph "Edblgrave") [ UTF82 (Bytes2All 0x02 0x04) ]
-, MapEntry (Glyph "Edieresis") [ UTF81 (Bytes1 0xCB) ]
--- , MapEntry (Glyph "Edieresissmall") [ UTF82 (Bytes2All 0xF7 0xEB) ]
--- , MapEntry (Glyph "Edot") [ UTF82 (Bytes2All 0x01 0x16) ]
--- , MapEntry (Glyph "Edotaccent") [ UTF82 (Bytes2All 0x01 0x16) ]
--- , MapEntry (Glyph "Edotbelow") [ UTF82 (Bytes2All 0x1E 0xB8) ]
--- , MapEntry (Glyph "Efcyrillic") [ UTF82 (Bytes2All 0x04 0x24) ]
-, MapEntry (Glyph "Egrave") [ UTF81 (Bytes1 0xC8) ]
--- , MapEntry (Glyph "Egravesmall") [ UTF82 (Bytes2All 0xF7 0xE8) ]
--- , MapEntry (Glyph "Eharmenian") [ UTF82 (Bytes2All 0x05 0x37) ]
--- , MapEntry (Glyph "Ehookabove") [ UTF82 (Bytes2All 0x1E 0xBA) ]
--- , MapEntry (Glyph "Eightroman") [ UTF82 (Bytes2All 0x21 0x67) ]
--- , MapEntry (Glyph "Einvertedbreve") [ UTF82 (Bytes2All 0x02 0x06) ]
--- , MapEntry (Glyph "Eiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x64) ]
--- , MapEntry (Glyph "Elcyrillic") [ UTF82 (Bytes2All 0x04 0x1B) ]
--- , MapEntry (Glyph "Elevenroman") [ UTF82 (Bytes2All 0x21 0x6A) ]
--- , MapEntry (Glyph "Emacron") [ UTF82 (Bytes2All 0x01 0x12) ]
--- , MapEntry (Glyph "Emacronacute") [ UTF82 (Bytes2All 0x1E 0x16) ]
--- , MapEntry (Glyph "Emacrongrave") [ UTF82 (Bytes2All 0x1E 0x14) ]
--- , MapEntry (Glyph "Emcyrillic") [ UTF82 (Bytes2All 0x04 0x1C) ]
--- , MapEntry (Glyph "Emonospace") [ UTF82 (Bytes2All 0xFF 0x25) ]
--- , MapEntry (Glyph "Encyrillic") [ UTF82 (Bytes2All 0x04 0x1D) ]
--- , MapEntry (Glyph "Endescendercyrillic") [ UTF82 (Bytes2All 0x04 0xA2) ]
--- , MapEntry (Glyph "Eng") [ UTF82 (Bytes2All 0x01 0x4A) ]
--- , MapEntry (Glyph "Enghecyrillic") [ UTF82 (Bytes2All 0x04 0xA4) ]
--- , MapEntry (Glyph "Enhookcyrillic") [ UTF82 (Bytes2All 0x04 0xC7) ]
--- , MapEntry (Glyph "Eogonek") [ UTF82 (Bytes2All 0x01 0x18) ]
--- , MapEntry (Glyph "Eopen") [ UTF82 (Bytes2All 0x01 0x90) ]
--- , MapEntry (Glyph "Epsilon") [ UTF82 (Bytes2All 0x03 0x95) ]
--- , MapEntry (Glyph "Epsilontonos") [ UTF82 (Bytes2All 0x03 0x88) ]
--- , MapEntry (Glyph "Ercyrillic") [ UTF82 (Bytes2All 0x04 0x20) ]
--- , MapEntry (Glyph "Ereversed") [ UTF82 (Bytes2All 0x01 0x8E) ]
--- , MapEntry (Glyph "Ereversedcyrillic") [ UTF82 (Bytes2All 0x04 0x2D) ]
--- , MapEntry (Glyph "Escyrillic") [ UTF82 (Bytes2All 0x04 0x21) ]
--- , MapEntry (Glyph "Esdescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAA) ]
--- , MapEntry (Glyph "Esh") [ UTF82 (Bytes2All 0x01 0xA9) ]
--- , MapEntry (Glyph "Esmall") [ UTF82 (Bytes2All 0xF7 0x65) ]
--- , MapEntry (Glyph "Eta") [ UTF82 (Bytes2All 0x03 0x97) ]
--- , MapEntry (Glyph "Etarmenian") [ UTF82 (Bytes2All 0x05 0x38) ]
--- , MapEntry (Glyph "Etatonos") [ UTF82 (Bytes2All 0x03 0x89) ]
-, MapEntry (Glyph "Eth") [ UTF81 (Bytes1 0xD0) ]
--- , MapEntry (Glyph "Ethsmall") [ UTF82 (Bytes2All 0xF7 0xF0) ]
--- , MapEntry (Glyph "Etilde") [ UTF82 (Bytes2All 0x1E 0xBC) ]
--- , MapEntry (Glyph "Etildebelow") [ UTF82 (Bytes2All 0x1E 0x1A) ]
--- , MapEntry (Glyph "Euro") [ UTF82 (Bytes2All 0x20 0xAC) ]
--- , MapEntry (Glyph "Ezh") [ UTF82 (Bytes2All 0x01 0xB7) ]
--- , MapEntry (Glyph "Ezhcaron") [ UTF82 (Bytes2All 0x01 0xEE) ]
--- , MapEntry (Glyph "Ezhreversed") [ UTF82 (Bytes2All 0x01 0xB8) ]
-, MapEntry (Glyph "F") [ UTF81 (Bytes1 0x46) ]
--- , MapEntry (Glyph "Fcircle") [ UTF82 (Bytes2All 0x24 0xBB) ]
--- , MapEntry (Glyph "Fdotaccent") [ UTF82 (Bytes2All 0x1E 0x1E) ]
--- , MapEntry (Glyph "Feharmenian") [ UTF82 (Bytes2All 0x05 0x56) ]
--- , MapEntry (Glyph "Feicoptic") [ UTF82 (Bytes2All 0x03 0xE4) ]
--- , MapEntry (Glyph "Fhook") [ UTF82 (Bytes2All 0x01 0x91) ]
--- , MapEntry (Glyph "Fitacyrillic") [ UTF82 (Bytes2All 0x04 0x72) ]
--- , MapEntry (Glyph "Fiveroman") [ UTF82 (Bytes2All 0x21 0x64) ]
--- , MapEntry (Glyph "Fmonospace") [ UTF82 (Bytes2All 0xFF 0x26) ]
--- , MapEntry (Glyph "Fourroman") [ UTF82 (Bytes2All 0x21 0x63) ]
--- , MapEntry (Glyph "Fsmall") [ UTF82 (Bytes2All 0xF7 0x66) ]
-, MapEntry (Glyph "G") [ UTF81 (Bytes1 0x47) ]
--- , MapEntry (Glyph "GBsquare") [ UTF82 (Bytes2All 0x33 0x87) ]
--- , MapEntry (Glyph "Gacute") [ UTF82 (Bytes2All 0x01 0xF4) ]
--- , MapEntry (Glyph "Gamma") [ UTF82 (Bytes2All 0x03 0x93) ]
--- , MapEntry (Glyph "Gammaafrican") [ UTF82 (Bytes2All 0x01 0x94) ]
--- , MapEntry (Glyph "Gangiacoptic") [ UTF82 (Bytes2All 0x03 0xEA) ]
--- , MapEntry (Glyph "Gbreve") [ UTF82 (Bytes2All 0x01 0x1E) ]
--- , MapEntry (Glyph "Gcaron") [ UTF82 (Bytes2All 0x01 0xE6) ]
--- , MapEntry (Glyph "Gcedilla") [ UTF82 (Bytes2All 0x01 0x22) ]
--- , MapEntry (Glyph "Gcircle") [ UTF82 (Bytes2All 0x24 0xBC) ]
--- , MapEntry (Glyph "Gcircumflex") [ UTF82 (Bytes2All 0x01 0x1C) ]
--- , MapEntry (Glyph "Gcommaaccent") [ UTF82 (Bytes2All 0x01 0x22) ]
--- , MapEntry (Glyph "Gdot") [ UTF82 (Bytes2All 0x01 0x20) ]
--- , MapEntry (Glyph "Gdotaccent") [ UTF82 (Bytes2All 0x01 0x20) ]
--- , MapEntry (Glyph "Gecyrillic") [ UTF82 (Bytes2All 0x04 0x13) ]
--- , MapEntry (Glyph "Ghadarmenian") [ UTF82 (Bytes2All 0x05 0x42) ]
--- , MapEntry (Glyph "Ghemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0x94) ]
--- , MapEntry (Glyph "Ghestrokecyrillic") [ UTF82 (Bytes2All 0x04 0x92) ]
--- , MapEntry (Glyph "Gheupturncyrillic") [ UTF82 (Bytes2All 0x04 0x90) ]
--- , MapEntry (Glyph "Ghook") [ UTF82 (Bytes2All 0x01 0x93) ]
--- , MapEntry (Glyph "Gimarmenian") [ UTF82 (Bytes2All 0x05 0x33) ]
--- , MapEntry (Glyph "Gjecyrillic") [ UTF82 (Bytes2All 0x04 0x03) ]
--- , MapEntry (Glyph "Gmacron") [ UTF82 (Bytes2All 0x1E 0x20) ]
--- , MapEntry (Glyph "Gmonospace") [ UTF82 (Bytes2All 0xFF 0x27) ]
--- , MapEntry (Glyph "Grave") [ UTF82 (Bytes2All 0xF6 0xCE) ]
--- , MapEntry (Glyph "Gravesmall") [ UTF82 (Bytes2All 0xF7 0x60) ]
--- , MapEntry (Glyph "Gsmall") [ UTF82 (Bytes2All 0xF7 0x67) ]
--- , MapEntry (Glyph "Gsmallhook") [ UTF82 (Bytes2All 0x02 0x9B) ]
--- , MapEntry (Glyph "Gstroke") [ UTF82 (Bytes2All 0x01 0xE4) ]
-, MapEntry (Glyph "H") [ UTF81 (Bytes1 0x48) ]
--- , MapEntry (Glyph "H18533") [ UTF82 (Bytes2All 0x25 0xCF) ]
--- , MapEntry (Glyph "H18543") [ UTF82 (Bytes2All 0x25 0xAA) ]
--- , MapEntry (Glyph "H18551") [ UTF82 (Bytes2All 0x25 0xAB) ]
--- , MapEntry (Glyph "H22073") [ UTF82 (Bytes2All 0x25 0xA1) ]
--- , MapEntry (Glyph "HPsquare") [ UTF82 (Bytes2All 0x33 0xCB) ]
--- , MapEntry (Glyph "Haabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xA8) ]
--- , MapEntry (Glyph "Hadescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB2) ]
--- , MapEntry (Glyph "Hardsigncyrillic") [ UTF82 (Bytes2All 0x04 0x2A) ]
--- , MapEntry (Glyph "Hbar") [ UTF82 (Bytes2All 0x01 0x26) ]
--- , MapEntry (Glyph "Hbrevebelow") [ UTF82 (Bytes2All 0x1E 0x2A) ]
--- , MapEntry (Glyph "Hcedilla") [ UTF82 (Bytes2All 0x1E 0x28) ]
--- , MapEntry (Glyph "Hcircle") [ UTF82 (Bytes2All 0x24 0xBD) ]
--- , MapEntry (Glyph "Hcircumflex") [ UTF82 (Bytes2All 0x01 0x24) ]
--- , MapEntry (Glyph "Hdieresis") [ UTF82 (Bytes2All 0x1E 0x26) ]
--- , MapEntry (Glyph "Hdotaccent") [ UTF82 (Bytes2All 0x1E 0x22) ]
--- , MapEntry (Glyph "Hdotbelow") [ UTF82 (Bytes2All 0x1E 0x24) ]
--- , MapEntry (Glyph "Hmonospace") [ UTF82 (Bytes2All 0xFF 0x28) ]
--- , MapEntry (Glyph "Hoarmenian") [ UTF82 (Bytes2All 0x05 0x40) ]
--- , MapEntry (Glyph "Horicoptic") [ UTF82 (Bytes2All 0x03 0xE8) ]
--- , MapEntry (Glyph "Hsmall") [ UTF82 (Bytes2All 0xF7 0x68) ]
--- , MapEntry (Glyph "Hungarumlaut") [ UTF82 (Bytes2All 0xF6 0xCF) ]
--- , MapEntry (Glyph "Hungarumlautsmall") [ UTF82 (Bytes2All 0xF6 0xF8) ]
--- , MapEntry (Glyph "Hzsquare") [ UTF82 (Bytes2All 0x33 0x90) ]
-, MapEntry (Glyph "I") [ UTF81 (Bytes1 0x49) ]
--- , MapEntry (Glyph "IAcyrillic") [ UTF82 (Bytes2All 0x04 0x2F) ]
--- , MapEntry (Glyph "IJ") [ UTF82 (Bytes2All 0x01 0x32) ]
--- , MapEntry (Glyph "IUcyrillic") [ UTF82 (Bytes2All 0x04 0x2E) ]
-, MapEntry (Glyph "Iacute") [ UTF81 (Bytes1 0xCD) ]
--- , MapEntry (Glyph "Iacutesmall") [ UTF82 (Bytes2All 0xF7 0xED) ]
--- , MapEntry (Glyph "Ibreve") [ UTF82 (Bytes2All 0x01 0x2C) ]
--- , MapEntry (Glyph "Icaron") [ UTF82 (Bytes2All 0x01 0xCF) ]
--- , MapEntry (Glyph "Icircle") [ UTF82 (Bytes2All 0x24 0xBE) ]
-, MapEntry (Glyph "Icircumflex") [ UTF81 (Bytes1 0xCE) ]
--- , MapEntry (Glyph "Icircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xEE) ]
--- , MapEntry (Glyph "Icyrillic") [ UTF82 (Bytes2All 0x04 0x06) ]
--- , MapEntry (Glyph "Idblgrave") [ UTF82 (Bytes2All 0x02 0x08) ]
-, MapEntry (Glyph "Idieresis") [ UTF81 (Bytes1 0xCF) ]
--- , MapEntry (Glyph "Idieresisacute") [ UTF82 (Bytes2All 0x1E 0x2E) ]
--- , MapEntry (Glyph "Idieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE4) ]
--- , MapEntry (Glyph "Idieresissmall") [ UTF82 (Bytes2All 0xF7 0xEF) ]
--- , MapEntry (Glyph "Idot") [ UTF82 (Bytes2All 0x01 0x30) ]
--- , MapEntry (Glyph "Idotaccent") [ UTF82 (Bytes2All 0x01 0x30) ]
--- , MapEntry (Glyph "Idotbelow") [ UTF82 (Bytes2All 0x1E 0xCA) ]
--- , MapEntry (Glyph "Iebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD6) ]
--- , MapEntry (Glyph "Iecyrillic") [ UTF82 (Bytes2All 0x04 0x15) ]
--- , MapEntry (Glyph "Ifraktur") [ UTF82 (Bytes2All 0x21 0x11) ]
-, MapEntry (Glyph "Igrave") [ UTF81 (Bytes1 0xCC) ]
--- , MapEntry (Glyph "Igravesmall") [ UTF82 (Bytes2All 0xF7 0xEC) ]
--- , MapEntry (Glyph "Ihookabove") [ UTF82 (Bytes2All 0x1E 0xC8) ]
--- , MapEntry (Glyph "Iicyrillic") [ UTF82 (Bytes2All 0x04 0x18) ]
--- , MapEntry (Glyph "Iinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0A) ]
--- , MapEntry (Glyph "Iishortcyrillic") [ UTF82 (Bytes2All 0x04 0x19) ]
--- , MapEntry (Glyph "Imacron") [ UTF82 (Bytes2All 0x01 0x2A) ]
--- , MapEntry (Glyph "Imacroncyrillic") [ UTF82 (Bytes2All 0x04 0xE2) ]
--- , MapEntry (Glyph "Imonospace") [ UTF82 (Bytes2All 0xFF 0x29) ]
--- , MapEntry (Glyph "Iniarmenian") [ UTF82 (Bytes2All 0x05 0x3B) ]
--- , MapEntry (Glyph "Iocyrillic") [ UTF82 (Bytes2All 0x04 0x01) ]
--- , MapEntry (Glyph "Iogonek") [ UTF82 (Bytes2All 0x01 0x2E) ]
--- , MapEntry (Glyph "Iota") [ UTF82 (Bytes2All 0x03 0x99) ]
--- , MapEntry (Glyph "Iotaafrican") [ UTF82 (Bytes2All 0x01 0x96) ]
--- , MapEntry (Glyph "Iotadieresis") [ UTF82 (Bytes2All 0x03 0xAA) ]
--- , MapEntry (Glyph "Iotatonos") [ UTF82 (Bytes2All 0x03 0x8A) ]
--- , MapEntry (Glyph "Ismall") [ UTF82 (Bytes2All 0xF7 0x69) ]
--- , MapEntry (Glyph "Istroke") [ UTF82 (Bytes2All 0x01 0x97) ]
--- , MapEntry (Glyph "Itilde") [ UTF82 (Bytes2All 0x01 0x28) ]
--- , MapEntry (Glyph "Itildebelow") [ UTF82 (Bytes2All 0x1E 0x2C) ]
--- , MapEntry (Glyph "Izhitsacyrillic") [ UTF82 (Bytes2All 0x04 0x74) ]
--- , MapEntry (Glyph "Izhitsadblgravecyrillic") [ UTF82 (Bytes2All 0x04 0x76) ]
-, MapEntry (Glyph "J") [ UTF81 (Bytes1 0x4A) ]
--- , MapEntry (Glyph "Jaarmenian") [ UTF82 (Bytes2All 0x05 0x41) ]
--- , MapEntry (Glyph "Jcircle") [ UTF82 (Bytes2All 0x24 0xBF) ]
--- , MapEntry (Glyph "Jcircumflex") [ UTF82 (Bytes2All 0x01 0x34) ]
--- , MapEntry (Glyph "Jecyrillic") [ UTF82 (Bytes2All 0x04 0x08) ]
--- , MapEntry (Glyph "Jheharmenian") [ UTF82 (Bytes2All 0x05 0x4B) ]
--- , MapEntry (Glyph "Jmonospace") [ UTF82 (Bytes2All 0xFF 0x2A) ]
--- , MapEntry (Glyph "Jsmall") [ UTF82 (Bytes2All 0xF7 0x6A) ]
-, MapEntry (Glyph "K") [ UTF81 (Bytes1 0x4B) ]
--- , MapEntry (Glyph "KBsquare") [ UTF82 (Bytes2All 0x33 0x85) ]
--- , MapEntry (Glyph "KKsquare") [ UTF82 (Bytes2All 0x33 0xCD) ]
--- , MapEntry (Glyph "Kabashkircyrillic") [ UTF82 (Bytes2All 0x04 0xA0) ]
--- , MapEntry (Glyph "Kacute") [ UTF82 (Bytes2All 0x1E 0x30) ]
--- , MapEntry (Glyph "Kacyrillic") [ UTF82 (Bytes2All 0x04 0x1A) ]
--- , MapEntry (Glyph "Kadescendercyrillic") [ UTF82 (Bytes2All 0x04 0x9A) ]
--- , MapEntry (Glyph "Kahookcyrillic") [ UTF82 (Bytes2All 0x04 0xC3) ]
--- , MapEntry (Glyph "Kappa") [ UTF82 (Bytes2All 0x03 0x9A) ]
--- , MapEntry (Glyph "Kastrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9E) ]
--- , MapEntry (Glyph "Kaverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9C) ]
--- , MapEntry (Glyph "Kcaron") [ UTF82 (Bytes2All 0x01 0xE8) ]
--- , MapEntry (Glyph "Kcedilla") [ UTF82 (Bytes2All 0x01 0x36) ]
--- , MapEntry (Glyph "Kcircle") [ UTF82 (Bytes2All 0x24 0xC0) ]
--- , MapEntry (Glyph "Kcommaaccent") [ UTF82 (Bytes2All 0x01 0x36) ]
--- , MapEntry (Glyph "Kdotbelow") [ UTF82 (Bytes2All 0x1E 0x32) ]
--- , MapEntry (Glyph "Keharmenian") [ UTF82 (Bytes2All 0x05 0x54) ]
--- , MapEntry (Glyph "Kenarmenian") [ UTF82 (Bytes2All 0x05 0x3F) ]
--- , MapEntry (Glyph "Khacyrillic") [ UTF82 (Bytes2All 0x04 0x25) ]
--- , MapEntry (Glyph "Kheicoptic") [ UTF82 (Bytes2All 0x03 0xE6) ]
--- , MapEntry (Glyph "Khook") [ UTF82 (Bytes2All 0x01 0x98) ]
--- , MapEntry (Glyph "Kjecyrillic") [ UTF82 (Bytes2All 0x04 0x0C) ]
--- , MapEntry (Glyph "Klinebelow") [ UTF82 (Bytes2All 0x1E 0x34) ]
--- , MapEntry (Glyph "Kmonospace") [ UTF82 (Bytes2All 0xFF 0x2B) ]
--- , MapEntry (Glyph "Koppacyrillic") [ UTF82 (Bytes2All 0x04 0x80) ]
--- , MapEntry (Glyph "Koppagreek") [ UTF82 (Bytes2All 0x03 0xDE) ]
--- , MapEntry (Glyph "Ksicyrillic") [ UTF82 (Bytes2All 0x04 0x6E) ]
--- , MapEntry (Glyph "Ksmall") [ UTF82 (Bytes2All 0xF7 0x6B) ]
-, MapEntry (Glyph "L") [ UTF81 (Bytes1 0x4C) ]
--- , MapEntry (Glyph "LJ") [ UTF82 (Bytes2All 0x01 0xC7) ]
--- , MapEntry (Glyph "LL") [ UTF82 (Bytes2All 0xF6 0xBF) ]
--- , MapEntry (Glyph "Lacute") [ UTF82 (Bytes2All 0x01 0x39) ]
--- , MapEntry (Glyph "Lambda") [ UTF82 (Bytes2All 0x03 0x9B) ]
--- , MapEntry (Glyph "Lcaron") [ UTF82 (Bytes2All 0x01 0x3D) ]
--- , MapEntry (Glyph "Lcedilla") [ UTF82 (Bytes2All 0x01 0x3B) ]
--- , MapEntry (Glyph "Lcircle") [ UTF82 (Bytes2All 0x24 0xC1) ]
--- , MapEntry (Glyph "Lcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x3C) ]
--- , MapEntry (Glyph "Lcommaaccent") [ UTF82 (Bytes2All 0x01 0x3B) ]
--- , MapEntry (Glyph "Ldot") [ UTF82 (Bytes2All 0x01 0x3F) ]
--- , MapEntry (Glyph "Ldotaccent") [ UTF82 (Bytes2All 0x01 0x3F) ]
--- , MapEntry (Glyph "Ldotbelow") [ UTF82 (Bytes2All 0x1E 0x36) ]
--- , MapEntry (Glyph "Ldotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x38) ]
--- , MapEntry (Glyph "Liwnarmenian") [ UTF82 (Bytes2All 0x05 0x3C) ]
--- , MapEntry (Glyph "Lj") [ UTF82 (Bytes2All 0x01 0xC8) ]
--- , MapEntry (Glyph "Ljecyrillic") [ UTF82 (Bytes2All 0x04 0x09) ]
--- , MapEntry (Glyph "Llinebelow") [ UTF82 (Bytes2All 0x1E 0x3A) ]
--- , MapEntry (Glyph "Lmonospace") [ UTF82 (Bytes2All 0xFF 0x2C) ]
--- , MapEntry (Glyph "Lslash") [ UTF82 (Bytes2All 0x01 0x41) ]
--- , MapEntry (Glyph "Lslashsmall") [ UTF82 (Bytes2All 0xF6 0xF9) ]
--- , MapEntry (Glyph "Lsmall") [ UTF82 (Bytes2All 0xF7 0x6C) ]
-, MapEntry (Glyph "M") [ UTF81 (Bytes1 0x4D) ]
--- , MapEntry (Glyph "MBsquare") [ UTF82 (Bytes2All 0x33 0x86) ]
--- , MapEntry (Glyph "Macron") [ UTF82 (Bytes2All 0xF6 0xD0) ]
--- , MapEntry (Glyph "Macronsmall") [ UTF82 (Bytes2All 0xF7 0xAF) ]
--- , MapEntry (Glyph "Macute") [ UTF82 (Bytes2All 0x1E 0x3E) ]
--- , MapEntry (Glyph "Mcircle") [ UTF82 (Bytes2All 0x24 0xC2) ]
--- , MapEntry (Glyph "Mdotaccent") [ UTF82 (Bytes2All 0x1E 0x40) ]
--- , MapEntry (Glyph "Mdotbelow") [ UTF82 (Bytes2All 0x1E 0x42) ]
--- , MapEntry (Glyph "Menarmenian") [ UTF82 (Bytes2All 0x05 0x44) ]
--- , MapEntry (Glyph "Mmonospace") [ UTF82 (Bytes2All 0xFF 0x2D) ]
--- , MapEntry (Glyph "Msmall") [ UTF82 (Bytes2All 0xF7 0x6D) ]
--- , MapEntry (Glyph "Mturned") [ UTF82 (Bytes2All 0x01 0x9C) ]
--- , MapEntry (Glyph "Mu") [ UTF82 (Bytes2All 0x03 0x9C) ]
-, MapEntry (Glyph "N") [ UTF81 (Bytes1 0x4E) ]
--- , MapEntry (Glyph "NJ") [ UTF82 (Bytes2All 0x01 0xCA) ]
--- , MapEntry (Glyph "Nacute") [ UTF82 (Bytes2All 0x01 0x43) ]
--- , MapEntry (Glyph "Ncaron") [ UTF82 (Bytes2All 0x01 0x47) ]
--- , MapEntry (Glyph "Ncedilla") [ UTF82 (Bytes2All 0x01 0x45) ]
--- , MapEntry (Glyph "Ncircle") [ UTF82 (Bytes2All 0x24 0xC3) ]
--- , MapEntry (Glyph "Ncircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x4A) ]
--- , MapEntry (Glyph "Ncommaaccent") [ UTF82 (Bytes2All 0x01 0x45) ]
--- , MapEntry (Glyph "Ndotaccent") [ UTF82 (Bytes2All 0x1E 0x44) ]
--- , MapEntry (Glyph "Ndotbelow") [ UTF82 (Bytes2All 0x1E 0x46) ]
--- , MapEntry (Glyph "Nhookleft") [ UTF82 (Bytes2All 0x01 0x9D) ]
--- , MapEntry (Glyph "Nineroman") [ UTF82 (Bytes2All 0x21 0x68) ]
--- , MapEntry (Glyph "Nj") [ UTF82 (Bytes2All 0x01 0xCB) ]
--- , MapEntry (Glyph "Njecyrillic") [ UTF82 (Bytes2All 0x04 0x0A) ]
--- , MapEntry (Glyph "Nlinebelow") [ UTF82 (Bytes2All 0x1E 0x48) ]
--- , MapEntry (Glyph "Nmonospace") [ UTF82 (Bytes2All 0xFF 0x2E) ]
--- , MapEntry (Glyph "Nowarmenian") [ UTF82 (Bytes2All 0x05 0x46) ]
--- , MapEntry (Glyph "Nsmall") [ UTF82 (Bytes2All 0xF7 0x6E) ]
-, MapEntry (Glyph "Ntilde") [ UTF81 (Bytes1 0xD1) ]
--- , MapEntry (Glyph "Ntildesmall") [ UTF82 (Bytes2All 0xF7 0xF1) ]
--- , MapEntry (Glyph "Nu") [ UTF82 (Bytes2All 0x03 0x9D) ]
-, MapEntry (Glyph "O") [ UTF81 (Bytes1 0x4F) ]
--- , MapEntry (Glyph "OE") [ UTF82 (Bytes2All 0x01 0x52) ]
--- , MapEntry (Glyph "OEsmall") [ UTF82 (Bytes2All 0xF6 0xFA) ]
-, MapEntry (Glyph "Oacute") [ UTF81 (Bytes1 0xD3) ]
--- , MapEntry (Glyph "Oacutesmall") [ UTF82 (Bytes2All 0xF7 0xF3) ]
--- , MapEntry (Glyph "Obarredcyrillic") [ UTF82 (Bytes2All 0x04 0xE8) ]
--- , MapEntry (Glyph "Obarreddieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xEA) ]
--- , MapEntry (Glyph "Obreve") [ UTF82 (Bytes2All 0x01 0x4E) ]
--- , MapEntry (Glyph "Ocaron") [ UTF82 (Bytes2All 0x01 0xD1) ]
--- , MapEntry (Glyph "Ocenteredtilde") [ UTF82 (Bytes2All 0x01 0x9F) ]
--- , MapEntry (Glyph "Ocircle") [ UTF82 (Bytes2All 0x24 0xC4) ]
-, MapEntry (Glyph "Ocircumflex") [ UTF81 (Bytes1 0xD4) ]
--- , MapEntry (Glyph "Ocircumflexacute") [ UTF82 (Bytes2All 0x1E 0xD0) ]
--- , MapEntry (Glyph "Ocircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xD8) ]
--- , MapEntry (Glyph "Ocircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xD2) ]
--- , MapEntry (Glyph "Ocircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xD4) ]
--- , MapEntry (Glyph "Ocircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xF4) ]
--- , MapEntry (Glyph "Ocircumflextilde") [ UTF82 (Bytes2All 0x1E 0xD6) ]
--- , MapEntry (Glyph "Ocyrillic") [ UTF82 (Bytes2All 0x04 0x1E) ]
--- , MapEntry (Glyph "Odblacute") [ UTF82 (Bytes2All 0x01 0x50) ]
--- , MapEntry (Glyph "Odblgrave") [ UTF82 (Bytes2All 0x02 0x0C) ]
-, MapEntry (Glyph "Odieresis") [ UTF81 (Bytes1 0xD6) ]
--- , MapEntry (Glyph "Odieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE6) ]
--- , MapEntry (Glyph "Odieresissmall") [ UTF82 (Bytes2All 0xF7 0xF6) ]
--- , MapEntry (Glyph "Odotbelow") [ UTF82 (Bytes2All 0x1E 0xCC) ]
--- , MapEntry (Glyph "Ogoneksmall") [ UTF82 (Bytes2All 0xF6 0xFB) ]
-, MapEntry (Glyph "Ograve") [ UTF81 (Bytes1 0xD2) ]
--- , MapEntry (Glyph "Ogravesmall") [ UTF82 (Bytes2All 0xF7 0xF2) ]
--- , MapEntry (Glyph "Oharmenian") [ UTF82 (Bytes2All 0x05 0x55) ]
--- , MapEntry (Glyph "Ohm") [ UTF82 (Bytes2All 0x21 0x26) ]
--- , MapEntry (Glyph "Ohookabove") [ UTF82 (Bytes2All 0x1E 0xCE) ]
--- , MapEntry (Glyph "Ohorn") [ UTF82 (Bytes2All 0x01 0xA0) ]
--- , MapEntry (Glyph "Ohornacute") [ UTF82 (Bytes2All 0x1E 0xDA) ]
--- , MapEntry (Glyph "Ohorndotbelow") [ UTF82 (Bytes2All 0x1E 0xE2) ]
--- , MapEntry (Glyph "Ohorngrave") [ UTF82 (Bytes2All 0x1E 0xDC) ]
--- , MapEntry (Glyph "Ohornhookabove") [ UTF82 (Bytes2All 0x1E 0xDE) ]
--- , MapEntry (Glyph "Ohorntilde") [ UTF82 (Bytes2All 0x1E 0xE0) ]
--- , MapEntry (Glyph "Ohungarumlaut") [ UTF82 (Bytes2All 0x01 0x50) ]
--- , MapEntry (Glyph "Oi") [ UTF82 (Bytes2All 0x01 0xA2) ]
--- , MapEntry (Glyph "Oinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0E) ]
--- , MapEntry (Glyph "Omacron") [ UTF82 (Bytes2All 0x01 0x4C) ]
--- , MapEntry (Glyph "Omacronacute") [ UTF82 (Bytes2All 0x1E 0x52) ]
--- , MapEntry (Glyph "Omacrongrave") [ UTF82 (Bytes2All 0x1E 0x50) ]
--- , MapEntry (Glyph "Omega") [ UTF82 (Bytes2All 0x21 0x26) ]
--- , MapEntry (Glyph "Omegacyrillic") [ UTF82 (Bytes2All 0x04 0x60) ]
--- , MapEntry (Glyph "Omegagreek") [ UTF82 (Bytes2All 0x03 0xA9) ]
--- , MapEntry (Glyph "Omegaroundcyrillic") [ UTF82 (Bytes2All 0x04 0x7A) ]
--- , MapEntry (Glyph "Omegatitlocyrillic") [ UTF82 (Bytes2All 0x04 0x7C) ]
--- , MapEntry (Glyph "Omegatonos") [ UTF82 (Bytes2All 0x03 0x8F) ]
--- , MapEntry (Glyph "Omicron") [ UTF82 (Bytes2All 0x03 0x9F) ]
--- , MapEntry (Glyph "Omicrontonos") [ UTF82 (Bytes2All 0x03 0x8C) ]
--- , MapEntry (Glyph "Omonospace") [ UTF82 (Bytes2All 0xFF 0x2F) ]
--- , MapEntry (Glyph "Oneroman") [ UTF82 (Bytes2All 0x21 0x60) ]
--- , MapEntry (Glyph "Oogonek") [ UTF82 (Bytes2All 0x01 0xEA) ]
--- , MapEntry (Glyph "Oogonekmacron") [ UTF82 (Bytes2All 0x01 0xEC) ]
--- , MapEntry (Glyph "Oopen") [ UTF82 (Bytes2All 0x01 0x86) ]
-, MapEntry (Glyph "Oslash") [ UTF81 (Bytes1 0xD8) ]
--- , MapEntry (Glyph "Oslashacute") [ UTF82 (Bytes2All 0x01 0xFE) ]
--- , MapEntry (Glyph "Oslashsmall") [ UTF82 (Bytes2All 0xF7 0xF8) ]
--- , MapEntry (Glyph "Osmall") [ UTF82 (Bytes2All 0xF7 0x6F) ]
--- , MapEntry (Glyph "Ostrokeacute") [ UTF82 (Bytes2All 0x01 0xFE) ]
--- , MapEntry (Glyph "Otcyrillic") [ UTF82 (Bytes2All 0x04 0x7E) ]
-, MapEntry (Glyph "Otilde") [ UTF81 (Bytes1 0xD5) ]
--- , MapEntry (Glyph "Otildeacute") [ UTF82 (Bytes2All 0x1E 0x4C) ]
--- , MapEntry (Glyph "Otildedieresis") [ UTF82 (Bytes2All 0x1E 0x4E) ]
--- , MapEntry (Glyph "Otildesmall") [ UTF82 (Bytes2All 0xF7 0xF5) ]
-, MapEntry (Glyph "P") [ UTF81 (Bytes1 0x50) ]
--- , MapEntry (Glyph "Pacute") [ UTF82 (Bytes2All 0x1E 0x54) ]
--- , MapEntry (Glyph "Pcircle") [ UTF82 (Bytes2All 0x24 0xC5) ]
--- , MapEntry (Glyph "Pdotaccent") [ UTF82 (Bytes2All 0x1E 0x56) ]
--- , MapEntry (Glyph "Pecyrillic") [ UTF82 (Bytes2All 0x04 0x1F) ]
--- , MapEntry (Glyph "Peharmenian") [ UTF82 (Bytes2All 0x05 0x4A) ]
--- , MapEntry (Glyph "Pemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0xA6) ]
--- , MapEntry (Glyph "Phi") [ UTF82 (Bytes2All 0x03 0xA6) ]
--- , MapEntry (Glyph "Phook") [ UTF82 (Bytes2All 0x01 0xA4) ]
--- , MapEntry (Glyph "Pi") [ UTF82 (Bytes2All 0x03 0xA0) ]
--- , MapEntry (Glyph "Piwrarmenian") [ UTF82 (Bytes2All 0x05 0x53) ]
--- , MapEntry (Glyph "Pmonospace") [ UTF82 (Bytes2All 0xFF 0x30) ]
--- , MapEntry (Glyph "Psi") [ UTF82 (Bytes2All 0x03 0xA8) ]
--- , MapEntry (Glyph "Psicyrillic") [ UTF82 (Bytes2All 0x04 0x70) ]
--- , MapEntry (Glyph "Psmall") [ UTF82 (Bytes2All 0xF7 0x70) ]
-, MapEntry (Glyph "Q") [ UTF81 (Bytes1 0x51) ]
--- , MapEntry (Glyph "Qcircle") [ UTF82 (Bytes2All 0x24 0xC6) ]
--- , MapEntry (Glyph "Qmonospace") [ UTF82 (Bytes2All 0xFF 0x31) ]
--- , MapEntry (Glyph "Qsmall") [ UTF82 (Bytes2All 0xF7 0x71) ]
-, MapEntry (Glyph "R") [ UTF81 (Bytes1 0x52) ]
--- , MapEntry (Glyph "Raarmenian") [ UTF82 (Bytes2All 0x05 0x4C) ]
--- , MapEntry (Glyph "Racute") [ UTF82 (Bytes2All 0x01 0x54) ]
--- , MapEntry (Glyph "Rcaron") [ UTF82 (Bytes2All 0x01 0x58) ]
--- , MapEntry (Glyph "Rcedilla") [ UTF82 (Bytes2All 0x01 0x56) ]
--- , MapEntry (Glyph "Rcircle") [ UTF82 (Bytes2All 0x24 0xC7) ]
--- , MapEntry (Glyph "Rcommaaccent") [ UTF82 (Bytes2All 0x01 0x56) ]
--- , MapEntry (Glyph "Rdblgrave") [ UTF82 (Bytes2All 0x02 0x10) ]
--- , MapEntry (Glyph "Rdotaccent") [ UTF82 (Bytes2All 0x1E 0x58) ]
--- , MapEntry (Glyph "Rdotbelow") [ UTF82 (Bytes2All 0x1E 0x5A) ]
--- , MapEntry (Glyph "Rdotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x5C) ]
--- , MapEntry (Glyph "Reharmenian") [ UTF82 (Bytes2All 0x05 0x50) ]
--- , MapEntry (Glyph "Rfraktur") [ UTF82 (Bytes2All 0x21 0x1C) ]
--- , MapEntry (Glyph "Rho") [ UTF82 (Bytes2All 0x03 0xA1) ]
--- , MapEntry (Glyph "Ringsmall") [ UTF82 (Bytes2All 0xF6 0xFC) ]
--- , MapEntry (Glyph "Rinvertedbreve") [ UTF82 (Bytes2All 0x02 0x12) ]
--- , MapEntry (Glyph "Rlinebelow") [ UTF82 (Bytes2All 0x1E 0x5E) ]
--- , MapEntry (Glyph "Rmonospace") [ UTF82 (Bytes2All 0xFF 0x32) ]
--- , MapEntry (Glyph "Rsmall") [ UTF82 (Bytes2All 0xF7 0x72) ]
--- , MapEntry (Glyph "Rsmallinverted") [ UTF82 (Bytes2All 0x02 0x81) ]
--- , MapEntry (Glyph "Rsmallinvertedsuperior") [ UTF82 (Bytes2All 0x02 0xB6) ]
-, MapEntry (Glyph "S") [ UTF81 (Bytes1 0x53) ]
--- , MapEntry (Glyph "SF010000") [ UTF82 (Bytes2All 0x25 0x0C) ]
--- , MapEntry (Glyph "SF020000") [ UTF82 (Bytes2All 0x25 0x14) ]
--- , MapEntry (Glyph "SF030000") [ UTF82 (Bytes2All 0x25 0x10) ]
--- , MapEntry (Glyph "SF040000") [ UTF82 (Bytes2All 0x25 0x18) ]
--- , MapEntry (Glyph "SF050000") [ UTF82 (Bytes2All 0x25 0x3C) ]
--- , MapEntry (Glyph "SF060000") [ UTF82 (Bytes2All 0x25 0x2C) ]
--- , MapEntry (Glyph "SF070000") [ UTF82 (Bytes2All 0x25 0x34) ]
--- , MapEntry (Glyph "SF080000") [ UTF82 (Bytes2All 0x25 0x1C) ]
--- , MapEntry (Glyph "SF090000") [ UTF82 (Bytes2All 0x25 0x24) ]
--- , MapEntry (Glyph "SF100000") [ UTF82 (Bytes2All 0x25 0x00) ]
--- , MapEntry (Glyph "SF110000") [ UTF82 (Bytes2All 0x25 0x02) ]
--- , MapEntry (Glyph "SF190000") [ UTF82 (Bytes2All 0x25 0x61) ]
--- , MapEntry (Glyph "SF200000") [ UTF82 (Bytes2All 0x25 0x62) ]
--- , MapEntry (Glyph "SF210000") [ UTF82 (Bytes2All 0x25 0x56) ]
--- , MapEntry (Glyph "SF220000") [ UTF82 (Bytes2All 0x25 0x55) ]
--- , MapEntry (Glyph "SF230000") [ UTF82 (Bytes2All 0x25 0x63) ]
--- , MapEntry (Glyph "SF240000") [ UTF82 (Bytes2All 0x25 0x51) ]
--- , MapEntry (Glyph "SF250000") [ UTF82 (Bytes2All 0x25 0x57) ]
--- , MapEntry (Glyph "SF260000") [ UTF82 (Bytes2All 0x25 0x5D) ]
--- , MapEntry (Glyph "SF270000") [ UTF82 (Bytes2All 0x25 0x5C) ]
--- , MapEntry (Glyph "SF280000") [ UTF82 (Bytes2All 0x25 0x5B) ]
--- , MapEntry (Glyph "SF360000") [ UTF82 (Bytes2All 0x25 0x5E) ]
--- , MapEntry (Glyph "SF370000") [ UTF82 (Bytes2All 0x25 0x5F) ]
--- , MapEntry (Glyph "SF380000") [ UTF82 (Bytes2All 0x25 0x5A) ]
--- , MapEntry (Glyph "SF390000") [ UTF82 (Bytes2All 0x25 0x54) ]
--- , MapEntry (Glyph "SF400000") [ UTF82 (Bytes2All 0x25 0x69) ]
--- , MapEntry (Glyph "SF410000") [ UTF82 (Bytes2All 0x25 0x66) ]
--- , MapEntry (Glyph "SF420000") [ UTF82 (Bytes2All 0x25 0x60) ]
--- , MapEntry (Glyph "SF430000") [ UTF82 (Bytes2All 0x25 0x50) ]
--- , MapEntry (Glyph "SF440000") [ UTF82 (Bytes2All 0x25 0x6C) ]
--- , MapEntry (Glyph "SF450000") [ UTF82 (Bytes2All 0x25 0x67) ]
--- , MapEntry (Glyph "SF460000") [ UTF82 (Bytes2All 0x25 0x68) ]
--- , MapEntry (Glyph "SF470000") [ UTF82 (Bytes2All 0x25 0x64) ]
--- , MapEntry (Glyph "SF480000") [ UTF82 (Bytes2All 0x25 0x65) ]
--- , MapEntry (Glyph "SF490000") [ UTF82 (Bytes2All 0x25 0x59) ]
--- , MapEntry (Glyph "SF500000") [ UTF82 (Bytes2All 0x25 0x58) ]
--- , MapEntry (Glyph "SF510000") [ UTF82 (Bytes2All 0x25 0x52) ]
--- , MapEntry (Glyph "SF520000") [ UTF82 (Bytes2All 0x25 0x53) ]
--- , MapEntry (Glyph "SF530000") [ UTF82 (Bytes2All 0x25 0x6B) ]
--- , MapEntry (Glyph "SF540000") [ UTF82 (Bytes2All 0x25 0x6A) ]
--- , MapEntry (Glyph "Sacute") [ UTF82 (Bytes2All 0x01 0x5A) ]
--- , MapEntry (Glyph "Sacutedotaccent") [ UTF82 (Bytes2All 0x1E 0x64) ]
--- , MapEntry (Glyph "Sampigreek") [ UTF82 (Bytes2All 0x03 0xE0) ]
--- , MapEntry (Glyph "Scaron") [ UTF82 (Bytes2All 0x01 0x60) ]
--- , MapEntry (Glyph "Scarondotaccent") [ UTF82 (Bytes2All 0x1E 0x66) ]
--- , MapEntry (Glyph "Scaronsmall") [ UTF82 (Bytes2All 0xF6 0xFD) ]
--- , MapEntry (Glyph "Scedilla") [ UTF82 (Bytes2All 0x01 0x5E) ]
--- , MapEntry (Glyph "Schwa") [ UTF82 (Bytes2All 0x01 0x8F) ]
--- , MapEntry (Glyph "Schwacyrillic") [ UTF82 (Bytes2All 0x04 0xD8) ]
--- , MapEntry (Glyph "Schwadieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDA) ]
--- , MapEntry (Glyph "Scircle") [ UTF82 (Bytes2All 0x24 0xC8) ]
--- , MapEntry (Glyph "Scircumflex") [ UTF82 (Bytes2All 0x01 0x5C) ]
--- , MapEntry (Glyph "Scommaaccent") [ UTF82 (Bytes2All 0x02 0x18) ]
--- , MapEntry (Glyph "Sdotaccent") [ UTF82 (Bytes2All 0x1E 0x60) ]
--- , MapEntry (Glyph "Sdotbelow") [ UTF82 (Bytes2All 0x1E 0x62) ]
--- , MapEntry (Glyph "Sdotbelowdotaccent") [ UTF82 (Bytes2All 0x1E 0x68) ]
--- , MapEntry (Glyph "Seharmenian") [ UTF82 (Bytes2All 0x05 0x4D) ]
--- , MapEntry (Glyph "Sevenroman") [ UTF82 (Bytes2All 0x21 0x66) ]
--- , MapEntry (Glyph "Shaarmenian") [ UTF82 (Bytes2All 0x05 0x47) ]
--- , MapEntry (Glyph "Shacyrillic") [ UTF82 (Bytes2All 0x04 0x28) ]
--- , MapEntry (Glyph "Shchacyrillic") [ UTF82 (Bytes2All 0x04 0x29) ]
--- , MapEntry (Glyph "Sheicoptic") [ UTF82 (Bytes2All 0x03 0xE2) ]
--- , MapEntry (Glyph "Shhacyrillic") [ UTF82 (Bytes2All 0x04 0xBA) ]
--- , MapEntry (Glyph "Shimacoptic") [ UTF82 (Bytes2All 0x03 0xEC) ]
--- , MapEntry (Glyph "Sigma") [ UTF82 (Bytes2All 0x03 0xA3) ]
--- , MapEntry (Glyph "Sixroman") [ UTF82 (Bytes2All 0x21 0x65) ]
--- , MapEntry (Glyph "Smonospace") [ UTF82 (Bytes2All 0xFF 0x33) ]
--- , MapEntry (Glyph "Softsigncyrillic") [ UTF82 (Bytes2All 0x04 0x2C) ]
--- , MapEntry (Glyph "Ssmall") [ UTF82 (Bytes2All 0xF7 0x73) ]
--- , MapEntry (Glyph "Stigmagreek") [ UTF82 (Bytes2All 0x03 0xDA) ]
-, MapEntry (Glyph "T") [ UTF81 (Bytes1 0x54) ]
--- , MapEntry (Glyph "Tau") [ UTF82 (Bytes2All 0x03 0xA4) ]
--- , MapEntry (Glyph "Tbar") [ UTF82 (Bytes2All 0x01 0x66) ]
--- , MapEntry (Glyph "Tcaron") [ UTF82 (Bytes2All 0x01 0x64) ]
--- , MapEntry (Glyph "Tcedilla") [ UTF82 (Bytes2All 0x01 0x62) ]
--- , MapEntry (Glyph "Tcircle") [ UTF82 (Bytes2All 0x24 0xC9) ]
--- , MapEntry (Glyph "Tcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x70) ]
--- , MapEntry (Glyph "Tcommaaccent") [ UTF82 (Bytes2All 0x01 0x62) ]
--- , MapEntry (Glyph "Tdotaccent") [ UTF82 (Bytes2All 0x1E 0x6A) ]
--- , MapEntry (Glyph "Tdotbelow") [ UTF82 (Bytes2All 0x1E 0x6C) ]
--- , MapEntry (Glyph "Tecyrillic") [ UTF82 (Bytes2All 0x04 0x22) ]
--- , MapEntry (Glyph "Tedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAC) ]
--- , MapEntry (Glyph "Tenroman") [ UTF82 (Bytes2All 0x21 0x69) ]
--- , MapEntry (Glyph "Tetsecyrillic") [ UTF82 (Bytes2All 0x04 0xB4) ]
--- , MapEntry (Glyph "Theta") [ UTF82 (Bytes2All 0x03 0x98) ]
--- , MapEntry (Glyph "Thook") [ UTF82 (Bytes2All 0x01 0xAC) ]
-, MapEntry (Glyph "Thorn") [ UTF81 (Bytes1 0xDE) ]
--- , MapEntry (Glyph "Thornsmall") [ UTF82 (Bytes2All 0xF7 0xFE) ]
--- , MapEntry (Glyph "Threeroman") [ UTF82 (Bytes2All 0x21 0x62) ]
--- , MapEntry (Glyph "Tildesmall") [ UTF82 (Bytes2All 0xF6 0xFE) ]
--- , MapEntry (Glyph "Tiwnarmenian") [ UTF82 (Bytes2All 0x05 0x4F) ]
--- , MapEntry (Glyph "Tlinebelow") [ UTF82 (Bytes2All 0x1E 0x6E) ]
--- , MapEntry (Glyph "Tmonospace") [ UTF82 (Bytes2All 0xFF 0x34) ]
--- , MapEntry (Glyph "Toarmenian") [ UTF82 (Bytes2All 0x05 0x39) ]
--- , MapEntry (Glyph "Tonefive") [ UTF82 (Bytes2All 0x01 0xBC) ]
--- , MapEntry (Glyph "Tonesix") [ UTF82 (Bytes2All 0x01 0x84) ]
--- , MapEntry (Glyph "Tonetwo") [ UTF82 (Bytes2All 0x01 0xA7) ]
--- , MapEntry (Glyph "Tretroflexhook") [ UTF82 (Bytes2All 0x01 0xAE) ]
--- , MapEntry (Glyph "Tsecyrillic") [ UTF82 (Bytes2All 0x04 0x26) ]
--- , MapEntry (Glyph "Tshecyrillic") [ UTF82 (Bytes2All 0x04 0x0B) ]
--- , MapEntry (Glyph "Tsmall") [ UTF82 (Bytes2All 0xF7 0x74) ]
--- , MapEntry (Glyph "Twelveroman") [ UTF82 (Bytes2All 0x21 0x6B) ]
--- , MapEntry (Glyph "Tworoman") [ UTF82 (Bytes2All 0x21 0x61) ]
-, MapEntry (Glyph "U") [ UTF81 (Bytes1 0x55) ]
-, MapEntry (Glyph "Uacute") [ UTF81 (Bytes1 0xDA) ]
--- , MapEntry (Glyph "Uacutesmall") [ UTF82 (Bytes2All 0xF7 0xFA) ]
--- , MapEntry (Glyph "Ubreve") [ UTF82 (Bytes2All 0x01 0x6C) ]
--- , MapEntry (Glyph "Ucaron") [ UTF82 (Bytes2All 0x01 0xD3) ]
--- , MapEntry (Glyph "Ucircle") [ UTF82 (Bytes2All 0x24 0xCA) ]
-, MapEntry (Glyph "Ucircumflex") [ UTF81 (Bytes1 0xDB) ]
--- , MapEntry (Glyph "Ucircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x76) ]
--- , MapEntry (Glyph "Ucircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xFB) ]
--- , MapEntry (Glyph "Ucyrillic") [ UTF82 (Bytes2All 0x04 0x23) ]
--- , MapEntry (Glyph "Udblacute") [ UTF82 (Bytes2All 0x01 0x70) ]
--- , MapEntry (Glyph "Udblgrave") [ UTF82 (Bytes2All 0x02 0x14) ]
-, MapEntry (Glyph "Udieresis") [ UTF81 (Bytes1 0xDC) ]
--- , MapEntry (Glyph "Udieresisacute") [ UTF82 (Bytes2All 0x01 0xD7) ]
--- , MapEntry (Glyph "Udieresisbelow") [ UTF82 (Bytes2All 0x1E 0x72) ]
--- , MapEntry (Glyph "Udieresiscaron") [ UTF82 (Bytes2All 0x01 0xD9) ]
--- , MapEntry (Glyph "Udieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF0) ]
--- , MapEntry (Glyph "Udieresisgrave") [ UTF82 (Bytes2All 0x01 0xDB) ]
--- , MapEntry (Glyph "Udieresismacron") [ UTF82 (Bytes2All 0x01 0xD5) ]
--- , MapEntry (Glyph "Udieresissmall") [ UTF82 (Bytes2All 0xF7 0xFC) ]
--- , MapEntry (Glyph "Udotbelow") [ UTF82 (Bytes2All 0x1E 0xE4) ]
-, MapEntry (Glyph "Ugrave") [ UTF81 (Bytes1 0xD9) ]
--- , MapEntry (Glyph "Ugravesmall") [ UTF82 (Bytes2All 0xF7 0xF9) ]
--- , MapEntry (Glyph "Uhookabove") [ UTF82 (Bytes2All 0x1E 0xE6) ]
--- , MapEntry (Glyph "Uhorn") [ UTF82 (Bytes2All 0x01 0xAF) ]
--- , MapEntry (Glyph "Uhornacute") [ UTF82 (Bytes2All 0x1E 0xE8) ]
--- , MapEntry (Glyph "Uhorndotbelow") [ UTF82 (Bytes2All 0x1E 0xF0) ]
--- , MapEntry (Glyph "Uhorngrave") [ UTF82 (Bytes2All 0x1E 0xEA) ]
--- , MapEntry (Glyph "Uhornhookabove") [ UTF82 (Bytes2All 0x1E 0xEC) ]
--- , MapEntry (Glyph "Uhorntilde") [ UTF82 (Bytes2All 0x1E 0xEE) ]
--- , MapEntry (Glyph "Uhungarumlaut") [ UTF82 (Bytes2All 0x01 0x70) ]
--- , MapEntry (Glyph "Uhungarumlautcyrillic") [ UTF82 (Bytes2All 0x04 0xF2) ]
--- , MapEntry (Glyph "Uinvertedbreve") [ UTF82 (Bytes2All 0x02 0x16) ]
--- , MapEntry (Glyph "Ukcyrillic") [ UTF82 (Bytes2All 0x04 0x78) ]
--- , MapEntry (Glyph "Umacron") [ UTF82 (Bytes2All 0x01 0x6A) ]
--- , MapEntry (Glyph "Umacroncyrillic") [ UTF82 (Bytes2All 0x04 0xEE) ]
--- , MapEntry (Glyph "Umacrondieresis") [ UTF82 (Bytes2All 0x1E 0x7A) ]
--- , MapEntry (Glyph "Umonospace") [ UTF82 (Bytes2All 0xFF 0x35) ]
--- , MapEntry (Glyph "Uogonek") [ UTF82 (Bytes2All 0x01 0x72) ]
--- , MapEntry (Glyph "Upsilon") [ UTF82 (Bytes2All 0x03 0xA5) ]
--- , MapEntry (Glyph "Upsilon1") [ UTF82 (Bytes2All 0x03 0xD2) ]
--- , MapEntry (Glyph "Upsilonacutehooksymbolgreek") [ UTF82 (Bytes2All 0x03 0xD3) ]
--- , MapEntry (Glyph "Upsilonafrican") [ UTF82 (Bytes2All 0x01 0xB1) ]
--- , MapEntry (Glyph "Upsilondieresis") [ UTF82 (Bytes2All 0x03 0xAB) ]
--- , MapEntry (Glyph "Upsilondieresishooksymbolgreek") [ UTF82 (Bytes2All 0x03 0xD4) ]
--- , MapEntry (Glyph "Upsilonhooksymbol") [ UTF82 (Bytes2All 0x03 0xD2) ]
--- , MapEntry (Glyph "Upsilontonos") [ UTF82 (Bytes2All 0x03 0x8E) ]
--- , MapEntry (Glyph "Uring") [ UTF82 (Bytes2All 0x01 0x6E) ]
--- , MapEntry (Glyph "Ushortcyrillic") [ UTF82 (Bytes2All 0x04 0x0E) ]
--- , MapEntry (Glyph "Usmall") [ UTF82 (Bytes2All 0xF7 0x75) ]
--- , MapEntry (Glyph "Ustraightcyrillic") [ UTF82 (Bytes2All 0x04 0xAE) ]
--- , MapEntry (Glyph "Ustraightstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB0) ]
--- , MapEntry (Glyph "Utilde") [ UTF82 (Bytes2All 0x01 0x68) ]
--- , MapEntry (Glyph "Utildeacute") [ UTF82 (Bytes2All 0x1E 0x78) ]
--- , MapEntry (Glyph "Utildebelow") [ UTF82 (Bytes2All 0x1E 0x74) ]
-, MapEntry (Glyph "V") [ UTF81 (Bytes1 0x56) ]
--- , MapEntry (Glyph "Vcircle") [ UTF82 (Bytes2All 0x24 0xCB) ]
--- , MapEntry (Glyph "Vdotbelow") [ UTF82 (Bytes2All 0x1E 0x7E) ]
--- , MapEntry (Glyph "Vecyrillic") [ UTF82 (Bytes2All 0x04 0x12) ]
--- , MapEntry (Glyph "Vewarmenian") [ UTF82 (Bytes2All 0x05 0x4E) ]
--- , MapEntry (Glyph "Vhook") [ UTF82 (Bytes2All 0x01 0xB2) ]
--- , MapEntry (Glyph "Vmonospace") [ UTF82 (Bytes2All 0xFF 0x36) ]
--- , MapEntry (Glyph "Voarmenian") [ UTF82 (Bytes2All 0x05 0x48) ]
--- , MapEntry (Glyph "Vsmall") [ UTF82 (Bytes2All 0xF7 0x76) ]
--- , MapEntry (Glyph "Vtilde") [ UTF82 (Bytes2All 0x1E 0x7C) ]
-, MapEntry (Glyph "W") [ UTF81 (Bytes1 0x57) ]
--- , MapEntry (Glyph "Wacute") [ UTF82 (Bytes2All 0x1E 0x82) ]
--- , MapEntry (Glyph "Wcircle") [ UTF82 (Bytes2All 0x24 0xCC) ]
--- , MapEntry (Glyph "Wcircumflex") [ UTF82 (Bytes2All 0x01 0x74) ]
--- , MapEntry (Glyph "Wdieresis") [ UTF82 (Bytes2All 0x1E 0x84) ]
--- , MapEntry (Glyph "Wdotaccent") [ UTF82 (Bytes2All 0x1E 0x86) ]
--- , MapEntry (Glyph "Wdotbelow") [ UTF82 (Bytes2All 0x1E 0x88) ]
--- , MapEntry (Glyph "Wgrave") [ UTF82 (Bytes2All 0x1E 0x80) ]
--- , MapEntry (Glyph "Wmonospace") [ UTF82 (Bytes2All 0xFF 0x37) ]
--- , MapEntry (Glyph "Wsmall") [ UTF82 (Bytes2All 0xF7 0x77) ]
-, MapEntry (Glyph "X") [ UTF81 (Bytes1 0x58) ]
--- , MapEntry (Glyph "Xcircle") [ UTF82 (Bytes2All 0x24 0xCD) ]
--- , MapEntry (Glyph "Xdieresis") [ UTF82 (Bytes2All 0x1E 0x8C) ]
--- , MapEntry (Glyph "Xdotaccent") [ UTF82 (Bytes2All 0x1E 0x8A) ]
--- , MapEntry (Glyph "Xeharmenian") [ UTF82 (Bytes2All 0x05 0x3D) ]
--- , MapEntry (Glyph "Xi") [ UTF82 (Bytes2All 0x03 0x9E) ]
--- , MapEntry (Glyph "Xmonospace") [ UTF82 (Bytes2All 0xFF 0x38) ]
--- , MapEntry (Glyph "Xsmall") [ UTF82 (Bytes2All 0xF7 0x78) ]
-, MapEntry (Glyph "Y") [ UTF81 (Bytes1 0x59) ]
-, MapEntry (Glyph "Yacute") [ UTF81 (Bytes1 0xDD) ]
--- , MapEntry (Glyph "Yacutesmall") [ UTF82 (Bytes2All 0xF7 0xFD) ]
--- , MapEntry (Glyph "Yatcyrillic") [ UTF82 (Bytes2All 0x04 0x62) ]
--- , MapEntry (Glyph "Ycircle") [ UTF82 (Bytes2All 0x24 0xCE) ]
--- , MapEntry (Glyph "Ycircumflex") [ UTF82 (Bytes2All 0x01 0x76) ]
--- , MapEntry (Glyph "Ydieresis") [ UTF82 (Bytes2All 0x01 0x78) ]
--- , MapEntry (Glyph "Ydieresissmall") [ UTF82 (Bytes2All 0xF7 0xFF) ]
--- , MapEntry (Glyph "Ydotaccent") [ UTF82 (Bytes2All 0x1E 0x8E) ]
--- , MapEntry (Glyph "Ydotbelow") [ UTF82 (Bytes2All 0x1E 0xF4) ]
--- , MapEntry (Glyph "Yericyrillic") [ UTF82 (Bytes2All 0x04 0x2B) ]
--- , MapEntry (Glyph "Yerudieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF8) ]
--- , MapEntry (Glyph "Ygrave") [ UTF82 (Bytes2All 0x1E 0xF2) ]
--- , MapEntry (Glyph "Yhook") [ UTF82 (Bytes2All 0x01 0xB3) ]
--- , MapEntry (Glyph "Yhookabove") [ UTF82 (Bytes2All 0x1E 0xF6) ]
--- , MapEntry (Glyph "Yiarmenian") [ UTF82 (Bytes2All 0x05 0x45) ]
--- , MapEntry (Glyph "Yicyrillic") [ UTF82 (Bytes2All 0x04 0x07) ]
--- , MapEntry (Glyph "Yiwnarmenian") [ UTF82 (Bytes2All 0x05 0x52) ]
--- , MapEntry (Glyph "Ymonospace") [ UTF82 (Bytes2All 0xFF 0x39) ]
--- , MapEntry (Glyph "Ysmall") [ UTF82 (Bytes2All 0xF7 0x79) ]
--- , MapEntry (Glyph "Ytilde") [ UTF82 (Bytes2All 0x1E 0xF8) ]
--- , MapEntry (Glyph "Yusbigcyrillic") [ UTF82 (Bytes2All 0x04 0x6A) ]
--- , MapEntry (Glyph "Yusbigiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x6C) ]
--- , MapEntry (Glyph "Yuslittlecyrillic") [ UTF82 (Bytes2All 0x04 0x66) ]
--- , MapEntry (Glyph "Yuslittleiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x68) ]
-, MapEntry (Glyph "Z") [ UTF81 (Bytes1 0x5A) ]
--- , MapEntry (Glyph "Zaarmenian") [ UTF82 (Bytes2All 0x05 0x36) ]
--- , MapEntry (Glyph "Zacute") [ UTF82 (Bytes2All 0x01 0x79) ]
--- , MapEntry (Glyph "Zcaron") [ UTF82 (Bytes2All 0x01 0x7D) ]
--- , MapEntry (Glyph "Zcaronsmall") [ UTF82 (Bytes2All 0xF6 0xFF) ]
--- , MapEntry (Glyph "Zcircle") [ UTF82 (Bytes2All 0x24 0xCF) ]
--- , MapEntry (Glyph "Zcircumflex") [ UTF82 (Bytes2All 0x1E 0x90) ]
--- , MapEntry (Glyph "Zdot") [ UTF82 (Bytes2All 0x01 0x7B) ]
--- , MapEntry (Glyph "Zdotaccent") [ UTF82 (Bytes2All 0x01 0x7B) ]
--- , MapEntry (Glyph "Zdotbelow") [ UTF82 (Bytes2All 0x1E 0x92) ]
--- , MapEntry (Glyph "Zecyrillic") [ UTF82 (Bytes2All 0x04 0x17) ]
--- , MapEntry (Glyph "Zedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x98) ]
--- , MapEntry (Glyph "Zedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDE) ]
--- , MapEntry (Glyph "Zeta") [ UTF82 (Bytes2All 0x03 0x96) ]
--- , MapEntry (Glyph "Zhearmenian") [ UTF82 (Bytes2All 0x05 0x3A) ]
--- , MapEntry (Glyph "Zhebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xC1) ]
--- , MapEntry (Glyph "Zhecyrillic") [ UTF82 (Bytes2All 0x04 0x16) ]
--- , MapEntry (Glyph "Zhedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x96) ]
--- , MapEntry (Glyph "Zhedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDC) ]
--- , MapEntry (Glyph "Zlinebelow") [ UTF82 (Bytes2All 0x1E 0x94) ]
--- , MapEntry (Glyph "Zmonospace") [ UTF82 (Bytes2All 0xFF 0x3A) ]
--- , MapEntry (Glyph "Zsmall") [ UTF82 (Bytes2All 0xF7 0x7A) ]
--- , MapEntry (Glyph "Zstroke") [ UTF82 (Bytes2All 0x01 0xB5) ]
-, MapEntry (Glyph "a") [ UTF81 (Bytes1 0x61) ]
--- , MapEntry (Glyph "aabengali") [ UTF82 (Bytes2All 0x09 0x86) ]
-, MapEntry (Glyph "aacute") [ UTF81 (Bytes1 0xE1) ]
--- , MapEntry (Glyph "aadeva") [ UTF82 (Bytes2All 0x09 0x06) ]
--- , MapEntry (Glyph "aagujarati") [ UTF82 (Bytes2All 0x0A 0x86) ]
--- , MapEntry (Glyph "aagurmukhi") [ UTF82 (Bytes2All 0x0A 0x06) ]
--- , MapEntry (Glyph "aamatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x3E) ]
--- , MapEntry (Glyph "aarusquare") [ UTF82 (Bytes2All 0x33 0x03) ]
--- , MapEntry (Glyph "aavowelsignbengali") [ UTF82 (Bytes2All 0x09 0xBE) ]
--- , MapEntry (Glyph "aavowelsigndeva") [ UTF82 (Bytes2All 0x09 0x3E) ]
--- , MapEntry (Glyph "aavowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xBE) ]
--- , MapEntry (Glyph "abbreviationmarkarmenian") [ UTF82 (Bytes2All 0x05 0x5F) ]
--- , MapEntry (Glyph "abbreviationsigndeva") [ UTF82 (Bytes2All 0x09 0x70) ]
--- , MapEntry (Glyph "abengali") [ UTF82 (Bytes2All 0x09 0x85) ]
--- , MapEntry (Glyph "abopomofo") [ UTF82 (Bytes2All 0x31 0x1A) ]
--- , MapEntry (Glyph "abreve") [ UTF82 (Bytes2All 0x01 0x03) ]
--- , MapEntry (Glyph "abreveacute") [ UTF82 (Bytes2All 0x1E 0xAF) ]
--- , MapEntry (Glyph "abrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD1) ]
--- , MapEntry (Glyph "abrevedotbelow") [ UTF82 (Bytes2All 0x1E 0xB7) ]
--- , MapEntry (Glyph "abrevegrave") [ UTF82 (Bytes2All 0x1E 0xB1) ]
--- , MapEntry (Glyph "abrevehookabove") [ UTF82 (Bytes2All 0x1E 0xB3) ]
--- , MapEntry (Glyph "abrevetilde") [ UTF82 (Bytes2All 0x1E 0xB5) ]
--- , MapEntry (Glyph "acaron") [ UTF82 (Bytes2All 0x01 0xCE) ]
--- , MapEntry (Glyph "acircle") [ UTF82 (Bytes2All 0x24 0xD0) ]
-, MapEntry (Glyph "acircumflex") [ UTF81 (Bytes1 0xE2) ]
--- , MapEntry (Glyph "acircumflexacute") [ UTF82 (Bytes2All 0x1E 0xA5) ]
--- , MapEntry (Glyph "acircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xAD) ]
--- , MapEntry (Glyph "acircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xA7) ]
--- , MapEntry (Glyph "acircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xA9) ]
--- , MapEntry (Glyph "acircumflextilde") [ UTF82 (Bytes2All 0x1E 0xAB) ]
-, MapEntry (Glyph "acute") [ UTF81 (Bytes1 0xB4) ]
--- , MapEntry (Glyph "acutebelowcmb") [ UTF82 (Bytes2All 0x03 0x17) ]
--- , MapEntry (Glyph "acutecmb") [ UTF82 (Bytes2All 0x03 0x01) ]
--- , MapEntry (Glyph "acutecomb") [ UTF82 (Bytes2All 0x03 0x01) ]
--- , MapEntry (Glyph "acutedeva") [ UTF82 (Bytes2All 0x09 0x54) ]
--- , MapEntry (Glyph "acutelowmod") [ UTF82 (Bytes2All 0x02 0xCF) ]
--- , MapEntry (Glyph "acutetonecmb") [ UTF82 (Bytes2All 0x03 0x41) ]
--- , MapEntry (Glyph "acyrillic") [ UTF82 (Bytes2All 0x04 0x30) ]
--- , MapEntry (Glyph "adblgrave") [ UTF82 (Bytes2All 0x02 0x01) ]
--- , MapEntry (Glyph "addakgurmukhi") [ UTF82 (Bytes2All 0x0A 0x71) ]
--- , MapEntry (Glyph "adeva") [ UTF82 (Bytes2All 0x09 0x05) ]
-, MapEntry (Glyph "adieresis") [ UTF81 (Bytes1 0xE4) ]
--- , MapEntry (Glyph "adieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xD3) ]
--- , MapEntry (Glyph "adieresismacron") [ UTF82 (Bytes2All 0x01 0xDF) ]
--- , MapEntry (Glyph "adotbelow") [ UTF82 (Bytes2All 0x1E 0xA1) ]
--- , MapEntry (Glyph "adotmacron") [ UTF82 (Bytes2All 0x01 0xE1) ]
-, MapEntry (Glyph "ae") [ UTF81 (Bytes1 0xE6) ]
--- , MapEntry (Glyph "aeacute") [ UTF82 (Bytes2All 0x01 0xFD) ]
--- , MapEntry (Glyph "aekorean") [ UTF82 (Bytes2All 0x31 0x50) ]
--- , MapEntry (Glyph "aemacron") [ UTF82 (Bytes2All 0x01 0xE3) ]
--- , MapEntry (Glyph "afii00208") [ UTF82 (Bytes2All 0x20 0x15) ]
--- , MapEntry (Glyph "afii08941") [ UTF82 (Bytes2All 0x20 0xA4) ]
--- , MapEntry (Glyph "afii10017") [ UTF82 (Bytes2All 0x04 0x10) ]
--- , MapEntry (Glyph "afii10018") [ UTF82 (Bytes2All 0x04 0x11) ]
--- , MapEntry (Glyph "afii10019") [ UTF82 (Bytes2All 0x04 0x12) ]
--- , MapEntry (Glyph "afii10020") [ UTF82 (Bytes2All 0x04 0x13) ]
--- , MapEntry (Glyph "afii10021") [ UTF82 (Bytes2All 0x04 0x14) ]
--- , MapEntry (Glyph "afii10022") [ UTF82 (Bytes2All 0x04 0x15) ]
--- , MapEntry (Glyph "afii10023") [ UTF82 (Bytes2All 0x04 0x01) ]
--- , MapEntry (Glyph "afii10024") [ UTF82 (Bytes2All 0x04 0x16) ]
--- , MapEntry (Glyph "afii10025") [ UTF82 (Bytes2All 0x04 0x17) ]
--- , MapEntry (Glyph "afii10026") [ UTF82 (Bytes2All 0x04 0x18) ]
--- , MapEntry (Glyph "afii10027") [ UTF82 (Bytes2All 0x04 0x19) ]
--- , MapEntry (Glyph "afii10028") [ UTF82 (Bytes2All 0x04 0x1A) ]
--- , MapEntry (Glyph "afii10029") [ UTF82 (Bytes2All 0x04 0x1B) ]
--- , MapEntry (Glyph "afii10030") [ UTF82 (Bytes2All 0x04 0x1C) ]
--- , MapEntry (Glyph "afii10031") [ UTF82 (Bytes2All 0x04 0x1D) ]
--- , MapEntry (Glyph "afii10032") [ UTF82 (Bytes2All 0x04 0x1E) ]
--- , MapEntry (Glyph "afii10033") [ UTF82 (Bytes2All 0x04 0x1F) ]
--- , MapEntry (Glyph "afii10034") [ UTF82 (Bytes2All 0x04 0x20) ]
--- , MapEntry (Glyph "afii10035") [ UTF82 (Bytes2All 0x04 0x21) ]
--- , MapEntry (Glyph "afii10036") [ UTF82 (Bytes2All 0x04 0x22) ]
--- , MapEntry (Glyph "afii10037") [ UTF82 (Bytes2All 0x04 0x23) ]
--- , MapEntry (Glyph "afii10038") [ UTF82 (Bytes2All 0x04 0x24) ]
--- , MapEntry (Glyph "afii10039") [ UTF82 (Bytes2All 0x04 0x25) ]
--- , MapEntry (Glyph "afii10040") [ UTF82 (Bytes2All 0x04 0x26) ]
--- , MapEntry (Glyph "afii10041") [ UTF82 (Bytes2All 0x04 0x27) ]
--- , MapEntry (Glyph "afii10042") [ UTF82 (Bytes2All 0x04 0x28) ]
--- , MapEntry (Glyph "afii10043") [ UTF82 (Bytes2All 0x04 0x29) ]
--- , MapEntry (Glyph "afii10044") [ UTF82 (Bytes2All 0x04 0x2A) ]
--- , MapEntry (Glyph "afii10045") [ UTF82 (Bytes2All 0x04 0x2B) ]
--- , MapEntry (Glyph "afii10046") [ UTF82 (Bytes2All 0x04 0x2C) ]
--- , MapEntry (Glyph "afii10047") [ UTF82 (Bytes2All 0x04 0x2D) ]
--- , MapEntry (Glyph "afii10048") [ UTF82 (Bytes2All 0x04 0x2E) ]
--- , MapEntry (Glyph "afii10049") [ UTF82 (Bytes2All 0x04 0x2F) ]
--- , MapEntry (Glyph "afii10050") [ UTF82 (Bytes2All 0x04 0x90) ]
--- , MapEntry (Glyph "afii10051") [ UTF82 (Bytes2All 0x04 0x02) ]
--- , MapEntry (Glyph "afii10052") [ UTF82 (Bytes2All 0x04 0x03) ]
--- , MapEntry (Glyph "afii10053") [ UTF82 (Bytes2All 0x04 0x04) ]
--- , MapEntry (Glyph "afii10054") [ UTF82 (Bytes2All 0x04 0x05) ]
--- , MapEntry (Glyph "afii10055") [ UTF82 (Bytes2All 0x04 0x06) ]
--- , MapEntry (Glyph "afii10056") [ UTF82 (Bytes2All 0x04 0x07) ]
--- , MapEntry (Glyph "afii10057") [ UTF82 (Bytes2All 0x04 0x08) ]
--- , MapEntry (Glyph "afii10058") [ UTF82 (Bytes2All 0x04 0x09) ]
--- , MapEntry (Glyph "afii10059") [ UTF82 (Bytes2All 0x04 0x0A) ]
--- , MapEntry (Glyph "afii10060") [ UTF82 (Bytes2All 0x04 0x0B) ]
--- , MapEntry (Glyph "afii10061") [ UTF82 (Bytes2All 0x04 0x0C) ]
--- , MapEntry (Glyph "afii10062") [ UTF82 (Bytes2All 0x04 0x0E) ]
--- , MapEntry (Glyph "afii10063") [ UTF82 (Bytes2All 0xF6 0xC4) ]
--- , MapEntry (Glyph "afii10064") [ UTF82 (Bytes2All 0xF6 0xC5) ]
--- , MapEntry (Glyph "afii10065") [ UTF82 (Bytes2All 0x04 0x30) ]
--- , MapEntry (Glyph "afii10066") [ UTF82 (Bytes2All 0x04 0x31) ]
--- , MapEntry (Glyph "afii10067") [ UTF82 (Bytes2All 0x04 0x32) ]
--- , MapEntry (Glyph "afii10068") [ UTF82 (Bytes2All 0x04 0x33) ]
--- , MapEntry (Glyph "afii10069") [ UTF82 (Bytes2All 0x04 0x34) ]
--- , MapEntry (Glyph "afii10070") [ UTF82 (Bytes2All 0x04 0x35) ]
--- , MapEntry (Glyph "afii10071") [ UTF82 (Bytes2All 0x04 0x51) ]
--- , MapEntry (Glyph "afii10072") [ UTF82 (Bytes2All 0x04 0x36) ]
--- , MapEntry (Glyph "afii10073") [ UTF82 (Bytes2All 0x04 0x37) ]
--- , MapEntry (Glyph "afii10074") [ UTF82 (Bytes2All 0x04 0x38) ]
--- , MapEntry (Glyph "afii10075") [ UTF82 (Bytes2All 0x04 0x39) ]
--- , MapEntry (Glyph "afii10076") [ UTF82 (Bytes2All 0x04 0x3A) ]
--- , MapEntry (Glyph "afii10077") [ UTF82 (Bytes2All 0x04 0x3B) ]
--- , MapEntry (Glyph "afii10078") [ UTF82 (Bytes2All 0x04 0x3C) ]
--- , MapEntry (Glyph "afii10079") [ UTF82 (Bytes2All 0x04 0x3D) ]
--- , MapEntry (Glyph "afii10080") [ UTF82 (Bytes2All 0x04 0x3E) ]
--- , MapEntry (Glyph "afii10081") [ UTF82 (Bytes2All 0x04 0x3F) ]
--- , MapEntry (Glyph "afii10082") [ UTF82 (Bytes2All 0x04 0x40) ]
--- , MapEntry (Glyph "afii10083") [ UTF82 (Bytes2All 0x04 0x41) ]
--- , MapEntry (Glyph "afii10084") [ UTF82 (Bytes2All 0x04 0x42) ]
--- , MapEntry (Glyph "afii10085") [ UTF82 (Bytes2All 0x04 0x43) ]
--- , MapEntry (Glyph "afii10086") [ UTF82 (Bytes2All 0x04 0x44) ]
--- , MapEntry (Glyph "afii10087") [ UTF82 (Bytes2All 0x04 0x45) ]
--- , MapEntry (Glyph "afii10088") [ UTF82 (Bytes2All 0x04 0x46) ]
--- , MapEntry (Glyph "afii10089") [ UTF82 (Bytes2All 0x04 0x47) ]
--- , MapEntry (Glyph "afii10090") [ UTF82 (Bytes2All 0x04 0x48) ]
--- , MapEntry (Glyph "afii10091") [ UTF82 (Bytes2All 0x04 0x49) ]
--- , MapEntry (Glyph "afii10092") [ UTF82 (Bytes2All 0x04 0x4A) ]
--- , MapEntry (Glyph "afii10093") [ UTF82 (Bytes2All 0x04 0x4B) ]
--- , MapEntry (Glyph "afii10094") [ UTF82 (Bytes2All 0x04 0x4C) ]
--- , MapEntry (Glyph "afii10095") [ UTF82 (Bytes2All 0x04 0x4D) ]
--- , MapEntry (Glyph "afii10096") [ UTF82 (Bytes2All 0x04 0x4E) ]
--- , MapEntry (Glyph "afii10097") [ UTF82 (Bytes2All 0x04 0x4F) ]
--- , MapEntry (Glyph "afii10098") [ UTF82 (Bytes2All 0x04 0x91) ]
--- , MapEntry (Glyph "afii10099") [ UTF82 (Bytes2All 0x04 0x52) ]
--- , MapEntry (Glyph "afii10100") [ UTF82 (Bytes2All 0x04 0x53) ]
--- , MapEntry (Glyph "afii10101") [ UTF82 (Bytes2All 0x04 0x54) ]
--- , MapEntry (Glyph "afii10102") [ UTF82 (Bytes2All 0x04 0x55) ]
--- , MapEntry (Glyph "afii10103") [ UTF82 (Bytes2All 0x04 0x56) ]
--- , MapEntry (Glyph "afii10104") [ UTF82 (Bytes2All 0x04 0x57) ]
--- , MapEntry (Glyph "afii10105") [ UTF82 (Bytes2All 0x04 0x58) ]
--- , MapEntry (Glyph "afii10106") [ UTF82 (Bytes2All 0x04 0x59) ]
--- , MapEntry (Glyph "afii10107") [ UTF82 (Bytes2All 0x04 0x5A) ]
--- , MapEntry (Glyph "afii10108") [ UTF82 (Bytes2All 0x04 0x5B) ]
--- , MapEntry (Glyph "afii10109") [ UTF82 (Bytes2All 0x04 0x5C) ]
--- , MapEntry (Glyph "afii10110") [ UTF82 (Bytes2All 0x04 0x5E) ]
--- , MapEntry (Glyph "afii10145") [ UTF82 (Bytes2All 0x04 0x0F) ]
--- , MapEntry (Glyph "afii10146") [ UTF82 (Bytes2All 0x04 0x62) ]
--- , MapEntry (Glyph "afii10147") [ UTF82 (Bytes2All 0x04 0x72) ]
--- , MapEntry (Glyph "afii10148") [ UTF82 (Bytes2All 0x04 0x74) ]
--- , MapEntry (Glyph "afii10192") [ UTF82 (Bytes2All 0xF6 0xC6) ]
--- , MapEntry (Glyph "afii10193") [ UTF82 (Bytes2All 0x04 0x5F) ]
--- , MapEntry (Glyph "afii10194") [ UTF82 (Bytes2All 0x04 0x63) ]
--- , MapEntry (Glyph "afii10195") [ UTF82 (Bytes2All 0x04 0x73) ]
--- , MapEntry (Glyph "afii10196") [ UTF82 (Bytes2All 0x04 0x75) ]
--- , MapEntry (Glyph "afii10831") [ UTF82 (Bytes2All 0xF6 0xC7) ]
--- , MapEntry (Glyph "afii10832") [ UTF82 (Bytes2All 0xF6 0xC8) ]
--- , MapEntry (Glyph "afii10846") [ UTF82 (Bytes2All 0x04 0xD9) ]
--- , MapEntry (Glyph "afii299") [ UTF82 (Bytes2All 0x20 0x0E) ]
--- , MapEntry (Glyph "afii300") [ UTF82 (Bytes2All 0x20 0x0F) ]
--- , MapEntry (Glyph "afii301") [ UTF82 (Bytes2All 0x20 0x0D) ]
--- , MapEntry (Glyph "afii57381") [ UTF82 (Bytes2All 0x06 0x6A) ]
--- , MapEntry (Glyph "afii57388") [ UTF82 (Bytes2All 0x06 0x0C) ]
--- , MapEntry (Glyph "afii57392") [ UTF82 (Bytes2All 0x06 0x60) ]
--- , MapEntry (Glyph "afii57393") [ UTF82 (Bytes2All 0x06 0x61) ]
--- , MapEntry (Glyph "afii57394") [ UTF82 (Bytes2All 0x06 0x62) ]
--- , MapEntry (Glyph "afii57395") [ UTF82 (Bytes2All 0x06 0x63) ]
--- , MapEntry (Glyph "afii57396") [ UTF82 (Bytes2All 0x06 0x64) ]
--- , MapEntry (Glyph "afii57397") [ UTF82 (Bytes2All 0x06 0x65) ]
--- , MapEntry (Glyph "afii57398") [ UTF82 (Bytes2All 0x06 0x66) ]
--- , MapEntry (Glyph "afii57399") [ UTF82 (Bytes2All 0x06 0x67) ]
--- , MapEntry (Glyph "afii57400") [ UTF82 (Bytes2All 0x06 0x68) ]
--- , MapEntry (Glyph "afii57401") [ UTF82 (Bytes2All 0x06 0x69) ]
--- , MapEntry (Glyph "afii57403") [ UTF82 (Bytes2All 0x06 0x1B) ]
--- , MapEntry (Glyph "afii57407") [ UTF82 (Bytes2All 0x06 0x1F) ]
--- , MapEntry (Glyph "afii57409") [ UTF82 (Bytes2All 0x06 0x21) ]
--- , MapEntry (Glyph "afii57410") [ UTF82 (Bytes2All 0x06 0x22) ]
--- , MapEntry (Glyph "afii57411") [ UTF82 (Bytes2All 0x06 0x23) ]
--- , MapEntry (Glyph "afii57412") [ UTF82 (Bytes2All 0x06 0x24) ]
--- , MapEntry (Glyph "afii57413") [ UTF82 (Bytes2All 0x06 0x25) ]
--- , MapEntry (Glyph "afii57414") [ UTF82 (Bytes2All 0x06 0x26) ]
--- , MapEntry (Glyph "afii57415") [ UTF82 (Bytes2All 0x06 0x27) ]
--- , MapEntry (Glyph "afii57416") [ UTF82 (Bytes2All 0x06 0x28) ]
--- , MapEntry (Glyph "afii57417") [ UTF82 (Bytes2All 0x06 0x29) ]
--- , MapEntry (Glyph "afii57418") [ UTF82 (Bytes2All 0x06 0x2A) ]
--- , MapEntry (Glyph "afii57419") [ UTF82 (Bytes2All 0x06 0x2B) ]
--- , MapEntry (Glyph "afii57420") [ UTF82 (Bytes2All 0x06 0x2C) ]
--- , MapEntry (Glyph "afii57421") [ UTF82 (Bytes2All 0x06 0x2D) ]
--- , MapEntry (Glyph "afii57422") [ UTF82 (Bytes2All 0x06 0x2E) ]
--- , MapEntry (Glyph "afii57423") [ UTF82 (Bytes2All 0x06 0x2F) ]
--- , MapEntry (Glyph "afii57424") [ UTF82 (Bytes2All 0x06 0x30) ]
--- , MapEntry (Glyph "afii57425") [ UTF82 (Bytes2All 0x06 0x31) ]
--- , MapEntry (Glyph "afii57426") [ UTF82 (Bytes2All 0x06 0x32) ]
--- , MapEntry (Glyph "afii57427") [ UTF82 (Bytes2All 0x06 0x33) ]
--- , MapEntry (Glyph "afii57428") [ UTF82 (Bytes2All 0x06 0x34) ]
--- , MapEntry (Glyph "afii57429") [ UTF82 (Bytes2All 0x06 0x35) ]
--- , MapEntry (Glyph "afii57430") [ UTF82 (Bytes2All 0x06 0x36) ]
--- , MapEntry (Glyph "afii57431") [ UTF82 (Bytes2All 0x06 0x37) ]
--- , MapEntry (Glyph "afii57432") [ UTF82 (Bytes2All 0x06 0x38) ]
--- , MapEntry (Glyph "afii57433") [ UTF82 (Bytes2All 0x06 0x39) ]
--- , MapEntry (Glyph "afii57434") [ UTF82 (Bytes2All 0x06 0x3A) ]
--- , MapEntry (Glyph "afii57440") [ UTF82 (Bytes2All 0x06 0x40) ]
--- , MapEntry (Glyph "afii57441") [ UTF82 (Bytes2All 0x06 0x41) ]
--- , MapEntry (Glyph "afii57442") [ UTF82 (Bytes2All 0x06 0x42) ]
--- , MapEntry (Glyph "afii57443") [ UTF82 (Bytes2All 0x06 0x43) ]
--- , MapEntry (Glyph "afii57444") [ UTF82 (Bytes2All 0x06 0x44) ]
--- , MapEntry (Glyph "afii57445") [ UTF82 (Bytes2All 0x06 0x45) ]
--- , MapEntry (Glyph "afii57446") [ UTF82 (Bytes2All 0x06 0x46) ]
--- , MapEntry (Glyph "afii57448") [ UTF82 (Bytes2All 0x06 0x48) ]
--- , MapEntry (Glyph "afii57449") [ UTF82 (Bytes2All 0x06 0x49) ]
--- , MapEntry (Glyph "afii57450") [ UTF82 (Bytes2All 0x06 0x4A) ]
--- , MapEntry (Glyph "afii57451") [ UTF82 (Bytes2All 0x06 0x4B) ]
--- , MapEntry (Glyph "afii57452") [ UTF82 (Bytes2All 0x06 0x4C) ]
--- , MapEntry (Glyph "afii57453") [ UTF82 (Bytes2All 0x06 0x4D) ]
--- , MapEntry (Glyph "afii57454") [ UTF82 (Bytes2All 0x06 0x4E) ]
--- , MapEntry (Glyph "afii57455") [ UTF82 (Bytes2All 0x06 0x4F) ]
--- , MapEntry (Glyph "afii57456") [ UTF82 (Bytes2All 0x06 0x50) ]
--- , MapEntry (Glyph "afii57457") [ UTF82 (Bytes2All 0x06 0x51) ]
--- , MapEntry (Glyph "afii57458") [ UTF82 (Bytes2All 0x06 0x52) ]
--- , MapEntry (Glyph "afii57470") [ UTF82 (Bytes2All 0x06 0x47) ]
--- , MapEntry (Glyph "afii57505") [ UTF82 (Bytes2All 0x06 0xA4) ]
--- , MapEntry (Glyph "afii57506") [ UTF82 (Bytes2All 0x06 0x7E) ]
--- , MapEntry (Glyph "afii57507") [ UTF82 (Bytes2All 0x06 0x86) ]
--- , MapEntry (Glyph "afii57508") [ UTF82 (Bytes2All 0x06 0x98) ]
--- , MapEntry (Glyph "afii57509") [ UTF82 (Bytes2All 0x06 0xAF) ]
--- , MapEntry (Glyph "afii57511") [ UTF82 (Bytes2All 0x06 0x79) ]
--- , MapEntry (Glyph "afii57512") [ UTF82 (Bytes2All 0x06 0x88) ]
--- , MapEntry (Glyph "afii57513") [ UTF82 (Bytes2All 0x06 0x91) ]
--- , MapEntry (Glyph "afii57514") [ UTF82 (Bytes2All 0x06 0xBA) ]
--- , MapEntry (Glyph "afii57519") [ UTF82 (Bytes2All 0x06 0xD2) ]
--- , MapEntry (Glyph "afii57534") [ UTF82 (Bytes2All 0x06 0xD5) ]
--- , MapEntry (Glyph "afii57636") [ UTF82 (Bytes2All 0x20 0xAA) ]
--- , MapEntry (Glyph "afii57645") [ UTF82 (Bytes2All 0x05 0xBE) ]
--- , MapEntry (Glyph "afii57658") [ UTF82 (Bytes2All 0x05 0xC3) ]
--- , MapEntry (Glyph "afii57664") [ UTF82 (Bytes2All 0x05 0xD0) ]
--- , MapEntry (Glyph "afii57665") [ UTF82 (Bytes2All 0x05 0xD1) ]
--- , MapEntry (Glyph "afii57666") [ UTF82 (Bytes2All 0x05 0xD2) ]
--- , MapEntry (Glyph "afii57667") [ UTF82 (Bytes2All 0x05 0xD3) ]
--- , MapEntry (Glyph "afii57668") [ UTF82 (Bytes2All 0x05 0xD4) ]
--- , MapEntry (Glyph "afii57669") [ UTF82 (Bytes2All 0x05 0xD5) ]
--- , MapEntry (Glyph "afii57670") [ UTF82 (Bytes2All 0x05 0xD6) ]
--- , MapEntry (Glyph "afii57671") [ UTF82 (Bytes2All 0x05 0xD7) ]
--- , MapEntry (Glyph "afii57672") [ UTF82 (Bytes2All 0x05 0xD8) ]
--- , MapEntry (Glyph "afii57673") [ UTF82 (Bytes2All 0x05 0xD9) ]
--- , MapEntry (Glyph "afii57674") [ UTF82 (Bytes2All 0x05 0xDA) ]
--- , MapEntry (Glyph "afii57675") [ UTF82 (Bytes2All 0x05 0xDB) ]
--- , MapEntry (Glyph "afii57676") [ UTF82 (Bytes2All 0x05 0xDC) ]
--- , MapEntry (Glyph "afii57677") [ UTF82 (Bytes2All 0x05 0xDD) ]
--- , MapEntry (Glyph "afii57678") [ UTF82 (Bytes2All 0x05 0xDE) ]
--- , MapEntry (Glyph "afii57679") [ UTF82 (Bytes2All 0x05 0xDF) ]
--- , MapEntry (Glyph "afii57680") [ UTF82 (Bytes2All 0x05 0xE0) ]
--- , MapEntry (Glyph "afii57681") [ UTF82 (Bytes2All 0x05 0xE1) ]
--- , MapEntry (Glyph "afii57682") [ UTF82 (Bytes2All 0x05 0xE2) ]
--- , MapEntry (Glyph "afii57683") [ UTF82 (Bytes2All 0x05 0xE3) ]
--- , MapEntry (Glyph "afii57684") [ UTF82 (Bytes2All 0x05 0xE4) ]
--- , MapEntry (Glyph "afii57685") [ UTF82 (Bytes2All 0x05 0xE5) ]
--- , MapEntry (Glyph "afii57686") [ UTF82 (Bytes2All 0x05 0xE6) ]
--- , MapEntry (Glyph "afii57687") [ UTF82 (Bytes2All 0x05 0xE7) ]
--- , MapEntry (Glyph "afii57688") [ UTF82 (Bytes2All 0x05 0xE8) ]
--- , MapEntry (Glyph "afii57689") [ UTF82 (Bytes2All 0x05 0xE9) ]
--- , MapEntry (Glyph "afii57690") [ UTF82 (Bytes2All 0x05 0xEA) ]
--- , MapEntry (Glyph "afii57694") [ UTF82 (Bytes2All 0xFB 0x2A) ]
--- , MapEntry (Glyph "afii57695") [ UTF82 (Bytes2All 0xFB 0x2B) ]
--- , MapEntry (Glyph "afii57700") [ UTF82 (Bytes2All 0xFB 0x4B) ]
--- , MapEntry (Glyph "afii57705") [ UTF82 (Bytes2All 0xFB 0x1F) ]
--- , MapEntry (Glyph "afii57716") [ UTF82 (Bytes2All 0x05 0xF0) ]
--- , MapEntry (Glyph "afii57717") [ UTF82 (Bytes2All 0x05 0xF1) ]
--- , MapEntry (Glyph "afii57718") [ UTF82 (Bytes2All 0x05 0xF2) ]
--- , MapEntry (Glyph "afii57723") [ UTF82 (Bytes2All 0xFB 0x35) ]
--- , MapEntry (Glyph "afii57793") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "afii57794") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "afii57795") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "afii57796") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "afii57797") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "afii57798") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "afii57799") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "afii57800") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "afii57801") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "afii57802") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "afii57803") [ UTF82 (Bytes2All 0x05 0xC2) ]
--- , MapEntry (Glyph "afii57804") [ UTF82 (Bytes2All 0x05 0xC1) ]
--- , MapEntry (Glyph "afii57806") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "afii57807") [ UTF82 (Bytes2All 0x05 0xBC) ]
--- , MapEntry (Glyph "afii57839") [ UTF82 (Bytes2All 0x05 0xBD) ]
--- , MapEntry (Glyph "afii57841") [ UTF82 (Bytes2All 0x05 0xBF) ]
--- , MapEntry (Glyph "afii57842") [ UTF82 (Bytes2All 0x05 0xC0) ]
--- , MapEntry (Glyph "afii57929") [ UTF82 (Bytes2All 0x02 0xBC) ]
--- , MapEntry (Glyph "afii61248") [ UTF82 (Bytes2All 0x21 0x05) ]
--- , MapEntry (Glyph "afii61289") [ UTF82 (Bytes2All 0x21 0x13) ]
--- , MapEntry (Glyph "afii61352") [ UTF82 (Bytes2All 0x21 0x16) ]
--- , MapEntry (Glyph "afii61573") [ UTF82 (Bytes2All 0x20 0x2C) ]
--- , MapEntry (Glyph "afii61574") [ UTF82 (Bytes2All 0x20 0x2D) ]
--- , MapEntry (Glyph "afii61575") [ UTF82 (Bytes2All 0x20 0x2E) ]
--- , MapEntry (Glyph "afii61664") [ UTF82 (Bytes2All 0x20 0x0C) ]
--- , MapEntry (Glyph "afii63167") [ UTF82 (Bytes2All 0x06 0x6D) ]
--- , MapEntry (Glyph "afii64937") [ UTF82 (Bytes2All 0x02 0xBD) ]
-, MapEntry (Glyph "agrave") [ UTF81 (Bytes1 0xE0) ]
--- , MapEntry (Glyph "agujarati") [ UTF82 (Bytes2All 0x0A 0x85) ]
--- , MapEntry (Glyph "agurmukhi") [ UTF82 (Bytes2All 0x0A 0x05) ]
--- , MapEntry (Glyph "ahiragana") [ UTF82 (Bytes2All 0x30 0x42) ]
--- , MapEntry (Glyph "ahookabove") [ UTF82 (Bytes2All 0x1E 0xA3) ]
--- , MapEntry (Glyph "aibengali") [ UTF82 (Bytes2All 0x09 0x90) ]
--- , MapEntry (Glyph "aibopomofo") [ UTF82 (Bytes2All 0x31 0x1E) ]
--- , MapEntry (Glyph "aideva") [ UTF82 (Bytes2All 0x09 0x10) ]
--- , MapEntry (Glyph "aiecyrillic") [ UTF82 (Bytes2All 0x04 0xD5) ]
--- , MapEntry (Glyph "aigujarati") [ UTF82 (Bytes2All 0x0A 0x90) ]
--- , MapEntry (Glyph "aigurmukhi") [ UTF82 (Bytes2All 0x0A 0x10) ]
--- , MapEntry (Glyph "aimatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x48) ]
--- , MapEntry (Glyph "ainarabic") [ UTF82 (Bytes2All 0x06 0x39) ]
--- , MapEntry (Glyph "ainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xCA) ]
--- , MapEntry (Glyph "aininitialarabic") [ UTF82 (Bytes2All 0xFE 0xCB) ]
--- , MapEntry (Glyph "ainmedialarabic") [ UTF82 (Bytes2All 0xFE 0xCC) ]
--- , MapEntry (Glyph "ainvertedbreve") [ UTF82 (Bytes2All 0x02 0x03) ]
--- , MapEntry (Glyph "aivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC8) ]
--- , MapEntry (Glyph "aivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x48) ]
--- , MapEntry (Glyph "aivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC8) ]
--- , MapEntry (Glyph "akatakana") [ UTF82 (Bytes2All 0x30 0xA2) ]
--- , MapEntry (Glyph "akatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x71) ]
--- , MapEntry (Glyph "akorean") [ UTF82 (Bytes2All 0x31 0x4F) ]
--- , MapEntry (Glyph "alef") [ UTF82 (Bytes2All 0x05 0xD0) ]
--- , MapEntry (Glyph "alefarabic") [ UTF82 (Bytes2All 0x06 0x27) ]
--- , MapEntry (Glyph "alefdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x30) ]
--- , MapEntry (Glyph "aleffinalarabic") [ UTF82 (Bytes2All 0xFE 0x8E) ]
--- , MapEntry (Glyph "alefhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x23) ]
--- , MapEntry (Glyph "alefhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x84) ]
--- , MapEntry (Glyph "alefhamzabelowarabic") [ UTF82 (Bytes2All 0x06 0x25) ]
--- , MapEntry (Glyph "alefhamzabelowfinalarabic") [ UTF82 (Bytes2All 0xFE 0x88) ]
--- , MapEntry (Glyph "alefhebrew") [ UTF82 (Bytes2All 0x05 0xD0) ]
--- , MapEntry (Glyph "aleflamedhebrew") [ UTF82 (Bytes2All 0xFB 0x4F) ]
--- , MapEntry (Glyph "alefmaddaabovearabic") [ UTF82 (Bytes2All 0x06 0x22) ]
--- , MapEntry (Glyph "alefmaddaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x82) ]
--- , MapEntry (Glyph "alefmaksuraarabic") [ UTF82 (Bytes2All 0x06 0x49) ]
--- , MapEntry (Glyph "alefmaksurafinalarabic") [ UTF82 (Bytes2All 0xFE 0xF0) ]
--- , MapEntry (Glyph "alefmaksurainitialarabic") [ UTF82 (Bytes2All 0xFE 0xF3) ]
--- , MapEntry (Glyph "alefmaksuramedialarabic") [ UTF82 (Bytes2All 0xFE 0xF4) ]
--- , MapEntry (Glyph "alefpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x2E) ]
--- , MapEntry (Glyph "alefqamatshebrew") [ UTF82 (Bytes2All 0xFB 0x2F) ]
--- , MapEntry (Glyph "aleph") [ UTF82 (Bytes2All 0x21 0x35) ]
--- , MapEntry (Glyph "allequal") [ UTF82 (Bytes2All 0x22 0x4C) ]
--- , MapEntry (Glyph "alpha") [ UTF82 (Bytes2All 0x03 0xB1) ]
--- , MapEntry (Glyph "alphatonos") [ UTF82 (Bytes2All 0x03 0xAC) ]
--- , MapEntry (Glyph "amacron") [ UTF82 (Bytes2All 0x01 0x01) ]
--- , MapEntry (Glyph "amonospace") [ UTF82 (Bytes2All 0xFF 0x41) ]
-, MapEntry (Glyph "ampersand") [ UTF81 (Bytes1 0x26) ]
--- , MapEntry (Glyph "ampersandmonospace") [ UTF82 (Bytes2All 0xFF 0x06) ]
--- , MapEntry (Glyph "ampersandsmall") [ UTF82 (Bytes2All 0xF7 0x26) ]
--- , MapEntry (Glyph "amsquare") [ UTF82 (Bytes2All 0x33 0xC2) ]
--- , MapEntry (Glyph "anbopomofo") [ UTF82 (Bytes2All 0x31 0x22) ]
--- , MapEntry (Glyph "angbopomofo") [ UTF82 (Bytes2All 0x31 0x24) ]
--- , MapEntry (Glyph "angkhankhuthai") [ UTF82 (Bytes2All 0x0E 0x5A) ]
--- , MapEntry (Glyph "angle") [ UTF82 (Bytes2All 0x22 0x20) ]
--- , MapEntry (Glyph "anglebracketleft") [ UTF82 (Bytes2All 0x30 0x08) ]
--- , MapEntry (Glyph "anglebracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3F) ]
--- , MapEntry (Glyph "anglebracketright") [ UTF82 (Bytes2All 0x30 0x09) ]
--- , MapEntry (Glyph "anglebracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x40) ]
--- , MapEntry (Glyph "angleleft") [ UTF82 (Bytes2All 0x23 0x29) ]
--- , MapEntry (Glyph "angleright") [ UTF82 (Bytes2All 0x23 0x2A) ]
--- , MapEntry (Glyph "angstrom") [ UTF82 (Bytes2All 0x21 0x2B) ]
--- , MapEntry (Glyph "anoteleia") [ UTF82 (Bytes2All 0x03 0x87) ]
--- , MapEntry (Glyph "anudattadeva") [ UTF82 (Bytes2All 0x09 0x52) ]
--- , MapEntry (Glyph "anusvarabengali") [ UTF82 (Bytes2All 0x09 0x82) ]
--- , MapEntry (Glyph "anusvaradeva") [ UTF82 (Bytes2All 0x09 0x02) ]
--- , MapEntry (Glyph "anusvaragujarati") [ UTF82 (Bytes2All 0x0A 0x82) ]
--- , MapEntry (Glyph "aogonek") [ UTF82 (Bytes2All 0x01 0x05) ]
--- , MapEntry (Glyph "apaatosquare") [ UTF82 (Bytes2All 0x33 0x00) ]
--- , MapEntry (Glyph "aparen") [ UTF82 (Bytes2All 0x24 0x9C) ]
--- , MapEntry (Glyph "apostrophearmenian") [ UTF82 (Bytes2All 0x05 0x5A) ]
--- , MapEntry (Glyph "apostrophemod") [ UTF82 (Bytes2All 0x02 0xBC) ]
--- , MapEntry (Glyph "apple") [ UTF82 (Bytes2All 0xF8 0xFF) ]
--- , MapEntry (Glyph "approaches") [ UTF82 (Bytes2All 0x22 0x50) ]
--- , MapEntry (Glyph "approxequal") [ UTF82 (Bytes2All 0x22 0x48) ]
--- , MapEntry (Glyph "approxequalorimage") [ UTF82 (Bytes2All 0x22 0x52) ]
--- , MapEntry (Glyph "approximatelyequal") [ UTF82 (Bytes2All 0x22 0x45) ]
--- , MapEntry (Glyph "araeaekorean") [ UTF82 (Bytes2All 0x31 0x8E) ]
--- , MapEntry (Glyph "araeakorean") [ UTF82 (Bytes2All 0x31 0x8D) ]
--- , MapEntry (Glyph "arc") [ UTF82 (Bytes2All 0x23 0x12) ]
--- , MapEntry (Glyph "arighthalfring") [ UTF82 (Bytes2All 0x1E 0x9A) ]
-, MapEntry (Glyph "aring") [ UTF81 (Bytes1 0xE5) ]
--- , MapEntry (Glyph "aringacute") [ UTF82 (Bytes2All 0x01 0xFB) ]
--- , MapEntry (Glyph "aringbelow") [ UTF82 (Bytes2All 0x1E 0x01) ]
--- , MapEntry (Glyph "arrowboth") [ UTF82 (Bytes2All 0x21 0x94) ]
--- , MapEntry (Glyph "arrowdashdown") [ UTF82 (Bytes2All 0x21 0xE3) ]
--- , MapEntry (Glyph "arrowdashleft") [ UTF82 (Bytes2All 0x21 0xE0) ]
--- , MapEntry (Glyph "arrowdashright") [ UTF82 (Bytes2All 0x21 0xE2) ]
--- , MapEntry (Glyph "arrowdashup") [ UTF82 (Bytes2All 0x21 0xE1) ]
--- , MapEntry (Glyph "arrowdblboth") [ UTF82 (Bytes2All 0x21 0xD4) ]
--- , MapEntry (Glyph "arrowdbldown") [ UTF82 (Bytes2All 0x21 0xD3) ]
--- , MapEntry (Glyph "arrowdblleft") [ UTF82 (Bytes2All 0x21 0xD0) ]
--- , MapEntry (Glyph "arrowdblright") [ UTF82 (Bytes2All 0x21 0xD2) ]
--- , MapEntry (Glyph "arrowdblup") [ UTF82 (Bytes2All 0x21 0xD1) ]
--- , MapEntry (Glyph "arrowdown") [ UTF82 (Bytes2All 0x21 0x93) ]
--- , MapEntry (Glyph "arrowdownleft") [ UTF82 (Bytes2All 0x21 0x99) ]
--- , MapEntry (Glyph "arrowdownright") [ UTF82 (Bytes2All 0x21 0x98) ]
--- , MapEntry (Glyph "arrowdownwhite") [ UTF82 (Bytes2All 0x21 0xE9) ]
--- , MapEntry (Glyph "arrowheaddownmod") [ UTF82 (Bytes2All 0x02 0xC5) ]
--- , MapEntry (Glyph "arrowheadleftmod") [ UTF82 (Bytes2All 0x02 0xC2) ]
--- , MapEntry (Glyph "arrowheadrightmod") [ UTF82 (Bytes2All 0x02 0xC3) ]
--- , MapEntry (Glyph "arrowheadupmod") [ UTF82 (Bytes2All 0x02 0xC4) ]
--- , MapEntry (Glyph "arrowhorizex") [ UTF82 (Bytes2All 0xF8 0xE7) ]
--- , MapEntry (Glyph "arrowleft") [ UTF82 (Bytes2All 0x21 0x90) ]
--- , MapEntry (Glyph "arrowleftdbl") [ UTF82 (Bytes2All 0x21 0xD0) ]
--- , MapEntry (Glyph "arrowleftdblstroke") [ UTF82 (Bytes2All 0x21 0xCD) ]
--- , MapEntry (Glyph "arrowleftoverright") [ UTF82 (Bytes2All 0x21 0xC6) ]
--- , MapEntry (Glyph "arrowleftwhite") [ UTF82 (Bytes2All 0x21 0xE6) ]
--- , MapEntry (Glyph "arrowright") [ UTF82 (Bytes2All 0x21 0x92) ]
--- , MapEntry (Glyph "arrowrightdblstroke") [ UTF82 (Bytes2All 0x21 0xCF) ]
--- , MapEntry (Glyph "arrowrightheavy") [ UTF82 (Bytes2All 0x27 0x9E) ]
--- , MapEntry (Glyph "arrowrightoverleft") [ UTF82 (Bytes2All 0x21 0xC4) ]
--- , MapEntry (Glyph "arrowrightwhite") [ UTF82 (Bytes2All 0x21 0xE8) ]
--- , MapEntry (Glyph "arrowtableft") [ UTF82 (Bytes2All 0x21 0xE4) ]
--- , MapEntry (Glyph "arrowtabright") [ UTF82 (Bytes2All 0x21 0xE5) ]
--- , MapEntry (Glyph "arrowup") [ UTF82 (Bytes2All 0x21 0x91) ]
--- , MapEntry (Glyph "arrowupdn") [ UTF82 (Bytes2All 0x21 0x95) ]
--- , MapEntry (Glyph "arrowupdnbse") [ UTF82 (Bytes2All 0x21 0xA8) ]
--- , MapEntry (Glyph "arrowupdownbase") [ UTF82 (Bytes2All 0x21 0xA8) ]
--- , MapEntry (Glyph "arrowupleft") [ UTF82 (Bytes2All 0x21 0x96) ]
--- , MapEntry (Glyph "arrowupleftofdown") [ UTF82 (Bytes2All 0x21 0xC5) ]
--- , MapEntry (Glyph "arrowupright") [ UTF82 (Bytes2All 0x21 0x97) ]
--- , MapEntry (Glyph "arrowupwhite") [ UTF82 (Bytes2All 0x21 0xE7) ]
--- , MapEntry (Glyph "arrowvertex") [ UTF82 (Bytes2All 0xF8 0xE6) ]
-, MapEntry (Glyph "asciicircum") [ UTF81 (Bytes1 0x5E) ]
--- , MapEntry (Glyph "asciicircummonospace") [ UTF82 (Bytes2All 0xFF 0x3E) ]
-, MapEntry (Glyph "asciitilde") [ UTF81 (Bytes1 0x7E) ]
--- , MapEntry (Glyph "asciitildemonospace") [ UTF82 (Bytes2All 0xFF 0x5E) ]
--- , MapEntry (Glyph "ascript") [ UTF82 (Bytes2All 0x02 0x51) ]
--- , MapEntry (Glyph "ascriptturned") [ UTF82 (Bytes2All 0x02 0x52) ]
--- , MapEntry (Glyph "asmallhiragana") [ UTF82 (Bytes2All 0x30 0x41) ]
--- , MapEntry (Glyph "asmallkatakana") [ UTF82 (Bytes2All 0x30 0xA1) ]
--- , MapEntry (Glyph "asmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x67) ]
-, MapEntry (Glyph "asterisk") [ UTF81 (Bytes1 0x2A) ]
--- , MapEntry (Glyph "asteriskaltonearabic") [ UTF82 (Bytes2All 0x06 0x6D) ]
--- , MapEntry (Glyph "asteriskarabic") [ UTF82 (Bytes2All 0x06 0x6D) ]
--- , MapEntry (Glyph "asteriskmath") [ UTF82 (Bytes2All 0x22 0x17) ]
--- , MapEntry (Glyph "asteriskmonospace") [ UTF82 (Bytes2All 0xFF 0x0A) ]
--- , MapEntry (Glyph "asterisksmall") [ UTF82 (Bytes2All 0xFE 0x61) ]
--- , MapEntry (Glyph "asterism") [ UTF82 (Bytes2All 0x20 0x42) ]
--- , MapEntry (Glyph "asuperior") [ UTF82 (Bytes2All 0xF6 0xE9) ]
--- , MapEntry (Glyph "asymptoticallyequal") [ UTF82 (Bytes2All 0x22 0x43) ]
-, MapEntry (Glyph "at") [ UTF81 (Bytes1 0x40) ]
-, MapEntry (Glyph "atilde") [ UTF81 (Bytes1 0xE3) ]
--- , MapEntry (Glyph "atmonospace") [ UTF82 (Bytes2All 0xFF 0x20) ]
--- , MapEntry (Glyph "atsmall") [ UTF82 (Bytes2All 0xFE 0x6B) ]
--- , MapEntry (Glyph "aturned") [ UTF82 (Bytes2All 0x02 0x50) ]
--- , MapEntry (Glyph "aubengali") [ UTF82 (Bytes2All 0x09 0x94) ]
--- , MapEntry (Glyph "aubopomofo") [ UTF82 (Bytes2All 0x31 0x20) ]
--- , MapEntry (Glyph "audeva") [ UTF82 (Bytes2All 0x09 0x14) ]
--- , MapEntry (Glyph "augujarati") [ UTF82 (Bytes2All 0x0A 0x94) ]
--- , MapEntry (Glyph "augurmukhi") [ UTF82 (Bytes2All 0x0A 0x14) ]
--- , MapEntry (Glyph "aulengthmarkbengali") [ UTF82 (Bytes2All 0x09 0xD7) ]
--- , MapEntry (Glyph "aumatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x4C) ]
--- , MapEntry (Glyph "auvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xCC) ]
--- , MapEntry (Glyph "auvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4C) ]
--- , MapEntry (Glyph "auvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xCC) ]
--- , MapEntry (Glyph "avagrahadeva") [ UTF82 (Bytes2All 0x09 0x3D) ]
--- , MapEntry (Glyph "aybarmenian") [ UTF82 (Bytes2All 0x05 0x61) ]
--- , MapEntry (Glyph "ayin") [ UTF82 (Bytes2All 0x05 0xE2) ]
--- , MapEntry (Glyph "ayinaltonehebrew") [ UTF82 (Bytes2All 0xFB 0x20) ]
--- , MapEntry (Glyph "ayinhebrew") [ UTF82 (Bytes2All 0x05 0xE2) ]
-, MapEntry (Glyph "b") [ UTF81 (Bytes1 0x62) ]
--- , MapEntry (Glyph "babengali") [ UTF82 (Bytes2All 0x09 0xAC) ]
-, MapEntry (Glyph "backslash") [ UTF81 (Bytes1 0x5C) ]
--- , MapEntry (Glyph "backslashmonospace") [ UTF82 (Bytes2All 0xFF 0x3C) ]
--- , MapEntry (Glyph "badeva") [ UTF82 (Bytes2All 0x09 0x2C) ]
--- , MapEntry (Glyph "bagujarati") [ UTF82 (Bytes2All 0x0A 0xAC) ]
--- , MapEntry (Glyph "bagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2C) ]
--- , MapEntry (Glyph "bahiragana") [ UTF82 (Bytes2All 0x30 0x70) ]
--- , MapEntry (Glyph "bahtthai") [ UTF82 (Bytes2All 0x0E 0x3F) ]
--- , MapEntry (Glyph "bakatakana") [ UTF82 (Bytes2All 0x30 0xD0) ]
-, MapEntry (Glyph "bar") [ UTF81 (Bytes1 0x7C) ]
--- , MapEntry (Glyph "barmonospace") [ UTF82 (Bytes2All 0xFF 0x5C) ]
--- , MapEntry (Glyph "bbopomofo") [ UTF82 (Bytes2All 0x31 0x05) ]
--- , MapEntry (Glyph "bcircle") [ UTF82 (Bytes2All 0x24 0xD1) ]
--- , MapEntry (Glyph "bdotaccent") [ UTF82 (Bytes2All 0x1E 0x03) ]
--- , MapEntry (Glyph "bdotbelow") [ UTF82 (Bytes2All 0x1E 0x05) ]
--- , MapEntry (Glyph "beamedsixteenthnotes") [ UTF82 (Bytes2All 0x26 0x6C) ]
--- , MapEntry (Glyph "because") [ UTF82 (Bytes2All 0x22 0x35) ]
--- , MapEntry (Glyph "becyrillic") [ UTF82 (Bytes2All 0x04 0x31) ]
--- , MapEntry (Glyph "beharabic") [ UTF82 (Bytes2All 0x06 0x28) ]
--- , MapEntry (Glyph "behfinalarabic") [ UTF82 (Bytes2All 0xFE 0x90) ]
--- , MapEntry (Glyph "behinitialarabic") [ UTF82 (Bytes2All 0xFE 0x91) ]
--- , MapEntry (Glyph "behiragana") [ UTF82 (Bytes2All 0x30 0x79) ]
--- , MapEntry (Glyph "behmedialarabic") [ UTF82 (Bytes2All 0xFE 0x92) ]
--- , MapEntry (Glyph "behmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0x9F) ]
--- , MapEntry (Glyph "behmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x08) ]
--- , MapEntry (Glyph "behnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x6D) ]
--- , MapEntry (Glyph "bekatakana") [ UTF82 (Bytes2All 0x30 0xD9) ]
--- , MapEntry (Glyph "benarmenian") [ UTF82 (Bytes2All 0x05 0x62) ]
--- , MapEntry (Glyph "bet") [ UTF82 (Bytes2All 0x05 0xD1) ]
--- , MapEntry (Glyph "beta") [ UTF82 (Bytes2All 0x03 0xB2) ]
--- , MapEntry (Glyph "betasymbolgreek") [ UTF82 (Bytes2All 0x03 0xD0) ]
--- , MapEntry (Glyph "betdagesh") [ UTF82 (Bytes2All 0xFB 0x31) ]
--- , MapEntry (Glyph "betdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x31) ]
--- , MapEntry (Glyph "bethebrew") [ UTF82 (Bytes2All 0x05 0xD1) ]
--- , MapEntry (Glyph "betrafehebrew") [ UTF82 (Bytes2All 0xFB 0x4C) ]
--- , MapEntry (Glyph "bhabengali") [ UTF82 (Bytes2All 0x09 0xAD) ]
--- , MapEntry (Glyph "bhadeva") [ UTF82 (Bytes2All 0x09 0x2D) ]
--- , MapEntry (Glyph "bhagujarati") [ UTF82 (Bytes2All 0x0A 0xAD) ]
--- , MapEntry (Glyph "bhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2D) ]
--- , MapEntry (Glyph "bhook") [ UTF82 (Bytes2All 0x02 0x53) ]
--- , MapEntry (Glyph "bihiragana") [ UTF82 (Bytes2All 0x30 0x73) ]
--- , MapEntry (Glyph "bikatakana") [ UTF82 (Bytes2All 0x30 0xD3) ]
--- , MapEntry (Glyph "bilabialclick") [ UTF82 (Bytes2All 0x02 0x98) ]
--- , MapEntry (Glyph "bindigurmukhi") [ UTF82 (Bytes2All 0x0A 0x02) ]
--- , MapEntry (Glyph "birusquare") [ UTF82 (Bytes2All 0x33 0x31) ]
--- , MapEntry (Glyph "blackcircle") [ UTF82 (Bytes2All 0x25 0xCF) ]
--- , MapEntry (Glyph "blackdiamond") [ UTF82 (Bytes2All 0x25 0xC6) ]
--- , MapEntry (Glyph "blackdownpointingtriangle") [ UTF82 (Bytes2All 0x25 0xBC) ]
--- , MapEntry (Glyph "blackleftpointingpointer") [ UTF82 (Bytes2All 0x25 0xC4) ]
--- , MapEntry (Glyph "blackleftpointingtriangle") [ UTF82 (Bytes2All 0x25 0xC0) ]
--- , MapEntry (Glyph "blacklenticularbracketleft") [ UTF82 (Bytes2All 0x30 0x10) ]
--- , MapEntry (Glyph "blacklenticularbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3B) ]
--- , MapEntry (Glyph "blacklenticularbracketright") [ UTF82 (Bytes2All 0x30 0x11) ]
--- , MapEntry (Glyph "blacklenticularbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3C) ]
--- , MapEntry (Glyph "blacklowerlefttriangle") [ UTF82 (Bytes2All 0x25 0xE3) ]
--- , MapEntry (Glyph "blacklowerrighttriangle") [ UTF82 (Bytes2All 0x25 0xE2) ]
--- , MapEntry (Glyph "blackrectangle") [ UTF82 (Bytes2All 0x25 0xAC) ]
--- , MapEntry (Glyph "blackrightpointingpointer") [ UTF82 (Bytes2All 0x25 0xBA) ]
--- , MapEntry (Glyph "blackrightpointingtriangle") [ UTF82 (Bytes2All 0x25 0xB6) ]
--- , MapEntry (Glyph "blacksmallsquare") [ UTF82 (Bytes2All 0x25 0xAA) ]
--- , MapEntry (Glyph "blacksmilingface") [ UTF82 (Bytes2All 0x26 0x3B) ]
--- , MapEntry (Glyph "blacksquare") [ UTF82 (Bytes2All 0x25 0xA0) ]
--- , MapEntry (Glyph "blackstar") [ UTF82 (Bytes2All 0x26 0x05) ]
--- , MapEntry (Glyph "blackupperlefttriangle") [ UTF82 (Bytes2All 0x25 0xE4) ]
--- , MapEntry (Glyph "blackupperrighttriangle") [ UTF82 (Bytes2All 0x25 0xE5) ]
--- , MapEntry (Glyph "blackuppointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB4) ]
--- , MapEntry (Glyph "blackuppointingtriangle") [ UTF82 (Bytes2All 0x25 0xB2) ]
--- , MapEntry (Glyph "blank") [ UTF82 (Bytes2All 0x24 0x23) ]
--- , MapEntry (Glyph "blinebelow") [ UTF82 (Bytes2All 0x1E 0x07) ]
--- , MapEntry (Glyph "block") [ UTF82 (Bytes2All 0x25 0x88) ]
--- , MapEntry (Glyph "bmonospace") [ UTF82 (Bytes2All 0xFF 0x42) ]
--- , MapEntry (Glyph "bobaimaithai") [ UTF82 (Bytes2All 0x0E 0x1A) ]
--- , MapEntry (Glyph "bohiragana") [ UTF82 (Bytes2All 0x30 0x7C) ]
--- , MapEntry (Glyph "bokatakana") [ UTF82 (Bytes2All 0x30 0xDC) ]
--- , MapEntry (Glyph "bparen") [ UTF82 (Bytes2All 0x24 0x9D) ]
--- , MapEntry (Glyph "bqsquare") [ UTF82 (Bytes2All 0x33 0xC3) ]
--- , MapEntry (Glyph "braceex") [ UTF82 (Bytes2All 0xF8 0xF4) ]
-, MapEntry (Glyph "braceleft") [ UTF81 (Bytes1 0x7B) ]
--- , MapEntry (Glyph "braceleftbt") [ UTF82 (Bytes2All 0xF8 0xF3) ]
--- , MapEntry (Glyph "braceleftmid") [ UTF82 (Bytes2All 0xF8 0xF2) ]
--- , MapEntry (Glyph "braceleftmonospace") [ UTF82 (Bytes2All 0xFF 0x5B) ]
--- , MapEntry (Glyph "braceleftsmall") [ UTF82 (Bytes2All 0xFE 0x5B) ]
--- , MapEntry (Glyph "bracelefttp") [ UTF82 (Bytes2All 0xF8 0xF1) ]
--- , MapEntry (Glyph "braceleftvertical") [ UTF82 (Bytes2All 0xFE 0x37) ]
-, MapEntry (Glyph "braceright") [ UTF81 (Bytes1 0x7D) ]
--- , MapEntry (Glyph "bracerightbt") [ UTF82 (Bytes2All 0xF8 0xFE) ]
--- , MapEntry (Glyph "bracerightmid") [ UTF82 (Bytes2All 0xF8 0xFD) ]
--- , MapEntry (Glyph "bracerightmonospace") [ UTF82 (Bytes2All 0xFF 0x5D) ]
--- , MapEntry (Glyph "bracerightsmall") [ UTF82 (Bytes2All 0xFE 0x5C) ]
--- , MapEntry (Glyph "bracerighttp") [ UTF82 (Bytes2All 0xF8 0xFC) ]
--- , MapEntry (Glyph "bracerightvertical") [ UTF82 (Bytes2All 0xFE 0x38) ]
-, MapEntry (Glyph "bracketleft") [ UTF81 (Bytes1 0x5B) ]
--- , MapEntry (Glyph "bracketleftbt") [ UTF82 (Bytes2All 0xF8 0xF0) ]
--- , MapEntry (Glyph "bracketleftex") [ UTF82 (Bytes2All 0xF8 0xEF) ]
--- , MapEntry (Glyph "bracketleftmonospace") [ UTF82 (Bytes2All 0xFF 0x3B) ]
--- , MapEntry (Glyph "bracketlefttp") [ UTF82 (Bytes2All 0xF8 0xEE) ]
-, MapEntry (Glyph "bracketright") [ UTF81 (Bytes1 0x5D) ]
--- , MapEntry (Glyph "bracketrightbt") [ UTF82 (Bytes2All 0xF8 0xFB) ]
--- , MapEntry (Glyph "bracketrightex") [ UTF82 (Bytes2All 0xF8 0xFA) ]
--- , MapEntry (Glyph "bracketrightmonospace") [ UTF82 (Bytes2All 0xFF 0x3D) ]
--- , MapEntry (Glyph "bracketrighttp") [ UTF82 (Bytes2All 0xF8 0xF9) ]
--- , MapEntry (Glyph "breve") [ UTF82 (Bytes2All 0x02 0xD8) ]
--- , MapEntry (Glyph "brevebelowcmb") [ UTF82 (Bytes2All 0x03 0x2E) ]
--- , MapEntry (Glyph "brevecmb") [ UTF82 (Bytes2All 0x03 0x06) ]
--- , MapEntry (Glyph "breveinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x2F) ]
--- , MapEntry (Glyph "breveinvertedcmb") [ UTF82 (Bytes2All 0x03 0x11) ]
--- , MapEntry (Glyph "breveinverteddoublecmb") [ UTF82 (Bytes2All 0x03 0x61) ]
--- , MapEntry (Glyph "bridgebelowcmb") [ UTF82 (Bytes2All 0x03 0x2A) ]
--- , MapEntry (Glyph "bridgeinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x3A) ]
-, MapEntry (Glyph "brokenbar") [ UTF81 (Bytes1 0xA6) ]
--- , MapEntry (Glyph "bstroke") [ UTF82 (Bytes2All 0x01 0x80) ]
--- , MapEntry (Glyph "bsuperior") [ UTF82 (Bytes2All 0xF6 0xEA) ]
--- , MapEntry (Glyph "btopbar") [ UTF82 (Bytes2All 0x01 0x83) ]
--- , MapEntry (Glyph "buhiragana") [ UTF82 (Bytes2All 0x30 0x76) ]
--- , MapEntry (Glyph "bukatakana") [ UTF82 (Bytes2All 0x30 0xD6) ]
--- , MapEntry (Glyph "bullet") [ UTF82 (Bytes2All 0x20 0x22) ]
--- , MapEntry (Glyph "bulletinverse") [ UTF82 (Bytes2All 0x25 0xD8) ]
--- , MapEntry (Glyph "bulletoperator") [ UTF82 (Bytes2All 0x22 0x19) ]
--- , MapEntry (Glyph "bullseye") [ UTF82 (Bytes2All 0x25 0xCE) ]
-, MapEntry (Glyph "c") [ UTF81 (Bytes1 0x63) ]
--- , MapEntry (Glyph "caarmenian") [ UTF82 (Bytes2All 0x05 0x6E) ]
--- , MapEntry (Glyph "cabengali") [ UTF82 (Bytes2All 0x09 0x9A) ]
--- , MapEntry (Glyph "cacute") [ UTF82 (Bytes2All 0x01 0x07) ]
--- , MapEntry (Glyph "cadeva") [ UTF82 (Bytes2All 0x09 0x1A) ]
--- , MapEntry (Glyph "cagujarati") [ UTF82 (Bytes2All 0x0A 0x9A) ]
--- , MapEntry (Glyph "cagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1A) ]
--- , MapEntry (Glyph "calsquare") [ UTF82 (Bytes2All 0x33 0x88) ]
--- , MapEntry (Glyph "candrabindubengali") [ UTF82 (Bytes2All 0x09 0x81) ]
--- , MapEntry (Glyph "candrabinducmb") [ UTF82 (Bytes2All 0x03 0x10) ]
--- , MapEntry (Glyph "candrabindudeva") [ UTF82 (Bytes2All 0x09 0x01) ]
--- , MapEntry (Glyph "candrabindugujarati") [ UTF82 (Bytes2All 0x0A 0x81) ]
--- , MapEntry (Glyph "capslock") [ UTF82 (Bytes2All 0x21 0xEA) ]
--- , MapEntry (Glyph "careof") [ UTF82 (Bytes2All 0x21 0x05) ]
--- , MapEntry (Glyph "caron") [ UTF82 (Bytes2All 0x02 0xC7) ]
--- , MapEntry (Glyph "caronbelowcmb") [ UTF82 (Bytes2All 0x03 0x2C) ]
--- , MapEntry (Glyph "caroncmb") [ UTF82 (Bytes2All 0x03 0x0C) ]
--- , MapEntry (Glyph "carriagereturn") [ UTF82 (Bytes2All 0x21 0xB5) ]
--- , MapEntry (Glyph "cbopomofo") [ UTF82 (Bytes2All 0x31 0x18) ]
--- , MapEntry (Glyph "ccaron") [ UTF82 (Bytes2All 0x01 0x0D) ]
-, MapEntry (Glyph "ccedilla") [ UTF81 (Bytes1 0xE7) ]
--- , MapEntry (Glyph "ccedillaacute") [ UTF82 (Bytes2All 0x1E 0x09) ]
--- , MapEntry (Glyph "ccircle") [ UTF82 (Bytes2All 0x24 0xD2) ]
--- , MapEntry (Glyph "ccircumflex") [ UTF82 (Bytes2All 0x01 0x09) ]
--- , MapEntry (Glyph "ccurl") [ UTF82 (Bytes2All 0x02 0x55) ]
--- , MapEntry (Glyph "cdot") [ UTF82 (Bytes2All 0x01 0x0B) ]
--- , MapEntry (Glyph "cdotaccent") [ UTF82 (Bytes2All 0x01 0x0B) ]
--- , MapEntry (Glyph "cdsquare") [ UTF82 (Bytes2All 0x33 0xC5) ]
-, MapEntry (Glyph "cedilla") [ UTF81 (Bytes1 0xB8) ]
--- , MapEntry (Glyph "cedillacmb") [ UTF82 (Bytes2All 0x03 0x27) ]
-, MapEntry (Glyph "cent") [ UTF81 (Bytes1 0xA2) ]
--- , MapEntry (Glyph "centigrade") [ UTF82 (Bytes2All 0x21 0x03) ]
--- , MapEntry (Glyph "centinferior") [ UTF82 (Bytes2All 0xF6 0xDF) ]
--- , MapEntry (Glyph "centmonospace") [ UTF82 (Bytes2All 0xFF 0xE0) ]
--- , MapEntry (Glyph "centoldstyle") [ UTF82 (Bytes2All 0xF7 0xA2) ]
--- , MapEntry (Glyph "centsuperior") [ UTF82 (Bytes2All 0xF6 0xE0) ]
--- , MapEntry (Glyph "chaarmenian") [ UTF82 (Bytes2All 0x05 0x79) ]
--- , MapEntry (Glyph "chabengali") [ UTF82 (Bytes2All 0x09 0x9B) ]
--- , MapEntry (Glyph "chadeva") [ UTF82 (Bytes2All 0x09 0x1B) ]
--- , MapEntry (Glyph "chagujarati") [ UTF82 (Bytes2All 0x0A 0x9B) ]
--- , MapEntry (Glyph "chagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1B) ]
--- , MapEntry (Glyph "chbopomofo") [ UTF82 (Bytes2All 0x31 0x14) ]
--- , MapEntry (Glyph "cheabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBD) ]
--- , MapEntry (Glyph "checkmark") [ UTF82 (Bytes2All 0x27 0x13) ]
--- , MapEntry (Glyph "checyrillic") [ UTF82 (Bytes2All 0x04 0x47) ]
--- , MapEntry (Glyph "chedescenderabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBF) ]
--- , MapEntry (Glyph "chedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB7) ]
--- , MapEntry (Glyph "chedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF5) ]
--- , MapEntry (Glyph "cheharmenian") [ UTF82 (Bytes2All 0x05 0x73) ]
--- , MapEntry (Glyph "chekhakassiancyrillic") [ UTF82 (Bytes2All 0x04 0xCC) ]
--- , MapEntry (Glyph "cheverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB9) ]
--- , MapEntry (Glyph "chi") [ UTF82 (Bytes2All 0x03 0xC7) ]
--- , MapEntry (Glyph "chieuchacirclekorean") [ UTF82 (Bytes2All 0x32 0x77) ]
--- , MapEntry (Glyph "chieuchaparenkorean") [ UTF82 (Bytes2All 0x32 0x17) ]
--- , MapEntry (Glyph "chieuchcirclekorean") [ UTF82 (Bytes2All 0x32 0x69) ]
--- , MapEntry (Glyph "chieuchkorean") [ UTF82 (Bytes2All 0x31 0x4A) ]
--- , MapEntry (Glyph "chieuchparenkorean") [ UTF82 (Bytes2All 0x32 0x09) ]
--- , MapEntry (Glyph "chochangthai") [ UTF82 (Bytes2All 0x0E 0x0A) ]
--- , MapEntry (Glyph "chochanthai") [ UTF82 (Bytes2All 0x0E 0x08) ]
--- , MapEntry (Glyph "chochingthai") [ UTF82 (Bytes2All 0x0E 0x09) ]
--- , MapEntry (Glyph "chochoethai") [ UTF82 (Bytes2All 0x0E 0x0C) ]
--- , MapEntry (Glyph "chook") [ UTF82 (Bytes2All 0x01 0x88) ]
--- , MapEntry (Glyph "cieucacirclekorean") [ UTF82 (Bytes2All 0x32 0x76) ]
--- , MapEntry (Glyph "cieucaparenkorean") [ UTF82 (Bytes2All 0x32 0x16) ]
--- , MapEntry (Glyph "cieuccirclekorean") [ UTF82 (Bytes2All 0x32 0x68) ]
--- , MapEntry (Glyph "cieuckorean") [ UTF82 (Bytes2All 0x31 0x48) ]
--- , MapEntry (Glyph "cieucparenkorean") [ UTF82 (Bytes2All 0x32 0x08) ]
--- , MapEntry (Glyph "cieucuparenkorean") [ UTF82 (Bytes2All 0x32 0x1C) ]
--- , MapEntry (Glyph "circle") [ UTF82 (Bytes2All 0x25 0xCB) ]
--- , MapEntry (Glyph "circlemultiply") [ UTF82 (Bytes2All 0x22 0x97) ]
--- , MapEntry (Glyph "circleot") [ UTF82 (Bytes2All 0x22 0x99) ]
--- , MapEntry (Glyph "circleplus") [ UTF82 (Bytes2All 0x22 0x95) ]
--- , MapEntry (Glyph "circlepostalmark") [ UTF82 (Bytes2All 0x30 0x36) ]
--- , MapEntry (Glyph "circlewithlefthalfblack") [ UTF82 (Bytes2All 0x25 0xD0) ]
--- , MapEntry (Glyph "circlewithrighthalfblack") [ UTF82 (Bytes2All 0x25 0xD1) ]
--- , MapEntry (Glyph "circumflex") [ UTF82 (Bytes2All 0x02 0xC6) ]
--- , MapEntry (Glyph "circumflexbelowcmb") [ UTF82 (Bytes2All 0x03 0x2D) ]
--- , MapEntry (Glyph "circumflexcmb") [ UTF82 (Bytes2All 0x03 0x02) ]
--- , MapEntry (Glyph "clear") [ UTF82 (Bytes2All 0x23 0x27) ]
--- , MapEntry (Glyph "clickalveolar") [ UTF82 (Bytes2All 0x01 0xC2) ]
--- , MapEntry (Glyph "clickdental") [ UTF82 (Bytes2All 0x01 0xC0) ]
--- , MapEntry (Glyph "clicklateral") [ UTF82 (Bytes2All 0x01 0xC1) ]
--- , MapEntry (Glyph "clickretroflex") [ UTF82 (Bytes2All 0x01 0xC3) ]
--- , MapEntry (Glyph "club") [ UTF82 (Bytes2All 0x26 0x63) ]
--- , MapEntry (Glyph "clubsuitblack") [ UTF82 (Bytes2All 0x26 0x63) ]
--- , MapEntry (Glyph "clubsuitwhite") [ UTF82 (Bytes2All 0x26 0x67) ]
--- , MapEntry (Glyph "cmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA4) ]
--- , MapEntry (Glyph "cmonospace") [ UTF82 (Bytes2All 0xFF 0x43) ]
--- , MapEntry (Glyph "cmsquaredsquare") [ UTF82 (Bytes2All 0x33 0xA0) ]
--- , MapEntry (Glyph "coarmenian") [ UTF82 (Bytes2All 0x05 0x81) ]
-, MapEntry (Glyph "colon") [ UTF81 (Bytes1 0x3A) ]
--- , MapEntry (Glyph "colonmonetary") [ UTF82 (Bytes2All 0x20 0xA1) ]
--- , MapEntry (Glyph "colonmonospace") [ UTF82 (Bytes2All 0xFF 0x1A) ]
--- , MapEntry (Glyph "colonsign") [ UTF82 (Bytes2All 0x20 0xA1) ]
--- , MapEntry (Glyph "colonsmall") [ UTF82 (Bytes2All 0xFE 0x55) ]
--- , MapEntry (Glyph "colontriangularhalfmod") [ UTF82 (Bytes2All 0x02 0xD1) ]
--- , MapEntry (Glyph "colontriangularmod") [ UTF82 (Bytes2All 0x02 0xD0) ]
-, MapEntry (Glyph "comma") [ UTF81 (Bytes1 0x2C) ]
--- , MapEntry (Glyph "commaabovecmb") [ UTF82 (Bytes2All 0x03 0x13) ]
--- , MapEntry (Glyph "commaaboverightcmb") [ UTF82 (Bytes2All 0x03 0x15) ]
--- , MapEntry (Glyph "commaaccent") [ UTF82 (Bytes2All 0xF6 0xC3) ]
--- , MapEntry (Glyph "commaarabic") [ UTF82 (Bytes2All 0x06 0x0C) ]
--- , MapEntry (Glyph "commaarmenian") [ UTF82 (Bytes2All 0x05 0x5D) ]
--- , MapEntry (Glyph "commainferior") [ UTF82 (Bytes2All 0xF6 0xE1) ]
--- , MapEntry (Glyph "commamonospace") [ UTF82 (Bytes2All 0xFF 0x0C) ]
--- , MapEntry (Glyph "commareversedabovecmb") [ UTF82 (Bytes2All 0x03 0x14) ]
--- , MapEntry (Glyph "commareversedmod") [ UTF82 (Bytes2All 0x02 0xBD) ]
--- , MapEntry (Glyph "commasmall") [ UTF82 (Bytes2All 0xFE 0x50) ]
--- , MapEntry (Glyph "commasuperior") [ UTF82 (Bytes2All 0xF6 0xE2) ]
--- , MapEntry (Glyph "commaturnedabovecmb") [ UTF82 (Bytes2All 0x03 0x12) ]
--- , MapEntry (Glyph "commaturnedmod") [ UTF82 (Bytes2All 0x02 0xBB) ]
--- , MapEntry (Glyph "compass") [ UTF82 (Bytes2All 0x26 0x3C) ]
--- , MapEntry (Glyph "congruent") [ UTF82 (Bytes2All 0x22 0x45) ]
--- , MapEntry (Glyph "contourintegral") [ UTF82 (Bytes2All 0x22 0x2E) ]
--- , MapEntry (Glyph "control") [ UTF82 (Bytes2All 0x23 0x03) ]
-, MapEntry (Glyph "controlACK") [ UTF81 (Bytes1 0x06) ]
-, MapEntry (Glyph "controlBEL") [ UTF81 (Bytes1 0x07) ]
-, MapEntry (Glyph "controlBS") [ UTF81 (Bytes1 0x08) ]
-, MapEntry (Glyph "controlCAN") [ UTF81 (Bytes1 0x18) ]
-, MapEntry (Glyph "controlCR") [ UTF81 (Bytes1 0x0D) ]
-, MapEntry (Glyph "controlDC1") [ UTF81 (Bytes1 0x11) ]
-, MapEntry (Glyph "controlDC2") [ UTF81 (Bytes1 0x12) ]
-, MapEntry (Glyph "controlDC3") [ UTF81 (Bytes1 0x13) ]
-, MapEntry (Glyph "controlDC4") [ UTF81 (Bytes1 0x14) ]
-, MapEntry (Glyph "controlDEL") [ UTF81 (Bytes1 0x7F) ]
-, MapEntry (Glyph "controlDLE") [ UTF81 (Bytes1 0x10) ]
-, MapEntry (Glyph "controlEM") [ UTF81 (Bytes1 0x19) ]
-, MapEntry (Glyph "controlENQ") [ UTF81 (Bytes1 0x05) ]
-, MapEntry (Glyph "controlEOT") [ UTF81 (Bytes1 0x04) ]
-, MapEntry (Glyph "controlESC") [ UTF81 (Bytes1 0x1B) ]
-, MapEntry (Glyph "controlETB") [ UTF81 (Bytes1 0x17) ]
-, MapEntry (Glyph "controlETX") [ UTF81 (Bytes1 0x03) ]
-, MapEntry (Glyph "controlFF") [ UTF81 (Bytes1 0x0C) ]
-, MapEntry (Glyph "controlFS") [ UTF81 (Bytes1 0x1C) ]
-, MapEntry (Glyph "controlGS") [ UTF81 (Bytes1 0x1D) ]
-, MapEntry (Glyph "controlHT") [ UTF81 (Bytes1 0x09) ]
-, MapEntry (Glyph "controlLF") [ UTF81 (Bytes1 0x0A) ]
-, MapEntry (Glyph "controlNAK") [ UTF81 (Bytes1 0x15) ]
-, MapEntry (Glyph "controlRS") [ UTF81 (Bytes1 0x1E) ]
-, MapEntry (Glyph "controlSI") [ UTF81 (Bytes1 0x0F) ]
-, MapEntry (Glyph "controlSO") [ UTF81 (Bytes1 0x0E) ]
-, MapEntry (Glyph "controlSOT") [ UTF81 (Bytes1 0x02) ]
-, MapEntry (Glyph "controlSTX") [ UTF81 (Bytes1 0x01) ]
-, MapEntry (Glyph "controlSUB") [ UTF81 (Bytes1 0x1A) ]
-, MapEntry (Glyph "controlSYN") [ UTF81 (Bytes1 0x16) ]
-, MapEntry (Glyph "controlUS") [ UTF81 (Bytes1 0x1F) ]
-, MapEntry (Glyph "controlVT") [ UTF81 (Bytes1 0x0B) ]
-, MapEntry (Glyph "copyright") [ UTF81 (Bytes1 0xA9) ]
--- , MapEntry (Glyph "copyrightsans") [ UTF82 (Bytes2All 0xF8 0xE9) ]
--- , MapEntry (Glyph "copyrightserif") [ UTF82 (Bytes2All 0xF6 0xD9) ]
--- , MapEntry (Glyph "cornerbracketleft") [ UTF82 (Bytes2All 0x30 0x0C) ]
--- , MapEntry (Glyph "cornerbracketlefthalfwidth") [ UTF82 (Bytes2All 0xFF 0x62) ]
--- , MapEntry (Glyph "cornerbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x41) ]
--- , MapEntry (Glyph "cornerbracketright") [ UTF82 (Bytes2All 0x30 0x0D) ]
--- , MapEntry (Glyph "cornerbracketrighthalfwidth") [ UTF82 (Bytes2All 0xFF 0x63) ]
--- , MapEntry (Glyph "cornerbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x42) ]
--- , MapEntry (Glyph "corporationsquare") [ UTF82 (Bytes2All 0x33 0x7F) ]
--- , MapEntry (Glyph "cosquare") [ UTF82 (Bytes2All 0x33 0xC7) ]
--- , MapEntry (Glyph "coverkgsquare") [ UTF82 (Bytes2All 0x33 0xC6) ]
--- , MapEntry (Glyph "cparen") [ UTF82 (Bytes2All 0x24 0x9E) ]
--- , MapEntry (Glyph "cruzeiro") [ UTF82 (Bytes2All 0x20 0xA2) ]
--- , MapEntry (Glyph "cstretched") [ UTF82 (Bytes2All 0x02 0x97) ]
--- , MapEntry (Glyph "curlyand") [ UTF82 (Bytes2All 0x22 0xCF) ]
--- , MapEntry (Glyph "curlyor") [ UTF82 (Bytes2All 0x22 0xCE) ]
-, MapEntry (Glyph "currency") [ UTF81 (Bytes1 0xA4) ]
--- , MapEntry (Glyph "cyrBreve") [ UTF82 (Bytes2All 0xF6 0xD1) ]
--- , MapEntry (Glyph "cyrFlex") [ UTF82 (Bytes2All 0xF6 0xD2) ]
--- , MapEntry (Glyph "cyrbreve") [ UTF82 (Bytes2All 0xF6 0xD4) ]
--- , MapEntry (Glyph "cyrflex") [ UTF82 (Bytes2All 0xF6 0xD5) ]
-, MapEntry (Glyph "d") [ UTF81 (Bytes1 0x64) ]
--- , MapEntry (Glyph "daarmenian") [ UTF82 (Bytes2All 0x05 0x64) ]
--- , MapEntry (Glyph "dabengali") [ UTF82 (Bytes2All 0x09 0xA6) ]
--- , MapEntry (Glyph "dadarabic") [ UTF82 (Bytes2All 0x06 0x36) ]
--- , MapEntry (Glyph "dadeva") [ UTF82 (Bytes2All 0x09 0x26) ]
--- , MapEntry (Glyph "dadfinalarabic") [ UTF82 (Bytes2All 0xFE 0xBE) ]
--- , MapEntry (Glyph "dadinitialarabic") [ UTF82 (Bytes2All 0xFE 0xBF) ]
--- , MapEntry (Glyph "dadmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC0) ]
--- , MapEntry (Glyph "dagesh") [ UTF82 (Bytes2All 0x05 0xBC) ]
--- , MapEntry (Glyph "dageshhebrew") [ UTF82 (Bytes2All 0x05 0xBC) ]
--- , MapEntry (Glyph "dagger") [ UTF82 (Bytes2All 0x20 0x20) ]
--- , MapEntry (Glyph "daggerdbl") [ UTF82 (Bytes2All 0x20 0x21) ]
--- , MapEntry (Glyph "dagujarati") [ UTF82 (Bytes2All 0x0A 0xA6) ]
--- , MapEntry (Glyph "dagurmukhi") [ UTF82 (Bytes2All 0x0A 0x26) ]
--- , MapEntry (Glyph "dahiragana") [ UTF82 (Bytes2All 0x30 0x60) ]
--- , MapEntry (Glyph "dakatakana") [ UTF82 (Bytes2All 0x30 0xC0) ]
--- , MapEntry (Glyph "dalarabic") [ UTF82 (Bytes2All 0x06 0x2F) ]
--- , MapEntry (Glyph "dalet") [ UTF82 (Bytes2All 0x05 0xD3) ]
--- , MapEntry (Glyph "daletdagesh") [ UTF82 (Bytes2All 0xFB 0x33) ]
--- , MapEntry (Glyph "daletdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x33) ]
--- , MapEntry (Glyph "dalethatafpatah") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "dalethatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "dalethatafsegol") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "dalethatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "dalethebrew") [ UTF82 (Bytes2All 0x05 0xD3) ]
--- , MapEntry (Glyph "dalethiriq") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "dalethiriqhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "daletholam") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "daletholamhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "daletpatah") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "daletpatahhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "daletqamats") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "daletqamatshebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "daletqubuts") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "daletqubutshebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "daletsegol") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "daletsegolhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "daletsheva") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "daletshevahebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "dalettsere") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "dalettserehebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "dalfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAA) ]
--- , MapEntry (Glyph "dammaarabic") [ UTF82 (Bytes2All 0x06 0x4F) ]
--- , MapEntry (Glyph "dammalowarabic") [ UTF82 (Bytes2All 0x06 0x4F) ]
--- , MapEntry (Glyph "dammatanaltonearabic") [ UTF82 (Bytes2All 0x06 0x4C) ]
--- , MapEntry (Glyph "dammatanarabic") [ UTF82 (Bytes2All 0x06 0x4C) ]
--- , MapEntry (Glyph "danda") [ UTF82 (Bytes2All 0x09 0x64) ]
--- , MapEntry (Glyph "dargahebrew") [ UTF82 (Bytes2All 0x05 0xA7) ]
--- , MapEntry (Glyph "dargalefthebrew") [ UTF82 (Bytes2All 0x05 0xA7) ]
--- , MapEntry (Glyph "dasiapneumatacyrilliccmb") [ UTF82 (Bytes2All 0x04 0x85) ]
--- , MapEntry (Glyph "dblGrave") [ UTF82 (Bytes2All 0xF6 0xD3) ]
--- , MapEntry (Glyph "dblanglebracketleft") [ UTF82 (Bytes2All 0x30 0x0A) ]
--- , MapEntry (Glyph "dblanglebracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3D) ]
--- , MapEntry (Glyph "dblanglebracketright") [ UTF82 (Bytes2All 0x30 0x0B) ]
--- , MapEntry (Glyph "dblanglebracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3E) ]
--- , MapEntry (Glyph "dblarchinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x2B) ]
--- , MapEntry (Glyph "dblarrowleft") [ UTF82 (Bytes2All 0x21 0xD4) ]
--- , MapEntry (Glyph "dblarrowright") [ UTF82 (Bytes2All 0x21 0xD2) ]
--- , MapEntry (Glyph "dbldanda") [ UTF82 (Bytes2All 0x09 0x65) ]
--- , MapEntry (Glyph "dblgrave") [ UTF82 (Bytes2All 0xF6 0xD6) ]
--- , MapEntry (Glyph "dblgravecmb") [ UTF82 (Bytes2All 0x03 0x0F) ]
--- , MapEntry (Glyph "dblintegral") [ UTF82 (Bytes2All 0x22 0x2C) ]
--- , MapEntry (Glyph "dbllowline") [ UTF82 (Bytes2All 0x20 0x17) ]
--- , MapEntry (Glyph "dbllowlinecmb") [ UTF82 (Bytes2All 0x03 0x33) ]
--- , MapEntry (Glyph "dbloverlinecmb") [ UTF82 (Bytes2All 0x03 0x3F) ]
--- , MapEntry (Glyph "dblprimemod") [ UTF82 (Bytes2All 0x02 0xBA) ]
--- , MapEntry (Glyph "dblverticalbar") [ UTF82 (Bytes2All 0x20 0x16) ]
--- , MapEntry (Glyph "dblverticallineabovecmb") [ UTF82 (Bytes2All 0x03 0x0E) ]
--- , MapEntry (Glyph "dbopomofo") [ UTF82 (Bytes2All 0x31 0x09) ]
--- , MapEntry (Glyph "dbsquare") [ UTF82 (Bytes2All 0x33 0xC8) ]
--- , MapEntry (Glyph "dcaron") [ UTF82 (Bytes2All 0x01 0x0F) ]
--- , MapEntry (Glyph "dcedilla") [ UTF82 (Bytes2All 0x1E 0x11) ]
--- , MapEntry (Glyph "dcircle") [ UTF82 (Bytes2All 0x24 0xD3) ]
--- , MapEntry (Glyph "dcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x13) ]
--- , MapEntry (Glyph "dcroat") [ UTF82 (Bytes2All 0x01 0x11) ]
--- , MapEntry (Glyph "ddabengali") [ UTF82 (Bytes2All 0x09 0xA1) ]
--- , MapEntry (Glyph "ddadeva") [ UTF82 (Bytes2All 0x09 0x21) ]
--- , MapEntry (Glyph "ddagujarati") [ UTF82 (Bytes2All 0x0A 0xA1) ]
--- , MapEntry (Glyph "ddagurmukhi") [ UTF82 (Bytes2All 0x0A 0x21) ]
--- , MapEntry (Glyph "ddalarabic") [ UTF82 (Bytes2All 0x06 0x88) ]
--- , MapEntry (Glyph "ddalfinalarabic") [ UTF82 (Bytes2All 0xFB 0x89) ]
--- , MapEntry (Glyph "dddhadeva") [ UTF82 (Bytes2All 0x09 0x5C) ]
--- , MapEntry (Glyph "ddhabengali") [ UTF82 (Bytes2All 0x09 0xA2) ]
--- , MapEntry (Glyph "ddhadeva") [ UTF82 (Bytes2All 0x09 0x22) ]
--- , MapEntry (Glyph "ddhagujarati") [ UTF82 (Bytes2All 0x0A 0xA2) ]
--- , MapEntry (Glyph "ddhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x22) ]
--- , MapEntry (Glyph "ddotaccent") [ UTF82 (Bytes2All 0x1E 0x0B) ]
--- , MapEntry (Glyph "ddotbelow") [ UTF82 (Bytes2All 0x1E 0x0D) ]
--- , MapEntry (Glyph "decimalseparatorarabic") [ UTF82 (Bytes2All 0x06 0x6B) ]
--- , MapEntry (Glyph "decimalseparatorpersian") [ UTF82 (Bytes2All 0x06 0x6B) ]
--- , MapEntry (Glyph "decyrillic") [ UTF82 (Bytes2All 0x04 0x34) ]
-, MapEntry (Glyph "degree") [ UTF81 (Bytes1 0xB0) ]
--- , MapEntry (Glyph "dehihebrew") [ UTF82 (Bytes2All 0x05 0xAD) ]
--- , MapEntry (Glyph "dehiragana") [ UTF82 (Bytes2All 0x30 0x67) ]
--- , MapEntry (Glyph "deicoptic") [ UTF82 (Bytes2All 0x03 0xEF) ]
--- , MapEntry (Glyph "dekatakana") [ UTF82 (Bytes2All 0x30 0xC7) ]
--- , MapEntry (Glyph "deleteleft") [ UTF82 (Bytes2All 0x23 0x2B) ]
--- , MapEntry (Glyph "deleteright") [ UTF82 (Bytes2All 0x23 0x26) ]
--- , MapEntry (Glyph "delta") [ UTF82 (Bytes2All 0x03 0xB4) ]
--- , MapEntry (Glyph "deltaturned") [ UTF82 (Bytes2All 0x01 0x8D) ]
--- , MapEntry (Glyph "denominatorminusonenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF8) ]
--- , MapEntry (Glyph "dezh") [ UTF82 (Bytes2All 0x02 0xA4) ]
--- , MapEntry (Glyph "dhabengali") [ UTF82 (Bytes2All 0x09 0xA7) ]
--- , MapEntry (Glyph "dhadeva") [ UTF82 (Bytes2All 0x09 0x27) ]
--- , MapEntry (Glyph "dhagujarati") [ UTF82 (Bytes2All 0x0A 0xA7) ]
--- , MapEntry (Glyph "dhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x27) ]
--- , MapEntry (Glyph "dhook") [ UTF82 (Bytes2All 0x02 0x57) ]
--- , MapEntry (Glyph "dialytikatonos") [ UTF82 (Bytes2All 0x03 0x85) ]
--- , MapEntry (Glyph "dialytikatonoscmb") [ UTF82 (Bytes2All 0x03 0x44) ]
--- , MapEntry (Glyph "diamond") [ UTF82 (Bytes2All 0x26 0x66) ]
--- , MapEntry (Glyph "diamondsuitwhite") [ UTF82 (Bytes2All 0x26 0x62) ]
-, MapEntry (Glyph "dieresis") [ UTF81 (Bytes1 0xA8) ]
--- , MapEntry (Glyph "dieresisacute") [ UTF82 (Bytes2All 0xF6 0xD7) ]
--- , MapEntry (Glyph "dieresisbelowcmb") [ UTF82 (Bytes2All 0x03 0x24) ]
--- , MapEntry (Glyph "dieresiscmb") [ UTF82 (Bytes2All 0x03 0x08) ]
--- , MapEntry (Glyph "dieresisgrave") [ UTF82 (Bytes2All 0xF6 0xD8) ]
--- , MapEntry (Glyph "dieresistonos") [ UTF82 (Bytes2All 0x03 0x85) ]
--- , MapEntry (Glyph "dihiragana") [ UTF82 (Bytes2All 0x30 0x62) ]
--- , MapEntry (Glyph "dikatakana") [ UTF82 (Bytes2All 0x30 0xC2) ]
--- , MapEntry (Glyph "dittomark") [ UTF82 (Bytes2All 0x30 0x03) ]
-, MapEntry (Glyph "divide") [ UTF81 (Bytes1 0xF7) ]
--- , MapEntry (Glyph "divides") [ UTF82 (Bytes2All 0x22 0x23) ]
--- , MapEntry (Glyph "divisionslash") [ UTF82 (Bytes2All 0x22 0x15) ]
--- , MapEntry (Glyph "djecyrillic") [ UTF82 (Bytes2All 0x04 0x52) ]
--- , MapEntry (Glyph "dkshade") [ UTF82 (Bytes2All 0x25 0x93) ]
--- , MapEntry (Glyph "dlinebelow") [ UTF82 (Bytes2All 0x1E 0x0F) ]
--- , MapEntry (Glyph "dlsquare") [ UTF82 (Bytes2All 0x33 0x97) ]
--- , MapEntry (Glyph "dmacron") [ UTF82 (Bytes2All 0x01 0x11) ]
--- , MapEntry (Glyph "dmonospace") [ UTF82 (Bytes2All 0xFF 0x44) ]
--- , MapEntry (Glyph "dnblock") [ UTF82 (Bytes2All 0x25 0x84) ]
--- , MapEntry (Glyph "dochadathai") [ UTF82 (Bytes2All 0x0E 0x0E) ]
--- , MapEntry (Glyph "dodekthai") [ UTF82 (Bytes2All 0x0E 0x14) ]
--- , MapEntry (Glyph "dohiragana") [ UTF82 (Bytes2All 0x30 0x69) ]
--- , MapEntry (Glyph "dokatakana") [ UTF82 (Bytes2All 0x30 0xC9) ]
-, MapEntry (Glyph "dollar") [ UTF81 (Bytes1 0x24) ]
--- , MapEntry (Glyph "dollarinferior") [ UTF82 (Bytes2All 0xF6 0xE3) ]
--- , MapEntry (Glyph "dollarmonospace") [ UTF82 (Bytes2All 0xFF 0x04) ]
--- , MapEntry (Glyph "dollaroldstyle") [ UTF82 (Bytes2All 0xF7 0x24) ]
--- , MapEntry (Glyph "dollarsmall") [ UTF82 (Bytes2All 0xFE 0x69) ]
--- , MapEntry (Glyph "dollarsuperior") [ UTF82 (Bytes2All 0xF6 0xE4) ]
--- , MapEntry (Glyph "dong") [ UTF82 (Bytes2All 0x20 0xAB) ]
--- , MapEntry (Glyph "dorusquare") [ UTF82 (Bytes2All 0x33 0x26) ]
--- , MapEntry (Glyph "dotaccent") [ UTF82 (Bytes2All 0x02 0xD9) ]
--- , MapEntry (Glyph "dotaccentcmb") [ UTF82 (Bytes2All 0x03 0x07) ]
--- , MapEntry (Glyph "dotbelowcmb") [ UTF82 (Bytes2All 0x03 0x23) ]
--- , MapEntry (Glyph "dotbelowcomb") [ UTF82 (Bytes2All 0x03 0x23) ]
--- , MapEntry (Glyph "dotkatakana") [ UTF82 (Bytes2All 0x30 0xFB) ]
--- , MapEntry (Glyph "dotlessi") [ UTF82 (Bytes2All 0x01 0x31) ]
--- , MapEntry (Glyph "dotlessj") [ UTF82 (Bytes2All 0xF6 0xBE) ]
--- , MapEntry (Glyph "dotlessjstrokehook") [ UTF82 (Bytes2All 0x02 0x84) ]
--- , MapEntry (Glyph "dotmath") [ UTF82 (Bytes2All 0x22 0xC5) ]
--- , MapEntry (Glyph "dottedcircle") [ UTF82 (Bytes2All 0x25 0xCC) ]
--- , MapEntry (Glyph "doubleyodpatah") [ UTF82 (Bytes2All 0xFB 0x1F) ]
--- , MapEntry (Glyph "doubleyodpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x1F) ]
--- , MapEntry (Glyph "downtackbelowcmb") [ UTF82 (Bytes2All 0x03 0x1E) ]
--- , MapEntry (Glyph "downtackmod") [ UTF82 (Bytes2All 0x02 0xD5) ]
--- , MapEntry (Glyph "dparen") [ UTF82 (Bytes2All 0x24 0x9F) ]
--- , MapEntry (Glyph "dsuperior") [ UTF82 (Bytes2All 0xF6 0xEB) ]
--- , MapEntry (Glyph "dtail") [ UTF82 (Bytes2All 0x02 0x56) ]
--- , MapEntry (Glyph "dtopbar") [ UTF82 (Bytes2All 0x01 0x8C) ]
--- , MapEntry (Glyph "duhiragana") [ UTF82 (Bytes2All 0x30 0x65) ]
--- , MapEntry (Glyph "dukatakana") [ UTF82 (Bytes2All 0x30 0xC5) ]
--- , MapEntry (Glyph "dz") [ UTF82 (Bytes2All 0x01 0xF3) ]
--- , MapEntry (Glyph "dzaltone") [ UTF82 (Bytes2All 0x02 0xA3) ]
--- , MapEntry (Glyph "dzcaron") [ UTF82 (Bytes2All 0x01 0xC6) ]
--- , MapEntry (Glyph "dzcurl") [ UTF82 (Bytes2All 0x02 0xA5) ]
--- , MapEntry (Glyph "dzeabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xE1) ]
--- , MapEntry (Glyph "dzecyrillic") [ UTF82 (Bytes2All 0x04 0x55) ]
--- , MapEntry (Glyph "dzhecyrillic") [ UTF82 (Bytes2All 0x04 0x5F) ]
-, MapEntry (Glyph "e") [ UTF81 (Bytes1 0x65) ]
-, MapEntry (Glyph "eacute") [ UTF81 (Bytes1 0xE9) ]
--- , MapEntry (Glyph "earth") [ UTF82 (Bytes2All 0x26 0x41) ]
--- , MapEntry (Glyph "ebengali") [ UTF82 (Bytes2All 0x09 0x8F) ]
--- , MapEntry (Glyph "ebopomofo") [ UTF82 (Bytes2All 0x31 0x1C) ]
--- , MapEntry (Glyph "ebreve") [ UTF82 (Bytes2All 0x01 0x15) ]
--- , MapEntry (Glyph "ecandradeva") [ UTF82 (Bytes2All 0x09 0x0D) ]
--- , MapEntry (Glyph "ecandragujarati") [ UTF82 (Bytes2All 0x0A 0x8D) ]
--- , MapEntry (Glyph "ecandravowelsigndeva") [ UTF82 (Bytes2All 0x09 0x45) ]
--- , MapEntry (Glyph "ecandravowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC5) ]
--- , MapEntry (Glyph "ecaron") [ UTF82 (Bytes2All 0x01 0x1B) ]
--- , MapEntry (Glyph "ecedillabreve") [ UTF82 (Bytes2All 0x1E 0x1D) ]
--- , MapEntry (Glyph "echarmenian") [ UTF82 (Bytes2All 0x05 0x65) ]
--- , MapEntry (Glyph "echyiwnarmenian") [ UTF82 (Bytes2All 0x05 0x87) ]
--- , MapEntry (Glyph "ecircle") [ UTF82 (Bytes2All 0x24 0xD4) ]
-, MapEntry (Glyph "ecircumflex") [ UTF81 (Bytes1 0xEA) ]
--- , MapEntry (Glyph "ecircumflexacute") [ UTF82 (Bytes2All 0x1E 0xBF) ]
--- , MapEntry (Glyph "ecircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x19) ]
--- , MapEntry (Glyph "ecircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xC7) ]
--- , MapEntry (Glyph "ecircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xC1) ]
--- , MapEntry (Glyph "ecircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xC3) ]
--- , MapEntry (Glyph "ecircumflextilde") [ UTF82 (Bytes2All 0x1E 0xC5) ]
--- , MapEntry (Glyph "ecyrillic") [ UTF82 (Bytes2All 0x04 0x54) ]
--- , MapEntry (Glyph "edblgrave") [ UTF82 (Bytes2All 0x02 0x05) ]
--- , MapEntry (Glyph "edeva") [ UTF82 (Bytes2All 0x09 0x0F) ]
-, MapEntry (Glyph "edieresis") [ UTF81 (Bytes1 0xEB) ]
--- , MapEntry (Glyph "edot") [ UTF82 (Bytes2All 0x01 0x17) ]
--- , MapEntry (Glyph "edotaccent") [ UTF82 (Bytes2All 0x01 0x17) ]
--- , MapEntry (Glyph "edotbelow") [ UTF82 (Bytes2All 0x1E 0xB9) ]
--- , MapEntry (Glyph "eegurmukhi") [ UTF82 (Bytes2All 0x0A 0x0F) ]
--- , MapEntry (Glyph "eematragurmukhi") [ UTF82 (Bytes2All 0x0A 0x47) ]
--- , MapEntry (Glyph "efcyrillic") [ UTF82 (Bytes2All 0x04 0x44) ]
-, MapEntry (Glyph "egrave") [ UTF81 (Bytes1 0xE8) ]
--- , MapEntry (Glyph "egujarati") [ UTF82 (Bytes2All 0x0A 0x8F) ]
--- , MapEntry (Glyph "eharmenian") [ UTF82 (Bytes2All 0x05 0x67) ]
--- , MapEntry (Glyph "ehbopomofo") [ UTF82 (Bytes2All 0x31 0x1D) ]
--- , MapEntry (Glyph "ehiragana") [ UTF82 (Bytes2All 0x30 0x48) ]
--- , MapEntry (Glyph "ehookabove") [ UTF82 (Bytes2All 0x1E 0xBB) ]
--- , MapEntry (Glyph "eibopomofo") [ UTF82 (Bytes2All 0x31 0x1F) ]
-, MapEntry (Glyph "eight") [ UTF81 (Bytes1 0x38) ]
--- , MapEntry (Glyph "eightarabic") [ UTF82 (Bytes2All 0x06 0x68) ]
--- , MapEntry (Glyph "eightbengali") [ UTF82 (Bytes2All 0x09 0xEE) ]
--- , MapEntry (Glyph "eightcircle") [ UTF82 (Bytes2All 0x24 0x67) ]
--- , MapEntry (Glyph "eightcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x91) ]
--- , MapEntry (Glyph "eightdeva") [ UTF82 (Bytes2All 0x09 0x6E) ]
--- , MapEntry (Glyph "eighteencircle") [ UTF82 (Bytes2All 0x24 0x71) ]
--- , MapEntry (Glyph "eighteenparen") [ UTF82 (Bytes2All 0x24 0x85) ]
--- , MapEntry (Glyph "eighteenperiod") [ UTF82 (Bytes2All 0x24 0x99) ]
--- , MapEntry (Glyph "eightgujarati") [ UTF82 (Bytes2All 0x0A 0xEE) ]
--- , MapEntry (Glyph "eightgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6E) ]
--- , MapEntry (Glyph "eighthackarabic") [ UTF82 (Bytes2All 0x06 0x68) ]
--- , MapEntry (Glyph "eighthangzhou") [ UTF82 (Bytes2All 0x30 0x28) ]
--- , MapEntry (Glyph "eighthnotebeamed") [ UTF82 (Bytes2All 0x26 0x6B) ]
--- , MapEntry (Glyph "eightideographicparen") [ UTF82 (Bytes2All 0x32 0x27) ]
--- , MapEntry (Glyph "eightinferior") [ UTF82 (Bytes2All 0x20 0x88) ]
--- , MapEntry (Glyph "eightmonospace") [ UTF82 (Bytes2All 0xFF 0x18) ]
--- , MapEntry (Glyph "eightoldstyle") [ UTF82 (Bytes2All 0xF7 0x38) ]
--- , MapEntry (Glyph "eightparen") [ UTF82 (Bytes2All 0x24 0x7B) ]
--- , MapEntry (Glyph "eightperiod") [ UTF82 (Bytes2All 0x24 0x8F) ]
--- , MapEntry (Glyph "eightpersian") [ UTF82 (Bytes2All 0x06 0xF8) ]
--- , MapEntry (Glyph "eightroman") [ UTF82 (Bytes2All 0x21 0x77) ]
--- , MapEntry (Glyph "eightsuperior") [ UTF82 (Bytes2All 0x20 0x78) ]
--- , MapEntry (Glyph "eightthai") [ UTF82 (Bytes2All 0x0E 0x58) ]
--- , MapEntry (Glyph "einvertedbreve") [ UTF82 (Bytes2All 0x02 0x07) ]
--- , MapEntry (Glyph "eiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x65) ]
--- , MapEntry (Glyph "ekatakana") [ UTF82 (Bytes2All 0x30 0xA8) ]
--- , MapEntry (Glyph "ekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x74) ]
--- , MapEntry (Glyph "ekonkargurmukhi") [ UTF82 (Bytes2All 0x0A 0x74) ]
--- , MapEntry (Glyph "ekorean") [ UTF82 (Bytes2All 0x31 0x54) ]
--- , MapEntry (Glyph "elcyrillic") [ UTF82 (Bytes2All 0x04 0x3B) ]
--- , MapEntry (Glyph "element") [ UTF82 (Bytes2All 0x22 0x08) ]
--- , MapEntry (Glyph "elevencircle") [ UTF82 (Bytes2All 0x24 0x6A) ]
--- , MapEntry (Glyph "elevenparen") [ UTF82 (Bytes2All 0x24 0x7E) ]
--- , MapEntry (Glyph "elevenperiod") [ UTF82 (Bytes2All 0x24 0x92) ]
--- , MapEntry (Glyph "elevenroman") [ UTF82 (Bytes2All 0x21 0x7A) ]
--- , MapEntry (Glyph "ellipsis") [ UTF82 (Bytes2All 0x20 0x26) ]
--- , MapEntry (Glyph "ellipsisvertical") [ UTF82 (Bytes2All 0x22 0xEE) ]
--- , MapEntry (Glyph "emacron") [ UTF82 (Bytes2All 0x01 0x13) ]
--- , MapEntry (Glyph "emacronacute") [ UTF82 (Bytes2All 0x1E 0x17) ]
--- , MapEntry (Glyph "emacrongrave") [ UTF82 (Bytes2All 0x1E 0x15) ]
--- , MapEntry (Glyph "emcyrillic") [ UTF82 (Bytes2All 0x04 0x3C) ]
--- , MapEntry (Glyph "emdash") [ UTF82 (Bytes2All 0x20 0x14) ]
--- , MapEntry (Glyph "emdashvertical") [ UTF82 (Bytes2All 0xFE 0x31) ]
--- , MapEntry (Glyph "emonospace") [ UTF82 (Bytes2All 0xFF 0x45) ]
--- , MapEntry (Glyph "emphasismarkarmenian") [ UTF82 (Bytes2All 0x05 0x5B) ]
--- , MapEntry (Glyph "emptyset") [ UTF82 (Bytes2All 0x22 0x05) ]
--- , MapEntry (Glyph "enbopomofo") [ UTF82 (Bytes2All 0x31 0x23) ]
--- , MapEntry (Glyph "encyrillic") [ UTF82 (Bytes2All 0x04 0x3D) ]
--- , MapEntry (Glyph "endash") [ UTF82 (Bytes2All 0x20 0x13) ]
--- , MapEntry (Glyph "endashvertical") [ UTF82 (Bytes2All 0xFE 0x32) ]
--- , MapEntry (Glyph "endescendercyrillic") [ UTF82 (Bytes2All 0x04 0xA3) ]
--- , MapEntry (Glyph "eng") [ UTF82 (Bytes2All 0x01 0x4B) ]
--- , MapEntry (Glyph "engbopomofo") [ UTF82 (Bytes2All 0x31 0x25) ]
--- , MapEntry (Glyph "enghecyrillic") [ UTF82 (Bytes2All 0x04 0xA5) ]
--- , MapEntry (Glyph "enhookcyrillic") [ UTF82 (Bytes2All 0x04 0xC8) ]
--- , MapEntry (Glyph "enspace") [ UTF82 (Bytes2All 0x20 0x02) ]
--- , MapEntry (Glyph "eogonek") [ UTF82 (Bytes2All 0x01 0x19) ]
--- , MapEntry (Glyph "eokorean") [ UTF82 (Bytes2All 0x31 0x53) ]
--- , MapEntry (Glyph "eopen") [ UTF82 (Bytes2All 0x02 0x5B) ]
--- , MapEntry (Glyph "eopenclosed") [ UTF82 (Bytes2All 0x02 0x9A) ]
--- , MapEntry (Glyph "eopenreversed") [ UTF82 (Bytes2All 0x02 0x5C) ]
--- , MapEntry (Glyph "eopenreversedclosed") [ UTF82 (Bytes2All 0x02 0x5E) ]
--- , MapEntry (Glyph "eopenreversedhook") [ UTF82 (Bytes2All 0x02 0x5D) ]
--- , MapEntry (Glyph "eparen") [ UTF82 (Bytes2All 0x24 0xA0) ]
--- , MapEntry (Glyph "epsilon") [ UTF82 (Bytes2All 0x03 0xB5) ]
--- , MapEntry (Glyph "epsilontonos") [ UTF82 (Bytes2All 0x03 0xAD) ]
-, MapEntry (Glyph "equal") [ UTF81 (Bytes1 0x3D) ]
--- , MapEntry (Glyph "equalmonospace") [ UTF82 (Bytes2All 0xFF 0x1D) ]
--- , MapEntry (Glyph "equalsmall") [ UTF82 (Bytes2All 0xFE 0x66) ]
--- , MapEntry (Glyph "equalsuperior") [ UTF82 (Bytes2All 0x20 0x7C) ]
--- , MapEntry (Glyph "equivalence") [ UTF82 (Bytes2All 0x22 0x61) ]
--- , MapEntry (Glyph "erbopomofo") [ UTF82 (Bytes2All 0x31 0x26) ]
--- , MapEntry (Glyph "ercyrillic") [ UTF82 (Bytes2All 0x04 0x40) ]
--- , MapEntry (Glyph "ereversed") [ UTF82 (Bytes2All 0x02 0x58) ]
--- , MapEntry (Glyph "ereversedcyrillic") [ UTF82 (Bytes2All 0x04 0x4D) ]
--- , MapEntry (Glyph "escyrillic") [ UTF82 (Bytes2All 0x04 0x41) ]
--- , MapEntry (Glyph "esdescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAB) ]
--- , MapEntry (Glyph "esh") [ UTF82 (Bytes2All 0x02 0x83) ]
--- , MapEntry (Glyph "eshcurl") [ UTF82 (Bytes2All 0x02 0x86) ]
--- , MapEntry (Glyph "eshortdeva") [ UTF82 (Bytes2All 0x09 0x0E) ]
--- , MapEntry (Glyph "eshortvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x46) ]
--- , MapEntry (Glyph "eshreversedloop") [ UTF82 (Bytes2All 0x01 0xAA) ]
--- , MapEntry (Glyph "eshsquatreversed") [ UTF82 (Bytes2All 0x02 0x85) ]
--- , MapEntry (Glyph "esmallhiragana") [ UTF82 (Bytes2All 0x30 0x47) ]
--- , MapEntry (Glyph "esmallkatakana") [ UTF82 (Bytes2All 0x30 0xA7) ]
--- , MapEntry (Glyph "esmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6A) ]
--- , MapEntry (Glyph "estimated") [ UTF82 (Bytes2All 0x21 0x2E) ]
--- , MapEntry (Glyph "esuperior") [ UTF82 (Bytes2All 0xF6 0xEC) ]
--- , MapEntry (Glyph "eta") [ UTF82 (Bytes2All 0x03 0xB7) ]
--- , MapEntry (Glyph "etarmenian") [ UTF82 (Bytes2All 0x05 0x68) ]
--- , MapEntry (Glyph "etatonos") [ UTF82 (Bytes2All 0x03 0xAE) ]
-, MapEntry (Glyph "eth") [ UTF81 (Bytes1 0xF0) ]
--- , MapEntry (Glyph "etilde") [ UTF82 (Bytes2All 0x1E 0xBD) ]
--- , MapEntry (Glyph "etildebelow") [ UTF82 (Bytes2All 0x1E 0x1B) ]
--- , MapEntry (Glyph "etnahtafoukhhebrew") [ UTF82 (Bytes2All 0x05 0x91) ]
--- , MapEntry (Glyph "etnahtafoukhlefthebrew") [ UTF82 (Bytes2All 0x05 0x91) ]
--- , MapEntry (Glyph "etnahtahebrew") [ UTF82 (Bytes2All 0x05 0x91) ]
--- , MapEntry (Glyph "etnahtalefthebrew") [ UTF82 (Bytes2All 0x05 0x91) ]
--- , MapEntry (Glyph "eturned") [ UTF82 (Bytes2All 0x01 0xDD) ]
--- , MapEntry (Glyph "eukorean") [ UTF82 (Bytes2All 0x31 0x61) ]
--- , MapEntry (Glyph "euro") [ UTF82 (Bytes2All 0x20 0xAC) ]
--- , MapEntry (Glyph "evowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC7) ]
--- , MapEntry (Glyph "evowelsigndeva") [ UTF82 (Bytes2All 0x09 0x47) ]
--- , MapEntry (Glyph "evowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC7) ]
-, MapEntry (Glyph "exclam") [ UTF81 (Bytes1 0x21) ]
--- , MapEntry (Glyph "exclamarmenian") [ UTF82 (Bytes2All 0x05 0x5C) ]
--- , MapEntry (Glyph "exclamdbl") [ UTF82 (Bytes2All 0x20 0x3C) ]
-, MapEntry (Glyph "exclamdown") [ UTF81 (Bytes1 0xA1) ]
--- , MapEntry (Glyph "exclamdownsmall") [ UTF82 (Bytes2All 0xF7 0xA1) ]
--- , MapEntry (Glyph "exclammonospace") [ UTF82 (Bytes2All 0xFF 0x01) ]
--- , MapEntry (Glyph "exclamsmall") [ UTF82 (Bytes2All 0xF7 0x21) ]
--- , MapEntry (Glyph "existential") [ UTF82 (Bytes2All 0x22 0x03) ]
--- , MapEntry (Glyph "ezh") [ UTF82 (Bytes2All 0x02 0x92) ]
--- , MapEntry (Glyph "ezhcaron") [ UTF82 (Bytes2All 0x01 0xEF) ]
--- , MapEntry (Glyph "ezhcurl") [ UTF82 (Bytes2All 0x02 0x93) ]
--- , MapEntry (Glyph "ezhreversed") [ UTF82 (Bytes2All 0x01 0xB9) ]
--- , MapEntry (Glyph "ezhtail") [ UTF82 (Bytes2All 0x01 0xBA) ]
-, MapEntry (Glyph "f") [ UTF81 (Bytes1 0x66) ]
--- , MapEntry (Glyph "fadeva") [ UTF82 (Bytes2All 0x09 0x5E) ]
--- , MapEntry (Glyph "fagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5E) ]
--- , MapEntry (Glyph "fahrenheit") [ UTF82 (Bytes2All 0x21 0x09) ]
--- , MapEntry (Glyph "fathaarabic") [ UTF82 (Bytes2All 0x06 0x4E) ]
--- , MapEntry (Glyph "fathalowarabic") [ UTF82 (Bytes2All 0x06 0x4E) ]
--- , MapEntry (Glyph "fathatanarabic") [ UTF82 (Bytes2All 0x06 0x4B) ]
--- , MapEntry (Glyph "fbopomofo") [ UTF82 (Bytes2All 0x31 0x08) ]
--- , MapEntry (Glyph "fcircle") [ UTF82 (Bytes2All 0x24 0xD5) ]
--- , MapEntry (Glyph "fdotaccent") [ UTF82 (Bytes2All 0x1E 0x1F) ]
--- , MapEntry (Glyph "feharabic") [ UTF82 (Bytes2All 0x06 0x41) ]
--- , MapEntry (Glyph "feharmenian") [ UTF82 (Bytes2All 0x05 0x86) ]
--- , MapEntry (Glyph "fehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xD2) ]
--- , MapEntry (Glyph "fehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xD3) ]
--- , MapEntry (Glyph "fehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD4) ]
--- , MapEntry (Glyph "feicoptic") [ UTF82 (Bytes2All 0x03 0xE5) ]
--- , MapEntry (Glyph "female") [ UTF82 (Bytes2All 0x26 0x40) ]
--- , MapEntry (Glyph "ff") [ UTF82 (Bytes2All 0xFB 0x00) ]
--- , MapEntry (Glyph "ffi") [ UTF82 (Bytes2All 0xFB 0x03) ]
--- , MapEntry (Glyph "ffl") [ UTF82 (Bytes2All 0xFB 0x04) ]
--- , MapEntry (Glyph "fi") [ UTF82 (Bytes2All 0xFB 0x01) ]
--- , MapEntry (Glyph "fifteencircle") [ UTF82 (Bytes2All 0x24 0x6E) ]
--- , MapEntry (Glyph "fifteenparen") [ UTF82 (Bytes2All 0x24 0x82) ]
--- , MapEntry (Glyph "fifteenperiod") [ UTF82 (Bytes2All 0x24 0x96) ]
--- , MapEntry (Glyph "figuredash") [ UTF82 (Bytes2All 0x20 0x12) ]
--- , MapEntry (Glyph "filledbox") [ UTF82 (Bytes2All 0x25 0xA0) ]
--- , MapEntry (Glyph "filledrect") [ UTF82 (Bytes2All 0x25 0xAC) ]
--- , MapEntry (Glyph "finalkaf") [ UTF82 (Bytes2All 0x05 0xDA) ]
--- , MapEntry (Glyph "finalkafdagesh") [ UTF82 (Bytes2All 0xFB 0x3A) ]
--- , MapEntry (Glyph "finalkafdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3A) ]
--- , MapEntry (Glyph "finalkafhebrew") [ UTF82 (Bytes2All 0x05 0xDA) ]
--- , MapEntry (Glyph "finalkafqamats") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "finalkafqamatshebrew") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "finalkafsheva") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "finalkafshevahebrew") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "finalmem") [ UTF82 (Bytes2All 0x05 0xDD) ]
--- , MapEntry (Glyph "finalmemhebrew") [ UTF82 (Bytes2All 0x05 0xDD) ]
--- , MapEntry (Glyph "finalnun") [ UTF82 (Bytes2All 0x05 0xDF) ]
--- , MapEntry (Glyph "finalnunhebrew") [ UTF82 (Bytes2All 0x05 0xDF) ]
--- , MapEntry (Glyph "finalpe") [ UTF82 (Bytes2All 0x05 0xE3) ]
--- , MapEntry (Glyph "finalpehebrew") [ UTF82 (Bytes2All 0x05 0xE3) ]
--- , MapEntry (Glyph "finaltsadi") [ UTF82 (Bytes2All 0x05 0xE5) ]
--- , MapEntry (Glyph "finaltsadihebrew") [ UTF82 (Bytes2All 0x05 0xE5) ]
--- , MapEntry (Glyph "firsttonechinese") [ UTF82 (Bytes2All 0x02 0xC9) ]
--- , MapEntry (Glyph "fisheye") [ UTF82 (Bytes2All 0x25 0xC9) ]
--- , MapEntry (Glyph "fitacyrillic") [ UTF82 (Bytes2All 0x04 0x73) ]
-, MapEntry (Glyph "five") [ UTF81 (Bytes1 0x35) ]
--- , MapEntry (Glyph "fivearabic") [ UTF82 (Bytes2All 0x06 0x65) ]
--- , MapEntry (Glyph "fivebengali") [ UTF82 (Bytes2All 0x09 0xEB) ]
--- , MapEntry (Glyph "fivecircle") [ UTF82 (Bytes2All 0x24 0x64) ]
--- , MapEntry (Glyph "fivecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8E) ]
--- , MapEntry (Glyph "fivedeva") [ UTF82 (Bytes2All 0x09 0x6B) ]
--- , MapEntry (Glyph "fiveeighths") [ UTF82 (Bytes2All 0x21 0x5D) ]
--- , MapEntry (Glyph "fivegujarati") [ UTF82 (Bytes2All 0x0A 0xEB) ]
--- , MapEntry (Glyph "fivegurmukhi") [ UTF82 (Bytes2All 0x0A 0x6B) ]
--- , MapEntry (Glyph "fivehackarabic") [ UTF82 (Bytes2All 0x06 0x65) ]
--- , MapEntry (Glyph "fivehangzhou") [ UTF82 (Bytes2All 0x30 0x25) ]
--- , MapEntry (Glyph "fiveideographicparen") [ UTF82 (Bytes2All 0x32 0x24) ]
--- , MapEntry (Glyph "fiveinferior") [ UTF82 (Bytes2All 0x20 0x85) ]
--- , MapEntry (Glyph "fivemonospace") [ UTF82 (Bytes2All 0xFF 0x15) ]
--- , MapEntry (Glyph "fiveoldstyle") [ UTF82 (Bytes2All 0xF7 0x35) ]
--- , MapEntry (Glyph "fiveparen") [ UTF82 (Bytes2All 0x24 0x78) ]
--- , MapEntry (Glyph "fiveperiod") [ UTF82 (Bytes2All 0x24 0x8C) ]
--- , MapEntry (Glyph "fivepersian") [ UTF82 (Bytes2All 0x06 0xF5) ]
--- , MapEntry (Glyph "fiveroman") [ UTF82 (Bytes2All 0x21 0x74) ]
--- , MapEntry (Glyph "fivesuperior") [ UTF82 (Bytes2All 0x20 0x75) ]
--- , MapEntry (Glyph "fivethai") [ UTF82 (Bytes2All 0x0E 0x55) ]
--- , MapEntry (Glyph "fl") [ UTF82 (Bytes2All 0xFB 0x02) ]
--- , MapEntry (Glyph "florin") [ UTF82 (Bytes2All 0x01 0x92) ]
--- , MapEntry (Glyph "fmonospace") [ UTF82 (Bytes2All 0xFF 0x46) ]
--- , MapEntry (Glyph "fmsquare") [ UTF82 (Bytes2All 0x33 0x99) ]
--- , MapEntry (Glyph "fofanthai") [ UTF82 (Bytes2All 0x0E 0x1F) ]
--- , MapEntry (Glyph "fofathai") [ UTF82 (Bytes2All 0x0E 0x1D) ]
--- , MapEntry (Glyph "fongmanthai") [ UTF82 (Bytes2All 0x0E 0x4F) ]
--- , MapEntry (Glyph "forall") [ UTF82 (Bytes2All 0x22 0x00) ]
-, MapEntry (Glyph "four") [ UTF81 (Bytes1 0x34) ]
--- , MapEntry (Glyph "fourarabic") [ UTF82 (Bytes2All 0x06 0x64) ]
--- , MapEntry (Glyph "fourbengali") [ UTF82 (Bytes2All 0x09 0xEA) ]
--- , MapEntry (Glyph "fourcircle") [ UTF82 (Bytes2All 0x24 0x63) ]
--- , MapEntry (Glyph "fourcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8D) ]
--- , MapEntry (Glyph "fourdeva") [ UTF82 (Bytes2All 0x09 0x6A) ]
--- , MapEntry (Glyph "fourgujarati") [ UTF82 (Bytes2All 0x0A 0xEA) ]
--- , MapEntry (Glyph "fourgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6A) ]
--- , MapEntry (Glyph "fourhackarabic") [ UTF82 (Bytes2All 0x06 0x64) ]
--- , MapEntry (Glyph "fourhangzhou") [ UTF82 (Bytes2All 0x30 0x24) ]
--- , MapEntry (Glyph "fourideographicparen") [ UTF82 (Bytes2All 0x32 0x23) ]
--- , MapEntry (Glyph "fourinferior") [ UTF82 (Bytes2All 0x20 0x84) ]
--- , MapEntry (Glyph "fourmonospace") [ UTF82 (Bytes2All 0xFF 0x14) ]
--- , MapEntry (Glyph "fournumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF7) ]
--- , MapEntry (Glyph "fouroldstyle") [ UTF82 (Bytes2All 0xF7 0x34) ]
--- , MapEntry (Glyph "fourparen") [ UTF82 (Bytes2All 0x24 0x77) ]
--- , MapEntry (Glyph "fourperiod") [ UTF82 (Bytes2All 0x24 0x8B) ]
--- , MapEntry (Glyph "fourpersian") [ UTF82 (Bytes2All 0x06 0xF4) ]
--- , MapEntry (Glyph "fourroman") [ UTF82 (Bytes2All 0x21 0x73) ]
--- , MapEntry (Glyph "foursuperior") [ UTF82 (Bytes2All 0x20 0x74) ]
--- , MapEntry (Glyph "fourteencircle") [ UTF82 (Bytes2All 0x24 0x6D) ]
--- , MapEntry (Glyph "fourteenparen") [ UTF82 (Bytes2All 0x24 0x81) ]
--- , MapEntry (Glyph "fourteenperiod") [ UTF82 (Bytes2All 0x24 0x95) ]
--- , MapEntry (Glyph "fourthai") [ UTF82 (Bytes2All 0x0E 0x54) ]
--- , MapEntry (Glyph "fourthtonechinese") [ UTF82 (Bytes2All 0x02 0xCB) ]
--- , MapEntry (Glyph "fparen") [ UTF82 (Bytes2All 0x24 0xA1) ]
--- , MapEntry (Glyph "fraction") [ UTF82 (Bytes2All 0x20 0x44) ]
--- , MapEntry (Glyph "franc") [ UTF82 (Bytes2All 0x20 0xA3) ]
-, MapEntry (Glyph "g") [ UTF81 (Bytes1 0x67) ]
--- , MapEntry (Glyph "gabengali") [ UTF82 (Bytes2All 0x09 0x97) ]
--- , MapEntry (Glyph "gacute") [ UTF82 (Bytes2All 0x01 0xF5) ]
--- , MapEntry (Glyph "gadeva") [ UTF82 (Bytes2All 0x09 0x17) ]
--- , MapEntry (Glyph "gafarabic") [ UTF82 (Bytes2All 0x06 0xAF) ]
--- , MapEntry (Glyph "gaffinalarabic") [ UTF82 (Bytes2All 0xFB 0x93) ]
--- , MapEntry (Glyph "gafinitialarabic") [ UTF82 (Bytes2All 0xFB 0x94) ]
--- , MapEntry (Glyph "gafmedialarabic") [ UTF82 (Bytes2All 0xFB 0x95) ]
--- , MapEntry (Glyph "gagujarati") [ UTF82 (Bytes2All 0x0A 0x97) ]
--- , MapEntry (Glyph "gagurmukhi") [ UTF82 (Bytes2All 0x0A 0x17) ]
--- , MapEntry (Glyph "gahiragana") [ UTF82 (Bytes2All 0x30 0x4C) ]
--- , MapEntry (Glyph "gakatakana") [ UTF82 (Bytes2All 0x30 0xAC) ]
--- , MapEntry (Glyph "gamma") [ UTF82 (Bytes2All 0x03 0xB3) ]
--- , MapEntry (Glyph "gammalatinsmall") [ UTF82 (Bytes2All 0x02 0x63) ]
--- , MapEntry (Glyph "gammasuperior") [ UTF82 (Bytes2All 0x02 0xE0) ]
--- , MapEntry (Glyph "gangiacoptic") [ UTF82 (Bytes2All 0x03 0xEB) ]
--- , MapEntry (Glyph "gbopomofo") [ UTF82 (Bytes2All 0x31 0x0D) ]
--- , MapEntry (Glyph "gbreve") [ UTF82 (Bytes2All 0x01 0x1F) ]
--- , MapEntry (Glyph "gcaron") [ UTF82 (Bytes2All 0x01 0xE7) ]
--- , MapEntry (Glyph "gcedilla") [ UTF82 (Bytes2All 0x01 0x23) ]
--- , MapEntry (Glyph "gcircle") [ UTF82 (Bytes2All 0x24 0xD6) ]
--- , MapEntry (Glyph "gcircumflex") [ UTF82 (Bytes2All 0x01 0x1D) ]
--- , MapEntry (Glyph "gcommaaccent") [ UTF82 (Bytes2All 0x01 0x23) ]
--- , MapEntry (Glyph "gdot") [ UTF82 (Bytes2All 0x01 0x21) ]
--- , MapEntry (Glyph "gdotaccent") [ UTF82 (Bytes2All 0x01 0x21) ]
--- , MapEntry (Glyph "gecyrillic") [ UTF82 (Bytes2All 0x04 0x33) ]
--- , MapEntry (Glyph "gehiragana") [ UTF82 (Bytes2All 0x30 0x52) ]
--- , MapEntry (Glyph "gekatakana") [ UTF82 (Bytes2All 0x30 0xB2) ]
--- , MapEntry (Glyph "geometricallyequal") [ UTF82 (Bytes2All 0x22 0x51) ]
--- , MapEntry (Glyph "gereshaccenthebrew") [ UTF82 (Bytes2All 0x05 0x9C) ]
--- , MapEntry (Glyph "gereshhebrew") [ UTF82 (Bytes2All 0x05 0xF3) ]
--- , MapEntry (Glyph "gereshmuqdamhebrew") [ UTF82 (Bytes2All 0x05 0x9D) ]
-, MapEntry (Glyph "germandbls") [ UTF81 (Bytes1 0xDF) ]
--- , MapEntry (Glyph "gershayimaccenthebrew") [ UTF82 (Bytes2All 0x05 0x9E) ]
--- , MapEntry (Glyph "gershayimhebrew") [ UTF82 (Bytes2All 0x05 0xF4) ]
--- , MapEntry (Glyph "getamark") [ UTF82 (Bytes2All 0x30 0x13) ]
--- , MapEntry (Glyph "ghabengali") [ UTF82 (Bytes2All 0x09 0x98) ]
--- , MapEntry (Glyph "ghadarmenian") [ UTF82 (Bytes2All 0x05 0x72) ]
--- , MapEntry (Glyph "ghadeva") [ UTF82 (Bytes2All 0x09 0x18) ]
--- , MapEntry (Glyph "ghagujarati") [ UTF82 (Bytes2All 0x0A 0x98) ]
--- , MapEntry (Glyph "ghagurmukhi") [ UTF82 (Bytes2All 0x0A 0x18) ]
--- , MapEntry (Glyph "ghainarabic") [ UTF82 (Bytes2All 0x06 0x3A) ]
--- , MapEntry (Glyph "ghainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xCE) ]
--- , MapEntry (Glyph "ghaininitialarabic") [ UTF82 (Bytes2All 0xFE 0xCF) ]
--- , MapEntry (Glyph "ghainmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD0) ]
--- , MapEntry (Glyph "ghemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0x95) ]
--- , MapEntry (Glyph "ghestrokecyrillic") [ UTF82 (Bytes2All 0x04 0x93) ]
--- , MapEntry (Glyph "gheupturncyrillic") [ UTF82 (Bytes2All 0x04 0x91) ]
--- , MapEntry (Glyph "ghhadeva") [ UTF82 (Bytes2All 0x09 0x5A) ]
--- , MapEntry (Glyph "ghhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5A) ]
--- , MapEntry (Glyph "ghook") [ UTF82 (Bytes2All 0x02 0x60) ]
--- , MapEntry (Glyph "ghzsquare") [ UTF82 (Bytes2All 0x33 0x93) ]
--- , MapEntry (Glyph "gihiragana") [ UTF82 (Bytes2All 0x30 0x4E) ]
--- , MapEntry (Glyph "gikatakana") [ UTF82 (Bytes2All 0x30 0xAE) ]
--- , MapEntry (Glyph "gimarmenian") [ UTF82 (Bytes2All 0x05 0x63) ]
--- , MapEntry (Glyph "gimel") [ UTF82 (Bytes2All 0x05 0xD2) ]
--- , MapEntry (Glyph "gimeldagesh") [ UTF82 (Bytes2All 0xFB 0x32) ]
--- , MapEntry (Glyph "gimeldageshhebrew") [ UTF82 (Bytes2All 0xFB 0x32) ]
--- , MapEntry (Glyph "gimelhebrew") [ UTF82 (Bytes2All 0x05 0xD2) ]
--- , MapEntry (Glyph "gjecyrillic") [ UTF82 (Bytes2All 0x04 0x53) ]
--- , MapEntry (Glyph "glottalinvertedstroke") [ UTF82 (Bytes2All 0x01 0xBE) ]
--- , MapEntry (Glyph "glottalstop") [ UTF82 (Bytes2All 0x02 0x94) ]
--- , MapEntry (Glyph "glottalstopinverted") [ UTF82 (Bytes2All 0x02 0x96) ]
--- , MapEntry (Glyph "glottalstopmod") [ UTF82 (Bytes2All 0x02 0xC0) ]
--- , MapEntry (Glyph "glottalstopreversed") [ UTF82 (Bytes2All 0x02 0x95) ]
--- , MapEntry (Glyph "glottalstopreversedmod") [ UTF82 (Bytes2All 0x02 0xC1) ]
--- , MapEntry (Glyph "glottalstopreversedsuperior") [ UTF82 (Bytes2All 0x02 0xE4) ]
--- , MapEntry (Glyph "glottalstopstroke") [ UTF82 (Bytes2All 0x02 0xA1) ]
--- , MapEntry (Glyph "glottalstopstrokereversed") [ UTF82 (Bytes2All 0x02 0xA2) ]
--- , MapEntry (Glyph "gmacron") [ UTF82 (Bytes2All 0x1E 0x21) ]
--- , MapEntry (Glyph "gmonospace") [ UTF82 (Bytes2All 0xFF 0x47) ]
--- , MapEntry (Glyph "gohiragana") [ UTF82 (Bytes2All 0x30 0x54) ]
--- , MapEntry (Glyph "gokatakana") [ UTF82 (Bytes2All 0x30 0xB4) ]
--- , MapEntry (Glyph "gparen") [ UTF82 (Bytes2All 0x24 0xA2) ]
--- , MapEntry (Glyph "gpasquare") [ UTF82 (Bytes2All 0x33 0xAC) ]
--- , MapEntry (Glyph "gradient") [ UTF82 (Bytes2All 0x22 0x07) ]
-, MapEntry (Glyph "grave") [ UTF81 (Bytes1 0x60) ]
--- , MapEntry (Glyph "gravebelowcmb") [ UTF82 (Bytes2All 0x03 0x16) ]
--- , MapEntry (Glyph "gravecmb") [ UTF82 (Bytes2All 0x03 0x00) ]
--- , MapEntry (Glyph "gravecomb") [ UTF82 (Bytes2All 0x03 0x00) ]
--- , MapEntry (Glyph "gravedeva") [ UTF82 (Bytes2All 0x09 0x53) ]
--- , MapEntry (Glyph "gravelowmod") [ UTF82 (Bytes2All 0x02 0xCE) ]
--- , MapEntry (Glyph "gravemonospace") [ UTF82 (Bytes2All 0xFF 0x40) ]
--- , MapEntry (Glyph "gravetonecmb") [ UTF82 (Bytes2All 0x03 0x40) ]
-, MapEntry (Glyph "greater") [ UTF81 (Bytes1 0x3E) ]
--- , MapEntry (Glyph "greaterequal") [ UTF82 (Bytes2All 0x22 0x65) ]
--- , MapEntry (Glyph "greaterequalorless") [ UTF82 (Bytes2All 0x22 0xDB) ]
--- , MapEntry (Glyph "greatermonospace") [ UTF82 (Bytes2All 0xFF 0x1E) ]
--- , MapEntry (Glyph "greaterorequivalent") [ UTF82 (Bytes2All 0x22 0x73) ]
--- , MapEntry (Glyph "greaterorless") [ UTF82 (Bytes2All 0x22 0x77) ]
--- , MapEntry (Glyph "greateroverequal") [ UTF82 (Bytes2All 0x22 0x67) ]
--- , MapEntry (Glyph "greatersmall") [ UTF82 (Bytes2All 0xFE 0x65) ]
--- , MapEntry (Glyph "gscript") [ UTF82 (Bytes2All 0x02 0x61) ]
--- , MapEntry (Glyph "gstroke") [ UTF82 (Bytes2All 0x01 0xE5) ]
--- , MapEntry (Glyph "guhiragana") [ UTF82 (Bytes2All 0x30 0x50) ]
-, MapEntry (Glyph "guillemotleft") [ UTF81 (Bytes1 0xAB) ]
-, MapEntry (Glyph "guillemotright") [ UTF81 (Bytes1 0xBB) ]
--- , MapEntry (Glyph "guilsinglleft") [ UTF82 (Bytes2All 0x20 0x39) ]
--- , MapEntry (Glyph "guilsinglright") [ UTF82 (Bytes2All 0x20 0x3A) ]
--- , MapEntry (Glyph "gukatakana") [ UTF82 (Bytes2All 0x30 0xB0) ]
--- , MapEntry (Glyph "guramusquare") [ UTF82 (Bytes2All 0x33 0x18) ]
--- , MapEntry (Glyph "gysquare") [ UTF82 (Bytes2All 0x33 0xC9) ]
-, MapEntry (Glyph "h") [ UTF81 (Bytes1 0x68) ]
--- , MapEntry (Glyph "haabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xA9) ]
--- , MapEntry (Glyph "haaltonearabic") [ UTF82 (Bytes2All 0x06 0xC1) ]
--- , MapEntry (Glyph "habengali") [ UTF82 (Bytes2All 0x09 0xB9) ]
--- , MapEntry (Glyph "hadescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB3) ]
--- , MapEntry (Glyph "hadeva") [ UTF82 (Bytes2All 0x09 0x39) ]
--- , MapEntry (Glyph "hagujarati") [ UTF82 (Bytes2All 0x0A 0xB9) ]
--- , MapEntry (Glyph "hagurmukhi") [ UTF82 (Bytes2All 0x0A 0x39) ]
--- , MapEntry (Glyph "haharabic") [ UTF82 (Bytes2All 0x06 0x2D) ]
--- , MapEntry (Glyph "hahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xA2) ]
--- , MapEntry (Glyph "hahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xA3) ]
--- , MapEntry (Glyph "hahiragana") [ UTF82 (Bytes2All 0x30 0x6F) ]
--- , MapEntry (Glyph "hahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA4) ]
--- , MapEntry (Glyph "haitusquare") [ UTF82 (Bytes2All 0x33 0x2A) ]
--- , MapEntry (Glyph "hakatakana") [ UTF82 (Bytes2All 0x30 0xCF) ]
--- , MapEntry (Glyph "hakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8A) ]
--- , MapEntry (Glyph "halantgurmukhi") [ UTF82 (Bytes2All 0x0A 0x4D) ]
--- , MapEntry (Glyph "hamzaarabic") [ UTF82 (Bytes2All 0x06 0x21) ]
--- , MapEntry (Glyph "hamzadammaarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4F) ]
--- , MapEntry (Glyph "hamzadammatanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4C) ]
--- , MapEntry (Glyph "hamzafathaarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4E) ]
--- , MapEntry (Glyph "hamzafathatanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4B) ]
--- , MapEntry (Glyph "hamzalowarabic") [ UTF82 (Bytes2All 0x06 0x21) ]
--- , MapEntry (Glyph "hamzalowkasraarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x50) ]
--- , MapEntry (Glyph "hamzalowkasratanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4D) ]
--- , MapEntry (Glyph "hamzasukunarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x52) ]
--- , MapEntry (Glyph "hangulfiller") [ UTF82 (Bytes2All 0x31 0x64) ]
--- , MapEntry (Glyph "hardsigncyrillic") [ UTF82 (Bytes2All 0x04 0x4A) ]
--- , MapEntry (Glyph "harpoonleftbarbup") [ UTF82 (Bytes2All 0x21 0xBC) ]
--- , MapEntry (Glyph "harpoonrightbarbup") [ UTF82 (Bytes2All 0x21 0xC0) ]
--- , MapEntry (Glyph "hasquare") [ UTF82 (Bytes2All 0x33 0xCA) ]
--- , MapEntry (Glyph "hatafpatah") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatah16") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatah23") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatah2f") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatahnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatahquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafpatahwidehebrew") [ UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "hatafqamats") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamats1b") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamats28") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamats34") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamatshebrew") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamatsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamatsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafqamatswidehebrew") [ UTF82 (Bytes2All 0x05 0xB3) ]
--- , MapEntry (Glyph "hatafsegol") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegol17") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegol24") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegol30") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegolnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegolquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hatafsegolwidehebrew") [ UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "hbar") [ UTF82 (Bytes2All 0x01 0x27) ]
--- , MapEntry (Glyph "hbopomofo") [ UTF82 (Bytes2All 0x31 0x0F) ]
--- , MapEntry (Glyph "hbrevebelow") [ UTF82 (Bytes2All 0x1E 0x2B) ]
--- , MapEntry (Glyph "hcedilla") [ UTF82 (Bytes2All 0x1E 0x29) ]
--- , MapEntry (Glyph "hcircle") [ UTF82 (Bytes2All 0x24 0xD7) ]
--- , MapEntry (Glyph "hcircumflex") [ UTF82 (Bytes2All 0x01 0x25) ]
--- , MapEntry (Glyph "hdieresis") [ UTF82 (Bytes2All 0x1E 0x27) ]
--- , MapEntry (Glyph "hdotaccent") [ UTF82 (Bytes2All 0x1E 0x23) ]
--- , MapEntry (Glyph "hdotbelow") [ UTF82 (Bytes2All 0x1E 0x25) ]
--- , MapEntry (Glyph "he") [ UTF82 (Bytes2All 0x05 0xD4) ]
--- , MapEntry (Glyph "heart") [ UTF82 (Bytes2All 0x26 0x65) ]
--- , MapEntry (Glyph "heartsuitblack") [ UTF82 (Bytes2All 0x26 0x65) ]
--- , MapEntry (Glyph "heartsuitwhite") [ UTF82 (Bytes2All 0x26 0x61) ]
--- , MapEntry (Glyph "hedagesh") [ UTF82 (Bytes2All 0xFB 0x34) ]
--- , MapEntry (Glyph "hedageshhebrew") [ UTF82 (Bytes2All 0xFB 0x34) ]
--- , MapEntry (Glyph "hehaltonearabic") [ UTF82 (Bytes2All 0x06 0xC1) ]
--- , MapEntry (Glyph "heharabic") [ UTF82 (Bytes2All 0x06 0x47) ]
--- , MapEntry (Glyph "hehebrew") [ UTF82 (Bytes2All 0x05 0xD4) ]
--- , MapEntry (Glyph "hehfinalaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA7) ]
--- , MapEntry (Glyph "hehfinalalttwoarabic") [ UTF82 (Bytes2All 0xFE 0xEA) ]
--- , MapEntry (Glyph "hehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xEA) ]
--- , MapEntry (Glyph "hehhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFB 0xA5) ]
--- , MapEntry (Glyph "hehhamzaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFB 0xA4) ]
--- , MapEntry (Glyph "hehinitialaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA8) ]
--- , MapEntry (Glyph "hehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xEB) ]
--- , MapEntry (Glyph "hehiragana") [ UTF82 (Bytes2All 0x30 0x78) ]
--- , MapEntry (Glyph "hehmedialaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA9) ]
--- , MapEntry (Glyph "hehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xEC) ]
--- , MapEntry (Glyph "heiseierasquare") [ UTF82 (Bytes2All 0x33 0x7B) ]
--- , MapEntry (Glyph "hekatakana") [ UTF82 (Bytes2All 0x30 0xD8) ]
--- , MapEntry (Glyph "hekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8D) ]
--- , MapEntry (Glyph "hekutaarusquare") [ UTF82 (Bytes2All 0x33 0x36) ]
--- , MapEntry (Glyph "henghook") [ UTF82 (Bytes2All 0x02 0x67) ]
--- , MapEntry (Glyph "herutusquare") [ UTF82 (Bytes2All 0x33 0x39) ]
--- , MapEntry (Glyph "het") [ UTF82 (Bytes2All 0x05 0xD7) ]
--- , MapEntry (Glyph "hethebrew") [ UTF82 (Bytes2All 0x05 0xD7) ]
--- , MapEntry (Glyph "hhook") [ UTF82 (Bytes2All 0x02 0x66) ]
--- , MapEntry (Glyph "hhooksuperior") [ UTF82 (Bytes2All 0x02 0xB1) ]
--- , MapEntry (Glyph "hieuhacirclekorean") [ UTF82 (Bytes2All 0x32 0x7B) ]
--- , MapEntry (Glyph "hieuhaparenkorean") [ UTF82 (Bytes2All 0x32 0x1B) ]
--- , MapEntry (Glyph "hieuhcirclekorean") [ UTF82 (Bytes2All 0x32 0x6D) ]
--- , MapEntry (Glyph "hieuhkorean") [ UTF82 (Bytes2All 0x31 0x4E) ]
--- , MapEntry (Glyph "hieuhparenkorean") [ UTF82 (Bytes2All 0x32 0x0D) ]
--- , MapEntry (Glyph "hihiragana") [ UTF82 (Bytes2All 0x30 0x72) ]
--- , MapEntry (Glyph "hikatakana") [ UTF82 (Bytes2All 0x30 0xD2) ]
--- , MapEntry (Glyph "hikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8B) ]
--- , MapEntry (Glyph "hiriq") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriq14") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriq21") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriq2d") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriqhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriqnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriqquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hiriqwidehebrew") [ UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "hlinebelow") [ UTF82 (Bytes2All 0x1E 0x96) ]
--- , MapEntry (Glyph "hmonospace") [ UTF82 (Bytes2All 0xFF 0x48) ]
--- , MapEntry (Glyph "hoarmenian") [ UTF82 (Bytes2All 0x05 0x70) ]
--- , MapEntry (Glyph "hohipthai") [ UTF82 (Bytes2All 0x0E 0x2B) ]
--- , MapEntry (Glyph "hohiragana") [ UTF82 (Bytes2All 0x30 0x7B) ]
--- , MapEntry (Glyph "hokatakana") [ UTF82 (Bytes2All 0x30 0xDB) ]
--- , MapEntry (Glyph "hokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8E) ]
--- , MapEntry (Glyph "holam") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holam19") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holam26") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holam32") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holamhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holamnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holamquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "holamwidehebrew") [ UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "honokhukthai") [ UTF82 (Bytes2All 0x0E 0x2E) ]
--- , MapEntry (Glyph "hookabovecomb") [ UTF82 (Bytes2All 0x03 0x09) ]
--- , MapEntry (Glyph "hookcmb") [ UTF82 (Bytes2All 0x03 0x09) ]
--- , MapEntry (Glyph "hookpalatalizedbelowcmb") [ UTF82 (Bytes2All 0x03 0x21) ]
--- , MapEntry (Glyph "hookretroflexbelowcmb") [ UTF82 (Bytes2All 0x03 0x22) ]
--- , MapEntry (Glyph "hoonsquare") [ UTF82 (Bytes2All 0x33 0x42) ]
--- , MapEntry (Glyph "horicoptic") [ UTF82 (Bytes2All 0x03 0xE9) ]
--- , MapEntry (Glyph "horizontalbar") [ UTF82 (Bytes2All 0x20 0x15) ]
--- , MapEntry (Glyph "horncmb") [ UTF82 (Bytes2All 0x03 0x1B) ]
--- , MapEntry (Glyph "hotsprings") [ UTF82 (Bytes2All 0x26 0x68) ]
--- , MapEntry (Glyph "house") [ UTF82 (Bytes2All 0x23 0x02) ]
--- , MapEntry (Glyph "hparen") [ UTF82 (Bytes2All 0x24 0xA3) ]
--- , MapEntry (Glyph "hsuperior") [ UTF82 (Bytes2All 0x02 0xB0) ]
--- , MapEntry (Glyph "hturned") [ UTF82 (Bytes2All 0x02 0x65) ]
--- , MapEntry (Glyph "huhiragana") [ UTF82 (Bytes2All 0x30 0x75) ]
--- , MapEntry (Glyph "huiitosquare") [ UTF82 (Bytes2All 0x33 0x33) ]
--- , MapEntry (Glyph "hukatakana") [ UTF82 (Bytes2All 0x30 0xD5) ]
--- , MapEntry (Glyph "hukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8C) ]
--- , MapEntry (Glyph "hungarumlaut") [ UTF82 (Bytes2All 0x02 0xDD) ]
--- , MapEntry (Glyph "hungarumlautcmb") [ UTF82 (Bytes2All 0x03 0x0B) ]
--- , MapEntry (Glyph "hv") [ UTF82 (Bytes2All 0x01 0x95) ]
-, MapEntry (Glyph "hyphen") [ UTF81 (Bytes1 0x2D) ]
--- , MapEntry (Glyph "hypheninferior") [ UTF82 (Bytes2All 0xF6 0xE5) ]
--- , MapEntry (Glyph "hyphenmonospace") [ UTF82 (Bytes2All 0xFF 0x0D) ]
--- , MapEntry (Glyph "hyphensmall") [ UTF82 (Bytes2All 0xFE 0x63) ]
--- , MapEntry (Glyph "hyphensuperior") [ UTF82 (Bytes2All 0xF6 0xE6) ]
--- , MapEntry (Glyph "hyphentwo") [ UTF82 (Bytes2All 0x20 0x10) ]
-, MapEntry (Glyph "i") [ UTF81 (Bytes1 0x69) ]
-, MapEntry (Glyph "iacute") [ UTF81 (Bytes1 0xED) ]
--- , MapEntry (Glyph "iacyrillic") [ UTF82 (Bytes2All 0x04 0x4F) ]
--- , MapEntry (Glyph "ibengali") [ UTF82 (Bytes2All 0x09 0x87) ]
--- , MapEntry (Glyph "ibopomofo") [ UTF82 (Bytes2All 0x31 0x27) ]
--- , MapEntry (Glyph "ibreve") [ UTF82 (Bytes2All 0x01 0x2D) ]
--- , MapEntry (Glyph "icaron") [ UTF82 (Bytes2All 0x01 0xD0) ]
--- , MapEntry (Glyph "icircle") [ UTF82 (Bytes2All 0x24 0xD8) ]
-, MapEntry (Glyph "icircumflex") [ UTF81 (Bytes1 0xEE) ]
--- , MapEntry (Glyph "icyrillic") [ UTF82 (Bytes2All 0x04 0x56) ]
--- , MapEntry (Glyph "idblgrave") [ UTF82 (Bytes2All 0x02 0x09) ]
--- , MapEntry (Glyph "ideographearthcircle") [ UTF82 (Bytes2All 0x32 0x8F) ]
--- , MapEntry (Glyph "ideographfirecircle") [ UTF82 (Bytes2All 0x32 0x8B) ]
--- , MapEntry (Glyph "ideographicallianceparen") [ UTF82 (Bytes2All 0x32 0x3F) ]
--- , MapEntry (Glyph "ideographiccallparen") [ UTF82 (Bytes2All 0x32 0x3A) ]
--- , MapEntry (Glyph "ideographiccentrecircle") [ UTF82 (Bytes2All 0x32 0xA5) ]
--- , MapEntry (Glyph "ideographicclose") [ UTF82 (Bytes2All 0x30 0x06) ]
--- , MapEntry (Glyph "ideographiccomma") [ UTF82 (Bytes2All 0x30 0x01) ]
--- , MapEntry (Glyph "ideographiccommaleft") [ UTF82 (Bytes2All 0xFF 0x64) ]
--- , MapEntry (Glyph "ideographiccongratulationparen") [ UTF82 (Bytes2All 0x32 0x37) ]
--- , MapEntry (Glyph "ideographiccorrectcircle") [ UTF82 (Bytes2All 0x32 0xA3) ]
--- , MapEntry (Glyph "ideographicearthparen") [ UTF82 (Bytes2All 0x32 0x2F) ]
--- , MapEntry (Glyph "ideographicenterpriseparen") [ UTF82 (Bytes2All 0x32 0x3D) ]
--- , MapEntry (Glyph "ideographicexcellentcircle") [ UTF82 (Bytes2All 0x32 0x9D) ]
--- , MapEntry (Glyph "ideographicfestivalparen") [ UTF82 (Bytes2All 0x32 0x40) ]
--- , MapEntry (Glyph "ideographicfinancialcircle") [ UTF82 (Bytes2All 0x32 0x96) ]
--- , MapEntry (Glyph "ideographicfinancialparen") [ UTF82 (Bytes2All 0x32 0x36) ]
--- , MapEntry (Glyph "ideographicfireparen") [ UTF82 (Bytes2All 0x32 0x2B) ]
--- , MapEntry (Glyph "ideographichaveparen") [ UTF82 (Bytes2All 0x32 0x32) ]
--- , MapEntry (Glyph "ideographichighcircle") [ UTF82 (Bytes2All 0x32 0xA4) ]
--- , MapEntry (Glyph "ideographiciterationmark") [ UTF82 (Bytes2All 0x30 0x05) ]
--- , MapEntry (Glyph "ideographiclaborcircle") [ UTF82 (Bytes2All 0x32 0x98) ]
--- , MapEntry (Glyph "ideographiclaborparen") [ UTF82 (Bytes2All 0x32 0x38) ]
--- , MapEntry (Glyph "ideographicleftcircle") [ UTF82 (Bytes2All 0x32 0xA7) ]
--- , MapEntry (Glyph "ideographiclowcircle") [ UTF82 (Bytes2All 0x32 0xA6) ]
--- , MapEntry (Glyph "ideographicmedicinecircle") [ UTF82 (Bytes2All 0x32 0xA9) ]
--- , MapEntry (Glyph "ideographicmetalparen") [ UTF82 (Bytes2All 0x32 0x2E) ]
--- , MapEntry (Glyph "ideographicmoonparen") [ UTF82 (Bytes2All 0x32 0x2A) ]
--- , MapEntry (Glyph "ideographicnameparen") [ UTF82 (Bytes2All 0x32 0x34) ]
--- , MapEntry (Glyph "ideographicperiod") [ UTF82 (Bytes2All 0x30 0x02) ]
--- , MapEntry (Glyph "ideographicprintcircle") [ UTF82 (Bytes2All 0x32 0x9E) ]
--- , MapEntry (Glyph "ideographicreachparen") [ UTF82 (Bytes2All 0x32 0x43) ]
--- , MapEntry (Glyph "ideographicrepresentparen") [ UTF82 (Bytes2All 0x32 0x39) ]
--- , MapEntry (Glyph "ideographicresourceparen") [ UTF82 (Bytes2All 0x32 0x3E) ]
--- , MapEntry (Glyph "ideographicrightcircle") [ UTF82 (Bytes2All 0x32 0xA8) ]
--- , MapEntry (Glyph "ideographicsecretcircle") [ UTF82 (Bytes2All 0x32 0x99) ]
--- , MapEntry (Glyph "ideographicselfparen") [ UTF82 (Bytes2All 0x32 0x42) ]
--- , MapEntry (Glyph "ideographicsocietyparen") [ UTF82 (Bytes2All 0x32 0x33) ]
--- , MapEntry (Glyph "ideographicspace") [ UTF82 (Bytes2All 0x30 0x00) ]
--- , MapEntry (Glyph "ideographicspecialparen") [ UTF82 (Bytes2All 0x32 0x35) ]
--- , MapEntry (Glyph "ideographicstockparen") [ UTF82 (Bytes2All 0x32 0x31) ]
--- , MapEntry (Glyph "ideographicstudyparen") [ UTF82 (Bytes2All 0x32 0x3B) ]
--- , MapEntry (Glyph "ideographicsunparen") [ UTF82 (Bytes2All 0x32 0x30) ]
--- , MapEntry (Glyph "ideographicsuperviseparen") [ UTF82 (Bytes2All 0x32 0x3C) ]
--- , MapEntry (Glyph "ideographicwaterparen") [ UTF82 (Bytes2All 0x32 0x2C) ]
--- , MapEntry (Glyph "ideographicwoodparen") [ UTF82 (Bytes2All 0x32 0x2D) ]
--- , MapEntry (Glyph "ideographiczero") [ UTF82 (Bytes2All 0x30 0x07) ]
--- , MapEntry (Glyph "ideographmetalcircle") [ UTF82 (Bytes2All 0x32 0x8E) ]
--- , MapEntry (Glyph "ideographmooncircle") [ UTF82 (Bytes2All 0x32 0x8A) ]
--- , MapEntry (Glyph "ideographnamecircle") [ UTF82 (Bytes2All 0x32 0x94) ]
--- , MapEntry (Glyph "ideographsuncircle") [ UTF82 (Bytes2All 0x32 0x90) ]
--- , MapEntry (Glyph "ideographwatercircle") [ UTF82 (Bytes2All 0x32 0x8C) ]
--- , MapEntry (Glyph "ideographwoodcircle") [ UTF82 (Bytes2All 0x32 0x8D) ]
--- , MapEntry (Glyph "ideva") [ UTF82 (Bytes2All 0x09 0x07) ]
-, MapEntry (Glyph "idieresis") [ UTF81 (Bytes1 0xEF) ]
--- , MapEntry (Glyph "idieresisacute") [ UTF82 (Bytes2All 0x1E 0x2F) ]
--- , MapEntry (Glyph "idieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE5) ]
--- , MapEntry (Glyph "idotbelow") [ UTF82 (Bytes2All 0x1E 0xCB) ]
--- , MapEntry (Glyph "iebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD7) ]
--- , MapEntry (Glyph "iecyrillic") [ UTF82 (Bytes2All 0x04 0x35) ]
--- , MapEntry (Glyph "ieungacirclekorean") [ UTF82 (Bytes2All 0x32 0x75) ]
--- , MapEntry (Glyph "ieungaparenkorean") [ UTF82 (Bytes2All 0x32 0x15) ]
--- , MapEntry (Glyph "ieungcirclekorean") [ UTF82 (Bytes2All 0x32 0x67) ]
--- , MapEntry (Glyph "ieungkorean") [ UTF82 (Bytes2All 0x31 0x47) ]
--- , MapEntry (Glyph "ieungparenkorean") [ UTF82 (Bytes2All 0x32 0x07) ]
-, MapEntry (Glyph "igrave") [ UTF81 (Bytes1 0xEC) ]
--- , MapEntry (Glyph "igujarati") [ UTF82 (Bytes2All 0x0A 0x87) ]
--- , MapEntry (Glyph "igurmukhi") [ UTF82 (Bytes2All 0x0A 0x07) ]
--- , MapEntry (Glyph "ihiragana") [ UTF82 (Bytes2All 0x30 0x44) ]
--- , MapEntry (Glyph "ihookabove") [ UTF82 (Bytes2All 0x1E 0xC9) ]
--- , MapEntry (Glyph "iibengali") [ UTF82 (Bytes2All 0x09 0x88) ]
--- , MapEntry (Glyph "iicyrillic") [ UTF82 (Bytes2All 0x04 0x38) ]
--- , MapEntry (Glyph "iideva") [ UTF82 (Bytes2All 0x09 0x08) ]
--- , MapEntry (Glyph "iigujarati") [ UTF82 (Bytes2All 0x0A 0x88) ]
--- , MapEntry (Glyph "iigurmukhi") [ UTF82 (Bytes2All 0x0A 0x08) ]
--- , MapEntry (Glyph "iimatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x40) ]
--- , MapEntry (Glyph "iinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0B) ]
--- , MapEntry (Glyph "iishortcyrillic") [ UTF82 (Bytes2All 0x04 0x39) ]
--- , MapEntry (Glyph "iivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC0) ]
--- , MapEntry (Glyph "iivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x40) ]
--- , MapEntry (Glyph "iivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC0) ]
--- , MapEntry (Glyph "ij") [ UTF82 (Bytes2All 0x01 0x33) ]
--- , MapEntry (Glyph "ikatakana") [ UTF82 (Bytes2All 0x30 0xA4) ]
--- , MapEntry (Glyph "ikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x72) ]
--- , MapEntry (Glyph "ikorean") [ UTF82 (Bytes2All 0x31 0x63) ]
--- , MapEntry (Glyph "ilde") [ UTF82 (Bytes2All 0x02 0xDC) ]
--- , MapEntry (Glyph "iluyhebrew") [ UTF82 (Bytes2All 0x05 0xAC) ]
--- , MapEntry (Glyph "imacron") [ UTF82 (Bytes2All 0x01 0x2B) ]
--- , MapEntry (Glyph "imacroncyrillic") [ UTF82 (Bytes2All 0x04 0xE3) ]
--- , MapEntry (Glyph "imageorapproximatelyequal") [ UTF82 (Bytes2All 0x22 0x53) ]
--- , MapEntry (Glyph "imatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x3F) ]
--- , MapEntry (Glyph "imonospace") [ UTF82 (Bytes2All 0xFF 0x49) ]
--- , MapEntry (Glyph "increment") [ UTF82 (Bytes2All 0x22 0x06) ]
--- , MapEntry (Glyph "infinity") [ UTF82 (Bytes2All 0x22 0x1E) ]
--- , MapEntry (Glyph "iniarmenian") [ UTF82 (Bytes2All 0x05 0x6B) ]
--- , MapEntry (Glyph "integral") [ UTF82 (Bytes2All 0x22 0x2B) ]
--- , MapEntry (Glyph "integralbottom") [ UTF82 (Bytes2All 0x23 0x21) ]
--- , MapEntry (Glyph "integralbt") [ UTF82 (Bytes2All 0x23 0x21) ]
--- , MapEntry (Glyph "integralex") [ UTF82 (Bytes2All 0xF8 0xF5) ]
--- , MapEntry (Glyph "integraltop") [ UTF82 (Bytes2All 0x23 0x20) ]
--- , MapEntry (Glyph "integraltp") [ UTF82 (Bytes2All 0x23 0x20) ]
--- , MapEntry (Glyph "intersection") [ UTF82 (Bytes2All 0x22 0x29) ]
--- , MapEntry (Glyph "intisquare") [ UTF82 (Bytes2All 0x33 0x05) ]
--- , MapEntry (Glyph "invbullet") [ UTF82 (Bytes2All 0x25 0xD8) ]
--- , MapEntry (Glyph "invcircle") [ UTF82 (Bytes2All 0x25 0xD9) ]
--- , MapEntry (Glyph "invsmileface") [ UTF82 (Bytes2All 0x26 0x3B) ]
--- , MapEntry (Glyph "iocyrillic") [ UTF82 (Bytes2All 0x04 0x51) ]
--- , MapEntry (Glyph "iogonek") [ UTF82 (Bytes2All 0x01 0x2F) ]
--- , MapEntry (Glyph "iota") [ UTF82 (Bytes2All 0x03 0xB9) ]
--- , MapEntry (Glyph "iotadieresis") [ UTF82 (Bytes2All 0x03 0xCA) ]
--- , MapEntry (Glyph "iotadieresistonos") [ UTF82 (Bytes2All 0x03 0x90) ]
--- , MapEntry (Glyph "iotalatin") [ UTF82 (Bytes2All 0x02 0x69) ]
--- , MapEntry (Glyph "iotatonos") [ UTF82 (Bytes2All 0x03 0xAF) ]
--- , MapEntry (Glyph "iparen") [ UTF82 (Bytes2All 0x24 0xA4) ]
--- , MapEntry (Glyph "irigurmukhi") [ UTF82 (Bytes2All 0x0A 0x72) ]
--- , MapEntry (Glyph "ismallhiragana") [ UTF82 (Bytes2All 0x30 0x43) ]
--- , MapEntry (Glyph "ismallkatakana") [ UTF82 (Bytes2All 0x30 0xA3) ]
--- , MapEntry (Glyph "ismallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x68) ]
--- , MapEntry (Glyph "issharbengali") [ UTF82 (Bytes2All 0x09 0xFA) ]
--- , MapEntry (Glyph "istroke") [ UTF82 (Bytes2All 0x02 0x68) ]
--- , MapEntry (Glyph "isuperior") [ UTF82 (Bytes2All 0xF6 0xED) ]
--- , MapEntry (Glyph "iterationhiragana") [ UTF82 (Bytes2All 0x30 0x9D) ]
--- , MapEntry (Glyph "iterationkatakana") [ UTF82 (Bytes2All 0x30 0xFD) ]
--- , MapEntry (Glyph "itilde") [ UTF82 (Bytes2All 0x01 0x29) ]
--- , MapEntry (Glyph "itildebelow") [ UTF82 (Bytes2All 0x1E 0x2D) ]
--- , MapEntry (Glyph "iubopomofo") [ UTF82 (Bytes2All 0x31 0x29) ]
--- , MapEntry (Glyph "iucyrillic") [ UTF82 (Bytes2All 0x04 0x4E) ]
--- , MapEntry (Glyph "ivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xBF) ]
--- , MapEntry (Glyph "ivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x3F) ]
--- , MapEntry (Glyph "ivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xBF) ]
--- , MapEntry (Glyph "izhitsacyrillic") [ UTF82 (Bytes2All 0x04 0x75) ]
--- , MapEntry (Glyph "izhitsadblgravecyrillic") [ UTF82 (Bytes2All 0x04 0x77) ]
-, MapEntry (Glyph "j") [ UTF81 (Bytes1 0x6A) ]
--- , MapEntry (Glyph "jaarmenian") [ UTF82 (Bytes2All 0x05 0x71) ]
--- , MapEntry (Glyph "jabengali") [ UTF82 (Bytes2All 0x09 0x9C) ]
--- , MapEntry (Glyph "jadeva") [ UTF82 (Bytes2All 0x09 0x1C) ]
--- , MapEntry (Glyph "jagujarati") [ UTF82 (Bytes2All 0x0A 0x9C) ]
--- , MapEntry (Glyph "jagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1C) ]
--- , MapEntry (Glyph "jbopomofo") [ UTF82 (Bytes2All 0x31 0x10) ]
--- , MapEntry (Glyph "jcaron") [ UTF82 (Bytes2All 0x01 0xF0) ]
--- , MapEntry (Glyph "jcircle") [ UTF82 (Bytes2All 0x24 0xD9) ]
--- , MapEntry (Glyph "jcircumflex") [ UTF82 (Bytes2All 0x01 0x35) ]
--- , MapEntry (Glyph "jcrossedtail") [ UTF82 (Bytes2All 0x02 0x9D) ]
--- , MapEntry (Glyph "jdotlessstroke") [ UTF82 (Bytes2All 0x02 0x5F) ]
--- , MapEntry (Glyph "jecyrillic") [ UTF82 (Bytes2All 0x04 0x58) ]
--- , MapEntry (Glyph "jeemarabic") [ UTF82 (Bytes2All 0x06 0x2C) ]
--- , MapEntry (Glyph "jeemfinalarabic") [ UTF82 (Bytes2All 0xFE 0x9E) ]
--- , MapEntry (Glyph "jeeminitialarabic") [ UTF82 (Bytes2All 0xFE 0x9F) ]
--- , MapEntry (Glyph "jeemmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA0) ]
--- , MapEntry (Glyph "jeharabic") [ UTF82 (Bytes2All 0x06 0x98) ]
--- , MapEntry (Glyph "jehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x8B) ]
--- , MapEntry (Glyph "jhabengali") [ UTF82 (Bytes2All 0x09 0x9D) ]
--- , MapEntry (Glyph "jhadeva") [ UTF82 (Bytes2All 0x09 0x1D) ]
--- , MapEntry (Glyph "jhagujarati") [ UTF82 (Bytes2All 0x0A 0x9D) ]
--- , MapEntry (Glyph "jhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1D) ]
--- , MapEntry (Glyph "jheharmenian") [ UTF82 (Bytes2All 0x05 0x7B) ]
--- , MapEntry (Glyph "jis") [ UTF82 (Bytes2All 0x30 0x04) ]
--- , MapEntry (Glyph "jmonospace") [ UTF82 (Bytes2All 0xFF 0x4A) ]
--- , MapEntry (Glyph "jparen") [ UTF82 (Bytes2All 0x24 0xA5) ]
--- , MapEntry (Glyph "jsuperior") [ UTF82 (Bytes2All 0x02 0xB2) ]
-, MapEntry (Glyph "k") [ UTF81 (Bytes1 0x6B) ]
--- , MapEntry (Glyph "kabashkircyrillic") [ UTF82 (Bytes2All 0x04 0xA1) ]
--- , MapEntry (Glyph "kabengali") [ UTF82 (Bytes2All 0x09 0x95) ]
--- , MapEntry (Glyph "kacute") [ UTF82 (Bytes2All 0x1E 0x31) ]
--- , MapEntry (Glyph "kacyrillic") [ UTF82 (Bytes2All 0x04 0x3A) ]
--- , MapEntry (Glyph "kadescendercyrillic") [ UTF82 (Bytes2All 0x04 0x9B) ]
--- , MapEntry (Glyph "kadeva") [ UTF82 (Bytes2All 0x09 0x15) ]
--- , MapEntry (Glyph "kaf") [ UTF82 (Bytes2All 0x05 0xDB) ]
--- , MapEntry (Glyph "kafarabic") [ UTF82 (Bytes2All 0x06 0x43) ]
--- , MapEntry (Glyph "kafdagesh") [ UTF82 (Bytes2All 0xFB 0x3B) ]
--- , MapEntry (Glyph "kafdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3B) ]
--- , MapEntry (Glyph "kaffinalarabic") [ UTF82 (Bytes2All 0xFE 0xDA) ]
--- , MapEntry (Glyph "kafhebrew") [ UTF82 (Bytes2All 0x05 0xDB) ]
--- , MapEntry (Glyph "kafinitialarabic") [ UTF82 (Bytes2All 0xFE 0xDB) ]
--- , MapEntry (Glyph "kafmedialarabic") [ UTF82 (Bytes2All 0xFE 0xDC) ]
--- , MapEntry (Glyph "kafrafehebrew") [ UTF82 (Bytes2All 0xFB 0x4D) ]
--- , MapEntry (Glyph "kagujarati") [ UTF82 (Bytes2All 0x0A 0x95) ]
--- , MapEntry (Glyph "kagurmukhi") [ UTF82 (Bytes2All 0x0A 0x15) ]
--- , MapEntry (Glyph "kahiragana") [ UTF82 (Bytes2All 0x30 0x4B) ]
--- , MapEntry (Glyph "kahookcyrillic") [ UTF82 (Bytes2All 0x04 0xC4) ]
--- , MapEntry (Glyph "kakatakana") [ UTF82 (Bytes2All 0x30 0xAB) ]
--- , MapEntry (Glyph "kakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x76) ]
--- , MapEntry (Glyph "kappa") [ UTF82 (Bytes2All 0x03 0xBA) ]
--- , MapEntry (Glyph "kappasymbolgreek") [ UTF82 (Bytes2All 0x03 0xF0) ]
--- , MapEntry (Glyph "kapyeounmieumkorean") [ UTF82 (Bytes2All 0x31 0x71) ]
--- , MapEntry (Glyph "kapyeounphieuphkorean") [ UTF82 (Bytes2All 0x31 0x84) ]
--- , MapEntry (Glyph "kapyeounpieupkorean") [ UTF82 (Bytes2All 0x31 0x78) ]
--- , MapEntry (Glyph "kapyeounssangpieupkorean") [ UTF82 (Bytes2All 0x31 0x79) ]
--- , MapEntry (Glyph "karoriisquare") [ UTF82 (Bytes2All 0x33 0x0D) ]
--- , MapEntry (Glyph "kashidaautoarabic") [ UTF82 (Bytes2All 0x06 0x40) ]
--- , MapEntry (Glyph "kashidaautonosidebearingarabic") [ UTF82 (Bytes2All 0x06 0x40) ]
--- , MapEntry (Glyph "kasmallkatakana") [ UTF82 (Bytes2All 0x30 0xF5) ]
--- , MapEntry (Glyph "kasquare") [ UTF82 (Bytes2All 0x33 0x84) ]
--- , MapEntry (Glyph "kasraarabic") [ UTF82 (Bytes2All 0x06 0x50) ]
--- , MapEntry (Glyph "kasratanarabic") [ UTF82 (Bytes2All 0x06 0x4D) ]
--- , MapEntry (Glyph "kastrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9F) ]
--- , MapEntry (Glyph "katahiraprolongmarkhalfwidth") [ UTF82 (Bytes2All 0xFF 0x70) ]
--- , MapEntry (Glyph "kaverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9D) ]
--- , MapEntry (Glyph "kbopomofo") [ UTF82 (Bytes2All 0x31 0x0E) ]
--- , MapEntry (Glyph "kcalsquare") [ UTF82 (Bytes2All 0x33 0x89) ]
--- , MapEntry (Glyph "kcaron") [ UTF82 (Bytes2All 0x01 0xE9) ]
--- , MapEntry (Glyph "kcedilla") [ UTF82 (Bytes2All 0x01 0x37) ]
--- , MapEntry (Glyph "kcircle") [ UTF82 (Bytes2All 0x24 0xDA) ]
--- , MapEntry (Glyph "kcommaaccent") [ UTF82 (Bytes2All 0x01 0x37) ]
--- , MapEntry (Glyph "kdotbelow") [ UTF82 (Bytes2All 0x1E 0x33) ]
--- , MapEntry (Glyph "keharmenian") [ UTF82 (Bytes2All 0x05 0x84) ]
--- , MapEntry (Glyph "kehiragana") [ UTF82 (Bytes2All 0x30 0x51) ]
--- , MapEntry (Glyph "kekatakana") [ UTF82 (Bytes2All 0x30 0xB1) ]
--- , MapEntry (Glyph "kekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x79) ]
--- , MapEntry (Glyph "kenarmenian") [ UTF82 (Bytes2All 0x05 0x6F) ]
--- , MapEntry (Glyph "kesmallkatakana") [ UTF82 (Bytes2All 0x30 0xF6) ]
--- , MapEntry (Glyph "kgreenlandic") [ UTF82 (Bytes2All 0x01 0x38) ]
--- , MapEntry (Glyph "khabengali") [ UTF82 (Bytes2All 0x09 0x96) ]
--- , MapEntry (Glyph "khacyrillic") [ UTF82 (Bytes2All 0x04 0x45) ]
--- , MapEntry (Glyph "khadeva") [ UTF82 (Bytes2All 0x09 0x16) ]
--- , MapEntry (Glyph "khagujarati") [ UTF82 (Bytes2All 0x0A 0x96) ]
--- , MapEntry (Glyph "khagurmukhi") [ UTF82 (Bytes2All 0x0A 0x16) ]
--- , MapEntry (Glyph "khaharabic") [ UTF82 (Bytes2All 0x06 0x2E) ]
--- , MapEntry (Glyph "khahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xA6) ]
--- , MapEntry (Glyph "khahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xA7) ]
--- , MapEntry (Glyph "khahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA8) ]
--- , MapEntry (Glyph "kheicoptic") [ UTF82 (Bytes2All 0x03 0xE7) ]
--- , MapEntry (Glyph "khhadeva") [ UTF82 (Bytes2All 0x09 0x59) ]
--- , MapEntry (Glyph "khhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x59) ]
--- , MapEntry (Glyph "khieukhacirclekorean") [ UTF82 (Bytes2All 0x32 0x78) ]
--- , MapEntry (Glyph "khieukhaparenkorean") [ UTF82 (Bytes2All 0x32 0x18) ]
--- , MapEntry (Glyph "khieukhcirclekorean") [ UTF82 (Bytes2All 0x32 0x6A) ]
--- , MapEntry (Glyph "khieukhkorean") [ UTF82 (Bytes2All 0x31 0x4B) ]
--- , MapEntry (Glyph "khieukhparenkorean") [ UTF82 (Bytes2All 0x32 0x0A) ]
--- , MapEntry (Glyph "khokhaithai") [ UTF82 (Bytes2All 0x0E 0x02) ]
--- , MapEntry (Glyph "khokhonthai") [ UTF82 (Bytes2All 0x0E 0x05) ]
--- , MapEntry (Glyph "khokhuatthai") [ UTF82 (Bytes2All 0x0E 0x03) ]
--- , MapEntry (Glyph "khokhwaithai") [ UTF82 (Bytes2All 0x0E 0x04) ]
--- , MapEntry (Glyph "khomutthai") [ UTF82 (Bytes2All 0x0E 0x5B) ]
--- , MapEntry (Glyph "khook") [ UTF82 (Bytes2All 0x01 0x99) ]
--- , MapEntry (Glyph "khorakhangthai") [ UTF82 (Bytes2All 0x0E 0x06) ]
--- , MapEntry (Glyph "khzsquare") [ UTF82 (Bytes2All 0x33 0x91) ]
--- , MapEntry (Glyph "kihiragana") [ UTF82 (Bytes2All 0x30 0x4D) ]
--- , MapEntry (Glyph "kikatakana") [ UTF82 (Bytes2All 0x30 0xAD) ]
--- , MapEntry (Glyph "kikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x77) ]
--- , MapEntry (Glyph "kiroguramusquare") [ UTF82 (Bytes2All 0x33 0x15) ]
--- , MapEntry (Glyph "kiromeetorusquare") [ UTF82 (Bytes2All 0x33 0x16) ]
--- , MapEntry (Glyph "kirosquare") [ UTF82 (Bytes2All 0x33 0x14) ]
--- , MapEntry (Glyph "kiyeokacirclekorean") [ UTF82 (Bytes2All 0x32 0x6E) ]
--- , MapEntry (Glyph "kiyeokaparenkorean") [ UTF82 (Bytes2All 0x32 0x0E) ]
--- , MapEntry (Glyph "kiyeokcirclekorean") [ UTF82 (Bytes2All 0x32 0x60) ]
--- , MapEntry (Glyph "kiyeokkorean") [ UTF82 (Bytes2All 0x31 0x31) ]
--- , MapEntry (Glyph "kiyeokparenkorean") [ UTF82 (Bytes2All 0x32 0x00) ]
--- , MapEntry (Glyph "kiyeoksioskorean") [ UTF82 (Bytes2All 0x31 0x33) ]
--- , MapEntry (Glyph "kjecyrillic") [ UTF82 (Bytes2All 0x04 0x5C) ]
--- , MapEntry (Glyph "klinebelow") [ UTF82 (Bytes2All 0x1E 0x35) ]
--- , MapEntry (Glyph "klsquare") [ UTF82 (Bytes2All 0x33 0x98) ]
--- , MapEntry (Glyph "kmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA6) ]
--- , MapEntry (Glyph "kmonospace") [ UTF82 (Bytes2All 0xFF 0x4B) ]
--- , MapEntry (Glyph "kmsquaredsquare") [ UTF82 (Bytes2All 0x33 0xA2) ]
--- , MapEntry (Glyph "kohiragana") [ UTF82 (Bytes2All 0x30 0x53) ]
--- , MapEntry (Glyph "kohmsquare") [ UTF82 (Bytes2All 0x33 0xC0) ]
--- , MapEntry (Glyph "kokaithai") [ UTF82 (Bytes2All 0x0E 0x01) ]
--- , MapEntry (Glyph "kokatakana") [ UTF82 (Bytes2All 0x30 0xB3) ]
--- , MapEntry (Glyph "kokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7A) ]
--- , MapEntry (Glyph "kooposquare") [ UTF82 (Bytes2All 0x33 0x1E) ]
--- , MapEntry (Glyph "koppacyrillic") [ UTF82 (Bytes2All 0x04 0x81) ]
--- , MapEntry (Glyph "koreanstandardsymbol") [ UTF82 (Bytes2All 0x32 0x7F) ]
--- , MapEntry (Glyph "koroniscmb") [ UTF82 (Bytes2All 0x03 0x43) ]
--- , MapEntry (Glyph "kparen") [ UTF82 (Bytes2All 0x24 0xA6) ]
--- , MapEntry (Glyph "kpasquare") [ UTF82 (Bytes2All 0x33 0xAA) ]
--- , MapEntry (Glyph "ksicyrillic") [ UTF82 (Bytes2All 0x04 0x6F) ]
--- , MapEntry (Glyph "ktsquare") [ UTF82 (Bytes2All 0x33 0xCF) ]
--- , MapEntry (Glyph "kturned") [ UTF82 (Bytes2All 0x02 0x9E) ]
--- , MapEntry (Glyph "kuhiragana") [ UTF82 (Bytes2All 0x30 0x4F) ]
--- , MapEntry (Glyph "kukatakana") [ UTF82 (Bytes2All 0x30 0xAF) ]
--- , MapEntry (Glyph "kukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x78) ]
--- , MapEntry (Glyph "kvsquare") [ UTF82 (Bytes2All 0x33 0xB8) ]
--- , MapEntry (Glyph "kwsquare") [ UTF82 (Bytes2All 0x33 0xBE) ]
-, MapEntry (Glyph "l") [ UTF81 (Bytes1 0x6C) ]
--- , MapEntry (Glyph "labengali") [ UTF82 (Bytes2All 0x09 0xB2) ]
--- , MapEntry (Glyph "lacute") [ UTF82 (Bytes2All 0x01 0x3A) ]
--- , MapEntry (Glyph "ladeva") [ UTF82 (Bytes2All 0x09 0x32) ]
--- , MapEntry (Glyph "lagujarati") [ UTF82 (Bytes2All 0x0A 0xB2) ]
--- , MapEntry (Glyph "lagurmukhi") [ UTF82 (Bytes2All 0x0A 0x32) ]
--- , MapEntry (Glyph "lakkhangyaothai") [ UTF82 (Bytes2All 0x0E 0x45) ]
--- , MapEntry (Glyph "lamaleffinalarabic") [ UTF82 (Bytes2All 0xFE 0xFC) ]
--- , MapEntry (Glyph "lamalefhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0xF8) ]
--- , MapEntry (Glyph "lamalefhamzaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF7) ]
--- , MapEntry (Glyph "lamalefhamzabelowfinalarabic") [ UTF82 (Bytes2All 0xFE 0xFA) ]
--- , MapEntry (Glyph "lamalefhamzabelowisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF9) ]
--- , MapEntry (Glyph "lamalefisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xFB) ]
--- , MapEntry (Glyph "lamalefmaddaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0xF6) ]
--- , MapEntry (Glyph "lamalefmaddaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF5) ]
--- , MapEntry (Glyph "lamarabic") [ UTF82 (Bytes2All 0x06 0x44) ]
--- , MapEntry (Glyph "lambda") [ UTF82 (Bytes2All 0x03 0xBB) ]
--- , MapEntry (Glyph "lambdastroke") [ UTF82 (Bytes2All 0x01 0x9B) ]
--- , MapEntry (Glyph "lamed") [ UTF82 (Bytes2All 0x05 0xDC) ]
--- , MapEntry (Glyph "lameddagesh") [ UTF82 (Bytes2All 0xFB 0x3C) ]
--- , MapEntry (Glyph "lameddageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3C) ]
--- , MapEntry (Glyph "lamedhebrew") [ UTF82 (Bytes2All 0x05 0xDC) ]
--- , MapEntry (Glyph "lamedholam") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "lamedholamdagesh") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9), UTF82 (Bytes2All 0x05 0xBC) ]
--- , MapEntry (Glyph "lamedholamdageshhebrew") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9), UTF82 (Bytes2All 0x05 0xBC) ]
--- , MapEntry (Glyph "lamedholamhebrew") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "lamfinalarabic") [ UTF82 (Bytes2All 0xFE 0xDE) ]
--- , MapEntry (Glyph "lamhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xCA) ]
--- , MapEntry (Glyph "laminitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF) ]
--- , MapEntry (Glyph "lamjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xC9) ]
--- , MapEntry (Glyph "lamkhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xCB) ]
--- , MapEntry (Glyph "lamlamhehisolatedarabic") [ UTF82 (Bytes2All 0xFD 0xF2) ]
--- , MapEntry (Glyph "lammedialarabic") [ UTF82 (Bytes2All 0xFE 0xE0) ]
--- , MapEntry (Glyph "lammeemhahinitialarabic") [ UTF82 (Bytes2All 0xFD 0x88) ]
--- , MapEntry (Glyph "lammeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xCC) ]
--- , MapEntry (Glyph "lammeemjeeminitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF), UTF82 (Bytes2All 0xFE 0xE4), UTF82 (Bytes2All 0xFE 0xA0) ]
--- , MapEntry (Glyph "lammeemkhahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF), UTF82 (Bytes2All 0xFE 0xE4), UTF82 (Bytes2All 0xFE 0xA8) ]
--- , MapEntry (Glyph "largecircle") [ UTF82 (Bytes2All 0x25 0xEF) ]
--- , MapEntry (Glyph "lbar") [ UTF82 (Bytes2All 0x01 0x9A) ]
--- , MapEntry (Glyph "lbelt") [ UTF82 (Bytes2All 0x02 0x6C) ]
--- , MapEntry (Glyph "lbopomofo") [ UTF82 (Bytes2All 0x31 0x0C) ]
--- , MapEntry (Glyph "lcaron") [ UTF82 (Bytes2All 0x01 0x3E) ]
--- , MapEntry (Glyph "lcedilla") [ UTF82 (Bytes2All 0x01 0x3C) ]
--- , MapEntry (Glyph "lcircle") [ UTF82 (Bytes2All 0x24 0xDB) ]
--- , MapEntry (Glyph "lcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x3D) ]
--- , MapEntry (Glyph "lcommaaccent") [ UTF82 (Bytes2All 0x01 0x3C) ]
--- , MapEntry (Glyph "ldot") [ UTF82 (Bytes2All 0x01 0x40) ]
--- , MapEntry (Glyph "ldotaccent") [ UTF82 (Bytes2All 0x01 0x40) ]
--- , MapEntry (Glyph "ldotbelow") [ UTF82 (Bytes2All 0x1E 0x37) ]
--- , MapEntry (Glyph "ldotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x39) ]
--- , MapEntry (Glyph "leftangleabovecmb") [ UTF82 (Bytes2All 0x03 0x1A) ]
--- , MapEntry (Glyph "lefttackbelowcmb") [ UTF82 (Bytes2All 0x03 0x18) ]
-, MapEntry (Glyph "less") [ UTF81 (Bytes1 0x3C) ]
--- , MapEntry (Glyph "lessequal") [ UTF82 (Bytes2All 0x22 0x64) ]
--- , MapEntry (Glyph "lessequalorgreater") [ UTF82 (Bytes2All 0x22 0xDA) ]
--- , MapEntry (Glyph "lessmonospace") [ UTF82 (Bytes2All 0xFF 0x1C) ]
--- , MapEntry (Glyph "lessorequivalent") [ UTF82 (Bytes2All 0x22 0x72) ]
--- , MapEntry (Glyph "lessorgreater") [ UTF82 (Bytes2All 0x22 0x76) ]
--- , MapEntry (Glyph "lessoverequal") [ UTF82 (Bytes2All 0x22 0x66) ]
--- , MapEntry (Glyph "lesssmall") [ UTF82 (Bytes2All 0xFE 0x64) ]
--- , MapEntry (Glyph "lezh") [ UTF82 (Bytes2All 0x02 0x6E) ]
--- , MapEntry (Glyph "lfblock") [ UTF82 (Bytes2All 0x25 0x8C) ]
--- , MapEntry (Glyph "lhookretroflex") [ UTF82 (Bytes2All 0x02 0x6D) ]
--- , MapEntry (Glyph "lira") [ UTF82 (Bytes2All 0x20 0xA4) ]
--- , MapEntry (Glyph "liwnarmenian") [ UTF82 (Bytes2All 0x05 0x6C) ]
--- , MapEntry (Glyph "lj") [ UTF82 (Bytes2All 0x01 0xC9) ]
--- , MapEntry (Glyph "ljecyrillic") [ UTF82 (Bytes2All 0x04 0x59) ]
--- , MapEntry (Glyph "ll") [ UTF82 (Bytes2All 0xF6 0xC0) ]
--- , MapEntry (Glyph "lladeva") [ UTF82 (Bytes2All 0x09 0x33) ]
--- , MapEntry (Glyph "llagujarati") [ UTF82 (Bytes2All 0x0A 0xB3) ]
--- , MapEntry (Glyph "llinebelow") [ UTF82 (Bytes2All 0x1E 0x3B) ]
--- , MapEntry (Glyph "llladeva") [ UTF82 (Bytes2All 0x09 0x34) ]
--- , MapEntry (Glyph "llvocalicbengali") [ UTF82 (Bytes2All 0x09 0xE1) ]
--- , MapEntry (Glyph "llvocalicdeva") [ UTF82 (Bytes2All 0x09 0x61) ]
--- , MapEntry (Glyph "llvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xE3) ]
--- , MapEntry (Glyph "llvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x63) ]
--- , MapEntry (Glyph "lmiddletilde") [ UTF82 (Bytes2All 0x02 0x6B) ]
--- , MapEntry (Glyph "lmonospace") [ UTF82 (Bytes2All 0xFF 0x4C) ]
--- , MapEntry (Glyph "lmsquare") [ UTF82 (Bytes2All 0x33 0xD0) ]
--- , MapEntry (Glyph "lochulathai") [ UTF82 (Bytes2All 0x0E 0x2C) ]
--- , MapEntry (Glyph "logicaland") [ UTF82 (Bytes2All 0x22 0x27) ]
-, MapEntry (Glyph "logicalnot") [ UTF81 (Bytes1 0xAC) ]
--- , MapEntry (Glyph "logicalnotreversed") [ UTF82 (Bytes2All 0x23 0x10) ]
--- , MapEntry (Glyph "logicalor") [ UTF82 (Bytes2All 0x22 0x28) ]
--- , MapEntry (Glyph "lolingthai") [ UTF82 (Bytes2All 0x0E 0x25) ]
--- , MapEntry (Glyph "longs") [ UTF82 (Bytes2All 0x01 0x7F) ]
--- , MapEntry (Glyph "lowlinecenterline") [ UTF82 (Bytes2All 0xFE 0x4E) ]
--- , MapEntry (Glyph "lowlinecmb") [ UTF82 (Bytes2All 0x03 0x32) ]
--- , MapEntry (Glyph "lowlinedashed") [ UTF82 (Bytes2All 0xFE 0x4D) ]
--- , MapEntry (Glyph "lozenge") [ UTF82 (Bytes2All 0x25 0xCA) ]
--- , MapEntry (Glyph "lparen") [ UTF82 (Bytes2All 0x24 0xA7) ]
--- , MapEntry (Glyph "lslash") [ UTF82 (Bytes2All 0x01 0x42) ]
--- , MapEntry (Glyph "lsquare") [ UTF82 (Bytes2All 0x21 0x13) ]
--- , MapEntry (Glyph "lsuperior") [ UTF82 (Bytes2All 0xF6 0xEE) ]
--- , MapEntry (Glyph "ltshade") [ UTF82 (Bytes2All 0x25 0x91) ]
--- , MapEntry (Glyph "luthai") [ UTF82 (Bytes2All 0x0E 0x26) ]
--- , MapEntry (Glyph "lvocalicbengali") [ UTF82 (Bytes2All 0x09 0x8C) ]
--- , MapEntry (Glyph "lvocalicdeva") [ UTF82 (Bytes2All 0x09 0x0C) ]
--- , MapEntry (Glyph "lvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xE2) ]
--- , MapEntry (Glyph "lvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x62) ]
--- , MapEntry (Glyph "lxsquare") [ UTF82 (Bytes2All 0x33 0xD3) ]
-, MapEntry (Glyph "m") [ UTF81 (Bytes1 0x6D) ]
--- , MapEntry (Glyph "mabengali") [ UTF82 (Bytes2All 0x09 0xAE) ]
-, MapEntry (Glyph "macron") [ UTF81 (Bytes1 0xAF) ]
--- , MapEntry (Glyph "macronbelowcmb") [ UTF82 (Bytes2All 0x03 0x31) ]
--- , MapEntry (Glyph "macroncmb") [ UTF82 (Bytes2All 0x03 0x04) ]
--- , MapEntry (Glyph "macronlowmod") [ UTF82 (Bytes2All 0x02 0xCD) ]
--- , MapEntry (Glyph "macronmonospace") [ UTF82 (Bytes2All 0xFF 0xE3) ]
--- , MapEntry (Glyph "macute") [ UTF82 (Bytes2All 0x1E 0x3F) ]
--- , MapEntry (Glyph "madeva") [ UTF82 (Bytes2All 0x09 0x2E) ]
--- , MapEntry (Glyph "magujarati") [ UTF82 (Bytes2All 0x0A 0xAE) ]
--- , MapEntry (Glyph "magurmukhi") [ UTF82 (Bytes2All 0x0A 0x2E) ]
--- , MapEntry (Glyph "mahapakhhebrew") [ UTF82 (Bytes2All 0x05 0xA4) ]
--- , MapEntry (Glyph "mahapakhlefthebrew") [ UTF82 (Bytes2All 0x05 0xA4) ]
--- , MapEntry (Glyph "mahiragana") [ UTF82 (Bytes2All 0x30 0x7E) ]
--- , MapEntry (Glyph "maichattawalowleftthai") [ UTF82 (Bytes2All 0xF8 0x95) ]
--- , MapEntry (Glyph "maichattawalowrightthai") [ UTF82 (Bytes2All 0xF8 0x94) ]
--- , MapEntry (Glyph "maichattawathai") [ UTF82 (Bytes2All 0x0E 0x4B) ]
--- , MapEntry (Glyph "maichattawaupperleftthai") [ UTF82 (Bytes2All 0xF8 0x93) ]
--- , MapEntry (Glyph "maieklowleftthai") [ UTF82 (Bytes2All 0xF8 0x8C) ]
--- , MapEntry (Glyph "maieklowrightthai") [ UTF82 (Bytes2All 0xF8 0x8B) ]
--- , MapEntry (Glyph "maiekthai") [ UTF82 (Bytes2All 0x0E 0x48) ]
--- , MapEntry (Glyph "maiekupperleftthai") [ UTF82 (Bytes2All 0xF8 0x8A) ]
--- , MapEntry (Glyph "maihanakatleftthai") [ UTF82 (Bytes2All 0xF8 0x84) ]
--- , MapEntry (Glyph "maihanakatthai") [ UTF82 (Bytes2All 0x0E 0x31) ]
--- , MapEntry (Glyph "maitaikhuleftthai") [ UTF82 (Bytes2All 0xF8 0x89) ]
--- , MapEntry (Glyph "maitaikhuthai") [ UTF82 (Bytes2All 0x0E 0x47) ]
--- , MapEntry (Glyph "maitholowleftthai") [ UTF82 (Bytes2All 0xF8 0x8F) ]
--- , MapEntry (Glyph "maitholowrightthai") [ UTF82 (Bytes2All 0xF8 0x8E) ]
--- , MapEntry (Glyph "maithothai") [ UTF82 (Bytes2All 0x0E 0x49) ]
--- , MapEntry (Glyph "maithoupperleftthai") [ UTF82 (Bytes2All 0xF8 0x8D) ]
--- , MapEntry (Glyph "maitrilowleftthai") [ UTF82 (Bytes2All 0xF8 0x92) ]
--- , MapEntry (Glyph "maitrilowrightthai") [ UTF82 (Bytes2All 0xF8 0x91) ]
--- , MapEntry (Glyph "maitrithai") [ UTF82 (Bytes2All 0x0E 0x4A) ]
--- , MapEntry (Glyph "maitriupperleftthai") [ UTF82 (Bytes2All 0xF8 0x90) ]
--- , MapEntry (Glyph "maiyamokthai") [ UTF82 (Bytes2All 0x0E 0x46) ]
--- , MapEntry (Glyph "makatakana") [ UTF82 (Bytes2All 0x30 0xDE) ]
--- , MapEntry (Glyph "makatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8F) ]
--- , MapEntry (Glyph "male") [ UTF82 (Bytes2All 0x26 0x42) ]
--- , MapEntry (Glyph "mansyonsquare") [ UTF82 (Bytes2All 0x33 0x47) ]
--- , MapEntry (Glyph "maqafhebrew") [ UTF82 (Bytes2All 0x05 0xBE) ]
--- , MapEntry (Glyph "mars") [ UTF82 (Bytes2All 0x26 0x42) ]
--- , MapEntry (Glyph "masoracirclehebrew") [ UTF82 (Bytes2All 0x05 0xAF) ]
--- , MapEntry (Glyph "masquare") [ UTF82 (Bytes2All 0x33 0x83) ]
--- , MapEntry (Glyph "mbopomofo") [ UTF82 (Bytes2All 0x31 0x07) ]
--- , MapEntry (Glyph "mbsquare") [ UTF82 (Bytes2All 0x33 0xD4) ]
--- , MapEntry (Glyph "mcircle") [ UTF82 (Bytes2All 0x24 0xDC) ]
--- , MapEntry (Glyph "mcubedsquare") [ UTF82 (Bytes2All 0x33 0xA5) ]
--- , MapEntry (Glyph "mdotaccent") [ UTF82 (Bytes2All 0x1E 0x41) ]
--- , MapEntry (Glyph "mdotbelow") [ UTF82 (Bytes2All 0x1E 0x43) ]
--- , MapEntry (Glyph "meemarabic") [ UTF82 (Bytes2All 0x06 0x45) ]
--- , MapEntry (Glyph "meemfinalarabic") [ UTF82 (Bytes2All 0xFE 0xE2) ]
--- , MapEntry (Glyph "meeminitialarabic") [ UTF82 (Bytes2All 0xFE 0xE3) ]
--- , MapEntry (Glyph "meemmedialarabic") [ UTF82 (Bytes2All 0xFE 0xE4) ]
--- , MapEntry (Glyph "meemmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD1) ]
--- , MapEntry (Glyph "meemmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x48) ]
--- , MapEntry (Glyph "meetorusquare") [ UTF82 (Bytes2All 0x33 0x4D) ]
--- , MapEntry (Glyph "mehiragana") [ UTF82 (Bytes2All 0x30 0x81) ]
--- , MapEntry (Glyph "meizierasquare") [ UTF82 (Bytes2All 0x33 0x7E) ]
--- , MapEntry (Glyph "mekatakana") [ UTF82 (Bytes2All 0x30 0xE1) ]
--- , MapEntry (Glyph "mekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x92) ]
--- , MapEntry (Glyph "mem") [ UTF82 (Bytes2All 0x05 0xDE) ]
--- , MapEntry (Glyph "memdagesh") [ UTF82 (Bytes2All 0xFB 0x3E) ]
--- , MapEntry (Glyph "memdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3E) ]
--- , MapEntry (Glyph "memhebrew") [ UTF82 (Bytes2All 0x05 0xDE) ]
--- , MapEntry (Glyph "menarmenian") [ UTF82 (Bytes2All 0x05 0x74) ]
--- , MapEntry (Glyph "merkhahebrew") [ UTF82 (Bytes2All 0x05 0xA5) ]
--- , MapEntry (Glyph "merkhakefulahebrew") [ UTF82 (Bytes2All 0x05 0xA6) ]
--- , MapEntry (Glyph "merkhakefulalefthebrew") [ UTF82 (Bytes2All 0x05 0xA6) ]
--- , MapEntry (Glyph "merkhalefthebrew") [ UTF82 (Bytes2All 0x05 0xA5) ]
--- , MapEntry (Glyph "mhook") [ UTF82 (Bytes2All 0x02 0x71) ]
--- , MapEntry (Glyph "mhzsquare") [ UTF82 (Bytes2All 0x33 0x92) ]
--- , MapEntry (Glyph "middledotkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x65) ]
-, MapEntry (Glyph "middot") [ UTF81 (Bytes1 0xB7) ]
--- , MapEntry (Glyph "mieumacirclekorean") [ UTF82 (Bytes2All 0x32 0x72) ]
--- , MapEntry (Glyph "mieumaparenkorean") [ UTF82 (Bytes2All 0x32 0x12) ]
--- , MapEntry (Glyph "mieumcirclekorean") [ UTF82 (Bytes2All 0x32 0x64) ]
--- , MapEntry (Glyph "mieumkorean") [ UTF82 (Bytes2All 0x31 0x41) ]
--- , MapEntry (Glyph "mieumpansioskorean") [ UTF82 (Bytes2All 0x31 0x70) ]
--- , MapEntry (Glyph "mieumparenkorean") [ UTF82 (Bytes2All 0x32 0x04) ]
--- , MapEntry (Glyph "mieumpieupkorean") [ UTF82 (Bytes2All 0x31 0x6E) ]
--- , MapEntry (Glyph "mieumsioskorean") [ UTF82 (Bytes2All 0x31 0x6F) ]
--- , MapEntry (Glyph "mihiragana") [ UTF82 (Bytes2All 0x30 0x7F) ]
--- , MapEntry (Glyph "mikatakana") [ UTF82 (Bytes2All 0x30 0xDF) ]
--- , MapEntry (Glyph "mikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x90) ]
--- , MapEntry (Glyph "minus") [ UTF82 (Bytes2All 0x22 0x12) ]
--- , MapEntry (Glyph "minusbelowcmb") [ UTF82 (Bytes2All 0x03 0x20) ]
--- , MapEntry (Glyph "minuscircle") [ UTF82 (Bytes2All 0x22 0x96) ]
--- , MapEntry (Glyph "minusmod") [ UTF82 (Bytes2All 0x02 0xD7) ]
--- , MapEntry (Glyph "minusplus") [ UTF82 (Bytes2All 0x22 0x13) ]
--- , MapEntry (Glyph "minute") [ UTF82 (Bytes2All 0x20 0x32) ]
--- , MapEntry (Glyph "miribaarusquare") [ UTF82 (Bytes2All 0x33 0x4A) ]
--- , MapEntry (Glyph "mirisquare") [ UTF82 (Bytes2All 0x33 0x49) ]
--- , MapEntry (Glyph "mlonglegturned") [ UTF82 (Bytes2All 0x02 0x70) ]
--- , MapEntry (Glyph "mlsquare") [ UTF82 (Bytes2All 0x33 0x96) ]
--- , MapEntry (Glyph "mmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA3) ]
--- , MapEntry (Glyph "mmonospace") [ UTF82 (Bytes2All 0xFF 0x4D) ]
--- , MapEntry (Glyph "mmsquaredsquare") [ UTF82 (Bytes2All 0x33 0x9F) ]
--- , MapEntry (Glyph "mohiragana") [ UTF82 (Bytes2All 0x30 0x82) ]
--- , MapEntry (Glyph "mohmsquare") [ UTF82 (Bytes2All 0x33 0xC1) ]
--- , MapEntry (Glyph "mokatakana") [ UTF82 (Bytes2All 0x30 0xE2) ]
--- , MapEntry (Glyph "mokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x93) ]
--- , MapEntry (Glyph "molsquare") [ UTF82 (Bytes2All 0x33 0xD6) ]
--- , MapEntry (Glyph "momathai") [ UTF82 (Bytes2All 0x0E 0x21) ]
--- , MapEntry (Glyph "moverssquare") [ UTF82 (Bytes2All 0x33 0xA7) ]
--- , MapEntry (Glyph "moverssquaredsquare") [ UTF82 (Bytes2All 0x33 0xA8) ]
--- , MapEntry (Glyph "mparen") [ UTF82 (Bytes2All 0x24 0xA8) ]
--- , MapEntry (Glyph "mpasquare") [ UTF82 (Bytes2All 0x33 0xAB) ]
--- , MapEntry (Glyph "mssquare") [ UTF82 (Bytes2All 0x33 0xB3) ]
--- , MapEntry (Glyph "msuperior") [ UTF82 (Bytes2All 0xF6 0xEF) ]
--- , MapEntry (Glyph "mturned") [ UTF82 (Bytes2All 0x02 0x6F) ]
-, MapEntry (Glyph "mu") [ UTF81 (Bytes1 0xB5) ]
-, MapEntry (Glyph "mu1") [ UTF81 (Bytes1 0xB5) ]
--- , MapEntry (Glyph "muasquare") [ UTF82 (Bytes2All 0x33 0x82) ]
--- , MapEntry (Glyph "muchgreater") [ UTF82 (Bytes2All 0x22 0x6B) ]
--- , MapEntry (Glyph "muchless") [ UTF82 (Bytes2All 0x22 0x6A) ]
--- , MapEntry (Glyph "mufsquare") [ UTF82 (Bytes2All 0x33 0x8C) ]
--- , MapEntry (Glyph "mugreek") [ UTF82 (Bytes2All 0x03 0xBC) ]
--- , MapEntry (Glyph "mugsquare") [ UTF82 (Bytes2All 0x33 0x8D) ]
--- , MapEntry (Glyph "muhiragana") [ UTF82 (Bytes2All 0x30 0x80) ]
--- , MapEntry (Glyph "mukatakana") [ UTF82 (Bytes2All 0x30 0xE0) ]
--- , MapEntry (Glyph "mukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x91) ]
--- , MapEntry (Glyph "mulsquare") [ UTF82 (Bytes2All 0x33 0x95) ]
-, MapEntry (Glyph "multiply") [ UTF81 (Bytes1 0xD7) ]
--- , MapEntry (Glyph "mumsquare") [ UTF82 (Bytes2All 0x33 0x9B) ]
--- , MapEntry (Glyph "munahhebrew") [ UTF82 (Bytes2All 0x05 0xA3) ]
--- , MapEntry (Glyph "munahlefthebrew") [ UTF82 (Bytes2All 0x05 0xA3) ]
--- , MapEntry (Glyph "musicalnote") [ UTF82 (Bytes2All 0x26 0x6A) ]
--- , MapEntry (Glyph "musicalnotedbl") [ UTF82 (Bytes2All 0x26 0x6B) ]
--- , MapEntry (Glyph "musicflatsign") [ UTF82 (Bytes2All 0x26 0x6D) ]
--- , MapEntry (Glyph "musicsharpsign") [ UTF82 (Bytes2All 0x26 0x6F) ]
--- , MapEntry (Glyph "mussquare") [ UTF82 (Bytes2All 0x33 0xB2) ]
--- , MapEntry (Glyph "muvsquare") [ UTF82 (Bytes2All 0x33 0xB6) ]
--- , MapEntry (Glyph "muwsquare") [ UTF82 (Bytes2All 0x33 0xBC) ]
--- , MapEntry (Glyph "mvmegasquare") [ UTF82 (Bytes2All 0x33 0xB9) ]
--- , MapEntry (Glyph "mvsquare") [ UTF82 (Bytes2All 0x33 0xB7) ]
--- , MapEntry (Glyph "mwmegasquare") [ UTF82 (Bytes2All 0x33 0xBF) ]
--- , MapEntry (Glyph "mwsquare") [ UTF82 (Bytes2All 0x33 0xBD) ]
-, MapEntry (Glyph "n") [ UTF81 (Bytes1 0x6E) ]
--- , MapEntry (Glyph "nabengali") [ UTF82 (Bytes2All 0x09 0xA8) ]
--- , MapEntry (Glyph "nabla") [ UTF82 (Bytes2All 0x22 0x07) ]
--- , MapEntry (Glyph "nacute") [ UTF82 (Bytes2All 0x01 0x44) ]
--- , MapEntry (Glyph "nadeva") [ UTF82 (Bytes2All 0x09 0x28) ]
--- , MapEntry (Glyph "nagujarati") [ UTF82 (Bytes2All 0x0A 0xA8) ]
--- , MapEntry (Glyph "nagurmukhi") [ UTF82 (Bytes2All 0x0A 0x28) ]
--- , MapEntry (Glyph "nahiragana") [ UTF82 (Bytes2All 0x30 0x6A) ]
--- , MapEntry (Glyph "nakatakana") [ UTF82 (Bytes2All 0x30 0xCA) ]
--- , MapEntry (Glyph "nakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x85) ]
--- , MapEntry (Glyph "napostrophe") [ UTF82 (Bytes2All 0x01 0x49) ]
--- , MapEntry (Glyph "nasquare") [ UTF82 (Bytes2All 0x33 0x81) ]
--- , MapEntry (Glyph "nbopomofo") [ UTF82 (Bytes2All 0x31 0x0B) ]
-, MapEntry (Glyph "nbspace") [ UTF81 (Bytes1 0xA0) ]
--- , MapEntry (Glyph "ncaron") [ UTF82 (Bytes2All 0x01 0x48) ]
--- , MapEntry (Glyph "ncedilla") [ UTF82 (Bytes2All 0x01 0x46) ]
--- , MapEntry (Glyph "ncircle") [ UTF82 (Bytes2All 0x24 0xDD) ]
--- , MapEntry (Glyph "ncircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x4B) ]
--- , MapEntry (Glyph "ncommaaccent") [ UTF82 (Bytes2All 0x01 0x46) ]
--- , MapEntry (Glyph "ndotaccent") [ UTF82 (Bytes2All 0x1E 0x45) ]
--- , MapEntry (Glyph "ndotbelow") [ UTF82 (Bytes2All 0x1E 0x47) ]
--- , MapEntry (Glyph "nehiragana") [ UTF82 (Bytes2All 0x30 0x6D) ]
--- , MapEntry (Glyph "nekatakana") [ UTF82 (Bytes2All 0x30 0xCD) ]
--- , MapEntry (Glyph "nekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x88) ]
--- , MapEntry (Glyph "newsheqelsign") [ UTF82 (Bytes2All 0x20 0xAA) ]
--- , MapEntry (Glyph "nfsquare") [ UTF82 (Bytes2All 0x33 0x8B) ]
--- , MapEntry (Glyph "ngabengali") [ UTF82 (Bytes2All 0x09 0x99) ]
--- , MapEntry (Glyph "ngadeva") [ UTF82 (Bytes2All 0x09 0x19) ]
--- , MapEntry (Glyph "ngagujarati") [ UTF82 (Bytes2All 0x0A 0x99) ]
--- , MapEntry (Glyph "ngagurmukhi") [ UTF82 (Bytes2All 0x0A 0x19) ]
--- , MapEntry (Glyph "ngonguthai") [ UTF82 (Bytes2All 0x0E 0x07) ]
--- , MapEntry (Glyph "nhiragana") [ UTF82 (Bytes2All 0x30 0x93) ]
--- , MapEntry (Glyph "nhookleft") [ UTF82 (Bytes2All 0x02 0x72) ]
--- , MapEntry (Glyph "nhookretroflex") [ UTF82 (Bytes2All 0x02 0x73) ]
--- , MapEntry (Glyph "nieunacirclekorean") [ UTF82 (Bytes2All 0x32 0x6F) ]
--- , MapEntry (Glyph "nieunaparenkorean") [ UTF82 (Bytes2All 0x32 0x0F) ]
--- , MapEntry (Glyph "nieuncieuckorean") [ UTF82 (Bytes2All 0x31 0x35) ]
--- , MapEntry (Glyph "nieuncirclekorean") [ UTF82 (Bytes2All 0x32 0x61) ]
--- , MapEntry (Glyph "nieunhieuhkorean") [ UTF82 (Bytes2All 0x31 0x36) ]
--- , MapEntry (Glyph "nieunkorean") [ UTF82 (Bytes2All 0x31 0x34) ]
--- , MapEntry (Glyph "nieunpansioskorean") [ UTF82 (Bytes2All 0x31 0x68) ]
--- , MapEntry (Glyph "nieunparenkorean") [ UTF82 (Bytes2All 0x32 0x01) ]
--- , MapEntry (Glyph "nieunsioskorean") [ UTF82 (Bytes2All 0x31 0x67) ]
--- , MapEntry (Glyph "nieuntikeutkorean") [ UTF82 (Bytes2All 0x31 0x66) ]
--- , MapEntry (Glyph "nihiragana") [ UTF82 (Bytes2All 0x30 0x6B) ]
--- , MapEntry (Glyph "nikatakana") [ UTF82 (Bytes2All 0x30 0xCB) ]
--- , MapEntry (Glyph "nikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x86) ]
--- , MapEntry (Glyph "nikhahitleftthai") [ UTF82 (Bytes2All 0xF8 0x99) ]
--- , MapEntry (Glyph "nikhahitthai") [ UTF82 (Bytes2All 0x0E 0x4D) ]
-, MapEntry (Glyph "nine") [ UTF81 (Bytes1 0x39) ]
--- , MapEntry (Glyph "ninearabic") [ UTF82 (Bytes2All 0x06 0x69) ]
--- , MapEntry (Glyph "ninebengali") [ UTF82 (Bytes2All 0x09 0xEF) ]
--- , MapEntry (Glyph "ninecircle") [ UTF82 (Bytes2All 0x24 0x68) ]
--- , MapEntry (Glyph "ninecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x92) ]
--- , MapEntry (Glyph "ninedeva") [ UTF82 (Bytes2All 0x09 0x6F) ]
--- , MapEntry (Glyph "ninegujarati") [ UTF82 (Bytes2All 0x0A 0xEF) ]
--- , MapEntry (Glyph "ninegurmukhi") [ UTF82 (Bytes2All 0x0A 0x6F) ]
--- , MapEntry (Glyph "ninehackarabic") [ UTF82 (Bytes2All 0x06 0x69) ]
--- , MapEntry (Glyph "ninehangzhou") [ UTF82 (Bytes2All 0x30 0x29) ]
--- , MapEntry (Glyph "nineideographicparen") [ UTF82 (Bytes2All 0x32 0x28) ]
--- , MapEntry (Glyph "nineinferior") [ UTF82 (Bytes2All 0x20 0x89) ]
--- , MapEntry (Glyph "ninemonospace") [ UTF82 (Bytes2All 0xFF 0x19) ]
--- , MapEntry (Glyph "nineoldstyle") [ UTF82 (Bytes2All 0xF7 0x39) ]
--- , MapEntry (Glyph "nineparen") [ UTF82 (Bytes2All 0x24 0x7C) ]
--- , MapEntry (Glyph "nineperiod") [ UTF82 (Bytes2All 0x24 0x90) ]
--- , MapEntry (Glyph "ninepersian") [ UTF82 (Bytes2All 0x06 0xF9) ]
--- , MapEntry (Glyph "nineroman") [ UTF82 (Bytes2All 0x21 0x78) ]
--- , MapEntry (Glyph "ninesuperior") [ UTF82 (Bytes2All 0x20 0x79) ]
--- , MapEntry (Glyph "nineteencircle") [ UTF82 (Bytes2All 0x24 0x72) ]
--- , MapEntry (Glyph "nineteenparen") [ UTF82 (Bytes2All 0x24 0x86) ]
--- , MapEntry (Glyph "nineteenperiod") [ UTF82 (Bytes2All 0x24 0x9A) ]
--- , MapEntry (Glyph "ninethai") [ UTF82 (Bytes2All 0x0E 0x59) ]
--- , MapEntry (Glyph "nj") [ UTF82 (Bytes2All 0x01 0xCC) ]
--- , MapEntry (Glyph "njecyrillic") [ UTF82 (Bytes2All 0x04 0x5A) ]
--- , MapEntry (Glyph "nkatakana") [ UTF82 (Bytes2All 0x30 0xF3) ]
--- , MapEntry (Glyph "nkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9D) ]
--- , MapEntry (Glyph "nlegrightlong") [ UTF82 (Bytes2All 0x01 0x9E) ]
--- , MapEntry (Glyph "nlinebelow") [ UTF82 (Bytes2All 0x1E 0x49) ]
--- , MapEntry (Glyph "nmonospace") [ UTF82 (Bytes2All 0xFF 0x4E) ]
--- , MapEntry (Glyph "nmsquare") [ UTF82 (Bytes2All 0x33 0x9A) ]
--- , MapEntry (Glyph "nnabengali") [ UTF82 (Bytes2All 0x09 0xA3) ]
--- , MapEntry (Glyph "nnadeva") [ UTF82 (Bytes2All 0x09 0x23) ]
--- , MapEntry (Glyph "nnagujarati") [ UTF82 (Bytes2All 0x0A 0xA3) ]
--- , MapEntry (Glyph "nnagurmukhi") [ UTF82 (Bytes2All 0x0A 0x23) ]
--- , MapEntry (Glyph "nnnadeva") [ UTF82 (Bytes2All 0x09 0x29) ]
--- , MapEntry (Glyph "nohiragana") [ UTF82 (Bytes2All 0x30 0x6E) ]
--- , MapEntry (Glyph "nokatakana") [ UTF82 (Bytes2All 0x30 0xCE) ]
--- , MapEntry (Glyph "nokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x89) ]
-, MapEntry (Glyph "nonbreakingspace") [ UTF81 (Bytes1 0xA0) ]
--- , MapEntry (Glyph "nonenthai") [ UTF82 (Bytes2All 0x0E 0x13) ]
--- , MapEntry (Glyph "nonuthai") [ UTF82 (Bytes2All 0x0E 0x19) ]
--- , MapEntry (Glyph "noonarabic") [ UTF82 (Bytes2All 0x06 0x46) ]
--- , MapEntry (Glyph "noonfinalarabic") [ UTF82 (Bytes2All 0xFE 0xE6) ]
--- , MapEntry (Glyph "noonghunnaarabic") [ UTF82 (Bytes2All 0x06 0xBA) ]
--- , MapEntry (Glyph "noonghunnafinalarabic") [ UTF82 (Bytes2All 0xFB 0x9F) ]
--- , MapEntry (Glyph "noonhehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xE7), UTF82 (Bytes2All 0xFE 0xEC) ]
--- , MapEntry (Glyph "nooninitialarabic") [ UTF82 (Bytes2All 0xFE 0xE7) ]
--- , MapEntry (Glyph "noonjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD2) ]
--- , MapEntry (Glyph "noonjeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x4B) ]
--- , MapEntry (Glyph "noonmedialarabic") [ UTF82 (Bytes2All 0xFE 0xE8) ]
--- , MapEntry (Glyph "noonmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD5) ]
--- , MapEntry (Glyph "noonmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x4E) ]
--- , MapEntry (Glyph "noonnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x8D) ]
--- , MapEntry (Glyph "notcontains") [ UTF82 (Bytes2All 0x22 0x0C) ]
--- , MapEntry (Glyph "notelement") [ UTF82 (Bytes2All 0x22 0x09) ]
--- , MapEntry (Glyph "notelementof") [ UTF82 (Bytes2All 0x22 0x09) ]
--- , MapEntry (Glyph "notequal") [ UTF82 (Bytes2All 0x22 0x60) ]
--- , MapEntry (Glyph "notgreater") [ UTF82 (Bytes2All 0x22 0x6F) ]
--- , MapEntry (Glyph "notgreaternorequal") [ UTF82 (Bytes2All 0x22 0x71) ]
--- , MapEntry (Glyph "notgreaternorless") [ UTF82 (Bytes2All 0x22 0x79) ]
--- , MapEntry (Glyph "notidentical") [ UTF82 (Bytes2All 0x22 0x62) ]
--- , MapEntry (Glyph "notless") [ UTF82 (Bytes2All 0x22 0x6E) ]
--- , MapEntry (Glyph "notlessnorequal") [ UTF82 (Bytes2All 0x22 0x70) ]
--- , MapEntry (Glyph "notparallel") [ UTF82 (Bytes2All 0x22 0x26) ]
--- , MapEntry (Glyph "notprecedes") [ UTF82 (Bytes2All 0x22 0x80) ]
--- , MapEntry (Glyph "notsubset") [ UTF82 (Bytes2All 0x22 0x84) ]
--- , MapEntry (Glyph "notsucceeds") [ UTF82 (Bytes2All 0x22 0x81) ]
--- , MapEntry (Glyph "notsuperset") [ UTF82 (Bytes2All 0x22 0x85) ]
--- , MapEntry (Glyph "nowarmenian") [ UTF82 (Bytes2All 0x05 0x76) ]
--- , MapEntry (Glyph "nparen") [ UTF82 (Bytes2All 0x24 0xA9) ]
--- , MapEntry (Glyph "nssquare") [ UTF82 (Bytes2All 0x33 0xB1) ]
--- , MapEntry (Glyph "nsuperior") [ UTF82 (Bytes2All 0x20 0x7F) ]
-, MapEntry (Glyph "ntilde") [ UTF81 (Bytes1 0xF1) ]
--- , MapEntry (Glyph "nu") [ UTF82 (Bytes2All 0x03 0xBD) ]
--- , MapEntry (Glyph "nuhiragana") [ UTF82 (Bytes2All 0x30 0x6C) ]
--- , MapEntry (Glyph "nukatakana") [ UTF82 (Bytes2All 0x30 0xCC) ]
--- , MapEntry (Glyph "nukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x87) ]
--- , MapEntry (Glyph "nuktabengali") [ UTF82 (Bytes2All 0x09 0xBC) ]
--- , MapEntry (Glyph "nuktadeva") [ UTF82 (Bytes2All 0x09 0x3C) ]
--- , MapEntry (Glyph "nuktagujarati") [ UTF82 (Bytes2All 0x0A 0xBC) ]
--- , MapEntry (Glyph "nuktagurmukhi") [ UTF82 (Bytes2All 0x0A 0x3C) ]
-, MapEntry (Glyph "numbersign") [ UTF81 (Bytes1 0x23) ]
--- , MapEntry (Glyph "numbersignmonospace") [ UTF82 (Bytes2All 0xFF 0x03) ]
--- , MapEntry (Glyph "numbersignsmall") [ UTF82 (Bytes2All 0xFE 0x5F) ]
--- , MapEntry (Glyph "numeralsigngreek") [ UTF82 (Bytes2All 0x03 0x74) ]
--- , MapEntry (Glyph "numeralsignlowergreek") [ UTF82 (Bytes2All 0x03 0x75) ]
--- , MapEntry (Glyph "numero") [ UTF82 (Bytes2All 0x21 0x16) ]
--- , MapEntry (Glyph "nun") [ UTF82 (Bytes2All 0x05 0xE0) ]
--- , MapEntry (Glyph "nundagesh") [ UTF82 (Bytes2All 0xFB 0x40) ]
--- , MapEntry (Glyph "nundageshhebrew") [ UTF82 (Bytes2All 0xFB 0x40) ]
--- , MapEntry (Glyph "nunhebrew") [ UTF82 (Bytes2All 0x05 0xE0) ]
--- , MapEntry (Glyph "nvsquare") [ UTF82 (Bytes2All 0x33 0xB5) ]
--- , MapEntry (Glyph "nwsquare") [ UTF82 (Bytes2All 0x33 0xBB) ]
--- , MapEntry (Glyph "nyabengali") [ UTF82 (Bytes2All 0x09 0x9E) ]
--- , MapEntry (Glyph "nyadeva") [ UTF82 (Bytes2All 0x09 0x1E) ]
--- , MapEntry (Glyph "nyagujarati") [ UTF82 (Bytes2All 0x0A 0x9E) ]
--- , MapEntry (Glyph "nyagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1E) ]
-, MapEntry (Glyph "o") [ UTF81 (Bytes1 0x6F) ]
-, MapEntry (Glyph "oacute") [ UTF81 (Bytes1 0xF3) ]
--- , MapEntry (Glyph "oangthai") [ UTF82 (Bytes2All 0x0E 0x2D) ]
--- , MapEntry (Glyph "obarred") [ UTF82 (Bytes2All 0x02 0x75) ]
--- , MapEntry (Glyph "obarredcyrillic") [ UTF82 (Bytes2All 0x04 0xE9) ]
--- , MapEntry (Glyph "obarreddieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xEB) ]
--- , MapEntry (Glyph "obengali") [ UTF82 (Bytes2All 0x09 0x93) ]
--- , MapEntry (Glyph "obopomofo") [ UTF82 (Bytes2All 0x31 0x1B) ]
--- , MapEntry (Glyph "obreve") [ UTF82 (Bytes2All 0x01 0x4F) ]
--- , MapEntry (Glyph "ocandradeva") [ UTF82 (Bytes2All 0x09 0x11) ]
--- , MapEntry (Glyph "ocandragujarati") [ UTF82 (Bytes2All 0x0A 0x91) ]
--- , MapEntry (Glyph "ocandravowelsigndeva") [ UTF82 (Bytes2All 0x09 0x49) ]
--- , MapEntry (Glyph "ocandravowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC9) ]
--- , MapEntry (Glyph "ocaron") [ UTF82 (Bytes2All 0x01 0xD2) ]
--- , MapEntry (Glyph "ocircle") [ UTF82 (Bytes2All 0x24 0xDE) ]
-, MapEntry (Glyph "ocircumflex") [ UTF81 (Bytes1 0xF4) ]
--- , MapEntry (Glyph "ocircumflexacute") [ UTF82 (Bytes2All 0x1E 0xD1) ]
--- , MapEntry (Glyph "ocircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xD9) ]
--- , MapEntry (Glyph "ocircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xD3) ]
--- , MapEntry (Glyph "ocircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xD5) ]
--- , MapEntry (Glyph "ocircumflextilde") [ UTF82 (Bytes2All 0x1E 0xD7) ]
--- , MapEntry (Glyph "ocyrillic") [ UTF82 (Bytes2All 0x04 0x3E) ]
--- , MapEntry (Glyph "odblacute") [ UTF82 (Bytes2All 0x01 0x51) ]
--- , MapEntry (Glyph "odblgrave") [ UTF82 (Bytes2All 0x02 0x0D) ]
--- , MapEntry (Glyph "odeva") [ UTF82 (Bytes2All 0x09 0x13) ]
-, MapEntry (Glyph "odieresis") [ UTF81 (Bytes1 0xF6) ]
--- , MapEntry (Glyph "odieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE7) ]
--- , MapEntry (Glyph "odotbelow") [ UTF82 (Bytes2All 0x1E 0xCD) ]
--- , MapEntry (Glyph "oe") [ UTF82 (Bytes2All 0x01 0x53) ]
--- , MapEntry (Glyph "oekorean") [ UTF82 (Bytes2All 0x31 0x5A) ]
--- , MapEntry (Glyph "ogonek") [ UTF82 (Bytes2All 0x02 0xDB) ]
--- , MapEntry (Glyph "ogonekcmb") [ UTF82 (Bytes2All 0x03 0x28) ]
-, MapEntry (Glyph "ograve") [ UTF81 (Bytes1 0xF2) ]
--- , MapEntry (Glyph "ogujarati") [ UTF82 (Bytes2All 0x0A 0x93) ]
--- , MapEntry (Glyph "oharmenian") [ UTF82 (Bytes2All 0x05 0x85) ]
--- , MapEntry (Glyph "ohiragana") [ UTF82 (Bytes2All 0x30 0x4A) ]
--- , MapEntry (Glyph "ohookabove") [ UTF82 (Bytes2All 0x1E 0xCF) ]
--- , MapEntry (Glyph "ohorn") [ UTF82 (Bytes2All 0x01 0xA1) ]
--- , MapEntry (Glyph "ohornacute") [ UTF82 (Bytes2All 0x1E 0xDB) ]
--- , MapEntry (Glyph "ohorndotbelow") [ UTF82 (Bytes2All 0x1E 0xE3) ]
--- , MapEntry (Glyph "ohorngrave") [ UTF82 (Bytes2All 0x1E 0xDD) ]
--- , MapEntry (Glyph "ohornhookabove") [ UTF82 (Bytes2All 0x1E 0xDF) ]
--- , MapEntry (Glyph "ohorntilde") [ UTF82 (Bytes2All 0x1E 0xE1) ]
--- , MapEntry (Glyph "ohungarumlaut") [ UTF82 (Bytes2All 0x01 0x51) ]
--- , MapEntry (Glyph "oi") [ UTF82 (Bytes2All 0x01 0xA3) ]
--- , MapEntry (Glyph "oinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0F) ]
--- , MapEntry (Glyph "okatakana") [ UTF82 (Bytes2All 0x30 0xAA) ]
--- , MapEntry (Glyph "okatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x75) ]
--- , MapEntry (Glyph "okorean") [ UTF82 (Bytes2All 0x31 0x57) ]
--- , MapEntry (Glyph "olehebrew") [ UTF82 (Bytes2All 0x05 0xAB) ]
--- , MapEntry (Glyph "omacron") [ UTF82 (Bytes2All 0x01 0x4D) ]
--- , MapEntry (Glyph "omacronacute") [ UTF82 (Bytes2All 0x1E 0x53) ]
--- , MapEntry (Glyph "omacrongrave") [ UTF82 (Bytes2All 0x1E 0x51) ]
--- , MapEntry (Glyph "omdeva") [ UTF82 (Bytes2All 0x09 0x50) ]
--- , MapEntry (Glyph "omega") [ UTF82 (Bytes2All 0x03 0xC9) ]
--- , MapEntry (Glyph "omega1") [ UTF82 (Bytes2All 0x03 0xD6) ]
--- , MapEntry (Glyph "omegacyrillic") [ UTF82 (Bytes2All 0x04 0x61) ]
--- , MapEntry (Glyph "omegalatinclosed") [ UTF82 (Bytes2All 0x02 0x77) ]
--- , MapEntry (Glyph "omegaroundcyrillic") [ UTF82 (Bytes2All 0x04 0x7B) ]
--- , MapEntry (Glyph "omegatitlocyrillic") [ UTF82 (Bytes2All 0x04 0x7D) ]
--- , MapEntry (Glyph "omegatonos") [ UTF82 (Bytes2All 0x03 0xCE) ]
--- , MapEntry (Glyph "omgujarati") [ UTF82 (Bytes2All 0x0A 0xD0) ]
--- , MapEntry (Glyph "omicron") [ UTF82 (Bytes2All 0x03 0xBF) ]
--- , MapEntry (Glyph "omicrontonos") [ UTF82 (Bytes2All 0x03 0xCC) ]
--- , MapEntry (Glyph "omonospace") [ UTF82 (Bytes2All 0xFF 0x4F) ]
-, MapEntry (Glyph "one") [ UTF81 (Bytes1 0x31) ]
--- , MapEntry (Glyph "onearabic") [ UTF82 (Bytes2All 0x06 0x61) ]
--- , MapEntry (Glyph "onebengali") [ UTF82 (Bytes2All 0x09 0xE7) ]
--- , MapEntry (Glyph "onecircle") [ UTF82 (Bytes2All 0x24 0x60) ]
--- , MapEntry (Glyph "onecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8A) ]
--- , MapEntry (Glyph "onedeva") [ UTF82 (Bytes2All 0x09 0x67) ]
--- , MapEntry (Glyph "onedotenleader") [ UTF82 (Bytes2All 0x20 0x24) ]
--- , MapEntry (Glyph "oneeighth") [ UTF82 (Bytes2All 0x21 0x5B) ]
--- , MapEntry (Glyph "onefitted") [ UTF82 (Bytes2All 0xF6 0xDC) ]
--- , MapEntry (Glyph "onegujarati") [ UTF82 (Bytes2All 0x0A 0xE7) ]
--- , MapEntry (Glyph "onegurmukhi") [ UTF82 (Bytes2All 0x0A 0x67) ]
--- , MapEntry (Glyph "onehackarabic") [ UTF82 (Bytes2All 0x06 0x61) ]
-, MapEntry (Glyph "onehalf") [ UTF81 (Bytes1 0xBD) ]
--- , MapEntry (Glyph "onehangzhou") [ UTF82 (Bytes2All 0x30 0x21) ]
--- , MapEntry (Glyph "oneideographicparen") [ UTF82 (Bytes2All 0x32 0x20) ]
--- , MapEntry (Glyph "oneinferior") [ UTF82 (Bytes2All 0x20 0x81) ]
--- , MapEntry (Glyph "onemonospace") [ UTF82 (Bytes2All 0xFF 0x11) ]
--- , MapEntry (Glyph "onenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF4) ]
--- , MapEntry (Glyph "oneoldstyle") [ UTF82 (Bytes2All 0xF7 0x31) ]
--- , MapEntry (Glyph "oneparen") [ UTF82 (Bytes2All 0x24 0x74) ]
--- , MapEntry (Glyph "oneperiod") [ UTF82 (Bytes2All 0x24 0x88) ]
--- , MapEntry (Glyph "onepersian") [ UTF82 (Bytes2All 0x06 0xF1) ]
-, MapEntry (Glyph "onequarter") [ UTF81 (Bytes1 0xBC) ]
--- , MapEntry (Glyph "oneroman") [ UTF82 (Bytes2All 0x21 0x70) ]
-, MapEntry (Glyph "onesuperior") [ UTF81 (Bytes1 0xB9) ]
--- , MapEntry (Glyph "onethai") [ UTF82 (Bytes2All 0x0E 0x51) ]
--- , MapEntry (Glyph "onethird") [ UTF82 (Bytes2All 0x21 0x53) ]
--- , MapEntry (Glyph "oogonek") [ UTF82 (Bytes2All 0x01 0xEB) ]
--- , MapEntry (Glyph "oogonekmacron") [ UTF82 (Bytes2All 0x01 0xED) ]
--- , MapEntry (Glyph "oogurmukhi") [ UTF82 (Bytes2All 0x0A 0x13) ]
--- , MapEntry (Glyph "oomatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x4B) ]
--- , MapEntry (Glyph "oopen") [ UTF82 (Bytes2All 0x02 0x54) ]
--- , MapEntry (Glyph "oparen") [ UTF82 (Bytes2All 0x24 0xAA) ]
--- , MapEntry (Glyph "openbullet") [ UTF82 (Bytes2All 0x25 0xE6) ]
--- , MapEntry (Glyph "option") [ UTF82 (Bytes2All 0x23 0x25) ]
-, MapEntry (Glyph "ordfeminine") [ UTF81 (Bytes1 0xAA) ]
-, MapEntry (Glyph "ordmasculine") [ UTF81 (Bytes1 0xBA) ]
--- , MapEntry (Glyph "orthogonal") [ UTF82 (Bytes2All 0x22 0x1F) ]
--- , MapEntry (Glyph "oshortdeva") [ UTF82 (Bytes2All 0x09 0x12) ]
--- , MapEntry (Glyph "oshortvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4A) ]
-, MapEntry (Glyph "oslash") [ UTF81 (Bytes1 0xF8) ]
--- , MapEntry (Glyph "oslashacute") [ UTF82 (Bytes2All 0x01 0xFF) ]
--- , MapEntry (Glyph "osmallhiragana") [ UTF82 (Bytes2All 0x30 0x49) ]
--- , MapEntry (Glyph "osmallkatakana") [ UTF82 (Bytes2All 0x30 0xA9) ]
--- , MapEntry (Glyph "osmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6B) ]
--- , MapEntry (Glyph "ostrokeacute") [ UTF82 (Bytes2All 0x01 0xFF) ]
--- , MapEntry (Glyph "osuperior") [ UTF82 (Bytes2All 0xF6 0xF0) ]
--- , MapEntry (Glyph "otcyrillic") [ UTF82 (Bytes2All 0x04 0x7F) ]
-, MapEntry (Glyph "otilde") [ UTF81 (Bytes1 0xF5) ]
--- , MapEntry (Glyph "otildeacute") [ UTF82 (Bytes2All 0x1E 0x4D) ]
--- , MapEntry (Glyph "otildedieresis") [ UTF82 (Bytes2All 0x1E 0x4F) ]
--- , MapEntry (Glyph "oubopomofo") [ UTF82 (Bytes2All 0x31 0x21) ]
--- , MapEntry (Glyph "overline") [ UTF82 (Bytes2All 0x20 0x3E) ]
--- , MapEntry (Glyph "overlinecenterline") [ UTF82 (Bytes2All 0xFE 0x4A) ]
--- , MapEntry (Glyph "overlinecmb") [ UTF82 (Bytes2All 0x03 0x05) ]
--- , MapEntry (Glyph "overlinedashed") [ UTF82 (Bytes2All 0xFE 0x49) ]
--- , MapEntry (Glyph "overlinedblwavy") [ UTF82 (Bytes2All 0xFE 0x4C) ]
--- , MapEntry (Glyph "overlinewavy") [ UTF82 (Bytes2All 0xFE 0x4B) ]
-, MapEntry (Glyph "overscore") [ UTF81 (Bytes1 0xAF) ]
--- , MapEntry (Glyph "ovowelsignbengali") [ UTF82 (Bytes2All 0x09 0xCB) ]
--- , MapEntry (Glyph "ovowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4B) ]
--- , MapEntry (Glyph "ovowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xCB) ]
-, MapEntry (Glyph "p") [ UTF81 (Bytes1 0x70) ]
--- , MapEntry (Glyph "paampssquare") [ UTF82 (Bytes2All 0x33 0x80) ]
--- , MapEntry (Glyph "paasentosquare") [ UTF82 (Bytes2All 0x33 0x2B) ]
--- , MapEntry (Glyph "pabengali") [ UTF82 (Bytes2All 0x09 0xAA) ]
--- , MapEntry (Glyph "pacute") [ UTF82 (Bytes2All 0x1E 0x55) ]
--- , MapEntry (Glyph "padeva") [ UTF82 (Bytes2All 0x09 0x2A) ]
--- , MapEntry (Glyph "pagedown") [ UTF82 (Bytes2All 0x21 0xDF) ]
--- , MapEntry (Glyph "pageup") [ UTF82 (Bytes2All 0x21 0xDE) ]
--- , MapEntry (Glyph "pagujarati") [ UTF82 (Bytes2All 0x0A 0xAA) ]
--- , MapEntry (Glyph "pagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2A) ]
--- , MapEntry (Glyph "pahiragana") [ UTF82 (Bytes2All 0x30 0x71) ]
--- , MapEntry (Glyph "paiyannoithai") [ UTF82 (Bytes2All 0x0E 0x2F) ]
--- , MapEntry (Glyph "pakatakana") [ UTF82 (Bytes2All 0x30 0xD1) ]
--- , MapEntry (Glyph "palatalizationcyrilliccmb") [ UTF82 (Bytes2All 0x04 0x84) ]
--- , MapEntry (Glyph "palochkacyrillic") [ UTF82 (Bytes2All 0x04 0xC0) ]
--- , MapEntry (Glyph "pansioskorean") [ UTF82 (Bytes2All 0x31 0x7F) ]
-, MapEntry (Glyph "paragraph") [ UTF81 (Bytes1 0xB6) ]
--- , MapEntry (Glyph "parallel") [ UTF82 (Bytes2All 0x22 0x25) ]
-, MapEntry (Glyph "parenleft") [ UTF81 (Bytes1 0x28) ]
--- , MapEntry (Glyph "parenleftaltonearabic") [ UTF82 (Bytes2All 0xFD 0x3E) ]
--- , MapEntry (Glyph "parenleftbt") [ UTF82 (Bytes2All 0xF8 0xED) ]
--- , MapEntry (Glyph "parenleftex") [ UTF82 (Bytes2All 0xF8 0xEC) ]
--- , MapEntry (Glyph "parenleftinferior") [ UTF82 (Bytes2All 0x20 0x8D) ]
--- , MapEntry (Glyph "parenleftmonospace") [ UTF82 (Bytes2All 0xFF 0x08) ]
--- , MapEntry (Glyph "parenleftsmall") [ UTF82 (Bytes2All 0xFE 0x59) ]
--- , MapEntry (Glyph "parenleftsuperior") [ UTF82 (Bytes2All 0x20 0x7D) ]
--- , MapEntry (Glyph "parenlefttp") [ UTF82 (Bytes2All 0xF8 0xEB) ]
--- , MapEntry (Glyph "parenleftvertical") [ UTF82 (Bytes2All 0xFE 0x35) ]
-, MapEntry (Glyph "parenright") [ UTF81 (Bytes1 0x29) ]
--- , MapEntry (Glyph "parenrightaltonearabic") [ UTF82 (Bytes2All 0xFD 0x3F) ]
--- , MapEntry (Glyph "parenrightbt") [ UTF82 (Bytes2All 0xF8 0xF8) ]
--- , MapEntry (Glyph "parenrightex") [ UTF82 (Bytes2All 0xF8 0xF7) ]
--- , MapEntry (Glyph "parenrightinferior") [ UTF82 (Bytes2All 0x20 0x8E) ]
--- , MapEntry (Glyph "parenrightmonospace") [ UTF82 (Bytes2All 0xFF 0x09) ]
--- , MapEntry (Glyph "parenrightsmall") [ UTF82 (Bytes2All 0xFE 0x5A) ]
--- , MapEntry (Glyph "parenrightsuperior") [ UTF82 (Bytes2All 0x20 0x7E) ]
--- , MapEntry (Glyph "parenrighttp") [ UTF82 (Bytes2All 0xF8 0xF6) ]
--- , MapEntry (Glyph "parenrightvertical") [ UTF82 (Bytes2All 0xFE 0x36) ]
--- , MapEntry (Glyph "partialdiff") [ UTF82 (Bytes2All 0x22 0x02) ]
--- , MapEntry (Glyph "paseqhebrew") [ UTF82 (Bytes2All 0x05 0xC0) ]
--- , MapEntry (Glyph "pashtahebrew") [ UTF82 (Bytes2All 0x05 0x99) ]
--- , MapEntry (Glyph "pasquare") [ UTF82 (Bytes2All 0x33 0xA9) ]
--- , MapEntry (Glyph "patah") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patah11") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patah1d") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patah2a") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patahhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patahnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patahquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "patahwidehebrew") [ UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "pazerhebrew") [ UTF82 (Bytes2All 0x05 0xA1) ]
--- , MapEntry (Glyph "pbopomofo") [ UTF82 (Bytes2All 0x31 0x06) ]
--- , MapEntry (Glyph "pcircle") [ UTF82 (Bytes2All 0x24 0xDF) ]
--- , MapEntry (Glyph "pdotaccent") [ UTF82 (Bytes2All 0x1E 0x57) ]
--- , MapEntry (Glyph "pe") [ UTF82 (Bytes2All 0x05 0xE4) ]
--- , MapEntry (Glyph "pecyrillic") [ UTF82 (Bytes2All 0x04 0x3F) ]
--- , MapEntry (Glyph "pedagesh") [ UTF82 (Bytes2All 0xFB 0x44) ]
--- , MapEntry (Glyph "pedageshhebrew") [ UTF82 (Bytes2All 0xFB 0x44) ]
--- , MapEntry (Glyph "peezisquare") [ UTF82 (Bytes2All 0x33 0x3B) ]
--- , MapEntry (Glyph "pefinaldageshhebrew") [ UTF82 (Bytes2All 0xFB 0x43) ]
--- , MapEntry (Glyph "peharabic") [ UTF82 (Bytes2All 0x06 0x7E) ]
--- , MapEntry (Glyph "peharmenian") [ UTF82 (Bytes2All 0x05 0x7A) ]
--- , MapEntry (Glyph "pehebrew") [ UTF82 (Bytes2All 0x05 0xE4) ]
--- , MapEntry (Glyph "pehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x57) ]
--- , MapEntry (Glyph "pehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x58) ]
--- , MapEntry (Glyph "pehiragana") [ UTF82 (Bytes2All 0x30 0x7A) ]
--- , MapEntry (Glyph "pehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x59) ]
--- , MapEntry (Glyph "pekatakana") [ UTF82 (Bytes2All 0x30 0xDA) ]
--- , MapEntry (Glyph "pemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0xA7) ]
--- , MapEntry (Glyph "perafehebrew") [ UTF82 (Bytes2All 0xFB 0x4E) ]
-, MapEntry (Glyph "percent") [ UTF81 (Bytes1 0x25) ]
--- , MapEntry (Glyph "percentarabic") [ UTF82 (Bytes2All 0x06 0x6A) ]
--- , MapEntry (Glyph "percentmonospace") [ UTF82 (Bytes2All 0xFF 0x05) ]
--- , MapEntry (Glyph "percentsmall") [ UTF82 (Bytes2All 0xFE 0x6A) ]
-, MapEntry (Glyph "period") [ UTF81 (Bytes1 0x2E) ]
--- , MapEntry (Glyph "periodarmenian") [ UTF82 (Bytes2All 0x05 0x89) ]
-, MapEntry (Glyph "periodcentered") [ UTF81 (Bytes1 0xB7) ]
--- , MapEntry (Glyph "periodhalfwidth") [ UTF82 (Bytes2All 0xFF 0x61) ]
--- , MapEntry (Glyph "periodinferior") [ UTF82 (Bytes2All 0xF6 0xE7) ]
--- , MapEntry (Glyph "periodmonospace") [ UTF82 (Bytes2All 0xFF 0x0E) ]
--- , MapEntry (Glyph "periodsmall") [ UTF82 (Bytes2All 0xFE 0x52) ]
--- , MapEntry (Glyph "periodsuperior") [ UTF82 (Bytes2All 0xF6 0xE8) ]
--- , MapEntry (Glyph "perispomenigreekcmb") [ UTF82 (Bytes2All 0x03 0x42) ]
--- , MapEntry (Glyph "perpendicular") [ UTF82 (Bytes2All 0x22 0xA5) ]
--- , MapEntry (Glyph "perthousand") [ UTF82 (Bytes2All 0x20 0x30) ]
--- , MapEntry (Glyph "peseta") [ UTF82 (Bytes2All 0x20 0xA7) ]
--- , MapEntry (Glyph "pfsquare") [ UTF82 (Bytes2All 0x33 0x8A) ]
--- , MapEntry (Glyph "phabengali") [ UTF82 (Bytes2All 0x09 0xAB) ]
--- , MapEntry (Glyph "phadeva") [ UTF82 (Bytes2All 0x09 0x2B) ]
--- , MapEntry (Glyph "phagujarati") [ UTF82 (Bytes2All 0x0A 0xAB) ]
--- , MapEntry (Glyph "phagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2B) ]
--- , MapEntry (Glyph "phi") [ UTF82 (Bytes2All 0x03 0xC6) ]
--- , MapEntry (Glyph "phi1") [ UTF82 (Bytes2All 0x03 0xD5) ]
--- , MapEntry (Glyph "phieuphacirclekorean") [ UTF82 (Bytes2All 0x32 0x7A) ]
--- , MapEntry (Glyph "phieuphaparenkorean") [ UTF82 (Bytes2All 0x32 0x1A) ]
--- , MapEntry (Glyph "phieuphcirclekorean") [ UTF82 (Bytes2All 0x32 0x6C) ]
--- , MapEntry (Glyph "phieuphkorean") [ UTF82 (Bytes2All 0x31 0x4D) ]
--- , MapEntry (Glyph "phieuphparenkorean") [ UTF82 (Bytes2All 0x32 0x0C) ]
--- , MapEntry (Glyph "philatin") [ UTF82 (Bytes2All 0x02 0x78) ]
--- , MapEntry (Glyph "phinthuthai") [ UTF82 (Bytes2All 0x0E 0x3A) ]
--- , MapEntry (Glyph "phisymbolgreek") [ UTF82 (Bytes2All 0x03 0xD5) ]
--- , MapEntry (Glyph "phook") [ UTF82 (Bytes2All 0x01 0xA5) ]
--- , MapEntry (Glyph "phophanthai") [ UTF82 (Bytes2All 0x0E 0x1E) ]
--- , MapEntry (Glyph "phophungthai") [ UTF82 (Bytes2All 0x0E 0x1C) ]
--- , MapEntry (Glyph "phosamphaothai") [ UTF82 (Bytes2All 0x0E 0x20) ]
--- , MapEntry (Glyph "pi") [ UTF82 (Bytes2All 0x03 0xC0) ]
--- , MapEntry (Glyph "pieupacirclekorean") [ UTF82 (Bytes2All 0x32 0x73) ]
--- , MapEntry (Glyph "pieupaparenkorean") [ UTF82 (Bytes2All 0x32 0x13) ]
--- , MapEntry (Glyph "pieupcieuckorean") [ UTF82 (Bytes2All 0x31 0x76) ]
--- , MapEntry (Glyph "pieupcirclekorean") [ UTF82 (Bytes2All 0x32 0x65) ]
--- , MapEntry (Glyph "pieupkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x72) ]
--- , MapEntry (Glyph "pieupkorean") [ UTF82 (Bytes2All 0x31 0x42) ]
--- , MapEntry (Glyph "pieupparenkorean") [ UTF82 (Bytes2All 0x32 0x05) ]
--- , MapEntry (Glyph "pieupsioskiyeokkorean") [ UTF82 (Bytes2All 0x31 0x74) ]
--- , MapEntry (Glyph "pieupsioskorean") [ UTF82 (Bytes2All 0x31 0x44) ]
--- , MapEntry (Glyph "pieupsiostikeutkorean") [ UTF82 (Bytes2All 0x31 0x75) ]
--- , MapEntry (Glyph "pieupthieuthkorean") [ UTF82 (Bytes2All 0x31 0x77) ]
--- , MapEntry (Glyph "pieuptikeutkorean") [ UTF82 (Bytes2All 0x31 0x73) ]
--- , MapEntry (Glyph "pihiragana") [ UTF82 (Bytes2All 0x30 0x74) ]
--- , MapEntry (Glyph "pikatakana") [ UTF82 (Bytes2All 0x30 0xD4) ]
--- , MapEntry (Glyph "pisymbolgreek") [ UTF82 (Bytes2All 0x03 0xD6) ]
--- , MapEntry (Glyph "piwrarmenian") [ UTF82 (Bytes2All 0x05 0x83) ]
-, MapEntry (Glyph "plus") [ UTF81 (Bytes1 0x2B) ]
--- , MapEntry (Glyph "plusbelowcmb") [ UTF82 (Bytes2All 0x03 0x1F) ]
--- , MapEntry (Glyph "pluscircle") [ UTF82 (Bytes2All 0x22 0x95) ]
-, MapEntry (Glyph "plusminus") [ UTF81 (Bytes1 0xB1) ]
--- , MapEntry (Glyph "plusmod") [ UTF82 (Bytes2All 0x02 0xD6) ]
--- , MapEntry (Glyph "plusmonospace") [ UTF82 (Bytes2All 0xFF 0x0B) ]
--- , MapEntry (Glyph "plussmall") [ UTF82 (Bytes2All 0xFE 0x62) ]
--- , MapEntry (Glyph "plussuperior") [ UTF82 (Bytes2All 0x20 0x7A) ]
--- , MapEntry (Glyph "pmonospace") [ UTF82 (Bytes2All 0xFF 0x50) ]
--- , MapEntry (Glyph "pmsquare") [ UTF82 (Bytes2All 0x33 0xD8) ]
--- , MapEntry (Glyph "pohiragana") [ UTF82 (Bytes2All 0x30 0x7D) ]
--- , MapEntry (Glyph "pointingindexdownwhite") [ UTF82 (Bytes2All 0x26 0x1F) ]
--- , MapEntry (Glyph "pointingindexleftwhite") [ UTF82 (Bytes2All 0x26 0x1C) ]
--- , MapEntry (Glyph "pointingindexrightwhite") [ UTF82 (Bytes2All 0x26 0x1E) ]
--- , MapEntry (Glyph "pointingindexupwhite") [ UTF82 (Bytes2All 0x26 0x1D) ]
--- , MapEntry (Glyph "pokatakana") [ UTF82 (Bytes2All 0x30 0xDD) ]
--- , MapEntry (Glyph "poplathai") [ UTF82 (Bytes2All 0x0E 0x1B) ]
--- , MapEntry (Glyph "postalmark") [ UTF82 (Bytes2All 0x30 0x12) ]
--- , MapEntry (Glyph "postalmarkface") [ UTF82 (Bytes2All 0x30 0x20) ]
--- , MapEntry (Glyph "pparen") [ UTF82 (Bytes2All 0x24 0xAB) ]
--- , MapEntry (Glyph "precedes") [ UTF82 (Bytes2All 0x22 0x7A) ]
--- , MapEntry (Glyph "prescription") [ UTF82 (Bytes2All 0x21 0x1E) ]
--- , MapEntry (Glyph "primemod") [ UTF82 (Bytes2All 0x02 0xB9) ]
--- , MapEntry (Glyph "primereversed") [ UTF82 (Bytes2All 0x20 0x35) ]
--- , MapEntry (Glyph "product") [ UTF82 (Bytes2All 0x22 0x0F) ]
--- , MapEntry (Glyph "projective") [ UTF82 (Bytes2All 0x23 0x05) ]
--- , MapEntry (Glyph "prolongedkana") [ UTF82 (Bytes2All 0x30 0xFC) ]
--- , MapEntry (Glyph "propellor") [ UTF82 (Bytes2All 0x23 0x18) ]
--- , MapEntry (Glyph "propersubset") [ UTF82 (Bytes2All 0x22 0x82) ]
--- , MapEntry (Glyph "propersuperset") [ UTF82 (Bytes2All 0x22 0x83) ]
--- , MapEntry (Glyph "proportion") [ UTF82 (Bytes2All 0x22 0x37) ]
--- , MapEntry (Glyph "proportional") [ UTF82 (Bytes2All 0x22 0x1D) ]
--- , MapEntry (Glyph "psi") [ UTF82 (Bytes2All 0x03 0xC8) ]
--- , MapEntry (Glyph "psicyrillic") [ UTF82 (Bytes2All 0x04 0x71) ]
--- , MapEntry (Glyph "psilipneumatacyrilliccmb") [ UTF82 (Bytes2All 0x04 0x86) ]
--- , MapEntry (Glyph "pssquare") [ UTF82 (Bytes2All 0x33 0xB0) ]
--- , MapEntry (Glyph "puhiragana") [ UTF82 (Bytes2All 0x30 0x77) ]
--- , MapEntry (Glyph "pukatakana") [ UTF82 (Bytes2All 0x30 0xD7) ]
--- , MapEntry (Glyph "pvsquare") [ UTF82 (Bytes2All 0x33 0xB4) ]
--- , MapEntry (Glyph "pwsquare") [ UTF82 (Bytes2All 0x33 0xBA) ]
-, MapEntry (Glyph "q") [ UTF81 (Bytes1 0x71) ]
--- , MapEntry (Glyph "qadeva") [ UTF82 (Bytes2All 0x09 0x58) ]
--- , MapEntry (Glyph "qadmahebrew") [ UTF82 (Bytes2All 0x05 0xA8) ]
--- , MapEntry (Glyph "qafarabic") [ UTF82 (Bytes2All 0x06 0x42) ]
--- , MapEntry (Glyph "qaffinalarabic") [ UTF82 (Bytes2All 0xFE 0xD6) ]
--- , MapEntry (Glyph "qafinitialarabic") [ UTF82 (Bytes2All 0xFE 0xD7) ]
--- , MapEntry (Glyph "qafmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD8) ]
--- , MapEntry (Glyph "qamats") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats10") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats1a") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats1c") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats27") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats29") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamats33") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsde") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatshebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsqatanhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsqatannarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsqatanquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsqatanwidehebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qamatswidehebrew") [ UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qarneyparahebrew") [ UTF82 (Bytes2All 0x05 0x9F) ]
--- , MapEntry (Glyph "qbopomofo") [ UTF82 (Bytes2All 0x31 0x11) ]
--- , MapEntry (Glyph "qcircle") [ UTF82 (Bytes2All 0x24 0xE0) ]
--- , MapEntry (Glyph "qhook") [ UTF82 (Bytes2All 0x02 0xA0) ]
--- , MapEntry (Glyph "qmonospace") [ UTF82 (Bytes2All 0xFF 0x51) ]
--- , MapEntry (Glyph "qof") [ UTF82 (Bytes2All 0x05 0xE7) ]
--- , MapEntry (Glyph "qofdagesh") [ UTF82 (Bytes2All 0xFB 0x47) ]
--- , MapEntry (Glyph "qofdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x47) ]
--- , MapEntry (Glyph "qofhatafpatah") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "qofhatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "qofhatafsegol") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "qofhatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "qofhebrew") [ UTF82 (Bytes2All 0x05 0xE7) ]
--- , MapEntry (Glyph "qofhiriq") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "qofhiriqhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "qofholam") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "qofholamhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "qofpatah") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "qofpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "qofqamats") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qofqamatshebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "qofqubuts") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qofqubutshebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qofsegol") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "qofsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "qofsheva") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "qofshevahebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "qoftsere") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "qoftserehebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "qparen") [ UTF82 (Bytes2All 0x24 0xAC) ]
--- , MapEntry (Glyph "quarternote") [ UTF82 (Bytes2All 0x26 0x69) ]
--- , MapEntry (Glyph "qubuts") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubuts18") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubuts25") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubuts31") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubutshebrew") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubutsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubutsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "qubutswidehebrew") [ UTF82 (Bytes2All 0x05 0xBB) ]
-, MapEntry (Glyph "question") [ UTF81 (Bytes1 0x3F) ]
--- , MapEntry (Glyph "questionarabic") [ UTF82 (Bytes2All 0x06 0x1F) ]
--- , MapEntry (Glyph "questionarmenian") [ UTF82 (Bytes2All 0x05 0x5E) ]
-, MapEntry (Glyph "questiondown") [ UTF81 (Bytes1 0xBF) ]
--- , MapEntry (Glyph "questiondownsmall") [ UTF82 (Bytes2All 0xF7 0xBF) ]
--- , MapEntry (Glyph "questiongreek") [ UTF82 (Bytes2All 0x03 0x7E) ]
--- , MapEntry (Glyph "questionmonospace") [ UTF82 (Bytes2All 0xFF 0x1F) ]
--- , MapEntry (Glyph "questionsmall") [ UTF82 (Bytes2All 0xF7 0x3F) ]
-, MapEntry (Glyph "quotedbl") [ UTF81 (Bytes1 0x22) ]
--- , MapEntry (Glyph "quotedblbase") [ UTF82 (Bytes2All 0x20 0x1E) ]
--- , MapEntry (Glyph "quotedblleft") [ UTF82 (Bytes2All 0x20 0x1C) ]
--- , MapEntry (Glyph "quotedblmonospace") [ UTF82 (Bytes2All 0xFF 0x02) ]
--- , MapEntry (Glyph "quotedblprime") [ UTF82 (Bytes2All 0x30 0x1E) ]
--- , MapEntry (Glyph "quotedblprimereversed") [ UTF82 (Bytes2All 0x30 0x1D) ]
--- , MapEntry (Glyph "quotedblright") [ UTF82 (Bytes2All 0x20 0x1D) ]
--- , MapEntry (Glyph "quoteleft") [ UTF82 (Bytes2All 0x20 0x18) ]
--- , MapEntry (Glyph "quoteleftreversed") [ UTF82 (Bytes2All 0x20 0x1B) ]
--- , MapEntry (Glyph "quotereversed") [ UTF82 (Bytes2All 0x20 0x1B) ]
--- , MapEntry (Glyph "quoteright") [ UTF82 (Bytes2All 0x20 0x19) ]
--- , MapEntry (Glyph "quoterightn") [ UTF82 (Bytes2All 0x01 0x49) ]
--- , MapEntry (Glyph "quotesinglbase") [ UTF82 (Bytes2All 0x20 0x1A) ]
-, MapEntry (Glyph "quotesingle") [ UTF81 (Bytes1 0x27) ]
--- , MapEntry (Glyph "quotesinglemonospace") [ UTF82 (Bytes2All 0xFF 0x07) ]
-, MapEntry (Glyph "r") [ UTF81 (Bytes1 0x72) ]
--- , MapEntry (Glyph "raarmenian") [ UTF82 (Bytes2All 0x05 0x7C) ]
--- , MapEntry (Glyph "rabengali") [ UTF82 (Bytes2All 0x09 0xB0) ]
--- , MapEntry (Glyph "racute") [ UTF82 (Bytes2All 0x01 0x55) ]
--- , MapEntry (Glyph "radeva") [ UTF82 (Bytes2All 0x09 0x30) ]
--- , MapEntry (Glyph "radical") [ UTF82 (Bytes2All 0x22 0x1A) ]
--- , MapEntry (Glyph "radicalex") [ UTF82 (Bytes2All 0xF8 0xE5) ]
--- , MapEntry (Glyph "radoverssquare") [ UTF82 (Bytes2All 0x33 0xAE) ]
--- , MapEntry (Glyph "radoverssquaredsquare") [ UTF82 (Bytes2All 0x33 0xAF) ]
--- , MapEntry (Glyph "radsquare") [ UTF82 (Bytes2All 0x33 0xAD) ]
--- , MapEntry (Glyph "rafe") [ UTF82 (Bytes2All 0x05 0xBF) ]
--- , MapEntry (Glyph "rafehebrew") [ UTF82 (Bytes2All 0x05 0xBF) ]
--- , MapEntry (Glyph "ragujarati") [ UTF82 (Bytes2All 0x0A 0xB0) ]
--- , MapEntry (Glyph "ragurmukhi") [ UTF82 (Bytes2All 0x0A 0x30) ]
--- , MapEntry (Glyph "rahiragana") [ UTF82 (Bytes2All 0x30 0x89) ]
--- , MapEntry (Glyph "rakatakana") [ UTF82 (Bytes2All 0x30 0xE9) ]
--- , MapEntry (Glyph "rakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x97) ]
--- , MapEntry (Glyph "ralowerdiagonalbengali") [ UTF82 (Bytes2All 0x09 0xF1) ]
--- , MapEntry (Glyph "ramiddlediagonalbengali") [ UTF82 (Bytes2All 0x09 0xF0) ]
--- , MapEntry (Glyph "ramshorn") [ UTF82 (Bytes2All 0x02 0x64) ]
--- , MapEntry (Glyph "ratio") [ UTF82 (Bytes2All 0x22 0x36) ]
--- , MapEntry (Glyph "rbopomofo") [ UTF82 (Bytes2All 0x31 0x16) ]
--- , MapEntry (Glyph "rcaron") [ UTF82 (Bytes2All 0x01 0x59) ]
--- , MapEntry (Glyph "rcedilla") [ UTF82 (Bytes2All 0x01 0x57) ]
--- , MapEntry (Glyph "rcircle") [ UTF82 (Bytes2All 0x24 0xE1) ]
--- , MapEntry (Glyph "rcommaaccent") [ UTF82 (Bytes2All 0x01 0x57) ]
--- , MapEntry (Glyph "rdblgrave") [ UTF82 (Bytes2All 0x02 0x11) ]
--- , MapEntry (Glyph "rdotaccent") [ UTF82 (Bytes2All 0x1E 0x59) ]
--- , MapEntry (Glyph "rdotbelow") [ UTF82 (Bytes2All 0x1E 0x5B) ]
--- , MapEntry (Glyph "rdotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x5D) ]
--- , MapEntry (Glyph "referencemark") [ UTF82 (Bytes2All 0x20 0x3B) ]
--- , MapEntry (Glyph "reflexsubset") [ UTF82 (Bytes2All 0x22 0x86) ]
--- , MapEntry (Glyph "reflexsuperset") [ UTF82 (Bytes2All 0x22 0x87) ]
-, MapEntry (Glyph "registered") [ UTF81 (Bytes1 0xAE) ]
--- , MapEntry (Glyph "registersans") [ UTF82 (Bytes2All 0xF8 0xE8) ]
--- , MapEntry (Glyph "registerserif") [ UTF82 (Bytes2All 0xF6 0xDA) ]
--- , MapEntry (Glyph "reharabic") [ UTF82 (Bytes2All 0x06 0x31) ]
--- , MapEntry (Glyph "reharmenian") [ UTF82 (Bytes2All 0x05 0x80) ]
--- , MapEntry (Glyph "rehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAE) ]
--- , MapEntry (Glyph "rehiragana") [ UTF82 (Bytes2All 0x30 0x8C) ]
--- , MapEntry (Glyph "rehyehaleflamarabic") [ UTF82 (Bytes2All 0x06 0x31), UTF82 (Bytes2All 0xFE 0xF3), UTF82 (Bytes2All 0xFE 0x8E), UTF82 (Bytes2All 0x06 0x44) ]
--- , MapEntry (Glyph "rekatakana") [ UTF82 (Bytes2All 0x30 0xEC) ]
--- , MapEntry (Glyph "rekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9A) ]
--- , MapEntry (Glyph "resh") [ UTF82 (Bytes2All 0x05 0xE8) ]
--- , MapEntry (Glyph "reshdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x48) ]
--- , MapEntry (Glyph "reshhatafpatah") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "reshhatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB2) ]
--- , MapEntry (Glyph "reshhatafsegol") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "reshhatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB1) ]
--- , MapEntry (Glyph "reshhebrew") [ UTF82 (Bytes2All 0x05 0xE8) ]
--- , MapEntry (Glyph "reshhiriq") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "reshhiriqhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB4) ]
--- , MapEntry (Glyph "reshholam") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "reshholamhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB9) ]
--- , MapEntry (Glyph "reshpatah") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "reshpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB7) ]
--- , MapEntry (Glyph "reshqamats") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "reshqamatshebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB8) ]
--- , MapEntry (Glyph "reshqubuts") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "reshqubutshebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xBB) ]
--- , MapEntry (Glyph "reshsegol") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "reshsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "reshsheva") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "reshshevahebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "reshtsere") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "reshtserehebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "reversedtilde") [ UTF82 (Bytes2All 0x22 0x3D) ]
--- , MapEntry (Glyph "reviahebrew") [ UTF82 (Bytes2All 0x05 0x97) ]
--- , MapEntry (Glyph "reviamugrashhebrew") [ UTF82 (Bytes2All 0x05 0x97) ]
--- , MapEntry (Glyph "revlogicalnot") [ UTF82 (Bytes2All 0x23 0x10) ]
--- , MapEntry (Glyph "rfishhook") [ UTF82 (Bytes2All 0x02 0x7E) ]
--- , MapEntry (Glyph "rfishhookreversed") [ UTF82 (Bytes2All 0x02 0x7F) ]
--- , MapEntry (Glyph "rhabengali") [ UTF82 (Bytes2All 0x09 0xDD) ]
--- , MapEntry (Glyph "rhadeva") [ UTF82 (Bytes2All 0x09 0x5D) ]
--- , MapEntry (Glyph "rho") [ UTF82 (Bytes2All 0x03 0xC1) ]
--- , MapEntry (Glyph "rhook") [ UTF82 (Bytes2All 0x02 0x7D) ]
--- , MapEntry (Glyph "rhookturned") [ UTF82 (Bytes2All 0x02 0x7B) ]
--- , MapEntry (Glyph "rhookturnedsuperior") [ UTF82 (Bytes2All 0x02 0xB5) ]
--- , MapEntry (Glyph "rhosymbolgreek") [ UTF82 (Bytes2All 0x03 0xF1) ]
--- , MapEntry (Glyph "rhotichookmod") [ UTF82 (Bytes2All 0x02 0xDE) ]
--- , MapEntry (Glyph "rieulacirclekorean") [ UTF82 (Bytes2All 0x32 0x71) ]
--- , MapEntry (Glyph "rieulaparenkorean") [ UTF82 (Bytes2All 0x32 0x11) ]
--- , MapEntry (Glyph "rieulcirclekorean") [ UTF82 (Bytes2All 0x32 0x63) ]
--- , MapEntry (Glyph "rieulhieuhkorean") [ UTF82 (Bytes2All 0x31 0x40) ]
--- , MapEntry (Glyph "rieulkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x3A) ]
--- , MapEntry (Glyph "rieulkiyeoksioskorean") [ UTF82 (Bytes2All 0x31 0x69) ]
--- , MapEntry (Glyph "rieulkorean") [ UTF82 (Bytes2All 0x31 0x39) ]
--- , MapEntry (Glyph "rieulmieumkorean") [ UTF82 (Bytes2All 0x31 0x3B) ]
--- , MapEntry (Glyph "rieulpansioskorean") [ UTF82 (Bytes2All 0x31 0x6C) ]
--- , MapEntry (Glyph "rieulparenkorean") [ UTF82 (Bytes2All 0x32 0x03) ]
--- , MapEntry (Glyph "rieulphieuphkorean") [ UTF82 (Bytes2All 0x31 0x3F) ]
--- , MapEntry (Glyph "rieulpieupkorean") [ UTF82 (Bytes2All 0x31 0x3C) ]
--- , MapEntry (Glyph "rieulpieupsioskorean") [ UTF82 (Bytes2All 0x31 0x6B) ]
--- , MapEntry (Glyph "rieulsioskorean") [ UTF82 (Bytes2All 0x31 0x3D) ]
--- , MapEntry (Glyph "rieulthieuthkorean") [ UTF82 (Bytes2All 0x31 0x3E) ]
--- , MapEntry (Glyph "rieultikeutkorean") [ UTF82 (Bytes2All 0x31 0x6A) ]
--- , MapEntry (Glyph "rieulyeorinhieuhkorean") [ UTF82 (Bytes2All 0x31 0x6D) ]
--- , MapEntry (Glyph "rightangle") [ UTF82 (Bytes2All 0x22 0x1F) ]
--- , MapEntry (Glyph "righttackbelowcmb") [ UTF82 (Bytes2All 0x03 0x19) ]
--- , MapEntry (Glyph "righttriangle") [ UTF82 (Bytes2All 0x22 0xBF) ]
--- , MapEntry (Glyph "rihiragana") [ UTF82 (Bytes2All 0x30 0x8A) ]
--- , MapEntry (Glyph "rikatakana") [ UTF82 (Bytes2All 0x30 0xEA) ]
--- , MapEntry (Glyph "rikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x98) ]
--- , MapEntry (Glyph "ring") [ UTF82 (Bytes2All 0x02 0xDA) ]
--- , MapEntry (Glyph "ringbelowcmb") [ UTF82 (Bytes2All 0x03 0x25) ]
--- , MapEntry (Glyph "ringcmb") [ UTF82 (Bytes2All 0x03 0x0A) ]
--- , MapEntry (Glyph "ringhalfleft") [ UTF82 (Bytes2All 0x02 0xBF) ]
--- , MapEntry (Glyph "ringhalfleftarmenian") [ UTF82 (Bytes2All 0x05 0x59) ]
--- , MapEntry (Glyph "ringhalfleftbelowcmb") [ UTF82 (Bytes2All 0x03 0x1C) ]
--- , MapEntry (Glyph "ringhalfleftcentered") [ UTF82 (Bytes2All 0x02 0xD3) ]
--- , MapEntry (Glyph "ringhalfright") [ UTF82 (Bytes2All 0x02 0xBE) ]
--- , MapEntry (Glyph "ringhalfrightbelowcmb") [ UTF82 (Bytes2All 0x03 0x39) ]
--- , MapEntry (Glyph "ringhalfrightcentered") [ UTF82 (Bytes2All 0x02 0xD2) ]
--- , MapEntry (Glyph "rinvertedbreve") [ UTF82 (Bytes2All 0x02 0x13) ]
--- , MapEntry (Glyph "rittorusquare") [ UTF82 (Bytes2All 0x33 0x51) ]
--- , MapEntry (Glyph "rlinebelow") [ UTF82 (Bytes2All 0x1E 0x5F) ]
--- , MapEntry (Glyph "rlongleg") [ UTF82 (Bytes2All 0x02 0x7C) ]
--- , MapEntry (Glyph "rlonglegturned") [ UTF82 (Bytes2All 0x02 0x7A) ]
--- , MapEntry (Glyph "rmonospace") [ UTF82 (Bytes2All 0xFF 0x52) ]
--- , MapEntry (Glyph "rohiragana") [ UTF82 (Bytes2All 0x30 0x8D) ]
--- , MapEntry (Glyph "rokatakana") [ UTF82 (Bytes2All 0x30 0xED) ]
--- , MapEntry (Glyph "rokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9B) ]
--- , MapEntry (Glyph "roruathai") [ UTF82 (Bytes2All 0x0E 0x23) ]
--- , MapEntry (Glyph "rparen") [ UTF82 (Bytes2All 0x24 0xAD) ]
--- , MapEntry (Glyph "rrabengali") [ UTF82 (Bytes2All 0x09 0xDC) ]
--- , MapEntry (Glyph "rradeva") [ UTF82 (Bytes2All 0x09 0x31) ]
--- , MapEntry (Glyph "rragurmukhi") [ UTF82 (Bytes2All 0x0A 0x5C) ]
--- , MapEntry (Glyph "rreharabic") [ UTF82 (Bytes2All 0x06 0x91) ]
--- , MapEntry (Glyph "rrehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x8D) ]
--- , MapEntry (Glyph "rrvocalicbengali") [ UTF82 (Bytes2All 0x09 0xE0) ]
--- , MapEntry (Glyph "rrvocalicdeva") [ UTF82 (Bytes2All 0x09 0x60) ]
--- , MapEntry (Glyph "rrvocalicgujarati") [ UTF82 (Bytes2All 0x0A 0xE0) ]
--- , MapEntry (Glyph "rrvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC4) ]
--- , MapEntry (Glyph "rrvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x44) ]
--- , MapEntry (Glyph "rrvocalicvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC4) ]
--- , MapEntry (Glyph "rsuperior") [ UTF82 (Bytes2All 0xF6 0xF1) ]
--- , MapEntry (Glyph "rtblock") [ UTF82 (Bytes2All 0x25 0x90) ]
--- , MapEntry (Glyph "rturned") [ UTF82 (Bytes2All 0x02 0x79) ]
--- , MapEntry (Glyph "rturnedsuperior") [ UTF82 (Bytes2All 0x02 0xB4) ]
--- , MapEntry (Glyph "ruhiragana") [ UTF82 (Bytes2All 0x30 0x8B) ]
--- , MapEntry (Glyph "rukatakana") [ UTF82 (Bytes2All 0x30 0xEB) ]
--- , MapEntry (Glyph "rukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x99) ]
--- , MapEntry (Glyph "rupeemarkbengali") [ UTF82 (Bytes2All 0x09 0xF2) ]
--- , MapEntry (Glyph "rupeesignbengali") [ UTF82 (Bytes2All 0x09 0xF3) ]
--- , MapEntry (Glyph "rupiah") [ UTF82 (Bytes2All 0xF6 0xDD) ]
--- , MapEntry (Glyph "ruthai") [ UTF82 (Bytes2All 0x0E 0x24) ]
--- , MapEntry (Glyph "rvocalicbengali") [ UTF82 (Bytes2All 0x09 0x8B) ]
--- , MapEntry (Glyph "rvocalicdeva") [ UTF82 (Bytes2All 0x09 0x0B) ]
--- , MapEntry (Glyph "rvocalicgujarati") [ UTF82 (Bytes2All 0x0A 0x8B) ]
--- , MapEntry (Glyph "rvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC3) ]
--- , MapEntry (Glyph "rvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x43) ]
--- , MapEntry (Glyph "rvocalicvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC3) ]
-, MapEntry (Glyph "s") [ UTF81 (Bytes1 0x73) ]
--- , MapEntry (Glyph "sabengali") [ UTF82 (Bytes2All 0x09 0xB8) ]
--- , MapEntry (Glyph "sacute") [ UTF82 (Bytes2All 0x01 0x5B) ]
--- , MapEntry (Glyph "sacutedotaccent") [ UTF82 (Bytes2All 0x1E 0x65) ]
--- , MapEntry (Glyph "sadarabic") [ UTF82 (Bytes2All 0x06 0x35) ]
--- , MapEntry (Glyph "sadeva") [ UTF82 (Bytes2All 0x09 0x38) ]
--- , MapEntry (Glyph "sadfinalarabic") [ UTF82 (Bytes2All 0xFE 0xBA) ]
--- , MapEntry (Glyph "sadinitialarabic") [ UTF82 (Bytes2All 0xFE 0xBB) ]
--- , MapEntry (Glyph "sadmedialarabic") [ UTF82 (Bytes2All 0xFE 0xBC) ]
--- , MapEntry (Glyph "sagujarati") [ UTF82 (Bytes2All 0x0A 0xB8) ]
--- , MapEntry (Glyph "sagurmukhi") [ UTF82 (Bytes2All 0x0A 0x38) ]
--- , MapEntry (Glyph "sahiragana") [ UTF82 (Bytes2All 0x30 0x55) ]
--- , MapEntry (Glyph "sakatakana") [ UTF82 (Bytes2All 0x30 0xB5) ]
--- , MapEntry (Glyph "sakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7B) ]
--- , MapEntry (Glyph "sallallahoualayhewasallamarabic") [ UTF82 (Bytes2All 0xFD 0xFA) ]
--- , MapEntry (Glyph "samekh") [ UTF82 (Bytes2All 0x05 0xE1) ]
--- , MapEntry (Glyph "samekhdagesh") [ UTF82 (Bytes2All 0xFB 0x41) ]
--- , MapEntry (Glyph "samekhdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x41) ]
--- , MapEntry (Glyph "samekhhebrew") [ UTF82 (Bytes2All 0x05 0xE1) ]
--- , MapEntry (Glyph "saraaathai") [ UTF82 (Bytes2All 0x0E 0x32) ]
--- , MapEntry (Glyph "saraaethai") [ UTF82 (Bytes2All 0x0E 0x41) ]
--- , MapEntry (Glyph "saraaimaimalaithai") [ UTF82 (Bytes2All 0x0E 0x44) ]
--- , MapEntry (Glyph "saraaimaimuanthai") [ UTF82 (Bytes2All 0x0E 0x43) ]
--- , MapEntry (Glyph "saraamthai") [ UTF82 (Bytes2All 0x0E 0x33) ]
--- , MapEntry (Glyph "saraathai") [ UTF82 (Bytes2All 0x0E 0x30) ]
--- , MapEntry (Glyph "saraethai") [ UTF82 (Bytes2All 0x0E 0x40) ]
--- , MapEntry (Glyph "saraiileftthai") [ UTF82 (Bytes2All 0xF8 0x86) ]
--- , MapEntry (Glyph "saraiithai") [ UTF82 (Bytes2All 0x0E 0x35) ]
--- , MapEntry (Glyph "saraileftthai") [ UTF82 (Bytes2All 0xF8 0x85) ]
--- , MapEntry (Glyph "saraithai") [ UTF82 (Bytes2All 0x0E 0x34) ]
--- , MapEntry (Glyph "saraothai") [ UTF82 (Bytes2All 0x0E 0x42) ]
--- , MapEntry (Glyph "saraueeleftthai") [ UTF82 (Bytes2All 0xF8 0x88) ]
--- , MapEntry (Glyph "saraueethai") [ UTF82 (Bytes2All 0x0E 0x37) ]
--- , MapEntry (Glyph "saraueleftthai") [ UTF82 (Bytes2All 0xF8 0x87) ]
--- , MapEntry (Glyph "sarauethai") [ UTF82 (Bytes2All 0x0E 0x36) ]
--- , MapEntry (Glyph "sarauthai") [ UTF82 (Bytes2All 0x0E 0x38) ]
--- , MapEntry (Glyph "sarauuthai") [ UTF82 (Bytes2All 0x0E 0x39) ]
--- , MapEntry (Glyph "sbopomofo") [ UTF82 (Bytes2All 0x31 0x19) ]
--- , MapEntry (Glyph "scaron") [ UTF82 (Bytes2All 0x01 0x61) ]
--- , MapEntry (Glyph "scarondotaccent") [ UTF82 (Bytes2All 0x1E 0x67) ]
--- , MapEntry (Glyph "scedilla") [ UTF82 (Bytes2All 0x01 0x5F) ]
--- , MapEntry (Glyph "schwa") [ UTF82 (Bytes2All 0x02 0x59) ]
--- , MapEntry (Glyph "schwacyrillic") [ UTF82 (Bytes2All 0x04 0xD9) ]
--- , MapEntry (Glyph "schwadieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDB) ]
--- , MapEntry (Glyph "schwahook") [ UTF82 (Bytes2All 0x02 0x5A) ]
--- , MapEntry (Glyph "scircle") [ UTF82 (Bytes2All 0x24 0xE2) ]
--- , MapEntry (Glyph "scircumflex") [ UTF82 (Bytes2All 0x01 0x5D) ]
--- , MapEntry (Glyph "scommaaccent") [ UTF82 (Bytes2All 0x02 0x19) ]
--- , MapEntry (Glyph "sdotaccent") [ UTF82 (Bytes2All 0x1E 0x61) ]
--- , MapEntry (Glyph "sdotbelow") [ UTF82 (Bytes2All 0x1E 0x63) ]
--- , MapEntry (Glyph "sdotbelowdotaccent") [ UTF82 (Bytes2All 0x1E 0x69) ]
--- , MapEntry (Glyph "seagullbelowcmb") [ UTF82 (Bytes2All 0x03 0x3C) ]
--- , MapEntry (Glyph "second") [ UTF82 (Bytes2All 0x20 0x33) ]
--- , MapEntry (Glyph "secondtonechinese") [ UTF82 (Bytes2All 0x02 0xCA) ]
-, MapEntry (Glyph "section") [ UTF81 (Bytes1 0xA7) ]
--- , MapEntry (Glyph "seenarabic") [ UTF82 (Bytes2All 0x06 0x33) ]
--- , MapEntry (Glyph "seenfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB2) ]
--- , MapEntry (Glyph "seeninitialarabic") [ UTF82 (Bytes2All 0xFE 0xB3) ]
--- , MapEntry (Glyph "seenmedialarabic") [ UTF82 (Bytes2All 0xFE 0xB4) ]
--- , MapEntry (Glyph "segol") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segol13") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segol1f") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segol2c") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segolhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segolnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segolquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "segoltahebrew") [ UTF82 (Bytes2All 0x05 0x92) ]
--- , MapEntry (Glyph "segolwidehebrew") [ UTF82 (Bytes2All 0x05 0xB6) ]
--- , MapEntry (Glyph "seharmenian") [ UTF82 (Bytes2All 0x05 0x7D) ]
--- , MapEntry (Glyph "sehiragana") [ UTF82 (Bytes2All 0x30 0x5B) ]
--- , MapEntry (Glyph "sekatakana") [ UTF82 (Bytes2All 0x30 0xBB) ]
--- , MapEntry (Glyph "sekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7E) ]
-, MapEntry (Glyph "semicolon") [ UTF81 (Bytes1 0x3B) ]
--- , MapEntry (Glyph "semicolonarabic") [ UTF82 (Bytes2All 0x06 0x1B) ]
--- , MapEntry (Glyph "semicolonmonospace") [ UTF82 (Bytes2All 0xFF 0x1B) ]
--- , MapEntry (Glyph "semicolonsmall") [ UTF82 (Bytes2All 0xFE 0x54) ]
--- , MapEntry (Glyph "semivoicedmarkkana") [ UTF82 (Bytes2All 0x30 0x9C) ]
--- , MapEntry (Glyph "semivoicedmarkkanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9F) ]
--- , MapEntry (Glyph "sentisquare") [ UTF82 (Bytes2All 0x33 0x22) ]
--- , MapEntry (Glyph "sentosquare") [ UTF82 (Bytes2All 0x33 0x23) ]
-, MapEntry (Glyph "seven") [ UTF81 (Bytes1 0x37) ]
--- , MapEntry (Glyph "sevenarabic") [ UTF82 (Bytes2All 0x06 0x67) ]
--- , MapEntry (Glyph "sevenbengali") [ UTF82 (Bytes2All 0x09 0xED) ]
--- , MapEntry (Glyph "sevencircle") [ UTF82 (Bytes2All 0x24 0x66) ]
--- , MapEntry (Glyph "sevencircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x90) ]
--- , MapEntry (Glyph "sevendeva") [ UTF82 (Bytes2All 0x09 0x6D) ]
--- , MapEntry (Glyph "seveneighths") [ UTF82 (Bytes2All 0x21 0x5E) ]
--- , MapEntry (Glyph "sevengujarati") [ UTF82 (Bytes2All 0x0A 0xED) ]
--- , MapEntry (Glyph "sevengurmukhi") [ UTF82 (Bytes2All 0x0A 0x6D) ]
--- , MapEntry (Glyph "sevenhackarabic") [ UTF82 (Bytes2All 0x06 0x67) ]
--- , MapEntry (Glyph "sevenhangzhou") [ UTF82 (Bytes2All 0x30 0x27) ]
--- , MapEntry (Glyph "sevenideographicparen") [ UTF82 (Bytes2All 0x32 0x26) ]
--- , MapEntry (Glyph "seveninferior") [ UTF82 (Bytes2All 0x20 0x87) ]
--- , MapEntry (Glyph "sevenmonospace") [ UTF82 (Bytes2All 0xFF 0x17) ]
--- , MapEntry (Glyph "sevenoldstyle") [ UTF82 (Bytes2All 0xF7 0x37) ]
--- , MapEntry (Glyph "sevenparen") [ UTF82 (Bytes2All 0x24 0x7A) ]
--- , MapEntry (Glyph "sevenperiod") [ UTF82 (Bytes2All 0x24 0x8E) ]
--- , MapEntry (Glyph "sevenpersian") [ UTF82 (Bytes2All 0x06 0xF7) ]
--- , MapEntry (Glyph "sevenroman") [ UTF82 (Bytes2All 0x21 0x76) ]
--- , MapEntry (Glyph "sevensuperior") [ UTF82 (Bytes2All 0x20 0x77) ]
--- , MapEntry (Glyph "seventeencircle") [ UTF82 (Bytes2All 0x24 0x70) ]
--- , MapEntry (Glyph "seventeenparen") [ UTF82 (Bytes2All 0x24 0x84) ]
--- , MapEntry (Glyph "seventeenperiod") [ UTF82 (Bytes2All 0x24 0x98) ]
--- , MapEntry (Glyph "seventhai") [ UTF82 (Bytes2All 0x0E 0x57) ]
-, MapEntry (Glyph "sfthyphen") [ UTF81 (Bytes1 0xAD) ]
--- , MapEntry (Glyph "shaarmenian") [ UTF82 (Bytes2All 0x05 0x77) ]
--- , MapEntry (Glyph "shabengali") [ UTF82 (Bytes2All 0x09 0xB6) ]
--- , MapEntry (Glyph "shacyrillic") [ UTF82 (Bytes2All 0x04 0x48) ]
--- , MapEntry (Glyph "shaddaarabic") [ UTF82 (Bytes2All 0x06 0x51) ]
--- , MapEntry (Glyph "shaddadammaarabic") [ UTF82 (Bytes2All 0xFC 0x61) ]
--- , MapEntry (Glyph "shaddadammatanarabic") [ UTF82 (Bytes2All 0xFC 0x5E) ]
--- , MapEntry (Glyph "shaddafathaarabic") [ UTF82 (Bytes2All 0xFC 0x60) ]
--- , MapEntry (Glyph "shaddafathatanarabic") [ UTF82 (Bytes2All 0x06 0x51), UTF82 (Bytes2All 0x06 0x4B) ]
--- , MapEntry (Glyph "shaddakasraarabic") [ UTF82 (Bytes2All 0xFC 0x62) ]
--- , MapEntry (Glyph "shaddakasratanarabic") [ UTF82 (Bytes2All 0xFC 0x5F) ]
--- , MapEntry (Glyph "shade") [ UTF82 (Bytes2All 0x25 0x92) ]
--- , MapEntry (Glyph "shadedark") [ UTF82 (Bytes2All 0x25 0x93) ]
--- , MapEntry (Glyph "shadelight") [ UTF82 (Bytes2All 0x25 0x91) ]
--- , MapEntry (Glyph "shademedium") [ UTF82 (Bytes2All 0x25 0x92) ]
--- , MapEntry (Glyph "shadeva") [ UTF82 (Bytes2All 0x09 0x36) ]
--- , MapEntry (Glyph "shagujarati") [ UTF82 (Bytes2All 0x0A 0xB6) ]
--- , MapEntry (Glyph "shagurmukhi") [ UTF82 (Bytes2All 0x0A 0x36) ]
--- , MapEntry (Glyph "shalshelethebrew") [ UTF82 (Bytes2All 0x05 0x93) ]
--- , MapEntry (Glyph "shbopomofo") [ UTF82 (Bytes2All 0x31 0x15) ]
--- , MapEntry (Glyph "shchacyrillic") [ UTF82 (Bytes2All 0x04 0x49) ]
--- , MapEntry (Glyph "sheenarabic") [ UTF82 (Bytes2All 0x06 0x34) ]
--- , MapEntry (Glyph "sheenfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB6) ]
--- , MapEntry (Glyph "sheeninitialarabic") [ UTF82 (Bytes2All 0xFE 0xB7) ]
--- , MapEntry (Glyph "sheenmedialarabic") [ UTF82 (Bytes2All 0xFE 0xB8) ]
--- , MapEntry (Glyph "sheicoptic") [ UTF82 (Bytes2All 0x03 0xE3) ]
--- , MapEntry (Glyph "sheqel") [ UTF82 (Bytes2All 0x20 0xAA) ]
--- , MapEntry (Glyph "sheqelhebrew") [ UTF82 (Bytes2All 0x20 0xAA) ]
--- , MapEntry (Glyph "sheva") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "sheva115") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "sheva15") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "sheva22") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "sheva2e") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "shevahebrew") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "shevanarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "shevaquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "shevawidehebrew") [ UTF82 (Bytes2All 0x05 0xB0) ]
--- , MapEntry (Glyph "shhacyrillic") [ UTF82 (Bytes2All 0x04 0xBB) ]
--- , MapEntry (Glyph "shimacoptic") [ UTF82 (Bytes2All 0x03 0xED) ]
--- , MapEntry (Glyph "shin") [ UTF82 (Bytes2All 0x05 0xE9) ]
--- , MapEntry (Glyph "shindagesh") [ UTF82 (Bytes2All 0xFB 0x49) ]
--- , MapEntry (Glyph "shindageshhebrew") [ UTF82 (Bytes2All 0xFB 0x49) ]
--- , MapEntry (Glyph "shindageshshindot") [ UTF82 (Bytes2All 0xFB 0x2C) ]
--- , MapEntry (Glyph "shindageshshindothebrew") [ UTF82 (Bytes2All 0xFB 0x2C) ]
--- , MapEntry (Glyph "shindageshsindot") [ UTF82 (Bytes2All 0xFB 0x2D) ]
--- , MapEntry (Glyph "shindageshsindothebrew") [ UTF82 (Bytes2All 0xFB 0x2D) ]
--- , MapEntry (Glyph "shindothebrew") [ UTF82 (Bytes2All 0x05 0xC1) ]
--- , MapEntry (Glyph "shinhebrew") [ UTF82 (Bytes2All 0x05 0xE9) ]
--- , MapEntry (Glyph "shinshindot") [ UTF82 (Bytes2All 0xFB 0x2A) ]
--- , MapEntry (Glyph "shinshindothebrew") [ UTF82 (Bytes2All 0xFB 0x2A) ]
--- , MapEntry (Glyph "shinsindot") [ UTF82 (Bytes2All 0xFB 0x2B) ]
--- , MapEntry (Glyph "shinsindothebrew") [ UTF82 (Bytes2All 0xFB 0x2B) ]
--- , MapEntry (Glyph "shook") [ UTF82 (Bytes2All 0x02 0x82) ]
--- , MapEntry (Glyph "sigma") [ UTF82 (Bytes2All 0x03 0xC3) ]
--- , MapEntry (Glyph "sigma1") [ UTF82 (Bytes2All 0x03 0xC2) ]
--- , MapEntry (Glyph "sigmafinal") [ UTF82 (Bytes2All 0x03 0xC2) ]
--- , MapEntry (Glyph "sigmalunatesymbolgreek") [ UTF82 (Bytes2All 0x03 0xF2) ]
--- , MapEntry (Glyph "sihiragana") [ UTF82 (Bytes2All 0x30 0x57) ]
--- , MapEntry (Glyph "sikatakana") [ UTF82 (Bytes2All 0x30 0xB7) ]
--- , MapEntry (Glyph "sikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7C) ]
--- , MapEntry (Glyph "siluqhebrew") [ UTF82 (Bytes2All 0x05 0xBD) ]
--- , MapEntry (Glyph "siluqlefthebrew") [ UTF82 (Bytes2All 0x05 0xBD) ]
--- , MapEntry (Glyph "similar") [ UTF82 (Bytes2All 0x22 0x3C) ]
--- , MapEntry (Glyph "sindothebrew") [ UTF82 (Bytes2All 0x05 0xC2) ]
--- , MapEntry (Glyph "siosacirclekorean") [ UTF82 (Bytes2All 0x32 0x74) ]
--- , MapEntry (Glyph "siosaparenkorean") [ UTF82 (Bytes2All 0x32 0x14) ]
--- , MapEntry (Glyph "sioscieuckorean") [ UTF82 (Bytes2All 0x31 0x7E) ]
--- , MapEntry (Glyph "sioscirclekorean") [ UTF82 (Bytes2All 0x32 0x66) ]
--- , MapEntry (Glyph "sioskiyeokkorean") [ UTF82 (Bytes2All 0x31 0x7A) ]
--- , MapEntry (Glyph "sioskorean") [ UTF82 (Bytes2All 0x31 0x45) ]
--- , MapEntry (Glyph "siosnieunkorean") [ UTF82 (Bytes2All 0x31 0x7B) ]
--- , MapEntry (Glyph "siosparenkorean") [ UTF82 (Bytes2All 0x32 0x06) ]
--- , MapEntry (Glyph "siospieupkorean") [ UTF82 (Bytes2All 0x31 0x7D) ]
--- , MapEntry (Glyph "siostikeutkorean") [ UTF82 (Bytes2All 0x31 0x7C) ]
-, MapEntry (Glyph "six") [ UTF81 (Bytes1 0x36) ]
--- , MapEntry (Glyph "sixarabic") [ UTF82 (Bytes2All 0x06 0x66) ]
--- , MapEntry (Glyph "sixbengali") [ UTF82 (Bytes2All 0x09 0xEC) ]
--- , MapEntry (Glyph "sixcircle") [ UTF82 (Bytes2All 0x24 0x65) ]
--- , MapEntry (Glyph "sixcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8F) ]
--- , MapEntry (Glyph "sixdeva") [ UTF82 (Bytes2All 0x09 0x6C) ]
--- , MapEntry (Glyph "sixgujarati") [ UTF82 (Bytes2All 0x0A 0xEC) ]
--- , MapEntry (Glyph "sixgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6C) ]
--- , MapEntry (Glyph "sixhackarabic") [ UTF82 (Bytes2All 0x06 0x66) ]
--- , MapEntry (Glyph "sixhangzhou") [ UTF82 (Bytes2All 0x30 0x26) ]
--- , MapEntry (Glyph "sixideographicparen") [ UTF82 (Bytes2All 0x32 0x25) ]
--- , MapEntry (Glyph "sixinferior") [ UTF82 (Bytes2All 0x20 0x86) ]
--- , MapEntry (Glyph "sixmonospace") [ UTF82 (Bytes2All 0xFF 0x16) ]
--- , MapEntry (Glyph "sixoldstyle") [ UTF82 (Bytes2All 0xF7 0x36) ]
--- , MapEntry (Glyph "sixparen") [ UTF82 (Bytes2All 0x24 0x79) ]
--- , MapEntry (Glyph "sixperiod") [ UTF82 (Bytes2All 0x24 0x8D) ]
--- , MapEntry (Glyph "sixpersian") [ UTF82 (Bytes2All 0x06 0xF6) ]
--- , MapEntry (Glyph "sixroman") [ UTF82 (Bytes2All 0x21 0x75) ]
--- , MapEntry (Glyph "sixsuperior") [ UTF82 (Bytes2All 0x20 0x76) ]
--- , MapEntry (Glyph "sixteencircle") [ UTF82 (Bytes2All 0x24 0x6F) ]
--- , MapEntry (Glyph "sixteencurrencydenominatorbengali") [ UTF82 (Bytes2All 0x09 0xF9) ]
--- , MapEntry (Glyph "sixteenparen") [ UTF82 (Bytes2All 0x24 0x83) ]
--- , MapEntry (Glyph "sixteenperiod") [ UTF82 (Bytes2All 0x24 0x97) ]
--- , MapEntry (Glyph "sixthai") [ UTF82 (Bytes2All 0x0E 0x56) ]
-, MapEntry (Glyph "slash") [ UTF81 (Bytes1 0x2F) ]
--- , MapEntry (Glyph "slashmonospace") [ UTF82 (Bytes2All 0xFF 0x0F) ]
--- , MapEntry (Glyph "slong") [ UTF82 (Bytes2All 0x01 0x7F) ]
--- , MapEntry (Glyph "slongdotaccent") [ UTF82 (Bytes2All 0x1E 0x9B) ]
--- , MapEntry (Glyph "smileface") [ UTF82 (Bytes2All 0x26 0x3A) ]
--- , MapEntry (Glyph "smonospace") [ UTF82 (Bytes2All 0xFF 0x53) ]
--- , MapEntry (Glyph "sofpasuqhebrew") [ UTF82 (Bytes2All 0x05 0xC3) ]
-, MapEntry (Glyph "softhyphen") [ UTF81 (Bytes1 0xAD) ]
--- , MapEntry (Glyph "softsigncyrillic") [ UTF82 (Bytes2All 0x04 0x4C) ]
--- , MapEntry (Glyph "sohiragana") [ UTF82 (Bytes2All 0x30 0x5D) ]
--- , MapEntry (Glyph "sokatakana") [ UTF82 (Bytes2All 0x30 0xBD) ]
--- , MapEntry (Glyph "sokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7F) ]
--- , MapEntry (Glyph "soliduslongoverlaycmb") [ UTF82 (Bytes2All 0x03 0x38) ]
--- , MapEntry (Glyph "solidusshortoverlaycmb") [ UTF82 (Bytes2All 0x03 0x37) ]
--- , MapEntry (Glyph "sorusithai") [ UTF82 (Bytes2All 0x0E 0x29) ]
--- , MapEntry (Glyph "sosalathai") [ UTF82 (Bytes2All 0x0E 0x28) ]
--- , MapEntry (Glyph "sosothai") [ UTF82 (Bytes2All 0x0E 0x0B) ]
--- , MapEntry (Glyph "sosuathai") [ UTF82 (Bytes2All 0x0E 0x2A) ]
-, MapEntry (Glyph "space") [ UTF81 (Bytes1 0x20) ]
-, MapEntry (Glyph "spacehackarabic") [ UTF81 (Bytes1 0x20) ]
--- , MapEntry (Glyph "spade") [ UTF82 (Bytes2All 0x26 0x60) ]
--- , MapEntry (Glyph "spadesuitblack") [ UTF82 (Bytes2All 0x26 0x60) ]
--- , MapEntry (Glyph "spadesuitwhite") [ UTF82 (Bytes2All 0x26 0x64) ]
--- , MapEntry (Glyph "sparen") [ UTF82 (Bytes2All 0x24 0xAE) ]
--- , MapEntry (Glyph "squarebelowcmb") [ UTF82 (Bytes2All 0x03 0x3B) ]
--- , MapEntry (Glyph "squarecc") [ UTF82 (Bytes2All 0x33 0xC4) ]
--- , MapEntry (Glyph "squarecm") [ UTF82 (Bytes2All 0x33 0x9D) ]
--- , MapEntry (Glyph "squarediagonalcrosshatchfill") [ UTF82 (Bytes2All 0x25 0xA9) ]
--- , MapEntry (Glyph "squarehorizontalfill") [ UTF82 (Bytes2All 0x25 0xA4) ]
--- , MapEntry (Glyph "squarekg") [ UTF82 (Bytes2All 0x33 0x8F) ]
--- , MapEntry (Glyph "squarekm") [ UTF82 (Bytes2All 0x33 0x9E) ]
--- , MapEntry (Glyph "squarekmcapital") [ UTF82 (Bytes2All 0x33 0xCE) ]
--- , MapEntry (Glyph "squareln") [ UTF82 (Bytes2All 0x33 0xD1) ]
--- , MapEntry (Glyph "squarelog") [ UTF82 (Bytes2All 0x33 0xD2) ]
--- , MapEntry (Glyph "squaremg") [ UTF82 (Bytes2All 0x33 0x8E) ]
--- , MapEntry (Glyph "squaremil") [ UTF82 (Bytes2All 0x33 0xD5) ]
--- , MapEntry (Glyph "squaremm") [ UTF82 (Bytes2All 0x33 0x9C) ]
--- , MapEntry (Glyph "squaremsquared") [ UTF82 (Bytes2All 0x33 0xA1) ]
--- , MapEntry (Glyph "squareorthogonalcrosshatchfill") [ UTF82 (Bytes2All 0x25 0xA6) ]
--- , MapEntry (Glyph "squareupperlefttolowerrightfill") [ UTF82 (Bytes2All 0x25 0xA7) ]
--- , MapEntry (Glyph "squareupperrighttolowerleftfill") [ UTF82 (Bytes2All 0x25 0xA8) ]
--- , MapEntry (Glyph "squareverticalfill") [ UTF82 (Bytes2All 0x25 0xA5) ]
--- , MapEntry (Glyph "squarewhitewithsmallblack") [ UTF82 (Bytes2All 0x25 0xA3) ]
--- , MapEntry (Glyph "srsquare") [ UTF82 (Bytes2All 0x33 0xDB) ]
--- , MapEntry (Glyph "ssabengali") [ UTF82 (Bytes2All 0x09 0xB7) ]
--- , MapEntry (Glyph "ssadeva") [ UTF82 (Bytes2All 0x09 0x37) ]
--- , MapEntry (Glyph "ssagujarati") [ UTF82 (Bytes2All 0x0A 0xB7) ]
--- , MapEntry (Glyph "ssangcieuckorean") [ UTF82 (Bytes2All 0x31 0x49) ]
--- , MapEntry (Glyph "ssanghieuhkorean") [ UTF82 (Bytes2All 0x31 0x85) ]
--- , MapEntry (Glyph "ssangieungkorean") [ UTF82 (Bytes2All 0x31 0x80) ]
--- , MapEntry (Glyph "ssangkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x32) ]
--- , MapEntry (Glyph "ssangnieunkorean") [ UTF82 (Bytes2All 0x31 0x65) ]
--- , MapEntry (Glyph "ssangpieupkorean") [ UTF82 (Bytes2All 0x31 0x43) ]
--- , MapEntry (Glyph "ssangsioskorean") [ UTF82 (Bytes2All 0x31 0x46) ]
--- , MapEntry (Glyph "ssangtikeutkorean") [ UTF82 (Bytes2All 0x31 0x38) ]
--- , MapEntry (Glyph "ssuperior") [ UTF82 (Bytes2All 0xF6 0xF2) ]
-, MapEntry (Glyph "sterling") [ UTF81 (Bytes1 0xA3) ]
--- , MapEntry (Glyph "sterlingmonospace") [ UTF82 (Bytes2All 0xFF 0xE1) ]
--- , MapEntry (Glyph "strokelongoverlaycmb") [ UTF82 (Bytes2All 0x03 0x36) ]
--- , MapEntry (Glyph "strokeshortoverlaycmb") [ UTF82 (Bytes2All 0x03 0x35) ]
--- , MapEntry (Glyph "subset") [ UTF82 (Bytes2All 0x22 0x82) ]
--- , MapEntry (Glyph "subsetnotequal") [ UTF82 (Bytes2All 0x22 0x8A) ]
--- , MapEntry (Glyph "subsetorequal") [ UTF82 (Bytes2All 0x22 0x86) ]
--- , MapEntry (Glyph "succeeds") [ UTF82 (Bytes2All 0x22 0x7B) ]
--- , MapEntry (Glyph "suchthat") [ UTF82 (Bytes2All 0x22 0x0B) ]
--- , MapEntry (Glyph "suhiragana") [ UTF82 (Bytes2All 0x30 0x59) ]
--- , MapEntry (Glyph "sukatakana") [ UTF82 (Bytes2All 0x30 0xB9) ]
--- , MapEntry (Glyph "sukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7D) ]
--- , MapEntry (Glyph "sukunarabic") [ UTF82 (Bytes2All 0x06 0x52) ]
--- , MapEntry (Glyph "summation") [ UTF82 (Bytes2All 0x22 0x11) ]
--- , MapEntry (Glyph "sun") [ UTF82 (Bytes2All 0x26 0x3C) ]
--- , MapEntry (Glyph "superset") [ UTF82 (Bytes2All 0x22 0x83) ]
--- , MapEntry (Glyph "supersetnotequal") [ UTF82 (Bytes2All 0x22 0x8B) ]
--- , MapEntry (Glyph "supersetorequal") [ UTF82 (Bytes2All 0x22 0x87) ]
--- , MapEntry (Glyph "svsquare") [ UTF82 (Bytes2All 0x33 0xDC) ]
--- , MapEntry (Glyph "syouwaerasquare") [ UTF82 (Bytes2All 0x33 0x7C) ]
-, MapEntry (Glyph "t") [ UTF81 (Bytes1 0x74) ]
--- , MapEntry (Glyph "tabengali") [ UTF82 (Bytes2All 0x09 0xA4) ]
--- , MapEntry (Glyph "tackdown") [ UTF82 (Bytes2All 0x22 0xA4) ]
--- , MapEntry (Glyph "tackleft") [ UTF82 (Bytes2All 0x22 0xA3) ]
--- , MapEntry (Glyph "tadeva") [ UTF82 (Bytes2All 0x09 0x24) ]
--- , MapEntry (Glyph "tagujarati") [ UTF82 (Bytes2All 0x0A 0xA4) ]
--- , MapEntry (Glyph "tagurmukhi") [ UTF82 (Bytes2All 0x0A 0x24) ]
--- , MapEntry (Glyph "taharabic") [ UTF82 (Bytes2All 0x06 0x37) ]
--- , MapEntry (Glyph "tahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xC2) ]
--- , MapEntry (Glyph "tahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xC3) ]
--- , MapEntry (Glyph "tahiragana") [ UTF82 (Bytes2All 0x30 0x5F) ]
--- , MapEntry (Glyph "tahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC4) ]
--- , MapEntry (Glyph "taisyouerasquare") [ UTF82 (Bytes2All 0x33 0x7D) ]
--- , MapEntry (Glyph "takatakana") [ UTF82 (Bytes2All 0x30 0xBF) ]
--- , MapEntry (Glyph "takatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x80) ]
--- , MapEntry (Glyph "tatweelarabic") [ UTF82 (Bytes2All 0x06 0x40) ]
--- , MapEntry (Glyph "tau") [ UTF82 (Bytes2All 0x03 0xC4) ]
--- , MapEntry (Glyph "tav") [ UTF82 (Bytes2All 0x05 0xEA) ]
--- , MapEntry (Glyph "tavdages") [ UTF82 (Bytes2All 0xFB 0x4A) ]
--- , MapEntry (Glyph "tavdagesh") [ UTF82 (Bytes2All 0xFB 0x4A) ]
--- , MapEntry (Glyph "tavdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x4A) ]
--- , MapEntry (Glyph "tavhebrew") [ UTF82 (Bytes2All 0x05 0xEA) ]
--- , MapEntry (Glyph "tbar") [ UTF82 (Bytes2All 0x01 0x67) ]
--- , MapEntry (Glyph "tbopomofo") [ UTF82 (Bytes2All 0x31 0x0A) ]
--- , MapEntry (Glyph "tcaron") [ UTF82 (Bytes2All 0x01 0x65) ]
--- , MapEntry (Glyph "tccurl") [ UTF82 (Bytes2All 0x02 0xA8) ]
--- , MapEntry (Glyph "tcedilla") [ UTF82 (Bytes2All 0x01 0x63) ]
--- , MapEntry (Glyph "tcheharabic") [ UTF82 (Bytes2All 0x06 0x86) ]
--- , MapEntry (Glyph "tchehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x7B) ]
--- , MapEntry (Glyph "tchehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x7C) ]
--- , MapEntry (Glyph "tchehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x7D) ]
--- , MapEntry (Glyph "tchehmeeminitialarabic") [ UTF82 (Bytes2All 0xFB 0x7C), UTF82 (Bytes2All 0xFE 0xE4) ]
--- , MapEntry (Glyph "tcircle") [ UTF82 (Bytes2All 0x24 0xE3) ]
--- , MapEntry (Glyph "tcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x71) ]
--- , MapEntry (Glyph "tcommaaccent") [ UTF82 (Bytes2All 0x01 0x63) ]
--- , MapEntry (Glyph "tdieresis") [ UTF82 (Bytes2All 0x1E 0x97) ]
--- , MapEntry (Glyph "tdotaccent") [ UTF82 (Bytes2All 0x1E 0x6B) ]
--- , MapEntry (Glyph "tdotbelow") [ UTF82 (Bytes2All 0x1E 0x6D) ]
--- , MapEntry (Glyph "tecyrillic") [ UTF82 (Bytes2All 0x04 0x42) ]
--- , MapEntry (Glyph "tedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAD) ]
--- , MapEntry (Glyph "teharabic") [ UTF82 (Bytes2All 0x06 0x2A) ]
--- , MapEntry (Glyph "tehfinalarabic") [ UTF82 (Bytes2All 0xFE 0x96) ]
--- , MapEntry (Glyph "tehhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xA2) ]
--- , MapEntry (Glyph "tehhahisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0C) ]
--- , MapEntry (Glyph "tehinitialarabic") [ UTF82 (Bytes2All 0xFE 0x97) ]
--- , MapEntry (Glyph "tehiragana") [ UTF82 (Bytes2All 0x30 0x66) ]
--- , MapEntry (Glyph "tehjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xA1) ]
--- , MapEntry (Glyph "tehjeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0B) ]
--- , MapEntry (Glyph "tehmarbutaarabic") [ UTF82 (Bytes2All 0x06 0x29) ]
--- , MapEntry (Glyph "tehmarbutafinalarabic") [ UTF82 (Bytes2All 0xFE 0x94) ]
--- , MapEntry (Glyph "tehmedialarabic") [ UTF82 (Bytes2All 0xFE 0x98) ]
--- , MapEntry (Glyph "tehmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xA4) ]
--- , MapEntry (Glyph "tehmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0E) ]
--- , MapEntry (Glyph "tehnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x73) ]
--- , MapEntry (Glyph "tekatakana") [ UTF82 (Bytes2All 0x30 0xC6) ]
--- , MapEntry (Glyph "tekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x83) ]
--- , MapEntry (Glyph "telephone") [ UTF82 (Bytes2All 0x21 0x21) ]
--- , MapEntry (Glyph "telephoneblack") [ UTF82 (Bytes2All 0x26 0x0E) ]
--- , MapEntry (Glyph "telishagedolahebrew") [ UTF82 (Bytes2All 0x05 0xA0) ]
--- , MapEntry (Glyph "telishaqetanahebrew") [ UTF82 (Bytes2All 0x05 0xA9) ]
--- , MapEntry (Glyph "tencircle") [ UTF82 (Bytes2All 0x24 0x69) ]
--- , MapEntry (Glyph "tenideographicparen") [ UTF82 (Bytes2All 0x32 0x29) ]
--- , MapEntry (Glyph "tenparen") [ UTF82 (Bytes2All 0x24 0x7D) ]
--- , MapEntry (Glyph "tenperiod") [ UTF82 (Bytes2All 0x24 0x91) ]
--- , MapEntry (Glyph "tenroman") [ UTF82 (Bytes2All 0x21 0x79) ]
--- , MapEntry (Glyph "tesh") [ UTF82 (Bytes2All 0x02 0xA7) ]
--- , MapEntry (Glyph "tet") [ UTF82 (Bytes2All 0x05 0xD8) ]
--- , MapEntry (Glyph "tetdagesh") [ UTF82 (Bytes2All 0xFB 0x38) ]
--- , MapEntry (Glyph "tetdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x38) ]
--- , MapEntry (Glyph "tethebrew") [ UTF82 (Bytes2All 0x05 0xD8) ]
--- , MapEntry (Glyph "tetsecyrillic") [ UTF82 (Bytes2All 0x04 0xB5) ]
--- , MapEntry (Glyph "tevirhebrew") [ UTF82 (Bytes2All 0x05 0x9B) ]
--- , MapEntry (Glyph "tevirlefthebrew") [ UTF82 (Bytes2All 0x05 0x9B) ]
--- , MapEntry (Glyph "thabengali") [ UTF82 (Bytes2All 0x09 0xA5) ]
--- , MapEntry (Glyph "thadeva") [ UTF82 (Bytes2All 0x09 0x25) ]
--- , MapEntry (Glyph "thagujarati") [ UTF82 (Bytes2All 0x0A 0xA5) ]
--- , MapEntry (Glyph "thagurmukhi") [ UTF82 (Bytes2All 0x0A 0x25) ]
--- , MapEntry (Glyph "thalarabic") [ UTF82 (Bytes2All 0x06 0x30) ]
--- , MapEntry (Glyph "thalfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAC) ]
--- , MapEntry (Glyph "thanthakhatlowleftthai") [ UTF82 (Bytes2All 0xF8 0x98) ]
--- , MapEntry (Glyph "thanthakhatlowrightthai") [ UTF82 (Bytes2All 0xF8 0x97) ]
--- , MapEntry (Glyph "thanthakhatthai") [ UTF82 (Bytes2All 0x0E 0x4C) ]
--- , MapEntry (Glyph "thanthakhatupperleftthai") [ UTF82 (Bytes2All 0xF8 0x96) ]
--- , MapEntry (Glyph "theharabic") [ UTF82 (Bytes2All 0x06 0x2B) ]
--- , MapEntry (Glyph "thehfinalarabic") [ UTF82 (Bytes2All 0xFE 0x9A) ]
--- , MapEntry (Glyph "thehinitialarabic") [ UTF82 (Bytes2All 0xFE 0x9B) ]
--- , MapEntry (Glyph "thehmedialarabic") [ UTF82 (Bytes2All 0xFE 0x9C) ]
--- , MapEntry (Glyph "thereexists") [ UTF82 (Bytes2All 0x22 0x03) ]
--- , MapEntry (Glyph "therefore") [ UTF82 (Bytes2All 0x22 0x34) ]
--- , MapEntry (Glyph "theta") [ UTF82 (Bytes2All 0x03 0xB8) ]
--- , MapEntry (Glyph "theta1") [ UTF82 (Bytes2All 0x03 0xD1) ]
--- , MapEntry (Glyph "thetasymbolgreek") [ UTF82 (Bytes2All 0x03 0xD1) ]
--- , MapEntry (Glyph "thieuthacirclekorean") [ UTF82 (Bytes2All 0x32 0x79) ]
--- , MapEntry (Glyph "thieuthaparenkorean") [ UTF82 (Bytes2All 0x32 0x19) ]
--- , MapEntry (Glyph "thieuthcirclekorean") [ UTF82 (Bytes2All 0x32 0x6B) ]
--- , MapEntry (Glyph "thieuthkorean") [ UTF82 (Bytes2All 0x31 0x4C) ]
--- , MapEntry (Glyph "thieuthparenkorean") [ UTF82 (Bytes2All 0x32 0x0B) ]
--- , MapEntry (Glyph "thirteencircle") [ UTF82 (Bytes2All 0x24 0x6C) ]
--- , MapEntry (Glyph "thirteenparen") [ UTF82 (Bytes2All 0x24 0x80) ]
--- , MapEntry (Glyph "thirteenperiod") [ UTF82 (Bytes2All 0x24 0x94) ]
--- , MapEntry (Glyph "thonangmonthothai") [ UTF82 (Bytes2All 0x0E 0x11) ]
--- , MapEntry (Glyph "thook") [ UTF82 (Bytes2All 0x01 0xAD) ]
--- , MapEntry (Glyph "thophuthaothai") [ UTF82 (Bytes2All 0x0E 0x12) ]
-, MapEntry (Glyph "thorn") [ UTF81 (Bytes1 0xFE) ]
--- , MapEntry (Glyph "thothahanthai") [ UTF82 (Bytes2All 0x0E 0x17) ]
--- , MapEntry (Glyph "thothanthai") [ UTF82 (Bytes2All 0x0E 0x10) ]
--- , MapEntry (Glyph "thothongthai") [ UTF82 (Bytes2All 0x0E 0x18) ]
--- , MapEntry (Glyph "thothungthai") [ UTF82 (Bytes2All 0x0E 0x16) ]
--- , MapEntry (Glyph "thousandcyrillic") [ UTF82 (Bytes2All 0x04 0x82) ]
--- , MapEntry (Glyph "thousandsseparatorarabic") [ UTF82 (Bytes2All 0x06 0x6C) ]
--- , MapEntry (Glyph "thousandsseparatorpersian") [ UTF82 (Bytes2All 0x06 0x6C) ]
-, MapEntry (Glyph "three") [ UTF81 (Bytes1 0x33) ]
--- , MapEntry (Glyph "threearabic") [ UTF82 (Bytes2All 0x06 0x63) ]
--- , MapEntry (Glyph "threebengali") [ UTF82 (Bytes2All 0x09 0xE9) ]
--- , MapEntry (Glyph "threecircle") [ UTF82 (Bytes2All 0x24 0x62) ]
--- , MapEntry (Glyph "threecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8C) ]
--- , MapEntry (Glyph "threedeva") [ UTF82 (Bytes2All 0x09 0x69) ]
--- , MapEntry (Glyph "threeeighths") [ UTF82 (Bytes2All 0x21 0x5C) ]
--- , MapEntry (Glyph "threegujarati") [ UTF82 (Bytes2All 0x0A 0xE9) ]
--- , MapEntry (Glyph "threegurmukhi") [ UTF82 (Bytes2All 0x0A 0x69) ]
--- , MapEntry (Glyph "threehackarabic") [ UTF82 (Bytes2All 0x06 0x63) ]
--- , MapEntry (Glyph "threehangzhou") [ UTF82 (Bytes2All 0x30 0x23) ]
--- , MapEntry (Glyph "threeideographicparen") [ UTF82 (Bytes2All 0x32 0x22) ]
--- , MapEntry (Glyph "threeinferior") [ UTF82 (Bytes2All 0x20 0x83) ]
--- , MapEntry (Glyph "threemonospace") [ UTF82 (Bytes2All 0xFF 0x13) ]
--- , MapEntry (Glyph "threenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF6) ]
--- , MapEntry (Glyph "threeoldstyle") [ UTF82 (Bytes2All 0xF7 0x33) ]
--- , MapEntry (Glyph "threeparen") [ UTF82 (Bytes2All 0x24 0x76) ]
--- , MapEntry (Glyph "threeperiod") [ UTF82 (Bytes2All 0x24 0x8A) ]
--- , MapEntry (Glyph "threepersian") [ UTF82 (Bytes2All 0x06 0xF3) ]
-, MapEntry (Glyph "threequarters") [ UTF81 (Bytes1 0xBE) ]
--- , MapEntry (Glyph "threequartersemdash") [ UTF82 (Bytes2All 0xF6 0xDE) ]
--- , MapEntry (Glyph "threeroman") [ UTF82 (Bytes2All 0x21 0x72) ]
-, MapEntry (Glyph "threesuperior") [ UTF81 (Bytes1 0xB3) ]
--- , MapEntry (Glyph "threethai") [ UTF82 (Bytes2All 0x0E 0x53) ]
--- , MapEntry (Glyph "thzsquare") [ UTF82 (Bytes2All 0x33 0x94) ]
--- , MapEntry (Glyph "tihiragana") [ UTF82 (Bytes2All 0x30 0x61) ]
--- , MapEntry (Glyph "tikatakana") [ UTF82 (Bytes2All 0x30 0xC1) ]
--- , MapEntry (Glyph "tikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x81) ]
--- , MapEntry (Glyph "tikeutacirclekorean") [ UTF82 (Bytes2All 0x32 0x70) ]
--- , MapEntry (Glyph "tikeutaparenkorean") [ UTF82 (Bytes2All 0x32 0x10) ]
--- , MapEntry (Glyph "tikeutcirclekorean") [ UTF82 (Bytes2All 0x32 0x62) ]
--- , MapEntry (Glyph "tikeutkorean") [ UTF82 (Bytes2All 0x31 0x37) ]
--- , MapEntry (Glyph "tikeutparenkorean") [ UTF82 (Bytes2All 0x32 0x02) ]
--- , MapEntry (Glyph "tilde") [ UTF82 (Bytes2All 0x02 0xDC) ]
--- , MapEntry (Glyph "tildebelowcmb") [ UTF82 (Bytes2All 0x03 0x30) ]
--- , MapEntry (Glyph "tildecmb") [ UTF82 (Bytes2All 0x03 0x03) ]
--- , MapEntry (Glyph "tildecomb") [ UTF82 (Bytes2All 0x03 0x03) ]
--- , MapEntry (Glyph "tildedoublecmb") [ UTF82 (Bytes2All 0x03 0x60) ]
--- , MapEntry (Glyph "tildeoperator") [ UTF82 (Bytes2All 0x22 0x3C) ]
--- , MapEntry (Glyph "tildeoverlaycmb") [ UTF82 (Bytes2All 0x03 0x34) ]
--- , MapEntry (Glyph "tildeverticalcmb") [ UTF82 (Bytes2All 0x03 0x3E) ]
--- , MapEntry (Glyph "timescircle") [ UTF82 (Bytes2All 0x22 0x97) ]
--- , MapEntry (Glyph "tipehahebrew") [ UTF82 (Bytes2All 0x05 0x96) ]
--- , MapEntry (Glyph "tipehalefthebrew") [ UTF82 (Bytes2All 0x05 0x96) ]
--- , MapEntry (Glyph "tippigurmukhi") [ UTF82 (Bytes2All 0x0A 0x70) ]
--- , MapEntry (Glyph "titlocyrilliccmb") [ UTF82 (Bytes2All 0x04 0x83) ]
--- , MapEntry (Glyph "tiwnarmenian") [ UTF82 (Bytes2All 0x05 0x7F) ]
--- , MapEntry (Glyph "tlinebelow") [ UTF82 (Bytes2All 0x1E 0x6F) ]
--- , MapEntry (Glyph "tmonospace") [ UTF82 (Bytes2All 0xFF 0x54) ]
--- , MapEntry (Glyph "toarmenian") [ UTF82 (Bytes2All 0x05 0x69) ]
--- , MapEntry (Glyph "tohiragana") [ UTF82 (Bytes2All 0x30 0x68) ]
--- , MapEntry (Glyph "tokatakana") [ UTF82 (Bytes2All 0x30 0xC8) ]
--- , MapEntry (Glyph "tokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x84) ]
--- , MapEntry (Glyph "tonebarextrahighmod") [ UTF82 (Bytes2All 0x02 0xE5) ]
--- , MapEntry (Glyph "tonebarextralowmod") [ UTF82 (Bytes2All 0x02 0xE9) ]
--- , MapEntry (Glyph "tonebarhighmod") [ UTF82 (Bytes2All 0x02 0xE6) ]
--- , MapEntry (Glyph "tonebarlowmod") [ UTF82 (Bytes2All 0x02 0xE8) ]
--- , MapEntry (Glyph "tonebarmidmod") [ UTF82 (Bytes2All 0x02 0xE7) ]
--- , MapEntry (Glyph "tonefive") [ UTF82 (Bytes2All 0x01 0xBD) ]
--- , MapEntry (Glyph "tonesix") [ UTF82 (Bytes2All 0x01 0x85) ]
--- , MapEntry (Glyph "tonetwo") [ UTF82 (Bytes2All 0x01 0xA8) ]
--- , MapEntry (Glyph "tonos") [ UTF82 (Bytes2All 0x03 0x84) ]
--- , MapEntry (Glyph "tonsquare") [ UTF82 (Bytes2All 0x33 0x27) ]
--- , MapEntry (Glyph "topatakthai") [ UTF82 (Bytes2All 0x0E 0x0F) ]
--- , MapEntry (Glyph "tortoiseshellbracketleft") [ UTF82 (Bytes2All 0x30 0x14) ]
--- , MapEntry (Glyph "tortoiseshellbracketleftsmall") [ UTF82 (Bytes2All 0xFE 0x5D) ]
--- , MapEntry (Glyph "tortoiseshellbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x39) ]
--- , MapEntry (Glyph "tortoiseshellbracketright") [ UTF82 (Bytes2All 0x30 0x15) ]
--- , MapEntry (Glyph "tortoiseshellbracketrightsmall") [ UTF82 (Bytes2All 0xFE 0x5E) ]
--- , MapEntry (Glyph "tortoiseshellbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3A) ]
--- , MapEntry (Glyph "totaothai") [ UTF82 (Bytes2All 0x0E 0x15) ]
--- , MapEntry (Glyph "tpalatalhook") [ UTF82 (Bytes2All 0x01 0xAB) ]
--- , MapEntry (Glyph "tparen") [ UTF82 (Bytes2All 0x24 0xAF) ]
--- , MapEntry (Glyph "trademark") [ UTF82 (Bytes2All 0x21 0x22) ]
--- , MapEntry (Glyph "trademarksans") [ UTF82 (Bytes2All 0xF8 0xEA) ]
--- , MapEntry (Glyph "trademarkserif") [ UTF82 (Bytes2All 0xF6 0xDB) ]
--- , MapEntry (Glyph "tretroflexhook") [ UTF82 (Bytes2All 0x02 0x88) ]
--- , MapEntry (Glyph "triagdn") [ UTF82 (Bytes2All 0x25 0xBC) ]
--- , MapEntry (Glyph "triaglf") [ UTF82 (Bytes2All 0x25 0xC4) ]
--- , MapEntry (Glyph "triagrt") [ UTF82 (Bytes2All 0x25 0xBA) ]
--- , MapEntry (Glyph "triagup") [ UTF82 (Bytes2All 0x25 0xB2) ]
--- , MapEntry (Glyph "ts") [ UTF82 (Bytes2All 0x02 0xA6) ]
--- , MapEntry (Glyph "tsadi") [ UTF82 (Bytes2All 0x05 0xE6) ]
--- , MapEntry (Glyph "tsadidagesh") [ UTF82 (Bytes2All 0xFB 0x46) ]
--- , MapEntry (Glyph "tsadidageshhebrew") [ UTF82 (Bytes2All 0xFB 0x46) ]
--- , MapEntry (Glyph "tsadihebrew") [ UTF82 (Bytes2All 0x05 0xE6) ]
--- , MapEntry (Glyph "tsecyrillic") [ UTF82 (Bytes2All 0x04 0x46) ]
--- , MapEntry (Glyph "tsere") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tsere12") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tsere1e") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tsere2b") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tserehebrew") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tserenarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tserequarterhebrew") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tserewidehebrew") [ UTF82 (Bytes2All 0x05 0xB5) ]
--- , MapEntry (Glyph "tshecyrillic") [ UTF82 (Bytes2All 0x04 0x5B) ]
--- , MapEntry (Glyph "tsuperior") [ UTF82 (Bytes2All 0xF6 0xF3) ]
--- , MapEntry (Glyph "ttabengali") [ UTF82 (Bytes2All 0x09 0x9F) ]
--- , MapEntry (Glyph "ttadeva") [ UTF82 (Bytes2All 0x09 0x1F) ]
--- , MapEntry (Glyph "ttagujarati") [ UTF82 (Bytes2All 0x0A 0x9F) ]
--- , MapEntry (Glyph "ttagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1F) ]
--- , MapEntry (Glyph "tteharabic") [ UTF82 (Bytes2All 0x06 0x79) ]
--- , MapEntry (Glyph "ttehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x67) ]
--- , MapEntry (Glyph "ttehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x68) ]
--- , MapEntry (Glyph "ttehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x69) ]
--- , MapEntry (Glyph "tthabengali") [ UTF82 (Bytes2All 0x09 0xA0) ]
--- , MapEntry (Glyph "tthadeva") [ UTF82 (Bytes2All 0x09 0x20) ]
--- , MapEntry (Glyph "tthagujarati") [ UTF82 (Bytes2All 0x0A 0xA0) ]
--- , MapEntry (Glyph "tthagurmukhi") [ UTF82 (Bytes2All 0x0A 0x20) ]
--- , MapEntry (Glyph "tturned") [ UTF82 (Bytes2All 0x02 0x87) ]
--- , MapEntry (Glyph "tuhiragana") [ UTF82 (Bytes2All 0x30 0x64) ]
--- , MapEntry (Glyph "tukatakana") [ UTF82 (Bytes2All 0x30 0xC4) ]
--- , MapEntry (Glyph "tukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x82) ]
--- , MapEntry (Glyph "tusmallhiragana") [ UTF82 (Bytes2All 0x30 0x63) ]
--- , MapEntry (Glyph "tusmallkatakana") [ UTF82 (Bytes2All 0x30 0xC3) ]
--- , MapEntry (Glyph "tusmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6F) ]
--- , MapEntry (Glyph "twelvecircle") [ UTF82 (Bytes2All 0x24 0x6B) ]
--- , MapEntry (Glyph "twelveparen") [ UTF82 (Bytes2All 0x24 0x7F) ]
--- , MapEntry (Glyph "twelveperiod") [ UTF82 (Bytes2All 0x24 0x93) ]
--- , MapEntry (Glyph "twelveroman") [ UTF82 (Bytes2All 0x21 0x7B) ]
--- , MapEntry (Glyph "twentycircle") [ UTF82 (Bytes2All 0x24 0x73) ]
--- , MapEntry (Glyph "twentyhangzhou") [ UTF82 (Bytes2All 0x53 0x44) ]
--- , MapEntry (Glyph "twentyparen") [ UTF82 (Bytes2All 0x24 0x87) ]
--- , MapEntry (Glyph "twentyperiod") [ UTF82 (Bytes2All 0x24 0x9B) ]
-, MapEntry (Glyph "two") [ UTF81 (Bytes1 0x32) ]
--- , MapEntry (Glyph "twoarabic") [ UTF82 (Bytes2All 0x06 0x62) ]
--- , MapEntry (Glyph "twobengali") [ UTF82 (Bytes2All 0x09 0xE8) ]
--- , MapEntry (Glyph "twocircle") [ UTF82 (Bytes2All 0x24 0x61) ]
--- , MapEntry (Glyph "twocircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8B) ]
--- , MapEntry (Glyph "twodeva") [ UTF82 (Bytes2All 0x09 0x68) ]
--- , MapEntry (Glyph "twodotenleader") [ UTF82 (Bytes2All 0x20 0x25) ]
--- , MapEntry (Glyph "twodotleader") [ UTF82 (Bytes2All 0x20 0x25) ]
--- , MapEntry (Glyph "twodotleadervertical") [ UTF82 (Bytes2All 0xFE 0x30) ]
--- , MapEntry (Glyph "twogujarati") [ UTF82 (Bytes2All 0x0A 0xE8) ]
--- , MapEntry (Glyph "twogurmukhi") [ UTF82 (Bytes2All 0x0A 0x68) ]
--- , MapEntry (Glyph "twohackarabic") [ UTF82 (Bytes2All 0x06 0x62) ]
--- , MapEntry (Glyph "twohangzhou") [ UTF82 (Bytes2All 0x30 0x22) ]
--- , MapEntry (Glyph "twoideographicparen") [ UTF82 (Bytes2All 0x32 0x21) ]
--- , MapEntry (Glyph "twoinferior") [ UTF82 (Bytes2All 0x20 0x82) ]
--- , MapEntry (Glyph "twomonospace") [ UTF82 (Bytes2All 0xFF 0x12) ]
--- , MapEntry (Glyph "twonumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF5) ]
--- , MapEntry (Glyph "twooldstyle") [ UTF82 (Bytes2All 0xF7 0x32) ]
--- , MapEntry (Glyph "twoparen") [ UTF82 (Bytes2All 0x24 0x75) ]
--- , MapEntry (Glyph "twoperiod") [ UTF82 (Bytes2All 0x24 0x89) ]
--- , MapEntry (Glyph "twopersian") [ UTF82 (Bytes2All 0x06 0xF2) ]
--- , MapEntry (Glyph "tworoman") [ UTF82 (Bytes2All 0x21 0x71) ]
--- , MapEntry (Glyph "twostroke") [ UTF82 (Bytes2All 0x01 0xBB) ]
-, MapEntry (Glyph "twosuperior") [ UTF81 (Bytes1 0xB2) ]
--- , MapEntry (Glyph "twothai") [ UTF82 (Bytes2All 0x0E 0x52) ]
--- , MapEntry (Glyph "twothirds") [ UTF82 (Bytes2All 0x21 0x54) ]
-, MapEntry (Glyph "u") [ UTF81 (Bytes1 0x75) ]
-, MapEntry (Glyph "uacute") [ UTF81 (Bytes1 0xFA) ]
--- , MapEntry (Glyph "ubar") [ UTF82 (Bytes2All 0x02 0x89) ]
--- , MapEntry (Glyph "ubengali") [ UTF82 (Bytes2All 0x09 0x89) ]
--- , MapEntry (Glyph "ubopomofo") [ UTF82 (Bytes2All 0x31 0x28) ]
--- , MapEntry (Glyph "ubreve") [ UTF82 (Bytes2All 0x01 0x6D) ]
--- , MapEntry (Glyph "ucaron") [ UTF82 (Bytes2All 0x01 0xD4) ]
--- , MapEntry (Glyph "ucircle") [ UTF82 (Bytes2All 0x24 0xE4) ]
-, MapEntry (Glyph "ucircumflex") [ UTF81 (Bytes1 0xFB) ]
--- , MapEntry (Glyph "ucircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x77) ]
--- , MapEntry (Glyph "ucyrillic") [ UTF82 (Bytes2All 0x04 0x43) ]
--- , MapEntry (Glyph "udattadeva") [ UTF82 (Bytes2All 0x09 0x51) ]
--- , MapEntry (Glyph "udblacute") [ UTF82 (Bytes2All 0x01 0x71) ]
--- , MapEntry (Glyph "udblgrave") [ UTF82 (Bytes2All 0x02 0x15) ]
--- , MapEntry (Glyph "udeva") [ UTF82 (Bytes2All 0x09 0x09) ]
-, MapEntry (Glyph "udieresis") [ UTF81 (Bytes1 0xFC) ]
--- , MapEntry (Glyph "udieresisacute") [ UTF82 (Bytes2All 0x01 0xD8) ]
--- , MapEntry (Glyph "udieresisbelow") [ UTF82 (Bytes2All 0x1E 0x73) ]
--- , MapEntry (Glyph "udieresiscaron") [ UTF82 (Bytes2All 0x01 0xDA) ]
--- , MapEntry (Glyph "udieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF1) ]
--- , MapEntry (Glyph "udieresisgrave") [ UTF82 (Bytes2All 0x01 0xDC) ]
--- , MapEntry (Glyph "udieresismacron") [ UTF82 (Bytes2All 0x01 0xD6) ]
--- , MapEntry (Glyph "udotbelow") [ UTF82 (Bytes2All 0x1E 0xE5) ]
-, MapEntry (Glyph "ugrave") [ UTF81 (Bytes1 0xF9) ]
--- , MapEntry (Glyph "ugujarati") [ UTF82 (Bytes2All 0x0A 0x89) ]
--- , MapEntry (Glyph "ugurmukhi") [ UTF82 (Bytes2All 0x0A 0x09) ]
--- , MapEntry (Glyph "uhiragana") [ UTF82 (Bytes2All 0x30 0x46) ]
--- , MapEntry (Glyph "uhookabove") [ UTF82 (Bytes2All 0x1E 0xE7) ]
--- , MapEntry (Glyph "uhorn") [ UTF82 (Bytes2All 0x01 0xB0) ]
--- , MapEntry (Glyph "uhornacute") [ UTF82 (Bytes2All 0x1E 0xE9) ]
--- , MapEntry (Glyph "uhorndotbelow") [ UTF82 (Bytes2All 0x1E 0xF1) ]
--- , MapEntry (Glyph "uhorngrave") [ UTF82 (Bytes2All 0x1E 0xEB) ]
--- , MapEntry (Glyph "uhornhookabove") [ UTF82 (Bytes2All 0x1E 0xED) ]
--- , MapEntry (Glyph "uhorntilde") [ UTF82 (Bytes2All 0x1E 0xEF) ]
--- , MapEntry (Glyph "uhungarumlaut") [ UTF82 (Bytes2All 0x01 0x71) ]
--- , MapEntry (Glyph "uhungarumlautcyrillic") [ UTF82 (Bytes2All 0x04 0xF3) ]
--- , MapEntry (Glyph "uinvertedbreve") [ UTF82 (Bytes2All 0x02 0x17) ]
--- , MapEntry (Glyph "ukatakana") [ UTF82 (Bytes2All 0x30 0xA6) ]
--- , MapEntry (Glyph "ukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x73) ]
--- , MapEntry (Glyph "ukcyrillic") [ UTF82 (Bytes2All 0x04 0x79) ]
--- , MapEntry (Glyph "ukorean") [ UTF82 (Bytes2All 0x31 0x5C) ]
--- , MapEntry (Glyph "umacron") [ UTF82 (Bytes2All 0x01 0x6B) ]
--- , MapEntry (Glyph "umacroncyrillic") [ UTF82 (Bytes2All 0x04 0xEF) ]
--- , MapEntry (Glyph "umacrondieresis") [ UTF82 (Bytes2All 0x1E 0x7B) ]
--- , MapEntry (Glyph "umatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x41) ]
--- , MapEntry (Glyph "umonospace") [ UTF82 (Bytes2All 0xFF 0x55) ]
-, MapEntry (Glyph "underscore") [ UTF81 (Bytes1 0x5F) ]
--- , MapEntry (Glyph "underscoredbl") [ UTF82 (Bytes2All 0x20 0x17) ]
--- , MapEntry (Glyph "underscoremonospace") [ UTF82 (Bytes2All 0xFF 0x3F) ]
--- , MapEntry (Glyph "underscorevertical") [ UTF82 (Bytes2All 0xFE 0x33) ]
--- , MapEntry (Glyph "underscorewavy") [ UTF82 (Bytes2All 0xFE 0x4F) ]
--- , MapEntry (Glyph "union") [ UTF82 (Bytes2All 0x22 0x2A) ]
--- , MapEntry (Glyph "universal") [ UTF82 (Bytes2All 0x22 0x00) ]
--- , MapEntry (Glyph "uogonek") [ UTF82 (Bytes2All 0x01 0x73) ]
--- , MapEntry (Glyph "uparen") [ UTF82 (Bytes2All 0x24 0xB0) ]
--- , MapEntry (Glyph "upblock") [ UTF82 (Bytes2All 0x25 0x80) ]
--- , MapEntry (Glyph "upperdothebrew") [ UTF82 (Bytes2All 0x05 0xC4) ]
--- , MapEntry (Glyph "upsilon") [ UTF82 (Bytes2All 0x03 0xC5) ]
--- , MapEntry (Glyph "upsilondieresis") [ UTF82 (Bytes2All 0x03 0xCB) ]
--- , MapEntry (Glyph "upsilondieresistonos") [ UTF82 (Bytes2All 0x03 0xB0) ]
--- , MapEntry (Glyph "upsilonlatin") [ UTF82 (Bytes2All 0x02 0x8A) ]
--- , MapEntry (Glyph "upsilontonos") [ UTF82 (Bytes2All 0x03 0xCD) ]
--- , MapEntry (Glyph "uptackbelowcmb") [ UTF82 (Bytes2All 0x03 0x1D) ]
--- , MapEntry (Glyph "uptackmod") [ UTF82 (Bytes2All 0x02 0xD4) ]
--- , MapEntry (Glyph "uragurmukhi") [ UTF82 (Bytes2All 0x0A 0x73) ]
--- , MapEntry (Glyph "uring") [ UTF82 (Bytes2All 0x01 0x6F) ]
--- , MapEntry (Glyph "ushortcyrillic") [ UTF82 (Bytes2All 0x04 0x5E) ]
--- , MapEntry (Glyph "usmallhiragana") [ UTF82 (Bytes2All 0x30 0x45) ]
--- , MapEntry (Glyph "usmallkatakana") [ UTF82 (Bytes2All 0x30 0xA5) ]
--- , MapEntry (Glyph "usmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x69) ]
--- , MapEntry (Glyph "ustraightcyrillic") [ UTF82 (Bytes2All 0x04 0xAF) ]
--- , MapEntry (Glyph "ustraightstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB1) ]
--- , MapEntry (Glyph "utilde") [ UTF82 (Bytes2All 0x01 0x69) ]
--- , MapEntry (Glyph "utildeacute") [ UTF82 (Bytes2All 0x1E 0x79) ]
--- , MapEntry (Glyph "utildebelow") [ UTF82 (Bytes2All 0x1E 0x75) ]
--- , MapEntry (Glyph "uubengali") [ UTF82 (Bytes2All 0x09 0x8A) ]
--- , MapEntry (Glyph "uudeva") [ UTF82 (Bytes2All 0x09 0x0A) ]
--- , MapEntry (Glyph "uugujarati") [ UTF82 (Bytes2All 0x0A 0x8A) ]
--- , MapEntry (Glyph "uugurmukhi") [ UTF82 (Bytes2All 0x0A 0x0A) ]
--- , MapEntry (Glyph "uumatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x42) ]
--- , MapEntry (Glyph "uuvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC2) ]
--- , MapEntry (Glyph "uuvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x42) ]
--- , MapEntry (Glyph "uuvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC2) ]
--- , MapEntry (Glyph "uvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC1) ]
--- , MapEntry (Glyph "uvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x41) ]
--- , MapEntry (Glyph "uvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC1) ]
-, MapEntry (Glyph "v") [ UTF81 (Bytes1 0x76) ]
--- , MapEntry (Glyph "vadeva") [ UTF82 (Bytes2All 0x09 0x35) ]
--- , MapEntry (Glyph "vagujarati") [ UTF82 (Bytes2All 0x0A 0xB5) ]
--- , MapEntry (Glyph "vagurmukhi") [ UTF82 (Bytes2All 0x0A 0x35) ]
--- , MapEntry (Glyph "vakatakana") [ UTF82 (Bytes2All 0x30 0xF7) ]
--- , MapEntry (Glyph "vav") [ UTF82 (Bytes2All 0x05 0xD5) ]
--- , MapEntry (Glyph "vavdagesh") [ UTF82 (Bytes2All 0xFB 0x35) ]
--- , MapEntry (Glyph "vavdagesh65") [ UTF82 (Bytes2All 0xFB 0x35) ]
--- , MapEntry (Glyph "vavdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x35) ]
--- , MapEntry (Glyph "vavhebrew") [ UTF82 (Bytes2All 0x05 0xD5) ]
--- , MapEntry (Glyph "vavholam") [ UTF82 (Bytes2All 0xFB 0x4B) ]
--- , MapEntry (Glyph "vavholamhebrew") [ UTF82 (Bytes2All 0xFB 0x4B) ]
--- , MapEntry (Glyph "vavvavhebrew") [ UTF82 (Bytes2All 0x05 0xF0) ]
--- , MapEntry (Glyph "vavyodhebrew") [ UTF82 (Bytes2All 0x05 0xF1) ]
--- , MapEntry (Glyph "vcircle") [ UTF82 (Bytes2All 0x24 0xE5) ]
--- , MapEntry (Glyph "vdotbelow") [ UTF82 (Bytes2All 0x1E 0x7F) ]
--- , MapEntry (Glyph "vecyrillic") [ UTF82 (Bytes2All 0x04 0x32) ]
--- , MapEntry (Glyph "veharabic") [ UTF82 (Bytes2All 0x06 0xA4) ]
--- , MapEntry (Glyph "vehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x6B) ]
--- , MapEntry (Glyph "vehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x6C) ]
--- , MapEntry (Glyph "vehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x6D) ]
--- , MapEntry (Glyph "vekatakana") [ UTF82 (Bytes2All 0x30 0xF9) ]
--- , MapEntry (Glyph "venus") [ UTF82 (Bytes2All 0x26 0x40) ]
-, MapEntry (Glyph "verticalbar") [ UTF81 (Bytes1 0x7C) ]
--- , MapEntry (Glyph "verticallineabovecmb") [ UTF82 (Bytes2All 0x03 0x0D) ]
--- , MapEntry (Glyph "verticallinebelowcmb") [ UTF82 (Bytes2All 0x03 0x29) ]
--- , MapEntry (Glyph "verticallinelowmod") [ UTF82 (Bytes2All 0x02 0xCC) ]
--- , MapEntry (Glyph "verticallinemod") [ UTF82 (Bytes2All 0x02 0xC8) ]
--- , MapEntry (Glyph "vewarmenian") [ UTF82 (Bytes2All 0x05 0x7E) ]
--- , MapEntry (Glyph "vhook") [ UTF82 (Bytes2All 0x02 0x8B) ]
--- , MapEntry (Glyph "vikatakana") [ UTF82 (Bytes2All 0x30 0xF8) ]
--- , MapEntry (Glyph "viramabengali") [ UTF82 (Bytes2All 0x09 0xCD) ]
--- , MapEntry (Glyph "viramadeva") [ UTF82 (Bytes2All 0x09 0x4D) ]
--- , MapEntry (Glyph "viramagujarati") [ UTF82 (Bytes2All 0x0A 0xCD) ]
--- , MapEntry (Glyph "visargabengali") [ UTF82 (Bytes2All 0x09 0x83) ]
--- , MapEntry (Glyph "visargadeva") [ UTF82 (Bytes2All 0x09 0x03) ]
--- , MapEntry (Glyph "visargagujarati") [ UTF82 (Bytes2All 0x0A 0x83) ]
--- , MapEntry (Glyph "vmonospace") [ UTF82 (Bytes2All 0xFF 0x56) ]
--- , MapEntry (Glyph "voarmenian") [ UTF82 (Bytes2All 0x05 0x78) ]
--- , MapEntry (Glyph "voicediterationhiragana") [ UTF82 (Bytes2All 0x30 0x9E) ]
--- , MapEntry (Glyph "voicediterationkatakana") [ UTF82 (Bytes2All 0x30 0xFE) ]
--- , MapEntry (Glyph "voicedmarkkana") [ UTF82 (Bytes2All 0x30 0x9B) ]
--- , MapEntry (Glyph "voicedmarkkanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9E) ]
--- , MapEntry (Glyph "vokatakana") [ UTF82 (Bytes2All 0x30 0xFA) ]
--- , MapEntry (Glyph "vparen") [ UTF82 (Bytes2All 0x24 0xB1) ]
--- , MapEntry (Glyph "vtilde") [ UTF82 (Bytes2All 0x1E 0x7D) ]
--- , MapEntry (Glyph "vturned") [ UTF82 (Bytes2All 0x02 0x8C) ]
--- , MapEntry (Glyph "vuhiragana") [ UTF82 (Bytes2All 0x30 0x94) ]
--- , MapEntry (Glyph "vukatakana") [ UTF82 (Bytes2All 0x30 0xF4) ]
-, MapEntry (Glyph "w") [ UTF81 (Bytes1 0x77) ]
--- , MapEntry (Glyph "wacute") [ UTF82 (Bytes2All 0x1E 0x83) ]
--- , MapEntry (Glyph "waekorean") [ UTF82 (Bytes2All 0x31 0x59) ]
--- , MapEntry (Glyph "wahiragana") [ UTF82 (Bytes2All 0x30 0x8F) ]
--- , MapEntry (Glyph "wakatakana") [ UTF82 (Bytes2All 0x30 0xEF) ]
--- , MapEntry (Glyph "wakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9C) ]
--- , MapEntry (Glyph "wakorean") [ UTF82 (Bytes2All 0x31 0x58) ]
--- , MapEntry (Glyph "wasmallhiragana") [ UTF82 (Bytes2All 0x30 0x8E) ]
--- , MapEntry (Glyph "wasmallkatakana") [ UTF82 (Bytes2All 0x30 0xEE) ]
--- , MapEntry (Glyph "wattosquare") [ UTF82 (Bytes2All 0x33 0x57) ]
--- , MapEntry (Glyph "wavedash") [ UTF82 (Bytes2All 0x30 0x1C) ]
--- , MapEntry (Glyph "wavyunderscorevertical") [ UTF82 (Bytes2All 0xFE 0x34) ]
--- , MapEntry (Glyph "wawarabic") [ UTF82 (Bytes2All 0x06 0x48) ]
--- , MapEntry (Glyph "wawfinalarabic") [ UTF82 (Bytes2All 0xFE 0xEE) ]
--- , MapEntry (Glyph "wawhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x24) ]
--- , MapEntry (Glyph "wawhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x86) ]
--- , MapEntry (Glyph "wbsquare") [ UTF82 (Bytes2All 0x33 0xDD) ]
--- , MapEntry (Glyph "wcircle") [ UTF82 (Bytes2All 0x24 0xE6) ]
--- , MapEntry (Glyph "wcircumflex") [ UTF82 (Bytes2All 0x01 0x75) ]
--- , MapEntry (Glyph "wdieresis") [ UTF82 (Bytes2All 0x1E 0x85) ]
--- , MapEntry (Glyph "wdotaccent") [ UTF82 (Bytes2All 0x1E 0x87) ]
--- , MapEntry (Glyph "wdotbelow") [ UTF82 (Bytes2All 0x1E 0x89) ]
--- , MapEntry (Glyph "wehiragana") [ UTF82 (Bytes2All 0x30 0x91) ]
--- , MapEntry (Glyph "weierstrass") [ UTF82 (Bytes2All 0x21 0x18) ]
--- , MapEntry (Glyph "wekatakana") [ UTF82 (Bytes2All 0x30 0xF1) ]
--- , MapEntry (Glyph "wekorean") [ UTF82 (Bytes2All 0x31 0x5E) ]
--- , MapEntry (Glyph "weokorean") [ UTF82 (Bytes2All 0x31 0x5D) ]
--- , MapEntry (Glyph "wgrave") [ UTF82 (Bytes2All 0x1E 0x81) ]
--- , MapEntry (Glyph "whitebullet") [ UTF82 (Bytes2All 0x25 0xE6) ]
--- , MapEntry (Glyph "whitecircle") [ UTF82 (Bytes2All 0x25 0xCB) ]
--- , MapEntry (Glyph "whitecircleinverse") [ UTF82 (Bytes2All 0x25 0xD9) ]
--- , MapEntry (Glyph "whitecornerbracketleft") [ UTF82 (Bytes2All 0x30 0x0E) ]
--- , MapEntry (Glyph "whitecornerbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x43) ]
--- , MapEntry (Glyph "whitecornerbracketright") [ UTF82 (Bytes2All 0x30 0x0F) ]
--- , MapEntry (Glyph "whitecornerbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x44) ]
--- , MapEntry (Glyph "whitediamond") [ UTF82 (Bytes2All 0x25 0xC7) ]
--- , MapEntry (Glyph "whitediamondcontainingblacksmalldiamond") [ UTF82 (Bytes2All 0x25 0xC8) ]
--- , MapEntry (Glyph "whitedownpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xBF) ]
--- , MapEntry (Glyph "whitedownpointingtriangle") [ UTF82 (Bytes2All 0x25 0xBD) ]
--- , MapEntry (Glyph "whiteleftpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xC3) ]
--- , MapEntry (Glyph "whiteleftpointingtriangle") [ UTF82 (Bytes2All 0x25 0xC1) ]
--- , MapEntry (Glyph "whitelenticularbracketleft") [ UTF82 (Bytes2All 0x30 0x16) ]
--- , MapEntry (Glyph "whitelenticularbracketright") [ UTF82 (Bytes2All 0x30 0x17) ]
--- , MapEntry (Glyph "whiterightpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB9) ]
--- , MapEntry (Glyph "whiterightpointingtriangle") [ UTF82 (Bytes2All 0x25 0xB7) ]
--- , MapEntry (Glyph "whitesmallsquare") [ UTF82 (Bytes2All 0x25 0xAB) ]
--- , MapEntry (Glyph "whitesmilingface") [ UTF82 (Bytes2All 0x26 0x3A) ]
--- , MapEntry (Glyph "whitesquare") [ UTF82 (Bytes2All 0x25 0xA1) ]
--- , MapEntry (Glyph "whitestar") [ UTF82 (Bytes2All 0x26 0x06) ]
--- , MapEntry (Glyph "whitetelephone") [ UTF82 (Bytes2All 0x26 0x0F) ]
--- , MapEntry (Glyph "whitetortoiseshellbracketleft") [ UTF82 (Bytes2All 0x30 0x18) ]
--- , MapEntry (Glyph "whitetortoiseshellbracketright") [ UTF82 (Bytes2All 0x30 0x19) ]
--- , MapEntry (Glyph "whiteuppointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB5) ]
--- , MapEntry (Glyph "whiteuppointingtriangle") [ UTF82 (Bytes2All 0x25 0xB3) ]
--- , MapEntry (Glyph "wihiragana") [ UTF82 (Bytes2All 0x30 0x90) ]
--- , MapEntry (Glyph "wikatakana") [ UTF82 (Bytes2All 0x30 0xF0) ]
--- , MapEntry (Glyph "wikorean") [ UTF82 (Bytes2All 0x31 0x5F) ]
--- , MapEntry (Glyph "wmonospace") [ UTF82 (Bytes2All 0xFF 0x57) ]
--- , MapEntry (Glyph "wohiragana") [ UTF82 (Bytes2All 0x30 0x92) ]
--- , MapEntry (Glyph "wokatakana") [ UTF82 (Bytes2All 0x30 0xF2) ]
--- , MapEntry (Glyph "wokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x66) ]
--- , MapEntry (Glyph "won") [ UTF82 (Bytes2All 0x20 0xA9) ]
--- , MapEntry (Glyph "wonmonospace") [ UTF82 (Bytes2All 0xFF 0xE6) ]
--- , MapEntry (Glyph "wowaenthai") [ UTF82 (Bytes2All 0x0E 0x27) ]
--- , MapEntry (Glyph "wparen") [ UTF82 (Bytes2All 0x24 0xB2) ]
--- , MapEntry (Glyph "wring") [ UTF82 (Bytes2All 0x1E 0x98) ]
--- , MapEntry (Glyph "wsuperior") [ UTF82 (Bytes2All 0x02 0xB7) ]
--- , MapEntry (Glyph "wturned") [ UTF82 (Bytes2All 0x02 0x8D) ]
--- , MapEntry (Glyph "wynn") [ UTF82 (Bytes2All 0x01 0xBF) ]
-, MapEntry (Glyph "x") [ UTF81 (Bytes1 0x78) ]
--- , MapEntry (Glyph "xabovecmb") [ UTF82 (Bytes2All 0x03 0x3D) ]
--- , MapEntry (Glyph "xbopomofo") [ UTF82 (Bytes2All 0x31 0x12) ]
--- , MapEntry (Glyph "xcircle") [ UTF82 (Bytes2All 0x24 0xE7) ]
--- , MapEntry (Glyph "xdieresis") [ UTF82 (Bytes2All 0x1E 0x8D) ]
--- , MapEntry (Glyph "xdotaccent") [ UTF82 (Bytes2All 0x1E 0x8B) ]
--- , MapEntry (Glyph "xeharmenian") [ UTF82 (Bytes2All 0x05 0x6D) ]
--- , MapEntry (Glyph "xi") [ UTF82 (Bytes2All 0x03 0xBE) ]
--- , MapEntry (Glyph "xmonospace") [ UTF82 (Bytes2All 0xFF 0x58) ]
--- , MapEntry (Glyph "xparen") [ UTF82 (Bytes2All 0x24 0xB3) ]
--- , MapEntry (Glyph "xsuperior") [ UTF82 (Bytes2All 0x02 0xE3) ]
-, MapEntry (Glyph "y") [ UTF81 (Bytes1 0x79) ]
--- , MapEntry (Glyph "yaadosquare") [ UTF82 (Bytes2All 0x33 0x4E) ]
--- , MapEntry (Glyph "yabengali") [ UTF82 (Bytes2All 0x09 0xAF) ]
-, MapEntry (Glyph "yacute") [ UTF81 (Bytes1 0xFD) ]
--- , MapEntry (Glyph "yadeva") [ UTF82 (Bytes2All 0x09 0x2F) ]
--- , MapEntry (Glyph "yaekorean") [ UTF82 (Bytes2All 0x31 0x52) ]
--- , MapEntry (Glyph "yagujarati") [ UTF82 (Bytes2All 0x0A 0xAF) ]
--- , MapEntry (Glyph "yagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2F) ]
--- , MapEntry (Glyph "yahiragana") [ UTF82 (Bytes2All 0x30 0x84) ]
--- , MapEntry (Glyph "yakatakana") [ UTF82 (Bytes2All 0x30 0xE4) ]
--- , MapEntry (Glyph "yakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x94) ]
--- , MapEntry (Glyph "yakorean") [ UTF82 (Bytes2All 0x31 0x51) ]
--- , MapEntry (Glyph "yamakkanthai") [ UTF82 (Bytes2All 0x0E 0x4E) ]
--- , MapEntry (Glyph "yasmallhiragana") [ UTF82 (Bytes2All 0x30 0x83) ]
--- , MapEntry (Glyph "yasmallkatakana") [ UTF82 (Bytes2All 0x30 0xE3) ]
--- , MapEntry (Glyph "yasmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6C) ]
--- , MapEntry (Glyph "yatcyrillic") [ UTF82 (Bytes2All 0x04 0x63) ]
--- , MapEntry (Glyph "ycircle") [ UTF82 (Bytes2All 0x24 0xE8) ]
--- , MapEntry (Glyph "ycircumflex") [ UTF82 (Bytes2All 0x01 0x77) ]
-, MapEntry (Glyph "ydieresis") [ UTF81 (Bytes1 0xFF) ]
--- , MapEntry (Glyph "ydotaccent") [ UTF82 (Bytes2All 0x1E 0x8F) ]
--- , MapEntry (Glyph "ydotbelow") [ UTF82 (Bytes2All 0x1E 0xF5) ]
--- , MapEntry (Glyph "yeharabic") [ UTF82 (Bytes2All 0x06 0x4A) ]
--- , MapEntry (Glyph "yehbarreearabic") [ UTF82 (Bytes2All 0x06 0xD2) ]
--- , MapEntry (Glyph "yehbarreefinalarabic") [ UTF82 (Bytes2All 0xFB 0xAF) ]
--- , MapEntry (Glyph "yehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xF2) ]
--- , MapEntry (Glyph "yehhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x26) ]
--- , MapEntry (Glyph "yehhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x8A) ]
--- , MapEntry (Glyph "yehhamzaaboveinitialarabic") [ UTF82 (Bytes2All 0xFE 0x8B) ]
--- , MapEntry (Glyph "yehhamzaabovemedialarabic") [ UTF82 (Bytes2All 0xFE 0x8C) ]
--- , MapEntry (Glyph "yehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xF3) ]
--- , MapEntry (Glyph "yehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xF4) ]
--- , MapEntry (Glyph "yehmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xDD) ]
--- , MapEntry (Glyph "yehmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x58) ]
--- , MapEntry (Glyph "yehnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x94) ]
--- , MapEntry (Glyph "yehthreedotsbelowarabic") [ UTF82 (Bytes2All 0x06 0xD1) ]
--- , MapEntry (Glyph "yekorean") [ UTF82 (Bytes2All 0x31 0x56) ]
-, MapEntry (Glyph "yen") [ UTF81 (Bytes1 0xA5) ]
--- , MapEntry (Glyph "yenmonospace") [ UTF82 (Bytes2All 0xFF 0xE5) ]
--- , MapEntry (Glyph "yeokorean") [ UTF82 (Bytes2All 0x31 0x55) ]
--- , MapEntry (Glyph "yeorinhieuhkorean") [ UTF82 (Bytes2All 0x31 0x86) ]
--- , MapEntry (Glyph "yerahbenyomohebrew") [ UTF82 (Bytes2All 0x05 0xAA) ]
--- , MapEntry (Glyph "yerahbenyomolefthebrew") [ UTF82 (Bytes2All 0x05 0xAA) ]
--- , MapEntry (Glyph "yericyrillic") [ UTF82 (Bytes2All 0x04 0x4B) ]
--- , MapEntry (Glyph "yerudieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF9) ]
--- , MapEntry (Glyph "yesieungkorean") [ UTF82 (Bytes2All 0x31 0x81) ]
--- , MapEntry (Glyph "yesieungpansioskorean") [ UTF82 (Bytes2All 0x31 0x83) ]
--- , MapEntry (Glyph "yesieungsioskorean") [ UTF82 (Bytes2All 0x31 0x82) ]
--- , MapEntry (Glyph "yetivhebrew") [ UTF82 (Bytes2All 0x05 0x9A) ]
--- , MapEntry (Glyph "ygrave") [ UTF82 (Bytes2All 0x1E 0xF3) ]
--- , MapEntry (Glyph "yhook") [ UTF82 (Bytes2All 0x01 0xB4) ]
--- , MapEntry (Glyph "yhookabove") [ UTF82 (Bytes2All 0x1E 0xF7) ]
--- , MapEntry (Glyph "yiarmenian") [ UTF82 (Bytes2All 0x05 0x75) ]
--- , MapEntry (Glyph "yicyrillic") [ UTF82 (Bytes2All 0x04 0x57) ]
--- , MapEntry (Glyph "yikorean") [ UTF82 (Bytes2All 0x31 0x62) ]
--- , MapEntry (Glyph "yinyang") [ UTF82 (Bytes2All 0x26 0x2F) ]
--- , MapEntry (Glyph "yiwnarmenian") [ UTF82 (Bytes2All 0x05 0x82) ]
--- , MapEntry (Glyph "ymonospace") [ UTF82 (Bytes2All 0xFF 0x59) ]
--- , MapEntry (Glyph "yod") [ UTF82 (Bytes2All 0x05 0xD9) ]
--- , MapEntry (Glyph "yoddagesh") [ UTF82 (Bytes2All 0xFB 0x39) ]
--- , MapEntry (Glyph "yoddageshhebrew") [ UTF82 (Bytes2All 0xFB 0x39) ]
--- , MapEntry (Glyph "yodhebrew") [ UTF82 (Bytes2All 0x05 0xD9) ]
--- , MapEntry (Glyph "yodyodhebrew") [ UTF82 (Bytes2All 0x05 0xF2) ]
--- , MapEntry (Glyph "yodyodpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x1F) ]
--- , MapEntry (Glyph "yohiragana") [ UTF82 (Bytes2All 0x30 0x88) ]
--- , MapEntry (Glyph "yoikorean") [ UTF82 (Bytes2All 0x31 0x89) ]
--- , MapEntry (Glyph "yokatakana") [ UTF82 (Bytes2All 0x30 0xE8) ]
--- , MapEntry (Glyph "yokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x96) ]
--- , MapEntry (Glyph "yokorean") [ UTF82 (Bytes2All 0x31 0x5B) ]
--- , MapEntry (Glyph "yosmallhiragana") [ UTF82 (Bytes2All 0x30 0x87) ]
--- , MapEntry (Glyph "yosmallkatakana") [ UTF82 (Bytes2All 0x30 0xE7) ]
--- , MapEntry (Glyph "yosmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6E) ]
--- , MapEntry (Glyph "yotgreek") [ UTF82 (Bytes2All 0x03 0xF3) ]
--- , MapEntry (Glyph "yoyaekorean") [ UTF82 (Bytes2All 0x31 0x88) ]
--- , MapEntry (Glyph "yoyakorean") [ UTF82 (Bytes2All 0x31 0x87) ]
--- , MapEntry (Glyph "yoyakthai") [ UTF82 (Bytes2All 0x0E 0x22) ]
--- , MapEntry (Glyph "yoyingthai") [ UTF82 (Bytes2All 0x0E 0x0D) ]
--- , MapEntry (Glyph "yparen") [ UTF82 (Bytes2All 0x24 0xB4) ]
--- , MapEntry (Glyph "ypogegrammeni") [ UTF82 (Bytes2All 0x03 0x7A) ]
--- , MapEntry (Glyph "ypogegrammenigreekcmb") [ UTF82 (Bytes2All 0x03 0x45) ]
--- , MapEntry (Glyph "yr") [ UTF82 (Bytes2All 0x01 0xA6) ]
--- , MapEntry (Glyph "yring") [ UTF82 (Bytes2All 0x1E 0x99) ]
--- , MapEntry (Glyph "ysuperior") [ UTF82 (Bytes2All 0x02 0xB8) ]
--- , MapEntry (Glyph "ytilde") [ UTF82 (Bytes2All 0x1E 0xF9) ]
--- , MapEntry (Glyph "yturned") [ UTF82 (Bytes2All 0x02 0x8E) ]
--- , MapEntry (Glyph "yuhiragana") [ UTF82 (Bytes2All 0x30 0x86) ]
--- , MapEntry (Glyph "yuikorean") [ UTF82 (Bytes2All 0x31 0x8C) ]
--- , MapEntry (Glyph "yukatakana") [ UTF82 (Bytes2All 0x30 0xE6) ]
--- , MapEntry (Glyph "yukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x95) ]
--- , MapEntry (Glyph "yukorean") [ UTF82 (Bytes2All 0x31 0x60) ]
--- , MapEntry (Glyph "yusbigcyrillic") [ UTF82 (Bytes2All 0x04 0x6B) ]
--- , MapEntry (Glyph "yusbigiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x6D) ]
--- , MapEntry (Glyph "yuslittlecyrillic") [ UTF82 (Bytes2All 0x04 0x67) ]
--- , MapEntry (Glyph "yuslittleiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x69) ]
--- , MapEntry (Glyph "yusmallhiragana") [ UTF82 (Bytes2All 0x30 0x85) ]
--- , MapEntry (Glyph "yusmallkatakana") [ UTF82 (Bytes2All 0x30 0xE5) ]
--- , MapEntry (Glyph "yusmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6D) ]
--- , MapEntry (Glyph "yuyekorean") [ UTF82 (Bytes2All 0x31 0x8B) ]
--- , MapEntry (Glyph "yuyeokorean") [ UTF82 (Bytes2All 0x31 0x8A) ]
--- , MapEntry (Glyph "yyabengali") [ UTF82 (Bytes2All 0x09 0xDF) ]
--- , MapEntry (Glyph "yyadeva") [ UTF82 (Bytes2All 0x09 0x5F) ]
-, MapEntry (Glyph "z") [ UTF81 (Bytes1 0x7A) ]
--- , MapEntry (Glyph "zaarmenian") [ UTF82 (Bytes2All 0x05 0x66) ]
--- , MapEntry (Glyph "zacute") [ UTF82 (Bytes2All 0x01 0x7A) ]
--- , MapEntry (Glyph "zadeva") [ UTF82 (Bytes2All 0x09 0x5B) ]
--- , MapEntry (Glyph "zagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5B) ]
--- , MapEntry (Glyph "zaharabic") [ UTF82 (Bytes2All 0x06 0x38) ]
--- , MapEntry (Glyph "zahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xC6) ]
--- , MapEntry (Glyph "zahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xC7) ]
--- , MapEntry (Glyph "zahiragana") [ UTF82 (Bytes2All 0x30 0x56) ]
--- , MapEntry (Glyph "zahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC8) ]
--- , MapEntry (Glyph "zainarabic") [ UTF82 (Bytes2All 0x06 0x32) ]
--- , MapEntry (Glyph "zainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB0) ]
--- , MapEntry (Glyph "zakatakana") [ UTF82 (Bytes2All 0x30 0xB6) ]
--- , MapEntry (Glyph "zaqefgadolhebrew") [ UTF82 (Bytes2All 0x05 0x95) ]
--- , MapEntry (Glyph "zaqefqatanhebrew") [ UTF82 (Bytes2All 0x05 0x94) ]
--- , MapEntry (Glyph "zarqahebrew") [ UTF82 (Bytes2All 0x05 0x98) ]
--- , MapEntry (Glyph "zayin") [ UTF82 (Bytes2All 0x05 0xD6) ]
--- , MapEntry (Glyph "zayindagesh") [ UTF82 (Bytes2All 0xFB 0x36) ]
--- , MapEntry (Glyph "zayindageshhebrew") [ UTF82 (Bytes2All 0xFB 0x36) ]
--- , MapEntry (Glyph "zayinhebrew") [ UTF82 (Bytes2All 0x05 0xD6) ]
--- , MapEntry (Glyph "zbopomofo") [ UTF82 (Bytes2All 0x31 0x17) ]
--- , MapEntry (Glyph "zcaron") [ UTF82 (Bytes2All 0x01 0x7E) ]
--- , MapEntry (Glyph "zcircle") [ UTF82 (Bytes2All 0x24 0xE9) ]
--- , MapEntry (Glyph "zcircumflex") [ UTF82 (Bytes2All 0x1E 0x91) ]
--- , MapEntry (Glyph "zcurl") [ UTF82 (Bytes2All 0x02 0x91) ]
--- , MapEntry (Glyph "zdot") [ UTF82 (Bytes2All 0x01 0x7C) ]
--- , MapEntry (Glyph "zdotaccent") [ UTF82 (Bytes2All 0x01 0x7C) ]
--- , MapEntry (Glyph "zdotbelow") [ UTF82 (Bytes2All 0x1E 0x93) ]
--- , MapEntry (Glyph "zecyrillic") [ UTF82 (Bytes2All 0x04 0x37) ]
--- , MapEntry (Glyph "zedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x99) ]
--- , MapEntry (Glyph "zedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDF) ]
--- , MapEntry (Glyph "zehiragana") [ UTF82 (Bytes2All 0x30 0x5C) ]
--- , MapEntry (Glyph "zekatakana") [ UTF82 (Bytes2All 0x30 0xBC) ]
-, MapEntry (Glyph "zero") [ UTF81 (Bytes1 0x30) ]
--- , MapEntry (Glyph "zeroarabic") [ UTF82 (Bytes2All 0x06 0x60) ]
--- , MapEntry (Glyph "zerobengali") [ UTF82 (Bytes2All 0x09 0xE6) ]
--- , MapEntry (Glyph "zerodeva") [ UTF82 (Bytes2All 0x09 0x66) ]
--- , MapEntry (Glyph "zerogujarati") [ UTF82 (Bytes2All 0x0A 0xE6) ]
--- , MapEntry (Glyph "zerogurmukhi") [ UTF82 (Bytes2All 0x0A 0x66) ]
--- , MapEntry (Glyph "zerohackarabic") [ UTF82 (Bytes2All 0x06 0x60) ]
--- , MapEntry (Glyph "zeroinferior") [ UTF82 (Bytes2All 0x20 0x80) ]
--- , MapEntry (Glyph "zeromonospace") [ UTF82 (Bytes2All 0xFF 0x10) ]
--- , MapEntry (Glyph "zerooldstyle") [ UTF82 (Bytes2All 0xF7 0x30) ]
--- , MapEntry (Glyph "zeropersian") [ UTF82 (Bytes2All 0x06 0xF0) ]
--- , MapEntry (Glyph "zerosuperior") [ UTF82 (Bytes2All 0x20 0x70) ]
--- , MapEntry (Glyph "zerothai") [ UTF82 (Bytes2All 0x0E 0x50) ]
--- , MapEntry (Glyph "zerowidthjoiner") [ UTF82 (Bytes2All 0xFE 0xFF) ]
--- , MapEntry (Glyph "zerowidthnonjoiner") [ UTF82 (Bytes2All 0x20 0x0C) ]
--- , MapEntry (Glyph "zerowidthspace") [ UTF82 (Bytes2All 0x20 0x0B) ]
--- , MapEntry (Glyph "zeta") [ UTF82 (Bytes2All 0x03 0xB6) ]
--- , MapEntry (Glyph "zhbopomofo") [ UTF82 (Bytes2All 0x31 0x13) ]
--- , MapEntry (Glyph "zhearmenian") [ UTF82 (Bytes2All 0x05 0x6A) ]
--- , MapEntry (Glyph "zhebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xC2) ]
--- , MapEntry (Glyph "zhecyrillic") [ UTF82 (Bytes2All 0x04 0x36) ]
--- , MapEntry (Glyph "zhedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x97) ]
--- , MapEntry (Glyph "zhedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDD) ]
--- , MapEntry (Glyph "zihiragana") [ UTF82 (Bytes2All 0x30 0x58) ]
--- , MapEntry (Glyph "zikatakana") [ UTF82 (Bytes2All 0x30 0xB8) ]
--- , MapEntry (Glyph "zinorhebrew") [ UTF82 (Bytes2All 0x05 0xAE) ]
--- , MapEntry (Glyph "zlinebelow") [ UTF82 (Bytes2All 0x1E 0x95) ]
--- , MapEntry (Glyph "zmonospace") [ UTF82 (Bytes2All 0xFF 0x5A) ]
--- , MapEntry (Glyph "zohiragana") [ UTF82 (Bytes2All 0x30 0x5E) ]
--- , MapEntry (Glyph "zokatakana") [ UTF82 (Bytes2All 0x30 0xBE) ]
--- , MapEntry (Glyph "zparen") [ UTF82 (Bytes2All 0x24 0xB5) ]
--- , MapEntry (Glyph "zretroflexhook") [ UTF82 (Bytes2All 0x02 0x90) ]
--- , MapEntry (Glyph "zstroke") [ UTF82 (Bytes2All 0x01 0xB6) ]
--- , MapEntry (Glyph "zuhiragana") [ UTF82 (Bytes2All 0x30 0x5A) ]
--- , MapEntry (Glyph "zukatakana") [ UTF82 (Bytes2All 0x30 0xBA) ]
-]
+def GlyphEncA = {
+  @m = empty;
+  @m = Insert (Glyph "A") [ UTF81 (Bytes1 0x41) ] m;
+  @m = Insert (Glyph "AE") [ UTF81 (Bytes1 0xC6) ] m;
+  @m = Insert (Glyph "AEacute") [ UTF82 (Bytes2All 0x01 0xFC) ] m;
+  @m = Insert (Glyph "AEmacron") [ UTF82 (Bytes2All 0x01 0xE2) ] m;
+  @m = Insert (Glyph "AEsmall") [ UTF82 (Bytes2All 0xF7 0xE6) ] m;
+  @m = Insert (Glyph "Aacute") [ UTF81 (Bytes1 0xC1) ] m;
+  @m = Insert (Glyph "Aacutesmall") [ UTF82 (Bytes2All 0xF7 0xE1) ] m;
+  @m = Insert (Glyph "Abreve") [ UTF82 (Bytes2All 0x01 0x02) ] m;
+  @m = Insert (Glyph "Abreveacute") [ UTF82 (Bytes2All 0x1E 0xAE) ] m;
+  @m = Insert (Glyph "Abrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD0) ] m;
+  @m = Insert (Glyph "Abrevedotbelow") [ UTF82 (Bytes2All 0x1E 0xB6) ] m;
+  @m = Insert (Glyph "Abrevegrave") [ UTF82 (Bytes2All 0x1E 0xB0) ] m;
+  @m = Insert (Glyph "Abrevehookabove") [ UTF82 (Bytes2All 0x1E 0xB2) ] m;
+  @m = Insert (Glyph "Abrevetilde") [ UTF82 (Bytes2All 0x1E 0xB4) ] m;
+  @m = Insert (Glyph "Acaron") [ UTF82 (Bytes2All 0x01 0xCD) ] m;
+  @m = Insert (Glyph "Acircle") [ UTF82 (Bytes2All 0x24 0xB6) ] m;
+  @m = Insert (Glyph "Acircumflex") [ UTF81 (Bytes1 0xC2) ] m;
+  @m = Insert (Glyph "Acircumflexacute") [ UTF82 (Bytes2All 0x1E 0xA4) ] m;
+  @m = Insert (Glyph "Acircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xAC) ] m;
+  @m = Insert (Glyph "Acircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xA6) ] m;
+  @m = Insert (Glyph "Acircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xA8) ] m;
+  @m = Insert (Glyph "Acircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xE2) ] m;
+  @m = Insert (Glyph "Acircumflextilde") [ UTF82 (Bytes2All 0x1E 0xAA) ] m;
+  @m = Insert (Glyph "Acute") [ UTF82 (Bytes2All 0xF6 0xC9) ] m;
+  @m = Insert (Glyph "Acutesmall") [ UTF82 (Bytes2All 0xF7 0xB4) ] m;
+  @m = Insert (Glyph "Acyrillic") [ UTF82 (Bytes2All 0x04 0x10) ] m;
+  @m = Insert (Glyph "Adblgrave") [ UTF82 (Bytes2All 0x02 0x00) ] m;
+  @m = Insert (Glyph "Adieresis") [ UTF81 (Bytes1 0xC4) ] m;
+  @m = Insert (Glyph "Adieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xD2) ] m;
+  @m = Insert (Glyph "Adieresismacron") [ UTF82 (Bytes2All 0x01 0xDE) ] m;
+  @m = Insert (Glyph "Adieresissmall") [ UTF82 (Bytes2All 0xF7 0xE4) ] m;
+  @m = Insert (Glyph "Adotbelow") [ UTF82 (Bytes2All 0x1E 0xA0) ] m;
+  @m = Insert (Glyph "Adotmacron") [ UTF82 (Bytes2All 0x01 0xE0) ] m;
+  @m = Insert (Glyph "Agrave") [ UTF81 (Bytes1 0xC0) ] m;
+  @m = Insert (Glyph "Agravesmall") [ UTF82 (Bytes2All 0xF7 0xE0) ] m;
+  @m = Insert (Glyph "Ahookabove") [ UTF82 (Bytes2All 0x1E 0xA2) ] m;
+  @m = Insert (Glyph "Aiecyrillic") [ UTF82 (Bytes2All 0x04 0xD4) ] m;
+  @m = Insert (Glyph "Ainvertedbreve") [ UTF82 (Bytes2All 0x02 0x02) ] m;
+  @m = Insert (Glyph "Alpha") [ UTF82 (Bytes2All 0x03 0x91) ] m;
+  @m = Insert (Glyph "Alphatonos") [ UTF82 (Bytes2All 0x03 0x86) ] m;
+  @m = Insert (Glyph "Amacron") [ UTF82 (Bytes2All 0x01 0x00) ] m;
+  @m = Insert (Glyph "Amonospace") [ UTF82 (Bytes2All 0xFF 0x21) ] m;
+  @m = Insert (Glyph "Aogonek") [ UTF82 (Bytes2All 0x01 0x04) ] m;
+  @m = Insert (Glyph "Aring") [ UTF81 (Bytes1 0xC5) ] m;
+  @m = Insert (Glyph "Aringacute") [ UTF82 (Bytes2All 0x01 0xFA) ] m;
+  @m = Insert (Glyph "Aringbelow") [ UTF82 (Bytes2All 0x1E 0x00) ] m;
+  @m = Insert (Glyph "Aringsmall") [ UTF82 (Bytes2All 0xF7 0xE5) ] m;
+  @m = Insert (Glyph "Asmall") [ UTF82 (Bytes2All 0xF7 0x61) ] m;
+  @m = Insert (Glyph "Atilde") [ UTF81 (Bytes1 0xC3) ] m;
+  @m = Insert (Glyph "Atildesmall") [ UTF82 (Bytes2All 0xF7 0xE3) ] m;
+  @m = Insert (Glyph "Aybarmenian") [ UTF82 (Bytes2All 0x05 0x31) ] m;
+  m
+}
 
-def GlyphMap = ListToMap GlyphEncodings
+-- def GlyphEncB = {
+--   @m = empty;
+--   @m = Insert (Glyph "B") [ UTF81 (Bytes1 0x42) ] m;
+--   @m = Insert (Glyph "Bcircle") [ UTF82 (Bytes2All 0x24 0xB7) ] m;
+--   @m = Insert (Glyph "Bdotaccent") [ UTF82 (Bytes2All 0x1E 0x02) ] m;
+--   @m = Insert (Glyph "Bdotbelow") [ UTF82 (Bytes2All 0x1E 0x04) ] m;
+--   @m = Insert (Glyph "Becyrillic") [ UTF82 (Bytes2All 0x04 0x11) ] m;
+--   @m = Insert (Glyph "Benarmenian") [ UTF82 (Bytes2All 0x05 0x32) ] m;
+--   @m = Insert (Glyph "Beta") [ UTF82 (Bytes2All 0x03 0x92) ] m;
+--   @m = Insert (Glyph "Bhook") [ UTF82 (Bytes2All 0x01 0x81) ] m;
+--   @m = Insert (Glyph "Blinebelow") [ UTF82 (Bytes2All 0x1E 0x06) ] m;
+--   @m = Insert (Glyph "Bmonospace") [ UTF82 (Bytes2All 0xFF 0x22) ] m;
+--   @m = Insert (Glyph "Brevesmall") [ UTF82 (Bytes2All 0xF6 0xF4) ] m;
+--   @m = Insert (Glyph "Bsmall") [ UTF82 (Bytes2All 0xF7 0x62) ] m;
+--   @m = Insert (Glyph "Btopbar") [ UTF82 (Bytes2All 0x01 0x82) ] m;
+--   m
+-- }
 
--- useful for testing without the full list
-def LookupUni k (m : [ Glyph -> UTF8 ]) =
-  Default (UTF81 (Bytes1 'X')) (Lookup k m)
+-- def GlyphEncC = {
+--   @m = empty;
+--   @m = Insert (Glyph "C") [ UTF81 (Bytes1 0x43) ] m;
+--   @m = Insert (Glyph "Caarmenian") [ UTF82 (Bytes2All 0x05 0x3E) ] m;
+--   @m = Insert (Glyph "Cacute") [ UTF82 (Bytes2All 0x01 0x06) ] m;
+--   @m = Insert (Glyph "Caron") [ UTF82 (Bytes2All 0xF6 0xCA) ] m;
+--   @m = Insert (Glyph "Caronsmall") [ UTF82 (Bytes2All 0xF6 0xF5) ] m;
+--   @m = Insert (Glyph "Ccaron") [ UTF82 (Bytes2All 0x01 0x0C) ] m;
+--   @m = Insert (Glyph "Ccedilla") [ UTF81 (Bytes1 0xC7) ] m;
+--   @m = Insert (Glyph "Ccedillaacute") [ UTF82 (Bytes2All 0x1E 0x08) ] m;
+--   @m = Insert (Glyph "Ccedillasmall") [ UTF82 (Bytes2All 0xF7 0xE7) ] m;
+--   @m = Insert (Glyph "Ccircle") [ UTF82 (Bytes2All 0x24 0xB8) ] m;
+--   @m = Insert (Glyph "Ccircumflex") [ UTF82 (Bytes2All 0x01 0x08) ] m;
+--   @m = Insert (Glyph "Cdot") [ UTF82 (Bytes2All 0x01 0x0A) ] m;
+--   @m = Insert (Glyph "Cdotaccent") [ UTF82 (Bytes2All 0x01 0x0A) ] m;
+--   @m = Insert (Glyph "Cedillasmall") [ UTF82 (Bytes2All 0xF7 0xB8) ] m;
+--   @m = Insert (Glyph "Chaarmenian") [ UTF82 (Bytes2All 0x05 0x49) ] m;
+--   @m = Insert (Glyph "Cheabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBC) ] m;
+--   @m = Insert (Glyph "Checyrillic") [ UTF82 (Bytes2All 0x04 0x27) ] m;
+--   @m = Insert (Glyph "Chedescenderabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBE) ] m;
+--   @m = Insert (Glyph "Chedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB6) ] m;
+--   @m = Insert (Glyph "Chedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF4) ] m;
+--   @m = Insert (Glyph "Cheharmenian") [ UTF82 (Bytes2All 0x05 0x43) ] m;
+--   @m = Insert (Glyph "Chekhakassiancyrillic") [ UTF82 (Bytes2All 0x04 0xCB) ] m;
+--   @m = Insert (Glyph "Cheverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB8) ] m;
+--   @m = Insert (Glyph "Chi") [ UTF82 (Bytes2All 0x03 0xA7) ] m;
+--   @m = Insert (Glyph "Chook") [ UTF82 (Bytes2All 0x01 0x87) ] m;
+--   @m = Insert (Glyph "Circumflexsmall") [ UTF82 (Bytes2All 0xF6 0xF6) ] m;
+--   @m = Insert (Glyph "Cmonospace") [ UTF82 (Bytes2All 0xFF 0x23) ] m;
+--   @m = Insert (Glyph "Coarmenian") [ UTF82 (Bytes2All 0x05 0x51) ] m;
+--   @m = Insert (Glyph "Csmall") [ UTF82 (Bytes2All 0xF7 0x63) ] m;
+--   m
+-- }
+
+-- def GlyphEncD = {
+--   @m = empty;
+--   @m = Insert (Glyph "D") [ UTF81 (Bytes1 0x44) ] m;
+--   @m = Insert (Glyph "DZ") [ UTF82 (Bytes2All 0x01 0xF1) ] m;
+--   @m = Insert (Glyph "DZcaron") [ UTF82 (Bytes2All 0x01 0xC4) ] m;
+--   @m = Insert (Glyph "Daarmenian") [ UTF82 (Bytes2All 0x05 0x34) ] m;
+--   @m = Insert (Glyph "Dafrican") [ UTF82 (Bytes2All 0x01 0x89) ] m;
+--   @m = Insert (Glyph "Dcaron") [ UTF82 (Bytes2All 0x01 0x0E) ] m;
+--   @m = Insert (Glyph "Dcedilla") [ UTF82 (Bytes2All 0x1E 0x10) ] m;
+--   @m = Insert (Glyph "Dcircle") [ UTF82 (Bytes2All 0x24 0xB9) ] m;
+--   @m = Insert (Glyph "Dcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x12) ] m;
+--   @m = Insert (Glyph "Dcroat") [ UTF82 (Bytes2All 0x01 0x10) ] m;
+--   @m = Insert (Glyph "Ddotaccent") [ UTF82 (Bytes2All 0x1E 0x0A) ] m;
+--   @m = Insert (Glyph "Ddotbelow") [ UTF82 (Bytes2All 0x1E 0x0C) ] m;
+--   @m = Insert (Glyph "Decyrillic") [ UTF82 (Bytes2All 0x04 0x14) ] m;
+--   @m = Insert (Glyph "Deicoptic") [ UTF82 (Bytes2All 0x03 0xEE) ] m;
+--   @m = Insert (Glyph "Delta") [ UTF82 (Bytes2All 0x22 0x06) ] m;
+--   @m = Insert (Glyph "Deltagreek") [ UTF82 (Bytes2All 0x03 0x94) ] m;
+--   @m = Insert (Glyph "Dhook") [ UTF82 (Bytes2All 0x01 0x8A) ] m;
+--   @m = Insert (Glyph "Dieresis") [ UTF82 (Bytes2All 0xF6 0xCB) ] m;
+--   @m = Insert (Glyph "DieresisAcute") [ UTF82 (Bytes2All 0xF6 0xCC) ] m;
+--   @m = Insert (Glyph "DieresisGrave") [ UTF82 (Bytes2All 0xF6 0xCD) ] m;
+--   @m = Insert (Glyph "Dieresissmall") [ UTF82 (Bytes2All 0xF7 0xA8) ] m;
+--   @m = Insert (Glyph "Digammagreek") [ UTF82 (Bytes2All 0x03 0xDC) ] m;
+--   @m = Insert (Glyph "Djecyrillic") [ UTF82 (Bytes2All 0x04 0x02) ] m;
+--   @m = Insert (Glyph "Dlinebelow") [ UTF82 (Bytes2All 0x1E 0x0E) ] m;
+--   @m = Insert (Glyph "Dmonospace") [ UTF82 (Bytes2All 0xFF 0x24) ] m;
+--   @m = Insert (Glyph "Dotaccentsmall") [ UTF82 (Bytes2All 0xF6 0xF7) ] m;
+--   @m = Insert (Glyph "Dslash") [ UTF82 (Bytes2All 0x01 0x10) ] m;
+--   @m = Insert (Glyph "Dsmall") [ UTF82 (Bytes2All 0xF7 0x64) ] m;
+--   @m = Insert (Glyph "Dtopbar") [ UTF82 (Bytes2All 0x01 0x8B) ] m;
+--   @m = Insert (Glyph "Dz") [ UTF82 (Bytes2All 0x01 0xF2) ] m;
+--   @m = Insert (Glyph "Dzcaron") [ UTF82 (Bytes2All 0x01 0xC5) ] m;
+--   @m = Insert (Glyph "Dzeabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xE0) ] m;
+--   @m = Insert (Glyph "Dzecyrillic") [ UTF82 (Bytes2All 0x04 0x05) ] m;
+--   @m = Insert (Glyph "Dzhecyrillic") [ UTF82 (Bytes2All 0x04 0x0F) ] m;
+--   m
+-- }
+
+-- def GlyphEncE = {
+--   @m = empty;
+--   @m = Insert (Glyph "E") [ UTF81 (Bytes1 0x45) ] m;
+--   @m = Insert (Glyph "Eacute") [ UTF81 (Bytes1 0xC9) ] m;
+--   @m = Insert (Glyph "Eacutesmall") [ UTF82 (Bytes2All 0xF7 0xE9) ] m;
+--   @m = Insert (Glyph "Ebreve") [ UTF82 (Bytes2All 0x01 0x14) ] m;
+--   @m = Insert (Glyph "Ecaron") [ UTF82 (Bytes2All 0x01 0x1A) ] m;
+--   @m = Insert (Glyph "Ecedillabreve") [ UTF82 (Bytes2All 0x1E 0x1C) ] m;
+--   @m = Insert (Glyph "Echarmenian") [ UTF82 (Bytes2All 0x05 0x35) ] m;
+--   @m = Insert (Glyph "Ecircle") [ UTF82 (Bytes2All 0x24 0xBA) ] m;
+--   @m = Insert (Glyph "Ecircumflex") [ UTF81 (Bytes1 0xCA) ] m;
+--   @m = Insert (Glyph "Ecircumflexacute") [ UTF82 (Bytes2All 0x1E 0xBE) ] m;
+--   @m = Insert (Glyph "Ecircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x18) ] m;
+--   @m = Insert (Glyph "Ecircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xC6) ] m;
+--   @m = Insert (Glyph "Ecircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xC0) ] m;
+--   @m = Insert (Glyph "Ecircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xC2) ] m;
+--   @m = Insert (Glyph "Ecircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xEA) ] m;
+--   @m = Insert (Glyph "Ecircumflextilde") [ UTF82 (Bytes2All 0x1E 0xC4) ] m;
+--   @m = Insert (Glyph "Ecyrillic") [ UTF82 (Bytes2All 0x04 0x04) ] m;
+--   @m = Insert (Glyph "Edblgrave") [ UTF82 (Bytes2All 0x02 0x04) ] m;
+--   @m = Insert (Glyph "Edieresis") [ UTF81 (Bytes1 0xCB) ] m;
+--   @m = Insert (Glyph "Edieresissmall") [ UTF82 (Bytes2All 0xF7 0xEB) ] m;
+--   @m = Insert (Glyph "Edot") [ UTF82 (Bytes2All 0x01 0x16) ] m;
+--   @m = Insert (Glyph "Edotaccent") [ UTF82 (Bytes2All 0x01 0x16) ] m;
+--   @m = Insert (Glyph "Edotbelow") [ UTF82 (Bytes2All 0x1E 0xB8) ] m;
+--   @m = Insert (Glyph "Efcyrillic") [ UTF82 (Bytes2All 0x04 0x24) ] m;
+--   @m = Insert (Glyph "Egrave") [ UTF81 (Bytes1 0xC8) ] m;
+--   @m = Insert (Glyph "Egravesmall") [ UTF82 (Bytes2All 0xF7 0xE8) ] m;
+--   @m = Insert (Glyph "Eharmenian") [ UTF82 (Bytes2All 0x05 0x37) ] m;
+--   @m = Insert (Glyph "Ehookabove") [ UTF82 (Bytes2All 0x1E 0xBA) ] m;
+--   @m = Insert (Glyph "Eightroman") [ UTF82 (Bytes2All 0x21 0x67) ] m;
+--   @m = Insert (Glyph "Einvertedbreve") [ UTF82 (Bytes2All 0x02 0x06) ] m;
+--   @m = Insert (Glyph "Eiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x64) ] m;
+--   @m = Insert (Glyph "Elcyrillic") [ UTF82 (Bytes2All 0x04 0x1B) ] m;
+--   @m = Insert (Glyph "Elevenroman") [ UTF82 (Bytes2All 0x21 0x6A) ] m;
+--   @m = Insert (Glyph "Emacron") [ UTF82 (Bytes2All 0x01 0x12) ] m;
+--   @m = Insert (Glyph "Emacronacute") [ UTF82 (Bytes2All 0x1E 0x16) ] m;
+--   @m = Insert (Glyph "Emacrongrave") [ UTF82 (Bytes2All 0x1E 0x14) ] m;
+--   @m = Insert (Glyph "Emcyrillic") [ UTF82 (Bytes2All 0x04 0x1C) ] m;
+--   @m = Insert (Glyph "Emonospace") [ UTF82 (Bytes2All 0xFF 0x25) ] m;
+--   @m = Insert (Glyph "Encyrillic") [ UTF82 (Bytes2All 0x04 0x1D) ] m;
+--   @m = Insert (Glyph "Endescendercyrillic") [ UTF82 (Bytes2All 0x04 0xA2) ] m;
+--   @m = Insert (Glyph "Eng") [ UTF82 (Bytes2All 0x01 0x4A) ] m;
+--   @m = Insert (Glyph "Enghecyrillic") [ UTF82 (Bytes2All 0x04 0xA4) ] m;
+--   @m = Insert (Glyph "Enhookcyrillic") [ UTF82 (Bytes2All 0x04 0xC7) ] m;
+--   @m = Insert (Glyph "Eogonek") [ UTF82 (Bytes2All 0x01 0x18) ] m;
+--   @m = Insert (Glyph "Eopen") [ UTF82 (Bytes2All 0x01 0x90) ] m;
+--   @m = Insert (Glyph "Epsilon") [ UTF82 (Bytes2All 0x03 0x95) ] m;
+--   @m = Insert (Glyph "Epsilontonos") [ UTF82 (Bytes2All 0x03 0x88) ] m;
+--   @m = Insert (Glyph "Ercyrillic") [ UTF82 (Bytes2All 0x04 0x20) ] m;
+--   @m = Insert (Glyph "Ereversed") [ UTF82 (Bytes2All 0x01 0x8E) ] m;
+--   @m = Insert (Glyph "Ereversedcyrillic") [ UTF82 (Bytes2All 0x04 0x2D) ] m;
+--   @m = Insert (Glyph "Escyrillic") [ UTF82 (Bytes2All 0x04 0x21) ] m;
+--   @m = Insert (Glyph "Esdescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAA) ] m;
+--   @m = Insert (Glyph "Esh") [ UTF82 (Bytes2All 0x01 0xA9) ] m;
+--   @m = Insert (Glyph "Esmall") [ UTF82 (Bytes2All 0xF7 0x65) ] m;
+--   @m = Insert (Glyph "Eta") [ UTF82 (Bytes2All 0x03 0x97) ] m;
+--   @m = Insert (Glyph "Etarmenian") [ UTF82 (Bytes2All 0x05 0x38) ] m;
+--   @m = Insert (Glyph "Etatonos") [ UTF82 (Bytes2All 0x03 0x89) ] m;
+--   @m = Insert (Glyph "Eth") [ UTF81 (Bytes1 0xD0) ] m;
+--   @m = Insert (Glyph "Ethsmall") [ UTF82 (Bytes2All 0xF7 0xF0) ] m;
+--   @m = Insert (Glyph "Etilde") [ UTF82 (Bytes2All 0x1E 0xBC) ] m;
+--   @m = Insert (Glyph "Etildebelow") [ UTF82 (Bytes2All 0x1E 0x1A) ] m;
+--   @m = Insert (Glyph "Euro") [ UTF82 (Bytes2All 0x20 0xAC) ] m;
+--   @m = Insert (Glyph "Ezh") [ UTF82 (Bytes2All 0x01 0xB7) ] m;
+--   @m = Insert (Glyph "Ezhcaron") [ UTF82 (Bytes2All 0x01 0xEE) ] m;
+--   @m = Insert (Glyph "Ezhreversed") [ UTF82 (Bytes2All 0x01 0xB8) ] m;
+--   m
+-- }
+
+-- def GlyphEncF = {
+--   @m = empty;
+--   @m = Insert (Glyph "F") [ UTF81 (Bytes1 0x46) ] m;
+--   @m = Insert (Glyph "Fcircle") [ UTF82 (Bytes2All 0x24 0xBB) ] m;
+--   @m = Insert (Glyph "Fdotaccent") [ UTF82 (Bytes2All 0x1E 0x1E) ] m;
+--   @m = Insert (Glyph "Feharmenian") [ UTF82 (Bytes2All 0x05 0x56) ] m;
+--   @m = Insert (Glyph "Feicoptic") [ UTF82 (Bytes2All 0x03 0xE4) ] m;
+--   @m = Insert (Glyph "Fhook") [ UTF82 (Bytes2All 0x01 0x91) ] m;
+--   @m = Insert (Glyph "Fitacyrillic") [ UTF82 (Bytes2All 0x04 0x72) ] m;
+--   @m = Insert (Glyph "Fiveroman") [ UTF82 (Bytes2All 0x21 0x64) ] m;
+--   @m = Insert (Glyph "Fmonospace") [ UTF82 (Bytes2All 0xFF 0x26) ] m;
+--   @m = Insert (Glyph "Fourroman") [ UTF82 (Bytes2All 0x21 0x63) ] m;
+--   @m = Insert (Glyph "Fsmall") [ UTF82 (Bytes2All 0xF7 0x66) ] m;
+--   m
+-- }
+
+-- def GlyphEncG = {
+--   @m = empty;
+--   @m = Insert (Glyph "G") [ UTF81 (Bytes1 0x47) ] m;
+--   @m = Insert (Glyph "GBsquare") [ UTF82 (Bytes2All 0x33 0x87) ] m;
+--   @m = Insert (Glyph "Gacute") [ UTF82 (Bytes2All 0x01 0xF4) ] m;
+--   @m = Insert (Glyph "Gamma") [ UTF82 (Bytes2All 0x03 0x93) ] m;
+--   @m = Insert (Glyph "Gammaafrican") [ UTF82 (Bytes2All 0x01 0x94) ] m;
+--   @m = Insert (Glyph "Gangiacoptic") [ UTF82 (Bytes2All 0x03 0xEA) ] m;
+--   @m = Insert (Glyph "Gbreve") [ UTF82 (Bytes2All 0x01 0x1E) ] m;
+--   @m = Insert (Glyph "Gcaron") [ UTF82 (Bytes2All 0x01 0xE6) ] m;
+--   @m = Insert (Glyph "Gcedilla") [ UTF82 (Bytes2All 0x01 0x22) ] m;
+--   @m = Insert (Glyph "Gcircle") [ UTF82 (Bytes2All 0x24 0xBC) ] m;
+--   @m = Insert (Glyph "Gcircumflex") [ UTF82 (Bytes2All 0x01 0x1C) ] m;
+--   @m = Insert (Glyph "Gcommaaccent") [ UTF82 (Bytes2All 0x01 0x22) ] m;
+--   @m = Insert (Glyph "Gdot") [ UTF82 (Bytes2All 0x01 0x20) ] m;
+--   @m = Insert (Glyph "Gdotaccent") [ UTF82 (Bytes2All 0x01 0x20) ] m;
+--   @m = Insert (Glyph "Gecyrillic") [ UTF82 (Bytes2All 0x04 0x13) ] m;
+--   @m = Insert (Glyph "Ghadarmenian") [ UTF82 (Bytes2All 0x05 0x42) ] m;
+--   @m = Insert (Glyph "Ghemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0x94) ] m;
+--   @m = Insert (Glyph "Ghestrokecyrillic") [ UTF82 (Bytes2All 0x04 0x92) ] m;
+--   @m = Insert (Glyph "Gheupturncyrillic") [ UTF82 (Bytes2All 0x04 0x90) ] m;
+--   @m = Insert (Glyph "Ghook") [ UTF82 (Bytes2All 0x01 0x93) ] m;
+--   @m = Insert (Glyph "Gimarmenian") [ UTF82 (Bytes2All 0x05 0x33) ] m;
+--   @m = Insert (Glyph "Gjecyrillic") [ UTF82 (Bytes2All 0x04 0x03) ] m;
+--   @m = Insert (Glyph "Gmacron") [ UTF82 (Bytes2All 0x1E 0x20) ] m;
+--   @m = Insert (Glyph "Gmonospace") [ UTF82 (Bytes2All 0xFF 0x27) ] m;
+--   @m = Insert (Glyph "Grave") [ UTF82 (Bytes2All 0xF6 0xCE) ] m;
+--   @m = Insert (Glyph "Gravesmall") [ UTF82 (Bytes2All 0xF7 0x60) ] m;
+--   @m = Insert (Glyph "Gsmall") [ UTF82 (Bytes2All 0xF7 0x67) ] m;
+--   @m = Insert (Glyph "Gsmallhook") [ UTF82 (Bytes2All 0x02 0x9B) ] m;
+--   @m = Insert (Glyph "Gstroke") [ UTF82 (Bytes2All 0x01 0xE4) ] m;
+--   m
+-- }
+
+-- def GlyphEncH = {
+--   @m = empty;
+--   @m = Insert (Glyph "H") [ UTF81 (Bytes1 0x48) ] m;
+--   @m = Insert (Glyph "H18533") [ UTF82 (Bytes2All 0x25 0xCF) ] m;
+--   @m = Insert (Glyph "H18543") [ UTF82 (Bytes2All 0x25 0xAA) ] m;
+--   @m = Insert (Glyph "H18551") [ UTF82 (Bytes2All 0x25 0xAB) ] m;
+--   @m = Insert (Glyph "H22073") [ UTF82 (Bytes2All 0x25 0xA1) ] m;
+--   @m = Insert (Glyph "HPsquare") [ UTF82 (Bytes2All 0x33 0xCB) ] m;
+--   @m = Insert (Glyph "Haabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xA8) ] m;
+--   @m = Insert (Glyph "Hadescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB2) ] m;
+--   @m = Insert (Glyph "Hardsigncyrillic") [ UTF82 (Bytes2All 0x04 0x2A) ] m;
+--   @m = Insert (Glyph "Hbar") [ UTF82 (Bytes2All 0x01 0x26) ] m;
+--   @m = Insert (Glyph "Hbrevebelow") [ UTF82 (Bytes2All 0x1E 0x2A) ] m;
+--   @m = Insert (Glyph "Hcedilla") [ UTF82 (Bytes2All 0x1E 0x28) ] m;
+--   @m = Insert (Glyph "Hcircle") [ UTF82 (Bytes2All 0x24 0xBD) ] m;
+--   @m = Insert (Glyph "Hcircumflex") [ UTF82 (Bytes2All 0x01 0x24) ] m;
+--   @m = Insert (Glyph "Hdieresis") [ UTF82 (Bytes2All 0x1E 0x26) ] m;
+--   @m = Insert (Glyph "Hdotaccent") [ UTF82 (Bytes2All 0x1E 0x22) ] m;
+--   @m = Insert (Glyph "Hdotbelow") [ UTF82 (Bytes2All 0x1E 0x24) ] m;
+--   @m = Insert (Glyph "Hmonospace") [ UTF82 (Bytes2All 0xFF 0x28) ] m;
+--   @m = Insert (Glyph "Hoarmenian") [ UTF82 (Bytes2All 0x05 0x40) ] m;
+--   @m = Insert (Glyph "Horicoptic") [ UTF82 (Bytes2All 0x03 0xE8) ] m;
+--   @m = Insert (Glyph "Hsmall") [ UTF82 (Bytes2All 0xF7 0x68) ] m;
+--   @m = Insert (Glyph "Hungarumlaut") [ UTF82 (Bytes2All 0xF6 0xCF) ] m;
+--   @m = Insert (Glyph "Hungarumlautsmall") [ UTF82 (Bytes2All 0xF6 0xF8) ] m;
+--   @m = Insert (Glyph "Hzsquare") [ UTF82 (Bytes2All 0x33 0x90) ] m;
+--   m
+-- }
+
+-- def GlyphEncI = {
+--   @m = empty;
+--   @m = Insert (Glyph "I") [ UTF81 (Bytes1 0x49) ] m;
+--   @m = Insert (Glyph "IAcyrillic") [ UTF82 (Bytes2All 0x04 0x2F) ] m;
+--   @m = Insert (Glyph "IJ") [ UTF82 (Bytes2All 0x01 0x32) ] m;
+--   @m = Insert (Glyph "IUcyrillic") [ UTF82 (Bytes2All 0x04 0x2E) ] m;
+--   @m = Insert (Glyph "Iacute") [ UTF81 (Bytes1 0xCD) ] m;
+--   @m = Insert (Glyph "Iacutesmall") [ UTF82 (Bytes2All 0xF7 0xED) ] m;
+--   @m = Insert (Glyph "Ibreve") [ UTF82 (Bytes2All 0x01 0x2C) ] m;
+--   @m = Insert (Glyph "Icaron") [ UTF82 (Bytes2All 0x01 0xCF) ] m;
+--   @m = Insert (Glyph "Icircle") [ UTF82 (Bytes2All 0x24 0xBE) ] m;
+--   @m = Insert (Glyph "Icircumflex") [ UTF81 (Bytes1 0xCE) ] m;
+--   @m = Insert (Glyph "Icircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xEE) ] m;
+--   @m = Insert (Glyph "Icyrillic") [ UTF82 (Bytes2All 0x04 0x06) ] m;
+--   @m = Insert (Glyph "Idblgrave") [ UTF82 (Bytes2All 0x02 0x08) ] m;
+--   @m = Insert (Glyph "Idieresis") [ UTF81 (Bytes1 0xCF) ] m;
+--   @m = Insert (Glyph "Idieresisacute") [ UTF82 (Bytes2All 0x1E 0x2E) ] m;
+--   @m = Insert (Glyph "Idieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE4) ] m;
+--   @m = Insert (Glyph "Idieresissmall") [ UTF82 (Bytes2All 0xF7 0xEF) ] m;
+--   @m = Insert (Glyph "Idot") [ UTF82 (Bytes2All 0x01 0x30) ] m;
+--   @m = Insert (Glyph "Idotaccent") [ UTF82 (Bytes2All 0x01 0x30) ] m;
+--   @m = Insert (Glyph "Idotbelow") [ UTF82 (Bytes2All 0x1E 0xCA) ] m;
+--   @m = Insert (Glyph "Iebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD6) ] m;
+--   @m = Insert (Glyph "Iecyrillic") [ UTF82 (Bytes2All 0x04 0x15) ] m;
+--   @m = Insert (Glyph "Ifraktur") [ UTF82 (Bytes2All 0x21 0x11) ] m;
+--   @m = Insert (Glyph "Igrave") [ UTF81 (Bytes1 0xCC) ] m;
+--   @m = Insert (Glyph "Igravesmall") [ UTF82 (Bytes2All 0xF7 0xEC) ] m;
+--   @m = Insert (Glyph "Ihookabove") [ UTF82 (Bytes2All 0x1E 0xC8) ] m;
+--   @m = Insert (Glyph "Iicyrillic") [ UTF82 (Bytes2All 0x04 0x18) ] m;
+--   @m = Insert (Glyph "Iinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0A) ] m;
+--   @m = Insert (Glyph "Iishortcyrillic") [ UTF82 (Bytes2All 0x04 0x19) ] m;
+--   @m = Insert (Glyph "Imacron") [ UTF82 (Bytes2All 0x01 0x2A) ] m;
+--   @m = Insert (Glyph "Imacroncyrillic") [ UTF82 (Bytes2All 0x04 0xE2) ] m;
+--   @m = Insert (Glyph "Imonospace") [ UTF82 (Bytes2All 0xFF 0x29) ] m;
+--   @m = Insert (Glyph "Iniarmenian") [ UTF82 (Bytes2All 0x05 0x3B) ] m;
+--   @m = Insert (Glyph "Iocyrillic") [ UTF82 (Bytes2All 0x04 0x01) ] m;
+--   @m = Insert (Glyph "Iogonek") [ UTF82 (Bytes2All 0x01 0x2E) ] m;
+--   @m = Insert (Glyph "Iota") [ UTF82 (Bytes2All 0x03 0x99) ] m;
+--   @m = Insert (Glyph "Iotaafrican") [ UTF82 (Bytes2All 0x01 0x96) ] m;
+--   @m = Insert (Glyph "Iotadieresis") [ UTF82 (Bytes2All 0x03 0xAA) ] m;
+--   @m = Insert (Glyph "Iotatonos") [ UTF82 (Bytes2All 0x03 0x8A) ] m;
+--   @m = Insert (Glyph "Ismall") [ UTF82 (Bytes2All 0xF7 0x69) ] m;
+--   @m = Insert (Glyph "Istroke") [ UTF82 (Bytes2All 0x01 0x97) ] m;
+--   @m = Insert (Glyph "Itilde") [ UTF82 (Bytes2All 0x01 0x28) ] m;
+--   @m = Insert (Glyph "Itildebelow") [ UTF82 (Bytes2All 0x1E 0x2C) ] m;
+--   @m = Insert (Glyph "Izhitsacyrillic") [ UTF82 (Bytes2All 0x04 0x74) ] m;
+--   @m = Insert (Glyph "Izhitsadblgravecyrillic") [ UTF82 (Bytes2All 0x04 0x76) ] m;
+--   m
+-- }
+
+-- def GlyphEncJ = {
+--   @m = empty;
+--   @m = Insert (Glyph "J") [ UTF81 (Bytes1 0x4A) ] m;
+--   @m = Insert (Glyph "Jaarmenian") [ UTF82 (Bytes2All 0x05 0x41) ] m;
+--   @m = Insert (Glyph "Jcircle") [ UTF82 (Bytes2All 0x24 0xBF) ] m;
+--   @m = Insert (Glyph "Jcircumflex") [ UTF82 (Bytes2All 0x01 0x34) ] m;
+--   @m = Insert (Glyph "Jecyrillic") [ UTF82 (Bytes2All 0x04 0x08) ] m;
+--   @m = Insert (Glyph "Jheharmenian") [ UTF82 (Bytes2All 0x05 0x4B) ] m;
+--   @m = Insert (Glyph "Jmonospace") [ UTF82 (Bytes2All 0xFF 0x2A) ] m;
+--   @m = Insert (Glyph "Jsmall") [ UTF82 (Bytes2All 0xF7 0x6A) ] m;
+--   m
+-- }
+
+-- def GlyphEncK = {
+--   @m = empty;
+--   @m = Insert (Glyph "K") [ UTF81 (Bytes1 0x4B) ] m;
+--   @m = Insert (Glyph "KBsquare") [ UTF82 (Bytes2All 0x33 0x85) ] m;
+--   @m = Insert (Glyph "KKsquare") [ UTF82 (Bytes2All 0x33 0xCD) ] m;
+--   @m = Insert (Glyph "Kabashkircyrillic") [ UTF82 (Bytes2All 0x04 0xA0) ] m;
+--   @m = Insert (Glyph "Kacute") [ UTF82 (Bytes2All 0x1E 0x30) ] m;
+--   @m = Insert (Glyph "Kacyrillic") [ UTF82 (Bytes2All 0x04 0x1A) ] m;
+--   @m = Insert (Glyph "Kadescendercyrillic") [ UTF82 (Bytes2All 0x04 0x9A) ] m;
+--   @m = Insert (Glyph "Kahookcyrillic") [ UTF82 (Bytes2All 0x04 0xC3) ] m;
+--   @m = Insert (Glyph "Kappa") [ UTF82 (Bytes2All 0x03 0x9A) ] m;
+--   @m = Insert (Glyph "Kastrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9E) ] m;
+--   @m = Insert (Glyph "Kaverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9C) ] m;
+--   @m = Insert (Glyph "Kcaron") [ UTF82 (Bytes2All 0x01 0xE8) ] m;
+--   @m = Insert (Glyph "Kcedilla") [ UTF82 (Bytes2All 0x01 0x36) ] m;
+--   @m = Insert (Glyph "Kcircle") [ UTF82 (Bytes2All 0x24 0xC0) ] m;
+--   @m = Insert (Glyph "Kcommaaccent") [ UTF82 (Bytes2All 0x01 0x36) ] m;
+--   @m = Insert (Glyph "Kdotbelow") [ UTF82 (Bytes2All 0x1E 0x32) ] m;
+--   @m = Insert (Glyph "Keharmenian") [ UTF82 (Bytes2All 0x05 0x54) ] m;
+--   @m = Insert (Glyph "Kenarmenian") [ UTF82 (Bytes2All 0x05 0x3F) ] m;
+--   @m = Insert (Glyph "Khacyrillic") [ UTF82 (Bytes2All 0x04 0x25) ] m;
+--   @m = Insert (Glyph "Kheicoptic") [ UTF82 (Bytes2All 0x03 0xE6) ] m;
+--   @m = Insert (Glyph "Khook") [ UTF82 (Bytes2All 0x01 0x98) ] m;
+--   @m = Insert (Glyph "Kjecyrillic") [ UTF82 (Bytes2All 0x04 0x0C) ] m;
+--   @m = Insert (Glyph "Klinebelow") [ UTF82 (Bytes2All 0x1E 0x34) ] m;
+--   @m = Insert (Glyph "Kmonospace") [ UTF82 (Bytes2All 0xFF 0x2B) ] m;
+--   @m = Insert (Glyph "Koppacyrillic") [ UTF82 (Bytes2All 0x04 0x80) ] m;
+--   @m = Insert (Glyph "Koppagreek") [ UTF82 (Bytes2All 0x03 0xDE) ] m;
+--   @m = Insert (Glyph "Ksicyrillic") [ UTF82 (Bytes2All 0x04 0x6E) ] m;
+--   @m = Insert (Glyph "Ksmall") [ UTF82 (Bytes2All 0xF7 0x6B) ] m;
+--   m
+-- }
+
+-- def GlyphEncL = {
+--   @m = empty;
+--   @m = Insert (Glyph "L") [ UTF81 (Bytes1 0x4C) ] m;
+--   @m = Insert (Glyph "LJ") [ UTF82 (Bytes2All 0x01 0xC7) ] m;
+--   @m = Insert (Glyph "LL") [ UTF82 (Bytes2All 0xF6 0xBF) ] m;
+--   @m = Insert (Glyph "Lacute") [ UTF82 (Bytes2All 0x01 0x39) ] m;
+--   @m = Insert (Glyph "Lambda") [ UTF82 (Bytes2All 0x03 0x9B) ] m;
+--   @m = Insert (Glyph "Lcaron") [ UTF82 (Bytes2All 0x01 0x3D) ] m;
+--   @m = Insert (Glyph "Lcedilla") [ UTF82 (Bytes2All 0x01 0x3B) ] m;
+--   @m = Insert (Glyph "Lcircle") [ UTF82 (Bytes2All 0x24 0xC1) ] m;
+--   @m = Insert (Glyph "Lcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x3C) ] m;
+--   @m = Insert (Glyph "Lcommaaccent") [ UTF82 (Bytes2All 0x01 0x3B) ] m;
+--   @m = Insert (Glyph "Ldot") [ UTF82 (Bytes2All 0x01 0x3F) ] m;
+--   @m = Insert (Glyph "Ldotaccent") [ UTF82 (Bytes2All 0x01 0x3F) ] m;
+--   @m = Insert (Glyph "Ldotbelow") [ UTF82 (Bytes2All 0x1E 0x36) ] m;
+--   @m = Insert (Glyph "Ldotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x38) ] m;
+--   @m = Insert (Glyph "Liwnarmenian") [ UTF82 (Bytes2All 0x05 0x3C) ] m;
+--   @m = Insert (Glyph "Lj") [ UTF82 (Bytes2All 0x01 0xC8) ] m;
+--   @m = Insert (Glyph "Ljecyrillic") [ UTF82 (Bytes2All 0x04 0x09) ] m;
+--   @m = Insert (Glyph "Llinebelow") [ UTF82 (Bytes2All 0x1E 0x3A) ] m;
+--   @m = Insert (Glyph "Lmonospace") [ UTF82 (Bytes2All 0xFF 0x2C) ] m;
+--   @m = Insert (Glyph "Lslash") [ UTF82 (Bytes2All 0x01 0x41) ] m;
+--   @m = Insert (Glyph "Lslashsmall") [ UTF82 (Bytes2All 0xF6 0xF9) ] m;
+--   @m = Insert (Glyph "Lsmall") [ UTF82 (Bytes2All 0xF7 0x6C) ] m;
+--   m
+-- }
+
+-- def GlyphEncM = {
+--   @m = empty;
+--   @m = Insert (Glyph "M") [ UTF81 (Bytes1 0x4D) ] m;
+--   @m = Insert (Glyph "MBsquare") [ UTF82 (Bytes2All 0x33 0x86) ] m;
+--   @m = Insert (Glyph "Macron") [ UTF82 (Bytes2All 0xF6 0xD0) ] m;
+--   @m = Insert (Glyph "Macronsmall") [ UTF82 (Bytes2All 0xF7 0xAF) ] m;
+--   @m = Insert (Glyph "Macute") [ UTF82 (Bytes2All 0x1E 0x3E) ] m;
+--   @m = Insert (Glyph "Mcircle") [ UTF82 (Bytes2All 0x24 0xC2) ] m;
+--   @m = Insert (Glyph "Mdotaccent") [ UTF82 (Bytes2All 0x1E 0x40) ] m;
+--   @m = Insert (Glyph "Mdotbelow") [ UTF82 (Bytes2All 0x1E 0x42) ] m;
+--   @m = Insert (Glyph "Menarmenian") [ UTF82 (Bytes2All 0x05 0x44) ] m;
+--   @m = Insert (Glyph "Mmonospace") [ UTF82 (Bytes2All 0xFF 0x2D) ] m;
+--   @m = Insert (Glyph "Msmall") [ UTF82 (Bytes2All 0xF7 0x6D) ] m;
+--   @m = Insert (Glyph "Mturned") [ UTF82 (Bytes2All 0x01 0x9C) ] m;
+--   @m = Insert (Glyph "Mu") [ UTF82 (Bytes2All 0x03 0x9C) ] m;
+--   m
+-- }
+
+-- def GlyphEncN = {
+--   @m = empty;
+--   @m = Insert (Glyph "N") [ UTF81 (Bytes1 0x4E) ] m;
+--   @m = Insert (Glyph "NJ") [ UTF82 (Bytes2All 0x01 0xCA) ] m;
+--   @m = Insert (Glyph "Nacute") [ UTF82 (Bytes2All 0x01 0x43) ] m;
+--   @m = Insert (Glyph "Ncaron") [ UTF82 (Bytes2All 0x01 0x47) ] m;
+--   @m = Insert (Glyph "Ncedilla") [ UTF82 (Bytes2All 0x01 0x45) ] m;
+--   @m = Insert (Glyph "Ncircle") [ UTF82 (Bytes2All 0x24 0xC3) ] m;
+--   @m = Insert (Glyph "Ncircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x4A) ] m;
+--   @m = Insert (Glyph "Ncommaaccent") [ UTF82 (Bytes2All 0x01 0x45) ] m;
+--   @m = Insert (Glyph "Ndotaccent") [ UTF82 (Bytes2All 0x1E 0x44) ] m;
+--   @m = Insert (Glyph "Ndotbelow") [ UTF82 (Bytes2All 0x1E 0x46) ] m;
+--   @m = Insert (Glyph "Nhookleft") [ UTF82 (Bytes2All 0x01 0x9D) ] m;
+--   @m = Insert (Glyph "Nineroman") [ UTF82 (Bytes2All 0x21 0x68) ] m;
+--   @m = Insert (Glyph "Nj") [ UTF82 (Bytes2All 0x01 0xCB) ] m;
+--   @m = Insert (Glyph "Njecyrillic") [ UTF82 (Bytes2All 0x04 0x0A) ] m;
+--   @m = Insert (Glyph "Nlinebelow") [ UTF82 (Bytes2All 0x1E 0x48) ] m;
+--   @m = Insert (Glyph "Nmonospace") [ UTF82 (Bytes2All 0xFF 0x2E) ] m;
+--   @m = Insert (Glyph "Nowarmenian") [ UTF82 (Bytes2All 0x05 0x46) ] m;
+--   @m = Insert (Glyph "Nsmall") [ UTF82 (Bytes2All 0xF7 0x6E) ] m;
+--   @m = Insert (Glyph "Ntilde") [ UTF81 (Bytes1 0xD1) ] m;
+--   @m = Insert (Glyph "Ntildesmall") [ UTF82 (Bytes2All 0xF7 0xF1) ] m;
+--   @m = Insert (Glyph "Nu") [ UTF82 (Bytes2All 0x03 0x9D) ] m;
+--   m
+-- }
+
+-- def GlyphEncO = {
+--   @m = empty;
+--   @m = Insert (Glyph "O") [ UTF81 (Bytes1 0x4F) ] m;
+--   @m = Insert (Glyph "OE") [ UTF82 (Bytes2All 0x01 0x52) ] m;
+--   @m = Insert (Glyph "OEsmall") [ UTF82 (Bytes2All 0xF6 0xFA) ] m;
+--   @m = Insert (Glyph "Oacute") [ UTF81 (Bytes1 0xD3) ] m;
+--   @m = Insert (Glyph "Oacutesmall") [ UTF82 (Bytes2All 0xF7 0xF3) ] m;
+--   @m = Insert (Glyph "Obarredcyrillic") [ UTF82 (Bytes2All 0x04 0xE8) ] m;
+--   @m = Insert (Glyph "Obarreddieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xEA) ] m;
+--   @m = Insert (Glyph "Obreve") [ UTF82 (Bytes2All 0x01 0x4E) ] m;
+--   @m = Insert (Glyph "Ocaron") [ UTF82 (Bytes2All 0x01 0xD1) ] m;
+--   @m = Insert (Glyph "Ocenteredtilde") [ UTF82 (Bytes2All 0x01 0x9F) ] m;
+--   @m = Insert (Glyph "Ocircle") [ UTF82 (Bytes2All 0x24 0xC4) ] m;
+--   @m = Insert (Glyph "Ocircumflex") [ UTF81 (Bytes1 0xD4) ] m;
+--   @m = Insert (Glyph "Ocircumflexacute") [ UTF82 (Bytes2All 0x1E 0xD0) ] m;
+--   @m = Insert (Glyph "Ocircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xD8) ] m;
+--   @m = Insert (Glyph "Ocircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xD2) ] m;
+--   @m = Insert (Glyph "Ocircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xD4) ] m;
+--   @m = Insert (Glyph "Ocircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xF4) ] m;
+--   @m = Insert (Glyph "Ocircumflextilde") [ UTF82 (Bytes2All 0x1E 0xD6) ] m;
+--   @m = Insert (Glyph "Ocyrillic") [ UTF82 (Bytes2All 0x04 0x1E) ] m;
+--   @m = Insert (Glyph "Odblacute") [ UTF82 (Bytes2All 0x01 0x50) ] m;
+--   @m = Insert (Glyph "Odblgrave") [ UTF82 (Bytes2All 0x02 0x0C) ] m;
+--   @m = Insert (Glyph "Odieresis") [ UTF81 (Bytes1 0xD6) ] m;
+--   @m = Insert (Glyph "Odieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE6) ] m;
+--   @m = Insert (Glyph "Odieresissmall") [ UTF82 (Bytes2All 0xF7 0xF6) ] m;
+--   @m = Insert (Glyph "Odotbelow") [ UTF82 (Bytes2All 0x1E 0xCC) ] m;
+--   @m = Insert (Glyph "Ogoneksmall") [ UTF82 (Bytes2All 0xF6 0xFB) ] m;
+--   @m = Insert (Glyph "Ograve") [ UTF81 (Bytes1 0xD2) ] m;
+--   @m = Insert (Glyph "Ogravesmall") [ UTF82 (Bytes2All 0xF7 0xF2) ] m;
+--   @m = Insert (Glyph "Oharmenian") [ UTF82 (Bytes2All 0x05 0x55) ] m;
+--   @m = Insert (Glyph "Ohm") [ UTF82 (Bytes2All 0x21 0x26) ] m;
+--   @m = Insert (Glyph "Ohookabove") [ UTF82 (Bytes2All 0x1E 0xCE) ] m;
+--   @m = Insert (Glyph "Ohorn") [ UTF82 (Bytes2All 0x01 0xA0) ] m;
+--   @m = Insert (Glyph "Ohornacute") [ UTF82 (Bytes2All 0x1E 0xDA) ] m;
+--   @m = Insert (Glyph "Ohorndotbelow") [ UTF82 (Bytes2All 0x1E 0xE2) ] m;
+--   @m = Insert (Glyph "Ohorngrave") [ UTF82 (Bytes2All 0x1E 0xDC) ] m;
+--   @m = Insert (Glyph "Ohornhookabove") [ UTF82 (Bytes2All 0x1E 0xDE) ] m;
+--   @m = Insert (Glyph "Ohorntilde") [ UTF82 (Bytes2All 0x1E 0xE0) ] m;
+--   @m = Insert (Glyph "Ohungarumlaut") [ UTF82 (Bytes2All 0x01 0x50) ] m;
+--   @m = Insert (Glyph "Oi") [ UTF82 (Bytes2All 0x01 0xA2) ] m;
+--   @m = Insert (Glyph "Oinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0E) ] m;
+--   @m = Insert (Glyph "Omacron") [ UTF82 (Bytes2All 0x01 0x4C) ] m;
+--   @m = Insert (Glyph "Omacronacute") [ UTF82 (Bytes2All 0x1E 0x52) ] m;
+--   @m = Insert (Glyph "Omacrongrave") [ UTF82 (Bytes2All 0x1E 0x50) ] m;
+--   @m = Insert (Glyph "Omega") [ UTF82 (Bytes2All 0x21 0x26) ] m;
+--   @m = Insert (Glyph "Omegacyrillic") [ UTF82 (Bytes2All 0x04 0x60) ] m;
+--   @m = Insert (Glyph "Omegagreek") [ UTF82 (Bytes2All 0x03 0xA9) ] m;
+--   @m = Insert (Glyph "Omegaroundcyrillic") [ UTF82 (Bytes2All 0x04 0x7A) ] m;
+--   @m = Insert (Glyph "Omegatitlocyrillic") [ UTF82 (Bytes2All 0x04 0x7C) ] m;
+--   @m = Insert (Glyph "Omegatonos") [ UTF82 (Bytes2All 0x03 0x8F) ] m;
+--   @m = Insert (Glyph "Omicron") [ UTF82 (Bytes2All 0x03 0x9F) ] m;
+--   @m = Insert (Glyph "Omicrontonos") [ UTF82 (Bytes2All 0x03 0x8C) ] m;
+--   @m = Insert (Glyph "Omonospace") [ UTF82 (Bytes2All 0xFF 0x2F) ] m;
+--   @m = Insert (Glyph "Oneroman") [ UTF82 (Bytes2All 0x21 0x60) ] m;
+--   @m = Insert (Glyph "Oogonek") [ UTF82 (Bytes2All 0x01 0xEA) ] m;
+--   @m = Insert (Glyph "Oogonekmacron") [ UTF82 (Bytes2All 0x01 0xEC) ] m;
+--   @m = Insert (Glyph "Oopen") [ UTF82 (Bytes2All 0x01 0x86) ] m;
+--   @m = Insert (Glyph "Oslash") [ UTF81 (Bytes1 0xD8) ] m;
+--   @m = Insert (Glyph "Oslashacute") [ UTF82 (Bytes2All 0x01 0xFE) ] m;
+--   @m = Insert (Glyph "Oslashsmall") [ UTF82 (Bytes2All 0xF7 0xF8) ] m;
+--   @m = Insert (Glyph "Osmall") [ UTF82 (Bytes2All 0xF7 0x6F) ] m;
+--   @m = Insert (Glyph "Ostrokeacute") [ UTF82 (Bytes2All 0x01 0xFE) ] m;
+--   @m = Insert (Glyph "Otcyrillic") [ UTF82 (Bytes2All 0x04 0x7E) ] m;
+--   @m = Insert (Glyph "Otilde") [ UTF81 (Bytes1 0xD5) ] m;
+--   @m = Insert (Glyph "Otildeacute") [ UTF82 (Bytes2All 0x1E 0x4C) ] m;
+--   @m = Insert (Glyph "Otildedieresis") [ UTF82 (Bytes2All 0x1E 0x4E) ] m;
+--   @m = Insert (Glyph "Otildesmall") [ UTF82 (Bytes2All 0xF7 0xF5) ] m;
+--   m
+-- }
+
+-- def GlyphEncP = {
+--   @m = empty;
+--   @m = Insert (Glyph "P") [ UTF81 (Bytes1 0x50) ] m;
+--   @m = Insert (Glyph "Pacute") [ UTF82 (Bytes2All 0x1E 0x54) ] m;
+--   @m = Insert (Glyph "Pcircle") [ UTF82 (Bytes2All 0x24 0xC5) ] m;
+--   @m = Insert (Glyph "Pdotaccent") [ UTF82 (Bytes2All 0x1E 0x56) ] m;
+--   @m = Insert (Glyph "Pecyrillic") [ UTF82 (Bytes2All 0x04 0x1F) ] m;
+--   @m = Insert (Glyph "Peharmenian") [ UTF82 (Bytes2All 0x05 0x4A) ] m;
+--   @m = Insert (Glyph "Pemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0xA6) ] m;
+--   @m = Insert (Glyph "Phi") [ UTF82 (Bytes2All 0x03 0xA6) ] m;
+--   @m = Insert (Glyph "Phook") [ UTF82 (Bytes2All 0x01 0xA4) ] m;
+--   @m = Insert (Glyph "Pi") [ UTF82 (Bytes2All 0x03 0xA0) ] m;
+--   @m = Insert (Glyph "Piwrarmenian") [ UTF82 (Bytes2All 0x05 0x53) ] m;
+--   @m = Insert (Glyph "Pmonospace") [ UTF82 (Bytes2All 0xFF 0x30) ] m;
+--   @m = Insert (Glyph "Psi") [ UTF82 (Bytes2All 0x03 0xA8) ] m;
+--   @m = Insert (Glyph "Psicyrillic") [ UTF82 (Bytes2All 0x04 0x70) ] m;
+--   @m = Insert (Glyph "Psmall") [ UTF82 (Bytes2All 0xF7 0x70) ] m;
+--   m
+-- }
+
+-- def GlyphEncQ = {
+--   @m = empty;
+--   @m = Insert (Glyph "Q") [ UTF81 (Bytes1 0x51) ] m;
+--   @m = Insert (Glyph "Qcircle") [ UTF82 (Bytes2All 0x24 0xC6) ] m;
+--   @m = Insert (Glyph "Qmonospace") [ UTF82 (Bytes2All 0xFF 0x31) ] m;
+--   @m = Insert (Glyph "Qsmall") [ UTF82 (Bytes2All 0xF7 0x71) ] m;
+--   m
+-- }
+
+-- def GlyphEncR = {
+--   @m = empty;
+--   @m = Insert (Glyph "R") [ UTF81 (Bytes1 0x52) ] m;
+--   @m = Insert (Glyph "Raarmenian") [ UTF82 (Bytes2All 0x05 0x4C) ] m;
+--   @m = Insert (Glyph "Racute") [ UTF82 (Bytes2All 0x01 0x54) ] m;
+--   @m = Insert (Glyph "Rcaron") [ UTF82 (Bytes2All 0x01 0x58) ] m;
+--   @m = Insert (Glyph "Rcedilla") [ UTF82 (Bytes2All 0x01 0x56) ] m;
+--   @m = Insert (Glyph "Rcircle") [ UTF82 (Bytes2All 0x24 0xC7) ] m;
+--   @m = Insert (Glyph "Rcommaaccent") [ UTF82 (Bytes2All 0x01 0x56) ] m;
+--   @m = Insert (Glyph "Rdblgrave") [ UTF82 (Bytes2All 0x02 0x10) ] m;
+--   @m = Insert (Glyph "Rdotaccent") [ UTF82 (Bytes2All 0x1E 0x58) ] m;
+--   @m = Insert (Glyph "Rdotbelow") [ UTF82 (Bytes2All 0x1E 0x5A) ] m;
+--   @m = Insert (Glyph "Rdotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x5C) ] m;
+--   @m = Insert (Glyph "Reharmenian") [ UTF82 (Bytes2All 0x05 0x50) ] m;
+--   @m = Insert (Glyph "Rfraktur") [ UTF82 (Bytes2All 0x21 0x1C) ] m;
+--   @m = Insert (Glyph "Rho") [ UTF82 (Bytes2All 0x03 0xA1) ] m;
+--   @m = Insert (Glyph "Ringsmall") [ UTF82 (Bytes2All 0xF6 0xFC) ] m;
+--   @m = Insert (Glyph "Rinvertedbreve") [ UTF82 (Bytes2All 0x02 0x12) ] m;
+--   @m = Insert (Glyph "Rlinebelow") [ UTF82 (Bytes2All 0x1E 0x5E) ] m;
+--   @m = Insert (Glyph "Rmonospace") [ UTF82 (Bytes2All 0xFF 0x32) ] m;
+--   @m = Insert (Glyph "Rsmall") [ UTF82 (Bytes2All 0xF7 0x72) ] m;
+--   @m = Insert (Glyph "Rsmallinverted") [ UTF82 (Bytes2All 0x02 0x81) ] m;
+--   @m = Insert (Glyph "Rsmallinvertedsuperior") [ UTF82 (Bytes2All 0x02 0xB6) ] m;
+--   m
+-- }
+
+-- def GlyphEncS = {
+--   @m = empty;
+--   @m = Insert (Glyph "S") [ UTF81 (Bytes1 0x53) ] m;
+--   @m = Insert (Glyph "SF010000") [ UTF82 (Bytes2All 0x25 0x0C) ] m;
+--   @m = Insert (Glyph "SF020000") [ UTF82 (Bytes2All 0x25 0x14) ] m;
+--   @m = Insert (Glyph "SF030000") [ UTF82 (Bytes2All 0x25 0x10) ] m;
+--   @m = Insert (Glyph "SF040000") [ UTF82 (Bytes2All 0x25 0x18) ] m;
+--   @m = Insert (Glyph "SF050000") [ UTF82 (Bytes2All 0x25 0x3C) ] m;
+--   @m = Insert (Glyph "SF060000") [ UTF82 (Bytes2All 0x25 0x2C) ] m;
+--   @m = Insert (Glyph "SF070000") [ UTF82 (Bytes2All 0x25 0x34) ] m;
+--   @m = Insert (Glyph "SF080000") [ UTF82 (Bytes2All 0x25 0x1C) ] m;
+--   @m = Insert (Glyph "SF090000") [ UTF82 (Bytes2All 0x25 0x24) ] m;
+--   @m = Insert (Glyph "SF100000") [ UTF82 (Bytes2All 0x25 0x00) ] m;
+--   @m = Insert (Glyph "SF110000") [ UTF82 (Bytes2All 0x25 0x02) ] m;
+--   @m = Insert (Glyph "SF190000") [ UTF82 (Bytes2All 0x25 0x61) ] m;
+--   @m = Insert (Glyph "SF200000") [ UTF82 (Bytes2All 0x25 0x62) ] m;
+--   @m = Insert (Glyph "SF210000") [ UTF82 (Bytes2All 0x25 0x56) ] m;
+--   @m = Insert (Glyph "SF220000") [ UTF82 (Bytes2All 0x25 0x55) ] m;
+--   @m = Insert (Glyph "SF230000") [ UTF82 (Bytes2All 0x25 0x63) ] m;
+--   @m = Insert (Glyph "SF240000") [ UTF82 (Bytes2All 0x25 0x51) ] m;
+--   @m = Insert (Glyph "SF250000") [ UTF82 (Bytes2All 0x25 0x57) ] m;
+--   @m = Insert (Glyph "SF260000") [ UTF82 (Bytes2All 0x25 0x5D) ] m;
+--   @m = Insert (Glyph "SF270000") [ UTF82 (Bytes2All 0x25 0x5C) ] m;
+--   @m = Insert (Glyph "SF280000") [ UTF82 (Bytes2All 0x25 0x5B) ] m;
+--   @m = Insert (Glyph "SF360000") [ UTF82 (Bytes2All 0x25 0x5E) ] m;
+--   @m = Insert (Glyph "SF370000") [ UTF82 (Bytes2All 0x25 0x5F) ] m;
+--   @m = Insert (Glyph "SF380000") [ UTF82 (Bytes2All 0x25 0x5A) ] m;
+--   @m = Insert (Glyph "SF390000") [ UTF82 (Bytes2All 0x25 0x54) ] m;
+--   @m = Insert (Glyph "SF400000") [ UTF82 (Bytes2All 0x25 0x69) ] m;
+--   @m = Insert (Glyph "SF410000") [ UTF82 (Bytes2All 0x25 0x66) ] m;
+--   @m = Insert (Glyph "SF420000") [ UTF82 (Bytes2All 0x25 0x60) ] m;
+--   @m = Insert (Glyph "SF430000") [ UTF82 (Bytes2All 0x25 0x50) ] m;
+--   @m = Insert (Glyph "SF440000") [ UTF82 (Bytes2All 0x25 0x6C) ] m;
+--   @m = Insert (Glyph "SF450000") [ UTF82 (Bytes2All 0x25 0x67) ] m;
+--   @m = Insert (Glyph "SF460000") [ UTF82 (Bytes2All 0x25 0x68) ] m;
+--   @m = Insert (Glyph "SF470000") [ UTF82 (Bytes2All 0x25 0x64) ] m;
+--   @m = Insert (Glyph "SF480000") [ UTF82 (Bytes2All 0x25 0x65) ] m;
+--   @m = Insert (Glyph "SF490000") [ UTF82 (Bytes2All 0x25 0x59) ] m;
+--   @m = Insert (Glyph "SF500000") [ UTF82 (Bytes2All 0x25 0x58) ] m;
+--   @m = Insert (Glyph "SF510000") [ UTF82 (Bytes2All 0x25 0x52) ] m;
+--   @m = Insert (Glyph "SF520000") [ UTF82 (Bytes2All 0x25 0x53) ] m;
+--   @m = Insert (Glyph "SF530000") [ UTF82 (Bytes2All 0x25 0x6B) ] m;
+--   @m = Insert (Glyph "SF540000") [ UTF82 (Bytes2All 0x25 0x6A) ] m;
+--   @m = Insert (Glyph "Sacute") [ UTF82 (Bytes2All 0x01 0x5A) ] m;
+--   @m = Insert (Glyph "Sacutedotaccent") [ UTF82 (Bytes2All 0x1E 0x64) ] m;
+--   @m = Insert (Glyph "Sampigreek") [ UTF82 (Bytes2All 0x03 0xE0) ] m;
+--   @m = Insert (Glyph "Scaron") [ UTF82 (Bytes2All 0x01 0x60) ] m;
+--   @m = Insert (Glyph "Scarondotaccent") [ UTF82 (Bytes2All 0x1E 0x66) ] m;
+--   @m = Insert (Glyph "Scaronsmall") [ UTF82 (Bytes2All 0xF6 0xFD) ] m;
+--   @m = Insert (Glyph "Scedilla") [ UTF82 (Bytes2All 0x01 0x5E) ] m;
+--   @m = Insert (Glyph "Schwa") [ UTF82 (Bytes2All 0x01 0x8F) ] m;
+--   @m = Insert (Glyph "Schwacyrillic") [ UTF82 (Bytes2All 0x04 0xD8) ] m;
+--   @m = Insert (Glyph "Schwadieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDA) ] m;
+--   @m = Insert (Glyph "Scircle") [ UTF82 (Bytes2All 0x24 0xC8) ] m;
+--   @m = Insert (Glyph "Scircumflex") [ UTF82 (Bytes2All 0x01 0x5C) ] m;
+--   @m = Insert (Glyph "Scommaaccent") [ UTF82 (Bytes2All 0x02 0x18) ] m;
+--   @m = Insert (Glyph "Sdotaccent") [ UTF82 (Bytes2All 0x1E 0x60) ] m;
+--   @m = Insert (Glyph "Sdotbelow") [ UTF82 (Bytes2All 0x1E 0x62) ] m;
+--   @m = Insert (Glyph "Sdotbelowdotaccent") [ UTF82 (Bytes2All 0x1E 0x68) ] m;
+--   @m = Insert (Glyph "Seharmenian") [ UTF82 (Bytes2All 0x05 0x4D) ] m;
+--   @m = Insert (Glyph "Sevenroman") [ UTF82 (Bytes2All 0x21 0x66) ] m;
+--   @m = Insert (Glyph "Shaarmenian") [ UTF82 (Bytes2All 0x05 0x47) ] m;
+--   @m = Insert (Glyph "Shacyrillic") [ UTF82 (Bytes2All 0x04 0x28) ] m;
+--   @m = Insert (Glyph "Shchacyrillic") [ UTF82 (Bytes2All 0x04 0x29) ] m;
+--   @m = Insert (Glyph "Sheicoptic") [ UTF82 (Bytes2All 0x03 0xE2) ] m;
+--   @m = Insert (Glyph "Shhacyrillic") [ UTF82 (Bytes2All 0x04 0xBA) ] m;
+--   @m = Insert (Glyph "Shimacoptic") [ UTF82 (Bytes2All 0x03 0xEC) ] m;
+--   @m = Insert (Glyph "Sigma") [ UTF82 (Bytes2All 0x03 0xA3) ] m;
+--   @m = Insert (Glyph "Sixroman") [ UTF82 (Bytes2All 0x21 0x65) ] m;
+--   @m = Insert (Glyph "Smonospace") [ UTF82 (Bytes2All 0xFF 0x33) ] m;
+--   @m = Insert (Glyph "Softsigncyrillic") [ UTF82 (Bytes2All 0x04 0x2C) ] m;
+--   @m = Insert (Glyph "Ssmall") [ UTF82 (Bytes2All 0xF7 0x73) ] m;
+--   @m = Insert (Glyph "Stigmagreek") [ UTF82 (Bytes2All 0x03 0xDA) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncT = {
+--   @m = empty;
+--   @m = Insert (Glyph "T") [ UTF81 (Bytes1 0x54) ] m;
+--   @m = Insert (Glyph "Tau") [ UTF82 (Bytes2All 0x03 0xA4) ] m;
+--   @m = Insert (Glyph "Tbar") [ UTF82 (Bytes2All 0x01 0x66) ] m;
+--   @m = Insert (Glyph "Tcaron") [ UTF82 (Bytes2All 0x01 0x64) ] m;
+--   @m = Insert (Glyph "Tcedilla") [ UTF82 (Bytes2All 0x01 0x62) ] m;
+--   @m = Insert (Glyph "Tcircle") [ UTF82 (Bytes2All 0x24 0xC9) ] m;
+--   @m = Insert (Glyph "Tcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x70) ] m;
+--   @m = Insert (Glyph "Tcommaaccent") [ UTF82 (Bytes2All 0x01 0x62) ] m;
+--   @m = Insert (Glyph "Tdotaccent") [ UTF82 (Bytes2All 0x1E 0x6A) ] m;
+--   @m = Insert (Glyph "Tdotbelow") [ UTF82 (Bytes2All 0x1E 0x6C) ] m;
+--   @m = Insert (Glyph "Tecyrillic") [ UTF82 (Bytes2All 0x04 0x22) ] m;
+--   @m = Insert (Glyph "Tedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAC) ] m;
+--   @m = Insert (Glyph "Tenroman") [ UTF82 (Bytes2All 0x21 0x69) ] m;
+--   @m = Insert (Glyph "Tetsecyrillic") [ UTF82 (Bytes2All 0x04 0xB4) ] m;
+--   @m = Insert (Glyph "Theta") [ UTF82 (Bytes2All 0x03 0x98) ] m;
+--   @m = Insert (Glyph "Thook") [ UTF82 (Bytes2All 0x01 0xAC) ] m;
+--   @m = Insert (Glyph "Thorn") [ UTF81 (Bytes1 0xDE) ] m;
+--   @m = Insert (Glyph "Thornsmall") [ UTF82 (Bytes2All 0xF7 0xFE) ] m;
+--   @m = Insert (Glyph "Threeroman") [ UTF82 (Bytes2All 0x21 0x62) ] m;
+--   @m = Insert (Glyph "Tildesmall") [ UTF82 (Bytes2All 0xF6 0xFE) ] m;
+--   @m = Insert (Glyph "Tiwnarmenian") [ UTF82 (Bytes2All 0x05 0x4F) ] m;
+--   @m = Insert (Glyph "Tlinebelow") [ UTF82 (Bytes2All 0x1E 0x6E) ] m;
+--   @m = Insert (Glyph "Tmonospace") [ UTF82 (Bytes2All 0xFF 0x34) ] m;
+--   @m = Insert (Glyph "Toarmenian") [ UTF82 (Bytes2All 0x05 0x39) ] m;
+--   @m = Insert (Glyph "Tonefive") [ UTF82 (Bytes2All 0x01 0xBC) ] m;
+--   @m = Insert (Glyph "Tonesix") [ UTF82 (Bytes2All 0x01 0x84) ] m;
+--   @m = Insert (Glyph "Tonetwo") [ UTF82 (Bytes2All 0x01 0xA7) ] m;
+--   @m = Insert (Glyph "Tretroflexhook") [ UTF82 (Bytes2All 0x01 0xAE) ] m;
+--   @m = Insert (Glyph "Tsecyrillic") [ UTF82 (Bytes2All 0x04 0x26) ] m;
+--   @m = Insert (Glyph "Tshecyrillic") [ UTF82 (Bytes2All 0x04 0x0B) ] m;
+--   @m = Insert (Glyph "Tsmall") [ UTF82 (Bytes2All 0xF7 0x74) ] m;
+--   @m = Insert (Glyph "Twelveroman") [ UTF82 (Bytes2All 0x21 0x6B) ] m;
+--   @m = Insert (Glyph "Tworoman") [ UTF82 (Bytes2All 0x21 0x61) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncU = {
+--   @m = empty;
+--   @m = Insert (Glyph "U") [ UTF81 (Bytes1 0x55) ] m;
+--   @m = Insert (Glyph "Uacute") [ UTF81 (Bytes1 0xDA) ] m;
+--   @m = Insert (Glyph "Uacutesmall") [ UTF82 (Bytes2All 0xF7 0xFA) ] m;
+--   @m = Insert (Glyph "Ubreve") [ UTF82 (Bytes2All 0x01 0x6C) ] m;
+--   @m = Insert (Glyph "Ucaron") [ UTF82 (Bytes2All 0x01 0xD3) ] m;
+--   @m = Insert (Glyph "Ucircle") [ UTF82 (Bytes2All 0x24 0xCA) ] m;
+--   @m = Insert (Glyph "Ucircumflex") [ UTF81 (Bytes1 0xDB) ] m;
+--   @m = Insert (Glyph "Ucircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x76) ] m;
+--   @m = Insert (Glyph "Ucircumflexsmall") [ UTF82 (Bytes2All 0xF7 0xFB) ] m;
+--   @m = Insert (Glyph "Ucyrillic") [ UTF82 (Bytes2All 0x04 0x23) ] m;
+--   @m = Insert (Glyph "Udblacute") [ UTF82 (Bytes2All 0x01 0x70) ] m;
+--   @m = Insert (Glyph "Udblgrave") [ UTF82 (Bytes2All 0x02 0x14) ] m;
+--   @m = Insert (Glyph "Udieresis") [ UTF81 (Bytes1 0xDC) ] m;
+--   @m = Insert (Glyph "Udieresisacute") [ UTF82 (Bytes2All 0x01 0xD7) ] m;
+--   @m = Insert (Glyph "Udieresisbelow") [ UTF82 (Bytes2All 0x1E 0x72) ] m;
+--   @m = Insert (Glyph "Udieresiscaron") [ UTF82 (Bytes2All 0x01 0xD9) ] m;
+--   @m = Insert (Glyph "Udieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF0) ] m;
+--   @m = Insert (Glyph "Udieresisgrave") [ UTF82 (Bytes2All 0x01 0xDB) ] m;
+--   @m = Insert (Glyph "Udieresismacron") [ UTF82 (Bytes2All 0x01 0xD5) ] m;
+--   @m = Insert (Glyph "Udieresissmall") [ UTF82 (Bytes2All 0xF7 0xFC) ] m;
+--   @m = Insert (Glyph "Udotbelow") [ UTF82 (Bytes2All 0x1E 0xE4) ] m;
+--   @m = Insert (Glyph "Ugrave") [ UTF81 (Bytes1 0xD9) ] m;
+--   @m = Insert (Glyph "Ugravesmall") [ UTF82 (Bytes2All 0xF7 0xF9) ] m;
+--   @m = Insert (Glyph "Uhookabove") [ UTF82 (Bytes2All 0x1E 0xE6) ] m;
+--   @m = Insert (Glyph "Uhorn") [ UTF82 (Bytes2All 0x01 0xAF) ] m;
+--   @m = Insert (Glyph "Uhornacute") [ UTF82 (Bytes2All 0x1E 0xE8) ] m;
+--   @m = Insert (Glyph "Uhorndotbelow") [ UTF82 (Bytes2All 0x1E 0xF0) ] m;
+--   @m = Insert (Glyph "Uhorngrave") [ UTF82 (Bytes2All 0x1E 0xEA) ] m;
+--   @m = Insert (Glyph "Uhornhookabove") [ UTF82 (Bytes2All 0x1E 0xEC) ] m;
+--   @m = Insert (Glyph "Uhorntilde") [ UTF82 (Bytes2All 0x1E 0xEE) ] m;
+--   @m = Insert (Glyph "Uhungarumlaut") [ UTF82 (Bytes2All 0x01 0x70) ] m;
+--   @m = Insert (Glyph "Uhungarumlautcyrillic") [ UTF82 (Bytes2All 0x04 0xF2) ] m;
+--   @m = Insert (Glyph "Uinvertedbreve") [ UTF82 (Bytes2All 0x02 0x16) ] m;
+--   @m = Insert (Glyph "Ukcyrillic") [ UTF82 (Bytes2All 0x04 0x78) ] m;
+--   @m = Insert (Glyph "Umacron") [ UTF82 (Bytes2All 0x01 0x6A) ] m;
+--   @m = Insert (Glyph "Umacroncyrillic") [ UTF82 (Bytes2All 0x04 0xEE) ] m;
+--   @m = Insert (Glyph "Umacrondieresis") [ UTF82 (Bytes2All 0x1E 0x7A) ] m;
+--   @m = Insert (Glyph "Umonospace") [ UTF82 (Bytes2All 0xFF 0x35) ] m;
+--   @m = Insert (Glyph "Uogonek") [ UTF82 (Bytes2All 0x01 0x72) ] m;
+--   @m = Insert (Glyph "Upsilon") [ UTF82 (Bytes2All 0x03 0xA5) ] m;
+--   @m = Insert (Glyph "Upsilon1") [ UTF82 (Bytes2All 0x03 0xD2) ] m;
+--   @m = Insert (Glyph "Upsilonacutehooksymbolgreek") [ UTF82 (Bytes2All 0x03 0xD3) ] m;
+--   @m = Insert (Glyph "Upsilonafrican") [ UTF82 (Bytes2All 0x01 0xB1) ] m;
+--   @m = Insert (Glyph "Upsilondieresis") [ UTF82 (Bytes2All 0x03 0xAB) ] m;
+--   @m = Insert (Glyph "Upsilondieresishooksymbolgreek") [ UTF82 (Bytes2All 0x03 0xD4) ] m;
+--   @m = Insert (Glyph "Upsilonhooksymbol") [ UTF82 (Bytes2All 0x03 0xD2) ] m;
+--   @m = Insert (Glyph "Upsilontonos") [ UTF82 (Bytes2All 0x03 0x8E) ] m;
+--   @m = Insert (Glyph "Uring") [ UTF82 (Bytes2All 0x01 0x6E) ] m;
+--   @m = Insert (Glyph "Ushortcyrillic") [ UTF82 (Bytes2All 0x04 0x0E) ] m;
+--   @m = Insert (Glyph "Usmall") [ UTF82 (Bytes2All 0xF7 0x75) ] m;
+--   @m = Insert (Glyph "Ustraightcyrillic") [ UTF82 (Bytes2All 0x04 0xAE) ] m;
+--   @m = Insert (Glyph "Ustraightstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB0) ] m;
+--   @m = Insert (Glyph "Utilde") [ UTF82 (Bytes2All 0x01 0x68) ] m;
+--   @m = Insert (Glyph "Utildeacute") [ UTF82 (Bytes2All 0x1E 0x78) ] m;
+--   @m = Insert (Glyph "Utildebelow") [ UTF82 (Bytes2All 0x1E 0x74) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncV = {
+--   @m = empty;
+--   @m = Insert (Glyph "V") [ UTF81 (Bytes1 0x56) ] m;
+--   @m = Insert (Glyph "Vcircle") [ UTF82 (Bytes2All 0x24 0xCB) ] m;
+--   @m = Insert (Glyph "Vdotbelow") [ UTF82 (Bytes2All 0x1E 0x7E) ] m;
+--   @m = Insert (Glyph "Vecyrillic") [ UTF82 (Bytes2All 0x04 0x12) ] m;
+--   @m = Insert (Glyph "Vewarmenian") [ UTF82 (Bytes2All 0x05 0x4E) ] m;
+--   @m = Insert (Glyph "Vhook") [ UTF82 (Bytes2All 0x01 0xB2) ] m;
+--   @m = Insert (Glyph "Vmonospace") [ UTF82 (Bytes2All 0xFF 0x36) ] m;
+--   @m = Insert (Glyph "Voarmenian") [ UTF82 (Bytes2All 0x05 0x48) ] m;
+--   @m = Insert (Glyph "Vsmall") [ UTF82 (Bytes2All 0xF7 0x76) ] m;
+--   @m = Insert (Glyph "Vtilde") [ UTF82 (Bytes2All 0x1E 0x7C) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncW = {
+--   @m = empty;
+--   @m = Insert (Glyph "W") [ UTF81 (Bytes1 0x57) ] m;
+--   @m = Insert (Glyph "Wacute") [ UTF82 (Bytes2All 0x1E 0x82) ] m;
+--   @m = Insert (Glyph "Wcircle") [ UTF82 (Bytes2All 0x24 0xCC) ] m;
+--   @m = Insert (Glyph "Wcircumflex") [ UTF82 (Bytes2All 0x01 0x74) ] m;
+--   @m = Insert (Glyph "Wdieresis") [ UTF82 (Bytes2All 0x1E 0x84) ] m;
+--   @m = Insert (Glyph "Wdotaccent") [ UTF82 (Bytes2All 0x1E 0x86) ] m;
+--   @m = Insert (Glyph "Wdotbelow") [ UTF82 (Bytes2All 0x1E 0x88) ] m;
+--   @m = Insert (Glyph "Wgrave") [ UTF82 (Bytes2All 0x1E 0x80) ] m;
+--   @m = Insert (Glyph "Wmonospace") [ UTF82 (Bytes2All 0xFF 0x37) ] m;
+--   @m = Insert (Glyph "Wsmall") [ UTF82 (Bytes2All 0xF7 0x77) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncX = {
+--   @m = empty;
+--   @m = Insert (Glyph "X") [ UTF81 (Bytes1 0x58) ] m;
+--   @m = Insert (Glyph "Xcircle") [ UTF82 (Bytes2All 0x24 0xCD) ] m;
+--   @m = Insert (Glyph "Xdieresis") [ UTF82 (Bytes2All 0x1E 0x8C) ] m;
+--   @m = Insert (Glyph "Xdotaccent") [ UTF82 (Bytes2All 0x1E 0x8A) ] m;
+--   @m = Insert (Glyph "Xeharmenian") [ UTF82 (Bytes2All 0x05 0x3D) ] m;
+--   @m = Insert (Glyph "Xi") [ UTF82 (Bytes2All 0x03 0x9E) ] m;
+--   @m = Insert (Glyph "Xmonospace") [ UTF82 (Bytes2All 0xFF 0x38) ] m;
+--   @m = Insert (Glyph "Xsmall") [ UTF82 (Bytes2All 0xF7 0x78) ] m;
+--   m
+-- }
+
+
+-- def GlyphEncY = {
+--   @m = empty;
+--   @m = Insert (Glyph "Y") [ UTF81 (Bytes1 0x59) ] m;
+--   @m = Insert (Glyph "Yacute") [ UTF81 (Bytes1 0xDD) ] m;
+--   @m = Insert (Glyph "Yacutesmall") [ UTF82 (Bytes2All 0xF7 0xFD) ] m;
+--   @m = Insert (Glyph "Yatcyrillic") [ UTF82 (Bytes2All 0x04 0x62) ] m;
+--   @m = Insert (Glyph "Ycircle") [ UTF82 (Bytes2All 0x24 0xCE) ] m;
+--   @m = Insert (Glyph "Ycircumflex") [ UTF82 (Bytes2All 0x01 0x76) ] m;
+--   @m = Insert (Glyph "Ydieresis") [ UTF82 (Bytes2All 0x01 0x78) ] m;
+--   @m = Insert (Glyph "Ydieresissmall") [ UTF82 (Bytes2All 0xF7 0xFF) ] m;
+--   @m = Insert (Glyph "Ydotaccent") [ UTF82 (Bytes2All 0x1E 0x8E) ] m;
+--   @m = Insert (Glyph "Ydotbelow") [ UTF82 (Bytes2All 0x1E 0xF4) ] m;
+--   @m = Insert (Glyph "Yericyrillic") [ UTF82 (Bytes2All 0x04 0x2B) ] m;
+--   @m = Insert (Glyph "Yerudieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF8) ] m;
+--   @m = Insert (Glyph "Ygrave") [ UTF82 (Bytes2All 0x1E 0xF2) ] m;
+--   @m = Insert (Glyph "Yhook") [ UTF82 (Bytes2All 0x01 0xB3) ] m;
+--   @m = Insert (Glyph "Yhookabove") [ UTF82 (Bytes2All 0x1E 0xF6) ] m;
+--   @m = Insert (Glyph "Yiarmenian") [ UTF82 (Bytes2All 0x05 0x45) ] m;
+--   @m = Insert (Glyph "Yicyrillic") [ UTF82 (Bytes2All 0x04 0x07) ] m;
+--   @m = Insert (Glyph "Yiwnarmenian") [ UTF82 (Bytes2All 0x05 0x52) ] m;
+--   @m = Insert (Glyph "Ymonospace") [ UTF82 (Bytes2All 0xFF 0x39) ] m;
+--   @m = Insert (Glyph "Ysmall") [ UTF82 (Bytes2All 0xF7 0x79) ] m;
+--   @m = Insert (Glyph "Ytilde") [ UTF82 (Bytes2All 0x1E 0xF8) ] m;
+--   @m = Insert (Glyph "Yusbigcyrillic") [ UTF82 (Bytes2All 0x04 0x6A) ] m;
+--   @m = Insert (Glyph "Yusbigiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x6C) ] m;
+--   @m = Insert (Glyph "Yuslittlecyrillic") [ UTF82 (Bytes2All 0x04 0x66) ] m;
+--   @m = Insert (Glyph "Yuslittleiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x68) ] m;
+--   m
+-- }
+
+-- def GlyphEncZ = {
+--   @m = empty;
+--   @m = Insert (Glyph "Z") [ UTF81 (Bytes1 0x5A) ] m;
+--   @m = Insert (Glyph "Zaarmenian") [ UTF82 (Bytes2All 0x05 0x36) ] m;
+--   @m = Insert (Glyph "Zacute") [ UTF82 (Bytes2All 0x01 0x79) ] m;
+--   @m = Insert (Glyph "Zcaron") [ UTF82 (Bytes2All 0x01 0x7D) ] m;
+--   @m = Insert (Glyph "Zcaronsmall") [ UTF82 (Bytes2All 0xF6 0xFF) ] m;
+--   @m = Insert (Glyph "Zcircle") [ UTF82 (Bytes2All 0x24 0xCF) ] m;
+--   @m = Insert (Glyph "Zcircumflex") [ UTF82 (Bytes2All 0x1E 0x90) ] m;
+--   @m = Insert (Glyph "Zdot") [ UTF82 (Bytes2All 0x01 0x7B) ] m;
+--   @m = Insert (Glyph "Zdotaccent") [ UTF82 (Bytes2All 0x01 0x7B) ] m;
+--   @m = Insert (Glyph "Zdotbelow") [ UTF82 (Bytes2All 0x1E 0x92) ] m;
+--   @m = Insert (Glyph "Zecyrillic") [ UTF82 (Bytes2All 0x04 0x17) ] m;
+--   @m = Insert (Glyph "Zedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x98) ] m;
+--   @m = Insert (Glyph "Zedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDE) ] m;
+--   @m = Insert (Glyph "Zeta") [ UTF82 (Bytes2All 0x03 0x96) ] m;
+--   @m = Insert (Glyph "Zhearmenian") [ UTF82 (Bytes2All 0x05 0x3A) ] m;
+--   @m = Insert (Glyph "Zhebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xC1) ] m;
+--   @m = Insert (Glyph "Zhecyrillic") [ UTF82 (Bytes2All 0x04 0x16) ] m;
+--   @m = Insert (Glyph "Zhedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x96) ] m;
+--   @m = Insert (Glyph "Zhedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDC) ] m;
+--   @m = Insert (Glyph "Zlinebelow") [ UTF82 (Bytes2All 0x1E 0x94) ] m;
+--   @m = Insert (Glyph "Zmonospace") [ UTF82 (Bytes2All 0xFF 0x3A) ] m;
+--   @m = Insert (Glyph "Zsmall") [ UTF82 (Bytes2All 0xF7 0x7A) ] m;
+--   @m = Insert (Glyph "Zstroke") [ UTF82 (Bytes2All 0x01 0xB5) ] m;
+--   m
+-- }
+
+-- def GlyphEnca =  {
+--   @m = empty;
+--   @m = Insert (Glyph "a") [ UTF81 (Bytes1 0x61) ] m;
+--   @m = Insert (Glyph "aabengali") [ UTF82 (Bytes2All 0x09 0x86) ] m;
+--   @m = Insert (Glyph "aacute") [ UTF81 (Bytes1 0xE1) ] m;
+--   @m = Insert (Glyph "aadeva") [ UTF82 (Bytes2All 0x09 0x06) ] m;
+--   @m = Insert (Glyph "aagujarati") [ UTF82 (Bytes2All 0x0A 0x86) ] m;
+--   @m = Insert (Glyph "aagurmukhi") [ UTF82 (Bytes2All 0x0A 0x06) ] m;
+--   @m = Insert (Glyph "aamatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x3E) ] m;
+--   @m = Insert (Glyph "aarusquare") [ UTF82 (Bytes2All 0x33 0x03) ] m;
+--   @m = Insert (Glyph "aavowelsignbengali") [ UTF82 (Bytes2All 0x09 0xBE) ] m;
+--   @m = Insert (Glyph "aavowelsigndeva") [ UTF82 (Bytes2All 0x09 0x3E) ] m;
+--   @m = Insert (Glyph "aavowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xBE) ] m;
+--   @m = Insert (Glyph "abbreviationmarkarmenian") [ UTF82 (Bytes2All 0x05 0x5F) ] m;
+--   @m = Insert (Glyph "abbreviationsigndeva") [ UTF82 (Bytes2All 0x09 0x70) ] m;
+--   @m = Insert (Glyph "abengali") [ UTF82 (Bytes2All 0x09 0x85) ] m;
+--   @m = Insert (Glyph "abopomofo") [ UTF82 (Bytes2All 0x31 0x1A) ] m;
+--   @m = Insert (Glyph "abreve") [ UTF82 (Bytes2All 0x01 0x03) ] m;
+--   @m = Insert (Glyph "abreveacute") [ UTF82 (Bytes2All 0x1E 0xAF) ] m;
+--   @m = Insert (Glyph "abrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD1) ] m;
+--   @m = Insert (Glyph "abrevedotbelow") [ UTF82 (Bytes2All 0x1E 0xB7) ] m;
+--   @m = Insert (Glyph "abrevegrave") [ UTF82 (Bytes2All 0x1E 0xB1) ] m;
+--   @m = Insert (Glyph "abrevehookabove") [ UTF82 (Bytes2All 0x1E 0xB3) ] m;
+--   @m = Insert (Glyph "abrevetilde") [ UTF82 (Bytes2All 0x1E 0xB5) ] m;
+--   @m = Insert (Glyph "acaron") [ UTF82 (Bytes2All 0x01 0xCE) ] m;
+--   @m = Insert (Glyph "acircle") [ UTF82 (Bytes2All 0x24 0xD0) ] m;
+--   @m = Insert (Glyph "acircumflex") [ UTF81 (Bytes1 0xE2) ] m;
+--   @m = Insert (Glyph "acircumflexacute") [ UTF82 (Bytes2All 0x1E 0xA5) ] m;
+--   @m = Insert (Glyph "acircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xAD) ] m;
+--   @m = Insert (Glyph "acircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xA7) ] m;
+--   @m = Insert (Glyph "acircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xA9) ] m;
+--   @m = Insert (Glyph "acircumflextilde") [ UTF82 (Bytes2All 0x1E 0xAB) ] m;
+--   @m = Insert (Glyph "acute") [ UTF81 (Bytes1 0xB4) ] m;
+--   @m = Insert (Glyph "acutebelowcmb") [ UTF82 (Bytes2All 0x03 0x17) ] m;
+--   @m = Insert (Glyph "acutecmb") [ UTF82 (Bytes2All 0x03 0x01) ] m;
+--   @m = Insert (Glyph "acutecomb") [ UTF82 (Bytes2All 0x03 0x01) ] m;
+--   @m = Insert (Glyph "acutedeva") [ UTF82 (Bytes2All 0x09 0x54) ] m;
+--   @m = Insert (Glyph "acutelowmod") [ UTF82 (Bytes2All 0x02 0xCF) ] m;
+--   @m = Insert (Glyph "acutetonecmb") [ UTF82 (Bytes2All 0x03 0x41) ] m;
+--   @m = Insert (Glyph "acyrillic") [ UTF82 (Bytes2All 0x04 0x30) ] m;
+--   @m = Insert (Glyph "adblgrave") [ UTF82 (Bytes2All 0x02 0x01) ] m;
+--   @m = Insert (Glyph "addakgurmukhi") [ UTF82 (Bytes2All 0x0A 0x71) ] m;
+--   @m = Insert (Glyph "adeva") [ UTF82 (Bytes2All 0x09 0x05) ] m;
+--   @m = Insert (Glyph "adieresis") [ UTF81 (Bytes1 0xE4) ] m;
+--   @m = Insert (Glyph "adieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xD3) ] m;
+--   @m = Insert (Glyph "adieresismacron") [ UTF82 (Bytes2All 0x01 0xDF) ] m;
+--   @m = Insert (Glyph "adotbelow") [ UTF82 (Bytes2All 0x1E 0xA1) ] m;
+--   @m = Insert (Glyph "adotmacron") [ UTF82 (Bytes2All 0x01 0xE1) ] m;
+--   @m = Insert (Glyph "ae") [ UTF81 (Bytes1 0xE6) ] m;
+--   @m = Insert (Glyph "aeacute") [ UTF82 (Bytes2All 0x01 0xFD) ] m;
+--   @m = Insert (Glyph "aekorean") [ UTF82 (Bytes2All 0x31 0x50) ] m;
+--   @m = Insert (Glyph "aemacron") [ UTF82 (Bytes2All 0x01 0xE3) ] m;
+--   @m = Insert (Glyph "afii00208") [ UTF82 (Bytes2All 0x20 0x15) ] m;
+--   @m = Insert (Glyph "afii08941") [ UTF82 (Bytes2All 0x20 0xA4) ] m;
+--   @m = Insert (Glyph "afii10017") [ UTF82 (Bytes2All 0x04 0x10) ] m;
+--   @m = Insert (Glyph "afii10018") [ UTF82 (Bytes2All 0x04 0x11) ] m;
+--   @m = Insert (Glyph "afii10019") [ UTF82 (Bytes2All 0x04 0x12) ] m;
+--   @m = Insert (Glyph "afii10020") [ UTF82 (Bytes2All 0x04 0x13) ] m;
+--   @m = Insert (Glyph "afii10021") [ UTF82 (Bytes2All 0x04 0x14) ] m;
+--   @m = Insert (Glyph "afii10022") [ UTF82 (Bytes2All 0x04 0x15) ] m;
+--   @m = Insert (Glyph "afii10023") [ UTF82 (Bytes2All 0x04 0x01) ] m;
+--   @m = Insert (Glyph "afii10024") [ UTF82 (Bytes2All 0x04 0x16) ] m;
+--   @m = Insert (Glyph "afii10025") [ UTF82 (Bytes2All 0x04 0x17) ] m;
+--   @m = Insert (Glyph "afii10026") [ UTF82 (Bytes2All 0x04 0x18) ] m;
+--   @m = Insert (Glyph "afii10027") [ UTF82 (Bytes2All 0x04 0x19) ] m;
+--   @m = Insert (Glyph "afii10028") [ UTF82 (Bytes2All 0x04 0x1A) ] m;
+--   @m = Insert (Glyph "afii10029") [ UTF82 (Bytes2All 0x04 0x1B) ] m;
+--   @m = Insert (Glyph "afii10030") [ UTF82 (Bytes2All 0x04 0x1C) ] m;
+--   @m = Insert (Glyph "afii10031") [ UTF82 (Bytes2All 0x04 0x1D) ] m;
+--   @m = Insert (Glyph "afii10032") [ UTF82 (Bytes2All 0x04 0x1E) ] m;
+--   @m = Insert (Glyph "afii10033") [ UTF82 (Bytes2All 0x04 0x1F) ] m;
+--   @m = Insert (Glyph "afii10034") [ UTF82 (Bytes2All 0x04 0x20) ] m;
+--   @m = Insert (Glyph "afii10035") [ UTF82 (Bytes2All 0x04 0x21) ] m;
+--   @m = Insert (Glyph "afii10036") [ UTF82 (Bytes2All 0x04 0x22) ] m;
+--   @m = Insert (Glyph "afii10037") [ UTF82 (Bytes2All 0x04 0x23) ] m;
+--   @m = Insert (Glyph "afii10038") [ UTF82 (Bytes2All 0x04 0x24) ] m;
+--   @m = Insert (Glyph "afii10039") [ UTF82 (Bytes2All 0x04 0x25) ] m;
+--   @m = Insert (Glyph "afii10040") [ UTF82 (Bytes2All 0x04 0x26) ] m;
+--   @m = Insert (Glyph "afii10041") [ UTF82 (Bytes2All 0x04 0x27) ] m;
+--   @m = Insert (Glyph "afii10042") [ UTF82 (Bytes2All 0x04 0x28) ] m;
+--   @m = Insert (Glyph "afii10043") [ UTF82 (Bytes2All 0x04 0x29) ] m;
+--   @m = Insert (Glyph "afii10044") [ UTF82 (Bytes2All 0x04 0x2A) ] m;
+--   @m = Insert (Glyph "afii10045") [ UTF82 (Bytes2All 0x04 0x2B) ] m;
+--   @m = Insert (Glyph "afii10046") [ UTF82 (Bytes2All 0x04 0x2C) ] m;
+--   @m = Insert (Glyph "afii10047") [ UTF82 (Bytes2All 0x04 0x2D) ] m;
+--   @m = Insert (Glyph "afii10048") [ UTF82 (Bytes2All 0x04 0x2E) ] m;
+--   @m = Insert (Glyph "afii10049") [ UTF82 (Bytes2All 0x04 0x2F) ] m;
+--   @m = Insert (Glyph "afii10050") [ UTF82 (Bytes2All 0x04 0x90) ] m;
+--   @m = Insert (Glyph "afii10051") [ UTF82 (Bytes2All 0x04 0x02) ] m;
+--   @m = Insert (Glyph "afii10052") [ UTF82 (Bytes2All 0x04 0x03) ] m;
+--   @m = Insert (Glyph "afii10053") [ UTF82 (Bytes2All 0x04 0x04) ] m;
+--   @m = Insert (Glyph "afii10054") [ UTF82 (Bytes2All 0x04 0x05) ] m;
+--   @m = Insert (Glyph "afii10055") [ UTF82 (Bytes2All 0x04 0x06) ] m;
+--   @m = Insert (Glyph "afii10056") [ UTF82 (Bytes2All 0x04 0x07) ] m;
+--   @m = Insert (Glyph "afii10057") [ UTF82 (Bytes2All 0x04 0x08) ] m;
+--   @m = Insert (Glyph "afii10058") [ UTF82 (Bytes2All 0x04 0x09) ] m;
+--   @m = Insert (Glyph "afii10059") [ UTF82 (Bytes2All 0x04 0x0A) ] m;
+--   @m = Insert (Glyph "afii10060") [ UTF82 (Bytes2All 0x04 0x0B) ] m;
+--   @m = Insert (Glyph "afii10061") [ UTF82 (Bytes2All 0x04 0x0C) ] m;
+--   @m = Insert (Glyph "afii10062") [ UTF82 (Bytes2All 0x04 0x0E) ] m;
+--   @m = Insert (Glyph "afii10063") [ UTF82 (Bytes2All 0xF6 0xC4) ] m;
+--   @m = Insert (Glyph "afii10064") [ UTF82 (Bytes2All 0xF6 0xC5) ] m;
+--   @m = Insert (Glyph "afii10065") [ UTF82 (Bytes2All 0x04 0x30) ] m;
+--   @m = Insert (Glyph "afii10066") [ UTF82 (Bytes2All 0x04 0x31) ] m;
+--   @m = Insert (Glyph "afii10067") [ UTF82 (Bytes2All 0x04 0x32) ] m;
+--   @m = Insert (Glyph "afii10068") [ UTF82 (Bytes2All 0x04 0x33) ] m;
+--   @m = Insert (Glyph "afii10069") [ UTF82 (Bytes2All 0x04 0x34) ] m;
+--   @m = Insert (Glyph "afii10070") [ UTF82 (Bytes2All 0x04 0x35) ] m;
+--   @m = Insert (Glyph "afii10071") [ UTF82 (Bytes2All 0x04 0x51) ] m;
+--   @m = Insert (Glyph "afii10072") [ UTF82 (Bytes2All 0x04 0x36) ] m;
+--   @m = Insert (Glyph "afii10073") [ UTF82 (Bytes2All 0x04 0x37) ] m;
+--   @m = Insert (Glyph "afii10074") [ UTF82 (Bytes2All 0x04 0x38) ] m;
+--   @m = Insert (Glyph "afii10075") [ UTF82 (Bytes2All 0x04 0x39) ] m;
+--   @m = Insert (Glyph "afii10076") [ UTF82 (Bytes2All 0x04 0x3A) ] m;
+--   @m = Insert (Glyph "afii10077") [ UTF82 (Bytes2All 0x04 0x3B) ] m;
+--   @m = Insert (Glyph "afii10078") [ UTF82 (Bytes2All 0x04 0x3C) ] m;
+--   @m = Insert (Glyph "afii10079") [ UTF82 (Bytes2All 0x04 0x3D) ] m;
+--   @m = Insert (Glyph "afii10080") [ UTF82 (Bytes2All 0x04 0x3E) ] m;
+--   @m = Insert (Glyph "afii10081") [ UTF82 (Bytes2All 0x04 0x3F) ] m;
+--   @m = Insert (Glyph "afii10082") [ UTF82 (Bytes2All 0x04 0x40) ] m;
+--   @m = Insert (Glyph "afii10083") [ UTF82 (Bytes2All 0x04 0x41) ] m;
+--   @m = Insert (Glyph "afii10084") [ UTF82 (Bytes2All 0x04 0x42) ] m;
+--   @m = Insert (Glyph "afii10085") [ UTF82 (Bytes2All 0x04 0x43) ] m;
+--   @m = Insert (Glyph "afii10086") [ UTF82 (Bytes2All 0x04 0x44) ] m;
+--   @m = Insert (Glyph "afii10087") [ UTF82 (Bytes2All 0x04 0x45) ] m;
+--   @m = Insert (Glyph "afii10088") [ UTF82 (Bytes2All 0x04 0x46) ] m;
+--   @m = Insert (Glyph "afii10089") [ UTF82 (Bytes2All 0x04 0x47) ] m;
+--   @m = Insert (Glyph "afii10090") [ UTF82 (Bytes2All 0x04 0x48) ] m;
+--   @m = Insert (Glyph "afii10091") [ UTF82 (Bytes2All 0x04 0x49) ] m;
+--   @m = Insert (Glyph "afii10092") [ UTF82 (Bytes2All 0x04 0x4A) ] m;
+--   @m = Insert (Glyph "afii10093") [ UTF82 (Bytes2All 0x04 0x4B) ] m;
+--   @m = Insert (Glyph "afii10094") [ UTF82 (Bytes2All 0x04 0x4C) ] m;
+--   @m = Insert (Glyph "afii10095") [ UTF82 (Bytes2All 0x04 0x4D) ] m;
+--   @m = Insert (Glyph "afii10096") [ UTF82 (Bytes2All 0x04 0x4E) ] m;
+--   @m = Insert (Glyph "afii10097") [ UTF82 (Bytes2All 0x04 0x4F) ] m;
+--   @m = Insert (Glyph "afii10098") [ UTF82 (Bytes2All 0x04 0x91) ] m;
+--   @m = Insert (Glyph "afii10099") [ UTF82 (Bytes2All 0x04 0x52) ] m;
+--   @m = Insert (Glyph "afii10100") [ UTF82 (Bytes2All 0x04 0x53) ] m;
+--   @m = Insert (Glyph "afii10101") [ UTF82 (Bytes2All 0x04 0x54) ] m;
+--   @m = Insert (Glyph "afii10102") [ UTF82 (Bytes2All 0x04 0x55) ] m;
+--   @m = Insert (Glyph "afii10103") [ UTF82 (Bytes2All 0x04 0x56) ] m;
+--   @m = Insert (Glyph "afii10104") [ UTF82 (Bytes2All 0x04 0x57) ] m;
+--   @m = Insert (Glyph "afii10105") [ UTF82 (Bytes2All 0x04 0x58) ] m;
+--   @m = Insert (Glyph "afii10106") [ UTF82 (Bytes2All 0x04 0x59) ] m;
+--   @m = Insert (Glyph "afii10107") [ UTF82 (Bytes2All 0x04 0x5A) ] m;
+--   @m = Insert (Glyph "afii10108") [ UTF82 (Bytes2All 0x04 0x5B) ] m;
+--   @m = Insert (Glyph "afii10109") [ UTF82 (Bytes2All 0x04 0x5C) ] m;
+--   @m = Insert (Glyph "afii10110") [ UTF82 (Bytes2All 0x04 0x5E) ] m;
+--   @m = Insert (Glyph "afii10145") [ UTF82 (Bytes2All 0x04 0x0F) ] m;
+--   @m = Insert (Glyph "afii10146") [ UTF82 (Bytes2All 0x04 0x62) ] m;
+--   @m = Insert (Glyph "afii10147") [ UTF82 (Bytes2All 0x04 0x72) ] m;
+--   @m = Insert (Glyph "afii10148") [ UTF82 (Bytes2All 0x04 0x74) ] m;
+--   @m = Insert (Glyph "afii10192") [ UTF82 (Bytes2All 0xF6 0xC6) ] m;
+--   @m = Insert (Glyph "afii10193") [ UTF82 (Bytes2All 0x04 0x5F) ] m;
+--   @m = Insert (Glyph "afii10194") [ UTF82 (Bytes2All 0x04 0x63) ] m;
+--   @m = Insert (Glyph "afii10195") [ UTF82 (Bytes2All 0x04 0x73) ] m;
+--   @m = Insert (Glyph "afii10196") [ UTF82 (Bytes2All 0x04 0x75) ] m;
+--   @m = Insert (Glyph "afii10831") [ UTF82 (Bytes2All 0xF6 0xC7) ] m;
+--   @m = Insert (Glyph "afii10832") [ UTF82 (Bytes2All 0xF6 0xC8) ] m;
+--   @m = Insert (Glyph "afii10846") [ UTF82 (Bytes2All 0x04 0xD9) ] m;
+--   @m = Insert (Glyph "afii299") [ UTF82 (Bytes2All 0x20 0x0E) ] m;
+--   @m = Insert (Glyph "afii300") [ UTF82 (Bytes2All 0x20 0x0F) ] m;
+--   @m = Insert (Glyph "afii301") [ UTF82 (Bytes2All 0x20 0x0D) ] m;
+--   @m = Insert (Glyph "afii57381") [ UTF82 (Bytes2All 0x06 0x6A) ] m;
+--   @m = Insert (Glyph "afii57388") [ UTF82 (Bytes2All 0x06 0x0C) ] m;
+--   @m = Insert (Glyph "afii57392") [ UTF82 (Bytes2All 0x06 0x60) ] m;
+--   @m = Insert (Glyph "afii57393") [ UTF82 (Bytes2All 0x06 0x61) ] m;
+--   @m = Insert (Glyph "afii57394") [ UTF82 (Bytes2All 0x06 0x62) ] m;
+--   @m = Insert (Glyph "afii57395") [ UTF82 (Bytes2All 0x06 0x63) ] m;
+--   @m = Insert (Glyph "afii57396") [ UTF82 (Bytes2All 0x06 0x64) ] m;
+--   @m = Insert (Glyph "afii57397") [ UTF82 (Bytes2All 0x06 0x65) ] m;
+--   @m = Insert (Glyph "afii57398") [ UTF82 (Bytes2All 0x06 0x66) ] m;
+--   @m = Insert (Glyph "afii57399") [ UTF82 (Bytes2All 0x06 0x67) ] m;
+--   @m = Insert (Glyph "afii57400") [ UTF82 (Bytes2All 0x06 0x68) ] m;
+--   @m = Insert (Glyph "afii57401") [ UTF82 (Bytes2All 0x06 0x69) ] m;
+--   @m = Insert (Glyph "afii57403") [ UTF82 (Bytes2All 0x06 0x1B) ] m;
+--   @m = Insert (Glyph "afii57407") [ UTF82 (Bytes2All 0x06 0x1F) ] m;
+--   @m = Insert (Glyph "afii57409") [ UTF82 (Bytes2All 0x06 0x21) ] m;
+--   @m = Insert (Glyph "afii57410") [ UTF82 (Bytes2All 0x06 0x22) ] m;
+--   @m = Insert (Glyph "afii57411") [ UTF82 (Bytes2All 0x06 0x23) ] m;
+--   @m = Insert (Glyph "afii57412") [ UTF82 (Bytes2All 0x06 0x24) ] m;
+--   @m = Insert (Glyph "afii57413") [ UTF82 (Bytes2All 0x06 0x25) ] m;
+--   @m = Insert (Glyph "afii57414") [ UTF82 (Bytes2All 0x06 0x26) ] m;
+--   @m = Insert (Glyph "afii57415") [ UTF82 (Bytes2All 0x06 0x27) ] m;
+--   @m = Insert (Glyph "afii57416") [ UTF82 (Bytes2All 0x06 0x28) ] m;
+--   @m = Insert (Glyph "afii57417") [ UTF82 (Bytes2All 0x06 0x29) ] m;
+--   @m = Insert (Glyph "afii57418") [ UTF82 (Bytes2All 0x06 0x2A) ] m;
+--   @m = Insert (Glyph "afii57419") [ UTF82 (Bytes2All 0x06 0x2B) ] m;
+--   @m = Insert (Glyph "afii57420") [ UTF82 (Bytes2All 0x06 0x2C) ] m;
+--   @m = Insert (Glyph "afii57421") [ UTF82 (Bytes2All 0x06 0x2D) ] m;
+--   @m = Insert (Glyph "afii57422") [ UTF82 (Bytes2All 0x06 0x2E) ] m;
+--   @m = Insert (Glyph "afii57423") [ UTF82 (Bytes2All 0x06 0x2F) ] m;
+--   @m = Insert (Glyph "afii57424") [ UTF82 (Bytes2All 0x06 0x30) ] m;
+--   @m = Insert (Glyph "afii57425") [ UTF82 (Bytes2All 0x06 0x31) ] m;
+--   @m = Insert (Glyph "afii57426") [ UTF82 (Bytes2All 0x06 0x32) ] m;
+--   @m = Insert (Glyph "afii57427") [ UTF82 (Bytes2All 0x06 0x33) ] m;
+--   @m = Insert (Glyph "afii57428") [ UTF82 (Bytes2All 0x06 0x34) ] m;
+--   @m = Insert (Glyph "afii57429") [ UTF82 (Bytes2All 0x06 0x35) ] m;
+--   @m = Insert (Glyph "afii57430") [ UTF82 (Bytes2All 0x06 0x36) ] m;
+--   @m = Insert (Glyph "afii57431") [ UTF82 (Bytes2All 0x06 0x37) ] m;
+--   @m = Insert (Glyph "afii57432") [ UTF82 (Bytes2All 0x06 0x38) ] m;
+--   @m = Insert (Glyph "afii57433") [ UTF82 (Bytes2All 0x06 0x39) ] m;
+--   @m = Insert (Glyph "afii57434") [ UTF82 (Bytes2All 0x06 0x3A) ] m;
+--   @m = Insert (Glyph "afii57440") [ UTF82 (Bytes2All 0x06 0x40) ] m;
+--   @m = Insert (Glyph "afii57441") [ UTF82 (Bytes2All 0x06 0x41) ] m;
+--   @m = Insert (Glyph "afii57442") [ UTF82 (Bytes2All 0x06 0x42) ] m;
+--   @m = Insert (Glyph "afii57443") [ UTF82 (Bytes2All 0x06 0x43) ] m;
+--   @m = Insert (Glyph "afii57444") [ UTF82 (Bytes2All 0x06 0x44) ] m;
+--   @m = Insert (Glyph "afii57445") [ UTF82 (Bytes2All 0x06 0x45) ] m;
+--   @m = Insert (Glyph "afii57446") [ UTF82 (Bytes2All 0x06 0x46) ] m;
+--   @m = Insert (Glyph "afii57448") [ UTF82 (Bytes2All 0x06 0x48) ] m;
+--   @m = Insert (Glyph "afii57449") [ UTF82 (Bytes2All 0x06 0x49) ] m;
+--   @m = Insert (Glyph "afii57450") [ UTF82 (Bytes2All 0x06 0x4A) ] m;
+--   @m = Insert (Glyph "afii57451") [ UTF82 (Bytes2All 0x06 0x4B) ] m;
+--   @m = Insert (Glyph "afii57452") [ UTF82 (Bytes2All 0x06 0x4C) ] m;
+--   @m = Insert (Glyph "afii57453") [ UTF82 (Bytes2All 0x06 0x4D) ] m;
+--   @m = Insert (Glyph "afii57454") [ UTF82 (Bytes2All 0x06 0x4E) ] m;
+--   @m = Insert (Glyph "afii57455") [ UTF82 (Bytes2All 0x06 0x4F) ] m;
+--   @m = Insert (Glyph "afii57456") [ UTF82 (Bytes2All 0x06 0x50) ] m;
+--   @m = Insert (Glyph "afii57457") [ UTF82 (Bytes2All 0x06 0x51) ] m;
+--   @m = Insert (Glyph "afii57458") [ UTF82 (Bytes2All 0x06 0x52) ] m;
+--   @m = Insert (Glyph "afii57470") [ UTF82 (Bytes2All 0x06 0x47) ] m;
+--   @m = Insert (Glyph "afii57505") [ UTF82 (Bytes2All 0x06 0xA4) ] m;
+--   @m = Insert (Glyph "afii57506") [ UTF82 (Bytes2All 0x06 0x7E) ] m;
+--   @m = Insert (Glyph "afii57507") [ UTF82 (Bytes2All 0x06 0x86) ] m;
+--   @m = Insert (Glyph "afii57508") [ UTF82 (Bytes2All 0x06 0x98) ] m;
+--   @m = Insert (Glyph "afii57509") [ UTF82 (Bytes2All 0x06 0xAF) ] m;
+--   @m = Insert (Glyph "afii57511") [ UTF82 (Bytes2All 0x06 0x79) ] m;
+--   @m = Insert (Glyph "afii57512") [ UTF82 (Bytes2All 0x06 0x88) ] m;
+--   @m = Insert (Glyph "afii57513") [ UTF82 (Bytes2All 0x06 0x91) ] m;
+--   @m = Insert (Glyph "afii57514") [ UTF82 (Bytes2All 0x06 0xBA) ] m;
+--   @m = Insert (Glyph "afii57519") [ UTF82 (Bytes2All 0x06 0xD2) ] m;
+--   @m = Insert (Glyph "afii57534") [ UTF82 (Bytes2All 0x06 0xD5) ] m;
+--   @m = Insert (Glyph "afii57636") [ UTF82 (Bytes2All 0x20 0xAA) ] m;
+--   @m = Insert (Glyph "afii57645") [ UTF82 (Bytes2All 0x05 0xBE) ] m;
+--   @m = Insert (Glyph "afii57658") [ UTF82 (Bytes2All 0x05 0xC3) ] m;
+--   @m = Insert (Glyph "afii57664") [ UTF82 (Bytes2All 0x05 0xD0) ] m;
+--   @m = Insert (Glyph "afii57665") [ UTF82 (Bytes2All 0x05 0xD1) ] m;
+--   @m = Insert (Glyph "afii57666") [ UTF82 (Bytes2All 0x05 0xD2) ] m;
+--   @m = Insert (Glyph "afii57667") [ UTF82 (Bytes2All 0x05 0xD3) ] m;
+--   @m = Insert (Glyph "afii57668") [ UTF82 (Bytes2All 0x05 0xD4) ] m;
+--   @m = Insert (Glyph "afii57669") [ UTF82 (Bytes2All 0x05 0xD5) ] m;
+--   @m = Insert (Glyph "afii57670") [ UTF82 (Bytes2All 0x05 0xD6) ] m;
+--   @m = Insert (Glyph "afii57671") [ UTF82 (Bytes2All 0x05 0xD7) ] m;
+--   @m = Insert (Glyph "afii57672") [ UTF82 (Bytes2All 0x05 0xD8) ] m;
+--   @m = Insert (Glyph "afii57673") [ UTF82 (Bytes2All 0x05 0xD9) ] m;
+--   @m = Insert (Glyph "afii57674") [ UTF82 (Bytes2All 0x05 0xDA) ] m;
+--   @m = Insert (Glyph "afii57675") [ UTF82 (Bytes2All 0x05 0xDB) ] m;
+--   @m = Insert (Glyph "afii57676") [ UTF82 (Bytes2All 0x05 0xDC) ] m;
+--   @m = Insert (Glyph "afii57677") [ UTF82 (Bytes2All 0x05 0xDD) ] m;
+--   @m = Insert (Glyph "afii57678") [ UTF82 (Bytes2All 0x05 0xDE) ] m;
+--   @m = Insert (Glyph "afii57679") [ UTF82 (Bytes2All 0x05 0xDF) ] m;
+--   @m = Insert (Glyph "afii57680") [ UTF82 (Bytes2All 0x05 0xE0) ] m;
+--   @m = Insert (Glyph "afii57681") [ UTF82 (Bytes2All 0x05 0xE1) ] m;
+--   @m = Insert (Glyph "afii57682") [ UTF82 (Bytes2All 0x05 0xE2) ] m;
+--   @m = Insert (Glyph "afii57683") [ UTF82 (Bytes2All 0x05 0xE3) ] m;
+--   @m = Insert (Glyph "afii57684") [ UTF82 (Bytes2All 0x05 0xE4) ] m;
+--   @m = Insert (Glyph "afii57685") [ UTF82 (Bytes2All 0x05 0xE5) ] m;
+--   @m = Insert (Glyph "afii57686") [ UTF82 (Bytes2All 0x05 0xE6) ] m;
+--   @m = Insert (Glyph "afii57687") [ UTF82 (Bytes2All 0x05 0xE7) ] m;
+--   @m = Insert (Glyph "afii57688") [ UTF82 (Bytes2All 0x05 0xE8) ] m;
+--   @m = Insert (Glyph "afii57689") [ UTF82 (Bytes2All 0x05 0xE9) ] m;
+--   @m = Insert (Glyph "afii57690") [ UTF82 (Bytes2All 0x05 0xEA) ] m;
+--   @m = Insert (Glyph "afii57694") [ UTF82 (Bytes2All 0xFB 0x2A) ] m;
+--   @m = Insert (Glyph "afii57695") [ UTF82 (Bytes2All 0xFB 0x2B) ] m;
+--   @m = Insert (Glyph "afii57700") [ UTF82 (Bytes2All 0xFB 0x4B) ] m;
+--   @m = Insert (Glyph "afii57705") [ UTF82 (Bytes2All 0xFB 0x1F) ] m;
+--   @m = Insert (Glyph "afii57716") [ UTF82 (Bytes2All 0x05 0xF0) ] m;
+--   @m = Insert (Glyph "afii57717") [ UTF82 (Bytes2All 0x05 0xF1) ] m;
+--   @m = Insert (Glyph "afii57718") [ UTF82 (Bytes2All 0x05 0xF2) ] m;
+--   @m = Insert (Glyph "afii57723") [ UTF82 (Bytes2All 0xFB 0x35) ] m;
+--   @m = Insert (Glyph "afii57793") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "afii57794") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "afii57795") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "afii57796") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "afii57797") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "afii57798") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "afii57799") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "afii57800") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "afii57801") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "afii57802") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "afii57803") [ UTF82 (Bytes2All 0x05 0xC2) ] m;
+--   @m = Insert (Glyph "afii57804") [ UTF82 (Bytes2All 0x05 0xC1) ] m;
+--   @m = Insert (Glyph "afii57806") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "afii57807") [ UTF82 (Bytes2All 0x05 0xBC) ] m;
+--   @m = Insert (Glyph "afii57839") [ UTF82 (Bytes2All 0x05 0xBD) ] m;
+--   @m = Insert (Glyph "afii57841") [ UTF82 (Bytes2All 0x05 0xBF) ] m;
+--   @m = Insert (Glyph "afii57842") [ UTF82 (Bytes2All 0x05 0xC0) ] m;
+--   @m = Insert (Glyph "afii57929") [ UTF82 (Bytes2All 0x02 0xBC) ] m;
+--   @m = Insert (Glyph "afii61248") [ UTF82 (Bytes2All 0x21 0x05) ] m;
+--   @m = Insert (Glyph "afii61289") [ UTF82 (Bytes2All 0x21 0x13) ] m;
+--   @m = Insert (Glyph "afii61352") [ UTF82 (Bytes2All 0x21 0x16) ] m;
+--   @m = Insert (Glyph "afii61573") [ UTF82 (Bytes2All 0x20 0x2C) ] m;
+--   @m = Insert (Glyph "afii61574") [ UTF82 (Bytes2All 0x20 0x2D) ] m;
+--   @m = Insert (Glyph "afii61575") [ UTF82 (Bytes2All 0x20 0x2E) ] m;
+--   @m = Insert (Glyph "afii61664") [ UTF82 (Bytes2All 0x20 0x0C) ] m;
+--   @m = Insert (Glyph "afii63167") [ UTF82 (Bytes2All 0x06 0x6D) ] m;
+--   @m = Insert (Glyph "afii64937") [ UTF82 (Bytes2All 0x02 0xBD) ] m;
+--   @m = Insert (Glyph "agrave") [ UTF81 (Bytes1 0xE0) ] m;
+--   @m = Insert (Glyph "agujarati") [ UTF82 (Bytes2All 0x0A 0x85) ] m;
+--   @m = Insert (Glyph "agurmukhi") [ UTF82 (Bytes2All 0x0A 0x05) ] m;
+--   @m = Insert (Glyph "ahiragana") [ UTF82 (Bytes2All 0x30 0x42) ] m;
+--   @m = Insert (Glyph "ahookabove") [ UTF82 (Bytes2All 0x1E 0xA3) ] m;
+--   @m = Insert (Glyph "aibengali") [ UTF82 (Bytes2All 0x09 0x90) ] m;
+--   @m = Insert (Glyph "aibopomofo") [ UTF82 (Bytes2All 0x31 0x1E) ] m;
+--   @m = Insert (Glyph "aideva") [ UTF82 (Bytes2All 0x09 0x10) ] m;
+--   @m = Insert (Glyph "aiecyrillic") [ UTF82 (Bytes2All 0x04 0xD5) ] m;
+--   @m = Insert (Glyph "aigujarati") [ UTF82 (Bytes2All 0x0A 0x90) ] m;
+--   @m = Insert (Glyph "aigurmukhi") [ UTF82 (Bytes2All 0x0A 0x10) ] m;
+--   @m = Insert (Glyph "aimatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x48) ] m;
+--   @m = Insert (Glyph "ainarabic") [ UTF82 (Bytes2All 0x06 0x39) ] m;
+--   @m = Insert (Glyph "ainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xCA) ] m;
+--   @m = Insert (Glyph "aininitialarabic") [ UTF82 (Bytes2All 0xFE 0xCB) ] m;
+--   @m = Insert (Glyph "ainmedialarabic") [ UTF82 (Bytes2All 0xFE 0xCC) ] m;
+--   @m = Insert (Glyph "ainvertedbreve") [ UTF82 (Bytes2All 0x02 0x03) ] m;
+--   @m = Insert (Glyph "aivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC8) ] m;
+--   @m = Insert (Glyph "aivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x48) ] m;
+--   @m = Insert (Glyph "aivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC8) ] m;
+--   @m = Insert (Glyph "akatakana") [ UTF82 (Bytes2All 0x30 0xA2) ] m;
+--   @m = Insert (Glyph "akatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x71) ] m;
+--   @m = Insert (Glyph "akorean") [ UTF82 (Bytes2All 0x31 0x4F) ] m;
+--   @m = Insert (Glyph "alef") [ UTF82 (Bytes2All 0x05 0xD0) ] m;
+--   @m = Insert (Glyph "alefarabic") [ UTF82 (Bytes2All 0x06 0x27) ] m;
+--   @m = Insert (Glyph "alefdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x30) ] m;
+--   @m = Insert (Glyph "aleffinalarabic") [ UTF82 (Bytes2All 0xFE 0x8E) ] m;
+--   @m = Insert (Glyph "alefhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x23) ] m;
+--   @m = Insert (Glyph "alefhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x84) ] m;
+--   @m = Insert (Glyph "alefhamzabelowarabic") [ UTF82 (Bytes2All 0x06 0x25) ] m;
+--   @m = Insert (Glyph "alefhamzabelowfinalarabic") [ UTF82 (Bytes2All 0xFE 0x88) ] m;
+--   @m = Insert (Glyph "alefhebrew") [ UTF82 (Bytes2All 0x05 0xD0) ] m;
+--   @m = Insert (Glyph "aleflamedhebrew") [ UTF82 (Bytes2All 0xFB 0x4F) ] m;
+--   @m = Insert (Glyph "alefmaddaabovearabic") [ UTF82 (Bytes2All 0x06 0x22) ] m;
+--   @m = Insert (Glyph "alefmaddaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x82) ] m;
+--   @m = Insert (Glyph "alefmaksuraarabic") [ UTF82 (Bytes2All 0x06 0x49) ] m;
+--   @m = Insert (Glyph "alefmaksurafinalarabic") [ UTF82 (Bytes2All 0xFE 0xF0) ] m;
+--   @m = Insert (Glyph "alefmaksurainitialarabic") [ UTF82 (Bytes2All 0xFE 0xF3) ] m;
+--   @m = Insert (Glyph "alefmaksuramedialarabic") [ UTF82 (Bytes2All 0xFE 0xF4) ] m;
+--   @m = Insert (Glyph "alefpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x2E) ] m;
+--   @m = Insert (Glyph "alefqamatshebrew") [ UTF82 (Bytes2All 0xFB 0x2F) ] m;
+--   @m = Insert (Glyph "aleph") [ UTF82 (Bytes2All 0x21 0x35) ] m;
+--   @m = Insert (Glyph "allequal") [ UTF82 (Bytes2All 0x22 0x4C) ] m;
+--   @m = Insert (Glyph "alpha") [ UTF82 (Bytes2All 0x03 0xB1) ] m;
+--   @m = Insert (Glyph "alphatonos") [ UTF82 (Bytes2All 0x03 0xAC) ] m;
+--   @m = Insert (Glyph "amacron") [ UTF82 (Bytes2All 0x01 0x01) ] m;
+--   @m = Insert (Glyph "amonospace") [ UTF82 (Bytes2All 0xFF 0x41) ] m;
+--   @m = Insert (Glyph "ampersand") [ UTF81 (Bytes1 0x26) ] m;
+--   @m = Insert (Glyph "ampersandmonospace") [ UTF82 (Bytes2All 0xFF 0x06) ] m;
+--   @m = Insert (Glyph "ampersandsmall") [ UTF82 (Bytes2All 0xF7 0x26) ] m;
+--   @m = Insert (Glyph "amsquare") [ UTF82 (Bytes2All 0x33 0xC2) ] m;
+--   @m = Insert (Glyph "anbopomofo") [ UTF82 (Bytes2All 0x31 0x22) ] m;
+--   @m = Insert (Glyph "angbopomofo") [ UTF82 (Bytes2All 0x31 0x24) ] m;
+--   @m = Insert (Glyph "angkhankhuthai") [ UTF82 (Bytes2All 0x0E 0x5A) ] m;
+--   @m = Insert (Glyph "angle") [ UTF82 (Bytes2All 0x22 0x20) ] m;
+--   @m = Insert (Glyph "anglebracketleft") [ UTF82 (Bytes2All 0x30 0x08) ] m;
+--   @m = Insert (Glyph "anglebracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3F) ] m;
+--   @m = Insert (Glyph "anglebracketright") [ UTF82 (Bytes2All 0x30 0x09) ] m;
+--   @m = Insert (Glyph "anglebracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x40) ] m;
+--   @m = Insert (Glyph "angleleft") [ UTF82 (Bytes2All 0x23 0x29) ] m;
+--   @m = Insert (Glyph "angleright") [ UTF82 (Bytes2All 0x23 0x2A) ] m;
+--   @m = Insert (Glyph "angstrom") [ UTF82 (Bytes2All 0x21 0x2B) ] m;
+--   @m = Insert (Glyph "anoteleia") [ UTF82 (Bytes2All 0x03 0x87) ] m;
+--   @m = Insert (Glyph "anudattadeva") [ UTF82 (Bytes2All 0x09 0x52) ] m;
+--   @m = Insert (Glyph "anusvarabengali") [ UTF82 (Bytes2All 0x09 0x82) ] m;
+--   @m = Insert (Glyph "anusvaradeva") [ UTF82 (Bytes2All 0x09 0x02) ] m;
+--   @m = Insert (Glyph "anusvaragujarati") [ UTF82 (Bytes2All 0x0A 0x82) ] m;
+--   @m = Insert (Glyph "aogonek") [ UTF82 (Bytes2All 0x01 0x05) ] m;
+--   @m = Insert (Glyph "apaatosquare") [ UTF82 (Bytes2All 0x33 0x00) ] m;
+--   @m = Insert (Glyph "aparen") [ UTF82 (Bytes2All 0x24 0x9C) ] m;
+--   @m = Insert (Glyph "apostrophearmenian") [ UTF82 (Bytes2All 0x05 0x5A) ] m;
+--   @m = Insert (Glyph "apostrophemod") [ UTF82 (Bytes2All 0x02 0xBC) ] m;
+--   @m = Insert (Glyph "apple") [ UTF82 (Bytes2All 0xF8 0xFF) ] m;
+--   @m = Insert (Glyph "approaches") [ UTF82 (Bytes2All 0x22 0x50) ] m;
+--   @m = Insert (Glyph "approxequal") [ UTF82 (Bytes2All 0x22 0x48) ] m;
+--   @m = Insert (Glyph "approxequalorimage") [ UTF82 (Bytes2All 0x22 0x52) ] m;
+--   @m = Insert (Glyph "approximatelyequal") [ UTF82 (Bytes2All 0x22 0x45) ] m;
+--   @m = Insert (Glyph "araeaekorean") [ UTF82 (Bytes2All 0x31 0x8E) ] m;
+--   @m = Insert (Glyph "araeakorean") [ UTF82 (Bytes2All 0x31 0x8D) ] m;
+--   @m = Insert (Glyph "arc") [ UTF82 (Bytes2All 0x23 0x12) ] m;
+--   @m = Insert (Glyph "arighthalfring") [ UTF82 (Bytes2All 0x1E 0x9A) ] m;
+--   @m = Insert (Glyph "aring") [ UTF81 (Bytes1 0xE5) ] m;
+--   @m = Insert (Glyph "aringacute") [ UTF82 (Bytes2All 0x01 0xFB) ] m;
+--   @m = Insert (Glyph "aringbelow") [ UTF82 (Bytes2All 0x1E 0x01) ] m;
+--   @m = Insert (Glyph "arrowboth") [ UTF82 (Bytes2All 0x21 0x94) ] m;
+--   @m = Insert (Glyph "arrowdashdown") [ UTF82 (Bytes2All 0x21 0xE3) ] m;
+--   @m = Insert (Glyph "arrowdashleft") [ UTF82 (Bytes2All 0x21 0xE0) ] m;
+--   @m = Insert (Glyph "arrowdashright") [ UTF82 (Bytes2All 0x21 0xE2) ] m;
+--   @m = Insert (Glyph "arrowdashup") [ UTF82 (Bytes2All 0x21 0xE1) ] m;
+--   @m = Insert (Glyph "arrowdblboth") [ UTF82 (Bytes2All 0x21 0xD4) ] m;
+--   @m = Insert (Glyph "arrowdbldown") [ UTF82 (Bytes2All 0x21 0xD3) ] m;
+--   @m = Insert (Glyph "arrowdblleft") [ UTF82 (Bytes2All 0x21 0xD0) ] m;
+--   @m = Insert (Glyph "arrowdblright") [ UTF82 (Bytes2All 0x21 0xD2) ] m;
+--   @m = Insert (Glyph "arrowdblup") [ UTF82 (Bytes2All 0x21 0xD1) ] m;
+--   @m = Insert (Glyph "arrowdown") [ UTF82 (Bytes2All 0x21 0x93) ] m;
+--   @m = Insert (Glyph "arrowdownleft") [ UTF82 (Bytes2All 0x21 0x99) ] m;
+--   @m = Insert (Glyph "arrowdownright") [ UTF82 (Bytes2All 0x21 0x98) ] m;
+--   @m = Insert (Glyph "arrowdownwhite") [ UTF82 (Bytes2All 0x21 0xE9) ] m;
+--   @m = Insert (Glyph "arrowheaddownmod") [ UTF82 (Bytes2All 0x02 0xC5) ] m;
+--   @m = Insert (Glyph "arrowheadleftmod") [ UTF82 (Bytes2All 0x02 0xC2) ] m;
+--   @m = Insert (Glyph "arrowheadrightmod") [ UTF82 (Bytes2All 0x02 0xC3) ] m;
+--   @m = Insert (Glyph "arrowheadupmod") [ UTF82 (Bytes2All 0x02 0xC4) ] m;
+--   @m = Insert (Glyph "arrowhorizex") [ UTF82 (Bytes2All 0xF8 0xE7) ] m;
+--   @m = Insert (Glyph "arrowleft") [ UTF82 (Bytes2All 0x21 0x90) ] m;
+--   @m = Insert (Glyph "arrowleftdbl") [ UTF82 (Bytes2All 0x21 0xD0) ] m;
+--   @m = Insert (Glyph "arrowleftdblstroke") [ UTF82 (Bytes2All 0x21 0xCD) ] m;
+--   @m = Insert (Glyph "arrowleftoverright") [ UTF82 (Bytes2All 0x21 0xC6) ] m;
+--   @m = Insert (Glyph "arrowleftwhite") [ UTF82 (Bytes2All 0x21 0xE6) ] m;
+--   @m = Insert (Glyph "arrowright") [ UTF82 (Bytes2All 0x21 0x92) ] m;
+--   @m = Insert (Glyph "arrowrightdblstroke") [ UTF82 (Bytes2All 0x21 0xCF) ] m;
+--   @m = Insert (Glyph "arrowrightheavy") [ UTF82 (Bytes2All 0x27 0x9E) ] m;
+--   @m = Insert (Glyph "arrowrightoverleft") [ UTF82 (Bytes2All 0x21 0xC4) ] m;
+--   @m = Insert (Glyph "arrowrightwhite") [ UTF82 (Bytes2All 0x21 0xE8) ] m;
+--   @m = Insert (Glyph "arrowtableft") [ UTF82 (Bytes2All 0x21 0xE4) ] m;
+--   @m = Insert (Glyph "arrowtabright") [ UTF82 (Bytes2All 0x21 0xE5) ] m;
+--   @m = Insert (Glyph "arrowup") [ UTF82 (Bytes2All 0x21 0x91) ] m;
+--   @m = Insert (Glyph "arrowupdn") [ UTF82 (Bytes2All 0x21 0x95) ] m;
+--   @m = Insert (Glyph "arrowupdnbse") [ UTF82 (Bytes2All 0x21 0xA8) ] m;
+--   @m = Insert (Glyph "arrowupdownbase") [ UTF82 (Bytes2All 0x21 0xA8) ] m;
+--   @m = Insert (Glyph "arrowupleft") [ UTF82 (Bytes2All 0x21 0x96) ] m;
+--   @m = Insert (Glyph "arrowupleftofdown") [ UTF82 (Bytes2All 0x21 0xC5) ] m;
+--   @m = Insert (Glyph "arrowupright") [ UTF82 (Bytes2All 0x21 0x97) ] m;
+--   @m = Insert (Glyph "arrowupwhite") [ UTF82 (Bytes2All 0x21 0xE7) ] m;
+--   @m = Insert (Glyph "arrowvertex") [ UTF82 (Bytes2All 0xF8 0xE6) ] m;
+--   @m = Insert (Glyph "asciicircum") [ UTF81 (Bytes1 0x5E) ] m;
+--   @m = Insert (Glyph "asciicircummonospace") [ UTF82 (Bytes2All 0xFF 0x3E) ] m;
+--   @m = Insert (Glyph "asciitilde") [ UTF81 (Bytes1 0x7E) ] m;
+--   @m = Insert (Glyph "asciitildemonospace") [ UTF82 (Bytes2All 0xFF 0x5E) ] m;
+--   @m = Insert (Glyph "ascript") [ UTF82 (Bytes2All 0x02 0x51) ] m;
+--   @m = Insert (Glyph "ascriptturned") [ UTF82 (Bytes2All 0x02 0x52) ] m;
+--   @m = Insert (Glyph "asmallhiragana") [ UTF82 (Bytes2All 0x30 0x41) ] m;
+--   @m = Insert (Glyph "asmallkatakana") [ UTF82 (Bytes2All 0x30 0xA1) ] m;
+--   @m = Insert (Glyph "asmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x67) ] m;
+--   @m = Insert (Glyph "asterisk") [ UTF81 (Bytes1 0x2A) ] m;
+--   @m = Insert (Glyph "asteriskaltonearabic") [ UTF82 (Bytes2All 0x06 0x6D) ] m;
+--   @m = Insert (Glyph "asteriskarabic") [ UTF82 (Bytes2All 0x06 0x6D) ] m;
+--   @m = Insert (Glyph "asteriskmath") [ UTF82 (Bytes2All 0x22 0x17) ] m;
+--   @m = Insert (Glyph "asteriskmonospace") [ UTF82 (Bytes2All 0xFF 0x0A) ] m;
+--   @m = Insert (Glyph "asterisksmall") [ UTF82 (Bytes2All 0xFE 0x61) ] m;
+--   @m = Insert (Glyph "asterism") [ UTF82 (Bytes2All 0x20 0x42) ] m;
+--   @m = Insert (Glyph "asuperior") [ UTF82 (Bytes2All 0xF6 0xE9) ] m;
+--   @m = Insert (Glyph "asymptoticallyequal") [ UTF82 (Bytes2All 0x22 0x43) ] m;
+--   @m = Insert (Glyph "at") [ UTF81 (Bytes1 0x40) ] m;
+--   @m = Insert (Glyph "atilde") [ UTF81 (Bytes1 0xE3) ] m;
+--   @m = Insert (Glyph "atmonospace") [ UTF82 (Bytes2All 0xFF 0x20) ] m;
+--   @m = Insert (Glyph "atsmall") [ UTF82 (Bytes2All 0xFE 0x6B) ] m;
+--   @m = Insert (Glyph "aturned") [ UTF82 (Bytes2All 0x02 0x50) ] m;
+--   @m = Insert (Glyph "aubengali") [ UTF82 (Bytes2All 0x09 0x94) ] m;
+--   @m = Insert (Glyph "aubopomofo") [ UTF82 (Bytes2All 0x31 0x20) ] m;
+--   @m = Insert (Glyph "audeva") [ UTF82 (Bytes2All 0x09 0x14) ] m;
+--   @m = Insert (Glyph "augujarati") [ UTF82 (Bytes2All 0x0A 0x94) ] m;
+--   @m = Insert (Glyph "augurmukhi") [ UTF82 (Bytes2All 0x0A 0x14) ] m;
+--   @m = Insert (Glyph "aulengthmarkbengali") [ UTF82 (Bytes2All 0x09 0xD7) ] m;
+--   @m = Insert (Glyph "aumatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x4C) ] m;
+--   @m = Insert (Glyph "auvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xCC) ] m;
+--   @m = Insert (Glyph "auvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4C) ] m;
+--   @m = Insert (Glyph "auvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xCC) ] m;
+--   @m = Insert (Glyph "avagrahadeva") [ UTF82 (Bytes2All 0x09 0x3D) ] m;
+--   @m = Insert (Glyph "aybarmenian") [ UTF82 (Bytes2All 0x05 0x61) ] m;
+--   @m = Insert (Glyph "ayin") [ UTF82 (Bytes2All 0x05 0xE2) ] m;
+--   @m = Insert (Glyph "ayinaltonehebrew") [ UTF82 (Bytes2All 0xFB 0x20) ] m;
+--   @m = Insert (Glyph "ayinhebrew") [ UTF82 (Bytes2All 0x05 0xE2) ] m;
+--   m
+-- }
+
+-- def GlyphEncb =  {
+--   @m = empty;
+--   @m = Insert (Glyph "b") [ UTF81 (Bytes1 0x62) ] m;
+--   @m = Insert (Glyph "babengali") [ UTF82 (Bytes2All 0x09 0xAC) ] m;
+--   @m = Insert (Glyph "backslash") [ UTF81 (Bytes1 0x5C) ] m;
+--   @m = Insert (Glyph "backslashmonospace") [ UTF82 (Bytes2All 0xFF 0x3C) ] m;
+--   @m = Insert (Glyph "badeva") [ UTF82 (Bytes2All 0x09 0x2C) ] m;
+--   @m = Insert (Glyph "bagujarati") [ UTF82 (Bytes2All 0x0A 0xAC) ] m;
+--   @m = Insert (Glyph "bagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2C) ] m;
+--   @m = Insert (Glyph "bahiragana") [ UTF82 (Bytes2All 0x30 0x70) ] m;
+--   @m = Insert (Glyph "bahtthai") [ UTF82 (Bytes2All 0x0E 0x3F) ] m;
+--   @m = Insert (Glyph "bakatakana") [ UTF82 (Bytes2All 0x30 0xD0) ] m;
+--   @m = Insert (Glyph "bar") [ UTF81 (Bytes1 0x7C) ] m;
+--   @m = Insert (Glyph "barmonospace") [ UTF82 (Bytes2All 0xFF 0x5C) ] m;
+--   @m = Insert (Glyph "bbopomofo") [ UTF82 (Bytes2All 0x31 0x05) ] m;
+--   @m = Insert (Glyph "bcircle") [ UTF82 (Bytes2All 0x24 0xD1) ] m;
+--   @m = Insert (Glyph "bdotaccent") [ UTF82 (Bytes2All 0x1E 0x03) ] m;
+--   @m = Insert (Glyph "bdotbelow") [ UTF82 (Bytes2All 0x1E 0x05) ] m;
+--   @m = Insert (Glyph "beamedsixteenthnotes") [ UTF82 (Bytes2All 0x26 0x6C) ] m;
+--   @m = Insert (Glyph "because") [ UTF82 (Bytes2All 0x22 0x35) ] m;
+--   @m = Insert (Glyph "becyrillic") [ UTF82 (Bytes2All 0x04 0x31) ] m;
+--   @m = Insert (Glyph "beharabic") [ UTF82 (Bytes2All 0x06 0x28) ] m;
+--   @m = Insert (Glyph "behfinalarabic") [ UTF82 (Bytes2All 0xFE 0x90) ] m;
+--   @m = Insert (Glyph "behinitialarabic") [ UTF82 (Bytes2All 0xFE 0x91) ] m;
+--   @m = Insert (Glyph "behiragana") [ UTF82 (Bytes2All 0x30 0x79) ] m;
+--   @m = Insert (Glyph "behmedialarabic") [ UTF82 (Bytes2All 0xFE 0x92) ] m;
+--   @m = Insert (Glyph "behmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0x9F) ] m;
+--   @m = Insert (Glyph "behmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x08) ] m;
+--   @m = Insert (Glyph "behnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x6D) ] m;
+--   @m = Insert (Glyph "bekatakana") [ UTF82 (Bytes2All 0x30 0xD9) ] m;
+--   @m = Insert (Glyph "benarmenian") [ UTF82 (Bytes2All 0x05 0x62) ] m;
+--   @m = Insert (Glyph "bet") [ UTF82 (Bytes2All 0x05 0xD1) ] m;
+--   @m = Insert (Glyph "beta") [ UTF82 (Bytes2All 0x03 0xB2) ] m;
+--   @m = Insert (Glyph "betasymbolgreek") [ UTF82 (Bytes2All 0x03 0xD0) ] m;
+--   @m = Insert (Glyph "betdagesh") [ UTF82 (Bytes2All 0xFB 0x31) ] m;
+--   @m = Insert (Glyph "betdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x31) ] m;
+--   @m = Insert (Glyph "bethebrew") [ UTF82 (Bytes2All 0x05 0xD1) ] m;
+--   @m = Insert (Glyph "betrafehebrew") [ UTF82 (Bytes2All 0xFB 0x4C) ] m;
+--   @m = Insert (Glyph "bhabengali") [ UTF82 (Bytes2All 0x09 0xAD) ] m;
+--   @m = Insert (Glyph "bhadeva") [ UTF82 (Bytes2All 0x09 0x2D) ] m;
+--   @m = Insert (Glyph "bhagujarati") [ UTF82 (Bytes2All 0x0A 0xAD) ] m;
+--   @m = Insert (Glyph "bhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2D) ] m;
+--   @m = Insert (Glyph "bhook") [ UTF82 (Bytes2All 0x02 0x53) ] m;
+--   @m = Insert (Glyph "bihiragana") [ UTF82 (Bytes2All 0x30 0x73) ] m;
+--   @m = Insert (Glyph "bikatakana") [ UTF82 (Bytes2All 0x30 0xD3) ] m;
+--   @m = Insert (Glyph "bilabialclick") [ UTF82 (Bytes2All 0x02 0x98) ] m;
+--   @m = Insert (Glyph "bindigurmukhi") [ UTF82 (Bytes2All 0x0A 0x02) ] m;
+--   @m = Insert (Glyph "birusquare") [ UTF82 (Bytes2All 0x33 0x31) ] m;
+--   @m = Insert (Glyph "blackcircle") [ UTF82 (Bytes2All 0x25 0xCF) ] m;
+--   @m = Insert (Glyph "blackdiamond") [ UTF82 (Bytes2All 0x25 0xC6) ] m;
+--   @m = Insert (Glyph "blackdownpointingtriangle") [ UTF82 (Bytes2All 0x25 0xBC) ] m;
+--   @m = Insert (Glyph "blackleftpointingpointer") [ UTF82 (Bytes2All 0x25 0xC4) ] m;
+--   @m = Insert (Glyph "blackleftpointingtriangle") [ UTF82 (Bytes2All 0x25 0xC0) ] m;
+--   @m = Insert (Glyph "blacklenticularbracketleft") [ UTF82 (Bytes2All 0x30 0x10) ] m;
+--   @m = Insert (Glyph "blacklenticularbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3B) ] m;
+--   @m = Insert (Glyph "blacklenticularbracketright") [ UTF82 (Bytes2All 0x30 0x11) ] m;
+--   @m = Insert (Glyph "blacklenticularbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3C) ] m;
+--   @m = Insert (Glyph "blacklowerlefttriangle") [ UTF82 (Bytes2All 0x25 0xE3) ] m;
+--   @m = Insert (Glyph "blacklowerrighttriangle") [ UTF82 (Bytes2All 0x25 0xE2) ] m;
+--   @m = Insert (Glyph "blackrectangle") [ UTF82 (Bytes2All 0x25 0xAC) ] m;
+--   @m = Insert (Glyph "blackrightpointingpointer") [ UTF82 (Bytes2All 0x25 0xBA) ] m;
+--   @m = Insert (Glyph "blackrightpointingtriangle") [ UTF82 (Bytes2All 0x25 0xB6) ] m;
+--   @m = Insert (Glyph "blacksmallsquare") [ UTF82 (Bytes2All 0x25 0xAA) ] m;
+--   @m = Insert (Glyph "blacksmilingface") [ UTF82 (Bytes2All 0x26 0x3B) ] m;
+--   @m = Insert (Glyph "blacksquare") [ UTF82 (Bytes2All 0x25 0xA0) ] m;
+--   @m = Insert (Glyph "blackstar") [ UTF82 (Bytes2All 0x26 0x05) ] m;
+--   @m = Insert (Glyph "blackupperlefttriangle") [ UTF82 (Bytes2All 0x25 0xE4) ] m;
+--   @m = Insert (Glyph "blackupperrighttriangle") [ UTF82 (Bytes2All 0x25 0xE5) ] m;
+--   @m = Insert (Glyph "blackuppointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB4) ] m;
+--   @m = Insert (Glyph "blackuppointingtriangle") [ UTF82 (Bytes2All 0x25 0xB2) ] m;
+--   @m = Insert (Glyph "blank") [ UTF82 (Bytes2All 0x24 0x23) ] m;
+--   @m = Insert (Glyph "blinebelow") [ UTF82 (Bytes2All 0x1E 0x07) ] m;
+--   @m = Insert (Glyph "block") [ UTF82 (Bytes2All 0x25 0x88) ] m;
+--   @m = Insert (Glyph "bmonospace") [ UTF82 (Bytes2All 0xFF 0x42) ] m;
+--   @m = Insert (Glyph "bobaimaithai") [ UTF82 (Bytes2All 0x0E 0x1A) ] m;
+--   @m = Insert (Glyph "bohiragana") [ UTF82 (Bytes2All 0x30 0x7C) ] m;
+--   @m = Insert (Glyph "bokatakana") [ UTF82 (Bytes2All 0x30 0xDC) ] m;
+--   @m = Insert (Glyph "bparen") [ UTF82 (Bytes2All 0x24 0x9D) ] m;
+--   @m = Insert (Glyph "bqsquare") [ UTF82 (Bytes2All 0x33 0xC3) ] m;
+--   @m = Insert (Glyph "braceex") [ UTF82 (Bytes2All 0xF8 0xF4) ] m;
+--   @m = Insert (Glyph "braceleft") [ UTF81 (Bytes1 0x7B) ] m;
+--   @m = Insert (Glyph "braceleftbt") [ UTF82 (Bytes2All 0xF8 0xF3) ] m;
+--   @m = Insert (Glyph "braceleftmid") [ UTF82 (Bytes2All 0xF8 0xF2) ] m;
+--   @m = Insert (Glyph "braceleftmonospace") [ UTF82 (Bytes2All 0xFF 0x5B) ] m;
+--   @m = Insert (Glyph "braceleftsmall") [ UTF82 (Bytes2All 0xFE 0x5B) ] m;
+--   @m = Insert (Glyph "bracelefttp") [ UTF82 (Bytes2All 0xF8 0xF1) ] m;
+--   @m = Insert (Glyph "braceleftvertical") [ UTF82 (Bytes2All 0xFE 0x37) ] m;
+--   @m = Insert (Glyph "braceright") [ UTF81 (Bytes1 0x7D) ] m;
+--   @m = Insert (Glyph "bracerightbt") [ UTF82 (Bytes2All 0xF8 0xFE) ] m;
+--   @m = Insert (Glyph "bracerightmid") [ UTF82 (Bytes2All 0xF8 0xFD) ] m;
+--   @m = Insert (Glyph "bracerightmonospace") [ UTF82 (Bytes2All 0xFF 0x5D) ] m;
+--   @m = Insert (Glyph "bracerightsmall") [ UTF82 (Bytes2All 0xFE 0x5C) ] m;
+--   @m = Insert (Glyph "bracerighttp") [ UTF82 (Bytes2All 0xF8 0xFC) ] m;
+--   @m = Insert (Glyph "bracerightvertical") [ UTF82 (Bytes2All 0xFE 0x38) ] m;
+--   @m = Insert (Glyph "bracketleft") [ UTF81 (Bytes1 0x5B) ] m;
+--   @m = Insert (Glyph "bracketleftbt") [ UTF82 (Bytes2All 0xF8 0xF0) ] m;
+--   @m = Insert (Glyph "bracketleftex") [ UTF82 (Bytes2All 0xF8 0xEF) ] m;
+--   @m = Insert (Glyph "bracketleftmonospace") [ UTF82 (Bytes2All 0xFF 0x3B) ] m;
+--   @m = Insert (Glyph "bracketlefttp") [ UTF82 (Bytes2All 0xF8 0xEE) ] m;
+--   @m = Insert (Glyph "bracketright") [ UTF81 (Bytes1 0x5D) ] m;
+--   @m = Insert (Glyph "bracketrightbt") [ UTF82 (Bytes2All 0xF8 0xFB) ] m;
+--   @m = Insert (Glyph "bracketrightex") [ UTF82 (Bytes2All 0xF8 0xFA) ] m;
+--   @m = Insert (Glyph "bracketrightmonospace") [ UTF82 (Bytes2All 0xFF 0x3D) ] m;
+--   @m = Insert (Glyph "bracketrighttp") [ UTF82 (Bytes2All 0xF8 0xF9) ] m;
+--   @m = Insert (Glyph "breve") [ UTF82 (Bytes2All 0x02 0xD8) ] m;
+--   @m = Insert (Glyph "brevebelowcmb") [ UTF82 (Bytes2All 0x03 0x2E) ] m;
+--   @m = Insert (Glyph "brevecmb") [ UTF82 (Bytes2All 0x03 0x06) ] m;
+--   @m = Insert (Glyph "breveinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x2F) ] m;
+--   @m = Insert (Glyph "breveinvertedcmb") [ UTF82 (Bytes2All 0x03 0x11) ] m;
+--   @m = Insert (Glyph "breveinverteddoublecmb") [ UTF82 (Bytes2All 0x03 0x61) ] m;
+--   @m = Insert (Glyph "bridgebelowcmb") [ UTF82 (Bytes2All 0x03 0x2A) ] m;
+--   @m = Insert (Glyph "bridgeinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x3A) ] m;
+--   @m = Insert (Glyph "brokenbar") [ UTF81 (Bytes1 0xA6) ] m;
+--   @m = Insert (Glyph "bstroke") [ UTF82 (Bytes2All 0x01 0x80) ] m;
+--   @m = Insert (Glyph "bsuperior") [ UTF82 (Bytes2All 0xF6 0xEA) ] m;
+--   @m = Insert (Glyph "btopbar") [ UTF82 (Bytes2All 0x01 0x83) ] m;
+--   @m = Insert (Glyph "buhiragana") [ UTF82 (Bytes2All 0x30 0x76) ] m;
+--   @m = Insert (Glyph "bukatakana") [ UTF82 (Bytes2All 0x30 0xD6) ] m;
+--   @m = Insert (Glyph "bullet") [ UTF82 (Bytes2All 0x20 0x22) ] m;
+--   @m = Insert (Glyph "bulletinverse") [ UTF82 (Bytes2All 0x25 0xD8) ] m;
+--   @m = Insert (Glyph "bulletoperator") [ UTF82 (Bytes2All 0x22 0x19) ] m;
+--   @m = Insert (Glyph "bullseye") [ UTF82 (Bytes2All 0x25 0xCE) ] m;
+--   m
+-- }
+
+-- def GlyphEncc =  {
+--   @m = empty;
+--   @m = Insert (Glyph "c") [ UTF81 (Bytes1 0x63) ] m;
+--   @m = Insert (Glyph "caarmenian") [ UTF82 (Bytes2All 0x05 0x6E) ] m;
+--   @m = Insert (Glyph "cabengali") [ UTF82 (Bytes2All 0x09 0x9A) ] m;
+--   @m = Insert (Glyph "cacute") [ UTF82 (Bytes2All 0x01 0x07) ] m;
+--   @m = Insert (Glyph "cadeva") [ UTF82 (Bytes2All 0x09 0x1A) ] m;
+--   @m = Insert (Glyph "cagujarati") [ UTF82 (Bytes2All 0x0A 0x9A) ] m;
+--   @m = Insert (Glyph "cagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1A) ] m;
+--   @m = Insert (Glyph "calsquare") [ UTF82 (Bytes2All 0x33 0x88) ] m;
+--   @m = Insert (Glyph "candrabindubengali") [ UTF82 (Bytes2All 0x09 0x81) ] m;
+--   @m = Insert (Glyph "candrabinducmb") [ UTF82 (Bytes2All 0x03 0x10) ] m;
+--   @m = Insert (Glyph "candrabindudeva") [ UTF82 (Bytes2All 0x09 0x01) ] m;
+--   @m = Insert (Glyph "candrabindugujarati") [ UTF82 (Bytes2All 0x0A 0x81) ] m;
+--   @m = Insert (Glyph "capslock") [ UTF82 (Bytes2All 0x21 0xEA) ] m;
+--   @m = Insert (Glyph "careof") [ UTF82 (Bytes2All 0x21 0x05) ] m;
+--   @m = Insert (Glyph "caron") [ UTF82 (Bytes2All 0x02 0xC7) ] m;
+--   @m = Insert (Glyph "caronbelowcmb") [ UTF82 (Bytes2All 0x03 0x2C) ] m;
+--   @m = Insert (Glyph "caroncmb") [ UTF82 (Bytes2All 0x03 0x0C) ] m;
+--   @m = Insert (Glyph "carriagereturn") [ UTF82 (Bytes2All 0x21 0xB5) ] m;
+--   @m = Insert (Glyph "cbopomofo") [ UTF82 (Bytes2All 0x31 0x18) ] m;
+--   @m = Insert (Glyph "ccaron") [ UTF82 (Bytes2All 0x01 0x0D) ] m;
+--   @m = Insert (Glyph "ccedilla") [ UTF81 (Bytes1 0xE7) ] m;
+--   @m = Insert (Glyph "ccedillaacute") [ UTF82 (Bytes2All 0x1E 0x09) ] m;
+--   @m = Insert (Glyph "ccircle") [ UTF82 (Bytes2All 0x24 0xD2) ] m;
+--   @m = Insert (Glyph "ccircumflex") [ UTF82 (Bytes2All 0x01 0x09) ] m;
+--   @m = Insert (Glyph "ccurl") [ UTF82 (Bytes2All 0x02 0x55) ] m;
+--   @m = Insert (Glyph "cdot") [ UTF82 (Bytes2All 0x01 0x0B) ] m;
+--   @m = Insert (Glyph "cdotaccent") [ UTF82 (Bytes2All 0x01 0x0B) ] m;
+--   @m = Insert (Glyph "cdsquare") [ UTF82 (Bytes2All 0x33 0xC5) ] m;
+--   @m = Insert (Glyph "cedilla") [ UTF81 (Bytes1 0xB8) ] m;
+--   @m = Insert (Glyph "cedillacmb") [ UTF82 (Bytes2All 0x03 0x27) ] m;
+--   @m = Insert (Glyph "cent") [ UTF81 (Bytes1 0xA2) ] m;
+--   @m = Insert (Glyph "centigrade") [ UTF82 (Bytes2All 0x21 0x03) ] m;
+--   @m = Insert (Glyph "centinferior") [ UTF82 (Bytes2All 0xF6 0xDF) ] m;
+--   @m = Insert (Glyph "centmonospace") [ UTF82 (Bytes2All 0xFF 0xE0) ] m;
+--   @m = Insert (Glyph "centoldstyle") [ UTF82 (Bytes2All 0xF7 0xA2) ] m;
+--   @m = Insert (Glyph "centsuperior") [ UTF82 (Bytes2All 0xF6 0xE0) ] m;
+--   @m = Insert (Glyph "chaarmenian") [ UTF82 (Bytes2All 0x05 0x79) ] m;
+--   @m = Insert (Glyph "chabengali") [ UTF82 (Bytes2All 0x09 0x9B) ] m;
+--   @m = Insert (Glyph "chadeva") [ UTF82 (Bytes2All 0x09 0x1B) ] m;
+--   @m = Insert (Glyph "chagujarati") [ UTF82 (Bytes2All 0x0A 0x9B) ] m;
+--   @m = Insert (Glyph "chagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1B) ] m;
+--   @m = Insert (Glyph "chbopomofo") [ UTF82 (Bytes2All 0x31 0x14) ] m;
+--   @m = Insert (Glyph "cheabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBD) ] m;
+--   @m = Insert (Glyph "checkmark") [ UTF82 (Bytes2All 0x27 0x13) ] m;
+--   @m = Insert (Glyph "checyrillic") [ UTF82 (Bytes2All 0x04 0x47) ] m;
+--   @m = Insert (Glyph "chedescenderabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xBF) ] m;
+--   @m = Insert (Glyph "chedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB7) ] m;
+--   @m = Insert (Glyph "chedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF5) ] m;
+--   @m = Insert (Glyph "cheharmenian") [ UTF82 (Bytes2All 0x05 0x73) ] m;
+--   @m = Insert (Glyph "chekhakassiancyrillic") [ UTF82 (Bytes2All 0x04 0xCC) ] m;
+--   @m = Insert (Glyph "cheverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB9) ] m;
+--   @m = Insert (Glyph "chi") [ UTF82 (Bytes2All 0x03 0xC7) ] m;
+--   @m = Insert (Glyph "chieuchacirclekorean") [ UTF82 (Bytes2All 0x32 0x77) ] m;
+--   @m = Insert (Glyph "chieuchaparenkorean") [ UTF82 (Bytes2All 0x32 0x17) ] m;
+--   @m = Insert (Glyph "chieuchcirclekorean") [ UTF82 (Bytes2All 0x32 0x69) ] m;
+--   @m = Insert (Glyph "chieuchkorean") [ UTF82 (Bytes2All 0x31 0x4A) ] m;
+--   @m = Insert (Glyph "chieuchparenkorean") [ UTF82 (Bytes2All 0x32 0x09) ] m;
+--   @m = Insert (Glyph "chochangthai") [ UTF82 (Bytes2All 0x0E 0x0A) ] m;
+--   @m = Insert (Glyph "chochanthai") [ UTF82 (Bytes2All 0x0E 0x08) ] m;
+--   @m = Insert (Glyph "chochingthai") [ UTF82 (Bytes2All 0x0E 0x09) ] m;
+--   @m = Insert (Glyph "chochoethai") [ UTF82 (Bytes2All 0x0E 0x0C) ] m;
+--   @m = Insert (Glyph "chook") [ UTF82 (Bytes2All 0x01 0x88) ] m;
+--   @m = Insert (Glyph "cieucacirclekorean") [ UTF82 (Bytes2All 0x32 0x76) ] m;
+--   @m = Insert (Glyph "cieucaparenkorean") [ UTF82 (Bytes2All 0x32 0x16) ] m;
+--   @m = Insert (Glyph "cieuccirclekorean") [ UTF82 (Bytes2All 0x32 0x68) ] m;
+--   @m = Insert (Glyph "cieuckorean") [ UTF82 (Bytes2All 0x31 0x48) ] m;
+--   @m = Insert (Glyph "cieucparenkorean") [ UTF82 (Bytes2All 0x32 0x08) ] m;
+--   @m = Insert (Glyph "cieucuparenkorean") [ UTF82 (Bytes2All 0x32 0x1C) ] m;
+--   @m = Insert (Glyph "circle") [ UTF82 (Bytes2All 0x25 0xCB) ] m;
+--   @m = Insert (Glyph "circlemultiply") [ UTF82 (Bytes2All 0x22 0x97) ] m;
+--   @m = Insert (Glyph "circleot") [ UTF82 (Bytes2All 0x22 0x99) ] m;
+--   @m = Insert (Glyph "circleplus") [ UTF82 (Bytes2All 0x22 0x95) ] m;
+--   @m = Insert (Glyph "circlepostalmark") [ UTF82 (Bytes2All 0x30 0x36) ] m;
+--   @m = Insert (Glyph "circlewithlefthalfblack") [ UTF82 (Bytes2All 0x25 0xD0) ] m;
+--   @m = Insert (Glyph "circlewithrighthalfblack") [ UTF82 (Bytes2All 0x25 0xD1) ] m;
+--   @m = Insert (Glyph "circumflex") [ UTF82 (Bytes2All 0x02 0xC6) ] m;
+--   @m = Insert (Glyph "circumflexbelowcmb") [ UTF82 (Bytes2All 0x03 0x2D) ] m;
+--   @m = Insert (Glyph "circumflexcmb") [ UTF82 (Bytes2All 0x03 0x02) ] m;
+--   @m = Insert (Glyph "clear") [ UTF82 (Bytes2All 0x23 0x27) ] m;
+--   @m = Insert (Glyph "clickalveolar") [ UTF82 (Bytes2All 0x01 0xC2) ] m;
+--   @m = Insert (Glyph "clickdental") [ UTF82 (Bytes2All 0x01 0xC0) ] m;
+--   @m = Insert (Glyph "clicklateral") [ UTF82 (Bytes2All 0x01 0xC1) ] m;
+--   @m = Insert (Glyph "clickretroflex") [ UTF82 (Bytes2All 0x01 0xC3) ] m;
+--   @m = Insert (Glyph "club") [ UTF82 (Bytes2All 0x26 0x63) ] m;
+--   @m = Insert (Glyph "clubsuitblack") [ UTF82 (Bytes2All 0x26 0x63) ] m;
+--   @m = Insert (Glyph "clubsuitwhite") [ UTF82 (Bytes2All 0x26 0x67) ] m;
+--   @m = Insert (Glyph "cmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA4) ] m;
+--   @m = Insert (Glyph "cmonospace") [ UTF82 (Bytes2All 0xFF 0x43) ] m;
+--   @m = Insert (Glyph "cmsquaredsquare") [ UTF82 (Bytes2All 0x33 0xA0) ] m;
+--   @m = Insert (Glyph "coarmenian") [ UTF82 (Bytes2All 0x05 0x81) ] m;
+--   @m = Insert (Glyph "colon") [ UTF81 (Bytes1 0x3A) ] m;
+--   @m = Insert (Glyph "colonmonetary") [ UTF82 (Bytes2All 0x20 0xA1) ] m;
+--   @m = Insert (Glyph "colonmonospace") [ UTF82 (Bytes2All 0xFF 0x1A) ] m;
+--   @m = Insert (Glyph "colonsign") [ UTF82 (Bytes2All 0x20 0xA1) ] m;
+--   @m = Insert (Glyph "colonsmall") [ UTF82 (Bytes2All 0xFE 0x55) ] m;
+--   @m = Insert (Glyph "colontriangularhalfmod") [ UTF82 (Bytes2All 0x02 0xD1) ] m;
+--   @m = Insert (Glyph "colontriangularmod") [ UTF82 (Bytes2All 0x02 0xD0) ] m;
+--   @m = Insert (Glyph "comma") [ UTF81 (Bytes1 0x2C) ] m;
+--   @m = Insert (Glyph "commaabovecmb") [ UTF82 (Bytes2All 0x03 0x13) ] m;
+--   @m = Insert (Glyph "commaaboverightcmb") [ UTF82 (Bytes2All 0x03 0x15) ] m;
+--   @m = Insert (Glyph "commaaccent") [ UTF82 (Bytes2All 0xF6 0xC3) ] m;
+--   @m = Insert (Glyph "commaarabic") [ UTF82 (Bytes2All 0x06 0x0C) ] m;
+--   @m = Insert (Glyph "commaarmenian") [ UTF82 (Bytes2All 0x05 0x5D) ] m;
+--   @m = Insert (Glyph "commainferior") [ UTF82 (Bytes2All 0xF6 0xE1) ] m;
+--   @m = Insert (Glyph "commamonospace") [ UTF82 (Bytes2All 0xFF 0x0C) ] m;
+--   @m = Insert (Glyph "commareversedabovecmb") [ UTF82 (Bytes2All 0x03 0x14) ] m;
+--   @m = Insert (Glyph "commareversedmod") [ UTF82 (Bytes2All 0x02 0xBD) ] m;
+--   @m = Insert (Glyph "commasmall") [ UTF82 (Bytes2All 0xFE 0x50) ] m;
+--   @m = Insert (Glyph "commasuperior") [ UTF82 (Bytes2All 0xF6 0xE2) ] m;
+--   @m = Insert (Glyph "commaturnedabovecmb") [ UTF82 (Bytes2All 0x03 0x12) ] m;
+--   @m = Insert (Glyph "commaturnedmod") [ UTF82 (Bytes2All 0x02 0xBB) ] m;
+--   @m = Insert (Glyph "compass") [ UTF82 (Bytes2All 0x26 0x3C) ] m;
+--   @m = Insert (Glyph "congruent") [ UTF82 (Bytes2All 0x22 0x45) ] m;
+--   @m = Insert (Glyph "contourintegral") [ UTF82 (Bytes2All 0x22 0x2E) ] m;
+--   @m = Insert (Glyph "control") [ UTF82 (Bytes2All 0x23 0x03) ] m;
+--   @m = Insert (Glyph "controlACK") [ UTF81 (Bytes1 0x06) ] m;
+--   @m = Insert (Glyph "controlBEL") [ UTF81 (Bytes1 0x07) ] m;
+--   @m = Insert (Glyph "controlBS") [ UTF81 (Bytes1 0x08) ] m;
+--   @m = Insert (Glyph "controlCAN") [ UTF81 (Bytes1 0x18) ] m;
+--   @m = Insert (Glyph "controlCR") [ UTF81 (Bytes1 0x0D) ] m;
+--   @m = Insert (Glyph "controlDC1") [ UTF81 (Bytes1 0x11) ] m;
+--   @m = Insert (Glyph "controlDC2") [ UTF81 (Bytes1 0x12) ] m;
+--   @m = Insert (Glyph "controlDC3") [ UTF81 (Bytes1 0x13) ] m;
+--   @m = Insert (Glyph "controlDC4") [ UTF81 (Bytes1 0x14) ] m;
+--   @m = Insert (Glyph "controlDEL") [ UTF81 (Bytes1 0x7F) ] m;
+--   @m = Insert (Glyph "controlDLE") [ UTF81 (Bytes1 0x10) ] m;
+--   @m = Insert (Glyph "controlEM") [ UTF81 (Bytes1 0x19) ] m;
+--   @m = Insert (Glyph "controlENQ") [ UTF81 (Bytes1 0x05) ] m;
+--   @m = Insert (Glyph "controlEOT") [ UTF81 (Bytes1 0x04) ] m;
+--   @m = Insert (Glyph "controlESC") [ UTF81 (Bytes1 0x1B) ] m;
+--   @m = Insert (Glyph "controlETB") [ UTF81 (Bytes1 0x17) ] m;
+--   @m = Insert (Glyph "controlETX") [ UTF81 (Bytes1 0x03) ] m;
+--   @m = Insert (Glyph "controlFF") [ UTF81 (Bytes1 0x0C) ] m;
+--   @m = Insert (Glyph "controlFS") [ UTF81 (Bytes1 0x1C) ] m;
+--   @m = Insert (Glyph "controlGS") [ UTF81 (Bytes1 0x1D) ] m;
+--   @m = Insert (Glyph "controlHT") [ UTF81 (Bytes1 0x09) ] m;
+--   @m = Insert (Glyph "controlLF") [ UTF81 (Bytes1 0x0A) ] m;
+--   @m = Insert (Glyph "controlNAK") [ UTF81 (Bytes1 0x15) ] m;
+--   @m = Insert (Glyph "controlRS") [ UTF81 (Bytes1 0x1E) ] m;
+--   @m = Insert (Glyph "controlSI") [ UTF81 (Bytes1 0x0F) ] m;
+--   @m = Insert (Glyph "controlSO") [ UTF81 (Bytes1 0x0E) ] m;
+--   @m = Insert (Glyph "controlSOT") [ UTF81 (Bytes1 0x02) ] m;
+--   @m = Insert (Glyph "controlSTX") [ UTF81 (Bytes1 0x01) ] m;
+--   @m = Insert (Glyph "controlSUB") [ UTF81 (Bytes1 0x1A) ] m;
+--   @m = Insert (Glyph "controlSYN") [ UTF81 (Bytes1 0x16) ] m;
+--   @m = Insert (Glyph "controlUS") [ UTF81 (Bytes1 0x1F) ] m;
+--   @m = Insert (Glyph "controlVT") [ UTF81 (Bytes1 0x0B) ] m;
+--   @m = Insert (Glyph "copyright") [ UTF81 (Bytes1 0xA9) ] m;
+--   @m = Insert (Glyph "copyrightsans") [ UTF82 (Bytes2All 0xF8 0xE9) ] m;
+--   @m = Insert (Glyph "copyrightserif") [ UTF82 (Bytes2All 0xF6 0xD9) ] m;
+--   @m = Insert (Glyph "cornerbracketleft") [ UTF82 (Bytes2All 0x30 0x0C) ] m;
+--   @m = Insert (Glyph "cornerbracketlefthalfwidth") [ UTF82 (Bytes2All 0xFF 0x62) ] m;
+--   @m = Insert (Glyph "cornerbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x41) ] m;
+--   @m = Insert (Glyph "cornerbracketright") [ UTF82 (Bytes2All 0x30 0x0D) ] m;
+--   @m = Insert (Glyph "cornerbracketrighthalfwidth") [ UTF82 (Bytes2All 0xFF 0x63) ] m;
+--   @m = Insert (Glyph "cornerbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x42) ] m;
+--   @m = Insert (Glyph "corporationsquare") [ UTF82 (Bytes2All 0x33 0x7F) ] m;
+--   @m = Insert (Glyph "cosquare") [ UTF82 (Bytes2All 0x33 0xC7) ] m;
+--   @m = Insert (Glyph "coverkgsquare") [ UTF82 (Bytes2All 0x33 0xC6) ] m;
+--   @m = Insert (Glyph "cparen") [ UTF82 (Bytes2All 0x24 0x9E) ] m;
+--   @m = Insert (Glyph "cruzeiro") [ UTF82 (Bytes2All 0x20 0xA2) ] m;
+--   @m = Insert (Glyph "cstretched") [ UTF82 (Bytes2All 0x02 0x97) ] m;
+--   @m = Insert (Glyph "curlyand") [ UTF82 (Bytes2All 0x22 0xCF) ] m;
+--   @m = Insert (Glyph "curlyor") [ UTF82 (Bytes2All 0x22 0xCE) ] m;
+--   @m = Insert (Glyph "currency") [ UTF81 (Bytes1 0xA4) ] m;
+--   @m = Insert (Glyph "cyrBreve") [ UTF82 (Bytes2All 0xF6 0xD1) ] m;
+--   @m = Insert (Glyph "cyrFlex") [ UTF82 (Bytes2All 0xF6 0xD2) ] m;
+--   @m = Insert (Glyph "cyrbreve") [ UTF82 (Bytes2All 0xF6 0xD4) ] m;
+--   @m = Insert (Glyph "cyrflex") [ UTF82 (Bytes2All 0xF6 0xD5) ] m;
+--   m
+-- }
+
+-- def GlyphEncd =  {
+--   @m = empty;
+--   @m = Insert (Glyph "d") [ UTF81 (Bytes1 0x64) ] m;
+--   @m = Insert (Glyph "daarmenian") [ UTF82 (Bytes2All 0x05 0x64) ] m;
+--   @m = Insert (Glyph "dabengali") [ UTF82 (Bytes2All 0x09 0xA6) ] m;
+--   @m = Insert (Glyph "dadarabic") [ UTF82 (Bytes2All 0x06 0x36) ] m;
+--   @m = Insert (Glyph "dadeva") [ UTF82 (Bytes2All 0x09 0x26) ] m;
+--   @m = Insert (Glyph "dadfinalarabic") [ UTF82 (Bytes2All 0xFE 0xBE) ] m;
+--   @m = Insert (Glyph "dadinitialarabic") [ UTF82 (Bytes2All 0xFE 0xBF) ] m;
+--   @m = Insert (Glyph "dadmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC0) ] m;
+--   @m = Insert (Glyph "dagesh") [ UTF82 (Bytes2All 0x05 0xBC) ] m;
+--   @m = Insert (Glyph "dageshhebrew") [ UTF82 (Bytes2All 0x05 0xBC) ] m;
+--   @m = Insert (Glyph "dagger") [ UTF82 (Bytes2All 0x20 0x20) ] m;
+--   @m = Insert (Glyph "daggerdbl") [ UTF82 (Bytes2All 0x20 0x21) ] m;
+--   @m = Insert (Glyph "dagujarati") [ UTF82 (Bytes2All 0x0A 0xA6) ] m;
+--   @m = Insert (Glyph "dagurmukhi") [ UTF82 (Bytes2All 0x0A 0x26) ] m;
+--   @m = Insert (Glyph "dahiragana") [ UTF82 (Bytes2All 0x30 0x60) ] m;
+--   @m = Insert (Glyph "dakatakana") [ UTF82 (Bytes2All 0x30 0xC0) ] m;
+--   @m = Insert (Glyph "dalarabic") [ UTF82 (Bytes2All 0x06 0x2F) ] m;
+--   @m = Insert (Glyph "dalet") [ UTF82 (Bytes2All 0x05 0xD3) ] m;
+--   @m = Insert (Glyph "daletdagesh") [ UTF82 (Bytes2All 0xFB 0x33) ] m;
+--   @m = Insert (Glyph "daletdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x33) ] m;
+--   @m = Insert (Glyph "dalethatafpatah") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "dalethatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "dalethatafsegol") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "dalethatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "dalethebrew") [ UTF82 (Bytes2All 0x05 0xD3) ] m;
+--   @m = Insert (Glyph "dalethiriq") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "dalethiriqhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "daletholam") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "daletholamhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "daletpatah") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "daletpatahhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "daletqamats") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "daletqamatshebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "daletqubuts") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "daletqubutshebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "daletsegol") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "daletsegolhebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "daletsheva") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "daletshevahebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "dalettsere") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "dalettserehebrew") [ UTF82 (Bytes2All 0x05 0xD3), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "dalfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAA) ] m;
+--   @m = Insert (Glyph "dammaarabic") [ UTF82 (Bytes2All 0x06 0x4F) ] m;
+--   @m = Insert (Glyph "dammalowarabic") [ UTF82 (Bytes2All 0x06 0x4F) ] m;
+--   @m = Insert (Glyph "dammatanaltonearabic") [ UTF82 (Bytes2All 0x06 0x4C) ] m;
+--   @m = Insert (Glyph "dammatanarabic") [ UTF82 (Bytes2All 0x06 0x4C) ] m;
+--   @m = Insert (Glyph "danda") [ UTF82 (Bytes2All 0x09 0x64) ] m;
+--   @m = Insert (Glyph "dargahebrew") [ UTF82 (Bytes2All 0x05 0xA7) ] m;
+--   @m = Insert (Glyph "dargalefthebrew") [ UTF82 (Bytes2All 0x05 0xA7) ] m;
+--   @m = Insert (Glyph "dasiapneumatacyrilliccmb") [ UTF82 (Bytes2All 0x04 0x85) ] m;
+--   @m = Insert (Glyph "dblGrave") [ UTF82 (Bytes2All 0xF6 0xD3) ] m;
+--   @m = Insert (Glyph "dblanglebracketleft") [ UTF82 (Bytes2All 0x30 0x0A) ] m;
+--   @m = Insert (Glyph "dblanglebracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x3D) ] m;
+--   @m = Insert (Glyph "dblanglebracketright") [ UTF82 (Bytes2All 0x30 0x0B) ] m;
+--   @m = Insert (Glyph "dblanglebracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3E) ] m;
+--   @m = Insert (Glyph "dblarchinvertedbelowcmb") [ UTF82 (Bytes2All 0x03 0x2B) ] m;
+--   @m = Insert (Glyph "dblarrowleft") [ UTF82 (Bytes2All 0x21 0xD4) ] m;
+--   @m = Insert (Glyph "dblarrowright") [ UTF82 (Bytes2All 0x21 0xD2) ] m;
+--   @m = Insert (Glyph "dbldanda") [ UTF82 (Bytes2All 0x09 0x65) ] m;
+--   @m = Insert (Glyph "dblgrave") [ UTF82 (Bytes2All 0xF6 0xD6) ] m;
+--   @m = Insert (Glyph "dblgravecmb") [ UTF82 (Bytes2All 0x03 0x0F) ] m;
+--   @m = Insert (Glyph "dblintegral") [ UTF82 (Bytes2All 0x22 0x2C) ] m;
+--   @m = Insert (Glyph "dbllowline") [ UTF82 (Bytes2All 0x20 0x17) ] m;
+--   @m = Insert (Glyph "dbllowlinecmb") [ UTF82 (Bytes2All 0x03 0x33) ] m;
+--   @m = Insert (Glyph "dbloverlinecmb") [ UTF82 (Bytes2All 0x03 0x3F) ] m;
+--   @m = Insert (Glyph "dblprimemod") [ UTF82 (Bytes2All 0x02 0xBA) ] m;
+--   @m = Insert (Glyph "dblverticalbar") [ UTF82 (Bytes2All 0x20 0x16) ] m;
+--   @m = Insert (Glyph "dblverticallineabovecmb") [ UTF82 (Bytes2All 0x03 0x0E) ] m;
+--   @m = Insert (Glyph "dbopomofo") [ UTF82 (Bytes2All 0x31 0x09) ] m;
+--   @m = Insert (Glyph "dbsquare") [ UTF82 (Bytes2All 0x33 0xC8) ] m;
+--   @m = Insert (Glyph "dcaron") [ UTF82 (Bytes2All 0x01 0x0F) ] m;
+--   @m = Insert (Glyph "dcedilla") [ UTF82 (Bytes2All 0x1E 0x11) ] m;
+--   @m = Insert (Glyph "dcircle") [ UTF82 (Bytes2All 0x24 0xD3) ] m;
+--   @m = Insert (Glyph "dcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x13) ] m;
+--   @m = Insert (Glyph "dcroat") [ UTF82 (Bytes2All 0x01 0x11) ] m;
+--   @m = Insert (Glyph "ddabengali") [ UTF82 (Bytes2All 0x09 0xA1) ] m;
+--   @m = Insert (Glyph "ddadeva") [ UTF82 (Bytes2All 0x09 0x21) ] m;
+--   @m = Insert (Glyph "ddagujarati") [ UTF82 (Bytes2All 0x0A 0xA1) ] m;
+--   @m = Insert (Glyph "ddagurmukhi") [ UTF82 (Bytes2All 0x0A 0x21) ] m;
+--   @m = Insert (Glyph "ddalarabic") [ UTF82 (Bytes2All 0x06 0x88) ] m;
+--   @m = Insert (Glyph "ddalfinalarabic") [ UTF82 (Bytes2All 0xFB 0x89) ] m;
+--   @m = Insert (Glyph "dddhadeva") [ UTF82 (Bytes2All 0x09 0x5C) ] m;
+--   @m = Insert (Glyph "ddhabengali") [ UTF82 (Bytes2All 0x09 0xA2) ] m;
+--   @m = Insert (Glyph "ddhadeva") [ UTF82 (Bytes2All 0x09 0x22) ] m;
+--   @m = Insert (Glyph "ddhagujarati") [ UTF82 (Bytes2All 0x0A 0xA2) ] m;
+--   @m = Insert (Glyph "ddhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x22) ] m;
+--   @m = Insert (Glyph "ddotaccent") [ UTF82 (Bytes2All 0x1E 0x0B) ] m;
+--   @m = Insert (Glyph "ddotbelow") [ UTF82 (Bytes2All 0x1E 0x0D) ] m;
+--   @m = Insert (Glyph "decimalseparatorarabic") [ UTF82 (Bytes2All 0x06 0x6B) ] m;
+--   @m = Insert (Glyph "decimalseparatorpersian") [ UTF82 (Bytes2All 0x06 0x6B) ] m;
+--   @m = Insert (Glyph "decyrillic") [ UTF82 (Bytes2All 0x04 0x34) ] m;
+--   @m = Insert (Glyph "degree") [ UTF81 (Bytes1 0xB0) ] m;
+--   @m = Insert (Glyph "dehihebrew") [ UTF82 (Bytes2All 0x05 0xAD) ] m;
+--   @m = Insert (Glyph "dehiragana") [ UTF82 (Bytes2All 0x30 0x67) ] m;
+--   @m = Insert (Glyph "deicoptic") [ UTF82 (Bytes2All 0x03 0xEF) ] m;
+--   @m = Insert (Glyph "dekatakana") [ UTF82 (Bytes2All 0x30 0xC7) ] m;
+--   @m = Insert (Glyph "deleteleft") [ UTF82 (Bytes2All 0x23 0x2B) ] m;
+--   @m = Insert (Glyph "deleteright") [ UTF82 (Bytes2All 0x23 0x26) ] m;
+--   @m = Insert (Glyph "delta") [ UTF82 (Bytes2All 0x03 0xB4) ] m;
+--   @m = Insert (Glyph "deltaturned") [ UTF82 (Bytes2All 0x01 0x8D) ] m;
+--   @m = Insert (Glyph "denominatorminusonenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF8) ] m;
+--   @m = Insert (Glyph "dezh") [ UTF82 (Bytes2All 0x02 0xA4) ] m;
+--   @m = Insert (Glyph "dhabengali") [ UTF82 (Bytes2All 0x09 0xA7) ] m;
+--   @m = Insert (Glyph "dhadeva") [ UTF82 (Bytes2All 0x09 0x27) ] m;
+--   @m = Insert (Glyph "dhagujarati") [ UTF82 (Bytes2All 0x0A 0xA7) ] m;
+--   @m = Insert (Glyph "dhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x27) ] m;
+--   @m = Insert (Glyph "dhook") [ UTF82 (Bytes2All 0x02 0x57) ] m;
+--   @m = Insert (Glyph "dialytikatonos") [ UTF82 (Bytes2All 0x03 0x85) ] m;
+--   @m = Insert (Glyph "dialytikatonoscmb") [ UTF82 (Bytes2All 0x03 0x44) ] m;
+--   @m = Insert (Glyph "diamond") [ UTF82 (Bytes2All 0x26 0x66) ] m;
+--   @m = Insert (Glyph "diamondsuitwhite") [ UTF82 (Bytes2All 0x26 0x62) ] m;
+--   @m = Insert (Glyph "dieresis") [ UTF81 (Bytes1 0xA8) ] m;
+--   @m = Insert (Glyph "dieresisacute") [ UTF82 (Bytes2All 0xF6 0xD7) ] m;
+--   @m = Insert (Glyph "dieresisbelowcmb") [ UTF82 (Bytes2All 0x03 0x24) ] m;
+--   @m = Insert (Glyph "dieresiscmb") [ UTF82 (Bytes2All 0x03 0x08) ] m;
+--   @m = Insert (Glyph "dieresisgrave") [ UTF82 (Bytes2All 0xF6 0xD8) ] m;
+--   @m = Insert (Glyph "dieresistonos") [ UTF82 (Bytes2All 0x03 0x85) ] m;
+--   @m = Insert (Glyph "dihiragana") [ UTF82 (Bytes2All 0x30 0x62) ] m;
+--   @m = Insert (Glyph "dikatakana") [ UTF82 (Bytes2All 0x30 0xC2) ] m;
+--   @m = Insert (Glyph "dittomark") [ UTF82 (Bytes2All 0x30 0x03) ] m;
+--   @m = Insert (Glyph "divide") [ UTF81 (Bytes1 0xF7) ] m;
+--   @m = Insert (Glyph "divides") [ UTF82 (Bytes2All 0x22 0x23) ] m;
+--   @m = Insert (Glyph "divisionslash") [ UTF82 (Bytes2All 0x22 0x15) ] m;
+--   @m = Insert (Glyph "djecyrillic") [ UTF82 (Bytes2All 0x04 0x52) ] m;
+--   @m = Insert (Glyph "dkshade") [ UTF82 (Bytes2All 0x25 0x93) ] m;
+--   @m = Insert (Glyph "dlinebelow") [ UTF82 (Bytes2All 0x1E 0x0F) ] m;
+--   @m = Insert (Glyph "dlsquare") [ UTF82 (Bytes2All 0x33 0x97) ] m;
+--   @m = Insert (Glyph "dmacron") [ UTF82 (Bytes2All 0x01 0x11) ] m;
+--   @m = Insert (Glyph "dmonospace") [ UTF82 (Bytes2All 0xFF 0x44) ] m;
+--   @m = Insert (Glyph "dnblock") [ UTF82 (Bytes2All 0x25 0x84) ] m;
+--   @m = Insert (Glyph "dochadathai") [ UTF82 (Bytes2All 0x0E 0x0E) ] m;
+--   @m = Insert (Glyph "dodekthai") [ UTF82 (Bytes2All 0x0E 0x14) ] m;
+--   @m = Insert (Glyph "dohiragana") [ UTF82 (Bytes2All 0x30 0x69) ] m;
+--   @m = Insert (Glyph "dokatakana") [ UTF82 (Bytes2All 0x30 0xC9) ] m;
+--   @m = Insert (Glyph "dollar") [ UTF81 (Bytes1 0x24) ] m;
+--   @m = Insert (Glyph "dollarinferior") [ UTF82 (Bytes2All 0xF6 0xE3) ] m;
+--   @m = Insert (Glyph "dollarmonospace") [ UTF82 (Bytes2All 0xFF 0x04) ] m;
+--   @m = Insert (Glyph "dollaroldstyle") [ UTF82 (Bytes2All 0xF7 0x24) ] m;
+--   @m = Insert (Glyph "dollarsmall") [ UTF82 (Bytes2All 0xFE 0x69) ] m;
+--   @m = Insert (Glyph "dollarsuperior") [ UTF82 (Bytes2All 0xF6 0xE4) ] m;
+--   @m = Insert (Glyph "dong") [ UTF82 (Bytes2All 0x20 0xAB) ] m;
+--   @m = Insert (Glyph "dorusquare") [ UTF82 (Bytes2All 0x33 0x26) ] m;
+--   @m = Insert (Glyph "dotaccent") [ UTF82 (Bytes2All 0x02 0xD9) ] m;
+--   @m = Insert (Glyph "dotaccentcmb") [ UTF82 (Bytes2All 0x03 0x07) ] m;
+--   @m = Insert (Glyph "dotbelowcmb") [ UTF82 (Bytes2All 0x03 0x23) ] m;
+--   @m = Insert (Glyph "dotbelowcomb") [ UTF82 (Bytes2All 0x03 0x23) ] m;
+--   @m = Insert (Glyph "dotkatakana") [ UTF82 (Bytes2All 0x30 0xFB) ] m;
+--   @m = Insert (Glyph "dotlessi") [ UTF82 (Bytes2All 0x01 0x31) ] m;
+--   @m = Insert (Glyph "dotlessj") [ UTF82 (Bytes2All 0xF6 0xBE) ] m;
+--   @m = Insert (Glyph "dotlessjstrokehook") [ UTF82 (Bytes2All 0x02 0x84) ] m;
+--   @m = Insert (Glyph "dotmath") [ UTF82 (Bytes2All 0x22 0xC5) ] m;
+--   @m = Insert (Glyph "dottedcircle") [ UTF82 (Bytes2All 0x25 0xCC) ] m;
+--   @m = Insert (Glyph "doubleyodpatah") [ UTF82 (Bytes2All 0xFB 0x1F) ] m;
+--   @m = Insert (Glyph "doubleyodpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x1F) ] m;
+--   @m = Insert (Glyph "downtackbelowcmb") [ UTF82 (Bytes2All 0x03 0x1E) ] m;
+--   @m = Insert (Glyph "downtackmod") [ UTF82 (Bytes2All 0x02 0xD5) ] m;
+--   @m = Insert (Glyph "dparen") [ UTF82 (Bytes2All 0x24 0x9F) ] m;
+--   @m = Insert (Glyph "dsuperior") [ UTF82 (Bytes2All 0xF6 0xEB) ] m;
+--   @m = Insert (Glyph "dtail") [ UTF82 (Bytes2All 0x02 0x56) ] m;
+--   @m = Insert (Glyph "dtopbar") [ UTF82 (Bytes2All 0x01 0x8C) ] m;
+--   @m = Insert (Glyph "duhiragana") [ UTF82 (Bytes2All 0x30 0x65) ] m;
+--   @m = Insert (Glyph "dukatakana") [ UTF82 (Bytes2All 0x30 0xC5) ] m;
+--   @m = Insert (Glyph "dz") [ UTF82 (Bytes2All 0x01 0xF3) ] m;
+--   @m = Insert (Glyph "dzaltone") [ UTF82 (Bytes2All 0x02 0xA3) ] m;
+--   @m = Insert (Glyph "dzcaron") [ UTF82 (Bytes2All 0x01 0xC6) ] m;
+--   @m = Insert (Glyph "dzcurl") [ UTF82 (Bytes2All 0x02 0xA5) ] m;
+--   @m = Insert (Glyph "dzeabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xE1) ] m;
+--   @m = Insert (Glyph "dzecyrillic") [ UTF82 (Bytes2All 0x04 0x55) ] m;
+--   @m = Insert (Glyph "dzhecyrillic") [ UTF82 (Bytes2All 0x04 0x5F) ] m;
+--   m
+-- }
+
+-- def GlyphEnce =  {
+--   @m = empty;
+--   @m = Insert (Glyph "e") [ UTF81 (Bytes1 0x65) ] m;
+--   @m = Insert (Glyph "eacute") [ UTF81 (Bytes1 0xE9) ] m;
+--   @m = Insert (Glyph "earth") [ UTF82 (Bytes2All 0x26 0x41) ] m;
+--   @m = Insert (Glyph "ebengali") [ UTF82 (Bytes2All 0x09 0x8F) ] m;
+--   @m = Insert (Glyph "ebopomofo") [ UTF82 (Bytes2All 0x31 0x1C) ] m;
+--   @m = Insert (Glyph "ebreve") [ UTF82 (Bytes2All 0x01 0x15) ] m;
+--   @m = Insert (Glyph "ecandradeva") [ UTF82 (Bytes2All 0x09 0x0D) ] m;
+--   @m = Insert (Glyph "ecandragujarati") [ UTF82 (Bytes2All 0x0A 0x8D) ] m;
+--   @m = Insert (Glyph "ecandravowelsigndeva") [ UTF82 (Bytes2All 0x09 0x45) ] m;
+--   @m = Insert (Glyph "ecandravowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC5) ] m;
+--   @m = Insert (Glyph "ecaron") [ UTF82 (Bytes2All 0x01 0x1B) ] m;
+--   @m = Insert (Glyph "ecedillabreve") [ UTF82 (Bytes2All 0x1E 0x1D) ] m;
+--   @m = Insert (Glyph "echarmenian") [ UTF82 (Bytes2All 0x05 0x65) ] m;
+--   @m = Insert (Glyph "echyiwnarmenian") [ UTF82 (Bytes2All 0x05 0x87) ] m;
+--   @m = Insert (Glyph "ecircle") [ UTF82 (Bytes2All 0x24 0xD4) ] m;
+--   @m = Insert (Glyph "ecircumflex") [ UTF81 (Bytes1 0xEA) ] m;
+--   @m = Insert (Glyph "ecircumflexacute") [ UTF82 (Bytes2All 0x1E 0xBF) ] m;
+--   @m = Insert (Glyph "ecircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x19) ] m;
+--   @m = Insert (Glyph "ecircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xC7) ] m;
+--   @m = Insert (Glyph "ecircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xC1) ] m;
+--   @m = Insert (Glyph "ecircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xC3) ] m;
+--   @m = Insert (Glyph "ecircumflextilde") [ UTF82 (Bytes2All 0x1E 0xC5) ] m;
+--   @m = Insert (Glyph "ecyrillic") [ UTF82 (Bytes2All 0x04 0x54) ] m;
+--   @m = Insert (Glyph "edblgrave") [ UTF82 (Bytes2All 0x02 0x05) ] m;
+--   @m = Insert (Glyph "edeva") [ UTF82 (Bytes2All 0x09 0x0F) ] m;
+--   @m = Insert (Glyph "edieresis") [ UTF81 (Bytes1 0xEB) ] m;
+--   @m = Insert (Glyph "edot") [ UTF82 (Bytes2All 0x01 0x17) ] m;
+--   @m = Insert (Glyph "edotaccent") [ UTF82 (Bytes2All 0x01 0x17) ] m;
+--   @m = Insert (Glyph "edotbelow") [ UTF82 (Bytes2All 0x1E 0xB9) ] m;
+--   @m = Insert (Glyph "eegurmukhi") [ UTF82 (Bytes2All 0x0A 0x0F) ] m;
+--   @m = Insert (Glyph "eematragurmukhi") [ UTF82 (Bytes2All 0x0A 0x47) ] m;
+--   @m = Insert (Glyph "efcyrillic") [ UTF82 (Bytes2All 0x04 0x44) ] m;
+--   @m = Insert (Glyph "egrave") [ UTF81 (Bytes1 0xE8) ] m;
+--   @m = Insert (Glyph "egujarati") [ UTF82 (Bytes2All 0x0A 0x8F) ] m;
+--   @m = Insert (Glyph "eharmenian") [ UTF82 (Bytes2All 0x05 0x67) ] m;
+--   @m = Insert (Glyph "ehbopomofo") [ UTF82 (Bytes2All 0x31 0x1D) ] m;
+--   @m = Insert (Glyph "ehiragana") [ UTF82 (Bytes2All 0x30 0x48) ] m;
+--   @m = Insert (Glyph "ehookabove") [ UTF82 (Bytes2All 0x1E 0xBB) ] m;
+--   @m = Insert (Glyph "eibopomofo") [ UTF82 (Bytes2All 0x31 0x1F) ] m;
+--   @m = Insert (Glyph "eight") [ UTF81 (Bytes1 0x38) ] m;
+--   @m = Insert (Glyph "eightarabic") [ UTF82 (Bytes2All 0x06 0x68) ] m;
+--   @m = Insert (Glyph "eightbengali") [ UTF82 (Bytes2All 0x09 0xEE) ] m;
+--   @m = Insert (Glyph "eightcircle") [ UTF82 (Bytes2All 0x24 0x67) ] m;
+--   @m = Insert (Glyph "eightcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x91) ] m;
+--   @m = Insert (Glyph "eightdeva") [ UTF82 (Bytes2All 0x09 0x6E) ] m;
+--   @m = Insert (Glyph "eighteencircle") [ UTF82 (Bytes2All 0x24 0x71) ] m;
+--   @m = Insert (Glyph "eighteenparen") [ UTF82 (Bytes2All 0x24 0x85) ] m;
+--   @m = Insert (Glyph "eighteenperiod") [ UTF82 (Bytes2All 0x24 0x99) ] m;
+--   @m = Insert (Glyph "eightgujarati") [ UTF82 (Bytes2All 0x0A 0xEE) ] m;
+--   @m = Insert (Glyph "eightgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6E) ] m;
+--   @m = Insert (Glyph "eighthackarabic") [ UTF82 (Bytes2All 0x06 0x68) ] m;
+--   @m = Insert (Glyph "eighthangzhou") [ UTF82 (Bytes2All 0x30 0x28) ] m;
+--   @m = Insert (Glyph "eighthnotebeamed") [ UTF82 (Bytes2All 0x26 0x6B) ] m;
+--   @m = Insert (Glyph "eightideographicparen") [ UTF82 (Bytes2All 0x32 0x27) ] m;
+--   @m = Insert (Glyph "eightinferior") [ UTF82 (Bytes2All 0x20 0x88) ] m;
+--   @m = Insert (Glyph "eightmonospace") [ UTF82 (Bytes2All 0xFF 0x18) ] m;
+--   @m = Insert (Glyph "eightoldstyle") [ UTF82 (Bytes2All 0xF7 0x38) ] m;
+--   @m = Insert (Glyph "eightparen") [ UTF82 (Bytes2All 0x24 0x7B) ] m;
+--   @m = Insert (Glyph "eightperiod") [ UTF82 (Bytes2All 0x24 0x8F) ] m;
+--   @m = Insert (Glyph "eightpersian") [ UTF82 (Bytes2All 0x06 0xF8) ] m;
+--   @m = Insert (Glyph "eightroman") [ UTF82 (Bytes2All 0x21 0x77) ] m;
+--   @m = Insert (Glyph "eightsuperior") [ UTF82 (Bytes2All 0x20 0x78) ] m;
+--   @m = Insert (Glyph "eightthai") [ UTF82 (Bytes2All 0x0E 0x58) ] m;
+--   @m = Insert (Glyph "einvertedbreve") [ UTF82 (Bytes2All 0x02 0x07) ] m;
+--   @m = Insert (Glyph "eiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x65) ] m;
+--   @m = Insert (Glyph "ekatakana") [ UTF82 (Bytes2All 0x30 0xA8) ] m;
+--   @m = Insert (Glyph "ekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x74) ] m;
+--   @m = Insert (Glyph "ekonkargurmukhi") [ UTF82 (Bytes2All 0x0A 0x74) ] m;
+--   @m = Insert (Glyph "ekorean") [ UTF82 (Bytes2All 0x31 0x54) ] m;
+--   @m = Insert (Glyph "elcyrillic") [ UTF82 (Bytes2All 0x04 0x3B) ] m;
+--   @m = Insert (Glyph "element") [ UTF82 (Bytes2All 0x22 0x08) ] m;
+--   @m = Insert (Glyph "elevencircle") [ UTF82 (Bytes2All 0x24 0x6A) ] m;
+--   @m = Insert (Glyph "elevenparen") [ UTF82 (Bytes2All 0x24 0x7E) ] m;
+--   @m = Insert (Glyph "elevenperiod") [ UTF82 (Bytes2All 0x24 0x92) ] m;
+--   @m = Insert (Glyph "elevenroman") [ UTF82 (Bytes2All 0x21 0x7A) ] m;
+--   @m = Insert (Glyph "ellipsis") [ UTF82 (Bytes2All 0x20 0x26) ] m;
+--   @m = Insert (Glyph "ellipsisvertical") [ UTF82 (Bytes2All 0x22 0xEE) ] m;
+--   @m = Insert (Glyph "emacron") [ UTF82 (Bytes2All 0x01 0x13) ] m;
+--   @m = Insert (Glyph "emacronacute") [ UTF82 (Bytes2All 0x1E 0x17) ] m;
+--   @m = Insert (Glyph "emacrongrave") [ UTF82 (Bytes2All 0x1E 0x15) ] m;
+--   @m = Insert (Glyph "emcyrillic") [ UTF82 (Bytes2All 0x04 0x3C) ] m;
+--   @m = Insert (Glyph "emdash") [ UTF82 (Bytes2All 0x20 0x14) ] m;
+--   @m = Insert (Glyph "emdashvertical") [ UTF82 (Bytes2All 0xFE 0x31) ] m;
+--   @m = Insert (Glyph "emonospace") [ UTF82 (Bytes2All 0xFF 0x45) ] m;
+--   @m = Insert (Glyph "emphasismarkarmenian") [ UTF82 (Bytes2All 0x05 0x5B) ] m;
+--   @m = Insert (Glyph "emptyset") [ UTF82 (Bytes2All 0x22 0x05) ] m;
+--   @m = Insert (Glyph "enbopomofo") [ UTF82 (Bytes2All 0x31 0x23) ] m;
+--   @m = Insert (Glyph "encyrillic") [ UTF82 (Bytes2All 0x04 0x3D) ] m;
+--   @m = Insert (Glyph "endash") [ UTF82 (Bytes2All 0x20 0x13) ] m;
+--   @m = Insert (Glyph "endashvertical") [ UTF82 (Bytes2All 0xFE 0x32) ] m;
+--   @m = Insert (Glyph "endescendercyrillic") [ UTF82 (Bytes2All 0x04 0xA3) ] m;
+--   @m = Insert (Glyph "eng") [ UTF82 (Bytes2All 0x01 0x4B) ] m;
+--   @m = Insert (Glyph "engbopomofo") [ UTF82 (Bytes2All 0x31 0x25) ] m;
+--   @m = Insert (Glyph "enghecyrillic") [ UTF82 (Bytes2All 0x04 0xA5) ] m;
+--   @m = Insert (Glyph "enhookcyrillic") [ UTF82 (Bytes2All 0x04 0xC8) ] m;
+--   @m = Insert (Glyph "enspace") [ UTF82 (Bytes2All 0x20 0x02) ] m;
+--   @m = Insert (Glyph "eogonek") [ UTF82 (Bytes2All 0x01 0x19) ] m;
+--   @m = Insert (Glyph "eokorean") [ UTF82 (Bytes2All 0x31 0x53) ] m;
+--   @m = Insert (Glyph "eopen") [ UTF82 (Bytes2All 0x02 0x5B) ] m;
+--   @m = Insert (Glyph "eopenclosed") [ UTF82 (Bytes2All 0x02 0x9A) ] m;
+--   @m = Insert (Glyph "eopenreversed") [ UTF82 (Bytes2All 0x02 0x5C) ] m;
+--   @m = Insert (Glyph "eopenreversedclosed") [ UTF82 (Bytes2All 0x02 0x5E) ] m;
+--   @m = Insert (Glyph "eopenreversedhook") [ UTF82 (Bytes2All 0x02 0x5D) ] m;
+--   @m = Insert (Glyph "eparen") [ UTF82 (Bytes2All 0x24 0xA0) ] m;
+--   @m = Insert (Glyph "epsilon") [ UTF82 (Bytes2All 0x03 0xB5) ] m;
+--   @m = Insert (Glyph "epsilontonos") [ UTF82 (Bytes2All 0x03 0xAD) ] m;
+--   @m = Insert (Glyph "equal") [ UTF81 (Bytes1 0x3D) ] m;
+--   @m = Insert (Glyph "equalmonospace") [ UTF82 (Bytes2All 0xFF 0x1D) ] m;
+--   @m = Insert (Glyph "equalsmall") [ UTF82 (Bytes2All 0xFE 0x66) ] m;
+--   @m = Insert (Glyph "equalsuperior") [ UTF82 (Bytes2All 0x20 0x7C) ] m;
+--   @m = Insert (Glyph "equivalence") [ UTF82 (Bytes2All 0x22 0x61) ] m;
+--   @m = Insert (Glyph "erbopomofo") [ UTF82 (Bytes2All 0x31 0x26) ] m;
+--   @m = Insert (Glyph "ercyrillic") [ UTF82 (Bytes2All 0x04 0x40) ] m;
+--   @m = Insert (Glyph "ereversed") [ UTF82 (Bytes2All 0x02 0x58) ] m;
+--   @m = Insert (Glyph "ereversedcyrillic") [ UTF82 (Bytes2All 0x04 0x4D) ] m;
+--   @m = Insert (Glyph "escyrillic") [ UTF82 (Bytes2All 0x04 0x41) ] m;
+--   @m = Insert (Glyph "esdescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAB) ] m;
+--   @m = Insert (Glyph "esh") [ UTF82 (Bytes2All 0x02 0x83) ] m;
+--   @m = Insert (Glyph "eshcurl") [ UTF82 (Bytes2All 0x02 0x86) ] m;
+--   @m = Insert (Glyph "eshortdeva") [ UTF82 (Bytes2All 0x09 0x0E) ] m;
+--   @m = Insert (Glyph "eshortvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x46) ] m;
+--   @m = Insert (Glyph "eshreversedloop") [ UTF82 (Bytes2All 0x01 0xAA) ] m;
+--   @m = Insert (Glyph "eshsquatreversed") [ UTF82 (Bytes2All 0x02 0x85) ] m;
+--   @m = Insert (Glyph "esmallhiragana") [ UTF82 (Bytes2All 0x30 0x47) ] m;
+--   @m = Insert (Glyph "esmallkatakana") [ UTF82 (Bytes2All 0x30 0xA7) ] m;
+--   @m = Insert (Glyph "esmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6A) ] m;
+--   @m = Insert (Glyph "estimated") [ UTF82 (Bytes2All 0x21 0x2E) ] m;
+--   @m = Insert (Glyph "esuperior") [ UTF82 (Bytes2All 0xF6 0xEC) ] m;
+--   @m = Insert (Glyph "eta") [ UTF82 (Bytes2All 0x03 0xB7) ] m;
+--   @m = Insert (Glyph "etarmenian") [ UTF82 (Bytes2All 0x05 0x68) ] m;
+--   @m = Insert (Glyph "etatonos") [ UTF82 (Bytes2All 0x03 0xAE) ] m;
+--   @m = Insert (Glyph "eth") [ UTF81 (Bytes1 0xF0) ] m;
+--   @m = Insert (Glyph "etilde") [ UTF82 (Bytes2All 0x1E 0xBD) ] m;
+--   @m = Insert (Glyph "etildebelow") [ UTF82 (Bytes2All 0x1E 0x1B) ] m;
+--   @m = Insert (Glyph "etnahtafoukhhebrew") [ UTF82 (Bytes2All 0x05 0x91) ] m;
+--   @m = Insert (Glyph "etnahtafoukhlefthebrew") [ UTF82 (Bytes2All 0x05 0x91) ] m;
+--   @m = Insert (Glyph "etnahtahebrew") [ UTF82 (Bytes2All 0x05 0x91) ] m;
+--   @m = Insert (Glyph "etnahtalefthebrew") [ UTF82 (Bytes2All 0x05 0x91) ] m;
+--   @m = Insert (Glyph "eturned") [ UTF82 (Bytes2All 0x01 0xDD) ] m;
+--   @m = Insert (Glyph "eukorean") [ UTF82 (Bytes2All 0x31 0x61) ] m;
+--   @m = Insert (Glyph "euro") [ UTF82 (Bytes2All 0x20 0xAC) ] m;
+--   @m = Insert (Glyph "evowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC7) ] m;
+--   @m = Insert (Glyph "evowelsigndeva") [ UTF82 (Bytes2All 0x09 0x47) ] m;
+--   @m = Insert (Glyph "evowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC7) ] m;
+--   @m = Insert (Glyph "exclam") [ UTF81 (Bytes1 0x21) ] m;
+--   @m = Insert (Glyph "exclamarmenian") [ UTF82 (Bytes2All 0x05 0x5C) ] m;
+--   @m = Insert (Glyph "exclamdbl") [ UTF82 (Bytes2All 0x20 0x3C) ] m;
+--   @m = Insert (Glyph "exclamdown") [ UTF81 (Bytes1 0xA1) ] m;
+--   @m = Insert (Glyph "exclamdownsmall") [ UTF82 (Bytes2All 0xF7 0xA1) ] m;
+--   @m = Insert (Glyph "exclammonospace") [ UTF82 (Bytes2All 0xFF 0x01) ] m;
+--   @m = Insert (Glyph "exclamsmall") [ UTF82 (Bytes2All 0xF7 0x21) ] m;
+--   @m = Insert (Glyph "existential") [ UTF82 (Bytes2All 0x22 0x03) ] m;
+--   @m = Insert (Glyph "ezh") [ UTF82 (Bytes2All 0x02 0x92) ] m;
+--   @m = Insert (Glyph "ezhcaron") [ UTF82 (Bytes2All 0x01 0xEF) ] m;
+--   @m = Insert (Glyph "ezhcurl") [ UTF82 (Bytes2All 0x02 0x93) ] m;
+--   @m = Insert (Glyph "ezhreversed") [ UTF82 (Bytes2All 0x01 0xB9) ] m;
+--   @m = Insert (Glyph "ezhtail") [ UTF82 (Bytes2All 0x01 0xBA) ] m;
+--   m
+-- }
+
+-- def GlyphEncf =  {
+--   @m = empty;
+--   @m = Insert (Glyph "f") [ UTF81 (Bytes1 0x66) ] m;
+--   @m = Insert (Glyph "fadeva") [ UTF82 (Bytes2All 0x09 0x5E) ] m;
+--   @m = Insert (Glyph "fagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5E) ] m;
+--   @m = Insert (Glyph "fahrenheit") [ UTF82 (Bytes2All 0x21 0x09) ] m;
+--   @m = Insert (Glyph "fathaarabic") [ UTF82 (Bytes2All 0x06 0x4E) ] m;
+--   @m = Insert (Glyph "fathalowarabic") [ UTF82 (Bytes2All 0x06 0x4E) ] m;
+--   @m = Insert (Glyph "fathatanarabic") [ UTF82 (Bytes2All 0x06 0x4B) ] m;
+--   @m = Insert (Glyph "fbopomofo") [ UTF82 (Bytes2All 0x31 0x08) ] m;
+--   @m = Insert (Glyph "fcircle") [ UTF82 (Bytes2All 0x24 0xD5) ] m;
+--   @m = Insert (Glyph "fdotaccent") [ UTF82 (Bytes2All 0x1E 0x1F) ] m;
+--   @m = Insert (Glyph "feharabic") [ UTF82 (Bytes2All 0x06 0x41) ] m;
+--   @m = Insert (Glyph "feharmenian") [ UTF82 (Bytes2All 0x05 0x86) ] m;
+--   @m = Insert (Glyph "fehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xD2) ] m;
+--   @m = Insert (Glyph "fehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xD3) ] m;
+--   @m = Insert (Glyph "fehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD4) ] m;
+--   @m = Insert (Glyph "feicoptic") [ UTF82 (Bytes2All 0x03 0xE5) ] m;
+--   @m = Insert (Glyph "female") [ UTF82 (Bytes2All 0x26 0x40) ] m;
+--   @m = Insert (Glyph "ff") [ UTF82 (Bytes2All 0xFB 0x00) ] m;
+--   @m = Insert (Glyph "ffi") [ UTF82 (Bytes2All 0xFB 0x03) ] m;
+--   @m = Insert (Glyph "ffl") [ UTF82 (Bytes2All 0xFB 0x04) ] m;
+--   @m = Insert (Glyph "fi") [ UTF82 (Bytes2All 0xFB 0x01) ] m;
+--   @m = Insert (Glyph "fifteencircle") [ UTF82 (Bytes2All 0x24 0x6E) ] m;
+--   @m = Insert (Glyph "fifteenparen") [ UTF82 (Bytes2All 0x24 0x82) ] m;
+--   @m = Insert (Glyph "fifteenperiod") [ UTF82 (Bytes2All 0x24 0x96) ] m;
+--   @m = Insert (Glyph "figuredash") [ UTF82 (Bytes2All 0x20 0x12) ] m;
+--   @m = Insert (Glyph "filledbox") [ UTF82 (Bytes2All 0x25 0xA0) ] m;
+--   @m = Insert (Glyph "filledrect") [ UTF82 (Bytes2All 0x25 0xAC) ] m;
+--   @m = Insert (Glyph "finalkaf") [ UTF82 (Bytes2All 0x05 0xDA) ] m;
+--   @m = Insert (Glyph "finalkafdagesh") [ UTF82 (Bytes2All 0xFB 0x3A) ] m;
+--   @m = Insert (Glyph "finalkafdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3A) ] m;
+--   @m = Insert (Glyph "finalkafhebrew") [ UTF82 (Bytes2All 0x05 0xDA) ] m;
+--   @m = Insert (Glyph "finalkafqamats") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "finalkafqamatshebrew") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "finalkafsheva") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "finalkafshevahebrew") [ UTF82 (Bytes2All 0x05 0xDA), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "finalmem") [ UTF82 (Bytes2All 0x05 0xDD) ] m;
+--   @m = Insert (Glyph "finalmemhebrew") [ UTF82 (Bytes2All 0x05 0xDD) ] m;
+--   @m = Insert (Glyph "finalnun") [ UTF82 (Bytes2All 0x05 0xDF) ] m;
+--   @m = Insert (Glyph "finalnunhebrew") [ UTF82 (Bytes2All 0x05 0xDF) ] m;
+--   @m = Insert (Glyph "finalpe") [ UTF82 (Bytes2All 0x05 0xE3) ] m;
+--   @m = Insert (Glyph "finalpehebrew") [ UTF82 (Bytes2All 0x05 0xE3) ] m;
+--   @m = Insert (Glyph "finaltsadi") [ UTF82 (Bytes2All 0x05 0xE5) ] m;
+--   @m = Insert (Glyph "finaltsadihebrew") [ UTF82 (Bytes2All 0x05 0xE5) ] m;
+--   @m = Insert (Glyph "firsttonechinese") [ UTF82 (Bytes2All 0x02 0xC9) ] m;
+--   @m = Insert (Glyph "fisheye") [ UTF82 (Bytes2All 0x25 0xC9) ] m;
+--   @m = Insert (Glyph "fitacyrillic") [ UTF82 (Bytes2All 0x04 0x73) ] m;
+--   @m = Insert (Glyph "five") [ UTF81 (Bytes1 0x35) ] m;
+--   @m = Insert (Glyph "fivearabic") [ UTF82 (Bytes2All 0x06 0x65) ] m;
+--   @m = Insert (Glyph "fivebengali") [ UTF82 (Bytes2All 0x09 0xEB) ] m;
+--   @m = Insert (Glyph "fivecircle") [ UTF82 (Bytes2All 0x24 0x64) ] m;
+--   @m = Insert (Glyph "fivecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8E) ] m;
+--   @m = Insert (Glyph "fivedeva") [ UTF82 (Bytes2All 0x09 0x6B) ] m;
+--   @m = Insert (Glyph "fiveeighths") [ UTF82 (Bytes2All 0x21 0x5D) ] m;
+--   @m = Insert (Glyph "fivegujarati") [ UTF82 (Bytes2All 0x0A 0xEB) ] m;
+--   @m = Insert (Glyph "fivegurmukhi") [ UTF82 (Bytes2All 0x0A 0x6B) ] m;
+--   @m = Insert (Glyph "fivehackarabic") [ UTF82 (Bytes2All 0x06 0x65) ] m;
+--   @m = Insert (Glyph "fivehangzhou") [ UTF82 (Bytes2All 0x30 0x25) ] m;
+--   @m = Insert (Glyph "fiveideographicparen") [ UTF82 (Bytes2All 0x32 0x24) ] m;
+--   @m = Insert (Glyph "fiveinferior") [ UTF82 (Bytes2All 0x20 0x85) ] m;
+--   @m = Insert (Glyph "fivemonospace") [ UTF82 (Bytes2All 0xFF 0x15) ] m;
+--   @m = Insert (Glyph "fiveoldstyle") [ UTF82 (Bytes2All 0xF7 0x35) ] m;
+--   @m = Insert (Glyph "fiveparen") [ UTF82 (Bytes2All 0x24 0x78) ] m;
+--   @m = Insert (Glyph "fiveperiod") [ UTF82 (Bytes2All 0x24 0x8C) ] m;
+--   @m = Insert (Glyph "fivepersian") [ UTF82 (Bytes2All 0x06 0xF5) ] m;
+--   @m = Insert (Glyph "fiveroman") [ UTF82 (Bytes2All 0x21 0x74) ] m;
+--   @m = Insert (Glyph "fivesuperior") [ UTF82 (Bytes2All 0x20 0x75) ] m;
+--   @m = Insert (Glyph "fivethai") [ UTF82 (Bytes2All 0x0E 0x55) ] m;
+--   @m = Insert (Glyph "fl") [ UTF82 (Bytes2All 0xFB 0x02) ] m;
+--   @m = Insert (Glyph "florin") [ UTF82 (Bytes2All 0x01 0x92) ] m;
+--   @m = Insert (Glyph "fmonospace") [ UTF82 (Bytes2All 0xFF 0x46) ] m;
+--   @m = Insert (Glyph "fmsquare") [ UTF82 (Bytes2All 0x33 0x99) ] m;
+--   @m = Insert (Glyph "fofanthai") [ UTF82 (Bytes2All 0x0E 0x1F) ] m;
+--   @m = Insert (Glyph "fofathai") [ UTF82 (Bytes2All 0x0E 0x1D) ] m;
+--   @m = Insert (Glyph "fongmanthai") [ UTF82 (Bytes2All 0x0E 0x4F) ] m;
+--   @m = Insert (Glyph "forall") [ UTF82 (Bytes2All 0x22 0x00) ] m;
+--   @m = Insert (Glyph "four") [ UTF81 (Bytes1 0x34) ] m;
+--   @m = Insert (Glyph "fourarabic") [ UTF82 (Bytes2All 0x06 0x64) ] m;
+--   @m = Insert (Glyph "fourbengali") [ UTF82 (Bytes2All 0x09 0xEA) ] m;
+--   @m = Insert (Glyph "fourcircle") [ UTF82 (Bytes2All 0x24 0x63) ] m;
+--   @m = Insert (Glyph "fourcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8D) ] m;
+--   @m = Insert (Glyph "fourdeva") [ UTF82 (Bytes2All 0x09 0x6A) ] m;
+--   @m = Insert (Glyph "fourgujarati") [ UTF82 (Bytes2All 0x0A 0xEA) ] m;
+--   @m = Insert (Glyph "fourgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6A) ] m;
+--   @m = Insert (Glyph "fourhackarabic") [ UTF82 (Bytes2All 0x06 0x64) ] m;
+--   @m = Insert (Glyph "fourhangzhou") [ UTF82 (Bytes2All 0x30 0x24) ] m;
+--   @m = Insert (Glyph "fourideographicparen") [ UTF82 (Bytes2All 0x32 0x23) ] m;
+--   @m = Insert (Glyph "fourinferior") [ UTF82 (Bytes2All 0x20 0x84) ] m;
+--   @m = Insert (Glyph "fourmonospace") [ UTF82 (Bytes2All 0xFF 0x14) ] m;
+--   @m = Insert (Glyph "fournumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF7) ] m;
+--   @m = Insert (Glyph "fouroldstyle") [ UTF82 (Bytes2All 0xF7 0x34) ] m;
+--   @m = Insert (Glyph "fourparen") [ UTF82 (Bytes2All 0x24 0x77) ] m;
+--   @m = Insert (Glyph "fourperiod") [ UTF82 (Bytes2All 0x24 0x8B) ] m;
+--   @m = Insert (Glyph "fourpersian") [ UTF82 (Bytes2All 0x06 0xF4) ] m;
+--   @m = Insert (Glyph "fourroman") [ UTF82 (Bytes2All 0x21 0x73) ] m;
+--   @m = Insert (Glyph "foursuperior") [ UTF82 (Bytes2All 0x20 0x74) ] m;
+--   @m = Insert (Glyph "fourteencircle") [ UTF82 (Bytes2All 0x24 0x6D) ] m;
+--   @m = Insert (Glyph "fourteenparen") [ UTF82 (Bytes2All 0x24 0x81) ] m;
+--   @m = Insert (Glyph "fourteenperiod") [ UTF82 (Bytes2All 0x24 0x95) ] m;
+--   @m = Insert (Glyph "fourthai") [ UTF82 (Bytes2All 0x0E 0x54) ] m;
+--   @m = Insert (Glyph "fourthtonechinese") [ UTF82 (Bytes2All 0x02 0xCB) ] m;
+--   @m = Insert (Glyph "fparen") [ UTF82 (Bytes2All 0x24 0xA1) ] m;
+--   @m = Insert (Glyph "fraction") [ UTF82 (Bytes2All 0x20 0x44) ] m;
+--   @m = Insert (Glyph "franc") [ UTF82 (Bytes2All 0x20 0xA3) ] m;
+--   m
+-- }
+
+-- def GlyphEncg =  {
+--   @m = empty;
+--   @m = Insert (Glyph "g") [ UTF81 (Bytes1 0x67) ] m;
+--   @m = Insert (Glyph "gabengali") [ UTF82 (Bytes2All 0x09 0x97) ] m;
+--   @m = Insert (Glyph "gacute") [ UTF82 (Bytes2All 0x01 0xF5) ] m;
+--   @m = Insert (Glyph "gadeva") [ UTF82 (Bytes2All 0x09 0x17) ] m;
+--   @m = Insert (Glyph "gafarabic") [ UTF82 (Bytes2All 0x06 0xAF) ] m;
+--   @m = Insert (Glyph "gaffinalarabic") [ UTF82 (Bytes2All 0xFB 0x93) ] m;
+--   @m = Insert (Glyph "gafinitialarabic") [ UTF82 (Bytes2All 0xFB 0x94) ] m;
+--   @m = Insert (Glyph "gafmedialarabic") [ UTF82 (Bytes2All 0xFB 0x95) ] m;
+--   @m = Insert (Glyph "gagujarati") [ UTF82 (Bytes2All 0x0A 0x97) ] m;
+--   @m = Insert (Glyph "gagurmukhi") [ UTF82 (Bytes2All 0x0A 0x17) ] m;
+--   @m = Insert (Glyph "gahiragana") [ UTF82 (Bytes2All 0x30 0x4C) ] m;
+--   @m = Insert (Glyph "gakatakana") [ UTF82 (Bytes2All 0x30 0xAC) ] m;
+--   @m = Insert (Glyph "gamma") [ UTF82 (Bytes2All 0x03 0xB3) ] m;
+--   @m = Insert (Glyph "gammalatinsmall") [ UTF82 (Bytes2All 0x02 0x63) ] m;
+--   @m = Insert (Glyph "gammasuperior") [ UTF82 (Bytes2All 0x02 0xE0) ] m;
+--   @m = Insert (Glyph "gangiacoptic") [ UTF82 (Bytes2All 0x03 0xEB) ] m;
+--   @m = Insert (Glyph "gbopomofo") [ UTF82 (Bytes2All 0x31 0x0D) ] m;
+--   @m = Insert (Glyph "gbreve") [ UTF82 (Bytes2All 0x01 0x1F) ] m;
+--   @m = Insert (Glyph "gcaron") [ UTF82 (Bytes2All 0x01 0xE7) ] m;
+--   @m = Insert (Glyph "gcedilla") [ UTF82 (Bytes2All 0x01 0x23) ] m;
+--   @m = Insert (Glyph "gcircle") [ UTF82 (Bytes2All 0x24 0xD6) ] m;
+--   @m = Insert (Glyph "gcircumflex") [ UTF82 (Bytes2All 0x01 0x1D) ] m;
+--   @m = Insert (Glyph "gcommaaccent") [ UTF82 (Bytes2All 0x01 0x23) ] m;
+--   @m = Insert (Glyph "gdot") [ UTF82 (Bytes2All 0x01 0x21) ] m;
+--   @m = Insert (Glyph "gdotaccent") [ UTF82 (Bytes2All 0x01 0x21) ] m;
+--   @m = Insert (Glyph "gecyrillic") [ UTF82 (Bytes2All 0x04 0x33) ] m;
+--   @m = Insert (Glyph "gehiragana") [ UTF82 (Bytes2All 0x30 0x52) ] m;
+--   @m = Insert (Glyph "gekatakana") [ UTF82 (Bytes2All 0x30 0xB2) ] m;
+--   @m = Insert (Glyph "geometricallyequal") [ UTF82 (Bytes2All 0x22 0x51) ] m;
+--   @m = Insert (Glyph "gereshaccenthebrew") [ UTF82 (Bytes2All 0x05 0x9C) ] m;
+--   @m = Insert (Glyph "gereshhebrew") [ UTF82 (Bytes2All 0x05 0xF3) ] m;
+--   @m = Insert (Glyph "gereshmuqdamhebrew") [ UTF82 (Bytes2All 0x05 0x9D) ] m;
+--   @m = Insert (Glyph "germandbls") [ UTF81 (Bytes1 0xDF) ] m;
+--   @m = Insert (Glyph "gershayimaccenthebrew") [ UTF82 (Bytes2All 0x05 0x9E) ] m;
+--   @m = Insert (Glyph "gershayimhebrew") [ UTF82 (Bytes2All 0x05 0xF4) ] m;
+--   @m = Insert (Glyph "getamark") [ UTF82 (Bytes2All 0x30 0x13) ] m;
+--   @m = Insert (Glyph "ghabengali") [ UTF82 (Bytes2All 0x09 0x98) ] m;
+--   @m = Insert (Glyph "ghadarmenian") [ UTF82 (Bytes2All 0x05 0x72) ] m;
+--   @m = Insert (Glyph "ghadeva") [ UTF82 (Bytes2All 0x09 0x18) ] m;
+--   @m = Insert (Glyph "ghagujarati") [ UTF82 (Bytes2All 0x0A 0x98) ] m;
+--   @m = Insert (Glyph "ghagurmukhi") [ UTF82 (Bytes2All 0x0A 0x18) ] m;
+--   @m = Insert (Glyph "ghainarabic") [ UTF82 (Bytes2All 0x06 0x3A) ] m;
+--   @m = Insert (Glyph "ghainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xCE) ] m;
+--   @m = Insert (Glyph "ghaininitialarabic") [ UTF82 (Bytes2All 0xFE 0xCF) ] m;
+--   @m = Insert (Glyph "ghainmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD0) ] m;
+--   @m = Insert (Glyph "ghemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0x95) ] m;
+--   @m = Insert (Glyph "ghestrokecyrillic") [ UTF82 (Bytes2All 0x04 0x93) ] m;
+--   @m = Insert (Glyph "gheupturncyrillic") [ UTF82 (Bytes2All 0x04 0x91) ] m;
+--   @m = Insert (Glyph "ghhadeva") [ UTF82 (Bytes2All 0x09 0x5A) ] m;
+--   @m = Insert (Glyph "ghhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5A) ] m;
+--   @m = Insert (Glyph "ghook") [ UTF82 (Bytes2All 0x02 0x60) ] m;
+--   @m = Insert (Glyph "ghzsquare") [ UTF82 (Bytes2All 0x33 0x93) ] m;
+--   @m = Insert (Glyph "gihiragana") [ UTF82 (Bytes2All 0x30 0x4E) ] m;
+--   @m = Insert (Glyph "gikatakana") [ UTF82 (Bytes2All 0x30 0xAE) ] m;
+--   @m = Insert (Glyph "gimarmenian") [ UTF82 (Bytes2All 0x05 0x63) ] m;
+--   @m = Insert (Glyph "gimel") [ UTF82 (Bytes2All 0x05 0xD2) ] m;
+--   @m = Insert (Glyph "gimeldagesh") [ UTF82 (Bytes2All 0xFB 0x32) ] m;
+--   @m = Insert (Glyph "gimeldageshhebrew") [ UTF82 (Bytes2All 0xFB 0x32) ] m;
+--   @m = Insert (Glyph "gimelhebrew") [ UTF82 (Bytes2All 0x05 0xD2) ] m;
+--   @m = Insert (Glyph "gjecyrillic") [ UTF82 (Bytes2All 0x04 0x53) ] m;
+--   @m = Insert (Glyph "glottalinvertedstroke") [ UTF82 (Bytes2All 0x01 0xBE) ] m;
+--   @m = Insert (Glyph "glottalstop") [ UTF82 (Bytes2All 0x02 0x94) ] m;
+--   @m = Insert (Glyph "glottalstopinverted") [ UTF82 (Bytes2All 0x02 0x96) ] m;
+--   @m = Insert (Glyph "glottalstopmod") [ UTF82 (Bytes2All 0x02 0xC0) ] m;
+--   @m = Insert (Glyph "glottalstopreversed") [ UTF82 (Bytes2All 0x02 0x95) ] m;
+--   @m = Insert (Glyph "glottalstopreversedmod") [ UTF82 (Bytes2All 0x02 0xC1) ] m;
+--   @m = Insert (Glyph "glottalstopreversedsuperior") [ UTF82 (Bytes2All 0x02 0xE4) ] m;
+--   @m = Insert (Glyph "glottalstopstroke") [ UTF82 (Bytes2All 0x02 0xA1) ] m;
+--   @m = Insert (Glyph "glottalstopstrokereversed") [ UTF82 (Bytes2All 0x02 0xA2) ] m;
+--   @m = Insert (Glyph "gmacron") [ UTF82 (Bytes2All 0x1E 0x21) ] m;
+--   @m = Insert (Glyph "gmonospace") [ UTF82 (Bytes2All 0xFF 0x47) ] m;
+--   @m = Insert (Glyph "gohiragana") [ UTF82 (Bytes2All 0x30 0x54) ] m;
+--   @m = Insert (Glyph "gokatakana") [ UTF82 (Bytes2All 0x30 0xB4) ] m;
+--   @m = Insert (Glyph "gparen") [ UTF82 (Bytes2All 0x24 0xA2) ] m;
+--   @m = Insert (Glyph "gpasquare") [ UTF82 (Bytes2All 0x33 0xAC) ] m;
+--   @m = Insert (Glyph "gradient") [ UTF82 (Bytes2All 0x22 0x07) ] m;
+--   @m = Insert (Glyph "grave") [ UTF81 (Bytes1 0x60) ] m;
+--   @m = Insert (Glyph "gravebelowcmb") [ UTF82 (Bytes2All 0x03 0x16) ] m;
+--   @m = Insert (Glyph "gravecmb") [ UTF82 (Bytes2All 0x03 0x00) ] m;
+--   @m = Insert (Glyph "gravecomb") [ UTF82 (Bytes2All 0x03 0x00) ] m;
+--   @m = Insert (Glyph "gravedeva") [ UTF82 (Bytes2All 0x09 0x53) ] m;
+--   @m = Insert (Glyph "gravelowmod") [ UTF82 (Bytes2All 0x02 0xCE) ] m;
+--   @m = Insert (Glyph "gravemonospace") [ UTF82 (Bytes2All 0xFF 0x40) ] m;
+--   @m = Insert (Glyph "gravetonecmb") [ UTF82 (Bytes2All 0x03 0x40) ] m;
+--   @m = Insert (Glyph "greater") [ UTF81 (Bytes1 0x3E) ] m;
+--   @m = Insert (Glyph "greaterequal") [ UTF82 (Bytes2All 0x22 0x65) ] m;
+--   @m = Insert (Glyph "greaterequalorless") [ UTF82 (Bytes2All 0x22 0xDB) ] m;
+--   @m = Insert (Glyph "greatermonospace") [ UTF82 (Bytes2All 0xFF 0x1E) ] m;
+--   @m = Insert (Glyph "greaterorequivalent") [ UTF82 (Bytes2All 0x22 0x73) ] m;
+--   @m = Insert (Glyph "greaterorless") [ UTF82 (Bytes2All 0x22 0x77) ] m;
+--   @m = Insert (Glyph "greateroverequal") [ UTF82 (Bytes2All 0x22 0x67) ] m;
+--   @m = Insert (Glyph "greatersmall") [ UTF82 (Bytes2All 0xFE 0x65) ] m;
+--   @m = Insert (Glyph "gscript") [ UTF82 (Bytes2All 0x02 0x61) ] m;
+--   @m = Insert (Glyph "gstroke") [ UTF82 (Bytes2All 0x01 0xE5) ] m;
+--   @m = Insert (Glyph "guhiragana") [ UTF82 (Bytes2All 0x30 0x50) ] m;
+--   @m = Insert (Glyph "guillemotleft") [ UTF81 (Bytes1 0xAB) ] m;
+--   @m = Insert (Glyph "guillemotright") [ UTF81 (Bytes1 0xBB) ] m;
+--   @m = Insert (Glyph "guilsinglleft") [ UTF82 (Bytes2All 0x20 0x39) ] m;
+--   @m = Insert (Glyph "guilsinglright") [ UTF82 (Bytes2All 0x20 0x3A) ] m;
+--   @m = Insert (Glyph "gukatakana") [ UTF82 (Bytes2All 0x30 0xB0) ] m;
+--   @m = Insert (Glyph "guramusquare") [ UTF82 (Bytes2All 0x33 0x18) ] m;
+--   @m = Insert (Glyph "gysquare") [ UTF82 (Bytes2All 0x33 0xC9) ] m;
+--   m
+-- }
+
+-- def GlyphEnch =  {
+--   @m = empty;
+--   @m = Insert (Glyph "h") [ UTF81 (Bytes1 0x68) ] m;
+--   @m = Insert (Glyph "haabkhasiancyrillic") [ UTF82 (Bytes2All 0x04 0xA9) ] m;
+--   @m = Insert (Glyph "haaltonearabic") [ UTF82 (Bytes2All 0x06 0xC1) ] m;
+--   @m = Insert (Glyph "habengali") [ UTF82 (Bytes2All 0x09 0xB9) ] m;
+--   @m = Insert (Glyph "hadescendercyrillic") [ UTF82 (Bytes2All 0x04 0xB3) ] m;
+--   @m = Insert (Glyph "hadeva") [ UTF82 (Bytes2All 0x09 0x39) ] m;
+--   @m = Insert (Glyph "hagujarati") [ UTF82 (Bytes2All 0x0A 0xB9) ] m;
+--   @m = Insert (Glyph "hagurmukhi") [ UTF82 (Bytes2All 0x0A 0x39) ] m;
+--   @m = Insert (Glyph "haharabic") [ UTF82 (Bytes2All 0x06 0x2D) ] m;
+--   @m = Insert (Glyph "hahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xA2) ] m;
+--   @m = Insert (Glyph "hahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xA3) ] m;
+--   @m = Insert (Glyph "hahiragana") [ UTF82 (Bytes2All 0x30 0x6F) ] m;
+--   @m = Insert (Glyph "hahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA4) ] m;
+--   @m = Insert (Glyph "haitusquare") [ UTF82 (Bytes2All 0x33 0x2A) ] m;
+--   @m = Insert (Glyph "hakatakana") [ UTF82 (Bytes2All 0x30 0xCF) ] m;
+--   @m = Insert (Glyph "hakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8A) ] m;
+--   @m = Insert (Glyph "halantgurmukhi") [ UTF82 (Bytes2All 0x0A 0x4D) ] m;
+--   @m = Insert (Glyph "hamzaarabic") [ UTF82 (Bytes2All 0x06 0x21) ] m;
+--   @m = Insert (Glyph "hamzadammaarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4F) ] m;
+--   @m = Insert (Glyph "hamzadammatanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4C) ] m;
+--   @m = Insert (Glyph "hamzafathaarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4E) ] m;
+--   @m = Insert (Glyph "hamzafathatanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4B) ] m;
+--   @m = Insert (Glyph "hamzalowarabic") [ UTF82 (Bytes2All 0x06 0x21) ] m;
+--   @m = Insert (Glyph "hamzalowkasraarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x50) ] m;
+--   @m = Insert (Glyph "hamzalowkasratanarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x4D) ] m;
+--   @m = Insert (Glyph "hamzasukunarabic") [ UTF82 (Bytes2All 0x06 0x21), UTF82 (Bytes2All 0x06 0x52) ] m;
+--   @m = Insert (Glyph "hangulfiller") [ UTF82 (Bytes2All 0x31 0x64) ] m;
+--   @m = Insert (Glyph "hardsigncyrillic") [ UTF82 (Bytes2All 0x04 0x4A) ] m;
+--   @m = Insert (Glyph "harpoonleftbarbup") [ UTF82 (Bytes2All 0x21 0xBC) ] m;
+--   @m = Insert (Glyph "harpoonrightbarbup") [ UTF82 (Bytes2All 0x21 0xC0) ] m;
+--   @m = Insert (Glyph "hasquare") [ UTF82 (Bytes2All 0x33 0xCA) ] m;
+--   @m = Insert (Glyph "hatafpatah") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatah16") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatah23") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatah2f") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatahnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatahquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafpatahwidehebrew") [ UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "hatafqamats") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamats1b") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamats28") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamats34") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamatshebrew") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamatsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamatsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafqamatswidehebrew") [ UTF82 (Bytes2All 0x05 0xB3) ] m;
+--   @m = Insert (Glyph "hatafsegol") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegol17") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegol24") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegol30") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegolnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegolquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hatafsegolwidehebrew") [ UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "hbar") [ UTF82 (Bytes2All 0x01 0x27) ] m;
+--   @m = Insert (Glyph "hbopomofo") [ UTF82 (Bytes2All 0x31 0x0F) ] m;
+--   @m = Insert (Glyph "hbrevebelow") [ UTF82 (Bytes2All 0x1E 0x2B) ] m;
+--   @m = Insert (Glyph "hcedilla") [ UTF82 (Bytes2All 0x1E 0x29) ] m;
+--   @m = Insert (Glyph "hcircle") [ UTF82 (Bytes2All 0x24 0xD7) ] m;
+--   @m = Insert (Glyph "hcircumflex") [ UTF82 (Bytes2All 0x01 0x25) ] m;
+--   @m = Insert (Glyph "hdieresis") [ UTF82 (Bytes2All 0x1E 0x27) ] m;
+--   @m = Insert (Glyph "hdotaccent") [ UTF82 (Bytes2All 0x1E 0x23) ] m;
+--   @m = Insert (Glyph "hdotbelow") [ UTF82 (Bytes2All 0x1E 0x25) ] m;
+--   @m = Insert (Glyph "he") [ UTF82 (Bytes2All 0x05 0xD4) ] m;
+--   @m = Insert (Glyph "heart") [ UTF82 (Bytes2All 0x26 0x65) ] m;
+--   @m = Insert (Glyph "heartsuitblack") [ UTF82 (Bytes2All 0x26 0x65) ] m;
+--   @m = Insert (Glyph "heartsuitwhite") [ UTF82 (Bytes2All 0x26 0x61) ] m;
+--   @m = Insert (Glyph "hedagesh") [ UTF82 (Bytes2All 0xFB 0x34) ] m;
+--   @m = Insert (Glyph "hedageshhebrew") [ UTF82 (Bytes2All 0xFB 0x34) ] m;
+--   @m = Insert (Glyph "hehaltonearabic") [ UTF82 (Bytes2All 0x06 0xC1) ] m;
+--   @m = Insert (Glyph "heharabic") [ UTF82 (Bytes2All 0x06 0x47) ] m;
+--   @m = Insert (Glyph "hehebrew") [ UTF82 (Bytes2All 0x05 0xD4) ] m;
+--   @m = Insert (Glyph "hehfinalaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA7) ] m;
+--   @m = Insert (Glyph "hehfinalalttwoarabic") [ UTF82 (Bytes2All 0xFE 0xEA) ] m;
+--   @m = Insert (Glyph "hehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xEA) ] m;
+--   @m = Insert (Glyph "hehhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFB 0xA5) ] m;
+--   @m = Insert (Glyph "hehhamzaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFB 0xA4) ] m;
+--   @m = Insert (Glyph "hehinitialaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA8) ] m;
+--   @m = Insert (Glyph "hehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xEB) ] m;
+--   @m = Insert (Glyph "hehiragana") [ UTF82 (Bytes2All 0x30 0x78) ] m;
+--   @m = Insert (Glyph "hehmedialaltonearabic") [ UTF82 (Bytes2All 0xFB 0xA9) ] m;
+--   @m = Insert (Glyph "hehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xEC) ] m;
+--   @m = Insert (Glyph "heiseierasquare") [ UTF82 (Bytes2All 0x33 0x7B) ] m;
+--   @m = Insert (Glyph "hekatakana") [ UTF82 (Bytes2All 0x30 0xD8) ] m;
+--   @m = Insert (Glyph "hekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8D) ] m;
+--   @m = Insert (Glyph "hekutaarusquare") [ UTF82 (Bytes2All 0x33 0x36) ] m;
+--   @m = Insert (Glyph "henghook") [ UTF82 (Bytes2All 0x02 0x67) ] m;
+--   @m = Insert (Glyph "herutusquare") [ UTF82 (Bytes2All 0x33 0x39) ] m;
+--   @m = Insert (Glyph "het") [ UTF82 (Bytes2All 0x05 0xD7) ] m;
+--   @m = Insert (Glyph "hethebrew") [ UTF82 (Bytes2All 0x05 0xD7) ] m;
+--   @m = Insert (Glyph "hhook") [ UTF82 (Bytes2All 0x02 0x66) ] m;
+--   @m = Insert (Glyph "hhooksuperior") [ UTF82 (Bytes2All 0x02 0xB1) ] m;
+--   @m = Insert (Glyph "hieuhacirclekorean") [ UTF82 (Bytes2All 0x32 0x7B) ] m;
+--   @m = Insert (Glyph "hieuhaparenkorean") [ UTF82 (Bytes2All 0x32 0x1B) ] m;
+--   @m = Insert (Glyph "hieuhcirclekorean") [ UTF82 (Bytes2All 0x32 0x6D) ] m;
+--   @m = Insert (Glyph "hieuhkorean") [ UTF82 (Bytes2All 0x31 0x4E) ] m;
+--   @m = Insert (Glyph "hieuhparenkorean") [ UTF82 (Bytes2All 0x32 0x0D) ] m;
+--   @m = Insert (Glyph "hihiragana") [ UTF82 (Bytes2All 0x30 0x72) ] m;
+--   @m = Insert (Glyph "hikatakana") [ UTF82 (Bytes2All 0x30 0xD2) ] m;
+--   @m = Insert (Glyph "hikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8B) ] m;
+--   @m = Insert (Glyph "hiriq") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriq14") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriq21") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriq2d") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriqhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriqnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriqquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hiriqwidehebrew") [ UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "hlinebelow") [ UTF82 (Bytes2All 0x1E 0x96) ] m;
+--   @m = Insert (Glyph "hmonospace") [ UTF82 (Bytes2All 0xFF 0x48) ] m;
+--   @m = Insert (Glyph "hoarmenian") [ UTF82 (Bytes2All 0x05 0x70) ] m;
+--   @m = Insert (Glyph "hohipthai") [ UTF82 (Bytes2All 0x0E 0x2B) ] m;
+--   @m = Insert (Glyph "hohiragana") [ UTF82 (Bytes2All 0x30 0x7B) ] m;
+--   @m = Insert (Glyph "hokatakana") [ UTF82 (Bytes2All 0x30 0xDB) ] m;
+--   @m = Insert (Glyph "hokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8E) ] m;
+--   @m = Insert (Glyph "holam") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holam19") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holam26") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holam32") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holamhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holamnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holamquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "holamwidehebrew") [ UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "honokhukthai") [ UTF82 (Bytes2All 0x0E 0x2E) ] m;
+--   @m = Insert (Glyph "hookabovecomb") [ UTF82 (Bytes2All 0x03 0x09) ] m;
+--   @m = Insert (Glyph "hookcmb") [ UTF82 (Bytes2All 0x03 0x09) ] m;
+--   @m = Insert (Glyph "hookpalatalizedbelowcmb") [ UTF82 (Bytes2All 0x03 0x21) ] m;
+--   @m = Insert (Glyph "hookretroflexbelowcmb") [ UTF82 (Bytes2All 0x03 0x22) ] m;
+--   @m = Insert (Glyph "hoonsquare") [ UTF82 (Bytes2All 0x33 0x42) ] m;
+--   @m = Insert (Glyph "horicoptic") [ UTF82 (Bytes2All 0x03 0xE9) ] m;
+--   @m = Insert (Glyph "horizontalbar") [ UTF82 (Bytes2All 0x20 0x15) ] m;
+--   @m = Insert (Glyph "horncmb") [ UTF82 (Bytes2All 0x03 0x1B) ] m;
+--   @m = Insert (Glyph "hotsprings") [ UTF82 (Bytes2All 0x26 0x68) ] m;
+--   @m = Insert (Glyph "house") [ UTF82 (Bytes2All 0x23 0x02) ] m;
+--   @m = Insert (Glyph "hparen") [ UTF82 (Bytes2All 0x24 0xA3) ] m;
+--   @m = Insert (Glyph "hsuperior") [ UTF82 (Bytes2All 0x02 0xB0) ] m;
+--   @m = Insert (Glyph "hturned") [ UTF82 (Bytes2All 0x02 0x65) ] m;
+--   @m = Insert (Glyph "huhiragana") [ UTF82 (Bytes2All 0x30 0x75) ] m;
+--   @m = Insert (Glyph "huiitosquare") [ UTF82 (Bytes2All 0x33 0x33) ] m;
+--   @m = Insert (Glyph "hukatakana") [ UTF82 (Bytes2All 0x30 0xD5) ] m;
+--   @m = Insert (Glyph "hukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8C) ] m;
+--   @m = Insert (Glyph "hungarumlaut") [ UTF82 (Bytes2All 0x02 0xDD) ] m;
+--   @m = Insert (Glyph "hungarumlautcmb") [ UTF82 (Bytes2All 0x03 0x0B) ] m;
+--   @m = Insert (Glyph "hv") [ UTF82 (Bytes2All 0x01 0x95) ] m;
+--   @m = Insert (Glyph "hyphen") [ UTF81 (Bytes1 0x2D) ] m;
+--   @m = Insert (Glyph "hypheninferior") [ UTF82 (Bytes2All 0xF6 0xE5) ] m;
+--   @m = Insert (Glyph "hyphenmonospace") [ UTF82 (Bytes2All 0xFF 0x0D) ] m;
+--   @m = Insert (Glyph "hyphensmall") [ UTF82 (Bytes2All 0xFE 0x63) ] m;
+--   @m = Insert (Glyph "hyphensuperior") [ UTF82 (Bytes2All 0xF6 0xE6) ] m;
+--   @m = Insert (Glyph "hyphentwo") [ UTF82 (Bytes2All 0x20 0x10) ] m;
+--   m
+-- }
+
+-- def GlyphEnci =  {
+--   @m = empty;
+--   @m = Insert (Glyph "i") [ UTF81 (Bytes1 0x69) ] m;
+--   @m = Insert (Glyph "iacute") [ UTF81 (Bytes1 0xED) ] m;
+--   @m = Insert (Glyph "iacyrillic") [ UTF82 (Bytes2All 0x04 0x4F) ] m;
+--   @m = Insert (Glyph "ibengali") [ UTF82 (Bytes2All 0x09 0x87) ] m;
+--   @m = Insert (Glyph "ibopomofo") [ UTF82 (Bytes2All 0x31 0x27) ] m;
+--   @m = Insert (Glyph "ibreve") [ UTF82 (Bytes2All 0x01 0x2D) ] m;
+--   @m = Insert (Glyph "icaron") [ UTF82 (Bytes2All 0x01 0xD0) ] m;
+--   @m = Insert (Glyph "icircle") [ UTF82 (Bytes2All 0x24 0xD8) ] m;
+--   @m = Insert (Glyph "icircumflex") [ UTF81 (Bytes1 0xEE) ] m;
+--   @m = Insert (Glyph "icyrillic") [ UTF82 (Bytes2All 0x04 0x56) ] m;
+--   @m = Insert (Glyph "idblgrave") [ UTF82 (Bytes2All 0x02 0x09) ] m;
+--   @m = Insert (Glyph "ideographearthcircle") [ UTF82 (Bytes2All 0x32 0x8F) ] m;
+--   @m = Insert (Glyph "ideographfirecircle") [ UTF82 (Bytes2All 0x32 0x8B) ] m;
+--   @m = Insert (Glyph "ideographicallianceparen") [ UTF82 (Bytes2All 0x32 0x3F) ] m;
+--   @m = Insert (Glyph "ideographiccallparen") [ UTF82 (Bytes2All 0x32 0x3A) ] m;
+--   @m = Insert (Glyph "ideographiccentrecircle") [ UTF82 (Bytes2All 0x32 0xA5) ] m;
+--   @m = Insert (Glyph "ideographicclose") [ UTF82 (Bytes2All 0x30 0x06) ] m;
+--   @m = Insert (Glyph "ideographiccomma") [ UTF82 (Bytes2All 0x30 0x01) ] m;
+--   @m = Insert (Glyph "ideographiccommaleft") [ UTF82 (Bytes2All 0xFF 0x64) ] m;
+--   @m = Insert (Glyph "ideographiccongratulationparen") [ UTF82 (Bytes2All 0x32 0x37) ] m;
+--   @m = Insert (Glyph "ideographiccorrectcircle") [ UTF82 (Bytes2All 0x32 0xA3) ] m;
+--   @m = Insert (Glyph "ideographicearthparen") [ UTF82 (Bytes2All 0x32 0x2F) ] m;
+--   @m = Insert (Glyph "ideographicenterpriseparen") [ UTF82 (Bytes2All 0x32 0x3D) ] m;
+--   @m = Insert (Glyph "ideographicexcellentcircle") [ UTF82 (Bytes2All 0x32 0x9D) ] m;
+--   @m = Insert (Glyph "ideographicfestivalparen") [ UTF82 (Bytes2All 0x32 0x40) ] m;
+--   @m = Insert (Glyph "ideographicfinancialcircle") [ UTF82 (Bytes2All 0x32 0x96) ] m;
+--   @m = Insert (Glyph "ideographicfinancialparen") [ UTF82 (Bytes2All 0x32 0x36) ] m;
+--   @m = Insert (Glyph "ideographicfireparen") [ UTF82 (Bytes2All 0x32 0x2B) ] m;
+--   @m = Insert (Glyph "ideographichaveparen") [ UTF82 (Bytes2All 0x32 0x32) ] m;
+--   @m = Insert (Glyph "ideographichighcircle") [ UTF82 (Bytes2All 0x32 0xA4) ] m;
+--   @m = Insert (Glyph "ideographiciterationmark") [ UTF82 (Bytes2All 0x30 0x05) ] m;
+--   @m = Insert (Glyph "ideographiclaborcircle") [ UTF82 (Bytes2All 0x32 0x98) ] m;
+--   @m = Insert (Glyph "ideographiclaborparen") [ UTF82 (Bytes2All 0x32 0x38) ] m;
+--   @m = Insert (Glyph "ideographicleftcircle") [ UTF82 (Bytes2All 0x32 0xA7) ] m;
+--   @m = Insert (Glyph "ideographiclowcircle") [ UTF82 (Bytes2All 0x32 0xA6) ] m;
+--   @m = Insert (Glyph "ideographicmedicinecircle") [ UTF82 (Bytes2All 0x32 0xA9) ] m;
+--   @m = Insert (Glyph "ideographicmetalparen") [ UTF82 (Bytes2All 0x32 0x2E) ] m;
+--   @m = Insert (Glyph "ideographicmoonparen") [ UTF82 (Bytes2All 0x32 0x2A) ] m;
+--   @m = Insert (Glyph "ideographicnameparen") [ UTF82 (Bytes2All 0x32 0x34) ] m;
+--   @m = Insert (Glyph "ideographicperiod") [ UTF82 (Bytes2All 0x30 0x02) ] m;
+--   @m = Insert (Glyph "ideographicprintcircle") [ UTF82 (Bytes2All 0x32 0x9E) ] m;
+--   @m = Insert (Glyph "ideographicreachparen") [ UTF82 (Bytes2All 0x32 0x43) ] m;
+--   @m = Insert (Glyph "ideographicrepresentparen") [ UTF82 (Bytes2All 0x32 0x39) ] m;
+--   @m = Insert (Glyph "ideographicresourceparen") [ UTF82 (Bytes2All 0x32 0x3E) ] m;
+--   @m = Insert (Glyph "ideographicrightcircle") [ UTF82 (Bytes2All 0x32 0xA8) ] m;
+--   @m = Insert (Glyph "ideographicsecretcircle") [ UTF82 (Bytes2All 0x32 0x99) ] m;
+--   @m = Insert (Glyph "ideographicselfparen") [ UTF82 (Bytes2All 0x32 0x42) ] m;
+--   @m = Insert (Glyph "ideographicsocietyparen") [ UTF82 (Bytes2All 0x32 0x33) ] m;
+--   @m = Insert (Glyph "ideographicspace") [ UTF82 (Bytes2All 0x30 0x00) ] m;
+--   @m = Insert (Glyph "ideographicspecialparen") [ UTF82 (Bytes2All 0x32 0x35) ] m;
+--   @m = Insert (Glyph "ideographicstockparen") [ UTF82 (Bytes2All 0x32 0x31) ] m;
+--   @m = Insert (Glyph "ideographicstudyparen") [ UTF82 (Bytes2All 0x32 0x3B) ] m;
+--   @m = Insert (Glyph "ideographicsunparen") [ UTF82 (Bytes2All 0x32 0x30) ] m;
+--   @m = Insert (Glyph "ideographicsuperviseparen") [ UTF82 (Bytes2All 0x32 0x3C) ] m;
+--   @m = Insert (Glyph "ideographicwaterparen") [ UTF82 (Bytes2All 0x32 0x2C) ] m;
+--   @m = Insert (Glyph "ideographicwoodparen") [ UTF82 (Bytes2All 0x32 0x2D) ] m;
+--   @m = Insert (Glyph "ideographiczero") [ UTF82 (Bytes2All 0x30 0x07) ] m;
+--   @m = Insert (Glyph "ideographmetalcircle") [ UTF82 (Bytes2All 0x32 0x8E) ] m;
+--   @m = Insert (Glyph "ideographmooncircle") [ UTF82 (Bytes2All 0x32 0x8A) ] m;
+--   @m = Insert (Glyph "ideographnamecircle") [ UTF82 (Bytes2All 0x32 0x94) ] m;
+--   @m = Insert (Glyph "ideographsuncircle") [ UTF82 (Bytes2All 0x32 0x90) ] m;
+--   @m = Insert (Glyph "ideographwatercircle") [ UTF82 (Bytes2All 0x32 0x8C) ] m;
+--   @m = Insert (Glyph "ideographwoodcircle") [ UTF82 (Bytes2All 0x32 0x8D) ] m;
+--   @m = Insert (Glyph "ideva") [ UTF82 (Bytes2All 0x09 0x07) ] m;
+--   @m = Insert (Glyph "idieresis") [ UTF81 (Bytes1 0xEF) ] m;
+--   @m = Insert (Glyph "idieresisacute") [ UTF82 (Bytes2All 0x1E 0x2F) ] m;
+--   @m = Insert (Glyph "idieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE5) ] m;
+--   @m = Insert (Glyph "idotbelow") [ UTF82 (Bytes2All 0x1E 0xCB) ] m;
+--   @m = Insert (Glyph "iebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xD7) ] m;
+--   @m = Insert (Glyph "iecyrillic") [ UTF82 (Bytes2All 0x04 0x35) ] m;
+--   @m = Insert (Glyph "ieungacirclekorean") [ UTF82 (Bytes2All 0x32 0x75) ] m;
+--   @m = Insert (Glyph "ieungaparenkorean") [ UTF82 (Bytes2All 0x32 0x15) ] m;
+--   @m = Insert (Glyph "ieungcirclekorean") [ UTF82 (Bytes2All 0x32 0x67) ] m;
+--   @m = Insert (Glyph "ieungkorean") [ UTF82 (Bytes2All 0x31 0x47) ] m;
+--   @m = Insert (Glyph "ieungparenkorean") [ UTF82 (Bytes2All 0x32 0x07) ] m;
+--   @m = Insert (Glyph "igrave") [ UTF81 (Bytes1 0xEC) ] m;
+--   @m = Insert (Glyph "igujarati") [ UTF82 (Bytes2All 0x0A 0x87) ] m;
+--   @m = Insert (Glyph "igurmukhi") [ UTF82 (Bytes2All 0x0A 0x07) ] m;
+--   @m = Insert (Glyph "ihiragana") [ UTF82 (Bytes2All 0x30 0x44) ] m;
+--   @m = Insert (Glyph "ihookabove") [ UTF82 (Bytes2All 0x1E 0xC9) ] m;
+--   @m = Insert (Glyph "iibengali") [ UTF82 (Bytes2All 0x09 0x88) ] m;
+--   @m = Insert (Glyph "iicyrillic") [ UTF82 (Bytes2All 0x04 0x38) ] m;
+--   @m = Insert (Glyph "iideva") [ UTF82 (Bytes2All 0x09 0x08) ] m;
+--   @m = Insert (Glyph "iigujarati") [ UTF82 (Bytes2All 0x0A 0x88) ] m;
+--   @m = Insert (Glyph "iigurmukhi") [ UTF82 (Bytes2All 0x0A 0x08) ] m;
+--   @m = Insert (Glyph "iimatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x40) ] m;
+--   @m = Insert (Glyph "iinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0B) ] m;
+--   @m = Insert (Glyph "iishortcyrillic") [ UTF82 (Bytes2All 0x04 0x39) ] m;
+--   @m = Insert (Glyph "iivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC0) ] m;
+--   @m = Insert (Glyph "iivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x40) ] m;
+--   @m = Insert (Glyph "iivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC0) ] m;
+--   @m = Insert (Glyph "ij") [ UTF82 (Bytes2All 0x01 0x33) ] m;
+--   @m = Insert (Glyph "ikatakana") [ UTF82 (Bytes2All 0x30 0xA4) ] m;
+--   @m = Insert (Glyph "ikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x72) ] m;
+--   @m = Insert (Glyph "ikorean") [ UTF82 (Bytes2All 0x31 0x63) ] m;
+--   @m = Insert (Glyph "ilde") [ UTF82 (Bytes2All 0x02 0xDC) ] m;
+--   @m = Insert (Glyph "iluyhebrew") [ UTF82 (Bytes2All 0x05 0xAC) ] m;
+--   @m = Insert (Glyph "imacron") [ UTF82 (Bytes2All 0x01 0x2B) ] m;
+--   @m = Insert (Glyph "imacroncyrillic") [ UTF82 (Bytes2All 0x04 0xE3) ] m;
+--   @m = Insert (Glyph "imageorapproximatelyequal") [ UTF82 (Bytes2All 0x22 0x53) ] m;
+--   @m = Insert (Glyph "imatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x3F) ] m;
+--   @m = Insert (Glyph "imonospace") [ UTF82 (Bytes2All 0xFF 0x49) ] m;
+--   @m = Insert (Glyph "increment") [ UTF82 (Bytes2All 0x22 0x06) ] m;
+--   @m = Insert (Glyph "infinity") [ UTF82 (Bytes2All 0x22 0x1E) ] m;
+--   @m = Insert (Glyph "iniarmenian") [ UTF82 (Bytes2All 0x05 0x6B) ] m;
+--   @m = Insert (Glyph "integral") [ UTF82 (Bytes2All 0x22 0x2B) ] m;
+--   @m = Insert (Glyph "integralbottom") [ UTF82 (Bytes2All 0x23 0x21) ] m;
+--   @m = Insert (Glyph "integralbt") [ UTF82 (Bytes2All 0x23 0x21) ] m;
+--   @m = Insert (Glyph "integralex") [ UTF82 (Bytes2All 0xF8 0xF5) ] m;
+--   @m = Insert (Glyph "integraltop") [ UTF82 (Bytes2All 0x23 0x20) ] m;
+--   @m = Insert (Glyph "integraltp") [ UTF82 (Bytes2All 0x23 0x20) ] m;
+--   @m = Insert (Glyph "intersection") [ UTF82 (Bytes2All 0x22 0x29) ] m;
+--   @m = Insert (Glyph "intisquare") [ UTF82 (Bytes2All 0x33 0x05) ] m;
+--   @m = Insert (Glyph "invbullet") [ UTF82 (Bytes2All 0x25 0xD8) ] m;
+--   @m = Insert (Glyph "invcircle") [ UTF82 (Bytes2All 0x25 0xD9) ] m;
+--   @m = Insert (Glyph "invsmileface") [ UTF82 (Bytes2All 0x26 0x3B) ] m;
+--   @m = Insert (Glyph "iocyrillic") [ UTF82 (Bytes2All 0x04 0x51) ] m;
+--   @m = Insert (Glyph "iogonek") [ UTF82 (Bytes2All 0x01 0x2F) ] m;
+--   @m = Insert (Glyph "iota") [ UTF82 (Bytes2All 0x03 0xB9) ] m;
+--   @m = Insert (Glyph "iotadieresis") [ UTF82 (Bytes2All 0x03 0xCA) ] m;
+--   @m = Insert (Glyph "iotadieresistonos") [ UTF82 (Bytes2All 0x03 0x90) ] m;
+--   @m = Insert (Glyph "iotalatin") [ UTF82 (Bytes2All 0x02 0x69) ] m;
+--   @m = Insert (Glyph "iotatonos") [ UTF82 (Bytes2All 0x03 0xAF) ] m;
+--   @m = Insert (Glyph "iparen") [ UTF82 (Bytes2All 0x24 0xA4) ] m;
+--   @m = Insert (Glyph "irigurmukhi") [ UTF82 (Bytes2All 0x0A 0x72) ] m;
+--   @m = Insert (Glyph "ismallhiragana") [ UTF82 (Bytes2All 0x30 0x43) ] m;
+--   @m = Insert (Glyph "ismallkatakana") [ UTF82 (Bytes2All 0x30 0xA3) ] m;
+--   @m = Insert (Glyph "ismallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x68) ] m;
+--   @m = Insert (Glyph "issharbengali") [ UTF82 (Bytes2All 0x09 0xFA) ] m;
+--   @m = Insert (Glyph "istroke") [ UTF82 (Bytes2All 0x02 0x68) ] m;
+--   @m = Insert (Glyph "isuperior") [ UTF82 (Bytes2All 0xF6 0xED) ] m;
+--   @m = Insert (Glyph "iterationhiragana") [ UTF82 (Bytes2All 0x30 0x9D) ] m;
+--   @m = Insert (Glyph "iterationkatakana") [ UTF82 (Bytes2All 0x30 0xFD) ] m;
+--   @m = Insert (Glyph "itilde") [ UTF82 (Bytes2All 0x01 0x29) ] m;
+--   @m = Insert (Glyph "itildebelow") [ UTF82 (Bytes2All 0x1E 0x2D) ] m;
+--   @m = Insert (Glyph "iubopomofo") [ UTF82 (Bytes2All 0x31 0x29) ] m;
+--   @m = Insert (Glyph "iucyrillic") [ UTF82 (Bytes2All 0x04 0x4E) ] m;
+--   @m = Insert (Glyph "ivowelsignbengali") [ UTF82 (Bytes2All 0x09 0xBF) ] m;
+--   @m = Insert (Glyph "ivowelsigndeva") [ UTF82 (Bytes2All 0x09 0x3F) ] m;
+--   @m = Insert (Glyph "ivowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xBF) ] m;
+--   @m = Insert (Glyph "izhitsacyrillic") [ UTF82 (Bytes2All 0x04 0x75) ] m;
+--   @m = Insert (Glyph "izhitsadblgravecyrillic") [ UTF82 (Bytes2All 0x04 0x77) ] m;
+--   m
+-- }
+
+-- def GlyphEncj =  {
+--   @m = empty;
+--   @m = Insert (Glyph "j") [ UTF81 (Bytes1 0x6A) ] m;
+--   @m = Insert (Glyph "jaarmenian") [ UTF82 (Bytes2All 0x05 0x71) ] m;
+--   @m = Insert (Glyph "jabengali") [ UTF82 (Bytes2All 0x09 0x9C) ] m;
+--   @m = Insert (Glyph "jadeva") [ UTF82 (Bytes2All 0x09 0x1C) ] m;
+--   @m = Insert (Glyph "jagujarati") [ UTF82 (Bytes2All 0x0A 0x9C) ] m;
+--   @m = Insert (Glyph "jagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1C) ] m;
+--   @m = Insert (Glyph "jbopomofo") [ UTF82 (Bytes2All 0x31 0x10) ] m;
+--   @m = Insert (Glyph "jcaron") [ UTF82 (Bytes2All 0x01 0xF0) ] m;
+--   @m = Insert (Glyph "jcircle") [ UTF82 (Bytes2All 0x24 0xD9) ] m;
+--   @m = Insert (Glyph "jcircumflex") [ UTF82 (Bytes2All 0x01 0x35) ] m;
+--   @m = Insert (Glyph "jcrossedtail") [ UTF82 (Bytes2All 0x02 0x9D) ] m;
+--   @m = Insert (Glyph "jdotlessstroke") [ UTF82 (Bytes2All 0x02 0x5F) ] m;
+--   @m = Insert (Glyph "jecyrillic") [ UTF82 (Bytes2All 0x04 0x58) ] m;
+--   @m = Insert (Glyph "jeemarabic") [ UTF82 (Bytes2All 0x06 0x2C) ] m;
+--   @m = Insert (Glyph "jeemfinalarabic") [ UTF82 (Bytes2All 0xFE 0x9E) ] m;
+--   @m = Insert (Glyph "jeeminitialarabic") [ UTF82 (Bytes2All 0xFE 0x9F) ] m;
+--   @m = Insert (Glyph "jeemmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA0) ] m;
+--   @m = Insert (Glyph "jeharabic") [ UTF82 (Bytes2All 0x06 0x98) ] m;
+--   @m = Insert (Glyph "jehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x8B) ] m;
+--   @m = Insert (Glyph "jhabengali") [ UTF82 (Bytes2All 0x09 0x9D) ] m;
+--   @m = Insert (Glyph "jhadeva") [ UTF82 (Bytes2All 0x09 0x1D) ] m;
+--   @m = Insert (Glyph "jhagujarati") [ UTF82 (Bytes2All 0x0A 0x9D) ] m;
+--   @m = Insert (Glyph "jhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1D) ] m;
+--   @m = Insert (Glyph "jheharmenian") [ UTF82 (Bytes2All 0x05 0x7B) ] m;
+--   @m = Insert (Glyph "jis") [ UTF82 (Bytes2All 0x30 0x04) ] m;
+--   @m = Insert (Glyph "jmonospace") [ UTF82 (Bytes2All 0xFF 0x4A) ] m;
+--   @m = Insert (Glyph "jparen") [ UTF82 (Bytes2All 0x24 0xA5) ] m;
+--   @m = Insert (Glyph "jsuperior") [ UTF82 (Bytes2All 0x02 0xB2) ] m;
+--   m
+-- }
+
+-- def GlyphEnck =  {
+--   @m = empty;
+--   @m = Insert (Glyph "k") [ UTF81 (Bytes1 0x6B) ] m;
+--   @m = Insert (Glyph "kabashkircyrillic") [ UTF82 (Bytes2All 0x04 0xA1) ] m;
+--   @m = Insert (Glyph "kabengali") [ UTF82 (Bytes2All 0x09 0x95) ] m;
+--   @m = Insert (Glyph "kacute") [ UTF82 (Bytes2All 0x1E 0x31) ] m;
+--   @m = Insert (Glyph "kacyrillic") [ UTF82 (Bytes2All 0x04 0x3A) ] m;
+--   @m = Insert (Glyph "kadescendercyrillic") [ UTF82 (Bytes2All 0x04 0x9B) ] m;
+--   @m = Insert (Glyph "kadeva") [ UTF82 (Bytes2All 0x09 0x15) ] m;
+--   @m = Insert (Glyph "kaf") [ UTF82 (Bytes2All 0x05 0xDB) ] m;
+--   @m = Insert (Glyph "kafarabic") [ UTF82 (Bytes2All 0x06 0x43) ] m;
+--   @m = Insert (Glyph "kafdagesh") [ UTF82 (Bytes2All 0xFB 0x3B) ] m;
+--   @m = Insert (Glyph "kafdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3B) ] m;
+--   @m = Insert (Glyph "kaffinalarabic") [ UTF82 (Bytes2All 0xFE 0xDA) ] m;
+--   @m = Insert (Glyph "kafhebrew") [ UTF82 (Bytes2All 0x05 0xDB) ] m;
+--   @m = Insert (Glyph "kafinitialarabic") [ UTF82 (Bytes2All 0xFE 0xDB) ] m;
+--   @m = Insert (Glyph "kafmedialarabic") [ UTF82 (Bytes2All 0xFE 0xDC) ] m;
+--   @m = Insert (Glyph "kafrafehebrew") [ UTF82 (Bytes2All 0xFB 0x4D) ] m;
+--   @m = Insert (Glyph "kagujarati") [ UTF82 (Bytes2All 0x0A 0x95) ] m;
+--   @m = Insert (Glyph "kagurmukhi") [ UTF82 (Bytes2All 0x0A 0x15) ] m;
+--   @m = Insert (Glyph "kahiragana") [ UTF82 (Bytes2All 0x30 0x4B) ] m;
+--   @m = Insert (Glyph "kahookcyrillic") [ UTF82 (Bytes2All 0x04 0xC4) ] m;
+--   @m = Insert (Glyph "kakatakana") [ UTF82 (Bytes2All 0x30 0xAB) ] m;
+--   @m = Insert (Glyph "kakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x76) ] m;
+--   @m = Insert (Glyph "kappa") [ UTF82 (Bytes2All 0x03 0xBA) ] m;
+--   @m = Insert (Glyph "kappasymbolgreek") [ UTF82 (Bytes2All 0x03 0xF0) ] m;
+--   @m = Insert (Glyph "kapyeounmieumkorean") [ UTF82 (Bytes2All 0x31 0x71) ] m;
+--   @m = Insert (Glyph "kapyeounphieuphkorean") [ UTF82 (Bytes2All 0x31 0x84) ] m;
+--   @m = Insert (Glyph "kapyeounpieupkorean") [ UTF82 (Bytes2All 0x31 0x78) ] m;
+--   @m = Insert (Glyph "kapyeounssangpieupkorean") [ UTF82 (Bytes2All 0x31 0x79) ] m;
+--   @m = Insert (Glyph "karoriisquare") [ UTF82 (Bytes2All 0x33 0x0D) ] m;
+--   @m = Insert (Glyph "kashidaautoarabic") [ UTF82 (Bytes2All 0x06 0x40) ] m;
+--   @m = Insert (Glyph "kashidaautonosidebearingarabic") [ UTF82 (Bytes2All 0x06 0x40) ] m;
+--   @m = Insert (Glyph "kasmallkatakana") [ UTF82 (Bytes2All 0x30 0xF5) ] m;
+--   @m = Insert (Glyph "kasquare") [ UTF82 (Bytes2All 0x33 0x84) ] m;
+--   @m = Insert (Glyph "kasraarabic") [ UTF82 (Bytes2All 0x06 0x50) ] m;
+--   @m = Insert (Glyph "kasratanarabic") [ UTF82 (Bytes2All 0x06 0x4D) ] m;
+--   @m = Insert (Glyph "kastrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9F) ] m;
+--   @m = Insert (Glyph "katahiraprolongmarkhalfwidth") [ UTF82 (Bytes2All 0xFF 0x70) ] m;
+--   @m = Insert (Glyph "kaverticalstrokecyrillic") [ UTF82 (Bytes2All 0x04 0x9D) ] m;
+--   @m = Insert (Glyph "kbopomofo") [ UTF82 (Bytes2All 0x31 0x0E) ] m;
+--   @m = Insert (Glyph "kcalsquare") [ UTF82 (Bytes2All 0x33 0x89) ] m;
+--   @m = Insert (Glyph "kcaron") [ UTF82 (Bytes2All 0x01 0xE9) ] m;
+--   @m = Insert (Glyph "kcedilla") [ UTF82 (Bytes2All 0x01 0x37) ] m;
+--   @m = Insert (Glyph "kcircle") [ UTF82 (Bytes2All 0x24 0xDA) ] m;
+--   @m = Insert (Glyph "kcommaaccent") [ UTF82 (Bytes2All 0x01 0x37) ] m;
+--   @m = Insert (Glyph "kdotbelow") [ UTF82 (Bytes2All 0x1E 0x33) ] m;
+--   @m = Insert (Glyph "keharmenian") [ UTF82 (Bytes2All 0x05 0x84) ] m;
+--   @m = Insert (Glyph "kehiragana") [ UTF82 (Bytes2All 0x30 0x51) ] m;
+--   @m = Insert (Glyph "kekatakana") [ UTF82 (Bytes2All 0x30 0xB1) ] m;
+--   @m = Insert (Glyph "kekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x79) ] m;
+--   @m = Insert (Glyph "kenarmenian") [ UTF82 (Bytes2All 0x05 0x6F) ] m;
+--   @m = Insert (Glyph "kesmallkatakana") [ UTF82 (Bytes2All 0x30 0xF6) ] m;
+--   @m = Insert (Glyph "kgreenlandic") [ UTF82 (Bytes2All 0x01 0x38) ] m;
+--   @m = Insert (Glyph "khabengali") [ UTF82 (Bytes2All 0x09 0x96) ] m;
+--   @m = Insert (Glyph "khacyrillic") [ UTF82 (Bytes2All 0x04 0x45) ] m;
+--   @m = Insert (Glyph "khadeva") [ UTF82 (Bytes2All 0x09 0x16) ] m;
+--   @m = Insert (Glyph "khagujarati") [ UTF82 (Bytes2All 0x0A 0x96) ] m;
+--   @m = Insert (Glyph "khagurmukhi") [ UTF82 (Bytes2All 0x0A 0x16) ] m;
+--   @m = Insert (Glyph "khaharabic") [ UTF82 (Bytes2All 0x06 0x2E) ] m;
+--   @m = Insert (Glyph "khahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xA6) ] m;
+--   @m = Insert (Glyph "khahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xA7) ] m;
+--   @m = Insert (Glyph "khahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xA8) ] m;
+--   @m = Insert (Glyph "kheicoptic") [ UTF82 (Bytes2All 0x03 0xE7) ] m;
+--   @m = Insert (Glyph "khhadeva") [ UTF82 (Bytes2All 0x09 0x59) ] m;
+--   @m = Insert (Glyph "khhagurmukhi") [ UTF82 (Bytes2All 0x0A 0x59) ] m;
+--   @m = Insert (Glyph "khieukhacirclekorean") [ UTF82 (Bytes2All 0x32 0x78) ] m;
+--   @m = Insert (Glyph "khieukhaparenkorean") [ UTF82 (Bytes2All 0x32 0x18) ] m;
+--   @m = Insert (Glyph "khieukhcirclekorean") [ UTF82 (Bytes2All 0x32 0x6A) ] m;
+--   @m = Insert (Glyph "khieukhkorean") [ UTF82 (Bytes2All 0x31 0x4B) ] m;
+--   @m = Insert (Glyph "khieukhparenkorean") [ UTF82 (Bytes2All 0x32 0x0A) ] m;
+--   @m = Insert (Glyph "khokhaithai") [ UTF82 (Bytes2All 0x0E 0x02) ] m;
+--   @m = Insert (Glyph "khokhonthai") [ UTF82 (Bytes2All 0x0E 0x05) ] m;
+--   @m = Insert (Glyph "khokhuatthai") [ UTF82 (Bytes2All 0x0E 0x03) ] m;
+--   @m = Insert (Glyph "khokhwaithai") [ UTF82 (Bytes2All 0x0E 0x04) ] m;
+--   @m = Insert (Glyph "khomutthai") [ UTF82 (Bytes2All 0x0E 0x5B) ] m;
+--   @m = Insert (Glyph "khook") [ UTF82 (Bytes2All 0x01 0x99) ] m;
+--   @m = Insert (Glyph "khorakhangthai") [ UTF82 (Bytes2All 0x0E 0x06) ] m;
+--   @m = Insert (Glyph "khzsquare") [ UTF82 (Bytes2All 0x33 0x91) ] m;
+--   @m = Insert (Glyph "kihiragana") [ UTF82 (Bytes2All 0x30 0x4D) ] m;
+--   @m = Insert (Glyph "kikatakana") [ UTF82 (Bytes2All 0x30 0xAD) ] m;
+--   @m = Insert (Glyph "kikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x77) ] m;
+--   @m = Insert (Glyph "kiroguramusquare") [ UTF82 (Bytes2All 0x33 0x15) ] m;
+--   @m = Insert (Glyph "kiromeetorusquare") [ UTF82 (Bytes2All 0x33 0x16) ] m;
+--   @m = Insert (Glyph "kirosquare") [ UTF82 (Bytes2All 0x33 0x14) ] m;
+--   @m = Insert (Glyph "kiyeokacirclekorean") [ UTF82 (Bytes2All 0x32 0x6E) ] m;
+--   @m = Insert (Glyph "kiyeokaparenkorean") [ UTF82 (Bytes2All 0x32 0x0E) ] m;
+--   @m = Insert (Glyph "kiyeokcirclekorean") [ UTF82 (Bytes2All 0x32 0x60) ] m;
+--   @m = Insert (Glyph "kiyeokkorean") [ UTF82 (Bytes2All 0x31 0x31) ] m;
+--   @m = Insert (Glyph "kiyeokparenkorean") [ UTF82 (Bytes2All 0x32 0x00) ] m;
+--   @m = Insert (Glyph "kiyeoksioskorean") [ UTF82 (Bytes2All 0x31 0x33) ] m;
+--   @m = Insert (Glyph "kjecyrillic") [ UTF82 (Bytes2All 0x04 0x5C) ] m;
+--   @m = Insert (Glyph "klinebelow") [ UTF82 (Bytes2All 0x1E 0x35) ] m;
+--   @m = Insert (Glyph "klsquare") [ UTF82 (Bytes2All 0x33 0x98) ] m;
+--   @m = Insert (Glyph "kmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA6) ] m;
+--   @m = Insert (Glyph "kmonospace") [ UTF82 (Bytes2All 0xFF 0x4B) ] m;
+--   @m = Insert (Glyph "kmsquaredsquare") [ UTF82 (Bytes2All 0x33 0xA2) ] m;
+--   @m = Insert (Glyph "kohiragana") [ UTF82 (Bytes2All 0x30 0x53) ] m;
+--   @m = Insert (Glyph "kohmsquare") [ UTF82 (Bytes2All 0x33 0xC0) ] m;
+--   @m = Insert (Glyph "kokaithai") [ UTF82 (Bytes2All 0x0E 0x01) ] m;
+--   @m = Insert (Glyph "kokatakana") [ UTF82 (Bytes2All 0x30 0xB3) ] m;
+--   @m = Insert (Glyph "kokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7A) ] m;
+--   @m = Insert (Glyph "kooposquare") [ UTF82 (Bytes2All 0x33 0x1E) ] m;
+--   @m = Insert (Glyph "koppacyrillic") [ UTF82 (Bytes2All 0x04 0x81) ] m;
+--   @m = Insert (Glyph "koreanstandardsymbol") [ UTF82 (Bytes2All 0x32 0x7F) ] m;
+--   @m = Insert (Glyph "koroniscmb") [ UTF82 (Bytes2All 0x03 0x43) ] m;
+--   @m = Insert (Glyph "kparen") [ UTF82 (Bytes2All 0x24 0xA6) ] m;
+--   @m = Insert (Glyph "kpasquare") [ UTF82 (Bytes2All 0x33 0xAA) ] m;
+--   @m = Insert (Glyph "ksicyrillic") [ UTF82 (Bytes2All 0x04 0x6F) ] m;
+--   @m = Insert (Glyph "ktsquare") [ UTF82 (Bytes2All 0x33 0xCF) ] m;
+--   @m = Insert (Glyph "kturned") [ UTF82 (Bytes2All 0x02 0x9E) ] m;
+--   @m = Insert (Glyph "kuhiragana") [ UTF82 (Bytes2All 0x30 0x4F) ] m;
+--   @m = Insert (Glyph "kukatakana") [ UTF82 (Bytes2All 0x30 0xAF) ] m;
+--   @m = Insert (Glyph "kukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x78) ] m;
+--   @m = Insert (Glyph "kvsquare") [ UTF82 (Bytes2All 0x33 0xB8) ] m;
+--   @m = Insert (Glyph "kwsquare") [ UTF82 (Bytes2All 0x33 0xBE) ] m;
+--   m
+-- }
+
+-- def GlyphEncl =  {
+--   @m = empty;
+--   @m = Insert (Glyph "l") [ UTF81 (Bytes1 0x6C) ] m;
+--   @m = Insert (Glyph "labengali") [ UTF82 (Bytes2All 0x09 0xB2) ] m;
+--   @m = Insert (Glyph "lacute") [ UTF82 (Bytes2All 0x01 0x3A) ] m;
+--   @m = Insert (Glyph "ladeva") [ UTF82 (Bytes2All 0x09 0x32) ] m;
+--   @m = Insert (Glyph "lagujarati") [ UTF82 (Bytes2All 0x0A 0xB2) ] m;
+--   @m = Insert (Glyph "lagurmukhi") [ UTF82 (Bytes2All 0x0A 0x32) ] m;
+--   @m = Insert (Glyph "lakkhangyaothai") [ UTF82 (Bytes2All 0x0E 0x45) ] m;
+--   @m = Insert (Glyph "lamaleffinalarabic") [ UTF82 (Bytes2All 0xFE 0xFC) ] m;
+--   @m = Insert (Glyph "lamalefhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0xF8) ] m;
+--   @m = Insert (Glyph "lamalefhamzaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF7) ] m;
+--   @m = Insert (Glyph "lamalefhamzabelowfinalarabic") [ UTF82 (Bytes2All 0xFE 0xFA) ] m;
+--   @m = Insert (Glyph "lamalefhamzabelowisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF9) ] m;
+--   @m = Insert (Glyph "lamalefisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xFB) ] m;
+--   @m = Insert (Glyph "lamalefmaddaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0xF6) ] m;
+--   @m = Insert (Glyph "lamalefmaddaaboveisolatedarabic") [ UTF82 (Bytes2All 0xFE 0xF5) ] m;
+--   @m = Insert (Glyph "lamarabic") [ UTF82 (Bytes2All 0x06 0x44) ] m;
+--   @m = Insert (Glyph "lambda") [ UTF82 (Bytes2All 0x03 0xBB) ] m;
+--   @m = Insert (Glyph "lambdastroke") [ UTF82 (Bytes2All 0x01 0x9B) ] m;
+--   @m = Insert (Glyph "lamed") [ UTF82 (Bytes2All 0x05 0xDC) ] m;
+--   @m = Insert (Glyph "lameddagesh") [ UTF82 (Bytes2All 0xFB 0x3C) ] m;
+--   @m = Insert (Glyph "lameddageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3C) ] m;
+--   @m = Insert (Glyph "lamedhebrew") [ UTF82 (Bytes2All 0x05 0xDC) ] m;
+--   @m = Insert (Glyph "lamedholam") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "lamedholamdagesh") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9), UTF82 (Bytes2All 0x05 0xBC) ] m;
+--   @m = Insert (Glyph "lamedholamdageshhebrew") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9), UTF82 (Bytes2All 0x05 0xBC) ] m;
+--   @m = Insert (Glyph "lamedholamhebrew") [ UTF82 (Bytes2All 0x05 0xDC), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "lamfinalarabic") [ UTF82 (Bytes2All 0xFE 0xDE) ] m;
+--   @m = Insert (Glyph "lamhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xCA) ] m;
+--   @m = Insert (Glyph "laminitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF) ] m;
+--   @m = Insert (Glyph "lamjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xC9) ] m;
+--   @m = Insert (Glyph "lamkhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xCB) ] m;
+--   @m = Insert (Glyph "lamlamhehisolatedarabic") [ UTF82 (Bytes2All 0xFD 0xF2) ] m;
+--   @m = Insert (Glyph "lammedialarabic") [ UTF82 (Bytes2All 0xFE 0xE0) ] m;
+--   @m = Insert (Glyph "lammeemhahinitialarabic") [ UTF82 (Bytes2All 0xFD 0x88) ] m;
+--   @m = Insert (Glyph "lammeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xCC) ] m;
+--   @m = Insert (Glyph "lammeemjeeminitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF), UTF82 (Bytes2All 0xFE 0xE4), UTF82 (Bytes2All 0xFE 0xA0) ] m;
+--   @m = Insert (Glyph "lammeemkhahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xDF), UTF82 (Bytes2All 0xFE 0xE4), UTF82 (Bytes2All 0xFE 0xA8) ] m;
+--   @m = Insert (Glyph "largecircle") [ UTF82 (Bytes2All 0x25 0xEF) ] m;
+--   @m = Insert (Glyph "lbar") [ UTF82 (Bytes2All 0x01 0x9A) ] m;
+--   @m = Insert (Glyph "lbelt") [ UTF82 (Bytes2All 0x02 0x6C) ] m;
+--   @m = Insert (Glyph "lbopomofo") [ UTF82 (Bytes2All 0x31 0x0C) ] m;
+--   @m = Insert (Glyph "lcaron") [ UTF82 (Bytes2All 0x01 0x3E) ] m;
+--   @m = Insert (Glyph "lcedilla") [ UTF82 (Bytes2All 0x01 0x3C) ] m;
+--   @m = Insert (Glyph "lcircle") [ UTF82 (Bytes2All 0x24 0xDB) ] m;
+--   @m = Insert (Glyph "lcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x3D) ] m;
+--   @m = Insert (Glyph "lcommaaccent") [ UTF82 (Bytes2All 0x01 0x3C) ] m;
+--   @m = Insert (Glyph "ldot") [ UTF82 (Bytes2All 0x01 0x40) ] m;
+--   @m = Insert (Glyph "ldotaccent") [ UTF82 (Bytes2All 0x01 0x40) ] m;
+--   @m = Insert (Glyph "ldotbelow") [ UTF82 (Bytes2All 0x1E 0x37) ] m;
+--   @m = Insert (Glyph "ldotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x39) ] m;
+--   @m = Insert (Glyph "leftangleabovecmb") [ UTF82 (Bytes2All 0x03 0x1A) ] m;
+--   @m = Insert (Glyph "lefttackbelowcmb") [ UTF82 (Bytes2All 0x03 0x18) ] m;
+--   @m = Insert (Glyph "less") [ UTF81 (Bytes1 0x3C) ] m;
+--   @m = Insert (Glyph "lessequal") [ UTF82 (Bytes2All 0x22 0x64) ] m;
+--   @m = Insert (Glyph "lessequalorgreater") [ UTF82 (Bytes2All 0x22 0xDA) ] m;
+--   @m = Insert (Glyph "lessmonospace") [ UTF82 (Bytes2All 0xFF 0x1C) ] m;
+--   @m = Insert (Glyph "lessorequivalent") [ UTF82 (Bytes2All 0x22 0x72) ] m;
+--   @m = Insert (Glyph "lessorgreater") [ UTF82 (Bytes2All 0x22 0x76) ] m;
+--   @m = Insert (Glyph "lessoverequal") [ UTF82 (Bytes2All 0x22 0x66) ] m;
+--   @m = Insert (Glyph "lesssmall") [ UTF82 (Bytes2All 0xFE 0x64) ] m;
+--   @m = Insert (Glyph "lezh") [ UTF82 (Bytes2All 0x02 0x6E) ] m;
+--   @m = Insert (Glyph "lfblock") [ UTF82 (Bytes2All 0x25 0x8C) ] m;
+--   @m = Insert (Glyph "lhookretroflex") [ UTF82 (Bytes2All 0x02 0x6D) ] m;
+--   @m = Insert (Glyph "lira") [ UTF82 (Bytes2All 0x20 0xA4) ] m;
+--   @m = Insert (Glyph "liwnarmenian") [ UTF82 (Bytes2All 0x05 0x6C) ] m;
+--   @m = Insert (Glyph "lj") [ UTF82 (Bytes2All 0x01 0xC9) ] m;
+--   @m = Insert (Glyph "ljecyrillic") [ UTF82 (Bytes2All 0x04 0x59) ] m;
+--   @m = Insert (Glyph "ll") [ UTF82 (Bytes2All 0xF6 0xC0) ] m;
+--   @m = Insert (Glyph "lladeva") [ UTF82 (Bytes2All 0x09 0x33) ] m;
+--   @m = Insert (Glyph "llagujarati") [ UTF82 (Bytes2All 0x0A 0xB3) ] m;
+--   @m = Insert (Glyph "llinebelow") [ UTF82 (Bytes2All 0x1E 0x3B) ] m;
+--   @m = Insert (Glyph "llladeva") [ UTF82 (Bytes2All 0x09 0x34) ] m;
+--   @m = Insert (Glyph "llvocalicbengali") [ UTF82 (Bytes2All 0x09 0xE1) ] m;
+--   @m = Insert (Glyph "llvocalicdeva") [ UTF82 (Bytes2All 0x09 0x61) ] m;
+--   @m = Insert (Glyph "llvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xE3) ] m;
+--   @m = Insert (Glyph "llvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x63) ] m;
+--   @m = Insert (Glyph "lmiddletilde") [ UTF82 (Bytes2All 0x02 0x6B) ] m;
+--   @m = Insert (Glyph "lmonospace") [ UTF82 (Bytes2All 0xFF 0x4C) ] m;
+--   @m = Insert (Glyph "lmsquare") [ UTF82 (Bytes2All 0x33 0xD0) ] m;
+--   @m = Insert (Glyph "lochulathai") [ UTF82 (Bytes2All 0x0E 0x2C) ] m;
+--   @m = Insert (Glyph "logicaland") [ UTF82 (Bytes2All 0x22 0x27) ] m;
+--   @m = Insert (Glyph "logicalnot") [ UTF81 (Bytes1 0xAC) ] m;
+--   @m = Insert (Glyph "logicalnotreversed") [ UTF82 (Bytes2All 0x23 0x10) ] m;
+--   @m = Insert (Glyph "logicalor") [ UTF82 (Bytes2All 0x22 0x28) ] m;
+--   @m = Insert (Glyph "lolingthai") [ UTF82 (Bytes2All 0x0E 0x25) ] m;
+--   @m = Insert (Glyph "longs") [ UTF82 (Bytes2All 0x01 0x7F) ] m;
+--   @m = Insert (Glyph "lowlinecenterline") [ UTF82 (Bytes2All 0xFE 0x4E) ] m;
+--   @m = Insert (Glyph "lowlinecmb") [ UTF82 (Bytes2All 0x03 0x32) ] m;
+--   @m = Insert (Glyph "lowlinedashed") [ UTF82 (Bytes2All 0xFE 0x4D) ] m;
+--   @m = Insert (Glyph "lozenge") [ UTF82 (Bytes2All 0x25 0xCA) ] m;
+--   @m = Insert (Glyph "lparen") [ UTF82 (Bytes2All 0x24 0xA7) ] m;
+--   @m = Insert (Glyph "lslash") [ UTF82 (Bytes2All 0x01 0x42) ] m;
+--   @m = Insert (Glyph "lsquare") [ UTF82 (Bytes2All 0x21 0x13) ] m;
+--   @m = Insert (Glyph "lsuperior") [ UTF82 (Bytes2All 0xF6 0xEE) ] m;
+--   @m = Insert (Glyph "ltshade") [ UTF82 (Bytes2All 0x25 0x91) ] m;
+--   @m = Insert (Glyph "luthai") [ UTF82 (Bytes2All 0x0E 0x26) ] m;
+--   @m = Insert (Glyph "lvocalicbengali") [ UTF82 (Bytes2All 0x09 0x8C) ] m;
+--   @m = Insert (Glyph "lvocalicdeva") [ UTF82 (Bytes2All 0x09 0x0C) ] m;
+--   @m = Insert (Glyph "lvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xE2) ] m;
+--   @m = Insert (Glyph "lvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x62) ] m;
+--   @m = Insert (Glyph "lxsquare") [ UTF82 (Bytes2All 0x33 0xD3) ] m;
+--   m
+-- }
+
+-- def GlyphEncm =  {
+--   @m = empty;
+--   @m = Insert (Glyph "m") [ UTF81 (Bytes1 0x6D) ] m;
+--   @m = Insert (Glyph "mabengali") [ UTF82 (Bytes2All 0x09 0xAE) ] m;
+--   @m = Insert (Glyph "macron") [ UTF81 (Bytes1 0xAF) ] m;
+--   @m = Insert (Glyph "macronbelowcmb") [ UTF82 (Bytes2All 0x03 0x31) ] m;
+--   @m = Insert (Glyph "macroncmb") [ UTF82 (Bytes2All 0x03 0x04) ] m;
+--   @m = Insert (Glyph "macronlowmod") [ UTF82 (Bytes2All 0x02 0xCD) ] m;
+--   @m = Insert (Glyph "macronmonospace") [ UTF82 (Bytes2All 0xFF 0xE3) ] m;
+--   @m = Insert (Glyph "macute") [ UTF82 (Bytes2All 0x1E 0x3F) ] m;
+--   @m = Insert (Glyph "madeva") [ UTF82 (Bytes2All 0x09 0x2E) ] m;
+--   @m = Insert (Glyph "magujarati") [ UTF82 (Bytes2All 0x0A 0xAE) ] m;
+--   @m = Insert (Glyph "magurmukhi") [ UTF82 (Bytes2All 0x0A 0x2E) ] m;
+--   @m = Insert (Glyph "mahapakhhebrew") [ UTF82 (Bytes2All 0x05 0xA4) ] m;
+--   @m = Insert (Glyph "mahapakhlefthebrew") [ UTF82 (Bytes2All 0x05 0xA4) ] m;
+--   @m = Insert (Glyph "mahiragana") [ UTF82 (Bytes2All 0x30 0x7E) ] m;
+--   @m = Insert (Glyph "maichattawalowleftthai") [ UTF82 (Bytes2All 0xF8 0x95) ] m;
+--   @m = Insert (Glyph "maichattawalowrightthai") [ UTF82 (Bytes2All 0xF8 0x94) ] m;
+--   @m = Insert (Glyph "maichattawathai") [ UTF82 (Bytes2All 0x0E 0x4B) ] m;
+--   @m = Insert (Glyph "maichattawaupperleftthai") [ UTF82 (Bytes2All 0xF8 0x93) ] m;
+--   @m = Insert (Glyph "maieklowleftthai") [ UTF82 (Bytes2All 0xF8 0x8C) ] m;
+--   @m = Insert (Glyph "maieklowrightthai") [ UTF82 (Bytes2All 0xF8 0x8B) ] m;
+--   @m = Insert (Glyph "maiekthai") [ UTF82 (Bytes2All 0x0E 0x48) ] m;
+--   @m = Insert (Glyph "maiekupperleftthai") [ UTF82 (Bytes2All 0xF8 0x8A) ] m;
+--   @m = Insert (Glyph "maihanakatleftthai") [ UTF82 (Bytes2All 0xF8 0x84) ] m;
+--   @m = Insert (Glyph "maihanakatthai") [ UTF82 (Bytes2All 0x0E 0x31) ] m;
+--   @m = Insert (Glyph "maitaikhuleftthai") [ UTF82 (Bytes2All 0xF8 0x89) ] m;
+--   @m = Insert (Glyph "maitaikhuthai") [ UTF82 (Bytes2All 0x0E 0x47) ] m;
+--   @m = Insert (Glyph "maitholowleftthai") [ UTF82 (Bytes2All 0xF8 0x8F) ] m;
+--   @m = Insert (Glyph "maitholowrightthai") [ UTF82 (Bytes2All 0xF8 0x8E) ] m;
+--   @m = Insert (Glyph "maithothai") [ UTF82 (Bytes2All 0x0E 0x49) ] m;
+--   @m = Insert (Glyph "maithoupperleftthai") [ UTF82 (Bytes2All 0xF8 0x8D) ] m;
+--   @m = Insert (Glyph "maitrilowleftthai") [ UTF82 (Bytes2All 0xF8 0x92) ] m;
+--   @m = Insert (Glyph "maitrilowrightthai") [ UTF82 (Bytes2All 0xF8 0x91) ] m;
+--   @m = Insert (Glyph "maitrithai") [ UTF82 (Bytes2All 0x0E 0x4A) ] m;
+--   @m = Insert (Glyph "maitriupperleftthai") [ UTF82 (Bytes2All 0xF8 0x90) ] m;
+--   @m = Insert (Glyph "maiyamokthai") [ UTF82 (Bytes2All 0x0E 0x46) ] m;
+--   @m = Insert (Glyph "makatakana") [ UTF82 (Bytes2All 0x30 0xDE) ] m;
+--   @m = Insert (Glyph "makatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x8F) ] m;
+--   @m = Insert (Glyph "male") [ UTF82 (Bytes2All 0x26 0x42) ] m;
+--   @m = Insert (Glyph "mansyonsquare") [ UTF82 (Bytes2All 0x33 0x47) ] m;
+--   @m = Insert (Glyph "maqafhebrew") [ UTF82 (Bytes2All 0x05 0xBE) ] m;
+--   @m = Insert (Glyph "mars") [ UTF82 (Bytes2All 0x26 0x42) ] m;
+--   @m = Insert (Glyph "masoracirclehebrew") [ UTF82 (Bytes2All 0x05 0xAF) ] m;
+--   @m = Insert (Glyph "masquare") [ UTF82 (Bytes2All 0x33 0x83) ] m;
+--   @m = Insert (Glyph "mbopomofo") [ UTF82 (Bytes2All 0x31 0x07) ] m;
+--   @m = Insert (Glyph "mbsquare") [ UTF82 (Bytes2All 0x33 0xD4) ] m;
+--   @m = Insert (Glyph "mcircle") [ UTF82 (Bytes2All 0x24 0xDC) ] m;
+--   @m = Insert (Glyph "mcubedsquare") [ UTF82 (Bytes2All 0x33 0xA5) ] m;
+--   @m = Insert (Glyph "mdotaccent") [ UTF82 (Bytes2All 0x1E 0x41) ] m;
+--   @m = Insert (Glyph "mdotbelow") [ UTF82 (Bytes2All 0x1E 0x43) ] m;
+--   @m = Insert (Glyph "meemarabic") [ UTF82 (Bytes2All 0x06 0x45) ] m;
+--   @m = Insert (Glyph "meemfinalarabic") [ UTF82 (Bytes2All 0xFE 0xE2) ] m;
+--   @m = Insert (Glyph "meeminitialarabic") [ UTF82 (Bytes2All 0xFE 0xE3) ] m;
+--   @m = Insert (Glyph "meemmedialarabic") [ UTF82 (Bytes2All 0xFE 0xE4) ] m;
+--   @m = Insert (Glyph "meemmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD1) ] m;
+--   @m = Insert (Glyph "meemmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x48) ] m;
+--   @m = Insert (Glyph "meetorusquare") [ UTF82 (Bytes2All 0x33 0x4D) ] m;
+--   @m = Insert (Glyph "mehiragana") [ UTF82 (Bytes2All 0x30 0x81) ] m;
+--   @m = Insert (Glyph "meizierasquare") [ UTF82 (Bytes2All 0x33 0x7E) ] m;
+--   @m = Insert (Glyph "mekatakana") [ UTF82 (Bytes2All 0x30 0xE1) ] m;
+--   @m = Insert (Glyph "mekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x92) ] m;
+--   @m = Insert (Glyph "mem") [ UTF82 (Bytes2All 0x05 0xDE) ] m;
+--   @m = Insert (Glyph "memdagesh") [ UTF82 (Bytes2All 0xFB 0x3E) ] m;
+--   @m = Insert (Glyph "memdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x3E) ] m;
+--   @m = Insert (Glyph "memhebrew") [ UTF82 (Bytes2All 0x05 0xDE) ] m;
+--   @m = Insert (Glyph "menarmenian") [ UTF82 (Bytes2All 0x05 0x74) ] m;
+--   @m = Insert (Glyph "merkhahebrew") [ UTF82 (Bytes2All 0x05 0xA5) ] m;
+--   @m = Insert (Glyph "merkhakefulahebrew") [ UTF82 (Bytes2All 0x05 0xA6) ] m;
+--   @m = Insert (Glyph "merkhakefulalefthebrew") [ UTF82 (Bytes2All 0x05 0xA6) ] m;
+--   @m = Insert (Glyph "merkhalefthebrew") [ UTF82 (Bytes2All 0x05 0xA5) ] m;
+--   @m = Insert (Glyph "mhook") [ UTF82 (Bytes2All 0x02 0x71) ] m;
+--   @m = Insert (Glyph "mhzsquare") [ UTF82 (Bytes2All 0x33 0x92) ] m;
+--   @m = Insert (Glyph "middledotkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x65) ] m;
+--   @m = Insert (Glyph "middot") [ UTF81 (Bytes1 0xB7) ] m;
+--   @m = Insert (Glyph "mieumacirclekorean") [ UTF82 (Bytes2All 0x32 0x72) ] m;
+--   @m = Insert (Glyph "mieumaparenkorean") [ UTF82 (Bytes2All 0x32 0x12) ] m;
+--   @m = Insert (Glyph "mieumcirclekorean") [ UTF82 (Bytes2All 0x32 0x64) ] m;
+--   @m = Insert (Glyph "mieumkorean") [ UTF82 (Bytes2All 0x31 0x41) ] m;
+--   @m = Insert (Glyph "mieumpansioskorean") [ UTF82 (Bytes2All 0x31 0x70) ] m;
+--   @m = Insert (Glyph "mieumparenkorean") [ UTF82 (Bytes2All 0x32 0x04) ] m;
+--   @m = Insert (Glyph "mieumpieupkorean") [ UTF82 (Bytes2All 0x31 0x6E) ] m;
+--   @m = Insert (Glyph "mieumsioskorean") [ UTF82 (Bytes2All 0x31 0x6F) ] m;
+--   @m = Insert (Glyph "mihiragana") [ UTF82 (Bytes2All 0x30 0x7F) ] m;
+--   @m = Insert (Glyph "mikatakana") [ UTF82 (Bytes2All 0x30 0xDF) ] m;
+--   @m = Insert (Glyph "mikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x90) ] m;
+--   @m = Insert (Glyph "minus") [ UTF82 (Bytes2All 0x22 0x12) ] m;
+--   @m = Insert (Glyph "minusbelowcmb") [ UTF82 (Bytes2All 0x03 0x20) ] m;
+--   @m = Insert (Glyph "minuscircle") [ UTF82 (Bytes2All 0x22 0x96) ] m;
+--   @m = Insert (Glyph "minusmod") [ UTF82 (Bytes2All 0x02 0xD7) ] m;
+--   @m = Insert (Glyph "minusplus") [ UTF82 (Bytes2All 0x22 0x13) ] m;
+--   @m = Insert (Glyph "minute") [ UTF82 (Bytes2All 0x20 0x32) ] m;
+--   @m = Insert (Glyph "miribaarusquare") [ UTF82 (Bytes2All 0x33 0x4A) ] m;
+--   @m = Insert (Glyph "mirisquare") [ UTF82 (Bytes2All 0x33 0x49) ] m;
+--   @m = Insert (Glyph "mlonglegturned") [ UTF82 (Bytes2All 0x02 0x70) ] m;
+--   @m = Insert (Glyph "mlsquare") [ UTF82 (Bytes2All 0x33 0x96) ] m;
+--   @m = Insert (Glyph "mmcubedsquare") [ UTF82 (Bytes2All 0x33 0xA3) ] m;
+--   @m = Insert (Glyph "mmonospace") [ UTF82 (Bytes2All 0xFF 0x4D) ] m;
+--   @m = Insert (Glyph "mmsquaredsquare") [ UTF82 (Bytes2All 0x33 0x9F) ] m;
+--   @m = Insert (Glyph "mohiragana") [ UTF82 (Bytes2All 0x30 0x82) ] m;
+--   @m = Insert (Glyph "mohmsquare") [ UTF82 (Bytes2All 0x33 0xC1) ] m;
+--   @m = Insert (Glyph "mokatakana") [ UTF82 (Bytes2All 0x30 0xE2) ] m;
+--   @m = Insert (Glyph "mokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x93) ] m;
+--   @m = Insert (Glyph "molsquare") [ UTF82 (Bytes2All 0x33 0xD6) ] m;
+--   @m = Insert (Glyph "momathai") [ UTF82 (Bytes2All 0x0E 0x21) ] m;
+--   @m = Insert (Glyph "moverssquare") [ UTF82 (Bytes2All 0x33 0xA7) ] m;
+--   @m = Insert (Glyph "moverssquaredsquare") [ UTF82 (Bytes2All 0x33 0xA8) ] m;
+--   @m = Insert (Glyph "mparen") [ UTF82 (Bytes2All 0x24 0xA8) ] m;
+--   @m = Insert (Glyph "mpasquare") [ UTF82 (Bytes2All 0x33 0xAB) ] m;
+--   @m = Insert (Glyph "mssquare") [ UTF82 (Bytes2All 0x33 0xB3) ] m;
+--   @m = Insert (Glyph "msuperior") [ UTF82 (Bytes2All 0xF6 0xEF) ] m;
+--   @m = Insert (Glyph "mturned") [ UTF82 (Bytes2All 0x02 0x6F) ] m;
+--   @m = Insert (Glyph "mu") [ UTF81 (Bytes1 0xB5) ] m;
+--   @m = Insert (Glyph "mu1") [ UTF81 (Bytes1 0xB5) ] m;
+--   @m = Insert (Glyph "muasquare") [ UTF82 (Bytes2All 0x33 0x82) ] m;
+--   @m = Insert (Glyph "muchgreater") [ UTF82 (Bytes2All 0x22 0x6B) ] m;
+--   @m = Insert (Glyph "muchless") [ UTF82 (Bytes2All 0x22 0x6A) ] m;
+--   @m = Insert (Glyph "mufsquare") [ UTF82 (Bytes2All 0x33 0x8C) ] m;
+--   @m = Insert (Glyph "mugreek") [ UTF82 (Bytes2All 0x03 0xBC) ] m;
+--   @m = Insert (Glyph "mugsquare") [ UTF82 (Bytes2All 0x33 0x8D) ] m;
+--   @m = Insert (Glyph "muhiragana") [ UTF82 (Bytes2All 0x30 0x80) ] m;
+--   @m = Insert (Glyph "mukatakana") [ UTF82 (Bytes2All 0x30 0xE0) ] m;
+--   @m = Insert (Glyph "mukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x91) ] m;
+--   @m = Insert (Glyph "mulsquare") [ UTF82 (Bytes2All 0x33 0x95) ] m;
+--   @m = Insert (Glyph "multiply") [ UTF81 (Bytes1 0xD7) ] m;
+--   @m = Insert (Glyph "mumsquare") [ UTF82 (Bytes2All 0x33 0x9B) ] m;
+--   @m = Insert (Glyph "munahhebrew") [ UTF82 (Bytes2All 0x05 0xA3) ] m;
+--   @m = Insert (Glyph "munahlefthebrew") [ UTF82 (Bytes2All 0x05 0xA3) ] m;
+--   @m = Insert (Glyph "musicalnote") [ UTF82 (Bytes2All 0x26 0x6A) ] m;
+--   @m = Insert (Glyph "musicalnotedbl") [ UTF82 (Bytes2All 0x26 0x6B) ] m;
+--   @m = Insert (Glyph "musicflatsign") [ UTF82 (Bytes2All 0x26 0x6D) ] m;
+--   @m = Insert (Glyph "musicsharpsign") [ UTF82 (Bytes2All 0x26 0x6F) ] m;
+--   @m = Insert (Glyph "mussquare") [ UTF82 (Bytes2All 0x33 0xB2) ] m;
+--   @m = Insert (Glyph "muvsquare") [ UTF82 (Bytes2All 0x33 0xB6) ] m;
+--   @m = Insert (Glyph "muwsquare") [ UTF82 (Bytes2All 0x33 0xBC) ] m;
+--   @m = Insert (Glyph "mvmegasquare") [ UTF82 (Bytes2All 0x33 0xB9) ] m;
+--   @m = Insert (Glyph "mvsquare") [ UTF82 (Bytes2All 0x33 0xB7) ] m;
+--   @m = Insert (Glyph "mwmegasquare") [ UTF82 (Bytes2All 0x33 0xBF) ] m;
+--   @m = Insert (Glyph "mwsquare") [ UTF82 (Bytes2All 0x33 0xBD) ] m;
+--   m
+-- }
+
+-- def GlyphEncn =  {
+--   @m = empty;
+--   @m = Insert (Glyph "n") [ UTF81 (Bytes1 0x6E) ] m;
+--   @m = Insert (Glyph "nabengali") [ UTF82 (Bytes2All 0x09 0xA8) ] m;
+--   @m = Insert (Glyph "nabla") [ UTF82 (Bytes2All 0x22 0x07) ] m;
+--   @m = Insert (Glyph "nacute") [ UTF82 (Bytes2All 0x01 0x44) ] m;
+--   @m = Insert (Glyph "nadeva") [ UTF82 (Bytes2All 0x09 0x28) ] m;
+--   @m = Insert (Glyph "nagujarati") [ UTF82 (Bytes2All 0x0A 0xA8) ] m;
+--   @m = Insert (Glyph "nagurmukhi") [ UTF82 (Bytes2All 0x0A 0x28) ] m;
+--   @m = Insert (Glyph "nahiragana") [ UTF82 (Bytes2All 0x30 0x6A) ] m;
+--   @m = Insert (Glyph "nakatakana") [ UTF82 (Bytes2All 0x30 0xCA) ] m;
+--   @m = Insert (Glyph "nakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x85) ] m;
+--   @m = Insert (Glyph "napostrophe") [ UTF82 (Bytes2All 0x01 0x49) ] m;
+--   @m = Insert (Glyph "nasquare") [ UTF82 (Bytes2All 0x33 0x81) ] m;
+--   @m = Insert (Glyph "nbopomofo") [ UTF82 (Bytes2All 0x31 0x0B) ] m;
+--   @m = Insert (Glyph "nbspace") [ UTF81 (Bytes1 0xA0) ] m;
+--   @m = Insert (Glyph "ncaron") [ UTF82 (Bytes2All 0x01 0x48) ] m;
+--   @m = Insert (Glyph "ncedilla") [ UTF82 (Bytes2All 0x01 0x46) ] m;
+--   @m = Insert (Glyph "ncircle") [ UTF82 (Bytes2All 0x24 0xDD) ] m;
+--   @m = Insert (Glyph "ncircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x4B) ] m;
+--   @m = Insert (Glyph "ncommaaccent") [ UTF82 (Bytes2All 0x01 0x46) ] m;
+--   @m = Insert (Glyph "ndotaccent") [ UTF82 (Bytes2All 0x1E 0x45) ] m;
+--   @m = Insert (Glyph "ndotbelow") [ UTF82 (Bytes2All 0x1E 0x47) ] m;
+--   @m = Insert (Glyph "nehiragana") [ UTF82 (Bytes2All 0x30 0x6D) ] m;
+--   @m = Insert (Glyph "nekatakana") [ UTF82 (Bytes2All 0x30 0xCD) ] m;
+--   @m = Insert (Glyph "nekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x88) ] m;
+--   @m = Insert (Glyph "newsheqelsign") [ UTF82 (Bytes2All 0x20 0xAA) ] m;
+--   @m = Insert (Glyph "nfsquare") [ UTF82 (Bytes2All 0x33 0x8B) ] m;
+--   @m = Insert (Glyph "ngabengali") [ UTF82 (Bytes2All 0x09 0x99) ] m;
+--   @m = Insert (Glyph "ngadeva") [ UTF82 (Bytes2All 0x09 0x19) ] m;
+--   @m = Insert (Glyph "ngagujarati") [ UTF82 (Bytes2All 0x0A 0x99) ] m;
+--   @m = Insert (Glyph "ngagurmukhi") [ UTF82 (Bytes2All 0x0A 0x19) ] m;
+--   @m = Insert (Glyph "ngonguthai") [ UTF82 (Bytes2All 0x0E 0x07) ] m;
+--   @m = Insert (Glyph "nhiragana") [ UTF82 (Bytes2All 0x30 0x93) ] m;
+--   @m = Insert (Glyph "nhookleft") [ UTF82 (Bytes2All 0x02 0x72) ] m;
+--   @m = Insert (Glyph "nhookretroflex") [ UTF82 (Bytes2All 0x02 0x73) ] m;
+--   @m = Insert (Glyph "nieunacirclekorean") [ UTF82 (Bytes2All 0x32 0x6F) ] m;
+--   @m = Insert (Glyph "nieunaparenkorean") [ UTF82 (Bytes2All 0x32 0x0F) ] m;
+--   @m = Insert (Glyph "nieuncieuckorean") [ UTF82 (Bytes2All 0x31 0x35) ] m;
+--   @m = Insert (Glyph "nieuncirclekorean") [ UTF82 (Bytes2All 0x32 0x61) ] m;
+--   @m = Insert (Glyph "nieunhieuhkorean") [ UTF82 (Bytes2All 0x31 0x36) ] m;
+--   @m = Insert (Glyph "nieunkorean") [ UTF82 (Bytes2All 0x31 0x34) ] m;
+--   @m = Insert (Glyph "nieunpansioskorean") [ UTF82 (Bytes2All 0x31 0x68) ] m;
+--   @m = Insert (Glyph "nieunparenkorean") [ UTF82 (Bytes2All 0x32 0x01) ] m;
+--   @m = Insert (Glyph "nieunsioskorean") [ UTF82 (Bytes2All 0x31 0x67) ] m;
+--   @m = Insert (Glyph "nieuntikeutkorean") [ UTF82 (Bytes2All 0x31 0x66) ] m;
+--   @m = Insert (Glyph "nihiragana") [ UTF82 (Bytes2All 0x30 0x6B) ] m;
+--   @m = Insert (Glyph "nikatakana") [ UTF82 (Bytes2All 0x30 0xCB) ] m;
+--   @m = Insert (Glyph "nikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x86) ] m;
+--   @m = Insert (Glyph "nikhahitleftthai") [ UTF82 (Bytes2All 0xF8 0x99) ] m;
+--   @m = Insert (Glyph "nikhahitthai") [ UTF82 (Bytes2All 0x0E 0x4D) ] m;
+--   @m = Insert (Glyph "nine") [ UTF81 (Bytes1 0x39) ] m;
+--   @m = Insert (Glyph "ninearabic") [ UTF82 (Bytes2All 0x06 0x69) ] m;
+--   @m = Insert (Glyph "ninebengali") [ UTF82 (Bytes2All 0x09 0xEF) ] m;
+--   @m = Insert (Glyph "ninecircle") [ UTF82 (Bytes2All 0x24 0x68) ] m;
+--   @m = Insert (Glyph "ninecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x92) ] m;
+--   @m = Insert (Glyph "ninedeva") [ UTF82 (Bytes2All 0x09 0x6F) ] m;
+--   @m = Insert (Glyph "ninegujarati") [ UTF82 (Bytes2All 0x0A 0xEF) ] m;
+--   @m = Insert (Glyph "ninegurmukhi") [ UTF82 (Bytes2All 0x0A 0x6F) ] m;
+--   @m = Insert (Glyph "ninehackarabic") [ UTF82 (Bytes2All 0x06 0x69) ] m;
+--   @m = Insert (Glyph "ninehangzhou") [ UTF82 (Bytes2All 0x30 0x29) ] m;
+--   @m = Insert (Glyph "nineideographicparen") [ UTF82 (Bytes2All 0x32 0x28) ] m;
+--   @m = Insert (Glyph "nineinferior") [ UTF82 (Bytes2All 0x20 0x89) ] m;
+--   @m = Insert (Glyph "ninemonospace") [ UTF82 (Bytes2All 0xFF 0x19) ] m;
+--   @m = Insert (Glyph "nineoldstyle") [ UTF82 (Bytes2All 0xF7 0x39) ] m;
+--   @m = Insert (Glyph "nineparen") [ UTF82 (Bytes2All 0x24 0x7C) ] m;
+--   @m = Insert (Glyph "nineperiod") [ UTF82 (Bytes2All 0x24 0x90) ] m;
+--   @m = Insert (Glyph "ninepersian") [ UTF82 (Bytes2All 0x06 0xF9) ] m;
+--   @m = Insert (Glyph "nineroman") [ UTF82 (Bytes2All 0x21 0x78) ] m;
+--   @m = Insert (Glyph "ninesuperior") [ UTF82 (Bytes2All 0x20 0x79) ] m;
+--   @m = Insert (Glyph "nineteencircle") [ UTF82 (Bytes2All 0x24 0x72) ] m;
+--   @m = Insert (Glyph "nineteenparen") [ UTF82 (Bytes2All 0x24 0x86) ] m;
+--   @m = Insert (Glyph "nineteenperiod") [ UTF82 (Bytes2All 0x24 0x9A) ] m;
+--   @m = Insert (Glyph "ninethai") [ UTF82 (Bytes2All 0x0E 0x59) ] m;
+--   @m = Insert (Glyph "nj") [ UTF82 (Bytes2All 0x01 0xCC) ] m;
+--   @m = Insert (Glyph "njecyrillic") [ UTF82 (Bytes2All 0x04 0x5A) ] m;
+--   @m = Insert (Glyph "nkatakana") [ UTF82 (Bytes2All 0x30 0xF3) ] m;
+--   @m = Insert (Glyph "nkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9D) ] m;
+--   @m = Insert (Glyph "nlegrightlong") [ UTF82 (Bytes2All 0x01 0x9E) ] m;
+--   @m = Insert (Glyph "nlinebelow") [ UTF82 (Bytes2All 0x1E 0x49) ] m;
+--   @m = Insert (Glyph "nmonospace") [ UTF82 (Bytes2All 0xFF 0x4E) ] m;
+--   @m = Insert (Glyph "nmsquare") [ UTF82 (Bytes2All 0x33 0x9A) ] m;
+--   @m = Insert (Glyph "nnabengali") [ UTF82 (Bytes2All 0x09 0xA3) ] m;
+--   @m = Insert (Glyph "nnadeva") [ UTF82 (Bytes2All 0x09 0x23) ] m;
+--   @m = Insert (Glyph "nnagujarati") [ UTF82 (Bytes2All 0x0A 0xA3) ] m;
+--   @m = Insert (Glyph "nnagurmukhi") [ UTF82 (Bytes2All 0x0A 0x23) ] m;
+--   @m = Insert (Glyph "nnnadeva") [ UTF82 (Bytes2All 0x09 0x29) ] m;
+--   @m = Insert (Glyph "nohiragana") [ UTF82 (Bytes2All 0x30 0x6E) ] m;
+--   @m = Insert (Glyph "nokatakana") [ UTF82 (Bytes2All 0x30 0xCE) ] m;
+--   @m = Insert (Glyph "nokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x89) ] m;
+--   @m = Insert (Glyph "nonbreakingspace") [ UTF81 (Bytes1 0xA0) ] m;
+--   @m = Insert (Glyph "nonenthai") [ UTF82 (Bytes2All 0x0E 0x13) ] m;
+--   @m = Insert (Glyph "nonuthai") [ UTF82 (Bytes2All 0x0E 0x19) ] m;
+--   @m = Insert (Glyph "noonarabic") [ UTF82 (Bytes2All 0x06 0x46) ] m;
+--   @m = Insert (Glyph "noonfinalarabic") [ UTF82 (Bytes2All 0xFE 0xE6) ] m;
+--   @m = Insert (Glyph "noonghunnaarabic") [ UTF82 (Bytes2All 0x06 0xBA) ] m;
+--   @m = Insert (Glyph "noonghunnafinalarabic") [ UTF82 (Bytes2All 0xFB 0x9F) ] m;
+--   @m = Insert (Glyph "noonhehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xE7), UTF82 (Bytes2All 0xFE 0xEC) ] m;
+--   @m = Insert (Glyph "nooninitialarabic") [ UTF82 (Bytes2All 0xFE 0xE7) ] m;
+--   @m = Insert (Glyph "noonjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD2) ] m;
+--   @m = Insert (Glyph "noonjeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x4B) ] m;
+--   @m = Insert (Glyph "noonmedialarabic") [ UTF82 (Bytes2All 0xFE 0xE8) ] m;
+--   @m = Insert (Glyph "noonmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xD5) ] m;
+--   @m = Insert (Glyph "noonmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x4E) ] m;
+--   @m = Insert (Glyph "noonnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x8D) ] m;
+--   @m = Insert (Glyph "notcontains") [ UTF82 (Bytes2All 0x22 0x0C) ] m;
+--   @m = Insert (Glyph "notelement") [ UTF82 (Bytes2All 0x22 0x09) ] m;
+--   @m = Insert (Glyph "notelementof") [ UTF82 (Bytes2All 0x22 0x09) ] m;
+--   @m = Insert (Glyph "notequal") [ UTF82 (Bytes2All 0x22 0x60) ] m;
+--   @m = Insert (Glyph "notgreater") [ UTF82 (Bytes2All 0x22 0x6F) ] m;
+--   @m = Insert (Glyph "notgreaternorequal") [ UTF82 (Bytes2All 0x22 0x71) ] m;
+--   @m = Insert (Glyph "notgreaternorless") [ UTF82 (Bytes2All 0x22 0x79) ] m;
+--   @m = Insert (Glyph "notidentical") [ UTF82 (Bytes2All 0x22 0x62) ] m;
+--   @m = Insert (Glyph "notless") [ UTF82 (Bytes2All 0x22 0x6E) ] m;
+--   @m = Insert (Glyph "notlessnorequal") [ UTF82 (Bytes2All 0x22 0x70) ] m;
+--   @m = Insert (Glyph "notparallel") [ UTF82 (Bytes2All 0x22 0x26) ] m;
+--   @m = Insert (Glyph "notprecedes") [ UTF82 (Bytes2All 0x22 0x80) ] m;
+--   @m = Insert (Glyph "notsubset") [ UTF82 (Bytes2All 0x22 0x84) ] m;
+--   @m = Insert (Glyph "notsucceeds") [ UTF82 (Bytes2All 0x22 0x81) ] m;
+--   @m = Insert (Glyph "notsuperset") [ UTF82 (Bytes2All 0x22 0x85) ] m;
+--   @m = Insert (Glyph "nowarmenian") [ UTF82 (Bytes2All 0x05 0x76) ] m;
+--   @m = Insert (Glyph "nparen") [ UTF82 (Bytes2All 0x24 0xA9) ] m;
+--   @m = Insert (Glyph "nssquare") [ UTF82 (Bytes2All 0x33 0xB1) ] m;
+--   @m = Insert (Glyph "nsuperior") [ UTF82 (Bytes2All 0x20 0x7F) ] m;
+--   @m = Insert (Glyph "ntilde") [ UTF81 (Bytes1 0xF1) ] m;
+--   @m = Insert (Glyph "nu") [ UTF82 (Bytes2All 0x03 0xBD) ] m;
+--   @m = Insert (Glyph "nuhiragana") [ UTF82 (Bytes2All 0x30 0x6C) ] m;
+--   @m = Insert (Glyph "nukatakana") [ UTF82 (Bytes2All 0x30 0xCC) ] m;
+--   @m = Insert (Glyph "nukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x87) ] m;
+--   @m = Insert (Glyph "nuktabengali") [ UTF82 (Bytes2All 0x09 0xBC) ] m;
+--   @m = Insert (Glyph "nuktadeva") [ UTF82 (Bytes2All 0x09 0x3C) ] m;
+--   @m = Insert (Glyph "nuktagujarati") [ UTF82 (Bytes2All 0x0A 0xBC) ] m;
+--   @m = Insert (Glyph "nuktagurmukhi") [ UTF82 (Bytes2All 0x0A 0x3C) ] m;
+--   @m = Insert (Glyph "numbersign") [ UTF81 (Bytes1 0x23) ] m;
+--   @m = Insert (Glyph "numbersignmonospace") [ UTF82 (Bytes2All 0xFF 0x03) ] m;
+--   @m = Insert (Glyph "numbersignsmall") [ UTF82 (Bytes2All 0xFE 0x5F) ] m;
+--   @m = Insert (Glyph "numeralsigngreek") [ UTF82 (Bytes2All 0x03 0x74) ] m;
+--   @m = Insert (Glyph "numeralsignlowergreek") [ UTF82 (Bytes2All 0x03 0x75) ] m;
+--   @m = Insert (Glyph "numero") [ UTF82 (Bytes2All 0x21 0x16) ] m;
+--   @m = Insert (Glyph "nun") [ UTF82 (Bytes2All 0x05 0xE0) ] m;
+--   @m = Insert (Glyph "nundagesh") [ UTF82 (Bytes2All 0xFB 0x40) ] m;
+--   @m = Insert (Glyph "nundageshhebrew") [ UTF82 (Bytes2All 0xFB 0x40) ] m;
+--   @m = Insert (Glyph "nunhebrew") [ UTF82 (Bytes2All 0x05 0xE0) ] m;
+--   @m = Insert (Glyph "nvsquare") [ UTF82 (Bytes2All 0x33 0xB5) ] m;
+--   @m = Insert (Glyph "nwsquare") [ UTF82 (Bytes2All 0x33 0xBB) ] m;
+--   @m = Insert (Glyph "nyabengali") [ UTF82 (Bytes2All 0x09 0x9E) ] m;
+--   @m = Insert (Glyph "nyadeva") [ UTF82 (Bytes2All 0x09 0x1E) ] m;
+--   @m = Insert (Glyph "nyagujarati") [ UTF82 (Bytes2All 0x0A 0x9E) ] m;
+--   @m = Insert (Glyph "nyagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1E) ] m;
+--   m
+-- }
+
+-- def GlyphEnco =  {
+--   @m = empty;
+--   @m = Insert (Glyph "o") [ UTF81 (Bytes1 0x6F) ] m;
+--   @m = Insert (Glyph "oacute") [ UTF81 (Bytes1 0xF3) ] m;
+--   @m = Insert (Glyph "oangthai") [ UTF82 (Bytes2All 0x0E 0x2D) ] m;
+--   @m = Insert (Glyph "obarred") [ UTF82 (Bytes2All 0x02 0x75) ] m;
+--   @m = Insert (Glyph "obarredcyrillic") [ UTF82 (Bytes2All 0x04 0xE9) ] m;
+--   @m = Insert (Glyph "obarreddieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xEB) ] m;
+--   @m = Insert (Glyph "obengali") [ UTF82 (Bytes2All 0x09 0x93) ] m;
+--   @m = Insert (Glyph "obopomofo") [ UTF82 (Bytes2All 0x31 0x1B) ] m;
+--   @m = Insert (Glyph "obreve") [ UTF82 (Bytes2All 0x01 0x4F) ] m;
+--   @m = Insert (Glyph "ocandradeva") [ UTF82 (Bytes2All 0x09 0x11) ] m;
+--   @m = Insert (Glyph "ocandragujarati") [ UTF82 (Bytes2All 0x0A 0x91) ] m;
+--   @m = Insert (Glyph "ocandravowelsigndeva") [ UTF82 (Bytes2All 0x09 0x49) ] m;
+--   @m = Insert (Glyph "ocandravowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC9) ] m;
+--   @m = Insert (Glyph "ocaron") [ UTF82 (Bytes2All 0x01 0xD2) ] m;
+--   @m = Insert (Glyph "ocircle") [ UTF82 (Bytes2All 0x24 0xDE) ] m;
+--   @m = Insert (Glyph "ocircumflex") [ UTF81 (Bytes1 0xF4) ] m;
+--   @m = Insert (Glyph "ocircumflexacute") [ UTF82 (Bytes2All 0x1E 0xD1) ] m;
+--   @m = Insert (Glyph "ocircumflexdotbelow") [ UTF82 (Bytes2All 0x1E 0xD9) ] m;
+--   @m = Insert (Glyph "ocircumflexgrave") [ UTF82 (Bytes2All 0x1E 0xD3) ] m;
+--   @m = Insert (Glyph "ocircumflexhookabove") [ UTF82 (Bytes2All 0x1E 0xD5) ] m;
+--   @m = Insert (Glyph "ocircumflextilde") [ UTF82 (Bytes2All 0x1E 0xD7) ] m;
+--   @m = Insert (Glyph "ocyrillic") [ UTF82 (Bytes2All 0x04 0x3E) ] m;
+--   @m = Insert (Glyph "odblacute") [ UTF82 (Bytes2All 0x01 0x51) ] m;
+--   @m = Insert (Glyph "odblgrave") [ UTF82 (Bytes2All 0x02 0x0D) ] m;
+--   @m = Insert (Glyph "odeva") [ UTF82 (Bytes2All 0x09 0x13) ] m;
+--   @m = Insert (Glyph "odieresis") [ UTF81 (Bytes1 0xF6) ] m;
+--   @m = Insert (Glyph "odieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xE7) ] m;
+--   @m = Insert (Glyph "odotbelow") [ UTF82 (Bytes2All 0x1E 0xCD) ] m;
+--   @m = Insert (Glyph "oe") [ UTF82 (Bytes2All 0x01 0x53) ] m;
+--   @m = Insert (Glyph "oekorean") [ UTF82 (Bytes2All 0x31 0x5A) ] m;
+--   @m = Insert (Glyph "ogonek") [ UTF82 (Bytes2All 0x02 0xDB) ] m;
+--   @m = Insert (Glyph "ogonekcmb") [ UTF82 (Bytes2All 0x03 0x28) ] m;
+--   @m = Insert (Glyph "ograve") [ UTF81 (Bytes1 0xF2) ] m;
+--   @m = Insert (Glyph "ogujarati") [ UTF82 (Bytes2All 0x0A 0x93) ] m;
+--   @m = Insert (Glyph "oharmenian") [ UTF82 (Bytes2All 0x05 0x85) ] m;
+--   @m = Insert (Glyph "ohiragana") [ UTF82 (Bytes2All 0x30 0x4A) ] m;
+--   @m = Insert (Glyph "ohookabove") [ UTF82 (Bytes2All 0x1E 0xCF) ] m;
+--   @m = Insert (Glyph "ohorn") [ UTF82 (Bytes2All 0x01 0xA1) ] m;
+--   @m = Insert (Glyph "ohornacute") [ UTF82 (Bytes2All 0x1E 0xDB) ] m;
+--   @m = Insert (Glyph "ohorndotbelow") [ UTF82 (Bytes2All 0x1E 0xE3) ] m;
+--   @m = Insert (Glyph "ohorngrave") [ UTF82 (Bytes2All 0x1E 0xDD) ] m;
+--   @m = Insert (Glyph "ohornhookabove") [ UTF82 (Bytes2All 0x1E 0xDF) ] m;
+--   @m = Insert (Glyph "ohorntilde") [ UTF82 (Bytes2All 0x1E 0xE1) ] m;
+--   @m = Insert (Glyph "ohungarumlaut") [ UTF82 (Bytes2All 0x01 0x51) ] m;
+--   @m = Insert (Glyph "oi") [ UTF82 (Bytes2All 0x01 0xA3) ] m;
+--   @m = Insert (Glyph "oinvertedbreve") [ UTF82 (Bytes2All 0x02 0x0F) ] m;
+--   @m = Insert (Glyph "okatakana") [ UTF82 (Bytes2All 0x30 0xAA) ] m;
+--   @m = Insert (Glyph "okatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x75) ] m;
+--   @m = Insert (Glyph "okorean") [ UTF82 (Bytes2All 0x31 0x57) ] m;
+--   @m = Insert (Glyph "olehebrew") [ UTF82 (Bytes2All 0x05 0xAB) ] m;
+--   @m = Insert (Glyph "omacron") [ UTF82 (Bytes2All 0x01 0x4D) ] m;
+--   @m = Insert (Glyph "omacronacute") [ UTF82 (Bytes2All 0x1E 0x53) ] m;
+--   @m = Insert (Glyph "omacrongrave") [ UTF82 (Bytes2All 0x1E 0x51) ] m;
+--   @m = Insert (Glyph "omdeva") [ UTF82 (Bytes2All 0x09 0x50) ] m;
+--   @m = Insert (Glyph "omega") [ UTF82 (Bytes2All 0x03 0xC9) ] m;
+--   @m = Insert (Glyph "omega1") [ UTF82 (Bytes2All 0x03 0xD6) ] m;
+--   @m = Insert (Glyph "omegacyrillic") [ UTF82 (Bytes2All 0x04 0x61) ] m;
+--   @m = Insert (Glyph "omegalatinclosed") [ UTF82 (Bytes2All 0x02 0x77) ] m;
+--   @m = Insert (Glyph "omegaroundcyrillic") [ UTF82 (Bytes2All 0x04 0x7B) ] m;
+--   @m = Insert (Glyph "omegatitlocyrillic") [ UTF82 (Bytes2All 0x04 0x7D) ] m;
+--   @m = Insert (Glyph "omegatonos") [ UTF82 (Bytes2All 0x03 0xCE) ] m;
+--   @m = Insert (Glyph "omgujarati") [ UTF82 (Bytes2All 0x0A 0xD0) ] m;
+--   @m = Insert (Glyph "omicron") [ UTF82 (Bytes2All 0x03 0xBF) ] m;
+--   @m = Insert (Glyph "omicrontonos") [ UTF82 (Bytes2All 0x03 0xCC) ] m;
+--   @m = Insert (Glyph "omonospace") [ UTF82 (Bytes2All 0xFF 0x4F) ] m;
+--   @m = Insert (Glyph "one") [ UTF81 (Bytes1 0x31) ] m;
+--   @m = Insert (Glyph "onearabic") [ UTF82 (Bytes2All 0x06 0x61) ] m;
+--   @m = Insert (Glyph "onebengali") [ UTF82 (Bytes2All 0x09 0xE7) ] m;
+--   @m = Insert (Glyph "onecircle") [ UTF82 (Bytes2All 0x24 0x60) ] m;
+--   @m = Insert (Glyph "onecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8A) ] m;
+--   @m = Insert (Glyph "onedeva") [ UTF82 (Bytes2All 0x09 0x67) ] m;
+--   @m = Insert (Glyph "onedotenleader") [ UTF82 (Bytes2All 0x20 0x24) ] m;
+--   @m = Insert (Glyph "oneeighth") [ UTF82 (Bytes2All 0x21 0x5B) ] m;
+--   @m = Insert (Glyph "onefitted") [ UTF82 (Bytes2All 0xF6 0xDC) ] m;
+--   @m = Insert (Glyph "onegujarati") [ UTF82 (Bytes2All 0x0A 0xE7) ] m;
+--   @m = Insert (Glyph "onegurmukhi") [ UTF82 (Bytes2All 0x0A 0x67) ] m;
+--   @m = Insert (Glyph "onehackarabic") [ UTF82 (Bytes2All 0x06 0x61) ] m;
+--   @m = Insert (Glyph "onehalf") [ UTF81 (Bytes1 0xBD) ] m;
+--   @m = Insert (Glyph "onehangzhou") [ UTF82 (Bytes2All 0x30 0x21) ] m;
+--   @m = Insert (Glyph "oneideographicparen") [ UTF82 (Bytes2All 0x32 0x20) ] m;
+--   @m = Insert (Glyph "oneinferior") [ UTF82 (Bytes2All 0x20 0x81) ] m;
+--   @m = Insert (Glyph "onemonospace") [ UTF82 (Bytes2All 0xFF 0x11) ] m;
+--   @m = Insert (Glyph "onenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF4) ] m;
+--   @m = Insert (Glyph "oneoldstyle") [ UTF82 (Bytes2All 0xF7 0x31) ] m;
+--   @m = Insert (Glyph "oneparen") [ UTF82 (Bytes2All 0x24 0x74) ] m;
+--   @m = Insert (Glyph "oneperiod") [ UTF82 (Bytes2All 0x24 0x88) ] m;
+--   @m = Insert (Glyph "onepersian") [ UTF82 (Bytes2All 0x06 0xF1) ] m;
+--   @m = Insert (Glyph "onequarter") [ UTF81 (Bytes1 0xBC) ] m;
+--   @m = Insert (Glyph "oneroman") [ UTF82 (Bytes2All 0x21 0x70) ] m;
+--   @m = Insert (Glyph "onesuperior") [ UTF81 (Bytes1 0xB9) ] m;
+--   @m = Insert (Glyph "onethai") [ UTF82 (Bytes2All 0x0E 0x51) ] m;
+--   @m = Insert (Glyph "onethird") [ UTF82 (Bytes2All 0x21 0x53) ] m;
+--   @m = Insert (Glyph "oogonek") [ UTF82 (Bytes2All 0x01 0xEB) ] m;
+--   @m = Insert (Glyph "oogonekmacron") [ UTF82 (Bytes2All 0x01 0xED) ] m;
+--   @m = Insert (Glyph "oogurmukhi") [ UTF82 (Bytes2All 0x0A 0x13) ] m;
+--   @m = Insert (Glyph "oomatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x4B) ] m;
+--   @m = Insert (Glyph "oopen") [ UTF82 (Bytes2All 0x02 0x54) ] m;
+--   @m = Insert (Glyph "oparen") [ UTF82 (Bytes2All 0x24 0xAA) ] m;
+--   @m = Insert (Glyph "openbullet") [ UTF82 (Bytes2All 0x25 0xE6) ] m;
+--   @m = Insert (Glyph "option") [ UTF82 (Bytes2All 0x23 0x25) ] m;
+--   @m = Insert (Glyph "ordfeminine") [ UTF81 (Bytes1 0xAA) ] m;
+--   @m = Insert (Glyph "ordmasculine") [ UTF81 (Bytes1 0xBA) ] m;
+--   @m = Insert (Glyph "orthogonal") [ UTF82 (Bytes2All 0x22 0x1F) ] m;
+--   @m = Insert (Glyph "oshortdeva") [ UTF82 (Bytes2All 0x09 0x12) ] m;
+--   @m = Insert (Glyph "oshortvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4A) ] m;
+--   @m = Insert (Glyph "oslash") [ UTF81 (Bytes1 0xF8) ] m;
+--   @m = Insert (Glyph "oslashacute") [ UTF82 (Bytes2All 0x01 0xFF) ] m;
+--   @m = Insert (Glyph "osmallhiragana") [ UTF82 (Bytes2All 0x30 0x49) ] m;
+--   @m = Insert (Glyph "osmallkatakana") [ UTF82 (Bytes2All 0x30 0xA9) ] m;
+--   @m = Insert (Glyph "osmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6B) ] m;
+--   @m = Insert (Glyph "ostrokeacute") [ UTF82 (Bytes2All 0x01 0xFF) ] m;
+--   @m = Insert (Glyph "osuperior") [ UTF82 (Bytes2All 0xF6 0xF0) ] m;
+--   @m = Insert (Glyph "otcyrillic") [ UTF82 (Bytes2All 0x04 0x7F) ] m;
+--   @m = Insert (Glyph "otilde") [ UTF81 (Bytes1 0xF5) ] m;
+--   @m = Insert (Glyph "otildeacute") [ UTF82 (Bytes2All 0x1E 0x4D) ] m;
+--   @m = Insert (Glyph "otildedieresis") [ UTF82 (Bytes2All 0x1E 0x4F) ] m;
+--   @m = Insert (Glyph "oubopomofo") [ UTF82 (Bytes2All 0x31 0x21) ] m;
+--   @m = Insert (Glyph "overline") [ UTF82 (Bytes2All 0x20 0x3E) ] m;
+--   @m = Insert (Glyph "overlinecenterline") [ UTF82 (Bytes2All 0xFE 0x4A) ] m;
+--   @m = Insert (Glyph "overlinecmb") [ UTF82 (Bytes2All 0x03 0x05) ] m;
+--   @m = Insert (Glyph "overlinedashed") [ UTF82 (Bytes2All 0xFE 0x49) ] m;
+--   @m = Insert (Glyph "overlinedblwavy") [ UTF82 (Bytes2All 0xFE 0x4C) ] m;
+--   @m = Insert (Glyph "overlinewavy") [ UTF82 (Bytes2All 0xFE 0x4B) ] m;
+--   @m = Insert (Glyph "overscore") [ UTF81 (Bytes1 0xAF) ] m;
+--   @m = Insert (Glyph "ovowelsignbengali") [ UTF82 (Bytes2All 0x09 0xCB) ] m;
+--   @m = Insert (Glyph "ovowelsigndeva") [ UTF82 (Bytes2All 0x09 0x4B) ] m;
+--   @m = Insert (Glyph "ovowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xCB) ] m;
+--   m
+-- }
+
+-- def GlyphEncp =  {
+--   @m = empty;
+--   @m = Insert (Glyph "p") [ UTF81 (Bytes1 0x70) ] m;
+--   @m = Insert (Glyph "paampssquare") [ UTF82 (Bytes2All 0x33 0x80) ] m;
+--   @m = Insert (Glyph "paasentosquare") [ UTF82 (Bytes2All 0x33 0x2B) ] m;
+--   @m = Insert (Glyph "pabengali") [ UTF82 (Bytes2All 0x09 0xAA) ] m;
+--   @m = Insert (Glyph "pacute") [ UTF82 (Bytes2All 0x1E 0x55) ] m;
+--   @m = Insert (Glyph "padeva") [ UTF82 (Bytes2All 0x09 0x2A) ] m;
+--   @m = Insert (Glyph "pagedown") [ UTF82 (Bytes2All 0x21 0xDF) ] m;
+--   @m = Insert (Glyph "pageup") [ UTF82 (Bytes2All 0x21 0xDE) ] m;
+--   @m = Insert (Glyph "pagujarati") [ UTF82 (Bytes2All 0x0A 0xAA) ] m;
+--   @m = Insert (Glyph "pagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2A) ] m;
+--   @m = Insert (Glyph "pahiragana") [ UTF82 (Bytes2All 0x30 0x71) ] m;
+--   @m = Insert (Glyph "paiyannoithai") [ UTF82 (Bytes2All 0x0E 0x2F) ] m;
+--   @m = Insert (Glyph "pakatakana") [ UTF82 (Bytes2All 0x30 0xD1) ] m;
+--   @m = Insert (Glyph "palatalizationcyrilliccmb") [ UTF82 (Bytes2All 0x04 0x84) ] m;
+--   @m = Insert (Glyph "palochkacyrillic") [ UTF82 (Bytes2All 0x04 0xC0) ] m;
+--   @m = Insert (Glyph "pansioskorean") [ UTF82 (Bytes2All 0x31 0x7F) ] m;
+--   @m = Insert (Glyph "paragraph") [ UTF81 (Bytes1 0xB6) ] m;
+--   @m = Insert (Glyph "parallel") [ UTF82 (Bytes2All 0x22 0x25) ] m;
+--   @m = Insert (Glyph "parenleft") [ UTF81 (Bytes1 0x28) ] m;
+--   @m = Insert (Glyph "parenleftaltonearabic") [ UTF82 (Bytes2All 0xFD 0x3E) ] m;
+--   @m = Insert (Glyph "parenleftbt") [ UTF82 (Bytes2All 0xF8 0xED) ] m;
+--   @m = Insert (Glyph "parenleftex") [ UTF82 (Bytes2All 0xF8 0xEC) ] m;
+--   @m = Insert (Glyph "parenleftinferior") [ UTF82 (Bytes2All 0x20 0x8D) ] m;
+--   @m = Insert (Glyph "parenleftmonospace") [ UTF82 (Bytes2All 0xFF 0x08) ] m;
+--   @m = Insert (Glyph "parenleftsmall") [ UTF82 (Bytes2All 0xFE 0x59) ] m;
+--   @m = Insert (Glyph "parenleftsuperior") [ UTF82 (Bytes2All 0x20 0x7D) ] m;
+--   @m = Insert (Glyph "parenlefttp") [ UTF82 (Bytes2All 0xF8 0xEB) ] m;
+--   @m = Insert (Glyph "parenleftvertical") [ UTF82 (Bytes2All 0xFE 0x35) ] m;
+--   @m = Insert (Glyph "parenright") [ UTF81 (Bytes1 0x29) ] m;
+--   @m = Insert (Glyph "parenrightaltonearabic") [ UTF82 (Bytes2All 0xFD 0x3F) ] m;
+--   @m = Insert (Glyph "parenrightbt") [ UTF82 (Bytes2All 0xF8 0xF8) ] m;
+--   @m = Insert (Glyph "parenrightex") [ UTF82 (Bytes2All 0xF8 0xF7) ] m;
+--   @m = Insert (Glyph "parenrightinferior") [ UTF82 (Bytes2All 0x20 0x8E) ] m;
+--   @m = Insert (Glyph "parenrightmonospace") [ UTF82 (Bytes2All 0xFF 0x09) ] m;
+--   @m = Insert (Glyph "parenrightsmall") [ UTF82 (Bytes2All 0xFE 0x5A) ] m;
+--   @m = Insert (Glyph "parenrightsuperior") [ UTF82 (Bytes2All 0x20 0x7E) ] m;
+--   @m = Insert (Glyph "parenrighttp") [ UTF82 (Bytes2All 0xF8 0xF6) ] m;
+--   @m = Insert (Glyph "parenrightvertical") [ UTF82 (Bytes2All 0xFE 0x36) ] m;
+--   @m = Insert (Glyph "partialdiff") [ UTF82 (Bytes2All 0x22 0x02) ] m;
+--   @m = Insert (Glyph "paseqhebrew") [ UTF82 (Bytes2All 0x05 0xC0) ] m;
+--   @m = Insert (Glyph "pashtahebrew") [ UTF82 (Bytes2All 0x05 0x99) ] m;
+--   @m = Insert (Glyph "pasquare") [ UTF82 (Bytes2All 0x33 0xA9) ] m;
+--   @m = Insert (Glyph "patah") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patah11") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patah1d") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patah2a") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patahhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patahnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patahquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "patahwidehebrew") [ UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "pazerhebrew") [ UTF82 (Bytes2All 0x05 0xA1) ] m;
+--   @m = Insert (Glyph "pbopomofo") [ UTF82 (Bytes2All 0x31 0x06) ] m;
+--   @m = Insert (Glyph "pcircle") [ UTF82 (Bytes2All 0x24 0xDF) ] m;
+--   @m = Insert (Glyph "pdotaccent") [ UTF82 (Bytes2All 0x1E 0x57) ] m;
+--   @m = Insert (Glyph "pe") [ UTF82 (Bytes2All 0x05 0xE4) ] m;
+--   @m = Insert (Glyph "pecyrillic") [ UTF82 (Bytes2All 0x04 0x3F) ] m;
+--   @m = Insert (Glyph "pedagesh") [ UTF82 (Bytes2All 0xFB 0x44) ] m;
+--   @m = Insert (Glyph "pedageshhebrew") [ UTF82 (Bytes2All 0xFB 0x44) ] m;
+--   @m = Insert (Glyph "peezisquare") [ UTF82 (Bytes2All 0x33 0x3B) ] m;
+--   @m = Insert (Glyph "pefinaldageshhebrew") [ UTF82 (Bytes2All 0xFB 0x43) ] m;
+--   @m = Insert (Glyph "peharabic") [ UTF82 (Bytes2All 0x06 0x7E) ] m;
+--   @m = Insert (Glyph "peharmenian") [ UTF82 (Bytes2All 0x05 0x7A) ] m;
+--   @m = Insert (Glyph "pehebrew") [ UTF82 (Bytes2All 0x05 0xE4) ] m;
+--   @m = Insert (Glyph "pehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x57) ] m;
+--   @m = Insert (Glyph "pehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x58) ] m;
+--   @m = Insert (Glyph "pehiragana") [ UTF82 (Bytes2All 0x30 0x7A) ] m;
+--   @m = Insert (Glyph "pehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x59) ] m;
+--   @m = Insert (Glyph "pekatakana") [ UTF82 (Bytes2All 0x30 0xDA) ] m;
+--   @m = Insert (Glyph "pemiddlehookcyrillic") [ UTF82 (Bytes2All 0x04 0xA7) ] m;
+--   @m = Insert (Glyph "perafehebrew") [ UTF82 (Bytes2All 0xFB 0x4E) ] m;
+--   @m = Insert (Glyph "percent") [ UTF81 (Bytes1 0x25) ] m;
+--   @m = Insert (Glyph "percentarabic") [ UTF82 (Bytes2All 0x06 0x6A) ] m;
+--   @m = Insert (Glyph "percentmonospace") [ UTF82 (Bytes2All 0xFF 0x05) ] m;
+--   @m = Insert (Glyph "percentsmall") [ UTF82 (Bytes2All 0xFE 0x6A) ] m;
+--   @m = Insert (Glyph "period") [ UTF81 (Bytes1 0x2E) ] m;
+--   @m = Insert (Glyph "periodarmenian") [ UTF82 (Bytes2All 0x05 0x89) ] m;
+--   @m = Insert (Glyph "periodcentered") [ UTF81 (Bytes1 0xB7) ] m;
+--   @m = Insert (Glyph "periodhalfwidth") [ UTF82 (Bytes2All 0xFF 0x61) ] m;
+--   @m = Insert (Glyph "periodinferior") [ UTF82 (Bytes2All 0xF6 0xE7) ] m;
+--   @m = Insert (Glyph "periodmonospace") [ UTF82 (Bytes2All 0xFF 0x0E) ] m;
+--   @m = Insert (Glyph "periodsmall") [ UTF82 (Bytes2All 0xFE 0x52) ] m;
+--   @m = Insert (Glyph "periodsuperior") [ UTF82 (Bytes2All 0xF6 0xE8) ] m;
+--   @m = Insert (Glyph "perispomenigreekcmb") [ UTF82 (Bytes2All 0x03 0x42) ] m;
+--   @m = Insert (Glyph "perpendicular") [ UTF82 (Bytes2All 0x22 0xA5) ] m;
+--   @m = Insert (Glyph "perthousand") [ UTF82 (Bytes2All 0x20 0x30) ] m;
+--   @m = Insert (Glyph "peseta") [ UTF82 (Bytes2All 0x20 0xA7) ] m;
+--   @m = Insert (Glyph "pfsquare") [ UTF82 (Bytes2All 0x33 0x8A) ] m;
+--   @m = Insert (Glyph "phabengali") [ UTF82 (Bytes2All 0x09 0xAB) ] m;
+--   @m = Insert (Glyph "phadeva") [ UTF82 (Bytes2All 0x09 0x2B) ] m;
+--   @m = Insert (Glyph "phagujarati") [ UTF82 (Bytes2All 0x0A 0xAB) ] m;
+--   @m = Insert (Glyph "phagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2B) ] m;
+--   @m = Insert (Glyph "phi") [ UTF82 (Bytes2All 0x03 0xC6) ] m;
+--   @m = Insert (Glyph "phi1") [ UTF82 (Bytes2All 0x03 0xD5) ] m;
+--   @m = Insert (Glyph "phieuphacirclekorean") [ UTF82 (Bytes2All 0x32 0x7A) ] m;
+--   @m = Insert (Glyph "phieuphaparenkorean") [ UTF82 (Bytes2All 0x32 0x1A) ] m;
+--   @m = Insert (Glyph "phieuphcirclekorean") [ UTF82 (Bytes2All 0x32 0x6C) ] m;
+--   @m = Insert (Glyph "phieuphkorean") [ UTF82 (Bytes2All 0x31 0x4D) ] m;
+--   @m = Insert (Glyph "phieuphparenkorean") [ UTF82 (Bytes2All 0x32 0x0C) ] m;
+--   @m = Insert (Glyph "philatin") [ UTF82 (Bytes2All 0x02 0x78) ] m;
+--   @m = Insert (Glyph "phinthuthai") [ UTF82 (Bytes2All 0x0E 0x3A) ] m;
+--   @m = Insert (Glyph "phisymbolgreek") [ UTF82 (Bytes2All 0x03 0xD5) ] m;
+--   @m = Insert (Glyph "phook") [ UTF82 (Bytes2All 0x01 0xA5) ] m;
+--   @m = Insert (Glyph "phophanthai") [ UTF82 (Bytes2All 0x0E 0x1E) ] m;
+--   @m = Insert (Glyph "phophungthai") [ UTF82 (Bytes2All 0x0E 0x1C) ] m;
+--   @m = Insert (Glyph "phosamphaothai") [ UTF82 (Bytes2All 0x0E 0x20) ] m;
+--   @m = Insert (Glyph "pi") [ UTF82 (Bytes2All 0x03 0xC0) ] m;
+--   @m = Insert (Glyph "pieupacirclekorean") [ UTF82 (Bytes2All 0x32 0x73) ] m;
+--   @m = Insert (Glyph "pieupaparenkorean") [ UTF82 (Bytes2All 0x32 0x13) ] m;
+--   @m = Insert (Glyph "pieupcieuckorean") [ UTF82 (Bytes2All 0x31 0x76) ] m;
+--   @m = Insert (Glyph "pieupcirclekorean") [ UTF82 (Bytes2All 0x32 0x65) ] m;
+--   @m = Insert (Glyph "pieupkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x72) ] m;
+--   @m = Insert (Glyph "pieupkorean") [ UTF82 (Bytes2All 0x31 0x42) ] m;
+--   @m = Insert (Glyph "pieupparenkorean") [ UTF82 (Bytes2All 0x32 0x05) ] m;
+--   @m = Insert (Glyph "pieupsioskiyeokkorean") [ UTF82 (Bytes2All 0x31 0x74) ] m;
+--   @m = Insert (Glyph "pieupsioskorean") [ UTF82 (Bytes2All 0x31 0x44) ] m;
+--   @m = Insert (Glyph "pieupsiostikeutkorean") [ UTF82 (Bytes2All 0x31 0x75) ] m;
+--   @m = Insert (Glyph "pieupthieuthkorean") [ UTF82 (Bytes2All 0x31 0x77) ] m;
+--   @m = Insert (Glyph "pieuptikeutkorean") [ UTF82 (Bytes2All 0x31 0x73) ] m;
+--   @m = Insert (Glyph "pihiragana") [ UTF82 (Bytes2All 0x30 0x74) ] m;
+--   @m = Insert (Glyph "pikatakana") [ UTF82 (Bytes2All 0x30 0xD4) ] m;
+--   @m = Insert (Glyph "pisymbolgreek") [ UTF82 (Bytes2All 0x03 0xD6) ] m;
+--   @m = Insert (Glyph "piwrarmenian") [ UTF82 (Bytes2All 0x05 0x83) ] m;
+--   @m = Insert (Glyph "plus") [ UTF81 (Bytes1 0x2B) ] m;
+--   @m = Insert (Glyph "plusbelowcmb") [ UTF82 (Bytes2All 0x03 0x1F) ] m;
+--   @m = Insert (Glyph "pluscircle") [ UTF82 (Bytes2All 0x22 0x95) ] m;
+--   @m = Insert (Glyph "plusminus") [ UTF81 (Bytes1 0xB1) ] m;
+--   @m = Insert (Glyph "plusmod") [ UTF82 (Bytes2All 0x02 0xD6) ] m;
+--   @m = Insert (Glyph "plusmonospace") [ UTF82 (Bytes2All 0xFF 0x0B) ] m;
+--   @m = Insert (Glyph "plussmall") [ UTF82 (Bytes2All 0xFE 0x62) ] m;
+--   @m = Insert (Glyph "plussuperior") [ UTF82 (Bytes2All 0x20 0x7A) ] m;
+--   @m = Insert (Glyph "pmonospace") [ UTF82 (Bytes2All 0xFF 0x50) ] m;
+--   @m = Insert (Glyph "pmsquare") [ UTF82 (Bytes2All 0x33 0xD8) ] m;
+--   @m = Insert (Glyph "pohiragana") [ UTF82 (Bytes2All 0x30 0x7D) ] m;
+--   @m = Insert (Glyph "pointingindexdownwhite") [ UTF82 (Bytes2All 0x26 0x1F) ] m;
+--   @m = Insert (Glyph "pointingindexleftwhite") [ UTF82 (Bytes2All 0x26 0x1C) ] m;
+--   @m = Insert (Glyph "pointingindexrightwhite") [ UTF82 (Bytes2All 0x26 0x1E) ] m;
+--   @m = Insert (Glyph "pointingindexupwhite") [ UTF82 (Bytes2All 0x26 0x1D) ] m;
+--   @m = Insert (Glyph "pokatakana") [ UTF82 (Bytes2All 0x30 0xDD) ] m;
+--   @m = Insert (Glyph "poplathai") [ UTF82 (Bytes2All 0x0E 0x1B) ] m;
+--   @m = Insert (Glyph "postalmark") [ UTF82 (Bytes2All 0x30 0x12) ] m;
+--   @m = Insert (Glyph "postalmarkface") [ UTF82 (Bytes2All 0x30 0x20) ] m;
+--   @m = Insert (Glyph "pparen") [ UTF82 (Bytes2All 0x24 0xAB) ] m;
+--   @m = Insert (Glyph "precedes") [ UTF82 (Bytes2All 0x22 0x7A) ] m;
+--   @m = Insert (Glyph "prescription") [ UTF82 (Bytes2All 0x21 0x1E) ] m;
+--   @m = Insert (Glyph "primemod") [ UTF82 (Bytes2All 0x02 0xB9) ] m;
+--   @m = Insert (Glyph "primereversed") [ UTF82 (Bytes2All 0x20 0x35) ] m;
+--   @m = Insert (Glyph "product") [ UTF82 (Bytes2All 0x22 0x0F) ] m;
+--   @m = Insert (Glyph "projective") [ UTF82 (Bytes2All 0x23 0x05) ] m;
+--   @m = Insert (Glyph "prolongedkana") [ UTF82 (Bytes2All 0x30 0xFC) ] m;
+--   @m = Insert (Glyph "propellor") [ UTF82 (Bytes2All 0x23 0x18) ] m;
+--   @m = Insert (Glyph "propersubset") [ UTF82 (Bytes2All 0x22 0x82) ] m;
+--   @m = Insert (Glyph "propersuperset") [ UTF82 (Bytes2All 0x22 0x83) ] m;
+--   @m = Insert (Glyph "proportion") [ UTF82 (Bytes2All 0x22 0x37) ] m;
+--   @m = Insert (Glyph "proportional") [ UTF82 (Bytes2All 0x22 0x1D) ] m;
+--   @m = Insert (Glyph "psi") [ UTF82 (Bytes2All 0x03 0xC8) ] m;
+--   @m = Insert (Glyph "psicyrillic") [ UTF82 (Bytes2All 0x04 0x71) ] m;
+--   @m = Insert (Glyph "psilipneumatacyrilliccmb") [ UTF82 (Bytes2All 0x04 0x86) ] m;
+--   @m = Insert (Glyph "pssquare") [ UTF82 (Bytes2All 0x33 0xB0) ] m;
+--   @m = Insert (Glyph "puhiragana") [ UTF82 (Bytes2All 0x30 0x77) ] m;
+--   @m = Insert (Glyph "pukatakana") [ UTF82 (Bytes2All 0x30 0xD7) ] m;
+--   @m = Insert (Glyph "pvsquare") [ UTF82 (Bytes2All 0x33 0xB4) ] m;
+--   @m = Insert (Glyph "pwsquare") [ UTF82 (Bytes2All 0x33 0xBA) ] m;
+--   m
+-- }
+
+-- def GlyphEncq =  {
+--   @m = empty;
+--   @m = Insert (Glyph "q") [ UTF81 (Bytes1 0x71) ] m;
+--   @m = Insert (Glyph "qadeva") [ UTF82 (Bytes2All 0x09 0x58) ] m;
+--   @m = Insert (Glyph "qadmahebrew") [ UTF82 (Bytes2All 0x05 0xA8) ] m;
+--   @m = Insert (Glyph "qafarabic") [ UTF82 (Bytes2All 0x06 0x42) ] m;
+--   @m = Insert (Glyph "qaffinalarabic") [ UTF82 (Bytes2All 0xFE 0xD6) ] m;
+--   @m = Insert (Glyph "qafinitialarabic") [ UTF82 (Bytes2All 0xFE 0xD7) ] m;
+--   @m = Insert (Glyph "qafmedialarabic") [ UTF82 (Bytes2All 0xFE 0xD8) ] m;
+--   @m = Insert (Glyph "qamats") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats10") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats1a") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats1c") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats27") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats29") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamats33") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsde") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatshebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsqatanhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsqatannarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsqatanquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsqatanwidehebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qamatswidehebrew") [ UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qarneyparahebrew") [ UTF82 (Bytes2All 0x05 0x9F) ] m;
+--   @m = Insert (Glyph "qbopomofo") [ UTF82 (Bytes2All 0x31 0x11) ] m;
+--   @m = Insert (Glyph "qcircle") [ UTF82 (Bytes2All 0x24 0xE0) ] m;
+--   @m = Insert (Glyph "qhook") [ UTF82 (Bytes2All 0x02 0xA0) ] m;
+--   @m = Insert (Glyph "qmonospace") [ UTF82 (Bytes2All 0xFF 0x51) ] m;
+--   @m = Insert (Glyph "qof") [ UTF82 (Bytes2All 0x05 0xE7) ] m;
+--   @m = Insert (Glyph "qofdagesh") [ UTF82 (Bytes2All 0xFB 0x47) ] m;
+--   @m = Insert (Glyph "qofdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x47) ] m;
+--   @m = Insert (Glyph "qofhatafpatah") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "qofhatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "qofhatafsegol") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "qofhatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "qofhebrew") [ UTF82 (Bytes2All 0x05 0xE7) ] m;
+--   @m = Insert (Glyph "qofhiriq") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "qofhiriqhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "qofholam") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "qofholamhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "qofpatah") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "qofpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "qofqamats") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qofqamatshebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "qofqubuts") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qofqubutshebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qofsegol") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "qofsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "qofsheva") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "qofshevahebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "qoftsere") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "qoftserehebrew") [ UTF82 (Bytes2All 0x05 0xE7), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "qparen") [ UTF82 (Bytes2All 0x24 0xAC) ] m;
+--   @m = Insert (Glyph "quarternote") [ UTF82 (Bytes2All 0x26 0x69) ] m;
+--   @m = Insert (Glyph "qubuts") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubuts18") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubuts25") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubuts31") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubutshebrew") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubutsnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubutsquarterhebrew") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "qubutswidehebrew") [ UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "question") [ UTF81 (Bytes1 0x3F) ] m;
+--   @m = Insert (Glyph "questionarabic") [ UTF82 (Bytes2All 0x06 0x1F) ] m;
+--   @m = Insert (Glyph "questionarmenian") [ UTF82 (Bytes2All 0x05 0x5E) ] m;
+--   @m = Insert (Glyph "questiondown") [ UTF81 (Bytes1 0xBF) ] m;
+--   @m = Insert (Glyph "questiondownsmall") [ UTF82 (Bytes2All 0xF7 0xBF) ] m;
+--   @m = Insert (Glyph "questiongreek") [ UTF82 (Bytes2All 0x03 0x7E) ] m;
+--   @m = Insert (Glyph "questionmonospace") [ UTF82 (Bytes2All 0xFF 0x1F) ] m;
+--   @m = Insert (Glyph "questionsmall") [ UTF82 (Bytes2All 0xF7 0x3F) ] m;
+--   @m = Insert (Glyph "quotedbl") [ UTF81 (Bytes1 0x22) ] m;
+--   @m = Insert (Glyph "quotedblbase") [ UTF82 (Bytes2All 0x20 0x1E) ] m;
+--   @m = Insert (Glyph "quotedblleft") [ UTF82 (Bytes2All 0x20 0x1C) ] m;
+--   @m = Insert (Glyph "quotedblmonospace") [ UTF82 (Bytes2All 0xFF 0x02) ] m;
+--   @m = Insert (Glyph "quotedblprime") [ UTF82 (Bytes2All 0x30 0x1E) ] m;
+--   @m = Insert (Glyph "quotedblprimereversed") [ UTF82 (Bytes2All 0x30 0x1D) ] m;
+--   @m = Insert (Glyph "quotedblright") [ UTF82 (Bytes2All 0x20 0x1D) ] m;
+--   @m = Insert (Glyph "quoteleft") [ UTF82 (Bytes2All 0x20 0x18) ] m;
+--   @m = Insert (Glyph "quoteleftreversed") [ UTF82 (Bytes2All 0x20 0x1B) ] m;
+--   @m = Insert (Glyph "quotereversed") [ UTF82 (Bytes2All 0x20 0x1B) ] m;
+--   @m = Insert (Glyph "quoteright") [ UTF82 (Bytes2All 0x20 0x19) ] m;
+--   @m = Insert (Glyph "quoterightn") [ UTF82 (Bytes2All 0x01 0x49) ] m;
+--   @m = Insert (Glyph "quotesinglbase") [ UTF82 (Bytes2All 0x20 0x1A) ] m;
+--   @m = Insert (Glyph "quotesingle") [ UTF81 (Bytes1 0x27) ] m;
+--   @m = Insert (Glyph "quotesinglemonospace") [ UTF82 (Bytes2All 0xFF 0x07) ] m;
+--   m
+-- }
+
+-- def GlyphEncr =  {
+--   @m = empty;
+--   @m = Insert (Glyph "r") [ UTF81 (Bytes1 0x72) ] m;
+--   @m = Insert (Glyph "raarmenian") [ UTF82 (Bytes2All 0x05 0x7C) ] m;
+--   @m = Insert (Glyph "rabengali") [ UTF82 (Bytes2All 0x09 0xB0) ] m;
+--   @m = Insert (Glyph "racute") [ UTF82 (Bytes2All 0x01 0x55) ] m;
+--   @m = Insert (Glyph "radeva") [ UTF82 (Bytes2All 0x09 0x30) ] m;
+--   @m = Insert (Glyph "radical") [ UTF82 (Bytes2All 0x22 0x1A) ] m;
+--   @m = Insert (Glyph "radicalex") [ UTF82 (Bytes2All 0xF8 0xE5) ] m;
+--   @m = Insert (Glyph "radoverssquare") [ UTF82 (Bytes2All 0x33 0xAE) ] m;
+--   @m = Insert (Glyph "radoverssquaredsquare") [ UTF82 (Bytes2All 0x33 0xAF) ] m;
+--   @m = Insert (Glyph "radsquare") [ UTF82 (Bytes2All 0x33 0xAD) ] m;
+--   @m = Insert (Glyph "rafe") [ UTF82 (Bytes2All 0x05 0xBF) ] m;
+--   @m = Insert (Glyph "rafehebrew") [ UTF82 (Bytes2All 0x05 0xBF) ] m;
+--   @m = Insert (Glyph "ragujarati") [ UTF82 (Bytes2All 0x0A 0xB0) ] m;
+--   @m = Insert (Glyph "ragurmukhi") [ UTF82 (Bytes2All 0x0A 0x30) ] m;
+--   @m = Insert (Glyph "rahiragana") [ UTF82 (Bytes2All 0x30 0x89) ] m;
+--   @m = Insert (Glyph "rakatakana") [ UTF82 (Bytes2All 0x30 0xE9) ] m;
+--   @m = Insert (Glyph "rakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x97) ] m;
+--   @m = Insert (Glyph "ralowerdiagonalbengali") [ UTF82 (Bytes2All 0x09 0xF1) ] m;
+--   @m = Insert (Glyph "ramiddlediagonalbengali") [ UTF82 (Bytes2All 0x09 0xF0) ] m;
+--   @m = Insert (Glyph "ramshorn") [ UTF82 (Bytes2All 0x02 0x64) ] m;
+--   @m = Insert (Glyph "ratio") [ UTF82 (Bytes2All 0x22 0x36) ] m;
+--   @m = Insert (Glyph "rbopomofo") [ UTF82 (Bytes2All 0x31 0x16) ] m;
+--   @m = Insert (Glyph "rcaron") [ UTF82 (Bytes2All 0x01 0x59) ] m;
+--   @m = Insert (Glyph "rcedilla") [ UTF82 (Bytes2All 0x01 0x57) ] m;
+--   @m = Insert (Glyph "rcircle") [ UTF82 (Bytes2All 0x24 0xE1) ] m;
+--   @m = Insert (Glyph "rcommaaccent") [ UTF82 (Bytes2All 0x01 0x57) ] m;
+--   @m = Insert (Glyph "rdblgrave") [ UTF82 (Bytes2All 0x02 0x11) ] m;
+--   @m = Insert (Glyph "rdotaccent") [ UTF82 (Bytes2All 0x1E 0x59) ] m;
+--   @m = Insert (Glyph "rdotbelow") [ UTF82 (Bytes2All 0x1E 0x5B) ] m;
+--   @m = Insert (Glyph "rdotbelowmacron") [ UTF82 (Bytes2All 0x1E 0x5D) ] m;
+--   @m = Insert (Glyph "referencemark") [ UTF82 (Bytes2All 0x20 0x3B) ] m;
+--   @m = Insert (Glyph "reflexsubset") [ UTF82 (Bytes2All 0x22 0x86) ] m;
+--   @m = Insert (Glyph "reflexsuperset") [ UTF82 (Bytes2All 0x22 0x87) ] m;
+--   @m = Insert (Glyph "registered") [ UTF81 (Bytes1 0xAE) ] m;
+--   @m = Insert (Glyph "registersans") [ UTF82 (Bytes2All 0xF8 0xE8) ] m;
+--   @m = Insert (Glyph "registerserif") [ UTF82 (Bytes2All 0xF6 0xDA) ] m;
+--   @m = Insert (Glyph "reharabic") [ UTF82 (Bytes2All 0x06 0x31) ] m;
+--   @m = Insert (Glyph "reharmenian") [ UTF82 (Bytes2All 0x05 0x80) ] m;
+--   @m = Insert (Glyph "rehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAE) ] m;
+--   @m = Insert (Glyph "rehiragana") [ UTF82 (Bytes2All 0x30 0x8C) ] m;
+--   @m = Insert (Glyph "rehyehaleflamarabic") [ UTF82 (Bytes2All 0x06 0x31), UTF82 (Bytes2All 0xFE 0xF3), UTF82 (Bytes2All 0xFE 0x8E), UTF82 (Bytes2All 0x06 0x44) ] m;
+--   @m = Insert (Glyph "rekatakana") [ UTF82 (Bytes2All 0x30 0xEC) ] m;
+--   @m = Insert (Glyph "rekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9A) ] m;
+--   @m = Insert (Glyph "resh") [ UTF82 (Bytes2All 0x05 0xE8) ] m;
+--   @m = Insert (Glyph "reshdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x48) ] m;
+--   @m = Insert (Glyph "reshhatafpatah") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "reshhatafpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB2) ] m;
+--   @m = Insert (Glyph "reshhatafsegol") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "reshhatafsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB1) ] m;
+--   @m = Insert (Glyph "reshhebrew") [ UTF82 (Bytes2All 0x05 0xE8) ] m;
+--   @m = Insert (Glyph "reshhiriq") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "reshhiriqhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB4) ] m;
+--   @m = Insert (Glyph "reshholam") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "reshholamhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB9) ] m;
+--   @m = Insert (Glyph "reshpatah") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "reshpatahhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB7) ] m;
+--   @m = Insert (Glyph "reshqamats") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "reshqamatshebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB8) ] m;
+--   @m = Insert (Glyph "reshqubuts") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "reshqubutshebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xBB) ] m;
+--   @m = Insert (Glyph "reshsegol") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "reshsegolhebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "reshsheva") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "reshshevahebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "reshtsere") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "reshtserehebrew") [ UTF82 (Bytes2All 0x05 0xE8), UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "reversedtilde") [ UTF82 (Bytes2All 0x22 0x3D) ] m;
+--   @m = Insert (Glyph "reviahebrew") [ UTF82 (Bytes2All 0x05 0x97) ] m;
+--   @m = Insert (Glyph "reviamugrashhebrew") [ UTF82 (Bytes2All 0x05 0x97) ] m;
+--   @m = Insert (Glyph "revlogicalnot") [ UTF82 (Bytes2All 0x23 0x10) ] m;
+--   @m = Insert (Glyph "rfishhook") [ UTF82 (Bytes2All 0x02 0x7E) ] m;
+--   @m = Insert (Glyph "rfishhookreversed") [ UTF82 (Bytes2All 0x02 0x7F) ] m;
+--   @m = Insert (Glyph "rhabengali") [ UTF82 (Bytes2All 0x09 0xDD) ] m;
+--   @m = Insert (Glyph "rhadeva") [ UTF82 (Bytes2All 0x09 0x5D) ] m;
+--   @m = Insert (Glyph "rho") [ UTF82 (Bytes2All 0x03 0xC1) ] m;
+--   @m = Insert (Glyph "rhook") [ UTF82 (Bytes2All 0x02 0x7D) ] m;
+--   @m = Insert (Glyph "rhookturned") [ UTF82 (Bytes2All 0x02 0x7B) ] m;
+--   @m = Insert (Glyph "rhookturnedsuperior") [ UTF82 (Bytes2All 0x02 0xB5) ] m;
+--   @m = Insert (Glyph "rhosymbolgreek") [ UTF82 (Bytes2All 0x03 0xF1) ] m;
+--   @m = Insert (Glyph "rhotichookmod") [ UTF82 (Bytes2All 0x02 0xDE) ] m;
+--   @m = Insert (Glyph "rieulacirclekorean") [ UTF82 (Bytes2All 0x32 0x71) ] m;
+--   @m = Insert (Glyph "rieulaparenkorean") [ UTF82 (Bytes2All 0x32 0x11) ] m;
+--   @m = Insert (Glyph "rieulcirclekorean") [ UTF82 (Bytes2All 0x32 0x63) ] m;
+--   @m = Insert (Glyph "rieulhieuhkorean") [ UTF82 (Bytes2All 0x31 0x40) ] m;
+--   @m = Insert (Glyph "rieulkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x3A) ] m;
+--   @m = Insert (Glyph "rieulkiyeoksioskorean") [ UTF82 (Bytes2All 0x31 0x69) ] m;
+--   @m = Insert (Glyph "rieulkorean") [ UTF82 (Bytes2All 0x31 0x39) ] m;
+--   @m = Insert (Glyph "rieulmieumkorean") [ UTF82 (Bytes2All 0x31 0x3B) ] m;
+--   @m = Insert (Glyph "rieulpansioskorean") [ UTF82 (Bytes2All 0x31 0x6C) ] m;
+--   @m = Insert (Glyph "rieulparenkorean") [ UTF82 (Bytes2All 0x32 0x03) ] m;
+--   @m = Insert (Glyph "rieulphieuphkorean") [ UTF82 (Bytes2All 0x31 0x3F) ] m;
+--   @m = Insert (Glyph "rieulpieupkorean") [ UTF82 (Bytes2All 0x31 0x3C) ] m;
+--   @m = Insert (Glyph "rieulpieupsioskorean") [ UTF82 (Bytes2All 0x31 0x6B) ] m;
+--   @m = Insert (Glyph "rieulsioskorean") [ UTF82 (Bytes2All 0x31 0x3D) ] m;
+--   @m = Insert (Glyph "rieulthieuthkorean") [ UTF82 (Bytes2All 0x31 0x3E) ] m;
+--   @m = Insert (Glyph "rieultikeutkorean") [ UTF82 (Bytes2All 0x31 0x6A) ] m;
+--   @m = Insert (Glyph "rieulyeorinhieuhkorean") [ UTF82 (Bytes2All 0x31 0x6D) ] m;
+--   @m = Insert (Glyph "rightangle") [ UTF82 (Bytes2All 0x22 0x1F) ] m;
+--   @m = Insert (Glyph "righttackbelowcmb") [ UTF82 (Bytes2All 0x03 0x19) ] m;
+--   @m = Insert (Glyph "righttriangle") [ UTF82 (Bytes2All 0x22 0xBF) ] m;
+--   @m = Insert (Glyph "rihiragana") [ UTF82 (Bytes2All 0x30 0x8A) ] m;
+--   @m = Insert (Glyph "rikatakana") [ UTF82 (Bytes2All 0x30 0xEA) ] m;
+--   @m = Insert (Glyph "rikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x98) ] m;
+--   @m = Insert (Glyph "ring") [ UTF82 (Bytes2All 0x02 0xDA) ] m;
+--   @m = Insert (Glyph "ringbelowcmb") [ UTF82 (Bytes2All 0x03 0x25) ] m;
+--   @m = Insert (Glyph "ringcmb") [ UTF82 (Bytes2All 0x03 0x0A) ] m;
+--   @m = Insert (Glyph "ringhalfleft") [ UTF82 (Bytes2All 0x02 0xBF) ] m;
+--   @m = Insert (Glyph "ringhalfleftarmenian") [ UTF82 (Bytes2All 0x05 0x59) ] m;
+--   @m = Insert (Glyph "ringhalfleftbelowcmb") [ UTF82 (Bytes2All 0x03 0x1C) ] m;
+--   @m = Insert (Glyph "ringhalfleftcentered") [ UTF82 (Bytes2All 0x02 0xD3) ] m;
+--   @m = Insert (Glyph "ringhalfright") [ UTF82 (Bytes2All 0x02 0xBE) ] m;
+--   @m = Insert (Glyph "ringhalfrightbelowcmb") [ UTF82 (Bytes2All 0x03 0x39) ] m;
+--   @m = Insert (Glyph "ringhalfrightcentered") [ UTF82 (Bytes2All 0x02 0xD2) ] m;
+--   @m = Insert (Glyph "rinvertedbreve") [ UTF82 (Bytes2All 0x02 0x13) ] m;
+--   @m = Insert (Glyph "rittorusquare") [ UTF82 (Bytes2All 0x33 0x51) ] m;
+--   @m = Insert (Glyph "rlinebelow") [ UTF82 (Bytes2All 0x1E 0x5F) ] m;
+--   @m = Insert (Glyph "rlongleg") [ UTF82 (Bytes2All 0x02 0x7C) ] m;
+--   @m = Insert (Glyph "rlonglegturned") [ UTF82 (Bytes2All 0x02 0x7A) ] m;
+--   @m = Insert (Glyph "rmonospace") [ UTF82 (Bytes2All 0xFF 0x52) ] m;
+--   @m = Insert (Glyph "rohiragana") [ UTF82 (Bytes2All 0x30 0x8D) ] m;
+--   @m = Insert (Glyph "rokatakana") [ UTF82 (Bytes2All 0x30 0xED) ] m;
+--   @m = Insert (Glyph "rokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9B) ] m;
+--   @m = Insert (Glyph "roruathai") [ UTF82 (Bytes2All 0x0E 0x23) ] m;
+--   @m = Insert (Glyph "rparen") [ UTF82 (Bytes2All 0x24 0xAD) ] m;
+--   @m = Insert (Glyph "rrabengali") [ UTF82 (Bytes2All 0x09 0xDC) ] m;
+--   @m = Insert (Glyph "rradeva") [ UTF82 (Bytes2All 0x09 0x31) ] m;
+--   @m = Insert (Glyph "rragurmukhi") [ UTF82 (Bytes2All 0x0A 0x5C) ] m;
+--   @m = Insert (Glyph "rreharabic") [ UTF82 (Bytes2All 0x06 0x91) ] m;
+--   @m = Insert (Glyph "rrehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x8D) ] m;
+--   @m = Insert (Glyph "rrvocalicbengali") [ UTF82 (Bytes2All 0x09 0xE0) ] m;
+--   @m = Insert (Glyph "rrvocalicdeva") [ UTF82 (Bytes2All 0x09 0x60) ] m;
+--   @m = Insert (Glyph "rrvocalicgujarati") [ UTF82 (Bytes2All 0x0A 0xE0) ] m;
+--   @m = Insert (Glyph "rrvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC4) ] m;
+--   @m = Insert (Glyph "rrvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x44) ] m;
+--   @m = Insert (Glyph "rrvocalicvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC4) ] m;
+--   @m = Insert (Glyph "rsuperior") [ UTF82 (Bytes2All 0xF6 0xF1) ] m;
+--   @m = Insert (Glyph "rtblock") [ UTF82 (Bytes2All 0x25 0x90) ] m;
+--   @m = Insert (Glyph "rturned") [ UTF82 (Bytes2All 0x02 0x79) ] m;
+--   @m = Insert (Glyph "rturnedsuperior") [ UTF82 (Bytes2All 0x02 0xB4) ] m;
+--   @m = Insert (Glyph "ruhiragana") [ UTF82 (Bytes2All 0x30 0x8B) ] m;
+--   @m = Insert (Glyph "rukatakana") [ UTF82 (Bytes2All 0x30 0xEB) ] m;
+--   @m = Insert (Glyph "rukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x99) ] m;
+--   @m = Insert (Glyph "rupeemarkbengali") [ UTF82 (Bytes2All 0x09 0xF2) ] m;
+--   @m = Insert (Glyph "rupeesignbengali") [ UTF82 (Bytes2All 0x09 0xF3) ] m;
+--   @m = Insert (Glyph "rupiah") [ UTF82 (Bytes2All 0xF6 0xDD) ] m;
+--   @m = Insert (Glyph "ruthai") [ UTF82 (Bytes2All 0x0E 0x24) ] m;
+--   @m = Insert (Glyph "rvocalicbengali") [ UTF82 (Bytes2All 0x09 0x8B) ] m;
+--   @m = Insert (Glyph "rvocalicdeva") [ UTF82 (Bytes2All 0x09 0x0B) ] m;
+--   @m = Insert (Glyph "rvocalicgujarati") [ UTF82 (Bytes2All 0x0A 0x8B) ] m;
+--   @m = Insert (Glyph "rvocalicvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC3) ] m;
+--   @m = Insert (Glyph "rvocalicvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x43) ] m;
+--   @m = Insert (Glyph "rvocalicvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC3) ] m;
+--   m
+-- }
+
+-- def GlyphEncs =  {
+--   @m = empty;
+--   @m = Insert (Glyph "s") [ UTF81 (Bytes1 0x73) ] m;
+--   @m = Insert (Glyph "sabengali") [ UTF82 (Bytes2All 0x09 0xB8) ] m;
+--   @m = Insert (Glyph "sacute") [ UTF82 (Bytes2All 0x01 0x5B) ] m;
+--   @m = Insert (Glyph "sacutedotaccent") [ UTF82 (Bytes2All 0x1E 0x65) ] m;
+--   @m = Insert (Glyph "sadarabic") [ UTF82 (Bytes2All 0x06 0x35) ] m;
+--   @m = Insert (Glyph "sadeva") [ UTF82 (Bytes2All 0x09 0x38) ] m;
+--   @m = Insert (Glyph "sadfinalarabic") [ UTF82 (Bytes2All 0xFE 0xBA) ] m;
+--   @m = Insert (Glyph "sadinitialarabic") [ UTF82 (Bytes2All 0xFE 0xBB) ] m;
+--   @m = Insert (Glyph "sadmedialarabic") [ UTF82 (Bytes2All 0xFE 0xBC) ] m;
+--   @m = Insert (Glyph "sagujarati") [ UTF82 (Bytes2All 0x0A 0xB8) ] m;
+--   @m = Insert (Glyph "sagurmukhi") [ UTF82 (Bytes2All 0x0A 0x38) ] m;
+--   @m = Insert (Glyph "sahiragana") [ UTF82 (Bytes2All 0x30 0x55) ] m;
+--   @m = Insert (Glyph "sakatakana") [ UTF82 (Bytes2All 0x30 0xB5) ] m;
+--   @m = Insert (Glyph "sakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7B) ] m;
+--   @m = Insert (Glyph "sallallahoualayhewasallamarabic") [ UTF82 (Bytes2All 0xFD 0xFA) ] m;
+--   @m = Insert (Glyph "samekh") [ UTF82 (Bytes2All 0x05 0xE1) ] m;
+--   @m = Insert (Glyph "samekhdagesh") [ UTF82 (Bytes2All 0xFB 0x41) ] m;
+--   @m = Insert (Glyph "samekhdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x41) ] m;
+--   @m = Insert (Glyph "samekhhebrew") [ UTF82 (Bytes2All 0x05 0xE1) ] m;
+--   @m = Insert (Glyph "saraaathai") [ UTF82 (Bytes2All 0x0E 0x32) ] m;
+--   @m = Insert (Glyph "saraaethai") [ UTF82 (Bytes2All 0x0E 0x41) ] m;
+--   @m = Insert (Glyph "saraaimaimalaithai") [ UTF82 (Bytes2All 0x0E 0x44) ] m;
+--   @m = Insert (Glyph "saraaimaimuanthai") [ UTF82 (Bytes2All 0x0E 0x43) ] m;
+--   @m = Insert (Glyph "saraamthai") [ UTF82 (Bytes2All 0x0E 0x33) ] m;
+--   @m = Insert (Glyph "saraathai") [ UTF82 (Bytes2All 0x0E 0x30) ] m;
+--   @m = Insert (Glyph "saraethai") [ UTF82 (Bytes2All 0x0E 0x40) ] m;
+--   @m = Insert (Glyph "saraiileftthai") [ UTF82 (Bytes2All 0xF8 0x86) ] m;
+--   @m = Insert (Glyph "saraiithai") [ UTF82 (Bytes2All 0x0E 0x35) ] m;
+--   @m = Insert (Glyph "saraileftthai") [ UTF82 (Bytes2All 0xF8 0x85) ] m;
+--   @m = Insert (Glyph "saraithai") [ UTF82 (Bytes2All 0x0E 0x34) ] m;
+--   @m = Insert (Glyph "saraothai") [ UTF82 (Bytes2All 0x0E 0x42) ] m;
+--   @m = Insert (Glyph "saraueeleftthai") [ UTF82 (Bytes2All 0xF8 0x88) ] m;
+--   @m = Insert (Glyph "saraueethai") [ UTF82 (Bytes2All 0x0E 0x37) ] m;
+--   @m = Insert (Glyph "saraueleftthai") [ UTF82 (Bytes2All 0xF8 0x87) ] m;
+--   @m = Insert (Glyph "sarauethai") [ UTF82 (Bytes2All 0x0E 0x36) ] m;
+--   @m = Insert (Glyph "sarauthai") [ UTF82 (Bytes2All 0x0E 0x38) ] m;
+--   @m = Insert (Glyph "sarauuthai") [ UTF82 (Bytes2All 0x0E 0x39) ] m;
+--   @m = Insert (Glyph "sbopomofo") [ UTF82 (Bytes2All 0x31 0x19) ] m;
+--   @m = Insert (Glyph "scaron") [ UTF82 (Bytes2All 0x01 0x61) ] m;
+--   @m = Insert (Glyph "scarondotaccent") [ UTF82 (Bytes2All 0x1E 0x67) ] m;
+--   @m = Insert (Glyph "scedilla") [ UTF82 (Bytes2All 0x01 0x5F) ] m;
+--   @m = Insert (Glyph "schwa") [ UTF82 (Bytes2All 0x02 0x59) ] m;
+--   @m = Insert (Glyph "schwacyrillic") [ UTF82 (Bytes2All 0x04 0xD9) ] m;
+--   @m = Insert (Glyph "schwadieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDB) ] m;
+--   @m = Insert (Glyph "schwahook") [ UTF82 (Bytes2All 0x02 0x5A) ] m;
+--   @m = Insert (Glyph "scircle") [ UTF82 (Bytes2All 0x24 0xE2) ] m;
+--   @m = Insert (Glyph "scircumflex") [ UTF82 (Bytes2All 0x01 0x5D) ] m;
+--   @m = Insert (Glyph "scommaaccent") [ UTF82 (Bytes2All 0x02 0x19) ] m;
+--   @m = Insert (Glyph "sdotaccent") [ UTF82 (Bytes2All 0x1E 0x61) ] m;
+--   @m = Insert (Glyph "sdotbelow") [ UTF82 (Bytes2All 0x1E 0x63) ] m;
+--   @m = Insert (Glyph "sdotbelowdotaccent") [ UTF82 (Bytes2All 0x1E 0x69) ] m;
+--   @m = Insert (Glyph "seagullbelowcmb") [ UTF82 (Bytes2All 0x03 0x3C) ] m;
+--   @m = Insert (Glyph "second") [ UTF82 (Bytes2All 0x20 0x33) ] m;
+--   @m = Insert (Glyph "secondtonechinese") [ UTF82 (Bytes2All 0x02 0xCA) ] m;
+--   @m = Insert (Glyph "section") [ UTF81 (Bytes1 0xA7) ] m;
+--   @m = Insert (Glyph "seenarabic") [ UTF82 (Bytes2All 0x06 0x33) ] m;
+--   @m = Insert (Glyph "seenfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB2) ] m;
+--   @m = Insert (Glyph "seeninitialarabic") [ UTF82 (Bytes2All 0xFE 0xB3) ] m;
+--   @m = Insert (Glyph "seenmedialarabic") [ UTF82 (Bytes2All 0xFE 0xB4) ] m;
+--   @m = Insert (Glyph "segol") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segol13") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segol1f") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segol2c") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segolhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segolnarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segolquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "segoltahebrew") [ UTF82 (Bytes2All 0x05 0x92) ] m;
+--   @m = Insert (Glyph "segolwidehebrew") [ UTF82 (Bytes2All 0x05 0xB6) ] m;
+--   @m = Insert (Glyph "seharmenian") [ UTF82 (Bytes2All 0x05 0x7D) ] m;
+--   @m = Insert (Glyph "sehiragana") [ UTF82 (Bytes2All 0x30 0x5B) ] m;
+--   @m = Insert (Glyph "sekatakana") [ UTF82 (Bytes2All 0x30 0xBB) ] m;
+--   @m = Insert (Glyph "sekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7E) ] m;
+--   @m = Insert (Glyph "semicolon") [ UTF81 (Bytes1 0x3B) ] m;
+--   @m = Insert (Glyph "semicolonarabic") [ UTF82 (Bytes2All 0x06 0x1B) ] m;
+--   @m = Insert (Glyph "semicolonmonospace") [ UTF82 (Bytes2All 0xFF 0x1B) ] m;
+--   @m = Insert (Glyph "semicolonsmall") [ UTF82 (Bytes2All 0xFE 0x54) ] m;
+--   @m = Insert (Glyph "semivoicedmarkkana") [ UTF82 (Bytes2All 0x30 0x9C) ] m;
+--   @m = Insert (Glyph "semivoicedmarkkanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9F) ] m;
+--   @m = Insert (Glyph "sentisquare") [ UTF82 (Bytes2All 0x33 0x22) ] m;
+--   @m = Insert (Glyph "sentosquare") [ UTF82 (Bytes2All 0x33 0x23) ] m;
+--   @m = Insert (Glyph "seven") [ UTF81 (Bytes1 0x37) ] m;
+--   @m = Insert (Glyph "sevenarabic") [ UTF82 (Bytes2All 0x06 0x67) ] m;
+--   @m = Insert (Glyph "sevenbengali") [ UTF82 (Bytes2All 0x09 0xED) ] m;
+--   @m = Insert (Glyph "sevencircle") [ UTF82 (Bytes2All 0x24 0x66) ] m;
+--   @m = Insert (Glyph "sevencircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x90) ] m;
+--   @m = Insert (Glyph "sevendeva") [ UTF82 (Bytes2All 0x09 0x6D) ] m;
+--   @m = Insert (Glyph "seveneighths") [ UTF82 (Bytes2All 0x21 0x5E) ] m;
+--   @m = Insert (Glyph "sevengujarati") [ UTF82 (Bytes2All 0x0A 0xED) ] m;
+--   @m = Insert (Glyph "sevengurmukhi") [ UTF82 (Bytes2All 0x0A 0x6D) ] m;
+--   @m = Insert (Glyph "sevenhackarabic") [ UTF82 (Bytes2All 0x06 0x67) ] m;
+--   @m = Insert (Glyph "sevenhangzhou") [ UTF82 (Bytes2All 0x30 0x27) ] m;
+--   @m = Insert (Glyph "sevenideographicparen") [ UTF82 (Bytes2All 0x32 0x26) ] m;
+--   @m = Insert (Glyph "seveninferior") [ UTF82 (Bytes2All 0x20 0x87) ] m;
+--   @m = Insert (Glyph "sevenmonospace") [ UTF82 (Bytes2All 0xFF 0x17) ] m;
+--   @m = Insert (Glyph "sevenoldstyle") [ UTF82 (Bytes2All 0xF7 0x37) ] m;
+--   @m = Insert (Glyph "sevenparen") [ UTF82 (Bytes2All 0x24 0x7A) ] m;
+--   @m = Insert (Glyph "sevenperiod") [ UTF82 (Bytes2All 0x24 0x8E) ] m;
+--   @m = Insert (Glyph "sevenpersian") [ UTF82 (Bytes2All 0x06 0xF7) ] m;
+--   @m = Insert (Glyph "sevenroman") [ UTF82 (Bytes2All 0x21 0x76) ] m;
+--   @m = Insert (Glyph "sevensuperior") [ UTF82 (Bytes2All 0x20 0x77) ] m;
+--   @m = Insert (Glyph "seventeencircle") [ UTF82 (Bytes2All 0x24 0x70) ] m;
+--   @m = Insert (Glyph "seventeenparen") [ UTF82 (Bytes2All 0x24 0x84) ] m;
+--   @m = Insert (Glyph "seventeenperiod") [ UTF82 (Bytes2All 0x24 0x98) ] m;
+--   @m = Insert (Glyph "seventhai") [ UTF82 (Bytes2All 0x0E 0x57) ] m;
+--   @m = Insert (Glyph "sfthyphen") [ UTF81 (Bytes1 0xAD) ] m;
+--   @m = Insert (Glyph "shaarmenian") [ UTF82 (Bytes2All 0x05 0x77) ] m;
+--   @m = Insert (Glyph "shabengali") [ UTF82 (Bytes2All 0x09 0xB6) ] m;
+--   @m = Insert (Glyph "shacyrillic") [ UTF82 (Bytes2All 0x04 0x48) ] m;
+--   @m = Insert (Glyph "shaddaarabic") [ UTF82 (Bytes2All 0x06 0x51) ] m;
+--   @m = Insert (Glyph "shaddadammaarabic") [ UTF82 (Bytes2All 0xFC 0x61) ] m;
+--   @m = Insert (Glyph "shaddadammatanarabic") [ UTF82 (Bytes2All 0xFC 0x5E) ] m;
+--   @m = Insert (Glyph "shaddafathaarabic") [ UTF82 (Bytes2All 0xFC 0x60) ] m;
+--   @m = Insert (Glyph "shaddafathatanarabic") [ UTF82 (Bytes2All 0x06 0x51), UTF82 (Bytes2All 0x06 0x4B) ] m;
+--   @m = Insert (Glyph "shaddakasraarabic") [ UTF82 (Bytes2All 0xFC 0x62) ] m;
+--   @m = Insert (Glyph "shaddakasratanarabic") [ UTF82 (Bytes2All 0xFC 0x5F) ] m;
+--   @m = Insert (Glyph "shade") [ UTF82 (Bytes2All 0x25 0x92) ] m;
+--   @m = Insert (Glyph "shadedark") [ UTF82 (Bytes2All 0x25 0x93) ] m;
+--   @m = Insert (Glyph "shadelight") [ UTF82 (Bytes2All 0x25 0x91) ] m;
+--   @m = Insert (Glyph "shademedium") [ UTF82 (Bytes2All 0x25 0x92) ] m;
+--   @m = Insert (Glyph "shadeva") [ UTF82 (Bytes2All 0x09 0x36) ] m;
+--   @m = Insert (Glyph "shagujarati") [ UTF82 (Bytes2All 0x0A 0xB6) ] m;
+--   @m = Insert (Glyph "shagurmukhi") [ UTF82 (Bytes2All 0x0A 0x36) ] m;
+--   @m = Insert (Glyph "shalshelethebrew") [ UTF82 (Bytes2All 0x05 0x93) ] m;
+--   @m = Insert (Glyph "shbopomofo") [ UTF82 (Bytes2All 0x31 0x15) ] m;
+--   @m = Insert (Glyph "shchacyrillic") [ UTF82 (Bytes2All 0x04 0x49) ] m;
+--   @m = Insert (Glyph "sheenarabic") [ UTF82 (Bytes2All 0x06 0x34) ] m;
+--   @m = Insert (Glyph "sheenfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB6) ] m;
+--   @m = Insert (Glyph "sheeninitialarabic") [ UTF82 (Bytes2All 0xFE 0xB7) ] m;
+--   @m = Insert (Glyph "sheenmedialarabic") [ UTF82 (Bytes2All 0xFE 0xB8) ] m;
+--   @m = Insert (Glyph "sheicoptic") [ UTF82 (Bytes2All 0x03 0xE3) ] m;
+--   @m = Insert (Glyph "sheqel") [ UTF82 (Bytes2All 0x20 0xAA) ] m;
+--   @m = Insert (Glyph "sheqelhebrew") [ UTF82 (Bytes2All 0x20 0xAA) ] m;
+--   @m = Insert (Glyph "sheva") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "sheva115") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "sheva15") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "sheva22") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "sheva2e") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "shevahebrew") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "shevanarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "shevaquarterhebrew") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "shevawidehebrew") [ UTF82 (Bytes2All 0x05 0xB0) ] m;
+--   @m = Insert (Glyph "shhacyrillic") [ UTF82 (Bytes2All 0x04 0xBB) ] m;
+--   @m = Insert (Glyph "shimacoptic") [ UTF82 (Bytes2All 0x03 0xED) ] m;
+--   @m = Insert (Glyph "shin") [ UTF82 (Bytes2All 0x05 0xE9) ] m;
+--   @m = Insert (Glyph "shindagesh") [ UTF82 (Bytes2All 0xFB 0x49) ] m;
+--   @m = Insert (Glyph "shindageshhebrew") [ UTF82 (Bytes2All 0xFB 0x49) ] m;
+--   @m = Insert (Glyph "shindageshshindot") [ UTF82 (Bytes2All 0xFB 0x2C) ] m;
+--   @m = Insert (Glyph "shindageshshindothebrew") [ UTF82 (Bytes2All 0xFB 0x2C) ] m;
+--   @m = Insert (Glyph "shindageshsindot") [ UTF82 (Bytes2All 0xFB 0x2D) ] m;
+--   @m = Insert (Glyph "shindageshsindothebrew") [ UTF82 (Bytes2All 0xFB 0x2D) ] m;
+--   @m = Insert (Glyph "shindothebrew") [ UTF82 (Bytes2All 0x05 0xC1) ] m;
+--   @m = Insert (Glyph "shinhebrew") [ UTF82 (Bytes2All 0x05 0xE9) ] m;
+--   @m = Insert (Glyph "shinshindot") [ UTF82 (Bytes2All 0xFB 0x2A) ] m;
+--   @m = Insert (Glyph "shinshindothebrew") [ UTF82 (Bytes2All 0xFB 0x2A) ] m;
+--   @m = Insert (Glyph "shinsindot") [ UTF82 (Bytes2All 0xFB 0x2B) ] m;
+--   @m = Insert (Glyph "shinsindothebrew") [ UTF82 (Bytes2All 0xFB 0x2B) ] m;
+--   @m = Insert (Glyph "shook") [ UTF82 (Bytes2All 0x02 0x82) ] m;
+--   @m = Insert (Glyph "sigma") [ UTF82 (Bytes2All 0x03 0xC3) ] m;
+--   @m = Insert (Glyph "sigma1") [ UTF82 (Bytes2All 0x03 0xC2) ] m;
+--   @m = Insert (Glyph "sigmafinal") [ UTF82 (Bytes2All 0x03 0xC2) ] m;
+--   @m = Insert (Glyph "sigmalunatesymbolgreek") [ UTF82 (Bytes2All 0x03 0xF2) ] m;
+--   @m = Insert (Glyph "sihiragana") [ UTF82 (Bytes2All 0x30 0x57) ] m;
+--   @m = Insert (Glyph "sikatakana") [ UTF82 (Bytes2All 0x30 0xB7) ] m;
+--   @m = Insert (Glyph "sikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7C) ] m;
+--   @m = Insert (Glyph "siluqhebrew") [ UTF82 (Bytes2All 0x05 0xBD) ] m;
+--   @m = Insert (Glyph "siluqlefthebrew") [ UTF82 (Bytes2All 0x05 0xBD) ] m;
+--   @m = Insert (Glyph "similar") [ UTF82 (Bytes2All 0x22 0x3C) ] m;
+--   @m = Insert (Glyph "sindothebrew") [ UTF82 (Bytes2All 0x05 0xC2) ] m;
+--   @m = Insert (Glyph "siosacirclekorean") [ UTF82 (Bytes2All 0x32 0x74) ] m;
+--   @m = Insert (Glyph "siosaparenkorean") [ UTF82 (Bytes2All 0x32 0x14) ] m;
+--   @m = Insert (Glyph "sioscieuckorean") [ UTF82 (Bytes2All 0x31 0x7E) ] m;
+--   @m = Insert (Glyph "sioscirclekorean") [ UTF82 (Bytes2All 0x32 0x66) ] m;
+--   @m = Insert (Glyph "sioskiyeokkorean") [ UTF82 (Bytes2All 0x31 0x7A) ] m;
+--   @m = Insert (Glyph "sioskorean") [ UTF82 (Bytes2All 0x31 0x45) ] m;
+--   @m = Insert (Glyph "siosnieunkorean") [ UTF82 (Bytes2All 0x31 0x7B) ] m;
+--   @m = Insert (Glyph "siosparenkorean") [ UTF82 (Bytes2All 0x32 0x06) ] m;
+--   @m = Insert (Glyph "siospieupkorean") [ UTF82 (Bytes2All 0x31 0x7D) ] m;
+--   @m = Insert (Glyph "siostikeutkorean") [ UTF82 (Bytes2All 0x31 0x7C) ] m;
+--   @m = Insert (Glyph "six") [ UTF81 (Bytes1 0x36) ] m;
+--   @m = Insert (Glyph "sixarabic") [ UTF82 (Bytes2All 0x06 0x66) ] m;
+--   @m = Insert (Glyph "sixbengali") [ UTF82 (Bytes2All 0x09 0xEC) ] m;
+--   @m = Insert (Glyph "sixcircle") [ UTF82 (Bytes2All 0x24 0x65) ] m;
+--   @m = Insert (Glyph "sixcircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8F) ] m;
+--   @m = Insert (Glyph "sixdeva") [ UTF82 (Bytes2All 0x09 0x6C) ] m;
+--   @m = Insert (Glyph "sixgujarati") [ UTF82 (Bytes2All 0x0A 0xEC) ] m;
+--   @m = Insert (Glyph "sixgurmukhi") [ UTF82 (Bytes2All 0x0A 0x6C) ] m;
+--   @m = Insert (Glyph "sixhackarabic") [ UTF82 (Bytes2All 0x06 0x66) ] m;
+--   @m = Insert (Glyph "sixhangzhou") [ UTF82 (Bytes2All 0x30 0x26) ] m;
+--   @m = Insert (Glyph "sixideographicparen") [ UTF82 (Bytes2All 0x32 0x25) ] m;
+--   @m = Insert (Glyph "sixinferior") [ UTF82 (Bytes2All 0x20 0x86) ] m;
+--   @m = Insert (Glyph "sixmonospace") [ UTF82 (Bytes2All 0xFF 0x16) ] m;
+--   @m = Insert (Glyph "sixoldstyle") [ UTF82 (Bytes2All 0xF7 0x36) ] m;
+--   @m = Insert (Glyph "sixparen") [ UTF82 (Bytes2All 0x24 0x79) ] m;
+--   @m = Insert (Glyph "sixperiod") [ UTF82 (Bytes2All 0x24 0x8D) ] m;
+--   @m = Insert (Glyph "sixpersian") [ UTF82 (Bytes2All 0x06 0xF6) ] m;
+--   @m = Insert (Glyph "sixroman") [ UTF82 (Bytes2All 0x21 0x75) ] m;
+--   @m = Insert (Glyph "sixsuperior") [ UTF82 (Bytes2All 0x20 0x76) ] m;
+--   @m = Insert (Glyph "sixteencircle") [ UTF82 (Bytes2All 0x24 0x6F) ] m;
+--   @m = Insert (Glyph "sixteencurrencydenominatorbengali") [ UTF82 (Bytes2All 0x09 0xF9) ] m;
+--   @m = Insert (Glyph "sixteenparen") [ UTF82 (Bytes2All 0x24 0x83) ] m;
+--   @m = Insert (Glyph "sixteenperiod") [ UTF82 (Bytes2All 0x24 0x97) ] m;
+--   @m = Insert (Glyph "sixthai") [ UTF82 (Bytes2All 0x0E 0x56) ] m;
+--   @m = Insert (Glyph "slash") [ UTF81 (Bytes1 0x2F) ] m;
+--   @m = Insert (Glyph "slashmonospace") [ UTF82 (Bytes2All 0xFF 0x0F) ] m;
+--   @m = Insert (Glyph "slong") [ UTF82 (Bytes2All 0x01 0x7F) ] m;
+--   @m = Insert (Glyph "slongdotaccent") [ UTF82 (Bytes2All 0x1E 0x9B) ] m;
+--   @m = Insert (Glyph "smileface") [ UTF82 (Bytes2All 0x26 0x3A) ] m;
+--   @m = Insert (Glyph "smonospace") [ UTF82 (Bytes2All 0xFF 0x53) ] m;
+--   @m = Insert (Glyph "sofpasuqhebrew") [ UTF82 (Bytes2All 0x05 0xC3) ] m;
+--   @m = Insert (Glyph "softhyphen") [ UTF81 (Bytes1 0xAD) ] m;
+--   @m = Insert (Glyph "softsigncyrillic") [ UTF82 (Bytes2All 0x04 0x4C) ] m;
+--   @m = Insert (Glyph "sohiragana") [ UTF82 (Bytes2All 0x30 0x5D) ] m;
+--   @m = Insert (Glyph "sokatakana") [ UTF82 (Bytes2All 0x30 0xBD) ] m;
+--   @m = Insert (Glyph "sokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7F) ] m;
+--   @m = Insert (Glyph "soliduslongoverlaycmb") [ UTF82 (Bytes2All 0x03 0x38) ] m;
+--   @m = Insert (Glyph "solidusshortoverlaycmb") [ UTF82 (Bytes2All 0x03 0x37) ] m;
+--   @m = Insert (Glyph "sorusithai") [ UTF82 (Bytes2All 0x0E 0x29) ] m;
+--   @m = Insert (Glyph "sosalathai") [ UTF82 (Bytes2All 0x0E 0x28) ] m;
+--   @m = Insert (Glyph "sosothai") [ UTF82 (Bytes2All 0x0E 0x0B) ] m;
+--   @m = Insert (Glyph "sosuathai") [ UTF82 (Bytes2All 0x0E 0x2A) ] m;
+--   @m = Insert (Glyph "space") [ UTF81 (Bytes1 0x20) ] m;
+--   @m = Insert (Glyph "spacehackarabic") [ UTF81 (Bytes1 0x20) ] m;
+--   @m = Insert (Glyph "spade") [ UTF82 (Bytes2All 0x26 0x60) ] m;
+--   @m = Insert (Glyph "spadesuitblack") [ UTF82 (Bytes2All 0x26 0x60) ] m;
+--   @m = Insert (Glyph "spadesuitwhite") [ UTF82 (Bytes2All 0x26 0x64) ] m;
+--   @m = Insert (Glyph "sparen") [ UTF82 (Bytes2All 0x24 0xAE) ] m;
+--   @m = Insert (Glyph "squarebelowcmb") [ UTF82 (Bytes2All 0x03 0x3B) ] m;
+--   @m = Insert (Glyph "squarecc") [ UTF82 (Bytes2All 0x33 0xC4) ] m;
+--   @m = Insert (Glyph "squarecm") [ UTF82 (Bytes2All 0x33 0x9D) ] m;
+--   @m = Insert (Glyph "squarediagonalcrosshatchfill") [ UTF82 (Bytes2All 0x25 0xA9) ] m;
+--   @m = Insert (Glyph "squarehorizontalfill") [ UTF82 (Bytes2All 0x25 0xA4) ] m;
+--   @m = Insert (Glyph "squarekg") [ UTF82 (Bytes2All 0x33 0x8F) ] m;
+--   @m = Insert (Glyph "squarekm") [ UTF82 (Bytes2All 0x33 0x9E) ] m;
+--   @m = Insert (Glyph "squarekmcapital") [ UTF82 (Bytes2All 0x33 0xCE) ] m;
+--   @m = Insert (Glyph "squareln") [ UTF82 (Bytes2All 0x33 0xD1) ] m;
+--   @m = Insert (Glyph "squarelog") [ UTF82 (Bytes2All 0x33 0xD2) ] m;
+--   @m = Insert (Glyph "squaremg") [ UTF82 (Bytes2All 0x33 0x8E) ] m;
+--   @m = Insert (Glyph "squaremil") [ UTF82 (Bytes2All 0x33 0xD5) ] m;
+--   @m = Insert (Glyph "squaremm") [ UTF82 (Bytes2All 0x33 0x9C) ] m;
+--   @m = Insert (Glyph "squaremsquared") [ UTF82 (Bytes2All 0x33 0xA1) ] m;
+--   @m = Insert (Glyph "squareorthogonalcrosshatchfill") [ UTF82 (Bytes2All 0x25 0xA6) ] m;
+--   @m = Insert (Glyph "squareupperlefttolowerrightfill") [ UTF82 (Bytes2All 0x25 0xA7) ] m;
+--   @m = Insert (Glyph "squareupperrighttolowerleftfill") [ UTF82 (Bytes2All 0x25 0xA8) ] m;
+--   @m = Insert (Glyph "squareverticalfill") [ UTF82 (Bytes2All 0x25 0xA5) ] m;
+--   @m = Insert (Glyph "squarewhitewithsmallblack") [ UTF82 (Bytes2All 0x25 0xA3) ] m;
+--   @m = Insert (Glyph "srsquare") [ UTF82 (Bytes2All 0x33 0xDB) ] m;
+--   @m = Insert (Glyph "ssabengali") [ UTF82 (Bytes2All 0x09 0xB7) ] m;
+--   @m = Insert (Glyph "ssadeva") [ UTF82 (Bytes2All 0x09 0x37) ] m;
+--   @m = Insert (Glyph "ssagujarati") [ UTF82 (Bytes2All 0x0A 0xB7) ] m;
+--   @m = Insert (Glyph "ssangcieuckorean") [ UTF82 (Bytes2All 0x31 0x49) ] m;
+--   @m = Insert (Glyph "ssanghieuhkorean") [ UTF82 (Bytes2All 0x31 0x85) ] m;
+--   @m = Insert (Glyph "ssangieungkorean") [ UTF82 (Bytes2All 0x31 0x80) ] m;
+--   @m = Insert (Glyph "ssangkiyeokkorean") [ UTF82 (Bytes2All 0x31 0x32) ] m;
+--   @m = Insert (Glyph "ssangnieunkorean") [ UTF82 (Bytes2All 0x31 0x65) ] m;
+--   @m = Insert (Glyph "ssangpieupkorean") [ UTF82 (Bytes2All 0x31 0x43) ] m;
+--   @m = Insert (Glyph "ssangsioskorean") [ UTF82 (Bytes2All 0x31 0x46) ] m;
+--   @m = Insert (Glyph "ssangtikeutkorean") [ UTF82 (Bytes2All 0x31 0x38) ] m;
+--   @m = Insert (Glyph "ssuperior") [ UTF82 (Bytes2All 0xF6 0xF2) ] m;
+--   @m = Insert (Glyph "sterling") [ UTF81 (Bytes1 0xA3) ] m;
+--   @m = Insert (Glyph "sterlingmonospace") [ UTF82 (Bytes2All 0xFF 0xE1) ] m;
+--   @m = Insert (Glyph "strokelongoverlaycmb") [ UTF82 (Bytes2All 0x03 0x36) ] m;
+--   @m = Insert (Glyph "strokeshortoverlaycmb") [ UTF82 (Bytes2All 0x03 0x35) ] m;
+--   @m = Insert (Glyph "subset") [ UTF82 (Bytes2All 0x22 0x82) ] m;
+--   @m = Insert (Glyph "subsetnotequal") [ UTF82 (Bytes2All 0x22 0x8A) ] m;
+--   @m = Insert (Glyph "subsetorequal") [ UTF82 (Bytes2All 0x22 0x86) ] m;
+--   @m = Insert (Glyph "succeeds") [ UTF82 (Bytes2All 0x22 0x7B) ] m;
+--   @m = Insert (Glyph "suchthat") [ UTF82 (Bytes2All 0x22 0x0B) ] m;
+--   @m = Insert (Glyph "suhiragana") [ UTF82 (Bytes2All 0x30 0x59) ] m;
+--   @m = Insert (Glyph "sukatakana") [ UTF82 (Bytes2All 0x30 0xB9) ] m;
+--   @m = Insert (Glyph "sukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x7D) ] m;
+--   @m = Insert (Glyph "sukunarabic") [ UTF82 (Bytes2All 0x06 0x52) ] m;
+--   @m = Insert (Glyph "summation") [ UTF82 (Bytes2All 0x22 0x11) ] m;
+--   @m = Insert (Glyph "sun") [ UTF82 (Bytes2All 0x26 0x3C) ] m;
+--   @m = Insert (Glyph "superset") [ UTF82 (Bytes2All 0x22 0x83) ] m;
+--   @m = Insert (Glyph "supersetnotequal") [ UTF82 (Bytes2All 0x22 0x8B) ] m;
+--   @m = Insert (Glyph "supersetorequal") [ UTF82 (Bytes2All 0x22 0x87) ] m;
+--   @m = Insert (Glyph "svsquare") [ UTF82 (Bytes2All 0x33 0xDC) ] m;
+--   @m = Insert (Glyph "syouwaerasquare") [ UTF82 (Bytes2All 0x33 0x7C) ] m;
+--   m
+-- }
+
+-- def GlyphEnct =  {
+--   @m = empty;
+--   @m = Insert (Glyph "t") [ UTF81 (Bytes1 0x74) ] m;
+--   @m = Insert (Glyph "tabengali") [ UTF82 (Bytes2All 0x09 0xA4) ] m;
+--   @m = Insert (Glyph "tackdown") [ UTF82 (Bytes2All 0x22 0xA4) ] m;
+--   @m = Insert (Glyph "tackleft") [ UTF82 (Bytes2All 0x22 0xA3) ] m;
+--   @m = Insert (Glyph "tadeva") [ UTF82 (Bytes2All 0x09 0x24) ] m;
+--   @m = Insert (Glyph "tagujarati") [ UTF82 (Bytes2All 0x0A 0xA4) ] m;
+--   @m = Insert (Glyph "tagurmukhi") [ UTF82 (Bytes2All 0x0A 0x24) ] m;
+--   @m = Insert (Glyph "taharabic") [ UTF82 (Bytes2All 0x06 0x37) ] m;
+--   @m = Insert (Glyph "tahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xC2) ] m;
+--   @m = Insert (Glyph "tahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xC3) ] m;
+--   @m = Insert (Glyph "tahiragana") [ UTF82 (Bytes2All 0x30 0x5F) ] m;
+--   @m = Insert (Glyph "tahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC4) ] m;
+--   @m = Insert (Glyph "taisyouerasquare") [ UTF82 (Bytes2All 0x33 0x7D) ] m;
+--   @m = Insert (Glyph "takatakana") [ UTF82 (Bytes2All 0x30 0xBF) ] m;
+--   @m = Insert (Glyph "takatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x80) ] m;
+--   @m = Insert (Glyph "tatweelarabic") [ UTF82 (Bytes2All 0x06 0x40) ] m;
+--   @m = Insert (Glyph "tau") [ UTF82 (Bytes2All 0x03 0xC4) ] m;
+--   @m = Insert (Glyph "tav") [ UTF82 (Bytes2All 0x05 0xEA) ] m;
+--   @m = Insert (Glyph "tavdages") [ UTF82 (Bytes2All 0xFB 0x4A) ] m;
+--   @m = Insert (Glyph "tavdagesh") [ UTF82 (Bytes2All 0xFB 0x4A) ] m;
+--   @m = Insert (Glyph "tavdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x4A) ] m;
+--   @m = Insert (Glyph "tavhebrew") [ UTF82 (Bytes2All 0x05 0xEA) ] m;
+--   @m = Insert (Glyph "tbar") [ UTF82 (Bytes2All 0x01 0x67) ] m;
+--   @m = Insert (Glyph "tbopomofo") [ UTF82 (Bytes2All 0x31 0x0A) ] m;
+--   @m = Insert (Glyph "tcaron") [ UTF82 (Bytes2All 0x01 0x65) ] m;
+--   @m = Insert (Glyph "tccurl") [ UTF82 (Bytes2All 0x02 0xA8) ] m;
+--   @m = Insert (Glyph "tcedilla") [ UTF82 (Bytes2All 0x01 0x63) ] m;
+--   @m = Insert (Glyph "tcheharabic") [ UTF82 (Bytes2All 0x06 0x86) ] m;
+--   @m = Insert (Glyph "tchehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x7B) ] m;
+--   @m = Insert (Glyph "tchehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x7C) ] m;
+--   @m = Insert (Glyph "tchehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x7D) ] m;
+--   @m = Insert (Glyph "tchehmeeminitialarabic") [ UTF82 (Bytes2All 0xFB 0x7C), UTF82 (Bytes2All 0xFE 0xE4) ] m;
+--   @m = Insert (Glyph "tcircle") [ UTF82 (Bytes2All 0x24 0xE3) ] m;
+--   @m = Insert (Glyph "tcircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x71) ] m;
+--   @m = Insert (Glyph "tcommaaccent") [ UTF82 (Bytes2All 0x01 0x63) ] m;
+--   @m = Insert (Glyph "tdieresis") [ UTF82 (Bytes2All 0x1E 0x97) ] m;
+--   @m = Insert (Glyph "tdotaccent") [ UTF82 (Bytes2All 0x1E 0x6B) ] m;
+--   @m = Insert (Glyph "tdotbelow") [ UTF82 (Bytes2All 0x1E 0x6D) ] m;
+--   @m = Insert (Glyph "tecyrillic") [ UTF82 (Bytes2All 0x04 0x42) ] m;
+--   @m = Insert (Glyph "tedescendercyrillic") [ UTF82 (Bytes2All 0x04 0xAD) ] m;
+--   @m = Insert (Glyph "teharabic") [ UTF82 (Bytes2All 0x06 0x2A) ] m;
+--   @m = Insert (Glyph "tehfinalarabic") [ UTF82 (Bytes2All 0xFE 0x96) ] m;
+--   @m = Insert (Glyph "tehhahinitialarabic") [ UTF82 (Bytes2All 0xFC 0xA2) ] m;
+--   @m = Insert (Glyph "tehhahisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0C) ] m;
+--   @m = Insert (Glyph "tehinitialarabic") [ UTF82 (Bytes2All 0xFE 0x97) ] m;
+--   @m = Insert (Glyph "tehiragana") [ UTF82 (Bytes2All 0x30 0x66) ] m;
+--   @m = Insert (Glyph "tehjeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xA1) ] m;
+--   @m = Insert (Glyph "tehjeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0B) ] m;
+--   @m = Insert (Glyph "tehmarbutaarabic") [ UTF82 (Bytes2All 0x06 0x29) ] m;
+--   @m = Insert (Glyph "tehmarbutafinalarabic") [ UTF82 (Bytes2All 0xFE 0x94) ] m;
+--   @m = Insert (Glyph "tehmedialarabic") [ UTF82 (Bytes2All 0xFE 0x98) ] m;
+--   @m = Insert (Glyph "tehmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xA4) ] m;
+--   @m = Insert (Glyph "tehmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x0E) ] m;
+--   @m = Insert (Glyph "tehnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x73) ] m;
+--   @m = Insert (Glyph "tekatakana") [ UTF82 (Bytes2All 0x30 0xC6) ] m;
+--   @m = Insert (Glyph "tekatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x83) ] m;
+--   @m = Insert (Glyph "telephone") [ UTF82 (Bytes2All 0x21 0x21) ] m;
+--   @m = Insert (Glyph "telephoneblack") [ UTF82 (Bytes2All 0x26 0x0E) ] m;
+--   @m = Insert (Glyph "telishagedolahebrew") [ UTF82 (Bytes2All 0x05 0xA0) ] m;
+--   @m = Insert (Glyph "telishaqetanahebrew") [ UTF82 (Bytes2All 0x05 0xA9) ] m;
+--   @m = Insert (Glyph "tencircle") [ UTF82 (Bytes2All 0x24 0x69) ] m;
+--   @m = Insert (Glyph "tenideographicparen") [ UTF82 (Bytes2All 0x32 0x29) ] m;
+--   @m = Insert (Glyph "tenparen") [ UTF82 (Bytes2All 0x24 0x7D) ] m;
+--   @m = Insert (Glyph "tenperiod") [ UTF82 (Bytes2All 0x24 0x91) ] m;
+--   @m = Insert (Glyph "tenroman") [ UTF82 (Bytes2All 0x21 0x79) ] m;
+--   @m = Insert (Glyph "tesh") [ UTF82 (Bytes2All 0x02 0xA7) ] m;
+--   @m = Insert (Glyph "tet") [ UTF82 (Bytes2All 0x05 0xD8) ] m;
+--   @m = Insert (Glyph "tetdagesh") [ UTF82 (Bytes2All 0xFB 0x38) ] m;
+--   @m = Insert (Glyph "tetdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x38) ] m;
+--   @m = Insert (Glyph "tethebrew") [ UTF82 (Bytes2All 0x05 0xD8) ] m;
+--   @m = Insert (Glyph "tetsecyrillic") [ UTF82 (Bytes2All 0x04 0xB5) ] m;
+--   @m = Insert (Glyph "tevirhebrew") [ UTF82 (Bytes2All 0x05 0x9B) ] m;
+--   @m = Insert (Glyph "tevirlefthebrew") [ UTF82 (Bytes2All 0x05 0x9B) ] m;
+--   @m = Insert (Glyph "thabengali") [ UTF82 (Bytes2All 0x09 0xA5) ] m;
+--   @m = Insert (Glyph "thadeva") [ UTF82 (Bytes2All 0x09 0x25) ] m;
+--   @m = Insert (Glyph "thagujarati") [ UTF82 (Bytes2All 0x0A 0xA5) ] m;
+--   @m = Insert (Glyph "thagurmukhi") [ UTF82 (Bytes2All 0x0A 0x25) ] m;
+--   @m = Insert (Glyph "thalarabic") [ UTF82 (Bytes2All 0x06 0x30) ] m;
+--   @m = Insert (Glyph "thalfinalarabic") [ UTF82 (Bytes2All 0xFE 0xAC) ] m;
+--   @m = Insert (Glyph "thanthakhatlowleftthai") [ UTF82 (Bytes2All 0xF8 0x98) ] m;
+--   @m = Insert (Glyph "thanthakhatlowrightthai") [ UTF82 (Bytes2All 0xF8 0x97) ] m;
+--   @m = Insert (Glyph "thanthakhatthai") [ UTF82 (Bytes2All 0x0E 0x4C) ] m;
+--   @m = Insert (Glyph "thanthakhatupperleftthai") [ UTF82 (Bytes2All 0xF8 0x96) ] m;
+--   @m = Insert (Glyph "theharabic") [ UTF82 (Bytes2All 0x06 0x2B) ] m;
+--   @m = Insert (Glyph "thehfinalarabic") [ UTF82 (Bytes2All 0xFE 0x9A) ] m;
+--   @m = Insert (Glyph "thehinitialarabic") [ UTF82 (Bytes2All 0xFE 0x9B) ] m;
+--   @m = Insert (Glyph "thehmedialarabic") [ UTF82 (Bytes2All 0xFE 0x9C) ] m;
+--   @m = Insert (Glyph "thereexists") [ UTF82 (Bytes2All 0x22 0x03) ] m;
+--   @m = Insert (Glyph "therefore") [ UTF82 (Bytes2All 0x22 0x34) ] m;
+--   @m = Insert (Glyph "theta") [ UTF82 (Bytes2All 0x03 0xB8) ] m;
+--   @m = Insert (Glyph "theta1") [ UTF82 (Bytes2All 0x03 0xD1) ] m;
+--   @m = Insert (Glyph "thetasymbolgreek") [ UTF82 (Bytes2All 0x03 0xD1) ] m;
+--   @m = Insert (Glyph "thieuthacirclekorean") [ UTF82 (Bytes2All 0x32 0x79) ] m;
+--   @m = Insert (Glyph "thieuthaparenkorean") [ UTF82 (Bytes2All 0x32 0x19) ] m;
+--   @m = Insert (Glyph "thieuthcirclekorean") [ UTF82 (Bytes2All 0x32 0x6B) ] m;
+--   @m = Insert (Glyph "thieuthkorean") [ UTF82 (Bytes2All 0x31 0x4C) ] m;
+--   @m = Insert (Glyph "thieuthparenkorean") [ UTF82 (Bytes2All 0x32 0x0B) ] m;
+--   @m = Insert (Glyph "thirteencircle") [ UTF82 (Bytes2All 0x24 0x6C) ] m;
+--   @m = Insert (Glyph "thirteenparen") [ UTF82 (Bytes2All 0x24 0x80) ] m;
+--   @m = Insert (Glyph "thirteenperiod") [ UTF82 (Bytes2All 0x24 0x94) ] m;
+--   @m = Insert (Glyph "thonangmonthothai") [ UTF82 (Bytes2All 0x0E 0x11) ] m;
+--   @m = Insert (Glyph "thook") [ UTF82 (Bytes2All 0x01 0xAD) ] m;
+--   @m = Insert (Glyph "thophuthaothai") [ UTF82 (Bytes2All 0x0E 0x12) ] m;
+--   @m = Insert (Glyph "thorn") [ UTF81 (Bytes1 0xFE) ] m;
+--   @m = Insert (Glyph "thothahanthai") [ UTF82 (Bytes2All 0x0E 0x17) ] m;
+--   @m = Insert (Glyph "thothanthai") [ UTF82 (Bytes2All 0x0E 0x10) ] m;
+--   @m = Insert (Glyph "thothongthai") [ UTF82 (Bytes2All 0x0E 0x18) ] m;
+--   @m = Insert (Glyph "thothungthai") [ UTF82 (Bytes2All 0x0E 0x16) ] m;
+--   @m = Insert (Glyph "thousandcyrillic") [ UTF82 (Bytes2All 0x04 0x82) ] m;
+--   @m = Insert (Glyph "thousandsseparatorarabic") [ UTF82 (Bytes2All 0x06 0x6C) ] m;
+--   @m = Insert (Glyph "thousandsseparatorpersian") [ UTF82 (Bytes2All 0x06 0x6C) ] m;
+--   @m = Insert (Glyph "three") [ UTF81 (Bytes1 0x33) ] m;
+--   @m = Insert (Glyph "threearabic") [ UTF82 (Bytes2All 0x06 0x63) ] m;
+--   @m = Insert (Glyph "threebengali") [ UTF82 (Bytes2All 0x09 0xE9) ] m;
+--   @m = Insert (Glyph "threecircle") [ UTF82 (Bytes2All 0x24 0x62) ] m;
+--   @m = Insert (Glyph "threecircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8C) ] m;
+--   @m = Insert (Glyph "threedeva") [ UTF82 (Bytes2All 0x09 0x69) ] m;
+--   @m = Insert (Glyph "threeeighths") [ UTF82 (Bytes2All 0x21 0x5C) ] m;
+--   @m = Insert (Glyph "threegujarati") [ UTF82 (Bytes2All 0x0A 0xE9) ] m;
+--   @m = Insert (Glyph "threegurmukhi") [ UTF82 (Bytes2All 0x0A 0x69) ] m;
+--   @m = Insert (Glyph "threehackarabic") [ UTF82 (Bytes2All 0x06 0x63) ] m;
+--   @m = Insert (Glyph "threehangzhou") [ UTF82 (Bytes2All 0x30 0x23) ] m;
+--   @m = Insert (Glyph "threeideographicparen") [ UTF82 (Bytes2All 0x32 0x22) ] m;
+--   @m = Insert (Glyph "threeinferior") [ UTF82 (Bytes2All 0x20 0x83) ] m;
+--   @m = Insert (Glyph "threemonospace") [ UTF82 (Bytes2All 0xFF 0x13) ] m;
+--   @m = Insert (Glyph "threenumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF6) ] m;
+--   @m = Insert (Glyph "threeoldstyle") [ UTF82 (Bytes2All 0xF7 0x33) ] m;
+--   @m = Insert (Glyph "threeparen") [ UTF82 (Bytes2All 0x24 0x76) ] m;
+--   @m = Insert (Glyph "threeperiod") [ UTF82 (Bytes2All 0x24 0x8A) ] m;
+--   @m = Insert (Glyph "threepersian") [ UTF82 (Bytes2All 0x06 0xF3) ] m;
+--   @m = Insert (Glyph "threequarters") [ UTF81 (Bytes1 0xBE) ] m;
+--   @m = Insert (Glyph "threequartersemdash") [ UTF82 (Bytes2All 0xF6 0xDE) ] m;
+--   @m = Insert (Glyph "threeroman") [ UTF82 (Bytes2All 0x21 0x72) ] m;
+--   @m = Insert (Glyph "threesuperior") [ UTF81 (Bytes1 0xB3) ] m;
+--   @m = Insert (Glyph "threethai") [ UTF82 (Bytes2All 0x0E 0x53) ] m;
+--   @m = Insert (Glyph "thzsquare") [ UTF82 (Bytes2All 0x33 0x94) ] m;
+--   @m = Insert (Glyph "tihiragana") [ UTF82 (Bytes2All 0x30 0x61) ] m;
+--   @m = Insert (Glyph "tikatakana") [ UTF82 (Bytes2All 0x30 0xC1) ] m;
+--   @m = Insert (Glyph "tikatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x81) ] m;
+--   @m = Insert (Glyph "tikeutacirclekorean") [ UTF82 (Bytes2All 0x32 0x70) ] m;
+--   @m = Insert (Glyph "tikeutaparenkorean") [ UTF82 (Bytes2All 0x32 0x10) ] m;
+--   @m = Insert (Glyph "tikeutcirclekorean") [ UTF82 (Bytes2All 0x32 0x62) ] m;
+--   @m = Insert (Glyph "tikeutkorean") [ UTF82 (Bytes2All 0x31 0x37) ] m;
+--   @m = Insert (Glyph "tikeutparenkorean") [ UTF82 (Bytes2All 0x32 0x02) ] m;
+--   @m = Insert (Glyph "tilde") [ UTF82 (Bytes2All 0x02 0xDC) ] m;
+--   @m = Insert (Glyph "tildebelowcmb") [ UTF82 (Bytes2All 0x03 0x30) ] m;
+--   @m = Insert (Glyph "tildecmb") [ UTF82 (Bytes2All 0x03 0x03) ] m;
+--   @m = Insert (Glyph "tildecomb") [ UTF82 (Bytes2All 0x03 0x03) ] m;
+--   @m = Insert (Glyph "tildedoublecmb") [ UTF82 (Bytes2All 0x03 0x60) ] m;
+--   @m = Insert (Glyph "tildeoperator") [ UTF82 (Bytes2All 0x22 0x3C) ] m;
+--   @m = Insert (Glyph "tildeoverlaycmb") [ UTF82 (Bytes2All 0x03 0x34) ] m;
+--   @m = Insert (Glyph "tildeverticalcmb") [ UTF82 (Bytes2All 0x03 0x3E) ] m;
+--   @m = Insert (Glyph "timescircle") [ UTF82 (Bytes2All 0x22 0x97) ] m;
+--   @m = Insert (Glyph "tipehahebrew") [ UTF82 (Bytes2All 0x05 0x96) ] m;
+--   @m = Insert (Glyph "tipehalefthebrew") [ UTF82 (Bytes2All 0x05 0x96) ] m;
+--   @m = Insert (Glyph "tippigurmukhi") [ UTF82 (Bytes2All 0x0A 0x70) ] m;
+--   @m = Insert (Glyph "titlocyrilliccmb") [ UTF82 (Bytes2All 0x04 0x83) ] m;
+--   @m = Insert (Glyph "tiwnarmenian") [ UTF82 (Bytes2All 0x05 0x7F) ] m;
+--   @m = Insert (Glyph "tlinebelow") [ UTF82 (Bytes2All 0x1E 0x6F) ] m;
+--   @m = Insert (Glyph "tmonospace") [ UTF82 (Bytes2All 0xFF 0x54) ] m;
+--   @m = Insert (Glyph "toarmenian") [ UTF82 (Bytes2All 0x05 0x69) ] m;
+--   @m = Insert (Glyph "tohiragana") [ UTF82 (Bytes2All 0x30 0x68) ] m;
+--   @m = Insert (Glyph "tokatakana") [ UTF82 (Bytes2All 0x30 0xC8) ] m;
+--   @m = Insert (Glyph "tokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x84) ] m;
+--   @m = Insert (Glyph "tonebarextrahighmod") [ UTF82 (Bytes2All 0x02 0xE5) ] m;
+--   @m = Insert (Glyph "tonebarextralowmod") [ UTF82 (Bytes2All 0x02 0xE9) ] m;
+--   @m = Insert (Glyph "tonebarhighmod") [ UTF82 (Bytes2All 0x02 0xE6) ] m;
+--   @m = Insert (Glyph "tonebarlowmod") [ UTF82 (Bytes2All 0x02 0xE8) ] m;
+--   @m = Insert (Glyph "tonebarmidmod") [ UTF82 (Bytes2All 0x02 0xE7) ] m;
+--   @m = Insert (Glyph "tonefive") [ UTF82 (Bytes2All 0x01 0xBD) ] m;
+--   @m = Insert (Glyph "tonesix") [ UTF82 (Bytes2All 0x01 0x85) ] m;
+--   @m = Insert (Glyph "tonetwo") [ UTF82 (Bytes2All 0x01 0xA8) ] m;
+--   @m = Insert (Glyph "tonos") [ UTF82 (Bytes2All 0x03 0x84) ] m;
+--   @m = Insert (Glyph "tonsquare") [ UTF82 (Bytes2All 0x33 0x27) ] m;
+--   @m = Insert (Glyph "topatakthai") [ UTF82 (Bytes2All 0x0E 0x0F) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketleft") [ UTF82 (Bytes2All 0x30 0x14) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketleftsmall") [ UTF82 (Bytes2All 0xFE 0x5D) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x39) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketright") [ UTF82 (Bytes2All 0x30 0x15) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketrightsmall") [ UTF82 (Bytes2All 0xFE 0x5E) ] m;
+--   @m = Insert (Glyph "tortoiseshellbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x3A) ] m;
+--   @m = Insert (Glyph "totaothai") [ UTF82 (Bytes2All 0x0E 0x15) ] m;
+--   @m = Insert (Glyph "tpalatalhook") [ UTF82 (Bytes2All 0x01 0xAB) ] m;
+--   @m = Insert (Glyph "tparen") [ UTF82 (Bytes2All 0x24 0xAF) ] m;
+--   @m = Insert (Glyph "trademark") [ UTF82 (Bytes2All 0x21 0x22) ] m;
+--   @m = Insert (Glyph "trademarksans") [ UTF82 (Bytes2All 0xF8 0xEA) ] m;
+--   @m = Insert (Glyph "trademarkserif") [ UTF82 (Bytes2All 0xF6 0xDB) ] m;
+--   @m = Insert (Glyph "tretroflexhook") [ UTF82 (Bytes2All 0x02 0x88) ] m;
+--   @m = Insert (Glyph "triagdn") [ UTF82 (Bytes2All 0x25 0xBC) ] m;
+--   @m = Insert (Glyph "triaglf") [ UTF82 (Bytes2All 0x25 0xC4) ] m;
+--   @m = Insert (Glyph "triagrt") [ UTF82 (Bytes2All 0x25 0xBA) ] m;
+--   @m = Insert (Glyph "triagup") [ UTF82 (Bytes2All 0x25 0xB2) ] m;
+--   @m = Insert (Glyph "ts") [ UTF82 (Bytes2All 0x02 0xA6) ] m;
+--   @m = Insert (Glyph "tsadi") [ UTF82 (Bytes2All 0x05 0xE6) ] m;
+--   @m = Insert (Glyph "tsadidagesh") [ UTF82 (Bytes2All 0xFB 0x46) ] m;
+--   @m = Insert (Glyph "tsadidageshhebrew") [ UTF82 (Bytes2All 0xFB 0x46) ] m;
+--   @m = Insert (Glyph "tsadihebrew") [ UTF82 (Bytes2All 0x05 0xE6) ] m;
+--   @m = Insert (Glyph "tsecyrillic") [ UTF82 (Bytes2All 0x04 0x46) ] m;
+--   @m = Insert (Glyph "tsere") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tsere12") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tsere1e") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tsere2b") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tserehebrew") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tserenarrowhebrew") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tserequarterhebrew") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tserewidehebrew") [ UTF82 (Bytes2All 0x05 0xB5) ] m;
+--   @m = Insert (Glyph "tshecyrillic") [ UTF82 (Bytes2All 0x04 0x5B) ] m;
+--   @m = Insert (Glyph "tsuperior") [ UTF82 (Bytes2All 0xF6 0xF3) ] m;
+--   @m = Insert (Glyph "ttabengali") [ UTF82 (Bytes2All 0x09 0x9F) ] m;
+--   @m = Insert (Glyph "ttadeva") [ UTF82 (Bytes2All 0x09 0x1F) ] m;
+--   @m = Insert (Glyph "ttagujarati") [ UTF82 (Bytes2All 0x0A 0x9F) ] m;
+--   @m = Insert (Glyph "ttagurmukhi") [ UTF82 (Bytes2All 0x0A 0x1F) ] m;
+--   @m = Insert (Glyph "tteharabic") [ UTF82 (Bytes2All 0x06 0x79) ] m;
+--   @m = Insert (Glyph "ttehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x67) ] m;
+--   @m = Insert (Glyph "ttehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x68) ] m;
+--   @m = Insert (Glyph "ttehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x69) ] m;
+--   @m = Insert (Glyph "tthabengali") [ UTF82 (Bytes2All 0x09 0xA0) ] m;
+--   @m = Insert (Glyph "tthadeva") [ UTF82 (Bytes2All 0x09 0x20) ] m;
+--   @m = Insert (Glyph "tthagujarati") [ UTF82 (Bytes2All 0x0A 0xA0) ] m;
+--   @m = Insert (Glyph "tthagurmukhi") [ UTF82 (Bytes2All 0x0A 0x20) ] m;
+--   @m = Insert (Glyph "tturned") [ UTF82 (Bytes2All 0x02 0x87) ] m;
+--   @m = Insert (Glyph "tuhiragana") [ UTF82 (Bytes2All 0x30 0x64) ] m;
+--   @m = Insert (Glyph "tukatakana") [ UTF82 (Bytes2All 0x30 0xC4) ] m;
+--   @m = Insert (Glyph "tukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x82) ] m;
+--   @m = Insert (Glyph "tusmallhiragana") [ UTF82 (Bytes2All 0x30 0x63) ] m;
+--   @m = Insert (Glyph "tusmallkatakana") [ UTF82 (Bytes2All 0x30 0xC3) ] m;
+--   @m = Insert (Glyph "tusmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6F) ] m;
+--   @m = Insert (Glyph "twelvecircle") [ UTF82 (Bytes2All 0x24 0x6B) ] m;
+--   @m = Insert (Glyph "twelveparen") [ UTF82 (Bytes2All 0x24 0x7F) ] m;
+--   @m = Insert (Glyph "twelveperiod") [ UTF82 (Bytes2All 0x24 0x93) ] m;
+--   @m = Insert (Glyph "twelveroman") [ UTF82 (Bytes2All 0x21 0x7B) ] m;
+--   @m = Insert (Glyph "twentycircle") [ UTF82 (Bytes2All 0x24 0x73) ] m;
+--   @m = Insert (Glyph "twentyhangzhou") [ UTF82 (Bytes2All 0x53 0x44) ] m;
+--   @m = Insert (Glyph "twentyparen") [ UTF82 (Bytes2All 0x24 0x87) ] m;
+--   @m = Insert (Glyph "twentyperiod") [ UTF82 (Bytes2All 0x24 0x9B) ] m;
+--   @m = Insert (Glyph "two") [ UTF81 (Bytes1 0x32) ] m;
+--   @m = Insert (Glyph "twoarabic") [ UTF82 (Bytes2All 0x06 0x62) ] m;
+--   @m = Insert (Glyph "twobengali") [ UTF82 (Bytes2All 0x09 0xE8) ] m;
+--   @m = Insert (Glyph "twocircle") [ UTF82 (Bytes2All 0x24 0x61) ] m;
+--   @m = Insert (Glyph "twocircleinversesansserif") [ UTF82 (Bytes2All 0x27 0x8B) ] m;
+--   @m = Insert (Glyph "twodeva") [ UTF82 (Bytes2All 0x09 0x68) ] m;
+--   @m = Insert (Glyph "twodotenleader") [ UTF82 (Bytes2All 0x20 0x25) ] m;
+--   @m = Insert (Glyph "twodotleader") [ UTF82 (Bytes2All 0x20 0x25) ] m;
+--   @m = Insert (Glyph "twodotleadervertical") [ UTF82 (Bytes2All 0xFE 0x30) ] m;
+--   @m = Insert (Glyph "twogujarati") [ UTF82 (Bytes2All 0x0A 0xE8) ] m;
+--   @m = Insert (Glyph "twogurmukhi") [ UTF82 (Bytes2All 0x0A 0x68) ] m;
+--   @m = Insert (Glyph "twohackarabic") [ UTF82 (Bytes2All 0x06 0x62) ] m;
+--   @m = Insert (Glyph "twohangzhou") [ UTF82 (Bytes2All 0x30 0x22) ] m;
+--   @m = Insert (Glyph "twoideographicparen") [ UTF82 (Bytes2All 0x32 0x21) ] m;
+--   @m = Insert (Glyph "twoinferior") [ UTF82 (Bytes2All 0x20 0x82) ] m;
+--   @m = Insert (Glyph "twomonospace") [ UTF82 (Bytes2All 0xFF 0x12) ] m;
+--   @m = Insert (Glyph "twonumeratorbengali") [ UTF82 (Bytes2All 0x09 0xF5) ] m;
+--   @m = Insert (Glyph "twooldstyle") [ UTF82 (Bytes2All 0xF7 0x32) ] m;
+--   @m = Insert (Glyph "twoparen") [ UTF82 (Bytes2All 0x24 0x75) ] m;
+--   @m = Insert (Glyph "twoperiod") [ UTF82 (Bytes2All 0x24 0x89) ] m;
+--   @m = Insert (Glyph "twopersian") [ UTF82 (Bytes2All 0x06 0xF2) ] m;
+--   @m = Insert (Glyph "tworoman") [ UTF82 (Bytes2All 0x21 0x71) ] m;
+--   @m = Insert (Glyph "twostroke") [ UTF82 (Bytes2All 0x01 0xBB) ] m;
+--   @m = Insert (Glyph "twosuperior") [ UTF81 (Bytes1 0xB2) ] m;
+--   @m = Insert (Glyph "twothai") [ UTF82 (Bytes2All 0x0E 0x52) ] m;
+--   @m = Insert (Glyph "twothirds") [ UTF82 (Bytes2All 0x21 0x54) ] m;
+--   m
+-- }
+
+-- def GlyphEncu =  {
+--   @m = empty;
+--   @m = Insert (Glyph "u") [ UTF81 (Bytes1 0x75) ] m;
+--   @m = Insert (Glyph "uacute") [ UTF81 (Bytes1 0xFA) ] m;
+--   @m = Insert (Glyph "ubar") [ UTF82 (Bytes2All 0x02 0x89) ] m;
+--   @m = Insert (Glyph "ubengali") [ UTF82 (Bytes2All 0x09 0x89) ] m;
+--   @m = Insert (Glyph "ubopomofo") [ UTF82 (Bytes2All 0x31 0x28) ] m;
+--   @m = Insert (Glyph "ubreve") [ UTF82 (Bytes2All 0x01 0x6D) ] m;
+--   @m = Insert (Glyph "ucaron") [ UTF82 (Bytes2All 0x01 0xD4) ] m;
+--   @m = Insert (Glyph "ucircle") [ UTF82 (Bytes2All 0x24 0xE4) ] m;
+--   @m = Insert (Glyph "ucircumflex") [ UTF81 (Bytes1 0xFB) ] m;
+--   @m = Insert (Glyph "ucircumflexbelow") [ UTF82 (Bytes2All 0x1E 0x77) ] m;
+--   @m = Insert (Glyph "ucyrillic") [ UTF82 (Bytes2All 0x04 0x43) ] m;
+--   @m = Insert (Glyph "udattadeva") [ UTF82 (Bytes2All 0x09 0x51) ] m;
+--   @m = Insert (Glyph "udblacute") [ UTF82 (Bytes2All 0x01 0x71) ] m;
+--   @m = Insert (Glyph "udblgrave") [ UTF82 (Bytes2All 0x02 0x15) ] m;
+--   @m = Insert (Glyph "udeva") [ UTF82 (Bytes2All 0x09 0x09) ] m;
+--   @m = Insert (Glyph "udieresis") [ UTF81 (Bytes1 0xFC) ] m;
+--   @m = Insert (Glyph "udieresisacute") [ UTF82 (Bytes2All 0x01 0xD8) ] m;
+--   @m = Insert (Glyph "udieresisbelow") [ UTF82 (Bytes2All 0x1E 0x73) ] m;
+--   @m = Insert (Glyph "udieresiscaron") [ UTF82 (Bytes2All 0x01 0xDA) ] m;
+--   @m = Insert (Glyph "udieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF1) ] m;
+--   @m = Insert (Glyph "udieresisgrave") [ UTF82 (Bytes2All 0x01 0xDC) ] m;
+--   @m = Insert (Glyph "udieresismacron") [ UTF82 (Bytes2All 0x01 0xD6) ] m;
+--   @m = Insert (Glyph "udotbelow") [ UTF82 (Bytes2All 0x1E 0xE5) ] m;
+--   @m = Insert (Glyph "ugrave") [ UTF81 (Bytes1 0xF9) ] m;
+--   @m = Insert (Glyph "ugujarati") [ UTF82 (Bytes2All 0x0A 0x89) ] m;
+--   @m = Insert (Glyph "ugurmukhi") [ UTF82 (Bytes2All 0x0A 0x09) ] m;
+--   @m = Insert (Glyph "uhiragana") [ UTF82 (Bytes2All 0x30 0x46) ] m;
+--   @m = Insert (Glyph "uhookabove") [ UTF82 (Bytes2All 0x1E 0xE7) ] m;
+--   @m = Insert (Glyph "uhorn") [ UTF82 (Bytes2All 0x01 0xB0) ] m;
+--   @m = Insert (Glyph "uhornacute") [ UTF82 (Bytes2All 0x1E 0xE9) ] m;
+--   @m = Insert (Glyph "uhorndotbelow") [ UTF82 (Bytes2All 0x1E 0xF1) ] m;
+--   @m = Insert (Glyph "uhorngrave") [ UTF82 (Bytes2All 0x1E 0xEB) ] m;
+--   @m = Insert (Glyph "uhornhookabove") [ UTF82 (Bytes2All 0x1E 0xED) ] m;
+--   @m = Insert (Glyph "uhorntilde") [ UTF82 (Bytes2All 0x1E 0xEF) ] m;
+--   @m = Insert (Glyph "uhungarumlaut") [ UTF82 (Bytes2All 0x01 0x71) ] m;
+--   @m = Insert (Glyph "uhungarumlautcyrillic") [ UTF82 (Bytes2All 0x04 0xF3) ] m;
+--   @m = Insert (Glyph "uinvertedbreve") [ UTF82 (Bytes2All 0x02 0x17) ] m;
+--   @m = Insert (Glyph "ukatakana") [ UTF82 (Bytes2All 0x30 0xA6) ] m;
+--   @m = Insert (Glyph "ukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x73) ] m;
+--   @m = Insert (Glyph "ukcyrillic") [ UTF82 (Bytes2All 0x04 0x79) ] m;
+--   @m = Insert (Glyph "ukorean") [ UTF82 (Bytes2All 0x31 0x5C) ] m;
+--   @m = Insert (Glyph "umacron") [ UTF82 (Bytes2All 0x01 0x6B) ] m;
+--   @m = Insert (Glyph "umacroncyrillic") [ UTF82 (Bytes2All 0x04 0xEF) ] m;
+--   @m = Insert (Glyph "umacrondieresis") [ UTF82 (Bytes2All 0x1E 0x7B) ] m;
+--   @m = Insert (Glyph "umatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x41) ] m;
+--   @m = Insert (Glyph "umonospace") [ UTF82 (Bytes2All 0xFF 0x55) ] m;
+--   @m = Insert (Glyph "underscore") [ UTF81 (Bytes1 0x5F) ] m;
+--   @m = Insert (Glyph "underscoredbl") [ UTF82 (Bytes2All 0x20 0x17) ] m;
+--   @m = Insert (Glyph "underscoremonospace") [ UTF82 (Bytes2All 0xFF 0x3F) ] m;
+--   @m = Insert (Glyph "underscorevertical") [ UTF82 (Bytes2All 0xFE 0x33) ] m;
+--   @m = Insert (Glyph "underscorewavy") [ UTF82 (Bytes2All 0xFE 0x4F) ] m;
+--   @m = Insert (Glyph "union") [ UTF82 (Bytes2All 0x22 0x2A) ] m;
+--   @m = Insert (Glyph "universal") [ UTF82 (Bytes2All 0x22 0x00) ] m;
+--   @m = Insert (Glyph "uogonek") [ UTF82 (Bytes2All 0x01 0x73) ] m;
+--   @m = Insert (Glyph "uparen") [ UTF82 (Bytes2All 0x24 0xB0) ] m;
+--   @m = Insert (Glyph "upblock") [ UTF82 (Bytes2All 0x25 0x80) ] m;
+--   @m = Insert (Glyph "upperdothebrew") [ UTF82 (Bytes2All 0x05 0xC4) ] m;
+--   @m = Insert (Glyph "upsilon") [ UTF82 (Bytes2All 0x03 0xC5) ] m;
+--   @m = Insert (Glyph "upsilondieresis") [ UTF82 (Bytes2All 0x03 0xCB) ] m;
+--   @m = Insert (Glyph "upsilondieresistonos") [ UTF82 (Bytes2All 0x03 0xB0) ] m;
+--   @m = Insert (Glyph "upsilonlatin") [ UTF82 (Bytes2All 0x02 0x8A) ] m;
+--   @m = Insert (Glyph "upsilontonos") [ UTF82 (Bytes2All 0x03 0xCD) ] m;
+--   @m = Insert (Glyph "uptackbelowcmb") [ UTF82 (Bytes2All 0x03 0x1D) ] m;
+--   @m = Insert (Glyph "uptackmod") [ UTF82 (Bytes2All 0x02 0xD4) ] m;
+--   @m = Insert (Glyph "uragurmukhi") [ UTF82 (Bytes2All 0x0A 0x73) ] m;
+--   @m = Insert (Glyph "uring") [ UTF82 (Bytes2All 0x01 0x6F) ] m;
+--   @m = Insert (Glyph "ushortcyrillic") [ UTF82 (Bytes2All 0x04 0x5E) ] m;
+--   @m = Insert (Glyph "usmallhiragana") [ UTF82 (Bytes2All 0x30 0x45) ] m;
+--   @m = Insert (Glyph "usmallkatakana") [ UTF82 (Bytes2All 0x30 0xA5) ] m;
+--   @m = Insert (Glyph "usmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x69) ] m;
+--   @m = Insert (Glyph "ustraightcyrillic") [ UTF82 (Bytes2All 0x04 0xAF) ] m;
+--   @m = Insert (Glyph "ustraightstrokecyrillic") [ UTF82 (Bytes2All 0x04 0xB1) ] m;
+--   @m = Insert (Glyph "utilde") [ UTF82 (Bytes2All 0x01 0x69) ] m;
+--   @m = Insert (Glyph "utildeacute") [ UTF82 (Bytes2All 0x1E 0x79) ] m;
+--   @m = Insert (Glyph "utildebelow") [ UTF82 (Bytes2All 0x1E 0x75) ] m;
+--   @m = Insert (Glyph "uubengali") [ UTF82 (Bytes2All 0x09 0x8A) ] m;
+--   @m = Insert (Glyph "uudeva") [ UTF82 (Bytes2All 0x09 0x0A) ] m;
+--   @m = Insert (Glyph "uugujarati") [ UTF82 (Bytes2All 0x0A 0x8A) ] m;
+--   @m = Insert (Glyph "uugurmukhi") [ UTF82 (Bytes2All 0x0A 0x0A) ] m;
+--   @m = Insert (Glyph "uumatragurmukhi") [ UTF82 (Bytes2All 0x0A 0x42) ] m;
+--   @m = Insert (Glyph "uuvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC2) ] m;
+--   @m = Insert (Glyph "uuvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x42) ] m;
+--   @m = Insert (Glyph "uuvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC2) ] m;
+--   @m = Insert (Glyph "uvowelsignbengali") [ UTF82 (Bytes2All 0x09 0xC1) ] m;
+--   @m = Insert (Glyph "uvowelsigndeva") [ UTF82 (Bytes2All 0x09 0x41) ] m;
+--   @m = Insert (Glyph "uvowelsigngujarati") [ UTF82 (Bytes2All 0x0A 0xC1) ] m;
+--   m
+-- }
+
+-- def GlyphEncv =  {
+--   @m = empty;
+--   @m = Insert (Glyph "v") [ UTF81 (Bytes1 0x76) ] m;
+--   @m = Insert (Glyph "vadeva") [ UTF82 (Bytes2All 0x09 0x35) ] m;
+--   @m = Insert (Glyph "vagujarati") [ UTF82 (Bytes2All 0x0A 0xB5) ] m;
+--   @m = Insert (Glyph "vagurmukhi") [ UTF82 (Bytes2All 0x0A 0x35) ] m;
+--   @m = Insert (Glyph "vakatakana") [ UTF82 (Bytes2All 0x30 0xF7) ] m;
+--   @m = Insert (Glyph "vav") [ UTF82 (Bytes2All 0x05 0xD5) ] m;
+--   @m = Insert (Glyph "vavdagesh") [ UTF82 (Bytes2All 0xFB 0x35) ] m;
+--   @m = Insert (Glyph "vavdagesh65") [ UTF82 (Bytes2All 0xFB 0x35) ] m;
+--   @m = Insert (Glyph "vavdageshhebrew") [ UTF82 (Bytes2All 0xFB 0x35) ] m;
+--   @m = Insert (Glyph "vavhebrew") [ UTF82 (Bytes2All 0x05 0xD5) ] m;
+--   @m = Insert (Glyph "vavholam") [ UTF82 (Bytes2All 0xFB 0x4B) ] m;
+--   @m = Insert (Glyph "vavholamhebrew") [ UTF82 (Bytes2All 0xFB 0x4B) ] m;
+--   @m = Insert (Glyph "vavvavhebrew") [ UTF82 (Bytes2All 0x05 0xF0) ] m;
+--   @m = Insert (Glyph "vavyodhebrew") [ UTF82 (Bytes2All 0x05 0xF1) ] m;
+--   @m = Insert (Glyph "vcircle") [ UTF82 (Bytes2All 0x24 0xE5) ] m;
+--   @m = Insert (Glyph "vdotbelow") [ UTF82 (Bytes2All 0x1E 0x7F) ] m;
+--   @m = Insert (Glyph "vecyrillic") [ UTF82 (Bytes2All 0x04 0x32) ] m;
+--   @m = Insert (Glyph "veharabic") [ UTF82 (Bytes2All 0x06 0xA4) ] m;
+--   @m = Insert (Glyph "vehfinalarabic") [ UTF82 (Bytes2All 0xFB 0x6B) ] m;
+--   @m = Insert (Glyph "vehinitialarabic") [ UTF82 (Bytes2All 0xFB 0x6C) ] m;
+--   @m = Insert (Glyph "vehmedialarabic") [ UTF82 (Bytes2All 0xFB 0x6D) ] m;
+--   @m = Insert (Glyph "vekatakana") [ UTF82 (Bytes2All 0x30 0xF9) ] m;
+--   @m = Insert (Glyph "venus") [ UTF82 (Bytes2All 0x26 0x40) ] m;
+--   @m = Insert (Glyph "verticalbar") [ UTF81 (Bytes1 0x7C) ] m;
+--   @m = Insert (Glyph "verticallineabovecmb") [ UTF82 (Bytes2All 0x03 0x0D) ] m;
+--   @m = Insert (Glyph "verticallinebelowcmb") [ UTF82 (Bytes2All 0x03 0x29) ] m;
+--   @m = Insert (Glyph "verticallinelowmod") [ UTF82 (Bytes2All 0x02 0xCC) ] m;
+--   @m = Insert (Glyph "verticallinemod") [ UTF82 (Bytes2All 0x02 0xC8) ] m;
+--   @m = Insert (Glyph "vewarmenian") [ UTF82 (Bytes2All 0x05 0x7E) ] m;
+--   @m = Insert (Glyph "vhook") [ UTF82 (Bytes2All 0x02 0x8B) ] m;
+--   @m = Insert (Glyph "vikatakana") [ UTF82 (Bytes2All 0x30 0xF8) ] m;
+--   @m = Insert (Glyph "viramabengali") [ UTF82 (Bytes2All 0x09 0xCD) ] m;
+--   @m = Insert (Glyph "viramadeva") [ UTF82 (Bytes2All 0x09 0x4D) ] m;
+--   @m = Insert (Glyph "viramagujarati") [ UTF82 (Bytes2All 0x0A 0xCD) ] m;
+--   @m = Insert (Glyph "visargabengali") [ UTF82 (Bytes2All 0x09 0x83) ] m;
+--   @m = Insert (Glyph "visargadeva") [ UTF82 (Bytes2All 0x09 0x03) ] m;
+--   @m = Insert (Glyph "visargagujarati") [ UTF82 (Bytes2All 0x0A 0x83) ] m;
+--   @m = Insert (Glyph "vmonospace") [ UTF82 (Bytes2All 0xFF 0x56) ] m;
+--   @m = Insert (Glyph "voarmenian") [ UTF82 (Bytes2All 0x05 0x78) ] m;
+--   @m = Insert (Glyph "voicediterationhiragana") [ UTF82 (Bytes2All 0x30 0x9E) ] m;
+--   @m = Insert (Glyph "voicediterationkatakana") [ UTF82 (Bytes2All 0x30 0xFE) ] m;
+--   @m = Insert (Glyph "voicedmarkkana") [ UTF82 (Bytes2All 0x30 0x9B) ] m;
+--   @m = Insert (Glyph "voicedmarkkanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9E) ] m;
+--   @m = Insert (Glyph "vokatakana") [ UTF82 (Bytes2All 0x30 0xFA) ] m;
+--   @m = Insert (Glyph "vparen") [ UTF82 (Bytes2All 0x24 0xB1) ] m;
+--   @m = Insert (Glyph "vtilde") [ UTF82 (Bytes2All 0x1E 0x7D) ] m;
+--   @m = Insert (Glyph "vturned") [ UTF82 (Bytes2All 0x02 0x8C) ] m;
+--   @m = Insert (Glyph "vuhiragana") [ UTF82 (Bytes2All 0x30 0x94) ] m;
+--   @m = Insert (Glyph "vukatakana") [ UTF82 (Bytes2All 0x30 0xF4) ] m;
+--   m
+-- }
+
+-- def GlyphEncw =  {
+--   @m = empty;
+--   @m = Insert (Glyph "w") [ UTF81 (Bytes1 0x77) ] m;
+--   @m = Insert (Glyph "wacute") [ UTF82 (Bytes2All 0x1E 0x83) ] m;
+--   @m = Insert (Glyph "waekorean") [ UTF82 (Bytes2All 0x31 0x59) ] m;
+--   @m = Insert (Glyph "wahiragana") [ UTF82 (Bytes2All 0x30 0x8F) ] m;
+--   @m = Insert (Glyph "wakatakana") [ UTF82 (Bytes2All 0x30 0xEF) ] m;
+--   @m = Insert (Glyph "wakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x9C) ] m;
+--   @m = Insert (Glyph "wakorean") [ UTF82 (Bytes2All 0x31 0x58) ] m;
+--   @m = Insert (Glyph "wasmallhiragana") [ UTF82 (Bytes2All 0x30 0x8E) ] m;
+--   @m = Insert (Glyph "wasmallkatakana") [ UTF82 (Bytes2All 0x30 0xEE) ] m;
+--   @m = Insert (Glyph "wattosquare") [ UTF82 (Bytes2All 0x33 0x57) ] m;
+--   @m = Insert (Glyph "wavedash") [ UTF82 (Bytes2All 0x30 0x1C) ] m;
+--   @m = Insert (Glyph "wavyunderscorevertical") [ UTF82 (Bytes2All 0xFE 0x34) ] m;
+--   @m = Insert (Glyph "wawarabic") [ UTF82 (Bytes2All 0x06 0x48) ] m;
+--   @m = Insert (Glyph "wawfinalarabic") [ UTF82 (Bytes2All 0xFE 0xEE) ] m;
+--   @m = Insert (Glyph "wawhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x24) ] m;
+--   @m = Insert (Glyph "wawhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x86) ] m;
+--   @m = Insert (Glyph "wbsquare") [ UTF82 (Bytes2All 0x33 0xDD) ] m;
+--   @m = Insert (Glyph "wcircle") [ UTF82 (Bytes2All 0x24 0xE6) ] m;
+--   @m = Insert (Glyph "wcircumflex") [ UTF82 (Bytes2All 0x01 0x75) ] m;
+--   @m = Insert (Glyph "wdieresis") [ UTF82 (Bytes2All 0x1E 0x85) ] m;
+--   @m = Insert (Glyph "wdotaccent") [ UTF82 (Bytes2All 0x1E 0x87) ] m;
+--   @m = Insert (Glyph "wdotbelow") [ UTF82 (Bytes2All 0x1E 0x89) ] m;
+--   @m = Insert (Glyph "wehiragana") [ UTF82 (Bytes2All 0x30 0x91) ] m;
+--   @m = Insert (Glyph "weierstrass") [ UTF82 (Bytes2All 0x21 0x18) ] m;
+--   @m = Insert (Glyph "wekatakana") [ UTF82 (Bytes2All 0x30 0xF1) ] m;
+--   @m = Insert (Glyph "wekorean") [ UTF82 (Bytes2All 0x31 0x5E) ] m;
+--   @m = Insert (Glyph "weokorean") [ UTF82 (Bytes2All 0x31 0x5D) ] m;
+--   @m = Insert (Glyph "wgrave") [ UTF82 (Bytes2All 0x1E 0x81) ] m;
+--   @m = Insert (Glyph "whitebullet") [ UTF82 (Bytes2All 0x25 0xE6) ] m;
+--   @m = Insert (Glyph "whitecircle") [ UTF82 (Bytes2All 0x25 0xCB) ] m;
+--   @m = Insert (Glyph "whitecircleinverse") [ UTF82 (Bytes2All 0x25 0xD9) ] m;
+--   @m = Insert (Glyph "whitecornerbracketleft") [ UTF82 (Bytes2All 0x30 0x0E) ] m;
+--   @m = Insert (Glyph "whitecornerbracketleftvertical") [ UTF82 (Bytes2All 0xFE 0x43) ] m;
+--   @m = Insert (Glyph "whitecornerbracketright") [ UTF82 (Bytes2All 0x30 0x0F) ] m;
+--   @m = Insert (Glyph "whitecornerbracketrightvertical") [ UTF82 (Bytes2All 0xFE 0x44) ] m;
+--   @m = Insert (Glyph "whitediamond") [ UTF82 (Bytes2All 0x25 0xC7) ] m;
+--   @m = Insert (Glyph "whitediamondcontainingblacksmalldiamond") [ UTF82 (Bytes2All 0x25 0xC8) ] m;
+--   @m = Insert (Glyph "whitedownpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xBF) ] m;
+--   @m = Insert (Glyph "whitedownpointingtriangle") [ UTF82 (Bytes2All 0x25 0xBD) ] m;
+--   @m = Insert (Glyph "whiteleftpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xC3) ] m;
+--   @m = Insert (Glyph "whiteleftpointingtriangle") [ UTF82 (Bytes2All 0x25 0xC1) ] m;
+--   @m = Insert (Glyph "whitelenticularbracketleft") [ UTF82 (Bytes2All 0x30 0x16) ] m;
+--   @m = Insert (Glyph "whitelenticularbracketright") [ UTF82 (Bytes2All 0x30 0x17) ] m;
+--   @m = Insert (Glyph "whiterightpointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB9) ] m;
+--   @m = Insert (Glyph "whiterightpointingtriangle") [ UTF82 (Bytes2All 0x25 0xB7) ] m;
+--   @m = Insert (Glyph "whitesmallsquare") [ UTF82 (Bytes2All 0x25 0xAB) ] m;
+--   @m = Insert (Glyph "whitesmilingface") [ UTF82 (Bytes2All 0x26 0x3A) ] m;
+--   @m = Insert (Glyph "whitesquare") [ UTF82 (Bytes2All 0x25 0xA1) ] m;
+--   @m = Insert (Glyph "whitestar") [ UTF82 (Bytes2All 0x26 0x06) ] m;
+--   @m = Insert (Glyph "whitetelephone") [ UTF82 (Bytes2All 0x26 0x0F) ] m;
+--   @m = Insert (Glyph "whitetortoiseshellbracketleft") [ UTF82 (Bytes2All 0x30 0x18) ] m;
+--   @m = Insert (Glyph "whitetortoiseshellbracketright") [ UTF82 (Bytes2All 0x30 0x19) ] m;
+--   @m = Insert (Glyph "whiteuppointingsmalltriangle") [ UTF82 (Bytes2All 0x25 0xB5) ] m;
+--   @m = Insert (Glyph "whiteuppointingtriangle") [ UTF82 (Bytes2All 0x25 0xB3) ] m;
+--   @m = Insert (Glyph "wihiragana") [ UTF82 (Bytes2All 0x30 0x90) ] m;
+--   @m = Insert (Glyph "wikatakana") [ UTF82 (Bytes2All 0x30 0xF0) ] m;
+--   @m = Insert (Glyph "wikorean") [ UTF82 (Bytes2All 0x31 0x5F) ] m;
+--   @m = Insert (Glyph "wmonospace") [ UTF82 (Bytes2All 0xFF 0x57) ] m;
+--   @m = Insert (Glyph "wohiragana") [ UTF82 (Bytes2All 0x30 0x92) ] m;
+--   @m = Insert (Glyph "wokatakana") [ UTF82 (Bytes2All 0x30 0xF2) ] m;
+--   @m = Insert (Glyph "wokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x66) ] m;
+--   @m = Insert (Glyph "won") [ UTF82 (Bytes2All 0x20 0xA9) ] m;
+--   @m = Insert (Glyph "wonmonospace") [ UTF82 (Bytes2All 0xFF 0xE6) ] m;
+--   @m = Insert (Glyph "wowaenthai") [ UTF82 (Bytes2All 0x0E 0x27) ] m;
+--   @m = Insert (Glyph "wparen") [ UTF82 (Bytes2All 0x24 0xB2) ] m;
+--   @m = Insert (Glyph "wring") [ UTF82 (Bytes2All 0x1E 0x98) ] m;
+--   @m = Insert (Glyph "wsuperior") [ UTF82 (Bytes2All 0x02 0xB7) ] m;
+--   @m = Insert (Glyph "wturned") [ UTF82 (Bytes2All 0x02 0x8D) ] m;
+--   @m = Insert (Glyph "wynn") [ UTF82 (Bytes2All 0x01 0xBF) ] m;
+--   m
+-- }
+
+-- def GlyphEncx =  {
+--   @m = empty;
+--   @m = Insert (Glyph "x") [ UTF81 (Bytes1 0x78) ] m;
+--   @m = Insert (Glyph "xabovecmb") [ UTF82 (Bytes2All 0x03 0x3D) ] m;
+--   @m = Insert (Glyph "xbopomofo") [ UTF82 (Bytes2All 0x31 0x12) ] m;
+--   @m = Insert (Glyph "xcircle") [ UTF82 (Bytes2All 0x24 0xE7) ] m;
+--   @m = Insert (Glyph "xdieresis") [ UTF82 (Bytes2All 0x1E 0x8D) ] m;
+--   @m = Insert (Glyph "xdotaccent") [ UTF82 (Bytes2All 0x1E 0x8B) ] m;
+--   @m = Insert (Glyph "xeharmenian") [ UTF82 (Bytes2All 0x05 0x6D) ] m;
+--   @m = Insert (Glyph "xi") [ UTF82 (Bytes2All 0x03 0xBE) ] m;
+--   @m = Insert (Glyph "xmonospace") [ UTF82 (Bytes2All 0xFF 0x58) ] m;
+--   @m = Insert (Glyph "xparen") [ UTF82 (Bytes2All 0x24 0xB3) ] m;
+--   @m = Insert (Glyph "xsuperior") [ UTF82 (Bytes2All 0x02 0xE3) ] m;
+--   m
+-- }
+
+-- def GlyphEncy =  {
+--   @m = empty;
+--   @m = Insert (Glyph "y") [ UTF81 (Bytes1 0x79) ] m;
+--   @m = Insert (Glyph "yaadosquare") [ UTF82 (Bytes2All 0x33 0x4E) ] m;
+--   @m = Insert (Glyph "yabengali") [ UTF82 (Bytes2All 0x09 0xAF) ] m;
+--   @m = Insert (Glyph "yacute") [ UTF81 (Bytes1 0xFD) ] m;
+--   @m = Insert (Glyph "yadeva") [ UTF82 (Bytes2All 0x09 0x2F) ] m;
+--   @m = Insert (Glyph "yaekorean") [ UTF82 (Bytes2All 0x31 0x52) ] m;
+--   @m = Insert (Glyph "yagujarati") [ UTF82 (Bytes2All 0x0A 0xAF) ] m;
+--   @m = Insert (Glyph "yagurmukhi") [ UTF82 (Bytes2All 0x0A 0x2F) ] m;
+--   @m = Insert (Glyph "yahiragana") [ UTF82 (Bytes2All 0x30 0x84) ] m;
+--   @m = Insert (Glyph "yakatakana") [ UTF82 (Bytes2All 0x30 0xE4) ] m;
+--   @m = Insert (Glyph "yakatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x94) ] m;
+--   @m = Insert (Glyph "yakorean") [ UTF82 (Bytes2All 0x31 0x51) ] m;
+--   @m = Insert (Glyph "yamakkanthai") [ UTF82 (Bytes2All 0x0E 0x4E) ] m;
+--   @m = Insert (Glyph "yasmallhiragana") [ UTF82 (Bytes2All 0x30 0x83) ] m;
+--   @m = Insert (Glyph "yasmallkatakana") [ UTF82 (Bytes2All 0x30 0xE3) ] m;
+--   @m = Insert (Glyph "yasmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6C) ] m;
+--   @m = Insert (Glyph "yatcyrillic") [ UTF82 (Bytes2All 0x04 0x63) ] m;
+--   @m = Insert (Glyph "ycircle") [ UTF82 (Bytes2All 0x24 0xE8) ] m;
+--   @m = Insert (Glyph "ycircumflex") [ UTF82 (Bytes2All 0x01 0x77) ] m;
+--   @m = Insert (Glyph "ydieresis") [ UTF81 (Bytes1 0xFF) ] m;
+--   @m = Insert (Glyph "ydotaccent") [ UTF82 (Bytes2All 0x1E 0x8F) ] m;
+--   @m = Insert (Glyph "ydotbelow") [ UTF82 (Bytes2All 0x1E 0xF5) ] m;
+--   @m = Insert (Glyph "yeharabic") [ UTF82 (Bytes2All 0x06 0x4A) ] m;
+--   @m = Insert (Glyph "yehbarreearabic") [ UTF82 (Bytes2All 0x06 0xD2) ] m;
+--   @m = Insert (Glyph "yehbarreefinalarabic") [ UTF82 (Bytes2All 0xFB 0xAF) ] m;
+--   @m = Insert (Glyph "yehfinalarabic") [ UTF82 (Bytes2All 0xFE 0xF2) ] m;
+--   @m = Insert (Glyph "yehhamzaabovearabic") [ UTF82 (Bytes2All 0x06 0x26) ] m;
+--   @m = Insert (Glyph "yehhamzaabovefinalarabic") [ UTF82 (Bytes2All 0xFE 0x8A) ] m;
+--   @m = Insert (Glyph "yehhamzaaboveinitialarabic") [ UTF82 (Bytes2All 0xFE 0x8B) ] m;
+--   @m = Insert (Glyph "yehhamzaabovemedialarabic") [ UTF82 (Bytes2All 0xFE 0x8C) ] m;
+--   @m = Insert (Glyph "yehinitialarabic") [ UTF82 (Bytes2All 0xFE 0xF3) ] m;
+--   @m = Insert (Glyph "yehmedialarabic") [ UTF82 (Bytes2All 0xFE 0xF4) ] m;
+--   @m = Insert (Glyph "yehmeeminitialarabic") [ UTF82 (Bytes2All 0xFC 0xDD) ] m;
+--   @m = Insert (Glyph "yehmeemisolatedarabic") [ UTF82 (Bytes2All 0xFC 0x58) ] m;
+--   @m = Insert (Glyph "yehnoonfinalarabic") [ UTF82 (Bytes2All 0xFC 0x94) ] m;
+--   @m = Insert (Glyph "yehthreedotsbelowarabic") [ UTF82 (Bytes2All 0x06 0xD1) ] m;
+--   @m = Insert (Glyph "yekorean") [ UTF82 (Bytes2All 0x31 0x56) ] m;
+--   @m = Insert (Glyph "yen") [ UTF81 (Bytes1 0xA5) ] m;
+--   @m = Insert (Glyph "yenmonospace") [ UTF82 (Bytes2All 0xFF 0xE5) ] m;
+--   @m = Insert (Glyph "yeokorean") [ UTF82 (Bytes2All 0x31 0x55) ] m;
+--   @m = Insert (Glyph "yeorinhieuhkorean") [ UTF82 (Bytes2All 0x31 0x86) ] m;
+--   @m = Insert (Glyph "yerahbenyomohebrew") [ UTF82 (Bytes2All 0x05 0xAA) ] m;
+--   @m = Insert (Glyph "yerahbenyomolefthebrew") [ UTF82 (Bytes2All 0x05 0xAA) ] m;
+--   @m = Insert (Glyph "yericyrillic") [ UTF82 (Bytes2All 0x04 0x4B) ] m;
+--   @m = Insert (Glyph "yerudieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xF9) ] m;
+--   @m = Insert (Glyph "yesieungkorean") [ UTF82 (Bytes2All 0x31 0x81) ] m;
+--   @m = Insert (Glyph "yesieungpansioskorean") [ UTF82 (Bytes2All 0x31 0x83) ] m;
+--   @m = Insert (Glyph "yesieungsioskorean") [ UTF82 (Bytes2All 0x31 0x82) ] m;
+--   @m = Insert (Glyph "yetivhebrew") [ UTF82 (Bytes2All 0x05 0x9A) ] m;
+--   @m = Insert (Glyph "ygrave") [ UTF82 (Bytes2All 0x1E 0xF3) ] m;
+--   @m = Insert (Glyph "yhook") [ UTF82 (Bytes2All 0x01 0xB4) ] m;
+--   @m = Insert (Glyph "yhookabove") [ UTF82 (Bytes2All 0x1E 0xF7) ] m;
+--   @m = Insert (Glyph "yiarmenian") [ UTF82 (Bytes2All 0x05 0x75) ] m;
+--   @m = Insert (Glyph "yicyrillic") [ UTF82 (Bytes2All 0x04 0x57) ] m;
+--   @m = Insert (Glyph "yikorean") [ UTF82 (Bytes2All 0x31 0x62) ] m;
+--   @m = Insert (Glyph "yinyang") [ UTF82 (Bytes2All 0x26 0x2F) ] m;
+--   @m = Insert (Glyph "yiwnarmenian") [ UTF82 (Bytes2All 0x05 0x82) ] m;
+--   @m = Insert (Glyph "ymonospace") [ UTF82 (Bytes2All 0xFF 0x59) ] m;
+--   @m = Insert (Glyph "yod") [ UTF82 (Bytes2All 0x05 0xD9) ] m;
+--   @m = Insert (Glyph "yoddagesh") [ UTF82 (Bytes2All 0xFB 0x39) ] m;
+--   @m = Insert (Glyph "yoddageshhebrew") [ UTF82 (Bytes2All 0xFB 0x39) ] m;
+--   @m = Insert (Glyph "yodhebrew") [ UTF82 (Bytes2All 0x05 0xD9) ] m;
+--   @m = Insert (Glyph "yodyodhebrew") [ UTF82 (Bytes2All 0x05 0xF2) ] m;
+--   @m = Insert (Glyph "yodyodpatahhebrew") [ UTF82 (Bytes2All 0xFB 0x1F) ] m;
+--   @m = Insert (Glyph "yohiragana") [ UTF82 (Bytes2All 0x30 0x88) ] m;
+--   @m = Insert (Glyph "yoikorean") [ UTF82 (Bytes2All 0x31 0x89) ] m;
+--   @m = Insert (Glyph "yokatakana") [ UTF82 (Bytes2All 0x30 0xE8) ] m;
+--   @m = Insert (Glyph "yokatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x96) ] m;
+--   @m = Insert (Glyph "yokorean") [ UTF82 (Bytes2All 0x31 0x5B) ] m;
+--   @m = Insert (Glyph "yosmallhiragana") [ UTF82 (Bytes2All 0x30 0x87) ] m;
+--   @m = Insert (Glyph "yosmallkatakana") [ UTF82 (Bytes2All 0x30 0xE7) ] m;
+--   @m = Insert (Glyph "yosmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6E) ] m;
+--   @m = Insert (Glyph "yotgreek") [ UTF82 (Bytes2All 0x03 0xF3) ] m;
+--   @m = Insert (Glyph "yoyaekorean") [ UTF82 (Bytes2All 0x31 0x88) ] m;
+--   @m = Insert (Glyph "yoyakorean") [ UTF82 (Bytes2All 0x31 0x87) ] m;
+--   @m = Insert (Glyph "yoyakthai") [ UTF82 (Bytes2All 0x0E 0x22) ] m;
+--   @m = Insert (Glyph "yoyingthai") [ UTF82 (Bytes2All 0x0E 0x0D) ] m;
+--   @m = Insert (Glyph "yparen") [ UTF82 (Bytes2All 0x24 0xB4) ] m;
+--   @m = Insert (Glyph "ypogegrammeni") [ UTF82 (Bytes2All 0x03 0x7A) ] m;
+--   @m = Insert (Glyph "ypogegrammenigreekcmb") [ UTF82 (Bytes2All 0x03 0x45) ] m;
+--   @m = Insert (Glyph "yr") [ UTF82 (Bytes2All 0x01 0xA6) ] m;
+--   @m = Insert (Glyph "yring") [ UTF82 (Bytes2All 0x1E 0x99) ] m;
+--   @m = Insert (Glyph "ysuperior") [ UTF82 (Bytes2All 0x02 0xB8) ] m;
+--   @m = Insert (Glyph "ytilde") [ UTF82 (Bytes2All 0x1E 0xF9) ] m;
+--   @m = Insert (Glyph "yturned") [ UTF82 (Bytes2All 0x02 0x8E) ] m;
+--   @m = Insert (Glyph "yuhiragana") [ UTF82 (Bytes2All 0x30 0x86) ] m;
+--   @m = Insert (Glyph "yuikorean") [ UTF82 (Bytes2All 0x31 0x8C) ] m;
+--   @m = Insert (Glyph "yukatakana") [ UTF82 (Bytes2All 0x30 0xE6) ] m;
+--   @m = Insert (Glyph "yukatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x95) ] m;
+--   @m = Insert (Glyph "yukorean") [ UTF82 (Bytes2All 0x31 0x60) ] m;
+--   @m = Insert (Glyph "yusbigcyrillic") [ UTF82 (Bytes2All 0x04 0x6B) ] m;
+--   @m = Insert (Glyph "yusbigiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x6D) ] m;
+--   @m = Insert (Glyph "yuslittlecyrillic") [ UTF82 (Bytes2All 0x04 0x67) ] m;
+--   @m = Insert (Glyph "yuslittleiotifiedcyrillic") [ UTF82 (Bytes2All 0x04 0x69) ] m;
+--   @m = Insert (Glyph "yusmallhiragana") [ UTF82 (Bytes2All 0x30 0x85) ] m;
+--   @m = Insert (Glyph "yusmallkatakana") [ UTF82 (Bytes2All 0x30 0xE5) ] m;
+--   @m = Insert (Glyph "yusmallkatakanahalfwidth") [ UTF82 (Bytes2All 0xFF 0x6D) ] m;
+--   @m = Insert (Glyph "yuyekorean") [ UTF82 (Bytes2All 0x31 0x8B) ] m;
+--   @m = Insert (Glyph "yuyeokorean") [ UTF82 (Bytes2All 0x31 0x8A) ] m;
+--   @m = Insert (Glyph "yyabengali") [ UTF82 (Bytes2All 0x09 0xDF) ] m;
+--   @m = Insert (Glyph "yyadeva") [ UTF82 (Bytes2All 0x09 0x5F) ] m;
+--   m
+-- }
+
+-- def GlyphEncz =  {
+--   @m = empty;
+--   @m = Insert (Glyph "z") [ UTF81 (Bytes1 0x7A) ] m;
+--   @m = Insert (Glyph "zaarmenian") [ UTF82 (Bytes2All 0x05 0x66) ] m;
+--   @m = Insert (Glyph "zacute") [ UTF82 (Bytes2All 0x01 0x7A) ] m;
+--   @m = Insert (Glyph "zadeva") [ UTF82 (Bytes2All 0x09 0x5B) ] m;
+--   @m = Insert (Glyph "zagurmukhi") [ UTF82 (Bytes2All 0x0A 0x5B) ] m;
+--   @m = Insert (Glyph "zaharabic") [ UTF82 (Bytes2All 0x06 0x38) ] m;
+--   @m = Insert (Glyph "zahfinalarabic") [ UTF82 (Bytes2All 0xFE 0xC6) ] m;
+--   @m = Insert (Glyph "zahinitialarabic") [ UTF82 (Bytes2All 0xFE 0xC7) ] m;
+--   @m = Insert (Glyph "zahiragana") [ UTF82 (Bytes2All 0x30 0x56) ] m;
+--   @m = Insert (Glyph "zahmedialarabic") [ UTF82 (Bytes2All 0xFE 0xC8) ] m;
+--   @m = Insert (Glyph "zainarabic") [ UTF82 (Bytes2All 0x06 0x32) ] m;
+--   @m = Insert (Glyph "zainfinalarabic") [ UTF82 (Bytes2All 0xFE 0xB0) ] m;
+--   @m = Insert (Glyph "zakatakana") [ UTF82 (Bytes2All 0x30 0xB6) ] m;
+--   @m = Insert (Glyph "zaqefgadolhebrew") [ UTF82 (Bytes2All 0x05 0x95) ] m;
+--   @m = Insert (Glyph "zaqefqatanhebrew") [ UTF82 (Bytes2All 0x05 0x94) ] m;
+--   @m = Insert (Glyph "zarqahebrew") [ UTF82 (Bytes2All 0x05 0x98) ] m;
+--   @m = Insert (Glyph "zayin") [ UTF82 (Bytes2All 0x05 0xD6) ] m;
+--   @m = Insert (Glyph "zayindagesh") [ UTF82 (Bytes2All 0xFB 0x36) ] m;
+--   @m = Insert (Glyph "zayindageshhebrew") [ UTF82 (Bytes2All 0xFB 0x36) ] m;
+--   @m = Insert (Glyph "zayinhebrew") [ UTF82 (Bytes2All 0x05 0xD6) ] m;
+--   @m = Insert (Glyph "zbopomofo") [ UTF82 (Bytes2All 0x31 0x17) ] m;
+--   @m = Insert (Glyph "zcaron") [ UTF82 (Bytes2All 0x01 0x7E) ] m;
+--   @m = Insert (Glyph "zcircle") [ UTF82 (Bytes2All 0x24 0xE9) ] m;
+--   @m = Insert (Glyph "zcircumflex") [ UTF82 (Bytes2All 0x1E 0x91) ] m;
+--   @m = Insert (Glyph "zcurl") [ UTF82 (Bytes2All 0x02 0x91) ] m;
+--   @m = Insert (Glyph "zdot") [ UTF82 (Bytes2All 0x01 0x7C) ] m;
+--   @m = Insert (Glyph "zdotaccent") [ UTF82 (Bytes2All 0x01 0x7C) ] m;
+--   @m = Insert (Glyph "zdotbelow") [ UTF82 (Bytes2All 0x1E 0x93) ] m;
+--   @m = Insert (Glyph "zecyrillic") [ UTF82 (Bytes2All 0x04 0x37) ] m;
+--   @m = Insert (Glyph "zedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x99) ] m;
+--   @m = Insert (Glyph "zedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDF) ] m;
+--   @m = Insert (Glyph "zehiragana") [ UTF82 (Bytes2All 0x30 0x5C) ] m;
+--   @m = Insert (Glyph "zekatakana") [ UTF82 (Bytes2All 0x30 0xBC) ] m;
+--   @m = Insert (Glyph "zero") [ UTF81 (Bytes1 0x30) ] m;
+--   @m = Insert (Glyph "zeroarabic") [ UTF82 (Bytes2All 0x06 0x60) ] m;
+--   @m = Insert (Glyph "zerobengali") [ UTF82 (Bytes2All 0x09 0xE6) ] m;
+--   @m = Insert (Glyph "zerodeva") [ UTF82 (Bytes2All 0x09 0x66) ] m;
+--   @m = Insert (Glyph "zerogujarati") [ UTF82 (Bytes2All 0x0A 0xE6) ] m;
+--   @m = Insert (Glyph "zerogurmukhi") [ UTF82 (Bytes2All 0x0A 0x66) ] m;
+--   @m = Insert (Glyph "zerohackarabic") [ UTF82 (Bytes2All 0x06 0x60) ] m;
+--   @m = Insert (Glyph "zeroinferior") [ UTF82 (Bytes2All 0x20 0x80) ] m;
+--   @m = Insert (Glyph "zeromonospace") [ UTF82 (Bytes2All 0xFF 0x10) ] m;
+--   @m = Insert (Glyph "zerooldstyle") [ UTF82 (Bytes2All 0xF7 0x30) ] m;
+--   @m = Insert (Glyph "zeropersian") [ UTF82 (Bytes2All 0x06 0xF0) ] m;
+--   @m = Insert (Glyph "zerosuperior") [ UTF82 (Bytes2All 0x20 0x70) ] m;
+--   @m = Insert (Glyph "zerothai") [ UTF82 (Bytes2All 0x0E 0x50) ] m;
+--   @m = Insert (Glyph "zerowidthjoiner") [ UTF82 (Bytes2All 0xFE 0xFF) ] m;
+--   @m = Insert (Glyph "zerowidthnonjoiner") [ UTF82 (Bytes2All 0x20 0x0C) ] m;
+--   @m = Insert (Glyph "zerowidthspace") [ UTF82 (Bytes2All 0x20 0x0B) ] m;
+--   @m = Insert (Glyph "zeta") [ UTF82 (Bytes2All 0x03 0xB6) ] m;
+--   @m = Insert (Glyph "zhbopomofo") [ UTF82 (Bytes2All 0x31 0x13) ] m;
+--   @m = Insert (Glyph "zhearmenian") [ UTF82 (Bytes2All 0x05 0x6A) ] m;
+--   @m = Insert (Glyph "zhebrevecyrillic") [ UTF82 (Bytes2All 0x04 0xC2) ] m;
+--   @m = Insert (Glyph "zhecyrillic") [ UTF82 (Bytes2All 0x04 0x36) ] m;
+--   @m = Insert (Glyph "zhedescendercyrillic") [ UTF82 (Bytes2All 0x04 0x97) ] m;
+--   @m = Insert (Glyph "zhedieresiscyrillic") [ UTF82 (Bytes2All 0x04 0xDD) ] m;
+--   @m = Insert (Glyph "zihiragana") [ UTF82 (Bytes2All 0x30 0x58) ] m;
+--   @m = Insert (Glyph "zikatakana") [ UTF82 (Bytes2All 0x30 0xB8) ] m;
+--   @m = Insert (Glyph "zinorhebrew") [ UTF82 (Bytes2All 0x05 0xAE) ] m;
+--   @m = Insert (Glyph "zlinebelow") [ UTF82 (Bytes2All 0x1E 0x95) ] m;
+--   @m = Insert (Glyph "zmonospace") [ UTF82 (Bytes2All 0xFF 0x5A) ] m;
+--   @m = Insert (Glyph "zohiragana") [ UTF82 (Bytes2All 0x30 0x5E) ] m;
+--   @m = Insert (Glyph "zokatakana") [ UTF82 (Bytes2All 0x30 0xBE) ] m;
+--   @m = Insert (Glyph "zparen") [ UTF82 (Bytes2All 0x24 0xB5) ] m;
+--   @m = Insert (Glyph "zretroflexhook") [ UTF82 (Bytes2All 0x02 0x90) ] m;
+--   @m = Insert (Glyph "zstroke") [ UTF82 (Bytes2All 0x01 0xB6) ] m;
+--   @m = Insert (Glyph "zuhiragana") [ UTF82 (Bytes2All 0x30 0x5A) ] m;
+--   @m = Insert (Glyph "zukatakana") [ UTF82 (Bytes2All 0x30 0xBA) ] m;
+--   m
+-- }
+
+-- def GlyphMap = {
+--   @m = empty;
+--   @m = MapDisjUnion m GlyphEncA;
+--   @m = MapDisjUnion m GlyphEncB;
+--   @m = MapDisjUnion m GlyphEncC;
+--   @m = MapDisjUnion m GlyphEncD;
+--   @m = MapDisjUnion m GlyphEncE;
+--   @m = MapDisjUnion m GlyphEncF;
+--   @m = MapDisjUnion m GlyphEncG;
+--   @m = MapDisjUnion m GlyphEncH;
+--   @m = MapDisjUnion m GlyphEncI;
+--   @m = MapDisjUnion m GlyphEncJ;
+--   @m = MapDisjUnion m GlyphEncK;
+--   @m = MapDisjUnion m GlyphEncL;
+--   @m = MapDisjUnion m GlyphEncM;
+--   @m = MapDisjUnion m GlyphEncN;
+--   @m = MapDisjUnion m GlyphEncO;
+--   @m = MapDisjUnion m GlyphEncP;
+--   @m = MapDisjUnion m GlyphEncQ;
+--   @m = MapDisjUnion m GlyphEncR;
+--   @m = MapDisjUnion m GlyphEncS;
+--   @m = MapDisjUnion m GlyphEncT;
+--   @m = MapDisjUnion m GlyphEncU;
+--   @m = MapDisjUnion m GlyphEncV;
+--   @m = MapDisjUnion m GlyphEncW;
+--   @m = MapDisjUnion m GlyphEncX;
+--   @m = MapDisjUnion m GlyphEncY;
+--   @m = MapDisjUnion m GlyphEncZ;
+--   @m = MapDisjUnion m GlyphEnca;
+--   @m = MapDisjUnion m GlyphEncb;
+--   @m = MapDisjUnion m GlyphEncc;
+--   @m = MapDisjUnion m GlyphEncd;
+--   @m = MapDisjUnion m GlyphEnce;
+--   @m = MapDisjUnion m GlyphEncf;
+--   @m = MapDisjUnion m GlyphEncg;
+--   @m = MapDisjUnion m GlyphEnch;
+--   @m = MapDisjUnion m GlyphEnci;
+--   @m = MapDisjUnion m GlyphEncj;
+--   @m = MapDisjUnion m GlyphEnck;
+--   @m = MapDisjUnion m GlyphEncl;
+--   @m = MapDisjUnion m GlyphEncm;
+--   @m = MapDisjUnion m GlyphEncn;
+--   @m = MapDisjUnion m GlyphEnco;
+--   @m = MapDisjUnion m GlyphEncp;
+--   @m = MapDisjUnion m GlyphEncq;
+--   @m = MapDisjUnion m GlyphEncr;
+--   @m = MapDisjUnion m GlyphEncs;
+--   @m = MapDisjUnion m GlyphEnct;
+--   @m = MapDisjUnion m GlyphEncu;
+--   @m = MapDisjUnion m GlyphEncv;
+--   @m = MapDisjUnion m GlyphEncw;
+--   @m = MapDisjUnion m GlyphEncx;
+--   @m = MapDisjUnion m GlyphEncy;
+--   @m = MapDisjUnion m GlyphEncz;
+--   m
+-- }
+
+def GlyphMap = GlyphEncA
