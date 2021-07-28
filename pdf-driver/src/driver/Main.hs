@@ -17,9 +17,11 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate,try,throwIO)
-import RTS.Numeric(intToSize)
-import RTS.Vector(vecFromRep,vecToString,vecToRep)
+import RTS.Numeric(intToSize, fromUInt)
+import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
 import RTS.Input
+
+import Data.Char(isDigit)
 
 import Common
 import PdfMonad
@@ -319,7 +321,16 @@ driverExtractText opts = runReport opts $
 
      res <- liftIO (runParser refs Nothing (pExtractCatalogText root) topInput)
      case res of
-       ParseOk r -> reportTextExtraction opts (text (show r))
+       ParseOk r ->
+         let aux x =
+               if all isDigit x
+               then read x :: Int
+               else 0
+         in
+         reportTextExtraction opts
+         -- (Text.decodeUtf8 $ BS.pack (map toEnum [ 226::Int, 130, 172]))
+         -- (Text.pack (map (toEnum . aux . show . fromUInt) (toList r))) -- latin
+         (Text.decodeUtf8 $ BS.pack (map (toEnum . aux . show . fromUInt) (toList r)))
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
