@@ -1,5 +1,20 @@
 -- module for parsing unicode characters
 import Stdlib
+import PdfValue
+
+---- conversions ---------------------------------------------------------------
+
+-- CodePoint = the numeric values making up codespace, Unicode comprises 1,114,112 code points,
+-- we represent code points with 'uint 32'.
+
+def ParseHexUTF16_BE : uint 32 = {
+  @p1 = numBase 16 (Many 4 HexDigit) as! uint 32;
+  -- @p2 = Optional (Many 4 HexDigit) -- FIXME: implement
+  ^ p1 
+} 
+
+
+---- UTF-8 oriented definitions: -----------------------------------------------
 
 -- CharCode c: encoding of (ASCII) character c as a character code
 def CharCode c = {

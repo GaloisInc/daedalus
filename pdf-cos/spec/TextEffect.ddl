@@ -146,14 +146,19 @@ def filler = [ mkUTF81 (bytes1 '.') ]
 
 -- ExtractStringType1: extract string under a Type1 font
 def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
-  -- TODO: use ToUnicode field, if defined
+  case font.toUnicode of
+    just t  ->
+      WithStream (arrayStream s) []
+      -- FIXME: TODO: implement this!
+    nothing ->
+      {   
+        -- compose [code -> glyph] and [glyph -> unicode] maps
+        @code2Uni = ComposePartialMaps filler (Type1Enc font) GlyphEncoding;
+        -- TODO: use hard compose
 
-  -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposePartialMaps filler (Type1Enc font) GlyphEncoding;
-  -- TODO: use hard compose
-
-  -- parse the string, looking up each code in the unicode map
-  WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
+        -- parse the string, looking up each code in the unicode map
+        WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
+      }
 }
 
 -- ExtractStringType1: extract string under a Type1 font
