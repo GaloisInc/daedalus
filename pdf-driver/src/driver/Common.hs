@@ -7,13 +7,15 @@ module Common where
 import Control.Monad.IO.Class(MonadIO(..))
 import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
-                 , hPutStr, hPutStrLn, hFlush)
+                 , hPutStr, hPutStrLn, hFlush, hSetEncoding, hGetEncoding, utf8)
 
 import RTS.ParserAPI(ParseError(..),peOffset)
 import RTS.Input(inputOffset)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
+import Data.Text(Text)
+import qualified Data.Text.IO as TextIO
 
 data ReportCode =
     RError
@@ -83,13 +85,19 @@ report code fileN off d = do
            RInfo     -> "INFO"
 
 -- Print text extracted to output file and does not change the report
-reportTextExtraction :: Options -> Doc -> ReportM ()
+reportTextExtraction :: Options -> Text -> ReportM ()
 reportTextExtraction opts d = do
   outFile <- liftIO (
         case optTextOutput opts of
           "-" -> return stdout
-          f   -> openFile f WriteMode)
-  liftIO (hPutStr outFile (show d))
+          f   -> openFile f WriteMode
+        )
+  liftIO (do -- enc <- hGetEncoding outFile
+             -- putStrLn (show enc)
+             hSetEncoding outFile utf8
+             TextIO.hPutStr outFile d
+             hPutStr outFile "\n"
+         )
 
 
 
