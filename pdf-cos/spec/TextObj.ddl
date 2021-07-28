@@ -56,7 +56,7 @@ def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
   nothing
 
 -- DBG:
-def TestSizedFont = SizedFont (MkType1Font Test1Font) (IntNumber 12)
+def TestSizedFont = SizedFont (MkType1Font Type1FontStub) (IntNumber 12)
 
 -- TextOp: an operation that can occur in a text object
 def TextOp (mayF : maybe SizedFont) = Choose1 {

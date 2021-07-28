@@ -94,5 +94,5 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 # PDFs accepted by pdf-hs-driver but not text-extract #
 
-* td00-read: check behavior on ligatures
-* MO_Arabic_Language_Lessons.pdf: failed; try with new primitive
+* bug: multi-byte UTF8 may not be getting serialized correctly
+* MO_Arabic_Language_Lessons.pdf: fail

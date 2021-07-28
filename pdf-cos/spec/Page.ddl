@@ -47,6 +47,7 @@ def PageAddParent (par : Ref) (page0 : PartialPage) = PartialPage
   page0.resources0
   page0.contents0
 
+-- foo
 def AddResources (page0 : PartialPage) = PartialPage 
   page0.type0
   page0.parent0

@@ -101,8 +101,8 @@ def pageNodeKidCount (k : PageNodeKid) = case k of {
 }
 
 def PageNodeKid resrcs (par : Ref) (r : Ref) = Choose1 {
-  treeKid = PageTreeNodeP resrcs (just par) r;
   pageKid = PageP resrcs par;
+  treeKid = PageTreeNodeP resrcs (just par) r;
 }
 
 -- PageTreeNode: coerce an partial page-tree node into a page

@@ -137,16 +137,19 @@ def Type1Font (f: PartialType1Font) = {
 }
 
 -- Test1Font: stub value for testing
-def Test1Font = Type1Font (PartialType1Font
+def Type1FontStub = Type1Font (PartialType1Font
   CommonFontWitness
   InitCharSet
   (just Helvetica)
   nothing)
 
-def Type1FontP = GenPdfDict1
+-- DBG:
+def Type1FontP0 = GenPdfDict1
   InitType1Font
   (ExtendType1Font "Type1" Void)
   Type1Font
+
+def Type1FontP = When Value Type1FontStub
 
 -- Multiple master fonts (Sec. 9.6.2.3)
 def MMFontP = GenPdfDict1
