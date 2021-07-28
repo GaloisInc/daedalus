@@ -2,6 +2,7 @@
 import PdfValue
 
 -- Colour Operators (Table 73)
+-- TODO: order by some anti-prefix order
 def ColourOp = Choose1 {
   setColorSpaceStroking = {
     nm = Token Name ;
@@ -11,24 +12,24 @@ def ColourOp = Choose1 {
     nm = Token Name ;
     KW "cs" ;
   };
+  setColorStrokingICC = {
+    cs = Many (Token Number) ;
+    KW "SCN" 
+  } ;
   setColorStroking = {
     -- TODO: fully parsing this requires tracking the current color space
     cs = Many (Token Number) ;
     KW "SC" 
   } ;
-  setColorStrokingICC = {
+  setColorNonStrokingICC = {
+    -- TODO: fully parsing this requires tracking the current color space
     cs = Many (Token Number) ;
-    KW "SCN" 
+    KW "scn" 
   } ;
   setColorNonStroking = {
     -- TODO: fully parsing this requires tracking the current color space
     cs = Many (Token Number) ;
     KW "sc" 
-  } ;
-  setColorNonStrokingICC = {
-    -- TODO: fully parsing this requires tracking the current color space
-    cs = Many (Token Number) ;
-    KW "scn" 
   } ;
   setGrayStroking = {
     gray = Token UnsignedNumber ;

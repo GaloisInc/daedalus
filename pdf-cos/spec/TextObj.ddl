@@ -32,7 +32,7 @@ def FontEffect (szFont : maybe SizedFont) x = {
   snd = x;
 }
 
--- GenSum1: sum over parameterized parsers
+-- GenSum1: biased sum over parameterized parsers
 def GenSum1 P0 P1 x =
   (P0 x) <|
   (P1 x)
@@ -55,9 +55,13 @@ def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
   (just (FontOp resrcs))
   nothing
 
+-- DBG:
+def TestSizedFont1 = SizedFont (MkType1Font Test1Font) 12
+
 -- TextOp: an operation that can occur in a text object
 def TextOp (mayF : maybe SizedFont) = Choose1 {
   -- all text operands are mutually exclusive
+  -- DBG:
   textShowOp = TextShowOp (mayF is just);
   textStateOp = TextStateOp;
   textPosOp = TextPosOp;
@@ -105,8 +109,8 @@ def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
     KW "'"; -- Table 107
     MvNextLineShow (f is just) s
   }
-; { @aw = Token Integer;
-    @ac = Token Integer;
+; { @aw = Token Number;
+    @ac = Token Number;
     @s = Token String;
     KW "\""; -- Table 107
     append 

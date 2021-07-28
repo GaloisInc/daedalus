@@ -30,7 +30,9 @@ def ListOfPairsToMap l = for (acc = empty; e in l) Insert e.fst e.snd acc
 
 def MapTo d v = for (acc = empty; k in d) Insert k v acc
 
-def MapUnion m0 m1 = for (acc = m1; k0, v0 in m0) Insert k0 v0 acc
+def MapUnion m0 m1 = for (acc = m1; k0, v0 in m0)
+  (if IsBound k0 m1 then acc
+  else Insert k0 v0 acc)
 
 def UnionMapArray ms = for (acc = empty; m in ms) MapUnion acc m
 
@@ -40,15 +42,9 @@ def ComposeMaps m0 m1 = for (res = empty; k0, v0 in m0)
 def ComposePartialMaps dflt m0 m1 = for (res = empty; k0, v0 in m0)
   (Insert k0 (Default dflt (Lookup v0 m1)) res)
 
-def TryLookup d k dflt = Default dflt {
-  @v = Lookup d k ;
-  ^ v
-} 
+def TryLookup d k dflt = Default dflt (Lookup d k)
 
-def IsBound k m = Default false {
-  @v = Lookup k m;
-  ^true
-}
+def IsBound k m = Default false (Holds (Lookup k m))
 
 def Extend k v m = {
   @b = IsBound k m;

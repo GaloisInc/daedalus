@@ -30,7 +30,12 @@ def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
   nothing
   nothing
   nothing
-  (just (Insert "F13" TestFont empty))
+  (just
+    (Insert "F1" TestFont
+      (Insert "F2" TestFont
+        (Insert "F3" TestFont
+          (Insert "F4" TestFont
+            empty)))))
   nothing
   nothing)
 
@@ -42,11 +47,7 @@ def TestRef : Ref = {
 def TestSizedFont = SizedFont TestFont 12
 
 -- Main: the entry point
-def Main = {
-  @flag = 4 : uint 32;
-  bitIsSet32 flag 5;
-  boolXor (bitIsSet32 flag 2) (bitIsSet32 flag 5)
-}
+def Main = (ContentStreamP TestResrcs)
 
 -- TODO:
 

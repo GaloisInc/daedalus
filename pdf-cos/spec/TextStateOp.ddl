@@ -11,15 +11,15 @@ import FontDict
 -- Text state operators (Table 103)
 def TextStateOp = Choose1 { -- operations are mutually exclusive
   setCharSpace = {
-    $$ = Token Integer;
+    $$ = Token Number;
     KW "Tc"
   };
   setWordSpace = {
-    $$ = Token Integer;
+    $$ = Token Number;
     KW "Tw"
   };
   setScale = {
-    $$ = Token Integer;
+    $$ = Token Number;
     KW "Tz"
   };
   setLeading = {
@@ -27,20 +27,20 @@ def TextStateOp = Choose1 { -- operations are mutually exclusive
     KW "TL"
   };
   setRenderingMode = {
-    $$ = Token Integer; 
+    $$ = Token Number; 
     KW "Tr"
   };
   setRise = {
-    $$ = Token Integer;
+    $$ = Token Number;
     KW "Ts"
   }
 }
 
-def SetCharSpaceOp (x : int) : TextStateOp = {| setCharSpace = ^x |}
+def SetCharSpaceOp (x : Number) : TextStateOp = {| setCharSpace = ^x |}
 
 def SetLeadingOp (y : Number) : TextStateOp = {| setLeading = y |}
 
-def SetWordSpaceOp (x : int) : TextStateOp = {| setWordSpace = ^x |}
+def SetWordSpaceOp (x : Number) : TextStateOp = {| setWordSpace = ^x |}
 
 -- UpdTextState op q: state q updated by running text-state operation op
 def UpdTextState (op: TextStateOp) (q: TextState) : TextState = case op of {

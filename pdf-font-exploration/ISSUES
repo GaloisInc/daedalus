@@ -92,3 +92,6 @@ which shows up like this in the "pdf-hs-driver --text" output
 The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 (Because we haven't implemented the CMAP stuff!)
 
+# PDFs accepted by pdf-hs-driver but not text-extract #
+
+* td00.pdf

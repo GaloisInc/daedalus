@@ -23,8 +23,8 @@ def SizedFont (f : FontDict) (s: int) = {
   size = s;
 }
 
-def TextState (cs: int) (ws: int) (s: int) (l: Number)
-  (rm: int) (r: int) = {
+def TextState (cs: Number) (ws: Number) (s: Number) (l: Number)
+  (rm: Number) (r: Number) = {
   charSpace = cs;
   wordSpace = ws;
   scale = s;
@@ -35,15 +35,15 @@ def TextState (cs: int) (ws: int) (s: int) (l: Number)
 
 -- InitTextState: the initial text state (Table 103)
 def InitTextState : TextState = TextState
-  0
-  0
-  100
   (IntNumber 0)
-  0
-  0
+  (IntNumber 0)
+  (IntNumber 100)
+  (IntNumber 0)
+  (IntNumber 0)
+  (IntNumber 0)
 
 -- setter operations for text state:
-def SetCharSpace (cs : int) (q : TextState) : TextState = TextState
+def SetCharSpace (cs : Number) (q : TextState) : TextState = TextState
   cs
   q.wordSpace
   q.scale
@@ -59,7 +59,7 @@ def SetLeading (l : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetRenderingMode (rm : int) (q : TextState) : TextState = TextState
+def SetRenderingMode (rm : Number) (q : TextState) : TextState = TextState
   q.charSpace
   q.wordSpace
   q.scale
@@ -67,7 +67,7 @@ def SetRenderingMode (rm : int) (q : TextState) : TextState = TextState
   rm
   q.rise
 
-def SetRise (r : int) (q : TextState) : TextState = TextState
+def SetRise (r : Number) (q : TextState) : TextState = TextState
   q.charSpace
   q.wordSpace
   q.scale
@@ -75,7 +75,7 @@ def SetRise (r : int) (q : TextState) : TextState = TextState
   q.renderingMode
   r
 
-def SetScale (s : int) (q : TextState) : TextState = TextState
+def SetScale (s : Number) (q : TextState) : TextState = TextState
   q.charSpace
   q.wordSpace
   s
@@ -83,7 +83,7 @@ def SetScale (s : int) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetWordSpace (ws : int) (q : TextState) : TextState = TextState
+def SetWordSpace (ws : Number) (q : TextState) : TextState = TextState
   q.charSpace
   ws
   q.scale
