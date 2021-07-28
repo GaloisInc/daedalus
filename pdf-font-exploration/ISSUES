@@ -7,7 +7,11 @@
 4. fixing CMap.ddl
   - do UTF right: parse as hexadecimal UTF16-BE and convert to UTF8 bytes!
   - see other FIXMEs in CMap.ddl (some maybe unimportant)
-    
+
+5. cidranges and bfranges - mutually exclusive
+6. no check is made that notdef conflicts with others!
+7. cidfonts don't use UTF16-BE nor <> notation!
+      
 * TODO find a good hello-world.pdf
 
 ** input.pdf with the qpdf generated input-read.pdf ?

@@ -100,6 +100,12 @@ def Overwrite m0 m1 = for (acc = m1; rng0, v0 in m0) {
   MapUnion acc x
 }
 
+def CollectRangeOp dom ops = {
+  $$ = for (acc = empty; m in ops) Overwrite acc m;
+  RangeArrayCovers dom (MapDomain $$)
+}
+
+
 
 ---- general CMap items --------------------------------------------------------
 
@@ -169,20 +175,8 @@ def CMapVal (k : CMapKey) = case k of
   xuid -> {| xuidVal = GenArray Number |}
   wMode -> {| wModeVal = Number |}
 
-def SizedOp Domain Rng nm = {
-  @size = Token(UnsignedNatural);
-  Guard (size <= 100); -- upper bound of 100 imposed by standard
-  GenCMapScope nm {
-    @es = Many (DepPair Domain Rng);
-    Guard (length es == (size as uint 64));
-    ListOfPairsToMap es
-    }
-}
 
-def CodeSpaceMap CharCode Rng nm = SizedOp
-                                     (CodeRange CharCode)
-                                     Rng
-                                     (append nm "range")
+---- CodeSpace/CodeRange functions ---------------------------------------------
 
 -- UnicodeSeq: a sequence of unicode characters
 def UnicodeSeq cc = {
@@ -194,8 +188,6 @@ def UnicodeSeq cc = {
    }
 }
 
--- CodePoint = the numeric values making up codespace, Unicode comprises 1,114,112 code points,
--- we represent with 'uint 32'
 
 def ParseUTF8 = HexString
                 -- FIXME: TODO: convert bytes from BE-UTF16 to codepoint (uint 32)
@@ -209,26 +201,22 @@ def CodeRanges CharCode = {
   @size = Token(UnsignedNatural);
   Guard (size <= 100); -- upper bound of 100 imposed by standard
   GenCMapScope "codespacerange" {
-    -- @es = Many (1..) (MapEntry (CodeRange CharCode) Unit); -- New: FIXME: try this??
     @es = Many (1..) (DepPair (CodeRange CharCode) (Const Unit));
     Guard (length es == (size as uint 64));
     ListOfPairsToMap es
    }
 }
 
-def CodeNumMap CharCode nm = CodeSpaceMap CharCode (Const Number) nm
-
--- BfCharOp: define unicode of a single character
-def BfCharOp CharCode = SizedOp
-                          (SingletonRange CharCode)
-                          (Const (LiftPToArray ParseUTF8))
-                          "bfchar"
-
-def BfRangeOp CharCode = CodeSpaceMap CharCode UnicodeSeq "bf"
-
 def CidRangeOp CharCode = CodeNumMap CharCode "cid"
 
 def NotDefRangeOp CharCode = CodeNumMap CharCode "notdef"
+
+def CodeNumMap CharCode nm = CodeSpaceMap CharCode (Const Number) nm
+
+def CodeSpaceMap CharCode Rng nm = SizedOp
+                                     (CodeRange CharCode)
+                                     Rng
+                                     (append nm "range")
 
 -- CodeRangeOp: code range operations
 def CodeRangeOp CharCode = Choose1 {
@@ -236,6 +224,14 @@ def CodeRangeOp CharCode = Choose1 {
   notDef = NotDefRangeOp CharCode;
   bf = (BfRangeOp CharCode) |
        (BfCharOp CharCode);
+def SizedOp Domain Rng nm = {
+  @size = Token(UnsignedNatural);
+  Guard (size <= 100); -- upper bound of 100 imposed by standard
+  GenCMapScope nm {
+    @es = Many (DepPair Domain Rng);
+    Guard (length es == (size as uint 64));
+    ListOfPairsToMap es
+    }
 }
 
 -- FIXME: BUG: doesn't tokenize right
@@ -286,7 +282,7 @@ def CMapProper_Raw CharCode = {
   -- extract/merge data:
   defs     = append items0.fst items1.fst;
   codes    = items0.snd;
-  rangeOps = items1.snd : [ CodeRangeOp ];
+  rangeOps = items1.snd;
 }
 
 def CMapProper CharCode = {
@@ -307,19 +303,23 @@ def CMapProper CharCode = {
   };
 
   -- collect CIDS:
-  cids = CollectRangeOp codeRanges (map (op in rangeOps) (
-    case op of
-      cid x2 -> just x2
-      _      -> nothing
-    ));
+  cids = CollectRangeOp
+           codeRanges
+           (optionsToArray (map (op in rangeOps)
+                                (case op of
+                                   cid x2 -> just x2
+                                   _      -> nothing
+                                )));
 
   -- collect NotDefs:
-  notDefs = CollectRangeOp codeRanges (map (op in rangeOps) (
-    case op of
-      notDef x2 -> just x2
-      _         -> nothing
-    ));
-
+  notDefs = CollectRangeOp
+              codeRanges
+              (optionsToArray (map (op in rangeOps)
+                                   (case op of
+                                      notDef x2 -> just x2
+                                      _         -> nothing
+                                   )));
+                                   
   -- collect BFs:
   bfs = CollectRangeOp codeRanges (map (op in rangeOps) (
     case op of
@@ -328,9 +328,6 @@ def CMapProper CharCode = {
     ));
 }
 
-def CollectRangeOp dom maybeOps = {
-  $$ = for (acc = empty; m in optionsToArray maybeOps) Overwrite acc m;
-  RangeArrayCovers dom (MapDomain $$)
 }
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
