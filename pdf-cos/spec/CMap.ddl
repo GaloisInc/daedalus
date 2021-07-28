@@ -11,6 +11,8 @@ import GenPdfValue
 import PdfValue
 import Unicode
 
+---- CodeRange type ------------------------------------------------------------
+
 -- numEntries rng: number of entries in the code range rng
 def numEntries rng = inc rng.numExtras
 
@@ -31,6 +33,9 @@ def SingletonRange CharCode : CodeRange = {
   lowEnd = CharCode as int;
   numExtras = ^(0 : int);
 }
+
+
+---- Operators on CodeRange type -----------------------------------------------
 
 -- strictlyLower r0 r1: span of range r0 is before span of range r1
 def strictlyLower r0 r1 = (highEnd r0) < r1.lowEnd
@@ -94,6 +99,9 @@ def Overwrite m0 m1 = for (acc = m1; rng0, v0 in m0) {
   @x = MapTo rngs0 v0;
   MapUnion acc x
 }
+
+
+---- general CMap items --------------------------------------------------------
 
 -- A CMap definition:
 def CMapDefn P = {
@@ -222,9 +230,9 @@ def CidRangeOp CharCode = CodeNumMap CharCode "cid"
 
 def NotDefRangeOp CharCode = CodeNumMap CharCode "notdef"
 
--- CodeRangeOps: code range operations
+-- CodeRangeOp: code range operations
 def CodeRangeOp CharCode = Choose1 {
-  cid = CidRangeOp CharCode;
+  cid    = CidRangeOp CharCode;
   notDef = NotDefRangeOp CharCode;
   bf = (BfRangeOp CharCode) |
        (BfCharOp CharCode);
@@ -253,11 +261,6 @@ def DictAnd Code Ops = {
   @codesAndOps = sepLists2 xs.snd;
   codes = codesAndOps.fst;
   ops = codesAndOps.snd;
-}
-
-def CollectRangeOp dom maybeOps = {
-  $$ = for (acc = empty; m in optionsToArray maybeOps) Overwrite acc m;
-  RangeArrayCovers dom (MapDomain $$)
 }
 
 -- parse bytes for "CMapProper" but leaave processing/validating to others
@@ -307,22 +310,27 @@ def CMapProper CharCode = {
   cids = CollectRangeOp codeRanges (map (op in rangeOps) (
     case op of
       cid x2 -> just x2
-      _ -> nothing
+      _      -> nothing
     ));
 
   -- collect NotDefs:
   notDefs = CollectRangeOp codeRanges (map (op in rangeOps) (
     case op of
       notDef x2 -> just x2
-      _ -> nothing
+      _         -> nothing
     ));
 
   -- collect BFs:
   bfs = CollectRangeOp codeRanges (map (op in rangeOps) (
     case op of
       bf x2 -> just x2
-      _ -> nothing
+      _     -> nothing
     ));
+}
+
+def CollectRangeOp dom maybeOps = {
+  $$ = for (acc = empty; m in optionsToArray maybeOps) Overwrite acc m;
+  RangeArrayCovers dom (MapDomain $$)
 }
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
