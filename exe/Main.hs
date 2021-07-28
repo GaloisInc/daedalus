@@ -38,7 +38,7 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Type.AST(TCModule(..),TCDecl(..),Type(..))
+import Daedalus.Type.AST(TCModule(..),TCDecl(..),Type(..),Constraint(..))
 import qualified Daedalus.Type.AST as TC
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
@@ -419,7 +419,7 @@ ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
   ppD :: TCDecl a -> Doc
   ppD d = pp nm <.> colon $$ nest 2 ty
     where
-    TC.Poly tys _ctrs ((implParams,explParams) TC.:-> res) = TC.declTypeOf d
+    TC.Poly tys ctrs ((implParams,explParams) TC.:-> res) = TC.declTypeOf d
 
     (_,nm) = nameScopeAsModScope (tcDeclName d)
 
@@ -428,11 +428,43 @@ ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
             | v <- [ 0 .. ], x <- [ 'a' .. 'z' ] ]
     ty = vcat [ "for any type" <+> hsep (Map.elems tpMap) <.> colon
               | not (Map.null tpMap) ]
+      $$ nest 2 (vcat (map ppCtr ctrs))
       $$ vcat [ "implict parameter:" <+> pp x <+> ":" <+> ppTy 0 p
                                                     | (x,p) <- implParams ]
       $$ vcat [ "parameter:" <+> ppTy 0 p | p <- explParams ]
       $$ "defines:" <+> ppTy 0 res
       $$ " "
+
+    ppBackTy t = "`" <> ppTy 0 t <> "`"
+
+    ppCtr ctr =
+      case ctr of
+        Numeric t -> ppBackTy t <+> "is a numeric type"
+        HasStruct ts l tf ->
+          ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf
+        HasUnion tu l tf ->
+          ppBackTy tu <+> "has a variant" <+> pp l <+> ":" <+> ppTy 0 tf
+
+        StructCon {} -> empty -- shouldn't appear in schemas
+        UnionCon {} -> empty -- shouldn't appear in schemas
+
+        Coerce los t1 t2 ->
+          ppBackTy t1 <+> "is coercible to" <+> ppBackTy t2 <+>
+            case los of
+              TC.Lossy -> "(lossy)"
+              TC.NotLossy -> empty
+              TC.Dynamic -> "(dynamic check)"
+
+        Literal n t -> ppBackTy t <+> "contains the number" <+> pp n
+        CAdd t1 t2 t3 -> ppTy 1 t1 <+> "+" <+> ppTy 1 t2 <+> "=" <+> ppTy 1 t3
+        Traversable t -> ppBackTy t <+> "supports iteration"
+        Mappable t1 t2 -> "mapping over" <+> ppBackTy t1 <+>
+                          "results in" <+> ppBackTy t2
+        ColElType t1 t2 -> ppBackTy t1 <+> "is a collection of" <+> ppBackTy t2
+        ColKeyType t1 t2 ->
+          ppBackTy t1 <+> "is a collection with index" <+> ppBackTy t2
+        IsNamed {} -> empty -- shouldn't appear in schemas
+
 
     ppTy n t = case t of
                 Type tty ->
@@ -442,8 +474,8 @@ ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
                     TStream    -> "stream"
                     TByteClass -> "byte class"
                     TNum i     -> integer i
-                    TUInt i    -> wrap 2 ("uint" <+> pp i)
-                    TSInt i    -> wrap 2 ("sint" <+> pp i)
+                    TUInt i    -> wrap 2 ("uint" <+> ppTy 1 i)
+                    TSInt i    -> wrap 2 ("sint" <+> ppTy 1 i)
                     TInteger   -> "int"
                     TBool      -> "bool"
                     TUnit      -> "{}"
