@@ -76,20 +76,21 @@ compileDDL =
                 , "PdfXRef"
                 , "PdfExtractText"
                 ]
-                -- this order is intentional: we order in reverse dependency order, thus no module
-                -- depends on anything after it in the list: three impacts
+                
+                -- This order is intentional: we order in reverse dependency order, thus no module
+                -- depends on anything after it in the list.  Three impacts are:
                 --  1. 'ddlLoadModel' should never load extra dependencies implicitly
                 --  2. the load order is known & constant (unless the constraint is broken)
-                --  3. hopefully, we reduce the number of file writes that don't get
-                --     short-circuited with our smartWriteFile below.
+                --  3. hopefully, we increase the number of short-circuited file writes
                 --
-                -- We determined this order by referring to this generated file
+                -- We determined this "topological sort" by referring to this generated file
                 --   spec/doc-pdfextracttext-import.dag
-                --
+                -- and then moving "GlyphList" as high up as possible.
+                
                 -- NOTE re this 'hack'
-                --  - the temp var naming that daedalus does appears to be done
-                --    at 'ddlLoadModule' time and "persists" across the files as
-                --    they are processed sequentially
+                --  - daedalus's temp var generation appears to be done
+                --    at 'ddlLoadModule' time and the "nextTmp" "persists" through the calls to
+                --    to ddlLoadModule.
                 
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
