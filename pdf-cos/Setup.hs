@@ -30,64 +30,86 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfXRef"
-                , "PdfCrypto"
-                , "PdfValue"
-
-                -- library-like, just in case no-one imports:
-                , "Array"
-                , "Map"
-                , "Pair"
-                , "Stdlib"
+     let mods = [ "Pair"
                 , "Sum"
+                , "Stdlib"
+                , "Map"
+                , "PdfValue"  -- nice to remove this out of lowest level prims
+                , "GenPdfValue"
 
-                , "ColourSpaceOps"
+                , "Glyph"
+                , "Unicode"
+                , "GlyphList" -- 30 min compile, let's hope this doesn't change much.
+
+                , "JpegBasics"
+                , "PdfDecl"
+                , "FontDesc"
+                , "CIDFont"
+                , "Array"
                 , "CMap"
+                , "ColourSpaceOps"
+                , "MacEncoding"
+                , "StdEncoding"
+                , "WinEncoding"
+                , "Maybe"
                 , "Encoding"
                 , "FontCommon"
-                , "FontDict"
-                , "GenPdfValue"
-                , "Glyph"
-                , "GlyphList"
-                , "GlyphListNewFonts"
-                , "GraphicsStateOps"
-                , "JpegBasics"
-                , "MacEncoding"
-                , "MacExpert"
-                , "Maybe"
-                , "Page"
-                , "PageTreeNode"
-                , "Rectangle"
-                , "ResourceDict"
-                , "StdEncoding"
                 , "SymbolEncoding"
+                , "ZapfDingbatsEncoding"
+                , "Type1Font"
                 , "TrueTypeFont"
                 , "Type0Font"
-                , "Type1Font"
+                , "Rectangle"
                 , "Type3Font"
-                , "WinEncoding"
-                , "ZapfDingbatsEncoding"
-
-                -- added for text extraction
+                , "FontDict"
+                , "GraphicsStateOps"
+                , "MarkedContentOps"
+                , "ResourceDict"
+                , "TextEffect"
+                , "TextPosOp"
+                , "TextShowOp"
+                , "TextStateOp"
+                , "TextObj"
                 , "ContentStreamLight"
+                , "Page"
+                , "PageTreeNode"
+                , "PdfXRef"
                 , "PdfExtractText"
-                , "PdfText"
-                , "Unicode"
                 ]
+                -- this order is intentional: we order in reverse dependency order, thus no module
+                -- depends on anything after it in the list: three impacts
+                --  1. 'ddlLoadModel' should never load extra dependencies implicitly
+                --  2. the load order is known & constant (unless the constraint is broken)
+                --  3. hopefully, we reduce the number of file writes that don't get
+                --     short-circuited with our smartWriteFile below.
+                --
+                -- We determined this order by referring to this generated file
+                --   spec/doc-pdfextracttext-import.dag
+                --
+                -- NOTE re this 'hack'
+                --  - the temp var naming that daedalus does appears to be done
+                --    at 'ddlLoadModule' time and "persists" across the files as
+                --    they are processed sequentially
+                
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
-     ddlIO $
+     ddlIO $ 
        mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
-                       , "  (efficiently: no updates when file contents would be equal)"
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
-                       ++ [""]
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg
-         saveHS' = saveHSCustomWriteFile smartWriteFile
-                   -- more efficient replacement for 'saveHS'
-     mapM_ (\m -> saveHS' (Just "src/spec") (cfgFor m) m) todo
+         -- more efficient replacement for 'saveHS'
+         saveHS' dir cfg mod =
+            do
+            saveHSCustomWriteFile (smartWriteFile log) dir cfg mod
+     
+         log fn = putStrLn $ "  " ++ fn
+ 
+     ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
+     mapM_ (\m -> saveHS' (Just "src/spec")   (cfgFor m) m)  todo
+     ddlIO $ putStrLn "... daedalus done"
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if
@@ -104,12 +126,14 @@ compileDDL =
 --   that one.
 
 -- equivalent to writeFile except that file access dates untouched when file-data unchanged.
-smartWriteFile :: FilePath -> String -> IO ()
-smartWriteFile outFile s =
+smartWriteFile :: (FilePath -> IO ()) -> FilePath -> String -> IO ()
+smartWriteFile logUpdate outFile s =
   do
   exists <- doesFileExist outFile
   if not exists then
+    do
     writeFile outFile s
+    logUpdate outFile
   else
     do
     hOutfile <- openFile outFile ReadMode
@@ -121,6 +145,7 @@ smartWriteFile outFile s =
                     hClose hTmpFile
                     hClose hOutfile
                     renameFile tmpFile outFile
+                    logUpdate outFile
 
 cfg :: CompilerCfg
 cfg = CompilerCfg
