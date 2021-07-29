@@ -41,9 +41,7 @@ def PageAddType (page0 : PartialPage) = PartialPage
 
 def PageAddParent (par : Ref) (page0 : PartialPage) = PartialPage
   page0.type0
--- BUG: causes page to be rejected
   (Holds (Guard (Token Ref == par)))
---  (Holds (Token Ref))
   page0.resources0
   page0.contents0
 
@@ -68,16 +66,10 @@ def AddContents page0 = PartialPage
         };
         ^(arrayStream (concat strms))
       } <| -- parse a single reference
-      { @r = Ref;
+      { @r = Token Ref;
         @strm = ResolveStreamRef r;
         strm.body is ok
       }))
-
-def PageAddOther k page0 = PartialPage
-  page0.type0
-  page0.parent0
-  page0.resources0
-  page0.contents0
 
 def ExtendPage (par : Ref) k (p : PartialPage) = 
   if k == "Type" then {

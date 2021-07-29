@@ -13,14 +13,14 @@ import Type1Font
 -- ResourceDict: resource dictionary, with default values in all fields
 
 def PartialResourceDict
-  (pGState : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  (pGState : maybe [ [ uint 8 ] -> Value ])
   (pCS : maybe [ [ uint 8 ] -> Value ])
   (pPattern : maybe [ [ uint 8 ] -> Value ])
-  (pShading : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  (pShading : maybe [ [ uint 8 ] -> Value ])
   (pXObj : maybe [ [ uint 8 ] -> Value ])
   (pFont : maybe [ [ uint 8 ] -> FontDict ])
   (pProcSet : maybe [ Value ])
-  (pProps : maybe [ [ uint 8 ] -> [ [ uint 8 ] -> Value ] ])
+  (pProps : maybe [ [ uint 8 ] -> Value ])
   = {
   extGState0 = pGState;
   colorSpace0 = pCS;
@@ -43,7 +43,7 @@ def InitResourceDict = PartialResourceDict
   nothing
 
 def AddExtGState (d : PartialResourceDict) = PartialResourceDict
-  (just (DirectOrRef (PdfDict (DirectOrRef Dict))))
+  (just (DirectOrRef Dict))
   -- TODO: refine using Sec. 8.4.5, if needed
   d.colorSpace0
   d.pattern0
@@ -79,7 +79,7 @@ def AddShading (d : PartialResourceDict) = PartialResourceDict
   d.extGState0
   d.colorSpace0
   d.pattern0
-  (just (DirectOrRef (PdfDict Dict)))
+  (just (DirectOrRef Dict))
   -- TODO: refine using Sec. 8.7.4.5, if needed
   d.xObject0
   d.font0
@@ -102,7 +102,7 @@ def AddFont (d : PartialResourceDict) = PartialResourceDict
   d.pattern0
   d.shading0
   d.xObject0
-  (just (DirectOrRef (PdfDict (DirectOrRef FontDict))))
+  (just (DirectOrRef (PdfDict (DirectOrRef FontDictP))))
   d.procSet0
   d.properties0
 
@@ -124,7 +124,7 @@ def AddProperties (d : PartialResourceDict) = PartialResourceDict
   d.xObject0
   d.font0
   d.procSet0
-  (just (DirectOrRef (PdfDict Dict)))
+  (just (DirectOrRef Dict))
 
 def ExtendResourceDict (k : [ uint 8]) (dict : PartialResourceDict) = {
   if k == "ExtGState" then {

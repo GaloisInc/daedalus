@@ -23,7 +23,7 @@ def EncodingRepr = Choose1 {
 }
 
 -- PartialType1Font: partial definition of a Type1 font
-def PartialType1Font (com : PartialFontCommon) (pChars : PartialCharSet)
+def PartialType1Font (com : PartialCommonFont) (pChars : PartialCharSet)
   (bf: maybe FontName) (enc: maybe EncodingRepr) = {
   common = com;
   chars = pChars;
@@ -57,7 +57,7 @@ def Type1SetChars (pChars : PartialCharSet)
 def Type1AddBaseFont (Subst : uint 8) (f : PartialFontType) = PartialType1Font 
   f.common
   f.chars
-  (just (DirectOrRef (Token (GenName (FontName)))))
+  (just (DirectOrRef (Token (GenName (FontNameP)))))
   f.encoding0
 
 -- AddEncoding: add an encoding
@@ -143,13 +143,11 @@ def Type1FontStub = Type1Font (PartialType1Font
   (just Helvetica)
   nothing)
 
--- DBG:
-def Type1FontP0 = GenPdfDict1
+def Type1FontP0 = When Value Type1FontStub
+def Type1FontP = GenPdfDict1
   InitType1Font
   (ExtendType1Font "Type1" Void)
   Type1Font
-
-def Type1FontP = When Value Type1FontStub
 
 -- Multiple master fonts (Sec. 9.6.2.3)
 def MMFontP = GenPdfDict1

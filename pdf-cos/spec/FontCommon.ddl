@@ -172,6 +172,14 @@ def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
     (FontDescP baseFont)
 }
 
+def CharSet0 (baseFont : FontName) (chars : PartialCharSet) = {
+  name = just "foo";
+  firstChar = (0 : uint 64);
+  lastChar = (0 : uint 64);
+  widths = [ (IntNumber 0) ];
+  fontDesc = StubFontDesc;
+}
+
 -- Type0: type, subtype, basefont, encoding (name or stream), descendants, toUnicode
 
 -- Type1: type, subtype, name, basefont, chars..., fontDesc, encoding (name or dictionary), toUnicode

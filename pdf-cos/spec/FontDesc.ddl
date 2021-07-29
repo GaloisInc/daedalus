@@ -34,7 +34,7 @@ def stdFontIsLatin (f : StandardFont) : bool = case f of {
 }
 
 -- Base fonts: the 14 standards and everything else
--- DBG:
+-- TODO: reenable:
 --def FontName (Subst : uint 8) = Choose1 {
 def FontName = {
   @nameChars = Many NameChar;
@@ -43,6 +43,10 @@ def FontName = {
     nonStandard = nameChars
   }
 }
+
+def FontName0 : FontName = {| nonStandard = Many NameChar |}
+
+def FontNameP = FontName
 
 def Helvetica : FontName = {|
   standard = HelveticaNm
@@ -108,12 +112,13 @@ def FontDesc (fd: PartialFontDesc) = {
   isLatin = fontIsNonSymbolic
 }
 
-def FontDescP (parBaseFont : FontName ) = GenPdfDict1
-  InitFontDesc
-  (ExtendFontDesc parBaseFont)
-  FontDesc
-
 def StubFontDesc = FontDesc (PartialFontDesc
   true
   true
-  (just (setBit 2 0)) )
+  (just (32 : uint 32)))
+
+def FontDescP (parBaseFont : FontName ) = When Value StubFontDesc
+def FontDescP0 (parBaseFont : FontName ) = GenPdfDict1
+  InitFontDesc
+  (ExtendFontDesc parBaseFont)
+  FontDesc

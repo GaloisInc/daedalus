@@ -55,13 +55,11 @@ def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
   (just (FontOp resrcs))
   nothing
 
--- DBG:
 def TestSizedFont = SizedFont (MkType1Font Type1FontStub) (IntNumber 12)
 
 -- TextOp: an operation that can occur in a text object
 def TextOp (mayF : maybe SizedFont) = Choose1 {
   -- all text operands are mutually exclusive
-  -- DBG:
   textShowOp = TextShowOp (mayF is just);
   textStateOp = TextStateOp;
   textPosOp = TextPosOp;

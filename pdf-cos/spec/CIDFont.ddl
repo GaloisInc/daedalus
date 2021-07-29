@@ -8,19 +8,19 @@ import FontDesc
 
 -- TODO: Universe C may allow an extra value here
 def CIDFontType = Choose1 {
-  cidFontType0 = NameToken "CIDFontType0";
-  cidFontType2 = NameToken "CIDFontType2";
+  cidFontType0 = @(Match "CIDFontType0");
+  cidFontType2 = @(Match "CIDFontType2");
 }
 
 -- DW2: specifies default metrics for veritical writing
 def DW2 = {
-  metric0 = Token Integer;
-  metric1 = Token Integer;
+  metric0 = Token Number;
+  metric1 = Token Number;
 }
 
 def DefaultDW2 : DW2 = {
-  metric0 = 880;
-  metric1 = 1000;
+  metric0 = IntNumber 880;
+  metric1 = IntNumber 1000;
 }
 
 def CIDToGIDMapRec (pos : uint 64) m = Default m
@@ -38,22 +38,9 @@ def CIDToGIDMap = Choose {
   identity = DirectOrRef (NameToken "Identity");
 }
 
-def PartialCIDFont = {
-  type = false;
-  subtype = nothing : maybe CIDFontType;
-  baseFont = nothing : maybe [ uint 8 ];
-  cidSysInfo = nothing : maybe [ [ uint 8 ] -> Value ];
-  fontDescriptor = nothing : maybe [ [ uint 8 ] -> Value ];
-  dw = nothing : maybe (uint 64);
-  w = nothing : maybe [ uint 64 ];
-  dw2 = nothing : maybe DW2;
-  w2 = nothing : maybe [ Value ];
-  cidToGidMap = nothing : maybe CIDToGIDMap;
-}
-
-def MkPartialCIDFont (ty: bool) (sty: maybe CIDFontType) (bf: maybe string)
-  sysInfo (fd: maybe FontDescriptor)
-  (pdw: maybe (uint 64)) (pw: maybe [ uint 64 ])
+def PartialCIDFont (ty: bool) (sty: maybe CIDFontType) (bf: maybe FontName)
+  (sysInfo : maybe [ [ uint 8 ] -> Value ]) (fd: maybe Ref)
+  (pdw: maybe Number) (pw: maybe [ PdfValue ])
   (pdw2: maybe DW2) (pw2: maybe [ PdfValue ])
   (pCIDToGID: maybe CIDToGIDMap) : PartialCIDFont = {
 
@@ -69,7 +56,7 @@ def MkPartialCIDFont (ty: bool) (sty: maybe CIDFontType) (bf: maybe string)
   cidToGidMap = pCIDToGID;
 }
 
-def InitCIDFont = MkPartialCIDFont
+def InitCIDFont = PartialCIDFont
   false
   nothing
   nothing
@@ -81,8 +68,8 @@ def InitCIDFont = MkPartialCIDFont
   nothing
   nothing
 
-def CIDAddType f = MkPartialCIDFont
-  (Holds (Guard ((DirectOrRef (Token Name)) == "Font")))
+def CIDAddType f = PartialCIDFont
+  (Holds (DirectOrRef (NameToken "Font")))
   f.subtype
   f.baseFont
   f.cidSysInfo
@@ -93,9 +80,9 @@ def CIDAddType f = MkPartialCIDFont
   f.w2
   f.cidToGidMap
 
-def CIDAddSubtype f = MkPartialCIDFont
+def CIDAddSubtype f = PartialCIDFont
   f.type
-  (just CIDFontType)
+  (just (Token (GenName CIDFontType)))
   f.baseFont
   f.cidSysInfo
   f.fontDescriptor
@@ -105,10 +92,10 @@ def CIDAddSubtype f = MkPartialCIDFont
   f.w2
   f.cidToGidMap
 
-def CIDAddBaseFont f = MkPartialCIDFont
+def CIDAddBaseFont f = PartialCIDFont
   f.type
   f.subtype
-  (just (DirectOrRef (Token Name)))
+  (just (DirectOrRef (Token (GenName FontName))))
   f.cidSysInfo
   f.fontDescriptor
   f.dw
@@ -117,7 +104,7 @@ def CIDAddBaseFont f = MkPartialCIDFont
   f.w2
   f.cidToGidMap
 
-def CIDAddSysInfo f = MkPartialCIDFont
+def CIDAddSysInfo f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
@@ -129,55 +116,43 @@ def CIDAddSysInfo f = MkPartialCIDFont
   f.w2
   f.cidToGidMap
 
-def CIDAddFontDesc f = MkPartialCIDFont
+def CIDAddFontDesc f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
   f.cidSysInfo
-  (just (ParseAtRef (Token Ref) Dict))
+  (just (Token Ref))
   f.dw
   f.w
   f.dw2
   f.w2
   f.cidToGidMap
 
-def CIDAddDW f = MkPartialCIDFont
+def CIDAddDW f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
   f.cidSysInfo
   f.fontDescriptor
-  (just UNatural)
+  (just (DirectOrRef (Token Number)))
   f.w
   f.dw2
   f.w2
   f.cidToGidMap
 
-def CIDAddW f = MkPartialCIDFont
+def CIDAddW f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
   f.cidSysInfo
   f.fontDescriptor
   f.dw
-  (just (GenArray UNatural))
+  (just (DirectOrRef (GenArray Value)))
   f.dw2
   f.w2
   f.cidToGidMap
 
-def CIDAddDW2 f = MkPartialCIDFont
-  f.type
-  f.subtype
-  f.baseFont
-  f.cidSysInfo
-  f.fontDescriptor
-  f.dw
-  f.w
-  (just DW2)
-  f.w2
-  f.cidToGidMap
-
-def CIDAddW2 f = MkPartialCIDFont
+def CIDAddDW2 f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
@@ -185,11 +160,11 @@ def CIDAddW2 f = MkPartialCIDFont
   f.fontDescriptor
   f.dw
   f.w
-  f.dw2
-  (just Array) -- TODO: possibly strengthen
+  (just (DirectOrRef (Between "[" "]" DW2)))
+  f.w2
   f.cidToGidMap
 
-def CIDAddCIDToGIDMap f = MkPartialCIDFont
+def CIDAddW2 f = PartialCIDFont
   f.type
   f.subtype
   f.baseFont
@@ -198,8 +173,22 @@ def CIDAddCIDToGIDMap f = MkPartialCIDFont
   f.dw
   f.w
   f.dw2
+  (just (DirectOrRef Array)) -- TODO: possibly strengthen
+  f.cidToGidMap
+
+def CIDAddCIDToGIDMap f = PartialCIDFont
+  f.type
+  f.subtype
+  f.baseFont
+  f.cidSysInfo
+  f.fontDescriptor
+  f.dw
+  f.w
+  f.dw2
   f.w2
-  (just CIDToGIDMap)
+-- DBG:
+--  (just CIDToGIDMap)
+  (When Value nothing)
 
 def ExtendCIDFont k f =
   if k == "Type" then {
@@ -249,7 +238,8 @@ def CIDFont (f : PartialCIDFont) = {
   cidSubtype = f.subtype is just; -- required
   cidBaseFont = f.baseFont is just; -- TODO: may need more here
   cidSystemInfo = f.cidSysInfo is just; -- required
-  cidFontDesc = f.fontDescriptor is just; -- required
+  cidFontDesc = ParseAtRef (f.fontDescriptor is just)
+    (FontDescP cidBaseFont);
 
   cidDW = f.dw;
   cidW = f.w;

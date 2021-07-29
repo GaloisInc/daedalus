@@ -23,3 +23,7 @@ def FontDict = Choose1 {
 def MkType0Font (f0 : Type0Font) : FontDict = {| type0 = f0 |}
 
 def MkType1Font (f1 : Type1Font) : FontDict = {| type1 = f1 |}
+
+-- def FontDictP = When Value (MkType1Font Type1FontStub)
+def FontDictP = FontDict
+
