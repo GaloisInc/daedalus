@@ -93,6 +93,7 @@ def Type0Font (f : PartialType0Font) = {
   toUnicode = CommonFont f.common;
 
   encoding = f.encoding0 is just; -- required
+  -- DBG:
   --  descFont = f.descFonts0 is just; -- required. TODO: enable
   baseFont = f.baseFont0 is just;
 

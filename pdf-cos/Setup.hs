@@ -51,6 +51,7 @@ compileDDL =
                 , "CMap"
                 , "ColourSpaceOps"
                 , "MacEncoding"
+                , "MacExpert"
                 , "StdEncoding"
                 , "WinEncoding"
                 , "Maybe"
