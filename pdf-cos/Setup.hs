@@ -52,6 +52,7 @@ compileDDL =
                 , "ColourSpaceOps"
                 , "MacEncoding"
                 , "MacExpert"
+                , "PdfCrypto"
                 , "StdEncoding"
                 , "WinEncoding"
                 , "Maybe"
@@ -79,7 +80,7 @@ compileDDL =
                 , "PdfXRef"
                 , "PdfExtractText"
                 ]
-                
+
                 -- This order is intentional: we order in reverse dependency order, thus no module
                 -- depends on anything after it in the list.  Three impacts are:
                 --  1. 'ddlLoadModel' should never load extra dependencies implicitly
@@ -89,15 +90,15 @@ compileDDL =
                 -- We determined this "topological sort" by referring to this generated file
                 --   spec/doc-pdfextracttext-import.dag
                 -- and then moving "GlyphList" as high up as possible.
-                
+
                 -- NOTE re this 'hack'
                 --  - daedalus's temp var generation appears to be done
                 --    at 'ddlLoadModule' time and the "nextTmp" "persists" through the calls to
                 --    to ddlLoadModule.
-                
+
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
-     ddlIO $ 
+     ddlIO $
        mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
@@ -108,9 +109,9 @@ compileDDL =
          saveHS' dir cfg mod =
             do
             saveHSCustomWriteFile (smartWriteFile log) dir cfg mod
-     
+
          log fn = putStrLn $ "  " ++ fn
- 
+
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
      mapM_ (\m -> saveHS' (Just "src/spec")   (cfgFor m) m)  todo
      ddlIO $ putStrLn "... daedalus done"
@@ -184,7 +185,7 @@ cfgPdfDecl = CompilerCfg
       , primName "PdfDecl" "ASCII85Decode" AGrammar |->
         aps "D.ascii85Decode" [ "body" ]
 
-      , primName "PdfDecl" "Decrypt" AGrammar |-> 
+      , primName "PdfDecl" "Decrypt" AGrammar |->
         aps "D.decrypt" [ "body" ]
 
       , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
@@ -210,4 +211,3 @@ cfgPdfDecl = CompilerCfg
   where
   fld x r = "HS.getField" `Ap` TyParam (Raw (x :: String)) `Ap` r
   x |-> y = (x,y)
-
