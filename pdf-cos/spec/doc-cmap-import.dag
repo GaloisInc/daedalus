@@ -1,7 +1,7 @@
 CMap
 ↳ Array
 ↳ Unicode      ╮
-↳ PdfDeclStubs │
+↳ PdfDecl      │
   ↳ JpegBasics │
 ↳ ↳ GenPdfValue│
 ↳ ↳ ↳ PdfValue ╮

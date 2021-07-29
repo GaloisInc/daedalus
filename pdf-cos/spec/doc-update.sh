@@ -12,10 +12,20 @@
 
 grep "^import" *.ddl | \
   sed 's/\.ddl:import / /' | \
-  graphtool "edges -source auto-add -destination auto-add  < - | display" > doc-module-import.dag
+  graphtool "edges -source auto-add -destination auto-add  < - | display" > doc-all-import.dag
   
 grep "^import" *.ddl | \
   sed 's/\.ddl:import / /' | \
-  graphtool "edges -source auto-add -destination auto-add  < - | roots CMap | display" > doc-cmap-module-import.dag
+  graphtool "edges -source auto-add -destination auto-add  < - | roots CMap | display" > doc-cmap-import.dag
+
+# create a topological sort at column 37 (or so), with the dependencies of PdfExtractText:
+
+grep "^import" *.ddl | \
+  sed 's/\.ddl:import / /' | \
+  graphtool "edges -source auto-add -destination auto-add  < - | roots PdfExtractText | display ascii right" > doc-pdfextracttext-import.dag
+
+grep "^import" *.ddl | \
+  sed 's/\.ddl:import / /' | \
+  graphtool "edges -source auto-add -destination auto-add  < - | roots GlyphList | display ascii right" > doc-glyphlist-import.dag
 
 
