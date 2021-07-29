@@ -183,22 +183,24 @@ def CMapVal (k : CMapKey) = case k of
 def UnicodeSeq cc =
   Choose {
     -- single unicode char:
-    singleUnicode= ParseCharacterCode;
+    singleUnicode= ParseCharacterCodes;
 
     -- multiple unicode chars:
     multipleUnicode=
       { @entries = numEntries cc as? uint 64;
-        Between "[" "]" (Many entries (Token ParseCharacterCode))
+        Between "[" "]" (Many entries (Token ParseCharacterCodes))
       }
   }
 
 def UnicodeSeq_single = {
-  @cc = ParseCharacterCode;
+  @cc = ParseCharacterCodes;
   ^ {| singleUnicode= cc |} : UnicodeSeq
   }
 
-def ParseCharacterCode = Token (Between "<" ">" ParseHexUTF16_BE)
-  -- FIXME: works for simple fonts, different for CID fonts.
+def ParseCharacterCodes : [uint 32] =
+  Token (Between "<" ">" ParseHexUTF16_BE)
+  -- for simple fonts just one unicode values
+  -- for CID fonts could be multiple unicode values
                 
 -- TODO: check that codespaces do not overlap, but only for
 -- codespace ranges
@@ -398,7 +400,7 @@ def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
 
 -- functions for using cmaps --------------------------------------------------
 
-def MapLookupCodepoint (index : int) cmap : uint 32 = {
+def MapLookupCodepoint (index : int) cmap : [uint 32] = {
   InCMapCodeRange index cmap;
   @ccmap = CodeRangeMapToCharCodeMap cmap.bfs;
   Lookup index ccmap;
@@ -410,17 +412,20 @@ def InCMapCodeRange (index : int) cmap : bool = {
   -- Guard(charindex >= cmap.codeRanges 
 }
 
-def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int -> uint 32 ] =
-  for (ccmap = empty : [int -> uint 32] ; k, unicode in crmap)
+def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int -> [uint 32] ] =
+  for (ccmap = empty; k, unicode in crmap)
     for (ccmap2 = ccmap ; j in rangeUp 0 (k.numExtras + 1))
       { @key = k.lowEnd + j;
-        @val = case (unicode : UnicodeSeq) of {
-                  singleUnicode c ->
-                     { ^ c + (j as! uint 32) };
-                  multipleUnicode cs ->
-                     { Guard (length cs == (k.numExtras as! uint 64));
+        @val = case unicode : UnicodeSeq of {
+                  singleUnicode cs -> 
+                     { ^ map (c in cs) (c + (j as! uint 32))
+                     };
+                     -- FIXME: if (length cs > 1 && k.numExtras > 0)
+                     --        then the above map is going to be weird/wrong!
+                  multipleUnicode css ->
+                     { Guard (length css == (k.numExtras as! uint 64));
                          -- shouldn't fail, see @entries above
-                       Index cs (j as! uint 64);
+                       Index css (j as! uint 64);
                      };
                   };
         Insert key val ccmap2

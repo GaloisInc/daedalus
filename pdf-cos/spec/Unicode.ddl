@@ -7,12 +7,27 @@ import PdfValue
 -- CodePoint = the numeric values making up codespace, Unicode comprises 1,114,112 code points,
 -- we represent code points with 'uint 32'.
 
-def ParseHexUTF16_BE : uint 32 = {
-  @p1 = numBase 16 (Many 4 HexDigit) as! uint 32;
-  -- @p2 = Optional (Many 4 HexDigit) -- FIXME: implement
-  ^ p1 
-} 
+-- see p. 358 of ISO 32000-2:2020(E), we have a hexadecimal representation of a
+-- sequence of UTF16_BE unicode values
 
+def ParseHexUTF16_BE : [uint 32] =
+  Choose {
+    {@x1 = HexWord16;
+     if x1 < 0xD800 || x1 > 0xDFFF
+       then concat [[x1], ParseHexUTF16_BE]
+       else { @x2 = HexWord16
+            , concat [[chr2 x1 x2], ParseHexUTF16_BE]
+            }
+    };
+    {^ []}
+  }
+
+def chr2 (a : uint 32) (b : uint 32) : uint 32 =
+  (a << 10) + b + surrogate_offset
+  
+def surrogate_offset : uint 32 = 0x10000 - (0xD800 << 10) - 0xDC00
+
+def HexWord16 : uint 32 = numBase 16 (Many 4 HexDigit) as! uint 32
 
 ---- UTF-8 oriented definitions: -----------------------------------------------
 
