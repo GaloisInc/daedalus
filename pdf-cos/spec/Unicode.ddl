@@ -61,7 +61,7 @@ def utf8CharBytes (utfChar: UTF8) = case utfChar of
 def utf8Bytes utf8Chars = concat
   (map (uniChar in utf8Chars) (utf8CharBytes uniChar))
 
-def unicodeTailHOBits : uint 8 = 0xC0
+def unicodeTailHOBits : uint 8 = 0x80
 
 -- trunc8: truncate a two-byte value to one byte
 def trunc8 (x : uint 16) : uint 8 = (0 : uint 8) <# x
@@ -81,13 +81,15 @@ def pointTail3 (x : uint 16) = bytes3
   (pointTail2 (x .&. 0x7FF))
 
 -- unicodePoint: construct a code point from a two-byte value
+-- DBG:
 def unicodePoint (x : uint 16) : UTF8 =
   if x <= 0x7F then mkUTF81
     (bytes1 (trunc8 x))
   else if x <= 0x07FF then mkUTF82
     (bytes2 (0xC0 .|. (shiftTail x 1)) (pointTail1 (x .&. 0x3F)))
   else if x <= 0xFFFF then mkUTF83
-    (bytes3 (0xE0 .|. (shiftTail x 2)) (pointTail2 (x .&. 0x7FF)))
+    (bytes3 (0xE0 .|. (shiftTail x 2)) (pointTail2 (x .&. 0xFFF)))
   else -- should not be reached: just give default value for now
     mkUTF81 (bytes1 '.')
 
+def unicodePoint0 (x : uint 16) : UTF8 = mkUTF81 (bytes1 '.')

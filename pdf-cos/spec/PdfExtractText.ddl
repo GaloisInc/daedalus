@@ -94,7 +94,9 @@ def PageTreeContentStreams pt = KidsContentStreams pt.kids
 
 def ExtractRootText1 (r : Ref) = {
   @ptCs = PageTreeContentStreams (PageTreeP r);
+-- DBG:
   concat (map (cs in ptCs) (ExtractContentStreamText cs))
+--  [ ]
 }
 
 --------------------------------------------------------------------------------

@@ -96,6 +96,7 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 * LANG: allowing multiple imports of the same module with caps/non-caps
 
-# checking for embedded fonts #
+# implementing Universe C
 
 * embedded fonts: check for presence of FontFile/FontFile2/FontFile3 in FontDescriptor
+
