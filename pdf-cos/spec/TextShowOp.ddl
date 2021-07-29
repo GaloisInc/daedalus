@@ -51,7 +51,7 @@ def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
         ; hexBytes bs -> ExtractString q op.showFont bs
         ; adjustNum n -> optionToArray (condJust
             ((0 - n.num) > visible)
-            (UTF81 (Bytes1 ' ')) )
+            (mkUTF81 (bytes1 ' ')) )
         })
     }
   }

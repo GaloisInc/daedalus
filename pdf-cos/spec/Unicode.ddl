@@ -20,33 +20,36 @@ def NonASCIIByte = {
 }
 
 -- UTF-8: byte sequences of length 1 <= n <= 4
-def UTF8 (bs1 : Bytes1)
-  (bs2 : Bytes2)
-  (bs3 : Bytes3)
-  (bs4 : Bytes4) = Choose {
+def UTF8 (bs1 : bytes1)
+  (bs2 : bytes2)
+  (bs3 : bytes3)
+  (bs4 : bytes4) = Choose {
   utf81 = bs1;
   utf82 = bs2;
   utf83 = bs3;
   utf84 = bs4; -- TODO: refine to check byte values, if needed
 }
 
-def UTF81 (bs : Bytes1) : UTF8 = {|
+def mkUTF81 (bs : bytes1) : UTF8 = {|
   utf81 = bs
 |}
 
-def UTF82 (bs : Bytes2) : UTF8 = {|
+def mkUTF82 (bs : bytes2) : UTF8 = {|
   utf82 = bs
 |}
 
-def UTF83 (bs : Bytes3) : UTF8 = {|
+def mkUTF83 (bs : bytes3) : UTF8 = {|
   utf83 = bs
 |}
 
-def UTF84 (bs : Bytes4) : UTF8 = {|
+def mkUTF84 (bs : bytes4) : UTF8 = {|
   utf84 = bs
 |}
 
-def UTF8AsciiP = UTF81 (Bytes1 ASCIIByte)
+def UTF8AsciiP = {
+  @b = ASCIIByte;
+  mkUTF81 (bytes1 b)
+}
 
 def utf8CharBytes (utfChar: UTF8) = case utfChar of
   utf81 cs1 -> bndBytes1 cs1
@@ -66,24 +69,25 @@ def trunc8 (x : uint 16) : uint 8 = (0 : uint 8) <# x
 def shiftTail (x : uint 16) (numCells : uint 64) : uint 8 =
   trunc8 (x >> (numCells * 6))
 
-def PointTail1 (x : uint 16) : Bytes1 = Bytes1
+def pointTail1 (x : uint 16) = bytes1
   (unicodeTailHOBits .|. (shiftTail x 0))
 
-def PointTail2 (x : uint 16) : Bytes2 = Bytes2
+def pointTail2 (x : uint 16) = bytes2
   (unicodeTailHOBits .|. (shiftTail x 1))
-  (PointTail1 (x .&. 0x3F))
+  (pointTail1 (x .&. 0x3F))
 
-def PointTail3 (x : uint 16) : Bytes3 = Bytes3
+def pointTail3 (x : uint 16) = bytes3
   (unicodeTailHOBits .|. (shiftTail x 2))
-  (PointTail2 (x .&. 0x7FF))
+  (pointTail2 (x .&. 0x7FF))
 
 -- unicodePoint: construct a code point from a two-byte value
-def UnicodePoint (x : uint 16) : UTF8 =
-  if x <= 0x7F then UTF81
-    (Bytes1 (trunc8 x))
-  else if x <= 0x07FF then UTF82
-    (Bytes2 (0xC0 .|. (shiftTail x 1)) (PointTail1 (x .&. 0x3F)))
-  else if x <= 0xFFFF then UTF83
-    (Bytes3 (0xE0 .|. (shiftTail x 2)) (PointTail2 (x .&. 0x7FF)))
-  else Void
+def unicodePoint (x : uint 16) : UTF8 =
+  if x <= 0x7F then mkUTF81
+    (bytes1 (trunc8 x))
+  else if x <= 0x07FF then mkUTF82
+    (bytes2 (0xC0 .|. (shiftTail x 1)) (pointTail1 (x .&. 0x3F)))
+  else if x <= 0xFFFF then mkUTF83
+    (bytes3 (0xE0 .|. (shiftTail x 2)) (pointTail2 (x .&. 0x7FF)))
+  else -- should not be reached: just give default value for now
+    mkUTF81 (bytes1 '.')
 

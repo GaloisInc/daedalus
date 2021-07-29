@@ -54,11 +54,12 @@ def Type1SetChars (pChars : PartialCharSet)
 
 -- AddBaseFont nm f: add a base font to font
 -- TODO: re-enable Subst
-def Type1AddBaseFont (Subst : uint 8) (f : PartialFontType) = PartialType1Font 
-  f.common
-  f.chars
-  (just (DirectOrRef (Token (GenName (FontNameP)))))
-  f.encoding0
+def Type1AddBaseFont (Subst : uint 8) (f : PartialFontType) =
+  PartialType1Font 
+    f.common
+    f.chars
+    (just (DirectOrRef (Token (GenName (FontNameP)))))
+    f.encoding0
 
 -- AddEncoding: add an encoding
 def Type1AddEncoding f = PartialType1Font
@@ -155,7 +156,7 @@ def MMFontP = GenPdfDict1
   (ExtendType1Font "MMType1" (When (Match1 '_') ' ')) -- sub underscore w space
   Type1Font
 
-def LatinEnc (font : Type1Font) : [ uint 8 -> Glyph ] =
+def LatinEnc (font : Type1Font) =
   case font.encoding of {
     just encRepr ->
       case encRepr of {
@@ -171,7 +172,7 @@ def LatinEnc (font : Type1Font) : [ uint 8 -> Glyph ] =
 
 -- Type1BaseEnc f: the base encoding for font f
 -- WARNING: this guesses at navigating very inconsistent info in a PDF
-def Type1BaseEnc (f : Type1Font) : [ uint 8 -> Glyph ] = case f.charSet of {
+def Type1BaseEnc (f : Type1Font) = case f.charSet of {
   stdDesc s -> case (s.type1StdName : StandardFont) of {
       symbol -> SymbolEncoding
     ; zapfDingbats -> ZapfDingbatsEncoding
@@ -182,7 +183,7 @@ def Type1BaseEnc (f : Type1Font) : [ uint 8 -> Glyph ] = case f.charSet of {
     else SymbolEncoding
 }
 
-def Type1EncDiffs (f : Type1Font) : [ uint 8 -> Glyph ] = {
+def Type1EncDiffs (f : Type1Font) = {
   case f.encoding of {
     just repr -> case repr of {
       predefEnc _ -> empty
@@ -193,5 +194,5 @@ def Type1EncDiffs (f : Type1Font) : [ uint 8 -> Glyph ] = {
 }
 
 -- Type1Enc: the encoding map for a Type1 font
-def Type1Enc (f : Type1Font) : [ uint 8 -> Glyph ] = 
+def Type1Enc (f : Type1Font) = 
   MapUnion (Type1BaseEnc f) (Type1EncDiffs f)

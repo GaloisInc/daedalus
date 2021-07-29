@@ -40,6 +40,8 @@ compileDDL =
                 , "Glyph"
                 , "Unicode"
                 , "GlyphList" -- 30 min compile, let's hope this doesn't change much.
+                , "GlyphListNewFonts"
+                , "GlyphEnc"
 
                 , "JpegBasics"
                 , "PdfDecl"

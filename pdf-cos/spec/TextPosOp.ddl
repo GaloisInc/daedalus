@@ -36,5 +36,6 @@ def isZeroNumber n = n.num == 0
 
 def ShowPos (op: TextPosOp) : [ UTF8 ] = case op of {
   -- interpret setting text position as injecting a newline
-  setTextMatrix m -> [ UTF81 (Bytes1 (if isZeroNumber m.f then ' ' else '\n')) ]
+  setTextMatrix m -> [ mkUTF81 (bytes1
+    (if isZeroNumber m.f then ' ' else '\n')) ]
 }

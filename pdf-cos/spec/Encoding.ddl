@@ -23,7 +23,7 @@ def PredefEncodingName = Choose1 {
 }
 
 -- PredefEncoding: the encodings for each special encoding
-def PredefEncoding (encNm : PredefEncodingName) : [ uint 8 -> Glyph ] =
+def PredefEncoding (encNm : PredefEncodingName) =
   case encNm of {
     macRoman -> MacEncoding
   ; macExpert -> MacEncoding -- TODO: use MacExpert
@@ -32,7 +32,7 @@ def PredefEncoding (encNm : PredefEncodingName) : [ uint 8 -> Glyph ] =
 
 def PartialEncoding (pTy : bool)
   (pBaseEnc : maybe PredefEncodingName)
-  (pDiffs : maybe [ uint 8 -> Glyph ]) = {
+  (pDiffs : maybe [ uint 8 -> glyph ]) = {
   type = pTy;
   baseEncoding = pBaseEnc;
   differences = pDiffs;
@@ -60,13 +60,13 @@ def AddDifferences (enc : PartialEncoding) = PartialEncoding
   (just (DirectOrRef (Between "[" "]" {
     @es = Many {
       code = Token UNatural as! uint 8;
-      glyphs = Many (Glyph (Token Name))
+      glyphs = Many (glyph (Token Name))
     };
     @codeDiffs = map (ent in es) (
       for (entDict = empty; glyph in ent.glyphs) 
         (Insert (ent.code + ((MapLength entDict) as! uint 8)) glyph entDict)
     );
-    for (d = empty : [ uint 8 -> Glyph ]; codeDict in codeDiffs)
+    for (d = empty : [ uint 8 -> glyph ]; codeDict in codeDiffs)
       (MapUnion d codeDict)
     -- TODO: refine to require maps to be disjoint
   })))

@@ -58,55 +58,37 @@ def optionsToArray (xs : [ maybe a ]) : [ a ] = concat
 -- bounded sequences of bytes:
 def OrEatByte P = OptionalIf P UInt8
 
-def Bytes1 (b : uint 8) = {
+def bytes1 (b : uint 8) = {
   only = b
 }
 
-def Bytes1P = Bytes1 UInt8
+def Bytes1P = bytes1 UInt8
 
-def Bytes2 (high : uint 8) (others : Bytes1) = {
+def bytes2 (high : uint 8) (others : bytes1) = {
   second = high
 ; rest1 = others
 }
 
-def Bytes2All (high : uint 8) (low : uint 8) = Bytes2 high (Bytes1 low)
+def bytes2All (high : uint 8) (low : uint 8) = bytes2 high (bytes1 low)
 
-def Bytes2P = Bytes2 UInt8 Bytes1P
+def Bytes2P = bytes2 UInt8 Bytes1P
 
-def Bytes3 (pthird : uint 8) (others : Bytes2) = {
+def bytes3 (pthird : uint 8) (others : bytes2) = {
   third = pthird;
   rest2 = others;
 }
 
-def Bytes3P = Bytes3 UInt8 Bytes2P
+def Bytes3P = bytes3 UInt8 Bytes2P
 
-def Bytes4 (pfourth : uint 8) (others : Bytes3) = {
+def bytes4 (pfourth : uint 8) (others : bytes3) = {
   fourth = pfourth;
   rest3 = others;
 }
 
-def Bytes4All (b0 : uint 8) (b1 : uint 8) (b2 : uint 8) (b3 : uint 8) = 
-  Bytes4 b0 (Bytes3 b1 (Bytes2 b2 (Bytes1 b3)))
+def bytes4All (b0 : uint 8) (b1 : uint 8) (b2 : uint 8) (b3 : uint 8) = 
+  bytes4 b0 (bytes3 b1 (bytes2 b2 (bytes1 b3)))
 
-def Bytes4P = Bytes4 UInt8 Bytes3P
-
-def Bytes5 (b0 : uint 8) (others : Bytes4) = {
-  byte5 = b0;
-  rest4 = others;
-}
-
-def Bytes5P = Bytes5 UInt8 Bytes4P
-
-def Bytes6 (b0 : uint 8) (others : Bytes5) = {
-  byte6 = b0;
-  rest5 = others;
-}
-
-def Bytes6P = Bytes6 UInt8 Bytes5P
-
-def Bytes6All (b0 : uint 8) (b1 : uint 8)
-  (b2 : uint 8) (b3 : uint 8)
-  (b4 : uint 8) (b5 : uint 8) = Bytes6 b0 (Bytes5 b1 (Bytes4All b2 b3 b4 b5))
+def Bytes4P = bytes4 UInt8 Bytes3P
 
 -- functions for serializing bounded structures into arrays
 def bndBytes1 bs1 = [ bs1.only ]

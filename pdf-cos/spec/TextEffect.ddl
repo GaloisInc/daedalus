@@ -5,7 +5,7 @@ import Stdlib
 import Encoding
 import FontDict
 import Glyph
-import GlyphList
+import GlyphEnc
 import StdEncoding
 import Type0Font
 import Type1Font
@@ -142,14 +142,14 @@ def ExtractString_Composite (f: Type0Font) (q: TextState) (s : [ uint 8 ]) :
   WithStream (arrayStream s) (Many UTF81Code)
 }
 
-def Filler = [ UTF81 (Bytes1 '.')]
+def filler = [ mkUTF81 (bytes1 '.') ]
 
 -- ExtractStringType1: extract string under a Type1 font
 def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
   -- TODO: use ToUnicode field, if defined
 
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposePartialMaps Filler (Type1Enc font) GlyphMap;
+  @code2Uni = ComposePartialMaps filler (Type1Enc font) GlyphEncoding;
   -- TODO: use hard compose
 
   -- parse the string, looking up each code in the unicode map
@@ -163,11 +163,11 @@ def ExtractStringType3 (font : Type3Font) (s : [ uint 8 ]) : [ UTF8 ] = {
 
   -- TODO: GlyphMap may be very expensive; memoize?
   -- compose [code -> glyph] and [glyph -> unicode] maps
-  @code2Uni = ComposePartialMaps Filler -- TODO: use hard compose
+  @code2Uni = ComposePartialMaps filler -- TODO: use hard compose
     -- for Type3 fonts, encoding is required and Differences entirely
     -- specifies the character encoding
     font.encoding.differences
-    GlyphMap;
+    GlyphEncoding;
 
   -- parse the string, looking up each code in the unicode map
   WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
