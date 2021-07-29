@@ -5,8 +5,8 @@ import Map
 import Array
        
 -- import PDF libraries:
--- import PdfDecl -- not directly needed/wanted
-import PdfDeclStubs  -- FIXME: TESTINGONLY
+import PdfDecl -- not directly needed/wanted
+-- import PdfDeclStubs  -- FIXME: TESTINGONLY
 import GenPdfValue
 import PdfValue
 import Unicode
