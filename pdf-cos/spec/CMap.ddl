@@ -412,7 +412,7 @@ def InCMapCodeRange (index : int) cmap : bool = {
 
 def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int -> uint 32 ] =
   for (ccmap = empty : [int -> uint 32] ; k, unicode in crmap)
-    for (ccmap2 = ccmap ; j in rangeUp 0 k.numExtras)
+    for (ccmap2 = ccmap ; j in rangeUp 0 (k.numExtras + 1))
       { @key = k.lowEnd + j;
         @val = case (unicode : UnicodeSeq) of {
                   singleUnicode c ->
