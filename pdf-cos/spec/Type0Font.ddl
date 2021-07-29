@@ -21,7 +21,7 @@ def PreDefEncoding (s : [ uint 8 ]) : Type0Encoding = {|
 |}
 
 -- PartialType1Font: partial definition of a Type1 font
-def PartialType0Font (com : PartialCommonFont)
+def partialType0Font (com : PartialCommonFont)
   (bf: maybe FontName)
   (enc: maybe Type0Encoding)
   (dfs: maybe CIDFont) = {
@@ -31,35 +31,35 @@ def PartialType0Font (com : PartialCommonFont)
   descFonts0 = dfs;
 }
 
-def InitType0Font = PartialType0Font
-  InitCommonFont
+def initType0Font = partialType0Font
+  initCommonFont
   nothing
   nothing
   nothing
 
-def Type0SetCommon (com : PartialCommonFont) (f : PartialType0Font) =
-  PartialType0Font
+def Type0SetCommon (com : PartialCommonFont) (f : partialType0Font) =
+  partialType0Font
     com
     f.baseFont0
     f.encoding0
     f.descFonts0
 
 -- AddBaseFont nm f: add a base font to font
-def AddBaseFont f = PartialType0Font 
+def AddBaseFont f = partialType0Font 
   f.common
   (just (DirectOrRef (Token (GenName (FontName)))))
   f.encoding0
   f.descFonts0
 
 -- AddEncoding: add an encoding
-def AddEncoding f = PartialType0Font
+def AddEncoding f = partialType0Font
   f.common
   f.baseFont0
   (just Type0Encoding)
   f.descFonts0
 
 -- AddFontDesc: add a font descriptor
-def AddDescFonts f = PartialType0Font
+def AddDescFonts f = partialType0Font
   f.common
   f.baseFont0
   f.encoding0
@@ -89,7 +89,7 @@ def ExtendType0Font k font = {
 
 -- Type0Font f: coerce partial font f into an actual Type1
 -- font
-def Type0Font (f : PartialType0Font) = {
+def Type0Font (f : partialType0Font) = {
   toUnicode = CommonFont f.common;
 
   encoding = f.encoding0 is just; -- required
@@ -112,6 +112,6 @@ def Type0Font (f : PartialType0Font) = {
 }
 
 def Type0FontP = GenPdfDict1
-  InitType0Font
+  initType0Font
   ExtendType0Font
   Type0Font

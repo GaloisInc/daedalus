@@ -25,6 +25,7 @@ extra-source-files:
   spec/FontDict.ddl,
   spec/GenPdfValue.ddl,
   spec/Glyph.ddl,
+  spec/GlyphEnc.ddl,
   spec/GlyphList.ddl,
   spec/GlyphListNewFonts.ddl,
   spec/GraphicsStateOps.ddl,

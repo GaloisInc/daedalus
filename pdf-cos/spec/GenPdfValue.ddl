@@ -52,13 +52,29 @@ def GenPdfDict Key Val = Between "<<" ">>" (DictMap Key Val)
 -- PdfDict: a PDF dictionary
 def PdfDict Val = GenPdfDict NameBase (Const Val)
 
-def DictAdderRec Adder d = Default d (DictAdderRec Adder
+-- OPT:
+def DictAdderRec0 Adder d = Default d (DictAdderRec Adder
   { @k = Token Name;
     case Adder k d of {
       just d2 -> ^d2
     ; nothing -> When Value d
     }
   })
+
+def DictAdderRec Adder d = {
+  -- try to get the next entry
+  @mayNext = Optional {
+    @k = Token Name;
+    case Adder k d of {
+      just d2 -> d2
+    ; nothing -> When Value d
+    }
+  };
+  case mayNext of {
+    just dNext -> DictAdderRec Adder dNext
+  ; nothing -> d
+  }
+}
 
 -- TODO: maintain a set of all keys defined
 

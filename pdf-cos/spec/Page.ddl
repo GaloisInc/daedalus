@@ -13,16 +13,16 @@ import ContentStreamLight
 import FontDict
 import Pair
 
--- PartialPage: a partial Page value
-def PartialPage (t: bool) (p: bool)
-  (rd : maybe ResourceDict) (c: maybe stream) = {
+-- partialPage: a partial Page value
+def partialPage (t: bool) (p: bool)
+  (rd : maybe resourceDict) (c: maybe stream) = {
   type0 = t;
   parent0 = p;
   resources0 = rd;
   contents0 = c;
 }
 
-def InitPage = PartialPage
+def initPage = partialPage
   false
   false
   nothing
@@ -31,7 +31,7 @@ def InitPage = PartialPage
 -- TODO: precisely model other fields, as needed
 
 -- parsers for updating fields
-def PageAddType (page0 : PartialPage) = PartialPage
+def PageAddType (page0 : partialPage) = partialPage
   (Holds (DirectOrRef (
     (NameToken "Page") <|
     (NameToken "Template"))))
@@ -39,20 +39,20 @@ def PageAddType (page0 : PartialPage) = PartialPage
   page0.resources0
   page0.contents0
 
-def PageAddParent (par : Ref) (page0 : PartialPage) = PartialPage
+def PageAddParent (par : Ref) (page0 : partialPage) = partialPage
   page0.type0
   (Holds (Guard (Token Ref == par)))
   page0.resources0
   page0.contents0
 
 -- foo
-def AddResources (page0 : PartialPage) = PartialPage 
+def AddResources (page0 : partialPage) = partialPage 
   page0.type0
   page0.parent0
   (just (DirectOrRef ResourceDictP))
   page0.contents0
 
-def AddContents page0 = PartialPage 
+def AddContents page0 = partialPage 
   page0.type0
   page0.parent0
   page0.resources0
@@ -71,7 +71,7 @@ def AddContents page0 = PartialPage
         strm.body is ok
       }))
 
-def ExtendPage (par : Ref) k (p : PartialPage) = 
+def ExtendPage (par : Ref) k (p : partialPage) = 
   if k == "Type" then {
     p.type0 is false;
     just (PageAddType p)
@@ -90,7 +90,7 @@ def ExtendPage (par : Ref) k (p : PartialPage) =
   }
   else nothing
 
-def Page ancRes (page0 : PartialPage) = {
+def Page ancRes (page0 : partialPage) = {
   Guard page0.type0;
   Guard page0.parent0;
 
@@ -104,6 +104,6 @@ def Page ancRes (page0 : PartialPage) = {
 }
 
 def PageP ancRes (par: Ref) = GenPdfDict1
-  InitPage
+  initPage
   (ExtendPage par)
   (Page ancRes)

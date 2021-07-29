@@ -9,6 +9,6 @@ import Type1Font
 
 -- TypeType fonts (Sec. 9.6.3)
 def TrueTypeFont = GenPdfDict1
-  InitType1Font
+  initType1Font
   (ExtendType1Font trueTypeSym Void)
   (Type1Font trueTypeSym)

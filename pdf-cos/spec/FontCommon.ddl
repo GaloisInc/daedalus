@@ -10,35 +10,38 @@ import CMap
 -- CommonFont: fields that are common to all fonts
 --------------------------------------------------------------------------------
 
-def PartialCommonFont (ty : bool) (subTy : bool)
+def partialCommonFont (ty : bool) (subTy : bool)
   (toUnicode : maybe ToUnicodeCMap0) = {
   fontType = ty;
   fontSubtype = subTy;
   toUnicode = toUnicode;
 }
 
-def InitCommonFont = PartialCommonFont
+def initCommonFont = partialCommonFont
   false
   false
   nothing
 
 -- mainly used for testing
-def CommonFontWitness = PartialCommonFont true true nothing
+def CommonFontWitness = partialCommonFont
+  true
+  true
+  nothing
 
 -- AddType: note that the required Type field has been seen
-def FontAddType f = PartialCommonFont
+def FontAddType f = partialCommonFont
   (Holds (DirectOrRef (NameToken "Font")))
   f.fontSubtype
   f.toUnicode
 
 -- AddSubtype f: note the subtype field has been seen
-def AddSubtype (subTy : FontSubty) f = PartialCommonFont
+def AddSubtype (subTy : FontSubty) f = partialCommonFont
   f.fontType
   (Holds (Guard ((DirectOrRef (Token (GenName FontSubty))) == subTy)))
   f.toUnicode
 
 -- AddToUnicode: add a to-unicode map
-def AddToUnicode (fontClass : FontType) f = PartialCommonFont
+def AddToUnicode (fontClass : FontType) f = partialCommonFont
   f.fontType
   f.fontSubtype
   (When (Token Ref) nothing)
@@ -46,7 +49,7 @@ def AddToUnicode (fontClass : FontType) f = PartialCommonFont
 --  (just (CMapRef fontClass))
 
 def ExtendCommonFont (subTy : FontSubty) (fontClass : FontType) (k : [ uint 8 ])
-  (font : PartialCommonFont) : maybe PartialCommonFont = 
+  (font : partialCommonFont) : maybe partialCommonFont = 
   if k == "Type" then {
     font.fontType is false;
     just (FontAddType font)
@@ -62,7 +65,7 @@ def ExtendCommonFont (subTy : FontSubty) (fontClass : FontType) (k : [ uint 8 ])
   else nothing
 
 -- CommonFont: finalize the common font
-def CommonFont (f : PartialCommonFont) = {
+def CommonFont (f : partialCommonFont) = {
   Guard f.fontType;
   Guard f.fontSubtype;
   f.toUnicode
@@ -74,7 +77,7 @@ def CommonFont (f : PartialCommonFont) = {
 -- fields common to only Type1 and Type3
 
 -- TODO: add name and font desc to this
-def PartialCharSet (name: maybe [ uint 8 ]) 
+def partialCharSet (name: maybe [ uint 8 ]) 
   (first: maybe (uint 64)) (last : maybe (uint 64))
   (pWidths : maybe [ Number ])
   (pFontDesc : maybe Ref) = {
@@ -85,7 +88,7 @@ def PartialCharSet (name: maybe [ uint 8 ])
   fontDesc0 = pFontDesc;
 }
 
-def InitCharSet = PartialCharSet
+def initCharSet = partialCharSet
   nothing
   nothing
   nothing
@@ -94,7 +97,7 @@ def InitCharSet = PartialCharSet
 
 -- AddName: add a name
 -- TODO: inherit name from resource dict, for checking
-def AddName f = PartialCharSet
+def AddName f = partialCharSet
   (just (Token Name))
   f.firstChar0
   f.lastChar0
@@ -102,7 +105,7 @@ def AddName f = PartialCharSet
   f.fontDesc0
 
 -- AddFirstChar: add a first character seen
-def AddFirstChar f = PartialCharSet
+def AddFirstChar f = partialCharSet
   f.name0
   (just (DirectOrRef (Token UNatural)))
   f.lastChar0
@@ -110,7 +113,7 @@ def AddFirstChar f = PartialCharSet
   f.fontDesc0
 
 -- AddLastChar: add the last character seen
-def AddLastChar f = PartialCharSet
+def AddLastChar f = partialCharSet
   f.name0
   f.firstChar0
   (just (DirectOrRef (Token UNatural)))
@@ -118,7 +121,7 @@ def AddLastChar f = PartialCharSet
   f.fontDesc0
 
 -- AddWidths: add the last character seen
-def AddWidths f = PartialCharSet
+def AddWidths f = partialCharSet
   f.name0
   f.firstChar0
   f.lastChar0
@@ -126,15 +129,15 @@ def AddWidths f = PartialCharSet
   f.fontDesc0
 
 -- AddFontDesc: add a font descriptor
-def AddFontDesc f = PartialCharSet
+def AddFontDesc f = partialCharSet
   f.name0
   f.firstChar0
   f.lastChar0
   f.widths0
   (just (Token Ref))
 
-def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
-  maybe PartialCharSet = 
+def ExtendCharSet (k : [ uint 8 ]) (chars : partialCharSet) :
+  maybe partialCharSet = 
   if k == "Name" then {
     chars.name0 is nothing;
     just (AddName chars)
@@ -159,7 +162,7 @@ def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
 
 -- PDFA: what should this be called with for Type3 fonts?
 def CharSet (subTy : FontSubty) (baseFont : FontName)
-  (chars : PartialCharSet) = {
+  (chars : partialCharSet) = {
   name = chars.name0; -- required only in PDF 1.0
 
   firstChar = chars.firstChar0 is just;
@@ -173,7 +176,7 @@ def CharSet (subTy : FontSubty) (baseFont : FontName)
     (FontDescP subTy baseFont)
 }
 
-def CharSet0 (baseFont : FontName) (chars : PartialCharSet) = {
+def CharSet0 (baseFont : FontName) (chars : partialCharSet) = {
   name = just "foo";
   firstChar = (0 : uint 64);
   lastChar = (0 : uint 64);

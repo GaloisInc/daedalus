@@ -51,7 +51,7 @@ def StandardFont = Choose1 {
 ; zapfDingbats = @(Match "ZapfDingbats")
 }
 
-def HelveticaNm : StandardFont = {| helvetica = {} |}
+def helveticaNm : StandardFont = {| helvetica = {} |}
 
 def stdFontIsLatin (f : StandardFont) : bool = case f of {
   symbol -> false
@@ -74,15 +74,15 @@ def FontName0 : FontName = {| nonStandard = Many NameChar |}
 
 def FontNameP = FontName
 
-def Helvetica : FontName = {|
-  standard = HelveticaNm
+def helvetica : FontName = {|
+  standard = helveticaNm
 |}
 
-def NonStandardFont (nm : [ uint 8]) : FontName = {|
+def nonStandardFont (nm : [ uint 8]) : FontName = {|
   nonStandard = nm
 |}
 
-def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe (uint 32))
+def partialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe (uint 32))
   (ff : maybe Ref)
   (ff2 : maybe Ref)
   (ff3 : maybe Ref) = {
@@ -94,7 +94,7 @@ def PartialFontDesc (pt: bool) (pfn: bool) (mayFlags : maybe (uint 32))
   fontFile3 = ff3;
 }
 
-def InitFontDesc = PartialFontDesc
+def initFontDesc = partialFontDesc
   false
   false
   nothing
@@ -102,7 +102,7 @@ def InitFontDesc = PartialFontDesc
   nothing
   nothing
 
-def AddFontDescType fd = PartialFontDesc
+def AddFontDescType fd = partialFontDesc
   (Holds (NameToken "FontDescriptor"))
   fd.descFontName0
   fd.flags0
@@ -110,7 +110,7 @@ def AddFontDescType fd = PartialFontDesc
   fd.fontFile2
   fd.fontFile3
 
-def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
+def AddFontDescName (parBaseFont : FontName) fd = partialFontDesc
   fd.descType0
   (Holds (Token (GenName (FontName))))
 --  (Holds (Guard ((Token (GenName (FontName Void))) == parBaseFont)))
@@ -119,7 +119,7 @@ def AddFontDescName (parBaseFont : FontName) fd = PartialFontDesc
   fd.fontFile2
   fd.fontFile3
 
-def AddFlags fd = PartialFontDesc
+def AddFlags fd = partialFontDesc
   fd.descType0
   fd.descFontName0
   (just (Token Natural as! uint 32))
@@ -127,7 +127,7 @@ def AddFlags fd = PartialFontDesc
   fd.fontFile2
   fd.fontFile3
 
-def AddFontFile fd = PartialFontDesc
+def AddFontFile fd = partialFontDesc
   fd.descType0
   fd.descFontName0
   fd.flags0
@@ -135,7 +135,7 @@ def AddFontFile fd = PartialFontDesc
   fd.fontFile2
   fd.fontFile3
 
-def AddFontFile2 fd = PartialFontDesc
+def AddFontFile2 fd = partialFontDesc
   fd.descType0
   fd.descFontName0
   fd.flags0
@@ -143,7 +143,7 @@ def AddFontFile2 fd = PartialFontDesc
   (just (Token Ref))
   fd.fontFile3
 
-def AddFontFile3 fd = PartialFontDesc
+def AddFontFile3 fd = partialFontDesc
   fd.descType0
   fd.descFontName0
   fd.flags0
@@ -152,7 +152,7 @@ def AddFontFile3 fd = PartialFontDesc
   (just (Token Ref))
 
 def ExtendFontDesc (parBaseFont : FontName)
-  (k: [ uint 8 ]) (fd: PartialFontDesc) = 
+  (k: [ uint 8 ]) (fd: partialFontDesc) = 
   if k == "Type" then {
     fd.descType0 is false;
     just (AddFontDescType fd)
@@ -185,7 +185,7 @@ def FontTyStream font okFonts mayStrm = case mayStrm of {
 }
 
 -- font flags (Table 121)
-def FontDesc (subTy : FontSubty) (fd: PartialFontDesc) = {
+def FontDesc (subTy : FontSubty) (fd: partialFontDesc) = {
   Guard fd.descType0;
   Guard fd.descFontName0;
 
@@ -217,7 +217,7 @@ def FontDesc (subTy : FontSubty) (fd: PartialFontDesc) = {
     fd.fontFile3;
 }
 
-def StubFontDesc = FontDesc type1Sym (PartialFontDesc
+def StubFontDesc = FontDesc type1Sym (partialFontDesc
   true
   true
   (just (32 : uint 32))
@@ -228,10 +228,10 @@ def StubFontDesc = FontDesc type1Sym (PartialFontDesc
 -- DBG:
 def FontDescP0 (parBaseFont : FontName ) = When Value StubFontDesc
 def FontDescP1 (parBaseFont : FontName ) = GenPdfDict1
-  InitFontDesc
+  initFontDesc
   (ExtendFontDesc parBaseFont)
   (FontDesc type1Sym)
 def FontDescP (fontSubty : FontSubty) (parBaseFont : FontName ) = GenPdfDict1
-  InitFontDesc
+  initFontDesc
   (ExtendFontDesc parBaseFont)
   (FontDesc fontSubty)

@@ -19,8 +19,8 @@ import CMap
 import Unicode
 import ContentStreamLight
 
-def PartialPageTreeNode (t: bool) (p: bool)
-  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe ResourceDict) = {
+def partialPageTreeNode (t: bool) (p: bool)
+  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe resourceDict) = {
   type0 = t;
   parent0 = p;
   kids0 = k;
@@ -28,42 +28,42 @@ def PartialPageTreeNode (t: bool) (p: bool)
   nodeResources0 = rs;
 }
 
-def InitPageTreeNode = PartialPageTreeNode
+def initPageTreeNode = partialPageTreeNode
   false
   false
   nothing
   nothing
   nothing
 
-def AddType pageTree = PartialPageTreeNode
+def AddType pageTree = partialPageTreeNode
   (Holds (NameToken "Pages"))
   pageTree.parent0
   pageTree.kids0
   pageTree.count0
   pageTree.nodeResources0
 
-def AddParent (par: Ref) pageTree = PartialPageTreeNode 
+def AddParent (par: Ref) pageTree = partialPageTreeNode 
   pageTree.type0
   (Holds (Guard (Token Ref == par)))
   pageTree.kids0
   pageTree.count0
   pageTree.nodeResources0
 
-def AddKids pageTree = PartialPageTreeNode
+def AddKids pageTree = partialPageTreeNode
   pageTree.type0
   pageTree.parent0
   (just (GenArray Ref))
   pageTree.count0
   pageTree.nodeResources0
 
-def AddCount pageTree = PartialPageTreeNode 
+def AddCount pageTree = partialPageTreeNode 
   pageTree.type0
   pageTree.parent0
   pageTree.kids0
   (just (DirectOrRef (Token Natural)))
   pageTree.nodeResources0
 
-def NodeAddResources pageTree = PartialPageTreeNode
+def NodeAddResources pageTree = partialPageTreeNode
   pageTree.type0
   pageTree.parent0
   pageTree.kids0
@@ -132,7 +132,7 @@ def PageTreeNode ancRs (par : maybe Ref) (cur : Ref) pt0 = {
 }
 
 def PageTreeNodeP ancRes (par: maybe Ref) (cur: Ref) = GenPdfDict1
-  InitPageTreeNode
+  initPageTreeNode
   (ExtendPageTreeNode par cur)
   (PageTreeNode ancRes par cur)
 

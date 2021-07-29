@@ -18,7 +18,7 @@ def FontMatrix = {
   f = Token Number;
 }
 
-def PartialType3Font (com : PartialCommonFont) (pChars : PartialCharSet)
+def partialType3Font (com : PartialCommonFont) (pChars : PartialCharSet)
   (pBBox : maybe Rectangle) (pMatrix : maybe FontMatrix)
   (pCharProcs : maybe [ [ uint 8 ] -> Ref ]) (pEnc : maybe EncodingDict)
   (pRes : maybe [ [ uint 8 ] -> Value ]) = {
@@ -31,9 +31,9 @@ def PartialType3Font (com : PartialCommonFont) (pChars : PartialCharSet)
 ; resources = pRes
 }
 
-def InitType3Font : PartialType3Font = {
-  common = InitCommonFont
-; chars = InitCharSet
+def initType3Font : partialType3Font = {
+  common = initCommonFont
+; chars = initCharSet
 ; fontBBox = nothing
 ; fontMatrix = nothing
 ; charProcs = nothing
@@ -41,8 +41,8 @@ def InitType3Font : PartialType3Font = {
 ; resources = nothing
 }
 
-def Type3SetCommon (coms : PartialCommonFont) (f : PartialType3Font) =
-  PartialType3Font
+def Type3SetCommon (coms : PartialCommonFont) (f : partialType3Font) =
+  partialType3Font
     coms
     f.chars
     f.fontBBox
@@ -51,8 +51,8 @@ def Type3SetCommon (coms : PartialCommonFont) (f : PartialType3Font) =
     f.encoding
     f.resources
 
-def Type3SetChars (cs : PartialCharSet) (f : PartialType3Font) =
-  PartialType3Font
+def Type3SetChars (cs : PartialCharSet) (f : partialType3Font) =
+  partialType3Font
     f.common
     cs
     f.fontBBox
@@ -61,7 +61,7 @@ def Type3SetChars (cs : PartialCharSet) (f : PartialType3Font) =
     f.encoding
     f.resources
 
-def AddFontBBox (f : PartialType3Font) = PartialType3Font
+def AddFontBBox (f : partialType3Font) = partialType3Font
   f.common
   f.chars
   (just (DirectOrRef Rectangle))
@@ -70,7 +70,7 @@ def AddFontBBox (f : PartialType3Font) = PartialType3Font
   f.encoding
   f.resources
 
-def AddFontMatrix (f : PartialType3Font) = PartialType3Font
+def AddFontMatrix (f : partialType3Font) = partialType3Font
   f.common
   f.chars
   f.fontBBox
@@ -79,7 +79,7 @@ def AddFontMatrix (f : PartialType3Font) = PartialType3Font
   f.encoding
   f.resources
 
-def AddCharProcs (f : PartialType3Font) = PartialType3Font
+def AddCharProcs (f : partialType3Font) = partialType3Font
   f.common
   f.chars
   f.fontBBox
@@ -89,7 +89,7 @@ def AddCharProcs (f : PartialType3Font) = PartialType3Font
   f.encoding
   f.resources
 
-def Type3AddEncoding (f : PartialType3Font) = PartialType3Font
+def Type3AddEncoding (f : partialType3Font) = partialType3Font
   f.common
   f.chars
   f.fontBBox
@@ -98,7 +98,7 @@ def Type3AddEncoding (f : PartialType3Font) = PartialType3Font
   (just (DirectOrRef EncodingP))
   f.resources
 
-def AddResources (f : PartialType3Font) = PartialType3Font
+def AddResources (f : partialType3Font) = partialType3Font
   f.common
   f.chars
   f.fontBBox
@@ -141,9 +141,9 @@ def ExtendType3Font k font = {
   }
 }
 
-def StubFont = Helvetica
+def StubFont = helvetica
 
-def Type3Font (f : PartialType3Font) = {
+def Type3Font (f : partialType3Font) = {
   toUnicode = CommonFont f.common;
   charSet = CharSet type3Sym StubFont f.chars; -- PDFA: what should this be?
 
@@ -155,6 +155,6 @@ def Type3Font (f : PartialType3Font) = {
 }
 
 def Type3FontP = GenPdfDict1
-  InitType3Font
+  initType3Font
   ExtendType3Font
   Type3Font

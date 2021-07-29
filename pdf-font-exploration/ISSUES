@@ -98,8 +98,13 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 # implementing Universe C
 
-* enable all checks on font files
 * strengthen checks on content streams ops
+
+# optimize runtime #
+
+* test alt implementation of GenDict1
+* replace parsers with pure computation
+  * CIDFonts
 
 # formatting text extaction #
 
