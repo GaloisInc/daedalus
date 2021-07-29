@@ -147,9 +147,11 @@ def filler = [ mkUTF81 (bytes1 '.') ]
 -- ExtractStringType1: extract string under a Type1 font
 def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
   case font.toUnicode of
-    just t  ->
-      WithStream (arrayStream s) []
-      -- FIXME: TODO: implement this!
+    just cmap ->
+      {
+        @cps = concat (map (c in s) (MapLookupCodepoint (c as int) cmap));
+        map (cp in cps) (codePointToUTF8 cp)
+      }
     nothing ->
       {   
         -- compose [code -> glyph] and [glyph -> unicode] maps
@@ -160,6 +162,11 @@ def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
         WithStream (arrayStream s) (concat (Many (Lookup UInt8 code2Uni)))
       }
 }
+
+def codePointToUTF8 (cp : uint 32) : UTF8 =
+  unicodePoint (cp as! uint16)
+  -- FIXME: why doesn't the above take uint 32??
+  -- FIXME: should move to Unicode.ddl
 
 -- ExtractStringType1: extract string under a Type1 font
 -- TODO: call this to extract text from Type3 fonts

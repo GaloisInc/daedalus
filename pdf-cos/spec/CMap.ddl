@@ -341,7 +341,8 @@ def CMapProper CharCode = {
                                     _          -> nothing
                                  ));
   bfs = CollectRangeOp codeRanges ranges_;
-  bfsMap = CodeRangeMapToCharCodeMap bfs;
+  
+  charCodeMap = CodeRangeMapToCharCodeMap bfs;
 }
 
 -- ToUnicodeCMap: follows Sec. 9.10.3. Parser for CMap's that slightly
@@ -400,16 +401,15 @@ def CMapRef (ft : FontType) : ToUnicodeCMap0 = WithReffedStreamBody
 
 -- functions for using cmaps --------------------------------------------------
 
-def MapLookupCodepoint (index : int) cmap : [uint 32] = {
+def MapLookupCodepoint (index : int) (cmap: ToUnicodeCMap0) : [uint 32] = {
   InCMapCodeRange index cmap;
-  @ccmap = CodeRangeMapToCharCodeMap cmap.bfs;
-  Lookup index ccmap;
+  Lookup index cmap.dict.charCodeMap;
 }
 
 def InCMapCodeRange (index : int) cmap : bool = {
   ^true
   -- FIXME: TODO
-  -- Guard(charindex >= cmap.codeRanges 
+  -- Guard(charindex >= cmap.codeRanges)
 }
 
 def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int -> [uint 32] ] =
