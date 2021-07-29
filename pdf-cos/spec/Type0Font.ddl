@@ -66,7 +66,7 @@ def AddDescFonts f = PartialType0Font
   (just (DirectOrRef (Between "[" "]" (DirectOrRef CIDFontP))))
 
 def ExtendType0Font k font = {
-  @cf0 = ExtendCommonFont "Type0" SimpleFontType -- TODO: fix font type
+  @cf0 = ExtendCommonFont type0Sym SimpleFontType -- TODO: fix font type
     k font.common;
   case cf0 of {
     just cf1 -> just (Type0SetCommon cf1 font)

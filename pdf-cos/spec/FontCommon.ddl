@@ -32,9 +32,9 @@ def FontAddType f = PartialCommonFont
   f.toUnicode
 
 -- AddSubtype f: note the subtype field has been seen
-def AddSubtype (subTy : [ uint 8 ]) f = PartialCommonFont
+def AddSubtype (subTy : FontSubty) f = PartialCommonFont
   f.fontType
-  (Holds (DirectOrRef (NameToken subTy)))
+  (Holds (Guard ((DirectOrRef (Token (GenName FontSubty))) == subTy)))
   f.toUnicode
 
 -- AddToUnicode: add a to-unicode map
@@ -45,7 +45,7 @@ def AddToUnicode (fontClass : FontType) f = PartialCommonFont
 -- DBG:
 --  (just (CMapRef fontClass))
 
-def ExtendCommonFont (subTy : [ uint 8]) (fontClass : FontType) (k : [ uint 8 ])
+def ExtendCommonFont (subTy : FontSubty) (fontClass : FontType) (k : [ uint 8 ])
   (font : PartialCommonFont) : maybe PartialCommonFont = 
   if k == "Type" then {
     font.fontType is false;
@@ -158,7 +158,8 @@ def ExtendCharSet (k : [ uint 8 ]) (chars : PartialCharSet) :
   else nothing
 
 -- PDFA: what should this be called with for Type3 fonts?
-def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
+def CharSet (subTy : FontSubty) (baseFont : FontName)
+  (chars : PartialCharSet) = {
   name = chars.name0; -- required only in PDF 1.0
 
   firstChar = chars.firstChar0 is just;
@@ -169,7 +170,7 @@ def CharSet (baseFont : FontName) (chars : PartialCharSet) = {
   Guard ((length widths) == inc (lastChar - firstChar));
 
   fontDesc = ParseAtRef (chars.fontDesc0 is just)
-    (FontDescP baseFont)
+    (FontDescP subTy baseFont)
 }
 
 def CharSet0 (baseFont : FontName) (chars : PartialCharSet) = {

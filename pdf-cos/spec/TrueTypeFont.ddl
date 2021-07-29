@@ -3,11 +3,12 @@ import Stdlib
 
 import GenPdfValue
 import FontCommon
+import FontDesc
 import PdfValue
 import Type1Font
 
 -- TypeType fonts (Sec. 9.6.3)
 def TrueTypeFont = GenPdfDict1
   InitType1Font
-  (ExtendType1Font "TrueType" Void)
-  Type1Font
+  (ExtendType1Font trueTypeSym Void)
+  (Type1Font trueTypeSym)

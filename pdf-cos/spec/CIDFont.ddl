@@ -6,12 +6,6 @@ import PdfDecl
 
 import FontDesc
 
--- TODO: Universe C may allow an extra value here
-def CIDFontType = Choose1 {
-  cidFontType0 = @(Match "CIDFontType0");
-  cidFontType2 = @(Match "CIDFontType2");
-}
-
 -- DW2: specifies default metrics for veritical writing
 def DW2 = {
   metric0 = Token Number;
@@ -239,7 +233,7 @@ def CIDFont (f : PartialCIDFont) = {
   cidBaseFont = f.baseFont is just; -- TODO: may need more here
   cidSystemInfo = f.cidSysInfo is just; -- required
   cidFontDesc = ParseAtRef (f.fontDescriptor is just)
-    (FontDescP cidBaseFont);
+    (FontDescP (cidTypeSym cidSubtype) cidBaseFont);
 
   cidDW = f.dw;
   cidW = f.w;

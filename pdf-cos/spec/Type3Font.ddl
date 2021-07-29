@@ -109,7 +109,7 @@ def AddResources (f : PartialType3Font) = PartialType3Font
   -- TODO: parse this precisely by defining recursively with ResourceDict
 
 def ExtendType3Font k font = {
-  @cf0 = ExtendCommonFont "Type3" SimpleFontType
+  @cf0 = ExtendCommonFont type3Sym SimpleFontType
            k font.common;
   case cf0 of {
     just cf1 -> just (Type3SetCommon cf1 font)
@@ -145,7 +145,7 @@ def StubFont = Helvetica
 
 def Type3Font (f : PartialType3Font) = {
   toUnicode = CommonFont f.common;
-  charSet = CharSet StubFont f.chars; -- PDFA: what should this be?
+  charSet = CharSet type3Sym StubFont f.chars; -- PDFA: what should this be?
 
   fontBBox = f.fontBBox is just;
   fontMatrix = f.fontMatrix is just;

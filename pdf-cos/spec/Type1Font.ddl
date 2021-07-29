@@ -68,9 +68,9 @@ def Type1AddEncoding f = PartialType1Font
   f.baseFont0
   (just (DirectOrRef EncodingRepr))
 
-def ExtendType1Font (subtypeNm : [ uint 8]) (Subst : uint 8)
+def ExtendType1Font (subType : FontSubty) (Subst : uint 8)
   k (font : PartialType1Font) : maybe PartialType1Font = {
-  @cf0 = ExtendCommonFont (subtypeNm) SimpleFontType
+  @cf0 = ExtendCommonFont subType SimpleFontType
            k font.common;
   case cf0 of {
     just cf0 -> just (Type1SetCommon cf0 font)
@@ -117,7 +117,7 @@ def MkType1NonStdDesc nm cs : Type1FontDesc = {|
 
 -- Type1Font f: coerce partial font f into an actual Type1
 -- font
-def Type1Font (f: PartialType1Font) = {
+def Type1Font (subTy : FontSubty) (f: PartialType1Font) = {
   toUnicode = CommonFont f.common;
   @baseFont = f.baseFont0 is just;
 
@@ -130,31 +130,32 @@ def Type1Font (f: PartialType1Font) = {
           f.chars.fontDesc0 is nothing;
         }
       nothing) <|
-      (just (CharSet baseFont f.chars)))
-  ; nonStandard ns -> MkType1NonStdDesc ns (CharSet baseFont f.chars)
+      (just (CharSet subTy baseFont f.chars)))
+  ; nonStandard ns -> MkType1NonStdDesc ns (CharSet subTy baseFont f.chars)
   };
 
   encoding = f.encoding0;
 }
 
 -- Test1Font: stub value for testing
-def Type1FontStub = Type1Font (PartialType1Font
-  CommonFontWitness
-  InitCharSet
-  (just Helvetica)
-  nothing)
+def Type1FontStub = Type1Font type1Sym
+  (PartialType1Font
+     CommonFontWitness
+     InitCharSet
+     (just Helvetica)
+     nothing)
 
 def Type1FontP0 = When Value Type1FontStub
 def Type1FontP = GenPdfDict1
   InitType1Font
-  (ExtendType1Font "Type1" Void)
-  Type1Font
+  (ExtendType1Font type1Sym Void)
+  (Type1Font type1Sym)
 
 -- Multiple master fonts (Sec. 9.6.2.3)
 def MMFontP = GenPdfDict1
   InitType1Font
-  (ExtendType1Font "MMType1" (When (Match1 '_') ' ')) -- sub underscore w space
-  Type1Font
+  (ExtendType1Font mmTypeSym (When (Match1 '_') ' ')) -- sub underscore w space
+  (Type1Font mmTypeSym)
 
 def LatinEnc (font : Type1Font) =
   case font.encoding of {

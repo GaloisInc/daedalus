@@ -7,10 +7,17 @@ import GenPdfValue
 import PdfValue
 import PdfDecl
 
+def CIDFontType = Choose1 {
+  cidFontType0 = @(Match "CIDFontType0");
+  cidFontType2 = @(Match "CIDFontType2");
+}
+
+def cidFontType0Sym : CIDFontType = {| cidFontType0 = {} |}
+def cidFontType2Sym : CIDFontType = {| cidFontType2 = {} |}
+
 -- FontSubty: the subtypes of fonts
 def FontSubty = Choose1 {
-  cidType0 = @(Match "CIDFontType0");
-  cidType2 = @(Match "CIDFontType2");
+  cidTy = CIDFontType;
   fontTy0 = @(Match "Type0");
   fontTy1 = @(Match "Type1");
   fontTy3 = @(Match "Type3");
@@ -18,8 +25,7 @@ def FontSubty = Choose1 {
   fontTrueType = @(Match "TrueType");
 }
 
-def cidFontType0Sym : FontSubty = {| cidType0 = {} |}
-def cidFontType2Sym : FontSubty = {| cidType2 = {} |}
+def cidTypeSym (pty : CIDFontType) : FontSubty = {| cidTy = pty |}
 def type0Sym : FontSubty = {| fontTy0 = {} |}
 def type1Sym : FontSubty = {| fontTy1 = {} |}
 def type3Sym : FontSubty = {| fontTy3 = {} |}
@@ -121,6 +127,30 @@ def AddFlags fd = PartialFontDesc
   fd.fontFile2
   fd.fontFile3
 
+def AddFontFile fd = PartialFontDesc
+  fd.descType0
+  fd.descFontName0
+  fd.flags0
+  (just (Token Ref))
+  fd.fontFile2
+  fd.fontFile3
+
+def AddFontFile2 fd = PartialFontDesc
+  fd.descType0
+  fd.descFontName0
+  fd.flags0
+  fd.fontFile
+  (just (Token Ref))
+  fd.fontFile3
+
+def AddFontFile3 fd = PartialFontDesc
+  fd.descType0
+  fd.descFontName0
+  fd.flags0
+  fd.fontFile
+  fd.fontFile2
+  (just (Token Ref))
+
 def ExtendFontDesc (parBaseFont : FontName)
   (k: [ uint 8 ]) (fd: PartialFontDesc) = 
   if k == "Type" then {
@@ -134,6 +164,18 @@ def ExtendFontDesc (parBaseFont : FontName)
   else if k == "Flags" then {
     fd.flags0 is nothing;
     just (AddFlags fd)
+  }
+  else if k == "FontFile" then {
+    fd.fontFile is nothing;
+    just (AddFontFile fd)
+  }
+  else if k == "FontFile2" then {
+    fd.fontFile2 is nothing;
+    just (AddFontFile2 fd)
+  }
+  else if k == "FontFile3" then {
+    fd.fontFile3 is nothing;
+    just (AddFontFile3 fd)
   }
   else nothing
 
@@ -154,7 +196,7 @@ def FontDesc (subTy : FontSubty) (fd: PartialFontDesc) = {
   Guard (boolXor fontIsSymbolic fontIsNonSymbolic);
   isLatin = fontIsNonSymbolic;
 
-  -- check the font files are consistent with 
+  -- check the font files are consistent with the font type
   fontFile = FontTyStream subTy
     [ type1Sym
     , mmTypeSym
@@ -162,14 +204,15 @@ def FontDesc (subTy : FontSubty) (fd: PartialFontDesc) = {
     fd.fontFile;
   fontFile2 = FontTyStream subTy
     [ trueTypeSym
-    , mmTypeSym
+    , cidTypeSym cidFontType2Sym
     ]
     fd.fontFile2;
   fontFile3 = FontTyStream subTy
-    [ cidFontType0Sym
+    [ type1Sym
+    , mmTypeSym
+    , cidTypeSym cidFontType0Sym
     , trueTypeSym
-    , cidFontType2Sym
-    , type1Sym
+    , cidTypeSym cidFontType2Sym
     ]
     fd.fontFile3;
 }
@@ -183,8 +226,12 @@ def StubFontDesc = FontDesc type1Sym (PartialFontDesc
   nothing)
 
 -- DBG:
-def FontDescP (parBaseFont : FontName ) = When Value StubFontDesc
-def FontDescP0 (fontSubty : FontSubty) (parBaseFont : FontName ) = GenPdfDict1
+def FontDescP0 (parBaseFont : FontName ) = When Value StubFontDesc
+def FontDescP1 (parBaseFont : FontName ) = GenPdfDict1
+  InitFontDesc
+  (ExtendFontDesc parBaseFont)
+  (FontDesc type1Sym)
+def FontDescP (fontSubty : FontSubty) (parBaseFont : FontName ) = GenPdfDict1
   InitFontDesc
   (ExtendFontDesc parBaseFont)
   (FontDesc fontSubty)
