@@ -104,7 +104,7 @@ def unicodePoint (x : uint 16) : UTF8 =
     (bytes2 (0xC0 .|. (shiftTail x 1)) (pointTail1 (x .&. 0x3F)))
   else if x <= 0xFFFF then mkUTF83
     (bytes3 (0xE0 .|. (shiftTail x 2)) (pointTail2 (x .&. 0xFFF)))
-  else -- should not be reached: just give default value for now
+  else -- TODO: remove this case and rebuild
     mkUTF81 (bytes1 '.')
 
 def unicodePoint0 (x : uint 16) : UTF8 = mkUTF81 (bytes1 '.')
