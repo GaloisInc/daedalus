@@ -59,15 +59,15 @@ def ContentStreamP (rd : ResourceDict) : [ ContentStreamObj ] = {
 -- interpret a sequence of operators as a text effect
 def ContentStreamEffect (cs : [ ContentStreamObj ]) (q0 : TextState) :
   TextEffect = {
-  @eff0 = InitEffect;
+  @eff0 = initEffect;
   for (effAcc = eff0; op in cs) {
     case op of {
-      textObj obj -> Sequence
+      textObj obj -> sequence
         effAcc
         (InterpTextObj obj effAcc.textState)
     ; csOp csOper -> case csOper of {
-        textStateOp tsOper -> SetEffectState
-          (UpdTextState tsOper effAcc.textState)
+        textStateOp tsOper -> setEffectState
+          (updTextState tsOper effAcc.textState)
           effAcc
       ; _ -> effAcc -- treat all other operations as noops, for now
       }
@@ -77,7 +77,7 @@ def ContentStreamEffect (cs : [ ContentStreamObj ]) (q0 : TextState) :
 
 -- ExtractContentStreamText cs: extract text from content stream cs
 def ExtractContentStreamText (cs : [ ContentStreamObj ]) : [ UTF8 ] =
-  (ContentStreamEffect cs InitTextState).output
+  (ContentStreamEffect cs initTextState).output
 
 -- TODO: parse other operators
 

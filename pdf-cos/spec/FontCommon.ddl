@@ -180,7 +180,7 @@ def CharSet0 (baseFont : FontName) (chars : partialCharSet) = {
   name = just "foo";
   firstChar = (0 : uint 64);
   lastChar = (0 : uint 64);
-  widths = [ (IntNumber 0) ];
+  widths = [ (intNumber 0) ];
   fontDesc = StubFontDesc;
 }
 

@@ -21,7 +21,7 @@ def Number = Token {
   | When (sign is neg) { num = 0 - n.num; exp = n.exp }
 }
 
-def IntNumber (n : int) : Number = {
+def intNumber (n : int) : Number = {
   num = n;
   exp = 0;
 }

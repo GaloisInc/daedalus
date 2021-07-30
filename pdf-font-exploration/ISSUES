@@ -100,15 +100,10 @@ The "/F6" font clearly has the "double prime" glyph, which we're not seeing.
 
 * strengthen checks on content streams ops
 
-# optimize runtime #
-
-* test alt implementation of GenDict1
-* replace parsers with pure computation
-  * CIDFonts
-
 # formatting text extaction #
 
 * investigate unexpected spacing in Arabic lessons
+* interpret macro-ops
 * integrate new fonts
 * optimize (?) by building unicodings once per font
 

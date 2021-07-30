@@ -14,7 +14,7 @@ import MarkedContentOps
 import TextEffect
 import TextPosOp
 import TextShowOp
-import TextStateOp
+import textStateOp
 
 -- TODO: non-immediate dep
 import Encoding
@@ -27,7 +27,7 @@ def MacroOp = Choose1 {
   mvNextLineStart = KW "T*";
 }
 
-def FontEffect (szFont : maybe SizedFont) x = {
+def FontEffect (szFont : maybe sizedFont) x = {
   fst = szFont;
   snd = x;
 }
@@ -38,7 +38,7 @@ def GenSum1 P0 P1 x =
   (P1 x)
 
 -- LiftRes...: lift a result parser to a font effect parser
-def LiftResToFontEffect P (szFont : maybe SizedFont) = FontEffect
+def LiftResToFontEffect P (szFont : maybe sizedFont) = FontEffect
   szFont
   (just (P szFont))
 
@@ -47,18 +47,18 @@ def FontOp (resrcs : ResourceDict) = {
   @fontNm = Token Name;
   @size = Token Number; -- parse font size
   KW "Tf";
-  SizedFont (Lookup fontNm resrcs.font) size
+  sizedFont (Lookup fontNm resrcs.font) size
 }
 
 -- FontOpEffect: font ops, lifted into an effect
-def FontOpEffect (resrcs : ResourceDict) (szFont : maybe SizedFont) = FontEffect
+def FontOpEffect (resrcs : ResourceDict) (szFont : maybe sizedFont) = FontEffect
   (just (FontOp resrcs))
   nothing
 
-def TestSizedFont = SizedFont (MkType1Font Type1FontStub) (IntNumber 12)
+def TestsizedFont = sizedFont (MkType1Font Type1FontStub) (intNumber 12)
 
 -- TextOp: an operation that can occur in a text object
-def TextOp (mayF : maybe SizedFont) = Choose1 {
+def TextOp (mayF : maybe sizedFont) = Choose1 {
   -- all text operands are mutually exclusive
   textShowOp = TextShowOp (mayF is just);
   textStateOp = TextStateOp;
@@ -74,19 +74,19 @@ def TextOp (mayF : maybe SizedFont) = Choose1 {
 def MvNextLineStart : MacroOp = {| mvNextLineStart = { } |}
 
 def MvNextLineWOffset (tx : Number) (ty : Number) : TextPosOp = {|
-  setTextMatrix = SetMatrixOp 
-    (IntNumber 0) (IntNumber 0)
-    (IntNumber 0) (IntNumber 0)
+  setTextMatrix = setMatrixOp 
+    (intNumber 0) (intNumber 0)
+    (intNumber 0) (intNumber 0)
     tx ty
 |}
 
-def MvNextLineShow (f : SizedFont) (s : string) : [ TextOp ] = [
+def MvNextLineShow (f : sizedFont) (s : string) : [ TextOp ] = [
   {| macroOp = MvNextLineStart |}
 , {| textShowOp = ShowStringOp f s |}
 ]
 
 -- TextOpP: parses a text opcode into a sequence of text operations
-def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
+def TextOpP (f : maybe sizedFont) : [ TextOp ] = Choose1 {
   -- parse an actual text operation:
   [ TextOp f ]
   -- text operations that are basically macros over other
@@ -99,7 +99,7 @@ def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
 ; { @tx = Token Number;
     @ty = Token Number;
     KW "TD"; -- Table 106
-    [ {| textStateOp = SetLeadingOp ty |}
+    [ {| textStateOp = setLeadingOp ty |}
     , {| textPosOp = MvNextLineWOffset tx ty |}
     ]
   }
@@ -112,15 +112,15 @@ def TextOpP (f : maybe SizedFont) : [ TextOp ] = Choose1 {
     @s = Token String;
     KW "\""; -- Table 107
     append 
-      [ {| textStateOp = SetWordSpaceOp aw |}
-      , {| textStateOp = SetCharSpaceOp ac |}
+      [ {| textStateOp = setWordSpaceOp aw |}
+      , {| textStateOp = setCharSpaceOp ac |}
       ]
       (MvNextLineShow (f is just) s)
   }
 }
 
 -- TextObj: a text object
-def TextObj (rd: ResourceDict) (f : maybe SizedFont) : FontEffect = 
+def TextObj (rd: ResourceDict) (f : maybe sizedFont) : FontEffect = 
   Between "BT" "ET" {
     @sf = ManyWithState
       (GenSum1
@@ -131,21 +131,21 @@ def TextObj (rd: ResourceDict) (f : maybe SizedFont) : FontEffect =
     FontEffect sf.fst (concat sf.snd)
   }
 
-def InterpTextObj (obj: [ TextOp ]) (q : TextState) : TextEffect = {
-  @eff0 = LiftToTextEffect q;
+def InterpTextObj (obj: [ TextOp ]) (q : textState) : textEffect = {
+  @eff0 = liftToTextEffect q;
   for (effAcc = eff0; op in obj) {
     case (op : TextOp) of {
-      textShowOp showOp -> PutStr
+      textShowOp showOp -> putStr
         effAcc
         (ShowTextShow showOp effAcc.textState)
-    ; textStateOp stateOp -> SetEffectState
-        (UpdTextState stateOp effAcc.textState)
+    ; textStateOp stateOp -> setEffectState
+        (updTextState stateOp effAcc.textState)
         effAcc
-    ; textPosOp posOp -> PutStr
+    ; textPosOp posOp -> putStr
         effAcc
         (ShowPos posOp)
     ; _ -> effAcc
---    ; macroOp -> ... TODO: define
+--    ; macroOp -> effAcc TODO:
     }
   }
 }

@@ -7,7 +7,7 @@ import TextEffect
 import Unicode
 
 
-def SetMatrixOp (pa: Number) (pb: Number)
+def setMatrixOp (pa: Number) (pb: Number)
   (pc: Number) (pd: Number)
   (pe: Number) (pf: Number) = {
   a = pa;
@@ -21,7 +21,7 @@ def SetMatrixOp (pa: Number) (pb: Number)
 -- Text-positioning operators (Table 106)
 def TextPosOp = Choose1 { 
   setTextMatrix = {
-    $$ = SetMatrixOp
+    $$ = setMatrixOp
       (Token Number)
       (Token Number)
       (Token Number)
@@ -36,6 +36,14 @@ def isZeroNumber n = n.num == 0
 
 def ShowPos (op: TextPosOp) : [ UTF8 ] = case op of {
   -- interpret setting text position as injecting a newline
-  setTextMatrix m -> [ mkUTF81 (bytes1
-    (if isZeroNumber m.f then ' ' else '\n')) ]
+  setTextMatrix m -> {
+    @mayWs =
+      if !(isZeroNumber m.f) then (just '\n')
+      else nothing;
+    @mayUtf = case mayWs of {
+      just ws -> just (mkUTF81 (bytes1 ws))
+    ; nothing -> nothing;
+    };
+    optionToArray mayUtf
+  }
 }

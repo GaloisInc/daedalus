@@ -13,8 +13,8 @@ def DW2 = {
 }
 
 def DefaultDW2 : DW2 = {
-  metric0 = IntNumber 880;
-  metric1 = IntNumber 1000;
+  metric0 = intNumber 880;
+  metric1 = intNumber 1000;
 }
 
 def CIDToGIDMapRec (pos : uint 64) m = Default m

@@ -36,19 +36,19 @@ def TextStateOp = Choose1 { -- operations are mutually exclusive
   }
 }
 
-def SetCharSpaceOp (x : Number) : TextStateOp = {| setCharSpace = ^x |}
+def setCharSpaceOp (x : Number) : TextStateOp = {| setCharSpace = x |}
 
-def SetLeadingOp (y : Number) : TextStateOp = {| setLeading = y |}
+def setLeadingOp (y : Number) : TextStateOp = {| setLeading = y |}
 
-def SetWordSpaceOp (x : Number) : TextStateOp = {| setWordSpace = ^x |}
+def setWordSpaceOp (x : Number) : TextStateOp = {| setWordSpace = x |}
 
--- UpdTextState op q: state q updated by running text-state operation op
-def UpdTextState (op: TextStateOp) (q: TextState) : TextState = case op of {
-  setCharSpace charSpace -> SetCharSpace charSpace q
-; setWordSpace wordSpace -> SetWordSpace wordSpace q
-; setScale s -> SetScale s q
-; setLeading l -> SetLeading l q
-; setRenderingMode rm -> SetRenderingMode rm q
-; setRise rs -> SetRise rs q
+-- updTextState op q: state q updated by running text-state operation op
+def updTextState (op: TextStateOp) (q: TextState) : TextState = case op of {
+  setCharSpace charSpace -> setCharSpace charSpace q
+; setWordSpace wordSpace -> setWordSpace wordSpace q
+; setScale s -> setScale s q
+; setLeading l -> setLeading l q
+; setRenderingMode rm -> setRenderingMode rm q
+; setRise rs -> setRise rs q
 }
 

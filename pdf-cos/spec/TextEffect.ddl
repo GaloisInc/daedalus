@@ -18,12 +18,12 @@ import CIDFont
 import PdfValue
 
 
-def SizedFont (f : FontDict) (s: Number) = {
+def sizedFont (f : FontDict) (s: Number) = {
   font = f;
   size = s;
 }
 
-def TextState (cs: Number) (ws: Number) (s: Number) (l: Number)
+def textState (cs: Number) (ws: Number) (s: Number) (l: Number)
   (rm: Number) (r: Number) = {
   charSpace = cs;
   wordSpace = ws;
@@ -34,16 +34,16 @@ def TextState (cs: Number) (ws: Number) (s: Number) (l: Number)
 }
 
 -- InitTextState: the initial text state (Table 103)
-def InitTextState : TextState = TextState
-  (IntNumber 0)
-  (IntNumber 0)
-  (IntNumber 100)
-  (IntNumber 0)
-  (IntNumber 0)
-  (IntNumber 0)
+def initTextState : textState = textState
+  (intNumber 0)
+  (intNumber 0)
+  (intNumber 100)
+  (intNumber 0)
+  (intNumber 0)
+  (intNumber 0)
 
 -- setter operations for text state:
-def SetCharSpace (cs : Number) (q : TextState) : TextState = TextState
+def setCharSpace (cs : Number) (q : textState) : textState = textState
   cs
   q.wordSpace
   q.scale
@@ -51,7 +51,7 @@ def SetCharSpace (cs : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetLeading (l : Number) (q : TextState) : TextState = TextState
+def setLeading (l : Number) (q : textState) : textState = textState
   q.charSpace
   q.wordSpace
   q.scale
@@ -59,7 +59,7 @@ def SetLeading (l : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetRenderingMode (rm : Number) (q : TextState) : TextState = TextState
+def setRenderingMode (rm : Number) (q : textState) : textState = textState
   q.charSpace
   q.wordSpace
   q.scale
@@ -67,7 +67,7 @@ def SetRenderingMode (rm : Number) (q : TextState) : TextState = TextState
   rm
   q.rise
 
-def SetRise (r : Number) (q : TextState) : TextState = TextState
+def setRise (r : Number) (q : textState) : textState = textState
   q.charSpace
   q.wordSpace
   q.scale
@@ -75,7 +75,7 @@ def SetRise (r : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   r
 
-def SetScale (s : Number) (q : TextState) : TextState = TextState
+def setScale (s : Number) (q : textState) : textState = textState
   q.charSpace
   q.wordSpace
   s
@@ -83,7 +83,7 @@ def SetScale (s : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def SetWordSpace (ws : Number) (q : TextState) : TextState = TextState
+def setWordSpace (ws : Number) (q : textState) : textState = textState
   q.charSpace
   ws
   q.scale
@@ -91,25 +91,25 @@ def SetWordSpace (ws : Number) (q : TextState) : TextState = TextState
   q.renderingMode
   q.rise
 
-def InitBytes : [ UTF8 ] = [ ]
+def initBytes : [ UTF8 ] = [ ]
 
-def TextEffect (q : TextState) (bs : [ UTF8 ]) = {
+def textEffect (q : textState) (bs : [ UTF8 ]) = {
   textState = q;
   output = bs;
 }
 
-def InitEffect = TextEffect InitTextState InitBytes
+def initEffect = textEffect initTextState initBytes
 
-def LiftToTextEffect (q : TextState) = TextEffect q [ ]
+def liftToTextEffect (q : textState) = textEffect q [ ]
 
-def PutStr (eff: TextEffect) (bs : [ UTF8 ] ) = TextEffect
+def putStr (eff: textEffect) (bs : [ UTF8 ] ) = textEffect
   eff.textState (append eff.output bs)
 
-def Sequence (eff0: TextEffect) (eff1 : TextEffect) = TextEffect
+def sequence (eff0: textEffect) (eff1 : textEffect) = textEffect
   eff1.textState (append eff0.output eff1.output)
 
-def SetEffectState (q : TextState) (eff: TextEffect) = Sequence
-  (LiftToTextEffect q) eff
+def setEffectState (q : textState) (eff: textEffect) = sequence
+  (liftToTextEffect q) eff
 
 def UTF81Code = {
   Many NonASCIIByte; -- eat non-ASCII bytes
@@ -125,7 +125,7 @@ def UTF81Code = {
 --
 --  - FIXME: looking at CMap.FontCode: maybe step 1 would work for Type0 font?
 
-def ExtractString (q: TextState) (szFont: SizedFont) (s : [ uint 8 ]) :
+def ExtractString (q: textState) (szFont: sizedFont) (s : [ uint 8 ]) :
   [ UTF8 ] = 
   -- assume that there is no "default font" if not set by "Tf"
   case szFont.font of {
@@ -136,7 +136,7 @@ def ExtractString (q: TextState) (szFont: SizedFont) (s : [ uint 8 ]) :
   ; trueType fontTT -> ExtractStringType1 fontTT s
   }
 
-def ExtractString_Composite (f: Type0Font) (q: TextState) (s : [ uint 8 ]) :
+def ExtractString_Composite (f: Type0Font) (q: textState) (s : [ uint 8 ]) :
   [ UTF8 ] = {
   -- TODO: use f to encode character codes in UTF
   WithStream (arrayStream s) (Many UTF81Code)
