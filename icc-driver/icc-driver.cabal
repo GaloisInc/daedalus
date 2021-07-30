@@ -6,7 +6,9 @@ license-file:        LICENSE
 author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
 build-type:          Custom
-extra-source-files:  CHANGELOG.md
+extra-source-files:
+  CHANGELOG.md
+  spec/ICC.ddl
 
 custom-setup
   setup-depends: base, containers, daedalus, Cabal
