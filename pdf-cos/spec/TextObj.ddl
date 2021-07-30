@@ -14,7 +14,7 @@ import MarkedContentOps
 import TextEffect
 import TextPosOp
 import TextShowOp
-import textStateOp
+import TextStateOp
 
 -- TODO: non-immediate dep
 import Encoding
