@@ -77,6 +77,7 @@ module Daedalus.Type.Monad
   ) where
 
 
+import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
@@ -427,7 +428,7 @@ data RO ctx = RO
   }
 
 data RW = RW
-  { sLocalTyVars  :: !(Map Name Type) -- ^ Names for local types (from sigs)
+  { sLocalTyVars  :: !(Map Text Type) -- ^ Names for local types (from sigs)
   , sNextType     :: !Int             -- ^ Used to generate variants of the root
   , sIPUsed       :: !(Set IPName)
     -- ^ IPs (from the ones in scope) that were used.  We keep track of this
@@ -488,10 +489,10 @@ arePartialAppsOK :: TypeM ctx Bool
 arePartialAppsOK = TypeM (allowPartial <$> ask)
 
 
-lookupLocalTyVar :: Name -> TypeM ctx (Maybe Type)
+lookupLocalTyVar :: Text -> TypeM ctx (Maybe Type)
 lookupLocalTyVar x = TypeM (Map.lookup x . sLocalTyVars <$> get)
 
-newLocalTyVar :: Name -> Type -> TypeM ctx ()
+newLocalTyVar :: Text -> Type -> TypeM ctx ()
 newLocalTyVar x t =
   TypeM (sets_ \s -> s { sLocalTyVars = Map.insert x t (sLocalTyVars s) })
 

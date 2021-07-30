@@ -360,7 +360,8 @@ data TypeF t =
   | TMap   !t !t
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
-data SrcType = SrcVar Name
+data SrcType = SrcVar (Located Text)
+             | SrcCon Name
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
@@ -378,6 +379,7 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
+      SrcCon x -> range x
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -512,6 +514,7 @@ instance OrdF Context where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
+                  SrcCon x -> ppPrec n x
                   SrcType l -> ppPrec n (thingValue l)
 
 

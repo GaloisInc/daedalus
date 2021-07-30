@@ -536,7 +536,8 @@ type                                     :: { SrcType }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
   | NUMBER                                  { atT (fst $1) (TNum (fst (snd $1))) }
-  | name                                    { SrcVar $1 }
+  | name                                    { SrcCon $1 }
+  | SMALLIDENTI                             { SrcVar (loc (fst $1) (snd $1)) }
 
 arr_or_map                               :: { TypeF SrcType }
   : type                                    { TArray $1 }

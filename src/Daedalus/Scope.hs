@@ -367,8 +367,8 @@ instance ResolveNames t => ResolveNames (Located t) where
 instance ResolveNames SrcType where
   resolve ty =
     case ty of
-      -- FIXME: should we treat tvs differently?
-      SrcVar x   -> SrcVar  <$> resolve x
+      SrcVar x   -> pure (SrcVar x)
+      SrcCon x   -> SrcCon  <$> resolve x
       SrcType tf -> SrcType <$> resolve tf
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]
