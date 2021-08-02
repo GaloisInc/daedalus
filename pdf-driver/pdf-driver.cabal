@@ -20,6 +20,8 @@ extra-source-files:
   spec/PdfValidate.ddl,
   spec/PdfDOM.ddl,
   spec/Stdlib.ddl,
+  spec/PdfContentStream.ddl,
+  spec/ContentStreamLight.ddl
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 custom-setup
@@ -35,12 +37,18 @@ library
   exposed-modules:
     PdfDemo,
     PdfValidate,
-    PdfDOM
+    PdfDOM,
+    PdfContentStream,
+    ContentStreamLight,
+    Unicode
 
   autogen-modules:
     PdfDemo,
     PdfValidate,
-    PdfDOM
+    PdfDOM,
+    PdfContentStream,
+    ContentStreamLight,
+    Unicode
 
   build-depends:
     base >=4.13 && <4.15,
