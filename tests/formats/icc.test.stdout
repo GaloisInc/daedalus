@@ -287,130 +287,130 @@ ICC.VersionField : Grammar ICC.VersionField =
  
 ICC.ProfileClasses : Grammar ICC.ProfileClasses =
   do ($$ : ICC.ProfileClasses) <- Choose biased
-                                    { {- input_device_profile -} do (_262 : {}) <- @MatchBytes "scnr"
-                                                                    pure {input_device_profile: _262}
-                                    | {- display_device_profile -} do (_263 : {}) <- @MatchBytes "mntr"
-                                                                      pure {display_device_profile: _263}
-                                    | {- output_device_profile -} do (_264 : {}) <- @MatchBytes "prtr"
-                                                                     pure {output_device_profile: _264}
-                                    | {- device_link_profile -} do (_265 : {}) <- @MatchBytes "link"
-                                                                   pure {device_link_profile: _265}
-                                    | {- color_space_profile -} do (_266 : {}) <- @MatchBytes "spac"
-                                                                   pure {color_space_profile: _266}
-                                    | {- abstract_profile -} do (_267 : {}) <- @MatchBytes "abst"
-                                                                pure {abstract_profile: _267}
-                                    | {- named_color_profile -} do (_268 : {}) <- @MatchBytes "nmcl"
-                                                                   pure {named_color_profile: _268}
+                                    { {- input_device_profile -} do (_238 : {}) <- @MatchBytes "scnr"
+                                                                    pure {input_device_profile: _238}
+                                    | {- display_device_profile -} do (_239 : {}) <- @MatchBytes "mntr"
+                                                                      pure {display_device_profile: _239}
+                                    | {- output_device_profile -} do (_240 : {}) <- @MatchBytes "prtr"
+                                                                     pure {output_device_profile: _240}
+                                    | {- device_link_profile -} do (_241 : {}) <- @MatchBytes "link"
+                                                                   pure {device_link_profile: _241}
+                                    | {- color_space_profile -} do (_242 : {}) <- @MatchBytes "spac"
+                                                                   pure {color_space_profile: _242}
+                                    | {- abstract_profile -} do (_243 : {}) <- @MatchBytes "abst"
+                                                                pure {abstract_profile: _243}
+                                    | {- named_color_profile -} do (_244 : {}) <- @MatchBytes "nmcl"
+                                                                   pure {named_color_profile: _244}
                                     }
      pure $$
  
 ICC.DataColorSpaces : Grammar ICC.DataColorSpaces =
   do ($$ : ICC.DataColorSpaces) <- Choose biased
-                                     { {- nciexyz_or_pcsxyz -} do (_270 : {}) <- @MatchBytes "XYZ "
-                                                                  pure {nciexyz_or_pcsxyz: _270}
-                                     | {- cielab_or_pcslab -} do (_271 : {}) <- @MatchBytes "Lab "
-                                                                 pure {cielab_or_pcslab: _271}
-                                     | {- cieluv -} do (_272 : {}) <- @MatchBytes "Luv "
-                                                       pure {cieluv: _272}
-                                     | {- ycbcr -} do (_273 : {}) <- @MatchBytes "Ycbr"
-                                                      pure {ycbcr: _273}
-                                     | {- cieyxy -} do (_274 : {}) <- @MatchBytes "Yxy "
-                                                       pure {cieyxy: _274}
-                                     | {- rgb -} do (_275 : {}) <- @MatchBytes "RGB "
-                                                    pure {rgb: _275}
-                                     | {- gray -} do (_276 : {}) <- @MatchBytes "GRAY"
-                                                     pure {gray: _276}
-                                     | {- hsv -} do (_277 : {}) <- @MatchBytes "HSV "
-                                                    pure {hsv: _277}
-                                     | {- hls -} do (_278 : {}) <- @MatchBytes "HLS "
-                                                    pure {hls: _278}
-                                     | {- cmyk -} do (_279 : {}) <- @MatchBytes "CMYK"
-                                                     pure {cmyk: _279}
-                                     | {- cmy -} do (_280 : {}) <- @MatchBytes "CMY "
-                                                    pure {cmy: _280}
-                                     | {- two_colour -} do (_281 : {}) <- @MatchBytes "2CLR"
-                                                           pure {two_colour: _281}
-                                     | {- three_colour -} do (_282 : {}) <- @MatchBytes "3CLR"
-                                                             pure {three_colour: _282}
-                                     | {- four_colour -} do (_283 : {}) <- @MatchBytes "4CLR"
-                                                            pure {four_colour: _283}
-                                     | {- five_colour -} do (_284 : {}) <- @MatchBytes "5CLR"
-                                                            pure {five_colour: _284}
-                                     | {- six_colour -} do (_285 : {}) <- @MatchBytes "6CLR"
-                                                           pure {six_colour: _285}
-                                     | {- seven_colour -} do (_286 : {}) <- @MatchBytes "7CLR"
-                                                             pure {seven_colour: _286}
-                                     | {- eight_colour -} do (_287 : {}) <- @MatchBytes "8CLR"
-                                                             pure {eight_colour: _287}
-                                     | {- nine_colour -} do (_288 : {}) <- @MatchBytes "9CLR"
-                                                            pure {nine_colour: _288}
-                                     | {- ten_colour -} do (_289 : {}) <- @MatchBytes "ACLR"
-                                                           pure {ten_colour: _289}
-                                     | {- eleven_colour -} do (_290 : {}) <- @MatchBytes "BCLR"
-                                                              pure {eleven_colour: _290}
-                                     | {- twelve_colour -} do (_291 : {}) <- @MatchBytes "CCLR"
-                                                              pure {twelve_colour: _291}
-                                     | {- thirteen_colour -} do (_292 : {}) <- @MatchBytes "DCLR"
-                                                                pure {thirteen_colour: _292}
-                                     | {- fourteen_colour -} do (_293 : {}) <- @MatchBytes "ECLR"
-                                                                pure {fourteen_colour: _293}
-                                     | {- fifteen_colour -} do (_294 : {}) <- @MatchBytes "FCLR"
-                                                               pure {fifteen_colour: _294}
+                                     { {- nciexyz_or_pcsxyz -} do (_246 : {}) <- @MatchBytes "XYZ "
+                                                                  pure {nciexyz_or_pcsxyz: _246}
+                                     | {- cielab_or_pcslab -} do (_247 : {}) <- @MatchBytes "Lab "
+                                                                 pure {cielab_or_pcslab: _247}
+                                     | {- cieluv -} do (_248 : {}) <- @MatchBytes "Luv "
+                                                       pure {cieluv: _248}
+                                     | {- ycbcr -} do (_249 : {}) <- @MatchBytes "Ycbr"
+                                                      pure {ycbcr: _249}
+                                     | {- cieyxy -} do (_250 : {}) <- @MatchBytes "Yxy "
+                                                       pure {cieyxy: _250}
+                                     | {- rgb -} do (_251 : {}) <- @MatchBytes "RGB "
+                                                    pure {rgb: _251}
+                                     | {- gray -} do (_252 : {}) <- @MatchBytes "GRAY"
+                                                     pure {gray: _252}
+                                     | {- hsv -} do (_253 : {}) <- @MatchBytes "HSV "
+                                                    pure {hsv: _253}
+                                     | {- hls -} do (_254 : {}) <- @MatchBytes "HLS "
+                                                    pure {hls: _254}
+                                     | {- cmyk -} do (_255 : {}) <- @MatchBytes "CMYK"
+                                                     pure {cmyk: _255}
+                                     | {- cmy -} do (_256 : {}) <- @MatchBytes "CMY "
+                                                    pure {cmy: _256}
+                                     | {- two_colour -} do (_257 : {}) <- @MatchBytes "2CLR"
+                                                           pure {two_colour: _257}
+                                     | {- three_colour -} do (_258 : {}) <- @MatchBytes "3CLR"
+                                                             pure {three_colour: _258}
+                                     | {- four_colour -} do (_259 : {}) <- @MatchBytes "4CLR"
+                                                            pure {four_colour: _259}
+                                     | {- five_colour -} do (_260 : {}) <- @MatchBytes "5CLR"
+                                                            pure {five_colour: _260}
+                                     | {- six_colour -} do (_261 : {}) <- @MatchBytes "6CLR"
+                                                           pure {six_colour: _261}
+                                     | {- seven_colour -} do (_262 : {}) <- @MatchBytes "7CLR"
+                                                             pure {seven_colour: _262}
+                                     | {- eight_colour -} do (_263 : {}) <- @MatchBytes "8CLR"
+                                                             pure {eight_colour: _263}
+                                     | {- nine_colour -} do (_264 : {}) <- @MatchBytes "9CLR"
+                                                            pure {nine_colour: _264}
+                                     | {- ten_colour -} do (_265 : {}) <- @MatchBytes "ACLR"
+                                                           pure {ten_colour: _265}
+                                     | {- eleven_colour -} do (_266 : {}) <- @MatchBytes "BCLR"
+                                                              pure {eleven_colour: _266}
+                                     | {- twelve_colour -} do (_267 : {}) <- @MatchBytes "CCLR"
+                                                              pure {twelve_colour: _267}
+                                     | {- thirteen_colour -} do (_268 : {}) <- @MatchBytes "DCLR"
+                                                                pure {thirteen_colour: _268}
+                                     | {- fourteen_colour -} do (_269 : {}) <- @MatchBytes "ECLR"
+                                                                pure {fourteen_colour: _269}
+                                     | {- fifteen_colour -} do (_270 : {}) <- @MatchBytes "FCLR"
+                                                               pure {fifteen_colour: _270}
                                      }
      pure $$
  
 ICC.PrimaryPlatforms : Grammar ICC.PrimaryPlatforms =
   do ($$ : ICC.PrimaryPlatforms) <- Choose biased
-                                      { {- none -} do (_296 : {}) <- @MatchBytes [0,
+                                      { {- none -} do (_272 : {}) <- @MatchBytes [0,
                                                                                   0,
                                                                                   0,
                                                                                   0]
-                                                      pure {none: _296}
-                                      | {- apple_computer_inc -} do (_297 : {}) <- @MatchBytes "APPL"
-                                                                    pure {apple_computer_inc: _297}
-                                      | {- microsoft_corporation -} do (_298 : {}) <- @MatchBytes "MSFT"
-                                                                       pure {microsoft_corporation: _298}
-                                      | {- silicon_graphics_inc -} do (_299 : {}) <- @MatchBytes "SGI "
-                                                                      pure {silicon_graphics_inc: _299}
-                                      | {- sun_microsystems -} do (_300 : {}) <- @MatchBytes "SUNW"
-                                                                  pure {sun_microsystems: _300}
+                                                      pure {none: _272}
+                                      | {- apple_computer_inc -} do (_273 : {}) <- @MatchBytes "APPL"
+                                                                    pure {apple_computer_inc: _273}
+                                      | {- microsoft_corporation -} do (_274 : {}) <- @MatchBytes "MSFT"
+                                                                       pure {microsoft_corporation: _274}
+                                      | {- silicon_graphics_inc -} do (_275 : {}) <- @MatchBytes "SGI "
+                                                                      pure {silicon_graphics_inc: _275}
+                                      | {- sun_microsystems -} do (_276 : {}) <- @MatchBytes "SUNW"
+                                                                  pure {sun_microsystems: _276}
                                       }
      pure $$
  
 ICC.RenderingIntent : Grammar ICC.RenderingIntent =
   do ($$ : ICC.RenderingIntent) <- Choose biased
-                                     { {- perceptual -} do (_302 : {}) <- @MatchBytes [0,
+                                     { {- perceptual -} do (_278 : {}) <- @MatchBytes [0,
                                                                                        0,
                                                                                        0,
                                                                                        0]
-                                                           pure {perceptual: _302}
-                                     | {- media_relative_colorimetric -} do (_303 : {}) <- @MatchBytes [0,
+                                                           pure {perceptual: _278}
+                                     | {- media_relative_colorimetric -} do (_279 : {}) <- @MatchBytes [0,
                                                                                                         0,
                                                                                                         0,
                                                                                                         1]
-                                                                            pure {media_relative_colorimetric: _303}
-                                     | {- saturation -} do (_304 : {}) <- @MatchBytes [0,
+                                                                            pure {media_relative_colorimetric: _279}
+                                     | {- saturation -} do (_280 : {}) <- @MatchBytes [0,
                                                                                        0,
                                                                                        0,
                                                                                        2]
-                                                           pure {saturation: _304}
-                                     | {- icc_absolute_colorimetric -} do (_305 : {}) <- @MatchBytes [0,
+                                                           pure {saturation: _280}
+                                     | {- icc_absolute_colorimetric -} do (_281 : {}) <- @MatchBytes [0,
                                                                                                       0,
                                                                                                       0,
                                                                                                       3]
-                                                                          pure {icc_absolute_colorimetric: _305}
+                                                                          pure {icc_absolute_colorimetric: _281}
                                      }
      pure $$
  
 ICC.BE16 : Grammar (uint 16) =
-  do (_306 : uint 8) <- GetByte
-     (_307 : uint 8) <- GetByte
-     pure (_306 # _307)
+  do (_282 : uint 8) <- GetByte
+     (_283 : uint 8) <- GetByte
+     pure (_282 # _283)
  
 ICC.BE32 : Grammar (uint 32) =
-  do (_308 : uint 16) <- ICC.BE16
-     (_309 : uint 16) <- ICC.BE16
-     pure (_308 # _309)
+  do (_284 : uint 16) <- ICC.BE16
+     (_285 : uint 16) <- ICC.BE16
+     pure (_284 # _285)
  
 ICC.XYZNumber : Grammar ICC.XYZNumber =
   do (x : uint 32) <- ICC.BE32
@@ -435,9 +435,9 @@ ICC.DateTimeNumber : Grammar ICC.DateTimeNumber =
            second = second}
  
 ICC.BE64 : Grammar (uint 64) =
-  do (_310 : uint 32) <- ICC.BE32
-     (_311 : uint 32) <- ICC.BE32
-     pure (_310 # _311)
+  do (_286 : uint 32) <- ICC.BE32
+     (_287 : uint 32) <- ICC.BE32
+     pure (_286 # _287)
  
 ICC.ProfileHeader : Grammar ICC.ProfileHeader =
   do (size : uint 32) <- ICC.BE32
@@ -508,8 +508,8 @@ ICC.PositionNumber : Grammar ICC.PositionNumber =
            size = size}
  
 ICC.ASCII7 : Grammar [uint 7] =
-  do ($$ : [uint 7]) <- Many[] do (_313 : uint 8) <- Match (1 .. 255)
-                                  _313 AS uint 7
+  do ($$ : [uint 7]) <- Many[] do (_289 : uint 8) <- Match (1 .. 255)
+                                  _289 AS uint 7
      Choose biased
        { @Many[ 1 .. ] @Match {'\NUL'}
        | Fail "Non 0 string terminator"
@@ -646,34 +646,34 @@ ICC.LutBToAType : Grammar ICC.LutBToAType =
  
 ICC.Lut_8_16_AB_BA : Grammar ICC.Lut_8_16_AB_BA =
   Choose biased
-    { {- lut8 -} do (_319 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _319}
-    | {- lut16 -} do (_320 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _320}
-    | {- lutAB -} do (_321 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _321}
-    | {- lutBA -} do (_322 : ICC.LutBToAType) <- ICC.LutBToAType
-                     pure {lutBA: _322}
+    { {- lut8 -} do (_295 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _295}
+    | {- lut16 -} do (_296 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _296}
+    | {- lutAB -} do (_297 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _297}
+    | {- lutBA -} do (_298 : ICC.LutBToAType) <- ICC.LutBToAType
+                     pure {lutBA: _298}
     }
  
 ICC.Lut_8_16_AB : Grammar ICC.Lut_8_16_AB =
   Choose biased
-    { {- lut8 -} do (_323 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _323}
-    | {- lut16 -} do (_324 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _324}
-    | {- lutAB -} do (_325 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _325}
+    { {- lut8 -} do (_299 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _299}
+    | {- lut16 -} do (_300 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _300}
+    | {- lutAB -} do (_301 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _301}
     }
  
 ICC.Lut_8_16_BA : Grammar ICC.Lut_8_16_BA =
   Choose biased
-    { {- lut8 -} do (_326 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _326}
-    | {- lut16 -} do (_327 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _327}
-    | {- lutBA -} do (_328 : ICC.LutBToAType) <- ICC.LutBToAType
-                     pure {lutBA: _328}
+    { {- lut8 -} do (_302 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _302}
+    | {- lut16 -} do (_303 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _303}
+    | {- lutBA -} do (_304 : ICC.LutBToAType) <- ICC.LutBToAType
+                     pure {lutBA: _304}
     }
  
 ICC.CurveType : Grammar [uint 16] =
@@ -693,10 +693,10 @@ ICC.ParametricCurveType : Grammar ICC.ParametricCurveType =
  
 ICC.SomeCurve : Grammar ICC.SomeCurve =
   Choose biased
-    { {- curve -} do (_330 : [uint 16]) <- ICC.CurveType
-                     pure {curve: _330}
-    | {- parametric_curve -} do (_331 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
-                                pure {parametric_curve: _331}
+    { {- curve -} do (_306 : [uint 16]) <- ICC.CurveType
+                     pure {curve: _306}
+    | {- parametric_curve -} do (_307 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
+                                pure {parametric_curve: _307}
     }
  
 ICC.DateTimeType : Grammar ICC.DateTimeNumber =
@@ -895,246 +895,246 @@ ICC.ViewConditionsType : Grammar ICC.ViewConditionsType =
 ICC.Tag (sig : [uint 8]) : Grammar ICC.Tag =
   Choose biased
     { Choose biased
-        { {- AToB0 -} do (_345 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B0")
+        { {- AToB0 -} do (_321 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B0")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_AB) <- ICC.Lut_8_16_AB
                                                              pure $$
-                         pure {AToB0: _345}
-        | {- AToB1 -} do (_347 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B1")
+                         pure {AToB0: _321}
+        | {- AToB1 -} do (_323 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B1")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_AB) <- ICC.Lut_8_16_AB
                                                              pure $$
-                         pure {AToB1: _347}
-        | {- AToB2 -} do (_349 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B2")
+                         pure {AToB1: _323}
+        | {- AToB2 -} do (_325 : ICC.Lut_8_16_AB) <- do ICC._Guard (sig == "A2B2")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_AB) <- ICC.Lut_8_16_AB
                                                              pure $$
-                         pure {AToB2: _349}
-        | {- blueMatrixColumn -} do (_351 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "bXYZ")
+                         pure {AToB2: _325}
+        | {- blueMatrixColumn -} do (_327 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "bXYZ")
                                                                    Commit
                                                                      do ($$ : [ICC.XYZNumber]) <- ICC.XYZType
                                                                         pure $$
-                                    pure {blueMatrixColumn: _351}
-        | {- blueTRC -} do (_353 : ICC.SomeCurve) <- do ICC._Guard (sig == "bTRC")
+                                    pure {blueMatrixColumn: _327}
+        | {- blueTRC -} do (_329 : ICC.SomeCurve) <- do ICC._Guard (sig == "bTRC")
                                                         Commit
                                                           do ($$ : ICC.SomeCurve) <- ICC.SomeCurve
                                                              pure $$
-                           pure {blueTRC: _353}
-        | {- BToA0 -} do (_355 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A0")
+                           pure {blueTRC: _329}
+        | {- BToA0 -} do (_331 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A0")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                              pure $$
-                         pure {BToA0: _355}
-        | {- BToA1 -} do (_357 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A1")
+                         pure {BToA0: _331}
+        | {- BToA1 -} do (_333 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A1")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                              pure $$
-                         pure {BToA1: _357}
-        | {- BToA2 -} do (_359 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A2")
+                         pure {BToA1: _333}
+        | {- BToA2 -} do (_335 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "B2A2")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                              pure $$
-                         pure {BToA2: _359}
-        | {- BToD0 -} do (_361 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D0")
+                         pure {BToA2: _335}
+        | {- BToD0 -} do (_337 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D0")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {BToD0: _361}
-        | {- BToD1 -} do (_363 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D1")
+                         pure {BToD0: _337}
+        | {- BToD1 -} do (_339 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D1")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {BToD1: _363}
-        | {- BToD2 -} do (_365 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D2")
+                         pure {BToD1: _339}
+        | {- BToD2 -} do (_341 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D2")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {BToD2: _365}
-        | {- BToD3 -} do (_367 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D3")
+                         pure {BToD2: _341}
+        | {- BToD3 -} do (_343 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "B2D3")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {BToD3: _367}
-        | {- calibrationDateTime -} do (_369 : ICC.DateTimeNumber) <- do ICC._Guard (sig == "calt")
+                         pure {BToD3: _343}
+        | {- calibrationDateTime -} do (_345 : ICC.DateTimeNumber) <- do ICC._Guard (sig == "calt")
                                                                          Commit
                                                                            do ($$ : ICC.DateTimeNumber) <- ICC.DateTimeType
                                                                               pure $$
-                                       pure {calibrationDateTime: _369}
-        | {- charTarget -} do (_371 : [uint 7]) <- do ICC._Guard (sig == "targ")
+                                       pure {calibrationDateTime: _345}
+        | {- charTarget -} do (_347 : [uint 7]) <- do ICC._Guard (sig == "targ")
                                                       Commit
                                                         do ($$ : [uint 7]) <- ICC.TextType
                                                            pure $$
-                              pure {charTarget: _371}
-        | {- chromaticAdaptation -} do (_373 : [uint 32]) <- do ICC._Guard (sig == "chad")
+                              pure {charTarget: _347}
+        | {- chromaticAdaptation -} do (_349 : [uint 32]) <- do ICC._Guard (sig == "chad")
                                                                 Commit
                                                                   do ($$ : [uint 32]) <- ICC.S15Fixed16ArrayType
                                                                      pure $$
-                                       pure {chromaticAdaptation: _373}
-        | {- colorantOrder -} do (_375 : [uint 8]) <- do ICC._Guard (sig == "clro")
+                                       pure {chromaticAdaptation: _349}
+        | {- colorantOrder -} do (_351 : [uint 8]) <- do ICC._Guard (sig == "clro")
                                                          Commit
                                                            do ($$ : [uint 8]) <- ICC.ColorantOrderType
                                                               pure $$
-                                 pure {colorantOrder: _375}
-        | {- colorantTable -} do (_377 : [ICC.Colorant]) <- do ICC._Guard (sig == "clrt")
+                                 pure {colorantOrder: _351}
+        | {- colorantTable -} do (_353 : [ICC.Colorant]) <- do ICC._Guard (sig == "clrt")
                                                                Commit
                                                                  do ($$ : [ICC.Colorant]) <- ICC.ColorantTableType
                                                                     pure $$
-                                 pure {colorantTable: _377}
-        | {- colorantTableOut -} do (_379 : [ICC.Colorant]) <- do ICC._Guard (sig == "clot")
+                                 pure {colorantTable: _353}
+        | {- colorantTableOut -} do (_355 : [ICC.Colorant]) <- do ICC._Guard (sig == "clot")
                                                                   Commit
                                                                     do ($$ : [ICC.Colorant]) <- ICC.ColorantTableType
                                                                        pure $$
-                                    pure {colorantTableOut: _379}
-        | {- colorimetricIntentImageState -} do (_381 : [uint 8]) <- do ICC._Guard (sig == "ciis")
+                                    pure {colorantTableOut: _355}
+        | {- colorimetricIntentImageState -} do (_357 : [uint 8]) <- do ICC._Guard (sig == "ciis")
                                                                         Commit
                                                                           do ($$ : [uint 8]) <- ICC.SignatureType
                                                                              pure $$
-                                                pure {colorimetricIntentImageState: _381}
-        | {- copyright -} do (_383 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "cprt")
+                                                pure {colorimetricIntentImageState: _357}
+        | {- copyright -} do (_359 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "cprt")
                                                                 Commit
                                                                   do ($$ : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
                                                                      pure $$
-                             pure {copyright: _383}
-        | {- deviceMfgDesc -} do (_385 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "dmnd")
+                             pure {copyright: _359}
+        | {- deviceMfgDesc -} do (_361 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "dmnd")
                                                                     Commit
                                                                       do ($$ : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
                                                                          pure $$
-                                 pure {deviceMfgDesc: _385}
-        | {- deviceModelDesc -} do (_387 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "dmdd")
+                                 pure {deviceMfgDesc: _361}
+        | {- deviceModelDesc -} do (_363 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "dmdd")
                                                                       Commit
                                                                         do ($$ : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
                                                                            pure $$
-                                   pure {deviceModelDesc: _387}
-        | {- DToB0 -} do (_389 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B0")
+                                   pure {deviceModelDesc: _363}
+        | {- DToB0 -} do (_365 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B0")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {DToB0: _389}
-        | {- DToB1 -} do (_391 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B1")
+                         pure {DToB0: _365}
+        | {- DToB1 -} do (_367 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B1")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {DToB1: _391}
-        | {- DToB2 -} do (_393 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B2")
+                         pure {DToB1: _367}
+        | {- DToB2 -} do (_369 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B2")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {DToB2: _393}
-        | {- DToB3 -} do (_395 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B3")
+                         pure {DToB2: _369}
+        | {- DToB3 -} do (_371 : ICC.MultiProcessElementsType) <- do ICC._Guard (sig == "D2B3")
                                                                      Commit
                                                                        do ($$ : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
                                                                           pure $$
-                         pure {DToB3: _395}
-        | {- gamut -} do (_397 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "gamt")
+                         pure {DToB3: _371}
+        | {- gamut -} do (_373 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "gamt")
                                                         Commit
                                                           do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                              pure $$
-                         pure {gamut: _397}
-        | {- grayTRC -} do (_399 : ICC.SomeCurve) <- do ICC._Guard (sig == "kTRC")
+                         pure {gamut: _373}
+        | {- grayTRC -} do (_375 : ICC.SomeCurve) <- do ICC._Guard (sig == "kTRC")
                                                         Commit
                                                           do ($$ : ICC.SomeCurve) <- ICC.SomeCurve
                                                              pure $$
-                           pure {grayTRC: _399}
-        | {- greenMatrixColumn -} do (_401 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "gXYZ")
+                           pure {grayTRC: _375}
+        | {- greenMatrixColumn -} do (_377 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "gXYZ")
                                                                     Commit
                                                                       do ($$ : [ICC.XYZNumber]) <- ICC.XYZType
                                                                          pure $$
-                                     pure {greenMatrixColumn: _401}
-        | {- greenTRC -} do (_403 : ICC.SomeCurve) <- do ICC._Guard (sig == "gTRC")
+                                     pure {greenMatrixColumn: _377}
+        | {- greenTRC -} do (_379 : ICC.SomeCurve) <- do ICC._Guard (sig == "gTRC")
                                                          Commit
                                                            do ($$ : ICC.SomeCurve) <- ICC.SomeCurve
                                                               pure $$
-                            pure {greenTRC: _403}
-        | {- luminance -} do (_405 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "lumi")
+                            pure {greenTRC: _379}
+        | {- luminance -} do (_381 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "lumi")
                                                             Commit
                                                               do ($$ : [ICC.XYZNumber]) <- ICC.XYZType
                                                                  pure $$
-                             pure {luminance: _405}
-        | {- measurement -} do (_407 : ICC.MeasurementType) <- do ICC._Guard (sig == "meas")
+                             pure {luminance: _381}
+        | {- measurement -} do (_383 : ICC.MeasurementType) <- do ICC._Guard (sig == "meas")
                                                                   Commit
                                                                     do ($$ : ICC.MeasurementType) <- ICC.MeasurementType
                                                                        pure $$
-                               pure {measurement: _407}
-        | {- mediaWhitePoint -} do (_409 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "wtpt")
+                               pure {measurement: _383}
+        | {- mediaWhitePoint -} do (_385 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "wtpt")
                                                                   Commit
                                                                     do ($$ : [ICC.XYZNumber]) <- ICC.XYZType
                                                                        pure $$
-                                   pure {mediaWhitePoint: _409}
-        | {- namedColor2 -} do (_411 : ICC.NamedColor2Type) <- do ICC._Guard (sig == "ncl2")
+                                   pure {mediaWhitePoint: _385}
+        | {- namedColor2 -} do (_387 : ICC.NamedColor2Type) <- do ICC._Guard (sig == "ncl2")
                                                                   Commit
                                                                     do ($$ : ICC.NamedColor2Type) <- ICC.NamedColor2Type
                                                                        pure $$
-                               pure {namedColor2: _411}
-        | {- outputResponse -} do (_413 : [ICC.ResponseCurve]) <- do ICC._Guard (sig == "resp")
+                               pure {namedColor2: _387}
+        | {- outputResponse -} do (_389 : [ICC.ResponseCurve]) <- do ICC._Guard (sig == "resp")
                                                                      Commit
                                                                        do ($$ : [ICC.ResponseCurve]) <- ICC.ResponseCurveSet16Type
                                                                           pure $$
-                                  pure {outputResponse: _413}
-        | {- perceptualRenderingIntentGamut -} do (_415 : [uint 8]) <- do ICC._Guard (sig == "rig0")
+                                  pure {outputResponse: _389}
+        | {- perceptualRenderingIntentGamut -} do (_391 : [uint 8]) <- do ICC._Guard (sig == "rig0")
                                                                           Commit
                                                                             do ($$ : [uint 8]) <- ICC.SignatureType
                                                                                pure $$
-                                                  pure {perceptualRenderingIntentGamut: _415}
-        | {- preview0 -} do (_417 : ICC.Lut_8_16_AB_BA) <- do ICC._Guard (sig == "pre0")
+                                                  pure {perceptualRenderingIntentGamut: _391}
+        | {- preview0 -} do (_393 : ICC.Lut_8_16_AB_BA) <- do ICC._Guard (sig == "pre0")
                                                               Commit
                                                                 do ($$ : ICC.Lut_8_16_AB_BA) <- ICC.Lut_8_16_AB_BA
                                                                    pure $$
-                            pure {preview0: _417}
-        | {- preview1 -} do (_419 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "pre1")
+                            pure {preview0: _393}
+        | {- preview1 -} do (_395 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "pre1")
                                                            Commit
                                                              do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                                 pure $$
-                            pure {preview1: _419}
-        | {- preview2 -} do (_421 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "pre2")
+                            pure {preview1: _395}
+        | {- preview2 -} do (_397 : ICC.Lut_8_16_BA) <- do ICC._Guard (sig == "pre2")
                                                            Commit
                                                              do ($$ : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
                                                                 pure $$
-                            pure {preview2: _421}
-        | {- profileDescription -} do (_423 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "desc")
+                            pure {preview2: _397}
+        | {- profileDescription -} do (_399 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "desc")
                                                                          Commit
                                                                            do ($$ : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
                                                                               pure $$
-                                      pure {profileDescription: _423}
-        | {- profileSequenceDesc -} do (_425 : [uint 8]) <- do ICC._Guard (sig == "pseq")
+                                      pure {profileDescription: _399}
+        | {- profileSequenceDesc -} do (_401 : [uint 8]) <- do ICC._Guard (sig == "pseq")
                                                                Commit
                                                                  do ($$ : [uint 8]) <- ICC.ProfileSequenceDescType
                                                                     pure $$
-                                       pure {profileSequenceDesc: _425}
-        | {- profileSequenceIdentifier -} do (_427 : {}) <- do ICC._Guard (sig == "psid")
+                                       pure {profileSequenceDesc: _401}
+        | {- profileSequenceIdentifier -} do (_403 : {}) <- do ICC._Guard (sig == "psid")
                                                                Commit
                                                                  do ($$ : {}) <- pure {}
                                                                     pure $$
-                                             pure {profileSequenceIdentifier: _427}
-        | {- redMatrixColumn -} do (_429 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "rXYZ")
+                                             pure {profileSequenceIdentifier: _403}
+        | {- redMatrixColumn -} do (_405 : [ICC.XYZNumber]) <- do ICC._Guard (sig == "rXYZ")
                                                                   Commit
                                                                     do ($$ : [ICC.XYZNumber]) <- ICC.XYZType
                                                                        pure $$
-                                   pure {redMatrixColumn: _429}
-        | {- redTRC -} do (_431 : ICC.SomeCurve) <- do ICC._Guard (sig == "rTRC")
+                                   pure {redMatrixColumn: _405}
+        | {- redTRC -} do (_407 : ICC.SomeCurve) <- do ICC._Guard (sig == "rTRC")
                                                        Commit
                                                          do ($$ : ICC.SomeCurve) <- ICC.SomeCurve
                                                             pure $$
-                          pure {redTRC: _431}
-        | {- saturationRenderingIntentGamut -} do (_433 : [uint 8]) <- do ICC._Guard (sig == "rig2")
+                          pure {redTRC: _407}
+        | {- saturationRenderingIntentGamut -} do (_409 : [uint 8]) <- do ICC._Guard (sig == "rig2")
                                                                           Commit
                                                                             do ($$ : [uint 8]) <- ICC.SignatureType
                                                                                pure $$
-                                                  pure {saturationRenderingIntentGamut: _433}
-        | {- technology -} do (_435 : [uint 8]) <- do ICC._Guard (sig == "tech")
+                                                  pure {saturationRenderingIntentGamut: _409}
+        | {- technology -} do (_411 : [uint 8]) <- do ICC._Guard (sig == "tech")
                                                       Commit
                                                         do ($$ : [uint 8]) <- ICC.SignatureType
                                                            pure $$
-                              pure {technology: _435}
-        | {- viewCondDesc -} do (_437 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "vued")
+                              pure {technology: _411}
+        | {- viewCondDesc -} do (_413 : [ICC.UnicodeRecord]) <- do ICC._Guard (sig == "vued")
                                                                    Commit
                                                                      do ($$ : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
                                                                         pure $$
-                                pure {viewCondDesc: _437}
-        | {- viewConditions -} do (_439 : ICC.ViewConditionsType) <- do ICC._Guard (sig == "view")
+                                pure {viewCondDesc: _413}
+        | {- viewConditions -} do (_415 : ICC.ViewConditionsType) <- do ICC._Guard (sig == "view")
                                                                         Commit
                                                                           do ($$ : ICC.ViewConditionsType) <- ICC.ViewConditionsType
                                                                              pure $$
-                                  pure {viewConditions: _439}
+                                  pure {viewConditions: _415}
         }
     | Fail (concat ["Unregonized tag: ",
                     sig])
@@ -1315,8 +1315,8 @@ ICC._PositionNumber : Grammar {} =
      ICC._BE32
  
 ICC._ASCII7 : Grammar {} =
-  do @Many[] do (_313 : uint 8) <- Match (1 .. 255)
-                @(_313 AS uint 7)
+  do @Many[] do (_289 : uint 8) <- Match (1 .. 255)
+                @(_289 AS uint 7)
      Choose biased
        { @Many[ 1 .. ] @Match {'\NUL'}
        | Fail "Non 0 string terminator"
