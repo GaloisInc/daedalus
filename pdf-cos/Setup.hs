@@ -4,8 +4,9 @@
 import Distribution.Simple
 import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
-
+import Control.Exception(catch)
 import qualified Data.Map as Map
+
 import Daedalus.Driver
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -32,6 +33,7 @@ compileDDL =
                       "PdfDecl"     -> cfgPdfDecl
                       _             -> cfg
      mapM_ (\m -> saveHS (Just "src") (cfgFor m) m) todo
+  `catch` \d -> putStrLn =<< prettyDaedalusError d
 
   where
   -- XXX: This shoudl list all parsers we need, and it'd be used if

@@ -13,29 +13,24 @@ import Daedalus.AST
 checkType :: Kind -> SrcType -> TypeM ctx Type
 checkType expK srcty =
   case srcty of
+    SrcCon x ->
+      do let nm = TCTy x
+         mb <- lookupTypeDefMaybe nm
+         case mb of
+           Just td -> do ps <- forM (tctyParams td) \_ ->
+                                  newTVar x KValue
+                         pure (tCon (tctyName td) ps)
+           Nothing -> do needsDef x nm
+                         pure (tCon nm [])
+
     SrcVar x ->
-      case nameScopedIdent x of
-        ModScope {} ->
-          do let nm = TCTy x
-             mb <- lookupTypeDefMaybe nm
-             case mb of
-               Just td -> do ps <- forM (tctyParams td) \_ ->
-                                      newTVar x KValue
-                             pure (tCon (tctyName td) ps)
-               Nothing -> do needsDef x nm
-                             pure (tCon nm [])
-
-        Local {} ->
-          do mb <- lookupLocalTyVar x
-             case mb of
-               Just t -> do expect (kindOf t)
-                            pure t
-               Nothing -> do t <- newTVar srcty expK
-                             newLocalTyVar x t
-                             pure t
-
-        Unknown _ -> panic "checkType"
-                        [ "Unresolved name in type: " ++ show (pp x) ]
+      do mb <- lookupLocalTyVar (thingValue x)
+         case mb of
+           Just t -> do expect (kindOf t)
+                        pure t
+           Nothing -> do t <- newTVar srcty expK
+                         newLocalTyVar (thingValue x) t
+                         pure t
 
     SrcType ty ->
       case thingValue ty of

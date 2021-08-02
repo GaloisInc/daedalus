@@ -4,6 +4,7 @@ import PdfValue
 import PdfValidate
 
 import PdfDecl
+import PdfXRef
 
 def PdfTrailer (t : TrailerDict) =
   CheckRef "Catalog" PdfCatalog (t.root is just)

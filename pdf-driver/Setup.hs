@@ -4,6 +4,7 @@
 import Distribution.Simple
 import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
+import Control.Exception(catch)
 
 import qualified Data.Map as Map
 import Daedalus.Driver
@@ -28,13 +29,15 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfContentStream" ]
+     let mods = [ "PdfDemo", "PdfValidate", "PdfDOM", "PdfContentStream"
+                , "ContentStreamLight" ]
      mapM_ ddlLoadModule mods
      todo <- filter (not . (`elem` external)) <$> ddlBasisMany mods
      let cfgFor m = case m of
                       "PdfValidate" -> cfgPdfValidate
                       _             -> cfg
      mapM_ (\m -> saveHS (Just "src/spec") (cfgFor m) m) todo
+  `catch` \d -> putStrLn =<< prettyDaedalusError d
 
   where
 

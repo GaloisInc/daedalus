@@ -32,7 +32,7 @@ def Stream (val : Value) = {
 -- lookup refs (could also ignore that part of the xref entry and just
 -- lookup the ref)
 
-def ObjectStreamEntry (oid : Nat) = {
+def ObjectStreamEntry (oid : int) = {
   oid = ^ oid;
   val = Value; -- FIXME: we should check this isn't a ref etc?  (c.f. pdf 1.7, pg 101)
 }
@@ -52,7 +52,7 @@ def ObjectStream (n : uint 64) (first : uint 64) = {
   };
 }
 
-def ObjectStreamNth (n : uint 64) (first : Nat) (idx : Nat) = {
+def ObjectStreamNth (n : uint 64) (first : uint 64) (idx : uint 64) = {
   -- FIXME: only really need to parse up to idx
   @meta  = Many n (ObjStreamMeta first);
   @entry = Index meta idx;
@@ -71,7 +71,7 @@ def SkipBytes n = Chunk n {}
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
-def CheckExpected (r : ref) (d : TopDecl) = {
+def CheckExpected (r : Ref) (d : TopDecl) = {
   Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;
 }
@@ -96,7 +96,7 @@ def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
 }
 
 def ResolveObjectStreamEntry
-      (oid : Nat) (gen : Nat) (idx : uint 64) : TopDecl = {
+      (oid : int) (gen : int) (idx : uint 64) : TopDecl = {
   @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
   CheckType "ObjStm" stm.header;
   @n       = LookupSize "N"     stm.header;
