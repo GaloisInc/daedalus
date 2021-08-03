@@ -9,22 +9,22 @@ type D009.Main0 = Choose { y: [uint 8]
  
 --- Rules:
  
-D009.Chunk ?a5 (n : uint 64) (P : Grammar ?a5) : Grammar ?a5 =
+D009.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
      SetStream this
-     ($$ : ?a5) <- P
+     ($$ : ?a0) <- P
      SetStream next
      pure $$
  
-D009.PadWSpaces ?a3 (n : uint 64) (P : Grammar ?a3) : Grammar ?a3 =
-  D009.Chunk ?a3 n do ($$ : ?a3) <- P
+D009.PadWSpaces ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
+  D009.Chunk ?a0 n do ($$ : ?a0) <- P
                       @Many[] @Match {' '}
                       END
                       pure $$
  
-D009._Chunk ?a5 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+D009._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
@@ -32,8 +32,8 @@ D009._Chunk ?a5 (n : uint 64) (_P : Grammar {}) : Grammar {} =
      _P
      SetStream next
  
-D009._PadWSpaces ?a3 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  D009._Chunk ?a3 n do _P
+D009._PadWSpaces ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  D009._Chunk ?a0 n do _P
                        @Many[] @Match {' '}
                        END
  

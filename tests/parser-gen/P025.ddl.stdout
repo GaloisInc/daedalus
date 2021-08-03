@@ -73,25 +73,25 @@ P025._AnyWS : Grammar {} =
     | P025._EOL
     }
  
-P025.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+P025.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[ 1 .. ] P025._AnyWS
      pure $$
  
-P025._Token ?a1 (_P : Grammar {}) : Grammar {} =
+P025._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] P025._AnyWS
  
-P025.KW ?a1 (P : Grammar ?a1) : Grammar {} =
-  P025._Token ?a1 do P
+P025.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  P025._Token ?a0 do P
                      pure {}
  
-P025._KW ?a1 (_P : Grammar {}) : Grammar {} =
-  P025._Token ?a1 _P
+P025._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  P025._Token ?a0 _P
  
-P025.Between ?a4 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a4) : Grammar ?a4 =
+P025.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
   do P025._KW [uint 8] (@MatchBytes open)
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      P025._KW [uint 8] (@MatchBytes close)
      pure $$
  
@@ -100,7 +100,7 @@ P025.Main : Grammar P025.Main =
      END
      pure {x = x}
  
-P025._Between ?a4 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+P025._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do P025._KW [uint 8] (@MatchBytes open)
      _P
      P025._KW [uint 8] (@MatchBytes close)

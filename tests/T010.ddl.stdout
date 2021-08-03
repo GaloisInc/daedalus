@@ -3,14 +3,14 @@ module T010
 --- Imports:
  
 --- Type defs:
-type T010.P ?a1 = Choose { A: ?a1
+type T010.P ?a0 = Choose { A: ?a0
                          ; B: [uint 8]
                          ; C: [uint 8]
                          }
  
 --- Rules:
  
-T010.f ?a1 (Numeric ?a1) (x : ?a1) (y : ?a1) : ?a1 =
+T010.f ?a0 (Numeric ?a0) (x : ?a0) (y : ?a0) : ?a0 =
   x + y
  
 T010.g ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
@@ -20,9 +20,9 @@ T010.Fails ?a0 : Grammar ?a0 =
   Choose fair
     { }
  
-T010.P ?a1 : Grammar (T010.P ?a1) =
+T010.P ?a0 : Grammar (T010.P ?a0) =
   Choose fair
-    { {- A -} do (_7 : ?a1) <- T010.Fails ?a1
+    { {- A -} do (_7 : ?a0) <- T010.Fails ?a0
                  pure {A: _7}
     | {- B -} do (_8 : [uint 8]) <- MatchBytes "B"
                  pure {B: _8}
@@ -34,9 +34,9 @@ T010._Fails ?a0 : Grammar {} =
   Choose fair
     { }
  
-T010._P ?a1 : Grammar {} =
+T010._P ?a0 : Grammar {} =
   Choose fair
-    { {- A -} T010._Fails ?a1
+    { {- A -} T010._Fails ?a0
     | {- B -} @MatchBytes "B"
     | {- C -} @MatchBytes "C"
     }

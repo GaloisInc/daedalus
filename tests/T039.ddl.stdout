@@ -6,7 +6,7 @@ module T039
  
 --- Rules:
  
-T039._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+T039._Block ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      (s2 : Stream) <- StreamLen n s
      SetStream s2
@@ -19,11 +19,11 @@ T039.Main : Grammar [uint 8] =
      ($$ : [uint 8]) <- MatchBytes "there"
      pure $$
  
-T039.Block ?a4 (n : uint 64) (P : Grammar ?a4) : Grammar ?a4 =
+T039.Block ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
      (s2 : Stream) <- StreamLen n s
      SetStream s2
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      (s3 : Stream) <- StreamOff n s
      SetStream s3
      pure $$

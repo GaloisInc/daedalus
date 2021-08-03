@@ -8,7 +8,7 @@ module T070
  
 --- Rules:
  
-T070.Main ?a1 (Literal 1 ?a1) (Literal 2 ?a1) (Numeric ?a1) : Grammar ?a1 =
+T070.Main ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Numeric ?a0) : Grammar ?a0 =
   pure (1 + 2)
  
 T070.f ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
@@ -19,28 +19,28 @@ T070.P ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int)
      ($$ : int) <- pure (x as int)
      pure $$
  
-T070.J ?a2 ?a3 ?a4 (?a2 + ?a3 = ?a4) (x : uint ?a2) (y : uint ?a3) : Grammar (uint ?a4) =
+T070.J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (x : uint ?a0) (y : uint ?a1) : Grammar (uint ?a2) =
   pure (x # y)
  
-T070.L ?a0 ?a2 ?a3 ?a6 (Literal 0 ?a3) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Numeric ?a3) (HasKey ?a6 ?a2) (HasElement ?a6 bool) (Mappable ?a0 ?a6) (x : ?a0) : Grammar ?a6 =
-  do for ((s : {}) = {}; (i : ?a3) in x)
+T070.L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar ?a3 =
+  do for ((s : {}) = {}; (i : ?a2) in x)
        (pure {})
-     ($$ : ?a6) <- map ((i : ?a3) in x)
+     ($$ : ?a3) <- map ((i : ?a2) in x)
                      (pure true)
      pure $$
  
-T070._Main ?a1 (Literal 1 ?a1) (Literal 2 ?a1) (Numeric ?a1) : Grammar {} =
+T070._Main ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Numeric ?a0) : Grammar {} =
   pure {}
  
 T070._P ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar {} =
   @(x AS int)
  
-T070._J ?a2 ?a3 ?a4 (?a2 + ?a3 = ?a4) : Grammar {} =
+T070._J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
   pure {}
  
-T070._L ?a0 ?a2 ?a3 ?a6 (Literal 0 ?a3) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Numeric ?a3) (HasKey ?a6 ?a2) (HasElement ?a6 bool) (Mappable ?a0 ?a6) (x : ?a0) : Grammar {} =
-  do for ((s : {}) = {}; (i : ?a3) in x)
+T070._L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
+  do for ((s : {}) = {}; (i : ?a2) in x)
        (pure {})
-     map ((i : ?a3) in x)
+     map ((i : ?a2) in x)
        (pure true)
      pure {}

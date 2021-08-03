@@ -64,7 +64,7 @@ type nitf_lib.Declassification2 = Choose { secret: {}
                                          ; confidential: {}
                                          }
  
-type nitf_lib.DefaultByte ?a3 = Choose { actual: ?a3
+type nitf_lib.DefaultByte ?a0 = Choose { actual: ?a0
                                        ; default: {}
                                        }
  
@@ -102,7 +102,7 @@ type nitf_lib.SignedNum = Choose { pos: int
                                  ; neg: int
                                  }
  
-type nitf_lib.OrBytes ?a4 = Choose { actual: ?a4
+type nitf_lib.OrBytes ?a0 = Choose { actual: ?a0
                                    ; default: {}
                                    }
  
@@ -179,12 +179,12 @@ type nitf_lib.Location = { row: nitf_lib.SignedNum
  
 --- Rules:
  
-nitf_lib.Chunk ?a5 (n : uint 64) (P : Grammar ?a5) : Grammar ?a5 =
+nitf_lib.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
      SetStream this
-     ($$ : ?a5) <- P
+     ($$ : ?a0) <- P
      SetStream next
      pure $$
  
@@ -195,8 +195,8 @@ nitf_lib.numBase (base : int) (ds : [int]) : int =
   for ((val : int) = 0; (d : int) in ds)
     ((val * base) + d)
  
-nitf_lib.strlen ?a0 ?a2 ?a3 (HasElement ?a0 ?a3) (HasKey ?a0 ?a2) (Traversable ?a0) (s : ?a0) : int =
-  for ((len : int) = 0; (c : ?a3) in s)
+nitf_lib.strlen ?a0 ?a1 ?a2 (HasElement ?a0 ?a2) (HasKey ?a0 ?a1) (Traversable ?a0) (s : ?a0) : int =
+  for ((len : int) = 0; (c : ?a2) in s)
     (len + 1)
  
 nitf_lib.MyFail ?a0 : Grammar ?a0 =
@@ -328,51 +328,51 @@ nitf_lib.Byte : Grammar (uint 8) =
 nitf_lib.Spaces (n : uint 64) : Grammar [uint 8] =
   Many[n] Match {' '}
  
-nitf_lib.PadWSpaces ?a3 (n : uint 64) (P : Grammar ?a3) : Grammar ?a3 =
-  nitf_lib.Chunk ?a3 n do ($$ : ?a3) <- P
+nitf_lib.PadWSpaces ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
+  nitf_lib.Chunk ?a0 n do ($$ : ?a0) <- P
                           @Many[] @Match {' '}
                           END
                           pure $$
  
-nitf_lib.DefaultByte ?a3 ?a7 (D : Grammar ?a7) (P : Grammar ?a3) : Grammar (nitf_lib.DefaultByte ?a3) =
+nitf_lib.DefaultByte ?a0 ?a1 (D : Grammar ?a1) (P : Grammar ?a0) : Grammar (nitf_lib.DefaultByte ?a0) =
   Choose fair
-    { {- actual -} do (_626 : ?a3) <- P
+    { {- actual -} do (_626 : ?a0) <- P
                       pure {actual: _626}
     | {- default -} do (_627 : {}) <- do D
                                          pure {}
                        pure {default: _627}
     }
  
-nitf_lib.DefaultSpace ?a1 (P : Grammar ?a1) : Grammar (nitf_lib.DefaultByte ?a1) =
-  nitf_lib.DefaultByte ?a1 (uint 8) (Match {' '}) P
+nitf_lib.DefaultSpace ?a0 (P : Grammar ?a0) : Grammar (nitf_lib.DefaultByte ?a0) =
+  nitf_lib.DefaultByte ?a0 (uint 8) (Match {' '}) P
  
-nitf_lib.OrBytes ?a4 (n : uint 64) (b : [uint 8]) (P : Grammar ?a4) : Grammar (nitf_lib.OrBytes ?a4) =
+nitf_lib.OrBytes ?a0 (n : uint 64) (b : [uint 8]) (P : Grammar ?a0) : Grammar (nitf_lib.OrBytes ?a0) =
   Choose fair
-    { {- actual -} do (_628 : ?a4) <- P
+    { {- actual -} do (_628 : ?a0) <- P
                       pure {actual: _628}
     | {- default -} do (_629 : {}) <- @Many[n] @MatchBytes b
                        pure {default: _629}
     }
  
-nitf_lib.DefaultSpaces ?a2 (n : uint 64) (P : Grammar ?a2) : Grammar (nitf_lib.OrBytes ?a2) =
-  nitf_lib.OrBytes ?a2 n " " P
+nitf_lib.DefaultSpaces ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar (nitf_lib.OrBytes ?a0) =
+  nitf_lib.OrBytes ?a0 n " " P
  
-nitf_lib.OrHyphens ?a2 (n : uint 64) (P : Grammar ?a2) : Grammar (nitf_lib.OrBytes ?a2) =
-  nitf_lib.OrBytes ?a2 n "-" P
+nitf_lib.OrHyphens ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar (nitf_lib.OrBytes ?a0) =
+  nitf_lib.OrBytes ?a0 n "-" P
  
-nitf_lib.Eq ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib.Eq ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   nitf_lib.Guard (x == y)
  
-nitf_lib.Lt ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib.Lt ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   nitf_lib.Guard (x < y)
  
-nitf_lib.Leq ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib.Leq ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   Choose fair
-    { nitf_lib.Eq ?a1 x y
-    | nitf_lib.Lt ?a1 x y
+    { nitf_lib.Eq ?a0 x y
+    | nitf_lib.Lt ?a0 x y
     }
  
-nitf_lib.PartialEq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib.PartialEq ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -382,17 +382,17 @@ nitf_lib.PartialEq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : G
             { {| default = _631 |} -> pure _631
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _632 |} -> pure _632
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _633 |} -> pure _633
                          }
-         ($$ : {}) <- nitf_lib.Eq ?a7 x0 y0
+         ($$ : {}) <- nitf_lib.Eq ?a0 x0 y0
          pure $$
     }
  
-nitf_lib.PartialLt ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib.PartialLt ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -402,17 +402,17 @@ nitf_lib.PartialLt ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : G
             { {| default = _636 |} -> pure _636
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _637 |} -> pure _637
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _638 |} -> pure _638
                          }
-         ($$ : {}) <- nitf_lib.Lt ?a7 x0 y0
+         ($$ : {}) <- nitf_lib.Lt ?a0 x0 y0
          pure $$
     }
  
-nitf_lib.PartialLeq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib.PartialLeq ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -422,13 +422,13 @@ nitf_lib.PartialLeq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : 
             { {| default = _641 |} -> pure _641
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _642 |} -> pure _642
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _643 |} -> pure _643
                          }
-         ($$ : {}) <- nitf_lib.Leq ?a7 x0 y0
+         ($$ : {}) <- nitf_lib.Leq ?a0 x0 y0
          pure $$
     }
  
@@ -524,10 +524,10 @@ nitf_lib.LiftDateTime (dt : nitf_lib.DateTime) : Grammar nitf_lib.PartialDateTim
      pure {partDate = partDate,
            partTime = partTime}
  
-nitf_lib._Eq ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib._Eq ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   nitf_lib._Guard (x == y)
  
-nitf_lib._PartialEq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib._PartialEq ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -537,13 +537,13 @@ nitf_lib._PartialEq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : 
             { {| default = _631 |} -> pure {}
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _632 |} -> pure _632
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _633 |} -> pure _633
                          }
-         nitf_lib._Eq ?a7 x0 y0
+         nitf_lib._Eq ?a0 x0 y0
     }
  
 nitf_lib.PartialOrdDate (d0 : nitf_lib.PartialDate) (d1 : nitf_lib.PartialDate) : Grammar {} =
@@ -577,10 +577,10 @@ nitf_lib.PartialOrdTime (t0 : nitf_lib.PartialTime) (t1 : nitf_lib.PartialTime) 
          pure $$
     }
  
-nitf_lib._Lt ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib._Lt ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   nitf_lib._Guard (x < y)
  
-nitf_lib._PartialLt ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib._PartialLt ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -590,22 +590,22 @@ nitf_lib._PartialLt ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : 
             { {| default = _636 |} -> pure {}
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _637 |} -> pure _637
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _638 |} -> pure _638
                          }
-         nitf_lib._Lt ?a7 x0 y0
+         nitf_lib._Lt ?a0 x0 y0
     }
  
-nitf_lib._Leq ?a1 (x : ?a1) (y : ?a1) : Grammar {} =
+nitf_lib._Leq ?a0 (x : ?a0) (y : ?a0) : Grammar {} =
   Choose fair
-    { nitf_lib._Eq ?a1 x y
-    | nitf_lib._Lt ?a1 x y
+    { nitf_lib._Eq ?a0 x y
+    | nitf_lib._Lt ?a0 x y
     }
  
-nitf_lib._PartialLeq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) : Grammar {} =
+nitf_lib._PartialLeq ?a0 (x : nitf_lib.OrBytes ?a0) (y : nitf_lib.OrBytes ?a0) : Grammar {} =
   Choose fair
     { Choose fair
         { case x is
@@ -615,13 +615,13 @@ nitf_lib._PartialLeq ?a7 (x : nitf_lib.OrBytes ?a7) (y : nitf_lib.OrBytes ?a7) :
             { {| default = _641 |} -> pure {}
             }
         }
-    | do (x0 : ?a7) <- case x is
+    | do (x0 : ?a0) <- case x is
                          { {| actual = _642 |} -> pure _642
                          }
-         (y0 : ?a7) <- case y is
+         (y0 : ?a0) <- case y is
                          { {| actual = _643 |} -> pure _643
                          }
-         nitf_lib._Leq ?a7 x0 y0
+         nitf_lib._Leq ?a0 x0 y0
     }
  
 nitf_lib._PartialOrdDate (d0 : nitf_lib.PartialDate) (d1 : nitf_lib.PartialDate) : Grammar {} =
@@ -764,7 +764,7 @@ nitf_lib.Release : Grammar [uint 8] =
              | Match {' '}
              }
  
-nitf_lib._Chunk ?a5 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+nitf_lib._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
@@ -772,8 +772,8 @@ nitf_lib._Chunk ?a5 (n : uint 64) (_P : Grammar {}) : Grammar {} =
      _P
      SetStream next
  
-nitf_lib._PadWSpaces ?a3 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  nitf_lib._Chunk ?a3 n do _P
+nitf_lib._PadWSpaces ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  nitf_lib._Chunk ?a0 n do _P
                            @Many[] @Match {' '}
                            END
  
@@ -1161,26 +1161,26 @@ nitf_lib._AlphaNum : Grammar {} =
 nitf_lib._Byte : Grammar {} =
   @Match (0 .. 255)
  
-nitf_lib._DefaultByte ?a3 ?a7 (_D : Grammar {}) (_P : Grammar {}) : Grammar {} =
+nitf_lib._DefaultByte ?a0 ?a1 (_D : Grammar {}) (_P : Grammar {}) : Grammar {} =
   Choose fair
     { {- actual -} _P
     | {- default -} _D
     }
  
-nitf_lib._DefaultSpace ?a1 (_P : Grammar {}) : Grammar {} =
-  nitf_lib._DefaultByte ?a1 (uint 8) (@Match {' '}) _P
+nitf_lib._DefaultSpace ?a0 (_P : Grammar {}) : Grammar {} =
+  nitf_lib._DefaultByte ?a0 (uint 8) (@Match {' '}) _P
  
-nitf_lib._OrBytes ?a4 (n : uint 64) (b : [uint 8]) (_P : Grammar {}) : Grammar {} =
+nitf_lib._OrBytes ?a0 (n : uint 64) (b : [uint 8]) (_P : Grammar {}) : Grammar {} =
   Choose fair
     { {- actual -} _P
     | {- default -} @Many[n] @MatchBytes b
     }
  
-nitf_lib._DefaultSpaces ?a2 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  nitf_lib._OrBytes ?a2 n " " _P
+nitf_lib._DefaultSpaces ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  nitf_lib._OrBytes ?a0 n " " _P
  
-nitf_lib._OrHyphens ?a2 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  nitf_lib._OrBytes ?a2 n "-" _P
+nitf_lib._OrHyphens ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  nitf_lib._OrBytes ?a0 n "-" _P
  
 nitf_lib._Date : Grammar {} =
   do nitf_lib._UnsignedNum 2
@@ -2271,11 +2271,11 @@ type nitf_img_subheader.ISHeader = { iid1: [uint 8]
  
 --- Rules:
  
-nitf_img_subheader.Maybe ?a4 (guard : [uint 8]) (P : Grammar ?a4) : Grammar (Maybe ?a4) =
+nitf_img_subheader.Maybe ?a0 (guard : [uint 8]) (P : Grammar ?a0) : Grammar (Maybe ?a0) =
   Choose biased
     { do @MatchBytes guard
-         (v : ?a4) <- P
-         ($$ : Maybe ?a4) <- pure (just v)
+         (v : ?a0) <- P
+         ($$ : Maybe ?a0) <- pure (just v)
          pure $$
     | pure nothing
     }
@@ -2541,13 +2541,13 @@ nitf_img_subheader.MGRS : Grammar nitf_img_subheader.MGRS =
            easting = easting,
            northing = northing}
  
-nitf_img_subheader.EqLat ?a0 ?a1 ?a3 ?a5 ?a7 (HasStruct ?a0 sign ?a3) (HasStruct ?a1 sign ?a3) (HasStruct ?a0 whole ?a5) (HasStruct ?a1 whole ?a5) (HasStruct ?a0 frac ?a7) (HasStruct ?a1 frac ?a7) (l0 : ?a0) (l1 : ?a1) : Grammar {} =
+nitf_img_subheader.EqLat ?a0 ?a1 ?a2 ?a3 ?a4 (HasStruct ?a0 sign ?a2) (HasStruct ?a1 sign ?a2) (HasStruct ?a0 whole ?a3) (HasStruct ?a1 whole ?a3) (HasStruct ?a0 frac ?a4) (HasStruct ?a1 frac ?a4) (l0 : ?a0) (l1 : ?a1) : Grammar {} =
   do nitf_lib._Guard ((l0.sign) == (l1.sign))
      nitf_lib._Guard ((l0.whole) == (l1.whole))
      ($$ : {}) <- nitf_lib.Guard ((l0.frac) == (l1.frac))
      pure $$
  
-nitf_img_subheader.OrdLong ?a0 ?a1 ?a9 ?a13 (HasStruct ?a0 sign uint 8) (HasStruct ?a1 sign uint 8) (HasStruct ?a1 whole ?a9) (HasStruct ?a0 whole ?a9) (HasStruct ?a1 frac ?a13) (HasStruct ?a0 frac ?a13) (left : ?a0) (right : ?a1) : Grammar {} =
+nitf_img_subheader.OrdLong ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 sign uint 8) (HasStruct ?a1 sign uint 8) (HasStruct ?a1 whole ?a2) (HasStruct ?a0 whole ?a2) (HasStruct ?a1 frac ?a3) (HasStruct ?a0 frac ?a3) (left : ?a0) (right : ?a1) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard ((left.sign) == '-')
          ($$ : {}) <- nitf_lib.Guard ((right.sign) == '+')
@@ -2574,12 +2574,12 @@ nitf_img_subheader.OrdLong ?a0 ?a1 ?a9 ?a13 (HasStruct ?a0 sign uint 8) (HasStru
          pure $$
     }
  
-nitf_img_subheader._EqLat ?a0 ?a1 ?a3 ?a5 ?a7 (HasStruct ?a0 sign ?a3) (HasStruct ?a1 sign ?a3) (HasStruct ?a0 whole ?a5) (HasStruct ?a1 whole ?a5) (HasStruct ?a0 frac ?a7) (HasStruct ?a1 frac ?a7) (l0 : ?a0) (l1 : ?a1) : Grammar {} =
+nitf_img_subheader._EqLat ?a0 ?a1 ?a2 ?a3 ?a4 (HasStruct ?a0 sign ?a2) (HasStruct ?a1 sign ?a2) (HasStruct ?a0 whole ?a3) (HasStruct ?a1 whole ?a3) (HasStruct ?a0 frac ?a4) (HasStruct ?a1 frac ?a4) (l0 : ?a0) (l1 : ?a1) : Grammar {} =
   do nitf_lib._Guard ((l0.sign) == (l1.sign))
      nitf_lib._Guard ((l0.whole) == (l1.whole))
      nitf_lib._Guard ((l0.frac) == (l1.frac))
  
-nitf_img_subheader._OrdLong ?a0 ?a1 ?a9 ?a13 (HasStruct ?a0 sign uint 8) (HasStruct ?a1 sign uint 8) (HasStruct ?a1 whole ?a9) (HasStruct ?a0 whole ?a9) (HasStruct ?a1 frac ?a13) (HasStruct ?a0 frac ?a13) (left : ?a0) (right : ?a1) : Grammar {} =
+nitf_img_subheader._OrdLong ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 sign uint 8) (HasStruct ?a1 sign uint 8) (HasStruct ?a1 whole ?a2) (HasStruct ?a0 whole ?a2) (HasStruct ?a1 frac ?a3) (HasStruct ?a0 frac ?a3) (left : ?a0) (right : ?a1) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard ((left.sign) == '-')
          nitf_lib._Guard ((right.sign) == '+')
@@ -2920,7 +2920,7 @@ nitf_img_subheader.LutdNM (n : uint 64) : Grammar [uint 8] =
 nitf_img_subheader.ISync : Grammar (uint 8) =
   Match {'0'}
  
-nitf_img_subheader.IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar nitf_img_subheader.IMode =
+nitf_img_subheader.IMode ?a0 (Literal 1 ?a0) (nbands : ?a0) : Grammar nitf_img_subheader.IMode =
   do ($$ : nitf_img_subheader.IMode) <- Choose fair
                                           { {- blockMode -} do (_952 : {}) <- @Match {'B'}
                                                                pure {blockMode: _952}
@@ -3094,7 +3094,7 @@ nitf_img_subheader.IXSOfl : Grammar int =
 nitf_img_subheader.IXShD (n : uint 64) : Grammar [uint 8] =
   Many[n - 3] nitf_lib.Byte
  
-nitf_img_subheader.DispParams ?a123 ?a126 (Literal 3 ?a126) (Literal 0 ?a126) (Literal 0 ?a123) (Literal 9 ?a123) (Literal 2 ?a123) (Literal 1 ?a123) (Literal 3 ?a123) (Literal 2 ?a126) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
+nitf_img_subheader.DispParams ?a0 ?a1 (Literal 3 ?a1) (Literal 0 ?a1) (Literal 0 ?a0) (Literal 9 ?a0) (Literal 2 ?a0) (Literal 1 ?a0) (Literal 3 ?a0) (Literal 2 ?a1) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a0) (pvtype : nitf_img_subheader.PVType) (nluts : ?a1) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -3361,13 +3361,13 @@ nitf_img_subheader.DispParams ?a123 ?a126 (Literal 3 ?a126) (Literal 0 ?a126) (L
          pure $$
     }
  
-nitf_img_subheader.CatIntLow ?a1 ?a4 (Literal 8 ?a4) (Literal 2 ?a1) (nbpp : ?a4) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader.CatIntLow ?a0 ?a1 (Literal 8 ?a1) (Literal 2 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   do nitf_lib._Guard (nbpp == 8)
      nitf_lib._Guard (2 <= abpp)
      ($$ : {}) <- nitf_lib.Guard (nbpp <= 8)
      pure $$
  
-nitf_img_subheader.CatIntMid ?a1 ?a8 (Literal 12 ?a8) (Literal 8 ?a1) (Literal 16 ?a8) (Literal 9 ?a1) (nbpp : ?a8) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader.CatIntMid ?a0 ?a1 (Literal 12 ?a1) (Literal 8 ?a0) (Literal 16 ?a1) (Literal 9 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 12)
          nitf_lib._Guard (8 <= abpp)
@@ -3379,7 +3379,7 @@ nitf_img_subheader.CatIntMid ?a1 ?a8 (Literal 12 ?a8) (Literal 8 ?a1) (Literal 1
          pure $$
     }
  
-nitf_img_subheader.CatIntHigh ?a1 ?a8 (Literal 32 ?a8) (Literal 17 ?a1) (Literal 64 ?a8) (Literal 33 ?a1) (nbpp : ?a8) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader.CatIntHigh ?a0 ?a1 (Literal 32 ?a1) (Literal 17 ?a0) (Literal 64 ?a1) (Literal 33 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 32)
          nitf_lib._Guard (17 <= abpp)
@@ -3403,7 +3403,7 @@ nitf_img_subheader.CatIntFull ?a0 ?a1 (Literal 8 ?a0) (Literal 2 ?a1) (Literal 3
     | nitf_img_subheader.CatIntMid ?a1 ?a0 nbpp abpp
     }
  
-nitf_img_subheader.CatReals ?a5 ?a6 (Literal 32 ?a5) (Literal 32 ?a6) (Literal 64 ?a5) (Literal 64 ?a6) (nbpp : ?a5) (abpp : ?a6) : Grammar {} =
+nitf_img_subheader.CatReals ?a0 ?a1 (Literal 32 ?a0) (Literal 32 ?a1) (Literal 64 ?a0) (Literal 64 ?a1) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 32)
          ($$ : {}) <- nitf_lib.Guard (abpp == 32)
@@ -3413,12 +3413,12 @@ nitf_img_subheader.CatReals ?a5 ?a6 (Literal 32 ?a5) (Literal 32 ?a6) (Literal 6
          pure $$
     }
  
-nitf_img_subheader.CatComplex ?a2 ?a3 (Literal 64 ?a2) (Literal 64 ?a3) (nbpp : ?a2) (abpp : ?a3) : Grammar {} =
+nitf_img_subheader.CatComplex ?a0 ?a1 (Literal 64 ?a0) (Literal 64 ?a1) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   do nitf_lib._Guard (nbpp == 64)
      ($$ : {}) <- nitf_lib.Guard (abpp == 64)
      pure $$
  
-nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a217) (Literal 32 ?a219) (Literal 32 ?a217) (Literal 9 ?a219) (Literal 16 ?a217) (Literal 8 ?a219) (Literal 12 ?a217) (Literal 33 ?a219) (Literal 17 ?a219) (Literal 2 ?a219) (Literal 8 ?a217) (Literal 1 ?a235) (Literal 2 ?a235) (Literal 0 ?a235) (Literal 9 ?a235) (Literal 3 ?a235) (Literal 1 ?a219) (Literal 1 ?a217) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
+nitf_img_subheader.CatParams ?a0 ?a1 ?a2 (Literal 64 ?a1) (Literal 64 ?a0) (Literal 32 ?a1) (Literal 32 ?a0) (Literal 9 ?a1) (Literal 16 ?a0) (Literal 8 ?a1) (Literal 12 ?a0) (Literal 33 ?a1) (Literal 17 ?a1) (Literal 2 ?a1) (Literal 8 ?a0) (Literal 1 ?a2) (Literal 2 ?a2) (Literal 0 ?a2) (Literal 9 ?a2) (Literal 3 ?a2) (Literal 1 ?a1) (Literal 1 ?a0) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a2) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -3462,12 +3462,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                                                     { do case pvtype is
                                                                                            { {| integer = _1063 |} -> pure {}
                                                                                            }
-                                                                                         ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                                                         ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                                                          pure $$
                                                                                     | do case pvtype is
                                                                                            { {| real = _1065 |} -> pure {}
                                                                                            }
-                                                                                         ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                                                         ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                                                          pure $$
                                                                                     }
                                                                      pure $$
@@ -3544,12 +3544,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                                 { do case pvtype is
                                                                        { {| integer = _1082 |} -> pure {}
                                                                        }
-                                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                                      pure $$
                                                                 | do case pvtype is
                                                                        { {| real = _1084 |} -> pure {}
                                                                        }
-                                                                     ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                                     ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                                      pure $$
                                                                 }
                                                  pure $$
@@ -3562,12 +3562,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                             { do case pvtype is
                                                                    { {| integer = _1088 |} -> pure {}
                                                                    }
-                                                                 ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                                 ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                                  pure $$
                                                             | do case pvtype is
                                                                    { {| real = _1090 |} -> pure {}
                                                                    }
-                                                                 ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                                 ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                                  pure $$
                                                             }
                                              pure $$
@@ -3592,7 +3592,7 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                          case pvtype is
                                            { {| integer = _1096 |} -> pure {}
                                            }
-                                         ($$ : {}) <- nitf_img_subheader.CatIntEnds ?a217 ?a219 nbpp abpp
+                                         ($$ : {}) <- nitf_img_subheader.CatIntEnds ?a0 ?a1 nbpp abpp
                                          pure $$
                                     }
                                 | do Choose fair
@@ -3618,7 +3618,7 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                      case pvtype is
                                        { {| integer = _1102 |} -> pure {}
                                        }
-                                     ($$ : {}) <- nitf_img_subheader.CatIntEnds ?a217 ?a219 nbpp abpp
+                                     ($$ : {}) <- nitf_img_subheader.CatIntEnds ?a0 ?a1 nbpp abpp
                                      pure $$
                                 }
                             | do case icat is
@@ -3652,12 +3652,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                            { {| signed = _1111 |} -> pure {}
                                                            }
                                                        }
-                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                      pure $$
                                                 | do case pvtype is
                                                        { {| real = _1113 |} -> pure {}
                                                        }
-                                                     ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                     ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                      pure $$
                                                 }
                                  pure $$
@@ -3675,7 +3675,7 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                 { do case pvtype is
                                                        { {| complex = _1118 |} -> pure {}
                                                        }
-                                                     ($$ : {}) <- nitf_img_subheader.CatComplex ?a217 ?a219 nbpp abpp
+                                                     ($$ : {}) <- nitf_img_subheader.CatComplex ?a0 ?a1 nbpp abpp
                                                      pure $$
                                                 | do Choose fair
                                                        { case pvtype is
@@ -3685,13 +3685,13 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                            { {| signed = _1121 |} -> pure {}
                                                            }
                                                        }
-                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                     ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                      pure $$
                                                 }
                                             | do case pvtype is
                                                    { {| real = _1123 |} -> pure {}
                                                    }
-                                                 ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                 ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                  pure $$
                                             }
                              pure $$
@@ -3726,12 +3726,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                    { {| signed = _1132 |} -> pure {}
                                                    }
                                                }
-                                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                              pure $$
                                         | do case pvtype is
                                                { {| real = _1134 |} -> pure {}
                                                }
-                                             ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                             ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                              pure $$
                                         }
                          pure $$
@@ -3772,7 +3772,7 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                          case pvtype is
                                            { {| complex = _1144 |} -> pure {}
                                            }
-                                         ($$ : {}) <- nitf_img_subheader.CatComplex ?a217 ?a219 nbpp abpp
+                                         ($$ : {}) <- nitf_img_subheader.CatComplex ?a0 ?a1 nbpp abpp
                                          pure $$
                                     | do Choose fair
                                            { nitf_lib._Guard (nbands == 1)
@@ -3787,12 +3787,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                                                    { {| signed = _1148 |} -> pure {}
                                                                    }
                                                                }
-                                                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                                                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                                                              pure $$
                                                         | do case pvtype is
                                                                { {| real = _1150 |} -> pure {}
                                                                }
-                                                             ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                                                             ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                                                              pure $$
                                                         }
                                          pure $$
@@ -3837,8 +3837,8 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                { {| integer = _1160 |} -> pure {}
                }
              ($$ : {}) <- Choose fair
-                            { nitf_img_subheader.CatIntLow ?a219 ?a217 nbpp abpp
-                            | nitf_img_subheader.CatIntMid ?a219 ?a217 nbpp abpp
+                            { nitf_img_subheader.CatIntLow ?a1 ?a0 nbpp abpp
+                            | nitf_img_subheader.CatIntMid ?a1 ?a0 nbpp abpp
                             }
              pure $$
         }
@@ -3855,12 +3855,12 @@ nitf_img_subheader.CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a
                                    { {| signed = _1165 |} -> pure {}
                                    }
                                }
-                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a217 ?a219 nbpp abpp
+                             ($$ : {}) <- nitf_img_subheader.CatIntFull ?a0 ?a1 nbpp abpp
                              pure $$
                         | do case pvtype is
                                { {| real = _1167 |} -> pure {}
                                }
-                             ($$ : {}) <- nitf_img_subheader.CatReals ?a217 ?a219 nbpp abpp
+                             ($$ : {}) <- nitf_img_subheader.CatReals ?a0 ?a1 nbpp abpp
                              pure $$
                         }
          pure $$
@@ -4038,7 +4038,7 @@ nitf_img_subheader._IXSOfl : Grammar {} =
 nitf_img_subheader._IXShD (n : uint 64) : Grammar {} =
   @Many[n - 3] nitf_lib._Byte
  
-nitf_img_subheader._DispParams ?a123 ?a126 (Literal 3 ?a126) (Literal 0 ?a126) (Literal 0 ?a123) (Literal 9 ?a123) (Literal 2 ?a123) (Literal 1 ?a123) (Literal 3 ?a123) (Literal 2 ?a126) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a123) (pvtype : nitf_img_subheader.PVType) (nluts : ?a126) : Grammar {} =
+nitf_img_subheader._DispParams ?a0 ?a1 (Literal 3 ?a1) (Literal 0 ?a1) (Literal 0 ?a0) (Literal 9 ?a0) (Literal 2 ?a0) (Literal 1 ?a0) (Literal 3 ?a0) (Literal 2 ?a1) (irep : nitf_img_subheader.IRep) (irepband : nitf_img_subheader.IRepBandN) (nbands : ?a0) (pvtype : nitf_img_subheader.PVType) (nluts : ?a1) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -4511,7 +4511,7 @@ nitf_img_subheader.ISHeader : Grammar nitf_img_subheader.ISHeader =
            udidl = udidl,
            ixshdl = ixshdl}
  
-nitf_img_subheader._Maybe ?a4 (guard : [uint 8]) (_P : Grammar {}) : Grammar {} =
+nitf_img_subheader._Maybe ?a0 (guard : [uint 8]) (_P : Grammar {}) : Grammar {} =
   Choose biased
     { do @MatchBytes guard
          _P
@@ -4780,7 +4780,7 @@ nitf_img_subheader._ISubCatN : Grammar {} =
     | {- userdef -} @Many[6] nitf_lib._BCSA
     }
  
-nitf_img_subheader._IMode ?a7 (Literal 1 ?a7) (nbands : ?a7) : Grammar {} =
+nitf_img_subheader._IMode ?a0 (Literal 1 ?a0) (nbands : ?a0) : Grammar {} =
   do ($$ : nitf_img_subheader.IMode) <- Choose fair
                                           { {- blockMode -} do (_952 : {}) <- @Match {'B'}
                                                                pure {blockMode: _952}
@@ -4934,12 +4934,12 @@ nitf_img_subheader._UDIDL : Grammar {} =
 nitf_img_subheader._IXShDL : Grammar {} =
   nitf_lib._LowerBoundedOrZero 5 3
  
-nitf_img_subheader._CatIntLow ?a1 ?a4 (Literal 8 ?a4) (Literal 2 ?a1) (nbpp : ?a4) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader._CatIntLow ?a0 ?a1 (Literal 8 ?a1) (Literal 2 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   do nitf_lib._Guard (nbpp == 8)
      nitf_lib._Guard (2 <= abpp)
      nitf_lib._Guard (nbpp <= 8)
  
-nitf_img_subheader._CatIntMid ?a1 ?a8 (Literal 12 ?a8) (Literal 8 ?a1) (Literal 16 ?a8) (Literal 9 ?a1) (nbpp : ?a8) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader._CatIntMid ?a0 ?a1 (Literal 12 ?a1) (Literal 8 ?a0) (Literal 16 ?a1) (Literal 9 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 12)
          nitf_lib._Guard (8 <= abpp)
@@ -4949,7 +4949,7 @@ nitf_img_subheader._CatIntMid ?a1 ?a8 (Literal 12 ?a8) (Literal 8 ?a1) (Literal 
          nitf_lib._Guard (nbpp <= 16)
     }
  
-nitf_img_subheader._CatIntHigh ?a1 ?a8 (Literal 32 ?a8) (Literal 17 ?a1) (Literal 64 ?a8) (Literal 33 ?a1) (nbpp : ?a8) (abpp : ?a1) : Grammar {} =
+nitf_img_subheader._CatIntHigh ?a0 ?a1 (Literal 32 ?a1) (Literal 17 ?a0) (Literal 64 ?a1) (Literal 33 ?a0) (nbpp : ?a1) (abpp : ?a0) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 32)
          nitf_lib._Guard (17 <= abpp)
@@ -4971,7 +4971,7 @@ nitf_img_subheader._CatIntFull ?a0 ?a1 (Literal 8 ?a0) (Literal 2 ?a1) (Literal 
     | nitf_img_subheader._CatIntMid ?a1 ?a0 nbpp abpp
     }
  
-nitf_img_subheader._CatReals ?a5 ?a6 (Literal 32 ?a5) (Literal 32 ?a6) (Literal 64 ?a5) (Literal 64 ?a6) (nbpp : ?a5) (abpp : ?a6) : Grammar {} =
+nitf_img_subheader._CatReals ?a0 ?a1 (Literal 32 ?a0) (Literal 32 ?a1) (Literal 64 ?a0) (Literal 64 ?a1) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   Choose fair
     { do nitf_lib._Guard (nbpp == 32)
          nitf_lib._Guard (abpp == 32)
@@ -4979,11 +4979,11 @@ nitf_img_subheader._CatReals ?a5 ?a6 (Literal 32 ?a5) (Literal 32 ?a6) (Literal 
          nitf_lib._Guard (abpp == 64)
     }
  
-nitf_img_subheader._CatComplex ?a2 ?a3 (Literal 64 ?a2) (Literal 64 ?a3) (nbpp : ?a2) (abpp : ?a3) : Grammar {} =
+nitf_img_subheader._CatComplex ?a0 ?a1 (Literal 64 ?a0) (Literal 64 ?a1) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   do nitf_lib._Guard (nbpp == 64)
      nitf_lib._Guard (abpp == 64)
  
-nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?a217) (Literal 32 ?a219) (Literal 32 ?a217) (Literal 9 ?a219) (Literal 16 ?a217) (Literal 8 ?a219) (Literal 12 ?a217) (Literal 33 ?a219) (Literal 17 ?a219) (Literal 2 ?a219) (Literal 8 ?a217) (Literal 1 ?a235) (Literal 2 ?a235) (Literal 0 ?a235) (Literal 9 ?a235) (Literal 3 ?a235) (Literal 1 ?a219) (Literal 1 ?a217) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a235) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a217) (abpp : ?a219) : Grammar {} =
+nitf_img_subheader._CatParams ?a0 ?a1 ?a2 (Literal 64 ?a1) (Literal 64 ?a0) (Literal 32 ?a1) (Literal 32 ?a0) (Literal 9 ?a1) (Literal 16 ?a0) (Literal 8 ?a1) (Literal 12 ?a0) (Literal 33 ?a1) (Literal 17 ?a1) (Literal 2 ?a1) (Literal 8 ?a0) (Literal 1 ?a2) (Literal 2 ?a2) (Literal 0 ?a2) (Literal 9 ?a2) (Literal 3 ?a2) (Literal 1 ?a1) (Literal 1 ?a0) (icat : nitf_img_subheader.ICat) (isubcat : nitf_img_subheader.ISubCatN) (nbands : ?a2) (pvtype : nitf_img_subheader.PVType) (nbpp : ?a0) (abpp : ?a1) : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -5026,11 +5026,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                                           { do case pvtype is
                                                                  { {| integer = _1063 |} -> pure {}
                                                                  }
-                                                               nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                                               nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                                                           | do case pvtype is
                                                                  { {| real = _1065 |} -> pure {}
                                                                  }
-                                                               nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                                               nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                                                           }
                                                    }
                                             | do Choose fair
@@ -5104,11 +5104,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                                    { do case pvtype is
                                                           { {| integer = _1082 |} -> pure {}
                                                           }
-                                                        nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                                        nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                                                    | do case pvtype is
                                                           { {| real = _1084 |} -> pure {}
                                                           }
-                                                        nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                                        nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                                                    }
                                             }
                                         | do case icat is
@@ -5119,11 +5119,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                                { do case pvtype is
                                                       { {| integer = _1088 |} -> pure {}
                                                       }
-                                                    nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                                    nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                                                | do case pvtype is
                                                       { {| real = _1090 |} -> pure {}
                                                       }
-                                                    nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                                    nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                                                }
                                         }
                                     | do Choose fair
@@ -5146,7 +5146,7 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                          case pvtype is
                                            { {| integer = _1096 |} -> pure {}
                                            }
-                                         nitf_img_subheader._CatIntEnds ?a217 ?a219 nbpp abpp
+                                         nitf_img_subheader._CatIntEnds ?a0 ?a1 nbpp abpp
                                     }
                                 | do Choose fair
                                        { case icat is
@@ -5171,7 +5171,7 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                      case pvtype is
                                        { {| integer = _1102 |} -> pure {}
                                        }
-                                     nitf_img_subheader._CatIntEnds ?a217 ?a219 nbpp abpp
+                                     nitf_img_subheader._CatIntEnds ?a0 ?a1 nbpp abpp
                                 }
                             | do case icat is
                                    { {| locationGrid = _1104 |} -> pure {}
@@ -5204,11 +5204,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                               { {| signed = _1111 |} -> pure {}
                                               }
                                           }
-                                        nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                        nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                                    | do case pvtype is
                                           { {| real = _1113 |} -> pure {}
                                           }
-                                        nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                        nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                                    }
                             }
                         | do case icat is
@@ -5224,7 +5224,7 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                    { do case pvtype is
                                           { {| complex = _1118 |} -> pure {}
                                           }
-                                        nitf_img_subheader._CatComplex ?a217 ?a219 nbpp abpp
+                                        nitf_img_subheader._CatComplex ?a0 ?a1 nbpp abpp
                                    | do Choose fair
                                           { case pvtype is
                                               { {| integer = _1120 |} -> pure {}
@@ -5233,12 +5233,12 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                               { {| signed = _1121 |} -> pure {}
                                               }
                                           }
-                                        nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                        nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                                    }
                                | do case pvtype is
                                       { {| real = _1123 |} -> pure {}
                                       }
-                                    nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                    nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                                }
                         }
                     | do Choose fair
@@ -5271,11 +5271,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                       { {| signed = _1132 |} -> pure {}
                                       }
                                   }
-                                nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                            | do case pvtype is
                                   { {| real = _1134 |} -> pure {}
                                   }
-                                nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                            }
                     }
                 | do Choose fair
@@ -5314,7 +5314,7 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                             case pvtype is
                               { {| complex = _1144 |} -> pure {}
                               }
-                            nitf_img_subheader._CatComplex ?a217 ?a219 nbpp abpp
+                            nitf_img_subheader._CatComplex ?a0 ?a1 nbpp abpp
                        | do Choose fair
                               { nitf_lib._Guard (nbands == 1)
                               | nitf_lib._Guard (nbands == 2)
@@ -5328,11 +5328,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                                          { {| signed = _1148 |} -> pure {}
                                          }
                                      }
-                                   nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                                   nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
                               | do case pvtype is
                                      { {| real = _1150 |} -> pure {}
                                      }
-                                   nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                                   nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
                               }
                        }
                 }
@@ -5373,8 +5373,8 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                { {| integer = _1160 |} -> pure {}
                }
              Choose fair
-               { nitf_img_subheader._CatIntLow ?a219 ?a217 nbpp abpp
-               | nitf_img_subheader._CatIntMid ?a219 ?a217 nbpp abpp
+               { nitf_img_subheader._CatIntLow ?a1 ?a0 nbpp abpp
+               | nitf_img_subheader._CatIntMid ?a1 ?a0 nbpp abpp
                }
         }
     | do case icat is
@@ -5390,11 +5390,11 @@ nitf_img_subheader._CatParams ?a217 ?a219 ?a235 (Literal 64 ?a219) (Literal 64 ?
                       { {| signed = _1165 |} -> pure {}
                       }
                   }
-                nitf_img_subheader._CatIntFull ?a217 ?a219 nbpp abpp
+                nitf_img_subheader._CatIntFull ?a0 ?a1 nbpp abpp
            | do case pvtype is
                   { {| real = _1167 |} -> pure {}
                   }
-                nitf_img_subheader._CatReals ?a217 ?a219 nbpp abpp
+                nitf_img_subheader._CatReals ?a0 ?a1 nbpp abpp
            }
     }
  
@@ -5680,9 +5680,9 @@ type nitf_header.Header = { fver: [uint 8]
  
 --- Rules:
  
-nitf_header.CallMeMaybe ?a1 (P : Grammar ?a1) : Grammar (Maybe ?a1) =
-  do (r : ?a1) <- P
-     ($$ : Maybe ?a1) <- pure (just r)
+nitf_header.CallMeMaybe ?a0 (P : Grammar ?a0) : Grammar (Maybe ?a0) =
+  do (r : ?a0) <- P
+     ($$ : Maybe ?a0) <- pure (just r)
      pure $$
  
 nitf_header.FHDR : Grammar [uint 8] =
@@ -6104,7 +6104,7 @@ nitf_header.Header : Grammar nitf_header.Header =
            udhd = udhd,
            xhd = xhd}
  
-nitf_header._CallMeMaybe ?a1 (_P : Grammar {}) : Grammar {} =
+nitf_header._CallMeMaybe ?a0 (_P : Grammar {}) : Grammar {} =
   _P
  
 nitf_header._FVER : Grammar {} =
