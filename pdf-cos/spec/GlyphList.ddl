@@ -2,7 +2,22 @@
 import Map
 
 -- GlyphEncs: encoding of glyph list
-def glyphEncs = [
+def glyphEncs = concat [ glyphEncs1
+                       , glyphEncs2
+                       , glyphEncs3
+                       , glyphEncs4
+                       , glyphEncs5
+                       , glyphEncs6
+                       , glyphEncs7
+                       , glyphEncs8
+                       , glyphEncs9
+                       , glyphEncs10
+                       , glyphEncs11
+                       ]
+    -- FIXME: the only reason these are broken up into 11 ~400 length subarrays is that
+    -- daedalus takes multiple minutes to compile otherwise
+    
+def glyphEncs1 = [
   mapEntry ("A") [ 0x41 ]
 , mapEntry ("AE") [ 0xC6 ]
 , mapEntry ("AEacute") [ 0x01FC ]
@@ -403,7 +418,9 @@ def glyphEncs = [
 , mapEntry ("Oacutesmall") [ 0xF7F3 ]
 , mapEntry ("Obarredcyrillic") [ 0x04E8 ]
 , mapEntry ("Obarreddieresiscyrillic") [ 0x04EA ]
-, mapEntry ("Obreve") [ 0x014E ]
+]
+def glyphEncs2 =
+[ mapEntry ("Obreve") [ 0x014E ]
 , mapEntry ("Ocaron") [ 0x01D1 ]
 , mapEntry ("Ocenteredtilde") [ 0x019F ]
 , mapEntry ("Ocircle") [ 0x24C4 ]
@@ -803,7 +820,9 @@ def glyphEncs = [
 , mapEntry ("afii10028") [ 0x041A ]
 , mapEntry ("afii10029") [ 0x041B ]
 , mapEntry ("afii10030") [ 0x041C ]
-, mapEntry ("afii10031") [ 0x041D ]
+]
+def glyphEncs3 =
+[ mapEntry ("afii10031") [ 0x041D ]
 , mapEntry ("afii10032") [ 0x041E ]
 , mapEntry ("afii10033") [ 0x041F ]
 , mapEntry ("afii10034") [ 0x0420 ]
@@ -1203,7 +1222,9 @@ def glyphEncs = [
 , mapEntry ("bagujarati") [ 0x0AAC ]
 , mapEntry ("bagurmukhi") [ 0x0A2C ]
 , mapEntry ("bahiragana") [ 0x3070 ]
-, mapEntry ("bahtthai") [ 0x0E3F ]
+]
+def glyphEncs4 =
+[ mapEntry ("bahtthai") [ 0x0E3F ]
 , mapEntry ("bakatakana") [ 0x30D0 ]
 , mapEntry ("bar") [ 0x7C ]
 , mapEntry ("barmonospace") [ 0xFF5C ]
@@ -1603,7 +1624,9 @@ def glyphEncs = [
 , mapEntry ("dieresistonos") [ 0x0385 ]
 , mapEntry ("dihiragana") [ 0x3062 ]
 , mapEntry ("dikatakana") [ 0x30C2 ]
-, mapEntry ("dittomark") [ 0x3003 ]
+]
+def glyphEncs5 =
+[ mapEntry ("dittomark") [ 0x3003 ]
 , mapEntry ("divide") [ 0xF7 ]
 , mapEntry ("divides") [ 0x2223 ]
 , mapEntry ("divisionslash") [ 0x2215 ]
@@ -2003,7 +2026,9 @@ def glyphEncs = [
 , mapEntry ("greatermonospace") [ 0xFF1E ]
 , mapEntry ("greaterorequivalent") [ 0x2273 ]
 , mapEntry ("greaterorless") [ 0x2277 ]
-, mapEntry ("greateroverequal") [ 0x2267 ]
+]
+def glyphEncs6 =
+[ mapEntry ("greateroverequal") [ 0x2267 ]
 , mapEntry ("greatersmall") [ 0xFE65 ]
 , mapEntry ("gscript") [ 0x0261 ]
 , mapEntry ("gstroke") [ 0x01E5 ]
@@ -2403,7 +2428,9 @@ def glyphEncs = [
 , mapEntry ("khieukhacirclekorean") [ 0x3278 ]
 , mapEntry ("khieukhaparenkorean") [ 0x3218 ]
 , mapEntry ("khieukhcirclekorean") [ 0x326A ]
-, mapEntry ("khieukhkorean") [ 0x314B ]
+]
+def glyphEncs7 =
+[ mapEntry ("khieukhkorean") [ 0x314B ]
 , mapEntry ("khieukhparenkorean") [ 0x320A ]
 , mapEntry ("khokhaithai") [ 0x0E02 ]
 , mapEntry ("khokhonthai") [ 0x0E05 ]
@@ -2803,7 +2830,9 @@ def glyphEncs = [
 , mapEntry ("notlessnorequal") [ 0x2270 ]
 , mapEntry ("notparallel") [ 0x2226 ]
 , mapEntry ("notprecedes") [ 0x2280 ]
-, mapEntry ("notsubset") [ 0x2284 ]
+]
+def glyphEncs8 =
+[ mapEntry ("notsubset") [ 0x2284 ]
 , mapEntry ("notsucceeds") [ 0x2281 ]
 , mapEntry ("notsuperset") [ 0x2285 ]
 , mapEntry ("nowarmenian") [ 0x0576 ]
@@ -3203,7 +3232,9 @@ def glyphEncs = [
 , mapEntry ("quotedblright") [ 0x201D ]
 , mapEntry ("quoteleft") [ 0x2018 ]
 , mapEntry ("quoteleftreversed") [ 0x201B ]
-, mapEntry ("quotereversed") [ 0x201B ]
+]
+def glyphEncs9 =
+[ mapEntry ("quotereversed") [ 0x201B ]
 , mapEntry ("quoteright") [ 0x2019 ]
 , mapEntry ("quoterightn") [ 0x0149 ]
 , mapEntry ("quotesinglbase") [ 0x201A ]
@@ -3604,7 +3635,9 @@ def glyphEncs = [
 , mapEntry ("squareorthogonalcrosshatchfill") [ 0x25A6 ]
 , mapEntry ("squareupperlefttolowerrightfill") [ 0x25A7 ]
 , mapEntry ("squareupperrighttolowerleftfill") [ 0x25A8 ]
-, mapEntry ("squareverticalfill") [ 0x25A5 ]
+]
+def glyphEncs10 =
+[ mapEntry ("squareverticalfill") [ 0x25A5 ]
 , mapEntry ("squarewhitewithsmallblack") [ 0x25A3 ]
 , mapEntry ("srsquare") [ 0x33DB ]
 , mapEntry ("ssabengali") [ 0x09B7 ]
@@ -4004,7 +4037,9 @@ def glyphEncs = [
 , mapEntry ("vdotbelow") [ 0x1E7F ]
 , mapEntry ("vecyrillic") [ 0x0432 ]
 , mapEntry ("veharabic") [ 0x06A4 ]
-, mapEntry ("vehfinalarabic") [ 0xFB6B ]
+]
+def glyphEncs11 =
+[ mapEntry ("vehfinalarabic") [ 0xFB6B ]
 , mapEntry ("vehinitialarabic") [ 0xFB6C ]
 , mapEntry ("vehmedialarabic") [ 0xFB6D ]
 , mapEntry ("vekatakana") [ 0x30F9 ]
