@@ -11,7 +11,7 @@ module Daedalus.LSP.Monad where
 import           Control.Concurrent.Async     (Async)
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
-import           Control.Lens                 (makeLenses)
+import           Control.Lens                 (makeLenses, (^.))
 import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
@@ -20,20 +20,20 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           GHC.Generics                 (Generic)
 
-import           Daedalus.AST                 (ModuleName, Module)
+import           Daedalus.AST                 (Module, ModuleName)
 import           Daedalus.Module              (pathToModuleName)
 import           Daedalus.PP
 import           Daedalus.Parser.Lexer        (Lexeme, Token)
 import           Daedalus.Pass
-import           Daedalus.Scope               (Scope, GlobalScope)
+import           Daedalus.Scope               (GlobalScope, Scope)
 import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
                                                TCTyName)
 import           Daedalus.Type.Monad          (RuleEnv)
 
+import           Data.Text                    (Text)
 import           Language.LSP.Server          (LanguageContextEnv, LspM,
                                                MonadLsp (..), runLspT)
 import qualified Language.LSP.Types           as J
-import Data.Text (Text)
 
 data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
                   | FileModule FilePath -- FilePath here is the path to search
@@ -128,12 +128,23 @@ runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
 uriToModuleName :: J.NormalizedUri -> Maybe ModuleName
 uriToModuleName = fmap (snd . pathToModuleName) . J.uriToFilePath . J.fromNormalizedUri
 
--- uriToModuleResults :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleResults)
--- uriToModuleResults uri = do
---   sst <-  ask
---   let Just mn = uriToModuleName uri -- FIXME
---   liftIO $ atomically $ do
---     mods <- readTVar (knownModules sst)
---     case Map.lookup mn mods of
---       Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
---       Just mi -> Right <$> readTVar (moduleResults mi)
+uriToModuleState :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleState)
+uriToModuleState uri = do
+  sst <-  ask
+  let Just mn = uriToModuleName uri -- FIXME
+  liftIO $ atomically $ do
+    mods <- readTVar (moduleStates sst)
+    pure $ case Map.lookup mn mods of
+      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just ms -> Right ms
+
+
+uriToTCModule :: J.NormalizedUri -> ServerM (Either J.ResponseError (Maybe (TCModule SourceRange)))
+uriToTCModule uri = do
+  sst <-  ask
+  let Just mn = uriToModuleName uri -- FIXME
+  liftIO $ atomically $ do
+    mods <- readTVar (moduleStates sst)
+    pure $ case Map.lookup mn mods of
+      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just ms -> Right $ (\(tcm, _, _) -> tcm) <$> passStatusToMaybe (ms ^. msTCRes)

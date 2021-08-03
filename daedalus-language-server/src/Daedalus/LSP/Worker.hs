@@ -7,7 +7,7 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (worker) where
+module Daedalus.LSP.Worker (requestParse, worker) where
 
 import           Control.Concurrent       (threadDelay)
 import           Control.Concurrent.Async (Async, async, cancel)
@@ -46,13 +46,41 @@ import           Daedalus.Type.Monad      (RuleEnv, runMTypeM)
 
 
 import           Language.LSP.Diagnostics (partitionBySource)
-import           Language.LSP.Server      (publishDiagnostics, runLspT)
+import           Language.LSP.Server      (publishDiagnostics, runLspT, getVirtualFile)
 import           Language.LSP.Types       (Diagnostic (..))
 import qualified Language.LSP.Types       as J
 
 import           Daedalus.LSP.Diagnostics
 import           Daedalus.LSP.Monad
+import Language.LSP.VFS (virtualFileText, virtualFileVersion)
+import System.Log.Logger (debugM)
 
+
+
+-- -----------------------------------------------------------------------------
+-- Asking the worker thread to do something
+
+requestParse :: ServerState -> J.NormalizedUri -> J.TextDocumentVersion -> Int -> 
+                IO ()
+requestParse sst uri version delay = do
+  m_txt <- runLspT (lspEnv sst) $ do
+    mdoc <- getVirtualFile uri
+    case mdoc of
+      -- Can we race the req. handler thread?  It is possible to
+      -- imagine that if the reactor is a bit slow then the server
+      -- might update the doc before we start, so we check here and do
+      -- nothing if we are out of date.
+
+      Just vf | version == Just (virtualFileVersion vf) ->
+                pure (Just (virtualFileText vf))
+      _ -> do
+        liftIO $ debugM "reactor.requestParse" "Requested version is out of date"
+        pure Nothing
+
+  traverse_ sendReq m_txt
+  where
+    sendReq txt = atomically $
+      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
 
 -- The workflow is this:
 -- 1. A message comes in telling us about a change to a file
@@ -198,8 +226,9 @@ runIfNeeded l prevl cleanup deps doIt mn = do
               setStatus False $ PassStatus True ErrorStatus
               addDiagnostic ms err
 
-            Right r ->
+            Right r -> do
               setStatus True $ PassStatus True (FinishedStatus r)
+              addDiagnostic ms [] -- clear diagnostics, at least for this pass
 
         -- Something has changed, but a dep is missing, so we report
         -- anyway (this might send spurious updates, but it should be

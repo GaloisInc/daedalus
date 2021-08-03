@@ -4,45 +4,40 @@
 module Daedalus.LSP.Command.Run (runModule, watchModule) where
 
 import           Control.Concurrent.STM.TVar
+import           Control.Lens hiding ((.=))
 import           Control.Monad.Reader
 import           Control.Monad.STM
+import           Data.Aeson                  (KeyValue ((.=)))
+import qualified Data.Aeson                  as A
+import           Data.Either                 (isRight)
+import           Data.Foldable               (find)
+import           Data.Function               (on)
+import           Data.Functor                (($>))
+import qualified Data.List.NonEmpty          as NE
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import qualified Data.Text                   as Text
 
-import qualified Data.Aeson                  as A
 import qualified Language.LSP.Types          as J
 
+import           System.Log.Logger           (debugM)
+
+import           Daedalus.AST                (nameScopeAsModScope)
 import           Daedalus.Interp             (interpFile)
 import           Daedalus.PP
+import           Daedalus.Rec                (forgetRecs)
 import           Daedalus.Type.AST
-import qualified RTS.ParserAPI as RTS
+import qualified RTS.ParserAPI               as RTS
 
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position
-import qualified Data.List.NonEmpty as NE
-import Data.Functor (($>))
-import Data.Aeson (KeyValue((.=)))
-import Data.Function (on)
-import Daedalus.AST (nameScopeAsModScope)
-import Data.Foldable (find)
-import Daedalus.Rec (forgetRecs)
-import System.Log.Logger (debugM)
-import Data.Either (isRight)
 
-gatherModules :: Map ModuleName ModuleState -> [ModuleName] ->
-                 STM (Maybe (Map ModuleName (ModuleSource, TCModule SourceRange)))
-gatherModules mods = go mempty
+
+gatherModules :: Map ModuleName ModuleState ->
+                 Map ModuleName (ModuleSource, TCModule SourceRange)
+gatherModules = Map.mapMaybe go
   where
-    go acc [] = pure (Just acc)
-    go acc (mn : rest) | mn `Map.member` acc = go acc rest
-    go acc (mn : rest) = do
-      let getmr mr = (,) (mrSource mr) <$> mrTC mr
-      m_mod <- join <$> traverse (fmap getmr . readTVar . moduleResults) (Map.lookup mn mods)
-      let doRest mr = go (Map.insert (tcModuleName (snd mr)) mr acc)
-                         (map thingValue (tcModuleImports (snd mr)) ++ rest)
-                      
-      join <$> traverse doRest m_mod
+    go mst = (,) (mst ^. msSource) . (\(tc, _, _) -> tc) <$> passStatusToMaybe (mst ^. msTCRes)
 
 canRunDecl :: Name -> Map ModuleName (ModuleSource, TCModule SourceRange) -> Either String ()
 canRunDecl nm mods = do
@@ -65,14 +60,11 @@ canRunDecl nm mods = do
 
 runModule :: J.Position -> ServerState -> TCModule SourceRange -> IO (Maybe A.Value)
 runModule pos sst m = do
-  m_ms <- atomically $ do
-    mods <- readTVar (knownModules sst)
-    gatherModules mods [tcModuleName m] -- this will re-read m
-    
+  ms <- gatherModules <$> atomically (readTVar (moduleStates sst))
   let m_d = declAtPos pos m
-  case (,) <$> m_ms <*> m_d of
+  case m_d of
     -- FIXME: we should probably say something about why we can't run it.
-    Just (ms, d) | isRight (canRunDecl (tcDeclName d) ms) -> runIt (map snd (Map.elems ms)) d
+    Just d | isRight (canRunDecl (tcDeclName d) ms) -> runIt (map snd (Map.elems ms)) d
     _ -> pure Nothing
     
   where
@@ -94,14 +86,11 @@ watchModule report reportMsg clientHandle sst nm = go mempty
     (rootModuleName, _) = nameScopeAsModScope nm
     go oldTCs = do
       newTCs <- atomically $ do
-        mods <- readTVar (knownModules sst)
-        m_newTCs <- gatherModules mods [rootModuleName]
-        case m_newTCs of
-          Nothing -> retry
-          Just newTCs ->
-            -- check that some source has changed (or we have newly available modules)
-            check (Map.isProperSubmapOfBy (\_ _ -> True) oldTCs newTCs
-                   || not (Map.isSubmapOfBy ((==) `on` fst) oldTCs newTCs)) $> newTCs
+        newTCs <- gatherModules <$> readTVar (moduleStates sst)
+        check (rootModuleName `Map.member` newTCs)        
+        check (Map.isProperSubmapOfBy (\_ _ -> True) oldTCs newTCs
+                || not (Map.isSubmapOfBy ((==) `on` fst) oldTCs newTCs))
+        pure newTCs
 
       -- debugDecl newTCs
       

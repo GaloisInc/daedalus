@@ -18,9 +18,9 @@ import           Daedalus.LSP.Diagnostics (sourceRangeToRange)
 import           Daedalus.LSP.Monad
 
 semanticTokens :: Maybe J.Range -> Maybe J.SemanticTokensClientCapabilities ->
-                  ModuleResults -> Maybe J.SemanticTokens
-semanticTokens m_range m_caps mr = do
-  toks <- mrTokens mr
+                  ModuleState -> Maybe J.SemanticTokens
+semanticTokens m_range m_caps ms = do
+  toks <- passStatusToMaybe (ms ^. msTokens)
   let toks' = case m_range of
         Nothing -> toks
         Just r  -> filter (flip inRange r . sourceRangeToRange . range) toks
