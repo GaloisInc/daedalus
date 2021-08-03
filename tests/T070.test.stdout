@@ -1,0 +1,43 @@
+./T070.ddl:7:3--7:10 [WARNING] Statement has no effect
+
+Main:
+  for any type a:
+    `a` contains the number 1
+    `a` contains the number 2
+    `a` is a numeric type
+  defines: parser of a
+   
+f:
+  for any type a b:
+    `a` has a field l : b
+  parameter: a
+  defines: b
+   
+P:
+  for any type a:
+    `a` is coercible to `int`
+    `a` is coercible to `int` (dynamic check)
+    `a` is coercible to `int` (lossy)
+  parameter: a
+  defines: parser of int
+   
+J:
+  for any type a b c:
+    a + b = c
+  parameter: uint a
+  parameter: uint b
+  defines: parser of uint c
+   
+L:
+  for any type a b c d:
+    `c` contains the number 0
+    `a` supports iteration
+    `a` is a collection with index `b`
+    `a` is a collection of `c`
+    `c` is a numeric type
+    `d` is a collection with index `b`
+    `d` is a collection of `bool`
+    mapping over `a` results in `d`
+  parameter: a
+  defines: parser of d
+   

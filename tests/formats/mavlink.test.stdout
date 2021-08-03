@@ -124,8 +124,8 @@ MavNumerics.Digit : Grammar int =
                            pure (_170 - '0')
      pure (_171 as int)
  
-MavNumerics.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
+MavNumerics.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+  for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
 MavNumerics.Natural (numDigs : uint 64) : Grammar int =
@@ -397,52 +397,52 @@ module MavEnums
 import MavNumerics
  
 --- Type defs:
-type MavEnums.Position ?a1 ?a3 ?a5 = { latitude: ?a1
-                                     ; longitude: ?a3
-                                     ; altitude: ?a5
+type MavEnums.Position ?a0 ?a1 ?a2 = { latitude: ?a0
+                                     ; longitude: ?a1
+                                     ; altitude: ?a2
                                      }
  
-type MavEnums.MavCmd0 ?a52 ?a82 ?a85 ?a86 ?a87 = { hold: MavNumerics.NonNegFloat
-                                                 ; acceptRadius: MavNumerics.NonNegFloat
-                                                 ; passRadius: ?a52
-                                                 ; yaw: ?a82
-                                                 ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                                 }
+type MavEnums.MavCmd0 ?a0 ?a1 ?a2 ?a3 ?a4 = { hold: MavNumerics.NonNegFloat
+                                            ; acceptRadius: MavNumerics.NonNegFloat
+                                            ; passRadius: ?a0
+                                            ; yaw: ?a1
+                                            ; position: MavEnums.Position ?a2 ?a3 ?a4
+                                            }
  
-type MavEnums.MavCmd1 ?a52 ?a82 ?a85 ?a86 ?a87 = { radius: ?a52
-                                                 ; yaw: ?a82
-                                                 ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                                 }
+type MavEnums.MavCmd1 ?a0 ?a1 ?a2 ?a3 ?a4 = { radius: ?a0
+                                            ; yaw: ?a1
+                                            ; position: MavEnums.Position ?a2 ?a3 ?a4
+                                            }
  
-type MavEnums.MavCmd2 ?a52 ?a82 ?a85 ?a86 ?a87 = { turns: MavNumerics.NonNegFloat
-                                                 ; headingRequired: MavNumerics.InclusiveFractional
-                                                 ; radius: ?a52
-                                                 ; xtrackLoc: ?a82
-                                                 ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                                 }
+type MavEnums.MavCmd2 ?a0 ?a1 ?a2 ?a3 ?a4 = { turns: MavNumerics.NonNegFloat
+                                            ; headingRequired: MavNumerics.InclusiveFractional
+                                            ; radius: ?a0
+                                            ; xtrackLoc: ?a1
+                                            ; position: MavEnums.Position ?a2 ?a3 ?a4
+                                            }
  
-type MavEnums.MavCmd3 ?a52 ?a82 ?a85 ?a86 ?a87 = { time: MavNumerics.NonNegFloat
-                                                 ; headingRequired: MavNumerics.InclusiveFractional
-                                                 ; radius: ?a52
-                                                 ; xtrackLocation: ?a82
-                                                 ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                                 }
+type MavEnums.MavCmd3 ?a0 ?a1 ?a2 ?a3 ?a4 = { time: MavNumerics.NonNegFloat
+                                            ; headingRequired: MavNumerics.InclusiveFractional
+                                            ; radius: ?a0
+                                            ; xtrackLocation: ?a1
+                                            ; position: MavEnums.Position ?a2 ?a3 ?a4
+                                            }
  
 type MavEnums.PrecisionLandMode = Choose { precisionLandModeRequired: {}
                                          ; precisionLandModeOpportunistic: {}
                                          ; precisionLandModeDisabled: {}
                                          }
  
-type MavEnums.MavCmd4 ?a82 ?a85 ?a86 ?a87 = { abortAlt: MavNumerics.Float
-                                            ; landMode: MavEnums.PrecisionLandMode
-                                            ; yawAngle: ?a82
-                                            ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                            }
+type MavEnums.MavCmd4 ?a0 ?a1 ?a2 ?a3 = { abortAlt: MavNumerics.Float
+                                        ; landMode: MavEnums.PrecisionLandMode
+                                        ; yawAngle: ?a0
+                                        ; position: MavEnums.Position ?a1 ?a2 ?a3
+                                        }
  
-type MavEnums.MavCmd5 ?a82 ?a85 ?a86 ?a87 = { pitch: MavNumerics.Float
-                                            ; yaw: ?a82
-                                            ; position: MavEnums.Position ?a85 ?a86 ?a87
-                                            }
+type MavEnums.MavCmd5 ?a0 ?a1 ?a2 ?a3 = { pitch: MavNumerics.Float
+                                        ; yaw: ?a0
+                                        ; position: MavEnums.Position ?a1 ?a2 ?a3
+                                        }
  
 type MavEnums.MavFrame = Choose { mavFrameBodyFrd: {}
                                 ; mavFrameBodyNed: {}
@@ -472,15 +472,15 @@ type MavEnums.CmdParams = { param1: MavNumerics.Float
                           ; z: MavNumerics.Float
                           }
  
-type MavEnums.MavCmd ?a0 ?a52 ?a82 ?a85 ?a86 ?a87 = Choose { mavCmdSome: ?a0
-                                                           ; mavCmdNavWaypoint: MavEnums.MavCmd0 ?a52 ?a82 ?a85 ?a86 ?a87
-                                                           ; mavCmdNavTakeoff: MavEnums.MavCmd5 ?a82 ?a85 ?a86 ?a87
-                                                           ; mavCmdNavReturnToLaunch: {}
-                                                           ; mavCmdNavLoiterUnlim: MavEnums.MavCmd1 ?a52 ?a82 ?a85 ?a86 ?a87
-                                                           ; mavCmdNavLoiterTurns: MavEnums.MavCmd2 ?a52 ?a82 ?a85 ?a86 ?a87
-                                                           ; mavCmdNavLoiterTime: MavEnums.MavCmd3 ?a52 ?a82 ?a85 ?a86 ?a87
-                                                           ; mavCmdNavLand: MavEnums.MavCmd4 ?a82 ?a85 ?a86 ?a87
-                                                           }
+type MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 = Choose { mavCmdSome: ?a0
+                                                      ; mavCmdNavWaypoint: MavEnums.MavCmd0 ?a1 ?a2 ?a3 ?a4 ?a5
+                                                      ; mavCmdNavTakeoff: MavEnums.MavCmd5 ?a2 ?a3 ?a4 ?a5
+                                                      ; mavCmdNavReturnToLaunch: {}
+                                                      ; mavCmdNavLoiterUnlim: MavEnums.MavCmd1 ?a1 ?a2 ?a3 ?a4 ?a5
+                                                      ; mavCmdNavLoiterTurns: MavEnums.MavCmd2 ?a1 ?a2 ?a3 ?a4 ?a5
+                                                      ; mavCmdNavLoiterTime: MavEnums.MavCmd3 ?a1 ?a2 ?a3 ?a4 ?a5
+                                                      ; mavCmdNavLand: MavEnums.MavCmd4 ?a2 ?a3 ?a4 ?a5
+                                                      }
  
 type MavEnums.MavMissionType = Choose { mavMissionTypeAll: {}
                                       ; mavMissionTypeFence: {}
@@ -572,10 +572,10 @@ MavEnums.CmdParams : Grammar MavEnums.CmdParams =
            y = y,
            z = z}
  
-MavEnums.Position ?a0 ?a1 ?a3 ?a5 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a3) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar (MavEnums.Position ?a1 ?a3 ?a5) =
+MavEnums.Position ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a2) (HasStruct ?a0 z ?a3) (params : ?a0) : Grammar (MavEnums.Position ?a1 ?a2 ?a3) =
   do (latitude : ?a1) <- pure (params.x)
-     (longitude : ?a3) <- pure (params.y)
-     (altitude : ?a5) <- pure (params.z)
+     (longitude : ?a2) <- pure (params.y)
+     (altitude : ?a3) <- pure (params.z)
      pure {latitude = latitude,
            longitude = longitude,
            altitude = altitude}
@@ -608,76 +608,76 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
                                          pure {precisionLandModeRequired: _238}
     }
  
-MavEnums.MavCmd ?a0 ?a52 ?a82 ?a85 ?a86 ?a87 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a52) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a82) (HasStruct ?a0 x ?a85) (HasStruct ?a0 y ?a86) (HasStruct ?a0 z ?a87) (params : ?a0) : Grammar (MavEnums.MavCmd ?a0 ?a52 ?a82 ?a85 ?a86 ?a87) =
+MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a1) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a2) (HasStruct ?a0 x ?a3) (HasStruct ?a0 y ?a4) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar (MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5) =
   do (cmd : uint 16) <- MavNumerics.UInt16
-     ($$ : MavEnums.MavCmd ?a0 ?a52 ?a82 ?a85 ?a86 ?a87) <- Choose biased
-                                                              { {- mavCmdNavWaypoint -} do (_240 : MavEnums.MavCmd0 ?a52 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 16)
-                                                                                                                                                    (hold : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
-                                                                                                                                                    (acceptRadius : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param2)
-                                                                                                                                                    (passRadius : ?a52) <- pure (params.param3)
-                                                                                                                                                    (yaw : ?a82) <- pure (params.param4)
-                                                                                                                                                    (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                                    pure {hold = hold,
-                                                                                                                                                          acceptRadius = acceptRadius,
-                                                                                                                                                          passRadius = passRadius,
-                                                                                                                                                          yaw = yaw,
-                                                                                                                                                          position = position}
-                                                                                           pure {mavCmdNavWaypoint: _240}
-                                                              | {- mavCmdNavLoiterUnlim -} do (_241 : MavEnums.MavCmd1 ?a52 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 17)
-                                                                                                                                                       (radius : ?a52) <- pure (params.param3)
-                                                                                                                                                       (yaw : ?a82) <- pure (params.param4)
-                                                                                                                                                       (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                                       pure {radius = radius,
-                                                                                                                                                             yaw = yaw,
-                                                                                                                                                             position = position}
-                                                                                              pure {mavCmdNavLoiterUnlim: _241}
-                                                              | {- mavCmdNavLoiterTurns -} do (_242 : MavEnums.MavCmd2 ?a52 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 18)
-                                                                                                                                                       (turns : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
-                                                                                                                                                       (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
-                                                                                                                                                       (radius : ?a52) <- pure (params.param3)
-                                                                                                                                                       (xtrackLoc : ?a82) <- pure (params.param4)
-                                                                                                                                                       (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                                       pure {turns = turns,
-                                                                                                                                                             headingRequired = headingRequired,
-                                                                                                                                                             radius = radius,
-                                                                                                                                                             xtrackLoc = xtrackLoc,
-                                                                                                                                                             position = position}
-                                                                                              pure {mavCmdNavLoiterTurns: _242}
-                                                              | {- mavCmdNavLoiterTime -} do (_243 : MavEnums.MavCmd3 ?a52 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 19)
-                                                                                                                                                      (time : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
-                                                                                                                                                      (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
-                                                                                                                                                      (radius : ?a52) <- pure (params.param3)
-                                                                                                                                                      (xtrackLocation : ?a82) <- pure (params.param4)
-                                                                                                                                                      (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                                      pure {time = time,
-                                                                                                                                                            headingRequired = headingRequired,
-                                                                                                                                                            radius = radius,
-                                                                                                                                                            xtrackLocation = xtrackLocation,
-                                                                                                                                                            position = position}
-                                                                                             pure {mavCmdNavLoiterTime: _243}
-                                                              | {- mavCmdNavReturnToLaunch -} do (_244 : {}) <- MavNumerics.Guard (cmd == 20)
-                                                                                                 pure {mavCmdNavReturnToLaunch: _244}
-                                                              | {- mavCmdNavLand -} do (_245 : MavEnums.MavCmd4 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 21)
-                                                                                                                                           (abortAlt : MavNumerics.Float) <- pure (params.param1)
-                                                                                                                                           (landMode : MavEnums.PrecisionLandMode) <- MavEnums.PrecisionLandMode (params.param2)
-                                                                                                                                           (yawAngle : ?a82) <- pure (params.param4)
-                                                                                                                                           (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                           pure {abortAlt = abortAlt,
-                                                                                                                                                 landMode = landMode,
-                                                                                                                                                 yawAngle = yawAngle,
-                                                                                                                                                 position = position}
-                                                                                       pure {mavCmdNavLand: _245}
-                                                              | {- mavCmdNavTakeoff -} do (_246 : MavEnums.MavCmd5 ?a82 ?a85 ?a86 ?a87) <- do MavNumerics._Guard (cmd == 22)
-                                                                                                                                              (pitch : MavNumerics.Float) <- pure (params.param1)
-                                                                                                                                              (yaw : ?a82) <- pure (params.param4)
-                                                                                                                                              (position : MavEnums.Position ?a85 ?a86 ?a87) <- MavEnums.Position ?a0 ?a85 ?a86 ?a87 params
-                                                                                                                                              pure {pitch = pitch,
-                                                                                                                                                    yaw = yaw,
-                                                                                                                                                    position = position}
-                                                                                          pure {mavCmdNavTakeoff: _246}
-                                                              | {- mavCmdSome -} do (_247 : ?a0) <- pure params
-                                                                                    pure {mavCmdSome: _247}
-                                                              }
+     ($$ : MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5) <- Choose biased
+                                                         { {- mavCmdNavWaypoint -} do (_240 : MavEnums.MavCmd0 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 16)
+                                                                                                                                          (hold : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
+                                                                                                                                          (acceptRadius : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param2)
+                                                                                                                                          (passRadius : ?a1) <- pure (params.param3)
+                                                                                                                                          (yaw : ?a2) <- pure (params.param4)
+                                                                                                                                          (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                          pure {hold = hold,
+                                                                                                                                                acceptRadius = acceptRadius,
+                                                                                                                                                passRadius = passRadius,
+                                                                                                                                                yaw = yaw,
+                                                                                                                                                position = position}
+                                                                                      pure {mavCmdNavWaypoint: _240}
+                                                         | {- mavCmdNavLoiterUnlim -} do (_241 : MavEnums.MavCmd1 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 17)
+                                                                                                                                             (radius : ?a1) <- pure (params.param3)
+                                                                                                                                             (yaw : ?a2) <- pure (params.param4)
+                                                                                                                                             (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                             pure {radius = radius,
+                                                                                                                                                   yaw = yaw,
+                                                                                                                                                   position = position}
+                                                                                         pure {mavCmdNavLoiterUnlim: _241}
+                                                         | {- mavCmdNavLoiterTurns -} do (_242 : MavEnums.MavCmd2 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 18)
+                                                                                                                                             (turns : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
+                                                                                                                                             (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
+                                                                                                                                             (radius : ?a1) <- pure (params.param3)
+                                                                                                                                             (xtrackLoc : ?a2) <- pure (params.param4)
+                                                                                                                                             (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                             pure {turns = turns,
+                                                                                                                                                   headingRequired = headingRequired,
+                                                                                                                                                   radius = radius,
+                                                                                                                                                   xtrackLoc = xtrackLoc,
+                                                                                                                                                   position = position}
+                                                                                         pure {mavCmdNavLoiterTurns: _242}
+                                                         | {- mavCmdNavLoiterTime -} do (_243 : MavEnums.MavCmd3 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 19)
+                                                                                                                                            (time : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
+                                                                                                                                            (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
+                                                                                                                                            (radius : ?a1) <- pure (params.param3)
+                                                                                                                                            (xtrackLocation : ?a2) <- pure (params.param4)
+                                                                                                                                            (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                            pure {time = time,
+                                                                                                                                                  headingRequired = headingRequired,
+                                                                                                                                                  radius = radius,
+                                                                                                                                                  xtrackLocation = xtrackLocation,
+                                                                                                                                                  position = position}
+                                                                                        pure {mavCmdNavLoiterTime: _243}
+                                                         | {- mavCmdNavReturnToLaunch -} do (_244 : {}) <- MavNumerics.Guard (cmd == 20)
+                                                                                            pure {mavCmdNavReturnToLaunch: _244}
+                                                         | {- mavCmdNavLand -} do (_245 : MavEnums.MavCmd4 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 21)
+                                                                                                                                  (abortAlt : MavNumerics.Float) <- pure (params.param1)
+                                                                                                                                  (landMode : MavEnums.PrecisionLandMode) <- MavEnums.PrecisionLandMode (params.param2)
+                                                                                                                                  (yawAngle : ?a2) <- pure (params.param4)
+                                                                                                                                  (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                  pure {abortAlt = abortAlt,
+                                                                                                                                        landMode = landMode,
+                                                                                                                                        yawAngle = yawAngle,
+                                                                                                                                        position = position}
+                                                                                  pure {mavCmdNavLand: _245}
+                                                         | {- mavCmdNavTakeoff -} do (_246 : MavEnums.MavCmd5 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics._Guard (cmd == 22)
+                                                                                                                                     (pitch : MavNumerics.Float) <- pure (params.param1)
+                                                                                                                                     (yaw : ?a2) <- pure (params.param4)
+                                                                                                                                     (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
+                                                                                                                                     pure {pitch = pitch,
+                                                                                                                                           yaw = yaw,
+                                                                                                                                           position = position}
+                                                                                     pure {mavCmdNavTakeoff: _246}
+                                                         | {- mavCmdSome -} do (_247 : ?a0) <- pure params
+                                                                               pure {mavCmdSome: _247}
+                                                         }
      pure $$
  
 MavEnums.MavMissionType : Grammar MavEnums.MavMissionType =
@@ -763,7 +763,7 @@ MavEnums._CmdParams : Grammar {} =
      MavNumerics._Int32
      MavNumerics._Float
  
-MavEnums._Position ?a0 ?a1 ?a3 ?a5 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a3) (HasStruct ?a0 z ?a5) : Grammar {} =
+MavEnums._Position ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a2) (HasStruct ?a0 z ?a3) : Grammar {} =
   pure {}
  
 MavEnums._PrecisionLandMode (f : MavNumerics.Float) : Grammar {} =
@@ -789,29 +789,29 @@ MavEnums._PrecisionLandMode (f : MavNumerics.Float) : Grammar {} =
                                          MavNumerics._Guard ((n.mantissa) == 2)
     }
  
-MavEnums._MavCmd ?a0 ?a52 ?a82 ?a85 ?a86 ?a87 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a52) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a82) (HasStruct ?a0 x ?a85) (HasStruct ?a0 y ?a86) (HasStruct ?a0 z ?a87) (params : ?a0) : Grammar {} =
+MavEnums._MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a1) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a2) (HasStruct ?a0 x ?a3) (HasStruct ?a0 y ?a4) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar {} =
   do (cmd : uint 16) <- MavNumerics.UInt16
      Choose biased
        { {- mavCmdNavWaypoint -} do MavNumerics._Guard (cmd == 16)
                                     MavNumerics._NonNegFloat (params.param1)
                                     MavNumerics._NonNegFloat (params.param2)
-                                    MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                    MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdNavLoiterUnlim -} do MavNumerics._Guard (cmd == 17)
-                                       MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                       MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdNavLoiterTurns -} do MavNumerics._Guard (cmd == 18)
                                        MavNumerics._NonNegFloat (params.param1)
                                        MavNumerics._InclusiveFractional (params.param2)
-                                       MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                       MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdNavLoiterTime -} do MavNumerics._Guard (cmd == 19)
                                       MavNumerics._NonNegFloat (params.param1)
                                       MavNumerics._InclusiveFractional (params.param2)
-                                      MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                      MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdNavReturnToLaunch -} MavNumerics._Guard (cmd == 20)
        | {- mavCmdNavLand -} do MavNumerics._Guard (cmd == 21)
                                 MavEnums._PrecisionLandMode (params.param2)
-                                MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdNavTakeoff -} do MavNumerics._Guard (cmd == 22)
-                                   MavEnums._Position ?a0 ?a85 ?a86 ?a87
+                                   MavEnums._Position ?a0 ?a3 ?a4 ?a5
        | {- mavCmdSome -} pure {}
        }
  

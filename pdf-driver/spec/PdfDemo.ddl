@@ -82,7 +82,7 @@ def TopDeclCheck expectId expectGen = {
 }
 
 def ResolveObjectStreamEntryCheck
-      expectId expectGen (oid : Nat) (gen : Nat) (idx : Nat) = {
+      expectId expectGen (oid : int) (gen : int) (idx : uint 64) = {
   @decl = ResolveObjectStreamEntry oid gen idx;
   CheckDecl expectId expectGen decl;
 }

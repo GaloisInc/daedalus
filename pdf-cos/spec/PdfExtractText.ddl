@@ -87,7 +87,7 @@ def KidsContentStreams (kids : [ PageNodeKid ]) : [ [ ContentStreamObj ] ] =
     treeKid tk -> PageNodeContentStreams tk;
   }))
 
-def PageNodeContentStreams (pt: PageTreeNode0) : [ [ ContentStreamObj ] ] =
+def PageNodeContentStreams (pt: PageTreeNode) : [ [ ContentStreamObj ] ] =
   KidsContentStreams pt.kids
 
 def PageTreeContentStreams pt = KidsContentStreams pt.kids

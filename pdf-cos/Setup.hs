@@ -4,6 +4,7 @@
 import System.Directory
 import System.IO
 import System.Posix.Temp(mkstemps)
+import Control.Exception
 
 import Distribution.Simple
 import Distribution.Simple.Setup
@@ -115,6 +116,7 @@ compileDDL =
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
      mapM_ (\m -> saveHS' (Just "src/spec")   (cfgFor m) m)  todo
      ddlIO $ putStrLn "... daedalus done"
+  `catch` \d -> putStrLn =<< prettyDaedalusError d
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if

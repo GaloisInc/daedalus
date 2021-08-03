@@ -21,7 +21,7 @@ def PreDefEncoding (s : [ uint 8 ]) : Type0Encoding = {|
 |}
 
 -- PartialType1Font: partial definition of a Type1 font
-def partialType0Font (com : PartialCommonFont)
+def partialType0Font (com : ?partialCommonFont)
   (bf: maybe FontName)
   (enc: maybe Type0Encoding)
   (dfs: maybe CIDFont) = {
@@ -37,7 +37,7 @@ def initType0Font = partialType0Font
   nothing
   nothing
 
-def Type0SetCommon (com : PartialCommonFont) (f : partialType0Font) =
+def Type0SetCommon (com : ?partialCommonFont) (f : partialType0Font) =
   partialType0Font
     com
     f.baseFont0

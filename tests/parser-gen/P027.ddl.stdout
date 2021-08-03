@@ -12,8 +12,8 @@ type P027.Main = { x: [[uint 8]]
  
 --- Rules:
  
-P027.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
+P027.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+  for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
 P027.Digit : Grammar int =
@@ -29,9 +29,9 @@ P027.Frac : Grammar int =
      ($$ : int) <- pure t
      pure $$
  
-P027.NoFrac ?a1 (Literal -42 ?a1) : Grammar ?a1 =
+P027.NoFrac ?a0 (Literal -42 ?a0) : Grammar ?a0 =
   do @MatchBytes ""
-     ($$ : ?a1) <- pure -42
+     ($$ : ?a0) <- pure -42
      pure $$
  
 P027.Continue : Grammar int =
@@ -66,7 +66,7 @@ P027._Frac : Grammar {} =
   do @MatchBytes "."
      @Many[] P027._Digit
  
-P027._NoFrac ?a1 (Literal -42 ?a1) : Grammar {} =
+P027._NoFrac ?a0 (Literal -42 ?a0) : Grammar {} =
   @MatchBytes ""
  
 P027._Continue : Grammar {} =

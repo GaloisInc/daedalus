@@ -103,6 +103,7 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
+import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
 import Daedalus.Normalise(normalise)
@@ -407,6 +408,7 @@ ddlUpdate_ = Daedalus . sets_
 ddlIO :: IO a -> Daedalus a
 ddlIO = Daedalus . inBase . liftIO
 
+
 ddlThrow :: DaedalusError -> Daedalus a
 ddlThrow = ddlIO . throwIO
 
@@ -426,6 +428,11 @@ ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
      ddlIO $ hPrint h x
+
+ddlDebug :: String -> Daedalus ()
+ddlDebug = if debug then ddlPutStrLn else const (pure ())
+  where debug = False
+
 
 ddlRunPass :: PassM a -> Daedalus a
 ddlRunPass = Daedalus . lift
@@ -495,7 +502,8 @@ parseModuleFromFile n file =
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
 parseModule n =
-  do sp     <- ddlGetOpt optSearchPath
+  do ddlDebug ("Parsing " ++ show n)
+     sp     <- ddlGetOpt optSearchPath
      m_path <- ddlIO $ resolveModulePath sp n
      case m_path of
        Nothing -> ddlThrow $ AModuleError $ MissingModule n
@@ -505,7 +513,8 @@ parseModule n =
 -- | Do the scoping pass on a single module
 resolveModule :: Module -> Daedalus ()
 resolveModule m =
-  do defs <- ddlGet moduleDefines
+  do ddlDebug ("Resolving " ++ show (moduleName m))
+     defs <- ddlGet moduleDefines
      r <- ddlRunPass (Scope.resolveModule defs m)
      case r of
        Right (m1,newDefs) ->
@@ -520,13 +529,15 @@ resolveModule m =
 -- | Typecheck this module
 tcModule :: Module -> Daedalus ()
 tcModule m =
-  do tdefs <- ddlGet declaredTypes
+  do ddlDebug ("Type checking " ++ show (moduleName m))
+     tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1 ->
-         do let warn = CheckUnused.checkTCModule m1
+       Right m1' ->
+         do let m1 = normTCModule m1'
+                warn = CheckUnused.checkTCModule m1
             unless (null warn) (ppWarn warn)
             ddlUpdate_ \s -> s
               { loadedModules = Map.insert (tcModuleName m1)
@@ -553,7 +564,8 @@ tcModule m =
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
 analyzeDeadVal m =
-  do mfs <- ddlGet matchingFunctions
+  do ddlDebug ("DeadVal " ++ show (tcModuleName m))
+     mfs <- ddlGet matchingFunctions
      r <- ddlRunPass (deadValModule mfs m)
      case r of
        (m1,mfs1) -> ddlUpdate_ \s -> s

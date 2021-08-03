@@ -43,7 +43,7 @@ def setLeadingOp (y : Number) : TextStateOp = {| setLeading = y |}
 def setWordSpaceOp (x : Number) : TextStateOp = {| setWordSpace = x |}
 
 -- updTextState op q: state q updated by running text-state operation op
-def updTextState (op: TextStateOp) (q: TextState) : TextState = case op of {
+def updTextState (op: TextStateOp) (q: textState) : textState = case op of {
   setCharSpace charSpace -> setCharSpace charSpace q
 ; setWordSpace wordSpace -> setWordSpace wordSpace q
 ; setScale s -> setScale s q

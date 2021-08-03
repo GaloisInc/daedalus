@@ -27,12 +27,12 @@ def TextShowOper = Choose1 { -- operations are mutually exclusive:
 }
 
 -- Text-showing operators (Table 107)
-def TextShowOp (f : SizedFont) = {
+def TextShowOp (f : ?sizedFont) = {
   showFont = f;
   oper = TextShowOper;
 }
 
-def ShowStringOp (szFont : SizedFont) (s : string) : TextShowOp = {
+def ShowStringOp (szFont : ?sizedFont) (s : [uint 8]) : TextShowOp = {
   showFont = szFont;
   oper = {| showString = s |};
 }
@@ -41,7 +41,7 @@ def ShowStringOp (szFont : SizedFont) (s : string) : TextShowOp = {
 def visible = 200 : int
 
 -- Text-showing operators: Table 107
-def ShowTextShow (op: TextShowOp) (q : TextState) : [ UTF8 ] =
+def ShowTextShow (op: TextShowOp) (q : textState) : [ UTF8 ] =
   case (op.oper: TextShowOper) of {
     showString arg -> ExtractString q op.showFont arg
   ; showManyStrings args ->

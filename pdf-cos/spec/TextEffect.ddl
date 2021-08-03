@@ -164,7 +164,7 @@ def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {
 }
 
 def codePointToUTF8 (cp : uint 32) : UTF8 =
-  unicodePoint (cp as! uint16)
+  unicodePoint (cp as! uint 16)
   -- FIXME: why doesn't the above take uint 32??
   -- FIXME: should move to Unicode.ddl
 

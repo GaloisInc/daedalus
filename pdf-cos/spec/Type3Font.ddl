@@ -18,9 +18,9 @@ def FontMatrix = {
   f = Token Number;
 }
 
-def partialType3Font (com : PartialCommonFont) (pChars : PartialCharSet)
+def partialType3Font (com : ?partialCommonFont) (pChars : ?partialCharSet)
   (pBBox : maybe Rectangle) (pMatrix : maybe FontMatrix)
-  (pCharProcs : maybe [ [ uint 8 ] -> Ref ]) (pEnc : maybe EncodingDict)
+  (pCharProcs : maybe [ [ uint 8 ] -> Ref ]) (pEnc : maybe ?encodingDict)
   (pRes : maybe [ [ uint 8 ] -> Value ]) = {
   common = com
 ; chars = pChars
@@ -41,7 +41,7 @@ def initType3Font : partialType3Font = {
 ; resources = nothing
 }
 
-def Type3SetCommon (coms : PartialCommonFont) (f : partialType3Font) =
+def Type3SetCommon (coms : ?partialCommonFont) (f : partialType3Font) =
   partialType3Font
     coms
     f.chars
@@ -51,7 +51,7 @@ def Type3SetCommon (coms : PartialCommonFont) (f : partialType3Font) =
     f.encoding
     f.resources
 
-def Type3SetChars (cs : PartialCharSet) (f : partialType3Font) =
+def Type3SetChars (cs : ?partialCharSet) (f : partialType3Font) =
   partialType3Font
     f.common
     cs

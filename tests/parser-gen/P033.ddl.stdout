@@ -19,7 +19,7 @@ P033.$digit : ByteClass =
   '0' .. '9'
  
 P033.f (x : int) : int =
-  x as int
+  x
  
 P033.A : Grammar P033.A =
   do @Match {'<'}

@@ -23,7 +23,7 @@ def EncodingRepr = Choose1 {
 }
 
 -- partialType1Font: partial definition of a Type1 font
-def partialType1Font (com : PartialCommonFont) (pChars : PartialCharSet)
+def partialType1Font (com : ?partialCommonFont) (pChars : ?partialCharSet)
   (bf: maybe FontName) (enc: maybe EncodingRepr) = {
   common = com;
   chars = pChars;
@@ -38,14 +38,14 @@ def initType1Font = partialType1Font
   nothing
   nothing
 
-def type1SetCommon (com : PartialFontCommon)
+def type1SetCommon (com : ?partialFontCommon)
   (f : partialType1Font) = partialType1Font
   com
   f.chars
   f.baseFont0
   f.encoding0
 
-def type1SetChars (pChars : PartialCharSet)
+def type1SetChars (pChars : ?partialCharSet)
   (f : partialType1Font) = partialType1Font
   f.common
   pChars
@@ -54,7 +54,7 @@ def type1SetChars (pChars : PartialCharSet)
 
 -- AddBaseFont nm f: add a base font to font
 -- TODO: re-enable Subst
-def Type1AddBaseFont (Subst : uint 8) (f : PartialFontType) =
+def Type1AddBaseFont (Subst : uint 8) (f : ?partialFontType) =
   partialType1Font 
     f.common
     f.chars

@@ -15,7 +15,7 @@ import Pair
 
 -- partialPage: a partial Page value
 def partialPage (t: bool) (p: bool)
-  (rd : maybe resourceDict) (c: maybe stream) = {
+  (rd : maybe ?resourceDict) (c: maybe stream) = {
   type0 = t;
   parent0 = p;
   resources0 = rd;

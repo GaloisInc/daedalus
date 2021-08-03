@@ -52,7 +52,7 @@ def optionToArray x = case x of
   just y -> [ y ]
   nothing -> [ ]
 
-def optionsToArray (xs : [ maybe a ]) : [ a ] = concat
+def optionsToArray (xs : [ maybe ?a ]) : [ ?a ] = concat
   (map (x in xs) optionToArray x)
 
 -- bounded sequences of bytes:
@@ -107,7 +107,7 @@ def GenMany P acc0 =
   } <|
   ^acc0
 
-def ManyWithStateRec P q (res : [ a ]) : Pair = Default (Pair q res) {
+def ManyWithStateRec P q (res : [ ?a ]) : Pair = Default (Pair q res) {
   @eff = P q;
   ManyWithStateRec P eff.fst (append res (optionToArray eff.snd))
 }

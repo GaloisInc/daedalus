@@ -20,7 +20,7 @@ import Unicode
 import ContentStreamLight
 
 def partialPageTreeNode (t: bool) (p: bool)
-  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe resourceDict) = {
+  (k: maybe [ Ref ]) (c: maybe int) (rs: maybe ?resourceDict) = {
   type0 = t;
   parent0 = p;
   kids0 = k;

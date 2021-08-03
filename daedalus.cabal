@@ -57,6 +57,7 @@ library
                        Daedalus.Type.DeadVal,
                        Daedalus.Type.CheckUnused,
                        Daedalus.Type.RefreshGUID,
+                       Daedalus.Type.NormalizeTypeVars,
                        Daedalus.Type.PatComplete, 
                        Daedalus.Type.BitData,                      
                        Daedalus.Specialise.Monad,

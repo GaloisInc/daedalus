@@ -34,8 +34,8 @@ def CIDToGIDMap = Choose {
 
 def PartialCIDFont (ty: bool) (sty: maybe CIDFontType) (bf: maybe FontName)
   (sysInfo : maybe [ [ uint 8 ] -> Value ]) (fd: maybe Ref)
-  (pdw: maybe Number) (pw: maybe [ PdfValue ])
-  (pdw2: maybe DW2) (pw2: maybe [ PdfValue ])
+  (pdw: maybe Number) (pw: maybe [ Value ])
+  (pdw2: maybe DW2) (pw2: maybe [ Value ])
   (pCIDToGID: maybe CIDToGIDMap) : PartialCIDFont = {
 
   type = ty;

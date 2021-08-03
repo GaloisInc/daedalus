@@ -39,7 +39,7 @@ def CSOp (op : ContentStreamOp) : ContentStreamObj = {|
   csOp = op
 |}
 
-def LiftedTextObj (rd: ResourceDict) (szFont: maybe SizedFont) :
+def LiftedTextObj (rd: ResourceDict) (szFont: maybe sizedFont) :
   FontEffect = {
   @eff0 = TextObj rd szFont;
   FontEffect eff0.fst (just (just (CSTextObj eff0.snd))) -- ?
@@ -57,8 +57,8 @@ def ContentStreamP (rd : ResourceDict) : [ ContentStreamObj ] = {
 }
 
 -- interpret a sequence of operators as a text effect
-def ContentStreamEffect (cs : [ ContentStreamObj ]) (q0 : TextState) :
-  TextEffect = {
+def ContentStreamEffect (cs : [ ContentStreamObj ]) (q0 : textState) :
+  textEffect = {
   @eff0 = initEffect;
   for (effAcc = eff0; op in cs) {
     case op of {

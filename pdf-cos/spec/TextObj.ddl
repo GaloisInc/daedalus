@@ -80,7 +80,7 @@ def MvNextLineWOffset (tx : Number) (ty : Number) : TextPosOp = {|
     tx ty
 |}
 
-def MvNextLineShow (f : sizedFont) (s : string) : [ TextOp ] = [
+def MvNextLineShow (f : sizedFont) (s : [uint 8]) : [ TextOp ] = [
   {| macroOp = MvNextLineStart |}
 , {| textShowOp = ShowStringOp f s |}
 ]
