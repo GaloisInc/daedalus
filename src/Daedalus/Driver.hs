@@ -102,6 +102,7 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
+import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
 import Daedalus.Normalise(normalise)
@@ -533,8 +534,9 @@ tcModule m =
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1 ->
-         do let warn = CheckUnused.checkTCModule m1
+       Right m1' ->
+         do let m1 = normTCModule m1'
+                warn = CheckUnused.checkTCModule m1
             unless (null warn) (ppWarn warn)
             ddlUpdate_ \s -> s
               { loadedModules = Map.insert (tcModuleName m1)
