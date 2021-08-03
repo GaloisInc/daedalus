@@ -35,7 +35,7 @@ import qualified Daedalus.LSP.SemanticTokens as SI
 semanticTokens :: (Either J.ResponseError (Maybe J.SemanticTokens) -> ServerM ()) -> 
                   Maybe J.Range -> J.NormalizedUri -> ServerM ()
 semanticTokens resp m_range uri = do
-  e_mr <- uriToModuleResults uri
+  e_mr <- uriToModuleState uri
 
   caps <- getClientCapabilities
   let m_semcaps = caps ^. J.textDocument >>= view J.semanticTokens
@@ -60,15 +60,15 @@ semanticTokens resp m_range uri = do
 definition :: (Either J.ResponseError (J.Location J.|? (J.List J.Location J.|? J.List J.LocationLink)) -> ServerM ()) ->
               J.NormalizedUri -> J.Position -> ServerM ()
 definition resp uri pos = do
-  e_mr <- uriToModuleResults uri
+  e_mr <- uriToModuleState uri
   resp $ fmap (J.InR . J.InL . doDefinition uri pos) e_mr
 
 -- This currently returns a location, but we could return a
 -- locationlink --- we need the range of the target defn.
-doDefinition :: J.NormalizedUri -> J.Position -> ModuleResults -> J.List J.Location
-doDefinition _uri pos mr = J.List . maybeToList $ do
-  m     <- mrTC mr
-  gscope <- mrImportScope mr
+doDefinition :: J.NormalizedUri -> J.Position -> ModuleState -> J.List J.Location
+doDefinition _uri pos ms = J.List . maybeToList $ do
+  (m, _, _)   <- passStatusToMaybe (ms ^. msTCRes)
+  (_, gscope) <- passStatusToMaybe (ms ^. msScopeRes)
   
   d <- declAtPos pos m
   let allnis = declToNames d
@@ -96,8 +96,10 @@ doDefinition _uri pos mr = J.List . maybeToList $ do
 rename :: (Either J.ResponseError J.WorkspaceEdit -> ServerM ()) -> J.NormalizedUri ->
           J.Position -> Text.Text -> ServerM ()
 rename resp uri pos newName = do
-  e_tc <- fmap mrTC <$> uriToModuleResults uri
-  resp $ fmap (fromMaybe mempty . (doRename pos uri newName =<<)) e_tc
+  e_tcn <- uriToTCModule uri
+  resp $ case e_tcn of
+    Left err   -> Left err
+    Right m_tcm  -> Right $ fromMaybe mempty $ doRename pos uri newName =<< m_tcm
 
 doRename :: J.Position -> J.NormalizedUri -> Text.Text -> TCModule SourceRange -> Maybe J.WorkspaceEdit
 doRename pos uri newName m = do
@@ -128,7 +130,7 @@ doRename pos uri newName m = do
 highlight :: (Either J.ResponseError (J.List J.DocumentHighlight) -> ServerM ()) -> J.NormalizedUri -> J.Position ->
              ServerM ()
 highlight resp uri pos = do
-  e_tc <- fmap mrTC <$> uriToModuleResults uri
+  e_tc <- uriToTCModule uri
   resp $ fmap (maybe mempty (doHighlight pos)) e_tc
 
 doHighlight :: J.Position -> TCModule SourceRange -> J.List J.DocumentHighlight
@@ -151,7 +153,7 @@ doHighlight pos m = fromMaybe mempty $ do
 -- FIXME: check uri against module's URI
 hover :: (Either J.ResponseError (Maybe J.Hover) -> ServerM ()) -> J.NormalizedUri -> J.Position -> ServerM ()
 hover resp uri pos = do
-  e_tc <- fmap mrTC <$> uriToModuleResults uri
+  e_tc <- uriToTCModule uri
 
   -- case e_tc of
   --   Right (Just m) -> do
