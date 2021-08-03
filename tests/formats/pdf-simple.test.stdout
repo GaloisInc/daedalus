@@ -97,12 +97,12 @@ PdfValue._AnyWS : Grammar {} =
     | PdfValue._EOL
     }
  
-PdfValue.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+PdfValue.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[] PdfValue._AnyWS
      pure $$
  
-PdfValue._Token ?a1 (_P : Grammar {}) : Grammar {} =
+PdfValue._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[] PdfValue._AnyWS
  
@@ -112,25 +112,25 @@ PdfValue.KW (x : [uint 8]) : Grammar {} =
 PdfValue._KW (x : [uint 8]) : Grammar {} =
   PdfValue._Token [uint 8] (@MatchBytes x)
  
-PdfValue.Between ?a3 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a3) : Grammar ?a3 =
+PdfValue.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
   do PdfValue._KW open
-     ($$ : ?a3) <- P
+     ($$ : ?a0) <- P
      PdfValue._KW close
      pure $$
  
-PdfValue.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
+PdfValue.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+  for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
-PdfValue.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+PdfValue.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
-PdfValue.When ?a1 ?a5 (P : Grammar ?a5) (x : ?a1) : Grammar ?a1 =
+PdfValue.When ?a0 ?a1 (P : Grammar ?a1) (x : ?a0) : Grammar ?a0 =
   do do P
         pure {}
-     ($$ : ?a1) <- pure x
+     ($$ : ?a0) <- pure x
      pure $$
  
 PdfValue.Guard (p : bool) : Grammar {} =
@@ -386,16 +386,16 @@ PdfValue.NatValue (v : PdfValue.Value) : Grammar int =
 PdfValue.nullValue : PdfValue.Value =
   {null: {}}
  
-PdfValue._Between ?a3 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+PdfValue._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do PdfValue._KW open
      _P
      PdfValue._KW close
  
-PdfValue._Only ?a1 (_P : Grammar {}) : Grammar {} =
+PdfValue._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-PdfValue._When ?a1 ?a5 (_P : Grammar {}) : Grammar {} =
+PdfValue._When ?a0 ?a1 (_P : Grammar {}) : Grammar {} =
   _P
  
 PdfValue._Bool : Grammar {} =
@@ -634,14 +634,14 @@ type Pdf.Main = { version: {}
 --- Rules:
  
 rec value
-  Pdf.CountTo ?a7 ?a11 (Literal 1 ?a7) (Numeric ?a7) (P : Grammar ?a11) (count : ?a7) : Grammar ?a7 =
+  Pdf.CountTo ?a0 ?a1 (Literal 1 ?a0) (Numeric ?a0) (P : Grammar ?a1) (count : ?a0) : Grammar ?a0 =
     Choose biased
       { do do P
               pure {}
-           ($$ : ?a7) <- pure count
+           ($$ : ?a0) <- pure count
            pure $$
       | do @GetByte
-           ($$ : ?a7) <- Pdf.CountTo ?a7 ?a11 P (count + 1)
+           ($$ : ?a0) <- Pdf.CountTo ?a0 ?a1 P (count + 1)
            pure $$
       }
  
@@ -753,7 +753,7 @@ Pdf.PdfChunk : Grammar Pdf.PdfChunk =
            declaredStartXref = declaredStartXref}
  
 rec value
-  Pdf.SkipTo ?a10 (P : Grammar ?a10) : Grammar {} =
+  Pdf.SkipTo ?a0 (P : Grammar ?a0) : Grammar {} =
     do (_208 : bool) <- Choose biased
                           { do do P
                                   pure {}
@@ -764,7 +764,7 @@ rec value
        case _208 is
          { true -> pure {}
          ; false -> do @GetByte
-                       ($$ : {}) <- Pdf.SkipTo ?a10 P
+                       ($$ : {}) <- Pdf.SkipTo ?a0 P
                        pure $$
          }
  
@@ -777,11 +777,11 @@ Pdf.Main : Grammar Pdf.Main =
                             pure {version = version,
                                   chunks = chunks}
  
-Pdf._CountTo ?a7 ?a11 (Literal 1 ?a7) (Numeric ?a7) (P : Grammar ?a11) (count : ?a7) (_P : Grammar {}) : Grammar {} =
+Pdf._CountTo ?a0 ?a1 (Literal 1 ?a0) (Numeric ?a0) (P : Grammar ?a1) (count : ?a0) (_P : Grammar {}) : Grammar {} =
   Choose biased
     { _P
     | do @GetByte
-         Pdf.CountTo ?a7 ?a11 P (count + 1)
+         Pdf.CountTo ?a0 ?a1 P (count + 1)
          pure {}
     }
  
@@ -863,7 +863,7 @@ Pdf._PdfChunk : Grammar {} =
         PdfValue._EOL
      PdfValue._KW "%%EOF"
  
-Pdf._SkipTo ?a10 (P : Grammar ?a10) (_P : Grammar {}) : Grammar {} =
+Pdf._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
   do (_208 : bool) <- Choose biased
                         { do _P
                              ($$ : bool) <- pure true
@@ -873,7 +873,7 @@ Pdf._SkipTo ?a10 (P : Grammar ?a10) (_P : Grammar {}) : Grammar {} =
      case _208 is
        { true -> pure {}
        ; false -> do @GetByte
-                     Pdf.SkipTo ?a10 P
+                     Pdf.SkipTo ?a0 P
        }
  
 Pdf._Main : Grammar {} =

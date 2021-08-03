@@ -24,21 +24,21 @@ sexp-mutrec._WS : Grammar {} =
   @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
           {'\r'})
  
-sexp-mutrec.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+sexp-mutrec.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[] sexp-mutrec._WS
      pure $$
  
-sexp-mutrec._Token ?a1 (_P : Grammar {}) : Grammar {} =
+sexp-mutrec._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[] sexp-mutrec._WS
  
-sexp-mutrec.KW ?a1 (P : Grammar ?a1) : Grammar {} =
-  sexp-mutrec._Token ?a1 do P
+sexp-mutrec.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  sexp-mutrec._Token ?a0 do P
                             pure {}
  
-sexp-mutrec._KW ?a1 (_P : Grammar {}) : Grammar {} =
-  sexp-mutrec._Token ?a1 _P
+sexp-mutrec._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  sexp-mutrec._Token ?a0 _P
  
 rec value
   sexp-mutrec.Sexp : Grammar sexp-mutrec.Sexp =

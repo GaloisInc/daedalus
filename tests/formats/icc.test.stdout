@@ -538,8 +538,8 @@ ICC.Chunk (sz : uint 64) : Grammar Stream =
      ICC._Goto sz
      pure $$
  
-ICC.exp ?a0 ?a6 (Numeric ?a0) (Numeric ?a6) (Literal 1 ?a6) (Literal 0 ?a6) (Literal 1 ?a0) (b : ?a0) (e : ?a6) : ?a0 =
-  for ((x : ?a0) = 1; (i : ?a6) in rangeUp 0 e 1)
+ICC.exp ?a0 ?a1 (Numeric ?a0) (Numeric ?a1) (Literal 1 ?a1) (Literal 0 ?a1) (Literal 1 ?a0) (b : ?a0) (e : ?a1) : ?a0 =
+  for ((x : ?a0) = 1; (i : ?a1) in rangeUp 0 e 1)
     (x * b)
  
 ICC._StartTag (x : [uint 8]) : Grammar {} =
@@ -704,8 +704,8 @@ ICC.DateTimeType : Grammar ICC.DateTimeNumber =
      ($$ : ICC.DateTimeNumber) <- ICC.DateTimeNumber
      pure $$
  
-ICC.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+ICC.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
@@ -719,9 +719,9 @@ ICC.SignatureType : Grammar [uint 8] =
      ($$ : [uint 8]) <- Many[4] GetByte
      pure $$
  
-ICC.Remote ?a2 (P : Grammar ?a2) : Grammar ?a2 =
+ICC.Remote ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
-     ($$ : ?a2) <- P
+     ($$ : ?a0) <- P
      SetStream s
      pure $$
  
@@ -771,11 +771,11 @@ ICC.ColorantOrderType : Grammar [uint 8] =
      ($$ : [uint 8]) <- Many[] GetByte
      pure $$
  
-ICC.ParseChunk ?a4 (sz : uint 64) (P : Grammar ?a4) : Grammar ?a4 =
+ICC.ParseChunk ?a0 (sz : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
      (s1 : Stream) <- StreamLen sz s
      SetStream s1
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      (s2 : Stream) <- StreamOff sz s
      SetStream s2
      pure $$
@@ -1153,7 +1153,7 @@ ICC.ChromaticityType : Grammar ICC.ChromaticityType =
      pure {phosphor_or_colorant = phosphor_or_colorant,
            cie_coords = cie_coords}
  
-ICC.getBit ?a1 (Numeric ?a1) (Coerce trunc ?a1 (uint 1)) (n : uint 64) (b : ?a1) : uint 1 =
+ICC.getBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (n : uint 64) (b : ?a0) : uint 1 =
   b >> n as uint 1
  
 ICC.GotoRel (s : Stream) (n : uint 64) : Grammar {} =
@@ -1166,7 +1166,7 @@ ICC.Goto (n : uint 64) : Grammar {} =
      ($$ : {}) <- ICC.GotoRel s n
      pure $$
  
-ICC.ValidateArray ?a6 (arr : [uint 8]) (P : Grammar ?a6) : Grammar {} =
+ICC.ValidateArray ?a0 (arr : [uint 8]) (P : Grammar ?a0) : Grammar {} =
   do (s : Stream) <- CurrentStream
      SetStream (arrayStream "array" arr)
      do P
@@ -1433,7 +1433,7 @@ ICC._DateTimeType : Grammar {} =
   do ICC._StartTag "dtim"
      ICC._DateTimeNumber
  
-ICC._Only ?a1 (_P : Grammar {}) : Grammar {} =
+ICC._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
@@ -1445,7 +1445,7 @@ ICC._SignatureType : Grammar {} =
   do ICC._StartTag "sig "
      @Many[4] @GetByte
  
-ICC._Remote ?a2 (_P : Grammar {}) : Grammar {} =
+ICC._Remote ?a0 (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      _P
      SetStream s
@@ -1478,7 +1478,7 @@ ICC._ColorantOrderType : Grammar {} =
      ICC._BE32
      @Many[] @GetByte
  
-ICC._ParseChunk ?a4 (sz : uint 64) (_P : Grammar {}) : Grammar {} =
+ICC._ParseChunk ?a0 (sz : uint 64) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      (s1 : Stream) <- StreamLen sz s
      SetStream s1
@@ -1674,7 +1674,7 @@ ICC._ChromaticityType : Grammar {} =
      ICC._BE16
      @Many[number_of_device_channels as uint 64] ICC._XYNumber
  
-ICC._ValidateArray ?a6 (arr : [uint 8]) (_P : Grammar {}) : Grammar {} =
+ICC._ValidateArray ?a0 (arr : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      SetStream (arrayStream "array" arr)
      _P

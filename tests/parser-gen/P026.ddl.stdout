@@ -81,34 +81,34 @@ P026._AnyWS : Grammar {} =
     | P026._EOL
     }
  
-P026.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+P026.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[] P026._AnyWS
      pure $$
  
-P026._Token ?a1 (_P : Grammar {}) : Grammar {} =
+P026._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[] P026._AnyWS
  
-P026.KW ?a1 (P : Grammar ?a1) : Grammar {} =
-  P026._Token ?a1 do P
+P026.KW ?a0 (P : Grammar ?a0) : Grammar {} =
+  P026._Token ?a0 do P
                      pure {}
  
-P026._KW ?a1 (_P : Grammar {}) : Grammar {} =
-  P026._Token ?a1 _P
+P026._KW ?a0 (_P : Grammar {}) : Grammar {} =
+  P026._Token ?a0 _P
  
-P026.Between ?a4 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a4) : Grammar ?a4 =
+P026.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
   do P026._KW [uint 8] (@MatchBytes open)
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      P026._KW [uint 8] (@MatchBytes close)
      pure $$
  
-P026.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
+P026.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+  for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
-P026.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+P026.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
@@ -179,12 +179,12 @@ P026.Main : Grammar P026.Main =
      END
      pure {x = x}
  
-P026._Between ?a4 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+P026._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do P026._KW [uint 8] (@MatchBytes open)
      _P
      P026._KW [uint 8] (@MatchBytes close)
  
-P026._Only ?a1 (_P : Grammar {}) : Grammar {} =
+P026._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
