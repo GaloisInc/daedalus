@@ -9,26 +9,69 @@ license:             ISC
 license-file:        LICENSE
 author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
-copyright:           2019, Galois Inc
+copyright:           2021, Galois Inc
 -- category:
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
-  spec/Stdlib.ddl,
+  spec/Array.ddl,
+  spec/CIDFont.ddl,
+  spec/CMap.ddl,
+  spec/ColourSpaceOps.ddl,
+  spec/ContentStreamLight.ddl,
+  spec/Encoding.ddl,
+  spec/FontCommon.ddl,
+  spec/FontDesc.ddl,
+  spec/FontDict.ddl,
+  spec/GenPdfValue.ddl,
+  spec/Glyph.ddl,
+  spec/GlyphEnc.ddl,
+  spec/GlyphList.ddl,
+  spec/GlyphListNewFonts.ddl,
+  spec/GraphicsStateOps.ddl,
+--  spec/ISOCodes.ddl,
+  spec/JpegBasics.ddl,
+  spec/MacEncoding.ddl,
+  spec/MacExpert.ddl,
+  spec/Map.ddl,
+  spec/MarkedContentOps.ddl,
+  spec/Maybe.ddl,
+  spec/Page.ddl,
+  spec/PageTreeNode.ddl,
+  spec/Pair.ddl,
+  spec/PdfCos.ddl,
+     -- ^ ddl convenience, no autogen'd file
+  spec/PdfCrypto.ddl,
   spec/PdfDecl.ddl,
+  -- spec/PdfDeclStub.ddl,  part of repo, but you shouldn't be building it, don't add.
+  spec/PdfExtractText.ddl,
+--  spec/PdfText.ddl,
   spec/PdfValue.ddl,
   spec/PdfXRef.ddl,
-  spec/PdfCrypto.ddl,
-  spec/JpegBasics.ddl
+  spec/Rectangle.ddl,
+  spec/ResourceDict.ddl,
+  spec/StdEncoding.ddl,
+  spec/Stdlib.ddl,
+  spec/Sum.ddl,
+  spec/TextEffect.ddl,
+  spec/TextObj.ddl,
+  spec/TextPosOp.ddl,
+  spec/TextShowOp.ddl,
+  spec/TextStateOp.ddl,
+  spec/Type0Font.ddl,
+  spec/Type1Font.ddl,
+  spec/Type3Font.ddl,
+  spec/Unicode.ddl,
+  spec/WinEncoding.ddl
 
 custom-setup
-  setup-depends: base, containers, daedalus, filepath, Cabal
+  setup-depends: base, containers, daedalus, directory, text, unix, filepath, Cabal
 
 -- Support code for running PDF.  This is parameterized on which
 -- of the above modules to use.
 library
   default-language:     Haskell2010
-  hs-source-dirs:       src
+  hs-source-dirs:       src, src/spec
   ghc-options:          -Wall
 
   exposed-modules:
@@ -45,21 +88,108 @@ library
     PdfMonad.Release,
     PdfParserNotSpecialized,
     PdfParser,
-
-    Stdlib,
+    
+    -- copying the 'autogen-modules':
+    Array,
+    CIDFont,
+    CMap,
+    ColourSpaceOps,
+    ContentStreamLight,
+    Encoding,
+    FontCommon,
+    FontDesc,
+    FontDict,
+    GenPdfValue,
+    Glyph,
+    GlyphEnc,
+    GlyphList,
+    GlyphListNewFonts,
+    GraphicsStateOps,
+--    ISOCodes,
     JpegBasics,
-    PdfValue,
+    MacEncoding,
+    MacExpert,
+    Map,
+    MarkedContentOps,
+    Maybe,
+    Page,
+    PageTreeNode,
+    Pair,
+    PdfCrypto,
     PdfDecl,
+    PdfExtractText,
+--    PdfText,
+    PdfValue,
     PdfXRef,
-    PdfCrypto
+    Rectangle,
+    ResourceDict,
+    StdEncoding,
+    Stdlib,
+    Sum,
+    SymbolEncoding,
+    TextEffect,
+    TextObj,
+    TextPosOp,
+    TextShowOp,
+    TextStateOp,
+    TrueTypeFont,
+    Type0Font,
+    Type1Font,
+    Type3Font,
+    Unicode,
+    WinEncoding,
+    ZapfDingbatsEncoding
 
   autogen-modules:
-    Stdlib,
+    Array,
+    CIDFont,
+    CMap,
+    ColourSpaceOps,
+    ContentStreamLight,
+    Encoding,
+    FontCommon,
+    FontDesc,
+    FontDict,
+    GenPdfValue,
+    Glyph,
+    GlyphEnc,
+    GlyphList,
+    GlyphListNewFonts,
+    GraphicsStateOps,
+--    ISOCodes,
     JpegBasics,
-    PdfValue,
+    MacEncoding,
+    MacExpert,
+    Map,
+    MarkedContentOps,
+    Maybe,
+    Page,
+    PageTreeNode,
+    Pair,
+    PdfCrypto,
     PdfDecl,
+    PdfExtractText,
+--    PdfText,
+    PdfValue,
     PdfXRef,
-    PdfCrypto
+    Rectangle,
+    ResourceDict,
+    StdEncoding,
+    Stdlib,
+    Sum,
+    SymbolEncoding,
+    TextEffect,
+    TextObj,
+    TextPosOp,
+    TextShowOp,
+    TextStateOp,
+    TrueTypeFont,
+    Type0Font,
+    Type1Font,
+    Type3Font,
+    Unicode,
+    WinEncoding,
+    ZapfDingbatsEncoding
 
   build-depends:
     base,

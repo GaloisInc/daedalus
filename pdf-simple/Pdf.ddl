@@ -19,7 +19,7 @@ def ObjDecl = {
   id   = Token Natural;
   gen  = Token Natural;
   KW "obj";
-  @val = Value;
+  @val = PdfValue;
   obj  = TopDeclDef val;
   KW "endobj";
 }
@@ -41,7 +41,7 @@ def Stream (val : Value) = {
 
 def Trailer = {
   KW "trailer";
-  Dict;
+  PdfDict
 }
 
 def CrossRefSection = {

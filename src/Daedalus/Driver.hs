@@ -17,8 +17,9 @@ module Daedalus.Driver
 
   , normalizedDecls
 
-    -- * Compiling to Hasekell from TC
+    -- * Compiling to Haskell from TC
   , saveHS
+  , saveHSCustomWriteFile
   , CompilerCfg(..)
   , UseQual(..)
 
@@ -146,13 +147,13 @@ ddlLoadModule :: ModuleName -> Daedalus ()
 ddlLoadModule = passDeadVal
 
 
--- | Get the phase assocaited with the given module, if any.
+-- | Get the phase associated with the given module, if any.
 ddlGetPhaseMaybe :: ModuleName -> Daedalus (Maybe ModulePhase)
 ddlGetPhaseMaybe m =
   do mp <- ddlGet loadedModules
      pure $! Map.lookup m mp
 
--- | Get the phase assocaited with the given module.
+-- | Get the phase associated with the given module.
 -- Panics if the module is not present.
 ddlGetPhase :: ModuleName -> Daedalus ModulePhase
 ddlGetPhase m =
@@ -161,7 +162,7 @@ ddlGetPhase m =
        Just ph -> pure ph
        Nothing -> panic "ddlGetPhase" [ "Missing module", show (pp m) ]
 
--- | Get the AST associtated with the given module name.
+-- | Get the AST associated with the given module name.
 -- Panics if the module is missing or its AST does not match the expectation.
 ddlGetAST :: ModuleName -> (ModulePhase -> Maybe a) -> Daedalus a
 ddlGetAST m ast =
@@ -311,7 +312,7 @@ data ModulePhase =
   | CoreModue Core.Module                     -- ^ Core module
   | VMModule VM.Module                        -- ^ VM module
 
--- | The passes, in the order they shoule happen
+-- | The passes, in the order they should happen
 data Pass =
     PassParse
   | PassRessolve
@@ -802,7 +803,17 @@ saveHS ::
   CompilerCfg ->
   ModuleName ->
   Daedalus ()
-saveHS mb cfg m =
+saveHS = saveHSCustomWriteFile writeFile
+
+
+-- | Save Haskell for the given module.: parameterized over writeFile
+saveHSCustomWriteFile ::
+  (FilePath -> String -> IO ()) ->
+  Maybe FilePath {- ^ Directory to save things in. -} ->
+  CompilerCfg ->
+  ModuleName ->
+  Daedalus ()
+saveHSCustomWriteFile writeFile' mb cfg m =
   do ast <- ddlGetAST m astTC
      let hs = HS.hsModule cfg ast
      case mb of
@@ -811,6 +822,6 @@ saveHS mb cfg m =
          ddlIO
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
-            writeFile file (show (pp hs))
+            writeFile' file (show (pp hs))
 
 

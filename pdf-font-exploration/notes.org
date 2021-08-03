@@ -1,0 +1,148 @@
+* generating input.pdf
+
+: pdflatex input.tex
+
+qpdf --json input.pdf > input.json
+
+* how tools handle
+
+: pdf2txt.py input.pdf
+
+  generates correct UTF-8 file.
+
+E.g., ffi / “ﬃ” (U+FB03),
+is UTF-8:
+ ef  ac  83
+
+: pdfgrep "ff" input.pdf
+fi ff fl ffi ffl
+
+: pdftotext input.pdf -
+
+ - proper ascii file
+
+: mutool draw -F text input.pdf
+
+ - gets to proper ascii but space and lines not preserved
+
+
+* extracting text
+#+BEGIN_SRC 
+
+ pdf2txt.py input.pdf | od -c -t x1  # -p
+ pdf-hs-driver --text input.pdf      # -g
+ mutool draw -F text input.pdf       # -m
+ pdftotext input.pdf -               # -2
+
+ pdfgrep "ff" input.pdf
+
+#+END_SRC
+
+
+* idioms
+#+BEGIN_SRC 
+
+ qpdf --json input.pdf
+ qpdf --qdf input.pdf input3.pdf  
+
+ # this gives a very readable, equivalent pdf
+ qpdf -qdf --stream-data=uncompress input.pdf input4.pdf
+
+#+END_SRC
+    
+* analyzing input4.pdf
+
+9 0 obj : root, Catalog
+
+# page 1
+3 0 obj : <<
+  /Contents 11 0 R
+  /Resources 2 0 R
+  /Type /Page
+  >>
+
+# resources for page 1
+2 0 obj : << /Font <<
+           /F16 4 0 R      
+            # where "F16" is defined. ?
+           >>
+        /ProcSet [
+          /PDF
+          /Text
+        ]
+        >>
+
+# contents of page 1
+11 0 obj : page 1, has the text
+           BT /F16 11.9552 Tf
+
+# Type1 Font Dictionary (could differ for Type0,2,3,TrueType,CIDFont)
+4 0 obj : <<
+  /BaseFont /XZHZSM+SFRM1200
+  /Encoding 6 0 R
+  /FontDescriptor 8 0 R
+  /FirstChar 16
+  /LastChar 122
+  /Subtype /Type1
+  /Type /Font
+  /Widths 7 0 R
+>>
+# Encoding:
+6 0 obj : <<
+          /Differences [
+              16
+              /quotedblleft
+              /quotedblright
+              21
+              /endash
+              /emdash
+              27
+              /ff
+              /fi
+              ]
+          # maps character codes to the names of glyph descriptions
+          /Type /Encoding >>
+          # differences wrt ... (see spec p.323)
+# the font descriptor:
+8 0 obj : <<
+  /Ascent 689
+  /CapHeight 689
+  /CharSet (/T/a/b/c/d/e/emdash/endash/f/ff/ffi/ffl/fi/fl/g/h/i/j/k/l/m/n/o/one/p/period/q/quotedblleft/quotedblright/quoteright/r/s/t/u/v/w/x/y/z)
+    # [HERE: only what's used in file.]
+    # spec: "deprecated in 2.0 ... char names in a font subset"
+  /Flags 4
+  /FontFile 13 0 R
+  /FontName /XZHZSM+SFRM1200
+  /Type /FontDescriptor
+  ...
+  >>
+
+# Font File [sic]:
+13 0 obj : <<
+  /Length1 721
+  /Length2 15054
+  /Length3 0
+  /Length 14 0 R
+  >>
+  stream
+  %!FontType1-1.0: SFRM1200 0.3
+  %%CreationDate: Wed Sep 12 2001
+  % Copyright (c) 2001 Vladimir Volovich <vvv@vsu.ru>.
+  % See the file COPYING (GNU General Public License) for license conditions.
+  % Converted from METAFONT EC/TC and LH fonts:
+  % ecrm1200, tcrm1200, larm1200, lbrm1200, lcrm1200, rxrm1200.
+  11 dict begin
+  /FontInfo 6 dict dup begin
+  /version (0.3) def
+  /FullName (Computer Modern Roman) def
+  /FamilyName (Computer Modern) def
+  /ItalicAngle 0 def
+  /isFixedPitch false def
+  /Weight (Medium) def
+  end readonly def
+  /FontName /XZHZSM+SFRM1200 def
+  /Encoding StandardEncoding def
+  ...
+  endstream
+  endobj
+

@@ -290,6 +290,8 @@ isBitData x =
 lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
 lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
 
+
+-- | Add a constructor to an existing type declaration.
 addCon :: STCMonad m => TCTyName -> Label -> Type -> m ()
 addCon x l ft =
   do defs <- getNewTypeDefs

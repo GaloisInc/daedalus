@@ -3,8 +3,9 @@ import PdfValue
 import PdfDecl
 import PdfXRef
 
-import ContentStreamLight
+-- import ContentStreamLight
 -- TODO: gradually replace this with a more heavyweight parser/validator
+import PageTreeNode
 
 def IsRootPages r = Default false {
 --  IsPageOrPages nothing r;
@@ -60,7 +61,8 @@ def CatalogIsOK r = {
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;
-  IsRootPages pages;
+  Holds (PageTreeP pages)
+  --IsRootPages pages;
 }
 
 --------------------------------------------------------------------------------

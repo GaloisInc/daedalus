@@ -1,0 +1,15 @@
+q
+17 0 0 17 298 388 cm
+BI
+/W 17
+   /H 17
+   /CS /RGB
+   /BPC 8
+   /L 763
+   /F [/A85 /LZW]
+ID
+J1/gKA>.]AN&J?]-<HW]aRVcg*bb.\eKAdVV%/PcZ
+... Image data representing 289 samples ...
+R.s(4KE3&d&7hb*7[%Ct2HCqC~>
+EI
+Q

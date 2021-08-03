@@ -1,0 +1,11 @@
+Extracting stream data for CMaps from our corpora and other sources.
+E.g.,
+
+  qpdf -qdf --stream-data=uncompress test-data/00*09.pdf tests/td09-read.pdf
+   # show all streams
+   # search for ToUnicode then follow the reference to the stream
+   # cut and paste into files here.
+
+
+   
+
