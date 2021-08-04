@@ -86,17 +86,18 @@ import qualified Data.Text as Text
 import Control.Exception(Exception(..))
 import MonadLib hiding (Label)
 
-import qualified Daedalus.BDD as BDD
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.GUID
 import Daedalus.Pass
-import Daedalus.Panic(panic)
 
 import Daedalus.Type.AST
 import Daedalus.Type.Subst
 import Daedalus.Type.Traverse
+import Daedalus.Type.MonadClasses
+import Daedalus.Type.Constraints
 
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- Type errors
@@ -113,20 +114,6 @@ instance Exception TypeError where
   displayException = show . pp
 
 
-class Monad m => MTCMonad m where
-  reportError     :: HasRange a => a -> Doc  -> m b
-  newName'        :: HasRange r => r -> Context a -> Type -> m (TCName a)
-  getRuleEnv      :: m RuleEnv
-  getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
-  extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
-
-
-reportDetailedError :: MTCMonad m => HasRange a => a -> Doc -> [Doc] -> m b
-reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
-
-newName :: (MTCMonad m, HasRange r) => r -> Type -> m (TCName Value)
-newName r t = newName' r AValue t
-
 
 
 --------------------------------------------------------------------------------
@@ -138,17 +125,16 @@ newtype MTypeM a = MTypeM { getMTypeM ::
                                , ExceptionT TypeError
                                ] a
                           }
-                   
+
 deriving instance Functor MTypeM
 
 instance Applicative MTypeM where
   MTypeM m <*> MTypeM m' = MTypeM (m <*> m')
   pure v = MTypeM $ pure v
-  
+
 instance Monad MTypeM where
   MTypeM m >>= f = MTypeM (m >>= getMTypeM . f)
 
-type RuleEnv  = Map Name (Poly RuleType)
 
 data MRO = MRO
   { roRuleTypes     :: !RuleEnv
@@ -210,12 +196,59 @@ type Env = Map Name Type
 data SRW = SRW
   { sSubst        :: !(Map TVar Type)       -- ^ Idempotent substitution
   , sNextTName    :: !Int                   -- ^ Generate type variables
-  , sConstraints  :: ![Located Constraint]  -- ^ Constraints on type varis
+  , sConstraints  :: !Constraints           -- ^ Constraints on type varis
   , sIP           :: !(Map IPName Param)    -- ^ Implicit param constraint
   , sNeedDef      :: ![Located TCTyName]    -- ^ Types used in sigs that
                                             --   were used before defined
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
   }
+
+--------------------------------------------------------------------------------
+data Constraints = Constraints
+  { cLiteral :: Map TVar (Located Integer, Located Integer)
+  , cCtr     :: [Located Constraint]
+  }
+
+noConstraints :: Constraints
+noConstraints = Constraints { cLiteral = mempty, cCtr = mempty }
+
+addCtr :: Located Constraint -> Constraints -> Constraints
+addCtr c cs =
+  case thingValue c of
+    Literal n (TVar a) ->
+      let i = c { thingValue = n }
+      in cs { cLiteral = Map.insertWith jn a (i,i) (cLiteral cs) }
+
+    _ -> cs { cCtr = c : cCtr cs }
+  where
+  jn (aL,aU) (bL,bU) =
+    let it = (lmin aL bL, lmax aU bU)
+    in trace ("Joining " ++ show (thingValue aL, thingValue aU)
+                          ++ " with " ++ show (thingValue bL, thingValue bU)
+                          ++ " -> " ++ show (thingValue (fst it), thingValue (snd it))) it
+  lmin x y = if thingValue x < thingValue y then x else y
+  lmax x y = if thingValue x < thingValue y then y else x
+
+ctrLits :: (Located Integer, Located Integer) -> Type -> [Located Constraint]
+ctrLits (l,u) t
+  | x == y = [ l { thingValue = Literal x t } ]
+  | otherwise = [ b { thingValue = Literal (thingValue b) t } | b <- [ l,u ] ]
+  where
+  x = thingValue l
+  y = thingValue u
+
+updLitCtr :: TVar -> Type -> Constraints -> ([Located Constraint], Constraints)
+updLitCtr x t cs =
+  case Map.lookup x (cLiteral cs) of
+    Just bnds -> (ctrLits bnds t, cs { cLiteral = Map.delete x (cLiteral cs) })
+    Nothing -> ([], cs)
+
+ctrToList :: Constraints -> [Located Constraint]
+ctrToList cs = [ c | (a,bnds) <- Map.toList (cLiteral cs)
+                   , c <- ctrLits bnds (TVar a) ] ++ cCtr cs
+
+
+--------------------------------------------------------------------------------
 
 instance HasGUID STypeM where
   guidState f = mType (guidState f)
@@ -238,7 +271,7 @@ runSTypeM (STypeM m) = fst <$> runStateT rw m
   where
   rw = SRW { sSubst       = Map.empty
            , sNextTName   = 0
-           , sConstraints = []
+           , sConstraints = noConstraints
            , sIP          = Map.empty
            , sNeedDef     = []
            , sTypeDefs    = Map.empty
@@ -247,60 +280,6 @@ runSTypeM (STypeM m) = fst <$> runStateT rw m
 mType :: MTypeM a -> STypeM a
 mType m = STypeM (lift m)
 
-
-class MTCMonad m => STCMonad m where
-  getTypeSubst      :: m (Map TVar Type)
-  getNewTypeDefs    :: m (Map TCTyName TCTyDecl)
-
-  newTVar'          :: HasRange r => r -> Kind -> m TVar
-  newTypeDef        :: TCTyName -> TCTyDef -> m ()
-  replaceNewTypeDefs :: Map TCTyName TCTyDecl -> m ()
-
-  removeConstraints :: m [Located Constraint]
-  addConstraint     :: HasRange r => r -> Constraint -> m ()
-  needsDef          :: HasRange r => r -> TCTyName -> m ()
-  getNeedsDef       :: m [Located TCTyName]
-  addTVarDef        :: TVar -> Type -> m ()
-  addIPUse          :: IPName -> m Param
-  removeIPUses      :: m [(IPName,Param)]
-
-
-
--- | The Bool indicates if this is a type that is in the process of being 
--- defined.
-lookupTypeDef :: STCMonad m => TCTyName -> m (Maybe (TCTyDecl,Bool))
-lookupTypeDef x =
-  do defs <- getNewTypeDefs
-     case Map.lookup x defs of
-       Just d -> pure (Just (d, True))
-       Nothing ->
-        do gdefs <- getGlobTypeDefs
-           pure case Map.lookup x gdefs of
-                  Just g -> Just (g, False)
-                  Nothing -> Nothing
-
--- | Check if this type is a bitdata, and if so tell us what we know about it
-isBitData :: STCMonad m => TCTyName -> m (Maybe BDD.Pat)
-isBitData x =
-  do mb <- lookupTypeDef x
-     case mb of
-       Nothing -> pure Nothing
-       Just (td,_) -> pure (tctyBD td)
-
-lookupTypeDefMaybe :: STCMonad m => TCTyName -> m (Maybe TCTyDecl)
-lookupTypeDefMaybe x = fmap fst <$> lookupTypeDef x
-
-
--- | Add a constructor to an existing type declaration.
-addCon :: STCMonad m => TCTyName -> Label -> Type -> m ()
-addCon x l ft =
-  do defs <- getNewTypeDefs
-     case Map.lookup x defs of
-       Just decl | TCTyUnion fs <- tctyDef decl ->
-         do let d1 = decl { tctyDef = TCTyUnion ((l,(ft,Nothing)):fs) }
-                ds1 = Map.insert x d1 defs
-            replaceNewTypeDefs ds1
-       _ -> panic "addCon" [ "Cannot add constructor to a struct/undefined." ]
 
 
 instance STCMonad STypeM where
@@ -329,17 +308,28 @@ instance STCMonad STypeM where
   getNeedsDef = STypeM (sNeedDef <$> get)
 
   removeConstraints =
-    STypeM (sets' \s -> (sConstraints s, s { sConstraints = [] }))
+    STypeM (sets' \s -> (ctrToList (sConstraints s), s { sConstraints = noConstraints }))
 
   addConstraint r c =
-    STypeM (sets_ \s -> s { sConstraints = lc : sConstraints s })
-    where lc = Located { thingRange = range r, thingValue = c }
+    do c' <- zonkT c
+       let lc = Located { thingRange = range r, thingValue = c' }
+       res <- solveConstraint lc
+       case res of
+         Solved -> traceM ("Solved " ++ show (pp c')) >> pure ()
+         Unsolved ->
+               STypeM (sets_ \s -> s { sConstraints = addCtr lc (sConstraints s) })
 
-  addTVarDef x t = STypeM $ sets_ \s ->
-      let su = Map.singleton x t
-      in s { sSubst    = Map.insert x t (apSubstT su <$> sSubst s)
-           , sTypeDefs = apSuTCTyDecl su <$> sTypeDefs s
-           }
+  addTVarDef x t =
+    do todo <- STypeM $ sets \s ->
+                 let su = Map.singleton x t
+                     (new,cs) = updLitCtr x t (sConstraints s)
+                 in (new
+                    , s { sSubst    = Map.insert x t (apSubstT su <$> sSubst s)
+                        , sTypeDefs = apSuTCTyDecl su <$> sTypeDefs s
+                        , sConstraints = cs
+                        }
+                    )
+       mapM_ (\lc -> addConstraint lc (thingValue lc)) todo
 
   newTypeDef x def' =
     do def <- traverseTypes zonkT def'
@@ -361,29 +351,6 @@ instance STCMonad STypeM where
   removeIPUses =
     do xs <- STypeM (Map.toList . sIP <$> get)
        forM xs \(i,t) -> (,) i <$> traverseTypes zonkT t
-
-newIPParam :: STCMonad m => IPName -> m Param
-newIPParam x@IPName { ipContext } =
-  case ipContext of
-    AValue ->
-      do t <- newTVar x KValue
-         ValParam <$> newName' x AValue t
-
-    AClass ->
-      ClassParam <$> newName' x AClass tByteClass
-
-    AGrammar ->
-      do t <- newTVar x KValue
-         GrammarParam <$> newName' x AGrammar (tGrammar t)
-
- 
-
-zonkT :: (ApSubst t, STCMonad m) => t -> m t
-zonkT t = do su  <- getTypeSubst
-             pure (apSubstT su t)
-
-newTVar :: (STCMonad m, HasRange r) => r -> Kind -> m Type
-newTVar r k = TVar <$> newTVar' r k
 
 
 data RuleInfo = TopRule [Type] RuleType

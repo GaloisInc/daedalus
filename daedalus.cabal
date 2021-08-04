@@ -49,6 +49,7 @@ library
                        Daedalus.Type.InferContext,
                        Daedalus.Type.AST,
                        Daedalus.Type.Monad,
+                       Daedalus.Type.MonadClasses,
                        Daedalus.Type.Constraints,
                        Daedalus.Type.Kind,
                        Daedalus.Type.Subst,

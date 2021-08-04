@@ -1,5 +1,6 @@
 {-# Language OverloadedStrings, BlockArguments, FlexibleInstances #-}
-module Daedalus.Type.Constraints (simplifyConstraints, unify) where
+module Daedalus.Type.Constraints
+  (solveConstraint, CtrStatus(..), simplifyConstraints, unify) where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -13,7 +14,7 @@ import Daedalus.SourceRange
 
 import Daedalus.AST
 import Daedalus.Type.AST
-import Daedalus.Type.Monad
+import Daedalus.Type.MonadClasses
 import Daedalus.Type.Subst
 
 
