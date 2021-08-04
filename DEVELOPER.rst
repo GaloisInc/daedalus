@@ -1,5 +1,7 @@
-Developer Notes
-===============
+DDL Developer Notes
+===================
+
+This documentation is focused on developers writing daedalus specified parsers (.ddl files).
 
 General Structure
 -----------------
@@ -61,7 +63,7 @@ Guide to adding new daedalus modules:
 Debugging
 ---------
 
-Note this mattermost message from Iavor (on 2021-05-03):
+Note this communication from Iavor (on 2021-05-03):
 
   .. code-block::
    
@@ -78,5 +80,7 @@ Note this mattermost message from Iavor (on 2021-05-03):
       Match "b"
     The Trace will output the offset in the file and the message you gave it
 
-Thus, we have a Debug.ddl module here that has ``Trace`` defined (as ``{}``) but
-when you use it, you will get trace messages.
+Thus, in ``pdf-cos/spec`` we have a ``Debug.ddl`` module which has ``Trace``.
+It is defined (as ``{}``) but when you use it, you will see trace messages when
+you invoke your parser.
+
