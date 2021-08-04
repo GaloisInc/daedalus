@@ -32,6 +32,7 @@ compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
      let mods = [ "Pair"
+                , "Debug"     -- not used for "production" :-)
                 , "Sum"
                 , "Stdlib"
                 , "Map"

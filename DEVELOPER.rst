@@ -1,5 +1,8 @@
 Developer Notes
----------------
+===============
+
+General Structure
+-----------------
 
 Note the general structure of the multiple cabal packages here:
 
@@ -30,6 +33,9 @@ Note the general structure of the multiple cabal packages here:
        , "../pdf-cos/spec"  -- 'library' ddl modules here
        ]
 
+Adding Your Modules
+-------------------
+
 Guide to adding new daedalus modules:
 
 - If you have a generic, re-usable .ddl module, ``New.ddl``
@@ -51,5 +57,25 @@ Guide to adding new daedalus modules:
    - add the path to the ddl file to ``extra-source-files:``
    - add the basename/module-name to both ``exposed-modules`` and ``autogen-modules``
 
-   
-     
+
+Debugging
+---------
+
+Note this mattermost message from Iavor (on2021-05-03)
+
+.. code-block::
+    You can do debug tracing like this: 
+
+    place this declaration in a file called Debug.ddl
+    def Trace (x : [uint 8]) : {}
+    import the Debug module and use Trace, for example like this:
+    import Debug
+      
+    def Main = block
+      Match "a"
+      Trace "hello"
+      Match "b"
+    The Trace will output the offset in the file and the message you gave it
+
+Thus, we have a Debug.ddl module here that has ``Trace`` defined (as ``{}``) but
+when you use it, you will get trace messages.
