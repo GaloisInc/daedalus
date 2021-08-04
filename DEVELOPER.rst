@@ -61,9 +61,10 @@ Guide to adding new daedalus modules:
 Debugging
 ---------
 
-Note this mattermost message from Iavor (on2021-05-03)
+Note this mattermost message from Iavor (on 2021-05-03):
 
-.. code-block::
+  .. code-block::
+   
     You can do debug tracing like this: 
 
     place this declaration in a file called Debug.ddl
