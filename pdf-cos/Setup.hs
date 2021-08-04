@@ -41,7 +41,7 @@ compileDDL =
 
                 , "Glyph"
                 , "Unicode"
-                , "GlyphList" -- 30 min compile, let's hope this doesn't change much.
+                , "GlyphList"
                 , "GlyphListNewFonts"
                 , "GlyphEnc"
 
@@ -98,6 +98,9 @@ compileDDL =
                 --    at 'ddlLoadModule' time and the "nextTmp" "persists" through the calls to
                 --    to ddlLoadModule.
 
+                -- FIXME: This appears to no longer be necessary due to improvements in daedalus:
+                --  - confirm and remove.
+                
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $
@@ -133,7 +136,8 @@ compileDDL =
 --   of all temporary variables to change in the files that are compiled after
 --   that one.
 
--- equivalent to writeFile except that file access dates untouched when file-data unchanged.
+-- equivalent to writeFile except that file access dates are untouched when
+-- the file-data is unchanged.
 smartWriteFile :: (FilePath -> IO ()) -> FilePath -> String -> IO ()
 smartWriteFile logUpdate outFile s =
   do
