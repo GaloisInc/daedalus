@@ -151,7 +151,7 @@ would be a grammar parameter, and <code class="docutils literal notranslate"><sp
 </div>
 <p>This declares a parser called <code class="docutils literal notranslate"><span class="pre">Example</span></code> with 3 parameters, <code class="docutils literal notranslate"><span class="pre">n</span></code>, <code class="docutils literal notranslate"><span class="pre">P</span></code> and
 <code class="docutils literal notranslate"><span class="pre">$q</span></code>.   Note that the parameters are simply separated by space, and usually
-there is no need to provide type annotations as Deadalus can infer the types
+there is no need to provide type annotations as DaeDaLus can infer the types
 based on the naming rules and the uses in the definition.</p>
 </div>
 <div class="section" id="parsers">
@@ -385,7 +385,7 @@ byte <code class="docutils literal notranslate"><span class="pre">B</span></code
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser``P | Q``.  This parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code>
 succeeds on the given input.   Unlike biased choice, if <em>both</em> succeed,
-then the resulting parser is <em>ambigous</em> for the given input, which means
+then the resulting parser is <em>ambiguous</em> for the given input, which means
 that input may be parsed in more than one way.  It is possible, however, to
 resolve ambiguities by composing (e.g., in sequence) with other parsers.</p>
 <p>Here are some examples:</p>
@@ -425,7 +425,7 @@ for unbiased choice and <code class="docutils literal notranslate"><span class="
 </tbody>
 </table>
 <p>The <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose1</span></code> keywords also support <strong>layout</strong>, so instead
-of using braces and semi-colons we can just line-up the alternaitves like this:</p>
+of using braces and semi-colons we can just line-up the alternatives like this:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def ChooseWithBraces =
   Choose1 {
     Match1 &#39;A&#39;;
@@ -699,7 +699,7 @@ doubles each element in an array:</p>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">map</span></code> construct can be used to parse a sequence of blocks, based on a
 sequence of values. For example the following code parses blocks of the form <code class="docutils literal notranslate"><span class="pre">0AAA...</span></code>,
-with the number of <code class="docutils literal notranslate"><span class="pre">'A'</span></code> characters dicated by the input sequence.</p>
+with the number of <code class="docutils literal notranslate"><span class="pre">'A'</span></code> characters dictated by the input sequence.</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>map (x in [1, 2, 3]) {
   Match1 &#39;0&#39;;
   Many x (Match1 &#39;A&#39;);
@@ -795,8 +795,8 @@ Common problems are:</p>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>Mistypeing the name of a type could make you think that you’ve</dt>
-<dd>speicfied the type, but in fact you just named it.</dd>
+<dt>Mistyping the name of a type could make you think that you’ve</dt>
+<dd>specified the type, but in fact you just named it.</dd>
 </dl>
 </li>
 </ol>
@@ -892,9 +892,9 @@ bitwise operations:</p>
 <code class="docutils literal notranslate"><span class="pre">#</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;#</span></code> operator.  To see the difference between the two,
 consider two bitvectors <code class="docutils literal notranslate"><span class="pre">(x</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">A)</span></code> and <code class="docutils literal notranslate"><span class="pre">(y</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">B)</span></code>.
 The result of <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> is a bitvector of type <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">+</span> <span class="pre">B</span></code> with
-<code class="docutils literal notranslate"><span class="pre">x</span></code> in the more significatn bits, and <code class="docutils literal notranslate"><span class="pre">y</span></code> in the less significant bits.
+<code class="docutils literal notranslate"><span class="pre">x</span></code> in the more significant bits, and <code class="docutils literal notranslate"><span class="pre">y</span></code> in the less significant bits.
 The result of <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">&lt;#</span> <span class="pre">y</span></code> is a bitvector of type <code class="docutils literal notranslate"><span class="pre">A</span></code> that contains
-<code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> but truncated to the <code class="docutils literal notranslate"><span class="pre">A</span></code> less significatn bits.</p>
+<code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> but truncated to the <code class="docutils literal notranslate"><span class="pre">A</span></code> less significant bits.</p>
 </div>
 </div>
 <div class="section" id="maybe-type">
@@ -997,7 +997,7 @@ bitdata OptionData where
   OptionData = { opt : ChooseOption, val : uint 4 }
 </pre></div>
 </div>
-<p>Bitdata defintions are not parsers, but rather are used by applying coercions to
+<p>Bitdata definitions are not parsers, but rather are used by applying coercions to
 already parsed bytes. The following code parses a byte, and then checks that the
 first four bits select the correct option.</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>block
@@ -1024,8 +1024,8 @@ In DaeDaLus, implicit parameters have names staring with <code class="docutils l
 <code class="docutils literal notranslate"><span class="pre">?bigendian</span></code>.</p>
 <p>Implicit parameters are useful in situations where the value of a parameter
 is set once for a given scope, and then the same parameter is just passed
-along with no changes to the “leaves” of the specifiction.   This is quite
-common in situations where some configration optoins are read once, and then
+along with no changes to the “leaves” of the specification.   This is quite
+common in situations where some configuration options are read once, and then
 are just passed along for the rest of a parser.</p>
 <p>Here is an example of a function that uses an implicit parameter to concatenate
 two bit vectors one way or another:</p>
@@ -1041,14 +1041,14 @@ to parse either big-endian or little-endian words, depending on the value
 of the implicit parameter <code class="docutils literal notranslate"><span class="pre">?bigendian</span></code>:</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">These parsers use <a class="reference internal" href="#implicit-lifting">Implicit Lifting</a> to make them more redbale</p>
+<p class="last">These parsers use <a class="reference internal" href="#implicit-lifting">Implicit Lifting</a> to make them more readable</p>
 </div>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Word16 = joinWords UInt8 UInt8
 def Word32 = joinWords Word16 Word16
 </pre></div>
 </div>
 <p>If a <code class="docutils literal notranslate"><span class="pre">block</span></code> provides a value for an implicit parameter, then all calls
-for the rest of the block will use that value for the parmeter.  For example,
+for the rest of the block will use that value for the parameter.  For example,
 <code class="docutils literal notranslate"><span class="pre">BEWord16</span></code> <em>does not</em> have an implicit parameter:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def BEWord16 =
   block
@@ -1056,8 +1056,8 @@ for the rest of the block will use that value for the parmeter.  For example,
     Word16    -- `?bigendian` has the value `true`
 </pre></div>
 </div>
-<p>It is possible to use different values for the same implcit parameter,
-as illustarte by the following example:</p>
+<p>It is possible to use different values for the same implicit parameter,
+as illustrated by the following example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def Example =
   block
     -- Just for testing, we set the input stream to a known value
