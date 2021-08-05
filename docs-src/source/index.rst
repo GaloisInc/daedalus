@@ -153,7 +153,7 @@ Consider, for example the following declaration:
 
 This declares a parser called ``Example`` with 3 parameters, ``n``, ``P`` and
 ``$q``.   Note that the parameters are simply separated by space, and usually
-there is no need to provide type annotations as Deadalus can infer the types
+there is no need to provide type annotations as DaeDaLus can infer the types
 based on the naming rules and the uses in the definition.
 
 
@@ -423,7 +423,7 @@ Unbiased Choice
 Given two parsers ``P`` and ``Q`` we may construct the composite
 parser``P | Q``.  This parser succeeds if either ``P`` or ``Q``
 succeeds on the given input.   Unlike biased choice, if *both* succeed,
-then the resulting parser is *ambigous* for the given input, which means
+then the resulting parser is *ambiguous* for the given input, which means
 that input may be parsed in more than one way.  It is possible, however, to
 resolve ambiguities by composing (e.g., in sequence) with other parsers.
 
@@ -459,7 +459,7 @@ for unbiased choice and ``Choose1`` for biased choice.
 +---------------------------+-------------------+
 
 The ``Choose`` and ``Choose1`` keywords also support **layout**, so instead
-of using braces and semi-colons we can just line-up the alternaitves like this:
+of using braces and semi-colons we can just line-up the alternatives like this:
 
 .. code-block:: DaeDaLus
 
@@ -794,7 +794,7 @@ doubles each element in an array:
 
 The ``map`` construct can be used to parse a sequence of blocks, based on a
 sequence of values. For example the following code parses blocks of the form ``0AAA...``, 
-with the number of ``'A'`` characters dicated by the input sequence. 
+with the number of ``'A'`` characters dictated by the input sequence. 
 
 .. code-block:: DaeDaLus 
 
@@ -911,8 +911,8 @@ using the name ``a``, as we do in the body.
 
   1. Modifying the specification to define type ``a`` changes the
       meaning of a seemingly unrelated declarations
-  2. Mistypeing the name of a type could make you think that you've
-      speicfied the type, but in fact you just named it.
+  2. Mistyping the name of a type could make you think that you've
+      specified the type, but in fact you just named it.
 
 
 
@@ -1027,9 +1027,9 @@ Unsigned numbers can also be appended to other numbers via the
 ``#`` and ``<#`` operator.  To see the difference between the two,
 consider two bitvectors ``(x : uint A)`` and ``(y : uint B)``.
 The result of ``x # y`` is a bitvector of type ``A + B`` with
-``x`` in the more significatn bits, and ``y`` in the less significant bits.
+``x`` in the more significant bits, and ``y`` in the less significant bits.
 The result of ``x <# y`` is a bitvector of type ``A`` that contains
-``x # y`` but truncated to the ``A`` less significatn bits.
+``x # y`` but truncated to the ``A`` less significant bits.
 
 
 ``maybe`` type
@@ -1153,7 +1153,7 @@ groups of bits, which are then combined into a tagged union.
   bitdata OptionData where 
     OptionData = { opt : ChooseOption, val : uint 4 }
 
-Bitdata defintions are not parsers, but rather are used by applying coercions to
+Bitdata definitions are not parsers, but rather are used by applying coercions to
 already parsed bytes. The following code parses a byte, and then checks that the
 first four bits select the correct option. 
 
@@ -1186,8 +1186,8 @@ In DaeDaLus, implicit parameters have names staring with ``?``, for example
 
 Implicit parameters are useful in situations where the value of a parameter
 is set once for a given scope, and then the same parameter is just passed
-along with no changes to the "leaves" of the specifiction.   This is quite
-common in situations where some configration optoins are read once, and then
+along with no changes to the "leaves" of the specification.   This is quite
+common in situations where some configuration options are read once, and then
 are just passed along for the rest of a parser.
 
 Here is an example of a function that uses an implicit parameter to concatenate
@@ -1206,7 +1206,7 @@ to parse either big-endian or little-endian words, depending on the value
 of the implicit parameter ``?bigendian``:
 
 .. note::
-  These parsers use `Implicit Lifting`_ to make them more redbale
+  These parsers use `Implicit Lifting`_ to make them more readable
 
 
 .. code-block:: DaeDaLus
@@ -1215,7 +1215,7 @@ of the implicit parameter ``?bigendian``:
   def Word32 = joinWords Word16 Word16
 
 If a ``block`` provides a value for an implicit parameter, then all calls
-for the rest of the block will use that value for the parmeter.  For example,
+for the rest of the block will use that value for the parameter.  For example,
 ``BEWord16`` *does not* have an implicit parameter:
 
 .. code-block:: DaeDaLus
@@ -1225,8 +1225,8 @@ for the rest of the block will use that value for the parmeter.  For example,
       let ?bigendian = true
       Word16    -- `?bigendian` has the value `true`
 
-It is possible to use different values for the same implcit parameter,
-as illustarte by the following example:
+It is possible to use different values for the same implicit parameter,
+as illustrated by the following example:
 
 .. code-block:: DaeDaLus
 
