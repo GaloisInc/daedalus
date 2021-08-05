@@ -777,29 +777,17 @@ will construct a <code class="docutils literal notranslate"><span class="pre">ui
 <h4>Naming Unknown Types<a class="headerlink" href="#naming-unknown-types" title="Permalink to this headline">¶</a></h4>
 <p>Occasionally it is useful to name a type without specifying it explicitly.
 For example:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def f (x : maybe a) = 1 : a
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span>def f (x : maybe ?a) = 1 : ?a
 </pre></div>
 </div>
-<p>In the previous example we assume that <code class="docutils literal notranslate"><span class="pre">a</span></code> is not the name of any type
-that is in scope.  The type annotation <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">a</span></code> specifies that the input
-should be of type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">a</span></code> for <em>some</em> type <code class="docutils literal notranslate"><span class="pre">a</span></code> that we can refer to
-using the name <code class="docutils literal notranslate"><span class="pre">a</span></code>, as we do in the body.</p>
+<p>The type annotation <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> specifies that the input should be of type
+<code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> for <em>some</em> type <code class="docutils literal notranslate"><span class="pre">?a</span></code> that we can refer to
+using the name <code class="docutils literal notranslate"><span class="pre">?a</span></code>, as we do in the body.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p>This feature is a bit error prone and may change in the future.
-Common problems are:</p>
-<ol class="last arabic simple">
-<li><dl class="first docutils">
-<dt>Modifying the specification to define type <code class="docutils literal notranslate"><span class="pre">a</span></code> changes the</dt>
-<dd>meaning of a seemingly unrelated declarations</dd>
-</dl>
-</li>
-<li><dl class="first docutils">
-<dt>Mistyping the name of a type could make you think that you’ve</dt>
-<dd>specified the type, but in fact you just named it.</dd>
-</dl>
-</li>
-</ol>
+<p class="last">The notation ?x is used for two unrelated features:  in types it refers
+to some unknown type, as in the previous example;  in parsers and value
+declarations it refers to <a class="reference internal" href="#implicit-parameters">Implicit Parameters</a>.</p>
 </div>
 </div>
 </div>

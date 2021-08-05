@@ -897,22 +897,18 @@ For example:
 
 .. code-block:: DaeDaLus
 
-  def f (x : maybe a) = 1 : a
+  def f (x : maybe ?a) = 1 : ?a
 
-In the previous example we assume that ``a`` is not the name of any type
-that is in scope.  The type annotation ``maybe a`` specifies that the input
-should be of type ``maybe a`` for *some* type ``a`` that we can refer to
-using the name ``a``, as we do in the body.
+The type annotation ``maybe ?a`` specifies that the input should be of type
+``maybe ?a`` for *some* type ``?a`` that we can refer to
+using the name ``?a``, as we do in the body.
 
 .. warning::
 
-  This feature is a bit error prone and may change in the future.
-  Common problems are:
+  The notation ?x is used for two unrelated features:  in types it refers
+  to some unknown type, as in the previous example;  in parsers and value
+  declarations it refers to `Implicit Parameters`_.
 
-  1. Modifying the specification to define type ``a`` changes the
-      meaning of a seemingly unrelated declarations
-  2. Mistyping the name of a type could make you think that you've
-      specified the type, but in fact you just named it.
 
 
 
