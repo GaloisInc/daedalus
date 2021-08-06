@@ -18,6 +18,10 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "commands": {
+            "command": "daedalus.watch",
+            "title": "Watch at point (DAEDALUS)"
+        },
         "configuration": {
             "title": "Daedalus configuration",
             "properties": {
