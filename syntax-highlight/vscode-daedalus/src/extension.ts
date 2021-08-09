@@ -3,9 +3,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import * as path from 'path'
 import * as vscode from 'vscode'
-import * as vscodelc from 'vscode-languageclient'
 
 import {
 	ExecuteCommandParams,
@@ -31,20 +29,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let serverExecutable = configuration[configLanguageServerPath]
 
-	// If the extension is launched in debug mode then the debug server options are used
-	// Otherwise the run options are used
+	// If the extension is launched in debug mode then the debug server options
+	// are used.  Otherwise the run options are used.
 
 	let serverOptions: ServerOptions = {
 		run: { command: serverExecutable, transport: TransportKind.stdio },
 		debug: { command: serverExecutable, transport: TransportKind.stdio }
 	}
 
-	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'daedalus' }]
 	}
 
-	// Create the language client and start the client.
 	client = new LanguageClient(
 		'DaedalusLanguageServer',
 		'DDL Language Server',
@@ -52,14 +48,25 @@ export function activate(context: vscode.ExtensionContext) {
 		clientOptions
 	)
 
-	// Start the client. This will also launch the server
+	// This will also launch the server.
 	client.start()
 
+	const runWatchProvider = new DaedalusWatchContentProvider()
+
 	context.subscriptions.push(
+
+		runWatchProvider,
+
 		vscode.commands.registerTextEditorCommand(
 			'daedalus.watch',
-			daedalusWatch,
+			e => daedalusWatch(e, runWatchProvider),
+		),
+
+		vscode.workspace.registerTextDocumentContentProvider(
+			DaedalusWatchContentProvider.scheme,
+			runWatchProvider,
 		)
+
 	)
 
 }
@@ -73,31 +80,15 @@ export function deactivate(): Thenable<void> | undefined {
 }
 
 
-function daedalusWatch(editor: vscode.TextEditor): void {
-	vscode.window.withProgress(
-		{
-			cancellable: true,
-			location: vscode.ProgressLocation.Window,
-			title: "Watch at point (DAEDALUS)",
-		},
-		(_progress, vscodeCancellationToken) => {
-			return daedalusWatchProgress(editor, vscodeCancellationToken)
-		},
-	)
-}
-
-
 /**
  * Sends the 'workspace/executeCommand' request 'run/watch' to the language
  * server.
  * @param editor - Editor to watch.
- * @param callback - Called with the cancellation token received from the
- * language server, when the request has been acknowledged.
+ * @returns The LSP cancellation token for this watch task.
  */
-function daedalusRunWatch(
+async function daedalusRunWatch(
 	editor: vscode.TextEditor,
-	callback: (lspCancellationToken: number) => void,
-) {
+): Promise<number> {
 
 	const c2p = client.code2ProtocolConverter
 
@@ -110,12 +101,10 @@ function daedalusRunWatch(
 		],
 	}
 
-	client
-		.sendRequest(
-			ExecuteCommandRequest.type,
-			params,
-		)
-		.then(callback)
+	return await client.sendRequest(
+		ExecuteCommandRequest.type,
+		params,
+	)
 
 }
 
@@ -125,11 +114,9 @@ function daedalusRunWatch(
  * server.
  * @param lspCancellationToken - Token received from an acknowledged 'run/watch'
  * command.
- * @param callback - Called after the request to cancel has been acknowledged.
  */
 function daedalusRunCancel(
 	lspCancellationToken: number,
-	callback: () => void,
 ): void {
 	const cancelParams: ExecuteCommandParams = {
 		command: 'run/cancel',
@@ -141,7 +128,7 @@ function daedalusRunCancel(
 	client.sendRequest(
 		ExecuteCommandRequest.type,
 		cancelParams,
-	).then(callback)
+	)
 }
 
 
@@ -150,40 +137,81 @@ function daedalusRunCancel(
  * 'daedalus/run/watchResult' notification, or an intent from the user to cancel
  * the request.
  * @param editor - Editor to watch.
- * @param vscodeCancellationToken - VSCode token that will indicate if the user
- * tries to cancel the task.
+ * @param provider - The text content provider in charge of displaying results
+ * from the watch task.
  * @returns - Promise resolved upon completion or cancellation.
  */
-function daedalusWatchProgress(
+function daedalusWatch(
 	editor: vscode.TextEditor,
-	vscodeCancellationToken: vscode.CancellationToken,
+	provider: DaedalusWatchContentProvider,
 ): Promise<void> {
 
-	return new Promise(resolve => {
+	return new Promise(async resolve => {
 
 		const cleanup = () => {
 			disposable.dispose()
+			editorClosedDispoable.dispose()
 			resolve()
 		}
 
-		// Listen to watchResult while the request is flying and not cancelled.
+		const lspCancellationToken = await daedalusRunWatch(editor)
+
+		// It is pleasant to have the file name in the tab label.
+		const editorName = editor.document.fileName
+		const uri = vscode.Uri.parse(
+			`${DaedalusWatchContentProvider.scheme}:${editorName}-${lspCancellationToken}`,
+			true,
+		)
+
 		const disposable = client.onNotification(
 			'daedalus/run/watchResult',
-			({ clientHandle, result }) => {
-				vscode.window.showInformationMessage(result)
-				cleanup()
+			({ _clientHandle, result }) => {
+				provider.update(uri, result)
 			}
 		)
 
-		daedalusRunWatch(
-			editor,
-			lspCancellationToken => {
-				vscodeCancellationToken.onCancellationRequested(() => {
-					daedalusRunCancel(lspCancellationToken, cleanup)
-				})
-			},
-		)
+		const doc = await vscode.workspace.openTextDocument(uri)
+
+		const lspEditor = await vscode.window.showTextDocument(doc, {
+			preserveFocus: true,
+			preview: false,
+			viewColumn: vscode.ViewColumn.Beside,
+		})
+
+		// When the user closes the virtual editor, we send the cancel message
+		// to the server.
+		const editorClosedDispoable =
+			vscode.window.onDidChangeVisibleTextEditors(e => {
+				if (!e.includes(lspEditor)) {
+					daedalusRunCancel(lspCancellationToken)
+					cleanup()
+				}
+			})
 
 	})
+
+}
+
+
+class DaedalusWatchContentProvider implements vscode.TextDocumentContentProvider {
+
+	static scheme = 'daedalus-watch'
+
+	private _lastResult = ''
+	private _onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>()
+	onDidChange = this._onDidChangeEmitter.event
+
+	dispose() {
+		this._onDidChangeEmitter.dispose()
+	}
+
+	provideTextDocumentContent(_uri: vscode.Uri): string {
+		return this._lastResult
+	}
+
+	update(uri: vscode.Uri, s: string): void {
+		this._lastResult = s
+		this._onDidChangeEmitter.fire(uri)
+	}
 
 }
