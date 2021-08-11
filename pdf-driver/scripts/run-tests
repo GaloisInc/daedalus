@@ -6,7 +6,6 @@ else
   TOP_DIR=$1
 fi
 
-for file in $(find $TOP_DIR -type f); do
+for file in $(find -L $TOP_DIR -type f); do
   "$(dirname $0)/run-test" "$file"
 done
-
