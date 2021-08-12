@@ -3,6 +3,16 @@ import PdfValue
 import GenPdfValue
 import JpegBasics
 
+
+-- N.B. regarding PDF Terminology:
+--  - Stream Object : the top level stream that encodes ALL byte data
+--  - Object Stream : (see below), the Stream Object that encodes a sequence of objects
+--  - Content Stream : the Stream Object containing graphical instructions
+
+-- and Daedalus:
+--  - stream - the built in type returned by GetStream
+
+
 def TopDecl = {
   id   = Token Natural;
   gen  = Token Natural;
@@ -13,11 +23,11 @@ def TopDecl = {
 }
 
 def TopDeclDef (val : Value) = Choose1 {
-  stream = Stream val;
+  stream = StreamObject val;
   value  = ^ val
 }
 
-def Stream (val : Value) = {
+def StreamObject (val : Value) = {
   header = val is dict;
   Match "stream";
   SimpleEOL;
@@ -33,16 +43,6 @@ def Stream (val : Value) = {
 -- lookup refs (could also ignore that part of the xref entry and just
 -- lookup the ref)
 
-def ObjectStreamEntry (oid : int) = {
-  oid = ^ oid;
-  val = Value; -- FIXME: we should check this isn't a ref etc?  (c.f. pdf 1.7, pg 101)
-}
-
-def ObjStreamMeta first = {
-  oid     = Token Natural;
-  off     = (Token Natural + (first as int)) as? uint 64
-}
-
 def ObjectStream (n : uint 64) (first : uint 64) = {
   @meta = Many n (ObjStreamMeta first);
   map (entry in meta) {
@@ -53,52 +53,72 @@ def ObjectStream (n : uint 64) (first : uint 64) = {
   };
 }
 
-def ObjectStreamNth (n : uint 64) (first : uint 64) (idx : uint 64) = {
-  -- FIXME: only really need to parse up to idx
-  @meta  = Many n (ObjStreamMeta first);
-  @entry = Index meta idx;
-  @here  = Offset;
-  Guard (here <= entry.off);
-  SkipBytes (entry.off - here);
-  ObjectStreamEntry entry.oid;
+def ObjectStreamEntry (oid : int) = {
+  oid = ^ oid;
+  val = Value; -- FIXME: we should check this isn't a ref etc?  (c.f. pdf 1.7, pg 101)
+}
+
+def ObjStreamMeta first = {
+  oid     = Token Natural;
+  off     = (Token Natural + (first as int)) as? uint 64
 }
 
 def SkipBytes n = Chunk n {}
 
 --------------------------------------------------------------------------------
--- Resolving of Refernece
+-- Our two "resolving" primitives (declarations only):
 
 -- Returns 'nothing' if there is no entry for this declaration.
 -- For values this means we should return 'null'.
 def ResolveRef (r : Ref) : maybe TopDecl
 
+-- InputStream r: the input stream at reference r
+def InputAtRef (r : Ref) : maybe ObjStart
+
+{- copied from pdf-cos/Setup.hs as an aid:
+
+      [ primName "PdfDecl" "ResolveRef" AGrammar |->
+        aps "D.resolveImpl" [ "PdfDecl.pTopDecl"
+                            , "PdfDecl.pResolveObjectStreamEntry"
+                            , fld "obj" "r"
+                            , fld "gen" "r"
+                            ]
+      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
+        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
+                            , "PdfDecl.pResolveObjectStreamPoint"
+                            , fld "obj" "r"
+                            , fld "gen" "r"
+                            ]
+-}
+
 --------------------------------------------------------------------------------
--- Resolving references to streams
+-- Parsers unused otherwise but which are used to implement primitives
 
-def ObjStart (s : stream) = Choose {
-  inInput = s
-; inObjStream = s
-}
+-- - Parsers directly called:
 
--- WrapGetStream: local wrapper to GetStream, used for primitive
+-- WrapGetStream: local wrapper to GetStream
 def WrapGetStream : ObjStart = {|
   inInput = GetStream
 |}
 
--- TODO: ugly near-clone of ObjectStreamNth, refactor. Used to
--- implement InputAtRef primitive.
-def ObjectStreamStrm (n : uint 64) (first : uint 64) (idx : uint 64) : stream = {
-  -- FIXME: only really need to parse up to idx
-  @meta  = Many n (ObjStreamMeta first);
-  @entry = Index meta idx;
-  @here  = Offset;
-  Guard (here <= entry.off);
-  SkipBytes (entry.off - here);
-  GetStream
+-- ResolveObjectStreamEntry:
+--  - passed to Haskell code, used to parse the ObjectStream (finding the Object)
+--  - this calls ResolveStream calls ResolveRef [the primitive]
+--    - thus the primitive calls itself recursively
+--  - caller going to just 
+def ResolveObjectStreamEntry
+      (oid : int) (gen : int) (idx : uint 64) : TopDecl = {
+  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
+  CheckType "ObjStm" stm.header;
+  @n       = LookupSize "N"     stm.header;
+  @first   = LookupSize "First" stm.header;
+  @s       = stm.body is ok;
+  @entry   = WithStream s (ObjectStreamNth n first idx);
+  ^ { id = entry.oid; gen = 0; obj = {| value = entry.val |} };
 }
 
--- TODO: ugly near clone of ResolveObjectStreamEntry. Used to
--- implement InputAtRef primitive.
+
+-- TODO: ugly near clone of ResolveObjectStreamEntry.
 def ResolveObjectStreamPoint
       (oid : int) (gen : int) (idx : uint 64) : ObjStart = {
   @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
@@ -110,8 +130,49 @@ def ResolveObjectStreamPoint
   |}
 }
 
--- InputStream r: the input stream at reference r
-def InputAtRef (r : Ref) : maybe ObjStart
+-- FIXME: dead code: use or delete
+def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
+  @stm = ResolveStream v;
+  CheckType "ObjStm" stm.header;
+  @n       = LookupSize "N" stm.header;
+  @first   = LookupSize "First" stm.header;
+  WithStream (stm.body is ok) (ObjectStream n first);
+}
+
+
+-- Indirectly called parsers:
+
+def ObjectStreamNth (n : uint 64) (first : uint 64) (idx : uint 64) : ObjectStreamEntry = {
+  -- FIXME: only really need to parse up to idx
+  @meta  = Many n (ObjStreamMeta first);
+  @entry = Index meta idx;
+  @here  = Offset;
+  Guard (here <= entry.off);
+  SkipBytes (entry.off - here);
+  ObjectStreamEntry entry.oid;
+}
+
+-- TODO: ugly near-clone of ObjectStreamNth, refactor.
+def ObjectStreamStrm (n : uint 64) (first : uint 64) (idx : uint 64) : stream = {
+  -- FIXME: only really need to parse up to idx
+  @meta  = Many n (ObjStreamMeta first);
+  @entry = Index meta idx;
+  @here  = Offset;
+  Guard (here <= entry.off);
+  SkipBytes (entry.off - here);
+  GetStream
+}
+
+
+
+--------------------------------------------------------------------------------
+-- Resolving references to streams
+
+-- ObjStart: never used as parser, but the sum datatype is used
+def ObjStart (s : stream) = Choose {
+  inInput = s
+; inObjStream = s
+}
 
 -- ParseAtRef P r: parse the input at r, using P
 def ParseAtRef r P = case (InputAtRef r) is just of {
@@ -132,14 +193,18 @@ def WithReffedStreamBody P = WithStream
 
 --------------------------------------------------------------------------------
 
-def CheckExpected (r : Ref) (d : TopDecl) = {
+-- extract object from TopDecl, checking that the object id matches between
+-- the reference and the object definition
+def ValidateMatchingObjectIDs (r : Ref) (d : TopDecl) : TopDeclDef = {
   Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;
 }
 
 def ResolveStreamRef (r : Ref) = 
-  CheckExpected r (ResolveRef r is just) is stream
+  ValidateMatchingObjectIDs r (ResolveRef r is just) is stream
+  -- didn't you just create?
 
+-- deprecated: really mean to fail when not `is ref`?
 def ResolveStream (v : Value) = {
   @r  = v is ref;
   ResolveStreamRef r
@@ -148,26 +213,7 @@ def ResolveStream (v : Value) = {
 def ResolveValRef (r : Ref) : Value = {
   @mb = ResolveRef r;
     { mb is nothing; ^ nullValue }
-  | CheckExpected r (mb is just) is value;
-}
-
-def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
-  @stm = ResolveStream v;
-  CheckType "ObjStm" stm.header;
-  @n       = LookupSize "N" stm.header;
-  @first   = LookupSize "First" stm.header;
-  WithStream (stm.body is ok) (ObjectStream n first);
-}
-
-def ResolveObjectStreamEntry
-      (oid : int) (gen : int) (idx : uint 64) : TopDecl = {
-  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
-  CheckType "ObjStm" stm.header;
-  @n       = LookupSize "N"     stm.header;
-  @first   = LookupSize "First" stm.header;
-  @s       = stm.body is ok;
-  @entry   = WithStream s (ObjectStreamNth n first idx);
-  ^ { id = entry.oid; gen = 0; obj = {| value = entry.val |} };
+  | ValidateMatchingObjectIDs r (mb is just) is value;
 }
 
 def ResolveVal (v : Value) =
@@ -223,10 +269,6 @@ def Filter (name : Value) (param : Value) = {
 def FilterParam (param : Value) =
     { param      is null; ^ nothing }
   | { @x = param is dict; ^ just x }
-
--- Stub for the Decrypt primitive 
-def Decrypt (body : stream) 
-            : stream 
 
 def TryApplyFilter (f : Filter) (body : stream) =
 
@@ -300,13 +342,6 @@ def fdDefaults = {
   columns   = 1 : int;
 }
 
-def FlateDecode (predictor : int)
-                (colors    : int)
-                (bpc       : int)
-                (columns   : int)
-                (body      : stream)
-              : stream
-
 -- XXX: Lots of duplication between LZWDecode and FlateDecode 
 def LZWDecodeParams (params : maybe [ [uint 8] -> Value ]) =
   { params is nothing;
@@ -328,6 +363,20 @@ def lzwDefaults = {
   columns     = 1 : int; 
   earlychange = 1 : int; 
 }
+
+--------------------------------------------------------------------------------
+-- Our five decoding primitives (declarations only):
+-- note that 'stream' is a built-in type (GetStream returns)
+
+def Decrypt (body : stream) 
+            : stream 
+
+def FlateDecode (predictor : int)
+                (colors    : int)
+                (bpc       : int)
+                (columns   : int)
+                (body      : stream)
+              : stream
 
 def LZWDecode (predictor   : int)
               (colors      : int)
@@ -391,6 +440,7 @@ def LookupNatDirect k m =
 
 def LookupSize k m = LookupNat k m as? uint 64
 
+-- FIXME: LookupNatArray, sig.
 def LookupNats k m = {
   @kV = LookupResolve k m : Value;
   @vs = kV is array;

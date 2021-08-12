@@ -167,6 +167,9 @@ cfg = CompilerCfg
   , cQualNames = UseQualNames
   }
 
+-- NOTE
+--   - these primitives have been "declared" in the DDL code (and arguments named!)
+--   - the rhs of these definitions may be referring to these named arguments
 
 cfgPdfDecl :: CompilerCfg
 cfgPdfDecl = CompilerCfg
@@ -174,6 +177,13 @@ cfgPdfDecl = CompilerCfg
       [ primName "PdfDecl" "ResolveRef" AGrammar |->
         aps "D.resolveImpl" [ "PdfDecl.pTopDecl"
                             , "PdfDecl.pResolveObjectStreamEntry"
+                            , fld "obj" "r"
+                            , fld "gen" "r"
+                            ]
+
+      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
+        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
+                            , "PdfDecl.pResolveObjectStreamPoint"
                             , fld "obj" "r"
                             , fld "gen" "r"
                             ]
@@ -194,13 +204,6 @@ cfgPdfDecl = CompilerCfg
 
       , primName "PdfDecl" "Decrypt" AGrammar |->
         aps "D.decrypt" [ "body" ]
-
-      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
-        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
-                            , "PdfDecl.pResolveObjectStreamPoint"
-                            , fld "obj" "r"
-                            , fld "gen" "r"
-                            ]
 
       ]
   , cParserType = "D.Parser"

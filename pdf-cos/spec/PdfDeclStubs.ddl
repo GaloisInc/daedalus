@@ -19,9 +19,9 @@ def WithReffedStreamBody P = P
 def InputAtRef (r : Ref) = just GetStream
 
 -- stub defn:
-def Stream (hdr : [ [ uint 8 ] -> int ]) = {
+def StreamObject (hdr : [ [ uint 8 ] -> int ]) = {
   header = hdr;
   body = StreamBody;
 }
 
-def ResolveStreamRef (r : Ref) : Stream = Stream empty
+def ResolveStreamRef (r : Ref) : StreamObject = StreamObject empty
