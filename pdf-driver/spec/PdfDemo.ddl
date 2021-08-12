@@ -18,7 +18,7 @@ def IsPageOrPages p c =
 
 def IsPage (p : maybe Ref) (r : Ref) =
 {
-    @v = ResolveValRef r;
+    @v = Resolve_Ref_ToValue r;
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
@@ -26,7 +26,7 @@ def IsPage (p : maybe Ref) (r : Ref) =
 
 def IsPages (p : maybe Ref) (r : Ref) =
 {
-    @v = ResolveValRef r;
+    @v = Resolve_Ref_ToValue r;
     @dict = v is dict;
     CheckType "Pages" dict;
     CheckParent p dict;
@@ -57,7 +57,7 @@ def CheckParent (p : maybe Ref) (dict : [[uint 8] -> Value]) =
 -- Names->JavaScript maps to JavaScript actions.
 
 def CatalogIsOK r = {
-  @catv = ResolveValRef r;
+  @catv = Resolve_Ref_ToValue r;
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;

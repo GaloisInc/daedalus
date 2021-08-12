@@ -60,14 +60,14 @@ def AddContents page0 = partialPage
       -- parse an array of references to streams
       { @arr = GenArray Ref;
         @strms = map (s in arr) {
-          @strm = ResolveStreamRef s;
+          @strm = Resolve_Ref_ToStream s;
           @strmBody = strm.body is ok;
           WithStream strmBody (Many UInt8)
         };
         ^(arrayStream (concat strms))
       } <| -- parse a single reference
       { @r = Token Ref;
-        @strm = ResolveStreamRef r;
+        @strm = Resolve_Ref_ToStream r;
         strm.body is ok
       }))
 

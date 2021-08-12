@@ -27,7 +27,7 @@ def ExtractPageOrPagesText p c =
 
 def ExtractPageText (p : maybe Ref) (r : Ref) =
 {
-    @v = ResolveValRef r;
+    @v = Resolve_Ref_ToValue r;
     @dict = v is dict;
     CheckType "Page" dict;
     CheckParent p dict;
@@ -36,7 +36,7 @@ def ExtractPageText (p : maybe Ref) (r : Ref) =
 
 def ExtractPagesText (p : maybe Ref) (r : Ref) =
 {
-    @v = ResolveValRef r;
+    @v = Resolve_Ref_ToValue r;
     @dict = v is dict;
     CheckType "Pages" dict;
     CheckParent p dict;
@@ -67,13 +67,13 @@ def ExtractContentsText d = Default [ ] {
   @strm =
     { @arr = s is array;
       @strms = map (s in arr) {
-        @strm = ResolveStream s;
+        @strm = Resolve_ValueRef_ToStream s;
         @strmBody = strm.body is ok;
         WithStream strmBody (Many UInt8)
       };
       ^ (arrayStream (concat strms))
     } <|
-    { @strm = ResolveStream s ;
+    { @strm = Resolve_ValueRef_ToStream s ;
       strm.body is ok
     };
   WithStream strm (Only ContentStream) -- parse the content stream
@@ -104,7 +104,7 @@ def ExtractRootText1 (r : Ref) = {
 -- Names->JavaScript maps to JavaScript actions.
 
 def ExtractCatalogText r = {
-  @catv = ResolveValRef r;
+  @catv = Resolve_Ref_ToValue r;
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;

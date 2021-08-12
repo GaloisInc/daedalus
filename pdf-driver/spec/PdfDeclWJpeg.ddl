@@ -77,19 +77,19 @@ def CheckExpected (r : ref) (d : TopDecl) = {
   ^ d.obj;
 }
 
-def ResolveStream (v : Value) = {
+def Resolve_ValueRef_ToStream (v : Value) = {
   @r  = v is ref;
   CheckExpected r (ResolveRef r is just) is stream;
 }
 
-def ResolveValRef (r : Ref) : Value = {
+def Resolve_Ref_ToValue (r : Ref) : Value = {
   @mb = ResolveRef r;
     { mb is nothing; ^ nullValue }
   | CheckExpected r (mb is just) is value;
 }
 
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
-  @stm = ResolveStream v;
+  @stm = Resolve_ValueRef_ToStream v;
   CheckType "ObjStm" stm.header;
   @n       = LookupNat "N" stm.header;
   @first   = LookupNat "First" stm.header;
@@ -97,7 +97,7 @@ def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
 }
 
 def ResolveObjectStreamEntry (oid : Nat) (gen : Nat) (idx : Nat) : TopDecl = {
-  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
+  @stm = Resolve_ValueRef_ToStream {| ref = { obj = oid; gen = gen } |};
   CheckType "ObjStm" stm.header;
   @n       = LookupNat "N" stm.header;
   @first   = LookupNat "First" stm.header;
@@ -109,7 +109,7 @@ def ResolveObjectStreamEntry (oid : Nat) (gen : Nat) (idx : Nat) : TopDecl = {
 def ResolveVal (v : Value) = Default v {
   @r = v is ref;
   commit;
-  ResolveValRef r;
+  Resolve_Ref_ToValue r;
 }
 
 def LookupResolve k header = {

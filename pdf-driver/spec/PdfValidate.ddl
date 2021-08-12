@@ -39,7 +39,7 @@ def CheckRef ty P (r : Ref) = try {
     done is false;
     commit;
     StartValidating r.gen r.obj ty;
-    @v = ResolveValRef r;
+    @v = Resolve_Ref_ToValue r;
     P v;
   }
 }

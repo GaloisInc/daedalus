@@ -4,7 +4,7 @@ import PdfXRef
 
 -- Encryption dictionary (Table 20 in S7.6.1) 
 def EncryptionDict (enc : TrailerDictEncrypt) = { 
-  @edict = (ResolveValRef enc.eref) is dict; 
+  @edict = (Resolve_Ref_ToValue enc.eref) is dict; 
 
   id0 = enc.id0; 
 

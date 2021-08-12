@@ -103,12 +103,12 @@ def WrapGetStream : ObjStart = {|
 
 -- ResolveObjectStreamEntry:
 --  - passed to Haskell code, used to parse the ObjectStream (finding the Object)
---  - this calls ResolveStream calls ResolveRef [the primitive]
+--  - this calls Resolve_ValueRef_ToStream calls ResolveRef [the primitive]
 --    - thus the primitive calls itself recursively
 --  - caller going to just 
 def ResolveObjectStreamEntry
       (oid : int) (gen : int) (idx : uint 64) : TopDecl = {
-  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
+  @stm = Resolve_ValueRef_ToStream {| ref = { obj = oid; gen = gen } |};
   CheckType "ObjStm" stm.header;
   @n       = LookupSize "N"     stm.header;
   @first   = LookupSize "First" stm.header;
@@ -121,7 +121,7 @@ def ResolveObjectStreamEntry
 -- TODO: ugly near clone of ResolveObjectStreamEntry.
 def ResolveObjectStreamPoint
       (oid : int) (gen : int) (idx : uint 64) : ObjStart = {
-  @stm = ResolveStream {| ref = { obj = oid; gen = gen } |};
+  @stm = Resolve_ValueRef_ToStream {| ref = { obj = oid; gen = gen } |};
   CheckType "ObjStm" stm.header;
   @n       = LookupSize "N"     stm.header;
   @first   = LookupSize "First" stm.header;
@@ -132,7 +132,7 @@ def ResolveObjectStreamPoint
 
 -- FIXME: dead code: use or delete
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
-  @stm = ResolveStream v;
+  @stm = Resolve_ValueRef_ToStream v;
   CheckType "ObjStm" stm.header;
   @n       = LookupSize "N" stm.header;
   @first   = LookupSize "First" stm.header;
@@ -188,7 +188,7 @@ def DirectOrRef P = case OrRef P of {
 }
 
 def WithReffedStreamBody P = WithStream
-  ((ResolveStreamRef (Token Ref)).body is ok)
+  ((Resolve_Ref_ToStream (Token Ref)).body is ok)
   P
 
 --------------------------------------------------------------------------------
@@ -200,17 +200,17 @@ def ValidateMatchingObjectIDs (r : Ref) (d : TopDecl) : TopDeclDef = {
   ^ d.obj;
 }
 
-def ResolveStreamRef (r : Ref) = 
+def Resolve_Ref_ToStream (r : Ref) = 
   ValidateMatchingObjectIDs r (ResolveRef r is just) is stream
   -- didn't you just create?
 
 -- deprecated: really mean to fail when not `is ref`?
-def ResolveStream (v : Value) = {
+def Resolve_ValueRef_ToStream (v : Value) = {
   @r  = v is ref;
-  ResolveStreamRef r
+  Resolve_Ref_ToStream r
 }
 
-def ResolveValRef (r : Ref) : Value = {
+def Resolve_Ref_ToValue (r : Ref) : Value = {
   @mb = ResolveRef r;
     { mb is nothing; ^ nullValue }
   | ValidateMatchingObjectIDs r (mb is just) is value;
@@ -218,7 +218,7 @@ def ResolveValRef (r : Ref) : Value = {
 
 def ResolveVal (v : Value) =
   case v of
-    ref r -> ResolveValRef r
+    ref r -> Resolve_Ref_ToValue r
     _     -> v
 
 

@@ -10,7 +10,7 @@ def StreamBody = Choose {
   ok = GetStream;
 }
 
-def ResolveStream v = {
+def Resolve_ValueRef_ToStream v = {
   body = StreamBody;
 }
 
@@ -24,4 +24,4 @@ def StreamObject (hdr : [ [ uint 8 ] -> int ]) = {
   body = StreamBody;
 }
 
-def ResolveStreamRef (r : Ref) : StreamObject = StreamObject empty
+def Resolve_Ref_ToStream (r : Ref) : StreamObject = StreamObject empty
