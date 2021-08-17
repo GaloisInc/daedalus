@@ -55,11 +55,11 @@ DTrans [
   Paths :
   -  
      *
-     __ZAuxiliaryState
+     Main callsite __START__
      MATCH: Main (5,14)-(5,23)
   -  
      *
-     __ZAuxiliaryState
+     Main callsite __START__
      MATCH: Main (6,14)-(6,23)
 ********  input witness  ********
 a

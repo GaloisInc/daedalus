@@ -3,9 +3,10 @@
 **********************************
 Stack:
     *
-    __ZAuxiliaryState
-    Main (25,10)-(25,11)
-    FL (20,17)-(20,30)
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many
 Start: UnsignedNum (12,9)-(12,23)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -17,8 +18,9 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (26,10)-(26,22)
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many
 Start: UnsignedNum (12,9)-(12,23)
 SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -295,17 +297,19 @@ DTrans [
   Paths :
   -  
      *
-     __ZAuxiliaryState
-     Main (26,10)-(26,22)
-     UnsignedNum (12,19)-(12,23)
-     Digit (9,20)-(9,26)
+     Main callsite __START__
+     UnsignedNum callsite Main (26,10)-(26,22)
+     Many
+     Digit callsite UnsignedNum (12,19)-(12,23)
+     Numeral callsite Digit (9,20)-(9,26)
      MATCH: Numeral (7,15)-(7,32)
   -  
      *
-     __ZAuxiliaryState
-     Main (26,10)-(26,22)
-     UnsignedNum (12,19)-(12,23)
-     Digit (9,20)-(9,26)
+     Main callsite __START__
+     UnsignedNum callsite Main (26,10)-(26,22)
+     Many
+     Digit callsite UnsignedNum (12,19)-(12,23)
+     Numeral callsite Digit (9,20)-(9,26)
      MATCH: Numeral (7,15)-(7,32)
 ********  input witness  ********
 9999999999990-9

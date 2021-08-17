@@ -1,6 +1,7 @@
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
+    Many
 Start: Main (12,5)-(12,10)
 SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -83,7 +84,7 @@ DTrans [
 
 Stack:
     *
-Start: __ZAuxiliaryState
+Start: __START__
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

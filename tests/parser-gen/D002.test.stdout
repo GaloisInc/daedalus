@@ -3,7 +3,7 @@
 **********************************
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (8,10)-(11,12)
 SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
 DTrans [
@@ -61,7 +61,7 @@ Warning: LL(*) failures:
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (8,10)-(11,12)
 SlkCfg{ q:50, ctrl:[?, *], sem:[?, ], inp:--- }
 DTrans [
@@ -81,11 +81,11 @@ DTrans [
   Paths :
   -  
      *
-     __ZAuxiliaryState
+     Main callsite __START__
      MATCH: Main (9,18)-(9,27)
   -  
      *
-     __ZAuxiliaryState
+     Main callsite __START__
      MATCH: Main (10,18)-(10,27)
 ********  input witness  ********
 ab
