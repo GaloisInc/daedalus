@@ -1,8 +1,9 @@
 Stack:
     *
-    __ZAuxiliaryState
-    Main (18,11)-(18,34)
-    _PadWSpaces__26 (14,3)-(14,40)
+    Main callsite __START__
+    _PadWSpaces__26 callsite Main (18,11)-(18,34)
+    _Chunk__29 callsite _PadWSpaces__26 (14,3)-(14,40)
+    Many
 Start: _Chunk__29 (14,18)-(14,33)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
@@ -18,9 +19,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (18,11)-(18,34)
-    _PadWSpaces__26 (14,3)-(14,40)
+    Main callsite __START__
+    _PadWSpaces__26 callsite Main (18,11)-(18,34)
+    _Chunk__29 callsite _PadWSpaces__26 (14,3)-(14,40)
+    Many
 Start: _Chunk__29 (14,18)-(14,33)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
@@ -36,9 +38,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (19,11)-(19,34)
-    _PadWSpaces__27 (14,3)-(14,40)
+    Main callsite __START__
+    _PadWSpaces__27 callsite Main (19,11)-(19,34)
+    _Chunk__28 callsite _PadWSpaces__27 (14,3)-(14,40)
+    Many
 Start: _Chunk__28 (14,18)-(14,33)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
@@ -54,9 +57,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (19,11)-(19,34)
-    _PadWSpaces__27 (14,3)-(14,40)
+    Main callsite __START__
+    _PadWSpaces__27 callsite Main (19,11)-(19,34)
+    _Chunk__28 callsite _PadWSpaces__27 (14,3)-(14,40)
+    Many
 Start: _Chunk__28 (14,18)-(14,33)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
@@ -72,7 +76,7 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (21,5)-(21,7)
 SlkCfg{ q:166, ctrl:[?, *], sem:[?, ], inp:---[3..] }
 DTrans [
@@ -104,7 +108,7 @@ DTrans [
 
 Stack:
     *
-Start: __ZAuxiliaryState
+Start: __START__
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

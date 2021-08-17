@@ -1,6 +1,8 @@
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
+    Many
+    Many
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:16, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
@@ -12,7 +14,9 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
+    Many
+    Many
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
@@ -24,7 +28,9 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
+    Many
+    Many
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
@@ -36,7 +42,7 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (6,13)-(6,17)
 SlkCfg{ q:10, ctrl:[?, *], sem:[?, ], inp:--- }
 DTrans [
@@ -48,7 +54,7 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (7,9)-(11,24)
 SlkCfg{ q:39, ctrl:[?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -71,7 +77,7 @@ DTrans [
 
 Stack:
     *
-Start: __ZAuxiliaryState
+Start: __START__
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

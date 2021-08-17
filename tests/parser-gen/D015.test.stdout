@@ -1,47 +1,9 @@
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (16,14)-(16,26)
-    Token__37 (10,8)-(10,8)
-Start: Natural (28,9)-(28,24)
-SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
-DTrans [
-  ( [(35),]
-  , HeadInput ['\NUL']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(35),]
-  , HeadInput ['\t']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(35),]
-  , HeadInput ['\n']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(35),]
-  , HeadInput ['\f']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(35),]
-  , HeadInput ['\r']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(35),]
-  , HeadInput [' ']
-  , Resolution (NotAmbiguous)
-  ),
-  ( [(25),]
-  , HeadInput ['0','9']
-  , Resolution (NotAmbiguous)
-  ),
-]
-
-Stack:
-    *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (16,14)-(16,26)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (16,14)-(16,26)
+    Many
 Start: Token__37 (11,3)-(11,15)
 SlkCfg{ q:70, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -77,10 +39,11 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (18,12)-(18,24)
-    Token__37 (10,8)-(10,8)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (16,14)-(16,26)
+    Natural callsite Token__37 (10,8)-(10,8)
+    Many
 Start: Natural (28,9)-(28,24)
 SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -116,9 +79,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (18,12)-(18,24)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (18,12)-(18,24)
+    Many
 Start: Token__37 (11,3)-(11,15)
 SlkCfg{ q:70, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -154,10 +118,11 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (19,12)-(19,24)
-    Token__37 (10,8)-(10,8)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (18,12)-(18,24)
+    Natural callsite Token__37 (10,8)-(10,8)
+    Many
 Start: Natural (28,9)-(28,24)
 SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -193,9 +158,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (19,12)-(19,24)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (19,12)-(19,24)
+    Many
 Start: Token__37 (11,3)-(11,15)
 SlkCfg{ q:70, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -231,12 +197,13 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (20,12)-(20,25)
-    Token__38 (10,8)-(10,8)
-Start: Natural3 (33,10)-(33,25)
-SlkCfg{ q:94, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__37 callsite PPM (19,12)-(19,24)
+    Natural callsite Token__37 (10,8)-(10,8)
+    Many
+Start: Natural (28,9)-(28,24)
+SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(35),]
   , HeadInput ['\NUL']
@@ -270,9 +237,10 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
-    PPM (20,12)-(20,25)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__38 callsite PPM (20,12)-(20,25)
+    Many
 Start: Token__38 (11,3)-(11,15)
 SlkCfg{ q:126, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -308,8 +276,48 @@ DTrans [
 
 Stack:
     *
-    __ZAuxiliaryState
-    Main (5,8)-(5,10)
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
+    Token__38 callsite PPM (20,12)-(20,25)
+    Natural3 callsite Token__38 (10,8)-(10,8)
+    Many
+Start: Natural3 (33,10)-(33,25)
+SlkCfg{ q:94, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(35),]
+  , HeadInput ['\NUL']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\t']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\n']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\f']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput ['\r']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(35),]
+  , HeadInput [' ']
+  , Resolution (NotAmbiguous)
+  ),
+  ( [(25),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    PPM callsite Main (5,8)-(5,10)
 Start: PPM (16,14)-(16,26)
 SlkCfg{ q:150, ctrl:[?, ?, *], sem:[?, ], inp:--- }
 DTrans [
@@ -332,7 +340,7 @@ DTrans [
 
 Stack:
     *
-Start: __ZAuxiliaryState
+Start: __START__
 SlkCfg{ q:0, ctrl:[*], sem:[?, *], inp:--- }
 DTrans [
   ( [(0),]

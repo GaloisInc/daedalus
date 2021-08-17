@@ -3,7 +3,7 @@
 **********************************
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (28,10)-(28,41)
 SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
 AbortDFAIncompatibleInput
@@ -53,7 +53,7 @@ Warning: LL(*) failures:
 
 Stack:
     *
-    __ZAuxiliaryState
+    Main callsite __START__
 Start: Main (28,10)-(28,41)
 SlkCfg{ q:180, ctrl:[?, *], sem:[?, ], inp:---[2..] }
 AbortDFAIncompatibleInput

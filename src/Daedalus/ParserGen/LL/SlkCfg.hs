@@ -31,6 +31,7 @@ module Daedalus.ParserGen.LL.SlkCfg
 
 import Data.ByteString (unpack)
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 import Daedalus.Type.AST
 import Daedalus.Value as Interp
@@ -233,7 +234,8 @@ showSlkControlData aut ctrl =
   case destrSlkStack ctrl of
     SWildcard -> [ "*" ]
     SCons (SlkCallFrame _name q _ _) rest ->
-      showSlkControlData aut rest ++ [ Aut.stateToString q aut ]
+      showSlkControlData aut rest ++
+      [ T.unpack (PAST.name2Text _name) ++ " callsite " ++ Aut.stateToString q aut ]
     SCons (SlkManyFrame _ _) rest ->
       showSlkControlData aut rest ++ [ "Many" ]
     SEmpty ->  []
@@ -253,7 +255,8 @@ _showDebugSlkControlData ctrl =
       _showDebugSlkControlData rest ++
       [ "MANY(" ++ show b ++ ")"]
     SCons _ rest ->
-      _showDebugSlkControlData rest
+      _showDebugSlkControlData rest ++
+      [ "SOMETHING ELSE " ]
     SEmpty ->  []
 
 
