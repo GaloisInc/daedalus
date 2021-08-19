@@ -2,6 +2,7 @@
 #define DDL_NUMBER_H
 
 #include <cstdint>
+#include <cassert>
 #include <type_traits>
 #include <iostream>
 #include <ios>
@@ -10,11 +11,12 @@
 #include <ddl/value.h>
 #include <ddl/bool.h>
 #include <ddl/integer.h>
+#include <ddl/size.h>
 
 
 namespace DDL {
 
-template <int w>
+template <size_t w>
 struct UInt : public Value {
   static_assert(w <= 64, "UInt larger than 64 not supported.");
 
@@ -22,26 +24,25 @@ struct UInt : public Value {
     typename std::conditional < (w <= 8),   uint8_t,
     typename std::conditional < (w <= 16),  uint16_t,
     typename std::conditional < (w <= 32),  uint32_t,
-    typename std::conditional < (w <= 64),  uint64_t,
-                                            uint64_t    // XXX: gmp
-    >::type>::type>::type>::type;
+                                            uint64_t
+    >::type>::type>::type;
 
   Rep data;
 
 public:
-  UInt() : data(0) {}
+  UInt()      : data(0) {}
   UInt(Rep d) : data(d) {}
 
   Rep rep() {
     if constexpr (w == 8 || w == 16 || w == 32 || w == 64) return data;
-    if constexpr (w < 8)   return data & (UINT8_MAX >> (8-w));
+    if constexpr (w < 8)   return data & (UINT8_MAX  >> ( 8-w));
     if constexpr (w < 16)  return data & (UINT16_MAX >> (16-w));
     if constexpr (w < 32)  return data & (UINT32_MAX >> (32-w));
-    return data;
+    return                        data & (UINT64_MAX >> (64-w));
   }
 
   constexpr static Rep maxValRep() {
-    if constexpr (w ==  8) return UINT8_MAX;  else
+    if constexpr (w ==  8) return  UINT8_MAX;  else
     if constexpr (w == 16) return UINT16_MAX; else
     if constexpr (w == 32) return UINT32_MAX; else
     if constexpr (w == 64) return UINT64_MAX; else
@@ -50,14 +51,20 @@ public:
 
 
   // This is for `a # b`
-  template <int a, int b>
-  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {}
+  template <size_t a, size_t b>
+  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {
+    static_assert(a + b == w);
+  }
 
   UInt operator + (UInt x) { return UInt(data + x.data); }
   UInt operator - (UInt x) { return UInt(data - x.data); }
   UInt operator * (UInt x) { return UInt(data * x.data); }
-  UInt operator % (UInt x) { return UInt(rep() % x.rep()); }
-  UInt operator / (UInt x) { return UInt(rep() / x.rep()); }
+  UInt operator % (UInt x) { Rep xv = x.rep();
+                             assert(xv /= 0);
+                             return UInt(rep() % xv); }
+  UInt operator / (UInt x) { Rep xv = x.rep();
+                             assert(xv /= 0);
+                             return UInt(rep() / xv); }
   UInt operator - ()       { return UInt(-data); }
   UInt operator ~ ()       { return UInt(~data); }
 
@@ -65,59 +72,46 @@ public:
   UInt operator & (UInt x) { return UInt(data & x.data); }
   UInt operator ^ (UInt x) { return UInt(data ^ x.data); }
 
-  // yikes, we really should use something other than integer here
-  // we are borrowing the integer
   UInt operator << (UInt<64> x) {
     uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data << n);
   }
 
-  // same as for <<
   UInt operator >> (UInt<64> x) {
     uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data >> n);
   }
 
-  bool operator == (UInt x)   { return rep() == x.rep(); }
-  bool operator != (UInt x)   { return rep() != x.rep(); }
-  bool operator <  (UInt x)   { return rep() <  x.rep(); }
-  bool operator <= (UInt x)   { return rep() <= x.rep(); }
-  bool operator >  (UInt<w> x){ return rep() >  x.rep(); }
-  bool operator >= (UInt<w> x){ return rep() >=  x.rep(); }
+  UInt operator << (Size x) {
+    size_t n = x.rep();
+    return n >= w? UInt(0) : UInt(data << n);
+  }
 
-  unsigned long asULong() { return (unsigned long) rep(); }
+  UInt operator >> (Size x) {
+    uint64_t n = x.rep();
+    return n >= w? UInt(0) : UInt(data >> n);
+  }
+
+
+  bool operator == (UInt x) { return rep() == x.rep(); }
+  bool operator != (UInt x) { return rep() != x.rep(); }
+  bool operator <  (UInt x) { return rep() <  x.rep(); }
+  bool operator <= (UInt x) { return rep() <= x.rep(); }
+  bool operator >  (UInt x) { return rep() >  x.rep(); }
+  bool operator >= (UInt x) { return rep() >= x.rep(); }
+
+  // This is used when we generate `switch` statments on numeric values.
+  // We could just use the appropriate size macros...
+  unsigned long asULong()   { return (unsigned long) rep(); }
 };
 
 
-template <int a, int b>
+template <size_t a, size_t b>
 static inline
 UInt<a> lcat(UInt<a> x, UInt<b> y) {
   if constexpr (b >= a) return UInt<a>(y.data);
   return UInt<a>((x.data << b) | y.rep());
 }
-
-#ifdef QUICK_INTEGER
-template <int b>
-static inline
-Integer lcat(Integer x, UInt<b> y) {
-  return Integer((x.asSLong() << b) | y.rep());
-}
-#else
-template <int b>
-Integer lcat(Integer x, UInt<b> y) {
-  if (x.refCount() == 1) {
-    x.mutShiftL(b);
-    static_assert(b <= sizeof(unsigned long) * 8);
-    x.mutOr(y.rep());
-    return x;
-  } else {
-    mpz_class i = x.getValue() << b;
-    Integer r{i};
-    r.mutOr(y.rep());
-    return r;
-  }
-}
-#endif
 
 static inline
 int compare(unsigned char rx, unsigned char ry) {
@@ -134,7 +128,7 @@ int compare(unsigned long rx, unsigned long ry) {
   return (rx < ry) ? -1 : (rx != ry);
 }
 
-template <int w>
+template <size_t w>
 static inline
 int compare(UInt<w> x, UInt<w> y) {
   auto rx = x.rep();
@@ -143,13 +137,8 @@ int compare(UInt<w> x, UInt<w> y) {
 }
 
 
-
-
-
-
-
 // XXX: Maybe we should consult the base flag, rather than always using hex?
-template <int w>
+template <size_t w>
 static inline
 std::ostream& operator<<(std::ostream& os, UInt<w> x) {
   os << "0x" << std::hex;
@@ -160,10 +149,10 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 }
 
 
-template <int w>
+template <size_t w>
 static inline
 std::ostream& toJS(std::ostream& os, UInt<w> x) {
-  return os << std::dec << (unsigned long) x.rep();
+  return os << std::dec << (uint64_t) x.rep();
 }
 
 
@@ -173,7 +162,8 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 // XXX: How should arithmetic work on these?
 // For the moment we assume no under/overflow, same as C does
 // but it is not clear if that's what we want from daedluas.
-template <int w>
+// XXX: Add `asserts` to detect wrap around in debug mode
+template <size_t w>
 struct SInt : public Value {
   static_assert(w >= 1, "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
@@ -182,14 +172,13 @@ struct SInt : public Value {
     typename std::conditional < (w <= 8),   int8_t,
     typename std::conditional < (w <= 16),  int16_t,
     typename std::conditional < (w <= 32),  int32_t,
-    typename std::conditional < (w <= 64),  int64_t,
-                                            int64_t    // XXX: gmp
-    >::type>::type>::type>::type;
+                                            int64_t
+    >::type>::type>::type;
 
   Rep data;
 
 public:
-  SInt() : data(0) {}
+  SInt()      : data(0) {}
   SInt(Rep d) : data(d) {}
   Rep rep() { return data; } // XXX: overflow?
 
@@ -216,7 +205,7 @@ public:
   }
 
   constexpr static Rep minValRep() {
-    return -maxValRep()-1;
+    return (-maxValRep())-1;
   }
 
   SInt operator << (UInt<64> x) {
@@ -224,11 +213,22 @@ public:
     return n >= w? SInt(0) : SInt(data << n);
   }
 
-  // same as for <<
   SInt operator >> (UInt<64> x) {
     uint64_t n = x.rep();
     return n >= w? SInt(0) : SInt(data >> n);
   }
+
+  SInt operator << (Size x) {
+    size_t n = x.rep();
+    return n >= w? SInt(0) : SInt(data << n);
+  }
+
+  SInt operator >> (Size x) {
+    size_t n = x.rep();
+    return n >= w? SInt(0) : SInt(data >> n);
+  }
+
+
 
   // XXX: checks?
   unsigned long asULong() { return (unsigned long) rep(); }
@@ -242,7 +242,7 @@ int compare(int rx,  int ry)  { return (rx < ry) ? -1 : (rx != ry); }
 static inline
 int compare(long rx, long ry) { return (rx < ry) ? -1 : (rx != ry); }
 
-template <int w>
+template <size_t w>
 static inline
 int compare(SInt<w> x, SInt<w> y) {
   auto rx = x.rep();
@@ -251,30 +251,58 @@ int compare(SInt<w> x, SInt<w> y) {
 }
 
 
-
-template <int a, int b>
+template <size_t a, size_t b>
 static inline
-SInt<a> lcat(SInt<a> x, SInt<b> y) {
+SInt<a> lcat(SInt<a> x, UInt<b> y) {
   return (x << b) | y.rep();
 }
 
 
-template <int w>
+template <size_t w>
 static inline
 std::ostream& operator<<(std::ostream& os, SInt<w> x) {
   return os << (int64_t) x.rep();
 }
 
-template <int w>
+template <size_t w>
 static inline
 std::ostream& toJS(std::ostream& os, SInt<w> x) {
-  return os << (long)x.rep();
+  return os << (int64_t)x.rep();
 }
 
 
+// -----------------------------------------------------------------------------
 
 
+
+
+#ifdef QUICK_INTEGER
+template <size_t b>
+static inline
+Integer lcat(Integer x, UInt<b> y) {
+  return Integer((x.asSLong() << b) | y.rep());
 }
+#else
+template <size_t b>
+Integer lcat(Integer x, UInt<b> y) {
+  if (x.refCount() == 1) {
+    x.mutShiftL(b);
+    static_assert(b <= sizeof(unsigned long) * 8);
+    x.mutOr(y.rep());
+    return x;
+  } else {
+    mpz_class i = x.getValue() << b;
+    Integer r{i};
+    r.mutOr(y.rep());
+    return r;
+  }
+}
+#endif
+
+
+
+
+} // namespace DDL
 
 #endif
 
