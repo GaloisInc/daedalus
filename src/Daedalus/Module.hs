@@ -8,6 +8,8 @@ module Daedalus.Module
 
 import Control.Exception(Exception)
 import System.FilePath.Posix
+import System.Directory
+
 import qualified Data.Text as Text
 
 import Daedalus.PP hiding ((<.>))
@@ -26,14 +28,19 @@ instance PP ModuleException where
            MissingModule m ->
               "Missing module" <+> backticks (pp m)
 
--- FIXME
 resolveModulePath :: [FilePath] -> ModuleName -> IO (Maybe FilePath)
 resolveModulePath [] _n = return Nothing
-resolveModulePath (p : _searchPaths) n =
-                          return (Just (p </> Text.unpack n <.> "ddl"))
+resolveModulePath (p : searchPaths) n =
+                          do
+                          let p' = p </> Text.unpack n <.> "ddl"
+                          e <- doesFileExist p'
+                          if e then
+                            return (Just p')
+                          else
+                            resolveModulePath searchPaths n
 
-pathToModuleName :: FilePath -> ([FilePath], ModuleName)
-pathToModuleName f = ([dir], Text.pack (dropExtension rest))
+pathToModuleName :: FilePath -> (FilePath, ModuleName)
+pathToModuleName f = (dir, Text.pack (dropExtension rest))
   where
     (dir, rest) = splitFileName f
 

@@ -17,8 +17,9 @@ module Daedalus.Driver
 
   , normalizedDecls
 
-    -- * Compiling to Hasekell from TC
+    -- * Compiling to Haskell from TC
   , saveHS
+  , saveHSCustomWriteFile
   , CompilerCfg(..)
   , UseQual(..)
 
@@ -42,6 +43,7 @@ module Daedalus.Driver
   , passInline
   , passStripFail
   , passSpecTys
+  , passConstFold
   , passVM
   , ddlRunPass
 
@@ -75,11 +77,10 @@ module Daedalus.Driver
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
-import Data.Either (partitionEithers)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM)
+import Control.Monad(msum,foldM,forM,unless)
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Exception(Exception,throwIO,try)
+import Control.Exception(Exception,throwIO)
 import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing)
@@ -95,6 +96,7 @@ import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
+import qualified Daedalus.Type.CheckUnused as CheckUnused
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
@@ -102,6 +104,7 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
 import Daedalus.Type.Monad(TypeError, runMTypeM)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
+import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
 import Daedalus.Normalise(normalise)
@@ -115,6 +118,7 @@ import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
+import qualified Daedalus.Core.ConstFold as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -131,9 +135,9 @@ ddlPassFromFile ::
   (ModuleName -> Daedalus ()) ->
   FilePath -> Daedalus ModuleName
 ddlPassFromFile pass file =
-  do let (dirs,m) = pathToModuleName file
+  do let (dir,m) = pathToModuleName file
      search <- ddlGetOpt optSearchPath
-     ddlUpdOpt optSearchPath (dirs ++)
+     ddlUpdOpt optSearchPath (dir :)
      pass m
      ddlSetOpt optSearchPath search
      pure m
@@ -145,13 +149,13 @@ ddlLoadModule :: ModuleName -> Daedalus ()
 ddlLoadModule = passDeadVal
 
 
--- | Get the phase assocaited with the given module, if any.
+-- | Get the phase associated with the given module, if any.
 ddlGetPhaseMaybe :: ModuleName -> Daedalus (Maybe ModulePhase)
 ddlGetPhaseMaybe m =
   do mp <- ddlGet loadedModules
      pure $! Map.lookup m mp
 
--- | Get the phase assocaited with the given module.
+-- | Get the phase associated with the given module.
 -- Panics if the module is not present.
 ddlGetPhase :: ModuleName -> Daedalus ModulePhase
 ddlGetPhase m =
@@ -160,7 +164,7 @@ ddlGetPhase m =
        Just ph -> pure ph
        Nothing -> panic "ddlGetPhase" [ "Missing module", show (pp m) ]
 
--- | Get the AST associtated with the given module name.
+-- | Get the AST associated with the given module name.
 -- Panics if the module is missing or its AST does not match the expectation.
 ddlGetAST :: ModuleName -> (ModulePhase -> Maybe a) -> Daedalus a
 ddlGetAST m ast =
@@ -238,8 +242,7 @@ prettyDaedalusError err =
         _ -> justShow e
     ASpecializeError e -> pure e
     ADriverError e -> pure e
-
-  where
+ where
   justShow it = pure (show (pp it))
 
 --------------------------------------------------------------------------------
@@ -311,7 +314,7 @@ data ModulePhase =
   | CoreModue Core.Module                     -- ^ Core module
   | VMModule VM.Module                        -- ^ VM module
 
--- | The passes, in the order they shoule happen
+-- | The passes, in the order they should happen
 data Pass =
     PassParse
   | PassRessolve
@@ -407,6 +410,7 @@ ddlUpdate_ = Daedalus . sets_
 ddlIO :: IO a -> Daedalus a
 ddlIO = Daedalus . inBase . liftIO
 
+
 ddlThrow :: DaedalusError -> Daedalus a
 ddlThrow = ddlIO . throwIO
 
@@ -426,6 +430,11 @@ ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
      ddlIO $ hPrint h x
+
+ddlDebug :: String -> Daedalus ()
+ddlDebug = if debug then ddlPutStrLn else const (pure ())
+  where debug = False
+
 
 ddlRunPass :: PassM a -> Daedalus a
 ddlRunPass = Daedalus . lift
@@ -483,29 +492,20 @@ ddlGetFName m f =
 
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
 parseModuleFromFile n file =
-  do mb <- ddlIO (try (parseFromFile file))
-     (imps,ds) <- case mb of
-                    Left err -> ddlThrow (AParseError err)
-                    Right a -> pure a
-     -- hack so we can reuse the same type after scope analysis
-     let (rs, bds) = partitionEithers (map declToEither ds)
-         rs' = map NonRec rs
-         m   = ParsedModule (Module n imps bds rs')
+  do mb <- ddlIO (parseFromFile file n)
+     m <- case mb of
+            Left err -> ddlThrow (AParseError err)
+            Right m -> pure (ParsedModule m)
      ddlUpdate_ \s ->
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
-  where
-    declToEither :: Decl -> Either Rule BitData
-    declToEither (DeclRule rl) = Left rl
-    declToEither (DeclBitData bd) = Right bd
-
-         
 
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
 parseModule n =
-  do sp     <- ddlGetOpt optSearchPath
+  do ddlDebug ("Parsing " ++ show n)
+     sp     <- ddlGetOpt optSearchPath
      m_path <- ddlIO $ resolveModulePath sp n
      case m_path of
        Nothing -> ddlThrow $ AModuleError $ MissingModule n
@@ -515,7 +515,8 @@ parseModule n =
 -- | Do the scoping pass on a single module
 resolveModule :: Module -> Daedalus ()
 resolveModule m =
-  do defs <- ddlGet moduleDefines
+  do ddlDebug ("Resolving " ++ show (moduleName m))
+     defs <- ddlGet moduleDefines
      r <- ddlRunPass (Scope.resolveModule defs m)
      case r of
        Right (m1,newDefs) ->
@@ -530,30 +531,43 @@ resolveModule m =
 -- | Typecheck this module
 tcModule :: Module -> Daedalus ()
 tcModule m =
-  do tdefs <- ddlGet declaredTypes
+  do ddlDebug ("Type checking " ++ show (moduleName m))
+     tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1 ->
-        ddlUpdate_ \s -> s
-          { loadedModules = Map.insert (tcModuleName m1) (TypeCheckedModule m1)
-                                                         (loadedModules s)
-          , declaredTypes =
-              foldr (\d -> Map.insert (tctyName d) d)
-                    (declaredTypes s)
-                    (forgetRecs (tcModuleTypes m1))
+       Right m1' ->
+         do let m1 = normTCModule m1'
+                warn = CheckUnused.checkTCModule m1
+            unless (null warn) (ppWarn warn)
+            ddlUpdate_ \s -> s
+              { loadedModules = Map.insert (tcModuleName m1)
+                                           (TypeCheckedModule m1)
+                                           (loadedModules s)
+              , declaredTypes =
+                  foldr (\d -> Map.insert (tctyName d) d)
+                        (declaredTypes s)
+                        (forgetRecs (tcModuleTypes m1))
 
-          , ruleTypes =
-              foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
-                    (ruleTypes s)
-                    (forgetRecs (tcModuleDecls m1))
-          }
+              , ruleTypes =
+                  foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
+                        (ruleTypes s)
+                        (forgetRecs (tcModuleDecls m1))
+              }
+  where
+  ppWarn xs =
+    ddlPutStrLn $
+      unlines
+        [ prettySourceRangeLong x <>
+                                " [WARNING] Statement has no effect" | x <- xs ]
+
 
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
 analyzeDeadVal m =
-  do mfs <- ddlGet matchingFunctions
+  do ddlDebug ("DeadVal " ++ show (tcModuleName m))
+     mfs <- ddlGet matchingFunctions
      r <- ddlRunPass (deadValModule mfs m)
      case r of
        (m1,mfs1) -> ddlUpdate_ \s -> s
@@ -757,6 +771,17 @@ passSpecTys m =
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
        _ -> panic "passSpecTys" ["Module is not in Core form"]
 
+passConstFold :: ModuleName -> Daedalus ()
+passConstFold m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do i <- ddlRunPass (Core.constFold ast)
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passConstFold" ["Module is not in Core form"]
+
+
 -- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
 passVM m =
@@ -791,7 +816,17 @@ saveHS ::
   CompilerCfg ->
   ModuleName ->
   Daedalus ()
-saveHS mb cfg m =
+saveHS = saveHSCustomWriteFile writeFile
+
+
+-- | Save Haskell for the given module.: parameterized over writeFile
+saveHSCustomWriteFile ::
+  (FilePath -> String -> IO ()) ->
+  Maybe FilePath {- ^ Directory to save things in. -} ->
+  CompilerCfg ->
+  ModuleName ->
+  Daedalus ()
+saveHSCustomWriteFile writeFile' mb cfg m =
   do ast <- ddlGetAST m astTC
      let hs = HS.hsModule cfg ast
      case mb of
@@ -800,6 +835,6 @@ saveHS mb cfg m =
          ddlIO
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
-            writeFile file (show (pp hs))
+            writeFile' file (show (pp hs))
 
 

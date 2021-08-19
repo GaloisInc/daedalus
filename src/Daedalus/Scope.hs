@@ -3,7 +3,7 @@
 
 module Daedalus.Scope (
   -- resolveModules,
-  resolveModule, Scope(..), ScopeError(..), prettyScopeError
+  resolveModule, Scope(..), ScopeError(..), prettyScopeError, GlobalScope
   ) where
 
 import Data.Functor ( ($>) )
@@ -38,9 +38,10 @@ import Daedalus.Pass
 data Scope =
   Scope { identScope :: Map Ident (IdentClass, Name)
          -- ^ Both function names and types (mainly bitdata)
-        }
+        } deriving (Eq)
 
 data IdentClass = IdentFun | IdentTy
+  deriving (Eq)
 
 data ScopeState = ScopeState { seenToplevelNames :: Set Name }
 
@@ -366,8 +367,8 @@ instance ResolveNames t => ResolveNames (Located t) where
 instance ResolveNames SrcType where
   resolve ty =
     case ty of
-      -- FIXME: should we treat tvs differently?
-      SrcVar x   -> SrcVar  <$> resolve x
+      SrcVar x   -> pure (SrcVar x)
+      SrcCon x   -> SrcCon  <$> resolve x
       SrcType tf -> SrcType <$> resolve tf
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]

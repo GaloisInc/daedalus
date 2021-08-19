@@ -6,7 +6,7 @@ module T056
  
 --- Rules:
  
-T056.I ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+T056.I ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   P
  
 T056.F (open : [uint 8]) : Grammar [uint 8] =
@@ -15,7 +15,7 @@ T056.F (open : [uint 8]) : Grammar [uint 8] =
 T056.Main : Grammar [uint 8] =
   T056.F "A"
  
-T056._I ?a1 (_P : Grammar {}) : Grammar {} =
+T056._I ?a0 (_P : Grammar {}) : Grammar {} =
   _P
  
 T056._F (open : [uint 8]) : Grammar {} =

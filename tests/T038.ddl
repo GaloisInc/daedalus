@@ -1,3 +1,3 @@
 
 def Foo (x : maybe int) = ^ x
-def Main = { a = Optional { ^1} ; b = Foo a }
+def Main = { a = just 1; b = Foo a }

@@ -51,8 +51,8 @@ type new-midi.Header = { format: new-midi.MidiFormat
                        ; time_unit: new-midi.MidiTimeUnit
                        }
  
-type new-midi.Delta ?a2 = { after: uint 64
-                          ; event: ?a2
+type new-midi.Delta ?a0 = { after: uint 64
+                          ; event: ?a0
                           }
  
 type new-midi.NoteEvent = { key: uint 7
@@ -295,24 +295,24 @@ new-midi.BE32 : Grammar (uint 32) =
      (_115 : uint 16) <- new-midi.BE16
      pure (_114 # _115)
  
-new-midi.Block ?a4 (n : uint 64) (P : Grammar ?a4) : Grammar ?a4 =
+new-midi.Block ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (cur : Stream) <- CurrentStream
      do (_116 : Stream) <- StreamLen n cur
         SetStream _116
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      do (_117 : Stream) <- StreamOff n cur
         SetStream _117
      pure $$
  
-new-midi.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+new-midi.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
-new-midi.ExactBlock ?a3 (n : uint 64) (P : Grammar ?a3) : Grammar ?a3 =
-  new-midi.Block ?a3 n (new-midi.Only ?a3 P)
+new-midi.ExactBlock ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
+  new-midi.Block ?a0 n (new-midi.Only ?a0 P)
  
-new-midi._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+new-midi._Block ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      do (_116 : Stream) <- StreamLen n cur
         SetStream _116
@@ -320,18 +320,18 @@ new-midi._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
      (_117 : Stream) <- StreamOff n cur
      SetStream _117
  
-new-midi._Only ?a1 (_P : Grammar {}) : Grammar {} =
+new-midi._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-new-midi._ExactBlock ?a3 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  new-midi._Block ?a3 n (new-midi._Only ?a3 _P)
+new-midi._ExactBlock ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  new-midi._Block ?a0 n (new-midi._Only ?a0 _P)
  
-new-midi.Chunk ?a4 (name : [uint 8]) (Body : Grammar ?a4) : Grammar ?a4 =
+new-midi.Chunk ?a0 (name : [uint 8]) (Body : Grammar ?a0) : Grammar ?a0 =
   do new-midi._ExactBlock [uint 8] 4 (@MatchBytes name)
-     ($$ : ?a4) <- do (_120 : uint 64) <- do (_119 : uint 32) <- new-midi.BE32
+     ($$ : ?a0) <- do (_120 : uint 64) <- do (_119 : uint 32) <- new-midi.BE32
                                              pure (_119 as uint 64)
-                      new-midi.ExactBlock ?a4 _120 Body
+                      new-midi.ExactBlock ?a0 _120 Body
      pure $$
  
 new-midi.Header : Grammar new-midi.Header =
@@ -358,9 +358,9 @@ new-midi.VarQ : Grammar (uint 64) =
   do (_126 : int) <- new-midi.VarQBuilder 0
      _126 AS uint 64
  
-new-midi.Delta ?a2 (E : Grammar ?a2) : Grammar (new-midi.Delta ?a2) =
+new-midi.Delta ?a0 (E : Grammar ?a0) : Grammar (new-midi.Delta ?a0) =
   do (after : uint 64) <- new-midi.VarQ
-     (event : ?a2) <- E
+     (event : ?a0) <- E
      pure {after = after,
            event = event}
  
@@ -602,11 +602,11 @@ new-midi._BE32 : Grammar {} =
   do new-midi._BE16
      new-midi._BE16
  
-new-midi._Chunk ?a4 (name : [uint 8]) (_Body : Grammar {}) : Grammar {} =
+new-midi._Chunk ?a0 (name : [uint 8]) (_Body : Grammar {}) : Grammar {} =
   do new-midi._ExactBlock [uint 8] 4 (@MatchBytes name)
      (_120 : uint 64) <- do (_119 : uint 32) <- new-midi.BE32
                             pure (_119 as uint 64)
-     new-midi._ExactBlock ?a4 _120 _Body
+     new-midi._ExactBlock ?a0 _120 _Body
  
 new-midi._Header : Grammar {} =
   new-midi._Chunk new-midi.Header "MThd" do do (_121 : uint 16) <- new-midi.BE16
@@ -627,7 +627,7 @@ new-midi._VarQ : Grammar {} =
   do (_126 : int) <- new-midi.VarQBuilder 0
      @(_126 AS uint 64)
  
-new-midi._Delta ?a2 (_E : Grammar {}) : Grammar {} =
+new-midi._Delta ?a0 (_E : Grammar {}) : Grammar {} =
   do new-midi._VarQ
      _E
  

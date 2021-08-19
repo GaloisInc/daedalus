@@ -9,22 +9,22 @@ type D008.Main0 = Choose { x: [uint 8]
  
 --- Rules:
  
-D008.Chunk ?a6 (P : Grammar ?a6) : Grammar ?a6 =
+D008.Chunk ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen 3 cur
      (next : Stream) <- StreamOff 3 cur
      SetStream this
-     ($$ : ?a6) <- P
+     ($$ : ?a0) <- P
      SetStream next
      pure $$
  
-D008.PadWSpaces ?a2 (P : Grammar ?a2) : Grammar ?a2 =
-  D008.Chunk ?a2 do ($$ : ?a2) <- P
+D008.PadWSpaces ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  D008.Chunk ?a0 do ($$ : ?a0) <- P
                     @Many[] @Match {' '}
                     END
                     pure $$
  
-D008._Chunk ?a6 (_P : Grammar {}) : Grammar {} =
+D008._Chunk ?a0 (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen 3 cur
      (next : Stream) <- StreamOff 3 cur
@@ -32,8 +32,8 @@ D008._Chunk ?a6 (_P : Grammar {}) : Grammar {} =
      _P
      SetStream next
  
-D008._PadWSpaces ?a2 (_P : Grammar {}) : Grammar {} =
-  D008._Chunk ?a2 do _P
+D008._PadWSpaces ?a0 (_P : Grammar {}) : Grammar {} =
+  D008._Chunk ?a0 do _P
                      @Many[] @Match {' '}
                      END
  

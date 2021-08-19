@@ -12,6 +12,11 @@
 
 namespace DDL {
 
+class Input;
+
+int compare(Input x, Input y);
+std::ostream& toJS(std::ostream& os, Input x);
+
 class Input : HasRefs {
   Array<UInt<8>> name;        // Name identifying the input (e.g , file name)
   Array<UInt<8>> bytes;       // Bytes for the whole input
@@ -46,7 +51,8 @@ public:
     {}
 
   void dumpInput() {
-    debug("[");   debugVal((void*) this);
+    debug("[");   debugVal((void*) name.borrowData());
+    debug(",");   debugVal((void*) bytes.borrowData());
     debug("] ("); debugVal(name.refCount());
     debug(",");   debugVal(bytes.refCount());
     debugLine(")\n");
@@ -137,6 +143,8 @@ public:
     if (x.last_offset > y.last_offset) return 1;
     return compare(x.name,y.name);
   }
+
+  char* borrowBytes() { return (char*) bytes.borrowData() + offset; }
 };
 
 

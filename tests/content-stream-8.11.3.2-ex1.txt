@@ -1,0 +1,6 @@
+/OC /oc1 BDC
+      BT /F1 1 Tf
+         12 0 0 12 100 600 Tm
+         (Hello) Tj
+      ET 
+EMC 

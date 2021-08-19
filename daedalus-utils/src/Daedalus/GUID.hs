@@ -56,7 +56,6 @@ runFreshIn :: HasGUID m => FreshM a -> m a
 runFreshIn = guidState . runFresh
 
 
-
 class Monad m => HasGUID m where
   guidState :: (GUID -> (a, GUID)) -> m a
 

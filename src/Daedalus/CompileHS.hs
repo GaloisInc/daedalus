@@ -288,14 +288,8 @@ hsTyDecl env me@TCTyDecl { .. } =
   where
   (cons, selInsts) = hsTyDeclDef env TCTyDecl { .. }
 
-  derivCtx c = [ case tvarKind p of
-                   KNumber -> "RTS.SizeType" `Ap` a
-                   KValue  -> c `Ap` a
-                   k       -> panic "hsTyDecl" ["Unexpected kind", show (pp k) ]
-               | p <- tctyParams, let a = hsTyVar p ]
-
   derive c = declare Deriving
-                      { deriveAsmps = derivCtx c
+                      { deriveAsmps = concatMap extraCtrs tctyParams
                       , deriveHead  = c `Ap` hsThisTy env me
                       }
 

@@ -1,6 +1,1 @@
-Stdlib.hs
-PdfValue.hs
-PdfDecl.hs
-PdfCrypto.hs
-PdfXRef.hs
-JpegBasics.hs
+spec/

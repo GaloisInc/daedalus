@@ -1,0 +1,35 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Daedalus",
+	"patterns": [
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.daedalus",
+				"match": "\\b(if|while|for|return)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.daedalus",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.daedalus",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.daedalus"
+}

@@ -564,7 +564,7 @@ printLLA aut lla cond =
             if
               ( cond dfa
                 -- (lookaheadDepth dfa < 10)
-                -- ||
+                --  ||
                 -- (fromJust $ flagHasFullResolution dfa)
               )
             then

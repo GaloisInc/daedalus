@@ -17,15 +17,18 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate,try,throwIO)
-import RTS.Numeric(intToSize)
-import RTS.Vector(vecFromRep,vecToString,vecToRep)
+import RTS.Numeric(intToSize, fromUInt)
+import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
 import RTS.Input
+
+import Data.Char(isDigit)
 
 import Common
 import PdfMonad
 import XRef
 import PdfParser
 import PdfDemo
+import PdfExtractText
 import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import Primitives.Decrypt(makeFileKey)
 
@@ -33,9 +36,19 @@ main :: IO ()
 main =
   pdfMain
   do opts <- getOptions
+     let inputFile = optPDFInput opts
+     let pw = BS.pack $ optPassword opts
      case optMode opts of
-       Demo  -> driver opts
-       FAW   -> fmtDriver fawFormat (optPDFInput opts) (BS.pack $ optPassword opts) 
+       Demo  ->
+         case optOps opts of
+           Validate -> driverValidate opts
+           ExtractText -> driverExtractText opts -- fmtDriver fmt inputFile pExtractCatalogText pw
+       FAW   ->
+         let fmt = fawFormat in
+         case optOps opts of
+           Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
+           ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
+
 
 
 data Format = Format
@@ -48,7 +61,7 @@ data Format = Format
   , rootMissing :: IO ()
   , rootFound   :: Ref -> IO ()
   , catalogParseError :: ParseError -> IO ()
-  , catalogOK   :: Bool -> IO ()
+  , catalogParsed :: String -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
   , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
@@ -71,11 +84,10 @@ fawFormat = Format
   , rootFound =
       \r -> putStrLn ("INFO: Root reference is " ++
                         showR (getField @"obj" r) (getField @"gen" r))
-  , catalogParseError =
-      \p -> putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
-  , catalogOK =
-      \ok -> putStrLn (if ok then "INFO: Catalog is OK."
-                             else "ERROR: Catalog is malformed.")
+  , catalogParseError = \p ->
+      putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
+  , catalogParsed = \ok ->
+      putStrLn ("INFO: Catalog value:\n" ++ ok)
   , declErr =
       \r l res ->
         let x = declResult res
@@ -102,9 +114,40 @@ fawFormat = Format
                 InObj {}   -> "@compresed"
 
 
+-- demoFormat: format for reporting output directly. Tries to preserve
+-- old implementation of driver.
+-- demoFormat::Options -> Format
+-- demoFormat opts =
+--   let optReport = runReport opts in
+--   let fileN = optPDFInput opts in
+--   let reportCritFile = \i d ->
+--         (fmap $ const ()) (reportCritical fileN i d) in
+--   let reportInfo = report RInfo fileN 0 in
+--   let reportErr = report RError fileN in Format
+--   { onStart = \_fp _bs -> return ()
+--     , xrefMissing = \s -> optReport $ reportCritFile
+--                           0 ("unable to find %%EOF" <+> parens (text s))
+--     , xrefFound = \r -> return ()
+--     , xrefBad = \err -> optReport $ reportCritFile
+--                         (peOffset err) (ppParserError err)
+--     , xrefOK = \idx m -> return ()
+--     , warnEncrypt = return ()
+--     , rootMissing = optReport $ reportCritFile
+--                     0 ("Missing document root")
+--     , rootFound = \r -> return ()
+--     , catalogParseError = \err -> optReport $ reportErr
+--       (peOffset err) (hang "Parsing Catalog/Page tree" 2 (ppParserError err))
+--     , catalogParsed = \isOk -> optReport $ reportInfo
+--       (text ("Catalog (page tree) result:\n" ++ isOk))
+--     , declErr = \res loc err -> return ()
+--     , declParsed = \res loc declRes -> return ()
+--   }
 
-fmtDriver :: DbgMode => Format -> FilePath -> BS.ByteString -> IO ()
-fmtDriver fmt file pwd =
+
+fmtDriver :: (DbgMode, Show a) => Format -> FilePath ->
+  (Ref -> Parser a) ->
+  BS.ByteString -> IO ()
+fmtDriver fmt file pageTreeParser pwd =
   do bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      onStart fmt file bs
@@ -129,9 +172,9 @@ fmtDriver fmt file pwd =
                Just r -> pure r
      rootFound fmt root
 
-     res <- runParser refs Nothing (pCatalogIsOK root) topInput
+     res <- runParser refs Nothing (pageTreeParser root) topInput
      case res of
-       ParseOk ok    -> catalogOK fmt ok
+       ParseOk r    -> catalogParsed fmt (show r)
        ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
        ParseErr e    -> catalogParseError fmt e
 
@@ -175,7 +218,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
                                        (toInteger (refGen ref))
             Nothing -> pError' FromUser []
                        ("XRef entry outside file: " ++ show off)
-        , False  
+        , False
         , fileEC (refObj ref, refGen ref)
         )
 
@@ -186,7 +229,7 @@ parseDecl fileEC topInput refMap (ref,loc) =
                                          (toInteger (refGen o))
                                          (intToSize idx)
         , True
-        , Nothing 
+        , Nothing
         )
 
 --------------------------------------------------------------------------------
@@ -207,8 +250,9 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
 
 
-driver :: DbgMode => Options -> IO ()
-driver opts = runReport opts $ 
+-- driver for Validate mode
+driverValidate :: DbgMode => Options -> IO ()
+driverValidate opts = runReport opts $
   do let file = optPDFInput opts
      bs   <- liftIO (BS.readFile file)
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
@@ -234,7 +278,7 @@ driver opts = runReport opts $
      res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
-       ParseOk False -> report RUnsafe file 0 "Catalog (page tree) contains cycles"
+       ParseOk False -> report RUnsafe file 0 "Malformed Catalog (page tree)"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
@@ -244,8 +288,58 @@ driver opts = runReport opts $
        Left err -> reportCritical file (peOffset err) (ppParserError err)
        Right fileEC -> parseObjs file fileEC topInput refs
 
+-- TODO: In principle, we could merge driverValidate and
+-- driverExtractText. One challenge is the type of pCatalogIsOk and
+-- pExtractCatalogText are different, therefore this should be
+-- revisited once the associated ddl grammars are not under active
+-- development.
 
-     
+-- driver for text extraction
+driverExtractText :: DbgMode => Options -> IO ()
+driverExtractText opts = runReport opts $
+  do let file = optPDFInput opts
+     bs   <- liftIO (BS.readFile file)
+     let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
+
+     idx  <- case findStartXRef bs of
+               Left err  -> reportCritical file 0
+                                            ("unable to find %%EOF" <+> parens (text err))
+               Right idx -> return idx
+
+     (refs, root, trail) <-
+            liftIO (parseXRefs topInput idx) >>= \res ->
+            case res of
+               ParseOk (r,t) -> case getField @"root" t of
+                                  Nothing ->
+                                    reportCritical file 0 "Missing document root"
+
+                                  Just ro -> pure (r,ro,t)
+               ParseAmbig _ ->
+                 reportCritical file 0 "Ambiguous results?"
+               ParseErr e ->
+                 reportCritical file (peOffset e) (ppParserError e)
+
+     res <- liftIO (runParser refs Nothing (pExtractCatalogText root) topInput)
+     case res of
+       ParseOk r ->
+         let aux x =
+               if all isDigit x
+               then read x :: Int
+               else 0
+         in
+         reportTextExtraction opts
+         -- (Text.decodeUtf8 $ BS.pack (map toEnum [ 226::Int, 130, 172]))
+         -- (Text.pack (map (toEnum . aux . show . fromUInt) (toList r))) -- latin
+         (Text.decodeUtf8 $ BS.pack (map (toEnum . aux . show . fromUInt) (toList r)))
+       ParseAmbig _  -> report RError file 0 "Ambiguous results?"
+       ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
+
+     let pwd = BS.pack (optPassword opts)
+     mb <- liftIO (try (makeEncContext trail refs topInput pwd))
+     case mb of
+       Left err -> reportCritical file (peOffset err) (ppParserError err)
+       Right fileEC -> parseObjs file fileEC topInput refs
+
 
 parseObjs ::
   DbgMode =>
@@ -302,31 +396,31 @@ handlePdfResult x msg =
         ParseErr e    -> throwIO e
 
 -- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
-makeEncContext :: Integral a => 
-                      TrailerDict  
-                  -> ObjIndex 
-                  -> Input 
-                  -> BS.ByteString 
+makeEncContext :: Integral a =>
+                      TrailerDict
+                  -> ObjIndex
+                  -> Input
+                  -> BS.ByteString
                   -> IO ((a, a) -> Maybe EncContext)
-makeEncContext trail refs topInput pwd = 
-  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
+makeEncContext trail refs topInput pwd =
+  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput)
                               "Ambiguous encryption dictionary"
-     case edict of 
-       MakeContext_noencryption _ -> pure $ const Nothing 
-       MakeContext_encryption enc -> do 
-        let encO = vecToRep $ getField @"encO" enc 
+     case edict of
+       MakeContext_noencryption _ -> pure $ const Nothing
+       MakeContext_encryption enc -> do
+        let encO = vecToRep $ getField @"encO" enc
             encP = fromIntegral $ getField @"encP" enc
-            id0 = vecToRep $ getField @"id0" enc 
+            id0 = vecToRep $ getField @"id0" enc
             filekey = makeFileKey pwd encO encP id0
-        pure $ \(ro, rg) -> 
-          Just EncContext { key  = filekey, 
-                            robj = fromIntegral ro, 
-                            rgen = fromIntegral rg, 
-                            ciph = chooseCipher $ getField @"ciph" enc  } 
+        pure $ \(ro, rg) ->
+          Just EncContext { key  = filekey,
+                            robj = fromIntegral ro,
+                            rgen = fromIntegral rg,
+                            ciph = chooseCipher $ getField @"ciph" enc  }
 
-chooseCipher :: ChooseCiph -> Cipher 
-chooseCipher enc = 
-  case enc of 
+chooseCipher :: ChooseCiph -> Cipher
+chooseCipher enc =
+  case enc of
     ChooseCiph_v2RC4 _ -> V2RC4
     ChooseCiph_v4RC4 _ -> V4RC4
     ChooseCiph_v4AES _ -> V4AES

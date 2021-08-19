@@ -1,0 +1,78 @@
+{
+    "name": "daedalus",
+    "displayName": "daedalus",
+    "description": "Language support for Daedalus",
+    "publisher": "galois",
+    "repository": {
+        "url": "https://github.com/GaloisInc/daedalus/tree/master/syntax-highlight/vscode-daedalus"
+    },
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.58.1"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "onLanguage:daedalus"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "Daedalus configuration",
+            "properties": {
+                "daedalus.language-server-path": {
+                    "type": "string",
+                    "default": "daedalus-language-server",
+                    "description": "Path to the Daedalus language server"
+                }
+            }
+        },
+        "languages": [
+            {
+                "id": "daedalus",
+                "aliases": [
+                    "Daedalus",
+                    "daedalus"
+                ],
+                "extensions": [
+                    ".ddl"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "daedalus",
+                "scopeName": "source.daedalus",
+                "path": "./syntaxes/daedalus.tmLanguage.json"
+            }
+        ]
+    },
+    "dependencies": {
+        "vscode-languageclient": "^7.0.0"
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "lint": "eslint src --ext ts",
+        "package": "vsce package",
+        "pretest": "npm run compile && npm run lint",
+        "test": "node ./out/test/runTest.js",
+        "vscode:prepublish": "npm run compile",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/glob": "^7.1.4",
+        "@types/mocha": "^9.0.0",
+        "@types/node": "16.x",
+        "@types/vscode": "^1.58.1",
+        "@typescript-eslint/eslint-plugin": "^4.29.0",
+        "@typescript-eslint/parser": "^4.29.0",
+        "eslint": "^7.32.0",
+        "glob": "^7.1.7",
+        "mocha": "^9.0.3",
+        "npm-check-updates": "^11.8.3",
+        "typescript": "^4.3.5",
+        "vscode-test": "^1.6.1"
+    }
+}

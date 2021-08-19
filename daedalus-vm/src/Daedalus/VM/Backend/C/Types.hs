@@ -48,7 +48,7 @@ cSizeType ty =
     Src.TSizeParam x -> cTParam x -- in types
 
 cTUser :: Src.UserType -> CType
-cTUser t = cTypeUse (cTName (Src.utName t))
+cTUser t = cTypeUse (cTNameUse GenPublic (Src.utName t))
                     (map cSizeType (Src.utNumArgs t))
                     (map cSemType (Src.utTyArgs t))
 

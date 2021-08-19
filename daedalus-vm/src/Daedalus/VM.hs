@@ -334,8 +334,11 @@ instance PP Program where
   pp p = vcat' (map pp (pEntries p) ++ map pp (pModules p))
 
 instance PP Entry where
-  pp entry = vcat' $ ".entry" <+> pp (entryLabel entry)
-                   :  map pp (Map.elems (entryBoot entry))
+  pp entry = vcat' [ ".parser" <+> pp (entryName entry)
+                   , nest 2 (vcat' $ ".entry" <+> pp (entryLabel entry)
+                                   :  map pp (Map.elems (entryBoot entry))
+                            )
+                   ]
 
 instance PP Module where
   pp m =

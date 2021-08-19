@@ -16,9 +16,9 @@ struct Closure {
   virtual ~Closure() {}
   virtual void freeMembers() = 0;
 
-  void free(bool shallow) {
+  void free() {
     if (ref_count == 1) {
-      if (!shallow) freeMembers();
+      freeMembers();
       delete this;
     } else {
       --ref_count;
@@ -43,7 +43,7 @@ public:
   ClosureRef(Closure *p) : ptr(p) {}    // never null
 
   void copy()         { ptr->copy(); }
-  void free()         { ptr->free(false); }
+  void free()         { ptr->free(); }
   Closure *getValue() { return ptr; }
 };
 
@@ -67,6 +67,7 @@ public:
 
   // own this
   // \(x:xs) -> xs
+  // we get an owned pointer to the closure.
   Closure *pop(ListStack& out) {
     ClosureRef x;
     List<ClosureRef> xs;
@@ -92,7 +93,7 @@ public:
   void copy() { data.copy(); }
 
   friend
-  std::ostream& operator<<(std::ostream& os, ListStack & x) {
+  std::ostream& operator<<(std::ostream& os, const ListStack & x) {
     os << "[stack]\n";
     List<ClosureRef> p = x.data;
     while (! p.isNull()) {

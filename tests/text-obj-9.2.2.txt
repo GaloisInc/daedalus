@@ -1,0 +1,5 @@
+BT
+/F13 12 Tf
+      288 720 Td
+      ( ABC ) Tj
+ET

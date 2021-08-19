@@ -60,8 +60,9 @@ P035._Main : Grammar {} =
      @MatchBytes "S"
      for ((r : {}) = {}; (x : P035.A) in t)
        (P035._F " F" (x.a) (x.b))
-     map ((x : P035.A) in t)
-       (P035.F " M" (x.a) (x.b))
+     do map ((x : P035.A) in t)
+          (P035.F " M" (x.a) (x.b))
+        pure {}
      @MatchBytes " S"
      @MatchBytes "ba"
      END

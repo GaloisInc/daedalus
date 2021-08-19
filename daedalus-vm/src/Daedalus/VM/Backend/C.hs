@@ -52,12 +52,15 @@ cProgram fileNameRoot prog =
           , " "
           , includes
           , " "
-          , vcat' (map cTypeGroup allTypes)
+          , let (ds,defs) = unzip (map cTypeGroup allTypes)
+            in vcat' (ds ++ defs)
           , " "
+          , "// --- Parsing Functions ---"
           , "namespace DDL { namespace ResultOf {"
           ] ++ map declareParserResult (pEntries prog) ++
           [ "}}" ] ++
           [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
+          primSigs ++
           [ ""
           , "#endif"
           ]
@@ -66,11 +69,23 @@ cProgram fileNameRoot prog =
     cStmt ("using" <+> nm <+> "=" <+> cSemType (entryType ent))
     where nm = ptext (Text.unpack (entryName ent)) -- Not escaped!
 
+  (prims,noPrims) = flip partition noCapFun \fun ->
+                    case vmfDef fun of
+                      VMExtern {} -> True
+                      VMDef {}    -> False
+
+  primSigs = case prims of
+               [] -> []
+               _  -> " "
+                   : "// --- External Primitives ---"
+                   : map cFunSig prims
+
+
   cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
 
-               map cFunSig noCapFun ++
+               map cFunSig noPrims ++
                (let ?allFuns = allFunMap in mapMaybe cFun noCapFun) ++
 
                [ parserSig <+> "{"
@@ -283,6 +298,8 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                   RetPure -> empty
                   RetNo NoCapture -> empty
                   RetYes NoCapture -> empty
+
+                  -- Return with capture: manual stack manipulation
                   bty ->
                     let rn = extraArgs (ReturnBlock bty)
                         (ras,cas) = splitAt rn (blockArgs b)
@@ -302,7 +319,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                       [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                       | (v,n) <- cas `zip` [ 0 .. ]
                       ] ++
-                      [ cStmt (cCall "clo->free" ["true"]) ]
+                      [ cStmt (cCall "clo->free" []) ]
 
 
 
@@ -317,7 +334,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
                     : [ cStmt (cCall ("clo->get" <.> cField n) [ cArgUse b v ])
                       | (v,n) <- xs `zip` [ 0 .. ]
                       ]
-                   ++ [ cStmt (cCall "clo->free" ["true"]) ]
+                   ++ [ cStmt (cCall "clo->free" []) ]
 
                 | otherwise -> panic "getArgs" ["Thread block in no-capture?"]
 
@@ -564,12 +581,13 @@ cOp2 x op2 ~[e1',e2'] =
 cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
 cOp3 x op es =
   case op of
-    Src.RangeUp     -> todo
-    Src.RangeDown   -> todo
+    Src.RangeUp   -> range "rangeUp"
+    Src.RangeDown -> range "rangeDown"
     Src.MapInsert -> cVarDecl x (cCallMethod e1 "insert" [ e2, e3 ])
   where
-  todo = "/* todo: op 3 " <+> pp op <+> "*/"
+  range m = cVarDecl x (cCall (ty <.> "::" <.> m) [ e1, e2, e3 ])
   [e1,e2,e3] = map cExpr es
+  ty = cType (getType x)
 
 
 
@@ -623,7 +641,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ cAssign "err.offset" "p.getFailOffset()", "return;" ]
+          [ cAssign "err.offset" "p.finalYield()", "return;" ]
       ]
 
     ReturnNo ->

@@ -10,6 +10,7 @@ import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.Text(Text)
 import qualified Data.Kind as HS
+import Data.Function (on)
 
 import Data.Type.Equality
 import Data.Parameterized.Classes (OrdF(..)) 
@@ -21,6 +22,7 @@ import Daedalus.SourceRange
 import Daedalus.Rec
 import Daedalus.GUID
 import Daedalus.Panic
+
 
 data Name = forall ctx.
   Name { nameScopedIdent :: ScopedIdent
@@ -338,6 +340,9 @@ data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
                          } deriving (Show, Functor, Foldable, Traversable)
 
+instance Eq a => Eq (Located a) where
+  (==) = (==) `on` thingValue
+
 
 data TypeF t =
     TGrammar !t
@@ -355,7 +360,8 @@ data TypeF t =
   | TMap   !t !t
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
-data SrcType = SrcVar Name
+data SrcType = SrcVar (Located Text)
+             | SrcCon Name
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
@@ -373,6 +379,7 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
+      SrcCon x -> range x
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -507,6 +514,7 @@ instance OrdF Context where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
+                  SrcCon x -> ppPrec n x
                   SrcType l -> ppPrec n (thingValue l)
 
 

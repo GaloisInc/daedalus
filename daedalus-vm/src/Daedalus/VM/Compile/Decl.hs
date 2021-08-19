@@ -38,13 +38,14 @@ compileEntry entry pe =
   Entry { entryLabel = l
         , entryBoot  = Map.adjust addArgs l b
         , entryType  = Src.fnameType entry
-        , entryName  = Text.pack ("parse" ++ show (pp entry))
+        , entryName  = entName
         }
   where
+  entName = Text.pack ("parse" ++ show (pp entry))
+
   addArgs bl = bl { blockArgs = [inpArg] }
   (l,b) =
-    runC "__" (Src.typeOf pe) $
-    -- XXX: get input from somewhere
+    runC entName (Src.typeOf pe) $
     do code <- compile pe
                   Next { onNo  = Just
                                  do stmt_ $ Say "Branch failed, resuming"

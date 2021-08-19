@@ -1,0 +1,55 @@
+Test2                             ╮  ╮   ╮ ╮╮ ╮
+Test1                             │  │   │╮│╮ │
+PdfText                           │  │   │╮│╮ │
+↳ ISOCodes                        │  │   ││││ │
+PdfExtractText  ╮╮╮╮  ╮           │  ╮  ╮╮╮│╮ │
+PdfDeclStubs    ││││  │           │  │  ││││╮ │
+PdfCos          ││││  │           │  │  │││││ │
+↳ PdfCrypto     ││││  │           │  │  ╮│╮││ │
+↳ ↳ PdfXRef     ╯│││  │           │  │  ╮│╮│╮ │
+MyTest_crs       │││  │           │╮ │  │││││ │
+MyTest_cmap-sf   │││  │           │╮ │  ││╮││ │
+MyTest_cmap-cid  │││  │           │╮ │  ││╮││ │
+Harness          ││╮╮╮╮ ╮ ╮╮  ╮   ││ │ ╮│╮╮│╮ │
+↳ PageTreeNode   ╯│╮││╮ ╮ │╮  │ ╮ │╮╮╮ │╮╮╮╮╮ ╮
+↳ ↳ Page          ╯╮││╮ ╮ ││  │ │ ││╮│ │╮╮╮╮╮ ╮
+GlyphListNewFonts  ││││ │ ││  │ │ ╮││╮ ││╮│╮╮ │
+ContentStreamLight ╯│││ │ ││  │ │ ││╮╮ ││╮╮│╮ ╮
+↳ TextObj           ╯││ │ ││  │ │ ││╮╮ ││╮╮│╮╮╮
+↳ ↳ TextStateOp      ╮│ ╮ ││  │ │ ││││ ││╮╮│╮││
+↳ ↳ TextShowOp       ╮│ │ ││  │ │ │││╮ ││╮╮│╮││
+  ↳ TextPosOp        ││ │ ││  │ │ │││╮ ││╮╮│╮││
+↳ ↳ ↳ TextEffect     ╯│ ╮╮╮╮  │╮│╮╮╮│╮╮│││╮╮╮││
+      ↳ GlyphList     │ ││││  ││││╮││╮│││╮│╮╮││
+↳ ↳ ResourceDict      ╯ ╮││╮  │╮││││╮│││╮╮╮╮╮│╮
+↳ ↳ MarkedContentOps    ││││  ││││││││││││╮││││
+↳ ↳ GraphicsStateOps    ││││  │││││││││││╮╮││││
+↳ ↳ FontDict            ╯│││  │││││╮││╮│││╮│╮│╮
+  ↳ ↳ Type3Font          ╯││  ╮╮│││╮│││╮╮╮╮││││
+      ↳ Rectangle         ││  ││││││││││││╮│╮││
+    ↳ Type0Font           ╯│  ╮││││╮╮│╮╮╮╮╮╮╮│╮
+    ↳ TrueTypeFont         │  │││││││││││╮╮│╮││
+  ↳ ↳ ↳ Type1Font          ╯  │││││╮╮││╮╮╮╮╮╮│╮
+        ↳ ZapfDingbatsEncoding││││╮││││││││╮╮││
+        ↳ SymbolEncoding      ││││╮││││││││╮╮││
+      ↳ ↳ FontCommon          ╯││││╮│││╮╮╮╮│╮││
+  ↳ ↳   ↳ Encoding             ╯││││││││╮╮╮╮╮││
+        ↳ ↳ Maybe               ╯││││││││││││││
+          ↳ WinEncoding          │╮││││││││╮╮││
+        ↳ ↳ StdEncoding          ╯╮││││││││╮╮││
+          ↳ MacEncoding           │││││││││╮╮││
+        ↳ ↳ ↳ Glyph               ╯││││││││││││
+↳ ↳ ColourSpaceOps                 │││││││╮││││
+CMap                               ╯││││╮╮╮╮╮╮╮
+↳ Array                             ╯││││││││││
+↳ Unicode                            ╯││││││╮││
+CIDFont                               ╯││││││││
+↳ FontDesc                             ╯│││││││
+↳ ↳ PdfDecl                             ╯││││││
+    ↳ JpegBasics                         ││││││
+↳ ↳ ↳ GenPdfValue                        ╯│││││
+↳ ↳ ↳ ↳ PdfValue                          ╯│╮││
+      ↳ Map                                ╯│││
+↳ ↳ ↳ ↳ ↳ Stdlib                            ╯││
+          ↳ Sum                              ╯│
+  ↳   ↳ ↳ ↳ Pair                              ╯

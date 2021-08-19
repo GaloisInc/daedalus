@@ -11,7 +11,7 @@ type T043.Main = { y: [uint 8]
  
 --- Rules:
  
-T043.P ?a2 ?a4 (Q : Grammar ?a4) (R : Grammar ?a2) : Grammar ?a2 =
+T043.P ?a0 ?a1 (Q : Grammar ?a1) (R : Grammar ?a0) : Grammar ?a0 =
   R
  
 T043.Main : Grammar T043.Main =
@@ -19,7 +19,7 @@ T043.Main : Grammar T043.Main =
                                  pure {x = x} do (y : [uint 8]) <- MatchBytes "A"
                                                  pure {y = y}
  
-T043._P ?a2 ?a4 (_R : Grammar {}) : Grammar {} =
+T043._P ?a0 ?a1 (_R : Grammar {}) : Grammar {} =
   _R
  
 T043._Main : Grammar {} =

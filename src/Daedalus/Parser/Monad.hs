@@ -2,7 +2,7 @@
 module Daedalus.Parser.Monad
   ( Parser
   , ParseError(..)
-  , runParser
+  , runParser, runParserOnTokens
   , happyError, parseError
   , nextToken
   , currentLoc
@@ -56,6 +56,27 @@ runParser (Parser m) f txt =
                 , sourceFile   = f
                 }
 
+-- | Apply the given parser to some input.
+runParserOnTokens :: Parser a -> Text {- Input name -} -> [Lexeme Token] -> Either ParseError a
+runParserOnTokens (Parser m) f toks =
+  case m i of
+    Left err -> Left err
+    Right (a,j) ->
+      case inputTokens j of
+        []    -> Right a
+        t : _ -> Left ParseError { errorLoc = sourceFrom (lexemeRange t)
+                                 , errorMsg = "Unconsumed input."
+                                 }
+
+  where
+  i = Input { inputTokens    = toks
+            , inputLastToken = SourceRange { sourceFrom = p, sourceTo = p }
+            }
+  p = SourcePos { sourceIndex  = 0
+                , sourceLine   = 1
+                , sourceColumn = 1
+                , sourceFile   = f
+                }
 
 -- | Used by Happy when none of its rules match.
 happyError :: Parser a
