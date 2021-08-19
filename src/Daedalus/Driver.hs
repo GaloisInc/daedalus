@@ -42,6 +42,7 @@ module Daedalus.Driver
   , passInline
   , passStripFail
   , passSpecTys
+  , passConstFold
   , passVM
   , ddlRunPass
 
@@ -115,6 +116,7 @@ import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
+import qualified Daedalus.Core.ConstFold as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -755,6 +757,17 @@ passSpecTys m =
             ddlUpdate_ \s ->
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
        _ -> panic "passSpecTys" ["Module is not in Core form"]
+
+passConstFold :: ModuleName -> Daedalus ()
+passConstFold m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do i <- ddlRunPass (Core.constFold ast)
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passConstFold" ["Module is not in Core form"]
+
 
 -- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
