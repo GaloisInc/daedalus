@@ -388,22 +388,45 @@ printDFAtoGraphviz llaState dfa =
               in
               translateRegistry it2 (showGraphvizSlkCfg cst_DEMO_MODE cfg : acc)
 
+
 data DDA = DDA
   { startDDA :: DFAState
-  , transitionDDA :: (Result Closure.DataDepInstr)
+  , transitionDDA :: (Closure.DataDepInstr, [LinDFAState])
+  , mappingLinToDFAStateDDA :: Map.Map LinDFAState DFAState
   }
+
+mkDDA :: DFAState -> Closure.DataDepInstr -> DDA
+mkDDA q instr =
+  case instr of
+    Closure.DDManyBetween _lst scfg1 scfg2 ->
+      let
+        cfg1 = mkDFAStateFromSlkCfg scfg1
+        cfg2 = mkDFAStateFromSlkCfg scfg2
+        qLin1 = initLinDFAState
+        qLin2 = nextLinDFAState initLinDFAState
+        m = Map.insert qLin2 cfg2 (Map.insert qLin1 cfg1 Map.empty)
+      in
+      DDA
+      { startDDA = q
+      , transitionDDA = (instr, [qLin1, qLin2])
+      , mappingLinToDFAStateDDA = m
+      }
+    Closure.DDSetStream _ scfg1 ->
+      let
+        cfg1 = mkDFAStateFromSlkCfg scfg1
+        qLin1 = initLinDFAState
+        m = Map.insert qLin1 cfg1 Map.empty
+      in
+      DDA
+      { startDDA = q
+      , transitionDDA = (instr, [qLin1])
+      , mappingLinToDFAStateDDA = m
+      }
 
 getFinalStatesDDA :: DDA -> [DFAState]
 getFinalStatesDDA dda =
-  case transitionDDA dda of
-    Result (Closure.DDManyBetween _ cfg1 cfg2) ->
-      [ mkDFAStateFromSlkCfg cfg1
-      , mkDFAStateFromSlkCfg cfg2
-      ]
-    Result (Closure.DDStreamSet cfg1) ->
-      [ mkDFAStateFromSlkCfg cfg1
-      ]
-    Abort _ -> []
+  let (_, lst) = transitionDDA dda in
+  map (\ x -> fromJust $ Map.lookup x (mappingLinToDFAStateDDA dda)) lst
 
 
 lookaheadDepth :: DFA -> Int
@@ -520,20 +543,20 @@ createAbortDFA qInit r =
 createDFA ::
   Aut a =>
   a -> DFAState ->
-  HTable -> Either (DFA, HTable) (DDA, HTable)
+  HTable -> (Either DFA DDA, HTable)
 createDFA aut qInit tab =
-  let idfa = initDFA qInit in
   -- It starts attempting `closureDataDependentOnDFAState` and if not
   -- successful then it attempts the determinization with `detSubset`
   let c = closureDataDependentOnDFAState aut qInit tab in
   case c of
     (Result (Just t), tab2) ->
-      Right (DDA { startDDA = qInit, transitionDDA = Result t}, tab2)
+      (Right (mkDDA qInit t), tab2)
     (_, _) ->
+      let idfa = initDFA qInit in
       let (dfa, tab2) = go [(startLinDFAState idfa, 0)] [] idfa tab in
       let dfa1 = computeHasFullResolution dfa in
       let dfa2 = computeHasNoAbort dfa1 in
-      Left (dfa2, tab2)
+      (Left dfa2, tab2)
   where
     go ::
       [ (LinDFAState, Int) ] -> [ (LinDFAState, Int) ] -> DFA ->
@@ -561,18 +584,18 @@ createDFA aut qInit tab =
                     else insertDFA q (Abort AbortDFAOverflowNbStates) dfa
                 in go rest accToVisit newDfa localTab
               else
-                let (choices, tab1) =
-                      detSubset qDFA localTab in
+                let (choices, tab1) = detSubset qDFA localTab in
                 let newDfa = insertDFA q choices dfa in
                 let allocatedChoice = fromJust $ lookupLinDFAState q newDfa
                 in
-                  case allocatedChoice of
-                    Result (DFATransition am r1 _) ->
-                      let
-                        newToVisit = if am /= Ambiguous then collectVisit (depth+1) r1 else []
-                        newAccToVisit = revAppend newToVisit accToVisit
-                      in go rest newAccToVisit newDfa tab1
-                    _ -> go rest accToVisit newDfa tab1
+                case allocatedChoice of
+                  Result (DFATransition am r1 _) ->
+                    let
+                      newToVisit =
+                        if am /= Ambiguous then collectVisit (depth+1) r1 else []
+                      newAccToVisit = revAppend newToVisit accToVisit
+                    in go rest newAccToVisit newDfa tab1
+                  _ -> go rest accToVisit newDfa tab1
             Just _ -> -- trace ("********FOUND*****" ++ "\n" ++ show q) $
               go rest accToVisit dfa localTab
 
@@ -695,10 +718,7 @@ computeHasNoAbort dfa =
             DunnoAmbiguous -> traverseWithVisited visited q && helper visited rest
 
 computeHasFullResolutionDDA :: DDA -> Bool
-computeHasFullResolutionDDA dda =
-  case transitionDDA dda of
-    Result _ -> True
-    _ -> False
+computeHasFullResolutionDDA _dda = True
 
 extractAmbiguity :: DFA -> Maybe ([InputHeadCondition], [DFAEntry])
 extractAmbiguity dfa =

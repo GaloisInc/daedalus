@@ -26,7 +26,7 @@ import System.IO
 
 import qualified RTS.Input as Input
 
-import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction)
+import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction, isBoundSetup)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)
 
 import Daedalus.ParserGen.LL.Result
@@ -107,7 +107,7 @@ lookupSynthArray q lla =
 lookupLLAFromState ::
   State ->
   LLA ->
-  Maybe (Either (DFA, MapFinalToLLAState) DDA)
+  Maybe (Either DFA DDA, MapFinalToLLAState)
 lookupLLAFromState q lla =
   let mSynth = lookupSynthArray q lla
   in
@@ -115,30 +115,25 @@ lookupLLAFromState q lla =
     Nothing -> Nothing
     Just sq ->
       let t = fromJust $ Map.lookup sq (transitionLLA lla)
+          finalMapping = fromJust $ Map.lookup sq (mappingFinalToLLAState lla)
       in
       case t of
         Left dfa ->
-          Just $ Left
-          ( dfa
-          , fromJust $ Map.lookup sq (mappingFinalToLLAState lla)
-          )
+          Just (Left dfa, finalMapping)
         Right dda ->
-          Just $ Right dda
+          Just (Right dda, finalMapping)
 
 
 lookupLLAFromLLAState ::
   LLAState ->
   LLA ->
-  Either (DFA, MapFinalToLLAState) DDA
+  (Either DFA DDA, MapFinalToLLAState)
 lookupLLAFromLLAState q lla =
   let
     t = fromJust $ Map.lookup q (transitionLLA lla)
+    finalMapping = fromJust $ Map.lookup q (mappingFinalToLLAState lla)
   in
-  case t of
-    Left dfa ->
-      let finalMapping = fromJust $ Map.lookup q (mappingFinalToLLAState lla)
-      in Left (dfa, finalMapping)
-    Right dda -> Right dda
+  (t, finalMapping)
 
 
 memberLLA :: DFAState -> LLA -> Bool
@@ -169,24 +164,21 @@ insertLLA q ddfa =
   where
     allocFinalAndTransition :: LLAState -> LLA -> LLA
     allocFinalAndTransition qLLA lla =
-      case ddfa of
-        Left dfa ->
-          let finalStates = finalLinDFAState dfa in
-          let
-            (finalMapping, lla1) =
-              allocFinal (Set.toList finalStates) dfa (Map.empty, lla)
-          in
-          lla1
-          { transitionLLA = Map.insert qLLA ddfa (transitionLLA lla)
-          , mappingFinalToLLAState =
-              Map.insert qLLA finalMapping (mappingFinalToLLAState lla)
-          }
-        Right dda ->
-          let finalStates = getFinalStatesDDA dda in
-          let lla1 = allocFinalDDA finalStates lla in
-          lla1
-          { transitionLLA = Map.insert qLLA ddfa (transitionLLA lla1)
-          }
+      let
+        finalStates =
+          case ddfa of
+            Left dfa -> Set.toList (finalLinDFAState dfa)
+            Right (DDA{ transitionDDA = (_, lstLinDFAState)}) -> lstLinDFAState
+      in
+      let
+        (finalMapping, lla1) =
+          allocFinal finalStates (Map.empty, lla)
+      in
+      lla1
+      { transitionLLA = Map.insert qLLA ddfa (transitionLLA lla)
+      , mappingFinalToLLAState =
+          Map.insert qLLA finalMapping (mappingFinalToLLAState lla)
+      }
 
     addDFAStateToMappings qDFA lla1 =
       -- Membership tested here bc function used at top level and by
@@ -217,14 +209,18 @@ insertLLA q ddfa =
     -- `LLAState`
     allocFinal ::
       [LinDFAState] ->
-      DFA ->
       (MapFinalToLLAState, LLA) ->
       (MapFinalToLLAState, LLA)
-    allocFinal lst dfa (finalMapping, lla) =
+    allocFinal lst (finalMapping, lla) =
       case lst of
         [] -> (finalMapping, lla)
         qLinDFA : qs ->
-          let qDFA = fromJust $ Map.lookup qLinDFA (mappingLinToDFAState dfa) in
+          let
+            qDFA =
+              case ddfa of
+                Left dfa -> fromJust $ Map.lookup qLinDFA (mappingLinToDFAState dfa)
+                Right dda -> fromJust $ Map.lookup qLinDFA (mappingLinToDFAStateDDA dda)
+          in
           let newLla = addDFAStateToMappings qDFA lla in
           let
             newFinalMapping =
@@ -233,19 +229,7 @@ insertLLA q ddfa =
                   fromJust $ Map.lookup qDFA (mappingDFAStateToLLAState newLla)
               in
               Map.insert qLinDFA qLLA finalMapping
-          in allocFinal qs dfa (newFinalMapping, newLla)
-
-
-    allocFinalDDA ::
-      [DFAState] ->
-      LLA ->
-      LLA
-    allocFinalDDA lst lla =
-      case lst of
-        [] -> lla
-        qDFA : qs ->
-          let newLla = addDFAStateToMappings qDFA lla
-          in allocFinalDDA qs newLla
+          in allocFinal qs (newFinalMapping, newLla)
 
 
 type Prediction = ChoiceSeq
@@ -359,24 +343,27 @@ predictLL ::
   Either State LLAState ->
   LLA ->
   Input.Input ->
-  Maybe (Either (Prediction, Maybe LLAState) DDA)
+  Maybe (Either (Prediction, Maybe LLAState) (DataDepInstr, [LLAState]))
 predictLL qq lla inp =
   case qq of
     Left q ->
       let r = lookupLLAFromState q lla in
       case r of
         Nothing -> Nothing
-        Just (Left (dfa, finalMapping)) ->
+        Just (Left dfa, finalMapping) ->
           predictFromPDXA dfa finalMapping
-        Just (Right dda) ->
-          Just (Right dda)
+        Just (Right dda, finalMapping) ->
+          case transitionDDA dda of
+            (instr, lst) -> Just $ Right (instr, map (\x -> fromJust $ Map.lookup x finalMapping) lst)
     Right qLLA ->
       let r = lookupLLAFromLLAState qLLA lla in
       case r of
-        Left (dfa, finalMapping) ->
+        (Left dfa, finalMapping) ->
           predictFromPDXA dfa finalMapping
-        Right dda ->
-          Just $ Right dda
+        (Right dda, finalMapping) ->
+          case transitionDDA dda of
+            (instr, lst) -> Just $ Right (instr, map (\x -> fromJust $ Map.lookup x finalMapping) lst)
+
 
   where
     predictFromPDXA dfa finalMapping =
@@ -478,16 +465,22 @@ buildPipelineLLA aut =
       case ch of
         UniChoice (act, q2) -> collectOnSingleTransition (act, q2)
         ParChoice lst -> helper lst
-        SeqChoice lst _ -> helper lst
+        SeqChoice lst _ ->
+          -- helper lst
+          Set.union (Set.singleton q1) (helper lst)
 
       where
         collectOnSingleTransition (act, q2) =
           if isInputAction act
           then Set.singleton q2
           else
-            if isActivateFrameAction act
-            then Set.singleton q1
-            else Set.empty
+          (if isActivateFrameAction act
+          then Set.singleton q1
+          else
+          if isBoundSetup act
+          then Set.singleton q1
+          else Set.empty
+          )
 
     go ::
       [DFAState] -> [DFAState] -> LLA ->
@@ -511,7 +504,7 @@ buildPipelineLLA aut =
           else
             let r = createDFA aut q tab in
             case r of
-              Left (dfa, tab1) ->
+              (Left dfa, tab1) ->
                 let
                   newlla = insertLLA q (Left dfa) lla
                   newNextRound =
@@ -519,7 +512,7 @@ buildPipelineLLA aut =
                     revAppend finalStates nextRound
                 in
                 go qs newNextRound newlla tab1
-              Right (dda, tab1) ->
+              (Right dda, tab1) ->
                 let
                   newlla = insertLLA q (Right dda) lla
                   newNextRound =

@@ -6,11 +6,13 @@ module Daedalus.ParserGen.LL
   , llaToGraphviz
   , statsLLA
   , LLA(..)
+  , DataDepInstr(..)
   , Prediction
   , LLAState
   , destrPrediction
   , predictLL
   , ChoiceTag(..)
+  , ChoicePos
   )
 where
 
