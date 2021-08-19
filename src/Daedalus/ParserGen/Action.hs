@@ -17,6 +17,7 @@ module Daedalus.ParserGen.Action
   , isUnhandledInputAction
   , isUnhandledAction
   , isPushAction
+  , isBoundSetup
   , getMatchBytes
   , getClassActOrEnd
   , isEmptyControlData
@@ -260,6 +261,12 @@ isPushAction :: Action -> Bool
 isPushAction act =
   case act of
     CAct (Push _ _ _) -> True
+    _ -> False
+
+isBoundSetup :: Action -> Bool
+isBoundSetup act =
+  case act of
+    CAct (BoundSetup _) -> True
     _ -> False
 
 getClassActOrEnd :: Action -> Either (Either NCExpr InputAction) InputAction

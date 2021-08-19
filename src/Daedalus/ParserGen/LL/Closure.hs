@@ -186,7 +186,7 @@ type ClosureMoveSet = [ClosureMove]
 
 data DataDepInstr =
     DDManyBetween ChoiceSeq Slk.SlkCfg Slk.SlkCfg
-  | DDStreamSet Slk.SlkCfg
+  | DDSetStream ChoiceSeq Slk.SlkCfg
   deriving (Show)
 
 -- This a non-deterministic closure path.
@@ -247,6 +247,7 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
                 _ -> error "should not happen"
 
             else
+              -- trace ("NOTManyExact " ++ show ch1) $
               (Result Nothing, tab)
           Aut.SeqChoice _ _ ->
             (Result Nothing, tab)
@@ -274,7 +275,7 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
           (Abort AbortClosureOverflowMaxDepth, tab)
       | Slk.isStreamSetDynamic act cfg =
           let (newCfg, newTab) = Slk.simulateDynamicStreamSet act q2 cfg tab in
-          (Result $ Just $ DDStreamSet newCfg, newTab)
+          (Result $ Just $ DDSetStream alts newCfg, newTab)
       | otherwise =
           case Slk.simulateActionSlkCfg aut act q2 cfg tab of
             Abort AbortSlkCfgExecution -> (Abort AbortSlkCfgExecution, tab)

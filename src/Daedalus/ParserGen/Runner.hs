@@ -299,19 +299,20 @@ runner s aut =
             -- trace (show cfg) $
             -- trace ("576: " ++ show (stateToString 576 aut)) $
             -- trace ("516: " ++ show (stateToString 516 aut)) $
-            let localTransitions = nextTransition aut q
-            in case localTransitions of
-                 Nothing ->
-                   if isAcceptingCfg cfg aut
-                   then
-                     let newResult = addResult cfg result
-                     in backtrack resumption newResult
-                   else
-                     let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q)) in
-                       choose newResumption result
-                 Just ch ->
-                   let newResumption = addResumption resumption cfg ch in
-                     choose newResumption result
+            let localTransitions = nextTransition aut q in
+            case localTransitions of
+              Nothing ->
+                if isAcceptingCfg cfg aut
+                then
+                  let newResult = addResult cfg result
+                  in backtrack resumption newResult
+                else
+                  let ch = (UniChoice (CAct Pop, q)) in
+                  let newResumption = addResumption resumption cfg ch in
+                  choose newResumption result
+              Just ch ->
+                let newResumption = addResumption resumption cfg ch
+                in choose newResumption result
 
       choose :: Resumption -> Result -> Result
       choose resumption result =
@@ -361,134 +362,200 @@ runner s aut =
 
 -- This runner is using both the NFA and the DFA to parse.
 runnerLL :: Aut a => BS.ByteString -> a -> LLA -> Bool -> Result
-runnerLL s aut laut flagMetrics =
+runnerLL s aut lla flagMetrics =
   let
-      gbl :: PAST.GblFuns
-      gbl = gblFunsAut aut
+    gbl :: PAST.GblFuns
+    gbl = gblFunsAut aut
 
-      react :: Cfg -> Maybe LL.LLAState -> Resumption -> Result -> Result
-      react cfg@(Cfg inp _ctrl _out q) mq resumption result =
-        -- trace "REACT" $
-        -- trace (show (_getCommitStack resumption)) $
-        -- trace (showCfg cfg) $
-        let pq = case mq of
-                   Nothing -> Left q
-                   Just qLLA -> Right qLLA in
-        let
-          mpdx = LL.predictLL pq laut inp
-        in
-        case mpdx of
-          Just (Left (pdxs, finalState)) ->
-            -- trace (show pdxs) $
-            -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
-            -- trace "BEFORE" $
-            -- trace (showCfg cfg) $
-            applyPredictions pdxs finalState cfg resumption result
-          _ ->
-            let localTransitions = nextTransition aut q in
-            case localTransitions of
-              Nothing -> {-# SCC backtrackSetStep #-}
-                if isAcceptingCfg cfg aut
-                then
-                  let newResult = addResult cfg result
-                  in backtrack resumption newResult
-                else
-                  let newResumption = addResumption resumption cfg (UniChoice (CAct Pop, q))
-                  in choose newResumption result
-              Just ch ->
-                let newResumption = addResumption resumption cfg ch
-                in choose newResumption result
+    react :: Cfg -> Maybe LL.LLAState -> Resumption -> Result -> Result
+    react cfg@(Cfg inp _ctrl _out q) mq resumption result =
+      -- trace "REACT" $
+      -- trace (show (_getCommitStack resumption)) $
+      -- trace (showCfg cfg) $
+      let pq = case mq of
+                 Nothing -> Left q
+                 Just qLLA -> Right qLLA in
+      let mpdx = LL.predictLL pq lla inp in
+      case mpdx of
+        Just (Left (pdxs, finalState)) ->
+          -- trace (show pdxs) $
+          -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
+          -- trace "BEFORE" $
+          -- trace (showCfg cfg) $
+          applyPredictions pdxs finalState cfg resumption result
+        Just (Right (ddInstr, finalStates)) ->
+          case ddInstr of
+            LL.DDManyBetween l _ _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
+            LL.DDSetStream l _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
 
-      applyPredictions :: LL.Prediction -> Maybe LL.LLAState -> Cfg -> Resumption -> Result -> Result
-      applyPredictions prdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
-        -- trace "applyPredictions" $
-        let result = incrResultMetrics tickLL rslt flagMetrics in
-        case LL.destrPrediction prdx of
-          Nothing ->
-            -- trace "AFTER" $ trace (showCfg cfg) $
-            react cfg finalState resumption result
-          Just (alt, alts) ->
-            let tr = nextTransition aut q
-                (branching, (act, q2), g1) = case (tr, alt) of
-                              (Nothing, (CPop, _)) -> (CPop, (CAct Pop, q), -1)
-                              (Just (UniChoice (a, q1)), (CUni, _)) -> (CUni, (a, q1), -1)
-                              (Just (SeqChoice lst g), (CSeq, i)) -> (CSeq, (lst !! i), g)
-                              (Just (ParChoice lst), (CPar, i)) -> (CPar, lst !! i, -1)
-                              _ -> error "impossible combination"
-                newResumption =
-                  let
-                    predChoice =
-                      case branching of
-                        CPop -> UniChoice (act, q2)
-                        CUni -> UniChoice (act, q2)
-                        CSeq -> SeqChoice [(act, q2)] g1
-                        CPar -> ParChoice [(act, q2)]
-                  in
-                    addResumption resumption cfg predChoice
-            in
-               -- trace (show act) $
-               case act of
-                 BAct bact ->
-                   case bact of
-                     (CutBiasAlt g) ->
-                       -- trace ("**********CUT_PRED:" ++ show (stateToString g aut)) $
-                       let updResumption = updateCommitResumption g newResumption
-                           newCfg = Cfg inp ctrl out q2
-                       in applyPredictions alts finalState newCfg updResumption result
-                     _ -> undefined
-                 _ ->
-                   case applyAction gbl (inp, ctrl, out) q2 act of
-                     Nothing -> {-# SCC backtrackFailApplyAction #-}
-                       let updResult = updateError resumption cfg result
-                       in backtrack newResumption updResult
-                     Just (inp2, ctr2, out2, q2') ->
-                       let newCfg = Cfg inp2 ctr2 out2 q2'
-                       in applyPredictions alts finalState newCfg newResumption result
+        Nothing ->
+        -- _ ->
+          let localTransitions = nextTransition aut q in
+          case localTransitions of
+            Nothing -> {-# SCC backtrackSetStep #-}
+              if isAcceptingCfg cfg aut
+              then
+                let newResult = addResult cfg result
+                in backtrack resumption newResult
+              else
+                let ch = (UniChoice (CAct Pop, q)) in
+                let newResumption = addResumption resumption cfg ch in
+                choose newResumption result
+            Just ch ->
+              let newResumption = addResumption resumption cfg ch
+              in choose newResumption result
 
-      choose :: Resumption -> Result -> Result
-      choose resumption rslt =
-        -- trace "CHOOSE" $
-        -- trace (show (_getCommitStack resumption)) $
-        let result = incrResultMetrics tickBacktrack rslt flagMetrics in
-        case getActionCfgAtLevel resumption of
-          Nothing -> backtrack resumption result
-          Just (cfg@(Cfg inp ctrl out _n1), (act, q2)) ->
-            --trace (show act) $
-            case act of
-              BAct (CutBiasAlt g) ->
-                -- trace ("**********CUT:" ++ show (stateToString g aut)) $
-                let newResumption = updateCommitResumption g resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg Nothing newResumption result
-              BAct (CutLocal) ->
-                let newResumption = earlyUpdateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg Nothing newResumption result
-              BAct (CutGlobal) ->
-                let newResumption = cutResumption resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg Nothing newResumption result
-              BAct (FailAction _) ->
-                let updResult = updateError resumption cfg result in
-                backtrack resumption updResult
-              _ ->
-                case applyAction gbl (inp, ctrl, out) q2 act of
-                  Nothing -> {-# SCC backtrackFailApplyAction #-}
-                    let updResult = updateError resumption cfg result in
-                    backtrack resumption updResult
-                  Just (inp2, ctr2, out2, q2') ->
-                    let newCfg = Cfg inp2 ctr2 out2 q2'
-                    in react newCfg Nothing resumption result
+    applyPredictionOnBranch ::
+      Maybe Choice -> ChoicePos -> State -> (Choice, (Action, State))
+    applyPredictionOnBranch tr alt q =
+      case (tr, alt) of
+        (Nothing,                  (CPop, _)) ->
+          let branch = (CAct Pop, q) in (UniChoice branch, branch)
+        (Just (UniChoice branch), (CUni, _)) ->
+          (UniChoice branch, branch)
+        (Just (SeqChoice lst g),   (CSeq, i)) ->
+          let branch = lst !! i in (SeqChoice [branch] g, branch)
+        (Just (ParChoice lst),     (CPar, i)) ->
+          let branch = lst !! i in (ParChoice [branch], branch)
+        _ -> error "broken invariant"
 
-      backtrack :: Resumption -> Result -> Result
-      backtrack resumption result =
-        -- trace "BACKTRACK" $
-        case nextResumption resumption of
-          Nothing -> result
-          Just nextRes -> choose nextRes result
+    applyPredictions ::
+      LL.Prediction -> Maybe LL.LLAState -> Cfg -> Resumption ->
+      Result -> Result
+    applyPredictions pdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
+      -- trace "applyPredictions" $
+      let result = incrResultMetrics tickLL rslt flagMetrics in
+      case LL.destrPrediction pdx of
+        Nothing ->
+          -- trace "AFTER" $ trace (showCfg cfg) $
+          react cfg finalState resumption result
+        Just (alt, alts) ->
+          let
+            tr = nextTransition aut q
+            (ch, (act, q2)) = applyPredictionOnBranch tr alt q
+            newResumption = addResumption resumption cfg ch
+          in
+          -- trace (show act) $
+          case act of
+            BAct bact ->
+              case bact of
+                (CutBiasAlt g) ->
+                  -- trace ("**********CUT_PRED:" ++ show (stateToString g aut)) $
+                  let updResumption = updateCommitResumption g newResumption
+                      newCfg = Cfg inp ctrl out q2
+                  in applyPredictions alts finalState newCfg updResumption result
+                _ -> undefined
+            _ ->
+              case applyAction gbl (inp, ctrl, out) q2 act of
+                Nothing -> {-# SCC backtrackFailApplyAction #-}
+                  let updResult = updateError resumption cfg result
+                  in backtrack newResumption updResult
+                Just (inp2, ctr2, out2, q2') ->
+                  let newCfg = Cfg inp2 ctr2 out2 q2'
+                  in applyPredictions alts finalState newCfg newResumption result
+
+    applyPredictionsDDA ::
+      Prediction -> LL.DataDepInstr -> [LL.LLAState] -> Cfg -> Resumption ->
+      Result -> Result
+    applyPredictionsDDA pdx instr finalStates cfg@(Cfg inp ctrl out q) resumption rslt =
+      let result = incrResultMetrics tickLL rslt flagMetrics in
+      case LL.destrPrediction pdx of
+        Nothing ->
+          case instr of
+            LL.DDManyBetween _lst _absCfg1 _absCfg2 ->
+              let tr = nextTransition aut q in
+              case tr of
+                Just ch@(SeqChoice [ (act2, q2) , (act3, q3) ] _) ->
+                  let newResumption = addResumption resumption cfg ch in
+                  case applyAction gbl (inp, ctrl, out) q2 act2 of
+                    Just (inp2, ctr2, out2, q2') ->
+                      -- trace "FST_Many" $
+                      let newCfg = Cfg inp2 ctr2 out2 q2'
+                      in react newCfg (Just (finalStates !! 0)) newResumption result
+                    Nothing ->
+                      case applyAction gbl (inp, ctrl, out) q3 act3 of
+                        Just (inp2, ctr2, out2, q2') ->
+                          -- trace "SND_Many" $
+                          let newCfg = Cfg inp2 ctr2 out2 q2'
+                          in react newCfg (Just (finalStates !! 1)) newResumption result
+                        Nothing -> error "broken invariant"
+                _ -> error "broken invariant"
+            LL.DDSetStream _ _ ->
+              let tr = nextTransition aut q in
+              case tr of
+                Just ch@(UniChoice (act2, q2)) ->
+                  let newResumption = addResumption resumption cfg ch in
+                  case applyAction gbl (inp, ctrl, out) q2 act2 of
+                    Just (inp2, ctr2, out2, q2') ->
+                      let newCfg = Cfg inp2 ctr2 out2 q2'
+                      in react newCfg  (Just (finalStates !! 0)) newResumption result
+                    Nothing -> error "broken invariant: should be just a SetStream"
+                _ -> error "broken invariant"
+        Just (alt, alts) ->
+          let
+            tr = nextTransition aut q
+            (ch, (act, q2)) = applyPredictionOnBranch tr alt q
+            newResumption = addResumption resumption cfg ch
+          in
+          case act of
+            BAct bact ->
+              case bact of
+                (CutBiasAlt g) ->
+                  -- trace ("**********CUT_PRED:" ++ show (stateToString g aut)) $
+                  let updResumption = updateCommitResumption g newResumption
+                      newCfg = Cfg inp ctrl out q2
+                  in applyPredictionsDDA alts instr finalStates newCfg updResumption result
+                _ -> undefined
+            _ ->
+              case applyAction gbl (inp, ctrl, out) q2 act of
+                Nothing -> {-# SCC backtrackFailApplyAction #-}
+                  let updResult = updateError resumption cfg result
+                  in backtrack newResumption updResult
+                Just (inp2, ctr2, out2, q2') ->
+                  let newCfg = Cfg inp2 ctr2 out2 q2'
+                  in applyPredictionsDDA alts instr finalStates newCfg newResumption result
+
+    choose :: Resumption -> Result -> Result
+    choose resumption rslt =
+      -- trace "CHOOSE" $
+      -- trace (show (_getCommitStack resumption)) $
+      let result = incrResultMetrics tickBacktrack rslt flagMetrics in
+      case getActionCfgAtLevel resumption of
+        Nothing -> backtrack resumption result
+        Just (cfg@(Cfg inp ctrl out _n1), (act, q2)) ->
+          --trace (show act) $
+          case act of
+            BAct (CutBiasAlt g) ->
+              -- trace ("**********CUT:" ++ show (stateToString g aut)) $
+              let newResumption = updateCommitResumption g resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg Nothing newResumption result
+            BAct (CutLocal) ->
+              let newResumption = earlyUpdateCommitResumption resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg Nothing newResumption result
+            BAct (CutGlobal) ->
+              let newResumption = cutResumption resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg Nothing newResumption result
+            BAct (FailAction _) ->
+              let updResult = updateError resumption cfg result
+              in backtrack resumption updResult
+            _ ->
+              case applyAction gbl (inp, ctrl, out) q2 act of
+                Nothing -> {-# SCC backtrackFailApplyAction #-}
+                  let updResult = updateError resumption cfg result
+                  in backtrack resumption updResult
+                Just (inp2, ctr2, out2, q2') ->
+                  let newCfg = Cfg inp2 ctr2 out2 q2'
+                  in react newCfg Nothing resumption result
+
+    backtrack :: Resumption -> Result -> Result
+    backtrack resumption result =
+      -- trace "BACKTRACK" $
+      case nextResumption resumption of
+        Nothing -> result
+        Just nextRes -> choose nextRes result
 
   in react (initCfg s aut) Nothing emptyResumption emptyResult
 
