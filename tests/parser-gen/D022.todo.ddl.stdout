@@ -58,12 +58,12 @@ D022.todo.BE16 : Grammar (uint 16) =
      (_66 : uint 8) <- GetByte
      pure (_65 # _66)
  
-D022.todo.NonZero ?a1 (Literal 0 ?a1) (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+D022.todo.NonZero ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      Guard (0 < $$)
      pure $$
  
-D022.todo.Payload ?a10 (P : Grammar ?a10) : Grammar ?a10 =
+D022.todo.Payload ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
                             pure (_67 as uint 64)
      Guard (2 <= size)
@@ -72,7 +72,7 @@ D022.todo.Payload ?a10 (P : Grammar ?a10) : Grammar ?a10 =
      @StreamLen len here
      do (_68 : Stream) <- StreamLen len here
         SetStream _68
-     ($$ : ?a10) <- P
+     ($$ : ?a0) <- P
      END
      do (_69 : Stream) <- StreamOff len here
         SetStream _69
@@ -99,9 +99,9 @@ D022.todo.COM : Grammar [uint 8] =
      ($$ : [uint 8]) <- D022.todo.Payload [uint 8] (Many[] GetByte)
      pure $$
  
-D022.todo.APP ?a5 (x : uint 4) (P : Grammar ?a5) : Grammar ?a5 =
+D022.todo.APP ?a0 (x : uint 4) (P : Grammar ?a0) : Grammar ?a0 =
   do D022.todo._Marker (14 # x)
-     ($$ : ?a5) <- D022.todo.Payload ?a5 P
+     ($$ : ?a0) <- D022.todo.Payload ?a0 P
      pure $$
  
 D022.todo.FrameComponent : Grammar D022.todo.FrameComponent =
@@ -211,7 +211,7 @@ D022.todo.SomeJpeg : Grammar [D022.todo.Segment] =
      D022.todo._EOI
      pure $$
  
-D022.todo._Payload ?a10 (_P : Grammar {}) : Grammar {} =
+D022.todo._Payload ?a0 (_P : Grammar {}) : Grammar {} =
   do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
                             pure (_67 as uint 64)
      Guard (2 <= size)
@@ -259,13 +259,13 @@ D022.todo._SomeMarker (front : uint 4) : Grammar {} =
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
      Guard (upper == front)
  
-D022.todo._NonZero ?a1 (Literal 0 ?a1) (P : Grammar ?a1) : Grammar {} =
-  do ($$ : ?a1) <- P
+D022.todo._NonZero ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar {} =
+  do ($$ : ?a0) <- P
      Guard (0 < $$)
  
-D022.todo._APP ?a5 (x : uint 4) (_P : Grammar {}) : Grammar {} =
+D022.todo._APP ?a0 (x : uint 4) (_P : Grammar {}) : Grammar {} =
   do D022.todo._Marker (14 # x)
-     D022.todo._Payload ?a5 _P
+     D022.todo._Payload ?a0 _P
  
 D022.todo._FrameComponent : Grammar {} =
   do @GetByte

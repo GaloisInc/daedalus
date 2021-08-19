@@ -7,6 +7,7 @@ import Distribution.Simple.Setup
 import Distribution.Types.HookedBuildInfo
 
 import qualified Data.Map as Map
+import Control.Exception(catch)
 
 import Daedalus.Driver
 import Daedalus.Type.AST
@@ -33,6 +34,7 @@ compileDDL =
      mapM_ (\m -> do ph <- ddlGetPhase m
                      ddlPrint (phasePass ph)
                      saveHS (Just "src") cfg m) todo
+  `catch` \d -> putStrLn =<< prettyDaedalusError d
 
   where
   -- This would be used if we specialized

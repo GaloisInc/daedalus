@@ -1,0 +1,46 @@
+./T070.ddl:7:3--7:10 [WARNING] Statement has no effect
+
+module T070
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T070.Main ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Numeric ?a0) : Grammar ?a0 =
+  pure (1 + 2)
+ 
+T070.f ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
+  x.l
+ 
+T070.P ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar int =
+  do @(x AS int)
+     ($$ : int) <- pure (x as int)
+     pure $$
+ 
+T070.J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (x : uint ?a0) (y : uint ?a1) : Grammar (uint ?a2) =
+  pure (x # y)
+ 
+T070.L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar ?a3 =
+  do for ((s : {}) = {}; (i : ?a2) in x)
+       (pure {})
+     ($$ : ?a3) <- map ((i : ?a2) in x)
+                     (pure true)
+     pure $$
+ 
+T070._Main ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Numeric ?a0) : Grammar {} =
+  pure {}
+ 
+T070._P ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar {} =
+  @(x AS int)
+ 
+T070._J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
+  pure {}
+ 
+T070._L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
+  do for ((s : {}) = {}; (i : ?a2) in x)
+       (pure {})
+     map ((i : ?a2) in x)
+       (pure true)
+     pure {}

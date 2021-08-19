@@ -133,8 +133,11 @@ instance PP Term where
 
 
 instance PP DataDecl where
-  pp Data { .. } = "data" <+> pp dataLHS $$ nest 2 body
+  pp Data { .. } = kw <+> pp dataLHS $$ nest 2 body
     where
+    kw   = case dataCons of
+             [ Ap (Var _con) _field ] -> "newtype"
+             _ -> "data"
     body = case dataCons of
              [] -> empty
              xs -> block "=" "|" "" (map pp xs)

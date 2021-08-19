@@ -13,8 +13,8 @@ type D012.RGB = { red: int
 D012._WS : Grammar {} =
   @Match {'\NUL'}
  
-D012.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+D012.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[ 1 .. ] D012._WS
      pure $$
  
@@ -23,7 +23,7 @@ D012.Digit : Grammar (uint 8) =
      ($$ : uint 8) <- pure (d - '0')
      pure $$
  
-D012.addDigit ?a1 (Coerce safe ?a1 int) (val : int) (d : ?a1) : int =
+D012.addDigit ?a0 (Coerce safe ?a0 int) (val : int) (d : ?a0) : int =
   (10 * val) + (d as int)
  
 D012.Natural : Grammar int =
@@ -43,7 +43,7 @@ D012.RGB : Grammar D012.RGB =
 D012.WS : Grammar (uint 8) =
   Match {'\NUL'}
  
-D012._Token ?a1 (_P : Grammar {}) : Grammar {} =
+D012._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] D012._WS
  

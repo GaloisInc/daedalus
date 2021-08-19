@@ -11,6 +11,7 @@
 
 ;;; Code:
 (require 'lsp-mode)
+(require 'dash)
 
 (defgroup daedalus '()
   "Settings for DaeDaLus"

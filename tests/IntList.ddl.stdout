@@ -3,13 +3,13 @@ module Number
 --- Imports:
  
 --- Type defs:
-type Number.Frac ?a10 = { num: int
-                        ; exp: ?a10
-                        }
+type Number.Frac ?a0 = { num: int
+                       ; exp: ?a0
+                       }
  
 --- Rules:
  
-Number.addDigit ?a1 (Literal 10 ?a1) (Numeric ?a1) (val : ?a1) (d : ?a1) : ?a1 =
+Number.addDigit ?a0 (Literal 10 ?a0) (Numeric ?a0) (val : ?a0) (d : ?a0) : ?a0 =
   (10 * val) + d
  
 Number.Digit : Grammar int =
@@ -23,13 +23,13 @@ Number.Natural : Grammar int =
                            (Number.addDigit int val d))
      pure $$
  
-Number.Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : uint 64) (w : Number.Frac ?a10) : Grammar (Number.Frac ?a10) =
+Number.Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0) : Grammar (Number.Frac ?a0) =
   do (ds : [int]) <- do @MatchBytes "."
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
-     ($$ : Number.Frac ?a10) <- pure (for ((val : Number.Frac ?a10) = w; (d : int) in ds)
-                                        {num = Number.addDigit int (val.num) d,
-                                         exp = (val.exp) - 1})
+     ($$ : Number.Frac ?a0) <- pure (for ((val : Number.Frac ?a0) = w; (d : int) in ds)
+                                       {num = Number.addDigit int (val.num) d,
+                                        exp = (val.exp) - 1})
      pure $$
  
 Number.HexDigit : Grammar int =
@@ -51,7 +51,7 @@ Number._Digit : Grammar {} =
 Number._Natural : Grammar {} =
   @Many[ 1 .. ] Number._Digit
  
-Number._Frac ?a10 (Numeric ?a10) (Literal 1 ?a10) (n : uint 64) : Grammar {} =
+Number._Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] Number._Digit
  
@@ -88,8 +88,8 @@ IntList._WS : Grammar {} =
   @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
           {'\r'})
  
-IntList.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[ 1 .. ] IntList._WS
      pure $$
  
@@ -105,7 +105,7 @@ rec value
                      pure {nil: _34}
       }
  
-IntList._Token ?a1 (_P : Grammar {}) : Grammar {} =
+IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] IntList._WS
  

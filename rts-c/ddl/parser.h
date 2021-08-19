@@ -27,7 +27,14 @@ class ParserState {
 public:
   ParserState() : fail_offset(0) {}
 
-  size_t getFailOffset() { return fail_offset; }
+  // All alternatives failed.   Free the stack and return the
+  // offset of the best error we computed.
+  size_t finalYield() { 
+    debugLine("final yield");
+    debugVal(stack);
+    stack.free();
+    return fail_offset;
+  }
 
 
   // ------------------------------------------------------------------------
@@ -58,7 +65,7 @@ public:
   // (for the yes/no cases) the other alternative is removed from the stack.
   void* returnPure()  { return stack.retAddr(); }
   void* returnYes()   { stack = stack.squish(); return stack.retAddr(); }
-  void* returnNo()    { stack.pop(stack)->free(false); return stack.retAddr(); }
+  void* returnNo()    { stack.pop(stack)->free(); return stack.retAddr(); }
 
 
   // -- Threads ---------------------------------------------------------------
@@ -75,6 +82,8 @@ public:
 
   // True if there are there are threads to resume
   bool hasSuspended() { return !suspended.empty(); }
+
+  
 
   // Assumes that there is a suspended thread.
   // Returns the address of the code for the continuation.

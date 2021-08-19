@@ -31,7 +31,7 @@ import           System.Log.Logger
 
 import           Daedalus.PP
 
-import           Daedalus.LSP.Diagnostics      (requestParse)
+import           Daedalus.LSP.Worker      (requestParse, worker)
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
 import Daedalus.LSP.Command
@@ -55,8 +55,9 @@ run = flip E.catches handlers $ do
             Error e -> Left (Text.pack e)
             Success cfg -> Right cfg
       , doInitialize = \env _ -> do
-          void $ forkIO (reactor rin)
           sst <- emptyServerState env
+          void $ forkIO (reactor rin)
+          void $ forkIO (worker sst)  
           pure (Right sst)
       , staticHandlers = lspHandlers rin
       , interpretHandler = \sst -> Iso (runServerM sst) liftIO
@@ -131,12 +132,12 @@ handle = mconcat
 
   , notificationHandler J.STextDocumentDidOpen $ \msg -> do
     let doc  = msg ^. J.params . J.textDocument
+        uri = doc ^. J.uri . to J.toNormalizedUri
+        
     sst <- ask
-    let uri = doc ^. J.uri . to J.toNormalizedUri
-    let Just mn = uriToModuleName uri -- FIXME
-    liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc ++ " for " ++ showPP mn
+    liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc
 
-    liftIO $ requestParse sst mn (ClientModule uri (Just (doc ^. J.version))) debounceTime
+    liftIO $ requestParse sst uri (Just (doc ^. J.version)) debounceTime
 
   , notificationHandler J.SWorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
@@ -150,9 +151,8 @@ handle = mconcat
     liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show uri
 
     sst <- ask
-    let Just mn = uriToModuleName uri -- FIXME
 
-    liftIO $ requestParse sst mn (ClientModule uri (doc ^. J.version)) debounceTime
+    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
 
   -- , notificationHandler J.STextDocumentDidSave $ \msg -> do
   --     let doc = msg ^. J.params . J.textDocument . J.uri

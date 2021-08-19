@@ -13,6 +13,8 @@ import SimpleGetOpt
 import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
+-- daedalus generated parsers:
+import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import XRef(findStartXRef, parseXRefs)
 import PdfMonad
 import PdfDecl(pResolveRef)
@@ -37,12 +39,25 @@ main =
      bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
      case command opts of
-       ParseValue ->
+       ParseType "Value" ->
           do res <- runParser Map.empty Nothing pValue topInput
              case res of
                 ParseOk a     -> print (pp a)
                 ParseErr e    -> print (pp e)
                 ParseAmbig {} -> quit "BUG: Ambiguous result"
+       ParseType "ToUnicodeCMap_simpleFont" ->
+          do res <- runParser Map.empty Nothing pToUnicodeCMap_simpleFont topInput
+             case res of
+                ParseOk a     -> print a
+                ParseErr e    -> print (pp e)
+                ParseAmbig {} -> quit "BUG: Ambiguous result"
+       ParseType "ToUnicodeCMap_cidFont" ->
+          do res <- runParser Map.empty Nothing pToUnicodeCMap_cidFont topInput
+             case res of
+                ParseOk a     -> print a
+                ParseErr e    -> print (pp e)
+                ParseAmbig {} -> quit "BUG: Ambiguous result"
+       ParseType s -> quit $ unwords ["'parse-type' does not recognize type", show s]
 
        _ -> parsePdf opts file bs topInput
 
