@@ -21,9 +21,9 @@ DTrans [
 **********************
 ("Lookahead-0",2)
 ("Lookahead-1",2)
-("Lookahead-ambiguous-1",6)
+("Lookahead-ambiguous-1",10)
 
-Total nb states: 10
+Total nb states: 14
 
 **********************
 ***** Strict LLA *****

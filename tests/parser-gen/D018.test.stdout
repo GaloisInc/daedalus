@@ -11,18 +11,18 @@ AbortClosureUnhandledInputAction
 **********************
 **** Extended LLA ****
 **********************
-("AbortClosureUnhandledAction",14)
-("AbortClosureUnhandledInputAction",63)
+("AbortClosureUnhandledAction",21)
+("AbortClosureUnhandledInputAction",90)
 ("AbortDFAOverflowCfg",10)
 ("Lookahead-0",1)
-("Lookahead-1",68)
+("Lookahead-1",80)
 ("Lookahead-ambiguous-1",6)
-("Lookahead-ambiguous-2",7)
-("Lookahead-ambiguous-3",5)
-("abort-1",16)
+("Lookahead-ambiguous-2",8)
+("Lookahead-ambiguous-3",6)
+("abort-1",20)
 ("abort-2",1)
 
-Total nb states: 191
+Total nb states: 243
 
 **********************
 ***** Strict LLA *****

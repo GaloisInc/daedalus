@@ -152,14 +152,14 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
-("DataDepTrans",2)
+("DataDepTrans",4)
 ("Lookahead-0",3)
-("Lookahead-1",54)
-("Lookahead-ambiguous-13",3)
-("abort-1",3)
-("abort-7",1)
+("Lookahead-1",68)
+("Lookahead-ambiguous-13",4)
+("abort-1",4)
+("abort-7",2)
 
-Total nb states: 66
+Total nb states: 85
 
 **********************
 ***** Strict LLA *****
