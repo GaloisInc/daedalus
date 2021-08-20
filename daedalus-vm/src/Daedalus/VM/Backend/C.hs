@@ -615,17 +615,32 @@ cExpr expr =
                        Nothing -> cVarUse x
     EUnit         -> cCall "DDL::Unit" []
     EBool b       -> cCall "DDL::Bool" [if b then "true" else "false"]
-    ENum n ty     -> cCall f [ integer n ]
+    ENum n ty     -> cCall f [ i ]
       where
-      f = case ty of
-            Src.TUInt sz -> cInst "DDL::UInt" [ cSizeType sz ]
-            Src.TSInt sz -> cInst "DDL::SInt" [ cSizeType sz ]
+      i = cCall num [integer n]
+      lit pref sz =
+        pref <.>
+        case sz of
+          Src.TSize s
+            | s <= 8    -> "INT8_C"
+            | s <= 16   -> "INT16_C"
+            | s <= 32   -> "INT32_C"
+            | s <= 64   -> "INT64_C"
+            | otherwise -> panic "cExpr" ["Literal > 64 bits"]
+          Src.TSizeParam {} -> panic "cExpr" [ "Type variable in literal" ]
 
-            _ -> panic "cExpr" [ "Unexpected type for numeric constant"
-                               , show (pp ty) ]
+      (f,num) =
+        case ty of
+          Src.TUInt sz -> ( cInst "DDL::UInt" [ cSizeType sz ], lit "U" sz )
+          Src.TSInt sz -> ( cInst "DDL::SInt" [ cSizeType sz ], lit ""  sz )
+
+          _ -> panic "cExpr" [ "Unexpected type for numeric constant"
+                             , show (pp ty) ]
 
     EMapEmpty k v -> cCallCon (cInst "DDL::Map" [ cSemType k, cSemType v ]) []
     ENothing t  -> parens (cCall (cInst "DDL::Maybe" [cSemType t]) [])
+
+
 
 
 --------------------------------------------------------------------------------
