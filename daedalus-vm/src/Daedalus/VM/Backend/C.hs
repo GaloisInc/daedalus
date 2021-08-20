@@ -803,7 +803,7 @@ cDoCase e opts =
              , upper <= toInteger (maxBound :: Int64) ->
                pure (mkSwitch "asSLong" numPat)
 
-              -- Lenar ifs. We could probably do something smarted depending
+              -- Linear ifs. We could probably do something smarted depending
               -- on the patterns but not sure that it is worted
              | otherwise -> mkBigInt
 
