@@ -38,19 +38,23 @@ public:
   }
 
   Size(int8_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x && x <= std::numeric_limits<size_t>::max());
+    assert(0 <= x && static_cast<uint8_t>(x) <=
+                     std::numeric_limits<size_t>::max());
   }
 
   Size(int16_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x && x <= std::numeric_limits<size_t>::max());
+    assert(0 <= x && static_cast<uint16_t>(x) <=
+                     std::numeric_limits<size_t>::max());
   }
 
   Size(int32_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x && x <= std::numeric_limits<size_t>::max());
+    assert(0 <= x && static_cast<uint32_t>(x) <=
+                     std::numeric_limits<size_t>::max());
   }
 
   Size(int64_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x && x <= std::numeric_limits<size_t>::max());
+    assert(0 <= x && static_cast<uint64_t>(x) <=
+                     std::numeric_limits<size_t>::max());
   }
 
   size_t rep() { return value; }
