@@ -7,6 +7,7 @@
 #include <iostream>
 
 
+namespace DDL {
 
 // This is so we get a type error rather than an implicit cast.
 struct Size {
@@ -86,8 +87,7 @@ int compare(Size x, Size y) {
   return x < y ? -1 : x != y;
 }
 
-
-
+}
 
 #endif
 
