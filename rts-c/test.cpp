@@ -15,12 +15,13 @@
 
 #include "test_size.cpp"
 #include "test_map.cpp"
+#include "test_numbers.cpp"
 
 using namespace std;
 
 
 
 int main() {
-  test_size();
+  test_numbers();
   return 0;
 }

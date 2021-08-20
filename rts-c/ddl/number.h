@@ -37,8 +37,15 @@ public:
   // For uninitialized values
   UInt()      : data(0) {}
 
-  // For generating literals
-  UInt(Rep d) : data(d) {}
+  // For literals and casts
+  UInt(uint8_t  x) : data(static_cast<Rep>(x)) {}
+  UInt(uint16_t x) : data(static_cast<Rep>(x)) {}
+  UInt(uint32_t x) : data(static_cast<Rep>(x)) {}
+  UInt(uint64_t x) : data(static_cast<Rep>(x)) {}
+  UInt(int8_t   x) : data(static_cast<Rep>(x)) {}
+  UInt(int16_t  x) : data(static_cast<Rep>(x)) {}
+  UInt(int32_t  x) : data(static_cast<Rep>(x)) {}
+  UInt(int64_t  x) : data(static_cast<Rep>(x)) {}
 
   // This is for `a # b`
   template <size_t a, size_t b>
@@ -109,6 +116,7 @@ public:
   bool operator >  (UInt x) { return rep() >  x.rep(); }
   bool operator >= (UInt x) { return rep() >= x.rep(); }
 
+  // XXX: Where is this used, casts?
   unsigned long asULong()   { return (unsigned long) rep(); }
 };
 
@@ -190,12 +198,72 @@ struct SInt : public Value {
 public:
   SInt()      : data(0) {}
 
-  SInt(Rep d) : data(d) {
-    if constexpr (std::numeric_limits<Rep>::min() < minValRep())
-      assert(minValRep() <= d);
-    if constexpr (std::numeric_limits<Rep>::min() > maxValRep())
-      assert(d <= maxValRep());
+  SInt(uint8_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 8) {
+      constexpr size_t n = 8 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
   }
+
+  SInt(uint16_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 16) {
+      constexpr size_t n = 16 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(uint32_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 32) {
+      constexpr size_t n = 32- w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(uint64_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 64) {
+      constexpr size_t n = 64 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(int8_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 8) {
+      constexpr size_t n = 8 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(int16_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 16) {
+      constexpr size_t n = 16 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(int32_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 32) {
+      constexpr size_t n = 32 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+  SInt(int64_t x) : data(static_cast<Rep>(x)) {
+    if constexpr (w < 64) {
+      constexpr size_t n = 64 - w;
+      Rep y = data << n;
+      data = y >> n;
+    }
+  }
+
+
+
 
   Rep rep() { return data; } // XXX: overflow?
 
