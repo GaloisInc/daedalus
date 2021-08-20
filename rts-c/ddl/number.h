@@ -16,6 +16,9 @@
 
 namespace DDL {
 
+
+// Unsigned --------------------------------------------------------------------
+
 template <size_t w>
 struct UInt : public Value {
   static_assert(w <= 64, "UInt larger than 64 not supported.");
@@ -30,8 +33,18 @@ struct UInt : public Value {
   Rep data;
 
 public:
+
+  // For uninitialized values
   UInt()      : data(0) {}
+
+  // For generating literals
   UInt(Rep d) : data(d) {}
+
+  // This is for `a # b`
+  template <size_t a, size_t b>
+  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {
+    static_assert(a + b == w);
+  }
 
   Rep rep() {
     if constexpr (w == 8 || w == 16 || w == 32 || w == 64) return data;
@@ -42,19 +55,13 @@ public:
   }
 
   constexpr static Rep maxValRep() {
-    if constexpr (w ==  8) return  UINT8_MAX;  else
+    if constexpr (w ==  8) return UINT8_MAX;  else
     if constexpr (w == 16) return UINT16_MAX; else
     if constexpr (w == 32) return UINT32_MAX; else
     if constexpr (w == 64) return UINT64_MAX; else
     return (1 << w) - 1;
   }
 
-
-  // This is for `a # b`
-  template <size_t a, size_t b>
-  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {
-    static_assert(a + b == w);
-  }
 
   UInt operator + (UInt x) { return UInt(data + x.data); }
   UInt operator - (UInt x) { return UInt(data - x.data); }
@@ -72,11 +79,13 @@ public:
   UInt operator & (UInt x) { return UInt(data & x.data); }
   UInt operator ^ (UInt x) { return UInt(data ^ x.data); }
 
+  // XXX: remove in favor of Size
   UInt operator << (UInt<64> x) {
     uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data << n);
   }
 
+  // XXX: remove in favor of Size
   UInt operator >> (UInt<64> x) {
     uint64_t n = x.rep();
     return n >= w? UInt(0) : UInt(data >> n);
@@ -100,8 +109,6 @@ public:
   bool operator >  (UInt x) { return rep() >  x.rep(); }
   bool operator >= (UInt x) { return rep() >= x.rep(); }
 
-  // This is used when we generate `switch` statments on numeric values.
-  // We could just use the appropriate size macros...
   unsigned long asULong()   { return (unsigned long) rep(); }
 };
 
@@ -159,13 +166,16 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 
 
 
+// Signed ----------------------------------------------------------------------
+
+
 // XXX: How should arithmetic work on these?
 // For the moment we assume no under/overflow, same as C does
 // but it is not clear if that's what we want from daedluas.
 // XXX: Add `asserts` to detect wrap around in debug mode
 template <size_t w>
 struct SInt : public Value {
-  static_assert(w >= 1, "SInt needs at least 1 bit");
+  static_assert(w >= 1,  "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
 
   using Rep =
@@ -179,7 +189,14 @@ struct SInt : public Value {
 
 public:
   SInt()      : data(0) {}
-  SInt(Rep d) : data(d) {}
+
+  SInt(Rep d) : data(d) {
+    if constexpr (std::numeric_limits<Rep>::min() < minValRep())
+      assert(minValRep() <= d);
+    if constexpr (std::numeric_limits<Rep>::min() > maxValRep())
+      assert(d <= maxValRep());
+  }
+
   Rep rep() { return data; } // XXX: overflow?
 
   SInt operator + (SInt x) { return Rep(data + x.data); }
@@ -235,6 +252,7 @@ public:
 };
 
 
+/// XXX: What are these for?
 static inline
 int compare(char rx, char ry) { return (rx < ry) ? -1 : (rx != ry); }
 static inline
