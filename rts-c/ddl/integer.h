@@ -100,36 +100,6 @@ std::ostream& toJS(std::ostream& os, Integer x) {
 
 
 
-template <int owned>  // bitmask for ownership of argument
-static inline
-Integer add(Integer x, Integer y) {
-  mpz_class &xv = x.getValue();
-  mpz_class &yv = y.getValue();
-  if constexpr (owned & 1) {
-    debugLine("testing left");
-    if (x.refCount() == 1) {
-      xv += yv;
-      if constexpr (owned & 2) y.free();
-      return x;
-    }
-  }
-
-  if constexpr (owned & 2) {
-    debugLine("testing right");
-    if (y.refCount() == 1) {
-      yv += xv;
-      if constexpr (owned & 1) x.free();
-      return y;
-    }
-  }
-
-  Integer z(xv + yv);
-  if constexpr (owned & 1) x.free();
-  if constexpr (owned & 2) y.free();
-  return z;
-}
-
-
 // owned
 static inline
 Integer operator + (Integer x, Integer y) {
@@ -228,7 +198,7 @@ Integer operator >> (Integer x, Integer iamt) {
   return y;
 }
 
-// NOTE: lcat is in `number.h` to avoid dependency convlicts
+// NOTE: lcat is in `number.h` to avoid dependency conflicts
 
 
 
