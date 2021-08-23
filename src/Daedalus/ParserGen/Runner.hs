@@ -377,33 +377,40 @@ runnerLL s aut lla flagMetrics =
                  Just qLLA -> Right qLLA in
       let mpdx = LL.predictLL pq lla inp in
       case mpdx of
-        Just (Left (pdxs, finalState)) ->
+        Just (Left (Just pdxs, finalState)) ->
           -- trace (show pdxs) $
           -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
           -- trace "BEFORE" $
           -- trace (showCfg cfg) $
           applyPredictions pdxs finalState cfg resumption result
+        Just (Left (Nothing, _finalState)) ->
+          -- The prediction says parsing is failing, for now we just
+          -- ignore the prediction and run in backtracking mode
+          prepChoose cfg resumption result
         Just (Right (ddInstr, finalStates)) ->
           case ddInstr of
             LL.DDManyBetween l _ _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
             LL.DDSetStream l _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
-
         Nothing ->
         -- _ ->
-          let localTransitions = nextTransition aut q in
-          case localTransitions of
-            Nothing -> {-# SCC backtrackSetStep #-}
-              if isAcceptingCfg cfg aut
-              then
-                let newResult = addResult cfg result
-                in backtrack resumption newResult
-              else
-                let ch = (UniChoice (CAct Pop, q)) in
-                let newResumption = addResumption resumption cfg ch in
-                choose newResumption result
-            Just ch ->
-              let newResumption = addResumption resumption cfg ch
-              in choose newResumption result
+          prepChoose cfg resumption result
+
+    prepChoose :: Cfg -> Resumption -> Result -> Result
+    prepChoose cfg@(Cfg _inp _ctrl _out q) resumption result =
+      let localTransitions = nextTransition aut q in
+      case localTransitions of
+        Nothing -> {-# SCC backtrackSetStep #-}
+          if isAcceptingCfg cfg aut
+          then
+            let newResult = addResult cfg result
+            in backtrack resumption newResult
+          else
+            let ch = (UniChoice (CAct Pop, q)) in
+            let newResumption = addResumption resumption cfg ch in
+            choose newResumption result
+        Just ch ->
+          let newResumption = addResumption resumption cfg ch
+          in choose newResumption result
 
     applyPredictionOnBranch ::
       Maybe Choice -> ChoicePos -> State -> (Choice, (Action, State))
@@ -423,7 +430,6 @@ runnerLL s aut lla flagMetrics =
       LL.Prediction -> Maybe LL.LLAState -> Cfg -> Resumption ->
       Result -> Result
     applyPredictions pdx finalState cfg@(Cfg inp ctrl out q) resumption rslt =
-      -- trace "applyPredictions" $
       let result = incrResultMetrics tickLL rslt flagMetrics in
       case LL.destrPrediction pdx of
         Nothing ->
@@ -435,7 +441,6 @@ runnerLL s aut lla flagMetrics =
             (ch, (act, q2)) = applyPredictionOnBranch tr alt q
             newResumption = addResumption resumption cfg ch
           in
-          -- trace (show act) $
           case act of
             BAct bact ->
               case bact of

@@ -243,23 +243,26 @@ destrPrediction pdx =
 
 -- TODO: Explain this in some document. This is basically the key to
 -- the new faithful determinization.
-predictDFA :: DFA -> Input.Input -> Maybe (Prediction, Maybe LinDFAState)
+
+-- It returns a `Maybe Prediction`. The `Just` case is what one would expect
+-- and the `Nothing` case is when the prediction says that parsing
+-- will fail.
+predictDFA :: DFA -> Input.Input -> Maybe (Maybe Prediction, Maybe LinDFAState)
 predictDFA dfa i =
   if not (fromJust $ flagHasFullResolution dfa)
   then Nothing
   else
-    let
-      startLin = startLinDFAState dfa
-      mpath = findMatchingPath startLin i []
-    in
-      case mpath of
-        Nothing -> Nothing
-        Just (path, qFinal) -> Just (extractPrediction path, qFinal)
+    let startLin = startLinDFAState dfa in
+    let mpath = findMatchingPath startLin i [] in
+    case mpath of
+      Nothing -> Nothing
+      Just (path, qFinal) -> Just (extractPrediction path, qFinal)
   where
-    findMatchingPath :: LinDFAState -> Input.Input -> [DFARegistry] -> Maybe ([DFARegistry], Maybe LinDFAState)
+    findMatchingPath ::
+      LinDFAState -> Input.Input -> [DFARegistry] -> Maybe ([DFARegistry], Maybe LinDFAState)
     findMatchingPath qLin inp acc =
-      let elm = lookupLinDFAState qLin dfa
-      in case elm of
+      let elm = lookupLinDFAState qLin dfa in
+      case elm of
        Nothing -> error "broken invariant"
        Just r ->
          case r of
@@ -291,38 +294,42 @@ predictDFA dfa i =
                 Ambiguous -> error "broken invariant, only applied on fully resolved"
                 DunnoAmbiguous -> findMatchingPath qArriv inp1 newAcc
 
-
-    extractPrediction :: [DFARegistry] -> Prediction
+    extractPrediction :: [DFARegistry] -> Maybe Prediction
     extractPrediction lst =
       case lst of
         [] -> undefined
         s : rest ->
-          let (backCfg, pdx) = extractSinglePrediction s
-          in walkBackward backCfg rest pdx
+          case extractFirstPrediction s of
+            Nothing -> Nothing
+            Just (backCfg, pdx) ->
+              Just $ extractRemaingPrediction backCfg rest pdx
 
-    walkBackward :: SourceCfg -> [DFARegistry] -> Prediction -> Prediction
-    walkBackward src lst acc =
-      case lst of
-        [] -> acc
-        s : rest ->
-          let (backCfg, pdx) = extractPredictionFromDFARegistry src (initIteratorDFARegistry s)
-          in walkBackward backCfg rest ((Seq.><) pdx acc)
-
-    extractSinglePrediction :: DFARegistry -> (SourceCfg, Prediction)
-    extractSinglePrediction s =
+    -- It returns `Nothing` when the prediction successfully returns that it fails.
+    extractFirstPrediction :: DFARegistry -> Maybe (SourceCfg, Prediction)
+    extractFirstPrediction s =
       case nextIteratorDFARegistry (initIteratorDFARegistry s) of
         Just (DFAEntry c1 (ClosurePath alts _c2 (_pos, _, _) _c3), rest) ->
           if not (isEmptyIteratorDFARegistry rest)
           then error "ambiguous prediction"
-          else (c1, alts)
+          else Just (c1, alts)
           -- NOTE: pos is appended because this is the last transition
         Just (DFAEntry c1 (ClosureAccepting alts _c2), rest) ->
           if not (isEmptyIteratorDFARegistry rest)
           then error "ambiguous prediction"
-          else (c1, alts)
+          else Just (c1, alts)
         Just (DFAEntry _c1 (ClosureMove {}), _) ->
           error "broken invariant: cannot be ClosureMove here"
-        _ -> error "ambiguous prediction"
+        Nothing ->
+          -- when the prediction says parsing is failing
+          Nothing
+
+    extractRemaingPrediction :: SourceCfg -> [DFARegistry] -> Prediction -> Prediction
+    extractRemaingPrediction src lst acc =
+      case lst of
+        [] -> acc
+        s : rest ->
+          let (backCfg, pdx) = extractPredictionFromDFARegistry src (initIteratorDFARegistry s)
+          in extractRemaingPrediction backCfg rest ((Seq.><) pdx acc)
 
     extractPredictionFromDFARegistry ::
       SourceCfg -> IteratorDFARegistry -> (SourceCfg, Prediction)
@@ -336,14 +343,14 @@ predictDFA dfa i =
         Just (DFAEntry _c1 (ClosureAccepting _alts _c2), _others) ->
           error "broken invariant: cannot be ClosureAccepting here"
         Just (DFAEntry _c1 (ClosureMove {}), _others) ->
-           error "broken invariant: cannot be ClosureMove here"
+          error "broken invariant: cannot be ClosureMove here"
 
 
 predictLL ::
   Either State LLAState ->
   LLA ->
   Input.Input ->
-  Maybe (Either (Prediction, Maybe LLAState) (DataDepInstr, [LLAState]))
+  Maybe (Either (Maybe Prediction, Maybe LLAState) (DataDepInstr, [LLAState]))
 predictLL qq lla inp =
   case qq of
     Left q ->

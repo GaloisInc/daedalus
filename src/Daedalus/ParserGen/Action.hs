@@ -842,7 +842,7 @@ applyInputAction gbl (inp, ctrl, out) act =
       in case ev2 of
            Interp.VStream i1 ->
              case limitLen n i1 of
-               Nothing -> error "stream value too short for len"
+               Nothing -> Nothing
                Just i2 -> resultWithSem s inp (SEVal (Interp.VStream i2))
            _ -> error "Not an input stream"
 
