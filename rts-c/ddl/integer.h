@@ -12,6 +12,7 @@
 #include <gmpxx.h>
 #include <ddl/debug.h>
 #include <ddl/boxed.h>
+#include <ddl/size.h>
 
 namespace DDL {
 class Integer : public Boxed<mpz_class> {
@@ -35,23 +36,23 @@ public:
 
   // Mutable shift in place.
   // To be only used when we are the unique owners of this
-  void mutShiftL(unsigned long amt) {
+  void mutShiftL(size_t amt) {
     mpz_class &r = getValue();
-    r = r << amt;
+    r <<= amt;
   }
 
   // Mutable shift in place.
   // To be only used when we are the unique owners of this
-  void mutShiftR(unsigned long amt) {
+  void mutShiftR(size_t amt) {
     mpz_class &r = getValue();
-    r = r >> amt;
+    r >>= amt;
   }
 
   // this |= x
   // To be only used when we are the unique owners of this
   void mutOr(unsigned long val) {
     mpz_class &r = getValue();
-    r = r | val;
+    r |= val;
   }
 
 };
@@ -174,11 +175,11 @@ Integer operator - (Integer x) {
 }
 
 
-// owned, borrowed
-// XXX: iamt should eventually be replaced with a smaller type
+
+// owned, unmanaged
 static inline
-Integer operator << (Integer x, Integer iamt) {
-  unsigned long amt = iamt.asULong();
+Integer operator << (Integer x, Size iamt) {
+  size_t amt = iamt.rep();
   mpz_class &v = x.getValue();
   if (x.refCount() == 1) { x.mutShiftL(amt); return x; }
   Integer y(v << amt);
@@ -186,11 +187,10 @@ Integer operator << (Integer x, Integer iamt) {
   return y;
 }
 
-// owned, borrowed
-// XXX: iamt should eventually be replaced with a smaller type
+// owned, unmanaged
 static inline
-Integer operator >> (Integer x, Integer iamt) {
-  unsigned long amt = iamt.asULong();
+Integer operator >> (Integer x, Size iamt) {
+  size_t amt = iamt.rep();
   mpz_class &v = x.getValue();
   if (x.refCount() == 1) { x.mutShiftR(amt); return x; }
   Integer y(v >> amt);
@@ -199,6 +199,7 @@ Integer operator >> (Integer x, Integer iamt) {
 }
 
 // NOTE: lcat is in `number.h` to avoid dependency conflicts
+// Temprary shift with UInt<64> are also there for the same reason
 
 
 

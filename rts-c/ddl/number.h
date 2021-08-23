@@ -357,6 +357,16 @@ Integer lcat(Integer x, UInt<b> y) {
 }
 #endif
 
+// owned, unmanaged
+// XXX: remove in favor of size
+static inline
+Integer operator << (Integer x, UInt<64> iamt) { return x << Size(iamt.rep()); }
+
+// owned, unmanaged
+// XXX: remove in favor of size
+static inline
+Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size(iamt.rep()); }
+
 
 
 
