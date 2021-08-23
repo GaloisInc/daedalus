@@ -11,14 +11,14 @@ template <int in, int out>
 inline
 UInt<out> uint_to_uint(UInt<in> x) {
   using Res = UInt<out>;
-  return Res(typename Res::Rep(x.data));
+  return Res(typename Res::Rep{x.data});
 }
 
 template <int in, int out>
 inline
 UInt<out> sint_to_uint(SInt<in> x) {
   using Res = UInt<out>;
-  return Res(typename Res::Rep(x.data));
+  return Res(typename Res::Rep{x.data});
 }
 
 
@@ -26,14 +26,14 @@ template <int in, int out>
 inline
 SInt<out> uint_to_sint(UInt<in> x) {
   using Res = SInt<out>;
-  return Res(typename Res::Rep(x.data));
+  return Res(typename Res::Rep{x.data});
 }
 
 template <int in, int out>
 inline
 SInt<out> sint_to_sint(SInt<in> x) {
   using Res = SInt<out>;
-  return Res(typename Res::Rep(x.data));
+  return Res(typename Res::Rep{x.data});
 }
 
 
@@ -42,30 +42,29 @@ SInt<out> sint_to_sint(SInt<in> x) {
 
 template <int in>
 inline
-Integer uint_to_integer(UInt<in> x) {
-  static_assert(sizeof(unsigned long) * 8 >= in,
-                                          "Unsupported cast: uint_to_integer");
-  return Integer((unsigned long)(x.rep()));
-}
+Integer uint_to_integer(UInt<in> x) { return Integer(x.rep()); }
 
 template <int in>
 inline
-Integer sint_to_integer(SInt<in> x) {
-  static_assert(sizeof(long) * 8 >= in, "Unsupported cast: sint_to_integer");
-  return Integer((long)x.rep());
-}
+Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
 
+
+// borrow
 template <int out>
 inline
 UInt<out> integer_to_uint(Integer x) {
-  return UInt<out>(x.asULong());
+  typename UInt<out>::Rep r;
+  x.exportI(r);
+  return UInt<out>(r);
 }
 
-// Only meaningful if value is in range
+// borrow
 template <int out>
 inline
 SInt<out> integer_to_sint(Integer x) {
-  return SInt<out>(x.asSLong());
+  typename SInt<out>::Rep r;
+  x.exportI(r);
+  return SInt<out>(r);
 }
 
 
@@ -151,6 +150,7 @@ Maybe<Integer> sint_to_integer_maybe(SInt<in> x) {
 
 
 
+// XXX: Update
 template <int out>
 inline
 Maybe<UInt<out>> integer_to_uint_maybe(Integer x) {
@@ -167,6 +167,7 @@ NOPE:
   return Maybe<Res>();
 }
 
+// XXX: Update
 template <int out>
 inline
 Maybe<SInt<out>> integer_to_sint_maybe(Integer x) {

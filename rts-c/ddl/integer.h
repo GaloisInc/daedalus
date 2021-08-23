@@ -15,11 +15,46 @@
 #include <ddl/size.h>
 
 namespace DDL {
+
+class Integer;
+
+static bool operator <= (Integer x, Integer y);
+static bool operator >= (Integer x, Integer y);
+
 class Integer : public Boxed<mpz_class> {
+
+  template <typename rep>
+  rep toUnsigned() {
+    mpz_t r;
+    mpz_init(r);
+    mpz_fdiv_r_2exp(r, getValue().get_mpz_t(),8*sizeof(rep));
+
+    rep result = 0;
+    mpz_export(&result, NULL, 1, sizeof(rep), 0, 0, r);
+    return result;
+  }
+
+  template <typename sign, typename usign>
+  sign toSigned() {
+    static_assert(sizeof(sign) == sizeof(usign));
+
+    usign u = 0;
+    mpz_t r;
+    mpz_init(r);
+    mpz_fdiv_r_2exp(r,getValue().get_mpz_t(),8*sizeof(sign));
+    mpz_export(&u, NULL, 1, sizeof(sign), 0, 0, r);
+
+    sign result = static_cast<usign>(u);
+    return result;
+  }
+
+
 
 public:
   Integer()                 : Boxed<mpz_class>()               {}
   Integer(const char* str)  : Boxed<mpz_class>(mpz_class(str)) {}
+
+  // unsigned constructors
   Integer(uint8_t x)  : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
   Integer(uint16_t x) : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
   Integer(uint32_t x) : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
@@ -30,6 +65,7 @@ public:
       }
   }
 
+  // signed constructors
   Integer(int8_t x)  : Boxed<mpz_class>(static_cast<long>(x)) {}
   Integer(int16_t x) : Boxed<mpz_class>(static_cast<long>(x)) {}
   Integer(int32_t x) : Boxed<mpz_class>(static_cast<long>(x)) {}
@@ -53,6 +89,20 @@ public:
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
 
   bool isNatural() { return sgn(getValue()) >= 0; }
+
+  void exportI(uint8_t &x)  { x = toUnsigned<uint8_t>(); }
+  void exportI(uint16_t &x) { x = toUnsigned<uint16_t>(); }
+  void exportI(uint32_t &x) { x = toUnsigned<uint32_t>(); }
+  void exportI(uint64_t &x) { x = toUnsigned<uint64_t>(); }
+
+  void exportI(int8_t &x)  { x = toSigned<int8_t,uint8_t>(); }
+  void exportI(int16_t &x) { x = toSigned<int16_t,uint16_t>(); }
+  void exportI(int32_t &x) { x = toSigned<int32_t,uint32_t>(); }
+  void exportI(int64_t &x) { x = toSigned<int64_t,uint64_t>(); }
+
+
+
+
 
   // assumes we know things will fit
   unsigned long asULong()    { return getValue().get_ui(); }
