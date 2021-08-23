@@ -30,8 +30,25 @@ public:
       }
   }
 
+  Integer(int8_t x)  : Boxed<mpz_class>(static_cast<long>(x)) {}
+  Integer(int16_t x) : Boxed<mpz_class>(static_cast<long>(x)) {}
+  Integer(int32_t x) : Boxed<mpz_class>(static_cast<long>(x)) {}
+  Integer(int64_t x) : Boxed<mpz_class>(static_cast<long>(x)) {
+    if constexpr (sizeof(int64_t) > sizeof(long)) {
+      if (x > std::numeric_limits<long>::max()) {
+        mpz_import(getValue().get_mpz_t(), 1, 1, 8, 0, 0, &x);
+      } else
+      if (x < std::numeric_limits<long>::min()) {
+        mpz_class& c = getValue();
+        uint64_t v = std::numeric_limits<uint64_t>::max() -
+                     static_cast<uint64_t>(x);
+        mpz_import(c.get_mpz_t(), 1, 1, 8, 0, 0, &v);
+        c = -c - 1;
+      }
+    }
+  }
 
-  Integer(long x)             : Boxed<mpz_class>(x)              {}
+
   Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
 

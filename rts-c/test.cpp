@@ -16,12 +16,13 @@
 #include "test_size.cpp"
 #include "test_map.cpp"
 #include "test_numbers.cpp"
+#include "test_integer.cpp"
 
 using namespace std;
 
 
 
 int main() {
-  test_numbers();
+  test_integer();
   return 0;
 }
