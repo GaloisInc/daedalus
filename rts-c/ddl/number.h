@@ -87,27 +87,12 @@ public:
   UInt operator ^ (UInt x) { return UInt(data ^ x.data); }
 
   // XXX: remove in favor of Size
-  UInt operator << (UInt<64> x) {
-    uint64_t n = x.rep();
-    return n >= w? UInt(0) : UInt(data << n);
-  }
+  UInt operator << (UInt<64> x) { return UInt(data << x.rep()); }
+  UInt operator >> (UInt<64> x) { return UInt(data >> x.rep()); }
 
-  // XXX: remove in favor of Size
-  UInt operator >> (UInt<64> x) {
-    uint64_t n = x.rep();
-    return n >= w? UInt(0) : UInt(data >> n);
-  }
-
-  UInt operator << (Size x) {
-    size_t n = x.rep();
-    return n >= w? UInt(0) : UInt(data << n);
-  }
-
-  UInt operator >> (Size x) {
-    uint64_t n = x.rep();
-    return n >= w? UInt(0) : UInt(data >> n);
-  }
-
+  // Assumes C++ 20 semantics
+  UInt operator << (Size x) { return UInt(data << x.rep()); }
+  UInt operator >> (Size x) { return UInt(data >> x.rep()); }
 
   bool operator == (UInt x) { return rep() == x.rep(); }
   bool operator != (UInt x) { return rep() != x.rep(); }
@@ -292,26 +277,13 @@ public:
   constexpr static Rep minValRep() {
     return (-maxValRep())-1;
   }
+  // XXX: Remove in favor of Size
+  SInt operator << (UInt<64> x) { return SInt(data << x.rep()); }
+  SInt operator >> (UInt<64> x) { return SInt(data >> x.rep()); }
 
-  SInt operator << (UInt<64> x) {
-    uint64_t n = x.rep();
-    return n >= w? SInt(0) : SInt(data << n);
-  }
-
-  SInt operator >> (UInt<64> x) {
-    uint64_t n = x.rep();
-    return n >= w? SInt(0) : SInt(data >> n);
-  }
-
-  SInt operator << (Size x) {
-    size_t n = x.rep();
-    return n >= w? SInt(0) : SInt(data << n);
-  }
-
-  SInt operator >> (Size x) {
-    size_t n = x.rep();
-    return n >= w? SInt(0) : SInt(data >> n);
-  }
+  // Assumes C++ 20 semantics
+  SInt operator << (Size x) { return SInt(data << x.rep()); }
+  SInt operator >> (Size x) { return SInt(data >> x.rep()); }
 
 
 
