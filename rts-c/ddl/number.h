@@ -312,7 +312,8 @@ int compare(SInt<w> x, SInt<w> y) {
 template <size_t a, size_t b>
 static inline
 SInt<a> lcat(SInt<a> x, UInt<b> y) {
-  return (x << b) | y.rep();
+  if constexpr (b >= a) return SInt(y.rep());
+  else                  return (x << b) | y.rep();
 }
 
 
@@ -333,39 +334,21 @@ std::ostream& toJS(std::ostream& os, SInt<w> x) {
 
 
 
-
-#ifdef QUICK_INTEGER
-template <size_t b>
+// owned, unmanaged
+// XXX: remove in favor of size
 static inline
-Integer lcat(Integer x, UInt<b> y) {
-  return Integer((x.asSLong() << b) | y.rep());
-}
-#else
-template <size_t b>
-Integer lcat(Integer x, UInt<b> y) {
-  if (x.refCount() == 1) {
-    x.mutShiftL(b);
-    static_assert(b <= sizeof(unsigned long) * 8);
-    x.mutOr(y.rep());
-    return x;
-  } else {
-    mpz_class i = x.getValue() << b;
-    Integer r{i};
-    r.mutOr(y.rep());
-    return r;
-  }
-}
-#endif
+Integer operator << (Integer x, UInt<64> iamt) { return x << Size{iamt.rep()}; }
 
 // owned, unmanaged
 // XXX: remove in favor of size
 static inline
-Integer operator << (Integer x, UInt<64> iamt) { return x << Size(iamt.rep()); }
+Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size{iamt.rep()}; }
 
-// owned, unmanaged
-// XXX: remove in favor of size
-static inline
-Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size(iamt.rep()); }
+template <size_t b>
+Integer lcat(Integer x, UInt<b> y) {
+  return (x << Size(b)) | Integer(y.rep());
+}
+
 
 
 

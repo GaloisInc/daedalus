@@ -18,9 +18,19 @@ namespace DDL {
 class Integer : public Boxed<mpz_class> {
 
 public:
-  Integer()                   : Boxed<mpz_class>()               {}
-  Integer(const char* str)    : Boxed<mpz_class>(mpz_class(str)) {}
-  Integer(unsigned long x)    : Boxed<mpz_class>(x)              {}
+  Integer()                 : Boxed<mpz_class>()               {}
+  Integer(const char* str)  : Boxed<mpz_class>(mpz_class(str)) {}
+  Integer(uint8_t x)  : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
+  Integer(uint16_t x) : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
+  Integer(uint32_t x) : Boxed<mpz_class>(static_cast<unsigned long>(x)) {}
+  Integer(uint64_t x) : Boxed<mpz_class>(static_cast<unsigned long>(x)) {
+    if constexpr (sizeof(uint64_t) > sizeof(unsigned long))
+      if (x > std::numeric_limits<unsigned long>::max()) {
+        mpz_import(getValue().get_mpz_t(), 1, 1, 8, 0, 0, &x);
+      }
+  }
+
+
   Integer(long x)             : Boxed<mpz_class>(x)              {}
   Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
@@ -46,13 +56,6 @@ public:
   void mutShiftR(size_t amt) {
     mpz_class &r = getValue();
     r >>= amt;
-  }
-
-  // this |= x
-  // To be only used when we are the unique owners of this
-  void mutOr(unsigned long val) {
-    mpz_class &r = getValue();
-    r |= val;
   }
 
 };
@@ -197,6 +200,52 @@ Integer operator >> (Integer x, Size iamt) {
   x.free();
   return y;
 }
+
+
+// owned
+static inline
+Integer operator | (Integer x, Integer y) {
+  mpz_class &xv = x.getValue();
+  mpz_class &yv = y.getValue();
+  if (x.refCount() == 1) { xv |= yv;     y.free(); return x; }
+  if (y.refCount() == 1) { yv = xv | yv; x.free(); return y; }
+  Integer z(xv | yv);
+  x.free(); y.free();
+  return z;
+}
+
+// owned
+static inline
+Integer operator & (Integer x, Integer y) {
+  mpz_class &xv = x.getValue();
+  mpz_class &yv = y.getValue();
+  if (x.refCount() == 1) { xv &= yv;     y.free(); return x; }
+  if (y.refCount() == 1) { yv = xv & yv; x.free(); return y; }
+  Integer z(xv & yv);
+  x.free(); y.free();
+  return z;
+}
+
+
+// owned
+static inline
+Integer operator ^ (Integer x, Integer y) {
+  mpz_class &xv = x.getValue();
+  mpz_class &yv = y.getValue();
+  if (x.refCount() == 1) { xv ^= yv;     y.free(); return x; }
+  if (y.refCount() == 1) { yv = xv ^ yv; x.free(); return y; }
+  Integer z(xv ^ yv);
+  x.free(); y.free();
+  return z;
+}
+
+
+
+
+
+
+
+
 
 // NOTE: lcat is in `number.h` to avoid dependency conflicts
 // Temprary shift with UInt<64> are also there for the same reason

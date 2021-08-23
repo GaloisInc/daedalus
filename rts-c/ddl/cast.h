@@ -22,7 +22,6 @@ UInt<out> sint_to_uint(SInt<in> x) {
 }
 
 
-// Only meaningful if value is in range
 template <int in, int out>
 inline
 SInt<out> uint_to_sint(UInt<in> x) {
@@ -30,13 +29,16 @@ SInt<out> uint_to_sint(UInt<in> x) {
   return Res(typename Res::Rep(x.data));
 }
 
-// Only meaningful if value is in range
 template <int in, int out>
 inline
 SInt<out> sint_to_sint(SInt<in> x) {
   using Res = SInt<out>;
   return Res(typename Res::Rep(x.data));
 }
+
+
+// -----------------------------------------------------------------------------
+// Integers
 
 template <int in>
 inline
@@ -53,13 +55,6 @@ Integer sint_to_integer(SInt<in> x) {
   return Integer((long)x.rep());
 }
 
-template <typename T>
-inline
-T refl_cast(T x) {
-  if constexpr (hasRefs<T>()) { x.copy(); }
-  return x;
-}
-
 template <int out>
 inline
 UInt<out> integer_to_uint(Integer x) {
@@ -74,6 +69,13 @@ SInt<out> integer_to_sint(Integer x) {
 }
 
 
+
+template <typename T>
+inline
+T refl_cast(T x) {
+  if constexpr (hasRefs<T>()) { x.copy(); }
+  return x;
+}
 
 
 
