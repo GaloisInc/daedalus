@@ -137,14 +137,10 @@ int compare(UInt<w> x, UInt<w> y) {
 }
 
 
-// XXX: Maybe we should consult the base flag, rather than always using hex?
 template <size_t w>
 static inline
 std::ostream& operator<<(std::ostream& os, UInt<w> x) {
-  os << "0x" << std::hex;
-  os.fill('0');
-  if constexpr (w > 0) os.width((w+3)/4);
-  os << (uint64_t)x.rep();
+  os << static_cast<uint64_t>(x.rep());
   return os;
 }
 
@@ -152,7 +148,7 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 template <size_t w>
 static inline
 std::ostream& toJS(std::ostream& os, UInt<w> x) {
-  return os << std::dec << (uint64_t) x.rep();
+  return os << static_cast<uint64_t>(x.rep());
 }
 
 
@@ -180,78 +176,33 @@ struct SInt : public Value {
 
   Rep data;
 
+  void fixUp() {
+    constexpr size_t extra = 8 * sizeof(Rep) - w;
+    if constexpr (extra > 0) {
+      Rep x = data << extra;
+      data  = x >> extra;
+    }
+  }
+
 public:
   SInt()      : data(0) {}
 
-  SInt(uint8_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 8) {
-      constexpr size_t n = 8 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
+  // These are supposed to be total, i.e. defined for all inputs.
+  SInt(uint8_t x)  : data(static_cast<Rep>(x)) { if constexpr (w < 8)  fixUp();}
+  SInt(uint16_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 16) fixUp();}
+  SInt(uint32_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 32) fixUp();}
+  SInt(uint64_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 64) fixUp();}
 
-  SInt(uint16_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 16) {
-      constexpr size_t n = 16 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
+  // These are supposed to be total, i.e. defined for all inputs.
+  SInt(int8_t x)  : data(static_cast<Rep>(x)) { if constexpr (w < 8)  fixUp(); }
+  SInt(int16_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 16) fixUp(); }
+  SInt(int32_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 32) fixUp(); }
+  SInt(int64_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 64) fixUp(); }
 
-  SInt(uint32_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 32) {
-      constexpr size_t n = 32- w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
+  Rep rep() { return data; }
 
-  SInt(uint64_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 64) {
-      constexpr size_t n = 64 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
-
-  SInt(int8_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 8) {
-      constexpr size_t n = 8 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
-
-  SInt(int16_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 16) {
-      constexpr size_t n = 16 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
-
-  SInt(int32_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 32) {
-      constexpr size_t n = 32 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
-
-  SInt(int64_t x) : data(static_cast<Rep>(x)) {
-    if constexpr (w < 64) {
-      constexpr size_t n = 64 - w;
-      Rep y = data << n;
-      data = y >> n;
-    }
-  }
-
-
-
-
-  Rep rep() { return data; } // XXX: overflow?
-
+  // These are assumed to stay in bounds.
+  // XXX: if we used fixUp, would that give us the normal module arithmetic?
   SInt operator + (SInt x) { return Rep(data + x.data); }
   SInt operator - (SInt x) { return Rep(data - x.data); }
   SInt operator * (SInt x) { return Rep(data * x.data); }
@@ -282,6 +233,7 @@ public:
   SInt operator >> (UInt<64> x) { return SInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
+  // XXX: should we call fixUp or assumed that we are stying in bounds?
   SInt operator << (Size x) { return SInt(data << x.rep()); }
   SInt operator >> (Size x) { return SInt(data >> x.rep()); }
 
@@ -320,13 +272,15 @@ SInt<a> lcat(SInt<a> x, UInt<b> y) {
 template <size_t w>
 static inline
 std::ostream& operator<<(std::ostream& os, SInt<w> x) {
-  return os << (int64_t) x.rep();
+  os << std::dec;
+  return os << static_cast<int64_t>(x.rep());
 }
 
 template <size_t w>
 static inline
 std::ostream& toJS(std::ostream& os, SInt<w> x) {
-  return os << (int64_t)x.rep();
+  os << std::dec;
+  return os << static_cast<int64_t>(x.rep());
 }
 
 

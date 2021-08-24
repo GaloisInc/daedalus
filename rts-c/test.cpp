@@ -10,19 +10,18 @@
 
 
 #include "user_data.h"
-#include "test.h"
-
 
 #include "test_size.cpp"
 #include "test_map.cpp"
 #include "test_numbers.cpp"
 #include "test_integer.cpp"
+#include "test_casts.cpp"
 
 using namespace std;
 
 
 
 int main() {
-  test_integer();
+  test_casts();
   return 0;
 }

@@ -7,50 +7,38 @@
 
 namespace DDL {
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
-UInt<out> uint_to_uint(UInt<in> x) {
-  using Res = UInt<out>;
-  return Res(typename Res::Rep{x.data});
-}
+UInt<out> uint_to_uint(UInt<in> x) { return UInt<out>(x.rep()); }
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
-UInt<out> sint_to_uint(SInt<in> x) {
-  using Res = UInt<out>;
-  return Res(typename Res::Rep{x.data});
-}
+UInt<out> sint_to_uint(SInt<in> x) { return UInt<out>(x.rep()); }
 
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
-SInt<out> uint_to_sint(UInt<in> x) {
-  using Res = SInt<out>;
-  return Res(typename Res::Rep{x.data});
-}
+SInt<out> uint_to_sint(UInt<in> x) { return SInt<out>(x.rep()); }
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
-SInt<out> sint_to_sint(SInt<in> x) {
-  using Res = SInt<out>;
-  return Res(typename Res::Rep{x.data});
-}
+SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
 
 
 // -----------------------------------------------------------------------------
 // Integers
 
-template <int in>
+template <size_t in>
 inline
 Integer uint_to_integer(UInt<in> x) { return Integer(x.rep()); }
 
-template <int in>
+template <size_t in>
 inline
 Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
 
 
 // borrow
-template <int out>
+template <size_t out>
 inline
 UInt<out> integer_to_uint(Integer x) {
   typename UInt<out>::Rep r;
@@ -59,7 +47,7 @@ UInt<out> integer_to_uint(Integer x) {
 }
 
 // borrow
-template <int out>
+template <size_t out>
 inline
 SInt<out> integer_to_sint(Integer x) {
   typename SInt<out>::Rep r;
@@ -84,7 +72,7 @@ T refl_cast(T x) {
 
 
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
 Maybe<UInt<out>> uint_to_uint_maybe(UInt<in> x) {
   using Res = UInt<out>;
@@ -96,7 +84,7 @@ Maybe<UInt<out>> uint_to_uint_maybe(UInt<in> x) {
                   : Maybe<Res>();
 }
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
 Maybe<SInt<out>> sint_to_sint_maybe(SInt<in> x) {
   using Res = SInt<out>;
@@ -110,7 +98,7 @@ Maybe<SInt<out>> sint_to_sint_maybe(SInt<in> x) {
 }
 
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
 Maybe<SInt<out>> uint_to_sint_maybe(UInt<in> x) {
   using Res = SInt<out>;
@@ -122,7 +110,7 @@ Maybe<SInt<out>> uint_to_sint_maybe(UInt<in> x) {
                       : Maybe<Res>();
 }
 
-template <int in, int out>
+template <size_t in, size_t out>
 inline
 Maybe<UInt<out>> sint_to_uint_maybe(SInt<in> x) {
   using Res = UInt<out>;
@@ -135,13 +123,13 @@ Maybe<UInt<out>> sint_to_uint_maybe(SInt<in> x) {
 }
 
 
-template <int in>
+template <size_t in>
 inline
 Maybe<Integer> uint_to_integer_maybe(UInt<in> x) {
   return Maybe<Integer>(uint_to_integer<in>(x));
 }
 
-template <int in>
+template <size_t in>
 inline
 Maybe<Integer> sint_to_integer_maybe(SInt<in> x) {
   return Maybe<Integer>(sint_to_integer<in>(x));
@@ -150,39 +138,44 @@ Maybe<Integer> sint_to_integer_maybe(SInt<in> x) {
 
 
 
-// XXX: Update
-template <int out>
+template <size_t out>
 inline
 Maybe<UInt<out>> integer_to_uint_maybe(Integer x) {
   using Res = UInt<out>;
-  unsigned long val;
-  static_assert(sizeof(unsigned long) * 8 >= out, "Unsupported cast");
-  if (!x.isNatural() || !x.fitsULong()) goto NOPE;
-  val = x.asULong();
-  if (val <= Res::maxValRep()) {
-    return Maybe<Res>(Res(val));
+  if (x.isNatural() && mpz_sizeinbase(x.getValue().get_mpz_t(), 2) <= out) {
+    typename Res::Rep v;
+    x.exportI(v);
+    return Maybe<Res>(Res{v});
   }
-
-NOPE:
   return Maybe<Res>();
 }
 
-// XXX: Update
-template <int out>
+
+template <size_t out>
 inline
 Maybe<SInt<out>> integer_to_sint_maybe(Integer x) {
   using Res = SInt<out>;
-  long val;
-  static_assert(sizeof(long) * 8 >= out, "Unsupported cast");
-  if (!x.fitsSLong()) goto NOPE;
-  val = x.asSLong();
-  if (Res::minValRep() <= val && val <= Res::maxValRep()) {
-    return Maybe<Res>(Res(val));
+  mpz_class& c = x.getValue();
+
+  if (mpz_fits_slong_p(c.get_mpz_t())) {
+    long int v = mpz_get_si(c.get_mpz_t());
+    return (Res::minValRep() <= v && v <= Res::maxValRep())
+           ? Maybe<Res>(Res{static_cast<typename Res::Rep>(v)})
+           : Maybe<Res>();
   }
 
-NOPE:
-  return Maybe<Res>();
+  if constexpr (out <= 8 * sizeof(long)) return Maybe<Res>();
+  else {
+    // doesn't fit in a long, and out is a big type
+    typename Res::Rep r;
+    x.exportI(r);
+    Integer check{r};
+    bool ok = check == x;
+    check.free();
+    return ok ? Maybe<Res>(Res{r}) : Maybe<Res>();
+  }
 }
+
 
 
 template <typename T>
