@@ -471,10 +471,12 @@ buildPipelineLLA aut =
       in
       case ch of
         UniChoice (act, q2) -> collectOnSingleTransition (act, q2)
-        ParChoice lst -> helper lst
+        ParChoice lst ->
+          helper lst
+          -- Set.union (Set.singleton q1) (helper lst)
         SeqChoice lst _ ->
-          -- helper lst
-          Set.union (Set.singleton q1) (helper lst)
+          helper lst
+          -- Set.union (Set.singleton q1) (helper lst)
 
       where
         collectOnSingleTransition (act, q2) =
@@ -486,7 +488,8 @@ buildPipelineLLA aut =
           else
           if isBoundSetup act
           then Set.singleton q1
-          else Set.empty
+          else
+            Set.empty
           )
 
     go ::
@@ -556,7 +559,7 @@ printLLA :: Aut a => a -> LLA -> (DFA -> Bool) -> IO ()
 printLLA aut lla cond =
   let t = Map.toAscList (transitionLLA lla)
       tAnnotated =
-        map (\ (q, d) -> (showStartLLAState aut lla q, d)) t
+        map (\ (q, d) -> (showStartLLAState aut lla q, (q, d))) t
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in
@@ -564,11 +567,13 @@ printLLA aut lla cond =
   then do return ()
   else
     mapM_
-    (\ (ann, d) ->
+    (\ (ann, (_qLLA, d)) ->
+        --trace (show ann) $
         case d of
           Left dfa ->
             if
-              ( cond dfa
+              ( cond dfa -- && (linDFAState $ startLinDFAState dfa) == 80 -- 1984
+                -- qLLAState qLLA == 1987 -- 1984 -- 80 -- 1984
                 -- (lookaheadDepth dfa < 10)
                 --  ||
                 -- (fromJust $ flagHasFullResolution dfa)
@@ -591,7 +596,7 @@ printAmbiguities aut lla =
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in
-  if length t > 10000
+  if length t > 1000
   then do return ()
   else
     mapM_
@@ -683,6 +688,15 @@ statsLLA aut llas =
       do putStrLn "**********************************"
          putStrLn "***** Strict LLA Transitions *****"
          putStrLn "**********************************"
+         -- 3414 pre
+         -- 3757 overflowLLA
+         -- 1984 repeat but does not see the exit
+         -- putStrLn
+         --   (case Map.lookup (LLAState 1984) (transitionLLA lla) of
+         --       Just (Left dfa) -> showSlkCfgWithAut aut (Set.elemAt 0 (dfaState $ startDFA dfa)) ++ "\n" ++  showDFA dfa
+         --       Just (Right _) -> ""
+         --       Nothing -> ""
+         --   )
          printLLA aut lla1 nofilter
          putStrLn "**********************"
          putStrLn "**** Extended LLA ****"
