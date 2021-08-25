@@ -19,11 +19,12 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
+("AbortSlkCfgExecution",1)
 ("Lookahead-0",2)
 ("Lookahead-1",2)
-("Lookahead-ambiguous-1",10)
+("Lookahead-ambiguous-1",6)
 
-Total nb states: 14
+Total nb states: 11
 
 **********************
 ***** Strict LLA *****
