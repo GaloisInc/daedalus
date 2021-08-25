@@ -11,7 +11,6 @@ where
 
 -- import Debug.Trace
 
-
 import qualified Data.ByteString as BS
 import qualified Data.Sequence as Seq
 
@@ -288,73 +287,70 @@ incrResultMetrics b r flagMetrics =
 runner :: Aut a => BS.ByteString -> a -> Result
 runner s aut =
   let
-      gbl :: PAST.GblFuns
-      gbl = gblFunsAut aut
+    gbl :: PAST.GblFuns
+    gbl = gblFunsAut aut
 
-      react :: Cfg -> Resumption -> Result -> Result
-      react cfg resumption result =
-        -- trace "REACT" $
-        case cfg of
-          Cfg _inp _ctrl _out q ->
-            -- trace (show cfg) $
-            -- trace ("576: " ++ show (stateToString 576 aut)) $
-            -- trace ("516: " ++ show (stateToString 516 aut)) $
-            let localTransitions = nextTransition aut q in
-            case localTransitions of
-              Nothing ->
-                if isAcceptingCfg cfg aut
-                then
-                  let newResult = addResult cfg result
-                  in backtrack resumption newResult
-                else
-                  let ch = (UniChoice (CAct Pop, q)) in
-                  let newResumption = addResumption resumption cfg ch in
-                  choose newResumption result
-              Just ch ->
-                let newResumption = addResumption resumption cfg ch
-                in choose newResumption result
+    react :: Cfg -> Resumption -> Result -> Result
+    react cfg resumption result =
+      -- trace "REACT" $
+      case cfg of
+        Cfg _inp _ctrl _out q ->
+          -- trace (show cfg) $
+          -- trace ("576: " ++ show (stateToString 576 aut)) $
+          -- trace ("516: " ++ show (stateToString 516 aut)) $
+          let localTransitions = nextTransition aut q in
+          case localTransitions of
+            Nothing ->
+              if isAcceptingCfg cfg aut
+              then
+                let newResult = addResult cfg result
+                in backtrack resumption newResult
+              else
+                let ch = (UniChoice (CAct Pop, q)) in
+                let newResumption = addResumption resumption cfg ch in
+                choose newResumption result
+            Just ch ->
+              let newResumption = addResumption resumption cfg ch
+              in choose newResumption result
 
-      choose :: Resumption -> Result -> Result
-      choose resumption result =
-        -- trace "CHOOSE" $
-        case getActionCfgAtLevel resumption of
-          Nothing -> backtrack resumption result
-          Just (cfg@(Cfg inp ctrl out _q1), (act, q2)) ->
-            -- trace (show $ stateToString q2 aut) $
-            case act of
-              BAct (CutBiasAlt g) ->
-                let updResumption = updateCommitResumption g resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg updResumption result
-              BAct (CutLocal) ->
-                let updResumption = earlyUpdateCommitResumption resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg updResumption result
-              BAct (CutGlobal) ->
-                let updResumption = cutResumption resumption
-                    newCfg = Cfg inp ctrl out q2
-                in
-                   react newCfg updResumption result
-              BAct (FailAction _) ->
-                let updResult = updateError resumption cfg result in
-                backtrack resumption updResult
-              _ ->
-                case applyAction gbl (inp, ctrl, out) q2 act of
-                  Nothing -> {-# SCC backtrackFailApplyAction #-}
-                    let updResult = updateError resumption cfg result in
-                    backtrack resumption updResult
-                  Just (inp2, ctr2, out2, q2') ->
-                    let newCfg = Cfg inp2 ctr2 out2 q2'
-                    in react newCfg resumption result
+    choose :: Resumption -> Result -> Result
+    choose resumption result =
+      -- trace "CHOOSE" $
+      case getActionCfgAtLevel resumption of
+        Nothing -> backtrack resumption result
+        Just (cfg@(Cfg inp ctrl out _q1), (act, q2)) ->
+          -- trace (show $ stateToString q2 aut) $
+          case act of
+            BAct (CutBiasAlt g) ->
+              let updResumption = updateCommitResumption g resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg updResumption result
+            BAct (CutLocal) ->
+              let updResumption = earlyUpdateCommitResumption resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg updResumption result
+            BAct (CutGlobal) ->
+              let updResumption = cutResumption resumption
+                  newCfg = Cfg inp ctrl out q2
+              in react newCfg updResumption result
+            BAct (FailAction _) ->
+              let updResult = updateError resumption cfg result in
+              backtrack resumption updResult
+            _ ->
+              case applyAction gbl (inp, ctrl, out) q2 act of
+                Nothing -> {-# SCC backtrackFailApplyAction #-}
+                  let updResult = updateError resumption cfg result
+                  in backtrack resumption updResult
+                Just (inp2, ctr2, out2, q2') ->
+                  let newCfg = Cfg inp2 ctr2 out2 q2'
+                  in react newCfg resumption result
 
-      backtrack :: Resumption -> Result -> Result
-      backtrack resumption result =
-        -- trace "BACKTRACK" $
-        case nextResumption resumption of
-          Nothing -> result
-          Just nextRes -> choose nextRes result
+    backtrack :: Resumption -> Result -> Result
+    backtrack resumption result =
+      -- trace "BACKTRACK" $
+      case nextResumption resumption of
+        Nothing -> result
+        Just nextRes -> choose nextRes result
 
   in react (initCfg s aut) emptyResumption emptyResult
 
@@ -382,6 +378,11 @@ runnerLL s aut lla flagMetrics =
           -- trace (case cfg of Cfg inp _ _ _ -> show inp) $
           -- trace "BEFORE" $
           -- trace (showCfg cfg) $
+
+          -- trace "applyPredictions" $
+          -- trace (show pq) $
+          -- trace (showCfg cfg) $
+          -- trace (show finalState) $
           applyPredictions pdxs finalState cfg resumption result
         Just (Left (Nothing, _finalState)) ->
           -- The prediction says parsing is failing, for now we just
@@ -433,7 +434,6 @@ runnerLL s aut lla flagMetrics =
       let result = incrResultMetrics tickLL rslt flagMetrics in
       case LL.destrPrediction pdx of
         Nothing ->
-          -- trace "AFTER" $ trace (showCfg cfg) $
           react cfg finalState resumption result
         Just (alt, alts) ->
           let
@@ -453,9 +453,12 @@ runnerLL s aut lla flagMetrics =
             _ ->
               case applyAction gbl (inp, ctrl, out) q2 act of
                 Nothing -> {-# SCC backtrackFailApplyAction #-}
+                  -- trace (showCfg cfg) $
+                  -- trace (show act) $
                   let updResult = updateError resumption cfg result
                   in backtrack newResumption updResult
                 Just (inp2, ctr2, out2, q2') ->
+                  -- trace (show act) $
                   let newCfg = Cfg inp2 ctr2 out2 q2'
                   in applyPredictions alts finalState newCfg newResumption result
 
@@ -463,6 +466,7 @@ runnerLL s aut lla flagMetrics =
       Prediction -> LL.DataDepInstr -> [LL.LLAState] -> Cfg -> Resumption ->
       Result -> Result
     applyPredictionsDDA pdx instr finalStates cfg@(Cfg inp ctrl out q) resumption rslt =
+      -- trace "applyPredictionsDDA" $
       let result = incrResultMetrics tickLL rslt flagMetrics in
       case LL.destrPrediction pdx of
         Nothing ->
