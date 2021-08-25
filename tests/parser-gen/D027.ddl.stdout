@@ -1,0 +1,56 @@
+module D027
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+D027.A : Grammar {} =
+  do (x : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen 2 x
+     (next : Stream) <- StreamOff 2 x
+     SetStream this
+     @MatchBytes "aad"
+     ($$ : {}) <- SetStream next
+     pure $$
+ 
+D027.B : Grammar {} =
+  do (x : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen 2 x
+     (next : Stream) <- StreamOff 2 x
+     SetStream this
+     @MatchBytes "aac"
+     ($$ : {}) <- SetStream next
+     pure $$
+ 
+D027._A : Grammar {} =
+  do (x : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen 2 x
+     (next : Stream) <- StreamOff 2 x
+     SetStream this
+     @MatchBytes "aad"
+     SetStream next
+ 
+D027._B : Grammar {} =
+  do (x : Stream) <- CurrentStream
+     (this : Stream) <- StreamLen 2 x
+     (next : Stream) <- StreamOff 2 x
+     SetStream this
+     @MatchBytes "aac"
+     SetStream next
+ 
+D027.Main : Grammar {} =
+  do Choose fair
+       { D027._A
+       | D027._B
+       }
+     ($$ : {}) <- END
+     pure $$
+ 
+D027._Main : Grammar {} =
+  do Choose fair
+       { D027._A
+       | D027._B
+       }
+     END
