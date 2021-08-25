@@ -18,9 +18,6 @@ public:
   unsigned long asULong()    { return (unsigned long) data; }
   long          asSLong()    { return data; }
 
-  bool          fitsULong()  { return 0 <= data; }
-  bool          fitsSLong()  { return true; }
-
   void free() {}
   void copy() {}
 };

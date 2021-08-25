@@ -1,7 +1,7 @@
 #ifndef DDL_INTEGER_H
 #define DDL_INTEGER_H
 
-// #define QUICK_INTEGER 1
+// #define QUICK_INTEGER
 
 
 
@@ -101,16 +101,6 @@ public:
   void exportI(int64_t &x) { x = toSigned<int64_t,uint64_t>(); }
 
 
-
-
-
-  // assumes we know things will fit
-  unsigned long asULong()    { return getValue().get_ui(); }
-  long          asSLong()    { return getValue().get_si(); }
-
-  bool          fitsULong()  { return getValue().fits_ulong_p(); }
-  bool          fitsSLong()  { return getValue().fits_slong_p(); }
-
   // Mutable shift in place.
   // To be only used when we are the unique owners of this
   void mutShiftL(size_t amt) {
@@ -127,8 +117,58 @@ public:
 
 };
 
+
 static inline
 int compare(Integer x, Integer y) { return cmp(x.getValue(),y.getValue()); }
+
+static inline
+int compare(Integer x, uint32_t y) {
+  static_assert(sizeof(uint32_t) <= sizeof(unsigned long));
+  return mpz_cmp_ui(x.getValue().get_mpz_t(), y);
+}
+
+static inline
+int compare(Integer x, int32_t y) {
+  static_assert(sizeof(int32_t) <= sizeof(long));
+  return mpz_cmp_si(x.getValue().get_mpz_t(), y);
+}
+
+static inline
+int compare(Integer x, uint64_t y) {
+  if constexpr (sizeof(uint64_t) <= sizeof(unsigned long)) {
+    return mpz_cmp_ui(x.getValue().get_mpz_t(), y);
+  } else {
+    if (y <= std::numeric_limits<unsigned long>::max()) {
+      return mpz_cmp_ui(x.getValue().get_mpz_t(),
+                        static_cast<unsigned long>(y));
+    } else {
+      Integer i{y};
+      int res = compare(x,i);
+      i.free();
+      return res;
+    }
+  }
+}
+
+static inline
+int compare(Integer x, int64_t y) {
+  if constexpr (sizeof(int64_t) <= sizeof(long)) {
+    return mpz_cmp_si(x.getValue().get_mpz_t(), y);
+  } else {
+    if (y <= std::numeric_limits<long>::max()) {
+      return mpz_cmp_si(x.getValue().get_mpz_t(), static_cast<long>(y));
+    } else {
+      Integer i{y};
+      int res = compare(x,i);
+      i.free();
+      return res;
+    }
+  }
+}
+
+
+
+
 
 // borrow
 static inline
