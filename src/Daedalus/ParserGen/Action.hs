@@ -36,7 +36,6 @@ where
 
 -- import Debug.Trace
 
-
 import qualified Data.Map as Map
 import Data.Word
 import qualified Data.Vector as Vector

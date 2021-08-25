@@ -495,7 +495,7 @@ showSlkCfgWithAut aut
   , cfgInput = inp
   }) =
   "SlkCfg{ " ++
-  "q:" ++ show q ++ ", " ++
+  "q:" ++ show (Aut.stateToString q aut) ++ ", " ++
   "ctrl:" ++ concat (showSlkControlData aut ctrl) ++ ", " ++
   "sem:" ++ showSlkStack sem ++ ", " ++
   "inp:" ++ showSlkInput inp ++
@@ -746,7 +746,7 @@ isManyExactDependent cfg =
 
 symbExecCtrlNonPop ::
   Aut.Aut a => a -> SlkControlData -> SlkSemanticData -> ControlAction ->
-  HTable -> Maybe ((SlkControlData, SlkSemanticData), HTable)
+  HTable -> R.Result (Maybe ((SlkControlData, SlkSemanticData), HTable))
 symbExecCtrlNonPop _aut ctrl out act
   tab@(HTable { tabCtrl = tabC, tabSem = tabS}) =
   case act of
@@ -835,7 +835,7 @@ symbExecCtrlNonPop _aut ctrl out act
                   then rJust (ctrl, out)
                   else rNothing
                 Wildcard -> rJust (ctrl, out)
-        SWildcard -> rJust (ctrl, out)
+        SWildcard -> R.Abort R.AbortSlkCfgExecution -- rJust (ctrl, out)
         _ -> error "Unexpected ctrl stack top element"
     BoundIncr ->
       case destrSlkStack ctrl of
@@ -887,9 +887,9 @@ symbExecCtrlNonPop _aut ctrl out act
     _ -> rJust (ctrl, out)
 
   where
-    returnn c s tc ts = Just ((c, s), HTable tc ts)
-    rJust (c, s) = Just ((c, s), tab)
-    rNothing = Nothing
+    returnn c s tc ts = R.Result $ Just ((c, s), HTable tc ts)
+    rJust (c, s) = R.Result $ Just ((c, s), tab)
+    rNothing = R.Result Nothing
 
 -- This functions returns possibly many new symbolic stack because of
 -- the Pop transitions that are not deterministic when the Stack is
@@ -897,7 +897,7 @@ symbExecCtrlNonPop _aut ctrl out act
 symbExecCtrl ::
   Aut.Aut a =>
   a -> SlkControlData -> SlkSemanticData -> ControlAction -> State ->
-  HTable -> Maybe ([(SlkControlData, SlkSemanticData, State)], HTable)
+  HTable -> R.Result (Maybe ([(SlkControlData, SlkSemanticData, State)], HTable))
 symbExecCtrl aut ctrl out act q2
   tab@(HTable { tabCtrl = tabC, tabSem = tabS}) =
   -- trace (show out) $
@@ -906,7 +906,7 @@ symbExecCtrl aut ctrl out act q2
       case destrSlkStack ctrl of
         SWildcard ->
           case (Aut.lookupPopTrans q2 $ Aut.popTransAut aut) of
-            Nothing -> Nothing
+            Nothing -> rNothing
             Just targets -> -- trace (show targets) $
               let
                 (targetsr, (tcr, tsr)) =
@@ -930,19 +930,22 @@ symbExecCtrl aut ctrl out act q2
                   ([], (tabC, tabS))
                   targets
               in
-              Just (targetsr, HTable tcr tsr)
-        SEmpty -> Nothing
+              R.Result (Just (targetsr, HTable tcr tsr))
+        SEmpty -> rNothing
         SCons (SlkCallFrame _ q1 _ savedOut) rest ->
           let
             (newSem, newTabS) = mkSlkStack (SCons (headSem out) savedOut) tabS
           in
-          Just ([(rest, newSem, q1)], HTable tabC newTabS)
+          R.Result (Just ([(rest, newSem, q1)], HTable tabC newTabS))
         _ -> error "broken invariant of symbolic Pop"
     _ ->
       let r = symbExecCtrlNonPop aut ctrl out act tab in
       case r of
-        Nothing -> Nothing
-        Just ((newCtrl, newOut), newTab) -> Just ([(newCtrl, newOut, q2)], newTab)
+        R.Result Nothing -> rNothing
+        R.Result (Just ((newCtrl, newOut), newTab)) -> R.Result $ Just ([(newCtrl, newOut, q2)], newTab)
+        R.Abort abt -> R.Abort abt
+  where
+    rNothing = R.Result Nothing
 
 symbExecSem ::
   SlkControlData -> SlkSemanticData -> SemanticAction ->
@@ -1300,8 +1303,8 @@ simulateActionSlkCfg aut act q2 cfg tab =
           sem = cfgSem cfg
       in
       case symbExecCtrl aut ctrl sem cact q2 tab of
-        Nothing -> R.Result $ Nothing
-        Just (lst, tab1) ->
+        R.Result Nothing -> R.Result $ Nothing
+        R.Result (Just (lst, tab1)) ->
           R.Result $ Just $
           ( map
             ( \ (newCtrl, newSem, q2') ->
@@ -1315,6 +1318,8 @@ simulateActionSlkCfg aut act q2 cfg tab =
             lst
           , tab1
           )
+        R.Abort R.AbortSlkCfgExecution -> R.Abort R.AbortSlkCfgExecution
+        _ -> error "impossible"
     SAct sact ->
       let ctrl = cfgCtrl cfg
           sem = cfgSem cfg in
