@@ -152,14 +152,14 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
+("AbortSlkCfgExecution",3)
 ("DataDepTrans",4)
 ("Lookahead-0",3)
 ("Lookahead-1",68)
-("Lookahead-ambiguous-13",4)
-("abort-1",4)
-("abort-7",2)
+("Lookahead-ambiguous-13",3)
+("abort-1",2)
 
-Total nb states: 85
+Total nb states: 83
 
 **********************
 ***** Strict LLA *****

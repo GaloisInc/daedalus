@@ -270,10 +270,10 @@ DTrans [
 ("AbortClosureInfiniteloop",2)
 ("AbortDFAOverflowCfg",3)
 ("Lookahead-1",1)
-("abort-1",15)
+("abort-1",14)
 ("abort-2",19)
 
-Total nb states: 40
+Total nb states: 39
 
 **********************
 ***** Strict LLA *****
