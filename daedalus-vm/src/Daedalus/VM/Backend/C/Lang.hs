@@ -66,6 +66,9 @@ cDeclareVar ty x = cStmt (ty <+> x)
 cDeclareInitVar :: CType -> CIdent -> CExpr -> CStmt
 cDeclareInitVar ty x e = cStmt (ty <+> x <+> "=" <+> e)
 
+cDeclareConVar :: CType -> CIdent -> [CExpr] -> CStmt
+cDeclareConVar ty x es = cStmt (ty <+> cCallCon x es)
+
 cIf :: CExpr -> [CStmt] -> [CStmt] -> CStmt
 cIf e ifThen ifElse =
   vcat [ "if" <+> parens e <+> "{"

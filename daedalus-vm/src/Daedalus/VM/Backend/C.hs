@@ -7,11 +7,12 @@ import qualified Data.ByteString as BS
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
-import           Data.Word(Word64)
-import           Data.Int(Int64)
 import qualified Data.Set as Set
+import           Data.Word(Word32,Word64)
+import           Data.Int(Int32,Int64)
 import           Data.Maybe(maybeToList,fromMaybe,mapMaybe)
-import           Data.List(partition)
+import           Data.List(partition,sortBy)
+import           Data.Function(on)
 import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
@@ -803,24 +804,7 @@ cDoCase e opts =
          pure [ cIf (cCallMethod (cExpr e) "isJust" [])
                     (doChoice ifJust) (doChoice ifNothing) ]
 
-    TSem (Src.TInteger) ->
-      check
-      do let pats = Map.delete PAny opts
-         (PNum lower,_) <- Map.lookupMin pats
-         (PNum upper,_) <- Map.lookupMax pats
-
-         -- WARNING: assuming 64-bit arch.
-         case () of
-           _ | 0 <= lower && upper <= toInteger (maxBound :: Word64) ->
-               pure (mkSwitch "asULong" numPat)
-
-             | toInteger (minBound :: Int64) <= lower
-             , upper <= toInteger (maxBound :: Int64) ->
-               pure (mkSwitch "asSLong" numPat)
-
-              -- Linear ifs. We could probably do something smarted depending
-              -- on the patterns but not sure that it is worted
-             | otherwise -> mkBigInt
+    TSem (Src.TInteger) -> mkBigInt e opts
 
     TSem (Src.TUInt _)  -> mkSwitch "rep" numPat
     TSem (Src.TSInt _)  -> mkSwitch "rep" numPat
@@ -856,12 +840,153 @@ cDoCase e opts =
                             | (pat, ch) <- Map.toList opts, pat /= PAny ]
        ]
 
-  mkBigInt =
+  mkBigInt = compileBigInteITE
+{-
     do d <- dflt
        let ce = cExpr e
+           checkE ~(PNum i,ch) ifSmaller ifLarger =
+             let inRng lower = toInteger lower <= i &&
+                               i <= toInteger (maxBound `asTypeOf` lower)
+
+                 checkVarName = "c" -- XXX
+                 ivarName = "i" -- XXX
+
+                 mbK
+                   | inRng (minBound :: Word32) =
+                     Just
+                       (cCall (cInst "static_cast" ["uint32_t"]) [integer i])
+
+                   | inRng (minBound :: Int32) =
+                     Just
+                       (cCall (cInst "static_cast" ["int32_t"]) [integer i])
+
+                   | inRng (minBound :: Word64) =
+                     Just
+                       (cCall (cInst "static_cast" ["uint64_t"]) [integer i])
+
+                   | inRng (minBound :: Int64) =
+                     Just
+                       (cCall (cInst "static_cast" ["int64_t"]) [integer i])
+
+                   | otherwise = Nothing
+
+                 (pref,suff) =
+                    case mbK of
+                      Just _  -> ([],[])
+                      Nothing ->
+                        ( [ cDeclareConVar "DDL::Integer" ivarName
+                                              [cString (show i)] ]
+                        , [ cCallMethod ivarName "free" [] ]
+                        )
+
+             in pref ++
+                [ cDeclareInitVar "int" checkVarName
+                    (cCall "DDL::compare" [ ce, fromMaybe ivarName mbK ])
+                ] ++ suff ++
+                [ cIf (checkVarName <+> "==" <+> "0")
+                  (doChoice ch)
+                  [ cIf (checkVarName <+> "<" <+> "0") ifSmaller ifLarger ]
+                ]
+
+
            ifThis ~(PNum n,ch) el = 
               [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
        pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
+-}
 
 
+data Tree a = Tip | One a | Node a (Tree a) (Tree a)
+  deriving Show
+
+
+foldTree :: b -> (a -> b) -> (a -> b -> b -> b) -> Tree a -> b
+foldTree tip one node = go
+  where
+  go t =
+    case t of
+      Tip -> tip
+      One a -> one a
+      Node a l r -> node a (go l) (go r)
+
+listToTree :: [a] -> Tree a
+listToTree xs0 = go (length xs0) xs0
+  where
+  go sz xs =
+    let n = div sz 2
+    in case splitAt n xs of
+         (_,[])    -> Tip
+         ([],[r])  -> One r
+         (ls,r:rs) -> Node r (go n ls) (go (sz - n - 1) rs)
+
+
+
+compileBigInteITE ::
+  (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+  E -> Map Pattern JumpWithFree -> [CStmt]
+
+compileBigInteITE e alts = foldTree dflt mkOne mkIf opts
+  where
+  ce   = cExpr e
+
+  dflt = case Map.lookup PAny alts of
+         Just ch -> doChoice ch
+         Nothing -> panic "compileBigInteITE" [ "Mssing default case" ]
+
+  opts = listToTree
+       $ sortBy (compare `on` fst)
+           [ (n, doChoice ch) | (PNum n, ch) <- Map.toList
+                                                  (Map.delete PAny  alts) ]
+
+  doChoice ch = cFree (freeFirst ch) ++ cJump (jumpTarget ch)
+
+  mkOne (i,ch) =
+    prep i ++
+    [ cIf (checkVarName <+> "==" <+> "0") ch dflt ]
+
+  mkIf (i,ch) ifSmaller ifLarger =
+    prep i ++
+    [ cIf (checkVarName <+> "==" <+> "0")
+        ch
+        [ cIf (checkVarName <+> "<" <+> "0") ifSmaller ifLarger ]
+    ]
+
+  checkVarName = "c" -- XXX
+  ivarName = "i" -- XXX
+
+  prep i =
+    pref ++
+    [ cDeclareInitVar "int" checkVarName
+                      (cCall "DDL::compare" [ ce, fromMaybe ivarName mbK ]) 
+    ] ++
+    suff
+    where
+    inRng lower =
+      toInteger lower <= i && i <= toInteger (maxBound `asTypeOf` lower)
+
+
+    mbK
+      | inRng (minBound :: Word32) = Just (cCall "UINT32_C" [integer i])
+      | inRng (minBound :: Int32)  = Just (cCall "INT32_C" [integer i])
+      | inRng (minBound :: Word64) = Just (cCall "UINT64_C" [integer i])
+      | inRng (minBound :: Int64)  = Just (cCall "INT64_C" [integer i])
+      | otherwise                  = Nothing
+
+    (pref,suff) =
+       case mbK of
+         Just _  -> ([],[])
+         Nothing ->
+           ( [ cDeclareConVar "DDL::Integer" ivarName
+                                 [cString (show i)] ]
+           , [ cStmt (cCallMethod ivarName "free" []) ]
+           )
+
+
+
+{-
+  do d <- dflt
+
+         ifThis ~(PNum n,ch) el = 
+            [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
+     pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
+-}
 
