@@ -1,0 +1,5 @@
+<</Type /Font
+         /Subtype /Type0
+         /BaseFont /HeiseiMin-W5-90ms-RKSJ-H
+         /Encoding /90ms-RKSJ-H
+>>

@@ -114,15 +114,42 @@ data Slice =
   | SUnconstrained -- shorthand for 'SDontCare \infty (SLeaf (SPure VUnit))'
   | SLeaf SliceLeaf
 
+
+-- A note on inverses.  The ides is if we have something like
+--
+-- def F y = {
+--   x = UInt8 # UInt8 # UInt8 # UInt 8
+--   Guard (x > y && x < 1000)
+--   ^ x
+-- }
+--
+-- we can replace calls to F (in slices) like
+--
+-- ...
+-- v = F y
+-- ...
+-- 
+-- with (\result > y && \result < 1000) when synthesising, and then
+-- [\result >> 24 as uint 8, \result >> 16 as uint 8, \result >> 8 as uint 8, \result as uint 8 ]
+-- when constructing the path (i.e., when getting bytes).
+
 -- These are the supported leaf nodes -- we could just reuse Grammar but it
 -- is nice to be explicit here.
 data SliceLeaf =
-  SPure FieldSet Expr    -- FieldSet tells us which bits of the Expr we care about.
-  | SMatch ByteSet       -- Match a byte
+  SPure FieldSet Expr    -- ^ FieldSet tells us which bits of the Expr we care about.
+  | SMatch ByteSet       -- ^ Match a byte
   | SAssertion Assertion -- FIXME: this is inferred from e.g. case x of True -> ...
-  | SChoice [Slice] -- we represent all choices as a n-ary node, not a tree of binary nodes
+  | SChoice [Slice] -- ^ we represent all choices as a n-ary node, not a tree of binary nodes
   | SCall CallNode
   | SCase Bool (Case Slice)
+  -- FIXME: we may want to return a list of predicates when they are
+  -- disjoint (so we get mutiple slices), but this may be tricky and
+  -- not warranted.
+  | SInverse Name Expr Expr
+  -- ^ We have an inverse for this statement; this constructor has a
+  -- name for the result (considered bound in this term only), the
+  -- inverse expression, and a predicate constraining the value
+  -- produced by this node (i.e., result of the original DDL code).
 
 --------------------------------------------------------------------------------
 -- Domain Instances
@@ -167,6 +194,7 @@ instance Eqv SliceLeaf where
       (SChoice ls, SChoice rs)       -> all (uncurry eqv) (zip ls rs)
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
+      (SInverse {}, SInverse {})       -> True
       _                              -> panic "Mismatched terms in eqvSliceLeaf" ["Left", showPP l, "Right", showPP r]
 
 instance Eqv CallNode where
@@ -221,6 +249,7 @@ instance Merge SliceLeaf where
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
+      (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
 
@@ -274,6 +303,7 @@ sliceToCallees = go
       SChoice cs    -> foldMap go cs
       SCall cn      -> Set.map (\evs -> (callName cn, callClass cn, evs)) (callPaths cn)
       SCase _ c     -> foldMap go c
+      SInverse {}   -> mempty -- No grammar calls
 
 --------------------------------------------------------------------------------
 -- Free instances
@@ -299,21 +329,25 @@ instance FreeVars Slice where
 instance FreeVars SliceLeaf where
   freeVars sl =
     case sl of
-      SPure _ v    -> freeVars v -- FIXME: ignores fset, which night not be what we want
-      SMatch m     -> freeVars m
-      SAssertion e -> freeVars e
-      SChoice cs   -> foldMap freeVars cs
-      SCall cn     -> freeVars cn
-      SCase _ c    -> freeVars c
+      SPure _ v      -> freeVars v -- FIXME: ignores fset, which night not be what we want
+      SMatch m       -> freeVars m
+      SAssertion e   -> freeVars e
+      SChoice cs     -> foldMap freeVars cs
+      SCall cn       -> freeVars cn
+      SCase _ c      -> freeVars c
+      SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
 
   freeFVars sl =
     case sl of
-      SPure _ v    -> freeFVars v
-      SMatch m     -> freeFVars m
-      SAssertion e -> freeFVars e
-      SChoice cs   -> foldMap freeFVars cs
-      SCall cn     -> freeFVars cn
-      SCase _ c    -> freeFVars c
+      SPure _ v      -> freeFVars v
+      SMatch m       -> freeFVars m
+      SAssertion e   -> freeFVars e
+      SChoice cs     -> foldMap freeFVars cs
+      SCall cn       -> freeFVars cn
+      SCase _ c      -> freeFVars c
+      -- the functions in f should not be e.g. sent to the solver
+      -- FIXME: what about other usages of this function?
+      SInverse _ f p -> {- freeFVars f <> -} freeFVars p 
 
 callNodeActualArgs :: CallNode -> Map Name Expr
 callNodeActualArgs cn =
@@ -348,12 +382,13 @@ instance TraverseUserTypes Slice where
 instance TraverseUserTypes SliceLeaf where
   traverseUserTypes f sl =
     case sl of
-      SPure fset v -> SPure fset <$> traverseUserTypes f v
-      SMatch m     -> SMatch <$> traverseUserTypes f m
-      SAssertion e -> SAssertion <$> traverseUserTypes f e
-      SChoice cs   -> SChoice <$> traverseUserTypes f cs
-      SCall cn     -> SCall   <$> traverseUserTypes f cn
-      SCase b c    -> SCase b <$> traverseUserTypes f c
+      SPure fset v     -> SPure fset <$> traverseUserTypes f v
+      SMatch m         -> SMatch <$> traverseUserTypes f m
+      SAssertion e     -> SAssertion <$> traverseUserTypes f e
+      SChoice cs       -> SChoice <$> traverseUserTypes f cs
+      SCall cn         -> SCall   <$> traverseUserTypes f cn
+      SCase b c        -> SCase b <$> traverseUserTypes f c
+      SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
 instance TraverseUserTypes CallNode where
   traverseUserTypes f cn  =
@@ -390,6 +425,7 @@ instance PP SliceLeaf where
       SChoice cs    -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn -> ppPrec n cn
       SCase _ c -> pp c
+      SInverse n' ifn p -> wrapIf (n > 0) $ "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
 
 ppStmt :: Slice -> Doc
 ppStmt sl =

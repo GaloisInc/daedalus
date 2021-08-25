@@ -27,6 +27,7 @@ import Talos.SymExec.Path
 import Talos.Strategy.Monad
 import Talos.Strategy.DFST
 import Talos.Analysis.Projection (projectE)
+import Daedalus.Core.Type (typeOf)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -128,7 +129,7 @@ stratSlice ptag = go
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
           -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
-          pure (I.vUInt 8 (fromIntegral b), SelectedMatch ptag (BS.singleton b))
+          pure (I.vUInt 8 (fromIntegral b), SelectedBytes ptag (BS.singleton b))
 
         -- SMatch (MatchBytes e) -> do
         --   v <- synthesiseExpr e
@@ -152,6 +153,18 @@ stratSlice ptag = go
         SCase _ c -> do
           env <- ask
           I.evalCase (\(i, sl') _env -> onSlice (SelectedCase i) <$> go sl' ) mzero (enumerate c) env
+
+        -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
+        SInverse n ifn p -> do
+          let tryOne = do
+                v <- synthesiseExpr =<< typeToRandomInhabitant (typeOf n)
+                bindInMaybe (Just n) v $ do
+                  b <- I.valueToBool <$> synthesiseExpr p
+                  guard b
+                  bs <- synthesiseExpr ifn
+                  pure (v, SelectedBytes ptag (I.valueToByteString bs))
+              tryMany = tryOne <|> tryMany -- FIXME: this might run forever.
+          tryMany 
 
     uncPath v = (v, SelectedDo Unconstrained)
           

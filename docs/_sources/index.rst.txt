@@ -36,7 +36,7 @@ To type-check a DaeDaLus specification and see the types of the declarations:
 
 The resulting types have the following form: 
 
-.. code-block:: DaeDalus 
+.. code-block:: DaeDaLus 
 
   ParserName: 
     parameter: <type A>
@@ -51,8 +51,8 @@ This resembles a C type declaration as follows:
   <type C> ParserName(<type A>, <type B>, ...); 
 
 The types themselves may be simple types such as integers or arrays, but they
-often have the form `parser of <type A>`. This indicates that the parameter or
-result is a parser, that itself generates semantic values of type `A`. 
+often have the form ``parser of <type A>``. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type ``A``. 
 
 Run the Interpreter
 -------------------
@@ -153,7 +153,7 @@ Consider, for example the following declaration:
 
 This declares a parser called ``Example`` with 3 parameters, ``n``, ``P`` and
 ``$q``.   Note that the parameters are simply separated by space, and usually
-there is no need to provide type annotations as Deadalus can infer the types
+there is no need to provide type annotations as DaeDaLus can infer the types
 based on the naming rules and the uses in the definition.
 
 
@@ -423,7 +423,7 @@ Unbiased Choice
 Given two parsers ``P`` and ``Q`` we may construct the composite
 parser``P | Q``.  This parser succeeds if either ``P`` or ``Q``
 succeeds on the given input.   Unlike biased choice, if *both* succeed,
-then the resulting parser is *ambigous* for the given input, which means
+then the resulting parser is *ambiguous* for the given input, which means
 that input may be parsed in more than one way.  It is possible, however, to
 resolve ambiguities by composing (e.g., in sequence) with other parsers.
 
@@ -459,7 +459,7 @@ for unbiased choice and ``Choose1`` for biased choice.
 +---------------------------+-------------------+
 
 The ``Choose`` and ``Choose1`` keywords also support **layout**, so instead
-of using braces and semi-colons we can just line-up the alternaitves like this:
+of using braces and semi-colons we can just line-up the alternatives like this:
 
 .. code-block:: DaeDaLus
 
@@ -555,46 +555,46 @@ type ``BorG``.
 Repetition
 ----------
 
-The `Many` construct allows the same parser to be run multiple times in sequence
-on an incoming data stream, and it returns an array containing the resulting
-semantic values.  
+The ``Many`` construct allows the same parser to be run multiple times
+in sequence on an incoming data stream, and it returns an array containing
+the resulting semantic values.
 
-.. code-block:: DaeDalus 
+.. code-block:: DaeDaLus
 
   block 
     $$ = Many (Match1 '7')
     Match1 '0' 
     END 
 
-This code will successfully parse any stream consisting of multiple `7`
-characters, terminated by the `0` character at the end of the stream. For
-example, the stream '7770' will return the array `['7', '7', '7']`. 
+This code will successfully parse any stream consisting of multiple ``7``
+characters, terminated by the ``0`` character at the end of the stream. For
+example, the stream ``"7770"`` will return the array ``['7', '7', '7']``. 
 
-The `Many` construct optionally takes either a `uint 64` value or an interval
-bounded by two `uint 64` values: 
+The ``Many`` construct optionally takes either a ``uint 64`` value or an
+interval bounded by two ``uint 64`` values: 
 
-* `Many n P` succeeds if it executes parser `P` exactly `n` times. 
+* ``Many n P`` succeeds if it executes parser ``P`` exactly ``n`` times.
 
-* `Many (i..j) P` succeeds if it executes parser `P` at least `i` and at most
-  `j` times. 
+* ``Many (i..j) P`` succeeds if it executes parser ``P`` at least ``i`` and
+  at most ``j`` times. 
 
-* `Many` also supports lower-bounded intervals `Many (i..) P`, and likewise upper-bounded 
-  intervals `Many (..j) P`. 
+* ``Many`` also supports lower-bounded intervals ``Many (i..) P``, and
+  likewise upper-bounded intervals ``Many (..j) P``.
 
-To avoid spurious backtracking, Many will parse any input maximally. This can
-have counter-intuitive consequences! For example, the following code will never
-succeed: 
+To avoid spurious backtracking, ``Many`` will parse any input maximally.
+This can have counter-intuitive consequences! For example, the following
+code will never succeed: 
 
-.. code-block:: Daedalus 
+.. code-block:: DaeDaLus 
 
-  block 
+  block
     Many (Match1 '7')
     Match1 '7' 
 
-The call to `Many` will consume all the input characters matching `7`, meaning
-that the following `Match1` will always fail. This may be difficult to spot 
-in situations where two more complex parsers are run in sequence, the first of 
-which contains an unbounded call to Many.
+The call to ``Many`` will consume all the input characters matching ``7``,
+meaning that the following ``Match1`` will always fail. This may be difficult
+to spot in situations where two more complex parsers are run in sequence,
+the first of which contains an unbounded call to ``Many``.
 
 
 Control Structures 
@@ -693,9 +693,9 @@ union types (see `Tagged Unions`_)
 Case
 ----
 
-The `case` construct provides an alternative method for examining semantic
+The ``case`` construct provides an alternative method for examining semantic
 values. The body of a case expression consists of a list of matches with the
-syntax `pattern -> result`. For example, the following expression has the same
+syntax ``pattern -> result``. For example, the following expression has the same
 functionality as the previous example, but avoids the need for backtracking. 
 
 .. code-block:: DaeDaLus 
@@ -709,9 +709,9 @@ functionality as the previous example, but avoids the need for backtracking.
       bad  -> ^ "Failure!"
 
 A case expression can extract the value from a tagged union. In this case, the 
-match should have the form `pattern var -> result`. 
+match should have the form ``pattern var -> result``.
 
-.. code-block:: DaeDalus 
+.. code-block:: DaeDaLus 
 
   block 
     let res = Choose 
@@ -723,9 +723,9 @@ match should have the form `pattern var -> result`.
       letter l -> ^ (l - 'a')
       _        -> Fail "Something went wrong" 
 
-Here the special pattern `_ -> result` serves as a default, which matches
-against any value. Similarly, a pattern of the form `pattern _ -> result`
-indicates that the value will not be used in the result. 
+Here the special pattern ``_ -> result`` serves as a default, which matches
+against any value. Similarly, a pattern of the form ``pattern _ -> result``
+indicates that the value will not be used in the result.
 
 In a parser expression, case need not be total (i.e. cover all possible
 patterns) as any omitted matches will implicitly result in failure and
@@ -794,7 +794,7 @@ doubles each element in an array:
 
 The ``map`` construct can be used to parse a sequence of blocks, based on a
 sequence of values. For example the following code parses blocks of the form ``0AAA...``, 
-with the number of ``'A'`` characters dicated by the input sequence. 
+with the number of ``'A'`` characters dictated by the input sequence. 
 
 .. code-block:: DaeDaLus 
 
@@ -897,22 +897,18 @@ For example:
 
 .. code-block:: DaeDaLus
 
-  def f (x : maybe a) = 1 : a
+  def f (x : maybe ?a) = 1 : ?a
 
-In the previous example we assume that ``a`` is not the name of any type
-that is in scope.  The type annotation ``maybe a`` specifies that the input
-should be of type ``maybe a`` for *some* type ``a`` that we can refer to
-using the name ``a``, as we do in the body.
+The type annotation ``maybe ?a`` specifies that the input should be of type
+``maybe ?a`` for *some* type ``?a`` that we can refer to
+using the name ``?a``, as we do in the body.
 
 .. warning::
 
-  This feature is a bit error prone and may change in the future.
-  Common problems are:
+  The notation ?x is used for two unrelated features:  in types it refers
+  to some unknown type, as in the previous example;  in parsers and value
+  declarations it refers to `Implicit Parameters`_.
 
-  1. Modifying the specification to define type ``a`` changes the
-      meaning of a seemingly unrelated declarations
-  2. Mistypeing the name of a type could make you think that you've
-      speicfied the type, but in fact you just named it.
 
 
 
@@ -920,9 +916,9 @@ Coercions
 ---------
 
 Coercions provide a way to change a semantic value into the corresponding value
-of a different type. The general form is `e as T`, which converts the value of
-expression `e` into type `T`. For example, the following code will parse a byte
-and pad the resulting value out to a 32-bit unsigned integer. 
+of a different type. The general form is ``e as T``, which converts the value of
+expression ``e`` into type ``T``. For example, the following code will parse
+a byte and pad the resulting value out to a 32-bit unsigned integer. 
 
 .. code-block:: DaeDaLus
 
@@ -930,22 +926,23 @@ and pad the resulting value out to a 32-bit unsigned integer.
     let i = UInt8 
     ^ i as uint 32
 
-The base form `e as T` statically checks that the resulting type has enough bits
-to losslessly represent the original value. There are two other forms, `as!` and
-`as?` that can be used when this does not hold true statically: 
+The base form ``e as T`` statically checks that the resulting type has
+enough bits to losslessly represent the original value. There are two other
+forms, ``as!`` and ``as?`` that can be used when this does not hold true
+statically:
 
-* `e as! T` is guaranteed to succeed, but may lose information. In the case that
-  the original value fits into the target type, the behaviour coincides with the
-  lossless version of `as`. Otherwise, behaviour is implementation dependent, but
-  will attempt to do something reasonable. 
+* ``e as! T`` is guaranteed to succeed, but may lose information.
+  In the case that the original value fits into the target type, the behaviour
+  coincides with the lossless version of ``as``. Otherwise, behaviour is
+  implementation dependent, but will attempt to do something reasonable.
 
-* `e as? T` performs a run-time check that the coercion will not lose
+* ``e as? T`` performs a run-time check that the coercion will not lose
   information. If this holds, behaviour is identical to the lossless version of
-  `as`. Otherwise, the coercion fails and backtracks. 
+  ``as``. Otherwise, the coercion fails and backtracks. 
 
-Note that `e as T` and `e as T` are values, and `e as? T` is a parser. This is
-because `e as? T` can fail and backtrack, which is only meaningful in parser
-expressions. 
+Note that ``e as T`` and ``e as T`` are values, and ``e as? T`` is a parser.
+This is because ``e as? T`` can fail and backtrack, which is only meaningful
+in parser expressions.
 
 
 Semantic Values
@@ -1026,9 +1023,9 @@ Unsigned numbers can also be appended to other numbers via the
 ``#`` and ``<#`` operator.  To see the difference between the two,
 consider two bitvectors ``(x : uint A)`` and ``(y : uint B)``.
 The result of ``x # y`` is a bitvector of type ``A + B`` with
-``x`` in the more significatn bits, and ``y`` in the less significant bits.
+``x`` in the more significant bits, and ``y`` in the less significant bits.
 The result of ``x <# y`` is a bitvector of type ``A`` that contains
-``x # y`` but truncated to the ``A`` less significatn bits.
+``x # y`` but truncated to the ``A`` less significant bits.
 
 
 ``maybe`` type
@@ -1140,8 +1137,8 @@ External Declarations
 Bitdata
 =======
 
-The `bitdata` construct provides a convenient way to break bytes into groups of
-bits, which are then combined into a tagged union. 
+The ``bitdata`` construct provides a convenient way to break bytes into
+groups of bits, which are then combined into a tagged union. 
 
 .. code-block:: DaeDaLus
 
@@ -1152,11 +1149,11 @@ bits, which are then combined into a tagged union.
   bitdata OptionData where 
     OptionData = { opt : ChooseOption, val : uint 4 }
 
-Bitdata defintions are not parsers, but rather are used by applying coercions to
+Bitdata definitions are not parsers, but rather are used by applying coercions to
 already parsed bytes. The following code parses a byte, and then checks that the
 first four bits select the correct option. 
 
-.. code-block:: DaeDalus 
+.. code-block:: DaeDaLus 
 
   block
     let odat = UInt8 as? OptionData
@@ -1166,8 +1163,9 @@ first four bits select the correct option.
           opt1 -> ^ x.val
           _    -> Fail "Wrong option"
 
-Note that the coercion may fail if the parsed byte does not contain either `0x0`
-or `0x1` in its first four bits. In this case, the parser will backtrack. 
+Note that the coercion may fail if the parsed byte does not contain either
+``0x0`` or ``0x1`` in its first four bits. In this case, the parser will
+backtrack.
 
 
 Implicit Lifting
@@ -1177,6 +1175,88 @@ Implicit Lifting
 Implicit Parameters
 ===================
 
+An *implicit parameter* is a parameter that is automatically
+passed along by the system, which helps avoid clutter in specifications.
+In DaeDaLus, implicit parameters have names staring with ``?``, for example
+``?bigendian``.
+
+Implicit parameters are useful in situations where the value of a parameter
+is set once for a given scope, and then the same parameter is just passed
+along with no changes to the "leaves" of the specification.   This is quite
+common in situations where some configuration options are read once, and then
+are just passed along for the rest of a parser.
+
+Here is an example of a function that uses an implicit parameter to concatenate
+two bit vectors one way or another:
+
+.. code-block:: DaeDaLus
+
+  def joinWords a b =
+    if ?bigendian     -- ?bigendian is an implicit parameter
+      then a # b
+      else b # a
+
+Parsers automatically inherit the implicit parameters needed by functions
+or parsers they use.  For example, here are two parsers that can be used
+to parse either big-endian or little-endian words, depending on the value
+of the implicit parameter ``?bigendian``:
+
+.. note::
+  These parsers use `Implicit Lifting`_ to make them more readable
+
+
+.. code-block:: DaeDaLus
+
+  def Word16 = joinWords UInt8 UInt8
+  def Word32 = joinWords Word16 Word16
+
+If a ``block`` provides a value for an implicit parameter, then all calls
+for the rest of the block will use that value for the parameter.  For example,
+``BEWord16`` *does not* have an implicit parameter:
+
+.. code-block:: DaeDaLus
+
+  def BEWord16 =
+    block
+      let ?bigendian = true
+      Word16    -- `?bigendian` has the value `true`
+
+It is possible to use different values for the same implicit parameter,
+as illustrated by the following example:
+
+.. code-block:: DaeDaLus
+
+  def Example =
+    block
+      -- Just for testing, we set the input stream to a known value
+      SetStream (arrayStream (concat [ [0,1,0,0,0,1]
+                                     , [1,0,1,0,0,0] ]))
+
+      big =
+        -- Here we define the value of an implicit parameter
+        -- in all uses for the rest of the block
+        block
+          let ?bigendian = true
+          x = Word16
+          y = Word32
+      little =
+        -- This block uses a different value for the implicit parameter
+        block
+          let ?bigendian = false
+          x = Word16
+          y = Word32
+
+Executing ``Example`` results in the following output:
+
+.. code-block:: bash
+
+  { big: { x: 1[16]
+         , y: 1[32]
+         }
+  , little: { x: 1[16]
+            , y: 1[32]
+            }
+  }
 
 
 

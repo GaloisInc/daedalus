@@ -14,8 +14,8 @@ D015._WS : Grammar {} =
   @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
           {'\r'})
  
-D015.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+D015.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[ 1 .. ] D015._WS
      pure $$
  
@@ -24,7 +24,7 @@ D015.Digit : Grammar (uint 8) =
      ($$ : uint 8) <- pure (d - '0')
      pure $$
  
-D015.addDigit ?a1 (Coerce safe ?a1 int) (val : int) (d : ?a1) : int =
+D015.addDigit ?a0 (Coerce safe ?a0 int) (val : int) (d : ?a0) : int =
   (10 * val) + (d as int)
  
 D015.Natural : Grammar int =
@@ -59,7 +59,7 @@ D015.WS : Grammar (uint 8) =
   Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
          {'\r'})
  
-D015._Token ?a1 (_P : Grammar {}) : Grammar {} =
+D015._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[ 1 .. ] D015._WS
  

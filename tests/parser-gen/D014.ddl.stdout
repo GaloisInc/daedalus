@@ -7,11 +7,11 @@ module D014
 --- Rules:
  
 rec value
-  D014.SkipTo ?a3 (P : Grammar ?a3) : Grammar ?a3 =
+  D014.SkipTo ?a0 (P : Grammar ?a0) : Grammar ?a0 =
     Choose biased
       { P
       | do @GetByte
-           ($$ : ?a3) <- D014.SkipTo ?a3 P
+           ($$ : ?a0) <- D014.SkipTo ?a0 P
            pure $$
       }
  
@@ -21,11 +21,11 @@ D014.AString : Grammar [uint 8] =
 D014.Main : Grammar [uint 8] =
   D014.SkipTo [uint 8] D014.AString
  
-D014._SkipTo ?a3 (P : Grammar ?a3) (_P : Grammar {}) : Grammar {} =
+D014._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
   Choose biased
     { _P
     | do @GetByte
-         D014.SkipTo ?a3 P
+         D014.SkipTo ?a0 P
          pure {}
     }
  

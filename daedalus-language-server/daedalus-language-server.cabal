@@ -25,8 +25,8 @@ library
                        Daedalus.LSP.LanguageFeatures,
                        Daedalus.LSP.Command,                       
                        Daedalus.LSP.Command.Regions,
-                       Daedalus.LSP.Command.Run
-                       
+                       Daedalus.LSP.Command.Run,
+                       Daedalus.LSP.Worker                       
                       
   build-depends:       base >=4.13.0.0,
                        daedalus,

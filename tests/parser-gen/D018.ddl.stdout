@@ -100,12 +100,12 @@ D018._AnyWS : Grammar {} =
     | D018._EOL
     }
  
-D018.Token ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+D018.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      @Many[] D018._AnyWS
      pure $$
  
-D018._Token ?a1 (_P : Grammar {}) : Grammar {} =
+D018._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      @Many[] D018._AnyWS
  
@@ -115,25 +115,25 @@ D018.KW (x : [uint 8]) : Grammar {} =
 D018._KW (x : [uint 8]) : Grammar {} =
   D018._Token [uint 8] (@MatchBytes x)
  
-D018.Between ?a3 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a3) : Grammar ?a3 =
+D018.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
   do D018._KW open
-     ($$ : ?a3) <- P
+     ($$ : ?a0) <- P
      D018._KW close
      pure $$
  
-D018.numBase ?a1 ?a3 ?a4 (Literal 0 ?a4) (Traversable ?a1) (HasKey ?a1 ?a3) (HasElement ?a1 ?a4) (Numeric ?a4) (base : ?a4) (ds : ?a1) : ?a4 =
-  for ((val : ?a4) = 0; (d : ?a4) in ds)
+D018.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+  for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
-D018.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+D018.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
-D018.When ?a1 ?a5 (P : Grammar ?a5) (x : ?a1) : Grammar ?a1 =
+D018.When ?a0 ?a1 (P : Grammar ?a1) (x : ?a0) : Grammar ?a0 =
   do do P
         pure {}
-     ($$ : ?a1) <- pure x
+     ($$ : ?a0) <- pure x
      pure $$
  
 D018.Guard (p : bool) : Grammar {} =
@@ -384,16 +384,16 @@ D018.Main : Grammar D018.Main =
      END
      pure {x = x}
  
-D018._Between ?a3 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
+D018._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
   do D018._KW open
      _P
      D018._KW close
  
-D018._Only ?a1 (_P : Grammar {}) : Grammar {} =
+D018._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-D018._When ?a1 ?a5 (_P : Grammar {}) : Grammar {} =
+D018._When ?a0 ?a1 (_P : Grammar {}) : Grammar {} =
   _P
  
 D018._Bool : Grammar {} =

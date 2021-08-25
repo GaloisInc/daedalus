@@ -62,8 +62,8 @@ type midi.Header = { format: midi.Header0
                    ; time_unit: midi.Header1
                    }
  
-type midi.Delta ?a2 = { after: int
-                      ; event: ?a2
+type midi.Delta ?a0 = { after: int
+                      ; event: ?a0
                       }
  
 type midi.VoiceMessage = Choose { program_change: uint 7
@@ -140,21 +140,21 @@ midi.BE32 : Grammar (uint 32) =
      (_97 : uint 16) <- midi.BE16
      pure (_96 # _97)
  
-midi.Block ?a4 (n : uint 64) (P : Grammar ?a4) : Grammar ?a4 =
+midi.Block ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (cur : Stream) <- CurrentStream
      do (_98 : Stream) <- StreamLen n cur
         SetStream _98
-     ($$ : ?a4) <- P
+     ($$ : ?a0) <- P
      do (_99 : Stream) <- StreamOff n cur
         SetStream _99
      pure $$
  
-midi.Only ?a1 (P : Grammar ?a1) : Grammar ?a1 =
-  do ($$ : ?a1) <- P
+midi.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
      END
      pure $$
  
-midi._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+midi._Block ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      do (_98 : Stream) <- StreamLen n cur
         SetStream _98
@@ -162,16 +162,16 @@ midi._Block ?a4 (n : uint 64) (_P : Grammar {}) : Grammar {} =
      (_99 : Stream) <- StreamOff n cur
      SetStream _99
  
-midi._Only ?a1 (_P : Grammar {}) : Grammar {} =
+midi._Only ?a0 (_P : Grammar {}) : Grammar {} =
   do _P
      END
  
-midi.Chunk ?a4 ?a8 (Ty : Grammar ?a4) (P : Grammar ?a8) : Grammar ?a8 =
-  do midi._Block ?a4 4 (midi._Only ?a4 do Ty
+midi.Chunk ?a0 ?a1 (Ty : Grammar ?a0) (P : Grammar ?a1) : Grammar ?a1 =
+  do midi._Block ?a0 4 (midi._Only ?a0 do Ty
                                           pure {})
-     ($$ : ?a8) <- do (_102 : uint 64) <- do (_101 : uint 32) <- midi.BE32
+     ($$ : ?a1) <- do (_102 : uint 64) <- do (_101 : uint 32) <- midi.BE32
                                              pure (_101 as uint 64)
-                      midi.Block ?a8 _102 (midi.Only ?a8 P)
+                      midi.Block ?a1 _102 (midi.Only ?a1 P)
      pure $$
  
 midi.Guard (p : bool) : Grammar {} =
@@ -182,7 +182,7 @@ midi.TAG16 (n : uint 16) : Grammar {} =
                          pure (_103 == n)
      midi.Guard _104
  
-midi.getBit ?a1 (Numeric ?a1) (Coerce trunc ?a1 (uint 1)) (n : uint 64) (b : ?a1) : uint 1 =
+midi.getBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (n : uint 64) (b : ?a0) : uint 1 =
   b >> n as uint 1
  
 midi._Guard (p : bool) : Grammar {} =
@@ -229,9 +229,9 @@ midi.VarQ : Grammar int =
                             (v <# l)) <# last)
      pure $$
  
-midi.Delta ?a2 (E : Grammar ?a2) : Grammar (midi.Delta ?a2) =
+midi.Delta ?a0 (E : Grammar ?a0) : Grammar (midi.Delta ?a0) =
   do (after : int) <- midi.VarQ
-     (event : ?a2) <- E
+     (event : ?a0) <- E
      pure {after = after,
            event = event}
  
@@ -491,11 +491,11 @@ midi._BE32 : Grammar {} =
   do midi._BE16
      midi._BE16
  
-midi._Chunk ?a4 ?a8 (_Ty : Grammar {}) (_P : Grammar {}) : Grammar {} =
-  do midi._Block ?a4 4 (midi._Only ?a4 _Ty)
+midi._Chunk ?a0 ?a1 (_Ty : Grammar {}) (_P : Grammar {}) : Grammar {} =
+  do midi._Block ?a0 4 (midi._Only ?a0 _Ty)
      (_102 : uint 64) <- do (_101 : uint 32) <- midi.BE32
                             pure (_101 as uint 64)
-     midi._Block ?a8 _102 (midi._Only ?a8 _P)
+     midi._Block ?a1 _102 (midi._Only ?a1 _P)
  
 midi._TAG16 (n : uint 16) : Grammar {} =
   do (_104 : bool) <- do (_103 : uint 16) <- midi.BE16
@@ -525,7 +525,7 @@ midi._VarQ : Grammar {} =
                 midi._Guard ((midi.getBit (uint 8) 7 b) == 1)
      midi._UInt7
  
-midi._Delta ?a2 (_E : Grammar {}) : Grammar {} =
+midi._Delta ?a0 (_E : Grammar {}) : Grammar {} =
   do midi._VarQ
      _E
  

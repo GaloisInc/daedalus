@@ -623,7 +623,7 @@ simplifyConstraints =
 
             {- This is to handle cases like this:
             def F = { x = UInt8 } : F
-            In this case, we get a constractin: { x : uint 8 } in F
+            In this case, we get a constraint: { x : uint 8 } in F
             but `F` is not defined, so we need to add a definition.
             Note that we have to be careful to only define it once,
             here this is ensured because `constructor` constraints only

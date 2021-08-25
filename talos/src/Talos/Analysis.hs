@@ -39,11 +39,11 @@ import Talos.Analysis.Projection (freeEntangledVars, freeVarsToEntangledVars)
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: [Fun Grammar] -> GUID -> (Summaries, GUID)
-summarise decls nguid  = (summaries s', nextGUID s')
+summarise :: Module -> GUID -> (Summaries, GUID)
+summarise md nguid = (summaries s', nextGUID s')
   where
-    s' = calcFixpoint s0
-    s0 = initState decls nguid
+    s'    = calcFixpoint s0
+    s0    = initState (mGFuns md) (mFFuns md) nguid
 
 --------------------------------------------------------------------------------
 -- Summary functions
@@ -186,30 +186,46 @@ substituteArgs argsMap m_x evs =
 summariseCall :: Maybe (BaseEntangledVar, Set FieldSet) -> FName -> [Expr] ->
                  SummariseM Domain
 summariseCall m_x fn args = do
-  -- We ignore rMap for this bit, it is only used during synthesis of
-  -- the internal bytes.  If cl is FunctionResult then ResultVar will
-  -- occur in expDom.
-  Summary expDom _rMap ps _cl <- liftIterM $ requestSummary fn cl
+  m_invs <- liftIterM (getDeclInv fn)
+  case m_invs of
+    -- We only really care about inverses if we have a result
+    -- (probably otherwise pure?)
+    Just f | Just (x, _) <- m_x -> do -- FIXME: we ignore the projection (we over project)
+      n <- liftIterM (freshNameSys (fnameType fn))
+      let (ifn, pfn) = f n args
+      let sl  = SLeaf $ SInverse n ifn pfn
+          evs0 = freeEntangledVars emptyFieldSet ifn
+                <> freeEntangledVars emptyFieldSet pfn
+          evs  = snd $ deleteBaseEV (ProgramVar n) evs0
+          
+      pure $ singletonDomain (singletonEntangledVars x emptyFieldSet <> evs) sl
+      
+    _ -> do
+      -- We ignore rMap for this bit, it is only used during synthesis of
+      -- the internal bytes.  If cl is FunctionResult then ResultVar will
+      -- occur in expDom.
+      Summary expDom _rMap ps _cl <- liftIterM $ requestSummary fn cl
 
-  -- do d <- liftIterM $ currentDeclName
-  --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
+      -- do d <- liftIterM $ currentDeclName
+      --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
 
-  -- We need to now substitute the actuals for the params in
-  -- summary, and merge the results (the substitution may have
-  -- introduced duplicates, so we need to do a pointwise merge)
-  let argsMap    = Map.fromList $ zip ps args -- FIXME: This gets recomputed for each fset
-      mkCallNode (evs, _sl) =
-        CallNode { callClass        = cl
-                 , callAllArgs      = argsMap
-                 , callName         = fn
-                 , callPaths        = Set.singleton evs {- sl -}
-                 }
+      -- We need to now substitute the actuals for the params in
+      -- summary, and merge the results (the substitution may have
+      -- introduced duplicates, so we need to do a pointwise merge)
+      let argsMap    = Map.fromList $ zip ps args -- FIXME: This gets recomputed for each fset
+          mkCallNode (evs, _sl) =
+            CallNode { callClass        = cl
+                     , callAllArgs      = argsMap
+                     , callName         = fn
+                     , callPaths        = Set.singleton evs {- sl -}
+                     }
 
-      mkCall b@(evs, _) =
-        singletonDomain (substituteArgs argsMap m_x evs)
-                        (SLeaf . SCall $ mkCallNode b)
+          mkCall b@(evs, _) =
+            singletonDomain (substituteArgs argsMap m_x evs)
+                            (SLeaf . SCall $ mkCallNode b)
 
-  pure $ foldMap mkCall (explodeDomain expDom)
+      pure $ foldMap mkCall (explodeDomain expDom)
+      
   where
     cl | Just (_, fsets) <- m_x = FunctionResult fsets
        | otherwise              = Assertions

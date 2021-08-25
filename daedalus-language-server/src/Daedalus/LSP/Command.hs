@@ -17,23 +17,21 @@ import qualified Data.Text                    as Text
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
 
+import           Control.Concurrent.Async     (async, cancel)
+import           Control.Concurrent.STM       (atomically, modifyTVar, readTVar)
+import           Control.Concurrent.STM.TVar  (stateTVar)
+import           Control.Monad.IO.Class       (liftIO)
+import           Control.Monad.IO.Unlift      (withRunInIO)
+import           Control.Monad.Reader         (ask)
 import qualified Daedalus.LSP.Command.Regions as C
 import qualified Daedalus.LSP.Command.Run     as C
 import           Daedalus.LSP.Monad
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ask)
-import Control.Concurrent.STM (modifyTVar, atomically)
-import Control.Monad.IO.Unlift (withRunInIO)
-import Language.LSP.Server (sendNotification)
-import Control.Concurrent.Async (async, cancel)
-import Daedalus.LSP.Position (declAtPos)
-import Daedalus.Type.AST (tcDeclName, TCModule, tcModuleName)
-import Daedalus.SourceRange
-import Control.Concurrent.STM.TVar (stateTVar)
-import Data.Foldable (traverse_)
-import System.Log.Logger (debugM)
-import System.IO (stderr, hPutStrLn)
-import Control.Concurrent.STM (readTVar)
+import           Daedalus.LSP.Position        (declAtPos)
+import           Daedalus.SourceRange
+import           Daedalus.Type.AST            (TCModule, tcDeclName,
+                                               tcModuleName)
+import           Data.Foldable                (traverse_)
+import           Language.LSP.Server          (sendNotification)
 
 type CommandImplFun = [A.Value] -> Either String (ServerM (Either J.ResponseError A.Value))
 
@@ -76,31 +74,31 @@ supportedCommands = Map.keys commands
 
 positionToRegions :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (J.List J.Range))
 positionToRegions doc pos = do
-  e_mr <- uriToModuleResults (J.toNormalizedUri (doc ^. J.uri))
+  e_mr <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
   pure $ do
-    mr <- e_mr
-    case mrTC mr of
+    ms <- e_mr
+    case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> Left $ J.ResponseError J.ParseError "Missing module" Nothing
-      Just m  -> Right $ C.positionToRegions pos m
+      Just (m, _, _)  -> Right $ C.positionToRegions pos m
   
 runModule :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
 runModule doc pos = do
   sst <- ask
-  e_mr <- uriToModuleResults (J.toNormalizedUri (doc ^. J.uri))
-  case e_mr of
+  e_ms <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
+  case e_ms of
     Left err -> pure (Left err)
-    Right mr -> case mrTC mr of
+    Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
-      Just m  -> liftIO $ Right <$> C.runModule pos sst m
+      Just (m, _, _)  -> liftIO $ Right <$> C.runModule pos sst m
 
 watchModule :: J.TextDocumentIdentifier -> J.Position -> A.Value -> ServerM (Either J.ResponseError WatcherTag)
 watchModule doc pos clientHandle = do
-  e_mr <- uriToModuleResults (J.toNormalizedUri (doc ^. J.uri))
+  e_mr <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
   case e_mr of
     Left err -> pure (Left err)
-    Right mr -> case mrTC mr of
+    Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
-      Just m  -> go m 
+      Just (m, _, _)  -> go m 
   where
     go :: TCModule SourceRange -> ServerM (Either J.ResponseError WatcherTag)
     go m | Just d <- declAtPos pos m = do

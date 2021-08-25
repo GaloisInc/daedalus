@@ -1,132 +1,98 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Daedalus.LSP.Monad where
 
+import           Control.Concurrent.Async     (Async)
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
+import           Control.Lens                 (makeLenses, (^.))
+import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import           Data.Aeson                   (FromJSON, ToJSON)
 import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
 import           GHC.Generics                 (Generic)
 
-import           Daedalus.AST                 (ModuleName)
+import           Daedalus.AST                 (Module, ModuleName)
 import           Daedalus.Module              (pathToModuleName)
 import           Daedalus.PP
 import           Daedalus.Parser.Lexer        (Lexeme, Token)
 import           Daedalus.Pass
-import           Daedalus.Scope               (Scope)
+import           Daedalus.Scope               (GlobalScope, Scope)
 import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
                                                TCTyName)
 import           Daedalus.Type.Monad          (RuleEnv)
 
-import           Language.LSP.Server          (LanguageContextEnv, LspM, MonadLsp(..)
-                                              , runLspT)
+import           Data.Text                    (Text)
+import           Language.LSP.Server          (LanguageContextEnv, LspM,
+                                               MonadLsp (..), runLspT)
 import qualified Language.LSP.Types           as J
-import Control.Monad.IO.Unlift (MonadUnliftIO)
-import qualified Data.Map as Map
-import Control.Concurrent.Async (Async)
-
-
 
 data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
                   | FileModule FilePath -- FilePath here is the path to search
-                  deriving (Eq, Show)
-
-
--- =============================================================================
--- Worker phases
-
-data ParseRequest = ParseReq ModuleSource Int -- ms delay
-                  | WakeUpReq
-                  deriving Show
+                  deriving (Eq, Ord, Show)
 
 isFileModule :: ModuleSource -> Bool
 isFileModule FileModule {} = True
 isFileModule _ = False
 
+-- Worker commands
 
--- -----------------------------------------------------------------------------
--- Errors from cycle detection
+data WorkerRequest =
+  ChangedReq J.NormalizedUri  J.TextDocumentVersion Int Text -- ms delay
+  | WakeUpReq
+  deriving Show
 
-data CycleCheckError =
-  CycleDetected [ModuleName] ModuleName
-  | UnavailableDep [ModuleName] ModuleName
-  | MissingDep [ModuleName] ModuleName
-  deriving Eq
+-- 
+-- Worker phases
 
-instance PP CycleCheckError where
-  pp err = case err of
-    CycleDetected pfx m  -> "Import cycle detected" $$ ppPath pfx m
-    UnavailableDep pfx m -> "Unavailable dependency" $$ ppPath pfx m
-    MissingDep pfx m     -> "Missing dependency" $$ ppPath pfx m
-    where
-      ppPath pfx m = foldr (\a b -> pp a <+> "->" <+> b) (pp m) pfx
-    
--- FIXME: add a reason to Unavailable
--- data InfoStatus a = Pending | Unavailable | Finished a
+data PassStatusClass a = NotStarted | ErrorStatus | FinishedStatus a
+  deriving (Functor)
 
--- finished :: InfoStatus a -> Bool
--- finished Finished {} = True
--- finished _ = False
+data PassStatus a =
+  PassStatus { _statusChanged :: Bool
+             , _passStatus    :: PassStatusClass a
+             }
+  deriving (Functor)
 
+makeLenses ''PassStatus
 
-data ModuleInfo = 
-  ModuleInfo { miScope :: Maybe Scope
-             , miTypeEnv :: Maybe (RuleEnv, Map TCTyName TCTyDecl)
-             -- ^ Rules for this module, can be partial (will result in reported errors)
-             -- while type decls for this and imported modules, can be partial
-             } deriving Eq
+passStatusToMaybe :: PassStatus a -> Maybe a
+passStatusToMaybe (PassStatus _ (FinishedStatus a)) = Just a
+passStatusToMaybe _ = Nothing
 
-emptyModuleInfo :: ModuleInfo
-emptyModuleInfo = ModuleInfo Nothing Nothing
-
-data ModuleResults =
-  ModuleResults { mrSource      :: !ModuleSource
-                , mrImportScope :: !(Maybe (Map ModuleName Scope))
-                , mrTokens      :: !(Maybe [Lexeme Token])
-                -- ^ Scope of imported modules, including this one.
-                , mrTC          :: !(Maybe (TCModule SourceRange))
-                }
-
-emptyModuleResults :: ModuleSource -> ModuleResults
-emptyModuleResults ms =
-  ModuleResults { mrTokens      = Nothing
-                , mrSource = ms
-                , mrImportScope = Nothing
-                , mrTC          = Nothing
-                }
 
 data ModuleState =
-  ModuleState { moduleChan :: TChan ParseRequest
-              , moduleImportInfo :: TVar (Maybe [ModuleName])
-              -- These maps can be partial if there are errors, so we can use some of the information
-              , moduleInfo    :: TVar ModuleInfo
-              -- ^ Used between workers
-              , moduleResults         :: TVar ModuleResults
-              -- ^ Exported for use by front-end commands (hover, rename, etc)
+  ModuleState { _msSource        :: ModuleSource
+              -- We can't fail (missing modules don't get a ModuleState)
+              , _msTokens        :: PassStatus [Lexeme Token]
+              , _msParsedModule  :: PassStatus Module
+              -- ^ The parsed module, not scoped.  We don't really need
+              -- the error, but it is nice to have.
 
-             -- moduleSource  :: ModuleSource
-             -- , modulePending :: Maybe (Async ())
-             -- , moduleParsed  :: Maybe Module  -- ^ parsed, scoped
-             -- , 
-             -- moduleTC      :: Maybe (TCModule SourceRange)
-             }
+              , _msScopeRes      :: PassStatus (Module, GlobalScope)
 
-newModuleState :: ModuleSource -> STM ModuleState
-newModuleState ms =
-  ModuleState <$> newTChan <*> newTVar Nothing <*> newTVar emptyModuleInfo <*> newTVar (emptyModuleResults ms)
+              , _msTCRes         :: PassStatus (TCModule SourceRange, RuleEnv, Map TCTyName TCTyDecl)
+              }
+
+makeLenses ''ModuleState
+
+type ModuleStates = Map ModuleName ModuleState
 
 type WatcherTag = Int
 
 data ServerState =
   ServerState { lspEnv       :: LanguageContextEnv Config
               , passState    :: PassState -- shared between threads
-              , knownModules :: TVar (Map ModuleName ModuleState)
+              , workerChan   :: TChan WorkerRequest
+              , moduleStates :: TVar ModuleStates
               , watchers     :: TVar (Map WatcherTag (Async ()))
               }
 
@@ -143,7 +109,7 @@ newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a 
 
 emptyServerState :: LanguageContextEnv Config -> IO ServerState
 emptyServerState lenv = do
-  ServerState lenv <$> newPassState <*> atomically (newTVar mempty) <*> atomically (newTVar mempty) 
+  ServerState lenv <$> newPassState <*> atomically newTChan <*> atomically (newTVar mempty) <*> atomically (newTVar mempty) 
 
 runServerM :: ServerState ->  ServerM a -> IO a
 runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
@@ -162,12 +128,23 @@ runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
 uriToModuleName :: J.NormalizedUri -> Maybe ModuleName
 uriToModuleName = fmap (snd . pathToModuleName) . J.uriToFilePath . J.fromNormalizedUri
 
-uriToModuleResults :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleResults)
-uriToModuleResults uri = do
+uriToModuleState :: J.NormalizedUri -> ServerM (Either J.ResponseError ModuleState)
+uriToModuleState uri = do
   sst <-  ask
   let Just mn = uriToModuleName uri -- FIXME
   liftIO $ atomically $ do
-    mods <- readTVar (knownModules sst)
-    case Map.lookup mn mods of
-      Nothing -> pure $ Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
-      Just mi -> Right <$> readTVar (moduleResults mi)
+    mods <- readTVar (moduleStates sst)
+    pure $ case Map.lookup mn mods of
+      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just ms -> Right ms
+
+
+uriToTCModule :: J.NormalizedUri -> ServerM (Either J.ResponseError (Maybe (TCModule SourceRange)))
+uriToTCModule uri = do
+  sst <-  ask
+  let Just mn = uriToModuleName uri -- FIXME
+  liftIO $ atomically $ do
+    mods <- readTVar (moduleStates sst)
+    pure $ case Map.lookup mn mods of
+      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Just ms -> Right $ (\(tcm, _, _) -> tcm) <$> passStatusToMaybe (ms ^. msTCRes)

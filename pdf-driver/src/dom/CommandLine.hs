@@ -11,7 +11,7 @@ data Command =
   | PrettyPrintAll
   | Validate
   | ListXRefs
-  | ParseValue
+  | ParseType String  -- only allowable strings {"Value"}
   | ShowHelp
 
   -- | ShowEncrypt  
@@ -66,7 +66,11 @@ options = OptSpec
 
       , Option [] ["parse-value"]
         "File contains a value instead of a PDF document."
-      $ NoArg $ \opts -> Right opts { command = ParseValue }
+      $ NoArg $ \opts -> Right opts { command = ParseType "Value" }
+
+      , Option [] ["parse-type"]
+        "File contains an object of type PARSER instead of a PDF document."
+      $ ReqArg "PARSER" $ (\v opts -> Right opts { command = ParseType v} ) 
 
       , Option [] ["help"]
         "Show this help."

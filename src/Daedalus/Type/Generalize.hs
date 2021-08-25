@@ -45,7 +45,7 @@ generalize ds =
                   "Failed to infer expression type."
                   [ "Expressions examined with `case` or `is`" <+>
                                                     "need a concrete type."
-                  , "Plese use a type annotation to specify it."
+                  , "Please use a type annotation to specify it."
                   ]
                 x         -> pure x
 

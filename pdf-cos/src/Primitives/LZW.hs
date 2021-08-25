@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, TypeApplications, DataKinds #-}
+{-# Language OverloadedStrings, DataKinds #-}
 module Primitives.LZW (lzwDecode) where 
 
 import qualified Data.ByteString as B
@@ -21,7 +21,8 @@ lzwDecode :: PdfParser m =>
     Integer -> Integer -> Integer -> Integer -> Integer -> Input -> m Input 
 lzwDecode predi colors bpc cols early inp =
   -- pError FromUser "LZW.lzwDecode" "LZW not supported yet"
-  do bs <- unPredict predi colors bpc cols (lzwDecompress (inputBytes inp))
+  do lzwres <- lzwDecompress (inputBytes inp)
+     bs <- unPredict predi colors bpc cols lzwres
      pure (newInput name bs) 
   where name = C.pack ("LzwDecode" ++ show (inputOffset inp))
 
@@ -178,13 +179,14 @@ getKey :: Key -> Chunk -> DecodeTable -> Chunk
 getKey key previous table = 
   fromMaybe (B.snoc previous (B.head previous)) (M.lookup key table)
 
-decompressKeys :: [Key] -> [Chunk]
-decompressKeys [] = [] 
+decompressKeys :: PdfParser m => [Key] -> m [Chunk]
+decompressKeys [] = pure [] 
 decompressKeys (k:keys) = 
-    first : rest 
-  where 
-    first = getKey k undefined initialDecodeTable
-    rest = decompressKeys' initialDecodeTable keys first
+    do first <- case M.lookup k initialDecodeTable of 
+                Just key -> pure key 
+                Nothing  -> pError FromUser "decompressKeys" 
+                  "Ill-formed LZW stream: first key is not in initial dictionary."
+       pure (first : decompressKeys' initialDecodeTable keys first) 
 
 decompressKeys' :: DecodeTable -> [Key] -> Chunk -> [Chunk]
 decompressKeys' table [] _ = []
@@ -193,8 +195,7 @@ decompressKeys' table (key:ks) previous =
       newTable = updateDecodeTable (B.snoc previous (B.head output)) table
   in output : decompressKeys' newTable ks output
 
-lzwDecompress :: Chunk -> Chunk   
+lzwDecompress :: PdfParser m => Chunk -> m Chunk   
 lzwDecompress input = 
-  B.concat $ 
-    concatMap decompressKeys $ 
-      (unpackKeys . unpackBits) input 
+  do keys <- mapM decompressKeys $ (unpackKeys . unpackBits) input 
+     pure (B.concat $ concat keys)

@@ -4,34 +4,6 @@
 import Stdlib
 
 --------------------------------------------------------------------------------
--- White Space (Section 7.2)
-
-def $lf                   = 10
-def $cr                   = 13
-def $space                = 32
-def $simpleWS             = 0 | 9 | 12 | 32
-
-def SimpleEOL             = { $cr; $lf } | $lf
-def EOL                   = SimpleEOL <| $cr
-def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
-def JustWhite             = $simpleWS | EOL
-
-def AnyWS                 = $simpleWS | Comment | EOL
-
---------------------------------------------------------------------------------
-
-
---------------------------------------------------------------------------------
--- Helpers
-
-def Token P               = { $$ = P; Many AnyWS }
-def KW x                  = @ (Token (Match x))
-def Between open close P  = { KW open; $$ = P; KW close }
-
---------------------------------------------------------------------------------
-
-
---------------------------------------------------------------------------------
 -- Boolean Objects (Section 7.3.2)
 
 def Bool =
@@ -47,6 +19,11 @@ def Number = Token {
   @n    = UnsignedNumber;
     When (sign is pos) n
   | When (sign is neg) { num = 0 - n.num; exp = n.exp }
+}
+
+def intNumber (n : int) : Number = {
+  num = n;
+  exp = 0;
 }
 
 def Sign = Choose {
@@ -146,6 +123,12 @@ def NameEsc  = {
 }
 
 
+--------------------------------------------------------------------------------
+-- Helpers
+
+def Token P               = { $$ = P; Many AnyWS }
+def KW x                  = @ (Token (Match x))
+def Between open close P  = { KW open; $$ = P; KW close }
 
 --------------------------------------------------------------------------------
 -- Array Objectcs (Section 7.3.6)

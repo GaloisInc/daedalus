@@ -7,13 +7,15 @@ module Common where
 import Control.Monad.IO.Class(MonadIO(..))
 import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
-                 , hPutStr, hPutStrLn, hFlush)
+                 , hPutStr, hPutStrLn, hFlush, hSetEncoding, hGetEncoding, utf8)
 
 import RTS.ParserAPI(ParseError(..),peOffset)
 import RTS.Input(inputOffset)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
+import Data.Text(Text)
+import qualified Data.Text.IO as TextIO
 
 data ReportCode =
     RError
@@ -36,7 +38,7 @@ data ReportState  = ReportState { infoHandle   :: Handle
                                 , accept       :: Bool -- Whether to accept or reject file
                                 , safe         :: Bool -- Whether the file contains unsafe elements
                                 }
-  
+
 newtype ReportM a = ReportM { runReportM :: StateT ReportState IO a }
   deriving (Applicative, Functor, Monad, MonadState ReportState, MonadIO)
 
@@ -46,7 +48,7 @@ finalReport st = do
   -- FIXME: we always print, even if there were no errors.
   hPutStrLn (errHandle st) (if accept st then "ACCEPT" else "REJECT")
   hPutStrLn (errHandle st) (if safe st   then "SAFE"   else "UNSAFE")
-  hFlush (infoHandle st)  
+  hFlush (infoHandle st)
   hFlush (errHandle st)
 
 runReport :: Options -> ReportM a -> IO a
@@ -81,6 +83,23 @@ report code fileN off d = do
            RCritical -> "CRITICAL"
            RUnsafe   -> "UNSAFE"
            RInfo     -> "INFO"
+
+-- Print text extracted to output file and does not change the report
+reportTextExtraction :: Options -> Text -> ReportM ()
+reportTextExtraction opts d = do
+  outFile <- liftIO (
+        case optTextOutput opts of
+          "-" -> return stdout
+          f   -> openFile f WriteMode
+        )
+  liftIO (do -- enc <- hGetEncoding outFile
+             -- putStrLn (show enc)
+             hSetEncoding outFile utf8
+             TextIO.hPutStr outFile d
+             hPutStr outFile "\n"
+         )
+
+
 
 -- same as above, but we can't continue.  Maybe we should throw an exception or something.
 reportCritical :: FilePath -> Int -> Doc -> ReportM a

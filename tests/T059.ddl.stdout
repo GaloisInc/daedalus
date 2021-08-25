@@ -6,10 +6,10 @@ module T059_A
  
 --- Rules:
  
-T059_A.F ?a1 (P : Grammar ?a1) : Grammar ?a1 =
+T059_A.F ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   P
  
-T059_A._F ?a1 (_P : Grammar {}) : Grammar {} =
+T059_A._F ?a0 (_P : Grammar {}) : Grammar {} =
   _P
 module T059
  
