@@ -41,9 +41,11 @@ library
                      , Talos.Strategy
                      , Talos.Strategy.Monad
                      , Talos.Strategy.DFST
+                     , Talos.Strategy.SymbolicM
                      
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
+                     , Talos.Strategy.BackwardSymbolic
                      
                      , Talos.Synthesis
 

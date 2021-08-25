@@ -158,6 +158,7 @@ runDaedalus inFile m_entry = daedalus $ do
   passCore specMod
   passStripFail specMod
   passSpecTys specMod
+  passConstFold specMod
     
   entry <- ddlGetFName mm entryName
 

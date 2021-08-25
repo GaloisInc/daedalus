@@ -715,6 +715,125 @@ also as required.
    get aruond some of the above problems.
  - Maybe gor forward, generating multiple summaries just by looking at the return type/value?
 
+** Array element sensitivity
+
+The basic idea here is to notice that some array values are used
+parametrically, in that elements do not influenece other elements, and
+so we can synthesise the array elements in parallel.
+
+
+#+BEGIN_SRC
+
+
+-- With iterator projection
+
+-- { {_x30 . {itVal, itNull} } => case itNull _x30 of True -> [*]; False -> let x = itVal _x30; Bind z UInt8 (Guard ...) }
+
+--3 { _x30 . {itVal, itNull, { itNext . {itVal, itNull} } } => case ... 
+	         let x = itVal _x30; Bind z UInt8 (Guard ...)
+                 ; Call { _x30 . {itVal, itNull} } }
+
+--4 { _x30 . {itVal, itNull, { itNext . {itVal, itNull, { itNext . {itVal, itNull} } }} => case ... 
+	         let x = itVal _x30; Bind z UInt8 (Guard ...)
+                 ; Call { _x30 . {itVal, itNull} } }
+
+
+proc _F29(_x26 : Builder Main0, _x30 : Iter [P]) : Builder Main0 =   
+  -- { {_x30 . {itVal, itNull} } => case itNull _x30 of True -> [*]; False -> let x = itVal _x30; Bind z UInt8 (Guard ...) }
+
+
+  case itNull _x30 of
+    True ->
+      pure _x26
+    False ->
+      do
+
+	 --3 { { _x30 . itVal } => let x = itVal _x30; Bind z UInt8 (Guard ...)
+	 --3 ; { _x30 . itNext . {itVal, itNull} } => [...]; Call { _x30 . {itVal, itNull} } }
+
+         let x = itVal _x30
+	 -- { {x} => Bind z UInt8 (Guard ...) }
+
+	 --3 { {x} => Bind z UInt8 (Guard ...)
+	 --3 ; _x30 . itNext . {itVal, itNull} } => [...]; Call { _x30 . {itVal, itNull} } }
+
+         z <- match1 { ... }
+	 -- { {x,z} => Guard ... }
+	 --3 { {x,z} => Guard ... }
+	 --3 ; _x30 . itNext . {itVal, itNull} } => [...]; Call { _x30 . {itVal, itNull} } }
+
+         Guard (((get x x) + (get y x)) < z)
+	 -- _|_
+         let _x27 = Main0 {z = z}
+	 -- _|_
+         let _x31 = cons _x27 _x26
+	 -- _|_
+	 --3 {_x30 . itNext . {itVal, itNull} } => Call { _x30 . {itVal, itNull} } }
+         _F29(_x31, itNext _x30)
+
+
+
+-- { {_x30} => case itNull _x30 of True -> [*]; False -> let x = itVal _x30; Bind z UInt8 (Guard ...) } 
+--2 { {_x30} => case itNull _x30 of 
+                       True -> [*];
+                       False -> let x = itVal _x30; Bind z _ (Guard ...); Call { _x30 } }
+
+proc _F29(_x26 : Builder Main0, _x30 : Iter [P]) : Builder Main0 =   
+  -- { {_x30} => case itNull _x30 of True -> [*]; False -> let x = itVal _x30; Bind z UInt8 (Guard ...) }
+  --2 { {_x30} => let x = itVal _x30; Bind z _ (Guard ...); Call { _x30 } }
+  
+  case itNull _x30 of
+    True ->
+      pure _x26
+    False ->
+      do -- { {_x30} => let x = itVal _x30; Bind z UInt8 (Guard ...) }
+	 --2 { {_x30} => let x = itVal _x30; Bind z _ (Guard ...); Call { _x30 } }
+         let x = itVal _x30
+	 -- { {x} => Bind z _ (Guard ...) }
+	 --2 { {x} => Bind z _ (Guard ...) 
+	 --2 ; {_x30} => [...]x2; Call { _x30 } }
+         z <- match1 { ... }
+	 -- { {x,z} => Guard ... }
+	 --2 { {x,z} => Guard ...
+	 --2 ; {_x30} => [...]; Call { _x30 } }
+         Guard (((get x x) + (get y x)) < z)
+	 -- _|_
+	 --2 { {_x30} => Call { _x30 }  }
+         let _x27 = Main0 {z = z}
+	 -- _|_
+	 --2 { {_x30} => Call { _x30 }  }
+         let _x31 = cons _x27 _x26
+	 -- _|_
+	 --2 { {_x30} => Call { _x30 }  }
+         _F29(_x31, itNext _x30)
+ 
+-- F29 / Assertion
+ 
+proc _F20(_x21 : Word 64, _x22 : Builder P) : Builder P =
+  case _x21 < (5 @(Word 64)) of
+    True ->
+      do _x23 <- try
+                   P()
+                 else
+                   fail_sys @P "insufficient element occurances"
+         _F20(_x21 + (1 @(Word 64)), cons _x23 _x22)
+    False ->
+      pure _x22
+
+proc P() : P =
+  do x <- match1 { ... }
+     y <- match1 { ... }
+     pure P {x = x, y = y}
+ 
+proc Main() : Main =
+  do _x24 <- _F20(0 @(Word 64), nil @P)
+     let xs = listToArray _x24
+     _x32 <- _F29(nil @Main0, itNew xs)
+     pure (listToArray _x32)
+     pure Main {xs = xs}
+
+#+END_SRC
+
 ** Problem Zoo
 
 These DDL fragments are somehow interesting, or problematic, for synthesis.

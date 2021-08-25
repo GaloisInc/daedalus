@@ -17,6 +17,8 @@ module Talos.SymExec.SolverT (
 
   -- * Functions
   SMTFunDef(..), defineSMTFunDefs,
+  -- * SMT Polymorphic functions
+  PolyFun (..), defineSMTPolyFun, getPolyFun, 
   -- * Types
   SMTTypeDef(..), defineSMTTypeDefs,
   typeNameToDefault, 
@@ -50,6 +52,12 @@ import qualified Daedalus.Core as C
 
 import Talos.SymExec.StdLib
 
+-- The name of a polymorphic function (map lookup, map insertion, etc)
+data PolyFun = PMapLookup SExpr SExpr -- kt vt
+             | PMapInsert SExpr SExpr -- kt vt
+             | PMapMember SExpr SExpr -- kt vt
+             deriving (Eq, Ord, Show)
+
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
 data SolverFrame =
@@ -62,10 +70,11 @@ data SolverFrame =
               --
               -- where the execution of the body of x will return
               -- '$$' as it's symbolc result
+              , frKnownPolys :: Map PolyFun String -- Maps from a defined poly fun to its SMT name
               }
   
 emptySolverFrame :: SolverFrame
-emptySolverFrame = SolverFrame mempty mempty mempty
+emptySolverFrame = SolverFrame mempty mempty mempty mempty
 
 data SolverState =
   SolverState { solver       :: Solver
@@ -75,7 +84,6 @@ data SolverState =
 
 emptySolverState :: Solver -> SolverState
 emptySolverState s = SolverState s mempty emptySolverFrame
-
 
 inCurrentFrame :: Monad m => (SolverFrame -> SolverT m a) -> SolverT m a
 inCurrentFrame f = SolverT (gets currentFrame) >>= f
@@ -125,6 +133,9 @@ bindName k v f = f { frBoundNames = Map.insert k v (frBoundNames f) }
 
 lookupName :: Name -> SolverFrame -> Maybe SExpr
 lookupName k = fmap S.const . Map.lookup k . frBoundNames
+
+lookupPolyFun :: PolyFun -> SolverFrame -> Maybe SExpr
+lookupPolyFun pf = fmap S.const . Map.lookup pf . frKnownPolys
 
 newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
@@ -190,6 +201,14 @@ getName n = do
   case m_s of
     Just s -> pure s
     Nothing -> panic "Missing name" [showPP n]
+
+getPolyFun :: Monad m => PolyFun -> SolverT m SExpr
+getPolyFun pf = do
+  m_s <- inCurrentFrame (pure . lookupPolyFun pf)
+  case m_s of
+    Just s -> pure s
+    Nothing -> panic "Missing polyfun" [show pf]
+
 
 freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m String
 freshSymbol pfx = do
@@ -347,6 +366,34 @@ defineSMTFunDefs (MutRec sfds) = overCurrentFrame $ \f ->
   where
     allNames = Set.fromList (map sfdName sfds)
     defs = map (\sfd -> (fnameToSMTName (sfdName sfd), sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
+
+-- -----------------------------------------------------------------------------
+-- Poly functions
+
+defineSMTPolyFun :: (HasGUID m, MonadIO m) => PolyFun -> SolverT m ()
+defineSMTPolyFun pf = overCurrentFrame $ \f ->
+  if pf `Map.member` frKnownPolys f
+  then pure ((), f)
+  else do f' <- go f
+          pure ((), f')
+  where
+    go f = do
+      fnm <- case pf of
+        PMapLookup kt vt -> do
+          fnm <- freshSymbol "mapLookup"
+          solverOp (\s -> mkMapLookup s fnm kt vt)
+          pure fnm
+        PMapMember kt vt -> do
+          fnm <- freshSymbol "mapMember"
+          solverOp (\s -> mkMapMember s fnm kt vt)
+          pure fnm
+        PMapInsert kt vt -> do
+          fnm <- freshSymbol "mapInsert"
+          solverOp (\s -> mkMapInsert s fnm kt vt)
+          pure fnm
+          
+      pure (f { frKnownPolys = Map.insert pf fnm (frKnownPolys f) })
+
   
 -- -----------------------------------------------------------------------------
 -- instances
