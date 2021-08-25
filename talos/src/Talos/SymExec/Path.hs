@@ -67,9 +67,10 @@ data SelectedNode =
   | SelectedCall SummaryClass SelectedPath
   -- ^ We have a function call.
   
-  | SelectedMatch ProvenanceTag ByteString 
+  | SelectedBytes ProvenanceTag ByteString 
   -- ^ The term has been fully processed and does not contain anything
-  -- of interest to other paths.  We still need to execute the term on the bytes.
+  -- of interest to other paths.  We still need to execute the term on
+  -- the bytes to get the resutl.
 
   | SelectedDo SelectedPath -- ^ Wraps a nested Do node
   deriving (Generic, NFData)
@@ -221,5 +222,5 @@ instance PP SelectedNode where
       SelectedChoice n' sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
       SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
-      SelectedMatch _pr bs -> pp bs  -- XXX: print provenance 
+      SelectedBytes _pr bs -> pp bs  -- XXX: print provenance 
       SelectedDo ps        -> "do" $$ pp ps

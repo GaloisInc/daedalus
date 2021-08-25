@@ -29,15 +29,19 @@ import Talos.Analysis.Slice
 import Talos.SymExec.Path
 import Talos.Strategy.Monad
 
-import Talos.SymExec.SolverT (SolverT, push, pop, reset, scoped, defineName, declareSymbol, assert)
+import Talos.SymExec.SolverT (SolverT, push, pop, reset, scoped, defineName, declareSymbol, assert, declareName, getName)
 import qualified Talos.SymExec.SolverT as Solv
 import Talos.SymExec.StdLib
 import Talos.SymExec.Core
-import Talos.SymExec.ModelParser (evalModelP, pByte)
+import Talos.SymExec.ModelParser (evalModelP, pByte, pValue)
 
 import Talos.Strategy.DFST
 import Talos.Analysis.Projection (projectE, typeToInhabitant)
 import Daedalus.Rec (forgetRecs)
+import qualified Daedalus.Value as I
+import Daedalus.Core.Free (freeVars)
+import qualified Daedalus.Core.Semantics.Env as I
+import qualified Daedalus.Core.Semantics.Expr as I
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -121,7 +125,7 @@ stratSlice ptag = go
           bassn <- solverOp (symExecByteSet bset bname)
           solverOp (assert bassn)
           -- solverOp check -- required?          
-          pure (bname, SelectedMatch ptag . BS.singleton <$> byteModel bname)
+          pure (bname, SelectedBytes ptag . BS.singleton <$> byteModel bname)
 
         -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
         -- SMatch {} -> unimplemented sl
@@ -141,7 +145,31 @@ stratSlice ptag = go
 
         SCase _ c -> stratCase ptag c
 
+        SInverse n ifn p -> do
+          n' <- solverOp (declareName n (symExecTy (typeOf n)))
+          pe <- synthesiseExpr p
+          solverOp (assert pe)
+          check -- FIXME: necessary?
+
+          -- Once we have a model, we need to convert all the free
+          -- variables in the inverse function expression into values,
+          -- and then call the inverse function in the _interpreter_.
+          -- Note that n is free in ifn.
+          -- 
+          -- We could also have the solver execute the function for
+          -- us.
+          
+          pure (n', SelectedBytes ptag <$> applyInverse ifn)
+
     uncPath v = (v, pure (SelectedDo Unconstrained))
+    
+    applyInverse ifn = do
+      let fvM = Map.fromSet id $ freeVars ifn
+          getOne n =  solverOp (getName n) >>= valueModel (typeOf n)
+      env <- traverse getOne fvM
+      ienv <- liftStrategy getIEnv -- for fun defns
+      let ienv' = ienv { I.vEnv = env }
+      pure (I.valueToByteString (I.eval ifn ienv'))
 
     -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
@@ -252,6 +280,13 @@ byteModel symB = do
   case evalModelP pByte sexp of
     [] -> panic "No parse" []
     b : _ -> pure b
+
+valueModel :: Type -> SExpr -> SymbolicM I.Value
+valueModel ty symV = do
+  sexp <- getValue symV
+  case evalModelP (pValue ty) sexp of
+    [] -> panic "No parse" []
+    v : _ -> pure v
 
 -- =============================================================================
 -- Symbolic monad

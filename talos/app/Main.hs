@@ -44,13 +44,13 @@ main = do
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
-  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optDDLEntry opts)
+  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
   print (pp md)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
-  summaries <- summarise (optDDLInput opts) (optDDLEntry opts)
+  summaries <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
   mapM_ (print . doOne) (Map.toList summaries)
   where
     doOne (nm, summary) = pp nm <+> " :: " <+> bullets (map doOneS (Map.toList summary))
@@ -73,7 +73,7 @@ doSynthesis opts = do
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
 
-  strm <- synthesise (optDDLInput opts) (optDDLEntry opts) (optSolver opts) 
+  strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
             logOpt (optSeed opts)
 
