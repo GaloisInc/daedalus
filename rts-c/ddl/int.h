@@ -1,3 +1,5 @@
+#error "XXX: Small int is out of date"
+
 #include <climits>
 #include <stdlib.h>
 #include <ddl/boxed.h>
