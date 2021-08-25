@@ -1,0 +1,9 @@
+context:
+  "Main"
+  "_B"
+input: File context:
+Length: 3 (0x3) bytes
+0000:   61 61 [1;91m63[0m                                  aa[1;91mc[0m
+
+
+Score (LL / (Backtrack + LL)): 0%
