@@ -292,7 +292,19 @@ interpPGen useJS inp moduls flagMetrics =
               if null resultValues
                 then
                   do putStrLn $ PGen.extractParseError bytes results
-                     exitFailure
+                     if flagMetrics
+                       then
+                         let countBacktrack = fst (extractMetrics results)
+                             countLL =        snd (extractMetrics results)
+                         in
+                           putStrLn
+                           ( "\nScore (LL / (Backtrack + LL)): " ++
+                             if (countBacktrack + countLL) == 0
+                             then "NA"
+                             else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%"
+                           )
+                       else
+                       exitFailure
                 else
                   do
                     if (i == 1)
@@ -305,9 +317,9 @@ interpPGen useJS inp moduls flagMetrics =
                       in
                         do putStrLn
                              ( "\nScore (LL / (Backtrack + LL)): " ++
-                               (if (countBacktrack + countLL) == 0
-                                then "NA"
-                                else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%")
+                               if (countBacktrack + countLL) == 0
+                               then "NA"
+                               else (show ((countLL * 100) `div` (countBacktrack + countLL))) ++ "%"
                              )
                       else return ()
                     exitSuccess -- comment this with i > 1
