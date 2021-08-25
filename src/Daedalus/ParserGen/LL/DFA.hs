@@ -1,7 +1,7 @@
 {-# Language GADTs #-}
 
 module Daedalus.ParserGen.LL.DFA
-  ( LinDFAState
+  ( LinDFAState(..)
   , DFA(..)
   , DFATransition(..)
   , AmbiguityDetection(..)
@@ -54,6 +54,7 @@ instance Show AmbiguityDetection where
 
 
 data LinDFAState = LinDFAState { linDFAState :: {-# UNPACK #-} !Int }
+  deriving(Show)
 
 instance Eq LinDFAState where
   (==) q1 q2 = linDFAState q1 == linDFAState q2
@@ -145,7 +146,10 @@ insertDFA qState rtr =
         _ ->
           let (atr, dfa1) = allocTransition (nextTrans tr) [] dfa in
           dfa1
-          { transitionDFA = Map.insert qState (Result $ DFATransition am atr (acceptTrans tr)) (transitionDFA dfa1)
+          { transitionDFA =
+              Map.insert
+              qState
+              (Result $ DFATransition am atr (acceptTrans tr)) (transitionDFA dfa1)
           }
   )
   where
@@ -429,29 +433,36 @@ getFinalStatesDDA dda =
   map (\ x -> fromJust $ Map.lookup x (mappingLinToDFAStateDDA dda)) lst
 
 
+-- The algorithm is a limited form of transitive closure computation
 lookaheadDepth :: DFA -> Int
 lookaheadDepth dfa =
+  -- trace ("Lookahead: " ++ show (lastLinDFAState dfa)) $
   let start = startLinDFAState dfa in
-  helper [] start
+  let res = helper 0 Map.empty start in
+  Map.foldr (\ a b -> max a b) 0 res
   where
-    helper :: [LinDFAState] -> LinDFAState -> Int
-    helper vis qq =
-      if elem qq vis
-      then 0
-      else
-        case lookupLinDFAState qq dfa of
-          Nothing -> 0
-          Just rt ->
-            case rt of
-              Result (DFATransition { nextTrans = lst }) -> foldOverList vis qq lst 0
-              _ -> 0
+    helper :: Int -> Map.Map LinDFAState Int -> LinDFAState -> Map.Map LinDFAState Int
+    helper depth vis qq =
+      case Map.lookup qq vis of
+        Just v -> if depth > v
+                  then Map.insert qq depth vis
+                  else vis
+        Nothing ->
+          let newVis = Map.insert qq depth vis in
+          case lookupLinDFAState qq dfa of
+            Nothing -> newVis
+            Just rt ->
+              case rt of
+                Result (DFATransition { nextTrans = lst }) ->
+                  foldOverList depth newVis lst
+                _ -> newVis
 
-    foldOverList vis src lst acc =
+    foldOverList depth vis lst =
       case lst of
-        [] -> acc
+        [] -> vis
         (_, _, _am, _, qq) : rest ->
-          let i = helper (src:vis) qq
-          in foldOverList vis src rest (max acc (i + 1))
+          let vis1 = helper (depth+1) vis qq
+          in foldOverList depth vis1 rest
 
 
 getConflictSetsPerLoc :: DFARegistry -> [ [DFAEntry] ]
