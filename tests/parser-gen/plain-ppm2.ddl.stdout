@@ -1,0 +1,118 @@
+module plain-ppm2
+ 
+--- Imports:
+ 
+--- Type defs:
+type plain-ppm2.RGB = { red: uint 64
+                      ; green: uint 64
+                      ; blue: uint 64
+                      }
+ 
+type plain-ppm2.PPM = { width: uint 64
+                      ; height: uint 64
+                      ; maxVal: uint 64
+                      ; data: [[plain-ppm2.RGB]]
+                      }
+ 
+--- Rules:
+ 
+plain-ppm2.$ws : ByteClass =
+  (((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) | {'\r'}
+ 
+plain-ppm2._WS : Grammar {} =
+  @Match plain-ppm2.$ws
+ 
+plain-ppm2._LookaheadNotWS : Grammar {} =
+  do (curr : Stream) <- CurrentStream
+     Choose fair
+       { @Match (!plain-ppm2.$ws)
+       | END
+       }
+     SetStream curr
+ 
+plain-ppm2.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     @Many[ 1 .. ] plain-ppm2._WS
+     plain-ppm2._LookaheadNotWS
+     pure $$
+ 
+plain-ppm2.Digit : Grammar (uint 8) =
+  do (d : uint 8) <- Match ('0' .. '9')
+     ($$ : uint 8) <- pure (d - '0')
+     pure $$
+ 
+plain-ppm2.addDigit ?a0 (Coerce safe ?a0 (uint 64)) (val : uint 64) (d : ?a0) : uint 64 =
+  (10 * val) + (d as uint 64)
+ 
+plain-ppm2.Natural : Grammar (uint 64) =
+  do (ds : [uint 8]) <- Many[ 1 .. ] plain-ppm2.Digit
+     ($$ : uint 64) <- pure (for ((val : uint 64) = 0; (d : uint 8) in ds)
+                               (plain-ppm2.addDigit (uint 8) val d))
+     pure $$
+ 
+plain-ppm2.RGB : Grammar plain-ppm2.RGB =
+  do (red : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (green : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (blue : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     pure {red = red,
+           green = green,
+           blue = blue}
+ 
+plain-ppm2.PPM : Grammar plain-ppm2.PPM =
+  do @MatchBytes "P"
+     (version : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     Guard (version == 3)
+     (width : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (height : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (maxVal : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (data : [[plain-ppm2.RGB]]) <- Many[height] Many[width] plain-ppm2.RGB
+     pure {width = width,
+           height = height,
+           maxVal = maxVal,
+           data = data}
+ 
+plain-ppm2.Main : Grammar plain-ppm2.PPM =
+  do ($$ : plain-ppm2.PPM) <- plain-ppm2.PPM
+     END
+     pure $$
+ 
+plain-ppm2.WS : Grammar (uint 8) =
+  Match plain-ppm2.$ws
+ 
+plain-ppm2.LookaheadNotWS : Grammar {} =
+  do (curr : Stream) <- CurrentStream
+     Choose fair
+       { @Match (!plain-ppm2.$ws)
+       | END
+       }
+     ($$ : {}) <- SetStream curr
+     pure $$
+ 
+plain-ppm2._Token ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     @Many[ 1 .. ] plain-ppm2._WS
+     plain-ppm2._LookaheadNotWS
+ 
+plain-ppm2._Digit : Grammar {} =
+  @Match ('0' .. '9')
+ 
+plain-ppm2._Natural : Grammar {} =
+  @Many[ 1 .. ] plain-ppm2._Digit
+ 
+plain-ppm2._RGB : Grammar {} =
+  do plain-ppm2._Token (uint 64) plain-ppm2._Natural
+     plain-ppm2._Token (uint 64) plain-ppm2._Natural
+     plain-ppm2._Token (uint 64) plain-ppm2._Natural
+ 
+plain-ppm2._PPM : Grammar {} =
+  do @MatchBytes "P"
+     (version : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     Guard (version == 3)
+     (width : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     (height : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
+     plain-ppm2._Token (uint 64) plain-ppm2._Natural
+     @Many[height] @Many[width] plain-ppm2._RGB
+ 
+plain-ppm2._Main : Grammar {} =
+  do plain-ppm2._PPM
+     END
