@@ -1,5 +1,5 @@
 INFO: File size 426685 bytes.
-INFO:412442 Found xref table.
+INFO:412442 Found pointer to xref table/stream.
 INFO: 707 xref entries.
 INFO: Root reference is R:14:0
 ERROR:2323 expected "endobj"

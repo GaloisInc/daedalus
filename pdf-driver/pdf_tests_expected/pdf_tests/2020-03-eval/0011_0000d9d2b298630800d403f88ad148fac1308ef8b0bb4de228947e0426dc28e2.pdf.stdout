@@ -1,3 +1,3 @@
 INFO: File size 263762 bytes.
-INFO:262930 Found xref table.
+INFO:262930 Found pointer to xref table/stream.
 ERROR:262930 Not enough entries, found UInt 0, but need at least UInt 1

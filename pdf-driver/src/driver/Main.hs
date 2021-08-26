@@ -73,7 +73,7 @@ fawFormat = Format
   , xrefMissing =
       \x -> putStrLn ("ERROR: " ++ x)
   , xrefFound =
-      \x -> putStrLn ("INFO:" ++ show x ++ " Found xref table.")
+      \x -> putStrLn ("INFO:" ++ show x ++ " Found pointer to xref table/stream.")
   , xrefBad =
       \p -> putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
   , xrefOK =

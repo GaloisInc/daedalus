@@ -1,3 +1,3 @@
 INFO: File size 249036 bytes.
-INFO:248784 Found xref table.
+INFO:248784 Found pointer to xref table/stream.
 ERROR:248863 byte '0' does not match byte UInt 32

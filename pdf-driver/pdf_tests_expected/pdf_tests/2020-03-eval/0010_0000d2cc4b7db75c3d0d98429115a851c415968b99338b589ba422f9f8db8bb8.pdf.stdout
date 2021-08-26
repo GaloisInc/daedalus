@@ -1,5 +1,5 @@
 INFO: File size 19127 bytes.
-INFO:18148 Found xref table.
+INFO:18148 Found pointer to xref table/stream.
 INFO: 44 xref entries.
 INFO: Root reference is R:1:0
 ERROR:8 Not enough entries, found UInt 0, but need at least UInt 1

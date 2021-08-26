@@ -1,5 +1,5 @@
 INFO: File size 68585 bytes.
-INFO:67686 Found xref table.
+INFO:67686 Found pointer to xref table/stream.
 INFO: 40 xref entries.
 INFO: Root reference is R:7:0
 ERROR:928 expected ">>"

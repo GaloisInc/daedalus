@@ -1,3 +1,3 @@
 INFO: File size 14313 bytes.
-INFO:13895 Found xref table.
+INFO:13895 Found pointer to xref table/stream.
 ERROR:13895 Not enough entries, found UInt 0, but need at least UInt 1

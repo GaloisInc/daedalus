@@ -1,5 +1,5 @@
 INFO: File size 97737 bytes.
-INFO:96417 Found xref table.
+INFO:96417 Found pointer to xref table/stream.
 INFO: 61 xref entries.
 INFO: Root reference is R:16:0
 ERROR:0 guard failed

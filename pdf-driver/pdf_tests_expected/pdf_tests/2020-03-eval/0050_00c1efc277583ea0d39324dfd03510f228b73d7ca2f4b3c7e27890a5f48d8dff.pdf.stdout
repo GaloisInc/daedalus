@@ -1,3 +1,3 @@
 INFO: File size 10262 bytes.
-INFO:9106 Found xref table.
+INFO:9106 Found pointer to xref table/stream.
 ERROR:9106 Not enough entries, found UInt 0, but need at least UInt 1

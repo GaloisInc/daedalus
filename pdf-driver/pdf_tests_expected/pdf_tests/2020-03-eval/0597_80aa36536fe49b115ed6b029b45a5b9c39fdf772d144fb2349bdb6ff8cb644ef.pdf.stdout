@@ -1,3 +1,3 @@
 INFO: File size 7734 bytes.
-INFO:7390 Found xref table.
+INFO:7390 Found pointer to xref table/stream.
 ERROR:7398 byte '\n' does not match byte UInt 32
