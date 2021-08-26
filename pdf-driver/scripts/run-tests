@@ -1,11 +1,20 @@
 #!/bin/bash
 
+testargs=""
+if [ "$1" = "--diffonly" ]; then
+    shift
+    testargs="--diffonly"
+fi
+
 if [ $# == 0 ]; then
   TOP_DIR=pdf_tests
-else
+elif [ $# == 1 ]; then
   TOP_DIR=$1
+else
+  echo "Usage: $0 [--diffonly] [directory]"
+  exit 1
 fi
 
 for file in $(find -L $TOP_DIR -type f); do
-  "$(dirname $0)/run-test" "$file"
+  "$(dirname $0)/run-test" $testargs "$file"
 done
