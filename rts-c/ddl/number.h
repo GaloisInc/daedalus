@@ -10,7 +10,6 @@
 
 #include <ddl/value.h>
 #include <ddl/bool.h>
-#include <ddl/integer.h>
 #include <ddl/size.h>
 
 
@@ -20,9 +19,10 @@ namespace DDL {
 // Unsigned --------------------------------------------------------------------
 
 template <size_t w>
-struct UInt : public Value {
+class UInt : public Value {
   static_assert(w <= 64, "UInt larger than 64 not supported.");
 
+public:
   using Rep =
     typename std::conditional < (w <= 8),   uint8_t,
     typename std::conditional < (w <= 16),  uint16_t,
@@ -30,6 +30,7 @@ struct UInt : public Value {
                                             uint64_t
     >::type>::type>::type;
 
+private:
   Rep data;
 
 public:
@@ -47,9 +48,13 @@ public:
   UInt(int32_t  x) : data(static_cast<Rep>(x)) {}
   UInt(int64_t  x) : data(static_cast<Rep>(x)) {}
 
+
+  // Shouldn't really be used by client code.
+  Rep rawRep() { return data; }
+
   // This is for `a # b`
   template <size_t a, size_t b>
-  UInt(UInt<a> x, UInt<b> y) : data((Rep(x.data) << b) | y.rep()) {
+  UInt(UInt<a> x, UInt<b> y) : data((Rep{x.rawRep()} << b) | y.rep()) {
     static_assert(a + b == w);
   }
 
@@ -60,6 +65,7 @@ public:
     if constexpr (w < 32)  return data & (UINT32_MAX >> (32-w));
     return                        data & (UINT64_MAX >> (64-w));
   }
+
 
   constexpr static Rep maxValRep() {
     if constexpr (w ==  8) return UINT8_MAX;  else
@@ -113,21 +119,6 @@ UInt<a> lcat(UInt<a> x, UInt<b> y) {
   return UInt<a>((x.data << b) | y.rep());
 }
 
-static inline
-int compare(unsigned char rx, unsigned char ry) {
-  return (rx < ry) ? -1 : (rx != ry);
-}
-
-static inline
-int compare(unsigned int rx, unsigned int ry) {
-  return (rx < ry) ? -1 : (rx != ry);
-}
-
-static inline
-int compare(unsigned long rx, unsigned long ry) {
-  return (rx < ry) ? -1 : (rx != ry);
-}
-
 template <size_t w>
 static inline
 int compare(UInt<w> x, UInt<w> y) {
@@ -163,10 +154,11 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 // but it is not clear if that's what we want from daedluas.
 // XXX: Add `asserts` to detect wrap around in debug mode
 template <size_t w>
-struct SInt : public Value {
+class SInt : public Value {
   static_assert(w >= 1,  "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
 
+public:
   using Rep =
     typename std::conditional < (w <= 8),   int8_t,
     typename std::conditional < (w <= 16),  int16_t,
@@ -174,6 +166,7 @@ struct SInt : public Value {
                                             int64_t
     >::type>::type>::type;
 
+private:
   Rep data;
 
   void fixUp() {
@@ -244,14 +237,6 @@ public:
 };
 
 
-/// XXX: What are these for?
-static inline
-int compare(char rx, char ry) { return (rx < ry) ? -1 : (rx != ry); }
-static inline
-int compare(int rx,  int ry)  { return (rx < ry) ? -1 : (rx != ry); }
-static inline
-int compare(long rx, long ry) { return (rx < ry) ? -1 : (rx != ry); }
-
 template <size_t w>
 static inline
 int compare(SInt<w> x, SInt<w> y) {
@@ -282,29 +267,6 @@ std::ostream& toJS(std::ostream& os, SInt<w> x) {
   os << std::dec;
   return os << static_cast<int64_t>(x.rep());
 }
-
-
-// -----------------------------------------------------------------------------
-
-
-
-// owned, unmanaged
-// XXX: remove in favor of size
-static inline
-Integer operator << (Integer x, UInt<64> iamt) { return x << Size{iamt.rep()}; }
-
-// owned, unmanaged
-// XXX: remove in favor of size
-static inline
-Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size{iamt.rep()}; }
-
-template <size_t b>
-Integer lcat(Integer x, UInt<b> y) {
-  return (x << Size(b)) | Integer(y.rep());
-}
-
-
-
 
 
 } // namespace DDL

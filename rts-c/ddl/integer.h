@@ -13,6 +13,7 @@
 #include <ddl/debug.h>
 #include <ddl/boxed.h>
 #include <ddl/size.h>
+#include <ddl/number.h>
 
 namespace DDL {
 
@@ -346,6 +347,19 @@ Integer operator ^ (Integer x, Integer y) {
   return z;
 }
 
+
+// owned, unmanaged
+// XXX: remove in favor of size
+static inline
+Integer operator << (Integer x, UInt<64> iamt) { return x << Size{iamt.rep()}; }
+
+// owned, unmanaged
+// XXX: remove in favor of size
+static inline
+Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size{iamt.rep()}; }
+
+template <size_t b>
+Integer lcat(Integer x, UInt<b> y) { return (x << Size(b)) | Integer(y.rep()); }
 
 
 

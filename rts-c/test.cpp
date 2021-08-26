@@ -22,6 +22,10 @@ using namespace std;
 
 
 int main() {
-  test_casts();
+  // test_size();
+  test_numbers();
+  //test_integer();
+  //test_casts();
+  //test_map();
   return 0;
 }
