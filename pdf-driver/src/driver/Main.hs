@@ -111,7 +111,7 @@ fawFormat = Format
                         ]
   declLoc l = case l of
                 InFileAt x -> "@" ++ show x
-                InObj {}   -> "@compresed"
+                InObj {}   -> "@compressed"
 
 
 -- demoFormat: format for reporting output directly. Tries to preserve
