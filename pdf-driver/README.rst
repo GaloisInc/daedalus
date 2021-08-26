@@ -28,7 +28,7 @@ TESTING
     
     ./scripts/run-tests
     
-    # The output of the going into    
+    # The output of the above is going here
     #   pdf_tests_actual/pdf_tests/2020-03-eval/
     # and the expected output is here
     #   pdf_tests_expected/pdf_tests/2020-03-eval/
@@ -52,8 +52,8 @@ To update the expected outputs (from a fully vetted set of outputs :-):
 
 .. code-block:: bash
  
-    cp pdf_tests_actual/pdf_tests/2020-03-eval/* \
-       pdf_tests_expected/pdf_tests/2020-03-eval/
+    cp -pv pdf_tests_actual/pdf_tests/2020-03-eval/* \
+           pdf_tests_expected/pdf_tests/2020-03-eval/
 
 EXAMPLE: Create Alternative Baselines
 -------------------------------------

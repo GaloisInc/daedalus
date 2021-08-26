@@ -2,7 +2,7 @@
 ACTUAL=pdf_tests_actual
 EXPECTED=pdf_tests_expected
 
-PDFHSDRIVER_DFLT="cabal exec pdf-hs-driver"
+PDFHSDRIVER_DFLT="cabal exec pdf-hs-driver --"
 
 diffonly=0
 if [ "$1" = "--diffonly" ]; then
@@ -28,7 +28,7 @@ EXPECTED_STDOUT="$EXPECTED/$TEST.stdout"
 EXPECTED_STDERR="$EXPECTED/$TEST.stderr"
 
 if [ $diffonly -eq 0 ]; then
-  ${PDFHSDRIVER:-${PDFHSDRIVER_DFLT}} -- --faw $TEST > "$ACTUAL_STDOUT" 2> "$ACTUAL_STDERR"
+  ${PDFHSDRIVER:-${PDFHSDRIVER_DFLT}} --faw $TEST > "$ACTUAL_STDOUT" 2> "$ACTUAL_STDERR"
 
   diff -q "$EXPECTED_STDOUT" "$ACTUAL_STDOUT" 
   diff -q "$EXPECTED_STDERR" "$ACTUAL_STDERR" 
