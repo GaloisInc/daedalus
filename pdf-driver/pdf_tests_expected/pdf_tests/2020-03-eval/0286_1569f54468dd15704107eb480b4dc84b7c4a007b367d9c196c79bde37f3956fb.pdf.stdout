@@ -3,13 +3,13 @@ INFO:7710252 Found xref table.
 INFO: 125 xref entries.
 INFO: Root reference is R:5:0
 INFO: Catalog is OK.
-INFO: R:1:0 @compresed is OK.
+INFO: R:1:0 @compressed is OK.
 INFO: R:2:0 @1061 is OK.
 INFO: R:3:0 @4515 is OK.
 INFO: R:5:0 @4691 is OK.
-INFO: R:6:0 @compresed is OK.
-INFO: R:7:0 @compresed is OK.
-INFO: R:8:0 @compresed is OK.
+INFO: R:6:0 @compressed is OK.
+INFO: R:7:0 @compressed is OK.
+INFO: R:8:0 @compressed is OK.
 INFO: R:9:0 @4875 is OK.
 INFO: R:10:0 @4948 is OK.
 INFO: R:11:0 @5008 is OK.
@@ -18,8 +18,8 @@ INFO: R:13:0 @8619 is OK.
 INFO: R:14:0 @9834 is OK.
 INFO: R:15:0 @10954 is OK.
 INFO: R:16:0 @12080 is OK.
-INFO: R:17:0 @compresed is OK.
-INFO: R:18:0 @compresed is OK.
+INFO: R:17:0 @compressed is OK.
+INFO: R:18:0 @compressed is OK.
 INFO: R:19:0 @13186 is OK.
 INFO: R:20:0 @14270 is OK.
 INFO: R:21:0 @15772 is OK.
