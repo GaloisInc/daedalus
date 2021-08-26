@@ -41,19 +41,19 @@ GUIDELINES
 ----------
 
 The above tests are great when we're making non-functional changes to the
-parser.  But if we make a functional change we now have 1000*2 file outputs
+parser.  But if we make a functional change we now have 2*1000 file outputs
 
     pdf_tests_expected/pdf_tests/2020-03-eval/*.pdf.{stdout,stderr}
     
-that may need need to change!  So, please remember that keeping the expected outputs up to
-date is the only thing that makes these useful.
+that may need need to change!  So, keeping the expected outputs up to date is
+the only thing that makes these useful.
 
 To update the expected outputs (from a fully vetted set of outputs :-):
 
 .. code-block:: bash
  
-    cp -pv pdf_tests_actual/pdf_tests/2020-03-eval/* \
-           pdf_tests_expected/pdf_tests/2020-03-eval/
+    cp -Rpv pdf_tests_actual/pdf_tests/2020-03-eval/ \
+            pdf_tests_expected/pdf_tests/2020-03-eval/
 
 EXAMPLE: Create Alternative Baselines
 -------------------------------------

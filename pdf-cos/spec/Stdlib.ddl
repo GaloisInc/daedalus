@@ -154,3 +154,6 @@ def JustWhite             = $simpleWS | EOL
 
 def AnyWS                 = $simpleWS | Comment | EOL
 
+-- and sequences of ...
+def ManyJustWhite         = Many JustWhite
+def ManyWS                = Many AnyWS

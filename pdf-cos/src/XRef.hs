@@ -16,7 +16,7 @@ import RTS.Input(advanceBy)
 
 import PdfMonad
 import PdfParser
-
+import Stdlib(pManyWS)
 
 -- | Construct the xref table.
 parseXRefs ::
@@ -34,6 +34,7 @@ parseXRefs inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
     case advanceBy (intToSize offset) inp of
       Just i ->
         do pSetInput i
+           pManyWS  -- FIXME: later: warning if this consumes anything
            refSec <- pCrossRef
            case refSec of
              CrossRef_oldXref x -> goWith mbRoot x
