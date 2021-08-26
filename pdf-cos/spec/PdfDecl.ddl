@@ -8,8 +8,8 @@ import JpegBasics
 --  - Stream Object : the top level stream that encodes ALL byte data
 --  - Object Stream : (see below), the Stream Object that encodes a sequence of objects
 --  - Content Stream : the Stream Object containing graphical instructions
-
--- and Daedalus:
+-- 
+-- and Daedalus built-in names
 --  - stream - the built in type returned by GetStream
 
 
@@ -68,11 +68,12 @@ def SkipBytes n = Chunk n {}
 --------------------------------------------------------------------------------
 -- Our two "resolving" primitives (declarations only):
 
--- Returns 'nothing' if there is no entry for this declaration.
--- For values this means we should return 'null'.
+-- Returns 'nothing' if there is no entry for the Ref (in the xref table)
+-- - see Resolve_Ref_ToValue : where we turn nothing into 'null'
+
 def ResolveRef (r : Ref) : maybe TopDecl
 
--- InputStream r: the input stream at reference r
+-- InputAtRef r: the input stream at reference r
 def InputAtRef (r : Ref) : maybe ObjStart
 
 {- copied from pdf-cos/Setup.hs as an aid:
@@ -103,9 +104,10 @@ def WrapGetStream : ObjStart = {|
 
 -- ResolveObjectStreamEntry:
 --  - passed to Haskell code, used to parse the ObjectStream (finding the Object)
---  - this calls Resolve_ValueRef_ToStream calls ResolveRef [the primitive]
---    - thus the primitive calls itself recursively
---  - caller going to just 
+--  - there could be multiple recursive calls to our primitives here:
+--    - this calls Resolve_ValueRef_ToStream, that calls ResolveRef
+--    - CheckType and LookupSize also can [indirectly] call ResolveRef
+--
 def ResolveObjectStreamEntry
       (oid : int) (gen : int) (idx : uint 64) : TopDecl = {
   @stm = Resolve_ValueRef_ToStream {| ref = { obj = oid; gen = gen } |};
@@ -193,8 +195,8 @@ def WithReffedStreamBody P = WithStream
 
 --------------------------------------------------------------------------------
 
--- extract object from TopDecl, checking that the object id matches between
--- the reference and the object definition
+-- extract object from TopDecl, checking that the object id of
+--  the reference and the object definition are the same.
 def ValidateMatchingObjectIDs (r : Ref) (d : TopDecl) : TopDeclDef = {
   Guard (d.id  == r.obj && d.gen == r.gen);
   ^ d.obj;
