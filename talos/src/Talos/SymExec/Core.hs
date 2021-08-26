@@ -14,7 +14,7 @@ import Data.Foldable (fold, forM_)
 
 import qualified Data.ByteString as BS
 
-import SimpleSMT (SExpr)
+import SimpleSMT (SExpr, ppSExpr)
 import qualified SimpleSMT as S
 
 import Daedalus.Panic
@@ -37,7 +37,7 @@ import Talos.SymExec.SolverT
 -- Class
 
 class SymExec a where
-  symExec :: (Monad m, HasGUID m) => a -> SolverT m SExpr
+  symExec :: (Monad m, HasGUID m, MonadIO m) => a -> SolverT m SExpr
 
 -- Lookup previously bound names
 instance SymExec Name where
@@ -232,9 +232,52 @@ defineSliceFunDefs md sl = do
     -- mkOne :: FreeVars e => Fun e -> (FName, Set FName)
     -- mkOne f = (fName f, freeFVars f)
 
+-- -----------------------------------------------------------------------------
+-- Polymorphic functions
+
+exprToPolyFuns :: Expr -> Set PolyFun
+exprToPolyFuns = go
+  where
+    go expr =
+      let children = foldMapChildrenE go expr
+      in case expr of
+        Ap2 MapMember me _ke ->
+          let (kt, vt) = mapTys me
+          in Set.insert (PMapMember (symExecTy kt) (symExecTy vt)) children
+        Ap2 MapLookup me _ke ->
+          let (kt, vt) = mapTys me
+          in Set.insert (PMapLookup (symExecTy kt) (symExecTy vt)) children
+        Ap3 MapInsert me _ke _ve ->
+          let (kt, vt) = mapTys me
+          in Set.insert (PMapInsert (symExecTy kt) (symExecTy vt)) children
+        _              -> children
+
+    mapTys e = case typeOf e of
+      TMap kt vt -> (kt, vt)
+      _          -> panic "Expecting a map type" [showPP (typeOf e)]
 
 
-  
+byteSetToPolyFuns :: ByteSet -> Set PolyFun
+byteSetToPolyFuns = ebFoldMapChildrenB exprToPolyFuns byteSetToPolyFuns
+
+defineSlicePolyFuns :: (MonadIO m, HasGUID m) => Slice -> SolverT m ()
+defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
+  where
+    polys = go sl
+    go sl' = case sl' of
+      SDontCare _n sl''  -> go sl''
+      SDo _m_x l r       -> go l <> go r
+      SUnconstrained     -> mempty
+      SLeaf s            -> goL s
+
+    goL l = case l of
+      SPure _fset v -> exprToPolyFuns v
+      SMatch m      -> byteSetToPolyFuns m
+      SAssertion (GuardAssertion e) -> exprToPolyFuns e
+      SChoice cs   -> foldMap go cs
+      SCall cn     -> foldMap exprToPolyFuns (callNodeActualArgs cn)
+      SCase _ c@(Case e _) -> exprToPolyFuns e <> foldMap go c
+      
 -- -----------------------------------------------------------------------------
 -- Symbolic execution of terms
 
@@ -247,7 +290,7 @@ defineSliceFunDefs md sl = do
 -- -----------------------------------------------------------------------------
 -- OpN
 
-symExecOp0 :: Op0 -> SExpr
+symExecOp0 ::  Op0 -> SExpr
 symExecOp0 op =
   case op of
     Unit -> sUnit
@@ -265,42 +308,42 @@ symExecOp0 op =
       in sArrayWithLength arr (sSize (fromIntegral $ BS.length bs))
       
     NewBuilder ty -> sEmptyL (symExecTy ty) (typeDefault ty)
-    MapEmpty {}   -> unimplemented
+    MapEmpty kt vt   -> sMapEmpty (symExecTy kt) (symExecTy vt)
     ENothing ty   -> sNothing (symExecTy ty)
     _ -> unimplemented
   where
     unimplemented = panic "Unimplemented" [showPP op]
 
-symExecOp1 :: Op1 -> Type -> SExpr -> SExpr
+symExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> SExpr -> SolverT m SExpr
 symExecOp1 op ty =
   case op of
-    CoerceTo tyTo    -> symExecCoerce ty tyTo
+    CoerceTo tyTo    -> pure . symExecCoerce ty tyTo
     IsEmptyStream    -> unimplemented
     Head             -> unimplemented
     StreamOffset     -> unimplemented
     StreamLen        -> unimplemented
-    OneOf bs         -> \v -> S.orMany (map (S.eq v . sByte) (BS.unpack bs))
-    Neg | Just _ <- isBits ty -> S.bvNeg
-        | TInteger <- ty      -> S.neg
-    BitNot | Just _ <- isBits ty -> S.bvNot
-    Not | TBool <- ty  -> S.not
-    ArrayLen | TArray elTy <- ty -> sArrayLen (symExecTy elTy)
+    OneOf bs         -> \v -> pure $ S.orMany (map (S.eq v . sByte) (BS.unpack bs))
+    Neg | Just _ <- isBits ty -> pure . S.bvNeg
+        | TInteger <- ty      -> pure . S.neg
+    BitNot | Just _ <- isBits ty -> pure . S.bvNot
+    Not | TBool <- ty  -> pure . S.not
+    ArrayLen | TArray elTy <- ty -> pure . sArrayLen (symExecTy elTy)
     Concat   -> unimplemented -- concat an array of arrays
-    FinishBuilder -> id -- builders and arrays are identical
-    NewIterator  | TArray {} <- ty ->  sArrayIterNew
-    IteratorDone | TIterator (TArray elTy) <- ty -> sArrayIterDone (symExecTy elTy)
-    IteratorKey  | TIterator (TArray {}) <- ty -> sArrayIterKey
-    IteratorVal  | TIterator (TArray {}) <- ty -> sArrayIterVal
-    IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
-    EJust         -> sJust
-    FromJust        -> fun "fromJust"
-    SelStruct _ l | TUser ut <- ty -> fun (labelToField (utName ut) l)
+    FinishBuilder -> pure . id -- builders and arrays are identical
+    NewIterator  | TArray {} <- ty -> pure . sArrayIterNew
+    IteratorDone | TIterator (TArray elTy) <- ty -> pure . sArrayIterDone (symExecTy elTy)
+    IteratorKey  | TIterator (TArray {}) <- ty -> pure . sArrayIterKey
+    IteratorVal  | TIterator (TArray {}) <- ty -> pure . sArrayIterVal
+    IteratorNext | TIterator (TArray {}) <- ty -> pure . sArrayIterNext
+    EJust         -> pure . sJust
+    FromJust      -> pure . fun "fromJust"
+    SelStruct _ l | TUser ut <- ty -> pure . fun (labelToField (utName ut) l)
     -- FIXME: we probably need (_ as Foo) ...
-    InUnion ut l    -> fun (labelToField (utName ut) l)
+    InUnion ut l    -> pure . fun (labelToField (utName ut) l)
       
       -- S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
     
-    FromUnion _ l | TUser ut <- ty -> fun ("get-" ++ labelToField (utName ut) l)
+    FromUnion _ l | TUser ut <- ty -> pure . fun ("get-" ++ labelToField (utName ut) l)
     
     _ -> unimplemented -- shouldn't really happen, we should cover everything above
 
@@ -309,12 +352,20 @@ symExecOp1 op ty =
     unimplemented = panic "Unimplemented" [showPP op]
     fun f = \v -> S.fun f [v]
 
-symExecOp2 :: Op2 -> Type -> SExpr -> SExpr -> SExpr
+symExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> SExpr -> SExpr -> SolverT m SExpr
 
 -- Generic ops
-symExecOp2 ConsBuilder elTy = sPushBack (symExecTy elTy)
-symExecOp2 Eq          _elTy = S.eq
-symExecOp2 NotEq       _elTy = \x y -> S.distinct [x, y]
+symExecOp2 ConsBuilder elTy = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v1 v2
+symExecOp2 Eq          _elTy = \v1 v2 -> pure $ S.eq v1 v2
+symExecOp2 NotEq       _elTy = \x y -> pure $ S.distinct [x, y]
+symExecOp2 MapLookup   (TMap kt vt) = \x y -> do
+  fnm <- getPolyFun (PMapLookup (symExecTy kt) (symExecTy vt))
+  pure $ S.app fnm [x, y]
+symExecOp2 MapLookup   ty = panic "Unexpected type" [showPP ty]
+symExecOp2 MapMember   (TMap kt vt) = \x y -> do
+  fnm <- getPolyFun (PMapMember (symExecTy kt) (symExecTy vt))
+  pure $ S.app fnm [x, y]
+symExecOp2 MapMember   ty = panic "Unexpected type" [showPP ty]
 
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of
@@ -323,35 +374,36 @@ symExecOp2 bop (isBits -> Just (signed, nBits)) =
     Drop     -> unimplemented
     Take     -> unimplemented
     
-    Eq     -> S.eq
-    NotEq  -> \x y -> S.distinct [x, y]
-    Leq    -> if signed then S.bvSLeq else S.bvULeq
-    Lt     -> if signed then S.bvSLt else S.bvULt
+    Eq     -> pure2 S.eq
+    NotEq  -> pure2 $ \x y -> S.distinct [x, y]
+    Leq    -> pure2 $ if signed then S.bvSLeq else S.bvULeq
+    Lt     -> pure2 $ if signed then S.bvSLt else S.bvULt
     
-    Add    -> S.bvAdd
-    Sub    -> S.bvSub
-    Mul    -> S.bvMul
-    Div    -> if signed then S.bvSDiv else S.bvUDiv
-    Mod    -> if signed then S.bvSRem else S.bvURem
+    Add    -> pure2 $ S.bvAdd
+    Sub    -> pure2 $ S.bvSub
+    Mul    -> pure2 $ S.bvMul
+    Div    -> pure2 $ if signed then S.bvSDiv else S.bvUDiv
+    Mod    -> pure2 $ if signed then S.bvSRem else S.bvURem
 
-    BitAnd -> S.bvAnd
-    BitOr  -> S.bvOr
-    BitXor -> S.bvXOr
+    BitAnd -> pure2 $ S.bvAnd
+    BitOr  -> pure2 $ S.bvOr
+    BitXor -> pure2 $ S.bvXOr
 
-    Cat    -> S.concat
+    Cat    -> pure2 $ S.concat
     LCat   -> unimplemented
-    LShift -> \x y -> S.bvShl x (S.List [ S.fam "int2bv" [nBits], y] )
-    RShift -> \x y -> (if signed then S.bvAShr else S.bvLShr)
-                       x (S.List [ S.fam "int2bv" [nBits], y] )
+    LShift -> pure2 $ \x y -> S.bvShl x (S.List [ S.fam "int2bv" [nBits], y] )
+    RShift -> pure2 $ \x y -> (if signed then S.bvAShr else S.bvLShr)
+                              x (S.List [ S.fam "int2bv" [nBits], y] )
 
     ArrayIndex  -> unimplemented
     ConsBuilder -> unimplemented
-    MapLookup   -> unimplemented
-    MapMember   -> unimplemented
+    MapLookup   -> unimplemented -- handled above
+    MapMember   -> unimplemented -- handled above
 
     ArrayStream -> unimplemented
   where unimplemented = panic "Unimplemented" [showPP bop]
-
+        pure2 f = \x y -> pure (f x y)
+        
 symExecOp2 bop TInteger =
   case bop of
     -- Stream ops
@@ -359,16 +411,16 @@ symExecOp2 bop TInteger =
     Drop     -> unimplemented
     Take     -> unimplemented
 
-    Eq     -> S.eq
-    NotEq  -> \x y -> S.distinct [x, y]
-    Leq    -> S.leq
-    Lt     -> S.lt
+    Eq     -> pure2 $ S.eq
+    NotEq  -> pure2 $ \x y -> S.distinct [x, y]
+    Leq    -> pure2 $ S.leq
+    Lt     -> pure2 $ S.lt
         
-    Add    -> S.add
-    Sub    -> S.sub
-    Mul    -> S.mul
-    Div    -> S.div
-    Mod    -> S.mod
+    Add    -> pure2 $ S.add
+    Sub    -> pure2 $ S.sub
+    Mul    -> pure2 $ S.mul
+    Div    -> pure2 $ S.div
+    Mod    -> pure2 $ S.mod
 
     BitAnd -> unimplemented
     BitOr  -> unimplemented
@@ -381,12 +433,13 @@ symExecOp2 bop TInteger =
 
     ArrayIndex  -> unimplemented
     ConsBuilder -> unimplemented
-    MapLookup   -> unimplemented
-    MapMember   -> unimplemented
+    MapLookup   -> unimplemented -- handled above
+    MapMember   -> unimplemented -- handled above
 
     ArrayStream -> unimplemented
   where unimplemented = panic "Unimplemented" []
-            
+        pure2 f = \x y -> pure (f x y)
+    
 symExecOp2 bop _t = panic "Unsupported operation" [showPP bop]
 
 -- -----------------------------------------------------------------------------
@@ -474,26 +527,36 @@ instance SymExec a => SymExec (Case a) where
       wildcard = S.const "_"      
   
 instance SymExec Expr where
-  symExec expr =
+  symExec expr = 
     case expr of
       Var n       -> symExec n
       PureLet n e e' -> 
         mklet <$> freshName n <*> symExec e <*> symExec e'
-
+  
       Struct ut ctors ->
         S.fun (typeNameToCtor (utName ut)) <$> mapM (symExec . snd) ctors
       ECase c -> symExec c
       
       Ap0 op      -> pure (symExecOp0 op)
-      Ap1 op e    -> symExecOp1 op (typeOf e) <$> symExec e
-      Ap2 op e e' -> symExecOp2 op (typeOf e) <$> symExec e <*> symExec e'
+      Ap1 op e    -> symExecOp1 op (typeOf e) =<< symExec e
+      Ap2 op e e' -> do se <- symExec e
+                        se' <- symExec e'
+                        symExecOp2 op (typeOf e) se se'
+      Ap3 MapInsert me ke ve | TMap kt vt <- typeOf me -> do
+        sm  <- symExec me
+        sk  <- symExec ke
+        sv  <- symExec ve
+        
+        fnm <- getPolyFun (PMapInsert (symExecTy kt) (symExecTy vt))
+        pure $ S.app fnm [sm, sk, sv]
+  
       Ap3 {}      -> unimplemented
       ApN (CallF fn) args -> S.fun (fnameToSMTName fn) <$> mapM symExec args
       ApN {} -> unimplemented
     where
-      unimplemented = panic "SymExec (Expr): Unimplemented" [showPP expr]
+        unimplemented = panic "SymExec (Expr): Unimplemented" [showPP expr]
 
-symExecByteSet :: (HasGUID m, Monad m) => ByteSet -> SExpr -> SolverT m SExpr
+symExecByteSet :: (MonadIO m, HasGUID m, Monad m) => ByteSet -> SExpr -> SolverT m SExpr
 symExecByteSet bs b = go bs
   where
     go bs' =

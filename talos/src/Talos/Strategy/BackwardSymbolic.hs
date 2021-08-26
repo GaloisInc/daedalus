@@ -2,7 +2,7 @@
 {-# Language GeneralizedNewtypeDeriving #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.Symbolic (symbolicStrat) where
+module Talos.Strategy.BackwardSymbolic (backwardSymbolicStrat) where
 
 import Control.Monad.Reader
 
@@ -42,13 +42,15 @@ import Daedalus.Core.Free (freeVars)
 import qualified Daedalus.Core.Semantics.Env as I
 import qualified Daedalus.Core.Semantics.Expr as I
 
+-- FIXME: copied from Symbolic, maybe try to merge?
+
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
-symbolicStrat :: Strategy
-symbolicStrat =
-  Strategy { stratName  = "symbolic"
-           , stratDescr = "Symbolic execution"
+backwardSymbolicStrat :: Strategy
+backwardSymbolicStrat =
+  Strategy { stratName  = "symbolic.backward"
+           , stratDescr = "Symbolic execution, from the leaves inward"
            , stratFun   = SolverStrat symbolicFun
            }
 
@@ -69,7 +71,7 @@ symbolicFun ptag sl = do
     defineSliceFunDefs md sl'
     
   scoped $ runSymbolicM $ do
-    (_, pathM) <- stratSlice ptag sl
+    pathM <- stratSlice ptag (\_ -> pure ()) sl
     check -- FIXME: only required if there was no recent 'check' command
     pathM
 
@@ -94,38 +96,48 @@ sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SExpr, SymbolicM SelectedPath)
+stratSlice :: ProvenanceTag -> (SExpr -> SymbolicM ()) -> Slice -> SymbolicM (SymbolicM SelectedPath)
 stratSlice ptag = go
   where
-    go sl =  do
+    go :: (SExpr -> SymbolicM ()) -> Slice -> SymbolicM (SymbolicM SelectedPath)
+    go def sl =  do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
-        SDontCare n sl' -> onSlice (fmap (dontCare n)) <$> go sl'
+        SDontCare n sl' -> fmap (dontCare n) <$> go def sl'
         SDo m_x lsl rsl -> do
-          (v, lpath)  <- go lsl
-          -- bind name
-          maybe (pure ()) (\x -> void $ solverOp (defineName x (symExecTy (typeOf x)) v)) m_x
+          -- name return value of the lhs
+          def' <- case m_x of
+            Nothing -> pure $ \_ -> pure ()
+            Just x  -> do
+              x' <- solverOp (declareName x (symExecTy (typeOf x)))
+              pure $ \v -> solverOp (assert (S.eq x' v)) >> check
+          
+          rpath  <- go def  rsl
+          lpath  <- go def' lsl
 
-          onSlice (\rhs -> pathNode <$> (SelectedDo <$> lpath) <*> rhs) <$> go rsl
+          pure ((pathNode . SelectedDo <$> lpath) <*> rpath)
 
-        SUnconstrained  -> pure (sUnit, pure Unconstrained)
-        SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
+        SUnconstrained  -> pure (pure Unconstrained)
+        SLeaf sl'       -> fmap (flip pathNode Unconstrained) <$> goLeaf def sl'
 
-    goLeaf sl = do
+    goLeaf :: (SExpr -> SymbolicM ()) -> SliceLeaf -> SymbolicM (SymbolicM SelectedNode)
+    goLeaf def sl = do
       -- liftIO (putStr "Leaf: " >> print (pp sl))
       case sl of
         SPure fset e -> do
           md <- getModule
           let tyMap = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
-          
-          uncPath <$> synthesiseExpr (projectE (Just . typeToInhabitant tyMap) fset e)
+          v <- synthesiseExpr (projectE (Just . typeToInhabitant tyMap) fset e)
+          def v
+          pure uncPath
 
         SMatch bset -> do
           bname <- solverOp (declareSymbol "b" tByte)
           bassn <- solverOp (symExecByteSet bset bname)
           solverOp (assert bassn)
-          -- solverOp check -- required?          
-          pure (bname, SelectedBytes ptag . BS.singleton <$> byteModel bname)
+          -- solverOp check -- required?
+          def bname
+          pure (SelectedBytes ptag . BS.singleton <$> byteModel bname)
 
         -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
         -- SMatch {} -> unimplemented sl
@@ -134,19 +146,19 @@ stratSlice ptag = go
           se <- synthesiseExpr e
           solverOp (assert se)
           check
-          pure (uncPath sUnit)
+          pure uncPath
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
           -- liftIO (putStrLn ("Chose " ++ show i)) 
-          onSlice (fmap (SelectedChoice i)) <$> go sl'
+          fmap (SelectedChoice i) <$> go def sl'
 
-        SCall cn -> stratCallNode ptag cn
+        SCall cn -> stratCallNode ptag def cn
 
-        SCase _ c -> stratCase ptag c
-
+        SCase _ c -> stratCase ptag def c
+        
         SInverse n ifn p -> do
-          n' <- solverOp (declareName n (symExecTy (typeOf n)))
+          _ <- solverOp (declareName n (symExecTy (typeOf n)))
           pe <- synthesiseExpr p
           solverOp (assert pe)
           check -- FIXME: necessary?
@@ -159,9 +171,9 @@ stratSlice ptag = go
           -- We could also have the solver execute the function for
           -- us.
           
-          pure (n', SelectedBytes ptag <$> applyInverse ifn)
+          pure (SelectedBytes ptag <$> applyInverse ifn)
 
-    uncPath v = (v, pure (SelectedDo Unconstrained))
+    uncPath = pure (SelectedDo Unconstrained)
     
     applyInverse ifn = do
       let fvM = Map.fromSet id $ freeVars ifn
@@ -173,13 +185,9 @@ stratSlice ptag = go
 
     -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
-onSlice :: (SymbolicM a -> SymbolicM b)
-        -> (c, SymbolicM a) -> (c, SymbolicM b)
-onSlice f = \(a, sl') -> (a, f sl')
-
 -- FIXME: maybe name e?
-stratCase :: ProvenanceTag -> Case Slice -> SymbolicM (SExpr, SymbolicM SelectedNode)
-stratCase ptag (Case e ps) = do
+stratCase :: ProvenanceTag -> (SExpr -> SymbolicM ()) -> Case Slice -> SymbolicM (SymbolicM SelectedNode)
+stratCase ptag def (Case e ps) = do
   se <- solverOp (symExec e)
   (i, (p, sl)) <- choose (enumerate ps)
   -- liftIO (putStr "Chose " >> print (pp p))
@@ -194,7 +202,7 @@ stratCase ptag (Case e ps) = do
 
   solverOp (assert assn)
   check
-  onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
+  fmap (SelectedCase i) <$> stratSlice ptag def sl
   where
     ty = typeOf e
     mkLit n = -- FIXME: cut from Core.hs
@@ -205,20 +213,20 @@ stratCase ptag (Case e ps) = do
       _        -> panic "Not a user type" [showPP ty]
 
 -- Synthesise for each call 
-stratCallNode :: ProvenanceTag -> CallNode -> SymbolicM (SExpr, SymbolicM SelectedNode)
-stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } = do
+stratCallNode :: ProvenanceTag -> (SExpr -> SymbolicM ()) -> CallNode -> SymbolicM (SymbolicM SelectedNode)
+stratCallNode ptag def CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } = do
   -- define all arguments.  We need to evaluate the args in the
   -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
   allUsedArgsV <- traverse (solverOp . symExec) allUsedArgs
   Map.foldMapWithKey defineName' allUsedArgsV
 
-  (_, nonRes) <- unzip <$> mapM doOne asserts
-  (v, res)    <- case results of
-    [] -> pure (sUnit, pure Unconstrained)
+  nonRes <- mapM doOne asserts
+  res    <- case results of
+    [] -> pure (pure Unconstrained)
     _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
-             stratSlice ptag sl
+             stratSlice ptag def sl
 
-  pure (v, SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
+  pure (SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
   where
     -- This works because 'ResultVar' is < than all over basevars
     (results, asserts) = partition hasResultVar (Set.toList paths)
@@ -227,7 +235,7 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
 
     doOne ev = do
       sl <- getParamSlice fn cl ev
-      stratSlice ptag sl
+      stratSlice ptag (\_ -> pure ()) sl
 
     allUsedParams = foldMap programVars paths
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
@@ -287,15 +295,3 @@ valueModel ty symV = do
   case evalModelP (pValue ty) sexp of
     [] -> panic "No parse" []
     v : _ -> pure v
-
-
-
-
-
-
-
-
-
-
-
-

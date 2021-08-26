@@ -7,6 +7,7 @@ import Daedalus.PP
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import Data.Functor.Const
 
 data ByteSet =
     SetAny                              -- ^ Any bytes
@@ -48,6 +49,9 @@ ebMapChildrenB :: (Expr -> Expr) -> (ByteSet -> ByteSet) -> ByteSet -> ByteSet
 ebMapChildrenB ef bf bs = g1
   where Identity g1 = ebChildrenB (Identity . ef) (Identity . bf) bs
 
+ebFoldMapChildrenB :: Monoid m => (Expr -> m) -> (ByteSet -> m) -> ByteSet -> m
+ebFoldMapChildrenB ef bf bs = m
+  where Const m = ebChildrenB (Const . ef) (Const . bf) bs
 
 instance PP ByteSet where
   ppPrec n bs =

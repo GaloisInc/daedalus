@@ -415,7 +415,7 @@ synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case e alts))
         else do env <- projectEnvForM e
                 let ppOne (k, v') = pp k <+> "->" <+> pp v'
                     ppM = block "{" "," "}" . map ppOne . Map.toList
-                panic "Failed to match pattern" [show n, showPP cs, show (ppM (I.vEnv env))]
+                panic "Failed to match pattern" [show n, showPP (assertInterpValue v), showPP cs, show (ppM (I.vEnv env))]
   | otherwise = panic "No matching case" [show n, showPP cs]
   
 synthesiseGLHS (Just (SelectedCase {})) g = panic "synthesiseGLHS: expected a case" [showPP g]

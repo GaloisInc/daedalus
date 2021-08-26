@@ -57,7 +57,11 @@ module Talos.SymExec.StdLib (
   sArrayIterVal,
   sArrayIterNext,
   -- ** Map
-  tMap
+  tMap,
+  sMapEmpty,
+  mkMapLookup,
+  mkMapMember,
+  mkMapInsert
   ) where
 
 import Control.Monad (void)
@@ -65,6 +69,7 @@ import Data.Word
 
 import SimpleSMT (SExpr, Solver)
 import qualified SimpleSMT as S
+import Control.Monad.IO.Class (MonadIO, liftIO)
 
 -- Should be run once
 makeStdLib :: Solver -> IO ()
@@ -115,19 +120,10 @@ makeStdLib s = do
     , ("success", [("get-result", S.const "t")])
     ]
 
-  -- A stub for now
-  S.declareDatatype s "Map" ["k", "v"]
-    [ ("mk-Map", [ ("vals", S.tArray (S.const "k") (S.const "v"))
-                 , ("keys", S.tArray (S.const "k") S.tBool)
-                 ])
-    ]
 
-  -- Grammar operations
-  void $ S.defineFun s "$get-byte" [("$bytes", tBytes)] (tResult tByte)
-    $ let bytes = S.const "$bytes"
-      in S.ite (S.andMany [ S.not (S.fun "is-nil" [bytes])
-                          , S.fun "is-nil" [S.fun "tail" [bytes]]
-                          ]) (S.fun "success" [S.fun "head" [bytes]]) (S.as (S.const "failure") (tResult tByte))
+  S.ackCommand s (S.fun "define-sort" [S.const "Map", S.List [S.const "k", S.const "v"],
+                                       tList (tTuple (S.const "k") (S.const "v"))])
+
 
 -- Get around SMT monomorphic function restriction
 -- lookupMap :: SExpr -> SExpr -> SExpr -> SExpr
@@ -190,6 +186,13 @@ sCons x xs = S.fun "insert" [x, xs]
 
 sNil :: SExpr -> SExpr
 sNil elT = S.as (S.const "nil") (tList elT)
+
+sHead :: SExpr -> SExpr
+sHead l = S.fun "head" [l]
+
+sTail :: SExpr -> SExpr
+sTail l = S.fun "tail" [l]
+
 
 tArrayWithLength :: SExpr -> SExpr
 tArrayWithLength t = S.fun "ArrayWithLength" [t]
@@ -273,8 +276,6 @@ sFst t = S.fun "fst" [t]
 sSnd :: SExpr -> SExpr
 sSnd t = S.fun "snd" [t]
 
-tMap :: SExpr -> SExpr -> SExpr
-tMap kt vt = S.fun "Map" [kt, vt]
 
 tSum :: SExpr -> SExpr -> SExpr
 tSum lt rt = S.fun "Sum" [lt, rt]
@@ -302,3 +303,47 @@ tModel = S.const "Model"
 
 tResult :: SExpr -> SExpr
 tResult t = S.fun "Result" [t]
+
+-- ----------------------------------------------------------------------------------------
+-- Map operations
+--
+-- List implementation
+
+tMap :: SExpr -> SExpr -> SExpr
+tMap kt vt = S.fun "Map" [kt, vt]
+
+sMapEmpty :: SExpr -> SExpr -> SExpr
+sMapEmpty kt vt = sNil (tTuple kt vt)
+
+-- (define-fun-rec BLookup ((m (Map BString BString)) (k BString)) (Maybe BString)
+--   (ite (= m (as nil (Map BString BString))) (as Nothing (Maybe BString)) (ite (= (fst (head m)) k) (Just (snd (head m))) (BLookup (tail m) k))))
+
+mkMapLookup :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapLookup s fnm kt vt = do
+  liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt)], tMaybe vt, body)]
+  where
+    m = S.const "m"
+    k = S.const "k"
+    body = S.ite (S.eq m (sNil (tTuple kt vt)))
+                 (sNothing vt)
+                 (S.ite (S.eq k (sFst (sHead m))) (sJust (sSnd (sHead m))) (S.fun fnm [sTail m, k]))
+
+mkMapMember :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapMember s fnm kt vt = do
+  liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt)], S.tBool , body)]
+  where
+    m = S.const "m"
+    k = S.const "k"
+    body = S.ite (S.eq m (sNil (tTuple kt vt)))
+                 (S.bool False)
+                 (S.ite (S.eq k (sFst (sHead m))) (S.bool True) (S.fun fnm [sTail m, k]))
+
+mkMapInsert :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapInsert s fnm kt vt = do
+  liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt), ("v", vt)], tMap kt vt, body)]
+  where
+    m = S.const "m"
+    k = S.const "k"
+    v = S.const "v"
+    
+    body = sCons (sTuple k v) m
