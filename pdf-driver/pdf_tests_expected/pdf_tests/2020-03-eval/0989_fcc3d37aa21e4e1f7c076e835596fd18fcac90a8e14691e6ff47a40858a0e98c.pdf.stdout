@@ -4,7 +4,7 @@ INFO: 511 xref entries.
 INFO: Root reference is R:510:0
 INFO: Catalog is OK.
 INFO: R:1:0 @1474486 is OK.
-ERROR:0 R:2:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:2:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:3:0 @1474281 is OK.
 INFO: R:4:0 @1018843 is OK.
 INFO: R:5:0 @15 is OK.

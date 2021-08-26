@@ -1,3 +1,3 @@
 INFO: File size 201939 bytes.
 INFO:201535 Found xref table.
-ERROR:201535 Not enough entries, found 0, but need at least 1
+ERROR:201535 Not enough entries, found UInt 0, but need at least UInt 1

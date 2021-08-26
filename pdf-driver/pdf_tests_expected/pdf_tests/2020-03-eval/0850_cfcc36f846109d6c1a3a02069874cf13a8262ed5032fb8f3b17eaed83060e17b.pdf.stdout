@@ -11,7 +11,7 @@ INFO: R:5:0 @451 is OK.
 INFO: R:6:0 @510 is OK.
 INFO: R:7:0 @709 is OK.
 INFO: R:8:0 @9268 is OK.
-INFO: R:9:0 @13449 is OK.
+ERROR:13593 R:9:0 @13449 expected "endobj"
 INFO: R:10:0 @38221 is OK.
 INFO: R:11:0 @38384 is OK.
 INFO: R:12:0 @48233 is OK.

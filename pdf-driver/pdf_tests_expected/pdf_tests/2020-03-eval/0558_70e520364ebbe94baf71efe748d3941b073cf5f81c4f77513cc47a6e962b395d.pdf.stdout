@@ -3,14 +3,14 @@ INFO:1051578 Found xref table.
 INFO: 136 xref entries.
 WARNING: Encrypted document; spurious errors may follow.
 INFO: Root reference is R:5:0
-ERROR:92 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:92 R:1:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+INFO: Catalog is OK.
+ERROR:84 R:1:0 @compresed expected "endobj"
 INFO: R:2:0 @1118 is OK.
 INFO: R:3:0 @4571 is OK.
 INFO: R:5:0 @4832 is OK.
-ERROR:92 R:6:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:539 R:7:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:539 R:8:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:84 R:6:0 @compresed expected "endobj"
+ERROR:531 R:7:0 @compresed expected "endobj"
+ERROR:531 R:8:0 @compresed expected "endobj"
 INFO: R:9:0 @5016 is OK.
 INFO: R:10:0 @5089 is OK.
 INFO: R:11:0 @5149 is OK.
@@ -19,14 +19,14 @@ INFO: R:13:0 @8811 is OK.
 INFO: R:14:0 @10050 is OK.
 INFO: R:15:0 @11193 is OK.
 INFO: R:16:0 @12336 is OK.
-ERROR:779 R:17:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
-ERROR:779 R:18:0 @compresed Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:771 R:17:0 @compresed expected "endobj"
+ERROR:771 R:18:0 @compresed expected "endobj"
 INFO: R:19:0 @13463 is OK.
 INFO: R:20:0 @14574 is OK.
 INFO: R:21:0 @16101 is OK.
 INFO: R:22:0 @16129 is OK.
 INFO: R:23:0 @16202 is OK.
-ERROR:17305 R:24:0 @17274 Bad encrypted data length
+ERROR:17297 R:24:0 @17274 expected "endobj"
 INFO: R:25:0 @17356 is OK.
 INFO: R:26:0 @17403 is OK.
 INFO: R:27:0 @18600 is OK.
@@ -38,7 +38,7 @@ INFO: R:32:0 @19226 is OK.
 INFO: R:33:0 @19340 is OK.
 INFO: R:34:0 @19717 is OK.
 INFO: R:35:0 @19790 is OK.
-ERROR:21934 R:36:0 @21903 Bad encrypted data length
+ERROR:21926 R:36:0 @21903 expected "endobj"
 INFO: R:37:0 @21985 is OK.
 INFO: R:38:0 @22032 is OK.
 INFO: R:39:0 @22877 is OK.
@@ -139,4 +139,4 @@ INFO: R:172:0 @1051363 is OK.
 INFO: R:173:0 @16 is OK.
 INFO: R:174:0 @463 is OK.
 INFO: R:175:0 @702 is OK.
-ERROR:1051808 R:176:0 @1051578 Bad padding in decrypted data. This is usually caused by an incorrect document password
+ERROR:1051800 R:176:0 @1051578 expected "endobj"

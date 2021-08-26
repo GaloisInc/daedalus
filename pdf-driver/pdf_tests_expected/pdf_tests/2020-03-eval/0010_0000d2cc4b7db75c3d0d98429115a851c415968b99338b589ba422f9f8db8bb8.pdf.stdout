@@ -2,48 +2,48 @@ INFO: File size 19127 bytes.
 INFO:18148 Found xref table.
 INFO: 44 xref entries.
 INFO: Root reference is R:1:0
-ERROR:8 Not enough entries, found 0, but need at least 1
-ERROR:8 R:1:0 @8 Not enough entries, found 0, but need at least 1
-ERROR:103 R:2:0 @103 Not enough entries, found 0, but need at least 1
-ERROR:149 R:3:0 @149 Not enough entries, found 0, but need at least 1
-ERROR:428 R:4:0 @428 Not enough entries, found 0, but need at least 1
-ERROR:465 R:5:0 @465 Not enough entries, found 0, but need at least 1
-ERROR:615 R:6:0 @615 Not enough entries, found 0, but need at least 1
-ERROR:774 R:7:0 @774 Not enough entries, found 0, but need at least 1
-ERROR:7654 R:8:0 @7654 Not enough entries, found 0, but need at least 1
-ERROR:7761 R:9:0 @7761 Not enough entries, found 0, but need at least 1
-ERROR:7876 R:10:0 @7876 Not enough entries, found 0, but need at least 1
-ERROR:7989 R:11:0 @7989 Not enough entries, found 0, but need at least 1
-ERROR:8314 R:12:0 @8314 Not enough entries, found 0, but need at least 1
-ERROR:12768 R:13:0 @12768 Not enough entries, found 0, but need at least 1
-ERROR:12896 R:14:0 @12896 Not enough entries, found 0, but need at least 1
-ERROR:12964 R:15:0 @12964 Not enough entries, found 0, but need at least 1
-ERROR:13090 R:16:0 @13090 Not enough entries, found 0, but need at least 1
-ERROR:13159 R:17:0 @13159 Not enough entries, found 0, but need at least 1
-ERROR:13286 R:18:0 @13286 Not enough entries, found 0, but need at least 1
-ERROR:13398 R:19:0 @13398 Not enough entries, found 0, but need at least 1
-ERROR:13526 R:20:0 @13526 Not enough entries, found 0, but need at least 1
-ERROR:13628 R:21:0 @13628 Not enough entries, found 0, but need at least 1
-ERROR:13755 R:22:0 @13755 Not enough entries, found 0, but need at least 1
-ERROR:13875 R:23:0 @13875 Not enough entries, found 0, but need at least 1
-ERROR:14002 R:24:0 @14002 Not enough entries, found 0, but need at least 1
-ERROR:14114 R:25:0 @14114 Not enough entries, found 0, but need at least 1
-ERROR:14241 R:26:0 @14241 Not enough entries, found 0, but need at least 1
-ERROR:14343 R:27:0 @14343 Not enough entries, found 0, but need at least 1
-ERROR:14470 R:28:0 @14470 Not enough entries, found 0, but need at least 1
-ERROR:14603 R:29:0 @14603 Not enough entries, found 0, but need at least 1
-ERROR:14730 R:30:0 @14730 Not enough entries, found 0, but need at least 1
-ERROR:14859 R:31:0 @14859 Not enough entries, found 0, but need at least 1
-ERROR:14985 R:32:0 @14985 Not enough entries, found 0, but need at least 1
-ERROR:15098 R:33:0 @15098 Not enough entries, found 0, but need at least 1
-ERROR:15375 R:34:0 @15375 Not enough entries, found 0, but need at least 1
-ERROR:15870 R:35:0 @15870 Not enough entries, found 0, but need at least 1
-ERROR:15996 R:36:0 @15996 Not enough entries, found 0, but need at least 1
-ERROR:16113 R:37:0 @16113 Not enough entries, found 0, but need at least 1
-ERROR:16373 R:38:0 @16373 Not enough entries, found 0, but need at least 1
-ERROR:16839 R:39:0 @16839 Not enough entries, found 0, but need at least 1
-ERROR:16965 R:40:0 @16965 Not enough entries, found 0, but need at least 1
-ERROR:17081 R:41:0 @17081 Not enough entries, found 0, but need at least 1
-ERROR:17350 R:42:0 @17350 Not enough entries, found 0, but need at least 1
-ERROR:18031 R:43:0 @18031 Not enough entries, found 0, but need at least 1
-ERROR:18083 R:44:0 @18083 Not enough entries, found 0, but need at least 1
+ERROR:8 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:8 R:1:0 @8 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:103 R:2:0 @103 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:149 R:3:0 @149 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:428 R:4:0 @428 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:465 R:5:0 @465 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:615 R:6:0 @615 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:774 R:7:0 @774 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:7654 R:8:0 @7654 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:7761 R:9:0 @7761 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:7876 R:10:0 @7876 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:7989 R:11:0 @7989 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:8314 R:12:0 @8314 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:12768 R:13:0 @12768 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:12896 R:14:0 @12896 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:12964 R:15:0 @12964 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13090 R:16:0 @13090 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13159 R:17:0 @13159 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13286 R:18:0 @13286 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13398 R:19:0 @13398 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13526 R:20:0 @13526 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13628 R:21:0 @13628 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13755 R:22:0 @13755 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:13875 R:23:0 @13875 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14002 R:24:0 @14002 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14114 R:25:0 @14114 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14241 R:26:0 @14241 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14343 R:27:0 @14343 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14470 R:28:0 @14470 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14603 R:29:0 @14603 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14730 R:30:0 @14730 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14859 R:31:0 @14859 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:14985 R:32:0 @14985 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:15098 R:33:0 @15098 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:15375 R:34:0 @15375 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:15870 R:35:0 @15870 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:15996 R:36:0 @15996 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:16113 R:37:0 @16113 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:16373 R:38:0 @16373 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:16839 R:39:0 @16839 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:16965 R:40:0 @16965 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:17081 R:41:0 @17081 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:17350 R:42:0 @17350 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:18031 R:43:0 @18031 Not enough entries, found UInt 0, but need at least UInt 1
+ERROR:18083 R:44:0 @18083 Not enough entries, found UInt 0, but need at least UInt 1

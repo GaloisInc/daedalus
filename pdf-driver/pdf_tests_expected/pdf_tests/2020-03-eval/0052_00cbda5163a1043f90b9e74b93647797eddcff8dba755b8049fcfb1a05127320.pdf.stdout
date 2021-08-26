@@ -1,33 +1,3 @@
 INFO: File size 24662 bytes.
 INFO:24000 Found xref table.
-INFO: 28 xref entries.
-INFO: Root reference is R:2:0
-ERROR: Catalog is malformed.
-INFO: R:1:0 @16 is OK.
-INFO: R:2:0 @173 is OK.
-INFO: R:3:0 @223 is OK.
-INFO: R:4:0 @23906 is OK.
-INFO: R:5:0 @23982 is OK.
-INFO: R:6:0 @455 is OK.
-INFO: R:7:0 @553 is OK.
-INFO: R:8:0 @572 is OK.
-INFO: R:9:0 @644 is OK.
-INFO: R:10:0 @4208 is OK.
-INFO: R:11:0 @4230 is OK.
-INFO: R:12:0 @4304 is OK.
-INFO: R:13:0 @7309 is OK.
-INFO: R:14:0 @7331 is OK.
-INFO: R:15:0 @7405 is OK.
-INFO: R:16:0 @10632 is OK.
-INFO: R:17:0 @10654 is OK.
-INFO: R:18:0 @10728 is OK.
-INFO: R:19:0 @14074 is OK.
-INFO: R:20:0 @14096 is OK.
-INFO: R:21:0 @14170 is OK.
-INFO: R:22:0 @17136 is OK.
-INFO: R:23:0 @17158 is OK.
-INFO: R:24:0 @17232 is OK.
-INFO: R:25:0 @20564 is OK.
-INFO: R:26:0 @20586 is OK.
-INFO: R:27:0 @20660 is OK.
-INFO: R:28:0 @23884 is OK.
+ERROR:24005 byte '0' does not match byte UInt 13

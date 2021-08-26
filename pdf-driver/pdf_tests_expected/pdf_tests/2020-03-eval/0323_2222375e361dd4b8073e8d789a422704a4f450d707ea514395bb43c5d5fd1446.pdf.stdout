@@ -4,7 +4,7 @@ INFO: 11278 xref entries.
 INFO: Root reference is R:11277:0
 INFO: Catalog is OK.
 INFO: R:1:0 @25625903 is OK.
-ERROR:0 R:2:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:2:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:3:0 @350728 is OK.
 INFO: R:4:0 @245524 is OK.
 INFO: R:5:0 @15 is OK.
@@ -148,7 +148,7 @@ INFO: R:142:0 @244797 is OK.
 INFO: R:143:0 @244301 is OK.
 INFO: R:144:0 @240045 is OK.
 INFO: R:145:0 @246840 is OK.
-ERROR:0 R:146:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:146:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:147:0 @427387 is OK.
 INFO: R:148:0 @412309 is OK.
 INFO: R:149:0 @350844 is OK.
@@ -198,7 +198,7 @@ INFO: R:192:0 @411504 is OK.
 INFO: R:193:0 @410721 is OK.
 INFO: R:194:0 @411757 is OK.
 INFO: R:195:0 @412571 is OK.
-ERROR:0 R:196:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:196:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:197:0 @694542 is OK.
 INFO: R:198:0 @682130 is OK.
 INFO: R:199:0 @427507 is OK.
@@ -289,7 +289,7 @@ INFO: R:283:0 @681656 is OK.
 INFO: R:284:0 @681376 is OK.
 INFO: R:285:0 @680398 is OK.
 INFO: R:286:0 @682643 is OK.
-ERROR:0 R:287:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:287:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:288:0 @809311 is OK.
 INFO: R:289:0 @794851 is OK.
 INFO: R:290:0 @694662 is OK.
@@ -339,7 +339,7 @@ INFO: R:333:0 @794045 is OK.
 INFO: R:334:0 @793378 is OK.
 INFO: R:335:0 @794298 is OK.
 INFO: R:336:0 @795158 is OK.
-ERROR:0 R:337:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:337:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:338:0 @1191650 is OK.
 INFO: R:339:0 @1170422 is OK.
 INFO: R:340:0 @809431 is OK.
@@ -424,7 +424,7 @@ INFO: R:418:0 @1168777 is OK.
 INFO: R:419:0 @1166316 is OK.
 INFO: R:420:0 @1169172 is OK.
 INFO: R:421:0 @1170912 is OK.
-ERROR:0 R:422:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:422:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:423:0 @1299843 is OK.
 INFO: R:424:0 @1288325 is OK.
 INFO: R:425:0 @1191770 is OK.
@@ -472,7 +472,7 @@ INFO: R:466:0 @1287479 is OK.
 INFO: R:467:0 @1286711 is OK.
 INFO: R:468:0 @1287734 is OK.
 INFO: R:469:0 @1288613 is OK.
-ERROR:0 R:470:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:470:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:471:0 @1650626 is OK.
 INFO: R:472:0 @1630155 is OK.
 INFO: R:473:0 @1299963 is OK.
@@ -545,7 +545,7 @@ INFO: R:539:0 @1628259 is OK.
 INFO: R:540:0 @1625041 is OK.
 INFO: R:541:0 @1628736 is OK.
 INFO: R:542:0 @1630702 is OK.
-ERROR:0 R:543:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:543:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:544:0 @2269035 is OK.
 INFO: R:545:0 @1905740 is OK.
 INFO: R:546:0 @1650746 is OK.
@@ -908,7 +908,7 @@ INFO: R:902:0 @1904389 is OK.
 INFO: R:903:0 @1902448 is OK.
 INFO: R:904:0 @1904849 is OK.
 INFO: R:905:0 @1908555 is OK.
-ERROR:0 R:906:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:906:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:907:0 @2778554 is OK.
 INFO: R:908:0 @2685516 is OK.
 INFO: R:909:0 @2269155 is OK.
@@ -1182,7 +1182,7 @@ INFO: R:1176:0 @2680428 is OK.
 INFO: R:1177:0 @2683239 is OK.
 INFO: R:1178:0 @2683166 is OK.
 INFO: R:1179:0 @2688508 is OK.
-ERROR:0 R:1180:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:1180:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:1181:0 @2888805 is OK.
 INFO: R:1182:0 @2876095 is OK.
 INFO: R:1183:0 @2778675 is OK.
@@ -1228,7 +1228,7 @@ INFO: R:1222:0 @2875266 is OK.
 INFO: R:1223:0 @2874354 is OK.
 INFO: R:1224:0 @2875523 is OK.
 INFO: R:1225:0 @2876371 is OK.
-ERROR:0 R:1226:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:1226:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:1227:0 @3264733 is OK.
 INFO: R:1228:0 @3258042 is OK.
 INFO: R:1229:0 @2888928 is OK.
@@ -1301,7 +1301,7 @@ INFO: R:1295:0 @3257099 is OK.
 INFO: R:1296:0 @3256027 is OK.
 INFO: R:1297:0 @3257378 is OK.
 INFO: R:1298:0 @3258781 is OK.
-ERROR:0 R:1299:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:1299:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:1300:0 @3411617 is OK.
 INFO: R:1301:0 @3390590 is OK.
 INFO: R:1302:0 @3264856 is OK.
@@ -1349,7 +1349,7 @@ INFO: R:1343:0 @3390308 is OK.
 INFO: R:1344:0 @3390034 is OK.
 INFO: R:1345:0 @3389201 is OK.
 INFO: R:1346:0 @3390913 is OK.
-ERROR:0 R:1347:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:1347:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:1348:0 @4149398 is OK.
 INFO: R:1349:0 @4054166 is OK.
 INFO: R:1350:0 @3411740 is OK.
@@ -1950,7 +1950,7 @@ INFO: R:1944:0 @4052301 is OK.
 INFO: R:1945:0 @4048232 is OK.
 INFO: R:1946:0 @4052775 is OK.
 INFO: R:1947:0 @4062556 is OK.
-ERROR:0 R:1948:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:1948:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:1949:0 @5033189 is OK.
 INFO: R:1950:0 @4822992 is OK.
 INFO: R:1951:0 @4149521 is OK.
@@ -2791,7 +2791,7 @@ INFO: R:2785:0 @4821316 is OK.
 INFO: R:2786:0 @4822229 is OK.
 INFO: R:2787:0 @4822155 is OK.
 INFO: R:2788:0 @4832468 is OK.
-ERROR:0 R:2789:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:2789:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:2790:0 @5796585 is OK.
 INFO: R:2791:0 @5660169 is OK.
 INFO: R:2792:0 @5033312 is OK.
@@ -3297,7 +3297,7 @@ INFO: R:3291:0 @5658723 is OK.
 INFO: R:3292:0 @5659461 is OK.
 INFO: R:3293:0 @5659387 is OK.
 INFO: R:3294:0 @5665685 is OK.
-ERROR:0 R:3295:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:3295:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:3296:0 @6506350 is OK.
 INFO: R:3297:0 @6377516 is OK.
 INFO: R:3298:0 @5796708 is OK.
@@ -3910,7 +3910,7 @@ INFO: R:3904:0 @6376097 is OK.
 INFO: R:3905:0 @6376799 is OK.
 INFO: R:3906:0 @6376725 is OK.
 INFO: R:3907:0 @6384708 is OK.
-ERROR:0 R:3908:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:3908:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:3909:0 @6859666 is OK.
 INFO: R:3910:0 @6814498 is OK.
 INFO: R:3911:0 @6506473 is OK.
@@ -4048,7 +4048,7 @@ INFO: R:4042:0 @6812452 is OK.
 INFO: R:4043:0 @6808957 is OK.
 INFO: R:4044:0 @6812982 is OK.
 INFO: R:4045:0 @6815656 is OK.
-ERROR:0 R:4046:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4046:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4047:0 @7207757 is OK.
 INFO: R:4048:0 @7190512 is OK.
 INFO: R:4049:0 @6859789 is OK.
@@ -4124,7 +4124,7 @@ INFO: R:4118:0 @7189640 is OK.
 INFO: R:4119:0 @7188858 is OK.
 INFO: R:4120:0 @7189917 is OK.
 INFO: R:4121:0 @7190938 is OK.
-ERROR:0 R:4122:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4122:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4123:0 @7344787 is OK.
 INFO: R:4124:0 @7330462 is OK.
 INFO: R:4125:0 @7207880 is OK.
@@ -4196,7 +4196,7 @@ INFO: R:4190:0 @7328688 is OK.
 INFO: R:4191:0 @7325303 is OK.
 INFO: R:4192:0 @7329137 is OK.
 INFO: R:4193:0 @7330902 is OK.
-ERROR:0 R:4194:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4194:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4195:0 @7814461 is OK.
 INFO: R:4196:0 @7811801 is OK.
 INFO: R:4197:0 @7344910 is OK.
@@ -4217,7 +4217,7 @@ INFO: R:4211:0 @7811305 is OK.
 INFO: R:4212:0 @7811090 is OK.
 INFO: R:4213:0 @7795172 is OK.
 INFO: R:4214:0 @7812019 is OK.
-ERROR:0 R:4215:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4215:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4216:0 @7954403 is OK.
 INFO: R:4217:0 @7937159 is OK.
 INFO: R:4218:0 @7814584 is OK.
@@ -4300,7 +4300,7 @@ INFO: R:4294:0 @7935574 is OK.
 INFO: R:4295:0 @7931706 is OK.
 INFO: R:4296:0 @7935940 is OK.
 INFO: R:4297:0 @7937566 is OK.
-ERROR:0 R:4298:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4298:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4299:0 @8403238 is OK.
 INFO: R:4300:0 @8333564 is OK.
 INFO: R:4301:0 @7954526 is OK.
@@ -4598,7 +4598,7 @@ INFO: R:4592:0 @8330122 is OK.
 INFO: R:4593:0 @8331468 is OK.
 INFO: R:4594:0 @8331394 is OK.
 INFO: R:4595:0 @8337183 is OK.
-ERROR:0 R:4596:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4596:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4597:0 @8727675 is OK.
 INFO: R:4598:0 @8616507 is OK.
 INFO: R:4599:0 @8403361 is OK.
@@ -4834,7 +4834,7 @@ INFO: R:4828:0 @8614883 is OK.
 INFO: R:4829:0 @8612345 is OK.
 INFO: R:4830:0 @8615239 is OK.
 INFO: R:4831:0 @8617851 is OK.
-ERROR:0 R:4832:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:4832:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:4833:0 @9846020 is OK.
 INFO: R:4834:0 @9310993 is OK.
 INFO: R:4835:0 @8727798 is OK.
@@ -5040,7 +5040,7 @@ INFO: R:5034:0 @9309714 is OK.
 INFO: R:5035:0 @9310417 is OK.
 INFO: R:5036:0 @9310343 is OK.
 INFO: R:5037:0 @9312360 is OK.
-ERROR:0 R:5038:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5038:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5039:0 @10054131 is OK.
 INFO: R:5040:0 @10006929 is OK.
 INFO: R:5041:0 @9846143 is OK.
@@ -5128,7 +5128,7 @@ INFO: R:5122:0 @10006089 is OK.
 INFO: R:5123:0 @10005344 is OK.
 INFO: R:5124:0 @10006344 is OK.
 INFO: R:5125:0 @10007719 is OK.
-ERROR:0 R:5126:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5126:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5127:0 @10442285 is OK.
 INFO: R:5128:0 @10352483 is OK.
 INFO: R:5129:0 @10054254 is OK.
@@ -5459,7 +5459,7 @@ INFO: R:5453:0 @10351952 is OK.
 INFO: R:5454:0 @10351354 is OK.
 INFO: R:5455:0 @10352200 is OK.
 INFO: R:5456:0 @10354719 is OK.
-ERROR:0 R:5457:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5457:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5458:0 @10681819 is OK.
 INFO: R:5459:0 @10658257 is OK.
 INFO: R:5460:0 @10442408 is OK.
@@ -5538,7 +5538,7 @@ INFO: R:5532:0 @10656510 is OK.
 INFO: R:5533:0 @10652817 is OK.
 INFO: R:5534:0 @10656938 is OK.
 INFO: R:5535:0 @10658775 is OK.
-ERROR:0 R:5536:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5536:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5537:0 @10758641 is OK.
 INFO: R:5538:0 @10743832 is OK.
 INFO: R:5539:0 @10681942 is OK.
@@ -5590,7 +5590,7 @@ INFO: R:5584:0 @10742639 is OK.
 INFO: R:5585:0 @10741602 is OK.
 INFO: R:5586:0 @10742945 is OK.
 INFO: R:5587:0 @10744144 is OK.
-ERROR:0 R:5588:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5588:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5589:0 @11306664 is OK.
 INFO: R:5590:0 @11110800 is OK.
 INFO: R:5591:0 @10758764 is OK.
@@ -5830,7 +5830,7 @@ INFO: R:5824:0 @11109442 is OK.
 INFO: R:5825:0 @11107497 is OK.
 INFO: R:5826:0 @11109904 is OK.
 INFO: R:5827:0 @11112740 is OK.
-ERROR:0 R:5828:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5828:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5829:0 @11396990 is OK.
 INFO: R:5830:0 @11381730 is OK.
 INFO: R:5831:0 @11306787 is OK.
@@ -5872,7 +5872,7 @@ INFO: R:5866:0 @11381495 is OK.
 INFO: R:5867:0 @11381222 is OK.
 INFO: R:5868:0 @11380396 is OK.
 INFO: R:5869:0 @11382006 is OK.
-ERROR:0 R:5870:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5870:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5871:0 @11595947 is OK.
 INFO: R:5872:0 @11553463 is OK.
 INFO: R:5873:0 @11397113 is OK.
@@ -5945,7 +5945,7 @@ INFO: R:5939:0 @11552579 is OK.
 INFO: R:5940:0 @11552204 is OK.
 INFO: R:5941:0 @11552810 is OK.
 INFO: R:5942:0 @11553930 is OK.
-ERROR:0 R:5943:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5943:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5944:0 @11686475 is OK.
 INFO: R:5945:0 @11675206 is OK.
 INFO: R:5946:0 @11596070 is OK.
@@ -5987,7 +5987,7 @@ INFO: R:5981:0 @11674971 is OK.
 INFO: R:5982:0 @11674698 is OK.
 INFO: R:5983:0 @11673872 is OK.
 INFO: R:5984:0 @11675482 is OK.
-ERROR:0 R:5985:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:5985:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:5986:0 @11969754 is OK.
 INFO: R:5987:0 @11904067 is OK.
 INFO: R:5988:0 @11686598 is OK.
@@ -6128,7 +6128,7 @@ INFO: R:6122:0 @11901922 is OK.
 INFO: R:6123:0 @11897906 is OK.
 INFO: R:6124:0 @11902498 is OK.
 INFO: R:6125:0 @11905369 is OK.
-ERROR:0 R:6126:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6126:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6127:0 @12135449 is OK.
 INFO: R:6128:0 @12123041 is OK.
 INFO: R:6129:0 @11969877 is OK.
@@ -6176,7 +6176,7 @@ INFO: R:6170:0 @12121475 is OK.
 INFO: R:6171:0 @12119199 is OK.
 INFO: R:6172:0 @12121838 is OK.
 INFO: R:6173:0 @12123444 is OK.
-ERROR:0 R:6174:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6174:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6175:0 @12616250 is OK.
 INFO: R:6176:0 @12518048 is OK.
 INFO: R:6177:0 @12135572 is OK.
@@ -6309,7 +6309,7 @@ INFO: R:6303:0 @12517168 is OK.
 INFO: R:6304:0 @12515204 is OK.
 INFO: R:6305:0 @12517421 is OK.
 INFO: R:6306:0 @12519413 is OK.
-ERROR:0 R:6307:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6307:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6308:0 @12779915 is OK.
 INFO: R:6309:0 @12719415 is OK.
 INFO: R:6310:0 @12616373 is OK.
@@ -6409,7 +6409,7 @@ INFO: R:6403:0 @12719108 is OK.
 INFO: R:6404:0 @12718817 is OK.
 INFO: R:6405:0 @12717783 is OK.
 INFO: R:6406:0 @12719962 is OK.
-ERROR:0 R:6407:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6407:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6408:0 @13171107 is OK.
 INFO: R:6409:0 @13129056 is OK.
 INFO: R:6410:0 @12780038 is OK.
@@ -6609,7 +6609,7 @@ INFO: R:6603:0 @13127698 is OK.
 INFO: R:6604:0 @13125755 is OK.
 INFO: R:6605:0 @13128160 is OK.
 INFO: R:6606:0 @13130456 is OK.
-ERROR:0 R:6607:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6607:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6608:0 @13366129 is OK.
 INFO: R:6609:0 @13294828 is OK.
 INFO: R:6610:0 @13171230 is OK.
@@ -6690,7 +6690,7 @@ INFO: R:6684:0 @13293175 is OK.
 INFO: R:6685:0 @13290963 is OK.
 INFO: R:6686:0 @13293547 is OK.
 INFO: R:6687:0 @13295348 is OK.
-ERROR:0 R:6688:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6688:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6689:0 @13645596 is OK.
 INFO: R:6690:0 @13636761 is OK.
 INFO: R:6691:0 @13366252 is OK.
@@ -6754,7 +6754,7 @@ INFO: R:6748:0 @13635124 is OK.
 INFO: R:6749:0 @13632546 is OK.
 INFO: R:6750:0 @13635522 is OK.
 INFO: R:6751:0 @13637126 is OK.
-ERROR:0 R:6752:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:6752:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:6753:0 @15122358 is OK.
 INFO: R:6754:0 @14666482 is OK.
 INFO: R:6755:0 @13645719 is OK.
@@ -7262,7 +7262,7 @@ INFO: R:7256:0 @14892387 is OK.
 INFO: R:7257:0 @14959830 is OK.
 INFO: R:7258:0 @15020754 is OK.
 INFO: R:7259:0 @15072738 is OK.
-ERROR:0 R:7260:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:7260:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:7261:0 @16564251 is OK.
 INFO: R:7262:0 @16115597 is OK.
 INFO: R:7263:0 @15122577 is OK.
@@ -7774,7 +7774,7 @@ INFO: R:7768:0 @16336090 is OK.
 INFO: R:7769:0 @16403101 is OK.
 INFO: R:7770:0 @16463336 is OK.
 INFO: R:7771:0 @16515001 is OK.
-ERROR:0 R:7772:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:7772:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:7773:0 @17971287 is OK.
 INFO: R:7774:0 @17034585 is OK.
 INFO: R:7775:0 @16564470 is OK.
@@ -8062,7 +8062,7 @@ INFO: R:8056:0 @17031289 is OK.
 INFO: R:8057:0 @17033166 is OK.
 INFO: R:8058:0 @17033092 is OK.
 INFO: R:8059:0 @17037029 is OK.
-ERROR:0 R:8060:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:8060:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:8061:0 @19427448 is OK.
 INFO: R:8062:0 @18991338 is OK.
 INFO: R:8063:0 @17971410 is OK.
@@ -8365,7 +8365,7 @@ INFO: R:8359:0 @18933485 is OK.
 INFO: R:8360:0 @18962337 is OK.
 INFO: R:8361:0 @18962263 is OK.
 INFO: R:8362:0 @18993762 is OK.
-ERROR:0 R:8363:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:8363:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:8364:0 @20362160 is OK.
 INFO: R:8365:0 @19491892 is OK.
 INFO: R:8366:0 @19427571 is OK.
@@ -8429,7 +8429,7 @@ INFO: R:8423:0 @19486890 is OK.
 INFO: R:8424:0 @19487396 is OK.
 INFO: R:8425:0 @19489653 is OK.
 INFO: R:8426:0 @19492577 is OK.
-ERROR:0 R:8427:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:8427:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:8428:0 @20477767 is OK.
 INFO: R:8429:0 @20446568 is OK.
 INFO: R:8430:0 @20362283 is OK.
@@ -8507,7 +8507,7 @@ INFO: R:8501:0 @20445287 is OK.
 INFO: R:8502:0 @20444053 is OK.
 INFO: R:8503:0 @20445581 is OK.
 INFO: R:8504:0 @20447353 is OK.
-ERROR:0 R:8505:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:8505:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:8506:0 @23101408 is OK.
 INFO: R:8507:0 @21185311 is OK.
 INFO: R:8508:0 @20477890 is OK.
@@ -10026,7 +10026,7 @@ INFO: R:10020:0 @21183946 is OK.
 INFO: R:10021:0 @21182002 is OK.
 INFO: R:10022:0 @21184410 is OK.
 INFO: R:10023:0 @21202269 is OK.
-ERROR:0 R:10024:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10024:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10025:0 @23523454 is OK.
 INFO: R:10026:0 @23335753 is OK.
 INFO: R:10027:0 @23101532 is OK.
@@ -10322,7 +10322,7 @@ INFO: R:10316:0 @23335078 is OK.
 INFO: R:10317:0 @23333880 is OK.
 INFO: R:10318:0 @23335367 is OK.
 INFO: R:10319:0 @23337403 is OK.
-ERROR:0 R:10320:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10320:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10321:0 @23776044 is OK.
 INFO: R:10322:0 @23766251 is OK.
 INFO: R:10323:0 @23523580 is OK.
@@ -10369,7 +10369,7 @@ INFO: R:10363:0 @23765609 is OK.
 INFO: R:10364:0 @23764765 is OK.
 INFO: R:10365:0 @23765883 is OK.
 INFO: R:10366:0 @23766679 is OK.
-ERROR:0 R:10367:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10367:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10368:0 @23888874 is OK.
 INFO: R:10369:0 @23876896 is OK.
 INFO: R:10370:0 @23776170 is OK.
@@ -10420,7 +10420,7 @@ INFO: R:10414:0 @23876361 is OK.
 INFO: R:10415:0 @23876043 is OK.
 INFO: R:10416:0 @23874352 is OK.
 INFO: R:10417:0 @23877276 is OK.
-ERROR:0 R:10418:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10418:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10419:0 @23946111 is OK.
 INFO: R:10420:0 @23938664 is OK.
 INFO: R:10421:0 @23889000 is OK.
@@ -10459,7 +10459,7 @@ INFO: R:10453:0 @23936979 is OK.
 INFO: R:10454:0 @23933649 is OK.
 INFO: R:10455:0 @23937394 is OK.
 INFO: R:10456:0 @23938940 is OK.
-ERROR:0 R:10457:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10457:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10458:0 @24014542 is OK.
 INFO: R:10459:0 @24003280 is OK.
 INFO: R:10460:0 @23946237 is OK.
@@ -10496,7 +10496,7 @@ INFO: R:10490:0 @24001691 is OK.
 INFO: R:10491:0 @23998844 is OK.
 INFO: R:10492:0 @24002065 is OK.
 INFO: R:10493:0 @24003588 is OK.
-ERROR:0 R:10494:65536 @0 Not enough entries, found 0, but need at least 1
+ERROR:0 R:10494:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:10495:0 @25625777 is OK.
 INFO: R:10496:0 @24659915 is OK.
 INFO: R:10497:0 @24014668 is OK.

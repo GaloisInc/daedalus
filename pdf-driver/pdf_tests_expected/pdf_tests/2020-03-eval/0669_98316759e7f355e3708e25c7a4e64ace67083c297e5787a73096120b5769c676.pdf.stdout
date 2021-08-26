@@ -19,7 +19,7 @@ INFO: R:13:0 @11746 is OK.
 INFO: R:14:0 @12003 is OK.
 INFO: R:15:0 @2950 is OK.
 INFO: R:16:0 @3729 is OK.
-INFO: R:17:0 @3749 is OK.
+ERROR:3818 R:17:0 @3749 expected "endobj"
 INFO: R:18:0 @5533 is OK.
 INFO: R:19:0 @5554 is OK.
 INFO: R:20:0 @6333 is OK.
@@ -27,6 +27,6 @@ INFO: R:21:0 @6353 is OK.
 INFO: R:22:0 @8187 is OK.
 INFO: R:23:0 @8208 is OK.
 INFO: R:24:0 @9021 is OK.
-INFO: R:25:0 @9041 is OK.
+ERROR:9110 R:25:0 @9041 expected "endobj"
 INFO: R:26:0 @11373 is OK.
 INFO: R:27:0 @13214 is OK.

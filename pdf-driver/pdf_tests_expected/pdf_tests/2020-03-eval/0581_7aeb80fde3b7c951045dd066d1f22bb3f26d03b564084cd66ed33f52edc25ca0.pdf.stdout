@@ -22,7 +22,7 @@ INFO: R:16:0 @47302 is OK.
 INFO: R:17:0 @63151 is OK.
 INFO: R:18:0 @65009 is OK.
 INFO: R:19:0 @66330 is OK.
-ERROR:66445 R:20:0 @66378 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:66437 R:20:0 @66378 expected "endobj"
 WARNING: R:21:0 @66892 has URIs.
 INFO: R:22:0 @66962 is OK.
 WARNING: R:23:0 @67125 has URIs.
@@ -51,12 +51,12 @@ INFO: R:45:0 @71005 is OK.
 INFO: R:46:0 @71169 is OK.
 INFO: R:47:0 @71212 is OK.
 INFO: R:48:0 @73402 is OK.
-ERROR:74503 R:49:0 @74379 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
-ERROR:75215 R:50:0 @75091 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
-ERROR:75890 R:51:0 @75766 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
-ERROR:76573 R:52:0 @76449 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
-ERROR:77270 R:53:0 @77146 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
-ERROR:77935 R:54:0 @77811 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:74495 R:49:0 @74379 expected "endobj"
+ERROR:75207 R:50:0 @75091 expected "endobj"
+ERROR:75882 R:51:0 @75766 expected "endobj"
+ERROR:76565 R:52:0 @76449 expected "endobj"
+ERROR:77262 R:53:0 @77146 expected "endobj"
+ERROR:77927 R:54:0 @77811 expected "endobj"
 INFO: R:55:0 @78442 is OK.
 INFO: R:56:0 @78528 is OK.
 INFO: R:57:0 @118465 is OK.

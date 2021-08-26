@@ -16,7 +16,7 @@ INFO: R:10:0 @1137 is OK.
 INFO: R:11:0 @1279 is OK.
 INFO: R:12:0 @14717 is OK.
 INFO: R:13:0 @14787 is OK.
-ERROR:61407 R:14:0 @15004 expected "endstream"
+ERROR:15069 R:14:0 @15004 expected "endobj"
 INFO: R:15:0 @61414 is OK.
 INFO: R:16:0 @63681 is OK.
 INFO: R:17:0 @64078 is OK.
@@ -24,11 +24,11 @@ INFO: R:18:0 @64216 is OK.
 INFO: R:19:0 @92303 is OK.
 INFO: R:20:0 @92373 is OK.
 INFO: R:21:0 @92585 is OK.
-ERROR:245541 R:22:0 @241001 expected "endstream"
+ERROR:241050 R:22:0 @241001 expected "endobj"
 INFO: R:23:0 @245548 is OK.
-INFO: R:24:0 @245945 is OK.
+ERROR:246091 R:24:0 @245945 expected "endobj"
 INFO: R:25:0 @422793 is OK.
 INFO: R:26:0 @424478 is OK.
 INFO: R:27:0 @424592 is OK.
 INFO: R:28:0 @426515 is OK.
-ERROR:426979 R:29:0 @426629 expected "endstream"
+ERROR:426677 R:29:0 @426629 expected "endobj"

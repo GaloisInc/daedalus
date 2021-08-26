@@ -3,16 +3,16 @@ INFO:112884 Found xref table.
 INFO: 43 xref entries.
 INFO: Root reference is R:9:0
 INFO: Catalog is OK.
-ERROR:106202 R:1:0 @106136 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:106194 R:1:0 @106136 expected "endobj"
 INFO: R:2:0 @106648 is OK.
 INFO: R:3:0 @106694 is OK.
-ERROR:106858 R:4:0 @106736 Codec.Compression.Zlib: compressed data stream format error (invalid literal/lengths set)
+ERROR:106850 R:4:0 @106736 expected "endobj"
 INFO: R:5:0 @107946 is OK.
 INFO: R:6:0 @107998 is OK.
 INFO: R:7:0 @110556 is OK.
 INFO: R:8:0 @16 is OK.
 INFO: R:9:0 @1219 is OK.
-INFO: R:10:0 @1342 is OK.
+INFO: R:10:0 @111021 is OK.
 INFO: R:11:0 @2340 is OK.
 INFO: R:12:0 @2797 is OK.
 INFO: R:13:0 @3277 is OK.
@@ -44,5 +44,5 @@ INFO: R:38:0 @87084 is OK.
 INFO: R:39:0 @87898 is OK.
 INFO: R:40:0 @106079 is OK.
 INFO: R:41:0 @976 is OK.
-INFO: R:42:0 @111841 is OK.
+INFO: R:42:0 @112491 is OK.
 INFO: R:43:0 @112231 is OK.

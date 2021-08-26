@@ -2,7 +2,7 @@ INFO: File size 279574 bytes.
 INFO:275089 Found xref table.
 INFO: 216 xref entries.
 INFO: Root reference is R:1:0
-ERROR: Catalog is malformed.
+INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @64 is OK.
 INFO: R:3:0 @181 is OK.
@@ -48,7 +48,7 @@ INFO: R:42:0 @31321 is OK.
 INFO: R:43:0 @32527 is OK.
 INFO: R:44:0 @33727 is OK.
 INFO: R:45:0 @33856 is OK.
-ERROR:34123 R:46:0 @33958 Codec.Compression.Zlib: premature end of compressed data stream
+ERROR:34116 R:46:0 @33958 expected "endobj"
 INFO: R:47:0 @34140 is OK.
 INFO: R:48:0 @35809 is OK.
 INFO: R:49:0 @35921 is OK.

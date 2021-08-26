@@ -2,7 +2,7 @@ INFO: File size 409862 bytes.
 INFO:393137 Found xref table.
 INFO: 828 xref entries.
 INFO: Root reference is R:1:0
-ERROR: Catalog is malformed.
+INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @64 is OK.
 INFO: R:3:0 @181 is OK.
@@ -767,7 +767,7 @@ INFO: R:761:0 @181228 is OK.
 INFO: R:762:0 @181511 is OK.
 INFO: R:763:0 @181636 is OK.
 INFO: R:764:0 @182283 is OK.
-INFO: R:765:0 @182812 is OK.
+ERROR:183004 R:765:0 @182812 expected "endobj"
 INFO: R:766:0 @254757 is OK.
 INFO: R:767:0 @254843 is OK.
 INFO: R:768:0 @255424 is OK.

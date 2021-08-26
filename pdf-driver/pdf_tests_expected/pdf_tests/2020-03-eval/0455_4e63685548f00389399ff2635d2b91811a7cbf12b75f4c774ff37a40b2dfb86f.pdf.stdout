@@ -14,7 +14,7 @@ INFO: R:8:0 @1880 is OK.
 INFO: R:9:0 @2075 is OK.
 INFO: R:10:0 @2279 is OK.
 INFO: R:11:0 @2375 is OK.
-ERROR:5380 R:12:0 @2619 expected "endstream"
+ERROR:2668 R:12:0 @2619 expected "endobj"
 INFO: R:13:0 @5387 is OK.
 INFO: R:14:0 @5542 is OK.
 INFO: R:15:0 @6586 is OK.
@@ -27,7 +27,7 @@ INFO: R:21:0 @54604 is OK.
 INFO: R:22:0 @98192 is OK.
 INFO: R:23:0 @98345 is OK.
 INFO: R:24:0 @99391 is OK.
-ERROR:134480 R:25:0 @99596 expected "endstream"
+ERROR:99688 R:25:0 @99596 expected "endobj"
 INFO: R:26:0 @134487 is OK.
 INFO: R:27:0 @136651 is OK.
 INFO: R:28:0 @136685 is OK.
@@ -35,7 +35,7 @@ WARNING: R:29:0 @136780 has URIs.
 INFO: R:30:0 @136877 is OK.
 WARNING: R:31:0 @136976 has URIs.
 INFO: R:32:0 @137062 is OK.
-ERROR:137571 R:33:0 @137270 expected "endstream"
+ERROR:137318 R:33:0 @137270 expected "endobj"
 INFO: R:34:0 @137578 is OK.
 INFO: R:35:0 @137736 is OK.
 INFO: R:36:0 @138781 is OK.
@@ -43,7 +43,7 @@ INFO: R:37:0 @138991 is OK.
 INFO: R:38:0 @173819 is OK.
 INFO: R:39:0 @173846 is OK.
 INFO: R:40:0 @173961 is OK.
-ERROR:176120 R:41:0 @174176 expected "endstream"
+ERROR:174225 R:41:0 @174176 expected "endobj"
 INFO: R:42:0 @176127 is OK.
 INFO: R:43:0 @176283 is OK.
 INFO: R:44:0 @177327 is OK.
@@ -57,7 +57,7 @@ INFO: R:51:0 @266985 is OK.
 INFO: R:52:0 @269019 is OK.
 INFO: R:53:0 @269223 is OK.
 INFO: R:54:0 @270399 is OK.
-ERROR:270869 R:55:0 @270596 expected "endstream"
+ERROR:270644 R:55:0 @270596 expected "endobj"
 INFO: R:56:0 @270876 is OK.
 INFO: R:57:0 @270903 is OK.
 WARNING: R:58:0 @270999 has URIs.

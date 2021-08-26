@@ -4,9 +4,9 @@ INFO: 34 xref entries.
 INFO: Root reference is R:9:0
 INFO: Catalog is OK.
 INFO: R:1:0 @116638 is OK.
-ERROR:116750 R:2:0 @116684 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:116742 R:2:0 @116684 expected "endobj"
 INFO: R:3:0 @117196 is OK.
-ERROR:117360 R:4:0 @117238 Codec.Compression.Zlib: compressed data stream format error (invalid bit length repeat)
+ERROR:117352 R:4:0 @117238 expected "endobj"
 INFO: R:5:0 @118468 is OK.
 INFO: R:6:0 @118520 is OK.
 INFO: R:7:0 @121078 is OK.

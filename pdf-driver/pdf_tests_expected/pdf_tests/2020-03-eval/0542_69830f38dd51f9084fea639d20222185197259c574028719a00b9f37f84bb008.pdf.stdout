@@ -7,7 +7,7 @@ INFO: R:1:0 @10 is OK.
 INFO: R:2:0 @100568 is OK.
 INFO: R:3:0 @100623 is OK.
 INFO: R:4:0 @100340 is OK.
-ERROR:287 R:5:0 @210 Codec.Compression.Zlib: compressed data stream format error (invalid distance too far back)
+ERROR:279 R:5:0 @210 expected "endobj"
 INFO: R:6:0 @623 is OK.
 INFO: R:7:0 @645 is OK.
 INFO: R:8:0 @823 is OK.

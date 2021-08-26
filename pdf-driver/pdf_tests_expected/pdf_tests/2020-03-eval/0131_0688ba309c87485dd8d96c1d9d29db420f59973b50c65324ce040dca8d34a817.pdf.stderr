@@ -1,3 +1,0 @@
-pdf-hs-driver: PE {peInput = Stream { off  = 0, len  = 3727214, name = "pdf_tests/2020-03-eval/0131_0688ba309c87485dd8d96c1d9d29db420f59973b50c65324ce040dca8d34a817.pdf"}, peStack = ["PdfCrypto.EncryptionDict","encryption"], peGrammar = ["20:3--20:47"], peMsg = "guard failed", peSource = FromSystem, peMore = Nothing}
-CallStack (from HasCallStack):
-  error, called at src/driver/Main.hs:277:6 in main:Main

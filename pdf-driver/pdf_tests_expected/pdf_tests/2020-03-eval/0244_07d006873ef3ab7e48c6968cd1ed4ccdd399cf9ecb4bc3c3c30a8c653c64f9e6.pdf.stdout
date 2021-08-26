@@ -1,15 +1,3 @@
 INFO: File size 105856 bytes.
 INFO:105556 Found xref table.
-INFO: 10 xref entries.
-INFO: Root reference is R:10:0
-INFO: Catalog is OK.
-INFO: R:1:0 @10 is OK.
-INFO: R:2:0 @107 is OK.
-INFO: R:3:0 @218 is OK.
-INFO: R:4:0 @329 is OK.
-INFO: R:5:0 @71982 is OK.
-INFO: R:6:0 @105144 is OK.
-INFO: R:7:0 @105202 is OK.
-INFO: R:8:0 @105281 is OK.
-INFO: R:9:0 @105377 is OK.
-INFO: R:10:0 @105473 is OK.
+ERROR:105561 byte '0' does not match byte UInt 13

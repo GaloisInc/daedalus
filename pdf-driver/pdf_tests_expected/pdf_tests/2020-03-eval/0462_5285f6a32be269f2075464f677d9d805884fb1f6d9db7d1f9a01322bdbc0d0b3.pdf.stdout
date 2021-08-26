@@ -2,7 +2,7 @@ INFO: File size 1750829 bytes.
 INFO:1453819 Found xref table.
 INFO: 14842 xref entries.
 INFO: Root reference is R:1:0
-ERROR: Catalog is malformed.
+INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @64 is OK.
 INFO: R:3:0 @181 is OK.

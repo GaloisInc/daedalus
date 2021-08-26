@@ -2,7 +2,7 @@ INFO: File size 521017 bytes.
 INFO:517452 Found xref table.
 INFO: 170 xref entries.
 INFO: Root reference is R:1:0
-ERROR: Catalog is malformed.
+INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @64 is OK.
 INFO: R:3:0 @181 is OK.
@@ -42,14 +42,14 @@ INFO: R:36:0 @84207 is OK.
 INFO: R:37:0 @84885 is OK.
 INFO: R:38:0 @85426 is OK.
 INFO: R:39:0 @86012 is OK.
-ERROR:107697 R:40:0 @107538 Codec.Compression.Zlib: premature end of compressed data stream
+ERROR:107690 R:40:0 @107538 expected "endobj"
 INFO: R:41:0 @107714 is OK.
 INFO: R:42:0 @108234 is OK.
-ERROR:108923 R:43:0 @108757 Codec.Compression.Zlib: premature end of compressed data stream
+ERROR:108916 R:43:0 @108757 expected "endobj"
 INFO: R:44:0 @108940 is OK.
 INFO: R:45:0 @179879 is OK.
 INFO: R:46:0 @182118 is OK.
-INFO: R:47:0 @182250 is OK.
+ERROR:182376 R:47:0 @182250 expected "endobj"
 INFO: R:48:0 @184911 is OK.
 INFO: R:49:0 @188504 is OK.
 INFO: R:50:0 @188693 is OK.
@@ -68,7 +68,7 @@ INFO: R:62:0 @205240 is OK.
 INFO: R:63:0 @205861 is OK.
 INFO: R:64:0 @206431 is OK.
 INFO: R:65:0 @206841 is OK.
-ERROR:210870 R:66:0 @210710 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:210863 R:66:0 @210710 expected "endobj"
 INFO: R:67:0 @303134 is OK.
 INFO: R:68:0 @303334 is OK.
 INFO: R:69:0 @303515 is OK.
@@ -150,7 +150,7 @@ INFO: R:144:0 @365657 is OK.
 INFO: R:145:0 @365950 is OK.
 INFO: R:146:0 @366281 is OK.
 INFO: R:147:0 @368957 is OK.
-INFO: R:148:0 @369174 is OK.
+ERROR:369255 R:148:0 @369174 expected "endobj"
 INFO: R:149:0 @371854 is OK.
 INFO: R:150:0 @372115 is OK.
 INFO: R:151:0 @372383 is OK.

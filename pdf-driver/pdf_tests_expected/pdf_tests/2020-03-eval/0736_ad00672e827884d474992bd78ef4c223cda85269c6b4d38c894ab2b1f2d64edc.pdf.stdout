@@ -3,7 +3,7 @@ INFO:193174 Found xref table.
 INFO: 37 xref entries.
 INFO: Root reference is R:1:0
 INFO: Catalog is OK.
-INFO: R:1:0 @16 is OK.
+INFO: R:1:0 @189590 is OK.
 INFO: R:2:0 @109 is OK.
 INFO: R:3:0 @209 is OK.
 INFO: R:4:0 @307 is OK.
@@ -36,7 +36,7 @@ INFO: R:34:0 @183892 is OK.
 INFO: R:35:0 @184016 is OK.
 INFO: R:36:0 @184092 is OK.
 INFO: R:37:0 @184181 is OK.
-INFO: R:38:0 @185372 is OK.
+INFO: R:38:0 @189683 is OK.
 INFO: R:39:0 @185463 is OK.
 INFO: R:40:0 @189835 is OK.
 INFO: R:41:0 @189856 is OK.

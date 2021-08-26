@@ -2,7 +2,7 @@ INFO: File size 1193624 bytes.
 INFO:992175 Found xref table.
 INFO: 10064 xref entries.
 INFO: Root reference is R:1:0
-ERROR: Catalog is malformed.
+INFO: Catalog is OK.
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @64 is OK.
 INFO: R:3:0 @181 is OK.
@@ -28,7 +28,7 @@ INFO: R:22:0 @7336 is OK.
 INFO: R:23:0 @7482 is OK.
 INFO: R:24:0 @7585 is OK.
 INFO: R:25:0 @17241 is OK.
-INFO: R:26:0 @17376 is OK.
+ERROR:17502 R:26:0 @17376 expected "endobj"
 INFO: R:27:0 @19865 is OK.
 INFO: R:28:0 @21329 is OK.
 INFO: R:29:0 @21471 is OK.
@@ -125,7 +125,7 @@ INFO: R:119:0 @71644 is OK.
 INFO: R:120:0 @71889 is OK.
 INFO: R:121:0 @72177 is OK.
 INFO: R:122:0 @73505 is OK.
-ERROR:73832 R:123:0 @73776 Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+ERROR:73825 R:123:0 @73776 expected "endobj"
 INFO: R:124:0 @74330 is OK.
 INFO: R:125:0 @74548 is OK.
 INFO: R:126:0 @74772 is OK.

@@ -3,8 +3,8 @@ INFO:248533 Found xref table.
 INFO: 6 xref entries.
 INFO: Root reference is R:5:0
 ERROR:0 guard failed
-ERROR:176 R:2:0 @9 byte '\255' does not match byte UInt 10
-ERROR:248077 R:3:0 @248044 byte 'q' does not match byte UInt 10
+ERROR:169 R:2:0 @9 expected "endobj"
+ERROR:248070 R:3:0 @248044 expected "endobj"
 ERROR:248327 R:4:0 @248141 guard failed
 ERROR:248385 R:5:0 @248328 guard failed
 ERROR:248436 R:6:0 @248386 guard failed

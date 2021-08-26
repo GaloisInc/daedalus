@@ -39,6 +39,6 @@ INFO: R:73:0 @40384 is OK.
 INFO: R:74:0 @49431 is OK.
 INFO: R:75:0 @49683 is OK.
 INFO: R:76:0 @50177 is OK.
-INFO: R:77:0 @60215 is OK.
+ERROR:60399 R:77:0 @60215 expected "endobj"
 INFO: R:78:0 @1226 is OK.
 INFO: R:79:0 @996 is OK.

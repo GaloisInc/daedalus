@@ -1,3 +1,3 @@
 INFO: File size 205211 bytes.
 INFO:203303 Found xref table.
-ERROR:203308 Not enough entries, found 0, but need at least 1
+ERROR:203583 byte '0' does not match byte UInt 32
