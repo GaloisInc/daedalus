@@ -2,7 +2,8 @@ INFO: File size 19127 bytes.
 INFO:18148 Found pointer to xref table/stream.
 INFO: 44 xref entries.
 INFO: Root reference is R:1:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 INFO: R:1:0 @8 is OK.
 INFO: R:2:0 @103 is OK.
 INFO: R:3:0 @149 is OK.
