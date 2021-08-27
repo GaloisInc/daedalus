@@ -107,8 +107,7 @@ public:
   bool operator >  (UInt x) { return rep() >  x.rep(); }
   bool operator >= (UInt x) { return rep() >= x.rep(); }
 
-  // XXX: Where is this used, casts?
-  unsigned long asULong()   { return (unsigned long) rep(); }
+  Size asSize() { return Size(rep()); }  // used in array
 };
 
 
@@ -230,10 +229,7 @@ public:
   SInt operator << (Size x) { return SInt(data << x.rep()); }
   SInt operator >> (Size x) { return SInt(data >> x.rep()); }
 
-
-
-  // XXX: checks?
-  unsigned long asULong() { return (unsigned long) rep(); }
+  Size asSize() { return Size(rep()); } // used in array
 };
 
 

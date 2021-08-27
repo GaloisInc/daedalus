@@ -6,6 +6,7 @@
 #include <ddl/debug.h>
 #include <ddl/list.h>
 #include <ddl/number.h>
+#include <ddl/size.h>
 
 namespace DDL {
 
@@ -59,7 +60,7 @@ public:
     // start <= end
     // (end - start) <= MAX(size_t)
 
-    size_t ents = rangeSize((end - start).asULong(), step.asULong());
+    size_t ents = rangeSize((end - start).asSize().rep(), step.asSize().rep());
     Content *p = Content::allocate(ents);
     T val = start;
     for (size_t i = 0; i < ents; ++i) {
@@ -75,7 +76,7 @@ public:
     // start >= end
     // (start - end) <= MAX(size_t)
 
-    size_t ents = rangeSize((start - end).asULong(), step.asULong());
+    size_t ents = rangeSize((start - end).asSize().rep(), step.asSize().rep());
     Content *p = Content::allocate(ents);
     T val = start;
     for (size_t i = 0; i < ents; ++i) {
@@ -137,10 +138,13 @@ public:
   // Borrows this
   size_t size() { return ptr->size; }
 
+  // XXX: Remove in favor of size
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
   T borrowElement(UInt<64> i) { return ptr->data[i.rep()]; }
 
+
+  // XXX: Removein favor of size
   // Borrows this
   // Returns an owned copy of the element.
   T operator[] (UInt<64> i0) {
@@ -152,6 +156,25 @@ public:
     }
     return ptr->data[i];
   }
+
+
+  // Borrow this.
+  // Returns a borrowed version of to element (if reference)
+  T borrowElement(Size i) { return ptr->data[i.rep()]; }
+
+  // Borrows this
+  // Returns an owned copy of the element.
+  T operator[] (Size i0) {
+    size_t i = i0.rep();
+    if constexpr (std::is_base_of<HasRefs,T>::value) {
+      T& x = ptr->data[i];
+      x.copy();
+      return x;
+    }
+    return ptr->data[i];
+  }
+
+
 
   T* borrowData() {
     return (T*)&ptr->data;
@@ -195,6 +218,7 @@ public:
 
     bool   done()       { return index >= xs.size(); }
     DDL::UInt<64> key() { return DDL::UInt<64>(index); }
+    // XXX: Update to size
 
     // Returns owned value
     T value()       { return xs[index]; }

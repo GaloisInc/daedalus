@@ -101,6 +101,13 @@ public:
   void exportI(int32_t &x) { x = toSigned<int32_t,uint32_t>(); }
   void exportI(int64_t &x) { x = toSigned<int64_t,uint64_t>(); }
 
+  // Used in array
+  Size asSize() {
+    size_t x;
+    exportI(x);
+    return Size(x);
+  }
+
 
   // Mutable shift in place.
   // To be only used when we are the unique owners of this

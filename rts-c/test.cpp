@@ -16,6 +16,7 @@
 #include "test_numbers.cpp"
 #include "test_integer.cpp"
 #include "test_casts.cpp"
+#include "test_array.cpp"
 
 using namespace std;
 
@@ -23,9 +24,10 @@ using namespace std;
 
 int main() {
   // test_size();
-  test_numbers();
+  // test_numbers();
   //test_integer();
   //test_casts();
+  test_array();
   //test_map();
   return 0;
 }
