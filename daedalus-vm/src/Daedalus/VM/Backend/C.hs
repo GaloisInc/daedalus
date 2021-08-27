@@ -141,6 +141,7 @@ cProgram fileNameRoot prog =
 
   includes =
     vcat [ "#include <ddl/parser.h>"
+         , "#include <ddl/size.h>"
          , "#include <ddl/input.h>"
          , "#include <ddl/unit.h>"
          , "#include <ddl/bool.h>"
@@ -565,7 +566,9 @@ cOp2 x op2 ~[e1',e2'] =
     Src.LShift  -> cVarDecl x (e1 <+> "<<" <+> e2)
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
-    Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 e2)
+    Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 i)
+      where i = cCallCon "DDL::Size" [cCallMethod e2 "rep" []]
+
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 

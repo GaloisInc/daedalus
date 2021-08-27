@@ -138,26 +138,6 @@ public:
   // Borrows this
   size_t size() { return ptr->size; }
 
-  // XXX: Remove in favor of size
-  // Borrow this.
-  // Returns a borrowed version of to element (if reference)
-  T borrowElement(UInt<64> i) { return ptr->data[i.rep()]; }
-
-
-  // XXX: Removein favor of size
-  // Borrows this
-  // Returns an owned copy of the element.
-  T operator[] (UInt<64> i0) {
-    auto i = i0.rep();
-    if constexpr (std::is_base_of<HasRefs,T>::value) {
-      T& x = ptr->data[i];
-      x.copy();
-      return x;
-    }
-    return ptr->data[i];
-  }
-
-
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
   T borrowElement(Size i) { return ptr->data[i.rep()]; }
