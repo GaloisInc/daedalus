@@ -2,13 +2,13 @@ INFO: File size 1795 bytes.
 INFO:1507 Found pointer to xref table/stream.
 INFO: 9 xref entries.
 INFO: Root reference is R:1:0
-ERROR:23 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:23 R:1:0 @23 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:88 R:2:0 @88 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:134 R:3:0 @134 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:288 R:4:0 @288 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:317 R:5:0 @317 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:422 R:6:0 @422 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:495 R:7:0 @495 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:1121 R:8:0 @1121 Not enough entries, found UInt 0, but need at least UInt 1
-ERROR:1228 R:9:0 @1228 Not enough entries, found UInt 0, but need at least UInt 1
+INFO: Catalog is OK.
+INFO: R:1:0 @23 is OK.
+INFO: R:2:0 @88 is OK.
+INFO: R:3:0 @134 is OK.
+INFO: R:4:0 @288 is OK.
+INFO: R:5:0 @317 is OK.
+INFO: R:6:0 @422 is OK.
+INFO: R:7:0 @495 is OK.
+INFO: R:8:0 @1121 is OK.
+INFO: R:9:0 @1228 is OK.

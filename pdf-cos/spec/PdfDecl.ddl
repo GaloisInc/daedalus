@@ -4,6 +4,9 @@ import GenPdfValue
 import JpegBasics
 
 def TopDecl = {
+  ManyWS;          -- FIXME: would rather do in Haskell and provide warning when this occurs!
+                   -- we cannot rely on the post token whitespace consumption because this is
+                   -- usually called immediately upon "jumping" to a byte offset.
   id   = Token Natural;
   gen  = Token Natural;
   KW "obj";
