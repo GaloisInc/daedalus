@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
   std::vector<DDL::UInt<64>> results;
 
   input.copy();
-  DDL::Input x = input.iDrop(DDL::UInt<64>(end));
+  DDL::Input x = input.iDrop(DDL::Size(end));
   x.dumpInput();
   parsePdfEnd(x, error, results);
 

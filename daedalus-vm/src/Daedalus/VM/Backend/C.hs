@@ -544,8 +544,10 @@ cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
 cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
-    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ e1 ])
-    Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ e1 ])
+    Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ n ])
+      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
+    Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ n ])
+      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
 
     Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
     Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]
