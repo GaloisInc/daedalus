@@ -2,7 +2,8 @@ INFO: File size 15039 bytes.
 INFO:14200 Found xref table.
 INFO: 37 xref entries.
 INFO: Root reference is R:6:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 INFO: R:1:0 @15 is OK.
 ERROR:312 R:2:0 @86 guard failed
 INFO: R:3:0 @313 is OK.

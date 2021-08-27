@@ -3,5 +3,6 @@ INFO:116 Found xref table.
 INFO: 101 xref entries.
 WARNING: Encrypted document; spurious errors may follow.
 INFO: Root reference is R:44:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 ERROR:0 guard failed

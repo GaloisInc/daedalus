@@ -2,7 +2,8 @@ INFO: File size 1450332 bytes.
 INFO:1439849 Found xref table.
 INFO: 515 xref entries.
 INFO: Root reference is R:514:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 INFO: R:1:0 @1439512 is OK.
 ERROR:0 R:2:65536 @0 Not enough entries, found UInt 0, but need at least UInt 1
 INFO: R:3:0 @1439307 is OK.

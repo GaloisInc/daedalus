@@ -2,7 +2,8 @@ INFO: File size 525305 bytes.
 INFO:116 Found xref table.
 INFO: 373 xref entries.
 INFO: Root reference is R:351:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 INFO: R:1:0 @97427 is OK.
 INFO: R:2:0 @97555 is OK.
 INFO: R:3:0 @97665 is OK.

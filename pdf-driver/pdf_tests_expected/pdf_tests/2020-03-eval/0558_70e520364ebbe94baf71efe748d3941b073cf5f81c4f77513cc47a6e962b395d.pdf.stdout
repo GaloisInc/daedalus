@@ -3,7 +3,8 @@ INFO:1051578 Found xref table.
 INFO: 136 xref entries.
 WARNING: Encrypted document; spurious errors may follow.
 INFO: Root reference is R:5:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 ERROR:84 R:1:0 @compressed expected "endobj"
 INFO: R:2:0 @1118 is OK.
 INFO: R:3:0 @4571 is OK.

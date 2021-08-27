@@ -3,7 +3,8 @@ INFO:15094 Found xref table.
 INFO: 14 xref entries.
 WARNING: Encrypted document; spurious errors may follow.
 INFO: Root reference is R:3:0
-INFO: Catalog is OK.
+INFO: Catalog value:
+True
 INFO: R:1:0 @15 is OK.
 INFO: R:2:0 @14106 is OK.
 INFO: R:3:0 @65 is OK.
