@@ -75,7 +75,7 @@ public:
   bool    isEmpty()   { return last_offset == offset; }
 
   // borrow this, Assumes: !isEmpty()
-  UInt<8> iHead()   { return bytes[offset]; }
+  UInt<8> iHead()   { return bytes[Size(offset)]; }
 
   // Advance current location
   // Mutates
@@ -108,7 +108,7 @@ public:
     size_t n = pref.size();
     if (length() < n) return false;
     for (size_t i = 0; i < n; ++i) {
-      if (bytes[offset + i] != pref[i]) return false;
+      if (bytes[Size(offset + i)] != pref[Size(i)]) return false;
     }
     return true;
   }
