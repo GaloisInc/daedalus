@@ -25,7 +25,11 @@ def GenName P = {
   P
 }
 
+-- FIXME!
+--  - very closely duplicated code in the PdfDecl.TopDecl parser
+--  - some evidence that this, as well as the above parser are *both* being called on the same input!
 def GenObj P = {
+  ManyWS;        -- FIXME: would like to warn user (a cavity!) when this consumes input!
   Token Natural;
   Token Natural;
   KW "obj";
