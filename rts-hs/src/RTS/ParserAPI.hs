@@ -6,7 +6,9 @@ import Control.Monad(when, unless, replicateM_)
 import Data.Word
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.Maybe(isJust)
+import Data.Char(isPrint)
 import Data.ByteString(ByteString)
+import Numeric(showHex)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Text.PrettyPrint hiding ((<>))
@@ -17,7 +19,7 @@ import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
 
-import Debug.Trace(traceM,trace)
+import Debug.Trace(traceM)
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
@@ -97,11 +99,13 @@ instance Exception ParseError
 
 instance Semigroup ParseError where
   p1 <> p2
+{-
     | trace "COMBINNG"
       trace (show (peSource p1, peMsg p1))
       trace "WITH"
       trace (show (peSource p2, peMsg p2))
       False = undefined
+-}
     | peOffset p1 < peOffset p2 = p2
     | peOffset p2 < peOffset p1 = p1
     | otherwise = case peMore p1 of
@@ -139,8 +143,8 @@ ppParseError pe@PE { .. } =
 errorToJS :: ParseError -> Doc
 errorToJS pe@PE { .. } =
   jsBlock "{" "," "}"
-    [ jsField "error" (jsStr peMsg)
-    , jsField "offset" (jsNum (peOffset pe))
+    [ jsField ("error" :: String) (jsStr peMsg)
+    , jsField ("offset" :: String) (jsNum (peOffset pe))
     ]
   where
   jsField x y = jsStr x PP.<> colon <+> y
@@ -181,11 +185,15 @@ pTrace msg =
 
 pMatch :: BasicParser p => SourceRange -> Vector (UInt 8) -> p (Vector (UInt 8))
 pMatch = \r bs ->
-  do inp <- pPeek
-     let check _i b =
-           do b1 <- pByte r
-              unless (b == uint8 b1)
-                     (pErrorAt FromSystem [r] inp ("expected " ++ show bs) )
+  do let check _i b =
+           do loc <- pPeek
+              b1 <- pByte r
+              let byte = let n = fromIntegral (fromUInt b)
+                             c = toEnum n
+                         in if isPrint c then show c
+                                         else "0x" ++ showHex n ""
+                  msg = "expected " ++ byte ++ " while matching " ++ show bs
+              unless (b == uint8 b1) (pErrorAt FromSystem [r] loc msg)
      -- XXX: instad of matching one at a time we should check for prefix
      -- and advance the stream?
      Vector.imapM_ check bs
