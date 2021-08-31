@@ -52,7 +52,7 @@ bcAny :: ClassVal
 bcAny = ClassVal (const True) "a byte"
 
 bcSingle :: UInt 8 -> ClassVal
-bcSingle c = ClassVal (fromUInt c ==) ("byte " ++ show c)
+bcSingle c = ClassVal (fromUInt c ==) ("byte " ++ showByte (fromUInt c))
 
 bcComplement :: ClassVal -> ClassVal
 bcComplement (ClassVal p x) = ClassVal (not . p) ("not (" ++ x ++ ")")
@@ -71,9 +71,18 @@ bcDiff (ClassVal p x) (ClassVal q y) =
 
 bcRange :: UInt 8 -> UInt 8 -> ClassVal
 bcRange x' y' = ClassVal (\c -> x <= c && c <= y)
-              ("between " ++ show x ++ " and " ++ show y)
+              ("between " ++ showByte x ++ " and " ++ showByte y)
   where x = fromUInt x'
         y = fromUInt y'
+
+showByte :: Word8 -> String
+showByte x
+  | isPrint c = show c
+  | otherwise =
+    case showHex x "" of
+      [d] -> "0x0" ++ [d]
+      d   -> "0x" ++ d
+  where c = toEnum (fromEnum x)
 
 --------------------------------------------------------------------------------
 
@@ -98,22 +107,22 @@ data ParseErrorSource = FromUser | FromSystem
 instance Exception ParseError
 
 instance Semigroup ParseError where
-  p1 <> p2
+  p1 <> p2 = if peOffset p1 <= peOffset p2 then p1 else p2
 {-
     | trace "COMBINNG"
       trace (show (peSource p1, peMsg p1))
       trace "WITH"
       trace (show (peSource p2, peMsg p2))
       False = undefined
--}
     | peOffset p1 < peOffset p2 = p2
     | peOffset p2 < peOffset p1 = p1
     | otherwise = case peMore p1 of
                     Nothing -> p1 { peMore = Just p2 }
-                    Just p1' ->
+                    Just p3 ->
                       case peMore p2 of
                         Nothing -> p2 { peMore = Just p1 }
-                        Just _  -> p1 { peMore = Just $! joinErr p1' p2 }
+                        Just _  -> p1 { peMore = Just $! joinErr p3 p2 }
+-}
 
 joinErr :: ParseError -> ParseError -> ParseError
 joinErr = (<>)
@@ -188,10 +197,7 @@ pMatch = \r bs ->
   do let check _i b =
            do loc <- pPeek
               b1 <- pByte r
-              let byte = let n = fromIntegral (fromUInt b)
-                             c = toEnum n
-                         in if isPrint c then show c
-                                         else "0x" ++ showHex n ""
+              let byte = showByte (fromUInt b)
                   msg = "expected " ++ byte ++ " while matching " ++ show bs
               unless (b == uint8 b1) (pErrorAt FromSystem [r] loc msg)
      -- XXX: instad of matching one at a time we should check for prefix

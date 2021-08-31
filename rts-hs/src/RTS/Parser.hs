@@ -32,10 +32,10 @@ itoList xs =
 newtype Parser a =
   Parser { runP :: [String] -> Input -> Maybe ParseError -> Res a }
 
-data Res a = NoResAbort ParseError
-           | NoResFail  ParseError
-           | Res a {-# UNPACK #-} !Input (Maybe ParseError)
-           | MultiRes a {-# UNPACK #-} !Input (IList a) (Maybe ParseError)
+data Res a = NoResAbort !ParseError
+           | NoResFail  !ParseError
+           | Res a {-# UNPACK #-} !Input !(Maybe ParseError)
+           | MultiRes a {-# UNPACK #-} !Input (IList a) !(Maybe ParseError)
 
 
 joinRes2 :: Res a -> Res a -> Res a
@@ -47,20 +47,20 @@ joinRes2 xs ys =
       case ys of
         NoResAbort {}      -> ys
         NoResFail es2      -> NoResFail (merge es1 es2)
-        Res a i mb         -> Res a i $ Just $ mergeMb mb es1
-        MultiRes a i is mb -> MultiRes a i is $ Just $ mergeMb mb es1
+        Res a i mb         -> Res a i (Just $! mergeMb mb es1)
+        MultiRes a i is mb -> MultiRes a i is (Just $! mergeMb mb es1)
 
     Res a i mb ->
       case ys of
         NoResAbort {}       -> ys
-        NoResFail es        -> Res a i (Just (mergeMb mb es))
+        NoResFail es        -> Res a i (Just $! mergeMb mb es)
         Res b j mb1         -> MultiRes a i (ICons b j INil) (mergeMbMb mb mb1)
         MultiRes b j ps mb1 -> MultiRes a i (ICons b j ps) (mergeMbMb mb mb1)
 
     MultiRes a i ps mb ->
       case ys of
         NoResAbort _    -> ys
-        NoResFail es    -> MultiRes a i ps (Just (mergeMb mb es))
+        NoResFail es    -> MultiRes a i ps (Just $! mergeMb mb es)
         Res b j mb1     -> MultiRes a i (ICons b j ps) (mergeMbMb mb mb1)
                                                                 -- reorders
         MultiRes b j qs mb1 -> MultiRes a i
@@ -79,7 +79,7 @@ mergeMbMb :: Maybe ParseError -> Maybe ParseError -> Maybe ParseError
 mergeMbMb mb1 mb2 =
   case mb1 of
     Nothing -> mb2
-    Just e  -> Just (mergeMb mb2 e)
+    Just e  -> Just $! mergeMb mb2 e
 
 
 joinRes :: Res a -> (a -> Input -> Maybe ParseError -> Res b) -> Res b
@@ -150,17 +150,17 @@ instance BasicParser Parser where
 
   p <|| q = Parser \cs inp err ->
              case runP p cs inp err of
-               NoResAbort e   -> NoResAbort e
-               NoResFail err1 -> runP q cs inp (Just err1)
-               Res a i mb     -> Res a i (mergeMbMb mb err)
-               MultiRes a i is mb -> MultiRes a i is $ mergeMbMb mb err
+               NoResAbort e       -> NoResAbort e
+               NoResFail err1     -> runP q cs inp (Just err1)
+               Res a i mb         -> Res a i (mergeMbMb mb err)
+               MultiRes a i is mb -> MultiRes a i is (mergeMbMb mb err)
   {-# INLINE (<||) #-}
 
   p ||| q = Parser \cs inp err ->
               runP p cs inp err `joinRes2` runP q cs inp err
   {-# INLINE (|||) #-}
 
-  pFail e = Parser \_ _ err -> NoResFail $ mergeMb err e
+  pFail e = Parser \_ _ err -> NoResFail (mergeMb err e)
   {-# INLINE pFail #-}
 
   pEnd r =
@@ -176,10 +176,9 @@ instance BasicParser Parser where
   pMatch1 erng (ClassVal p str) =
     do inp <- pPeek
        b   <- pByte erng
-       let byChar = toEnum (fromEnum b) :: Char
        unless (p b)
          $ pErrorAt FromSystem [erng] inp
-         $ unwords ["byte", show byChar, "does not match", str]
+         $ unwords ["byte", showByte b, "does not match", str]
        pure b
   {-# INLINE pMatch1 #-}
 

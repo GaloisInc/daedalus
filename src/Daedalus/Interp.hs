@@ -498,7 +498,7 @@ evalType env ty =
                                                 , "Got: " ++ show (pp it)
                                                 ]
 
-
+-- XXX: use bc*
 compilePredicateExpr :: HasRange a => Env -> TC a K.Class -> ClassVal
 compilePredicateExpr env = go
   where
