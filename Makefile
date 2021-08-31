@@ -8,6 +8,6 @@ all:
 # the build, let's be safe and delete old or generated files that might get in the way:
 #   CAVEAT: this may delete some files not committed to the repo!!
 clean-hs:
-	rm `git ls-files --other pdf-cos/src/*.hs`
+	git ls-files --other pdf-cos/src/*.hs | xargs rm
 	rm pdf-cos/src/spec/*.hs
 	rm pdf-driver/src/spec/*.hs
