@@ -498,13 +498,10 @@ evalType env ty =
                                                 , "Got: " ++ show (pp it)
                                                 ]
 
--- XXX: use bc*
 compilePredicateExpr :: HasRange a => Env -> TC a K.Class -> ClassVal
 compilePredicateExpr env = go
   where
     go expr =
-      let cv p = ClassVal p (show (pp expr))
-      in
       case texprValue expr of
         TCVar x ->
           case Map.lookup (tcName x) (clsEnv env) of
@@ -516,20 +513,19 @@ compilePredicateExpr env = go
           case Map.lookup (tcName f) (clsFun env) of
             Just p -> invoke p env ts as []
             Nothing -> error ("BUG: undefined clas function " ++ show f)
-        TCSetAny -> cv \_ -> True
+        TCSetAny -> RTS.bcAny
         TCSetSingle e ->
-          let v = valueToByte (compilePureExpr env e)
-          in cv \b -> v == b
+          RTS.bcSingle (UInt (valueToByte (compilePureExpr env e)))
         TCSetComplement e -> RTS.bcComplement (go e)
         TCSetUnion es -> foldr RTS.bcUnion RTS.bcNone (map go es)
 
-        TCSetOneOf bs -> cv \b -> BS.any (== b) bs
+        TCSetOneOf bs -> RTS.bcByteString bs
         TCSetDiff e1 e2 -> RTS.bcDiff (go e1) (go e2)
 
         TCSetRange e e' ->
-          let l = compilePureExpr env e
-              u = compilePureExpr env e'
-          in cv \b -> valueToByte l <= b && b <= valueToByte u
+          let l = UInt (valueToByte (compilePureExpr env e))
+              u = UInt (valueToByte (compilePureExpr env e'))
+          in RTS.bcRange l u
 
         TCIf e e1 e2 ->
           if valueToBool (compilePureExpr env e)

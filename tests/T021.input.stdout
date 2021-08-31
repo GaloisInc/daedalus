@@ -1,6 +1,6 @@
 --- Parse error: 
 [offset: 4]
-  • byte '2' does not match {'0'}
+  • byte '2' does not match byte '0'
   • see grammar at: ./T021.ddl:1:20--1:29
   • context:
 File context:
