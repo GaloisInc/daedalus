@@ -366,7 +366,7 @@ compilePureExpr env = go
         TCCase e alts def ->
           evalCase
             compilePureExpr
-            (error "Pattern match failure")
+            (error (describeAlts alts))
             env e alts def
 
 
@@ -535,7 +535,7 @@ compilePredicateExpr env = go
         TCCase e alts def ->
           evalCase
             compilePredicateExpr
-            (ClassVal (\_ -> False) "Pattern match failure")
+            (ClassVal (\_ -> False) (describeAlts alts))
             env e alts def
 
 mbSkip :: WithSem -> Value -> Value
@@ -767,7 +767,7 @@ compilePExpr env expr0 args = go expr0
         TCCase e alts def ->
           evalCase
             compileExpr
-            (pError FromSystem erng "pattern match failure")
+            (pError FromSystem erng (describeAlts alts))
             env e alts def
 
 tracePrim :: [SomeVal] -> Parser Value

@@ -16,7 +16,7 @@ module Daedalus.Type.AST
 
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
-import Data.List(intersperse)
+import Data.List(intersperse,intercalate,nub)
 import qualified Data.Kind as HS
 import Data.Text(Text)
 import Data.Set(Set)
@@ -629,6 +629,41 @@ instance PP TCPat where
       TCNothingPat _  -> "nothing"
       TCVarPat x      -> pp x
       TCWildPat _     -> "_"
+
+
+-- Use when reporting pattern match failure
+describeAlts :: NonEmpty (TCAlt a k) -> String
+describeAlts as =
+  case ps of
+    [p] -> "Pattern match failure, expected " ++ p
+    _   -> unlines
+         [ "Pattern match failure, expected one of:"
+         , "  " ++ intercalate " | " ps
+         ]
+  where
+  ps = nub
+        [ show (describePat False p) | a <- NE.toList as, p <- tcAltPatterns a ]
+
+describePat :: Bool -> TCPat -> Doc
+describePat par pat =
+  let wrap = if par then parens else id
+      ppCon :: Label -> TCPat -> Doc
+      ppCon l p =
+        case p of
+          TCVarPat {} -> pp l
+          TCWildPat {} -> pp l
+          _ -> wrap (pp l <+> describePat True p)
+  in
+  case pat of
+    TCConPat _ l p -> ppCon l p
+    TCNumPat _ n   -> pp n
+    TCBoolPat b    -> pp b
+    TCJustPat p    -> ppCon "just" p
+    TCNothingPat _ -> "nothing"
+    TCVarPat _     -> "_"
+    TCWildPat _    -> "_"
+
+
 
 ppTCRuleRes :: Rec (TCDecl a) -> Doc
 ppTCRuleRes sc =
