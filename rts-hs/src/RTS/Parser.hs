@@ -160,7 +160,9 @@ instance BasicParser Parser where
               runP p cs inp err `joinRes2` runP q cs inp err
   {-# INLINE (|||) #-}
 
-  pFail e = Parser \_ _ err -> NoResFail (mergeMb err e)
+  pFail e = Parser \_ _ err -> NoResFail $ let Just x = (mergeMbMb (Just e) err)
+                                           in x
+                                          -- prefer the current error
   {-# INLINE pFail #-}
 
   pEnd r =
