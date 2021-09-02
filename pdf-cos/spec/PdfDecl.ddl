@@ -145,11 +145,10 @@ def ResolveStream (v : Value) = {
   ResolveStreamRef r
 }
 
-def ResolveValRef (r : Ref) : Value = {
-  @mb = ResolveRef r;
-    { mb is nothing; ^ nullValue }
-  | CheckExpected r (mb is just) is value;
-}
+def ResolveValRef (r : Ref) : Value =
+  case ResolveRef r of
+    nothing -> nullValue
+    just v  -> CheckExpected r v is value
 
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
   @stm = ResolveStream v;
