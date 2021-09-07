@@ -11,10 +11,10 @@ AbortClosureUnhandledInputAction
 **********************
 **** Extended LLA ****
 **********************
-("AbortClosureUnhandledAction",14)
+("AbortClosureUnhandledAction",19)
 ("AbortClosureUnhandledInputAction",28)
 ("AbortDFAOverflowCfg",10)
-("AbortSlkCfgExecution",52)
+("AbortSlkCfgExecution",47)
 ("Lookahead-0",1)
 ("Lookahead-1",74)
 ("Lookahead-ambiguous-1",6)
