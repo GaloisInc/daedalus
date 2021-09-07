@@ -239,7 +239,25 @@ isCoercible :: (STCMonad m, HasRange r) =>
                r -> Lossy -> Type -> Type -> m CtrStatus
 isCoercible r lossy tt1 tt2 =
   case tt1 of
-    TVar _   -> pure Unsolved
+    TVar _   ->
+      case tt2 of
+        TCon tc [] ->
+          do mb <- isBitData tc
+             case mb of
+               Nothing -> refl
+               Just bd ->
+                 -- note that this does not allow for reflexivity coercions
+                 -- or direct coercions from one bitdata to another.
+                 -- rather, the user would have to first coerce to `uint X`
+                 do let n = toInteger (BDD.width bd)
+                    unify (tUInt (tNum n)) (r,tt1)
+                    if BDD.willAlwaysMatch bd || lossy == Dynamic
+                      then pure Solved
+                      else nope
+        TCon {} -> refl
+        _ -> pure Unsolved
+
+
     TCon tc [] ->
       do mb <- isBitData tc
          case mb of
@@ -256,15 +274,20 @@ isCoercible r lossy tt1 tt2 =
         TSInt x   -> fromSInt x
         _         -> refl
   where
-  nope = reportDetailedError r ("Cannot coerce" <+> how)
-           [ "from type" <+> pp tt1
-           , "to type" <+> pp tt2
+  nope =
+    do t1 <- zonkT tt1
+       t2 <- zonkT tt2
+       reportDetailedError r ("Cannot coerce" <+> how)
+           [ "from type" <+> pp t1
+           , "to type" <+> pp t2
            ]
 
   how = case lossy of
           NotLossy -> "safely"
           _        -> empty
 
+  -- XXX: Perhaps these should be an error as it seems more likely that
+  -- someone made a mistake if coercing from a type to itself...
   refl = unify tt1 (r,tt2) >> pure Solved
 
   fromInt
