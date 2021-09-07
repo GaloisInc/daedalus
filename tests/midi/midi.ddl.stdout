@@ -175,7 +175,9 @@ midi.Chunk ?a0 ?a1 (Ty : Grammar ?a0) (P : Grammar ?a1) : Grammar ?a1 =
      pure $$
  
 midi.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 midi.TAG16 (n : uint 16) : Grammar {} =
   do (_104 : bool) <- do (_103 : uint 16) <- midi.BE16
@@ -186,7 +188,9 @@ midi.getBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (n : uint 64) (b : ?a0
   b >> n as uint 1
  
 midi._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 midi.Header : Grammar midi.Header =
   midi.Chunk [uint 8] midi.Header (MatchBytes "MThd") do (format : midi.Header0) <- Choose fair

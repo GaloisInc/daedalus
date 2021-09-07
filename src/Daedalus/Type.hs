@@ -566,14 +566,23 @@ inferExpr expr =
                  grammarOnly expr $
                  liftValApp expr [e] \ ~[(e1,t)] ->
                  do unify tBool (e1,t)
-                    pure (exprAt expr (TCGuard e1), tGrammar tUnit)
+                    let pat = TCBoolPat True
+                        alt = TCAlt [pat]
+                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                    pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
+                         , tGrammar tUnit
+                         )
 
                SelFalse ->
                  grammarOnly expr $
                  liftValApp expr [e] \ ~[(e1,t)] ->
-                 do unify tBool (e,t)
-                    pure (exprAt expr $ TCGuard $
-                           exprAt expr $ TCUniOp Not e1, tGrammar tUnit)
+                 do unify tBool (e1,t)
+                    let pat = TCBoolPat False
+                        alt = TCAlt [pat]
+                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                    pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
+                         , tGrammar tUnit
+                         )
 
                SelNothing ->
                  grammarOnly expr $
@@ -585,14 +594,14 @@ inferExpr expr =
 
                SelJust ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->                 
+                 liftValApp expr [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e1,t)
                     resVar <- newName expr a
                     let pat = TCJustPat (TCVarPat resVar)
                         alt = TCAlt [pat] (exprAt expr $ TCPure
                                           $ exprAt expr $ TCVar resVar)
                     pure (exprAt expr (TCCase e1 (alt :| []) Nothing), tGrammar a)
-                    
+
     EEnd ->
       grammarOnly expr
       (pure (exprAt expr TCEnd, tGrammar tUnit))

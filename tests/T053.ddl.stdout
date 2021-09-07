@@ -83,7 +83,9 @@ T053.Main : Grammar T053.Main =
                                                                 pure $$
                                                          | T053.Ok 2
                                                          }
-                                          ($$ : {}) <- Guard (x == 2)
+                                          ($$ : {}) <- case x == 2 is
+                                                         { true -> pure {}
+                                                         }
                                           pure $$
      pure {ex1 = ex1,
            ex2 = ex2,
@@ -141,4 +143,6 @@ T053._Main : Grammar {} =
                                              pure $$
                                       | T053.Ok 2
                                       }
-                       Guard (x == 2)
+                       case x == 2 is
+                         { true -> pure {}
+                         }

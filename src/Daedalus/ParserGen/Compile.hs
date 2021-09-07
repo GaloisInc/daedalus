@@ -163,9 +163,6 @@ allocGExpr n ctx gexpr =
         TCLabel l g ->
           let (ag, n1) = allocGram n ctx g
           in allocate (TCLabel l ag) n1 0
-        TCGuard e ->
-          let ae = idVExpr e
-          in allocate (TCGuard ae) n 2
         TCCurrentStream ->
           allocate (TCCurrentStream) n 2
         TCSetStream e1 ->
@@ -548,10 +545,6 @@ genGExpr gbl e =
       in mkAut n1 (mkTr [(n1, UniChoice (SAct (EvalPure e1), n2))]) n2
     TCLabel _ g -> -- TODO: ignore the Label case
       genGram gbl g
-    TCGuard e1 ->
-      let n1 = getS 0
-          n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (SAct (Guard e1), n2)) ]) n2
     TCCurrentStream ->
       let n1 = getS 0
           n2 = getS 1

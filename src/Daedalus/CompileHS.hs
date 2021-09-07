@@ -525,9 +525,6 @@ hsGrammar env tc =
      TCMatch s c -> optSkip s "RTS.uint8"
                     ("RTS.pMatch1" `Ap` erng `Ap` hsByteClass env c)
 
-     TCGuard v -> "RTS.pGuard" `Ap` erng `Ap` hsText "guard failed"
-                                         `Ap` hsValue env v
-
      TCMatchBytes s v ->
         case s of
           YesSem -> it

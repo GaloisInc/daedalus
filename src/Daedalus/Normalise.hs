@@ -113,7 +113,6 @@ normaliseG' tc =
     TCSetStream str         -> NSetStream (normaliseV str)
     TCStreamLen sem len str -> NStreamLen sem (normaliseV len) (normaliseV str)
     TCStreamOff sem len str -> NStreamOff sem (normaliseV len) (normaliseV str)
-    TCGuard e               -> NGuard (normaliseV e)
 
     TCGetByte s       -> NGetByte s
     TCLabel l g       -> NLabel l (normaliseG g)

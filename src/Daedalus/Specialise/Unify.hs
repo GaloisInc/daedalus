@@ -115,7 +115,6 @@ instance Unify (TCF a k) where
 
       ( TCGetByte s         , TCGetByte s'    ) | s == s' -> pure emptyUnifier
       ( TCMatch s b         , TCMatch s' b'   ) | s == s' -> unify b b'
-      ( TCGuard e1          , TCGuard e2 )                -> unify e1 e2
 
       ( TCMatchBytes s b    , TCMatchBytes s' b' ) | s == s' -> unify b b'
 

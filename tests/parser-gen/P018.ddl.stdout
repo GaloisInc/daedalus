@@ -21,16 +21,24 @@ P018.Word : Grammar [uint 8] =
      pure $$
  
 P018.Assert (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 P018.NotAssert (p : bool) : Grammar {} =
-  Guard (! p)
+  case p is
+    { false -> pure {}
+    }
  
 P018._Assert (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 P018._NotAssert (p : bool) : Grammar {} =
-  Guard (! p)
+  case p is
+    { false -> pure {}
+    }
  
 P018.Main : Grammar P018.Main =
   do (w1 : [uint 8]) <- P018.Word

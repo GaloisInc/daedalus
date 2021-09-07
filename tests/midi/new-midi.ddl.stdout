@@ -375,7 +375,9 @@ new-midi.NoteEvent : Grammar new-midi.NoteEvent =
            velocity = velocity}
  
 new-midi._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 new-midi.ControllerChange : Grammar new-midi.ControllerChange =
   do (controller : uint 7) <- new-midi.UInt7
@@ -592,7 +594,9 @@ new-midi.Main : Grammar new-midi.Main =
            tracks = tracks}
  
 new-midi.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 new-midi._BE16 : Grammar {} =
   do @GetByte

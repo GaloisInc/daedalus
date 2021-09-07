@@ -39,7 +39,6 @@ checkTC triv tc =
 
     TCGetByte {}    -> okLeaf
     TCMatch {}      -> okLeaf
-    TCGuard {}      -> okLeaf
     TCMatchBytes {} -> okLeaf
 
     TCChoice _ gs _ -> concatMap (checkTC False) gs

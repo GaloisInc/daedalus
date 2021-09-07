@@ -578,11 +578,6 @@ compilePExpr env expr0 args = go expr0
           do b <- pMatch1 erng (compilePredicateExpr env e)
              return $! mbSkip s (vByte b)
 
-        TCGuard e ->
-          if valueToBool (compilePureExpr env e)
-             then pure vUnit
-             else pError FromSystem erng "guard failed"
-
         TCEnd -> pEnd erng >> pure vUnit
         TCOffset -> vStreamOffset . VStream <$> pPeek
 

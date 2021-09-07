@@ -741,7 +741,9 @@ ICC.UnicodeRecord (s : Stream) : Grammar ICC.UnicodeRecord =
            data = data}
  
 ICC._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 ICC.MultiLocalizedUnicodeType : Grammar [ICC.UnicodeRecord] =
   do (s : Stream) <- CurrentStream
@@ -1176,7 +1178,9 @@ ICC.ValidateArray ?a0 (arr : [uint 8]) (P : Grammar ?a0) : Grammar {} =
      pure $$
  
 ICC.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 ICC._VersionField : Grammar {} =
   do @GetByte
