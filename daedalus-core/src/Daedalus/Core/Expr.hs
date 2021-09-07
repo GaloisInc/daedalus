@@ -268,7 +268,7 @@ instance PP Expr where
       Var x -> pp x
       PureLet x e1 e2 ->
         wrapIf (n > 0)
-          $ "let" <+> pp x <+> "=" <+> pp e1 <+> "int"
+          $ "let" <+> pp x <+> "=" <+> pp e1 <+> "in"
           $$ pp e2
 
       Struct t fs -> ppPrec 1 t <+> braces (commaSep (map ppF fs))
