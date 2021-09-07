@@ -189,7 +189,9 @@ nitf_lib.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
      pure $$
  
 nitf_lib.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 nitf_lib.numBase (base : int) (ds : [int]) : int =
   for ((val : int) = 0; (d : int) in ds)
@@ -273,7 +275,9 @@ nitf_lib.SignedNum (digs : uint 64) : Grammar nitf_lib.SignedNum =
     }
  
 nitf_lib._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 nitf_lib.BoundedNum (digs : uint 64) (lb : int) (ub : int) : Grammar int =
   do ($$ : int) <- nitf_lib.UnsignedNum digs

@@ -48,7 +48,9 @@ type MavNumerics.GeoCoord = { degs: int
 --- Rules:
  
 MavNumerics.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 MavNumerics.Bool : Grammar bool =
   Choose biased
@@ -138,7 +140,9 @@ MavNumerics.LowBits : Grammar (uint 8) =
      pure $$
  
 MavNumerics._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 MavNumerics.Float : Grammar MavNumerics.Float =
   do (dig0 : uint 8) <- GetByte

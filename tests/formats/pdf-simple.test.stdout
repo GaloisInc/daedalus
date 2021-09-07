@@ -134,7 +134,9 @@ PdfValue.When ?a0 ?a1 (P : Grammar ?a1) (x : ?a0) : Grammar ?a0 =
      pure $$
  
 PdfValue.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 PdfValue.Bool : Grammar bool =
   Choose biased
@@ -219,7 +221,9 @@ PdfValue.HexDigit : Grammar int =
     }
  
 PdfValue._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 PdfValue.NumberAsNat (x : PdfValue.Number) : Grammar int =
   do PdfValue._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
