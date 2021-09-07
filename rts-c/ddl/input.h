@@ -75,17 +75,17 @@ public:
   bool    isEmpty()   { return last_offset == offset; }
 
   // borrow this, Assumes: !isEmpty()
-  UInt<8> iHead()   { return bytes[offset]; }
+  UInt<8> iHead()   { return bytes[Size(offset)]; }
 
   // Advance current location
   // Mutates
   // Assumes: n <= length()
-  void    iDropMut(UInt<64> n) { offset += n.rep(); }
+  void    iDropMut(Size n)     { offset += n.rep(); }
 
   // Restrict amount of input
   // Mutates
   // Assumes: n <= length()
-  void    iTakeMut(UInt<64> n) { last_offset = offset + n.rep(); }
+  void    iTakeMut(Size n)     { last_offset = offset + n.rep(); }
 
   // Advance current location
   // Assumes: n <= length()
@@ -93,7 +93,7 @@ public:
   // Since we own *this* the copy constructor does not need to adjust
   // counts:  we are destroyed, but a new copy is returned so counts are
   // preserved
-  Input iDrop(UInt<64> n) { Input x(*this); x.iDropMut(n); return x; }
+  Input iDrop(Size n)     { Input x(*this); x.iDropMut(n); return x; }
 
   // Restrict amount of input
   // Assumes: n <= length()
@@ -101,14 +101,14 @@ public:
   // Since we own *this* the copy constructor does not need to adjust
   // counts:  we are destroyed, but a new copy is returned so counts are
   // preserved
-  Input iTake(UInt<64> n) { Input x(*this); x.iTakeMut(n); return x; }
+  Input iTake(Size n)     { Input x(*this); x.iTakeMut(n); return x; }
 
   // Check if the given array of bytes is prefix of the current input.
   bool hasPrefix(DDL::Array<UInt<8>> pref) {
     size_t n = pref.size();
     if (length() < n) return false;
     for (size_t i = 0; i < n; ++i) {
-      if (bytes[offset + i] != pref[i]) return false;
+      if (bytes[Size(offset + i)] != pref[Size(i)]) return false;
     }
     return true;
   }

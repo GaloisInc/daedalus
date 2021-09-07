@@ -6,6 +6,7 @@
 #include <ddl/debug.h>
 #include <ddl/list.h>
 #include <ddl/number.h>
+#include <ddl/size.h>
 
 namespace DDL {
 
@@ -59,7 +60,7 @@ public:
     // start <= end
     // (end - start) <= MAX(size_t)
 
-    size_t ents = rangeSize((end - start).asULong(), step.asULong());
+    size_t ents = rangeSize((end - start).asSize().rep(), step.asSize().rep());
     Content *p = Content::allocate(ents);
     T val = start;
     for (size_t i = 0; i < ents; ++i) {
@@ -75,7 +76,7 @@ public:
     // start >= end
     // (start - end) <= MAX(size_t)
 
-    size_t ents = rangeSize((start - end).asULong(), step.asULong());
+    size_t ents = rangeSize((start - end).asSize().rep(), step.asSize().rep());
     Content *p = Content::allocate(ents);
     T val = start;
     for (size_t i = 0; i < ents; ++i) {
@@ -113,14 +114,14 @@ public:
     size_t outSize = xs.size();
     size_t inSize  = 0;
     for (size_t i = 0; i < outSize; ++i) {
-      inSize += xs.borrowElement(i).size();
+      inSize += xs.borrowElement(Size(i)).size();
     }
     ptr = Content::allocate(inSize);
 
     T* data = ptr->data;
 
     for (size_t i = 0; i < outSize; ++i) {
-      Array a = xs.borrowElement(i);
+      Array a = xs.borrowElement(Size(i));
       size_t n = a.size();
       for (size_t j = 0; j < n; ++j) {
         *data = a[j];
@@ -139,12 +140,12 @@ public:
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
-  T borrowElement(UInt<64> i) { return ptr->data[i.rep()]; }
+  T borrowElement(Size i) { return ptr->data[i.rep()]; }
 
   // Borrows this
   // Returns an owned copy of the element.
-  T operator[] (UInt<64> i0) {
-    auto i = i0.rep();
+  T operator[] (Size i0) {
+    size_t i = i0.rep();
     if constexpr (std::is_base_of<HasRefs,T>::value) {
       T& x = ptr->data[i];
       x.copy();
@@ -152,6 +153,7 @@ public:
     }
     return ptr->data[i];
   }
+
 
   T* borrowData() {
     return (T*)&ptr->data;
@@ -195,11 +197,12 @@ public:
 
     bool   done()       { return index >= xs.size(); }
     DDL::UInt<64> key() { return DDL::UInt<64>(index); }
+    // XXX: Update to size
 
     // Returns owned value
-    T value()       { return xs[index]; }
+    T value()       { return xs[Size(index)]; }
     // Returns borrowed value
-    T borrowValue() { return xs.borrowElement(index); }
+    T borrowValue() { return xs.borrowElement(Size(index)); }
 
     // Owned this. We don't increment `xs` because this copy of the iterator
     // is being freed.
@@ -233,7 +236,7 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
   char sep[] = ", ";
   sep[0] = 0;
   for (size_t i = 0; i < n; ++i) {
-    os << sep << x.borrowElement(i);
+    os << sep << x.borrowElement(Size(i));
     sep[0] = ',';
   }
   os << "]";
@@ -251,7 +254,7 @@ std::ostream& toJS(std::ostream& os, Array<T> x) {
   char sep[] = ", ";
   sep[0] = 0;
   for (size_t i = 0; i < n; ++i) {
-    toJS(os << sep, x.borrowElement(i));
+    toJS(os << sep, x.borrowElement(Size(i)));
     sep[0] = ',';
   }
   os << "]";
@@ -267,7 +270,7 @@ int compare (Array<T> x, Array<T> y) {
   size_t size_y = y.size();
   size_t checks = size_x < size_y ? size_x : size_y;
   for (size_t i = 0; i < checks; ++i) {
-    int result = compare(x.borrowElement(i),y.borrowElement(i));
+    int result = compare(x.borrowElement(Size(i)),y.borrowElement(Size(i)));
     if (result != 0) return result;
   }
   return size_y - size_x;

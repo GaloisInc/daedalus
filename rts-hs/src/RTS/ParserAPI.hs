@@ -6,7 +6,9 @@ import Control.Monad(when, unless, replicateM_)
 import Data.Word
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.Maybe(isJust)
+import Data.Char(isPrint)
 import Data.ByteString(ByteString)
+import Numeric(showHex)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Text.PrettyPrint hiding ((<>))
@@ -17,7 +19,7 @@ import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
 
-import Debug.Trace(traceM,trace)
+import Debug.Trace(traceM)
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
@@ -50,7 +52,7 @@ bcAny :: ClassVal
 bcAny = ClassVal (const True) "a byte"
 
 bcSingle :: UInt 8 -> ClassVal
-bcSingle c = ClassVal (fromUInt c ==) ("byte " ++ show c)
+bcSingle c = ClassVal (fromUInt c ==) ("byte " ++ showByte (fromUInt c))
 
 bcComplement :: ClassVal -> ClassVal
 bcComplement (ClassVal p x) = ClassVal (not . p) ("not (" ++ x ++ ")")
@@ -69,9 +71,18 @@ bcDiff (ClassVal p x) (ClassVal q y) =
 
 bcRange :: UInt 8 -> UInt 8 -> ClassVal
 bcRange x' y' = ClassVal (\c -> x <= c && c <= y)
-              ("between " ++ show x ++ " and " ++ show y)
+              ("between " ++ showByte x ++ " and " ++ showByte y)
   where x = fromUInt x'
         y = fromUInt y'
+
+showByte :: Word8 -> String
+showByte x
+  | isPrint c = show c
+  | otherwise =
+    case showHex x "" of
+      [d] -> "0x0" ++ [d]
+      d   -> "0x" ++ d
+  where c = toEnum (fromEnum x)
 
 --------------------------------------------------------------------------------
 
@@ -96,7 +107,8 @@ data ParseErrorSource = FromUser | FromSystem
 instance Exception ParseError
 
 instance Semigroup ParseError where
-  p1 <> p2
+  p1 <> p2 = if peOffset p1 <= peOffset p2 then p1 else p2
+{-
     | trace "COMBINNG"
       trace (show (peSource p1, peMsg p1))
       trace "WITH"
@@ -106,10 +118,11 @@ instance Semigroup ParseError where
     | peOffset p2 < peOffset p1 = p1
     | otherwise = case peMore p1 of
                     Nothing -> p1 { peMore = Just p2 }
-                    Just p1' ->
+                    Just p3 ->
                       case peMore p2 of
                         Nothing -> p2 { peMore = Just p1 }
-                        Just _  -> p1 { peMore = Just $! joinErr p1' p2 }
+                        Just _  -> p1 { peMore = Just $! joinErr p3 p2 }
+-}
 
 joinErr :: ParseError -> ParseError -> ParseError
 joinErr = (<>)
@@ -139,8 +152,8 @@ ppParseError pe@PE { .. } =
 errorToJS :: ParseError -> Doc
 errorToJS pe@PE { .. } =
   jsBlock "{" "," "}"
-    [ jsField "error" (jsStr peMsg)
-    , jsField "offset" (jsNum (peOffset pe))
+    [ jsField ("error" :: String) (jsStr peMsg)
+    , jsField ("offset" :: String) (jsNum (peOffset pe))
     ]
   where
   jsField x y = jsStr x PP.<> colon <+> y
@@ -181,11 +194,12 @@ pTrace msg =
 
 pMatch :: BasicParser p => SourceRange -> Vector (UInt 8) -> p (Vector (UInt 8))
 pMatch = \r bs ->
-  do inp <- pPeek
-     let check _i b =
-           do b1 <- pByte r
-              unless (b == uint8 b1)
-                     (pErrorAt FromSystem [r] inp ("expected " ++ show bs) )
+  do let check _i b =
+           do loc <- pPeek
+              b1 <- pByte r
+              let byte = showByte (fromUInt b)
+                  msg = "expected " ++ byte ++ " while matching " ++ show bs
+              unless (b == uint8 b1) (pErrorAt FromSystem [r] loc msg)
      -- XXX: instad of matching one at a time we should check for prefix
      -- and advance the stream?
      Vector.imapM_ check bs

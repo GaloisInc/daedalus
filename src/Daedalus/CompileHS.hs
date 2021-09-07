@@ -431,7 +431,7 @@ hsValue env tc =
     TCArrayLength e -> "Vector.length" `Ap` hsValue env e
 
     TCCase e as d -> hsCase hsValue err env e as d
-      where err = "HS.error" `Ap` Raw ("Pattern match failure" :: String)
+      where err = "HS.error" `Ap` Raw (describeAlts as)
 
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =
@@ -639,7 +639,7 @@ hsGrammar env tc =
 
      TCCase e alts dfl -> hsCase hsGrammar err env e alts dfl
        where err = "RTS.pError" `Ap` "RTS.FromSystem" `Ap` erng
-                                `Ap` hsText "Pattern match failure"
+                                `Ap` hsText (Text.pack (describeAlts alts))
 
 hsCase ::
   (Env -> TC SourceRange k -> Term) ->

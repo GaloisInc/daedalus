@@ -6,16 +6,28 @@
 #include "ddl/boxed.h"
 #include "ddl/cast.h"
 #include "ddl/map.h"
+#include "ddl/size.h"
+
 
 #include "user_data.h"
-#include "test.h"
+
+#include "test_size.cpp"
+#include "test_map.cpp"
+#include "test_numbers.cpp"
+#include "test_integer.cpp"
+#include "test_casts.cpp"
+#include "test_array.cpp"
 
 using namespace std;
 
 
-int main() {
-  DDL::Map<DDL::UInt<8>,DDL::UInt<8>> x;
-  std::cout << x << std::endl;
 
+int main() {
+  // test_size();
+  // test_numbers();
+  //test_integer();
+  //test_casts();
+  test_array();
+  //test_map();
   return 0;
 }
