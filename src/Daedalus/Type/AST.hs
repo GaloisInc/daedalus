@@ -152,7 +152,6 @@ data TCF :: HS -> Ctx -> HS where
 
    TCGetByte    :: WithSem -> TCF a Grammar
    TCMatch      :: WithSem -> TC a Class -> TCF a Grammar
-   TCGuard      :: TC a Value -> TCF a Grammar
    TCMatchBytes :: WithSem -> TC a Value -> TCF a Grammar
 
    TCChoice     :: Commit -> [TC a Grammar] -> Type -> TCF a Grammar
@@ -453,7 +452,6 @@ instance PP (TCF a k) where
 
       TCGetByte s    -> annotKW' s "GetByte"
       TCMatch s b    -> wrapIf (n > 0) (annotKW' s "Match" <+> ppPrec 1 b)
-      TCGuard e      -> wrapIf (n > 0) ("Guard" <+> ppPrec 1 e)
 
       TCMatchBytes s b -> wrapIf (n > 0)
                                  (annotKW' s "MatchBytes" <+> ppPrec 1 b)
@@ -950,7 +948,6 @@ instance TypeOf (TCF a k) where
 
       TCGetByte s     -> tGrammar (mbTy s tByte)
 
-      TCGuard _       -> tGrammar tUnit
       TCMatch s _     -> tGrammar (mbTy s tByte)
       TCMatchBytes s _-> tGrammar (mbTy s (tArray tByte))
       TCEnd           -> tGrammar tUnit

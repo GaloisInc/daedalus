@@ -284,7 +284,6 @@ mbSem tc =
 
     TCGetByte {}      -> pure (tc, tcFree tc)
     TCMatch {}        -> pure (tc, tcFree tc)
-    TCGuard {}        -> pure (tc, tcFree tc)
     TCMatchBytes {}   -> pure (tc, tcFree tc)
     TCEnd             -> pure (tc, tcFree tc)
     TCOffset          -> pure (tc, tcFree tc)
@@ -383,7 +382,6 @@ noSem' tc =
 
      TCGetByte _      -> pure (exprAt tc (TCGetByte NoSem),   mempty)
      TCMatch _ c      -> pure (exprAt tc (TCMatch   NoSem c), tcFree c)
-     TCGuard {}       -> pure (tc, tcFree tc)
      TCMatchBytes _ v -> pure (exprAt tc (TCMatchBytes NoSem v), tcFree v)
 
      TCChoice c ms _ ->

@@ -137,7 +137,9 @@ D018.When ?a0 ?a1 (P : Grammar ?a1) (x : ?a0) : Grammar ?a0 =
      pure $$
  
 D018.Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 D018.Bool : Grammar bool =
   Choose fair
@@ -222,7 +224,9 @@ D018.HexDigit : Grammar int =
     }
  
 D018._Guard (p : bool) : Grammar {} =
-  Guard p
+  case p is
+    { true -> pure {}
+    }
  
 D018.NumberAsNat (x : D018.Number) : Grammar int =
   do D018._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)

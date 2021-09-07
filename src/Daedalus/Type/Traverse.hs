@@ -73,7 +73,6 @@ instance TraverseTypes (TCF a k) where
 
       TCGetByte {}    -> pure expr
       TCMatch s e     -> TCMatch s <$> traverseTypes f e
-      TCGuard e       -> TCGuard <$> traverseTypes f e
       TCMatchBytes s e -> TCMatchBytes s <$> traverseTypes f e
 
       TCChoice c es t -> TCChoice c <$> traverseTypes f es <*> f t
@@ -269,7 +268,6 @@ traverseTCF f = go
 
         TCGetByte x    -> pure (TCGetByte x)
         TCMatch s b    -> TCMatch s <$> f b
-        TCGuard e      -> TCGuard <$> f e
 
         TCLabel l e    -> TCLabel l <$> f e
 

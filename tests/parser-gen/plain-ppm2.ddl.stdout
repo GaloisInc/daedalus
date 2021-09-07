@@ -61,7 +61,9 @@ plain-ppm2.RGB : Grammar plain-ppm2.RGB =
 plain-ppm2.PPM : Grammar plain-ppm2.PPM =
   do @MatchBytes "P"
      (version : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
-     Guard (version == 3)
+     case version == 3 is
+       { true -> pure {}
+       }
      (width : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      (height : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      (maxVal : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
@@ -107,7 +109,9 @@ plain-ppm2._RGB : Grammar {} =
 plain-ppm2._PPM : Grammar {} =
   do @MatchBytes "P"
      (version : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
-     Guard (version == 3)
+     case version == 3 is
+       { true -> pure {}
+       }
      (width : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      (height : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      plain-ppm2._Token (uint 64) plain-ppm2._Natural

@@ -163,10 +163,6 @@ fromGrammar gram =
       do p <- fromClass c
          pure (Match (fromSem sem) (MatchByte p))
 
-    TC.TCGuard e ->
-      do v <- fromExpr e
-         pure $ gIf v (Pure unit) (sysErr TUnit "guard failed")
-
     TC.TCMatchBytes sem e ->
       do e' <- fromExpr e
          pure (Match (fromSem sem) (MatchBytes e'))

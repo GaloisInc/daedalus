@@ -49,7 +49,9 @@ D022.todo.SomeMarker (front : uint 4) : Grammar (uint 4) =
   do @Match {'\255'}
      (tag : uint 8) <- GetByte
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
-     Guard (upper == front)
+     case upper == front is
+       { true -> pure {}
+       }
      ($$ : uint 4) <- pure (tag as uint 4)
      pure $$
  
@@ -60,13 +62,17 @@ D022.todo.BE16 : Grammar (uint 16) =
  
 D022.todo.NonZero ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     Guard (0 < $$)
+     case 0 < $$ is
+       { true -> pure {}
+       }
      pure $$
  
 D022.todo.Payload ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
                             pure (_67 as uint 64)
-     Guard (2 <= size)
+     case 2 <= size is
+       { true -> pure {}
+       }
      (len : uint 64) <- pure (size - 2)
      (here : Stream) <- CurrentStream
      @StreamLen len here
@@ -129,7 +135,9 @@ D022.todo.SOFPayload : Grammar D022.todo.SOFPayload =
  
 D022.todo.SomeSOF : Grammar D022.todo.SomeSOF =
   do (sof : uint 4) <- D022.todo.SomeMarker 12
-     Guard (! (sof == 4))
+     case sof == 4 is
+       { false -> pure {}
+       }
      (data : D022.todo.SOFPayload) <- D022.todo.SOFPayload
      pure {sof = sof,
            data = data}
@@ -182,7 +190,9 @@ D022.todo.SOS : Grammar D022.todo.SOS =
  
 D022.todo.SomeRST : Grammar (uint 4) =
   do ($$ : uint 4) <- D022.todo.SomeMarker 13
-     Guard ($$ < 8)
+     case $$ < 8 is
+       { true -> pure {}
+       }
      pure $$
  
 D022.todo.Segment : Grammar D022.todo.Segment =
@@ -214,7 +224,9 @@ D022.todo.SomeJpeg : Grammar [D022.todo.Segment] =
 D022.todo._Payload ?a0 (_P : Grammar {}) : Grammar {} =
   do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
                             pure (_67 as uint 64)
-     Guard (2 <= size)
+     case 2 <= size is
+       { true -> pure {}
+       }
      (len : uint 64) <- pure (size - 2)
      (here : Stream) <- CurrentStream
      @StreamLen len here
@@ -257,11 +269,15 @@ D022.todo._SomeMarker (front : uint 4) : Grammar {} =
   do @Match {'\255'}
      (tag : uint 8) <- GetByte
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
-     Guard (upper == front)
+     case upper == front is
+       { true -> pure {}
+       }
  
 D022.todo._NonZero ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar {} =
   do ($$ : ?a0) <- P
-     Guard (0 < $$)
+     case 0 < $$ is
+       { true -> pure {}
+       }
  
 D022.todo._APP ?a0 (x : uint 4) (_P : Grammar {}) : Grammar {} =
   do D022.todo._Marker (14 # x)
@@ -282,7 +298,9 @@ D022.todo._SOFPayload : Grammar {} =
  
 D022.todo._SomeSOF : Grammar {} =
   do (sof : uint 4) <- D022.todo.SomeMarker 12
-     Guard (! (sof == 4))
+     case sof == 4 is
+       { false -> pure {}
+       }
      D022.todo._SOFPayload
  
 D022.todo._SOSComponent : Grammar {} =
@@ -313,7 +331,9 @@ D022.todo._SOS : Grammar {} =
  
 D022.todo._SomeRST : Grammar {} =
   do ($$ : uint 4) <- D022.todo.SomeMarker 13
-     Guard ($$ < 8)
+     case $$ < 8 is
+       { true -> pure {}
+       }
  
 D022.todo._Main : Grammar {} =
   do D022.todo._SomeJpeg
