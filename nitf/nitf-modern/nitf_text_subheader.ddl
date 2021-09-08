@@ -15,7 +15,7 @@ def TxtFmt = Choose {
 
 def TxShDL =
   (IsNum 5 0)
-| (BoundedNum 5 3 9717)
+| (BoundedNum 5 3 9717) -- NOTE-MODERN: nonoverlapping
 
 def TextHeader = {
   TE ;
@@ -32,7 +32,7 @@ def TextHeader = {
 
   txshdl = TxShDL as! uint 64;
 
-  Choose { -- NOTE-MODERN: seems overlapping but not harmful
+  Choose { -- NOTE-MODERN: seems overlapping but apparently not harmful
     txsofl = {
       UnsignedNum 3 ;
     } ;

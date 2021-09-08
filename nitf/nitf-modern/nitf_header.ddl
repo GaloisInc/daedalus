@@ -58,8 +58,7 @@ def FSCTLH = Digraph | Match "  "
 def FSREL = Chunk 20 DigraphSeq
 
 -- Unclear how to pad single characters here...
--- NOTE-MODERN: nonoverlapping
-def FSDCTP = Choose {
+def FSDCTP = Choose { -- NOTE-MODERN: nonoverlapping
   dd = @Match "DD" ;
   de = @Match "DE" ;
   gd = @Match "GD" ;

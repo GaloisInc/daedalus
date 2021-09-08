@@ -138,7 +138,7 @@ def DefaultByte D P = Choose {
 def DefaultSpace P = DefaultByte (Match1 ' ') P
 
 -- TODO: rename
-def OrBytes n b P = Choose {
+def OrBytes n b P = Choose1 { -- NOTE-MODERN: changed to `Choose1` to prevent multiple parses when overlapping
   actual = P ;
   default = @(Many n (Match b))
 }
@@ -353,7 +353,7 @@ def DeclassificationType = Choose { -- NOTE-MODERN: non-overlapping
 
 def Declassification = {
   dctp = DeclassificationType ;
-  dcdt = Choose { -- NOTE-MODERN: seams non-overlapping
+  dcdt = Choose { -- NOTE-MODERN: nonoverlapping
     decldate = {
       -- TODO: cleanup parens
       (dctp is date | dctp is datelv) ;
@@ -368,7 +368,7 @@ def Declassification = {
       Spaces 8
     }
   } ;
-  dxcm = Choose { -- NOTE-MODERN: seams non-overlapping
+  dxcm = Choose { -- NOTE-MODERN: nonoverlapping
     reason = {
       dctp is exempt ;
       Match1 'X' ;
@@ -389,12 +389,12 @@ def Declassification = {
       Spaces 4 ;
     }
   } ;
-  dg = Choose { -- NOTE-MODERN: seams non-overlapping
+  dg = Choose { -- NOTE-MODERN: nonoverlapping
     actual = {
         dctp is datelv
       | dctp is eventlv ;
       DefaultSpace (
-        Choose { -- NOTE-MODERN: non-overlapping
+        Choose { -- NOTE-MODERN: nonoverlapping
           secret = @Match1 'S' ;
           confidential = @Match1 'C' ;
           restricted = @Match1 'R' ;
@@ -409,7 +409,7 @@ def Declassification = {
       Spaces 1 ;
     }
   } ;
-  dgdt = Choose { -- NOTE-MODERN: seams non-overlapping
+  dgdt = Choose { -- NOTE-MODERN: nonoverlapping
     hasdgdt = {
       dctp is datelv ;
       Date
@@ -424,7 +424,7 @@ def Declassification = {
       Spaces 8 ;
     }
   } ;
-  cltx = Choose { -- NOTE-MODERN: seams non-overlapping
+  cltx = Choose1 { -- NOTE-MODERN: fixed to `Choose1` bc overlapping on SPACE char
     hascltx = {
         dctp is datelv
       | dctp is eventlv ;
@@ -437,14 +437,14 @@ def Declassification = {
 -- authority type:
 def ClassificationAuthority = {
   authtp = DefaultSpace (
-    Choose { -- NOTE-MODERN: non-overlapping
+    Choose { -- NOTE-MODERN: nonoverlapping
       original = @Match1 'O' ;
       derivative = @Match1 'D' ;
       multiple = @Match1 'M' ;
     }) ;
   auth = Many 40 ECSA ;
   crsn = DefaultSpace (
-    Choose { -- NOTE-MODERN: non-overlapping
+    Choose { -- NOTE-MODERN: nonoverlapping
       clsrsnA = @Match1 'A' ;
       clsrsnB = @Match1 'B' ;
       clsrsnC = @Match1 'C' ;
