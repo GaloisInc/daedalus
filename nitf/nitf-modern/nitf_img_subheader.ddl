@@ -346,7 +346,7 @@ def IRepBandN = Choose { -- NOTE-MODERN: nonoverlapping
   default = @(Spaces 2) ;
 }
 
-def ISubCatN = Choose {
+def ISubCatN = Choose1 { -- NOTE-MODERN: changed to `Choose1` to prevent overlapping of `default` and `userdef` with space `0x20`.
   inphase = @(PadMatch 6 ' ' "I") ;
   quadrature = @(PadMatch 6 ' ' "Q") ;
   magnitude = @(PadMatch 6 ' ' "M") ;
@@ -379,7 +379,7 @@ def IMode nbands = {
     row = @Match1 'R' ;
     seq = @Match1 'S' ;
   } ;
-  Guard (nbands != 1) | $$ is blockMode
+  Guard (nbands != 1) <| $$ is blockMode  -- NOTE-MODERN: Fix using <| to prevent multiple parse
 }
 
 def NBPR = PosQuad
