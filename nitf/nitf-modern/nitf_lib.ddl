@@ -155,24 +155,24 @@ def Leq x y = (Eq x y) | (Lt x y)   -- XXX: Why not use <= ?
 
 def PartialEq (x : OrBytes) (y : OrBytes) =
   x is default
-| y is default
-| { @x0 = x is actual ;
+<| y is default
+<| { @x0 = x is actual ;
     @y0 = y is actual ;
     Eq x0 y0
   }
 
 def PartialLt (x : OrBytes) (y : OrBytes) =
   x is default
-| y is default
-| { @x0 = x is actual ;
+<| y is default
+<| { @x0 = x is actual ;
     @y0 = y is actual ;
     Lt x0 y0
   }
 
 def PartialLeq (x : OrBytes) (y : OrBytes) =
   x is default
-| y is default
-| { @x0 = x is actual ;
+<| y is default
+<| { @x0 = x is actual ;
     @y0 = y is actual ;
     Leq x0 y0
   }
@@ -247,18 +247,18 @@ def LiftDateTime (dt : DateTime) : PartialDateTime = {
 
 def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
   PartialLt d0.partCentury d1.partCentury
-| { PartialEq d0.partCentury d1.partCentury ;
+<| { PartialEq d0.partCentury d1.partCentury ;
       PartialLt d0.partYear d1.partYear
-    | { PartialEq d0.partYear d1.partYear ;
+    <| { PartialEq d0.partYear d1.partYear ;
           PartialLt d0.partMonth d1.partMonth
-        | { PartialEq d0.partMonth d1.partMonth ;
+        <| { PartialEq d0.partMonth d1.partMonth ;
             PartialLeq d0.partDay d1.partDay } } }
 
 def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
   PartialLt t0.partHour t1.partHour
-| { PartialEq t0.partHour t1.partHour ;
+<| { PartialEq t0.partHour t1.partHour ;
       PartialLt t0.partMin t1.partMin
-    | { PartialEq t0.partMin t1.partMin ;
+    <| { PartialEq t0.partMin t1.partMin ;
         PartialLeq t0.partSecond t1.partSecond } }
 
 def PartialOrdDateTime (dt0 : PartialDateTime) (dt1 : PartialDateTime) = {
@@ -286,7 +286,7 @@ def CountryCode = Many 2 AlphaNum
 
 -- ClSy: classification system
 def ClSy = DefaultSpaces 2 (
-  Choose {
+  Choose1 { -- NOTE-MODERN: explicitly `Choose1` to prevent overlapping
     nato = @Match "XN" ;
     country = CountryCode ;
   })
