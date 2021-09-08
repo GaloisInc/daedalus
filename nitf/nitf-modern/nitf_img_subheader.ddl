@@ -125,7 +125,7 @@ def LatDeg = {
   Match1 '.' ;
   @frac_digs = Many 3 Digit ;
   frac = ^ numBase 10 frac_digs ;
-  Guard (whole < 90) | { Guard (whole == 90); Guard (frac == 0) }
+  Guard (whole < 90) | { Guard (whole == 90); Guard (frac == 0) } -- NOTE-MODERN: nonoverlapping
 }
 
 def LongDeg = {
@@ -135,12 +135,12 @@ def LongDeg = {
   Match1 '.' ;
   @frac_digs = Many 3 Digit ;
   frac = ^ numBase 10 frac_digs ;
-  Guard (whole < 180) | { Guard (whole == 180); Guard (frac == 0) }
+  Guard (whole < 180) | { Guard (whole == 180); Guard (frac == 0) } -- NOTE-MODERN: nonoverlapping
 }
 
 def Latitude = {
   digs = PadMany 6 ' ' Numeral ;
-  hemi = Choose { -- NOTE-MODERN: non-overlapping
+  hemi = Choose { -- NOTE-MODERN: nonoverlapping
     north = @Match1 'N' ;
     south = @Match1 'S' ;
   }
@@ -148,7 +148,7 @@ def Latitude = {
 
 def Longitude = {
   digs = PadMany 7 ' ' Numeral ;
-  hemi = Choose { -- NOTE-MODERN: non-overlapping
+  hemi = Choose { -- NOTE-MODERN: nonoverlapping
     east = @Match1 'E' ;
     west = @Match1 'W' ;
   }
@@ -212,7 +212,7 @@ def OrdLong left right =
          | { Guard (left.whole == right.whole) ;
              Guard (left.frac <= right.frac) } } ) }
 
-def IGeoLo = Choose { -- NOTE-MODERN: TODO: decide on that one...
+def IGeoLo = Choose1 { -- NOTE-MODERN: seams nonoverlapping
   decimal_degs = {
     lat0 = LatDeg ;
     long0 = LongDeg ;
@@ -299,36 +299,36 @@ def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
 }
 
 
-def NBands (irep : IRep) = (
+def NBands (irep : IRep) = ( -- NOTE-MODERN: This is overlapping at the end
   { irep is nodisplay ;
     Digit as uint 64;
   }
-| { irep is monochrome ;
+<| { irep is monochrome ;
     IsNum 1 1
   }
-| { irep is rgb ;
+<| { irep is rgb ;
     IsNum 1 3
   }
-| { irep is rgblut ;
+<| { irep is rgblut ;
     IsNum 1 1
   }
-| { irep is itur ;
+<| { irep is itur ;
     IsNum 3 3
   }
-| { irep is cartesian ;
+<| { irep is cartesian ;
     Digit as uint 64
   }
-| { irep is polar ;
+<| { irep is polar ;
     IsNum 1 2
   }
-| { irep is sar ;
+<| { irep is sar ;
     IsNum 1 1
   }
-| { irep is multi ;
+<| { irep is multi ;
       IsNum 1 0
-    | BoundedNum 1 2 9
+    <| BoundedNum 1 2 9
   }
-| IsNum 1 0
+<| IsNum 1 0
 )
 
 def XBands n = BoundedNum 5 10 99999
@@ -400,12 +400,12 @@ def NBPP abpp (ic : IC) = {
       | ic is m5 ;
         Guard ($$ == 8)
       | Guard ($$ == 12) }
-  | { ic is c1 ;
+  <| { ic is c1 ; -- NOTE-MODERN: changed to <| to prevent multiple parses
       Guard ($$ == 1) }
-  | {   ic is c1
+  <| {   ic is c1
       | ic is m8 ;
       Guard (1 <= $$) ; Guard ($$ <= 38) }
-  | {   ic is c4
+  <| {   ic is c4
       | ic is c6
       | ic is c7
       | ic is c8
@@ -700,7 +700,7 @@ def ISHeader = {
   p_just = PJust ;
 
   icords = ICords ;
-  Choose {
+  Choose { -- NOTE-MODERN: nonoverlapping
     igeolo = {
       icords is actual ;
       IGeoLo
@@ -713,7 +713,7 @@ def ISHeader = {
 
   ic = IC ;
 
-  Choose {
+  Choose { -- NOTE-MODERN: nonoverlapping
     comrat = {
         ic is c1
       | ic is c3
@@ -747,7 +747,7 @@ def ISHeader = {
   @num_bands =
     { Guard (nbands != 0) ;
       ^ nbands }
-  | { Guard (nbands == 0) ;
+  | { Guard (nbands == 0) ; -- NOTE-MODERN: nonoverlapping
       @bnds = xbands is def_xband ;
       ^ bnds
     } ;
@@ -784,8 +784,9 @@ def ISHeader = {
   nbpr = NBPR ;
   -- TODO: rework to remove negations
   nbpc = NBPC ;
-    (Guard (nbpr != 1) | Guard (nbpc != 1)) --  NOTE-MODERN: overlapping bug does not seem to make the difference when fixed
-  | (imode is blockMode | imode is pixel | imode is row);
+    (Guard (nbpr != 1) <| Guard (nbpc != 1)) --  NOTE-MODERN: changed to bias choice to prevent multiple parse in gwg test
+  <|  -- NOTE-MODERN: changed to `<|` to prevent multiple parse in gwg test
+    (imode is blockMode | imode is pixel | imode is row); -- NOTE-MODERN: nonoverlapping
   -- is R really allowed? Needed by i_3201c.ntf.
 
   nppbh = NPPBH ;
@@ -807,7 +808,7 @@ def ISHeader = {
   imag = IMag ;
 
   udidl = UDIDL ;
-  Choose { -- NOTE-MODERN: no overlapping
+  Choose { -- NOTE-MODERN: nonoverlapping
     uds = {
       Guard (udidl > 0) ;
       udofl = UDOfl ;
@@ -817,7 +818,7 @@ def ISHeader = {
   } ;
 
   ixshdl = IXShDL ;
-  Choose { -- NOTE-MODERN: no overlapping
+  Choose { -- NOTE-MODERN: nonoverlapping
     ixs = {
       Guard (ixshdl > 0) ;
       ixsofl = IXSOfl ;

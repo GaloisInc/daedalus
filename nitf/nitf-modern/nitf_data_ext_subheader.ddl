@@ -23,7 +23,7 @@ def DataExtHeader = {
     nooflw = ^{} ;
   } ;
 
-  dsitem = Choose {
+  dsitem = Choose { -- NOTE-MODERN: nonoverlapping
     present = {
       desoflw is present ;
       UnsignedNum 3
