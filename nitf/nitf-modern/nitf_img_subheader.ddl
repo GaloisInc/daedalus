@@ -48,7 +48,7 @@ def NRows = PosNumber 8
 
 def NCols = PosNumber 8
 
-def PVType = Choose {
+def PVType = Choose { -- NOTE-MODERN: nonoverlapping
   integer = @(PadMatch 3 ' ' "INT") ;
   bilevel = @(PadMatch 3 ' ' "B") ;
   signed = @(PadMatch 3 ' ' "SI") ;
@@ -56,19 +56,19 @@ def PVType = Choose {
   complex = @(PadMatch 3 ' ' "C") ;
 }
 
-def IRep = Choose {
+def IRep = Choose { -- NOTE-MODERN: nonoverlapping
   monochrome = @(PadMatch 8 ' ' "MONO") ;
   rgb = @(PadMatch 8 ' ' "RGB") ;
   rgblut = @(PadMatch 8 ' ' "RGB/LUT") ;
-  multi = @(PadMatch 8 ' ' "MULTI") ; 
+  multi = @(PadMatch 8 ' ' "MULTI") ;
   nodisplay = @(PadMatch 8 ' ' "NODISPLY") ;
   cartesian = @(PadMatch 8 ' ' "NVECTOR") ;
   polar = @(PadMatch 8 ' ' "POLAR") ;
-  sar = @(PadMatch 8 ' ' "VPH") ; 
+  sar = @(PadMatch 8 ' ' "VPH") ;
   itur = @(PadMatch 8 ' ' "YCbCr601") ;
 }
 
-def ICat = Choose {
+def ICat = Choose { -- NOTE-MODERN: nonoverlapping
   visible = @(PadMatch 8 ' ' "VIS") ;
   sideLooking = @(PadMatch 8 ' ' "SL") ;
   thermalInfrared = @(PadMatch 8 ' ' "TI") ;
@@ -104,13 +104,13 @@ def ICat = Choose {
 
 def ABPP = BoundedNum 2 1 96
 
-def PJust = Choose {
+def PJust = Choose { -- NOTE-MODERN: nonoverlapping
   leftJust = @Match1 'L' ;
   rightJust = @Match1 'R' ;
 }
 
 def ICords = DefaultSpace (
-  Choose {
+  Choose { -- NOTE-MODERN: nonoverlapping
     utm = @Match1 'U' ;
     northernhemi = @Match1 'N' ;
     southernhemi = @Match1 'S' ;
@@ -140,7 +140,7 @@ def LongDeg = {
 
 def Latitude = {
   digs = PadMany 6 ' ' Numeral ;
-  hemi = Choose {
+  hemi = Choose { -- NOTE-MODERN: non-overlapping
     north = @Match1 'N' ;
     south = @Match1 'S' ;
   }
@@ -148,7 +148,7 @@ def Latitude = {
 
 def Longitude = {
   digs = PadMany 7 ' ' Numeral ;
-  hemi = Choose {
+  hemi = Choose { -- NOTE-MODERN: non-overlapping
     east = @Match1 'E' ;
     west = @Match1 'W' ;
   }
@@ -166,7 +166,7 @@ def UtmZone = {
 def FiveDigitNum = {
   @v = Many 5 Digit ;
   ^ numBase 10 v
-} 
+}
 
 def PlainUtm = {
   utm = Many 2 Numeral ;
@@ -175,8 +175,8 @@ def PlainUtm = {
 }
 
 def OmitIO lb ub = Match1 (
-  lb .. 'H' 
-| 'J' .. 'N' 
+  lb .. 'H'
+| 'J' .. 'N'
 | 'P' .. ub
 )
 
@@ -200,6 +200,7 @@ def EqLat l0 l1 = {
 -- TODO: refine this to allow only rectangles or triangles
 --XXX: This can be one single expression
 def OrdLong left right =
+-- NOTE-MODERN: That seems nonoverlapping
   { Guard (left.sign == '-') ; Guard (right.sign == '+') }
 | { Guard (left.sign == right.sign) ;
     (  { Guard (left.sign == '-') ;
@@ -211,7 +212,7 @@ def OrdLong left right =
          | { Guard (left.whole == right.whole) ;
              Guard (left.frac <= right.frac) } } ) }
 
-def IGeoLo = Choose {
+def IGeoLo = Choose { -- NOTE-MODERN: TODO: decide on that one...
   decimal_degs = {
     lat0 = LatDeg ;
     long0 = LongDeg ;
@@ -235,7 +236,7 @@ def NICom = Digit as! uint 64
 
 def IComn n = Many n (Many 80 Byte)
 
-def IC = Choose {
+def IC = Choose { -- NOTE-MODERN: nonoverlapping
   c1 = @Match "C1" ;
   c3 = @Match "C3" ;
   c4 = @Match "C4" ;
@@ -255,16 +256,16 @@ def IC = Choose {
   nm = @Match "NM" ;
 }
 
-def ComRat (ic : IC) = Choose {
-  dim_coding = { 
+def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
+  dim_coding = {
       ic is c1
     | ic is m1 ;
-    Choose {
+    Choose { -- NOTE-MODERN: nonoverlapping
       oned = @(PadMatch 4 ' ' "1D") ;
       twods = @(PadMatch 4 ' ' "2DS") ;
       twodh = @(PadMatch 4 ' ' "2DH") ;
     } ;
-  } ; 
+  } ;
   quant_tables = {
       ic is c3
     | ic is c5
@@ -281,7 +282,7 @@ def ComRat (ic : IC) = Choose {
     | {   ic is c3
         | ic is i1
         | ic is m3 }
-  } ; 
+  } ;
   bits_per_pixel = {
       ic is c4
     | ic is m4 ;
@@ -329,10 +330,10 @@ def NBands (irep : IRep) = (
   }
 | IsNum 1 0
 )
-  
+
 def XBands n = BoundedNum 5 10 99999
 
-def IRepBandN = Choose {
+def IRepBandN = Choose { -- NOTE-MODERN: nonoverlapping
   bandM = @(PadMatch 2 ' ' "M") ;
   lutBand = @(PadMatch 2 ' ' "LU") ;
   red = @(PadMatch 2 ' ' "R") ;
@@ -360,7 +361,7 @@ def ISubCatN = Choose {
   default = @(Spaces 6) ;
   userdef = Many 6 BCSA ;
 }
-  
+
 def IFCN = Match1 'N'  -- other values reserved for future use
 
 def ImFltN = Spaces 3 -- reserved for future use
@@ -372,7 +373,7 @@ def LutdNM n = Many n Byte
 def ISync = Match1 '0' -- reserved for future use
 
 def IMode nbands = {
-  $$ = Choose {
+  $$ = Choose { -- NOTE-MODERN: nonoverlapping
     blockMode = @Match1 'B' ;
     pixel = @Match1 'P' ;
     row = @Match1 'R' ;
@@ -431,12 +432,12 @@ def IMag = Choose {
     Guard (fplen <= 4) ;
     Spaces (4 - fplen)
   } ;
-  frac = { 
+  frac = {
     Match1 '/' ;
     $$ = Many (..3) Digit ;
     @fplen = ^ (length $$) + 1 ;
     Guard (fplen <= 4) ;
-    Spaces (4 - fplen) 
+    Spaces (4 - fplen)
   }
 }
 
@@ -576,7 +577,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
         Guard (abpp == 1) }
     | {   Guard (nbands == 1)
         | Guard (nbands == 3) ;
-          { pvtype is integer ; CatIntFull nbpp abpp } 
+          { pvtype is integer ; CatIntFull nbpp abpp }
         | { pvtype is real ; CatReals nbpp abpp } } }
 | {   icat is sideLooking
     | icat is thermalInfrared
@@ -599,7 +600,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
     Guard (nbands == 1) ;
       { pvtype is integer ; CatIntFull nbpp abpp }
     | { pvtype is real ; CatReals nbpp abpp } }
-| {   icat is colorPhoto 
+| {   icat is colorPhoto
     | icat is colorPatch ;
       isubcat is default
     | @(isubcat is userdef) ;
@@ -735,7 +736,7 @@ def ISHeader = {
 
   nbands = NBands irep ;
 
-  xbands = Choose {
+  xbands = Choose { -- NOTE-MODERN: nonoverlapping
     def_xband = {
       Guard (nbands == 0) ;
       XBands nbands
@@ -767,14 +768,14 @@ def ISHeader = {
     -- check display params
     DispParams irep irepbandn nbands pvtype nlutsn ;
 
-    Choose {
+    Choose { -- NOTE-MODERN: nonoverlapping
       luts = {
         Guard (nlutsn > 0) ;
         nelutn = NELutN ;
         lutd_nm = LutdNM nlutsn ;
       } ;
       no_luts = Guard (nlutsn == 0)
-    } 
+    }
   } ;
 
   ISync ;
@@ -783,7 +784,7 @@ def ISHeader = {
   nbpr = NBPR ;
   -- TODO: rework to remove negations
   nbpc = NBPC ;
-    (Guard (nbpr != 1) | Guard (nbpc != 1))
+    (Guard (nbpr != 1) | Guard (nbpc != 1)) --  NOTE-MODERN: overlapping bug does not seem to make the difference when fixed
   | (imode is blockMode | imode is pixel | imode is row);
   -- is R really allowed? Needed by i_3201c.ntf.
 
@@ -806,7 +807,7 @@ def ISHeader = {
   imag = IMag ;
 
   udidl = UDIDL ;
-  Choose {
+  Choose { -- NOTE-MODERN: no overlapping
     uds = {
       Guard (udidl > 0) ;
       udofl = UDOfl ;
@@ -816,7 +817,7 @@ def ISHeader = {
   } ;
 
   ixshdl = IXShDL ;
-  Choose {
+  Choose { -- NOTE-MODERN: no overlapping
     ixs = {
       Guard (ixshdl > 0) ;
       ixsofl = IXSOfl ;

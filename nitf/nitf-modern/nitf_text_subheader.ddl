@@ -32,7 +32,7 @@ def TextHeader = {
 
   txshdl = TxShDL as! uint 64;
 
-  Choose {
+  Choose { -- NOTE-MODERN: seems overlapping but not harmful
     txsofl = {
       UnsignedNum 3 ;
     } ;

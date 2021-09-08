@@ -9,6 +9,8 @@ def DataExtHeader = {
 
   common = CommonSubheader ;
 
+  -- NOTE-MODERN: looks like the outer `Choose` should be `Choose1`,
+  -- should double-check that the second branch does not make progress
   desoflw = Choose {
     present = Choose {
       oflwUDHD = @(PadMatch 6 ' ' "UDHD") ;

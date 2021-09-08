@@ -1,5 +1,5 @@
 import nitf_lib
-import nitf_header 
+import nitf_header
 import nitf_img_subheader
 import nitf_graphic_subheader
 import nitf_text_subheader
@@ -21,31 +21,31 @@ def CheckDateTime fdt dt = @{
    PartialOrdDateTime dt fdt ;
 }
 
-def Main = { 
+def Main = {
     h = Header;
     @ldt = LiftDateTime h.fdt ;
 
     -- parse each image segment:
-    img_segments = 
-      map (imglens in h.li) { 
+    img_segments =
+      map (imglens in h.li) {
         imgHeader = ISHeader ;
         CheckDateTime ldt imgHeader.idatim ;
 
         -- parse the bytes in the data segment
         -- imgData = Many imglens.li Byte ;
       };
-    
+
     -- parse each graphic segment:
-    graph_segments = 
-      map (gls in h.graphlens) {  
+    graph_segments =
+      map (gls in h.graphlens) {
         graphHeader = GraphicHeader ;
 
         -- parse the bytes in the data segment
         graphData = Many (gls.seglen as! uint 64) Byte ;
-      } ; 
+      } ;
 
     -- parse each text segment:
-    txt_segments = 
+    txt_segments =
       map (textls in h.textlens) {
         txtHeader = TextHeader ;
 
@@ -56,7 +56,7 @@ def Main = {
       };
 
     -- parse each data-extension segment:
-    dataExt_segments = 
+    dataExt_segments =
       map (dataextls in h.dataextlens) {
         dataExtHeader = DataExtHeader ;
 
@@ -65,8 +65,8 @@ def Main = {
       } ;
 
     -- parse each reserved-extension segment:
-    reservedExt_segments = 
-      map (resextls in h.resextlens) { 
+    reservedExt_segments =
+      map (resextls in h.resextlens) {
         resExtHeader = ResExtHeader ;
 
         -- parse the bytes in the reserved extension data segment
@@ -75,4 +75,4 @@ def Main = {
 
     -- TEST: enable to fail JITC Neg Format cases
     -- END;
-} 
+}

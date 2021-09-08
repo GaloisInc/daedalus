@@ -274,7 +274,7 @@ def OrdDate (d0 : Date) (d1 : Date) = {
 }
 
 -- security classifications:
-def SecClas = Choose {
+def SecClas = Choose { -- NOTE-MODERN: non-overlapping
   topsecret = @Match1 'T' ;
   secret = @Match1 'S' ;
   confidential = @Match1 'C' ;
@@ -302,7 +302,7 @@ def CodeWords = DefaultSpaces 11 {
 }
 
 -- Security control markings: translated from Table A-4:
-def SecCtrlMarking = Choose {
+def SecCtrlMarking = Choose { -- NOTE-MODERN: non-overlapping, at least not on JITC
   atomal = @Match "AT" ;
   cndwdi = @Match "CN" ;
   copyright = @Match "PX" ;
@@ -341,7 +341,7 @@ def CtlHandling = DefaultSpaces 2 SecCtrlMarking
 
 def Release = Many 20 (UpperCase | Match1 ' ')
 
-def DeclassificationType = Choose {
+def DeclassificationType = Choose { -- NOTE-MODERN: non-overlapping
   date = @Match "DD" ;
   event = @Match "DE" ;
   datelv = @Match "GD" ;
@@ -353,7 +353,7 @@ def DeclassificationType = Choose {
 
 def Declassification = {
   dctp = DeclassificationType ;
-  dcdt = Choose {
+  dcdt = Choose { -- NOTE-MODERN: seams non-overlapping
     decldate = {
       -- TODO: cleanup parens
       (dctp is date | dctp is datelv) ;
@@ -368,7 +368,7 @@ def Declassification = {
       Spaces 8
     }
   } ;
-  dxcm = Choose {
+  dxcm = Choose { -- NOTE-MODERN: seams non-overlapping
     reason = {
       dctp is exempt ;
       Match1 'X' ;
@@ -389,12 +389,12 @@ def Declassification = {
       Spaces 4 ;
     }
   } ;
-  dg = Choose {
+  dg = Choose { -- NOTE-MODERN: seams non-overlapping
     actual = {
         dctp is datelv
       | dctp is eventlv ;
       DefaultSpace (
-        Choose {
+        Choose { -- NOTE-MODERN: non-overlapping
           secret = @Match1 'S' ;
           confidential = @Match1 'C' ;
           restricted = @Match1 'R' ;
@@ -409,7 +409,7 @@ def Declassification = {
       Spaces 1 ;
     }
   } ;
-  dgdt = Choose {
+  dgdt = Choose { -- NOTE-MODERN: seams non-overlapping
     hasdgdt = {
       dctp is datelv ;
       Date
@@ -424,7 +424,7 @@ def Declassification = {
       Spaces 8 ;
     }
   } ;
-  cltx = Choose {
+  cltx = Choose { -- NOTE-MODERN: seams non-overlapping
     hascltx = {
         dctp is datelv
       | dctp is eventlv ;
@@ -437,14 +437,14 @@ def Declassification = {
 -- authority type:
 def ClassificationAuthority = {
   authtp = DefaultSpace (
-    Choose {
+    Choose { -- NOTE-MODERN: non-overlapping
       original = @Match1 'O' ;
       derivative = @Match1 'D' ;
       multiple = @Match1 'M' ;
     }) ;
   auth = Many 40 ECSA ;
   crsn = DefaultSpace (
-    Choose {
+    Choose { -- NOTE-MODERN: non-overlapping
       clsrsnA = @Match1 'A' ;
       clsrsnB = @Match1 'B' ;
       clsrsnC = @Match1 'C' ;
