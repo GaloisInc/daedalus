@@ -39,18 +39,18 @@ def GraphicHeader = {
   sres2 = UnsignedNum 2 ;
 
   -- TODO: refactor this into other subheaders
-  sxshdl = Choose {
+  sxshdl = Choose { -- NOTE-MODERN: This seems to overlap!!!
     notre = @(IsNum 5 0) ;
     taggedrec = BoundedNum 5 3 9741
   } ;
 
-  xssofl = Choose {
+  xssofl = Choose { -- NOTE-MODERN: This seems to overlap!!!
     nooverflow = IsNum 3 0 ;
     desseq = PosNumber 3 ;
     omitted = sxshdl is notre ;
   } ;
 
-  sxshd = Choose {
+  sxshd = Choose { -- NOTE-MODERN: This seems to overlap!!!
     tre = {
       seq = sxshdl is taggedrec ;
       Many (seq as! uint 64) Byte
