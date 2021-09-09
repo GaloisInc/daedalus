@@ -581,7 +581,7 @@ printLLA aut lla cond =
             then
               do
                 mapM_ putStrLn ann
-                putStrLn $ showDFA dfa
+                putStrLn $ showDFA aut dfa
                 putStrLn ""
             else
               return ()
@@ -596,7 +596,7 @@ printAmbiguities aut lla =
       tMapped = Map.fromList tAnnotated
       tOrdered = Map.assocs tMapped
   in
-  if length t > 1000
+  if length t > 10000
   then do return ()
   else
     mapM_
@@ -740,6 +740,8 @@ statsLLA aut llas =
                     result ("-" ++ show k)
                 | flagHasNoAbort dfa == Just True =
                     -- trace (show q) $
+                    -- trace (showDFA aut dfa) $
+                    -- trace (show $ flagHasNoAbort dfa) $
                     result ("-ambiguous-" ++ show k)
                 | otherwise = "abort-" ++ show k
           in

@@ -67,6 +67,9 @@ instance Functor Slk where
   fmap _ Wildcard = Wildcard
   fmap f (SConcrete a) = SConcrete (f a)
 
+showSlk :: Show a => Slk a -> String
+showSlk (Wildcard) = "*"
+showSlk (SConcrete v) = show v
 
 data SlkStack a =
   SlkStack
@@ -214,7 +217,16 @@ type SlkValue = Slk (Either Interp.Value SlkInput)
 data SlkBetweenItv =
     SlkCExactly (Slk Int)
   | SlkCBetween (Maybe (Slk Int)) (Maybe (Slk Int))
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
+
+instance Show SlkBetweenItv where
+  show (SlkCExactly v) = "Ex " ++ showSlk v
+  show (SlkCBetween a b) =
+    case (a,b) of
+      (Nothing, Nothing) -> "Bet (-,-)"
+      (Just v, Nothing) -> "Bet (" ++ showSlk v ++ ",-)"
+      (Nothing,  Just v) -> "Bet (-," ++ showSlk v ++ ")"
+      (Just v1,  Just v2) -> "Bet (" ++ showSlk v1 ++ "," ++ showSlk v2 ++ ")"
 
 data SlkActivationFrame =
     SlkListArgs [SlkValue]
@@ -236,8 +248,8 @@ showSlkControlData aut ctrl =
     SCons (SlkCallFrame _name q _ _) rest ->
       showSlkControlData aut rest ++
       [ T.unpack (PAST.name2Text _name) ++ " callsite " ++ Aut.stateToString q aut ]
-    SCons (SlkManyFrame _ _) rest ->
-      showSlkControlData aut rest ++ [ "Many" ]
+    SCons (SlkManyFrame b i) rest ->
+      showSlkControlData aut rest ++ [ "Many"  ++ " (" ++ show b ++ ", " ++ show i ++ ")" ]
     SEmpty ->  []
 
 
@@ -456,7 +468,7 @@ data SlkCfg = SlkCfg
   , cfgSem   :: !SlkSemanticData
   , cfgInput :: !SlkInput
   }
-  deriving (Show)
+  -- deriving (Show)
 
 data HTable =
   HTable
@@ -470,6 +482,9 @@ emptyHTable =
   { tabCtrl = emptyHTableSlkStack ()
   , tabSem = emptyHTableSlkStack ()
   }
+
+instance Show (SlkCfg) where
+  show x = showSlkCfg x
 
 showSlkCfg :: SlkCfg -> String
 showSlkCfg

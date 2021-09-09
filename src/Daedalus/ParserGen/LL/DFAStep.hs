@@ -5,6 +5,7 @@ module Daedalus.ParserGen.LL.DFAStep
     DFAEntry(..),
     getInfoEntry,
     DFARegistry,
+    showDFARegistry,
     IteratorDFARegistry,
     initIteratorDFARegistry,
     nextIteratorDFARegistry,
@@ -110,6 +111,9 @@ type DFARegistry = Set.Set DFAEntry
 
 type IteratorDFARegistry = Iterator DFARegistry
 
+showDFARegistry :: Aut a => a -> DFARegistry -> String
+showDFARegistry aut reg =
+  concatMap (\ x -> Slk.showSlkCfgWithAut aut (srcEntry x) ++ "\n") reg
 
 initIteratorDFARegistry :: DFARegistry -> IteratorDFARegistry
 initIteratorDFARegistry r =

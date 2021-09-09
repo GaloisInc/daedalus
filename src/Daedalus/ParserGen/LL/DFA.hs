@@ -200,8 +200,8 @@ getFinalStates dfa =
   (Set.toList (finalLinDFAState dfa))
 
 
-showDFA :: DFA -> String
-showDFA dfa =
+showDFA :: Aut a => a -> DFA -> String
+showDFA _aut dfa =
   showTrans [] 0 (startLinDFAState dfa)
   where
     showTrans :: [LinDFAState] -> Int -> LinDFAState -> String
@@ -252,7 +252,7 @@ showDFA dfa =
                 let alts = Closure.getAltSeq $ dstEntry entry
                 in
                   "(" ++ show (length alts) ++
-                  -- ",q" ++ showSlkCfg (Closure.lastCfg (dstEntry entry)) ++
+                  -- ",q" ++ showSlkCfgWithAut _aut (Closure.lastCfg (dstEntry entry)) ++
                   ")," ++ b) "" s  ++ "]"
 
     space d = spaceHelper 0
