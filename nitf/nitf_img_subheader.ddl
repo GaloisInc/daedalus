@@ -60,11 +60,11 @@ def IRep = Choose {
   monochrome = @(PadWSpaces 8 (Match "MONO")) ;
   rgb = @(PadWSpaces 8 (Match "RGB")) ;
   rgblut = @(PadWSpaces 8 (Match "RGB/LUT")) ;
-  multi = @(PadWSpaces 8 (Match "MULTI")) ; 
+  multi = @(PadWSpaces 8 (Match "MULTI")) ;
   nodisplay = @(PadWSpaces 8 (Match "NODISPLY")) ;
   cartesian = @(PadWSpaces 8 (Match "NVECTOR")) ;
   polar = @(PadWSpaces 8 (Match "POLAR")) ;
-  sar = @(PadWSpaces 8 (Match "VPH")) ; 
+  sar = @(PadWSpaces 8 (Match "VPH")) ;
   itur = @(PadWSpaces 8 (Match "YCbCr601")) ;
 }
 
@@ -166,7 +166,7 @@ def UtmZone = {
 def FiveDigitNum = {
   @v = Many 5 Digit ;
   ^ numBase 10 v
-} 
+}
 
 def PlainUtm = {
   utm = Many 2 Numeral ;
@@ -175,8 +175,8 @@ def PlainUtm = {
 }
 
 def OmitIO lb ub = Match1 (
-  lb .. 'H' 
-| 'J' .. 'N' 
+  lb .. 'H'
+| 'J' .. 'N'
 | 'P' .. ub
 )
 
@@ -256,7 +256,7 @@ def IC = Choose {
 }
 
 def ComRat (ic : IC) = Choose {
-  dim_coding = { 
+  dim_coding = {
       ic is c1
     | ic is m1 ;
     Choose {
@@ -264,7 +264,7 @@ def ComRat (ic : IC) = Choose {
       twods = @(PadWSpaces 4 (Match "2DS")) ;
       twodh = @(PadWSpaces 4 (Match "2DH")) ;
     } ;
-  } ; 
+  } ;
   quant_tables = {
       ic is c3
     | ic is c5
@@ -281,7 +281,7 @@ def ComRat (ic : IC) = Choose {
     | {   ic is c3
         | ic is i1
         | ic is m3 }
-  } ; 
+  } ;
   bits_per_pixel = {
       ic is c4
     | ic is m4 ;
@@ -329,7 +329,7 @@ def NBands (irep : IRep) = (
   }
 | IsNum 1 0
 )
-  
+
 def XBands n = BoundedNum 5 10 99999
 
 def IRepBandN = Choose {
@@ -360,7 +360,7 @@ def ISubCatN = Choose {
   default = @(Spaces 6) ;
   userdef = Many 6 BCSA ;
 }
-  
+
 def IFCN = Match1 'N'  -- other values reserved for future use
 
 def ImFltN = Spaces 3 -- reserved for future use
@@ -431,12 +431,12 @@ def IMag = Choose {
     Guard (fplen <= 4) ;
     Spaces (4 - fplen)
   } ;
-  frac = { 
+  frac = {
     Match1 '/' ;
     $$ = Many (..3) Digit ;
     @fplen = ^ (length $$) + 1 ;
     Guard (fplen <= 4) ;
-    Spaces (4 - fplen) 
+    Spaces (4 - fplen)
   }
 }
 
@@ -576,7 +576,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
         Guard (abpp == 1) }
     | {   Guard (nbands == 1)
         | Guard (nbands == 3) ;
-          { pvtype is integer ; CatIntFull nbpp abpp } 
+          { pvtype is integer ; CatIntFull nbpp abpp }
         | { pvtype is real ; CatReals nbpp abpp } } }
 | {   icat is sideLooking
     | icat is thermalInfrared
@@ -599,7 +599,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
     Guard (nbands == 1) ;
       { pvtype is integer ; CatIntFull nbpp abpp }
     | { pvtype is real ; CatReals nbpp abpp } }
-| {   icat is colorPhoto 
+| {   icat is colorPhoto
     | icat is colorPatch ;
       isubcat is default
     | @(isubcat is userdef) ;
@@ -774,7 +774,7 @@ def ISHeader = {
         lutd_nm = LutdNM nlutsn ;
       } ;
       no_luts = Guard (nlutsn == 0)
-    } 
+    }
   } ;
 
   ISync ;

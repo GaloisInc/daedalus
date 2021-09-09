@@ -12,7 +12,7 @@ def ResExtHeader = {
   resshl = UnsignedNum 4 as? uint 64;
   resshf = Many resshl BCSA ;
 
-  Many Byte 
+  Many Byte
 
   -- TODO: refactor above fields into lib
 }
