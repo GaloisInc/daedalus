@@ -232,7 +232,7 @@ hsThisTy env TCTyDecl { .. } =
 hsTyDeclDef :: Env -> TCTyDecl -> ([Term],[Decl])
 hsTyDeclDef env me@TCTyDecl { .. } =
   case tctyDef of
-    TCTyStruct fs ->
+    TCTyStruct _ fs ->  -- XXX: bitdata
       ( [ aps (hsStructConName env NameDecl tctyName) (map snd fts) ]
       , concatMap hasInst fts
       )

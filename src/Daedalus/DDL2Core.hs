@@ -1210,7 +1210,7 @@ fromTCTyDecl td =
 fromTCTyDef :: (?tenv :: TEnv) => TC.TCTyDef -> TDef
 fromTCTyDef tdef =
   case tdef of
-    TC.TCTyStruct fs -> TStruct (map field fs)
+    TC.TCTyStruct _ fs -> TStruct (map field fs) -- FIXME: bitdata
     TC.TCTyUnion fs  -> TUnion  (map field fs)
   where
   field (l,(t, _)) = (l, fromType t) -- FIXME: this erases bitdata info

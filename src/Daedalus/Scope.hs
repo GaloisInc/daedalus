@@ -225,9 +225,9 @@ resolveRule r n' = do
 
 resolveBitData :: BitData -> Name -> ScopeM BitData
 resolveBitData bd n' = do
-  ctors' <- mapM (\(a, b) -> (,) a <$> resolve b) (bdCtors bd)
-  return (bd { bdName   = n'
-             , bdCtors  = ctors'
+  body <- resolve (bdBody bd)
+  return (bd { bdName = n'
+             , bdBody = body
              })
 
 class ResolveNames t where
@@ -254,6 +254,14 @@ instance ResolveNames Expr where
 instance ResolveNames RuleParam where
   resolve p = RuleParam <$> makeNameLocal (paramName p)
                         <*> resolve (paramType p)
+
+instance ResolveNames BitDataBody where
+  resolve bo =
+    case bo of
+      BitDataUnion ctors ->
+        BitDataUnion <$> mapM (\(a, b) -> (,) a <$> resolve b) ctors
+      BitDataStruct flds ->
+        BitDataStruct <$> mapM resolve flds
 
 instance ResolveNames BitDataField where
   resolve p =

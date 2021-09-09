@@ -296,7 +296,8 @@ data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
+data TCTyDef    = TCTyStruct (Maybe TCBDUnionMeta)
+                             [(Label, (Type, Maybe TCBDStructMeta))]
                 | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
                   deriving (Show, Eq)
 
@@ -607,7 +608,7 @@ instance PP TCTyDecl where
 instance PP TCTyDef where
   ppPrec _ d =
     case d of
-      TCTyStruct fs -> block "{" ";" "}" (map ppF fs)
+      TCTyStruct _ fs -> block "{" ";" "}" (map ppF fs)
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where

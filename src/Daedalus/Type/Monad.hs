@@ -550,7 +550,7 @@ apSuTCTyDecl su d = d { tctyDef = apSubstTCTyDef su (tctyDef d) }
 apSubstTCTyDef :: Map TVar Type -> TCTyDef -> TCTyDef
 apSubstTCTyDef su def =
   case def of
-    TCTyStruct fs -> TCTyStruct (map doField fs)
+    TCTyStruct mb fs -> TCTyStruct mb (map doField fs)
     TCTyUnion  fs -> TCTyUnion  (map doField fs)
   where
   doField :: (Label, (Type, a)) -> (Label, (Type, a))

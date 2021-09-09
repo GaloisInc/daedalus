@@ -192,7 +192,7 @@ hasStruct r ty l fty =
          case mb of
            Nothing -> pure Unsolved
            Just td -> case tctyDef td of
-                        TCTyStruct fs | Just (fty1, _) <- lookup l fs ->
+                        TCTyStruct _ fs | Just (fty1, _) <- lookup l fs ->
                           do let su = Map.fromList (zip (tctyParams td) ts)
                              unify (apSubstT su fty1) (r,fty)
                              pure Solved
@@ -457,7 +457,7 @@ isStructCon r ty fs =
            Nothing -> pure Unsolved
            Just (def,_) ->
              case def of
-               TCTyStruct dfs ->
+               TCTyStruct _ dfs ->
                   do checkFields r c (fst <$> Map.fromList dfs) fs
                      pure Solved
                TCTyUnion {} -> reportError r "Union used a structure"
@@ -636,7 +636,7 @@ simplifyConstraints =
       ctr : more
         | StructCon suggested ty fs <- thingValue ctr ->
           chooseName suggested ty
-            (TCTyStruct [ (f, (thingValue lt,Nothing)) | (f,lt) <- fs ])
+            (TCTyStruct Nothing [ (f, (thingValue lt,Nothing)) | (f,lt) <- fs ])
         | UnionCon suggested ty c t <- thingValue ctr ->
           chooseName suggested ty
             (TCTyUnion [ (c, (thingValue t,Nothing)) ])
