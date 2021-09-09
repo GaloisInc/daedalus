@@ -1,4 +1,4 @@
--- Combinator to run a parser on a fixed-size chunk 
+-- Combinator to run a parser on a fixed-size chunk
 
 def Chunk n P =  {
   @cur  = GetStream;
@@ -23,22 +23,22 @@ def strlen s = for (len = (0 : int); c in s) (len + 1)
 
 -- parsers:
 
--- Force the parser to backtrack 
+-- Force the parser to backtrack
 def MyFail = { commit; Choose {}; }
 
 def Etx = Match1 4
 
-{-- Character sets --} 
+{-- Character sets --}
 
--- BCS character set 
+-- BCS character set
 def BCS = Match1 (0x20 .. 0x7E | 0x0C | 0x0D)
 def BCSA = Match1 (0x20 .. 0x7E )
 def BCSN = Match1 (0x30 .. 0x39 | 0x2B | 0x2D )
 
--- ECS character set 
--- TODO: work out error handling if deprecated ECS codes are used 
-def ECS = BCS 
-def ECSA = BCSA 
+-- ECS character set
+-- TODO: work out error handling if deprecated ECS codes are used
+def ECS = BCS
+def ECSA = BCSA
 
 def LowerCase = Match1 ('a' .. 'z')
 
@@ -113,7 +113,7 @@ def Byte = Match1 (0 .. 255)
 
 def Spaces (n : uint 64) = Many n (Match1 ' ')
 
-def PadWSpaces n P = 
+def PadWSpaces n P =
   Chunk n {$$ = P; Many (Match1 ' '); END}
 
 def DefaultByte D P = Choose {
@@ -206,7 +206,7 @@ def LiftDate (d : Date) : PartialDate = {
   partCentury = ^ {| actual = d.century |} ;
   partYear = ^ {| actual = d.year |} ;
   partMonth = ^ {| actual = d.month |} ;
-  partDay = ^ {| actual = d.day |} 
+  partDay = ^ {| actual = d.day |}
 }
 
 def PartialTime = {
@@ -218,12 +218,12 @@ def PartialTime = {
 def LiftTime (t : Time) : PartialTime = {
   partHour = ^ {| actual = t.hour |} ;
   partMin = ^ {| actual = t.min |} ;
-  partSecond = ^ {| actual = t.second |} 
+  partSecond = ^ {| actual = t.second |}
 }
 
 def PartialDateTime = {
   partDate = PartialDate ;
-  partTime = PartialTime 
+  partTime = PartialTime
 }
 
 def LiftDateTime (dt : DateTime) : PartialDateTime = {
@@ -231,16 +231,16 @@ def LiftDateTime (dt : DateTime) : PartialDateTime = {
   partTime = LiftTime dt.time
 }
 
-def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) = 
+def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
   PartialLt d0.partCentury d1.partCentury
 | { PartialEq d0.partCentury d1.partCentury ;
       PartialLt d0.partYear d1.partYear
     | { PartialEq d0.partYear d1.partYear ;
-          PartialLt d0.partMonth d1.partMonth 
+          PartialLt d0.partMonth d1.partMonth
         | { PartialEq d0.partMonth d1.partMonth ;
             PartialLeq d0.partDay d1.partDay } } }
 
-def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) = 
+def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
   PartialLt t0.partHour t1.partHour
 | { PartialEq t0.partHour t1.partHour ;
       PartialLt t0.partMin t1.partMin
@@ -249,7 +249,7 @@ def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
 
 def PartialOrdDateTime (dt0 : PartialDateTime) (dt1 : PartialDateTime) = {
   PartialOrdDate dt0.partDate dt1.partDate ;
-  PartialOrdTime dt0.partTime dt1.partTime 
+  PartialOrdTime dt0.partTime dt1.partTime
 }
 
 -- OrdDate: check that two dates are ordered
@@ -264,8 +264,8 @@ def SecClas = Choose {
   topsecret = @Match1 'T' ;
   secret = @Match1 'S' ;
   confidential = @Match1 'C' ;
-  restricted = @Match1 'R' ; 
-  unclassified = @Match1 'U' ; 
+  restricted = @Match1 'R' ;
+  unclassified = @Match1 'U' ;
 }
 
 def CountryCode = Many 2 AlphaNum
@@ -343,7 +343,7 @@ def Declassification = {
     decldate = {
       -- TODO: cleanup parens
       (dctp is date | dctp is datelv) ;
-      Date 
+      Date
     } ;
     nodate = {
       ( dctp is event
@@ -352,7 +352,7 @@ def Declassification = {
       | dctp is exempt
       | dctp is none) ;
       Spaces 8
-    } 
+    }
   } ;
   dxcm = Choose {
     reason = {
@@ -396,7 +396,7 @@ def Declassification = {
   dgdt = Choose {
     hasdgdt = {
       dctp is datelv ;
-      Date 
+      Date
     } ;
     nodgdt = @{
         dctp is date
@@ -452,7 +452,7 @@ def CommonSubheader = {
   rel = Release ;
   decl = Declassification ;
   clauth = ClassificationAuthority ;
-  sec = Security 
+  sec = Security
 }
 
 def Encryp = Match1 '0'
