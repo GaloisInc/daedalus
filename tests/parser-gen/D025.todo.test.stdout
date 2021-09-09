@@ -1,7 +1,7 @@
 Stack:
     *
     Main callsite __START__
-    Many
+    Many (Between (-,-), *)
 Start: Main (12,5)-(12,10)
 SlkCfg{ q:34, ctrl:[?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [

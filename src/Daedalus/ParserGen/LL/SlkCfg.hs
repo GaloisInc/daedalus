@@ -220,13 +220,13 @@ data SlkBetweenItv =
   deriving (Eq, Ord)
 
 instance Show SlkBetweenItv where
-  show (SlkCExactly v) = "Ex " ++ showSlk v
+  show (SlkCExactly v) = "Exactly " ++ showSlk v
   show (SlkCBetween a b) =
     case (a,b) of
-      (Nothing, Nothing) -> "Bet (-,-)"
-      (Just v, Nothing) -> "Bet (" ++ showSlk v ++ ",-)"
-      (Nothing,  Just v) -> "Bet (-," ++ showSlk v ++ ")"
-      (Just v1,  Just v2) -> "Bet (" ++ showSlk v1 ++ "," ++ showSlk v2 ++ ")"
+      (Nothing, Nothing) -> "Between (-,-)"
+      (Just v, Nothing) -> "Between (" ++ showSlk v ++ ",-)"
+      (Nothing,  Just v) -> "Between (-," ++ showSlk v ++ ")"
+      (Just v1,  Just v2) -> "Between (" ++ showSlk v1 ++ "," ++ showSlk v2 ++ ")"
 
 data SlkActivationFrame =
     SlkListArgs [SlkValue]
@@ -249,7 +249,7 @@ showSlkControlData aut ctrl =
       showSlkControlData aut rest ++
       [ T.unpack (PAST.name2Text _name) ++ " callsite " ++ Aut.stateToString q aut ]
     SCons (SlkManyFrame b i) rest ->
-      showSlkControlData aut rest ++ [ "Many"  ++ " (" ++ show b ++ ", " ++ show i ++ ")" ]
+      showSlkControlData aut rest ++ [ "Many"  ++ " (" ++ show b ++ ", " ++ showSlk i ++ ")" ]
     SEmpty ->  []
 
 

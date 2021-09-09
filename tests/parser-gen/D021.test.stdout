@@ -1,8 +1,8 @@
 Stack:
     *
     Main callsite __START__
-    Many
-    Many
+    Many (Exactly *, *)
+    Many (Exactly *, *)
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:16, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
@@ -15,8 +15,8 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    Many
-    Many
+    Many (Exactly *, *)
+    Many (Exactly *, *)
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:20, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
@@ -29,8 +29,8 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    Many
-    Many
+    Many (Exactly *, *)
+    Many (Exactly *, *)
 Start: Main (11,14)-(11,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [

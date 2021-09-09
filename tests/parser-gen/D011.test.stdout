@@ -6,7 +6,52 @@ Stack:
     Main callsite __START__
     FL callsite Main (25,10)-(25,11)
     UnsignedNum callsite FL (20,17)-(20,30)
-    Many
+    Many (Exactly 12, 1)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 10)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 11)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 12)
 Start: UnsignedNum (12,9)-(12,23)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -19,8 +64,198 @@ DTrans [
 Stack:
     *
     Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 2)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 3)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 4)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 5)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 6)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 7)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 8)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    FL callsite Main (25,10)-(25,11)
+    UnsignedNum callsite FL (20,17)-(20,30)
+    Many (Exactly 12, 9)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
     UnsignedNum callsite Main (26,10)-(26,22)
-    Many
+    Many (Exactly 6, 1)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many (Exactly 6, 2)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many (Exactly 6, 3)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many (Exactly 6, 4)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many (Exactly 6, 5)
+Start: UnsignedNum (12,9)-(12,23)
+SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
+DTrans [
+  ( [(31),]
+  , HeadInput ['0','9']
+  , Resolution (NotAmbiguous)
+  ),
+]
+
+Stack:
+    *
+    Main callsite __START__
+    UnsignedNum callsite Main (26,10)-(26,22)
+    Many (Exactly 6, 6)
 Start: UnsignedNum (12,9)-(12,23)
 SlkCfg{ q:38, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -299,7 +534,7 @@ DTrans [
      *
      Main callsite __START__
      UnsignedNum callsite Main (26,10)-(26,22)
-     Many
+     Many (Exactly 6, 0)
      Digit callsite UnsignedNum (12,19)-(12,23)
      Numeral callsite Digit (9,20)-(9,26)
      MATCH: Numeral (7,15)-(7,32)
@@ -307,7 +542,7 @@ DTrans [
      *
      Main callsite __START__
      UnsignedNum callsite Main (26,10)-(26,22)
-     Many
+     Many (Exactly 6, 0)
      Digit callsite UnsignedNum (12,19)-(12,23)
      Numeral callsite Digit (9,20)-(9,26)
      MATCH: Numeral (7,15)-(7,32)

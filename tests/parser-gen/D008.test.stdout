@@ -3,7 +3,7 @@ Stack:
     Main callsite __START__
     _PadWSpaces__26 callsite Main (18,11)-(18,34)
     _Chunk__29 callsite _PadWSpaces__26 (14,3)-(14,40)
-    Many
+    Many (Between (-,-), *)
 Start: _Chunk__29 (14,18)-(14,33)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
@@ -22,7 +22,7 @@ Stack:
     Main callsite __START__
     _PadWSpaces__26 callsite Main (18,11)-(18,34)
     _Chunk__29 callsite _PadWSpaces__26 (14,3)-(14,40)
-    Many
+    Many (Between (-,-), *)
 Start: _Chunk__29 (14,18)-(14,33)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
@@ -41,7 +41,7 @@ Stack:
     Main callsite __START__
     _PadWSpaces__27 callsite Main (19,11)-(19,34)
     _Chunk__28 callsite _PadWSpaces__27 (14,3)-(14,40)
-    Many
+    Many (Between (-,-), *)
 Start: _Chunk__28 (14,18)-(14,33)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
@@ -60,7 +60,7 @@ Stack:
     Main callsite __START__
     _PadWSpaces__27 callsite Main (19,11)-(19,34)
     _Chunk__28 callsite _PadWSpaces__27 (14,3)-(14,40)
-    Many
+    Many (Between (-,-), *)
 Start: _Chunk__28 (14,18)-(14,33)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [

@@ -5,7 +5,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _COM callsite _Segment (127,15)-(127,17)
     _Payload__122 callsite _COM (44,5)-(44,23)
@@ -19,7 +19,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _COM callsite _Segment (127,15)-(127,17)
 Start: _COM (44,5)-(44,23)
@@ -35,7 +35,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _DRI callsite _Segment (128,15)-(128,17)
     _Payload__121 callsite _DRI (81,5)-(81,16)
@@ -49,7 +49,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _DRI callsite _Segment (128,15)-(128,17)
 Start: _DRI (81,5)-(81,16)
@@ -65,7 +65,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
 Start: _SomeJpeg (136,32)-(136,43)
 SlkCfg{ q:306, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
@@ -167,7 +167,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _COM callsite _Segment (127,15)-(127,17)
     _Payload__122 callsite _COM (44,5)-(44,23)
@@ -181,7 +181,7 @@ Stack:
     *
     Main callsite __START__
     _SomeJpeg callsite Main (138,18)-(138,25)
-    Many
+    Many (Between (-,-), *)
     _Segment callsite _SomeJpeg (136,37)-(136,43)
     _DRI callsite _Segment (128,15)-(128,17)
     _Payload__121 callsite _DRI (81,5)-(81,16)
