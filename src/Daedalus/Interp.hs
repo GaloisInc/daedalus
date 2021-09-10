@@ -412,7 +412,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
 
     goCon bits tdecl =
       case tctyDef tdecl of
-        TCTyStruct mb flds -> 
+        TCTyStruct mb flds ->
           do case mb of
                Nothing -> pure ()
                Just u  -> guard (matchU bits u)
