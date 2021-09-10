@@ -390,7 +390,7 @@ runnerLL s aut lla flagMetrics =
           prepChoose cfg resumption result
         Just (Right (ddInstr, finalStates)) ->
           case ddInstr of
-            LL.DDManyBetween l _ _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
+            LL.DDManyExact l _ _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
             LL.DDSetStream l _ -> applyPredictionsDDA l ddInstr finalStates cfg resumption result
         Nothing ->
         -- _ ->
@@ -471,7 +471,7 @@ runnerLL s aut lla flagMetrics =
       case LL.destrPrediction pdx of
         Nothing ->
           case instr of
-            LL.DDManyBetween _lst _absCfg1 _absCfg2 ->
+            LL.DDManyExact _lst _absCfg1 _absCfg2 ->
               let tr = nextTransition aut q in
               case tr of
                 Just ch@(SeqChoice [ (act2, q2) , (act3, q3) ] _) ->

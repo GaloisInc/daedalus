@@ -402,7 +402,7 @@ data DDA = DDA
 mkDDA :: DFAState -> Closure.DataDepInstr -> DDA
 mkDDA q instr =
   case instr of
-    Closure.DDManyBetween _lst scfg1 scfg2 ->
+    Closure.DDManyExact _lst scfg1 scfg2 ->
       let
         cfg1 = mkDFAStateFromSlkCfg scfg1
         cfg2 = mkDFAStateFromSlkCfg scfg2

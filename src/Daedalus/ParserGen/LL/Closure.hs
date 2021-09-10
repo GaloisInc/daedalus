@@ -185,7 +185,7 @@ type ClosureMoveSet = [ClosureMove]
 
 
 data DataDepInstr =
-    DDManyBetween ChoiceSeq Slk.SlkCfg Slk.SlkCfg
+    DDManyExact ChoiceSeq Slk.SlkCfg Slk.SlkCfg
   | DDSetStream ChoiceSeq Slk.SlkCfg
   deriving (Show)
 
@@ -243,7 +243,7 @@ closureEpsUntilDataDependent aut busy (alts, cfg) tab =
                 (   Result (Just ([ cfg1 ], _tab1))
                   , Result (Just ([ cfg2 ], tab2))
                   ) ->
-                  (Result $ Just (DDManyBetween alts cfg1 cfg2), tab2)
+                  (Result $ Just (DDManyExact alts cfg1 cfg2), tab2)
                 _ -> error "should not happen"
 
             else
