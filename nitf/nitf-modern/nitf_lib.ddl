@@ -1,13 +1,13 @@
 -- Combinator to run a parser on a fixed-size chunk
 
-def Chunk n P =  {
-  @cur  = GetStream;
-  @this = Take n cur;
-  @next = Drop n cur;
-  SetStream this;
-  $$ = P;
-  SetStream next;
-}
+def Chunk n P =
+  block
+    @cur  = GetStream
+    @this = Take n cur
+    @next = Drop n cur
+    SetStream this
+    $$ = P
+    SetStream next
 
 -- A parser that succeeds only if the predicate is true.
 def Guard p = p is true
@@ -51,40 +51,39 @@ def Sign = Match1 ('+' | '-')
 
 def Digit = { @d = Numeral ; ^ d - '0' }
 
-def FixedPoint = {
-  digs = Many Digit ;
-  Match1 '.' ;
+def FixedPoint = block
+  digs = Many Digit
+  Match1 '.'
   radix = Many Digit
-}
 
-def UnsignedNum digs = {
-  @ds = Many digs Digit ;
-  ^ for (val = 0; d in ds)
-        (val * 10 + (d as uint 64))
+
+def UnsignedNum digs =
+  block
+    @ds = Many digs Digit
+    ^ for (val = 0; d in ds)
+          (val * 10 + (d as uint 64))
 --  ^ numBase 10 ds
-}
 
-def NegNum digs = {
-  Match1 '-' ;
-  @n = UnsignedNum digs ;
-  ^ 0 - n
-}
+def NegNum digs =
+  block
+    Match1 '-'
+    @n = UnsignedNum digs
+    ^ 0 - n
 
 def SignedNum digs = Choose {
   pos = UnsignedNum (digs + 1) ;
   neg = NegNum digs
 }
 
-def BoundedNum digs lb ub = {
-  $$ = UnsignedNum digs;
-  Guard (lb <= $$) ;
-  Guard ($$ <= ub)
-}
+def BoundedNum digs lb ub =
+  block
+    $$ = UnsignedNum digs
+    Guard (lb <= $$ && $$ <= ub)
 
-def PosNumber digs = {
-  $$ = UnsignedNum digs;
-  Guard (1 <= $$)
-}
+def PosNumber digs =
+  block
+    $$ = UnsignedNum digs
+    Guard (1 <= $$)
 
 def IsNum digs v = BoundedNum digs v v
 
@@ -100,10 +99,11 @@ def UpperBounded digs ub = BoundedNum digs 0 ub
 
 def PosQuad = BoundedNum 4 1 9999
 
-def LowerBoundedOrZero digs lb = {
-  $$ = UnsignedNum digs;
-  Guard ($$ == 0) | Guard (lb <= $$)
-}
+def LowerBoundedOrZero digs lb =
+  block
+    $$ = UnsignedNum digs
+    Guard ($$ == 0 || lb <= $$)
+
 
 def Pos = Match1 ('1' .. '9')
 
@@ -126,9 +126,9 @@ def PadMatch n pad arr =
 
 -- FIXME: this assumes P consumes exactly 1 char
 def PadMany n pad P =
-    block
-      $$ = Many (..n) P
-      Many (n - length $$) (Match1 pad)
+  block
+    $$ = Many (..n) P
+    Many (n - length $$) (Match1 pad)
 
 def DefaultByte D P = Choose {
   actual = P ;
@@ -173,77 +173,77 @@ def PartialLeq (x : OrBytes) (y : OrBytes) =
   x is default
 <| y is default
 <| { @x0 = x is actual ;
-    @y0 = y is actual ;
-    Leq x0 y0
-  }
+     @y0 = y is actual ;
+     Leq x0 y0
+   }
 
-def Date = {
-  century = UnsignedNum 2 ;
-  year = UnsignedNum 2 ;
-  month = BoundedPos 2 12 ;
-  day = BoundedPos 2 31
-}
+def Date =
+  block
+    century = UnsignedNum 2
+    year = UnsignedNum 2
+    month = BoundedPos 2 12
+    day = BoundedPos 2 31
 
-def Epoch : Date = {
-  century = ^ 19 ;
-  year = ^ 70 ;
-  month = ^ 1 ;
-  day = ^ 1
-}
+def Epoch : Date =
+  block
+    century = ^ 19
+    year = ^ 70
+    month = ^ 1
+    day = ^ 1
 
-def Today : Date = {
-  century = ^ 20 ;
-  year = ^ 20 ;
-  month = ^ 5 ;
-  day = ^ 22
-}
+def Today : Date =
+  block
+    century = ^ 20
+    year = ^ 20
+    month = ^ 5
+    day = ^ 22
 
-def Time = {
-  hour = UpperBounded 2 23 ;
-  min = UpperBounded 2 59 ;
-  second = UpperBounded 2 59
-}
+def Time =
+  block
+    hour = UpperBounded 2 23
+    min = UpperBounded 2 59
+    second = UpperBounded 2 59
 
-def DateTime = {
-  date = Date ;
-  time = Time
-}
+def DateTime =
+  block
+    date = Date
+    time = Time
 
-def PartialDate = {
-  partCentury = OrHyphens 2 (UnsignedNum 2) ;
-  partYear = OrHyphens 2 (UnsignedNum 2) ;
-  partMonth = OrHyphens 2 (BoundedPos 2 12) ;
-  partDay = OrHyphens 2 (BoundedPos 2 31)
-}
+def PartialDate =
+  block
+    partCentury = OrHyphens 2 (UnsignedNum 2)
+    partYear = OrHyphens 2 (UnsignedNum 2)
+    partMonth = OrHyphens 2 (BoundedPos 2 12)
+    partDay = OrHyphens 2 (BoundedPos 2 31)
 
-def LiftDate (d : Date) : PartialDate = {
-  partCentury = ^ {| actual = d.century |} ;
-  partYear = ^ {| actual = d.year |} ;
-  partMonth = ^ {| actual = d.month |} ;
-  partDay = ^ {| actual = d.day |}
-}
+def LiftDate (d : Date) : PartialDate =
+  block
+    partCentury = ^ {| actual = d.century |}
+    partYear = ^ {| actual = d.year |}
+    partMonth = ^ {| actual = d.month |}
+    partDay = ^ {| actual = d.day |}
 
-def PartialTime = {
-  partHour = OrHyphens 2 (UpperBounded 2 23) ;
-  partMin = OrHyphens 2 (UpperBounded 2 59) ;
-  partSecond = OrHyphens 2 (UpperBounded 2 59)
-}
+def PartialTime =
+  block
+    partHour = OrHyphens 2 (UpperBounded 2 23)
+    partMin = OrHyphens 2 (UpperBounded 2 59)
+    partSecond = OrHyphens 2 (UpperBounded 2 59)
 
-def LiftTime (t : Time) : PartialTime = {
-  partHour = ^ {| actual = t.hour |} ;
-  partMin = ^ {| actual = t.min |} ;
-  partSecond = ^ {| actual = t.second |}
-}
+def LiftTime (t : Time) : PartialTime =
+  block
+    partHour = ^ {| actual = t.hour |}
+    partMin = ^ {| actual = t.min |}
+    partSecond = ^ {| actual = t.second |}
 
-def PartialDateTime = {
-  partDate = PartialDate ;
-  partTime = PartialTime
-}
+def PartialDateTime =
+  block
+    partDate = PartialDate
+    partTime = PartialTime
 
-def LiftDateTime (dt : DateTime) : PartialDateTime = {
-  partDate = LiftDate dt.date ;
-  partTime = LiftTime dt.time
-}
+def LiftDateTime (dt : DateTime) : PartialDateTime =
+  block
+    partDate = LiftDate dt.date
+    partTime = LiftTime dt.time
 
 def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
   PartialLt d0.partCentury d1.partCentury
@@ -255,23 +255,23 @@ def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
             PartialLeq d0.partDay d1.partDay } } }
 
 def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
-  PartialLt t0.partHour t1.partHour
+   PartialLt t0.partHour t1.partHour
 <| { PartialEq t0.partHour t1.partHour ;
-      PartialLt t0.partMin t1.partMin
-    <| { PartialEq t0.partMin t1.partMin ;
-        PartialLeq t0.partSecond t1.partSecond } }
+     PartialLt t0.partMin t1.partMin
+     <| { PartialEq t0.partMin t1.partMin ;
+          PartialLeq t0.partSecond t1.partSecond } }
 
-def PartialOrdDateTime (dt0 : PartialDateTime) (dt1 : PartialDateTime) = {
-  PartialOrdDate dt0.partDate dt1.partDate ;
-  PartialOrdTime dt0.partTime dt1.partTime
-}
+def PartialOrdDateTime (dt0 : PartialDateTime) (dt1 : PartialDateTime) =
+  block
+    PartialOrdDate dt0.partDate dt1.partDate
+    PartialOrdTime dt0.partTime dt1.partTime
 
 -- OrdDate: check that two dates are ordered
-def OrdDate (d0 : Date) (d1 : Date) = {
-  @d0val = LiftDate d0 ;
-  @d1val = LiftDate d1 ;
-  PartialOrdDate d0val d1val
-}
+def OrdDate (d0 : Date) (d1 : Date) =
+  block
+    @d0val = LiftDate d0
+    @d1val = LiftDate d1
+    PartialOrdDate d0val d1val
 
 -- security classifications:
 def SecClas = Choose { -- NOTE-MODERN: non-overlapping
@@ -376,8 +376,8 @@ def Declassification = {
       @v = ^ for (val = 0; d in $$)
                  (val * 10 + (d as uint 64));
 		 -- (numBase 10 $$) ;
-        { Guard (1   <= v); Guard (v <= 8)   }
-      | { Guard (251 <= v); Guard (v <= 259) }
+        { Guard (1   <= v && v <= 8)   }
+      | { Guard (251 <= v && v <= 259) }
     } ;
     notexempt = @{
         dctp is date
@@ -435,14 +435,14 @@ def Declassification = {
 }
 
 -- authority type:
-def ClassificationAuthority = {
+def ClassificationAuthority = block
   authtp = DefaultSpace (
     Choose { -- NOTE-MODERN: nonoverlapping
       original = @Match1 'O' ;
       derivative = @Match1 'D' ;
       multiple = @Match1 'M' ;
-    }) ;
-  auth = Many 40 ECSA ;
+    })
+  auth = Many 40 ECSA
   crsn = DefaultSpace (
     Choose { -- NOTE-MODERN: nonoverlapping
       clsrsnA = @Match1 'A' ;
@@ -453,29 +453,28 @@ def ClassificationAuthority = {
       clsrsnF = @Match1 'F' ;
       clsrsnG = @Match1 'G' ;
     })
-}
 
-def Security = {
-  srdt = DefaultSpaces 8 Date ;
-  ctln = DefaultSpaces 15 (Many 15 Digit)
-}
+def Security =
+  block
+    srdt = DefaultSpaces 8 Date
+    ctln = DefaultSpaces 15 (Many 15 Digit)
 
-def CommonSubheader = {
-  clas = SecClas ;
-  clsy = ClSy ;
-  code = CodeWords ;
-  ctlh = CtlHandling ;
-  rel = Release ;
-  decl = Declassification ;
-  clauth = ClassificationAuthority ;
-  sec = Security
-}
+def CommonSubheader =
+  block
+    clas = SecClas
+    clsy = ClSy
+    code = CodeWords
+    ctlh = CtlHandling
+    rel = Release
+    decl = Declassification
+    clauth = ClassificationAuthority
+    sec = Security
 
 def Encryp = Match1 '0'
 
 def AttachmentLvl = UpperBounded 3 998
 
-def Location = {
-  row = SignedNum 4 ;
-  col = SignedNum 4
-}
+def Location =
+  block
+    row = SignedNum 4
+    col = SignedNum 4
