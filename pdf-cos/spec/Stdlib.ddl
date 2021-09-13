@@ -32,6 +32,9 @@ def octalTriple a b c = numBase 8 [ a, b, c ]
 
 def Only P                = { $$ = P; END }
 def When P x              = { P; ^ x }
+def GuardMsg p s          = case p of
+                              true  -> Unit
+                              false -> Fail (concat ["Guard failed: ", s])
 def Guard p               = p is true
 def Holds P = When P true
 

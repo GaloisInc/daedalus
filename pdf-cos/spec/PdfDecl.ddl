@@ -5,8 +5,8 @@ import JpegBasics
 
 def TopDecl = {
   ManyWS;          -- FIXME: would rather do in Haskell and provide warning when this occurs!
-                   -- we cannot rely on the post token whitespace consumption because this is
-                   -- usually called immediately upon "jumping" to a byte offset.
+                   -- we cannot rely on the post token whitespace consumption because TopDecl is
+                   -- called immediately upon "jumping" to a byte offset.
   id   = Token Natural;
   gen  = Token Natural;
   KW "obj";
@@ -136,7 +136,8 @@ def WithReffedStreamBody P = WithStream
 --------------------------------------------------------------------------------
 
 def CheckExpected (r : Ref) (d : TopDecl) = {
-  Guard (d.id  == r.obj && d.gen == r.gen);
+  GuardMsg ((d.id  == r.obj && d.gen == r.gen))
+    "objid and gen don't match between xref table and the object definition";
   ^ d.obj;
 }
 
