@@ -83,40 +83,36 @@ def FSDGDT = Many 8 ECSA
 
 def FSCLTX = Many 43 ECSA
 
-def FS_declass = {
-  declass_type = FSDCTP;
-  fsdcdt = Choose1 {
-    { declass_type is dd; CallMeMaybe Date2 };
-    { Many 8 (Match1 ' '); ^ nothing };
-  };
-  fsdcxm = Choose1 {
-    { declass_type is x; @f = FSDCXM; ^ just f};
-    { Many 4 (Match1 ' '); ^ nothing };
-  };
-  fsdg = Choose1 {
-    { declass_type is gd | declass_type is ge;
-      @f = FSDG; ^ just f};
-    { Match1 ' '; ^ nothing };
-  };
-  fsdgdt = Choose1 {
-    { declass_type is gd; @d = Date2; ^ just d};
-    { Many 8 (Match1 ' '); ^ nothing};
-  };
-  fscltx = Choose1 {
-    { declass_type is de | declass_type is ge;
-      CallMeMaybe (@Many 43 ECSA) };
-    { Many 43 (Match1 ' '); ^ nothing}
-  }
-}
+def FS_declass =
+  block
+    declass_type = FSDCTP
+    fsdcdt =
+      { declass_type is dd; CallMeMaybe Date2 } <|
+      { Many 8 (Match1 ' '); ^ nothing }
+    fsdcxm =
+      { declass_type is x; @f = FSDCXM; ^ just f} <|
+      { Many 4 (Match1 ' '); ^ nothing }
+    fsdg =
+      { declass_type is gd | declass_type is ge;
+        @f = FSDG; ^ just f} <|
+      { Match1 ' '; ^ nothing }
+    fsdgdt =
+      { declass_type is gd; @d = Date2; ^ just d} <|
+      { Many 8 (Match1 ' '); ^ nothing }
+    fscltx =
+      { declass_type is de | declass_type is ge;
+        CallMeMaybe (@Many 43 ECSA) } <|
+      { Many 43 (Match1 ' '); ^ nothing }
 
-def FSC_auth = Choose1 {
-  { CallMeMaybe {
-      type = Match1 ('O' | 'D' | 'M');
-      auth = Many 40 ECSA;
+
+def FSC_auth =
+    { CallMeMaybe {
+        type = Match1 ('O' | 'D' | 'M');
+        auth = Many 40 ECSA;
+      }
     }
-  };
-  { Match1 ' '; Many 40 ECSA; ^ nothing};
-}
+  <|
+    { Match1 ' '; Many 40 ECSA; ^ nothing}
 
 def FSCRSN = Match1 ('A' .. 'G' | ' ')
 
@@ -152,109 +148,110 @@ def HL = UnsignedNum 6
 
 -- TODO: refactor this into code that computes max for some number of UnsignedNums
 
-def ImgLens = {
-  lish = BoundedNum 6 439 999998 ;
-  li = BoundedPos 10 9999999999
-}
+def ImgLens =
+  block
+    lish = BoundedNum 6 439 999998
+    li = BoundedPos 10 9999999999
 
 -- GraphLens: lengths of graphic segments:
-def GraphLens = {
-  lssh = BoundedNum 4 258 9999 ;
-  seglen = BoundedPos 6 999999
-}
+def GraphLens =
+  block
+    lssh = BoundedNum 4 258 9999
+    seglen = BoundedPos 6 999999
 
 def NUMX = Match "000"
 
 def LTSH = Many 4 BCSN
 def LT = Many 5 BCSN
 
-def TextLens = {
-  ltsh = BoundedNum 4 282 9999 ;
-  lt = BoundedPos 5 999999
-}
+def TextLens =
+  block
+    ltsh = BoundedNum 4 282 9999
+    lt = BoundedPos 5 999999
 
-def DataExtLens = {
-  ldsh = BoundedNum 4 200 9999 ;
-  ld = BoundedPos 9 999999999
-}
+def DataExtLens =
+  block
+    ldsh = BoundedNum 4 200 9999
+    ld = BoundedPos 9 999999999
 
 def LRESH = Many 4 BCSN
 def LRE = Many 7 BCSN
 
-def ResExtLens = {
-  lresh = BoundedNum 4 200 9999 ;
-  lre = BoundedPos 7 9999999
-}
+def ResExtLens =
+  block
+    lresh = BoundedNum 4 200 9999
+    lre = BoundedPos 7 9999999
 
 def UDHDL = Many 5 BCSN
 
 def UserData = Choose1 {
-                 none = { Match "00000"; ^ {} } ;
-                 udhd = {@l = UnsignedNum 5 as! uint 64;
-                         overflow = Many 3 BCSN;
-                         data = Many (l - 3) UInt8; };
-               }
+  none = { Match "00000"; ^ {} } ;
+  udhd = {
+    @l = UnsignedNum 5 as! uint 64;
+    overflow = Many 3 BCSN;
+    data = Many (l - 3) UInt8;
+  };
+}
 
 
 {-- Main header parser --}
 
-def Header = {
-  FHDR;
-  fver = FVER;
-  clevel = CLEVEL;
-  STYPE;
-  ostaid = OSTAID;
-  fdt = FDT;
+def Header = block
+  FHDR
+  fver = FVER
+  clevel = CLEVEL
+  STYPE
+  ostaid = OSTAID
+  fdt = FDT
 
   -- check that the file was created after epoch
-  @ep = Epoch ;
-  OrdDate ep fdt.date ;
+  @ep = Epoch
+  OrdDate ep fdt.date
 
   -- check that the file was created no later than the current date
-  @today = Today ;
-  OrdDate fdt.date today ;
+  @today = Today
+  OrdDate fdt.date today
 
-  ftitle = FTITLE;
-  fsclas = FSCLAS;
-  fsclsy = FSCLSY;
-  fscode = FSCODE;
-  fsctlh = FSCTLH;
-  fsrel = FSREL;
+  ftitle = FTITLE
+  fsclas = FSCLAS
+  fsclsy = FSCLSY
+  fscode = FSCODE
+  fsctlh = FSCTLH
+  fsrel = FSREL
 
-  fs_declass = FS_declass;
+  fs_declass = FS_declass
 
-  fsc_auth = FSC_auth;
+  fsc_auth = FSC_auth
 
-  fscrsn = FSCRSN;
-  fssrdt = FSSRDT;
-  fsctln = FSCTLN;
-  fscop = FSCOP;
-  fscpys = FSCPYS;
-  encryp = ENCRYP;
-  fbkgc = FBKGC;
-  oname = ONAME;
-  ophone = OPHONE;
-  fl = FL;
-  hl = HL;
+  fscrsn = FSCRSN
+  fssrdt = FSSRDT
+  fsctln = FSCTLN
+  fscop = FSCOP
+  fscpys = FSCPYS
+  encryp = ENCRYP
+  fbkgc = FBKGC
+  oname = ONAME
+  ophone = OPHONE
+  fl = FL
+  hl = HL
 
-  numi = UnsignedNum 3 ;
-  li = Many (numi as! uint 64) ImgLens ;
+  numi = UnsignedNum 3
+  li = Many (numi as! uint 64) ImgLens
 
-  nums = UnsignedNum 3 ;
-  graphlens = Many (nums as! uint 64) GraphLens ;
+  nums = UnsignedNum 3
+  graphlens = Many (nums as! uint 64) GraphLens
 
-  NUMX;
-  @numt = UnsignedNum 3 ;
-  textlens = Many (numt as! uint 64) TextLens ;
+  NUMX
+  @numt = UnsignedNum 3
+  textlens = Many (numt as! uint 64) TextLens
 
-  @numdes = UnsignedNum 3 ;
-  dataextlens = Many (numdes as! uint 64) DataExtLens ;
+  @numdes = UnsignedNum 3
+  dataextlens = Many (numdes as! uint 64) DataExtLens
 
-  @numres = UnsignedNum 3 ;
-  resextlens = Many (numres as! uint 64) ResExtLens ;
+  @numres = UnsignedNum 3
+  resextlens = Many (numres as! uint 64) ResExtLens
 
-  lre = Many (numres as! uint 64) [LRESH; LRE];
+  lre = Many (numres as! uint 64) [LRESH; LRE]
 
-  udhd = UserData;
-  xhd = UserData;
-}
+  udhd = UserData
+  xhd = UserData

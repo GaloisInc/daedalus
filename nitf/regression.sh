@@ -21,5 +21,6 @@ done
 ./test_all.sh --count ${WHICH_NITF} ${NITF_MODERN} --gwg | tee -a ${OUTPUT}
 
 if [ -z ${ISINIT} ] ; then
+    echo "DIFF:"
     diff $FILENAME /tmp/$FILENAME
 fi
