@@ -1,0 +1,10 @@
+
+
+tasks:
+  - init: sh ./gitpod/scripts/init.sh
+    command: gp open ./gitpod/Welcome.ddl
+      
+vscode:
+  extensions:
+    - file:///workspace/daedalus/syntax-highlight/vscode-daedalus/daedalus-0.0.1.vsix
+    
