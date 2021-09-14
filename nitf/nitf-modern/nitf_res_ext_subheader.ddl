@@ -1,18 +1,18 @@
 import nitf_lib
 
-def ResExtHeader = {
-  Match "RE" ;
-  resid = Many 25 BCSA ;
-  resver = PosNumber 2 ;
+def ResExtHeader =
+  block
+    Match "RE"
+    resid = Many 25 BCSA
+    resver = PosNumber 2
 
-  common = CommonSubheader ;
+    common = CommonSubheader
 
-  -- TODO: implement validation in note on p125
+    -- TODO: implement validation in note on p125
 
-  resshl = UnsignedNum 4 as? uint 64;
-  resshf = Many resshl BCSA ;
+    resshl = UnsignedNum 4 as? uint 64
+    resshf = Many resshl BCSA
 
-  Many Byte
+    Many Byte
 
-  -- TODO: refactor above fields into lib
-}
+    -- TODO: refactor above fields into lib
