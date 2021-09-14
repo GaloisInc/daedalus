@@ -93,7 +93,7 @@ allTests =
       ["no compressed objects, traditional xref table"]
       
   , Test "1_invalid_xref_trad" pdf1 RT_XRef_Trad
-      (E_Shell "sed" ["1019s/000732/000733/"])
+      (E_Shell "sed" ["78s/000732/000733/"])
       (Probs [(Error    , "object id (11) mismatch")
              ,(NotStrict, "cavity with \"1\" in it, before object 11")
              ])
