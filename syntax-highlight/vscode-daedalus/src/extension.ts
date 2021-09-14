@@ -48,10 +48,9 @@ export function activate(context: vscode.ExtensionContext) {
 		clientOptions
 	)
 
-	// This will also launch the server.
-	client.start()
-
 	const runWatchProvider = new DaedalusWatchContentProvider()
+
+	const watchers: Watchers = {}
 
 	context.subscriptions.push(
 
@@ -59,15 +58,45 @@ export function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerTextEditorCommand(
 			'daedalus.watch',
-			e => daedalusWatch(e, runWatchProvider),
+			e => daedalusWatch(e, runWatchProvider, watchers),
 		),
 
 		vscode.workspace.registerTextDocumentContentProvider(
 			DaedalusWatchContentProvider.scheme,
 			runWatchProvider,
-		)
+		),
 
 	)
+
+	// This will also launch the server.
+	client.start()
+
+	/**
+	* The VSCode LSP implementation is set up so that there can only be *one*
+	* handler for a given notification.  As a result, each watcher cannot
+	* independently listen to 'daedalus/run/watchResult', instead we need this
+	* one centralized listener to dispatch to the correct handler.
+	*/
+	client.onReady().then(() => {
+
+		context.subscriptions.push(
+
+			client.onNotification(
+				'daedalus/run/watchResult',
+				({ clientHandle, result }) => {
+					if (clientHandle in watchers) {
+						watchers[clientHandle](result)
+					} else {
+						vscode.window.showErrorMessage(
+							`Could not find ${clientHandle} in watchers ${Object.keys(watchers)}`
+						)
+					}
+				}
+			),
+
+		)
+
+	})
 
 }
 
@@ -88,6 +117,7 @@ export function deactivate(): Thenable<void> | undefined {
  */
 async function daedalusRunWatch(
 	editor: vscode.TextEditor,
+	uri: vscode.Uri,
 ): Promise<number> {
 
 	const c2p = client.code2ProtocolConverter
@@ -97,7 +127,7 @@ async function daedalusRunWatch(
 		arguments: [
 			c2p.asTextDocumentIdentifier(editor.document),
 			c2p.asPosition(editor.selection.active),
-			c2p.asUri(editor.document.uri),
+			c2p.asUri(uri),
 		],
 	}
 
@@ -132,6 +162,12 @@ function daedalusRunCancel(
 }
 
 
+let daedalusWatchCounter = 0
+
+
+type Watchers = { [uri: string]: (contents: string) => void }
+
+
 /**
  * Sends a watch request to the language server, and awaits either the
  * 'daedalus/run/watchResult' notification, or an intent from the user to cancel
@@ -144,31 +180,29 @@ function daedalusRunCancel(
 function daedalusWatch(
 	editor: vscode.TextEditor,
 	provider: DaedalusWatchContentProvider,
+	watchers: Watchers,
 ): Promise<void> {
 
 	return new Promise(async resolve => {
 
 		const cleanup = () => {
-			disposable.dispose()
-			editorClosedDispoable.dispose()
+			vscode.window.showInformationMessage('Cleaning up a Deadalus watcher.')
+			editorClosedDisposable.dispose()
 			resolve()
 		}
-
-		const lspCancellationToken = await daedalusRunWatch(editor)
 
 		// It is pleasant to have the file name in the tab label.
 		const editorName = editor.document.fileName
 		const uri = vscode.Uri.parse(
-			`${DaedalusWatchContentProvider.scheme}:${editorName}-${lspCancellationToken}`,
+			`${DaedalusWatchContentProvider.scheme}:${editorName}-${daedalusWatchCounter++}`,
 			true,
 		)
 
-		const disposable = client.onNotification(
-			'daedalus/run/watchResult',
-			({ _clientHandle, result }) => {
-				provider.update(uri, result)
-			}
-		)
+		// Register this watcher so that it updates the document on
+		// notifications.
+		watchers[uri.toString()] = (result: string) => provider.update(uri, result)
+
+		const lspCancellationToken = await daedalusRunWatch(editor, uri)
 
 		const doc = await vscode.workspace.openTextDocument(uri)
 
@@ -180,11 +214,19 @@ function daedalusWatch(
 
 		// When the user closes the virtual editor, we send the cancel message
 		// to the server.
-		const editorClosedDispoable =
-			vscode.window.onDidChangeVisibleTextEditors(e => {
-				if (!e.includes(lspEditor)) {
-					daedalusRunCancel(lspCancellationToken)
-					cleanup()
+		const editorClosedDisposable =
+			vscode.window.onDidChangeVisibleTextEditors(visibleEditors => {
+				// Not sure how to compare TextEditors, and the doc is lacking...
+				if (!visibleEditors.some(e => e.document.uri.toString() === lspEditor.document.uri.toString())) {
+					// This does not really work the way you'd expect: VSCode
+					// keeps documents open way past when the tab is closed.
+					// The API for accessing tab info has been in progress since
+					// 2016...  See
+					// https://github.com/microsoft/vscode/issues/15178
+					if (lspEditor.document.isClosed) {
+						daedalusRunCancel(lspCancellationToken)
+						cleanup()
+					}
 				}
 			})
 
