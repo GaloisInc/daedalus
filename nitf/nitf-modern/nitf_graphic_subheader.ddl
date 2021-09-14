@@ -9,52 +9,51 @@ def GraphicColor = Choose {
   mono = Match1 'M'
 }
 
-def GraphicHeader = {
-  SY ;
-  sid = Many 10 BCSA ;
-  sname = Many 20 ECSA ;
+def GraphicHeader = block
+  SY
+  sid = Many 10 BCSA
+  sname = Many 20 ECSA
 
-  common = CommonSubheader ;
+  common = CommonSubheader
 
-  Encryp ;
+  Encryp
 
-  SFmt ;
+  SFmt
 
-  sstruct = UnsignedNum 13 ;
+  sstruct = UnsignedNum 13
 
   -- TODO: this defines a global property to check
-  sdlvl = UnsignedNum 3 ;
+  sdlvl = UnsignedNum 3
 
-  salvl = AttachmentLvl ;
+  salvl = AttachmentLvl
 
-  sloc = Location ;
+  sloc = Location
 
-  sbnd1 = Location ;
+  sbnd1 = Location
 
-  scolor = GraphicColor ;
+  scolor = GraphicColor
 
   -- TODO: should this semantic value be validated against sbnd1?
-  sbnd2 = Location ;
+  sbnd2 = Location
 
-  sres2 = UnsignedNum 2 ;
+  sres2 = UnsignedNum 2
 
   -- TODO: refactor this into other subheaders
   sxshdl = Choose { -- NOTE-MODERN: nonoverlapping
-    notre = @(IsNum 5 0) ;
-    taggedrec = BoundedNum 5 3 9741
-  } ;
+      notre = @(IsNum 5 0) ;
+      taggedrec = BoundedNum 5 3 9741
+    }
 
   xssofl = Choose { -- NOTE-MODERN: This may overlap!!!
-    nooverflow = IsNum 3 0 ;
-    desseq = PosNumber 3 ;
-    omitted = sxshdl is notre ;
-  } ;
+      nooverflow = IsNum 3 0 ;
+      desseq = PosNumber 3 ;
+      omitted = sxshdl is notre ;
+    }
 
   sxshd = Choose { -- NOTE-MODERN: This may overlap!!!
-    tre = {
-      seq = sxshdl is taggedrec ;
-      Many (seq as! uint 64) Byte
-    } ;
-    ommitted = sxshdl is notre
-  } ;
-}
+      tre = {
+        seq = sxshdl is taggedrec ;
+        Many (seq as! uint 64) Byte
+      } ;
+      ommitted = sxshdl is notre
+    }
