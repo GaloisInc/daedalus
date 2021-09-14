@@ -1,0 +1,85 @@
+%PDF-1.4
+%‚„œ”
+% NOTE: no compressed objects, xref is stream
+% CATEGORY: good PDF
+CAVITY
+1 0 obj
+5
+endobj
+2 0 obj
+6
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Pages
+/MediaBox [0 0 842 595]
+/Kids [5 0 R]
+/Count 1
+>>
+endobj
+5 0 obj
+<<
+/Type /Page
+/Parent 4 0 R
+/Contents 6 0 R
+/Resources 9 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 68
+>>
+stream
+BT
+  /F1 24.0 Tf
+  1 0 0 1 50 555 Tm
+  12 TL
+  T*(HELLO WORLD)Tj
+ET
+
+endstream
+endobj
+7 0 obj
+7
+endobj
+8 0 obj
+<</Type /Font  /Subtype /Type1 /Name/F1 /BaseFont /Courier >>
+endobj
+9 0 obj
+<</Font<</F1 8 0 R>> >>
+endobj
+10 0 obj
+1000
+endobj
+11 0 obj
+999 % dead object (01234567890123456789)
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000089 00000 n 
+0000000106 00000 n 
+0000000123 00000 n 
+0000000172 00000 n 
+0000000253 00000 n 
+0000000333 00000 n 
+0000000451 00000 n 
+0000000468 00000 n 
+0000000545 00000 n 
+0000000584 00000 n 
+0000000605 00000 n 
+
+trailer
+<<
+/Size 12
+/Root 3 0 R
+>>
+startxref
+662
+%%EOF

@@ -1,0 +1,3 @@
+this program is used to generate the files in ../pdf_tests/handcrafted_minimal/, thus
+
+  runghc Main.hs ../pdf_tests/handcrafted_minimal/
