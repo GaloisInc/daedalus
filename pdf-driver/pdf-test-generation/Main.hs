@@ -86,22 +86,31 @@ ppCtgy = \case
                        
 ppLine (mc,s) = "  " ++ show mc ++ ": " ++ s
 
+
 ---- tests -------------------------------------------------------------------
 
 allTests =
+  -- these tests all based on the same "DOM" pdf1:
   [ Test "1_valid_xref_trad" pdf1 RT_XRef_Trad E_None Good
       ["no compressed objects, traditional xref table"]
       
-  , Test "1_invalid_xref_trad" pdf1 RT_XRef_Trad
+  , Test "1_invalid_xref_trad-a" pdf1 RT_XRef_Trad
       (E_Shell "sed" ["78s/000732/000733/"])
       (Probs [(Error    , "object id (11) mismatch")
              ,(NotStrict, "cavity with \"1\" in it, before object 11")
              ])
       ["no compressed objects, traditional xref table; object 11 pointing +1"]
       
+  , Test "1_invalid_xref_trad-b" pdf1 RT_XRef_Trad
+      (E_Shell "sed" ["61s/11 0 obj/23 0 obj/"])
+      (Probs [(Error , "object id (11 /= 23) mismatch")
+             ])
+      ["no compressed objects, traditional xref table; object 11 xref pointing to object 23"]
+      
   , Test "1_valid_xref_strm" pdf1 RT_XRef_Trad E_None  Good
       ["no compressed objects, xref is stream"]
-      
+
+  -- this is based on a DOM that uses "compressed objects":
   , Test "2_valid_xref_strm" pdf2 RT_XRef_Strm E_None Good
       ["compressed objects, thus xref is stream"]
       
