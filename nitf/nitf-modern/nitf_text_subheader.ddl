@@ -17,27 +17,24 @@ def TxShDL =
   (IsNum 5 0)
 | (BoundedNum 5 3 9717) -- NOTE-MODERN: nonoverlapping
 
-def TextHeader = {
-  TE ;
-  textid = TextId ;
-  txtalvl = AttachmentLvl ;
-  txtdt = PartialDateTime ;
-  txtitl = TxTitl ;
+def TextHeader = block
+  TE
+  textid = TextId
+  txtalvl = AttachmentLvl
+  txtdt = PartialDateTime
+  txtitl = TxTitl
 
-  common = CommonSubheader ;
+  common = CommonSubheader
 
-  Encryp ;
+  Encryp
 
-  txtfmt = TxtFmt ;
+  txtfmt = TxtFmt
 
-  txshdl = TxShDL as! uint 64;
+  txshdl = TxShDL as! uint 64
 
   Choose { -- NOTE-MODERN: seems overlapping but apparently not harmful
-    txsofl = {
-      UnsignedNum 3 ;
-    } ;
-    omitted = Guard (txshdl == 0);
-  } ;
+      txsofl = UnsignedNum 3 ;
+      omitted = Guard (txshdl == 0);
+    }
 
-  txshd = Many (txshdl - 3) BCSA ;
-}
+  txshd = Many (txshdl - 3) BCSA
