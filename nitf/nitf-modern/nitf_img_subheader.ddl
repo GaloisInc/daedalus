@@ -28,11 +28,10 @@ def BE = Many 10 AlphaNum
 
 def OSuffix = Many 5 AlphaNum
 
-def TgtId = {
-  be = DefaultSpaces 10 BE ;
-  osuffix = DefaultSpaces 5 OSuffix ;
+def TgtId = block
+  be = DefaultSpaces 10 BE
+  osuffix = DefaultSpaces 5 OSuffix
   country = DefaultSpaces 2 CountryCode
-}
 
 def IID2 = Many 80 Byte
 
@@ -118,61 +117,54 @@ def ICords = DefaultSpace (
     decimal = @Match1 'D' ;
   })
 
-def LatDeg = {
-  sign = Sign ;
-  @whole_digs = Many 2 Digit ;
-  whole = ^ numBase 10 whole_digs ;
-  Match1 '.' ;
-  @frac_digs = Many 3 Digit ;
-  frac = ^ numBase 10 frac_digs ;
-  Guard (whole < 90) | { Guard (whole == 90); Guard (frac == 0) } -- NOTE-MODERN: nonoverlapping
-}
+def LatDeg = block
+  sign = Sign
+  @whole_digs = Many 2 Digit
+  whole = ^ numBase 10 whole_digs
+  Match1 '.'
+  @frac_digs = Many 3 Digit
+  frac = ^ numBase 10 frac_digs
+  Guard (whole < 90 || ((whole == 90) && (frac == 0))) -- NOTE-MODERN: nonoverlapping and rewritten with one `Guard`
 
-def LongDeg = {
-  sign = Sign ;
-  @whole_digs = Many 3 Digit ;
-  whole = ^ numBase 10 whole_digs ;
-  Match1 '.' ;
-  @frac_digs = Many 3 Digit ;
-  frac = ^ numBase 10 frac_digs ;
-  Guard (whole < 180) | { Guard (whole == 180); Guard (frac == 0) } -- NOTE-MODERN: nonoverlapping
-}
 
-def Latitude = {
-  digs = PadMany 6 ' ' Numeral ;
+def LongDeg = block
+  sign = Sign
+  @whole_digs = Many 3 Digit
+  whole = ^ numBase 10 whole_digs
+  Match1 '.'
+  @frac_digs = Many 3 Digit
+  frac = ^ numBase 10 frac_digs
+  Guard (whole < 180 || ((whole == 180) && (frac == 0))) -- NOTE-MODERN: nonoverlapping and rewritten with one `Guard`
+
+def Latitude = block
+  digs = PadMany 6 ' ' Numeral
   hemi = Choose { -- NOTE-MODERN: nonoverlapping
-    north = @Match1 'N' ;
-    south = @Match1 'S' ;
-  }
-}
+      north = @Match1 'N' ;
+      south = @Match1 'S' ;
+    }
 
-def Longitude = {
-  digs = PadMany 7 ' ' Numeral ;
+def Longitude = block
+  digs = PadMany 7 ' ' Numeral
   hemi = Choose { -- NOTE-MODERN: nonoverlapping
-    east = @Match1 'E' ;
-    west = @Match1 'W' ;
-  }
-}
+      east = @Match1 'E' ;
+      west = @Match1 'W' ;
+    }
 
-def LatLong = {
-  lat = Latitude ;
+def LatLong = block
+  lat = Latitude
   long = Longitude
-}
 
-def UtmZone = {
-  zone = BoundedNum 2 1 60 ;
-}
+def UtmZone = block
+  zone = BoundedNum 2 1 60
 
-def FiveDigitNum = {
-  @v = Many 5 Digit ;
+def FiveDigitNum = block
+  @v = Many 5 Digit
   ^ numBase 10 v
-}
 
-def PlainUtm = {
-  utm = Many 2 Numeral ;
-  easting = Many 6 Numeral ;
-  northing = Many 7 Numeral ;
-}
+def PlainUtm = block
+  utm = Many 2 Numeral
+  easting = Many 6 Numeral
+  northing = Many 7 Numeral
 
 def OmitIO lb ub = Match1 (
   lb .. 'H'
@@ -180,16 +172,15 @@ def OmitIO lb ub = Match1 (
 | 'P' .. ub
 )
 
-def MGRS = {
-  zone_num = Many 2 Digit ;
-  zone_band = OmitIO 'C' 'X';
-  sq_id = {
-    col_id = OmitIO 'A' 'Z' ;
-    row_id = OmitIO 'A' 'V' ;
-  } ;
-  easting = Many 5 Numeral ;
+def MGRS = block
+  zone_num = Many 2 Digit
+  zone_band = OmitIO 'C' 'X'
+  sq_id =
+    block
+      col_id = OmitIO 'A' 'Z'
+      row_id = OmitIO 'A' 'V'
+  easting = Many 5 Numeral
   northing = Many 5 Numeral
-}
 
 def EqLat l0 l1 = {
   Guard (l0.sign == l1.sign) ;
@@ -200,17 +191,29 @@ def EqLat l0 l1 = {
 -- TODO: refine this to allow only rectangles or triangles
 --XXX: This can be one single expression
 def OrdLong left right =
--- NOTE-MODERN: That seems nonoverlapping
-  { Guard (left.sign == '-') ; Guard (right.sign == '+') }
-| { Guard (left.sign == right.sign) ;
-    (  { Guard (left.sign == '-') ;
-           Guard (left.whole > right.whole)
-         | { Guard (left.whole == right.whole) ;
-             Guard (left.frac >= right.frac) } }
-     | { Guard (left.sign == '+') ;
-           Guard (left.whole < right.whole)
-         | { Guard (left.whole == right.whole) ;
-             Guard (left.frac <= right.frac) } } ) }
+-- NOTE-MODERN: was nonoverlapping and rewritten with one `Guard`
+  Guard (
+  ( (left.sign == '-') && (right.sign == '+'))
+  || ( (left.sign == right.sign)
+     &&
+       ( ( (left.sign == '-')
+         && (  (left.whole > right.whole)
+            || ( (left.whole == right.whole)
+               &&
+                 (left.frac >= right.frac)
+               )
+            )
+         )
+       || ( (left.sign == '+')
+          &&
+            ( (left.whole < right.whole)
+            || ( (left.whole == right.whole) &&
+                 (left.frac <= right.frac) )
+            )
+          )
+       )
+     )
+   )
 
 def IGeoLo = Choose1 { -- NOTE-MODERN: seams nonoverlapping
   decimal_degs = {
@@ -398,13 +401,13 @@ def NBPP abpp (ic : IC) = {
       | ic is i1
       | ic is m3
       | ic is m5 ;
-        Guard ($$ == 8)
-      | Guard ($$ == 12) }
+        Guard ($$ == 8 || $$ == 12)
+    }
   <| { ic is c1 ; -- NOTE-MODERN: changed to <| to prevent multiple parses
       Guard ($$ == 1) }
   <| {   ic is c1
       | ic is m8 ;
-      Guard (1 <= $$) ; Guard ($$ <= 38) }
+      Guard (1 <= $$ && $$ <= 38) }
   <| {   ic is c4
       | ic is c6
       | ic is c7
@@ -457,8 +460,7 @@ def IXShD n = Many (n - 3) Byte
 def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nluts =
   { irep is nodisplay ;
     irepband is default ;
-      { Guard (1 <= nbands) ; Guard (nbands <= 9) }
-    | Guard (nbands == 0) ;
+    Guard (((1 <= nbands) && (nbands <= 9)) || nbands == 0) ;
       pvtype is integer
     | pvtype is real
     | pvtype is complex
@@ -473,7 +475,7 @@ def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nlu
       pvtype is integer
     | pvtype is real
     | pvtype is bilevel ;
-    Guard (0 <= nluts) ; Guard (nluts <= 2) }
+    Guard ((0 <= nluts) && (nluts <= 2)) }
 | { irep is rgb ;
       irepband is red
     | irepband is green
@@ -497,8 +499,7 @@ def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nlu
     Guard (nluts == 0) }
 | { irep is cartesian ;
     irepband is default ;
-      { Guard (1 <= nbands) ; Guard (nbands <=  9) }
-    | Guard (nbands == 0) ;
+    Guard ( ((1 <= nbands) && (nbands <=  9)) || (nbands == 0)) ;
       pvtype is integer
     | pvtype is real
     | pvtype is complex ;
@@ -525,9 +526,8 @@ def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nlu
     | irepband is green
     | irepband is blue
     | irepband is lutBand ;
-      { Guard (2 <= nbands) ; Guard (nbands <= 9) }
-    | Guard (nbands == 0) ;
-    Guard (0 <= nluts) ; Guard (nluts <= 3)
+    Guard (((2 <= nbands) && (nbands <= 9)) || (nbands == 0)) ;
+    Guard ((0 <= nluts) && (nluts <= 3))
   }
 
 def CatIntLow nbpp abpp = {
@@ -536,16 +536,18 @@ def CatIntLow nbpp abpp = {
 }
 
 def CatIntMid nbpp abpp =
-  { Guard (nbpp == 12) ;
-    Guard (8 <= abpp) ; Guard (nbpp <= 12) }
-| { Guard (nbpp == 16) ;
-    Guard (9 <= abpp) ; Guard (nbpp <= 16) }
+  Guard (
+    ((nbpp == 12) && (8 <= abpp) && (nbpp <= 12))
+    ||
+    ((nbpp == 16) && (9 <= abpp) && (nbpp <= 16))
+  )
 
 def CatIntHigh nbpp abpp =
-  { Guard (nbpp == 32) ;
-    Guard (17 <= abpp) ; Guard (nbpp <= 32) }
-| { Guard (nbpp == 64) ;
-    Guard (33 <= abpp) ; Guard (nbpp <= 64) }
+  Guard (
+    ((nbpp == 32) && (17 <= abpp) && (nbpp <= 32))
+    ||
+    ((nbpp == 64) && (33 <= abpp) && (nbpp <= 64))
+  )
 
 def CatIntEnds nbpp abpp =
   CatIntLow nbpp abpp
@@ -556,13 +558,14 @@ def CatIntFull nbpp abpp =
 | CatIntMid nbpp abpp
 
 def CatReals nbpp abpp =
-  { Guard (nbpp == 32) ; Guard (abpp == 32) }
-| { Guard (nbpp == 64) ; Guard (abpp == 64) }
+  Guard (
+    ((nbpp == 32) && (abpp == 32))
+    ||
+    ((nbpp == 64) && (abpp == 64))
+  )
 
-def CatComplex nbpp abpp = {
-  Guard (nbpp == 64) ;
-  Guard (abpp == 64)
-}
+def CatComplex nbpp abpp =
+  Guard (nbpp == 64 && abpp == 64)
 
 -- CatParams: formalization of Table A-2(A)
 -- DOC: is there a way to do total pattern matching on a sum type?
@@ -575,8 +578,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
         pvtype is bilevel ;
         Guard (nbpp == 1) ;
         Guard (abpp == 1) }
-    | {   Guard (nbands == 1)
-        | Guard (nbands == 3) ;
+    | { Guard ((nbands == 1) || (nbands == 3)) ;
           { pvtype is integer ; CatIntFull nbpp abpp }
         | { pvtype is real ; CatReals nbpp abpp } } }
 | {   icat is sideLooking
@@ -610,8 +612,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
     | icat is legends ;
       isubcat is default
     | @(isubcat is userdef) ;
-      Guard (nbands == 1)
-    | Guard (nbands == 3) ;
+    Guard ((nbands == 1) || (nbands == 3)) ;
     pvtype is integer ; CatIntEnds nbpp abpp }
 | { icat is locationGrid ;
       isubcat is easting
@@ -635,8 +636,8 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
     | icat is hyperSpectral ;
       @(isubcat is waveLength)
     | isubcat is default ; -- required for milsamples, but does it match spec?
-      { Guard (2 <= nbands) ; Guard (nbands <= 9) }
-    | Guard (nbands == 0) ;
+    Guard (((2 <= nbands) && (nbands <= 9))
+          || (nbands == 0)) ;
       {   pvtype is integer
         | pvtype is signed ;
         CatIntFull nbpp abpp }
@@ -649,11 +650,10 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
     | isubcat is phase
     | isubcat is default ;
       { Guard (nbands == 1) ; pvtype is complex ; CatComplex nbpp abpp }
-    | {   Guard (nbands == 1)
-        | Guard (nbands == 2) ;
-          {   pvtype is integer
-            | pvtype is signed ;
-            CatIntFull nbpp abpp }
+    | { Guard ( (nbands == 1) || (nbands == 2)) ;
+        {   pvtype is integer
+          | pvtype is signed ;
+          CatIntFull nbpp abpp }
         | { pvtype is real ; CatReals nbpp abpp } } }
 | {   icat is airWind
     | icat is waterCurrent ;

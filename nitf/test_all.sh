@@ -4,7 +4,8 @@
 TMPFILE="/dev/null"
 NITF_FOLDER=""
 USING_GEN=""
-
+DAEDALUS="cabal run ../:daedalus --"
+DAEDALUS="/daedalus/nitf_cpp_parser/parser"
 
 GWG_DIR=./gwg.nga.mil_samples
 
@@ -40,6 +41,7 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
+            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus -- ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
 
                 printf "pass\n"
@@ -59,6 +61,7 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
+            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus --  ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
