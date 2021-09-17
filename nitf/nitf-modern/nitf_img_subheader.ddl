@@ -261,13 +261,14 @@ def IC = Choose { -- NOTE-MODERN: nonoverlapping
 
 def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
   dim_coding = {
-      ic is c1
-    | ic is m1 ;
-    Choose { -- NOTE-MODERN: nonoverlapping
-      oned = @(PadMatch 4 ' ' "1D") ;
-      twods = @(PadMatch 4 ' ' "2DS") ;
-      twodh = @(PadMatch 4 ' ' "2DH") ;
-    } ;
+    case ic of {
+      c1, m1 ->
+        Choose { -- NOTE-MODERN: nonoverlapping
+          oned = @(PadMatch 4 ' ' "1D") ;
+          twods = @(PadMatch 4 ' ' "2DS") ;
+          twodh = @(PadMatch 4 ' ' "2DH") ;
+        } ;
+    }
   } ;
   quant_tables = {
       ic is c3
@@ -302,37 +303,20 @@ def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
 }
 
 
-def NBands (irep : IRep) = ( -- NOTE-MODERN: This is overlapping at the end
-  { irep is nodisplay ;
-    Digit as uint 64;
+def NBands (irep : IRep) =
+  case irep of { -- NOTE-MODERN: This is overlapping at the end
+    nodisplay  -> Digit as uint 64;
+    monochrome -> IsNum 1 1;
+    rgb        -> IsNum 1 3;
+    rgblut     -> IsNum 1 1;
+    itur       -> IsNum 3 3;
+    cartesian  -> Digit as uint 64;
+    polar      -> IsNum 1 2;
+    sar        -> IsNum 1 1;
+    multi      -> (  IsNum 1 0
+                  <| BoundedNum 1 2 9);
+    _          -> IsNum 1 0
   }
-<| { irep is monochrome ;
-    IsNum 1 1
-  }
-<| { irep is rgb ;
-    IsNum 1 3
-  }
-<| { irep is rgblut ;
-    IsNum 1 1
-  }
-<| { irep is itur ;
-    IsNum 3 3
-  }
-<| { irep is cartesian ;
-    Digit as uint 64
-  }
-<| { irep is polar ;
-    IsNum 1 2
-  }
-<| { irep is sar ;
-    IsNum 1 1
-  }
-<| { irep is multi ;
-      IsNum 1 0
-    <| BoundedNum 1 2 9
-  }
-<| IsNum 1 0
-)
 
 def XBands n = BoundedNum 5 10 99999
 
@@ -393,32 +377,15 @@ def NPPBH = UpperBounded 4 8192
 
 def NPPBV = UpperBounded 4 8192
 
-def NBPP abpp (ic : IC) = {
-  $$ = BoundedPos 2 96 ;
-  Guard ($$ >= abpp) ;
-    {   ic is c3
-      | ic is c5
-      | ic is i1
-      | ic is m3
-      | ic is m5 ;
-        Guard ($$ == 8 || $$ == 12)
+def NBPP abpp (ic : IC) = block
+  $$ = BoundedPos 2 96
+  Guard ($$ >= abpp)
+  case ic of { -- NOTE-MODERN: changed to `case` to prevent multiple parses
+      c3, c5, i1, m3, m5 -> Guard ($$ == 8 || $$ == 12);
+      c1                 -> Guard ($$ == 1);
+      c1, m8             -> Guard (1 <= $$ && $$ <= 38);
+      c4, c6, c7, c8, m1, m4, m6, m7, nc, nm -> {}
     }
-  <| { ic is c1 ; -- NOTE-MODERN: changed to <| to prevent multiple parses
-      Guard ($$ == 1) }
-  <| {   ic is c1
-      | ic is m8 ;
-      Guard (1 <= $$ && $$ <= 38) }
-  <| {   ic is c4
-      | ic is c6
-      | ic is c7
-      | ic is c8
-      | ic is m1
-      | ic is m4
-      | ic is m6
-      | ic is m7
-      | ic is nc
-      | ic is nm }
-}
 
 def IDLvl = BoundedNum 3 1 999
 
@@ -458,76 +425,93 @@ def IXShD n = Many (n - 3) Byte
 
 -- encoding of display-dependent parameters (Table A-2)
 def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nluts =
-  { irep is nodisplay ;
-    irepband is default ;
-    Guard (((1 <= nbands) && (nbands <= 9)) || nbands == 0) ;
-      pvtype is integer
-    | pvtype is real
-    | pvtype is complex
-    | pvtype is bilevel
-    | pvtype is signed ;
-    Guard (nluts == 0) }
-| { irep is monochrome ;
-      irepband is lutBand
-    | irepband is monoBand
-    | irepband is default;
-    Guard (nbands == 1);
-      pvtype is integer
-    | pvtype is real
-    | pvtype is bilevel ;
-    Guard ((0 <= nluts) && (nluts <= 2)) }
-| { irep is rgb ;
-      irepband is red
-    | irepband is green
-    | irepband is blue ;
-    Guard (nbands == 3);
-      pvtype is integer
-    | pvtype is real ;
-    Guard (nluts == 0) }
-| { irep is rgblut ;
-    irepband is lutBand ;
-    Guard (nbands == 1) ;
-      pvtype is integer
-    | pvtype is real ;
-    Guard (nluts == 3) }
-| { irep is itur ;
-      irepband is luminance
-    | irepband is chrominanceBlue
-    | irepband is chrominanceRed ;
-    Guard (nbands == 3) ;
-    pvtype is integer ;
-    Guard (nluts == 0) }
-| { irep is cartesian ;
-    irepband is default ;
-    Guard ( ((1 <= nbands) && (nbands <=  9)) || (nbands == 0)) ;
-      pvtype is integer
-    | pvtype is real
-    | pvtype is complex ;
-    Guard (nluts == 0) }
-| { irep is polar ;
-      irepband is default
-    | irepband is monoBand ;
-    Guard (nbands == 2) ;
-      pvtype is integer
-    | pvtype is real
-    | pvtype is complex ;
-    Guard (nluts == 0) }
-| { irep is sar ;
-    irepband is default ;
-    Guard (nbands == 2) ;
-      pvtype is integer
-    | pvtype is real
-    | pvtype is complex ;
-    Guard (nluts == 0) }
-| { irep is multi ;
-      irepband is default
-    | irepband is monoBand
-    | irepband is red
-    | irepband is green
-    | irepband is blue
-    | irepband is lutBand ;
-    Guard (((2 <= nbands) && (nbands <= 9)) || (nbands == 0)) ;
-    Guard ((0 <= nluts) && (nluts <= 3))
+  case irep of {
+    nodisplay -> {
+      case irepband of {
+        default ->
+          case pvtype of {
+            integer , real , complex , bilevel , signed ->
+              Guard ((((1 <= nbands) && (nbands <= 9)) || nbands == 0) && (nluts == 0));
+            };
+        };
+      };
+
+    monochrome -> {
+      case irepband of {
+        lutBand, monoBand, default ->
+          case pvtype of {
+            integer, real, bilevel ->
+              Guard ((nbands == 1) && ((0 <= nluts) && (nluts <= 2)));
+          };
+        };
+      };
+
+    rgb ->
+      case irepband of {
+        red, green, blue ->
+          case pvtype of {
+            integer, real -> Guard ((nbands == 3) && (nluts == 0));
+          };
+      };
+
+    rgblut ->
+      case irepband of {
+        lutBand ->
+          case pvtype of {
+            integer, real -> Guard ((nbands == 1) && (nluts == 3));
+          };
+      };
+
+    itur -> {
+      case irepband of {
+        luminance, chrominanceBlue, chrominanceRed ->
+          case pvtype of {
+            integer ->
+              Guard ((nbands == 3) && (nluts == 0));
+          };
+        };
+      };
+
+    cartesian -> {
+      case irepband of {
+        default ->
+          case pvtype of {
+            integer , real , complex ->
+              Guard ((((1 <= nbands) && (nbands <= 9)) || nbands == 0) && (nluts == 0));
+            };
+        };
+      };
+
+    polar -> {
+      case irepband of {
+        default, monoBand ->
+          case pvtype of {
+            integer , real , complex ->
+              Guard ( nbands == 2 && nluts == 0 );
+            };
+        };
+      };
+
+    sar -> {
+      case irepband of {
+        default ->
+          case pvtype of {
+            integer , real , complex ->
+              Guard ( nbands == 2 && nluts == 0 );
+            };
+        };
+      };
+
+  multi -> {
+    case irepband of {
+      default, monoBand, red, green, blue, lutBand ->
+        Guard (
+          (((2 <= nbands) && (nbands <= 9)) || (nbands == 0))
+          &&
+          ((0 <= nluts) && (nluts <= 3))
+        );
+      };
+    }
   }
 
 def CatIntLow nbpp abpp = {
@@ -570,111 +554,162 @@ def CatComplex nbpp abpp =
 -- CatParams: formalization of Table A-2(A)
 -- DOC: is there a way to do total pattern matching on a sum type?
 def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp abpp =
-  {   icat is visible
-    | icat is optical ;
-      isubcat is default
-    | @(isubcat is userdef) ;
-      { Guard (nbands == 1) ;
-        pvtype is bilevel ;
-        Guard (nbpp == 1) ;
-        Guard (abpp == 1) }
-    | { Guard ((nbands == 1) || (nbands == 3)) ;
-          { pvtype is integer ; CatIntFull nbpp abpp }
-        | { pvtype is real ; CatReals nbpp abpp } } }
-| {   icat is sideLooking
-    | icat is thermalInfrared
-    | icat is forwardLooking
-    | icat is radar
-    | icat is electroOptical
-    | icat is highResolution
-    | icat is blackWhitePhoto
-    | icat is fingerprints
-    | icat is video
-    | icat is catScans
-    | icat is mri
-    | icat is xray ;
-      isubcat is default
-    | @(isubcat is userdef) ;
-    Guard (nbands == 1) ;
-      { pvtype is integer ; CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
-| { icat is infrared ;
-    Guard (nbands == 1) ;
-      { pvtype is integer ; CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
-| {   icat is colorPhoto
-    | icat is colorPatch ;
-      isubcat is default
-    | @(isubcat is userdef) ;
-    Guard (nbands == 3) ;
-    pvtype is integer ; CatIntEnds nbpp abpp }
-| {   icat is rasterMap
-    | icat is legends ;
-      isubcat is default
-    | @(isubcat is userdef) ;
-    Guard ((nbands == 1) || (nbands == 3)) ;
-    pvtype is integer ; CatIntEnds nbpp abpp }
-| { icat is locationGrid ;
-      isubcat is easting
-    | isubcat is northing
-    | isubcat is longitude
-    | isubcat is latitude ;
-    Guard (nbands == 2) ;
-      {   pvtype is integer
-        | pvtype is signed ;
-        CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
-| { icat is otherMatrix ;
-    isubcat is userdef ;
-    Guard (1 <= nbands) ; Guard (nbands <= 9) ;
-      { pvtype is complex ; CatComplex nbpp abpp }
-    | {   pvtype is integer
-        | pvtype is signed ;
-        CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
-| {   icat is multiSpectral
-    | icat is hyperSpectral ;
-      @(isubcat is waveLength)
-    | isubcat is default ; -- required for milsamples, but does it match spec?
-    Guard (((2 <= nbands) && (nbands <= 9))
-          || (nbands == 0)) ;
-      {   pvtype is integer
-        | pvtype is signed ;
-        CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
-| {   icat is synthApertureRadar
-    | icat is sarRadioHologram ;
-      isubcat is inphase
-    | isubcat is quadrature
-    | isubcat is magnitude
-    | isubcat is phase
-    | isubcat is default ;
-      { Guard (nbands == 1) ; pvtype is complex ; CatComplex nbpp abpp }
-    | { Guard ( (nbands == 1) || (nbands == 2)) ;
-        {   pvtype is integer
-          | pvtype is signed ;
-          CatIntFull nbpp abpp }
-        | { pvtype is real ; CatReals nbpp abpp } } }
-| {   icat is airWind
-    | icat is waterCurrent ;
-      isubcat is speed
-    | isubcat is direct ;
-    Guard (nbands == 2) ;
-    pvtype is integer ;
-    Guard (nbpp == 8) ;
-    Guard (2 <= abpp) ; Guard (abpp <= 8) }
-| {   icat is barometric
-    | icat is waterDepth ;
-    Guard (nbands == 1) ;
-    pvtype is integer ;
-      CatIntLow nbpp abpp
-    | CatIntMid nbpp abpp }
-| { icat is elevationModel ;
-    Guard (nbands == 1) ;
-      {   pvtype is integer
-        | pvtype is signed ;
-        CatIntFull nbpp abpp }
-    | { pvtype is real ; CatReals nbpp abpp } }
+  case icat of {
+    visible, optical ->
+      case isubcat of {
+        default, userdef ->
+          case pvtype of {
+            bilevel -> Guard ((nbands == 1) && (nbpp == 1) && (abpp == 1));
+            _ -> {
+              Guard ((nbands == 1) || (nbands == 3)) ;
+              case pvtype of {
+                integer -> CatIntFull nbpp abpp;
+                real -> CatReals nbpp abpp
+              }
+              };
+            };
+        };
+
+    sideLooking,
+    thermalInfrared,
+    forwardLooking,
+    radar,
+    electroOptical,
+    highResolution,
+    blackWhitePhoto,
+    fingerprints,
+    video,
+    catScans,
+    mri,
+    xray -> {
+      case isubcat of {
+        default, userdef -> {
+          Guard (nbands == 1) ;
+          case pvtype of {
+            integer -> CatIntFull nbpp abpp;
+            real    -> CatReals nbpp abpp;
+          }
+        };
+      }
+      };
+
+    infrared -> {
+      Guard (nbands == 1) ;
+      case pvtype of {
+        integer -> CatIntFull nbpp abpp;
+        real    -> CatReals nbpp abpp;
+      }
+      };
+
+    colorPhoto, colorPatch -> {
+      case isubcat of {
+        default, userdef -> {
+          Guard (nbands == 3) ;
+          case pvtype of {
+            integer -> CatIntEnds nbpp abpp;
+            }
+          };
+      }
+      };
+
+    rasterMap, legends -> {
+      case isubcat of {
+        default, userdef -> {
+          Guard ((nbands == 1) || (nbands == 3)) ;
+          case pvtype of {
+            integer -> CatIntEnds nbpp abpp;
+          }
+          };
+        }
+      };
+
+    locationGrid -> {
+      case isubcat of {
+        easting, northing, longitude, latitude -> {
+          case pvtype of {
+            integer, signed -> {
+              Guard (nbands == 2) ;
+              CatIntFull nbpp abpp
+              };
+            real -> CatReals nbpp abpp;
+          };
+        };
+      }
+      };
+
+    otherMatrix -> {
+      case isubcat of {
+        userdef -> {
+          case pvtype of {
+            complex -> {
+                Guard ((1 <= nbands) && (nbands <= 9)) ;
+                CatComplex nbpp abpp
+              };
+            integer, signed -> CatIntFull nbpp abpp;
+            real -> CatReals nbpp abpp;
+          };
+          };
+      }
+      };
+
+    multiSpectral, hyperSpectral -> {
+      case isubcat of {
+        waveLength, default -> {
+          case pvtype of { -- required for milsamples, but does it match spec?
+            integer, signed -> {
+              Guard (((2 <= nbands) && (nbands <= 9))
+                    || (nbands == 0)) ;
+              CatIntFull nbpp abpp};
+            real -> CatReals nbpp abpp;
+            }
+          };
+        }
+      };
+
+    synthApertureRadar, sarRadioHologram ->
+      case isubcat of {
+        inphase, quadrature, magnitude, phase, default ->
+          case pvtype of {
+            complex -> { Guard (nbands == 1) ; CatComplex nbpp abpp };
+            _ -> {
+              Guard ( (nbands == 1) || (nbands == 2) ) ;
+              case pvtype of {
+                integer, signed -> CatIntFull nbpp abpp;
+                real -> CatReals nbpp abpp;
+                }
+              };
+          };
+      };
+
+    airWind, waterCurrent ->
+      case isubcat of {
+        speed, direct -> {
+          Guard (nbands == 2) ;
+          case pvtype of {
+            integer ->
+              Guard ((nbpp == 8) && (2 <= abpp) && (abpp <= 8));
+            };
+          };
+        };
+
+    barometric, waterDepth -> {
+      Guard (nbands == 1) ;
+      case pvtype of {
+        integer -> {
+              CatIntLow nbpp abpp
+            | CatIntMid nbpp abpp
+          };
+        };
+      };
+
+    elevationModel -> {
+      Guard (nbands == 1) ;
+      case pvtype of {
+        integer, signed -> CatIntFull nbpp abpp;
+        real -> CatReals nbpp abpp;
+        }
+      };
+}
 
 -- ISHeader: an image segment header
 def ISHeader = {
@@ -714,21 +749,11 @@ def ISHeader = {
   ic = IC ;
 
   Choose { -- NOTE-MODERN: nonoverlapping
-    comrat = {
-        ic is c1
-      | ic is c3
-      | ic is c4
-      | ic is c5
-      | ic is c6
-      | ic is c8
-      | ic is m1
-      | ic is m3
-      | ic is m4
-      | ic is m5
-      | ic is m8
-      | ic is i1 ;
-      ComRat ic
-    } ;
+    comrat =
+      case ic of {
+        c1, c3, c4, c5, c6, c8, m1, m3, m4, m5, m8, i1 -> ComRat ic;
+      };
+
     empty =
         ic is nc
       | ic is nm

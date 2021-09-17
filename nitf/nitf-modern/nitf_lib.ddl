@@ -360,12 +360,13 @@ def Declassification = {
       Date
     } ;
     nodate = {
-      ( dctp is event
-      | dctp is eventlv
-      | dctp is oadr
-      | dctp is exempt
-      | dctp is none) ;
-      Spaces 8
+      case dctp of {
+        event,
+        eventlv,
+        oadr,
+        exempt,
+        none -> Spaces 8
+      }
     }
   } ;
   dxcm = Choose { -- NOTE-MODERN: nonoverlapping
@@ -379,57 +380,57 @@ def Declassification = {
         { Guard (1   <= v && v <= 8)   }
       | { Guard (251 <= v && v <= 259) }
     } ;
-    notexempt = @{
-        dctp is date
-      | dctp is event
-      | dctp is datelv
-      | dctp is eventlv
-      | dctp is oadr
-      | dctp is none ;
-      Spaces 4 ;
-    }
+    notexempt =
+      case dctp of {
+        date,
+        event,
+        datelv,
+        eventlv,
+        oadr,
+        none -> Spaces 4 ;
+      } ;
   } ;
   dg = Choose { -- NOTE-MODERN: nonoverlapping
     actual = {
-        dctp is datelv
-      | dctp is eventlv ;
-      DefaultSpace (
-        Choose { -- NOTE-MODERN: nonoverlapping
-          secret = @Match1 'S' ;
-          confidential = @Match1 'C' ;
-          restricted = @Match1 'R' ;
-        })
+      case dctp of {
+        datelv, eventlv ->
+          DefaultSpace (
+            Choose { -- NOTE-MODERN: nonoverlapping
+              secret = @Match1 'S' ;
+              confidential = @Match1 'C' ;
+              restricted = @Match1 'R' ;
+            });
+      }
     } ;
-    none = @{
-        dctp is date
-      | dctp is event
-      | dctp is oadr
-      | dctp is exempt
-      | dctp is none ;
-      Spaces 1 ;
-    }
+    none =
+      case dctp of {
+        date,
+        event,
+        oadr,
+        exempt,
+        none -> Spaces 1 ;
+      } ;
   } ;
   dgdt = Choose { -- NOTE-MODERN: nonoverlapping
     hasdgdt = {
       dctp is datelv ;
       Date
     } ;
-    nodgdt = @{
-        dctp is date
-      | dctp is event
-      | dctp is eventlv
-      | dctp is oadr
-      | dctp is exempt
-      | dctp is none ;
-      Spaces 8 ;
-    }
+    nodgdt =
+      case dctp of {
+        date,
+        event,
+        eventlv,
+        oadr,
+        exempt,
+        none -> Spaces 8 ;
+      } ;
   } ;
   cltx = Choose1 { -- NOTE-MODERN: fixed to `Choose1` bc overlapping on SPACE char
-    hascltx = {
-        dctp is datelv
-      | dctp is eventlv ;
-      Many 43 ECSA
-    } ;
+    hascltx =
+      case dctp of {
+        datelv, eventlv -> Many 43 ECSA
+      } ;
     nocltx = Spaces 43 ;
   }
 }
