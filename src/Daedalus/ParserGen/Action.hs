@@ -685,7 +685,19 @@ evalCase :: GblFuns -> Val -> Maybe [TCPat] -> Maybe (Map.Map Name Val)
 evalCase _gbl v lpat =
   case lpat of
     Nothing -> Just (Map.empty)
-    Just (pat : []) ->
+    Just pats ->
+      iterateOnPats pats
+
+  where
+    iterateOnPats pats =
+      case pats of
+        [] -> Nothing
+        p : ps ->
+          case tryPat p of
+            Nothing -> iterateOnPats ps
+            r@(Just _) -> r
+
+    tryPat pat =
       case pat of
         TCConPat _ lbl binding ->
           case v of
@@ -716,7 +728,6 @@ evalCase _gbl v lpat =
               else Nothing
             _ -> error "type error: should be a Bool"
         _ -> error ("TODO not handled pat" ++ show pat)
-    _ -> error "TODO: not handled list"
 
 callCExpr :: GblFuns -> NCExpr -> NCExpr
 callCExpr gbl expr =
