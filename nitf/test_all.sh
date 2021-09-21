@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Examples
+# ./test_all.sh
+# ./test_all.sh
+# ./test_all.sh --count --gen
+# ./test_all.sh --gwg
 
 TMPFILE="/dev/null"
 NITF_FOLDER=""
@@ -79,7 +84,7 @@ test_gwg(){
     find "${GWG_DIR}" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf '%s ... ' "$file"
-        if cabal run ../:daedalus -- nitf-modern/nitf_main.ddl -i"$file" > ${TMPFILE}; then
+        if cabal run ../:daedalus -- ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then

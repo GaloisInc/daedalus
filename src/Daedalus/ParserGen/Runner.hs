@@ -5,8 +5,6 @@ module Daedalus.ParserGen.Runner
   , extractValues
   , extractMetrics
   )
-
-
 where
 
 -- import Debug.Trace
@@ -136,7 +134,7 @@ data BacktrackStack =
   deriving(Show)
 
 
-addLevel ::  BacktrackStackInfo -> BacktrackStack -> Cfg -> CommitStack -> Choice -> BacktrackStack
+addLevel :: BacktrackStackInfo -> BacktrackStack -> Cfg -> CommitStack -> Choice -> BacktrackStack
 {-# INLINE addLevel #-}
 addLevel info tpath cfg cstk ch =
   BLevel info tpath cfg cstk ch
@@ -145,6 +143,9 @@ addLevel info tpath cfg cstk ch =
 -- The Resumption data-type is the combination of the BacktrackStack
 -- and CommitStack that are somewhat synchronized.
 
+-- This duplication is for performance reason where the `CommitStack`
+-- is all the data needed to do the different cuts without going
+-- through the whole stack.
 type Resumption = (CommitStack, BacktrackStack, DepthComputation, Maybe ResumptionTip)
 type ResumptionTip = (Cfg, (Action, State))
 
