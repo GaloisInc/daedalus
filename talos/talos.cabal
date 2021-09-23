@@ -33,6 +33,7 @@ library
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
                      , Talos.Analysis.Domain
+                     , Talos.Analysis.Fixpoint                     
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
