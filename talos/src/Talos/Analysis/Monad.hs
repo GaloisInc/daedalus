@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# LANGUAGE TupleSections #-}
-module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, PathRootMap
+module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, PathRootMap, makeDeclInvs
                             , Summary (..), Summaries, IterM, AnalysisState(..)
                             , module Export) where
 
