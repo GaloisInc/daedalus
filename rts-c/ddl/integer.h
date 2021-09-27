@@ -105,7 +105,7 @@ public:
   Size asSize() {
     size_t x;
     exportI(x);
-    return Size(x);
+    return Size{x};
   }
 
 
@@ -358,15 +358,19 @@ Integer operator ^ (Integer x, Integer y) {
 // owned, unmanaged
 // XXX: remove in favor of size
 static inline
-Integer operator << (Integer x, UInt<64> iamt) { return x << Size{iamt.rep()}; }
+Integer operator << (Integer x, UInt<64> iamt) {
+  return x << Size::from(iamt.rep());
+}
 
 // owned, unmanaged
 // XXX: remove in favor of size
 static inline
-Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size{iamt.rep()}; }
+Integer operator >> (Integer x, UInt<64> iamt) {
+  return x >> Size::from(iamt.rep());
+}
 
 template <size_t b>
-Integer lcat(Integer x, UInt<b> y) { return (x << Size(b)) | Integer(y.rep()); }
+Integer lcat(Integer x, UInt<b> y) { return (x << Size{b}) | Integer(y.rep()); }
 
 
 

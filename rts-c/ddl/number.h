@@ -107,7 +107,7 @@ public:
   bool operator >  (UInt x) { return rep() >  x.rep(); }
   bool operator >= (UInt x) { return rep() >= x.rep(); }
 
-  Size asSize() { return Size(rep()); }  // used in array
+  Size asSize() { return Size::from(rep()); }  // used in array
 };
 
 
@@ -229,7 +229,7 @@ public:
   SInt operator << (Size x) { return SInt(data << x.rep()); }
   SInt operator >> (Size x) { return SInt(data >> x.rep()); }
 
-  Size asSize() { return Size(rep()); } // used in array
+  Size asSize() { return Size::from(rep()); } // used in array
 };
 
 

@@ -545,9 +545,9 @@ cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ n ])
-      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
+      where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ n ])
-      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
+      where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
 
     Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
     Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]
@@ -569,7 +569,7 @@ cOp2 x op2 ~[e1',e2'] =
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
     Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 i)
-      where i = cCallCon "DDL::Size" [cCallMethod e2 "rep" []]
+      where i = cCall "DDL::Size::from" [cCallMethod e2 "rep" []]
 
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])

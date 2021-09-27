@@ -14,56 +14,12 @@ struct Size {
   size_t value;
 public:
 
-  Size(uint8_t x) : value(static_cast<size_t>(x)) {
-    if constexpr (std::numeric_limits<uint8_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(x <= std::numeric_limits<size_t>::max());
-  }
+  Size(size_t x) : value(x) {}
 
-  Size(uint16_t x) : value(static_cast<size_t>(x)) {
-    if constexpr (std::numeric_limits<uint16_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(x <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(uint32_t x) : value(static_cast<size_t>(x)) {
-    if constexpr (std::numeric_limits<uint32_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(x <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(uint64_t x) : value(static_cast<size_t>(x)) {
-    if constexpr (std::numeric_limits<uint64_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(x <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(int8_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x);
-    if constexpr (std::numeric_limits<int8_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(static_cast<uint8_t>(x) <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(int16_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x);
-    if constexpr (std::numeric_limits<int16_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(static_cast<uint16_t>(x) <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(int32_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x);
-    if constexpr (std::numeric_limits<int32_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(static_cast<uint32_t>(x) <= std::numeric_limits<size_t>::max());
-  }
-
-  Size(int64_t x) : value(static_cast<size_t>(x)) {
-    assert(0 <= x);
-    if constexpr (std::numeric_limits<int64_t>::max() >
-                  std::numeric_limits<size_t>::max())
-      assert(static_cast<uint64_t>(x) <= std::numeric_limits<size_t>::max());
+  template <typename T>
+  static Size from(T x) {
+    assert(0 <= x && x <= std::numeric_limits<size_t>::max());
+    return Size{static_cast<size_t>(x)};
   }
 
   size_t rep() { return value; }

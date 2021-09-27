@@ -13,12 +13,12 @@ void test_size() {
   int32_t s32 = std::numeric_limits<int32_t>::max();
   int64_t s64 = std::numeric_limits<int64_t>::max();
 
-  std::cout << DDL::Size{ x8} << " "
-            << DDL::Size{x16} << " "
-            << DDL::Size{x32} << " "
-            << DDL::Size{x64} << "\n"
-            << DDL::Size{s8} << " "
-            << DDL::Size{s16} << " "
-            << DDL::Size{s32} << " "
-            << DDL::Size{s64} << "\n";
+  std::cout << DDL::Size::from( x8) << " "
+            << DDL::Size::from(x16) << " "
+            << DDL::Size::from(x32) << " "
+            << DDL::Size::from(x64) << "\n"
+            << DDL::Size::from(s8 ) << " "
+            << DDL::Size::from(s16) << " "
+            << DDL::Size::from(s32) << " "
+            << DDL::Size::from(s64) << "\n";
 }
