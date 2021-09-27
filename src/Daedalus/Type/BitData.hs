@@ -105,7 +105,7 @@ inferStruct name w (loc, fields) m_sz_tys =
 mkFields ::
   BDD.Width ->
   [(Located BitDataField, (Type, BDD.Pat))] ->
-  ([(Label, (Type, Maybe TCBDStructMeta))], BDD.Pat)
+  ([(Label, (Type, Maybe TCBitdataField))], BDD.Pat)
 
 mkFields w = go [] (BDD.pWild w) w
   where
@@ -120,7 +120,7 @@ mkFields w = go [] (BDD.pWild w) w
         (fs',pat') =
            case thingValue fld of
              BDFField l _ ->
-               ( (l, (ty, Just TCBDStructMeta { tcbdsLowBit = todo'
+               ( (l, (ty, Just TCBitdataField { tcbdsLowBit = todo'
                                               , tcbdsWidth  = n }))
                  : fs
                , BDD.pField todo' fpat pat
