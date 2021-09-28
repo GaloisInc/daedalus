@@ -9,6 +9,9 @@
 
 namespace DDL {
 
+typedef size_t RefCount;    // Used for counting references
+typedef size_t Width;       // Used for type parameters
+
 // This is so we get a type error rather than an implicit cast.
 struct Size {
   size_t value;
@@ -22,19 +25,27 @@ public:
     return Size{static_cast<size_t>(x)};
   }
 
-  size_t rep() { return value; }
+  size_t rep() const { return value; }
 
-  constexpr static size_t maxValRep() {
-    return std::numeric_limits<size_t>::max();
-  }
+  bool operator == (Size x) const { return rep() == x.rep(); }
+  bool operator != (Size x) const { return rep() != x.rep(); }
+  bool operator <  (Size x) const { return rep() <  x.rep(); }
+  bool operator <= (Size x) const { return rep() <= x.rep(); }
+  bool operator >  (Size x) const { return rep() >  x.rep(); }
+  bool operator >= (Size x) const { return rep() >= x.rep(); }
 
-  bool operator == (Size x) { return rep() == x.rep(); }
-  bool operator != (Size x) { return rep() != x.rep(); }
-  bool operator <  (Size x) { return rep() <  x.rep(); }
-  bool operator <= (Size x) { return rep() <= x.rep(); }
-  bool operator >  (Size x) { return rep() >  x.rep(); }
-  bool operator >= (Size x) { return rep() >= x.rep(); }
+  // mutatations
+  void incrementBy(Size x) { value += x.rep(); }
+  void increment()         { incrementBy(Size{1}); }
+  void decrement()         { value -= 1; }
+
+  // immutable
+  Size incrementedBy(Size x) const { return Size{value + x.rep()}; }
+  Size incremented()         const { return incrementedBy(Size{1}); }
+  Size decremented()         const { return Size{value - 1 }; }
 };
+
+
 
 static inline
 std::ostream& operator<<(std::ostream& os, Size x) {

@@ -495,7 +495,8 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ "!" <> e
 
     Src.ArrayLen ->
-      cVarDecl x $ cCall (e <.> ".size") []
+      cVarDecl x $ cCallCon (cInst "UInt" ["64"])
+                 [ cCallMethod (cCallMethod e "size" []) "rep" [] ]
 
     Src.Concat ->
       cVarDecl x $ cCall (cType (getType x)) [ e ]

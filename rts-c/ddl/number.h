@@ -18,7 +18,7 @@ namespace DDL {
 
 // Unsigned --------------------------------------------------------------------
 
-template <size_t w>
+template <Width w>
 class UInt : public Value {
   static_assert(w <= 64, "UInt larger than 64 not supported.");
 
@@ -39,26 +39,22 @@ public:
   UInt()      : data(0) {}
 
   // For literals and casts
-  UInt(uint8_t  x) : data(static_cast<Rep>(x)) {}
-  UInt(uint16_t x) : data(static_cast<Rep>(x)) {}
-  UInt(uint32_t x) : data(static_cast<Rep>(x)) {}
-  UInt(uint64_t x) : data(static_cast<Rep>(x)) {}
-  UInt(int8_t   x) : data(static_cast<Rep>(x)) {}
-  UInt(int16_t  x) : data(static_cast<Rep>(x)) {}
-  UInt(int32_t  x) : data(static_cast<Rep>(x)) {}
-  UInt(int64_t  x) : data(static_cast<Rep>(x)) {}
+  UInt(unsigned long x)i     : data(static_cast<Rep>(x)) {}
+  UInt(unsigned long long x) : data(static_cast<Rep>(x)) {}
+  UInt(long x)               : data(static_cast<Rep>(x)) {}
+  UInt(long long x)          : data(static_cast<Rep>(x)) {}
 
 
   // Shouldn't really be used by client code.
-  Rep rawRep() { return data; }
+  Rep rawRep() const { return data; }
 
   // This is for `a # b`
-  template <size_t a, size_t b>
+  template <Width a, Width b>
   UInt(UInt<a> x, UInt<b> y) : data((Rep{x.rawRep()} << b) | y.rep()) {
     static_assert(a + b == w);
   }
 
-  Rep rep() {
+  Rep rep() const {
     if constexpr (w == 8 || w == 16 || w == 32 || w == 64) return data;
     if constexpr (w < 8)   return data & (UINT8_MAX  >> ( 8-w));
     if constexpr (w < 16)  return data & (UINT16_MAX >> (16-w));
@@ -76,49 +72,49 @@ public:
   }
 
 
-  UInt operator + (UInt x) { return UInt(data + x.data); }
-  UInt operator - (UInt x) { return UInt(data - x.data); }
-  UInt operator * (UInt x) { return UInt(data * x.data); }
-  UInt operator % (UInt x) { Rep xv = x.rep();
-                             assert(xv /= 0);
-                             return UInt(rep() % xv); }
-  UInt operator / (UInt x) { Rep xv = x.rep();
-                             assert(xv /= 0);
-                             return UInt(rep() / xv); }
-  UInt operator - ()       { return UInt(-data); }
-  UInt operator ~ ()       { return UInt(~data); }
+  UInt operator + (UInt x) const { return UInt(data + x.data); }
+  UInt operator - (UInt x) const { return UInt(data - x.data); }
+  UInt operator * (UInt x) const { return UInt(data * x.data); }
+  UInt operator % (UInt x) const { Rep xv = x.rep();
+                                   assert(xv /= 0);
+                                   return UInt(rep() % xv); }
+  UInt operator / (UInt x) const { Rep xv = x.rep();
+                                   assert(xv /= 0);
+                                   return UInt(rep() / xv); }
+  UInt operator - ()       const { return UInt(-data); }
+  UInt operator ~ ()       const { return UInt(~data); }
 
-  UInt operator | (UInt x) { return UInt(data | x.data); }
-  UInt operator & (UInt x) { return UInt(data & x.data); }
-  UInt operator ^ (UInt x) { return UInt(data ^ x.data); }
+  UInt operator | (UInt x) const { return UInt(data | x.data); }
+  UInt operator & (UInt x) const { return UInt(data & x.data); }
+  UInt operator ^ (UInt x) const { return UInt(data ^ x.data); }
 
   // XXX: remove in favor of Size
-  UInt operator << (UInt<64> x) { return UInt(data << x.rep()); }
-  UInt operator >> (UInt<64> x) { return UInt(data >> x.rep()); }
+  UInt operator << (UInt<64> x) const { return UInt(data << x.rep()); }
+  UInt operator >> (UInt<64> x) const { return UInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
-  UInt operator << (Size x) { return UInt(data << x.rep()); }
-  UInt operator >> (Size x) { return UInt(data >> x.rep()); }
+  UInt operator << (Size x) const { return UInt(data << x.rep()); }
+  UInt operator >> (Size x) const { return UInt(data >> x.rep()); }
 
-  bool operator == (UInt x) { return rep() == x.rep(); }
-  bool operator != (UInt x) { return rep() != x.rep(); }
-  bool operator <  (UInt x) { return rep() <  x.rep(); }
-  bool operator <= (UInt x) { return rep() <= x.rep(); }
-  bool operator >  (UInt x) { return rep() >  x.rep(); }
-  bool operator >= (UInt x) { return rep() >= x.rep(); }
+  bool operator == (UInt x) const { return rep() == x.rep(); }
+  bool operator != (UInt x) const { return rep() != x.rep(); }
+  bool operator <  (UInt x) const { return rep() <  x.rep(); }
+  bool operator <= (UInt x) const { return rep() <= x.rep(); }
+  bool operator >  (UInt x) const { return rep() >  x.rep(); }
+  bool operator >= (UInt x) const { return rep() >= x.rep(); }
 
-  Size asSize() { return Size::from(rep()); }  // used in array
+  Size asSize() const { return Size::from(rep()); }  // used in array
 };
 
 
-template <size_t a, size_t b>
+template <Width a, Width b>
 static inline
 UInt<a> lcat(UInt<a> x, UInt<b> y) {
   if constexpr (b >= a) return UInt<a>(y.data);
   return UInt<a>((x.data << b) | y.rep());
 }
 
-template <size_t w>
+template <Width w>
 static inline
 int compare(UInt<w> x, UInt<w> y) {
   auto rx = x.rep();
@@ -127,7 +123,7 @@ int compare(UInt<w> x, UInt<w> y) {
 }
 
 
-template <size_t w>
+template <Width w>
 static inline
 std::ostream& operator<<(std::ostream& os, UInt<w> x) {
   os << static_cast<uint64_t>(x.rep());
@@ -135,7 +131,7 @@ std::ostream& operator<<(std::ostream& os, UInt<w> x) {
 }
 
 
-template <size_t w>
+template <Width w>
 static inline
 std::ostream& toJS(std::ostream& os, UInt<w> x) {
   return os << static_cast<uint64_t>(x.rep());
@@ -152,7 +148,7 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 // For the moment we assume no under/overflow, same as C does
 // but it is not clear if that's what we want from daedluas.
 // XXX: Add `asserts` to detect wrap around in debug mode
-template <size_t w>
+template <Width w>
 class SInt : public Value {
   static_assert(w >= 1,  "SInt needs at least 1 bit");
   static_assert(w <= 64, "SInt larger than 64 not supported.");
@@ -191,23 +187,23 @@ public:
   SInt(int32_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 32) fixUp(); }
   SInt(int64_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 64) fixUp(); }
 
-  Rep rep() { return data; }
+  Rep rep() const { return data; }
 
   // These are assumed to stay in bounds.
   // XXX: if we used fixUp, would that give us the normal module arithmetic?
-  SInt operator + (SInt x) { return Rep(data + x.data); }
-  SInt operator - (SInt x) { return Rep(data - x.data); }
-  SInt operator * (SInt x) { return Rep(data * x.data); }
-  SInt operator % (SInt x) { return Rep(data % x.data); }
-  SInt operator / (SInt x) { return Rep(data / x.data); }
-  SInt operator - ()       { return Rep(-data); }
+  SInt operator + (SInt x) const { return Rep(data + x.data); }
+  SInt operator - (SInt x) const { return Rep(data - x.data); }
+  SInt operator * (SInt x) const { return Rep(data * x.data); }
+  SInt operator % (SInt x) const { return Rep(data % x.data); }
+  SInt operator / (SInt x) const { return Rep(data / x.data); }
+  SInt operator - ()       const { return Rep(-data); }
 
-  bool operator == (SInt<w> x)   { return rep() == x.rep(); }
-  bool operator != (SInt<w> x)   { return rep() != x.rep(); }
-  bool operator <  (SInt<w> x)   { return rep() <  x.rep(); }
-  bool operator >  (SInt<w> x)   { return rep() >  x.rep(); }
-  bool operator <= (SInt<w> x)   { return rep() <= x.rep(); }
-  bool operator >= (SInt<w> x)   { return rep() >= x.rep(); }
+  bool operator == (SInt<w> x) const { return rep() == x.rep(); }
+  bool operator != (SInt<w> x) const { return rep() != x.rep(); }
+  bool operator <  (SInt<w> x) const { return rep() <  x.rep(); }
+  bool operator >  (SInt<w> x) const { return rep() >  x.rep(); }
+  bool operator <= (SInt<w> x) const { return rep() <= x.rep(); }
+  bool operator >= (SInt<w> x) const { return rep() >= x.rep(); }
 
   constexpr static Rep maxValRep() {
     if constexpr (w ==  8) return INT8_MAX;  else
@@ -221,19 +217,19 @@ public:
     return (-maxValRep())-1;
   }
   // XXX: Remove in favor of Size
-  SInt operator << (UInt<64> x) { return SInt(data << x.rep()); }
-  SInt operator >> (UInt<64> x) { return SInt(data >> x.rep()); }
+  SInt operator << (UInt<64> x) const { return SInt(data << x.rep()); }
+  SInt operator >> (UInt<64> x) const { return SInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
   // XXX: should we call fixUp or assumed that we are stying in bounds?
-  SInt operator << (Size x) { return SInt(data << x.rep()); }
-  SInt operator >> (Size x) { return SInt(data >> x.rep()); }
+  SInt operator << (Size x) const { return SInt(data << x.rep()); }
+  SInt operator >> (Size x) const { return SInt(data >> x.rep()); }
 
-  Size asSize() { return Size::from(rep()); } // used in array
+  Size asSize() const { return Size::from(rep()); } // used in array
 };
 
 
-template <size_t w>
+template <Width w>
 static inline
 int compare(SInt<w> x, SInt<w> y) {
   auto rx = x.rep();
@@ -242,7 +238,7 @@ int compare(SInt<w> x, SInt<w> y) {
 }
 
 
-template <size_t a, size_t b>
+template <Width a, Width b>
 static inline
 SInt<a> lcat(SInt<a> x, UInt<b> y) {
   if constexpr (b >= a) return SInt(y.rep());
@@ -250,14 +246,14 @@ SInt<a> lcat(SInt<a> x, UInt<b> y) {
 }
 
 
-template <size_t w>
+template <Width w>
 static inline
 std::ostream& operator<<(std::ostream& os, SInt<w> x) {
   os << std::dec;
   return os << static_cast<int64_t>(x.rep());
 }
 
-template <size_t w>
+template <Width w>
 static inline
 std::ostream& toJS(std::ostream& os, SInt<w> x) {
   os << std::dec;
