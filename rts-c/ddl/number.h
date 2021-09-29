@@ -36,11 +36,14 @@ private:
 public:
 
   // For uninitialized values
-  UInt()      : data(0) {}
+  UInt() : data(0) {}
 
   // For literals and casts
-  UInt(unsigned long x)i     : data(static_cast<Rep>(x)) {}
+  UInt(unsigned x)           : data(static_cast<Rep>(x)) {}
+  UInt(unsigned long x)      : data(static_cast<Rep>(x)) {}
   UInt(unsigned long long x) : data(static_cast<Rep>(x)) {}
+
+  UInt(int x)                : data(static_cast<Rep>(x)) {}
   UInt(long x)               : data(static_cast<Rep>(x)) {}
   UInt(long long x)          : data(static_cast<Rep>(x)) {}
 

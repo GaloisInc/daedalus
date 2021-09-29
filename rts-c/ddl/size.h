@@ -17,6 +17,7 @@ struct Size {
   size_t value;
 public:
 
+  Size() : value(0) {}
   Size(size_t x) : value(x) {}
 
   template <typename T>

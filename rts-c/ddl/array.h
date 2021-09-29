@@ -42,7 +42,7 @@ class Array : IsBoxed {
   template <typename ... Elems>
   void fill(Size i, T x, Elems ... xs) {
     ptr->data[i.rep()] = x;
-    fill(i.increment(),xs...);
+    fill(i.incremented(),xs...);
   }
 
   static
@@ -104,7 +104,7 @@ public:
     ptr = Content::allocate(n);
     for (T *arr = ptr->data; n > 0; n.decrement()) {
       List<T> ys;
-      xs.uncons(arr[n.decremented()],ys);
+      xs.uncons(arr[n.decremented().rep()],ys);
       xs = ys;
     }
   }
@@ -207,7 +207,7 @@ public:
     // Owned this. We don't increment `xs` because this copy of the iterator
     // is being freed.
     Iterator next() {
-      return Iterator(index.increment(), xs);
+      return Iterator(index.incremented(), xs);
     }
 
     void free() { xs.free(); }
