@@ -1,4 +1,6 @@
 -- Type3Font: Type 3 fonts
+import Stdlib
+
 import Rectangle
 import GenPdfValue
 import PdfValue
@@ -41,7 +43,7 @@ def initType3Font : partialType3Font = {
 ; resources = nothing
 }
 
-def Type3SetCommon (coms : ?partialCommonFont) (f : partialType3Font) =
+def type3SetCommon (coms : partialCommonFont) (f : partialType3Font) =
   partialType3Font
     coms
     f.chars
@@ -51,7 +53,7 @@ def Type3SetCommon (coms : ?partialCommonFont) (f : partialType3Font) =
     f.encoding
     f.resources
 
-def Type3SetChars (cs : ?partialCharSet) (f : partialType3Font) =
+def type3SetChars (cs : partialCharSet) (f : partialType3Font) =
   partialType3Font
     f.common
     cs
@@ -95,7 +97,9 @@ def Type3AddEncoding (f : partialType3Font) = partialType3Font
   f.fontBBox
   f.fontMatrix
   f.charProcs
-  (just (DirectOrRef EncodingP))
+-- DBG: toggle for pdf-hs-driver
+  (When (Token Ref) (just StubEncoding))
+--  (just (DirectOrRef EncodingP))
   f.resources
 
 def AddResources (f : partialType3Font) = partialType3Font
@@ -112,9 +116,9 @@ def ExtendType3Font k font = {
   @cf0 = ExtendCommonFont type3Sym SimpleFontType
            k font.common;
   case cf0 of {
-    just cf1 -> just (Type3SetCommon cf1 font)
+    just cf1 -> just (type3SetCommon cf1 font)
   ; nothing -> case ExtendCharSet k font.chars of {
-        just chars0 -> just (Type3SetChars chars0 font)
+        just chars0 -> just (type3SetChars chars0 font)
       ; nothing -> -- fields specific to Type3 fonts
           if k == "FontBBox" then {
             font.fontBBox is nothing;
@@ -151,7 +155,7 @@ def Type3Font (f : partialType3Font) = {
   fontMatrix = f.fontMatrix is just;
   charProcs = f.charProcs is just;
   encoding = f.encoding is just;
-  resources = f.resources is just;
+  resources = f.resources; -- SPEC: this "should" be included
 }
 
 def Type3FontP = GenPdfDict1

@@ -45,7 +45,7 @@ def AddToUnicode (fontClass : FontType) f = partialCommonFont
   f.fontType
   f.fontSubtype
   (When (Token Ref) nothing)
--- DBG:
+-- DBG: stubs CMap definition
 --  (just (CMapRef fontClass))
 
 def ExtendCommonFont (subTy : FontSubty) (fontClass : FontType) (k : [ uint 8 ])
@@ -172,8 +172,16 @@ def CharSet (subTy : FontSubty) (baseFont : FontName)
   widths = chars.widths0 is just; 
   Guard ((length widths) == inc (lastChar - firstChar));
 
-  fontDesc = ParseAtRef (chars.fontDesc0 is just)
-    (FontDescP subTy baseFont)
+-- DBG: do we actually want to require Font descriptors?
+--  fontDesc = ParseAtRef (chars.fontDesc0 is just)
+--    (FontDescP subTy baseFont)
+--  fontDesc = StubFontDesc;
+
+  -- SPEC: font descriptor is actually required, and must be a reference
+  fontDesc = case chars.fontDesc0 of {
+    just r -> ParseAtRef r (FontDescP subTy baseFont)
+  ; nothing -> StubFontDesc
+  };
 }
 
 def CharSet0 (baseFont : FontName) (chars : partialCharSet) = {

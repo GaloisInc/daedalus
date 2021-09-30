@@ -14,14 +14,14 @@ def mapEntry k v = {
 
 def PairMapEntry p = mapEntry p.fst p.snd
 
-def MapToList m = for (l = [ ]; k, v in m) (snoc (Pair k v) l)
+def mapToList m = for (l = [ ]; k, v in m) (snoc (pair k v) l)
 
 def MapDomain m = {
-  @ents = MapToList m;
+  @ents = mapToList m;
   map (ent in ents) ent.fst
 }
 
-def MapLength m = length (MapToList m)
+def mapLength m = length (mapToList m)
 
 -- ListToMap l: collect list of entries l into a map:
 def ListToMap l = for (acc = empty; e in l) (Insert e.key e.value acc)

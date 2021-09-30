@@ -217,6 +217,7 @@ def FontDesc (subTy : FontSubty) (fd: partialFontDesc) = {
     fd.fontFile3;
 }
 
+-- type1Sym doesn't actually get used
 def StubFontDesc = FontDesc type1Sym (partialFontDesc
   true
   true
@@ -231,6 +232,7 @@ def FontDescP1 (parBaseFont : FontName ) = GenPdfDict1
   initFontDesc
   (ExtendFontDesc parBaseFont)
   (FontDesc type1Sym)
+
 def FontDescP (fontSubty : FontSubty) (parBaseFont : FontName ) = GenPdfDict1
   initFontDesc
   (ExtendFontDesc parBaseFont)

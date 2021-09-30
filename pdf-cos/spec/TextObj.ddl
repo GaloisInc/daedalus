@@ -44,7 +44,7 @@ def LiftResToFontEffect P (szFont : maybe sizedFont) = FontEffect
 
 -- FontOp: parse a sized font 
 def FontOp (resrcs : ResourceDict) = {
-  @fontNm = Token Name;
+  @fontNm = Name; -- Names are tokenized
   @size = Token Number; -- parse font size
   KW "Tf";
   sizedFont (Lookup fontNm resrcs.font) size
