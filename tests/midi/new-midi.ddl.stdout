@@ -4,17 +4,17 @@ module new-midi
  
 --- Type defs:
 {- bitdata
-________________
+0000000000000000
 -}
 type new-midi.MidiFormat_single_track = { }
  
 {- bitdata
-________________
+0000000000000001
 -}
 type new-midi.MidiFormat_multi_track = { }
  
 {- bitdata
-________________
+0000000000000010
 -}
 type new-midi.MidiFormat_multi_song = { }
  
@@ -28,13 +28,13 @@ type new-midi.MidiFormat = Choose { single_track: new-midi.MidiFormat_single_tra
                                   }
  
 {- bitdata
-________________
+0_______________
 -}
 type new-midi.MidiTimeUnit_quarter_len = { value: uint 15
                                          }
  
 {- bitdata
-________________
+1_______________
 -}
 type new-midi.MidiTimeUnit_smtpe = { value: sint 15
                                    }
@@ -106,13 +106,13 @@ type new-midi.MetaUnknown = { tag: uint 8
                             }
  
 {- bitdata
-________
+1_______
 -}
 type new-midi.Accidentals_flats = { flats: uint 7
                                   }
  
 {- bitdata
-________
+0_______
 -}
 type new-midi.Accidentals_sharps = { sharps: uint 7
                                    }
@@ -125,12 +125,12 @@ type new-midi.Accidentals = Choose { flats: new-midi.Accidentals_flats
                                    }
  
 {- bitdata
-________
+00000000
 -}
 type new-midi.Mode_minor = { }
  
 {- bitdata
-________
+00000001
 -}
 type new-midi.Mode_major = { }
  
@@ -187,37 +187,37 @@ type new-midi.Main = { header: new-midi.Header
                      }
  
 {- bitdata
-____
+1000
 -}
 type new-midi.VoiceMessageTag_note_off = { }
  
 {- bitdata
-____
+1001
 -}
 type new-midi.VoiceMessageTag_note_on = { }
  
 {- bitdata
-____
+1010
 -}
 type new-midi.VoiceMessageTag_aftertouch = { }
  
 {- bitdata
-____
+1011
 -}
 type new-midi.VoiceMessageTag_controller_change = { }
  
 {- bitdata
-____
+1100
 -}
 type new-midi.VoiceMessageTag_program_change = { }
  
 {- bitdata
-____
+1101
 -}
 type new-midi.VoiceMessageTag_channel_pressure = { }
  
 {- bitdata
-____
+1110
 -}
 type new-midi.VoiceMessageTag_pitch_bend = { }
  
@@ -253,7 +253,7 @@ type new-midi.VoiceMessagesHeader = Choose { VoiceMessagesHeader: new-midi.Voice
                                            }
  
 {- bitdata
-________
+1011____
 -}
 type new-midi.ModeMessagesHeader_ModeMessagesHeader = { channel: uint 4
                                                       }
@@ -265,13 +265,13 @@ type new-midi.ModeMessagesHeader = Choose { ModeMessagesHeader: new-midi.ModeMes
                                           }
  
 {- bitdata
-________
+1_______
 -}
 type new-midi.VarQChunk_More = { value: uint 7
                                }
  
 {- bitdata
-________
+0_______
 -}
 type new-midi.VarQChunk_Last = { value: uint 7
                                }
