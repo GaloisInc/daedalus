@@ -190,14 +190,17 @@ rule                                     :: { Rule }
 
 bitdata ::                                  { BitData }
   : 'bitdata' name 'where'
-     'v{' separated(bitdata_ctor, virtSep) 'v}'
-                                            { BitData { bdName  = $2
-                                                      , bdCtors = $5
-                                                      , bdRange = $1 <-> $6 } }
+     'v{' bitdata_body 'v}'                 { BitData { bdName  = $2
+                                                      , bdBody  = $5
+                                                      , bdRange = $1 <-> $6 
+                                                      } }
 
-bitdata_ctor                             :: { ( Located Label
-                                              , [ Located BitDataField ]
-                                              ) }
+bitdata_body                             :: { BitDataBody }
+  : separated1(bitdata_ctor, virtSep)       { BitDataUnion $1 }
+  | separated(bitdata_field, virtSep)       { BitDataStruct $1 }
+
+
+bitdata_ctor                             :: { BitDataCon }
   : label '=' bitdata_defn                  { ( $1, $3 ) }
 
 bitdata_defn                             :: { [ Located BitDataField ] }

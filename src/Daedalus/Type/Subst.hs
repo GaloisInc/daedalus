@@ -56,7 +56,7 @@ instance ApSubst Type where
 instance ApSubst TCTyDef where
   apSubstT' su td =
     case td of
-      TCTyStruct fs -> TCTyStruct <$> someJusts apF fs
+      TCTyStruct mb fs -> TCTyStruct mb <$> someJusts apF fs
       TCTyUnion fs  -> TCTyUnion  <$> someJusts apF fs
     where
     apF :: (Label, (Type, a)) -> Maybe (Label, (Type, a))

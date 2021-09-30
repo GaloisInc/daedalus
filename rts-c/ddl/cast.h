@@ -7,20 +7,20 @@
 
 namespace DDL {
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 UInt<out> uint_to_uint(UInt<in> x) { return UInt<out>(x.rep()); }
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 UInt<out> sint_to_uint(SInt<in> x) { return UInt<out>(x.rep()); }
 
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 SInt<out> uint_to_sint(UInt<in> x) { return SInt<out>(x.rep()); }
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
 
@@ -28,17 +28,17 @@ SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
 // -----------------------------------------------------------------------------
 // Integers
 
-template <size_t in>
+template <Width in>
 inline
 Integer uint_to_integer(UInt<in> x) { return Integer(x.rep()); }
 
-template <size_t in>
+template <Width in>
 inline
 Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
 
 
 // borrow
-template <size_t out>
+template <Width out>
 inline
 UInt<out> integer_to_uint(Integer x) {
   typename UInt<out>::Rep r;
@@ -47,7 +47,7 @@ UInt<out> integer_to_uint(Integer x) {
 }
 
 // borrow
-template <size_t out>
+template <Width out>
 inline
 SInt<out> integer_to_sint(Integer x) {
   typename SInt<out>::Rep r;
@@ -72,7 +72,7 @@ T refl_cast(T x) {
 
 
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 Maybe<UInt<out>> uint_to_uint_maybe(UInt<in> x) {
   using Res = UInt<out>;
@@ -84,7 +84,7 @@ Maybe<UInt<out>> uint_to_uint_maybe(UInt<in> x) {
                   : Maybe<Res>();
 }
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 Maybe<SInt<out>> sint_to_sint_maybe(SInt<in> x) {
   using Res = SInt<out>;
@@ -98,7 +98,7 @@ Maybe<SInt<out>> sint_to_sint_maybe(SInt<in> x) {
 }
 
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 Maybe<SInt<out>> uint_to_sint_maybe(UInt<in> x) {
   using Res = SInt<out>;
@@ -110,7 +110,7 @@ Maybe<SInt<out>> uint_to_sint_maybe(UInt<in> x) {
                       : Maybe<Res>();
 }
 
-template <size_t in, size_t out>
+template <Width in, Width out>
 inline
 Maybe<UInt<out>> sint_to_uint_maybe(SInt<in> x) {
   using Res = UInt<out>;
@@ -123,13 +123,13 @@ Maybe<UInt<out>> sint_to_uint_maybe(SInt<in> x) {
 }
 
 
-template <size_t in>
+template <Width in>
 inline
 Maybe<Integer> uint_to_integer_maybe(UInt<in> x) {
   return Maybe<Integer>(uint_to_integer<in>(x));
 }
 
-template <size_t in>
+template <Width in>
 inline
 Maybe<Integer> sint_to_integer_maybe(SInt<in> x) {
   return Maybe<Integer>(sint_to_integer<in>(x));
@@ -138,7 +138,7 @@ Maybe<Integer> sint_to_integer_maybe(SInt<in> x) {
 
 
 
-template <size_t out>
+template <Width out>
 inline
 Maybe<UInt<out>> integer_to_uint_maybe(Integer x) {
   using Res = UInt<out>;
@@ -151,7 +151,7 @@ Maybe<UInt<out>> integer_to_uint_maybe(Integer x) {
 }
 
 
-template <size_t out>
+template <Width out>
 inline
 Maybe<SInt<out>> integer_to_sint_maybe(Integer x) {
   using Res = SInt<out>;

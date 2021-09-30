@@ -288,7 +288,7 @@ data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
                    , tctyParams :: ![TVar]
                    , tctyBD     :: !(Maybe BDD.Pat)
-                   -- ^ Bitdata related information, if this is a bitdata decl.
+                   -- ^ All possible value patterns for bitdata types.
                    , tctyDef    :: !TCTyDef
                    } deriving (Show, Eq)
 
@@ -296,12 +296,13 @@ data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct [(Label, (Type, Maybe TCBDStructMeta))]
+data TCTyDef    = TCTyStruct (Maybe TCBDUnionMeta)
+                             [(Label, (Type, Maybe TCBitdataField))]
                 | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
                   deriving (Show, Eq)
 
-data TCBDStructMeta =
-  TCBDStructMeta { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
+data TCBitdataField =
+  TCBitdataField { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
                  , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
                  } deriving (Show, Eq)
 
@@ -607,7 +608,7 @@ instance PP TCTyDecl where
 instance PP TCTyDef where
   ppPrec _ d =
     case d of
-      TCTyStruct fs -> block "{" ";" "}" (map ppF fs)
+      TCTyStruct _ fs -> block "{" ";" "}" (map ppF fs)
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where

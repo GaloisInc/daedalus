@@ -1,6 +1,7 @@
 #ifndef DDL_BOXED_H
 #define DDL_BOXED_H
 
+#include <ddl/size.h>
 #include <ddl/debug.h>
 
 namespace DDL {
@@ -19,13 +20,13 @@ class HasRefs {};
 // Classes passed by reference.
 // Just for documentation.
 class IsBoxed : public HasRefs {};
-// size_t refCount()
+// RefCount refCount()
 
 
 template <typename T>
 struct BoxedValue {
-  size_t ref_count;
-  T      value;
+  RefCount  ref_count;
+  T         value;
   BoxedValue()    : ref_count(1) {}
   BoxedValue(T x) : ref_count(1), value(x) {}
 };
@@ -38,7 +39,7 @@ bool hasRefs() { return std::is_base_of<HasRefs,T>::value; }
 // Relese this reference to the box.
 template <typename T>
 void free_boxed(BoxedValue<T> *ptr) {
-  size_t n = ptr->ref_count;
+  RefCount n = ptr->ref_count;
   if (n == 1) {
     if constexpr (hasRefs<T>()) ptr->value.free();
     debug("  freeing boxed "); debugValNL((void*) ptr);
@@ -53,7 +54,7 @@ void free_boxed(BoxedValue<T> *ptr) {
 // content so we don't free it.
 template <typename T>
 void shallow_free_boxed(BoxedValue<T> *ptr) {
-  size_t n = ptr->ref_count;
+  RefCount n = ptr->ref_count;
   if (n == 1) delete ptr;
   else ptr->ref_count = n - 1;
 }
@@ -84,7 +85,7 @@ public:
 
   bool isNull() { return ptr == NULL; }
 
-  size_t refCount() { return ptr->ref_count; }
+  RefCount refCount() { return ptr->ref_count; }
 
   // Allocate without initializing the data, but ref count is 1
   void allocate() { ptr = new BoxedValue<T>(); }

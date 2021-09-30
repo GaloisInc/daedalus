@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto input = inputFromFile(argv[1]);
-  auto end   = findPdfEnd(input.length(), input.borrowBytes());
+  auto end   = findPdfEnd(input.length().rep(), input.borrowBytes());
   if (end == not_found) {
     std::cerr << "`startxref` not found\n";
     input.free();

@@ -389,8 +389,9 @@ cBlockStmt cInstr =
         Integer n    -> cVarDecl x (cCall "DDL::Integer" [ cString (show n) ])
         ByteArray bs -> cVarDecl x
                               (cCallCon "DDL::Array<DDL::UInt<8>>"
-                                ( cCallCon "size_t" [int (BS.length bs)]
-                                : [ cCall "DDL::UInt<8>" [ text (show w) ]
+                                ( cCallCon "DDL::Size" [int (BS.length bs)]
+                                : [ cCall "DDL::UInt<8>"
+                                              [ text (show w) <> "UL" ]
                                   | w <- BS.unpack bs
                                   ]
                                 ))
@@ -468,10 +469,10 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ cCall "DDL::UInt<8>" [ cCallMethod e "iHead" [] ]
 
     Src.StreamOffset ->
-      cVarDecl x $ cCallMethod e "getOffset" []
+      cVarDecl x $ sizeTo64 (cCallMethod e "getOffset" [])
 
     Src.StreamLen ->
-      cVarDecl x $ cCallMethod e "length" []
+      cVarDecl x $ sizeTo64 (cCallMethod e "length" [])
 
     Src.OneOf bs ->
       let v     = cVarUse x
@@ -495,7 +496,7 @@ cOp1 x op1 ~[e'] =
       cVarDecl x $ "!" <> e
 
     Src.ArrayLen ->
-      cVarDecl x $ cCall (e <.> ".size") []
+      cVarDecl x $ sizeTo64 (cCallMethod e "size" [])
 
     Src.Concat ->
       cVarDecl x $ cCall (cType (getType x)) [ e ]
@@ -539,15 +540,18 @@ cOp1 x op1 ~[e'] =
   where
   e = cExpr e'
 
+sizeTo64 :: CExpr -> CExpr
+sizeTo64 e = cCallCon "DDL::UInt<64>" [ cCallMethod e "rep" [] ]
+
 
 cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
 cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ n ])
-      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
+      where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ n ])
-      where n = cCallCon "DDL::Size" [cCallMethod e1 "rep" []]
+      where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
 
     Src.Eq    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "==" <+> e2]
     Src.NotEq -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "!=" <+> e2]
@@ -569,7 +573,7 @@ cOp2 x op2 ~[e1',e2'] =
     Src.RShift  -> cVarDecl x (e1 <+> ">>" <+> e2)
 
     Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 i)
-      where i = cCallCon "DDL::Size" [cCallMethod e2 "rep" []]
+      where i = cCall "DDL::Size::from" [cCallMethod e2 "rep" []]
 
     Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
@@ -621,9 +625,8 @@ cExpr expr =
                        Nothing -> cVarUse x
     EUnit         -> cCall "DDL::Unit" []
     EBool b       -> cCall "DDL::Bool" [if b then "true" else "false"]
-    ENum n ty     -> cCall f [ i ]
+    ENum n ty     -> cCallCon f [ cCall num [integer n] ]
       where
-      i = cCall num [integer n]
       lit pref sz =
         pref <.>
         case sz of
@@ -642,6 +645,7 @@ cExpr expr =
 
           _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                              , show (pp ty) ]
+
 
     EMapEmpty k v -> cCallCon (cInst "DDL::Map" [ cSemType k, cSemType v ]) []
     ENothing t  -> parens (cCall (cInst "DDL::Maybe" [cSemType t]) [])
@@ -846,59 +850,6 @@ cDoCase e opts =
        ]
 
   mkBigInt = compileBigInteITE
-{-
-    do d <- dflt
-       let ce = cExpr e
-           checkE ~(PNum i,ch) ifSmaller ifLarger =
-             let inRng lower = toInteger lower <= i &&
-                               i <= toInteger (maxBound `asTypeOf` lower)
-
-                 checkVarName = "c" -- XXX
-                 ivarName = "i" -- XXX
-
-                 mbK
-                   | inRng (minBound :: Word32) =
-                     Just
-                       (cCall (cInst "static_cast" ["uint32_t"]) [integer i])
-
-                   | inRng (minBound :: Int32) =
-                     Just
-                       (cCall (cInst "static_cast" ["int32_t"]) [integer i])
-
-                   | inRng (minBound :: Word64) =
-                     Just
-                       (cCall (cInst "static_cast" ["uint64_t"]) [integer i])
-
-                   | inRng (minBound :: Int64) =
-                     Just
-                       (cCall (cInst "static_cast" ["int64_t"]) [integer i])
-
-                   | otherwise = Nothing
-
-                 (pref,suff) =
-                    case mbK of
-                      Just _  -> ([],[])
-                      Nothing ->
-                        ( [ cDeclareConVar "DDL::Integer" ivarName
-                                              [cString (show i)] ]
-                        , [ cCallMethod ivarName "free" [] ]
-                        )
-
-             in pref ++
-                [ cDeclareInitVar "int" checkVarName
-                    (cCall "DDL::compare" [ ce, fromMaybe ivarName mbK ])
-                ] ++ suff ++
-                [ cIf (checkVarName <+> "==" <+> "0")
-                  (doChoice ch)
-                  [ cIf (checkVarName <+> "<" <+> "0") ifSmaller ifLarger ]
-                ]
-
-
-           ifThis ~(PNum n,ch) el = 
-              [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
-       pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
--}
-
 
 data Tree a = Tip | One a | Node a (Tree a) (Tree a)
   deriving Show
@@ -985,13 +936,4 @@ compileBigInteITE e alts = foldTree dflt mkOne mkIf opts
            , [ cStmt (cCallMethod ivarName "free" []) ]
            )
 
-
-
-{-
-  do d <- dflt
-
-         ifThis ~(PNum n,ch) el = 
-            [ cIf (ce <+> "==" <+> integer n) (doChoice ch) el ]
-     pure (foldr ifThis (doChoice d) (Map.toList (Map.delete PAny opts)))
--}
 

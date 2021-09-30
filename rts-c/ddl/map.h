@@ -19,7 +19,7 @@ class Map : HasRefs {
   struct Node {
     using Color = bool;
 
-    size_t ref_count;
+    RefCount ref_count;
     Color color;
     Key key;
     Value value;
@@ -52,7 +52,7 @@ class Map : HasRefs {
     static void free(Node *n) {
       if (n == nullptr) return;
 
-      size_t r = n->ref_count;
+      RefCount r = n->ref_count;
       if (r == 1) {
         debugLine("freeing last ref");
         if constexpr (hasRefs<Key>())   n->key.free();
@@ -125,7 +125,7 @@ class Map : HasRefs {
     // be unique.  If `p` was already unique than we can reuse it.
     // owns p
     static Node* makeCopy(Node *p) {
-      size_t ref = p->ref_count;
+      RefCount ref = p->ref_count;
       if (ref == 1) return p;
 
       Node *res = new Node(p);

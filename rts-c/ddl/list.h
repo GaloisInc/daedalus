@@ -10,12 +10,12 @@ template <typename T>
 class List : IsBoxed {
 
   class Node : HasRefs {
-    size_t size;    // lenght of the list
+    Size size;    // lenght of the list
     T    head;
     List tail;
   public:
     friend List;
-    Node(T   h, List t) : size(1+t.size()), head(h), tail(t) {}
+    Node(T h, List t) : size(t.size().incremented()), head(h), tail(t) {}
 
     void free() {
       if constexpr (std::is_base_of<HasRefs,T>::value) head.free();
@@ -37,7 +37,7 @@ public:
   List (T h, List t) : ptr(Node(std::move(h),t)) {}
 
   // Borrow "this"
-  size_t size() { return ptr.isNull()? 0 : ptr.getValue().size; }
+  Size size() { return ptr.isNull()? Size{0} : ptr.getValue().size; }
 
   // Borrow "this"
   bool isNull() { return ptr.isNull(); }
@@ -75,7 +75,7 @@ public:
 
   // Empty list is always shared, so we return 2 if the pointer is NULL
   inline
-  size_t refCount() { return ptr.isNull()? 2 : ptr.refCount(); }
+  RefCount refCount() { return ptr.isNull()? 2 : ptr.refCount(); }
   void   free()     { if (!ptr.isNull()) ptr.free(); }
   void   copy()     { if (!ptr.isNull()) ptr.copy(); }
   void*  rawPtr()   { return ptr.rawPtr(); }

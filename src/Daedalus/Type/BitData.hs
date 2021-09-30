@@ -1,11 +1,12 @@
 {-# Language ViewPatterns #-}
 {-# Language OverloadedStrings #-}
+{-# Language BlockArguments #-}
 
 module Daedalus.Type.BitData (inferBitData) where
 
 import Data.Foldable (find)
-import Control.Monad (zipWithM_, zipWithM, when, unless)
-import Data.Maybe (catMaybes)
+import Control.Monad (zipWithM_, when, unless, forM)
+import Data.Maybe (catMaybes, fromJust)
 import Data.Bits  (shiftL, (.|.) )
 
 import Data.Map (Map)
@@ -51,40 +52,60 @@ bdfSizedType bdf =
     BDFField   _ m_sty -> traverse srcTypeToSizedType m_sty
     BDFWildcard  m_sty -> traverse srcTypeToSizedType m_sty
 
-inferCtor ::
-  Name ->
-  BDD.Width ->
-  (Located Label, [ Located BitDataField ]) ->
-  [Maybe (Type, BDD.Pat)] ->
-  TypeM a (TCTyDecl, (Label, (Type, Maybe TCBDUnionMeta)), BDD.Pat)
-inferCtor tyN w (ctor, fields) m_sz_tys = do
-  sz_tys <- resolveMissingTypes ctor w m_sz_tys
-  let (_tys, szs) = unzip sz_tys
+-- Sizes of fields n a record.  Also ensure that there is at most
+-- one Maybe in the result
+fieldSizes ::
+  HasRange r => r -> [Located BitDataField] -> TypeM a [(Maybe (Type, BDD.Pat))]
+fieldSizes r flds =
+  do sizes <- mapM (bdfSizedType . thingValue) flds
+     let nothings = [ loc | (loc, Nothing) <- zip (map thingRange flds) sizes ]
+     case nothings of
+       _ : _ : _ ->
+        reportDetailedError r "Multiple untyped fields, see: "
+                                            [ pp (range x) | x <- nothings ]
+       _ -> pure sizes
 
-  zipWithM_ checkLiteralWidth fields szs
 
-  let (umeta,cpat) = mkUnionMeta w (zip fields szs)
-      (fs,fpat) = mkFields w (zip fields sz_tys)
+-- Sizes for each constructor
+bodySize ::
+  HasRange r => r -> BitDataBody -> TypeM a [[(Maybe (Type, BDD.Pat))]]
+bodySize r bd =
+  case bd of
+    BitDataUnion ctrs -> mapM (fieldSizes r . snd) ctrs
+    BitDataStruct fs  -> (:[]) <$> fieldSizes r fs
 
-  n' <- TCTy <$> deriveNameWith mkIdent tyN
-  let decl = TCTyDecl { tctyName    = n'
-                      , tctyParams  = []
-                      , tctyBD      = Just fpat
-                      , tctyDef     = TCTyStruct fs
-                      }
-      ty   = TCon n' []
 
-  pure (decl, (thingValue ctor, (ty, Just umeta)), BDD.pAnd cpat fpat)
 
-  where
-    mkIdent ident = ident <> "_" <> thingValue ctor
+
+inferStruct ::
+  HasRange r =>
+  Name                          {- ^ Name of target type -} ->
+  BDD.Width                     {- ^ Total width -} ->
+  (r, [ Located BitDataField ]) {- ^ Location (for errs) and fields -} ->
+  [Maybe (Type, BDD.Pat)]       {- ^ Type and sizes of fields -} ->
+  TypeM a TCTyDecl
+inferStruct name w (loc, fields) m_sz_tys =
+  do sz_tys <- resolveMissingTypes loc w m_sz_tys
+     let szs = map snd sz_tys
+
+     zipWithM_ checkLiteralWidth fields szs
+
+     let (umeta,cpat) = mkConMeta w (zip fields szs)
+         (fs,fpat)    = mkFields w (zip fields sz_tys)
+         recognize    = BDD.pAnd cpat fpat
+
+     pure TCTyDecl { tctyName    = TCTy name
+                   , tctyParams  = []
+                   , tctyBD      = Just recognize
+                   , tctyDef     = TCTyStruct (Just umeta) fs
+                   }
 
 
 
 mkFields ::
   BDD.Width ->
   [(Located BitDataField, (Type, BDD.Pat))] ->
-  ([(Label, (Type, Maybe TCBDStructMeta))], BDD.Pat)
+  ([(Label, (Type, Maybe TCBitdataField))], BDD.Pat)
 
 mkFields w = go [] (BDD.pWild w) w
   where
@@ -99,7 +120,7 @@ mkFields w = go [] (BDD.pWild w) w
         (fs',pat') =
            case thingValue fld of
              BDFField l _ ->
-               ( (l, (ty, Just TCBDStructMeta { tcbdsLowBit = todo'
+               ( (l, (ty, Just TCBitdataField { tcbdsLowBit = todo'
                                               , tcbdsWidth  = n }))
                  : fs
                , BDD.pField todo' fpat pat
@@ -108,9 +129,9 @@ mkFields w = go [] (BDD.pWild w) w
 
 
 -- This assumes the high bits are stored as the first fields
-mkUnionMeta ::
+mkConMeta ::
   BDD.Width -> [(Located BitDataField,BDD.Pat)] -> (TCBDUnionMeta, BDD.Pat)
-mkUnionMeta w = go 0 0 w (BDD.pWild w)
+mkConMeta w = go 0 0 w (BDD.pWild w)
   where
   -- XXX: foldl'
   go macc bacc _todo pat [] =
@@ -168,62 +189,80 @@ checkLiteralWidth _ _ = pure ()
 
 
 
+
 inferBitData :: BitData -> MTypeM (Map TCTyName TCTyDecl)
 inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
-  m_sz_tyss <- mapM (mapM (bdfSizedType . thingValue) . snd ) (bdCtors bd)
-
-  -- Check that no rule has more than 1 underspecified width
-  zipWithM_ checkUnderspec (bdCtors bd) m_sz_tyss
+  m_sz_tyss <- bodySize (bdName bd) (bdBody bd)
 
   -- Get the first known type width, if it exists (error otherwise)
-  let knownWidths = catMaybes (zipWith knownWidth (bdCtors bd) m_sz_tyss)
-  (kfld, width) <- case knownWidths of
-    []            -> reportError bd "Unable to determine size of type"
-    r : _         -> pure r
+  let conNames = case bdBody bd of
+                   BitDataUnion cs  -> map (Just . thingValue . fst) cs
+                   BitDataStruct {} -> repeat Nothing
+  let knownWidths = catMaybes (zipWith knownWidth conNames m_sz_tyss)
+  (mbCon,width) <-
+     case knownWidths of
+       []    -> reportError bd "Unable to determine size of type"
+       r : _ -> pure r
 
-  -- Check all known widths are the same
-  case find (not . (==) width . snd) knownWidths of
-    Nothing         -> pure ()
-    Just (fld', w') -> reportDetailedError bd "Mismatched constructor widths"
-      [ "constructor" <+> pp kfld <+> "has width" <+> pp width
-      , "constructor" <+> pp fld' <+> "has width" <+> pp w'
-      ]
+  case bdBody bd of
 
-  (decls, ctors, pats) <-
-      unzip3 <$> zipWithM (inferCtor (bdName bd) width)
-                                              (bdCtors bd) m_sz_tyss
+    BitDataStruct fields ->
+      do d <- inferStruct (bdName bd) width (bdName bd, fields) (head m_sz_tyss)
+         pure (Map.singleton (tctyName d) d)
 
-  -- Check that all constructors are distinct
-  let overlap a b = not (BDD.willAlwaysFail (BDD.pAnd a b))
-      overlappingCons xs =
-        case xs of
-          (l,a) : bs -> [ (l,m) | (m,b) <- bs, overlap a b ] ++
-                        overlappingCons bs
-          []     -> []
-  case overlappingCons (zip (map fst ctors) pats) of
-    [] -> pure ()
-    (a,b) : _ -> reportDetailedError bd "Overlapping constructors"
-                   [ "constructor" <+> pp a, "constructor" <+> pp b ]
+    BitDataUnion cons ->
 
-  let decl = TCTyDecl { tctyName    = TCTy (bdName bd)
-                      , tctyParams  = []
-                      , tctyBD      = Just (BDD.pOrs width pats)
-                      , tctyDef     = TCTyUnion ctors
-                      }
+      -- Check all known widths are the same
+      do case find ((/= width) . snd) knownWidths of
+           Nothing         -> pure ()
+           Just (fld', w') ->
+             reportDetailedError bd "Mismatched constructor widths"
+               [ "constructor" <+> pp (fromJust mbCon) <+> "has width" <+>
+                                                                      pp width
+               , "constructor" <+> pp (fromJust fld') <+> "has width" <+> pp w'
+               ]
 
-  pure (Map.fromList [ (tctyName d, d) | d <- decl : decls ])
+         decls <- forM (zip cons m_sz_tyss) \(ctor,sz) ->
+                    do let mkIdent ident = ident <> "_" <> thingValue (fst ctor)
+                       nm <- deriveNameWith mkIdent (bdName bd)
+                       inferStruct nm width ctor sz
+
+         let labels = map fst cons
+             pats   = map (fromJust . tctyBD) decls
+             tags   = map thingValue labels
+                      `zip` [ (TCon (tctyName d) [], tag)
+                            | d <- decls
+                            , let TCTyStruct tag _ = tctyDef d
+                            ]
+
+         -- Check that all constructors are distinct
+         let overlap a b = not (BDD.willAlwaysFail (BDD.pAnd a b))
+             overlappingCons xs =
+               case xs of
+                 (l,a) : bs -> [ (l,m) | (m,b) <- bs, overlap a b ] ++
+                               overlappingCons bs
+                 []     -> []
+         case overlappingCons (zip labels pats) of
+           [] -> pure ()
+           (a,b) : _ -> reportDetailedError bd "Overlapping constructors"
+                          [ "constructor" <+> pp a, "constructor" <+> pp b ]
+
+         let decl = TCTyDecl { tctyName    = TCTy (bdName bd)
+                             , tctyParams  = []
+                             , tctyBD      = Just (BDD.pOrs width pats)
+                             , tctyDef     = TCTyUnion tags
+                             }
+
+         -- remove checks from anonymous types, as they are in the
+         -- constructor now
+         let decls' = [ d { tctyDef = TCTyStruct Nothing fs }
+                      | d <- decls, let  TCTyStruct _ fs = tctyDef d
+                      ]
+         pure (Map.fromList [ (tctyName d, d) | d <- decl : decls' ])
   where
-    -- label included for error reporting
-    knownWidth :: ( Located Label, [ Located BitDataField ]) ->
-                  [ Maybe (Type, BDD.Pat) ] ->
-                  Maybe (Located Label, BDD.Width)
-    knownWidth (ctor, _field) sz_tys = do
-      all_sz_tys <- sequenceA sz_tys
-      pure (ctor, sum (map (BDD.width . snd) all_sz_tys))
-
-    checkUnderspec (fld, ctors) sz_tys = do
-      let nothings = [ loc | (loc, Nothing) <- zip ctors sz_tys ]
-      when (length nothings > 1) $
-        reportDetailedError fld "Multiple untyped fields, see: "
-                                            [ pp (range x) | x <- nothings ]
+    knownWidth :: Maybe Label -> [ Maybe (Type, BDD.Pat) ] ->
+                  Maybe (Maybe Label, BDD.Width)
+    knownWidth lab sz_tys =
+      do all_sz_tys <- sequenceA sz_tys
+         pure (lab, sum (map (BDD.width . snd) all_sz_tys))
 

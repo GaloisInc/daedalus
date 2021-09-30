@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
   auto end  = std::chrono::high_resolution_clock::now();
   auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
             .count();
-  double mb = double(i.length()) / double(1024 * 1024);
+  double mb = double(i.length().rep()) / double(1024 * 1024);
   double secs = double(diff) / double(1000);
   double mb_s = (double)mb / secs;
 

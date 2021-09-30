@@ -4,12 +4,12 @@ module T064
  
 --- Type defs:
 {- bitdata
-________
+01000010
 -}
 type T064.myBD2_B = { }
  
 {- bitdata
-________
+01000011
 -}
 type T064.myBD2_C = { }
  
@@ -21,13 +21,13 @@ type T064.myBD2 = Choose { B: T064.myBD2_B
                          }
  
 {- bitdata
-________0100001_
+010000010100001_
 -}
 type T064.myBD3_D = { x: T064.myBD2
                     }
  
 {- bitdata
-________0100001_
+010000100100001_
 -}
 type T064.myBD3_E = { x: T064.myBD2
                     }
