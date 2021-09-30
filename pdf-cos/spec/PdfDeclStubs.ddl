@@ -1,4 +1,5 @@
 -- Testing: definitions for testing
+import PdfValue
 import Stdlib
 
 -- ParseAtRef P r: parse the input at r, using P

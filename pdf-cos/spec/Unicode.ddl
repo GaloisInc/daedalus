@@ -111,7 +111,6 @@ def pointTail3 (x : uint 16) = bytes3
   (pointTail2 (x .&. 0x7FF))
 
 -- unicodePoint: construct a code point from a two-byte value
--- DBG:
 def unicodePoint (x : uint 16) : UTF8 =
   if x <= 0x7F then mkUTF81
     (bytes1 (trunc8 x))

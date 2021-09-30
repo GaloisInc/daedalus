@@ -110,7 +110,7 @@ def GenMany P acc0 =
   } <|
   ^acc0
 
-def ManyWithStateRec P q (res : [ ?a ]) : Pair = Default (Pair q res) {
+def ManyWithStateRec P q (res : [ ?a ]) : pair = Default (pair q res) {
   @eff = P q;
   ManyWithStateRec P eff.fst (append res (optionToArray eff.snd))
 }
@@ -124,7 +124,7 @@ def WithStream s P = {
   SetStream cur;
 }
 
-def sepLists2 ls : Pair = {
+def sepLists2 ls : pair = {
   fst = optionsToArray (map (x in ls) getLeft x);
   snd = optionsToArray (map (x in ls) getRight x);
 }

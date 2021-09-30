@@ -45,9 +45,11 @@ def LiftedTextObj (rd: ResourceDict) (szFont: maybe sizedFont) :
   FontEffect eff0.fst (just (just (CSTextObj eff0.snd))) -- ?
 }
 
+-- DBG:
+def ContentStreamP (rd : ResourceDict) : [ ContentStreamObj ] = ^[]
 -- ContentStreamP: parse a content stream, resolving lookups
 -- into the resource dictionary.
-def ContentStreamP (rd : ResourceDict) : [ ContentStreamObj ] = {
+def ContentStreamP0 (rd : ResourceDict) : [ ContentStreamObj ] = {
   @eff0 = ManyWithState (GenSum1
     (FontOpEffect rd)
     (GenSum1 (LiftedTextObj rd)

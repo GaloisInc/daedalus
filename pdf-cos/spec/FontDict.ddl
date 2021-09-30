@@ -26,4 +26,3 @@ def MkType1Font (f1 : Type1Font) : FontDict = {| type1 = f1 |}
 
 -- def FontDictP = When Value (MkType1Font Type1FontStub)
 def FontDictP = FontDict
-
