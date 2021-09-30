@@ -329,6 +329,12 @@ liftValAppPure r es f =
       GrammarArg _ ->
         panic "liftValApp" ["Unexpected grammar argument in lift."]
 
+checkCommit :: HasRange r => r -> Commit -> TypeM ctx ()
+checkCommit r cmt =
+  case cmt of
+    Commit -> pure ()
+    Backtrack -> addWarning r "Using unbiased choice may be inefficient."
+
 
 inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
 inferExpr expr =
@@ -728,7 +734,8 @@ inferExpr expr =
                              )
            _ ->
              grammarOnly expr
-             do (eL,tL) <- inferExpr e1
+             do checkCommit expr cmt
+                (eL,tL) <- inferExpr e1
                 (eR,tR) <- inferExpr e2
                 unify (eL,tL) (eR,tR)
                 a <- grammarResult expr tL
@@ -736,12 +743,14 @@ inferExpr expr =
 
     EChoiceT c [] ->
       grammarOnly expr
-      do a <- newTVar expr KValue
+      do checkCommit expr c
+         a <- newTVar expr KValue
          pure (exprAt expr (TCChoice c [] a), tGrammar a)
 
     EChoiceT c fs ->
       grammarOnly expr
-      do ty   <- newTVar expr KValue
+      do checkCommit expr c
+         ty   <- newTVar expr KValue
 
          fsT <- forM fs \(f :> e) ->
                 do (e1,t0) <- inferExpr e
@@ -817,7 +826,8 @@ inferExpr expr =
 
     EOptional cmt e ->
       grammarOnly expr
-      do (e1,t) <- inferExpr e
+      do checkCommit expr cmt
+         (e1,t) <- inferExpr e
          a      <- grammarResult e t
          pure ( exprAt expr (TCOptional cmt e1)
               , tGrammar (tMaybe a)
@@ -825,7 +835,8 @@ inferExpr expr =
 
     EMany com bnds e ->
       grammarOnly expr
-      do (e1,t) <- inferExpr e
+      do checkCommit e com
+         (e1,t) <- inferExpr e
          a      <- grammarResult e t
          newBnds <- checkManyBounds bnds
          pure ( exprAt expr (TCMany YesSem com newBnds e1)

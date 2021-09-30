@@ -18,6 +18,7 @@ module Daedalus.Type.Monad
   , TypeError(..)
   , reportError
   , reportDetailedError
+  , addWarning
 
     -- * Local Environemnt
   , getEnv
@@ -115,30 +116,33 @@ instance Exception TypeError where
 
 class Monad m => MTCMonad m where
   reportError     :: HasRange a => a -> Doc  -> m b
+  addWarning      :: HasRange a => a -> Doc -> m ()
   newName'        :: HasRange r => r -> Context a -> Type -> m (TCName a)
   getRuleEnv      :: m RuleEnv
   getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
   extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
 
 
-reportDetailedError :: MTCMonad m => HasRange a => a -> Doc -> [Doc] -> m b
+reportDetailedError :: (MTCMonad m, HasRange a) => a -> Doc -> [Doc] -> m b
 reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 
 newName :: (MTCMonad m, HasRange r) => r -> Type -> m (TCName Value)
 newName r t = newName' r AValue t
 
+type TypeWarnign = TypeError
 
 
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM { getMTypeM :: 
+newtype MTypeM a = MTypeM { getMTypeM ::
                             WithBase PassM
                               '[ ReaderT MRO
+                               , StateT [TypeWarnign]
                                , ExceptionT TypeError
                                ] a
                           }
-                   
+
 deriving instance Functor MTypeM
 
 instance Applicative MTypeM where
@@ -158,8 +162,8 @@ data MRO = MRO
 -- XXX: maybe preserve something about the state?
 runMTypeM :: Map TCTyName TCTyDecl ->
              RuleEnv ->
-             MTypeM a -> PassM (Either TypeError a)
-runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
+             MTypeM a -> PassM (Either TypeError (a,[TypeWarnign]))
+runMTypeM tenv renv (MTypeM m) = runExceptionT $ runStateT [] $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
                    }
@@ -170,6 +174,10 @@ instance HasGUID MTypeM where
 instance MTCMonad MTypeM where
   reportError r s =
     MTypeM (raise (TypeError Located { thingRange = range r, thingValue = s }))
+
+  addWarning r s =
+    MTypeM $ sets_
+            ((TypeError Located { thingRange = range r, thingValue = s }) :)
 
   newName' r ctx ty = do
     n <- getNextGUID
@@ -222,6 +230,7 @@ instance HasGUID STypeM where
 
 instance MTCMonad STypeM where
   reportError r e     = mType (reportError r e)
+  addWarning r w      = mType (addWarning r w)
   newName' r c t      = mType (newName' r c t)
   getRuleEnv          = mType getRuleEnv
   getGlobTypeDefs     = mType getGlobTypeDefs
@@ -454,6 +463,7 @@ sType m = TypeM (lift (lift m))
 
 instance MTCMonad (TypeM ctx) where
   reportError r e     = sType (reportError r e)
+  addWarning r e      = sType (addWarning r e)
   newName' r c t      = sType (newName' r c t)
   getRuleEnv          = sType getRuleEnv
   getGlobTypeDefs     = sType getGlobTypeDefs

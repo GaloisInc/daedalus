@@ -1,6 +1,7 @@
 {-# Language BlockArguments #-}
 {-# Language FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Daedalus.Driver
   ( Daedalus
@@ -87,7 +88,7 @@ import System.Directory(createDirectoryIfMissing)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp)
+import Daedalus.PP(pp,vcat,(<+>))
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 import Daedalus.GUID
@@ -537,9 +538,10 @@ tcModule m =
      r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1' ->
+       Right (m1',warnings) ->
          do let m1 = normTCModule m1'
                 warn = CheckUnused.checkTCModule m1
+            unless (null warnings) (ppTCWarn warnings)
             unless (null warn) (ppWarn warn)
             ddlUpdate_ \s -> s
               { loadedModules = Map.insert (tcModuleName m1)
@@ -556,6 +558,8 @@ tcModule m =
                         (forgetRecs (tcModuleDecls m1))
               }
   where
+  ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
+
   ppWarn xs =
     ddlPutStrLn $
       unlines
