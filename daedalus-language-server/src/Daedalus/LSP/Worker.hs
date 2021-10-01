@@ -398,7 +398,7 @@ tcModule _mn _ms (m, _) deps = do
   e_r <- liftPassM (runMTypeM importDecls importRules (inferRules m))
   pure $ case e_r of
     Left err  -> Left (toDiagnostics err)
-    Right tcm -> Right (tcm, mkRules tcm, mkTDecls tcm)
+    Right (tcm,warnings) -> Right (tcm, mkRules tcm, mkTDecls tcm)
   where
     -- Copied from Driver, more or less.
     -- All deps.
