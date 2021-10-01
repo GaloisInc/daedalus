@@ -30,9 +30,14 @@ import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
 import Daedalus.Type.Generalize
 import Daedalus.Type.BitData
+import qualified Daedalus.Type.CheckUnused as CheckUnused
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
-inferRules m = goBD [] (moduleBitData m)
+inferRules m =
+  do tcm <- goBD [] (moduleBitData m)
+     let unusedWarnings = CheckUnused.checkTCModule tcm
+     forM_ unusedWarnings \r -> addWarning r "Statement has no effect"
+     pure tcm
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 

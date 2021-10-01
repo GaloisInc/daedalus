@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
@@ -191,7 +192,7 @@ runIfNeeded :: forall a a'. Lens' ModuleState (PassStatus a) ->
                (Bool -> ModuleState -> ModuleState) ->
                (a' -> [Located ModuleName]) ->
                (ModuleName -> ModuleSource -> a' -> [a] ->
-                WorkerM (Either [Diagnostic] a)) ->
+                WorkerM (Either [Diagnostic] a, [Diagnostic])) ->
                ModuleName ->
                WorkerM ()
 runIfNeeded l prevl cleanup deps doIt mn = do
@@ -219,7 +220,8 @@ runIfNeeded l prevl cleanup deps doIt mn = do
 
         -- Something has changed, and all deps are available
         (_, ([], depvs)) -> do
-          e_v <- doIt mn ms m depvs
+          (e_v,warnings) <- doIt mn ms m depvs
+          addDiagnostic ms warnings
           case e_v of
             Left err -> do
               -- FIXME: should we compare errors or something?
@@ -235,7 +237,7 @@ runIfNeeded l prevl cleanup deps doIt mn = do
         -- infrequent).
         (_, (errs, _)) -> do
           setStatus False $ PassStatus True ErrorStatus
-          addDiagnostic ms (map makeDiagnosticL errs)
+          addDiagnostic ms (map (makeDiagnosticL J.DsError) errs)
   where
     setStatus :: Bool -> PassStatus a -> WorkerM ()
     setStatus ok x = wsModules . ix mn %= (set l x . cleanup ok)
@@ -308,9 +310,9 @@ parseAll = do
 
 -- Parse the module and ensure that any deps. are at least in the process of being loaded.
 parseModule :: ModuleName -> ModuleSource -> [Lexeme Token] -> a ->
-               WorkerM (Either [Diagnostic] Module)
+               WorkerM (Either [Diagnostic] Module,[Diagnostic])
 parseModule mn ms toks _ignored =
-  pure $ over _Left toDiagnostics $ parseFromTokens (Text.pack fsrc) mn toks
+  pure (over _Left toDiagnostics (parseFromTokens (Text.pack fsrc) mn toks), [])
   where
     fsrc = case ms of
              ClientModule uri _version ->
@@ -363,7 +365,7 @@ scopeAll = do
 
     cycleError mns mn = do
       let err = "Cyclic imports with " <> hsep (punctuate ", " (map pp mns))
-          diag lmn = makeDiagnosticText (sourceRangeToRange (range lmn))
+          diag lmn = makeDiagnosticText J.DsError (sourceRangeToRange (range lmn))
                                         (Text.pack (show err))
       m_mst <- use (wsModules . at mn)
       case m_mst of
@@ -377,9 +379,9 @@ scopeAll = do
         _  -> pure () -- Shouldn't happen
 
 scopeModule :: ModuleName -> ModuleSource -> Module -> [(a, GlobalScope)] ->
-               WorkerM (Either [Diagnostic] (Module, GlobalScope))
+               WorkerM (Either [Diagnostic] (Module, GlobalScope), [Diagnostic])
 scopeModule _mn _ms m deps =
-  over _Left toDiagnostics <$> liftPassM (resolveModule scope m)
+  (,[]) . over _Left toDiagnostics <$> liftPassM (resolveModule scope m)
   where
     scope = mconcat (map snd deps)
 
@@ -393,12 +395,15 @@ tcAll = traverse_ go
                      (moduleImports . fst) tcModule
 
 tcModule :: ModuleName -> ModuleSource -> (Module, a) -> [(b, RuleEnv, Map TCTyName TCTyDecl)] ->
-            WorkerM (Either [Diagnostic] (TCModule SourceRange, RuleEnv, Map TCTyName TCTyDecl))
+            WorkerM (Either [Diagnostic] (TCModule SourceRange, RuleEnv, Map TCTyName TCTyDecl)
+                    , [Diagnostic]
+                    )
 tcModule _mn _ms (m, _) deps = do
   e_r <- liftPassM (runMTypeM importDecls importRules (inferRules m))
   pure $ case e_r of
-    Left err  -> Left (toDiagnostics err)
-    Right (tcm,warnings) -> Right (tcm, mkRules tcm, mkTDecls tcm)
+    Left err  -> (Left (toDiagnostics err), [])
+    Right (tcm,warnings) -> (Right (tcm, mkRules tcm, mkTDecls tcm),
+                                    concatMap toDiagnostics warnings)
   where
     -- Copied from Driver, more or less.
     -- All deps.

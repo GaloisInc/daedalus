@@ -97,7 +97,6 @@ import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
-import qualified Daedalus.Type.CheckUnused as CheckUnused
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
@@ -540,9 +539,7 @@ tcModule m =
        Left err -> ddlThrow $ ATypeError err
        Right (m1',warnings) ->
          do let m1 = normTCModule m1'
-                warn = CheckUnused.checkTCModule m1
             unless (null warnings) (ppTCWarn warnings)
-            unless (null warn) (ppWarn warn)
             ddlUpdate_ \s -> s
               { loadedModules = Map.insert (tcModuleName m1)
                                            (TypeCheckedModule m1)
@@ -559,13 +556,6 @@ tcModule m =
               }
   where
   ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
-
-  ppWarn xs =
-    ddlPutStrLn $
-      unlines
-        [ prettySourceRangeLong x <>
-                                " [WARNING] Statement has no effect" | x <- xs ]
-
 
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
@@ -674,7 +664,7 @@ WARNING: The module name should be a new module name where we store the result
 of specialization, which is different from how the other passes work. -}
 passSpecialize :: ModuleName -> [(ModuleName,Ident)] -> Daedalus ()
 passSpecialize tgt roots =
-  do mapM_ ddlLoadModule (map fst roots)
+  do mapM_ (ddlLoadModule . fst) roots
      allMods <- ddlBasisMany (map fst roots)
 
      -- Find the actual Names, not just the ScopedIdents.  Pretty ugly

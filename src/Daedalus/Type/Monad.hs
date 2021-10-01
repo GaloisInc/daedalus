@@ -16,6 +16,7 @@ module Daedalus.Type.Monad
 
     -- * Error reporting
   , TypeError(..)
+  , TypeWarning(..)
   , reportError
   , reportDetailedError
   , addWarning
@@ -114,6 +115,19 @@ instance Exception TypeError where
   displayException = show . pp
 
 
+data TypeWarning = TypeWarning (Located Doc) deriving Show
+
+instance PP TypeWarning where
+  pp (TypeWarning l) =
+    hang (text (prettySourceRangeLong (thingRange l)) <.> colon)
+        2 (thingValue l)
+
+instance Exception TypeWarning where
+  displayException = show . pp
+
+
+
+
 class Monad m => MTCMonad m where
   reportError     :: HasRange a => a -> Doc  -> m b
   addWarning      :: HasRange a => a -> Doc -> m ()
@@ -129,8 +143,6 @@ reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 newName :: (MTCMonad m, HasRange r) => r -> Type -> m (TCName Value)
 newName r t = newName' r AValue t
 
-type TypeWarnign = TypeError
-
 
 --------------------------------------------------------------------------------
 -- Module-level typing monad
@@ -138,7 +150,7 @@ type TypeWarnign = TypeError
 newtype MTypeM a = MTypeM { getMTypeM ::
                             WithBase PassM
                               '[ ReaderT MRO
-                               , StateT [TypeWarnign]
+                               , StateT [TypeWarning]
                                , ExceptionT TypeError
                                ] a
                           }
@@ -162,7 +174,7 @@ data MRO = MRO
 -- XXX: maybe preserve something about the state?
 runMTypeM :: Map TCTyName TCTyDecl ->
              RuleEnv ->
-             MTypeM a -> PassM (Either TypeError (a,[TypeWarnign]))
+             MTypeM a -> PassM (Either TypeError (a,[TypeWarning]))
 runMTypeM tenv renv (MTypeM m) = runExceptionT $ runStateT [] $ runReaderT r0 m 
   where r0   = MRO { roRuleTypes = renv
                    , roTypeDefs  = tenv
@@ -177,7 +189,7 @@ instance MTCMonad MTypeM where
 
   addWarning r s =
     MTypeM $ sets_
-            ((TypeError Located { thingRange = range r, thingValue = s }) :)
+            ((TypeWarning Located { thingRange = range r, thingValue = s }) :)
 
   newName' r ctx ty = do
     n <- getNextGUID
