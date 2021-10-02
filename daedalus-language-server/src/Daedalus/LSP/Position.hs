@@ -9,6 +9,7 @@
 module Daedalus.LSP.Position where
 
 import           Data.Monoid
+import           Control.Monad(guard)
 import           Data.Parameterized.Some
 import qualified Data.Text               as Text
 
@@ -81,30 +82,44 @@ declToNames d@TCDecl { tcDeclName = n, tcDeclParams = ps, tcDeclDef = def } =
 
     goBody = foldMapTC go
 
-typeAtModule :: J.Position -> TCModule SourceRange -> Alt Maybe (Type, SourceRange)
-typeAtModule pos m = foldMap (typeAtDecl pos) (forgetRecs (tcModuleDecls m))
+data TypeInfo = TypeInfo
+                  { nameOfDecl :: Name
+                  , typeOfDecl :: Poly RuleType
+                  , typeLoc    :: SourceRange
+                  , typeOfExpr :: Maybe Type
+                  }
+
+typeAtModule :: J.Position -> TCModule SourceRange -> Maybe TypeInfo
+typeAtModule pos m =
+  msum (map (typeAtDecl pos) (forgetRecs (tcModuleDecls m)))
+
+typeAtDecl :: J.Position -> TCDecl SourceRange -> Maybe TypeInfo
+typeAtDecl pos d@TCDecl { tcDeclName = n, tcDeclParams = ps, tcDeclDef = def
+                         , tcDeclAnnot = r }
+  | not (positionInRange pos (tcDeclAnnot d)) = Nothing
+  | otherwise = msum (inName : map inParam ps ++ [ inBody, Just here ])
+  where
+  here = TypeInfo { nameOfDecl = n
+                  , typeOfDecl = declTypeOf d
+                  , typeLoc    = r
+                  , typeOfExpr = Nothing
+                  }
+
+  inName    = do guard (positionInRange pos n)
+                 pure here { typeLoc = range n }
+  inParam p = do guard (positionInRange pos p)
+                 pure here { typeLoc = range p, typeOfExpr = Just (typeOf p) }
+  inBody    = case def of
+                Defined tc    ->
+                  do (ty,rng) <- getAlt (typeAtTC pos tc)
+                     pure here { typeLoc = rng, typeOfExpr = Just ty }
+                ExternDecl {} -> Nothing
+
+
 
 declAtPos :: J.Position -> TCModule SourceRange -> Maybe (TCDecl SourceRange)
-declAtPos pos m = find (positionInRange pos . tcDeclAnnot) (forgetRecs (tcModuleDecls m))
-  
-typeAtDecl :: J.Position -> TCDecl SourceRange -> Alt Maybe (Type, SourceRange)
-typeAtDecl pos d | not (positionInRange pos (tcDeclAnnot d)) = mempty
-typeAtDecl pos TCDecl { tcDeclName = n, tcDeclParams = ps, tcDeclDef = def
-                      , tcDeclAnnot = r } =
-  tryOne' n def <> foldMap tryOne ps <> defOne <> fallback
-  where
-    defOne = case def of
-      ExternDecl _ -> mempty
-      Defined tc   -> typeAtTC pos tc
-
-    tryOne :: (HasRange a, TypeOf a) => a -> Alt Maybe (Type, SourceRange)
-    tryOne v = tryOne' v v
-
-    tryOne' :: (HasRange a, TypeOf b) => a -> b -> Alt Maybe (Type, SourceRange)
-    tryOne' v v' = Alt $ if positionInRange pos v then Just (typeOf v', range v) else Nothing
-    
-    -- If nothing else, return the whole thing
-    fallback = Alt (Just (typeOf def, r))
+declAtPos pos m =
+  find (positionInRange pos . tcDeclAnnot) (forgetRecs (tcModuleDecls m))
 
 typeAtTC :: J.Position -> TC SourceRange k -> Alt Maybe (Type, SourceRange)
 typeAtTC pos tc = do
@@ -128,7 +143,7 @@ exprTree TCDecl { tcDeclDef = Defined def } = bullets (go def)
     go tc =
       let kids = foldMapTC go tc
       in [ hang (text (prettySourceRange (range tc)) $$ pp tc) 4 (bullets kids) ]
-        
+
 -- This assumes that a position cannot be in sibling expressions
 positionToExprs :: J.Position -> TC SourceRange k -> Alt Maybe [Some (TC SourceRange)]
 positionToExprs pos = go

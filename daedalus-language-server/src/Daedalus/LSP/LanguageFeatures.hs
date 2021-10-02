@@ -23,6 +23,7 @@ import           Daedalus.Rec                (forgetRecs)
 import           Daedalus.Scope
 import           Daedalus.SourceRange
 import           Daedalus.Type.AST
+import           Daedalus.Type.Pretty(ppNamedRuleType,ppTypeInContext)
 
 import           Daedalus.LSP.Diagnostics    (sourceRangeToRange)
 import           Daedalus.LSP.Monad
@@ -176,7 +177,12 @@ hover resp uri pos = do
 
 doHover :: J.Position -> TCModule SourceRange -> Maybe J.Hover
 doHover pos m = do
-  (ty, r) <- getAlt $ typeAtModule pos m
-  let ms = J.HoverContents $ J.markedUpContent "lsp-daedalus" (Text.pack (showPP ty))
-  pure $ J.Hover ms (Just (sourceRangeToRange r))
+  info <- typeAtModule pos m
+  let msg = Text.pack $ show $
+            case typeOfExpr info of
+              Just t  -> ppTypeInContext (typeOfDecl info) t
+              Nothing -> ppNamedRuleType (nameOfDecl info) (typeOfDecl info)
+
+  let ms = J.HoverContents $ J.markedUpContent "lsp-daedalus" msg
+  pure $ J.Hover ms (Just (sourceRangeToRange (typeLoc info)))
 
