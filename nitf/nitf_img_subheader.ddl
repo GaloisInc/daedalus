@@ -320,8 +320,7 @@ def NBands (irep : IRep) =
 
 def XBands n = BoundedNum 5 10 99999
 
-def IRepBandN = Choose { -- NOTE-MODERN: `bandM` and `monoBand` are overlapping
-  bandM = @(PadMatch 2 ' ' "M") ;
+def IRepBandN = Choose1 {
   lutBand = @(PadMatch 2 ' ' "LU") ;
   red = @(PadMatch 2 ' ' "R") ;
   green = @(PadMatch 2 ' ' "G") ;
