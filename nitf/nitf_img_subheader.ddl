@@ -47,7 +47,7 @@ def NRows = PosNumber 8
 
 def NCols = PosNumber 8
 
-def PVType = Choose { -- NOTE-MODERN: nonoverlapping
+def PVType = Choose1 {
   integer = @(PadMatch 3 ' ' "INT") ;
   bilevel = @(PadMatch 3 ' ' "B") ;
   signed = @(PadMatch 3 ' ' "SI") ;
@@ -55,7 +55,7 @@ def PVType = Choose { -- NOTE-MODERN: nonoverlapping
   complex = @(PadMatch 3 ' ' "C") ;
 }
 
-def IRep = Choose { -- NOTE-MODERN: nonoverlapping
+def IRep = Choose1 {
   monochrome = @(PadMatch 8 ' ' "MONO") ;
   rgb = @(PadMatch 8 ' ' "RGB") ;
   rgblut = @(PadMatch 8 ' ' "RGB/LUT") ;
@@ -67,7 +67,7 @@ def IRep = Choose { -- NOTE-MODERN: nonoverlapping
   itur = @(PadMatch 8 ' ' "YCbCr601") ;
 }
 
-def ICat = Choose { -- NOTE-MODERN: nonoverlapping
+def ICat = Choose1 {
   visible = @(PadMatch 8 ' ' "VIS") ;
   sideLooking = @(PadMatch 8 ' ' "SL") ;
   thermalInfrared = @(PadMatch 8 ' ' "TI") ;
@@ -103,13 +103,13 @@ def ICat = Choose { -- NOTE-MODERN: nonoverlapping
 
 def ABPP = BoundedNum 2 1 96
 
-def PJust = Choose { -- NOTE-MODERN: nonoverlapping
+def PJust = Choose1 {
   leftJust = @Match1 'L' ;
   rightJust = @Match1 'R' ;
 }
 
 def ICords = DefaultSpace (
-  Choose { -- NOTE-MODERN: nonoverlapping
+  Choose1 {
     utm = @Match1 'U' ;
     northernhemi = @Match1 'N' ;
     southernhemi = @Match1 'S' ;
@@ -124,7 +124,7 @@ def LatDeg = block
   Match1 '.'
   @frac_digs = Many 3 Digit
   frac = ^ numBase 10 frac_digs
-  Guard (whole < 90 || ((whole == 90) && (frac == 0))) -- NOTE-MODERN: nonoverlapping and rewritten with one `Guard`
+  Guard (whole < 90 || ((whole == 90) && (frac == 0)))
 
 
 def LongDeg = block
@@ -134,18 +134,18 @@ def LongDeg = block
   Match1 '.'
   @frac_digs = Many 3 Digit
   frac = ^ numBase 10 frac_digs
-  Guard (whole < 180 || ((whole == 180) && (frac == 0))) -- NOTE-MODERN: nonoverlapping and rewritten with one `Guard`
+  Guard (whole < 180 || ((whole == 180) && (frac == 0)))
 
 def Latitude = block
   digs = PadMany 6 ' ' Numeral
-  hemi = Choose { -- NOTE-MODERN: nonoverlapping
+  hemi = Choose1 {
       north = @Match1 'N' ;
       south = @Match1 'S' ;
     }
 
 def Longitude = block
   digs = PadMany 7 ' ' Numeral
-  hemi = Choose { -- NOTE-MODERN: nonoverlapping
+  hemi = Choose1 {
       east = @Match1 'E' ;
       west = @Match1 'W' ;
     }
@@ -215,7 +215,7 @@ def OrdLong left right =
      )
    )
 
-def IGeoLo = Choose1 { -- NOTE-MODERN: seams nonoverlapping
+def IGeoLo = Choose1 {
   decimal_degs = {
     lat0 = LatDeg ;
     long0 = LongDeg ;
@@ -239,7 +239,7 @@ def NICom = Digit as! uint 64
 
 def IComn n = Many n (Many 80 Byte)
 
-def IC = Choose { -- NOTE-MODERN: nonoverlapping
+def IC = Choose1 {
   c1 = @Match "C1" ;
   c3 = @Match "C3" ;
   c4 = @Match "C4" ;
@@ -259,11 +259,11 @@ def IC = Choose { -- NOTE-MODERN: nonoverlapping
   nm = @Match "NM" ;
 }
 
-def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
+def ComRat (ic : IC) = Choose1 {
   dim_coding = {
     case ic of {
       c1, m1 ->
-        Choose { -- NOTE-MODERN: nonoverlapping
+        Choose1 {
           oned = @(PadMatch 4 ' ' "1D") ;
           twods = @(PadMatch 4 ' ' "2DS") ;
           twodh = @(PadMatch 4 ' ' "2DH") ;
@@ -304,7 +304,7 @@ def ComRat (ic : IC) = Choose { -- NITF-MODERN: that seems nonoverlapping
 
 
 def NBands (irep : IRep) =
-  case irep of { -- NOTE-MODERN: This is overlapping at the end
+  case irep of {
     nodisplay  -> Digit as uint 64;
     monochrome -> IsNum 1 1;
     rgb        -> IsNum 1 3;
@@ -315,12 +315,12 @@ def NBands (irep : IRep) =
     sar        -> IsNum 1 1;
     multi      -> (  IsNum 1 0
                   <| BoundedNum 1 2 9);
-    _          -> IsNum 1 0
+    _          -> IsNum 1 0 -- NOTE: this case is captured by previous one
   }
 
 def XBands n = BoundedNum 5 10 99999
 
-def IRepBandN = Choose { -- NOTE-MODERN: nonoverlapping
+def IRepBandN = Choose { -- NOTE-MODERN: `bandM` and `monoBand` are overlapping
   bandM = @(PadMatch 2 ' ' "M") ;
   lutBand = @(PadMatch 2 ' ' "LU") ;
   red = @(PadMatch 2 ' ' "R") ;
@@ -360,7 +360,7 @@ def LutdNM n = Many n Byte
 def ISync = Match1 '0' -- reserved for future use
 
 def IMode nbands = {
-  $$ = Choose { -- NOTE-MODERN: nonoverlapping
+  $$ = Choose1 {
     blockMode = @Match1 'B' ;
     pixel = @Match1 'P' ;
     row = @Match1 'R' ;
@@ -735,7 +735,7 @@ def ISHeader = {
   p_just = PJust ;
 
   icords = ICords ;
-  Choose { -- NOTE-MODERN: nonoverlapping
+  Choose1 {
     igeolo = {
       icords is actual ;
       IGeoLo
@@ -748,20 +748,20 @@ def ISHeader = {
 
   ic = IC ;
 
-  Choose { -- NOTE-MODERN: nonoverlapping
+  Choose1 {
     comrat =
       case ic of {
         c1, c3, c4, c5, c6, c8, m1, m3, m4, m5, m8, i1 -> ComRat ic;
       };
 
     empty =
-        ic is nc
-      | ic is nm
+         ic is nc
+      <| ic is nm
   } ;
 
   nbands = NBands irep ;
 
-  xbands = Choose { -- NOTE-MODERN: nonoverlapping
+  xbands = Choose1 {
     def_xband = {
       Guard (nbands == 0) ;
       XBands nbands
@@ -772,7 +772,7 @@ def ISHeader = {
   @num_bands =
     { Guard (nbands != 0) ;
       ^ nbands }
-  | { Guard (nbands == 0) ; -- NOTE-MODERN: nonoverlapping
+  <| { Guard (nbands == 0) ;
       @bnds = xbands is def_xband ;
       ^ bnds
     } ;
@@ -793,7 +793,7 @@ def ISHeader = {
     -- check display params
     DispParams irep irepbandn nbands pvtype nlutsn ;
 
-    Choose { -- NOTE-MODERN: nonoverlapping
+    Choose1 {
       luts = {
         Guard (nlutsn > 0) ;
         nelutn = NELutN ;
@@ -833,7 +833,7 @@ def ISHeader = {
   imag = IMag ;
 
   udidl = UDIDL ;
-  Choose { -- NOTE-MODERN: nonoverlapping
+  Choose1 {
     uds = {
       Guard (udidl > 0) ;
       udofl = UDOfl ;
@@ -843,7 +843,7 @@ def ISHeader = {
   } ;
 
   ixshdl = IXShDL ;
-  Choose { -- NOTE-MODERN: nonoverlapping
+  Choose1 {
     ixs = {
       Guard (ixshdl > 0) ;
       ixsofl = IXSOfl ;

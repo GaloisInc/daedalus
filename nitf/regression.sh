@@ -7,10 +7,11 @@
 # ./regression.sh
 # ./regression.sh --gen   ## using the parser-gen interpreter
 
+set -e
+
 FILENAME=regression_nitf.txt
 OUTPUT=/tmp/${FILENAME}
-WHICH_NITF=""
-NITF_MODERN="--nitf-modern"
+NITF_SPEC=""
 GEN=""
 
 
@@ -20,10 +21,13 @@ do
         "--init" )
             OUTPUT=${FILENAME}
             ISINIT="True"
-            NITF_MODERN=""
+            NITF_SPEC=""
             ;;
         "--gen" )
             GEN="--gen"
+            ;;
+        "--nitf-modern" )
+            NITF_SPEC="--nitf-modern"
             ;;
         *)
             echo "Unkown argument: ${arg}"
@@ -33,10 +37,11 @@ do
 done
 
 
-./test_all.sh --count ${WHICH_NITF} ${NITF_MODERN} ${GEN} | tee ${OUTPUT}
-./test_all.sh --count ${WHICH_NITF} ${NITF_MODERN} ${GEN} --gwg | tee -a ${OUTPUT}
+./test_all.sh --count ${NITF_SPEC} ${GEN} | tee ${OUTPUT}
+./test_all.sh --count ${NITF_SPEC} ${GEN} --gwg | tee -a ${OUTPUT}
 
 if [ -z ${ISINIT} ] ; then
-    echo "DIFF:"
+    echo ""
+    echo "***********    DIFF   ************"
     diff $FILENAME /tmp/$FILENAME
 fi

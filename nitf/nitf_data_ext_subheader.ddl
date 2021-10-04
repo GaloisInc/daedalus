@@ -11,8 +11,8 @@ def DataExtHeader = block
 
   -- NOTE-MODERN: looks like the outer `Choose` should be `Choose1`,
   -- should double-check that the second branch does not make progress
-  desoflw = Choose {
-      present = Choose {
+  desoflw = Choose1 {
+      present = Choose1 {
         oflwUDHD = @(PadMatch 6 ' ' "UDHD") ;
         oflwUDID = @(PadMatch 6 ' ' "UDID") ;
         oflwXHD = @(PadMatch 6 ' ' "XHD") ;
@@ -23,7 +23,7 @@ def DataExtHeader = block
       nooflw = ^{} ;
     }
 
-  dsitem = Choose { -- NOTE-MODERN: nonoverlapping
+  dsitem = Choose1 {
       present = {
         desoflw is present ;
         UnsignedNum 3
