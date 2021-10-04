@@ -36,7 +36,7 @@ def Digraph = Many (1..) (Match1 ('A'..'Z'))
 -- TODO: Field must be set if any of the following are set: FSCODE,
 --       FSREL, FSDCTP, FSDCDT, FSDCXM, FSDG, FSDGDT, FSCLTX, FSCATP,
 --       FSCAUT, FSCRSN, FSSRDT, and FSCTLN
-def FSCLSY = Digraph | Match "  "
+def FSCLSY = Digraph <| Match "  "
 
 def DigraphSeq = Choose1 {
   { @d = Digraph;
@@ -52,13 +52,13 @@ def DigraphSeq = Choose1 {
 def FSCODE = Chunk 11 DigraphSeq
 
 
-def FSCTLH = Digraph | Match "  "
+def FSCTLH = Digraph <| Match "  "
 
 -- def FSREL = Many 20 ' ' -- Chunk 20 DigraphSeq
 def FSREL = Chunk 20 DigraphSeq
 
 -- Unclear how to pad single characters here...
-def FSDCTP = Choose { -- NOTE-MODERN: nonoverlapping
+def FSDCTP = Choose1 {
   dd = @Match "DD" ;
   de = @Match "DE" ;
   gd = @Match "GD" ;
@@ -73,8 +73,8 @@ def Date2 = Many 8 ECSA
 
 -- padding again
 def FSDCXM =
-  [ Match1 ' '; Match1 ' '; Match1 'X'; Match1 ('1' .. '8') ] |
-  [ Match1 'X'; Match1 ('1' .. '8'); Match1 ' '; Match1 ' ' ] |
+  [ Match1 ' '; Match1 ' '; Match1 'X'; Match1 ('1' .. '8') ] <|
+  [ Match1 'X'; Match1 ('1' .. '8'); Match1 ' '; Match1 ' ' ] <|
   [ Match1 'X'; Match1 '2'; Match1 '5'; Match1 ('1' .. '9') ]
 
 def FSDG = Match1 ('S' | 'C' | 'R')

@@ -6,7 +6,7 @@ def TextId = Many 7 (AlphaNum | Match1 ' ')
 
 def TxTitl = Many 80 ECSA
 
-def TxtFmt = Choose {
+def TxtFmt = Choose1 {
   usmtf = @Match "MTF" ;
   bcs = @Match "STA" ;
   ecs = @Match "UT1" ;
@@ -14,8 +14,8 @@ def TxtFmt = Choose {
 }
 
 def TxShDL =
-  (IsNum 5 0)
-| (BoundedNum 5 3 9717) -- NOTE-MODERN: nonoverlapping
+     (IsNum 5 0)
+  <| (BoundedNum 5 3 9717)
 
 def TextHeader = block
   TE
