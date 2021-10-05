@@ -17,9 +17,9 @@ import WinEncoding
 
 -- Names of pre-defined encodings:
 def PredefEncodingName = Choose1 {
-  macRoman = @(NameToken "MacRomanEncoding");
-  macExpert = @(NameToken "MacExpertEncoding");
-  winAnsi = @(NameToken "WinAnsiEncoding");
+  macRoman = @(Match "MacRomanEncoding");
+  macExpert = @(Match "MacExpertEncoding");
+  winAnsi = @(Match "WinAnsiEncoding");
 }
 
 -- PredefEncoding: the encodings for each special encoding
@@ -95,6 +95,8 @@ def Encoding (enc : partialEncoding) = {
 
 def StubEncoding = Encoding (partialEncoding false nothing nothing)
 
+-- DBG:
+def EncodingP0 = When Value StubEncoding
 def EncodingP = GenPdfDict1
   initPartialEncoding
   ExtendPartialEncoding

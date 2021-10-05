@@ -172,11 +172,6 @@ def CharSet (subTy : FontSubty) (baseFont : FontName)
   widths = chars.widths0 is just; 
   Guard ((length widths) == inc (lastChar - firstChar));
 
--- DBG: do we actually want to require Font descriptors?
---  fontDesc = ParseAtRef (chars.fontDesc0 is just)
---    (FontDescP subTy baseFont)
---  fontDesc = StubFontDesc;
-
   -- SPEC: font descriptor is actually required, and must be a reference
   fontDesc = case chars.fontDesc0 of {
     just r -> ParseAtRef r (FontDescP subTy baseFont)

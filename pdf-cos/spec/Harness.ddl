@@ -39,7 +39,7 @@ def TestRef : Ref = {
 }
 
 -- Main: the entry point
-def Main = Type3FontP
+def Main = EncodingP
 
 -- TODO:
 

@@ -65,7 +65,9 @@ def stdFontIsLatin (f : StandardFont) : bool = case f of {
 def FontName = {
   @nameChars = Many NameChar;
   Choose1 {
-    standard = WithStream (arrayStream nameChars) (Only StandardFont);
+    -- DBG:
+    standard = helveticaNm;
+--    standard = WithStream (arrayStream nameChars nameChars) (Only StandardFont);
     nonStandard = nameChars
   }
 }
