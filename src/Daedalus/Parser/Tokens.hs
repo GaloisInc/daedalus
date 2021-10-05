@@ -67,6 +67,8 @@ data Token =
 
   | KWChoose
   | KWChoose1
+  | KWFirst
+  | KWAccept
   | KWblock
   | KWlet
   | KWTry

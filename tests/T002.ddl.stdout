@@ -11,13 +11,13 @@ rec
  
 rec value
   T002.F : Grammar T002.F =
-    Choose fair
+    Choose biased
       { {- A -} do (_1 : T002.F) <- T002.F
                    pure {A: _1}
       }
  
 T002._F : Grammar {} =
-  Choose fair
+  Choose biased
     { {- A -} do T002.F
                  pure {}
     }

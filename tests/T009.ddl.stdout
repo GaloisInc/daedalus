@@ -25,7 +25,7 @@ T009.Q : Grammar (uint 8) =
      pure $$
  
 T009.R : Grammar T009.R =
-  Choose fair
+  Choose biased
     { {- a -} do (_10 : uint 8) <- GetByte
                  pure {a: _10}
     | {- b -} do (_11 : {}) <- pure {}
@@ -47,7 +47,7 @@ T009._Q : Grammar {} =
   T009._P
  
 T009._R : Grammar {} =
-  Choose fair
+  Choose biased
     { {- a -} @GetByte
     | {- b -} pure {}
     }

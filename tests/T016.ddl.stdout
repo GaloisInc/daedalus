@@ -18,10 +18,9 @@ Number.Digit : Grammar int =
      pure $$
  
 Number.Natural : Grammar int =
-  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
-     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
-                           (Number.addDigit int val d))
-     pure $$
+  do (_19 : [int]) <- Many[ 1 .. ] Number.Digit
+     for ((val : int) = 0; (d : int) in _19)
+       (pure (Number.addDigit int val d))
  
 Number.Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0) : Grammar (Number.Frac ?a0) =
   do (ds : [int]) <- do @MatchBytes "."
@@ -33,35 +32,39 @@ Number.Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0
      pure $$
  
 Number.HexDigit : Grammar int =
-  Choose fair
-    { Choose fair
-        { Number.Digit
-        | do (d : uint 8) <- Match ('a' .. 'f')
-             ($$ : int) <- pure (10 + (d - 'a' as int))
-             pure $$
+  Choose biased
+    { Number.Digit
+    | Choose biased
+        { do (_24 : uint 8) <- do (_23 : uint 8) <- do (_22 : uint 8) <- Match ('a' .. 'f')
+                                                       pure (_22 - 'a')
+                                  pure (10 + _23)
+             pure (_24 as int)
+        | do (_27 : uint 8) <- do (_26 : uint 8) <- do (_25 : uint 8) <- Match ('A' .. 'F')
+                                                       pure (_25 - 'A')
+                                  pure (10 + _26)
+             pure (_27 as int)
         }
-    | do (d : uint 8) <- Match ('A' .. 'F')
-         ($$ : int) <- pure (10 + (d - 'A' as int))
-         pure $$
     }
  
 Number._Digit : Grammar {} =
   @Match ('0' .. '9')
  
 Number._Natural : Grammar {} =
-  @Many[ 1 .. ] Number._Digit
+  do (_19 : [int]) <- Many[ 1 .. ] Number.Digit
+     for ((val : {}) = {}; (d : int) in _19)
+       (pure {})
  
 Number._Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
   do @MatchBytes "."
      @Many[ n .. ] Number._Digit
  
 Number._HexDigit : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Number._Digit
-        | @Match ('a' .. 'f')
+  Choose biased
+    { Number._Digit
+    | Choose biased
+        { @Match ('a' .. 'f')
+        | @Match ('A' .. 'F')
         }
-    | @Match ('A' .. 'F')
     }
 module T016
  

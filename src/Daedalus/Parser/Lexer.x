@@ -126,6 +126,8 @@ $ws+        ;
 
 "Choose"    { lexeme KWChoose }
 "Choose1"   { lexeme KWChoose1 }
+"First"     { lexeme KWFirst }
+"Accept"    { lexeme KWAccept }
 "Optional"  { lexeme KWOptional }
 "Optional?" { lexeme KWOptionalQuestion }
 "Many"      { lexeme KWMany }

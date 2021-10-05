@@ -1,4 +1,5 @@
 
-def F = Choose { A = F }
+def F = First
+  A = F
 
 

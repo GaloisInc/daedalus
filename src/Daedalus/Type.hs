@@ -8,7 +8,7 @@ module Daedalus.Type where
 import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
-import Data.Maybe(catMaybes)
+import Data.Maybe(catMaybes,maybeToList)
 import Control.Monad(zipWithM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -221,6 +221,7 @@ addBind (BindStmt n e1) e2 = exprAt (n <-> e2) (TCDo (Just n) e1 e2)
 
 addBinds :: [BindStmt] -> TC SourceRange Grammar -> TC SourceRange Grammar
 addBinds xs e = foldr addBind e xs
+
 
 -- | Lift a value argument of a function, when the function is called
 -- in a monadic context.
@@ -893,7 +894,7 @@ inferExpr expr =
       case fl of
 
         FMap ->
-          do (is1,it) <- inContext AValue (inferExpr is)
+          do ((is1,it),mbB) <- liftValExpr is
              kT       <- newTVar i KValue
              addConstraint e (ColKeyType it kT)
 
@@ -908,39 +909,59 @@ inferExpr expr =
 
              addConstraint e (Mappable it outColT)
 
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
-
-             (e1,et)  <- addKey $ extEnv i elIn $ inferExpr e
-             (expect, result) <-
-                do ctxt <- getContext
-                   case ctxt of
-                     AValue   -> pure (elOut, outColT)
-                     AClass   -> reportError expr "`for` is not a valid set."
-                     AGrammar -> pure (tGrammar elOut, tGrammar outColT)
-             unify (expect :: Type) (e,et)
-
-
              let toName n t = TCName { tcName = n,
                                        tcNameCtx = AValue,
                                        tcType = t }
                  k1 = (`toName` kT) <$> mbIx
                  i1 = toName i elIn
-             pure ( exprAt expr (TCFor Loop
-                                        { loopFlav = LoopMap
-                                        , loopKName = k1
-                                        , loopElName = i1
-                                        , loopCol = is1
-                                        , loopBody = e1
-                                        , loopType = result
-                                        })
-                  , result
-                  )
+
+
+             let addKey = case mbIx of
+                            Nothing -> id
+                            Just kx -> extEnv kx kT
+
+             (e1,et)  <- addKey $ extEnv i elIn $ inferExpr e
+
+             ctxt <- getContext
+             case (ctxt, maybeToList mbB) of
+               (AClass,_) ->
+                  reportError expr "Expected a byte set but found `map`"
+
+               (AValue,[]) ->
+                  do let result = outColT
+                     unify elOut (e,et)
+                     pure ( exprAt expr (TCFor Loop
+                                               { loopFlav = LoopMap
+                                               , loopKName = k1
+                                               , loopElName = i1
+                                               , loopCol = is1
+                                               , loopBody = e1
+                                               , loopType = result
+                                               })
+                         , result
+                         )
+
+               (AValue,_) ->
+                 reportError expr "Expected a semantic value but found a parser"
+
+               (AGrammar,bs) ->
+                 do let result = tGrammar outColT
+                    unify (tGrammar elOut) (e,et)
+                    pure ( addBinds bs
+                           $ exprAt expr (TCFor Loop
+                                               { loopFlav = LoopMap
+                                               , loopKName = k1
+                                               , loopElName = i1
+                                               , loopCol = is1
+                                               , loopBody = e1
+                                               , loopType = result
+                                               })
+                         , result
+                         )
 
         FFold x s ->
-          do (s1,st)  <- inContext AValue (inferExpr s)
-             (is1,it) <- inContext AValue (inferExpr is)
+          do ((s1,st),bs1)  <- liftValExpr s
+             ((is1,it),bs2) <- liftValExpr is
              addConstraint e (Traversable it)
 
              kT       <- newTVar i KValue
@@ -948,35 +969,56 @@ inferExpr expr =
              addConstraint e (ColKeyType it kT)
              addConstraint e (ColElType  it elT)
 
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
-
-             (e1,et)  <- extEnv x st $ addKey $ extEnv i elT $ inferExpr e
-             expect   <-
-                do ctxt <- getContext
-                   case ctxt of
-                     AValue -> pure st
-                     AClass -> reportError expr "`for` is not a valid set."
-                     AGrammar -> pure (tGrammar st)
-             unify expect (e,et)
-
              let toName n t = TCName { tcName = n,
                                        tcNameCtx = AValue,
                                        tcType = t }
                  x1 = toName x st
                  k1 = (`toName` kT) <$> mbIx
                  i1 = toName i elT
-             pure ( exprAt expr (TCFor Loop
-                                        { loopFlav = Fold x1 s1
-                                        , loopKName = k1
-                                        , loopElName = i1
-                                        , loopCol = is1
-                                        , loopBody = e1
-                                        , loopType = et
-                                        })
-                  , expect
-                  )
+
+
+             let addKey = case mbIx of
+                            Nothing -> id
+                            Just kx -> extEnv kx kT
+
+             (e1,et)  <- extEnv x st $ addKey $ extEnv i elT $ inferExpr e
+
+             ctxt <- getContext
+             case (ctxt, catMaybes [bs1,bs2]) of
+               (AClass, _) ->
+                  reportError expr "Expected a byte set but found `for`"
+
+               (AValue,[]) ->
+                  do unify st (e,et)
+                     pure ( exprAt expr (TCFor Loop
+                                                { loopFlav = Fold x1 s1
+                                                , loopKName = k1
+                                                , loopElName = i1
+                                                , loopCol = is1
+                                                , loopBody = e1
+                                                , loopType = et
+                                                })
+                          , st
+                          )
+
+
+               (AValue,_) ->
+                  reportError expr
+                        "Expected a semantic value but found a parser."
+
+               (AGrammar, bs) ->
+                  do unify (tGrammar st) (e,et)
+                     pure ( addBinds bs
+                            $ exprAt expr (TCFor Loop
+                                                  { loopFlav = Fold x1 s1
+                                                  , loopKName = k1
+                                                  , loopElName = i1
+                                                  , loopCol = is1
+                                                  , loopBody = e1
+                                                  , loopType = et
+                                                  })
+                          , tGrammar st
+                          )
 
     EIf be te fe -> inferIf expr be te fe
 
@@ -1341,9 +1383,9 @@ grammarOnly r k =
   do ctxt <- getContext
      case ctxt of
        AValue ->
-         reportError r "Expected a grammar, but encountered a value."
+         reportError r "Expected a value but encountered a parser."
        AClass ->
-         reportError r "Expected a grammar, but encountered a set of bytes."
+         reportError r "Expected a byte class but encountered a parser."
        AGrammar -> k
 
 

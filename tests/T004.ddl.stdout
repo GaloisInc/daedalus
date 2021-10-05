@@ -16,7 +16,7 @@ rec
  
 rec value
   T004.Repeat ?a0 (P : Grammar ?a0) : Grammar (T004.Repeat ?a0) =
-    Choose fair
+    Choose biased
       { {- cons -} do (_4 : T004.Repeat0 ?a0) <- do (head : ?a0) <- P
                                                     (tail : T004.Repeat ?a0) <- T004.Repeat ?a0 P
                                                     pure {head = head,
@@ -27,7 +27,7 @@ rec value
       }
  
 T004._Repeat ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
-  Choose fair
+  Choose biased
     { {- cons -} do _P
                     T004.Repeat ?a0 P
                     pure {}
