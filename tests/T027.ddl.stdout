@@ -1,3 +1,5 @@
+[WARNING] ./T027.ddl:2:19--2:26:
+            Using unbiased choice may be inefficient.
 module T027
  
 --- Imports:
@@ -7,8 +9,7 @@ module T027
 --- Rules:
  
 T027.Main : Grammar [uint 8] =
-  do ($$ : [uint 8]) <- Many?[] Match ('0' .. '9')
-     pure $$
+  Many?[] Match ('0' .. '9')
  
 T027._Main : Grammar {} =
   @Many?[] @Match ('0' .. '9')

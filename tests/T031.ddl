@@ -1,6 +1,6 @@
 def Main =
-  { @gen = Match1 'b';
-    { gen = ^gen };
-  }
+  block
+    let gen = Match1 'b'
+    block gen = ^gen
 
 

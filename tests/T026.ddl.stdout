@@ -41,13 +41,12 @@ T026.Symbol : Grammar [uint 8] =
  
 rec value
   T026.MkDict (m : Map [uint 8] [uint 8]) : Grammar (Map [uint 8] [uint 8]) =
-    Choose fair
-      { pure m
-      | do (k : [uint 8]) <- T026.Symbol
-           (v : [uint 8]) <- T026.Symbol
-           (m2 : Map [uint 8] [uint 8]) <- Insert k v m
-           ($$ : Map [uint 8] [uint 8]) <- T026.MkDict m2
-           pure $$
+    Choose biased
+      { do (_17 : Map [uint 8] [uint 8]) <- do (_15 : [uint 8]) <- T026.Symbol
+                                               (_16 : [uint 8]) <- T026.Symbol
+                                               Insert _15 _16 m
+           T026.MkDict _17
+      | pure m
       }
  
 T026.Main : Grammar (Map [uint 8] [uint 8]) =
@@ -62,13 +61,13 @@ T026._Symbol : Grammar {} =
   T026._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
  
 T026._MkDict (m : Map [uint 8] [uint 8]) : Grammar {} =
-  Choose fair
-    { pure {}
-    | do (k : [uint 8]) <- T026.Symbol
-         (v : [uint 8]) <- T026.Symbol
-         (m2 : Map [uint 8] [uint 8]) <- Insert k v m
-         T026.MkDict m2
+  Choose biased
+    { do (_17 : Map [uint 8] [uint 8]) <- do (_15 : [uint 8]) <- T026.Symbol
+                                             (_16 : [uint 8]) <- T026.Symbol
+                                             Insert _15 _16 m
+         T026.MkDict _17
          pure {}
+    | pure {}
     }
  
 T026._Main : Grammar {} =
