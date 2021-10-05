@@ -25,7 +25,6 @@ import Hexdump
 
 import Daedalus.PP
 import Daedalus.SourceRange
-import Daedalus.Rec(forgetRecs)
 
 import Daedalus.Driver
 
@@ -38,9 +37,9 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Type.AST(TCModule(..),TCDecl(..),Type(..),Constraint(..))
+import Daedalus.Type.AST(TCModule(..))
+import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypes)
-import qualified Daedalus.Type.AST as TC
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -61,7 +60,8 @@ main =
        do hSetEncoding stdout utf8
           hSetEncoding stderr utf8
           hSetEncoding stdin  utf8
-     daedalus (handleOptions opts)
+
+     daedalus (configure opts >> handleOptions opts)
        `catches`
        [ Handler \e ->
            do putStrLn =<< prettyDaedalusError e
@@ -79,6 +79,14 @@ main =
 -- module.  This is the name of the resulting module
 specMod :: ModuleName
 specMod = "DaedalusMain"
+
+
+configure :: Options -> Daedalus ()
+configure opts =
+  do when (optNoWarnUnbiased opts) $
+       ddlSetOpt optWarnings \w -> case w of
+                                     WarnUnbiasedChoice {} -> False
+                                     _                     -> True
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts

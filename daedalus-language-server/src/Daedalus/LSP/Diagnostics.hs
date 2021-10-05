@@ -42,7 +42,7 @@ import           Daedalus.PP                  hiding ((<.>))
 import           Daedalus.Panic
 import           Daedalus.Pass
 import           Daedalus.Rec                 (forgetRecs)
-import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..))
+import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..), range)
 
 import           Daedalus.AST                 (Module (..))
 import           Daedalus.Module              (pathToModuleName)
@@ -725,4 +725,9 @@ instance ToDiagnostics TypeError where
 
 
 instance ToDiagnostics TypeWarning where
-  toDiagnostics (TypeWarning l) = [ makeDiagnosticText J.DsWarning (sourceRangeToRange $ thingRange l) (Text.pack (show (thingValue l))) ]
+  toDiagnostics w =
+    [ makeDiagnosticText
+        J.DsWarning
+        (sourceRangeToRange (range w))
+        (Text.pack (show (pp w)))
+    ]

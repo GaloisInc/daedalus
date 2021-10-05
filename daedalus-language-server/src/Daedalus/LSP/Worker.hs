@@ -43,7 +43,7 @@ import           Daedalus.Type            (inferRules)
 import           Daedalus.Type.AST        (Located (..), ModuleName,
                                            TCModule (..), TCTyDecl, TCTyName,
                                            declTypeOf, tcDeclName, tctyName)
-import           Daedalus.Type.Monad      (RuleEnv, runMTypeM)
+import           Daedalus.Type.Monad      (RuleEnv, runMTypeM, TCConfig(..))
 
 
 import           Language.LSP.Diagnostics (partitionBySource)
@@ -399,7 +399,11 @@ tcModule :: ModuleName -> ModuleSource -> (Module, a) -> [(b, RuleEnv, Map TCTyN
                     , [Diagnostic]
                     )
 tcModule _mn _ms (m, _) deps = do
-  e_r <- liftPassM (runMTypeM importDecls importRules (inferRules m))
+  let conf = TCConfig { tcConfTypes = importDecls
+                      , tcConfDecls = importRules
+                      , tcConfWarn  = const True
+                      }
+  e_r <- liftPassM (runMTypeM conf (inferRules m))
   pure $ case e_r of
     Left err  -> (Left (toDiagnostics err), [])
     Right (tcm,warnings) -> (Right (tcm, mkRules tcm, mkTDecls tcm),

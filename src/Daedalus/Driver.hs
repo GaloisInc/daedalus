@@ -60,6 +60,7 @@ module Daedalus.Driver
   , ddlUpdOpt
   , optOutHandle
   , optSearchPath
+  , optWarnings
 
     -- * Output
   , ddlPutStr
@@ -102,7 +103,7 @@ import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
-import Daedalus.Type.Monad(TypeError, runMTypeM)
+import Daedalus.Type.Monad(TypeError, runMTypeM, TCConfig(..), TypeWarning)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
@@ -254,6 +255,9 @@ data State = State
   { searchPath    :: [FilePath]
     -- ^ Look for modules in these root directories
 
+  , useWarning    :: TypeWarning -> Bool
+    -- ^ Which warnings to report
+
   , outHandle     :: Handle
     -- ^ This is where we say things
 
@@ -291,6 +295,7 @@ data State = State
 defaultState :: State
 defaultState = State
   { searchPath          = ["."]
+  , useWarning          = const True
   , outHandle           = stdout
   , moduleFiles         = Map.empty
   , loadedModules       = Map.empty
@@ -464,6 +469,9 @@ optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 optOutHandle :: DDLOpt Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
+optWarnings :: DDLOpt (TypeWarning -> Bool)
+optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
+
 
 
 --------------------------------------------------------------------------------
@@ -534,7 +542,12 @@ tcModule m =
   do ddlDebug ("Type checking " ++ show (moduleName m))
      tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
-     r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
+     warn  <- ddlGet useWarning
+     let tcConf = TCConfig { tcConfTypes = tdefs
+                           , tcConfDecls = rtys
+                           , tcConfWarn  = warn
+                           }
+     r <-  ddlRunPass (runMTypeM tcConf (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
        Right (m1',warnings) ->

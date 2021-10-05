@@ -36,7 +36,7 @@ inferRules :: Module -> MTypeM (TCModule SourceRange)
 inferRules m =
   do tcm <- goBD [] (moduleBitData m)
      let unusedWarnings = CheckUnused.checkTCModule tcm
-     forM_ unusedWarnings \r -> addWarning r "Statement has no effect"
+     forM_ unusedWarnings \r -> addWarning (WarnNoOpStatement r)
      pure tcm
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
@@ -338,7 +338,7 @@ checkCommit :: HasRange r => r -> Commit -> TypeM ctx ()
 checkCommit r cmt =
   case cmt of
     Commit -> pure ()
-    Backtrack -> addWarning r "Using unbiased choice may be inefficient."
+    Backtrack -> addWarning (WarnUnbiasedChoice (range r))
 
 
 inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
