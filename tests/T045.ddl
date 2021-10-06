@@ -7,4 +7,4 @@ def B k mp   = Lookup k mp
 -- def C x      = x is L
 def D        = (287 : int) as? uint 8
 def E xs     = for (s = 0; x in xs) (^ s)
-def F        = { @xs = GetStream; Take 10 xs }
+def F        = block let xs = GetStream; Take 10 xs

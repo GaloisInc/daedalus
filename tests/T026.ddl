@@ -14,7 +14,7 @@ def Between open close P =
     $$ = P
     KW (Match close)
 
-def Symbol = Token (Many (1..) (Match1 ('a' .. 'z')))
+def Symbol = Token (Many (1..) $['a' .. 'z'])
 
 def MkDict m =
   First

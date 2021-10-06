@@ -2,8 +2,8 @@
 
 def Sign =
   First
-    pos = @Match1 '+'
-    neg = @Match1 '-'
+    pos = @$['+']
+    neg = @$['-']
     pos = Accept
 
 def SignWithCase =

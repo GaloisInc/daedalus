@@ -1,6 +1,6 @@
 def Main =
   block
-    let gen = Match1 'b'
+    let gen = $['b']
     block gen = ^gen
 
 

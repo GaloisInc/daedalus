@@ -1,3 +1,7 @@
+[WARNING] ./T042.ddl:11:3--15:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T042.ddl:5:3--9:3:
+            Using unbiased choice may be inefficient.
 module T042
  
 --- Imports:

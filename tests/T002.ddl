@@ -1,5 +1,6 @@
 
-def F = First
-  A = F
+def F =
+  First
+    A = F
 
 

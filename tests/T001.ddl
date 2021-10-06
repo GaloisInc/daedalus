@@ -1,7 +1,7 @@
 
 def P A = A
 
-def F = P (Match1 'a')
+def F = P $['a']
 def G = P (Match "B")
 
 def f a = f a

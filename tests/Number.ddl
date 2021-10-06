@@ -3,7 +3,7 @@ def Natural = for (val = 0; d in Many (1..) Digit) (addDigit val d)
 
 def Frac n w =
   block
-    let ds = block Match "."; Many (n ..) Digit
+    let ds = block $['.']; Many (n ..) Digit
     ^ for ( val = w; d in ds) { num = addDigit val.num d, exp = val.exp - 1 }
 
 
@@ -17,6 +17,6 @@ def Digit =
 def HexDigit  =
   First
     Digit
-    10 + (Match1 ('a' .. 'f') - 'a') as int
-    10 + (Match1 ('A' .. 'F') - 'A') as int
+    10 + ($['a' .. 'f'] - 'a') as int
+    10 + ($['A' .. 'F'] - 'A') as int
 
