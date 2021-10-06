@@ -254,7 +254,7 @@ liftValExpr e =
          pure ((e1, t), Nothing)
 
     Some AClass ->
-      reportError e "Expected a value, but the argument is a character class."
+      liftValExpr (pExprAt e (EMatch1 e))
 
   where ctx = inferContext e
 
@@ -294,17 +294,17 @@ liftValApp r es f =
      case ctx of
        AGrammar -> liftApp es \args -> f =<< mapM validateArg args
        AClass {} ->
-         reportError r "Expected a character-class but found a grammar."
+         reportError r "Expected a byte class but found a parser."
        AValue {} ->
-         reportError r "Expected a value, but found a grammar."
+         reportError r "Expected a value but found a parser."
   where
   validateArg (a,t) =
     case a of
       ValArg v   -> pure (v,t)
       ClassArg e ->
-        reportError e "Expected a value, but found a character-class."
+        reportError e "Expected a value but found a byte class."
       GrammarArg _ ->
-        panic "liftValApp" ["Unexpected grammar argument in lift."]
+        panic "liftValApp" ["Unexpected parser argument in lift."]
 
 
 -- | Lift a pure function as a functor
@@ -324,16 +324,16 @@ liftValAppPure r es f =
                          (res,t) <- f vs
                          pure (exprAt r (TCPure res), tGrammar t)
        AClass {} ->
-         reportError r "Expected a character-class but encountered a value."
+         reportError r "Expected a byte class but encountered a value."
        AValue {} -> f =<< mapM inferExpr es
   where
   validateArg (a,t) =
     case a of
       ValArg v -> pure (v,t)
       ClassArg e -> reportError e
-                      "Expected a value, but encountered a character-class."
+                      "Expected a value but encountered a byte class."
       GrammarArg _ ->
-        panic "liftValApp" ["Unexpected grammar argument in lift."]
+        panic "liftValApp" ["Unexpected parser argument in lift."]
 
 checkCommit :: HasRange r => r -> Commit -> TypeM ctx ()
 checkCommit r cmt =
@@ -1352,22 +1352,21 @@ checkPromoteFrom fromCtxt x e t =
      case (fromCtxt, ctxt) of
        (AValue, AValue)   -> pure (e, t)
        (AValue, AClass)   -> promoteValueToSet (e, t)
-       (AValue, AGrammar) ->
-          liftValAppPure e [] \_ -> pure (e,t)
+       (AValue, AGrammar) -> liftValAppPure e [] \_ -> pure (e,t)
 
        (AClass,AValue) ->
           reportError x
-            ("Expected a value, but" <+> ppx <+> "is a set of bytes.")
+            ("Expected a value but" <+> ppx <+> "is a bytes set.")
 
        (AClass, AClass) -> pure (e,t)
        (AClass, AGrammar) -> promoteSetToGrammar (e,t)
 
        (AGrammar,AValue) ->
-          reportError x ("Expected a value, but" <+> ppx <+> "is a grammar.")
+          reportError x ("Expected a value but" <+> ppx <+> "is a parser.")
 
        (AGrammar,AClass) ->
           reportError x
-              ("Expected a set of bytes, but" <+> ppx <+> "is a grammar.")
+              ("Expected a bytes set but" <+> ppx <+> "is a parser.")
 
        (AGrammar, AGrammar) -> pure (e,t)
 
@@ -1472,7 +1471,7 @@ inferStructGrammar r = go [] []
                    withIP x (GrammarArg e1) (go mbRes done more)
 
               AClass ->
-                -- copies the character class
+                -- copies the byte class
                 do (e1,_) <- inContext AClass (inferExpr e)
                    withIP x (ClassArg e1) (go mbRes done more)
 
