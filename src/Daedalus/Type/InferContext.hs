@@ -93,7 +93,13 @@ inferContext expr =
           PatternCase _ rhs  -> inferContext rhs
 
 grammarIf :: Context c -> [Some Context] -> Some Context
-grammarIf d xs = if any isGrammar xs then Some AGrammar else Some d
+grammarIf d xs =
+  case d of
+    AValue   -> if any (\x -> isGrammar x || isClass x) xs
+                 then Some AGrammar
+                 else Some d
+    AClass   -> if any isGrammar xs then Some AGrammar else Some d
+    AGrammar -> Some AGrammar
 
 isGrammar :: Some Context -> Bool
 isGrammar ctx =
