@@ -158,14 +158,14 @@ valueToExpr tenv ty v =
     VSInt _n i -> Ap0 $ IntL i ty
     VInteger i -> Ap0 $ IntL i TInteger  -- check ty?
     VBool    b -> Ap0 $ BoolL b -- check ty?
-    VUnionElem l e
+    VUnionElem _g l e
       | TUser ut <- ty
       , Just ty' <- lookup l (userTypeToUnion tenv ut) ->
         inUnion ut l (valueToExpr tenv ty' e)
-    VUnionElem l e -> panic "Malfomed union label/value/type" [showPP l, showPP e, showPP ty]
+    VUnionElem _g l e -> panic "Malfomed union label/value/type" [showPP l, showPP e, showPP ty]
 
     -- We have no guarantee that the label order is the same ...    
-    VStruct flds
+    VStruct _g flds
       | TUser ut <- ty
       , Just flds' <- sequence [ (,) l . go ty' <$> lookup l flds
                                | (l, ty') <- userTypeToStruct tenv ut

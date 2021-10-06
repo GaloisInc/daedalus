@@ -33,7 +33,8 @@ eval expr env =
     PureLet x e1 e2 ->
       eval e2 $! defLocal x (eval e1 env) env
 
-    Struct _ fs -> vStruct [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
+    Struct ut fs -> vStruct (Just (tnameId (utName ut)))
+                            [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
 
     ECase c -> evalCase eval err c env
       where err = panic "eval" [ "Pattern match failure in semantic value" ]
@@ -70,11 +71,8 @@ matches pat v =
                   _       -> False
     PNum n -> valueToIntegral v == n
 
-    PCon l -> fst (valueToUnion v) == l
+    PCon l | (_, l', _) <- valueToUnion v -> l == l'
     PAny   -> True
-
-
-
 
 
 evalArgs :: [Expr] -> Env -> [Value]
@@ -175,8 +173,8 @@ evalOp1 op ty v = case op of
 
   SelStruct _ l -> vStructLookup v l
 
-  InUnion _ l   -> VUnionElem l v
-  FromUnion _ _ -> snd (valueToUnion v)
+  InUnion ut l   -> VUnionElem (Just (tnameId (utName ut))) l v
+  FromUnion _ _ | (_, _, v') <- valueToUnion v -> v'
 
 --------------------------------------------------------------------------------
 

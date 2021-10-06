@@ -525,7 +525,7 @@ isSimpleVExpr e =
     x -> error ("TODO: "++ show x)
 
 defaultValue :: Val
-defaultValue = Interp.VStruct []
+defaultValue = Interp.VStruct Nothing []
 
 evalLiteral :: Literal -> Type -> Val
 evalLiteral lit t =
@@ -559,11 +559,11 @@ evalVExpr gbl expr ctrl out =
           let ve1 = eval env e1
           in Interp.VMaybe (Just ve1)
         TCStruct lst _ ->
-          Interp.VStruct (map (\ (lbl, v) -> (lbl, eval env v)) lst)
+          Interp.VStruct Nothing (map (\ (lbl, v) -> (lbl, eval env v)) lst)
         TCMapEmpty _ty -> Interp.VMap (Map.empty)
         TCIn lbl e1 _ty ->
           let ve1 = eval env e1 in
-          Interp.VUnionElem lbl ve1
+          Interp.VUnionElem Nothing lbl ve1
         TCBinOp binop e1 e2 _ ->
           let ve1 = eval env e1
               ve2 = eval env e2
@@ -573,7 +573,7 @@ evalVExpr gbl expr ctrl out =
         TCSelStruct e1 n _ty ->
           let ve1 = eval env e1
           in case ve1 of
-               Interp.VStruct lst -> snd $ head $ filter (\ (a,_) -> a == n) lst
+               Interp.VStruct _ lst -> snd $ head $ filter (\ (a,_) -> a == n) lst
                _ -> error "SEl must be on Struct"
         TCIf e1 e2 e3 ->
           case eval env e1 of
@@ -701,7 +701,7 @@ evalCase _gbl v lpat =
       case pat of
         TCConPat _ lbl binding ->
           case v of
-            Interp.VUnionElem lbl1 e2 ->
+            Interp.VUnionElem _ lbl1 e2 ->
               if lbl1 == lbl
               then case binding of
                      TCVarPat n ->

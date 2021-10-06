@@ -603,14 +603,14 @@ valueToSExpr tys ty v =
       else S.bvBin (fromIntegral n) i
     V.VInteger i -> S.int i               
     V.VBool b -> S.bool b
-    V.VUnionElem l v'
+    V.VUnionElem _ l v'
       | TUser ut <- ty
       , Just TDecl { tDef = TUnion flds } <- Map.lookup (utName ut) tys
       , Just ty' <- lookup l flds
       -> S.fun (labelToField (utName ut) l) [go ty' v']
     
     -- FIXME: assumes the order is the same
-    V.VStruct els
+    V.VStruct _ els
       | TUser ut <- ty
       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
