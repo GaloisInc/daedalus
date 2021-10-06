@@ -42,14 +42,14 @@ sexp-mutrec._KW ?a0 (_P : Grammar {}) : Grammar {} =
  
 rec value
   sexp-mutrec.Sexp : Grammar sexp-mutrec.Sexp =
-    Choose fair
-      { {- sexp -} do (_13 : [sexp-mutrec.Sexp]) <- do sexp-mutrec._KW [uint 8] (@MatchBytes "(")
+    Choose biased
+      { {- sexp -} do (_12 : [sexp-mutrec.Sexp]) <- do sexp-mutrec._KW (uint 8) (@Match {'('})
                                                        ($$ : [sexp-mutrec.Sexp]) <- sexp-mutrec.ManySexp
-                                                       sexp-mutrec._KW [uint 8] (@MatchBytes ")")
+                                                       sexp-mutrec._KW (uint 8) (@Match {')'})
                                                        pure $$
-                      pure {sexp: _13}
-      | {- symbol -} do (_14 : [uint 8]) <- sexp-mutrec.Token [uint 8] (Many[ 1 .. ] Match ('a' .. 'z'))
-                        pure {symbol: _14}
+                      pure {sexp: _12}
+      | {- symbol -} do (_13 : [uint 8]) <- sexp-mutrec.Token [uint 8] (Many[ 1 .. ] Match ('a' .. 'z'))
+                        pure {symbol: _13}
       }
    
   sexp-mutrec.ManySexp : Grammar [sexp-mutrec.Sexp] =
@@ -61,11 +61,11 @@ sexp-mutrec.Main : Grammar sexp-mutrec.Sexp =
      pure $$
  
 sexp-mutrec._Sexp : Grammar {} =
-  Choose fair
-    { {- sexp -} do sexp-mutrec._KW [uint 8] (@MatchBytes "(")
+  Choose biased
+    { {- sexp -} do sexp-mutrec._KW (uint 8) (@Match {'('})
                     do sexp-mutrec.ManySexp
                        pure {}
-                    sexp-mutrec._KW [uint 8] (@MatchBytes ")")
+                    sexp-mutrec._KW (uint 8) (@Match {')'})
     | {- symbol -} sexp-mutrec._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
     }
  
