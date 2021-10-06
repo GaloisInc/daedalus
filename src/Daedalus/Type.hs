@@ -1053,6 +1053,9 @@ checkPattern ty pat =
         LNumber i ->
           do addConstraint l (Literal i ty)
              pure (TCNumPat ty i)
+        LByte i ->
+          do unify ty (pat,tByte)
+             pure (TCNumPat tByte (toInteger i))
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)
