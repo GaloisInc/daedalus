@@ -57,6 +57,7 @@ import Daedalus.Parser.Monad
   '^'         { Lexeme { lexemeRange = $$, lexemeToken = Hat } }
   '|'         { Lexeme { lexemeRange = $$, lexemeToken = Bar } }
   '<|'        { Lexeme { lexemeRange = $$, lexemeToken = LtBar } }
+  '$'         { Lexeme { lexemeRange = $$, lexemeToken = Dollar } }
   '$$'        { Lexeme { lexemeRange = $$, lexemeToken = DollarDollar } }
   '+'         { Lexeme { lexemeRange = $$, lexemeToken = Plus } }
   '-'         { Lexeme { lexemeRange = $$, lexemeToken = Minus } }
@@ -426,6 +427,10 @@ aexpr                                    :: { Expr }
   | 'UInt8'                                 { at $1      EAnyByte }
   | 'Accept'                                { at $1 (EStruct []) }
   | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
+
+  | '$' '[' separated(expr, commaOrSemi) ']'{ at ($1,$4) (EMatch1
+                                              (at ($2,$4) (EArray $3))) }
+
   | name                                    { at $1 (EVar $1) }
   | implicitParam                           { at $1 (EImplicit $1) }
   | 'END'                                   { at $1 EEnd }

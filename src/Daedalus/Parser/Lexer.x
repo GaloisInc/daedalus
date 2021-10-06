@@ -68,6 +68,7 @@ $ws+        ;
 
 
 "@"         { lexeme AtSign }
+"$"         { lexeme Dollar }
 "!"         { lexeme Bang }
 "^"         { lexeme Hat }
 "="         { lexeme Equals }

@@ -45,6 +45,7 @@ data Token =
   | BarBar
   | AmpAmp
   | LtBar
+  | Dollar
   | DollarDollar
   | Plus
   | Minus
