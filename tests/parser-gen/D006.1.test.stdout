@@ -1,2 +1,4 @@
+[WARNING] ./D006.ddl:6:10--9:5:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { }

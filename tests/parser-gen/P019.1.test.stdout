@@ -1,3 +1,5 @@
+[WARNING] ./P019.ddl:8:12--8:43:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { w3: { y: 'y'
       , x: 'x'

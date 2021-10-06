@@ -1,3 +1,5 @@
+[WARNING] ./D005.ddl:8:5--11:5:
+            Using unbiased choice may be inefficient.
 module D005
  
 --- Imports:
