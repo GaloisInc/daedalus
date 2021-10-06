@@ -1,5 +1,4 @@
-./T070.ddl:7:3--7:10 [WARNING] Statement has no effect
-
+[WARNING] ./T070.ddl:7:3--7:10: Statement has no effect.
 module T070
  
 --- Imports:
@@ -23,9 +22,7 @@ T070.J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (x : uint ?a0) (y : uint ?a1) : Grammar (ui
   pure (x # y)
  
 T070.L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar ?a3 =
-  do for ((s : {}) = {}; (i : ?a2) in x)
-       (pure {})
-     ($$ : ?a3) <- map ((i : ?a2) in x)
+  do ($$ : ?a3) <- map ((i : ?a2) in x)
                      (pure true)
      pure $$
  
@@ -39,8 +36,6 @@ T070._J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
   pure {}
  
 T070._L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
-  do for ((s : {}) = {}; (i : ?a2) in x)
-       (pure {})
-     map ((i : ?a2) in x)
+  do map ((i : ?a2) in x)
        (pure true)
      pure {}

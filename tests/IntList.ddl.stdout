@@ -18,13 +18,12 @@ Number.Digit : Grammar int =
      pure $$
  
 Number.Natural : Grammar int =
-  do (ds : [int]) <- Many[ 1 .. ] Number.Digit
-     ($$ : int) <- pure (for ((val : int) = 0; (d : int) in ds)
-                           (Number.addDigit int val d))
-     pure $$
+  do (_25 : [int]) <- Many[ 1 .. ] Number.Digit
+     for ((val : int) = 0; (d : int) in _25)
+       (pure (Number.addDigit int val d))
  
 Number.Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0) : Grammar (Number.Frac ?a0) =
-  do (ds : [int]) <- do @MatchBytes "."
+  do (ds : [int]) <- do @Match {'.'}
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
      ($$ : Number.Frac ?a0) <- pure (for ((val : Number.Frac ?a0) = w; (d : int) in ds)
@@ -33,16 +32,18 @@ Number.Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0
      pure $$
  
 Number.HexDigit : Grammar int =
-  Choose fair
-    { Choose fair
-        { Number.Digit
-        | do (d : uint 8) <- Match ('a' .. 'f')
-             ($$ : int) <- pure (10 + (d - 'a' as int))
-             pure $$
+  Choose biased
+    { Number.Digit
+    | Choose biased
+        { do (_30 : uint 8) <- do (_29 : uint 8) <- do (_28 : uint 8) <- Match ('a' .. 'f')
+                                                       pure (_28 - 'a')
+                                  pure (10 + _29)
+             pure (_30 as int)
+        | do (_33 : uint 8) <- do (_32 : uint 8) <- do (_31 : uint 8) <- Match ('A' .. 'F')
+                                                       pure (_31 - 'A')
+                                  pure (10 + _32)
+             pure (_33 as int)
         }
-    | do (d : uint 8) <- Match ('A' .. 'F')
-         ($$ : int) <- pure (10 + (d - 'A' as int))
-         pure $$
     }
  
 Number._Digit : Grammar {} =
@@ -52,16 +53,16 @@ Number._Natural : Grammar {} =
   @Many[ 1 .. ] Number._Digit
  
 Number._Frac ?a0 (Numeric ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
-  do @MatchBytes "."
+  do @Match {'.'}
      @Many[ n .. ] Number._Digit
  
 Number._HexDigit : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Number._Digit
-        | @Match ('a' .. 'f')
+  Choose biased
+    { Number._Digit
+    | Choose biased
+        { @Match ('a' .. 'f')
+        | @Match ('A' .. 'F')
         }
-    | @Match ('A' .. 'F')
     }
 module IntList
  
@@ -95,14 +96,14 @@ IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
  
 rec value
   IntList.IntList : Grammar IntList.IntList =
-    Choose fair
-      { {- cons -} do (_33 : IntList.IntList0) <- do (hd : int) <- IntList.Token int Number.Natural
+    Choose biased
+      { {- cons -} do (_34 : IntList.IntList0) <- do (hd : int) <- IntList.Token int Number.Natural
                                                      (tail : IntList.IntList) <- IntList.IntList
                                                      pure {hd = hd,
                                                            tail = tail}
-                      pure {cons: _33}
-      | {- nil -} do (_34 : {}) <- pure {}
-                     pure {nil: _34}
+                      pure {cons: _34}
+      | {- nil -} do (_35 : {}) <- pure {}
+                     pure {nil: _35}
       }
  
 IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
@@ -110,7 +111,7 @@ IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
      @Many[ 1 .. ] IntList._WS
  
 IntList._IntList : Grammar {} =
-  Choose fair
+  Choose biased
     { {- cons -} do IntList._Token int Number._Natural
                     IntList.IntList
                     pure {}

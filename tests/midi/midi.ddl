@@ -1,168 +1,268 @@
 
 def Main =
-  { header = Header;
-    @n     = header.track_num as? uint 64;
-    tracks = Many n Track
-  }
+  block
+    header = Header
+    tracks = Many header.track_num Track
 
-
-
-def VarQ : int =
-  { @lead = Many { @b = UInt8; Guard (getBit 7 b == 1); b as! uint 7 };
-    @last = UInt7;
-    ^ (for (v = 0; l in lead) v <# l) <# last
-  }
-
-
-def Chunk Ty P =
-  { Block 4 (Only Ty);
-    Block (BE32 as uint 64) (Only P)
-  }
-
-
-
-def Header =
-  Chunk (Match "MThd")
-  { format = Choose { single_track = TAG16 0;
-                      multi_track  = TAG16 1;
-                      multi_song   = TAG16 2;
-                    };
-    track_num = BE16;
-    time_unit =
-      { @w   = BE16;
-        @tag = getBit 15 w;
-        Choose { quarter_len = { Guard (tag == 0); ^ w as! uint 15 };
-                 smtpe       = { Guard (tag == 1); ^ w as! sint 15 };
-               }
-      }
-  }
-
-
-
-
-def Track = Chunk (Match "MTrk") (Many (Delta Event))
-
-def Delta E = { after = VarQ; event = E }
-
-def Event =
-  Choose {
-    voiceMessage = VoiceMessages;
-    modeMessage  = ModeMessages;
-    sysEx        = SysEx;
-    meta         = Meta;
-  }
-
-def VoiceMessages =
-  { @status  = UInt8;
-    @tag     = ^ status >> 4 as! uint 4;
-    channel  = ^ status as! uint 4;
-    message  = VoiceMessage tag;
-    extra    = Many (Delta (VoiceMessage tag))
-  }
-
-def VoiceMessage (tag : uint 4) =
-  Choose {
-    note_off          = { Guard (tag == 0x8); key = UInt7; velocity = UInt7; };
-    note_on           = { Guard (tag == 0x9); key = UInt7; velocity = UInt7; };
-    aftertouch        = { Guard (tag == 0xA); key = UInt7; pressure = UInt7; };
-    controller_change = { Guard (tag == 0xB);
-                          controller = UInt7; Guard (controller <= 0x77);
-                          value      = UInt7; };
-    program_change    = { Guard (tag == 0xC); $$ = UInt7 };
-    channel_pressure  = { Guard (tag == 0xD); $$ = UInt7 };
-    pitch_bend        = { Guard (tag == 0xE);
-                          @lsb = UInt7; @msb = UInt7; ^ msb # lsb };
-  }
-
-def ModeMessages =
-  { @status = UInt8;
-    @tag    = ^ status >> 4 as! uint 4;
-    Guard (tag == 0xB);
-    channel = ^ status as! uint 4;
-    messages = ModeMessage;
-    extra    = Many (Delta ModeMessage);
-  }
-
-def ModeMessage =
-  Choose {
-    all_sound_off     = @Match [ 0x78; 0x00 ];
-    reset_controllers = @Match [ 0x79; 0x00 ];
-    local_control_off = @Match [ 0x7A; 0x00 ];
-    local_control_on  = @Match [ 0x7A; 0x7f ];
-    all_notes_off     = @Match [ 0x7B; 0x00 ];
-    omni_off          = @Match [ 0x7C; 0x00 ];
-    omni_on           = @Match [ 0x7D; 0x00 ];
-    mono_on           = { Match1 0x7E; $$ = UInt8; Guard ($$ <= 0x10); };
-    poly_on           = @Match [ 0x7F; 0x00 ];
-  }
-
-
-def SysEx =
-  Choose {
-    add_f0 = { Match1 0xF0; @len = VarQ as? uint 64; Block len GetStream };
-    as_is  = { Match1 0xF7; @len = VarQ as? uint 64; Block len GetStream };
-  }
-
-
-def Meta =
-  { Match1 0xFF;
-    @type = UInt8; Guard (type <= 0x7F);
-    @len  = VarQ as? uint 64;
-    Block len
-      Choose1 {
-        sequence     = { Guard (type == 0x00); Only BE16 };
-        text         = { Guard (type == 0x01); GetStream };
-        copyright    = { Guard (type == 0x02); GetStream };
-        name         = { Guard (type == 0x03); GetStream };
-        instrument   = { Guard (type == 0x04); GetStream };
-        lyrics       = { Guard (type == 0x05); GetStream };
-        marker       = { Guard (type == 0x06); GetStream };
-        cue          = { Guard (type == 0x07); GetStream };
-        channel      = { Guard (type == 0x20); Only UInt8 };
-        end_track    = { Guard (type == 0x2F); END };
-        tempo        = { Guard (type == 0x51); Only BE24 };
-        smtpe_offset = { Guard (type == 0x54);
-                         hh = UInt8; mm = UInt8; ss = UInt8; fr = UInt8;
-                         ff = UInt8; END };
-        time_sig     = { Guard (type == 0x58);
-                         nn = UInt8; dd = UInt8; cc = UInt8;
-                         bb = UInt8;
-                         END
-                       };
-        key_sig      = { Guard (type == 0x59);
-                         key  = UInt8; -- -ve: no. of flats
-                                       -- +ve: no. of sharps
-                         mode = Choose { major = Match1 0; minor = Match1 1 };
-                         END
-                       };
-        seq_specifiec = { Guard (type == 0x7F);
-                          manufacturer = { Match1 0; BE16 } <|
-                                         { @b = UInt8; ^ b as uint 16 };
-                          data = GetStream
-                        };
-        unknown = { type = ^ type; data = GetStream }
-      }
-
-  }
+-- A tagged block of midi data
+def Chunk name Body =
+  block
+    ExactBlock 4 (Match name)
+    ExactBlock (BE32 as uint 64) Body
 
 
 --------------------------------------------------------------------------------
+-- MIDI Header
+
+def Header =
+  Chunk "MThd"
+    block
+      format    = BE16 as? MidiFormat
+      track_num = BE16 as uint 64
+      time_unit = BE16 as MidiTimeUnit
+
+bitdata MidiFormat where
+  single_track = 0 : uint 16
+  multi_track  = 1
+  multi_song   = 2
+
+bitdata MidiTimeUnit where
+  quarter_len = { 0b0; value : uint 15 }
+  smtpe       = { 0b1; value : sint 15 }
+-------------------------------------------------------------------------------
+
+
+
+--------------------------------------------------------------------------------
+-- A MIDI Track
+def Track = Chunk "MTrk" (Many (Delta Event))
+
+-- Events spaces by time
+def Delta E = block
+  after = VarQ
+  event = E
+
+-- Different types of events
+def Event =
+  First
+    voiceMessage = VoiceMessages
+    modeMessage  = ModeMessages
+    sysEx        = SysEx
+    meta         = Meta
+
+
+--------------------------------------------------------------------------------
+-- Voice Message Events
+
+def VoiceMessages =
+  case UInt8 as? VoiceMessagesHeader of
+    VoiceMessagesHeader header ->
+      block
+        channel = header.channel
+        message = VoiceMessage header.tag
+        extra   = Many (Delta (VoiceMessage header.tag))
+
+bitdata VoiceMessagesHeader where
+  VoiceMessagesHeader = { tag : VoiceMessageTag, channel : uint 4 }
+
+bitdata VoiceMessageTag where
+  note_off          = 0x8 : uint 4
+  note_on           = 0x9
+  aftertouch        = 0xA
+  controller_change = 0xB
+  program_change    = 0xC
+  channel_pressure  = 0xD
+  pitch_bend        = 0xE
+
+
+def VoiceMessage (tag : VoiceMessageTag) =
+  case tag of
+    note_off          -> {| note_off          = NoteEvent |}
+    note_on           -> {| note_on           = NoteEvent |}
+    aftertouch        -> {| aftertouch        = NoteEvent |}
+    controller_change -> {| controller_change = ControllerChange |}
+    program_change    -> {| program_change    = UInt7 |}
+    channel_pressure  -> {| channel_pressure  = UInt7 |}
+    pitch_bend        -> {| pitch_bend =
+                              block
+                                let lsb = UInt7
+                                let msb = UInt7
+                                msb # lsb
+                           |}
+
+
+
+def NoteEvent = block
+  key      = UInt7
+  velocity = UInt7
+
+def ControllerChange = block
+  controller = UInt7
+  Guard (controller <= 0x77)
+  value      = UInt7
+
+
+
+--------------------------------------------------------------------------------
+-- Mode Message Events
+
+def ModeMessages =
+  case UInt8 as? ModeMessagesHeader of
+    ModeMessagesHeader header ->
+      block
+        channel = header.channel
+        message = ModeMessage
+        extra   = Many (Delta ModeMessage)
+
+bitdata ModeMessagesHeader where
+  ModeMessagesHeader = { 0xB : uint 4, channel : uint 4 }
+
+def ModeMessage =
+  First
+    all_sound_off     = @Match [ 0x78, 0x00 ]
+    reset_controllers = @Match [ 0x79, 0x00 ]
+    local_control_off = @Match [ 0x7A, 0x00 ]
+    local_control_on  = @Match [ 0x7A, 0x7F ]
+    all_notes_off     = @Match [ 0x7B, 0x00 ]
+    omni_off          = @Match [ 0x7C, 0x00 ]
+    omni_on           = @Match [ 0x7D, 0x00 ]
+    mono_on           = block
+                          $[ 0x7E ]
+                          $$ = UInt8
+                          Guard ($$ <= 0x10)
+    poly_on           = @Match [ 0x7F; 0x00 ]
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+-- SysEx Events
+
+def SysEx =
+  First
+
+    add_f0 =
+      block
+        $[ 0xF0 ]
+        Block VarQ (Many UInt8)
+
+    as_is =
+      block
+        $[ 0xF7 ]
+        Block VarQ (Many UInt8)
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+-- Metdata events
+
+def Meta =
+  block
+    $[ 0xFF ]
+    let tag = UInt8
+    Guard (tag <= 0x7F)
+    ExactBlock VarQ
+      case tag of
+        0x00 -> {| sequence       = BE16 |}
+        0x01 -> {| text           = Many UInt8 |}
+        0x02 -> {| copyright      = Many UInt8 |}
+        0x03 -> {| name           = Many UInt8 |}
+        0x04 -> {| instrument     = Many UInt8 |}
+        0x05 -> {| lyrics         = Many UInt8 |}
+        0x06 -> {| marker         = Many UInt8 |}
+        0x07 -> {| cue            = Many UInt8 |}
+        0x20 -> {| channel        = UInt8 |}
+        0x2F -> {| end_track      = END |}
+        0x51 -> {| tempo          = BE24 |}
+        0x54 -> {| smtpe_offset   = SMTPEOffset |}
+        0x58 -> {| time_sig       = TimeSig |}
+        0x59 -> {| key_sig        = KeySig |}
+        0x7F -> {| seq_specifiec  = MetaSeqSpecific |}
+        _    -> {| unknown        = MetaUnknown tag |}
+
+def MetaSeqSpecific =
+  block
+    manufacturer =
+      First
+        block
+          $[ 0 ]
+          BE16
+        UInt8 as uint 16
+    data = Many UInt8
+
+def MetaUnknown tag =
+  block
+    tag = tag : uint 8
+    data = Many UInt8
+
+bitdata Accidentals where
+  flats   = { 0b1, flats : uint 7 }
+  sharps  = { 0b0, sharps : uint 7 }
+
+bitdata Mode where
+  minor = 0 : uint 8
+  major = 1 : uint 8
+
+def KeySig =
+  block
+    key   = UInt8 as Accidentals
+    mode  = UInt8 as? Mode
+
+
+
+def SMTPEOffset =
+  block
+    hh = UInt8
+    mm = UInt8
+    ss = UInt8
+    fr = UInt8
+    ff = UInt8
+
+def TimeSig =
+  block
+    nn = UInt8
+    dd = UInt8
+    cc = UInt8
+    bb = UInt8
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+-- Utilities
+
+
+-- Variable length numbers
+bitdata VarQChunk where
+  More = { 0b1; value : uint 7 }
+  Last = { 0b0; value : uint 7 }
+
+def VarQBuilder (result : int) =
+  case UInt8 as VarQChunk of
+    More x -> VarQBuilder (result <# x.value)
+    Last x -> result <# x.value
+
+-- The MIDI format restricts tihs to 4 bytes, but we allow a bit more
+def VarQ = VarQBuilder 0 as? uint 64
+
+
+
+
 def BE16        = UInt8 # UInt8
 def BE24        = BE16  # UInt8
 def BE32        = BE16  # BE16
-def TAG16 n     = Guard (BE16 == n)
-def getBit n b  = b >> n as! uint 1
-
-
 def UInt7       = UInt8 as? uint 7
 
 def Block n P =
-  { @cur = GetStream;
-    SetStream (Take n cur);
-    $$ = P;
-    SetStream (Drop n cur);
-  }
+  block
+    let cur = GetStream
+    SetStream (Take n cur)
+    $$ = P
+    SetStream (Drop n cur)
 
-def Only P = { $$ = P; END }
+def Only P =
+  block
+    $$ = P
+    END
+
+def ExactBlock n P = Block n (Only P)
 
 def Guard p = p is true
