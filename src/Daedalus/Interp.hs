@@ -329,10 +329,9 @@ compilePureExpr env = go
         TCJust e       -> VMaybe (Just (go e))
 
         TCUnit         -> vUnit
-        TCStruct fs _  -> vStruct Nothing (map (\(n, e) -> (n, go e)) fs)
-        
-        TCArray  es _  -> VArray (Vector.fromList $ map go es)
-        TCIn lbl e _   -> VUnionElem Nothing lbl (go e)
+        TCStruct fs _  -> vStruct (map (\(n, e) -> (n, go e)) fs)
+        TCArray     es _ -> VArray (Vector.fromList $ map go es)
+        TCIn lbl e _   -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
                             Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
@@ -413,7 +412,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
 
     goCon bits tdecl =
       case tctyDef tdecl of
-        TCTyStruct flds -> vStruct Nothing <$> mapM (goS bits) flds
+        TCTyStruct flds -> vStruct <$> mapM (goS bits) flds
         TCTyUnion  flds -> msum (map (goU bits) flds)
 
     goS _bits (_, (_, Nothing)) =
@@ -429,7 +428,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
                           , show (pp ty)
                           ]
     goU bits (fld, (ty', Just sm))
-      | bits .&. tcbduMask sm == tcbduBits sm = VUnionElem Nothing fld <$> go bits ty'
+      | bits .&. tcbduMask sm == tcbduBits sm = VUnionElem fld <$> go bits ty'
       | otherwise                             = Nothing
 
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
@@ -439,7 +438,7 @@ matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
 matchPat pat =
   case pat of
     TCConPat _ l p    -> \v -> case valueToUnion v of
-                                 (_,l1,v1) | l == l1 -> matchPat p v1
+                                 (l1,v1) | l == l1 -> matchPat p v1
                                  _ -> Nothing
     TCNumPat _ i      -> \v -> do guard (valueToIntegral v == i)
                                   pure []

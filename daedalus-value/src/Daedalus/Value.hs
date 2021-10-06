@@ -102,7 +102,6 @@ module Daedalus.Value
   , valueToJS
   ) where
 
-import Daedalus.GUID (GUID)
 import Daedalus.Panic
 import Daedalus.PP
 
@@ -121,12 +120,12 @@ import Daedalus.Value.Coerce
 valueToDoc :: Value -> Doc
 valueToDoc = pp
 
-vStruct :: Maybe GUID -> [(Label,Value)] -> Value
+vStruct :: [(Label,Value)] -> Value
 vStruct = VStruct
 
 vStructLookup :: Value -> Label -> Value
 vStructLookup v l =
-  case lookup l (snd (valueToStruct v)) of
+  case lookup l (valueToStruct v) of
     Just i -> i
     Nothing -> panic "vStructLookup" [ "Invalid struct lookup"
                                      , "Label: " ++ show l

@@ -15,7 +15,6 @@ import Data.Bits(shiftL,(.&.))
 import Numeric(showHex)
 
 import Daedalus.PP hiding (empty)
-import Daedalus.GUID
 import Daedalus.Range
 import Daedalus.Panic(panic)
 import RTS.Input(Input(..),inputName,inputOffset,inputLength)
@@ -26,8 +25,8 @@ data Value =
   | VSInt !Int {- nbits -} !Integer
   | VInteger               !Integer
   | VBool                  !Bool
-  | VUnionElem             !(Maybe GUID) !Label !Value
-  | VStruct                !(Maybe GUID) ![(Label,Value)]
+  | VUnionElem             !Label !Value
+  | VStruct                ![(Label,Value)]
   | VArray                 !(Vector Value)
   | VMaybe                 !(Maybe Value)
   | VMap                   !(Map Value Value)
@@ -55,7 +54,7 @@ data TValue =
 
 
 vUnit :: Value
-vUnit = VStruct Nothing []
+vUnit = VStruct []
 
 vByte :: Word8 -> Value
 vByte x = VUInt 8 (fromIntegral x)
@@ -115,17 +114,17 @@ valueToVector v =
    VArray vs -> vs
    _         -> panic "valueToVector" [ "Not a vector", show v ]
 
-valueToStruct :: Value -> (Maybe GUID, [(Label,Value)])
+valueToStruct :: Value -> [(Label,Value)]
 valueToStruct v =
   case v of
-    VStruct g fs -> (g, fs)
-    _            -> panic "valueToStruct" [ "Not a struct", show v ]
+    VStruct fs -> fs
+    _          -> panic "valueToStruct" [ "Not a struct", show v ]
 
-valueToUnion :: Value -> (Maybe GUID, Label,Value)
+valueToUnion :: Value -> (Label,Value)
 valueToUnion v =
   case v of
-    VUnionElem g l e -> (g,l,e)
-    _                -> panic "valueToUnion" [ "Not a union", show v ]
+    VUnionElem l e -> (l,e)
+    _              -> panic "valueToUnion" [ "Not a union", show v ]
 
 valueToByteString :: Value -> ByteString
 valueToByteString v =
@@ -190,14 +189,14 @@ vCompare a b =
     (VBool _,        _)                     -> LT
     (_,              VBool _)               -> GT
 
-    (VUnionElem g p x, VUnionElem g' q y)   -> compare (g,p,x) (g',q,y)
-    (VUnionElem {}   , _)                   -> LT
-    (_,              VUnionElem {})         -> GT
+    (VUnionElem p x, VUnionElem q y)        -> compare (p,x) (q,y)
+    (VUnionElem _ _, _)                     -> LT
+    (_,              VUnionElem _ _)        -> GT
 
-    (VStruct g xs,   VStruct g' ys)         -> compare (g,  Map.fromList xs)
-                                                       (g', Map.fromList ys)
-    (VStruct _ _,    _)                     -> LT
-    (_,              VStruct _ _)           -> GT
+    (VStruct xs,     VStruct ys)            -> compare (Map.fromList xs)
+                                                       (Map.fromList ys)
+    (VStruct _,      _)                     -> LT
+    (_,              VStruct _)             -> GT
 
     (VArray xs,      VArray ys)             -> compare xs ys
     (VArray _,       _)                     -> LT
@@ -253,8 +252,8 @@ instance PP Value where
       VSInt nb x -> pp x <> "[S" <> pp nb <> "]"
       VInteger x -> pp x
       VBool b    -> if b then "T" else "F"
-      VUnionElem _g lbl v -> braces (pp lbl <+> colon <+> pp v)
-      VStruct _g xs       -> block "{" "," "}" (map ppF xs)
+      VUnionElem lbl v -> braces (pp lbl <+> colon <+> pp v)
+      VStruct xs      -> block "{" "," "}" (map ppF xs)
         where ppF (x,t) = pp x <.> colon <+> pp t
 
       VArray v -> case vs of
@@ -286,9 +285,9 @@ valueToJS val =
 
     VBool b    -> if b then "true" else "false"
 
-    VUnionElem _g l v -> tagged (pp l) (valueToJS v)
+    VUnionElem l v -> tagged (pp l) (valueToJS v)
 
-    VStruct _g vs ->
+    VStruct vs ->
       jsBlock "{" "," "}"
        [ text (show (show (pp l))) <.> colon <+> valueToJS v | (l,v) <- vs ]
 
