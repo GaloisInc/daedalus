@@ -46,6 +46,7 @@ module Talos.SymExec.StdLib (
   tArrayWithLength,
   sArrayWithLength,
   sEmptyL,
+  sArrayL,  
   sArrayLen,
   sSelectL,
   sPushBack,

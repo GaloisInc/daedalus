@@ -1,12 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- Demand analysis 
 --
 -- This is used for the semi-symbolic execution, it says when a
 -- function can be unrolled (vs being sent to the prover).
 
-
-module Talos.Analysis.Demands (calculateDemands, Demand(..)) where
+module Talos.Analysis.Demands (calculateDemands, Demand(..), ppDemandSummary) where
 
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -76,6 +76,29 @@ data Demand = DAll  -- ^ Top, we need the whole thing
             -- ^ Maps, demands are for keys and values
             | DMaybe Demand -- ^ If we care about the Maybe at all, the Nothing is DAll
             deriving (Eq, Ord, Show)
+
+instance PP Demand where
+  pp d = case d of
+    DAll    -> "All"
+    DNone   -> "None"
+    DUser m -> "U/S" <> lbrace <> commaSep (map pp_el (Map.toList m)) <> rbrace
+    DSequence tailstrict eld -> brackets ((if tailstrict then "strict" else "lazy") <> "; " <> pp eld)
+    DMap kd eld -> "M" <> lbrace <> pp kd <> " => " <> pp eld <> rbrace
+    DMaybe d    -> parens ("Maybe " <> pp d)
+    where
+      pp_el (l, d) = pp l <> " => " <> pp d
+
+ppDemandSummary :: Module -> Map FName (Map Demand DemandSummary) -> Doc
+ppDemandSummary md ds =
+  vcat $ map ppOne (Map.toList ds)
+  where
+    ppOne (fn, m) = pp fn <> ": " <> bullets [ pp d <> " => " <> ppDS fn ds | (d, ds) <- Map.toList m ]
+    ppDS fn ds
+      | Just Fun { fParams = ps } <- Map.lookup fn decls =
+          vcat (zipWith (\p d -> pp p <> ": " <> pp d) ps ds)
+    ppDS _ _ = mempty
+    
+    decls = Map.fromList (map (\tc -> (fName tc, tc)) (mFFuns md))
 
 -- Demand is a complete lattice
 instance Semigroup Demand where
