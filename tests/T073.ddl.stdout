@@ -1,0 +1,24 @@
+module T073
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T073.$x : ByteClass =
+  {'a'}
+ 
+T073.f (a : uint 8) : uint 8 =
+  a
+ 
+T073.g (a : uint 8) : uint 8 =
+  a
+ 
+T073.Main : Grammar (uint 8) =
+  do (_7 : uint 8) <- do (_6 : uint 8) <- Match T073.$x
+                         pure (T073.f _6)
+     pure (T073.g _7)
+ 
+T073._Main : Grammar {} =
+  @Match T073.$x

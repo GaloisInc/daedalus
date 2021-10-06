@@ -210,7 +210,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
 
 
 --------------------------------------------------------------------------------
-
+-- Lifting
 
 
 
@@ -223,24 +223,14 @@ addBinds :: [BindStmt] -> TC SourceRange Grammar -> TC SourceRange Grammar
 addBinds xs e = foldr addBind e xs
 
 
--- | Lift a value argument of a function, when the function is called
--- in a monadic context.
-liftValArg ::
-  Expr ->
-  TypeM ctx ((Arg SourceRange,Type), Maybe BindStmt)
-liftValArg e =
-  do ((e1,t),mb) <- liftValExpr e
-     pure ((ValArg e1,t),mb)
-
-
--- | Lift a value argument of a function, when the function is called
--- in a monadic context.
+-- | This is used when we have a function/construct that expects a value.
+-- The parameter is the actual argument provided.
 liftValExpr ::
   Expr ->
   TypeM ctx ((TC SourceRange Value,Type), Maybe BindStmt)
 liftValExpr e =
 
-  case ctx of
+  case inferContext e of
 
     Some AGrammar ->
       do (e1,t) <- allowPartialApps False $ inContext AGrammar (inferExpr e)
@@ -256,8 +246,6 @@ liftValExpr e =
     Some AClass ->
       liftValExpr (pExprAt e (EMatch1 e))
 
-  where ctx = inferContext e
-
 
 
 
@@ -268,43 +256,15 @@ liftValExpr e =
 -- For example @F P a Q@ becomes @do x <- P; y <- q; F x a y@
 liftApp ::
   [Expr] ->
-  ([(Arg SourceRange, Type)] -> TypeM ctx (TC SourceRange Grammar, Type)) ->
-  TypeM ctx (TC SourceRange Grammar, Type)
-liftApp es f =
-  do (args,mbs) <- unzip <$> mapM liftValArg es
-     (rE,rT) <- f args
-     let expr = addBinds (catMaybes mbs) rE
-     pure (expr, rT)
-
-
-
--- | Lift a function with value-only parameters. Lifts to bind:
--- `f P q` becomes `do x <- P; f x q`.  Arguments that may be either grmmar
--- or value (e.g. "A") are interepreted as values and left alone.
-liftValApp ::
-  HasRange r =>
-  r ->
-  [Expr] ->
   ( [(TC SourceRange Value, Type)] ->
     TypeM ctx (TC SourceRange Grammar, Type)
   ) ->
-  TypeM ctx (TC SourceRange ctx, Type)
-liftValApp r es f =
-  do ctx <- getContext
-     case ctx of
-       AGrammar -> liftApp es \args -> f =<< mapM validateArg args
-       AClass {} ->
-         reportError r "Expected a byte class but found a parser."
-       AValue {} ->
-         reportError r "Expected a value but found a parser."
-  where
-  validateArg (a,t) =
-    case a of
-      ValArg v   -> pure (v,t)
-      ClassArg e ->
-        reportError e "Expected a value but found a byte class."
-      GrammarArg _ ->
-        panic "liftValApp" ["Unexpected parser argument in lift."]
+  TypeM ctx (TC SourceRange Grammar, Type)
+liftApp es f =
+  do (args,mbs) <- unzip <$> mapM liftValExpr es
+     (rE,rT) <- f args
+     let expr = addBinds (catMaybes mbs) rE
+     pure (expr, rT)
 
 
 -- | Lift a pure function as a functor
@@ -314,26 +274,22 @@ liftValAppPure ::
   HasRange r =>
   r ->
   [Expr] ->
-  ([(TC SourceRange Value, Type)] -> TypeM ctx (TC SourceRange Value, Type)) ->
+  ( [(TC SourceRange Value, Type)] ->
+    TypeM ctx (TC SourceRange Value, Type)
+  ) ->
   TypeM ctx (TC SourceRange ctx, Type)
 liftValAppPure r es f =
   do ctx <- getContext
      case ctx of
-       AGrammar -> liftApp es \args ->
-                      do vs <- mapM validateArg args
-                         (res,t) <- f vs
+       AGrammar -> liftApp es \vs ->
+                      do (res,t) <- f vs
                          pure (exprAt r (TCPure res), tGrammar t)
        AClass {} ->
          reportError r "Expected a byte class but encountered a value."
        AValue {} -> f =<< mapM inferExpr es
-  where
-  validateArg (a,t) =
-    case a of
-      ValArg v -> pure (v,t)
-      ClassArg e -> reportError e
-                      "Expected a value but encountered a byte class."
-      GrammarArg _ ->
-        panic "liftValApp" ["Unexpected parser argument in lift."]
+
+
+--------------------------------------------------------------------------------
 
 checkCommit :: HasRange r => r -> Commit -> TypeM ctx ()
 checkCommit r cmt =
@@ -397,7 +353,8 @@ inferExpr expr =
          pure (exprAt expr (TCMatch YesSem e1), tGrammar tByte)
 
     EMatch e ->
-      liftValApp expr [e] \ ~[(e1,t)] ->
+      grammarOnly expr $
+      liftApp [e] \ ~[(e1,t)] ->
       do let ty = tArray tByte
          unify ty (e1,t)
          pure (exprAt expr (TCMatchBytes YesSem e1), tGrammar ty)
@@ -564,7 +521,7 @@ inferExpr expr =
                -- turn 'e is l' into 'case e is { l x => ^ x }'
                SelUnion f ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do let lab = thingValue f
                     addConstraint f (HasUnion t lab a)
                     addConstraint f (IsNamed t)
@@ -576,7 +533,7 @@ inferExpr expr =
 
                SelTrue ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify tBool (e1,t)
                     let pat = TCBoolPat True
                         alt = TCAlt [pat]
@@ -587,7 +544,7 @@ inferExpr expr =
 
                SelFalse ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify tBool (e1,t)
                     let pat = TCBoolPat False
                         alt = TCAlt [pat]
@@ -598,7 +555,7 @@ inferExpr expr =
 
                SelNothing ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e,t)
                     let pat = TCNothingPat a
                         alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr TCUnit)
@@ -606,7 +563,7 @@ inferExpr expr =
 
                SelJust ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e1,t)
                     resVar <- newName expr a
                     let pat = TCJustPat (TCVarPat resVar)
@@ -628,20 +585,20 @@ inferExpr expr =
 
     ESetStream s ->
       grammarOnly expr $
-      liftValApp expr [s] \ ~[(e,t)] ->
+      liftApp [s] \ ~[(e,t)] ->
       do unify tStream (e,t)
          pure (exprAt expr (TCSetStream e), tGrammar tUnit)
 
     EStreamLen i s ->
       grammarOnly expr $
-      liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
+      liftApp [i,s] \ ~[(ie,it),(se,st)] ->
       do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamLen YesSem ie se), tGrammar tStream)
 
     EStreamOff i s ->
       grammarOnly expr $
-      liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
+      liftApp [i,s] \ ~[(ie,it),(se,st)] ->
       do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamOff YesSem ie se), tGrammar tStream)
@@ -655,13 +612,13 @@ inferExpr expr =
 
     EMapInsert k v m ->
       grammarOnly expr $
-      liftValApp expr [k,v,m] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
+      liftApp [k,v,m] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
       do unify (tMap kt vt) (m, mt)
          pure (exprAt expr (TCMapInsert YesSem k1 v1 m1), tGrammar mt)
 
     EMapLookup k m ->
       grammarOnly expr $
-      liftValApp expr [k,m] \ ~[(k1,kt),(m1,mt)] ->
+      liftApp [k,m] \ ~[(k1,kt),(m1,mt)] ->
       do vt <- newTVar m KValue
          unify (tMap kt vt) (m, mt)
          pure (exprAt expr (TCMapLookup YesSem k1 m1), tGrammar vt)
@@ -686,7 +643,7 @@ inferExpr expr =
 
     EArrayIndex e ix ->
       grammarOnly expr $
-      liftValApp expr [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
+      liftApp [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
       do vt         <- newTVar e KValue
          unify (tArray vt) (e, et)
          unify tSize (ix, ixt)
@@ -865,7 +822,7 @@ inferExpr expr =
 
     EFail msg ->
       grammarOnly expr $
-      liftValApp expr [msg] \ ~[(msgE,msgT)] ->
+      liftApp [msg] \ ~[(msgE,msgT)] ->
       do unify (tArray tByte) (msgE,msgT)
          a <- newTVar expr KValue
          pure (exprAt expr (TCFail (Just msgE) a), tGrammar a)
@@ -1037,7 +994,7 @@ inferExpr expr =
     EHasType CoerceCheck e ty ->
       grammarOnly expr
       do t    <- checkType KValue ty
-         liftValApp expr [e] \ ~[(e1,t1)] ->
+         liftApp [e] \ ~[(e1,t1)] ->
           do addConstraint ty (Coerce Dynamic t1 t)
              pure (exprAt expr (TCCoerceCheck YesSem t1 t e1), tGrammar t)
 
@@ -1291,9 +1248,14 @@ checkArg mbT e =
   do ctx <- getContext
      case (ctx,argCtx) of
        (AGrammar, Some AValue) -> -- calling grammar, expecting a value
-         do ((e1,t),mbS) <- liftValArg e    -- optional lifting
+         do ((e1,t),mbS) <- liftValExpr e    -- optional lifting
             checkTy (e1,t)
-            pure (e1,t,mbS)
+            pure (ValArg e1,t,mbS)
+
+       (AGrammar, Some AClass) ->     -- calling grammar, expecting a value
+         do ((e1,t),mbS) <- liftValExpr e    -- optional lifting
+            checkTy (e1,t)
+            pure (ValArg e1,t,mbS)
 
        (_,Some actx) ->
          do (e1,t) <- allowPartialApps partOk (inContext actx (inferExpr e))
