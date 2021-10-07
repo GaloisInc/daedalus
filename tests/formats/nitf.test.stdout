@@ -1,3 +1,85 @@
+[WARNING] ../../nitf/nitf_lib.ddl:448:5--456:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:441:5--445:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:414:10--428:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:398:13--402:13:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:393:8--413:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:380:9--381:40:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:372:10--392:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:359:8--359:36:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:356:10--371:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:344:28--352:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:342:24--342:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:305:22--338:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:277:15--283:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:154:16--154:32:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:133:23--136:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:110:16--110:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:73:22--76:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:46:13--46:33:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:26:16--26:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:35:3--38:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:5:22--5:42:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_graphic_subheader.ddl:7:20--10:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:813:6--813:40:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:813:6--813:55:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:698:15--699:33:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:540:3--541:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:536:3--537:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:396:12--411:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:299:7--300:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:291:7--292:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:286:11--287:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:286:11--288:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:283:11--284:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:283:7--288:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:274:7--275:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:274:7--276:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:274:7--277:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:274:7--278:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:22:21--22:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:103:9--103:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:96:9--96:47:
+            Using unbiased choice may be inefficient.
 --- Parse error: 
 [offset: 0]
   • unexpected end of input
