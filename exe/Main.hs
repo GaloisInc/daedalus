@@ -25,7 +25,6 @@ import Hexdump
 
 import Daedalus.PP
 import Daedalus.SourceRange
-import Daedalus.Rec(forgetRecs)
 
 import Daedalus.Driver
 
@@ -38,8 +37,9 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import qualified Daedalus.ExportRuleRanges as Export
-import Daedalus.Type.AST(TCModule(..),TCDecl(..),Type(..),Constraint(..))
-import qualified Daedalus.Type.AST as TC
+import Daedalus.Type.AST(TCModule(..))
+import Daedalus.Type.Monad(TypeWarning(..))
+import Daedalus.Type.Pretty(ppTypes)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -60,7 +60,8 @@ main =
        do hSetEncoding stdout utf8
           hSetEncoding stderr utf8
           hSetEncoding stdin  utf8
-     daedalus (handleOptions opts)
+
+     daedalus (configure opts >> handleOptions opts)
        `catches`
        [ Handler \e ->
            do putStrLn =<< prettyDaedalusError e
@@ -78,6 +79,14 @@ main =
 -- module.  This is the name of the resulting module
 specMod :: ModuleName
 specMod = "DaedalusMain"
+
+
+configure :: Options -> Daedalus ()
+configure opts =
+  do when (optNoWarnUnbiased opts) $
+       ddlSetOpt optWarnings \w -> case w of
+                                     WarnUnbiasedChoice {} -> False
+                                     _                     -> True
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
@@ -424,85 +433,3 @@ dumpHTML jsData = vcat
   Just trender = lookup "render.js" template_files
   bytes = text . BS8.unpack
 
-
-ppTypes :: TCModule a -> Doc
-ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
-  where
-  ppD :: TCDecl a -> Doc
-  ppD d = pp nm <.> colon $$ nest 2 ty
-    where
-    TC.Poly tys ctrs ((implParams,explParams) TC.:-> res) = TC.declTypeOf d
-
-    (_,nm) = nameScopeAsModScope (tcDeclName d)
-
-    tpMap = Map.fromList (zip tys names)
-    names = [ if v == 0 then char x else char x <> int v
-            | v <- [ 0 .. ], x <- [ 'a' .. 'z' ] ]
-    ty = vcat [ "for any type" <+> hsep (Map.elems tpMap) <.> colon
-              | not (Map.null tpMap) ]
-      $$ nest 2 (vcat (map ppCtr ctrs))
-      $$ vcat [ "implict parameter:" <+> pp x <+> ":" <+> ppTy 0 p
-                                                    | (x,p) <- implParams ]
-      $$ vcat [ "parameter:" <+> ppTy 0 p | p <- explParams ]
-      $$ "defines:" <+> ppTy 0 res
-      $$ " "
-
-    ppBackTy t = "`" <> ppTy 0 t <> "`"
-
-    ppCtr ctr =
-      case ctr of
-        Numeric t -> ppBackTy t <+> "is a numeric type"
-        HasStruct ts l tf ->
-          ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf
-        HasUnion tu l tf ->
-          ppBackTy tu <+> "has a variant" <+> pp l <+> ":" <+> ppTy 0 tf
-
-        StructCon {} -> empty -- shouldn't appear in schemas
-        UnionCon {} -> empty -- shouldn't appear in schemas
-
-        Coerce los t1 t2 ->
-          ppBackTy t1 <+> "is coercible to" <+> ppBackTy t2 <+>
-            case los of
-              TC.Lossy -> "(lossy)"
-              TC.NotLossy -> empty
-              TC.Dynamic -> "(dynamic check)"
-
-        Literal n t -> ppBackTy t <+> "contains the number" <+> pp n
-        CAdd t1 t2 t3 -> ppTy 1 t1 <+> "+" <+> ppTy 1 t2 <+> "=" <+> ppTy 1 t3
-        Traversable t -> ppBackTy t <+> "supports iteration"
-        Mappable t1 t2 -> "mapping over" <+> ppBackTy t1 <+>
-                          "results in" <+> ppBackTy t2
-        ColElType t1 t2 -> ppBackTy t1 <+> "is a collection of" <+> ppBackTy t2
-        ColKeyType t1 t2 ->
-          ppBackTy t1 <+> "is a collection with index" <+> ppBackTy t2
-        IsNamed {} -> empty -- shouldn't appear in schemas
-
-
-    ppTy n t = case t of
-                Type tty ->
-                  case tty of
-                    TGrammar a -> "parser of" <+> ppTy n a
-                    TFun a b   -> wrap 1 (ppTy 1 a <+> "=>" <+> ppTy 0 b)
-                    TStream    -> "stream"
-                    TByteClass -> "byte class"
-                    TNum i     -> integer i
-                    TUInt i    -> wrap 2 ("uint" <+> ppTy 1 i)
-                    TSInt i    -> wrap 2 ("sint" <+> ppTy 1 i)
-                    TInteger   -> "int"
-                    TBool      -> "bool"
-                    TUnit      -> "{}"
-                    TArray a   -> "[" <+> ppTy 0 a <+> "]"
-                    TMaybe a   -> wrap 2 ("maybe" <+> pp a)
-                    TMap a b   -> "[" <+> ppTy 1 a <+> "->" <+> ppTy 0 b <+> "]"
-
-                TCon f []      -> ppTC f
-                TCon f ts      -> wrap 2 (ppTC f <+> hsep (map (ppTy 2) ts))
-                TVar x         -> tpMap Map.! x
-
-      where wrap p x = if n < (p :: Int) then x else parens x
-
-  ppTC x = case x of
-             TC.TCTy a -> ppNM a
-             TC.TCTyAnon a i -> ppNM a <.> int i
-
-  ppNM = pp . snd . nameScopeAsModScope

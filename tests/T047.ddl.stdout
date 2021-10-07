@@ -24,8 +24,7 @@ T047.Main : Grammar T047.Main =
            a2 = a2}
  
 T047._A : Grammar {} =
-  for ((s : {}) = {}; (i : int) in rangeUp 0 5 1)
-    (pure {})
+  pure {}
  
 T047._Main : Grammar {} =
   T047._A

@@ -14,7 +14,7 @@ type case-simple2.Main = { p: case-simple2.P
 --- Rules:
  
 case-simple2.P : Grammar case-simple2.P =
-  Choose fair
+  Choose biased
     { {- c1 -} do (_4 : [uint 8]) <- MatchBytes "a"
                   pure {c1: _4}
     | {- c2 -} do (_5 : [uint 8]) <- MatchBytes "b"
@@ -31,7 +31,7 @@ case-simple2.Main : Grammar case-simple2.Main =
            tag = tag}
  
 case-simple2._P : Grammar {} =
-  Choose fair
+  Choose biased
     { {- c1 -} @MatchBytes "a"
     | {- c2 -} @MatchBytes "b"
     }

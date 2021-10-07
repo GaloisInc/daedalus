@@ -1,0 +1,24 @@
+module T072
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T072.P (x : uint 8) : Grammar (uint 8) =
+  pure x
+ 
+T072.$x : ByteClass =
+  {'a'}
+ 
+T072.Main : Grammar (uint 8) =
+  do (_4 : uint 8) <- Match T072.$x
+     T072.P _4
+ 
+T072._P : Grammar {} =
+  pure {}
+ 
+T072._Main : Grammar {} =
+  do @Match T072.$x
+     T072._P

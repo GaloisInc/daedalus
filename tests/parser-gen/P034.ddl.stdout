@@ -1,3 +1,5 @@
+[WARNING] ./P034.ddl:10:9--13:5:
+            Using unbiased choice may be inefficient.
 module P034
  
 --- Imports:

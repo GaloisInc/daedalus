@@ -1,6 +1,8 @@
 
-def Repeat P = Choose {
-  cons = { head = P ; tail = Repeat P };
-  nil  = {}
-}
+def Repeat P =
+  First
+    cons = block
+             head = P
+             tail = Repeat P
+    nil  = Accept
 

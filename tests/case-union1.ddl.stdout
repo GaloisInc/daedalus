@@ -14,7 +14,7 @@ type case-union1.Main = { p: case-union1.P
 --- Rules:
  
 case-union1.P : Grammar case-union1.P =
-  Choose fair
+  Choose biased
     { {- c1 -} do (_4 : [uint 8]) <- MatchBytes "a"
                   pure {c1: _4}
     | {- c2 -} do (_5 : [uint 8]) <- MatchBytes "b"
@@ -30,7 +30,7 @@ case-union1.Main : Grammar case-union1.Main =
            tag = tag}
  
 case-union1._P : Grammar {} =
-  Choose fair
+  Choose biased
     { {- c1 -} @MatchBytes "a"
     | {- c2 -} @MatchBytes "b"
     }

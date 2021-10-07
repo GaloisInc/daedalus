@@ -1,3 +1,5 @@
+[WARNING] ./D003.ddl:4:10--7:5:
+            Using unbiased choice may be inefficient.
 module D003
  
 --- Imports:

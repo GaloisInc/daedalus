@@ -1,3 +1,5 @@
+[WARNING] ./P036.ddl:4:9--4:35:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { x: '3'
 , y: {c3 : { }}

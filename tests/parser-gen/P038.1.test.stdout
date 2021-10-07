@@ -1,2 +1,4 @@
+[WARNING] ./P038.ddl:15:8--16:17:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { }

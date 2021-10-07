@@ -1,2 +1,2 @@
-./case-simple1.ddl:9:25--9:25:
+./case-simple1.ddl:10:16--10:16:
   `case` needs at least one non-default pattern.

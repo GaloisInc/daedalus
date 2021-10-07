@@ -1,3 +1,31 @@
+[WARNING] ./D018.ddl:124:3--124:43:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:93:5--94:13:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:93:5--95:32:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:110:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:109:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:108:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:107:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:106:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:105:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:104:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:103:6--111:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:101:4--112:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:31:5--32:27:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D018.ddl:5:29--5:46:
+            Using unbiased choice may be inefficient.
 module D018
  
 --- Imports:

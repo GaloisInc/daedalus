@@ -1,6 +1,6 @@
 def Main =
-  { @gen = Match1 'b';
-    { gen = ^gen };
-  }
+  block
+    let gen = $['b']
+    block gen = ^gen
 
 

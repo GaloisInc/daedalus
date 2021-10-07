@@ -1,2 +1,2 @@
-def Main = Many z (Match1 'a')
+def Main = Many z $['a']
 def z = 1

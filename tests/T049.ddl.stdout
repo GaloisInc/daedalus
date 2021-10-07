@@ -17,11 +17,11 @@ type T049.TD = { obj: T049.TDDef
 --- Rules:
  
 T049.V : Grammar T049.V =
-  Choose fair
-    { {- null -} do (_9 : {}) <- pure {}
-                    pure {null: _9}
-    | {- num -} do (_10 : uint 8) <- GetByte
-                   pure {num: _10}
+  Choose biased
+    { {- num -} do (_9 : uint 8) <- GetByte
+                   pure {num: _9}
+    | {- null -} do (_10 : {}) <- pure {}
+                    pure {null: _10}
     }
  
 T049.ResolveDeclRef (x : int) : Grammar T049.TD
@@ -34,7 +34,7 @@ T049.ResolveRef (x : int) : Grammar T049.V =
      pure $$
  
 T049.TDDef : Grammar T049.TDDef =
-  Choose fair
+  Choose biased
     { {- stream -} do (_13 : T049.V) <- T049.ResolveRef 0
                       pure {stream: _13}
     | {- value -} do (_14 : T049.V) <- T049.V
@@ -46,9 +46,9 @@ T049.TD : Grammar T049.TD =
      pure {obj = obj}
  
 T049._V : Grammar {} =
-  Choose fair
-    { {- null -} pure {}
-    | {- num -} @GetByte
+  Choose biased
+    { {- num -} @GetByte
+    | {- null -} pure {}
     }
  
 T049._TD : Grammar {} =
@@ -66,7 +66,7 @@ T049._ResolveRef (x : int) : Grammar {} =
        }
  
 T049._TDDef : Grammar {} =
-  Choose fair
+  Choose biased
     { {- stream -} T049._ResolveRef 0
     | {- value -} T049._V
     }

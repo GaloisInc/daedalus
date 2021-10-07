@@ -1,9 +1,21 @@
 
-def P = { x = UInt8; y = UInt8 }
+def P =
+  block
+    x = UInt8
+    y = UInt8
 
-def Q = { @s = P; $$ = ^s.x }
+def Q =
+  block
+    let s = P
+    $$    = ^s.x
 
-def R = Choose { a = UInt8; b = {} }
+def R =
+  First
+    a = UInt8
+    b = Accept
 
-def S = { @u = R; $$ = u is a }
+def S =
+  block
+    let u = R
+    $$ = u is a
 

@@ -1,3 +1,7 @@
+[WARNING] ./D010.ddl:19:2--24:2:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D010.ddl:13:3--16:3:
+            Using unbiased choice may be inefficient.
 module D010
  
 --- Imports:

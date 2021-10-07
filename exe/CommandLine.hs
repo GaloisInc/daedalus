@@ -42,6 +42,7 @@ data Options =
           , optStripFail :: Bool
           , optSpecTys   :: Bool
           , optOutDir    :: Maybe FilePath
+          , optNoWarnUnbiased :: Bool
           }
 
 simpleCommand :: Command -> ArgDescr Options
@@ -60,6 +61,7 @@ options = OptSpec
                            , optStripFail = False
                            , optSpecTys   = False
                            , optOutDir    = Nothing
+                           , optNoWarnUnbiased = False
                            }
   , progOptions =
       [ Option ['s'] ["spec"]
@@ -150,7 +152,7 @@ options = OptSpec
       , Option [] ["spec-types"]
         "Specialise types"
         $ NoArg \o -> Right o { optSpecTys = True }
-      
+
       , Option [] ["entry"]
         "Generate a library containg this parser."
         $ ReqArg "[MODULE.]NAME"
@@ -163,6 +165,10 @@ options = OptSpec
       , Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["no-warn-unbiased"]
+        "Do not warn about uses of unbiased choice."
+        $ NoArg \s -> Right s { optNoWarnUnbiased = True }
 
       , Option ['h'] ["help"]
         "Show this help"

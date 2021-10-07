@@ -1,3 +1,11 @@
+[WARNING] ./T053.ddl:23:23--26:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:12:18--12:34:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:8:18--8:31:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:7:18--7:30:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { ex1: Nothing
 , ex2: Just 1

@@ -1,3 +1,5 @@
+[WARNING] ./D027.ddl:23:4--23:8:
+            Using unbiased choice may be inefficient.
 module D027
  
 --- Imports:
