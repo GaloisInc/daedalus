@@ -5,44 +5,42 @@
 
 module Talos.SymExec.Core where
 
-import Control.Monad.IO.Class (MonadIO(..))
-
+import           Control.Monad.IO.Class          (MonadIO (..))
 -- import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set(Set)
-import qualified Data.Set as Set
-import Data.Foldable (fold, forM_, find)
+import           Control.Monad.Reader
+import qualified Data.ByteString                 as BS
+import           Data.Foldable                   (find, fold, forM_)
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (fromMaybe, isJust, isNothing)
+import           Data.Monoid
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
+import qualified Data.Vector                     as Vector
 
-import qualified Data.ByteString as BS
+import           SimpleSMT                       (SExpr, ppSExpr)
+import qualified SimpleSMT                       as S
 
-import SimpleSMT (SExpr, ppSExpr)
-import qualified SimpleSMT as S
-
-import Daedalus.Panic
-import Daedalus.PP
-import Daedalus.GUID
-import Daedalus.Rec
-
-import Daedalus.Core hiding (freshName)
-import Daedalus.Core.Free
-import Daedalus.Core.Type
-import Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core                   hiding (freshName)
+import           Daedalus.Core.Free
+import qualified Daedalus.Core.Semantics.Env     as I
+import           Daedalus.Core.Semantics.Expr    (evalOp0, evalOp1, evalOp2,
+                                                  evalOp3, evalOpN, matches,
+                                                  partial)
+import           Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core.Type
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
+import           Daedalus.Rec
+import qualified Daedalus.Value.Type             as V
 
 -- import Talos.Strategy.Monad
-import Talos.Analysis.Slice
-
-import Talos.SymExec.StdLib
-import Talos.SymExec.SolverT
-import Talos.SymExec.SemiValue (SemiValue(..))
-import qualified Talos.SymExec.SemiValue as SV
-
-import Data.Maybe (fromMaybe, isNothing, isJust)
-import qualified Daedalus.Value.Type as V
-import Data.Map (Map)
-import qualified Data.Vector as Vector
-import Daedalus.Core.Semantics.Expr (matches, partial, evalOp0, evalOp1, evalOp2, evalOp3, evalOpN)
-import Data.Monoid
-import Control.Monad.Reader
+import           Talos.Analysis.Slice
+import           Talos.SymExec.SemiValue         (SemiValue (..))
+import qualified Talos.SymExec.SemiValue         as SV
+import           Talos.SymExec.SolverT
+import           Talos.SymExec.StdLib
 
 -- -----------------------------------------------------------------------------
 -- Class
@@ -458,7 +456,11 @@ symExecOp3 MapInsert (TMap kt vt) m k v = do
   fnm <- getPolyFun (PMapInsert (symExecTy kt) (symExecTy vt))
   pure $ S.app fnm [m, k, v]
 symExecOp3 op _ _ _ _ = panic "Unimpleented" [showPP op]
-                                             
+
+symExecOpN :: (Monad m, HasGUID m) => OpN -> [SExpr] -> SolverT m SExpr
+symExecOpN (CallF fn) args = pure (S.fun (fnameToSMTName fn) args)
+symExecOpN op _ = panic "Unimplemented" [showPP op]
+                        
 -- -----------------------------------------------------------------------------
 -- Coercion
 
@@ -560,8 +562,8 @@ instance SymExec Expr where
       Ap2 op e e' -> join (symExecOp2 op (typeOf e) <$> symExec e <*> symExec e')
       Ap3 op e1 e2 e3 -> join (symExecOp3 op (typeOf e1) <$> symExec e1 <*> symExec e2 <*> symExec e3)
       
-      ApN (CallF fn) args -> S.fun (fnameToSMTName fn) <$> mapM symExec args
-      ApN {} -> unimplemented
+      ApN op args -> symExecOpN op =<< mapM symExec args
+      ApN {}      -> unimplemented
     where
         unimplemented = panic "SymExec (Expr): Unimplemented" [showPP expr]
 
@@ -704,10 +706,15 @@ semiSExprToSExpr tys ty sv =
     goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
 
 semiExecName :: (HasGUID m, Monad m) => Name -> SemiSolverM m SemiSExpr
-semiExecName = undefined
-
+semiExecName n = do
+  m_local <- asks (Map.lookup n . localBoundNames)
+  case m_local of
+    Nothing -> lift (VOther <$> getName n)
+    Just r  -> pure r
+  
 bindNameIn :: Name -> SemiSExpr -> SemiSolverM m a -> SemiSolverM m a
-bindNameIn = undefined
+bindNameIn n v =
+  local (\e -> e { localBoundNames = Map.insert n v (localBoundNames e) })
 
 -- Stolen from Synthesis
 -- projectEnvFor :: FreeVars t => t -> I.Env -> SynthEnv -> Maybe I.Env
@@ -767,12 +774,17 @@ freeInSemiSExpr n = getAny . foldMap (Any . freeInSExpr n)
 data SemiSolverEnv = SemiSolverEnv
   { localBoundNames :: Map Name SemiSExpr
   , typeDefs        :: Map TName TDecl
+  -- for concretely evaluating functions, only const/pure fun env
+  -- should be used.
+  , interpEnv       :: I.Env
+  , funDefs         :: Map FName (Fun Expr)
   }
   
 type SemiSolverM m = ReaderT SemiSolverEnv (SolverT m)
 
-semiExecExpr :: (HasGUID m, Monad m, MonadIO m) => Map TName TDecl -> Expr -> SolverT m SemiSExpr
-semiExecExpr tys e = runReaderT (semiExecExpr' e) (SemiSolverEnv mempty tys)
+semiExecExpr :: (HasGUID m, Monad m, MonadIO m) => Map TName TDecl -> Expr ->
+                I.Env -> SolverT m SemiSExpr
+semiExecExpr tys e env = runReaderT (semiExecExpr' e) (SemiSolverEnv mempty tys env)
 
 semiExecExpr' :: (HasGUID m, Monad m, MonadIO m) => Expr -> SemiSolverM m SemiSExpr
 semiExecExpr' expr =
@@ -931,13 +943,29 @@ semiExecOp3 op        _   _         _ _ = panic "Unimplemented" [showPP op]
 
 semiExecOpN :: (Monad m, HasGUID m) => OpN -> [SemiSExpr] -> 
                SemiSolverM m SemiSExpr
-semiExecOpN op vs = undefined--  | Just vs' <- mapM unValue vs =
-                      -- do 
-                      -- pure (VValue (evalOpN op vs'))
+semiExecOpN op vs
+  | Just vs' <- mapM unValue vs = do
+      env <- asks interpEnv
+      pure (VValue (evalOpN op vs' env))
+  | Just vs' <- mapM unOther vs = lift (VOther <$> symExecOpN op vs')
   where
     unValue (VValue v) = Just v
     unValue _ = Nothing
-                                          
+
+    unOther (VOther v) = Just v
+    unOther _ = Nothing
+
+-- unfold body of function.
+semiExecOpN (CallF fn) vs = do
+  fdefs <- asks funDefs
+  let (ps, e) = case Map.lookup fn fdefs of
+        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
+        _   -> panic "Missing function " [showPP fn]
+  
+  foldr (uncurry bindNameIn) (semiExecExpr' e) (zip ps vs)
+
+semiExecOpN op _vs = panic "Unimplemented" [showPP op]
+                
 -- symExecArg :: Env -> Arg a -> SParserM
 -- symExecArg e (ValArg v) = symExecV v
 -- symExecArg _ _          = error "Shoudn't happen: symExecArg nonValue"

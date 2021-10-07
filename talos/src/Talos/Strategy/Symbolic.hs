@@ -29,7 +29,7 @@ import Talos.SymExec.Path
 import Talos.Strategy.Monad
 import Talos.Strategy.SymbolicM
 
-import Talos.SymExec.SolverT (SolverT, reset, scoped, defineName, declareSymbol, assert, declareName, getName)
+import Talos.SymExec.SolverT (SolverT, reset, scoped, declareSymbol, assert, declareName, getName)
 import qualified Talos.SymExec.SolverT as Solv
 import Talos.SymExec.StdLib
 import Talos.SymExec.Core
@@ -94,7 +94,7 @@ sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SExpr, SymbolicM SelectedPath)
+stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SemiSExpr, SymbolicM SelectedPath)
 stratSlice ptag = go
   where
     go sl =  do
@@ -104,10 +104,11 @@ stratSlice ptag = go
         SDo m_x lsl rsl -> do
           (v, lpath)  <- go lsl
           -- bind name
-          maybe (pure ()) (\x -> void $ solverOp (defineName x (symExecTy (typeOf x)) v)) m_x
-
-          onSlice (\rhs -> pathNode <$> (SelectedDo <$> lpath) <*> rhs) <$> go rsl
-
+          onSlice (\rhs -> pathNode <$> (SelectedDo <$> lpath) <*> rhs) <*>
+            case m_x of
+              Nothing -> go rsl
+              Just x  -> bindNameIn x v (go rsl)
+              
         SUnconstrained  -> pure (sUnit, pure Unconstrained)
         SLeaf sl'       -> onSlice (fmap (flip pathNode Unconstrained)) <$> goLeaf sl'
 
@@ -229,6 +230,7 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
       sl <- getParamSlice fn cl ev
       stratSlice ptag sl
 
+    -- FIXME: do this as a post-processing step after analysis, once and for all?
     allUsedParams = foldMap programVars paths
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
 
