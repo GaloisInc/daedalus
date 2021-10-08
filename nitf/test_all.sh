@@ -52,7 +52,7 @@ test_jitc(){
         while read -r file; do
             printf ' %s ... ' "$file"
             #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
+            if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
 
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
@@ -72,7 +72,7 @@ test_jitc(){
         while read -r file; do
             printf ' %s ... ' "$file"
             #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+            if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -89,7 +89,7 @@ test_gwg(){
     find "${GWG_DIR}" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf '%s ... ' "$file"
-        if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+        if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then
