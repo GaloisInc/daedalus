@@ -17,6 +17,8 @@ module Talos.SymExec.StdLib (
   tByte,
   sByte,
   tBytes,
+  -- ** Numbers
+  sBitVec,
   -- ** Unit
   tUnit,
   sUnit,
@@ -68,7 +70,7 @@ module Talos.SymExec.StdLib (
 import Control.Monad (void)
 import Data.Word
 
-import SimpleSMT (SExpr, Solver)
+import SimpleSMT (SExpr, Solver, bvHex, bvBin)
 import qualified SimpleSMT as S
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
@@ -172,6 +174,12 @@ tBytes = tList tByte
 
 sByte :: Word8 -> SExpr
 sByte = S.bvHex 8 . fromIntegral
+
+sBitVec :: Int -> Integer -> SExpr
+sBitVec n i = 
+  if n `mod` 4 == 0
+  then bvHex (fromIntegral n) i
+  else bvBin (fromIntegral n) i
 
 tSize :: SExpr
 tSize = S.const "Size"

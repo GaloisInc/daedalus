@@ -2,22 +2,22 @@
 
 module Talos.Strategy.SymbolicM where
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.IO.Class
-import Control.Monad.Trans
-import Control.Monad.Reader
-import SimpleSMT (SExpr)
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader
+import           Data.Map                (Map)
+import qualified Data.Map                as Map
+import           SimpleSMT               (SExpr)
 
-import Talos.SymExec.Path
-import Talos.Strategy.DFST
-import Talos.Strategy.Monad
+import           Daedalus.Core           (Name)
 
-import Talos.SymExec.SolverT (SolverT, push, pop, mapSolverT)
-import Talos.SymExec.SemiValue
-import Data.Map (Map)
-import Daedalus.Core (Name)
-import qualified Data.Map as Map
+import           Talos.Strategy.DFST
+import           Talos.Strategy.Monad
+import           Talos.SymExec.Path
+import           Talos.SymExec.SemiValue
+import           Talos.SymExec.SolverT   (SolverT, pop, push)
+import qualified Talos.SymExec.SolverT   as Solv
 
 -- =============================================================================
 -- Symbolic monad
@@ -39,14 +39,22 @@ emptySymbolicEnv = mempty
 
 newtype SymbolicM a =
   SymbolicM { _getSymbolicM :: ReaderT SymbolicEnv (DFST (Maybe SelectedPath) (SolverT StrategyM)) a }
-  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM)
+  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadReader SymbolicEnv)
 
 runSymbolicM :: SymbolicM SelectedPath -> SolverT StrategyM (Maybe SelectedPath)
 runSymbolicM (SymbolicM m) =
   runDFST (runReaderT m emptySymbolicEnv) (pure . Just) (pure Nothing)
 
-defineName :: Name -> SemiValue SExpr -> SymbolicM a -> SymbolicM a
-defineName n v (SymbolicM m) = SymbolicM $ local (Map.insert n v) m
+bindNameIn :: Name -> SemiValue SExpr -> SymbolicM a -> SymbolicM a
+bindNameIn n v (SymbolicM m) = SymbolicM $ local (Map.insert n v) m
+
+getName :: Name -> SymbolicM (SemiValue SExpr)
+getName n = SymbolicM $ do
+  m_local <- asks (Map.lookup n)
+  case m_local of
+    Nothing -> lift (lift (VOther <$> Solv.getName n))
+    Just r  -> pure r
+
 
 instance Alternative SymbolicM where
   (SymbolicM m1) <|> (SymbolicM m2) = SymbolicM $ do

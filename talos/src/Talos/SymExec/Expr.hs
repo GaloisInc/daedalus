@@ -1,291 +1,59 @@
+{-# LANGUAGE RankNTypes #-}
 {-# Language GADTs, ViewPatterns, PatternGuards, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 -- Symbolically execute Core terms
 
-module Talos.SymExec.Core where
+module Talos.SymExec.Expr where
 
-import           Control.Monad.IO.Class          (MonadIO (..))
 -- import Data.Map (Map)
 import           Control.Monad.Reader
 import qualified Data.ByteString                 as BS
-import           Data.Foldable                   (find, fold, forM_)
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
-import           Data.Maybe                      (fromMaybe, isJust, isNothing)
-import           Data.Monoid
-import           Data.Set                        (Set)
-import qualified Data.Set                        as Set
-import qualified Data.Vector                     as Vector
 
-import           SimpleSMT                       (SExpr, ppSExpr)
+import           SimpleSMT                       (SExpr)
 import qualified SimpleSMT                       as S
 
-import           Daedalus.Core                   hiding (freshName)
-import           Daedalus.Core.Free
-import qualified Daedalus.Core.Semantics.Env     as I
-import           Daedalus.Core.Semantics.Expr    (evalOp0, evalOp1, evalOp2,
-                                                  evalOp3, evalOpN, matches,
-                                                  partial)
-import           Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core                   
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
-import           Daedalus.Rec
-import qualified Daedalus.Value.Type             as V
 
 -- import Talos.Strategy.Monad
-import           Talos.Analysis.Slice
-import           Talos.SymExec.SemiValue         (SemiValue (..))
-import qualified Talos.SymExec.SemiValue         as SV
-import           Talos.SymExec.SolverT
+import           Talos.SymExec.SolverT hiding (freshName)
 import           Talos.SymExec.StdLib
+import           Talos.SymExec.Type
 
 -- -----------------------------------------------------------------------------
 -- Class
 
-class SymExec a where
-  -- monadio for debugging
-  symExec :: (Monad m, HasGUID m, MonadIO m) => a -> SolverT m SExpr
+-- class SymExec a where
+--   -- monadio for debugging
+--   symExec :: (Monad m, HasGUID m, MonadIO m) => a -> SolverT m SExpr
 
--- Lookup previously bound names
-instance SymExec Name where
-  symExec = getName
+type SymExecM m a = ReaderT (Map Name SExpr) (SolverT m) a
 
---------------------------------------------------------------------------------
--- Types
---
--- Types are embedded direclty (without renaming), hence this is non-monadic
-  
-symExecTName :: TName -> String
-symExecTName = tnameToSMTName
-
-labelToField :: TName -> Label -> String
-labelToField n l = symExecTName n ++ "-" ++ show (pp l)
-
-typeNameToCtor :: TName -> String
-typeNameToCtor n = "mk-" ++ symExecTName n
-
--- | Construct SMT solver datatype declaration based on DaeDaLus type
--- declarations.
-
-tranclTypeDefs :: Module -> Set TName -> [Rec SMTTypeDef]
-tranclTypeDefs md roots0 = go [] roots0 (reverse (mTypes md))
-  where
-    go acc _ [] = acc
-    go acc roots (NonRec td : rest) 
-      | tName td `Set.member` roots =
-        go (NonRec (tdeclToSMTTypeDef td) : acc) (Set.union roots (freeTCons td)) rest
-      | otherwise                   = go acc roots rest
-      
-    go acc roots (MutRec tds : rest) 
-      | any (\td -> tName td `Set.member` roots) tds = 
-        go (MutRec (map tdeclToSMTTypeDef tds) : acc) (Set.unions (roots : map freeTCons tds)) rest
-      | otherwise                   = go acc roots rest
-
-
--- we already have recs and it is ordered, so we don't need to calculate a fixpoint
-sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
-sliceToSMTTypeDefs md = tranclTypeDefs md . freeTCons
-
-tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
-tdeclToSMTTypeDef td@(TDecl { tTParamKNumber = _ : _ }) =
-  panic "Unsupported type decl (number params)" [showPP td]
-
-tdeclToSMTTypeDef td@(TDecl { tTParamKValue = _ : _ }) =
-  panic "Unsupported type decl (type params)" [showPP td]
-
-tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [], tDef = td } =
-  SMTTypeDef { stdName = name
-             , stdBody = sflds
-             }
-  where
-    sflds = case td of
-              TStruct flds -> [(typeNameToCtor name, map mkOneS flds) ]
-              TUnion flds  -> map mkOneU flds
-    mkOneS (l, t) = (lblToFld l, symExecTy t)
-    mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
-    lblToFld = labelToField name
-      
-defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
-defineSliceTypeDefs md sl = mapM_ defineSMTTypeDefs (sliceToSMTTypeDefs md sl)
-
-symExecTy :: Type -> SExpr
-symExecTy = go 
-  where
-    go ty' =
-      let unimplemented = panic "Unsupported type" [showPP ty']
-      in case ty' of
-        TStream         -> unimplemented
-        TUInt (TSize 8) -> tByte -- prettier in the output
-        TUInt (TSize n) -> S.tBits n
-        TUInt {}        -> panic "Non-constant bit size" [ showPP ty' ]
-        TSInt (TSize n) -> S.tBits n
-        TSInt {}        -> panic "Non-constant bit size" [ showPP ty' ]
-        TInteger        -> S.tInt
-        TBool           -> S.tBool
-        TUnit           -> tUnit
-        TArray t'       -> tArrayWithLength (go t')
-        TMaybe t'       -> tMaybe (go t')
-        TMap kt vt      -> tMap (go kt) (go vt)
-        TBuilder elTy   -> tArrayWithLength (go elTy)
-        TIterator (TArray elTy) -> tArrayIter (go elTy)
-        TIterator {}    -> unimplemented -- map iterators
-        TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> S.const (symExecTName n)
-        TUser _ut       -> panic "Saw type with arguments" [showPP ty']
-        TParam _x       -> panic "Saw type variable" [showPP ty']
-
-typeDefault :: Type -> SExpr
-typeDefault = go
-  where
-    go ty =
-      let unimplemented = panic "Unsupported type" [showPP ty]
-      in case ty of
-        TStream         -> unimplemented
-        TUInt {}        -> symExecOp0 (IntL 0 ty)
-        TSInt {}        -> symExecOp0 (IntL 0 ty)
-        TInteger        -> symExecOp0 (IntL 0 ty)
-        TBool           -> S.bool False
-        TUnit           -> sUnit
-        TArray t'       -> sEmptyL (symExecTy t') (typeDefault t')
-        TMaybe t'       -> sNothing (symExecTy t')
-        TMap {}         -> unimplemented
-        TBuilder elTy   -> go (TArray elTy) -- probably not needed?
-        TIterator (TArray _elTy) -> unimplemented
-        TIterator {}    -> unimplemented -- map iterators
-        TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> 
-          S.const (typeNameToDefault n)
-        TUser {}        -> unimplemented
-        TParam {}       -> unimplemented
-
---------------------------------------------------------------------------------
--- Functions
-
--- transitive closure from the roots in the grammar functions.
--- FIXME: (perf) we recalculate freeFVars in sliceToFunDefs
-
-calcPureDeps :: Module -> Set FName -> Set FName
-calcPureDeps md roots = go roots roots
-  where
-    go seen new
-      | Set.null new = seen
-      | otherwise =
-        let new' = once new `Set.difference` seen
-        in go (seen `Set.union` new') new'
-
-    once new = fold (Map.restrictKeys depM new)
-
-    depM = Map.fromList (map mkOne (mGFuns md) ++
-                         map mkOne (mFFuns md) ++
-                         map mkOne (mBFuns md))
-      
-    mkOne :: FreeVars e => Fun e -> (FName, Set FName)
-    mkOne f = (fName f, freeFVars f)
-
--- We don't share code with sliceToFun as they are substantially different
-funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e) => (e -> SolverT m SExpr) -> [(String, SExpr)] -> Fun e ->
-               SolverT m SMTFunDef
-funToFunDef _ _ Fun { fDef = External } =
-  panic "Saw an external function" []
-
-funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
-  -- FIXME: this should be local to the body, not the context, and we
-  -- can't really push as it would forget the defn. when popped
-  mapM_ (\n -> modifyCurrentFrame (bindName n (nameToSMTName n))) (fParams f)
-  b <- sexec body
-  pure SMTFunDef { sfdName = fName f
-                 , sfdArgs = args
-                 , sfdRet  = symExecTy (fnameType (fName f))
-                 , sfdBody = b
-                 , sfdPureDeps = freeFVars f
-                 , sfdTyDeps   = freeTCons f
-                 }
-  where
-    args = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f) ++ extraArgs -- For bytesets
-    
--- FIXME: maybe calculate some of this once in StrategyM.
--- FIXME: filter by knownFNames here instead of in SolverT 
-defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
-defineSliceFunDefs md sl = do
-  fdefs <- sequence $ foldMap (mkOneF [] symExec) (mFFuns md)
-  bdefs <- sequence $ foldMap (mkOneF byteArg (flip symExecByteSet byteV)) (mBFuns md)  
-  let allDefs     = fdefs ++ bdefs
-      rFDefs      = topoOrder (\sfd -> (sfdName sfd, sfdPureDeps sfd)) allDefs
-
-  forM_ allDefs $ mapM_ defineSMTTypeDefs . tranclTypeDefs md . sfdTyDeps
-    
-  mapM_ defineSMTFunDefs rFDefs
-  where
-    roots = freeFVars sl -- includes grammar calls as well
-    allFs = calcPureDeps md roots
-
-    byteN        = "_$b"
-    byteV        = S.const byteN
-    byteArg      = [(byteN, tByte)]
-
-    mkOneF :: (Monad m, FreeVars e, TraverseUserTypes e) => [(String, SExpr)] -> (e -> SolverT m SExpr) -> Fun e ->
-              [SolverT m SMTFunDef]
-    mkOneF extraArgs sexec f
-      | fName f `Set.member` allFs = [funToFunDef sexec extraArgs f]
-      | otherwise                  = []
-
-
-    -- ppS :: PP a => Set a -> Doc
-    -- ppS  = braces . commaSep . map pp . Set.toList
-
-    -- ppM :: (a -> Doc) -> (b -> Doc) ->  Map a b -> Doc
-    -- ppM kf vf m = braces (commaSep [ kf x <> " -> " <> vf y | (x, y) <- Map.toList m])
-    
-    -- depM = Map.fromList (map mkOne (mFFuns md) ++ map mkOne (mBFuns md))
-      
-    -- mkOne :: FreeVars e => Fun e -> (FName, Set FName)
-    -- mkOne f = (fName f, freeFVars f)
+type SymExec a = forall m. (Monad m, HasGUID m, MonadIO m) => a -> SymExecM m SExpr
 
 -- -----------------------------------------------------------------------------
--- Polymorphic functions
+-- Names
 
-exprToPolyFuns :: Expr -> Set PolyFun
-exprToPolyFuns = go
-  where
-    go expr =
-      let children = foldMapChildrenE go expr
-      in case expr of
-        Ap2 MapMember me _ke ->
-          let (kt, vt) = mapTys me
-          in Set.insert (PMapMember (symExecTy kt) (symExecTy vt)) children
-        Ap2 MapLookup me _ke ->
-          let (kt, vt) = mapTys me
-          in Set.insert (PMapLookup (symExecTy kt) (symExecTy vt)) children
-        Ap3 MapInsert me _ke _ve ->
-          let (kt, vt) = mapTys me
-          in Set.insert (PMapInsert (symExecTy kt) (symExecTy vt)) children
-        _              -> children
+-- Lookup previously bound names
+symExecName :: SymExec Name
+symExecName n = do
+  m_sx <- asks (Map.lookup n)
+  case m_sx of
+    Just r  -> pure r
+    Nothing -> lift (getName n)
 
-    mapTys e = case typeOf e of
-      TMap kt vt -> (kt, vt)
-      _          -> panic "Expecting a map type" [showPP (typeOf e)]
-
-byteSetToPolyFuns :: ByteSet -> Set PolyFun
-byteSetToPolyFuns = ebFoldMapChildrenB exprToPolyFuns byteSetToPolyFuns
-
-defineSlicePolyFuns :: (MonadIO m, HasGUID m) => Slice -> SolverT m ()
-defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
-  where
-    polys = go sl
-    go sl' = case sl' of
-      SDontCare _n sl''  -> go sl''
-      SDo _m_x l r       -> go l <> go r
-      SUnconstrained     -> mempty
-      SLeaf s            -> goL s
-
-    goL l = case l of
-      SPure _fset v -> exprToPolyFuns v
-      SMatch m      -> byteSetToPolyFuns m
-      SAssertion (GuardAssertion e) -> exprToPolyFuns e
-      SChoice cs   -> foldMap go cs
-      SCall cn     -> foldMap exprToPolyFuns (callNodeActualArgs cn)
-      SCase _ c@(Case e _) -> exprToPolyFuns e <> foldMap go c
+-- This is probably overkill for lets, but it is safer (we probably don't need to freshName)
+bindNameFreshIn :: (Monad m, HasGUID m) => Name -> SymExecM m a -> SymExecM m (String, a)
+bindNameFreshIn n m = do
+  n' <- lift (freshName n)
+  let ns = nameToSMTName n'
+  (,) ns <$> local (Map.insert n (S.const ns)) m 
       
 -- -----------------------------------------------------------------------------
 -- Symbolic execution of terms
@@ -491,517 +259,136 @@ symExecCoerce fromT toT _v  =
 -- -----------------------------------------------------------------------------
 -- Expressions
 
--- Pure case.  c.f. symExecGCase FIXME: merge the 2 functions?
-
-instance SymExec a => SymExec (Case a) where
-  symExec (Case e alts) =
-    case typeOf e of
-      -- FIXME: maybe we should normalise these somehow
-      TBool -> let mk = S.ite <$> symExec e in
-        case alts of
-          (PBool True, tc) : (PBool False, fc) : _ -> mk <*> symExec tc <*> symExec fc
-          (PBool False, fc) : (PBool True, tc) : _ -> mk <*> symExec tc <*> symExec fc
-          (PBool True, tc) : (PAny, fc) : _        -> mk <*> symExec tc <*> symExec fc
-          (PBool False, fc) : (PAny, tc) : _       -> mk <*> symExec tc <*> symExec fc
-          _ -> panic "Unknown Bool case" []
-            
-      TMaybe {} -> do
-        let mk nce jce = do
-              nc <- symExec nce
-              jc <- symExec jce
-              mkMatch <$> symExec e <*> pure [ (S.const "Nothing", nc)
-                                             , (S.fun "Just" [S.const "_"], jc)
-                                             ]
-        case alts of
-          (PNothing, nc) : (PJust, jc) : _ -> mk nc jc
-          (PJust, jc) : (PNothing, nc) : _ -> mk nc jc
-          (PNothing, nc) : (PAny, jc) : _  -> mk nc jc
-          (PJust, jc) : (PAny, nc) : _     -> mk nc jc
-          _ -> panic "Unknown Maybe case" []
-          
-      -- We translate a case into a smt case
-      TUser ut -> mkMatch <$> symExec e <*> mapM (goAlt ut) alts
-  
-      -- numeric cases
-      ty -> 
-        let pats = [ (n, sl) | (PNum n, sl) <- alts ]
-            -- FIXME: inefficient for non-trivial e
-            go (patn, s) rest = S.ite <$> (S.eq <$> symExec e <*> (mkLit ty patn)) <*> symExec s <*> rest
-            
-            base = case lookup PAny alts of
-              Nothing -> panic "Pure numeric case lacks a default" []
-              Just s  -> symExec s
-        in foldr go base pats
-    where
-      mkLit ty n = -- a bit hacky
-        pure (symExecOp0 (IntL n ty))
-  
-      goAlt ut (p, s) = do
-        let sp = case p of
-                   PAny   -> wildcard
-                   PCon l -> S.fun (labelToField (utName ut) l) [wildcard]
-                   _      -> panic "Unknown pattern" [showPP p]
-        (,) sp <$> symExec s
-    
-      wildcard = S.const "_"      
-  
-instance SymExec Expr where
-  symExec expr = 
-    case expr of
-      Var n       -> symExec n
-      PureLet n e e' -> 
-        mklet <$> freshName n <*> symExec e <*> symExec e'
-  
-      Struct ut ctors ->
-        S.fun (typeNameToCtor (utName ut)) <$> mapM (symExec . snd) ctors
-        
-      ECase c -> symExec c
-
-      Ap0 op      -> pure (symExecOp0 op)
-      Ap1 op e    -> symExecOp1 op (typeOf e) =<< symExec e
-      Ap2 op e e' -> join (symExecOp2 op (typeOf e) <$> symExec e <*> symExec e')
-      Ap3 op e1 e2 e3 -> join (symExecOp3 op (typeOf e1) <$> symExec e1 <*> symExec e2 <*> symExec e3)
+-- Compile patterns to a list of predicates, one for each alternative
+symExecCaseAlts :: (Monad m, HasGUID m, MonadIO m) => Case a -> SymExecM m [(SExpr, a)]
+symExecCaseAlts (Case e alts) = do
+  se <- symExecExpr e
+  pure [ (patAssn se p, a) | (p, a) <- alts ]
+  where
+    patAssn se p = case p of
+      PBool b  -> if b then se else S.not se
+      PNothing -> S.fun "is-Nothing" [se]
+      PJust    -> S.fun "is-Just" [se]
+      PNum n   -> S.eq se (mkLit n)
+      PCon l   -> S.fun ("is-" ++ labelToField tyName l) [se]
+      PAny     -> S.bool True
       
-      ApN op args -> symExecOpN op =<< mapM symExec args
-      ApN {}      -> unimplemented
-    where
-        unimplemented = panic "SymExec (Expr): Unimplemented" [showPP expr]
+    ty = typeOf e
+    mkLit n = symExecOp0 (IntL n ty)
 
-symExecByteSet :: (MonadIO m, HasGUID m, Monad m) => ByteSet -> SExpr -> SolverT m SExpr
-symExecByteSet bs b = go bs
+    tyName = case ty of
+      TUser ut -> utName ut
+      _        -> panic "Not a user type" [showPP ty]
+
+symExecCase :: SymExec a -> SymExec (Case a)
+symExecCase symE c = do
+  alts <- symExecCaseAlts c
+  let fallThru = symE (snd (last alts))
+  foldr (\(p, a) rest -> S.ite p <$> symE a <*> rest) fallThru (init alts)
+
+-- FIXME: this gives more readable output, but is a bit verbose.
+
+-- symExecCase :: SymExec a -> SymExec (Case a)
+-- symExecCase symE (Case e alts) =
+--   case typeOf e of
+--     -- FIXME: maybe we should normalise these somehow
+--     TBool -> let mk = S.ite <$> symExecExpr e in
+--       case alts of
+--         (PBool True, tc) : (PBool False, fc) : _ -> mk <*> symE tc <*> symE fc
+--         (PBool False, fc) : (PBool True, tc) : _ -> mk <*> symE tc <*> symE fc
+--         (PBool True, tc) : (PAny, fc) : _        -> mk <*> symE tc <*> symE fc
+--         (PBool False, fc) : (PAny, tc) : _       -> mk <*> symE tc <*> symE fc
+--         _ -> panic "Unknown Bool case" []
+          
+--     TMaybe {} -> do
+--       let mk nce jce = do
+--             nc <- symE nce
+--             jc <- symE jce
+--             mkMatch <$> symExecExpr e <*> pure [ (S.const "Nothing", nc)
+--                                                , (S.fun "Just" [S.const "_"], jc)
+--                                                ]
+--       case alts of
+--         (PNothing, nc) : (PJust, jc) : _ -> mk nc jc
+--         (PJust, jc) : (PNothing, nc) : _ -> mk nc jc
+--         (PNothing, nc) : (PAny, jc) : _  -> mk nc jc
+--         (PJust, jc) : (PAny, nc) : _     -> mk nc jc
+--         _ -> panic "Unknown Maybe case" []
+        
+--     -- We translate a case into a smt case
+--     TUser ut -> mkMatch <$> symExecExpr e <*> mapM (goAlt ut) alts
+ 
+--     -- numeric cases
+--     ty -> 
+--       let pats = [ (n, sl) | (PNum n, sl) <- alts ]
+--           -- FIXME: inefficient for non-trivial e
+--           go (patn, s) rest = S.ite <$> (S.eq <$> symExecExpr e <*> mkLit ty patn)
+--                                     <*> symE s <*> rest
+          
+--           base = case lookup PAny alts of
+--             Nothing -> panic "Pure numeric case lacks a default" []
+--             Just s  -> symE s
+--       in foldr go base pats
+--   where
+--     mkLit ty n = -- a bit hacky
+--       pure (symExecOp0 (IntL n ty))
+ 
+--     goAlt ut (p, s) = do
+--       let sp = case p of
+--                  PAny   -> wildcard
+--                  PCon l -> S.fun (labelToField (utName ut) l) [wildcard]
+--                  _      -> panic "Unknown pattern" [showPP p]
+--       (,) sp <$> symE s
+  
+--     wildcard = S.const "_"      
+
+
+symExecExpr :: SymExec Expr
+symExecExpr expr = 
+  case expr of
+    Var n       -> symExecName n
+    PureLet n e e' -> do
+      (n', r) <- bindNameFreshIn n (symExecExpr e')
+      mklet n' <$> symExecExpr e <*> pure r
+  
+    Struct ut ctors ->
+      S.fun (typeNameToCtor (utName ut)) <$> mapM (symExecExpr . snd) ctors
+      
+    ECase c -> symExecCase symExecExpr c
+  
+    Ap0 op      -> pure (symExecOp0 op)
+    Ap1 op e    -> lift . symExecOp1 op (typeOf e) =<< symExecExpr e
+    Ap2 op e e' -> do
+      se  <- symExecExpr e
+      se' <- symExecExpr e'
+      lift (symExecOp2 op (typeOf e) se se')
+    Ap3 op e1 e2 e3 -> do
+      se1 <- symExecExpr e1
+      se2 <- symExecExpr e2
+      se3 <- symExecExpr e3
+      
+      lift (symExecOp3 op (typeOf e1) se1 se2 se3)
+    
+    ApN op args -> lift .  symExecOpN op =<< mapM symExecExpr args
+
+symExecByteSet :: SExpr -> SymExec ByteSet
+symExecByteSet b bs = go bs
   where
     go bs' =
       case bs' of
         SetAny          -> pure (S.bool True)
-        SetSingle  v    -> S.eq b <$> symExec v
-        SetRange l h    -> S.and <$> (flip S.bvULeq b <$> symExec l)
-                                 <*> (S.bvULeq b <$> symExec h)
+        SetSingle  v    -> S.eq b <$> symExecExpr v
+        SetRange l h    -> S.and <$> (flip S.bvULeq b <$> symExecExpr l)
+                                 <*> (S.bvULeq b <$> symExecExpr h)
     
         SetComplement c -> S.not <$> go c
         SetUnion l r    -> S.or <$> go l <*> go r
         SetIntersection l r -> S.and <$> go l <*> go r
 
-        SetLet n e bs'' -> 
-          mklet <$> freshName n <*> symExec e <*> go bs''
+        SetLet n e bs'' -> do
+          (n', r) <- bindNameFreshIn n (go bs'')
+          mklet n' <$> symExecExpr e <*> pure r
           
-        SetCall f es  -> S.fun (fnameToSMTName f) <$> ((++ [b]) <$> mapM symExec es)
+        SetCall f es  -> S.fun (fnameToSMTName f) <$> ((++ [b]) <$> mapM symExecExpr es)
         SetCase {}    -> unimplemented
     
     unimplemented = panic "SymExec (ByteSet): Unimplemented inside" [showPP bs]
-
--- -----------------------------------------------------------------------------
--- Value -> SExpr
-
-valueToSExpr :: Map TName TDecl -> Type -> V.Value -> SExpr
-valueToSExpr tys ty v =
-  case v of
-    V.VUInt n i ->
-      if n `mod` 4 == 0
-      then S.bvHex (fromIntegral n) i
-      else S.bvBin (fromIntegral n) i
-    V.VSInt n i -> -- FIXME: correct?
-      if n `mod` 4 == 0
-      then S.bvHex (fromIntegral n) i
-      else S.bvBin (fromIntegral n) i
-    V.VInteger i -> S.int i               
-    V.VBool b -> S.bool b
-    V.VUnionElem l v'
-      | TUser ut <- ty
-      , Just TDecl { tDef = TUnion flds } <- Map.lookup (utName ut) tys
-      , Just ty' <- lookup l flds
-      -> S.fun (labelToField (utName ut) l) [go ty' v']
-    
-    -- FIXME: assumes the order is the same
-    V.VStruct els
-      | TUser ut <- ty
-      , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
-      -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
-    
-    V.VArray vs | TArray elty <- ty ->
-      let sVals     = map (go elty) (Vector.toList vs)
-          emptyArr = sArrayL (sEmptyL (symExecTy elty) (typeDefault elty)) -- FIXME, a bit gross?
-          arr      = foldr (\(i, b) arr' -> S.store arr' (sSize i) b) emptyArr (zip [0..] sVals)
-      in sArrayWithLength arr (sSize (fromIntegral $ Vector.length vs))
-      
-    V.VMaybe mv | TMaybe ty' <- ty ->
-      case mv of
-        Nothing -> sNothing (symExecTy ty')
-        Just v' -> sJust (go ty' v')
-        
-    V.VMap m | TMap kt vt <- ty ->
-      -- FIXME: breaks abstraction of maps
-      sFromList (tTuple (symExecTy kt) (symExecTy vt))
-                [ sTuple (go kt k) (go vt v) | (k, v) <- Map.toList m ]
-
-      
-    V.VStream {}                       -> unimplemented
-    V.VBuilder vs
-      | TBuilder elTy <- ty -> sFromList (symExecTy elTy) (reverse (map (go elTy) vs))
-    V.VIterator vs ->
-      let (kt, vt) = case ty of
-            TIterator (TArray elTy) -> (sizeType, elTy)
-            TIterator (TMap   kt vt) -> (kt, vt)
-            _ -> panic "Malformed iterator type" []
-      in sFromList (tTuple (symExecTy kt) (symExecTy vt)) [ sTuple (go kt k) (go vt v) | (k, v) <- vs ]
-
-    _ -> unexpectedTy
-  where
-    unexpectedTy = panic "Unexpected type" [showPP v, showPP ty]
-    
-    go = valueToSExpr tys
-    goStruct (l, e) (l', ty') | l == l' = go ty' e
-    goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
-      
-    unimplemented = panic "Unimplemented" [showPP v]
-    
--- -----------------------------------------------------------------------------
--- Semi symbolic/concrete evaluation
-
-type SemiSExpr = SemiValue SExpr
-
-semiSExprToSExpr :: Map TName TDecl -> Type -> SemiSExpr -> SExpr
-semiSExprToSExpr tys ty sv =
-  case sv of
-    VValue v -> valueToSExpr tys ty v
-    VOther s -> s
-    -- FIXME: copied from valueToSExpr, unify.
-    VUnionElem l v'
-      | TUser ut <- ty
-      , Just TDecl { tDef = TUnion flds } <- Map.lookup (utName ut) tys
-      , Just ty' <- lookup l flds
-      -> S.fun (labelToField (utName ut) l) [go ty' v']
-
-    -- FIXME: copied from valueToSExpr, unify.
-    VStruct els
-      | TUser ut <- ty
-      , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
-      -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
-                  
-    VSequence vs ->
-      let elTy = case ty of
-            TArray elTy -> elTy
-            TBuilder elTy -> elTy
-            _ -> panic "Expecting a sequence-like structure" []
-      in sFromList (symExecTy elTy) (map (go elTy) vs)
-    VMaybe mv | TMaybe ty' <- ty -> case mv of
-                  Nothing -> sNothing (symExecTy ty')
-                  Just v' -> sJust (go ty' v')
-        
-    VMap ms | TMap kt vt <- ty ->
-      -- FIXME: breaks abstraction of maps
-      sFromList (tTuple (symExecTy kt) (symExecTy vt))
-                [ sTuple (go kt k) (go vt v) | (k, v) <- ms ]
-              
-    VIterator vs ->
-      let (kt, vt) = case ty of
-            TIterator (TArray elTy) -> (sizeType, elTy)
-            TIterator (TMap   kt vt) -> (kt, vt)
-            _ -> panic "Malformed iterator type" []
-      in sFromList (tTuple (symExecTy kt) (symExecTy vt)) [ sTuple (go kt k) (go vt v) | (k, v) <- vs ]
-
-    _ -> panic "Malformed value" [show sv, showPP ty]
-  where
-    go = semiSExprToSExpr tys 
-    goStruct (l, e) (l', ty') | l == l' = go ty' e
-    goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
-
-semiExecName :: (HasGUID m, Monad m) => Name -> SemiSolverM m SemiSExpr
-semiExecName n = do
-  m_local <- asks (Map.lookup n . localBoundNames)
-  case m_local of
-    Nothing -> lift (VOther <$> getName n)
-    Just r  -> pure r
-  
-bindNameIn :: Name -> SemiSExpr -> SemiSolverM m a -> SemiSolverM m a
-bindNameIn n v =
-  local (\e -> e { localBoundNames = Map.insert n v (localBoundNames e) })
-
--- Stolen from Synthesis
--- projectEnvFor :: FreeVars t => t -> I.Env -> SynthEnv -> Maybe I.Env
--- projectEnvFor tm env0 se = doMerge <$> Map.traverseMaybeWithKey go (synthValueEnv se)
---   where
---     frees = freeVars tm
-
---     doMerge m = env0 { I.vEnv = Map.union m (I.vEnv env0) } 
-    
---     go k v | k `Set.member` frees = Just <$> projectInterpValue v
---     go _ _                        = Just Nothing
-
--- projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
--- projectEnvForM tm = do
---   env0 <- getIEnv
---   m_e <- SynthesisM $ asks (projectEnvFor tm env0)
---   case m_e of
---     Just e  -> pure e
---     Nothing -> panic "Captured stream value" []
-
--- Stolen from Daedalus.Core.Semantics.Expr
-matches' :: Pattern -> SemiSExpr -> Maybe Bool
-matches' pat (VValue v) = Just (matches pat v)
-matches' pat v = 
-  case pat of
-    PBool {} -> Nothing
-    
-    PNothing | VMaybe mb <- v -> Just (isNothing mb)
-    PNothing -> Nothing
-    
-    PJust    | VMaybe mb <- v -> Just (isJust mb)
-    PJust    -> Nothing
-    
-    PCon l | VUnionElem l' _ <- v -> Just (l == l')
-    PCon {} -> Nothing
-    
-    PAny   -> Just True
-
--- Says whether a variable occurs in a SExpr, taking into account let binders.
-freeInSExpr :: String -> SExpr -> Bool
-freeInSExpr n = getAny . go
-  where
-    go (S.Atom a) = Any (a == n)
-    go (S.List [S.Atom "let", S.List es, e]) =
-      let (Any stop, occ) = goL es
-      in if stop then occ else occ <> go e
-      
-    go (S.List es) = foldMap go es
-
-    goL (S.List [S.Atom a, be] : es) = (Any (a == n), go be) <> goL es
-    goL [] = (mempty, mempty)
-    goL _ = panic "Malformed let binding" []
-    
-freeInSemiSExpr :: String -> SemiSExpr -> Bool
-freeInSemiSExpr n = getAny . foldMap (Any . freeInSExpr n)
-
-data SemiSolverEnv = SemiSolverEnv
-  { localBoundNames :: Map Name SemiSExpr
-  , typeDefs        :: Map TName TDecl
-  -- for concretely evaluating functions, only const/pure fun env
-  -- should be used.
-  , interpEnv       :: I.Env
-  , funDefs         :: Map FName (Fun Expr)
-  }
-  
-type SemiSolverM m = ReaderT SemiSolverEnv (SolverT m)
-
-semiExecExpr :: (HasGUID m, Monad m, MonadIO m) => Map TName TDecl -> Expr ->
-                I.Env -> SolverT m SemiSExpr
-semiExecExpr tys e env = runReaderT (semiExecExpr' e) (SemiSolverEnv mempty tys env)
-
-semiExecExpr' :: (HasGUID m, Monad m, MonadIO m) => Expr -> SemiSolverM m SemiSExpr
-semiExecExpr' expr =
-  case expr of
-    Var n          -> semiExecName n
-    PureLet n e e' -> do
-      ve  <- go e
-      bindNameIn n ve (go e') -- Maybe we should generate a let?
-      
-    Struct ut ctors -> do
-      let (ls, es) = unzip ctors
-      sves <- mapM go es
-      pure (VStruct (zip ls sves))
-
-    ECase (Case e pats) -> do
-      ve <- go e
-      -- we need to be careful not to match 'Any' if the others can't
-      -- be determined.
-      let ms = zip pats <$> mapM (flip matches' ve . fst) pats
-      case ms of
-        -- can't determine match, just return a sexpr
-        Nothing -> VOther <$> lift (symExec expr)
-        Just ps | Just ((_, e'), _) <- find snd ps -> go e'
-        _ -> panic "Missing case" []
-
-    Ap0 op      -> pure (VValue $ partial (evalOp0 op))
-    Ap1 op e     -> join (semiExecOp1 op (typeOf e) <$> go e)
-    Ap2 op e1 e2 -> join (semiExecOp2 op (typeOf e1) <$> go e1 <*> go e2)
-    Ap3 op e1 e2 e3 -> join (semiExecOp3 op (typeOf e1) <$> go e1 <*> go e2 <*> go e3)
-    ApN opN vs     -> semiExecOpN opN =<< mapM go vs
-  where
-    unimplemented = panic "semiExecExpr': unimplemented" [showPP expr]
-    go = semiExecExpr'
-    
--- Might be able to just use the value instead of requiring t
-semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
-semiExecOp1 op ty (VValue v) = pure $ VValue (evalOp1 op ty v)
-semiExecOp1 op ty (VOther s) = lift (VOther <$> symExecOp1 op ty s)
-semiExecOp1 op ty sv =
-  -- We only care about operations over the compound semivalues (i.e., concrete values are handled above)
-  case op of
-    IsEmptyStream -> unimplemented
-    Head          -> unimplemented
-    StreamOffset  -> unimplemented
-    StreamLen     -> unimplemented
-    ArrayLen | Just svs <- SV.toList sv -> pure $ VValue (V.vSize (toInteger (length svs)))
-    Concat   | Just svs <- SV.toList sv
-             , Just svss <- mapM SV.toList svs -> pure (SV.fromList (mconcat svss))
-    FinishBuilder -> pure sv
-    NewIterator
-      | TArray {} <- ty,
-        Just svs <- SV.toList sv -> pure $ VIterator (zip (map (VValue . V.vSize) [0..]) svs)
-    NewIterator -> unimplemented -- maps
-    IteratorDone | VIterator els <- sv -> pure (VValue (V.VBool (null els)))
-    IteratorKey  | VIterator ((k, _) : _) <- sv  -> pure k
-    IteratorVal  | VIterator ((_, el) : _) <- sv -> pure el
-    IteratorNext
-      | VIterator (_ : els) <- sv -> pure (VIterator els)
-      | VIterator [] <- sv -> panic "empty iterator" []
-    
-    EJust -> pure (VMaybe (Just sv))
-    FromJust
-      | VMaybe (Just sv') <- sv -> pure sv'
-      | VMaybe Nothing    <- sv -> panic "FromJust: Nothing" []
-      
-    SelStruct _ty l
-      | VStruct flds <- sv
-      , Just v <- lookup l flds -> pure v
-      
-    InUnion ut l                      -> pure (VUnionElem l sv)
-    FromUnion _ty l
-      | VUnionElem l' sv' <- sv, l == l' -> pure sv'
-      | VUnionElem {} <- sv -> panic "Incorrect union tag" []
-
-    -- symbolic
-    _ -> do
-      tys <- asks typeDefs
-      VOther <$> lift (symExecOp1 op ty (semiSExprToSExpr tys ty sv))
-  where
-    unimplemented = panic "semiEvalOp1: Unimplemented" [showPP op]
-
-semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type ->
-               SemiSExpr -> SemiSExpr -> SemiSolverM m SemiSExpr
-semiExecOp2 op _ty (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
-semiExecOp2 op ty  (VOther v1) (VOther v2) =
-  lift (VOther <$> symExecOp2 op ty v1 v2)
-semiExecOp2 op ty sv1 sv2 = 
-  case op of
-    IsPrefix -> unimplemented
-    Drop     -> unimplemented
-    Take     -> unimplemented
-    -- sv1 is arr, sv2 is ix
-    ArrayIndex
-      | Just svs <- SV.toList sv1
-      , VValue v <- sv2, Just ix <- V.valueToIntSize v
-        -> pure (svs !! ix)
-    ConsBuilder
-      | VSequence svs <- sv2 -> pure (VSequence (svs ++ [sv1]))
-      
-    -- sv1 is map, sv2 is key
-    MapLookup -> mapOp (VValue $ V.VMaybe Nothing) (sNothing . symExecTy)
-                       (VMaybe . Just)             sJust
-
-    MapMember -> mapOp (VValue $ V.VBool False)        (const (S.bool False))
-                       (const (VValue $ V.VBool True)) (const (S.bool True))
-
-    ArrayStream -> unimplemented
-
-    _ -> def
-  where
-    def = do
-      tys <- asks typeDefs
-      VOther <$> lift (symExecOp2 op ty
-                       (semiSExprToSExpr tys ty sv1)
-                       (semiSExprToSExpr tys ty sv2))
-
-    
-    unimplemented = panic "semiEvalOp2: Unimplemented" [showPP op]
-
-
-    -- sv1 is map, sv2 is key
-    mapOp missing smissingf found sfound
-      | VMap els <- sv1, VValue kv <- sv2
-      , Just res <- mapLookupV missing found kv els
-        = pure res
-      -- Expand into if-then-else.
-      | VMap els <- sv1, TMap kt vt <- ty = do
-          tys <- asks typeDefs
-          let symkv = semiSExprToSExpr tys kt sv2
-              mk    = sfound . semiSExprToSExpr tys vt
-          pure (VOther $ foldr (mapLookupS tys mk kt symkv sv2)
-                                (smissingf vt)
-                                els)
-      | otherwise = def
-
-    mapLookupV z _f  _kv  [] = Just z
-    mapLookupV z f  kv ((VValue kv', el) : rest) =
-      if kv == kv' then Just (f el) else mapLookupV z f kv rest
-    mapLookupV _ _ _ _ = Nothing
-
-    mapLookupS tys f kTy symkv skv (skv', sel) rest =
-      case (skv, skv') of
-        (VValue kv, VValue kv')
-          -> if kv == kv' then f sel else rest
-        _ -> S.ite (S.eq symkv (semiSExprToSExpr tys kTy skv')) (f sel) rest
-
-
-semiExecOp3 :: (Monad m, HasGUID m) => Op3 -> Type ->
-               SemiSExpr -> SemiSExpr -> SemiSExpr ->
-               SemiSolverM m SemiSExpr
-semiExecOp3 op _ty (VValue v1) (VValue v2) (VValue v3) = pure $ VValue (evalOp3 op v1 v2 v3)
-semiExecOp3 op ty  (VOther v1) (VOther v2) (VOther v3) =
-  lift (VOther <$> symExecOp3 op ty v1 v2 v3)
-semiExecOp3 MapInsert _ty (VMap ms) k v = pure (VMap ((k, v) : ms))
-semiExecOp3 op        _   _         _ _ = panic "Unimplemented" [showPP op]  
-
-semiExecOpN :: (Monad m, HasGUID m) => OpN -> [SemiSExpr] -> 
-               SemiSolverM m SemiSExpr
-semiExecOpN op vs
-  | Just vs' <- mapM unValue vs = do
-      env <- asks interpEnv
-      pure (VValue (evalOpN op vs' env))
-  | Just vs' <- mapM unOther vs = lift (VOther <$> symExecOpN op vs')
-  where
-    unValue (VValue v) = Just v
-    unValue _ = Nothing
-
-    unOther (VOther v) = Just v
-    unOther _ = Nothing
-
--- unfold body of function.
-semiExecOpN (CallF fn) vs = do
-  fdefs <- asks funDefs
-  let (ps, e) = case Map.lookup fn fdefs of
-        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
-        _   -> panic "Missing function " [showPP fn]
-  
-  foldr (uncurry bindNameIn) (semiExecExpr' e) (zip ps vs)
-
-semiExecOpN op _vs = panic "Unimplemented" [showPP op]
-                
--- symExecArg :: Env -> Arg a -> SParserM
--- symExecArg e (ValArg v) = symExecV v
--- symExecArg _ _          = error "Shoudn't happen: symExecArg nonValue"
-
--- symExecG :: SExpr -> SExpr -> TC a Grammar -> SExpr
--- symExecG rel res tc
---   | not (isSimpleTC tc) = error "Saw non-simple node in symExecG"
---   | otherwise = 
---     case texprValue tc of
---       -- We (probably) don't care about the bytes here, but this gives smaller models(?)
---       TCPure v       -> S.and (S.fun "is-nil" [rel])
---                               (S.eq  res (symExecV v))
---       TCGetByte {}    -> S.fun "getByteP" [rel, res]
---       TCMatch NoSem p -> -- FIXME, this should really not happen (we shouldn't see it)
---         S.fun "exists" [ S.List [ S.List [ S.const resN, tByte ]]
---                        , S.and (S.fun "getByteP" [rel, S.const resN]) (symExecP p (S.const resN)) ]
---       TCMatch _s p    -> S.and (S.fun "getByteP" [rel, res]) (symExecP p res)
-      
---       TCMatchBytes _ws v ->
---         S.and (S.eq rel res) (S.eq res (symExecV v))
-
---       -- Convert a value of tyFrom into tyTo.  Currently very limited
---       TCCoerceCheck ws tFrom@(Type tyFrom) tTo@(Type tyTo) e
---         | TUInt _ <- tyFrom, TInteger <- tyTo -> mbCoerce ws tFrom tTo e
---       TCCoerceCheck ws tFrom@(isBits -> Just (_signed1, nFrom)) tTo@(isBits -> Just (_signed2, nTo)) e
---         | nFrom <= nTo -> mbCoerce ws tFrom tTo e
-
---       TCCoerceCheck _ws tyFrom tyTo _e ->
---         panic "Unsupported types" [showPP tyFrom, showPP tyTo]
-        
---       _ -> panic "BUG: unexpected term in symExecG" [show (pp tc)]
-
---   where
---     resN = "$tres"
---     mbCoerce ws tyFrom tyTo e =
---       S.and (S.fun "is-nil" [rel])
---             (if ws == YesSem then (S.eq res (symExecCoerce tyFrom tyTo (symExecV e))) else S.bool True)
-
-

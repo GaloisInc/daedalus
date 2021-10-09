@@ -27,7 +27,11 @@ library
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser
-                     , Talos.SymExec.Core
+                     , Talos.SymExec.Expr
+                     , Talos.SymExec.Funs
+                     , Talos.SymExec.SemiExpr
+                     , Talos.SymExec.SemiValue                     
+                     , Talos.SymExec.Type                
                      , Talos.SymExec.Path
                      
                      -- , Talos.Backend.Z3
@@ -47,7 +51,7 @@ library
                      
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
-                     , Talos.Strategy.BackwardSymbolic
+                     -- , Talos.Strategy.BackwardSymbolic
                      
                      , Talos.Synthesis
 

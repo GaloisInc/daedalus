@@ -1,6 +1,10 @@
 {-# Language OverloadedStrings #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
+--------------------------------------------------------------------------------
+-- Deprecated (slow)
+--------------------------------------------------------------------------------
+
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.BackwardSymbolic (backwardSymbolicStrat) where
 
@@ -32,7 +36,7 @@ import Talos.Strategy.SymbolicM
 import Talos.SymExec.SolverT (SolverT, reset, scoped, defineName, declareSymbol, assert, declareName, getName)
 import qualified Talos.SymExec.SolverT as Solv
 import Talos.SymExec.StdLib
-import Talos.SymExec.Core
+import Talos.SymExec.SemiExpr
 import Talos.SymExec.ModelParser (evalModelP, pByte, pValue)
 
 import Talos.Analysis.Projection (projectE, typeToInhabitant)
