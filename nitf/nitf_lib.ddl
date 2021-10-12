@@ -147,35 +147,44 @@ def DefaultSpaces n P = OrBytes n " " P
 
 def OrHyphens n P = OrBytes n "-" P
 
-def Eq x y = Guard (x == y)
+def eq x y = (x == y)
 
-def Lt x y = Guard (x < y)
+def lt x y = (x < y)
 
-def Leq x y = (Eq x y) | (Lt x y)   -- XXX: Why not use <= ?
+def leq x y = (x == y) || (x < y)   -- XXX: Why not use <= ?
 
-def PartialEq (x : OrBytes) (y : OrBytes) =
-  x is default
-<| y is default
-<| { @x0 = x is actual ;
-    @y0 = y is actual ;
-    Eq x0 y0
+def partialEq (x : OrBytes) (y : OrBytes) =
+  case x of {
+    actual x0 ->
+      case y of {
+        actual y0 ->
+          eq x0 y0;
+        default -> true;
+      };
+    default -> true;
+    }
+
+def partialLt (x : OrBytes) (y : OrBytes) =
+  case x of {
+    actual x0 ->
+      case y of {
+        actual y0 ->
+          lt x0 y0;
+        default -> true;
+      };
+    default -> true;
   }
 
-def PartialLt (x : OrBytes) (y : OrBytes) =
-  x is default
-<| y is default
-<| { @x0 = x is actual ;
-    @y0 = y is actual ;
-    Lt x0 y0
+def partialLeq (x : OrBytes) (y : OrBytes) =
+  case x of {
+    actual x0 ->
+      case y of {
+        actual y0 ->
+          leq x0 y0;
+        default -> true;
+      };
+    default -> true;
   }
-
-def PartialLeq (x : OrBytes) (y : OrBytes) =
-  x is default
-<| y is default
-<| { @x0 = x is actual ;
-     @y0 = y is actual ;
-     Leq x0 y0
-   }
 
 def Date =
   block
@@ -245,21 +254,35 @@ def LiftDateTime (dt : DateTime) : PartialDateTime =
     partDate = LiftDate dt.date
     partTime = LiftTime dt.time
 
+def partialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
+  partialLt d0.partCentury d1.partCentury ||
+  ( partialEq d0.partCentury d1.partCentury &&
+    ( partialLt d0.partYear d1.partYear ||
+      ( partialEq d0.partYear d1.partYear &&
+        ( partialLt d0.partMonth d1.partMonth ||
+          ( partialEq d0.partMonth d1.partMonth &&
+            partialLeq d0.partDay d1.partDay
+          )
+        )
+      )
+    )
+  )
+
 def PartialOrdDate (d0 : PartialDate) (d1 : PartialDate) =
-  PartialLt d0.partCentury d1.partCentury
-<| { PartialEq d0.partCentury d1.partCentury ;
-      PartialLt d0.partYear d1.partYear
-    <| { PartialEq d0.partYear d1.partYear ;
-          PartialLt d0.partMonth d1.partMonth
-        <| { PartialEq d0.partMonth d1.partMonth ;
-            PartialLeq d0.partDay d1.partDay } } }
+  Guard (partialOrdDate d0 d1)
+
+def partialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
+   partialLt t0.partHour t1.partHour ||
+   ( partialEq t0.partHour t1.partHour &&
+     ( partialLt t0.partMin t1.partMin ||
+       ( partialEq t0.partMin t1.partMin &&
+         partialLeq t0.partSecond t1.partSecond
+       )
+     )
+   )
 
 def PartialOrdTime (t0 : PartialTime) (t1 : PartialTime) =
-   PartialLt t0.partHour t1.partHour
-<| { PartialEq t0.partHour t1.partHour ;
-     PartialLt t0.partMin t1.partMin
-     <| { PartialEq t0.partMin t1.partMin ;
-          PartialLeq t0.partSecond t1.partSecond } }
+  Guard (partialOrdTime t0 t1)
 
 def PartialOrdDateTime (dt0 : PartialDateTime) (dt1 : PartialDateTime) =
   block
