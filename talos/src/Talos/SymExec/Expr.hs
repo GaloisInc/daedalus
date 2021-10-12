@@ -82,7 +82,7 @@ symExecOp0 op =
       let sBytes   = map sByte (BS.unpack bs)
           emptyArr = S.app (S.as (S.const "const") (S.tArray tSize tByte)) [sByte 0]
           arr      = foldr (\(i, b) arr' -> S.store arr' (sSize i) b) emptyArr (zip [0..] sBytes)
-      in sArrayWithLength arr (sSize (fromIntegral $ BS.length bs))
+      in sArrayWithLength tByte arr (sSize (fromIntegral $ BS.length bs))
       
     NewBuilder ty -> sEmptyL (symExecTy ty) (typeDefault ty)
     MapEmpty kt vt   -> sMapEmpty (symExecTy kt) (symExecTy vt)
@@ -112,7 +112,7 @@ symExecOp1 op ty =
     IteratorKey  | TIterator (TArray {}) <- ty -> sArrayIterKey
     IteratorVal  | TIterator (TArray {}) <- ty -> sArrayIterVal
     IteratorNext | TIterator (TArray {}) <- ty -> sArrayIterNext
-    EJust         -> sJust
+    EJust         -> sJust (symExecTy ty)
     FromJust      -> fun "fromJust"
     SelStruct _ l | TUser ut <- ty -> fun (labelToField (utName ut) l)
     -- FIXME: we probably need (_ as Foo) ...

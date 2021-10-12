@@ -10,7 +10,7 @@ import           Data.Map                (Map)
 import qualified Data.Map                as Map
 import           SimpleSMT               (SExpr)
 
-import           Daedalus.Core           (Name)
+import           Daedalus.Core           (Name, Typed(..))
 
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
@@ -18,6 +18,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiValue
 import           Talos.SymExec.SolverT   (SolverT, pop, push)
 import qualified Talos.SymExec.SolverT   as Solv
+import Daedalus.Core.Type (typeOf)
 
 -- =============================================================================
 -- Symbolic monad
@@ -32,7 +33,9 @@ import qualified Talos.SymExec.SolverT   as Solv
 --  * A StrategyM
 
 -- Records local definitions
-type SymbolicEnv = Map Name (SemiValue SExpr)
+
+-- FIXME: this type is repeated from SemiExpr
+type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
 
 emptySymbolicEnv :: SymbolicEnv
 emptySymbolicEnv = mempty
@@ -45,16 +48,15 @@ runSymbolicM :: SymbolicM SelectedPath -> SolverT StrategyM (Maybe SelectedPath)
 runSymbolicM (SymbolicM m) =
   runDFST (runReaderT m emptySymbolicEnv) (pure . Just) (pure Nothing)
 
-bindNameIn :: Name -> SemiValue SExpr -> SymbolicM a -> SymbolicM a
+bindNameIn :: Name -> SemiValue (Typed SExpr) -> SymbolicM a -> SymbolicM a
 bindNameIn n v (SymbolicM m) = SymbolicM $ local (Map.insert n v) m
 
-getName :: Name -> SymbolicM (SemiValue SExpr)
+getName :: Name -> SymbolicM (SemiValue (Typed SExpr))
 getName n = SymbolicM $ do
   m_local <- asks (Map.lookup n)
   case m_local of
-    Nothing -> lift (lift (VOther <$> Solv.getName n))
+    Nothing -> lift (lift (VOther . Typed (typeOf n) <$> Solv.getName n))
     Just r  -> pure r
-
 
 instance Alternative SymbolicM where
   (SymbolicM m1) <|> (SymbolicM m2) = SymbolicM $ do

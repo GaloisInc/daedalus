@@ -178,10 +178,10 @@ stringToSMTName :: Text -> GUID -> String
 stringToSMTName n g = show (pp n <> "@" <> pp g)
 
 nameToSMTName :: Name -> String
-nameToSMTName n = stringToSMTName (maybe "_" id (nameText n)) (nameId n)
+nameToSMTName n = stringToSMTName (maybe "_N" id (nameText n)) (nameId n)
 
 fnameToSMTName :: FName -> String
-fnameToSMTName n = stringToSMTName (maybe "_" id (fnameText n)) (fnameId n)
+fnameToSMTName n = stringToSMTName (maybe "_F" id (fnameText n)) (fnameId n)
 
 tnameToSMTName :: TName -> String
 tnameToSMTName n = stringToSMTName (tnameText n) (tnameId n)

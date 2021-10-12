@@ -161,4 +161,6 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SChoice cs   -> foldMap go cs
       SCall cn     -> foldMap exprToPolyFuns (callNodeActualArgs cn)
       SCase _ c@(Case e _) -> exprToPolyFuns e <> foldMap go c
+      SInverse _n fe pe -> exprToPolyFuns fe <> exprToPolyFuns pe
+        
       

@@ -7,6 +7,8 @@ module Talos.SymExec.SemiValue where
 import qualified Data.Vector as Vector
 
 import qualified Daedalus.Value  as V
+import Daedalus.Panic
+import qualified Data.Map as Map
 
 -- import Talos.Analysis.Demands
 -- import qualified Data.Map as Map
@@ -32,13 +34,28 @@ data SemiValue a =
   -- where x is symbolic) as Daedalus doesn't (yet) support updates.
   | VStruct                ![(V.Label,SemiValue a)]
 
-  | VSequence              ![SemiValue a]
+  -- Bool is true if this is a builder, false if an array
+  | VSequence              !Bool ![SemiValue a]
   | VMaybe                 !(Maybe (SemiValue a))
   
   -- We support symbolic keys, so we can't use Map here
   | VMap                   ![(SemiValue a, SemiValue a)]
   | VIterator              ![(SemiValue a,SemiValue a)]
     deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
+
+-- Collapses a semi value with Value leaves into a Value
+toValue :: SemiValue V.Value -> V.Value
+toValue sv =
+  case sv of
+    VValue v           -> v
+    VOther v           -> v
+    VUnionElem l sv'   -> V.VUnionElem l (toValue sv')
+    VStruct flds       -> V.VStruct [ (l, toValue fld) | (l, fld) <- flds ]
+    VSequence True vs  -> V.VBuilder (reverse (map toValue vs))
+    VSequence False vs -> V.VArray (Vector.fromList (map toValue vs))
+    VMaybe mv          -> V.VMaybe (toValue <$> mv)
+    VMap vs            -> V.VMap (Map.fromList [ (toValue k, toValue v) | (k, v) <- vs ])
+    VIterator vs       -> V.VIterator [ (toValue k, toValue v) | (k, v) <- vs ]
 
 -- toValue :: (a -> Maybe V.Value) -> SemiValue a -> Maybe V.Value
 -- toValue mk sv =
@@ -59,9 +76,9 @@ data SemiValue a =
 --     VIterator vs  -> V.VIterator <$> traverse (\(k, v) -> (,) <$> go k <*> go v) vs
 --   where go = toValue mk
 
-toValue :: SemiValue a -> Maybe V.Value
-toValue (VValue v) = Just v
-toValue _          = Nothing
+-- toValue :: SemiValue a -> Maybe V.Value
+-- toValue (VValue v) = Just v
+-- toValue _          = Nothing
 
 fromValue :: V.Value -> SemiValue a
 fromValue = VValue
@@ -69,15 +86,15 @@ fromValue = VValue
 toList :: SemiValue a -> Maybe [SemiValue a]
 toList sv =
   case sv of
-    VSequence xs           -> Just xs
+    VSequence _ xs         -> Just xs
     VValue (V.VArray v)    -> Just (map VValue (Vector.toList v))
     -- Builders are stored in reverse order.
     VValue (V.VBuilder vs) -> Just (map VValue (reverse vs))
     _ -> Nothing
 
 -- FIXME: if there are no symbolic values, we should return a VValue
-fromList :: [SemiValue a] -> SemiValue a
-fromList = VSequence
+fromList :: Bool -> [SemiValue a] -> SemiValue a
+fromList = VSequence 
 
 -- satisfiesDemands :: Demand -> SemiValue a -> Bool
 -- satisfiesDemands _ VValue {} = True

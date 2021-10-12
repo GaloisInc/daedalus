@@ -22,10 +22,8 @@ import           Daedalus.Core.Free           (freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
-import           Daedalus.Rec                 (forgetRecs)
 import qualified Daedalus.Value               as I
 
-import           SimpleSMT                    (SExpr)
 import qualified SimpleSMT                    as S
 
 import           Talos.Analysis.EntangledVars
@@ -40,14 +38,13 @@ import           Talos.SymExec.Funs           (defineSliceFunDefs,
 import           Talos.SymExec.ModelParser    (evalModelP, pByte, pValue)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
-import           Talos.SymExec.SemiValue
+import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
                                                declareSymbol, reset,
                                                scoped)
 import qualified Talos.SymExec.SolverT        as Solv hiding (getName)
 import           Talos.SymExec.StdLib
-import           Talos.SymExec.Type           (defineSliceTypeDefs,
-                                               labelToField, symExecTy)
+import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -78,7 +75,7 @@ symbolicFun ptag sl = do
   scoped $ runSymbolicM $ do
     (_, pathM) <- stratSlice ptag sl
     check -- FIXME: only required if there was no recent 'check' command
-    pathM
+    inSolver pathM
 
 -- We need to get types etc for called slices (including root slice)
 sliceToDeps :: (Monad m, LiftStrategyM m) => Slice -> m [Slice]
@@ -101,7 +98,9 @@ sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SemiSExpr, SymbolicM SelectedPath)
+type ResultFun = SolverT StrategyM 
+
+stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
 stratSlice ptag = go
   where
     go sl =  do
@@ -123,13 +122,11 @@ stratSlice ptag = go
       -- liftIO (putStr "Leaf: " >> print (pp sl))
       case sl of
         SPure fset e -> do
-          md <- getModule
-          let tyMap = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
-          
+          tyMap <- getTypeDefs
           uncPath <$> synthesiseExpr (projectE (Just . typeToInhabitant tyMap) fset e)
 
         SMatch bset -> do
-          bname <- VOther <$> inSolver (declareSymbol "b" tByte)
+          bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
           bassn <- synthesiseByteSet bset bname
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
@@ -156,7 +153,7 @@ stratSlice ptag = go
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- VOther <$> inSolver (declareName n (symExecTy (typeOf n)))
+          n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
           pe <- synthesiseExpr p
           assert pe
           check -- FIXME: necessary?
@@ -168,41 +165,45 @@ stratSlice ptag = go
           -- 
           -- We could also have the solver execute the function for
           -- us.
-          
-          pure (n', SelectedBytes ptag <$> applyInverse ifn)
+          --
+          -- We need to resolve any locally bound variables before we
+          -- return the path constructor.
+
+          let fvM = Map.fromSet id $ freeVars ifn
+          -- Resolve all Names (to semisexprs and solver names)
+          venv <- traverse getName fvM
+          pure (n', SelectedBytes ptag <$> applyInverse venv ifn)
 
     uncPath v = (v, pure (SelectedDo Unconstrained))
     
-    applyInverse ifn = do
-      let fvM = Map.fromSet id $ freeVars ifn
-          getOne n = getName n >>= valueModel (typeOf n)
-      env <- traverse getOne fvM
+    applyInverse env ifn = do
+      venv <- traverse valueModel env
       ienv <- liftStrategy getIEnv -- for fun defns
-      let ienv' = ienv { I.vEnv = env }
+      let ienv' = ienv { I.vEnv = venv }
       pure (I.valueToByteString (I.eval ifn ienv'))
 
     -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
-onSlice :: (SymbolicM a -> SymbolicM b)
-        -> (c, SymbolicM a) -> (c, SymbolicM b)
+onSlice :: (ResultFun a -> ResultFun b) ->
+           (c, ResultFun a) -> (c, ResultFun b)
 onSlice f = \(a, sl') -> (a, f sl')
 
 -- FIXME: maybe name e?
-stratCase :: ProvenanceTag -> Case Slice -> SymbolicM (SemiSExpr, SymbolicM SelectedNode)
+stratCase :: ProvenanceTag -> Case Slice -> SymbolicM (SemiSExpr, ResultFun SelectedNode)
 stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
-    Just (i, sl) -> onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
-    -- expr was symbolic, need to 
-    Nothing -> do
+    DidMatch i sl -> onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
+    NoMatch  -> mzero -- just backtrack, no cases matched
+    TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
       (i, (p, sl)) <- choose (enumerate ps)
-      assert (VOther p)
+      assert (vSExpr TBool p)
       check
       onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
 
 -- Synthesise for each call 
-stratCallNode :: ProvenanceTag -> CallNode -> SymbolicM (SemiSExpr, SymbolicM SelectedNode)
+stratCallNode :: ProvenanceTag -> CallNode -> SymbolicM (SemiSExpr, ResultFun SelectedNode)
 stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } = do
   -- define all arguments.  We need to evaluate the args in the
   -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
@@ -268,7 +269,7 @@ check = do
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
-    VOther p -> inSolver (Solv.assert p)
+    VOther p -> inSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
     VValue (I.VBool False) -> mzero
     _ -> panic "Malformed boolean" [show sv]
@@ -285,26 +286,29 @@ enumerate t = evalState (traverse go t) 0
 inSolver :: SolverT StrategyM a -> SymbolicM a
 inSolver = SymbolicM . lift . lift
 
-getValue :: SExpr -> SymbolicM SExpr
-getValue v = inSolver (Solv.getValue v)
+-- THis all happens after we have finished, so we need to be a bit
+-- careful about what is in scope (only thins in the current solver
+-- frame, i.e., not do-bound variables.)
 
-byteModel :: SemiSExpr -> SymbolicM Word8
+byteModel :: SemiSExpr -> SolverT StrategyM Word8
 byteModel (VOther symB) = do
-  sexp <- getValue symB
+  sexp <- Solv.getValue (typedThing symB)
   case evalModelP pByte sexp of
     [] -> panic "No parse" []
     b : _ -> pure b
 -- probably shouldn't happen    
 byteModel sv = panic "Unimplemented" [show sv]
 
-valueModel :: Type -> SemiSExpr -> SymbolicM I.Value
-valueModel ty (VOther symV) = do
-  sexp <- getValue symV
-  case evalModelP (pValue ty) sexp of
-    [] -> panic "No parse" []
-    v : _ -> pure v
--- probably shouldn't happen
-valueModel _ty sv = panic "Unimplemented" [show sv]
+valueModel :: SemiSExpr -> SolverT StrategyM I.Value
+valueModel (VValue v)    = pure v
+valueModel sv =
+  SE.toValue <$> traverse go sv
+  where
+    go tse = do
+      sexp <- Solv.getValue (typedThing tse)
+      case evalModelP (pValue (typedType tse)) sexp of
+        [] -> panic "No parse" []
+        v : _ -> pure v
 
 
 

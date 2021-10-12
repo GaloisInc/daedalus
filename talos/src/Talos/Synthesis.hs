@@ -190,8 +190,12 @@ synthesise m_seed nguid solv strat root md = do
   --       | otherwise = pure ()
 
   -- mapM_ symExecSummary' allDecls
-  
-  gen      <- maybe getStdGen (pure . mkStdGen) m_seed
+
+  -- Generate a seed if none has been given to us.
+  seed    <- maybe randomIO pure m_seed
+  putStrLn ("Using random seed " ++ show seed)
+  let gen = mkStdGen seed
+
   let sst0 = emptyStrategyMState gen allSummaries md nguid'
       solvSt0 = emptySolverState solv
       
