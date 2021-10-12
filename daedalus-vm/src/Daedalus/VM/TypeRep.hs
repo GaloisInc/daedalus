@@ -35,6 +35,8 @@ instance GetTypeRep Src.Type where
       Src.TSInt n       -> numRep n
       Src.TInteger      -> HasRefs
       Src.TBool         -> NoRefs
+      Src.TFloat        -> NoRefs
+      Src.TDouble       -> NoRefs
       Src.TUnit         -> NoRefs
       Src.TArray {}     -> HasRefs
       Src.TMaybe t      -> typeRep t

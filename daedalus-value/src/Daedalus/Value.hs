@@ -11,6 +11,8 @@ module Daedalus.Value
   , vSInt'
   , vSize
   , vByte
+  , vFloat
+  , vDouble
   , vCoerceTo
 
     -- * Structs

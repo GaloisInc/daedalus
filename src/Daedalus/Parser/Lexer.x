@@ -167,6 +167,8 @@ $ws+        ;
 "int"       { lexeme KWInt }
 "uint"      { lexeme KWUInt }
 "sint"      { lexeme KWSInt }
+"float"     { lexeme KWFloat }
+"double"    { lexeme KWDouble }
 "bool"      { lexeme KWBool }
 "maybe"     { lexeme KWMaybe }
 "stream"    { lexeme KWStream }

@@ -7,6 +7,8 @@ import Data.Maybe(fromMaybe)
 import Control.Monad(forM)
 import qualified Data.Map as Map
 
+import Daedalus.Panic(panic)
+
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
@@ -162,6 +164,8 @@ compile expr next0 =
                                  term $ Call f Capture cloNo cloYes (i:vs)
 
          compileEs es \vs -> doCall vs
+
+    Src.Match {} -> panic "compile" [ "Match was not desugared" ]
 
 
 --------------------------------------------------------------------------------

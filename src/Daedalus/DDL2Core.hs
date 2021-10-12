@@ -873,20 +873,19 @@ fromExpr expr =
     TC.TCCoerce _t1 t2 v ->
       coerceTo <$> fromTypeM t2 <*> fromExpr v
 
-    TC.TCLiteral (TC.LNumber n) t ->
-      intL n <$> fromTypeM t
-
-    TC.TCLiteral (TC.LBool b) _ ->
-      pure (boolL b)
+    TC.TCLiteral l t ->
+      case l of
+        TC.LNumber n   -> intL n   <$> fromTypeM t
+        TC.LFloating n -> floatL n <$> fromTypeM t
+        TC.LBool b     -> pure (boolL b)
+        TC.LByte x     -> pure (intL (toInteger x) tByte)
+        TC.LBytes bs   -> pure (byteArrayL bs)
 
     TC.TCNothing t ->
       nothing <$> fromTypeM t
 
     TC.TCJust e ->
       just <$> fromExpr e
-
-    TC.TCLiteral (TC.LByte x) _ ->
-      pure (intL (toInteger x) tByte)
 
     TC.TCUnit ->
       pure unit
@@ -897,8 +896,6 @@ fromExpr expr =
         where field (l,v) = do e <- fromExpr v
                                pure (l,e)
 
-    TC.TCLiteral (TC.LBytes bs) _ ->
-      pure (byteArrayL bs)
 
     TC.TCArray vs t ->
       arrayL <$> fromTypeM t <*> mapM fromExpr vs
@@ -1128,6 +1125,8 @@ fromType ty =
         TC.TSInt t     -> TSInt (fromNumType t)
         TC.TInteger    -> TInteger
         TC.TBool       -> TBool
+        TC.TFloat      -> TFloat
+        TC.TDouble     -> TDouble
         TC.TUnit       -> TUnit
         TC.TArray t    -> TArray (fromType t)
         TC.TMaybe t    -> TMaybe (fromType t)

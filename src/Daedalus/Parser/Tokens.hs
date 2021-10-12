@@ -90,6 +90,8 @@ data Token =
   | KWInt
   | KWUInt
   | KWSInt
+  | KWFloat
+  | KWDouble
   | KWBool
   | KWMaybe
   | KWStream

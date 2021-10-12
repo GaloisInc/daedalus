@@ -149,6 +149,8 @@ hsType env ty =
         TSInt t     -> "RTS.SInt" `Ap` hsType env t
         TInteger    -> "HS.Integer"
         TBool       -> "HS.Bool"
+        TFloat      -> "HS.Float"
+        TDouble     -> "HS.Double"
         TUnit       -> Tuple []
         TArray t    -> "Vector.Vector" `Ap` hsType env t
         TMaybe t    -> "HS.Maybe" `Ap` hsType env t
@@ -168,6 +170,9 @@ hsConstraint env ctr =
 
     Literal i t ->
       "RTS.Literal" `Ap` hsType env (Type (TNum i)) `Ap` hsType env t
+
+    FloatingType t ->
+      "HS.RealFrac" `Ap` hsType env t
 
     CAdd x y z   -> ApI "~" (ApI "HS.+" (hsType env x) (hsType env y))
                             (hsType env z)
@@ -345,10 +350,14 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
-    TCLiteral (LNumber n) t -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
-    TCLiteral (LBool b)   _ -> hsBool b
-    TCLiteral (LByte b)   _ -> "RTS.uint8" `Ap` hsWord8 b
-    
+    TCLiteral l t ->
+      case l of
+        LNumber n -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+        LFloating n -> hasType (hsType env t) (hsDouble n)
+        LBool b   -> hsBool b
+        LByte b   -> "RTS.uint8" `Ap` hsWord8 b
+        LBytes b  -> "Vector.vecFromRep" `Ap` hsByteString b
+
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
     TCUnit      -> Tuple []
@@ -359,7 +368,6 @@ hsValue env tc =
         _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
 
 
-    TCLiteral (LBytes b) _ -> "Vector.vecFromRep" `Ap` hsByteString b
 
     TCArray vs t  ->
       case vs of
@@ -477,6 +485,9 @@ hsBool b = if b then "HS.True" else "HS.False"
 
 hsInteger :: Integer -> Term
 hsInteger n = if n >= 0 then Raw n else Tuple [Raw n] -- hack
+
+hsDouble :: Double -> Term
+hsDouble n = if n >= 0 then Raw n else Tuple [Raw n] -- hack
 
 hsByteString :: ByteString -> Term
 hsByteString = Raw

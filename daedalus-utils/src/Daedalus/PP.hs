@@ -68,6 +68,12 @@ instance PP Bool where
 instance PP Int where
   pp = int
 
+instance PP Float where
+  pp = float
+
+instance PP Double where
+  pp = double
+
 instance PP Integer where
   pp = integer
 

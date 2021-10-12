@@ -28,6 +28,7 @@ data Expr =
 data Op0 =
     Unit
   | IntL Integer Type
+  | FloatL Double Type
   | BoolL Bool
   | ByteArrayL ByteString
   | NewBuilder Type
@@ -190,6 +191,7 @@ oneOf b       = Ap1 (OneOf b)
 -- Numbers
 
 intL n t      = Ap0 (IntL n t)
+floatL n t    = Ap0 (FloatL n t)
 byteL b       = Ap0 (IntL (toInteger b) (TUInt (TSize 8)))
 neg           = Ap1 Neg
 add           = Ap2 Add
@@ -312,6 +314,7 @@ instance PP Op0 where
       Unit            -> "()"
       IntL i t        -> ppTApp n (pp i) [t]
       BoolL b         -> pp b
+      FloatL f _      -> pp f
       ByteArrayL b    -> pp b
       NewBuilder t    -> ppTApp n "nil" [t]
       MapEmpty t1 t2  -> ppTApp n "mEmpty"   [t1,t2]

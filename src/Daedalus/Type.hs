@@ -311,9 +311,15 @@ inferExpr expr =
         pure (exprAt expr (TCJust e'), tMaybe t)
 
     -- FIXME: maybe unify literal code?
-    ELiteral l@(LBool _) -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
+    ELiteral l@(LBool _) ->
+      liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
 
-    ELiteral l@(LNumber n) -> 
+    ELiteral l@(LFloating _) -> liftValAppPure expr [] \_ ->
+      do a <- newTVar expr KValue
+         addConstraint expr (FloatingType a)
+         pure (exprAt expr (TCLiteral l a), a)
+
+    ELiteral l@(LNumber n) ->
       do ctxt <- getContext
          case ctxt of
            AClass

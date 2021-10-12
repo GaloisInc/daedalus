@@ -28,7 +28,7 @@ module Daedalus.Interp
   , vUnit
   ) where
 
-
+import GHC.Float(double2Float)
 import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
 
 import Data.Bits (shiftR, (.&.))
@@ -313,17 +313,36 @@ compilePureExpr env = go
                             ]
           in
           case evalType env t of
-            TVInteger -> VInteger n
-            TVUInt s  -> vUInt s n
-            TVSInt s  -> partial (vSInt s n)
-            TVNum {}  -> panic "compilePureExpr" ["Kind error"]
-            TVArray   -> bad
-            TVMap     -> bad
-            TVOther   -> bad
+            TVInteger   -> VInteger n
+            TVUInt s    -> vUInt s n
+            TVSInt s    -> partial (vSInt s n)
+            TVFloat     -> vFloat (fromIntegral n)
+            TVDouble    -> vDouble (fromIntegral n)
+            TVNum {}    -> panic "compilePureExpr" ["Kind error"]
+            TVArray     -> bad
+            TVMap       -> bad
+            TVOther     -> bad
 
         TCLiteral (LBool b)   _ -> VBool b
         TCLiteral (LByte w)   _ -> vByte w
         TCLiteral (LBytes bs) _ -> vByteString bs
+
+        TCLiteral (LFloating d) t ->
+          let bad = panic "compilePureExpr"
+                            [ "unexpected floating point literal"
+                            , "Type: " ++ show (pp t)
+                            ]
+          in
+          case evalType env t of
+            TVFloat      -> vFloat (double2Float d)
+            TVDouble     -> vDouble d
+            TVInteger {} -> bad
+            TVUInt {}    -> bad
+            TVSInt {}    -> bad
+            TVNum {}     -> bad
+            TVArray      -> bad
+            TVMap        -> bad
+            TVOther      -> bad
 
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
@@ -487,6 +506,8 @@ evalType env ty =
         TMap {}    -> TVMap
         TArray {}  -> TVArray
         TBool      -> TVOther
+        TFloat     -> TVFloat
+        TDouble    -> TVDouble
         TUnit      -> TVOther
         TMaybe {}  -> TVOther
 

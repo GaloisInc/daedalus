@@ -51,6 +51,7 @@ instance FreeVars E where
     case expr of
       EUnit         -> id
       ENum {}       -> id
+      EFloat {}     -> id
       EBool {}      -> id
       EMapEmpty {}  -> id
       ENothing {}   -> id

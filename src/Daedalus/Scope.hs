@@ -364,6 +364,8 @@ instance ResolveNames t => ResolveNames (TypeF t) where
       TSInt t    -> TSInt <$> resolve t
       TInteger   -> pure tf
       TBool      -> pure tf
+      TFloat     -> pure tf
+      TDouble    -> pure tf
       TUnit      -> pure tf
       TArray t   -> TArray <$> resolve t
       TMaybe t   -> TMaybe <$> resolve t

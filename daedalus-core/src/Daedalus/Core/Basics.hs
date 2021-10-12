@@ -59,6 +59,8 @@ data Type =
   | TSInt SizeType
   | TInteger
   | TBool
+  | TFloat
+  | TDouble
   | TUnit
   | TArray Type
   | TMaybe Type
@@ -189,6 +191,8 @@ instance PP Type where
       TSInt w     -> wrapIf (n > 0) ("Int" <+> pp w)
       TInteger    -> "Integer"
       TBool       -> "Bool"
+      TFloat      -> "Float"
+      TDouble     -> "Double"
       TUnit       -> "()"
       TArray t    -> brackets (pp t)
       TMap k v    -> brackets (pp k <+> "->" <+> pp v)

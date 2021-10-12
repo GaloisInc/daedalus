@@ -92,6 +92,7 @@ compileOp0 op ty k' =
       | Src.TInteger <- t -> k =<< stmt ty (\x -> CallPrim x (Integer i) [])
       | otherwise         -> k (ENum i t)
     Src.BoolL b           -> k (EBool b)
+    Src.FloatL f t        -> k (EFloat f t)
     Src.ByteArrayL bs     -> k =<< stmt ty (\x -> CallPrim x (ByteArray bs) [])
     Src.NewBuilder t      -> k =<< stmt ty (\x -> CallPrim x (NewBuilder t) [])
     Src.MapEmpty t1 t2    -> k (EMapEmpty t1 t2)

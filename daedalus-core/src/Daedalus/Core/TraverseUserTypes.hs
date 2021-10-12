@@ -49,6 +49,8 @@ instance TraverseUserTypes Type where
       TSInt {}        -> pure ty
       TInteger        -> pure ty
       TBool           -> pure ty
+      TFloat          -> pure ty
+      TDouble         -> pure ty
       TUnit           -> pure ty
       TArray t        -> TArray <$> traverseUserTypes f t
       TMaybe t        -> TMaybe <$> traverseUserTypes f t
@@ -135,6 +137,7 @@ instance TraverseUserTypes Op0 where
     case op0 of
       Unit      -> pure op0
       IntL n ty -> IntL n <$> traverseUserTypes f ty
+      FloatL n ty -> FloatL n <$> traverseUserTypes f ty
       BoolL {}  -> pure op0
       ByteArrayL {} -> pure op0
       NewBuilder ty -> NewBuilder <$> traverseUserTypes f ty

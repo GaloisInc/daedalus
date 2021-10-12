@@ -147,6 +147,7 @@ data E =
     EUnit
   | ENum Integer Src.Type     -- ^ Only unboxed
   | EBool Bool
+  | EFloat Double Src.Type
 
   | EMapEmpty Src.Type Src.Type
   | ENothing Src.Type
@@ -257,6 +258,7 @@ instance HasType E where
       EUnit           -> TSem Src.TUnit
       ENum _ t        -> TSem t
       EBool {}        -> TSem Src.TBool
+      EFloat _ t      -> TSem t
       EMapEmpty t1 t2 -> TSem (Src.TMap t1 t2)
       ENothing t      -> TSem (Src.TMaybe t)
 
@@ -380,6 +382,7 @@ instance PP E where
       EUnit         -> "unit"
       ENum i t      -> integer i <+> "@" <.> ppPrec 1 t
       EBool b       -> text (show b)
+      EFloat f _    -> double f
       EMapEmpty k t -> "emptyMap" <+> "@" <.> ppPrec 1 k <+> "@" <.> ppPrec 1 t
       ENothing t    -> "nothing" <+> "@" <.> ppPrec 1 t
 

@@ -240,6 +240,7 @@ mergeBlocks front back =
       EUnit         -> e
       ENum {}       -> e
       EBool {}      -> e
+      EFloat {}     -> e
       ENothing {}   -> e
       EMapEmpty {}  -> e
 

@@ -95,6 +95,8 @@ import Daedalus.Parser.Monad
   'uint'      { Lexeme { lexemeRange = $$, lexemeToken = KWUInt } }
   '$uint'     { Lexeme { lexemeRange = $$, lexemeToken = KWDollarUInt } }
   'sint'      { Lexeme { lexemeRange = $$, lexemeToken = KWSInt } }
+  'float'     { Lexeme { lexemeRange = $$, lexemeToken = KWFloat } }
+  'double'    { Lexeme { lexemeRange = $$, lexemeToken = KWDouble } }
   'bool'      { Lexeme { lexemeRange = $$, lexemeToken = KWBool } }
   'maybe'     { Lexeme { lexemeRange = $$, lexemeToken = KWMaybe } }
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
@@ -544,6 +546,8 @@ separated1(p,s)                          :: { [p] }
 
 type                                     :: { SrcType }
   : 'bool'                                  { atT $1 TBool }
+  | 'float'                                 { atT $1 TFloat }
+  | 'double'                                { atT $1 TDouble }
   | 'int'                                   { atT $1 TInteger }
   | 'uint' type                             { atT ($1 <-> $2) (TUInt $2) }
   | 'sint' type                             { atT ($1 <-> $2) (TSInt $2) }

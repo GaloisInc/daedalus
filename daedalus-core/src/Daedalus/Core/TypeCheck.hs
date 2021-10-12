@@ -43,6 +43,8 @@ getUserType ut =
       TUInt sz    -> TUInt <$> instSizeType sz
       TSInt sz    -> TSInt <$> instSizeType sz
       TInteger    -> pure t
+      TFloat      -> pure t
+      TDouble     -> pure t
       TBool       -> pure t
       TUnit       -> pure t
       TArray t    -> TArray <$> instType t

@@ -382,6 +382,7 @@ expr ex mo =
     EUnit         -> id
     ENum {}       -> id
     EBool {}      -> id
+    EFloat {}     -> id
     EMapEmpty {}  -> id
     ENothing {}   -> id
 

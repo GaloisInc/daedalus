@@ -51,6 +51,8 @@ checkType expK srcty =
 
         TInteger -> expect KValue >> pure tInteger
         TBool    -> expect KValue >> pure tBool
+        TFloat   -> expect KValue >> pure tFloat
+        TDouble  -> expect KValue >> pure tDouble
         TUnit    -> expect KValue >> pure tUnit
         TArray t -> do expect KValue
                        tArray <$> checkType KValue t
