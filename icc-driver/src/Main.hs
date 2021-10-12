@@ -112,7 +112,7 @@ fmtFAW = Format
             Just t ->
               let start = asInt (getField @"offset_to_data_element" t)
                   sz    = asInt (getField @"size_of_data_element" t)
-                  tag   = Vector.vecToString (getField @"tag_signature" t)
+                  tag   = getField @"tag_signature" t
               in "[" ++ show start ++ ":" ++ show sz ++ ":" ++ show tag ++  "] "
     in putStrLn ("ERROR:" ++ show (peOffset e) ++ " " ++ tagInfo ++ peMsg e)
 
