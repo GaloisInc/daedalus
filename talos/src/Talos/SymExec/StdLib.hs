@@ -17,6 +17,8 @@ module Talos.SymExec.StdLib (
   tByte,
   sByte,
   tBytes,
+  -- ** Numbers
+  sBitVec,
   -- ** Unit
   tUnit,
   sUnit,
@@ -46,7 +48,9 @@ module Talos.SymExec.StdLib (
   tArrayWithLength,
   sArrayWithLength,
   sEmptyL,
+  sArrayL,  
   sArrayLen,
+  sArrayLit,  
   sSelectL,
   sPushBack,
   -- ** Iterators
@@ -67,7 +71,7 @@ module Talos.SymExec.StdLib (
 import Control.Monad (void)
 import Data.Word
 
-import SimpleSMT (SExpr, Solver)
+import SimpleSMT (SExpr, Solver, bvHex, bvBin)
 import qualified SimpleSMT as S
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
@@ -172,6 +176,12 @@ tBytes = tList tByte
 sByte :: Word8 -> SExpr
 sByte = S.bvHex 8 . fromIntegral
 
+sBitVec :: Int -> Integer -> SExpr
+sBitVec n i = 
+  if n `mod` 4 == 0
+  then bvHex (fromIntegral n) i
+  else bvBin (fromIntegral n) i
+
 tSize :: SExpr
 tSize = S.const "Size"
 
@@ -198,8 +208,9 @@ tArrayWithLength :: SExpr -> SExpr
 tArrayWithLength t = S.fun "ArrayWithLength" [t]
 
 -- FIXME: check length somehow?
-sArrayWithLength :: SExpr -> SExpr -> SExpr
-sArrayWithLength arr l = S.fun "mk-ArrayWithLength" [arr, l]
+sArrayWithLength :: SExpr -> SExpr -> SExpr -> SExpr
+sArrayWithLength elTy arr l =
+  S.app (S.as (S.const "mk-ArrayWithLength") (tArrayWithLength elTy)) [arr, l]
 
 sArrayLen :: SExpr -> SExpr -> SExpr
 sArrayLen elTy arr = S.fun "get-length" [arr]
@@ -210,7 +221,7 @@ sArrayL :: SExpr -> SExpr
 sArrayL arr = S.fun "get-array" [arr]
 
 sEmptyL :: SExpr -> SExpr -> SExpr
-sEmptyL ty def = sArrayWithLength (S.app (S.as (S.const "const") (S.tArray tSize ty)) [def]) (sSize 0) 
+sEmptyL ty def = sArrayWithLength ty (S.app (S.as (S.const "const") (S.tArray tSize ty)) [def]) (sSize 0) 
 
 sSelectL :: SExpr -> SExpr -> SExpr
 sSelectL arr n = S.select (sArrayL arr) n
@@ -223,8 +234,15 @@ sPushBack :: SExpr -> SExpr -> SExpr -> SExpr
 sPushBack elTy el arrL =
   -- FIXME: is this ok wrt clashing with other names?
   letUnlessAtom "$arrL" arrL
-  $ \arrL' -> sArrayWithLength (S.store (sArrayL arrL') (sArrayLen elTy arrL') el)
-                               (S.bvAdd (sArrayLen elTy arrL') (sSize 1))
+  $ \arrL' -> sArrayWithLength elTy (S.store (sArrayL arrL') (sArrayLen elTy arrL') el)
+                                    (S.bvAdd (sArrayLen elTy arrL') (sSize 1))
+
+sArrayLit :: SExpr -> SExpr -> [SExpr] -> SExpr
+sArrayLit elTy def els =
+  let empty = S.app (S.as (S.const "const") (S.tArray tSize elTy)) [def]
+  in sArrayWithLength elTy (foldr (\(i, el) arr -> S.store arr (sSize i) el)
+                                  empty (zip [0..] els))
+                       (sSize (fromIntegral $ length els))
 
 -- Iterators
 tArrayIter :: SExpr -> SExpr
@@ -261,8 +279,8 @@ tMaybe t = S.fun "Maybe" [t]
 sNothing :: SExpr -> SExpr
 sNothing t = S.as (S.const "Nothing") (tMaybe t)
 
-sJust :: SExpr -> SExpr
-sJust v = S.fun "Just" [v]
+sJust :: SExpr -> SExpr -> SExpr
+sJust ty v = S.app (S.as (S.const "Just") (tMaybe ty)) [v]
 
 tTuple :: SExpr -> SExpr -> SExpr
 tTuple t1 t2 = S.fun "Tuple" [t1, t2]
@@ -326,7 +344,7 @@ mkMapLookup s fnm kt vt = do
     k = S.const "k"
     body = S.ite (S.eq m (sNil (tTuple kt vt)))
                  (sNothing vt)
-                 (S.ite (S.eq k (sFst (sHead m))) (sJust (sSnd (sHead m))) (S.fun fnm [sTail m, k]))
+                 (S.ite (S.eq k (sFst (sHead m))) (sJust vt (sSnd (sHead m))) (S.fun fnm [sTail m, k]))
 
 mkMapMember :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
 mkMapMember s fnm kt vt = do

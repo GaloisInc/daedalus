@@ -38,7 +38,7 @@ import Daedalus.Core.Type
 
 import Talos.SymExec.SolverT
 import Talos.SymExec.ModelParser
-import Talos.SymExec.Core
+-- import Talos.SymExec.Core
 import Talos.SymExec.StdLib
 import Talos.SymExec.Path
 

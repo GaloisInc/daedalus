@@ -27,17 +27,23 @@ library
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
                      , Talos.SymExec.ModelParser
-                     , Talos.SymExec.Core
+                     , Talos.SymExec.Expr
+                     , Talos.SymExec.Funs
+                     , Talos.SymExec.SemiExpr
+                     , Talos.SymExec.SemiValue                     
+                     , Talos.SymExec.Type                
                      , Talos.SymExec.Path
                      
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
                      , Talos.Analysis.Domain
+                     , Talos.Analysis.Fixpoint                     
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
                      , Talos.Analysis.Projection
-
+                     , Talos.Analysis.Demands
+                     
                      , Talos.Strategy
                      , Talos.Strategy.Monad
                      , Talos.Strategy.DFST
@@ -45,7 +51,7 @@ library
                      
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
-                     , Talos.Strategy.BackwardSymbolic
+                     -- , Talos.Strategy.BackwardSymbolic
                      
                      , Talos.Synthesis
 
@@ -73,6 +79,7 @@ library
                      , deepseq
                      , clock
                      , text
+                     , vector
 
 executable talos
   main-is:             Main.hs
