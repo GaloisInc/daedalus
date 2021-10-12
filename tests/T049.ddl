@@ -1,24 +1,24 @@
 
-def V = Choose {
-  null = {};
-  num  = UInt8;
-}
+def V =
+  First
+    num  = UInt8
+    null = Accept
 
 
-def TD = {
-  obj = TDDef;
-}
+def TD =
+  block
+    obj = TDDef
 
-def TDDef = Choose {
-  stream = ResolveRef 0;
-  value = V;
-}
+def TDDef =
+  First
+    stream = ResolveRef 0
+    value  = V
 
 def ResolveDeclRef (x : int) : TD
 
-def ResolveRef (x : int) : V = {
-  @p = ResolveDeclRef x;
-  p.obj is value;
-}
+def ResolveRef (x : int) : V =
+  block
+    let p = ResolveDeclRef x
+    p.obj is value
 
 

@@ -9,8 +9,8 @@ namespace DDL {
 
 // Stack frames extend this class with the parameters that need to be saved.
 struct Closure {
-  size_t ref_count;
-  void   *code;
+  RefCount ref_count;
+  void     *code;
 
   Closure(void *c) : ref_count(1), code(c) { }
   virtual ~Closure() {}

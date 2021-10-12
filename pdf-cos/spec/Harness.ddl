@@ -4,40 +4,34 @@ import Stdlib
 import ResourceDict
 import TextEffect
 
+import Encoding
 import FontCommon
 import FontDict
 import GenPdfValue
-import Page
+-- import Page
 import PageTreeNode
 import PdfValue
 import Type0Font
 import Type1Font
+import Type3Font
 import FontDesc
 import TextObj
 import ContentStreamLight
 
-def Test0Font : FontDict = MkType0Font (Type0Font (PartialType0Font
-  CommonFontWitness
-  (just Helvetica)
-  (just (PreDefEncoding "TestEnc"))
-  nothing))
-
-def TestFont = MkType1Font Test1Font
-
-def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
-  nothing
-  nothing
-  nothing
-  nothing
-  nothing
-  (just
-    (Insert "F16" TestFont
-      (Insert "F2" TestFont
-        (Insert "F3" TestFont
-          (Insert "F4" TestFont
-            empty)))))
-  nothing
-  nothing)
+-- def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
+--   nothing
+--   nothing
+--   nothing
+--   nothing
+--   nothing
+--   (just
+--     (Insert "F16" TestFont
+--       (Insert "F2" TestFont
+--         (Insert "F3" TestFont
+--           (Insert "F4" TestFont
+--             empty)))))
+--   nothing
+--   nothing)
 
 def TestRef : Ref = {
   obj = 0;
@@ -45,7 +39,7 @@ def TestRef : Ref = {
 }
 
 -- Main: the entry point
-def Main = (ExtractContentStreamText (ContentStreamP TestResrcs))
+def Main = EncodingP
 
 -- TODO:
 

@@ -1,8 +1,10 @@
 
-def List = Choose {
-  node = { head = UInt8; tail = List };
-  nil  = {}
-}
+def List =
+  First
+    node = block
+             head = UInt8
+             tail = List
+    nil  = Accept
 
 
 

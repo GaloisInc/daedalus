@@ -15,12 +15,12 @@ typedef size_t ThreadId;
 
 struct ParseError {
   // XXX: more info (stream information, some description)
-  size_t offset;
+  Size offset;
 };
 
 class ParserState {
 
-  size_t                fail_offset;    // largest, only makes sense if we fail
+  Size                  fail_offset;    // largest, only makes sense if we fail
   ListStack             stack;
   std::vector<Thread>   suspended;
 
@@ -29,7 +29,7 @@ public:
 
   // All alternatives failed.   Free the stack and return the
   // offset of the best error we computed.
-  size_t finalYield() { 
+  Size finalYield() {
     debugLine("final yield");
     debugVal(stack);
     stack.free();
@@ -52,7 +52,7 @@ public:
   // may be in different inputs.  For the moment, we ignore this, which
   // could result in confusing error locations.
   void noteFail(Input input) {
-    size_t offset = input.getOffset();
+    Size offset = input.getOffset();
     if (offset > fail_offset) fail_offset = offset;
   }
 
@@ -83,7 +83,6 @@ public:
   // True if there are there are threads to resume
   bool hasSuspended() { return !suspended.empty(); }
 
-  
 
   // Assumes that there is a suspended thread.
   // Returns the address of the code for the continuation.

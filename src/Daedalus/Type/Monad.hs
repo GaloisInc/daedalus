@@ -6,7 +6,7 @@
 module Daedalus.Type.Monad
   ( 
     -- * Typechking a module
-    MTypeM, runMTypeM, MTCMonad
+    MTypeM, runMTypeM, MTCMonad, TCConfig(..)
 
     -- * Typechecking a group of declarations
   , STypeM, runSTypeM, STCMonad
@@ -16,8 +16,10 @@ module Daedalus.Type.Monad
 
     -- * Error reporting
   , TypeError(..)
+  , TypeWarning(..)
   , reportError
   , reportDetailedError
+  , addWarning
 
     -- * Local Environemnt
   , getEnv
@@ -113,32 +115,58 @@ instance Exception TypeError where
   displayException = show . pp
 
 
+data TypeWarning =
+    WarnUnbiasedChoice SourceRange
+  | WarnNoOpStatement SourceRange
+    deriving Show
+
+instance PP TypeWarning where
+  pp w =
+    case w of
+      WarnUnbiasedChoice r -> msg r "Using unbiased choice may be inefficient."
+      WarnNoOpStatement r  -> msg r "Statement has no effect."
+
+    where
+    msg r d = hang (text (prettySourceRangeLong r) <.> colon) 2 d
+
+instance Exception TypeWarning where
+  displayException = show . pp
+
+instance HasRange TypeWarning where
+  range w =
+    case w of
+      WarnUnbiasedChoice r -> r
+      WarnNoOpStatement r  -> r
+
+
+
 class Monad m => MTCMonad m where
   reportError     :: HasRange a => a -> Doc  -> m b
+  addWarning      :: TypeWarning -> m ()
   newName'        :: HasRange r => r -> Context a -> Type -> m (TCName a)
   getRuleEnv      :: m RuleEnv
   getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
   extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
 
 
-reportDetailedError :: MTCMonad m => HasRange a => a -> Doc -> [Doc] -> m b
+reportDetailedError :: (MTCMonad m, HasRange a) => a -> Doc -> [Doc] -> m b
 reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 
 newName :: (MTCMonad m, HasRange r) => r -> Type -> m (TCName Value)
 newName r t = newName' r AValue t
 
 
-
 --------------------------------------------------------------------------------
 -- Module-level typing monad
 
-newtype MTypeM a = MTypeM { getMTypeM :: 
+newtype MTypeM a = MTypeM { getMTypeM ::
                             WithBase PassM
-                              '[ ReaderT MRO
+                              '[ ReaderT TCConfig
+                               , StateT [TypeWarning]
                                , ExceptionT TypeError
                                ] a
                           }
-                   
+
 deriving instance Functor MTypeM
 
 instance Applicative MTypeM where
@@ -150,19 +178,15 @@ instance Monad MTypeM where
 
 type RuleEnv  = Map Name (Poly RuleType)
 
-data MRO = MRO
-  { roRuleTypes     :: !RuleEnv
-  , roTypeDefs      :: !(Map TCTyName TCTyDecl)
+data TCConfig = TCConfig
+  { tcConfTypes     :: !(Map TCTyName TCTyDecl)
+  , tcConfDecls     :: !RuleEnv
+  , tcConfWarn      :: !(TypeWarning -> Bool)
   }
 
 -- XXX: maybe preserve something about the state?
-runMTypeM :: Map TCTyName TCTyDecl ->
-             RuleEnv ->
-             MTypeM a -> PassM (Either TypeError a)
-runMTypeM tenv renv (MTypeM m) = runExceptionT $ runReaderT r0 m 
-  where r0   = MRO { roRuleTypes = renv
-                   , roTypeDefs  = tenv
-                   }
+runMTypeM :: TCConfig -> MTypeM a -> PassM (Either TypeError (a,[TypeWarning]))
+runMTypeM r0 (MTypeM m) = runExceptionT $ runStateT [] $ runReaderT r0 m 
 
 instance HasGUID MTypeM where
   guidState f = MTypeM $ inBase (guidState f)
@@ -170,6 +194,9 @@ instance HasGUID MTypeM where
 instance MTCMonad MTypeM where
   reportError r s =
     MTypeM (raise (TypeError Located { thingRange = range r, thingValue = s }))
+
+  addWarning w = MTypeM do yes <- (`tcConfWarn` w) <$> ask
+                           if yes then sets_ (w :) else pure ()
 
   newName' r ctx ty = do
     n <- getNextGUID
@@ -184,19 +211,19 @@ instance MTCMonad MTypeM where
                          , tcNameCtx = ctx
                          }
 
-  getRuleEnv = MTypeM (roRuleTypes <$> ask)
+  getRuleEnv = MTypeM (tcConfDecls <$> ask)
 
   extEnvManyRules xs (MTypeM m) = MTypeM (mapReader upd m)
     where
     newEnv = Map.fromList xs
-    upd ro = ro { roRuleTypes = Map.union newEnv (roRuleTypes ro) }
+    upd ro = ro { tcConfDecls = Map.union newEnv (tcConfDecls ro) }
 
 
-  getGlobTypeDefs = MTypeM (roTypeDefs <$> ask)
+  getGlobTypeDefs = MTypeM (tcConfTypes <$> ask)
 
 extGlobTyDefs :: Map TCTyName TCTyDecl -> MTypeM a -> MTypeM a
 extGlobTyDefs mp (MTypeM m) = MTypeM $
-  mapReader (\ro -> ro { roTypeDefs = Map.union mp (roTypeDefs ro) }) m
+  mapReader (\ro -> ro { tcConfTypes = Map.union mp (tcConfTypes ro) }) m
 
 
 --------------------------------------------------------------------------------
@@ -222,6 +249,7 @@ instance HasGUID STypeM where
 
 instance MTCMonad STypeM where
   reportError r e     = mType (reportError r e)
+  addWarning w        = mType (addWarning w)
   newName' r c t      = mType (newName' r c t)
   getRuleEnv          = mType getRuleEnv
   getGlobTypeDefs     = mType getGlobTypeDefs
@@ -454,6 +482,7 @@ sType m = TypeM (lift (lift m))
 
 instance MTCMonad (TypeM ctx) where
   reportError r e     = sType (reportError r e)
+  addWarning e        = sType (addWarning e)
   newName' r c t      = sType (newName' r c t)
   getRuleEnv          = sType getRuleEnv
   getGlobTypeDefs     = sType getGlobTypeDefs
@@ -550,7 +579,7 @@ apSuTCTyDecl su d = d { tctyDef = apSubstTCTyDef su (tctyDef d) }
 apSubstTCTyDef :: Map TVar Type -> TCTyDef -> TCTyDef
 apSubstTCTyDef su def =
   case def of
-    TCTyStruct fs -> TCTyStruct (map doField fs)
+    TCTyStruct mb fs -> TCTyStruct mb (map doField fs)
     TCTyUnion  fs -> TCTyUnion  (map doField fs)
   where
   doField :: (Label, (Type, a)) -> (Label, (Type, a))

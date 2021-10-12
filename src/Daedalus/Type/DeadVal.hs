@@ -434,15 +434,24 @@ noSem' tc =
               LoopMap -> pure Nothing -- XXX
 
               Fold x _s ->
-                pure do guard (not (Some x `Set.member` i)) -- state unused
-                        let v' = x { tcType = tUnit }
-                            lp' = lp { loopFlav = Fold v' (exprAt tc TCUnit)
-                                     , loopBody = m'
-                                     , loopType = tGrammar tUnit
-                                     }
-                        pure ( exprAt tc (TCFor lp')
-                             , tcFree (loopCol lp) <> Set.difference i bnd
-                             )
+
+                -- fold body has not effect, and we don't care about result
+                case texprValue m' of
+                  TCPure {} ->
+                    pure $ pure ( exprAt tc (TCPure (exprAt tc TCUnit))
+                                , Set.empty
+                                )
+                  _ ->
+                    pure do guard (not (Some x `Set.member` i)) -- state unused
+
+                            let v' = x { tcType = tUnit }
+                                lp' = lp { loopFlav = Fold v' (exprAt tc TCUnit)
+                                         , loopBody = m'
+                                         , loopType = tGrammar tUnit
+                                         }
+                            pure ( exprAt tc (TCFor lp')
+                                 , tcFree (loopCol lp) <> Set.difference i bnd
+                                 )
 
          do (m'', i') <- mbSem (loopBody lp)
             pure ( mkDo tc Nothing (exprAt tc (TCFor lp { loopBody = m'' })) (noSemPure tc)

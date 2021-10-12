@@ -42,7 +42,7 @@ import           Daedalus.PP                  hiding ((<.>))
 import           Daedalus.Panic
 import           Daedalus.Pass
 import           Daedalus.Rec                 (forgetRecs)
-import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..))
+import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..), range)
 
 import           Daedalus.AST                 (Module (..))
 import           Daedalus.Module              (pathToModuleName)
@@ -53,7 +53,7 @@ import           Daedalus.Type.AST            (Located (..), ModuleName,
                                                TCDecl (..), TCModule (..),
                                                TCTyDecl, TCTyName, declTypeOf,
                                                tctyName)
-import           Daedalus.Type.Monad          (RuleEnv, TypeError (..),
+import           Daedalus.Type.Monad          (RuleEnv, TypeError (..), TypeWarning(..),
                                                runMTypeM)
 
 import           Daedalus.LSP.Monad
@@ -691,10 +691,10 @@ sourceRangeToRange sr = J.Range (sourcePosToPosition (sourceFrom sr))
 noRange :: J.Range
 noRange =  J.Range (J.Position 0 0) (J.Position 1 0)
 
-makeDiagnosticText :: J.Range -> Text -> Diagnostic
-makeDiagnosticText r msg =
+makeDiagnosticText :: J.DiagnosticSeverity -> J.Range -> Text -> Diagnostic
+makeDiagnosticText sev r msg =
   Diagnostic { _range    = r
-             , _severity = Just J.DsError
+             , _severity = Just sev
              , _source   = Nothing -- ??
              , _message  = msg
              , _code     = Nothing
@@ -702,12 +702,11 @@ makeDiagnosticText r msg =
              , _tags     = Nothing
              }
 
-makeDiagnostic :: PP a => J.Range -> a -> Diagnostic
-makeDiagnostic r msg = makeDiagnosticText r (Text.pack (showPP msg))
+makeDiagnostic :: PP a => J.DiagnosticSeverity -> J.Range -> a -> Diagnostic
+makeDiagnostic sev r msg = makeDiagnosticText sev r (Text.pack (showPP msg))
 
-
-makeDiagnosticL :: PP a => Located a -> Diagnostic
-makeDiagnosticL la = makeDiagnosticText (sourceRangeToRange (thingRange la)) (Text.pack (showPP (thingValue la)))
+makeDiagnosticL :: PP a => J.DiagnosticSeverity -> Located a -> Diagnostic
+makeDiagnosticL sev la = makeDiagnosticText sev (sourceRangeToRange (thingRange la)) (Text.pack (showPP (thingValue la)))
 
 class ToDiagnostics a where
   toDiagnostics :: a -> [Diagnostic]
@@ -716,10 +715,19 @@ class ToDiagnostics a where
 --   toDiagnostics (CycleCheckErrors errs) = map makeDiagnosticL errs
 
 instance ToDiagnostics ParseError where
-  toDiagnostics (ParseError { errorLoc = sp, errorMsg = msg }) = [ makeDiagnosticText (sourcePosToRange sp) (Text.pack msg) ]
+  toDiagnostics (ParseError { errorLoc = sp, errorMsg = msg }) = [ makeDiagnosticText J.DsError (sourcePosToRange sp) (Text.pack msg) ]
 
 instance ToDiagnostics ScopeError where
-  toDiagnostics serr = [ makeDiagnostic noRange serr ]
+  toDiagnostics serr = [ makeDiagnostic J.DsError noRange serr ]
 
 instance ToDiagnostics TypeError where
-  toDiagnostics (TypeError l) = [ makeDiagnosticText (sourceRangeToRange $ thingRange l) (Text.pack (show (thingValue l))) ]
+  toDiagnostics (TypeError l) = [ makeDiagnosticText J.DsError (sourceRangeToRange $ thingRange l) (Text.pack (show (thingValue l))) ]
+
+
+instance ToDiagnostics TypeWarning where
+  toDiagnostics w =
+    [ makeDiagnosticText
+        J.DsWarning
+        (sourceRangeToRange (range w))
+        (Text.pack (show (pp w)))
+    ]

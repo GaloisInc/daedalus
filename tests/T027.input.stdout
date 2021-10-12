@@ -1,3 +1,5 @@
+[WARNING] ./T027.ddl:2:19--2:26:
+            Using unbiased choice may be inefficient.
 --- Found 5 results:
 "0000"
  

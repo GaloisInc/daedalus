@@ -45,6 +45,7 @@ data Token =
   | BarBar
   | AmpAmp
   | LtBar
+  | Dollar
   | DollarDollar
   | Plus
   | Minus
@@ -67,6 +68,8 @@ data Token =
 
   | KWChoose
   | KWChoose1
+  | KWFirst
+  | KWAccept
   | KWblock
   | KWlet
   | KWTry

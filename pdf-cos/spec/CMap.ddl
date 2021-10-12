@@ -251,7 +251,7 @@ def SizedOp Domain Rng nm = {
 
 -- FIXME: BUG: doesn't tokenize right
 -- def CMapDictEntry = CMapDefn (DictEntry CMapKey CMapVal)
-def CMapDictEntry : Pair = CMapDefn {
+def CMapDictEntry : pair = CMapDefn {
   fst = Token (GenName CMapKey);
   snd = Token (CMapVal fst);
 } 

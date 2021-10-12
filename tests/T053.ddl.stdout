@@ -1,3 +1,11 @@
+[WARNING] ./T053.ddl:23:23--26:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:12:18--12:34:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:8:18--8:31:
+            Using unbiased choice may be inefficient.
+[WARNING] ./T053.ddl:7:18--7:30:
+            Using unbiased choice may be inefficient.
 module T053
  
 --- Imports:
@@ -19,8 +27,7 @@ T053.Ok (x : int) : Grammar int =
   pure x
  
 T053.PFail : Grammar int =
-  Choose fair
-    { }
+  Fail "Erro"
  
 T053.Throw : Grammar int =
   Commit
@@ -34,49 +41,41 @@ T053._Ok : Grammar {} =
   pure {}
  
 T053._PFail : Grammar {} =
-  Choose fair
-    { }
+  Fail "Erro"
  
 T053.Main : Grammar T053.Main =
-  do (ex1 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
-                                                            { T053.Throw
-                                                            | T053.Ok 1
-                                                            }
-                                            pure $$
-     (ex2 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
-                                                            { T053.Ok 1
-                                                            | T053.Throw
-                                                            }
-                                            pure $$
-     (ex3 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
-                                                            { T053.Throw
-                                                            | T053.Ok 1
-                                                            }
-                                            pure $$
-     (ex4 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
-                                                            { T053.Ok 1
-                                                            | T053.Throw
-                                                            }
-                                            pure $$
-     (ex5 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
-                                                            { Try T053.Throw
-                                                            | T053.Ok 1
-                                                            }
-                                            pure $$
-     (ex6 : Maybe int) <- T053.Check int do ($$ : int) <- Choose fair
-                                                            { Try T053.Throw
-                                                            | T053.Ok 1
-                                                            }
-                                            pure $$
-     (ex7 : Maybe int) <- T053.Check int do ($$ : int) <- Choose biased
-                                                            { do T053._Ok
-                                                                 Commit
-                                                                   do T053._PFail
-                                                                      ($$ : int) <- T053.Ok 2
-                                                                      pure $$
-                                                            | T053.Ok 3
-                                                            }
-                                            pure $$
+  do (ex1 : Maybe int) <- T053.Check int Choose biased
+                                           { T053.Throw
+                                           | T053.Ok 1
+                                           }
+     (ex2 : Maybe int) <- T053.Check int Choose biased
+                                           { T053.Ok 1
+                                           | T053.Throw
+                                           }
+     (ex3 : Maybe int) <- T053.Check int Choose fair
+                                           { T053.Throw
+                                           | T053.Ok 1
+                                           }
+     (ex4 : Maybe int) <- T053.Check int Choose fair
+                                           { T053.Ok 1
+                                           | T053.Throw
+                                           }
+     (ex5 : Maybe int) <- T053.Check int Choose biased
+                                           { Try T053.Throw
+                                           | T053.Ok 1
+                                           }
+     (ex6 : Maybe int) <- T053.Check int Choose fair
+                                           { Try T053.Throw
+                                           | T053.Ok 1
+                                           }
+     (ex7 : Maybe int) <- T053.Check int Choose biased
+                                           { do T053._Ok
+                                                Commit
+                                                  do T053._PFail
+                                                     ($$ : int) <- T053.Ok 2
+                                                     pure $$
+                                           | T053.Ok 3
+                                           }
      (ex8 : Maybe {}) <- T053.Check {} do (x : int) <- Choose fair
                                                          { Commit
                                                              do ($$ : int) <- T053.Ok 1

@@ -55,9 +55,12 @@ inferContext expr =
     EPure {}        -> Some AGrammar
     EFail {}        -> Some AGrammar
 
-    EFor _ _ _ _ e  -> inferContext e
+    EFor flav _k _v e body -> AValue `grammarIf` map inferContext es
+      where es = case flav of
+                   FMap -> [e,body]
+                   FFold _ i -> [i,e,body]
 
-    EIf {}          -> Some AValue  -- XXX: we should make `if` work for grammar
+    EIf e1 e2 e3    -> AValue `grammarIf` map inferContext [e1,e2,e3]
 
     EInRange {}     -> Some AClass
 
@@ -90,7 +93,13 @@ inferContext expr =
           PatternCase _ rhs  -> inferContext rhs
 
 grammarIf :: Context c -> [Some Context] -> Some Context
-grammarIf d xs = if any isGrammar xs then Some AGrammar else Some d
+grammarIf d xs =
+  case d of
+    AValue   -> if any (\x -> isGrammar x || isClass x) xs
+                 then Some AGrammar
+                 else Some d
+    AClass   -> if any isGrammar xs then Some AGrammar else Some d
+    AGrammar -> Some AGrammar
 
 isGrammar :: Some Context -> Bool
 isGrammar ctx =

@@ -18,12 +18,12 @@ import SymbolEncoding
 import ZapfDingbatsEncoding
 
 def EncodingRepr = Choose1 {
-  predefEnc = PredefEncodingName;
+  predefEnc = (Token (GenName PredefEncodingName));
   encDict = EncodingP;
 }
 
 -- partialType1Font: partial definition of a Type1 font
-def partialType1Font (com : ?partialCommonFont) (pChars : ?partialCharSet)
+def partialType1Font (com : partialCommonFont) (pChars : partialCharSet)
   (bf: maybe FontName) (enc: maybe EncodingRepr) = {
   common = com;
   chars = pChars;
@@ -38,14 +38,14 @@ def initType1Font = partialType1Font
   nothing
   nothing
 
-def type1SetCommon (com : ?partialFontCommon)
+def type1SetCommon (com : partialCommonFont)
   (f : partialType1Font) = partialType1Font
   com
   f.chars
   f.baseFont0
   f.encoding0
 
-def type1SetChars (pChars : ?partialCharSet)
+def type1SetChars (pChars : partialCharSet)
   (f : partialType1Font) = partialType1Font
   f.common
   pChars
@@ -54,7 +54,7 @@ def type1SetChars (pChars : ?partialCharSet)
 
 -- AddBaseFont nm f: add a base font to font
 -- TODO: re-enable Subst
-def Type1AddBaseFont (Subst : uint 8) (f : ?partialFontType) =
+def Type1AddBaseFont (Subst : uint 8) (f : partialType1Font) =
   partialType1Font 
     f.common
     f.chars
@@ -145,6 +145,7 @@ def Type1FontStub = Type1Font type1Sym
      (just helvetica)
      nothing)
 
+-- DBG:
 def Type1FontP0 = When Value Type1FontStub
 def Type1FontP = GenPdfDict1
   initType1Font

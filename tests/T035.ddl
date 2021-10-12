@@ -1,2 +1,6 @@
 
-def Main = { @x = UInt8; @y = UInt8; ^ x # y }
+def Main =
+  block
+    let x = UInt8
+    let y = UInt8
+    ^ x # y

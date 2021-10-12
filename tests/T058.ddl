@@ -1,5 +1,5 @@
 
-def Main = {
-  SetStream (arrayStream ['A']);
-  Match1 'A'
-}
+def Main =
+  block
+    SetStream (arrayStream ['A'])
+    $['A']

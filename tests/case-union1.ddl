@@ -1,12 +1,12 @@
 
 
-def P = Choose {
-    c1 = Match "a";
+def P =
+  First
+    c1 = Match "a"
     c2 = Match "b"
-}
 
-def Main = { p   = P
-           ; tag = case p of {
-                     c1 _, c2 _ -> ^ "either";
-                   }
-           }
+def Main =
+  block
+    p   = P
+    tag = case p of
+            c1 _, c2 _ -> ^ "either"

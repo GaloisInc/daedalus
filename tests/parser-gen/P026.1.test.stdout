@@ -1,3 +1,17 @@
+[WARNING] ./P026.ddl:33:3--40:44:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:24:20--25:70:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:29:29--29:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:29:12--29:69:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:12:25--12:43:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:12:25--12:49:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P026.ddl:8:25--8:42:
+            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { x: [ { num: 4560
        , exp: -1

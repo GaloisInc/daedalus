@@ -87,14 +87,13 @@ def ExtendType0Font k font = {
   }
 }
 
--- Type0Font f: coerce partial font f into an actual Type1
+-- Type0Font f: coerce partial font f into an actual Type0
 -- font
 def Type0Font (f : partialType0Font) = {
   toUnicode = CommonFont f.common;
 
   encoding = f.encoding0 is just; -- required
-  -- DBG:
-  --  descFont = f.descFonts0 is just; -- required. TODO: enable
+  descFont = f.descFonts0; -- SPEC: required
   baseFont = f.baseFont0 is just;
 
   -- Guard ((f.baseFont0 is just) ==

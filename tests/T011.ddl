@@ -1,1 +1,3 @@
-def P = { ^ 2 }
+def P =
+  block
+    ^ 2

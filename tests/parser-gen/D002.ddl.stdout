@@ -1,3 +1,7 @@
+[WARNING] ./D002.ddl:8:10--11:12:
+            Using unbiased choice may be inefficient.
+[WARNING] ./D002.ddl:4:10--7:12:
+            Using unbiased choice may be inefficient.
 module D002
  
 --- Imports:

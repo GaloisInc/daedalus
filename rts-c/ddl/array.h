@@ -15,17 +15,17 @@ class Array : IsBoxed {
 
   class Content {
     friend Array;
-    size_t ref_count;
-    size_t size;
-    T      data[];
+    RefCount  ref_count;
+    Size      size;
+    T         data[];
 
 
   public:
 
     // Allocate an array with unitialized data
     static
-    Content *allocate(size_t n) {
-      size_t bytes = sizeof(Content) + sizeof(T[n]);
+    Content *allocate(Size n) {
+      size_t bytes = sizeof(Content) + sizeof(T[n.rep()]);
       char *raw = new char[bytes];    // XXX: alignment?
       Content *p   = (Content*) raw;
       p->ref_count = 1;
@@ -37,34 +37,33 @@ class Array : IsBoxed {
 
   Array(Content *p) : ptr(p) {}
 
-  void fill(size_t) {}
+  void fill(Size) {}
 
   template <typename ... Elems>
-  void fill(size_t i, T x, Elems ... xs) {
-    ptr->data[i] = x;
-    fill(i+1,xs...);
+  void fill(Size i, T x, Elems ... xs) {
+    ptr->data[i.rep()] = x;
+    fill(i.incremented(),xs...);
   }
 
   static
-  size_t rangeSize(size_t space, size_t step) {
-    size_t ents  = space / step;
-    size_t extra = space % step;
-    if (extra > 0) ++ents;
+  Size rangeSize(Size space, Size step) {
+    Size ents  = Size{space.rep() / step.rep()};
+    if (space.rep() % step.rep() > 0) ents.increment();
     return ents;
   }
 
 public:
 
   static Array rangeUp(T start,T end, T step) {
-    // step > 0 && step <= MAX(size_t)
+    // step > 0 && step <= MAX(Size)
     // start <= end
-    // (end - start) <= MAX(size_t)
+    // (end - start) <= MAX(Size)
 
-    size_t ents = rangeSize((end - start).asSize().rep(), step.asSize().rep());
+    Size ents = rangeSize((end - start).asSize(), step.asSize());
     Content *p = Content::allocate(ents);
     T val = start;
-    for (size_t i = 0; i < ents; ++i) {
-      p->data[i] = val;
+    for (Size i = 0; i < ents; i.increment()) {
+      p->data[i.rep()] = val;
       val = val + step;
     }
 
@@ -72,15 +71,15 @@ public:
   }
 
   static Array rangeDown(T start,T end, T step) {
-    // step > 0 && step <= MAX(size_t)
+    // step > 0 && step <= MAX(Size)
     // start >= end
-    // (start - end) <= MAX(size_t)
+    // (start - end) <= MAX(Size)
 
-    size_t ents = rangeSize((start - end).asSize().rep(), step.asSize().rep());
+    Size ents = rangeSize((start - end).asSize(), step.asSize());
     Content *p = Content::allocate(ents);
     T val = start;
-    for (size_t i = 0; i < ents; ++i) {
-      p->data[i] = val;
+    for (Size i = 0; i < ents; i.increment()) {
+      p->data[i.rep()] = val;
       val = val - step;
     }
 
@@ -96,34 +95,35 @@ public:
 
   // Array literal. Owns xs
   template <typename ...Elems>
-  Array(size_t n, Elems ... xs) : ptr(Content::allocate(n)) { fill(0,xs...); }
+  Array(Size n, Elems ... xs)
+    : ptr(Content::allocate(n)) { fill(Size{0},xs...); }
 
   // Array from builder. Owns xs
   Array(Builder xs) {
-    size_t n = xs.size();
+    Size n = xs.size();
     ptr = Content::allocate(n);
-    for (T *arr = ptr->data; n > 0; --n) {
+    for (T *arr = ptr->data; n > 0; n.decrement()) {
       List<T> ys;
-      xs.uncons(arr[n-1],ys);
+      xs.uncons(arr[n.decremented().rep()],ys);
       xs = ys;
     }
   }
 
   // Concat. Borrows xs
   Array(Array<Array<T>> xs) {
-    size_t outSize = xs.size();
-    size_t inSize  = 0;
-    for (size_t i = 0; i < outSize; ++i) {
-      inSize += xs.borrowElement(Size(i)).size();
+    const Size outSize = xs.size();
+    Size inSize  = 0;
+    for (Size i = 0; i < outSize; i.increment()) {
+      inSize.incrementBy(xs.borrowElement(i).size());
     }
     ptr = Content::allocate(inSize);
 
     T* data = ptr->data;
 
-    for (size_t i = 0; i < outSize; ++i) {
-      Array a = xs.borrowElement(Size(i));
-      size_t n = a.size();
-      for (size_t j = 0; j < n; ++j) {
+    for (Size i = 0; i < outSize; i.increment()) {
+      Array a = xs.borrowElement(i);
+      Size n = a.size();
+      for (Size j = 0; j < n; j.increment()) {
         *data = a[j];
         ++data;
       }
@@ -131,12 +131,12 @@ public:
   }
 
   // Borrow arguments
-  Array(T *data, size_t n) : ptr(Content::allocate(n)) {
-    memcpy(ptr->data, data, sizeof(T[n]));
+  Array(T *data, Size n) : ptr(Content::allocate(n)) {
+    memcpy(ptr->data, data, sizeof(T[n.rep()]));
   }
 
   // Borrows this
-  size_t size() { return ptr->size; }
+  Size size() { return ptr->size; }
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
@@ -162,15 +162,15 @@ public:
 
 
 // -- Boxed --------------------------------------------------------------------
-  size_t refCount() { return ptr->ref_count; }
+  RefCount refCount() { return ptr->ref_count; }
 
   void copy() { ++(ptr->ref_count); }
 
   void free() {
-    size_t n = refCount();
+    RefCount n = refCount();
     if (n == 1) {
       if constexpr (std::is_base_of<HasRefs,T>::value) {
-        size_t todo = ptr->size;
+        size_t todo = ptr->size.rep();
         T* arr = ptr->data;
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
@@ -186,9 +186,9 @@ public:
 
 
   class Iterator : HasRefs {
-    size_t index;
+    Size  index;
     Array xs;
-    Iterator(size_t i,Array ys) : index(i), xs(ys) {}
+    Iterator(Size i,Array ys) : index(i), xs(ys) {}
   public:
     Iterator() : index(0), xs() {}    // uninitialied
 
@@ -196,18 +196,18 @@ public:
     Iterator(Array xs)  : index(0), xs(xs) {}
 
     bool   done()       { return index >= xs.size(); }
-    DDL::UInt<64> key() { return DDL::UInt<64>(index); }
+    DDL::UInt<64> key() { return DDL::UInt<64>(index.rep()); }
     // XXX: Update to size
 
     // Returns owned value
-    T value()       { return xs[Size(index)]; }
+    T value()       { return xs[index]; }
     // Returns borrowed value
-    T borrowValue() { return xs.borrowElement(Size(index)); }
+    T borrowValue() { return xs.borrowElement(index); }
 
     // Owned this. We don't increment `xs` because this copy of the iterator
     // is being freed.
     Iterator next() {
-      return Iterator(index + 1, xs);
+      return Iterator(index.incremented(), xs);
     }
 
     void free() { xs.free(); }
@@ -230,13 +230,13 @@ public:
 template <typename T>
 inline
 std::ostream& operator<<(std::ostream& os, Array<T> x) {
-  size_t n = x.size();
+  Size n = x.size();
 
   os << "[";
   char sep[] = ", ";
   sep[0] = 0;
-  for (size_t i = 0; i < n; ++i) {
-    os << sep << x.borrowElement(Size(i));
+  for (Size i = 0; i < n; i.increment()) {
+    os << sep << x.borrowElement(i);
     sep[0] = ',';
   }
   os << "]";
@@ -248,13 +248,13 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
 template <typename T>
 inline
 std::ostream& toJS(std::ostream& os, Array<T> x) {
-  size_t n = x.size();
+  Size n = x.size();
 
   os << "[";
   char sep[] = ", ";
   sep[0] = 0;
-  for (size_t i = 0; i < n; ++i) {
-    toJS(os << sep, x.borrowElement(Size(i)));
+  for (Size i = 0; i < n; i.increment()) {
+    toJS(os << sep, x.borrowElement(i));
     sep[0] = ',';
   }
   os << "]";
@@ -266,14 +266,14 @@ std::ostream& toJS(std::ostream& os, Array<T> x) {
 template <typename T>
 static inline
 int compare (Array<T> x, Array<T> y) {
-  size_t size_x = x.size();
-  size_t size_y = y.size();
-  size_t checks = size_x < size_y ? size_x : size_y;
-  for (size_t i = 0; i < checks; ++i) {
-    int result = compare(x.borrowElement(Size(i)),y.borrowElement(Size(i)));
+  Size size_x = x.size();
+  Size size_y = y.size();
+  Size checks = size_x < size_y ? size_x : size_y;
+  for (Size i = 0; i < checks.rep(); i.increment()) {
+    int result = compare(x.borrowElement(i),y.borrowElement(i));
     if (result != 0) return result;
   }
-  return size_y - size_x;
+  return size_x > size_y ? (size_x.rep() - size_y.rep()) : -1;
 }
 
 

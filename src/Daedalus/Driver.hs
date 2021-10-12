@@ -1,6 +1,7 @@
 {-# Language BlockArguments #-}
 {-# Language FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Daedalus.Driver
   ( Daedalus
@@ -59,6 +60,7 @@ module Daedalus.Driver
   , ddlUpdOpt
   , optOutHandle
   , optSearchPath
+  , optWarnings
 
     -- * Output
   , ddlPutStr
@@ -87,7 +89,7 @@ import System.Directory(createDirectoryIfMissing)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp)
+import Daedalus.PP(pp,vcat,(<+>))
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 import Daedalus.GUID
@@ -96,13 +98,12 @@ import Daedalus.Pass
 
 import Daedalus.AST
 import Daedalus.Type.AST
-import qualified Daedalus.Type.CheckUnused as CheckUnused
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
-import Daedalus.Type.Monad(TypeError, runMTypeM)
+import Daedalus.Type.Monad(TypeError, runMTypeM, TCConfig(..), TypeWarning)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
@@ -254,6 +255,9 @@ data State = State
   { searchPath    :: [FilePath]
     -- ^ Look for modules in these root directories
 
+  , useWarning    :: TypeWarning -> Bool
+    -- ^ Which warnings to report
+
   , outHandle     :: Handle
     -- ^ This is where we say things
 
@@ -291,6 +295,7 @@ data State = State
 defaultState :: State
 defaultState = State
   { searchPath          = ["."]
+  , useWarning          = const True
   , outHandle           = stdout
   , moduleFiles         = Map.empty
   , loadedModules       = Map.empty
@@ -464,6 +469,9 @@ optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 optOutHandle :: DDLOpt Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
+optWarnings :: DDLOpt (TypeWarning -> Bool)
+optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
+
 
 
 --------------------------------------------------------------------------------
@@ -534,13 +542,17 @@ tcModule m =
   do ddlDebug ("Type checking " ++ show (moduleName m))
      tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
-     r <-  ddlRunPass (runMTypeM tdefs rtys (inferRules m))
+     warn  <- ddlGet useWarning
+     let tcConf = TCConfig { tcConfTypes = tdefs
+                           , tcConfDecls = rtys
+                           , tcConfWarn  = warn
+                           }
+     r <-  ddlRunPass (runMTypeM tcConf (inferRules m))
      case r of
        Left err -> ddlThrow $ ATypeError err
-       Right m1' ->
+       Right (m1',warnings) ->
          do let m1 = normTCModule m1'
-                warn = CheckUnused.checkTCModule m1
-            unless (null warn) (ppWarn warn)
+            unless (null warnings) (ppTCWarn warnings)
             ddlUpdate_ \s -> s
               { loadedModules = Map.insert (tcModuleName m1)
                                            (TypeCheckedModule m1)
@@ -556,12 +568,7 @@ tcModule m =
                         (forgetRecs (tcModuleDecls m1))
               }
   where
-  ppWarn xs =
-    ddlPutStrLn $
-      unlines
-        [ prettySourceRangeLong x <>
-                                " [WARNING] Statement has no effect" | x <- xs ]
-
+  ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
 
 
 analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
@@ -670,7 +677,7 @@ WARNING: The module name should be a new module name where we store the result
 of specialization, which is different from how the other passes work. -}
 passSpecialize :: ModuleName -> [(ModuleName,Ident)] -> Daedalus ()
 passSpecialize tgt roots =
-  do mapM_ ddlLoadModule (map fst roots)
+  do mapM_ (ddlLoadModule . fst) roots
      allMods <- ddlBasisMany (map fst roots)
 
      -- Find the actual Names, not just the ScopedIdents.  Pretty ugly

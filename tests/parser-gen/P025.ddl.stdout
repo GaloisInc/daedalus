@@ -1,3 +1,9 @@
+[WARNING] ./P025.ddl:8:29--8:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P025.ddl:8:29--8:53:
+            Using unbiased choice may be inefficient.
+[WARNING] ./P025.ddl:5:29--5:46:
+            Using unbiased choice may be inefficient.
 module P025
  
 --- Imports:

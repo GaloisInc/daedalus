@@ -1,3 +1,5 @@
+[WARNING] ./P029.ddl:4:3--8:3:
+            Using unbiased choice may be inefficient.
 module P029
  
 --- Imports:

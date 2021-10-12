@@ -1,2 +1,6 @@
-def Main = { $$ = Match "Hello"; Many UInt8; END }
+def Main =
+  block
+    $$ = Match "Hello"
+    Many UInt8
+    END
 

@@ -14,7 +14,7 @@ type T050.Main = { x1: int
 --- Rules:
  
 T050.V ?a0 (Coerce dynamic ?a0 int) (Literal 1 ?a0) : Grammar T050.V =
-  Choose fair
+  Choose biased
     { {- number -} do (_12 : int) <- 1 AS int
                       pure {number: _12}
     | {- other -} do (_13 : [uint 8]) <- MatchBytes "X"
@@ -46,7 +46,7 @@ T050.Main : Grammar T050.Main =
            x2 = x2}
  
 T050._V ?a0 (Coerce dynamic ?a0 int) (Literal 1 ?a0) : Grammar {} =
-  Choose fair
+  Choose biased
     { {- number -} @(1 AS int)
     | {- other -} @MatchBytes "X"
     }

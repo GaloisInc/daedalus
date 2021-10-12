@@ -1,3 +1,5 @@
+[WARNING] ./D007.ddl:12:10--15:5:
+            Using unbiased choice may be inefficient.
 Stack:
     *
     Main callsite __START__

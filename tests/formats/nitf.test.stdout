@@ -1,3 +1,527 @@
+[WARNING] ../../nitf/nitf_lib.ddl:431:5--439:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:424:5--428:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:413:9--414:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:411:10--418:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:402:9--403:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:402:9--404:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:402:9--405:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:402:9--406:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:402:9--407:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:396:10--410:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:388:9--389:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:388:9--390:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:388:9--391:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:388:9--392:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:381:9--385:9:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:378:9--379:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:376:8--395:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:367:9--368:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:367:9--369:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:367:9--370:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:367:9--371:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:367:9--372:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:363:9--364:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:357:10--375:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:349:9--350:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:349:9--351:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:349:9--352:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:349:9--353:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:345:8--345:36:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:342:10--356:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:330:28--338:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:328:24--328:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:291:22--324:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:275:3--278:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:263:15--269:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:246:7--248:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:244:3--248:50:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:239:11--241:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:237:7--241:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:235:3--241:50:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:159:3--160:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:159:3--164:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:151:3--152:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:151:3--156:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:143:3--144:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:143:3--148:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:140:16--140:32:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:127:21--130:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:119:23--122:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:109:16--109:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:104:3--104:35:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:72:22--75:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:47:13--47:33:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_lib.ddl:27:24--27:32:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_data_ext_subheader.ddl:24:12--30:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_data_ext_subheader.ddl:13:15--20:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_data_ext_subheader.ddl:12:13--22:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:35:3--40:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:17:4--18:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:9:14--14:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_text_subheader.ddl:5:22--5:42:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_graphic_subheader.ddl:53:11--59:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_graphic_subheader.ddl:47:12--51:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_graphic_subheader.ddl:42:12--45:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_graphic_subheader.ddl:7:20--10:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:819:3--826:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:809:3--816:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:787:6--787:40:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:787:6--787:55:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:786:6--786:41:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:786:6--787:55:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:770:5--777:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:747:5--752:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:738:12--744:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:732:9--733:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--718:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--719:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--720:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--721:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--722:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--723:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--724:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--725:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--726:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--727:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:717:9--728:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:715:3--734:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:702:3--708:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:673:11--674:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:673:7--676:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:669:7--670:25:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:665:7--666:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:659:7--660:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:657:7--658:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:653:15--654:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:653:11--656:49:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:651:11--652:28:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:650:7--656:51:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:645:7--646:27:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:645:7--647:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:645:7--648:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:645:7--649:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:643:7--644:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:639:11--640:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:639:7--642:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:637:7--638:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:635:7--636:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:633:7--634:27:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:629:11--630:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:628:7--631:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:628:7--632:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:621:11--622:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:621:7--624:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:616:7--617:25:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:616:7--618:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:616:7--619:25:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:612:7--613:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:610:7--611:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:608:7--609:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:604:7--605:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:602:7--603:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:600:7--601:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:596:7--597:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:593:7--594:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--582:29:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--583:28:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--584:19:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--585:28:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--586:28:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--587:29:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--588:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--589:19:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--590:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--591:17:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:581:7--592:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:579:11--580:49:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:577:11--578:28:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:573:7--580:51:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:571:7--572:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:7--570:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--597:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--601:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--607:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--614:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--624:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--632:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--642:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--656:53:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--664:43:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--670:27:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:569:3--676:47:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:558:3--559:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:554:3--555:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:550:3--551:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:544:3--547:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:538:3--541:44:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:527:7--528:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:521:7--522:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:521:7--523:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:521:7--524:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:521:7--525:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:521:7--526:25:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:516:7--517:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:516:7--518:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:509:7--510:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:509:7--511:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:506:7--507:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:501:7--502:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:501:7--503:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:499:7--500:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:491:7--492:33:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:491:7--493:32:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:487:7--488:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:481:7--482:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:477:7--478:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:477:7--479:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:472:7--473:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:472:7--474:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:468:7--469:26:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:468:7--470:25:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:461:7--462:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:461:7--463:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:461:7--464:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:461:7--465:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:459:7--460:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--475:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--483:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--489:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--496:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--504:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--512:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--519:24:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:457:3--530:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:426:12--441:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--408:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--409:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--410:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--411:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--412:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--413:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--414:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--415:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:407:9--416:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:404:9--405:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:400:9--401:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:9--396:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:9--397:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:9--398:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:9--399:16:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:5--403:23:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:5--406:42:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:395:5--416:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:381:3--381:39:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:375:8--380:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:348:16--362:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:335:17--346:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:327:7--328:22:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--307:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--310:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--313:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--316:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--319:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--322:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--325:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--329:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:302:3--330:11:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:294:7--295:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:286:7--287:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:281:11--282:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:281:11--283:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:278:11--279:18:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:278:7--283:20:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:269:7--270:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:269:7--271:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:269:7--272:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:269:7--273:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:262:5--266:5:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:260:7--261:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:258:24--298:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:238:10--256:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:214:14--232:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:210:12--212:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:206:12--208:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:205:8--212:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:203:3--212:52:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:151:10--154:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:143:10--146:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:138:3--138:67:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:128:3--128:65:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:113:3--119:3:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:107:13--110:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:71:12--103:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:59:12--69:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:51:14--57:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_img_subheader.ddl:22:21--22:48:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:104:7--104:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:95:7--95:45:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:74:3--75:61:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:74:3--76:61:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:59:14--67:1:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:52:14--52:33:
+            Using unbiased choice may be inefficient.
+[WARNING] ../../nitf/nitf_header.ddl:39:14--39:33:
+            Using unbiased choice may be inefficient.
 module nitf_lib
  
 --- Imports:

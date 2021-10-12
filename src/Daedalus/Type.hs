@@ -8,7 +8,7 @@ module Daedalus.Type where
 import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
-import Data.Maybe(catMaybes)
+import Data.Maybe(catMaybes,maybeToList)
 import Control.Monad(zipWithM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -30,9 +30,14 @@ import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
 import Daedalus.Type.Generalize
 import Daedalus.Type.BitData
+import qualified Daedalus.Type.CheckUnused as CheckUnused
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
-inferRules m = goBD [] (moduleBitData m)
+inferRules m =
+  do tcm <- goBD [] (moduleBitData m)
+     let unusedWarnings = CheckUnused.checkTCModule tcm
+     forM_ unusedWarnings \r -> addWarning (WarnNoOpStatement r)
+     pure tcm
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 
@@ -205,7 +210,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
 
 
 --------------------------------------------------------------------------------
-
+-- Lifting
 
 
 
@@ -217,24 +222,15 @@ addBind (BindStmt n e1) e2 = exprAt (n <-> e2) (TCDo (Just n) e1 e2)
 addBinds :: [BindStmt] -> TC SourceRange Grammar -> TC SourceRange Grammar
 addBinds xs e = foldr addBind e xs
 
--- | Lift a value argument of a function, when the function is called
--- in a monadic context.
-liftValArg ::
-  Expr ->
-  TypeM ctx ((Arg SourceRange,Type), Maybe BindStmt)
-liftValArg e =
-  do ((e1,t),mb) <- liftValExpr e
-     pure ((ValArg e1,t),mb)
 
-
--- | Lift a value argument of a function, when the function is called
--- in a monadic context.
+-- | This is used when we have a function/construct that expects a value.
+-- The parameter is the actual argument provided.
 liftValExpr ::
   Expr ->
   TypeM ctx ((TC SourceRange Value,Type), Maybe BindStmt)
 liftValExpr e =
 
-  case ctx of
+  case inferContext e of
 
     Some AGrammar ->
       do (e1,t) <- allowPartialApps False $ inContext AGrammar (inferExpr e)
@@ -248,9 +244,7 @@ liftValExpr e =
          pure ((e1, t), Nothing)
 
     Some AClass ->
-      reportError e "Expected a value, but the argument is a character class."
-
-  where ctx = inferContext e
+      liftValExpr (pExprAt e (EMatch1 e))
 
 
 
@@ -262,43 +256,15 @@ liftValExpr e =
 -- For example @F P a Q@ becomes @do x <- P; y <- q; F x a y@
 liftApp ::
   [Expr] ->
-  ([(Arg SourceRange, Type)] -> TypeM ctx (TC SourceRange Grammar, Type)) ->
-  TypeM ctx (TC SourceRange Grammar, Type)
-liftApp es f =
-  do (args,mbs) <- unzip <$> mapM liftValArg es
-     (rE,rT) <- f args
-     let expr = addBinds (catMaybes mbs) rE
-     pure (expr, rT)
-
-
-
--- | Lift a function with value-only parameters. Lifts to bind:
--- `f P q` becomes `do x <- P; f x q`.  Arguments that may be either grmmar
--- or value (e.g. "A") are interepreted as values and left alone.
-liftValApp ::
-  HasRange r =>
-  r ->
-  [Expr] ->
   ( [(TC SourceRange Value, Type)] ->
     TypeM ctx (TC SourceRange Grammar, Type)
   ) ->
-  TypeM ctx (TC SourceRange ctx, Type)
-liftValApp r es f =
-  do ctx <- getContext
-     case ctx of
-       AGrammar -> liftApp es \args -> f =<< mapM validateArg args
-       AClass {} ->
-         reportError r "Expected a character-class but found a grammar."
-       AValue {} ->
-         reportError r "Expected a value, but found a grammar."
-  where
-  validateArg (a,t) =
-    case a of
-      ValArg v   -> pure (v,t)
-      ClassArg e ->
-        reportError e "Expected a value, but found a character-class."
-      GrammarArg _ ->
-        panic "liftValApp" ["Unexpected grammar argument in lift."]
+  TypeM ctx (TC SourceRange Grammar, Type)
+liftApp es f =
+  do (args,mbs) <- unzip <$> mapM liftValExpr es
+     (rE,rT) <- f args
+     let expr = addBinds (catMaybes mbs) rE
+     pure (expr, rT)
 
 
 -- | Lift a pure function as a functor
@@ -308,26 +274,28 @@ liftValAppPure ::
   HasRange r =>
   r ->
   [Expr] ->
-  ([(TC SourceRange Value, Type)] -> TypeM ctx (TC SourceRange Value, Type)) ->
+  ( [(TC SourceRange Value, Type)] ->
+    TypeM ctx (TC SourceRange Value, Type)
+  ) ->
   TypeM ctx (TC SourceRange ctx, Type)
 liftValAppPure r es f =
   do ctx <- getContext
      case ctx of
-       AGrammar -> liftApp es \args ->
-                      do vs <- mapM validateArg args
-                         (res,t) <- f vs
+       AGrammar -> liftApp es \vs ->
+                      do (res,t) <- f vs
                          pure (exprAt r (TCPure res), tGrammar t)
        AClass {} ->
-         reportError r "Expected a character-class but encountered a value."
+         reportError r "Expected a byte class but encountered a value."
        AValue {} -> f =<< mapM inferExpr es
-  where
-  validateArg (a,t) =
-    case a of
-      ValArg v -> pure (v,t)
-      ClassArg e -> reportError e
-                      "Expected a value, but encountered a character-class."
-      GrammarArg _ ->
-        panic "liftValApp" ["Unexpected grammar argument in lift."]
+
+
+--------------------------------------------------------------------------------
+
+checkCommit :: HasRange r => r -> Commit -> TypeM ctx ()
+checkCommit r cmt =
+  case cmt of
+    Commit -> pure ()
+    Backtrack -> addWarning (WarnUnbiasedChoice (range r))
 
 
 inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
@@ -385,7 +353,8 @@ inferExpr expr =
          pure (exprAt expr (TCMatch YesSem e1), tGrammar tByte)
 
     EMatch e ->
-      liftValApp expr [e] \ ~[(e1,t)] ->
+      grammarOnly expr $
+      liftApp [e] \ ~[(e1,t)] ->
       do let ty = tArray tByte
          unify ty (e1,t)
          pure (exprAt expr (TCMatchBytes YesSem e1), tGrammar ty)
@@ -552,7 +521,7 @@ inferExpr expr =
                -- turn 'e is l' into 'case e is { l x => ^ x }'
                SelUnion f ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do let lab = thingValue f
                     addConstraint f (HasUnion t lab a)
                     addConstraint f (IsNamed t)
@@ -564,7 +533,7 @@ inferExpr expr =
 
                SelTrue ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify tBool (e1,t)
                     let pat = TCBoolPat True
                         alt = TCAlt [pat]
@@ -575,7 +544,7 @@ inferExpr expr =
 
                SelFalse ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify tBool (e1,t)
                     let pat = TCBoolPat False
                         alt = TCAlt [pat]
@@ -586,7 +555,7 @@ inferExpr expr =
 
                SelNothing ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e,t)
                     let pat = TCNothingPat a
                         alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr TCUnit)
@@ -594,7 +563,7 @@ inferExpr expr =
 
                SelJust ->
                  grammarOnly expr $
-                 liftValApp expr [e] \ ~[(e1,t)] ->
+                 liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e1,t)
                     resVar <- newName expr a
                     let pat = TCJustPat (TCVarPat resVar)
@@ -616,20 +585,20 @@ inferExpr expr =
 
     ESetStream s ->
       grammarOnly expr $
-      liftValApp expr [s] \ ~[(e,t)] ->
+      liftApp [s] \ ~[(e,t)] ->
       do unify tStream (e,t)
          pure (exprAt expr (TCSetStream e), tGrammar tUnit)
 
     EStreamLen i s ->
       grammarOnly expr $
-      liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
+      liftApp [i,s] \ ~[(ie,it),(se,st)] ->
       do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamLen YesSem ie se), tGrammar tStream)
 
     EStreamOff i s ->
       grammarOnly expr $
-      liftValApp expr [i,s] \ ~[(ie,it),(se,st)] ->
+      liftApp [i,s] \ ~[(ie,it),(se,st)] ->
       do unify tSize (ie,it)
          unify tStream (se,st)
          pure (exprAt expr (TCStreamOff YesSem ie se), tGrammar tStream)
@@ -643,13 +612,13 @@ inferExpr expr =
 
     EMapInsert k v m ->
       grammarOnly expr $
-      liftValApp expr [k,v,m] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
+      liftApp [k,v,m] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
       do unify (tMap kt vt) (m, mt)
          pure (exprAt expr (TCMapInsert YesSem k1 v1 m1), tGrammar mt)
 
     EMapLookup k m ->
       grammarOnly expr $
-      liftValApp expr [k,m] \ ~[(k1,kt),(m1,mt)] ->
+      liftApp [k,m] \ ~[(k1,kt),(m1,mt)] ->
       do vt <- newTVar m KValue
          unify (tMap kt vt) (m, mt)
          pure (exprAt expr (TCMapLookup YesSem k1 m1), tGrammar vt)
@@ -674,7 +643,7 @@ inferExpr expr =
 
     EArrayIndex e ix ->
       grammarOnly expr $
-      liftValApp expr [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
+      liftApp [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
       do vt         <- newTVar e KValue
          unify (tArray vt) (e, et)
          unify tSize (ix, ixt)
@@ -728,7 +697,8 @@ inferExpr expr =
                              )
            _ ->
              grammarOnly expr
-             do (eL,tL) <- inferExpr e1
+             do checkCommit expr cmt
+                (eL,tL) <- inferExpr e1
                 (eR,tR) <- inferExpr e2
                 unify (eL,tL) (eR,tR)
                 a <- grammarResult expr tL
@@ -736,12 +706,14 @@ inferExpr expr =
 
     EChoiceT c [] ->
       grammarOnly expr
-      do a <- newTVar expr KValue
+      do checkCommit expr c
+         a <- newTVar expr KValue
          pure (exprAt expr (TCChoice c [] a), tGrammar a)
 
     EChoiceT c fs ->
       grammarOnly expr
-      do ty   <- newTVar expr KValue
+      do checkCommit expr c
+         ty   <- newTVar expr KValue
 
          fsT <- forM fs \(f :> e) ->
                 do (e1,t0) <- inferExpr e
@@ -817,7 +789,8 @@ inferExpr expr =
 
     EOptional cmt e ->
       grammarOnly expr
-      do (e1,t) <- inferExpr e
+      do checkCommit expr cmt
+         (e1,t) <- inferExpr e
          a      <- grammarResult e t
          pure ( exprAt expr (TCOptional cmt e1)
               , tGrammar (tMaybe a)
@@ -825,7 +798,8 @@ inferExpr expr =
 
     EMany com bnds e ->
       grammarOnly expr
-      do (e1,t) <- inferExpr e
+      do checkCommit e com
+         (e1,t) <- inferExpr e
          a      <- grammarResult e t
          newBnds <- checkManyBounds bnds
          pure ( exprAt expr (TCMany YesSem com newBnds e1)
@@ -848,7 +822,7 @@ inferExpr expr =
 
     EFail msg ->
       grammarOnly expr $
-      liftValApp expr [msg] \ ~[(msgE,msgT)] ->
+      liftApp [msg] \ ~[(msgE,msgT)] ->
       do unify (tArray tByte) (msgE,msgT)
          a <- newTVar expr KValue
          pure (exprAt expr (TCFail (Just msgE) a), tGrammar a)
@@ -877,7 +851,7 @@ inferExpr expr =
       case fl of
 
         FMap ->
-          do (is1,it) <- inContext AValue (inferExpr is)
+          do ((is1,it),mbB) <- liftValExpr is
              kT       <- newTVar i KValue
              addConstraint e (ColKeyType it kT)
 
@@ -892,39 +866,59 @@ inferExpr expr =
 
              addConstraint e (Mappable it outColT)
 
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
-
-             (e1,et)  <- addKey $ extEnv i elIn $ inferExpr e
-             (expect, result) <-
-                do ctxt <- getContext
-                   case ctxt of
-                     AValue   -> pure (elOut, outColT)
-                     AClass   -> reportError expr "`for` is not a valid set."
-                     AGrammar -> pure (tGrammar elOut, tGrammar outColT)
-             unify (expect :: Type) (e,et)
-
-
              let toName n t = TCName { tcName = n,
                                        tcNameCtx = AValue,
                                        tcType = t }
                  k1 = (`toName` kT) <$> mbIx
                  i1 = toName i elIn
-             pure ( exprAt expr (TCFor Loop
-                                        { loopFlav = LoopMap
-                                        , loopKName = k1
-                                        , loopElName = i1
-                                        , loopCol = is1
-                                        , loopBody = e1
-                                        , loopType = result
-                                        })
-                  , result
-                  )
+
+
+             let addKey = case mbIx of
+                            Nothing -> id
+                            Just kx -> extEnv kx kT
+
+             (e1,et)  <- addKey $ extEnv i elIn $ inferExpr e
+
+             ctxt <- getContext
+             case (ctxt, maybeToList mbB) of
+               (AClass,_) ->
+                  reportError expr "Expected a byte set but found `map`"
+
+               (AValue,[]) ->
+                  do let result = outColT
+                     unify elOut (e,et)
+                     pure ( exprAt expr (TCFor Loop
+                                               { loopFlav = LoopMap
+                                               , loopKName = k1
+                                               , loopElName = i1
+                                               , loopCol = is1
+                                               , loopBody = e1
+                                               , loopType = result
+                                               })
+                         , result
+                         )
+
+               (AValue,_) ->
+                 reportError expr "Expected a semantic value but found a parser"
+
+               (AGrammar,bs) ->
+                 do let result = tGrammar outColT
+                    unify (tGrammar elOut) (e,et)
+                    pure ( addBinds bs
+                           $ exprAt expr (TCFor Loop
+                                               { loopFlav = LoopMap
+                                               , loopKName = k1
+                                               , loopElName = i1
+                                               , loopCol = is1
+                                               , loopBody = e1
+                                               , loopType = result
+                                               })
+                         , result
+                         )
 
         FFold x s ->
-          do (s1,st)  <- inContext AValue (inferExpr s)
-             (is1,it) <- inContext AValue (inferExpr is)
+          do ((s1,st),bs1)  <- liftValExpr s
+             ((is1,it),bs2) <- liftValExpr is
              addConstraint e (Traversable it)
 
              kT       <- newTVar i KValue
@@ -932,35 +926,56 @@ inferExpr expr =
              addConstraint e (ColKeyType it kT)
              addConstraint e (ColElType  it elT)
 
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
-
-             (e1,et)  <- extEnv x st $ addKey $ extEnv i elT $ inferExpr e
-             expect   <-
-                do ctxt <- getContext
-                   case ctxt of
-                     AValue -> pure st
-                     AClass -> reportError expr "`for` is not a valid set."
-                     AGrammar -> pure (tGrammar st)
-             unify expect (e,et)
-
              let toName n t = TCName { tcName = n,
                                        tcNameCtx = AValue,
                                        tcType = t }
                  x1 = toName x st
                  k1 = (`toName` kT) <$> mbIx
                  i1 = toName i elT
-             pure ( exprAt expr (TCFor Loop
-                                        { loopFlav = Fold x1 s1
-                                        , loopKName = k1
-                                        , loopElName = i1
-                                        , loopCol = is1
-                                        , loopBody = e1
-                                        , loopType = et
-                                        })
-                  , expect
-                  )
+
+
+             let addKey = case mbIx of
+                            Nothing -> id
+                            Just kx -> extEnv kx kT
+
+             (e1,et)  <- extEnv x st $ addKey $ extEnv i elT $ inferExpr e
+
+             ctxt <- getContext
+             case (ctxt, catMaybes [bs1,bs2]) of
+               (AClass, _) ->
+                  reportError expr "Expected a byte set but found `for`"
+
+               (AValue,[]) ->
+                  do unify st (e,et)
+                     pure ( exprAt expr (TCFor Loop
+                                                { loopFlav = Fold x1 s1
+                                                , loopKName = k1
+                                                , loopElName = i1
+                                                , loopCol = is1
+                                                , loopBody = e1
+                                                , loopType = et
+                                                })
+                          , st
+                          )
+
+
+               (AValue,_) ->
+                  reportError expr
+                        "Expected a semantic value but found a parser."
+
+               (AGrammar, bs) ->
+                  do unify (tGrammar st) (e,et)
+                     pure ( addBinds bs
+                            $ exprAt expr (TCFor Loop
+                                                  { loopFlav = Fold x1 s1
+                                                  , loopKName = k1
+                                                  , loopElName = i1
+                                                  , loopCol = is1
+                                                  , loopBody = e1
+                                                  , loopType = et
+                                                  })
+                          , tGrammar st
+                          )
 
     EIf be te fe -> inferIf expr be te fe
 
@@ -979,7 +994,7 @@ inferExpr expr =
     EHasType CoerceCheck e ty ->
       grammarOnly expr
       do t    <- checkType KValue ty
-         liftValApp expr [e] \ ~[(e1,t1)] ->
+         liftApp [e] \ ~[(e1,t1)] ->
           do addConstraint ty (Coerce Dynamic t1 t)
              pure (exprAt expr (TCCoerceCheck YesSem t1 t e1), tGrammar t)
 
@@ -1038,6 +1053,9 @@ checkPattern ty pat =
         LNumber i ->
           do addConstraint l (Literal i ty)
              pure (TCNumPat ty i)
+        LByte i ->
+          do unify ty (pat,tByte)
+             pure (TCNumPat tByte (toInteger i))
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)
@@ -1233,9 +1251,14 @@ checkArg mbT e =
   do ctx <- getContext
      case (ctx,argCtx) of
        (AGrammar, Some AValue) -> -- calling grammar, expecting a value
-         do ((e1,t),mbS) <- liftValArg e    -- optional lifting
+         do ((e1,t),mbS) <- liftValExpr e    -- optional lifting
             checkTy (e1,t)
-            pure (e1,t,mbS)
+            pure (ValArg e1,t,mbS)
+
+       (AGrammar, Some AClass) ->     -- calling grammar, expecting a value
+         do ((e1,t),mbS) <- liftValExpr e    -- optional lifting
+            checkTy (e1,t)
+            pure (ValArg e1,t,mbS)
 
        (_,Some actx) ->
          do (e1,t) <- allowPartialApps partOk (inContext actx (inferExpr e))
@@ -1294,22 +1317,21 @@ checkPromoteFrom fromCtxt x e t =
      case (fromCtxt, ctxt) of
        (AValue, AValue)   -> pure (e, t)
        (AValue, AClass)   -> promoteValueToSet (e, t)
-       (AValue, AGrammar) ->
-          liftValAppPure e [] \_ -> pure (e,t)
+       (AValue, AGrammar) -> liftValAppPure e [] \_ -> pure (e,t)
 
        (AClass,AValue) ->
           reportError x
-            ("Expected a value, but" <+> ppx <+> "is a set of bytes.")
+            ("Expected a value but" <+> ppx <+> "is a bytes set.")
 
        (AClass, AClass) -> pure (e,t)
        (AClass, AGrammar) -> promoteSetToGrammar (e,t)
 
        (AGrammar,AValue) ->
-          reportError x ("Expected a value, but" <+> ppx <+> "is a grammar.")
+          reportError x ("Expected a value but" <+> ppx <+> "is a parser.")
 
        (AGrammar,AClass) ->
           reportError x
-              ("Expected a set of bytes, but" <+> ppx <+> "is a grammar.")
+              ("Expected a bytes set but" <+> ppx <+> "is a parser.")
 
        (AGrammar, AGrammar) -> pure (e,t)
 
@@ -1325,9 +1347,9 @@ grammarOnly r k =
   do ctxt <- getContext
      case ctxt of
        AValue ->
-         reportError r "Expected a grammar, but encountered a value."
+         reportError r "Expected a value but encountered a parser."
        AClass ->
-         reportError r "Expected a grammar, but encountered a set of bytes."
+         reportError r "Expected a byte class but encountered a parser."
        AGrammar -> k
 
 
@@ -1414,7 +1436,7 @@ inferStructGrammar r = go [] []
                    withIP x (GrammarArg e1) (go mbRes done more)
 
               AClass ->
-                -- copies the character class
+                -- copies the byte class
                 do (e1,_) <- inContext AClass (inferExpr e)
                    withIP x (ClassArg e1) (go mbRes done more)
 

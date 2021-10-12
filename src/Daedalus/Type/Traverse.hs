@@ -215,7 +215,7 @@ instance TraverseTypes TCTyDecl where
 instance TraverseTypes TCTyDef where
   traverseTypes (f :: Type -> f Type) def =
     case def of
-      TCTyStruct fs -> TCTyStruct <$> traverse doField fs
+      TCTyStruct mb fs -> TCTyStruct mb <$> traverse doField fs
       TCTyUnion  fs -> TCTyUnion  <$> traverse doField fs
     where
       doField :: (Label, (Type, a)) -> f (Label, (Type, a))

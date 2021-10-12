@@ -153,11 +153,19 @@ instance HasRange RuleParam where
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
 
+
 data BitData =
   BitData { bdName  :: !Name
-          , bdCtors :: ![ (Located Label, [ Located BitDataField ] ) ]
+          , bdBody  :: !BitDataBody
           , bdRange :: !SourceRange
           } deriving Show
+
+type BitDataCon = (Located Label, [ Located BitDataField ])
+
+data BitDataBody =
+    BitDataUnion  [ BitDataCon ]
+  | BitDataStruct [ Located BitDataField ]
+    deriving Show
 
 data BitDataField =
   BDFLiteral Integer       (Maybe SrcType)

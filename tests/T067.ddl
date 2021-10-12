@@ -1,8 +1,8 @@
 def X =
-  Choose1
+  First
     x = UInt8
     y = UInt8
 
 def Main : X =
-  Choose1
+  First
     x = UInt8

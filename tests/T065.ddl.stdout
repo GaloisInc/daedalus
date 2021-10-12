@@ -4,12 +4,12 @@ module T065
  
 --- Type defs:
 {- bitdata
-________
+00111111
 -}
 type T065.Bar_b1 = { }
  
 {- bitdata
-________
+01000000
 -}
 type T065.Bar_b2 = { }
  
@@ -22,12 +22,12 @@ type T065.Bar = Choose { b1: T065.Bar_b1
                        }
  
 {- bitdata
-________
+01000010
 -}
 type T065.Foo_A = { }
  
 {- bitdata
-________
+11______
 -}
 type T065.Foo_B = { x: uint 6
                   }
@@ -40,7 +40,7 @@ type T065.Foo_C = { b: T065.Bar
                   }
  
 {- bitdata
-________
+10______
 -}
 type T065.Foo_D = { }
  

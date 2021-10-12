@@ -412,7 +412,11 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
 
     goCon bits tdecl =
       case tctyDef tdecl of
-        TCTyStruct flds -> vStruct <$> mapM (goS bits) flds
+        TCTyStruct mb flds ->
+          do case mb of
+               Nothing -> pure ()
+               Just u  -> guard (matchU bits u)
+             vStruct <$> mapM (goS bits) flds
         TCTyUnion  flds -> msum (map (goU bits) flds)
 
     goS _bits (_, (_, Nothing)) =
@@ -423,13 +427,15 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
     goS bits (fld, (ty', Just sm)) =
       (,) fld <$> go ((bits `shiftR` fromIntegral (tcbdsLowBit sm)) `mod` 2 ^  (tcbdsWidth sm)) ty'
 
+    matchU bits sm = bits .&. tcbduMask sm == tcbduBits sm
+
     goU _bits (_, (_, Nothing)) =
       panic "evalBitData" [ "Missing bitdata union meta data"
                           , show (pp ty)
                           ]
     goU bits (fld, (ty', Just sm))
-      | bits .&. tcbduMask sm == tcbduBits sm = VUnionElem fld <$> go bits ty'
-      | otherwise                             = Nothing
+      | matchU bits sm = VUnionElem fld <$> go bits ty'
+      | otherwise      = Nothing
 
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
 matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]

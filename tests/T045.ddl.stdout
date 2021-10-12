@@ -47,9 +47,8 @@ T045._B ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
 T045._D : Grammar {} =
   @(287 AS uint 8)
  
-T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : Grammar {} =
-  for ((s : {}) = {}; (x : ?a3) in xs)
-    (pure {})
+T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) : Grammar {} =
+  pure {}
  
 T045._F : Grammar {} =
   do (xs : Stream) <- CurrentStream

@@ -1,4 +1,11 @@
 
-def TwoBytes = { x = UInt8; y = UInt8 }
+def TwoBytes =
+  block
+    x = UInt8
+    y = UInt8
 
-def Main = { first = TwoBytes; second = TwoBytes; eq = ^ (first == second) }
+def Main =
+  block
+    first  = TwoBytes
+    second = TwoBytes
+    eq     = ^ (first == second)

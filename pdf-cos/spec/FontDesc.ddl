@@ -65,7 +65,9 @@ def stdFontIsLatin (f : StandardFont) : bool = case f of {
 def FontName = {
   @nameChars = Many NameChar;
   Choose1 {
-    standard = WithStream (arrayStream nameChars) (Only StandardFont);
+    -- DBG:
+    standard = helveticaNm;
+--    standard = WithStream (arrayStream nameChars nameChars) (Only StandardFont);
     nonStandard = nameChars
   }
 }
@@ -217,6 +219,7 @@ def FontDesc (subTy : FontSubty) (fd: partialFontDesc) = {
     fd.fontFile3;
 }
 
+-- type1Sym doesn't actually get used
 def StubFontDesc = FontDesc type1Sym (partialFontDesc
   true
   true
@@ -231,6 +234,7 @@ def FontDescP1 (parBaseFont : FontName ) = GenPdfDict1
   initFontDesc
   (ExtendFontDesc parBaseFont)
   (FontDesc type1Sym)
+
 def FontDescP (fontSubty : FontSubty) (parBaseFont : FontName ) = GenPdfDict1
   initFontDesc
   (ExtendFontDesc parBaseFont)

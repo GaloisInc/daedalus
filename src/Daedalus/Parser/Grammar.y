@@ -57,6 +57,7 @@ import Daedalus.Parser.Monad
   '^'         { Lexeme { lexemeRange = $$, lexemeToken = Hat } }
   '|'         { Lexeme { lexemeRange = $$, lexemeToken = Bar } }
   '<|'        { Lexeme { lexemeRange = $$, lexemeToken = LtBar } }
+  '$'         { Lexeme { lexemeRange = $$, lexemeToken = Dollar } }
   '$$'        { Lexeme { lexemeRange = $$, lexemeToken = DollarDollar } }
   '+'         { Lexeme { lexemeRange = $$, lexemeToken = Plus } }
   '-'         { Lexeme { lexemeRange = $$, lexemeToken = Minus } }
@@ -99,6 +100,8 @@ import Daedalus.Parser.Monad
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
   'Choose'    { Lexeme { lexemeRange = $$, lexemeToken = KWChoose } }
   'Choose1'   { Lexeme { lexemeRange = $$, lexemeToken = KWChoose1 } }
+  'First'     { Lexeme { lexemeRange = $$, lexemeToken = KWFirst } }
+  'Accept'    { Lexeme { lexemeRange = $$, lexemeToken = KWAccept } }
   'block'     { Lexeme { lexemeRange = $$, lexemeToken = KWblock } }
   'let'       { Lexeme { lexemeRange = $$, lexemeToken = KWlet } }
   'Optional'  { Lexeme { lexemeRange = $$, lexemeToken = KWOptional } }
@@ -190,14 +193,17 @@ rule                                     :: { Rule }
 
 bitdata ::                                  { BitData }
   : 'bitdata' name 'where'
-     'v{' separated(bitdata_ctor, virtSep) 'v}'
-                                            { BitData { bdName  = $2
-                                                      , bdCtors = $5
-                                                      , bdRange = $1 <-> $6 } }
+     'v{' bitdata_body 'v}'                 { BitData { bdName  = $2
+                                                      , bdBody  = $5
+                                                      , bdRange = $1 <-> $6 
+                                                      } }
 
-bitdata_ctor                             :: { ( Located Label
-                                              , [ Located BitDataField ]
-                                              ) }
+bitdata_body                             :: { BitDataBody }
+  : separated1(bitdata_ctor, virtSep)       { BitDataUnion $1 }
+  | separated(bitdata_field, virtSep)       { BitDataStruct $1 }
+
+
+bitdata_ctor                             :: { BitDataCon }
   : label '=' bitdata_defn                  { ( $1, $3 ) }
 
 bitdata_defn                             :: { [ Located BitDataField ] }
@@ -419,7 +425,12 @@ call_expr                                :: { Expr }
 aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'UInt8'                                 { at $1      EAnyByte }
+  | 'Accept'                                { at $1 (EStruct []) }
   | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
+
+  | '$' '[' separated(expr, commaOrSemi) ']'{ at ($1,$4) (EMatch1
+                                              (at ($2,$4) (EArray $3))) }
+
   | name                                    { at $1 (EVar $1) }
   | implicitParam                           { at $1 (EImplicit $1) }
   | 'END'                                   { at $1 EEnd }
@@ -443,6 +454,12 @@ aexpr                                    :: { Expr }
   | chooseKW '{' separated(union_field, commaOrSemi) '}'
                                             {% at ($1,$4) `fmap`
                                                mkUnion (thingValue $1) $3 }
+
+  | 'First' 'v{' separated(union_field, virtSep) 'v}'
+                                            {% at ($1,$4) `fmap`
+                                               mkUnion Commit $3 }
+
+
 
   | 'case' expr 'of' 'v{' separated(case_patterns, virtSep) 'v}'
                                             { at ($1,$6) (ECase $2 $5) } 

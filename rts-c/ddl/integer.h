@@ -65,6 +65,13 @@ public:
         mpz_import(getValue().get_mpz_t(), 1, 1, 8, 0, 0, &x);
       }
   }
+  Integer(Size x) : Boxed<mpz_class>(static_cast<unsigned long>(x.rep())) {
+    if constexpr (sizeof(size_t) > sizeof(unsigned long))
+      if (x > std::numeric_limits<unsigned long>::max()) {
+        size_t v = x.rep();
+        mpz_import(getValue().get_mpz_t(), 1, 1, 8, 0, 0, &v);
+      }
+  }
 
   // signed constructors
   Integer(int8_t x)  : Boxed<mpz_class>(static_cast<long>(x)) {}
@@ -102,25 +109,21 @@ public:
   void exportI(int64_t &x) { x = toSigned<int64_t,uint64_t>(); }
 
   // Used in array
-  Size asSize() {
-    size_t x;
-    exportI(x);
-    return Size(x);
-  }
+  Size asSize() { return Size{ toUnsigned<size_t>() }; }
 
 
   // Mutable shift in place.
   // To be only used when we are the unique owners of this
-  void mutShiftL(size_t amt) {
+  void mutShiftL(Size amt) {
     mpz_class &r = getValue();
-    r <<= amt;
+    r <<= amt.rep();
   }
 
   // Mutable shift in place.
   // To be only used when we are the unique owners of this
-  void mutShiftR(size_t amt) {
+  void mutShiftR(Size amt) {
     mpz_class &r = getValue();
-    r >>= amt;
+    r >>= amt.rep();
   }
 
 };
@@ -296,22 +299,20 @@ Integer operator - (Integer x) {
 
 // owned, unmanaged
 static inline
-Integer operator << (Integer x, Size iamt) {
-  size_t amt = iamt.rep();
+Integer operator << (Integer x, Size amt) {
   mpz_class &v = x.getValue();
   if (x.refCount() == 1) { x.mutShiftL(amt); return x; }
-  Integer y(v << amt);
+  Integer y(v << amt.rep());
   x.free();
   return y;
 }
 
 // owned, unmanaged
 static inline
-Integer operator >> (Integer x, Size iamt) {
-  size_t amt = iamt.rep();
+Integer operator >> (Integer x, Size amt) {
   mpz_class &v = x.getValue();
   if (x.refCount() == 1) { x.mutShiftR(amt); return x; }
-  Integer y(v >> amt);
+  Integer y(v >> amt.rep());
   x.free();
   return y;
 }
@@ -358,15 +359,19 @@ Integer operator ^ (Integer x, Integer y) {
 // owned, unmanaged
 // XXX: remove in favor of size
 static inline
-Integer operator << (Integer x, UInt<64> iamt) { return x << Size{iamt.rep()}; }
+Integer operator << (Integer x, UInt<64> iamt) {
+  return x << Size::from(iamt.rep());
+}
 
 // owned, unmanaged
 // XXX: remove in favor of size
 static inline
-Integer operator >> (Integer x, UInt<64> iamt) { return x >> Size{iamt.rep()}; }
+Integer operator >> (Integer x, UInt<64> iamt) {
+  return x >> Size::from(iamt.rep());
+}
 
-template <size_t b>
-Integer lcat(Integer x, UInt<b> y) { return (x << Size(b)) | Integer(y.rep()); }
+template <Width b>
+Integer lcat(Integer x, UInt<b> y) { return (x << Size{b}) | Integer(y.rep()); }
 
 
 

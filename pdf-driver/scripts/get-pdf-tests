@@ -1,6 +1,7 @@
 #!/bin/bash
 
-VM="lochness.dev.galois.com"
+# VM="lochness.dev.galois.com"
+VM="nessy.dev.galois.com"
 VM_PATH="/media/data/raw"
 
 if  [ $# == 0 ]; then

@@ -1,3 +1,5 @@
+[WARNING] ./T010.ddl:6:3--10:1:
+            Using unbiased choice may be inefficient.
 module T010
  
 --- Imports:
@@ -16,27 +18,19 @@ T010.f ?a0 (Numeric ?a0) (x : ?a0) (y : ?a0) : ?a0 =
 T010.g ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
   x.l
  
-T010.Fails ?a0 : Grammar ?a0 =
-  Choose fair
-    { }
- 
 T010.P ?a0 : Grammar (T010.P ?a0) =
   Choose fair
-    { {- A -} do (_7 : ?a0) <- T010.Fails ?a0
-                 pure {A: _7}
-    | {- B -} do (_8 : [uint 8]) <- MatchBytes "B"
-                 pure {B: _8}
-    | {- C -} do (_9 : [uint 8]) <- MatchBytes "C"
-                 pure {C: _9}
+    { {- A -} do (_6 : ?a0) <- Fail "Error"
+                 pure {A: _6}
+    | {- B -} do (_7 : [uint 8]) <- MatchBytes "B"
+                 pure {B: _7}
+    | {- C -} do (_8 : [uint 8]) <- MatchBytes "C"
+                 pure {C: _8}
     }
- 
-T010._Fails ?a0 : Grammar {} =
-  Choose fair
-    { }
  
 T010._P ?a0 : Grammar {} =
   Choose fair
-    { {- A -} T010._Fails ?a0
+    { {- A -} Fail "Error"
     | {- B -} @MatchBytes "B"
     | {- C -} @MatchBytes "C"
     }

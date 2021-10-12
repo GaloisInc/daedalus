@@ -29,12 +29,15 @@ def GenName P = {
 --  - very closely duplicated code in the PdfDecl.TopDecl parser
 --  - some evidence that this, as well as the above parser are *both* being called on the same input!
 def GenObj P = {
-  ManyWS;        -- FIXME: would like to warn user (a cavity!) when this consumes input!
+  @header = 
+  { ManyWS;        -- FIXME: would like to warn user (a cavity!) when this consumes input!
   Token Natural;
   Token Natural;
+  ^{} } <|
+  (@(Match ""));
   KW "obj";
   $$ = P;
-  Match "endobj";
+  KW "endobj";
 }
 
 def NameBase = Many NameChar
