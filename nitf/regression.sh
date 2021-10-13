@@ -11,7 +11,6 @@ set -e
 
 FILENAME=regression_nitf.txt
 OUTPUT=/tmp/${FILENAME}
-NITF_SPEC=""
 GEN=""
 
 
@@ -26,9 +25,6 @@ do
         "--gen" )
             GEN="--gen"
             ;;
-        "--nitf-modern" )
-            NITF_SPEC="--nitf-modern"
-            ;;
         *)
             echo "Unkown argument: ${arg}"
             exit 1
@@ -37,8 +33,8 @@ do
 done
 
 
-./test_all.sh --count ${NITF_SPEC} ${GEN} | tee ${OUTPUT}
-./test_all.sh --count ${NITF_SPEC} ${GEN} --gwg | tee -a ${OUTPUT}
+./test_all.sh --count ${GEN} | tee ${OUTPUT}
+./test_all.sh --count ${GEN} --gwg | tee -a ${OUTPUT}
 
 if [ -z ${ISINIT} ] ; then
     echo ""
