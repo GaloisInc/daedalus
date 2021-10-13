@@ -1,5 +1,10 @@
 {-# Language OverloadedStrings #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
+
 module Daedalus.Core.ByteSet where
+
+import GHC.Generics          (Generic)
+import Control.DeepSeq       (NFData)
 
 import Data.Functor.Identity(Identity(..))
 
@@ -21,6 +26,7 @@ data ByteSet =
   | SetLet Name Expr ByteSet
   | SetCall FName [Expr]
   | SetCase (Case ByteSet)
+  deriving (Generic,NFData)
 
 bIf :: Expr -> ByteSet -> ByteSet -> ByteSet
 bIf e b1 b2 = bCase e [ (PBool True, b1), (PBool False, b2) ]

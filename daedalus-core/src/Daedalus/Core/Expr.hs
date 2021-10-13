@@ -2,16 +2,20 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
 {-# Language DeriveTraversable #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
+
 module Daedalus.Core.Expr where
 
-import Control.Applicative (Const(..))
-import Data.ByteString(ByteString)
-import Data.Functor.Identity(Identity(..))
+import           Control.Applicative   (Const (..))
+import           Control.DeepSeq       (NFData)
+import           Data.ByteString       (ByteString)
+import           Data.Functor.Identity (Identity (..))
+import           GHC.Generics          (Generic)
 
-import Daedalus.Panic(panic)
-import Daedalus.PP
+import           Daedalus.PP
+import           Daedalus.Panic        (panic)
 
-import Daedalus.Core.Basics
+import           Daedalus.Core.Basics
 
 data Expr =
     Var Name
@@ -24,6 +28,7 @@ data Expr =
   | Ap2 Op2 Expr Expr
   | Ap3 Op3 Expr Expr Expr
   | ApN OpN [Expr]
+  deriving (Generic,NFData)
 
 data Op0 =
     Unit
@@ -33,7 +38,7 @@ data Op0 =
   | NewBuilder Type
   | MapEmpty Type Type
   | ENothing Type
-    deriving (Eq,Ord)
+  deriving (Eq,Ord,Generic,NFData)
 
 data Op1 =
     CoerceTo Type
@@ -58,6 +63,7 @@ data Op1 =
   | SelStruct Type Label
   | InUnion UserType Label
   | FromUnion Type Label
+  deriving (Generic,NFData)
 
 data Op2 =
     IsPrefix
@@ -89,20 +95,21 @@ data Op2 =
   | MapMember
 
   | ArrayStream
+  deriving (Generic,NFData)
 
 data Op3 =
     RangeUp
   | RangeDown
   | MapInsert
+  deriving (Generic,NFData)
 
 data OpN =
     ArrayL Type
   | CallF FName
-
+  deriving (Generic,NFData)
 
 data Case k = Case Expr [(Pattern,k)]
-  deriving (Functor,Foldable,Traversable)
-
+  deriving (Functor,Foldable,Traversable,Generic,NFData)
 
 --------------------------------------------------------------------------------
 -- Traversals

@@ -1,6 +1,11 @@
 {-# Language DeriveTraversable #-}
 {-# Language OverloadedStrings #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
+
 module Daedalus.Rec where
+
+import GHC.Generics          (Generic)
+import Control.DeepSeq       (NFData)
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -9,7 +14,7 @@ import Data.Graph.SCC(stronglyConnComp)
 import Daedalus.PP
 
 data Rec a = NonRec a | MutRec [a]
-  deriving (Show, Functor, Traversable, Foldable)
+  deriving (Show, Functor, Traversable, Foldable, Generic, NFData)
 
 sccToRec :: SCC a -> Rec a
 sccToRec (AcyclicSCC x)  = NonRec x
