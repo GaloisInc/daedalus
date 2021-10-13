@@ -158,6 +158,13 @@ evalOp1 op e env =
   in case op of
       CoerceTo t    -> fst (vCoerceTo (evalType t) v)
 
+      WordToFloat     -> vWordToFloat v
+      WordToDouble    -> vWordToDouble v
+      IsNaN           -> vIsNaN v
+      IsInfinite      -> vIsInfinite v
+      IsDenormalized  -> vIsDenormalized v
+      IsNegativeZero  -> vIsNegativeZero v
+
       IsEmptyStream -> vStreamIsEmpty v
       Head          -> partial (vStreamHead v)
       StreamOffset  -> vStreamOffset v

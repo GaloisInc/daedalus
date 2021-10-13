@@ -2,7 +2,6 @@
 #define DDL_BOOL_H
 
 #include <iostream>
-#include <iostream>
 
 #include <ddl/value.h>
 

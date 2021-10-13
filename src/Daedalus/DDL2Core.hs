@@ -877,6 +877,7 @@ fromExpr expr =
       case l of
         TC.LNumber n   -> intL n   <$> fromTypeM t
         TC.LFloating n -> floatL n <$> fromTypeM t
+        TC.LPi         -> floatL pi <$> fromTypeM t
         TC.LBool b     -> pure (boolL b)
         TC.LByte x     -> pure (intL (toInteger x) tByte)
         TC.LBytes bs   -> pure (byteArrayL bs)
@@ -931,6 +932,13 @@ fromExpr expr =
                 TC.Neg -> neg e
                 TC.Concat -> eConcat e
                 TC.BitwiseComplement -> bitNot e
+
+                TC.WordToFloat    -> wordToFloat e
+                TC.WordToDouble   -> wordToDouble e
+                TC.IsNaN          -> eIsNaN e
+                TC.IsInfinite     -> eIsInfinite e
+                TC.IsDenormalized -> eIsDenormalized e
+                TC.IsNegativeZero -> eIsNegativeZero e
 
     TC.TCBinOp op v1 v2 _ ->
       do e1 <- fromExpr v1

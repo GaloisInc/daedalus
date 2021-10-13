@@ -282,6 +282,8 @@ data BinOp = Add | Sub | Mul | Div | Mod
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
+           | WordToFloat | WordToDouble
+           | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -312,6 +314,7 @@ data Literal =
   | LBool       !Bool
   | LBytes      !ByteString
   | LByte       !Word8
+  | LPi
     deriving (Show, Eq, Ord)
 
 
@@ -471,6 +474,12 @@ instance PP UniOp where
       Neg    -> "-"
       Concat -> "concat"
       BitwiseComplement -> "~"
+      WordToFloat     -> "wordToFloat"
+      WordToDouble    -> "wordToDouble"
+      IsNaN           -> "isNaN"
+      IsInfinite      -> "isInfinit"
+      IsDenormalized  -> "isDenormalized"
+      IsNegativeZero  -> "isNegativeZero"
 
 instance PP Selector where
   pp sel = case sel of
@@ -509,6 +518,7 @@ instance PP Literal where
       LBool i     -> if i then "true" else "false"
       LFloating d -> pp d
       LBytes b    -> text (show (BS8.unpack b))
+      LPi         -> "pi"
 
 
 $(return [])

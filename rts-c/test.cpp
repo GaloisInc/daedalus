@@ -7,6 +7,7 @@
 #include "ddl/cast.h"
 #include "ddl/map.h"
 #include "ddl/size.h"
+#include "ddl/float.h"
 
 
 #include "user_data.h"
@@ -17,6 +18,7 @@
 #include "test_integer.cpp"
 #include "test_casts.cpp"
 #include "test_array.cpp"
+#include "test_float.cpp"
 
 using namespace std;
 
@@ -29,5 +31,6 @@ int main() {
   test_casts();
   test_array();
   test_map();
+  test_float();
   return 0;
 }

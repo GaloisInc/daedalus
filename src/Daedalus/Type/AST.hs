@@ -1009,6 +1009,12 @@ instance TypeOf (TCF a k) where
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e
+          WordToFloat {}    -> tFloat
+          WordToDouble {}   -> tFloat
+          IsNaN {}          -> tBool
+          IsInfinite {}     -> tBool
+          IsDenormalized {} -> tBool
+          IsNegativeZero {} -> tBool
 
 
       TCSelStruct _ _ t  -> t

@@ -357,6 +357,7 @@ hsValue env tc =
         LBool b   -> hsBool b
         LByte b   -> "RTS.uint8" `Ap` hsWord8 b
         LBytes b  -> "Vector.vecFromRep" `Ap` hsByteString b
+        LPi       -> hasType (hsType env t) "HS.pi"
 
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
@@ -421,6 +422,12 @@ hsValue env tc =
         Neg               -> "RTS.neg" `Ap` hsValue env v
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
+        WordToFloat       -> "RTS.wordToFloat" `Ap` hsValue env v
+        WordToDouble      -> "RTS.wordToDouble" `Ap` hsValue env v
+        IsNaN             -> "HS.isNaN" `Ap` hsValue env v
+        IsInfinite        -> "HS.isInfinite" `Ap` hsValue env v
+        IsDenormalized    -> "HS.isDenormalized" `Ap` hsValue env v
+        IsNegativeZero    -> "HS.isNegativeZero" `Ap` hsValue env v
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as

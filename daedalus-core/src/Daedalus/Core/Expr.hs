@@ -59,6 +59,12 @@ data Op1 =
   | SelStruct Type Label
   | InUnion UserType Label
   | FromUnion Type Label
+  | WordToFloat
+  | WordToDouble
+  | IsNaN
+  | IsInfinite
+  | IsDenormalized
+  | IsNegativeZero
 
 data Op2 =
     IsPrefix
@@ -263,6 +269,17 @@ mapInsert       = Ap3 MapInsert
 
 
 --------------------------------------------------------------------------------
+-- Floating Point
+
+wordToFloat     = Ap1 WordToFloat
+wordToDouble    = Ap1 WordToDouble
+eIsNaN          = Ap1 IsNaN
+eIsInfinite     = Ap1 IsInfinite
+eIsDenormalized = Ap1 IsDenormalized
+eIsNegativeZero = Ap1 IsNegativeZero
+
+
+--------------------------------------------------------------------------------
 
 instance PP Expr where
   ppPrec n expr =
@@ -350,6 +367,13 @@ instance PP Op1 where
       SelStruct _ l   -> "get" <+> pp l
       InUnion t l     -> ppTApp 0 ("tag" <+> pp l) [TUser t]
       FromUnion _ l   -> "fromTag" <+> pp l
+
+      WordToFloat     -> "wordToFloat"
+      WordToDouble    -> "wordToDouble"
+      IsNaN           -> "isNaN"
+      IsInfinite      -> "isInfinite"
+      IsDenormalized  -> "isDenormalized"
+      IsNegativeZero  -> "isNegativeZero"
 
 
 

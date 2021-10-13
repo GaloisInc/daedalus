@@ -53,6 +53,13 @@ instance TypeOf Expr where
           Not             -> TBool
           ArrayLen        -> sizeType
 
+          WordToFloat     -> TFloat
+          WordToDouble    -> TDouble
+          IsNaN           -> TBool
+          IsInfinite      -> TBool
+          IsDenormalized  -> TBool
+          IsNegativeZero  -> TBool
+
           Concat ->
             case typeOf e of
               TArray a -> a

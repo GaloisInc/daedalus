@@ -136,6 +136,12 @@ evalUniOp op =
     Neg               -> partial . vNeg
     Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
+    WordToFloat       -> vWordToFloat
+    WordToDouble      -> vWordToDouble
+    IsNaN             -> vIsNaN
+    IsInfinite        -> vIsInfinite
+    IsDenormalized    -> vIsDenormalized
+    IsNegativeZero    -> vIsNegativeZero
 
 
 
@@ -306,44 +312,7 @@ compilePureExpr env = go
     go expr =
       case texprValue expr of
 
-        TCLiteral (LNumber n) t   ->
-          let bad = panic "compilePureExpr"
-                            [ "unexpected numeric literal"
-                            , "Type: " ++ show (pp t)
-                            ]
-          in
-          case evalType env t of
-            TVInteger   -> VInteger n
-            TVUInt s    -> vUInt s n
-            TVSInt s    -> partial (vSInt s n)
-            TVFloat     -> vFloat (fromIntegral n)
-            TVDouble    -> vDouble (fromIntegral n)
-            TVNum {}    -> panic "compilePureExpr" ["Kind error"]
-            TVArray     -> bad
-            TVMap       -> bad
-            TVOther     -> bad
-
-        TCLiteral (LBool b)   _ -> VBool b
-        TCLiteral (LByte w)   _ -> vByte w
-        TCLiteral (LBytes bs) _ -> vByteString bs
-
-        TCLiteral (LFloating d) t ->
-          let bad = panic "compilePureExpr"
-                            [ "unexpected floating point literal"
-                            , "Type: " ++ show (pp t)
-                            ]
-          in
-          case evalType env t of
-            TVFloat      -> vFloat (double2Float d)
-            TVDouble     -> vDouble d
-            TVInteger {} -> bad
-            TVUInt {}    -> bad
-            TVSInt {}    -> bad
-            TVNum {}     -> bad
-            TVArray      -> bad
-            TVMap        -> bad
-            TVOther      -> bad
-
+        TCLiteral l t  -> evalLiteral env t l
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
@@ -387,6 +356,52 @@ compilePureExpr env = go
             compilePureExpr
             (error (describeAlts alts))
             env e alts def
+
+evalLiteral :: Env -> Type -> Literal -> Value
+evalLiteral env t l =
+  case l of
+    LNumber n ->
+      case tval of
+        TVInteger     -> VInteger n
+        TVUInt s      -> vUInt s n
+        TVSInt s      -> partial (vSInt s n)
+        TVFloat       -> vFloat (fromIntegral n)
+        TVDouble      -> vDouble (fromIntegral n)
+        TVNum {}      -> panic "compilePureExpr" ["Kind error"]
+        TVArray       -> bad
+        TVMap         -> bad
+        TVOther       -> bad
+
+    LBool b           -> VBool b
+    LByte w           -> vByte w
+    LBytes bs         -> vByteString bs
+    LFloating d       ->
+      case tval of
+        TVFloat       -> vFloat (double2Float d)
+        TVDouble      -> vDouble d
+        TVInteger {}  -> bad
+        TVUInt {}     -> bad
+        TVSInt {}     -> bad
+        TVNum {}      -> bad
+        TVArray       -> bad
+        TVMap         -> bad
+        TVOther       -> bad
+
+    LPi ->
+      case tval of
+        TVFloat       -> vFloatPi
+        TVDouble      -> vDoublePi
+        TVInteger {}  -> bad
+        TVUInt {}     -> bad
+        TVSInt {}     -> bad
+        TVNum {}      -> bad
+        TVArray       -> bad
+        TVMap         -> bad
+        TVOther       -> bad
+
+  where
+  bad  = panic "evalLiteral" [ "unexpected literal", "Type: " ++ show (pp t) ]
+  tval = evalType env t
 
 
 evalCase ::

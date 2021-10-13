@@ -126,7 +126,15 @@ data Token =
   | KWCase
   | KWBitData
   | KWWhere
-  
+
+  | KWpi
+  | KWWordToFloat
+  | KWWordToDouble
+  | KWIsNaN
+  | KWIsInfinite
+  | KWIsDenormalized
+  | KWIsNegativeZero
+
   | TokError !String
   | TokEOF
 

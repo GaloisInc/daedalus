@@ -439,6 +439,12 @@ modeOp1 op =
     SelStruct {}          -> [Borrowed]
     InUnion {}            -> [Owned]
     FromUnion {}          -> [Borrowed]
+    WordToFloat {}        -> [Borrowed]
+    WordToDouble {}       -> [Borrowed]
+    IsNaN {}              -> [Borrowed]
+    IsInfinite {}         -> [Borrowed]
+    IsDenormalized {}     -> [Borrowed]
+    IsNegativeZero {}     -> [Borrowed]
 
 modeOp2 :: Op2 -> [Ownership]
 modeOp2 op =

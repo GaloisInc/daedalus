@@ -36,6 +36,8 @@ syn keyword ddlKeywordFun   arrayStream
 syn keyword ddlKeywordFun   Insert Lookup
 syn keyword ddlKeywordFun   Index length concat rangeUp rangeDown
 syn keyword ddlKeywordFun   try
+syn keyword ddlKeywordFun   pi wordToFloat wordToDouble
+syn keyword ddlKeywordFun   isNaN isInfinite isDenormalized isNegativeZero
 
 syn keyword ddlKeywordType int uint sint bool maybe stream
 

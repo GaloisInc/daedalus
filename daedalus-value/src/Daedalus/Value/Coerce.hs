@@ -1,7 +1,5 @@
 module Daedalus.Value.Coerce where
 
-import GHC.Float(float2Double,double2Float)
-
 import Daedalus.Panic(panic)
 import Daedalus.PP(showPP)
 import Daedalus.Range(uintRange,sintRange,inRange)
@@ -17,8 +15,8 @@ vCoerceTo tgt v =
         TVInteger -> (VInteger  n, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
-        TVFloat   -> undefined
-        TVDouble  -> undefined
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -29,8 +27,8 @@ vCoerceTo tgt v =
         TVInteger -> (VInteger  n, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
-        TVFloat   -> undefined
-        TVDouble  -> undefined
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -41,8 +39,8 @@ vCoerceTo tgt v =
         TVInteger -> (v, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
-        TVFloat   -> undefined
-        TVDouble  -> undefined
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -50,11 +48,11 @@ vCoerceTo tgt v =
 
     VFloat f ->
       case tgt of
-        TVInteger -> undefined
-        TVUInt st -> undefined
-        TVSInt st -> undefined
+        TVInteger -> bug -- XXX
+        TVUInt st -> bug -- XXX
+        TVSInt st -> bug -- XXX
         TVFloat   -> (v, exact)
-        TVDouble  -> undefined
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -62,10 +60,10 @@ vCoerceTo tgt v =
 
     VDouble f ->
       case tgt of
-        TVInteger -> undefined
-        TVUInt st -> undefined
-        TVSInt st -> undefined
-        TVFloat   -> undefined
+        TVInteger -> bug -- XXX
+        TVUInt st -> bug -- XXX
+        TVSInt st -> bug -- XXX
+        TVFloat   -> bug -- XXX
         TVDouble  -> (v, exact)
         TVNum {}  -> bug
         TVArray   -> bug

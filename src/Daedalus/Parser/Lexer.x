@@ -158,6 +158,14 @@ $ws+        ;
 "rangeUp"   { lexeme KWRangeUp }
 "rangeDown" { lexeme KWRangeDown }
 
+"pi"              { lexeme KWpi }
+"wordToFloat"     { lexeme KWWordToFloat }
+"wordToDouble"    { lexeme KWWordToDouble }
+"isNaN"           { lexeme KWIsNaN }
+"isInfinite"      { lexeme KWIsInfinite }
+"isDenormalized"  { lexeme KWIsDenormalized }
+"isNegativeZero"  { lexeme KWIsNegativeZero }
+
 "true"      { lexeme KWTrue }
 "false"     { lexeme KWFalse }
 

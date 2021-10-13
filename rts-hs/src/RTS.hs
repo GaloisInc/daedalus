@@ -14,6 +14,8 @@ module RTS
   , IsMapLoop(..)
   , ColElType
   , ColKeyType
+  , wordToFloat
+  , wordToDouble
   )
   where
 

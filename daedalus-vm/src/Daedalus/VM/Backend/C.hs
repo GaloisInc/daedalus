@@ -146,6 +146,7 @@ cProgram fileNameRoot prog =
          , "#include <ddl/unit.h>"
          , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
+         , "#include <ddl/float.h>"
          , "#include <ddl/integer.h>"
          , "#include <ddl/cast.h>"
          , "#include <ddl/maybe.h>"
@@ -536,6 +537,15 @@ cOp1 x op1 ~[e'] =
 
     Src.FromUnion _t l ->
       cVarDecl x $ cCallMethod e (selName GenOwn l) []
+
+    Src.WordToFloat     -> cVarDecl x $ cCall "DDL::Float::fromBits" [
+                                        cCallMethod e "rep" [] ]
+    Src.WordToDouble    -> cVarDecl x $ cCall "DDL::Double::fromBits" [
+                                        cCallMethod e "rep" [] ]
+    Src.IsNaN           -> cVarDecl x $ cCallMethod e "isNaN" []
+    Src.IsInfinite      -> cVarDecl x $ cCallMethod e "isInfinite" []
+    Src.IsDenormalized  -> cVarDecl x $ cCallMethod e "isDenormalized" []
+    Src.IsNegativeZero  -> cVarDecl x $ cCallMethod e "isNegativeZero" []
 
   where
   e = cExpr e'

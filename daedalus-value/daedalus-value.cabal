@@ -21,6 +21,7 @@ library
     Daedalus.Value.Compare
     Daedalus.Value.Bits
     Daedalus.Value.Bool
+    Daedalus.Value.Float
     Daedalus.Value.Array
     Daedalus.Value.Map
     Daedalus.Value.Stream

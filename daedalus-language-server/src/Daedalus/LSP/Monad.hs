@@ -22,10 +22,9 @@ import           GHC.Generics                 (Generic)
 
 import           Daedalus.AST                 (Module, ModuleName)
 import           Daedalus.Module              (pathToModuleName)
-import           Daedalus.PP
 import           Daedalus.Parser.Lexer        (Lexeme, Token)
 import           Daedalus.Pass
-import           Daedalus.Scope               (GlobalScope, Scope)
+import           Daedalus.Scope               (GlobalScope)
 import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
                                                TCTyName)
 import           Daedalus.Type.Monad          (RuleEnv)
