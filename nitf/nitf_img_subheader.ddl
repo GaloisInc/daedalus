@@ -515,21 +515,21 @@ def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nlu
 
 def CatIntLow nbpp abpp = {
   Guard (nbpp == 8) ;
-  Guard (2 <= abpp) ; Guard (nbpp <= 8)
+  Guard (2 <= abpp) ; Guard (abpp <= 8)
 }
 
 def CatIntMid nbpp abpp =
   Guard (
-    ((nbpp == 12) && (8 <= abpp) && (nbpp <= 12))
+    ((nbpp == 12) && (8 <= abpp) && (abpp <= 12))
     ||
-    ((nbpp == 16) && (9 <= abpp) && (nbpp <= 16))
+    ((nbpp == 16) && (9 <= abpp) && (abpp <= 16))
   )
 
 def CatIntHigh nbpp abpp =
   Guard (
-    ((nbpp == 32) && (17 <= abpp) && (nbpp <= 32))
+    ((nbpp == 32) && (17 <= abpp) && (abpp <= 32))
     ||
-    ((nbpp == 64) && (33 <= abpp) && (nbpp <= 64))
+    ((nbpp == 64) && (33 <= abpp) && (abpp <= 64))
   )
 
 def CatIntEnds nbpp abpp =
