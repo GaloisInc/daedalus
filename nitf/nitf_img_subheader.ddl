@@ -513,37 +513,29 @@ def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nlu
     }
   }
 
-def CatIntLow nbpp abpp = {
-  Guard (nbpp == 8) ;
-  Guard (2 <= abpp) ; Guard (abpp <= 8)
-}
+def catIntLow nbpp abpp =
+  (nbpp == 8) && (2 <= abpp) && (abpp <= 8)
 
-def CatIntMid nbpp abpp =
-  Guard (
-    ((nbpp == 12) && (8 <= abpp) && (abpp <= 12))
-    ||
-    ((nbpp == 16) && (9 <= abpp) && (abpp <= 16))
-  )
+def catIntMid nbpp abpp =
+  ((nbpp == 12) && (8 <= abpp) && (abpp <= 12)) ||
+  ((nbpp == 16) && (9 <= abpp) && (abpp <= 16))
 
-def CatIntHigh nbpp abpp =
-  Guard (
-    ((nbpp == 32) && (17 <= abpp) && (abpp <= 32))
-    ||
-    ((nbpp == 64) && (33 <= abpp) && (abpp <= 64))
-  )
+def catIntHigh nbpp abpp =
+  ((nbpp == 32) && (17 <= abpp) && (abpp <= 32)) ||
+  ((nbpp == 64) && (33 <= abpp) && (abpp <= 64))
+
+def catIntEnds nbpp abpp =
+  catIntLow nbpp abpp || catIntHigh nbpp abpp
 
 def CatIntEnds nbpp abpp =
-  CatIntLow nbpp abpp
-| CatIntHigh nbpp abpp
+  Guard (catIntEnds nbpp abpp)
 
 def CatIntFull nbpp abpp =
-  CatIntEnds nbpp abpp
-| CatIntMid nbpp abpp
+  Guard (catIntEnds nbpp abpp || catIntMid nbpp abpp)
 
 def CatReals nbpp abpp =
   Guard (
-    ((nbpp == 32) && (abpp == 32))
-    ||
+    ((nbpp == 32) && (abpp == 32)) ||
     ((nbpp == 64) && (abpp == 64))
   )
 
@@ -695,8 +687,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
       Guard (nbands == 1) ;
       case pvtype of {
         integer -> {
-              CatIntLow nbpp abpp
-            | CatIntMid nbpp abpp
+            Guard (catIntLow nbpp abpp || catIntMid nbpp abpp)
           };
         };
       };
