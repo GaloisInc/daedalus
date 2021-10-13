@@ -114,5 +114,12 @@ allTests =
   , Test "2_valid_xref_strm" pdf2 RT_XRef_Strm E_None Good
       ["compressed objects, thus xref is stream"]
       
+  -- this is based on a DOM that uses "compressed objects":
+  , Test "2_valid_xref_strm_indirects" pdf2 RT_XRef_Strm
+      (E_Shell "sed" ["s#/N 3#/N 1 0 R#;s#/First 15#/First 2 0 R#;s/UNUSED 1234567/UNUSED /"]) 
+      -- E_None
+      Good
+      ["compressed objects, thus xref is stream, using indirects for N and First"]
+      
   ]
 

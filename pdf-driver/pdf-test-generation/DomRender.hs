@@ -170,6 +170,7 @@ render_ObjStrm f decls =
       [ ("Type" , V_Name "ObjStm")
       , ("N"    , V_Int (length decls))
       , ("First", V_Int (BS.length renderOffsetTable))
+      , ("UNUSED", V_Int 1234567890123456)
       ]
       f
       (BS.concat (renderOffsetTable : decls'))

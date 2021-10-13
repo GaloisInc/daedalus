@@ -45,9 +45,9 @@ pdf2 :: PDF_DOM
 pdf2 = mk_PDF_DOM (hdr1 "1.5") "CAVITY\n" 3 domObjs2
     
 domObjs2 =
-  [ -- dead objects:
-    vToTopDecl 1 (V_Int 5)
-  , vToTopDecl 2 (V_Int 6)
+  [ -- dead objects, but may point to in some edits:
+    vToTopDecl 1 (V_Int 3)
+  , vToTopDecl 2 (V_Int 15)
   
   , ( (7,0)   -- NOTE: 7 the stream object ID
     , ObjStrm
