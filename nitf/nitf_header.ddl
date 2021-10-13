@@ -93,14 +93,14 @@ def FS_declass =
       { declass_type is x; @f = FSDCXM; ^ just f} <|
       { Many 4 (Match1 ' '); ^ nothing }
     fsdg =
-      { declass_type is gd | declass_type is ge;
+      { declass_type is gd <| declass_type is ge;
         @f = FSDG; ^ just f} <|
       { Match1 ' '; ^ nothing }
     fsdgdt =
       { declass_type is gd; @d = Date2; ^ just d} <|
       { Many 8 (Match1 ' '); ^ nothing }
     fscltx =
-      { declass_type is de | declass_type is ge;
+      { declass_type is de <| declass_type is ge;
         CallMeMaybe (@Many 43 ECSA) } <|
       { Many 43 (Match1 ' '); ^ nothing }
 
