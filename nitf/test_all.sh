@@ -12,10 +12,11 @@ NITF_SPEC=""
 USING_GEN=""
 DAEDALUS="cabal run ../:daedalus --"
 DAEDALUS="../nitf_cpp_parser/parser"
-
+NITF_HAMMER=""
 
 #NITF_TESTSUITE=`echo ~/SafeDocs/NITF`
 JITC_DIR="JITC - NITF Test Data - Set 1"
+JITC_DIR="/tmp/JITC - NITF Test Data - Set 1"
 GWG_DIR=./gwg.nga.mil_samples
 
 
@@ -52,6 +53,7 @@ test_jitc(){
         while read -r file; do
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
 
                 printf "pass\n"
@@ -72,6 +74,7 @@ test_jitc(){
         while read -r file; do
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
