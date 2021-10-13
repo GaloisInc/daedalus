@@ -23,7 +23,7 @@ def numBase (base : uint 64) (ds : [ uint 8 ]) =
 -- parsers:
 
 -- Force the parser to backtrack
-def MyFail = { Choose {}; }
+def MyFail = { Choose1 {}; }
 
 def Etx = Match1 4
 
@@ -70,7 +70,7 @@ def NegNum digs =
     @n = UnsignedNum digs
     ^ 0 - n
 
-def SignedNum digs = Choose {
+def SignedNum digs = Choose1 {
   pos = UnsignedNum (digs + 1) ;
   neg = NegNum digs
 }
@@ -297,7 +297,7 @@ def OrdDate (d0 : Date) (d1 : Date) =
     PartialOrdDate d0val d1val
 
 -- security classifications:
-def SecClas = Choose { -- NOTE-MODERN: non-overlapping
+def SecClas = Choose1 { -- NOTE-MODERN: non-overlapping
   topsecret = @Match1 'T' ;
   secret = @Match1 'S' ;
   confidential = @Match1 'C' ;
@@ -325,7 +325,7 @@ def CodeWords = DefaultSpaces 11 {
 }
 
 -- Security control markings: translated from Table A-4:
-def SecCtrlMarking = Choose { -- NOTE-MODERN: non-overlapping, at least not on JITC
+def SecCtrlMarking = Choose1 { -- NOTE-MODERN: non-overlapping, at least not on JITC
   atomal = @Match "AT" ;
   cndwdi = @Match "CN" ;
   copyright = @Match "PX" ;
@@ -362,9 +362,9 @@ def SecCtrlMarking = Choose { -- NOTE-MODERN: non-overlapping, at least not on J
 
 def CtlHandling = DefaultSpaces 2 SecCtrlMarking
 
-def Release = Many 20 (UpperCase | Match1 ' ')
+def Release = Many 20 (UpperCase <| Match1 ' ')
 
-def DeclassificationType = Choose { -- NOTE-MODERN: non-overlapping
+def DeclassificationType = Choose1 { -- NOTE-MODERN: non-overlapping
   date = @Match "DD" ;
   event = @Match "DE" ;
   datelv = @Match "GD" ;
@@ -376,7 +376,7 @@ def DeclassificationType = Choose { -- NOTE-MODERN: non-overlapping
 
 def Declassification = {
   dctp = DeclassificationType ;
-  dcdt = Choose { -- NOTE-MODERN: nonoverlapping
+  dcdt = Choose1 { -- NOTE-MODERN: nonoverlapping
     decldate = {
       -- TODO: cleanup parens
       (dctp is date | dctp is datelv) ;
@@ -392,7 +392,7 @@ def Declassification = {
       }
     }
   } ;
-  dxcm = Choose { -- NOTE-MODERN: nonoverlapping
+  dxcm = Choose1 { -- NOTE-MODERN: nonoverlapping
     reason = {
       dctp is exempt ;
       Match1 'X' ;
@@ -413,12 +413,12 @@ def Declassification = {
         none -> Spaces 4 ;
       } ;
   } ;
-  dg = Choose { -- NOTE-MODERN: nonoverlapping
+  dg = Choose1 { -- NOTE-MODERN: nonoverlapping
     actual = {
       case dctp of {
         datelv, eventlv ->
           DefaultSpace (
-            Choose { -- NOTE-MODERN: nonoverlapping
+            Choose1 { -- NOTE-MODERN: nonoverlapping
               secret = @Match1 'S' ;
               confidential = @Match1 'C' ;
               restricted = @Match1 'R' ;
@@ -434,7 +434,7 @@ def Declassification = {
         none -> Spaces 1 ;
       } ;
   } ;
-  dgdt = Choose { -- NOTE-MODERN: nonoverlapping
+  dgdt = Choose1 { -- NOTE-MODERN: nonoverlapping
     hasdgdt = {
       dctp is datelv ;
       Date
@@ -461,14 +461,14 @@ def Declassification = {
 -- authority type:
 def ClassificationAuthority = block
   authtp = DefaultSpace (
-    Choose { -- NOTE-MODERN: nonoverlapping
+    Choose1 { -- NOTE-MODERN: nonoverlapping
       original = @Match1 'O' ;
       derivative = @Match1 'D' ;
       multiple = @Match1 'M' ;
     })
   auth = Many 40 ECSA
   crsn = DefaultSpace (
-    Choose { -- NOTE-MODERN: nonoverlapping
+    Choose1 { -- NOTE-MODERN: nonoverlapping
       clsrsnA = @Match1 'A' ;
       clsrsnB = @Match1 'B' ;
       clsrsnC = @Match1 'C' ;
