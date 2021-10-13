@@ -11,7 +11,7 @@ TMPFILE="/dev/null"
 NITF_SPEC=""
 USING_GEN=""
 DAEDALUS="cabal run ../:daedalus --"
-DAEDALUS="/daedalus/nitf_cpp_parser/parser"
+DAEDALUS="../nitf_cpp_parser/parser"
 
 
 #NITF_TESTSUITE=`echo ~/SafeDocs/NITF`
@@ -51,8 +51,8 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
+            # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
 
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
@@ -71,8 +71,8 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
+            # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -89,7 +89,8 @@ test_gwg(){
     find "${GWG_DIR}" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf '%s ... ' "$file"
-        if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} --no-warn-unbiased > ${TMPFILE}; then
+        # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+        if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then
