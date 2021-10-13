@@ -43,7 +43,7 @@ def LowerCase = Match1 ('a' .. 'z')
 
 def UpperCase = Match1 ('A' .. 'Z')
 
-def Alpha = UpperCase | LowerCase
+def Alpha = UpperCase <| LowerCase
 
 def Numeral = Match1 ('0' .. '9')
 
@@ -107,7 +107,7 @@ def LowerBoundedOrZero digs lb =
 
 def Pos = Match1 ('1' .. '9')
 
-def AlphaNum = Alpha | Numeral
+def AlphaNum = Alpha <| Numeral
 
 -- TODO: replace with specific BCS classes
 def Byte = Match1 (0 .. 255)
