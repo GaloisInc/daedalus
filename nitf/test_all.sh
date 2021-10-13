@@ -8,7 +8,6 @@
 
 
 TMPFILE="/dev/null"
-NITF_SPEC=""
 USING_GEN=""
 DAEDALUS="cabal run ../:daedalus --"
 DAEDALUS="../nitf_cpp_parser/parser"
@@ -28,8 +27,6 @@ do
     case $arg in
         "--gen" )
             USING_GEN="--gen";;
-        "--nitf-modern" )
-            NITF_SPEC="nitf-modern/";;
         "--count" )
             TMPFILE=/tmp/nitf_test_output.txt
             COUNT="True"
@@ -54,7 +51,7 @@ test_jitc(){
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
+            if cabal run ../:daedalus -- nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
 
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
@@ -75,7 +72,7 @@ test_jitc(){
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus --  ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+            if cabal run ../:daedalus --  nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -93,7 +90,7 @@ test_gwg(){
     while read -r file; do
         printf '%s ... ' "$file"
         # if ${DAEDALUS} "$file" > ${TMPFILE}; then
-        if cabal run ../:daedalus -- ${NITF_SPEC}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+        if cabal run ../:daedalus -- nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then
