@@ -19,7 +19,7 @@ def DateDefaultSpaces = DefaultSpaces 8 PartialDate
 
 def Im = Match "IM"
 
-def IID1 = Many 10 (AlphaNum | Match1 ('_' | ' '))
+def IID1 = Many 10 (AlphaNum <| Match1 ('_' | ' '))
 
 def IDaTim = PartialDateTime
 
