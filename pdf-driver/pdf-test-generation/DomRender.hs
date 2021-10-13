@@ -77,7 +77,7 @@ render_XRefAndTrailer offset =
                           
     XRAT_Strm xrefs d -> BS.concat
                            [ render_TopDecl
-                               ( (1000,0)  -- FIXME: matters?
+                               ( (30,0)  -- FIXME: matters?
                                , StrmObj $ mkXRefStreamObj
                                              ((0, XRES_Free 0 65535) : xrefs) d
                                )

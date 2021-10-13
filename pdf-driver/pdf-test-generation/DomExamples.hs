@@ -32,7 +32,7 @@ domObjs1 =
   , ((6,0),  StrmObj (StreamObj []
                                 NoFilter
                                 (B8.pack helloWorldContentStream)))
-  , vToTopDecl 7 $ (V_Int 7)
+  , vToTopDecl 7 $ (V_Int 7) -- dead
   , vToTopDecl 8 $ courierF1
   , vToTopDecl 9 $ resources
 
@@ -45,24 +45,33 @@ pdf2 :: PDF_DOM
 pdf2 = mk_PDF_DOM (hdr1 "1.5") "CAVITY\n" 3 domObjs2
     
 domObjs2 =
-  [ ( (6,0)
+  [ -- dead objects:
+    vToTopDecl 1 (V_Int 5)
+  , vToTopDecl 2 (V_Int 6)
+  
+  , ( (7,0)   -- NOTE: 7 the stream object ID
     , ObjStrm
         [ vToCompDecl 3 $ V_Dict [("Type" , V_Name "Catalog")
                                  ,("Pages", V_Indirect (4,0))
                                  ]
         , vToCompDecl 4 $ V_Dict [("Type", V_Name "Pages")
+                                 ,("MediaBox", V_Raw "[0 0 842 595]")
                                  ,("Kids", V_Array [V_Indirect (5,0)])
                                  ,("Count", V_Int 1)
                                  ]
-        , vToCompDecl 9 $ V_Dict [("Type", V_Name "Page")
+        , vToCompDecl 5 $ V_Dict [("Type", V_Name "Page")
                                  ,("Parent", V_Indirect (4,0))
-                                 ,("Resources", V_Dict [])
+                                 ,("Contents", V_Indirect (6,0))
+                                 ,("Resources", V_Indirect (9,0))
                                  ]
         ]
     )
-    -- dead objects:
-  , vToTopDecl 1 (V_Int 5)
-  , vToTopDecl 2 (V_Int 6)
+  , ((6,0),  StrmObj (StreamObj []
+                                NoFilter
+                                (B8.pack helloWorldContentStream)))
+    -- 7 used above
+  , vToTopDecl 8 $ courierF1
+  , vToTopDecl 9 $ resources
   ]
 
 ---- library -----------------------------------------------------------------
