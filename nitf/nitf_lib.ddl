@@ -130,7 +130,7 @@ def PadMany n pad P =
     $$ = Many (..n) P
     Many (n - length $$) (Match1 pad)
 
-def DefaultByte D P = Choose {
+def DefaultByte D P = Choose1 {
   actual = P ;
   default = @D ;
 }

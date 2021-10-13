@@ -32,7 +32,7 @@ def TextHeader = block
 
   txshdl = TxShDL as! uint 64
 
-  Choose { -- NOTE-MODERN: seems overlapping but apparently not harmful
+  Choose1 { -- NOTE-MODERN: seems overlapping but apparently not harmful
       txsofl = UnsignedNum 3 ;
       omitted = Guard (txshdl == 0);
     }
