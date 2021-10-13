@@ -4,7 +4,7 @@ def SY = Match "SY"
 
 def SFmt = Match1 'C'
 
-def GraphicColor = Choose {
+def GraphicColor = Choose1 {
   color = Match1 'C' ;
   mono = Match1 'M'
 }
