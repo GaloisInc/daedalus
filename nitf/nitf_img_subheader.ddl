@@ -392,7 +392,7 @@ def IDLvl = BoundedNum 3 1 999
 
 def IALvl = AttachmentLvl
 
-def IMag = Choose {
+def IMag = Choose1 {
   fp = {
     $$ = FixedPoint ;
     @fplen = ^ (length $$.digs) + 1 + (length $$.radix) ;
