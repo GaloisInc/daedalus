@@ -1,0 +1,14 @@
+--- Found 1 results:
+{ ex1: { value: 0.0
+       , isNan: F
+       , isNZ: F
+       , isInf: F
+       , isDen: F
+       }
+, ex2: { value: -0.0
+       , isNan: F
+       , isNZ: T
+       , isInf: F
+       , isDen: F
+       }
+}
