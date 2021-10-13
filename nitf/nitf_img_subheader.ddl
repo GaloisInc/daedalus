@@ -260,7 +260,7 @@ def IC = Choose1 {
 }
 
 def ComRat (ic : IC) = Choose1 {
-  dim_coding = {
+  dim_coding =
     case ic of {
       c1, m1 ->
         Choose1 {
@@ -268,38 +268,37 @@ def ComRat (ic : IC) = Choose1 {
           twods = @(PadMatch 4 ' ' "2DS") ;
           twodh = @(PadMatch 4 ' ' "2DH") ;
         } ;
-    }
-  } ;
-  quant_tables = {
-      ic is c3
-    | ic is c5
-    | ic is i1
-    | ic is m3
-    | ic is m5 ;
-    Match1 '0' ;
-    img_data_type = BoundedDigit 0 4;
-    Match1 '.' ;
-    quality_level = BoundedDigit 0 5;
-      {   ic is c5
-        | ic is m5 ;
-        Guard (quality_level == 0) }
-    | {   ic is c3
-        | ic is i1
-        | ic is m3 }
-  } ;
-  bits_per_pixel = {
-      ic is c4
-    | ic is m4 ;
-    ones = Digit ;
-    Match1 '.' ;
-    tenths = Digit ;
-    hudredths = Digit
-  } ;
-  nominal = {
-      ic is c8
-    | ic is m8 ;
-    Many 4 Byte
-  }
+    };
+
+  quant_tables =
+    case ic of {
+      c3, c5, i1, m3, m5 ->
+        { Match1 '0' ;
+          img_data_type = BoundedDigit 0 4;
+          Match1 '.' ;
+          quality_level = BoundedDigit 0 5;
+          case ic of {
+            c5, m5 ->
+              Guard (quality_level == 0);
+            c3, i1, m3 -> {};
+          }
+        };
+    };
+
+  bits_per_pixel =
+    case ic of {
+      c4, m4 ->
+        { ones = Digit ;
+          Match1 '.' ;
+          tenths = Digit ;
+          hudredths = Digit
+        } ;
+    };
+
+  nominal =
+    case ic of {
+      c8, m8 -> Many 4 Byte
+    };
 }
 
 
@@ -799,9 +798,10 @@ def ISHeader = {
   nbpr = NBPR ;
   -- TODO: rework to remove negations
   nbpc = NBPC ;
-    (Guard (nbpr != 1) <| Guard (nbpc != 1)) --  NOTE-MODERN: changed to bias choice to prevent multiple parse in gwg test
-  <|  -- NOTE-MODERN: changed to `<|` to prevent multiple parse in gwg test
-    (imode is blockMode | imode is pixel | imode is row); -- NOTE-MODERN: nonoverlapping
+  case imode of {
+    blockMode, pixel, row -> {};
+    _ -> Guard ((nbpr != 1) || (nbpc != 1));
+  };
   -- is R really allowed? Needed by i_3201c.ntf.
 
   nppbh = NPPBH ;
