@@ -378,9 +378,9 @@ def Declassification = {
   dctp = DeclassificationType ;
   dcdt = Choose1 { -- NOTE-MODERN: nonoverlapping
     decldate = {
-      -- TODO: cleanup parens
-      (dctp is date | dctp is datelv) ;
-      Date
+      case dctp of {
+        date, datelv -> Date;
+      }
     } ;
     nodate = {
       case dctp of {
@@ -400,8 +400,10 @@ def Declassification = {
       @v = ^ for (val = 0; d in $$)
                  (val * 10 + (d as uint 64));
 		 -- (numBase 10 $$) ;
-        { Guard (1   <= v && v <= 8)   }
-      | { Guard (251 <= v && v <= 259) }
+      Guard (
+        (1   <= v && v <= 8) ||
+        (251 <= v && v <= 259)
+      )
     } ;
     notexempt =
       case dctp of {

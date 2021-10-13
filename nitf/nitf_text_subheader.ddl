@@ -2,7 +2,7 @@ import nitf_lib
 
 def TE = Match "TE"
 
-def TextId = Many 7 (AlphaNum | Match1 ' ')
+def TextId = Many 7 (AlphaNum <| Match1 ' ')
 
 def TxTitl = Many 80 ECSA
 
