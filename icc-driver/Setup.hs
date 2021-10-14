@@ -31,9 +31,7 @@ compileDDL =
      let demo = "ICC"
      ddlLoadModule demo
      todo <- ddlBasis demo
-     mapM_ (\m -> do ph <- ddlGetPhase m
-                     ddlPrint (phasePass ph)
-                     saveHS (Just "src") cfg m) todo
+     mapM_ (\m -> saveHS (Just "src") cfg m) todo
   `catch` \d -> putStrLn =<< prettyDaedalusError d
 
   where
