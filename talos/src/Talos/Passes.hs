@@ -11,6 +11,9 @@ import Daedalus.Core.Free
 import Daedalus.Core.Type
 import Daedalus.Core.Normalize
 import Daedalus.Core.Inline
+import qualified Data.Text as Text
+import Daedalus.PP (showPP)
+import Control.Monad (zipWithM)
 
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
 allPassesM _entry m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM  >>= pure . normM
@@ -38,16 +41,17 @@ nameConstArgsG gram = do
   gram' <- childrenG nameConstArgsG gram
   case gram' of
     Call fn args -> do
-      (bindss, args') <- unzip <$> mapM nameArg args
+      (bindss, args') <- unzip <$> zipWithM (nameArg fn) [0..] args
       pure (foldl (\body' (v, e) -> Let v e body') (Call fn args') (concat bindss))
     _ -> pure gram'
 
   where
-    nameArg e
+    nameArg fn i e
       | not (Set.null (freeVars e)) = pure ([], e)
       | otherwise = do
           n <- freshNameSys (typeOf e)
-          pure ([(n, e)], Var n)
+          let n' = n { nameText = Just (Text.pack $ "_c" ++ showPP fn ++ "_" ++ show i) }
+          pure ([(n', e)], Var n')
 
 -- ----------------------------------------------------------------------------------------
 -- Eliminate unit typed variables

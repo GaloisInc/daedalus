@@ -7,7 +7,6 @@
 
 module Talos.Analysis.Slice where
 
-import GHC.Generics (Generic)
 import Control.Applicative ((<|>))
 import Data.Function (on)
 import Data.Map (Map)
@@ -17,6 +16,7 @@ import qualified Data.Set as Set
 import Data.Foldable (fold)
 
 import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
 import Daedalus.PP
 import Daedalus.Panic
@@ -44,6 +44,7 @@ sDontCare n  ps = SDontCare n ps
 -- Slices
 
 data Assertion = GuardAssertion Expr
+  deriving (Generic, NFData)
 
 -- This is the class of summary for a function; 'Assertions' summaries
 -- contain information internal to the function, while
@@ -104,6 +105,7 @@ data CallNode =
            -- ^ All entangled params for the call, the range (wrapped)
            -- are in the _callee_'s namespace, so we don't merge etc.
            }
+  deriving (Generic, NFData)
 
 -- We assume the core has been simplified (no nested do etc.)
 data Slice =
@@ -113,7 +115,7 @@ data Slice =
   -- Terminals
   | SUnconstrained -- shorthand for 'SDontCare \infty (SLeaf (SPure VUnit))'
   | SLeaf SliceLeaf
-
+  deriving (Generic, NFData)
 
 -- A note on inverses.  The ides is if we have something like
 --
@@ -150,6 +152,7 @@ data SliceLeaf =
   -- name for the result (considered bound in this term only), the
   -- inverse expression, and a predicate constraining the value
   -- produced by this node (i.e., result of the original DDL code).
+  deriving (Generic, NFData)
 
 --------------------------------------------------------------------------------
 -- Domain Instances

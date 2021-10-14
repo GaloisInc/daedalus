@@ -5,6 +5,9 @@
 
 module Talos.Analysis.EntangledVars where
 
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -23,7 +26,7 @@ import Daedalus.Core.TraverseUserTypes
 -- choices for the other.
 
 data BaseEntangledVar = ResultVar | ProgramVar Name
-  deriving Eq
+  deriving (Eq, Generic, NFData)
 
 -- data EntangledVar = EntangledVar { baseVar :: BaseEntangledVar, fields :: [Label] }
 --   deriving Eq -- We define our own Ord as we want to ensure ResultVar < everything
@@ -82,7 +85,7 @@ instance Monoid FieldSet where
 -- Emtangled vars
 
 newtype EntangledVars = EntangledVars { getEntangledVars :: Map BaseEntangledVar FieldSet }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 instance Semigroup EntangledVars where
   (<>) = mergeEntangledVars

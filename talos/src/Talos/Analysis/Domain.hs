@@ -1,11 +1,15 @@
 {-# LANGUAGE KindSignatures, GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- This module contains the datastructure representing future path
 -- constraints for a variable.  A path may be thought of as an
 -- abstraction of the input DDL program.
 
 module Talos.Analysis.Domain where
+
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
 import Data.List (partition, foldl1')
 import Data.Either (partitionEithers)
@@ -25,6 +29,7 @@ import Talos.Analysis.Slice
 --             forall (vs, ps) : elements, vs = tcFree ps
 
 newtype Domain = Domain { elements :: [ (EntangledVars, Slice) ] }
+  deriving (Generic, NFData)
 
 instance Merge Domain where
   merge dL dR = Domain (go (elements dL) (elements dR))
