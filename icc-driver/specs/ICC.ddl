@@ -1,11 +1,10 @@
-
+import Daedalus
 
 -- ENTRY
 def Main =
   block
     profileHeader = ProfileHeader
     tagTable      = TagTable
-
 
 
 --------------------------------------------------------------------------------
@@ -223,8 +222,8 @@ def TagSignature =
 -- ENTRY: Assumes that the offsets are relative to the current stream.
 def ParseTag (t : TagEntry) =
   block
-    Goto (t.offset_to_data_element as uint 64);
-    ParseChunk (t.size_of_data_element as uint 64) (Tag t.tag_signature);
+    Skip (t.offset_to_data_element as uint 64);
+    Chunk (t.size_of_data_element as uint 64) (Tag t.tag_signature);
 
 
 
@@ -356,7 +355,7 @@ def UnicodeRecord s =
     country     = BE16
     let size    = BE32 as uint 64
     let offset  = BE32 as uint 64
-    data        = Remote (ChunkRelativeTo s offset size);
+    data        = LookAhead (ChunkRelativeTo s offset size)
 
 def S15Fixed16ArrayType =
   block
@@ -384,7 +383,7 @@ def ColorantTableType =
 
 def Colorant =
   block
-    name = ParseChunk 32 (Only ASCII7)
+    name = Chunk 32 (Only ASCII7)
     pcs  = Many 3 BE16
 
 def CurveType =
@@ -410,9 +409,9 @@ def ResponseCurveSet16Type =
     Many count
       block
         let off = BE32 as uint 64
-        Remote
+        LookAhead
           block
-            GotoRel s off
+            SetStreamAt off s
             ResponseCurve (number_of_channels)
 
 def ResponseCurve n =
@@ -434,9 +433,9 @@ def Lut8Type =
     let g = number_of_clut_grid_points as uint 64
     $[ 0x00 ]
     encoded_e_parameters = Many 9 (BE32 as! sint 32)
-    input_tables         = Chunk (256 * i)
-    clut_values          = Chunk (exp g i * o)
-    output_tables        = Chunk (256 * o)
+    input_tables         = Bytes (256 * i)
+    clut_values          = Bytes (exp g i * o)
+    output_tables        = Bytes (256 * o)
 
 
 def Lut16Type =
@@ -454,9 +453,9 @@ def Lut16Type =
     let n = number_of_input_table_entries as uint 64
     number_of_output_table_entries = BE32
     let m = number_of_output_table_entries as uint 64
-    input_tables  = Chunk (256 * n * i)
-    clut_values   = Chunk (2 * exp g i * o)
-    output_tables = Chunk (2 * m * o)
+    input_tables  = Bytes (256 * n * i)
+    clut_values   = Bytes (2 * exp g i * o)
+    output_tables = Bytes (2 * m * o)
 
 def LutAToBType =
   block
@@ -524,13 +523,13 @@ def NamedColor2Type =
     vendor_specific      = BE32
     let count            = BE32 as uint 64
     let number_of_coords = BE32 as uint 64
-    prefix               = ParseChunk 32 (Only ASCII7)
-    suffix               = ParseChunk 32 (Only ASCII7)
+    prefix               = Chunk 32 (Only ASCII7)
+    suffix               = Chunk 32 (Only ASCII7)
     names                = Many count (ColorName number_of_coords)
 
 def ColorName m =
   block
-    name_root     = ParseChunk 32 ASCII7
+    name_root     = Chunk 32 ASCII7
     pcs_coords    = Many 3 BE16
     device_coords = Many m BE16
 
@@ -559,7 +558,7 @@ def TagStructType =
     Many n
       block
         let ent = TagEntry
-        Remote
+        LookAhead
           block
             SetStream s
             ParseTag ent
@@ -567,45 +566,10 @@ def TagStructType =
 --------------------------------------------------------------------------------
 -- Stuff that should be in a library somewhere
 
-def BE16 = UInt8 # UInt8
-def BE32 = BE16 # BE16
-def BE64 = BE32 # BE32
-
-def getBit n b  = b >> n as! uint 1
-
--- Goto this offset relative to the current stream
-def Goto n = GotoRel GetStream n
-
--- Goto this offset relative to the given stream
-def GotoRel s n = SetStream (Drop n s)
-
--- Get a chunk of unprocessed bytes
-def Chunk sz =
-  block
-    $$ = Take sz GetStream
-    Goto sz
-
--- Execute a parser and go back to the position before the parser run.
-def Remote P =
-  block
-    let s = GetStream
-    $$ = P
-    SetStream s
-
 -- Get a chunk relative to the given stream.  Modifies the stream.
 def ChunkRelativeTo s off sz =
   block
-    GotoRel s off
-    Chunk sz
+    SetStreamAt off s
+    Bytes sz
 
--- Parse a chunk of the given size
-def ParseChunk sz P =
-  block
-    let s  = GetStream
-    SetStream (Take sz s)
-    $$ = P
-    SetStream (Drop sz s)
-
-def Only P  = block $$ = P; END
 def exp b e = for (x = 1; i in rangeUp(e)) x * b
-def Guard p = p is true
