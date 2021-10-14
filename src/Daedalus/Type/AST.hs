@@ -1010,7 +1010,7 @@ instance TypeOf (TCF a k) where
                     in tArray t
           BitwiseComplement -> typeOf e
           WordToFloat {}    -> tFloat
-          WordToDouble {}   -> tFloat
+          WordToDouble {}   -> tDouble
           IsNaN {}          -> tBool
           IsInfinite {}     -> tBool
           IsDenormalized {} -> tBool

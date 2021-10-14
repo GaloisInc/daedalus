@@ -421,7 +421,7 @@ inferExpr expr =
         WordToDouble ->
           liftValAppPure expr [e] \ ~[(e1',t)] ->
           do unify (tUInt (tNum 64)) (e1',t)
-             pure (exprAt expr (TCUniOp WordToFloat e1'), tDouble)
+             pure (exprAt expr (TCUniOp WordToDouble e1'), tDouble)
 
         IsNaN ->
           liftValAppPure expr [e] \ ~[(e1',t)] ->
