@@ -1,6 +1,6 @@
 %PDF-1.4
 %‚„œ”
-% NOTE: no compressed objects, traditional xref table; object 11 pointing +1
+% NOTE: no compressed objects, traditional xref table; object 11 pointing +1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % CATEGORY: discrepancies:
 %   Error: object id (11) mismatch
 %   NotStrict: cavity with "1" in it, before object 11
@@ -65,17 +65,17 @@ endobj
 xref
 0 12
 0000000000 65535 f 
-0000000216 00000 n 
-0000000233 00000 n 
-0000000250 00000 n 
-0000000299 00000 n 
-0000000380 00000 n 
-0000000460 00000 n 
-0000000578 00000 n 
-0000000595 00000 n 
-0000000672 00000 n 
-0000000711 00000 n 
-0000000733 00000 n 
+0000000248 00000 n 
+0000000265 00000 n 
+0000000282 00000 n 
+0000000331 00000 n 
+0000000412 00000 n 
+0000000492 00000 n 
+0000000610 00000 n 
+0000000627 00000 n 
+0000000704 00000 n 
+0000000743 00000 n 
+0000000764 00000 n 
 
 trailer
 <<
@@ -83,5 +83,5 @@ trailer
 /Root 3 0 R
 >>
 startxref
-789
+821
 %%EOF

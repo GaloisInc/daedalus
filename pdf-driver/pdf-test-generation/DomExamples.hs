@@ -45,9 +45,9 @@ pdf2 :: PDF_DOM
 pdf2 = mk_PDF_DOM (hdr1 "1.5") "CAVITY\n" 3 domObjs2
     
 domObjs2 =
-  [ -- dead objects, but may point to in some edits:
-    vToTopDecl 1 (V_Int 3)
-  , vToTopDecl 2 (V_Int 15)
+  [ -- dead objects (potentially a reference to in edits)
+    vToTopDecl 1 (V_Int 5)
+  , vToTopDecl 2 (V_Int 28)
   
   , ( (7,0)   -- NOTE: 7 the stream object ID
     , ObjStrm
@@ -61,17 +61,20 @@ domObjs2 =
                                  ]
         , vToCompDecl 5 $ V_Dict [("Type", V_Name "Page")
                                  ,("Parent", V_Indirect (4,0))
-                                 ,("Contents", V_Indirect (6,0))
                                  ,("Resources", V_Indirect (9,0))
+                                 ,("Contents", V_Indirect (10,0))
                                  ]
+        -- dead objects (potentially a reference to in edits): 
+        , vToCompDecl 6  $ V_Int 6
+        , vToCompDecl 11 $ V_Int 11
         ]
     )
-  , ((6,0),  StrmObj (StreamObj []
-                                NoFilter
-                                (B8.pack helloWorldContentStream)))
     -- 7 used above
   , vToTopDecl 8 $ courierF1
   , vToTopDecl 9 $ resources
+  , ((10,0),  StrmObj (StreamObj []
+                                 NoFilter
+                                 (B8.pack helloWorldContentStream)))
   ]
 
 ---- library -----------------------------------------------------------------

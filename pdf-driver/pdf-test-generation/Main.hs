@@ -2,15 +2,18 @@
 
 module Main where
 
+-- base
+
 import qualified Data.ByteString.Char8 as B8 
 import qualified Data.ByteString       as BS
-
-import System.Environment
-import System.Exit
+import           Data.List
+import           System.Environment
+import           System.Exit
 
 -- pkg process:
 import System.Process
 
+-- local:
 import DomGeneration
 import DomRender
 import DomExamples
@@ -55,17 +58,19 @@ usageError =
   exitFailure
 
 renderTest :: Test -> IO BS
-renderTest (Test _nm (h1,h2,ds,di) ty edits ctgy cs) =
+renderTest (Test _nm (h1,h2,ds,di) ty edits ctgy notes) =
   applyEdits edits
              (render_PDF_DOM ty (h1, commentsAndSuch <> h2, ds, di))
 
   where
   commentsAndSuch =
       BS.intercalate "\n"
-    $ (   map ("% NOTE: " <>) cs
+    $ (   map (\s->"% NOTE: " <> fillTo100 s) notes
        ++ map (\s-> "% " <> B8.pack s) (ppCtgy ctgy)
        ++ [""])
-  
+
+  fillTo100 s = B8.take 100 (s <> " " <> B8.replicate 100 '%')
+    
 writeTest :: FilePath -> Test -> IO ()
 writeTest dir t = renderTest t >>= B8.writeFile (dir ++"/" ++ t_name t ++ ".pdf")
 
@@ -116,7 +121,10 @@ allTests =
       
   -- this is based on a DOM that uses "compressed objects":
   , Test "2_valid_xref_strm_indirects" pdf2 RT_XRef_Strm
-      (E_Shell "sed" ["s#/N 3#/N 1 0 R#;s#/First 15#/First 2 0 R#;s/UNUSED 1234567/UNUSED /"]) 
+      (E_Shell "sed" [intercalate ";" ["s#/N 5#/N 1 0 R#"           -- using 4 extra chars
+                                      ,"s#/First 28#/First 2 0 R#"  -- using 3 extra chars
+                                      ,"s/UNUSED 1234567/UNUSED /" -- remove 7 chars
+                                      ]])
       -- E_None
       Good
       ["compressed objects, thus xref is stream, using indirects for N and First"]
