@@ -39,7 +39,7 @@ syn keyword ddlKeywordFun   try
 syn keyword ddlKeywordFun   pi wordToFloat wordToDouble
 syn keyword ddlKeywordFun   isNaN isInfinite isDenormalized isNegativeZero
 
-syn keyword ddlKeywordType int uint sint bool maybe stream
+syn keyword ddlKeywordType int uint sint bool maybe stream float double
 
 syn match ddlIdentBig    "\u\(\a\|\d\|_\)*"
 syn match ddlIdentSmall  "\l\(\a\|\d\|_\)*"
