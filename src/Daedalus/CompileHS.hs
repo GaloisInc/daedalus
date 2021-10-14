@@ -809,6 +809,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , "TypeFamilies"
                  , "ViewPatterns"
                  ]
+  , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
                  [ Import (hsIdentMod i) Qualified
                             | i <- map thingValue tcModuleImports
