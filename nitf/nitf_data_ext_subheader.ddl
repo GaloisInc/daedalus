@@ -2,32 +2,33 @@ import nitf_lib
 
 def DE = Match "DE"
 
-def DataExtHeader = {
-  DE ;
-  desid = Many 25 BCSA ;
-  desver = PosNumber 2 ;
+def DataExtHeader = block
+  DE
+  desid = Many 25 BCSA
+  desver = PosNumber 2
 
-  common = CommonSubheader ;
+  common = CommonSubheader
 
-  desoflw = Choose {
-    present = Choose {
-      oflwUDHD = @(PadWSpaces 6 (Match "UDHD")) ;
-      oflwUDID = @(PadWSpaces 6 (Match "UDID")) ;
-      oflwXHD = @(PadWSpaces 6 (Match "XHD")) ;
-      oflwIXSHD = @(PadWSpaces 6 (Match "IXSHD")) ;
-      oflwSXSHD = @(PadWSpaces 6 (Match "SXSHD")) ;
-      oflwTXSHD = @(PadWSpaces 6 (Match "TXSHD")) ;
-    } ;
-    nooflw = ^{} ;
-  } ;
+  -- NOTE-MODERN: looks like the outer `Choose` should be `Choose1`,
+  -- should double-check that the second branch does not make progress
+  desoflw = Choose1 {
+      present = Choose1 {
+        oflwUDHD = @(PadMatch 6 ' ' "UDHD") ;
+        oflwUDID = @(PadMatch 6 ' ' "UDID") ;
+        oflwXHD = @(PadMatch 6 ' ' "XHD") ;
+        oflwIXSHD = @(PadMatch 6 ' ' "IXSHD") ;
+        oflwSXSHD = @(PadMatch 6 ' ' "SXSHD") ;
+        oflwTXSHD = @(PadMatch 6 ' ' "TXSHD") ;
+      } ;
+      nooflw = ^{} ;
+    }
 
-  dsitem = Choose {
-    present = {
-      desoflw is present ;
-      UnsignedNum 3
-    } ;
-    omitted = desoflw is nooflw ;
-  } ;
+  dsitem = Choose1 {
+      present = {
+        desoflw is present ;
+        UnsignedNum 3
+      } ;
+      omitted = desoflw is nooflw ;
+    }
 
-  desshl = IsNum 4 0 ;
-}
+  desshl = IsNum 4 0

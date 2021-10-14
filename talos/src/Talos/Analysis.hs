@@ -40,77 +40,58 @@ import Talos.Analysis.Projection (freeEntangledVars, freeVarsToEntangledVars)
 -- Top level function
 
 summarise :: Module -> GUID -> (Summaries, GUID)
-summarise md nguid = (summaries s', nextGUID s')
+summarise md nguid = (summaries, nextGUID s')
   where
-    s'    = calcFixpoint s0
+    (s', summaries) = calcFixpoint seqv doOne wl0 s0
     s0    = initState (mGFuns md) (mFFuns md) nguid
+
+    seqv oldS newS = domainEqv (exportedDomain oldS) (exportedDomain newS)
+    
+    doOne nm cl
+      | Just decl <- Map.lookup nm decls = summariseDecl cl decl
+      | otherwise = panic "Missing decl" [showPP nm]
+
+    wl0   = Set.fromList grammarDecls
+    
+    decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
+    
+    grammarDecls =
+      [ (name, Assertions)
+      | Fun { fName = name, fDef = Def _ } <- mGFuns md
+      ]
 
 --------------------------------------------------------------------------------
 -- Summary functions
 
-calcFixpoint :: IterState -> IterState
-calcFixpoint s@IterState { worklist = wl, allDecls = decls}
-  | Just ((fn, cl), wl') <- Set.minView wl
-  , Just decl <- Map.lookup fn decls -- should always succeed
-  = calcFixpoint (-- traceShow ("Entering " <+> pp fn <+> pp cl) $
-                  runIterM (summariseDecl cl decl) (s { worklist = wl' }))
-
--- Empty worklist
-calcFixpoint s = s
-
-summariseDecl :: SummaryClass -> Fun Grammar -> IterM ()
+summariseDecl :: SummaryClass -> Fun Grammar -> IterM Summary
 summariseDecl cls Fun { fName = fn
                       , fDef = Def def
                       , fParams = ps } = do
-  IterM $ modify (\s -> s { currentDecl = fn, currentClass = cls })
+  let m_ret = case cls of
+        Assertions           -> Nothing
+        FunctionResult fsets -> Just (ResultVar, fsets)
 
-  m_oldS <- lookupSummary fn cls
+  (d, m) <- runSummariseM (summariseG m_ret def)
 
-  newS   <- doSummary
+  let newS = Summary { exportedDomain = d
+                     , pathRootMap = m
+                     , params = ps
+                     , summaryClass = cls
+                     }
+  -- Sanity check
   unless (domainInvariant (exportedDomain newS)) $
     panic "Failed domain invariant" ["At " ++ showPP fn]
-  IterM $ modify (addSummary newS)
-  propagateIfChanged newS m_oldS
-  where
-    -- Do we need to propagate?  We only do so if the argument domain
-    -- changes (FIXME: is this sound?)
-    propagateIfChanged newS (Just oldS)
-      | domainEqv (exportedDomain oldS) (exportedDomain newS) = pure ()
-    propagateIfChanged _newS _ = propagate fn cls
-
-    -- We always insert the new summary, as even if the pre-domain
-    -- hasn't changed, internal paths sets may have (which we could
-    -- check if this is too expensive).
-    --
-    -- FIXME: we don't merge domains, as the
-    -- summary should always get larger(?)
-    addSummary summary s =
-      let summaries' =
-            Map.insertWith Map.union fn (Map.singleton cls summary) (summaries s)
-      in s { summaries = summaries' }
-
-    doSummary :: IterM Summary
-    doSummary = do
-      let m_ret = case cls of
-            Assertions           -> Nothing
-            FunctionResult fsets -> Just (ResultVar, fsets)
-
-      (d, m) <- runSummariseM (summariseG m_ret def)
-
-      pure (Summary { exportedDomain = d
-                    , pathRootMap = m
-                    , params = ps
-                    , summaryClass = cls
-                    })
+             
+  pure newS
 
 summariseDecl _ _ = panic "Expecting a defined decl" []
 
 --------------------------------------------------------------------------------
 -- Decl-local monad 
 
-data SummariseMState =
+newtype SummariseMState =
   SummariseMState { pathRoots :: PathRootMap }
-
+  
 emptySummariseMState :: SummariseMState
 emptySummariseMState = SummariseMState Map.empty
 

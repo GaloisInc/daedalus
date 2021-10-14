@@ -42,15 +42,14 @@ import Daedalus.GUID
 import Daedalus.Driver hiding (State)
 import Daedalus.Core
 import Daedalus.Value (Value)
+import Daedalus.PP
 
-import Talos.SymExec.SolverT
-import Talos.SymExec.StdLib
 import qualified Talos.Synthesis as T
-
 import qualified Talos.Analysis as A
 import Talos.Analysis.Monad (Summary, makeDeclInvs)
 import Talos.SymExec.Path (ProvenanceMap)
 import Talos.Analysis.Slice (SummaryClass)
+import Talos.Analysis.Demands (calculateDemands, ppDemandSummary)
 
 import Talos.Strategy
 import Talos.Strategy.Monad
@@ -60,7 +59,7 @@ import Daedalus.AST (nameScopeAsModScope)
 import Daedalus.Type.AST (tcModuleDecls, tcDeclName)
 import Daedalus.Rec (forgetRecs)
 import qualified Data.Map as Map
-import Daedalus.PP
+
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -74,9 +73,14 @@ summarise :: FilePath -> Maybe FilePath -> Maybe String
 summarise inFile m_invFile m_entry = do
   (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
+  let demands = calculateDemands md
+  putStrLn "Demands"
+  print (ppDemandSummary md demands)
+
   let invs = makeDeclInvs (mGFuns md) (mFFuns md)
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
+  putStrLn "Slices"  
   pure (fst $ A.summarise md nguid)
 
 

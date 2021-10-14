@@ -6,13 +6,18 @@
 # ./test_all.sh --count --gen
 # ./test_all.sh --gwg
 
+
 TMPFILE="/dev/null"
-NITF_FOLDER=""
 USING_GEN=""
 DAEDALUS="cabal run ../:daedalus --"
-DAEDALUS="/daedalus/nitf_cpp_parser/parser"
+DAEDALUS="../nitf_cpp_parser/parser"
+NITF_HAMMER=""
 
+#NITF_TESTSUITE=`echo ~/SafeDocs/NITF`
+JITC_DIR="JITC - NITF Test Data - Set 1"
+JITC_DIR="/tmp/JITC - NITF Test Data - Set 1"
 GWG_DIR=./gwg.nga.mil_samples
+
 
 # echo "args are:"
 # echo "$@"
@@ -22,8 +27,6 @@ do
     case $arg in
         "--gen" )
             USING_GEN="--gen";;
-        "--nitf-modern" )
-            NITF_FOLDER="nitf-modern/";;
         "--count" )
             TMPFILE=/tmp/nitf_test_output.txt
             COUNT="True"
@@ -41,13 +44,14 @@ done
 test_jitc(){
     # This approach taken from http://mywiki.wooledge.org/BashFAQ/001
     printf "Positive tests (should pass):\n"
-    ls -d JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1/*/POS |
+    ls -d "${JITC_DIR}"/*/POS |
     while read -r dir; do
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus -- ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+            # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
+            if cabal run ../:daedalus -- nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
 
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
@@ -61,13 +65,14 @@ test_jitc(){
     done
 
     printf "\nNegative tests (should fail):\n"
-    ls -d JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1/*/NEG |
+    ls -d "${JITC_DIR}"/*/NEG |
     while read -r dir; do
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            #if ${DAEDALUS} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus --  ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+            # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+            # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
+            if cabal run ../:daedalus --  nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -84,7 +89,8 @@ test_gwg(){
     find "${GWG_DIR}" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf '%s ... ' "$file"
-        if cabal run ../:daedalus -- ${NITF_FOLDER}nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+        # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+        if cabal run ../:daedalus -- nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then

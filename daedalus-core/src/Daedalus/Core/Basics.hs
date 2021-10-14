@@ -96,6 +96,15 @@ data Pattern =
   | PAny
     deriving (Eq,Ord)
 
+-- A convenience type for typed things
+data Typed a = Typed
+  { typedType :: Type
+  , typedThing :: a
+  }
+
+instance Show a => Show (Typed a) where
+  show = show . typedThing
+
 --------------------------------------------------------------------------------
 -- Convenience functions
 
@@ -160,9 +169,7 @@ instance PP MName where
   pp (MName x) = pp x
 
 instance PP TName where
-  pp t = pp (tnameText t) <.> case tnameAnon t of
-                                Nothing -> empty
-                                Just x  -> pp x
+  pp t = pp (tnameText t) <.> maybe empty pp (tnameAnon t)
 
 instance PP FName where
   pp f = case fnameText f of

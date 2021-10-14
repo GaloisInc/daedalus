@@ -9,6 +9,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
                             , summaries, getModule, getGFun, getParamSlice
+                            , getFunDefs, getTypeDefs
                             , getIEnv
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
@@ -65,14 +66,19 @@ data StrategyMState =
                    -- Read only
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
+                 -- Derived from the module
+                 , stsTypeDefs  :: Map TName TDecl
+                 , stsFunDefs   :: Map FName (Fun Expr)
                  , stsIEnv      :: I.Env
                  , stsNextGUID  :: GUID
                  }
 
 emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md env0 nguid
+emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md tyDefs funDefs env0 nguid
   where
     env0 = I.evalModule md I.emptyEnv
+    tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+    funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
 
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
@@ -112,8 +118,15 @@ getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
 getModule :: LiftStrategyM m => m Module
 getModule = liftStrategy (StrategyM (gets stsModule))
 
+getTypeDefs :: LiftStrategyM m => m (Map TName TDecl)
+getTypeDefs = liftStrategy (StrategyM (gets stsTypeDefs))
+
+getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
+getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
+
 getIEnv :: LiftStrategyM m => m I.Env
 getIEnv = liftStrategy (StrategyM (gets stsIEnv))
+
 
 -- -----------------------------------------------------------------------------
 -- Random values
@@ -142,9 +155,7 @@ randPermute = go
 
 typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
 typeToRandomInhabitant ty = do
-  md <- getModule
-  -- FIXME: maybe stick this in the monad so we don't keep recomputing it?
-  let tdecls = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+  tdecls <- getTypeDefs
   typeToRandomInhabitant' tdecls ty
   
 typeToRandomInhabitant' :: (LiftStrategyM m) => Map TName TDecl -> Type -> m Expr
