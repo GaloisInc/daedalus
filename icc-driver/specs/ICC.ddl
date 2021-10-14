@@ -5,7 +5,7 @@ def Main =
   block
     let s = GetStream
     profileHeader = ProfileHeader
-    map (entry in TagTable) (ParseTagIn s entry)
+    tags = map (entry in TagTable) (ParseTagIn s entry)
 
 
 --------------------------------------------------------------------------------
@@ -123,6 +123,90 @@ def TagEntry =
     size_of_data_element    = BE32 as uint 64
 
 
+def ParseTagIn s (t : TagEntry) =
+  block
+    SetStreamAt t.offset_to_data_element s
+    Chunk t.size_of_data_element (Tag t.tag_signature);
+
+-- ENTRY: Assumes that the offsets are relative to the current stream.
+def ParseTag (t : TagEntry) =
+  block
+    Skip t.offset_to_data_element
+    Chunk t.size_of_data_element (Tag t.tag_signature);
+
+
+
+--------------------------------------------------------------------------------
+-- Tag Definitions (Section 9)
+
+def Tag (sig : uint 32) =
+  case sig of
+    0s"desc" -> {| desc = MultiLocalizedUnicodeType |}
+
+    0s"A2B0" -> {| A2B0 = LutAB_or_multi |}
+    0s"A2B1" -> {| A2B1 = LutAB_or_multi |}
+    0s"A2B2" -> {| A2B2 = LutAB_or_multi |}
+    0s"A2B3" -> {| A2B3 = LutAB_or_multi |}
+    0s"A2M0" -> {| A2Mo = MultiProcessElementsType |}
+
+    0s"B2A0" -> {| B2A0 = LutBA_or_multi |}
+    0s"B2A1" -> {| B2A1 = LutBA_or_multi |}
+    0s"B2A2" -> {| B2A2 = LutBA_or_multi |}
+    0s"B2A3" -> {| B2A3 = LutBA_or_multi |}
+
+    0s"B2D0" -> {| B2D0 = MultiProcessElementsType |}
+    0s"B2D1" -> {| B2D1 = MultiProcessElementsType |}
+    0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
+    0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
+
+    0s"wtpt" -> {| wtpt = XYZType |}
+    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
+
+{-
+
+    0s"bXYZ" -> {| bXYZ = XYZType |}
+    0s"bTRC" -> {| bTRC = SomeCurve |}
+    0s"calt" -> {| calt = DateTimeType |}
+    0s"targ" -> {| targ = TextType |}
+    0s"chad" -> {| chad = S15Fixed16ArrayType |}
+    0s"clro" -> {| clro = ColorantOrderType |}
+    0s"clrt" -> {| clrt = ColorantTableType |}
+    0s"clot" -> {| clot = ColorantTableType |}
+    0s"ciis" -> {| ciis = SignatureType |}
+    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
+    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
+    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
+    0s"D2B0" -> {| D2B0 = MultiProcessElementsType |}
+    0s"D2B1" -> {| D2B1 = MultiProcessElementsType |}
+    0s"D2B2" -> {| D2B2 = MultiProcessElementsType |}
+    0s"D2B3" -> {| D2B3 = MultiProcessElementsType |}
+    0s"gamt" -> {| gamt = Lut_8_16_BA |}
+    0s"kTRC" -> {| kTRC = SomeCurve |}
+    0s"gXYZ" -> {| gXYZ = XYZType |}
+    0s"gTRC" -> {| gTRC = SomeCurve |}
+    0s"lumi" -> {| lumi = XYZType |}
+    0s"meas" -> {| meas = MeasurementType |}
+    0s"wtpt" -> {| wtpt = XYZType |}
+    -- 0s"ncl2" -> {| ncl2 = NamedColor2Type |}
+    0s"resp" -> {| resp = ResponseCurveSet16Type |}
+    0s"rig0" -> {| rig0 = SignatureType |}
+    0s"pre0" -> {| pre0 = Lut_8_16_AB_BA |}
+    0s"pre1" -> {| pre1 = Lut_8_16_BA |}
+    0s"pre2" -> {| pre2 = Lut_8_16_BA |}
+
+    0s"pseq" -> {| pseq = ProfileSequenceDescType |} -- XXX
+    0s"psid" -> {| psid = {} |} -- XXX
+    0s"rXYZ" -> {| rXYZ = XYZType |}
+    0s"rTRC" -> {| rTRC = SomeCurve |}
+    0s"rig2" -> {| rig2 = SignatureType |}
+    0s"tech" -> {| tech = SignatureType |}
+    0s"vued" -> {| vued = MultiLocalizedUnicodeType |}
+    0s"view" -> {| view = ViewConditionsType |}
+-}
+    _        -> {| unknown = explode32 sig |}
+
+
+
 
 --------------------------------------------------------------------------------
 -- Various kinds of "numbers"  (Section 4)
@@ -149,8 +233,8 @@ def DateTimeNumber =
 
 def PositionNumber =
   block
-    offset = BE32
-    size   = BE32
+    offset = BE32 as uint 64
+    size   = BE32 as uint 64
 
 -- 0 terminated ASCII 7 string (sem value does not include the 0)
 def ASCII7 =
@@ -166,84 +250,17 @@ def Response16Number =
 
 
 
-def ParseTagIn s (t : TagEntry) =
-  block
-    SetStreamAt t.offset_to_data_element s
-    Chunk t.size_of_data_element (Tag t.tag_signature);
-
-
-
-
--- ENTRY: Assumes that the offsets are relative to the current stream.
-def ParseTag (t : TagEntry) =
-  block
-    Skip (t.offset_to_data_element as uint 64);
-    Chunk (t.size_of_data_element as uint 64) (Tag t.tag_signature);
-
-
-
---------------------------------------------------------------------------------
--- Tag Definitions (Section 9)
-
-def Tag (sig : uint 32) =
-  case sig of
-    0s"A2B0" -> {| A2B0 = LutAB_or_multi |}
-    0s"A2B1" -> {| A2B1 = LutAB_or_multi |}
-    0s"A2B2" -> {| A2B2 = LutAB_or_multi |}
-    0s"A2B3" -> {| A2B3 = LutAB_or_multi |}
-    0s"A2M0" -> {| A2Mo = MultiProcessElementsType |}
-
-    0s"bXYZ" -> {| bXYZ = XYZType |}
-    0s"bTRC" -> {| bTRC = SomeCurve |}
-    0s"B2A0" -> {| B2A0 = Lut_8_16_BA |}
-    0s"B2A1" -> {| B2A1 = Lut_8_16_BA |}
-    0s"B2A2" -> {| B2A2 = Lut_8_16_BA |}
-    0s"B2D0" -> {| B2D0 = MultiProcessElementsType |}
-    0s"B2D1" -> {| B2D1 = MultiProcessElementsType |}
-    0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
-    0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
-    0s"calt" -> {| calt = DateTimeType |}
-    0s"targ" -> {| targ = TextType |}
-    0s"chad" -> {| chad = S15Fixed16ArrayType |}
-    0s"clro" -> {| clro = ColorantOrderType |}
-    0s"clrt" -> {| clrt = ColorantTableType |}
-    0s"clot" -> {| clot = ColorantTableType |}
-    0s"ciis" -> {| ciis = SignatureType |}
-    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
-    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
-    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
-    0s"D2B0" -> {| D2B0 = MultiProcessElementsType |}
-    0s"D2B1" -> {| D2B1 = MultiProcessElementsType |}
-    0s"D2B2" -> {| D2B2 = MultiProcessElementsType |}
-    0s"D2B3" -> {| D2B3 = MultiProcessElementsType |}
-    0s"gamt" -> {| gamt = Lut_8_16_BA |}
-    0s"kTRC" -> {| kTRC = SomeCurve |}
-    0s"gXYZ" -> {| gXYZ = XYZType |}
-    0s"gTRC" -> {| gTRC = SomeCurve |}
-    0s"lumi" -> {| lumi = XYZType |}
-    0s"meas" -> {| meas = MeasurementType |}
-    0s"wtpt" -> {| wtpt = XYZType |}
-    0s"ncl2" -> {| ncl2 = NamedColor2Type |}
-    0s"resp" -> {| resp = ResponseCurveSet16Type |}
-    0s"rig0" -> {| rig0 = SignatureType |}
-    0s"pre0" -> {| pre0 = Lut_8_16_AB_BA |}
-    0s"pre1" -> {| pre1 = Lut_8_16_BA |}
-    0s"pre2" -> {| pre2 = Lut_8_16_BA |}
-    0s"desc" -> {| desc = MultiLocalizedUnicodeType |}
-    0s"pseq" -> {| pseq = ProfileSequenceDescType |} -- XXX
-    0s"psid" -> {| psid = {} |} -- XXX
-    0s"rXYZ" -> {| rXYZ = XYZType |}
-    0s"rTRC" -> {| rTRC = SomeCurve |}
-    0s"rig2" -> {| rig2 = SignatureType |}
-    0s"tech" -> {| tech = SignatureType |}
-    0s"vued" -> {| vued = MultiLocalizedUnicodeType |}
-    0s"view" -> {| view = ViewConditionsType |}
-    _        -> {| unknown = sig |}
-
 def LutAB_or_multi =
   First
     lutAB = LutAToBType
     mpe   = MultiProcessElementsType
+
+def LutBA_or_multi =
+  First
+    lutBA = LutAToBType
+    mpe   = MultiProcessElementsType
+
+
 
 def Lut_8_16_AB_BA =
   First
@@ -306,11 +323,14 @@ def MultiLocalizedUnicodeType =
 
 def UnicodeRecord s =
   block
-    language    = BE16
-    country     = BE16
+    language    = Many 2 UInt8
+    country     = Many 2 UInt8
     let size    = BE32 as uint 64
     let offset  = BE32 as uint 64
-    data        = LookAhead (ChunkRelativeTo s offset size)
+    data        = LookAhead
+                    block
+                      SetStreamAt offset s
+                      Many size UInt8
 
 def S15Fixed16ArrayType =
   block
@@ -448,10 +468,12 @@ def MultiProcessElementsType =
     number_of_output_channels     = BE16
     number_of_processing_elements = BE32
     n = number_of_processing_elements as uint 64
-    Guard (n > 0)
+    Guard (n >= 1)
     let els = Many n PositionNumber
     elements = map (e in els)
-                   (ChunkRelativeTo s (e.offset as uint 64) (e.size as uint 64))
+                block
+                  SetStreamAt e.offset s
+                  Chunk e.size MPElement
 
 
 -- XXX: Shall we reqiure that there are no left over bytes after the XYZ number?
@@ -519,7 +541,190 @@ def TagStructType =
             ParseTag ent
 
 --------------------------------------------------------------------------------
--- Stuff that should be in a library somewhere
+-- Multi Processing Elements
+
+
+def MPElement =
+  block
+    let s = GetStream
+    let tag = BE32
+    Guard (BE32 == 0)
+    let inputs  = BE16 as uint 64
+    let outputs = BE16
+    case tag of
+      0s"calc" ->
+        {| calc =
+            block
+              let subElNum  = BE32 as uint 64
+              main          = Positioned s CalcElement
+              subElements   = Many subElNum (Positioned s MPElement)
+        |}
+
+      0s"cvst" ->
+        {| cvst = Many inputs (Positioned s (Many UInt8)) -- XXX
+        |}
+      _ -> {| unknown = explode32 tag |}
+
+
+def Positioned s P =
+  block
+    let p = PositionNumber
+    LookAhead
+      block
+        SetStreamAt p.offset s
+        Chunk p.size P
+
+
+def CalcElement =
+  block
+    let tag = BE32
+    Guard (BE32 == 0)
+    case tag of
+      0s"func" -> {| func = block
+                              let n = BE32 as uint 64
+                              Many n FunOp
+                  |}
+
+      _ -> {| unknown = block
+                          tag = explode32 tag
+                          next = Many UInt8
+          |}
+
+def FunOp =
+  block
+    let tag = BE32
+    case tag of
+
+      -- Table 87
+      0s"data" -> {| data    = BEFloat |}
+
+      -- Table 88,89
+      0s"in  " -> {| opIn    = OpParams |}
+      0s"out " -> {| opOut   = OpParams |}
+      0s"tget" -> {| opTGet  = OpParams |}
+      0s"tput" -> {| opTPut  = OpParams |}
+      0s"tsav" -> {| opTSave = OpParams |}
+
+      -- Table 90,91
+      0s"env " -> {| opEnv   = BE32 |}
+
+      -- Table 94
+      0s"curv" -> {| curv = BE32 |}
+      0s"mtx " -> {| mtx  = BE32 |}
+      0s"clut" -> {| clut = BE32 |}
+      0s"calc" -> {| calc = BE32 |}
+      0s"tint" -> {| tint = BE32 |}
+      0s"elem" -> {| elem = BE32 |}
+
+      -- Table 95,96
+      0s"copy" -> {| copy = OpParams |}
+      0s"rotl" -> {| rotl = OpParams |}
+      0s"rotr" -> {| rotr = OpParams |}
+      0s"posd" -> {| posd = OpParams |}
+      0s"flip" -> {| flip = OpParams |}
+      0s"pop " -> {| pop  = OpParams |}
+
+      -- Table 97,98
+      0s"solv" -> {| solv = OpParams |}
+      0s"tran" -> {| tran = OpParams |}
+
+      -- Table 99,100
+      0s"sum " -> {| sum  = OpParams0 |}
+      0s"prod" -> {| prod = OpParams0 |}
+      0s"min " -> {| min  = OpParams0 |}
+      0s"max " -> {| max  = OpParams0 |}
+      0s"and " -> {| and  = OpParams0 |}
+      0s"or  " -> {| or   = OpParams0 |}
+
+      -- Table 101,102
+      0s"pi  " -> {| opPi     = OpParams0 |}
+      0s"+INF" -> {| opPosInf = OpParams0 |}
+      0s"-INF" -> {| opNegInf = OpParams0 |}
+      0s"NAN " -> {| opNAN    = OpParams0 |}
+      0s"add " -> {| opAdd    = OpParams0 |}
+      0s"sub " -> {| opSub    = OpParams0 |}
+      0s"mul " -> {| opMul    = OpParams0 |}
+      0s"div " -> {| opDiv    = OpParams0 |}
+      0s"mod " -> {| opMod    = OpParams0 |}
+      0s"pow " -> {| opPow    = OpParams0 |}
+      0s"gama" -> {| opGamma  = OpParams0 |}
+      0s"sadd" -> {| opSAdd   = OpParams0 |}
+      0s"ssub" -> {| opSSub   = OpParams0 |}
+      0s"smul" -> {| opSMul   = OpParams0 |}
+      0s"sdiv" -> {| opSDiv   = OpParams0 |}
+      0s"sq  " -> {| opSq     = OpParams0 |}
+      0s"sqrt" -> {| opSqrt   = OpParams0 |}
+      0s"cb  " -> {| opCb     = OpParams0 |}
+      0s"cbrt" -> {| opCbrt   = OpParams0 |}
+      0s"abs " -> {| opAbs    = OpParams0 |}
+      0s"neg " -> {| opNeg    = OpParams0 |}
+      0s"rond" -> {| opRond   = OpParams0 |}
+      0s"flor" -> {| opFlor   = OpParams0 |}
+      0s"ceil" -> {| opCeil   = OpParams0 |}
+      0s"trnc" -> {| opTrnc   = OpParams0 |}
+      0s"sign" -> {| opSign   = OpParams0 |}
+      0s"exp " -> {| opExp    = OpParams0 |}
+      0s"log " -> {| opLog    = OpParams0 |}
+      0s"ln  " -> {| opLn     = OpParams0 |}
+      0s"sin " -> {| opSin    = OpParams0 |}
+      0s"cos " -> {| opCos    = OpParams0 |}
+      0s"tan " -> {| opTan    = OpParams0 |}
+      0s"asin" -> {| opASin   = OpParams0 |}
+      0s"acos" -> {| opACos   = OpParams0 |}
+      0s"atan" -> {| opATan   = OpParams0 |}
+      0s"atn2" -> {| opATn2   = OpParams0 |}
+      0s"ctop" -> {| opCTop   = OpParams0 |}
+      0s"ptoc" -> {| opPToc   = OpParams0 |}
+      0s"rnum" -> {| opRNum   = OpParams0 |}
+      0s"lt  " -> {| opLT     = OpParams0 |}
+      0s"le  " -> {| opLE     = OpParams0 |}
+      0s"eq  " -> {| opEQ     = OpParams0 |}
+      0s"near" -> {| opNer    = OpParams0 |}
+      0s"ge  " -> {| opGE     = OpParams0 |}
+      0s"gt  " -> {| opGT     = OpParams0 |}
+      0s"vmin" -> {| opVMin   = OpParams0 |}
+      0s"vmax" -> {| opVMax   = OpParams0 |}
+      0s"vand" -> {| opVAnd   = OpParams0 |}
+      0s"vor " -> {| opVOr    = OpParams0 |}
+      0s"tLab" -> {| opTLab   = OpParams0 |}
+      0s"tXYZ" -> {| opTXYZ   = OpParams0 |}
+
+      -- Table 103,104
+      0s"if  " -> {| opIf     = BE32 as uint 64 |}
+      0s"else" -> {| opElse   = BE32 as uint 64 |}
+
+      -- Table 105
+      0s"sel " -> {| opSel    = Guard (BE32 == 0) |}
+      0s"case" -> {| opCase   = BE32 as uint 64 |}
+      0s"dflt" -> {| opDflt   = BE32 as uint 64 |}
+
+      _        -> {| unknown = explode32 tag |}
+
+def OpParams =
+  block
+    s = BE16
+    t = BE16
+
+def OpParams0 =
+  block
+    $$ = BE16
+    Guard (BE16 == 0)
+
+
+
+
+
+------------------------------------------------------------------------------
+-- Misc. utils
+
+def explode32 (sig : uint 32) =
+  [ sig >> 24 as! uint 8
+  , sig >> 16 as! uint 8
+  , sig >>  8 as! uint 8
+  , sig       as! uint 8
+  ]
+
+
 
 -- Get a chunk relative to the given stream.  Modifies the stream.
 def ChunkRelativeTo s off sz =
