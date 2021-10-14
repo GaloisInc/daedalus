@@ -3,8 +3,9 @@ import Daedalus
 -- ENTRY
 def Main =
   block
+    let s = GetStream
     profileHeader = ProfileHeader
-    tagTable      = TagTable
+    map (entry in TagTable) (ParseTagIn s entry)
 
 
 --------------------------------------------------------------------------------
@@ -13,23 +14,23 @@ def Main =
 def ProfileHeader =
   block
     size                = BE32
-    preferred_cmm_type  = BE32
+    preferred_cmm_type  = Many 4 UInt8
     version             = VersionField
-    devce_class         = ProfileClasses
-    color_space         = DataColorSpaces
-    pcs                 = DataColorSpaces  -- check additional constraints?
+    devce_class         = ProfileClass
+    color_space         = DataColorSpace
+    pcs                 = DataColorSpace  -- check additional constraints?
     creation_date_time  = DateTimeNumber
     Match "acsp"
-    primary_platform    = PrimaryPlatforms
-    profile_flags       = BE32
-    device_manufacturer = BE32
-    device_model        = BE32
-    device_attributes   = BE64
+    primary_platform    = PrimaryPlatform
+    profile_flags       = BE32            -- XXX: bitdata, see 7.2.13
+    device_manufacturer = Many 4 UInt8
+    device_model        = Many 4 UInt8
+    device_attributes   = BE64            -- XXX: bitdata, see 7.2.16
     rendering_intent    = RenderingIntent
     illuminant          = XYZNumber
-    creatior            = BE32
+    creatior            = Many 4 UInt8
     identifier          = Many 16 UInt8
-    reserved_data       = Many 28 $[0]
+    reserved_data       = Many 28 UInt8      -- XXX: spectral pcc
 
 def VersionField =
   block
@@ -39,60 +40,88 @@ def VersionField =
     bugfix       = min_bf      as! uint 4
     Match [0x00, 0x00]
 
-def ProfileClasses =
-  First
-    input_device_profile   = @Match "scnr"
-    display_device_profile = @Match "mntr"
-    output_device_profile  = @Match "prtr"
-    device_link_profile    = @Match "link"
-    color_space_profile    = @Match "spac"
-    abstract_profile       = @Match "abst"
-    named_color_profile    = @Match "nmcl"
-
-def DataColorSpaces =
-  First
-    nciexyz_or_pcsxyz = @Match "XYZ "
-    cielab_or_pcslab  = @Match "Lab "
-    cieluv            = @Match "Luv "
-    ycbcr             = @Match "Ycbr"
-    cieyxy            = @Match "Yxy "
-    rgb               = @Match "RGB "
-    gray              = @Match "GRAY"
-    hsv               = @Match "HSV "
-    hls               = @Match "HLS "
-    cmyk              = @Match "CMYK"
-    cmy               = @Match "CMY "
-    two_colour        = @Match "2CLR"
-    three_colour      = @Match "3CLR"
-    four_colour       = @Match "4CLR"
-    five_colour       = @Match "5CLR"
-    six_colour        = @Match "6CLR"
-    seven_colour      = @Match "7CLR"
-    eight_colour      = @Match "8CLR"
-    nine_colour       = @Match "9CLR"
-    ten_colour        = @Match "ACLR"
-    eleven_colour     = @Match "BCLR"
-    twelve_colour     = @Match "CCLR"
-    thirteen_colour   = @Match "DCLR"
-    fourteen_colour   = @Match "ECLR"
-    fifteen_colour    = @Match "FCLR"
+def ProfileClass =
+  case BE32 of
+    0s"scnr" -> {| input_device_profile   |}
+    0s"mntr" -> {| display_device_profile |}
+    0s"prtr" -> {| output_device_profile  |}
+    0s"link" -> {| device_link_profile    |}
+    0s"spac" -> {| color_space_profile    |}
+    0s"abst" -> {| abstract_profile       |}
+    0s"nmcl" -> {| named_color_profile    |}
+    0s"cenc" -> {| color_encoding_space   |}
+    0s"mid " -> {| multiplex_id           |}
+    0s"mlnk" -> {| multiplex_link         |}
+    0s"mvis" -> {| multiplex_vis          |}
 
 
-def PrimaryPlatforms =
-  First
-    none                  = @Match [0,0,0,0]
-    apple_computer_inc    = @Match "APPL"
-    microsoft_corporation = @Match "MSFT"
-    silicon_graphics_inc  = @Match "SGI "
-    sun_microsystems      = @Match "SUNW"
+def DataColorSpace =
+  block
+    let tag = BE32
+    case tag of
+      0s"XYZ " -> {| nciexyz_or_pcsxyz |}
+      0s"Lab " -> {| cielab_or_pcslab  |}
+      0s"Luv " -> {| cieluv            |}
+      0s"Ycbr" -> {| ycbcr             |}
+      0s"Yxy " -> {| cieyxy            |}
+      0s"LMS " -> {| lms               |}
+      0s"RGB " -> {| rgb               |}
+      0s"GRAY" -> {| gray              |}
+      0s"HSV " -> {| hsv               |}
+      0s"HLS " -> {| hls               |}
+      0s"CMYK" -> {| cmyk              |}
+      0s"CMY " -> {| cmy               |}
+      0s"2CLR" -> {| two_colour        |}
+      0s"3CLR" -> {| three_colour      |}
+      0s"4CLR" -> {| four_colour       |}
+      0s"5CLR" -> {| five_colour       |}
+      0s"6CLR" -> {| six_colour        |}
+      0s"7CLR" -> {| seven_colour      |}
+      0s"8CLR" -> {| eight_colour      |}
+      0s"9CLR" -> {| nine_colour       |}
+      0s"ACLR" -> {| ten_colour        |}
+      0s"BCLR" -> {| eleven_colour     |}
+      0s"CCLR" -> {| twelve_colour     |}
+      0s"DCLR" -> {| thirteen_colour   |}
+      0s"ECLR" -> {| fourteen_colour   |}
+      0s"FCLR" -> {| fifteen_colour    |}
+      0        -> {| none |}
+      _        -> block
+                    Guard ((tag >> 16) == 0s"ne")
+                    {| n_channel = tag as! uint 16 |}
+
+
+def PrimaryPlatform =
+  case BE32 of
+    0s"APPL" -> {| apple_computer_inc    |}
+    0s"MSFT" -> {| microsoft_corporation |}
+    0s"SGI " -> {| silicon_graphics_inc  |}
+    0s"SUNW" -> {| sun_microsystems      |}
+    0        -> {| none                  |}
 
 
 def RenderingIntent =
-  First
-    perceptual                  = @Match [0,0,0,0]
-    media_relative_colorimetric = @Match [0,0,0,1]
-    saturation                  = @Match [0,0,0,2]
-    icc_absolute_colorimetric   = @Match [0,0,0,3]
+  case BE32 of
+    0 -> {| perceptual |}
+    1 -> {| media_relative_colorimetric |}
+    2 -> {| saturation |}
+    3 -> {| icc_absolute_colorimetric |}
+
+
+--------------------------------------------------------------------------------
+-- Tag table (Section 7.3)
+
+def TagTable =
+  block
+    let n = BE32 as uint 64
+    Many n TagEntry
+
+def TagEntry =
+  block
+    tag_signature           = BE32
+    offset_to_data_element  = BE32 as uint 64
+    size_of_data_element    = BE32 as uint 64
+
 
 
 --------------------------------------------------------------------------------
@@ -137,84 +166,10 @@ def Response16Number =
 
 
 
-
---------------------------------------------------------------------------------
--- Tag table (Section 7.3)
-
-def TagTable =
+def ParseTagIn s (t : TagEntry) =
   block
-    let n = BE32 as uint 64
-    Many n TagEntry
-
-def TagEntry =
-  block
-    tag_signature           = TagSignature
-    offset_to_data_element  = BE32
-    size_of_data_element    = BE32
-
-def TagSignature =
-  First
-    A2B0 = @Match "A2B0"
-    A2B1 = @Match "A2B1"
-    A2B2 = @Match "A2B2"
-    A2B3 = @Match "A2B3"
-    A2M0 = @Match "A2M0"
-
-    bcp0 = @Match "bcp0"
-    bcp1 = @Match "bcp1"
-    bcp2 = @Match "bcp2"
-    bcp3 = @Match "bcp3"
-
-    bsp0 = @Match "bsp0"
-    bsp1 = @Match "bsp1"
-    bsp2 = @Match "bsp2"
-    bsp3 = @Match "bsp3"
-
-    bXYZ = @Match "bXYZ"
-    bTRC = @Match "bTRC"
-    B2A0 = @Match "B2A0"
-    B2A1 = @Match "B2A1"
-    B2A2 = @Match "B2A2"
-    B2D0 = @Match "B2D0"
-    B2D1 = @Match "B2D1"
-    B2D2 = @Match "B2D2"
-    B2D3 = @Match "B2D3"
-    calt = @Match "calt"
-    targ = @Match "targ"
-    chad = @Match "chad"
-    clro = @Match "clro"
-    clrt = @Match "clrt"
-    clot = @Match "clot"
-    ciis = @Match "ciis"
-    cprt = @Match "cprt"
-    dmnd = @Match "dmnd"
-    dmdd = @Match "dmdd"
-    D2B0 = @Match "D2B0"
-    D2B1 = @Match "D2B1"
-    D2B2 = @Match "D2B2"
-    D2B3 = @Match "D2B3"
-    gamt = @Match "gamt"
-    kTRC = @Match "kTRC"
-    gXYZ = @Match "gXYZ"
-    gTRC = @Match "gTRC"
-    lumi = @Match "lumi"
-    meas = @Match "meas"
-    wtpt = @Match "wtpt"
-    ncl2 = @Match "ncl2"
-    resp = @Match "resp"
-    rig0 = @Match "rig0"
-    pre0 = @Match "pre0"
-    pre1 = @Match "pre1"
-    pre2 = @Match "pre2"
-    desc = @Match "desc"
-    pseq = @Match "pseq"
-    psid = @Match "psid"
-    rXYZ = @Match "rXYZ"
-    rTRC = @Match "rTRC"
-    rig2 = @Match "rig2"
-    tech = @Match "tech"
-    vued = @Match "vued"
-    view = @Match "view"
+    SetStreamAt t.offset_to_data_element s
+    Chunk t.size_of_data_element (Tag t.tag_signature);
 
 
 
@@ -230,60 +185,60 @@ def ParseTag (t : TagEntry) =
 --------------------------------------------------------------------------------
 -- Tag Definitions (Section 9)
 
-def Tag (sig : TagSignature) =
+def Tag (sig : uint 32) =
   case sig of
-    A2B0 -> {| A2B0 = LutAB_or_multi |}
-    A2B1 -> {| A2B1 = LutAB_or_multi |}
-    A2B2 -> {| A2B2 = LutAB_or_multi |}
-    A2B3 -> {| A2B3 = LutAB_or_multi |}
-    A2M0 -> {| A2Mo = MultiProcessElementsType |}
+    0s"A2B0" -> {| A2B0 = LutAB_or_multi |}
+    0s"A2B1" -> {| A2B1 = LutAB_or_multi |}
+    0s"A2B2" -> {| A2B2 = LutAB_or_multi |}
+    0s"A2B3" -> {| A2B3 = LutAB_or_multi |}
+    0s"A2M0" -> {| A2Mo = MultiProcessElementsType |}
 
-
-    bXYZ -> {| bXYZ = XYZType |}
-    bTRC -> {| bTRC = SomeCurve |}
-    B2A0 -> {| B2A0 = Lut_8_16_BA |}
-    B2A1 -> {| B2A1 = Lut_8_16_BA |}
-    B2A2 -> {| B2A2 = Lut_8_16_BA |}
-    B2D0 -> {| B2D0 = MultiProcessElementsType |}
-    B2D1 -> {| B2D1 = MultiProcessElementsType |}
-    B2D2 -> {| B2D2 = MultiProcessElementsType |}
-    B2D3 -> {| B2D3 = MultiProcessElementsType |}
-    calt -> {| calt = DateTimeType |}
-    targ -> {| targ = TextType |}
-    chad -> {| chad = S15Fixed16ArrayType |}
-    clro -> {| clro = ColorantOrderType |}
-    clrt -> {| clrt = ColorantTableType |}
-    clot -> {| clot = ColorantTableType |}
-    ciis -> {| ciis = SignatureType |}
-    cprt -> {| cprt = MultiLocalizedUnicodeType |}
-    dmnd -> {| dmnd = MultiLocalizedUnicodeType |}
-    dmdd -> {| dmdd = MultiLocalizedUnicodeType |}
-    D2B0 -> {| D2B0 = MultiProcessElementsType |}
-    D2B1 -> {| D2B1 = MultiProcessElementsType |}
-    D2B2 -> {| D2B2 = MultiProcessElementsType |}
-    D2B3 -> {| D2B3 = MultiProcessElementsType |}
-    gamt -> {| gamt = Lut_8_16_BA |}
-    kTRC -> {| kTRC = SomeCurve |}
-    gXYZ -> {| gXYZ = XYZType |}
-    gTRC -> {| gTRC = SomeCurve |}
-    lumi -> {| lumi = XYZType |}
-    meas -> {| meas = MeasurementType |}
-    wtpt -> {| wtpt = XYZType |}
-    ncl2 -> {| ncl2 = NamedColor2Type |}
-    resp -> {| resp = ResponseCurveSet16Type |}
-    rig0 -> {| rig0 = SignatureType |}
-    pre0 -> {| pre0 = Lut_8_16_AB_BA |}
-    pre1 -> {| pre1 = Lut_8_16_BA |}
-    pre2 -> {| pre2 = Lut_8_16_BA |}
-    desc -> {| desc = MultiLocalizedUnicodeType |}
-    pseq -> {| pseq = ProfileSequenceDescType |} -- XXX
-    psid -> {| psid = {} |} -- XXX
-    rXYZ -> {| rXYZ = XYZType |}
-    rTRC -> {| rTRC = SomeCurve |}
-    rig2 -> {| rig2 = SignatureType |}
-    tech -> {| tech = SignatureType |}
-    vued -> {| vued = MultiLocalizedUnicodeType |}
-    view -> {| view = ViewConditionsType |}
+    0s"bXYZ" -> {| bXYZ = XYZType |}
+    0s"bTRC" -> {| bTRC = SomeCurve |}
+    0s"B2A0" -> {| B2A0 = Lut_8_16_BA |}
+    0s"B2A1" -> {| B2A1 = Lut_8_16_BA |}
+    0s"B2A2" -> {| B2A2 = Lut_8_16_BA |}
+    0s"B2D0" -> {| B2D0 = MultiProcessElementsType |}
+    0s"B2D1" -> {| B2D1 = MultiProcessElementsType |}
+    0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
+    0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
+    0s"calt" -> {| calt = DateTimeType |}
+    0s"targ" -> {| targ = TextType |}
+    0s"chad" -> {| chad = S15Fixed16ArrayType |}
+    0s"clro" -> {| clro = ColorantOrderType |}
+    0s"clrt" -> {| clrt = ColorantTableType |}
+    0s"clot" -> {| clot = ColorantTableType |}
+    0s"ciis" -> {| ciis = SignatureType |}
+    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
+    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
+    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
+    0s"D2B0" -> {| D2B0 = MultiProcessElementsType |}
+    0s"D2B1" -> {| D2B1 = MultiProcessElementsType |}
+    0s"D2B2" -> {| D2B2 = MultiProcessElementsType |}
+    0s"D2B3" -> {| D2B3 = MultiProcessElementsType |}
+    0s"gamt" -> {| gamt = Lut_8_16_BA |}
+    0s"kTRC" -> {| kTRC = SomeCurve |}
+    0s"gXYZ" -> {| gXYZ = XYZType |}
+    0s"gTRC" -> {| gTRC = SomeCurve |}
+    0s"lumi" -> {| lumi = XYZType |}
+    0s"meas" -> {| meas = MeasurementType |}
+    0s"wtpt" -> {| wtpt = XYZType |}
+    0s"ncl2" -> {| ncl2 = NamedColor2Type |}
+    0s"resp" -> {| resp = ResponseCurveSet16Type |}
+    0s"rig0" -> {| rig0 = SignatureType |}
+    0s"pre0" -> {| pre0 = Lut_8_16_AB_BA |}
+    0s"pre1" -> {| pre1 = Lut_8_16_BA |}
+    0s"pre2" -> {| pre2 = Lut_8_16_BA |}
+    0s"desc" -> {| desc = MultiLocalizedUnicodeType |}
+    0s"pseq" -> {| pseq = ProfileSequenceDescType |} -- XXX
+    0s"psid" -> {| psid = {} |} -- XXX
+    0s"rXYZ" -> {| rXYZ = XYZType |}
+    0s"rTRC" -> {| rTRC = SomeCurve |}
+    0s"rig2" -> {| rig2 = SignatureType |}
+    0s"tech" -> {| tech = SignatureType |}
+    0s"vued" -> {| vued = MultiLocalizedUnicodeType |}
+    0s"view" -> {| view = ViewConditionsType |}
+    _        -> {| unknown = sig |}
 
 def LutAB_or_multi =
   First
