@@ -80,10 +80,13 @@ data SolverState =
   SolverState { solver       :: Solver
               , frames       :: [SolverFrame]
               , currentFrame :: SolverFrame
+              -- This is the number of pushes we have delayed, as
+              -- frequently we have push/pop with nothing in between.
+              , pendingPushes :: Int
               }
 
 emptySolverState :: Solver -> SolverState
-emptySolverState s = SolverState s mempty emptySolverFrame
+emptySolverState s = SolverState s mempty emptySolverFrame 0
 
 inCurrentFrame :: Monad m => (SolverFrame -> SolverT m a) -> SolverT m a
 inCurrentFrame f = SolverT (gets currentFrame) >>= f
@@ -97,19 +100,35 @@ overCurrentFrame f = do
 modifyCurrentFrame :: Monad m => (SolverFrame -> SolverFrame) -> SolverT m ()
 modifyCurrentFrame f = overCurrentFrame (\s -> pure ((), f s))
 
+-- If we have pending pushes we do them now.  We only need to do this
+-- before talking to the solver, so it is done in withSolver.
+flushPushes :: MonadIO m => SolverT m ()
+flushPushes = do
+  n <- SolverT $ gets pendingPushes
+  when (n > 0) $ do
+    SolverT $ modify (\s -> s { frames = replicate n (currentFrame s) ++ frames s
+                              , pendingPushes = 0
+                              })
+    solverOp (flip S.pushMany (fromIntegral n))
+
 push :: MonadIO m => SolverT m ()
 push = do
-  SolverT (modify (\s -> s { frames = currentFrame s : frames s }))
-  solverOp S.push
+  -- We push lazily
+  SolverT (modify (\s -> s { pendingPushes = pendingPushes s + 1 }))
+  -- solverOp S.push
 
 pop :: MonadIO m => SolverT m ()
 pop = do
-  fs <- SolverT (gets frames)
-  case fs of
-    [] -> panic "Attempted to pop past top of solver stack" []
-    (f : fs') -> do
-      SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
-      solverOp S.pop
+  n <- SolverT $ gets pendingPushes
+  if n > 0
+    then SolverT (modify (\s -> s { pendingPushes = pendingPushes s - 1 }))
+    else do
+    fs <- SolverT (gets frames)
+    case fs of
+      [] -> panic "Attempted to pop past top of solver stack" []
+      (f : fs') -> do
+        SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
+        solverOp S.pop
 
 popAll :: MonadIO m => SolverT m ()
 popAll = do
@@ -118,15 +137,13 @@ popAll = do
     [] -> pure () -- do nothing
     (topF : _rest) -> do
       solverOp (\s -> S.popMany s (fromIntegral $ length fs))
-      SolverT (modify (\s -> s { frames = [], currentFrame = topF }))
-
+      SolverT (modify (\s -> s { frames = [], currentFrame = topF, pendingPushes = 0 }))
 
 reset :: MonadIO m => SolverT m ()
 reset = do
-  SolverT (modify (\s -> s { currentFrame = emptySolverFrame, frames = [] }))
+  SolverT (modify (emptySolverState . solver))
   solverOp (\s -> S.ackCommand s (S.app (S.const "reset") []))
   solverOp makeStdLib
-
 
 bindName :: Name -> String -> SolverFrame -> SolverFrame
 bindName k v f = f { frBoundNames = Map.insert k v (frBoundNames f) }
@@ -140,8 +157,9 @@ lookupPolyFun pf = fmap S.const . Map.lookup pf . frKnownPolys
 newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
 
-withSolver :: Monad m => (Solver -> SolverT m a) -> SolverT m a
+withSolver :: (MonadIO m, Monad m) => (Solver -> SolverT m a) -> SolverT m a
 withSolver f = do
+  flushPushes
   s <- SolverT $ gets solver
   f s
 
@@ -149,9 +167,7 @@ withSolver f = do
 -- Solver operations, over SExprs 
 
 solverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
-solverOp f = SolverT $ do
-  s <- gets solver
-  liftIO (f s)
+solverOp f = withSolver (liftIO . f)
   
 -- MonadIO would be enough here.
 assert :: MonadIO m => SExpr -> SolverT m ()

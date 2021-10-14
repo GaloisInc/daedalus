@@ -1,6 +1,6 @@
 -- {-# Language OverloadedStrings #-}
 
-module Talos.Strategy (allStrategies, runStrategies) where
+module Talos.Strategy (allStrategies, runStrategies, runStrategy) where
 
 import System.IO (hFlush, stdout)
 import Control.Exception (evaluate)

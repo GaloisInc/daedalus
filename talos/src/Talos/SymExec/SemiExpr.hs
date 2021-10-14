@@ -112,7 +112,7 @@ semiSExprToSExpr tys ty sv =
       let elTy = case ty of
             TArray elTy' -> elTy'
             TBuilder elTy' -> elTy'
-            _ -> panic "Expecting a sequence-like structure" []
+            _ -> panic "Expecting a sequence-like structure" [ showPP ty, show vs ]
       in sArrayLit (symExecTy elTy) (typeDefault elTy) (map (go elTy) vs)
     VMaybe mv | TMaybe ty' <- ty -> case mv of
                   Nothing -> sNothing (symExecTy ty')
@@ -255,7 +255,7 @@ semiExecExpr expr =
         
     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< go e
-    Ap2 op e1 e2 -> join (semiExecOp2 op rty (typeOf e1) <$> go e1 <*> go e2)
+    Ap2 op e1 e2 -> join (semiExecOp2 op rty (typeOf e1) (typeOf e2) <$> go e1 <*> go e2)
     Ap3 op e1 e2 e3 -> join (semiExecOp3 op rty (typeOf e1) <$> go e1 <*> go e2 <*> go e3)
     ApN opN vs     -> semiExecOpN opN rty =<< mapM go vs
   where
@@ -417,29 +417,26 @@ semiExecEqNeq iseq ty sv1 sv2 =
              _             -> panic "Missing label" [showPP l]
       else panic "Label mismatch" [showPP l, showPP l']
     
-semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> Type ->
+semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> Type -> Type ->
                SemiSExpr -> SemiSExpr -> SemiSolverM m SemiSExpr
-semiExecOp2 op _rty _ty (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
-semiExecOp2 op rty   ty (VOther v1) (VOther v2) =
+semiExecOp2 op _rty _ty _ty' (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
+semiExecOp2 op rty   ty _ty' (VOther v1) (VOther v2) =
   lift (vSExpr rty <$> SE.symExecOp2 op ty (typedThing v1) (typedThing v2))
-semiExecOp2 op rty ty sv1 sv2 =
+semiExecOp2 op rty ty1 ty2 sv1 sv2 =
   case op of
     IsPrefix -> unimplemented
     Drop     -> unimplemented
     Take     -> unimplemented
 
-    Eq       -> semiExecEq ty sv1 sv2
-    NotEq    -> semiExecNEq ty sv1 sv2
+    Eq       -> semiExecEq ty1 sv1 sv2
+    NotEq    -> semiExecNEq ty1 sv1 sv2
     
     -- sv1 is arr, sv2 is ix
     ArrayIndex
       | Just svs <- SV.toList sv1
       , VValue v <- sv2, Just ix <- V.valueToIntSize v
         -> pure (svs !! ix)
-    ConsBuilder
-      | VSequence _ svs <- sv2         -> pure (VSequence True (svs ++ [sv1]))
-      -- Mainly to handle the nil case
-      | VValue (V.VBuilder vs') <- sv2 -> pure (VSequence True (map VValue (reverse vs') ++ [sv1]))
+    ConsBuilder | Just svs <- SV.toList sv2 -> pure (VSequence True (svs ++ [sv1]))
 
     -- sv1 is map, sv2 is key
     MapLookup -> mapOp (VValue $ V.VMaybe Nothing) (sNothing . symExecTy)
@@ -454,9 +451,9 @@ semiExecOp2 op rty ty sv1 sv2 =
   where
     def = do
       tys <- asks typeDefs
-      vSExpr rty <$> lift (SE.symExecOp2 op ty
-                            (semiSExprToSExpr tys ty sv1)
-                            (semiSExprToSExpr tys ty sv2))
+      vSExpr rty <$> lift (SE.symExecOp2 op ty1
+                            (semiSExprToSExpr tys ty1 sv1)
+                            (semiSExprToSExpr tys ty2 sv2))
 
     unimplemented = panic "semiEvalOp2: Unimplemented" [showPP op]
 
@@ -466,7 +463,7 @@ semiExecOp2 op rty ty sv1 sv2 =
       , Just res <- mapLookupV missing found kv els
         = pure res
       -- Expand into if-then-else.
-      | VMap els <- sv1, TMap kt vt <- ty = do
+      | VMap els <- sv1, TMap kt vt <- ty1 = do
           tys <- asks typeDefs
           let symkv = semiSExprToSExpr tys kt sv2
               mk    = sfound (symExecTy vt) . semiSExprToSExpr tys vt
@@ -493,7 +490,15 @@ semiExecOp3 :: (Monad m, HasGUID m) => Op3 -> Type -> Type ->
 semiExecOp3 op _rty _ty (VValue v1) (VValue v2) (VValue v3) = pure $ VValue (evalOp3 op v1 v2 v3)
 semiExecOp3 op rty   ty (VOther v1) (VOther v2) (VOther v3) =
   lift (vSExpr rty <$> SE.symExecOp3 op ty (typedThing v1) (typedThing v2) (typedThing v3))
-semiExecOp3 MapInsert _rty _ty (VMap ms) k v = pure (VMap ((k, v) : ms))
+semiExecOp3 MapInsert _rty _ty sv k v =
+  case sv of
+    VMap ms -> pure (VMap ((k, v) : ms))
+    VValue (V.VMap m) ->
+      -- FIXME: this picks an ordering
+      let ms = [ (VValue k', VValue v') | (k', v') <- Map.toList m ]
+      in pure (VMap ((k, v) : ms))
+    _ -> panic "Unimplemented" [showPP MapInsert, show sv]
+
 semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 
 semiExecOpN :: (Monad m, HasGUID m, MonadIO m) => OpN -> Type -> [SemiSExpr] ->
