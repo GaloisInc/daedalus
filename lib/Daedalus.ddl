@@ -60,7 +60,7 @@ def LookAhead P =
   block
     let s = GetStream
     $$ = P
-    SetStream P
+    SetStream s
 
 
 
