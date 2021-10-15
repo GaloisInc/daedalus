@@ -19,7 +19,7 @@ import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
 
-import Debug.Trace(traceM)
+import Debug.Trace
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
@@ -107,7 +107,7 @@ data ParseErrorSource = FromUser | FromSystem
 instance Exception ParseError
 
 instance Semigroup ParseError where
-  p1 <> p2 = if peOffset p1 <= peOffset p2 then p1 else p2
+  p1 <> p2 = if peOffset p1 >= peOffset p2 then p1 else p2
 {-
     | trace "COMBINNG"
       trace (show (peSource p1, peMsg p1))
