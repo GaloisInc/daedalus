@@ -844,8 +844,8 @@ inferExpr expr =
       do checkCommit e com
          (e1,t) <- inferExpr e
          a      <- grammarResult e t
-         newBnds <- checkManyBounds bnds
-         pure ( exprAt expr (TCMany YesSem com newBnds e1)
+         (newBnds,stmts) <- checkManyBounds bnds
+         pure ( addBinds stmts (exprAt expr (TCMany YesSem com newBnds e1))
               , tGrammar (tArray a)
               )
 
@@ -1417,16 +1417,28 @@ checkNameContext n@Name { nameContext } =
 
 
 checkManyBounds ::
-  ManyBounds Expr -> TypeM ctx (ManyBounds (TC SourceRange Value))
+  ManyBounds Expr -> TypeM ctx (ManyBounds (TC SourceRange Value),[BindStmt])
 checkManyBounds bnds =
   case bnds of
-    Exactly e     -> Exactly <$> checkNum e
-    Between e1 e2 -> Between <$> traverse checkNum e1 <*> traverse checkNum e2
+    Exactly e ->
+      do (e1,bs) <- checkNum e
+         pure (Exactly e1, bs)
+    Between e1 e2 ->
+      do (e1',bs1) <- checkNumMb e1
+         (e2',bs2) <- checkNumMb e2
+         pure (Between e1' e2', bs1 ++ bs2)
   where
+  checkNumMb e =
+    case e of
+      Nothing -> pure (Nothing,[])
+      Just e' ->
+        do (et,bs) <- checkNum e'
+           pure (Just et, bs)
+
   checkNum e =
-    do (e1,t) <- inContext AValue (inferExpr e)
-       unify tSize (e,t)
-       pure e1
+    do ((e1,t),mb) <- liftValExpr e
+       unify tSize (e1,t)
+       pure (e1,maybeToList mb)
 
 
 
