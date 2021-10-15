@@ -1,7 +1,11 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns, PatternSynonyms #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
 
 module Daedalus.Core.Grammar where
+
+import GHC.Generics          (Generic)
+import Control.DeepSeq       (NFData)
 
 import Data.Functor.Identity(Identity(..))
 
@@ -24,18 +28,20 @@ data Grammar =
   | Call FName [Expr]
   | Annot Annot Grammar
   | GCase (Case Grammar)
+  deriving (Generic,NFData)
 
 -- | Implicit input manipulation
 data Match =
     MatchByte ByteSet       -- ^ Match a single byte
   | MatchBytes Expr         -- ^ Match a sequence of bytes
   | MatchEnd                -- ^ Match the end of input
+  deriving (Generic,NFData)
 
 data Sem = SemNo | SemYes
-
+  deriving (Generic,NFData)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
-
+  deriving (Generic,NFData)
 
 gIf :: Expr -> Grammar -> Grammar -> Grammar
 gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])

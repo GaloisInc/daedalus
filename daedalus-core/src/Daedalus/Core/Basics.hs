@@ -1,8 +1,12 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
 
 module Daedalus.Core.Basics where
+
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
 import Data.Text(Text)
 import Data.Function(on)
@@ -13,7 +17,7 @@ import Daedalus.GUID
 
 -- | Module names
 newtype MName = MName { mNameText :: Text }
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Generic,NFData)
 
 -- | Type declaration names
 data TName = TName
@@ -24,11 +28,13 @@ data TName = TName
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
   , tnameFlav :: TFlav        -- ^ Some information about the type
   }
+  deriving (Generic, NFData)
 
 -- | What "flavor of type" we have
 data TFlav = TFlavStruct
            | TFlavEnum  [Label]      -- ^ A sum type with no data
            | TFlavUnion [Label]      -- ^ A sum type with data
+           deriving (Generic, NFData)
 
 -- | Names of top-level functions
 data FName = FName
@@ -37,6 +43,7 @@ data FName = FName
   , fnameType       :: Type
   , fnameMod        :: MName
   }
+  deriving (Generic, NFData)
 
 -- | Names of local variables
 data Name = Name
@@ -44,12 +51,14 @@ data Name = Name
   , nameText :: Maybe Text      -- ^ Name in source, if any
   , nameType :: Type
   }
+  deriving (Generic, NFData)
 
 
 -- | Annotation
 data Annot =
     SrcAnnot Text
   | NoFail          -- ^ The grammar is known to not fail
+  deriving (Generic,NFData)
 
 type Label = Text
 
@@ -69,23 +78,22 @@ data Type =
   | TIterator Type
   | TUser UserType
   | TParam TParam         -- ^ Only in type declaraionts
-    deriving (Eq,Ord)
+    deriving (Eq,Ord,Generic,NFData)
 
 data SizeType =
     TSize Integer
   | TSizeParam TParam     -- ^ Only in type declarations
-    deriving (Eq,Ord)
+  deriving (Eq,Ord,Generic,NFData)
 
 data UserType = UserType
   { utName    :: TName
   , utNumArgs :: [SizeType]
   , utTyArgs  :: [Type]
-  } deriving (Eq,Ord)
+  } deriving (Eq,Ord,Generic,NFData)
 
 
 newtype TParam = TP Int
-  deriving (Eq,Ord)
-
+  deriving (Eq,Ord,Generic,NFData)
 
 data Pattern =
     PBool Bool
@@ -94,13 +102,14 @@ data Pattern =
   | PNum Integer
   | PCon Label
   | PAny
-    deriving (Eq,Ord)
+    deriving (Eq,Ord,Generic,NFData)
 
 -- A convenience type for typed things
 data Typed a = Typed
   { typedType :: Type
   , typedThing :: a
   }
+  deriving (Eq,Ord,Generic,NFData)
 
 instance Show a => Show (Typed a) where
   show = show . typedThing

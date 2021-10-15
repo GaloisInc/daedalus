@@ -30,6 +30,7 @@ library
     text,
     bytestring,
     containers,
+    deepseq,
     GraphSCC,
     alex-tools,
     panic,

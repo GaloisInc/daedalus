@@ -1,4 +1,5 @@
-{-# Language GeneralizedNewtypeDeriving #-}
+{-# Language GeneralizedNewtypeDeriving, DeriveGeneric #-}
+
 module Daedalus.GUID (GUID
                      , invalidGUID
                      , firstValidGUID
@@ -10,11 +11,15 @@ module Daedalus.GUID (GUID
                      , FreshM, runFresh, runFreshIn
                      ) where
 
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
+
 import MonadLib
 import Daedalus.PP
 
+
 newtype GUID = GUID { getGUID :: Int }
-  deriving (Ord, Eq, Show)
+  deriving (Ord, Eq, Show, Generic, NFData)
 
 instance PP GUID where
   pp (GUID n) = int n

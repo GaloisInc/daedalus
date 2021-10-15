@@ -1,7 +1,11 @@
 {-# Language OverloadedStrings #-}
 {-# Language DeriveTraversable #-}
+{-# Language DeriveGeneric, DeriveAnyClass #-}
 
 module Daedalus.Core.Decl where
+
+import GHC.Generics          (Generic)
+import Control.DeepSeq       (NFData)
 
 import Daedalus.PP
 import Daedalus.Rec
@@ -19,16 +23,17 @@ data Module = Module
   , mBFuns    :: [Fun ByteSet]
   , mGFuns    :: [Fun Grammar]
   }
+  deriving (Generic,NFData)
 
 data Fun e = Fun
   { fName    :: FName
   , fParams  :: [Name]
   , fDef     :: FunDef e
   }
-  deriving (Functor, Foldable, Traversable)
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
 
 data FunDef e = Def e | External
-  deriving (Functor, Foldable, Traversable)
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
 
 data TDecl = TDecl
   { tName          :: TName
@@ -36,10 +41,12 @@ data TDecl = TDecl
   , tTParamKValue  :: [TParam]
   , tDef           :: TDef
   }
+  deriving (Generic,NFData)
 
 data TDef =
     TStruct [(Label,Type)]
   | TUnion  [(Label,Type)]
+  deriving (Generic,NFData)
 
 class GetFields t where
   getFields :: t -> [(Label,Type)]
