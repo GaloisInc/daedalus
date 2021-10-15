@@ -350,6 +350,9 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
+    TCLet x e1 e2 ->
+      (Lam [hsTCName env x] (hsValue env e2)) `Ap` hsValue env e1
+
     TCLiteral l t ->
       case l of
         LNumber n -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)

@@ -328,6 +328,8 @@ compilePureExpr env = go
         TCBinOp op e1 e2 _ -> evalBinOp op (go e1) (go e2)
         TCTriOp op e1 e2 e3 _ -> evalTriOp op (go e1) (go e2) (go e3)
 
+        TCLet x e1 e2 ->
+          compilePureExpr (addVal x (compilePureExpr env e1) env) e2
 
         TCFor lp -> evalFor env lp
 

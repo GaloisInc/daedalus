@@ -68,6 +68,8 @@ instance TraverseTypes (TCF a k) where
       TCPure e        -> TCPure <$> traverseTypes f e
       TCDo x e1 e2    -> TCDo   <$> traverseTypes f x
                                 <*> traverseTypes f e1 <*> traverseTypes f e2
+      TCLet x e1 e2   -> TCLet  <$> traverseTypes f x
+                                <*> traverseTypes f e1 <*> traverseTypes f e2
 
       TCLabel l e     -> TCLabel l <$> traverseTypes f e
 
@@ -266,6 +268,7 @@ traverseTCF f = go
       case texpr of
         TCPure e      -> TCPure <$> f e
         TCDo  x e1 e2 -> TCDo x <$> f e1 <*> f e2
+        TCLet x e1 e2 -> TCLet x <$> f e1 <*> f e2
 
         TCGetByte x    -> pure (TCGetByte x)
         TCMatch s b    -> TCMatch s <$> f b

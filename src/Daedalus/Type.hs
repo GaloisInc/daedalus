@@ -696,29 +696,7 @@ inferExpr expr =
       do ctxt <- getContext
          case ctxt of
            AClass   -> reportError expr "Unexpected struct in a byte set."
-
-           AValue ->
-             do fs1 <- forM fs \sf ->
-                         case sf of
-                           COMMIT r -> reportError r
-                                    "COMMIT may not appear in a semantic value."
-                           Anon e -> reportError e "Struct value needs a label."
-                           x := e ->
-                             do (e1,t1) <- inContext AValue (inferExpr e)
-                                pure (x,e1,t1)
-
-                           -- XXX
-                           x :?= _ -> reportError x
-                              "implcit parameters only work in parsers for now"
-
-                           -- this could make sense as a `let`?
-                           x :@= _ -> reportError x "Unexpected local variable."
-
-                let (xs,es,ts) = unzip3 fs1
-                    ls = map nameScopeAsLocal xs
-                pureStruct expr ls ts es
-
-
+           AValue   -> inferStructPure expr fs
            AGrammar -> inferStructGrammar expr fs
 
     EIn (lf :> e) ->
@@ -1439,6 +1417,61 @@ checkManyBounds bnds =
     do ((e1,t),mb) <- liftValExpr e
        unify tSize (e1,t)
        pure (e1,maybeToList mb)
+
+
+inferStructPure ::
+  HasRange r =>
+    r -> [StructField Expr] -> TypeM Value (TC SourceRange Value, Type)
+inferStructPure toploc = check Set.empty []
+
+
+  where
+  check allLs done fs =
+    case fs of
+      COMMIT r : _ ->
+        reportError r "COMMIT may not appear in a semantic value."
+
+      Anon e : more ->
+        case more of
+          [] | null done -> inferExpr e
+          _  -> reportError e "Struct value needs a label."
+
+      -- XXX
+      x :?= _ : _ -> reportError x
+                          "implcit parameters only work in parsers for now"
+
+      x := e : more
+        | x `Set.member` allLs ->
+          reportError x ("Multiple definitions for " <+> pp x)
+
+        | otherwise ->
+        do (e1,t1) <- inferExpr e
+           let x' = TCName { tcName = x, tcType = t1, tcNameCtx = AValue }
+               e' = exprAt x (TCVar x')
+
+           (e2,ty) <- extEnv x t1 $ check (Set.insert x allLs)
+                                          ((nameScopeAsLocal x,t1,e'):done)
+                                          more
+           pure (exprAt (x <-> e2) (TCLet x' e1 e2), ty)
+
+      x :@= e : more
+        | x `Set.member` allLs ->
+          reportError x ("Multiple definitions for " <+> pp x)
+
+        | otherwise ->
+          case more of
+            [] -> reportError x "`block` may not end with a `let`"
+            _  -> do (e1,t1) <- inferExpr e
+                     (e2,ty) <- extEnv x t1 (check (Set.insert x allLs)
+                                                   done more)
+                     let x' = TCName { tcName = x, tcType = t1,
+                                                        tcNameCtx = AValue }
+                     pure (exprAt (x <-> e2) (TCLet x' e1 e2), ty)
+
+      [] -> pureStruct toploc ls ts es
+        where
+        (ls,ts,es) = unzip3 (reverse done)
+
 
 
 

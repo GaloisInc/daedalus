@@ -148,6 +148,8 @@ data TCF :: HS -> Ctx -> HS where
    TCDo         :: Maybe (TCName Value) ->
                    TC a Grammar -> TC a Grammar -> TCF a Grammar
 
+   TCLet        :: TCName Value -> TC a Value -> TC a Value -> TCF a Value
+
    -- This is just a tag for error reporting.
    TCLabel      :: Text -> TC a Grammar -> TCF a Grammar
 
@@ -158,7 +160,8 @@ data TCF :: HS -> Ctx -> HS where
    TCChoice     :: Commit -> [TC a Grammar] -> Type -> TCF a Grammar
    TCOptional   :: Commit -> TC a Grammar -> TCF a Grammar
    TCMany       :: WithSem ->
-                    Commit -> ManyBounds (TC a Value) -> TC a Grammar -> TCF a Grammar
+                   Commit -> ManyBounds (TC a Value) -> TC a Grammar ->
+                   TCF a Grammar
    TCEnd        :: TCF a Grammar
    TCOffset     :: TCF a Grammar
 
@@ -238,6 +241,7 @@ data TCF :: HS -> Ctx -> HS where
              NonEmpty (TCAlt a k) {- brances; non-empty -} ->
              Maybe (TC a k)       {- default -} ->
              TCF a k
+
 
 
 deriving instance Show a => Show (TCF a k)
@@ -449,6 +453,7 @@ instance PP (TCF a k) where
     case texpr of
       TCPure e      -> wrapIf (n > 0) ("pure" <+> ppPrec 1 e)
       TCDo {}       -> "do" <+> ppStmt texpr
+      TCLet x e1 e2 -> "let" <+> pp x <+> "=" <+> pp e1 <+> "in" $$ pp e2
 
       TCLabel l p    -> "{-" <+> pp l <+> "-}" <+> ppPrec n p
 
@@ -957,6 +962,7 @@ instance TypeOf (TCF a k) where
     case expr of
       TCPure e        -> tGrammar (typeOf e)
       TCDo _ _ e      -> typeOf e
+      TCLet _ _ e     -> typeOf e
 
       TCLabel _ e     -> typeOf e
 
