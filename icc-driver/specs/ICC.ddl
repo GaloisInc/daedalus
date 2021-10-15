@@ -28,7 +28,7 @@ def ProfileHeader =
     device_attributes   = BE64            -- XXX: bitdata, see 7.2.16
     rendering_intent    = RenderingIntent
     illuminant          = XYZNumber
-    creatior            = Many 4 UInt8
+    creator             = Many 4 UInt8
     identifier          = Many 16 UInt8
     reserved_data       = Many 28 UInt8      -- XXX: spectral pcc
 
@@ -111,10 +111,7 @@ def RenderingIntent =
 --------------------------------------------------------------------------------
 -- Tag table (Section 7.3)
 
-def TagTable =
-  block
-    let n = BE32 as uint 64
-    Many n TagEntry
+def TagTable = Many (BE32 as uint 64) TagEntry
 
 def TagEntry =
   block
@@ -161,6 +158,10 @@ def Tag (sig : uint 32) =
 
     0s"wtpt" -> {| wtpt = XYZType |}
     0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
+    0s"c2sp" -> {| c2sp = MultiProcessElementsType |}
+    0s"s2cp" -> {| s2sp = MultiProcessElementsType |}
+
+    0s"svcn" -> {| svcn = SpectralViewingConditionsType |}
 
 {-
 
@@ -194,7 +195,6 @@ def Tag (sig : uint 32) =
     0s"pre1" -> {| pre1 = Lut_8_16_BA |}
     0s"pre2" -> {| pre2 = Lut_8_16_BA |}
 
-    0s"pseq" -> {| pseq = ProfileSequenceDescType |} -- XXX
     0s"psid" -> {| psid = {} |} -- XXX
     0s"rXYZ" -> {| rXYZ = XYZType |}
     0s"rTRC" -> {| rTRC = SomeCurve |}
@@ -245,10 +245,15 @@ def ASCII7 =
 def Response16Number =
   block
     device = BE16
-    Match [0,0]
+    Exactly 0 BE16
     measurement = BE32
 
+-- def SpectralRange =
+--   block
+    
 
+
+--------------------------------------------------------------------------------
 
 def LutAB_or_multi =
   First
@@ -296,6 +301,7 @@ def StartTag x =
     Match x
     Match [0,0,0,0]
 
+    
 
 def DateTimeType =
   block
@@ -317,8 +323,7 @@ def MultiLocalizedUnicodeType =
     let s = GetStream   -- Offsets are relative to here
     StartTag "mluc"
     let record_number = BE32
-    let record_size   = BE32
-    Guard (record_size == 12)
+    Exactly 12 BE32
     Many (record_number as uint 64) (UnicodeRecord s)
 
 def UnicodeRecord s =
@@ -348,7 +353,7 @@ def ColorantOrderType =
   block
     StartTag "clro"
     let count_of_colorants = BE32
-    Many UInt8;
+    Many UInt8
 
 def ColorantTableType =
   block
@@ -467,14 +472,16 @@ def MultiProcessElementsType =
     number_of_input_channels      = BE16
     number_of_output_channels     = BE16
     number_of_processing_elements = BE32
-    n = number_of_processing_elements as uint 64
-    Guard (n >= 1)
-    let els = Many n PositionNumber
-    elements = map (e in els)
-                block
-                  SetStreamAt e.offset s
-                  Chunk e.size MPElement
+    let n = number_of_processing_elements as uint 64
+    Guard (n >= 1) <| Fail "Need at least one MPE"
+    elements = Many n (Positioned s MPElement)
 
+
+
+def SpectralViewingConditionsType =
+  block
+    StartTag "svcn"
+    colometric_observer = BE32
 
 -- XXX: Shall we reqiure that there are no left over bytes after the XYZ number?
 def XYZType =
@@ -511,12 +518,6 @@ def ColorName m =
     device_coords = Many m BE16
 
 
--- This type seems to be broken, so we just don't parse it.
--- See: http://www.color.org/PSD_TechNote.pdf
-def ProfileSequenceDescType = {
-  StartTag "pseq";
-}
-
 
 def ViewConditionsType =
   block
@@ -541,54 +542,41 @@ def TagStructType =
             ParseTag ent
 
 --------------------------------------------------------------------------------
--- Multi Processing Elements
+-- Multi Processing Elements (Section 11)
 
 
 def MPElement =
   block
     let s = GetStream
     let tag = BE32
-    Guard (BE32 == 0)
+    Match [0,0,0,0]
     let inputs  = BE16 as uint 64
-    let outputs = BE16
+    let outputs = BE16 as uint 64
     case tag of
-      0s"calc" ->
-        {| calc =
-            block
-              let subElNum  = BE32 as uint 64
-              main          = Positioned s CalcElement
-              subElements   = Many subElNum (Positioned s MPElement)
-        |}
-
-      0s"cvst" ->
-        {| cvst = Many inputs (Positioned s (Many UInt8)) -- XXX
-        |}
+      0s"calc" -> {| calc = CalcElement s inputs outputs |}
+      0s"cvst" -> {| cvst = Many inputs (Positioned s Curve) |}
+      0s"matf" -> {| matf = Matrix inputs outputs |}
       _ -> {| unknown = explode32 tag |}
 
 
-def Positioned s P =
+--------------------------------------------------------------------------------
+-- Calculator Elements (Section 11.2.1)
+
+-- Table 85
+def CalcElement s inputs outputs =
   block
-    let p = PositionNumber
-    LookAhead
-      block
-        SetStreamAt p.offset s
-        Chunk p.size P
+    let subElNum  = BE32 as uint 64
+    inputs        = inputs
+    outputs       = outputs
+    main          = Positioned s CalcFun
+    subElements   = Many subElNum (Positioned s MPElement)
 
 
-def CalcElement =
+-- Table 86
+def CalcFun =
   block
-    let tag = BE32
-    Guard (BE32 == 0)
-    case tag of
-      0s"func" -> {| func = block
-                              let n = BE32 as uint 64
-                              Many n FunOp
-                  |}
-
-      _ -> {| unknown = block
-                          tag = explode32 tag
-                          next = Many UInt8
-          |}
+    StartTag "func"
+    Many (BE32 as uint 64) FunOp
 
 def FunOp =
   block
@@ -629,93 +617,185 @@ def FunOp =
       0s"tran" -> {| tran = OpParams |}
 
       -- Table 99,100
-      0s"sum " -> {| sum  = OpParams0 |}
-      0s"prod" -> {| prod = OpParams0 |}
-      0s"min " -> {| min  = OpParams0 |}
-      0s"max " -> {| max  = OpParams0 |}
-      0s"and " -> {| and  = OpParams0 |}
-      0s"or  " -> {| or   = OpParams0 |}
+      0s"sum " -> {| sum  = OpParam |}
+      0s"prod" -> {| prod = OpParam |}
+      0s"min " -> {| min  = OpParam |}
+      0s"max " -> {| max  = OpParam |}
+      0s"and " -> {| and  = OpParam |}
+      0s"or  " -> {| or   = OpParam |}
 
       -- Table 101,102
-      0s"pi  " -> {| opPi     = OpParams0 |}
-      0s"+INF" -> {| opPosInf = OpParams0 |}
-      0s"-INF" -> {| opNegInf = OpParams0 |}
-      0s"NAN " -> {| opNAN    = OpParams0 |}
-      0s"add " -> {| opAdd    = OpParams0 |}
-      0s"sub " -> {| opSub    = OpParams0 |}
-      0s"mul " -> {| opMul    = OpParams0 |}
-      0s"div " -> {| opDiv    = OpParams0 |}
-      0s"mod " -> {| opMod    = OpParams0 |}
-      0s"pow " -> {| opPow    = OpParams0 |}
-      0s"gama" -> {| opGamma  = OpParams0 |}
-      0s"sadd" -> {| opSAdd   = OpParams0 |}
-      0s"ssub" -> {| opSSub   = OpParams0 |}
-      0s"smul" -> {| opSMul   = OpParams0 |}
-      0s"sdiv" -> {| opSDiv   = OpParams0 |}
-      0s"sq  " -> {| opSq     = OpParams0 |}
-      0s"sqrt" -> {| opSqrt   = OpParams0 |}
-      0s"cb  " -> {| opCb     = OpParams0 |}
-      0s"cbrt" -> {| opCbrt   = OpParams0 |}
-      0s"abs " -> {| opAbs    = OpParams0 |}
-      0s"neg " -> {| opNeg    = OpParams0 |}
-      0s"rond" -> {| opRond   = OpParams0 |}
-      0s"flor" -> {| opFlor   = OpParams0 |}
-      0s"ceil" -> {| opCeil   = OpParams0 |}
-      0s"trnc" -> {| opTrnc   = OpParams0 |}
-      0s"sign" -> {| opSign   = OpParams0 |}
-      0s"exp " -> {| opExp    = OpParams0 |}
-      0s"log " -> {| opLog    = OpParams0 |}
-      0s"ln  " -> {| opLn     = OpParams0 |}
-      0s"sin " -> {| opSin    = OpParams0 |}
-      0s"cos " -> {| opCos    = OpParams0 |}
-      0s"tan " -> {| opTan    = OpParams0 |}
-      0s"asin" -> {| opASin   = OpParams0 |}
-      0s"acos" -> {| opACos   = OpParams0 |}
-      0s"atan" -> {| opATan   = OpParams0 |}
-      0s"atn2" -> {| opATn2   = OpParams0 |}
-      0s"ctop" -> {| opCTop   = OpParams0 |}
-      0s"ptoc" -> {| opPToc   = OpParams0 |}
-      0s"rnum" -> {| opRNum   = OpParams0 |}
-      0s"lt  " -> {| opLT     = OpParams0 |}
-      0s"le  " -> {| opLE     = OpParams0 |}
-      0s"eq  " -> {| opEQ     = OpParams0 |}
-      0s"near" -> {| opNer    = OpParams0 |}
-      0s"ge  " -> {| opGE     = OpParams0 |}
-      0s"gt  " -> {| opGT     = OpParams0 |}
-      0s"vmin" -> {| opVMin   = OpParams0 |}
-      0s"vmax" -> {| opVMax   = OpParams0 |}
-      0s"vand" -> {| opVAnd   = OpParams0 |}
-      0s"vor " -> {| opVOr    = OpParams0 |}
-      0s"tLab" -> {| opTLab   = OpParams0 |}
-      0s"tXYZ" -> {| opTXYZ   = OpParams0 |}
+      0s"pi  " -> {| opPi     = OpParam |}
+      0s"+INF" -> {| opPosInf = OpParam |}
+      0s"-INF" -> {| opNegInf = OpParam |}
+      0s"NAN " -> {| opNAN    = OpParam |}
+      0s"add " -> {| opAdd    = OpParam |}
+      0s"sub " -> {| opSub    = OpParam |}
+      0s"mul " -> {| opMul    = OpParam |}
+      0s"div " -> {| opDiv    = OpParam |}
+      0s"mod " -> {| opMod    = OpParam |}
+      0s"pow " -> {| opPow    = OpParam |}
+      0s"gama" -> {| opGamma  = OpParam |}
+      0s"sadd" -> {| opSAdd   = OpParam |}
+      0s"ssub" -> {| opSSub   = OpParam |}
+      0s"smul" -> {| opSMul   = OpParam |}
+      0s"sdiv" -> {| opSDiv   = OpParam |}
+      0s"sq  " -> {| opSq     = OpParam |}
+      0s"sqrt" -> {| opSqrt   = OpParam |}
+      0s"cb  " -> {| opCb     = OpParam |}
+      0s"cbrt" -> {| opCbrt   = OpParam |}
+      0s"abs " -> {| opAbs    = OpParam |}
+      0s"neg " -> {| opNeg    = OpParam |}
+      0s"rond" -> {| opRond   = OpParam |}
+      0s"flor" -> {| opFlor   = OpParam |}
+      0s"ceil" -> {| opCeil   = OpParam |}
+      0s"trnc" -> {| opTrnc   = OpParam |}
+      0s"sign" -> {| opSign   = OpParam |}
+      0s"exp " -> {| opExp    = OpParam |}
+      0s"log " -> {| opLog    = OpParam |}
+      0s"ln  " -> {| opLn     = OpParam |}
+      0s"sin " -> {| opSin    = OpParam |}
+      0s"cos " -> {| opCos    = OpParam |}
+      0s"tan " -> {| opTan    = OpParam |}
+      0s"asin" -> {| opASin   = OpParam |}
+      0s"acos" -> {| opACos   = OpParam |}
+      0s"atan" -> {| opATan   = OpParam |}
+      0s"atn2" -> {| opATn2   = OpParam |}
+      0s"ctop" -> {| opCTop   = OpParam |}
+      0s"ptoc" -> {| opPToc   = OpParam |}
+      0s"rnum" -> {| opRNum   = OpParam |}
+      0s"lt  " -> {| opLT     = OpParam |}
+      0s"le  " -> {| opLE     = OpParam |}
+      0s"eq  " -> {| opEQ     = OpParam |}
+      0s"near" -> {| opNer    = OpParam |}
+      0s"ge  " -> {| opGE     = OpParam |}
+      0s"gt  " -> {| opGT     = OpParam |}
+      0s"vmin" -> {| opVMin   = OpParam |}
+      0s"vmax" -> {| opVMax   = OpParam |}
+      0s"vand" -> {| opVAnd   = OpParam |}
+      0s"vor " -> {| opVOr    = OpParam |}
+      0s"tLab" -> {| opTLab   = OpParam |}
+      0s"tXYZ" -> {| opTXYZ   = OpParam |}
 
       -- Table 103,104
       0s"if  " -> {| opIf     = BE32 as uint 64 |}
       0s"else" -> {| opElse   = BE32 as uint 64 |}
 
       -- Table 105
-      0s"sel " -> {| opSel    = Guard (BE32 == 0) |}
+      0s"sel " -> {| opSel    = NoParams |}
       0s"case" -> {| opCase   = BE32 as uint 64 |}
       0s"dflt" -> {| opDflt   = BE32 as uint 64 |}
 
-      _        -> {| unknown = explode32 tag |}
+      _        -> {| unknown  = block
+                                  tag   = explode32 tag
+                                  param = BE32
+                  |}
+
+def NoParams = Exactly 0 BE32
+
+def OpParam =
+  block
+    $$ = BE16
+    Exactly 0 BE16
 
 def OpParams =
   block
     s = BE16
     t = BE16
 
-def OpParams0 =
+
+
+--------------------------------------------------------------------------------
+-- Curve Set (Section 11.2.2)
+
+def Curve =
   block
-    $$ = BE16
+    let tag = BE32
+    Exactly 0 BE32
+    case tag of
+      0s"sngf" -> {| sngf = SingleSampledCurve |}
+      0s"curf" -> {| curf = SegmentedCurve |}
+      _        -> {| unknown = explode32 tag |}
+
+
+-- XXX: Table 108
+def SingleSampledCurve =
+  block
+    n = BE32
+    f = BE32
+    l = BE32
+    e = BE16
+    ty = BE16
+
+
+def SegmentedCurve =
+  block
+    let n = BE16 as uint 64
+    Guard (n >= 1) <| Fail "Need at least one curve segment"
+    Exactly 0 BE16
+    let bnum = n - 1
+    breakPoints = Many bnum BEFloat
+    segements   = Many n CurveSegment
+
+def CurveSegment =
+  block
+    let tag = BE32
+    Exactly 0 BE32
+    case tag of
+      0s"parf" -> {| parf = FormualCurveSegment |}
+      0s"samf" -> {| samf = Many (BE32 as uint 64) BEFloat |} -- Table 112
+
+
+-- | Table 110,111
+def FormualCurveSegment =
+  block
+    let fun = BE16
     Guard (BE16 == 0)
+    case fun of
+      0 -> {| fun0 = FunParams_g_a_b_c   |}
+      1 -> {| fun1 = FunParams_g_a_b_c_d |}
+      2 -> {| fun2 = FunParams_a_b_c_d_e |}
+      3 -> {| fun3 = FunParams_g_a_b_c   |}
+
+def FunParams_g_a_b_c =
+  block
+    g = BEFloat
+    a = BEFloat
+    b = BEFloat
+    c = BEFloat
+
+def FunParams_g_a_b_c_d =
+  block
+    g = BEFloat
+    a = BEFloat
+    b = BEFloat
+    c = BEFloat
+    d = BEFloat
+
+def FunParams_a_b_c_d_e =
+  block
+    a = BEFloat
+    b = BEFloat
+    c = BEFloat
+    d = BEFloat
+    e = BEFloat
 
 
+--------------------------------------------------------------------------------
+-- 11.2.10 Matrix Element
 
+def Matrix p q =
+  block
+    matrix = Many q (Many p BEFloat)
+    vector = Many q BEFloat
 
 
 ------------------------------------------------------------------------------
 -- Misc. utils
+
+
+def Exactly x P = Guard (P == x) <| Fail "Unexpected field value"
+
 
 def explode32 (sig : uint 32) =
   [ sig >> 24 as! uint 8
@@ -733,3 +813,13 @@ def ChunkRelativeTo s off sz =
     Bytes sz
 
 def exp b e = for (x = 1; i in rangeUp(e)) x * b
+
+def Positioned s P =
+  block
+    let p = PositionNumber
+    LookAhead
+      block
+        SetStreamAt p.offset s
+        Chunk p.size P
+
+
