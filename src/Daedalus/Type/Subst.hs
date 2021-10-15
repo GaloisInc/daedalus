@@ -47,6 +47,8 @@ instance ApSubst Type where
           TSInt t    -> tSInt <$> apSubstT' su t
           TInteger   -> Nothing
           TBool      -> Nothing
+          TFloat     -> Nothing
+          TDouble    -> Nothing
           TUnit      -> Nothing
           TArray t   -> tArray <$> apSubstT' su t
           TMaybe t   -> tMaybe <$> apSubstT' su t
@@ -66,6 +68,7 @@ instance ApSubst Constraint where
   apSubstT' su ctr =
     case ctr of
       Numeric t         -> Numeric <$> apSubstT' su t
+      FloatingType t    -> FloatingType <$> apSubstT' su t
       HasStruct t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasStruct a l b)
       StructCon nm t fs -> someJust2 (StructCon nm)
@@ -169,6 +172,8 @@ instance FreeTVS t => FreeTVS (TypeF t) where
       TSInt t    -> freeTVS t
       TInteger   -> Set.empty
       TBool      -> Set.empty
+      TFloat     -> Set.empty
+      TDouble    -> Set.empty
       TUnit      -> Set.empty
       TArray t   -> freeTVS t
       TMaybe t   -> freeTVS t
@@ -234,6 +239,7 @@ instance FreeTVS Constraint where
   freeTVS c =
     case c of
       Numeric t         -> freeTVS t
+      FloatingType t    -> freeTVS t
       HasStruct t1 _ t2 -> freeTVS t1 <> freeTVS t2
       StructCon _ t fs  -> freeTVS t <> freeTVS (map snd fs)
       UnionCon _ t _ tf -> freeTVS t <> freeTVS tf

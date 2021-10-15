@@ -11,6 +11,8 @@ module Daedalus.Value
   , vSInt'
   , vSize
   , vByte
+  , vFloat
+  , vDouble
   , vCoerceTo
 
     -- * Structs
@@ -43,6 +45,16 @@ module Daedalus.Value
 
     -- * Booleans
   , vNot
+
+    -- * Floating Point
+  , vWordToFloat
+  , vWordToDouble
+  , vFloatPi
+  , vDoublePi
+  , vIsNaN
+  , vIsInfinite
+  , vIsDenormalized
+  , vIsNegativeZero
 
   -- * Arithmetic
   , vAdd
@@ -107,6 +119,7 @@ import Daedalus.PP
 
 import Daedalus.Value.Type
 import Daedalus.Value.Bool
+import Daedalus.Value.Float
 import Daedalus.Value.Arith
 import Daedalus.Value.Bits
 import Daedalus.Value.Compare

@@ -25,6 +25,8 @@ data Value =
   | VSInt !Int {- nbits -} !Integer
   | VInteger               !Integer
   | VBool                  !Bool
+  | VFloat                 !Float
+  | VDouble                !Double
   | VUnionElem             !Label !Value
   | VStruct                ![(Label,Value)]
   | VArray                 !(Vector Value)
@@ -47,6 +49,8 @@ data TValue =
   | TVUInt !Int
   | TVSInt !Int
   | TVNum  !Int  -- of kind number, needed to pass as param
+  | TVFloat
+  | TVDouble
   | TVArray
   | TVMap
   | TVOther
@@ -61,6 +65,12 @@ vByte x = VUInt 8 (fromIntegral x)
 
 vByteString :: ByteString -> Value
 vByteString = VArray . Vector.fromList . map vByte . BS.unpack
+
+vFloat :: Float -> Value
+vFloat = VFloat
+
+vDouble :: Double -> Value
+vDouble = VDouble
 
 vUInt :: Int -> Integer -> Value
 vUInt w i = VUInt w (i `mod` (snd (uintRange w) + 1))
@@ -189,6 +199,14 @@ vCompare a b =
     (VBool _,        _)                     -> LT
     (_,              VBool _)               -> GT
 
+    (VFloat x,        VFloat y)               -> compare x y
+    (VFloat _,        _)                     -> LT
+    (_,              VFloat _)               -> GT
+
+    (VDouble x,        VDouble y)               -> compare x y
+    (VDouble _,        _)                     -> LT
+    (_,              VDouble _)               -> GT
+
     (VUnionElem p x, VUnionElem q y)        -> compare (p,x) (q,y)
     (VUnionElem _ _, _)                     -> LT
     (_,              VUnionElem _ _)        -> GT
@@ -237,6 +255,8 @@ instance PP TValue where
       TVInteger -> "integer"
       TVUInt n  -> "uint" <.> int n
       TVSInt n  -> "sint" <.> int n
+      TVFloat   -> "float"
+      TVDouble  -> "double"
       TVNum n   -> int n
       TVArray   -> "array"
       TVMap     -> "map"
@@ -251,6 +271,8 @@ instance PP Value where
       VUInt nb x -> pp x <> "[" <> pp nb <> "]"
       VSInt nb x -> pp x <> "[S" <> pp nb <> "]"
       VInteger x -> pp x
+      VFloat x   -> pp x
+      VDouble x  -> pp x
       VBool b    -> if b then "T" else "F"
       VUnionElem lbl v -> braces (pp lbl <+> colon <+> pp v)
       VStruct xs      -> block "{" "," "}" (map ppF xs)
@@ -284,6 +306,9 @@ valueToJS val =
     VInteger n -> integer n
 
     VBool b    -> if b then "true" else "false"
+
+    VFloat f   -> float f
+    VDouble f  -> double f
 
     VUnionElem l v -> tagged (pp l) (valueToJS v)
 

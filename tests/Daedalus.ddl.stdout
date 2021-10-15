@@ -1,0 +1,85 @@
+module Daedalus
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_12 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _12 then a # b else b # a
+ 
+Daedalus.UInt16 (_13 : bool) : Grammar (uint 16) =
+  do (_14 : uint 8) <- GetByte
+     (_15 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _13 _14 _15)
+ 
+Daedalus.UInt32 (_16 : bool) : Grammar (uint 32) =
+  do (_17 : uint 16) <- Daedalus.UInt16 _16
+     (_18 : uint 16) <- Daedalus.UInt16 _16
+     pure (Daedalus.joinWords 16 16 32 _16 _17 _18)
+ 
+Daedalus.UInt64 (_19 : bool) : Grammar (uint 64) =
+  do (_20 : uint 32) <- Daedalus.UInt32 _19
+     (_21 : uint 32) <- Daedalus.UInt32 _19
+     pure (Daedalus.joinWords 32 32 64 _19 _20 _21)
+ 
+Daedalus.BE16 : Grammar (uint 16) =
+  do (_22 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _22
+     pure $$
+ 
+Daedalus.BE32 : Grammar (uint 32) =
+  do (_24 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _24
+     pure $$
+ 
+Daedalus.BE64 : Grammar (uint 64) =
+  do (_26 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _26
+     pure $$
+ 
+Daedalus.LE16 : Grammar (uint 16) =
+  do (_28 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _28
+     pure $$
+ 
+Daedalus.LE32 : Grammar (uint 32) =
+  do (_30 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _30
+     pure $$
+ 
+Daedalus.LE64 : Grammar (uint 64) =
+  do (_32 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _32
+     pure $$
+ 
+Daedalus._UInt16 : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+Daedalus._UInt32 : Grammar {} =
+  do Daedalus._UInt16
+     Daedalus._UInt16
+ 
+Daedalus._UInt64 : Grammar {} =
+  do Daedalus._UInt32
+     Daedalus._UInt32
+ 
+Daedalus._BE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._BE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._BE64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._LE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._LE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._LE64 : Grammar {} =
+  Daedalus._UInt64

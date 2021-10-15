@@ -8,6 +8,7 @@ import Daedalus.PP
 data Module = Module
   { hsModName  :: String
   , hsLangExts :: [String]
+  , hsGHC      :: [String] -- GHC optiosn
   , hsImports  :: [Import]
   , hsDecls    :: [Decl]
   }
@@ -174,12 +175,17 @@ instance PP Import where
                        QualifyAs a -> ("qualified", "as" <+> text a)
 
 instance PP Module where
-  pp Module { .. } = prags $$ header $$ imps $$ decls
+  pp Module { .. } = prags $$ ghcPrags $$ header $$ imps $$ decls
     where
+    prag a b = braces ("-#" <+> a <+> text b <+> "#-")
+
     prags = case hsLangExts of
               [] -> empty
-              _  -> vcat [ braces ("-#" <+> "Language" <+> text x <+> "#-")
-                              | x <- hsLangExts ]
+              _  -> vcat [ prag "Language" x | x <- hsLangExts ]
+
+    ghcPrags = case hsGHC of
+                 [] -> empty
+                 _ -> vcat [ prag "OPTIONS_GHC" x | x <- hsGHC ]
 
     header = "module" <+> text hsModName <+> "where"
     imps   = case hsImports of

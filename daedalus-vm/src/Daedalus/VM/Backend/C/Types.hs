@@ -26,6 +26,8 @@ cSemType sty =
     Src.TSInt n     -> cInst "DDL::SInt" [ cSizeType n ]
     Src.TInteger    -> "DDL::Integer"
     Src.TBool       -> "DDL::Bool"
+    Src.TFloat      -> "DDL::Float"
+    Src.TDouble     -> "DDL::Double"
     Src.TUnit       -> "DDL::Unit"
     Src.TArray t    -> cInst "DDL::Array" [ cSemType t ]
     Src.TMaybe t    -> cInst "DDL::Maybe" [ cSemType t ]

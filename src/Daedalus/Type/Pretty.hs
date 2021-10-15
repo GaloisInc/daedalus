@@ -55,6 +55,7 @@ ppCtr :: (?tpMap :: Map TVar Doc) => Constraint -> Doc
 ppCtr ctr =
   case ctr of
     Numeric t -> ppBackTy t <+> "is a numeric type"
+    FloatingType t -> ppBackTy t <+> "is a floating point type"
     HasStruct ts l tf ->
       ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf
     HasUnion tu l tf ->
@@ -69,6 +70,7 @@ ppCtr ctr =
           Lossy -> "(lossy)"
           NotLossy -> empty
           Dynamic -> "(dynamic check)"
+
 
     Literal n t -> ppBackTy t <+> "contains the number" <+> pp n
     CAdd t1 t2 t3 -> ppTy 1 t1 <+> "+" <+> ppTy 1 t2 <+> "=" <+> ppTy 1 t3
@@ -97,6 +99,8 @@ ppTy n t =
         TSInt i    -> wrap 2 ("sint" <+> ppTy 1 i)
         TInteger   -> "int"
         TBool      -> "bool"
+        TFloat     -> "float"
+        TDouble    -> "double"
         TUnit      -> "{}"
         TArray a   -> "[" <+> ppTy 0 a <+> "]"
         TMaybe a   -> wrap 2 ("maybe" <+> ppTy 1 a)

@@ -282,6 +282,8 @@ data BinOp = Add | Sub | Mul | Div | Mod
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
+           | WordToFloat | WordToDouble
+           | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -308,9 +310,11 @@ data StructField e =
 
 data Literal = 
     LNumber     !Integer
+  | LFloating   !Double     -- used for both floating point types
   | LBool       !Bool
   | LBytes      !ByteString
   | LByte       !Word8
+  | LPi
     deriving (Show, Eq, Ord)
 
 
@@ -361,6 +365,8 @@ data TypeF t =
   | TUInt !t
   | TSInt !t
   | TInteger
+  | TFloat
+  | TDouble
   | TBool
   | TUnit
   | TArray !t
@@ -468,6 +474,12 @@ instance PP UniOp where
       Neg    -> "-"
       Concat -> "concat"
       BitwiseComplement -> "~"
+      WordToFloat     -> "wordToFloat"
+      WordToDouble    -> "wordToDouble"
+      IsNaN           -> "isNaN"
+      IsInfinite      -> "isInfinit"
+      IsDenormalized  -> "isDenormalized"
+      IsNegativeZero  -> "isNegativeZero"
 
 instance PP Selector where
   pp sel = case sel of
@@ -490,6 +502,8 @@ instance PP t => PP (TypeF t) where
       TSInt t    -> wrapIf (n > 1) ("sint" <+> ppPrec 2 t)
       TInteger   -> "int"
       TBool      -> "bool"
+      TFloat     -> "float"
+      TDouble    -> "double"
       TUnit      -> "{}"
       TArray t   -> brackets (pp t)
       TMaybe t   -> wrapIf (n > 1) ("Maybe" <+> ppPrec 2 t)
@@ -499,11 +513,13 @@ instance PP t => PP (TypeF t) where
 instance PP Literal where
   pp lit =
     case lit of
-      LByte b   -> text (show (toEnum (fromEnum b) :: Char))
-      LNumber i -> integer i      
-      LBool i   -> if i then "true" else "false"
-      LBytes b  -> text (show (BS8.unpack b))
-      
+      LByte b     -> text (show (toEnum (fromEnum b) :: Char))
+      LNumber i   -> integer i
+      LBool i     -> if i then "true" else "false"
+      LFloating d -> pp d
+      LBytes b    -> text (show (BS8.unpack b))
+      LPi         -> "pi"
+
 
 $(return [])
 

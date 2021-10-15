@@ -74,6 +74,7 @@ data Constraint = Numeric Type
 
                 | Coerce Lossy Type Type
                 | Literal Integer Type
+                | FloatingType Type
                 | CAdd Type Type Type
                 | Traversable Type
                 | Mappable Type Type          -- incol, outcol
@@ -739,6 +740,10 @@ instance PP Constraint where
           wrapIf (n > 0) ("Coerce" <+> pp s <+> ppPrec 2 t1 <+> ppPrec 2 t2)
       Literal i t ->
         wrapIf (n > 0) ("Literal" <+> pp i <+> ppPrec 2 t)
+
+      FloatingType t ->
+        wrapIf (n > 0) ("Floating" <+> ppPrec 2 t)
+
       CAdd t1 t2 t3 ->
         wrapIf (n > 0)
                (ppPrec 2 t1 <+> "+" <+> ppPrec 2 t2 <+> "=" <+> ppPrec 2 t3)
@@ -833,6 +838,12 @@ tInteger = Type TInteger
 tSize :: Type
 tSize = tUInt (tNum 64)
 
+tFloat :: Type
+tFloat = Type TFloat
+
+tDouble :: Type
+tDouble = Type TDouble
+
 tBool :: Type
 tBool = Type TBool
 
@@ -887,6 +898,8 @@ kindOf ty =
         TSInt _     -> KValue
         TInteger    -> KValue
         TBool       -> KValue
+        TFloat      -> KValue
+        TDouble     -> KValue
         TUnit       -> KValue
         TArray {}   -> KValue
         TMaybe {}   -> KValue
@@ -996,6 +1009,12 @@ instance TypeOf (TCF a k) where
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e
+          WordToFloat {}    -> tFloat
+          WordToDouble {}   -> tDouble
+          IsNaN {}          -> tBool
+          IsInfinite {}     -> tBool
+          IsDenormalized {} -> tBool
+          IsNegativeZero {} -> tBool
 
 
       TCSelStruct _ _ t  -> t

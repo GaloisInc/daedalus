@@ -95,6 +95,8 @@ import Daedalus.Parser.Monad
   'uint'      { Lexeme { lexemeRange = $$, lexemeToken = KWUInt } }
   '$uint'     { Lexeme { lexemeRange = $$, lexemeToken = KWDollarUInt } }
   'sint'      { Lexeme { lexemeRange = $$, lexemeToken = KWSInt } }
+  'float'     { Lexeme { lexemeRange = $$, lexemeToken = KWFloat } }
+  'double'    { Lexeme { lexemeRange = $$, lexemeToken = KWDouble } }
   'bool'      { Lexeme { lexemeRange = $$, lexemeToken = KWBool } }
   'maybe'     { Lexeme { lexemeRange = $$, lexemeToken = KWMaybe } }
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
@@ -139,6 +141,16 @@ import Daedalus.Parser.Monad
   'Index'     { Lexeme { lexemeRange = $$, lexemeToken = KWArrayIndex } }
   'rangeUp'   { Lexeme { lexemeRange = $$, lexemeToken = KWRangeUp } }
   'rangeDown' { Lexeme { lexemeRange = $$, lexemeToken = KWRangeDown } }
+
+  'pi'             { Lexeme { lexemeRange = $$, lexemeToken = KWpi } }
+  'wordToFloat'    { Lexeme { lexemeRange = $$, lexemeToken = KWWordToFloat } }
+  'wordToDouble'   { Lexeme { lexemeRange = $$, lexemeToken = KWWordToDouble } }
+  'isNaN'          { Lexeme { lexemeRange = $$, lexemeToken = KWIsNaN } }
+  'isInfinite'     { Lexeme { lexemeRange = $$, lexemeToken = KWIsInfinite } }
+  'isDenormalized' { Lexeme { lexemeRange = $$,
+                              lexemeToken = KWIsDenormalized } }
+  'isNegativeZero' { Lexeme { lexemeRange = $$,
+                              lexemeToken = KWIsNegativeZero } }
 
 %monad { Parser }
 %lexer { nextToken } { Lexeme { lexemeToken = TokEOF } }
@@ -418,12 +430,20 @@ call_expr                                :: { Expr }
                                               $2) }
   | 'arrayStream' aexpr aexpr   { at ($1,$3)(EBinOp ArrayStream $2 $3)}
 
+  | 'wordToFloat' aexpr         { at ($1,$2) (EUniOp WordToFloat $2) }
+  | 'wordToDouble' aexpr        { at ($1,$2) (EUniOp WordToDouble $2) }
+  | 'isNaN' aexpr               { at ($1,$2) (EUniOp IsNaN $2) }
+  | 'isInfinite' aexpr          { at ($1,$2) (EUniOp IsInfinite $2) }
+  | 'isDenormalized' aexpr      { at ($1,$2) (EUniOp IsDenormalized $2) }
+  | 'isNegativeZero' aexpr      { at ($1,$2) (EUniOp IsNegativeZero $2) }
+
 
 
   | aexpr                                   { $1 }
 
 aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
+  | 'pi'                                    { at $1 (ELiteral LPi) }
   | 'UInt8'                                 { at $1      EAnyByte }
   | 'Accept'                                { at $1 (EStruct []) }
   | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
@@ -544,6 +564,8 @@ separated1(p,s)                          :: { [p] }
 
 type                                     :: { SrcType }
   : 'bool'                                  { atT $1 TBool }
+  | 'float'                                 { atT $1 TFloat }
+  | 'double'                                { atT $1 TDouble }
   | 'int'                                   { atT $1 TInteger }
   | 'uint' type                             { atT ($1 <-> $2) (TUInt $2) }
   | 'sint' type                             { atT ($1 <-> $2) (TSInt $2) }

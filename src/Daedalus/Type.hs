@@ -311,9 +311,21 @@ inferExpr expr =
         pure (exprAt expr (TCJust e'), tMaybe t)
 
     -- FIXME: maybe unify literal code?
-    ELiteral l@(LBool _) -> liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
+    ELiteral l@(LBool _) ->
+      liftValAppPure expr [] \_ -> pure (exprAt expr (TCLiteral l tBool), tBool)
 
-    ELiteral l@(LNumber n) -> 
+    ELiteral LPi ->
+      liftValAppPure expr [] \_ ->
+        do a <- newTVar expr KValue
+           addConstraint expr (FloatingType a)
+           pure (exprAt expr (TCLiteral LPi a), a)
+
+    ELiteral l@(LFloating _) -> liftValAppPure expr [] \_ ->
+      do a <- newTVar expr KValue
+         addConstraint expr (FloatingType a)
+         pure (exprAt expr (TCLiteral l a), a)
+
+    ELiteral l@(LNumber n) ->
       do ctxt <- getContext
          case ctxt of
            AClass
@@ -400,6 +412,37 @@ inferExpr expr =
           do a       <- newTVar e1' KNumber
              unify (tUInt a) (e1', t)
              pure (exprAt expr (TCUniOp BitwiseComplement e1'), t)
+
+        WordToFloat ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do unify (tUInt (tNum 32)) (e1',t)
+             pure (exprAt expr (TCUniOp WordToFloat e1'), tFloat)
+
+        WordToDouble ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do unify (tUInt (tNum 64)) (e1',t)
+             pure (exprAt expr (TCUniOp WordToDouble e1'), tDouble)
+
+        IsNaN ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do addConstraint expr (FloatingType t)
+             pure (exprAt expr (TCUniOp IsNaN e1'), tBool)
+
+        IsInfinite ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do addConstraint expr (FloatingType t)
+             pure (exprAt expr (TCUniOp IsInfinite e1'), tBool)
+
+        IsDenormalized ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do addConstraint expr (FloatingType t)
+             pure (exprAt expr (TCUniOp IsDenormalized e1'), tBool)
+
+        IsNegativeZero ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+          do addConstraint expr (FloatingType t)
+             pure (exprAt expr (TCUniOp IsNegativeZero e1'), tBool)
+
 
     ETriOp op e1 e2 e3 ->
       case op of

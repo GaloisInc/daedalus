@@ -176,6 +176,7 @@ instance TraverseTypes Constraint where
   traverseTypes f constraint =
     case constraint of
       Numeric t         -> Numeric <$> f t
+      FloatingType t    -> FloatingType <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
       StructCon nm t fs -> StructCon nm <$> f t <*> traverse tF fs
         where tF (x,ft) = (x,) <$> traverse f ft

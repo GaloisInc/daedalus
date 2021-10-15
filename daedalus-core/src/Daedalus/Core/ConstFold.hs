@@ -6,6 +6,8 @@
 
 module Daedalus.Core.ConstFold (constFold) where
 
+import GHC.Float(float2Double)
+
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List (foldl')
@@ -158,6 +160,8 @@ valueToExpr tenv ty v =
     VSInt _n i -> Ap0 $ IntL i ty
     VInteger i -> Ap0 $ IntL i TInteger  -- check ty?
     VBool    b -> Ap0 $ BoolL b -- check ty?
+    VFloat   f -> Ap0 $ FloatL (float2Double f) TFloat
+    VDouble  d -> Ap0 $ FloatL d TDouble
     VUnionElem l e
       | TUser ut <- ty
       , Just ty' <- lookup l (userTypeToUnion tenv ut) ->

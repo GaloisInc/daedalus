@@ -15,6 +15,8 @@ vCoerceTo tgt v =
         TVInteger -> (VInteger  n, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -25,6 +27,8 @@ vCoerceTo tgt v =
         TVInteger -> (VInteger  n, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -35,6 +39,32 @@ vCoerceTo tgt v =
         TVInteger -> (v, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
+        TVFloat   -> bug -- XXX
+        TVDouble  -> bug -- XXX
+        TVNum {}  -> bug
+        TVArray   -> bug
+        TVMap     -> bug
+        TVOther   -> bug
+
+    VFloat f ->
+      case tgt of
+        TVInteger -> bug -- XXX
+        TVUInt st -> bug -- XXX
+        TVSInt st -> bug -- XXX
+        TVFloat   -> (v, exact)
+        TVDouble  -> bug -- XXX
+        TVNum {}  -> bug
+        TVArray   -> bug
+        TVMap     -> bug
+        TVOther   -> bug
+
+    VDouble f ->
+      case tgt of
+        TVInteger -> bug -- XXX
+        TVUInt st -> bug -- XXX
+        TVSInt st -> bug -- XXX
+        TVFloat   -> bug -- XXX
+        TVDouble  -> (v, exact)
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -58,5 +88,4 @@ vCoerceTo tgt v =
                             , "Target: " ++ showPP tgt
                             , "Operand: " ++ showPP v
                             ]
-
 

@@ -1,0 +1,128 @@
+module Daedalus
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_22 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _22 then a # b else b # a
+ 
+Daedalus.UInt16 (_23 : bool) : Grammar (uint 16) =
+  do (_24 : uint 8) <- GetByte
+     (_25 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _23 _24 _25)
+ 
+Daedalus.UInt32 (_26 : bool) : Grammar (uint 32) =
+  do (_27 : uint 16) <- Daedalus.UInt16 _26
+     (_28 : uint 16) <- Daedalus.UInt16 _26
+     pure (Daedalus.joinWords 16 16 32 _26 _27 _28)
+ 
+Daedalus.UInt64 (_29 : bool) : Grammar (uint 64) =
+  do (_30 : uint 32) <- Daedalus.UInt32 _29
+     (_31 : uint 32) <- Daedalus.UInt32 _29
+     pure (Daedalus.joinWords 32 32 64 _29 _30 _31)
+ 
+Daedalus.BE16 : Grammar (uint 16) =
+  do (_32 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _32
+     pure $$
+ 
+Daedalus.BE32 : Grammar (uint 32) =
+  do (_34 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _34
+     pure $$
+ 
+Daedalus.BE64 : Grammar (uint 64) =
+  do (_36 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _36
+     pure $$
+ 
+Daedalus.LE16 : Grammar (uint 16) =
+  do (_38 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _38
+     pure $$
+ 
+Daedalus.LE32 : Grammar (uint 32) =
+  do (_40 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _40
+     pure $$
+ 
+Daedalus.LE64 : Grammar (uint 64) =
+  do (_42 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _42
+     pure $$
+ 
+Daedalus._UInt16 : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+Daedalus._UInt32 : Grammar {} =
+  do Daedalus._UInt16
+     Daedalus._UInt16
+ 
+Daedalus._UInt64 : Grammar {} =
+  do Daedalus._UInt32
+     Daedalus._UInt32
+ 
+Daedalus._BE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._BE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._BE64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._LE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._LE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._LE64 : Grammar {} =
+  Daedalus._UInt64
+module T074
+ 
+--- Imports:
+import Daedalus
+ 
+--- Type defs:
+type T074.Check = { value: float
+                  ; isNan: bool
+                  ; isNZ: bool
+                  ; isInf: bool
+                  ; isDen: bool
+                  }
+ 
+type T074.Main = { ex1: T074.Check
+                 ; ex2: T074.Check
+                 }
+ 
+--- Rules:
+ 
+T074.Check (xs : uint 32) : Grammar T074.Check =
+  do (value : float) <- pure (wordToFloat xs)
+     (isNan : bool) <- pure (isNaN value)
+     (isNZ : bool) <- pure (isNegativeZero value)
+     (isInf : bool) <- pure (isInfinit value)
+     (isDen : bool) <- pure (isDenormalized value)
+     pure {value = value,
+           isNan = isNan,
+           isNZ = isNZ,
+           isInf = isInf,
+           isDen = isDen}
+ 
+T074.Main : Grammar T074.Main =
+  do (ex1 : T074.Check) <- T074.Check 0
+     (ex2 : T074.Check) <- T074.Check (1 # 0)
+     pure {ex1 = ex1,
+           ex2 = ex2}
+ 
+T074._Check : Grammar {} =
+  pure {}
+ 
+T074._Main : Grammar {} =
+  do T074._Check
+     T074._Check

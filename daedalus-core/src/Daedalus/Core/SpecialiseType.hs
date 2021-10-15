@@ -127,6 +127,8 @@ instantiateTDecl orig new td =
         TSInt tsz -> TSInt (goSize tsz)
         TInteger  -> ty
         TBool     -> ty
+        TFloat    -> ty
+        TDouble   -> ty
         TUnit     -> ty
         TArray ty' -> TArray (goTy ty')
         TMaybe ty' -> TMaybe (goTy ty')

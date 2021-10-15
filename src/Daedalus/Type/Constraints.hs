@@ -181,6 +181,18 @@ isNumeric r ty =
                           [ "Type:" <+> pp ty ]
 
 
+isFloatingType :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
+isFloatingType r ty =
+  case ty of
+    Type TFloat  -> pure Solved
+    Type TDouble -> pure Solved
+    TVar _       -> pure Unsolved
+    _            -> reportDetailedError r "Not a floating point type."
+                          [ "Type:" <+> pp ty ]
+
+
+
+
 hasStruct :: (STCMonad m, HasRange r) =>
             r -> Type -> Label -> Type -> m CtrStatus
 hasStruct r ty l fty =
@@ -396,6 +408,15 @@ validLiteral r i ty =
                           , negate y <= i && i < y -> pure Solved
                           | otherwise -> nope
             _ -> pure Unsolved
+
+        TFloat ->
+          let f = fromInteger i :: Float
+          in if truncate f == i then pure Solved else nope
+
+        TDouble ->
+          let f = fromInteger i :: Double
+          in if truncate f == i then pure Solved else nope
+
         _ -> nope
 
   where
@@ -504,6 +525,7 @@ solveConstraint :: STCMonad m => Located Constraint -> m CtrStatus
 solveConstraint lctr =
   case thingValue lctr of
     Numeric t          -> isNumeric lctr t
+    FloatingType t     -> isFloatingType lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
     StructCon _ t fs   -> isStructCon lctr t fs
     UnionCon _ t c ft  -> isUnionCon lctr t c ft

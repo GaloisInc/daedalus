@@ -158,6 +158,14 @@ $ws+        ;
 "rangeUp"   { lexeme KWRangeUp }
 "rangeDown" { lexeme KWRangeDown }
 
+"pi"              { lexeme KWpi }
+"wordToFloat"     { lexeme KWWordToFloat }
+"wordToDouble"    { lexeme KWWordToDouble }
+"isNaN"           { lexeme KWIsNaN }
+"isInfinite"      { lexeme KWIsInfinite }
+"isDenormalized"  { lexeme KWIsDenormalized }
+"isNegativeZero"  { lexeme KWIsNegativeZero }
+
 "true"      { lexeme KWTrue }
 "false"     { lexeme KWFalse }
 
@@ -167,6 +175,8 @@ $ws+        ;
 "int"       { lexeme KWInt }
 "uint"      { lexeme KWUInt }
 "sint"      { lexeme KWSInt }
+"float"     { lexeme KWFloat }
+"double"    { lexeme KWDouble }
 "bool"      { lexeme KWBool }
 "maybe"     { lexeme KWMaybe }
 "stream"    { lexeme KWStream }

@@ -28,8 +28,7 @@ import qualified Daedalus.LSP.Command.Run     as C
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position        (declAtPos)
 import           Daedalus.SourceRange
-import           Daedalus.Type.AST            (TCModule, tcDeclName,
-                                               tcModuleName)
+import           Daedalus.Type.AST            (TCModule, tcDeclName)
 import           Data.Foldable                (traverse_)
 import           Language.LSP.Server          (sendNotification)
 

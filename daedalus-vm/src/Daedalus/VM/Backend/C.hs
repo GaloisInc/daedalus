@@ -146,6 +146,7 @@ cProgram fileNameRoot prog =
          , "#include <ddl/unit.h>"
          , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
+         , "#include <ddl/float.h>"
          , "#include <ddl/integer.h>"
          , "#include <ddl/cast.h>"
          , "#include <ddl/maybe.h>"
@@ -537,6 +538,15 @@ cOp1 x op1 ~[e'] =
     Src.FromUnion _t l ->
       cVarDecl x $ cCallMethod e (selName GenOwn l) []
 
+    Src.WordToFloat     -> cVarDecl x $ cCall "DDL::Float::fromBits" [
+                                        cCallMethod e "rep" [] ]
+    Src.WordToDouble    -> cVarDecl x $ cCall "DDL::Double::fromBits" [
+                                        cCallMethod e "rep" [] ]
+    Src.IsNaN           -> cVarDecl x $ cCallMethod e "isNaN" []
+    Src.IsInfinite      -> cVarDecl x $ cCallMethod e "isInfinite" []
+    Src.IsDenormalized  -> cVarDecl x $ cCallMethod e "isDenormalized" []
+    Src.IsNegativeZero  -> cVarDecl x $ cCallMethod e "isNegativeZero" []
+
   where
   e = cExpr e'
 
@@ -625,7 +635,12 @@ cExpr expr =
                        Nothing -> cVarUse x
     EUnit         -> cCall "DDL::Unit" []
     EBool b       -> cCall "DDL::Bool" [if b then "true" else "false"]
-    ENum n ty     -> cCallCon f [ cCall num [integer n] ]
+    EFloat f t    -> cCall con [pp f]
+        where con = case t of
+                      Src.TFloat  -> "DDL::Float"
+                      Src.TDouble -> "DDL::Double"
+                      _           -> panic "cExpr" [ "Bad float" ]
+    ENum n ty     -> cCallCon f [ arg ]
       where
       lit pref sz =
         pref <.>
@@ -637,11 +652,16 @@ cExpr expr =
             | s <= 64   -> "INT64_C"
             | otherwise -> panic "cExpr" ["Literal > 64 bits"]
           Src.TSizeParam {} -> panic "cExpr" [ "Type variable in literal" ]
+      mkArg cty = cCall cty [integer n]
 
-      (f,num) =
+      (f,arg) =
         case ty of
-          Src.TUInt sz -> ( cInst "DDL::UInt" [ cSizeType sz ], lit "U" sz )
-          Src.TSInt sz -> ( cInst "DDL::SInt" [ cSizeType sz ], lit ""  sz )
+          Src.TUInt sz -> ( cInst "DDL::UInt"   [ cSizeType sz ]
+                          , mkArg (lit "U" sz) )
+          Src.TSInt sz -> ( cInst "DDL::SInt"   [ cSizeType sz ]
+                          , mkArg (lit ""  sz) )
+          Src.TFloat   -> ("DDL::Float", integer n)
+          Src.TDouble  -> ("DDL::Double", integer n)
 
           _ -> panic "cExpr" [ "Unexpected type for numeric constant"
                              , show (pp ty) ]

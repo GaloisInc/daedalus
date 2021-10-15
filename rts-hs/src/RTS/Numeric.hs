@@ -26,9 +26,13 @@ module RTS.Numeric
   , intToSize
   , sizeToInt
   , toInt
+
+  , wordToFloat
+  , wordToDouble
   ) where
 
 import GHC.TypeNats
+import GHC.Float
 import Control.Monad(foldM)
 import Data.Kind(Constraint)
 import Data.Word
@@ -337,5 +341,15 @@ rngU lim = unfoldr step (lit 0)
   where step n = if n < lim then Just (n, unsafeIncU n) else Nothing
 {-# INLINE rngU #-}
 
+
+--------------------------------------------------------------------------------
+
+wordToFloat :: UInt 32 -> Float
+wordToFloat x = castWord32ToFloat (fromUInt x)
+{-# INLINE wordToFloat #-}
+
+wordToDouble :: UInt 64 -> Double
+wordToDouble x = castWord64ToDouble (fromUInt x)
+{-# INLINE wordToDouble #-}
 
 

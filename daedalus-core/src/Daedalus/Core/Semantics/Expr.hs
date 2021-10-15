@@ -7,6 +7,8 @@
 {-# Language ScopedTypeVariables #-}
 module Daedalus.Core.Semantics.Expr where
 
+import GHC.Float(double2Float)
+
 import qualified Data.Map as Map
 import qualified Data.ByteString as BS
 import Data.Maybe(isJust)
@@ -105,10 +107,17 @@ evalOp0 op =
                              Just w  -> vSInt w i
                              Nothing -> panic "evalOp0" [ "Vector size too big"
                                                         , show n ]
+        TFloat  -> pure (vFloat  (fromIntegral i))
+        TDouble -> pure (vDouble (fromIntegral i))
 
         _ -> panic "evalOp0" [ "Numeric type" ]
 
     BoolL b         -> pure (VBool b)
+    FloatL f t      -> case t of
+                         TFloat  -> pure (vFloat (double2Float f))
+                         TDouble -> pure (vDouble f)
+                         _       -> panic "evalOp0" [ "Floating type" ]
+
     ByteArrayL bs   -> pure (vByteString bs)
     NewBuilder _    -> pure vBuilder
     MapEmpty {}     -> pure (VMap Map.empty)
@@ -124,6 +133,8 @@ evalType ty =
     TUInt n       -> TVUInt (sizeType n)
     TSInt n       -> TVSInt (sizeType n)
     TInteger      -> TVInteger
+    TFloat        -> TVFloat
+    TDouble       -> TVDouble
     TBool         -> TVOther
     TUnit         -> TVOther
     TArray {}     -> TVArray
@@ -144,6 +155,13 @@ evalType ty =
 evalOp1 :: Op1 -> Type -> Value -> Value
 evalOp1 op ty v = case op of
   CoerceTo t    -> fst (vCoerceTo (evalType t) v)
+
+  WordToFloat     -> vWordToFloat v
+  WordToDouble    -> vWordToDouble v
+  IsNaN           -> vIsNaN v
+  IsInfinite      -> vIsInfinite v
+  IsDenormalized  -> vIsDenormalized v
+  IsNegativeZero  -> vIsNegativeZero v
 
   IsEmptyStream -> vStreamIsEmpty v
   Head          -> partial (vStreamHead v)

@@ -33,6 +33,7 @@ instance TypeOf Expr where
         case op of
           Unit         -> TUnit
           IntL _ t     -> t
+          FloatL _ t   -> t
           BoolL _      -> TBool
           ByteArrayL _ -> TArray (TUInt (TSize 8))
           NewBuilder t -> TBuilder t
@@ -51,6 +52,13 @@ instance TypeOf Expr where
           BitNot          -> typeOf e
           Not             -> TBool
           ArrayLen        -> sizeType
+
+          WordToFloat     -> TFloat
+          WordToDouble    -> TDouble
+          IsNaN           -> TBool
+          IsInfinite      -> TBool
+          IsDenormalized  -> TBool
+          IsNegativeZero  -> TBool
 
           Concat ->
             case typeOf e of
