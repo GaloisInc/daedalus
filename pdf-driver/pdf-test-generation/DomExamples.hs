@@ -41,6 +41,16 @@ domObjs1 =
   , vToTopDecl 11 (V_Raw "999 % dead object (01234567890123456789)")
   ]
 
+
+pdf3a,pdf3b :: PDF_DOM
+
+pdf3a = mk_PDF_DOM (hdr1 "1.4") "CAVITY\n" 3 domObjs3a
+domObjs3a = vToTopDecl 1 (V_Raw "") : tail domObjs1    -- subtle syntax error.
+                                            
+pdf3b = mk_PDF_DOM (hdr1 "1.4") "CAVITY\n" 3 domObjs3b
+domObjs3b = vToTopDecl 1 (V_Raw ">>") : tail domObjs1  -- blatant syntax error.
+
+            
 pdf2 :: PDF_DOM
 pdf2 = mk_PDF_DOM (hdr1 "1.5") "CAVITY\n" 3 domObjs2
     
@@ -65,8 +75,8 @@ domObjs2 =
                                  ,("Contents", V_Indirect (10,0))
                                  ]
         -- dead objects (potentially a reference to in edits): 
-        , vToCompDecl 6  $ V_Int 6
-        , vToCompDecl 11 $ V_Int 11
+        , vToCompDecl 6  $ V_Int 5
+        , vToCompDecl 11 $ V_Int 28
         ]
     )
     -- 7 used above
