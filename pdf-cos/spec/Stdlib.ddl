@@ -3,7 +3,9 @@ import Sum
 
 def Unit = ^{}
 
-def Void = Choose { }
+def IgnoreResult P : {} = {P; ^{}}
+
+def Void = Choose1 { }
 
 def FoldMany P acc = Choose1 {
   { @acc0 = P acc;
@@ -146,17 +148,22 @@ def $cr                   = 13
 def $space                = 32
 def $simpleWS             = 0 | 9 | 12 | 32
 
-def SimpleEOL             = { $cr; $lf } | $lf
-def EOL                   = SimpleEOL <| $cr
+def SimpleEOL             = IgnoreResult ($lf <| { $cr; $lf })
+                            -- Beware: this is rarely used!  PDF uses only after 'stream' keyword
+
+def EOL : {}              = IgnoreResult $lf <| {$cr ; ( IgnoreResult $lf <| ^{} )}
+
 def GenComment start = {
   Match (append "%" start);
   Many (Match1 (! ($lf | $cr)));
-  EOL }
+  EOL;
+  ^ {}}
 def Comment               = GenComment ""
-def JustWhite             = $simpleWS | EOL
+def JustWhite             = IgnoreResult $simpleWS <| EOL
 
-def AnyWS                 = $simpleWS | Comment | EOL
+def AnyWS                 = IgnoreResult $simpleWS <| Comment <| EOL
 
 -- and sequences of ...
-def ManyJustWhite         = Many JustWhite
-def ManyWS                = Many AnyWS
+def ManyJustWhite         = {Many JustWhite; ^{}}
+def ManyWS                = {Many AnyWS; ^{}}
+
