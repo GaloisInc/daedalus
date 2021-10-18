@@ -24,7 +24,8 @@ def LEHalfFloat   = block let ?bigEndian = false; HalfFloat
 def LEFloat       = block let ?bigEndian = false; Float
 def LEDouble      = block let ?bigEndian = false; Double
 
-
+-- See: https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
+-- for an explanation of what's going on here.
 def wordToHalfFloat (w : uint 16) =
   block
     let sign = w >> 15 as! uint 1
