@@ -35,6 +35,8 @@ module Daedalus.ParserGen.Action
 where
 
 -- import Debug.Trace
+--
+import GHC.Float(double2Float)
 
 import qualified Data.Map as Map
 import Data.Word
@@ -530,6 +532,18 @@ defaultValue = Interp.VStruct []
 evalLiteral :: Literal -> Type -> Val
 evalLiteral lit t =
   case lit of
+    LFloating x ->
+      case t of
+        Type TFloat -> Interp.VFloat (double2Float x)
+        Type TDouble -> Interp.VDouble x
+        _ -> error "Unexpected float literal"
+
+    LPi ->
+      case t of
+        Type TFloat -> Interp.vFloatPi
+        Type TDouble -> Interp.vDoublePi
+        _ -> error "Unexpected type for PI"
+
     LNumber n ->
       case t of
         Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
@@ -649,6 +663,9 @@ evalVExpr gbl expr ctrl out =
                     Just m ->
                       let newEnv = concatLocalEnv (Just (Map.assocs m)) env
                       in eval newEnv (tcAltBody p)
+
+        TCLet x e1 e2 ->
+          eval (concatLocalEnv (Just [(tcName x,eval env e1)]) env) e2
 
         x -> error ("TODO: "++ show x)
 
