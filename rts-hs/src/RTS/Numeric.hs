@@ -162,6 +162,20 @@ class Arith t where
   div :: t -> t -> t
   neg :: t -> t
 
+instance Arith Float where
+  add = (+)
+  sub = (-)
+  mul = (*)
+  div = (/)
+  neg = negate
+
+instance Arith Double where
+  add = (+)
+  sub = (-)
+  mul = (*)
+  div = (/)
+  neg = negate
+
 class Arith t => Numeric t where
   mod :: t -> t -> t
   lit :: Integer -> t
