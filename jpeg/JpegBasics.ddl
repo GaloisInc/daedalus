@@ -1,7 +1,8 @@
 -- Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
 
-def SomeJpeg =
+-- DBG:
+def SomeJpeg = 
   block
     SOI
     $$ = Many Segment
@@ -12,7 +13,8 @@ def SOI = Marker 0xD8 <| Fail "Missing Start-of-Image"
 def EOI = Marker 0xD9 <| Fail "Missing End-of-Image"
 
 -- Generic JPEG segment
-def Segment =
+-- DBG:
+def Segment = 
   block
     segmentStart = Offset
     data         = SegmentBody
