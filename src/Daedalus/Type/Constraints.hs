@@ -604,6 +604,8 @@ unify2 r s t1' t2' =
             (TUnit, TUnit)             -> pure ()
             (TInteger,TInteger)        -> pure ()
             (TBool, TBool)             -> pure ()
+            (TFloat, TFloat)           -> pure ()
+            (TDouble, TDouble)         -> pure ()
             (TMaybe x, TMaybe y)       -> unify2 r s x y
             (TArray x, TArray y)       -> unify2 r s x y
             (TMap k1 v1, TMap k2 v2)   -> do unify2 r s k1 k2
