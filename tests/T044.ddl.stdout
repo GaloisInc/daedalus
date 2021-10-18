@@ -42,20 +42,28 @@ type T044.E = Choose { x: T044.E0
 --- Rules:
  
 T044.a : T044.a =
-  {x = true}
+  let x = true in
+  {x = x}
  
 T044.b : T044.a =
-  {x = true}
+  let x = true in
+  {x = x}
  
 T044.c : T044.c =
-  {x = true}
+  let x = true in
+  {x = x}
  
 T044.d : T044.d =
-  {x = true}
+  let x = true in
+  {x = x}
  
 T044.e : T044.e =
-  {x = {x = true},
-   y = {x = true}}
+  let x = let x = true in
+          {x = x} in
+  let y = let x = true in
+          {x = x} in
+  {x = x,
+   y = y}
  
 T044.f (i : T044.a) : bool =
   i.x

@@ -1,60 +1,302 @@
-module ICC
+module Daedalus
  
 --- Imports:
  
 --- Type defs:
+ 
+--- Rules:
+ 
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_330 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _330 then a # b else b # a
+ 
+Daedalus.UInt16 (_331 : bool) : Grammar (uint 16) =
+  do (_332 : uint 8) <- GetByte
+     (_333 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _331 _332 _333)
+ 
+Daedalus.UInt32 (_334 : bool) : Grammar (uint 32) =
+  do (_335 : uint 16) <- Daedalus.UInt16 _334
+     (_336 : uint 16) <- Daedalus.UInt16 _334
+     pure (Daedalus.joinWords 16 16 32 _334 _335 _336)
+ 
+Daedalus.UInt64 (_337 : bool) : Grammar (uint 64) =
+  do (_338 : uint 32) <- Daedalus.UInt32 _337
+     (_339 : uint 32) <- Daedalus.UInt32 _337
+     pure (Daedalus.joinWords 32 32 64 _337 _338 _339)
+ 
+Daedalus.wordToHalfFloat (w : uint 16) : float =
+  let sign = w >> 15 as uint 1 in
+  let expo = w >> 10 as uint 5 in
+  let mant = w as uint 10 in
+  if (expo == 0) then let magic = 126 << 23 in
+                      let num = (wordToFloat (magic + (0 # mant))) - (wordToFloat magic) in
+                      if (sign == 1) then - num else num else let newExp = if (expo == 31) then 255 else (127 - 15) + (0 # expo) in
+                                                              wordToFloat (((sign # newExp) # mant) # 0)
+ 
+Daedalus.HalfFloat (_340 : bool) : Grammar float =
+  do (_341 : uint 16) <- Daedalus.UInt16 _340
+     pure (Daedalus.wordToHalfFloat _341)
+ 
+Daedalus.Float (_342 : bool) : Grammar float =
+  do (_343 : uint 32) <- Daedalus.UInt32 _342
+     pure (wordToFloat _343)
+ 
+Daedalus.Double (_344 : bool) : Grammar double =
+  do (_345 : uint 64) <- Daedalus.UInt64 _344
+     pure (wordToDouble _345)
+ 
+Daedalus.BE16 : Grammar (uint 16) =
+  do (_346 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _346
+     pure $$
+ 
+Daedalus.BE32 : Grammar (uint 32) =
+  do (_348 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _348
+     pure $$
+ 
+Daedalus.BE64 : Grammar (uint 64) =
+  do (_350 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _350
+     pure $$
+ 
+Daedalus.BEHalfFloat : Grammar float =
+  do (_352 : bool) <- pure true
+     ($$ : float) <- Daedalus.HalfFloat _352
+     pure $$
+ 
+Daedalus.BEFloat : Grammar float =
+  do (_354 : bool) <- pure true
+     ($$ : float) <- Daedalus.Float _354
+     pure $$
+ 
+Daedalus.BEDouble : Grammar double =
+  do (_356 : bool) <- pure true
+     ($$ : double) <- Daedalus.Double _356
+     pure $$
+ 
+Daedalus.LE16 : Grammar (uint 16) =
+  do (_358 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _358
+     pure $$
+ 
+Daedalus.LE32 : Grammar (uint 32) =
+  do (_360 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _360
+     pure $$
+ 
+Daedalus.LE64 : Grammar (uint 64) =
+  do (_362 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _362
+     pure $$
+ 
+Daedalus.LEHalfFloat : Grammar float =
+  do (_364 : bool) <- pure false
+     ($$ : float) <- Daedalus.HalfFloat _364
+     pure $$
+ 
+Daedalus.LEFloat : Grammar float =
+  do (_366 : bool) <- pure false
+     ($$ : float) <- Daedalus.Float _366
+     pure $$
+ 
+Daedalus.LEDouble : Grammar double =
+  do (_368 : bool) <- pure false
+     ($$ : double) <- Daedalus.Double _368
+     pure $$
+ 
+Daedalus.Guard (b : bool) : Grammar {} =
+  case b is
+    { true -> pure {}
+    }
+ 
+Daedalus.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     END
+     pure $$
+ 
+Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
+  do (_370 : Stream) <- StreamOff n s
+     SetStream _370
+ 
+Daedalus.Skip (n : uint 64) : Grammar {} =
+  do (_371 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt n _371
+ 
+Daedalus._SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
+  do (_370 : Stream) <- StreamOff n s
+     SetStream _370
+ 
+Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
+  do (s : Stream) <- CurrentStream
+     do (_372 : Stream) <- StreamLen n s
+        SetStream _372
+     ($$ : ?a0) <- P
+     Daedalus._SetStreamAt n s
+     pure $$
+ 
+Daedalus.Bytes (n : uint 64) : Grammar Stream =
+  Daedalus.Chunk Stream n CurrentStream
+ 
+Daedalus.LookAhead ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do (s : Stream) <- CurrentStream
+     ($$ : ?a0) <- P
+     SetStream s
+     pure $$
+ 
+Daedalus._UInt16 : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+Daedalus._UInt32 : Grammar {} =
+  do Daedalus._UInt16
+     Daedalus._UInt16
+ 
+Daedalus._UInt64 : Grammar {} =
+  do Daedalus._UInt32
+     Daedalus._UInt32
+ 
+Daedalus._HalfFloat : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._Float : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._Double : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._BE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._BE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._BE64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._BEHalfFloat : Grammar {} =
+  Daedalus._HalfFloat
+ 
+Daedalus._BEFloat : Grammar {} =
+  Daedalus._Float
+ 
+Daedalus._BEDouble : Grammar {} =
+  Daedalus._Double
+ 
+Daedalus._LE16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._LE32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._LE64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._LEHalfFloat : Grammar {} =
+  Daedalus._HalfFloat
+ 
+Daedalus._LEFloat : Grammar {} =
+  Daedalus._Float
+ 
+Daedalus._LEDouble : Grammar {} =
+  Daedalus._Double
+ 
+Daedalus._Guard (b : bool) : Grammar {} =
+  case b is
+    { true -> pure {}
+    }
+ 
+Daedalus._Only ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     END
+ 
+Daedalus._Skip (n : uint 64) : Grammar {} =
+  do (_371 : Stream) <- CurrentStream
+     Daedalus._SetStreamAt n _371
+ 
+Daedalus._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     do (_372 : Stream) <- StreamLen n s
+        SetStream _372
+     _P
+     Daedalus._SetStreamAt n s
+ 
+Daedalus._Bytes (n : uint 64) : Grammar {} =
+  Daedalus._Chunk Stream n (pure {})
+ 
+Daedalus._LookAhead ?a0 (_P : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     _P
+     SetStream s
+module ICC
+ 
+--- Imports:
+import Daedalus
+ 
+--- Type defs:
+type ICC.FunOp83 = { tag: [uint 8]
+                   ; param: uint 32
+                   }
+ 
 type ICC.VersionField = { major: uint 8
                         ; minor: uint 4
                         ; bugfix: uint 4
                         }
  
-type ICC.ProfileClasses = Choose { abstract_profile: {}
-                                 ; color_space_profile: {}
-                                 ; device_link_profile: {}
-                                 ; display_device_profile: {}
-                                 ; input_device_profile: {}
-                                 ; named_color_profile: {}
-                                 ; output_device_profile: {}
+type ICC.ProfileClass = Choose { multiplex_vis: {}
+                               ; multiplex_link: {}
+                               ; multiplex_id: {}
+                               ; color_encoding_space: {}
+                               ; named_color_profile: {}
+                               ; abstract_profile: {}
+                               ; color_space_profile: {}
+                               ; device_link_profile: {}
+                               ; output_device_profile: {}
+                               ; display_device_profile: {}
+                               ; input_device_profile: {}
+                               }
+ 
+type ICC.DataColorSpace = Choose { n_channel: uint 16
+                                 ; none: {}
+                                 ; fifteen_colour: {}
+                                 ; fourteen_colour: {}
+                                 ; thirteen_colour: {}
+                                 ; twelve_colour: {}
+                                 ; eleven_colour: {}
+                                 ; ten_colour: {}
+                                 ; nine_colour: {}
+                                 ; eight_colour: {}
+                                 ; seven_colour: {}
+                                 ; six_colour: {}
+                                 ; five_colour: {}
+                                 ; four_colour: {}
+                                 ; three_colour: {}
+                                 ; two_colour: {}
+                                 ; cmy: {}
+                                 ; cmyk: {}
+                                 ; hls: {}
+                                 ; hsv: {}
+                                 ; gray: {}
+                                 ; rgb: {}
+                                 ; lms: {}
+                                 ; cieyxy: {}
+                                 ; ycbcr: {}
+                                 ; cieluv: {}
+                                 ; cielab_or_pcslab: {}
+                                 ; nciexyz_or_pcsxyz: {}
                                  }
  
-type ICC.DataColorSpaces = Choose { cielab_or_pcslab: {}
-                                  ; cieluv: {}
-                                  ; cieyxy: {}
-                                  ; cmy: {}
-                                  ; cmyk: {}
-                                  ; eight_colour: {}
-                                  ; eleven_colour: {}
-                                  ; fifteen_colour: {}
-                                  ; five_colour: {}
-                                  ; four_colour: {}
-                                  ; fourteen_colour: {}
-                                  ; gray: {}
-                                  ; hls: {}
-                                  ; hsv: {}
-                                  ; nciexyz_or_pcsxyz: {}
-                                  ; nine_colour: {}
-                                  ; rgb: {}
-                                  ; seven_colour: {}
-                                  ; six_colour: {}
-                                  ; ten_colour: {}
-                                  ; thirteen_colour: {}
-                                  ; three_colour: {}
-                                  ; twelve_colour: {}
-                                  ; two_colour: {}
-                                  ; ycbcr: {}
+type ICC.PrimaryPlatform = Choose { none: {}
+                                  ; sun_microsystems: {}
+                                  ; silicon_graphics_inc: {}
+                                  ; microsoft_corporation: {}
+                                  ; apple_computer_inc: {}
                                   }
  
-type ICC.PrimaryPlatforms = Choose { sun_microsystems: {}
-                                   ; silicon_graphics_inc: {}
-                                   ; none: {}
-                                   ; microsoft_corporation: {}
-                                   ; apple_computer_inc: {}
-                                   }
- 
-type ICC.RenderingIntent = Choose { saturation: {}
-                                  ; perceptual: {}
+type ICC.RenderingIntent = Choose { icc_absolute_colorimetric: {}
+                                  ; saturation: {}
                                   ; media_relative_colorimetric: {}
-                                  ; icc_absolute_colorimetric: {}
+                                  ; perceptual: {}
                                   }
  
 type ICC.XYZNumber = { x: uint 32
@@ -71,104 +313,23 @@ type ICC.DateTimeNumber = { year: uint 16
                           }
  
 type ICC.ProfileHeader = { size: uint 32
-                         ; preferred_cmm_type: uint 32
+                         ; preferred_cmm_type: [uint 8]
                          ; version: ICC.VersionField
-                         ; devce_class: ICC.ProfileClasses
-                         ; color_space: ICC.DataColorSpaces
-                         ; pcs: ICC.DataColorSpaces
+                         ; devce_class: ICC.ProfileClass
+                         ; color_space: ICC.DataColorSpace
+                         ; pcs: ICC.DataColorSpace
                          ; creation_date_time: ICC.DateTimeNumber
-                         ; primary_platform: ICC.PrimaryPlatforms
+                         ; primary_platform: ICC.PrimaryPlatform
                          ; profile_flags: uint 32
-                         ; device_manufacturer: uint 32
-                         ; device_model: uint 32
+                         ; device_manufacturer: [uint 8]
+                         ; device_model: [uint 8]
                          ; device_attributes: uint 64
                          ; rendering_intent: ICC.RenderingIntent
                          ; illuminant: ICC.XYZNumber
-                         ; creatior: uint 32
+                         ; creator: [uint 8]
                          ; identifier: [uint 8]
                          ; reserved_data: [uint 8]
                          }
- 
-type ICC.TagSignature = Choose { A2B0: {}
-                               ; A2B1: {}
-                               ; A2B2: {}
-                               ; A2B3: {}
-                               ; A2M0: {}
-                               ; B2A0: {}
-                               ; B2A1: {}
-                               ; B2A2: {}
-                               ; B2D0: {}
-                               ; B2D1: {}
-                               ; B2D2: {}
-                               ; B2D3: {}
-                               ; D2B0: {}
-                               ; D2B1: {}
-                               ; D2B2: {}
-                               ; D2B3: {}
-                               ; bTRC: {}
-                               ; bXYZ: {}
-                               ; bcp0: {}
-                               ; bcp1: {}
-                               ; bcp2: {}
-                               ; bcp3: {}
-                               ; bsp0: {}
-                               ; bsp1: {}
-                               ; bsp2: {}
-                               ; bsp3: {}
-                               ; calt: {}
-                               ; chad: {}
-                               ; ciis: {}
-                               ; clot: {}
-                               ; clro: {}
-                               ; clrt: {}
-                               ; cprt: {}
-                               ; desc: {}
-                               ; dmdd: {}
-                               ; dmnd: {}
-                               ; gTRC: {}
-                               ; gXYZ: {}
-                               ; gamt: {}
-                               ; kTRC: {}
-                               ; lumi: {}
-                               ; meas: {}
-                               ; ncl2: {}
-                               ; pre0: {}
-                               ; pre1: {}
-                               ; pre2: {}
-                               ; pseq: {}
-                               ; psid: {}
-                               ; rTRC: {}
-                               ; rXYZ: {}
-                               ; resp: {}
-                               ; rig0: {}
-                               ; rig2: {}
-                               ; targ: {}
-                               ; tech: {}
-                               ; view: {}
-                               ; vued: {}
-                               ; wtpt: {}
-                               }
- 
-type ICC.TagEntry = { tag_signature: ICC.TagSignature
-                    ; offset_to_data_element: uint 32
-                    ; size_of_data_element: uint 32
-                    }
- 
-type ICC.Main = { profileHeader: ICC.ProfileHeader
-                ; tagTable: [ICC.TagEntry]
-                }
- 
-type ICC.XYNumber = { x: uint 32
-                    ; y: uint 32
-                    }
- 
-type ICC.PositionNumber = { offset: uint 32
-                          ; size: uint 32
-                          }
- 
-type ICC.Response16Number = { device: uint 16
-                            ; measurement: uint 32
-                            }
  
 type ICC.LutAToBType = { number_of_input_channels: uint 8
                        ; number_of_output_channels: uint 8
@@ -180,16 +341,223 @@ type ICC.LutAToBType = { number_of_input_channels: uint 8
                        ; data: Stream
                        }
  
+type ICC.OpParams = { s: uint 16
+                    ; t: uint 16
+                    }
+ 
+type ICC.FunOp = Choose { unknown: ICC.FunOp83
+                        ; opDflt: uint 64
+                        ; opCase: uint 64
+                        ; opSel: {}
+                        ; opElse: uint 64
+                        ; opIf: uint 64
+                        ; opTXYZ: uint 16
+                        ; opTLab: uint 16
+                        ; opVOr: uint 16
+                        ; opVAnd: uint 16
+                        ; opVMax: uint 16
+                        ; opVMin: uint 16
+                        ; opGT: uint 16
+                        ; opGE: uint 16
+                        ; opNer: uint 16
+                        ; opEQ: uint 16
+                        ; opLE: uint 16
+                        ; opLT: uint 16
+                        ; opRNum: uint 16
+                        ; opPToc: uint 16
+                        ; opCTop: uint 16
+                        ; opATn2: uint 16
+                        ; opATan: uint 16
+                        ; opACos: uint 16
+                        ; opASin: uint 16
+                        ; opTan: uint 16
+                        ; opCos: uint 16
+                        ; opSin: uint 16
+                        ; opLn: uint 16
+                        ; opLog: uint 16
+                        ; opExp: uint 16
+                        ; opSign: uint 16
+                        ; opTrnc: uint 16
+                        ; opCeil: uint 16
+                        ; opFlor: uint 16
+                        ; opRond: uint 16
+                        ; opNeg: uint 16
+                        ; opAbs: uint 16
+                        ; opCbrt: uint 16
+                        ; opCb: uint 16
+                        ; opSqrt: uint 16
+                        ; opSq: uint 16
+                        ; opSDiv: uint 16
+                        ; opSMul: uint 16
+                        ; opSSub: uint 16
+                        ; opSAdd: uint 16
+                        ; opGamma: uint 16
+                        ; opPow: uint 16
+                        ; opMod: uint 16
+                        ; opDiv: uint 16
+                        ; opMul: uint 16
+                        ; opSub: uint 16
+                        ; opAdd: uint 16
+                        ; opNAN: uint 16
+                        ; opNegInf: uint 16
+                        ; opPosInf: uint 16
+                        ; opPi: uint 16
+                        ; or: uint 16
+                        ; and: uint 16
+                        ; max: uint 16
+                        ; min: uint 16
+                        ; prod: uint 16
+                        ; sum: uint 16
+                        ; tran: ICC.OpParams
+                        ; solv: ICC.OpParams
+                        ; pop: ICC.OpParams
+                        ; flip: ICC.OpParams
+                        ; posd: ICC.OpParams
+                        ; rotr: ICC.OpParams
+                        ; rotl: ICC.OpParams
+                        ; copy: ICC.OpParams
+                        ; elem: uint 32
+                        ; tint: uint 32
+                        ; calc: uint 32
+                        ; clut: uint 32
+                        ; mtx: uint 32
+                        ; curv: uint 32
+                        ; opEnv: uint 32
+                        ; opTSave: ICC.OpParams
+                        ; opTPut: ICC.OpParams
+                        ; opTGet: ICC.OpParams
+                        ; opOut: ICC.OpParams
+                        ; opIn: ICC.OpParams
+                        ; data: float
+                        }
+ 
+type ICC.SingleSampledCurve = { n: uint 32
+                              ; f: uint 32
+                              ; l: uint 32
+                              ; e: uint 16
+                              ; ty: uint 16
+                              }
+ 
+type ICC.FunParams_g_a_b_c = { g: float
+                             ; a: float
+                             ; b: float
+                             ; c: float
+                             }
+ 
+type ICC.FunParams_g_a_b_c_d = { g: float
+                               ; a: float
+                               ; b: float
+                               ; c: float
+                               ; d: float
+                               }
+ 
+type ICC.FunParams_a_b_c_d_e = { a: float
+                               ; b: float
+                               ; c: float
+                               ; d: float
+                               ; e: float
+                               }
+ 
+type ICC.FormualCurveSegment = Choose { fun3: ICC.FunParams_g_a_b_c
+                                      ; fun2: ICC.FunParams_a_b_c_d_e
+                                      ; fun1: ICC.FunParams_g_a_b_c_d
+                                      ; fun0: ICC.FunParams_g_a_b_c
+                                      }
+ 
+type ICC.CurveSegment = Choose { samf: [float]
+                               ; parf: ICC.FormualCurveSegment
+                               }
+ 
+type ICC.SegmentedCurve = { breakPoints: [float]
+                          ; segements: [ICC.CurveSegment]
+                          }
+ 
+type ICC.Curve = Choose { unknown: [uint 8]
+                        ; curf: ICC.SegmentedCurve
+                        ; sngf: ICC.SingleSampledCurve
+                        }
+ 
+type ICC.Matrix = { matrix: [[float]]
+                  ; vector: [float]
+                  }
+ 
+rec
+  type ICC.MPElement = Choose { unknown: [uint 8]
+                              ; matf: ICC.Matrix
+                              ; cvst: [ICC.Curve]
+                              ; calc: ICC.CalcElement
+                              }
+   
+  type ICC.CalcElement = { inputs: uint 64
+                         ; outputs: uint 64
+                         ; main: [ICC.FunOp]
+                         ; subElements: [ICC.MPElement]
+                         }
+ 
 type ICC.MultiProcessElementsType = { number_of_input_channels: uint 16
                                     ; number_of_output_channels: uint 16
                                     ; number_of_processing_elements: uint 32
-                                    ; n: uint 64
-                                    ; elements: [Stream]
+                                    ; elements: [ICC.MPElement]
                                     }
  
 type ICC.LutAB_or_multi = Choose { lutAB: ICC.LutAToBType
                                  ; mpe: ICC.MultiProcessElementsType
                                  }
+ 
+type ICC.LutBA_or_multi = Choose { lutBA: ICC.LutAToBType
+                                 ; mpe: ICC.MultiProcessElementsType
+                                 }
+ 
+type ICC.UnicodeRecord = { language: [uint 8]
+                         ; country: [uint 8]
+                         ; data: [uint 8]
+                         }
+ 
+type ICC.SpectralViewingConditionsType = { colometric_observer: uint 32
+                                         }
+ 
+type ICC.Tag = Choose { unknown: [uint 8]
+                      ; svcn: ICC.SpectralViewingConditionsType
+                      ; s2sp: ICC.MultiProcessElementsType
+                      ; c2sp: ICC.MultiProcessElementsType
+                      ; cprt: [ICC.UnicodeRecord]
+                      ; wtpt: [ICC.XYZNumber]
+                      ; B2D3: ICC.MultiProcessElementsType
+                      ; B2D2: ICC.MultiProcessElementsType
+                      ; B2D1: ICC.MultiProcessElementsType
+                      ; B2D0: ICC.MultiProcessElementsType
+                      ; B2A3: ICC.LutBA_or_multi
+                      ; B2A2: ICC.LutBA_or_multi
+                      ; B2A1: ICC.LutBA_or_multi
+                      ; B2A0: ICC.LutBA_or_multi
+                      ; A2Mo: ICC.MultiProcessElementsType
+                      ; A2B3: ICC.LutAB_or_multi
+                      ; A2B2: ICC.LutAB_or_multi
+                      ; A2B1: ICC.LutAB_or_multi
+                      ; A2B0: ICC.LutAB_or_multi
+                      ; desc: [ICC.UnicodeRecord]
+                      }
+ 
+type ICC.Main = { profileHeader: ICC.ProfileHeader
+                ; tags: [ICC.Tag]
+                }
+ 
+type ICC.TagEntry = { tag_signature: uint 32
+                    ; offset_to_data_element: uint 64
+                    ; size_of_data_element: uint 64
+                    }
+ 
+type ICC.XYNumber = { x: uint 32
+                    ; y: uint 32
+                    }
+ 
+type ICC.PositionNumber = { offset: uint 64
+                          ; size: uint 64
+                          }
+ 
+type ICC.Response16Number = { device: uint 16
+                            ; measurement: uint 32
+                            }
  
 type ICC.Lut8Type = { number_of_input_channels: uint 8
                     ; number_of_output_channels: uint 8
@@ -227,6 +595,11 @@ type ICC.Lut_8_16_AB_BA = Choose { lut16: ICC.Lut16Type
                                  ; lutBA: ICC.LutBToAType
                                  }
  
+type ICC.Lut_8_16_AB = Choose { lut16: ICC.Lut16Type
+                              ; lut8: ICC.Lut8Type
+                              ; lutAB: ICC.LutAToBType
+                              }
+ 
 type ICC.Lut_8_16_BA = Choose { lut16: ICC.Lut16Type
                               ; lut8: ICC.Lut8Type
                               ; lutBA: ICC.LutBToAType
@@ -240,10 +613,9 @@ type ICC.SomeCurve = Choose { curve: [uint 16]
                             ; parametric_curve: ICC.ParametricCurveType
                             }
  
-type ICC.UnicodeRecord = { language: uint 16
-                         ; country: uint 16
-                         ; data: Stream
-                         }
+type ICC.ChromaticityType = { phosphor_or_colorant: uint 16
+                            ; cie_coords: [ICC.XYNumber]
+                            }
  
 type ICC.Colorant = { name: [uint 7]
                     ; pcs: [uint 16]
@@ -277,67 +649,6 @@ type ICC.ViewConditionsType = { illuminantXYZ: ICC.XYZNumber
                               ; illuminant: uint 32
                               }
  
-type ICC.Tag = Choose { view: ICC.ViewConditionsType
-                      ; vued: [ICC.UnicodeRecord]
-                      ; tech: [uint 8]
-                      ; rig2: [uint 8]
-                      ; rTRC: ICC.SomeCurve
-                      ; rXYZ: [ICC.XYZNumber]
-                      ; psid: {}
-                      ; pseq: [uint 8]
-                      ; desc: [ICC.UnicodeRecord]
-                      ; pre2: ICC.Lut_8_16_BA
-                      ; pre1: ICC.Lut_8_16_BA
-                      ; pre0: ICC.Lut_8_16_AB_BA
-                      ; rig0: [uint 8]
-                      ; resp: [ICC.ResponseCurve]
-                      ; ncl2: ICC.NamedColor2Type
-                      ; wtpt: [ICC.XYZNumber]
-                      ; meas: ICC.MeasurementType
-                      ; lumi: [ICC.XYZNumber]
-                      ; gTRC: ICC.SomeCurve
-                      ; gXYZ: [ICC.XYZNumber]
-                      ; kTRC: ICC.SomeCurve
-                      ; gamt: ICC.Lut_8_16_BA
-                      ; D2B3: ICC.MultiProcessElementsType
-                      ; D2B2: ICC.MultiProcessElementsType
-                      ; D2B1: ICC.MultiProcessElementsType
-                      ; D2B0: ICC.MultiProcessElementsType
-                      ; dmdd: [ICC.UnicodeRecord]
-                      ; dmnd: [ICC.UnicodeRecord]
-                      ; cprt: [ICC.UnicodeRecord]
-                      ; ciis: [uint 8]
-                      ; clot: [ICC.Colorant]
-                      ; clrt: [ICC.Colorant]
-                      ; clro: [uint 8]
-                      ; chad: [uint 32]
-                      ; targ: [uint 7]
-                      ; calt: ICC.DateTimeNumber
-                      ; B2D3: ICC.MultiProcessElementsType
-                      ; B2D2: ICC.MultiProcessElementsType
-                      ; B2D1: ICC.MultiProcessElementsType
-                      ; B2D0: ICC.MultiProcessElementsType
-                      ; B2A2: ICC.Lut_8_16_BA
-                      ; B2A1: ICC.Lut_8_16_BA
-                      ; B2A0: ICC.Lut_8_16_BA
-                      ; bTRC: ICC.SomeCurve
-                      ; bXYZ: [ICC.XYZNumber]
-                      ; A2Mo: ICC.MultiProcessElementsType
-                      ; A2B3: ICC.LutAB_or_multi
-                      ; A2B2: ICC.LutAB_or_multi
-                      ; A2B1: ICC.LutAB_or_multi
-                      ; A2B0: ICC.LutAB_or_multi
-                      }
- 
-type ICC.Lut_8_16_AB = Choose { lut16: ICC.Lut16Type
-                              ; lut8: ICC.Lut8Type
-                              ; lutAB: ICC.LutAToBType
-                              }
- 
-type ICC.ChromaticityType = { phosphor_or_colorant: uint 16
-                            ; cie_coords: [ICC.XYNumber]
-                            }
- 
 type ICC.TagStructType = { struct_type_id: [uint 8]
                          }
  
@@ -354,144 +665,92 @@ ICC.VersionField : Grammar ICC.VersionField =
            minor = minor,
            bugfix = bugfix}
  
-ICC.ProfileClasses : Grammar ICC.ProfileClasses =
-  Choose biased
-    { {- input_device_profile -} do (_232 : {}) <- @MatchBytes "scnr"
-                                    pure {input_device_profile: _232}
-    | {- display_device_profile -} do (_233 : {}) <- @MatchBytes "mntr"
-                                      pure {display_device_profile: _233}
-    | {- output_device_profile -} do (_234 : {}) <- @MatchBytes "prtr"
-                                     pure {output_device_profile: _234}
-    | {- device_link_profile -} do (_235 : {}) <- @MatchBytes "link"
-                                   pure {device_link_profile: _235}
-    | {- color_space_profile -} do (_236 : {}) <- @MatchBytes "spac"
-                                   pure {color_space_profile: _236}
-    | {- abstract_profile -} do (_237 : {}) <- @MatchBytes "abst"
-                                pure {abstract_profile: _237}
-    | {- named_color_profile -} do (_238 : {}) <- @MatchBytes "nmcl"
-                                   pure {named_color_profile: _238}
-    }
+ICC.ProfileClass : Grammar ICC.ProfileClass =
+  do (_373 : uint 32) <- Daedalus.BE32
+     case _373 is
+       { 1935896178 -> pure {input_device_profile: {}}
+       ; 1835955314 -> pure {display_device_profile: {}}
+       ; 1886549106 -> pure {output_device_profile: {}}
+       ; 1818848875 -> pure {device_link_profile: {}}
+       ; 1936744803 -> pure {color_space_profile: {}}
+       ; 1633842036 -> pure {abstract_profile: {}}
+       ; 1852662636 -> pure {named_color_profile: {}}
+       ; 1667591779 -> pure {color_encoding_space: {}}
+       ; 1835623456 -> pure {multiplex_id: {}}
+       ; 1835822699 -> pure {multiplex_link: {}}
+       ; 1836476787 -> pure {multiplex_vis: {}}
+       }
  
-ICC.DataColorSpaces : Grammar ICC.DataColorSpaces =
-  Choose biased
-    { {- nciexyz_or_pcsxyz -} do (_239 : {}) <- @MatchBytes "XYZ "
-                                 pure {nciexyz_or_pcsxyz: _239}
-    | {- cielab_or_pcslab -} do (_240 : {}) <- @MatchBytes "Lab "
-                                pure {cielab_or_pcslab: _240}
-    | {- cieluv -} do (_241 : {}) <- @MatchBytes "Luv "
-                      pure {cieluv: _241}
-    | {- ycbcr -} do (_242 : {}) <- @MatchBytes "Ycbr"
-                     pure {ycbcr: _242}
-    | {- cieyxy -} do (_243 : {}) <- @MatchBytes "Yxy "
-                      pure {cieyxy: _243}
-    | {- rgb -} do (_244 : {}) <- @MatchBytes "RGB "
-                   pure {rgb: _244}
-    | {- gray -} do (_245 : {}) <- @MatchBytes "GRAY"
-                    pure {gray: _245}
-    | {- hsv -} do (_246 : {}) <- @MatchBytes "HSV "
-                   pure {hsv: _246}
-    | {- hls -} do (_247 : {}) <- @MatchBytes "HLS "
-                   pure {hls: _247}
-    | {- cmyk -} do (_248 : {}) <- @MatchBytes "CMYK"
-                    pure {cmyk: _248}
-    | {- cmy -} do (_249 : {}) <- @MatchBytes "CMY "
-                   pure {cmy: _249}
-    | {- two_colour -} do (_250 : {}) <- @MatchBytes "2CLR"
-                          pure {two_colour: _250}
-    | {- three_colour -} do (_251 : {}) <- @MatchBytes "3CLR"
-                            pure {three_colour: _251}
-    | {- four_colour -} do (_252 : {}) <- @MatchBytes "4CLR"
-                           pure {four_colour: _252}
-    | {- five_colour -} do (_253 : {}) <- @MatchBytes "5CLR"
-                           pure {five_colour: _253}
-    | {- six_colour -} do (_254 : {}) <- @MatchBytes "6CLR"
-                          pure {six_colour: _254}
-    | {- seven_colour -} do (_255 : {}) <- @MatchBytes "7CLR"
-                            pure {seven_colour: _255}
-    | {- eight_colour -} do (_256 : {}) <- @MatchBytes "8CLR"
-                            pure {eight_colour: _256}
-    | {- nine_colour -} do (_257 : {}) <- @MatchBytes "9CLR"
-                           pure {nine_colour: _257}
-    | {- ten_colour -} do (_258 : {}) <- @MatchBytes "ACLR"
-                          pure {ten_colour: _258}
-    | {- eleven_colour -} do (_259 : {}) <- @MatchBytes "BCLR"
-                             pure {eleven_colour: _259}
-    | {- twelve_colour -} do (_260 : {}) <- @MatchBytes "CCLR"
-                             pure {twelve_colour: _260}
-    | {- thirteen_colour -} do (_261 : {}) <- @MatchBytes "DCLR"
-                               pure {thirteen_colour: _261}
-    | {- fourteen_colour -} do (_262 : {}) <- @MatchBytes "ECLR"
-                               pure {fourteen_colour: _262}
-    | {- fifteen_colour -} do (_263 : {}) <- @MatchBytes "FCLR"
-                              pure {fifteen_colour: _263}
-    }
+ICC.DataColorSpace : Grammar ICC.DataColorSpace =
+  do (tag : uint 32) <- Daedalus.BE32
+     ($$ : ICC.DataColorSpace) <- case tag is
+                                    { 1482250784 -> pure {nciexyz_or_pcsxyz: {}}
+                                    ; 1281450528 -> pure {cielab_or_pcslab: {}}
+                                    ; 1282766368 -> pure {cieluv: {}}
+                                    ; 1499685490 -> pure {ycbcr: {}}
+                                    ; 1501067552 -> pure {cieyxy: {}}
+                                    ; 1280135968 -> pure {lms: {}}
+                                    ; 1380401696 -> pure {rgb: {}}
+                                    ; 1196573017 -> pure {gray: {}}
+                                    ; 1213421088 -> pure {hsv: {}}
+                                    ; 1212961568 -> pure {hls: {}}
+                                    ; 1129142603 -> pure {cmyk: {}}
+                                    ; 1129142560 -> pure {cmy: {}}
+                                    ; 843271250 -> pure {two_colour: {}}
+                                    ; 860048466 -> pure {three_colour: {}}
+                                    ; 876825682 -> pure {four_colour: {}}
+                                    ; 893602898 -> pure {five_colour: {}}
+                                    ; 910380114 -> pure {six_colour: {}}
+                                    ; 927157330 -> pure {seven_colour: {}}
+                                    ; 943934546 -> pure {eight_colour: {}}
+                                    ; 960711762 -> pure {nine_colour: {}}
+                                    ; 1094929490 -> pure {ten_colour: {}}
+                                    ; 1111706706 -> pure {eleven_colour: {}}
+                                    ; 1128483922 -> pure {twelve_colour: {}}
+                                    ; 1145261138 -> pure {thirteen_colour: {}}
+                                    ; 1162038354 -> pure {fourteen_colour: {}}
+                                    ; 1178815570 -> pure {fifteen_colour: {}}
+                                    ; 0 -> pure {none: {}}
+                                    ; _ -> do Daedalus._Guard ((tag >> 16) == 28261)
+                                              ($$ : ICC.DataColorSpace) <- pure {n_channel: (tag as uint 16)}
+                                              pure $$
+                                    }
+     pure $$
  
-ICC.PrimaryPlatforms : Grammar ICC.PrimaryPlatforms =
-  Choose biased
-    { {- none -} do (_264 : {}) <- @MatchBytes [0,
-                                                0,
-                                                0,
-                                                0]
-                    pure {none: _264}
-    | {- apple_computer_inc -} do (_265 : {}) <- @MatchBytes "APPL"
-                                  pure {apple_computer_inc: _265}
-    | {- microsoft_corporation -} do (_266 : {}) <- @MatchBytes "MSFT"
-                                     pure {microsoft_corporation: _266}
-    | {- silicon_graphics_inc -} do (_267 : {}) <- @MatchBytes "SGI "
-                                    pure {silicon_graphics_inc: _267}
-    | {- sun_microsystems -} do (_268 : {}) <- @MatchBytes "SUNW"
-                                pure {sun_microsystems: _268}
-    }
+ICC.PrimaryPlatform : Grammar ICC.PrimaryPlatform =
+  do (_376 : uint 32) <- Daedalus.BE32
+     case _376 is
+       { 1095782476 -> pure {apple_computer_inc: {}}
+       ; 1297303124 -> pure {microsoft_corporation: {}}
+       ; 1397180704 -> pure {silicon_graphics_inc: {}}
+       ; 1398099543 -> pure {sun_microsystems: {}}
+       ; 0 -> pure {none: {}}
+       }
  
 ICC.RenderingIntent : Grammar ICC.RenderingIntent =
-  Choose biased
-    { {- perceptual -} do (_269 : {}) <- @MatchBytes [0,
-                                                      0,
-                                                      0,
-                                                      0]
-                          pure {perceptual: _269}
-    | {- media_relative_colorimetric -} do (_270 : {}) <- @MatchBytes [0,
-                                                                       0,
-                                                                       0,
-                                                                       1]
-                                           pure {media_relative_colorimetric: _270}
-    | {- saturation -} do (_271 : {}) <- @MatchBytes [0,
-                                                      0,
-                                                      0,
-                                                      2]
-                          pure {saturation: _271}
-    | {- icc_absolute_colorimetric -} do (_272 : {}) <- @MatchBytes [0,
-                                                                     0,
-                                                                     0,
-                                                                     3]
-                                         pure {icc_absolute_colorimetric: _272}
-    }
- 
-ICC.BE16 : Grammar (uint 16) =
-  do (_273 : uint 8) <- GetByte
-     (_274 : uint 8) <- GetByte
-     pure (_273 # _274)
- 
-ICC.BE32 : Grammar (uint 32) =
-  do (_275 : uint 16) <- ICC.BE16
-     (_276 : uint 16) <- ICC.BE16
-     pure (_275 # _276)
+  do (_377 : uint 32) <- Daedalus.BE32
+     case _377 is
+       { 0 -> pure {perceptual: {}}
+       ; 1 -> pure {media_relative_colorimetric: {}}
+       ; 2 -> pure {saturation: {}}
+       ; 3 -> pure {icc_absolute_colorimetric: {}}
+       }
  
 ICC.XYZNumber : Grammar ICC.XYZNumber =
-  do (x : uint 32) <- ICC.BE32
-     (y : uint 32) <- ICC.BE32
-     (z : uint 32) <- ICC.BE32
+  do (x : uint 32) <- Daedalus.BE32
+     (y : uint 32) <- Daedalus.BE32
+     (z : uint 32) <- Daedalus.BE32
      pure {x = x,
            y = y,
            z = z}
  
 ICC.DateTimeNumber : Grammar ICC.DateTimeNumber =
-  do (year : uint 16) <- ICC.BE16
-     (month : uint 16) <- ICC.BE16
-     (day : uint 16) <- ICC.BE16
-     (hour : uint 16) <- ICC.BE16
-     (minute : uint 16) <- ICC.BE16
-     (second : uint 16) <- ICC.BE16
+  do (year : uint 16) <- Daedalus.BE16
+     (month : uint 16) <- Daedalus.BE16
+     (day : uint 16) <- Daedalus.BE16
+     (hour : uint 16) <- Daedalus.BE16
+     (minute : uint 16) <- Daedalus.BE16
+     (second : uint 16) <- Daedalus.BE16
      pure {year = year,
            month = month,
            day = day,
@@ -499,30 +758,25 @@ ICC.DateTimeNumber : Grammar ICC.DateTimeNumber =
            minute = minute,
            second = second}
  
-ICC.BE64 : Grammar (uint 64) =
-  do (_277 : uint 32) <- ICC.BE32
-     (_278 : uint 32) <- ICC.BE32
-     pure (_277 # _278)
- 
 ICC.ProfileHeader : Grammar ICC.ProfileHeader =
-  do (size : uint 32) <- ICC.BE32
-     (preferred_cmm_type : uint 32) <- ICC.BE32
+  do (size : uint 32) <- Daedalus.BE32
+     (preferred_cmm_type : [uint 8]) <- Many[4] GetByte
      (version : ICC.VersionField) <- ICC.VersionField
-     (devce_class : ICC.ProfileClasses) <- ICC.ProfileClasses
-     (color_space : ICC.DataColorSpaces) <- ICC.DataColorSpaces
-     (pcs : ICC.DataColorSpaces) <- ICC.DataColorSpaces
+     (devce_class : ICC.ProfileClass) <- ICC.ProfileClass
+     (color_space : ICC.DataColorSpace) <- ICC.DataColorSpace
+     (pcs : ICC.DataColorSpace) <- ICC.DataColorSpace
      (creation_date_time : ICC.DateTimeNumber) <- ICC.DateTimeNumber
      @MatchBytes "acsp"
-     (primary_platform : ICC.PrimaryPlatforms) <- ICC.PrimaryPlatforms
-     (profile_flags : uint 32) <- ICC.BE32
-     (device_manufacturer : uint 32) <- ICC.BE32
-     (device_model : uint 32) <- ICC.BE32
-     (device_attributes : uint 64) <- ICC.BE64
+     (primary_platform : ICC.PrimaryPlatform) <- ICC.PrimaryPlatform
+     (profile_flags : uint 32) <- Daedalus.BE32
+     (device_manufacturer : [uint 8]) <- Many[4] GetByte
+     (device_model : [uint 8]) <- Many[4] GetByte
+     (device_attributes : uint 64) <- Daedalus.BE64
      (rendering_intent : ICC.RenderingIntent) <- ICC.RenderingIntent
      (illuminant : ICC.XYZNumber) <- ICC.XYZNumber
-     (creatior : uint 32) <- ICC.BE32
+     (creator : [uint 8]) <- Many[4] GetByte
      (identifier : [uint 8]) <- Many[16] GetByte
-     (reserved_data : [uint 8]) <- Many[28] Match {'\NUL'}
+     (reserved_data : [uint 8]) <- Many[28] GetByte
      pure {size = size,
            preferred_cmm_type = preferred_cmm_type,
            version = version,
@@ -537,178 +791,24 @@ ICC.ProfileHeader : Grammar ICC.ProfileHeader =
            device_attributes = device_attributes,
            rendering_intent = rendering_intent,
            illuminant = illuminant,
-           creatior = creatior,
+           creator = creator,
            identifier = identifier,
            reserved_data = reserved_data}
  
-ICC.TagSignature : Grammar ICC.TagSignature =
-  Choose biased
-    { {- A2B0 -} do (_279 : {}) <- @MatchBytes "A2B0"
-                    pure {A2B0: _279}
-    | {- A2B1 -} do (_280 : {}) <- @MatchBytes "A2B1"
-                    pure {A2B1: _280}
-    | {- A2B2 -} do (_281 : {}) <- @MatchBytes "A2B2"
-                    pure {A2B2: _281}
-    | {- A2B3 -} do (_282 : {}) <- @MatchBytes "A2B3"
-                    pure {A2B3: _282}
-    | {- A2M0 -} do (_283 : {}) <- @MatchBytes "A2M0"
-                    pure {A2M0: _283}
-    | {- bcp0 -} do (_284 : {}) <- @MatchBytes "bcp0"
-                    pure {bcp0: _284}
-    | {- bcp1 -} do (_285 : {}) <- @MatchBytes "bcp1"
-                    pure {bcp1: _285}
-    | {- bcp2 -} do (_286 : {}) <- @MatchBytes "bcp2"
-                    pure {bcp2: _286}
-    | {- bcp3 -} do (_287 : {}) <- @MatchBytes "bcp3"
-                    pure {bcp3: _287}
-    | {- bsp0 -} do (_288 : {}) <- @MatchBytes "bsp0"
-                    pure {bsp0: _288}
-    | {- bsp1 -} do (_289 : {}) <- @MatchBytes "bsp1"
-                    pure {bsp1: _289}
-    | {- bsp2 -} do (_290 : {}) <- @MatchBytes "bsp2"
-                    pure {bsp2: _290}
-    | {- bsp3 -} do (_291 : {}) <- @MatchBytes "bsp3"
-                    pure {bsp3: _291}
-    | {- bXYZ -} do (_292 : {}) <- @MatchBytes "bXYZ"
-                    pure {bXYZ: _292}
-    | {- bTRC -} do (_293 : {}) <- @MatchBytes "bTRC"
-                    pure {bTRC: _293}
-    | {- B2A0 -} do (_294 : {}) <- @MatchBytes "B2A0"
-                    pure {B2A0: _294}
-    | {- B2A1 -} do (_295 : {}) <- @MatchBytes "B2A1"
-                    pure {B2A1: _295}
-    | {- B2A2 -} do (_296 : {}) <- @MatchBytes "B2A2"
-                    pure {B2A2: _296}
-    | {- B2D0 -} do (_297 : {}) <- @MatchBytes "B2D0"
-                    pure {B2D0: _297}
-    | {- B2D1 -} do (_298 : {}) <- @MatchBytes "B2D1"
-                    pure {B2D1: _298}
-    | {- B2D2 -} do (_299 : {}) <- @MatchBytes "B2D2"
-                    pure {B2D2: _299}
-    | {- B2D3 -} do (_300 : {}) <- @MatchBytes "B2D3"
-                    pure {B2D3: _300}
-    | {- calt -} do (_301 : {}) <- @MatchBytes "calt"
-                    pure {calt: _301}
-    | {- targ -} do (_302 : {}) <- @MatchBytes "targ"
-                    pure {targ: _302}
-    | {- chad -} do (_303 : {}) <- @MatchBytes "chad"
-                    pure {chad: _303}
-    | {- clro -} do (_304 : {}) <- @MatchBytes "clro"
-                    pure {clro: _304}
-    | {- clrt -} do (_305 : {}) <- @MatchBytes "clrt"
-                    pure {clrt: _305}
-    | {- clot -} do (_306 : {}) <- @MatchBytes "clot"
-                    pure {clot: _306}
-    | {- ciis -} do (_307 : {}) <- @MatchBytes "ciis"
-                    pure {ciis: _307}
-    | {- cprt -} do (_308 : {}) <- @MatchBytes "cprt"
-                    pure {cprt: _308}
-    | {- dmnd -} do (_309 : {}) <- @MatchBytes "dmnd"
-                    pure {dmnd: _309}
-    | {- dmdd -} do (_310 : {}) <- @MatchBytes "dmdd"
-                    pure {dmdd: _310}
-    | {- D2B0 -} do (_311 : {}) <- @MatchBytes "D2B0"
-                    pure {D2B0: _311}
-    | {- D2B1 -} do (_312 : {}) <- @MatchBytes "D2B1"
-                    pure {D2B1: _312}
-    | {- D2B2 -} do (_313 : {}) <- @MatchBytes "D2B2"
-                    pure {D2B2: _313}
-    | {- D2B3 -} do (_314 : {}) <- @MatchBytes "D2B3"
-                    pure {D2B3: _314}
-    | {- gamt -} do (_315 : {}) <- @MatchBytes "gamt"
-                    pure {gamt: _315}
-    | {- kTRC -} do (_316 : {}) <- @MatchBytes "kTRC"
-                    pure {kTRC: _316}
-    | {- gXYZ -} do (_317 : {}) <- @MatchBytes "gXYZ"
-                    pure {gXYZ: _317}
-    | {- gTRC -} do (_318 : {}) <- @MatchBytes "gTRC"
-                    pure {gTRC: _318}
-    | {- lumi -} do (_319 : {}) <- @MatchBytes "lumi"
-                    pure {lumi: _319}
-    | {- meas -} do (_320 : {}) <- @MatchBytes "meas"
-                    pure {meas: _320}
-    | {- wtpt -} do (_321 : {}) <- @MatchBytes "wtpt"
-                    pure {wtpt: _321}
-    | {- ncl2 -} do (_322 : {}) <- @MatchBytes "ncl2"
-                    pure {ncl2: _322}
-    | {- resp -} do (_323 : {}) <- @MatchBytes "resp"
-                    pure {resp: _323}
-    | {- rig0 -} do (_324 : {}) <- @MatchBytes "rig0"
-                    pure {rig0: _324}
-    | {- pre0 -} do (_325 : {}) <- @MatchBytes "pre0"
-                    pure {pre0: _325}
-    | {- pre1 -} do (_326 : {}) <- @MatchBytes "pre1"
-                    pure {pre1: _326}
-    | {- pre2 -} do (_327 : {}) <- @MatchBytes "pre2"
-                    pure {pre2: _327}
-    | {- desc -} do (_328 : {}) <- @MatchBytes "desc"
-                    pure {desc: _328}
-    | {- pseq -} do (_329 : {}) <- @MatchBytes "pseq"
-                    pure {pseq: _329}
-    | {- psid -} do (_330 : {}) <- @MatchBytes "psid"
-                    pure {psid: _330}
-    | {- rXYZ -} do (_331 : {}) <- @MatchBytes "rXYZ"
-                    pure {rXYZ: _331}
-    | {- rTRC -} do (_332 : {}) <- @MatchBytes "rTRC"
-                    pure {rTRC: _332}
-    | {- rig2 -} do (_333 : {}) <- @MatchBytes "rig2"
-                    pure {rig2: _333}
-    | {- tech -} do (_334 : {}) <- @MatchBytes "tech"
-                    pure {tech: _334}
-    | {- vued -} do (_335 : {}) <- @MatchBytes "vued"
-                    pure {vued: _335}
-    | {- view -} do (_336 : {}) <- @MatchBytes "view"
-                    pure {view: _336}
-    }
- 
 ICC.TagEntry : Grammar ICC.TagEntry =
-  do (tag_signature : ICC.TagSignature) <- ICC.TagSignature
-     (offset_to_data_element : uint 32) <- ICC.BE32
-     (size_of_data_element : uint 32) <- ICC.BE32
+  do (tag_signature : uint 32) <- Daedalus.BE32
+     (offset_to_data_element : uint 64) <- do (_378 : uint 32) <- Daedalus.BE32
+                                              pure (_378 as uint 64)
+     (size_of_data_element : uint 64) <- do (_379 : uint 32) <- Daedalus.BE32
+                                            pure (_379 as uint 64)
      pure {tag_signature = tag_signature,
            offset_to_data_element = offset_to_data_element,
            size_of_data_element = size_of_data_element}
  
 ICC.TagTable : Grammar [ICC.TagEntry] =
-  do (n : uint 64) <- do (_337 : uint 32) <- ICC.BE32
-                         pure (_337 as uint 64)
-     ($$ : [ICC.TagEntry]) <- Many[n] ICC.TagEntry
-     pure $$
- 
-ICC.Main : Grammar ICC.Main =
-  do (profileHeader : ICC.ProfileHeader) <- ICC.ProfileHeader
-     (tagTable : [ICC.TagEntry]) <- ICC.TagTable
-     pure {profileHeader = profileHeader,
-           tagTable = tagTable}
- 
-ICC.XYNumber : Grammar ICC.XYNumber =
-  do (x : uint 32) <- ICC.BE32
-     (y : uint 32) <- ICC.BE32
-     pure {x = x,
-           y = y}
- 
-ICC.PositionNumber : Grammar ICC.PositionNumber =
-  do (offset : uint 32) <- ICC.BE32
-     (size : uint 32) <- ICC.BE32
-     pure {offset = offset,
-           size = size}
- 
-ICC.ASCII7 : Grammar [uint 7] =
-  do ($$ : [uint 7]) <- Many[] do (_339 : uint 8) <- Match (1 .. 255)
-                                  _339 AS uint 7
-     Choose biased
-       { @Many[ 1 .. ] @Match {'\NUL'}
-       | Fail "Non 0 string terminator"
-       }
-     pure $$
- 
-ICC.Response16Number : Grammar ICC.Response16Number =
-  do (device : uint 16) <- ICC.BE16
-     @MatchBytes [0,
-                  0]
-     (measurement : uint 32) <- ICC.BE32
-     pure {device = device,
-           measurement = measurement}
+  do (_381 : uint 64) <- do (_380 : uint 32) <- Daedalus.BE32
+                            pure (_380 as uint 64)
+     Many[_381] ICC.TagEntry
  
 ICC._StartTag (x : [uint 8]) : Grammar {} =
   do @MatchBytes x
@@ -723,11 +823,11 @@ ICC.LutAToBType : Grammar ICC.LutAToBType =
      (number_of_output_channels : uint 8) <- GetByte
      @MatchBytes [0,
                   0]
-     (offset_first_B_curve : uint 32) <- ICC.BE32
-     (offset_to_matrix : uint 32) <- ICC.BE32
-     (offset_to_first_M_curve : uint 32) <- ICC.BE32
-     (offset_to_CLUT : uint 32) <- ICC.BE32
-     (offset_to_first_A_curve : uint 32) <- ICC.BE32
+     (offset_first_B_curve : uint 32) <- Daedalus.BE32
+     (offset_to_matrix : uint 32) <- Daedalus.BE32
+     (offset_to_first_M_curve : uint 32) <- Daedalus.BE32
+     (offset_to_CLUT : uint 32) <- Daedalus.BE32
+     (offset_to_first_A_curve : uint 32) <- Daedalus.BE32
      (data : Stream) <- CurrentStream
      pure {number_of_input_channels = number_of_input_channels,
            number_of_output_channels = number_of_output_channels,
@@ -738,56 +838,538 @@ ICC.LutAToBType : Grammar ICC.LutAToBType =
            offset_to_first_A_curve = offset_to_first_A_curve,
            data = data}
  
-ICC._GotoRel (s : Stream) (n : uint 64) : Grammar {} =
-  do (_341 : Stream) <- StreamOff n s
-     SetStream _341
- 
-ICC._Goto (n : uint 64) : Grammar {} =
-  do (_342 : Stream) <- CurrentStream
-     ICC._GotoRel _342 n
- 
-ICC.Chunk (sz : uint 64) : Grammar Stream =
-  do ($$ : Stream) <- do (_343 : Stream) <- CurrentStream
-                         StreamLen sz _343
-     ICC._Goto sz
-     pure $$
- 
-ICC.ChunkRelativeTo (s : Stream) (off : uint 64) (sz : uint 64) : Grammar Stream =
-  do ICC._GotoRel s off
-     ($$ : Stream) <- ICC.Chunk sz
-     pure $$
- 
-ICC._Guard (p : bool) : Grammar {} =
-  case p is
-    { true -> pure {}
+ICC.Exactly ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar {} =
+  Choose biased
+    { do (_384 : bool) <- do (_383 : ?a0) <- P
+                             pure (_383 == x)
+         Daedalus.Guard _384
+    | Fail "Unexpected field value"
     }
+ 
+ICC.NoParams : Grammar {} =
+  ICC.Exactly (uint 32) 0 Daedalus.BE32
+ 
+ICC._Exactly ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar {} =
+  Choose biased
+    { do (_384 : bool) <- do (_383 : ?a0) <- P
+                             pure (_383 == x)
+         Daedalus._Guard _384
+    | Fail "Unexpected field value"
+    }
+ 
+ICC.OpParam : Grammar (uint 16) =
+  do ($$ : uint 16) <- Daedalus.BE16
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+     pure $$
+ 
+ICC.OpParams : Grammar ICC.OpParams =
+  do (s : uint 16) <- Daedalus.BE16
+     (t : uint 16) <- Daedalus.BE16
+     pure {s = s,
+           t = t}
+ 
+ICC.explode32 (sig : uint 32) : [uint 8] =
+  [sig >> 24 as uint 8,
+   sig >> 16 as uint 8,
+   sig >> 8 as uint 8,
+   sig as uint 8]
+ 
+ICC.FunOp : Grammar ICC.FunOp =
+  do (tag : uint 32) <- Daedalus.BE32
+     ($$ : ICC.FunOp) <- case tag is
+                           { 1684108385 -> do (_386 : float) <- Daedalus.BEFloat
+                                              pure {data: _386}
+                           ; 1768824864 -> do (_387 : ICC.OpParams) <- ICC.OpParams
+                                              pure {opIn: _387}
+                           ; 1869968416 -> do (_388 : ICC.OpParams) <- ICC.OpParams
+                                              pure {opOut: _388}
+                           ; 1952933236 -> do (_389 : ICC.OpParams) <- ICC.OpParams
+                                              pure {opTGet: _389}
+                           ; 1953527156 -> do (_390 : ICC.OpParams) <- ICC.OpParams
+                                              pure {opTPut: _390}
+                           ; 1953718646 -> do (_391 : ICC.OpParams) <- ICC.OpParams
+                                              pure {opTSave: _391}
+                           ; 1701738016 -> do (_392 : uint 32) <- Daedalus.BE32
+                                              pure {opEnv: _392}
+                           ; 1668641398 -> do (_393 : uint 32) <- Daedalus.BE32
+                                              pure {curv: _393}
+                           ; 1836349472 -> do (_394 : uint 32) <- Daedalus.BE32
+                                              pure {mtx: _394}
+                           ; 1668052340 -> do (_395 : uint 32) <- Daedalus.BE32
+                                              pure {clut: _395}
+                           ; 1667329123 -> do (_396 : uint 32) <- Daedalus.BE32
+                                              pure {calc: _396}
+                           ; 1953066612 -> do (_397 : uint 32) <- Daedalus.BE32
+                                              pure {tint: _397}
+                           ; 1701602669 -> do (_398 : uint 32) <- Daedalus.BE32
+                                              pure {elem: _398}
+                           ; 1668247673 -> do (_399 : ICC.OpParams) <- ICC.OpParams
+                                              pure {copy: _399}
+                           ; 1919906924 -> do (_400 : ICC.OpParams) <- ICC.OpParams
+                                              pure {rotl: _400}
+                           ; 1919906930 -> do (_401 : ICC.OpParams) <- ICC.OpParams
+                                              pure {rotr: _401}
+                           ; 1886352228 -> do (_402 : ICC.OpParams) <- ICC.OpParams
+                                              pure {posd: _402}
+                           ; 1718380912 -> do (_403 : ICC.OpParams) <- ICC.OpParams
+                                              pure {flip: _403}
+                           ; 1886351392 -> do (_404 : ICC.OpParams) <- ICC.OpParams
+                                              pure {pop: _404}
+                           ; 1936682102 -> do (_405 : ICC.OpParams) <- ICC.OpParams
+                                              pure {solv: _405}
+                           ; 1953653102 -> do (_406 : ICC.OpParams) <- ICC.OpParams
+                                              pure {tran: _406}
+                           ; 1937075488 -> do (_407 : uint 16) <- ICC.OpParam
+                                              pure {sum: _407}
+                           ; 1886547812 -> do (_408 : uint 16) <- ICC.OpParam
+                                              pure {prod: _408}
+                           ; 1835626016 -> do (_409 : uint 16) <- ICC.OpParam
+                                              pure {min: _409}
+                           ; 1835104288 -> do (_410 : uint 16) <- ICC.OpParam
+                                              pure {max: _410}
+                           ; 1634624544 -> do (_411 : uint 16) <- ICC.OpParam
+                                              pure {and: _411}
+                           ; 1869750304 -> do (_412 : uint 16) <- ICC.OpParam
+                                              pure {or: _412}
+                           ; 1885937696 -> do (_413 : uint 16) <- ICC.OpParam
+                                              pure {opPi: _413}
+                           ; 726224454 -> do (_414 : uint 16) <- ICC.OpParam
+                                             pure {opPosInf: _414}
+                           ; 759778886 -> do (_415 : uint 16) <- ICC.OpParam
+                                             pure {opNegInf: _415}
+                           ; 1312902688 -> do (_416 : uint 16) <- ICC.OpParam
+                                              pure {opNAN: _416}
+                           ; 1633969184 -> do (_417 : uint 16) <- ICC.OpParam
+                                              pure {opAdd: _417}
+                           ; 1937072672 -> do (_418 : uint 16) <- ICC.OpParam
+                                              pure {opSub: _418}
+                           ; 1836411936 -> do (_419 : uint 16) <- ICC.OpParam
+                                              pure {opMul: _419}
+                           ; 1684633120 -> do (_420 : uint 16) <- ICC.OpParam
+                                              pure {opDiv: _420}
+                           ; 1836016672 -> do (_421 : uint 16) <- ICC.OpParam
+                                              pure {opMod: _421}
+                           ; 1886353184 -> do (_422 : uint 16) <- ICC.OpParam
+                                              pure {opPow: _422}
+                           ; 1734438241 -> do (_423 : uint 16) <- ICC.OpParam
+                                              pure {opGamma: _423}
+                           ; 1935762532 -> do (_424 : uint 16) <- ICC.OpParam
+                                              pure {opSAdd: _424}
+                           ; 1936946530 -> do (_425 : uint 16) <- ICC.OpParam
+                                              pure {opSSub: _425}
+                           ; 1936553324 -> do (_426 : uint 16) <- ICC.OpParam
+                                              pure {opSMul: _426}
+                           ; 1935960438 -> do (_427 : uint 16) <- ICC.OpParam
+                                              pure {opSDiv: _427}
+                           ; 1936793632 -> do (_428 : uint 16) <- ICC.OpParam
+                                              pure {opSq: _428}
+                           ; 1936814708 -> do (_429 : uint 16) <- ICC.OpParam
+                                              pure {opSqrt: _429}
+                           ; 1667375136 -> do (_430 : uint 16) <- ICC.OpParam
+                                              pure {opCb: _430}
+                           ; 1667396212 -> do (_431 : uint 16) <- ICC.OpParam
+                                              pure {opCbrt: _431}
+                           ; 1633841952 -> do (_432 : uint 16) <- ICC.OpParam
+                                              pure {opAbs: _432}
+                           ; 1852139296 -> do (_433 : uint 16) <- ICC.OpParam
+                                              pure {opNeg: _433}
+                           ; 1919905380 -> do (_434 : uint 16) <- ICC.OpParam
+                                              pure {opRond: _434}
+                           ; 1718382450 -> do (_435 : uint 16) <- ICC.OpParam
+                                              pure {opFlor: _435}
+                           ; 1667590508 -> do (_436 : uint 16) <- ICC.OpParam
+                                              pure {opCeil: _436}
+                           ; 1953656419 -> do (_437 : uint 16) <- ICC.OpParam
+                                              pure {opTrnc: _437}
+                           ; 1936287598 -> do (_438 : uint 16) <- ICC.OpParam
+                                              pure {opSign: _438}
+                           ; 1702391840 -> do (_439 : uint 16) <- ICC.OpParam
+                                              pure {opExp: _439}
+                           ; 1819240224 -> do (_440 : uint 16) <- ICC.OpParam
+                                              pure {opLog: _440}
+                           ; 1819156512 -> do (_441 : uint 16) <- ICC.OpParam
+                                              pure {opLn: _441}
+                           ; 1936289312 -> do (_442 : uint 16) <- ICC.OpParam
+                                              pure {opSin: _442}
+                           ; 1668248352 -> do (_443 : uint 16) <- ICC.OpParam
+                                              pure {opCos: _443}
+                           ; 1952542240 -> do (_444 : uint 16) <- ICC.OpParam
+                                              pure {opTan: _444}
+                           ; 1634953582 -> do (_445 : uint 16) <- ICC.OpParam
+                                              pure {opASin: _445}
+                           ; 1633906547 -> do (_446 : uint 16) <- ICC.OpParam
+                                              pure {opACos: _446}
+                           ; 1635017070 -> do (_447 : uint 16) <- ICC.OpParam
+                                              pure {opATan: _447}
+                           ; 1635020338 -> do (_448 : uint 16) <- ICC.OpParam
+                                              pure {opATn2: _448}
+                           ; 1668575088 -> do (_449 : uint 16) <- ICC.OpParam
+                                              pure {opCTop: _449}
+                           ; 1886678883 -> do (_450 : uint 16) <- ICC.OpParam
+                                              pure {opPToc: _450}
+                           ; 1919841645 -> do (_451 : uint 16) <- ICC.OpParam
+                                              pure {opRNum: _451}
+                           ; 1819549728 -> do (_452 : uint 16) <- ICC.OpParam
+                                              pure {opLT: _452}
+                           ; 1818566688 -> do (_453 : uint 16) <- ICC.OpParam
+                                              pure {opLE: _453}
+                           ; 1701912608 -> do (_454 : uint 16) <- ICC.OpParam
+                                              pure {opEQ: _454}
+                           ; 1852137842 -> do (_455 : uint 16) <- ICC.OpParam
+                                              pure {opNer: _455}
+                           ; 1734680608 -> do (_456 : uint 16) <- ICC.OpParam
+                                              pure {opGE: _456}
+                           ; 1735663648 -> do (_457 : uint 16) <- ICC.OpParam
+                                              pure {opGT: _457}
+                           ; 1986881902 -> do (_458 : uint 16) <- ICC.OpParam
+                                              pure {opVMin: _458}
+                           ; 1986879864 -> do (_459 : uint 16) <- ICC.OpParam
+                                              pure {opVMax: _459}
+                           ; 1986096740 -> do (_460 : uint 16) <- ICC.OpParam
+                                              pure {opVAnd: _460}
+                           ; 1987015200 -> do (_461 : uint 16) <- ICC.OpParam
+                                              pure {opVOr: _461}
+                           ; 1951162722 -> do (_462 : uint 16) <- ICC.OpParam
+                                              pure {opTLab: _462}
+                           ; 1951947098 -> do (_463 : uint 16) <- ICC.OpParam
+                                              pure {opTXYZ: _463}
+                           ; 1768300576 -> do (_465 : uint 64) <- do (_464 : uint 32) <- Daedalus.BE32
+                                                                     pure (_464 as uint 64)
+                                              pure {opIf: _465}
+                           ; 1701606245 -> do (_467 : uint 64) <- do (_466 : uint 32) <- Daedalus.BE32
+                                                                     pure (_466 as uint 64)
+                                              pure {opElse: _467}
+                           ; 1936026656 -> do (_468 : {}) <- ICC.NoParams
+                                              pure {opSel: _468}
+                           ; 1667330917 -> do (_470 : uint 64) <- do (_469 : uint 32) <- Daedalus.BE32
+                                                                     pure (_469 as uint 64)
+                                              pure {opCase: _470}
+                           ; 1684434036 -> do (_472 : uint 64) <- do (_471 : uint 32) <- Daedalus.BE32
+                                                                     pure (_471 as uint 64)
+                                              pure {opDflt: _472}
+                           ; _ -> do (_473 : ICC.FunOp83) <- do (tag : [uint 8]) <- pure (ICC.explode32 tag)
+                                                                (param : uint 32) <- Daedalus.BE32
+                                                                pure {tag = tag,
+                                                                      param = param}
+                                     pure {unknown: _473}
+                           }
+     pure $$
+ 
+ICC.CalcFun : Grammar [ICC.FunOp] =
+  do ICC._StartTag "func"
+     ($$ : [ICC.FunOp]) <- do (_476 : uint 64) <- do (_475 : uint 32) <- Daedalus.BE32
+                                                     pure (_475 as uint 64)
+                              Many[_476] ICC.FunOp
+     pure $$
+ 
+ICC.PositionNumber : Grammar ICC.PositionNumber =
+  do (offset : uint 64) <- do (_477 : uint 32) <- Daedalus.BE32
+                              pure (_477 as uint 64)
+     (size : uint 64) <- do (_478 : uint 32) <- Daedalus.BE32
+                            pure (_478 as uint 64)
+     pure {offset = offset,
+           size = size}
+ 
+ICC.Positioned ?a0 (s : Stream) (P : Grammar ?a0) : Grammar ?a0 =
+  do (p : ICC.PositionNumber) <- ICC.PositionNumber
+     ($$ : ?a0) <- Daedalus.LookAhead ?a0 do Daedalus._SetStreamAt (p.offset) s
+                                             ($$ : ?a0) <- Daedalus.Chunk ?a0 (p.size) P
+                                             pure $$
+     pure $$
+ 
+ICC.SingleSampledCurve : Grammar ICC.SingleSampledCurve =
+  do (n : uint 32) <- Daedalus.BE32
+     (f : uint 32) <- Daedalus.BE32
+     (l : uint 32) <- Daedalus.BE32
+     (e : uint 16) <- Daedalus.BE16
+     (ty : uint 16) <- Daedalus.BE16
+     pure {n = n,
+           f = f,
+           l = l,
+           e = e,
+           ty = ty}
+ 
+ICC.FunParams_g_a_b_c : Grammar ICC.FunParams_g_a_b_c =
+  do (g : float) <- Daedalus.BEFloat
+     (a : float) <- Daedalus.BEFloat
+     (b : float) <- Daedalus.BEFloat
+     (c : float) <- Daedalus.BEFloat
+     pure {g = g,
+           a = a,
+           b = b,
+           c = c}
+ 
+ICC.FunParams_g_a_b_c_d : Grammar ICC.FunParams_g_a_b_c_d =
+  do (g : float) <- Daedalus.BEFloat
+     (a : float) <- Daedalus.BEFloat
+     (b : float) <- Daedalus.BEFloat
+     (c : float) <- Daedalus.BEFloat
+     (d : float) <- Daedalus.BEFloat
+     pure {g = g,
+           a = a,
+           b = b,
+           c = c,
+           d = d}
+ 
+ICC.FunParams_a_b_c_d_e : Grammar ICC.FunParams_a_b_c_d_e =
+  do (a : float) <- Daedalus.BEFloat
+     (b : float) <- Daedalus.BEFloat
+     (c : float) <- Daedalus.BEFloat
+     (d : float) <- Daedalus.BEFloat
+     (e : float) <- Daedalus.BEFloat
+     pure {a = a,
+           b = b,
+           c = c,
+           d = d,
+           e = e}
+ 
+ICC.FormualCurveSegment : Grammar ICC.FormualCurveSegment =
+  do (fun : uint 16) <- Daedalus.BE16
+     do (_482 : bool) <- do (_481 : uint 16) <- Daedalus.BE16
+                            pure (_481 == 0)
+        Daedalus._Guard _482
+     ($$ : ICC.FormualCurveSegment) <- case fun is
+                                         { 0 -> do (_484 : ICC.FunParams_g_a_b_c) <- ICC.FunParams_g_a_b_c
+                                                   pure {fun0: _484}
+                                         ; 1 -> do (_485 : ICC.FunParams_g_a_b_c_d) <- ICC.FunParams_g_a_b_c_d
+                                                   pure {fun1: _485}
+                                         ; 2 -> do (_486 : ICC.FunParams_a_b_c_d_e) <- ICC.FunParams_a_b_c_d_e
+                                                   pure {fun2: _486}
+                                         ; 3 -> do (_487 : ICC.FunParams_g_a_b_c) <- ICC.FunParams_g_a_b_c
+                                                   pure {fun3: _487}
+                                         }
+     pure $$
+ 
+ICC.CurveSegment : Grammar ICC.CurveSegment =
+  do (tag : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 0 Daedalus.BE32
+     ($$ : ICC.CurveSegment) <- case tag is
+                                  { 1885434470 -> do (_489 : ICC.FormualCurveSegment) <- ICC.FormualCurveSegment
+                                                     pure {parf: _489}
+                                  ; 1935764838 -> do (_492 : [float]) <- do (_491 : uint 64) <- do (_490 : uint 32) <- Daedalus.BE32
+                                                                                                   pure (_490 as uint 64)
+                                                                            Many[_491] Daedalus.BEFloat
+                                                     pure {samf: _492}
+                                  }
+     pure $$
+ 
+ICC.SegmentedCurve : Grammar ICC.SegmentedCurve =
+  do (n : uint 64) <- do (_493 : uint 16) <- Daedalus.BE16
+                         pure (_493 as uint 64)
+     Choose biased
+       { Daedalus._Guard (1 <= n)
+       | Fail "Need at least one curve segment"
+       }
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+     (bnum : uint 64) <- pure (n - 1)
+     (breakPoints : [float]) <- Many[bnum] Daedalus.BEFloat
+     (segements : [ICC.CurveSegment]) <- Many[n] ICC.CurveSegment
+     pure {breakPoints = breakPoints,
+           segements = segements}
+ 
+ICC.Curve : Grammar ICC.Curve =
+  do (tag : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 0 Daedalus.BE32
+     ($$ : ICC.Curve) <- case tag is
+                           { 1936615270 -> do (_495 : ICC.SingleSampledCurve) <- ICC.SingleSampledCurve
+                                              pure {sngf: _495}
+                           ; 1668641382 -> do (_496 : ICC.SegmentedCurve) <- ICC.SegmentedCurve
+                                              pure {curf: _496}
+                           ; _ -> pure {unknown: (ICC.explode32 tag)}
+                           }
+     pure $$
+ 
+ICC.Matrix (p : uint 64) (q : uint 64) : Grammar ICC.Matrix =
+  do (matrix : [[float]]) <- Many[q] Many[p] Daedalus.BEFloat
+     (vector : [float]) <- Many[q] Daedalus.BEFloat
+     pure {matrix = matrix,
+           vector = vector}
+ 
+rec value
+  ICC.MPElement : Grammar ICC.MPElement =
+    do (s : Stream) <- CurrentStream
+       (tag : uint 32) <- Daedalus.BE32
+       @MatchBytes [0,
+                    0,
+                    0,
+                    0]
+       (inputs : uint 64) <- do (_497 : uint 16) <- Daedalus.BE16
+                                pure (_497 as uint 64)
+       (outputs : uint 64) <- do (_498 : uint 16) <- Daedalus.BE16
+                                 pure (_498 as uint 64)
+       ($$ : ICC.MPElement) <- case tag is
+                                 { 1667329123 -> do (_500 : ICC.CalcElement) <- ICC.CalcElement s inputs outputs
+                                                    pure {calc: _500}
+                                 ; 1668707188 -> do (_501 : [ICC.Curve]) <- Many[inputs] ICC.Positioned ICC.Curve s ICC.Curve
+                                                    pure {cvst: _501}
+                                 ; 1835103334 -> do (_502 : ICC.Matrix) <- ICC.Matrix inputs outputs
+                                                    pure {matf: _502}
+                                 ; _ -> pure {unknown: (ICC.explode32 tag)}
+                                 }
+       pure $$
+   
+  ICC.CalcElement (s : Stream) (inputs : uint 64) (outputs : uint 64) : Grammar ICC.CalcElement =
+    do (subElNum : uint 64) <- do (_503 : uint 32) <- Daedalus.BE32
+                                  pure (_503 as uint 64)
+       (inputs : uint 64) <- pure inputs
+       (outputs : uint 64) <- pure outputs
+       (main : [ICC.FunOp]) <- ICC.Positioned [ICC.FunOp] s ICC.CalcFun
+       (subElements : [ICC.MPElement]) <- Many[subElNum] ICC.Positioned ICC.MPElement s ICC.MPElement
+       pure {inputs = inputs,
+             outputs = outputs,
+             main = main,
+             subElements = subElements}
  
 ICC.MultiProcessElementsType : Grammar ICC.MultiProcessElementsType =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "mpet"
-     (number_of_input_channels : uint 16) <- ICC.BE16
-     (number_of_output_channels : uint 16) <- ICC.BE16
-     (number_of_processing_elements : uint 32) <- ICC.BE32
+     (number_of_input_channels : uint 16) <- Daedalus.BE16
+     (number_of_output_channels : uint 16) <- Daedalus.BE16
+     (number_of_processing_elements : uint 32) <- Daedalus.BE32
      (n : uint 64) <- pure (number_of_processing_elements as uint 64)
-     ICC._Guard (0 < n)
-     (els : [ICC.PositionNumber]) <- Many[n] ICC.PositionNumber
-     (elements : [Stream]) <- map ((e : ICC.PositionNumber) in els)
-                                (ICC.ChunkRelativeTo s (e.offset as uint 64) (e.size as uint 64))
+     Choose biased
+       { Daedalus._Guard (1 <= n)
+       | Fail "Need at least one MPE"
+       }
+     (elements : [ICC.MPElement]) <- Many[n] ICC.Positioned ICC.MPElement s ICC.MPElement
      pure {number_of_input_channels = number_of_input_channels,
            number_of_output_channels = number_of_output_channels,
            number_of_processing_elements = number_of_processing_elements,
-           n = n,
            elements = elements}
  
 ICC.LutAB_or_multi : Grammar ICC.LutAB_or_multi =
   Choose biased
-    { {- lutAB -} do (_345 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _345}
-    | {- mpe -} do (_346 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                   pure {mpe: _346}
+    { {- lutAB -} do (_504 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _504}
+    | {- mpe -} do (_505 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                   pure {mpe: _505}
     }
  
-ICC.exp ?a0 ?a1 (Numeric ?a0) (Numeric ?a1) (Literal 1 ?a1) (Literal 0 ?a1) (Literal 1 ?a0) (b : ?a0) (e : ?a1) : ?a0 =
+ICC.LutBA_or_multi : Grammar ICC.LutBA_or_multi =
+  Choose biased
+    { {- lutBA -} do (_506 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutBA: _506}
+    | {- mpe -} do (_507 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                   pure {mpe: _507}
+    }
+ 
+ICC.UnicodeRecord (s : Stream) : Grammar ICC.UnicodeRecord =
+  do (language : [uint 8]) <- Many[2] GetByte
+     (country : [uint 8]) <- Many[2] GetByte
+     (size : uint 64) <- do (_508 : uint 32) <- Daedalus.BE32
+                            pure (_508 as uint 64)
+     (offset : uint 64) <- do (_509 : uint 32) <- Daedalus.BE32
+                              pure (_509 as uint 64)
+     (data : [uint 8]) <- Daedalus.LookAhead [uint 8] do Daedalus._SetStreamAt offset s
+                                                         ($$ : [uint 8]) <- Many[size] GetByte
+                                                         pure $$
+     pure {language = language,
+           country = country,
+           data = data}
+ 
+ICC.MultiLocalizedUnicodeType : Grammar [ICC.UnicodeRecord] =
+  do (s : Stream) <- CurrentStream
+     ICC._StartTag "mluc"
+     (record_number : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 12 Daedalus.BE32
+     ($$ : [ICC.UnicodeRecord]) <- Many[record_number as uint 64] ICC.UnicodeRecord s
+     pure $$
+ 
+ICC.SpectralViewingConditionsType : Grammar ICC.SpectralViewingConditionsType =
+  do ICC._StartTag "svcn"
+     (colometric_observer : uint 32) <- Daedalus.BE32
+     pure {colometric_observer = colometric_observer}
+ 
+ICC.XYZType : Grammar [ICC.XYZNumber] =
+  do ICC._StartTag "XYZ "
+     ($$ : [ICC.XYZNumber]) <- Many[] ICC.XYZNumber
+     pure $$
+ 
+ICC.Tag (sig : uint 32) : Grammar ICC.Tag =
+  case sig is
+    { 1684370275 -> do (_513 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
+                       pure {desc: _513}
+    ; 1093812784 -> do (_514 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                       pure {A2B0: _514}
+    ; 1093812785 -> do (_515 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                       pure {A2B1: _515}
+    ; 1093812786 -> do (_516 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                       pure {A2B2: _516}
+    ; 1093812787 -> do (_517 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                       pure {A2B3: _517}
+    ; 1093815600 -> do (_518 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {A2Mo: _518}
+    ; 1110589744 -> do (_519 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                       pure {B2A0: _519}
+    ; 1110589745 -> do (_520 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                       pure {B2A1: _520}
+    ; 1110589746 -> do (_521 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                       pure {B2A2: _521}
+    ; 1110589747 -> do (_522 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                       pure {B2A3: _522}
+    ; 1110590512 -> do (_523 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {B2D0: _523}
+    ; 1110590513 -> do (_524 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {B2D1: _524}
+    ; 1110590514 -> do (_525 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {B2D2: _525}
+    ; 1110590515 -> do (_526 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {B2D3: _526}
+    ; 2004119668 -> do (_527 : [ICC.XYZNumber]) <- ICC.XYZType
+                       pure {wtpt: _527}
+    ; 1668313716 -> do (_528 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
+                       pure {cprt: _528}
+    ; 1664250736 -> do (_529 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {c2sp: _529}
+    ; 1932682096 -> do (_530 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
+                       pure {s2sp: _530}
+    ; 1937138542 -> do (_531 : ICC.SpectralViewingConditionsType) <- ICC.SpectralViewingConditionsType
+                       pure {svcn: _531}
+    ; _ -> pure {unknown: (ICC.explode32 sig)}
+    }
+ 
+ICC.ParseTagIn (s : Stream) (t : ICC.TagEntry) : Grammar ICC.Tag =
+  do Daedalus._SetStreamAt (t.offset_to_data_element) s
+     ($$ : ICC.Tag) <- Daedalus.Chunk ICC.Tag (t.size_of_data_element) (ICC.Tag (t.tag_signature))
+     pure $$
+ 
+ICC.Main : Grammar ICC.Main =
+  do (s : Stream) <- CurrentStream
+     (profileHeader : ICC.ProfileHeader) <- ICC.ProfileHeader
+     (tags : [ICC.Tag]) <- do (_533 : [ICC.TagEntry]) <- ICC.TagTable
+                              map ((entry : ICC.TagEntry) in _533)
+                                (ICC.ParseTagIn s entry)
+     pure {profileHeader = profileHeader,
+           tags = tags}
+ 
+ICC.ParseTag (t : ICC.TagEntry) : Grammar ICC.Tag =
+  do Daedalus._Skip (t.offset_to_data_element)
+     ($$ : ICC.Tag) <- Daedalus.Chunk ICC.Tag (t.size_of_data_element) (ICC.Tag (t.tag_signature))
+     pure $$
+ 
+ICC.XYNumber : Grammar ICC.XYNumber =
+  do (x : uint 32) <- Daedalus.BE32
+     (y : uint 32) <- Daedalus.BE32
+     pure {x = x,
+           y = y}
+ 
+ICC.ASCII7 : Grammar [uint 7] =
+  do ($$ : [uint 7]) <- Many[] do (_535 : uint 8) <- Match (1 .. 255)
+                                  _535 AS uint 7
+     Choose biased
+       { @Many[ 1 .. ] @Match {'\NUL'}
+       | Fail "Non 0 string terminator"
+       }
+     pure $$
+ 
+ICC.Response16Number : Grammar ICC.Response16Number =
+  do (device : uint 16) <- Daedalus.BE16
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+     (measurement : uint 32) <- Daedalus.BE32
+     pure {device = device,
+           measurement = measurement}
+ 
+ICC.exp ?a0 ?a1 (Arith ?a0) (Integral ?a1) (Literal 1 ?a1) (Literal 0 ?a1) (Literal 1 ?a0) (b : ?a0) (e : ?a1) : ?a0 =
   for ((x : ?a0) = 1; (i : ?a1) in rangeUp 0 e 1)
     (x * b)
  
@@ -800,11 +1382,11 @@ ICC.Lut8Type : Grammar ICC.Lut8Type =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {'\NUL'}
-     (encoded_e_parameters : [sint 32]) <- Many[9] do (_347 : uint 32) <- ICC.BE32
-                                                      pure (_347 as sint 32)
-     (input_tables : Stream) <- ICC.Chunk (256 * i)
-     (clut_values : Stream) <- ICC.Chunk ((ICC.exp (uint 64) (uint 64) g i) * o)
-     (output_tables : Stream) <- ICC.Chunk (256 * o)
+     (encoded_e_parameters : [sint 32]) <- Many[9] do (_536 : uint 32) <- Daedalus.BE32
+                                                      pure (_536 as sint 32)
+     (input_tables : Stream) <- Daedalus.Bytes (256 * i)
+     (clut_values : Stream) <- Daedalus.Bytes ((ICC.exp (uint 64) (uint 64) g i) * o)
+     (output_tables : Stream) <- Daedalus.Bytes (256 * o)
      pure {number_of_input_channels = number_of_input_channels,
            number_of_output_channels = number_of_output_channels,
            number_of_clut_grid_points = number_of_clut_grid_points,
@@ -822,15 +1404,15 @@ ICC.Lut16Type : Grammar ICC.Lut16Type =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {'\NUL'}
-     (encoded_e_parameters : [sint 32]) <- Many[9] do (_348 : uint 32) <- ICC.BE32
-                                                      pure (_348 as sint 32)
-     (number_of_input_table_entries : uint 32) <- ICC.BE32
+     (encoded_e_parameters : [sint 32]) <- Many[9] do (_537 : uint 32) <- Daedalus.BE32
+                                                      pure (_537 as sint 32)
+     (number_of_input_table_entries : uint 32) <- Daedalus.BE32
      (n : uint 64) <- pure (number_of_input_table_entries as uint 64)
-     (number_of_output_table_entries : uint 32) <- ICC.BE32
+     (number_of_output_table_entries : uint 32) <- Daedalus.BE32
      (m : uint 64) <- pure (number_of_output_table_entries as uint 64)
-     (input_tables : Stream) <- ICC.Chunk ((256 * n) * i)
-     (clut_values : Stream) <- ICC.Chunk ((2 * (ICC.exp (uint 64) (uint 64) g i)) * o)
-     (output_tables : Stream) <- ICC.Chunk ((2 * m) * o)
+     (input_tables : Stream) <- Daedalus.Bytes ((256 * n) * i)
+     (clut_values : Stream) <- Daedalus.Bytes ((2 * (ICC.exp (uint 64) (uint 64) g i)) * o)
+     (output_tables : Stream) <- Daedalus.Bytes ((2 * m) * o)
      pure {number_of_input_channels = number_of_input_channels,
            number_of_output_channels = number_of_output_channels,
            number_of_clut_grid_points = number_of_clut_grid_points,
@@ -847,11 +1429,11 @@ ICC.LutBToAType : Grammar ICC.LutBToAType =
      (number_of_output_channels : uint 8) <- GetByte
      @MatchBytes [0,
                   0]
-     (offset_first_B_curve : uint 32) <- ICC.BE32
-     (offset_to_matrix : uint 32) <- ICC.BE32
-     (offset_to_first_M_curve : uint 32) <- ICC.BE32
-     (offset_to_CLUT : uint 32) <- ICC.BE32
-     (offset_to_first_A_curve : uint 32) <- ICC.BE32
+     (offset_first_B_curve : uint 32) <- Daedalus.BE32
+     (offset_to_matrix : uint 32) <- Daedalus.BE32
+     (offset_to_first_M_curve : uint 32) <- Daedalus.BE32
+     (offset_to_CLUT : uint 32) <- Daedalus.BE32
+     (offset_to_first_A_curve : uint 32) <- Daedalus.BE32
      (data : Stream) <- CurrentStream
      pure {number_of_input_channels = number_of_input_channels,
            number_of_output_channels = number_of_output_channels,
@@ -864,63 +1446,76 @@ ICC.LutBToAType : Grammar ICC.LutBToAType =
  
 ICC.Lut_8_16_AB_BA : Grammar ICC.Lut_8_16_AB_BA =
   Choose biased
-    { {- lut8 -} do (_349 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _349}
-    | {- lut16 -} do (_350 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _350}
-    | {- lutAB -} do (_351 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _351}
-    | {- lutBA -} do (_352 : ICC.LutBToAType) <- ICC.LutBToAType
-                     pure {lutBA: _352}
+    { {- lut8 -} do (_538 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _538}
+    | {- lut16 -} do (_539 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _539}
+    | {- lutAB -} do (_540 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _540}
+    | {- lutBA -} do (_541 : ICC.LutBToAType) <- ICC.LutBToAType
+                     pure {lutBA: _541}
+    }
+ 
+ICC.Lut_8_16_AB : Grammar ICC.Lut_8_16_AB =
+  Choose biased
+    { {- lut8 -} do (_542 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _542}
+    | {- lut16 -} do (_543 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _543}
+    | {- lutAB -} do (_544 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _544}
     }
  
 ICC.Lut_8_16_BA : Grammar ICC.Lut_8_16_BA =
   Choose biased
-    { {- lut8 -} do (_353 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _353}
-    | {- lut16 -} do (_354 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _354}
-    | {- lutBA -} do (_355 : ICC.LutBToAType) <- ICC.LutBToAType
-                     pure {lutBA: _355}
+    { {- lut8 -} do (_545 : ICC.Lut8Type) <- ICC.Lut8Type
+                    pure {lut8: _545}
+    | {- lut16 -} do (_546 : ICC.Lut16Type) <- ICC.Lut16Type
+                     pure {lut16: _546}
+    | {- lutBA -} do (_547 : ICC.LutBToAType) <- ICC.LutBToAType
+                     pure {lutBA: _547}
     }
  
 ICC.CurveType : Grammar [uint 16] =
   do ICC._StartTag "curv"
-     (n : uint 64) <- do (_356 : uint 32) <- ICC.BE32
-                         pure (_356 as uint 64)
-     ($$ : [uint 16]) <- Many[n] ICC.BE16
+     (n : uint 64) <- do (_548 : uint 32) <- Daedalus.BE32
+                         pure (_548 as uint 64)
+     ($$ : [uint 16]) <- Many[n] Daedalus.BE16
      pure $$
  
 ICC.ParametricCurveType : Grammar ICC.ParametricCurveType =
   do ICC._StartTag "para"
-     (function : uint 16) <- ICC.BE16
+     (function : uint 16) <- Daedalus.BE16
      @MatchBytes [0,
                   0]
-     (parameters : [uint 32]) <- Many[] ICC.BE32
+     (parameters : [uint 32]) <- Many[] Daedalus.BE32
      pure {function = function,
            parameters = parameters}
  
 ICC.SomeCurve : Grammar ICC.SomeCurve =
   Choose biased
-    { {- curve -} do (_358 : [uint 16]) <- ICC.CurveType
-                     pure {curve: _358}
-    | {- parametric_curve -} do (_359 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
-                                pure {parametric_curve: _359}
+    { {- curve -} do (_550 : [uint 16]) <- ICC.CurveType
+                     pure {curve: _550}
+    | {- parametric_curve -} do (_551 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
+                                pure {parametric_curve: _551}
     }
+ 
+ICC.StartTag (x : [uint 8]) : Grammar [uint 8] =
+  do @MatchBytes x
+     ($$ : [uint 8]) <- MatchBytes [0,
+                                    0,
+                                    0,
+                                    0]
+     pure $$
  
 ICC.DateTimeType : Grammar ICC.DateTimeNumber =
   do ICC._StartTag "dtim"
      ($$ : ICC.DateTimeNumber) <- ICC.DateTimeNumber
      pure $$
  
-ICC.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do ($$ : ?a0) <- P
-     END
-     pure $$
- 
 ICC.TextType : Grammar [uint 7] =
   do ICC._StartTag "text"
-     ($$ : [uint 7]) <- ICC.Only [uint 7] ICC.ASCII7
+     ($$ : [uint 7]) <- Daedalus.Only [uint 7] ICC.ASCII7
      pure $$
  
 ICC.SignatureType : Grammar [uint 8] =
@@ -928,77 +1523,42 @@ ICC.SignatureType : Grammar [uint 8] =
      ($$ : [uint 8]) <- Many[4] GetByte
      pure $$
  
-ICC.Remote ?a0 (P : Grammar ?a0) : Grammar ?a0 =
-  do (s : Stream) <- CurrentStream
-     ($$ : ?a0) <- P
-     SetStream s
-     pure $$
- 
-ICC.UnicodeRecord (s : Stream) : Grammar ICC.UnicodeRecord =
-  do (language : uint 16) <- ICC.BE16
-     (country : uint 16) <- ICC.BE16
-     (size : uint 64) <- do (_363 : uint 32) <- ICC.BE32
-                            pure (_363 as uint 64)
-     (offset : uint 64) <- do (_364 : uint 32) <- ICC.BE32
-                              pure (_364 as uint 64)
-     (data : Stream) <- ICC.Remote Stream (ICC.ChunkRelativeTo s offset size)
-     pure {language = language,
-           country = country,
-           data = data}
- 
-ICC.MultiLocalizedUnicodeType : Grammar [ICC.UnicodeRecord] =
-  do (s : Stream) <- CurrentStream
-     ICC._StartTag "mluc"
-     (record_number : uint 32) <- ICC.BE32
-     (record_size : uint 32) <- ICC.BE32
-     ICC._Guard (record_size == 12)
-     ($$ : [ICC.UnicodeRecord]) <- Many[record_number as uint 64] ICC.UnicodeRecord s
-     pure $$
- 
 ICC.S15Fixed16ArrayType : Grammar [uint 32] =
   do ICC._StartTag "sf32"
-     ($$ : [uint 32]) <- Many[] ICC.BE32
+     ($$ : [uint 32]) <- Many[] Daedalus.BE32
      pure $$
  
-ICC._BE16 : Grammar {} =
-  do @GetByte
-     @GetByte
- 
-ICC._BE32 : Grammar {} =
-  do ICC._BE16
-     ICC._BE16
+ICC.ChromaticityType : Grammar ICC.ChromaticityType =
+  do ICC._StartTag "chrm"
+     (number_of_device_channels : uint 64) <- do (_556 : uint 16) <- Daedalus.BE16
+                                                 pure (_556 as uint 64)
+     (phosphor_or_colorant : uint 16) <- Daedalus.BE16
+     (cie_coords : [ICC.XYNumber]) <- Many[number_of_device_channels] ICC.XYNumber
+     pure {phosphor_or_colorant = phosphor_or_colorant,
+           cie_coords = cie_coords}
  
 ICC.ColorantOrderType : Grammar [uint 8] =
   do ICC._StartTag "clro"
-     ICC._BE32
+     Daedalus._BE32
      ($$ : [uint 8]) <- Many[] GetByte
      pure $$
  
-ICC.ParseChunk ?a0 (sz : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
-  do (s : Stream) <- CurrentStream
-     do (_368 : Stream) <- StreamLen sz s
-        SetStream _368
-     ($$ : ?a0) <- P
-     do (_369 : Stream) <- StreamOff sz s
-        SetStream _369
-     pure $$
- 
 ICC.Colorant : Grammar ICC.Colorant =
-  do (name : [uint 7]) <- ICC.ParseChunk [uint 7] 32 (ICC.Only [uint 7] ICC.ASCII7)
-     (pcs : [uint 16]) <- Many[3] ICC.BE16
+  do (name : [uint 7]) <- Daedalus.Chunk [uint 7] 32 (Daedalus.Only [uint 7] ICC.ASCII7)
+     (pcs : [uint 16]) <- Many[3] Daedalus.BE16
      pure {name = name,
            pcs = pcs}
  
 ICC.ColorantTableType : Grammar [ICC.Colorant] =
   do ICC._StartTag "clrt"
-     (count_of_colorant : uint 64) <- do (_370 : uint 32) <- ICC.BE32
-                                         pure (_370 as uint 64)
+     (count_of_colorant : uint 64) <- do (_558 : uint 32) <- Daedalus.BE32
+                                         pure (_558 as uint 64)
      ($$ : [ICC.Colorant]) <- Many[count_of_colorant] ICC.Colorant
      pure $$
  
 ICC.ResponseCurve (n : uint 64) : Grammar ICC.ResponseCurve =
-  do (measurement_unit : uint 32) <- ICC.BE32
-     (counts : [uint 32]) <- Many[n] ICC.BE32
+  do (measurement_unit : uint 32) <- Daedalus.BE32
+     (counts : [uint 32]) <- Many[n] Daedalus.BE32
      (pcxyzs : [ICC.XYNumber]) <- Many[n] ICC.XYNumber
      (response_arrays : [[ICC.Response16Number]]) <- map ((qi : uint 32) in counts)
                                                        (Many[qi as uint 64] ICC.Response16Number)
@@ -1009,30 +1569,25 @@ ICC.ResponseCurve (n : uint 64) : Grammar ICC.ResponseCurve =
 ICC.ResponseCurveSet16Type : Grammar [ICC.ResponseCurve] =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "rcs2"
-     (number_of_channels : uint 64) <- do (_372 : uint 16) <- ICC.BE16
-                                          pure (_372 as uint 64)
-     (count : uint 64) <- do (_373 : uint 16) <- ICC.BE16
-                             pure (_373 as uint 64)
-     ($$ : [ICC.ResponseCurve]) <- Many[count] do (off : uint 64) <- do (_375 : uint 32) <- ICC.BE32
-                                                                        pure (_375 as uint 64)
-                                                  ($$ : ICC.ResponseCurve) <- ICC.Remote ICC.ResponseCurve do ICC._GotoRel s off
-                                                                                                              ($$ : ICC.ResponseCurve) <- ICC.ResponseCurve number_of_channels
-                                                                                                              pure $$
+     (number_of_channels : uint 64) <- do (_560 : uint 16) <- Daedalus.BE16
+                                          pure (_560 as uint 64)
+     (count : uint 64) <- do (_561 : uint 16) <- Daedalus.BE16
+                             pure (_561 as uint 64)
+     ($$ : [ICC.ResponseCurve]) <- Many[count] do (off : uint 64) <- do (_563 : uint 32) <- Daedalus.BE32
+                                                                        pure (_563 as uint 64)
+                                                  ($$ : ICC.ResponseCurve) <- Daedalus.LookAhead ICC.ResponseCurve do Daedalus._SetStreamAt off s
+                                                                                                                      ($$ : ICC.ResponseCurve) <- ICC.ResponseCurve number_of_channels
+                                                                                                                      pure $$
                                                   pure $$
-     pure $$
- 
-ICC.XYZType : Grammar [ICC.XYZNumber] =
-  do ICC._StartTag "XYZ "
-     ($$ : [ICC.XYZNumber]) <- Many[] ICC.XYZNumber
      pure $$
  
 ICC.MeasurementType : Grammar ICC.MeasurementType =
   do ICC._StartTag "meas"
-     (standard_observer : uint 32) <- ICC.BE32
+     (standard_observer : uint 32) <- Daedalus.BE32
      (nCIEXYZ : ICC.XYZNumber) <- ICC.XYZNumber
-     (geometry : uint 32) <- ICC.BE32
-     (flare : uint 32) <- ICC.BE32
-     (illuminant : uint 32) <- ICC.BE32
+     (geometry : uint 32) <- Daedalus.BE32
+     (flare : uint 32) <- Daedalus.BE32
+     (illuminant : uint 32) <- Daedalus.BE32
      pure {standard_observer = standard_observer,
            nCIEXYZ = nCIEXYZ,
            geometry = geometry,
@@ -1040,201 +1595,147 @@ ICC.MeasurementType : Grammar ICC.MeasurementType =
            illuminant = illuminant}
  
 ICC.ColorName (m : uint 64) : Grammar ICC.ColorName =
-  do (name_root : [uint 7]) <- ICC.ParseChunk [uint 7] 32 ICC.ASCII7
-     (pcs_coords : [uint 16]) <- Many[3] ICC.BE16
-     (device_coords : [uint 16]) <- Many[m] ICC.BE16
+  do (name_root : [uint 7]) <- Daedalus.Chunk [uint 7] 32 ICC.ASCII7
+     (pcs_coords : [uint 16]) <- Many[3] Daedalus.BE16
+     (device_coords : [uint 16]) <- Many[m] Daedalus.BE16
      pure {name_root = name_root,
            pcs_coords = pcs_coords,
            device_coords = device_coords}
  
 ICC.NamedColor2Type : Grammar ICC.NamedColor2Type =
   do ICC._StartTag "ncl2"
-     (vendor_specific : uint 32) <- ICC.BE32
-     (count : uint 64) <- do (_379 : uint 32) <- ICC.BE32
-                             pure (_379 as uint 64)
-     (number_of_coords : uint 64) <- do (_380 : uint 32) <- ICC.BE32
-                                        pure (_380 as uint 64)
-     (prefix : [uint 7]) <- ICC.ParseChunk [uint 7] 32 (ICC.Only [uint 7] ICC.ASCII7)
-     (suffix : [uint 7]) <- ICC.ParseChunk [uint 7] 32 (ICC.Only [uint 7] ICC.ASCII7)
+     (vendor_specific : uint 32) <- Daedalus.BE32
+     (count : uint 64) <- do (_566 : uint 32) <- Daedalus.BE32
+                             pure (_566 as uint 64)
+     (number_of_coords : uint 64) <- do (_567 : uint 32) <- Daedalus.BE32
+                                        pure (_567 as uint 64)
+     (prefix : [uint 7]) <- Daedalus.Chunk [uint 7] 32 (Daedalus.Only [uint 7] ICC.ASCII7)
+     (suffix : [uint 7]) <- Daedalus.Chunk [uint 7] 32 (Daedalus.Only [uint 7] ICC.ASCII7)
      (names : [ICC.ColorName]) <- Many[count] ICC.ColorName number_of_coords
      pure {vendor_specific = vendor_specific,
            prefix = prefix,
            suffix = suffix,
            names = names}
  
-ICC.StartTag (x : [uint 8]) : Grammar [uint 8] =
-  do @MatchBytes x
-     ($$ : [uint 8]) <- MatchBytes [0,
-                                    0,
-                                    0,
-                                    0]
-     pure $$
- 
-ICC.ProfileSequenceDescType : Grammar [uint 8] =
-  do ($$ : [uint 8]) <- ICC.StartTag "pseq"
-     pure $$
- 
 ICC.ViewConditionsType : Grammar ICC.ViewConditionsType =
   do ICC._StartTag "view"
      (illuminantXYZ : ICC.XYZNumber) <- ICC.XYZNumber
      (surroundXYZ : ICC.XYZNumber) <- ICC.XYZNumber
-     (illuminant : uint 32) <- ICC.BE32
+     (illuminant : uint 32) <- Daedalus.BE32
      pure {illuminantXYZ = illuminantXYZ,
            surroundXYZ = surroundXYZ,
            illuminant = illuminant}
  
-ICC.Tag (sig : ICC.TagSignature) : Grammar ICC.Tag =
-  case sig is
-    { {| A2B0 = _ |} -> do (_382 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                           pure {A2B0: _382}
-    ; {| A2B1 = _ |} -> do (_383 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                           pure {A2B1: _383}
-    ; {| A2B2 = _ |} -> do (_384 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                           pure {A2B2: _384}
-    ; {| A2B3 = _ |} -> do (_385 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                           pure {A2B3: _385}
-    ; {| A2M0 = _ |} -> do (_386 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {A2Mo: _386}
-    ; {| bXYZ = _ |} -> do (_387 : [ICC.XYZNumber]) <- ICC.XYZType
-                           pure {bXYZ: _387}
-    ; {| bTRC = _ |} -> do (_388 : ICC.SomeCurve) <- ICC.SomeCurve
-                           pure {bTRC: _388}
-    ; {| B2A0 = _ |} -> do (_389 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {B2A0: _389}
-    ; {| B2A1 = _ |} -> do (_390 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {B2A1: _390}
-    ; {| B2A2 = _ |} -> do (_391 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {B2A2: _391}
-    ; {| B2D0 = _ |} -> do (_392 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {B2D0: _392}
-    ; {| B2D1 = _ |} -> do (_393 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {B2D1: _393}
-    ; {| B2D2 = _ |} -> do (_394 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {B2D2: _394}
-    ; {| B2D3 = _ |} -> do (_395 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {B2D3: _395}
-    ; {| calt = _ |} -> do (_396 : ICC.DateTimeNumber) <- ICC.DateTimeType
-                           pure {calt: _396}
-    ; {| targ = _ |} -> do (_397 : [uint 7]) <- ICC.TextType
-                           pure {targ: _397}
-    ; {| chad = _ |} -> do (_398 : [uint 32]) <- ICC.S15Fixed16ArrayType
-                           pure {chad: _398}
-    ; {| clro = _ |} -> do (_399 : [uint 8]) <- ICC.ColorantOrderType
-                           pure {clro: _399}
-    ; {| clrt = _ |} -> do (_400 : [ICC.Colorant]) <- ICC.ColorantTableType
-                           pure {clrt: _400}
-    ; {| clot = _ |} -> do (_401 : [ICC.Colorant]) <- ICC.ColorantTableType
-                           pure {clot: _401}
-    ; {| ciis = _ |} -> do (_402 : [uint 8]) <- ICC.SignatureType
-                           pure {ciis: _402}
-    ; {| cprt = _ |} -> do (_403 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                           pure {cprt: _403}
-    ; {| dmnd = _ |} -> do (_404 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                           pure {dmnd: _404}
-    ; {| dmdd = _ |} -> do (_405 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                           pure {dmdd: _405}
-    ; {| D2B0 = _ |} -> do (_406 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {D2B0: _406}
-    ; {| D2B1 = _ |} -> do (_407 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {D2B1: _407}
-    ; {| D2B2 = _ |} -> do (_408 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {D2B2: _408}
-    ; {| D2B3 = _ |} -> do (_409 : ICC.MultiProcessElementsType) <- ICC.MultiProcessElementsType
-                           pure {D2B3: _409}
-    ; {| gamt = _ |} -> do (_410 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {gamt: _410}
-    ; {| kTRC = _ |} -> do (_411 : ICC.SomeCurve) <- ICC.SomeCurve
-                           pure {kTRC: _411}
-    ; {| gXYZ = _ |} -> do (_412 : [ICC.XYZNumber]) <- ICC.XYZType
-                           pure {gXYZ: _412}
-    ; {| gTRC = _ |} -> do (_413 : ICC.SomeCurve) <- ICC.SomeCurve
-                           pure {gTRC: _413}
-    ; {| lumi = _ |} -> do (_414 : [ICC.XYZNumber]) <- ICC.XYZType
-                           pure {lumi: _414}
-    ; {| meas = _ |} -> do (_415 : ICC.MeasurementType) <- ICC.MeasurementType
-                           pure {meas: _415}
-    ; {| wtpt = _ |} -> do (_416 : [ICC.XYZNumber]) <- ICC.XYZType
-                           pure {wtpt: _416}
-    ; {| ncl2 = _ |} -> do (_417 : ICC.NamedColor2Type) <- ICC.NamedColor2Type
-                           pure {ncl2: _417}
-    ; {| resp = _ |} -> do (_418 : [ICC.ResponseCurve]) <- ICC.ResponseCurveSet16Type
-                           pure {resp: _418}
-    ; {| rig0 = _ |} -> do (_419 : [uint 8]) <- ICC.SignatureType
-                           pure {rig0: _419}
-    ; {| pre0 = _ |} -> do (_420 : ICC.Lut_8_16_AB_BA) <- ICC.Lut_8_16_AB_BA
-                           pure {pre0: _420}
-    ; {| pre1 = _ |} -> do (_421 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {pre1: _421}
-    ; {| pre2 = _ |} -> do (_422 : ICC.Lut_8_16_BA) <- ICC.Lut_8_16_BA
-                           pure {pre2: _422}
-    ; {| desc = _ |} -> do (_423 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                           pure {desc: _423}
-    ; {| pseq = _ |} -> do (_424 : [uint 8]) <- ICC.ProfileSequenceDescType
-                           pure {pseq: _424}
-    ; {| psid = _ |} -> pure {psid: {}}
-    ; {| rXYZ = _ |} -> do (_425 : [ICC.XYZNumber]) <- ICC.XYZType
-                           pure {rXYZ: _425}
-    ; {| rTRC = _ |} -> do (_426 : ICC.SomeCurve) <- ICC.SomeCurve
-                           pure {rTRC: _426}
-    ; {| rig2 = _ |} -> do (_427 : [uint 8]) <- ICC.SignatureType
-                           pure {rig2: _427}
-    ; {| tech = _ |} -> do (_428 : [uint 8]) <- ICC.SignatureType
-                           pure {tech: _428}
-    ; {| vued = _ |} -> do (_429 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                           pure {vued: _429}
-    ; {| view = _ |} -> do (_430 : ICC.ViewConditionsType) <- ICC.ViewConditionsType
-                           pure {view: _430}
-    }
+ICC._Positioned ?a0 (s : Stream) (_P : Grammar {}) : Grammar {} =
+  do (p : ICC.PositionNumber) <- ICC.PositionNumber
+     Daedalus._LookAhead ?a0 do Daedalus._SetStreamAt (p.offset) s
+                                Daedalus._Chunk ?a0 (p.size) _P
  
-ICC.ParseTag (t : ICC.TagEntry) : Grammar ICC.Tag =
-  do ICC._Goto (t.offset_to_data_element as uint 64)
-     ($$ : ICC.Tag) <- ICC.ParseChunk ICC.Tag (t.size_of_data_element as uint 64) (ICC.Tag (t.tag_signature))
-     pure $$
+ICC._SingleSampledCurve : Grammar {} =
+  do Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE16
+     Daedalus._BE16
  
-ICC.Lut_8_16_AB : Grammar ICC.Lut_8_16_AB =
-  Choose biased
-    { {- lut8 -} do (_432 : ICC.Lut8Type) <- ICC.Lut8Type
-                    pure {lut8: _432}
-    | {- lut16 -} do (_433 : ICC.Lut16Type) <- ICC.Lut16Type
-                     pure {lut16: _433}
-    | {- lutAB -} do (_434 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _434}
-    }
+ICC._FunParams_g_a_b_c : Grammar {} =
+  do Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
  
-ICC.ChromaticityType : Grammar ICC.ChromaticityType =
-  do ICC._StartTag "chrm"
-     (number_of_device_channels : uint 64) <- do (_435 : uint 16) <- ICC.BE16
-                                                 pure (_435 as uint 64)
-     (phosphor_or_colorant : uint 16) <- ICC.BE16
-     (cie_coords : [ICC.XYNumber]) <- Many[number_of_device_channels] ICC.XYNumber
-     pure {phosphor_or_colorant = phosphor_or_colorant,
-           cie_coords = cie_coords}
+ICC._FunParams_g_a_b_c_d : Grammar {} =
+  do Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
  
-ICC._Remote ?a0 (_P : Grammar {}) : Grammar {} =
+ICC._FunParams_a_b_c_d_e : Grammar {} =
+  do Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+     Daedalus._BEFloat
+ 
+ICC._FormualCurveSegment : Grammar {} =
+  do (fun : uint 16) <- Daedalus.BE16
+     do (_482 : bool) <- do (_481 : uint 16) <- Daedalus.BE16
+                            pure (_481 == 0)
+        Daedalus._Guard _482
+     case fun is
+       { 0 -> ICC._FunParams_g_a_b_c
+       ; 1 -> ICC._FunParams_g_a_b_c_d
+       ; 2 -> ICC._FunParams_a_b_c_d_e
+       ; 3 -> ICC._FunParams_g_a_b_c
+       }
+ 
+ICC._CurveSegment : Grammar {} =
+  do (tag : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 0 Daedalus.BE32
+     case tag is
+       { 1885434470 -> ICC._FormualCurveSegment
+       ; 1935764838 -> do (_491 : uint 64) <- do (_490 : uint 32) <- Daedalus.BE32
+                                                 pure (_490 as uint 64)
+                          @Many[_491] Daedalus._BEFloat
+       }
+ 
+ICC._SegmentedCurve : Grammar {} =
+  do (n : uint 64) <- do (_493 : uint 16) <- Daedalus.BE16
+                         pure (_493 as uint 64)
+     Choose biased
+       { Daedalus._Guard (1 <= n)
+       | Fail "Need at least one curve segment"
+       }
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+     (bnum : uint 64) <- pure (n - 1)
+     @Many[bnum] Daedalus._BEFloat
+     @Many[n] ICC._CurveSegment
+ 
+ICC._Curve : Grammar {} =
+  do (tag : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 0 Daedalus.BE32
+     case tag is
+       { 1936615270 -> ICC._SingleSampledCurve
+       ; 1668641382 -> ICC._SegmentedCurve
+       ; _ -> pure {}
+       }
+ 
+ICC._Matrix (p : uint 64) (q : uint 64) : Grammar {} =
+  do @Many[q] @Many[p] Daedalus._BEFloat
+     @Many[q] Daedalus._BEFloat
+ 
+ICC._MPElement : Grammar {} =
   do (s : Stream) <- CurrentStream
-     _P
-     SetStream s
- 
-ICC._ParseChunk ?a0 (sz : uint 64) (_P : Grammar {}) : Grammar {} =
-  do (s : Stream) <- CurrentStream
-     do (_368 : Stream) <- StreamLen sz s
-        SetStream _368
-     _P
-     (_369 : Stream) <- StreamOff sz s
-     SetStream _369
+     (tag : uint 32) <- Daedalus.BE32
+     @MatchBytes [0,
+                  0,
+                  0,
+                  0]
+     (inputs : uint 64) <- do (_497 : uint 16) <- Daedalus.BE16
+                              pure (_497 as uint 64)
+     (outputs : uint 64) <- do (_498 : uint 16) <- Daedalus.BE16
+                               pure (_498 as uint 64)
+     case tag is
+       { 1667329123 -> do ICC.CalcElement s inputs outputs
+                          pure {}
+       ; 1668707188 -> @Many[inputs] ICC._Positioned ICC.Curve s ICC._Curve
+       ; 1835103334 -> ICC._Matrix inputs outputs
+       ; _ -> pure {}
+       }
  
 ICC._MultiProcessElementsType : Grammar {} =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "mpet"
-     ICC._BE16
-     ICC._BE16
-     (number_of_processing_elements : uint 32) <- ICC.BE32
+     Daedalus._BE16
+     Daedalus._BE16
+     (number_of_processing_elements : uint 32) <- Daedalus.BE32
      (n : uint 64) <- pure (number_of_processing_elements as uint 64)
-     ICC._Guard (0 < n)
-     (els : [ICC.PositionNumber]) <- Many[n] ICC.PositionNumber
-     map ((e : ICC.PositionNumber) in els)
-       (ICC.ChunkRelativeTo s (e.offset as uint 64) (e.size as uint 64))
-     pure {}
+     Choose biased
+       { Daedalus._Guard (1 <= n)
+       | Fail "Need at least one MPE"
+       }
+     @Many[n] ICC._Positioned ICC.MPElement s ICC._MPElement
  
 ICC._LutAToBType : Grammar {} =
   do ICC._StartTag "mAB "
@@ -1242,11 +1743,11 @@ ICC._LutAToBType : Grammar {} =
      @GetByte
      @MatchBytes [0,
                   0]
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
  
 ICC._LutAB_or_multi : Grammar {} =
   Choose biased
@@ -1254,10 +1755,342 @@ ICC._LutAB_or_multi : Grammar {} =
     | {- mpe -} ICC._MultiProcessElementsType
     }
  
-ICC._Chunk (sz : uint 64) : Grammar {} =
-  do do (_343 : Stream) <- CurrentStream
-        @StreamLen sz _343
-     ICC._Goto sz
+ICC._LutBA_or_multi : Grammar {} =
+  Choose biased
+    { {- lutBA -} ICC._LutAToBType
+    | {- mpe -} ICC._MultiProcessElementsType
+    }
+ 
+ICC._UnicodeRecord (s : Stream) : Grammar {} =
+  do @Many[2] @GetByte
+     @Many[2] @GetByte
+     (size : uint 64) <- do (_508 : uint 32) <- Daedalus.BE32
+                            pure (_508 as uint 64)
+     (offset : uint 64) <- do (_509 : uint 32) <- Daedalus.BE32
+                              pure (_509 as uint 64)
+     Daedalus._LookAhead [uint 8] do Daedalus._SetStreamAt offset s
+                                     @Many[size] @GetByte
+ 
+ICC._MultiLocalizedUnicodeType : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     ICC._StartTag "mluc"
+     (record_number : uint 32) <- Daedalus.BE32
+     ICC._Exactly (uint 32) 12 Daedalus.BE32
+     @Many[record_number as uint 64] ICC._UnicodeRecord s
+ 
+ICC._SpectralViewingConditionsType : Grammar {} =
+  do ICC._StartTag "svcn"
+     Daedalus._BE32
+ 
+ICC._XYZNumber : Grammar {} =
+  do Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+ 
+ICC._XYZType : Grammar {} =
+  do ICC._StartTag "XYZ "
+     @Many[] ICC._XYZNumber
+ 
+ICC._Tag (sig : uint 32) : Grammar {} =
+  case sig is
+    { 1684370275 -> ICC._MultiLocalizedUnicodeType
+    ; 1093812784 -> ICC._LutAB_or_multi
+    ; 1093812785 -> ICC._LutAB_or_multi
+    ; 1093812786 -> ICC._LutAB_or_multi
+    ; 1093812787 -> ICC._LutAB_or_multi
+    ; 1093815600 -> ICC._MultiProcessElementsType
+    ; 1110589744 -> ICC._LutBA_or_multi
+    ; 1110589745 -> ICC._LutBA_or_multi
+    ; 1110589746 -> ICC._LutBA_or_multi
+    ; 1110589747 -> ICC._LutBA_or_multi
+    ; 1110590512 -> ICC._MultiProcessElementsType
+    ; 1110590513 -> ICC._MultiProcessElementsType
+    ; 1110590514 -> ICC._MultiProcessElementsType
+    ; 1110590515 -> ICC._MultiProcessElementsType
+    ; 2004119668 -> ICC._XYZType
+    ; 1668313716 -> ICC._MultiLocalizedUnicodeType
+    ; 1664250736 -> ICC._MultiProcessElementsType
+    ; 1932682096 -> ICC._MultiProcessElementsType
+    ; 1937138542 -> ICC._SpectralViewingConditionsType
+    ; _ -> pure {}
+    }
+ 
+ICC._ParseTag (t : ICC.TagEntry) : Grammar {} =
+  do Daedalus._Skip (t.offset_to_data_element)
+     Daedalus._Chunk ICC.Tag (t.size_of_data_element) (ICC._Tag (t.tag_signature))
+ 
+ICC.TagStructType : Grammar ICC.TagStructType =
+  do (s : Stream) <- CurrentStream
+     ICC._StartTag "tstr"
+     (struct_type_id : [uint 8]) <- Many[4] GetByte
+     (n : uint 64) <- do (_568 : uint 32) <- Daedalus.BE32
+                         pure (_568 as uint 64)
+     @Many[n] do (ent : ICC.TagEntry) <- ICC.TagEntry
+                 Daedalus._LookAhead ICC.Tag do SetStream s
+                                                ICC._ParseTag ent
+     pure {struct_type_id = struct_type_id}
+ 
+ICC.ChunkRelativeTo (s : Stream) (off : uint 64) (sz : uint 64) : Grammar Stream =
+  do Daedalus._SetStreamAt off s
+     ($$ : Stream) <- Daedalus.Bytes sz
+     pure $$
+ 
+ICC._VersionField : Grammar {} =
+  do @GetByte
+     @GetByte
+     @MatchBytes [0,
+                  0]
+ 
+ICC._ProfileClass : Grammar {} =
+  do (_373 : uint 32) <- Daedalus.BE32
+     case _373 is
+       { 1935896178 -> pure {}
+       ; 1835955314 -> pure {}
+       ; 1886549106 -> pure {}
+       ; 1818848875 -> pure {}
+       ; 1936744803 -> pure {}
+       ; 1633842036 -> pure {}
+       ; 1852662636 -> pure {}
+       ; 1667591779 -> pure {}
+       ; 1835623456 -> pure {}
+       ; 1835822699 -> pure {}
+       ; 1836476787 -> pure {}
+       }
+ 
+ICC._DataColorSpace : Grammar {} =
+  do (tag : uint 32) <- Daedalus.BE32
+     case tag is
+       { 1482250784 -> pure {}
+       ; 1281450528 -> pure {}
+       ; 1282766368 -> pure {}
+       ; 1499685490 -> pure {}
+       ; 1501067552 -> pure {}
+       ; 1280135968 -> pure {}
+       ; 1380401696 -> pure {}
+       ; 1196573017 -> pure {}
+       ; 1213421088 -> pure {}
+       ; 1212961568 -> pure {}
+       ; 1129142603 -> pure {}
+       ; 1129142560 -> pure {}
+       ; 843271250 -> pure {}
+       ; 860048466 -> pure {}
+       ; 876825682 -> pure {}
+       ; 893602898 -> pure {}
+       ; 910380114 -> pure {}
+       ; 927157330 -> pure {}
+       ; 943934546 -> pure {}
+       ; 960711762 -> pure {}
+       ; 1094929490 -> pure {}
+       ; 1111706706 -> pure {}
+       ; 1128483922 -> pure {}
+       ; 1145261138 -> pure {}
+       ; 1162038354 -> pure {}
+       ; 1178815570 -> pure {}
+       ; 0 -> pure {}
+       ; _ -> Daedalus._Guard ((tag >> 16) == 28261)
+       }
+ 
+ICC._PrimaryPlatform : Grammar {} =
+  do (_376 : uint 32) <- Daedalus.BE32
+     case _376 is
+       { 1095782476 -> pure {}
+       ; 1297303124 -> pure {}
+       ; 1397180704 -> pure {}
+       ; 1398099543 -> pure {}
+       ; 0 -> pure {}
+       }
+ 
+ICC._RenderingIntent : Grammar {} =
+  do (_377 : uint 32) <- Daedalus.BE32
+     case _377 is
+       { 0 -> pure {}
+       ; 1 -> pure {}
+       ; 2 -> pure {}
+       ; 3 -> pure {}
+       }
+ 
+ICC._DateTimeNumber : Grammar {} =
+  do Daedalus._BE16
+     Daedalus._BE16
+     Daedalus._BE16
+     Daedalus._BE16
+     Daedalus._BE16
+     Daedalus._BE16
+ 
+ICC._ProfileHeader : Grammar {} =
+  do Daedalus._BE32
+     @Many[4] @GetByte
+     ICC._VersionField
+     ICC._ProfileClass
+     ICC._DataColorSpace
+     ICC._DataColorSpace
+     ICC._DateTimeNumber
+     @MatchBytes "acsp"
+     ICC._PrimaryPlatform
+     Daedalus._BE32
+     @Many[4] @GetByte
+     @Many[4] @GetByte
+     Daedalus._BE64
+     ICC._RenderingIntent
+     ICC._XYZNumber
+     @Many[4] @GetByte
+     @Many[16] @GetByte
+     @Many[28] @GetByte
+ 
+ICC._TagEntry : Grammar {} =
+  do Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+ 
+ICC._TagTable : Grammar {} =
+  do (_381 : uint 64) <- do (_380 : uint 32) <- Daedalus.BE32
+                            pure (_380 as uint 64)
+     @Many[_381] ICC._TagEntry
+ 
+ICC._NoParams : Grammar {} =
+  ICC._Exactly (uint 32) 0 Daedalus.BE32
+ 
+ICC._OpParam : Grammar {} =
+  do Daedalus._BE16
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+ 
+ICC._OpParams : Grammar {} =
+  do Daedalus._BE16
+     Daedalus._BE16
+ 
+ICC._FunOp : Grammar {} =
+  do (tag : uint 32) <- Daedalus.BE32
+     case tag is
+       { 1684108385 -> Daedalus._BEFloat
+       ; 1768824864 -> ICC._OpParams
+       ; 1869968416 -> ICC._OpParams
+       ; 1952933236 -> ICC._OpParams
+       ; 1953527156 -> ICC._OpParams
+       ; 1953718646 -> ICC._OpParams
+       ; 1701738016 -> Daedalus._BE32
+       ; 1668641398 -> Daedalus._BE32
+       ; 1836349472 -> Daedalus._BE32
+       ; 1668052340 -> Daedalus._BE32
+       ; 1667329123 -> Daedalus._BE32
+       ; 1953066612 -> Daedalus._BE32
+       ; 1701602669 -> Daedalus._BE32
+       ; 1668247673 -> ICC._OpParams
+       ; 1919906924 -> ICC._OpParams
+       ; 1919906930 -> ICC._OpParams
+       ; 1886352228 -> ICC._OpParams
+       ; 1718380912 -> ICC._OpParams
+       ; 1886351392 -> ICC._OpParams
+       ; 1936682102 -> ICC._OpParams
+       ; 1953653102 -> ICC._OpParams
+       ; 1937075488 -> ICC._OpParam
+       ; 1886547812 -> ICC._OpParam
+       ; 1835626016 -> ICC._OpParam
+       ; 1835104288 -> ICC._OpParam
+       ; 1634624544 -> ICC._OpParam
+       ; 1869750304 -> ICC._OpParam
+       ; 1885937696 -> ICC._OpParam
+       ; 726224454 -> ICC._OpParam
+       ; 759778886 -> ICC._OpParam
+       ; 1312902688 -> ICC._OpParam
+       ; 1633969184 -> ICC._OpParam
+       ; 1937072672 -> ICC._OpParam
+       ; 1836411936 -> ICC._OpParam
+       ; 1684633120 -> ICC._OpParam
+       ; 1836016672 -> ICC._OpParam
+       ; 1886353184 -> ICC._OpParam
+       ; 1734438241 -> ICC._OpParam
+       ; 1935762532 -> ICC._OpParam
+       ; 1936946530 -> ICC._OpParam
+       ; 1936553324 -> ICC._OpParam
+       ; 1935960438 -> ICC._OpParam
+       ; 1936793632 -> ICC._OpParam
+       ; 1936814708 -> ICC._OpParam
+       ; 1667375136 -> ICC._OpParam
+       ; 1667396212 -> ICC._OpParam
+       ; 1633841952 -> ICC._OpParam
+       ; 1852139296 -> ICC._OpParam
+       ; 1919905380 -> ICC._OpParam
+       ; 1718382450 -> ICC._OpParam
+       ; 1667590508 -> ICC._OpParam
+       ; 1953656419 -> ICC._OpParam
+       ; 1936287598 -> ICC._OpParam
+       ; 1702391840 -> ICC._OpParam
+       ; 1819240224 -> ICC._OpParam
+       ; 1819156512 -> ICC._OpParam
+       ; 1936289312 -> ICC._OpParam
+       ; 1668248352 -> ICC._OpParam
+       ; 1952542240 -> ICC._OpParam
+       ; 1634953582 -> ICC._OpParam
+       ; 1633906547 -> ICC._OpParam
+       ; 1635017070 -> ICC._OpParam
+       ; 1635020338 -> ICC._OpParam
+       ; 1668575088 -> ICC._OpParam
+       ; 1886678883 -> ICC._OpParam
+       ; 1919841645 -> ICC._OpParam
+       ; 1819549728 -> ICC._OpParam
+       ; 1818566688 -> ICC._OpParam
+       ; 1701912608 -> ICC._OpParam
+       ; 1852137842 -> ICC._OpParam
+       ; 1734680608 -> ICC._OpParam
+       ; 1735663648 -> ICC._OpParam
+       ; 1986881902 -> ICC._OpParam
+       ; 1986879864 -> ICC._OpParam
+       ; 1986096740 -> ICC._OpParam
+       ; 1987015200 -> ICC._OpParam
+       ; 1951162722 -> ICC._OpParam
+       ; 1951947098 -> ICC._OpParam
+       ; 1768300576 -> Daedalus._BE32
+       ; 1701606245 -> Daedalus._BE32
+       ; 1936026656 -> ICC._NoParams
+       ; 1667330917 -> Daedalus._BE32
+       ; 1684434036 -> Daedalus._BE32
+       ; _ -> Daedalus._BE32
+       }
+ 
+ICC._CalcFun : Grammar {} =
+  do ICC._StartTag "func"
+     (_476 : uint 64) <- do (_475 : uint 32) <- Daedalus.BE32
+                            pure (_475 as uint 64)
+     @Many[_476] ICC._FunOp
+ 
+ICC._PositionNumber : Grammar {} =
+  do Daedalus._BE32
+     Daedalus._BE32
+ 
+ICC._CalcElement (s : Stream) : Grammar {} =
+  do (subElNum : uint 64) <- do (_503 : uint 32) <- Daedalus.BE32
+                                pure (_503 as uint 64)
+     ICC._Positioned [ICC.FunOp] s ICC._CalcFun
+     @Many[subElNum] ICC._Positioned ICC.MPElement s ICC._MPElement
+ 
+ICC._ParseTagIn (s : Stream) (t : ICC.TagEntry) : Grammar {} =
+  do Daedalus._SetStreamAt (t.offset_to_data_element) s
+     Daedalus._Chunk ICC.Tag (t.size_of_data_element) (ICC._Tag (t.tag_signature))
+ 
+ICC._Main : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     ICC._ProfileHeader
+     (_533 : [ICC.TagEntry]) <- ICC.TagTable
+     map ((entry : ICC.TagEntry) in _533)
+       (ICC.ParseTagIn s entry)
+     pure {}
+ 
+ICC._XYNumber : Grammar {} =
+  do Daedalus._BE32
+     Daedalus._BE32
+ 
+ICC._ASCII7 : Grammar {} =
+  do @Many[] do (_535 : uint 8) <- Match (1 .. 255)
+                @(_535 AS uint 7)
+     Choose biased
+       { @Many[ 1 .. ] @Match {'\NUL'}
+       | Fail "Non 0 string terminator"
+       }
+ 
+ICC._Response16Number : Grammar {} =
+  do Daedalus._BE16
+     ICC._Exactly (uint 16) 0 Daedalus.BE16
+     Daedalus._BE32
  
 ICC._Lut8Type : Grammar {} =
   do ICC._StartTag "mft1"
@@ -1268,10 +2101,10 @@ ICC._Lut8Type : Grammar {} =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {'\NUL'}
-     @Many[9] ICC._BE32
-     ICC._Chunk (256 * i)
-     ICC._Chunk ((ICC.exp (uint 64) (uint 64) g i) * o)
-     ICC._Chunk (256 * o)
+     @Many[9] Daedalus._BE32
+     Daedalus._Bytes (256 * i)
+     Daedalus._Bytes ((ICC.exp (uint 64) (uint 64) g i) * o)
+     Daedalus._Bytes (256 * o)
  
 ICC._Lut16Type : Grammar {} =
   do ICC._StartTag "mft2"
@@ -1282,14 +2115,14 @@ ICC._Lut16Type : Grammar {} =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {'\NUL'}
-     @Many[9] ICC._BE32
-     (number_of_input_table_entries : uint 32) <- ICC.BE32
+     @Many[9] Daedalus._BE32
+     (number_of_input_table_entries : uint 32) <- Daedalus.BE32
      (n : uint 64) <- pure (number_of_input_table_entries as uint 64)
-     (number_of_output_table_entries : uint 32) <- ICC.BE32
+     (number_of_output_table_entries : uint 32) <- Daedalus.BE32
      (m : uint 64) <- pure (number_of_output_table_entries as uint 64)
-     ICC._Chunk ((256 * n) * i)
-     ICC._Chunk ((2 * (ICC.exp (uint 64) (uint 64) g i)) * o)
-     ICC._Chunk ((2 * m) * o)
+     Daedalus._Bytes ((256 * n) * i)
+     Daedalus._Bytes ((2 * (ICC.exp (uint 64) (uint 64) g i)) * o)
+     Daedalus._Bytes ((2 * m) * o)
  
 ICC._LutBToAType : Grammar {} =
   do ICC._StartTag "mBA "
@@ -1297,11 +2130,11 @@ ICC._LutBToAType : Grammar {} =
      @GetByte
      @MatchBytes [0,
                   0]
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
  
 ICC._Lut_8_16_AB_BA : Grammar {} =
   Choose biased
@@ -1309,6 +2142,13 @@ ICC._Lut_8_16_AB_BA : Grammar {} =
     | {- lut16 -} ICC._Lut16Type
     | {- lutAB -} ICC._LutAToBType
     | {- lutBA -} ICC._LutBToAType
+    }
+ 
+ICC._Lut_8_16_AB : Grammar {} =
+  Choose biased
+    { {- lut8 -} ICC._Lut8Type
+    | {- lut16 -} ICC._Lut16Type
+    | {- lutAB -} ICC._LutAToBType
     }
  
 ICC._Lut_8_16_BA : Grammar {} =
@@ -1320,16 +2160,16 @@ ICC._Lut_8_16_BA : Grammar {} =
  
 ICC._CurveType : Grammar {} =
   do ICC._StartTag "curv"
-     (n : uint 64) <- do (_356 : uint 32) <- ICC.BE32
-                         pure (_356 as uint 64)
-     @Many[n] ICC._BE16
+     (n : uint 64) <- do (_548 : uint 32) <- Daedalus.BE32
+                         pure (_548 as uint 64)
+     @Many[n] Daedalus._BE16
  
 ICC._ParametricCurveType : Grammar {} =
   do ICC._StartTag "para"
-     ICC._BE16
+     Daedalus._BE16
      @MatchBytes [0,
                   0]
-     @Many[] ICC._BE32
+     @Many[] Daedalus._BE32
  
 ICC._SomeCurve : Grammar {} =
   Choose biased
@@ -1337,85 +2177,47 @@ ICC._SomeCurve : Grammar {} =
     | {- parametric_curve -} ICC._ParametricCurveType
     }
  
-ICC._DateTimeNumber : Grammar {} =
-  do ICC._BE16
-     ICC._BE16
-     ICC._BE16
-     ICC._BE16
-     ICC._BE16
-     ICC._BE16
- 
 ICC._DateTimeType : Grammar {} =
   do ICC._StartTag "dtim"
      ICC._DateTimeNumber
  
-ICC._ASCII7 : Grammar {} =
-  do @Many[] do (_339 : uint 8) <- Match (1 .. 255)
-                @(_339 AS uint 7)
-     Choose biased
-       { @Many[ 1 .. ] @Match {'\NUL'}
-       | Fail "Non 0 string terminator"
-       }
- 
-ICC._Only ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     END
- 
 ICC._TextType : Grammar {} =
   do ICC._StartTag "text"
-     ICC._Only [uint 7] ICC._ASCII7
+     Daedalus._Only [uint 7] ICC._ASCII7
  
 ICC._SignatureType : Grammar {} =
   do ICC._StartTag "sig "
      @Many[4] @GetByte
  
-ICC._ChunkRelativeTo (s : Stream) (off : uint 64) (sz : uint 64) : Grammar {} =
-  do ICC._GotoRel s off
-     ICC._Chunk sz
- 
-ICC._UnicodeRecord (s : Stream) : Grammar {} =
-  do ICC._BE16
-     ICC._BE16
-     (size : uint 64) <- do (_363 : uint 32) <- ICC.BE32
-                            pure (_363 as uint 64)
-     (offset : uint 64) <- do (_364 : uint 32) <- ICC.BE32
-                              pure (_364 as uint 64)
-     ICC._Remote Stream (ICC._ChunkRelativeTo s offset size)
- 
-ICC._MultiLocalizedUnicodeType : Grammar {} =
-  do (s : Stream) <- CurrentStream
-     ICC._StartTag "mluc"
-     (record_number : uint 32) <- ICC.BE32
-     (record_size : uint 32) <- ICC.BE32
-     ICC._Guard (record_size == 12)
-     @Many[record_number as uint 64] ICC._UnicodeRecord s
- 
 ICC._S15Fixed16ArrayType : Grammar {} =
   do ICC._StartTag "sf32"
-     @Many[] ICC._BE32
+     @Many[] Daedalus._BE32
+ 
+ICC._ChromaticityType : Grammar {} =
+  do ICC._StartTag "chrm"
+     (number_of_device_channels : uint 64) <- do (_556 : uint 16) <- Daedalus.BE16
+                                                 pure (_556 as uint 64)
+     Daedalus._BE16
+     @Many[number_of_device_channels] ICC._XYNumber
  
 ICC._ColorantOrderType : Grammar {} =
   do ICC._StartTag "clro"
-     ICC._BE32
+     Daedalus._BE32
      @Many[] @GetByte
  
 ICC._Colorant : Grammar {} =
-  do ICC._ParseChunk [uint 7] 32 (ICC._Only [uint 7] ICC._ASCII7)
-     @Many[3] ICC._BE16
+  do Daedalus._Chunk [uint 7] 32 (Daedalus._Only [uint 7] ICC._ASCII7)
+     @Many[3] Daedalus._BE16
  
 ICC._ColorantTableType : Grammar {} =
   do ICC._StartTag "clrt"
-     (count_of_colorant : uint 64) <- do (_370 : uint 32) <- ICC.BE32
-                                         pure (_370 as uint 64)
+     (count_of_colorant : uint 64) <- do (_558 : uint 32) <- Daedalus.BE32
+                                         pure (_558 as uint 64)
      @Many[count_of_colorant] ICC._Colorant
  
-ICC._XYNumber : Grammar {} =
-  do ICC._BE32
-     ICC._BE32
- 
 ICC._ResponseCurve (n : uint 64) : Grammar {} =
-  do ICC._BE32
-     (counts : [uint 32]) <- Many[n] ICC.BE32
+  do Daedalus._BE32
+     (counts : [uint 32]) <- Many[n] Daedalus.BE32
      @Many[n] ICC._XYNumber
      map ((qi : uint 32) in counts)
        (Many[qi as uint 64] ICC.Response16Number)
@@ -1424,350 +2226,55 @@ ICC._ResponseCurve (n : uint 64) : Grammar {} =
 ICC._ResponseCurveSet16Type : Grammar {} =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "rcs2"
-     (number_of_channels : uint 64) <- do (_372 : uint 16) <- ICC.BE16
-                                          pure (_372 as uint 64)
-     (count : uint 64) <- do (_373 : uint 16) <- ICC.BE16
-                             pure (_373 as uint 64)
-     @Many[count] do (off : uint 64) <- do (_375 : uint 32) <- ICC.BE32
-                                           pure (_375 as uint 64)
-                     ICC._Remote ICC.ResponseCurve do ICC._GotoRel s off
-                                                      ICC._ResponseCurve number_of_channels
- 
-ICC._XYZNumber : Grammar {} =
-  do ICC._BE32
-     ICC._BE32
-     ICC._BE32
- 
-ICC._XYZType : Grammar {} =
-  do ICC._StartTag "XYZ "
-     @Many[] ICC._XYZNumber
+     (number_of_channels : uint 64) <- do (_560 : uint 16) <- Daedalus.BE16
+                                          pure (_560 as uint 64)
+     (count : uint 64) <- do (_561 : uint 16) <- Daedalus.BE16
+                             pure (_561 as uint 64)
+     @Many[count] do (off : uint 64) <- do (_563 : uint 32) <- Daedalus.BE32
+                                           pure (_563 as uint 64)
+                     Daedalus._LookAhead ICC.ResponseCurve do Daedalus._SetStreamAt off s
+                                                              ICC._ResponseCurve number_of_channels
  
 ICC._MeasurementType : Grammar {} =
   do ICC._StartTag "meas"
-     ICC._BE32
+     Daedalus._BE32
      ICC._XYZNumber
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
+     Daedalus._BE32
+     Daedalus._BE32
+     Daedalus._BE32
  
 ICC._ColorName (m : uint 64) : Grammar {} =
-  do ICC._ParseChunk [uint 7] 32 ICC._ASCII7
-     @Many[3] ICC._BE16
-     @Many[m] ICC._BE16
+  do Daedalus._Chunk [uint 7] 32 ICC._ASCII7
+     @Many[3] Daedalus._BE16
+     @Many[m] Daedalus._BE16
  
 ICC._NamedColor2Type : Grammar {} =
   do ICC._StartTag "ncl2"
-     ICC._BE32
-     (count : uint 64) <- do (_379 : uint 32) <- ICC.BE32
-                             pure (_379 as uint 64)
-     (number_of_coords : uint 64) <- do (_380 : uint 32) <- ICC.BE32
-                                        pure (_380 as uint 64)
-     ICC._ParseChunk [uint 7] 32 (ICC._Only [uint 7] ICC._ASCII7)
-     ICC._ParseChunk [uint 7] 32 (ICC._Only [uint 7] ICC._ASCII7)
+     Daedalus._BE32
+     (count : uint 64) <- do (_566 : uint 32) <- Daedalus.BE32
+                             pure (_566 as uint 64)
+     (number_of_coords : uint 64) <- do (_567 : uint 32) <- Daedalus.BE32
+                                        pure (_567 as uint 64)
+     Daedalus._Chunk [uint 7] 32 (Daedalus._Only [uint 7] ICC._ASCII7)
+     Daedalus._Chunk [uint 7] 32 (Daedalus._Only [uint 7] ICC._ASCII7)
      @Many[count] ICC._ColorName number_of_coords
- 
-ICC._ProfileSequenceDescType : Grammar {} =
-  ICC._StartTag "pseq"
  
 ICC._ViewConditionsType : Grammar {} =
   do ICC._StartTag "view"
      ICC._XYZNumber
      ICC._XYZNumber
-     ICC._BE32
- 
-ICC._Tag (sig : ICC.TagSignature) : Grammar {} =
-  case sig is
-    { {| A2B0 = _ |} -> ICC._LutAB_or_multi
-    ; {| A2B1 = _ |} -> ICC._LutAB_or_multi
-    ; {| A2B2 = _ |} -> ICC._LutAB_or_multi
-    ; {| A2B3 = _ |} -> ICC._LutAB_or_multi
-    ; {| A2M0 = _ |} -> ICC._MultiProcessElementsType
-    ; {| bXYZ = _ |} -> ICC._XYZType
-    ; {| bTRC = _ |} -> ICC._SomeCurve
-    ; {| B2A0 = _ |} -> ICC._Lut_8_16_BA
-    ; {| B2A1 = _ |} -> ICC._Lut_8_16_BA
-    ; {| B2A2 = _ |} -> ICC._Lut_8_16_BA
-    ; {| B2D0 = _ |} -> ICC._MultiProcessElementsType
-    ; {| B2D1 = _ |} -> ICC._MultiProcessElementsType
-    ; {| B2D2 = _ |} -> ICC._MultiProcessElementsType
-    ; {| B2D3 = _ |} -> ICC._MultiProcessElementsType
-    ; {| calt = _ |} -> ICC._DateTimeType
-    ; {| targ = _ |} -> ICC._TextType
-    ; {| chad = _ |} -> ICC._S15Fixed16ArrayType
-    ; {| clro = _ |} -> ICC._ColorantOrderType
-    ; {| clrt = _ |} -> ICC._ColorantTableType
-    ; {| clot = _ |} -> ICC._ColorantTableType
-    ; {| ciis = _ |} -> ICC._SignatureType
-    ; {| cprt = _ |} -> ICC._MultiLocalizedUnicodeType
-    ; {| dmnd = _ |} -> ICC._MultiLocalizedUnicodeType
-    ; {| dmdd = _ |} -> ICC._MultiLocalizedUnicodeType
-    ; {| D2B0 = _ |} -> ICC._MultiProcessElementsType
-    ; {| D2B1 = _ |} -> ICC._MultiProcessElementsType
-    ; {| D2B2 = _ |} -> ICC._MultiProcessElementsType
-    ; {| D2B3 = _ |} -> ICC._MultiProcessElementsType
-    ; {| gamt = _ |} -> ICC._Lut_8_16_BA
-    ; {| kTRC = _ |} -> ICC._SomeCurve
-    ; {| gXYZ = _ |} -> ICC._XYZType
-    ; {| gTRC = _ |} -> ICC._SomeCurve
-    ; {| lumi = _ |} -> ICC._XYZType
-    ; {| meas = _ |} -> ICC._MeasurementType
-    ; {| wtpt = _ |} -> ICC._XYZType
-    ; {| ncl2 = _ |} -> ICC._NamedColor2Type
-    ; {| resp = _ |} -> ICC._ResponseCurveSet16Type
-    ; {| rig0 = _ |} -> ICC._SignatureType
-    ; {| pre0 = _ |} -> ICC._Lut_8_16_AB_BA
-    ; {| pre1 = _ |} -> ICC._Lut_8_16_BA
-    ; {| pre2 = _ |} -> ICC._Lut_8_16_BA
-    ; {| desc = _ |} -> ICC._MultiLocalizedUnicodeType
-    ; {| pseq = _ |} -> ICC._ProfileSequenceDescType
-    ; {| psid = _ |} -> pure {}
-    ; {| rXYZ = _ |} -> ICC._XYZType
-    ; {| rTRC = _ |} -> ICC._SomeCurve
-    ; {| rig2 = _ |} -> ICC._SignatureType
-    ; {| tech = _ |} -> ICC._SignatureType
-    ; {| vued = _ |} -> ICC._MultiLocalizedUnicodeType
-    ; {| view = _ |} -> ICC._ViewConditionsType
-    }
- 
-ICC._ParseTag (t : ICC.TagEntry) : Grammar {} =
-  do ICC._Goto (t.offset_to_data_element as uint 64)
-     ICC._ParseChunk ICC.Tag (t.size_of_data_element as uint 64) (ICC._Tag (t.tag_signature))
- 
-ICC.TagStructType : Grammar ICC.TagStructType =
-  do (s : Stream) <- CurrentStream
-     ICC._StartTag "tstr"
-     (struct_type_id : [uint 8]) <- Many[4] GetByte
-     (n : uint 64) <- do (_436 : uint 32) <- ICC.BE32
-                         pure (_436 as uint 64)
-     @Many[n] do (ent : ICC.TagEntry) <- ICC.TagEntry
-                 ICC._Remote ICC.Tag do SetStream s
-                                        ICC._ParseTag ent
-     pure {struct_type_id = struct_type_id}
- 
-ICC.getBit ?a0 (Numeric ?a0) (Coerce trunc ?a0 (uint 1)) (n : uint 64) (b : ?a0) : uint 1 =
-  b >> n as uint 1
- 
-ICC.GotoRel (s : Stream) (n : uint 64) : Grammar {} =
-  do (_341 : Stream) <- StreamOff n s
-     SetStream _341
- 
-ICC.Goto (n : uint 64) : Grammar {} =
-  do (_342 : Stream) <- CurrentStream
-     ICC.GotoRel _342 n
- 
-ICC.Guard (p : bool) : Grammar {} =
-  case p is
-    { true -> pure {}
-    }
- 
-ICC._VersionField : Grammar {} =
-  do @GetByte
-     @GetByte
-     @MatchBytes [0,
-                  0]
- 
-ICC._ProfileClasses : Grammar {} =
-  Choose biased
-    { {- input_device_profile -} @MatchBytes "scnr"
-    | {- display_device_profile -} @MatchBytes "mntr"
-    | {- output_device_profile -} @MatchBytes "prtr"
-    | {- device_link_profile -} @MatchBytes "link"
-    | {- color_space_profile -} @MatchBytes "spac"
-    | {- abstract_profile -} @MatchBytes "abst"
-    | {- named_color_profile -} @MatchBytes "nmcl"
-    }
- 
-ICC._DataColorSpaces : Grammar {} =
-  Choose biased
-    { {- nciexyz_or_pcsxyz -} @MatchBytes "XYZ "
-    | {- cielab_or_pcslab -} @MatchBytes "Lab "
-    | {- cieluv -} @MatchBytes "Luv "
-    | {- ycbcr -} @MatchBytes "Ycbr"
-    | {- cieyxy -} @MatchBytes "Yxy "
-    | {- rgb -} @MatchBytes "RGB "
-    | {- gray -} @MatchBytes "GRAY"
-    | {- hsv -} @MatchBytes "HSV "
-    | {- hls -} @MatchBytes "HLS "
-    | {- cmyk -} @MatchBytes "CMYK"
-    | {- cmy -} @MatchBytes "CMY "
-    | {- two_colour -} @MatchBytes "2CLR"
-    | {- three_colour -} @MatchBytes "3CLR"
-    | {- four_colour -} @MatchBytes "4CLR"
-    | {- five_colour -} @MatchBytes "5CLR"
-    | {- six_colour -} @MatchBytes "6CLR"
-    | {- seven_colour -} @MatchBytes "7CLR"
-    | {- eight_colour -} @MatchBytes "8CLR"
-    | {- nine_colour -} @MatchBytes "9CLR"
-    | {- ten_colour -} @MatchBytes "ACLR"
-    | {- eleven_colour -} @MatchBytes "BCLR"
-    | {- twelve_colour -} @MatchBytes "CCLR"
-    | {- thirteen_colour -} @MatchBytes "DCLR"
-    | {- fourteen_colour -} @MatchBytes "ECLR"
-    | {- fifteen_colour -} @MatchBytes "FCLR"
-    }
- 
-ICC._PrimaryPlatforms : Grammar {} =
-  Choose biased
-    { {- none -} @MatchBytes [0,
-                              0,
-                              0,
-                              0]
-    | {- apple_computer_inc -} @MatchBytes "APPL"
-    | {- microsoft_corporation -} @MatchBytes "MSFT"
-    | {- silicon_graphics_inc -} @MatchBytes "SGI "
-    | {- sun_microsystems -} @MatchBytes "SUNW"
-    }
- 
-ICC._RenderingIntent : Grammar {} =
-  Choose biased
-    { {- perceptual -} @MatchBytes [0,
-                                    0,
-                                    0,
-                                    0]
-    | {- media_relative_colorimetric -} @MatchBytes [0,
-                                                     0,
-                                                     0,
-                                                     1]
-    | {- saturation -} @MatchBytes [0,
-                                    0,
-                                    0,
-                                    2]
-    | {- icc_absolute_colorimetric -} @MatchBytes [0,
-                                                   0,
-                                                   0,
-                                                   3]
-    }
- 
-ICC._BE64 : Grammar {} =
-  do ICC._BE32
-     ICC._BE32
- 
-ICC._ProfileHeader : Grammar {} =
-  do ICC._BE32
-     ICC._BE32
-     ICC._VersionField
-     ICC._ProfileClasses
-     ICC._DataColorSpaces
-     ICC._DataColorSpaces
-     ICC._DateTimeNumber
-     @MatchBytes "acsp"
-     ICC._PrimaryPlatforms
-     ICC._BE32
-     ICC._BE32
-     ICC._BE32
-     ICC._BE64
-     ICC._RenderingIntent
-     ICC._XYZNumber
-     ICC._BE32
-     @Many[16] @GetByte
-     @Many[28] @Match {'\NUL'}
- 
-ICC._TagSignature : Grammar {} =
-  Choose biased
-    { {- A2B0 -} @MatchBytes "A2B0"
-    | {- A2B1 -} @MatchBytes "A2B1"
-    | {- A2B2 -} @MatchBytes "A2B2"
-    | {- A2B3 -} @MatchBytes "A2B3"
-    | {- A2M0 -} @MatchBytes "A2M0"
-    | {- bcp0 -} @MatchBytes "bcp0"
-    | {- bcp1 -} @MatchBytes "bcp1"
-    | {- bcp2 -} @MatchBytes "bcp2"
-    | {- bcp3 -} @MatchBytes "bcp3"
-    | {- bsp0 -} @MatchBytes "bsp0"
-    | {- bsp1 -} @MatchBytes "bsp1"
-    | {- bsp2 -} @MatchBytes "bsp2"
-    | {- bsp3 -} @MatchBytes "bsp3"
-    | {- bXYZ -} @MatchBytes "bXYZ"
-    | {- bTRC -} @MatchBytes "bTRC"
-    | {- B2A0 -} @MatchBytes "B2A0"
-    | {- B2A1 -} @MatchBytes "B2A1"
-    | {- B2A2 -} @MatchBytes "B2A2"
-    | {- B2D0 -} @MatchBytes "B2D0"
-    | {- B2D1 -} @MatchBytes "B2D1"
-    | {- B2D2 -} @MatchBytes "B2D2"
-    | {- B2D3 -} @MatchBytes "B2D3"
-    | {- calt -} @MatchBytes "calt"
-    | {- targ -} @MatchBytes "targ"
-    | {- chad -} @MatchBytes "chad"
-    | {- clro -} @MatchBytes "clro"
-    | {- clrt -} @MatchBytes "clrt"
-    | {- clot -} @MatchBytes "clot"
-    | {- ciis -} @MatchBytes "ciis"
-    | {- cprt -} @MatchBytes "cprt"
-    | {- dmnd -} @MatchBytes "dmnd"
-    | {- dmdd -} @MatchBytes "dmdd"
-    | {- D2B0 -} @MatchBytes "D2B0"
-    | {- D2B1 -} @MatchBytes "D2B1"
-    | {- D2B2 -} @MatchBytes "D2B2"
-    | {- D2B3 -} @MatchBytes "D2B3"
-    | {- gamt -} @MatchBytes "gamt"
-    | {- kTRC -} @MatchBytes "kTRC"
-    | {- gXYZ -} @MatchBytes "gXYZ"
-    | {- gTRC -} @MatchBytes "gTRC"
-    | {- lumi -} @MatchBytes "lumi"
-    | {- meas -} @MatchBytes "meas"
-    | {- wtpt -} @MatchBytes "wtpt"
-    | {- ncl2 -} @MatchBytes "ncl2"
-    | {- resp -} @MatchBytes "resp"
-    | {- rig0 -} @MatchBytes "rig0"
-    | {- pre0 -} @MatchBytes "pre0"
-    | {- pre1 -} @MatchBytes "pre1"
-    | {- pre2 -} @MatchBytes "pre2"
-    | {- desc -} @MatchBytes "desc"
-    | {- pseq -} @MatchBytes "pseq"
-    | {- psid -} @MatchBytes "psid"
-    | {- rXYZ -} @MatchBytes "rXYZ"
-    | {- rTRC -} @MatchBytes "rTRC"
-    | {- rig2 -} @MatchBytes "rig2"
-    | {- tech -} @MatchBytes "tech"
-    | {- vued -} @MatchBytes "vued"
-    | {- view -} @MatchBytes "view"
-    }
- 
-ICC._TagEntry : Grammar {} =
-  do ICC._TagSignature
-     ICC._BE32
-     ICC._BE32
- 
-ICC._TagTable : Grammar {} =
-  do (n : uint 64) <- do (_337 : uint 32) <- ICC.BE32
-                         pure (_337 as uint 64)
-     @Many[n] ICC._TagEntry
- 
-ICC._Main : Grammar {} =
-  do ICC._ProfileHeader
-     ICC._TagTable
- 
-ICC._PositionNumber : Grammar {} =
-  do ICC._BE32
-     ICC._BE32
- 
-ICC._Response16Number : Grammar {} =
-  do ICC._BE16
-     @MatchBytes [0,
-                  0]
-     ICC._BE32
- 
-ICC._Lut_8_16_AB : Grammar {} =
-  Choose biased
-    { {- lut8 -} ICC._Lut8Type
-    | {- lut16 -} ICC._Lut16Type
-    | {- lutAB -} ICC._LutAToBType
-    }
- 
-ICC._ChromaticityType : Grammar {} =
-  do ICC._StartTag "chrm"
-     (number_of_device_channels : uint 64) <- do (_435 : uint 16) <- ICC.BE16
-                                                 pure (_435 as uint 64)
-     ICC._BE16
-     @Many[number_of_device_channels] ICC._XYNumber
+     Daedalus._BE32
  
 ICC._TagStructType : Grammar {} =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "tstr"
      @Many[4] @GetByte
-     (n : uint 64) <- do (_436 : uint 32) <- ICC.BE32
-                         pure (_436 as uint 64)
+     (n : uint 64) <- do (_568 : uint 32) <- Daedalus.BE32
+                         pure (_568 as uint 64)
      @Many[n] do (ent : ICC.TagEntry) <- ICC.TagEntry
-                 ICC._Remote ICC.Tag do SetStream s
-                                        ICC._ParseTag ent
+                 Daedalus._LookAhead ICC.Tag do SetStream s
+                                                ICC._ParseTag ent
+ 
+ICC._ChunkRelativeTo (s : Stream) (off : uint 64) (sz : uint 64) : Grammar {} =
+  do Daedalus._SetStreamAt off s
+     Daedalus._Bytes sz
