@@ -160,7 +160,8 @@ hsType env ty =
 hsConstraint :: Env -> Constraint -> Term
 hsConstraint env ctr =
   case ctr of
-    Numeric t -> "RTS.Numeric" `Ap` hsType env t
+    Integral t -> "RTS.Numeric" `Ap` hsType env t
+    Arith t    -> "RTS.Arith" `Ap` hsType env t
 
     HasStruct t l a ->
       aps "RTS.HasStruct" [ hsType env t, hsLabelT l, hsType env a ]

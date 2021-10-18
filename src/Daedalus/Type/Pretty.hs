@@ -54,7 +54,8 @@ ppD d = ppNamedRuleType (tcDeclName d) (declTypeOf d)
 ppCtr :: (?tpMap :: Map TVar Doc) => Constraint -> Doc
 ppCtr ctr =
   case ctr of
-    Numeric t -> ppBackTy t <+> "is a numeric type"
+    Integral t -> ppBackTy t <+> "is an integral type"
+    Arith t    -> ppBackTy t <+> "supports arithmetic"
     FloatingType t -> ppBackTy t <+> "is a floating point type"
     HasStruct ts l tf ->
       ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf

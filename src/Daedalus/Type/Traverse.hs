@@ -177,7 +177,8 @@ instance TraverseTypes e => TraverseTypes (ManyBounds e) where
 instance TraverseTypes Constraint where
   traverseTypes f constraint =
     case constraint of
-      Numeric t         -> Numeric <$> f t
+      Integral t        -> Integral <$> f t
+      Arith t           -> Arith <$> f t
       FloatingType t    -> FloatingType <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
       StructCon nm t fs -> StructCon nm <$> f t <*> traverse tF fs

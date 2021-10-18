@@ -54,7 +54,8 @@ data RuleType   = ([(IPName,Type)],[Type]) :-> Type
 data Poly a     = Poly [TVar] [Constraint] a
                   deriving (Show, Eq)
 
-data Constraint = Numeric Type
+data Constraint = Integral Type
+                | Arith Type
                 | HasStruct Type Label Type
                 | HasUnion  Type Label Type
 
@@ -727,7 +728,8 @@ ppBinder x = parens (pp (tcName x) <+> ":" <+> pp (tcType x))
 instance PP Constraint where
   ppPrec n c =
     case c of
-      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 2 x)
+      Integral x -> wrapIf (n > 0) ("Integral" <+> ppPrec 2 x)
+      Arith x    -> wrapIf (n > 0) ("Arith" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
 
       StructCon _ t fs ->

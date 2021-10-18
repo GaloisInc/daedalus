@@ -387,7 +387,7 @@ inferExpr expr =
         -- XXX: We don't seem to have surface syntax for this?
         Neg ->
           liftValAppPure expr [e] \ ~[(e1,t)] ->
-          do addConstraint expr (Numeric t)
+          do addConstraint expr (Arith t)
              pure (exprAt expr (TCUniOp Neg e1), t)
 
         Concat ->
@@ -457,7 +457,7 @@ inferExpr expr =
                                           ] ->
         do unify r1 r2
            unify r1 r3
-           addConstraint expr (Numeric t1)
+           addConstraint expr (Integral t1)
            pure (exprAt expr (TCTriOp op e1' e2' e3' (tArray t1)), tArray t1)
 
 
@@ -473,7 +473,7 @@ inferExpr expr =
 
         LCat ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-          do addConstraint expr (Numeric t1)
+          do addConstraint expr (Integral t1)
              r <- newTVar e2 KNumber
              unify (tUInt r) (e2',t2)
 
@@ -507,11 +507,11 @@ inferExpr expr =
           inferExpr $ pExprAt expr
                     $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
-        Add   -> num2
-        Sub   -> num2
-        Mul   -> num2
-        Div   -> num2
-        Mod   -> num2
+        Add   -> num2 Arith
+        Sub   -> num2 Arith
+        Mul   -> num2 Arith
+        Div   -> num2 Arith
+        Mod   -> num2 Integral
         Lt    -> rel
         Leq   -> rel
         Eq    -> relEq
@@ -520,21 +520,21 @@ inferExpr expr =
       where
       bitwiseOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-        do addConstraint expr (Numeric t1)
+        do addConstraint expr (Integral t1)
            unify (e1', t1) (e2', t2)
            pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
       shiftOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-        do addConstraint expr (Numeric t1)
+        do addConstraint expr (Integral t1)
            unify tSize (e2',t2)
            pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
-      num2 = liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-             do addConstraint e1 (Numeric t1)
-                addConstraint e2 (Numeric t2)
-                unify (e1', t1) (e2',t2)
-                pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
+      num2 c = liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
+               do addConstraint e1 (c t1)
+                  addConstraint e2 (c t2)
+                  unify (e1', t1) (e2',t2)
+                  pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
       -- XXX: what types should allow to be compared:
       -- only numeric? or do structural comparisons?

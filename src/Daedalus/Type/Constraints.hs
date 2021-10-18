@@ -20,10 +20,15 @@ import Daedalus.Type.Subst
 data CtrStatus = Solved | Unsolved
   deriving Show
 
-isSameCtr :: STCMonad m => Located Constraint -> Located Constraint -> m Bool
-isSameCtr cNew cOld =
+isImpliedBy :: STCMonad m => Located Constraint -> Located Constraint -> m Bool
+cNew `isImpliedBy` cOld =
   case (thingValue cNew, thingValue cOld) of
-    (Numeric x, Numeric y) | x == y -> pure True
+    (Integral x, Integral y) | x == y -> pure True
+    (Arith x, Arith y) | x == y -> pure True
+
+
+    (Arith x, Integral y) | x == y -> pure True
+    (Arith x, FloatingType y) | x == y -> pure True
 
     (HasStruct x1 l1 t1, HasStruct x2 l2 t2)
       | x1 == x2 && l1 == l2 ->
@@ -170,15 +175,31 @@ isAdd r t1 t2 t3 =
     _ -> pure Unsolved
 
 
-isNumeric :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
-isNumeric r ty =
+isIntegral :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
+isIntegral r ty =
   case ty of
     Type TInteger   -> pure Solved
     Type (TUInt _)  -> pure Solved
     Type (TSInt _)  -> pure Solved
     TVar _          -> pure Unsolved
-    _               -> reportDetailedError r "Not a numeric type."
+    _               -> reportDetailedError r "Not an integral type."
                           [ "Type:" <+> pp ty ]
+
+
+isArith :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
+isArith r ty =
+  case ty of
+    Type TInteger   -> pure Solved
+    Type (TUInt _)  -> pure Solved
+    Type (TSInt _)  -> pure Solved
+    Type TFloat     -> pure Solved
+    Type TDouble    -> pure Solved
+    TVar _          -> pure Unsolved
+    _               -> reportDetailedError r "Type does not support arithmetic."
+                          [ "Type:" <+> pp ty ]
+
+
+
 
 
 isFloatingType :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
@@ -524,7 +545,8 @@ isUnionCon r ty c t =
 solveConstraint :: STCMonad m => Located Constraint -> m CtrStatus
 solveConstraint lctr =
   case thingValue lctr of
-    Numeric t          -> isNumeric lctr t
+    Integral t         -> isIntegral lctr t
+    Arith t            -> isArith lctr t
     FloatingType t     -> isFloatingType lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
     StructCon _ t fs   -> isStructCon lctr t fs
@@ -694,7 +716,7 @@ simplifyConstraints =
     case notYet of
       [] -> pure False
       o : more ->
-        do yes <- isSameCtr c o
+        do yes <- c `isImpliedBy` o
            if yes then pure True else checkKnown c more
 
 
