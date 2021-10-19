@@ -1,4 +1,7 @@
+-- Referece: https://www.color.org/specification/ICC.2-2019.pdf
+
 import Daedalus
+-- import Debug
 
 -- ENTRY
 def Main =
@@ -163,46 +166,7 @@ def Tag (sig : uint 32) =
 
     0s"svcn" -> {| svcn = SpectralViewingConditionsType |}
 
-{-
-
-    0s"bXYZ" -> {| bXYZ = XYZType |}
-    0s"bTRC" -> {| bTRC = SomeCurve |}
-    0s"calt" -> {| calt = DateTimeType |}
-    0s"targ" -> {| targ = TextType |}
-    0s"chad" -> {| chad = S15Fixed16ArrayType |}
-    0s"clro" -> {| clro = ColorantOrderType |}
-    0s"clrt" -> {| clrt = ColorantTableType |}
-    0s"clot" -> {| clot = ColorantTableType |}
-    0s"ciis" -> {| ciis = SignatureType |}
-    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
-    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
-    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
-    0s"D2B0" -> {| D2B0 = MultiProcessElementsType |}
-    0s"D2B1" -> {| D2B1 = MultiProcessElementsType |}
-    0s"D2B2" -> {| D2B2 = MultiProcessElementsType |}
-    0s"D2B3" -> {| D2B3 = MultiProcessElementsType |}
-    0s"gamt" -> {| gamt = Lut_8_16_BA |}
-    0s"kTRC" -> {| kTRC = SomeCurve |}
-    0s"gXYZ" -> {| gXYZ = XYZType |}
-    0s"gTRC" -> {| gTRC = SomeCurve |}
-    0s"lumi" -> {| lumi = XYZType |}
-    0s"meas" -> {| meas = MeasurementType |}
-    0s"wtpt" -> {| wtpt = XYZType |}
-    -- 0s"ncl2" -> {| ncl2 = NamedColor2Type |}
-    0s"resp" -> {| resp = ResponseCurveSet16Type |}
-    0s"rig0" -> {| rig0 = SignatureType |}
-    0s"pre0" -> {| pre0 = Lut_8_16_AB_BA |}
-    0s"pre1" -> {| pre1 = Lut_8_16_BA |}
-    0s"pre2" -> {| pre2 = Lut_8_16_BA |}
-
-    0s"psid" -> {| psid = {} |} -- XXX
-    0s"rXYZ" -> {| rXYZ = XYZType |}
-    0s"rTRC" -> {| rTRC = SomeCurve |}
-    0s"rig2" -> {| rig2 = SignatureType |}
-    0s"tech" -> {| tech = SignatureType |}
-    0s"vued" -> {| vued = MultiLocalizedUnicodeType |}
-    0s"view" -> {| view = ViewConditionsType |}
--}
+    -- XXX: more ttags
     _        -> {| unknown = explode32 sig |}
 
 
@@ -561,7 +525,10 @@ def MPElementHead =
 
 def MPElementBody head =
   case head.tag of
-    0s"calc" -> {| calc = CalcElement head |}
+    0s"calc" -> {| calc = block
+                            $$ = CalcElement head
+                            LookAhead (CheckFunOpsInCalc $$)
+                |}
     0s"cvst" -> {| cvst = Many head.inputs (Positioned head.offset Curve) |}
     0s"matf" -> {| matf = Matrix head.inputs head.outputs |}
     _        -> {| unknown = explode32 head.tag |}
@@ -584,123 +551,241 @@ def CalcElement head =
 def CalcFun =
   block
     StartTag "func"
-    Many (BE32 as uint 64) FunOp
+    ManyFunOps (BE32 as uint 64)
 
 
+--------------------------------------------------------------------------------
+-- Stack validation for FunOps
+
+
+-- Initiial state of the stack
 def funOpChecker = { stack = 0 : uint 64 }
 
+-- Push arguments on the stack
 def funOpPush n (x : funOpChecker) : funOpChecker =
   { stack = x.stack + n }
 
-def FunOpPop  n (x : funOpChecker) : funOpChecker =
+-- Remove some arguments from the stack
+def FunOpPop op n (x : funOpChecker) : funOpChecker =
   block
-    Guard (x.stack >= n)
+    FunOpAssert op (x.stack >= n) "Not enough arguments for operation"
     { stack = x.stack - n }
 
+-- Get the size of the stack
+def funOpStackSize (x : funOpChecker) = x.stack
 
-def CheckFunOps (c : CalcElement) =
-  for (calc = funOpChecker; i,op in c.main)
-    case op of
+-- Check a certain condition and report an error if the condition fails
+def FunOpAssert op b msg =
+  First
+    Guard b
+    block
+      SetStream op.offset
+      Fail msg
+
+-- Specifies effect of an isntruction on the stack.
+-- input arguments are removed; output arguments are pushed
+def FunOpArgs op inArgs outArgs calc =
+  funOpPush outArgs (FunOpPop op inArgs calc)
+--------------------------------------------------------------------------------
+
+
+def CheckFunOpsInCalc (c : CalcElement) =
+  Guard (CheckFunOps c c.main funOpChecker == funOpChecker)
+  <| Fail "Left over elements on the stack"
+
+def CheckFunOps (c : CalcElement) (ops : [FunOpWithPosition]) startCalc =
+  for (calc = startCalc; op in ops)
+    block
+    SetStream op.offset
+    case op.op of
       data    -> funOpPush 1 calc
 
       opIn p  ->
         block
-          Guard (p.s < c.inputs && (c.inputs - p.s) <= p.t)
-            <| Fail "Invalid channel in `in`"
-          funOpPush p.t calc
+          let n = p.t + 1
+          FunOpAssert op (p.s < c.inputs && (c.inputs - p.s) <= n)
+                                                     "Invalid channel in `in`"
+          FunOpArgs op 0 n calc
 
       opOut p ->
         block
-          Guard (p.s < c.outputs && (c.outputs - p.s) <= p.t)
-            <| Fail "Invalid channel in `out`"
+          let n = p.t + 1
+          FunOpAssert op (p.s < c.outputs && (c.outputs - p.s) <= n)
+                                                    "Invalid channel in `out`"
 
-          FunOpPop p.t calc
+          FunOpArgs op n 0 calc
 
-      opTGet p -> funOpPush p.t calc
-
-      opTPut p -> FunOpPop p.t calc
+      opTGet p -> FunOpArgs op 0 (p.t + 1) calc
+      opTPut p -> FunOpArgs op (p.t + 1) 0 calc
 
       opTSave p ->
         block
-          Guard (calc.stack >= p.t)
-            <| Fail "Not enough arguments to `tsav`"
-          calc
+          let n = p.t + 1
+          FunOpArgs op n n calc
 
-      opEnv -> funOpPush 2 calc
+      opEnv -> FunOpArgs op 0 2 calc
 
       curv n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
-          mpe.body is cvst
+          let mpe = Index c.subElements n
+                    <| Fail "`curv` sub element index out of bounds"
+          mpe.body is cvst <| Fail "`curv` argument is not a curve"
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
       mtx n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
-          mpe.body is matf
+          let mpe = Index c.subElements n
+                    <| Fail "`mtx` sub element index out of bounds"
+          mpe.body is matf <| Fail "`mtx` sub element is not a matrix"
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
       clut n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
+          let mpe = Index c.subElements n
+                    <| Fail "`clut` sub element index out of bounds"
           -- mpe.body is matf   XXX: CHECK TYPE
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
       calc n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
-          mpe.body is calc
+          let mpe = Index c.subElements n
+                    <| Fail "`calc` sub element index out of bounds"
+          mpe.body is calc <| Fail "`calc` arguemtn is not a calculator"
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
       tint n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
+          let mpe = Index c.subElements n
+                    <| Fail "`tint` sub element index out of bounds"
           -- mpe.body is matf   XXX: CHECK TYPE
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
       elem n ->
         block
-          let mpe = Index c.subElements (n as uint 64)
+          let mpe = Index c.subElements n
+                    <| Fail "`elem` sub element index out of bounds"
           let h = mpe.head
-          funOpPush h.outputs (FunOpPop h.inputs calc)
+          FunOpArgs op h.inputs h.outputs calc
 
-      copy p ->
+      copy p -> FunOpArgs op (p.s + 1) ((p.s + 1) * (p.t + 2)) calc
+      rotl p -> FunOpArgs op (p.s + 1) (p.s + 1) calc
+      rotr p -> FunOpArgs op (p.s + 1) (p.s + 1) calc
+      posd p -> FunOpArgs op (p.s + 1) ((p.s + 1) + (p.t + 1)) calc
+
+      -- BUG in spec
+      flip s -> FunOpArgs op (s + 2) (s + 2) calc
+
+      pop s  -> FunOpArgs op (s+1) 0 calc
+      solv p -> FunOpArgs op ((p.s + 1) * (p.t + 2)) (p.t + 2) calc
+
+      tran p ->
         block
-          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `copy`"
-          funOpPush ((p.t + 1) * p.s) calc
+          let els = (p.t + 1) * (p.s + 1)
+          FunOpArgs op els els calc
 
-      rotl p ->
+      sum n  -> FunOpArgs op (n+2) 1 calc
+      prod n -> FunOpArgs op (n+2) 1 calc
+      min n  -> FunOpArgs op (n+2) 1 calc
+      max n  -> FunOpArgs op (n+2) 1 calc
+      and n  -> FunOpArgs op (n+2) 1 calc
+      or n   -> FunOpArgs op (n+2) 1 calc
+
+      opPi      -> FunOpArgs op 0 1 calc
+      opPosInf  -> FunOpArgs op 0 1 calc
+      opNegInf  -> FunOpArgs op 0 1 calc
+      opNAN     -> FunOpArgs op 0 1 calc
+
+      opAdd s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opSub s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opMul s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opDiv s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opMod s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opPow s -> FunOpArgs op (2 * (s+1)) (s+1) calc
+
+      opGamma s -> FunOpArgs op (s + 2) (s + 1) calc
+      opSAdd s  -> FunOpArgs op (s + 2) (s + 1) calc
+      opSSub s  -> FunOpArgs op (s + 2) (s + 1) calc
+      opSMul s  -> FunOpArgs op (s + 2) (s + 1) calc
+      opSDiv s  -> FunOpArgs op (s + 2) (s + 1) calc
+
+      opSq   s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opSqrt s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opCb   s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opCbrt s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opAbs  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opNeg  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opRond s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opFlor s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opCeil s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opTrnc s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opSign s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opExp  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opLog  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opLn   s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opSin  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opCos  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opTan  s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opASin s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opACos s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opATan s  -> FunOpArgs op (s + 1) (s + 1) calc
+      opATn2 s  -> FunOpArgs op (s + 1) (s + 1) calc
+
+      opCTop s  -> FunOpArgs op (2 * (s + 1)) (2 * (s + 1)) calc
+      opPToc s  -> FunOpArgs op (2 * (s + 1)) (2 * (s + 1)) calc
+      opRNum s  -> FunOpArgs op (s + 1) (s + 1)             calc
+
+      opLT s    -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opLE s    -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opEQ s    -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opNear s  -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opGE s    -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opGT s    -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opVMin s  -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opVMax s  -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opVAnd s  -> FunOpArgs op (2 * (s+1)) (s+1) calc
+      opVOr s   -> FunOpArgs op (2 * (s+1)) (s+1) calc
+
+      opTLab s  -> FunOpArgs op (3 * (s+1)) (3 * (s+1)) calc
+      opTXYZ s  -> FunOpArgs op (3 * (s+1)) (3 * (s+1)) calc
+
+      opIfThen thenOps ->
         block
-          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `rotl`"
-          calc
+          let calc1 = CheckFunOps c thenOps calc
+          FunOpAssert op (calc == calc1)
+                        "`if-then` does not preserve the stack size"
+          calc1
 
-      rotr p ->
+      opIfThenElse ops ->
         block
-          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `rotr`"
-          calc
+          let calc1 = CheckFunOps c ops.thenOps calc
+          let calc2 = CheckFunOps c ops.elseOps calc
+          FunOpAssert op (calc1 == calc2)
+                        "`if-then-else` branches affect stack differently"
+          calc1
 
-      posd p ->
+      opSel ops ->
         block
-          Guard (calc.stack > p.s) <| Fail "Invalid argument for `posd`"
-          funOpPush (p.t + 1) calc
-
-      flip s ->
-        block
-          Guard (calc.stack >= s) <| Fail "Invalid argument for `flip`"
-          calc
-
-      pop s ->
-        block
-          FunOpPop (s + 1) calc
-
+          let res = CheckFunOps c ops.case1 calc
+          map (alt in ops.cases)
+            (FunOpAssert op (CheckFunOps c alt calc == res)
+                "`cases` in `sel` affect stack differently")
+          case ops.dflt of
+            nothing -> FunOpAssert op (res == calc)
+                        "`cases` in `sel` with no default do not preserve stack"
+            just x  -> FunOpAssert op (CheckFunOps c x calc == res)
+                         "`dflt` in `case` has different effect from `case`s"
+          res
 
 
-
+def FunOpWithPosition =
+  block
+    offset = GetStream
+    op     = FunOp
 
 def FunOp =
   block
@@ -721,12 +806,12 @@ def FunOp =
       0s"env " -> {| opEnv   = BE32 |}
 
       -- Table 94
-      0s"curv" -> {| curv = BE32 |}
-      0s"mtx " -> {| mtx  = BE32 |}
-      0s"clut" -> {| clut = BE32 |}
-      0s"calc" -> {| calc = BE32 |}
-      0s"tint" -> {| tint = BE32 |}
-      0s"elem" -> {| elem = BE32 |}
+      0s"curv" -> {| curv = BE32 as uint 64 |}    -- or a 16 bit number?
+      0s"mtx " -> {| mtx  = BE32 as uint 64 |}
+      0s"clut" -> {| clut = BE32 as uint 64 |}
+      0s"calc" -> {| calc = BE32 as uint 64 |}
+      0s"tint" -> {| tint = BE32 as uint 64 |}
+      0s"elem" -> {| elem = BE32 as uint 64 |}
 
       -- Table 95,96
       0s"copy" -> {| copy = OpParams |}
@@ -791,7 +876,7 @@ def FunOp =
       0s"lt  " -> {| opLT     = OpParam |}
       0s"le  " -> {| opLE     = OpParam |}
       0s"eq  " -> {| opEQ     = OpParam |}
-      0s"near" -> {| opNer    = OpParam |}
+      0s"near" -> {| opNear   = OpParam |}
       0s"ge  " -> {| opGE     = OpParam |}
       0s"gt  " -> {| opGT     = OpParam |}
       0s"vmin" -> {| opVMin   = OpParam |}
@@ -802,20 +887,53 @@ def FunOp =
       0s"tXYZ" -> {| opTXYZ   = OpParam |}
 
       -- Table 103,104
-      0s"if  " -> {| opIf     = BE32 as uint 64 |}
-      0s"else" -> {| opElse   = BE32 as uint 64 |}
+      0s"if  " ->
+        block
+          let thenOps = BE32 as uint 64
+          case Optional (Match "else") of
+            nothing -> {| opIfThen = ManyFunOps thenOps |}
+            just    -> {| opIfThenElse = IfThenElse thenOps (BE32 as uint 64) |}
+
+      0s"else" -> Fail "`else` with no `if"
 
       -- Table 105
-      0s"sel " -> {| opSel    = NoParams |}
-      0s"case" -> {| opCase   = BE32 as uint 64 |}
-      0s"dflt" -> {| opDflt   = BE32 as uint 64 |}
+      0s"sel " ->
+        block
+          NoParams
+          let c1 = SelCase
+          let cs = Many SelCase
+          let d  = Optional   block Match "dflt"; BE32 as uint 64
+          {| opSel = Sel c1 cs d |}
 
-      _        -> {| unknown  = block
-                                  tag   = explode32 tag
-                                  param = BE32
-                  |}
+      0s"case" -> Fail "`case` with no `sel`"
+      0s"dflt" -> Fail "`dflt` with no `sel`"
 
-def NoParams = Exactly 0 BE32
+      _ -> Fail (concat [ "invalid tag: ", explode32 tag ])
+
+def SelCase =
+  block
+    Match "case"
+    BE32 as uint 64
+
+{- This extracts `n` 64-bit records.  It is used to parse a sequnce
+   of `FunOp` becaues the `FunOp` parser consumes multiple "primitve"
+   records at once. -}
+def ManyFunOps n = Chunk (8 * n) (Only (Many FunOpWithPosition))
+
+def IfThenElse thenOps elseOps =
+  block
+    thenOps = ManyFunOps thenOps
+    elseOps = ManyFunOps elseOps
+
+def Sel alt alts mbDflt =
+  block
+    case1 = ManyFunOps alt
+    cases = map (n in alts) (ManyFunOps n)
+    dflt  = case mbDflt of
+              nothing -> nothing
+              just n  -> just (ManyFunOps n)
+
+def NoParams = @ block Exactly 0 BE32
 
 def OpParam =
   block
