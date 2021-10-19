@@ -117,7 +117,7 @@ allTests =
              ])
       ["no compressed objects, traditional xref table; object 11 xref pointing to object 23"]
       
-  , Test "1_valid_xref_strm" pdf1 RT_XRef_Trad E_None  Good
+  , Test "1_valid_xref_strm" pdf1 RT_XRef_Strm E_None  Good
       ["no compressed objects, xref is stream"]
 
   -- pdf2 based tests: pdf2 uses "compressed objects":
