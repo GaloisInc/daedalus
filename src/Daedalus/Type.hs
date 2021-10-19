@@ -5,6 +5,7 @@
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
+import qualified Data.Text as Text
 import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
@@ -1119,10 +1120,18 @@ checkPatternCase tIn tOut ps e =
            let check v1 v2 = unify (v1,typeOf v1) (v2,typeOf v2)
            zipWithM check vars (patBinds q1)
      let addVar x = extEnv (tcName x) (tcType x)
-     r@(e',_) <- foldr addVar (inferExpr e) vars
-     unify tOut r
-     pure (TCAlt qs e')
 
+     ctx <- getContext
+     case ctx of
+       AGrammar ->
+        do r@(e',_) <- foldr addVar (inferExpr e) vars
+           unify tOut r
+           let lab = "case branch " <+> commaSep (map pp qs)
+           pure (TCAlt qs $ exprAt e' $ TCLabel (Text.pack (show lab)) e')
+       _ ->
+        do r@(e',_) <- foldr addVar (inferExpr e) vars
+           unify tOut r
+           pure (TCAlt qs e') -- (exprAt e' (TCLabel lab e')))
 
 checkPatternCases :: HasRange r =>
   r ->
