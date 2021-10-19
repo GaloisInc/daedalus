@@ -69,8 +69,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
-                   , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
+        component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
                    , { name: 'Talos', verb: 'test', noun: 'talos' }
                    , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]

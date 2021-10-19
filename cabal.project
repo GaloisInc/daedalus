@@ -7,7 +7,6 @@ packages:
   rts-hs/
   pdf-cos/
   pdf-driver/
-  icc-driver/
   talos/
   daedalus-language-server/
   -- daedalus-language-server/deps/lsp/lsp
