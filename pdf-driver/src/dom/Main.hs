@@ -15,8 +15,8 @@ import RTS.Input(newInput)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 
 import XRef(findStartXRef
-           ,parseXRefs1
-           ,parseXRefs2
+           ,parseXRefsVersion1
+           ,parseXRefsVersion2
            ,printIncUpdateReport
            ,printObjIndex
            ,validateUpdates
@@ -26,7 +26,6 @@ import Primitives.Decrypt(makeFileKey)
 
 -- daedalus generated parsers:
 import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
-import XRef(findStartXRef, parseXRefs1, parseXRefs2)
 import PdfDecl(pResolveRef)
 import PdfXRef(TrailerDict) 
 import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
@@ -78,18 +77,19 @@ parsePdf opts file bs topInput =
               Right idx -> pure idx
 
      (refs, trail) <-
-        handlePdfResult (parseXRefs1 topInput idx) "BUG: Ambiguous XRef table."
+        handlePdfResult (parseXRefsVersion1 topInput idx) "BUG: Ambiguous XRef table."
      (incUpdates, refs', trail') <-
-        handlePdfResult (parseXRefs2 topInput idx) "BUG: Ambiguous XRef table (2)."
+        handlePdfResult (parseXRefsVersion2 topInput idx) "BUG: Ambiguous XRef table (2)."
      validateUpdates (incUpdates, refs', trail')
-     
+
+     -- run-time testing of equivalance of parseXRefsVersion{1,2}
      when (trail /= trail') $
         putStrLn "warn: trail-v1 /= trail-v2"
      when (refs /= refs') $
         putStrLn "warn: refs-v1 /= refs-v2"
 
      -- FIXME:
-     --  - when more sure of the above, just remove the parseXRefs1 code.
+     --  - when more sure of the above, just remove the parseXRefsVersion1 code.
      
      fileEC <- makeEncContext trail refs topInput (password opts) 
 

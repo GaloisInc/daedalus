@@ -3,8 +3,8 @@
 {-# Language OverloadedStrings #-}
 module XRef
   ( findStartXRef
-  , parseXRefs1
-  , parseXRefs2
+  , parseXRefsVersion1
+  , parseXRefsVersion2
   , printObjIndex
   , printIncUpdateReport
   , printCavityReport
@@ -134,9 +134,9 @@ getEndOfTrailerEnd x = getField @"offset4" x
 ---- xref table: parse and construct -----------------------------------------
 
 -- | Construct the xref map (and etc), version 2
-parseXRefs2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
-parseXRefs2 inp offset =
-  runParserWithoutObjects "dereferencing object index during parsing [parseXRefs2]" inp $
+parseXRefsVersion2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
+parseXRefsVersion2 inp offset =
+  runParserWithoutObjects "dereferencing object index during parsing [parseXRefsVersion2]" inp $
     do
     updates <- parseAllIncUpdates inp offset
     
@@ -368,15 +368,15 @@ parseObjectAt inp offsetStart =
 
 -- | Construct the xref table, version 1
 
-parseXRefs1 :: DbgMode => Input -> FileOffset -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
+parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (PdfResult (ObjIndex, TrailerDict))
+parseXRefsVersion1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
   where
   go :: Maybe TrailerDict -> Maybe FileOffset -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
     do oix <- getObjIndex
        case mbRoot of
          Just r -> return (oix, r)
-         Nothing -> pError FromUser "parseXRefs.go" "Missing document root."
+         Nothing -> pError FromUser "parseXRefsVersion1.go" "Missing document root."
 
   go mbRoot (Just offset) =
     case advanceBy offset inp of
@@ -387,7 +387,7 @@ parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
            case refSec of
              CrossRef_oldXref x -> goWith mbRoot x
              CrossRef_newXref x -> goWith mbRoot x
-      Nothing -> pError FromUser "parseXRefs.go"
+      Nothing -> pError FromUser "parseXRefsVersion1.go"
                   ("Offset out of bounds: " ++ show offset)
 
   goWith :: ( VecElem s
@@ -402,7 +402,7 @@ parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                  Just i ->
                     case toInt i of  -- XXX: remember previous offsets
                                      -- to ensure we are not stuck in a loop.
-                      Nothing -> pError FromUser "parseXRefs.goWith(1)"
+                      Nothing -> pError FromUser "parseXRefsVersion1.goWith(1)"
                                                  "Prev offset too large."
                       Just off -> pure (Just $ intToSize off)
 
@@ -410,7 +410,7 @@ parseXRefs1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
                     (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
-         (pError FromUser "parseXRefs.goWith(2)" "Duplicate entries in xref section")
+         (pError FromUser "parseXRefsVersion1.goWith(2)" "Duplicate entries in xref section")
 
        let newRoot = mbRoot <|> Just t
 
