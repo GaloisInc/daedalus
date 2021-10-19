@@ -24,7 +24,8 @@ case-union1.P : Grammar case-union1.P =
 case-union1.Main : Grammar case-union1.Main =
   do (p : case-union1.P) <- case-union1.P
      (tag : [uint 8]) <- case p is
-                           { {| c1 = _ |}, {| c2 = _ |} -> pure "either"
+                           { {| c1 = _ |},
+                             {| c2 = _ |} -> {- case branch  {| c1 = _ |}, {| c2 = _ |} -} pure "either"
                            }
      pure {p = p,
            tag = tag}
@@ -38,5 +39,6 @@ case-union1._P : Grammar {} =
 case-union1._Main : Grammar {} =
   do (p : case-union1.P) <- case-union1.P
      case p is
-       { {| c1 = _ |}, {| c2 = _ |} -> pure {}
+       { {| c1 = _ |},
+         {| c2 = _ |} -> {- case branch  {| c1 = _ |}, {| c2 = _ |} -} pure {}
        }

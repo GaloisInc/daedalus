@@ -23,8 +23,8 @@ T007.SignWithCase : Grammar {} =
   Choose biased
     { do (_5 : uint 8) <- GetByte
          case _5 is
-           { 43 -> pure {}
-           ; 45 -> pure {}
+           { 43 -> {- case branch  43 -} pure {}
+           ; 45 -> {- case branch  45 -} pure {}
            }
     | pure {}
     }
@@ -40,8 +40,8 @@ T007._SignWithCase : Grammar {} =
   Choose biased
     { do (_5 : uint 8) <- GetByte
          case _5 is
-           { 43 -> pure {}
-           ; 45 -> pure {}
+           { 43 -> {- case branch  43 -} pure {}
+           ; 45 -> {- case branch  45 -} pure {}
            }
     | pure {}
     }

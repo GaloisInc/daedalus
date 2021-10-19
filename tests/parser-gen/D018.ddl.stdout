@@ -229,11 +229,11 @@ D018.Number : Grammar D018.Number =
   D018.Token D018.Number do (sign : D018.Sign) <- D018.Sign
                             (n : D018.Number) <- D018.UnsignedNumber
                             ($$ : D018.Number) <- case sign is
-                                                    { {| pos = _ |} -> pure n
-                                                    ; {| neg = _ |} -> do (num : int) <- pure (0 - (n.num))
-                                                                          (exp : int) <- pure (n.exp)
-                                                                          pure {num = num,
-                                                                                exp = exp}
+                                                    { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure n
+                                                    ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} do (num : int) <- pure (0 - (n.num))
+                                                                                                           (exp : int) <- pure (n.exp)
+                                                                                                           pure {num = num,
+                                                                                                                 exp = exp}
                                                     }
                             pure $$
  
@@ -458,8 +458,8 @@ D018._Number : Grammar {} =
                              do D018.UnsignedNumber
                                 pure {}
                              case sign is
-                               { {| pos = _ |} -> pure {}
-                               ; {| neg = _ |} -> pure {}
+                               { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
+                               ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
                                }
  
 D018._Frac (n : uint 64) : Grammar {} =

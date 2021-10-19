@@ -198,11 +198,11 @@ PdfValue.Number : Grammar PdfValue.Number =
   PdfValue.Token PdfValue.Number do (sign : PdfValue.Sign) <- PdfValue.Sign
                                     (n : PdfValue.Number) <- PdfValue.UnsignedNumber
                                     ($$ : PdfValue.Number) <- case sign is
-                                                                { {| pos = _ |} -> pure n
-                                                                ; {| neg = _ |} -> do (num : int) <- pure (0 - (n.num))
-                                                                                      (exp : int) <- pure (n.exp)
-                                                                                      pure {num = num,
-                                                                                            exp = exp}
+                                                                { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure n
+                                                                ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} do (num : int) <- pure (0 - (n.num))
+                                                                                                                       (exp : int) <- pure (n.exp)
+                                                                                                                       pure {num = num,
+                                                                                                                             exp = exp}
                                                                 }
                                     pure $$
  
@@ -438,8 +438,8 @@ PdfValue._Number : Grammar {} =
                                      do PdfValue.UnsignedNumber
                                         pure {}
                                      case sign is
-                                       { {| pos = _ |} -> pure {}
-                                       ; {| neg = _ |} -> pure {}
+                                       { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
+                                       ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
                                        }
  
 PdfValue._Frac (n : uint 64) : Grammar {} =
@@ -784,10 +784,10 @@ rec value
                           | pure false
                           }
        case _216 is
-         { true -> pure {}
-         ; false -> do @GetByte
-                       ($$ : {}) <- Pdf.SkipTo ?a0 P
-                       pure $$
+         { true -> {- case branch  true -} pure {}
+         ; false -> {- case branch  false -} do @GetByte
+                                                ($$ : {}) <- Pdf.SkipTo ?a0 P
+                                                pure $$
          }
  
 Pdf.Main : Grammar Pdf.Main =
@@ -893,9 +893,9 @@ Pdf._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
                         | pure false
                         }
      case _216 is
-       { true -> pure {}
-       ; false -> do @GetByte
-                     Pdf.SkipTo ?a0 P
+       { true -> {- case branch  true -} pure {}
+       ; false -> {- case branch  false -} do @GetByte
+                                              Pdf.SkipTo ?a0 P
        }
  
 Pdf._Main : Grammar {} =
