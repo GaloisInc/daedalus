@@ -547,29 +547,37 @@ def TagStructType =
 
 def MPElement =
   block
-    let s = GetStream
-    let tag = BE32
+    head = MPElementHead
+    body = MPElementBody head
+
+def MPElementHead =
+  block
+    offset = GetStream
+    tag    = BE32
     Match [0,0,0,0]
-    let inputs  = BE16 as uint 64
-    let outputs = BE16 as uint 64
-    case tag of
-      0s"calc" -> {| calc = CalcElement s inputs outputs |}
-      0s"cvst" -> {| cvst = Many inputs (Positioned s Curve) |}
-      0s"matf" -> {| matf = Matrix inputs outputs |}
-      _ -> {| unknown = explode32 tag |}
+    inputs  = BE16 as uint 64
+    outputs = BE16 as uint 64
+
+
+def MPElementBody head =
+  case head.tag of
+    0s"calc" -> {| calc = CalcElement head |}
+    0s"cvst" -> {| cvst = Many head.inputs (Positioned head.offset Curve) |}
+    0s"matf" -> {| matf = Matrix head.inputs head.outputs |}
+    _        -> {| unknown = explode32 head.tag |}
 
 
 --------------------------------------------------------------------------------
 -- Calculator Elements (Section 11.2.1)
 
 -- Table 85
-def CalcElement s inputs outputs =
+def CalcElement head =
   block
     let subElNum  = BE32 as uint 64
-    inputs        = inputs
-    outputs       = outputs
-    main          = Positioned s CalcFun
-    subElements   = Many subElNum (Positioned s MPElement)
+    inputs        = head.inputs
+    outputs       = head.outputs
+    main          = Positioned head.offset CalcFun
+    subElements   = Many subElNum (Positioned head.offset MPElement)
 
 
 -- Table 86
@@ -577,6 +585,122 @@ def CalcFun =
   block
     StartTag "func"
     Many (BE32 as uint 64) FunOp
+
+
+def funOpChecker = { stack = 0 : uint 64 }
+
+def funOpPush n (x : funOpChecker) : funOpChecker =
+  { stack = x.stack + n }
+
+def FunOpPop  n (x : funOpChecker) : funOpChecker =
+  block
+    Guard (x.stack >= n)
+    { stack = x.stack - n }
+
+
+def CheckFunOps (c : CalcElement) =
+  for (calc = funOpChecker; i,op in c.main)
+    case op of
+      data    -> funOpPush 1 calc
+
+      opIn p  ->
+        block
+          Guard (p.s < c.inputs && (c.inputs - p.s) <= p.t)
+            <| Fail "Invalid channel in `in`"
+          funOpPush p.t calc
+
+      opOut p ->
+        block
+          Guard (p.s < c.outputs && (c.outputs - p.s) <= p.t)
+            <| Fail "Invalid channel in `out`"
+
+          FunOpPop p.t calc
+
+      opTGet p -> funOpPush p.t calc
+
+      opTPut p -> FunOpPop p.t calc
+
+      opTSave p ->
+        block
+          Guard (calc.stack >= p.t)
+            <| Fail "Not enough arguments to `tsav`"
+          calc
+
+      opEnv -> funOpPush 2 calc
+
+      curv n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          mpe.body is cvst
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      mtx n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          mpe.body is matf
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      clut n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          -- mpe.body is matf   XXX: CHECK TYPE
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      calc n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          mpe.body is calc
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      tint n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          -- mpe.body is matf   XXX: CHECK TYPE
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      elem n ->
+        block
+          let mpe = Index c.subElements (n as uint 64)
+          let h = mpe.head
+          funOpPush h.outputs (FunOpPop h.inputs calc)
+
+      copy p ->
+        block
+          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `copy`"
+          funOpPush ((p.t + 1) * p.s) calc
+
+      rotl p ->
+        block
+          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `rotl`"
+          calc
+
+      rotr p ->
+        block
+          Guard (calc.stack >= p.s) <| Fail "Not enough arguments to `rotr`"
+          calc
+
+      posd p ->
+        block
+          Guard (calc.stack > p.s) <| Fail "Invalid argument for `posd`"
+          funOpPush (p.t + 1) calc
+
+      flip s ->
+        block
+          Guard (calc.stack >= s) <| Fail "Invalid argument for `flip`"
+          calc
+
+      pop s ->
+        block
+          FunOpPop (s + 1) calc
+
+
+
+
 
 def FunOp =
   block
@@ -609,8 +733,8 @@ def FunOp =
       0s"rotl" -> {| rotl = OpParams |}
       0s"rotr" -> {| rotr = OpParams |}
       0s"posd" -> {| posd = OpParams |}
-      0s"flip" -> {| flip = OpParams |}
-      0s"pop " -> {| pop  = OpParams |}
+      0s"flip" -> {| flip = OpParam  |}
+      0s"pop " -> {| pop  = OpParam  |}
 
       -- Table 97,98
       0s"solv" -> {| solv = OpParams |}
@@ -695,13 +819,13 @@ def NoParams = Exactly 0 BE32
 
 def OpParam =
   block
-    $$ = BE16
+    $$ = BE16 as uint 64
     Exactly 0 BE16
 
 def OpParams =
   block
-    s = BE16
-    t = BE16
+    s = BE16 as uint 64
+    t = BE16 as uint 64
 
 
 
