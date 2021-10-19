@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
 import Control.Monad(unless,forM,forM_,foldM)
 import Control.Applicative((<|>))
+import qualified Data.Map 
 import GHC.Records(HasField, getField)
 import System.Exit(exitFailure)
 import System.IO(hPutStrLn,stderr)
@@ -118,9 +119,9 @@ quit msg = do hPutStrLn stderr msg
 
 ---- utilities ---------------------------------------------------------------
 
-runParserWithoutObjects :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
-runParserWithoutObjects msg i p = 
-  runParser (error msg)
+runParserWithoutObjectIndex :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
+runParserWithoutObjectIndex _msg i p = 
+  runParser Data.Map.empty
             Nothing p i
   -- the parser should not be attempting to deref any objects!
 
@@ -136,7 +137,7 @@ getEndOfTrailerEnd x = getField @"offset4" x
 -- | Construct the xref map (and etc), version 2
 parseXRefsVersion2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
 parseXRefsVersion2 inp offset =
-  runParserWithoutObjects "dereferencing object index during parsing [parseXRefsVersion2]" inp $
+  runParserWithoutObjectIndex "dereferencing object index during parsing [parseXRefsVersion2]" inp $
     do
     updates <- parseAllIncUpdates inp offset
     
@@ -336,7 +337,7 @@ getObjectRanges inp iu =
   where
   getObjectAt off r = 
     do
-    res <- runParserWithoutObjects "dereferencing object index during parsing [getObjectAt]"
+    res <- runParserWithoutObjectIndex "dereferencing object index during parsing [getObjectAt]"
            inp (parseObjectAt inp off)
            -- ^^ work??
     case res of
@@ -530,7 +531,7 @@ parseFinalTrailerEnd inp bs =
   case advanceBy offset inp of
     Nothing -> quit ("startxref offset out of bounds: " ++ show offset)    
     Just inp' ->
-        runParserWithoutObjects
+        runParserWithoutObjectIndex
           "dereferencing object index during parsing [parseFinalTrailerEnd]"
           inp'
           (do pSetInput inp'
