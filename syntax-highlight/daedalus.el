@@ -150,6 +150,8 @@ Customize the variable `daedalus-command' to change how it is invoked."
   :syntax-table daedalus-syntax-table
   (setq font-lock-defaults '(()))
   (setq-local lsp-semantic-tokens-enable t) ;; use lsp for fontification
+  (setq-local comment-use-syntax t)
+  (setq-local comment-start "--")
   )
 
 ;; We use LSP for fontification
