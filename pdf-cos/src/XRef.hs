@@ -9,6 +9,8 @@ module XRef
   , printIncUpdateReport
   , printCavityReport
   , validateUpdates
+  -- types:
+  , FileOffset
   )
   where
 
@@ -41,7 +43,7 @@ import PdfPP
 
 type FileOffset = UInt 64
 
--- an incremental update (or the base DOM)
+-- an incremental update (or the base DOM/update, at start of file)
 data IncUpdate = IU { iu_type      :: XRefType
                     , iu_xrefs     :: [[XRefEntry]]
                     , iu_trailer   :: TrailerDict
@@ -70,12 +72,12 @@ ppXRefType XRefStream = "cross reference stream"
 validateUpdates :: ([IncUpdate], ObjIndex, TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
   do
-  validateFirstUpdate (head updates)
-  -- FIXME: more things to validate!
+  validateBase (head updates)
+  -- FIXME[F2]: more things to validate!
   return ()
 
-validateFirstUpdate :: IncUpdate -> IO ()
-validateFirstUpdate iu =
+validateBase :: IncUpdate -> IO ()
+validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
@@ -279,12 +281,13 @@ printObjIndex indent oi = print
 
 type Range = (Int,Int)
 
-printCavityReport :: Input -> [IncUpdate] -> IO ()
-printCavityReport inp updates =
+printCavityReport :: FileOffset -> Input -> [IncUpdate] -> IO ()
+printCavityReport bodyStart_base inp updates =
   do
-  let us = zip3 ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
+  let us = zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
                 updates
-                (0 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates) 
+                (sizeToInt bodyStart_base
+                 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates) 
   forM_ us $
     \(nm,iu,bodyStart)->
       do
@@ -552,7 +555,9 @@ locationOf_startxref bs =
   magicNumber     = 500 -- stop searching after 500 bytes from EOF
 
   -- this does NOT parse or validate the EOF
-  
+
+---- ~ ad hoc: ---------------------------------------------------------------
+
 -- Pretty gross
 findStartXRef :: BS.ByteString -> Either String FileOffset
 findStartXRef bs

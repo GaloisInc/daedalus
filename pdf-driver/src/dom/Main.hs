@@ -11,16 +11,19 @@ import System.Exit(exitFailure)
 import Text.PrettyPrint
 import SimpleGetOpt
 
-import RTS.Input(newInput)
+import RTS.Input(newInput,inputBytes)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
+import RTS.Numeric
 
-import XRef(findStartXRef
-           ,parseXRefsVersion1
-           ,parseXRefsVersion2
-           ,printIncUpdateReport
-           ,printObjIndex
-           ,validateUpdates
-           ,printCavityReport)
+import XRef( findStartXRef
+           , parseXRefsVersion1
+           , parseXRefsVersion2
+           , printIncUpdateReport
+           , printObjIndex
+           , validateUpdates
+           , printCavityReport
+           , FileOffset
+           )
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
 
@@ -88,8 +91,7 @@ parsePdf opts file bs topInput =
      when (refs /= refs') $
         putStrLn "warn: refs-v1 /= refs-v2"
 
-     -- FIXME:
-     --  - when more sure of the above, just remove the parseXRefsVersion1 code.
+     -- FIXME[E2]: when more sure of v1 == v2, remove the parseXRefsVersion1 code.
      
      fileEC <- makeEncContext trail refs topInput (password opts) 
 
@@ -113,7 +115,10 @@ parsePdf opts file bs topInput =
                          putStrLn "Combined xref table:"
                          printObjIndex 2 refs
 
-       ListCavities   -> printCavityReport topInput incUpdates
+       ListCavities   -> do
+                         baseBodyStart <- parseHeader (inputBytes topInput)
+                                          -- FIXME[F1]: only code that looks at header!
+                         printCavityReport baseBodyStart topInput incUpdates
 
        PrettyPrintAll ->
          case map rToRef (Map.keys refs) of
@@ -133,6 +138,10 @@ parsePdf opts file bs topInput =
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
+
+parseHeader :: BS.ByteString -> IO FileOffset
+parseHeader _ =
+  return (lit 0)
 
 quit :: String -> IO a
 quit msg =
