@@ -133,7 +133,7 @@ inferRuleRec sr =
        pure res
 
 
--- | Infer a mono type for a collection of rules.
+-- | Infer a mono type for a single rule.
 inferRule :: Rule -> STypeM (TCDecl SourceRange, RuleType)
 inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
   where
