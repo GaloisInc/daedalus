@@ -1,0 +1,150 @@
+
+<2021-10-19 Tue 17:14>
+
+* Basic idea
+
+In multi-level grammars like PDF, a general parser for objects is
+followed by constraints on the result, as every representable object
+is not valid.  The idea is to optimise some special cases of
+constraints by performing the dual of partial evaluation (i.e.,
+removing dead code when the result is known, at least in part)
+
+The problem is that most values produced during synthesis will not
+match these constraints, and hence talos will have to spend a lot of
+time needlessly backtracking.  In particular, control-level
+speculation is performed by random DFS within Talos, compared to
+value-level speculation which is resolved by the solver.  Consider the
+'many bytes' parser: in the symbolic backend, Talos picks the number
+of bytes, the SMT solver picks their values.  
+
+Control speculation includes grammar-level alternation, which is used
+to pick variants, such as between dictionaries and numbers in PDF.
+The constraints we are targeting are typically encoded as predicates
+over a single value which constrain the shape of the value, i.e.,
+which variants are allowed during parsing.
+
+The goal of this feature is to reduce the amount of control
+speculation by removing code which can never produce results which
+satisfy the constraints.  In particular, the ideal result, from a
+synthesis perspective, are specialised parsers for each type of value.
+These would have much less scope for picking incorrect values.
+
+* Constraints
+
+A constraing is a description of a set of values (i.e., a unary
+predicate).  For PDF, we are most concerned with variant constraints
+(i.e., which variant of a sum type), map constraints (i.e., which keys
+are present, and constraints over their values), and array
+constraints, primarily for map keys (e.g., field key "type" must map
+to value "Viewport").  As a running example, consider simplified
+versions of PDF's viewport and fontdescription types, along with the
+Value parser
+
+#+BEGIN_SRC daedalus
+  def Value =
+    Choose1
+      bool    = Bool;
+      name    = Name;
+      dict    = Dict
+
+  def IsFontDescription =
+    case v of
+      dict d =>
+	  Guard (Lookup d "Type" == {| name: "FontDescription" |})
+	  Lookup d "FontName" is name
+
+  def IsViewport v =
+    case v of
+      dict d =>
+	  Guard (Lookup d "Type" == {| name: "Viewport" |})
+	  let bbox = Lookup d "BBox" is array
+	  Guard (length bbox == 4)      
+	  for (v in bbox)
+	    v is number
+
+#+END_SRC
+
+
+** Constraint representation
+
+A shape constraint is essentially a Core value (i.e., the result of
+the Core interpreter) where some sub-values may be replaced by
+predicates. 
+
+#+begin_src haskell
+
+  data Predicate =
+    Any
+    | Exact Value
+    | Pred Name Ezpr -- bind n in pred expr.
+
+  data ShapeConstraint =
+      CPredicate Predicate
+    | CUnionElem Label ShapeConstraint
+    | CStruct    [(Label,ShapeConstraint)]
+    | CSequence  [ShapeConstraint] -- fixed length list
+    | CMap       [(ShapeConstraint, ShapeConstraint)]
+
+#+end_src 
+
+where our IsFontDescription example may be encoded as 
+
+#+begin_src haskell
+
+  stringToCstr :: String -> ShapeConstraint
+  stringToCstr = ...
+
+  cAny = CPredicate Any
+  
+  isFontDescription =
+    CUnionElem "dict"
+      (CMap [ (stringToCstr "Type", CUnionElem "name" (stringToCstr "FontDescription"))
+	    , (stringToCstr "FontName", CUnionElem "name" cAny)
+	    ])
+#+end_src 
+
+it may be beneficial to allow sets of constraints, where any of a number of variants may be acceptable.
+
+* Analysis
+
+There are two (intertwined) phases of analysis, constraint generation,
+and slicing.  
+
+** Constraint generation
+
+The base case for constraint generation are 'fail' statements,
+including those implicit in partial case statements, i.e. those where
+some constructors are missing.  This includes those resulting from the
+translation of Guard statements.
+
+** Slicing
+
+A slice may contain multiple constraints, including multiple
+constraints over a single variable where any single constraint is
+allowed.  The analysis pass translates Do nodes, which are the only
+Slice-level binders, into a selection over a set of specialised
+slices, one for each constraint at the bound variable.
+
+** Precondition
+
+At the base of slicing (and constraint generation?) is a form of
+precondition generation over pure expressions.  Given a constraint,
+the algorithm must return either 'unsat' where the expression will
+never match the constraint (such as constructing an invalid variant)
+or a set of new constraints over the free variables of the expression.
+The algorithm may also have to return 'unknown' where the new
+constraints would be outside the language of constraints (maybe?).
+
+* Thoughts
+** Relation refinement
+
+Once we know the shape of a variable, we can use that to refine other
+relations, to eliminate that variable, and hence turn the relation
+into a predicate we can propagate back.
+
+** Dynamic approaches
+
+We could carry around the notion of value that we want during
+synthesis (e.g., a schematic value) although some sort of anlysis may
+need to be done over choices (although this approach may remove a lot
+of backtracking due to failing early).
