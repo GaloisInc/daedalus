@@ -32,7 +32,7 @@ import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import PdfDecl(pResolveRef)
 import PdfXRef(TrailerDict) 
 import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
-import PdfValue(Value(..),Ref(..),pValue)
+import PdfValue(Value(..),Ref(..),pValue,pHeader)
 
 import PdfDOM
 import PdfPP
@@ -116,8 +116,20 @@ parsePdf opts file bs topInput =
                          printObjIndex 2 refs
 
        ListCavities   -> do
-                         baseBodyStart <- parseHeader (inputBytes topInput)
-                                          -- FIXME[F1]: only code that looks at header!
+                         (_isBinary,baseBodyStart)
+                           <- flip handlePdfResult
+                                "no valid PDF header" 
+                                (runParser (error "pHeader: no ref expected")
+                                           Nothing
+                                           ( do
+                                             h <- pHeader
+                                             o <- pOffset               
+                                             return (h,o)
+                                           )
+                                           topInput)
+                                -- FIXME[F1]: problem elsewhere: this the
+                                -- only code that looks at header!
+                         -- FIXME[F3]: check that !isBinary => no binary bytes in file.
                          printCavityReport baseBodyStart topInput incUpdates
 
        PrettyPrintAll ->
@@ -138,10 +150,6 @@ parsePdf opts file bs topInput =
              putStrLn "OK"
 
        ShowHelp -> dumpUsage options
-
-parseHeader :: BS.ByteString -> IO FileOffset
-parseHeader _ =
-  return (lit 0)
 
 quit :: String -> IO a
 quit msg =
