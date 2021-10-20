@@ -68,8 +68,8 @@ symbolicFun ptag sl = do
   md <- getModule
   slAndDeps <- sliceToDeps sl
   forM_ slAndDeps $ \sl' -> do
+    defineSliceTypeDefs md sl'    
     defineSlicePolyFuns sl'    
-    defineSliceTypeDefs md sl'
     defineSliceFunDefs md sl'
     
   scoped $ runSymbolicM $ do

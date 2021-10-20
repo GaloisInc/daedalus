@@ -265,6 +265,11 @@ semiExecExpr expr =
 -- Might be able to just use the value instead of requiring t
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp1 op _rty ty (VValue v) = pure $ VValue (evalOp1 op ty v)
+-- These operations are lazy in the value, so we can produce concrete
+-- values even though we have symbolic arguments
+semiExecOp1 EJust _rty _ty sv = pure (VMaybe (Just sv))
+semiExecOp1 (InUnion _ut l)  _rty _ty sv = pure (VUnionElem l sv)
+-- Otherwise, we just produce a sexpr
 semiExecOp1 op rty  ty (VOther s) = lift (vSExpr rty <$> SE.symExecOp1 op ty (typedThing s))
 semiExecOp1 op rty ty sv =
   -- We only care about operations over the compound semivalues (i.e., concrete values are handled above)
@@ -289,7 +294,7 @@ semiExecOp1 op rty ty sv =
       | VIterator (_ : els) <- sv -> pure (VIterator els)
       | VIterator [] <- sv -> panic "empty iterator" []
 
-    EJust -> pure (VMaybe (Just sv))
+    -- EJust -> pure (VMaybe (Just sv))
     FromJust
       | VMaybe (Just sv') <- sv -> pure sv'
       | VMaybe Nothing    <- sv -> panic "FromJust: Nothing" []
@@ -298,7 +303,7 @@ semiExecOp1 op rty ty sv =
       | VStruct flds <- sv
       , Just v <- lookup l flds -> pure v
 
-    InUnion _ut l                     -> pure (VUnionElem l sv)
+    -- InUnion _ut l                     -> pure (VUnionElem l sv)
     FromUnion _ty l
       | VUnionElem l' sv' <- sv, l == l' -> pure sv'
       | VUnionElem {} <- sv -> panic "Incorrect union tag" []
@@ -317,9 +322,6 @@ typeToElType ty =
     TBuilder elTy -> Just elTy
     TArray   elTy -> Just elTy
     _ -> Nothing
-
-
-
 
 -- Short circuiting op
 -- scBinOp :: MonadReader SemiSolverEnv m =>
@@ -459,11 +461,12 @@ semiExecOp2 op rty ty1 ty2 sv1 sv2 =
 
     -- sv1 is map, sv2 is key
     mapOp missing smissingf found sfound
-      | VMap els <- sv1, VValue kv <- sv2
+      | Just els <- SV.toMappings sv1, VValue kv <- sv2
       , Just res <- mapLookupV missing found kv els
         = pure res
       -- Expand into if-then-else.
-      | VMap els <- sv1, TMap kt vt <- ty1 = do
+      | Just els <- SV.toMappings sv1
+      , TMap kt vt <- ty1 = do
           tys <- asks typeDefs
           let symkv = semiSExprToSExpr tys kt sv2
               mk    = sfound (symExecTy vt) . semiSExprToSExpr tys vt
