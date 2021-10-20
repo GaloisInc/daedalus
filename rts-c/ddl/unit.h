@@ -2,8 +2,9 @@
 #define DDL_UNIT_H
 
 #include <iostream>
+#include <ddl/value.h>
 
-namespace DDL {
+namespace DDL : public Value {
 class Unit {};
 
 inline
