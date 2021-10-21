@@ -309,50 +309,61 @@ printCavityReport bodyStart_base inp updates =
   let us = zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
                 updates
                 (sizeToInt bodyStart_base
-                 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates) 
-  forM_ us $
-    \(nm,iu,bodyStart)->
-      do
-      let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
-      mapM_ putStrLn [ nm ++ ":"
-                     , "  " ++ render (ppXRefType (iu_type iu))
-                     , "  body starts at byte offset " ++ show bodyStart
-                     , "  xref starts at byte offset " ++ show xrefStart
-                     ]
-      es <- getObjectRanges inp iu
-      let (errors,ranges) = partitionEithers es
-      if not (null errors) then
+                 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates)
+                
+      reportOneUpdate (numC, totalSizeC) (nm,iu,bodyStart) =
         do
-        putStrLn "  cavities are uncomputable due to object parsing errors:"
-        mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
-        putChar '\n'
-      else
-        do
-        let sr = RIntSet.singletonRange
+        let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
+        mapM_ putStrLn [ nm ++ ":"
+                       , "  " ++ render (ppXRefType (iu_type iu))
+                       , "  body starts at byte offset " ++ show bodyStart
+                       , "  xref starts at byte offset " ++ show xrefStart
+                       ]
+        es <- getObjectRanges inp iu
+        let (errors,ranges) = partitionEithers es
+        if not (null errors) then
+          do
+          putStrLn "  cavities are uncomputable due to object parsing errors:"
+          mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
+          putChar '\n'
+          return (numC,totalSizeC) -- unchanged
+        else
+          do
+          let sr = RIntSet.singletonRange
 
-            -- intersection:
-            i = foldr (\x s-> RIntSet.intersection (sr x) s)
-                      RIntSet.empty
-                      ranges
-          
-            -- cavities:
-            cs = RIntSet.toRangeList $
-                     sr (bodyStart, xrefStart - 1)
-                     RIntSet.\\
-                     foldr RIntSet.insertRange RIntSet.empty ranges
+              -- intersection:
+              i = foldr (\x s-> RIntSet.intersection (sr x) s)
+                        RIntSet.empty
+                        ranges
+            
+              -- cavities:
+              cs = RIntSet.toRangeList $
+                       sr (bodyStart, xrefStart - 1)
+                       RIntSet.\\
+                       foldr RIntSet.insertRange RIntSet.empty ranges
 
-        case cs of
-          [] -> putStrLn "  cavities: NONE."
-          _  -> do
-                putStrLn "  cavities:"
-                mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
+          case cs of
+            [] -> putStrLn "  cavities: NONE."
+            _  -> do
+                  putStrLn "  cavities:"
+                  mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
 
-        unless (RIntSet.null i) $
-          warning $
-            "object definitions overlap (highly suspicious) on the following offsets: "
-            ++ show (RIntSet.toRangeList i)
+          unless (RIntSet.null i) $
+            warning $
+              "object definitions overlap (highly suspicious) on the following offsets: "
+              ++ show (RIntSet.toRangeList i)
 
-        putChar '\n'
+          putChar '\n'
+          return ( numC + length cs :: Int
+                 , totalSizeC + sum (map sizeC cs) :: Int
+                 )
+
+  (numCavities,totalSizeCavities) <- foldlM reportOneUpdate (0,0) us
+  putStrLn $ "Total number of cavities: "   ++ show numCavities
+  putStrLn $ "Total size of all cavities: " ++ show totalSizeCavities
+
+  where
+  sizeC (start, end) = end - start + 1
 
   -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
   --  - must nab the locations when we parse these!
