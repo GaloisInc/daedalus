@@ -14,17 +14,17 @@ module XRef
   )
   where
 
-import Data.Char(isSpace,isNumber)
-import Data.Foldable(foldlM)
-import qualified Data.Map as Map
+import           Control.Applicative((<|>))
+import           Control.Exception
+import           Control.Monad(unless,forM,forM_,foldM)
 import qualified Data.ByteString.Char8 as BS
-import Control.Exception
-import Control.Monad(unless,forM,forM_,foldM)
-import Control.Applicative((<|>))
-import qualified Data.Map 
-import GHC.Records(HasField, getField)
-import System.Exit(exitFailure)
-import System.IO(hPutStrLn,stderr)
+import           Data.Char(isSpace,isNumber)
+import           Data.Either
+import           Data.Foldable(foldlM)
+import qualified Data.Map as Map
+import           GHC.Records(HasField, getField)
+import           System.Exit(exitFailure)
+import           System.IO(hPutStrLn,stderr)
 
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
