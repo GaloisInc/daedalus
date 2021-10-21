@@ -1,8 +1,8 @@
 -- Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
-
+import Stdlib
 
 -- DBG:
-def SomeJpeg = 
+def SomeJpeg =
   block
     SOI
     $$ = Many Segment
@@ -30,6 +30,7 @@ def SegmentBody =
     dqt     = DQT
     dht     = DHT
     rst     = SomeRST
+    extra   = @(UInt8 (!0xFF)) -- unexpected data
 
 
 
@@ -42,9 +43,9 @@ def SomeMarker (front : uint 4) =
   block
     UInt8 0xFF
     let tag   = UInt8
-    let upper = (tag >> 4) as! uint 4
+    let upper = truncate8to4 (tag >> 4)
     upper == front is true
-    tag as! uint 4
+    truncate8to4 tag
 
 -- Segement payload
 def Payload P =
@@ -54,7 +55,7 @@ def Payload P =
     let len = size - 2
     let here = GetStream
     SetStream (Take len here)
-    $$ = P
+    res = P
     END
     SetStream (Drop len here)
 
@@ -108,8 +109,8 @@ def FrameComponent =
   block
     identifier          = UInt8
     let samplingFactors = UInt8
-    hoizontalSampling   = (samplingFactors >> 4) as! uint 4
-    verticalSampling    = samplingFactors        as! uint 4
+    hoizontalSampling   = truncate8to4 (samplingFactors >> 4)
+    verticalSampling    = truncate8to4 samplingFactors
     quantTableSel       = UInt8
 
 
@@ -127,15 +128,15 @@ def SOSHeader =
     ss = UInt8
     se = UInt8
     let a = UInt8
-    ah = a >> 4 as! uint 4
-    al = a      as! uint 4
+    ah = truncate8to4 (a >> 4)
+    al = truncate8to4 a
 
 def SOSComponent =
   block
     id      = UInt8
     let table  = UInt8
-    acTable = table        as! uint 4
-    dcTable = (table >> 4) as! uint 4
+    acTable = truncate8to4 table
+    dcTable = truncate8to4 (table >> 4)
 
 
 -- Define Huffman tables
@@ -148,8 +149,8 @@ def DHT =
 def HT =
   block
     let info    = UInt8
-    class       = info as! uint 4
-    type        = (info >> 4) as! uint 4    -- 0 = DC, 1 = AC
+    class       = truncate8to4 info
+    type        = truncate8to4 (info >> 4)
     let symNums = Many 16 UInt8
     table       = map (n in symNums) (Many (n as uint 64) UInt8)
 
@@ -163,7 +164,7 @@ def DQT =
 def QT =
   block
     let info = UInt8
-    number   = info as! uint 4
+    number   = truncate8to4 info
     let precision = info >> 4
     data =
       Choose1

@@ -107,8 +107,16 @@ data ParseErrorSource = FromUser | FromSystem
 instance Exception ParseError
 
 instance Semigroup ParseError where
-  p1 <> p2 = if peOffset p1 <= peOffset p2 then p1 else p2
+  p1 <> p2 =
+    case (peSource p1, peSource p2) of
+      (FromUser,FromSystem) -> p1
+      (FromSystem,FromUser) -> p2
+      _                     -> if peOffset p1 >= peOffset p2 then p1 else p2
+      
 {-
+instance Semigroup ParseError where
+  p1 <> p2 = if peOffset p1 <= peOffset p2 then p1 else p2
+
     | trace "COMBINNG"
       trace (show (peSource p1, peMsg p1))
       trace "WITH"

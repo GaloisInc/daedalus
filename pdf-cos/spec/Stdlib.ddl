@@ -26,6 +26,8 @@ def bitIsSet8 (n : uint 8) bs = (n .&. (1 << bs)) != 0
 def bitIsSet32 (n : uint 32) bs = (n .&. (1 << bs)) != 0
 def setBit bs (n : uint 32) = n .|. (1 << bs)
 
+def truncate8to4 (n : uint 8) : uint 4 = (n .&. 0x0F) as! uint 4
+
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def bytesNum (bs : [ uint 8 ]) : uint 64 =
   for (val = 0 : uint 64; b in bs) 8 * val + (b as uint 64)

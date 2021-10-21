@@ -1,22 +1,24 @@
 -- Harness: testing harness
-import Stdlib
+-- import Stdlib
 
-import ResourceDict
-import TextEffect
+-- import ResourceDict
+-- import TextEffect
 
-import Encoding
-import FontCommon
-import FontDict
-import GenPdfValue
--- import Page
-import PageTreeNode
-import PdfValue
-import Type0Font
-import Type1Font
-import Type3Font
-import FontDesc
-import TextObj
-import ContentStreamLight
+-- import Encoding
+-- import FontCommon
+-- import FontDict
+-- import GenPdfValue
+-- -- import Page
+-- import PageTreeNode
+-- import PdfValue
+-- import Type0Font
+-- import Type1Font
+-- import Type3Font
+-- import FontDesc
+-- import TextObj
+-- import ContentStreamLight
+
+import JpegBasics
 
 -- def TestResrcs : ResourceDict = ResourceDict (PartialResourceDict
 --   nothing
@@ -33,13 +35,13 @@ import ContentStreamLight
 --   nothing
 --   nothing)
 
-def TestRef : Ref = {
-  obj = 0;
-  gen = 0;
-}
+-- def TestRef : Ref = {
+--   obj = 0;
+--   gen = 0;
+-- }
 
 -- Main: the entry point
-def Main = EncodingP
+def Main = SomeJpeg
 
 -- TODO:
 
