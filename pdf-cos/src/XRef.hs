@@ -18,6 +18,7 @@ import Data.Char(isSpace,isNumber)
 import Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
+import Control.Exception
 import Control.Monad(unless,forM,forM_,foldM)
 import Control.Applicative((<|>))
 import qualified Data.Map 
@@ -118,15 +119,33 @@ quit :: String -> IO a
 quit msg = do hPutStrLn stderr msg
               exitFailure
 
+---- parsing when no Object Index ... ---------------------------------------------------------------
+
+-- a new exception
+data DerefException = DerefException
+                      deriving Show
+instance Exception DerefException
+
+errorIfDomDependentParser :: String -> a
+errorIfDomDependentParser m = error $ unwords ["DomDependentParsers not supported: (",m,")"]
+
+
+runParserWithoutObjectIndexFailOnRef
+  :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
+runParserWithoutObjectIndexFailOnRef msg i p =
+  runParser (errorIfDomDependentParser msg)  Nothing p i
+  -- error if the parser should attempt to deref any objects.
+  
+runParserWithoutObjectIndex :: DbgMode => Input -> Parser a -> IO (Maybe (PdfResult a))
+runParserWithoutObjectIndex i p =
+  do
+  x <- try (runParser (throw DerefException) Nothing p i)
+       -- catch if the parser should deref any objects!
+  case x of
+    Left DerefException -> pure Nothing
+    Right x             -> pure $ Just x
 
 ---- utilities ---------------------------------------------------------------
-
-runParserWithoutObjectIndex :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
-runParserWithoutObjectIndex _msg i p = 
-  runParser Data.Map.empty
-            Nothing p i
-  -- the parser should not be attempting to deref any objects!
-
 
 getXRefStart :: TrailerEnd -> UInt 64
 getXRefStart x = getField @"xrefStart" x
@@ -139,7 +158,10 @@ getEndOfTrailerEnd x = getField @"offset4" x
 -- | Construct the xref map (and etc), version 2
 parseXRefsVersion2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
 parseXRefsVersion2 inp offset =
-  runParserWithoutObjectIndex "dereferencing object index during parsing [parseXRefsVersion2]" inp $
+  runParserWithoutObjectIndexFailOnRef
+    "dereferencing object index during parsing [parseXRefsVersion2]"
+    inp
+    $
     do
     updates <- parseAllIncUpdates inp offset
     
@@ -340,21 +362,26 @@ getObjectRanges inp iu =
   where
   getObjectAt off r = 
     do
-    res <- runParserWithoutObjectIndex "dereferencing object index during parsing [getObjectAt]"
-           inp (parseObjectAt inp off)
-           -- ^^ work??
-    case res of
-      ParseOk (rng, TopDecl o g x) ->
-          do let o' = fromIntegral (refObj r)
-                 g' = fromIntegral (refGen r)
-             unless (o' == o && g' == g) $
-               warning "xref object gen =/= object gen obj ... endobj"
-             return (rng, x)
-      ParseErr e                    ->
-           quit ("uncomputable cavities when unparseable object: " ++ show e)
-      ParseAmbig {}                 ->
-           quit ("uncomputable cavities when ambiguous object")
-         
+    mres <- runParserWithoutObjectIndex
+              inp
+              (parseObjectAt inp off)
+    case mres of
+      Nothing  -> quit' "a Dom-Dependent parser [unsupported]"
+      Just res -> case res of
+        ParseOk (rng, TopDecl o g x) ->
+            do let o' = fromIntegral (refObj r)
+                   g' = fromIntegral (refGen r)
+               unless (o' == o && g' == g) $
+                 warning "xref object gen =/= object gen obj ... endobj"
+               return (rng, x)
+        ParseErr e                  -> quit' ("unparseable\n " ++ show e)
+        ParseAmbig {}               -> quit' "ambiguous" 
+
+    where
+    quit' s =
+      quit $ unlines [ "cavities are uncomputable when object is " ++ s
+                     , " " ++ unwords ["object", show r, "at offset", show off]
+                     ]
            
 parseObjectAt :: Input -> Int -> Parser (Range, TopDecl)
 parseObjectAt inp offsetStart =
@@ -534,11 +561,11 @@ parseFinalTrailerEnd inp bs =
   case advanceBy offset inp of
     Nothing -> quit ("startxref offset out of bounds: " ++ show offset)    
     Just inp' ->
-        runParserWithoutObjectIndex
-          "dereferencing object index during parsing [parseFinalTrailerEnd]"
-          inp'
-          (do pSetInput inp'
-              pTrailerEnd)
+        runParserWithoutObjectIndexFailOnRef
+            "dereferencing object index during parsing [parseFinalTrailerEnd]"
+            inp'
+            (do pSetInput inp'
+                pTrailerEnd)
 
 
 -- find the file byte offset of where we find (last) 'startxref'
