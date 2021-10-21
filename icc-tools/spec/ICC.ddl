@@ -731,29 +731,32 @@ def CheckFunOps (c : CalcElement) (ops  : [FunOpWithPosition]) startCalc =
 
       opIfThen thenOps ->
         block
-          let calc1 = CheckFunOps c thenOps calc
-          FunOpAssert op (calc == calc1)
+          let calc1 = FunOpPop op 1 calc
+          let calc2 = CheckFunOps c thenOps calc1
+          FunOpAssert op (calc1 == calc2)
                         "`if-then` does not preserve the stack size"
           calc1
 
       opIfThenElse ops ->
         block
-          let calc1 = CheckFunOps c ops.thenOps calc
-          let calc2 = CheckFunOps c ops.elseOps calc
-          FunOpAssert op (calc1 == calc2)
+          let calc1 = FunOpPop op 1 calc
+          let calc2 = CheckFunOps c ops.thenOps calc1
+          let calc3 = CheckFunOps c ops.elseOps calc1
+          FunOpAssert op (calc2 == calc3)
                         "`if-then-else` branches affect stack differently"
-          calc1
+          calc2
 
       opSel ops ->
         block
-          let res = CheckFunOps c ops.case1 calc
+          let calc1 = FunOpPop op 1 calc
+          let res = CheckFunOps c ops.case1 calc1
           map (alt in ops.cases)
-            (FunOpAssert op (CheckFunOps c alt calc == res)
+            (FunOpAssert op (CheckFunOps c alt calc1 == res)
                 "`cases` in `sel` affect stack differently")
           case ops.dflt of
-            nothing -> FunOpAssert op (res == calc)
+            nothing -> FunOpAssert op (res == calc1)
                         "`cases` in `sel` with no default do not preserve stack"
-            just x  -> FunOpAssert op (CheckFunOps c x calc == res)
+            just x  -> FunOpAssert op (CheckFunOps c x calc1 == res)
                          "`dflt` in `case` has different effect from `case`s"
           res
 
