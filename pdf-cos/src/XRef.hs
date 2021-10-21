@@ -318,29 +318,41 @@ printCavityReport bodyStart_base inp updates =
                      , "  " ++ render (ppXRefType (iu_type iu))
                      , "  body starts at byte offset " ++ show bodyStart
                      , "  xref starts at byte offset " ++ show xrefStart
-                     , "  cavities:"
                      ]
-      rs <- getObjectRanges inp iu
+      es <- getObjectRanges inp iu
+      let (errors,ranges) = partitionEithers es
+      if not (null errors) then
+        do
+        putStrLn "  cavities are uncomputable due to object parsing errors:"
+        mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
+        putChar '\n'
+      else
+        do
+        let sr = RIntSet.singletonRange
 
-      let sr = RIntSet.singletonRange
+            -- intersection:
+            i = foldr (\x s-> RIntSet.intersection (sr x) s)
+                      RIntSet.empty
+                      ranges
+          
+            -- cavities:
+            cs = RIntSet.toRangeList $
+                     sr (bodyStart, xrefStart - 1)
+                     RIntSet.\\
+                     foldr RIntSet.insertRange RIntSet.empty ranges
 
-          -- intersection:
-          i = foldr (\x s-> RIntSet.intersection (sr x) s)
-                    RIntSet.empty
-                    rs
-        
-          -- cavities:
-          cs = RIntSet.toRangeList $
-                   sr (bodyStart, xrefStart - 1)
-                   RIntSet.\\
-                   foldr RIntSet.insertRange RIntSet.empty rs
+        case cs of
+          [] -> putStrLn "  cavities: NONE."
+          _  -> do
+                putStrLn "  cavities:"
+                mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
 
-      unless (RIntSet.null i) $
-        warning $
-          "object definitions overlap (highly suspicious) on the following offsets: "
-          ++ show (RIntSet.toRangeList i)
+        unless (RIntSet.null i) $
+          warning $
+            "object definitions overlap (highly suspicious) on the following offsets: "
+            ++ show (RIntSet.toRangeList i)
 
-      mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
+        putChar '\n'
 
   -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
   --  - must nab the locations when we parse these!
@@ -352,13 +364,12 @@ ppCavity (start,end) = unwords [ show start
                                , "(" ++ show (end - start + 1) ++ " bytes)"
                                ]
 
-getObjectRanges :: Input -> IncUpdate -> IO [Range]
+-- | Left s - corresponds to parser failure
+getObjectRanges :: Input -> IncUpdate -> IO [Either [String] Range]
 getObjectRanges inp iu =
   do
-  rs <- sequence [getObjectAt off r | InUse r (InFileAt off) <- concat (iu_xrefs iu)]
-  return $ map fst rs
+  sequence [getObjectAt off r | InUse r (InFileAt off) <- concat (iu_xrefs iu)]
 
-  -- FIXME[F1]: Update to recover on parser errors!
   where
   getObjectAt off r = 
     do
@@ -366,22 +377,23 @@ getObjectRanges inp iu =
               inp
               (parseObjectAt inp off)
     case mres of
-      Nothing  -> quit' "a Dom-Dependent parser [unsupported]"
+      Nothing  -> fail' ["a Dom-Dependent parser [unsupported]"]
       Just res -> case res of
-        ParseOk (rng, TopDecl o g x) ->
+        ParseOk (rng, TopDecl o g _x) ->
             do let o' = fromIntegral (refObj r)
                    g' = fromIntegral (refGen r)
                unless (o' == o && g' == g) $
                  warning "xref object gen =/= object gen obj ... endobj"
-               return (rng, x)
-        ParseErr e                  -> quit' ("unparseable\n " ++ show e)
-        ParseAmbig {}               -> quit' "ambiguous" 
+               return $ Right rng
+               -- FIXME[C2]: '_x' is dead, use?
+        ParseErr e                  -> fail' ["unparseable:", show e]
+        ParseAmbig {}               -> fail' ["ambiguous."]
 
     where
-    quit' s =
-      quit $ unlines [ "cavities are uncomputable when object is " ++ s
-                     , " " ++ unwords ["object", show r, "at offset", show off]
-                     ]
+    fail' []     = error "fail'"
+    fail' (s:ss) = return $ Left $
+                       unwords ["object (", show r, ") at offset", show off, "is", s]
+                     : map ("  "++) ss
            
 parseObjectAt :: Input -> Int -> Parser (Range, TopDecl)
 parseObjectAt inp offsetStart =
