@@ -579,14 +579,14 @@ def CheckFunOps (c : CalcElement) (ops  : [FunOpWithPosition]) startCalc =
       opIn p  ->
         block
           let n = p.t + 1
-          FunOpAssert op (p.s < c.inputs && (c.inputs - p.s) <= n)
+          FunOpAssert op (p.s < c.inputs && n <= (c.inputs - p.s) )
                                                      "Invalid channel in `in`"
           FunOpArgs op 0 n calc
 
       opOut p ->
         block
           let n = p.t + 1
-          FunOpAssert op (p.s < c.outputs && (c.outputs - p.s) <= n)
+          FunOpAssert op (p.s < c.outputs && n <= (c.outputs - p.s))
                                                     "Invalid channel in `out`"
 
           FunOpArgs op n 0 calc
