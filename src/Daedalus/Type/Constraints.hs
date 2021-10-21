@@ -20,7 +20,8 @@ import Daedalus.Type.Subst
 data CtrStatus = Solved | Unsolved
   deriving Show
 
-isImpliedBy :: STCMonad m => Located Constraint -> Located Constraint -> m Bool
+isImpliedBy ::
+  STCMonad m => Located Constraint -> Located Constraint -> m Bool
 cNew `isImpliedBy` cOld =
   case (thingValue cNew, thingValue cOld) of
     (Integral x, Integral y) | x == y -> pure True
