@@ -558,7 +558,7 @@ def FunOpAssert op b msg =
       SetStream op.offset
       Fail msg
 
--- Specifies effect of an isntruction on the stack.
+-- Specifies effect of an instruction on the stack.
 -- input arguments are removed; output arguments are pushed
 def FunOpArgs op inArgs outArgs calc =
   funOpPush outArgs (FunOpPop op inArgs calc)
