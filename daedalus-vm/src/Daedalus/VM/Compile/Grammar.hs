@@ -53,12 +53,13 @@ compile expr next0 =
         -- XXX
         Src.SrcAnnot ann -> compile e next    -- XXX:
 
-    Src.GCase (Src.Case e as) ->
+    Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next
          codes <- forM as \(p,g) ->
                     do l <- label0 NormalBlock =<< compile g next'
                        pure (p, l)
-         compileE e $ Just \v -> jumpCase v (Map.fromList codes)
+         b <- lookupN x
+         pure (jumpCase (Map.fromList codes) =<< b)
 
     Src.Do_ p q ->
 

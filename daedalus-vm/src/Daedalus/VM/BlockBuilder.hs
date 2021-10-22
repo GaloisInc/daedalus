@@ -159,8 +159,8 @@ jumpIf e l1 l2 =
               , (PBool False, jumpNoFree jp2)
               ]
 
-jumpCase :: E -> Map Pattern (BlockBuilder JumpPoint) -> BlockBuilder Void
-jumpCase e bs =
+jumpCase :: Map Pattern (BlockBuilder JumpPoint) -> E -> BlockBuilder Void
+jumpCase bs e =
   do jps <- sequence bs
      term $ JumpIf e $ JumpCase $ jumpNoFree <$> jps
 
