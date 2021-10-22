@@ -150,10 +150,20 @@ instance PP FunOp where
              , "else", nest 2 (pp (getField @"elseOps" x))
              ]
 
-      FunOp_opPi     x -> ppOp "pi" [pp x]
-      FunOp_opPosInf x -> ppOp "+inf" [pp x]
-      FunOp_opNegInf x -> ppOp "-inf" [pp x]
-      FunOp_opNAN    x -> ppOp "nan" [pp x]
+      FunOp_opSel x ->
+        "sel" $$ nest 2 (vcat $
+                          ppCase (getField @"case1" x)
+                        : map ppCase (RTS.toList (getField @"cases" x))
+                       ++ ppDflt)
+        where ppCase c = "case" $$ nest 2 (pp c)
+              ppDflt   = case getField @"dflt" x of
+                           Nothing -> []
+                           Just y  -> ["dflt" $$ nest 2 (pp y)]
+
+      FunOp_opPi     {} -> "pi"
+      FunOp_opPosInf {} -> "+inf"
+      FunOp_opNegInf {} -> "-inf"
+      FunOp_opNaN    {} -> "nan"
       FunOp_opAdd    x -> ppOp "add" [pp x]
       FunOp_opSub    x -> ppOp "sub" [pp x]
       FunOp_opMul    x -> ppOp "mul" [pp x]

@@ -674,7 +674,7 @@ def CheckFunOps (c : CalcElement) (ops  : [FunOpWithPosition]) startCalc =
       opPi      -> FunOpArgs op 0 1 calc
       opPosInf  -> FunOpArgs op 0 1 calc
       opNegInf  -> FunOpArgs op 0 1 calc
-      opNAN     -> FunOpArgs op 0 1 calc
+      opNaN     -> FunOpArgs op 0 1 calc
 
       opAdd s -> FunOpArgs op (2 * (s+1)) (s+1) calc
       opSub s -> FunOpArgs op (2 * (s+1)) (s+1) calc
@@ -813,10 +813,10 @@ def FunOp =
       0s"or  " -> {| or   = OpParam |}
 
       -- Table 101,102
-      0s"pi  " -> {| opPi     = OpParam |}
-      0s"+INF" -> {| opPosInf = OpParam |}
-      0s"-INF" -> {| opNegInf = OpParam |}
-      0s"NAN " -> {| opNAN    = OpParam |}
+      0s"pi  " -> {| opPi     = NoParams |}
+      0s"+INF" -> {| opPosInf = NoParams |}
+      0s"-INF" -> {| opNegInf = NoParams |}
+      0s"NaN " -> {| opNaN    = NoParams |}
       0s"add " -> {| opAdd    = OpParam |}
       0s"sub " -> {| opSub    = OpParam |}
       0s"mul " -> {| opMul    = OpParam |}
