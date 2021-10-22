@@ -4,8 +4,8 @@
 #include <iostream>
 #include <ddl/value.h>
 
-namespace DDL : public Value {
-class Unit {};
+namespace DDL {
+class Unit : public Value {};
 
 inline
 std::ostream& operator<<(std::ostream& os, Unit x) {
