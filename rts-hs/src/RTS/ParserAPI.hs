@@ -19,6 +19,8 @@ import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
 
+import Debug.Trace(traceM)
+
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
