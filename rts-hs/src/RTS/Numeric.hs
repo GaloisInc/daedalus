@@ -127,7 +127,7 @@ normU :: NormCtrs n => UInt n -> UInt n
 normU n@(UInt w) = UInt (mask n w)
 
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
-mask num a = a .&. complement (1 `shiftL` thisWidth num)
+mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
 
 -- XXX: may overflow
 thisWidth :: KnownNat n => num n -> Int
