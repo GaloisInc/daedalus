@@ -322,16 +322,6 @@ data TCBDUnionMeta =
                 } deriving (Show, Eq)
 
 
--- These (should) be known at type checking time.  An 8 bit field in
--- the least-significant bits of a word will be TCBitDataRange { lowBit = 0, highBit = 7 }
-data TCBitDataRange =
-  TCBitDataRange { tcbdrLowBit  :: !Int
-                 , tcbdfHighBit :: !Int
-                 -- FIXME: split this into 2 types, one for struct, one for unions?
-                 , tcbdrMask    :: !Integer
-                 , tcbdrValue   :: !Integer
-                 }  deriving Show
-
 data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
                          , tcDeclTyParams :: ![TVar]
