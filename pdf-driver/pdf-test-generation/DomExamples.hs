@@ -32,7 +32,7 @@ domObjs1 =
   , ((6,0),  StrmObj (StreamObj []
                                 NoFilter
                                 (B8.pack helloWorldContentStream)))
-  , vToTopDecl 7 $ (V_Int 7)
+  , vToTopDecl 7 $ (V_Int 7) -- dead
   , vToTopDecl 8 $ courierF1
   , vToTopDecl 9 $ resources
 
@@ -41,28 +41,50 @@ domObjs1 =
   , vToTopDecl 11 (V_Raw "999 % dead object (01234567890123456789)")
   ]
 
+
+pdf3a,pdf3b :: PDF_DOM
+
+pdf3a = mk_PDF_DOM (hdr1 "1.4") "CAVITY\n" 3 domObjs3a
+domObjs3a = vToTopDecl 1 (V_Raw "") : tail domObjs1    -- subtle syntax error.
+                                            
+pdf3b = mk_PDF_DOM (hdr1 "1.4") "CAVITY\n" 3 domObjs3b
+domObjs3b = vToTopDecl 1 (V_Raw ">>") : tail domObjs1  -- blatant syntax error.
+
+            
 pdf2 :: PDF_DOM
 pdf2 = mk_PDF_DOM (hdr1 "1.5") "CAVITY\n" 3 domObjs2
     
 domObjs2 =
-  [ ( (6,0)
+  [ -- dead objects (potentially a reference to in edits)
+    vToTopDecl 1 (V_Int 5)
+  , vToTopDecl 2 (V_Int 28)
+  
+  , ( (7,0)   -- NOTE: 7 the stream object ID
     , ObjStrm
         [ vToCompDecl 3 $ V_Dict [("Type" , V_Name "Catalog")
                                  ,("Pages", V_Indirect (4,0))
                                  ]
         , vToCompDecl 4 $ V_Dict [("Type", V_Name "Pages")
+                                 ,("MediaBox", V_Raw "[0 0 842 595]")
                                  ,("Kids", V_Array [V_Indirect (5,0)])
                                  ,("Count", V_Int 1)
                                  ]
-        , vToCompDecl 9 $ V_Dict [("Type", V_Name "Page")
+        , vToCompDecl 5 $ V_Dict [("Type", V_Name "Page")
                                  ,("Parent", V_Indirect (4,0))
-                                 ,("Resources", V_Dict [])
+                                 ,("Resources", V_Indirect (9,0))
+                                 ,("Contents", V_Indirect (10,0))
                                  ]
+        -- dead objects (potentially a reference to in edits): 
+        , vToCompDecl 6  $ V_Int 5
+        , vToCompDecl 11 $ V_Int 28
         ]
     )
-    -- dead objects:
-  , vToTopDecl 1 (V_Int 5)
-  , vToTopDecl 2 (V_Int 6)
+    -- 7 used above
+  , vToTopDecl 8 $ courierF1
+  , vToTopDecl 9 $ resources
+  , ((10,0),  StrmObj (StreamObj []
+                                 NoFilter
+                                 (B8.pack helloWorldContentStream)))
   ]
 
 ---- library -----------------------------------------------------------------

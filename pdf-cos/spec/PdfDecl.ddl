@@ -9,6 +9,7 @@ def TopDecl = {
                    -- called immediately upon "jumping" to a byte offset.
   id   = Token Natural;
   gen  = Token Natural;
+  (((0xD5 : uint 8) .&. 0x0F) as! uint 4) == 5 is true;
   KW "obj";
   @val = Value;
   obj  = TopDeclDef val;

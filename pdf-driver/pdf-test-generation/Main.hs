@@ -2,15 +2,18 @@
 
 module Main where
 
+-- base
+
 import qualified Data.ByteString.Char8 as B8 
 import qualified Data.ByteString       as BS
-
-import System.Environment
-import System.Exit
+import           Data.List
+import           System.Environment
+import           System.Exit
 
 -- pkg process:
 import System.Process
 
+-- local:
 import DomGeneration
 import DomRender
 import DomExamples
@@ -55,17 +58,21 @@ usageError =
   exitFailure
 
 renderTest :: Test -> IO BS
-renderTest (Test _nm (h1,h2,ds,di) ty edits ctgy cs) =
+renderTest (Test _nm (h1,h2,ds,di) ty edits ctgy notes) =
   applyEdits edits
              (render_PDF_DOM ty (h1, commentsAndSuch <> h2, ds, di))
 
   where
   commentsAndSuch =
       BS.intercalate "\n"
-    $ (   map ("% NOTE: " <>) cs
-       ++ map (\s-> "% " <> B8.pack s) (ppCtgy ctgy)
+    $ (   map (\s->"% NOTE: " <> fillTo100 s) notes
+       ++ map (\s-> "% " <> fillTo100 (B8.pack s)) (normalizeCtgy $ ppCtgy ctgy)
        ++ [""])
+
+  normalizeCtgy ls = take 5 (ls ++ cycle [[]])
   
+  fillTo100 s = B8.take 100 (s <> " " <> B8.replicate 100 '%')
+    
 writeTest :: FilePath -> Test -> IO ()
 writeTest dir t = renderTest t >>= B8.writeFile (dir ++"/" ++ t_name t ++ ".pdf")
 
@@ -89,30 +96,62 @@ ppLine (mc,s) = "  " ++ show mc ++ ": " ++ s
 
 ---- tests -------------------------------------------------------------------
 
+-- FIXME:
+--  - this is fragile enough as it is: you should fail if the shell script fails!
+
 allTests =
   -- these tests all based on the same "DOM" pdf1:
   [ Test "1_valid_xref_trad" pdf1 RT_XRef_Trad E_None Good
       ["no compressed objects, traditional xref table"]
       
   , Test "1_invalid_xref_trad-a" pdf1 RT_XRef_Trad
-      (E_Shell "sed" ["78s/000732/000733/"])
+      (E_Shell "sed" ["s/^0000001162 00000 n/0000001163 00000 n/"])  -- add 1 to xref offset!
       (Probs [(Error    , "object id (11) mismatch")
              ,(NotStrict, "cavity with \"1\" in it, before object 11")
              ])
       ["no compressed objects, traditional xref table; object 11 pointing +1"]
       
   , Test "1_invalid_xref_trad-b" pdf1 RT_XRef_Trad
-      (E_Shell "sed" ["61s/11 0 obj/23 0 obj/"])
+      (E_Shell "sed" ["s/^11 0 obj/23 0 obj/"])
       (Probs [(Error , "object id (11 /= 23) mismatch")
              ])
       ["no compressed objects, traditional xref table; object 11 xref pointing to object 23"]
       
-  , Test "1_valid_xref_strm" pdf1 RT_XRef_Trad E_None  Good
+  , Test "1_valid_xref_strm" pdf1 RT_XRef_Strm E_None  Good
       ["no compressed objects, xref is stream"]
 
-  -- this is based on a DOM that uses "compressed objects":
+  -- pdf2 based tests: pdf2 uses "compressed objects":
+  
   , Test "2_valid_xref_strm" pdf2 RT_XRef_Strm E_None Good
       ["compressed objects, thus xref is stream"]
+      
+  , Test "2_valid_xref_strm_indirects" pdf2 RT_XRef_Strm
+      (E_Shell "sed" [intercalate ";" ["s#/N 5#/N 1 0 R#"           -- using 4 extra chars
+                                      ,"s#/First 28#/First 2 0 R#"  -- using 3 extra chars
+                                      ,"s/UNUSED 1234567/UNUSED /" -- remove 7 chars
+                                      ]])
+      Good
+      ["compressed objects, thus xref is stream, using indirects for N and First"]
+      
+  , Test "2_invalid_xref_strm_rec_indirects" pdf2 RT_XRef_Strm
+      (E_Shell "sed" [intercalate ";" ["s#/N 5#/N 6 0 R#"           -- using 4 extra chars
+                                      ,"s#/First 28#/First 11 0 R#" -- using 4 extra chars
+                                      ,"s/UNUSED 12345678/UNUSED /"  -- remove 8 chars
+                                      ]])
+      (Probs [(Error , "recursive object stream lookup")
+             ])
+      ["compressed objects, thus xref is stream, using RECURSIVE indirects for N and First"]
+      
+  -- based on pdf3{a,b}:
+  , Test "3a_invalid_emptyvalue" pdf3a RT_XRef_Trad
+         E_None
+         (Probs [(Error, "bad syntax for value, object id 1")])
+         ["simple file, one syntax error, traditional xref table"]
+      
+  , Test "3b_invalid_badvaluesyntax" pdf3b RT_XRef_Trad
+         E_None
+         (Probs [(Error, "bad syntax for value, object id 1")])
+         ["simple file, one syntax error, traditional xref table"]
       
   ]
 

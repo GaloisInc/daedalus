@@ -7,8 +7,8 @@ import Stdlib
 -- Boolean Objects (Section 7.3.2)
 
 def Bool =
-    When (KW "true")  true
-  | When (KW "false") false
+     When (KW "true")  true
+  <| When (KW "false") false
 
 
 --------------------------------------------------------------------------------
@@ -17,8 +17,8 @@ def Bool =
 def Number = Token {
   @sign = Sign;
   @n    = UnsignedNumber;
-    When (sign is pos) n
-  | When (sign is neg) { num = 0 - n.num; exp = n.exp }
+     When (sign is pos) n
+  <| When (sign is neg) { num = 0 - n.num; exp = n.exp }
 }
 
 def intNumber (n : int) : Number = {
@@ -26,14 +26,14 @@ def intNumber (n : int) : Number = {
   exp = 0;
 }
 
-def Sign = Choose {
-  pos = @Optional (Match "+");
-  neg = @Match "-"
+def Sign = Choose1 {
+  neg = @Match "-";
+  pos = @Optional (Match "+")
 }
 
 def UnsignedNumber =
-    UnsignedLeadDigits
-  | Frac 1 { num = 0, exp = 0 }
+     UnsignedLeadDigits
+  <| Frac 1 { num = 0, exp = 0 }
 
 def UnsignedLeadDigits = {
   @n   = Natural;
@@ -54,9 +54,9 @@ def Frac n (w : Number) : Number = {
 
 def OctDigit  = Match1 ('0' .. '7') - '0' as int
 def Digit     = Match1 ('0' .. '9') - '0' as int
-def HexDigit  = Digit
-              | 10 + Match1 ('a' .. 'f') - 'a' as int
-              | 10 + Match1 ('A' .. 'F') - 'A' as int
+def HexDigit  =  Digit
+              <| 10 + Match1 ('a' .. 'f') - 'a' as int
+              <| 10 + Match1 ('A' .. 'F') - 'A' as int
 
 def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
@@ -70,15 +70,15 @@ def String = Between "(" ")" StringChars
 def StringChars = concat (Many StringChunk)
 
 def StringChunk =
-    StringInParens
-  | StringEsc
-  | Many (1..) (Match1 (! "\\()"))
+     StringInParens
+  <| StringEsc
+  <| Many (1..) (Match1 (! "\\()"))
 
 def StringInParens = concat [ Match "(", StringChars, Match ")"]
 
 def StringEsc = {
    Match "\\";
-   Choose {
+   Choose1 {
      When (Match "n")   "\n";
      When (Match "r")   "\r";
      When (Match "t")   "\t";
@@ -101,7 +101,7 @@ def StringNumEsc = [ numBase 8 (Many (1..3) OctDigit) as! uint 8 ]
 
 def HexString = Between "<" ">" {
   @front = Many HexStringNum2;
-  concat [ front, [HexStringNum1] ] | front
+  concat [ front, [HexStringNum1] ] <| front
 }
 
 def HexStringNum2 = numBase 16 (Many 2 (Token HexDigit)) as! uint 8
@@ -109,12 +109,12 @@ def HexStringNum1 = 16 * Token HexDigit as! uint 8
 
 
 --------------------------------------------------------------------------------
--- Name Objectcs (Sections 7.3.5)
+-- Name Objects (Sections 7.3.5)
 
 def Name     = Token { Match "/"; Many NameChar }
 
-def NameChar = Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
-             | NameEsc
+def NameChar =   Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
+              <| NameEsc
 
 def NameEsc  = {
   Match "#";

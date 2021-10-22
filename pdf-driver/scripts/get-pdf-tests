@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# old server:
 # VM="lochness.dev.galois.com"
 VM="nessy.dev.galois.com"
 VM_PATH="/media/data/raw"

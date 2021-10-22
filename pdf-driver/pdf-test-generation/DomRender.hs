@@ -77,7 +77,7 @@ render_XRefAndTrailer offset =
                           
     XRAT_Strm xrefs d -> BS.concat
                            [ render_TopDecl
-                               ( (1000,0)  -- FIXME: matters?
+                               ( (30,0)  -- FIXME: matters?
                                , StrmObj $ mkXRefStreamObj
                                              ((0, XRES_Free 0 65535) : xrefs) d
                                )
@@ -170,6 +170,7 @@ render_ObjStrm f decls =
       [ ("Type" , V_Name "ObjStm")
       , ("N"    , V_Int (length decls))
       , ("First", V_Int (BS.length renderOffsetTable))
+      , ("UNUSED", V_Int 1234567890123456)
       ]
       f
       (BS.concat (renderOffsetTable : decls'))

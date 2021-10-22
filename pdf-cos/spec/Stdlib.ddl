@@ -3,7 +3,9 @@ import Sum
 
 def Unit = ^{}
 
-def Void = Choose { }
+def IgnoreResult P : {} = {P; ^{}}
+
+def Void = Choose1 { }
 
 def FoldMany P acc = Choose1 {
   { @acc0 = P acc;
@@ -23,6 +25,8 @@ def min m n = if m < n then m else n
 def bitIsSet8 (n : uint 8) bs = (n .&. (1 << bs)) != 0
 def bitIsSet32 (n : uint 32) bs = (n .&. (1 << bs)) != 0
 def setBit bs (n : uint 32) = n .|. (1 << bs)
+
+def truncate8to4 (n : uint 8) : uint 4 = (n .&. 0x0F) as! uint 4
 
 def numBase base ds       = for (val = 0; d in ds) (val * base + d)
 def bytesNum (bs : [ uint 8 ]) : uint 64 =
@@ -146,17 +150,22 @@ def $cr                   = 13
 def $space                = 32
 def $simpleWS             = 0 | 9 | 12 | 32
 
-def SimpleEOL             = { $cr; $lf } | $lf
-def EOL                   = SimpleEOL <| $cr
+def SimpleEOL             = IgnoreResult ($lf <| { $cr; $lf })
+                            -- Beware: this is rarely used!  PDF uses only after 'stream' keyword
+
+def EOL : {}              = IgnoreResult $lf <| {$cr ; ( IgnoreResult $lf <| ^{} )}
+
 def GenComment start = {
   Match (append "%" start);
   Many (Match1 (! ($lf | $cr)));
-  EOL }
+  EOL;
+  ^ {}}
 def Comment               = GenComment ""
-def JustWhite             = $simpleWS | EOL
+def JustWhite             = IgnoreResult $simpleWS <| EOL
 
-def AnyWS                 = $simpleWS | Comment | EOL
+def AnyWS                 = IgnoreResult $simpleWS <| Comment <| EOL
 
 -- and sequences of ...
-def ManyJustWhite         = Many JustWhite
-def ManyWS                = Many AnyWS
+def ManyJustWhite         = {Many JustWhite; ^{}}
+def ManyWS                = {Many AnyWS; ^{}}
+
