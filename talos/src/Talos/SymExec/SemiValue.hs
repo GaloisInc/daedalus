@@ -92,6 +92,14 @@ toList sv =
     VValue (V.VBuilder vs) -> Just (map VValue (reverse vs))
     _ -> Nothing
 
+
+toMappings :: SemiValue a -> Maybe [(SemiValue a, SemiValue a)]
+toMappings sv =
+  case sv of
+    VMap xs            -> Just xs
+    VValue (V.VMap m)  -> Just [ (VValue k, VValue v) | (k, v) <- Map.toList m ]
+    _ -> Nothing
+
 -- FIXME: if there are no symbolic values, we should return a VValue
 fromList :: Bool -> [SemiValue a] -> SemiValue a
 fromList = VSequence 
