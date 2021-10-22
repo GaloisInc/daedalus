@@ -186,7 +186,7 @@ showPat (Pat w f@(ITE v p q))
   | w' > v          = [ '_' : x | x <- showPat (Pat w' f) ]
   | otherwise       = [ '0' : x | x <- showPat (Pat w' q) ]
                    ++ [ '1' : x | x <- showPat (Pat w' p) ]
-    where w'        = w - 1 
+    where w'        = w - 1
 
 
 -- | Returns (value, mask)
@@ -196,19 +196,10 @@ patTests (Pat _ T)   = [(0,0)]
 patTests (Pat _ F)   = []
 patTests (Pat w f@(ITE v p q))
   | w' > v          = patTests (Pat w' f)
-  | otherwise       = [ (v', one + m) | (v',m) <- patTests (Pat w' q) ]
+  | otherwise       = [ (one + v',       m) | (v',m) <- patTests (Pat w' q) ]
                    ++ [ (one + v', one + m) | (v',m) <- patTests (Pat w' p) ]
     where w'        = w - 1
           one       = 2^w'
-
-patMasks           :: Pat -> [Integer]
-patMasks (Pat _ T)  = [0]
-patMasks (Pat _ F)  = []
-patMasks (Pat w f@(ITE v p q))
-  | w' > v          = patMasks $ Pat w' f
-  | otherwise       = patMasks (Pat w' q)
-                   ++ map ((2^w') + ) (patMasks $ Pat w' p)
-    where w'        = w - 1 
 
 pr :: Pat -> IO ()
 pr x                = putStrLn $ unlines $ showPat x
