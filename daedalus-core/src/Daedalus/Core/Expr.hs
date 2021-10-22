@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
-{-# Language DeriveTraversable #-}
 {-# Language DeriveGeneric, DeriveAnyClass #-}
 
 module Daedalus.Core.Expr where
@@ -115,8 +114,6 @@ data OpN =
   | CallF FName
   deriving (Generic,NFData)
 
-data Case k = Case Expr [(Pattern,k)]
-  deriving (Functor,Foldable,Traversable,Generic,NFData)
 
 --------------------------------------------------------------------------------
 -- Traversals
@@ -128,7 +125,7 @@ childrenE f expr =
     Var {} -> pure expr
     PureLet n e1 e2 -> PureLet n <$> f e1 <*> f e2
     Struct ut flds  -> Struct ut <$> traverse (\(fld,e) -> (,) fld <$> f e) flds
-    ECase (Case e ps) -> ECase <$> (Case <$> f e <*> traverse (\(l,e') -> (,) l <$> f e') ps)
+    ECase cs        -> ECase <$> traverse f cs
     Ap0 {} -> pure expr
     Ap1 op1 e  -> Ap1 op1 <$> f e
     Ap2 op2 e1 e2 -> Ap2 op2 <$> f e1 <*> f e2
@@ -148,8 +145,8 @@ foldMapChildrenE f e = m
 -- Constructors
 --------------------------------------------------------------------------------
 
-eCase :: Expr -> [(Pattern,Expr)] -> Expr
-eCase e ps = ECase (Case e ps)
+eCase :: Name -> [(Pattern,Expr)] -> Expr
+eCase n ps = ECase (Case n ps)
 
 --------------------------------------------------------------------------------
 unit    = Ap0 Unit
@@ -231,10 +228,9 @@ rShift        = Ap2 RShift
 -- Boolean
 boolL b      = Ap0 (BoolL b)
 eNot         = Ap1 Not
-eOr x y      = eIf x (boolL True) y
-eAnd x y     = eIf x y (boolL False)
-eIf e e1 e2  = eCase e [ (PBool True, e1), (PBool False, e2) ]
-
+-- eOr x y      = eIf x (boolL True) y
+-- eAnd x y     = eIf x y (boolL False)
+eIf bv e1 e2  = eCase bv [ (PBool True, e1), (PBool False, e2) ]
 
 --------------------------------------------------------------------------------
 -- Arrays
@@ -450,9 +446,6 @@ instance PP OpN where
     case op of
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
-instance PP a => PP (Case a) where
-  pp (Case e as) = "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
-    where
-    alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
+      
 
 

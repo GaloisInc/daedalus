@@ -2,6 +2,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
 {-# Language DeriveGeneric, DeriveAnyClass #-}
+{-# Language DeriveTraversable #-}
 
 module Daedalus.Core.Basics where
 
@@ -13,7 +14,6 @@ import Data.Function(on)
 
 import Daedalus.PP
 import Daedalus.GUID
-
 
 -- | Module names
 newtype MName = MName { mNameText :: Text }
@@ -94,6 +94,9 @@ data UserType = UserType
 
 newtype TParam = TP Int
   deriving (Eq,Ord,Generic,NFData)
+
+data Case k = Case Name [(Pattern,k)]
+  deriving (Functor,Foldable,Traversable,Generic,NFData)
 
 data Pattern =
     PBool Bool
@@ -237,6 +240,10 @@ instance PP SizeType where
       TSize n -> pp n
       TSizeParam x -> pp x
 
+instance PP a => PP (Case a) where
+  pp (Case e as) = "case" <+> pp e <+> "of" $$ nest 2 (vcat (map alt as))
+    where
+    alt (p,g) = pp p <+> "->" $$ nest 2 (pp g)
 
 instance PP Pattern where
   pp pat =

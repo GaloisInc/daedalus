@@ -128,8 +128,8 @@ instance FreeVars ByteSet where
 
 
 instance FreeVars e => FreeVars (Case e) where
-  freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
-  freeFVars (Case e opts) = freeFVars e `Set.union` freeFVars (map snd opts)
+  freeVars  (Case v opts) = Set.insert v (freeVars (map snd opts))
+  freeFVars (Case _ opts) = freeFVars (map snd opts)
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =
