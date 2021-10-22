@@ -196,7 +196,7 @@ patTests (Pat _ T)   = [(0,0)]
 patTests (Pat _ F)   = []
 patTests (Pat w f@(ITE v p q))
   | w' > v          = patTests (Pat w' f)
-  | otherwise       = [ (one + v',       m) | (v',m) <- patTests (Pat w' q) ]
+  | otherwise       = [ (      v', one + m) | (v',m) <- patTests (Pat w' q) ]
                    ++ [ (one + v', one + m) | (v',m) <- patTests (Pat w' p) ]
     where w'        = w - 1
           one       = 2^w'
