@@ -108,7 +108,7 @@ compileSomeFun isPure doBody fun =
   in inlineBlocks
       VMFun { vmfName   = Src.fName fun
             , vmfCaptures = case Src.fDef fun of
-                              Src.Def {} -> Capture -- Conservative
+                              Src.Def {}   -> Unknown
                               Src.External -> NoCapture
             , vmfPure   = isPure
             , vmfLoop   = False
