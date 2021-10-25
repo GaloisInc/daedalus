@@ -512,7 +512,7 @@ matchToGrammar t match e =
     Success mb g ->
       case mb of
         Nothing -> pure g
-        Just x  -> pure (Let x e g) -- a bit ugly
+        Just x  -> pure (Let x e g)
     IfPat {} ->
       gCase e (fmap (completeAlts pFail) . matchToAlts (matchToGrammar t) match)
   where

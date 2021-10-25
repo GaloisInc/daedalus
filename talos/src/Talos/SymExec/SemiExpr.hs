@@ -195,8 +195,8 @@ data SymbolicCaseResult a = TooSymbolic | NoMatch | DidMatch Int a
 
 semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a) =>
                 Case a -> SemiSolverM m (SymbolicCaseResult a)
-semiExecCase c@(Case e pats) = do
-  ve <- semiExecExpr e
+semiExecCase c@(Case y pats) = do
+  ve <- semiExecName y
   -- we need to be careful not to match 'Any' if the others can't
   -- be determined.
   let ms = zip (zip pats [0..]) <$> mapM (matches' ve . fst) pats

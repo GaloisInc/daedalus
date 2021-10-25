@@ -46,15 +46,15 @@ summarise md nguid = (summaries, nextGUID s')
     s0    = initState (mGFuns md) (mFFuns md) nguid
 
     seqv oldS newS = domainEqv (exportedDomain oldS) (exportedDomain newS)
-    
+
     doOne nm cl
       | Just decl <- Map.lookup nm decls = summariseDecl cl decl
       | otherwise = panic "Missing decl" [showPP nm]
 
     wl0   = Set.fromList grammarDecls
-    
+
     decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
-    
+
     grammarDecls =
       [ (name, Assertions)
       | Fun { fName = name, fDef = Def _ } <- mGFuns md
@@ -81,7 +81,7 @@ summariseDecl cls Fun { fName = fn
   -- Sanity check
   unless (domainInvariant (exportedDomain newS)) $
     panic "Failed domain invariant" ["At " ++ showPP fn]
-             
+
   pure newS
 
 summariseDecl _ _ = panic "Expecting a defined decl" []
@@ -91,7 +91,7 @@ summariseDecl _ _ = panic "Expecting a defined decl" []
 
 newtype SummariseMState =
   SummariseMState { pathRoots :: PathRootMap }
-  
+
 emptySummariseMState :: SummariseMState
 emptySummariseMState = SummariseMState Map.empty
 
@@ -178,9 +178,9 @@ summariseCall m_x fn args = do
           evs0 = freeEntangledVars emptyFieldSet ifn
                 <> freeEntangledVars emptyFieldSet pfn
           evs  = snd $ deleteBaseEV (ProgramVar n) evs0
-          
+
       pure $ singletonDomain (singletonEntangledVars x emptyFieldSet <> evs) sl
-      
+
     _ -> do
       -- We ignore rMap for this bit, it is only used during synthesis of
       -- the internal bytes.  If cl is FunctionResult then ResultVar will
@@ -206,7 +206,7 @@ summariseCall m_x fn args = do
                             (SLeaf . SCall $ mkCallNode b)
 
       pure $ foldMap mkCall (explodeDomain expDom)
-      
+
   where
     cl | Just (_, fsets) <- m_x = FunctionResult fsets
        | otherwise              = Assertions
@@ -274,7 +274,7 @@ caseIsTotal (Case e alts)
 summariseCase :: Maybe (BaseEntangledVar, Set FieldSet) ->
                  Case Grammar ->
                  SummariseM Domain
-summariseCase m_x cs@(Case e alts) = do
+summariseCase m_x cs@(Case y alts) = do
   bDoms   <- mapM (summariseG m_x . snd) alts
   let trivial   = all nullDomain bDoms
       total     = caseIsTotal cs
@@ -285,8 +285,9 @@ summariseCase m_x cs@(Case e alts) = do
     -- write like this.
     let pats = map fst alts
         (vs, els) = unzip (map (asSingleton . squashDomain) bDoms)
-        cs'       = Case e (zip pats els)
-        vs'       = mergeEntangledVarss (freeEntangledVars emptyFieldSet e : vs)
+        cs'       = Case y (zip pats els)
+        y_vs      = singletonEntangledVars (ProgramVar y) emptyFieldSet
+        vs'       = mergeEntangledVarss (y_vs : vs)
     pure (singletonDomain vs' (SLeaf (SCase total cs')))
 
 -- Some examples:
@@ -469,7 +470,7 @@ pattern GuardP e g <- (caseIsGuard -> Just (e, g))
 --   False -> Fail ...
 
 caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
-caseIsGuard (GCase (Case e cs)) =
+caseIsGuard (GCase (Case x cs)) =
   case cs of
     -- FIXME: Annot
     [(PBool b, g), (_, Fail {})]       -> mk b g
@@ -478,5 +479,5 @@ caseIsGuard (GCase (Case e cs)) =
     [(PBool b, g)]                     -> mk b g
     _ -> Nothing
   where
-    mk b g = Just (if b then e else eNot e, g)
+    mk b g = Just (if b then Var x else eNot (Var x), g)
 caseIsGuard _ = Nothing
