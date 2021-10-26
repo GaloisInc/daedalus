@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control Structures &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Type Annotations and Coercions" href="types.html" />
+    <link rel="prev" title="Parsers" href="parsers.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Using the Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="using-daedalus.html">Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="using-daedalus.html#check-a-specification">Check a Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="using-daedalus.html#run-the-interpreter">Run the Interpreter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="using-daedalus.html#compile-to-haskell">Compile to Haskell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="using-daedalus.html#compile-to-c">Compile to C++</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Language</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="declarations.html">Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parsers.html">Parsers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#primitive-parsers">Primitive Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#sequencing-parsers">Sequencing Parsers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#basic-sequencing">Basic Sequencing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#explicit-result">Explicit Result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#local-variables">Local Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#structure-sequence">Structure Sequence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#syntactic-sugar">Syntactic Sugar</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#parsing-alternatives">Parsing Alternatives</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#biased-choice">Biased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#unbiased-choice">Unbiased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#alternative-syntax">Alternative Syntax</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#tagged-unions">Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#repetition">Repetition</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Control Structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#if-then-else">If-then-else</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#guards">Guards</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#boolean-guards">Boolean Guards</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#guards-on-maybe">Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#guards-on-tagged-unions">Guards on Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#case">Case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#commit">Commit</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Type Annotations and Coercions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-an-expression">Annotating an Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-the-result-of-a-declaration">Annotating the Result of a Declaration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-a-parameter">Annotating a Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#naming-unknown-types">Naming Unknown Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#coercions">Coercions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="semantic-values.html">Semantic Values</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#booleans">Booleans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#numeric-types">Numeric Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#numeric-literals">Numeric Literals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#comparisons">Comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#bitwise-operations">Bitwise Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Stream manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Control Structures</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/control-structures.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="control-structures">
+<h1>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline"></a></h1>
+<div class="section" id="if-then-else">
+<h2>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline"></a></h2>
+<p>Booleans may be used to choose between one of two parsers:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span><span class="p">..</span><span class="s">&#39;9&#39;</span> <span class="p">]</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="m">5</span>
+    <span class="k">then</span> <span class="k">Match</span> <span class="s">&#39;X&#39;</span>
+    <span class="k">else</span> <span class="k">^</span> <span class="m">7</span>
+</pre></div>
+</div>
+<p>The parser above parses a decimal digit and if it is larger than 5
+it will try to match <code class="docutils literal notranslate"><span class="pre">'X'</span></code> from the input, otherwise it will succeed
+with semantic value 7.</p>
+</div>
+<div class="section" id="guards">
+<h2>Guards<a class="headerlink" href="#guards" title="Permalink to this headline"></a></h2>
+<p>Guards provide one way to examine a semantic value, and their general form is:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="n">expression</span> <span class="k">is</span> <span class="n">shape</span>
+</pre></div>
+</div>
+<p>A guard is a parser that will succeed if the expression has the required shape.</p>
+<div class="section" id="boolean-guards">
+<h3>Boolean Guards<a class="headerlink" href="#boolean-guards" title="Permalink to this headline"></a></h3>
+<p>Perhaps the most common guard is on boolean semantic values,
+which may be used to control whether parsing should continue. For example,
+the following parser uses the guard <code class="docutils literal notranslate"><span class="pre">(i</span> <span class="pre">-</span> <span class="pre">'0')</span> <span class="pre">&gt;</span> <span class="pre">5</span> <span class="pre">is</span> <span class="pre">true</span></code> to continue
+parsing (on the given alternative) only for digits larger than 5.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span><span class="p">..</span><span class="s">&#39;9&#39;</span> <span class="p">]</span>
+  <span class="k">First</span>
+    <span class="k">block</span>
+      <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="m">5</span> <span class="k">is</span> <span class="l">true</span>
+      <span class="k">^</span> <span class="s">&quot;input gt 5&quot;</span>
+    <span class="k">^</span> <span class="s">&quot;input leq 5&quot;</span>
+</pre></div>
+</div>
+<p>So, if <code class="docutils literal notranslate"><span class="pre">p</span></code> is a boolean value, then <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">true</span></code> is a parser that
+succeeds without consuming input if <code class="docutils literal notranslate"><span class="pre">p</span></code> holds, and fails otherwise.
+Similarly, <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">false</span></code> is a parser that would succeed only
+if <code class="docutils literal notranslate"><span class="pre">p</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+</div>
+<div class="section" id="guards-on-maybe">
+<h3>Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code><a class="headerlink" href="#guards-on-maybe" title="Permalink to this headline"></a></h3>
+<p>The type <code class="docutils literal notranslate"><span class="pre">maybe</span></code> also supports guards, with two shapes:
+<code class="docutils literal notranslate"><span class="pre">just</span></code> and <code class="docutils literal notranslate"><span class="pre">nothing</span></code>.  For example <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">just</span></code> is a parser that will
+succeed only if <code class="docutils literal notranslate"><span class="pre">e</span></code> is of the shape <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code> form some <code class="docutils literal notranslate"><span class="pre">x</span></code>.  In that
+case the result of the parser would be the value <code class="docutils literal notranslate"><span class="pre">x</span></code>.  Guards that have
+no interesting result (e.g., <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">true</span></code>) simply return the trivial
+value <code class="docutils literal notranslate"><span class="pre">{}</span></code>.</p>
+</div>
+<div class="section" id="guards-on-tagged-unions">
+<h3>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this headline"></a></h3>
+<p>The same notation may be used to examine values of user-defined
+union types (see <a class="reference internal" href="parsers.html#tagged-unions"><span class="std std-ref">Tagged Unions</span></a>)</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">res</span> <span class="k">=</span> <span class="k">Choose</span>
+              <span class="n">good</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;G&#39;</span> <span class="p">]</span>
+              <span class="n">bad</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;B&#39;</span> <span class="p">]</span>
+
+  <span class="k">Choose</span>
+
+    <span class="k">block</span>
+      <span class="n">res</span> <span class="k">is</span> <span class="n">good</span>
+      <span class="k">^</span> <span class="s">&quot;Success!&quot;</span>
+
+    <span class="k">block</span>
+      <span class="n">res</span> <span class="k">is</span> <span class="n">bad</span>
+      <span class="k">^</span> <span class="s">&quot;Failure!&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="case">
+<h2>Case<a class="headerlink" href="#case" title="Permalink to this headline"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">case</span></code> construct provides an alternative method for examining semantic
+values. The body of a case expression consists of a list of matches with the
+syntax <code class="docutils literal notranslate"><span class="pre">pattern</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code>. For example, the following expression has the same
+functionality as the previous example, but avoids the need for backtracking.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">res</span> <span class="k">=</span> <span class="k">Choose</span>
+              <span class="n">good</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;G&#39;</span> <span class="p">]</span>
+              <span class="n">bad</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;B&#39;</span> <span class="p">]</span>
+  <span class="k">case</span> <span class="n">res</span> <span class="k">of</span>
+    <span class="n">good</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="s">&quot;Success!&quot;</span>
+    <span class="n">bad</span>  <span class="k">-&gt;</span> <span class="k">^</span> <span class="s">&quot;Failure!&quot;</span>
+</pre></div>
+</div>
+<p>A case expression can extract the value from a tagged union. In this case, the
+match should have the form <code class="docutils literal notranslate"><span class="pre">pattern</span> <span class="pre">var</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code>.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">res</span> <span class="k">=</span> <span class="k">Choose</span>
+              <span class="n">number</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span><span class="p">..</span><span class="s">&#39;9&#39;</span> <span class="p">]</span>
+              <span class="n">letter</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;a&#39;</span><span class="p">..</span><span class="s">&#39;z&#39;</span> <span class="p">]</span>
+              <span class="n">other</span>  <span class="k">=</span> <span class="k">UInt8</span>
+  <span class="k">case</span> <span class="n">res</span> <span class="k">of</span>
+    <span class="n">number</span> <span class="n">n</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">)</span>
+    <span class="n">letter</span> <span class="n">l</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="p">(</span><span class="n">l</span> <span class="o">-</span> <span class="s">&#39;a&#39;</span><span class="p">)</span>
+    _        <span class="k">-&gt;</span> <span class="n">Fail</span> <span class="s">&quot;Something went wrong&quot;</span>
+</pre></div>
+</div>
+<p>Here the special pattern <code class="docutils literal notranslate"><span class="pre">_</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code> serves as a default, which matches
+against any value. Similarly, a pattern of the form <code class="docutils literal notranslate"><span class="pre">pattern</span> <span class="pre">_</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code>
+indicates that the value will not be used in the result.</p>
+<p>In a parser expression, case need not be total (i.e. cover all possible
+patterns) as any omitted matches will implicitly result in failure and
+backtracking. In non-parser contexts, all case expressions are required to be
+total.</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>It should be true that guards are just syntactic sugar for case</p>
+</div>
+</div>
+<div class="section" id="for-loops">
+<h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
+and dictionaries).  A for-loop declares a local variable representing
+the accumulated result of the computation, and a variable that is
+bound to the elements of the collection.  The body may be a parser, or
+a semantic value.  For example, the following expression sums the
+values in an array of integers:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span> <span class="p">:</span> <span class="k">int</span><span class="p">;</span> <span class="n">v</span> <span class="k">in</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="m">2</span><span class="p">,</span><span class="m">3</span><span class="p">])</span>
+  <span class="n">val</span> <span class="o">+</span> <span class="n">v</span>
+</pre></div>
+</div>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">val</span></code> is initially bound to <code class="docutils literal notranslate"><span class="pre">0</span></code>. Each iteration of the loop binds
+<code class="docutils literal notranslate"><span class="pre">v</span></code> to the current element of the sequence, then computes the value of the
+body, <code class="docutils literal notranslate"><span class="pre">val</span> <span class="pre">+</span> <span class="pre">v</span></code>. This returned value is the updated value of <code class="docutils literal notranslate"><span class="pre">val</span></code>.</p>
+<p>Another way to understand how this works is to see the following expression,
+which is the result of one step of evaluation:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">1</span><span class="p">;</span> <span class="n">v</span> <span class="k">in</span> <span class="p">[</span><span class="m">2</span><span class="p">,</span> <span class="m">3</span><span class="p">])</span>
+  <span class="n">val</span> <span class="o">+</span> <span class="n">v</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">for</span></code> supports an alternative form which binds both the index and
+value of a collection. For example, the following loop multiplies
+each element in the sequence by its index:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span><span class="p">,</span><span class="n">v</span> <span class="k">in</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="m">2</span><span class="p">,</span><span class="m">3</span><span class="p">])</span>
+  <span class="n">val</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This construct is also useful when iterating over the contents of
+dictionaries, where the index is bound to the key.  The following
+loop is a parser which fails when the value is less than the key:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="k">in</span> <span class="n">d</span><span class="p">)</span>
+  <span class="n">k</span> <span class="o">&lt;=</span> <span class="n">v</span> <span class="k">is</span> <span class="l">true</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="traversing-with-map">
+<h2>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this headline"></a></h2>
+<p>DaeDaLus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
+element of a sequence, resulting in a sequence of results. For example, the following code
+doubles each element in an array:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">map</span> <span class="p">(</span><span class="n">x</span> <span class="k">in</span> <span class="p">[</span><span class="m">1</span><span class="p">:</span><span class="k">int</span><span class="p">,</span> <span class="m">2</span><span class="p">,</span> <span class="m">3</span><span class="p">])</span>
+  <span class="m">2</span> <span class="o">*</span> <span class="n">x</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">map</span></code> construct can be used to parse a sequence of blocks, based on a
+sequence of values. For example the following code parses blocks of the form <code class="docutils literal notranslate"><span class="pre">0AAA...</span></code>,
+with the number of <code class="docutils literal notranslate"><span class="pre">'A'</span></code> characters dictated by the input sequence.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">map</span> <span class="p">(</span><span class="n">x</span> <span class="k">in</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span> <span class="m">2</span><span class="p">,</span> <span class="m">3</span><span class="p">])</span>
+  <span class="k">block</span>
+    <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span> <span class="p">]</span>
+    <span class="k">Many</span> <span class="n">x</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;A&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>Just as with <code class="docutils literal notranslate"><span class="pre">for</span></code>, the map construct has an alternative form that includes both
+sequence indexes and values:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">map</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span> <span class="k">in</span> <span class="p">[</span><span class="m">5</span><span class="p">,</span> <span class="m">2</span><span class="p">,</span> <span class="m">1</span><span class="p">])</span>
+  <span class="k">block</span>
+    <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span> <span class="p">]</span>
+    <span class="n">len</span>       <span class="k">=</span> <span class="k">^</span> <span class="p">{</span> <span class="n">index</span> <span class="k">=</span> <span class="n">i</span><span class="p">,</span> <span class="n">elem</span> <span class="k">=</span> <span class="n">x</span> <span class="p">}</span>
+    <span class="n">something</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">x</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="commit">
+<h2>Commit<a class="headerlink" href="#commit" title="Permalink to this headline"></a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">commit</span></code> is an unstable experimental feature and its behavior may change
+or it may be removed entirely.</p>
+</div>
+<p>Normally, at the point a parser fails, DaeDaLus will backtrack to a choice point
+and try an alternative parser. The <code class="docutils literal notranslate"><span class="pre">commit</span></code> guard acts as a cut-point and prevents
+backtracking. For example, the following code cannot parse the string <code class="docutils literal notranslate"><span class="pre">&quot;AC&quot;</span></code>
+because parsing <code class="docutils literal notranslate"><span class="pre">'A'</span></code> and the subsequent <code class="docutils literal notranslate"><span class="pre">commit</span></code> will prevent backtracking
+reaching the alternative branch.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">First</span>
+  <span class="p">{</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">];</span> <span class="k">commit</span><span class="p">;</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;B&#39;</span> <span class="p">]</span> <span class="p">}</span>
+  <span class="p">{</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">];</span>         <span class="n">$</span><span class="p">[</span> <span class="s">&#39;C&#39;</span> <span class="p">]</span> <span class="p">}</span>  <span class="c">-- Can&#39;t happen</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">try</span></code> construct converts commit failure into parser failure.  A
+commit failure will propagate until it hits an enclosing <code class="docutils literal notranslate"><span class="pre">try</span></code>
+construct, or until it escapes the top-level definition.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="parsers.html" class="btn btn-neutral float-left" title="Parsers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="types.html" class="btn btn-neutral float-right" title="Type Annotations and Coercions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(false);
+      });
+  </script> 
+
+</body>
+</html>
