@@ -69,8 +69,9 @@ Unsigned integers may also be treated as bit-vectors, and support various
 bitwise operations:
 
 * complement: ``~``
-* exclusive-or ``.^.``
-* and bitwise-and ``.&.``.
+* bitwise exclusive-or ``.^.``
+* bitwise-or ``.|.``
+* bitwise-and ``.&.``.
 
 Unsigned numbers can also be appended to other numbers via the
 ``#`` and ``<#`` operator.  To see the difference between the two,
@@ -94,7 +95,7 @@ a ``maybe`` value.  If ``P`` succeeds with result ``x`` then
 
 .. code-block:: DaeDaLus 
 
-  def MaybeLetter = Optional (Match1 ('A'..'Z'))
+  def MaybeLetter = Optional $[ 'A'..'Z' ]
 
 To examine values of the ``maybe`` type you may use
 :ref:`Guards` or :ref:`Case`.

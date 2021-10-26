@@ -41,12 +41,12 @@ Consider, for example the following declaration:
 
 .. code-block:: DaeDaLus
 
-  def Example n P $q =
+  def Example n P =
     if n > 0
       then P
-      else Match1 $q
+      else UInt8
 
-This declares a parser called ``Example`` with 3 parameters, ``n``, ``P`` and
-``$q``.   Note that the parameters are simply separated by space, and usually
+This declares a parser called ``Example`` with 2 parameters, ``n`` and ``P``.
+Note that the parameters are simply separated by space, and usually
 there is no need to provide type annotations as DaeDaLus can infer the types
 based on the naming rules and the uses in the definition.

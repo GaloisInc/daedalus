@@ -27,8 +27,8 @@ letters, and then is filled with spaces:
       let next = Drop n cur
       SetStream this
       $$ = block
-             $$ = Many (Match1 ('A'..'Z'))
-             Many (Match1 ' ') 
+             $$ = Many $[ 'A'..'Z' ]
+             Many $[ ' ' ]
              END
       SetStream next
 
@@ -38,23 +38,25 @@ particular parser:
 
 .. code-block:: DaeDaLus 
 
-  def OffsetTest = { 
-      a = Offset; 
-      Match "AA";
-      b = Offset; 
-      Match "AAA"; 
-      c = Offset; 
-  }
+  def OffsetTest =
+    block
+      a = Offset
+      Match "AA"
+      b = Offset
+      Match "AAA"
+      c = Offset
+
   -- Result: { a:0, b:2, c:5 } 
 
 The ``arrayStream`` operator converts an array into a stream:
 
 .. code-block:: DaeDaLus 
 
-  def CatStream a b = { 
-      SetStream (arrayStream (concat [a, b]));
-      Match "AA";
-      Match "BBB";
+  def CatStream a b =
+    block
+      SetStream (arrayStream (concat [a, b]))
+      Match "AA"
+      Match "BBB"
       ^ {}
   }
 

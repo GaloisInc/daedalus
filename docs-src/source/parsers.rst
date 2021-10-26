@@ -9,12 +9,14 @@ Primitive Parsers
 It fails if there are no bytes left in the input.  If successful, it constructs
 a value of type ``uint 8``.
 
-**Specific Byte.** The parser ``Match1 $set`` matches a single byte that
-belongs to the set of bytes (also referred to as *character class*)
-described by ``$set``.
+**Specific Byte.** The parser ``$[ set ]`` matches a single byte that
+belongs to the set of bytes described by *set*.
+For example, ``$[ '0' .. '9' ]`` matches any bytes in the range 48 (``'0'``)
+through 57 (``'9'``) inclusive.  See :ref:`character_classes` for deatails
+on how to write sets of bytes.  
 
 **Specific Byte Sequence.** The parser ``Match bytes`` matches the byte
-sequence ``bytes`` in the current input. The resulting semantic value is an
+sequence *bytes* in the current input. The resulting semantic value is an
 array of bytes, ``[uint 8]``, corresponding to the matched bytes.
 For example ``Match "keyword"`` will match ``"keyword"``, while
 ``Match [0x00,0x01]`` will match two bytes: 0 followed by 1.
@@ -29,6 +31,9 @@ entire input.  By sequencing (see `Sequencing Parsers`_) a parser with
 not consume any input and always succeeds with the given result.  To do
 so prefix the semantic value with the operator ``^``.  Thus, ``^ 'A'`` is
 a parser that always succeeds and produces byte ``'A'`` as a result.
+The parser ``Accept`` may be used to match the empty string without
+constructing an interesting semantic value.  It is equivalent to ``^ {}``.
+
 
 **Explicit Failure** The ``Fail`` construct will always fail.  This
 parser is parameterized by an optional location, along with an error
@@ -40,9 +45,9 @@ message.
 
   {- Declaration                      Matches       Result          -}
   def GetByte     = UInt8             -- Any byte X X
-  def TheLetterA  = Match1 'A'        -- Byte 65    65
-  def TheNumber3  = Match1 (0 .. 5)   -- A byte between 0 to 5
-  def TheNumber16 = Match1 0x10       -- Byte 16    16
+  def TheLetterA  = $[ 'A' ]          -- Byte 65    65
+  def TheNumber3  = $[0 .. 5]         -- A byte between 0 to 5
+  def TheNumber16 = $[ 0x10 ]         -- Byte 16    16
   def Magic       = Match "HELLO"     -- "HELLO"    [72,69,76,76,79]
   def AlwaysA     = ^ 'A'             -- ""         65
   def GiveUp      = Fail "I give up"  -- (none)    Failure with message "I give up"
@@ -71,11 +76,11 @@ Examples:
 
 .. code-block:: DaeDaLus
 
-  {- Declaration                                      Matches        Result-}
-  def ABC1 = { Match1 'A'; Mathc1 'B'; Match1 'C' }   -- "ABC"       67
-  def ABC2 = [ Match1 'A'; Match1 'B'; Match1 'C' ]   -- "ABC"       [65,66,67]
-  def ABC3 = { Match "Hello"; Match "ABC" }           -- "HelloABC"  [65,66,67]
-  def ABC4 = { Match "Hello"; Match1 'C' }            -- "HelloC"    67
+  {- Declaration                                  Matches       Result -}
+  def ABC1 = { $['A']; $['B']; $['C'] }        -- "ABC"         67
+  def ABC2 = [ $['A']; $['B']; $['C'] ]        -- "ABC"         [65,66,67]
+  def ABC3 = { Match "Hello"; Match "ABC" }    -- "HelloABC"    [65,66,67]
+  def ABC4 = { Match "Hello"; $['C'] }         -- "HelloC"      67
 
 An alternative notation for ``{ .. }`` parsers is to use the ``block`` keyword
 and *layout*:
@@ -137,7 +142,7 @@ variable, which is in scope in the following parsers.  Here is an example:
   def Add =
     block
       let x = UInt8
-      Match1 '+'
+      $[ '+' ]
       let y = UInt8
       ^ x + y
 
@@ -237,10 +242,10 @@ Here are some examples:
 .. code-block:: DaeDaLus
 
   {- Declaration           Matches        Result   -}
-  def B1 = Match1 'A'   -- "A"            'A', or
-        <| Match1 'B'   -- "B"            'B'
+  def B1 = $[ 'A' ]     -- "A"            'A', or
+        <| $[ 'B' ]     -- "B"            'B'
 
-  def B2 = Match1 'A'
+  def B2 = $[ 'A' ]
         <| ^ 'B'        -- "A"            'A', or
                         -- ""             'B'
 
@@ -266,7 +271,7 @@ Here are some examples:
 
 .. code-block:: DaeDaLus
 
-  def U1 = Match1 'A' | ^ 0
+  def U1 = $[ 'A' ] | ^ 0
   def U2 = { U1; 'B' }
 
 Parser ``U1`` on its own is ambiguous on inputs starting with ``"A"`` because
@@ -283,37 +288,35 @@ Alternative Syntax
 ^^^^^^^^^^^^^^^^^^
 
 Given multiple parsers ``A``, ``B``, ... we can use the ``Choose`` keyword
-for unbiased choice and ``Choose1`` for biased choice.
-
-+---------------------------+-------------------+ 
-| Expression:               | Equivalent to:    | 
-+===========================+===================+ 
-| ``Choose { A ; B; ...}``  | ``A | B | ...``   | 
-+---------------------------+-------------------+ 
-| ``Choose1 { A ; B; ... }``| ``A <| B <| ...`` |
-+---------------------------+-------------------+
-
-The ``Choose`` and ``Choose1`` keywords also support **layout**, so instead
-of using braces and semi-colons we can just line-up the alternatives like this:
+for unbiased choice and ``First`` for biased choice.  These constructs
+use layout, in a similar style to ``block``:  when using this notation
+eahc alternative must start at the same indention in the file, and the
+entire definition of an alternative must be indented furter.  Here are
+some examples:
 
 .. code-block:: DaeDaLus
 
-  def ChooseWithBraces =
-    Choose1 {
-      Match1 'A';
-      Match1 'B';
-    }
+  def BiasedExample =
+    First
+      block
+        Match "This is"
+        Match "the firts alternaitve"
+      Match
+        "The second one is here"
 
-  def ChooseWithLayout =
-    Choose1
-      Match 'A'
-      Match 'B'
+  def BiasedExample =
+    Choose
+      block
+        Match "This is"
+        Match "the firts alternaitve"
+      Match
+        "The second one is here"
 
 
 Tagged Unions
 ^^^^^^^^^^^^^
 
-DaeDaLus supports a variation on ``Choose`` and ``Choose1``
+DaeDaLus supports a variation on ``Choose`` and ``First``
 that can be used to construct tagged unions, which is useful if
 you'd like the semantic value to reflect which of the parsers succeeded,
 or if the branches need to return construct results of different types.
@@ -325,11 +328,11 @@ For example, the following parser constructs a union with possible tags
 .. code-block:: DaeDaLus 
 
   def BorG =
-    Choose
-      good = Match1 'G'
-      bad  = Match1 'B'
+    First
+      good = $[ 'G' ]
+      bad  = $[ 'B' ]
 
-This parser works in a similar way to ordinary ``Choose`` except that if
+This parser works in a similar way to ordinary ``First`` except that if
 an alternative succeeds, the resulting semantic value is *tagged* with
 the given tag (e.g., ``good`` or ``bad`` and the previous example).  The type
 of the semantic value is of a new user-defined type, derived from the name
@@ -344,12 +347,12 @@ to write the previous example is like this:
 .. code-block:: DaeDaLus
 
   def AnotherBorG =
-    Choose
+    First
       block
-        let x = Match1 'G'
+        let x = $[ 'G' ]
         ^ {| good = x |}
       block
-        let x = Match1 'B'
+        let x = $[ 'B' ]
         ^ {| bad = x |}
 
 Note that when using the ``{| tag = value |}`` notation, DaeDaLus will try
@@ -371,10 +374,10 @@ the context.   For example:
   def YetAnotherBorG =
     Choose
       block
-        let x = Match1 'G'
+        let x = $[ 'G' ]
         ^ {| good = x |} : BorG
       block
-        let x = Match1 'B'
+        let x = $[ 'B' ]
         ^ {| bad = x |}
 
 The ``: BorG`` in the first alternative specifies that we are making a value
@@ -396,10 +399,10 @@ the resulting semantic values.
 
 .. code-block:: DaeDaLus
 
-  block 
-    $$ = Many (Match1 '7')
-    Match1 '0' 
-    END 
+  block
+    $$ = Many $[ '7' ]
+    $[ '0' ]
+    END
 
 This code will successfully parse any stream consisting of multiple ``7``
 characters, terminated by the ``0`` character at the end of the stream. For
@@ -423,11 +426,11 @@ code will never succeed:
 .. code-block:: DaeDaLus 
 
   block
-    Many (Match1 '7')
-    Match1 '7' 
+    Many $[ '7' ]
+    $[ '7' ]
 
 The call to ``Many`` will consume all the input characters matching ``7``,
-meaning that the following ``Match1`` will always fail. This may be difficult
+meaning that the following ``$[ '7' ]`` will always fail. This may be difficult
 to spot in situations where two more complex parsers are run in sequence,
 the first of which contains an unbounded call to ``Many``.
 

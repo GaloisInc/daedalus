@@ -9,7 +9,7 @@ Booleans may be used to choose between one of two parsers:
 .. code-block:: DaeDaLus
 
   block
-    let i = Match1 ('0'..'9')
+    let i = $[ '0'..'9' ]
     if (i - '0') > 5
       then Match 'X'
       else ^ 7
@@ -42,8 +42,8 @@ parsing (on the given alternative) only for digits larger than 5.
 .. code-block:: DaeDaLus
 
   block
-    let i = Match1 ('0'..'9')
-    Choose1
+    let i = $[ '0'..'9' ]
+    First
       block
         (i - '0') > 5 is true
         ^ "input gt 5"
@@ -76,8 +76,8 @@ union types (see :ref:`Tagged Unions`)
 
   block
     let res = Choose
-                good = Match1 'G'
-                bad  = Match1 'B'
+                good = $[ 'G' ]
+                bad  = $[ 'B' ]
 
     Choose
 
@@ -103,8 +103,8 @@ functionality as the previous example, but avoids the need for backtracking.
 
   block
     let res = Choose
-                good = Match1 'G'
-                bad  = Match1 'B'
+                good = $[ 'G' ]
+                bad  = $[ 'B' ]
     case res of 
       good -> ^ "Success!"
       bad  -> ^ "Failure!"
@@ -116,9 +116,9 @@ match should have the form ``pattern var -> result``.
 
   block 
     let res = Choose 
-                number = Match1 ('0'..'9')
-                letter = Match1 ('a'..'z')
-                other = Match1 Uint8 
+                number = $[ '0'..'9' ]
+                letter = $[ 'a'..'z' ]
+                other  = UInt8
     case res of 
       number n -> ^ (n - '0')
       letter l -> ^ (l - 'a')
@@ -199,21 +199,21 @@ with the number of ``'A'`` characters dictated by the input sequence.
 
 .. code-block:: DaeDaLus 
 
-  map (x in [1, 2, 3]) {
-    Match1 '0'; 
-    Many x (Match1 'A');
-  }
+  map (x in [1, 2, 3])
+    block
+      $[ '0' ]
+      Many x $[ 'A' ]
 
 Just as with ``for``, the map construct has an alternative form that includes both 
 sequence indexes and values: 
 
 .. code-block:: DaeDaLus 
 
-  map (i,x in [5, 2, 1]) {
-    Match1 '0'; 
-    len       = ^ { index = i, elem = x };
-    something = Many x (Match1 'A');
-  }
+  map (i,x in [5, 2, 1])
+    block
+      $[ '0' ]
+      len       = ^ { index = i, elem = x }
+      something = Many x $['A']
 
 
 
@@ -234,10 +234,9 @@ reaching the alternative branch.
 
 .. code-block:: DaeDaLus 
 
-  Choose1 { 
-    { Match1 'A'; commit; Match1 'B' }; 
-    { Match1 'A'; Match1 'C' }  -- Can't happen 
-  }
+  First
+    { $['A']; commit; $[ 'B' ] }
+    { $['A'];         $[ 'C' ] }  -- Can't happen
 
 The ``try`` construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing ``try``
