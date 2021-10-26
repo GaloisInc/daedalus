@@ -92,7 +92,6 @@ import Daedalus.SourceRange
 import Daedalus.PP(pp,vcat,(<+>))
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
-import Daedalus.GUID
 
 import Daedalus.Pass
 
@@ -286,9 +285,6 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
-
-  , nextFreeGUID :: !GUID
-    -- ^ Plumb through fresh names
   }
 
 
@@ -305,7 +301,6 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
-  , nextFreeGUID        = firstValidGUID
   }
 
 
