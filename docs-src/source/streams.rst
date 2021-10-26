@@ -1,4 +1,4 @@
-Stream manipulation
+Stream Manipulation
 ===================
 
 DaeDaLus parsers operate on an *input stream*, which by default is the input
