@@ -11,16 +11,26 @@ module Daedalus.LSP.Monad where
 import           Control.Concurrent.Async     (Async)
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
-import           Control.Lens                 (makeLenses, (^.))
+import           Control.Exception            (try)
+import           Control.Lens                 (_1, makeLenses, (^.))
+import           Control.Lens.Getter          (view)
 import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import           Data.Aeson                   (FromJSON, ToJSON)
+import           Data.Foldable                (traverse_)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import           Data.Maybe                   (fromMaybe)
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
 import           GHC.Generics                 (Generic)
+import           System.FilePath              ((<.>), (</>))
+import           System.IO                    (stderr)
 
 import           Daedalus.AST                 (Module, ModuleName)
+import           Daedalus.Driver              (Daedalus)
+import qualified Daedalus.Driver              as D
 import           Daedalus.Module              (pathToModuleName)
 import           Daedalus.Parser.Lexer        (Lexeme, Token)
 import           Daedalus.Pass
@@ -29,7 +39,6 @@ import           Daedalus.Type.AST            (SourceRange, TCModule, TCTyDecl,
                                                TCTyName)
 import           Daedalus.Type.Monad          (RuleEnv)
 
-import           Data.Text                    (Text)
 import           Language.LSP.Server          (LanguageContextEnv, LspM,
                                                MonadLsp (..), runLspT)
 import qualified Language.LSP.Types           as J
@@ -112,6 +121,41 @@ emptyServerState lenv = do
 
 runServerM :: ServerState ->  ServerM a -> IO a
 runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
+
+-- ----------------------------------------------------------------------------------------
+-- Running DDL passes
+
+liftDaedalus :: Daedalus a -> ServerM (Either D.DaedalusError a)
+liftDaedalus m = do
+  sst <- ask
+  mst <- liftIO $ atomically $ readTVar (moduleStates sst)
+  
+  let (tcMs, restMs) = Map.mapEither extractTCs mst
+      mkDst s = s { D.useWarning  = const False
+                  , D.outHandle   = stderr
+                  , D.moduleFiles   = Map.mapWithKey (\k -> mstToFilename k . view msSource) mst
+                  -- Ignores all the broken modules
+                  , D.loadedModules = Map.mapMaybe mstToPhase restMs
+                  , D.moduleDefines = foldMap (maybe mempty snd . passStatusToMaybe . view msScopeRes) mst
+                  }
+  
+  liftIO $ try $ runPassM' (passState sst) $ D.daedalusPass $ do
+    D.ddlUpdate_ mkDst
+    traverse_ D.recordTCModule tcMs
+    m
+  where
+    mstToFilename _ (ClientModule uri _) = fromMaybe "<unknown>" (J.uriToFilePath (J.fromNormalizedUri uri))
+    mstToFilename n (FileModule fp)      = fp </> Text.unpack n <.> "ddl"
+
+    extractTCs s
+      | Just (tc, _, _) <- passStatusToMaybe (s ^. msTCRes) = Left tc
+      | otherwise = Right s
+
+    -- Pick latest that worked
+    mstToPhase mst = msum [ D.TypeCheckedModule . view _1 <$> passStatusToMaybe (mst ^. msTCRes)
+                          , D.ResolvedModule    . view _1 <$> passStatusToMaybe (mst ^. msScopeRes)
+                          , D.ParsedModule                <$> passStatusToMaybe (mst ^. msParsedModule)
+                          ]
 
 -- liftPassM :: PassM a -> ServerM a
 -- liftPassM m = do

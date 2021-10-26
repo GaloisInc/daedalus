@@ -23,6 +23,7 @@ import           Control.Concurrent.STM.TVar  (stateTVar)
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.IO.Unlift      (withRunInIO)
 import           Control.Monad.Reader         (ask)
+import qualified Daedalus.LSP.Command.Debug   as C
 import qualified Daedalus.LSP.Command.Regions as C
 import qualified Daedalus.LSP.Command.Run     as C
 import           Daedalus.LSP.Monad
@@ -58,6 +59,7 @@ commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
                         , ("run"              , CommandImpl runModule)
                         , ("run/watch"        , CommandImpl watchModule)
                         , ("run/cancel"       , CommandImpl cancelWatchModule)
+                        , ("debug/core"       , CommandImpl debugCore)
                         ]
 
 executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
@@ -125,5 +127,12 @@ cancelWatchModule tag = do
   
 -- pure $ Left $ J.ResponseError J.ParseError "Cannot determine decl" Nothing
      
-                  
-                         
+-- Debugging functions
+debugCore :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
+debugCore doc pos = do
+  e_ms <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
+  case e_ms of
+    Left err -> pure (Left err)
+    Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
+      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Just (m, _, _)  -> Right <$> C.debugCore pos m
