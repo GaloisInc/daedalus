@@ -184,7 +184,7 @@ runDaedalus inFile m_invFile m_entry = daedalus $ do
 
   md    <- ddlGetAST specMod astCore >>= ddlRunPass . allPassesM entry
 
-  nguid <- ddlGet nextFreeGUID
+  nguid <- ddlRunPass getNextGUID
 
   pure (entry, md, nguid)
 
