@@ -70,7 +70,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         component: [ { name: 'ICC', verb: 'build', noun: 'exe:icc-parser' }
-                   , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
+                   # , { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
                    , { name: 'Talos', verb: 'test', noun: 'talos' }
                    , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
@@ -121,45 +121,45 @@ jobs:
       run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
 
 
-  pdf-driver:
+  # pdf-driver:
 
-    runs-on: ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
 
-    needs: [build]
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
+  #   needs: [build]
+  #   strategy:
+  #     matrix:
+  #       os: [ ubuntu-latest ]
     
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #     with:
+  #       submodules: true
         
-    # Copied from 'build'
-    - name: Install GHC
-      uses: haskell/actions/setup@v1
-      id: setup-haskell
-      with:
-        ghc-version: '8.8.3'
-        cabal-version: '3.4'
+  #   # Copied from 'build'
+  #   - name: Install GHC
+  #     uses: haskell/actions/setup@v1
+  #     id: setup-haskell
+  #     with:
+  #       ghc-version: '8.8.3'
+  #       cabal-version: '3.4'
 
-    - name: Cache
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-cabal
-      with:
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
-          dist-newstyle
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
+  #   - name: Cache
+  #     uses: actions/cache@v2
+  #     env:
+  #       cache-name: cache-cabal
+  #     with:
+  #       path: |
+  #         ${{ steps.setup-haskell.outputs.cabal-store }}
+  #         dist-newstyle
+  #       key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+  #       restore-keys: |
+  #         ${{ runner.os }}-build-${{ env.cache-name }}-
+  #         ${{ runner.os }}-build-
+  #         ${{ runner.os }}-
 
-    - name: Build COS
-      run: cabal build pdf-cos
+  #   - name: Build COS
+  #     run: cabal build pdf-cos
 
-    - name: Build driver
-      run: cabal build pdf-driver
+  #   - name: Build driver
+  #     run: cabal build pdf-driver
 
