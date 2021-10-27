@@ -1,37 +1,60 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Daedalus.LSP.Command.Debug (debugCore) where
+module Daedalus.LSP.Command.Debug (debugPass, passNames) where
 
 import qualified Data.Text              as Text
 import qualified Data.Aeson             as A
 import qualified Language.LSP.Types     as J
 
 import           Control.Monad.IO.Class (liftIO)
+import           Data.Foldable          (find)
+import           Data.Text              (Text)
 
-import           Daedalus.Type.AST
-import qualified Daedalus.Driver        as D
+import           Daedalus.Driver
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position  (declAtPos)
-import           Daedalus.PP            (showPP)
+import           Daedalus.PP            (Doc, pp)
+import           Daedalus.Type.AST
 
+data DDLPass = DDLPass
+  { passName :: Text
+  , passRun  :: TCModule SourceRange -> Ident -> ModuleName -> Daedalus Doc
+  }
 
-debugCore :: J.Position -> TCModule SourceRange -> ServerM (Maybe A.Value)
-debugCore pos m = do
+-- We could be clever and order these to reduce duplication, but this
+-- is simpler
+passes :: [DDLPass]
+passes = [ DDLPass { passName = "tc"
+                   , passRun = \md _ _ -> pure (pp md)
+                   }
+         , DDLPass { passName = "core"
+                   , passRun = \m entryName specMod -> do
+                       passSpecialize specMod [(tcModuleName m, entryName)]
+                       passCore specMod
+                       pp <$> ddlGetAST specMod astCore
+                   }                       
+         ]
+
+passNames :: [Text]
+passNames = map passName passes
+
+debugPass :: J.Position -> TCModule SourceRange -> Text -> ServerM (Maybe A.Value)
+debugPass pos m passN = do
   let m_d = declAtPos pos m
   
   let entryName = maybe "Main" (nameToIdent . nameScopedIdent . tcDeclName) m_d
       specMod  = "DaedalusMain"
 
-  e_md <- liftDaedalus $ do
-    D.passSpecialize specMod [(tcModuleName m, entryName)]
-    D.passCore specMod
-    D.ddlGetAST specMod D.astCore
+  case find (\pass -> passName pass == passN) passes of
+    Nothing -> pure Nothing
+    Just pass -> do
+      e_r <- liftDaedalus (passRun pass m entryName specMod)
+      msg <- case e_r of
+        Left err -> liftIO $ prettyDaedalusError err
+        Right r -> pure (show r)
 
-  msg <- case e_md of
-        Left err -> liftIO $ D.prettyDaedalusError err
-        Right md -> pure (showPP md)
-
-  pure (Just $ A.String (Text.pack msg))
+      pure (Just $ A.String (Text.pack msg))
   where
     -- FIXME: move
     nameToIdent x = case x of

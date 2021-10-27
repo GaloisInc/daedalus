@@ -59,7 +59,8 @@ commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
                         , ("run"              , CommandImpl runModule)
                         , ("run/watch"        , CommandImpl watchModule)
                         , ("run/cancel"       , CommandImpl cancelWatchModule)
-                        , ("debug/core"       , CommandImpl debugCore)
+                        , ("debug/pass"       , CommandImpl debugPass)
+                        , ("debug/supportedPasses", CommandImpl debugSupportedPasses)
                         ]
 
 executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
@@ -126,13 +127,16 @@ cancelWatchModule tag = do
   pure (Right ())
   
 -- pure $ Left $ J.ResponseError J.ParseError "Cannot determine decl" Nothing
-     
+
+debugSupportedPasses :: ServerM (Either J.ResponseError [A.Value])
+debugSupportedPasses = pure (Right (map A.String C.passNames))
+    
 -- Debugging functions
-debugCore :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
-debugCore doc pos = do
+debugPass :: J.TextDocumentIdentifier -> J.Position -> Text -> ServerM (Either J.ResponseError (Maybe A.Value))
+debugPass doc pos passN = do
   e_ms <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
   case e_ms of
     Left err -> pure (Left err)
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
-      Just (m, _, _)  -> Right <$> C.debugCore pos m
+      Just (m, _, _) -> Right <$> C.debugPass pos m passN
