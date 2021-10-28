@@ -9,7 +9,7 @@ import qualified Data.ByteString.Char8 as C
 data Command =
     PrettyPrint
   | PrettyPrintAll
-  | Validate
+  | Validate          -- FIXME: Misnomer: just validates trailer. 
   | ListXRefs
   | ParseType String  -- string must be name of a select few parsers (see Main.hs)
   | ListIncUpdates
@@ -31,7 +31,7 @@ options :: OptSpec Settings
 options = OptSpec
   { progDefaults =
       Settings
-        { command     = Validate
+        { command     = Validate  -- FIXME: remove or change default
         , object      = -1    -- means show trailer
         , generation  = 0
         , password    = C.empty 

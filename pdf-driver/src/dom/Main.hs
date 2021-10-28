@@ -31,7 +31,7 @@ import Primitives.Decrypt(makeFileKey)
 import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import PdfDecl(pResolveRef)
 import PdfXRef(TrailerDict) 
-import PdfCrypto(pEncryptionDict,ChooseCiph(..),pMakeContext,MakeContext(..))
+import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import PdfValue(Value(..),Ref(..),pValue,pHeader)
 
 import PdfDOM
@@ -93,7 +93,8 @@ parsePdf opts file bs topInput =
 
      -- FIXME[E2]: when more sure of v1 == v2, remove the parseXRefsVersion1 code.
      
-     fileEC <- makeEncContext trail refs topInput (password opts) 
+     fileEC <- makeEncContext trail refs topInput (password opts)
+               -- calls EncryptionDict which calls 'ResolveValRef'!
 
      let ppRef pref r@(Ref ro rg) =
            do res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
@@ -102,6 +103,7 @@ parsePdf opts file bs topInput =
                   case a of
                     Just d  -> print (pref <+> pp d)
                     Nothing -> print (pref <+> pp (Value_null ()))
+                                      -- FIXME: This what the user wants to see?
                 ParseErr e    -> print (pref <+> pp e)
                 ParseAmbig {} -> quit "BUG: Ambiguous result"
 
@@ -123,7 +125,7 @@ parsePdf opts file bs topInput =
                                            Nothing
                                            ( do
                                              h <- pHeader
-                                             o <- pOffset               
+                                             o <- pOffset  -- byte offset after header             
                                              return (h,o)
                                            )
                                            topInput)
