@@ -2,7 +2,7 @@
 {-# Language FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 {-# Language MonoLocalBinds #-}
 module RTS
-  ( Numeric(..), UInt, SInt, SizeType, uint8
+  ( Numeric(..), Arith(..), UInt, SInt, SizeType, uint8
   , fromUInt, fromSInt
   , shiftl, shiftr, lcat, cat
   , Literal

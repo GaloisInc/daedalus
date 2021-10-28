@@ -405,6 +405,7 @@ call_expr                                :: { Expr }
 
   | 'Fail' aexpr                            { at ($1,$2) (EFail $2) }
 
+  | '-' aexpr                               { at ($1,$2) (EUniOp Neg $2) }
   | '!' aexpr                               { at ($1,$2) (EUniOp Not $2) }
   | '~' aexpr                               { at ($1,$2)
                                               (EUniOp BitwiseComplement $2) }

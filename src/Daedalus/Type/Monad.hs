@@ -30,6 +30,7 @@ module Daedalus.Type.Monad
   , getRuleEnv
   , extEnvManyRules
   , lookupRuleTypeOf
+  , lookupTySyn
   , RuleInfo(..)
 
     -- * Local type variables
@@ -67,8 +68,6 @@ module Daedalus.Type.Monad
     -- * Constraints
   , addConstraint
   , removeConstraints
-  , needsDef
-  , getNeedsDef
 
     -- * Implicit parameters
   , addIPUse
@@ -239,8 +238,6 @@ data SRW = SRW
   , sNextTName    :: !Int                   -- ^ Generate type variables
   , sConstraints  :: ![Located Constraint]  -- ^ Constraints on type varis
   , sIP           :: !(Map IPName Param)    -- ^ Implicit param constraint
-  , sNeedDef      :: ![Located TCTyName]    -- ^ Types used in sigs that
-                                            --   were used before defined
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
   }
 
@@ -268,7 +265,6 @@ runSTypeM (STypeM m) = fst <$> runStateT rw m
            , sNextTName   = 0
            , sConstraints = []
            , sIP          = Map.empty
-           , sNeedDef     = []
            , sTypeDefs    = Map.empty
            }
 
@@ -286,8 +282,6 @@ class MTCMonad m => STCMonad m where
 
   removeConstraints :: m [Located Constraint]
   addConstraint     :: HasRange r => r -> Constraint -> m ()
-  needsDef          :: HasRange r => r -> TCTyName -> m ()
-  getNeedsDef       :: m [Located TCTyName]
   addTVarDef        :: TVar -> Type -> m ()
   addIPUse          :: IPName -> m Param
   removeIPUses      :: m [(IPName,Param)]
@@ -348,13 +342,6 @@ instance STCMonad STypeM where
                , tvarRange = range r
                }
     in (x, s { sNextTName = n + 1 })
-
-  needsDef r d =
-    STypeM (sets_ \s -> s { sNeedDef = Located { thingRange = range r
-                                               , thingValue = d
-                                               } : sNeedDef s })
-
-  getNeedsDef = STypeM (sNeedDef <$> get)
 
   removeConstraints =
     STypeM (sets' \s -> (sConstraints s, s { sConstraints = [] }))
@@ -437,6 +424,23 @@ instantiate r (Poly as cs t) =
      mapM_ (addConstraint r) (apSubstT su cs)
      pure (ts,mapTypes fresh t)
 
+-- | Lookup the type of a rule as when used as a type synonym
+-- (the resulting type may be a grammar though)
+lookupTySyn :: Name -> TypeM ctx Type
+lookupTySyn x =
+  do mb <- lookupTypeDefMaybe (TCTy x)
+     case mb of
+       Just td -> do ps <- forM (tctyParams td) \_ -> newTVar x KValue
+                     pure (tCon (tctyName td) ps)
+       Nothing ->
+         do mbr <- Map.lookup x <$> getRuleEnv
+            case mbr of
+              Nothing -> reportError x ("Undeclared name:" <+> pp x)
+              Just (Poly as _ (_ :-> t)) ->
+                do ts <- forM as \a -> newTVar x (tvarKind a)
+                   let su = Map.fromList (as `zip` ts)
+                   pure (apSubstT su t)
+
 
 --------------------------------------------------------------------------------
 
@@ -504,8 +508,6 @@ instance STCMonad (TypeM ctx) where
   removeConstraints       = sType removeConstraints
   addConstraint r c       = sType (addConstraint r c)
   addTVarDef x t          = sType (addTVarDef x t)
-  needsDef r d            = sType (needsDef r d)
-  getNeedsDef             = sType getNeedsDef
   addIPUse x              = sType (addIPUse x)
   removeIPUses            = sType removeIPUses
 

@@ -8,6 +8,7 @@ module RTS.Numeric
   ( UInt(..)
   , SInt(..)
   , Numeric(..)
+  , Arith(..)
   , Literal
   , SizeType
   , uint8
@@ -126,7 +127,7 @@ normU :: NormCtrs n => UInt n -> UInt n
 normU n@(UInt w) = UInt (mask n w)
 
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
-mask num a = a .&. complement (1 `shiftL` thisWidth num)
+mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
 
 -- XXX: may overflow
 thisWidth :: KnownNat n => num n -> Int
@@ -154,13 +155,29 @@ instance NormS 'SBig where
 
 type Literal (x :: Nat) t = Numeric t
 
-class Numeric t where
+class Arith t where
   add :: t -> t -> t
   sub :: t -> t -> t
   mul :: t -> t -> t
   div :: t -> t -> t
-  mod :: t -> t -> t
   neg :: t -> t
+
+instance Arith Float where
+  add = (+)
+  sub = (-)
+  mul = (*)
+  div = (/)
+  neg = negate
+
+instance Arith Double where
+  add = (+)
+  sub = (-)
+  mul = (*)
+  div = (/)
+  neg = negate
+
+class Arith t => Numeric t where
+  mod :: t -> t -> t
   lit :: Integer -> t
   asInt :: t -> Integer
 
@@ -171,13 +188,15 @@ class Numeric t where
   bitXor :: t -> t -> t
   bitCompl :: t -> t
 
-instance Numeric Integer where
+instance Arith Integer where
   add = (+)
   sub = (-)
   mul = (*)
   div = Prelude.div
-  mod = Prelude.mod
   neg = negate
+
+instance Numeric Integer where
+  mod = Prelude.mod
 
   lit = id
   asInt = id
@@ -229,13 +248,15 @@ normUnS f x = normS (unS f x)
 
 
 
-instance SizeType n => Numeric (UInt n) where
+instance SizeType n => Arith (UInt n) where
   add             = normBinU (+)
   sub             = normBinU (-)
   mul             = normBinU (*)
   div             = normBinU Prelude.div
-  mod             = normBinU Prelude.mod
   neg             = normUnU negate
+
+instance SizeType n => Numeric (UInt n) where
+  mod             = normBinU Prelude.mod
 
   bitOr           = binU (.|.)
   bitAnd          = binU (.&.)
@@ -248,13 +269,15 @@ instance SizeType n => Numeric (UInt n) where
   lit x           = normU (UInt (fromInteger x))
 
 
-instance SizeType n => Numeric (SInt n) where
+instance SizeType n => Arith (SInt n) where
   add             = normBinS (+)
   sub             = normBinS (-)
   mul             = normBinS (*)
   div             = normBinS Prelude.div
-  mod             = normBinS Prelude.mod
   neg             = normUnS negate
+
+instance SizeType n => Numeric (SInt n) where
+  mod             = normBinS Prelude.mod
 
   bitOr           = binS (.|.)
   bitAnd          = binS (.&.)

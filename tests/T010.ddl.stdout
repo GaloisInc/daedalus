@@ -12,7 +12,7 @@ type T010.P ?a0 = Choose { A: ?a0
  
 --- Rules:
  
-T010.f ?a0 (Numeric ?a0) (x : ?a0) (y : ?a0) : ?a0 =
+T010.f ?a0 (Arith ?a0) (x : ?a0) (y : ?a0) : ?a0 =
   x + y
  
 T010.g ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =

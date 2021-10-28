@@ -7,8 +7,8 @@ type T049.V = Choose { null: {}
                      ; num: uint 8
                      }
  
-type T049.TDDef = Choose { value: T049.V
-                         ; stream: T049.V
+type T049.TDDef = Choose { stream: T049.V
+                         ; value: T049.V
                          }
  
 type T049.TD = { obj: T049.TDDef

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Declarations" href="declarations.html" />
+    <link rel="prev" title="DaeDaLus User Guide" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Using the Tools</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#check-a-specification">Check a Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#run-the-interpreter">Run the Interpreter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#compile-to-haskell">Compile to Haskell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#compile-to-c">Compile to C++</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Language</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="declarations.html">Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parsers.html">Parsers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#primitive-parsers">Primitive Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#sequencing-parsers">Sequencing Parsers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#basic-sequencing">Basic Sequencing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#explicit-result">Explicit Result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#local-variables">Local Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#structure-sequence">Structure Sequence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#syntactic-sugar">Syntactic Sugar</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#parsing-alternatives">Parsing Alternatives</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#biased-choice">Biased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#unbiased-choice">Unbiased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#alternative-syntax">Alternative Syntax</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#tagged-unions">Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html#repetition">Repetition</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="control-structures.html">Control Structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#if-then-else">If-then-else</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#guards">Guards</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="control-structures.html#boolean-guards">Boolean Guards</a></li>
+<li class="toctree-l3"><a class="reference internal" href="control-structures.html#guards-on-maybe">Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="control-structures.html#guards-on-tagged-unions">Guards on Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#case">Case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#commit">Commit</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Type Annotations and Coercions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-an-expression">Annotating an Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-the-result-of-a-declaration">Annotating the Result of a Declaration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#annotating-a-parameter">Annotating a Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#naming-unknown-types">Naming Unknown Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html#coercions">Coercions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="semantic-values.html">Semantic Values</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#booleans">Booleans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#numeric-types">Numeric Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#numeric-literals">Numeric Literals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#comparisons">Comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#bitwise-operations">Bitwise Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Stream manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Help</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/using-daedalus.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="help">
+<h1>Help<a class="headerlink" href="#help" title="Permalink to this headline"></a></h1>
+<p>To see a list of options:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
+</pre></div>
+</div>
+</div>
+<div class="section" id="check-a-specification">
+<h1>Check a Specification<a class="headerlink" href="#check-a-specification" title="Permalink to this headline"></a></h1>
+<p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --show-types MyParserSpec.ddl
+</pre></div>
+</div>
+<p>The resulting types have the following form:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="n">ParserName</span><span class="p">:</span>
+  <span class="n">parameter</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">A</span><span class="o">&gt;</span>
+  <span class="n">parameter</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">B</span><span class="o">&gt;</span>
+  <span class="p">...</span>
+  <span class="n">defines</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">C</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>This resembles a C type declaration as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span> <span class="n">C</span><span class="o">&gt;</span> <span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">...);</span>
+</pre></div>
+</div>
+<p>The types themselves may be simple types such as integers or arrays, but they
+often have the form <code class="docutils literal notranslate"><span class="pre">parser</span> <span class="pre">of</span> <span class="pre">&lt;type</span> <span class="pre">A&gt;</span></code>. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
+</div>
+<div class="section" id="run-the-interpreter">
+<h1>Run the Interpreter<a class="headerlink" href="#run-the-interpreter" title="Permalink to this headline"></a></h1>
+<p>To run interpret a specification on a particular input:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --interp<span class="o">=</span>input.txt
+</pre></div>
+</div>
+<p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.
+You may also add the flag <code class="docutils literal notranslate"><span class="pre">--json</span></code> or <code class="docutils literal notranslate"><span class="pre">--html</span></code> to see the semantic value
+in the corresponding formats.</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>Document the JSON schema</p>
+</div>
+</div>
+<div class="section" id="compile-to-haskell">
+<h1>Compile to Haskell<a class="headerlink" href="#compile-to-haskell" title="Permalink to this headline"></a></h1>
+<p>To compile a DaeDaLus parser specification to Haskell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-hs
+</pre></div>
+</div>
+<p>The result is a Haskell module which contains definitions for the
+parsers and functions defined in the specification.   To use the generated
+code you’d have to integrate it with a Haskell project and also use
+the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
+</div>
+<div class="section" id="compile-to-c">
+<h1>Compile to C++<a class="headerlink" href="#compile-to-c" title="Permalink to this headline"></a></h1>
+<p>To compile a DaeDaLus package specification C++ 17:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-c++ --out-dir<span class="o">=</span>some_dir_name
+</pre></div>
+</div>
+<p>This will generate a number of C++ files together with a <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> and
+a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
+generate Doxygen documentation.</p>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="DaeDaLus User Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="declarations.html" class="btn btn-neutral float-right" title="Declarations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(false);
+      });
+  </script> 
+
+</body>
+</html>

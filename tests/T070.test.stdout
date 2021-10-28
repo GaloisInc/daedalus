@@ -3,7 +3,7 @@ def Main:
   for any type a:
     `a` contains the number 1
     `a` contains the number 2
-    `a` is a numeric type
+    `a` supports arithmetic
   defines: parser of a
    
 def f:
@@ -33,7 +33,7 @@ def L:
     `a` supports iteration
     `a` is a collection with index `b`
     `a` is a collection of `c`
-    `c` is a numeric type
+    `c` supports arithmetic
     `d` is a collection with index `b`
     `d` is a collection of `bool`
     mapping over `a` results in `d`

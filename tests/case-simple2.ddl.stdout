@@ -24,8 +24,8 @@ case-simple2.P : Grammar case-simple2.P =
 case-simple2.Main : Grammar case-simple2.Main =
   do (p : case-simple2.P) <- case-simple2.P
      (tag : [uint 8]) <- case p is
-                           { {| c1 = _ |} -> pure "c1"
-                           ; {| c2 = _ |} -> pure "c2"
+                           { {| c1 = _ |} -> {- case branch  {| c1 = _ |} -} pure "c1"
+                           ; {| c2 = _ |} -> {- case branch  {| c2 = _ |} -} pure "c2"
                            }
      pure {p = p,
            tag = tag}
@@ -39,6 +39,6 @@ case-simple2._P : Grammar {} =
 case-simple2._Main : Grammar {} =
   do (p : case-simple2.P) <- case-simple2.P
      case p is
-       { {| c1 = _ |} -> pure {}
-       ; {| c2 = _ |} -> pure {}
+       { {| c1 = _ |} -> {- case branch  {| c1 = _ |} -} pure {}
+       ; {| c2 = _ |} -> {- case branch  {| c2 = _ |} -} pure {}
        }

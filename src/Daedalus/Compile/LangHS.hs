@@ -104,7 +104,7 @@ instance PP Term where
   ppPrec n t =
     case t of
       Var x     -> text x
-      Ap t1 t2  -> wrapIf (n > 1) (hang (pp t1) 2 (ppPrec 2 t2))
+      Ap t1 t2  -> wrapIf (n > 1) (hang (ppPrec 1 t1) 2 (ppPrec 2 t2))
       ApI o x y -> wrapIf (n > 0) (hang (ppPrec 1 x) 2 (text o <+> ppPrec 1 y))
       Tuple xs  -> parens (commas (map pp xs))
       List xs   -> brackets (commas (map pp xs))

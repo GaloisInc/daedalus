@@ -118,7 +118,7 @@ PdfValue.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Gr
      PdfValue._KW close
      pure $$
  
-PdfValue.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+PdfValue.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
@@ -167,14 +167,18 @@ PdfValue.Frac (n : uint 64) (w : PdfValue.Number) : Grammar PdfValue.Number =
   do @MatchBytes "."
      (ds : [int]) <- Many[ n .. ] PdfValue.Digit
      ($$ : PdfValue.Number) <- pure (for ((val : PdfValue.Number) = w; (d : int) in ds)
-                                       {num = (10 * (val.num)) + d,
-                                        exp = (val.exp) - 1})
+                                       let num = (10 * (val.num)) + d in
+                                       let exp = (val.exp) - 1 in
+                                       {num = num,
+                                        exp = exp})
      pure $$
  
 PdfValue.UnsignedLeadDigits : Grammar PdfValue.Number =
   do (n : int) <- PdfValue.Natural
-     (val : PdfValue.Number) <- pure {num = n,
-                                      exp = 0}
+     (val : PdfValue.Number) <- pure let num = n in
+                                     let exp = 0 in
+                                     {num = num,
+                                      exp = exp}
      ($$ : PdfValue.Number) <- Choose biased
                                  { PdfValue.Frac 0 val
                                  | pure val
@@ -184,19 +188,21 @@ PdfValue.UnsignedLeadDigits : Grammar PdfValue.Number =
 PdfValue.UnsignedNumber : Grammar PdfValue.Number =
   Choose biased
     { PdfValue.UnsignedLeadDigits
-    | PdfValue.Frac 1 {num = 0,
-                       exp = 0}
+    | PdfValue.Frac 1 let num = 0 in
+                      let exp = 0 in
+                      {num = num,
+                       exp = exp}
     }
  
 PdfValue.Number : Grammar PdfValue.Number =
   PdfValue.Token PdfValue.Number do (sign : PdfValue.Sign) <- PdfValue.Sign
                                     (n : PdfValue.Number) <- PdfValue.UnsignedNumber
                                     ($$ : PdfValue.Number) <- case sign is
-                                                                { {| pos = _ |} -> pure n
-                                                                ; {| neg = _ |} -> do (num : int) <- pure (0 - (n.num))
-                                                                                      (exp : int) <- pure (n.exp)
-                                                                                      pure {num = num,
-                                                                                            exp = exp}
+                                                                { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure n
+                                                                ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} do (num : int) <- pure (0 - (n.num))
+                                                                                                                       (exp : int) <- pure (n.exp)
+                                                                                                                       pure {num = num,
+                                                                                                                             exp = exp}
                                                                 }
                                     pure $$
  
@@ -432,8 +438,8 @@ PdfValue._Number : Grammar {} =
                                      do PdfValue.UnsignedNumber
                                         pure {}
                                      case sign is
-                                       { {| pos = _ |} -> pure {}
-                                       ; {| neg = _ |} -> pure {}
+                                       { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
+                                       ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
                                        }
  
 PdfValue._Frac (n : uint 64) : Grammar {} =
@@ -650,7 +656,7 @@ type Pdf.Main = { version: {}
 --- Rules:
  
 rec value
-  Pdf.CountTo ?a0 ?a1 (Literal 1 ?a0) (Numeric ?a0) (P : Grammar ?a1) (count : ?a0) : Grammar ?a0 =
+  Pdf.CountTo ?a0 ?a1 (Literal 1 ?a0) (Arith ?a0) (P : Grammar ?a1) (count : ?a0) : Grammar ?a0 =
     Choose biased
       { do do P
               pure {}
@@ -778,10 +784,10 @@ rec value
                           | pure false
                           }
        case _216 is
-         { true -> pure {}
-         ; false -> do @GetByte
-                       ($$ : {}) <- Pdf.SkipTo ?a0 P
-                       pure $$
+         { true -> {- case branch  true -} pure {}
+         ; false -> {- case branch  false -} do @GetByte
+                                                ($$ : {}) <- Pdf.SkipTo ?a0 P
+                                                pure $$
          }
  
 Pdf.Main : Grammar Pdf.Main =
@@ -793,7 +799,7 @@ Pdf.Main : Grammar Pdf.Main =
                             pure {version = version,
                                   chunks = chunks}
  
-Pdf._CountTo ?a0 ?a1 (Literal 1 ?a0) (Numeric ?a0) (P : Grammar ?a1) (count : ?a0) (_P : Grammar {}) : Grammar {} =
+Pdf._CountTo ?a0 ?a1 (Literal 1 ?a0) (Arith ?a0) (P : Grammar ?a1) (count : ?a0) (_P : Grammar {}) : Grammar {} =
   Choose biased
     { _P
     | do @GetByte
@@ -887,9 +893,9 @@ Pdf._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
                         | pure false
                         }
      case _216 is
-       { true -> pure {}
-       ; false -> do @GetByte
-                     Pdf.SkipTo ?a0 P
+       { true -> {- case branch  true -} pure {}
+       ; false -> {- case branch  false -} do @GetByte
+                                              Pdf.SkipTo ?a0 P
        }
  
 Pdf._Main : Grammar {} =

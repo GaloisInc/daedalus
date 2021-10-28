@@ -1,0 +1,12 @@
+module Debug
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Debug.Trace (s : [uint 8]) : Grammar {}
+ 
+Debug._Trace (s : [uint 8]) : Grammar {} =
+  Debug.Trace s

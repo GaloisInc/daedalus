@@ -67,7 +67,8 @@ instance ApSubst TCTyDef where
 instance ApSubst Constraint where
   apSubstT' su ctr =
     case ctr of
-      Numeric t         -> Numeric <$> apSubstT' su t
+      Integral t        -> Integral <$> apSubstT' su t
+      Arith t           -> Arith <$> apSubstT' su t
       FloatingType t    -> FloatingType <$> apSubstT' su t
       HasStruct t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasStruct a l b)
@@ -238,7 +239,8 @@ instance FreeTVS a => FreeTVS (Located a) where
 instance FreeTVS Constraint where
   freeTVS c =
     case c of
-      Numeric t         -> freeTVS t
+      Integral t        -> freeTVS t
+      Arith t           -> freeTVS t
       FloatingType t    -> freeTVS t
       HasStruct t1 _ t2 -> freeTVS t1 <> freeTVS t2
       StructCon _ t fs  -> freeTVS t <> freeTVS (map snd fs)

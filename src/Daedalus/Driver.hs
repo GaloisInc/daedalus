@@ -21,6 +21,7 @@ module Daedalus.Driver
     -- * Compiling to Haskell from TC
   , saveHS
   , saveHSCustomWriteFile
+  , writeOnlyIfChanged
   , CompilerCfg(..)
   , UseQual(..)
 
@@ -83,9 +84,9 @@ import Data.List(find)
 import Control.Monad(msum,foldM,forM,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
-import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
+import qualified System.IO as IO
 import System.FilePath((</>),addExtension)
-import System.Directory(createDirectoryIfMissing)
+import System.Directory(createDirectoryIfMissing,doesFileExist)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
 
 import Daedalus.SourceRange
@@ -258,7 +259,7 @@ data State = State
   , useWarning    :: TypeWarning -> Bool
     -- ^ Which warnings to report
 
-  , outHandle     :: Handle
+  , outHandle     :: IO.Handle
     -- ^ This is where we say things
 
 
@@ -296,7 +297,7 @@ defaultState :: State
 defaultState = State
   { searchPath          = ["."]
   , useWarning          = const True
-  , outHandle           = stdout
+  , outHandle           = IO.stdout
   , moduleFiles         = Map.empty
   , loadedModules       = Map.empty
   , moduleDefines       = Map.empty
@@ -422,19 +423,19 @@ ddlThrow = ddlIO . throwIO
 ddlPutStr :: String -> Daedalus ()
 ddlPutStr msg =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPutStr h msg
+     ddlIO $ IO.hPutStr h msg
 
 
 ddlPutStrLn :: String -> Daedalus ()
 ddlPutStrLn msg =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPutStrLn h msg
+     ddlIO $ IO.hPutStrLn h msg
 
 
 ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPrint h x
+     ddlIO $ IO.hPrint h x
 
 ddlDebug :: String -> Daedalus ()
 ddlDebug = if debug then ddlPutStrLn else const (pure ())
@@ -466,7 +467,7 @@ ddlUpdOpt opt f =
 optSearchPath :: DDLOpt [FilePath]
 optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 
-optOutHandle :: DDLOpt Handle
+optOutHandle :: DDLOpt IO.Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
 optWarnings :: DDLOpt (TypeWarning -> Bool)
@@ -843,5 +844,17 @@ saveHSCustomWriteFile writeFile' mb cfg m =
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
             writeFile' file (show (pp hs))
+
+writeOnlyIfChanged :: FilePath -> String -> IO ()
+writeOnlyIfChanged file cont =
+  do have <- doesFileExist file
+     if not have
+       then writeFile file cont
+       else do h <- IO.openFile file IO.ReadMode
+               s <- IO.hGetContents h
+               if s == cont
+                 then IO.hClose h
+                 else do IO.hClose h
+                         writeFile file cont
 
 
