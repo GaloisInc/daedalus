@@ -71,7 +71,7 @@ jobs:
         os: [ ubuntu-latest ]
         component: [ 
 	           # { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
-                   , { name: 'Talos', verb: 'test', noun: 'talos' }
+                     { name: 'Talos', verb: 'test', noun: 'talos' }
                    , { name: 'Daedalus', verb: 'test', noun: '' }
                    ]
 
