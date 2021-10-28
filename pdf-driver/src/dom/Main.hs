@@ -79,10 +79,12 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     (refs, trail) <-
-        handlePdfResult (parseXRefsVersion1 topInput idx) "BUG: Ambiguous XRef table."
      (incUpdates, refs', trail') <-
-        handlePdfResult (parseXRefsVersion2 topInput idx) "BUG: Ambiguous XRef table (2)."
+        quitIfParseError "computing XRef table (v2)"
+                          (parseXRefsVersion2 topInput idx)
+     (refs, trail) <-
+        quitIfParseError "computing XRef table (v1)"
+                          (parseXRefsVersion1 topInput idx) 
      validateUpdates (incUpdates, refs', trail')
 
      -- run-time testing of equivalance of parseXRefsVersion{1,2}
@@ -119,8 +121,8 @@ parsePdf opts file bs topInput =
 
        ListCavities   -> do
                          (_isBinary,baseBodyStart)
-                           <- flip handlePdfResult
-                                "no valid PDF header" 
+                           <- quitIfParseError
+                                "parsing PDF header" 
                                 (runParser (error "pHeader: no ref expected")
                                            Nothing
                                            ( do
@@ -147,9 +149,10 @@ parsePdf opts file bs topInput =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do handlePdfResult (runParser refs Nothing (pPdfTrailer trail) topInput) 
-                              "BUG: Ambiguous result" 
-             putStrLn "OK"
+          do quitIfParseError "parsing PDF trailer"
+                              (runParser refs Nothing (pPdfTrailer trail) topInput) 
+                              
+             putStrLn "PDF trailer is well-formed (use other options to check more)"
 
        ShowHelp -> dumpUsage options
 
@@ -158,14 +161,16 @@ quit msg =
   do hPutStrLn stderr msg
      exitFailure
 
-handlePdfResult :: IO (PdfResult a) -> String -> IO a 
-handlePdfResult x msg = 
+quitIfParseError :: String -> IO (PdfResult a) -> IO a 
+quitIfParseError context x = 
   do  res <- x
       case res of
         ParseOk a     -> pure a
-        ParseAmbig {} -> quit msg 
-        ParseErr e    -> quit (show (pp e))
-
+        ParseAmbig {} -> quit (msg ++ ": ambiguous.")
+        ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
+  where
+  msg = "Fatal error while " ++ context ++ ", cannot proceed"
+    
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
                       TrailerDict  
@@ -174,8 +179,9 @@ makeEncContext :: Integral a =>
                   -> BS.ByteString 
                   -> IO ((a, a) -> Maybe EncContext)
 makeEncContext trail refs topInput pwd = 
-  do edict <- handlePdfResult (runParser refs Nothing (pMakeContext trail) topInput) 
-                              "Ambiguous encryption dictionary"
+  do edict <- quitIfParseError "extracting context for encryption"
+                               (runParser refs Nothing (pMakeContext trail) topInput) 
+                               
      case edict of 
        MakeContext_noencryption _ -> pure $ const Nothing 
        MakeContext_encryption enc -> do 
