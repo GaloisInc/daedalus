@@ -67,6 +67,7 @@ def Header = { Match "%PDF-"
              ; Choose1 { {Match "1."; Match1 ('0' .. '7'); ^{}}
                        ; {Match "2.0"; ^{}}
                        }
+             ; Many (Match1 (! ($lf | $cr)))  -- cavity
              ; EOL
              ; case Optional BinaryMarker of
                  just _  -> ^ true         -- a binary file is indicated
@@ -75,7 +76,7 @@ def Header = { Match "%PDF-"
 
 def BinaryMarker = { Match "%";
                      Many (4..) BinaryByte;
-                     Many (Match1 (! ($lf | $cr)));
+                     Many (Match1 (! ($lf | $cr))); -- cavity
                      EOL;
                    }  
 
