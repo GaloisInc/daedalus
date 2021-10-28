@@ -3,12 +3,11 @@
 import Daedalus
 -- import Debug
 
--- ENTRY
 def Main =
   block
-    let s = GetStream
-    profileHeader = ProfileHeader
-    tags = map (entry in TagTable) (ParseTagIn s entry)
+    let s  = GetStream
+    header = ProfileHeader
+    tags   = TagTable s
 
 
 --------------------------------------------------------------------------------
@@ -114,26 +113,11 @@ def RenderingIntent =
 --------------------------------------------------------------------------------
 -- Tag table (Section 7.3)
 
-def TagTable = Many (BE32 as uint 64) TagEntry
-
-def TagEntry =
-  block
-    tag_signature           = BE32
-    offset_to_data_element  = BE32 as uint 64
-    size_of_data_element    = BE32 as uint 64
-
-
-def ParseTagIn s (t : TagEntry) =
-  block
-    SetStreamAt t.offset_to_data_element s
-    Chunk t.size_of_data_element (Tag t.tag_signature);
-
--- ENTRY: Assumes that the offsets are relative to the current stream.
-def ParseTag (t : TagEntry) =
-  block
-    Skip t.offset_to_data_element
-    Chunk t.size_of_data_element (Tag t.tag_signature);
-
+def TagTable s =
+  Many (BE32 as ?auto)
+    block
+      let sig = BE32
+      Positioned s (Tag sig)
 
 
 --------------------------------------------------------------------------------
@@ -264,14 +248,14 @@ def MultiLocalizedUnicodeType =
     StartTag "mluc"
     let record_number = BE32
     Exactly 12 BE32
-    Many (record_number as uint 64) (UnicodeRecord s)
+    Many (record_number as ?auto) (UnicodeRecord s)
 
 def UnicodeRecord s =
   block
     language    = Many 2 UInt8
     country     = Many 2 UInt8
-    let size    = BE32 as uint 64
-    let offset  = BE32 as uint 64
+    let size    = BE32 as ?auto
+    let offset  = BE32 as ?auto
     data        = LookAhead
                     block
                       SetStreamAt offset s
@@ -285,7 +269,7 @@ def S15Fixed16ArrayType =
 def ChromaticityType =
   block
     StartTag "chrm"
-    let number_of_device_channels = BE16 as uint 64
+    let number_of_device_channels = BE16 as ?auto
     phosphor_or_colorant          = BE16
     cie_coords                    = Many number_of_device_channels XYNumber
 
@@ -298,7 +282,7 @@ def ColorantOrderType =
 def ColorantTableType =
   block
     StartTag "clrt"
-    let count_of_colorant = BE32 as uint 64
+    let count_of_colorant = BE32 as ?auto
     Many count_of_colorant Colorant
 
 def Colorant =
@@ -309,7 +293,7 @@ def Colorant =
 def CurveType =
   block
     StartTag "curv"
-    let n = BE32 as uint 64
+    let n = BE32 as ?auto
     Many n BE16
 
 def ParametricCurveType =
@@ -407,14 +391,10 @@ def LutBToAType =
 
 def MultiProcessElementsType =
   block
-    let s = GetStream   -- offsets are relative to here
-    StartTag "mpet"
-    number_of_input_channels      = BE16
-    number_of_output_channels     = BE16
-    let n = BE32 as uint 64
-    Guard (n >= 1) <| Fail "Need at least one MPE"
-    elements = Many n (Positioned s MPElement)
-
+    $$ = MPElement
+    case $$.body of
+      mpet -> Accept
+      _    -> Fail "Not MPET"
 
 
 def SpectralViewingConditionsType =
@@ -465,21 +445,6 @@ def ViewConditionsType =
     surroundXYZ   = XYZNumber
     illuminant    = BE32
 
-
-def TagStructType =
-  block
-    let s = GetStream
-    StartTag "tstr"
-    struct_type_id = Many 4 UInt8
-    let n = BE32 as uint 64
-    Many n
-      block
-        let ent = TagEntry
-        LookAhead
-          block
-            SetStream s
-            ParseTag ent
-
 --------------------------------------------------------------------------------
 -- Multi Processing Elements (Section 11)
 
@@ -506,6 +471,11 @@ def MPElementBody head =
                 |}
     0s"cvst" -> {| cvst = Many head.inputs (Positioned head.offset Curve) |}
     0s"matf" -> {| matf = Matrix head.inputs head.outputs |}
+    0s"mpet" -> {| mpet = block
+                            let n = BE32 as ?auto
+                            Guard (n >= 1) <| Fail "Need at least one MPE"
+                            Many n (Positioned head.offset MPElement)
+                |}
     _        -> {| unknown = explode32 head.tag |}
 
 
@@ -516,7 +486,7 @@ def MPElementBody head =
 -- Table 85
 def CalcElement head =
   block
-    let subElNum  = BE32 as uint 64
+    let subElNum  = BE32 as ?auto
     inputs        = head.inputs   -- XXX: copied here to work around
     outputs       = head.outputs  -- a TC issue
     main          = Positioned head.offset CalcFun
