@@ -135,6 +135,33 @@ or a set of new constraints over the free variables of the expression.
 The algorithm may also have to return 'unknown' where the new
 constraints would be outside the language of constraints (maybe?).
 
+* Examples
+
+
+Here we have multiple valid options for x, assuming we want
+'something', we can choose either 'just' or 'nothing'
+
+#+begin_src daedalus
+
+  def P x =
+    case x of
+      just v  -> v
+      nothing -> {| something: 0 |}
+
+#+end_src
+
+given we want 'CUnionElem "something" C', we would expect
+the precondition of P to be 
+
+#+begin_src haskell
+  x: CUnionElem "just" C || CUnionElem "nothing" cAny
+#+end_src 
+
+so we then need to be able to represent disjunctions.  Disjunctions
+are introduced when merging at cases.  For now these can be left at
+the top level, by lifting sub-disjunctions to the top level.  This is
+potentially expensive but probably simplifies the implementation.
+
 * Thoughts
 ** Relation refinement
 
@@ -148,3 +175,12 @@ We could carry around the notion of value that we want during
 synthesis (e.g., a schematic value) although some sort of anlysis may
 need to be done over choices (although this approach may remove a lot
 of backtracking due to failing early).
+
+** Choosing orderings at analysis time 
+
+Given a map, there are many ways to order the keys.  We currently pick
+one ordering, but we could choose all orderings and pick dynamically.
+This may get expensive in terms of the size of the resulting slice.
+
+We could also have the loop unfolded which creates the map, but leave
+some of the details until runtime.
