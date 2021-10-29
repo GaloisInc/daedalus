@@ -47,6 +47,7 @@ import qualified Data.Vector as Vector
 import Daedalus.SourceRange
 import Daedalus.PP hiding (empty)
 import Daedalus.Panic
+import Daedalus.BDD(patTests, patMask, patValue)
 
 import Daedalus.Value
 
@@ -463,7 +464,10 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
     goS bits (fld, (ty', Just sm)) =
       (,) fld <$> go ((bits `shiftR` fromIntegral (tcbdsLowBit sm)) `mod` 2 ^  (tcbdsWidth sm)) ty'
 
-    matchU bits sm = bits .&. tcbduMask sm == tcbduBits sm
+    matchU bits sm =
+      or [ bits .&. patMask test == patValue test
+         | test <- patTests sm
+         ]
 
     goU _bits (_, (_, Nothing)) =
       panic "evalBitData" [ "Missing bitdata union meta data"

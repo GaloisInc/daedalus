@@ -189,17 +189,44 @@ showPat (Pat w f@(ITE v p q))
     where w'        = w - 1
 
 
--- | Returns (value, mask)
--- @x `matches` (v,m) = v == (x .&. m)@
-patTests            :: Pat -> [(Integer,Integer)]
-patTests (Pat _ T)   = [(0,0)]
+data PatTest = PatTest
+  { patMask  :: Integer
+  , patValue :: Integer
+  , patWidth :: Width
+  } deriving (Eq,Show)
+
+noTest :: Width -> PatTest
+noTest w = PatTest { patMask = 0, patValue = 0, patWidth = w }
+
+cons1 :: PatTest -> PatTest
+cons1 pt = PatTest { patMask  = patMask  pt + one
+                   , patValue = patValue pt + one
+                   , patWidth = patWidth pt + 1
+                   }
+  where
+  one = 2^patWidth pt
+
+cons0 :: PatTest -> PatTest
+cons0 pt = PatTest { patMask  = patMask  pt + one
+                   , patValue = patValue pt
+                   , patWidth = patWidth pt + 1
+                   }
+  where
+  one = 2^patWidth pt
+
+
+
+
+-- | Returns pt
+-- @x `matches` pt = patValue pt == (x .&. patMask pt)@
+patTests            :: Pat -> [PatTest]
+patTests (Pat w T)   = [noTest w]
 patTests (Pat _ F)   = []
 patTests (Pat w f@(ITE v p q))
   | w' > v          = patTests (Pat w' f)
-  | otherwise       = [ (      v', one + m) | (v',m) <- patTests (Pat w' q) ]
-                   ++ [ (one + v', one + m) | (v',m) <- patTests (Pat w' p) ]
-    where w'        = w - 1
-          one       = 2^w'
+  | otherwise       = map cons0 (patTests (Pat w' q))
+                   ++ map cons1 (patTests (Pat w' p))
+    where w' = w - 1
 
 pr :: Pat -> IO ()
 pr x                = putStrLn $ unlines $ showPat x

@@ -7,7 +7,6 @@ module Daedalus.Type.BitData (inferBitData) where
 import Data.Foldable (find)
 import Control.Monad (zipWithM_, when, unless, forM)
 import Data.Maybe (catMaybes, fromJust)
-import Data.Bits  (shiftL, (.|.) )
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -38,6 +37,8 @@ srcTypeToSizedType sTy = do
          TVar {} -> badType "(unexpected type variable)"
          Type (TUInt (Type (TNum n))) -> pure (BDD.pWild (fromInteger n))
          Type (TSInt (Type (TNum n))) -> pure (BDD.pWild (fromInteger n))
+         Type TFloat                  -> pure (BDD.pWild 32)
+         Type TDouble                 -> pure (BDD.pWild 64)
          Type (TUInt {}) -> badType "(type has non-constant size)"
          Type (TSInt {}) -> badType "(type has non-constant size)"
          _ -> badType "(type cannot be used in bitdata)"
@@ -86,19 +87,15 @@ inferStruct ::
   TypeM a TCTyDecl
 inferStruct name w (loc, fields) m_sz_tys =
   do sz_tys <- resolveMissingTypes loc w m_sz_tys
-     let szs = map snd sz_tys
-
-     zipWithM_ checkLiteralWidth fields szs
-
-     let (umeta,cpat) = mkConMeta w (zip fields szs)
-         (fs,fpat)    = mkFields w (zip fields sz_tys)
-         recognize    = BDD.pAnd cpat fpat
+     zipWithM_ checkLiteralWidth fields (map snd sz_tys)
+     let (fs,recognize) = mkFields w (zip fields sz_tys)
 
      pure TCTyDecl { tctyName    = TCTy name
                    , tctyParams  = []
                    , tctyBD      = Just recognize
-                   , tctyDef     = TCTyStruct (Just umeta) fs
+                   , tctyDef     = TCTyStruct (Just recognize) fs
                    }
+
 
 
 
@@ -125,33 +122,11 @@ mkFields w = go [] (BDD.pWild w) w
                  : fs
                , BDD.pField todo' fpat pat
                )
-             _ -> (fs,pat)
-
-
--- This assumes the high bits are stored as the first fields
-mkConMeta ::
-  BDD.Width -> [(Located BitDataField,BDD.Pat)] -> (TCBDUnionMeta, BDD.Pat)
-mkConMeta w = go 0 0 w (BDD.pWild w)
-  where
-  -- XXX: foldl'
-  go macc bacc _todo pat [] =
-      ( TCBDUnionMeta { tcbduMask = macc, tcbduBits = bacc }
-      , pat
-      )
-  go macc bacc todo pat ((fld, fpat) : rest) =
-    let n     = BDD.width fpat
-        todo' = todo - n
-        off   = fromIntegral todo' :: Int
-        num l = (2 ^ n - 1, l, BDD.pField todo' (BDD.pInt n l) pat)
-        (mask, v, pat') = case thingValue fld of
-                            BDFLiteral l _ -> num l
-                            _              -> (0, 0, pat)
-    in go (macc .|. (mask `shiftL` off))
-          (bacc .|. (v    `shiftL` off))
-          todo'
-          pat'
-          rest
-
+             BDFLiteral l _ ->
+               ( fs
+               , BDD.pField todo' (BDD.pInt n l) pat
+               )
+             BDFWildcard {} -> (fs,pat)
 
 
 resolveMissingTypes ::

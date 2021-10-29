@@ -303,24 +303,15 @@ data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct (Maybe TCBDUnionMeta)
+data TCTyDef    = TCTyStruct (Maybe BDD.Pat)
                              [(Label, (Type, Maybe TCBitdataField))]
-                | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
+                | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
                   deriving (Show, Eq)
 
 data TCBitdataField =
   TCBitdataField { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
                  , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
                  } deriving (Show, Eq)
-
--- ^ The mask and value let us match the corresponding tag bits for
--- union constructors. This does not include the masks etc. for
--- sub-fields (which may also be unions).  We use Integer here as we
--- support arbitrary bit widths.
-data TCBDUnionMeta =
-  TCBDUnionMeta { tcbduMask :: !Integer   -- ^ Bits to consider
-                , tcbduBits :: !Integer   -- ^ Expected value
-                } deriving (Show, Eq)
 
 
 data TCDecl a   = forall k.
