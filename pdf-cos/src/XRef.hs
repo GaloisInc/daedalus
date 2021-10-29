@@ -119,7 +119,7 @@ quit :: String -> IO a
 quit msg = do hPutStrLn stderr msg
               exitFailure
 
----- parsing when no Object Index ... ---------------------------------------------------------------
+---- parsing when no Object Index yet available ------------------------------
 
 -- a new exception
 data DerefException = DerefException
@@ -130,8 +130,8 @@ errorIfDomDependentParser :: String -> a
 errorIfDomDependentParser m = error $ unwords ["DomDependentParsers not supported: (",m,")"]
 
 
-runParserWithoutObjectIndexFailOnRef
-  :: DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
+runParserWithoutObjectIndexFailOnRef ::
+  DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
 runParserWithoutObjectIndexFailOnRef msg i p =
   runParser (errorIfDomDependentParser msg)  Nothing p i
   -- error if the parser should attempt to deref any objects.
@@ -153,7 +153,8 @@ getXRefStart x = getField @"xrefStart" x
 getEndOfTrailerEnd :: TrailerEnd -> UInt 64
 getEndOfTrailerEnd x = getField @"offset4" x
 
----- xref table: parse and construct -----------------------------------------
+
+---- xref table: parse and construct from many updates -----------------------
 
 -- | Construct the xref map (and etc), version 2
 parseXRefsVersion2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))

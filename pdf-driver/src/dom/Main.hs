@@ -42,10 +42,10 @@ main :: IO ()
 main =
   do opts <- getOpts options
      file <- case files opts of
-               [] -> reportUsageError options ["No file to process."]
+               []  -> reportUsageError options ["No file to process."]
                [f] -> pure f
-               _ -> reportUsageError options
-                            ["Multiple files not yet supported."]
+               _   -> reportUsageError options
+                        ["Multiple files not yet supported."]
 
      bs <- BS.readFile file
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
@@ -80,11 +80,11 @@ parsePdf opts file bs topInput =
               Right idx -> pure idx
 
      (incUpdates, refs', trail') <-
-        quitIfParseError "computing XRef table (v2)"
-                          (parseXRefsVersion2 topInput idx)
+        parseXRefsVersion2 topInput idx >>= quitIfParseError "computing XRef table (v2)"
+                          
      (refs, trail) <-
-        quitIfParseError "computing XRef table (v1)"
-                          (parseXRefsVersion1 topInput idx) 
+        parseXRefsVersion1 topInput idx >>= quitIfParseError "computing XRef table (v1)"
+                          
      validateUpdates (incUpdates, refs', trail')
 
      -- run-time testing of equivalance of parseXRefsVersion{1,2}
@@ -121,18 +121,19 @@ parsePdf opts file bs topInput =
 
        ListCavities   -> do
                          (_isBinary,baseBodyStart)
-                           <- quitIfParseError
-                                "parsing PDF header" 
-                                (runParser (error "pHeader: no ref expected")
+                           <- runParser (error "pHeader: no ref expected")
                                            Nothing
                                            ( do
                                              h <- pHeader
                                              o <- pOffset  -- byte offset after header             
                                              return (h,o)
                                            )
-                                           topInput)
+                                           topInput
+                                >>= quitIfParseError "parsing PDF header"
+
                                 -- FIXME[F1]: problem elsewhere: this the
                                 -- only code that looks at header!
+
                          -- FIXME[F3]: check that !isBinary => no binary bytes in file.
                          printCavityReport baseBodyStart topInput incUpdates
 
@@ -149,8 +150,8 @@ parsePdf opts file bs topInput =
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do quitIfParseError "parsing PDF trailer"
-                              (runParser refs Nothing (pPdfTrailer trail) topInput) 
+          do runParser refs Nothing (pPdfTrailer trail) topInput
+               >>= quitIfParseError "parsing PDF trailer"
                               
              putStrLn "PDF trailer is well-formed (use other options to check more)"
 
@@ -161,26 +162,25 @@ quit msg =
   do hPutStrLn stderr msg
      exitFailure
 
-quitIfParseError :: String -> IO (PdfResult a) -> IO a 
-quitIfParseError context x = 
-  do  res <- x
-      case res of
-        ParseOk a     -> pure a
-        ParseAmbig {} -> quit (msg ++ ": ambiguous.")
-        ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
+quitIfParseError :: String -> PdfResult a -> IO a 
+quitIfParseError context r = 
+ case r of
+   ParseOk a     -> pure a
+   ParseAmbig {} -> quit (msg ++ ": ambiguous.")
+   ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
-                      TrailerDict  
+                     TrailerDict  
                   -> ObjIndex 
                   -> Input 
                   -> BS.ByteString 
                   -> IO ((a, a) -> Maybe EncContext)
 makeEncContext trail refs topInput pwd = 
-  do edict <- quitIfParseError "extracting context for encryption"
-                               (runParser refs Nothing (pMakeContext trail) topInput) 
+  do edict <- runParser refs Nothing (pMakeContext trail) topInput
+              >>= quitIfParseError "extracting context for encryption"
                                
      case edict of 
        MakeContext_noencryption _ -> pure $ const Nothing 
