@@ -79,19 +79,30 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     (incUpdates, refs', trail') <-
-        parseXRefsVersion2 topInput idx >>= quitIfParseError "computing XRef table (v2)"
+     putStrLn "parseXRefsVersion2:"
+     pResV2 <- parseXRefsVersion2 topInput idx 
+     warnIfParseError "computing XRef table (v2)" pResV2
+     
+     putStrLn "parseXRefsVersion1:"
+     pResV1 <- parseXRefsVersion1 topInput idx 
+     warnIfParseError "computing XRef table (v1)" pResV1
+     
+     case (pResV1,pResV2) of
+       (ParseOk _    , ParseOk _    ) -> return ()
+       (ParseAmbig {}, ParseAmbig {}) -> putStrLn "WARN: xref V1 and V2: both ambiguous"
+       (ParseErr _   , ParseErr _   ) -> return ()
+       _                              -> putStrLn "WARN: xref V1 and V2 do not conform"
+       
+     (incUpdates, refs', trail') <- quitIfParseError "computing XRef table (v2)" pResV2
+     (refs, trail)               <- quitIfParseError "computing XRef table (v1)" pResV1
                           
-     (refs, trail) <-
-        parseXRefsVersion1 topInput idx >>= quitIfParseError "computing XRef table (v1)"
-                          
-     validateUpdates (incUpdates, refs', trail')
-
      -- run-time testing of equivalance of parseXRefsVersion{1,2}
      when (trail /= trail') $
-        putStrLn "warn: trail-v1 /= trail-v2"
+       putStrLn "WARN: trail-v1 /= trail-v2"
      when (refs /= refs') $
-        putStrLn "warn: refs-v1 /= refs-v2"
+       putStrLn "WARN: refs-v1 /= refs-v2"
+
+     validateUpdates (incUpdates, refs', trail')
 
      -- FIXME[E2]: when more sure of v1 == v2, remove the parseXRefsVersion1 code.
      
@@ -171,6 +182,16 @@ quitIfParseError context r =
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
+warnIfParseError :: String -> PdfResult a -> IO ()
+warnIfParseError context r = 
+ case r of
+   ParseOk a     -> return ()
+   ParseAmbig {} -> warn (msg ++ ": ambiguous.")
+   ParseErr e    -> warn (msg ++ ":\n\n" ++ show (pp e))
+  where
+  msg = "Fatal error while " ++ context ++ ", cannot proceed"
+  warn s = hPutStrLn stderr s
+  
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
                      TrailerDict  
