@@ -143,7 +143,7 @@ runParserWithoutObjectIndex i p =
        -- catch if the parser should deref any objects!
   case x of
     Left DerefException -> pure Nothing
-    Right x             -> pure $ Just x
+    Right x'            -> pure $ Just x'
 
 ---- utilities ---------------------------------------------------------------
 
@@ -194,10 +194,11 @@ parseXRefsVersion2 inp offset =
 
 ---- parsing IncUpdates ------------------------------------------------------
 
+-- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
 parseAllIncUpdates :: Input -> FileOffset -> Parser [IncUpdate]
 parseAllIncUpdates inp offset0 =
   do
-  (x, next) <- parseOneIncUpdate inp offset0
+  (x, next) <- parseOneIncUpdate inp offset0 -- end of file, first-processed update
   case next of
     Just offset -> (++[x]) <$> parseAllIncUpdates inp offset
     Nothing     -> return [x]
@@ -218,7 +219,6 @@ parseOneIncUpdate inp offset =
                  ("Offset out of bounds: " ++ show offset)
 
   where
-
   processTrailer :: ( VecElem s
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
@@ -239,7 +239,10 @@ parseOneIncUpdate inp offset =
                           else
                             pError FromUser "parseTrailer"
                                             "Prev offset unchanged"
-                          -- FIXME: infinite loop possible!
+                          -- FIXME[F1]: above is hardly sufficient! infinite loop possible!
+                             -- and with being able to point to whitespace above, using offsets
+                             -- isn't best way to compare xref tables, we would like the
+                             -- offset of the "xref" keyword
                           -- FIXME: TODO: change to allow for warnings.
                           {-
                           -- and this is not a fix, thanks to Linearized files (?)
@@ -603,13 +606,14 @@ locationOf_startxref bs =
   len             = BS.length bs
   lastChunk       = BS.drop (len - magicNumber) bs
   startxref       = "startxref"
-  magicNumber     = 500 -- stop searching after 500 bytes from EOF
+  magicNumber     = 500 -- stop searching 500 bytes from EOF
 
   -- this does NOT parse or validate the EOF
 
 ---- ~ ad hoc: ---------------------------------------------------------------
 
 -- Pretty gross
+-- findStartXRef - find last "startxref", return the integer that follows (actual offset of xref)
 findStartXRef :: BS.ByteString -> Either String FileOffset
 findStartXRef bs
   | BS.null post   = Left "Couldn't find EOF"
@@ -627,6 +631,4 @@ findStartXRef bs
 
   -- Leave 100 bytes for number and startxref (FIXME)
   lastChunk       = BS.drop (len - 1024 - BS.length eof - 100) bs
-
-
 
