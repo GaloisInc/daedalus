@@ -209,6 +209,7 @@ parseOneIncUpdate inp offset =
   case advanceBy offset inp of
     Just i ->
       do pSetInput i
+         pManyWS  -- FIXME: later: warning if this consumes anything
          refSec <- pCrossRef  -- slight misnomer, this parses
                               --   - standard xref table OR xref streams
                               --   - the trailer too (in the former case)
