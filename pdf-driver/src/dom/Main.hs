@@ -73,7 +73,8 @@ main =
 
        _ -> parsePdf opts file bs topInput
 
-logMsg s = putStrLn s  -- FIXME[F2] todo: allow control by a verbose flag or the like.
+logMsg s = putStrLn s
+           -- FIXME[F2] TODO: allow control by a verbose flag or the like.
 
 parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
 parsePdf opts file bs topInput =
@@ -83,11 +84,11 @@ parsePdf opts file bs topInput =
 
      logMsg "parseXRefsVersion2:"
      resV2 <- parseXRefsVersion2 topInput idx 
-     warnIfParseError "computing XRef table (v2)" resV2
+     warnIfFail "computing XRef table (v2)" resV2
      
      logMsg "parseXRefsVersion1:"
      resV1 <- parseXRefsVersion1 topInput idx 
-     warnIfParseError "computing XRef table (v1)" resV1
+     warnIfFail "computing XRef table (v1)" resV1
      
      case (resV1, resV2) of
        (Right _, Right _) -> return ()
@@ -193,8 +194,8 @@ quitIfParseError context r =
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
-warnIfParseError :: String -> Possibly a -> IO ()
-warnIfParseError context r = 
+warnIfFail :: String -> Possibly a -> IO ()
+warnIfFail context r = 
  case r of
    Right a -> return ()
    Left ss -> mapM_ warn $ "warning:" : ss

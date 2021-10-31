@@ -1,6 +1,7 @@
 {-# Language TypeApplications, DataKinds #-}
 {-# Language FlexibleContexts, ConstraintKinds #-}
 {-# Language OverloadedStrings #-}
+{-# Language LambdaCase #-}
 module XRef
   ( findStartXRef
   , parseXRefsVersion1
@@ -114,12 +115,6 @@ validateBase iu =
   warn s = warning $ "in first(base) xref table: " ++ s
   err  s = quit ("Error: in first(base) xref table: " ++ s)
 
-warning :: String -> IO ()
-warning s = putStrLn $ "Warning: " ++ s
-
-quit :: String -> IO a
-quit msg = do hPutStrLn stderr msg
-              exitFailure
 
 ---- parsing when no Object Index yet available ------------------------------
 
@@ -150,6 +145,16 @@ runParserWithoutObjectIndex i p =
     Left DerefException -> pure Nothing
     Right x'            -> pure $ Just x'
 
+---- Possibly ----------------------------------------------------------------
+
+type Possibly a = Either [String] a
+     -- FIXME[C]: hardly where this belongs, used by clients
+
+quitIfFail :: Possibly a -> IO a
+quitIfFail = \case
+                Left ss -> quit (unlines ss)
+                Right a -> return a
+                 
 ---- utilities ---------------------------------------------------------------
 
 getXRefStart :: TrailerEnd -> UInt 64
@@ -157,8 +162,6 @@ getXRefStart x = getField @"xrefStart" x
 
 getEndOfTrailerEnd :: TrailerEnd -> UInt 64
 getEndOfTrailerEnd x = getField @"offset4" x
-
-type Possibly a = Either [String] a  -- FIXME[C]: hardly where this belongs, used by clients
 
 fromPdfResult :: String -> PdfResult a -> Possibly a
 fromPdfResult contextString r = 
@@ -171,7 +174,8 @@ fromPdfResult contextString r =
 
   -- FIXME: dead code at the moment!
 
-newError  _ _ s   = error ("newError:" ++ s)  -- FIXME: write/replace
+newError  _ c msg = quit $ concat [msg, " (", c, ")"]
+
 newError2 _ c msg = Left $ [concat [msg, " (", c, ")"]]
 
 -- FIXME: deduplicate/remove this:
@@ -184,16 +188,14 @@ quitIfParseError context r =
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
-  quit :: String -> IO a
-  quit msg =
-    do hPutStrLn stderr msg
-       exitFailure
 
-quitIfFail :: Possibly a -> IO a
-quitIfFail x = case x of
-                 Left ss -> mapM_ (hPutStrLn stderr) ss >> exitFailure
-                 Right x -> return x
-                 
+warning :: String -> IO ()
+warning s = putStrLn $ "Warning: " ++ s
+
+quit :: String -> IO a
+quit msg = do hPutStrLn stderr msg
+              exitFailure
+
 ---- xref table: parse and construct from many updates -----------------------
 
 -- | Construct the xref map (and etc), version 2
@@ -531,10 +533,11 @@ parseXRefsVersion1 inp off0 =
          -- and in the reverse order in which 'extensions' would be applied.
 
 pErrorIfFail :: Possibly a -> Parser a
-pErrorIfFail x = case x of
-                   Left ss -> pError FromUser "" (unlines ss)
-                   Right a -> return a
+pErrorIfFail = \case
+                 Left ss -> pError FromUser "" (unlines ss)
+                 Right a -> return a
 
+---- common code for V1 and V2 -----------------------------------------------
     
 type XRefSection s e o =
   ( VecElem e
@@ -551,8 +554,8 @@ data XRefEntry = InUse R ObjLoc
                | Null    
 
 ppXRefEntry :: XRefEntry -> Doc
-ppXRefEntry x =
-  case x of
+ppXRefEntry =
+  \case
     InUse (R o g) loc -> "inuse" <+> ppHDict [ "obj:" <+> pp o
                                              , "gen:" <+> pp g
                                              , ppObjLoc loc
@@ -669,7 +672,7 @@ locationOf_startxref bs =
 
   -- this does NOT parse or validate the EOF
 
----- ~ ad hoc: ---------------------------------------------------------------
+---- little ad hoc: ---------------------------------------------------------------
 
 -- Pretty gross
 -- findStartXRef - find last "startxref", return the integer that follows (actual offset of xref)
