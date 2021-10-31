@@ -18,11 +18,12 @@ module XRef
 
 import           Control.Applicative((<|>))
 import           Control.Exception
-import           Control.Monad(unless,forM,forM_,foldM)
+import           Control.Monad(unless,forM,forM_,foldM,when)
 import qualified Data.ByteString.Char8 as BS
 import           Data.Char(isSpace,isNumber)
 import           Data.Either
 import           Data.Foldable(foldlM)
+import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import           GHC.Records(HasField, getField)
 import           System.Exit(exitFailure)
@@ -488,26 +489,29 @@ parseObjectAt inp offsetStart =
 parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
 parseXRefsVersion1 inp off0 =
   do
-  r <- runParser Map.empty Nothing (go Nothing (Just off0)) inp
+  r <- runParser Map.empty Nothing
+         (go Nothing (Just off0) (IntSet.singleton (sizeToInt off0)))
+         inp
   return $ fromPdfResult "parsing xref (v2)" r
   
   where
-  go :: Maybe TrailerDict -> Maybe FileOffset -> Parser (ObjIndex, TrailerDict)
-  go mbRoot Nothing =
+  go :: Maybe TrailerDict -> Maybe FileOffset -> IntSet.IntSet -> Parser (ObjIndex, TrailerDict)
+  go mbRoot Nothing _ =
     do oix <- getObjIndex
        case mbRoot of
          Just r -> return (oix, r)
          Nothing -> pError FromUser "parseXRefsVersion1.go" "Missing document root."
 
-  go mbRoot (Just offset) =
+  go mbRoot (Just offset) prevSet =
+    -- precondition: offset `member` prevSet
     case advanceBy offset inp of
       Just i ->
         do pSetInput i
            pManyWS  -- FIXME: later: warning if this consumes anything
            refSec <- pCrossRef
            case refSec of
-             CrossRef_oldXref x -> goWith mbRoot x
-             CrossRef_newXref x -> goWith mbRoot x
+             CrossRef_oldXref x -> goWith mbRoot x prevSet
+             CrossRef_newXref x -> goWith mbRoot x prevSet
       Nothing -> pError FromUser "parseXRefsVersion1.go"
                   ("Offset out of bounds: " ++ show offset)
 
@@ -515,17 +519,24 @@ parseXRefsVersion1 inp off0 =
             , HasField "trailer" x TrailerDict
             , HasField "xref"    x (Vector s)
             , XRefSection s e o
-            ) => Maybe TrailerDict -> x -> Parser (ObjIndex, TrailerDict)
-  goWith mbRoot x =
+            ) => Maybe TrailerDict -> x -> IntSet.IntSet -> Parser (ObjIndex, TrailerDict)
+  goWith mbRoot x prevSet =
     do let t = getField @"trailer" x
        prevOffset <-
          case getField @"prev" t of
            Nothing -> pure Nothing
            Just i ->
               case toInt i of
-                Nothing -> pError FromUser "parseXRefsVersion1.goWith(1)"
-                                           "Prev offset too large."
-                Just off -> pure (Just $ intToSize off)
+                Nothing  -> pError FromUser "parseXRefsVersion1.goWith(1)"
+                                            "Prev offset too large."
+                Just off -> do
+                            -- ensure no infinite loop of incremental updates
+                            when (off `IntSet.member` prevSet) $
+                              pError FromUser "goWith"
+                                $ unwords[ "recursive incremental updates:"
+                                         , "adding", show off, "to", show prevSet]
+                            pure (Just $ intToSize off)
+                            -- FIXME: would be even cleaner if we used the offset of 'xref'
 
        tabs <- pErrorIfFail $
                  mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
@@ -534,9 +545,12 @@ parseXRefsVersion1 inp off0 =
        unless (Map.size entries == sum (map Map.size tabs))
          (pError FromUser "parseXRefsVersion1.goWith(2)" "Duplicate entries in xref section")
 
-       let newRoot = mbRoot <|> Just t
+       let prevSet' = case prevOffset of
+                        Nothing -> prevSet
+                        Just o  -> IntSet.insert (sizeToInt o) prevSet
 
-       extendObjIndex entries (go newRoot prevOffset)
+       extendObjIndex entries
+         (go (mbRoot <|> Just t) prevOffset prevSet')
          -- entries may be shadowing previous entries
          -- note that the 'entries' are being added, in order, from the top of the file
          -- and in the reverse order in which 'extensions' would be applied.
