@@ -11,6 +11,7 @@ module XRef
   , validateUpdates
   -- types:
   , FileOffset
+  , Possibly
   )
   where
 
@@ -38,6 +39,7 @@ import RTS.Input(advanceBy)
 import PdfMonad
 import PdfParser
 import Stdlib(pManyWS)
+
 import PdfPP
 
 ---- types -------------------------------------------------------------------
@@ -126,16 +128,19 @@ data DerefException = DerefException
                       deriving Show
 instance Exception DerefException
 
-errorIfDomDependentParser :: String -> a
-errorIfDomDependentParser m = error $ unwords ["DomDependentParsers not supported: (",m,")"]
-
 
 runParserWithoutObjectIndexFailOnRef ::
   DbgMode => String -> Input -> Parser a -> IO (PdfResult a)
-runParserWithoutObjectIndexFailOnRef msg i p =
-  runParser (errorIfDomDependentParser msg)  Nothing p i
+runParserWithoutObjectIndexFailOnRef contextMsg i p =
+  runParser (errorIfDomDependentParser contextMsg)  Nothing p i
   -- error if the parser should attempt to deref any objects.
-  
+
+  where
+  errorIfDomDependentParser :: String -> a
+  errorIfDomDependentParser contextMsg' =
+    error $ "panic: dereferencing object index should not happen here: " ++ contextMsg'
+  -- FIXME[C2]
+
 runParserWithoutObjectIndex :: DbgMode => Input -> Parser a -> IO (Maybe (PdfResult a))
 runParserWithoutObjectIndex i p =
   do
@@ -153,16 +158,48 @@ getXRefStart x = getField @"xrefStart" x
 getEndOfTrailerEnd :: TrailerEnd -> UInt 64
 getEndOfTrailerEnd x = getField @"offset4" x
 
+type Possibly a = Either [String] a  -- FIXME[C]: hardly where this belongs, used by clients
 
+fromPdfResult :: String -> PdfResult a -> Possibly a
+fromPdfResult contextString r = 
+ case r of
+   ParseOk a     -> Right a
+   ParseAmbig {} -> Left [msg ++ ": ambiguous."]
+   ParseErr e    -> Left [msg ++ ":", [], [], show (pp e)]
+  where
+  msg = "Fatal error while " ++ contextString ++ ", cannot proceed"
+
+  -- FIXME: dead code at the moment!
+
+newError  _ _ s   = error ("newError:" ++ s)  -- FIXME: write/replace
+newError2 _ c msg = Left $ [concat [msg, " (", c, ")"]]
+
+-- FIXME: deduplicate/remove this:
+quitIfParseError :: String -> PdfResult a -> IO a 
+quitIfParseError context r = 
+ case r of
+   ParseOk a     -> pure a
+   ParseAmbig {} -> quit (msg ++ ": ambiguous.")
+   ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
+  where
+  msg = "Fatal error while " ++ context ++ ", cannot proceed"
+    
+  quit :: String -> IO a
+  quit msg =
+    do hPutStrLn stderr msg
+       exitFailure
+
+quitIfFail :: Possibly a -> IO a
+quitIfFail x = case x of
+                 Left ss -> mapM_ (hPutStrLn stderr) ss >> exitFailure
+                 Right x -> return x
+                 
 ---- xref table: parse and construct from many updates -----------------------
 
 -- | Construct the xref map (and etc), version 2
-parseXRefsVersion2 :: DbgMode => Input -> FileOffset -> IO (PdfResult ([IncUpdate], ObjIndex, TrailerDict))
+parseXRefsVersion2 :: DbgMode
+                   => Input -> FileOffset -> IO (Possibly ([IncUpdate], ObjIndex, TrailerDict))
 parseXRefsVersion2 inp offset =
-  runParserWithoutObjectIndexFailOnRef
-    "dereferencing object index during parsing [parseXRefsVersion2]"
-    inp
-    $
     do
     updates <- parseAllIncUpdates inp offset
     
@@ -174,28 +211,32 @@ parseXRefsVersion2 inp offset =
             )
             Map.empty
             updates
-    pure (updates, oi, iu_trailer(last updates))
-
+    pure $ Right (updates, oi, iu_trailer(last updates))
+      -- FIXME: move 'Possibly' down.
+      
     -- updates == [base,upd1,upd2,...]
     -- length(updates) >= 1
     -- FIXME[F2]: validate that trailers are consistent
 
   where
     
-  convertSubSectionsToObjMap :: [[XRefEntry]] -> Parser ObjIndex
+  convertSubSectionsToObjMap :: [[XRefEntry]] -> IO ObjIndex
   convertSubSectionsToObjMap xrefss =
-    do objMaps  <- mapM xrefEntriesToMap xrefss
+    do objMaps  <- quitIfFail $ mapM xrefEntriesToMap xrefss
        let objMap = Map.unions objMaps
        unless (Map.size objMap == sum (map Map.size objMaps))
-           (pError FromUser "convertSubSectionsToObjMap"
-                   "Duplicate entries in xref section")
+           (newError FromUser "convertSubSectionsToObjMap"
+                     "Duplicate entries in xref section")
        pure objMap
 
 
 ---- parsing IncUpdates ------------------------------------------------------
 
+-- NEW TODO:
+-- parseAllIncUpdates :: Input -> FileOffset -> IO ([IncUpdate], Maybe String)
+
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
-parseAllIncUpdates :: Input -> FileOffset -> Parser [IncUpdate]
+parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
 parseAllIncUpdates inp offset0 =
   do
   (x, next) <- parseOneIncUpdate inp offset0 -- end of file, first-processed update
@@ -204,61 +245,61 @@ parseAllIncUpdates inp offset0 =
     Nothing     -> return [x]
   
 -- | parseOneIncUpdate - go to offset and parse xref table
-parseOneIncUpdate :: Input -> FileOffset -> Parser (IncUpdate, Maybe FileOffset)
+parseOneIncUpdate :: Input -> FileOffset -> IO (IncUpdate, Maybe FileOffset)
 parseOneIncUpdate inp offset = 
   case advanceBy offset inp of
     Just i ->
-      do pSetInput i
-         pManyWS  -- FIXME: later: warning if this consumes anything
-         refSec <- pCrossRef  -- slight misnomer, this parses
-                              --   - standard xref table OR xref streams
-                              --   - the trailer too (in the former case)
-         case refSec of
-           CrossRef_oldXref x -> processTrailer XRefTable  x
-           CrossRef_newXref x -> processTrailer XRefStream x
-    Nothing -> pError FromUser "parseOneIncUpdate'"
-                 ("Offset out of bounds: " ++ show offset)
+      do
+      refSec' <-
+        runParserWithoutObjectIndexFailOnRef
+          "parsing xrefs (v2)"
+          inp
+          $ do
+            pSetInput i
+            pManyWS  -- FIXME: later: warning if this consumes anything
+            pCrossRef  -- FIXME[C2]: misnomer, this parses
+                       --   - standard xref table OR xref streams
+                       --   - the trailer too (in the former case)
+              
+      refSec <- quitIfParseError
+                  ("parsing xref table (at byte offset " ++ show i ++ ")")
+                  refSec'
+      case refSec of
+        CrossRef_oldXref x -> processTrailer XRefTable  x
+        CrossRef_newXref x -> processTrailer XRefStream x
+    Nothing -> quit ("Offset out of bounds: " ++ show offset)  -- FIXME
 
   where
   processTrailer :: ( VecElem s
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => XRefType -> x -> Parser (IncUpdate, Maybe FileOffset)
+                    ) => XRefType -> x -> IO (IncUpdate, Maybe FileOffset)
   processTrailer xrefType x =
     do let t = getField @"trailer" x
        prev <- case getField @"prev" t of
                  Nothing -> pure Nothing
                  Just i ->
                     case toInt i of
-                      Nothing  -> pError FromUser "parseTrailer"
-                                                  "Prev offset too large."
+                      Nothing  -> newError FromUser "parseTrailer"
+                                                    "Prev offset too large."
                       Just offset' ->
                           let offset'' = intToSize offset' in
                           if offset'' /= offset then
                             pure (Just offset'')
                           else
-                            pError FromUser "parseTrailer"
-                                            "Prev offset unchanged"
-                          -- FIXME[F1]: above is hardly sufficient! infinite loop possible!
+                            newError FromUser "parseTrailer"
+                                              "Prev offset unchanged"
+                          -- FIXME[F1]: above is hardly sufficient: infinite loop possible!
                              -- and with being able to point to whitespace above, using offsets
                              -- isn't best way to compare xref tables, we would like the
                              -- offset of the "xref" keyword
-                          -- FIXME: TODO: change to allow for warnings.
-                          {-
-                          -- and this is not a fix, thanks to Linearized files (?)
-                           if offset'' < offset then
-                             pure (Just offset'')
-                           else
-                             pError FromUser "parseTrailer"
-                               (unwords ["Prev offset", show offset''
-                                        ,"does not precede offset", show offset
-                                        ,"in file."
-                                        ])
-                           -}
                            
-       xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
-       te <- pTrailerEnd
+       xrefss <- quitIfFail $ mapM convertToXRefEntries (toList (getField @"xref" x))
+       te <- let ctx = "parsing 'startxref' to '%%EOF'" 
+             in runParserWithoutObjectIndexFailOnRef ctx inp pTrailerEnd
+                  >>= quitIfParseError ctx
+              
        -- FIXME: ensure 'te' consistent with ...
        return ( IU{ iu_type      = xrefType
                   , iu_xrefs     = xrefss
@@ -267,8 +308,7 @@ parseOneIncUpdate inp offset =
                   }
               , prev
               )
-
-
+         
 ---- report ------------------------------------------------------------------
 
 printIncUpdateReport :: [IncUpdate] -> IO ()
@@ -426,9 +466,20 @@ parseObjectAt inp offsetStart =
 ---- xref table: parse and construct (old version) ---------------------------
 
 -- | Construct the xref table, version 1
+--
+--   - the difference (vs version 2) is that we are doing all in one go and we
+--   - need to stay inside the Parser Monad because that's where the ObjIndex is
+--   - being extended!
+-- 
+--   - Unfortunately: error messages will not be good as the following get all intermingled
+--     with all the parsing errors inside parser code.
 
-parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (PdfResult (ObjIndex, TrailerDict))
-parseXRefsVersion1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0)) inp
+parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
+parseXRefsVersion1 inp off0 =
+  do
+  r <- runParser Map.empty Nothing (go Nothing (Just off0)) inp
+  return $ fromPdfResult "parsing xref (v2)" r
+  
   where
   go :: Maybe TrailerDict -> Maybe FileOffset -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing =
@@ -465,8 +516,9 @@ parseXRefsVersion1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0
                                                  "Prev offset too large."
                       Just off -> pure (Just $ intToSize off)
 
-       tabs <- mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
-                    (toList (getField @"xref" x))
+       tabs <- pErrorIfFail $
+                 mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
+                      (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
          (pError FromUser "parseXRefsVersion1.goWith(2)" "Duplicate entries in xref section")
@@ -478,6 +530,12 @@ parseXRefsVersion1 inp off0 = runParser Map.empty Nothing (go Nothing (Just off0
          -- note that the 'entries' are being added, in order, from the top of the file
          -- and in the reverse order in which 'extensions' would be applied.
 
+pErrorIfFail :: Possibly a -> Parser a
+pErrorIfFail x = case x of
+                   Left ss -> pError FromUser "" (unlines ss)
+                   Right a -> return a
+
+    
 type XRefSection s e o =
   ( VecElem e
   , HasField "firstId" s Integer
@@ -486,7 +544,7 @@ type XRefSection s e o =
   )
 
 class SubSectionEntry t where
-  processEntry :: Int -> t -> Parser XRefEntry
+  processEntry :: Int -> t -> Possibly XRefEntry
 
 data XRefEntry = InUse R ObjLoc
                | Free  Int R     -- object is next free object, generation
@@ -546,7 +604,7 @@ instance SubSectionEntry CrossRefEntry where
 
 -- | Join together the entries into a single xref sub-section
 --    - merging XRefObjEntry and CrossRefEntry into XRefEntry
-convertToXRefEntries :: XRefSection s e o => s -> Parser [XRefEntry]
+convertToXRefEntries :: XRefSection s e o => s -> Possibly [XRefEntry]
 convertToXRefEntries xrs =
   forM (zip [ getField @"firstId" xrs .. ]
              (toList (getField @"entries" xrs))) $
@@ -555,7 +613,7 @@ convertToXRefEntries xrs =
              processEntry o e
 
 -- | Create an Obj Index Map from the XRefEntry list
-xrefEntriesToMap :: [XRefEntry] -> Parser ObjIndex
+xrefEntriesToMap :: [XRefEntry] -> Possibly ObjIndex
 xrefEntriesToMap = foldM entry Map.empty
   where
   entry mp xref =
@@ -567,13 +625,13 @@ xrefEntriesToMap = foldM entry Map.empty
            in case exists of
                 Nothing -> pure newMap
                 Just _  ->
-                  pError FromUser "xrefEntriesToMap.entry"
-                                  ("Multiple entries for " ++ show ref)
+                  newError2 FromUser "xrefEntriesToMap.entry"
+                                     ("Multiple entries for " ++ show ref)
 
-integerToInt :: Integer -> Parser Int
+integerToInt :: Integer -> Possibly Int
 integerToInt i =
   case toInt i of
-    Nothing -> pError FromUser "integerToInt" "Integer constant too large."
+    Nothing -> newError2 FromUser "integerToInt" "Integer constant too large."
     Just x  -> pure x
 
 
@@ -590,7 +648,7 @@ parseFinalTrailerEnd inp bs =
     Nothing -> quit ("startxref offset out of bounds: " ++ show offset)    
     Just inp' ->
         runParserWithoutObjectIndexFailOnRef
-            "dereferencing object index during parsing [parseFinalTrailerEnd]"
+            "parsing the final TrailerEnd"
             inp'
             (do pSetInput inp'
                 pTrailerEnd)

@@ -23,6 +23,7 @@ import XRef( findStartXRef
            , validateUpdates
            , printCavityReport
            , FileOffset
+           , Possibly
            )
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
@@ -72,6 +73,7 @@ main =
 
        _ -> parsePdf opts file bs topInput
 
+logMsg s = putStrLn s  -- FIXME[F2] todo: allow control by a verbose flag or the like.
 
 parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
 parsePdf opts file bs topInput =
@@ -79,22 +81,21 @@ parsePdf opts file bs topInput =
               Left err  -> quit err
               Right idx -> pure idx
 
-     putStrLn "parseXRefsVersion2:"
-     pResV2 <- parseXRefsVersion2 topInput idx 
-     warnIfParseError "computing XRef table (v2)" pResV2
+     logMsg "parseXRefsVersion2:"
+     resV2 <- parseXRefsVersion2 topInput idx 
+     warnIfParseError "computing XRef table (v2)" resV2
      
-     putStrLn "parseXRefsVersion1:"
-     pResV1 <- parseXRefsVersion1 topInput idx 
-     warnIfParseError "computing XRef table (v1)" pResV1
+     logMsg "parseXRefsVersion1:"
+     resV1 <- parseXRefsVersion1 topInput idx 
+     warnIfParseError "computing XRef table (v1)" resV1
      
-     case (pResV1,pResV2) of
-       (ParseOk _    , ParseOk _    ) -> return ()
-       (ParseAmbig {}, ParseAmbig {}) -> putStrLn "WARN: xref V1 and V2: both ambiguous"
-       (ParseErr _   , ParseErr _   ) -> return ()
-       _                              -> putStrLn "WARN: xref V1 and V2 do not conform"
+     case (resV1, resV2) of
+       (Right _, Right _) -> return ()
+       (Left  _, Left  _) -> return ()
+       _                  -> putStrLn "WARN: V1 and V2 of xref parse do not conform"
        
-     (incUpdates, refs', trail') <- quitIfParseError "computing XRef table (v2)" pResV2
-     (refs, trail)               <- quitIfParseError "computing XRef table (v1)" pResV1
+     (incUpdates, refs', trail') <- quitOnFail "computing XRef table (v2)" resV2
+     (refs, trail)               <- quitOnFail "computing XRef table (v1)" resV1
                           
      -- run-time testing of equivalance of parseXRefsVersion{1,2}
      when (trail /= trail') $
@@ -165,13 +166,23 @@ parsePdf opts file bs topInput =
                >>= quitIfParseError "parsing PDF trailer"
                               
              putStrLn "PDF trailer is well-formed (use other options to check more)"
-
+             -- xref and such was also checked
+             -- FIXME[EC2]: did we already check the PdfTrailer??
+             
        ShowHelp -> dumpUsage options
 
 quit :: String -> IO a
 quit msg =
   do hPutStrLn stderr msg
      exitFailure
+
+
+quitOnFail :: String -> Possibly a -> IO a 
+quitOnFail context r = case r of
+                         Right x -> pure x
+                         Left ss -> quit (unlines (msg:ss))
+  where
+  msg = "Fatal error while " ++ context ++ ", cannot proceed"
 
 quitIfParseError :: String -> PdfResult a -> IO a 
 quitIfParseError context r = 
@@ -182,14 +193,12 @@ quitIfParseError context r =
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
-warnIfParseError :: String -> PdfResult a -> IO ()
+warnIfParseError :: String -> Possibly a -> IO ()
 warnIfParseError context r = 
  case r of
-   ParseOk a     -> return ()
-   ParseAmbig {} -> warn (msg ++ ": ambiguous.")
-   ParseErr e    -> warn (msg ++ ":\n\n" ++ show (pp e))
+   Right a -> return ()
+   Left ss -> mapM_ warn $ "warning:" : ss
   where
-  msg = "Fatal error while " ++ context ++ ", cannot proceed"
   warn s = hPutStrLn stderr s
   
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
