@@ -85,7 +85,7 @@ validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
-    err "must have only one subsection"
+    quit' "must have only one subsection"
 
     -- Section 7.5.4: For a PDF file that has never been incrementally
     -- updated, the cross-reference section shall contain only one subsection,
@@ -93,10 +93,10 @@ validateBase iu =
 
   let [xrefs] = xrefss
   case xrefs of
-    []                              -> err "must not be empty"
+    []                              -> quit' "must not be empty"
     Free 0 (R _ n) : _ | n == 65535 -> return ()
-                       | n == 0     -> warn "object 0 has generation 0 (should be 65535)"
-    _                               -> err "first object must be object 0, free, generation 65535"
+                       | n == 0     -> warn' "object 0 has generation 0 (should be 65535)"
+    _                               -> quit' "first object must be object 0, free, generation 65535"
 
     -- The first entry in the table (object number 0) shall always be free and
     -- shall have a generation number of 65,535;
@@ -105,15 +105,15 @@ validateBase iu =
     -- The last free entry (the tail of the linked list) links back to object number 0.
 
   case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
-    _:_ -> err "objects exist without generation number 0"
+    _:_ -> quit' "objects exist without generation number 0"
     []  -> return ()
 
     -- Except for object number 0, all objects in the cross-reference table
     -- shall initially have generation numbers of 0.
        
   where
-  warn s = warning $ "in first(base) xref table: " ++ s
-  err  s = quit ("Error: in first(base) xref table: " ++ s)
+  warn' s = warn $ "in first(base) xref table: " ++ s
+  quit' s = quit ("Error: in first(base) xref table: " ++ s)
 
 
 ---- parsing when no Object Index yet available ------------------------------
@@ -145,16 +145,19 @@ runParserWithoutObjectIndex i p =
     Left DerefException -> pure Nothing
     Right x'            -> pure $ Just x'
 
+
 ---- Possibly ----------------------------------------------------------------
 
 type Possibly a = Either [String] a
      -- FIXME[C]: hardly where this belongs, used by clients
-
+     -- calling 'Left' 'Fail'
+                
 quitIfFail :: Possibly a -> IO a
 quitIfFail = \case
                 Left ss -> quit (unlines ss)
                 Right a -> return a
-                 
+
+                  
 ---- utilities ---------------------------------------------------------------
 
 getXRefStart :: TrailerEnd -> UInt 64
@@ -174,9 +177,13 @@ fromPdfResult contextString r =
 
   -- FIXME: dead code at the moment!
 
+newError :: ParseErrorSource -> SourceRange -> String -> IO a
 newError  _ c msg = quit $ concat [msg, " (", c, ")"]
 
+newError2 :: ParseErrorSource -> SourceRange -> String -> Possibly a
 newError2 _ c msg = Left $ [concat [msg, " (", c, ")"]]
+
+  -- FIXME: remove first arg last 2 funcs
 
 -- FIXME: deduplicate/remove this:
 quitIfParseError :: String -> PdfResult a -> IO a 
@@ -189,12 +196,13 @@ quitIfParseError context r =
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
     
 
-warning :: String -> IO ()
-warning s = putStrLn $ "Warning: " ++ s
+warn :: String -> IO ()
+warn s = putStrLn $ "Warning: " ++ s
 
 quit :: String -> IO a
 quit msg = do hPutStrLn stderr msg
               exitFailure
+
 
 ---- xref table: parse and construct from many updates -----------------------
 
@@ -250,9 +258,11 @@ parseAllIncUpdates inp offset0 =
 parseOneIncUpdate :: Input -> FileOffset -> IO (IncUpdate, Maybe FileOffset)
 parseOneIncUpdate inp offset = 
   case advanceBy offset inp of
+    Nothing ->
+      quit ("Offset out of bounds: " ++ show offset)
     Just i ->
       do
-      refSec' <-
+      xref' <-
         runParserWithoutObjectIndexFailOnRef
           "parsing xrefs (v2)"
           inp
@@ -263,13 +273,12 @@ parseOneIncUpdate inp offset =
                        --   - standard xref table OR xref streams
                        --   - the trailer too (in the former case)
               
-      refSec <- quitIfParseError
-                  ("parsing xref table (at byte offset " ++ show i ++ ")")
-                  refSec'
-      case refSec of
+      xref <- quitIfParseError
+                ("parsing xref table (at byte offset " ++ show i ++ ")")
+                xref'
+      case xref of
         CrossRef_oldXref x -> processTrailer XRefTable  x
         CrossRef_newXref x -> processTrailer XRefStream x
-    Nothing -> quit ("Offset out of bounds: " ++ show offset)  -- FIXME
 
   where
   processTrailer :: ( VecElem s
@@ -396,7 +405,7 @@ printCavityReport bodyStart_base inp updates =
                   mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
 
           unless (RIntSet.null i) $
-            warning $
+            warn $
               "object definitions overlap (highly suspicious) on the following offsets: "
               ++ show (RIntSet.toRangeList i)
 
@@ -441,7 +450,7 @@ getObjectRanges inp iu =
             do let o' = fromIntegral (refObj r)
                    g' = fromIntegral (refGen r)
                unless (o' == o && g' == g) $
-                 warning "xref object gen =/= object gen obj ... endobj"
+                 warn "xref object gen =/= object gen obj ... endobj"
                return $ Right rng
                -- FIXME[C2]: '_x' is dead, use?
         ParseErr e                  -> fail' ["unparseable:", show e]
@@ -470,7 +479,7 @@ parseObjectAt inp offsetStart =
 -- | Construct the xref table, version 1
 --
 --   - the difference (vs version 2) is that we are doing all in one go and we
---   - need to stay inside the Parser Monad because that's where the ObjIndex is
+--   - need to stay inside the Parser monad because that's where the ObjIndex is
 --   - being extended!
 -- 
 --   - Unfortunately: error messages will not be good as the following get all intermingled
