@@ -518,14 +518,14 @@ parseXRefsVersion1 inp off0 =
             ) => Maybe TrailerDict -> x -> Parser (ObjIndex, TrailerDict)
   goWith mbRoot x =
     do let t = getField @"trailer" x
-       prev <- case getField @"prev" t of
-                 Nothing -> pure Nothing
-                 Just i ->
-                    case toInt i of  -- XXX: remember previous offsets
-                                     -- to ensure we are not stuck in a loop.
-                      Nothing -> pError FromUser "parseXRefsVersion1.goWith(1)"
-                                                 "Prev offset too large."
-                      Just off -> pure (Just $ intToSize off)
+       prevOffset <-
+         case getField @"prev" t of
+           Nothing -> pure Nothing
+           Just i ->
+              case toInt i of
+                Nothing -> pError FromUser "parseXRefsVersion1.goWith(1)"
+                                           "Prev offset too large."
+                Just off -> pure (Just $ intToSize off)
 
        tabs <- pErrorIfFail $
                  mapM (\s->convertToXRefEntries s >>= xrefEntriesToMap)
@@ -536,7 +536,7 @@ parseXRefsVersion1 inp off0 =
 
        let newRoot = mbRoot <|> Just t
 
-       extendObjIndex entries (go newRoot prev)
+       extendObjIndex entries (go newRoot prevOffset)
          -- entries may be shadowing previous entries
          -- note that the 'entries' are being added, in order, from the top of the file
          -- and in the reverse order in which 'extensions' would be applied.
