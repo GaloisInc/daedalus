@@ -15,13 +15,14 @@ import RTS.Input(newInput,inputBytes)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 import RTS.Numeric
 
+import qualified XRef
 import XRef( findStartXRef
-           , parseXRefsVersion1
            , parseXRefsVersion2
            , printIncUpdateReport
            , printObjIndex
            , validateUpdates
            , printCavityReport
+           , fromPdfResult
            , FileOffset
            , Possibly
            )
@@ -75,6 +76,11 @@ main =
 
 logMsg s = putStrLn s
            -- FIXME[F2] TODO: allow control by a verbose flag or the like.
+
+
+parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
+parseXRefsVersion1 inp off0 =
+  XRef.parseXRefsVersion1 inp off0 >>= return . fromPdfResult "parsing xref (v1)"
 
 parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
 parsePdf opts file bs topInput =

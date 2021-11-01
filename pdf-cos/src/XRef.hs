@@ -10,6 +10,7 @@ module XRef
   , printIncUpdateReport
   , printCavityReport
   , validateUpdates
+  , fromPdfResult
   -- types:
   , FileOffset
   , Possibly
@@ -486,13 +487,11 @@ parseObjectAt inp offsetStart =
 --   - Unfortunately: error messages will not be good as the following get all intermingled
 --     with all the parsing errors inside parser code.
 
-parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
+parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (PdfResult (ObjIndex, TrailerDict))
 parseXRefsVersion1 inp off0 =
-  do
-  r <- runParser Map.empty Nothing
-         (go Nothing (Just off0) (IntSet.singleton (sizeToInt off0)))
-         inp
-  return $ fromPdfResult "parsing xref (v2)" r
+  runParser Map.empty Nothing
+    (go Nothing (Just off0) (IntSet.singleton (sizeToInt off0)))
+    inp
   
   where
   go :: Maybe TrailerDict -> Maybe FileOffset -> IntSet.IntSet -> Parser (ObjIndex, TrailerDict)
