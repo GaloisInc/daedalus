@@ -244,6 +244,19 @@ Customize the variable `daedalus-command' to change how it is invoked."
        (current-buffer)))))
 
 
+(defun lsp-daedalus-debug-status ()
+  (interactive)
+  (let* ((args '())
+	 (res (lsp-send-execute-command "debug/dumpModuleInfo" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Status*")
+       (special-mode)
+       (let ((inhibit-read-only t))
+	 (erase-buffer)
+	 (insert res))
+       (current-buffer)))))
+
+
 ;; (lsp-defun lsp-daedalus--run-result-notfication (_workspace (&hash :clientHandle buf :result msg))
 ;;   (display-buffer
 ;;    (with-current-buffer buf

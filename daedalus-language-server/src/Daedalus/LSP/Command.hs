@@ -5,33 +5,36 @@
 
 module Daedalus.LSP.Command (supportedCommands, executeCommand) where
 
+import           Control.Concurrent.Async     (async, cancel)
+import           Control.Concurrent.STM       (atomically, modifyTVar, readTVar)
+import           Control.Concurrent.STM.TVar  (stateTVar)
 import           Control.Lens
+import           Control.Monad.IO.Class       (liftIO)
+import           Control.Monad.IO.Unlift      (withRunInIO)
+import           Control.Monad.Reader         (ask)
 import           Data.Aeson                   (FromJSON, Result (..), ToJSON,
                                                fromJSON, toJSON)
 import qualified Data.Aeson                   as A
+import           Data.Foldable                (traverse_)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
 
+import           Language.LSP.Server          (sendNotification)
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
 
-import           Control.Concurrent.Async     (async, cancel)
-import           Control.Concurrent.STM       (atomically, modifyTVar, readTVar)
-import           Control.Concurrent.STM.TVar  (stateTVar)
-import           Control.Monad.IO.Class       (liftIO)
-import           Control.Monad.IO.Unlift      (withRunInIO)
-import           Control.Monad.Reader         (ask)
+
 import qualified Daedalus.LSP.Command.Debug   as C
 import qualified Daedalus.LSP.Command.Regions as C
 import qualified Daedalus.LSP.Command.Run     as C
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position        (declAtPos)
+import           Daedalus.PP
 import           Daedalus.SourceRange
 import           Daedalus.Type.AST            (TCModule, tcDeclName)
-import           Data.Foldable                (traverse_)
-import           Language.LSP.Server          (sendNotification)
+
 
 type CommandImplFun = [A.Value] -> Either String (ServerM (Either J.ResponseError A.Value))
 
@@ -61,6 +64,7 @@ commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
                         , ("run/cancel"       , CommandImpl cancelWatchModule)
                         , ("debug/pass"       , CommandImpl debugPass)
                         , ("debug/supportedPasses", CommandImpl debugSupportedPasses)
+                        , ("debug/dumpModuleInfo", CommandImpl debugDumpModuleInfo)
                         ]
 
 executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
@@ -140,3 +144,24 @@ debugPass doc pos passN = do
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
       Just (m, _, _) -> Right <$> C.debugPass pos m passN
+
+debugDumpModuleInfo :: ServerM (Either J.ResponseError A.Value)
+debugDumpModuleInfo = do
+  sst <- ask
+  mst <- liftIO $ atomically $ readTVar (moduleStates sst)
+  let msg = show $ vcat (map go (Map.toList mst))
+  pure (Right (A.String (Text.pack msg)))
+  where
+    ppStatus :: forall a. Lens' ModuleState (PassStatus a) -> ModuleState -> Doc
+    ppStatus l st =
+      case st ^. l . passStatus of
+        NotStarted -> "not started"
+        ErrorStatus -> "error"
+        FinishedStatus {} -> "finished"
+        
+    go (mn, st) =
+      pp mn $$ nest 4
+        (bullets [ "Parse: " <> ppStatus msParsedModule st
+                 , "Scope: " <> ppStatus msScopeRes st
+                 , "TC:    " <> ppStatus msTCRes st
+                 ])
