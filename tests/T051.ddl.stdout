@@ -45,24 +45,32 @@ T051.Main : Grammar T051.Main =
   do (a : [int]) <- pure (map ((x : int) in T051.xs)
                             (x + 1))
      (b : [T051.Main0]) <- pure (map ((k : uint 64), (x : int) in T051.xs)
+                                   let k = k in
+                                   let x = x + 1 in
                                    {k = k,
-                                    x = x + 1})
+                                    x = x})
      (c : [int]) <- map ((x : int) in T051.xs)
                       (pure (x + 1))
      (d : [T051.Main1]) <- map ((k : uint 64), (x : int) in T051.xs)
-                             (pure {k = k,
-                                    x = x + 1})
+                             (pure let k = k in
+                                   let x = x + 1 in
+                                   {k = k,
+                                    x = x})
      (m : Map (uint 64) int) <- T051.Mp
      (e : [int]) <- pure (map ((x : int) in m)
                             (x + 1))
      (f : [T051.Main2]) <- pure (map ((k : uint 64), (x : int) in m)
+                                   let k = k in
+                                   let x = x + 1 in
                                    {k = k,
-                                    x = x + 1})
+                                    x = x})
      (g : [int]) <- map ((x : int) in m)
                       (pure (x + 1))
      (h : [T051.Main3]) <- map ((k : uint 64), (x : int) in m)
-                             (pure {k = k,
-                                    x = x + 1})
+                             (pure let k = k in
+                                   let x = x + 1 in
+                                   {k = k,
+                                    x = x})
      pure {a = a,
            b = b,
            c = c,
@@ -83,14 +91,18 @@ T051._Main : Grammar {} =
           (pure (x + 1))
         pure {}
      do map ((k : uint 64), (x : int) in T051.xs)
-          (pure {k = k,
-                 x = x + 1})
+          (pure let k = k in
+                let x = x + 1 in
+                {k = k,
+                 x = x})
         pure {}
      (m : Map (uint 64) int) <- T051.Mp
      do map ((x : int) in m)
           (pure (x + 1))
         pure {}
      map ((k : uint 64), (x : int) in m)
-       (pure {k = k,
-              x = x + 1})
+       (pure let k = k in
+             let x = x + 1 in
+             {k = k,
+              x = x})
      pure {}

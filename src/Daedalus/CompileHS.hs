@@ -160,7 +160,8 @@ hsType env ty =
 hsConstraint :: Env -> Constraint -> Term
 hsConstraint env ctr =
   case ctr of
-    Numeric t -> "RTS.Numeric" `Ap` hsType env t
+    Integral t -> "RTS.Numeric" `Ap` hsType env t
+    Arith t    -> "RTS.Arith" `Ap` hsType env t
 
     HasStruct t l a ->
       aps "RTS.HasStruct" [ hsType env t, hsLabelT l, hsType env a ]
@@ -350,6 +351,9 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
+    TCLet x e1 e2 ->
+      (Lam [hsTCName env x] (hsValue env e2)) `Ap` hsValue env e1
+
     TCLiteral l t ->
       case l of
         LNumber n -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)

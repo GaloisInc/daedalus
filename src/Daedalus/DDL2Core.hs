@@ -367,7 +367,7 @@ fromSem :: WithSem -> Sem
 fromSem sem = case sem of
                 NoSem -> SemNo
                 YesSem -> SemYes
-  
+
 needsCoerceCheck :: Type -> Expr -> Maybe Expr
 needsCoerceCheck toTy e =
   case (toTy, fromTy) of
@@ -861,6 +861,12 @@ fromClass cla =
 fromExpr :: TC.TC a TC.Value -> M Expr
 fromExpr expr =
   case TC.texprValue expr of
+    TC.TCLet x e1 e2 ->
+      do x'  <- fromName x
+         e1' <- fromExpr e1
+         e2' <- withSourceLocal x' (fromExpr e2)
+         pure (PureLet (snd x') e1' e2')
+
     TC.TCMapEmpty t ->
       fromTypeM t >>= \resT ->
       case resT of

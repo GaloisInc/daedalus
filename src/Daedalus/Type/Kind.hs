@@ -1,12 +1,13 @@
 {-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.Type.Kind where
 
-import Control.Monad(unless,forM)
+import Control.Monad(unless)
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
 
 import Daedalus.Type.Monad
+import Daedalus.Type.Constraints(unify)
 import Daedalus.Type.AST
 import Daedalus.AST
 
@@ -14,14 +15,16 @@ checkType :: Kind -> SrcType -> TypeM ctx Type
 checkType expK srcty =
   case srcty of
     SrcCon x ->
-      do let nm = TCTy x
-         mb <- lookupTypeDefMaybe nm
-         case mb of
-           Just td -> do ps <- forM (tctyParams td) \_ ->
-                                  newTVar x KValue
-                         pure (tCon (tctyName td) ps)
-           Nothing -> do needsDef x nm
-                         pure (tCon nm [])
+      do t <- lookupTySyn x
+         case kindOf t of
+           KGrammar ->
+             do expect KValue
+                a <- newTVar srcty KValue
+                unify t (srcty, tGrammar a)
+                pure a
+           KValue   -> expect KValue >> pure t
+           KClass   -> expect KClass >> pure t
+           KNumber  -> panic "checkType" ["kind of rule is a number"]
 
     SrcVar x ->
       do mb <- lookupLocalTyVar (thingValue x)

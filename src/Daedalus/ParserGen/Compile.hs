@@ -119,6 +119,8 @@ idVExpr vexpr =
               ) lpat
 
         TCVar v -> TCVar v
+
+        TCLet x y z -> TCLet x (idVExpr y) (idVExpr z)
         _ -> error ("TODO: " ++ show vexpr)
 
     subArg arg =

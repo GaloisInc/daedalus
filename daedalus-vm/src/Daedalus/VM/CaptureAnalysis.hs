@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.CaptureAnalysis where
 
 import Data.Set(Set)
@@ -7,89 +7,85 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List(foldl')
 
+import Daedalus.Panic(panic)
 import Daedalus.Rec(topoOrder,Rec(..))
 import Daedalus.PP
 
 import Daedalus.VM
 
 
-
-
-
 captureAnalysis :: Program -> Program
 captureAnalysis prog =
-  Program { pModules = map changeModule (pModules p1)
-          , pEntries = map changeEntry  (pEntries p1)
+  Program { pModules = map annotateModule ms
+          , pEntries = map annotateEntry (pEntries prog)
           }
+
+
   where
-  p1 = Program { pModules = map annotateModule ms
-               , pEntries = map annotateEntry (pEntries prog)
-               }
-
-
   ms = pModules prog
 
-  info = fixCaptureInfo
-       $ Map.fromList
-         [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
+  info    = fixCaptureInfo
+          $ Map.fromList
+              [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
-  -- The following return blocks should be changed to `NoCapture`
-  noCapRetBlocks =
-    Set.unions
-    [ case blockTerm b of
-        Call _ NoCapture no yes _ -> Set.fromList [jLabel no,jLabel yes]
-        _                         -> Set.empty
-    | b <- pAllBlocks p1
-    ]
-
-  changeRetBlock b =
-    case blockType b of
-      ReturnBlock how
-        | RetNo Capture <- how
-        , blockName b `Set.member` noCapRetBlocks ->
-          b { blockType = ReturnBlock (RetNo NoCapture) }
-
-        | RetYes Capture <- how
-        , blockName b `Set.member` noCapRetBlocks ->
-          b { blockType = ReturnBlock (RetYes NoCapture) }
-
-      _ -> b
-
-  changeEntry e   = e { entryBoot = changeRetBlock <$> entryBoot e }
-  changeModule m  = m { mFuns = map changeFun (mFuns m) }
-  changeFun f = f { vmfDef = changeDef (vmfDef f) }
-  changeDef d =
-    case d of
-      VMExtern {} -> d
-      VMDef b     -> VMDef b { vmfBlocks = changeRetBlock <$> vmfBlocks b }
+  ---
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
-  annotateEntry e = e { entryBoot = annotateBlock <$> entryBoot e }
+  annotateEntry e =
+    let bs   = entryBoot e
+        c    = case foldMap captureInfo bs of
+                 CapturesYes -> Capture
+                 CapturesIf xs
+                   | any (\x -> getCaptures info x == Capture) xs -> Capture
+                   | otherwise -> NoCapture
 
-  annotateFun f = f { vmfCaptures = getCaptures info (vmfName f)
-                    , vmfDef = annotateDef (vmfDef f)
+    in e { entryBoot = annotateBlock c <$> entryBoot e }
+
+  annotateFun f = f { vmfCaptures = me
+                    , vmfDef = annotateDef me (vmfDef f)
                     }
+    where me = getCaptures info (vmfName f)
 
-  annotateDef d =
+  annotateDef me d =
     case d of
       VMExtern {} -> d
-      VMDef b -> VMDef b { vmfBlocks = annotateBlock <$> vmfBlocks b }
+      VMDef b -> VMDef b { vmfBlocks = annotateBlock me <$> vmfBlocks b }
 
-  annotateBlock b = b { blockTerm = annotateTerm (blockTerm b) }
-  annotateTerm i =
+  annotateBlock me b = b { blockTerm = annotateTerm me (blockTerm b)
+                         , blockType = case blockType b of
+                                         NormalBlock -> NormalBlock
+                                         ThreadBlock -> ThreadBlock
+                                         ReturnBlock how ->
+                                           ReturnBlock
+                                           case how of
+                                             RetPure  -> RetPure
+                                             RetNo _  -> RetNo me
+                                             RetYes _ -> RetYes me
+                         }
+  annotateTerm me i =
     case i of
-      Call f _ no yes es   -> Call f (getCaptures info f) no yes es
-      TailCall f _ es -> TailCall f (getCaptures info f) es
-      _ -> i
+      Call f _ no yes es  -> Call f (callSanity f) no yes es
+      TailCall f _ es     -> TailCall f (callSanity f) es
+      _                   -> i
+    where
+    callSanity f =
+      case getCaptures info f of
+        Unknown -> panic "captureAnalysis" ["unknown"]
+        Capture ->
+          case me of
+            Capture   -> Capture
+            Unknown   -> panic "captureInfo" ["call unknown"]
+            NoCapture -> panic "captureInfo" ["call capture from no capture"]
+        NoCapture -> NoCapture
 
 
+-- We only mark something as capturing if we have good reason to do so
+-- (i.e., we found a concrete instruction that forces capture)
 getCaptures :: Map FName CaptureInfo -> FName -> Captures
 getCaptures mp f =
   case Map.lookup f mp of
-    Just (CapturesIf xs) | Set.null xs -> NoCapture
-    _ -> Capture  -- conservative
-
-
+    Just CapturesYes -> Capture
+    _                -> NoCapture
 
 -- | Compute a fix-point of the input map.
 fixCaptureInfo :: Map FName CaptureInfo -> Map FName CaptureInfo
@@ -168,7 +164,8 @@ instance GetCaptureInfo CInstr where
       _                -> capturesNo
     where call f c = case c of
                        NoCapture -> Set.empty
-                       Capture   -> Set.singleton f
+                       Unknown   -> Set.singleton f
+                       Capture   -> panic "captureInfo" ["Capture"]
 
   annotate mp i =
     case i of

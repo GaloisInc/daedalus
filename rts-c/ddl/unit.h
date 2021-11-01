@@ -2,9 +2,10 @@
 #define DDL_UNIT_H
 
 #include <iostream>
+#include <ddl/value.h>
 
 namespace DDL {
-class Unit {};
+class Unit : public Value {};
 
 inline
 std::ostream& operator<<(std::ostream& os, Unit x) {

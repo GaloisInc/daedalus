@@ -138,7 +138,7 @@ spawnBlock def =
 -- | For returning from a call to a grammar function
 retNo :: BlockBuilder Void -> C (BlockBuilder JumpPoint)
 retNo def =
-  do (l,inp,vs) <- newBlock (ReturnBlock (RetNo Capture)) [] \ ~[] -> def
+  do (l,inp,vs) <- newBlock (ReturnBlock (RetNo Unknown)) [] \ ~[] -> def
      pure do es <- mapM getLocal vs
              is <- if inp then (:[]) <$> getInput else pure []
              pure (JumpPoint l (is++es))
@@ -149,7 +149,7 @@ retNo def =
 retYes :: (E -> BlockBuilder Void) -> C (BlockBuilder JumpPoint)
 retYes def =
   do t <- getCurTy
-     (l,inp,vs) <- newBlock (ReturnBlock (RetYes Capture)) [t,TSem Src.TStream]
+     (l,inp,vs) <- newBlock (ReturnBlock (RetYes Unknown)) [t,TSem Src.TStream]
                                       \ ~[x,i] -> setInput i >> def x
      when inp $ panic "retYes" [ "Input escaped?" ]
      pure do es <- mapM getLocal vs

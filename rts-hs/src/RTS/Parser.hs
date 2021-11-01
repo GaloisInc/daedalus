@@ -30,7 +30,12 @@ itoList xs =
 
 -- A simple list monad, where we don't e.g. interleave on alternatives
 newtype Parser a =
-  Parser { runP :: [String] -> Input -> Maybe ParseError -> Res a }
+  Parser { runP ::
+           [String]         {- context stack -} ->
+           Input            {- the input we are parsing -} ->
+           Maybe ParseError {- last error if we got here by backtracking -} ->
+           Res a
+         }
 
 data Res a = NoResAbort !ParseError
            | NoResFail  !ParseError
@@ -68,7 +73,7 @@ joinRes2 xs ys =
                                   (mergeMbMb mb mb1)          -- reorders
 
 merge :: ParseError -> ParseError -> ParseError
-merge e1 e2 = e1 <> e2 -- if peOffset e1 <= peOffset e2 then e2 else e1
+merge e1 e2 = e1 <> e2
 
 mergeMb :: Maybe ParseError -> ParseError -> ParseError
 mergeMb mb e = case mb of
@@ -152,8 +157,8 @@ instance BasicParser Parser where
              case runP p cs inp err of
                NoResAbort e       -> NoResAbort e
                NoResFail err1     -> runP q cs inp (Just err1)
-               Res a i mb         -> Res a i (mergeMbMb mb err)
-               MultiRes a i is mb -> MultiRes a i is (mergeMbMb mb err)
+               Res a i mb         -> Res a i mb
+               MultiRes a i is mb -> MultiRes a i is mb
   {-# INLINE (<||) #-}
 
   p ||| q = Parser \cs inp err ->

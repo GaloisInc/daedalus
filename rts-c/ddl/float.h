@@ -29,6 +29,12 @@ public:
   bool operator <  (Float x) { return getValue() <  x.getValue(); }
   bool operator <= (Float x) { return getValue() <= x.getValue(); }
 
+  Float operator + (Float x) { return Float{getValue() + x.getValue()}; }
+  Float operator - (Float x) { return Float{getValue() - x.getValue()}; }
+  Float operator * (Float x) { return Float{getValue() * x.getValue()}; }
+  Float operator / (Float x) { return Float{getValue() / x.getValue()}; }
+  Float operator - ()        { return Float{-getValue()}; }
+
   bool isNaN() { return std::isnan(getValue()); }
   bool isInfinite() { return std::isinf(getValue()); }
   bool isDenormalized() { return std::fpclassify(f) == FP_SUBNORMAL; }
@@ -74,6 +80,14 @@ public:
   bool operator != (Double x) { return getValue() != x.getValue(); }
   bool operator <  (Double x) { return getValue() <  x.getValue(); }
   bool operator <= (Double x) { return getValue() <= x.getValue(); }
+
+  Double operator + (Double x) { return Double{getValue() + x.getValue()}; }
+  Double operator - (Double x) { return Double{getValue() - x.getValue()}; }
+  Double operator * (Double x) { return Double{getValue() * x.getValue()}; }
+  Double operator / (Double x) { return Double{getValue() / x.getValue()}; }
+  Double operator - ()         { return Double{-getValue()}; }
+
+
 
   bool isNaN() { return std::isnan(getValue()); }
   bool isInfinite() { return std::isinf(getValue()); }
