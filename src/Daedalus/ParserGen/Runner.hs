@@ -80,7 +80,7 @@ hasCommitted :: CommitStack -> Bool
 {-# INLINE hasCommitted #-}
 hasCommitted hst =
   let (comm, _) = hst in
-  let c = (Seq.lookup ((Seq.length comm) - 1) comm) in
+  let c = Seq.lookup (Seq.length comm - 1) comm in
   case c of
     Nothing -> error "broken invariant"
     Just (_, CTrue _) -> True
@@ -91,7 +91,7 @@ updateCommitStack :: State -> CommitStack -> CommitStack
 {-# INLINE updateCommitStack #-}
 updateCommitStack g cstk =
   let (comm, pos) = cstk in
-  case (Seq.lookup pos comm) of
+  case Seq.lookup pos comm of
     Nothing -> error ("broken invariant: " ++ show pos ++
                       " Len: " ++ show (Seq.length comm))
     Just (p, CFalse g1) ->
@@ -111,7 +111,7 @@ updateCommitStack g cstk =
 earlyUpdateCommitStack :: CommitStack -> CommitStack
 earlyUpdateCommitStack cstk =
   let (comm, pos) = cstk in
-  case (Seq.lookup pos comm) of
+  case Seq.lookup pos comm of
     Nothing -> error "broken invariant"
     Just (p, CFalse st) ->
       (Seq.update pos (p, CEarly st) comm, pos)
@@ -276,7 +276,7 @@ incrResultMetrics :: Bool -> Result -> Bool -> Result
 incrResultMetrics b r flagMetrics =
   if flagMetrics
   then
-    if (b == tickBacktrack)
+    if b == tickBacktrack
     then r { metrics = incrMetricsBacktrack (metrics r) }
     else r { metrics = incrMetricsLL (metrics r) }
   else r
