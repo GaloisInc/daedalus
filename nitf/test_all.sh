@@ -8,15 +8,18 @@
 
 
 TMPFILE="/dev/null"
+#TMPFILE="/dev/stdout"
+
 USING_GEN=""
 DAEDALUS="cabal run ../:daedalus --"
 DAEDALUS="../nitf_cpp_parser/parser"
 NITF_HAMMER=""
+NITRO_PARSER="/nitro/install/bin/show_nitf"
 
 #NITF_TESTSUITE=`echo ~/SafeDocs/NITF`
 JITC_DIR="JITC - NITF Test Data - Set 1"
 JITC_DIR="/tmp/JITC - NITF Test Data - Set 1"
-GWG_DIR=./gwg.nga.mil_samples
+GWG_DIR="/tmp/gwg.nga.mil_samples"
 
 
 # echo "args are:"
@@ -51,8 +54,8 @@ test_jitc(){
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
+            # if ${NITRO_PARSER} "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus -- nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
-
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -72,6 +75,7 @@ test_jitc(){
             printf ' %s ... ' "$file"
             # if ${DAEDALUS} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
+            # if ${NITRO_PARSER} "$file" > ${TMPFILE}; then
             if cabal run ../:daedalus --  nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
@@ -90,6 +94,7 @@ test_gwg(){
     while read -r file; do
         printf '%s ... ' "$file"
         # if ${DAEDALUS} "$file" > ${TMPFILE}; then
+        # if ${NITRO_PARSER} "$file" ; then
         if cabal run ../:daedalus -- nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
