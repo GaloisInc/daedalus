@@ -98,6 +98,9 @@ instance PP VersionField where
 ppBytes :: RTS.Vector (RTS.UInt 8) -> Doc
 ppBytes = pp . RTS.vecToRep
 
+ppBytes7 :: RTS.Vector (RTS.UInt 7) -> Doc
+ppBytes7 = pp . RTS.vecToRep
+
 ppTag :: Doc -> Doc -> Doc
 ppTag x y = hang (x <> colon) 2 y
 
@@ -151,7 +154,15 @@ instance PP Tag where
       Tag_chrm x  -> ppTag "chrm" (pp x)
       Tag_chad x  -> ppTag "chad" (pp x)
 
-      Tag_unknown {} -> text (show tag)
+      Tag_unimplemented {} -> text (show tag)
+      Tag_invalid_tag x -> pp x
+
+instance PP InvalidTag where
+  pp i =
+    vcat [ "INVALID" <+> ppBytes (getField @"sig" i)
+         , nest 2 (ppBytes (getField @"data" i))
+         ]
+
 
 instance PP LutAB_or_multi where
   pp a =
@@ -190,14 +201,14 @@ instance PP MPElementBody where
       MPElementBody_cvst x -> pp x
       MPElementBody_matf x -> pp x
       MPElementBody_mpet x -> pp x
-      MPElementBody_unknown x -> text (show x)
+      MPElementBody_unimplemented x -> text (show x)
 
 instance PP Curve where
   pp c =
     case c of
       Curve_sngf x -> pp x
       Curve_curf x -> pp x
-      Curve_unknown x -> text (show x)
+      Curve_unimplemented x -> text (show x)
 
 instance PP SingleSampledCurve where
   pp x = braces $ hsep $ punctuate comma
@@ -382,10 +393,30 @@ instance PP UnicodeRecord where
           country = pp (RTS.vecToRep (getField @"country"  u))
           txt     = pp (Text.decodeUtf16BE (RTS.vecToRep (getField @"data" u)))
 
-instance PP TextLax where
-  pp u = case u of
-           TextLax_unicode x -> pp x
-           TextLax_ascii x   -> pp x
+instance PP LaxTextType where
+  pp u =
+    case u of
+      LaxTextType_uni x -> pp x
+      LaxTextType_desc x -> pp x
+      LaxTextType_text x -> ppBytes7 x
+
+instance PP TextDescriptionType where
+  pp x =
+    braces $
+    vcat [ opt a $ "ascii:" <+> ppBytes a
+         , opt u (("unicode" <> parens (ppBytes uc) <> colon) <+>
+                                pp (Text.decodeUtf16BE (RTS.vecToRep u)))
+         , opt s (("script" <> parens (ppBytes sc) <> colon) <+>
+                                                      ppBytes s)
+         ]
+    where
+    opt v f = if RTS.sizeToInt (RTS.length v) == 0 then empty else f
+
+    a   = getField @"ascii_data"   x
+    uc  = getField @"unicode_code" x
+    u   = getField @"unicode_data" x
+    sc  = getField @"script_code"  x
+    s   = getField @"script_data"  x
 
 
 instance PP ParametricCurveType where

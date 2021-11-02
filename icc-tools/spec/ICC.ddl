@@ -1,4 +1,5 @@
 -- Referece: https://www.color.org/specification/ICC.2-2019.pdf
+-- Reference for older features: https://www.color.org/icc32.pdf
 
 import Daedalus
 -- import Debug
@@ -125,7 +126,7 @@ def TagTable s =
 
 def Tag (sig : uint 32) =
   case sig of
-    0s"desc" -> {| desc = MultiLocalizedUnicodeType |}
+    0s"desc" -> {| desc = LaxTextType |}
 
     0s"A2B0" -> {| A2B0 = LutAB_or_multi |}
     0s"A2B1" -> {| A2B1 = LutAB_or_multi |}
@@ -143,30 +144,35 @@ def Tag (sig : uint 32) =
     0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
     0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
 
-    0s"wtpt" -> {| wtpt = XYZType |}
-    0s"cprt" -> {| cprt = MultiLocalizedUnicodeType |}
+    0s"wtpt" -> {| wtpt = Only XYZType |}
+    0s"cprt" -> {| cprt = LaxTextType |}
     0s"c2sp" -> {| c2sp = MultiProcessElementsType |}
     0s"s2cp" -> {| s2cp = MultiProcessElementsType |}
 
-    0s"svcn" -> {| svcn = SpectralViewingConditionsType |}
+    0s"svcn" -> {| svcn = Only SpectralViewingConditionsType |}
 
-    0s"rXYZ" -> {| rXYZ = XYZType |}
-    0s"gXYZ" -> {| gXYZ = XYZType |}
-    0s"bXYZ" -> {| bXYZ = XYZType |}
+    0s"rXYZ" -> {| rXYZ = Only XYZType |}
+    0s"gXYZ" -> {| gXYZ = Only XYZType |}
+    0s"bXYZ" -> {| bXYZ = Only XYZType |}
 
-    0s"rTRC" -> {| rTRC = CurveOrPCurve |}
-    0s"gTRC" -> {| gTRC = CurveOrPCurve |}
-    0s"bTRC" -> {| bTRC = CurveOrPCurve |}
+    0s"rTRC" -> {| rTRC = Only CurveOrPCurve |}
+    0s"gTRC" -> {| gTRC = Only CurveOrPCurve |}
+    0s"bTRC" -> {| bTRC = Only CurveOrPCurve |}
 
-    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
-    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
+    0s"dmdd" -> {| dmdd = LaxTextType |}
+    0s"dmnd" -> {| dmnd = LaxTextType |}
 
-    0s"chrm" -> {| chrm = ChromaticityType |}
-    0s"chad" -> {| chad = S15Fixed16ArrayType |}
+    0s"chrm" -> {| chrm = Only ChromaticityType |}
+    0s"chad" -> {| chad = Only S15Fixed16ArrayType |}
 
     -- XXX: more ttags
-    _        -> {| unknown = explode32 sig |}
+    _        -> {| unimplemented = explode32 sig |}
+  <| {| invalid_tag = InvalidTag sig |}
 
+def InvalidTag sig =
+  block
+    sig = explode32 sig
+    data = Many UInt8
 
 
 --------------------------------------------------------------------------------
@@ -211,26 +217,39 @@ def Response16Number =
 
 
 --------------------------------------------------------------------------------
+-- Shared Tag Bodies
 
 def LutAB_or_multi =
+  Only
   First
     lutAB = LutAToBType
     mpe   = MultiProcessElementsType
 
 def LutBA_or_multi =
+  Only
   First
     lutBA = LutAToBType
     mpe   = MultiProcessElementsType
 
-def TextLax =
-  First
-    unicode = MultiLocalizedUnicodeType
-    ascii   = TextType
-
 def CurveOrPCurve =
+  Only
   First
     curve  = CurveType
     pcurve = ParametricCurveType
+
+{- Various text encodings.
+We combine them here because various versions of the spec do text
+differently.  Depending on what one is doing this could be done differntly,
+for example, have a separate `Tag` function for each version of the standard. -}
+def LaxTextType =
+  First
+    uni  = MultiLocalizedUnicodeType
+    desc = Only TextDescriptionType
+    text = Only TextType
+
+def MultiProcessElementsType = Only MPElement
+
+
 
 
 --------------------------------------------------------------------------------
@@ -403,13 +422,6 @@ def LutBToAType =
     data                      = GetStream
 
 
-def MultiProcessElementsType =
-  block
-    $$ = MPElement
-    -- case $$.body of
-    --   mpet -> Accept
-    --   _    -> Fail "Not MPET"
-
 
 def SpectralViewingConditionsType =
   block
@@ -460,6 +472,22 @@ def ViewConditionsType =
     illuminant    = BE32
 
 --------------------------------------------------------------------------------
+-- Text Description Type (Section 6.5.13 of the 3.2 spec)
+
+def TextDescriptionType =
+  block
+    StartTag "desc"
+    ascii_data   = Many (BE32 as ?auto) UInt8
+    unicode_code = Many 4 UInt8
+    unicode_data = Many (2 * BE32 as ?auto) UInt8
+    script_code  = Many 2 UInt8
+    let script_len = BE32 as ?auto
+    script_data  = Many (BE32 as ?auto) UInt8
+    Many $[0]
+
+
+
+--------------------------------------------------------------------------------
 -- Multi Processing Elements (Section 11)
 
 
@@ -490,7 +518,7 @@ def MPElementBody head =
                             Guard (n >= 1) <| Fail "Need at least one MPE"
                             Many n (Positioned head.offset MPElement)
                 |}
-    _        -> {| unknown = explode32 head.tag |}
+    _        -> {| unimplemented = explode32 head.tag |}
 
 
 --------------------------------------------------------------------------------
@@ -920,7 +948,7 @@ def Curve =
     case tag of
       0s"sngf" -> {| sngf = SingleSampledCurve |}
       0s"curf" -> {| curf = SegmentedCurve |}
-      _        -> {| unknown = explode32 tag |}
+      _        -> {| unimplemented = explode32 tag |}
 
 
 -- XXX: Table 108
