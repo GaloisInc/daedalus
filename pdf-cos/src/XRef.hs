@@ -246,14 +246,19 @@ parseXRefsVersion2 inp offset =
 
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
 parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
-parseAllIncUpdates inp offset0 =
+parseAllIncUpdates = parseAllIncUpdates' IntSet.empty
+
+parseAllIncUpdates' prevSet inp offset0 =
   do
-  iu <- parseOneIncUpdate inp offset0
+  iu <- parseOneIncUpdate prevSet inp offset0
                -- end of file, first-processed update
   prev <- getPrev iu
   case prev of
-    Just offset -> (++[iu]) <$> parseAllIncUpdates inp offset
-    Nothing     -> return [iu]
+    Just offset1 -> (++[iu]) <$> parseAllIncUpdates'
+                                   (IntSet.insert (sizeToInt offset0) prevSet)
+                                   inp
+                                   offset1
+    Nothing      -> return [iu]
 
   where
   getPrev :: IncUpdate -> IO (Maybe FileOffset)
@@ -262,61 +267,58 @@ parseAllIncUpdates inp offset0 =
       Nothing -> pure Nothing
       Just i ->
          case toInt i of
-           Nothing  -> newError FromUser "parseTrailer"
-                                         "Prev offset too large."
-           Just offset' ->
-               let offset'' = intToSize offset' in
-               if offset'' /= offset0 then
-                 pure (Just offset'')
-               else
-                 newError FromUser "parseTrailer"
-                                   "Prev offset unchanged"
-               -- FIXME[F1]: above is hardly sufficient: infinite loop possible!
+           Nothing      -> newError FromUser "parseTrailer"
+                                             "Prev offset too large."
+           Just offset' -> return (Just (intToSize offset'))
  
 
 -- | parseOneIncUpdate - go to offset and parse xref table
-parseOneIncUpdate :: Input -> FileOffset -> IO IncUpdate
-parseOneIncUpdate input0 offset = 
-  case advanceBy offset input0 of
-    Nothing ->
-      quit ("Offset out of bounds: " ++ show offset)
-    Just input1 ->
-      do
-      -- Parse the basic syntax of the xref table
-      (xref,xrefEnd) <-
-        let ctx = "parsing xref table (at byte offset " ++ show (sizeToInt offset) ++ ")"
-        in
-          runParserWithoutObjectIndexFailOnRef
-            ctx
-            input1
-            (do
-             pSetInput input1
-             pManyWS     -- FIXME: later: warn if this consumes anything
-             crossRef <- pCrossRef
-             crossRefEnd <- pOffset
-             return (crossRef, crossRefEnd))
-          >>= quitIfParseError ctx                
-       
-      -- NOTE: the following parsing of TrailerEnd is where Version1 differs from Version2:
-      --   FIXME[F1]: Are we overconstraining syntax?
-      --   FIXME[F1]: we don't really know, on the first-found update, that this trailerEnd
-      --              is the same one we found at the end of the file!
-      
-      --   When we need/want to parse this
-      --    - not to just create xref table
-      --    - YES to compute cavities
-      --    - YES to allow us to do some sanity checks
-      
-      trailerEnd <-
-        let ctx = "parsing 'startxref' to '%%EOF'"
-            Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
-            
-        in  runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
-             >>= quitIfParseError ctx
-            
-      case xref of
-        CrossRef_oldXref x -> processTrailer XRefTable  x trailerEnd
-        CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
+parseOneIncUpdate :: PrevSet -> Input -> FileOffset -> IO IncUpdate
+parseOneIncUpdate prevSet input0 offset =
+  if sizeToInt offset `IntSet.member` prevSet then
+    quit (unwords[ "recursive incremental updates:"
+                 , "adding xref at ", show offset, "where we already have", show prevSet])
+  else
+    case advanceBy offset input0 of
+      Nothing ->
+        quit ("Offset out of bounds: " ++ show offset)
+      Just input1 ->
+        do
+        -- Parse the basic syntax of the xref table
+        (xref,xrefEnd) <-
+          let ctx = "parsing xref table (at byte offset " ++ show (sizeToInt offset) ++ ")"
+          in
+            runParserWithoutObjectIndexFailOnRef
+              ctx
+              input1
+              (do
+               pSetInput input1
+               pManyWS     -- FIXME: later: warn if this consumes anything
+               crossRef <- pCrossRef
+               crossRefEnd <- pOffset
+               return (crossRef, crossRefEnd))
+            >>= quitIfParseError ctx                
+         
+        -- NOTE: the following parsing of TrailerEnd is where Version1 differs from Version2:
+        --   FIXME[F1]: Are we overconstraining syntax?
+        --   FIXME[F1]: we don't really know, on the first-found update, that this trailerEnd
+        --              is the same one we found at the end of the file!
+        
+        --   When we need/want to parse this
+        --    - not to just create xref table
+        --    - YES to compute cavities
+        --    - YES to allow us to do some sanity checks
+        
+        trailerEnd <-
+          let ctx = "parsing 'startxref' to '%%EOF'"
+              Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
+              
+          in  runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
+               >>= quitIfParseError ctx
+              
+        case xref of
+          CrossRef_oldXref x -> processTrailer XRefTable  x trailerEnd
+          CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
 
   where
   processTrailer :: ( VecElem s
