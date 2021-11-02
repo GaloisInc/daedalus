@@ -244,9 +244,6 @@ parseXRefsVersion2 inp offset =
 
 ---- parsing IncUpdates ------------------------------------------------------
 
--- NEW TODO:
--- parseAllIncUpdates :: Input -> FileOffset -> IO ([IncUpdate], Maybe String)
-
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
 parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
 parseAllIncUpdates inp offset0 =
@@ -300,11 +297,16 @@ parseOneIncUpdate input0 offset =
              return (crossRef, crossRefEnd))
           >>= quitIfParseError ctx                
        
-      -- NOTE: the following is where Version1 differs from Version2:
+      -- NOTE: the following parsing of TrailerEnd is where Version1 differs from Version2:
       --   FIXME[F1]: Are we overconstraining syntax?
       --   FIXME[F1]: we don't really know, on the first-found update, that this trailerEnd
       --              is the same one we found at the end of the file!
-
+      
+      --   When we need/want to parse this
+      --    - not to just create xref table
+      --    - YES to compute cavities
+      --    - YES to allow us to do some sanity checks
+      
       trailerEnd <-
         let ctx = "parsing 'startxref' to '%%EOF'"
             Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
