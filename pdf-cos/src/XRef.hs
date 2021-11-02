@@ -218,9 +218,8 @@ parseXRefsVersion2 inp offset =
     -- create object index (oi) map:
     oi <- foldlM
             (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
-                         return (Map.union oi' oi)
+                         return (Map.union oi' oi))
                                 -- NOTE: Map.union is left-biased.
-            )
             Map.empty
             updates
     pure $ Right (updates, oi, iu_trailer(last updates))
@@ -268,7 +267,7 @@ parseAllIncUpdates' prevSet inp offset0 =
       Just i ->
          case toInt i of
            Nothing      -> newError FromUser "parseTrailer"
-                                             "Prev offset too large."
+                                             "Prev offset too large to fit in int."
            Just offset' -> return (Just (intToSize offset'))
  
 
