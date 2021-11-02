@@ -6,20 +6,35 @@ def joinWords a b = if ?bigEndian then a # b else b # a
 def UInt16        = joinWords UInt8 UInt8
 def UInt32        = joinWords UInt16 UInt16
 def UInt64        = joinWords UInt32 UInt32
+
+def SInt16        = UInt16 as! sint 16
+def SInt32        = UInt32 as! sint 32
+def SInt64        = UInt64 as! sint 64
+
 def HalfFloat     = wordToHalfFloat UInt16
 def Float         = wordToFloat UInt32
 def Double        = wordToDouble UInt64
 
-def BE16          = block let ?bigEndian = true; UInt16
-def BE32          = block let ?bigEndian = true; UInt32
-def BE64          = block let ?bigEndian = true; UInt64
+def BEUInt16      = block let ?bigEndian = true; UInt16
+def BEUInt32      = block let ?bigEndian = true; UInt32
+def BEUInt64      = block let ?bigEndian = true; UInt64
+
+def BESInt16      = block let ?bigEndian = true; SInt16
+def BESInt32      = block let ?bigEndian = true; SInt32
+def BESInt64      = block let ?bigEndian = true; SInt64
+
 def BEHalfFloat   = block let ?bigEndian = true; HalfFloat
 def BEFloat       = block let ?bigEndian = true; Float
 def BEDouble      = block let ?bigEndian = true; Double
 
-def LE16          = block let ?bigEndian = false; UInt16
-def LE32          = block let ?bigEndian = false; UInt32
-def LE64          = block let ?bigEndian = false; UInt64
+def LEUInt16      = block let ?bigEndian = false; UInt16
+def LEUInt32      = block let ?bigEndian = false; UInt32
+def LEUInt64      = block let ?bigEndian = false; UInt64
+
+def LESInt16      = block let ?bigEndian = false; SInt16
+def LESInt32      = block let ?bigEndian = false; SInt32
+def LESInt64      = block let ?bigEndian = false; SInt64
+
 def LEHalfFloat   = block let ?bigEndian = false; HalfFloat
 def LEFloat       = block let ?bigEndian = false; Float
 def LEDouble      = block let ?bigEndian = false; Double

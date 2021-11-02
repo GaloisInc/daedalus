@@ -16,7 +16,7 @@ def Main =
 
 def ProfileHeader =
   block
-    size                = BE32
+    size                = BEUInt32
     preferred_cmm_type  = Many 4 UInt8
     version             = VersionField
     devce_class         = ProfileClass
@@ -25,10 +25,10 @@ def ProfileHeader =
     creation_date_time  = DateTimeNumber
     Match "acsp"
     primary_platform    = PrimaryPlatform
-    profile_flags       = BE32            -- XXX: bitdata, see 7.2.13
+    profile_flags       = BEUInt32            -- XXX: bitdata, see 7.2.13
     device_manufacturer = Many 4 UInt8
     device_model        = Many 4 UInt8
-    device_attributes   = BE64            -- XXX: bitdata, see 7.2.16
+    device_attributes   = BEUInt64           -- XXX: bitdata, see 7.2.16
     rendering_intent    = RenderingIntent
     illuminant          = XYZNumber
     creator             = Many 4 UInt8
@@ -44,7 +44,7 @@ def VersionField =
     Match [0x00, 0x00]
 
 def ProfileClass =
-  case BE32 of
+  case BEUInt32 of
     0s"scnr" -> {| input_device_profile   |}
     0s"mntr" -> {| display_device_profile |}
     0s"prtr" -> {| output_device_profile  |}
@@ -60,7 +60,7 @@ def ProfileClass =
 
 def DataColorSpace =
   block
-    let tag = BE32
+    let tag = BEUInt32
     case tag of
       0s"XYZ " -> {| nciexyz_or_pcsxyz |}
       0s"Lab " -> {| cielab_or_pcslab  |}
@@ -95,7 +95,7 @@ def DataColorSpace =
 
 
 def PrimaryPlatform =
-  case BE32 of
+  case BEUInt32 of
     0s"APPL" -> {| apple_computer_inc    |}
     0s"MSFT" -> {| microsoft_corporation |}
     0s"SGI " -> {| silicon_graphics_inc  |}
@@ -104,7 +104,7 @@ def PrimaryPlatform =
 
 
 def RenderingIntent =
-  case BE32 of
+  case BEUInt32 of
     0 -> {| perceptual |}
     1 -> {| media_relative_colorimetric |}
     2 -> {| saturation |}
@@ -115,9 +115,9 @@ def RenderingIntent =
 -- Tag table (Section 7.3)
 
 def TagTable s =
-  Many (BE32 as ?auto)
+  Many (BEUInt32 as ?auto)
     block
-      let sig = BE32
+      let sig = BEUInt32
       Positioned s (Tag sig)
 
 
@@ -180,28 +180,28 @@ def InvalidTag sig =
 
 def XYZNumber =
   block
-    x = BE32
-    y = BE32
-    z = BE32
+    x = BEUInt32
+    y = BEUInt32
+    z = BEUInt32
 
 def XYNumber =
   block
-    x = BE32
-    y = BE32
+    x = BEUInt32
+    y = BEUInt32
 
 def DateTimeNumber =
   block
-    year    = BE16
-    month   = BE16
-    day     = BE16
-    hour    = BE16
-    minute  = BE16
-    second  = BE16
+    year    = BEUInt16
+    month   = BEUInt16
+    day     = BEUInt16
+    hour    = BEUInt16
+    minute  = BEUInt16
+    second  = BEUInt16
 
 def PositionNumber =
   block
-    offset = BE32 as uint 64
-    size   = BE32 as uint 64
+    offset = BEUInt32 as uint 64
+    size   = BEUInt32 as uint 64
 
 -- 0 terminated ASCII 7 string (sem value does not include the 0)
 def ASCII7 =
@@ -211,9 +211,9 @@ def ASCII7 =
 
 def Response16Number =
   block
-    device = BE16
-    Exactly 0 BE16
-    measurement = BE32
+    device = BEUInt16
+    Exactly 0 BEUInt16
+    measurement = BEUInt32
 
 
 --------------------------------------------------------------------------------
@@ -279,16 +279,16 @@ def MultiLocalizedUnicodeType =
   block
     let s = GetStream   -- Offsets are relative to here
     StartTag "mluc"
-    let record_number = BE32
-    Exactly 12 BE32
+    let record_number = BEUInt32
+    Exactly 12 BEUInt32
     Many (record_number as ?auto) (UnicodeRecord s)
 
 def UnicodeRecord s =
   block
     language    = Many 2 UInt8
     country     = Many 2 UInt8
-    let size    = BE32 as ?auto
-    let offset  = BE32 as ?auto
+    let size    = BEUInt32 as ?auto
+    let offset  = BEUInt32 as ?auto
     data        = LookAhead
                     block
                       SetStreamAt offset s
@@ -297,55 +297,55 @@ def UnicodeRecord s =
 def S15Fixed16ArrayType =
   block
     StartTag "sf32"
-    Many BE32     -- fixed point rationals
+    Many BEUInt32     -- fixed point rationals
 
 def ChromaticityType =
   block
     StartTag "chrm"
-    let number_of_device_channels = BE16 as ?auto
-    phosphor_or_colorant          = BE16
+    let number_of_device_channels = BEUInt16 as ?auto
+    phosphor_or_colorant          = BEUInt16
     cie_coords                    = Many number_of_device_channels XYNumber
 
 def ColorantOrderType =
   block
     StartTag "clro"
-    let count_of_colorants = BE32
+    let count_of_colorants = BEUInt32
     Many UInt8
 
 def ColorantTableType =
   block
     StartTag "clrt"
-    let count_of_colorant = BE32 as ?auto
+    let count_of_colorant = BEUInt32 as ?auto
     Many count_of_colorant Colorant
 
 def Colorant =
   block
     name = Chunk 32 (Only ASCII7)
-    pcs  = Many 3 BE16
+    pcs  = Many 3 BEUInt16
 
 def CurveType =
   block
     StartTag "curv"
-    let n = BE32 as ?auto
-    Many n BE16
+    let n = BEUInt32 as ?auto
+    Many n BEUInt16
 
 def ParametricCurveType =
   block
     StartTag "para"
-    function = BE16
+    function = BEUInt16
     Match [0,0]
-    parameters = Many BE32
+    parameters = Many BEUInt32
     -- These are to be interpreted as fixed precision rationals
 
 def ResponseCurveSet16Type =
   block
     let s = GetStream
     StartTag "rcs2"
-    let number_of_channels = BE16 as uint 64
-    let count              = BE16 as uint 64
+    let number_of_channels = BEUInt16 as uint 64
+    let count              = BEUInt16 as uint 64
     Many count
       block
-        let off = BE32 as uint 64
+        let off = BEUInt32 as uint 64
         LookAhead
           block
             SetStreamAt off s
@@ -353,8 +353,8 @@ def ResponseCurveSet16Type =
 
 def ResponseCurve n =
   block
-    measurement_unit  = BE32
-    let counts        = Many n BE32
+    measurement_unit  = BEUInt32
+    let counts        = Many n BEUInt32
     pcxyzs            = Many n XYNumber
     response_arrays   =
       map (qi in counts) (Many (qi as uint 64) Response16Number)
@@ -369,7 +369,7 @@ def Lut8Type =
     number_of_clut_grid_points = UInt8
     let g = number_of_clut_grid_points as uint 64
     $[ 0x00 ]
-    encoded_e_parameters = Many 9 (BE32 as! sint 32)
+    encoded_e_parameters = Many 9 (BEUInt32 as! sint 32)
     input_tables         = Bytes (256 * i)
     clut_values          = Bytes (exp g i * o)
     output_tables        = Bytes (256 * o)
@@ -385,10 +385,10 @@ def Lut16Type =
     number_of_clut_grid_points = UInt8
     let g = number_of_clut_grid_points as uint 64
     Match1 0x00
-    encoded_e_parameters = Many 9 (BE32 as! sint 32)
-    number_of_input_table_entries = BE32
+    encoded_e_parameters = Many 9 (BEUInt32 as! sint 32)
+    number_of_input_table_entries = BEUInt32
     let n = number_of_input_table_entries as uint 64
-    number_of_output_table_entries = BE32
+    number_of_output_table_entries = BEUInt32
     let m = number_of_output_table_entries as uint 64
     input_tables  = Bytes (256 * n * i)
     clut_values   = Bytes (2 * exp g i * o)
@@ -400,11 +400,11 @@ def LutAToBType =
     number_of_input_channels  = UInt8
     number_of_output_channels = UInt8
     Match [0,0]
-    offset_first_B_curve      = BE32
-    offset_to_matrix          = BE32
-    offset_to_first_M_curve   = BE32
-    offset_to_CLUT            = BE32
-    offset_to_first_A_curve   = BE32
+    offset_first_B_curve      = BEUInt32
+    offset_to_matrix          = BEUInt32
+    offset_to_first_M_curve   = BEUInt32
+    offset_to_CLUT            = BEUInt32
+    offset_to_first_A_curve   = BEUInt32
     data                      = GetStream
 
 -- XXX: Why is this the same as the AB case?
@@ -414,11 +414,11 @@ def LutBToAType =
     number_of_input_channels  = UInt8
     number_of_output_channels = UInt8
     Match [0,0]
-    offset_first_B_curve      = BE32
-    offset_to_matrix          = BE32
-    offset_to_first_M_curve   = BE32
-    offset_to_CLUT            = BE32
-    offset_to_first_A_curve   = BE32
+    offset_first_B_curve      = BEUInt32
+    offset_to_matrix          = BEUInt32
+    offset_to_first_M_curve   = BEUInt32
+    offset_to_CLUT            = BEUInt32
+    offset_to_first_A_curve   = BEUInt32
     data                      = GetStream
 
 
@@ -426,7 +426,7 @@ def LutBToAType =
 def SpectralViewingConditionsType =
   block
     StartTag "svcn"
-    colometric_observer = BE32
+    colometric_observer = BEUInt32
 
 -- XXX: Shall we reqiure that there are no left over bytes after the XYZ number?
 def XYZType =
@@ -439,19 +439,19 @@ def XYZType =
 def MeasurementType =
   block
     StartTag "meas"
-    standard_observer = BE32
+    standard_observer = BEUInt32
     nCIEXYZ           = XYZNumber
-    geometry          = BE32
-    flare             = BE32
-    illuminant        = BE32
+    geometry          = BEUInt32
+    flare             = BEUInt32
+    illuminant        = BEUInt32
 
 
 def NamedColor2Type =
   block
     StartTag "ncl2"
-    vendor_specific      = BE32
-    let count            = BE32 as uint 64
-    let number_of_coords = BE32 as uint 64
+    vendor_specific      = BEUInt32
+    let count            = BEUInt32 as uint 64
+    let number_of_coords = BEUInt32 as uint 64
     prefix               = Chunk 32 (Only ASCII7)
     suffix               = Chunk 32 (Only ASCII7)
     names                = Many count (ColorName number_of_coords)
@@ -459,8 +459,8 @@ def NamedColor2Type =
 def ColorName m =
   block
     name_root     = Chunk 32 ASCII7
-    pcs_coords    = Many 3 BE16
-    device_coords = Many m BE16
+    pcs_coords    = Many 3 BEUInt16
+    device_coords = Many m BEUInt16
 
 
 
@@ -469,7 +469,7 @@ def ViewConditionsType =
     StartTag "view"
     illuminantXYZ = XYZNumber
     surroundXYZ   = XYZNumber
-    illuminant    = BE32
+    illuminant    = BEUInt32
 
 --------------------------------------------------------------------------------
 -- Text Description Type (Section 6.5.13 of the 3.2 spec)
@@ -477,12 +477,12 @@ def ViewConditionsType =
 def TextDescriptionType =
   block
     StartTag "desc"
-    ascii_data   = Many (BE32 as ?auto) UInt8
+    ascii_data   = Many (BEUInt32 as ?auto) UInt8
     unicode_code = Many 4 UInt8
-    unicode_data = Many (2 * BE32 as ?auto) UInt8
+    unicode_data = Many (2 * BEUInt32 as ?auto) UInt8
     script_code  = Many 2 UInt8
-    let script_len = BE32 as ?auto
-    script_data  = Many (BE32 as ?auto) UInt8
+    let script_len = BEUInt32 as ?auto
+    script_data  = Many (BEUInt32 as ?auto) UInt8
     Many $[0]
 
 
@@ -499,10 +499,10 @@ def MPElement =
 def MPElementHead =
   block
     offset = GetStream
-    tag    = BE32
+    tag    = BEUInt32
     Match [0,0,0,0]
-    inputs  = BE16 as uint 64
-    outputs = BE16 as uint 64
+    inputs  = BEUInt16 as uint 64
+    outputs = BEUInt16 as uint 64
 
 
 def MPElementBody head =
@@ -514,7 +514,7 @@ def MPElementBody head =
     0s"cvst" -> {| cvst = Many head.inputs (Positioned head.offset Curve) |}
     0s"matf" -> {| matf = Matrix head.inputs head.outputs |}
     0s"mpet" -> {| mpet = block
-                            let n = BE32 as ?auto
+                            let n = BEUInt32 as ?auto
                             Guard (n >= 1) <| Fail "Need at least one MPE"
                             Many n (Positioned head.offset MPElement)
                 |}
@@ -528,7 +528,7 @@ def MPElementBody head =
 -- Table 85
 def CalcElement head =
   block
-    let subElNum  = BE32 as ?auto
+    let subElNum  = BEUInt32 as ?auto
     inputs        = head.inputs   -- XXX: copied here to work around
     outputs       = head.outputs  -- a TC issue
     main          = Positioned head.offset CalcFun
@@ -539,7 +539,7 @@ def CalcElement head =
 def CalcFun =
   block
     StartTag "func"
-    ManyFunOps (BE32 as uint 64)
+    ManyFunOps (BEUInt32 as uint 64)
 
 
 --------------------------------------------------------------------------------
@@ -780,7 +780,7 @@ def FunOpWithPosition =
 
 def FunOp =
   block
-    let tag = BE32
+    let tag = BEUInt32
     case tag of
 
       -- Table 87
@@ -794,7 +794,7 @@ def FunOp =
       0s"tsav" -> {| opTSave = OpParams |}
 
       -- Table 90,91
-      0s"env " -> {| opEnv   = BE32 |}
+      0s"env " -> {| opEnv   = BEUInt32 |}
 
       -- Table 93,94
       0s"curv" -> {| curv = OpParam as uint 64 |}    -- or a 16 bit number?
@@ -880,10 +880,10 @@ def FunOp =
       -- Table 103,104
       0s"if  " ->
         block
-          let thenOps = BE32 as uint 64
+          let thenOps = BEUInt32 as uint 64
           case Optional (Match "else") of
             nothing -> {| opIfThen = ManyFunOps thenOps |}
-            just    -> {| opIfThenElse = IfThenElse thenOps (BE32 as uint 64) |}
+            just    -> {| opIfThenElse = IfThenElse thenOps (BEUInt32 as uint 64) |}
 
       0s"else" -> Fail "`else` with no `if"
 
@@ -893,7 +893,7 @@ def FunOp =
           NoParams
           let c1 = SelCase
           let cs = Many SelCase
-          let d  = Optional   block Match "dflt"; BE32 as uint 64
+          let d  = Optional   block Match "dflt"; BEUInt32 as uint 64
           {| opSel = Sel c1 cs d |}
 
       0s"case" -> Fail "`case` with no `sel`"
@@ -904,7 +904,7 @@ def FunOp =
 def SelCase =
   block
     Match "case"
-    BE32 as uint 64
+    BEUInt32 as uint 64
 
 {- This extracts `n` 64-bit records.  It is used to parse a sequnce
    of `FunOp` becaues the `FunOp` parser consumes multiple "primitve"
@@ -924,17 +924,17 @@ def Sel alt alts mbDflt =
               nothing -> nothing
               just n  -> just (ManyFunOps n)
 
-def NoParams = @ block Exactly 0 BE32
+def NoParams = @ block Exactly 0 BEUInt32
 
 def OpParam =
   block
-    $$ = BE16 as uint 64
-    Exactly 0 BE16
+    $$ = BEUInt16 as uint 64
+    Exactly 0 BEUInt16
 
 def OpParams =
   block
-    s = BE16 as uint 64
-    t = BE16 as uint 64
+    s = BEUInt16 as uint 64
+    t = BEUInt16 as uint 64
 
 
 
@@ -943,8 +943,8 @@ def OpParams =
 
 def Curve =
   block
-    let tag = BE32
-    Exactly 0 BE32
+    let tag = BEUInt32
+    Exactly 0 BEUInt32
     case tag of
       0s"sngf" -> {| sngf = SingleSampledCurve |}
       0s"curf" -> {| curf = SegmentedCurve |}
@@ -954,36 +954,36 @@ def Curve =
 -- XXX: Table 108
 def SingleSampledCurve =
   block
-    n = BE32
-    f = BE32
-    l = BE32
-    e = BE16
-    ty = BE16
+    n = BEUInt32
+    f = BEUInt32
+    l = BEUInt32
+    e = BEUInt16
+    ty = BEUInt16
 
 
 def SegmentedCurve =
   block
-    let n = BE16 as uint 64
+    let n = BEUInt16 as uint 64
     Guard (n >= 1) <| Fail "Need at least one curve segment"
-    Exactly 0 BE16
+    Exactly 0 BEUInt16
     let bnum = n - 1
     breakPoints = Many bnum BEFloat
     segments    = Many n CurveSegment
 
 def CurveSegment =
   block
-    let tag = BE32
-    Exactly 0 BE32
+    let tag = BEUInt32
+    Exactly 0 BEUInt32
     case tag of
       0s"parf" -> {| parf = FormualCurveSegment |}
-      0s"samf" -> {| samf = Many (BE32 as uint 64) BEFloat |} -- Table 112
+      0s"samf" -> {| samf = Many (BEUInt32 as uint 64) BEFloat |} -- Table 112
 
 
 -- | Table 110,111
 def FormualCurveSegment =
   block
-    let fun = BE16
-    Guard (BE16 == 0)
+    let fun = BEUInt16
+    Guard (BEUInt16 == 0)
     case fun of
       0 -> block fun = fun; args = Many 4 BEFloat
       1 -> block fun = fun; args = Many 5 BEFloat

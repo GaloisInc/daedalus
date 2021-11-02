@@ -6,23 +6,35 @@ module Daedalus
  
 --- Rules:
  
-Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_60 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
-  if _60 then a # b else b # a
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_69 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _69 then a # b else b # a
  
-Daedalus.UInt16 (_61 : bool) : Grammar (uint 16) =
-  do (_62 : uint 8) <- GetByte
-     (_63 : uint 8) <- GetByte
-     pure (Daedalus.joinWords 8 8 16 _61 _62 _63)
+Daedalus.UInt16 (_70 : bool) : Grammar (uint 16) =
+  do (_71 : uint 8) <- GetByte
+     (_72 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _70 _71 _72)
  
-Daedalus.UInt32 (_64 : bool) : Grammar (uint 32) =
-  do (_65 : uint 16) <- Daedalus.UInt16 _64
-     (_66 : uint 16) <- Daedalus.UInt16 _64
-     pure (Daedalus.joinWords 16 16 32 _64 _65 _66)
+Daedalus.UInt32 (_73 : bool) : Grammar (uint 32) =
+  do (_74 : uint 16) <- Daedalus.UInt16 _73
+     (_75 : uint 16) <- Daedalus.UInt16 _73
+     pure (Daedalus.joinWords 16 16 32 _73 _74 _75)
  
-Daedalus.UInt64 (_67 : bool) : Grammar (uint 64) =
-  do (_68 : uint 32) <- Daedalus.UInt32 _67
-     (_69 : uint 32) <- Daedalus.UInt32 _67
-     pure (Daedalus.joinWords 32 32 64 _67 _68 _69)
+Daedalus.UInt64 (_76 : bool) : Grammar (uint 64) =
+  do (_77 : uint 32) <- Daedalus.UInt32 _76
+     (_78 : uint 32) <- Daedalus.UInt32 _76
+     pure (Daedalus.joinWords 32 32 64 _76 _77 _78)
+ 
+Daedalus.SInt16 (_79 : bool) : Grammar (sint 16) =
+  do (_80 : uint 16) <- Daedalus.UInt16 _79
+     pure (_80 as sint 16)
+ 
+Daedalus.SInt32 (_81 : bool) : Grammar (sint 32) =
+  do (_82 : uint 32) <- Daedalus.UInt32 _81
+     pure (_82 as sint 32)
+ 
+Daedalus.SInt64 (_83 : bool) : Grammar (sint 64) =
+  do (_84 : uint 64) <- Daedalus.UInt64 _83
+     pure (_84 as sint 64)
  
 Daedalus.wordToHalfFloat (w : uint 16) : float =
   let sign = w >> 15 as uint 1 in
@@ -33,76 +45,106 @@ Daedalus.wordToHalfFloat (w : uint 16) : float =
                       if (sign == 1) then - num else num else let newExp = if (expo == 0x1F) then 0xFF else (127 - 15) + (0 # expo) in
                                                               wordToFloat (((sign # newExp) # mant) # 0)
  
-Daedalus.HalfFloat (_70 : bool) : Grammar float =
-  do (_71 : uint 16) <- Daedalus.UInt16 _70
-     pure (Daedalus.wordToHalfFloat _71)
+Daedalus.HalfFloat (_85 : bool) : Grammar float =
+  do (_86 : uint 16) <- Daedalus.UInt16 _85
+     pure (Daedalus.wordToHalfFloat _86)
  
-Daedalus.Float (_72 : bool) : Grammar float =
-  do (_73 : uint 32) <- Daedalus.UInt32 _72
-     pure (wordToFloat _73)
+Daedalus.Float (_87 : bool) : Grammar float =
+  do (_88 : uint 32) <- Daedalus.UInt32 _87
+     pure (wordToFloat _88)
  
-Daedalus.Double (_74 : bool) : Grammar double =
-  do (_75 : uint 64) <- Daedalus.UInt64 _74
-     pure (wordToDouble _75)
+Daedalus.Double (_89 : bool) : Grammar double =
+  do (_90 : uint 64) <- Daedalus.UInt64 _89
+     pure (wordToDouble _90)
  
-Daedalus.BE16 : Grammar (uint 16) =
-  do (_76 : bool) <- pure true
-     ($$ : uint 16) <- Daedalus.UInt16 _76
+Daedalus.BEUInt16 : Grammar (uint 16) =
+  do (_91 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _91
      pure $$
  
-Daedalus.BE32 : Grammar (uint 32) =
-  do (_78 : bool) <- pure true
-     ($$ : uint 32) <- Daedalus.UInt32 _78
+Daedalus.BEUInt32 : Grammar (uint 32) =
+  do (_93 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _93
      pure $$
  
-Daedalus.BE64 : Grammar (uint 64) =
-  do (_80 : bool) <- pure true
-     ($$ : uint 64) <- Daedalus.UInt64 _80
+Daedalus.BEUInt64 : Grammar (uint 64) =
+  do (_95 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _95
+     pure $$
+ 
+Daedalus.BESInt16 : Grammar (sint 16) =
+  do (_97 : bool) <- pure true
+     ($$ : sint 16) <- Daedalus.SInt16 _97
+     pure $$
+ 
+Daedalus.BESInt32 : Grammar (sint 32) =
+  do (_99 : bool) <- pure true
+     ($$ : sint 32) <- Daedalus.SInt32 _99
+     pure $$
+ 
+Daedalus.BESInt64 : Grammar (sint 64) =
+  do (_101 : bool) <- pure true
+     ($$ : sint 64) <- Daedalus.SInt64 _101
      pure $$
  
 Daedalus.BEHalfFloat : Grammar float =
-  do (_82 : bool) <- pure true
-     ($$ : float) <- Daedalus.HalfFloat _82
+  do (_103 : bool) <- pure true
+     ($$ : float) <- Daedalus.HalfFloat _103
      pure $$
  
 Daedalus.BEFloat : Grammar float =
-  do (_84 : bool) <- pure true
-     ($$ : float) <- Daedalus.Float _84
+  do (_105 : bool) <- pure true
+     ($$ : float) <- Daedalus.Float _105
      pure $$
  
 Daedalus.BEDouble : Grammar double =
-  do (_86 : bool) <- pure true
-     ($$ : double) <- Daedalus.Double _86
+  do (_107 : bool) <- pure true
+     ($$ : double) <- Daedalus.Double _107
      pure $$
  
-Daedalus.LE16 : Grammar (uint 16) =
-  do (_88 : bool) <- pure false
-     ($$ : uint 16) <- Daedalus.UInt16 _88
+Daedalus.LEUInt16 : Grammar (uint 16) =
+  do (_109 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _109
      pure $$
  
-Daedalus.LE32 : Grammar (uint 32) =
-  do (_90 : bool) <- pure false
-     ($$ : uint 32) <- Daedalus.UInt32 _90
+Daedalus.LEUInt32 : Grammar (uint 32) =
+  do (_111 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _111
      pure $$
  
-Daedalus.LE64 : Grammar (uint 64) =
-  do (_92 : bool) <- pure false
-     ($$ : uint 64) <- Daedalus.UInt64 _92
+Daedalus.LEUInt64 : Grammar (uint 64) =
+  do (_113 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _113
+     pure $$
+ 
+Daedalus.LESInt16 : Grammar (sint 16) =
+  do (_115 : bool) <- pure false
+     ($$ : sint 16) <- Daedalus.SInt16 _115
+     pure $$
+ 
+Daedalus.LESInt32 : Grammar (sint 32) =
+  do (_117 : bool) <- pure false
+     ($$ : sint 32) <- Daedalus.SInt32 _117
+     pure $$
+ 
+Daedalus.LESInt64 : Grammar (sint 64) =
+  do (_119 : bool) <- pure false
+     ($$ : sint 64) <- Daedalus.SInt64 _119
      pure $$
  
 Daedalus.LEHalfFloat : Grammar float =
-  do (_94 : bool) <- pure false
-     ($$ : float) <- Daedalus.HalfFloat _94
+  do (_121 : bool) <- pure false
+     ($$ : float) <- Daedalus.HalfFloat _121
      pure $$
  
 Daedalus.LEFloat : Grammar float =
-  do (_96 : bool) <- pure false
-     ($$ : float) <- Daedalus.Float _96
+  do (_123 : bool) <- pure false
+     ($$ : float) <- Daedalus.Float _123
      pure $$
  
 Daedalus.LEDouble : Grammar double =
-  do (_98 : bool) <- pure false
-     ($$ : double) <- Daedalus.Double _98
+  do (_125 : bool) <- pure false
+     ($$ : double) <- Daedalus.Double _125
      pure $$
  
 Daedalus.Guard (b : bool) : Grammar {} =
@@ -116,21 +158,21 @@ Daedalus.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
      pure $$
  
 Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
-  do (_100 : Stream) <- StreamOff n s
-     SetStream _100
+  do (_127 : Stream) <- StreamOff n s
+     SetStream _127
  
 Daedalus.Skip (n : uint 64) : Grammar {} =
-  do (_101 : Stream) <- CurrentStream
-     Daedalus.SetStreamAt n _101
+  do (_128 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt n _128
  
 Daedalus._SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
-  do (_100 : Stream) <- StreamOff n s
-     SetStream _100
+  do (_127 : Stream) <- StreamOff n s
+     SetStream _127
  
 Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
-     do (_102 : Stream) <- StreamLen n s
-        SetStream _102
+     do (_129 : Stream) <- StreamLen n s
+        SetStream _129
      ($$ : ?a0) <- P
      Daedalus._SetStreamAt n s
      pure $$
@@ -156,6 +198,15 @@ Daedalus._UInt64 : Grammar {} =
   do Daedalus._UInt32
      Daedalus._UInt32
  
+Daedalus._SInt16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._SInt32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._SInt64 : Grammar {} =
+  Daedalus._UInt64
+ 
 Daedalus._HalfFloat : Grammar {} =
   Daedalus._UInt16
  
@@ -165,14 +216,23 @@ Daedalus._Float : Grammar {} =
 Daedalus._Double : Grammar {} =
   Daedalus._UInt64
  
-Daedalus._BE16 : Grammar {} =
+Daedalus._BEUInt16 : Grammar {} =
   Daedalus._UInt16
  
-Daedalus._BE32 : Grammar {} =
+Daedalus._BEUInt32 : Grammar {} =
   Daedalus._UInt32
  
-Daedalus._BE64 : Grammar {} =
+Daedalus._BEUInt64 : Grammar {} =
   Daedalus._UInt64
+ 
+Daedalus._BESInt16 : Grammar {} =
+  Daedalus._SInt16
+ 
+Daedalus._BESInt32 : Grammar {} =
+  Daedalus._SInt32
+ 
+Daedalus._BESInt64 : Grammar {} =
+  Daedalus._SInt64
  
 Daedalus._BEHalfFloat : Grammar {} =
   Daedalus._HalfFloat
@@ -183,14 +243,23 @@ Daedalus._BEFloat : Grammar {} =
 Daedalus._BEDouble : Grammar {} =
   Daedalus._Double
  
-Daedalus._LE16 : Grammar {} =
+Daedalus._LEUInt16 : Grammar {} =
   Daedalus._UInt16
  
-Daedalus._LE32 : Grammar {} =
+Daedalus._LEUInt32 : Grammar {} =
   Daedalus._UInt32
  
-Daedalus._LE64 : Grammar {} =
+Daedalus._LEUInt64 : Grammar {} =
   Daedalus._UInt64
+ 
+Daedalus._LESInt16 : Grammar {} =
+  Daedalus._SInt16
+ 
+Daedalus._LESInt32 : Grammar {} =
+  Daedalus._SInt32
+ 
+Daedalus._LESInt64 : Grammar {} =
+  Daedalus._SInt64
  
 Daedalus._LEHalfFloat : Grammar {} =
   Daedalus._HalfFloat
@@ -211,13 +280,13 @@ Daedalus._Only ?a0 (_P : Grammar {}) : Grammar {} =
      END
  
 Daedalus._Skip (n : uint 64) : Grammar {} =
-  do (_101 : Stream) <- CurrentStream
-     Daedalus._SetStreamAt n _101
+  do (_128 : Stream) <- CurrentStream
+     Daedalus._SetStreamAt n _128
  
 Daedalus._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
-     do (_102 : Stream) <- StreamLen n s
-        SetStream _102
+     do (_129 : Stream) <- StreamLen n s
+        SetStream _129
      _P
      Daedalus._SetStreamAt n s
  
