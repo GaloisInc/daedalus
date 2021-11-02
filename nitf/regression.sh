@@ -12,6 +12,8 @@ set -e
 FILENAME=regression_nitf.txt
 OUTPUT=/tmp/${FILENAME}
 GEN=""
+COUNT=""
+COUNT="--count"
 
 
 for arg in "$@"
@@ -33,8 +35,8 @@ do
 done
 
 
-./test_all.sh --count ${GEN} | tee ${OUTPUT}
-./test_all.sh --count ${GEN} --gwg | tee -a ${OUTPUT}
+./test_all.sh ${COUNT} ${GEN} | tee ${OUTPUT}
+./test_all.sh ${COUNT} ${GEN} --gwg | tee -a ${OUTPUT}
 
 if [ -z ${ISINIT} ] ; then
     echo ""

@@ -1,171 +1,171 @@
 Positive tests (should pass):
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_05.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_06.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_05.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_06.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_07.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_07.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_01.NITF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_01.NITF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_08.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_08.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_02.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Format/POS/NITF_FMT_POS_08.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_08.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_09.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_09.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_01.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_01.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_02.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_02.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_03.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_03.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_07.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_07.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_06.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_06.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_10.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_10.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_04.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_04.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_05.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/POS/NITF_GEO_POS_05.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_04.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_04.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_10.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_10.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_11.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_11.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_05.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_05.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_13.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_13.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_07.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_07.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_06.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_06.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_12.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_12.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_16.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_16.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_02.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_02.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_03.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_03.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_17.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_01.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_17.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_01.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_15.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_15.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_14.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_14.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_19.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_18.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_19.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_18.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_08.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_08.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_20.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_20.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_09.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/POS/NITF_SEC_POS_09.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_01.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_01.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_03.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_03.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_05.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_02.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_05.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_04.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/POS/NITF_TEM_POS_04.NTF ... pass
 --- Found 1 results:
 
 Negative tests (should fail):
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_01.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_03.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_04.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_04.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_05.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_03.NTF ... fail
- JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_01.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_01.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_02.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_01.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_03.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_02.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_04.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_04.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_05.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_02.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_03.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_01.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_01.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_02.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_03.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_03.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_07.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_07.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_06.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_04.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_05.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_08.NTF ... fail
- JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_09.NTF ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_06.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_04.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_05.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_08.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Security/NEG/NITF_SEC_NEG_09.NTF ... pass
 --- Found 1 results:
- JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_05.NTF ... fail
- JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_04.NTF ... fail
- JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_03.NTF ... fail
- JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_01.NTF ... fail
-./gwg.nga.mil_samples/i_3301k.ntf ... pass
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_05.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_04.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_03.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_02.NTF ... fail
+ /tmp/JITC - NITF Test Data - Set 1/Temporal/NEG/NITF_TEM_NEG_01.NTF ... fail
+/tmp/gwg.nga.mil_samples/i_3301k.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3303a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3303a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3301h.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3301h.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3117ax.ntf ... fail
-./gwg.nga.mil_samples/i_3051e.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3117ax.ntf ... fail
+/tmp/gwg.nga.mil_samples/i_3051e.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3114e.ntf ... fail
-./gwg.nga.mil_samples/i_3090m.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3114e.ntf ... fail
+/tmp/gwg.nga.mil_samples/i_3090m.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3041a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3041a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3128b.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3128b.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3113g.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3113g.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3309a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3309a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3450c.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3450c.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3201c.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3201c.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_5012c.ntf ... fail
-./gwg.nga.mil_samples/i_3076a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_5012c.ntf ... fail
+/tmp/gwg.nga.mil_samples/i_3076a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3060a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3060a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3430a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3430a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3001a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3001a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3034c.ntf ... fail
-./gwg.nga.mil_samples/i_3405a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3034c.ntf ... fail
+/tmp/gwg.nga.mil_samples/i_3405a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3311a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3311a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3018a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3018a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3063f.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3063f.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3034f.ntf ... fail
-./gwg.nga.mil_samples/i_3015a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3034f.ntf ... fail
+/tmp/gwg.nga.mil_samples/i_3015a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3301c.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3301c.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3008a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3008a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3090u.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3090u.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3228e.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3228e.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3301a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3301a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3068a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3068a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3025b.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3025b.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3052a.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3052a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3228c.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3228c.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3004g.ntf ... pass
+/tmp/gwg.nga.mil_samples/i_3004g.ntf ... pass
 --- Found 1 results:
