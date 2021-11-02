@@ -48,12 +48,16 @@ import PdfPP
 ---- types -------------------------------------------------------------------
 
 type FileOffset = UInt 64
+type TrailerEnd' = Either
+                     FileOffset -- where we expected to see the below
+                     TrailerEnd -- found 'startxref ... %%EOF", this parsed
 
 -- an incremental update (or the base DOM/update, at start of file)
-data IncUpdate = IU { iu_type      :: XRefType
-                    , iu_xrefs     :: [[XRefEntry]]
-                    , iu_trailer   :: TrailerDict
-                    , iu_startxref :: TrailerEnd  -- last part, holds startxref offset
+data IncUpdate = IU { iu_offset     :: FileOffset
+                    , iu_type       :: XRefType
+                    , iu_xrefs      :: [[XRefEntry]]
+                    , iu_trailer    :: TrailerDict
+                    , iu_trailerEnd :: TrailerEnd'  -- last part, holds startxref offset
                     } 
 
 data XRefType = XRefTable   -- traditional xref table
@@ -163,6 +167,7 @@ quitIfFail = \case
 ---- utilities ---------------------------------------------------------------
 
 type PrevSet = IntSet.IntSet -- set of all the "Prev" offsets we have encountered
+
 
 getXRefStart :: TrailerEnd -> UInt 64
 getXRefStart x = getField @"xrefStart" x
@@ -309,12 +314,15 @@ parseOneIncUpdate prevSet input0 offset =
         --    - YES to allow us to do some sanity checks
         
         trailerEnd <-
+          do
           let ctx = "parsing 'startxref' to '%%EOF'"
               Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
               
-          in  runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
-               >>= quitIfParseError ctx
-              
+          te <- runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
+          return $ case fromPdfResult ctx te of
+                     Right te' -> Right te'
+                     Left _    -> Left xrefEnd
+
         case xref of
           CrossRef_oldXref x -> processTrailer XRefTable  x trailerEnd
           CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
@@ -324,16 +332,17 @@ parseOneIncUpdate prevSet input0 offset =
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => XRefType -> x -> TrailerEnd -> IO IncUpdate
+                    ) => XRefType -> x -> TrailerEnd' -> IO IncUpdate
   processTrailer xrefType x trailerEnd =
     do let trailerDict = getField @"trailer" x
                            
        xrefss <- quitIfFail $ mapM convertToXRefEntries (toList (getField @"xref" x))
        -- FIXME[F3]: PDF requires that the trailers are consistent. check somewhere.
-       return $ IU{ iu_type      = xrefType
+       return $ IU{ iu_offset    = offset
+                  , iu_type      = xrefType
                   , iu_xrefs     = xrefss
                   , iu_trailer   = trailerDict
-                  , iu_startxref = trailerEnd
+                  , iu_trailerEnd = trailerEnd
                   }
          
 ---- report ------------------------------------------------------------------
@@ -349,7 +358,7 @@ printIncUpdateReport updates =
       mapM_ putStrLn [ nm ++ ":"
                      , "  " ++ render(ppXRefType (iu_type iu))
                      , "  starts at byte offset "
-                          ++ show (sizeToInt $ getXRefStart $ iu_startxref iu)
+                          ++ show (sizeToInt $ iu_offset iu)
                      , "  xref entries:"
                      ]
       printXRefs 4 (iu_xrefs iu)
@@ -380,12 +389,18 @@ printCavityReport bodyStart_base inp updates =
   do
   let us = zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
                 updates
-                (sizeToInt bodyStart_base
-                 : map (sizeToInt . getEndOfTrailerEnd . iu_startxref) updates)
+                (bodyStart_base : map getEndOfUpdate updates)
+                -- FIXME[F1]: assumes updates are from end to start! Change.
                 
-      reportOneUpdate (numC, totalSizeC) (nm,iu,bodyStart) =
+      getEndOfUpdate IU{iu_trailerEnd=te} =
+        case te of
+          Right te' -> getEndOfTrailerEnd te'
+          Left  o   -> o
+      
+      reportOneUpdate (numC, totalSizeC) (nm,iu,bodyStart') =
         do
-        let xrefStart = sizeToInt $ getXRefStart $ iu_startxref iu
+        let xrefStart = sizeToInt $ iu_offset iu
+            bodyStart = sizeToInt bodyStart'
         mapM_ putStrLn [ nm ++ ":"
                        , "  " ++ render (ppXRefType (iu_type iu))
                        , "  body starts at byte offset " ++ show bodyStart
