@@ -144,20 +144,20 @@ def Tag (sig : uint 32) =
     0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
     0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
 
-    0s"wtpt" -> {| wtpt = Only XYZType |}
+    0s"wtpt" -> {| wtpt = XYZType |}
     0s"cprt" -> {| cprt = LaxTextType |}
     0s"c2sp" -> {| c2sp = MultiProcessElementsType |}
     0s"s2cp" -> {| s2cp = MultiProcessElementsType |}
 
     0s"svcn" -> {| svcn = Only SpectralViewingConditionsType |}
 
-    0s"rXYZ" -> {| rXYZ = Only XYZType |}
-    0s"gXYZ" -> {| gXYZ = Only XYZType |}
-    0s"bXYZ" -> {| bXYZ = Only XYZType |}
+    0s"rXYZ" -> {| rXYZ = XYZType |}
+    0s"gXYZ" -> {| gXYZ = XYZType |}
+    0s"bXYZ" -> {| bXYZ = XYZType |}
 
-    0s"rTRC" -> {| rTRC = Only CurveOrPCurve |}
-    0s"gTRC" -> {| gTRC = Only CurveOrPCurve |}
-    0s"bTRC" -> {| bTRC = Only CurveOrPCurve |}
+    0s"rTRC" -> {| rTRC = CurveOrPCurve |}
+    0s"gTRC" -> {| gTRC = CurveOrPCurve |}
+    0s"bTRC" -> {| bTRC = CurveOrPCurve |}
 
     0s"dmdd" -> {| dmdd = LaxTextType |}
     0s"dmnd" -> {| dmnd = LaxTextType |}
@@ -180,9 +180,9 @@ def InvalidTag sig =
 
 def XYZNumber =
   block
-    x = BEUInt32
-    y = BEUInt32
-    z = BEUInt32
+    x = BESInt32
+    y = BESInt32
+    z = BESInt32
 
 def XYNumber =
   block
@@ -232,7 +232,6 @@ def LutBA_or_multi =
     mpe   = MultiProcessElementsType
 
 def CurveOrPCurve =
-  Only
   First
     curve  = CurveType
     pcurve = ParametricCurveType
@@ -428,11 +427,15 @@ def SpectralViewingConditionsType =
     StartTag "svcn"
     colometric_observer = BEUInt32
 
--- XXX: Shall we reqiure that there are no left over bytes after the XYZ number?
 def XYZType =
+  Only
   block
     StartTag "XYZ "
-    Many XYZNumber
+    Many block
+           $$ = XYZNumber
+           Guard ($$.x >= 0) <| Fail "x value needs to be positive"
+           Guard ($$.y >= 0) <| Fail "y value needs to be positive"
+           Guard ($$.z >= 0) <| Fail "z value needs to be positive"
 
 
 -- XXX: the values can be parsed a bit more.

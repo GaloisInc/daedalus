@@ -29,6 +29,10 @@ instance (RTS.VecElem a, PP a) => PP (RTS.Vector a) where
 instance RTS.SizeType n => PP (RTS.UInt n) where
   pp x = integer (RTS.asInt x)
 
+instance RTS.SizeType n => PP (RTS.SInt n) where
+  pp x = integer (RTS.asInt x)
+
+
 instance PP Text where
   pp = text . Text.unpack
 
@@ -100,6 +104,19 @@ ppBytes = pp . RTS.vecToRep
 
 ppBytes7 :: RTS.Vector (RTS.UInt 7) -> Doc
 ppBytes7 = pp . RTS.vecToRep
+
+ppBlock :: (RTS.VecElem a, PP a) => RTS.Vector a -> Doc
+ppBlock vec = vcat [ ppRow i rowLen | i <- take (fromIntegral rows) [ 0..]]
+           $$ ppRow rowLen extra
+  where
+  rowLen = 8
+  (rows,extra) = divMod (RTS.fromUInt (RTS.length vec)) rowLen
+
+  ppRow i len =
+    hsep [ ppEl x | x <- take (fromIntegral len) [ i * rowLen .. ] ]
+  ppEl i = case vec RTS.!? RTS.UInt i of
+             Just a  -> pp a
+             Nothing -> empty
 
 ppTag :: Doc -> Doc -> Doc
 ppTag x y = hang (x <> colon) 2 y
@@ -179,7 +196,7 @@ instance PP LutBA_or_multi where
 instance PP CurveOrPCurve where
   pp a =
     case a of
-      CurveOrPCurve_curve x -> pp x
+      CurveOrPCurve_curve x -> ppBlock x
       CurveOrPCurve_pcurve x -> pp x
 
 --------------------------------------------------------------------------------
