@@ -18,7 +18,7 @@ doFile :: FilePath -> IO ()
 doFile f =
   do i <- newInputFromFile (Just f)
      case runParser pMain i of
-       NoResults e -> fail (show e)
+       NoResults e -> print (pp e)
        Results rs  -> print (vcat (map pp (toList rs)))
 
 

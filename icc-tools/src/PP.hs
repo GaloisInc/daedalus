@@ -1,8 +1,18 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language AllowAmbiguousTypes, KindSignatures #-}
 module PP where
 
-import GHC.Records (getField)
+import GHC.Records (HasField,getField)
+import GHC.TypeLits(Symbol,symbolVal,KnownSymbol)
 import Text.PrettyPrint hiding ((<>))
+import Numeric (showHex)
+import Data.Text(Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import qualified Data.ByteString.Char8 as BS8
+import Data.Proxy(Proxy(Proxy))
+import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS
 import qualified RTS.Vector as RTS
 import qualified RTS.Numeric as RTS
@@ -19,12 +29,83 @@ instance (RTS.VecElem a, PP a) => PP (RTS.Vector a) where
 instance RTS.SizeType n => PP (RTS.UInt n) where
   pp x = integer (RTS.asInt x)
 
-instance PP Main where
-  pp x = pp (getField @"tags" x)
+instance PP Text where
+  pp = text . Text.unpack
 
+instance PP BS8.ByteString where
+  pp = text . BS8.unpack
+
+instance PP Float where
+  pp = float
+
+instance PP a => PP (Maybe a) where
+  pp x = case x of
+           Nothing -> "(nothing)"
+           Just a  -> pp a
+
+--------------------------------------------------------------------------------
+
+instance PP RTS.ParseError where
+  pp x =
+    vcat [ "ERROR at offset" <+> (loc <> colon)
+         , nest 2 (text (RTS.peMsg x))
+         ]
+    where
+    off = RTS.inputOffset (RTS.peInput x)
+    loc = int off <+> brackets ("0x" <> text (showHex off ""))
+
+
+--------------------------------------------------------------------------------
+
+instance PP Main where
+  pp x = vcat [ ppF @"header" x
+              , ppF @"tags" x
+
+              ]
+
+instance PP ProfileHeader where
+  pp h =
+    vcat [ ppF' @"size" h
+         , "preferred_cmm_type:" <+> ppBytes (getField @"preferred_cmm_type" h)
+         , ppF' @"version" h
+         ]
+
+{-
+         , "devce_class" <+> ppF @"display_device_profile
+    color_space         = DataColorSpace
+    pcs                 = DataColorSpace  -- check additional constraints?
+    creation_date_time  = DateTimeNumber
+    Match "acsp"
+    primary_platform    = PrimaryPlatform
+    profile_flags       = BE32            -- XXX: bitdata, see 7.2.13
+    device_manufacturer = Many 4 UInt8
+    device_model        = Many 4 UInt8
+    device_attributes   = BE64            -- XXX: bitdata, see 7.2.16
+    rendering_intent    = RenderingIntent
+    illuminant          = XYZNumber
+    creator             = Many 4 UInt8
+    identifier          = Many 16 UInt8
+    reserved_data       = Many 28 UInt8      -- XXX: spectral pcc
+-}
+
+instance PP VersionField where
+  pp v = ppF @"major" v <> "." <> ppF @"minor" v <> "." <> ppF @"bugfix" v
+
+--------------------------------------------------------------------------------
+ppBytes :: RTS.Vector (RTS.UInt 8) -> Doc
+ppBytes = pp . RTS.vecToRep
 
 ppTag :: Doc -> Doc -> Doc
 ppTag x y = hang (x <> colon) 2 y
+
+ppF :: forall (x :: Symbol) r a. (HasField x r a, PP a) => r -> Doc
+ppF r = pp (getField @x r)
+
+ppF' ::
+  forall (x :: Symbol) r a. (HasField x r a, PP a, KnownSymbol x) => r -> Doc
+ppF' r = hang (text (symbolVal (Proxy :: Proxy x)) <> ":") 2 (ppF @x r)
+--------------------------------------------------------------------------------
+
 
 instance PP Tag where
   pp tag =
@@ -53,6 +134,20 @@ instance PP Tag where
 
       Tag_svcn xs -> ppTag "svcn" (pp xs)
 
+      Tag_rXYZ xs -> ppTag "rXYZ" (pp xs)
+      Tag_gXYZ xs -> ppTag "gXYZ" (pp xs)
+      Tag_bXYZ xs -> ppTag "bXYZ" (pp xs)
+
+      Tag_rTRC xs -> ppTag "rTRC" (pp xs)
+      Tag_gTRC xs -> ppTag "gTRC" (pp xs)
+      Tag_bTRC xs -> ppTag "bTRC" (pp xs)
+
+      Tag_dmdd x  -> ppTag "dmdd" (pp x)
+      Tag_dmnd x  -> ppTag "dmnd" (pp x)
+
+      Tag_chrm x  -> ppTag "chrm" (pp x)
+      Tag_chad x  -> ppTag "chad" (pp x)
+
       Tag_unknown {} -> text (show tag)
 
 instance PP LutAB_or_multi where
@@ -67,43 +162,79 @@ instance PP LutBA_or_multi where
       LutBA_or_multi_lutBA x -> pp x
       LutBA_or_multi_mpe x  -> pp x
 
+instance PP CurveOrPCurve where
+  pp a =
+    case a of
+      CurveOrPCurve_curve x -> pp x
+      CurveOrPCurve_pcurve x -> pp x
 
-instance PP MultiProcessElementsType where
-  pp x = hang header 2 els
-    where
-    header = "MPE" <+> parens (hsep (punctuate comma [ins,outs]))
-    ins    = "inputs:"  <+> pp (getField @"number_of_input_channels" x)
-    outs   = "outputs:" <+> pp (getField @"number_of_output_channels" x)
-    els    = pp (getField @"elements" x)
+--------------------------------------------------------------------------------
 
 instance PP MPElement where
-  pp x = pp (getField @"head" x) $$ pp (getField @"body" x)
+  pp x = ppF @"head" x $$ ppF @"body" x
 
 instance PP MPElementHead where
   pp x = parens (hsep (punctuate comma [ins,outs]))
     where
-    ins    = "inputs:"  <+> pp (getField @"inputs" x)
-    outs   = "outputs:" <+> pp (getField @"outputs" x)
+    ins    = "inputs:"  <+> ppF @"inputs" x
+    outs   = "outputs:" <+> ppF @"outputs" x
 
 
 instance PP MPElementBody where
   pp x =
     case x of
       MPElementBody_calc x -> pp x
-      _ -> text (show x) -- XXX
+      MPElementBody_cvst x -> pp x
+      MPElementBody_matf x -> pp x
+      MPElementBody_mpet x -> pp x
+      MPElementBody_unknown x -> text (show x)
+
+instance PP Curve where
+  pp c =
+    case c of
+      Curve_sngf x -> pp x
+      Curve_curf x -> pp x
+      Curve_unknown x -> text (show x)
+
+instance PP SingleSampledCurve where
+  pp x = braces $ hsep $ punctuate comma
+          [ ppF' @"n" x
+          , ppF' @"f" x
+          , ppF' @"l" x
+          , ppF' @"e" x
+          , ppF' @"ty" x
+          ]
+
+instance PP SegmentedCurve where
+  pp x = vcat [ ppF' @"breakPoints" x
+              , ppF' @"segments" x
+              ]
+
+instance PP CurveSegment where
+  pp x =
+    case x of
+      CurveSegment_parf x -> pp x
+      CurveSegment_samf x -> pp x
+
+instance PP FormualCurveSegment where
+  pp s = "F" <> ppF @"fun" s <> parens (hsep (punctuate comma (map pp as)))
+    where as = RTS.toList (getField @"args" s)
+
+instance PP Matrix where
+  pp m = vcat [ ppF' @"matrix" m, ppF' @"vector" m ]
+
 
 
 instance PP CalcElement where
-  pp x = vcat [ "main =" $$ nest 2 (pp (getField @"main" x))
-              , "subelements:" $$ nest 2 (pp (getField @"subElements" x))
+  pp x = vcat [ "main =" $$ nest 2 (ppF @"main" x)
+              , "subelements:" $$ nest 2 (ppF @"subElements" x)
               ]
 
 instance PP FunOpWithPosition where
-  pp x = brackets (int (RTS.inputOffset (getField @"offset" x))) <+>
-                                              (pp (getField @"op" x))
+  pp x = brackets (int (RTS.inputOffset (getField @"offset" x))) <+> ppF @"op" x
 
 params :: OpParams -> [Doc]
-params x = [ pp (getField @"s" x), pp (getField @"t" x) ]
+params x = [ ppF @"s" x, ppF @"t" x ]
 
 ppOp :: Doc -> [Doc] -> Doc
 ppOp x ys = x <> parens (hsep (punctuate comma ys))
@@ -146,8 +277,8 @@ instance PP FunOp where
         vcat [ "if", nest 2 (pp x) ]
 
       FunOp_opIfThenElse x ->
-        vcat [ "if", nest 2 (pp (getField @"thenOps" x))
-             , "else", nest 2 (pp (getField @"elseOps" x))
+        vcat [ "if", nest 2 (ppF @"thenOps" x)
+             , "else", nest 2 (ppF @"elseOps" x)
              ]
 
       FunOp_opSel x ->
@@ -226,6 +357,42 @@ instance PP FunOp where
 
       _ -> text (show op) -- XXX
 
+instance PP XYZNumber where
+  pp xyz = braces (hsep (punctuate comma
+                            [ ppF' @"x" xyz
+                            , ppF' @"y" xyz
+                            , ppF' @"z" xyz
+                            ]) )
+
+instance PP XYNumber where
+  pp xyz = braces (hsep (punctuate comma
+                            [ ppF' @"x" xyz
+                            , ppF' @"y" xyz
+                            ]) )
+
+
+
+
+instance PP UnicodeRecord where
+  pp u = braces (lang <+> "|" <+> country <+> "|" <+> txt)
+    where lang    = pp (RTS.vecToRep (getField @"language" u))
+          country = pp (RTS.vecToRep (getField @"country"  u))
+          txt     = pp (Text.decodeUtf16BE (RTS.vecToRep (getField @"data" u)))
+
+instance PP TextLax where
+  pp u = case u of
+           TextLax_unicode x -> pp x
+           TextLax_ascii x   -> pp x
+
+
+instance PP ParametricCurveType where
+  pp c = hcat [ "F", ppF @"function" c, parens (hsep (punctuate comma as)) ]
+    where as = map pp (RTS.toList (getField @"parameters" c))
+
+instance PP ChromaticityType where
+  pp c = braces $ hsep $ punctuate comma
+              [ ppF' @"phosphor_or_colorant" c, ppF' @"cie_coords" c ]
+
 --------------------------------------------------------------------------------
 -- XXX
 
@@ -236,11 +403,7 @@ instance PP LutAToBType where
 instance PP LutBToAType where
   pp x = text (show x) -- XXX
 
-instance PP UnicodeRecord where
-  pp = text . show
 
-instance PP XYZNumber where
-  pp = text . show
 
 instance PP SpectralViewingConditionsType where
   pp = text . show

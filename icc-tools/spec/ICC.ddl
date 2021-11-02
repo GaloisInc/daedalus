@@ -150,6 +150,20 @@ def Tag (sig : uint 32) =
 
     0s"svcn" -> {| svcn = SpectralViewingConditionsType |}
 
+    0s"rXYZ" -> {| rXYZ = XYZType |}
+    0s"gXYZ" -> {| gXYZ = XYZType |}
+    0s"bXYZ" -> {| bXYZ = XYZType |}
+
+    0s"rTRC" -> {| rTRC = CurveOrPCurve |}
+    0s"gTRC" -> {| gTRC = CurveOrPCurve |}
+    0s"bTRC" -> {| bTRC = CurveOrPCurve |}
+
+    0s"dmdd" -> {| dmdd = MultiLocalizedUnicodeType |}
+    0s"dmnd" -> {| dmnd = MultiLocalizedUnicodeType |}
+
+    0s"chrm" -> {| chrm = ChromaticityType |}
+    0s"chad" -> {| chad = S15Fixed16ArrayType |}
+
     -- XXX: more ttags
     _        -> {| unknown = explode32 sig |}
 
@@ -195,10 +209,6 @@ def Response16Number =
     Exactly 0 BE16
     measurement = BE32
 
--- def SpectralRange =
---   block
-    
-
 
 --------------------------------------------------------------------------------
 
@@ -212,9 +222,15 @@ def LutBA_or_multi =
     lutBA = LutAToBType
     mpe   = MultiProcessElementsType
 
+def TextLax =
+  First
+    unicode = MultiLocalizedUnicodeType
+    ascii   = TextType
 
-
-
+def CurveOrPCurve =
+  First
+    curve  = CurveType
+    pcurve = ParametricCurveType
 
 
 --------------------------------------------------------------------------------
@@ -224,8 +240,6 @@ def StartTag x =
   block
     Match x
     Match [0,0,0,0]
-
-    
 
 def DateTimeType =
   block
@@ -392,9 +406,9 @@ def LutBToAType =
 def MultiProcessElementsType =
   block
     $$ = MPElement
-    case $$.body of
-      mpet -> Accept
-      _    -> Fail "Not MPET"
+    -- case $$.body of
+    --   mpet -> Accept
+    --   _    -> Fail "Not MPET"
 
 
 def SpectralViewingConditionsType =
@@ -926,7 +940,7 @@ def SegmentedCurve =
     Exactly 0 BE16
     let bnum = n - 1
     breakPoints = Many bnum BEFloat
-    segements   = Many n CurveSegment
+    segments    = Many n CurveSegment
 
 def CurveSegment =
   block
@@ -943,33 +957,10 @@ def FormualCurveSegment =
     let fun = BE16
     Guard (BE16 == 0)
     case fun of
-      0 -> {| fun0 = FunParams_g_a_b_c   |}
-      1 -> {| fun1 = FunParams_g_a_b_c_d |}
-      2 -> {| fun2 = FunParams_a_b_c_d_e |}
-      3 -> {| fun3 = FunParams_g_a_b_c   |}
-
-def FunParams_g_a_b_c =
-  block
-    g = BEFloat
-    a = BEFloat
-    b = BEFloat
-    c = BEFloat
-
-def FunParams_g_a_b_c_d =
-  block
-    g = BEFloat
-    a = BEFloat
-    b = BEFloat
-    c = BEFloat
-    d = BEFloat
-
-def FunParams_a_b_c_d_e =
-  block
-    a = BEFloat
-    b = BEFloat
-    c = BEFloat
-    d = BEFloat
-    e = BEFloat
+      0 -> block fun = fun; args = Many 4 BEFloat
+      1 -> block fun = fun; args = Many 5 BEFloat
+      2 -> block fun = fun; args = Many 5 BEFloat
+      3 -> block fun = fun; args = Many 4 BEFloat
 
 
 --------------------------------------------------------------------------------
