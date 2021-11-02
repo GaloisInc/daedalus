@@ -309,7 +309,7 @@ parseOneIncUpdate prevSet input0 offset =
          
         -- NOTE: the following parsing of TrailerEnd is where Version1 differs from Version2:
         --   FIXME[F1]: Are we overconstraining syntax?
-        --   FIXME[F1]: we don't really know, on the first-found update, that this trailerEnd
+        --   FIXME[F1]: on the first-found update, we don't really know if this trailerEnd
         --              is the same one we found at the end of the file!
         
         --   When we need/want to parse this

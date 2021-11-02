@@ -203,10 +203,11 @@ quitIfParseError context r =
 warnIfFail :: String -> Possibly a -> IO ()
 warnIfFail context r = 
  case r of
-   Right a -> return ()
-   Left ss -> mapM_ warn $ "warning:" : ss
-  where
-  warn s = hPutStrLn stdout s
+   Right a     -> return ()
+   Left []     -> warn "warning: [empty error?!]" 
+   Left (s:ss) -> warn $ unlines $ ("warning: "++s) : map ("  "++) ss
+ where
+ warn s = hPutStrLn stdout s
   
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
