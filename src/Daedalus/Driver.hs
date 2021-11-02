@@ -6,6 +6,7 @@
 module Daedalus.Driver
   ( Daedalus
   , daedalus
+  , daedalusPass  
   , ddlPassFromFile
   , ddlLoadModule
   , ddlGetPhaseMaybe
@@ -53,8 +54,12 @@ module Daedalus.Driver
   , State(..)
   , ddlState
   , ddlGet
+  , ddlUpdate_  
   , ddlSetState
 
+    -- * Updating state externally
+  , recordTCModule
+  
     -- * Options
   , ddlGetOpt
   , ddlSetOpt
@@ -87,13 +92,12 @@ import Control.Exception(Exception,throwIO)
 import qualified System.IO as IO
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing,doesFileExist)
-import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
+import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
 import Daedalus.PP(pp,vcat,(<+>))
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
-import Daedalus.GUID
 
 import Daedalus.Pass
 
@@ -287,9 +291,6 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
-
-  , nextFreeGUID :: !GUID
-    -- ^ Plumb through fresh names
   }
 
 
@@ -306,7 +307,6 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
-  , nextFreeGUID        = firstValidGUID
   }
 
 
@@ -398,6 +398,9 @@ instance MonadIO Daedalus where
 -- | Execute a Daedalus computation starting with the "defaultState".
 daedalus :: Daedalus a -> IO a
 daedalus (Daedalus m) = fst <$> runM m defaultState
+
+daedalusPass :: Daedalus a -> PassM a
+daedalusPass (Daedalus m) = fst <$> runStateT defaultState m
 
 ddlState :: Daedalus State
 ddlState = Daedalus get
@@ -537,6 +540,25 @@ resolveModule m =
        Left err -> ddlThrow $ AScopeError err
 
 
+-- | Does the book-keeping involved in adding a TCModule to the state.
+recordTCModule :: TCModule SourceRange -> Daedalus ()
+recordTCModule m1' = do
+  let m1 = normTCModule m1'
+  ddlUpdate_ \s -> s
+    { loadedModules = Map.insert (tcModuleName m1)
+                                 (TypeCheckedModule m1)
+                                 (loadedModules s)
+    , declaredTypes =
+        foldr (\d -> Map.insert (tctyName d) d)
+              (declaredTypes s)
+              (forgetRecs (tcModuleTypes m1))
+   
+    , ruleTypes =
+        foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
+              (ruleTypes s)
+              (forgetRecs (tcModuleDecls m1))
+    }
+  
 -- | Typecheck this module
 tcModule :: Module -> Daedalus ()
 tcModule m =
@@ -552,22 +574,8 @@ tcModule m =
      case r of
        Left err -> ddlThrow $ ATypeError err
        Right (m1',warnings) ->
-         do let m1 = normTCModule m1'
-            unless (null warnings) (ppTCWarn warnings)
-            ddlUpdate_ \s -> s
-              { loadedModules = Map.insert (tcModuleName m1)
-                                           (TypeCheckedModule m1)
-                                           (loadedModules s)
-              , declaredTypes =
-                  foldr (\d -> Map.insert (tctyName d) d)
-                        (declaredTypes s)
-                        (forgetRecs (tcModuleTypes m1))
-
-              , ruleTypes =
-                  foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
-                        (ruleTypes s)
-                        (forgetRecs (tcModuleDecls m1))
-              }
+         do unless (null warnings) (ppTCWarn warnings)
+            recordTCModule m1'
   where
   ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
 

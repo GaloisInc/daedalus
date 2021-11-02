@@ -760,14 +760,15 @@ compilePExpr env expr0 args = go expr0
             | isLocalName f =
                 case Map.lookup f (gmrEnv env) of
                   Just r  -> Fun (\_ -> r)
-                  Nothing -> bad "local"
+                  Nothing -> bad "local" (Map.keys $ gmrEnv env)
             | otherwise =
                 case Map.lookup f (ruleEnv env) of
                   Just r  -> r
-                  Nothing -> bad "top-level"
+                  Nothing -> bad "top-level" (Map.keys $ ruleEnv env)
 
-          bad z = panic "compileExpr"
-                  [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x)) ]
+          bad z ks = panic "compileExpr"
+                     [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x))
+                     , "Known functions: " ++ show ks ]
 
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of

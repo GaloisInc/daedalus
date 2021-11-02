@@ -195,8 +195,8 @@ Customize the variable `daedalus-command' to change how it is invoked."
 	 (res (lsp-send-execute-command "run" args)))
     (display-buffer
      (with-current-buffer (get-buffer-create "*LSP Daedalus Results*")
-       (lsp-daedalus-watch-mode)
-       (lsp-daedalus--watch-update (current-buffer) res)
+       (insert res)
+       (special-mode)
        (current-buffer)))))
 			    
 (defun lsp-daedalus-watch (p) 
@@ -211,7 +211,52 @@ Customize the variable `daedalus-command' to change how it is invoked."
       ;; This seems risky?  I don't know how workspaces are managed.
       (setq-local lsp-daedalus--workspaces workspaces)
       )))
-    
+
+(defun lsp-daedalus-debug-core (p)
+  (interactive "d")
+  (let* ((args (vector (lsp-text-document-identifier) (lsp-point-to-position p)))
+	 (res (lsp-send-execute-command "debug/core" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Core*")
+       (insert res)
+       (special-mode)       
+       (current-buffer)))))
+
+
+(defun lsp-daedalus--supported-passes ()
+  (lsp-send-execute-command "debug/supportedPasses"))
+
+(defun lsp-daedalus-debug-pass (pass)
+  (interactive
+   (list
+    (completing-read "Select pass: " (lsp-daedalus--supported-passes))))
+  (let* ((args (vector (lsp-text-document-identifier)
+		       (lsp-point-to-position (point))
+		       pass
+		       ))
+	 (res (lsp-send-execute-command "debug/pass" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Pass*")
+       (special-mode)
+       (let ((inhibit-read-only t))
+	 (erase-buffer)
+	 (insert res))
+       (current-buffer)))))
+
+
+(defun lsp-daedalus-debug-status ()
+  (interactive)
+  (let* ((args '())
+	 (res (lsp-send-execute-command "debug/dumpModuleInfo" args)))
+    (display-buffer
+     (with-current-buffer (get-buffer-create "*LSP Daedalus Status*")
+       (special-mode)
+       (let ((inhibit-read-only t))
+	 (erase-buffer)
+	 (insert res))
+       (current-buffer)))))
+
+
 ;; (lsp-defun lsp-daedalus--run-result-notfication (_workspace (&hash :clientHandle buf :result msg))
 ;;   (display-buffer
 ;;    (with-current-buffer buf

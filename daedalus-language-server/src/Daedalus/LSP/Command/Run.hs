@@ -25,12 +25,13 @@ import           System.Log.Logger           (debugM)
 import           Daedalus.AST                (nameScopeAsModScope)
 import           Daedalus.Interp             (interpFile)
 import           Daedalus.PP
-import           Daedalus.Rec                (forgetRecs)
+import           Daedalus.Rec                (forgetRecs, topoOrder)
 import           Daedalus.Type.AST
 import qualified RTS.ParserAPI               as RTS
 
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position
+import qualified Data.Set as Set
 
 
 gatherModules :: Map ModuleName ModuleState ->
@@ -91,13 +92,13 @@ watchModule report reportMsg clientHandle sst nm = go mempty
         check (Map.isProperSubmapOfBy (\_ _ -> True) oldTCs newTCs
                 || not (Map.isSubmapOfBy ((==) `on` fst) oldTCs newTCs))
         pure newTCs
-
-      -- debugDecl newTCs
-      
-      -- We need to check the start decl takes no arguments (incl. type arguments)
+  
+            -- We need to check the start decl takes no arguments (incl. type arguments)
       case canRunDecl nm newTCs of
         Right _ -> do
-          let tcs = snd <$> Map.elems newTCs
+          let unsortedTcs = snd <$> Map.elems newTCs
+              tcs = forgetRecs $ topoOrder (\m -> (tcModuleName m, Set.fromList (map thingValue (tcModuleImports m)))) unsortedTcs
+          
           (_, res) <- interpFile Nothing tcs (nameScopedIdent nm)
           -- For now we just return the pretty-printed value (we could also return the json)
           let resStr = case res of
@@ -109,10 +110,11 @@ watchModule report reportMsg clientHandle sst nm = go mempty
       go newTCs
 
     -- debugDecl mods = do
-    --   let getDecl (_, m) = find (\d -> tcDeclName d == nm) (forgetRecs (tcModuleDecls m))
-    --   case Map.lookup rootModuleName mods >>= getDecl of
-    --     Just d -> debugM "reactor.watch" (showPP d)
-    --     _      -> debugM "reactor.watch" "No decl"
+    --   -- let getDecl (_, m) = find (\d -> tcDeclName d == nm) (forgetRecs (tcModuleDecls m))
+    --   debugM "reactor.watch" (show $ vcat [ pp mn $$ nest 4 (pp m) | (mn, (_, m)) <- Map.toList mods ])
+    --   -- case Map.lookup rootModuleName mods >>= getDecl of
+    --   --   Just d -> debugM "reactor.watch" (show 
+    --   --   _      -> debugM "reactor.watch" "No decl"
 
 
           

@@ -23,7 +23,8 @@ library
                        Daedalus.LSP.SemanticTokens,
                        Daedalus.LSP.Position,
                        Daedalus.LSP.LanguageFeatures,
-                       Daedalus.LSP.Command,                       
+                       Daedalus.LSP.Command,
+                       Daedalus.LSP.Command.Debug, 
                        Daedalus.LSP.Command.Regions,
                        Daedalus.LSP.Command.Run,
                        Daedalus.LSP.Worker                       
