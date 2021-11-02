@@ -171,7 +171,8 @@ type PrevSet = IntSet.IntSet -- set of all the "Prev" offsets we have encountere
 
 getXRefStart :: TrailerEnd -> UInt 64
 getXRefStart x = getField @"xrefStart" x
-
+  -- dead now, later use for further validation
+  
 getEndOfTrailerEnd :: TrailerEnd -> UInt 64
 getEndOfTrailerEnd x = getField @"offset4" x
 
@@ -385,75 +386,81 @@ printObjIndex indent oi = print
 type Range = (Int,Int)
 
 printCavityReport :: FileOffset -> Input -> [IncUpdate] -> IO ()
-printCavityReport bodyStart_base inp updates =
+printCavityReport bodyStart_base input updates =
   do
-  let us = zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
-                updates
-                (bodyStart_base : map getEndOfUpdate updates)
-                -- FIXME[F1]: assumes updates are from end to start! Change.
-                
-      getEndOfUpdate IU{iu_trailerEnd=te} =
-        case te of
-          Right te' -> getEndOfTrailerEnd te'
-          Left  o   -> o
-      
-      reportOneUpdate (numC, totalSizeC) (nm,iu,bodyStart') =
-        do
-        let xrefStart = sizeToInt $ iu_offset iu
-            bodyStart = sizeToInt bodyStart'
-        mapM_ putStrLn [ nm ++ ":"
-                       , "  " ++ render (ppXRefType (iu_type iu))
-                       , "  body starts at byte offset " ++ show bodyStart
-                       , "  xref starts at byte offset " ++ show xrefStart
-                       ]
-        es <- getObjectRanges inp iu
-        let (errors,ranges) = partitionEithers es
-        if not (null errors) then
-          do
-          putStrLn "  cavities are uncomputable due to object parsing errors:"
-          mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
-          putChar '\n'
-          return (numC,totalSizeC) -- unchanged
-        else
-          do
-          let sr = RIntSet.singletonRange
-
-              -- intersection:
-              i = foldr (\x s-> RIntSet.intersection (sr x) s)
-                        RIntSet.empty
-                        ranges
-            
-              -- cavities:
-              cs = RIntSet.toRangeList $
-                       sr (bodyStart, xrefStart - 1)
-                       RIntSet.\\
-                       foldr RIntSet.insertRange RIntSet.empty ranges
-
-          case cs of
-            [] -> putStrLn "  cavities: NONE."
-            _  -> do
-                  putStrLn "  cavities:"
-                  mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
-
-          unless (RIntSet.null i) $
-            warn $
-              "object definitions overlap (highly suspicious) on the following offsets: "
-               ++ show (RIntSet.toRangeList i)
-
-          putChar '\n'
-          return ( numC + length cs :: Int
-                 , totalSizeC + sum (map sizeC cs) :: Int
-                 )
-
-  (numCavities,totalSizeCavities) <- foldlM reportOneUpdate (0,0) us
+  (numCavities,totalSizeCavities) <-
+    foldlM (printOneUpdate input) (0,0)
+      $ zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
+             updates
+             (bodyStart_base : map getEndOfUpdate updates)
+             -- FIXME[F1]: assumes updates are ordered from end to start!
+             --  - which is not necessarily the case.
+    
   putStrLn $ "Total number of cavities: "   ++ show numCavities
   putStrLn $ "Total size of all cavities: " ++ show totalSizeCavities
+
+  -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
+  --  - must nab the locations when we parse these!
+
+  where
+  getEndOfUpdate IU{iu_trailerEnd=te} =
+    case te of
+      Right te' -> getEndOfTrailerEnd te'
+      Left  o   -> o
+
+
+printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
+  do
+  let xrefStart = sizeToInt $ iu_offset iu
+      bodyStart = sizeToInt bodyStart'
+  mapM_ putStrLn [ nm ++ ":"
+                 , "  " ++ render (ppXRefType (iu_type iu))
+                 , "  body starts at byte offset " ++ show bodyStart
+                 , "  xref starts at byte offset " ++ show xrefStart
+                 ]
+  -- FIXME[F2]: want to warn when no valid trailerEnd
+  es <- getObjectRanges input iu
+  let (errors,ranges) = partitionEithers es
+  if not (null errors) then
+    do
+    putStrLn "  cavities are uncomputable due to object parsing errors:"
+    mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
+    putChar '\n'
+    return (numC,totalSizeC) -- unchanged
+  else
+    do
+    let sr = RIntSet.singletonRange
+
+        -- intersection:
+        i = foldr (\x s-> RIntSet.intersection (sr x) s)
+                  RIntSet.empty
+                  ranges
+      
+        -- cavities:
+        cs = RIntSet.toRangeList $
+                 sr (bodyStart, xrefStart - 1)
+                 RIntSet.\\
+                 foldr RIntSet.insertRange RIntSet.empty ranges
+
+    case cs of
+      [] -> putStrLn "  cavities: NONE."
+      _  -> do
+            putStrLn "  cavities:"
+            mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
+
+    unless (RIntSet.null i) $
+      warn $
+        "object definitions overlap (highly suspicious) on the following offsets: "
+         ++ show (RIntSet.toRangeList i)
+
+    putChar '\n'
+    return ( numC + length cs :: Int
+           , totalSizeC + sum (map sizeC cs) :: Int
+           )
 
   where
   sizeC (start, end) = end - start + 1
 
-  -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
-  --  - must nab the locations when we parse these!
 
 ppCavity :: (Int,Int) -> String
 ppCavity (start,end) = unwords [ show start
