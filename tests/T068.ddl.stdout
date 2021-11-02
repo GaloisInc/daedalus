@@ -22,9 +22,9 @@ T068.Nested : Grammar T068.Nested =
 T068.Main : Grammar T068.Main =
   do (tag : uint 8) <- GetByte
      ($$ : T068.Main) <- case tag is
-                           { 1 -> {- case branch  1 -} pure {A: {}}
-                           ; 2 -> {- case branch  2 -} do (_6 : T068.Nested) <- T068.Nested
-                                                          pure {B: _6}
+                           { 0x01 -> {- case branch  0x01 -} pure {A: {}}
+                           ; 0x02 -> {- case branch  0x02 -} do (_6 : T068.Nested) <- T068.Nested
+                                                                pure {B: _6}
                            }
      pure $$
  
@@ -35,6 +35,6 @@ T068._Nested : Grammar {} =
 T068._Main : Grammar {} =
   do (tag : uint 8) <- GetByte
      case tag is
-       { 1 -> {- case branch  1 -} pure {}
-       ; 2 -> {- case branch  2 -} T068._Nested
+       { 0x01 -> {- case branch  0x01 -} pure {}
+       ; 0x02 -> {- case branch  0x02 -} T068._Nested
        }

@@ -31,13 +31,13 @@ type P026.Main = { x: [P026.Number]
 --- Rules:
  
 P026.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 P026.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 P026.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 P026.SimpleEOL : Grammar (uint 8) =
   Choose fair

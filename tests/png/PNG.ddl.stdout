@@ -15,14 +15,14 @@ PNG.$letter : ByteClass =
   ('A' .. 'Z') | ('a' .. 'z')
  
 PNG.Header : Grammar {} =
-  @MatchBytes [137,
-               80,
-               78,
-               71,
-               13,
-               10,
-               26,
-               10]
+  @MatchBytes [0x89,
+               0x50,
+               0x4e,
+               0x47,
+               0x0d,
+               0x0a,
+               0x1a,
+               0x0a]
  
 PNG.BE : Grammar (uint 32) =
   do (_30 : uint 24) <- do (_28 : uint 16) <- do (_26 : uint 8) <- GetByte
@@ -45,17 +45,17 @@ PNG.Type : Grammar [uint 8] =
  
 rec value
   PNG.step (c : uint 32) (k : uint 8) : uint 32 =
-    if (k < 8) then PNG.step ((if (c == ((c >> 1) << 1)) then 3988292384 else 0) .^. (c >> 1)) (k + 1) else c
+    if (k < 8) then PNG.step ((if (c == ((c >> 1) << 1)) then 0xedb88320 else 0x0) .^. (c >> 1)) (k + 1) else c
  
 PNG.crcTable (n : uint 8) : uint 32 =
   PNG.step (n as uint 32) 0
  
 PNG.updatecrc (crc : uint 32) (bytes : [uint 8]) : uint 32 =
   for ((out : uint 32) = crc; (b : uint 8) in bytes)
-    ((PNG.crcTable ((crc .^. (b as uint 32)) .&. 255 as uint 8)) .^. (crc >> 8))
+    ((PNG.crcTable ((crc .^. (b as uint 32)) .&. 0xff as uint 8)) .^. (crc >> 8))
  
 PNG.crc (input : [uint 8]) : uint 32 =
-  (PNG.updatecrc 4294967295 input) .^. 4294967295
+  (PNG.updatecrc 0xffffffff input) .^. 0xffffffff
  
 PNG.Chunk : Grammar PNG.Chunk =
   do (len : uint 64) <- PNG.Length
@@ -70,14 +70,14 @@ PNG.Chunk : Grammar PNG.Chunk =
            crcCheck = crcCheck}
  
 PNG._Header : Grammar {} =
-  @MatchBytes [137,
-               80,
-               78,
-               71,
-               13,
-               10,
-               26,
-               10]
+  @MatchBytes [0x89,
+               0x50,
+               0x4e,
+               0x47,
+               0x0d,
+               0x0a,
+               0x1a,
+               0x0a]
  
 PNG.Main : Grammar [PNG.Chunk] =
   do PNG._Header

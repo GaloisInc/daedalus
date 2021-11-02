@@ -240,7 +240,7 @@ instance TraverseTypes TCPat where
     case pat of
       TCConPat t l p ->
         (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
-      TCNumPat t i   -> (`TCNumPat` i) <$> f t
+      TCNumPat t i l -> (\t' -> TCNumPat t' i l) <$> f t
       TCBoolPat b    -> pure (TCBoolPat b)
       TCJustPat p    -> TCJustPat <$> traverseTypes f p
       TCNothingPat t -> TCNothingPat <$> f t

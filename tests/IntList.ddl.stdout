@@ -84,12 +84,10 @@ rec
 --- Rules:
  
 IntList.WS : Grammar {} =
-  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-          {'\r'})
+  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 IntList._WS : Grammar {} =
-  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-          {'\r'})
+  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P

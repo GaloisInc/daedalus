@@ -64,13 +64,13 @@ type D018.Main = { x: [D018.Value]
 --- Rules:
  
 D018.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 D018.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 D018.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 D018.SimpleEOL : Grammar (uint 8) =
   Choose fair

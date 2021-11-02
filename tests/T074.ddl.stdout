@@ -30,7 +30,7 @@ Daedalus.wordToHalfFloat (w : uint 16) : float =
   let mant = w as uint 10 in
   if (expo == 0) then let magic = 126 << 23 in
                       let num = (wordToFloat (magic + (0 # mant))) - (wordToFloat magic) in
-                      if (sign == 1) then - num else num else let newExp = if (expo == 31) then 255 else (127 - 15) + (0 # expo) in
+                      if (sign == 1) then - num else num else let newExp = if (expo == 0x1F) then 0xFF else (127 - 15) + (0 # expo) in
                                                               wordToFloat (((sign # newExp) # mant) # 0)
  
 Daedalus.HalfFloat (_70 : bool) : Grammar float =

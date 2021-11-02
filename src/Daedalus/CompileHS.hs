@@ -356,10 +356,10 @@ hsValue env tc =
 
     TCLiteral l t ->
       case l of
-        LNumber n -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+        LNumber n _ -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
         LFloating n -> hasType (hsType env t) (hsDouble n)
         LBool b   -> hsBool b
-        LByte b   -> "RTS.uint8" `Ap` hsWord8 b
+        LByte b _ -> "RTS.uint8" `Ap` hsWord8 b
         LBytes b  -> "Vector.vecFromRep" `Ap` hsByteString b
         LPi       -> hasType (hsType env t) "HS.pi"
 
@@ -693,7 +693,7 @@ hsPat env pat =
                                       , show (pp t)
                                       , show (pp pat)
                                       ]
-    TCNumPat t i ->
+    TCNumPat t i _ ->
       case t of
         Type TInteger  -> Raw i
         Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]

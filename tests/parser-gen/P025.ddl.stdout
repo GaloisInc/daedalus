@@ -15,13 +15,13 @@ type P025.Main = { x: [[uint 8]]
 --- Rules:
  
 P025.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 P025.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 P025.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 P025.SimpleEOL : Grammar (uint 8) =
   Choose fair

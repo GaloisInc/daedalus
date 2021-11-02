@@ -11,7 +11,7 @@ type D012.RGB = { red: int
 --- Rules:
  
 D012._WS : Grammar {} =
-  @Match {'\NUL'}
+  @Match {0}
  
 D012.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
@@ -41,7 +41,7 @@ D012.RGB : Grammar D012.RGB =
            blue = blue}
  
 D012.WS : Grammar (uint 8) =
-  Match {'\NUL'}
+  Match {0}
  
 D012._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P

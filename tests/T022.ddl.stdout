@@ -13,7 +13,7 @@ T022.$y : ByteClass =
   {'a'}
  
 T022.$z : ByteClass =
-  {'\n'} | {'\f'}
+  {10} | {12}
  
 T022.X : Grammar (uint 8) =
   Match (!T022.$x)

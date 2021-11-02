@@ -544,7 +544,7 @@ evalLiteral lit t =
         Type TDouble -> Interp.vDoublePi
         _ -> error "Unexpected type for PI"
 
-    LNumber n ->
+    LNumber n _ ->
       case t of
         Type (TUInt (Type (TNum m))) -> Interp.VUInt (fromIntegral m) n
         Type (TInteger)              -> Interp.VInteger n
@@ -552,7 +552,7 @@ evalLiteral lit t =
     LBool b   -> Interp.VBool b
     LBytes bs ->
       Interp.VArray (Vector.fromList (map (\w -> Interp.VUInt 8 (fromIntegral w)) (BS.unpack bs)))
-    LByte w -> Interp.VUInt 8 (fromIntegral w)
+    LByte w _ -> Interp.VUInt 8 (fromIntegral w)
 
 
 

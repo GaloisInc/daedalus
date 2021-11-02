@@ -19,6 +19,7 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse,intercalate,nub)
 import qualified Data.Kind as HS
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.List.NonEmpty (NonEmpty)
@@ -256,7 +257,7 @@ data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
 
 -- | Deconstruct a value
 data TCPat = TCConPat Type Label TCPat
-           | TCNumPat Type Integer
+           | TCNumPat Type Integer Text   -- text is how to show
            | TCBoolPat Bool
            | TCJustPat TCPat
            | TCNothingPat Type
@@ -619,7 +620,7 @@ instance PP TCPat where
   ppPrec n pat =
     case pat of
       TCConPat _ l p  -> "{|" <+> pp l <+> "=" <+> pp p <+> "|}"
-      TCNumPat _ i    -> pp i
+      TCNumPat _ _ txt  -> text (Text.unpack txt)
       TCBoolPat b     -> if b then "true" else "false"
       TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
       TCNothingPat _  -> "nothing"
@@ -652,7 +653,7 @@ describePat par pat =
   in
   case pat of
     TCConPat _ l p -> ppCon l p
-    TCNumPat _ n   -> pp n
+    TCNumPat _ _ txt -> text (Text.unpack txt)
     TCBoolPat b    -> pp b
     TCJustPat p    -> ppCon "just" p
     TCNothingPat _ -> "nothing"
@@ -1057,7 +1058,7 @@ instance TypeOf TCPat where
   typeOf pat =
     case pat of
       TCConPat t _ _ -> t
-      TCNumPat t _ -> t
+      TCNumPat t _ _ -> t
       TCBoolPat _ -> tBool
       TCJustPat p -> tMaybe (typeOf p)
       TCNothingPat t -> tMaybe t

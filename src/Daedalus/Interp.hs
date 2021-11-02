@@ -362,7 +362,7 @@ compilePureExpr env = go
 evalLiteral :: Env -> Type -> Literal -> Value
 evalLiteral env t l =
   case l of
-    LNumber n ->
+    LNumber n _ ->
       case tval of
         TVInteger     -> VInteger n
         TVUInt s      -> vUInt s n
@@ -375,7 +375,7 @@ evalLiteral env t l =
         TVOther       -> bad
 
     LBool b           -> VBool b
-    LByte w           -> vByte w
+    LByte w _         -> vByte w
     LBytes bs         -> vByteString bs
     LFloating d       ->
       case tval of
@@ -482,7 +482,7 @@ matchPat pat =
     TCConPat _ l p    -> \v -> case valueToUnion v of
                                  (l1,v1) | l == l1 -> matchPat p v1
                                  _ -> Nothing
-    TCNumPat _ i      -> \v -> do guard (valueToIntegral v == i)
+    TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
                                   pure []
     TCBoolPat b       -> \v -> do guard (valueToBool v == b)
                                   pure []

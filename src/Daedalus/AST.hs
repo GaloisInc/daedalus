@@ -9,6 +9,7 @@ import Data.Word
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
 import Data.Text(Text)
+import qualified Data.Text as Text
 import qualified Data.Kind as HS
 import Data.Function (on)
 
@@ -308,12 +309,12 @@ data StructField e =
   | COMMIT SourceRange
     deriving (Show, Functor, Foldable, Traversable)
 
-data Literal = 
-    LNumber     !Integer
+data Literal =
+    LNumber     !Integer  Text  -- Text is how it was written, for showing
   | LFloating   !Double     -- used for both floating point types
   | LBool       !Bool
   | LBytes      !ByteString
-  | LByte       !Word8
+  | LByte       !Word8    Text    -- Text is how to show
   | LPi
     deriving (Show, Eq, Ord)
 
@@ -513,8 +514,8 @@ instance PP t => PP (TypeF t) where
 instance PP Literal where
   pp lit =
     case lit of
-      LByte b     -> text (show (toEnum (fromEnum b) :: Char))
-      LNumber i   -> integer i
+      LByte _ t   -> text (Text.unpack t)
+      LNumber _ t -> text (Text.unpack t)
       LBool i     -> if i then "true" else "false"
       LFloating d -> pp d
       LBytes b    -> text (show (BS8.unpack b))

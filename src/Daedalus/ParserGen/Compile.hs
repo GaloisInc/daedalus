@@ -8,6 +8,7 @@ module Daedalus.ParserGen.Compile where
 
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import Data.Maybe (fromJust)
 import Data.List (isInfixOf)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -143,7 +144,7 @@ getByteArray e =
             TC $
             TCAnnot
             { tcAnnot = texprAnnot e
-            , tcAnnotExpr = TCLiteral (LByte c) tByte
+            , tcAnnotExpr = TCLiteral (LByte c (Text.pack (show c))) tByte
             }
         )
         (BS.unpack w)

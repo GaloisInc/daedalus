@@ -70,49 +70,49 @@ T044.f (i : T044.a) : bool =
  
 T044.A : Grammar T044.A =
   Choose biased
-    { {- x -} do (_22 : uint 8) <- Match {'\SOH'}
+    { {- x -} do (_22 : uint 8) <- Match {1}
                  pure {x: _22}
-    | {- y -} do (_23 : uint 8) <- Match {'\STX'}
+    | {- y -} do (_23 : uint 8) <- Match {2}
                  pure {y: _23}
     }
  
 T044.B : Grammar T044.A =
   Choose biased
-    { {- x -} do (_24 : uint 8) <- Match {'\ETX'}
+    { {- x -} do (_24 : uint 8) <- Match {3}
                  pure {x: _24}
-    | {- y -} do (_25 : uint 8) <- Match {'\EOT'}
+    | {- y -} do (_25 : uint 8) <- Match {4}
                  pure {y: _25}
     }
  
 T044.C : Grammar T044.C =
   Choose biased
-    { {- x -} do (_26 : uint 8) <- Match {'\SOH'}
+    { {- x -} do (_26 : uint 8) <- Match {1}
                  pure {x: _26}
-    | {- y -} do (_27 : uint 8) <- Match {'\STX'}
+    | {- y -} do (_27 : uint 8) <- Match {2}
                  pure {y: _27}
     }
  
 T044.D : Grammar T044.D =
   Choose biased
-    { {- x -} do (_28 : uint 8) <- Match {'\SOH'}
+    { {- x -} do (_28 : uint 8) <- Match {1}
                  pure {x: _28}
-    | {- y -} do (_29 : uint 8) <- Match {'\STX'}
+    | {- y -} do (_29 : uint 8) <- Match {2}
                  pure {y: _29}
     }
  
 T044.E : Grammar T044.E =
   Choose biased
     { {- x -} do (_32 : T044.E0) <- Choose biased
-                                      { {- x -} do (_30 : uint 8) <- Match {'\SOH'}
+                                      { {- x -} do (_30 : uint 8) <- Match {1}
                                                    pure {x: _30}
-                                      | {- y -} do (_31 : uint 8) <- Match {'\STX'}
+                                      | {- y -} do (_31 : uint 8) <- Match {2}
                                                    pure {y: _31}
                                       }
                  pure {x: _32}
     | {- y -} do (_35 : T044.E0) <- Choose biased
-                                      { {- x -} do (_33 : uint 8) <- Match {'\SOH'}
+                                      { {- x -} do (_33 : uint 8) <- Match {1}
                                                    pure {x: _33}
-                                      | {- y -} do (_34 : uint 8) <- Match {'\ETX'}
+                                      | {- y -} do (_34 : uint 8) <- Match {3}
                                                    pure {y: _34}
                                       }
                  pure {y: _35}
@@ -125,37 +125,37 @@ T044.F (i : T044.A) : Grammar (uint 8) =
  
 T044._A : Grammar {} =
   Choose biased
-    { {- x -} @Match {'\SOH'}
-    | {- y -} @Match {'\STX'}
+    { {- x -} @Match {1}
+    | {- y -} @Match {2}
     }
  
 T044._B : Grammar {} =
   Choose biased
-    { {- x -} @Match {'\ETX'}
-    | {- y -} @Match {'\EOT'}
+    { {- x -} @Match {3}
+    | {- y -} @Match {4}
     }
  
 T044._C : Grammar {} =
   Choose biased
-    { {- x -} @Match {'\SOH'}
-    | {- y -} @Match {'\STX'}
+    { {- x -} @Match {1}
+    | {- y -} @Match {2}
     }
  
 T044._D : Grammar {} =
   Choose biased
-    { {- x -} @Match {'\SOH'}
-    | {- y -} @Match {'\STX'}
+    { {- x -} @Match {1}
+    | {- y -} @Match {2}
     }
  
 T044._E : Grammar {} =
   Choose biased
     { {- x -} Choose biased
-                { {- x -} @Match {'\SOH'}
-                | {- y -} @Match {'\STX'}
+                { {- x -} @Match {1}
+                | {- y -} @Match {2}
                 }
     | {- y -} Choose biased
-                { {- x -} @Match {'\SOH'}
-                | {- y -} @Match {'\ETX'}
+                { {- x -} @Match {1}
+                | {- y -} @Match {3}
                 }
     }
  

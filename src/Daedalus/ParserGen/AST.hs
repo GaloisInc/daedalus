@@ -62,7 +62,7 @@ showNCExpr c =
     TCSetAny -> "*"
     TCSetSingle e ->
       case texprValue e of
-        TCLiteral (LByte i) _ ->
+        TCLiteral (LByte i _) _ ->
           let x = toInteger i in
           if (48 <= x && x <= 57) || (65 <= x && x <= 90) || (97 <= x && x <= 122)
           then (toEnum (fromIntegral i) :: Char) : ""

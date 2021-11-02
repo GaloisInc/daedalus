@@ -443,7 +443,7 @@ patMatch :: TC.TCPat -> (src -> M tgt) -> src -> M (PMatch tgt)
 patMatch pat leaf k =
   case pat of
      TC.TCConPat _ l p   -> nested (PCon l) p
-     TC.TCNumPat _ x     -> terminal (PNum x)
+     TC.TCNumPat _ x _   -> terminal (PNum x)
      TC.TCBoolPat b      -> terminal (PBool b)
      TC.TCJustPat p      -> nested PJust p
      TC.TCNothingPat {}  -> terminal PNothing
@@ -881,11 +881,11 @@ fromExpr expr =
 
     TC.TCLiteral l t ->
       case l of
-        TC.LNumber n   -> intL n   <$> fromTypeM t
+        TC.LNumber n _ -> intL n   <$> fromTypeM t
         TC.LFloating n -> floatL n <$> fromTypeM t
         TC.LPi         -> floatL pi <$> fromTypeM t
         TC.LBool b     -> pure (boolL b)
-        TC.LByte x     -> pure (intL (toInteger x) tByte)
+        TC.LByte x _   -> pure (intL (toInteger x) tByte)
         TC.LBytes bs   -> pure (byteArrayL bs)
 
     TC.TCNothing t ->

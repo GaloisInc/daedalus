@@ -33,13 +33,13 @@ type PdfValue.Sign = Choose { neg: {}
 --- Rules:
  
 PdfValue.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 PdfValue.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 PdfValue.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 PdfValue.SimpleEOL : Grammar (uint 8) =
   Choose biased

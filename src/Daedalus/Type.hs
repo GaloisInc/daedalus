@@ -326,13 +326,14 @@ inferExpr expr =
          addConstraint expr (FloatingType a)
          pure (exprAt expr (TCLiteral l a), a)
 
-    ELiteral l@(LNumber n) ->
+    ELiteral l@(LNumber n txt) ->
       do ctxt <- getContext
          case ctxt of
            AClass
              | 0 <= n && n < 256 ->
                 pure ( exprAt expr $ TCSetSingle
-                     $ exprAt expr $ TCLiteral (LByte $ fromInteger n) tByteClass
+                     $ exprAt expr $ TCLiteral (LByte (fromInteger n) txt)
+                                                                      tByteClass
                     , tByteClass
                     )
              | otherwise ->
@@ -343,7 +344,7 @@ inferExpr expr =
                    addConstraint expr (Literal n a)
                    pure (exprAt expr (TCLiteral l a), a)
 
-    ELiteral l@(LByte _) -> 
+    ELiteral l@(LByte _ _) ->
       do ctxt <- getContext
          case ctxt of
            AClass   -> promoteValueToSet =<< inContext AValue (inferExpr expr)
@@ -857,7 +858,7 @@ inferExpr expr =
            AClass ->
              do let checkBound d b =
                       case b of
-                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d) tByte))
+                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d (Text.pack (show d))) tByte))
                         Just e ->
                           do (e1',t) <- inContext AValue (inferExpr e)
                              unify tByte (e1',t)
@@ -1072,12 +1073,12 @@ checkPattern ty pat =
 
     LitPattern l ->
       case thingValue l of
-        LNumber i ->
+        LNumber i txt ->
           do addConstraint l (Literal i ty)
-             pure (TCNumPat ty i)
-        LByte i ->
+             pure (TCNumPat ty i txt)
+        LByte i txt ->
           do unify ty (pat,tByte)
-             pure (TCNumPat tByte (toInteger i))
+             pure (TCNumPat tByte (toInteger i) txt)
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)

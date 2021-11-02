@@ -8,10 +8,10 @@ module D024
  
 D024.A : Grammar (uint 8) =
   Choose biased
-    { do ($$ : uint 8) <- Match {'\255'}
-         @Match {'\NUL'}
+    { do ($$ : uint 8) <- Match {0xFF}
+         @Match {0x00}
          pure $$
-    | Match (!{'\255'})
+    | Match (!{0xFF})
     }
  
 D024.Main : Grammar (uint 8) =
@@ -20,9 +20,9 @@ D024.Main : Grammar (uint 8) =
  
 D024._A : Grammar {} =
   Choose biased
-    { do @Match {'\255'}
-         @Match {'\NUL'}
-    | @Match (!{'\255'})
+    { do @Match {0xFF}
+         @Match {0x00}
+    | @Match (!{0xFF})
     }
  
 D024._Main : Grammar {} =

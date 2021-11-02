@@ -19,7 +19,7 @@ type plain-ppm2.PPM = { width: uint 64
 --- Rules:
  
 plain-ppm2.$ws : ByteClass =
-  (((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) | {'\r'}
+  (((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'}
  
 plain-ppm2._WS : Grammar {} =
   @Match plain-ppm2.$ws

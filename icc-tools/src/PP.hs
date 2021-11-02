@@ -48,7 +48,10 @@ instance PP a => PP (Maybe a) where
 instance PP RTS.ParseError where
   pp x =
     vcat [ "ERROR at offset" <+> (loc <> colon)
-         , nest 2 (text (RTS.peMsg x))
+         , nest 2 $ vcat [ text (RTS.peMsg x)
+                         , "-- stack ---"
+                         , vcat (map text (RTS.peStack x))
+                         ]
          ]
     where
     off = RTS.inputOffset (RTS.peInput x)
@@ -181,8 +184,8 @@ instance PP MPElementHead where
 
 
 instance PP MPElementBody where
-  pp x =
-    case x of
+  pp a =
+    case a of
       MPElementBody_calc x -> pp x
       MPElementBody_cvst x -> pp x
       MPElementBody_matf x -> pp x
@@ -211,8 +214,8 @@ instance PP SegmentedCurve where
               ]
 
 instance PP CurveSegment where
-  pp x =
-    case x of
+  pp a =
+    case a of
       CurveSegment_parf x -> pp x
       CurveSegment_samf x -> pp x
 
