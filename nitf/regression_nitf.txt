@@ -78,11 +78,9 @@ Positive tests (should pass):
 
 Negative tests (should fail):
  JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_01.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_03.NTF ... pass
---- Found 1 results:
+ JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_03.NTF ... fail
  JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_02.NTF ... fail
- JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_04.NTF ... pass
---- Found 1 results:
+ JITC - NITF Test Data - Set 1/Format/NEG/NITF_FMT_NEG_04.NTF ... fail
  JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_04.NTF ... fail
  JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_05.NTF ... fail
  JITC - NITF Test Data - Set 1/Geospatial/NEG/NITF_GEO_NEG_02.NTF ... fail
@@ -116,12 +114,14 @@ Negative tests (should fail):
 ./gwg.nga.mil_samples/i_3051e.ntf ... pass
 --- Found 1 results:
 ./gwg.nga.mil_samples/i_3114e.ntf ... fail
-./gwg.nga.mil_samples/i_3090m.ntf ... fail
+./gwg.nga.mil_samples/i_3090m.ntf ... pass
+--- Found 1 results:
 ./gwg.nga.mil_samples/i_3041a.ntf ... pass
 --- Found 1 results:
 ./gwg.nga.mil_samples/i_3128b.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3113g.ntf ... fail
+./gwg.nga.mil_samples/i_3113g.ntf ... pass
+--- Found 1 results:
 ./gwg.nga.mil_samples/i_3309a.ntf ... pass
 --- Found 1 results:
 ./gwg.nga.mil_samples/i_3450c.ntf ... pass
@@ -153,7 +153,8 @@ Negative tests (should fail):
 --- Found 1 results:
 ./gwg.nga.mil_samples/i_3008a.ntf ... pass
 --- Found 1 results:
-./gwg.nga.mil_samples/i_3090u.ntf ... fail
+./gwg.nga.mil_samples/i_3090u.ntf ... pass
+--- Found 1 results:
 ./gwg.nga.mil_samples/i_3228e.ntf ... pass
 --- Found 1 results:
 ./gwg.nga.mil_samples/i_3301a.ntf ... pass
