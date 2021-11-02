@@ -162,6 +162,8 @@ quitIfFail = \case
                   
 ---- utilities ---------------------------------------------------------------
 
+type PrevSet = IntSet.IntSet -- set of all the "Prev" offsets we have encountered
+
 getXRefStart :: TrailerEnd -> UInt 64
 getXRefStart x = getField @"xrefStart" x
 
@@ -251,11 +253,13 @@ parseXRefsVersion2 inp offset =
 parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
 parseAllIncUpdates inp offset0 =
   do
-  (x, next) <- parseOneIncUpdate inp offset0 -- end of file, first-processed update
+  (x, next) <- parseOneIncUpdate inp offset0
+               -- end of file, first-processed update
   case next of
     Just offset -> (++[x]) <$> parseAllIncUpdates inp offset
     Nothing     -> return [x]
-  
+
+
 -- | parseOneIncUpdate - go to offset and parse xref table
 parseOneIncUpdate :: Input -> FileOffset -> IO (IncUpdate, Maybe FileOffset)
 parseOneIncUpdate inp offset = 
@@ -270,11 +274,8 @@ parseOneIncUpdate inp offset =
           inp
           $ do
             pSetInput i
-            pManyWS  -- FIXME: later: warning if this consumes anything
-            pCrossRef  -- FIXME[C2]: misnomer, this parses
-                       --   - standard xref table OR xref streams
-                       --   - the trailer too (in the former case)
-              
+            pManyWS     -- FIXME: later: warn if this consumes anything
+            pCrossRef 
       xref <- quitIfParseError
                 ("parsing xref table (at byte offset " ++ show i ++ ")")
                 xref'
@@ -309,11 +310,13 @@ parseOneIncUpdate inp offset =
                              -- offset of the "xref" keyword
                            
        xrefss <- quitIfFail $ mapM convertToXRefEntries (toList (getField @"xref" x))
+       -- NOTE: this where Version1 differs from Version2
+       -- FIXME[F1]: Are we overconstraining syntax?
        te <- let ctx = "parsing 'startxref' to '%%EOF'" 
              in runParserWithoutObjectIndexFailOnRef ctx inp pTrailerEnd
                   >>= quitIfParseError ctx
               
-       -- FIXME: ensure 'te' consistent with ...
+       -- FIXME[F3]: PDF requires that the trailers are consistent. check somewhere.
        return ( IU{ iu_type      = xrefType
                   , iu_xrefs     = xrefss
                   , iu_trailer   = t
@@ -494,7 +497,7 @@ parseXRefsVersion1 inp off0 =
     inp
   
   where
-  go :: Maybe TrailerDict -> Maybe FileOffset -> IntSet.IntSet -> Parser (ObjIndex, TrailerDict)
+  go :: Maybe TrailerDict -> Maybe FileOffset -> PrevSet -> Parser (ObjIndex, TrailerDict)
   go mbRoot Nothing _ =
     do oix <- getObjIndex
        case mbRoot of
@@ -518,7 +521,7 @@ parseXRefsVersion1 inp off0 =
             , HasField "trailer" x TrailerDict
             , HasField "xref"    x (Vector s)
             , XRefSection s e o
-            ) => Maybe TrailerDict -> x -> IntSet.IntSet -> Parser (ObjIndex, TrailerDict)
+            ) => Maybe TrailerDict -> x -> PrevSet -> Parser (ObjIndex, TrailerDict)
   goWith mbRoot x prevSet =
     do let t = getField @"trailer" x
        prevOffset <-
