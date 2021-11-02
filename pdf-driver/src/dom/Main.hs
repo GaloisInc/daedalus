@@ -6,7 +6,7 @@ import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
 import Control.Monad(when)
 import GHC.Records(getField) 
-import System.IO(hPutStrLn,stderr)
+import System.IO(hPutStrLn,stderr,stdout)
 import System.Exit(exitFailure)
 import Text.PrettyPrint
 import SimpleGetOpt
@@ -180,7 +180,7 @@ parsePdf opts file bs topInput =
 
 quit :: String -> IO a
 quit msg =
-  do hPutStrLn stderr msg
+  do hPutStrLn stdout msg
      exitFailure
 
 
@@ -206,7 +206,7 @@ warnIfFail context r =
    Right a -> return ()
    Left ss -> mapM_ warn $ "warning:" : ss
   where
-  warn s = hPutStrLn stderr s
+  warn s = hPutStrLn stdout s
   
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 

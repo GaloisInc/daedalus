@@ -28,7 +28,7 @@ import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import           GHC.Records(HasField, getField)
 import           System.Exit(exitFailure)
-import           System.IO(hPutStrLn,stderr)
+import           System.IO(hPutStrLn,stderr,stdout)
 
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
@@ -175,11 +175,9 @@ fromPdfResult contextString r =
  case r of
    ParseOk a     -> Right a
    ParseAmbig {} -> Left [msg ++ ": ambiguous."]
-   ParseErr e    -> Left [msg ++ ":", [], [], show (pp e)]
+   ParseErr e    -> Left [msg ++ ":", [], show (pp e)]
   where
-  msg = "Fatal error while " ++ contextString ++ ", cannot proceed"
-
-  -- FIXME: dead code at the moment!
+  msg = "while " ++ contextString
 
 newError :: ParseErrorSource -> SourceRange -> String -> IO a
 newError  _ c msg = quit $ concat [msg, " (", c, ")"]
@@ -204,7 +202,7 @@ warn :: String -> IO ()
 warn s = putStrLn $ "Warning: " ++ s
 
 quit :: String -> IO a
-quit msg = do hPutStrLn stderr msg
+quit msg = do hPutStrLn stdout msg
               exitFailure
 
 
@@ -253,77 +251,87 @@ parseXRefsVersion2 inp offset =
 parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
 parseAllIncUpdates inp offset0 =
   do
-  (x, next) <- parseOneIncUpdate inp offset0
+  iu <- parseOneIncUpdate inp offset0
                -- end of file, first-processed update
-  case next of
-    Just offset -> (++[x]) <$> parseAllIncUpdates inp offset
-    Nothing     -> return [x]
+  prev <- getPrev iu
+  case prev of
+    Just offset -> (++[iu]) <$> parseAllIncUpdates inp offset
+    Nothing     -> return [iu]
 
+  where
+  getPrev :: IncUpdate -> IO (Maybe FileOffset)
+  getPrev IU{iu_trailer=t} =
+    case getField @"prev" t of
+      Nothing -> pure Nothing
+      Just i ->
+         case toInt i of
+           Nothing  -> newError FromUser "parseTrailer"
+                                         "Prev offset too large."
+           Just offset' ->
+               let offset'' = intToSize offset' in
+               if offset'' /= offset0 then
+                 pure (Just offset'')
+               else
+                 newError FromUser "parseTrailer"
+                                   "Prev offset unchanged"
+               -- FIXME[F1]: above is hardly sufficient: infinite loop possible!
+ 
 
 -- | parseOneIncUpdate - go to offset and parse xref table
-parseOneIncUpdate :: Input -> FileOffset -> IO (IncUpdate, Maybe FileOffset)
-parseOneIncUpdate inp offset = 
-  case advanceBy offset inp of
+parseOneIncUpdate :: Input -> FileOffset -> IO IncUpdate
+parseOneIncUpdate input0 offset = 
+  case advanceBy offset input0 of
     Nothing ->
       quit ("Offset out of bounds: " ++ show offset)
-    Just i ->
+    Just input1 ->
       do
-      xref' <-
-        runParserWithoutObjectIndexFailOnRef
-          "parsing xrefs (v2)"
-          inp
-          $ do
-            pSetInput i
-            pManyWS     -- FIXME: later: warn if this consumes anything
-            pCrossRef 
-      xref <- quitIfParseError
-                ("parsing xref table (at byte offset " ++ show i ++ ")")
-                xref'
+      -- Parse the basic syntax of the xref table
+      (xref,xrefEnd) <-
+        let ctx = "parsing xref table (at byte offset " ++ show (sizeToInt offset) ++ ")"
+        in
+          runParserWithoutObjectIndexFailOnRef
+            ctx
+            input1
+            (do
+             pSetInput input1
+             pManyWS     -- FIXME: later: warn if this consumes anything
+             crossRef <- pCrossRef
+             crossRefEnd <- pOffset
+             return (crossRef, crossRefEnd))
+          >>= quitIfParseError ctx                
+       
+      -- NOTE: the following is where Version1 differs from Version2:
+      --   FIXME[F1]: Are we overconstraining syntax?
+      --   FIXME[F1]: we don't really know, on the first-found update, that this trailerEnd
+      --              is the same one we found at the end of the file!
+
+      trailerEnd <-
+        let ctx = "parsing 'startxref' to '%%EOF'"
+            Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
+            
+        in  runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
+             >>= quitIfParseError ctx
+            
       case xref of
-        CrossRef_oldXref x -> processTrailer XRefTable  x
-        CrossRef_newXref x -> processTrailer XRefStream x
+        CrossRef_oldXref x -> processTrailer XRefTable  x trailerEnd
+        CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
 
   where
   processTrailer :: ( VecElem s
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => XRefType -> x -> IO (IncUpdate, Maybe FileOffset)
-  processTrailer xrefType x =
-    do let t = getField @"trailer" x
-       prev <- case getField @"prev" t of
-                 Nothing -> pure Nothing
-                 Just i ->
-                    case toInt i of
-                      Nothing  -> newError FromUser "parseTrailer"
-                                                    "Prev offset too large."
-                      Just offset' ->
-                          let offset'' = intToSize offset' in
-                          if offset'' /= offset then
-                            pure (Just offset'')
-                          else
-                            newError FromUser "parseTrailer"
-                                              "Prev offset unchanged"
-                          -- FIXME[F1]: above is hardly sufficient: infinite loop possible!
-                             -- and with being able to point to whitespace above, using offsets
-                             -- isn't best way to compare xref tables, we would like the
-                             -- offset of the "xref" keyword
+                    ) => XRefType -> x -> TrailerEnd -> IO IncUpdate
+  processTrailer xrefType x trailerEnd =
+    do let trailerDict = getField @"trailer" x
                            
        xrefss <- quitIfFail $ mapM convertToXRefEntries (toList (getField @"xref" x))
-       -- NOTE: this where Version1 differs from Version2
-       -- FIXME[F1]: Are we overconstraining syntax?
-       te <- let ctx = "parsing 'startxref' to '%%EOF'" 
-             in runParserWithoutObjectIndexFailOnRef ctx inp pTrailerEnd
-                  >>= quitIfParseError ctx
-              
        -- FIXME[F3]: PDF requires that the trailers are consistent. check somewhere.
-       return ( IU{ iu_type      = xrefType
+       return $ IU{ iu_type      = xrefType
                   , iu_xrefs     = xrefss
-                  , iu_trailer   = t
-                  , iu_startxref = te
+                  , iu_trailer   = trailerDict
+                  , iu_startxref = trailerEnd
                   }
-              , prev
-              )
          
 ---- report ------------------------------------------------------------------
 
@@ -412,7 +420,7 @@ printCavityReport bodyStart_base inp updates =
           unless (RIntSet.null i) $
             warn $
               "object definitions overlap (highly suspicious) on the following offsets: "
-              ++ show (RIntSet.toRangeList i)
+               ++ show (RIntSet.toRangeList i)
 
           putChar '\n'
           return ( numC + length cs :: Int
