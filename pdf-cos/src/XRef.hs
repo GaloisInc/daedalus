@@ -221,15 +221,18 @@ parseXRefsVersion2 inp offset =
     do
     updates <- parseAllIncUpdates inp offset
     
-    -- create object index (oi) map:
-    oi <- foldlM
+    -- create object index map:
+    let pObjectIndex =
+          foldlM
             (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
                          return (Map.union oi' oi))
-                                -- NOTE: Map.union is left-biased.
+                                 -- NOTE: Map.union is left-biased.
             Map.empty
             updates
-    pure $ Right (updates, oi, iu_trailer(last updates))
-      -- FIXME: move 'Possibly' down.
+
+    pure $ do
+           objectIndex <- pObjectIndex
+           return (updates, objectIndex, iu_trailer(last updates))
       
     -- updates == [base,upd1,upd2,...]
     -- length(updates) >= 1
@@ -237,13 +240,13 @@ parseXRefsVersion2 inp offset =
 
   where
     
-  convertSubSectionsToObjMap :: [[XRefEntry]] -> IO ObjIndex
+  convertSubSectionsToObjMap :: [[XRefEntry]] -> Possibly ObjIndex
   convertSubSectionsToObjMap xrefss =
-    do objMaps  <- quitIfFail $ mapM xrefEntriesToMap xrefss
+    do objMaps  <- mapM xrefEntriesToMap xrefss
        let objMap = Map.unions objMaps
        unless (Map.size objMap == sum (map Map.size objMaps))
-           (newError FromUser "convertSubSectionsToObjMap"
-                     "Duplicate entries in xref section")
+           (newError2 FromUser "convertSubSectionsToObjMap"
+                      "Duplicate entries in xref section")
        pure objMap
 
 
