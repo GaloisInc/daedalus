@@ -222,7 +222,7 @@ cSumTags :: [TDecl] -> CDecl
 cSumTags sums
   | null sums = empty
   | otherwise = cNamespace cUserNameSpace
-                  [ cNamespace "Tag" (map cSumTag sums) ]
+                  [ cNamespace cUserTagNameSpace (map cSumTag sums) ]
 
   where
   cSumTag ty =
@@ -234,11 +234,14 @@ cSumTags sums
 
 -- | The type of tags for the given type
 cSumTagT :: TDecl -> CType
-cSumTagT tdecl = cUserNameSpace <.> "::Tag::" <.> cTNameRoot (tName tdecl)
+cSumTagT tdecl =
+  cUserNameSpace <.> "::" <.> cUserTagNameSpace <.> "::" <.>
+                                              cTNameRoot (tName tdecl)
 
 cSumTagV :: TName -> Label -> Doc
 cSumTagV t l =
-  cUserNameSpace <.> "::Tag::" <.> cTNameRoot t <.> "::" <.> cLabel l
+  cUserNameSpace <.> "::" <.> cUserTagNameSpace <.> "::" <.>
+                                            cTNameRoot t <.> "::" <.> cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
@@ -268,7 +271,7 @@ cUnboxedSum vis tdecl = vcat (theClass : decFunctions vis tdecl)
         [ "union Data {"
         , nest 2 $ vcat $ map cStmt [ cSemType t <+> cField n | (t,n) <- fs ]
         , nest 2 "Data() {}"
-        , "} data"
+        , "} ddl_data"
         ]
     | let fs = [ (t,n) | ((_,t),n) <- zip fields [ 0 .. ], t /= TUnit ]
     , not (null fs)
@@ -596,7 +599,7 @@ defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
                      ]
          GenUnboxed ->
             cStmt ("tag =" <+> cSumTagV (tName tdecl) l)
-          : [ cStmt ("data." <.> cField n <+> "=" <+> cLabel l) | t /= TUnit ]
+          : [ cStmt ("ddl_data." <.> cField n <+> "=" <+> cLabel l) | t /= TUnit ]
 
 
 --------------------------------------------------------------------------------
@@ -651,7 +654,7 @@ defSelectorsOwn vis boxed tdecl borrow = zipWith sel (getFields tdecl) [ 0 .. ]
                        TUnit -> "DDL::Unit()"
                        _     -> f
            ]
-           where f = if uni then "data." <.> cField n else cField n
+           where f = if uni then "ddl_data." <.> cField n else cField n
         )
 
 --------------------------------------------------------------------------------
@@ -686,7 +689,7 @@ defCopyFree vis boxed fun tdecl = defMethod vis tdecl "void" fun [] def
                     ]
 
   stmts struct =
-    let dat = if struct then empty else "data."
+    let dat = if struct then empty else "ddl_data."
     in
     catMaybes
        [ do s <- maybeCopyFree fun t (dat <.> cField n)
